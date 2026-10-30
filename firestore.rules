@@ -468,7 +468,10 @@ service cloud.firestore {
     // stats/nacho-analytics is server-written. Clients may read it.
     // =============================================
     match /stats/{statId} {
-      allow read: if true;
+      // Leaderboard snapshots (stats/lb_*) match the old profile boards:
+      // any signed-in user, including anonymous, may read them. A signed-out
+      // read is denied. Every other stats doc stays public.
+      allow read: if !statId.matches('lb_.*') || request.auth != null;
       allow update: if request.auth != null
                     && statId == 'visits'
                     && request.resource.data.total == resource.data.total + 1;
@@ -486,7 +489,13 @@ service cloud.firestore {
       // stats/quest_leaderboard_alltime, stats/quest_leaderboard_week, and
       // stats/quest_leaderboard_month are written by refreshQuestLeaderboard.
       // No write rule matches those ids. Clients only read them.
-      // Read stays open via `allow read: if true` above.
+      // Read for these ids stays open: they do not match lb_*.
+      // stats/lb_xp_alltime, stats/lb_xp_week, stats/lb_xp_month, stats/lb_pvp,
+      // stats/lb_favor_hashers, stats/lb_raid_alltime, and stats/lb_dirty are
+      // leaderboard snapshots and the dirty marker. The scheduled refreshes
+      // and syncPublicProfile write them with the Admin SDK.
+      // No write rule matches those ids, so client create/update/delete is
+      // false. Signed-in clients may read them. Signed-out clients may not.
       // ─── Global community stats ───
       // Authenticated (non-anonymous) users may increment whitelisted counters
       // by exactly +1 per write (watchTimeMinutes allows +1..+5 for batched TCTV pings).

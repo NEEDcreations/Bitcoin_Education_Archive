@@ -10,6 +10,7 @@ scripts/*
 !scripts/backfill-badge-favor.js
 !scripts/raid-boss-activity.js
 !scripts/raid-boss-inspect.js
+!scripts/backfill-leaderboard-snapshots.js
 .keys/
 firebase-debug.log
 firestore-debug.log
