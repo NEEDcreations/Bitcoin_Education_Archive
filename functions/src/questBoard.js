@@ -387,13 +387,25 @@ function compareRows(a, b) {
     return 0;
 }
 
+// selectBoard computes pct from attempt counts. refresh then packs those
+// public rows again. A packed row has pct and no counts, so a second
+// displayPct() would be 0. Keep a pct that is already final.
+function pctOf(row) {
+    const src = row || {};
+    if (src.attempts == null && src.passedAttempts == null && src.pct != null && src.pct !== '') {
+        const n = Math.round(Number(src.pct));
+        return Number.isFinite(n) && n > 0 ? n : 0;
+    }
+    return displayPct(src.passedAttempts, src.attempts);
+}
+
 function publicEntry(row, rank) {
     return {
         rank: rank,
         username: displayName(row.username),
         profilePic: safePic(row.profilePic),
         passes: whole(row.passes),
-        pct: displayPct(row.passedAttempts, row.attempts)
+        pct: pctOf(row)
     };
 }
 
