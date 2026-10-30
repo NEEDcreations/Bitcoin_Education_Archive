@@ -108,6 +108,7 @@ const DEFERRED_USER_SUBCOLLECTIONS = [
     'proof_of_walk_stats',
     'quest_completions',
     'quest_passes',
+    'quest_attempts',
     'lifetime_awards',
     'onboarding_evidence',
 ];
@@ -1311,6 +1312,7 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         ['giveaway_entries', uid, []],
         ['active_predictions', uid, []],
         ['prediction_stats', uid, []],
+        ['quest_lb_stats', uid, []],
         ['tctv_presence', uid, []],
         ['buddy_pool', uid, []],
         ['pvp_lobby', uid, []],
