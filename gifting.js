@@ -495,6 +495,193 @@ function _raiseGiftLayer() {
     return _giftLayerZ;
 }
 
+// User-opened cipher, key send, claim, and inventory sit above the gift
+// screen. Esc and Back close only that layer and return focus to the gift.
+var _giftingChildren = [];
+var _giftingPopBound = false;
+var _giftingIgnorePop = 0;
+
+function _topLayerZ() {
+    var top = _giftLayerZ || 480000;
+    var ids = ['postSpinGiftOverlay', 'decryptCipherOverlay', 'cipherClaimOverlay', 'peerPickerOverlay', 'keyPickerOverlay', 'questHubOverlay'];
+    for (var i = 0; i < ids.length; i++) {
+        var el = document.getElementById(ids[i]);
+        if (!el) continue;
+        var z = _numericZ(el);
+        if (z > top) top = z;
+    }
+    return top + 2;
+}
+
+function _firstElementChild(node) {
+    var kids = node && node.childNodes ? node.childNodes : [];
+    for (var i = 0; i < kids.length; i++) {
+        if (kids[i] && kids[i].nodeType === 1) return kids[i];
+    }
+    return null;
+}
+
+function _focusables(root) {
+    var out = [];
+    function walk(node) {
+        if (!node || node.nodeType !== 1) return;
+        var tag = String(node.tagName || '').toUpperCase();
+        if ((tag === 'BUTTON' || tag === 'TEXTAREA' || tag === 'INPUT' || tag === 'A' || tag === 'SELECT') && !node.disabled) out.push(node);
+        var kids = node.childNodes || [];
+        for (var i = 0; i < kids.length; i++) walk(kids[i]);
+    }
+    walk(root);
+    return out;
+}
+
+function _bindGiftingPop() {
+    if (_giftingPopBound || !window.addEventListener) return;
+    _giftingPopBound = true;
+    window.addEventListener('popstate', function() {
+        if (_giftingIgnorePop > 0) {
+            _giftingIgnorePop--;
+            return;
+        }
+        var top = _giftingChildren.length ? _giftingChildren[_giftingChildren.length - 1] : null;
+        if (!top) return;
+        if (top.inventory) {
+            setTimeout(function() {
+                if (!document.getElementById('questHubOverlay')) _finishGiftingChild(top);
+            }, 0);
+            return;
+        }
+        if (!top.pushed) return;
+        top.pushed = false;
+        _finishGiftingChild(top);
+    });
+}
+
+function _restoreGiftingFocus(entry) {
+    var back = entry && entry.focus;
+    if (back && _nodeInside(back, document.body) && typeof back.focus === 'function') {
+        try { back.focus(); return; } catch (e) { /* the opener may be gone */ }
+    }
+    var gift = document.getElementById('postSpinGiftOverlay');
+    var dialog = gift ? _firstElementChild(gift) : null;
+    if (dialog && typeof dialog.focus === 'function') {
+        try { dialog.focus(); } catch (e2) { /* focus is best-effort */ }
+    }
+}
+
+function _finishGiftingChild(entry) {
+    if (!entry) return;
+    var idx = _giftingChildren.indexOf(entry);
+    if (idx >= 0) _giftingChildren.splice(idx, 1);
+    if (entry.el && entry.el.parentNode) entry.el.remove();
+    _restoreGiftingFocus(entry);
+}
+
+function _mountGiftingChild(overlay, returnFocus) {
+    if (!overlay) return;
+    overlay.style.zIndex = String(_topLayerZ());
+    var modal = _firstElementChild(overlay);
+    if (modal) {
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        if (modal.getAttribute('tabindex') == null) modal.setAttribute('tabindex', '-1');
+    }
+    var pushed = false;
+    try {
+        if (typeof history !== 'undefined' && history && typeof history.pushState === 'function') {
+            history.pushState({ giftingChild: overlay.id }, '', (window.location && window.location.href) || '');
+            pushed = true;
+        }
+    } catch (e) { pushed = false; }
+    _giftingChildren.push({ id: overlay.id, el: overlay, focus: returnFocus || null, pushed: pushed, modal: modal, inventory: false });
+    _bindGiftingPop();
+    setTimeout(function() {
+        if (modal && typeof modal.focus === 'function') {
+            try { modal.focus(); } catch (err) { /* focus is best-effort */ }
+        }
+    }, 30);
+}
+
+function _dismissGiftingChild(overlayOrId, reason) {
+    var id = typeof overlayOrId === 'string' ? overlayOrId : (overlayOrId && overlayOrId.id);
+    if (!id) return;
+    var entry = null;
+    for (var i = 0; i < _giftingChildren.length; i++) {
+        if (_giftingChildren[i].id === id) { entry = _giftingChildren[i]; break; }
+    }
+    if (!entry) {
+        var el = typeof overlayOrId === 'string' ? document.getElementById(id) : overlayOrId;
+        if (el && el.parentNode) el.remove();
+        return;
+    }
+    if (reason !== 'back' && entry.pushed && typeof history !== 'undefined' && history && typeof history.back === 'function') {
+        entry.pushed = false;
+        _giftingIgnorePop++;
+        try { history.back(); } catch (err) { _giftingIgnorePop--; }
+    }
+    _finishGiftingChild(entry);
+}
+
+function _topGiftingChild() {
+    for (var i = _giftingChildren.length - 1; i >= 0; i--) {
+        var entry = _giftingChildren[i];
+        if (entry.inventory) {
+            if (document.getElementById('questHubOverlay')) return entry;
+            continue;
+        }
+        if (entry.el && entry.el.parentNode) return entry;
+    }
+    return null;
+}
+
+function _closeInventoryOverGift() {
+    var entry = null;
+    for (var i = _giftingChildren.length - 1; i >= 0; i--) {
+        if (_giftingChildren[i].inventory) { entry = _giftingChildren.splice(i, 1)[0]; break; }
+    }
+    var hub = document.getElementById('questHubOverlay');
+    if (hub && hub.parentNode) hub.remove();
+    if (window._qhPopHandler && window.removeEventListener) {
+        window.removeEventListener('popstate', window._qhPopHandler);
+        window._qhPopHandler = null;
+    }
+    var hash = (window.location && window.location.hash) || '';
+    if (hash === '#questhub' && typeof history !== 'undefined' && history && typeof history.back === 'function') {
+        _giftingIgnorePop++;
+        try { history.back(); } catch (err) { _giftingIgnorePop--; }
+    }
+    _restoreGiftingFocus(entry);
+}
+
+function _trapGiftingTab(e, entry) {
+    var root = (entry && entry.el) || document.getElementById('questHubOverlay');
+    var items = _focusables(root);
+    if (!items.length) return;
+    var current = document.activeElement;
+    var idx = items.indexOf(current);
+    if (e.preventDefault) e.preventDefault();
+    var next = e.shiftKey ? (idx <= 0 ? items[items.length - 1] : items[idx - 1]) : (idx < 0 || idx >= items.length - 1 ? items[0] : items[idx + 1]);
+    if (next && typeof next.focus === 'function') {
+        try { next.focus(); } catch (err) { /* keep the dialog focus */ }
+    }
+}
+
+function _noteInventoryOverGift(returnFocus) {
+    var hub = document.getElementById('questHubOverlay');
+    if (!hub || !document.getElementById('postSpinGiftOverlay')) return;
+    hub.style.zIndex = String(_topLayerZ());
+    var modal = _firstElementChild(hub);
+    if (modal) {
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        if (modal.getAttribute('tabindex') == null) modal.setAttribute('tabindex', '-1');
+        if (typeof modal.focus === 'function') {
+            try { modal.focus(); } catch (e) { /* focus is best-effort */ }
+        }
+    }
+    _giftingChildren.push({ id: 'questHubOverlay', el: hub, focus: returnFocus || null, pushed: false, modal: modal, inventory: true });
+    _bindGiftingPop();
+}
+
 function _confetti() {
     var colors = ['#f7931a', '#fbbf24', '#a78bfa', '#34d399', '#f472b6', '#60a5fa'];
     for (var i = 0; i < 12; i++) {
@@ -665,7 +852,19 @@ function _closePostSpinGiftModal() {
 function _onGiftModalKeydown(e) {
     if (!e) return;
     var key = e.key;
+    var top = _topGiftingChild();
+    if (top && key === 'Tab') {
+        _trapGiftingTab(e, top);
+        return;
+    }
     if (key !== 'Escape' && key !== 'Esc' && e.keyCode !== 27) return;
+    if (top) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+        if (top.inventory) _closeInventoryOverGift();
+        else _dismissGiftingChild(top.id, 'escape');
+        return;
+    }
     if (!document.getElementById('postSpinGiftOverlay')) return;
     if (e.preventDefault) e.preventDefault();
     _closePostSpinGiftModal();
@@ -1630,6 +1829,7 @@ window.decryptCipherModal = function(cipherId, cipherLabel, knownKey) {
 };
 
 async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
+    var returnFocus = document.activeElement || null;
     if (!_isSignedIn()) { _toast('Sign in to open a cipher'); return; }
     if (await _readSatsDisabled()) { _toast(SATS_OFF_MSG); return; }
     _injectGiftingCSS();
@@ -1640,11 +1840,10 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
     if (!key) { _toast('No matching ' + cipherLabel + ' key'); return; }
 
     var old = document.getElementById('decryptCipherOverlay');
-    if (old) old.remove();
+    if (old) _dismissGiftingChild(old);
     var overlay = document.createElement('div');
     overlay.id = 'decryptCipherOverlay';
     overlay.className = 'gifting-overlay';
-    overlay.style.zIndex = '480000';
     var modal = document.createElement('div');
     modal.className = 'gifting-modal';
     var own = key.status === 'inventory';
@@ -1656,6 +1855,7 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
         '<div id="dcResult" style="display:none;"></div>';
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
+    _mountGiftingChild(overlay, returnFocus);
 
     var hexEl = document.getElementById('dcHex');
     var statusEl = document.getElementById('dcStatus');
@@ -1694,7 +1894,7 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
             close.style.border = '1px solid var(--border,#333)';
             close.style.color = 'var(--text-muted)';
             close.style.width = '100%';
-            close.onclick = function() { overlay.remove(); };
+            close.onclick = function() { _dismissGiftingChild(overlay); };
             resultDiv.appendChild(close);
         }
         if (refreshPromise) await refreshPromise;
@@ -1731,7 +1931,7 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
         var done = _btn('Nice!');
         done.style.width = '100%';
         done.style.marginTop = '10px';
-        done.onclick = function() { overlay.remove(); };
+        done.onclick = function() { _dismissGiftingChild(overlay); };
         resultDiv.appendChild(done);
     }
     _confetti();
@@ -1742,17 +1942,17 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
 // ─── Claim a small sats win ──────────────────────────────────────────────────
 
 window.showCipherClaim = function(win) {
+    var returnFocus = document.activeElement || null;
     if (window._satsDisabled === true || (typeof currentUser !== 'undefined' && currentUser && currentUser.satsDisabled === true)) {
         _toast(SATS_OFF_MSG);
         return;
     }
     _injectGiftingCSS();
     var old = document.getElementById('cipherClaimOverlay');
-    if (old) old.remove();
+    if (old) _dismissGiftingChild(old);
     var overlay = document.createElement('div');
     overlay.id = 'cipherClaimOverlay';
     overlay.className = 'gifting-overlay';
-    overlay.style.zIndex = '480000';
     var modal = document.createElement('div');
     modal.className = 'gifting-modal';
     modal.style.textAlign = 'left';
@@ -1774,7 +1974,7 @@ window.showCipherClaim = function(win) {
     var cancel = _btn('Cancel', 'transparent');
     cancel.style.border = '1px solid var(--border,#333)';
     cancel.style.color = 'var(--text-muted)';
-    cancel.onclick = function() { overlay.remove(); };
+    cancel.onclick = function() { _dismissGiftingChild(overlay); };
     go.onclick = async function() {
         var raw = (input.value || '').trim();
         if (!raw) { _toast('Paste an invoice or Lightning Address'); return; }
@@ -1792,7 +1992,7 @@ window.showCipherClaim = function(win) {
                 _toast('❌ ' + (d.error || 'Payment failed'));
                 return;
             }
-            overlay.remove();
+            _dismissGiftingChild(overlay);
             _toast('⚡ ' + (d.amount || win.amount) + ' sats sent!');
             var host = document.getElementById('nookKeysCiphers');
             if (host) window.renderKeysAndCiphersPanel(host);
@@ -1810,12 +2010,14 @@ window.showCipherClaim = function(win) {
     modal.appendChild(row);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
+    _mountGiftingChild(overlay, returnFocus);
     setTimeout(function() { input.focus(); }, 50);
 };
 
 // ─── Send keys ───────────────────────────────────────────────────────────────
 
 window.showPeerPickerForKeys = async function(keyIds) {
+    var returnFocus = document.activeElement || null;
     if (!_isSignedIn()) { _toast('Sign in to send keys'); return; }
     _injectGiftingCSS();
     var ids = (keyIds || []).slice(0, 3);
@@ -1834,11 +2036,10 @@ window.showPeerPickerForKeys = async function(keyIds) {
     } catch (e) { peers = []; }
 
     var old = document.getElementById('peerPickerOverlay');
-    if (old) old.remove();
+    if (old) _dismissGiftingChild(old);
     var overlay = document.createElement('div');
     overlay.id = 'peerPickerOverlay';
     overlay.className = 'gifting-overlay';
-    overlay.style.zIndex = '480000';
     overlay.style.alignItems = 'flex-end';
     var sheet = document.createElement('div');
     sheet.style.cssText = 'background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:18px 18px 0 0;padding:18px;width:100%;max-width:480px;max-height:80vh;overflow-y:auto;';
@@ -1858,11 +2059,11 @@ window.showPeerPickerForKeys = async function(keyIds) {
         noneActions.className = 'kc-help-actions';
         noneActions.style.marginBottom = '10px';
         noneActions.appendChild(_peopleLink('Open Global Chat', function() {
-            overlay.remove();
+            _dismissGiftingChild(overlay);
             _openChatForKeys();
         }));
         noneActions.appendChild(_peopleLink('Open Leaderboard', function() {
-            overlay.remove();
+            _dismissGiftingChild(overlay);
             _openLeaderboardForKeys();
         }));
         sheet.appendChild(none);
@@ -1880,7 +2081,7 @@ window.showPeerPickerForKeys = async function(keyIds) {
                 var sent = await _callCF('sendKeys', { keyIds: ids, recipientUid: p.uid });
                 ids.forEach(function(id) { _noteSpent(id); });
                 _keySendToast(p.name, sent);
-                overlay.remove();
+                _dismissGiftingChild(overlay);
                 await _refreshHoldingsViews();
             } catch (e) {
                 b.disabled = false;
@@ -1894,14 +2095,16 @@ window.showPeerPickerForKeys = async function(keyIds) {
     close.style.border = '1px solid #334155';
     close.style.color = '#e2e8f0';
     close.style.width = '100%';
-    close.onclick = function() { overlay.remove(); };
+    close.onclick = function() { _dismissGiftingChild(overlay); };
     sheet.appendChild(close);
     overlay.appendChild(sheet);
-    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) _dismissGiftingChild(overlay); });
     document.body.appendChild(overlay);
+    _mountGiftingChild(overlay, returnFocus);
 };
 
 window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
+    var returnFocus = document.activeElement || null;
     if (!_isSignedIn()) { _toast('Sign in to send keys'); return; }
     _injectGiftingCSS();
     var isPeer = (window._myPeers && window._myPeers.has && window._myPeers.has(recipientUid));
@@ -1915,11 +2118,10 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
     var holdings = await _loadHoldings();
     var keys = holdings.ownKeys;
     var old = document.getElementById('keyPickerOverlay');
-    if (old) old.remove();
+    if (old) _dismissGiftingChild(old);
     var overlay = document.createElement('div');
     overlay.id = 'keyPickerOverlay';
     overlay.className = 'gifting-overlay';
-    overlay.style.zIndex = '480000';
     overlay.style.alignItems = 'flex-end';
     var sheet = document.createElement('div');
     sheet.style.cssText = 'background:#0f172a;color:#e2e8f0;border-radius:18px 18px 0 0;padding:18px;width:100%;max-width:480px;max-height:80vh;overflow:auto;border:1px solid #334155;';
@@ -1950,10 +2152,11 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
             closeBlocked.style.border = '1px solid #334155';
             closeBlocked.style.color = '#e2e8f0';
             closeBlocked.style.width = '100%';
-            closeBlocked.onclick = function() { overlay.remove(); };
+            closeBlocked.onclick = function() { _dismissGiftingChild(overlay); };
             sheet.appendChild(closeBlocked);
             overlay.appendChild(sheet);
             document.body.appendChild(overlay);
+            _mountGiftingChild(overlay, returnFocus);
             return;
         }
     } catch (e) { /* server still enforces the cap */ }
@@ -1999,7 +2202,7 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
             var sentKeys = await _callCF('sendKeys', { keyIds: sentIds, recipientUid: recipientUid });
             sentIds.forEach(function(id) { _noteSpent(id); });
             _keySendToast(recipientName || 'your peer', sentKeys);
-            overlay.remove();
+            _dismissGiftingChild(overlay);
             await _refreshHoldingsViews();
         } catch (e) {
             send.disabled = false;
@@ -2015,10 +2218,11 @@ window.showKeyPickerForPeer = async function(recipientUid, recipientName) {
     close.style.color = '#e2e8f0';
     close.style.width = '100%';
     close.style.marginTop = '8px';
-    close.onclick = function() { overlay.remove(); };
+    close.onclick = function() { _dismissGiftingChild(overlay); };
     sheet.appendChild(close);
     overlay.appendChild(sheet);
     document.body.appendChild(overlay);
+    _mountGiftingChild(overlay, returnFocus);
 };
 
 // ─── Settings blurb: pending gifts only (the explanation is in the page) ────
@@ -2056,6 +2260,8 @@ window.renderGiftsSettingsTab = async function() {
 
 window.openNookInventory = function() {
     if (typeof showQuestHub !== 'function') return;
+    var returnFocus = document.activeElement || null;
+    var giftOpen = !!document.getElementById('postSpinGiftOverlay');
     showQuestHub();
     setTimeout(function() {
         window._questHubTab = 'nook';
@@ -2064,6 +2270,7 @@ window.openNookInventory = function() {
         var hub = document.getElementById('questHubOverlay');
         var settings = document.getElementById('usernameModal');
         if (hub && settings && settings.classList.contains('open')) hub.style.zIndex = '450000';
+        if (giftOpen) _noteInventoryOverGift(returnFocus);
     }, 120);
 };
 

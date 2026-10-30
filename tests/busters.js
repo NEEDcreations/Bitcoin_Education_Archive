@@ -1,16 +1,16 @@
 // Cache-buster pin. This ship is btc-archive-v2430.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
 // timechain-tv.js stays 20261026_v2383. scholar.js stays 20261026_v2386.
-// patches.js stays 20261026_v2385. bundle.min.js is 20261028_v2417.
+// patches.js stays 20261026_v2385. bundle.min.js is 20261029_v2429.
 // earn-xp-guide.js and guide.js stay 20261026_v2382. ranking.js is 20261028_v2425.
 // modules.js and learning-quests.js stay 20261026_v2377.
 // scholar.js matches window.SCHOLAR_SCRIPT.
-// global-chat.js is 20261028_v2425. gifting.js stays 20261026_v2378. quests.js is 20261028_v2415.
+// global-chat.js is 20261028_v2425. gifting.js is 20261029_v2429. quests.js is 20261028_v2415.
 // satoshi-favor.js stays 20261026_v2368.
 // onboarding.js stays 20261026_v2373. today-card.js stays 20261026_v2371.
 // features.registry.js stays 20261024_v2368. achievement-share.js is 20261026_v2391.
 // patches.js stays 20261026_v2385. nacho-qa.js stays 20261024_v2350.
-// gifting.js is 20261026_v2378.
+// gifting.js is 20261029_v2429.
 // notifications.js stays 20261024_v2357.
 // username-repick.js stays 20261024_v2352.
 // beats.js, pvp.js, and pvp-lobby-alert.js stay 20261026_v2391. shareable-certs.js is 20261028_v2410. guide.js stays 20261026_v2382.
@@ -115,11 +115,11 @@ test('service worker cache is v2430', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261028_v2417/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261029_v2429/g) || []).length, 2);
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2418'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2415'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2411'));
-    assert.ok(html.includes('bundle.min.js?v=20261028_v2417'));
+    assert.ok(html.includes('bundle.min.js?v=20261029_v2429'));
     assert.ok(!html.includes('bundle.min.js?v=20261027_v2395'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2391'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2390'));
@@ -203,7 +203,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('auth-boot.js?v=20261027_v2394'));
     assert.ok(html.includes('bundle-ready.js?v=20261027_v2394'));
     assert.ok(html.indexOf('firebase-config.js?v=20261027_v2394') < html.indexOf('auth-boot.js?v=20261027_v2394'));
-    assert.ok(html.indexOf('bundle.min.js?v=20261028_v2417') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
+    assert.ok(html.indexOf('bundle.min.js?v=20261029_v2429') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
     assert.ok(html.includes('fetchpriority="high"'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2382'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
@@ -362,7 +362,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('features.registry.js?v=20261022_v2265'));
     assert.ok(html.includes('onboarding.js?v=20261026_v2373'));
     assert.ok(!html.includes('onboarding.js?v=20261024_v2358'));
-    assert.ok(html.includes('gifting.js?v=20261026_v2378'));
+    assert.ok(html.includes('gifting.js?v=20261029_v2429'));
     assert.ok(!html.includes('gifting.js?v=20261026_v2400'));
     assert.ok(!html.includes('gifting.js?v=20261026_v2399'));
     assert.ok(!html.includes('gifting.js?v=20261024_v2365'));
@@ -492,6 +492,7 @@ test('homepage topics ring counts explored channels and says 145', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('October 29, 2026 · v2430'));
+    assert.ok(!notes.includes('October 29, 2026 · v2429'));
     assert.ok(!notes.includes('October 29, 2026 · v2427'));
     assert.ok(!notes.includes('October 29, 2026 · v2426'));
     assert.ok(!notes.includes('October 28, 2026 · v2425'));
@@ -516,7 +517,9 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(!notes.includes('October 27, 2026 · v2394'));
     assert.ok(!notes.includes('October 27, 2026 · v2393'));
     assert.ok(!notes.includes('October 26, 2026 · v2391'));
-    assert.ok(notes.includes('Latest: Fixed leaderboards and your saved profile taking too long to load.'));
+    assert.ok(notes.includes("Latest: The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front."));
+    assert.ok(notes.includes('Fixed leaderboards and your saved profile taking too long to load.'));
+    assert.ok(!notes.includes('Latest: Fixed leaderboards'));
     assert.ok(notes.includes('Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.'));
     assert.ok(!notes.includes('Latest: Daily Streaks'));
     assert.ok(notes.includes('Double XP now applies to every way you earn XP.'));

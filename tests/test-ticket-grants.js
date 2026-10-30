@@ -83,8 +83,14 @@ test('a doubled amount is rejected unless Double XP is active', () => {
     assert.strictEqual(plain.awarded, 5);
     assert.strictEqual(awardActions.resolveAction({ action: '🎮 Quiz correct!', pts: 10 }).requiresDoubleXp, false);
     assert.strictEqual(awardActions.resolveAction({ action: '🎮 Quiz correct!', pts: 20 }).requiresDoubleXp, true);
-    assert.strictEqual(awardActions.resolveAction({ action: 'Daily Spin', pts: 100 }).requiresDoubleXp, false);
-    assert.strictEqual(awardActions.resolveAction({ action: 'Daily Spin', pts: 200 }).requiresDoubleXp, true);
+    const spinBase = awardActions.resolveAction({ action: 'Daily Spin', pts: 100 });
+    const spinDoubled = awardActions.resolveAction({ action: 'Daily Spin', pts: 200 });
+    assert.strictEqual(spinBase.ok, true);
+    assert.strictEqual(spinBase.xp, 0);
+    assert.strictEqual(spinBase.requiresDoubleXp, false);
+    assert.strictEqual(spinDoubled.ok, true);
+    assert.strictEqual(spinDoubled.xp, 0);
+    assert.strictEqual(spinDoubled.requiresDoubleXp, false);
     const future = ticketGrants.doubleXpActive({ toMillis: function() { return Date.now() + 1000; } }, Date.now());
     const past = ticketGrants.doubleXpActive({ toMillis: function() { return Date.now() - 1000; } }, Date.now());
     assert.strictEqual(future, true);

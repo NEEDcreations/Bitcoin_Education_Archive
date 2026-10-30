@@ -300,7 +300,7 @@ test('stripShareLinks finishes a 1 MB dotted string in under 50 ms', () => {
 test('patch notes keep one Latest line and pages match', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    const latestAt = notes.indexOf('Latest: Fixed leaderboards and your saved profile taking too long to load.');
+    const latestAt = notes.indexOf("Latest: The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front.");
     assert.ok(notes.includes('Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.'));
     assert.ok(!notes.includes('Latest: Daily Streaks'));
     assert.ok(notes.includes('Double XP now applies to every way you earn XP.'));

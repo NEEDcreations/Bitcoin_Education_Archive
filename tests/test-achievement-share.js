@@ -16,7 +16,7 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-const LATEST = "Latest: Fixed leaderboards and your saved profile taking too long to load.";
+const LATEST = "Latest: The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front.";
 const STREAKS_NOTE = "Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.";
 const DOUBLE_XP_NOTE = "Double XP now applies to every way you earn XP.";
 const RAID = "The raid boss shows HP remaining, the same remaining over max HP as the raid screen.";

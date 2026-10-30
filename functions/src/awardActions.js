@@ -304,13 +304,14 @@ function resolvePhrase(action, ctx) {
         });
     }
 
+    // Wheel prizes are paid only by dailySpin. A cached client can still call
+    // awardPoints with this phrase and a chosen amount (25, 50, 100, or 200
+    // while Double XP). Ignore that amount. xp 0 stays ok so the callable
+    // returns a normal zero grant instead of throwing.
     if (action === 'Daily Spin') {
-        const choice = payChoice(clientPts, { 25: 25, 50: 50, 100: 50 }, { 200: 50 });
-        if (!choice) return unknown();
         return done({
             id: 'daily_spin',
-            xp: choice.xp,
-            requiresDoubleXp: choice.requiresDoubleXp,
+            xp: 0,
             dedupGroup: 'daily_spin',
             target: 'spin',
         });
