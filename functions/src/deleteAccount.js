@@ -137,6 +137,8 @@ const RETAINED_COLLECTIONS = [
     'reports',
     'prediction_payouts',
     'prediction_records',
+    // Deleting the prize marker would let a later retry pay that period again.
+    'lb_prize_markers',
     'deleted_accounts',
 ];
 

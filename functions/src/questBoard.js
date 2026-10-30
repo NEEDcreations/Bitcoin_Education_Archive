@@ -167,19 +167,65 @@ function normalizeStats(src) {
         monthPasses: month.passes,
         monthReachedAt: timeMs(raw.monthReachedAt),
         monthPassed: monthPassed,
+        prevWeekKey: typeof raw.prevWeekKey === 'string' ? raw.prevWeekKey : '',
+        prevWeekAttempts: whole(raw.prevWeekAttempts),
+        prevWeekPassedAttempts: whole(raw.prevWeekPassedAttempts),
+        prevWeekPasses: whole(raw.prevWeekPasses),
+        prevWeekReachedAt: timeMs(raw.prevWeekReachedAt),
+        prevMonthKey: typeof raw.prevMonthKey === 'string' ? raw.prevMonthKey : '',
+        prevMonthAttempts: whole(raw.prevMonthAttempts),
+        prevMonthPassedAttempts: whole(raw.prevMonthPassedAttempts),
+        prevMonthPasses: whole(raw.prevMonthPasses),
+        prevMonthReachedAt: timeMs(raw.prevMonthReachedAt),
         live: raw.live === true,
         updatedAt: timeMs(raw.updatedAt)
     };
 }
 
+function prevBucket(prefix) {
+    if (prefix === 'week') return 'prevWeek';
+    if (prefix === 'month') return 'prevMonth';
+    return '';
+}
+
+// The public counters only describe the open period. When the key changes,
+// keep the period that just closed so a quest between Eastern midnight and
+// the 05:00 UTC prize job does not erase that player's result.
 function rollPeriod(stats, prefix, key) {
     if (stats[prefix + 'Key'] === key) return;
+    const prev = prevBucket(prefix);
+    const oldKey = typeof stats[prefix + 'Key'] === 'string' ? stats[prefix + 'Key'] : '';
+    if (prev && oldKey) {
+        stats[prev + 'Key'] = oldKey;
+        stats[prev + 'Attempts'] = whole(stats[prefix + 'Attempts']);
+        stats[prev + 'PassedAttempts'] = whole(stats[prefix + 'PassedAttempts']);
+        stats[prev + 'Passes'] = whole(stats[prefix + 'Passes']);
+        stats[prev + 'ReachedAt'] = timeMs(stats[prefix + 'ReachedAt']);
+    }
     stats[prefix + 'Key'] = key;
     stats[prefix + 'Attempts'] = 0;
     stats[prefix + 'PassedAttempts'] = 0;
     stats[prefix + 'Passes'] = 0;
     stats[prefix + 'ReachedAt'] = 0;
     stats[prefix + 'Passed'] = {};
+}
+
+// Counts for a closed week or month: the open bucket if the player has not
+// rolled yet, otherwise the snapshot taken when the key changed.
+function closedView(stats, period, closedKey) {
+    const s = stats || {};
+    const key = String(closedKey || '');
+    if (!key) return blankView();
+    const open = period === 'month' ? 'month' : 'week';
+    const prev = period === 'month' ? 'prevMonth' : 'prevWeek';
+    const bucket = s[open + 'Key'] === key ? open : (s[prev + 'Key'] === key ? prev : '');
+    if (!bucket) return blankView();
+    return {
+        passes: whole(s[bucket + 'Passes']),
+        attempts: whole(s[bucket + 'Attempts']),
+        passedAttempts: whole(s[bucket + 'PassedAttempts']),
+        reachedAt: timeMs(s[bucket + 'ReachedAt'])
+    };
 }
 
 function notePass(stats, prefix, questId, at) {
@@ -578,7 +624,17 @@ function sameTotals(a, b) {
         && whole(a.monthPasses) === whole(b.monthPasses)
         && whole(a.monthAttempts) === whole(b.monthAttempts)
         && whole(a.monthPassedAttempts) === whole(b.monthPassedAttempts)
-        && timeMs(a.monthReachedAt) === timeMs(b.monthReachedAt);
+        && timeMs(a.monthReachedAt) === timeMs(b.monthReachedAt)
+        && String(a.prevWeekKey || '') === String(b.prevWeekKey || '')
+        && whole(a.prevWeekPasses) === whole(b.prevWeekPasses)
+        && whole(a.prevWeekAttempts) === whole(b.prevWeekAttempts)
+        && whole(a.prevWeekPassedAttempts) === whole(b.prevWeekPassedAttempts)
+        && timeMs(a.prevWeekReachedAt) === timeMs(b.prevWeekReachedAt)
+        && String(a.prevMonthKey || '') === String(b.prevMonthKey || '')
+        && whole(a.prevMonthPasses) === whole(b.prevMonthPasses)
+        && whole(a.prevMonthAttempts) === whole(b.prevMonthAttempts)
+        && whole(a.prevMonthPassedAttempts) === whole(b.prevMonthPassedAttempts)
+        && timeMs(a.prevMonthReachedAt) === timeMs(b.prevMonthReachedAt);
 }
 
 function displayName(username) {
@@ -694,7 +750,7 @@ function publicEntry(row, rank) {
     };
 }
 
-function selectBoard(rows, period) {
+function ranked(rows, period) {
     const min = MIN[period] || MIN.alltime;
     const qualified = (rows || []).filter(function (row) {
         if (!row || row.ghostMode === true) return false;
@@ -702,8 +758,29 @@ function selectBoard(rows, period) {
         return whole(row.attempts) >= min;
     });
     qualified.sort(compareRows);
-    return qualified.slice(0, BOARD_SIZE).map(function (row, i) {
+    return qualified.slice(0, BOARD_SIZE);
+}
+
+function selectBoard(rows, period) {
+    return ranked(rows, period).map(function (row, i) {
         return publicEntry(row, i + 1);
+    });
+}
+
+// Same order as the public board, plus uid and a banned flag for the payout.
+// Banned players keep their display rank. The prize step skips them.
+function rankForPrize(rows, period) {
+    return ranked(rows, period).map(function (row, i) {
+        const pub = publicEntry(row, i + 1);
+        return {
+            rank: pub.rank,
+            uid: String(row.uid || ''),
+            username: pub.username,
+            profilePic: pub.profilePic,
+            passes: pub.passes,
+            pct: pub.pct,
+            banned: row.banned === true
+        };
     });
 }
 
@@ -910,7 +987,9 @@ module.exports = {
     safePic: safePic,
     displayPct: displayPct,
     viewFromStats: viewFromStats,
+    closedView: closedView,
     selectBoard: selectBoard,
+    rankForPrize: rankForPrize,
     buildBoards: buildBoards,
     packPeriod: packPeriod,
     attemptRecord: attemptRecord,

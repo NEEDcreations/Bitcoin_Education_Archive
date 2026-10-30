@@ -6996,8 +6996,8 @@ async function toggleLeaderboard() {
 
 // Top Predictors — All Time / This Week / This Month, same tab chrome as XP.
 var PRED_LB_COPY = {
-    weekly: 'This Week: make at least 5 predictions to qualify. Top 5 each win 25 orange tickets.',
-    monthly: 'This Month: at least 15 predictions. Top 5 each win 50 orange tickets.',
+    weekly: 'This Week: make at least 5 predictions to qualify. Top 10 each win 25 orange tickets.',
+    monthly: 'This Month: at least 15 predictions. Top 10 each win 100 orange tickets.',
     alltime: 'All Time: at least 10 predictions.'
 };
 var PRED_LB_MIN = { weekly: 5, monthly: 15, alltime: 10 };
@@ -7177,6 +7177,11 @@ function _renderPredictorBoard() {
         rows.forEach(function(entry) {
             var rank = entry.rank || 0;
             var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
+            var correctN = Number(entry.correct) || 0;
+            var totalN = Number(entry.total) || 0;
+            var pctN = Number(entry.pct);
+            if (!isFinite(pctN) || pctN < 0) pctN = 0;
+            if (totalN > 0 && correctN > 0 && pctN === 0) pctN = Math.round((correctN / totalN) * 100);
             var uid = String(entry.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
             var isMe = myUid && uid === myUid;
             var rawPredName = entry.username || '';
@@ -7192,7 +7197,7 @@ function _renderPredictorBoard() {
                 '<span class="lb-rank">' + medal + '</span>' +
                 _predAvatarHtml(entry) +
                 '<span class="lb-name">' + peerTag + '<span' + predNameAttrs + '>' + name + '</span></span>' +
-                '<span class="lb-score pred-score">' + (entry.pct || 0) + '%<span class="pred-score-frac">' + (entry.correct || 0) + '/' + (entry.total || 0) + '</span></span>' +
+                '<span class="lb-score pred-score">' + pctN + '%<span class="pred-score-frac">' + correctN + '/' + totalN + '</span></span>' +
             '</div>';
         });
         if (rows.length > 10) {
@@ -7339,8 +7344,8 @@ var QUEST_LB_DOC = {
 };
 var QUEST_LB_NOTE = {
     alltime: 'Different quests passed, all time. At least 5 attempts. The percent is passed attempts out of every attempt.',
-    week: 'This week starts Monday at midnight Eastern. At least 3 attempts.',
-    month: 'This month is Eastern time. At least 3 attempts.'
+    week: 'This week starts Monday at midnight Eastern. At least 3 attempts. Top 10 win 25 Orange Tickets.',
+    month: 'This month is Eastern time. At least 3 attempts. Top 10 win 100 Orange Tickets.'
 };
 
 function _questLbPeriod() {

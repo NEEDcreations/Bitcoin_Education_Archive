@@ -43,6 +43,7 @@ const { createPredictionJobs } = require('./src/predictionJobs');
 const predictionJobs = createPredictionJobs(db, admin, { sendPush: sendUserPush });
 const streakBoard = require('./src/streakBoard');
 const questBoard = require('./src/questBoard');
+const lbPrizes = require('./src/lbPrizes');
 const boardSnapshots = require('./src/boardSnapshots');
 // Daily key with 5-hour UTC offset — matches client getDailyKey() (resets at 5 AM UTC)
 // Prevents server/client day mismatch that lets users double-complete daily challenges
@@ -3717,11 +3718,14 @@ exports.syncPredictionPending = onDocumentWritten('active_predictions/{uid}', as
 });
 
 // Monday 05:00 UTC — same boundary as resetWeeklyXP.
-// Each of the top 5 (min 5 resolved, not isSatsBanned) gets 25 orange tickets.
+// Top 10 (min 5 resolved) get 25 orange tickets. Previously top 5 got 25.
+// A finished prediction_payouts doc is not paid again.
 exports.payWeeklyPredictors = onSchedule({ schedule: '0 5 * * 1', timeZone: 'UTC', timeoutSeconds: 540 }, async () => {
     try {
-        const result = await predictionJobs.payout('weekly', new Date());
-        console.log('[payWeeklyPredictors]', JSON.stringify({ action: result.action, periodId: result.periodId, winners: (result.due || []).length, reset: result.reset }));
+        const result = await lbPrizes.settlePrediction(db, admin, predictionJobs, {
+            period: 'weekly', now: new Date(), sendPush: sendUserPush
+        });
+        console.log('[payWeeklyPredictors]', JSON.stringify(result));
     } catch (e) {
         console.error('[payWeeklyPredictors] failed:', e);
     }
@@ -3729,11 +3733,13 @@ exports.payWeeklyPredictors = onSchedule({ schedule: '0 5 * * 1', timeZone: 'UTC
 });
 
 // 1st of the month 00:00 UTC — same boundary as resetMonthlyXP.
-// Each of the top 5 (min 15 resolved, not isSatsBanned) gets 50 orange tickets.
+// Top 10 (min 15 resolved) get 100 orange tickets. Previously top 5 got 50.
 exports.payMonthlyPredictors = onSchedule({ schedule: '0 0 1 * *', timeZone: 'UTC', timeoutSeconds: 540 }, async () => {
     try {
-        const result = await predictionJobs.payout('monthly', new Date());
-        console.log('[payMonthlyPredictors]', JSON.stringify({ action: result.action, periodId: result.periodId, winners: (result.due || []).length, reset: result.reset }));
+        const result = await lbPrizes.settlePrediction(db, admin, predictionJobs, {
+            period: 'monthly', now: new Date(), sendPush: sendUserPush
+        });
+        console.log('[payMonthlyPredictors]', JSON.stringify(result));
     } catch (e) {
         console.error('[payMonthlyPredictors] failed:', e);
     }
@@ -7113,144 +7119,60 @@ exports.backfillJoinDates = functionsV1.https.onRequest(async (req, res) => {
 // ⏰ FEATURE 3: Weekly/Monthly XP Reset + Ticket Prizes
 // ══════════════════════════════════════════════════════════════════════
 
-async function _awardTicketsToUser(uid, ticketCount, reason) {
-    const userRef = db.collection('users').doc(uid);
-    // Award tickets + queue a login-toast notification
-    await userRef.update({
-        orangeTickets: admin.firestore.FieldValue.increment(ticketCount),
-        pendingLeaderboardReward: admin.firestore.FieldValue.arrayUnion({
-            tickets: ticketCount,
-            reason: reason,
-            awardedAt: Date.now()
-        })
-    });
-    // Bell feed. Same grant, display-only, written with the ticket update above.
-    await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
-        uid: uid,
-        tickets: ticketCount,
-        sourceLabel: reason,
-        icon: '🏆',
-        type: 'leaderboard_reward',
-        onceKey: 'lb_' + Date.now(),
-    }));
-    try {
-        await sendUserPush(uid, 'rewards', {
-            title: 'You won a reward',
-            body: reason + ' — ' + ticketCount + ' Orange Tickets were added.',
-            url: 'https://bitcoineducation.quest/#questhub'
-        });
-    } catch (e) { console.warn('[leaderboard] push failed', e.message); }
-}
-
-async function _resetPeriodXP(periodField, winnerKey, ticketsPerWinner, label) {
-    const BATCH_SIZE = 499;
-    // Get top 10 winners before reset
-    const topSnap = await db.collection('users').orderBy(periodField, 'desc').limit(10).get();
-    const winners = [];
-    topSnap.forEach(doc => {
-        const d = doc.data();
-        if ((d[periodField] || 0) > 0) {
-            winners.push({ uid: doc.id, username: d.username || 'Anon', xp: d[periodField] || 0 });
-        }
-    });
-    for (let wi = 0; wi < winners.length; wi++) {
-        const stored = winners[wi].username ? String(winners[wi].username).trim() : '';
-        if (stored && stored !== 'Anon' && stored !== 'Anonymous') continue;
-        try {
-            const pub = await db.collection('public_profiles').doc(winners[wi].uid).get();
-            const pubName = pub.exists ? String((pub.data() || {}).username || '').trim() : '';
-            if (pubName && pubName !== 'Anon' && pubName !== 'Anonymous') {
-                winners[wi].username = pubName.slice(0, 40);
-            }
-        } catch (e) {
-            console.warn('[leaderboard] public name lookup failed');
-        }
-    }
-
-    // Award tickets to winners
-    const awardPromises = winners.map((w, i) =>
-        _awardTicketsToUser(w.uid, ticketsPerWinner, `${label} Top ${i + 1}!`)
-    );
-    await Promise.all(awardPromises);
-
-    // Store winners for history
-    if (winners.length > 0) {
-        await db.collection('leaderboard_winners').doc(winnerKey).set({
-            period: winnerKey,
-            label,
-            winners,
-            uids: winners.map(function(w) { return w.uid; }),
-            ticketsPerWinner,
-            settledAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-    }
-
-    // Reset ALL users' period XP in batches
-    let lastDoc = null;
-    let processed = 0;
-    while (true) {
-        let query = db.collection('users').orderBy(admin.firestore.FieldPath.documentId()).limit(BATCH_SIZE);
-        if (lastDoc) query = query.startAfter(lastDoc);
-        const snap = await query.get();
-        if (snap.empty) break;
-        lastDoc = snap.docs[snap.docs.length - 1];
-        const batch = db.batch();
-        snap.forEach(doc => {
-            if ((doc.data()[periodField] || 0) > 0) {
-                batch.update(doc.ref, { [periodField]: 0 });
-            }
-        });
-        await batch.commit();
-        processed += snap.size;
-        if (snap.size < BATCH_SIZE) break;
-    }
-
-    console.log(`[LEADERBOARD RESET] ${label}: ${winners.length} winners, ${processed} users reset`);
-    return { winners: winners.length, processed, label };
-}
-
 // Rewards start from July 2026 onwards — skip June entirely.
 // Weekly: skip any week that ends before 2026-07-01.
-// Monthly: skip any month reset where the completed month is before 2026-07 (i.e. June 2026 and earlier).
+// Monthly: skip any month reset where the completed month is before 2026-07.
+// Week labels are ISO week-year (Monday 05:00 UTC), so 2026-W53 and 2027-W01
+// do not share a key.
 const REWARDS_START_DATE = new Date('2026-07-01T00:00:00Z');
 
-exports.resetWeeklyXP = onSchedule({ schedule: '0 5 * * 1', timeZone: 'UTC' }, async (ctx) => { // Monday 5 AM UTC — consistent with daily reset boundary
+exports.resetWeeklyXP = onSchedule({ schedule: '0 5 * * 1', timeZone: 'UTC', timeoutSeconds: 540 }, async () => {
     const now = new Date();
-    // Skip weeks that end before rewards start date
-    if (now < REWARDS_START_DATE) {
-        console.log('[WEEKLY RESET] Skipping — rewards start July 2026. Resetting XP without awarding tickets.');
-        // Still reset XP so the board is clean, just no ticket awards
-        const year = now.getFullYear();
-        const startOfYear = new Date(year, 0, 1);
-        const weekNum = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
-        const prevWeek = weekNum - 1;
-        const weekKey = `${year}-W${String(prevWeek || 52).padStart(2, '0')}`;
-        await _resetPeriodXP('weeklyXP', weekKey, 0, `Week ${weekKey} (no rewards yet)`);
-        return null;
-    }
-    const year = now.getFullYear();
-    const startOfYear = new Date(year, 0, 1);
-    const weekNum = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
-    const prevWeek = weekNum - 1;
-    const weekKey = `${year}-W${String(prevWeek || 52).padStart(2, '0')}`;
-    const result = await _resetPeriodXP('weeklyXP', weekKey, 25, `Week ${weekKey}`);
-    console.log('[WEEKLY RESET COMPLETE]', result);
+    const tickets = now < REWARDS_START_DATE ? 0 : 25;
+    if (!tickets) console.log('[WEEKLY RESET] Rewards start July 2026. Resetting XP without tickets.');
+    const result = await lbPrizes.settleXp(db, admin, {
+        period: 'weekly', now: now, tickets: tickets, sendPush: sendUserPush
+    });
+    console.log('[WEEKLY RESET COMPLETE]', JSON.stringify(result));
     return null;
 });
 
-exports.resetMonthlyXP = onSchedule({ schedule: '0 0 1 * *', timeZone: 'UTC' }, async (ctx) => {
+exports.resetMonthlyXP = onSchedule({ schedule: '0 0 1 * *', timeZone: 'UTC', timeoutSeconds: 540 }, async () => {
     const now = new Date();
-    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const monthKey = `${prevMonth.getFullYear()}-M${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
-    // Skip June 2026 and any earlier month
-    if (prevMonth < REWARDS_START_DATE) {
-        console.log('[MONTHLY RESET] Skipping ticket awards for', monthKey, '— rewards start July 2026. Resetting XP only.');
-        await _resetPeriodXP('monthlyXP', monthKey, 0, `Month ${monthKey} (no rewards yet)`);
-        return null;
-    }
-    const result = await _resetPeriodXP('monthlyXP', monthKey, 100, `Month ${monthKey}`);
-    console.log('[MONTHLY RESET COMPLETE]', result);
+    const prevMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    const tickets = prevMonth < REWARDS_START_DATE ? 0 : 100;
+    if (!tickets) console.log('[MONTHLY RESET] Rewards start July 2026. Resetting XP without tickets.');
+    const result = await lbPrizes.settleXp(db, admin, {
+        period: 'monthly', now: now, tickets: tickets, sendPush: sendUserPush
+    });
+    console.log('[MONTHLY RESET COMPLETE]', JSON.stringify(result));
+    return null;
+});
 
+// Quest week: Monday 05:00 UTC, the Eastern week that just ended.
+// Quest month: 05:00 UTC on the 1st, after Eastern midnight (04:00 or 05:00 UTC),
+// so closedQuestMonthKey is the month that just ended.
+exports.payWeeklyQuestLB = onSchedule({ schedule: '0 5 * * 1', timeZone: 'UTC', timeoutSeconds: 540 }, async () => {
+    try {
+        const result = await lbPrizes.settleQuest(db, admin, {
+            period: 'weekly', now: new Date(), sendPush: sendUserPush
+        });
+        console.log('[QUEST WEEK]', JSON.stringify(result));
+    } catch (e) {
+        console.error('[QUEST WEEK] failed:', e);
+    }
+    return null;
+});
+
+exports.payMonthlyQuestLB = onSchedule({ schedule: '0 5 1 * *', timeZone: 'UTC', timeoutSeconds: 540 }, async () => {
+    try {
+        const result = await lbPrizes.settleQuest(db, admin, {
+            period: 'monthly', now: new Date(), sendPush: sendUserPush
+        });
+        console.log('[QUEST MONTH]', JSON.stringify(result));
+    } catch (e) {
+        console.error('[QUEST MONTH] failed:', e);
+    }
     return null;
 });
 

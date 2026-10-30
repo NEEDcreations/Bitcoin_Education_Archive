@@ -609,6 +609,34 @@
           "order": "ASCENDING"
         },
         {
+          "fieldPath": "weekTotal",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthTotal",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "weekKey",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "qualifiesWeek",
           "order": "ASCENDING"
         },
@@ -782,6 +810,34 @@
         },
         {
           "fieldPath": "monthPasses",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "prevWeekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "prevWeekPasses",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "prevMonthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "prevMonthPasses",
           "order": "DESCENDING"
         }
       ]

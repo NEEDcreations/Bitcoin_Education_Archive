@@ -2254,6 +2254,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Paid-once marker for weekly/monthly Orange Ticket board prizes.
+    // Clients cannot read or write the lock or the per-winner docs.
+    match /lb_prize_markers/{markerId} {
+      allow read, write: if false;
+      match /winners/{winnerId} {
+        allow read, write: if false;
+      }
+    }
+
     // Hot Topics — public read, Cloud Function write only
     match /hotTopics/{docId} {
       allow read: if true;
