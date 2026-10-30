@@ -166,6 +166,70 @@ test('a board rebuilds only after its interval and only when the marker moved', 
     assert.strictEqual(boards.favorIntervalMs(false), 30 * 60 * 1000);
 });
 
+test('a clean marker still rebuilds once the snapshot is older than its max age', () => {
+    const now = 20 * 60 * 60 * 1000;
+    assert.strictEqual(boards.BOARDS.xpWeek.maxAgeMs, 60 * 60 * 1000);
+    assert.strictEqual(boards.BOARDS.xpMonth.maxAgeMs, 60 * 60 * 1000);
+    ['xpAll', 'pvp', 'favor', 'raid'].forEach(function (key) {
+        assert.strictEqual(boards.BOARDS[key].maxAgeMs, 6 * 60 * 60 * 1000, key);
+    });
+    const weekYoung = boards.shouldRebuild({
+        now: now,
+        updatedAt: now - 59 * 60 * 1000,
+        intervalMs: 10 * 60 * 1000,
+        maxAgeMs: boards.BOARDS.xpWeek.maxAgeMs,
+        hasRows: true,
+        dirtyAt: 10,
+        sourceRev: 10
+    });
+    assert.strictEqual(weekYoung.reason, 'clean');
+    const weekOld = boards.shouldRebuild({
+        now: now,
+        updatedAt: now - 60 * 60 * 1000,
+        intervalMs: 10 * 60 * 1000,
+        maxAgeMs: boards.BOARDS.xpWeek.maxAgeMs,
+        hasRows: true,
+        dirtyAt: 10,
+        sourceRev: 10
+    });
+    assert.strictEqual(weekOld.rebuild, true);
+    assert.strictEqual(weekOld.reason, 'max-age');
+    const allYoung = boards.shouldRebuild({
+        now: now,
+        updatedAt: now - 2 * 60 * 60 * 1000,
+        intervalMs: 15 * 60 * 1000,
+        maxAgeMs: boards.BOARDS.xpAll.maxAgeMs,
+        hasRows: true,
+        dirtyAt: 0,
+        sourceRev: 5
+    });
+    assert.strictEqual(allYoung.reason, 'clean');
+    const allOld = boards.shouldRebuild({
+        now: now,
+        updatedAt: now - 6 * 60 * 60 * 1000,
+        intervalMs: 15 * 60 * 1000,
+        maxAgeMs: boards.BOARDS.xpAll.maxAgeMs,
+        hasRows: true,
+        dirtyAt: 0,
+        sourceRev: 5
+    });
+    assert.strictEqual(allOld.reason, 'max-age');
+});
+
+test('an instance skips a dirty stamp it already wrote in the last 60 seconds', () => {
+    const memory = {};
+    const first = boards.throttleDirtyPatch({ xpAll: 1000, xpWeek: 1000 }, 1000, memory);
+    assert.deepStrictEqual(first, { xpAll: 1000, xpWeek: 1000 });
+    memory.xpAll = 1000;
+    memory.xpWeek = 1000;
+    const soon = boards.throttleDirtyPatch({ xpAll: 30000, pvp: 30000 }, 30000, memory);
+    assert.deepStrictEqual(soon, { pvp: 30000 });
+    const later = boards.throttleDirtyPatch({ xpAll: 61001 }, 1000 + boards.STAMP_THROTTLE_MS, memory);
+    assert.deepStrictEqual(later, { xpAll: 61001 });
+    assert.strictEqual(boards.STAMP_THROTTLE_MS, 60 * 1000);
+    assert.strictEqual(boards.throttleDirtyPatch(null, 1000, memory), null);
+});
+
 function makeDb(seed) {
     const state = { reads: 0, profileReads: 0, writes: 0, docs: Object.assign({}, seed.docs || {}), profiles: seed.profiles || [] };
     function query(limitN) {
@@ -237,6 +301,18 @@ test('opening a fresh board costs one snapshot read and a cold rebuild reads the
     assert.strictEqual(cleanResult.reason, 'clean');
     assert.strictEqual(clean.state.profileReads, 0);
     assert.strictEqual(clean.state.reads, 2);
+
+    const aged = makeDb({
+        docs: {
+            'stats/lb_xp_week': { updatedAt: now - 2 * 60 * 60 * 1000, sourceRev: 10, rows: [{ rank: 1, uid: 'p0', username: 'P0', value: 1 }], intervalMs: 10 * 60 * 1000 },
+            'stats/lb_dirty': { xpWeek: 10 }
+        },
+        profiles: profiles
+    });
+    const agedResult = await boards.refreshBoard(aged, 'xpWeek', now, {});
+    assert.strictEqual(agedResult.reason, 'max-age');
+    assert.strictEqual(agedResult.skipped, false);
+    assert.strictEqual(aged.state.profileReads, 60);
 
     const dirty = makeDb({
         docs: {
@@ -329,7 +405,17 @@ test('the client, the visit path, and the rules match the snapshot plan', () => 
         assert.ok(rules.includes('stats/' + id), id);
         assert.strictEqual(rules.includes("statId == '" + id + "'"), false, id);
     });
-    assert.ok(rules.includes('allow read: if true'));
+    const statsAt = rules.indexOf('match /stats/{statId}');
+    const statsEnd = rules.indexOf('match /', statsAt + 20);
+    const statsBlock = rules.slice(statsAt, statsEnd > statsAt ? statsEnd : statsAt + 2500);
+    assert.ok(statsBlock.includes("allow read: if !statId.matches('lb_.*') || request.auth != null"));
+    assert.strictEqual(statsBlock.includes('allow read: if true'), false);
+    const stampAt = index.indexOf('async function stampLeaderboardDirty');
+    const stamp = index.slice(stampAt, index.indexOf('exports.syncPublicProfile', stampAt));
+    assert.ok(stamp.includes('throttleDirtyPatch'));
+    assert.ok(stamp.includes("console.error('[lb dirty] stamp failed:'"));
+    assert.strictEqual(stamp.includes('catch (e) {}'), false);
+    assert.ok(stamp.includes('delete lbDirtyStampAt[key]'));
 });
 
 test('read counts versus the live board, measured on a fake Firestore', async () => {

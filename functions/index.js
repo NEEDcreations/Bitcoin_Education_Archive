@@ -5225,13 +5225,21 @@ const PUBLIC_PROFILE_FIELDS = [
     'peerCount', // peer network size (peers array stays server-only)
 ];
 
+const lbDirtyStampAt = Object.create(null);
+
 async function stampLeaderboardDirty(before, after) {
+    const now = Date.now();
+    const patch = boardSnapshots.dirtyPatch(before, after, now);
+    if (!patch) return;
+    const write = boardSnapshots.throttleDirtyPatch(patch, now, lbDirtyStampAt);
+    if (!write) return;
+    const keys = Object.keys(write);
+    keys.forEach(function (key) { lbDirtyStampAt[key] = now; });
     try {
-        const patch = boardSnapshots.dirtyPatch(before, after, Date.now());
-        if (!patch) return;
-        await db.collection('stats').doc(boardSnapshots.DIRTY_DOC).set(patch, { merge: true });
+        await db.collection('stats').doc(boardSnapshots.DIRTY_DOC).set(write, { merge: true });
     } catch (e) {
-        console.warn('[lb dirty] stamp failed:', e && e.message);
+        keys.forEach(function (key) { delete lbDirtyStampAt[key]; });
+        console.error('[lb dirty] stamp failed:', keys.join(','), e && e.message);
     }
 }
 

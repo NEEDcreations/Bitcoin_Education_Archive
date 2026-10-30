@@ -6,9 +6,13 @@
 // all-time refresh every 15. Favor hashers refresh every 5 minutes while a
 // Satoshi's Favor cycle is active and every 30 minutes otherwise.
 //
-// A board is rebuilt only when stats/lb_dirty says its source changed after
-// the last snapshot. The dirty doc is stamped from syncPublicProfile, which
-// sees every user write. lastSeen and other non-board fields do not stamp it.
+// A board is rebuilt when stats/lb_dirty says its source changed after the
+// last snapshot, and also when the snapshot is older than its max age. The
+// max age is the fallback for a lost dirty-marker write. XP week and month
+// max out at 1 hour. The other boards max out at 6 hours.
+// The dirty doc is stamped from syncPublicProfile, which sees every user
+// write. lastSeen and other non-board fields do not stamp it. One instance
+// skips a stamp it already wrote for that board in the last 60 seconds.
 //
 // Rank past 25 is not stored. An exact rank for every player is one count
 // query per player, or a full scan of public_profiles. ghostMode is absent on
@@ -24,6 +28,9 @@ const { displayName, safePic } = require('./streakBoard');
 const BOARD_SIZE = 25;
 const FETCH_LIMIT = 60;
 const INTERVAL_SLACK_MS = 60 * 1000;
+const STAMP_THROTTLE_MS = 60 * 1000;
+const MAX_AGE_SHORT_MS = 60 * 60 * 1000;
+const MAX_AGE_LONG_MS = 6 * 60 * 60 * 1000;
 const DOC_MAX = 800000;
 const DIRTY_DOC = 'lb_dirty';
 const FAVOR_STATE = 'current';
@@ -35,12 +42,12 @@ const RANK_BEYOND_25 = {
 };
 
 const BOARDS = {
-    xpAll: { key: 'xpAll', docId: 'lb_xp_alltime', field: 'points', intervalMs: 15 * 60 * 1000, kind: 'xp' },
-    xpWeek: { key: 'xpWeek', docId: 'lb_xp_week', field: 'weeklyXP', intervalMs: 10 * 60 * 1000, kind: 'xp' },
-    xpMonth: { key: 'xpMonth', docId: 'lb_xp_month', field: 'monthlyXP', intervalMs: 10 * 60 * 1000, kind: 'xp' },
-    pvp: { key: 'pvp', docId: 'lb_pvp', intervalMs: 15 * 60 * 1000, kind: 'pvp' },
-    favor: { key: 'favor', docId: 'lb_favor_hashers', field: 'sfTotalHashes', intervalMs: 5 * 60 * 1000, idleMs: 30 * 60 * 1000, kind: 'favor' },
-    raid: { key: 'raid', docId: 'lb_raid_alltime', field: 'raidDamageAllTime', intervalMs: 15 * 60 * 1000, kind: 'raid' }
+    xpAll: { key: 'xpAll', docId: 'lb_xp_alltime', field: 'points', intervalMs: 15 * 60 * 1000, maxAgeMs: MAX_AGE_LONG_MS, kind: 'xp' },
+    xpWeek: { key: 'xpWeek', docId: 'lb_xp_week', field: 'weeklyXP', intervalMs: 10 * 60 * 1000, maxAgeMs: MAX_AGE_SHORT_MS, kind: 'xp' },
+    xpMonth: { key: 'xpMonth', docId: 'lb_xp_month', field: 'monthlyXP', intervalMs: 10 * 60 * 1000, maxAgeMs: MAX_AGE_SHORT_MS, kind: 'xp' },
+    pvp: { key: 'pvp', docId: 'lb_pvp', intervalMs: 15 * 60 * 1000, maxAgeMs: MAX_AGE_LONG_MS, kind: 'pvp' },
+    favor: { key: 'favor', docId: 'lb_favor_hashers', field: 'sfTotalHashes', intervalMs: 5 * 60 * 1000, idleMs: 30 * 60 * 1000, maxAgeMs: MAX_AGE_LONG_MS, kind: 'favor' },
+    raid: { key: 'raid', docId: 'lb_raid_alltime', field: 'raidDamageAllTime', intervalMs: 15 * 60 * 1000, maxAgeMs: MAX_AGE_LONG_MS, kind: 'raid' }
 };
 
 const BOARD_KEYS = Object.keys(BOARDS);
@@ -124,6 +131,21 @@ function dirtyPatch(before, after, nowMs) {
     const patch = {};
     keys.forEach(function (key) { patch[key] = now; });
     return patch;
+}
+
+// Drop boards this instance stamped within the last 60 seconds. The map is
+// the caller's memory. This function does not write it.
+function throttleDirtyPatch(patch, nowMs, stampedAt) {
+    if (!patch) return null;
+    const now = Number(nowMs) || Date.now();
+    const memory = stampedAt || {};
+    const out = {};
+    Object.keys(patch).forEach(function (key) {
+        const prev = Number(memory[key]) || 0;
+        if (prev && now - prev < STAMP_THROTTLE_MS) return;
+        out[key] = patch[key];
+    });
+    return Object.keys(out).length ? out : null;
 }
 
 function isGhost(data) {
@@ -359,6 +381,10 @@ function shouldRebuild(opts) {
     if (updatedAt && intervalMs && now - updatedAt < intervalMs - INTERVAL_SLACK_MS) {
         return { rebuild: false, reason: 'interval' };
     }
+    const maxAgeMs = Number(o.maxAgeMs) || 0;
+    if (updatedAt && maxAgeMs && now - updatedAt >= maxAgeMs) {
+        return { rebuild: true, reason: 'max-age' };
+    }
     const dirtyAt = Number(o.dirtyAt) || 0;
     const sourceRev = Number(o.sourceRev) || 0;
     if (!dirtyAt || dirtyAt <= sourceRev) return { rebuild: false, reason: 'clean' };
@@ -422,11 +448,13 @@ async function refreshBoard(db, key, nowMs, opts) {
         intervalMs = favorIntervalMs(favorActive);
     }
     let dirtyAt = 0;
+    let rebuildReason = 'dirty';
     if (!force) {
         const decisionInterval = shouldRebuild({
             now: now,
             updatedAt: existing && existing.updatedAt,
             intervalMs: intervalMs,
+            maxAgeMs: spec.maxAgeMs,
             hasRows: !!(existing && Array.isArray(existing.rows)),
             dirtyAt: 1,
             sourceRev: 0,
@@ -444,12 +472,14 @@ async function refreshBoard(db, key, nowMs, opts) {
             sourceRev: existing && existing.sourceRev,
             dirtyAt: dirtyAt,
             intervalMs: intervalMs,
+            maxAgeMs: spec.maxAgeMs,
             hasRows: !!(existing && Array.isArray(existing.rows)),
             force: false
         });
         if (!decision.rebuild) {
             return { skipped: true, reason: decision.reason, docId: spec.docId, updatedAt: existing && existing.updatedAt };
         }
+        rebuildReason = decision.reason;
     } else {
         const dirtySnap = await db.collection('stats').doc(DIRTY_DOC).get();
         const dirty = dirtySnap && dirtySnap.exists ? (dirtySnap.data() || {}) : {};
@@ -461,7 +491,7 @@ async function refreshBoard(db, key, nowMs, opts) {
     doc.intervalMs = spec.kind === 'favor' ? favorIntervalMs(favorActive) : spec.intervalMs;
     if (spec.kind === 'favor') doc.favorActive = favorActive;
     await snapRef.set(doc);
-    return { skipped: false, reason: force ? 'force' : 'dirty', docId: spec.docId, rows: doc.rows.length, doc: doc };
+    return { skipped: false, reason: force ? 'force' : rebuildReason, docId: spec.docId, rows: doc.rows.length, doc: doc };
 }
 
 async function refreshMany(db, keys, nowMs, opts) {
@@ -476,12 +506,16 @@ module.exports = {
     BOARD_SIZE: BOARD_SIZE,
     FETCH_LIMIT: FETCH_LIMIT,
     INTERVAL_SLACK_MS: INTERVAL_SLACK_MS,
+    STAMP_THROTTLE_MS: STAMP_THROTTLE_MS,
+    MAX_AGE_SHORT_MS: MAX_AGE_SHORT_MS,
+    MAX_AGE_LONG_MS: MAX_AGE_LONG_MS,
     DIRTY_DOC: DIRTY_DOC,
     RANK_BEYOND_25: RANK_BEYOND_25,
     BOARDS: BOARDS,
     BOARD_KEYS: BOARD_KEYS,
     dirtyKeys: dirtyKeys,
     dirtyPatch: dirtyPatch,
+    throttleDirtyPatch: throttleDirtyPatch,
     isGhost: isGhost,
     buildXpDoc: buildXpDoc,
     buildPvpDoc: buildPvpDoc,
