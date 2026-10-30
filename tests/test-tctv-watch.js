@@ -419,7 +419,8 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2436'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2437'"));
+    assert.ok(!sw.includes('btc-archive-v2436'));
     assert.ok(!sw.includes('btc-archive-v2435'));
     assert.ok(!sw.includes('btc-archive-v2434'));
     assert.ok(!sw.includes('btc-archive-v2433'));
