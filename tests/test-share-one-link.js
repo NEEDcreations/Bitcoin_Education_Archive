@@ -301,6 +301,8 @@ test('patch notes keep one Latest line and pages match', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     const latestAt = notes.indexOf('Latest: Your profile loads faster when you open the app.');
+    assert.ok(notes.includes("Earned posts in GGs chat have a 🎉 button. Tap once to celebrate, and tap again to take it back."));
+    assert.ok(!notes.includes('Latest: Earned posts in GGs chat'));
     assert.ok(latestAt >= 0);
     assert.ok(notes.includes("The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front."));
     assert.ok(!notes.includes('Latest: The daily wheel'));

@@ -414,6 +414,8 @@ test('client names a message id and does not render user text or hold a secret',
 
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2433'"));
     assert.ok(!sw.includes('btc-archive-v2432'));
+    assert.ok(!sw.includes('btc-archive-v2431'));
+    assert.ok(!sw.includes('btc-archive-v2430'));
     assert.ok(!sw.includes('btc-archive-v2422'));
     assert.ok(!sw.includes('btc-archive-v2391'));
     assert.ok(!sw.includes('btc-archive-v2386'));
@@ -496,6 +498,8 @@ test('client names a message id and does not render user text or hold a secret',
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2268'") === false);
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2266'") === false);
     assert.ok(html.includes('ranking.js?v=20261030_v2433'));
+    assert.ok(!html.includes('ranking.js?v=20261029_v2431'));
+    assert.ok(!html.includes('global-chat.js?v=20261029_v2431'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2400'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2377'));

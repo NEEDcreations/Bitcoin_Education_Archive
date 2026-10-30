@@ -196,6 +196,8 @@ test('sources post verifyCertificate and paint fields as text', () => {
     const sw = read('sw.js');
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2433'"));
     assert.ok(!sw.includes('btc-archive-v2432'));
+    assert.ok(!sw.includes('btc-archive-v2431'));
+    assert.ok(!sw.includes('btc-archive-v2430'));
     assert.ok(!sw.includes('btc-archive-v2422'));
     assert.ok(sw.includes('NETWORK_FIRST_TIMEOUT_MS = 3000'));
     assert.ok(sw.includes("url.searchParams.has('v')"));

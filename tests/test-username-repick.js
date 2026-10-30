@@ -315,6 +315,7 @@ queue.push(test('the client prompt cannot be skipped and calls setUsername', fun
     assert.ok(ranking.includes('maybeShowUsernameRepick();\n        updateAuthButton();'));
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261030_v2433'));
+    assert.ok(html.indexOf('ranking.js?v=20261029_v2431') === -1);
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
     const favor = fs.readFileSync(path.join(root, 'satoshi-favor.js'), 'utf8');
     const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');

@@ -154,6 +154,103 @@ test('triviaXpStatus stays one in-flight call and reuses the result for about a 
     const src = fs.readFileSync(path.join(root, 'today-card.js'), 'utf8');
     assert.ok(src.includes('var TRIVIA_XP_TTL_MS = 60000;'));
     assert.ok(src.includes('if (triviaXpInflight) return;'));
+    const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
+    const award = ranking.slice(ranking.indexOf('result.data.dailyXp'), ranking.indexOf('result.data.dailyXp') + 900);
+    assert.ok(award.includes('_xpNotedAt: Date.now()'));
+    assert.ok(award.includes('window._noteServerDailyXp(window._serverDailyXp)'));
+});
+
+test('an award total replaces the triviaXpStatus cache instead of being painted over', async function () {
+    const RealDate = Date;
+    let clock = 1700000000000;
+    function ClockDate() {
+        var args = Array.prototype.slice.call(arguments);
+        if (args.length) return new (Function.prototype.bind.apply(RealDate, [null].concat(args)))();
+        return new RealDate(clock);
+    }
+    ClockDate.now = function () { return clock; };
+    ClockDate.parse = RealDate.parse;
+    ClockDate.UTC = RealDate.UTC;
+    ClockDate.prototype = RealDate.prototype;
+    const text = { textContent: '' };
+    const fill = { style: {} };
+    let pending = null;
+    let nextXp = 40;
+    const calls = [];
+    const sandbox = {
+        console: console,
+        setTimeout: function () { return 0; },
+        clearTimeout: function () {},
+        setInterval: function () { return 0; },
+        clearInterval: function () {},
+        Date: ClockDate,
+        document: {
+            readyState: 'complete',
+            getElementById: function (id) {
+                if (id === 'dailyXpMeterText') return text;
+                if (id === 'dailyXpMeterFill') return fill;
+                if (id === 'dailyXpMeter') return { setAttribute: function () {}, querySelector: function () { return null; } };
+                return null;
+            },
+            querySelector: function () { return null; },
+            querySelectorAll: function () { return []; },
+            addEventListener: function () {},
+            createElement: function () { return { style: {}, setAttribute: function () {}, appendChild: function () {} }; }
+        },
+        localStorage: {
+            getItem: function () { return null; },
+            setItem: function () {},
+            removeItem: function () {}
+        },
+        addEventListener: function () {},
+        removeEventListener: function () {},
+        auth: { currentUser: { uid: 'userUid123456', isAnonymous: false } },
+        firebase: {
+            functions: function () {
+                return {
+                    httpsCallable: function (name) {
+                        return function () {
+                            calls.push(name);
+                            return new Promise(function (resolve) {
+                                pending = function () {
+                                    resolve({ data: { dailyXp: nextXp, signedIn: true } });
+                                };
+                            });
+                        };
+                    }
+                };
+            }
+        }
+    };
+    sandbox.window = sandbox;
+    vm.createContext(sandbox);
+    vm.runInContext(fs.readFileSync(path.join(root, 'today-card.js'), 'utf8'), sandbox, { filename: 'today-card.js' });
+    pending();
+    for (var i = 0; i < 8; i++) await Promise.resolve();
+    assert.strictEqual(text.textContent, '40/1000 XP today');
+    clock += 1000;
+    sandbox._noteServerDailyXp({
+        signedIn: true,
+        dailyXp: 80,
+        dailyCap: 1000,
+        _xpNotedAt: clock
+    });
+    assert.strictEqual(text.textContent, '80/1000 XP today');
+    sandbox._paintTodayCard();
+    assert.strictEqual(calls.length, 1, 'the cached status is not fetched again');
+    assert.strictEqual(text.textContent, '80/1000 XP today');
+    sandbox._serverDailyXp = { signedIn: true, dailyXp: 100, _xpNotedAt: clock + 5 };
+    sandbox._paintTodayCard();
+    assert.strictEqual(text.textContent, '100/1000 XP today', 'a newer total wins over the cached status');
+    clock += 61000;
+    nextXp = 40;
+    sandbox._paintTodayCard();
+    assert.strictEqual(calls.length, 2);
+    clock += 10;
+    sandbox._noteServerDailyXp({ signedIn: true, dailyXp: 120, _xpNotedAt: clock });
+    pending();
+    for (var j = 0; j < 8; j++) await Promise.resolve();
+    assert.strictEqual(text.textContent, '120/1000 XP today', 'a status result that started earlier does not cover the award');
 });
 
 Promise.all(pending).then(function () {

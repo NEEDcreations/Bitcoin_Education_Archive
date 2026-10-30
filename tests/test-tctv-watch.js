@@ -421,6 +421,8 @@ test('the page heartbeats only while playing and visible, and does not write the
 
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2433'"));
     assert.ok(!sw.includes('btc-archive-v2432'));
+    assert.ok(!sw.includes('btc-archive-v2431'));
+    assert.ok(!sw.includes('btc-archive-v2430'));
     assert.ok(!sw.includes('btc-archive-v2422'));
     assert.ok(!sw.includes('btc-archive-v2391'));
     assert.ok(!sw.includes('btc-archive-v2386'));

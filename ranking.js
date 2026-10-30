@@ -386,6 +386,7 @@ var APP_CHECK_CALLABLES = {
     syncEmailChange: 1,
     syncUserFactionPoints: 1,
     tctvWatchHeartbeat: 1,
+    toggleGgReaction: 1,
     totpListDevices: 1,
     totpResumeDevice: 1,
     totpRevokeAllTrust: 1,
@@ -5112,9 +5113,13 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
                     dailyCap: result.data.dailyCap || 1000,
                     fullUntil: result.data.fullUntil || 500,
                     halfUntil: result.data.halfUntil || 900,
-                    pastCap: result.data.pastCap === true
+                    pastCap: result.data.pastCap === true,
+                    _xpNotedAt: Date.now()
                 };
-                window._paintDailyXpMeter(window._serverDailyXp);
+                // Keep the Today card's status cache on this total. A later
+                // paint must not put the older triviaXpStatus result back.
+                if (typeof window._noteServerDailyXp === 'function') window._noteServerDailyXp(window._serverDailyXp);
+                else window._paintDailyXpMeter(window._serverDailyXp);
             }
             if (result.data.capped || result.data.pastCap) {
                 var _capNotifKey = 'btc_daily_cap_notified_' + new Date(Date.now() - 5 * 3600000).toISOString().split('T')[0];

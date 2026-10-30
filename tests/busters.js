@@ -5,7 +5,7 @@
 // earn-xp-guide.js and guide.js stay 20261026_v2382. ranking.js is 20261030_v2433.
 // modules.js and learning-quests.js stay 20261026_v2377.
 // scholar.js matches window.SCHOLAR_SCRIPT.
-// global-chat.js is 20261028_v2425. gifting.js is 20261029_v2429. quests.js is 20261028_v2415.
+// global-chat.js is 20261029_v2432. gifting.js is 20261029_v2429. quests.js is 20261028_v2415.
 // satoshi-favor.js stays 20261026_v2368.
 // onboarding.js stays 20261026_v2373. today-card.js is 20261030_v2433.
 // features.registry.js stays 20261024_v2368. achievement-share.js is 20261026_v2391.
@@ -185,6 +185,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('referral-tiers.js?v=20261028_v2418'));
     assert.ok(html.includes('ranking.js?v=20261030_v2433'));
     assert.ok(!html.includes('ranking.js?v=20261030_v2432'));
+    assert.ok(!html.includes('ranking.js?v=20261029_v2432'));
     assert.ok(!html.includes('ranking.js?v=20261029_v2431'));
     assert.ok(!html.includes('ranking.js?v=20261028_v2425'));
     assert.ok(!html.includes('ranking.js?v=20261028_v2424'));
@@ -290,8 +291,11 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('modules.js?v=20261024_v2370'));
     assert.ok(!html.includes('modules.js?v=20261023_v2324'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
-    assert.ok(html.includes('global-chat.js?v=20261028_v2425'));
-    assert.strictEqual((html.match(/global-chat\.js\?v=20261028_v2425/g) || []).length, 5);
+    assert.ok(html.includes('global-chat.js?v=20261029_v2432'));
+    assert.ok(!html.includes('global-chat.js?v=20261029_v2431'));
+    assert.ok(!html.includes('global-chat.js?v=20261028_v2431'));
+    assert.strictEqual((html.match(/global-chat\.js\?v=20261029_v2432/g) || []).length, 5);
+    assert.strictEqual((html.match(/global-chat\.js\?v=20261028_v2425/g) || []).length, 0);
     assert.strictEqual((html.match(/global-chat\.js\?v=20261028_v2417/g) || []).length, 0);
     assert.strictEqual((html.match(/global-chat\.js\?v=20261027_v2393/g) || []).length, 0);
     assert.ok(!html.includes('global-chat.js?v=20261026_v2379'));
@@ -529,7 +533,9 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(!notes.includes('October 27, 2026 · v2393'));
     assert.ok(!notes.includes('October 26, 2026 · v2391'));
     assert.ok(notes.includes('Latest: Your profile loads faster when you open the app.'));
-    assert.ok(notes.includes('Faster profile load when you open the app.'));
+    assert.ok(notes.includes("Earned posts in GGs chat have a 🎉 button. Tap once to celebrate, and tap again to take it back."));
+    assert.ok(!notes.includes('Latest: Earned posts in GGs chat'));
+    assert.ok(!notes.includes('Faster profile load when you open the app.'));
     assert.ok(!notes.includes('Latest: Faster profile load'));
     assert.ok(notes.includes("The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front."));
     assert.ok(!notes.includes('Latest: The daily wheel'));

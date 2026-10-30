@@ -411,6 +411,8 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Your profile loads faster when you open the app.'));
+    assert.ok(notes.includes("Earned posts in GGs chat have a 🎉 button. Tap once to celebrate, and tap again to take it back."));
+    assert.ok(!notes.includes('Latest: Earned posts in GGs chat'));
     assert.ok(notes.includes("The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front."));
     assert.ok(!notes.includes('Latest: The daily wheel'));
     assert.ok(notes.includes('Fixed leaderboards and your saved profile taking too long to load.'));
