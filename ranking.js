@@ -1469,6 +1469,42 @@ async function syncAccountEmailFromAuth() {
     return data;
 }
 
+// Profile paint must not wait on this. The server still applies email-change holds.
+function scheduleAccountEmailSync(uid) {
+    if (!uid || !auth || !auth.currentUser || auth.currentUser.isAnonymous || auth.currentUser.uid !== uid) return;
+    if (window._emailSyncUid === uid) return;
+    window._emailSyncUid = uid;
+    syncAccountEmailFromAuth().catch(function () {
+        if (window._emailSyncUid === uid) window._emailSyncUid = null;
+    });
+}
+
+var _profileTotpGen = 0;
+
+// Starts totpStatus immediately. Callers paint first, then await the promise.
+function watchProfileTotp(uid) {
+    var gen = ++_profileTotpGen;
+    var pending;
+    try {
+        pending = window._serverTotpAllows(uid);
+    } catch (e) {
+        pending = Promise.resolve(true);
+    }
+    var promise = Promise.resolve(pending).then(function (open) {
+        return open !== false;
+    }, function () {
+        return true;
+    });
+    return {
+        promise: promise,
+        live: function () {
+            if (gen !== _profileTotpGen) return false;
+            var user = auth && auth.currentUser;
+            return !!(user && !user.isAnonymous && user.uid === uid);
+        }
+    };
+}
+
 window.reauthForSensitiveAction = async function(purpose) {
     var user = auth && auth.currentUser;
     if (!user) {
@@ -3267,8 +3303,10 @@ function settleAdminClaim() {
 
 async function loadUser(uid, prefetchedDoc) {
     const doc = prefetchedDoc || await db.collection('users').doc(uid).get();
+    var docSaysTotp = false;
     if (doc.exists) {
         currentUser = { uid, ...doc.data() };
+        docSaysTotp = !!(currentUser && currentUser.totpEnabled);
         // Cache profile for instant next-load. The display snapshot is a separate,
         // non-sensitive projection and is not allowed to grant anything.
         // twoFa is explicit: true, false, or left unknown when the doc has no flag.
@@ -3299,31 +3337,47 @@ async function loadUser(uid, prefetchedDoc) {
 
         // Authenticator gate. The server, not a localStorage flag, decides.
         // Phone sign-in is enforced by Firebase before we get here.
+        // 2FA accounts still wait here. Everyone else paints, then the same
+        // check finishes in parallel and hides the profile if it is blocked.
+        var fastTotp = null;
         if (!auth.currentUser.isAnonymous) {
-            var gateOpen = await window._serverTotpAllows(auth.currentUser.uid);
-            if (!gateOpen) {
+            if (docSaysTotp) {
+                var gateOpen = await window._serverTotpAllows(auth.currentUser.uid);
+                if (!gateOpen) {
+                    window._btcTotpHold = true;
+                    clearTotpVerified();
+                    holdAuthDisplayForTotp(auth.currentUser.uid);
+                    _showTotpSignInChallenge();
+                    return;
+                }
+                // A passing server check means this session may use the account.
+                // That includes a recovery code that just turned 2FA off, so the
+                // hold clears even when totpEnabled is already false.
+                clearTotpHold();
+                if (!currentUser && doc && doc.exists) currentUser = { uid: uid, ...doc.data() };
+                if (currentUser && currentUser.totpEnabled) noteTotpVerified(auth.currentUser.uid);
+                publishAuthDisplay(uid, currentUser);
+                updateAuthButton();
+            } else {
+                fastTotp = watchProfileTotp(auth.currentUser.uid);
+                rankingReady = true;
+                updateRankUI();
+                scheduleAccountEmailSync(uid);
+            }
+        }
+        if (fastTotp) {
+            var fastOpen = true;
+            try { fastOpen = await fastTotp.promise; }
+            catch (fastErr) { fastOpen = true; }
+            if (!fastTotp.live()) return;
+            if (!fastOpen) {
                 window._btcTotpHold = true;
                 clearTotpVerified();
-                holdAuthDisplayForTotp(auth.currentUser.uid);
+                holdAuthDisplayForTotp(uid);
                 _showTotpSignInChallenge();
                 return;
             }
-            // A passing server check means this session may use the account.
-            // That includes a recovery code that just turned 2FA off, so the
-            // hold clears even when totpEnabled is already false.
             clearTotpHold();
-            if (!currentUser && doc && doc.exists) currentUser = { uid: uid, ...doc.data() };
-            if (currentUser && currentUser.totpEnabled) noteTotpVerified(auth.currentUser.uid);
-            publishAuthDisplay(uid, currentUser);
-            updateAuthButton();
-            if (window._emailSyncUid !== uid) {
-                window._emailSyncUid = uid;
-                try {
-                    await syncAccountEmailFromAuth();
-                } catch (syncErr) {
-                    window._emailSyncUid = null;
-                }
-            }
         }
         window._myPeers = new Set(currentUser.peers || []);
         // Restore visited channels so we don't re-award
@@ -3411,6 +3465,7 @@ async function loadUser(uid, prefetchedDoc) {
 
         rankingReady = true;
         updateRankUI();
+        scheduleAccountEmailSync(uid);
         if (typeof renderProgressRings === 'function') renderProgressRings();
         awardVisitPoints();
         startReadTimer();
@@ -5058,9 +5113,13 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
                     dailyCap: result.data.dailyCap || 1000,
                     fullUntil: result.data.fullUntil || 500,
                     halfUntil: result.data.halfUntil || 900,
-                    pastCap: result.data.pastCap === true
+                    pastCap: result.data.pastCap === true,
+                    _xpNotedAt: Date.now()
                 };
-                window._paintDailyXpMeter(window._serverDailyXp);
+                // Keep the Today card's status cache on this total. A later
+                // paint must not put the older triviaXpStatus result back.
+                if (typeof window._noteServerDailyXp === 'function') window._noteServerDailyXp(window._serverDailyXp);
+                else window._paintDailyXpMeter(window._serverDailyXp);
             }
             if (result.data.capped || result.data.pastCap) {
                 var _capNotifKey = 'btc_daily_cap_notified_' + new Date(Date.now() - 5 * 3600000).toISOString().split('T')[0];

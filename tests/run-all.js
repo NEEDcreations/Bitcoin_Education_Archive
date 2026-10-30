@@ -19,6 +19,7 @@ const TESTS = [
     { name: 'Auth display snapshot', file: 'test-auth-display.js' },
     { name: 'Optimistic profile', file: 'test-optimistic-profile.js' },
     { name: '2FA hold release', file: 'test-totp-hold.js' },
+    { name: 'Profile paint and trivia status', file: 'test-trivia-xp-status.js' },
     { name: 'Auth before bundle', file: 'test-auth-before-bundle.js' },
     { name: 'App Check SDK boot', file: 'test-app-check-sdk.js' },
     { name: 'App Check callable gate', file: 'test-app-check-callables.js' },
