@@ -11,33 +11,22 @@ const DAY_MAX = 80;
 const SEEN_MAX = 40;
 const RESET_HOUR_UTC = 5;
 
-const TOPICS = {
-    lightning: 1, mining: 1, wallets: 1, basics: 1, security: 1, privacy: 1,
-    economics: 1, altcoins: 1, technical: 1, history: 1, price: 1, layer2: 1,
-    culture: 1, regulation: 1, onboarding: 1, other: 1,
-};
+const TOPICS = Object.create(null);
+[
+    'lightning', 'mining', 'wallets', 'basics', 'security', 'privacy',
+    'economics', 'altcoins', 'technical', 'history', 'price', 'layer2',
+    'culture', 'regulation', 'onboarding', 'other',
+].forEach(function (name) { TOPICS[name] = 1; });
 
 // Names the client actually passes to nachoTrackTopic (answer type, or the
 // explicit 'kb' / 'fallback' / 'offtopic' / 'unknown' calls). Anything else
 // is stored as unknown so a hostile client cannot invent counter keys.
-const SOURCES = {
-    kb: 1,
-    ai: 1,
-    'ai+kb': 1,
-    offtopic: 1,
-    fallback: 1,
-    safety: 1,
-    unknown: 1,
-    crisis: 1,
-    harm: 1,
-    profanity: 1,
-    deepsearch: 1,
-    websearch: 1,
-    statement: 1,
-    math: 1,
-    site: 1,
-    live: 1,
-};
+const SOURCES = Object.create(null);
+[
+    'kb', 'ai', 'ai+kb', 'offtopic', 'fallback', 'safety', 'unknown',
+    'crisis', 'harm', 'profanity', 'deepsearch', 'websearch', 'statement',
+    'math', 'site', 'live',
+].forEach(function (name) { SOURCES[name] = 1; });
 
 const KNOWN_KEYS = {
     totalQuestions: 1, upvotes: 1, downvotes: 1, missCount: 1,
@@ -56,12 +45,12 @@ function num(value) {
 
 function allowTopic(value) {
     const topic = String(value || '');
-    return TOPICS[topic] ? topic : 'other';
+    return Object.prototype.hasOwnProperty.call(TOPICS, topic) ? topic : 'other';
 }
 
 function allowSource(value) {
     const source = String(value || '');
-    return SOURCES[source] ? source : 'unknown';
+    return Object.prototype.hasOwnProperty.call(SOURCES, source) ? source : 'unknown';
 }
 
 function eventIdOk(value) {

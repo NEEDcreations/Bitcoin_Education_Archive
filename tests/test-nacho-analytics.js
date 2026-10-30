@@ -248,6 +248,37 @@ function signedIn(uid) {
     assert.strictEqual(analytics.normalizeEvent({
         kind: 'question', eventId: 'sourceok01', source: 'ai+kb.extra', topic: 'basics',
     }).event.source, 'unknown');
+    const prototypeNames = ['constructor', '__proto__', 'toString', 'hasOwnProperty'];
+    for (let i = 0; i < prototypeNames.length; i++) {
+        const name = prototypeNames[i];
+        const parsed = analytics.normalizeEvent({
+            kind: 'question',
+            eventId: 'protook01',
+            topic: name,
+            source: name,
+        });
+        assert.strictEqual(parsed.ok, true, name);
+        assert.strictEqual(parsed.event.source, 'unknown', 'source ' + name);
+        assert.strictEqual(parsed.event.topic, 'other', 'topic ' + name);
+        const saved = await record({
+            kind: 'question',
+            topic: name,
+            source: name,
+            eventId: ('proto_' + name + '_01').replace(/[^A-Za-z0-9_-]/g, '_'),
+        }, signedIn('ada'));
+        assert.strictEqual(saved.counted, true, name);
+        const stats = docs['stats/nacho-analytics'];
+        assert.strictEqual(Object.prototype.hasOwnProperty.call(stats.sources, name), false, 'sources.' + name);
+        assert.strictEqual(Object.prototype.hasOwnProperty.call(stats.topics, name), false, 'topics.' + name);
+        const sourcePath = updates[updates.length - 1].filter(function (part) {
+            return part && part.segments && part.segments[0] === 'sources';
+        })[0];
+        const topicPath = updates[updates.length - 1].filter(function (part) {
+            return part && part.segments && part.segments[0] === 'topics';
+        })[0];
+        assert.deepStrictEqual(sourcePath.segments, ['sources', 'unknown'], name);
+        assert.deepStrictEqual(topicPath.segments, ['topics', 'other'], name);
+    }
 
     const up = await record({ kind: 'vote', rating: 1, eventId: 'vote_msg_up' }, signedIn('ada'));
     assert.strictEqual(up.counted, true);
@@ -271,7 +302,7 @@ function signedIn(uid) {
     }, signedIn('ada')), function (err) {
         return err.code === 'resource-exhausted';
     });
-    assert.strictEqual(docs['stats/nacho-analytics'].totalQuestions, 3);
+    assert.strictEqual(docs['stats/nacho-analytics'].totalQuestions, 7);
 
     const capped = Object.assign({}, docs['rate_limits/nacho_analytics_ada'], {
         count: 0,
