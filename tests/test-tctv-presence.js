@@ -258,6 +258,8 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
 
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2439'"));
     assert.ok(!sw.includes('btc-archive-v2438'));
+    assert.ok(!sw.includes('btc-archive-v2437'));
+    assert.ok(!sw.includes('btc-archive-v2436'));
     assert.ok(!sw.includes('btc-archive-v2435'));
     assert.ok(!sw.includes('btc-archive-v2434'));
     assert.ok(!sw.includes('btc-archive-v2433'));
@@ -395,7 +397,8 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
     assert.ok(!html.includes('notifications.js?v=20261022_v2254'));
     assert.ok(!html.includes('gifting.js?v=20261022_lightfix'));
     assert.ok(!html.includes('notifications.js?v=20261022_gifts'));
-    assert.ok(html.includes("'quests.js?v=20261030_v2435'"));
+    assert.ok(html.includes("'quests.js?v=20261030_v2438'"));
+    assert.ok(!html.includes("'quests.js?v=20261030_v2435'"));
     assert.ok(!html.includes("'quests.js?v=20261026_v2381'"));
     assert.ok(!html.includes("'quests.js?v=20261026_v2368'"));
     assert.ok(!html.includes("'quests.js?v=20261024_v2362'"));
@@ -439,7 +442,8 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
     assert.ok(!html.includes('ranking.js?v=20261022_v2251'));
     assert.ok(!html.includes('gifting.js?v=20261022_v2251'));
-    assert.ok(html.includes('bundle.min.js?v=20261029_v2429'));
+    assert.ok(html.includes('bundle.min.js?v=20261030_v2437'));
+    assert.ok(!html.includes('bundle.min.js?v=20261029_v2429'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2391'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2386'));
     assert.ok(!html.includes('bundle.min.js?v=20261027_v2425'));
@@ -483,7 +487,8 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2261'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2252'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2246'));
-    assert.ok(html.includes('global-chat.js?v=20261030_v2435'));
+    assert.ok(html.includes('global-chat.js?v=20261030_v2438'));
+    assert.ok(!html.includes('global-chat.js?v=20261030_v2436'));
     assert.ok(!html.includes('global-chat.js?v=20261029_v2432'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2379'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2378'));

@@ -195,6 +195,10 @@ test('sources post verifyCertificate and paint fields as text', () => {
     assert.strictEqual(early.includes("window._loadDeferred();") && early.indexOf('DOMContentLoaded') < early.lastIndexOf('_loadDeferred'), true);
     const sw = read('sw.js');
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2439'"));
+    assert.ok(!sw.includes('btc-archive-v2438'));
+    assert.ok(!sw.includes('btc-archive-v2437'));
+    assert.ok(!sw.includes('btc-archive-v2436'));
+    assert.ok(!sw.includes('btc-archive-v2435'));
     assert.ok(!sw.includes('btc-archive-v2434'));
     assert.ok(!sw.includes('btc-archive-v2433'));
     assert.ok(!sw.includes('btc-archive-v2432'));

@@ -353,6 +353,12 @@ exports.contributeRaid = functionsV1.https.onCall(async (data, context) => {
     } catch (e) {
       console.warn('[RAID] defeat credit', e && e.message);
     }
+    try {
+      await raidEngine.recordBossHistory(db, admin, activeBossRef, activeBossRef.id, { now: new Date() });
+      await raidEngine.syncPrizeWinner(db, admin, activeBossRef.id);
+    } catch (e) {
+      console.warn('[RAID] history', e && e.message);
+    }
   } else {
     // Not defeated — update current count if we didn't already do so in the tx
     // (the tx handles this; this branch is a no-op safety fallback)

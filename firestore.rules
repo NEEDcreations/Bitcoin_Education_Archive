@@ -2071,6 +2071,13 @@ service cloud.firestore {
       }
     }
 
+    // Past boss snapshots. The server writes them when a fight ends.
+    // Clients may read the cards. They cannot create, edit, or delete them.
+    match /raid_history/{bossId} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
     // ===== SATOSHI'S FAVOR =====
     // Main state document — public read, server writes
     match /satoshiFavor/current {

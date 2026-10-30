@@ -21437,6 +21437,18 @@ const GENERIC_NACHO_QUIZ = [
   { q: "What is the primary function of the Lightning Network?", a: "To enable instant, near-free Bitcoin payments by moving them off-chain.", w: ["To increase the total number of Bitcoins that will ever exist to 42 million.", "To allow Bitcoin to be mined using only mobile phones and tablets.", "To encrypt the entire blockchain so it cannot be read by anyone.", "To create a secondary blockchain that is faster but less secure than Bitcoin."] }
 ];
 
+// Local shuffle. scholar.js no longer defines the shared fisherYates helper.
+function _nqShuffle(list) {
+    var copy = list.slice();
+    for (var i = copy.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = copy[i];
+        copy[i] = copy[j];
+        copy[j] = tmp;
+    }
+    return copy;
+}
+
 window.nachoQuizMe = function(topic) {
     // If not in Nacho Mode, enter it first then quiz
     if (!window._nachoMode) {
@@ -21456,7 +21468,7 @@ window.nachoQuizMe = function(topic) {
             catQuestions.forEach(q => {
                 pool.push({
                     question: q.q,
-                    options: fisherYates([q.a, ...(q.wrong || q.w || [])]),
+                    options: _nqShuffle([q.a, ...(q.wrong || q.w || [])]),
                     answer: q.a,
                     category: cat
                 });
@@ -21468,7 +21480,7 @@ window.nachoQuizMe = function(topic) {
     GENERIC_NACHO_QUIZ.forEach(q => {
         pool.push({
             question: q.q,
-            options: fisherYates([q.a, ...q.w]),
+            options: _nqShuffle([q.a, ...q.w]),
             answer: q.a,
             category: 'generic'
         });

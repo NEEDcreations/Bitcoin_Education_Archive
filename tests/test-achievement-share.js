@@ -16,7 +16,7 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-const LATEST = 'Latest: Daily trivia shows the explanation after you answer, and a guest answer does not earn XP.';
+const LATEST = 'Latest: Boss History shows when each fight actually ended, and past bosses are listed by month.';
 const STREAKS_NOTE = "Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.";
 const DOUBLE_XP_NOTE = "Double XP now applies to every way you earn XP.";
 const RAID = "The raid boss shows HP remaining, the same remaining over max HP as the raid screen.";
@@ -407,6 +407,10 @@ test('pages ship one script, one Latest line, and the v2394 cache', () => {
     assert.ok(!notes.includes('Latest: Inventory explains'));
 
     assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2439'"));
+    assert.ok(!read('sw.js').includes('btc-archive-v2438'));
+    assert.ok(!read('sw.js').includes('btc-archive-v2437'));
+    assert.ok(!read('sw.js').includes('btc-archive-v2436'));
+    assert.ok(!read('sw.js').includes('btc-archive-v2435'));
     assert.ok(!read('sw.js').includes('btc-archive-v2434'));
     assert.ok(!read('sw.js').includes('btc-archive-v2433'));
     assert.ok(!read('sw.js').includes('btc-archive-v2432'));
