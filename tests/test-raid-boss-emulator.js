@@ -53,7 +53,7 @@ if (!process.env.FIRESTORE_EMULATOR_HOST) {
 }
 
 const { initializeTestEnvironment, assertFails, assertSucceeds } = require('./rules/node_modules/@firebase/rules-unit-testing');
-const { doc, setDoc, getDoc } = require('./rules/node_modules/firebase/firestore');
+const { doc, setDoc, getDoc, updateDoc, deleteDoc } = require('./rules/node_modules/firebase/firestore');
 const admin = require('../functions/node_modules/firebase-admin');
 const engine = require('../functions/src/raidBossEngine');
 
@@ -94,6 +94,13 @@ const db = admin.firestore();
     await assertFails(setDoc(doc(user, 'raid_damage_events', '2026-11_chat-1'), { amount: 1 }));
     await assertFails(setDoc(doc(user, 'raid_forum_pending', 'forum-1'), { status: 'pending' }));
     await assertFails(setDoc(doc(user, 'raid_boss_meta', '2026-11'), { goalFormula: 'raid-goal-v1' }));
+    await db.collection('raid_history').doc('2026-10').set({ name: 'Poll-Patroller', prizeWinner: 'Divine', result: 'defeated' });
+    await assertSucceeds(getDoc(doc(user, 'raid_history', '2026-10')));
+    await assertFails(setDoc(doc(user, 'raid_history', 'new-boss'), { name: 'Nope' }));
+    await assertFails(updateDoc(doc(user, 'raid_history', '2026-10'), { prizeWinner: 'Eve' }));
+    await assertFails(deleteDoc(doc(user, 'raid_history', '2026-10')));
+    const historyDoc = await db.collection('raid_history').doc('2026-10').get();
+    assert.strictEqual(historyDoc.data().prizeWinner, 'Divine');
 
     const fresh = await db.collection('raid_bosses').doc('2026-11').get();
     assert.strictEqual(fresh.data().current, 0);
