@@ -233,9 +233,9 @@ function applyAttempt(prev, attempt, nowMs) {
     return stats;
 }
 
-// completedQuests, answer-key topic keys, and quest_passes ids share one shape:
-// quest_<topic>__<part>, part 1-based. Legacy part 1 was quest_<topic>.
-// Static client ids were q__<topic>__<part>.
+// completedQuests and quest_passes share one shape: quest_<topic>__<part>,
+// part 1-based. Legacy part 1 was quest_<topic>. Static client ids were
+// q__<topic>__<part>. This does not decide whether the id is a real quest.
 function canonicalQuestId(raw) {
     const s = String(raw == null ? '' : raw).trim();
     if (!s || s.length > 160) return '';
@@ -250,6 +250,99 @@ function canonicalQuestId(raw) {
     return '';
 }
 
+let questCatalogCache = null;
+
+function partsInTopic(rows) {
+    const parts = Object.create(null);
+    const list = Array.isArray(rows) ? rows : [];
+    list.forEach(function (row, i) {
+        const qi = row && Number.isInteger(row.questIndex) ? row.questIndex : Math.floor(i / 5);
+        if (qi >= 0 && qi <= 40) parts[qi] = true;
+    });
+    return parts;
+}
+
+function catalogFromBank(quests) {
+    const ids = Object.create(null);
+    const topics = Object.create(null);
+    Object.keys(quests || {}).forEach(function (topic) {
+        if (!/^[A-Za-z0-9_-]+$/.test(topic)) return;
+        topics[topic] = true;
+        const parts = partsInTopic(quests[topic]);
+        Object.keys(parts).forEach(function (qi) {
+            ids['quest_' + topic + '__' + (Number(qi) + 1)] = true;
+        });
+    });
+    return { ids: ids, topics: topics };
+}
+
+// Current reward bank plus the previous published bank. Anything else,
+// including quest_dynamic_N, is not a quest.
+function questCatalog() {
+    if (questCatalogCache) return questCatalogCache;
+    const current = catalogFromBank(require('../reward-banks.json').quests);
+    let prevQuests = null;
+    try { prevQuests = require('../reward-banks.prev.json').quests; } catch (err) { prevQuests = null; }
+    const prev = catalogFromBank(prevQuests);
+    Object.keys(prev.ids).forEach(function (id) { current.ids[id] = true; });
+    Object.keys(prev.topics).forEach(function (topic) { current.topics[topic] = true; });
+    questCatalogCache = current;
+    return current;
+}
+
+function catalogQuestId(raw) {
+    const id = canonicalQuestId(raw);
+    if (!id || !questCatalog().ids[id]) return '';
+    return id;
+}
+
+// questIndex is 0-based, matching gradeQuest. part and partNum are 1-based,
+// matching the client part number baked into quest_<topic>__<part>.
+function explicitPart(doc) {
+    if (!doc || typeof doc !== 'object') return null;
+    if (Number.isInteger(doc.questIndex) && doc.questIndex >= 0 && doc.questIndex <= 40) return doc.questIndex + 1;
+    if (Number.isInteger(doc.partNum) && doc.partNum >= 1 && doc.partNum <= 41) return doc.partNum;
+    if (Number.isInteger(doc.part) && doc.part >= 1 && doc.part <= 41) return doc.part;
+    const keys = Array.isArray(doc.keys) ? doc.keys : [];
+    for (let i = 0; i < keys.length; i++) {
+        const row = keys[i];
+        if (!row || typeof row !== 'object') continue;
+        if (Number.isInteger(row.questIndex) && row.questIndex >= 0 && row.questIndex <= 40) return row.questIndex + 1;
+        if (Number.isInteger(row.partNum) && row.partNum >= 1 && row.partNum <= 41) return row.partNum;
+    }
+    return null;
+}
+
+// Graded answer keys often stored only topicKey. Do not invent part 1.
+// No part → an attempt only. Unknown topic or a part that is not in the
+// catalog → drop, including a failed key.
+function resolveAnswerKey(doc) {
+    const catalog = questCatalog();
+    const topicRaw = String((doc && (doc.topicKey || doc.topic)) || '').trim();
+    let topic = '';
+    let part = explicitPart(doc);
+    const full = /^quest_([A-Za-z0-9_-]+)__(\d+)$/.exec(topicRaw);
+    const legacy = /^q__([A-Za-z0-9_-]+)__(\d+)$/.exec(topicRaw);
+    if (full) {
+        topic = full[1];
+        if (part == null) part = Number(full[2]);
+    } else if (legacy) {
+        topic = legacy[1];
+        if (part == null) part = Number(legacy[2]);
+    } else if (catalog.topics[topicRaw]) {
+        topic = topicRaw;
+    } else if (/^quest_([A-Za-z0-9_-]+)$/.test(topicRaw) && catalog.topics[topicRaw.slice('quest_'.length)]) {
+        topic = topicRaw.slice('quest_'.length);
+    } else {
+        return { kind: 'drop' };
+    }
+    if (!topic || !catalog.topics[topic]) return { kind: 'drop' };
+    if (part == null) return { kind: 'attempt' };
+    const id = 'quest_' + topic + '__' + part;
+    if (!catalog.ids[id]) return { kind: 'drop' };
+    return { kind: 'quest', id: id };
+}
+
 function copyPeriod(stats, from, prefix) {
     stats[prefix + 'Key'] = from[prefix + 'Key'];
     stats[prefix + 'Attempts'] = from[prefix + 'Attempts'];
@@ -260,10 +353,12 @@ function copyPeriod(stats, from, prefix) {
 }
 
 // Pre-cutover history plus server records after 0730b656.
-// All-time attempts = distinct passes + each pre-cutover failed answer key.
-// Repeat passes add nothing. Week and month use dated rows only.
-// estimatedRate (the old 65.5% placeholder) is dropped when this rebuild
-// has real attempts.
+// All-time attempts = distinct catalog passes + pre-cutover failed keys
+// for a known part + answer keys that name a real topic but no part.
+// Repeat passes add nothing. A key with no part is never a distinct pass.
+// Ids that are not in the current or previous quest bank are dropped,
+// including failed keys and quest_dynamic_N. Week and month use dated
+// rows only. estimatedRate (the old 65.5% placeholder) is not kept.
 function buildLegacyStats(input, nowMs) {
     const src = input || {};
     const cutover = src.cutoverMs == null ? CUTOVER_MS : Number(src.cutoverMs);
@@ -281,31 +376,47 @@ function buildLegacyStats(input, nowMs) {
         }
     }
 
+    let dropped = 0;
     const completed = Array.isArray(src.completedQuests) ? src.completedQuests : [];
-    completed.forEach(function (id) { addPass(id, 0); });
+    completed.forEach(function (id) {
+        const canon = catalogQuestId(id);
+        if (!canon) { dropped++; return; }
+        addPass(canon, 0);
+    });
 
     const oldFails = [];
+    const partless = [];
     (src.answerKeys || []).forEach(function (doc) {
         if (!doc || doc.graded !== true) return;
         const at = timeMs(doc.createdAt);
         if (!(at > 0) || !(at < cutover)) return;
+        const resolved = resolveAnswerKey(doc);
+        if (resolved.kind === 'drop') { dropped++; return; }
         const score = Number(doc.score);
-        if (score >= PASS_SCORE) addPass(doc.topicKey, at);
-        else oldFails.push({ questId: canonicalQuestId(doc.topicKey), at: at, score: score });
+        if (resolved.kind === 'attempt') {
+            partless.push({ at: at, score: score });
+            return;
+        }
+        if (score >= PASS_SCORE) addPass(resolved.id, at);
+        else oldFails.push({ questId: resolved.id, at: at, score: score });
     });
 
     (src.passes || []).forEach(function (row) {
         const at = timeMs(row && row.at);
+        const canon = catalogQuestId((row && (row.questId || row.id)) || '');
+        if (!canon) { dropped++; return; }
         if (at >= cutover) return;
-        addPass(row.questId || row.id, at);
+        addPass(canon, at);
     });
 
     const postEvents = [];
     (src.passes || []).forEach(function (row) {
         const at = timeMs(row && row.at);
         if (!(at >= cutover)) return;
+        const canon = catalogQuestId((row && (row.questId || row.id)) || '');
+        if (!canon) return;
         postEvents.push({
-            questId: canonicalQuestId(row.questId || row.id),
+            questId: canon,
             score: row.score == null ? PASS_SCORE : Number(row.score),
             at: at
         });
@@ -313,9 +424,11 @@ function buildLegacyStats(input, nowMs) {
     (src.attempts || []).forEach(function (row) {
         const at = timeMs(row && row.at);
         if (!(at >= cutover)) return;
+        const canon = catalogQuestId(row && row.questId);
+        if (!canon) { dropped++; return; }
         postEvents.push({
-            questId: canonicalQuestId(row.questId),
-            score: Number(row.score) || 0,
+            questId: canon,
+            score: Number(row && row.score) || 0,
             at: at
         });
     });
@@ -337,7 +450,7 @@ function buildLegacyStats(input, nowMs) {
     seedIds.forEach(function (id) { stats.passed[id] = passAt[id]; });
     stats.passes = seedIds.length;
     stats.passedAttempts = seedIds.length;
-    stats.attempts = seedIds.length + oldFails.length;
+    stats.attempts = seedIds.length + oldFails.length + partless.length;
     let reached = 0;
     seedIds.forEach(function (id) { if (passAt[id] > reached) reached = passAt[id]; });
     stats.reachedAt = reached;
@@ -347,6 +460,10 @@ function buildLegacyStats(input, nowMs) {
 
     const dated = oldFails.map(function (row) {
         return { questId: row.questId, score: row.score, at: row.at };
+    });
+    // No part: an attempt in that period, never a distinct pass.
+    partless.forEach(function (row) {
+        dated.push({ questId: '', score: 0, at: row.at });
     });
     Object.keys(datedPassAt).forEach(function (id) {
         if (postPassIds[id]) return;
@@ -365,6 +482,8 @@ function buildLegacyStats(input, nowMs) {
         stats: stats,
         distinctPasses: stats.passes,
         oldFails: oldFails.length,
+        partless: partless.length,
+        dropped: dropped,
         postEvents: postEvents.length
     };
 }
@@ -772,6 +891,7 @@ module.exports = {
     normalizeStats: normalizeStats,
     CUTOVER_MS: CUTOVER_MS,
     canonicalQuestId: canonicalQuestId,
+    questCatalog: questCatalog,
     buildLegacyStats: buildLegacyStats,
     applyAttempt: applyAttempt,
     seedStatsFromPasses: seedStatsFromPasses,

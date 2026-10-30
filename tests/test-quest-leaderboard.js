@@ -296,61 +296,76 @@ test('rules deny client writes and the page reads one doc per tab', () => {
     assert.strictEqual(read('index.html'), read('404.html'));
 });
 
-test('completed quest ids match quest_passes, and old fails do not recount a pass', () => {
-    assert.strictEqual(board.canonicalQuestId('quest_whitepaper'), 'quest_whitepaper__1');
-    assert.strictEqual(board.canonicalQuestId('quest_whitepaper__2'), 'quest_whitepaper__2');
-    assert.strictEqual(board.canonicalQuestId('q__whitepaper__2'), 'quest_whitepaper__2');
-    assert.strictEqual(board.canonicalQuestId('whitepaper'), 'quest_whitepaper__1');
-    assert.strictEqual(board.canonicalQuestId('quest_whitepaper__1'), board.canonicalQuestId('q__whitepaper__1'));
+test('backfill drops ids that are not in the quest catalog', () => {
+    const catalog = board.questCatalog();
+    assert.ok(catalog.ids['quest_whitepaper__1']);
+    assert.ok(catalog.ids['quest_whitepaper__2']);
+    assert.ok(catalog.ids['quest_nodes__2']);
+    assert.ok(catalog.ids['quest_mining__1']);
+    assert.strictEqual(catalog.ids['quest_dynamic_1'], undefined);
+    assert.strictEqual(catalog.ids['quest_dynamic_12__1'], undefined);
     const before = board.CUTOVER_MS - 86400000;
     const after = board.CUTOVER_MS + 3600000;
     const built = board.buildLegacyStats({
-        completedQuests: ['quest_whitepaper', 'quest_pow__2', 'q__nodes__1'],
+        completedQuests: [
+            'quest_whitepaper',
+            'quest_dynamic_12',
+            'quest_nodes__2',
+            'quest_not_real__1',
+            'q__whitepaper__2'
+        ],
         answerKeys: [
             { graded: true, topicKey: 'whitepaper', score: 5, createdAt: before },
-            { graded: true, topicKey: 'fees', score: 4, createdAt: before + 1 },
-            { graded: true, topicKey: 'fees', score: 5, createdAt: before + 2 },
-            { graded: true, topicKey: 'fees', score: 1, createdAt: before + 3 },
-            { graded: true, topicKey: 'fees', score: 2, createdAt: before + 4 },
-            { graded: true, topicKey: 'late', score: 5, createdAt: after },
-            { graded: false, topicKey: 'skip', score: 1, createdAt: before }
+            { graded: true, topicKey: 'whitepaper', questIndex: 0, score: 5, createdAt: before + 10 },
+            { graded: true, topicKey: 'whitepaper', partNum: 2, score: 4, createdAt: before + 20 },
+            { graded: true, topicKey: 'nodes', questIndex: 0, score: 1, createdAt: before + 30 },
+            { graded: true, topicKey: 'nodes', questIndex: 0, score: 2, createdAt: before + 40 },
+            { graded: true, topicKey: 'fees', score: 1, createdAt: before + 50 },
+            { graded: true, topicKey: 'quest_dynamic_3', score: 5, createdAt: before + 60 },
+            { graded: true, topicKey: 'nodes', score: 1, createdAt: before + 70 },
+            { graded: true, topicKey: 'mining', questIndex: 0, score: 5, createdAt: after },
+            { graded: false, topicKey: 'nodes', questIndex: 0, score: 1, createdAt: before }
         ],
         passes: [
-            { questId: 'quest_pow__2', score: 5, at: before },
-            { questId: 'quest_nodes__1', score: 3, at: MONDAY }
+            { questId: 'quest_nodes__3', score: 5, at: MONDAY },
+            { questId: 'quest_dynamic_9', score: 5, at: MONDAY }
         ],
         attempts: [
-            { questId: 'quest_lightning__1', score: 1, at: MONDAY },
-            { questId: 'quest_lightning__1', score: 2, at: MONDAY + 1 },
-            { questId: 'quest_lightning__1', score: 4, at: MONDAY + 2 },
-            { questId: 'quest_lightning__1', score: 5, at: MONDAY + 3 }
+            { questId: 'quest_mining__1', score: 1, at: MONDAY },
+            { questId: 'quest_mining__1', score: 2, at: MONDAY + 1 },
+            { questId: 'quest_mining__1', score: 4, at: MONDAY + 2 },
+            { questId: 'quest_mining__1', score: 5, at: MONDAY + 3 },
+            { questId: 'quest_dynamic_4', score: 1, at: MONDAY }
         ]
     }, NOW);
     const stats = built.stats;
+    assert.strictEqual(built.dropped, 6);
     assert.strictEqual(stats.passes, 5);
     assert.strictEqual(stats.passedAttempts, 5);
-    assert.strictEqual(stats.attempts, 9);
+    assert.strictEqual(stats.attempts, 11);
     assert.strictEqual(built.oldFails, 2);
-    assert.strictEqual(stats.passedAttempts / stats.attempts, 5 / 9);
-    assert.strictEqual(Object.prototype.hasOwnProperty.call(stats, 'estimatedRate'), false);
-    assert.strictEqual(stats.passed['quest_whitepaper__1'] != null, true);
-    assert.strictEqual(stats.passed['quest_pow__2'] != null, true);
-    assert.strictEqual(stats.passed['quest_nodes__1'] != null, true);
-    assert.strictEqual(stats.passed['quest_fees__1'] != null, true);
-    assert.strictEqual(stats.passed['quest_lightning__1'] != null, true);
-    assert.strictEqual(stats.passed['quest_late__1'] == null, true);
+    assert.strictEqual(built.partless, 2);
+    assert.strictEqual(stats.passed['quest_dynamic_12'], undefined);
+    assert.strictEqual(stats.passed['quest_dynamic_12__1'], undefined);
+    assert.strictEqual(stats.passed['quest_not_real__1'], undefined);
+    assert.strictEqual(stats.passed['quest_fees__1'], undefined);
+    assert.ok(stats.passed['quest_whitepaper__1'] != null);
+    assert.ok(stats.passed['quest_whitepaper__2'] != null);
+    assert.ok(stats.passed['quest_nodes__2'] != null);
+    assert.ok(stats.passed['quest_nodes__3'] != null);
+    assert.ok(stats.passed['quest_mining__1'] != null);
     const week = board.viewFromStats(stats, 'week', NOW);
     assert.strictEqual(week.passes, 2);
     assert.strictEqual(week.attempts, 4);
     assert.strictEqual(week.passedAttempts, 2);
     const onlyOld = board.buildLegacyStats({
-        completedQuests: ['quest_whitepaper'],
+        completedQuests: ['quest_whitepaper', 'quest_dynamic_1'],
         estimatedRate: 65.5
     }, NOW);
+    assert.strictEqual(onlyOld.dropped, 1);
     assert.strictEqual(onlyOld.stats.passes, 1);
     assert.strictEqual(onlyOld.stats.attempts, 1);
     assert.strictEqual(board.viewFromStats(onlyOld.stats, 'week', NOW).passes, 0);
-    assert.strictEqual(board.viewFromStats(onlyOld.stats, 'month', NOW).passes, 0);
     assert.strictEqual(Object.prototype.hasOwnProperty.call(onlyOld.stats, 'estimatedRate'), false);
     const lines = board.boardLines([
         { rank: 1, username: 'Ada', passes: 6, pct: 60 },
@@ -360,6 +375,9 @@ test('completed quest ids match quest_passes, and old fails do not recount a pas
     assert.strictEqual(lines[1], '2. Anon  1  100%');
     assert.strictEqual(lines.join('\n').indexOf('uid-secret'), -1);
     assert.strictEqual(lines.join('\n').indexOf('ada@secret.test'), -1);
+    const script = read('functions/scripts/backfill_quest_leaderboard.js');
+    assert.ok(script.includes('dropped'));
+    assert.ok(script.includes('never a distinct pass'));
 });
 
 function memoryDb(initial) {

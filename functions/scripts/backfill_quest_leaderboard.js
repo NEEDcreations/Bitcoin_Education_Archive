@@ -4,11 +4,16 @@
 //
 // Pre-cutover history (quest_answer_keys created before commit 0730b656,
 // 2026-10-23 17:14:38 UTC, plus users.completedQuests) is unioned with
-// quest_passes. Repeat passes add nothing. Each graded answer key with
-// score under 3 counts as one old failed attempt. Server passes and
-// quest_attempts at or after the cutover are added on top. Answer keys
-// from the cutover onward are ignored so the Oct 22–23 overlap is not
-// counted twice. Week and month use dated rows only.
+// quest_passes. Only ids in the current or previous quest bank count.
+// quest_dynamic_N and any other unknown id are dropped, including a
+// failed answer key whose topic or part is not a real quest. Repeat
+// passes add nothing. An answer key stores a part only when the doc has
+// questIndex (0-based), part, or partNum (1-based). With no part it is
+// an attempt only, never a distinct pass. A known part with score under
+// 3 is one failed attempt. Server passes and quest_attempts at or after
+// the cutover are added on top. Answer keys from the cutover onward are
+// ignored so the Oct 22–23 overlap is not counted twice. Week and month
+// use dated rows only. The summary includes how many ids were dropped.
 //
 // Dry-run is the default. Pass --apply to write quest_lb_stats and the
 // three public docs. Do not run this from CI or from a deploy.
@@ -87,6 +92,7 @@ async function main() {
     let scanned = 0;
     let skippedMissing = 0;
     let oldFails = 0;
+    let dropped = 0;
     let distinctPasses = 0;
     let postEvents = 0;
     let wouldWrite = 0;
@@ -131,6 +137,7 @@ async function main() {
                 cutoverMs: board.CUTOVER_MS
             }, now);
             oldFails += built.oldFails;
+            dropped += built.dropped;
             distinctPasses += built.distinctPasses;
             postEvents += built.postEvents;
             if (!(built.stats.attempts > 0) && !(built.stats.passes > 0)) continue;
@@ -169,6 +176,7 @@ async function main() {
         scanned: scanned,
         skippedMissing: skippedMissing,
         oldFails: oldFails,
+        dropped: dropped,
         distinctPasses: distinctPasses,
         postEvents: postEvents,
         wouldWrite: wouldWrite,
