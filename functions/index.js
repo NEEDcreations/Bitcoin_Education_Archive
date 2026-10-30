@@ -43,6 +43,7 @@ const { createPredictionJobs } = require('./src/predictionJobs');
 const predictionJobs = createPredictionJobs(db, admin, { sendPush: sendUserPush });
 const streakBoard = require('./src/streakBoard');
 const questBoard = require('./src/questBoard');
+const boardSnapshots = require('./src/boardSnapshots');
 // Daily key with 5-hour UTC offset — matches client getDailyKey() (resets at 5 AM UTC)
 // Prevents server/client day mismatch that lets users double-complete daily challenges
 function getOffsetDateKey() {
@@ -3942,10 +3943,10 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
             await grantFamily(db, admin, uid, visitIds);
         }
         catch (streakBadgeErr) { console.warn('[VISIT] streak badges', streakBadgeErr && streakBadgeErr.message); }
-        if (result && !result.alreadyVisited) {
-            try { await streakBoard.refresh(db, Date.now(), { force: false }); }
-            catch (boardErr) { console.warn('[streak board]', boardErr && boardErr.message); }
-        }
+        // The streak board is rebuilt by refreshStreakLeaderboard on its
+        // hourly schedule. It used to run here, awaited, and that refresh
+        // was on the login path (p90 about 18s). Reward and streak fields
+        // above are unchanged. The board can lag until the next scheduled run.
         return { success: true, ...result };
     } catch (e) {
         console.error('[VISIT] recordDailyVisit failed for ' + uid + ':', e.message);
@@ -3954,8 +3955,8 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
 });
 
 // Cached Daily Streaks board. Public read, Admin SDK write. Rebuilt hourly
-// so a lapsed streak drops off Current even if that player never comes back,
-// and again after a visit that changes a streak (debounced inside refresh).
+// so a lapsed streak drops off Current even if that player never comes back.
+// recordDailyVisit no longer waits on this refresh.
 exports.refreshStreakLeaderboard = onSchedule({
     schedule: 'every 60 minutes',
     timeZone: 'UTC',
@@ -3988,6 +3989,56 @@ exports.refreshQuestLeaderboard = onSchedule({
         }));
     } catch (e) {
         console.error('[quest board] refresh failed:', e && e.message);
+    }
+});
+
+// Leaderboard snapshots. One stats doc per board, top 25, public read.
+// Each run rebuilds a board only when stats/lb_dirty is newer than the
+// snapshot. XP week/month every 10 minutes. XP all-time, PvP, and raid
+// every 15. Favor every 5 minutes, and the function itself waits 30 minutes
+// between rebuilds while no Favor cycle is active.
+exports.refreshXpPeriodBoards = onSchedule({
+    schedule: 'every 10 minutes',
+    timeZone: 'UTC',
+    timeoutSeconds: 120
+}, async () => {
+    try {
+        const results = await boardSnapshots.refreshMany(db, ['xpWeek', 'xpMonth'], Date.now(), {});
+        console.log('[lb snap]', JSON.stringify(results.map(function (r) {
+            return { docId: r.docId, skipped: r.skipped, reason: r.reason, rows: r.rows || 0 };
+        })));
+    } catch (e) {
+        console.error('[lb snap] week/month failed:', e && e.message);
+    }
+});
+
+exports.refreshXpAllPvpRaidBoards = onSchedule({
+    schedule: 'every 15 minutes',
+    timeZone: 'UTC',
+    timeoutSeconds: 180
+}, async () => {
+    try {
+        const results = await boardSnapshots.refreshMany(db, ['xpAll', 'pvp', 'raid'], Date.now(), {});
+        console.log('[lb snap]', JSON.stringify(results.map(function (r) {
+            return { docId: r.docId, skipped: r.skipped, reason: r.reason, rows: r.rows || 0 };
+        })));
+    } catch (e) {
+        console.error('[lb snap] all/pvp/raid failed:', e && e.message);
+    }
+});
+
+exports.refreshFavorHashersBoard = onSchedule({
+    schedule: 'every 5 minutes',
+    timeZone: 'UTC',
+    timeoutSeconds: 120
+}, async () => {
+    try {
+        const results = await boardSnapshots.refreshMany(db, ['favor'], Date.now(), {});
+        console.log('[lb snap]', JSON.stringify(results.map(function (r) {
+            return { docId: r.docId, skipped: r.skipped, reason: r.reason, rows: r.rows || 0 };
+        })));
+    } catch (e) {
+        console.error('[lb snap] favor failed:', e && e.message);
     }
 });
 
@@ -5174,13 +5225,26 @@ const PUBLIC_PROFILE_FIELDS = [
     'peerCount', // peer network size (peers array stays server-only)
 ];
 
+async function stampLeaderboardDirty(before, after) {
+    try {
+        const patch = boardSnapshots.dirtyPatch(before, after, Date.now());
+        if (!patch) return;
+        await db.collection('stats').doc(boardSnapshots.DIRTY_DOC).set(patch, { merge: true });
+    } catch (e) {
+        console.warn('[lb dirty] stamp failed:', e && e.message);
+    }
+}
+
 exports.syncPublicProfile = onDocumentWritten('users/{uid}', async (event) => {
     const change = { before: event.data.before, after: event.data.after }; const context = { params: event.params };
         const uid = context.params.uid;
         const pubRef = db.collection('public_profiles').doc(uid);
         // Deleted user → remove public profile
         if (!change.after.exists) {
-            try { await pubRef.delete(); } catch(e) { console.error('[syncPublicProfile] delete failed:', e); }
+            try {
+                await pubRef.delete();
+                await stampLeaderboardDirty(null, null);
+            } catch(e) { console.error('[syncPublicProfile] delete failed:', e); }
             return null;
         }
         const data = change.after.data() || {};
@@ -5188,6 +5252,8 @@ exports.syncPublicProfile = onDocumentWritten('users/{uid}', async (event) => {
         PUBLIC_PROFILE_FIELDS.forEach(f => { if (f in data) pub[f] = data[f]; });
         try {
             await pubRef.set(pub, { merge: false });
+            const beforeData = change.before && change.before.exists ? (change.before.data() || {}) : null;
+            await stampLeaderboardDirty(beforeData, data);
         } catch(e) { console.error('[syncPublicProfile] write failed:', e); }
         return null;
     });

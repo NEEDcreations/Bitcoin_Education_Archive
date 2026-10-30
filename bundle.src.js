@@ -14083,17 +14083,27 @@ const HIDDEN_BADGES = [
                 });
             } catch(e) {}
 
-            // Recent top leaderboard movers
-            try {
-                var lbSnap = await db.collection('public_profiles').orderBy('points', 'desc').limit(10).get();
-                var topUsers = [];
-                lbSnap.forEach(function(doc) { var d = doc.data(); if (d.username) topUsers.push(d.username); });
-                if (topUsers.length >= 3) {
-                    pool.push('👑 ' + topUsers[0] + ' is holding #1 on the Leaderboard! Can you catch them?');
-                    var rand = topUsers[Math.floor(Math.random() * Math.min(5, topUsers.length))];
-                    pool.push('📈 ' + rand + ' just climbed the Leaderboard — competition is heating up!');
+            // Top-player lines come from the XP snapshot already saved on this device.
+            // Opening the leaderboard fills them in. This does not query profiles at login.
+            window._lbFeedTicker = function (rows) {
+                if (window._lbTickerFed) return;
+                var names = [];
+                var list = rows || [];
+                for (var ni = 0; ni < list.length && names.length < 10; ni++) {
+                    var nm = list[ni] && list[ni].username;
+                    if (nm && nm !== 'Anon') names.push(nm);
                 }
-            } catch(e) {}
+                if (names.length < 3) return;
+                window._lbTickerFed = true;
+                pool.push('👑 ' + names[0] + ' is holding #1 on the Leaderboard! Can you catch them?');
+                var randName = names[Math.floor(Math.random() * Math.min(5, names.length))];
+                pool.push('📈 ' + randName + ' just climbed the Leaderboard — competition is heating up!');
+            };
+            try {
+                var savedLb = localStorage.getItem('btc_lb_snap_lb_xp_alltime');
+                var parsedLb = savedLb ? JSON.parse(savedLb) : null;
+                if (parsedLb && parsedLb.rows) window._lbFeedTicker(parsedLb.rows);
+            } catch (e) {}
 
             // IRL events
             try {

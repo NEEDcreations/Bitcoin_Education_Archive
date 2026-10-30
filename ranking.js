@@ -5423,35 +5423,18 @@ window._correctLastPointsNotif = function(ts, actualPts) {
 };
 
 // Auto-refresh leaderboard if it's currently open
-// Switch leaderboard period WITHOUT closing - used by the tab buttons
+// Switch leaderboard period WITHOUT closing - used by the tab buttons.
+// The snapshot for the new tab is painted from localStorage inside toggleLeaderboard.
 function _lbSwitchPeriod(period) {
     window._lbPeriod = period;
-    window._lbCache = null;
-    window._lbWeekCache = null;
-    window._lbMonthCache = null;
-    window._lbCacheTime = null;
-    // Force re-render: temporarily remove 'open' class flag check by calling internal render
     var lb = document.getElementById('leaderboard');
     if (!lb) return;
     lb.classList.add('open');
     lb.classList.remove('minimized');
-    toggleLeaderboard._renderOnly = true;
-    // Re-invoke render path directly - set lb to loading state, then reload
-    lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading...</div>';
-    // Call the actual data+render logic by temporarily forcing open state
     var fab = document.getElementById('lbFloatBtn');
     if (fab) fab.style.display = 'none';
-    // Directly invoke the async render (same as toggleLeaderboard but skip the close check)
-    (async function() {
-        try {
-            // Reuse toggleLeaderboard's render but the lb is already open so it won't close
-            // Trick: remove open class briefly so toggleLeaderboard won't see it as open
-            lb.classList.remove('open');
-            await toggleLeaderboard();
-        } catch(e) {
-            lb.innerHTML = '<div style="padding:20px;text-align:center;color:#ef4444;">Failed to load</div>';
-        }
-    })();
+    lb.classList.remove('open');
+    toggleLeaderboard();
 }
 window._lbSwitchPeriod = _lbSwitchPeriod;
 
@@ -6682,6 +6665,170 @@ function _lbAuthReady(timeoutMs) {
     });
 }
 
+// One public snapshot doc per board. Intervals match the scheduled writers.
+// localStorage paints immediately. A board refetches when that copy is older
+// than its interval. Rank past 25 is the profile score with the label 25+.
+var LB_BOARDS = {
+    xpAll: { key: 'xpAll', docId: 'lb_xp_alltime', intervalMs: 15 * 60 * 1000 },
+    xpWeek: { key: 'xpWeek', docId: 'lb_xp_week', intervalMs: 10 * 60 * 1000 },
+    xpMonth: { key: 'xpMonth', docId: 'lb_xp_month', intervalMs: 10 * 60 * 1000 },
+    pvp: { key: 'pvp', docId: 'lb_pvp', intervalMs: 15 * 60 * 1000 },
+    favor: { key: 'favor', docId: 'lb_favor_hashers', intervalMs: 5 * 60 * 1000 },
+    raid: { key: 'raid', docId: 'lb_raid_alltime', intervalMs: 15 * 60 * 1000 }
+};
+window.LB_BOARDS = LB_BOARDS;
+
+function _lbBoardSpec(period) {
+    if (period === 'weekly') return LB_BOARDS.xpWeek;
+    if (period === 'monthly') return LB_BOARDS.xpMonth;
+    return LB_BOARDS.xpAll;
+}
+
+function _lbSnapStorageKey(docId) {
+    return 'btc_lb_snap_' + docId;
+}
+
+function _lbSnapRead(docId) {
+    try {
+        var raw = localStorage.getItem(_lbSnapStorageKey(docId));
+        if (!raw) return null;
+        var doc = JSON.parse(raw);
+        if (!doc || typeof doc !== 'object') return null;
+        return doc;
+    } catch (e) { return null; }
+}
+
+function _lbSnapWrite(docId, doc) {
+    try { localStorage.setItem(_lbSnapStorageKey(docId), JSON.stringify(doc)); } catch (e) {}
+}
+
+function _lbSnapFresh(doc, intervalMs) {
+    var updated = Number(doc && doc.updatedAt) || 0;
+    if (!updated) return false;
+    var interval = Number(doc.intervalMs) || intervalMs;
+    if (!(interval > 0)) interval = intervalMs;
+    // Favor's idle snapshot says 30 minutes. Revalidate on the 5 minute
+    // active cadence so a cycle that just started is not stuck behind that.
+    if (doc && doc.favorActive === false && intervalMs && interval > intervalMs) interval = intervalMs;
+    return (Date.now() - updated) < interval;
+}
+
+function _lbFeedTicker(rows) {
+    if (typeof window._lbFeedTicker === 'function') {
+        try { window._lbFeedTicker(rows || []); } catch (e) {}
+    }
+}
+
+async function _lbSnapFetch(boardKey) {
+    var spec = LB_BOARDS[boardKey];
+    if (!spec || typeof db === 'undefined' || !db) return null;
+    var snap = await db.collection('stats').doc(spec.docId).get();
+    if (!snap.exists) return _lbSnapRead(spec.docId);
+    var data = snap.data() || {};
+    if (!data.updatedAt) data.updatedAt = Date.now();
+    if (!data.intervalMs) data.intervalMs = spec.intervalMs;
+    _lbSnapWrite(spec.docId, data);
+    if (boardKey === 'xpAll') _lbFeedTicker(data.rows);
+    return data;
+}
+window._lbSnapRead = _lbSnapRead;
+window._lbSnapFetch = _lbSnapFetch;
+window._lbSnapFresh = _lbSnapFresh;
+window._lbSnapWrite = _lbSnapWrite;
+
+function _lbUsersFromSnap(doc, period) {
+    var rows = (doc && doc.rows) || [];
+    return rows.map(function (r) {
+        var certs = [];
+        if (r.certScholar) certs.push('cert_scholar');
+        if (r.certTech) certs.push('cert_tech');
+        var points = Number(r.points);
+        if (!(points > 0)) points = period === 'weekly' || period === 'monthly' ? 0 : (Number(r.value) || 0);
+        return {
+            id: r.uid,
+            username: r.username || 'Anon',
+            points: points,
+            weeklyXP: period === 'weekly' ? (Number(r.value) || 0) : 0,
+            monthlyXP: period === 'monthly' ? (Number(r.value) || 0) : 0,
+            faction: r.faction || '',
+            earnedHidden: certs,
+            lastSeen: r.lastSeen || null,
+            lightningAddress: r.lightningAddress || '',
+            _rank: r.rank || 0
+        };
+    });
+}
+
+function _lbYouOutside(users, period) {
+    var me = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser : null;
+    if (!me || me.isAnonymous || typeof currentUser === 'undefined' || !currentUser) return null;
+    var uid = me.uid;
+    for (var i = 0; i < users.length; i++) {
+        if (users[i] && users[i].id === uid) return null;
+    }
+    var value = period === 'weekly' ? (currentUser.weeklyXP || 0) : period === 'monthly' ? (currentUser.monthlyXP || 0) : (currentUser.points || 0);
+    if (!(value > 0)) return null;
+    return {
+        id: uid,
+        username: currentUser.username || 'Anon',
+        points: currentUser.points || 0,
+        weeklyXP: currentUser.weeklyXP || 0,
+        monthlyXP: currentUser.monthlyXP || 0,
+        faction: currentUser.faction || '',
+        earnedHidden: currentUser.earnedHidden || [],
+        lastSeen: currentUser.lastSeen || null,
+        lightningAddress: currentUser.lightningAddress || currentUser.lightning || '',
+        _rankLabel: '25+',
+        _you: true
+    };
+}
+
+function _lbXpRowHtml(d, period, index) {
+    var rank = d._rank || (index + 1);
+    var lv = getLevel(d.points || 0);
+    var isMe = (auth.currentUser && d.id === auth.currentUser.uid) || d._you;
+    if (isMe && !d._you && currentUser && (d.points || 0) > (currentUser.points || 0)) {
+        currentUser.points = d.points;
+        if (typeof updateRankUI === 'function') updateRankUI();
+    }
+    var medal = d._rankLabel ? d._rankLabel : (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank);
+    var hidden = (!d._you && rank > 10)
+        ? ' style="display:none;" class="lb-row lb-extra' + (isMe ? ' lb-me' : '') + '"'
+        : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+    var statusDot = typeof onlineStatusDot === 'function' ? onlineStatusDot(d.lastSeen) : '';
+    var certIcons = '';
+    if (d.earnedHidden && d.earnedHidden.indexOf('cert_scholar') !== -1) certIcons += ' 🎓';
+    if (d.earnedHidden && d.earnedHidden.indexOf('cert_tech') !== -1) certIcons += ' 🛠️';
+    var safeId = String(d.id || '').replace(/[^A-Za-z0-9_-]/g, '');
+    var _lbTipData = JSON.stringify({ recipientName: d.username || 'Anon', recipientUid: safeId, lightningAddress: d.lightningAddress || d.lightning || '', context: 'leaderboard', label: 'Tip ' + (d.username || 'Anon') }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+    var _lbNameStyle = d.faction && typeof window._factionNameStyle === 'function' ? window._factionNameStyle(d.faction) : '';
+    var peerTag = (window._myPeers && window._myPeers.has(d.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
+    var score = period === 'weekly' ? (d.weeklyXP || 0).toLocaleString() + ' wXP' : period === 'monthly' ? (d.monthlyXP || 0).toLocaleString() + ' mXP' : (d.points || 0).toLocaleString() + ' XP';
+    return '<div' + hidden + ' onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
+        '<span class="lb-rank">' + medal + '</span>' +
+        '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
+        '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + peerTag + escapeHtml(d.username || 'Anon') + (d._you ? ' (you)' : '') + statusDot + certIcons + '</span>' +
+        '<span class="lb-score">' + score + '</span>' +
+        '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
+        '</div>';
+}
+
+function _lbXpRowsHtml(allUsers, period) {
+    var html = '';
+    var ranked = [];
+    (allUsers || []).forEach(function (d) { if (d && !d._you) ranked.push(d); });
+    ranked.forEach(function (d, i) { html += _lbXpRowHtml(d, period, i); });
+    if (ranked.length > 10) {
+        html += '<button id="lbShowMore" onclick="expandLeaderboard(event)" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;transition:0.2s;">Show Top ' + ranked.length + ' Users ▼</button>';
+    }
+    var you = _lbYouOutside(ranked, period);
+    if (you) html += _lbXpRowHtml(you, period, ranked.length);
+    if (!ranked.length && !you) {
+        html += '<div style="padding:12px;text-align:center;color:var(--text-faint);font-size:0.85rem;">No rankings yet.</div>';
+    }
+    return html;
+}
+
 async function toggleLeaderboard() {
     const lb = document.getElementById('leaderboard');
     if (!lb) return;
@@ -6714,7 +6861,13 @@ async function toggleLeaderboard() {
     })();
 
     lb.classList.remove('minimized');
-    lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading leaderboard...</div>';
+    var _lbEarlyPeriod = window._lbPeriod || 'alltime';
+    var _lbEarlyDoc = _lbSnapRead(_lbBoardSpec(_lbEarlyPeriod).docId);
+    if (_lbEarlyDoc) {
+        lb.innerHTML = '<div class="lb-header"><h3>🏆 Leaderboard</h3></div><div class="lb-list" id="lbXpList">' + _lbXpRowsHtml(_lbUsersFromSnap(_lbEarlyDoc, _lbEarlyPeriod), _lbEarlyPeriod) + '</div>';
+    } else {
+        lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading leaderboard...</div>';
+    }
     lb.classList.add('open');
     if (fab) fab.style.display = 'none';
 
@@ -6756,60 +6909,14 @@ async function toggleLeaderboard() {
             lb.innerHTML = '<div style="padding:20px;text-align:center;color:#f97316;">Sign-in is still finishing. <button type="button" onclick="toggleLeaderboard()" style="margin-left:8px;padding:6px 12px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Try again</button></div>';
             return;
         }
-        // Cache leaderboard data for 10 minutes to reduce Firestore reads
-        var now = Date.now();
+        // One snapshot doc. localStorage paints first; refetch when it is older than the board interval.
         var _lbPeriod = window._lbPeriod || 'alltime';
-        let allUsers = [];
-
-        if (_lbPeriod === 'weekly') {
-            var useWeekCache = window._lbWeekCache && window._lbWeekCacheTime && (now - window._lbWeekCacheTime < 600000);
-            if (useWeekCache) {
-                allUsers = window._lbWeekCache;
-            } else {
-                const snap = await db.collection('public_profiles').orderBy('weeklyXP', 'desc').limit(150).get();
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
-                    if ((d.weeklyXP || 0) > 0 && (!d.ghostMode || isMe)) {
-                        allUsers.push({ id: doc.id, ...d, _sortXP: d.weeklyXP || 0 });
-                    }
-                });
-                window._lbWeekCache = allUsers;
-                window._lbWeekCacheTime = now;
-            }
-        } else if (_lbPeriod === 'monthly') {
-            var useMonthCache = window._lbMonthCache && window._lbMonthCacheTime && (now - window._lbMonthCacheTime < 600000);
-            if (useMonthCache) {
-                allUsers = window._lbMonthCache;
-            } else {
-                const snap = await db.collection('public_profiles').orderBy('monthlyXP', 'desc').limit(150).get();
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
-                    if ((d.monthlyXP || 0) > 0 && (!d.ghostMode || isMe)) {
-                        allUsers.push({ id: doc.id, ...d, _sortXP: d.monthlyXP || 0 });
-                    }
-                });
-                window._lbMonthCache = allUsers;
-                window._lbMonthCacheTime = now;
-            }
-        } else {
-            var useCache = window._lbCache && window._lbCacheTime && (now - window._lbCacheTime < 600000);
-            if (useCache) {
-                allUsers = window._lbCache;
-            } else {
-                const snap = await db.collection('public_profiles').orderBy('points', 'desc').limit(150).get();
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
-                    if (d.points > 0 && (!d.ghostMode || isMe)) {
-                        allUsers.push({ id: doc.id, ...d });
-                    }
-                });
-                window._lbCache = allUsers;
-                window._lbCacheTime = now;
-            }
-        }
+        var _lbSpec = _lbBoardSpec(_lbPeriod);
+        var _lbCachedDoc = _lbSnapRead(_lbSpec.docId);
+        var _lbFresh = !!(_lbCachedDoc && _lbSnapFresh(_lbCachedDoc, _lbSpec.intervalMs));
+        var _lbSnapDoc = _lbCachedDoc;
+        if (!_lbSnapDoc) _lbSnapDoc = await _lbSnapFetch(_lbSpec.key);
+        let allUsers = _lbUsersFromSnap(_lbSnapDoc, _lbPeriod);
 
         // Period (all-time, weekly, monthly)
         var _lbPeriod = window._lbPeriod || 'alltime';
@@ -6828,42 +6935,8 @@ async function toggleLeaderboard() {
         if (_lbPeriod === 'monthly') html += '<div style="text-align:center;padding:8px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;margin:0 12px 10px;font-size:0.72rem;color:var(--accent);font-weight:700;">🏆 Top 10 this month win 100 🏟️ Orange Tickets!</div>';
         html += '<div class="lb-search-wrap"><input id="lbSearchInput" type="text" placeholder="🔍 Search username..." oninput="lbSearchUser(this.value)" autocomplete="off" autocorrect="off" spellcheck="false"></div>';
         html += '<div id="lbSearchResult"></div>';
-        html += '<div class="lb-list">';
-
-        const showInitial = Math.min(10, allUsers.length);
-        allUsers.forEach((d, i) => {
-            const rank = i + 1;
-            const lv = getLevel(d.points || 0);
-            const isMe = auth.currentUser && d.id === auth.currentUser.uid;
-            // Sync local points with Firestore if leaderboard has newer data
-            if (isMe && currentUser && (d.points || 0) > (currentUser.points || 0)) {
-                currentUser.points = d.points;
-                updateRankUI();
-            }
-            const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
-            const hidden = rank > 10 ? ' style="display:none;" class="lb-row lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
-            var statusDot = typeof onlineStatusDot === 'function' ? onlineStatusDot(d.lastSeen) : '';
-
-            // Certifications display
-            let certIcons = '';
-            if (d.earnedHidden && d.earnedHidden.includes('cert_scholar')) certIcons += ' 🎓';
-            if (d.earnedHidden && d.earnedHidden.includes('cert_tech')) certIcons += ' 🛠️';
-
-            var _lbTipData = JSON.stringify({recipientName: d.username || 'Anon', recipientUid: d.id, lightningAddress: d.lightningAddress || d.lightning || '', context: 'leaderboard', label: 'Tip ' + (d.username || 'Anon')}).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-            var _lbNameStyle = d.faction ? window._factionNameStyle(d.faction) : '';
-            var peerTag = (window._myPeers && window._myPeers.has(d.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
-            html += '<div' + hidden + ' onclick="showUserProfile(\'' + d.id + '\')" style="cursor:pointer;" title="View profile">' +
-                '<span class="lb-rank">' + medal + '</span>' +
-                '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
-                '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + peerTag + escapeHtml(d.username || 'Anon') + statusDot + certIcons + '</span>' +
-                '<span class="lb-score">' + (_lbPeriod === 'weekly' ? (d.weeklyXP || 0).toLocaleString() + ' wXP' : _lbPeriod === 'monthly' ? (d.monthlyXP || 0).toLocaleString() + ' mXP' : (d.points || 0).toLocaleString() + ' XP') + '</span>' +
-                '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
-            '</div>';
-        });
-
-        if (allUsers.length > 10) {
-            html += '<button id="lbShowMore" onclick="expandLeaderboard(event)" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;transition:0.2s;">Show Top ' + Math.min(allUsers.length, 150) + ' Users ▼</button>';
-        }
+        html += '<div class="lb-list" id="lbXpList">';
+        html += _lbXpRowsHtml(allUsers, _lbPeriod);
         html += '</div>';
 
         // Badges section
@@ -6904,6 +6977,17 @@ async function toggleLeaderboard() {
         _loadQuestLeaderboard();
         _loadPredictorLeaderboard();
         _loadPVPLeaderboard();
+        if (_lbCachedDoc && !_lbFresh) {
+            var _lbPaintPeriod = _lbPeriod;
+            _lbSnapFetch(_lbSpec.key).then(function (next) {
+                var open = document.getElementById('leaderboard');
+                var list = document.getElementById('lbXpList');
+                if (!next || !open || !list || !open.classList.contains('open')) return;
+                if ((window._lbPeriod || 'alltime') !== _lbPaintPeriod) return;
+                if (Number(next.updatedAt) === Number(_lbCachedDoc.updatedAt)) return;
+                list.innerHTML = _lbXpRowsHtml(_lbUsersFromSnap(next, _lbPaintPeriod), _lbPaintPeriod);
+            }).catch(function () {});
+        }
     } catch(e) {
         console.error('[Leaderboard] Error:', e);
         lb.innerHTML = '<div style="padding:20px;color:#f97316;">Error loading leaderboard: ' + (e.message || 'Unknown error') + '</div>';
@@ -7356,70 +7440,68 @@ async function _loadQuestLeaderboard() {
     _renderQuestBoard();
 }
 
-// PVP Leaderboard - loaded after main leaderboard renders, sorted by win %
+// PVP leaderboard. One snapshot doc, already ordered by win rate. Wins and losses are on each row.
+function _renderPvpSnapshot(container, doc) {
+    if (!container) return;
+    var rows = (doc && doc.rows) || [];
+    var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
+    if (!rows.length && !(currentUser && ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0)) > 0)) {
+        container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet - be the first to compete!</div>';
+        return;
+    }
+    var seenMe = false;
+    var pvpHtml = '';
+    rows.forEach(function (p) {
+        var rank = p.rank || 0;
+        var wins = p.wins || 0;
+        var losses = p.losses || 0;
+        var safeId = String(p.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
+        var isMe = !!(myUid && safeId === myUid);
+        if (isMe) seenMe = true;
+        var name = escapeHtml(p.username || 'Anon');
+        var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
+        var pvpIcon = wins >= 100 ? '👑' : wins >= 50 ? '🏆' : wins >= 25 ? '🏟️' : wins >= 5 ? '🥊' : '⚔️';
+        var hidden = rank > 10 ? ' style="display:none;" class="lb-row pvp-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+        var _pvpTipData = JSON.stringify({ recipientName: p.username || 'Anon', recipientUid: safeId, lightningAddress: p.lightningAddress || '', context: 'pvp', label: 'Tip ' + (p.username || 'Anon') }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+        var peerTag = (window._myPeers && window._myPeers.has(safeId)) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
+        var rate = Number(p.value) || 0;
+        pvpHtml += '<div' + hidden + ' onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
+            '<span class="lb-rank">' + medal + '</span>' +
+            '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + pvpIcon + '</span>' +
+            '<span class="lb-name">' + peerTag + name + '</span>' +
+            '<span class="lb-score" title="' + Math.round(rate) + '% win rate" style="cursor:help;">' + wins + 'W - ' + losses + 'L</span>' +
+            '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + name + '">⚡</span>' +
+            '</div>';
+    });
+    if (rows.length > 10) {
+        pvpHtml += '<button onclick="event.stopPropagation();document.querySelectorAll(\'.pvp-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + rows.length + ' PVP players ▼</button>';
+    }
+    if (!seenMe && currentUser && ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0)) > 0) {
+        var mine = (currentUser.pvpWins || 0) + 'W - ' + (currentUser.pvpLosses || 0) + 'L';
+        pvpHtml += '<div class="lb-row lb-me" style="cursor:default;">' +
+            '<span class="lb-rank">25+</span>' +
+            '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">⚔️</span>' +
+            '<span class="lb-name">' + escapeHtml(currentUser.username || 'Anon') + ' (you)</span>' +
+            '<span class="lb-score">' + mine + '</span>' +
+            '</div>';
+    }
+    container.innerHTML = pvpHtml || '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet!</div>';
+}
+
 async function _loadPVPLeaderboard() {
     var container = document.getElementById('pvpLeaderboardList');
     if (!container) return;
+    var spec = LB_BOARDS.pvp;
+    var cached = _lbSnapRead(spec.docId);
+    if (cached) _renderPvpSnapshot(container, cached);
+    if (cached && _lbSnapFresh(cached, spec.intervalMs)) return;
     try {
-        // Cache PVP leaderboard for 5 minutes
-        var _pvpNow = Date.now();
-        var _pvpCached = window._pvpLbCache && window._pvpLbCacheTime && (_pvpNow - window._pvpLbCacheTime < 300000);
-        var winsSnap, lossSnap;
-        if (_pvpCached) {
-            winsSnap = window._pvpLbCache.wins;
-            lossSnap = window._pvpLbCache.losses;
-        } else {
-            [winsSnap, lossSnap] = await Promise.all([
-                db.collection('public_profiles').where('pvpWins', '>', 0).orderBy('pvpWins', 'desc').limit(50).get(),
-                db.collection('public_profiles').where('pvpLosses', '>', 0).orderBy('pvpLosses', 'desc').limit(50).get()
-            ]);
-            window._pvpLbCache = { wins: winsSnap, losses: lossSnap };
-            window._pvpLbCacheTime = _pvpNow;
-        }
-        var playerMap = {};
-        var myUid = auth.currentUser ? auth.currentUser.uid : null;
-        function addPlayer(doc) {
-            if (playerMap[doc.id]) return;
-            var d = doc.data();
-            if (d.ghostMode && doc.id !== myUid) return;
-            var wins = d.pvpWins || 0;
-            var losses = d.pvpLosses || 0;
-            var total = wins + losses;
-            if (total === 0) return;
-            var winRate = total > 0 ? (wins / total) * 100 : 0;
-            playerMap[doc.id] = { id: doc.id, username: escapeHtml(d.username || 'Anon'), wins: wins, losses: losses, total: total, winRate: winRate, isMe: doc.id === myUid, lightningAddress: d.lightningAddress || d.lightning || '' };
-        }
-        winsSnap.forEach(addPlayer);
-        lossSnap.forEach(addPlayer);
-        var players = Object.values(playerMap);
-        if (players.length === 0) {
-            container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet - be the first to compete!</div>';
-            return;
-        }
-        players.sort(function(a, b) { return b.winRate - a.winRate || b.wins - a.wins; });
-
-        var pvpHtml = '';
-        players.forEach(function(p, idx) {
-            var rank = idx + 1;
-            var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
-            var pvpIcon = p.wins >= 100 ? '👑' : p.wins >= 50 ? '🏆' : p.wins >= 25 ? '🏟️' : p.wins >= 5 ? '🥊' : '⚔️';
-            var hidden = rank > 10 ? ' style="display:none;" class="lb-row pvp-lb-extra' + (p.isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (p.isMe ? ' lb-me' : '') + '"';
-            var _pvpTipData = JSON.stringify({recipientName: p.username, recipientUid: p.id, lightningAddress: p.lightningAddress, context: 'pvp', label: 'Tip ' + p.username}).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-            var peerTag = (window._myPeers && window._myPeers.has(p.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
-            pvpHtml += '<div' + hidden + ' onclick="showUserProfile(\'' + p.id + '\')" style="cursor:pointer;" title="View profile">' +
-                '<span class="lb-rank">' + medal + '</span>' +
-                '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + pvpIcon + '</span>' +
-                '<span class="lb-name">' + peerTag + p.username + '</span>' +
-                '<span class="lb-score" title="' + Math.round(p.winRate) + '% win rate" style="cursor:help;">' + p.wins + 'W - ' + p.losses + 'L</span>' +
-                '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + p.username + '">⚡</span>' +
-            '</div>';
-        });
-        if (players.length > 10) {
-            pvpHtml += '<button onclick="event.stopPropagation();document.querySelectorAll(\'.pvp-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + players.length + ' PVP players ▼</button>';
-        }
-        container.innerHTML = pvpHtml || '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet!</div>';
-    } catch(e) {
-        container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet - be the first to compete!</div>';
+        var next = await _lbSnapFetch(spec.key);
+        var el = document.getElementById('pvpLeaderboardList');
+        if (next && el) _renderPvpSnapshot(el, next);
+        else if (!cached && el) _renderPvpSnapshot(el, { rows: [] });
+    } catch (e) {
+        if (!cached) container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet - be the first to compete!</div>';
     }
 }
 
@@ -11482,37 +11564,7 @@ if (document.readyState === 'loading') {
     initRanking();
 }
 
-// ---- Leaderboard pre-fetch: warm cache ~5s after page load so open is instant ----
-(function() {
-    var _prefetched = false;
-    function _prefetchLeaderboard() {
-        if (_prefetched) return;
-        if (!db) return;
-        var now = Date.now();
-        var useCache = window._lbCache && window._lbCacheTime && (now - window._lbCacheTime < 600000);
-        if (useCache) { _prefetched = true; return; }
-        _prefetched = true;
-        // Query only after a user exists. A signed-out read is permission-denied,
-        // and the catch below clears the flag so a later open can try again.
-        _lbAuthReady(15000).then(function (user) {
-            if (!user) throw new Error('leaderboard auth');
-            return db.collection('public_profiles').orderBy('points', 'desc').limit(150).get();
-        }).then(function(snap) {
-            var users = [];
-            snap.forEach(function(doc) {
-                var d = doc.data();
-                if ((d.points || 0) > 0 && !d.ghostMode) {
-                    users.push(Object.assign({ id: doc.id }, d));
-                }
-            });
-            window._lbCache = users;
-            window._lbCacheTime = Date.now();
-        }).catch(function() { _prefetched = false; });
-    }
-    // Fire after 5s — well after Firebase init, without blocking critical path
-    setTimeout(_prefetchLeaderboard, 5000);
-    window._prefetchLeaderboard = _prefetchLeaderboard;
-})();
+// Leaderboard snapshots load when a board opens. Nothing is prefetched at boot.
 
 // ---- OPENCLAW EXPORTS ----
 if (typeof toggleLeaderboard !== "undefined") window.toggleLeaderboard = toggleLeaderboard;

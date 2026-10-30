@@ -487,6 +487,13 @@ service cloud.firestore {
       // stats/quest_leaderboard_month are written by refreshQuestLeaderboard.
       // No write rule matches those ids. Clients only read them.
       // Read stays open via `allow read: if true` above.
+      // stats/lb_xp_alltime, stats/lb_xp_week, stats/lb_xp_month, stats/lb_pvp,
+      // stats/lb_favor_hashers, and stats/lb_raid_alltime are the public
+      // leaderboard snapshots. refreshXpPeriodBoards, refreshXpAllPvpRaidBoards,
+      // and refreshFavorHashersBoard write them with the Admin SDK.
+      // stats/lb_dirty is the server dirty marker stamped by syncPublicProfile.
+      // No write rule matches those ids, so client create/update/delete is
+      // false. Clients only read the snapshots.
       // ─── Global community stats ───
       // Authenticated (non-anonymous) users may increment whitelisted counters
       // by exactly +1 per write (watchTimeMinutes allows +1..+5 for batched TCTV pings).
