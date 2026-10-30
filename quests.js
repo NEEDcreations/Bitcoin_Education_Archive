@@ -5677,6 +5677,7 @@ window._loadRaidBoss = function() {
         .onSnapshot(function(snapshot) {
             if (snapshot.empty) {
                 container.innerHTML = _raidEmptyState();
+                _mountRaidHistory(container);
                 return;
             }
             var now = Date.now();
@@ -5720,6 +5721,7 @@ window._loadRaidBoss = function() {
             var boss = activeBoss || upcomingBoss || defeatedBoss;
             if (!boss) {
                 container.innerHTML = _raidEmptyState();
+                _mountRaidHistory(container);
                 return;
             }
             window._currentRaidBoss = boss;
@@ -5727,6 +5729,7 @@ window._loadRaidBoss = function() {
         }, function(err) {
             console.error('[RAID] Boss listener error:', err);
             container.innerHTML = '<div style="padding:40px 0;color:var(--text-muted);">⚠️ Failed to load raid boss</div>';
+            _mountRaidHistory(container);
         });
 };
 
@@ -5780,8 +5783,199 @@ var RAID_BOSS_IMAGES = {
 };
 
 function _getRaidBossImage(boss) {
-    return boss.image || RAID_BOSS_IMAGES[boss.name] || '';
+    return (boss && (boss.image || RAID_BOSS_IMAGES[boss.name])) || '';
 }
+
+function _raidEsc(value) {
+    var text = String(value == null ? '' : value);
+    if (typeof escapeHtml === 'function') return escapeHtml(text);
+    return text.replace(/[&<>"']/g, function (ch) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+    });
+}
+
+function _raidNameJs(value) {
+    return String(value || '').replace(/\\/g, '').replace(/['"<>]/g, '');
+}
+
+function _raidUserLink(username) {
+    var raw = String(username || '');
+    var safe = _raidNameJs(raw);
+    var shown = _raidEsc(raw);
+    if (!safe) return shown;
+    var mine = (typeof currentUser !== 'undefined' && currentUser && currentUser.username === raw) ? ' (you)' : '';
+    return '<span onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\'' + safe + '\')" style="font-weight:700;color:#6366f1;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">@' + shown + '</span>' + mine;
+}
+
+function _raidHistoryDate(ms) {
+    var n = Number(ms);
+    if (!n) return '';
+    try {
+        return new Date(n).toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' });
+    } catch (e) {
+        return '';
+    }
+}
+
+function _raidHistoryImageHtml(row) {
+    var name = _raidEsc(row.name || 'Boss');
+    var emoji = (row.emoji && String(row.emoji).length <= 8 && !/[<>&]/.test(row.emoji)) ? row.emoji : '👾';
+    var url = (row.image && /^https:\/\//.test(row.image)) ? row.image : (RAID_BOSS_IMAGES[row.name] || '');
+    var frame = '<div style="width:72px;height:72px;border-radius:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(139,92,246,0.12);border:2px solid rgba(139,92,246,0.35);font-size:1.8rem;position:relative;overflow:hidden;">' + emoji;
+    if (url) {
+        frame += '<img src="' + _raidEsc(url) + '" alt="' + name + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\'">';
+    }
+    return frame + '</div>';
+}
+
+function _raidHistoryBar(row) {
+    var pct = Number(row.damagePct);
+    if (!isFinite(pct) || pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+    var hp = Number(row.hpPct);
+    if (!isFinite(hp)) hp = Math.max(0, 100 - pct);
+    var color = hp <= 25 ? '#ef4444' : hp <= 50 ? '#f59e0b' : '#22c55e';
+    var fill = hp <= 25 ? 'linear-gradient(90deg,#ef4444,#f87171)' : hp <= 50 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#22c55e,#4ade80)';
+    var edge = hp <= 25 ? 'rgba(239,68,68,0.3)' : hp <= 50 ? 'rgba(245,158,11,0.3)' : 'rgba(34,197,94,0.3)';
+    var target = Number(row.target) || 0;
+    var current = Number(row.current) || 0;
+    var readout = '';
+    if (target > 0 && window.raidHpReadout && window.raidHpRemaining) {
+        readout = window.raidHpReadout(window.raidHpRemaining(target, current), target);
+    }
+    return '<div style="margin:10px 0;">' +
+        '<div style="display:flex;justify-content:space-between;margin-bottom:4px;gap:8px;">' +
+            '<span style="font-size:0.68rem;font-weight:800;color:' + color + ';text-transform:uppercase;">Final HP</span>' +
+            (readout ? '<span style="font-size:0.68rem;font-weight:800;color:var(--heading);font-variant-numeric:tabular-nums;">' + _raidEsc(readout) + '</span>' : '') +
+        '</div>' +
+        '<div style="height:14px;background:rgba(100,100,100,0.12);border-radius:8px;overflow:hidden;border:1px solid ' + edge + ';">' +
+            '<div style="height:100%;width:' + hp + '%;background:' + fill + ';border-radius:8px;"></div>' +
+        '</div>' +
+        '<div style="text-align:center;margin-top:4px;font-size:0.75rem;font-weight:800;color:#8b5cf6;">' + pct + '% damage dealt</div>' +
+    '</div>';
+}
+
+window._renderRaidHistoryCards = function (docs) {
+    var rows = (docs || []).slice().sort(function (a, b) {
+        return (Number(b.endedAtMs) || 0) - (Number(a.endedAtMs) || 0);
+    });
+    if (!rows.length) {
+        return '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">No past bosses yet.</div>';
+    }
+    var html = '';
+    for (var i = 0; i < rows.length; i++) {
+        var row = rows[i] || {};
+        var defeated = row.result === 'defeated' || row.prizeWon === true;
+        var badge = defeated
+            ? '<span style="display:inline-block;padding:3px 8px;border-radius:999px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4);color:#22c55e;font-size:0.68rem;font-weight:800;">🏆 Defeated</span>'
+            : '<span style="display:inline-block;padding:3px 8px;border-radius:999px;background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.35);color:#93c5fd;font-size:0.68rem;font-weight:800;">🛡️ Survived</span>';
+        var start = _raidHistoryDate(row.startMs);
+        var end = _raidHistoryDate(row.endedAtMs || row.endMs);
+        var when = (start || end) ? (start + (end ? ' – ' + end : '')) : '';
+        var dealers = row.topDealers || [];
+        var dealerHtml = '';
+        if (!dealers.length) {
+            dealerHtml = '<div style="color:var(--text-faint);font-size:0.75rem;">No damage recorded.</div>';
+        } else {
+            for (var d = 0; d < Math.min(dealers.length, 3); d++) {
+                var person = dealers[d] || {};
+                var icon = d === 0 ? '👑' : (d === 1 ? '🥈' : '🥉');
+                dealerHtml += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;margin-top:4px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.18);border-radius:8px;">' +
+                    '<div style="display:flex;align-items:center;gap:6px;min-width:0;">' +
+                        '<span style="font-size:0.75rem;">' + icon + '</span>' +
+                        _raidUserLink(person.username || 'Raider') +
+                    '</div>' +
+                    '<span style="font-size:0.72rem;font-weight:800;color:#8b5cf6;font-variant-numeric:tabular-nums;flex-shrink:0;">' + (Number(person.damage) || 0).toLocaleString() + ' dmg</span>' +
+                '</div>';
+            }
+        }
+        var prize = defeated
+            ? '<div style="font-size:0.78rem;font-weight:800;color:#22c55e;">Community prize won</div>'
+            : '<div style="font-size:0.78rem;font-weight:800;color:var(--text-muted);">Community prize not won</div>';
+        var winnerLine = '';
+        if (defeated) {
+            if (row.prizeWinner) {
+                winnerLine = '<div style="margin-top:6px;font-size:0.82rem;color:var(--text);">🎟️ Giveaway winner ' + _raidUserLink(row.prizeWinner) + '</div>';
+            } else {
+                winnerLine = '<div style="margin-top:6px;font-size:0.82rem;font-weight:700;color:var(--text-muted);">Winner announced soon</div>';
+            }
+        }
+        var month = _raidEsc(row.monthLabel || 'Past raid');
+        html += '<div style="padding:12px;margin-bottom:10px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:14px;">' +
+            '<div style="display:flex;gap:12px;align-items:center;">' +
+                _raidHistoryImageHtml(row) +
+                '<div style="min-width:0;flex:1;">' +
+                    '<div style="font-size:1rem;font-weight:900;color:var(--heading);line-height:1.2;">' + month + ' <span style="font-size:0.68rem;font-weight:800;color:var(--text-faint);letter-spacing:0.4px;">ET</span></div>' +
+                    '<div style="font-size:0.9rem;font-weight:800;color:var(--heading);margin-top:2px;">' + _raidEsc(row.name || 'Raid Boss') + '</div>' +
+                    '<div style="margin-top:6px;">' + badge + '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div style="margin-top:10px;font-size:0.8rem;color:var(--text);line-height:1.45;">' + _raidEsc(row.goalText || '') + '</div>' +
+            _raidHistoryBar(row) +
+            (when ? '<div style="font-size:0.72rem;color:var(--text-faint);margin-bottom:6px;">' + _raidEsc(when) + '</div>' : '') +
+            '<div style="font-size:0.78rem;font-weight:700;color:var(--text);margin-bottom:4px;">' + (Number(row.playerCount) || 0).toLocaleString() + ' players dealt damage</div>' +
+            '<div style="font-size:0.68rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.4px;margin-top:6px;">Top damage</div>' +
+            dealerHtml +
+            '<div style="margin-top:10px;">' + prize + winnerLine + '</div>' +
+            '<div style="margin-top:8px;font-size:0.78rem;color:var(--text-muted);line-height:1.45;">' + _raidEsc(row.recap || '') + '</div>' +
+        '</div>';
+    }
+    return html;
+};
+
+function _raidHistoryShell() {
+    return '<div id="raidBossHistory" style="margin-top:16px;text-align:left;">' +
+        '<button type="button" id="raidBossHistoryBtn" onclick="window._toggleRaidHistory()" style="width:100%;padding:12px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:12px;color:#8b5cf6;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;touch-action:manipulation;">📜 Boss History</button>' +
+        '<div id="raidBossHistoryBody" style="display:none;margin-top:10px;"></div>' +
+    '</div>';
+}
+
+function _mountRaidHistory(container) {
+    if (!container || (container.querySelector && container.querySelector('#raidBossHistory'))) return;
+    var holder = document.createElement('div');
+    holder.innerHTML = _raidHistoryShell();
+    var node = holder.firstChild;
+    if (!node) return;
+    container.appendChild(node);
+    if (window._raidHistoryOpen) window._toggleRaidHistory();
+}
+
+window._raidHistoryOpen = false;
+window._toggleRaidHistory = function () {
+    var body = document.getElementById('raidBossHistoryBody');
+    var btn = document.getElementById('raidBossHistoryBtn');
+    if (!body) return;
+    var opening = body.style.display === 'none';
+    if (!opening) {
+        body.style.display = 'none';
+        window._raidHistoryOpen = false;
+        if (btn) btn.textContent = '📜 Boss History';
+        return;
+    }
+    body.style.display = 'block';
+    window._raidHistoryOpen = true;
+    if (btn) btn.textContent = '▲ Hide Boss History';
+    if (body.getAttribute('data-loaded') === '1') return;
+    body.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Loading...</div>';
+    if (typeof db === 'undefined' || !db) {
+        body.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Boss history is not available right now.</div>';
+        return;
+    }
+    db.collection('raid_history').orderBy('endedAtMs', 'desc').limit(12).get().then(function (snap) {
+        var el = document.getElementById('raidBossHistoryBody');
+        if (!el || el.style.display === 'none') return;
+        var docs = [];
+        if (snap && snap.docs) {
+            snap.docs.forEach(function (doc) { docs.push(doc.data() || {}); });
+        }
+        el.innerHTML = window._renderRaidHistoryCards(docs);
+        el.setAttribute('data-loaded', '1');
+    }).catch(function (err) {
+        console.error('[RAID] History load error:', err);
+        var el = document.getElementById('raidBossHistoryBody');
+        if (el) el.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Could not load boss history.</div>';
+    });
+};
 
 function _raidSafeEmoji(boss) {
     var raw = boss && typeof boss.emoji === 'string' ? boss.emoji : '';
@@ -5813,6 +6007,7 @@ function _renderRaidBossCard(container, boss) {
             '</div>' +
         '</div>';
         _startRaidCountdown('raidCountdownPlaceholder', startMs);
+        _mountRaidHistory(container);
         return;
     }
 
@@ -5852,6 +6047,7 @@ function _renderRaidBossCard(container, boss) {
         '</div>';
         // Store boss ID for lazy-loading damage dealers
         window._defeatedBossId = boss._id;
+        _mountRaidHistory(container);
         return;
     }
 
@@ -5928,6 +6124,7 @@ function _renderRaidBossCard(container, boss) {
     window._raidActiveTab = 'current';
     if (window._raidAllTimeUnsub) { window._raidAllTimeUnsub(); window._raidAllTimeUnsub = null; }
     _listenRaidParticipants(boss._id);
+    _mountRaidHistory(container);
 }
 
 function _startRaidCountdown(elementId, targetMs) {

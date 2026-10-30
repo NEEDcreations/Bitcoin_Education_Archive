@@ -22,6 +22,7 @@ const { offsetDateKey } = require('./offsetDay');
 const { activityRemovedState } = require('./shoutout');
 const { forumActivityAwardable } = require('./topicForumMirror');
 const quality = require('./raidPostQuality');
+const history = require('./raidHistory');
 
 const TZ = 'America/New_York';
 const HP = 1000;
@@ -795,6 +796,8 @@ async function alertSpawnFailure(db, admin, monthKey, err, opts) {
 
 async function spawnOrAlert(db, admin, now, opts) {
     const when = now instanceof Date ? now : new Date(now || Date.now());
+    try { await history.closeEndedBosses(db, admin, when); }
+    catch (e) { console.warn('[RAID] history', e && e.message); }
     try {
         const result = await runScheduledSpawn(db, admin, when);
         if (result && result.created && result.summary) {
@@ -1011,6 +1014,12 @@ async function maybeDefeat(db, admin, bossRef, bossId, opts) {
         } catch (e) {
             console.warn('[RAID] defeat credit', e && e.message);
         }
+    }
+    try {
+        await history.recordBossHistory(db, admin, bossRef, bossId, { now: opts && opts.now });
+        await history.syncPrizeWinner(db, admin, bossId);
+    } catch (e) {
+        console.warn('[RAID] history', e && e.message);
     }
     return { defeated: true, current: total, winners: winners.length };
 }
@@ -1261,6 +1270,8 @@ async function sweepForumDamage(db, admin, now) {
         skipped += 1;
         try { await settlePending(pendingRef, admin, 'skipped'); } catch (e) { /* next sweep retries */ }
     }
+    try { await history.closeEndedBosses(db, admin, now); }
+    catch (e) { console.warn('[RAID] history', e && e.message); }
     return { checked: docs.length, credited: credited, skipped: skipped };
 }
 
@@ -1303,4 +1314,9 @@ module.exports = {
     queueForumDamage: queueForumDamage,
     sweepForumDamage: sweepForumDamage,
     sendPhilDm: sendPhilDm,
+    recordBossHistory: history.recordBossHistory,
+    syncPrizeWinner: history.syncPrizeWinner,
+    closeEndedBosses: history.closeEndedBosses,
+    backfillRaidHistory: history.backfillRaidHistory,
+    buildHistoryDoc: history.buildHistoryDoc,
 };

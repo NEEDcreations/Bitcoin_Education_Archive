@@ -879,6 +879,309 @@ async function main() {
         assert.strictEqual(sent, false);
     });
 
+    function sentenceCount(text) {
+        return String(text || '').split(/[.!?]+/).map(function (part) { return part.trim(); }).filter(Boolean).length;
+    }
+
+    await test('history recap is a deterministic template and hides uid and email', function () {
+        const history = require('../functions/src/raidHistory');
+        const start = engine.zonedTimeToUtc(2026, 10, 1, 13, 0, 0);
+        const end = engine.zonedTimeToUtc(2026, 11, 1, 13, 0, 0);
+        const base = {
+            name: 'Poll-Patroller',
+            emoji: '🗳️',
+            metric: 'pollVotes',
+            communityTarget: 500,
+            target: 1000,
+            current: 1000,
+            damageScale: 2,
+            defeated: true,
+            startTime: ts(start),
+            endTime: ts(end),
+            image: 'javascript:alert(1)',
+        };
+        const people = [
+            { id: 'uid-secret-abc', username: 'Banned', contributed: 400, email: 'banned@example.com', banned: true },
+            { id: 'secret-two', username: 'Divine', contributed: 600, email: 'divine@example.com', lastUpdate: ts(new Date(start.getTime() + 9 * 86400000)) },
+            { id: 'secret-three', username: 'sneaky@mail.test', contributed: 10 },
+            { id: 'secret-four', username: 'Pip', contributed: 5 },
+        ];
+        const doc = history.buildHistoryDoc('2026-10', base, people, [], end.getTime());
+        assert.strictEqual(doc.monthLabel, 'October 2026');
+        assert.strictEqual(doc.goalText, 'Cast 500 poll votes in the Quest Hub');
+        assert.strictEqual(doc.result, 'defeated');
+        assert.strictEqual(doc.prizeWon, true);
+        assert.strictEqual(doc.prizeWinner, '');
+        assert.strictEqual(doc.image, history.IMAGE_BY_NAME['Poll-Patroller']);
+        assert.strictEqual(doc.playerCount, 4);
+        assert.deepStrictEqual(doc.topDealers.map(function (row) { return row.username; }), ['Divine', 'Banned', 'Raider']);
+        assert.ok(doc.recap.indexOf('Divine') !== -1);
+        assert.ok(doc.recap.indexOf('cast 500 votes') !== -1);
+        const sentences = sentenceCount(doc.recap);
+        assert.ok(sentences >= 2 && sentences <= 3, doc.recap);
+        const again = history.buildHistoryDoc('2026-10', base, people, [], end.getTime());
+        assert.strictEqual(again.recap, doc.recap);
+        const packed = JSON.stringify(doc);
+        assert.strictEqual(packed.indexOf('uid-secret-abc'), -1);
+        assert.strictEqual(packed.indexOf('secret-two'), -1);
+        assert.strictEqual(packed.indexOf('banned@example.com'), -1);
+        assert.strictEqual(packed.indexOf('sneaky@mail.test'), -1);
+        assert.strictEqual(packed.indexOf('javascript:'), -1);
+        assert.strictEqual(Object.prototype.hasOwnProperty.call(doc, 'uid'), false);
+        assert.strictEqual(Object.prototype.hasOwnProperty.call(doc, 'email'), false);
+        const indexes = {};
+        for (let n = 0; n < 80; n++) indexes[history.templateIndex('boss-' + n)] = true;
+        assert.ok(Object.keys(indexes).length > 1);
+        const survived = history.buildHistoryDoc('2026-09', Object.assign({}, base, {
+            name: 'Chat-Charger',
+            metric: 'chatMessages',
+            defeated: false,
+            current: 250,
+            image: '',
+        }), people.slice(0, 1), [{ username: 'Divine', uid: 'nope', email: 'nope@example.com' }], end.getTime());
+        assert.strictEqual(survived.result, 'survived');
+        assert.strictEqual(survived.prizeWon, false);
+        assert.strictEqual(survived.prizeWinner, '');
+        assert.strictEqual(survived.image, history.IMAGE_BY_NAME['Chat-Charger']);
+        assert.ok(sentenceCount(survived.recap) >= 2 && sentenceCount(survived.recap) <= 3);
+        assert.strictEqual(JSON.stringify(survived).indexOf('nope@example.com'), -1);
+    });
+
+    await test('defeat writes history once, and a later winner fills only the username', async function () {
+        const db = memoryDb();
+        const admin = adminFor();
+        const start = engine.zonedTimeToUtc(2026, 10, 1, 13, 0, 0);
+        const end = engine.zonedTimeToUtc(2026, 11, 1, 13, 0, 0);
+        const ref = db.collection('raid_bosses').doc('2026-10');
+        await ref.set({
+            name: 'Poll-Patroller',
+            metric: 'pollVotes',
+            communityTarget: 500,
+            target: 1000,
+            current: 1000,
+            damageScale: 2,
+            defeated: true,
+            placeholder: false,
+            startTime: ts(start),
+            endTime: ts(end),
+            image: 'https://assets.bitcoineducation.quest/images/raid-bosses/poll-patroller.png',
+        });
+        await ref.collection('participants').doc('uid-secret-abc').set({
+            username: 'Banned',
+            contributed: 400,
+            email: 'banned@example.com',
+            banned: true,
+        });
+        await ref.collection('participants').doc('secret-two').set({
+            username: 'Divine',
+            contributed: 600,
+            lastUpdate: ts(new Date(start.getTime() + 9 * 86400000)),
+        });
+        const open = await engine.recordBossHistory(db, admin, db.collection('raid_bosses').doc('still-open'), 'still-open', { now: end });
+        assert.strictEqual(open.reason, 'missing');
+        const live = db.collection('raid_bosses').doc('2026-12');
+        await live.set({
+            name: 'Cipher-Cracker',
+            metric: 'cipherPeerKey',
+            target: 1000,
+            current: 10,
+            defeated: false,
+            placeholder: false,
+            startTime: ts(end),
+            endTime: ts(engine.zonedTimeToUtc(2027, 1, 1, 13, 0, 0)),
+        });
+        const active = await engine.recordBossHistory(db, admin, live, '2026-12', { now: end });
+        assert.strictEqual(active.reason, 'active');
+        const first = await engine.recordBossHistory(db, admin, ref, '2026-10', { now: end });
+        assert.strictEqual(first.wrote, true);
+        const saved = (await db.collection('raid_history').doc('2026-10').get()).data();
+        assert.strictEqual(saved.prizeWinner, '');
+        assert.strictEqual(saved.result, 'defeated');
+        assert.strictEqual(saved.monthLabel, 'October 2026');
+        assert.ok(saved.image.indexOf('https://') === 0);
+        assert.strictEqual(saved.topDealers[0].username, 'Divine');
+        assert.strictEqual(saved.topDealers[1].username, 'Banned');
+        const packed = JSON.stringify(saved);
+        assert.strictEqual(packed.indexOf('uid-secret-abc'), -1);
+        assert.strictEqual(packed.indexOf('banned@example.com'), -1);
+        const second = await engine.recordBossHistory(db, admin, ref, '2026-10', { now: end });
+        assert.strictEqual(second.wrote, false);
+        await ref.update({ current: 1 });
+        assert.strictEqual((await db.collection('raid_history').doc('2026-10').get()).data().current, saved.current);
+        await ref.collection('winners').doc('winner-uid').set({
+            uid: 'winner-uid',
+            username: 'Divine',
+            email: 'divine@example.com',
+            drawnAt: ts(end),
+        });
+        const sync = await engine.syncPrizeWinner(db, admin, '2026-10');
+        assert.strictEqual(sync.updated, true);
+        const withWinner = (await db.collection('raid_history').doc('2026-10').get()).data();
+        assert.strictEqual(withWinner.prizeWinner, 'Divine');
+        assert.strictEqual(withWinner.recap, saved.recap);
+        assert.strictEqual(withWinner.current, saved.current);
+        const winnerPacked = JSON.stringify(withWinner);
+        assert.strictEqual(winnerPacked.indexOf('winner-uid'), -1);
+        assert.strictEqual(winnerPacked.indexOf('divine@example.com'), -1);
+        const again = await engine.syncPrizeWinner(db, admin, '2026-10');
+        assert.strictEqual(again.updated, false);
+
+        const survivedRef = db.collection('raid_bosses').doc('2026-09');
+        await survivedRef.set({
+            name: 'Chat-Charger',
+            metric: 'chatMessages',
+            communityTarget: 335,
+            target: 1000,
+            current: 250,
+            defeated: false,
+            placeholder: false,
+            startTime: ts(engine.zonedTimeToUtc(2026, 9, 1, 13, 0, 0)),
+            endTime: ts(start),
+        });
+        await survivedRef.collection('participants').doc('uid-secret-abc').set({ username: 'Banned', contributed: 250, email: 'banned@example.com' });
+        const closed = await engine.closeEndedBosses(db, admin, end);
+        assert.ok(closed.wrote >= 1);
+        const stood = (await db.collection('raid_history').doc('2026-09').get()).data();
+        assert.strictEqual(stood.result, 'survived');
+        assert.strictEqual(stood.prizeWon, false);
+        assert.strictEqual(stood.prizeWinner, '');
+        assert.strictEqual(stood.monthLabel, 'September 2026');
+        await survivedRef.collection('winners').doc('winner-uid').set({ username: 'Divine', uid: 'winner-uid', drawnAt: ts(end) });
+        const noFill = await engine.syncPrizeWinner(db, admin, '2026-09');
+        assert.strictEqual(noFill.updated, false);
+        assert.strictEqual((await db.collection('raid_history').doc('2026-09').get()).data().prizeWinner, '');
+
+        const plan = await engine.backfillRaidHistory(db, admin, end, { apply: false });
+        assert.strictEqual(plan.wouldCreate, 0);
+        assert.strictEqual(plan.created, 0);
+        const fresh = memoryDb();
+        const freshRef = fresh.collection('raid_bosses').doc('2026-08');
+        await freshRef.set({
+            name: 'Quiz-Crusader',
+            metric: 'quizCompletions',
+            communityTarget: 100,
+            target: 1000,
+            current: 1000,
+            defeated: true,
+            placeholder: false,
+            startTime: ts(engine.zonedTimeToUtc(2026, 8, 1, 13, 0, 0)),
+            endTime: ts(engine.zonedTimeToUtc(2026, 9, 1, 13, 0, 0)),
+        });
+        await freshRef.collection('winners').doc('winner-uid').set({ username: 'Ada', uid: 'winner-uid', email: 'ada@example.com', drawnAt: ts(end) });
+        await fresh.collection('raid_bosses').doc('2026-12').set({
+            name: 'Cipher-Cracker',
+            defeated: false,
+            placeholder: false,
+            startTime: ts(end),
+            endTime: ts(engine.zonedTimeToUtc(2027, 1, 1, 13, 0, 0)),
+            current: 0,
+            target: 1000,
+        });
+        await fresh.collection('raid_history').doc('old-win').set({
+            result: 'defeated',
+            prizeWon: true,
+            prizeWinner: '',
+            recap: 'kept',
+        });
+        await fresh.collection('raid_bosses').doc('old-win').set({
+            name: 'Forum-Forge',
+            defeated: true,
+            placeholder: false,
+            startTime: ts(start),
+            endTime: ts(end),
+            current: 1000,
+            target: 1000,
+        });
+        await fresh.collection('raid_bosses').doc('old-win').collection('winners').doc('winner-uid').set({
+            username: 'Nia',
+            uid: 'winner-uid',
+            email: 'nia@example.com',
+        });
+        const dry = await engine.backfillRaidHistory(fresh, admin, end, { apply: false });
+        assert.strictEqual(dry.wouldCreate, 1);
+        assert.strictEqual(dry.wouldFillWinners, 1);
+        assert.strictEqual((await fresh.collection('raid_history').doc('2026-08').get()).exists, false);
+        assert.strictEqual((await fresh.collection('raid_history').doc('old-win').get()).data().prizeWinner, '');
+        const applied = await engine.backfillRaidHistory(fresh, admin, end, { apply: true });
+        assert.strictEqual(applied.created, 1);
+        assert.strictEqual(applied.filledWinners, 1);
+        const made = (await fresh.collection('raid_history').doc('2026-08').get()).data();
+        assert.strictEqual(made.prizeWinner, 'Ada');
+        assert.strictEqual(made.result, 'defeated');
+        assert.strictEqual(JSON.stringify(made).indexOf('winner-uid'), -1);
+        assert.strictEqual(JSON.stringify(made).indexOf('ada@example.com'), -1);
+        const filled = (await fresh.collection('raid_history').doc('old-win').get()).data();
+        assert.strictEqual(filled.prizeWinner, 'Nia');
+        assert.strictEqual(filled.recap, 'kept');
+        assert.strictEqual(JSON.stringify(filled).indexOf('nia@example.com'), -1);
+        const script = fs.readFileSync(path.join(root, 'functions/scripts/backfill_raid_history.js'), 'utf8');
+        assert.ok(script.indexOf('dry-run') !== -1 || script.indexOf('Dry-run') !== -1);
+        assert.ok(script.indexOf("'--apply'") !== -1);
+        const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
+        const at = rules.indexOf('match /raid_history/{bossId}');
+        const block = rules.slice(at, at + 220);
+        assert.ok(at > 0);
+        assert.ok(block.indexOf('allow read: if true') !== -1);
+        assert.ok(block.indexOf('allow create, update, delete: if false') !== -1);
+        const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
+        assert.ok(quests.indexOf("orderBy('endedAtMs', 'desc').limit(12)") !== -1);
+        assert.ok(quests.indexOf('Winner announced soon') !== -1);
+        assert.ok(quests.indexOf('showUserProfileByUsername') !== -1);
+        assert.ok(quests.indexOf('📜 Boss History') !== -1);
+        assert.ok(quests.indexOf('id="raidBossHistoryBody" style="display:none;') !== -1);
+        const mountAt = quests.indexOf('function _mountRaidHistory');
+        const mount = quests.slice(mountAt, quests.indexOf('window._raidHistoryOpen'));
+        assert.strictEqual(mount.indexOf('.get('), -1);
+        const callable = fs.readFileSync(path.join(root, 'functions/src/contributeRaid.js'), 'utf8');
+        assert.ok(callable.indexOf('recordBossHistory') !== -1);
+        assert.ok(callable.indexOf('syncPrizeWinner') !== -1);
+    });
+
+    await test('a defeating hit writes the history doc from the raid engine', async function () {
+        const db = memoryDb();
+        const admin = adminFor();
+        const start = engine.zonedTimeToUtc(2026, 11, 1, 13, 0, 0);
+        const end = engine.zonedTimeToUtc(2026, 12, 1, 13, 0, 0);
+        await db.collection('raid_bosses').doc('2026-11').set({
+            name: 'Chat-Charger',
+            metric: 'chatMessages',
+            sources: ['chatMessages'],
+            target: 1000,
+            damageScale: 1000,
+            dailyCap: 5,
+            minVisibleChars: 8,
+            current: 0,
+            defeated: false,
+            placeholder: false,
+            communityTarget: 335,
+            startTime: ts(start),
+            endTime: ts(end),
+            image: 'https://assets.bitcoineducation.quest/images/raid-bosses/chat-charger.png',
+        });
+        await db.collection('users').doc('uid-secret-abc').set({ username: 'Ada', email: 'ada@example.com' });
+        const hit = await engine.creditTrusted(db, admin, {
+            metric: 'chatMessages',
+            uid: 'uid-secret-abc',
+            dedupeKey: 'chat-win',
+            amount: 1,
+            text: '12345678',
+            grantTickets: null,
+            badges: false,
+            now: new Date('2026-11-15T18:00:00.000Z'),
+        });
+        assert.strictEqual(hit.defeated, true);
+        const saved = (await db.collection('raid_history').doc('2026-11').get()).data();
+        assert.strictEqual(saved.result, 'defeated');
+        assert.strictEqual(saved.prizeWinner, 'Ada');
+        assert.strictEqual(saved.goalText, 'Send 335 real Global Chat messages');
+        assert.strictEqual(saved.monthLabel, 'November 2026');
+        assert.ok(saved.image.indexOf('chat-charger.png') !== -1);
+        const packed = JSON.stringify(saved);
+        assert.strictEqual(packed.indexOf('uid-secret-abc'), -1);
+        assert.strictEqual(packed.indexOf('ada@example.com'), -1);
+        assert.ok(sentenceCount(saved.recap) >= 2 && sentenceCount(saved.recap) <= 3);
+    });
+
     if (failed) {
         console.error(failed + ' failed, ' + passed + ' passed');
         process.exit(1);
