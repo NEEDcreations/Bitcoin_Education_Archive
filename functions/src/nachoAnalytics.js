@@ -17,9 +17,26 @@ const TOPICS = {
     culture: 1, regulation: 1, onboarding: 1, other: 1,
 };
 
+// Names the client actually passes to nachoTrackTopic (answer type, or the
+// explicit 'kb' / 'fallback' / 'offtopic' / 'unknown' calls). Anything else
+// is stored as unknown so a hostile client cannot invent counter keys.
 const SOURCES = {
-    kb: 1, ai: 1, offtopic: 1, fallback: 1, safety: 1, unknown: 1,
-    crisis: 1, harm: 1, profanity: 1,
+    kb: 1,
+    ai: 1,
+    'ai+kb': 1,
+    offtopic: 1,
+    fallback: 1,
+    safety: 1,
+    unknown: 1,
+    crisis: 1,
+    harm: 1,
+    profanity: 1,
+    deepsearch: 1,
+    websearch: 1,
+    statement: 1,
+    math: 1,
+    site: 1,
+    live: 1,
 };
 
 const KNOWN_KEYS = {
@@ -130,20 +147,6 @@ function planAcceptance(existing, event, nowMs) {
 }
 
 function createBody(kind, event) {
-    if (kind === 'question') {
-        const topics = {};
-        const sources = {};
-        topics[event.topic] = 1;
-        sources[event.source] = 1;
-        return {
-            totalQuestions: 1,
-            upvotes: 0,
-            downvotes: 0,
-            missCount: 0,
-            topics: topics,
-            sources: sources,
-        };
-    }
     if (kind === 'vote') {
         return {
             totalQuestions: 0,
@@ -166,18 +169,43 @@ function createBody(kind, event) {
 
 function updateBody(kind, event, FieldValue) {
     const patch = { lastUpdated: FieldValue.serverTimestamp() };
-    if (kind === 'question') {
-        patch.totalQuestions = FieldValue.increment(1);
-        patch['topics.' + event.topic] = FieldValue.increment(1);
-        patch['sources.' + event.source] = FieldValue.increment(1);
-        return patch;
-    }
     if (kind === 'vote') {
         patch[event.rating === 1 ? 'upvotes' : 'downvotes'] = FieldValue.increment(1);
         return patch;
     }
-    patch.missCount = FieldValue.increment(1);
+    if (kind === 'miss') {
+        patch.missCount = FieldValue.increment(1);
+        return patch;
+    }
     return patch;
+}
+
+// sources['ai+kb'] is one map key. A dotted update string would be a field
+// path. FieldPath segments are not split, so '+' stays inside the key.
+function writeQuestionStats(tx, snap, ref, event, FieldValue, FieldPath) {
+    if (!snap.exists) {
+        const topics = {};
+        const sources = {};
+        topics[event.topic] = 1;
+        sources[event.source] = 1;
+        tx.set(ref, {
+            totalQuestions: 1,
+            upvotes: 0,
+            downvotes: 0,
+            missCount: 0,
+            topics: topics,
+            sources: sources,
+            lastUpdated: FieldValue.serverTimestamp(),
+        });
+        return;
+    }
+    tx.update(
+        ref,
+        'totalQuestions', FieldValue.increment(1),
+        'lastUpdated', FieldValue.serverTimestamp(),
+        new FieldPath('topics', event.topic), FieldValue.increment(1),
+        new FieldPath('sources', event.source), FieldValue.increment(1)
+    );
 }
 
 function writeCounter(tx, snap, ref, create, update, FieldValue) {
@@ -276,14 +304,18 @@ function createRecordNachoAnalytics(opts) {
                 throw new HttpsError('resource-exhausted', 'Too many Nacho stats. Try again in a minute.');
             }
             tx.set(rateRef, plan.rate);
-            writeCounter(
-                tx,
-                statsSnap,
-                statsRef,
-                createBody(event.kind, event),
-                updateBody(event.kind, event, FieldValue),
-                FieldValue
-            );
+            if (event.kind === 'question') {
+                writeQuestionStats(tx, statsSnap, statsRef, event, FieldValue, admin.firestore.FieldPath);
+            } else {
+                writeCounter(
+                    tx,
+                    statsSnap,
+                    statsRef,
+                    createBody(event.kind, event),
+                    updateBody(event.kind, event, FieldValue),
+                    FieldValue
+                );
+            }
             if (event.kind === 'vote') {
                 writeCounter(
                     tx,
