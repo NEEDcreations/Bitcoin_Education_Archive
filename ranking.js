@@ -532,8 +532,310 @@ function _resumeAfterSecondFactor() {
     }
 }
 
+// Display-only profile paint. Reads the persisted Firebase uid from IndexedDB
+// (no network) and, when it matches btc_profile_cache, runs the same cache
+// render the auth callback uses. Age is ignored: stale XP is fine to show.
+// Rewards, claims, writes, and callables stay off until auth confirms this uid.
+// needs2fa / unknown 2FA still hide the name.
+var _optimisticProfileUid = '';
+var _profileShownUid = '';
+var _optimisticGen = 0;
+var _optimisticPaintStarted = false;
+
+function displayClaimableMath(user) {
+    var u = user || {};
+    var points = Number(u.points) || 0;
+    var claimed = Number(u.pointsClaimed) || 0;
+    var donated = Number(u.pointsDonated) || 0;
+    var exchanged = Number(u.pointsExchanged) || 0;
+    var withdrawn = Number(u.satsWithdrawn) || 0;
+    if (withdrawn < 0) withdrawn = 0;
+    var balance = Math.floor(Math.max(0, points - claimed - donated - exchanged) / 10);
+    var left = Math.max(0, lifetimeSatCap() - withdrawn);
+    return {
+        balance: balance,
+        lifetimeLeft: left,
+        claimable: Math.min(balance, left),
+        cap: lifetimeSatCap(),
+        withdrawn: withdrawn
+    };
+}
+
+function optimisticProfilePending() {
+    if (!_optimisticProfileUid) return false;
+    var user = null;
+    try { user = auth && auth.currentUser; } catch (e) { user = null; }
+    if (user && !user.isAnonymous && user.uid === _optimisticProfileUid) return false;
+    return true;
+}
+
+function readProfileCacheRecord() {
+    try {
+        var cp = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
+        if (!cp || !cp.uid || !cp.data) return null;
+        return cp;
+    } catch (e) { return null; }
+}
+
+// Any age. twoFa must be known off. A needs2fa or unknown flag does not paint.
+function profileCacheReadyForDisplay(uid) {
+    var cp = readProfileCacheRecord();
+    if (!cp || !uid || String(cp.uid) !== String(uid)) return null;
+    var needs2fa = cp.twoFa === true || !!(cp.data && cp.data.totpEnabled);
+    if (needs2fa) return null;
+    var knownOff = cp.twoFa === false || (cp.data && cp.data.totpEnabled === false);
+    if (!knownOff) return null;
+    return cp;
+}
+
+function readPersistedAuthUid() {
+    return new Promise(function (resolve) {
+        var cfg = (typeof FIREBASE_CONFIG !== 'undefined' && FIREBASE_CONFIG) || (typeof window !== 'undefined' && window.FIREBASE_CONFIG) || null;
+        var apiKey = cfg && cfg.apiKey;
+        var idb = null;
+        try { if (typeof indexedDB !== 'undefined') idb = indexedDB; } catch (e) { idb = null; }
+        if (!idb && typeof window !== 'undefined') idb = window.indexedDB;
+        if (!apiKey || !idb || typeof idb.open !== 'function') { resolve(''); return; }
+        var settled = false;
+        function finish(uid) {
+            if (settled) return;
+            settled = true;
+            var id = String(uid || '');
+            resolve(/^[A-Za-z0-9:_\-]{6,128}$/.test(id) ? id : '');
+        }
+        var timer = setTimeout(function () { finish(''); }, 800);
+        function done(uid) { clearTimeout(timer); finish(uid); }
+        function uidFromRow(row) {
+            if (!row) return '';
+            var value = (row.value && typeof row.value === 'object') ? row.value : row;
+            // Anonymous persistence is not a signed-in profile.
+            if (value && value.isAnonymous === true) return '';
+            return (value && value.uid) || row.uid || '';
+        }
+        function readDb(dbh) {
+            if (!dbh) { done(''); return; }
+            try {
+                if (!dbh.objectStoreNames || !dbh.objectStoreNames.contains('firebaseLocalStorage')) {
+                    try { dbh.close(); } catch (e) {}
+                    done('');
+                    return;
+                }
+                var tx = dbh.transaction('firebaseLocalStorage', 'readonly');
+                var req = tx.objectStore('firebaseLocalStorage').get('firebase:authUser:' + apiKey + ':[DEFAULT]');
+                req.onsuccess = function () {
+                    var uid = uidFromRow(req.result);
+                    try { dbh.close(); } catch (e) {}
+                    done(uid);
+                };
+                req.onerror = function () { try { dbh.close(); } catch (e) {} done(''); };
+            } catch (e) {
+                try { dbh.close(); } catch (e2) {}
+                done('');
+            }
+        }
+        // Never create or upgrade Firebase's database. A first visit has no row.
+        function readExistingAuthDb() {
+            var openReq;
+            try { openReq = idb.open('firebaseLocalStorageDb'); }
+            catch (e) { done(''); return; }
+            var stopped = false;
+            function stop(uid) {
+                if (stopped) return;
+                stopped = true;
+                done(uid);
+            }
+            openReq.onupgradeneeded = function (ev) {
+                try {
+                    var tx = (ev && ev.target && ev.target.transaction) || openReq.transaction;
+                    if (tx && typeof tx.abort === 'function') tx.abort();
+                } catch (e) {}
+                try { if (openReq.result && openReq.result.close) openReq.result.close(); } catch (e2) {}
+                stop('');
+            };
+            openReq.onerror = function () { stop(''); };
+            openReq.onsuccess = function () {
+                if (stopped) {
+                    try { if (openReq.result && openReq.result.close) openReq.result.close(); } catch (e) {}
+                    return;
+                }
+                readDb(openReq.result);
+            };
+        }
+        if (typeof idb.databases === 'function') {
+            var listed;
+            try { listed = idb.databases(); } catch (e) { listed = null; }
+            if (listed && typeof listed.then === 'function') {
+                listed.then(function (rows) {
+                    var found = false;
+                    var i;
+                    rows = rows || [];
+                    for (i = 0; i < rows.length; i++) {
+                        if (rows[i] && rows[i].name === 'firebaseLocalStorageDb') found = true;
+                    }
+                    if (!found) { done(''); return; }
+                    readExistingAuthDb();
+                }).catch(function () { readExistingAuthDb(); });
+                return;
+            }
+        }
+        readExistingAuthDb();
+    });
+}
+
+function paintCachedSats(user, optimistic) {
+    var satsEl = document.getElementById('homeSatsValue');
+    if (!satsEl) return;
+    var math = (typeof window.claimableSats === 'function') ? window.claimableSats(user || {}) : displayClaimableMath(user || {});
+    satsEl.textContent = Number((math && math.claimable) || 0).toLocaleString();
+    if (optimistic) {
+        satsEl.setAttribute('data-profile-cache', '1');
+        satsEl.removeAttribute('data-auth-live');
+    } else {
+        satsEl.setAttribute('data-auth-live', '1');
+        satsEl.removeAttribute('data-profile-cache');
+    }
+}
+
+function applyCachedProfileRender(uid, cache, confirmed) {
+    var data = profileCacheData(cache.data);
+    currentUser = { uid: uid };
+    var key;
+    for (key in data) {
+        if (Object.prototype.hasOwnProperty.call(data, key)) currentUser[key] = data[key];
+    }
+    if (confirmed) {
+        _optimisticProfileUid = '';
+        window._optimisticProfileUid = '';
+        _profileShownUid = uid;
+        window._profileAuthConfirmedUid = uid;
+        publishAuthDisplay(uid, cache.data);
+        window._myPeers = new Set(currentUser.peers || []);
+        rankingReady = true;
+        window._badgesReady = true;
+        if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady();
+        window._hiddenBadgesReady = true;
+    } else {
+        _optimisticProfileUid = uid;
+        window._optimisticProfileUid = uid;
+        _profileShownUid = uid;
+        // rankingReady stays false. Nothing here may grant, claim, or call.
+    }
+    try { restoreVisitedUI(); } catch (e) { console.warn('[Auth] early restore', e); }
+    try { updateRankUI(); } catch (e) { console.warn('[Auth] early rank', e); }
+    try { updateAuthButton(); } catch (e) { console.warn('[Auth] early button', e); }
+    try { paintCachedSats(currentUser, !confirmed); } catch (e) {}
+    try {
+        var liveBar = document.getElementById('rankBar');
+        if (liveBar) {
+            if (confirmed) {
+                liveBar.setAttribute('data-auth-live', '1');
+                liveBar.removeAttribute('data-profile-cache');
+            } else {
+                liveBar.setAttribute('data-profile-cache', '1');
+                liveBar.removeAttribute('data-auth-live');
+            }
+        }
+    } catch (e) {}
+    if (confirmed && typeof renderProgressRings === 'function') {
+        try { renderProgressRings(); } catch (e) {}
+    }
+    try {
+        if (window.performance && performance.mark) performance.mark(confirmed ? 'btc-profile-cache-live' : 'btc-profile-full');
+    } catch (e) {}
+}
+
+function clearOptimisticProfile(dropCache) {
+    _optimisticGen++;
+    _optimisticProfileUid = '';
+    window._optimisticProfileUid = '';
+    _profileShownUid = '';
+    window._profileAuthConfirmedUid = '';
+    currentUser = null;
+    rankingReady = false;
+    _authBtnSignedIn = false;
+    if (dropCache) {
+        try { localStorage.removeItem('btc_profile_cache'); } catch (e) {}
+    }
+    try { clearAuthDisplay(); } catch (e) {}
+    if (window.btcAuthDisplay && typeof window.btcAuthDisplay.forceClearProfile === 'function') {
+        try { window.btcAuthDisplay.forceClearProfile(); } catch (e) {}
+    }
+    try { resetOptimisticHomeChrome(); } catch (e) {}
+    // The next updateAuthButton must stay on the guest home while currentUser is null.
+    window._btcHoldGuestUntilProfile = true;
+    try { if (typeof updateAuthButton === 'function') updateAuthButton(); } catch (e) {}
+}
+
+// Match keeps the paint and lets the auth path continue. A different uid,
+// null, or signed-out drops the optimistic UI and the cache immediately.
+// A redirect that has not settled yet hides the UI but keeps the cache.
+function reconcileOptimisticAuth(user, pendingRedirect) {
+    var real = (user && !user.isAnonymous && user.uid) ? String(user.uid) : '';
+    var shown = _optimisticProfileUid || _profileShownUid;
+    if (real && shown && real === shown) {
+        window._profileAuthConfirmedUid = real;
+        _optimisticProfileUid = '';
+        window._optimisticProfileUid = '';
+        _profileShownUid = real;
+        return { action: 'match' };
+    }
+    var cached = readProfileCacheRecord();
+    if (real && ((shown && shown !== real) || (cached && String(cached.uid) !== real))) {
+        clearOptimisticProfile(true);
+        return { action: 'mismatch' };
+    }
+    if (!real && shown) {
+        clearOptimisticProfile(!pendingRedirect);
+        return { action: pendingRedirect ? 'wait' : 'signed-out' };
+    }
+    return { action: real ? 'none' : 'signed-out-idle' };
+}
+
+function considerOptimisticProfile(uid) {
+    if (!uid) return false;
+    if (window._profileAuthConfirmedUid && window._profileAuthConfirmedUid === uid) return false;
+    var early = window._btcEarlyAuthUser;
+    if (typeof early !== 'undefined') {
+        if (!early || early.isAnonymous || String(early.uid) !== String(uid)) return false;
+    }
+    var cache = profileCacheReadyForDisplay(uid);
+    if (!cache) return false;
+    applyCachedProfileRender(uid, cache, false);
+    return true;
+}
+
+function startOptimisticProfilePaint() {
+    if (_optimisticPaintStarted) return;
+    _optimisticPaintStarted = true;
+    var gen = _optimisticGen;
+    readPersistedAuthUid().then(function (uid) {
+        if (gen !== _optimisticGen || !uid) return;
+        function paint() {
+            if (gen !== _optimisticGen) return;
+            considerOptimisticProfile(uid);
+        }
+        // Defer scripts run after the document is parsed. A test harness that
+        // evaluates this file early waits until the document is ready.
+        if (document.readyState === 'interactive' || document.readyState === 'complete') {
+            paint();
+            return;
+        }
+        document.addEventListener('DOMContentLoaded', paint);
+    }).catch(function () {});
+}
+
+window.considerOptimisticProfile = considerOptimisticProfile;
+window.reconcileOptimisticAuth = reconcileOptimisticAuth;
+window.clearOptimisticProfile = clearOptimisticProfile;
+window.profileCacheReadyForDisplay = profileCacheReadyForDisplay;
+window.readPersistedAuthUid = readPersistedAuthUid;
+window.startOptimisticProfilePaint = startOptimisticProfilePaint;
+
 function initRanking() {
     try {
+        // Start the IndexedDB uid read before App Check, Firestore, or the auth
+        // listener. The paint must not wait on the first onAuthStateChanged.
+        startOptimisticProfilePaint();
         if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
 
         // App Check for claimSats. One activation per page, before any claim.
@@ -700,6 +1002,9 @@ function initRanking() {
             // A verified pass belongs to one uid. Sign-out, anonymous, and a
             // different account all drop it before any profile work.
             syncTotpVerified(user);
+            // Optimistic paint is display-only. A different uid, null, or
+            // signed-out clears that UI and the cache before any other work.
+            reconcileOptimisticAuth(user, _pendingRedirect);
             // getRedirectResult() waits on the auth iframe. Calling it before this
             // listener, or on every reload, stalled the signed-in home for seconds.
             // A returning real user has nothing to consume. Only a redirect return
@@ -751,31 +1056,10 @@ function initRanking() {
                         holdAuthDisplayForTotp(user.uid);
                         loadUser(user.uid).catch(function(){});
                     } else if (_cachedProfile && !_cacheNeeds2fa && (_cachedProfile.twoFa === false || (_cachedProfile.data && _cachedProfile.data.totpEnabled === false))) {
-                        // Instant render from cache. Display snapshot stays display-only;
-                        // rankingReady here is the existing profile cache, after auth matched this uid.
-                        currentUser = { uid: user.uid, ...profileCacheData(_cachedProfile.data) };
-                        publishAuthDisplay(user.uid, _cachedProfile.data);
-                        window._myPeers = new Set(currentUser.peers || []);
-                        rankingReady = true;
-                        window._badgesReady = true;
-                        if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady();
-                        window._hiddenBadgesReady = true;
-                        try { restoreVisitedUI(); } catch (e) { console.warn('[Auth] early restore', e); }
-                        try { updateRankUI(); } catch (e) { console.warn('[Auth] early rank', e); }
-                        try { updateAuthButton(); } catch (e) { console.warn('[Auth] early button', e); }
-                        try {
-                            var _liveBar = document.getElementById('rankBar');
-                            if (_liveBar) {
-                                _liveBar.setAttribute('data-auth-live', '1');
-                                _liveBar.removeAttribute('data-profile-cache');
-                            }
-                            var _liveSats = document.getElementById('homeSatsValue');
-                            if (_liveSats) {
-                                _liveSats.setAttribute('data-auth-live', '1');
-                                _liveSats.removeAttribute('data-profile-cache');
-                            }
-                        } catch (e) {}
-                        if (typeof renderProgressRings === 'function') renderProgressRings();
+                        // Auth confirmed this uid. Same cache render as the optimistic
+                        // paint, now allowed to mark the profile live. rankingReady
+                        // here is the existing profile cache, after auth matched this uid.
+                        applyCachedProfileRender(user.uid, _cachedProfile, true);
                         // Stale-while-revalidate: Firestore refreshes the cache and does not block the paint above.
                         setTimeout(function() { loadUser(user.uid).catch(function(){}); }, 500);
                     } else {
@@ -2952,6 +3236,35 @@ function loadUserLocal(uid) {
     startReadTimer();
 }
 
+function settleAdminClaim() {
+    var user = auth && auth.currentUser;
+    if (!user || user.isAnonymous || typeof user.getIdTokenResult !== 'function') {
+        window._isAdminClaim = false;
+        return;
+    }
+    var forcedLanded = false;
+    function applyClaim(tokenResult) {
+        window._isAdminClaim = !!(tokenResult && tokenResult.claims && tokenResult.claims.admin === true);
+        // Firestore's onSnapshot often fires from cache before the claim lands,
+        // so own messages render with isAdmin=false and miss the pin button.
+        if (window._isAdminClaim && window._chatAllMsgs && typeof renderChatMessages === 'function') {
+            renderChatMessages(window._chatAllMsgs);
+        }
+    }
+    // Non-forced: uses the cached token when it is still valid.
+    user.getIdTokenResult().then(function (tokenResult) {
+        if (forcedLanded) return;
+        applyClaim(tokenResult);
+    }).catch(function () {
+        if (!forcedLanded) window._isAdminClaim = false;
+    });
+    // Forced refresh stays off the UI path. It only corrects a stale admin claim.
+    user.getIdTokenResult(true).then(function (tokenResult) {
+        forcedLanded = true;
+        applyClaim(tokenResult);
+    }).catch(function () {});
+}
+
 async function loadUser(uid, prefetchedDoc) {
     const doc = prefetchedDoc || await db.collection('users').doc(uid).get();
     if (doc.exists) {
@@ -2974,22 +3287,10 @@ async function loadUser(uid, prefetchedDoc) {
             updateAuthButton();
         }
     }
-    // Token refresh and callables must not block the signed-in chrome above.
-    // Resolve admin status from custom claim (not email allowlist)
-    try {
-        if (auth.currentUser && !auth.currentUser.isAnonymous) {
-            const tokenResult = await auth.currentUser.getIdTokenResult(true); // forceRefresh — stale token won't carry admin claim
-            window._isAdminClaim = tokenResult.claims.admin === true;
-        } else {
-            window._isAdminClaim = false;
-        }
-    } catch(e) { window._isAdminClaim = false; }
-    // Re-render chat messages now that admin claim is resolved.
-    // Firestore's onSnapshot often fires from cache before loadUser() finishes,
-    // so own messages render with isAdmin=false and miss the pin button.
-    if (window._isAdminClaim && window._chatAllMsgs && typeof renderChatMessages === 'function') {
-        renderChatMessages(window._chatAllMsgs);
-    }
+    // Admin chrome reads the cached token. A forced refresh always waits on
+    // the network and used to sit in front of this profile UI. Server-side
+    // checks still verify the live token on each callable.
+    settleAdminClaim();
     if (doc.exists) {
         // TOS check — show acceptance modal if user hasn't accepted current version
         if (currentUser && !auth.currentUser.isAnonymous && currentUser.tosVersion !== TOS_CURRENT_VERSION) {
@@ -3469,7 +3770,7 @@ function satsHomeSnapshot(user) {
     var u = user || {};
     var math = (typeof window.claimableSats === 'function')
         ? window.claimableSats(u)
-        : { balance: 0, lifetimeLeft: 0, claimable: 0, cap: lifetimeSatCap(), withdrawn: Number(u.satsWithdrawn) || 0 };
+        : displayClaimableMath(u);
     var address = String(u.lightning || u.lightningAddress || '').trim();
     var anon = true;
     var emailOk = false;
@@ -3580,7 +3881,9 @@ function paintHomeStrip(snap) {
     var claimNow = Math.min(Number(snap.claimable) || 0, 200, Number(snap.lifetimeLeft) || 0);
     if (satsEl) satsEl.textContent = Number(snap.claimable || 0).toLocaleString();
     var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
-    paintInviteTier(serverMaxiReferralCount(user));
+    // The profile cache has no referral count. Leave the Invites tile on its
+    // placeholder until referral stats arrive.
+    if (!optimisticProfilePending()) paintInviteTier(serverMaxiReferralCount(user));
     var kicker = document.getElementById('homeWithdrawKicker');
     var value = document.getElementById('homeWithdrawValue');
     var note = document.getElementById('homeWithdrawNote');
@@ -3625,7 +3928,9 @@ window.refreshHomeStrip = function() {
     var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
     var snap = satsHomeSnapshot(user);
     paintHomeStrip(snap);
-    if (typeof getReferralStats === 'function') {
+    // Optimistic profile paint is display-only. Referral stats are a callable
+    // and wait until auth confirms this uid.
+    if (typeof getReferralStats === 'function' && !optimisticProfilePending()) {
         getReferralStats().then(function (stats) {
             if (!stats || stats.failed || typeof stats.invited !== 'number') return;
             paintInviteTier(serverMaxiReferralCount(user), stats.invited);
@@ -3841,9 +4146,74 @@ function openHomeWithdraw() {
 }
 window.openHomeWithdraw = openHomeWithdraw;
 
+function removePaintedNode(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (el.parentNode && el.parentNode.removeChild) el.parentNode.removeChild(el);
+    else if (typeof el.remove === 'function') el.remove();
+}
+
+function resetOptimisticHomeChrome() {
+    removePaintedNode('bqMobileStreak');
+    removePaintedNode('bqDailyStreak');
+    removePaintedNode('bqDailyStreakText');
+    var sats = document.getElementById('homeSatsValue');
+    if (sats) {
+        sats.textContent = '\u2014';
+        sats.removeAttribute('data-profile-cache');
+        sats.removeAttribute('data-auth-live');
+    }
+    var withdraw = document.getElementById('homeWithdrawValue');
+    if (withdraw) withdraw.textContent = '\u2014';
+    var withdrawNote = document.getElementById('homeWithdrawNote');
+    if (withdrawNote) withdrawNote.textContent = '\u2014';
+    var tier = document.getElementById('homeInvitesTier');
+    if (tier) tier.textContent = '\u2014';
+    var note = document.getElementById('homeInvitesNote');
+    if (note) note.textContent = 'reached Maxi';
+    var prog = document.getElementById('homeInvitesProgress');
+    if (prog) prog.textContent = '';
+    var openBtn = document.getElementById('homeInvitesOpen');
+    if (openBtn) openBtn.setAttribute('aria-label', 'Invites');
+    var tile = document.getElementById('homeInvitesTile');
+    if (tile) tile.removeAttribute('data-referral-tier');
+    var bar = document.getElementById('rankBar');
+    if (bar) {
+        bar.textContent = '';
+        if ('innerHTML' in bar) bar.innerHTML = '';
+        bar.style.display = 'none';
+        bar.removeAttribute('data-profile-cache');
+        bar.removeAttribute('data-auth-live');
+    }
+    var shown = document.getElementById('userDisplay');
+    if (shown) {
+        shown.textContent = '';
+        if ('innerHTML' in shown) shown.innerHTML = '';
+        shown.style.display = 'none';
+    }
+    try {
+        document.documentElement.classList.remove('home-signed-in');
+        document.documentElement.removeAttribute('data-auth-display');
+        if (document.body) document.body.classList.remove('home-signed-in');
+    } catch (e) {}
+}
+
 function updateAuthButton() {
     const btn = document.getElementById('authBtn');
     if (!btn) return;
+    if (currentUser) window._btcHoldGuestUntilProfile = false;
+    // Account A was cleared and B's profile is not in yet. Do not keep A's
+    // signed-in chrome, and do not invent "My Account" from the new auth user.
+    if (!currentUser && window._btcHoldGuestUntilProfile) {
+        _authBtnSignedIn = false;
+        applyGuestAuthButton(btn);
+        document.documentElement.classList.remove('home-signed-in');
+        document.documentElement.removeAttribute('data-auth-display');
+        if (document.body) document.body.classList.remove('home-signed-in');
+        if (typeof window.refreshHomeStrip === 'function') window.refreshHomeStrip();
+        if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
+        return;
+    }
     // The authenticator check has not passed. Do not turn this into Settings.
     if (window._btcTotpHold) {
         _authBtnSignedIn = false;
@@ -4382,7 +4752,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
 }
 
 async function awardVisitPoints() {
-    if (!currentUser) return;
+    if (!currentUser || optimisticProfilePending()) return;
     // Snapshot the previous visit before recordDailyVisit overwrites it,
     // so the push prompt can tell a 7-day return from a same-day reload.
     try {
@@ -4509,7 +4879,7 @@ window._doubleXpUntilMs = function(u) {
 };
 
 async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badgeId, extra) {
-    if (!currentUser || !rankingReady) return;
+    if (!currentUser || !rankingReady || optimisticProfilePending()) return;
 
     // Anti-abuse: validate pts is a reasonable number.
     // badge_earned uses a higher ceiling because the CF catalog contains milestones
@@ -10658,6 +11028,8 @@ window._withdrawalLnEligible = _withdrawalLnEligible;
 
 
 // ---- Init Firebase & Auth ----
+// IndexedDB uid read starts as soon as this file runs, not inside auth.
+startOptimisticProfilePaint();
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initRanking);
 } else {

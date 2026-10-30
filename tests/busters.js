@@ -2,10 +2,10 @@
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
 // timechain-tv.js stays 20261026_v2383. scholar.js stays 20261026_v2386.
 // patches.js stays 20261026_v2385. bundle.min.js is 20261029_v2429.
-// earn-xp-guide.js and guide.js stay 20261026_v2382. ranking.js is 20261028_v2425.
+// earn-xp-guide.js and guide.js stay 20261026_v2382. ranking.js is 20261029_v2432.
 // modules.js and learning-quests.js stay 20261026_v2377.
 // scholar.js matches window.SCHOLAR_SCRIPT.
-// global-chat.js is 20261028_v2425. gifting.js is 20261029_v2429. quests.js is 20261028_v2415.
+// global-chat.js is 20261029_v2432. gifting.js is 20261029_v2429. quests.js is 20261028_v2415.
 // satoshi-favor.js stays 20261026_v2368.
 // onboarding.js stays 20261026_v2373. today-card.js stays 20261026_v2371.
 // features.registry.js stays 20261024_v2368. achievement-share.js is 20261026_v2391.
@@ -42,7 +42,6 @@ test('service worker cache is v2432', () => {
     assert.ok(!sw.includes('btc-archive-v2430'));
     assert.ok(!sw.includes('btc-archive-v2429'));
     assert.ok(!sw.includes('btc-archive-v2428'));
-    assert.ok(!sw.includes('btc-archive-v2427'));
     assert.ok(!sw.includes('btc-archive-v2426'));
     assert.ok(!sw.includes('btc-archive-v2425'));
     assert.ok(!sw.includes('btc-archive-v2416'));
@@ -184,6 +183,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('earn-xp-guide.js?v=20261026_v2382'));
     assert.ok(html.includes('referral-tiers.js?v=20261028_v2418'));
     assert.ok(html.includes('ranking.js?v=20261029_v2432'));
+    assert.ok(!html.includes('ranking.js?v=20261029_v2431'));
+    assert.ok(!html.includes('ranking.js?v=20261028_v2425'));
     assert.ok(!html.includes('ranking.js?v=20261028_v2424'));
     assert.ok(!html.includes('ranking.js?v=20261029_v2421'));
     assert.ok(!html.includes('ranking.js?v=20261029_v2420'));
@@ -288,6 +289,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('modules.js?v=20261023_v2324'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
     assert.ok(html.includes('global-chat.js?v=20261029_v2432'));
+    assert.ok(!html.includes('global-chat.js?v=20261029_v2431'));
+    assert.ok(!html.includes('global-chat.js?v=20261028_v2431'));
     assert.strictEqual((html.match(/global-chat\.js\?v=20261029_v2432/g) || []).length, 5);
     assert.strictEqual((html.match(/global-chat\.js\?v=20261028_v2425/g) || []).length, 0);
     assert.strictEqual((html.match(/global-chat\.js\?v=20261028_v2417/g) || []).length, 0);
@@ -498,9 +501,10 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(!notes.includes('October 29, 2026 · v2431'));
     assert.ok(!notes.includes('October 29, 2026 · v2430'));
     assert.ok(!notes.includes('October 29, 2026 · v2429'));
-    assert.ok(!notes.includes('October 29, 2026 · v2427'));
+    assert.ok(!notes.includes('October 29, 2026 · v2428'));
     assert.ok(!notes.includes('October 29, 2026 · v2426'));
     assert.ok(!notes.includes('October 28, 2026 · v2425'));
+    assert.ok(!notes.includes('Latest: Fixed leaderboards and your saved profile taking too long to load.'));
     assert.ok(!notes.includes('October 29, 2026 · v2421'));
     assert.ok(!notes.includes('October 28, 2026 · v2424'));
     assert.ok(!notes.includes('October 28, 2026 · v2423'));
@@ -523,6 +527,10 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(!notes.includes('October 27, 2026 · v2393'));
     assert.ok(!notes.includes('October 26, 2026 · v2391'));
     assert.ok(notes.includes("Latest: Earned posts in GGs chat have a 🎉 button. Tap once to celebrate, and tap again to take it back."));
+    assert.ok(notes.includes('Faster profile load when you open the app.'));
+    assert.ok(!notes.includes('Latest: Faster profile load'));
+    assert.ok(notes.includes("The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front."));
+    assert.ok(!notes.includes('Latest: The daily wheel'));
     assert.ok(notes.includes('Fixed leaderboards and your saved profile taking too long to load.'));
     assert.ok(!notes.includes('Latest: Fixed leaderboards'));
     assert.ok(notes.includes('Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.'));

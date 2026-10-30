@@ -400,6 +400,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     const sw = read('sw.js');
     assert.strictEqual(html, html404);
     assert.ok(html.includes('ranking.js?v=20261029_v2432'));
+    assert.ok(!html.includes('ranking.js?v=20261029_v2431'));
+    assert.ok(!html.includes('global-chat.js?v=20261029_v2431'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2400'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2377'));

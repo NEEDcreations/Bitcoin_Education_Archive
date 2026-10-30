@@ -884,6 +884,11 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const timer = 'The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.';
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
     const latest = "Latest: Earned posts in GGs chat have a 🎉 button. Tap once to celebrate, and tap again to take it back.";
+    assert.ok(notes.includes(latest));
+    assert.ok(notes.includes("The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front."));
+    assert.ok(!notes.includes('Latest: The daily wheel'));
+    assert.ok(notes.includes('Fixed leaderboards and your saved profile taking too long to load.'));
+    assert.ok(!notes.includes('Latest: Fixed leaderboards'));
     const streaksNote = 'Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.';
     const doubleXpNote = 'Double XP now applies to every way you earn XP.';
     const raidHp = 'The raid boss shows HP remaining, the same remaining over max HP as the raid screen.';
