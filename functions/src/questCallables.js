@@ -17,6 +17,7 @@ const rewardNotify = require('./rewardNotify');
 const { DAILY_CAP, TAPER_FULL_UNTIL, TAPER_HALF_UNTIL } = require('./dailyXp');
 const { grantFamily, familyFor } = require('./grantBadge');
 const { planQuestDay } = require('./badgeProgress');
+const questBoard = require('./questBoard');
 
 const db = admin.firestore();
 const FieldValue = admin.firestore.FieldValue;
@@ -286,6 +287,9 @@ const gradeQuest = onCall(async (data, context) => {
         ? reward.questCompletionKey(graded.topicKey, graded.questIndex)
         : '';
     const passRef = passKey ? userRef.collection('quest_passes').doc(passKey) : null;
+    // Stable for a transaction retry. The attempt log is server-only.
+    const attemptNonce = Math.random().toString(36).slice(2, 10);
+    const statsRef = db.collection('quest_lb_stats').doc(uid);
 
     const result = await db.runTransaction(async (tx) => {
         const rateDoc = await tx.get(rateRef);
@@ -295,6 +299,7 @@ const gradeQuest = onCall(async (data, context) => {
         const dailyDoc = await tx.get(dailyPtsRef);
         const completionDoc = completionRef ? await tx.get(completionRef) : null;
         const passDoc = passRef ? await tx.get(passRef) : null;
+        const statsDoc = await tx.get(statsRef);
 
         const user = userDoc.exists ? (userDoc.data() || {}) : {};
         const banned = reward.isRewardBanned(user, ledgerDoc.exists ? ledgerDoc.data() : null);
@@ -401,6 +406,27 @@ const gradeQuest = onCall(async (data, context) => {
             }
         }
 
+        // Leaderboard only. XP, badges, and quest_passes stay as they were.
+        // Banned players are recorded too. A daily-limit rejection is not an attempt.
+        let boardRecorded = false;
+        if (settled.reason !== 'daily-limit') {
+            const nextStats = questBoard.applyAttempt(statsDoc.exists ? statsDoc.data() : null, {
+                questId: passKey,
+                score: settled.score || 0,
+                at: now,
+            }, now);
+            nextStats.live = true;
+            tx.set(statsRef, nextStats);
+            tx.set(userRef.collection('quest_attempts').doc('q' + now + '_' + attemptNonce), questBoard.attemptRecord({
+                questId: passKey,
+                topicKey: graded.topicKey || '',
+                questIndex: graded.questIndex,
+                score: settled.score || 0,
+                at: now,
+            }));
+            boardRecorded = true;
+        }
+
         return Object.assign({
             success: true,
             score: settled.score,
@@ -415,6 +441,7 @@ const gradeQuest = onCall(async (data, context) => {
             dailyQuestLimit: reward.DAILY_QUEST_LIMIT,
             questsPassed: questsPassed,
             questDay: questDay,
+            boardRecorded: boardRecorded,
         }, meterFrom(dailyUsed, settled.awarded || 0));
     });
     if (result && result.questsPassed) {
@@ -424,6 +451,10 @@ const gradeQuest = onCall(async (data, context) => {
     if (result && result.questDay) {
         try { await grantFamily(db, admin, uid, familyFor('questDays')); }
         catch (questDayErr) { console.warn('[gradeQuest] quest days', questDayErr && questDayErr.message); }
+    }
+    if (result && result.boardRecorded) {
+        try { await questBoard.refresh(db, now, { force: false }); }
+        catch (boardErr) { console.warn('[quest board]', boardErr && boardErr.message); }
     }
     if (result && result.questsPassed && result.banned !== true) {
         await require('./raidBossEngine').noteTrusted(db, admin, {

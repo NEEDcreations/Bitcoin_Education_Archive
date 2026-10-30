@@ -61,6 +61,7 @@ const TESTS = [
     { name: 'Community result totals', file: 'test-community-results.js' },
     { name: 'Prediction Stats', file: 'test-prediction-stats.js' },
     { name: 'Daily streak leaderboard', file: 'test-streak-board.js' },
+    { name: 'Quest leaderboard', file: 'test-quest-leaderboard.js' },
     { name: 'Timechain TV Presence', file: 'test-tctv-presence.js' },
     { name: 'Timechain TV Leave', file: 'test-tctv-leave.js' },
     { name: 'Timechain TV Views', file: 'test-tctv-views.js' },
