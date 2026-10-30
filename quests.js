@@ -5646,6 +5646,9 @@ window._cleanupRaidBoss = function() {
     if (window._raidDamageDealersUnsub) { window._raidDamageDealersUnsub(); window._raidDamageDealersUnsub = null; }
     if (window._raidTimerInterval) { clearInterval(window._raidTimerInterval); window._raidTimerInterval = null; }
     window._raidDamageDealersOpen = false;
+    window._raidHistoryCache = null;
+    window._raidHistoryOpen = false;
+    window._raidHistoryLoading = false;
 };
 
 function _renderRaidTab(body) {
@@ -5794,17 +5797,31 @@ function _raidEsc(value) {
     });
 }
 
-function _raidNameJs(value) {
-    return String(value || '').replace(/\\/g, '').replace(/['"<>]/g, '');
+function _raidAttr(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 }
 
 function _raidUserLink(username) {
     var raw = String(username || '');
-    var safe = _raidNameJs(raw);
-    var shown = _raidEsc(raw);
-    if (!safe) return shown;
+    if (!/^[A-Za-z0-9_.-]{1,40}$/.test(raw)) return _raidEsc(raw);
     var mine = (typeof currentUser !== 'undefined' && currentUser && currentUser.username === raw) ? ' (you)' : '';
-    return '<span onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\'' + safe + '\')" style="font-weight:700;color:#6366f1;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">@' + shown + '</span>' + mine;
+    return '<span class="raid-user-link" data-u="' + _raidAttr(raw) + '" style="font-weight:700;color:#6366f1;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">@' + _raidEsc(raw) + '</span>' + mine;
+}
+
+function _bindRaidHistoryLinks(root) {
+    if (!root || !root.querySelectorAll) return;
+    var nodes = root.querySelectorAll('.raid-user-link');
+    for (var i = 0; i < nodes.length; i++) {
+        nodes[i].addEventListener('click', function (event) {
+            var name = event.currentTarget.getAttribute('data-u') || '';
+            if (name && typeof showUserProfileByUsername === 'function') showUserProfileByUsername(name);
+        });
+    }
 }
 
 function _raidHistoryDate(ms) {
@@ -5930,6 +5947,52 @@ function _raidHistoryShell() {
     '</div>';
 }
 
+function _paintRaidHistory(body) {
+    if (!body || !window._raidHistoryCache) return;
+    body.innerHTML = window._renderRaidHistoryCards(window._raidHistoryCache);
+    _bindRaidHistoryLinks(body);
+}
+
+function _fetchRaidHistory() {
+    if (window._raidHistoryCache || window._raidHistoryLoading) return;
+    var body = document.getElementById('raidBossHistoryBody');
+    if (typeof db === 'undefined' || !db) {
+        if (body) body.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Boss history is not available right now.</div>';
+        return;
+    }
+    window._raidHistoryLoading = true;
+    db.collection('raid_history').orderBy('endedAtMs', 'desc').limit(12).get().then(function (snap) {
+        window._raidHistoryLoading = false;
+        var docs = [];
+        if (snap && snap.docs) {
+            snap.docs.forEach(function (doc) { docs.push(doc.data() || {}); });
+        }
+        window._raidHistoryCache = docs;
+        if (!window._raidHistoryOpen) return;
+        _paintRaidHistory(document.getElementById('raidBossHistoryBody'));
+    }).catch(function (err) {
+        window._raidHistoryLoading = false;
+        console.error('[RAID] History load error:', err);
+        var el = document.getElementById('raidBossHistoryBody');
+        if (el && window._raidHistoryOpen) el.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Could not load boss history.</div>';
+    });
+}
+
+function _restoreRaidHistory(root) {
+    if (!window._raidHistoryOpen || !root) return;
+    var body = root.querySelector('#raidBossHistoryBody');
+    var btn = root.querySelector('#raidBossHistoryBtn');
+    if (!body) return;
+    body.style.display = 'block';
+    if (btn) btn.textContent = '▲ Hide Boss History';
+    if (window._raidHistoryCache) {
+        _paintRaidHistory(body);
+        return;
+    }
+    body.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Loading...</div>';
+    _fetchRaidHistory();
+}
+
 function _mountRaidHistory(container) {
     if (!container || (container.querySelector && container.querySelector('#raidBossHistory'))) return;
     var holder = document.createElement('div');
@@ -5937,44 +6000,24 @@ function _mountRaidHistory(container) {
     var node = holder.firstChild;
     if (!node) return;
     container.appendChild(node);
-    if (window._raidHistoryOpen) window._toggleRaidHistory();
+    _restoreRaidHistory(node);
 }
 
 window._raidHistoryOpen = false;
+window._raidHistoryCache = null;
+window._raidHistoryLoading = false;
 window._toggleRaidHistory = function () {
     var body = document.getElementById('raidBossHistoryBody');
     var btn = document.getElementById('raidBossHistoryBtn');
     if (!body) return;
-    var opening = body.style.display === 'none';
-    if (!opening) {
+    if (body.style.display !== 'none') {
         body.style.display = 'none';
         window._raidHistoryOpen = false;
         if (btn) btn.textContent = '📜 Boss History';
         return;
     }
-    body.style.display = 'block';
     window._raidHistoryOpen = true;
-    if (btn) btn.textContent = '▲ Hide Boss History';
-    if (body.getAttribute('data-loaded') === '1') return;
-    body.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Loading...</div>';
-    if (typeof db === 'undefined' || !db) {
-        body.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Boss history is not available right now.</div>';
-        return;
-    }
-    db.collection('raid_history').orderBy('endedAtMs', 'desc').limit(12).get().then(function (snap) {
-        var el = document.getElementById('raidBossHistoryBody');
-        if (!el || el.style.display === 'none') return;
-        var docs = [];
-        if (snap && snap.docs) {
-            snap.docs.forEach(function (doc) { docs.push(doc.data() || {}); });
-        }
-        el.innerHTML = window._renderRaidHistoryCards(docs);
-        el.setAttribute('data-loaded', '1');
-    }).catch(function (err) {
-        console.error('[RAID] History load error:', err);
-        var el = document.getElementById('raidBossHistoryBody');
-        if (el) el.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Could not load boss history.</div>';
-    });
+    _restoreRaidHistory(document.getElementById('raidBossHistory') || body.parentNode);
 };
 
 function _raidSafeEmoji(boss) {

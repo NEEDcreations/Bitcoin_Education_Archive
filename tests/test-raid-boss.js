@@ -945,6 +945,34 @@ async function main() {
         assert.strictEqual(survived.image, history.IMAGE_BY_NAME['Chat-Charger']);
         assert.ok(sentenceCount(survived.recap) >= 2 && sentenceCount(survived.recap) <= 3);
         assert.strictEqual(JSON.stringify(survived).indexOf('nope@example.com'), -1);
+        assert.strictEqual(history.publicName('a&#39;b'), '');
+        assert.strictEqual(history.publicName('a&quot;b'), '');
+        assert.strictEqual(history.publicName('Ada_1.b-c'), 'Ada_1.b-c');
+        const xss = history.buildHistoryDoc('xss-boss', base, [
+            { username: 'a&#39;b', contributed: 9 },
+            { username: 'a&quot;b', contributed: 8 },
+        ], end.getTime());
+        assert.deepStrictEqual(xss.topDealers.map(function (row) { return row.username; }), ['Raider', 'Raider']);
+        assert.strictEqual(JSON.stringify(xss).indexOf('&#39;'), -1);
+        assert.strictEqual(JSON.stringify(xss).indexOf('&quot;'), -1);
+        assert.strictEqual(xss.prizeWinner, '');
+        const vm = require('vm');
+        const questsSrc = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
+        const linkSrc = questsSrc.slice(questsSrc.indexOf('function _raidEsc'), questsSrc.indexOf('function _raidHistoryDate'));
+        const sandbox = {};
+        vm.runInNewContext(linkSrc + '\nthis.link = _raidUserLink;', sandbox);
+        const brokenQuote = sandbox.link('a&#39;b');
+        const brokenQuot = sandbox.link('a&quot;b');
+        assert.strictEqual(brokenQuote.indexOf('onclick'), -1);
+        assert.strictEqual(brokenQuote.indexOf('data-u'), -1);
+        assert.ok(brokenQuote.indexOf('&amp;#39;') !== -1);
+        assert.strictEqual(brokenQuot.indexOf('onclick'), -1);
+        assert.ok(brokenQuot.indexOf('&amp;quot;') !== -1);
+        const safeLink = sandbox.link('Ada_1');
+        assert.ok(safeLink.indexOf('data-u="Ada_1"') !== -1);
+        assert.strictEqual(safeLink.indexOf('onclick'), -1);
+        assert.ok(questsSrc.indexOf("addEventListener('click'") !== -1);
+        assert.ok(questsSrc.indexOf("getAttribute('data-u')") !== -1);
     });
 
     await test('defeat writes history once, and a later winner fills only the username', async function () {
@@ -1014,15 +1042,26 @@ async function main() {
             email: 'divine@example.com',
             drawnAt: ts(end),
         });
+        await db.collection('stats').doc('raffle_2026-10_snapshot').set({
+            winner: 'Nia',
+            winnerUid: 'raffle-uid-secret',
+            email: 'nia@example.com',
+        });
         const sync = await engine.syncPrizeWinner(db, admin, '2026-10');
         assert.strictEqual(sync.updated, true);
         const withWinner = (await db.collection('raid_history').doc('2026-10').get()).data();
-        assert.strictEqual(withWinner.prizeWinner, 'Divine');
+        assert.strictEqual(withWinner.prizeWinner, 'Nia');
         assert.strictEqual(withWinner.recap, saved.recap);
         assert.strictEqual(withWinner.current, saved.current);
         const winnerPacked = JSON.stringify(withWinner);
         assert.strictEqual(winnerPacked.indexOf('winner-uid'), -1);
         assert.strictEqual(winnerPacked.indexOf('divine@example.com'), -1);
+        assert.strictEqual(winnerPacked.indexOf('raffle-uid-secret'), -1);
+        assert.strictEqual(winnerPacked.indexOf('nia@example.com'), -1);
+        await db.collection('stats').doc('raffle_2026-10_snapshot').set({ winner: 'a&#39;b', winnerUid: 'raffle-uid-secret' });
+        const dirty = await engine.syncPrizeWinner(db, admin, '2026-10');
+        assert.strictEqual(dirty.updated, false);
+        assert.strictEqual((await db.collection('raid_history').doc('2026-10').get()).data().prizeWinner, 'Nia');
         const again = await engine.syncPrizeWinner(db, admin, '2026-10');
         assert.strictEqual(again.updated, false);
 
@@ -1067,7 +1106,11 @@ async function main() {
             startTime: ts(engine.zonedTimeToUtc(2026, 8, 1, 13, 0, 0)),
             endTime: ts(engine.zonedTimeToUtc(2026, 9, 1, 13, 0, 0)),
         });
-        await freshRef.collection('winners').doc('winner-uid').set({ username: 'Ada', uid: 'winner-uid', email: 'ada@example.com', drawnAt: ts(end) });
+        await fresh.collection('stats').doc('raffle_2026-08_snapshot').set({
+            winner: 'Ada',
+            winnerUid: 'raffle-uid-secret',
+            email: 'ada@example.com',
+        });
         await fresh.collection('raid_bosses').doc('2026-12').set({
             name: 'Cipher-Cracker',
             defeated: false,
@@ -1093,9 +1136,13 @@ async function main() {
             target: 1000,
         });
         await fresh.collection('raid_bosses').doc('old-win').collection('winners').doc('winner-uid').set({
-            username: 'Nia',
+            username: 'Divine',
             uid: 'winner-uid',
-            email: 'nia@example.com',
+            email: 'divine@example.com',
+        });
+        await fresh.collection('stats').doc('raffle_2026-10_snapshot').set({
+            winner: 'Nia',
+            winnerUid: 'raffle-uid-secret',
         });
         const dry = await engine.backfillRaidHistory(fresh, admin, end, { apply: false });
         assert.strictEqual(dry.wouldCreate, 1);
@@ -1130,8 +1177,11 @@ async function main() {
         assert.ok(quests.indexOf('📜 Boss History') !== -1);
         assert.ok(quests.indexOf('id="raidBossHistoryBody" style="display:none;') !== -1);
         const mountAt = quests.indexOf('function _mountRaidHistory');
-        const mount = quests.slice(mountAt, quests.indexOf('window._raidHistoryOpen'));
+        const mount = quests.slice(mountAt, quests.indexOf('window._toggleRaidHistory = function'));
         assert.strictEqual(mount.indexOf('.get('), -1);
+        assert.ok(quests.indexOf('window._raidHistoryCache') !== -1);
+        assert.ok(quests.indexOf('window._raidHistoryCache = null') !== -1);
+        assert.ok(quests.indexOf('if (window._raidHistoryCache || window._raidHistoryLoading) return;') !== -1);
         const callable = fs.readFileSync(path.join(root, 'functions/src/contributeRaid.js'), 'utf8');
         assert.ok(callable.indexOf('recordBossHistory') !== -1);
         assert.ok(callable.indexOf('syncPrizeWinner') !== -1);
@@ -1172,7 +1222,14 @@ async function main() {
         assert.strictEqual(hit.defeated, true);
         const saved = (await db.collection('raid_history').doc('2026-11').get()).data();
         assert.strictEqual(saved.result, 'defeated');
-        assert.strictEqual(saved.prizeWinner, 'Ada');
+        assert.strictEqual(saved.prizeWinner, '');
+        await db.collection('stats').doc('raffle_2026-11_snapshot').set({
+            winner: 'Nia',
+            winnerUid: 'raffle-uid-secret',
+        });
+        const named = await engine.syncPrizeWinner(db, admin, '2026-11');
+        assert.strictEqual(named.updated, true);
+        assert.strictEqual((await db.collection('raid_history').doc('2026-11').get()).data().prizeWinner, 'Nia');
         assert.strictEqual(saved.goalText, 'Send 335 real Global Chat messages');
         assert.strictEqual(saved.monthLabel, 'November 2026');
         assert.ok(saved.image.indexOf('chat-charger.png') !== -1);
@@ -1180,6 +1237,59 @@ async function main() {
         assert.strictEqual(packed.indexOf('uid-secret-abc'), -1);
         assert.strictEqual(packed.indexOf('ada@example.com'), -1);
         assert.ok(sentenceCount(saved.recap) >= 2 && sentenceCount(saved.recap) <= 3);
+        const packedWinner = JSON.stringify((await db.collection('raid_history').doc('2026-11').get()).data());
+        assert.strictEqual(packedWinner.indexOf('raffle-uid-secret'), -1);
+    });
+
+    await test('a survived card waits 10 minutes and can be upgraded to defeated', async function () {
+        const db = memoryDb();
+        const admin = adminFor();
+        const history = require('../functions/src/raidHistory');
+        const start = engine.zonedTimeToUtc(2026, 9, 1, 13, 0, 0);
+        const end = engine.zonedTimeToUtc(2026, 10, 1, 13, 0, 0);
+        const ref = db.collection('raid_bosses').doc('2026-09');
+        await ref.set({
+            name: 'Chat-Charger',
+            metric: 'chatMessages',
+            communityTarget: 335,
+            target: 1000,
+            current: 250,
+            defeated: false,
+            placeholder: false,
+            monthKey: '2026-09',
+            startTime: ts(start),
+            endTime: ts(end),
+        });
+        await ref.collection('participants').doc('uid-secret-abc').set({
+            username: 'Banned',
+            contributed: 250,
+            email: 'banned@example.com',
+        });
+        const early = await engine.recordBossHistory(db, admin, ref, '2026-09', { now: end });
+        assert.strictEqual(early.reason, 'grace');
+        assert.strictEqual((await db.collection('raid_history').doc('2026-09').get()).exists, false);
+        const readyAt = new Date(end.getTime() + history.SURVIVE_GRACE_MS);
+        const wrote = await engine.recordBossHistory(db, admin, ref, '2026-09', { now: readyAt });
+        assert.strictEqual(wrote.wrote, true);
+        assert.strictEqual((await db.collection('raid_history').doc('2026-09').get()).data().result, 'survived');
+        await ref.update({ defeated: true, current: 1000, defeatedAt: ts(readyAt) });
+        await ref.collection('winners').doc('uid-secret-abc').set({
+            uid: 'uid-secret-abc',
+            username: 'Banned',
+            drawnAt: ts(readyAt),
+        });
+        const upgraded = await engine.recordBossHistory(db, admin, ref, '2026-09', { now: readyAt });
+        assert.strictEqual(upgraded.upgraded, true);
+        const fallen = (await db.collection('raid_history').doc('2026-09').get()).data();
+        assert.strictEqual(fallen.result, 'defeated');
+        assert.strictEqual(fallen.prizeWon, true);
+        assert.strictEqual(fallen.prizeWinner, '');
+        assert.ok(fallen.recap.indexOf('community prize is won') !== -1);
+        assert.strictEqual(JSON.stringify(fallen).indexOf('uid-secret-abc'), -1);
+        assert.strictEqual(JSON.stringify(fallen).indexOf('banned@example.com'), -1);
+        const again = await engine.recordBossHistory(db, admin, ref, '2026-09', { now: new Date(readyAt.getTime() + 60000) });
+        assert.strictEqual(again.reason, 'exists');
+        assert.strictEqual((await db.collection('raid_history').doc('2026-09').get()).data().recap, fallen.recap);
     });
 
     if (failed) {

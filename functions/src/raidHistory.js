@@ -1,9 +1,11 @@
 'use strict';
 
-// Immutable raid_history/{bossId} snapshots. Clients can read them and cannot
-// write them. The only later edit is the giveaway winner's username, filled
-// by the server when that winner is picked after the fight is already saved.
-// Recaps are template text. No model calls.
+// raid_history/{bossId} snapshots. Clients can read them and cannot write them.
+// A survived card can be upgraded to defeated inside a transaction if the boss
+// falls after the card was saved. The giveaway name is filled later from the
+// monthly Orange Ticket draw. Recaps are template text. No model calls.
+
+const SURVIVE_GRACE_MS = 10 * 60 * 1000;
 
 const TZ = 'America/New_York';
 const CDN = 'https://assets.bitcoineducation.quest/images/raid-bosses/';
@@ -113,9 +115,8 @@ function formatCount(n) {
 }
 
 function publicName(raw) {
-    const name = String(raw || '').replace(/\s+/g, ' ').trim().slice(0, 40);
-    if (!name || name.indexOf('@') !== -1) return '';
-    if (/[<>]/.test(name)) return '';
+    const name = String(raw || '').trim();
+    if (!/^[A-Za-z0-9_.-]{1,40}$/.test(name)) return '';
     return name;
 }
 
@@ -199,7 +200,7 @@ function fightOver(data, nowMs) {
     if (!data || data.placeholder === true) return false;
     if (data.defeated === true) return true;
     const end = timeMs(data.endTime);
-    return end > 0 && end <= nowMs;
+    return end > 0 && nowMs >= end + SURVIVE_GRACE_MS;
 }
 
 function asRows(list) {
@@ -242,20 +243,12 @@ function raidersFrom(list) {
     return rows;
 }
 
-function prizeWinnerFrom(list) {
-    const rows = [];
-    asRows(list).forEach(function (row) {
-        const name = publicName(row.username);
-        if (!name) return;
-        rows.push({ username: name, at: timeMs(row.drawnAt) || 0 });
-    });
-    rows.sort(function (a, b) {
-        if (a.at !== b.at) return a.at - b.at;
-        if (a.username < b.username) return -1;
-        if (a.username > b.username) return 1;
-        return 0;
-    });
-    return rows.length ? rows[0].username : '';
+// The Orange Ticket winner is the monthly raffle draw in monthlyRaffleDraw:
+// one person, weighted by raffle entries, stored as stats/raffle_{month}_snapshot.winner.
+// That is not the two-person unweighted shuffle in raid_bosses/{id}/winners.
+function prizeWinnerFromSnapshot(data) {
+    const row = data || {};
+    return publicName(row.winner);
 }
 
 function hitsLanded(data, pct) {
@@ -366,7 +359,7 @@ function buildRecap(bossId, stats, defeated) {
     return pick(stats, defeated === true);
 }
 
-function buildHistoryDoc(bossId, data, participants, winners, nowMs) {
+function buildHistoryDoc(bossId, data, participants, winners, nowMs, prizeWinnerName) {
     const src = data || {};
     const defeated = src.defeated === true;
     const startMs = timeMs(src.startTime);
@@ -407,7 +400,7 @@ function buildHistoryDoc(bossId, data, participants, winners, nowMs) {
         playerCount: raiders.length,
         topDealers: top,
         prizeWon: defeated,
-        prizeWinner: defeated ? prizeWinnerFrom(winners) : '',
+        prizeWinner: defeated ? publicName(prizeWinnerName) : '',
         recap: buildRecap(bossId, stats, defeated),
     };
 }
@@ -445,6 +438,63 @@ async function commitIfAbsent(db, ref, payload) {
     return wrote;
 }
 
+function monthKeyForBoss(data) {
+    const key = data && data.monthKey;
+    if (typeof key === 'string' && /^\d{4}-\d{2}$/.test(key)) return key;
+    return monthKeyFromMs(timeMs(data && data.startTime));
+}
+
+async function readPrizeWinner(db, bossId) {
+    const id = safeBossId(bossId);
+    if (!db || !id) return '';
+    let monthKey = '';
+    try {
+        const boss = await db.collection('raid_bosses').doc(id).get();
+        if (boss.exists) monthKey = monthKeyForBoss(boss.data() || {});
+    } catch (e) { monthKey = ''; }
+    if (!monthKey) {
+        try {
+            const hist = await db.collection('raid_history').doc(id).get();
+            if (hist.exists) monthKey = monthKeyForBoss(hist.data() || {});
+        } catch (e) { monthKey = ''; }
+    }
+    if (!/^\d{4}-\d{2}$/.test(monthKey)) return '';
+    let snap;
+    try { snap = await db.collection('stats').doc('raffle_' + monthKey + '_snapshot').get(); }
+    catch (e) { return ''; }
+    if (!snap || !snap.exists) return '';
+    return prizeWinnerFromSnapshot(typeof snap.data === 'function' ? snap.data() : {});
+}
+
+async function upgradeSurvivedHistory(db, bossRef, id, participants, nowMs, prizeName) {
+    const histRef = db.collection('raid_history').doc(id);
+    let upgraded = false;
+    await db.runTransaction(async function (tx) {
+        const hist = await tx.get(histRef);
+        const boss = await tx.get(bossRef);
+        if (!hist.exists || !boss.exists) return;
+        const prev = hist.data() || {};
+        const fresh = boss.data() || {};
+        if (prev.result !== 'survived' || fresh.defeated !== true) return;
+        const next = stripSecrets(buildHistoryDoc(id, fresh, participants, [], nowMs, prizeName));
+        tx.update(histRef, {
+            result: 'defeated',
+            prizeWon: true,
+            prizeWinner: next.prizeWinner || publicName(prev.prizeWinner) || '',
+            current: next.current,
+            target: next.target,
+            damagePct: next.damagePct,
+            hpPct: next.hpPct,
+            endedAtMs: next.endedAtMs,
+            playerCount: next.playerCount,
+            topDealers: next.topDealers,
+            recap: next.recap,
+        });
+        upgraded = true;
+    });
+    return { wrote: false, upgraded: upgraded, id: id };
+}
+
 async function recordBossHistory(db, admin, bossRef, bossId, opts) {
     const id = safeBossId(bossId || (bossRef && bossRef.id));
     if (!db || !id || !bossRef) return { wrote: false, reason: 'missing' };
@@ -452,29 +502,31 @@ async function recordBossHistory(db, admin, bossRef, bossId, opts) {
     if (!bossSnap.exists) return { wrote: false, reason: 'missing' };
     const data = bossSnap.data() || {};
     const nowMs = nowMsOf(opts && opts.now);
-    if (!fightOver(data, nowMs)) return { wrote: false, reason: 'active' };
+    if (data.placeholder === true) return { wrote: false, reason: 'active' };
+    if (data.defeated !== true) {
+        const end = timeMs(data.endTime);
+        if (!(end > 0 && nowMs >= end + SURVIVE_GRACE_MS)) {
+            if (end > 0 && nowMs >= end) return { wrote: false, reason: 'grace' };
+            return { wrote: false, reason: 'active' };
+        }
+    }
     const histRef = db.collection('raid_history').doc(id);
     const existing = await histRef.get();
-    if (existing.exists) return { wrote: false, reason: 'exists' };
     const participants = await bossRef.collection('participants').get();
-    let winners = { docs: [] };
-    try { winners = await bossRef.collection('winners').get(); }
-    catch (e) { winners = { docs: [] }; }
-    const payload = stripSecrets(buildHistoryDoc(id, data, participants, winners, nowMs));
+    const prizeName = data.defeated === true ? await readPrizeWinner(db, id) : '';
+    if (existing.exists) {
+        const prev = existing.data() || {};
+        if (prev.result === 'survived' && data.defeated === true) {
+            return upgradeSurvivedHistory(db, bossRef, id, participants, nowMs, prizeName);
+        }
+        return { wrote: false, reason: 'exists' };
+    }
+    const payload = stripSecrets(buildHistoryDoc(id, data, participants, [], nowMs, prizeName));
     if (admin && admin.firestore && admin.firestore.FieldValue) {
         payload.writtenAt = admin.firestore.FieldValue.serverTimestamp();
     }
     const wrote = await commitIfAbsent(db, histRef, payload);
     return { wrote: wrote, id: id };
-}
-
-async function readPrizeWinner(db, bossId) {
-    const id = safeBossId(bossId);
-    if (!db || !id) return '';
-    let snap;
-    try { snap = await db.collection('raid_bosses').doc(id).collection('winners').get(); }
-    catch (e) { return ''; }
-    return prizeWinnerFrom(snap);
 }
 
 async function syncPrizeWinner(db, admin, bossId) {
@@ -568,7 +620,8 @@ module.exports = {
     templateIndex: templateIndex,
     buildHistoryDoc: buildHistoryDoc,
     buildRecap: buildRecap,
-    prizeWinnerFrom: prizeWinnerFrom,
+    SURVIVE_GRACE_MS: SURVIVE_GRACE_MS,
+    prizeWinnerFromSnapshot: prizeWinnerFromSnapshot,
     recordBossHistory: recordBossHistory,
     syncPrizeWinner: syncPrizeWinner,
     closeEndedBosses: closeEndedBosses,
