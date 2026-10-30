@@ -45,9 +45,12 @@ function createPollVote(opts) {
         const ledgerRef = db.collection('faucet_ledger').doc(uid);
 
         const result = await db.runTransaction(async function (t) {
-            const [userSnap, voteSnap, dailySnap, tallySnap, ledgerSnap] = await Promise.all([
-                t.get(userRef), t.get(voteRef), t.get(dailyRef), t.get(tallyRef), t.get(ledgerRef),
+            const [userSnap, voteSnap, dailySnap, tallySnap, cumulativeSnap, ledgerSnap] = await Promise.all([
+                t.get(userRef), t.get(voteRef), t.get(dailyRef), t.get(tallyRef), t.get(cumulativeRef), t.get(ledgerRef),
             ]);
+            // cumulativeSnap pins poll_cumulative in this transaction. The
+            // increment below is applied only if the vote doc is still absent.
+            void cumulativeSnap;
             if (!userSnap.exists) throw new HttpsError('not-found', 'Profile not found');
             const user = userSnap.data() || {};
             const ledger = ledgerSnap.exists ? (ledgerSnap.data() || {}) : null;

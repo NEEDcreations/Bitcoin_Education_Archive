@@ -170,6 +170,8 @@ const { grantFamily, familyFor } = require('./src/grantBadge');
 const { awardBadge } = require('./src/awardBadge');
 const dailyFive = require('./src/dailyFive');
 const { createPollVote } = require('./src/pollVote');
+const { createSvbVote } = require('./src/svbPoll');
+const nachoAnalytics = require('./src/nachoAnalytics');
 const { countMarketplaceMessage, countMarketplaceSale } = require('./src/marketMessages');
 const activityCounters = require('./src/activityCounters');
 const { refreshBadgeDistribution } = require('./src/badgeDistribution');
@@ -1115,6 +1117,8 @@ exports.onArticlePublishXp = onDocumentWritten({
     }
     return null;
 });
+
+exports.recordNachoAnalytics = nachoAnalytics.attachRecordNachoAnalytics(functionsV1, admin, db);
 
 exports.dailyPollVote = functionsV1.https.onCall(createPollVote({
     admin: admin,
@@ -3987,70 +3991,12 @@ exports.refreshQuestLeaderboard = onSchedule({
     }
 });
 
-// ---- Poll Vote (server-side with IP + fingerprint rate limiting) ----
-exports.pollVote = functionsV1.https.onCall(async (data, context) => {
-    const { side, fingerprint, satsCount, bitsCount } = data || {};
-
-    // Support batched votes: satsCount + bitsCount, or single side vote (backward compat)
-    let sInc = Math.max(0, Math.min(parseInt(satsCount) || 0, 50));
-    let bInc = Math.max(0, Math.min(parseInt(bitsCount) || 0, 50));
-    // Backward compat: if no batch counts, use single side
-    if (sInc === 0 && bInc === 0) {
-        if (side === 'sats') sInc = 1;
-        else if (side === 'bits') bInc = 1;
-        else return { success: false, error: 'Invalid side' };
-    }
-    const totalInc = sInc + bInc;
-    if (totalInc === 0) return { success: false, error: 'No votes' };
-
-    const ip = (context.rawRequest && context.rawRequest.ip) || 'unknown';
-    const fp = (fingerprint || '').toString().substring(0, 32) || 'none';
-    const db = admin.firestore();
-    const dayKey = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
-    // Rate limit: max 200 votes per IP per day, max 200 per fingerprint per day (atomic)
-    const MAX_PER_DAY = 200;
-    const ratePath = `poll_rate_limits/${dayKey}`;
-    const ipKey = 'ip_' + ip.replace(/[.\/:]/g, '_');
-    const fpKey = 'fp_' + fp;
-    const pollRef = db.doc('polls/sats_vs_bits');
-    const rateRef = db.doc(ratePath);
-
-    await db.runTransaction(async (tx) => {
-        const rateDoc = await tx.get(rateRef);
-        const rateData = rateDoc.exists ? rateDoc.data() : {};
-        const ipCount = (rateData[ipKey] || 0);
-        const fpCount = (rateData[fpKey] || 0);
-
-        if (ipCount >= MAX_PER_DAY) throw new functionsV1.https.HttpsError('resource-exhausted', 'Daily IP limit reached');
-        if (fpCount >= MAX_PER_DAY) throw new functionsV1.https.HttpsError('resource-exhausted', 'Daily device limit reached');
-
-        // Clamp to remaining daily budget
-        const remaining = Math.max(0, MAX_PER_DAY - Math.max(ipCount, fpCount));
-        const allowed = Math.min(totalInc, remaining);
-        // Proportionally distribute if clamped
-        const ratio = allowed / totalInc;
-        const aSats = Math.round(sInc * ratio);
-        const aBits = allowed - aSats;
-
-        // Atomic: increment poll + rate limits together
-        const inc = {};
-        if (aSats > 0) inc.sats = admin.firestore.FieldValue.increment(aSats);
-        if (aBits > 0) inc.bits = admin.firestore.FieldValue.increment(aBits);
-        if (aSats > 0 || aBits > 0) tx.set(pollRef, inc, { merge: true });
-
-        const rateInc = {};
-        rateInc[ipKey] = admin.firestore.FieldValue.increment(allowed);
-        rateInc[fpKey] = admin.firestore.FieldValue.increment(allowed);
-        tx.set(rateRef, rateInc, { merge: true });
-    });
-
-    // Read current totals to return
-    const pollDoc = await pollRef.get();
-    const pollData = pollDoc.exists ? pollDoc.data() : { sats: 0, bits: 0 };
-
-    return { success: true, sats: pollData.sats || 0, bits: pollData.bits || 0 };
-});
+// Sats vs Bits. The tally doc is created inside the transaction. Clients cannot.
+exports.pollVote = functionsV1.https.onCall(createSvbVote({
+    admin: admin,
+    db: db,
+    HttpsError: functionsV1.https.HttpsError,
+}));
 
 // ---- PVP Answer Submission (server records the choice; pvpResolveRound grades it) ----
 async function pvpRateLimit(uid, bucket, maxCount, windowMs) {

@@ -465,7 +465,7 @@ service cloud.firestore {
 
     // =============================================
     // STATS COLLECTION
-    // [AUDIT FIX S6] nacho-analytics now requires auth
+    // stats/nacho-analytics is server-written. Clients may read it.
     // =============================================
     match /stats/{statId} {
       allow read: if true;
@@ -474,15 +474,9 @@ service cloud.firestore {
                     && request.resource.data.total == resource.data.total + 1;
       allow create: if request.auth != null
                     && statId == 'visits';
-      // [AUDIT FIX S6 + LOW-4] nacho-analytics: non-anon auth + field allowlist to prevent junk data
-      // Only whitelisted increment fields accepted; no arbitrary keys.
-      allow create, update: if statId == 'nacho-analytics'
-                            && request.auth != null
-                            && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                            && request.resource.data.keys().hasOnly([
-                                'totalQuestions', 'upvotes', 'downvotes', 'lastUpdated',
-                                'topics', 'sources'
-                            ]);
+      // stats/nacho-analytics is written only by recordNachoAnalytics.
+      // A signed-in client used to create and set these counters to any value.
+      // No write rule matches statId == 'nacho-analytics'. Clients can still read it.
       // Community prediction totals (stats/predictions) are written only by
       // resolvePredictions via the Admin SDK. The old client +1 rules are
       // closed so a hostile client cannot inflate community accuracy.
@@ -546,6 +540,12 @@ service cloud.firestore {
                     && request.resource.data.values()[0] is int
                     && request.resource.data.values()[0] >= 1
                     && request.resource.data.values()[0] <= 5;
+    }
+
+    // Nacho miss and feedback counters. The client used to increment these.
+    // recordNachoAnalytics writes them. Clients cannot read or write them.
+    match /analytics/{docId} {
+      allow read, write: if false;
     }
 
     // Active predictions (for server-side resolution)
@@ -1735,11 +1735,11 @@ service cloud.firestore {
     }
 
     // =============================================
-    // Polls (Sats vs Bits — anonymous voting allowed)
+    // Sats vs Bits tally. Clients may read the totals. They cannot create the
+    // document. pollVote creates it and increments sats/bits in one transaction.
     match /polls/{pollId} {
       allow read: if true;
-      // Writes handled server-side via pollVote Cloud Function
-      allow write: if false;
+      allow create, update, delete: if false;
     }
 
     // Certificates are not readable by the client. verifyCertificate returns
@@ -1997,8 +1997,8 @@ service cloud.firestore {
       allow read, update, delete: if false;
     }
 
-    // Poll Quest votes — anyone can read, signed-in users can write
-    // Poll Quest votes. The tally is written by dailyPollVote. Clients can read it.
+    // Poll Quest tally. dailyPollVote creates and updates it in the vote
+    // transaction. Clients may read the results. They cannot create the doc.
     match /poll_votes/{pollId} {
       allow read: if true;
       allow create, update, delete: if false;
