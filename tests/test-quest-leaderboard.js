@@ -60,39 +60,43 @@ test('Eastern week starts Monday 00:00 and the month starts at midnight', () => 
     assert.strictEqual(board.monthKey(NOW), '2026-10');
 });
 
-test('a pass is 3/5, a retake does not add another quest, and the rate uses attempts', () => {
-    let stats = board.applyAttempt(null, { questId: Q1, score: 2, at: MONDAY }, MONDAY);
-    stats = board.applyAttempt(stats, { questId: Q1, score: 3, at: MONDAY + 1000 }, MONDAY + 1000);
+test('a pass is 3/5, and a replay of a passed quest leaves the rate unchanged', () => {
+    let stats = board.applyAttempt(null, { questId: Q1, score: 1, at: MONDAY }, MONDAY);
+    stats = board.applyAttempt(stats, { questId: Q1, score: 2, at: MONDAY + 1000 }, MONDAY + 1000);
+    stats = board.applyAttempt(stats, { questId: Q1, score: 4, at: MONDAY + 2000 }, MONDAY + 2000);
     assert.strictEqual(stats.passes, 1);
-    assert.strictEqual(stats.attempts, 2);
+    assert.strictEqual(stats.attempts, 3);
     assert.strictEqual(stats.passedAttempts, 1);
-    assert.strictEqual(stats.reachedAt, MONDAY + 1000);
-    assert.strictEqual(board.displayPct(stats.passedAttempts, stats.attempts), 50);
-    const farmed = board.applyAttempt(stats, { questId: Q1, score: 5, at: MONDAY + 2000 }, MONDAY + 2000);
+    assert.strictEqual(stats.passedAttempts / stats.attempts, 1 / 3);
+    assert.strictEqual(board.displayPct(stats.passedAttempts, stats.attempts), 33);
+    const pct = board.displayPct(stats.passedAttempts, stats.attempts);
+    const farmed = board.applyAttempt(stats, { questId: Q1, score: 5, at: MONDAY + 3000 }, MONDAY + 3000);
     assert.strictEqual(farmed.passes, 1);
     assert.strictEqual(farmed.attempts, 3);
-    assert.strictEqual(farmed.passedAttempts, 2);
-    assert.strictEqual(farmed.reachedAt, MONDAY + 1000);
-    assert.strictEqual(board.displayPct(farmed.passedAttempts, farmed.attempts), 67);
-    const second = board.applyAttempt(farmed, { questId: Q2, score: 4, at: MONDAY + 3000 }, MONDAY + 3000);
+    assert.strictEqual(farmed.passedAttempts, 1);
+    assert.strictEqual(farmed.weekAttempts, stats.weekAttempts);
+    assert.strictEqual(farmed.weekPassedAttempts, stats.weekPassedAttempts);
+    assert.strictEqual(farmed.monthAttempts, stats.monthAttempts);
+    assert.strictEqual(farmed.monthPassedAttempts, stats.monthPassedAttempts);
+    assert.strictEqual(board.displayPct(farmed.passedAttempts, farmed.attempts), pct);
+    const second = board.applyAttempt(farmed, { questId: Q2, score: 4, at: MONDAY + 4000 }, MONDAY + 4000);
     assert.strictEqual(second.passes, 2);
-    assert.strictEqual(second.reachedAt, MONDAY + 3000);
+    assert.strictEqual(second.reachedAt, MONDAY + 4000);
 });
 
-test('a pass last week counts all-time and a retake this week counts once this week', () => {
+test('a replay of a quest passed last week does not count this week', () => {
     let stats = board.applyAttempt(null, { questId: Q1, score: 5, at: SUNDAY }, SUNDAY);
-    stats = board.applyAttempt(stats, { questId: Q1, score: 4, at: MONDAY }, MONDAY);
-    assert.strictEqual(stats.passes, 1);
-    assert.strictEqual(stats.attempts, 2);
-    assert.strictEqual(stats.reachedAt, SUNDAY);
-    assert.strictEqual(stats.weekKey, '2026-10-26');
-    assert.strictEqual(stats.weekPasses, 1);
-    assert.strictEqual(stats.weekAttempts, 1);
-    assert.strictEqual(stats.weekPassedAttempts, 1);
-    assert.strictEqual(stats.weekReachedAt, MONDAY);
-    const view = board.viewFromStats(stats, 'week', NOW);
-    assert.strictEqual(view.passes, 1);
-    assert.strictEqual(view.attempts, 1);
+    const replay = board.applyAttempt(stats, { questId: Q1, score: 4, at: MONDAY }, MONDAY);
+    assert.strictEqual(replay.passes, 1);
+    assert.strictEqual(replay.attempts, 1);
+    assert.strictEqual(replay.passedAttempts, 1);
+    assert.strictEqual(replay.reachedAt, SUNDAY);
+    assert.strictEqual(replay.weekKey, stats.weekKey);
+    assert.strictEqual(replay.weekPasses, stats.weekPasses);
+    assert.strictEqual(replay.weekAttempts, stats.weekAttempts);
+    assert.strictEqual(replay.monthAttempts, stats.monthAttempts);
+    assert.strictEqual(board.viewFromStats(replay, 'week', NOW).passes, 0);
+    assert.strictEqual(board.viewFromStats(replay, 'alltime', NOW).passes, 1);
     const oldOnly = board.applyAttempt(null, { questId: Q2, score: 5, at: SUNDAY }, SUNDAY);
     assert.strictEqual(board.viewFromStats(oldOnly, 'week', NOW).passes, 0);
     assert.strictEqual(board.viewFromStats(oldOnly, 'alltime', NOW).passes, 1);
@@ -125,6 +129,17 @@ test('minimum attempts are 5 all-time and 3 for the week and month', () => {
     assert.deepStrictEqual(board.selectBoard(rows, 'alltime').map(function (r) { return r.username; }), ['Five']);
     assert.deepStrictEqual(board.selectBoard(rows, 'week').map(function (r) { return r.username; }), ['Short', 'Five', 'WeekOk']);
     assert.deepStrictEqual(board.selectBoard(rows, 'month').map(function (r) { return r.username; }), ['Short', 'Five', 'WeekOk']);
+});
+
+test('a player with no distinct pass stays off the board', () => {
+    const rows = [];
+    for (let i = 0; i < 8; i++) {
+        rows.push({ username: 'Zero' + i, passes: 0, attempts: 8, passedAttempts: 0, reachedAt: i });
+    }
+    rows.push({ username: 'One', passes: 1, attempts: 4, passedAttempts: 1, reachedAt: 20 });
+    assert.deepStrictEqual(board.selectBoard(rows, 'month').map(function (r) { return r.username; }), ['One']);
+    assert.deepStrictEqual(board.selectBoard(rows, 'week').map(function (r) { return r.username; }), ['One']);
+    assert.strictEqual(board.selectBoard(rows, 'alltime').length, 0);
 });
 
 test('the board stops at 25 and does not need an expand', () => {
@@ -222,7 +237,11 @@ test('history replays first passes, and a later live doc keeps failure attempts'
     assert.ok(script.includes("argv.indexOf('--apply')"));
     assert.ok(script.includes('quest_passes'));
     assert.ok(!script.includes('quizAnswered'));
-    assert.ok(script.includes('Never prints names, emails, or user ids'));
+    assert.ok(script.includes('Never prints emails or user ids'));
+    assert.ok(script.includes('boardLines'));
+    assert.ok(script.includes('skippedMissing'));
+    assert.ok(script.includes('quest_answer_keys'));
+    assert.ok(script.includes('estimatedRate'));
 });
 
 test('gradeQuest records the attempt without changing the XP payout', () => {
@@ -286,6 +305,91 @@ test('rules deny client writes and the page reads one doc per tab', () => {
     assert.ok(indexes.includes('"fieldPath": "weekPasses"'));
     assert.ok(indexes.includes('"fieldPath": "monthPasses"'));
     assert.strictEqual(read('index.html'), read('404.html'));
+});
+
+test('backfill drops ids that are not in the quest catalog', () => {
+    const catalog = board.questCatalog();
+    assert.ok(catalog.ids['quest_whitepaper__1']);
+    assert.ok(catalog.ids['quest_whitepaper__2']);
+    assert.ok(catalog.ids['quest_nodes__2']);
+    assert.ok(catalog.ids['quest_mining__1']);
+    assert.strictEqual(catalog.ids['quest_dynamic_1'], undefined);
+    assert.strictEqual(catalog.ids['quest_dynamic_12__1'], undefined);
+    const before = board.CUTOVER_MS - 86400000;
+    const after = board.CUTOVER_MS + 3600000;
+    const built = board.buildLegacyStats({
+        completedQuests: [
+            'quest_whitepaper',
+            'quest_dynamic_12',
+            'quest_nodes__2',
+            'quest_not_real__1',
+            'q__whitepaper__2'
+        ],
+        answerKeys: [
+            { graded: true, topicKey: 'whitepaper', score: 5, createdAt: before },
+            { graded: true, topicKey: 'whitepaper', questIndex: 0, score: 5, createdAt: before + 10 },
+            { graded: true, topicKey: 'whitepaper', partNum: 2, score: 4, createdAt: before + 20 },
+            { graded: true, topicKey: 'nodes', questIndex: 0, score: 1, createdAt: before + 30 },
+            { graded: true, topicKey: 'nodes', questIndex: 0, score: 2, createdAt: before + 40 },
+            { graded: true, topicKey: 'fees', score: 1, createdAt: before + 50 },
+            { graded: true, topicKey: 'quest_dynamic_3', score: 5, createdAt: before + 60 },
+            { graded: true, topicKey: 'nodes', score: 1, createdAt: before + 70 },
+            { graded: true, topicKey: 'mining', questIndex: 0, score: 5, createdAt: after },
+            { graded: true, topicKey: 'not-a-quest', score: 2, createdAt: after },
+            { graded: false, topicKey: 'nodes', questIndex: 0, score: 1, createdAt: before }
+        ],
+        passes: [
+            { questId: 'quest_nodes__3', score: 5, at: MONDAY },
+            { questId: 'quest_dynamic_9', score: 5, at: MONDAY }
+        ],
+        attempts: [
+            { questId: 'quest_mining__1', score: 1, at: MONDAY },
+            { questId: 'quest_mining__1', score: 2, at: MONDAY + 1 },
+            { questId: 'quest_mining__1', score: 4, at: MONDAY + 2 },
+            { questId: 'quest_mining__1', score: 5, at: MONDAY + 3 },
+            { questId: 'quest_dynamic_4', score: 1, at: MONDAY }
+        ]
+    }, NOW);
+    const stats = built.stats;
+    assert.strictEqual(built.dropped, 7);
+    assert.strictEqual(stats.passes, 5);
+    assert.strictEqual(stats.passedAttempts, 5);
+    assert.strictEqual(stats.attempts, 10);
+    assert.strictEqual(built.oldFails, 3);
+    assert.strictEqual(stats.passed['quest_dynamic_12'], undefined);
+    assert.strictEqual(stats.passed['quest_dynamic_12__1'], undefined);
+    assert.strictEqual(stats.passed['quest_not_real__1'], undefined);
+    assert.strictEqual(stats.passed['quest_fees__1'], undefined);
+    assert.ok(stats.passed['quest_whitepaper__1'] != null);
+    assert.ok(stats.passed['quest_whitepaper__2'] != null);
+    assert.ok(stats.passed['quest_nodes__2'] != null);
+    assert.ok(stats.passed['quest_nodes__3'] != null);
+    assert.ok(stats.passed['quest_mining__1'] != null);
+    const week = board.viewFromStats(stats, 'week', NOW);
+    assert.strictEqual(week.passes, 2);
+    assert.strictEqual(week.attempts, 4);
+    assert.strictEqual(week.passedAttempts, 2);
+    const onlyOld = board.buildLegacyStats({
+        completedQuests: ['quest_whitepaper', 'quest_dynamic_1'],
+        estimatedRate: 65.5
+    }, NOW);
+    assert.strictEqual(onlyOld.dropped, 1);
+    assert.strictEqual(onlyOld.stats.passes, 1);
+    assert.strictEqual(onlyOld.stats.attempts, 1);
+    assert.strictEqual(board.viewFromStats(onlyOld.stats, 'week', NOW).passes, 0);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(onlyOld.stats, 'estimatedRate'), false);
+    const lines = board.boardLines([
+        { rank: 1, username: 'Ada', passes: 6, pct: 60 },
+        { rank: 2, username: 'ada@secret.test', passes: 1, pct: 100, uid: 'uid-secret' }
+    ]);
+    assert.strictEqual(lines[0], '1. Ada  6  60%');
+    assert.strictEqual(lines[1], '2. Anon  1  100%');
+    assert.strictEqual(lines.join('\n').indexOf('uid-secret'), -1);
+    assert.strictEqual(lines.join('\n').indexOf('ada@secret.test'), -1);
+    const script = read('functions/scripts/backfill_quest_leaderboard.js');
+    assert.ok(script.includes('dropped'));
+    assert.ok(script.includes('byUid[uid].push(data)'));
+    assert.ok(!script.includes('topicKey: data.topicKey'));
 });
 
 function memoryDb(initial) {
