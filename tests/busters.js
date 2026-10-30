@@ -57,6 +57,8 @@ test('service worker cache is v2431', () => {
     assert.ok(!sw.includes('btc-archive-v2386'));
     assert.ok(!sw.includes('btc-archive-v2385'));
     assert.ok(!sw.includes('btc-archive-v2384'));
+    assert.ok(!sw.includes('btc-archive-v2410'));
+    assert.ok(!sw.includes('btc-archive-v2411'));
     assert.ok(!sw.includes('btc-archive-v2412'));
     assert.ok(!sw.includes('btc-archive-v2383'));
     assert.ok(!sw.includes('btc-archive-v2382'));
@@ -375,6 +377,13 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('notifications.js?v=20261022_rewards'));
     assert.ok(!html.includes('gifting.js?v=20261022_lightfix'));
     assert.ok(html.includes('id="patchNotesLink"'));
+    const notesHome = html.slice(html.indexOf('id="patchNotesHome"'), html.indexOf('id="homeTopicCount"'));
+    assert.ok(notesHome.includes('id="resetsTimelinesLink"'));
+    assert.ok(notesHome.indexOf('id="patchNotesLink"') < notesHome.indexOf('id="resetsTimelinesLink"'));
+    assert.ok(notesHome.includes('href="https://misty-tundra-nn5uvj.pages.grok.bot/"'));
+    assert.ok(notesHome.includes('target="_blank"'));
+    assert.ok(notesHome.includes('rel="noopener noreferrer"'));
+    assert.ok(notesHome.includes('⏰ Resets &amp; Timelines'));
     assert.ok(!html.includes('Latest updates (v'), 'home link must not hardcode a version');
     assert.ok(html.includes('link.textContent = base + \' (\' + match[1] + \')\''));
     assert.ok(html.includes("/CACHE_NAME\\s*=\\s*'btc-archive-(v\\d+)'/"));
