@@ -202,7 +202,7 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(client.includes('A new conversation can earn XP.'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes("Latest: The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front."));
+    assert.ok(notes.includes("Latest: Earned posts in GGs chat have a 🎉 button. Tap once to celebrate, and tap again to take it back."));
     assert.ok(notes.includes('Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.'));
     assert.ok(!notes.includes('Latest: Daily Streaks'));
     assert.ok(notes.includes('Double XP now applies to every way you earn XP.'));

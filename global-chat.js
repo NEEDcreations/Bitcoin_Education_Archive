@@ -1607,6 +1607,7 @@ function renderAnnouncementsTab() {
                 el.appendChild(_renderAnnouncementItem(doc, 'panel'));
             });
             ggBindBadgeList(el);
+            ggHydratePartyMine(snapshot);
             // Scroll to bottom on first load; on subsequent updates only scroll if already near bottom
             if (_firstLoad) {
                 setTimeout(function() { el.scrollTop = el.scrollHeight; }, 50);
@@ -1859,6 +1860,7 @@ function renderOverlayChat() {
                         el.appendChild(_renderAnnouncementItem(doc, 'overlay'));
                     });
                     ggBindBadgeList(el);
+                    ggHydratePartyMine(snapshot);
                     if (_overlayFirstLoad) {
                         setTimeout(function() { el.scrollTop = el.scrollHeight; }, 50);
                         _overlayFirstLoad = false;
@@ -4552,6 +4554,159 @@ window._annNavToHash = function(hash) {
     }, delay);
 };
 
+// 🎉 on earned GGs posts. The count lives on the post. The tap calls
+// toggleGgReaction. One player, one celebration. No other emoji.
+function ggPartyMaps() {
+    if (!window._ggPartyMine) window._ggPartyMine = {};
+    if (!window._ggPartyOpt) window._ggPartyOpt = {};
+    if (!window._ggPartyServer) window._ggPartyServer = {};
+    if (!window._ggPartyBusy) window._ggPartyBusy = {};
+}
+
+function ggIsEarnedPost(data) {
+    if (!data || typeof data !== 'object') return false;
+    if (data.deleted === true || data.hidden === true || data.uid === 'deleted') return false;
+    var kind = String(data.ggKind || data.earnedKind || '').toLowerCase();
+    if (kind === 'badge' || kind === 'achievement' || kind === 'levelup' || kind === 'level-up' || kind === 'level_up' || kind === 'earned') return true;
+    if (data.postedByUid === 'badge-gg' && data.uid === 'nacho-bot') return true;
+    if (data.uid === 'nacho-bot' && Array.isArray(data.badgeIds) && data.badgeIds.length > 0) return true;
+    var auto = data.isNachoAuto === true || data.uid === 'nacho-bot' || data.uid === 'system';
+    if (!auto) return false;
+    var text = String(data.text || '');
+    if (/\bearned\b/i.test(text)) return true;
+    if (/\blevel(?:ed)?[\s-]?up\b/i.test(text)) return true;
+    if (/\bachievement\b/i.test(text)) return true;
+    if (/\bbadges?\b/i.test(text)) return true;
+    if (/\baced\b/i.test(text)) return true;
+    if (/\btrifecta\b/i.test(text)) return true;
+    return false;
+}
+
+function ggSignedInUser() {
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser) return null;
+    if (auth.currentUser.isAnonymous) return null;
+    return auth.currentUser;
+}
+
+function ggPartyBlocked() {
+    return typeof currentUser !== 'undefined' && currentUser && (currentUser.banned === true || !!currentUser.ban_reason);
+}
+
+function ggAnnSelector(docId) {
+    var safe = String(docId || '');
+    if (typeof CSS !== 'undefined' && CSS.escape) return '[data-ann-id="' + CSS.escape(safe) + '"]';
+    return '[data-ann-id="' + safe.replace(/"/g, '') + '"]';
+}
+
+function ggPartyView(docId, message) {
+    ggPartyMaps();
+    var server = Math.max(0, Math.floor(Number(message && message.partyCount) || 0));
+    window._ggPartyServer[docId] = server;
+    var opt = window._ggPartyOpt[docId];
+    if (opt && opt.count === server) {
+        window._ggPartyMine[docId] = !!opt.reacted;
+        delete window._ggPartyOpt[docId];
+        opt = null;
+    }
+    return {
+        count: opt ? opt.count : server,
+        reacted: opt ? !!opt.reacted : !!window._ggPartyMine[docId]
+    };
+}
+
+function _buildGgPartyBar(docId, count, reacted) {
+    var n = Math.max(0, Math.floor(Number(count) || 0));
+    var on = !!reacted;
+    var border = on ? 'var(--accent)' : 'var(--border)';
+    var bg = on ? 'rgba(247,147,26,0.22)' : 'var(--card-bg)';
+    var label = (on ? 'Remove celebration, ' : 'Celebrate, ') + n;
+    var id = esc(docId);
+    return '<div data-react-bar data-gg-party="1" data-party-count="' + n + '" data-party-on="' + (on ? '1' : '0') + '" style="display:flex;margin-top:8px;">' +
+        '<button type="button" data-gg-party-btn="1" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + '" onclick="event.stopPropagation();window._toggleGgParty(\'' + id + '\')" style="min-width:44px;min-height:44px;padding:6px 12px;border-radius:999px;border:2px solid ' + border + ';background:' + bg + ';font-size:1rem;cursor:pointer;color:var(--text);display:inline-flex;align-items:center;justify-content:center;gap:6px;touch-action:manipulation;">' +
+        '<span aria-hidden="true">🎉</span><span data-gg-party-count style="font-size:0.78rem;font-weight:800;color:var(--text);">' + n + '</span></button></div>';
+}
+
+function ggApplyPartyBar(docId) {
+    ggPartyMaps();
+    var opt = window._ggPartyOpt[docId];
+    var reacted = opt ? !!opt.reacted : !!window._ggPartyMine[docId];
+    var count = opt ? opt.count : Math.max(0, Math.floor(Number(window._ggPartyServer[docId]) || 0));
+    var html = _buildGgPartyBar(docId, count, reacted);
+    var nodes = document.querySelectorAll(ggAnnSelector(docId));
+    for (var i = 0; i < nodes.length; i++) {
+        var bar = nodes[i].querySelector('[data-gg-party]');
+        if (!bar) continue;
+        var tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        if (tmp.firstChild) bar.replaceWith(tmp.firstChild);
+    }
+}
+
+function ggHydratePartyMine(snapshot) {
+    var user = ggSignedInUser();
+    if (!user || typeof db === 'undefined' || !db || !snapshot || typeof snapshot.forEach !== 'function') return;
+    ggPartyMaps();
+    snapshot.forEach(function (docSnap) {
+        var data = docSnap.data ? docSnap.data() : null;
+        if (!docSnap.id || !ggIsEarnedPost(data)) return;
+        if (Object.prototype.hasOwnProperty.call(window._ggPartyMine, docSnap.id)) return;
+        if (window._ggPartyOpt[docSnap.id]) return;
+        db.collection(ANNOUNCEMENTS_COLLECTION).doc(docSnap.id).collection('reactions').doc(user.uid).get().then(function (snap) {
+            if (window._ggPartyOpt[docSnap.id]) return;
+            window._ggPartyMine[docSnap.id] = !!(snap && snap.exists);
+            ggApplyPartyBar(docSnap.id);
+        }).catch(function () {});
+    });
+}
+
+window._toggleGgParty = function (docId) {
+    if (!/^[A-Za-z0-9_-]{1,200}$/.test(String(docId || ''))) return;
+    ggPartyMaps();
+    var user = ggSignedInUser();
+    if (!user) {
+        if (typeof showToast === 'function') showToast('Sign in to react');
+        return;
+    }
+    if (ggPartyBlocked()) {
+        if (typeof showToast === 'function') showToast('Reactions are unavailable');
+        return;
+    }
+    if (window._ggPartyBusy[docId]) return;
+    window._ggPartyBusy[docId] = true;
+    var prevOn = !!(window._ggPartyOpt[docId] ? window._ggPartyOpt[docId].reacted : window._ggPartyMine[docId]);
+    var server = Math.max(0, Math.floor(Number(window._ggPartyServer[docId]) || 0));
+    var prevCount = window._ggPartyOpt[docId] ? window._ggPartyOpt[docId].count : server;
+    var nextOn = !prevOn;
+    var nextCount = Math.max(0, prevCount + (nextOn ? 1 : -1));
+    window._ggPartyOpt[docId] = { count: nextCount, reacted: nextOn };
+    window._ggPartyMine[docId] = nextOn;
+    ggApplyPartyBar(docId);
+    var pending;
+    try {
+        pending = firebase.functions().httpsCallable('toggleGgReaction')({ postId: docId });
+    } catch (err) {
+        pending = Promise.reject(err);
+    }
+    pending = pending.then(function (res) {
+        var data = (res && res.data) || {};
+        var count = Math.max(0, Math.floor(Number(data.count) || 0));
+        var reacted = data.reacted === true;
+        window._ggPartyMine[docId] = reacted;
+        window._ggPartyOpt[docId] = { count: count, reacted: reacted };
+        if (window._ggPartyServer[docId] === count) delete window._ggPartyOpt[docId];
+        ggApplyPartyBar(docId);
+    }).catch(function () {
+        window._ggPartyMine[docId] = prevOn;
+        delete window._ggPartyOpt[docId];
+        ggApplyPartyBar(docId);
+        if (typeof showToast === 'function') showToast('Could not update the reaction');
+    }).then(function () {
+        delete window._ggPartyBusy[docId];
+    });
+    window._ggPartyPending = pending;
+    return pending;
+};
+
 // ---- Shared reaction-bar builder — used by renderer + optimistic updater ----
 function _buildAnnReactBar(docId, reactions, myUid, esc) {
     esc = esc || (typeof escapeHtml === 'function' ? escapeHtml : function(s){return String(s);});
@@ -4634,11 +4789,16 @@ function _renderAnnouncementItem(doc, context) {
     var avatarPx = isOverlay ? 28 : 32;
     var borderR = isOverlay ? '12px' : '14px';
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-    var reactHtml = _buildAnnReactBar(docId, m.reactions || {}, myUid, esc);
+    var earnedPost = ggIsEarnedPost(m);
+    var reactHtml = earnedPost ? (function () {
+        var view = ggPartyView(docId, m);
+        return _buildGgPartyBar(docId, view.count, view.reacted);
+    })() : _buildAnnReactBar(docId, m.reactions || {}, myUid, esc);
     var badgePost = ggTrustedBadgeIds(m) !== null || (m && m.isNachoAuto === true && /earned a badge: /.test(String(m.text || '')));
 
     var root = document.createElement('div');
     root.setAttribute('data-ann-id', docId);
+    if (earnedPost) root.setAttribute('data-gg-earned', '1');
     root.style.cssText = 'display:flex;gap:10px;align-items:flex-start;padding:' + pad + ';background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.15);border-radius:' + borderR + ';';
 
     var avatar = document.createElement('img');

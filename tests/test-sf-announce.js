@@ -410,7 +410,7 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.ok(rules.includes('match /badge_gg_claims/{claimId}'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes("Latest: The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front."));
+    assert.ok(notes.includes("Latest: Earned posts in GGs chat have a 🎉 button. Tap once to celebrate, and tap again to take it back."));
     const streaksNote = 'Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.';
     assert.ok(notes.includes(streaksNote));
     assert.ok(!notes.includes('Latest: ' + streaksNote));

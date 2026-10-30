@@ -386,6 +386,7 @@ var APP_CHECK_CALLABLES = {
     syncEmailChange: 1,
     syncUserFactionPoints: 1,
     tctvWatchHeartbeat: 1,
+    toggleGgReaction: 1,
     totpListDevices: 1,
     totpResumeDevice: 1,
     totpRevokeAllTrust: 1,

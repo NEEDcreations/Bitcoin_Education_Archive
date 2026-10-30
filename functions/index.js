@@ -8202,7 +8202,7 @@ exports.flushBadgeGgBursts = onSchedule({ schedule: '* * * * *', timeZone: 'UTC'
     }
 });
 
-const { handleChatMirror, flushTelegramMirror, retractMirroredChat } = require('./src/chatTelegramMirror');
+const { handleChatMirror, flushTelegramMirror, retractMirroredChat, reactionCounterOnly } = require('./src/chatTelegramMirror');
 async function mirrorChatCreate(collection, docId, data) {
     try {
         await handleChatMirror(db, collection, docId, data || {});
@@ -8217,8 +8217,13 @@ function snapData(snap) {
     try { return snap.data() || null; } catch (err) { return null; }
 }
 async function mirrorChatRetract(beforeSnap, afterSnap) {
+    const before = snapData(beforeSnap);
+    const after = snapData(afterSnap);
+    // A partyCount-only write is a 🎉 toggle. It must not enqueue or delete
+    // the Telegram copy of the original GGs line.
+    if (reactionCounterOnly(before, after)) return null;
     try {
-        await retractMirroredChat(db, snapData(beforeSnap), snapData(afterSnap));
+        await retractMirroredChat(db, before, after);
     } catch (e) {
         console.error('[TG MIRROR] retract failed');
         throw e;
@@ -8954,6 +8959,12 @@ exports.nachoAnnounce = functionsV1.https.onCall(async (data, context) => {
     await db.collection('announcements').add(msgData);
     return { ok: true };
 });
+
+// 🎉 on an earned GGs post. App Check is on the module bind so index.js
+// does not pick up another enforceAppCheck. The handler grants nothing.
+const { bindToggleGgReaction } = require('./src/ggReaction');
+const ggFns = bindToggleGgReaction(functionsV1, { db: db });
+exports.toggleGgReaction = ggFns.toggleGgReaction;
 
 
 // ── PVP Round Resolution (server-side, tamper-proof) ────────────
