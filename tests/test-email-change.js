@@ -507,6 +507,138 @@ function auth(email) {
         }
     });
 
+    await test('a lightning first email without a server claim is removed and not stored', async function () {
+        const db = createDb({ 'users/ln:abc': {} });
+        const updates = [];
+        const api = handlers(db, {
+            revokeRefreshTokens: async function () {},
+            updateUser: async function (uid, patch) { updates.push({ uid: uid, patch: patch }); },
+            getUserByEmail: async function () {
+                const err = new Error('missing');
+                err.code = 'auth/user-not-found';
+                throw err;
+            },
+            getUser: async function () {
+                return {
+                    uid: 'ln:abc',
+                    email: 'new@example.com',
+                    emailVerified: true,
+                    providerData: [{ providerId: 'password', uid: 'pw' }],
+                };
+            },
+        });
+        const result = await api.syncEmailChange({}, {
+            auth: { uid: 'ln:abc', token: { email: 'new@example.com', email_verified: true, auth_time: 1_700_000_000 } },
+        });
+        assert.strictEqual(result.conflict, true);
+        assert.ok(!db.docs.get('users/ln:abc').email);
+        assert.ok(!db.docs.get('users/ln:abc').emailHash);
+        assert.strictEqual(updates.length, 1);
+        assert.strictEqual(updates[0].uid, 'ln:abc');
+        assert.deepStrictEqual(updates[0].patch.providersToUnlink, ['password']);
+        assert.ok(JSON.stringify(updates).indexOf('new@example.com') === -1);
+    });
+
+    await test('a prepared lightning email attaches to that uid only', async function () {
+        const hash = tomb.emailHmac('bolt@example.com');
+        const db = createDb({
+            'users/ln:abc': {},
+            'email_change_pending/ln:abc': {
+                emailHmac: hash,
+                expireAt: new Date(1_700_000_000_000 + 60 * 1000),
+                createdAt: 1,
+            },
+        });
+        db.docs.set('email_link_claims/' + hash, {
+            uid: 'ln:abc',
+            expireAt: new Date(1_700_000_000_000 + 60 * 1000),
+            createdAt: 1,
+        });
+        const api = handlers(db, {
+            revokeRefreshTokens: async function () {},
+            updateUser: async function () { throw new Error('should not detach'); },
+            getUserByEmail: async function () { return { uid: 'ln:abc' }; },
+            getUser: async function () {
+                return {
+                    uid: 'ln:abc',
+                    email: 'bolt@example.com',
+                    emailVerified: true,
+                    providerData: [{ providerId: 'password', uid: 'pw' }],
+                };
+            },
+        });
+        const result = await api.syncEmailChange({}, {
+            auth: { uid: 'ln:abc', token: { email: 'bolt@example.com', email_verified: true, auth_time: 1_700_000_000 } },
+        });
+        assert.strictEqual(result.first, true);
+        assert.strictEqual(result.conflict, undefined);
+        assert.strictEqual(db.docs.get('users/ln:abc').email, 'bolt@example.com');
+        assert.strictEqual(db.docs.get('users/ln:abc').emailHash, hash);
+        assert.strictEqual(db.docs.has('email_link_claims/' + hash), false);
+    });
+
+    await test('an email already stored for another account is not copied', async function () {
+        const hash = tomb.emailHmac('taken@example.com');
+        const db = createDb({
+            'users/u1': {},
+            'users/other': { emailHash: hash },
+        });
+        const updates = [];
+        const api = handlers(db, {
+            revokeRefreshTokens: async function () {},
+            updateUser: async function (uid, patch) { updates.push(uid + ':' + Object.keys(patch).join(',')); },
+            getUser: async function () {
+                return { uid: 'u1', email: 'taken@example.com', emailVerified: true, providerData: [] };
+            },
+        });
+        const result = await api.syncEmailChange({}, auth('taken@example.com'));
+        assert.strictEqual(result.conflict, true);
+        assert.ok(!db.docs.get('users/u1').emailHash);
+        assert.strictEqual(db.docs.get('users/other').emailHash, hash);
+        assert.ok(updates.length > 0);
+    });
+
+    await test('prepare refuses an email another account already claimed', async function () {
+        const hash = tomb.emailHmac('claimed@example.com');
+        const db = createDb({
+            'users/u1': { emailHash: tomb.emailHmac('old@example.com') },
+        });
+        db.docs.set('email_link_claims/' + hash, {
+            uid: 'ln:other',
+            expireAt: new Date(1_700_000_000_000 + 60 * 1000),
+            createdAt: 1,
+        });
+        const api = handlers(db, {
+            getUserByEmail: async function () {
+                const err = new Error('missing');
+                err.code = 'auth/user-not-found';
+                throw err;
+            },
+        });
+        await assert.rejects(
+            function () { return api.prepareEmailChange({ email: 'claimed@example.com' }, auth('old@example.com')); },
+            function (err) { return err.message === emailChange.CANT_USE && err.message.indexOf('claimed@') === -1; }
+        );
+        assert.strictEqual(db.docs.get('email_link_claims/' + hash).uid, 'ln:other');
+    });
+
+    await test('prepare stores a claim without the address', async function () {
+        const db = createDb({ 'users/u1': {} });
+        const api = handlers(db, {
+            getUserByEmail: async function () {
+                const err = new Error('missing');
+                err.code = 'auth/user-not-found';
+                throw err;
+            },
+        });
+        await api.prepareEmailChange({ email: 'fresh@example.com' }, auth(''));
+        const hash = tomb.emailHmac('fresh@example.com');
+        const claim = db.docs.get('email_link_claims/' + hash);
+        assert.strictEqual(claim.uid, 'u1');
+        assert.ok(JSON.stringify(claim).indexOf('@') === -1);
+        assert.ok(JSON.stringify(claim).indexOf('fresh') === -1);
+    });
+
     await test('tombstone reads use getAll and split referee from referrer', async function () {
         let calls = 0;
         const db = {

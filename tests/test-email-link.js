@@ -74,7 +74,7 @@ test('a 2FA gate holds the guest token instead of dropping it', function () {
 test('ranking.js uses the same email-link decisions and does not rethrow a bare email-already-in-use', function () {
     const src = fs.readFileSync(path.join(__dirname, '..', 'ranking.js'), 'utf8');
     const moduleSrc = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'emailLinkPlan.js'), 'utf8');
-    ['function planEmailLinkFailure', 'function planEmailSignInFailure', 'function guestLinkShouldDrop', 'function shouldSkipInPlaceLink', 'function guestLinkIsMfaHold'].forEach(function (name) {
+    ['function planEmailLinkFailure', 'function planEmailSignInFailure', 'function guestLinkShouldDrop', 'function shouldSkipInPlaceLink', 'function guestLinkIsMfaHold', 'function queryValue', 'function isAccountLinkHref', 'function emailFromHref', 'function anonymousSignInBlocked', 'function accountLinkCompletion', 'function accountLinkHoldMessage'].forEach(function (name) {
         const start = moduleSrc.indexOf(name);
         const next = moduleSrc.indexOf('\nfunction ', start + name.length);
         const body = moduleSrc.slice(start, next === -1 ? moduleSrc.indexOf('\nmodule.exports') : next).trim();
@@ -282,20 +282,93 @@ test('a guest link creates the profile and a stale intent falls through', functi
     assert.ok(read.includes('accountLinkIntentFresh'));
     assert.ok(read.includes('clearAccountLinkIntent()'));
 
+    assert.strictEqual(plan.accountLinkCompletion({
+        intent: { uid: 'ln:abc', email: 'a@example.com' },
+        accountLink: true,
+        user: null,
+        email: 'a@example.com',
+    }), 'need-session');
+    assert.strictEqual(plan.accountLinkCompletion({
+        intent: { uid: 'ln:abc', email: 'a@example.com' },
+        accountLink: true,
+        user: { uid: 'anon-new', isAnonymous: true },
+        email: 'a@example.com',
+    }), 'need-session');
+    assert.strictEqual(plan.accountLinkCompletion({
+        intent: { uid: 'guest', email: 'a@example.com' },
+        accountLink: true,
+        user: { uid: 'guest', isAnonymous: true },
+        email: 'a@example.com',
+    }), 'link');
+    assert.strictEqual(plan.accountLinkCompletion({
+        intent: { uid: 'ln:abc', email: 'a@example.com' },
+        accountLink: true,
+        user: { uid: 'ln:abc', isAnonymous: false },
+        email: 'a@example.com',
+    }), 'link');
+    assert.strictEqual(plan.accountLinkCompletion({
+        intent: { uid: 'ln:abc', email: 'a@example.com' },
+        accountLink: true,
+        user: { uid: 'ln:other', isAnonymous: false },
+        email: 'a@example.com',
+    }), 'wrong-account');
+    assert.strictEqual(plan.accountLinkCompletion({
+        intent: null,
+        accountLink: true,
+        user: { uid: 'google-user', isAnonymous: false },
+        email: 'a@example.com',
+    }), 'need-lightning');
+    assert.strictEqual(plan.accountLinkCompletion({
+        intent: null,
+        accountLink: true,
+        user: { uid: 'ln:abc', isAnonymous: false },
+        email: 'a@example.com',
+    }), 'link');
+    assert.strictEqual(plan.accountLinkCompletion({
+        intent: { uid: 'ln:abc', email: 'a@example.com' },
+        accountLink: false,
+        user: { uid: 'ln:abc', isAnonymous: false },
+        email: 'other@example.com',
+    }), 'stale');
+    assert.strictEqual(plan.accountLinkCompletion({ intent: null, accountLink: false, user: null, email: 'a@example.com' }), 'ignore');
+    assert.strictEqual(plan.isAccountLinkHref('https://bitcoineducation.quest/?signin_email=a%40e.com&account_link=1'), true);
+    assert.strictEqual(plan.isAccountLinkHref('https://bitcoineducation.quest/?continueUrl=' + encodeURIComponent('https://bitcoineducation.quest/?account_link=1&signin_email=a%40e.com')), true);
+    assert.strictEqual(plan.isAccountLinkHref('https://bitcoineducation.quest/?signin_email=a%40e.com'), false);
+    assert.strictEqual(plan.emailFromHref('https://bitcoineducation.quest/?signin_email=a%40e.com&account_link=1'), 'a@e.com');
+    assert.strictEqual(plan.anonymousSignInBlocked('https://bitcoineducation.quest/?mode=signIn&oobCode=abc', false), true);
+    assert.strictEqual(plan.anonymousSignInBlocked('https://bitcoineducation.quest/', false), false);
+    assert.strictEqual(plan.anonymousSignInBlocked('https://bitcoineducation.quest/', true), true);
+    assert.ok(plan.accountLinkHoldMessage('need-session').indexOf('did not create a new account') !== -1);
+    assert.ok(plan.accountLinkHoldMessage('need-session').indexOf('Lightning') !== -1);
+    assert.ok(plan.accountLinkHoldMessage('wrong-account').indexOf('did not switch') !== -1);
+    assert.ok(plan.accountLinkHoldMessage('need-lightning').indexOf('different account') !== -1);
+
     const emailLinkFn = src.slice(src.indexOf('async function finishAccountEmailLink'), src.indexOf('async function linkGoogleOntoCurrentAccount'));
-    const mismatch = emailLinkFn.slice(emailLinkFn.indexOf('wanted !=='), emailLinkFn.indexOf('waitForAccountLinkUser'));
-    assert.ok(mismatch.includes('clearAccountLinkIntent()'));
-    assert.ok(mismatch.includes('return false'));
-    assert.ok(!mismatch.includes('return true'));
-    const missingUser = emailLinkFn.slice(emailLinkFn.indexOf('if (!user)'), emailLinkFn.indexOf('var profile'));
-    assert.ok(missingUser.includes('clearAccountLinkIntent()'));
-    assert.ok(missingUser.includes('return false'));
+    const stale = emailLinkFn.slice(emailLinkFn.indexOf("decision === 'stale'"), emailLinkFn.indexOf("decision !== 'link'"));
+    assert.ok(stale.includes('clearAccountLinkIntent()'));
+    assert.ok(stale.includes('return false'));
+    assert.ok(emailLinkFn.includes("presentAccountLinkHold(decision)"));
+    assert.ok(emailLinkFn.includes('accountLinkCompletion'));
+    assert.ok(emailLinkFn.includes('intent.uid'));
+    assert.ok(!emailLinkFn.includes('signInAnonymously'));
     assert.ok(emailLinkFn.includes('var wasGuest = !!user.isAnonymous'));
     assert.ok(emailLinkFn.indexOf('var wasGuest = !!user.isAnonymous') < emailLinkFn.indexOf('linkWithCredential'));
     assert.ok(emailLinkFn.includes('if (wasGuest && typeof _handleSignInResultGlobal === \'function\')'));
     assert.ok(emailLinkFn.includes('_handleSignInResultGlobal(auth.currentUser, null, null)'));
     assert.ok(!emailLinkFn.includes('signInWithCredential'));
     assert.ok(!emailLinkFn.includes("collection('users')"));
+    assert.ok(src.includes('function startAnonymousSession()'));
+    assert.ok(src.includes('function anonymousSignInBlockedNow()'));
+    assert.ok(src.indexOf('auth.signInAnonymously().then(() => {})') === -1);
+    const listener = src.slice(src.indexOf('auth.onAuthStateChanged(user => {'), src.indexOf('async function handleEmailSignIn'));
+    assert.ok(listener.includes('startAnonymousSession()'));
+    assert.ok(!listener.includes('auth.signInAnonymously()'));
+    assert.ok(src.includes('z-index:2200010'));
+    assert.ok(src.includes('accountLink: true'));
+    assert.ok(src.includes("localStorage.setItem('emailForSignIn', email)"));
+    const addModal = src.slice(src.indexOf('window.showChangeEmailModal = function'), src.indexOf('window.submitEmailChange'));
+    assert.ok(addModal.includes('z-index:2200010'));
+    assert.ok(addModal.includes('does not open a new one'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

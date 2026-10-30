@@ -2493,6 +2493,9 @@ service cloud.firestore {
     match /email_change_pending/{docId} {
       allow read, write: if false;
     }
+    match /email_link_claims/{docId} {
+      allow read, write: if false;
+    }
     match /identity_history/{docId} {
       allow read, write: if false;
     }

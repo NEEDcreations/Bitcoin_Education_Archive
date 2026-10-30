@@ -1,10 +1,12 @@
 'use strict';
 
 // Email change. prepareEmailChange records an HMAC of the new address after
-// a fresh sign-in and authenticator step-up. The client then calls
-// verifyBeforeUpdateEmail. reconcileEmail copies the verified Auth email onto
-// users/{uid}. Every real email or provider-set change holds sats for 72 hours.
-// Nothing here logs an email address.
+// a fresh sign-in and authenticator step-up, plus a claim so another uid cannot
+// take it. The client then calls verifyBeforeUpdateEmail, or links an email
+// sign-in link onto the signed-in Lightning account. reconcileEmail copies the
+// verified Auth email onto users/{uid} only when no other account already has it.
+// A Lightning account's first email must match that claim. Every real email or
+// provider-set change holds sats for 72 hours. Nothing here logs an email address.
 
 const accountTombstone = require('./accountTombstone');
 
@@ -184,6 +186,62 @@ async function appendHashes(db, collectionName, uid, hashes, nowMs) {
 // providersKnown is true only when authUser is the record getUser returned.
 // A missing or token-built user has no provider list, and an empty list then
 // is not a removal.
+async function detachAuthEmail(authApi, uid) {
+    if (!authApi || typeof authApi.updateUser !== 'function' || !uid) return;
+    try {
+        await authApi.updateUser(uid, { providersToUnlink: ['password'] });
+        return;
+    } catch (e) { /* the address may not be a password provider */ }
+    try {
+        await authApi.updateUser(uid, { email: null, emailVerified: false });
+    } catch (e2) { /* the profile write is still refused */ }
+}
+
+async function otherProfileHasEmail(db, uid, hash) {
+    if (!hash || !db || typeof db.collection !== 'function') return false;
+    const users = db.collection('users');
+    if (!users || typeof users.where !== 'function') return false;
+    let query = users.where('emailHash', '==', hash);
+    if (query && typeof query.limit === 'function') query = query.limit(5);
+    const snap = await query.get();
+    let other = false;
+    if (snap && typeof snap.forEach === 'function') {
+        snap.forEach(function (doc) {
+            if (doc && doc.id && doc.id !== uid) other = true;
+        });
+    }
+    return other;
+}
+
+async function foreignClaim(db, uid, hash, nowMs) {
+    if (!hash || !db || typeof db.collection !== 'function') return false;
+    const ref = db.collection('email_link_claims').doc(hash);
+    if (!ref || typeof ref.get !== 'function') return false;
+    const snap = await ref.get();
+    if (!snap || !snap.exists) return false;
+    const claim = snap.data() || {};
+    return !!(claim.uid && claim.uid !== uid && millisOf(claim.expireAt) > nowMs);
+}
+
+async function lightningFirstLinkOk(db, uid, hash, nowMs) {
+    const prepSnap = await db.collection('email_change_pending').doc(uid).get();
+    const prep = prepSnap && prepSnap.exists ? (prepSnap.data() || {}) : null;
+    if (prep && prep.emailHmac === hash && millisOf(prep.expireAt) > nowMs) return true;
+    const claimSnap = await db.collection('email_link_claims').doc(hash).get();
+    const claim = claimSnap && claimSnap.exists ? (claimSnap.data() || {}) : null;
+    return !!(claim && claim.uid === uid && millisOf(claim.expireAt) > nowMs);
+}
+
+async function releaseEmailClaim(db, uid, hash) {
+    if (!hash || !db || typeof db.collection !== 'function') return;
+    try {
+        const ref = db.collection('email_link_claims').doc(hash);
+        const snap = await ref.get();
+        const claim = snap && snap.exists ? (snap.data() || {}) : null;
+        if (claim && claim.uid === uid && typeof ref.delete === 'function') await ref.delete();
+    } catch (e) { /* expiry still bounds a leftover claim */ }
+}
+
 async function reconcileEmail(db, authApi, uid, authUser, nowMs, token, providersKnown) {
     const clock = Number(nowMs) || Date.now();
     if (!uid || !accountTombstone.secretReady()) return { ok: true, skipped: true, changed: false, hold: false, tomb: null };
@@ -221,6 +279,30 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs, token, provider
         await accountTombstone.applyIdentityFlags(db, uid, looked.summary);
     }
 
+    if (nextHash) {
+        let blocked = false;
+        if (authApi && typeof authApi.getUserByEmail === 'function') {
+            try {
+                const existing = await authApi.getUserByEmail(verified);
+                if (existing && existing.uid && existing.uid !== uid) blocked = true;
+            } catch (err) {
+                if (!userNotFound(err)) {
+                    return { ok: false, conflict: true, changed: false, hold: false, skipped: true, tomb: looked };
+                }
+            }
+        }
+        if (!blocked && await otherProfileHasEmail(db, uid, nextHash)) blocked = true;
+        if (!blocked && await foreignClaim(db, uid, nextHash, clock)) blocked = true;
+        if (!blocked && !prevHash && String(uid).indexOf('ln:') === 0) {
+            const allowed = await lightningFirstLinkOk(db, uid, nextHash, clock);
+            if (!allowed) blocked = true;
+        }
+        if (blocked) {
+            await detachAuthEmail(authApi, uid);
+            return { ok: false, conflict: true, changed: false, hold: false, skipped: true, tomb: looked };
+        }
+    }
+
     if (!emailChanged && !seedMismatch && !providerChanged) {
         const seed = {};
         if (!prevHash && nextHash) {
@@ -232,6 +314,7 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs, token, provider
             seed.providerHashes = nextProviderIds;
         }
         if (Object.keys(seed).length) await userRef.set(seed, { merge: true });
+        if (seed.emailHash) await releaseEmailClaim(db, uid, nextHash);
         return {
             ok: true,
             changed: false,
@@ -254,6 +337,7 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs, token, provider
         patch.providerHashes = [NO_PROVIDERS];
     }
     await userRef.set(patch, { merge: true });
+    if (patch.emailHash) await releaseEmailClaim(db, uid, nextHash);
 
     // Only a previously verified hash is history. A legacy users.email was
     // never verified, so its hash is not stored and cannot become a tombstone.
@@ -318,6 +402,9 @@ async function beginPayout(db, authApi, uid, authUser, nowMs, token, providersKn
     }
     const clock = Number(nowMs) || Date.now();
     const reconciled = await reconcileEmail(db, authApi, uid, authUser, clock, token, providersKnown);
+    if (reconciled && reconciled.conflict) {
+        return { ok: false, conflict: true, error: CANT_USE, tomb: reconciled.tomb || null };
+    }
     const tomb = reconciled && reconciled.tomb;
     let holdUntil = Number(reconciled && reconciled.holdUntil) || 0;
     try {
@@ -401,6 +488,17 @@ function createEmailChangeHandlers(options) {
             }
             const emailHmac = accountTombstone.emailHmac(email);
             if (!emailHmac) throw httpsError(HttpsError, 'failed-precondition', TRY_LATER);
+            const claimRef = db.collection('email_link_claims').doc(emailHmac);
+            const claimSnap = await claimRef.get();
+            const claim = claimSnap && claimSnap.exists ? (claimSnap.data() || {}) : null;
+            if (claim && claim.uid && claim.uid !== uid && millisOf(claim.expireAt) > clock) {
+                throw httpsError(HttpsError, 'invalid-argument', CANT_USE);
+            }
+            await claimRef.set({
+                uid: uid,
+                expireAt: new Date(clock + PREP_TTL_MS),
+                createdAt: clock,
+            });
             await db.collection('email_change_pending').doc(uid).set({
                 emailHmac: emailHmac,
                 expireAt: new Date(clock + PREP_TTL_MS),

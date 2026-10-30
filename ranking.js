@@ -1104,7 +1104,7 @@ function initRanking() {
                     if (!_pendingRedirect) clearAuthDisplay();
                     if (redirectResultResolved && !_pendingRedirect) {
                         // Redirect already resolved (no redirect happened) - safe to go anonymous
-                        auth.signInAnonymously().then(() => {});
+                        startAnonymousSession();
                     } else {
                         // Wait for redirect result to resolve first, with extra timeout for mobile
                         var _nullUserTimeout = setTimeout(function() {
@@ -1117,7 +1117,7 @@ function initRanking() {
                                 sessionStorage.removeItem('btc_redirect_pending');
                                 _pendingRedirect = false;
                                 clearAuthDisplay();
-                                auth.signInAnonymously().then(() => {});
+                                startAnonymousSession();
                             }
                         }, 10000);
                         redirectResultPromise.then(function(redirectUser) {
@@ -1126,7 +1126,7 @@ function initRanking() {
                             if (!redirectUser && !auth.currentUser) {
                                 _pendingRedirect = false;
                                 clearAuthDisplay();
-                                auth.signInAnonymously().then(() => {});
+                                startAnonymousSession();
                             }
                         });
                     }
@@ -1151,13 +1151,13 @@ function initRanking() {
                 if (!_pendingRedirect) clearAuthDisplay();
                 // Only sign in anonymously if redirect has already resolved
                 if (redirectResultResolved) {
-                    auth.signInAnonymously().then(() => {});
+                    startAnonymousSession();
                 } else {
                     redirectResultPromise.then(function(redirectUser) {
                         if (!redirectUser && !auth.currentUser) {
                             _pendingRedirect = false;
                             clearAuthDisplay();
-                            auth.signInAnonymously().then(() => {});
+                            startAnonymousSession();
                         }
                     });
                 }
@@ -1174,24 +1174,28 @@ function initRanking() {
 async function handleEmailSignIn() {
     // Save the full URL before any modifications - needed for signInWithEmailLink
     var _signInUrl = window.location.href;
+    if (isAccountLinkHref(_signInUrl)) window._accountLinkHold = true;
 
     // Try to get email from: 1) URL param (works cross-device), 2) localStorage (same device), 3) prompt (last resort)
-    let email = null;
+    let email = emailFromHref(_signInUrl) || null;
     // Check URL parameter first - this is embedded in the magic link
-    var urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('signin_email')) {
-        email = decodeURIComponent(urlParams.get('signin_email'));
-    }
-    // Fallback to localStorage (same device/browser)
     if (!email) {
-        email = localStorage.getItem('btc_signin_email');
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('signin_email')) {
+            email = decodeURIComponent(urlParams.get('signin_email'));
+        }
+    }
+    // Fallback to localStorage (same device/browser). emailForSignIn is the
+    // key Firebase's own samples use; this app also stores btc_signin_email.
+    if (!email) {
+        email = localStorage.getItem('btc_signin_email') || localStorage.getItem('emailForSignIn');
     }
     // Last resort: show a friendly inline prompt (cross-device scenario)
     if (!email) {
         return new Promise(function(resolve) {
             var ov = document.createElement('div');
             ov.id = 'emailConfirmOverlay';
-            ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
+            ov.style.cssText = 'position:fixed;inset:0;z-index:2200010;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
             ov.innerHTML = '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:28px;max-width:380px;width:100%;text-align:center;">' +
                 '<div style="font-size:2rem;margin-bottom:12px;">📧</div>' +
                 '<div style="font-size:1.1rem;font-weight:800;color:var(--heading,#fff);margin-bottom:8px;">Confirm Your Email</div>' +
@@ -1244,6 +1248,83 @@ function shouldSkipInPlaceLink(flagEmail, email) {
 function guestLinkIsMfaHold(message) {
     var msg = String(message || '');
     return msg.indexOf('Authenticator session required') !== -1 || msg.indexOf('phone verification') !== -1;
+}
+
+function queryValue(query, key) {
+    var match = String(query || '').match(new RegExp('(?:^|[?&])' + key + '=([^&#]+)'));
+    if (!match) return '';
+    try { return decodeURIComponent(match[1]); } catch (e) { return match[1]; }
+}
+
+function isAccountLinkHref(href) {
+    var text = String(href || '');
+    if (queryValue(text, 'account_link') === '1') return true;
+    var cont = queryValue(text, 'continueUrl');
+    return !!cont && queryValue(cont, 'account_link') === '1';
+}
+
+function emailFromHref(href) {
+    var text = String(href || '');
+    var direct = queryValue(text, 'signin_email').trim().toLowerCase();
+    if (direct) return direct;
+    var cont = queryValue(text, 'continueUrl');
+    if (!cont) return '';
+    return queryValue(cont, 'signin_email').trim().toLowerCase();
+}
+
+function anonymousSignInBlocked(href, hold) {
+    if (hold === true) return true;
+    var text = String(href || '');
+    if (isAccountLinkHref(text)) return true;
+    if (queryValue(text, 'mode') === 'signIn' && queryValue(text, 'oobCode')) return true;
+    var cont = queryValue(text, 'continueUrl');
+    if (cont && queryValue(cont, 'mode') === 'signIn' && queryValue(cont, 'oobCode')) return true;
+    return false;
+}
+
+function accountLinkCompletion(spec) {
+    var src = spec || {};
+    var intent = src.intent || null;
+    var accountLink = src.accountLink === true;
+    var user = src.user || null;
+    var email = String(src.email || '').trim().toLowerCase();
+    if (!intent && !accountLink) return 'ignore';
+    if (intent && email && String(intent.email || '').trim().toLowerCase() !== email) {
+        return accountLink ? 'mismatch' : 'stale';
+    }
+    if (!user) return 'need-session';
+    if (user.isAnonymous) {
+        if (intent && intent.uid && user.uid === intent.uid) return 'link';
+        return 'need-session';
+    }
+    if (intent && intent.uid && user.uid !== intent.uid) return 'wrong-account';
+    if (!intent && String(user.uid || '').indexOf('ln:') !== 0) return 'need-lightning';
+    return 'link';
+}
+
+function accountLinkHoldMessage(decision) {
+    if (decision === 'wrong-account') return 'This link adds an email to the account that asked for it. Sign in with Lightning on that account, then open the link again. We did not switch accounts.';
+    if (decision === 'need-lightning') return 'Sign in with Lightning on this device, then open the link again. We did not add the email to a different account.';
+    if (decision === 'mismatch') return 'That link does not match the email you asked to add. Send a new link from this account. We did not create a new account.';
+    return "Open this link on the device where you're signed in, or sign in with Lightning first and then open the link again. We did not create a new account.";
+}
+
+function anonymousSignInBlockedNow() {
+    var href = '';
+    try { href = window.location.href; } catch (e) {}
+    var hold = false;
+    try { hold = window._accountLinkHold === true; } catch (e2) { hold = false; }
+    if (anonymousSignInBlocked(href, hold)) return true;
+    try {
+        if (typeof auth !== 'undefined' && auth && typeof auth.isSignInWithEmailLink === 'function' && auth.isSignInWithEmailLink(href)) return true;
+    } catch (e3) {}
+    return false;
+}
+
+function startAnonymousSession() {
+    if (anonymousSignInBlockedNow()) return;
+    if (typeof auth === 'undefined' || !auth || auth.currentUser) return;
+    auth.signInAnonymously().then(function () {});
 }
 
 // ACCOUNT_LINK_PLAN_START
@@ -1527,7 +1608,7 @@ window.showReauthStep = function(user, purpose) {
         if (existing) existing.remove();
         var overlay = document.createElement('div');
         overlay.id = 'reauthOverlay';
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:490000;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:2200010;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
         var ids = linkedProviderIds(user);
         var uid = String((user && user.uid) || '');
         var buttons = '';
@@ -1611,8 +1692,9 @@ window.showReauthStep = function(user, purpose) {
         if (lnBtn) lnBtn.onclick = async function() {
             try {
                 var startLightning = window['signInWithLightning'];
-                if (typeof startLightning === 'function') await startLightning();
-                finish(true);
+                var ok = false;
+                if (typeof startLightning === 'function') ok = await startLightning();
+                finish(!!ok);
             } catch (err) { finish(false); }
         };
     });
@@ -1652,11 +1734,12 @@ window.linkFullAccountProvider = async function(pid) {
         var proof = await freshProviderStep('linkProvider');
         if (!proof) return;
         try {
+            var preparePayload = {};
+            preparePayload.email = String(email).trim();
+            await firebase.functions().httpsCallable('prepareEmailChange')(preparePayload);
             writeAccountLinkIntent(user, email);
-            await auth.sendSignInLinkToEmail(String(email).trim(), {
-                url: window.location.origin + window.location.pathname,
-                handleCodeInApp: true
-            });
+            var sentLink = await sendMagicLink(String(email).trim(), { accountLink: true });
+            if (!sentLink) throw new Error('send');
             if (typeof showToast === 'function') showToast('Check that email for a link to add it to this account.');
         } catch (err) {
             var conflict = accountLinkConflictMessage(err && err.code);
@@ -1719,12 +1802,16 @@ window.showChangeEmailModal = function() {
     if (existing) existing.remove();
     var overlay = document.createElement('div');
     overlay.id = 'changeEmailModal';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:490000;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:2200010;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
     var title = mode === 'add' ? 'Add email' : 'Change email';
+    var blurb = mode === 'add'
+        ? 'We email you a link. Open it while this account is signed in. The email is added to this account and does not open a new one.'
+        : 'We email the new address to confirm it, and the previous address gets a link to revert the change.';
     overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:420px;width:100%;">' +
         '<h2 style="margin:0 0 8px;color:var(--heading);font-size:1.1rem;">' + title + '</h2>' +
-        '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0 0 12px;">We email the new address to confirm it, and the previous address gets a link to revert the change.</p>' +
+        '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0 0 12px;">' + blurb + '</p>' +
         '<input id="changeEmailInput" type="email" autocomplete="email" placeholder="name@example.com" style="width:100%;padding:12px;box-sizing:border-box;border-radius:10px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-family:inherit;margin-bottom:12px;">' +
+        '<div id="changeEmailStatus" style="color:var(--text-muted);font-size:0.8rem;line-height:1.4;margin:-4px 0 12px;"></div>' +
         '<div style="display:flex;gap:8px;">' +
         '<button type="button" onclick="document.getElementById(\'changeEmailModal\').remove()" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>' +
         '<button type="button" id="changeEmailSubmit" onclick="submitEmailChange()" style="flex:1;padding:12px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:800;cursor:pointer;font-family:inherit;">Send link</button>' +
@@ -1737,7 +1824,18 @@ window.submitEmailChange = async function() {
     var email = input ? String(input.value || '').trim() : '';
     if (!email) return;
     var btn = document.getElementById('changeEmailSubmit');
+    var status = document.getElementById('changeEmailStatus');
     if (btn) btn.disabled = true;
+    var user = auth && auth.currentUser;
+    if (user && accountEmailAction(user) === 'add') {
+        var added = await requestAccountEmailLink(email, status);
+        if (!added && btn) btn.disabled = false;
+        if (added) {
+            var modal = document.getElementById('changeEmailModal');
+            if (modal) modal.remove();
+        }
+        return;
+    }
     try {
         var ready = await window.reauthForSensitiveAction('changing your email');
         if (!ready) { if (btn) btn.disabled = false; return; }
@@ -1752,8 +1850,8 @@ window.submitEmailChange = async function() {
             url: window.location.origin + window.location.pathname + '?emailChange=1',
             handleCodeInApp: true
         });
-        var modal = document.getElementById('changeEmailModal');
-        if (modal) modal.remove();
+        var changed = document.getElementById('changeEmailModal');
+        if (changed) changed.remove();
         if (typeof showToast === 'function') showToast('Check both email addresses. The new one gets a confirm link, and the old one gets a revert link.');
     } catch (err) {
         var code = err && err.code;
@@ -1842,32 +1940,111 @@ async function waitForAccountLinkUser(uid) {
     return (auth && auth.currentUser && auth.currentUser.uid === uid) ? auth.currentUser : null;
 }
 
+function presentAccountLinkHold(decision) {
+    window._accountLinkHold = true;
+    window._accountLinkHoldDecision = decision || 'need-session';
+    var existing = document.getElementById('accountLinkHold');
+    if (existing) existing.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'accountLinkHold';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:2200010;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
+    var message = accountLinkHoldMessage(decision);
+    overlay.innerHTML = '<div role="dialog" aria-modal="true" style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:420px;width:100%;text-align:center;">' +
+        '<div style="font-size:2rem;margin-bottom:8px;">📧</div>' +
+        '<div style="color:var(--heading,#fff);font-weight:800;font-size:1.05rem;margin-bottom:8px;">Finish adding your email</div>' +
+        '<div style="color:var(--text,#fff);font-size:0.9rem;line-height:1.5;margin-bottom:16px;">' + accountLinkEscape(message) + '</div>' +
+        '<button type="button" onclick="signInWithLightningThenEmailLink()" style="width:100%;padding:12px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">Sign in with Lightning</button>' +
+        '<button type="button" onclick="document.getElementById(\'accountLinkHold\').remove()" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-weight:700;cursor:pointer;font-family:inherit;">Close</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+}
+
+async function maybeCompleteAccountEmailLink() {
+    var href = '';
+    try { href = window.location.href; } catch (e) { return; }
+    var accountLink = isAccountLinkHref(href);
+    var signInLink = false;
+    try { signInLink = !!(auth && auth.isSignInWithEmailLink && auth.isSignInWithEmailLink(href)); } catch (e2) { signInLink = false; }
+    if (!accountLink && !signInLink) return;
+    var email = emailFromHref(href);
+    if (!email) {
+        try { email = localStorage.getItem('btc_signin_email') || localStorage.getItem('emailForSignIn') || ''; } catch (e3) { email = ''; }
+    }
+    if (!email) {
+        if (accountLink) presentAccountLinkHold('need-session');
+        return;
+    }
+    await finishAccountEmailLink(email, href);
+}
+
+window.signInWithLightningThenEmailLink = async function() {
+    var hold = document.getElementById('accountLinkHold');
+    if (hold) hold.remove();
+    var ok = false;
+    try {
+        if (typeof window.signInWithLightning === 'function') ok = await window.signInWithLightning();
+    } catch (e) { ok = false; }
+    if (ok) return;
+    if (window._accountLinkHold === true && isAccountLinkHref(window.location.href)) presentAccountLinkHold(window._accountLinkHoldDecision || 'need-session');
+};
+
 async function finishAccountEmailLink(email, signInUrl) {
     var intent = readAccountLinkIntent();
-    if (!intent) return false;
+    var accountLink = isAccountLinkHref(signInUrl);
+    if (accountLink) window._accountLinkHold = true;
+    var userNow = (auth && auth.currentUser) ? auth.currentUser : null;
+    if (intent && intent.uid && (!userNow || userNow.uid !== intent.uid)) {
+        userNow = await waitForAccountLinkUser(intent.uid);
+    }
+    var linkSpec = { intent: intent, accountLink: accountLink };
+    linkSpec.user = userNow ? { uid: userNow.uid, isAnonymous: !!userNow.isAnonymous } : null;
+    linkSpec.email = email;
+    var decision = accountLinkCompletion(linkSpec);
+    if (decision === 'ignore') return false;
+    if (decision === 'stale') {
+        clearAccountLinkIntent();
+        return false;
+    }
+    if (decision !== 'link') {
+        if (decision === 'mismatch') clearAccountLinkIntent();
+        presentAccountLinkHold(decision);
+        if (userNow && !userNow.isAnonymous && typeof loadUser === 'function') loadUser(userNow.uid);
+        return true;
+    }
     if (accountLinkTotpPending()) {
         if (typeof showToast === 'function') showToast(accountLinkTotpHoldMessage());
         return true;
     }
-    var wanted = String(email || '').trim().toLowerCase();
-    if (wanted !== String(intent.email || '').trim().toLowerCase()) {
-        clearAccountLinkIntent();
-        return false;
-    }
-    var user = await waitForAccountLinkUser(intent.uid);
+    var user = userNow;
     if (!user) {
-        clearAccountLinkIntent();
-        return false;
-    }
-    var profile = (typeof currentUser !== 'undefined') ? currentUser : null;
-    if (!accountCanLinkSignIn(user, profile)) {
-        clearAccountLinkIntent();
-        if (typeof showToast === 'function') showToast('This account already has a sign-in method.');
-        window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+        presentAccountLinkHold('need-session');
         return true;
     }
     var linkedUid = user.uid;
     var wasGuest = !!user.isAnonymous;
+    if (!wasGuest && !(intent && intent.uid === user.uid)) {
+        var preparePayload = {};
+        preparePayload.email = email;
+        if (typeof mfaNeedsFreshCode === 'function' && mfaNeedsFreshCode() && typeof window._showFreshStepUp === 'function') {
+            var prepareProof = await window._showFreshStepUp('changeEmail');
+            if (!prepareProof) {
+                presentAccountLinkHold('need-session');
+                return true;
+            }
+            preparePayload.freshProofId = prepareProof;
+        }
+        try {
+            await firebase.functions().httpsCallable('prepareEmailChange')(preparePayload);
+        } catch (prepErr) {
+            var prepCode = prepErr && prepErr.code;
+            if (prepCode === 'functions/failed-precondition' || prepCode === 'failed-precondition') {
+                presentAccountLinkHold('need-session');
+            } else if (typeof showToast === 'function') {
+                showToast(prepCode === 'functions/resource-exhausted' ? 'Too many attempts. Try again later.' : "That email can't be used.");
+            }
+            return true;
+        }
+    }
     try {
         var emailCred = firebase.auth.EmailAuthProvider.credentialWithLink(email, signInUrl);
         await user.linkWithCredential(emailCred);
@@ -1880,6 +2057,7 @@ async function finishAccountEmailLink(email, signInUrl) {
         var conflict = accountLinkConflictMessage(code);
         if (conflict) {
             clearAccountLinkIntent();
+            window._accountLinkHold = false;
             if (typeof showToast === 'function') showToast(conflict);
             window.history.replaceState(null, '', window.location.pathname + window.location.hash);
             return true;
@@ -1891,7 +2069,6 @@ async function finishAccountEmailLink(email, signInUrl) {
                 showToast('Could not link that email. You are still on this account.');
             }
         }
-        window.history.replaceState(null, '', window.location.pathname + window.location.hash);
         return true;
     }
     if (!auth.currentUser || auth.currentUser.uid !== linkedUid) {
@@ -1900,12 +2077,26 @@ async function finishAccountEmailLink(email, signInUrl) {
         return true;
     }
     clearAccountLinkIntent();
+    window._accountLinkHold = false;
     try { localStorage.removeItem('btc_signin_email'); } catch (e1) {}
+    try { localStorage.removeItem('emailForSignIn'); } catch (eFor) {}
     try { localStorage.removeItem('btc_guest_link'); } catch (e2) {}
     window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+    var holdEl = document.getElementById('accountLinkHold');
+    if (holdEl) holdEl.remove();
     if (wasGuest && typeof _handleSignInResultGlobal === 'function') {
         await _handleSignInResultGlobal(auth.currentUser, null, null);
     }
+    var synced = null;
+    try { synced = await syncAccountEmailFromAuth(); } catch (syncErr) { synced = null; }
+    if (synced && synced.conflict) {
+        if (typeof showToast === 'function') showToast(accountLinkConflictMessage('auth/email-already-in-use'));
+        try { if (auth.currentUser && auth.currentUser.reload) await auth.currentUser.reload(); } catch (reloadErr) {}
+        if (typeof loadUser === 'function') loadUser(linkedUid);
+        refreshAccountSignInCard();
+        return true;
+    }
+    if (!wasGuest && typeof loadUser === 'function') loadUser(linkedUid);
     if (typeof showToast === 'function') showToast('Email linked. You can use it to sign in next time.');
     refreshAccountSignInCard();
     return true;
@@ -2139,9 +2330,14 @@ async function finishEmailSignIn(email, _signInUrl) {
         } else {
             showToast('Sign-in error (' + (e.code || 'unknown') + '). Please try again.');
         }
-        // Clean URL so the broken link doesn't keep retrying
+        // A failed account link must not mint a guest. A normal sign-in
+        // failure can, once the one-time code is gone from the address bar.
+        if (window._accountLinkHold === true || anonymousSignInBlockedNow()) {
+            presentAccountLinkHold(window._accountLinkHoldDecision || 'need-session');
+            return;
+        }
         window.history.replaceState(null, '', window.location.pathname + window.location.hash);
-        auth.signInAnonymously();
+        startAnonymousSession();
     }
 }
 
@@ -2701,7 +2897,14 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
 
 // Lightning (LNURL-auth) Sign-In
 window.signInWithLightning = async function() {
-    if (!checkRateLimit()) return;
+    if (!checkRateLimit()) return false;
+    var lnSettled = false;
+    function settleLn(value) {
+        if (lnSettled) return;
+        lnSettled = true;
+        if (typeof window._settleLightning === 'function') window._settleLightning(!!value);
+    }
+    window._lightningSignIn = new Promise(function(resolve) { window._settleLightning = resolve; });
     window._captureSignupFormState();
     // Close the sign-in modal so the LN overlay isn't buried under it
     var _um = document.getElementById('usernameModal');
@@ -2710,8 +2913,8 @@ window.signInWithLightning = async function() {
     // Show modal immediately with loading skeleton (Cloud Function can be slow on cold start)
     var qrModal = document.createElement('div');
     qrModal.id = 'lnAuthModal';
-    qrModal.style.cssText = 'position:fixed;inset:0;z-index:500000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);';
-    qrModal.onclick = function(e) { if (e.target === qrModal) qrModal.remove(); };
+    qrModal.style.cssText = 'position:fixed;inset:0;z-index:2200020;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);';
+    qrModal.onclick = function(e) { if (e.target === qrModal) { qrModal.remove(); settleLn(false); } };
     qrModal.innerHTML =
         '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent);border-radius:20px;padding:28px;max-width:380px;width:90%;text-align:center;">' +
             '<div style="font-size:2rem;margin-bottom:10px;">⚡</div>' +
@@ -2722,9 +2925,11 @@ window.signInWithLightning = async function() {
             '</div>' +
             '<div id="lnAuthCopyWrap" style="margin-bottom:12px;display:none;"></div>' +
             '<p id="lnAuthStatus" style="color:var(--text-muted);font-size:0.85rem;font-weight:600;">Connecting to server...</p>' +
-            '<button onclick="document.getElementById(\'lnAuthModal\').remove()" style="margin-top:10px;padding:8px 20px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+            '<button type="button" id="lnAuthCancel" style="margin-top:10px;padding:8px 20px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
         '</div>';
     document.body.appendChild(qrModal);
+    var lnCancel = document.getElementById('lnAuthCancel');
+    if (lnCancel) lnCancel.onclick = function() { qrModal.remove(); settleLn(false); };
 
     try {
         // Request challenge from Cloud Function
@@ -2732,12 +2937,13 @@ window.signInWithLightning = async function() {
         var challengeResult = await lnAuthChallenge();
 
         // Check modal still exists (user might have cancelled)
-        if (!document.getElementById('lnAuthModal')) return;
+        if (!document.getElementById('lnAuthModal')) { settleLn(false); return window._lightningSignIn; }
 
         if (!challengeResult.data || !challengeResult.data.k1 || !challengeResult.data.lnurl) {
             if (typeof showToast === 'function') showToast('Failed to generate login challenge');
             qrModal.remove();
-            return;
+            settleLn(false);
+            return window._lightningSignIn;
         }
 
         var k1 = challengeResult.data.k1;
@@ -2786,6 +2992,7 @@ window.signInWithLightning = async function() {
             pollCount++;
             if (pollCount > maxPolls || !document.getElementById('lnAuthModal')) {
                 clearInterval(pollInterval);
+                settleLn(false);
                 return;
             }
             try {
@@ -2812,17 +3019,20 @@ window.signInWithLightning = async function() {
 
                     loadUser(uid);
                     hideUsernamePrompt();
+                    try { await maybeCompleteAccountEmailLink(); } catch (linkAfterLn) {}
                     setTimeout(function() {
                         var modal = document.getElementById('lnAuthModal');
                         if (modal) modal.remove();
                     }, 1000);
                     if (typeof showToast === 'function') showToast('⚡ Signed in with Lightning!');
+                    settleLn(true);
                 }
             } catch(e) {
                 if (surfaceMfaRequired(e)) {
                     clearInterval(pollInterval);
                     var mfaModal = document.getElementById('lnAuthModal');
                     if (mfaModal) mfaModal.remove();
+                    settleLn(false);
                     return;
                 }
                 // Not ready yet, keep polling
@@ -2835,7 +3045,9 @@ window.signInWithLightning = async function() {
         if (typeof showToast === 'function') showToast('Lightning sign-in failed. Try again.');
         var modal = document.getElementById('lnAuthModal');
         if (modal) modal.remove();
+        settleLn(false);
     }
+    return window._lightningSignIn;
 };
 
 // Rate limiting check
@@ -3230,15 +3442,20 @@ window.sendReturningMagicLink = async function() {
 };
 
 // Send magic link email
-async function sendMagicLink(email) {
+async function sendMagicLink(email, opts) {
+    var accountLink = !!(opts && opts.accountLink);
+    var continueUrl = window.location.origin + window.location.pathname + '?signin_email=' + encodeURIComponent(email);
+    if (accountLink) continueUrl += '&account_link=1';
     const actionCodeSettings = {
-        // Embed email in URL so it works even when opened on a different device/browser
-        url: window.location.origin + window.location.pathname + '?signin_email=' + encodeURIComponent(email),
+        // Embed email in URL so it works even when opened on a different device/browser.
+        // account_link marks a link that must attach to the signed-in account.
+        url: continueUrl,
         handleCodeInApp: true,
     };
     try {
         await auth.sendSignInLinkToEmail(email, actionCodeSettings);
         localStorage.setItem('btc_signin_email', email);
+        try { localStorage.setItem('emailForSignIn', email); } catch (storeErr) {}
         return true;
     } catch(e) {
         console.log('Magic link error:', e);
@@ -4687,6 +4904,10 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
         return;
     }
     if (!auth.currentUser) {
+        if (anonymousSignInBlockedNow()) {
+            showToast('Finish the email link on this page before starting a guest session.');
+            return;
+        }
         try {
             const cred = await auth.signInAnonymously();
             // Wait a moment for auth.currentUser to update
@@ -10538,20 +10759,72 @@ window.sendAccountLinkEmail = async function() {
         return;
     }
     if (input) input.disabled = true;
+    var sent = await requestAccountEmailLink(email, status);
+    if (!sent && input) input.disabled = false;
+};
+
+async function requestAccountEmailLink(email, status) {
+    if (accountLinkTotpPending()) {
+        if (typeof showToast === 'function') showToast(accountLinkTotpHoldMessage());
+        return false;
+    }
+    var user = auth && auth.currentUser;
+    var profile = (typeof currentUser !== 'undefined') ? currentUser : null;
+    if (!user) {
+        if (status) status.textContent = 'Sign in, then try this.';
+        return false;
+    }
+    if (user.isAnonymous && !accountCanLinkSignIn(user, profile)) {
+        if (typeof showToast === 'function') showToast('This account already has a sign-in method.');
+        return false;
+    }
+    var clean = String(email || '').trim();
+    if (!clean || clean.indexOf('@') < 1 || clean.indexOf('.') < 0 || clean.length > 100) {
+        if (status) status.textContent = 'Enter the email you want to link.';
+        return false;
+    }
+    if (!user.isAnonymous) {
+        var ready = await window.reauthForSensitiveAction('linking email');
+        if (!ready) {
+            if (status) status.textContent = 'Sign in again, then try this.';
+            return false;
+        }
+        var payload = {};
+        payload.email = clean;
+        if (typeof mfaNeedsFreshCode === 'function' && mfaNeedsFreshCode() && typeof window._showFreshStepUp === 'function') {
+            var proof = await window._showFreshStepUp('changeEmail');
+            if (!proof) {
+                if (status) status.textContent = 'Finish the authenticator check, then try again.';
+                return false;
+            }
+            payload.freshProofId = proof;
+        }
+        try {
+            await firebase.functions().httpsCallable('prepareEmailChange')(payload);
+        } catch (err) {
+            var code = err && err.code;
+            var friendly = "That email can't be used.";
+            if (code === 'functions/resource-exhausted' || code === 'resource-exhausted') friendly = 'Too many attempts. Try again later.';
+            else if (code === 'functions/failed-precondition' || code === 'failed-precondition') friendly = 'Sign in again, then try this.';
+            if (status) status.textContent = friendly;
+            if (typeof showToast === 'function') showToast(friendly);
+            return false;
+        }
+    }
     if (status) status.textContent = 'Sending a link…';
-    writeAccountLinkIntent(user, email);
+    writeAccountLinkIntent(user, clean);
     var sent = false;
-    try { sent = await sendMagicLink(email); } catch (e) { sent = false; }
+    try { sent = await sendMagicLink(clean, { accountLink: true }); } catch (e) { sent = false; }
     if (!sent) {
         clearAccountLinkIntent();
-        if (input) input.disabled = false;
         if (status) status.textContent = 'Could not send the link. Try again.';
         if (typeof showToast === 'function') showToast('Could not send the link. Try again.');
-        return;
+        return false;
     }
-    if (status) status.textContent = 'Check your email and tap the link on this browser. It links this account and does not open a different one.';
-    if (typeof showToast === 'function') showToast('Check your email and open the link in this browser.');
-};
+    if (status) status.textContent = 'Check your email. Open the link while this account is signed in. It does not create a new account.';
+    if (typeof showToast === 'function') showToast('Check your email and open the link while you are signed in.');
+    return true;
+}
 
 window.linkGoogleFromAccount = async function() {
     if (accountLinkTotpPending()) {
