@@ -595,7 +595,7 @@ function auth(email) {
         assert.strictEqual(result.conflict, true);
         assert.ok(!db.docs.get('users/u1').emailHash);
         assert.strictEqual(db.docs.get('users/other').emailHash, hash);
-        assert.ok(updates.length > 0);
+        assert.strictEqual(updates.length, 0);
     });
 
     await test('prepare refuses an email another account already claimed', async function () {
@@ -620,6 +620,152 @@ function auth(email) {
             function (err) { return err.message === emailChange.CANT_USE && err.message.indexOf('claimed@') === -1; }
         );
         assert.strictEqual(db.docs.get('email_link_claims/' + hash).uid, 'ln:other');
+    });
+
+    await test('only a lightning account can lose an email sign-in, and never its last method', async function () {
+        const hash = tomb.emailHmac('owned@example.com');
+        const updates = [];
+        function record(uid, patch) { updates.push({ uid: uid, patch: patch }); }
+        const emailUser = createDb({ 'users/email-user': {}, 'users/other': { emailHash: hash } });
+        const emailApi = handlers(emailUser, {
+            revokeRefreshTokens: async function () {},
+            updateUser: async function (uid, patch) { record(uid, patch); },
+            getUser: async function () {
+                return {
+                    uid: 'email-user',
+                    email: 'owned@example.com',
+                    emailVerified: true,
+                    providerData: [{ providerId: 'password', uid: 'pw' }],
+                };
+            },
+        });
+        const blocked = await emailApi.syncEmailChange({}, {
+            auth: { uid: 'email-user', token: { email: 'owned@example.com', email_verified: true, auth_time: 1_700_000_000 } },
+        });
+        assert.strictEqual(blocked.conflict, true);
+        assert.strictEqual(updates.length, 0);
+        assert.ok(!emailUser.docs.get('users/email-user').emailHash);
+
+        const lnDb = createDb({ 'users/ln:abc': {}, 'users/other': { emailHash: hash } });
+        const lnApi = handlers(lnDb, {
+            revokeRefreshTokens: async function () {},
+            updateUser: async function (uid, patch) { record(uid, patch); },
+            getUser: async function () {
+                return {
+                    uid: 'ln:abc',
+                    email: 'owned@example.com',
+                    emailVerified: true,
+                    providerData: [{ providerId: 'password', uid: 'pw' }, { providerId: 'google.com', uid: 'g' }],
+                };
+            },
+        });
+        const stripped = await lnApi.syncEmailChange({}, {
+            auth: { uid: 'ln:abc', token: { email: 'owned@example.com', email_verified: true, auth_time: 1_700_000_000 } },
+        });
+        assert.strictEqual(stripped.conflict, true);
+        assert.strictEqual(updates.length, 1);
+        assert.strictEqual(updates[0].uid, 'ln:abc');
+        assert.deepStrictEqual(updates[0].patch.providersToUnlink, ['password']);
+        assert.strictEqual(updates[0].patch.email, undefined);
+        assert.ok(!lnDb.docs.get('users/ln:abc').emailHash);
+    });
+
+    await test('an email-link signup wins over an unconfirmed claim without losing the sign-in', async function () {
+        const hash = tomb.emailHmac('inbox@example.com');
+        function reservedDb() {
+            const db = createDb({ 'users/owner': {} });
+            db.docs.set('email_link_claims/' + hash, {
+                uid: 'attacker',
+                expireAt: new Date(1_700_000_000_000 + 60 * 1000),
+                createdAt: 1,
+            });
+            return db;
+        }
+        const updates = [];
+        function authApi() {
+            return {
+                revokeRefreshTokens: async function () {},
+                updateUser: async function (uid, patch) { updates.push({ uid: uid, patch: patch }); },
+                getUserByEmail: async function () { return { uid: 'owner' }; },
+                getUser: async function (uid) {
+                    if (uid === 'attacker') {
+                        return { uid: 'attacker', email: '', emailVerified: false, providerData: [{ providerId: 'google.com', uid: 'g' }] };
+                    }
+                    return {
+                        uid: 'owner',
+                        email: 'inbox@example.com',
+                        emailVerified: true,
+                        providerData: [{ providerId: 'password', uid: 'pw' }],
+                    };
+                },
+            };
+        }
+        const ownerAuth = {
+            auth: { uid: 'owner', token: { email: 'inbox@example.com', email_verified: true, auth_time: 1_700_000_000 } },
+        };
+        const syncedDb = reservedDb();
+        const synced = await handlers(syncedDb, authApi()).syncEmailChange({}, ownerAuth);
+        assert.strictEqual(synced.first, true);
+        assert.strictEqual(synced.conflict, undefined);
+        assert.strictEqual(syncedDb.docs.get('users/owner').email, 'inbox@example.com');
+        assert.strictEqual(syncedDb.docs.get('users/owner').emailHash, hash);
+        assert.strictEqual(syncedDb.docs.has('email_link_claims/' + hash), false);
+        assert.strictEqual(updates.length, 0);
+
+        const payoutDb = reservedDb();
+        const payout = await emailChange.beginPayout(payoutDb, authApi(), 'owner', {
+            uid: 'owner',
+            email: 'inbox@example.com',
+            emailVerified: true,
+            providerData: [{ providerId: 'password', uid: 'pw' }],
+        }, 1_700_000_000_000, { email: 'inbox@example.com', email_verified: true });
+        assert.strictEqual(payout.ok, true);
+        assert.strictEqual(payout.conflict, undefined);
+        assert.strictEqual(payoutDb.docs.get('users/owner').email, 'inbox@example.com');
+        assert.strictEqual(payoutDb.docs.has('email_link_claims/' + hash), false);
+        assert.strictEqual(updates.length, 0);
+    });
+
+    await test('preparing a new email releases the previous claim and leaves one', async function () {
+        const first = tomb.emailHmac('first@example.com');
+        const second = tomb.emailHmac('second@example.com');
+        const orphan = tomb.emailHmac('orphan@example.com');
+        const db = createDb({ 'users/u1': {} });
+        db.docs.set('email_link_claims/' + first, {
+            uid: 'u1',
+            expireAt: new Date(1_700_000_000_000 + 60 * 1000),
+            createdAt: 1,
+        });
+        db.docs.set('email_link_claims/' + orphan, {
+            uid: 'u1',
+            expireAt: new Date(1_700_000_000_000 + 60 * 1000),
+            createdAt: 1,
+        });
+        db.docs.set('email_change_pending/u1', {
+            emailHmac: first,
+            expireAt: new Date(1_700_000_000_000 + 60 * 1000),
+            createdAt: 1,
+            stepUp: { totp: false, phone: false },
+        });
+        const api = handlers(db, {
+            getUserByEmail: async function () {
+                const err = new Error('missing');
+                err.code = 'auth/user-not-found';
+                throw err;
+            },
+        });
+        const prepared = await api.prepareEmailChange({ email: 'second@example.com' }, auth(''));
+        assert.strictEqual(prepared.ok, true);
+        assert.strictEqual(db.docs.has('email_link_claims/' + first), false);
+        assert.strictEqual(db.docs.has('email_link_claims/' + orphan), false);
+        assert.strictEqual(db.docs.get('email_link_claims/' + second).uid, 'u1');
+        assert.strictEqual(db.docs.get('email_change_pending/u1').emailHmac, second);
+        let active = 0;
+        db.docs.forEach(function (data, key) {
+            if (key.indexOf('email_link_claims/') === 0 && data.uid === 'u1') active += 1;
+        });
+        assert.strictEqual(active, 1);
+        assert.ok(JSON.stringify(db.docs.get('email_link_claims/' + second)).indexOf('@') === -1);
     });
 
     await test('prepare stores a claim without the address', async function () {

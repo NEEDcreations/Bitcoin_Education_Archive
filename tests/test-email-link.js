@@ -364,7 +364,16 @@ test('a guest link creates the profile and a stale intent falls through', functi
     assert.ok(listener.includes('startAnonymousSession()'));
     assert.ok(!listener.includes('auth.signInAnonymously()'));
     assert.ok(src.includes('z-index:2200010'));
+    assert.ok(src.includes('z-index:2200030'));
     assert.ok(src.includes('accountLink: true'));
+    const stepUp = src.slice(src.indexOf('window._showFreshStepUp = function'), src.indexOf('function mfaNeedsFreshCode'));
+    assert.ok(stepUp.includes('z-index:2200030'));
+    assert.ok(stepUp.includes('changeEmail'));
+    assert.ok(!stepUp.includes('z-index:710000'));
+    const addSend = src.slice(src.indexOf('async function requestAccountEmailLink'), src.indexOf('window.linkGoogleFromAccount'));
+    assert.ok(addSend.indexOf("_showFreshStepUp('changeEmail')") < addSend.indexOf("httpsCallable('prepareEmailChange')"));
+    const changeSend = src.slice(src.indexOf('window.submitEmailChange = async function'), src.indexOf('var ACCOUNT_LINK_STORAGE_KEY'));
+    assert.ok(changeSend.indexOf("_showFreshStepUp('changeEmail')") < changeSend.indexOf('verifyBeforeUpdateEmail'));
     assert.ok(src.includes("localStorage.setItem('emailForSignIn', email)"));
     const addModal = src.slice(src.indexOf('window.showChangeEmailModal = function'), src.indexOf('window.submitEmailChange'));
     assert.ok(addModal.includes('z-index:2200010'));

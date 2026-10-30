@@ -186,12 +186,38 @@ async function appendHashes(db, collectionName, uid, hashes, nowMs) {
 // providersKnown is true only when authUser is the record getUser returned.
 // A missing or token-built user has no provider list, and an empty list then
 // is not a removal.
+function keepsSignInWithoutPassword(uid, providerData) {
+    // A Lightning custom token is a sign-in method even when providerData is
+    // only the email link. Any other account must keep a non-password provider.
+    if (String(uid || '').indexOf('ln:') === 0) return true;
+    const rows = Array.isArray(providerData) ? providerData : [];
+    for (let i = 0; i < rows.length; i++) {
+        const id = rows[i] && rows[i].providerId;
+        if (id && id !== 'password' && id !== 'anonymous') return true;
+    }
+    return false;
+}
+
 async function detachAuthEmail(authApi, uid) {
-    if (!authApi || typeof authApi.updateUser !== 'function' || !uid) return;
+    // Only a Lightning account can lose an email that was never claimed for it.
+    // Unlinking password on anyone else can delete their only sign-in.
+    if (String(uid || '').indexOf('ln:') !== 0) return;
+    if (!authApi || typeof authApi.updateUser !== 'function') return;
+    let providers = null;
+    if (typeof authApi.getUser === 'function') {
+        try {
+            const rec = await authApi.getUser(uid);
+            providers = rec && Array.isArray(rec.providerData) ? rec.providerData : [];
+        } catch (e) {
+            providers = null;
+        }
+    }
+    if (providers && !keepsSignInWithoutPassword(uid, providers)) return;
     try {
         await authApi.updateUser(uid, { providersToUnlink: ['password'] });
         return;
-    } catch (e) { /* the address may not be a password provider */ }
+    } catch (e) { /* password provider may already be gone */ }
+    if (!keepsSignInWithoutPassword(uid, providers || [])) return;
     try {
         await authApi.updateUser(uid, { email: null, emailVerified: false });
     } catch (e2) { /* the profile write is still refused */ }
@@ -213,14 +239,51 @@ async function otherProfileHasEmail(db, uid, hash) {
     return other;
 }
 
-async function foreignClaim(db, uid, hash, nowMs) {
-    if (!hash || !db || typeof db.collection !== 'function') return false;
+async function readActiveClaim(db, hash, nowMs) {
+    if (!hash || !db || typeof db.collection !== 'function') return null;
     const ref = db.collection('email_link_claims').doc(hash);
-    if (!ref || typeof ref.get !== 'function') return false;
+    if (!ref || typeof ref.get !== 'function') return null;
     const snap = await ref.get();
-    if (!snap || !snap.exists) return false;
+    if (!snap || !snap.exists) return null;
     const claim = snap.data() || {};
-    return !!(claim.uid && claim.uid !== uid && millisOf(claim.expireAt) > nowMs);
+    if (!claim.uid || millisOf(claim.expireAt) <= nowMs) return null;
+    return { uid: claim.uid, hash: hash };
+}
+
+async function claimantOwnsEmail(authApi, claimUid, email) {
+    if (!authApi || typeof authApi.getUser !== 'function' || !claimUid) return false;
+    try {
+        const rec = await authApi.getUser(claimUid);
+        const theirs = accountTombstone.normalizeEmail(rec && rec.email);
+        return !!(rec && rec.emailVerified === true && theirs && theirs === accountTombstone.normalizeEmail(email));
+    } catch (e) {
+        return false;
+    }
+}
+
+async function claimsForUid(db, uid) {
+    const out = [];
+    if (!uid || !db || typeof db.collection !== 'function') return out;
+    const col = db.collection('email_link_claims');
+    if (!col || typeof col.where !== 'function') return out;
+    const snap = await col.where('uid', '==', uid).get();
+    if (snap && typeof snap.forEach === 'function') {
+        snap.forEach(function (doc) {
+            if (doc && doc.id) out.push(doc.id);
+        });
+    }
+    return out;
+}
+
+async function releasePreviousClaims(db, uid, keepHash) {
+    const pendingSnap = await db.collection('email_change_pending').doc(uid).get();
+    const pending = pendingSnap && pendingSnap.exists ? (pendingSnap.data() || {}) : null;
+    const prev = pending && pending.emailHmac;
+    if (prev && prev !== keepHash) await releaseEmailClaim(db, uid, prev);
+    const rows = await claimsForUid(db, uid);
+    for (let i = 0; i < rows.length; i++) {
+        if (rows[i] && rows[i] !== keepHash) await releaseEmailClaim(db, uid, rows[i]);
+    }
 }
 
 async function lightningFirstLinkOk(db, uid, hash, nowMs) {
@@ -281,10 +344,12 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs, token, provider
 
     if (nextHash) {
         let blocked = false;
+        let authOwner = '';
         if (authApi && typeof authApi.getUserByEmail === 'function') {
             try {
                 const existing = await authApi.getUserByEmail(verified);
-                if (existing && existing.uid && existing.uid !== uid) blocked = true;
+                authOwner = existing && existing.uid ? existing.uid : '';
+                if (authOwner && authOwner !== uid) blocked = true;
             } catch (err) {
                 if (!userNotFound(err)) {
                     return { ok: false, conflict: true, changed: false, hold: false, skipped: true, tomb: looked };
@@ -292,7 +357,18 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs, token, provider
             }
         }
         if (!blocked && await otherProfileHasEmail(db, uid, nextHash)) blocked = true;
-        if (!blocked && await foreignClaim(db, uid, nextHash, clock)) blocked = true;
+        if (!blocked) {
+            const reservation = await readActiveClaim(db, nextHash, clock);
+            if (reservation && reservation.uid !== uid) {
+                // prepareEmailChange only reserves an address. The Auth user who
+                // verified it, including an email-link signup, wins and the
+                // reservation is dropped. The claim blocks only when that other
+                // account already has the verified address.
+                const reserved = await claimantOwnsEmail(authApi, reservation.uid, verified);
+                if (authOwner === uid || !reserved) await releaseEmailClaim(db, reservation.uid, nextHash);
+                else blocked = true;
+            }
+        }
         if (!blocked && !prevHash && String(uid).indexOf('ln:') === 0) {
             const allowed = await lightningFirstLinkOk(db, uid, nextHash, clock);
             if (!allowed) blocked = true;
@@ -494,6 +570,7 @@ function createEmailChangeHandlers(options) {
             if (claim && claim.uid && claim.uid !== uid && millisOf(claim.expireAt) > clock) {
                 throw httpsError(HttpsError, 'invalid-argument', CANT_USE);
             }
+            await releasePreviousClaims(db, uid, emailHmac);
             await claimRef.set({
                 uid: uid,
                 expireAt: new Date(clock + PREP_TTL_MS),

@@ -12196,7 +12196,8 @@ window._showFreshStepUp = function (action) {
         resetLightningAddress: 'Enter a fresh authenticator code to change your Lightning Address. Remembering this device is not enough.',
         deleteAccount: 'Enter a fresh authenticator code to delete this account. Remembering this device is not enough.',
         disableTotp: 'Enter a fresh authenticator code to turn off two-factor authentication. A saved session is not enough.',
-        regenerateRecoveryCodes: 'Enter a fresh authenticator code to create new recovery codes. A saved session is not enough.'
+        regenerateRecoveryCodes: 'Enter a fresh authenticator code to create new recovery codes. A saved session is not enough.',
+        changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.'
     };
     return new Promise(function (resolve) {
         var old = document.getElementById('freshStepUpOverlay');
@@ -12211,7 +12212,7 @@ window._showFreshStepUp = function (action) {
         }
         var overlay = document.createElement('div');
         overlay.id = 'freshStepUpOverlay';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:710000;display:flex;align-items:center;justify-content:center;padding:16px;';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:2200030;display:flex;align-items:center;justify-content:center;padding:16px;';
         overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:380px;width:100%;text-align:center;">' +
             '<div style="font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:8px;">Fresh authenticator code</div>' +
             '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;line-height:1.45;margin-bottom:14px;">' + mfaEscapeText(copy[action] || 'Enter a fresh authenticator code. A remembered device is not enough.') + '</div>' +
