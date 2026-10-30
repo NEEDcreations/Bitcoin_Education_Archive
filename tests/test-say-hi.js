@@ -413,6 +413,8 @@ test('client names a message id and does not render user text or hold a secret',
     const sw = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
 
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2432'"));
+    assert.ok(!sw.includes('btc-archive-v2431'));
+    assert.ok(!sw.includes('btc-archive-v2430'));
     assert.ok(!sw.includes('btc-archive-v2422'));
     assert.ok(!sw.includes('btc-archive-v2391'));
     assert.ok(!sw.includes('btc-archive-v2386'));

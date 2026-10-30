@@ -665,6 +665,8 @@ test('client shows the server amount and does not render user text', function ()
     const swText = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
 
     assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2432'"));
+    assert.ok(!swText.includes('btc-archive-v2431'));
+    assert.ok(!swText.includes('btc-archive-v2430'));
     assert.ok(!swText.includes('btc-archive-v2422'));
     assert.ok(!swText.includes('btc-archive-v2391'));
     assert.ok(!swText.includes('btc-archive-v2386'));

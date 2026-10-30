@@ -1112,6 +1112,12 @@
     #homeHero .home-logos img { width:72px !important; height:72px !important; }
     #homeHero .home-title { font-size:1.7rem; margin-bottom:8px; }
     #homeHero .home-subtitle { font-size:1rem; margin-bottom:12px; }
+    #patchNotesHome { width:100%; max-width:100%; box-sizing:border-box; text-align:center; }
+    #patchNotesHome p { max-width:100%; overflow-wrap:anywhere; }
+    #patchNotesHome a { display:inline-block; max-width:100%; }
+    @media (max-width: 390px) {
+        #patchNotesHome { padding:0 2px; }
+    }
     #homeLearnCard { background:#0f172a; border:1px solid #1e293b; border-radius:16px; padding:14px; text-align:left; margin:0 0 12px; }
     .home-learn-kicker { font-size:0.68rem; font-weight:800; letter-spacing:0.08em; color:#93c5fd; }
     .home-learn-title { font-size:1.25rem; font-weight:900; color:#fff; margin:4px 0; }
@@ -1615,7 +1621,8 @@
                 </div>
                 <h1 class="home-title">Bitcoin Quest<span style="display:inline-block;background:#f7931a;color:#fff;font-size:0.32em;font-weight:800;padding:3px 8px;border-radius:6px;vertical-align:middle;margin-left:10px;letter-spacing:0.04em;text-transform:uppercase;line-height:1.4;">Beta</span></h1>
                 <div id="patchNotesHome">
-                <p style="margin:0 0 16px;font-size:0.78rem;"><a id="patchNotesLink" href="/patch-notes.html" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">📋 Patch Notes — Latest updates</a></p>
+                <p style="margin:0 0 6px;font-size:0.78rem;line-height:1.35;"><a id="patchNotesLink" href="/patch-notes.html" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">📋 Patch Notes — Latest updates</a></p>
+                <p style="margin:0 0 16px;font-size:0.78rem;line-height:1.35;"><a id="resetsTimelinesLink" href="https://misty-tundra-nn5uvj.pages.grok.bot/" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">⏰ Resets &amp; Timelines</a></p>
                 <script>
                 (function () {
                     window._applyWhatsNew = function (version) {
