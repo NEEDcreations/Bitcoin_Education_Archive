@@ -385,16 +385,23 @@ function buildLegacyStats(input, nowMs) {
     });
 
     const oldFails = [];
-    const partless = [];
     (src.answerKeys || []).forEach(function (doc) {
         if (!doc || doc.graded !== true) return;
         const at = timeMs(doc.createdAt);
-        if (!(at > 0) || !(at < cutover)) return;
+        if (!(at > 0)) return;
+        if (!(at < cutover)) {
+            // Overlap with server grades. Still count an id that is not a real quest.
+            if (resolveAnswerKey(doc).kind === 'drop') dropped++;
+            return;
+        }
         const resolved = resolveAnswerKey(doc);
         if (resolved.kind === 'drop') { dropped++; return; }
         const score = Number(doc.score);
         if (resolved.kind === 'attempt') {
-            partless.push({ at: at, score: score });
+            // No part on the doc. A pass is already represented by completedQuests.
+            // A fail on a real topic is one failed attempt, not a distinct pass.
+            if (score >= PASS_SCORE) return;
+            oldFails.push({ questId: '', at: at, score: score });
             return;
         }
         if (score >= PASS_SCORE) addPass(resolved.id, at);
@@ -404,7 +411,10 @@ function buildLegacyStats(input, nowMs) {
     (src.passes || []).forEach(function (row) {
         const at = timeMs(row && row.at);
         const canon = catalogQuestId((row && (row.questId || row.id)) || '');
-        if (!canon) { dropped++; return; }
+        if (!canon) {
+            if (!(at >= cutover)) dropped++;
+            return;
+        }
         if (at >= cutover) return;
         addPass(canon, at);
     });
@@ -414,7 +424,7 @@ function buildLegacyStats(input, nowMs) {
         const at = timeMs(row && row.at);
         if (!(at >= cutover)) return;
         const canon = catalogQuestId((row && (row.questId || row.id)) || '');
-        if (!canon) return;
+        if (!canon) { dropped++; return; }
         postEvents.push({
             questId: canon,
             score: row.score == null ? PASS_SCORE : Number(row.score),
@@ -450,7 +460,7 @@ function buildLegacyStats(input, nowMs) {
     seedIds.forEach(function (id) { stats.passed[id] = passAt[id]; });
     stats.passes = seedIds.length;
     stats.passedAttempts = seedIds.length;
-    stats.attempts = seedIds.length + oldFails.length + partless.length;
+    stats.attempts = seedIds.length + oldFails.length;
     let reached = 0;
     seedIds.forEach(function (id) { if (passAt[id] > reached) reached = passAt[id]; });
     stats.reachedAt = reached;
@@ -460,10 +470,6 @@ function buildLegacyStats(input, nowMs) {
 
     const dated = oldFails.map(function (row) {
         return { questId: row.questId, score: row.score, at: row.at };
-    });
-    // No part: an attempt in that period, never a distinct pass.
-    partless.forEach(function (row) {
-        dated.push({ questId: '', score: 0, at: row.at });
     });
     Object.keys(datedPassAt).forEach(function (id) {
         if (postPassIds[id]) return;
@@ -482,7 +488,6 @@ function buildLegacyStats(input, nowMs) {
         stats: stats,
         distinctPasses: stats.passes,
         oldFails: oldFails.length,
-        partless: partless.length,
         dropped: dropped,
         postEvents: postEvents.length
     };
@@ -692,6 +697,7 @@ function selectBoard(rows, period) {
     const min = MIN[period] || MIN.alltime;
     const qualified = (rows || []).filter(function (row) {
         if (!row || row.ghostMode === true) return false;
+        if (whole(row.passes) < 1) return false;
         return whole(row.attempts) >= min;
     });
     qualified.sort(compareRows);

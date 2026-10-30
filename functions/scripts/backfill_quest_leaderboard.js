@@ -8,9 +8,10 @@
 // quest_dynamic_N and any other unknown id are dropped, including a
 // failed answer key whose topic or part is not a real quest. Repeat
 // passes add nothing. An answer key stores a part only when the doc has
-// questIndex (0-based), part, or partNum (1-based). With no part it is
-// an attempt only, never a distinct pass. A known part with score under
-// 3 is one failed attempt. Server passes and quest_attempts at or after
+// questIndex (0-based), part, or partNum (1-based). With no part, a
+// score of 3 or more is ignored because completedQuests already holds
+// the distinct pass. A score under 3 on a real topic is one failed
+// attempt. Server passes and quest_attempts at or after
 // the cutover are added on top. Answer keys from the cutover onward are
 // ignored so the Oct 22–23 overlap is not counted twice. Week and month
 // use dated rows only. The summary includes how many ids were dropped.
@@ -62,13 +63,7 @@ async function loadAnswerKeys(db, documentId) {
             const uid = String(data.uid || '');
             if (!uid) return;
             if (!byUid[uid]) byUid[uid] = [];
-            byUid[uid].push({
-                graded: true,
-                uid: uid,
-                topicKey: data.topicKey,
-                score: data.score,
-                createdAt: data.createdAt
-            });
+            byUid[uid].push(data);
         });
         cursor = snap.docs[snap.docs.length - 1];
         if (snap.size < PAGE) break;

@@ -131,6 +131,17 @@ test('minimum attempts are 5 all-time and 3 for the week and month', () => {
     assert.deepStrictEqual(board.selectBoard(rows, 'month').map(function (r) { return r.username; }), ['Short', 'Five', 'WeekOk']);
 });
 
+test('a player with no distinct pass stays off the board', () => {
+    const rows = [];
+    for (let i = 0; i < 8; i++) {
+        rows.push({ username: 'Zero' + i, passes: 0, attempts: 8, passedAttempts: 0, reachedAt: i });
+    }
+    rows.push({ username: 'One', passes: 1, attempts: 4, passedAttempts: 1, reachedAt: 20 });
+    assert.deepStrictEqual(board.selectBoard(rows, 'month').map(function (r) { return r.username; }), ['One']);
+    assert.deepStrictEqual(board.selectBoard(rows, 'week').map(function (r) { return r.username; }), ['One']);
+    assert.strictEqual(board.selectBoard(rows, 'alltime').length, 0);
+});
+
 test('the board stops at 25 and does not need an expand', () => {
     const rows = [];
     for (let i = 0; i < 30; i++) {
@@ -324,6 +335,7 @@ test('backfill drops ids that are not in the quest catalog', () => {
             { graded: true, topicKey: 'quest_dynamic_3', score: 5, createdAt: before + 60 },
             { graded: true, topicKey: 'nodes', score: 1, createdAt: before + 70 },
             { graded: true, topicKey: 'mining', questIndex: 0, score: 5, createdAt: after },
+            { graded: true, topicKey: 'not-a-quest', score: 2, createdAt: after },
             { graded: false, topicKey: 'nodes', questIndex: 0, score: 1, createdAt: before }
         ],
         passes: [
@@ -339,12 +351,11 @@ test('backfill drops ids that are not in the quest catalog', () => {
         ]
     }, NOW);
     const stats = built.stats;
-    assert.strictEqual(built.dropped, 6);
+    assert.strictEqual(built.dropped, 7);
     assert.strictEqual(stats.passes, 5);
     assert.strictEqual(stats.passedAttempts, 5);
-    assert.strictEqual(stats.attempts, 11);
-    assert.strictEqual(built.oldFails, 2);
-    assert.strictEqual(built.partless, 2);
+    assert.strictEqual(stats.attempts, 10);
+    assert.strictEqual(built.oldFails, 3);
     assert.strictEqual(stats.passed['quest_dynamic_12'], undefined);
     assert.strictEqual(stats.passed['quest_dynamic_12__1'], undefined);
     assert.strictEqual(stats.passed['quest_not_real__1'], undefined);
@@ -377,7 +388,8 @@ test('backfill drops ids that are not in the quest catalog', () => {
     assert.strictEqual(lines.join('\n').indexOf('ada@secret.test'), -1);
     const script = read('functions/scripts/backfill_quest_leaderboard.js');
     assert.ok(script.includes('dropped'));
-    assert.ok(script.includes('never a distinct pass'));
+    assert.ok(script.includes('byUid[uid].push(data)'));
+    assert.ok(!script.includes('topicKey: data.topicKey'));
 });
 
 function memoryDb(initial) {
