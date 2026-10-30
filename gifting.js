@@ -21,7 +21,11 @@ function _getUid() {
 }
 
 function _esc(s) {
-    return typeof escapeHtml === 'function' ? escapeHtml(String(s || '')) : String(s || '');
+    var text = String(s || '');
+    if (typeof escapeHtml === 'function') return escapeHtml(text);
+    return text.replace(/[&<>"']/g, function(ch) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+    });
 }
 
 function _utcDay() {
@@ -120,7 +124,12 @@ function _injectGiftingCSS() {
         '.kc-help-link{min-height:40px;padding:8px 12px;background:transparent;border:1px solid var(--link,#60a5fa);border-radius:8px;color:var(--link,#60a5fa);font-size:0.78rem;font-weight:800;cursor:pointer;font-family:inherit;}',
         '.kc-send-wrap{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:0 1 auto;max-width:100%;}',
         '.kc-send-hint{margin:0;font-size:0.75rem;line-height:1.35;color:var(--text-muted,#94a3b8);text-align:right;max-width:12rem;overflow-wrap:anywhere;}',
-        '@media (max-width:520px){.kc-card{flex-wrap:wrap;}.kc-card .cipher-open-btn,.kc-card .key-send-btn{width:100%;}.kc-intro{flex-direction:column;align-items:flex-start;}.kc-send-wrap{width:100%;align-items:stretch;}.kc-send-hint{max-width:none;text-align:left;}}'
+        '.kc-card{max-width:100%;min-width:0;}',
+        '.kc-stack-label{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:900;line-height:1.35;overflow-wrap:anywhere;word-break:break-word;min-width:0;}',
+        '.kc-copy{flex:1;min-width:0;}',
+        '.kc-copy-title,.kc-copy-note{overflow-wrap:anywhere;word-break:break-word;}',
+        '@media (max-width:520px){.kc-card{flex-wrap:wrap;align-items:flex-start;}.kc-card .cipher-open-btn,.kc-card .key-send-btn{width:100%;}.kc-intro{flex-direction:column;align-items:flex-start;}.kc-send-wrap{width:100%;align-items:stretch;}.kc-send-hint{max-width:none;text-align:left;}}',
+        '@media (max-width:360px){.kc-card{padding:10px 8px;gap:8px;}.kc-copy-title{font-size:0.84rem;}.kc-stack-label{font-size:0.95rem;}.kc-key-title{font-size:0.68rem;letter-spacing:0.04em;}.kc-key-note{flex-basis:100%;}}'
     ].join('');
     document.head.appendChild(s);
 }
@@ -1374,6 +1383,52 @@ function _group(list) {
     return g;
 }
 
+// Same label and same sender share one row. A missing sender is a self-earned stack.
+function _senderBucket(item) {
+    if (!item) return '';
+    if (item.sentBy) return String(item.sentBy);
+    if (item.sentByName) return 'name:' + String(item.sentByName);
+    if (item.status === 'sent') return 'peer';
+    return '';
+}
+
+function _stacks(list) {
+    var map = Object.create(null);
+    var out = [];
+    (list || []).forEach(function(item) {
+        var label = item.label || '?';
+        var bucket = _senderBucket(item);
+        var key = label + '\n' + bucket;
+        var stack = map[key];
+        if (!stack) {
+            stack = {
+                label: label,
+                sender: bucket ? String(item.sentByName || 'a peer') : '',
+                items: [],
+            };
+            map[key] = stack;
+            out.push(stack);
+        }
+        stack.items.push(item);
+    });
+    out.sort(function(a, b) {
+        if (a.label !== b.label) return a.label < b.label ? -1 : 1;
+        if (a.sender !== b.sender) return a.sender < b.sender ? -1 : 1;
+        return 0;
+    });
+    return out;
+}
+
+function _times(count) {
+    return count > 1 ? ' ×' + count : '';
+}
+
+function _stackPhrase(label, count, sender) {
+    var text = String(label || '?') + _times(count);
+    if (sender) text += ' from ' + sender;
+    return text;
+}
+
 function _card(el) {
     var d = document.createElement('div');
     d.className = 'kc-card';
@@ -1553,12 +1608,15 @@ async function _readPeerCount() {
 
 function _copy(parent, title, explain) {
     var mid = document.createElement('div');
+    mid.className = 'kc-copy';
     mid.style.cssText = 'flex:1;min-width:0;';
     var t = document.createElement('div');
-    t.style.cssText = 'font-weight:800;font-size:0.88rem;color:var(--heading,#fff);';
+    t.className = 'kc-copy-title';
+    t.style.cssText = 'font-weight:800;font-size:0.88rem;color:var(--heading,#fff);overflow-wrap:anywhere;word-break:break-word;';
     t.textContent = title;
     var s = document.createElement('div');
-    s.style.cssText = 'font-size:0.75rem;color:var(--text-muted);margin-top:2px;line-height:1.35;';
+    s.className = 'kc-copy-note';
+    s.style.cssText = 'font-size:0.75rem;color:var(--text-muted);margin-top:2px;line-height:1.35;overflow-wrap:anywhere;word-break:break-word;';
     s.textContent = explain;
     mid.appendChild(t);
     mid.appendChild(s);
@@ -1619,8 +1677,16 @@ window.renderKeysAndCiphersPanel = async function(container) {
         card.style.marginBottom = '8px';
         card.style.borderColor = match ? 'rgba(52,211,153,0.45)' : 'var(--border,#333)';
         var icon = document.createElement('div');
-        icon.style.cssText = 'text-align:center;flex-shrink:0;';
-        icon.innerHTML = '<div style="font-size:1.4rem;">' + (match ? '🔓' : '🔒') + '</div><div class="' + (match ? 'kc-match' : 'kc-locked') + '" style="font-family:monospace;font-weight:900;">' + _esc(label) + '</div>';
+        icon.style.cssText = 'text-align:center;flex:0 0 auto;min-width:0;';
+        var emoji = document.createElement('div');
+        emoji.style.fontSize = '1.4rem';
+        emoji.textContent = match ? '🔓' : '🔒';
+        var mark = document.createElement('div');
+        mark.className = (match ? 'kc-match' : 'kc-locked') + ' kc-stack-label';
+        mark.style.fontSize = '0.95rem';
+        mark.textContent = label + _times(group.length);
+        icon.appendChild(emoji);
+        icon.appendChild(mark);
         card.appendChild(icon);
         var countBit = group.length > 1 ? ' You have ' + group.length + '.' : '';
         if (match) {
@@ -1666,20 +1732,21 @@ window.renderKeysAndCiphersPanel = async function(container) {
     el.appendChild(keyHead);
     el.appendChild(_keySendExplainer());
 
-    var ownLabels = Object.keys(ownGroups).sort();
-    if (!ownLabels.length) {
+    var ownStacks = _stacks(data.ownKeys);
+    if (!ownStacks.length) {
         var noKeys = document.createElement('div');
         noKeys.style.cssText = 'padding:12px;border:1px dashed var(--border,#333);border-radius:12px;color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;';
         noKeys.textContent = 'No keys waiting to send. Open gifts from the daily wheel to earn some.';
         el.appendChild(noKeys);
     }
-    ownLabels.forEach(function(label) {
-        var group = ownGroups[label];
+    ownStacks.forEach(function(stack) {
+        var label = stack.label;
+        var group = stack.items;
         var card = _card(el);
         var lab = document.createElement('div');
-        lab.className = 'kc-accent';
-        lab.style.cssText = 'font-family:monospace;font-weight:900;font-size:1.05rem;min-width:52px;flex-shrink:0;';
-        lab.textContent = '🔑 ' + label;
+        lab.className = 'kc-accent kc-stack-label';
+        lab.style.cssText = 'font-size:1.05rem;min-width:0;flex:0 1 auto;';
+        lab.textContent = '🔑 ' + _stackPhrase(label, group.length, stack.sender);
         card.appendChild(lab);
         _copy(card,
             'Send to a peer',
@@ -1717,25 +1784,31 @@ window.renderKeysAndCiphersPanel = async function(container) {
         noRecv.textContent = 'When a peer sends you a key, it shows up here.';
         el.appendChild(noRecv);
     }
-    data.peerKeys.forEach(function(k) {
+    _stacks(data.peerKeys).forEach(function(stack) {
         var card = _card(el);
         var lab = document.createElement('div');
         lab.className = 'kc-locked';
-        lab.style.cssText = 'font-family:monospace;font-weight:900;flex-shrink:0;';
-        lab.textContent = '🔑 ' + (k.label || '');
+        lab.style.cssText = 'font-size:1.15rem;flex:0 0 auto;';
+        lab.setAttribute('aria-hidden', 'true');
+        lab.textContent = '🔑';
         card.appendChild(lab);
-        var hasCipher = (cipherGroups[k.label] || []).length > 0;
+        var phrase = _stackPhrase(stack.label, stack.items.length, stack.sender || 'a peer');
+        var hasCipher = (cipherGroups[stack.label] || []).length > 0;
         _copy(card,
-            'From ' + (k.sentByName || 'a peer'),
+            phrase,
             hasCipher
-                ? 'You have the ' + k.label + ' key! Open the ' + k.label + ' cipher above.'
-                : 'Hold this until you get a ' + k.label + ' cipher from a gift.');
+                ? 'You have the ' + stack.label + ' key! Open the ' + stack.label + ' cipher above.'
+                : 'Hold this until you get a ' + stack.label + ' cipher from a gift.');
         if (!satsOff && hasCipher) {
-            var open = _btn('Open ' + k.label, 'linear-gradient(135deg,#34d399,#10b981)');
+            var open = _btn('Open ' + stack.label, 'linear-gradient(135deg,#34d399,#10b981)');
             open.className = 'cipher-open-btn';
             open.disabled = _cipherBusy;
             if (_cipherBusy) open.style.opacity = '0.55';
-            open.onclick = function() { window.openCipherWithMatch(cipherGroups[k.label][0].id, k.label); };
+            open.onclick = function() {
+                var cipher = (cipherGroups[stack.label] || [])[0];
+                if (!cipher) return;
+                window.openCipherWithMatch(cipher.id, stack.label);
+            };
             card.appendChild(open);
         }
     });
@@ -1849,12 +1922,18 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
     var own = key.status === 'inventory';
     modal.innerHTML =
         '<div id="dcLabel" style="font-family:monospace;font-size:2.4rem;font-weight:900;color:#a78bfa;letter-spacing:3px;">🔒 ' + _esc(cipherLabel) + '</div>' +
-        '<div style="color:var(--text-muted);font-size:0.78rem;margin:6px 0 12px;">' + (own ? 'Using your own ' + _esc(cipherLabel) + ' key' : 'Using the ' + _esc(cipherLabel) + ' key from ' + _esc(key.sentByName || 'a peer')) + '</div>' +
+        '<div id="dcUsing" style="color:var(--text-muted);font-size:0.78rem;margin:6px 0 12px;"></div>' +
         '<div id="dcHex" style="font-family:monospace;font-size:0.7rem;color:#f7931a;word-break:break-all;min-height:48px;margin-bottom:12px;padding:10px;background:rgba(247,147,26,0.05);border-radius:8px;"></div>' +
         '<div id="dcStatus" style="color:var(--text-muted);font-size:0.85rem;font-weight:600;">Checking the key…</div>' +
         '<div id="dcResult" style="display:none;"></div>';
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
+    var usingEl = document.getElementById('dcUsing');
+    if (usingEl) {
+        usingEl.textContent = own
+            ? ('Using your own ' + cipherLabel + ' key')
+            : ('Using the ' + cipherLabel + ' key from ' + (key.sentByName || 'a peer'));
+    }
     _mountGiftingChild(overlay, returnFocus);
 
     var hexEl = document.getElementById('dcHex');

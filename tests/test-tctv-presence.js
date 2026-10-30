@@ -256,7 +256,8 @@ test('single-field index is declared for tctv_presence.ts', () => {
 test('cache name is v2358 and the TV script cache-buster moved', () => {
     const sw = read('sw.js');
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2438'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2439'"));
+    assert.ok(!sw.includes('btc-archive-v2438'));
     assert.ok(!sw.includes('btc-archive-v2437'));
     assert.ok(!sw.includes('btc-archive-v2436'));
     assert.ok(!sw.includes('btc-archive-v2435'));
@@ -380,7 +381,8 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_tctv3'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_tctvwatch'));
-    assert.ok(html.includes('gifting.js?v=20261029_v2429'));
+    assert.ok(html.includes('gifting.js?v=20261030_v2439'));
+    assert.ok(!html.includes('gifting.js?v=20261029_v2429'));
     assert.ok(!html.includes('gifting.js?v=20261026_v2400'));
     assert.ok(!html.includes('gifting.js?v=20261026_v2399'));
     assert.ok(!html.includes('gifting.js?v=20261024_v2365'));
