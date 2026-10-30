@@ -47,29 +47,62 @@ function createPredictionJobs(db, admin, hooks) {
             .limit(60);
     }
 
+    async function periodDocs(period, key) {
+        const field = period === 'weekly' ? 'weekKey' : 'monthKey';
+        const totalField = period === 'weekly' ? 'weekTotal' : 'monthTotal';
+        const min = ps.minimumFor(period);
+        // The old composite query also required qualifiesWeek/qualifiesMonth and
+        // weekReachedSort. A stats doc with a real period total but a missing
+        // flag or sort field never entered that index, so the weekly and monthly
+        // tabs were written as empty arrays. Count the period total directly.
+        let snap;
+        try {
+            snap = await db.collection('prediction_stats')
+                .where(field, '==', key)
+                .where(totalField, '>=', min)
+                .orderBy(totalField, 'desc')
+                .limit(200)
+                .get();
+        } catch (err) {
+            console.warn('[predict] period index missing, scanning the week key', err && err.message ? err.message : err);
+            snap = await db.collection('prediction_stats').where(field, '==', key).limit(500).get();
+        }
+        const docs = [];
+        snap.forEach(function(doc) {
+            const data = doc.data() || {};
+            if ((Number(data[totalField]) || 0) < ps.minimumFor(period)) return;
+            if (!ps.boardEligible(data, period)) return;
+            docs.push(doc);
+        });
+        docs.sort(function(a, b) {
+            const left = ps.viewOf(a.data() || {}, period);
+            const right = ps.viewOf(b.data() || {}, period);
+            return ps.comparePredictors(
+                { uid: a.id, accuracy: left.accuracy, correct: left.correct, total: left.total, reachedAt: left.reachedAt },
+                { uid: b.id, accuracy: right.accuracy, correct: right.correct, total: right.total, reachedAt: right.reachedAt }
+            );
+        });
+        return docs.slice(0, 60);
+    }
+
     async function loadRows(period, key) {
-        const snap = await statsQuery(period, key).get();
-        if (snap.empty) return [];
-        const userRefs = snap.docs.map(function(d) { return db.collection('users').doc(d.id); });
-        const ledgerRefs = snap.docs.map(function(d) { return db.collection('faucet_ledger').doc(d.id); });
+        const docs = (period === 'weekly' || period === 'monthly')
+            ? await periodDocs(period, key)
+            : (await statsQuery(period, key).get()).docs;
+        if (!docs.length) return [];
+        const userRefs = docs.map(function(d) { return db.collection('users').doc(d.id); });
+        const ledgerRefs = docs.map(function(d) { return db.collection('faucet_ledger').doc(d.id); });
         const users = await readChunked(userRefs);
         const ledgers = await readChunked(ledgerRefs);
         const byId = {};
         const ledgerById = {};
         users.forEach(function(u) { byId[u.id] = u.exists ? (u.data() || {}) : {}; });
         ledgers.forEach(function(u) { ledgerById[u.id] = u.exists ? (u.data() || {}) : {}; });
-        const missingName = snap.docs.filter(function(d) {
-            const user = byId[d.id] || {};
-            const name = user.username ? String(user.username).trim() : '';
-            return !name || name === 'Anon' || name === 'Anonymous';
-        });
         const pubs = {};
-        if (missingName.length) {
-            const pubRefs = missingName.map(function(d) { return db.collection('public_profiles').doc(d.id); });
-            const pubSnaps = await readChunked(pubRefs);
-            pubSnaps.forEach(function(p) { pubs[p.id] = p.exists ? (p.data() || {}) : {}; });
-        }
-        return snap.docs.map(function(d) {
+        const pubRefs = docs.map(function(d) { return db.collection('public_profiles').doc(d.id); });
+        const pubSnaps = await readChunked(pubRefs);
+        pubSnaps.forEach(function(p) { pubs[p.id] = p.exists ? (p.data() || {}) : {}; });
+        return docs.map(function(d) {
             const view = ps.viewOf(d.data(), period);
             const user = byId[d.id] || {};
             const ledger = ledgerById[d.id] || {};
@@ -89,6 +122,9 @@ function createPredictionJobs(db, admin, hooks) {
                 total: view.total,
                 accuracy: view.accuracy,
                 reachedAt: view.reachedAt,
+                ghostMode: user.ghostMode === true || pub.ghostMode === true,
+                banned: user.banned === true,
+                ban_reason: user.ban_reason || '',
                 satsDisabled: user.satsDisabled === true,
                 ledgerBanned: ledger.banned === true
             };
@@ -345,84 +381,6 @@ function createPredictionJobs(db, admin, hooks) {
         return { resolved: total, correct: correct, voided: voided, price: price };
     }
 
-    async function awardWinner(periodId, period, winner) {
-        const winnerRef = db.collection('prediction_payouts').doc(periodId).collection('winners').doc(winner.uid);
-        const notifRef = db.collection('notifications').doc('pred_' + periodId + '_' + winner.uid);
-        const userRef = db.collection('users').doc(winner.uid);
-        const ledgerRef = db.collection('faucet_ledger').doc(winner.uid);
-        const label = (period === 'weekly' ? 'This Week' : 'This Month') + ' Top Predictors #' + winner.rank;
-        const awardedNow = await db.runTransaction(async function(tx) {
-            const existing = await tx.get(winnerRef);
-            const userSnap = await tx.get(userRef);
-            const ledgerSnap = await tx.get(ledgerRef);
-            if (existing.exists) return false;
-            const skip = ps.winnerSkipReason(
-                userSnap.exists,
-                userSnap.exists ? userSnap.data() : null,
-                ledgerSnap.exists ? ledgerSnap.data() : null
-            );
-            if (skip) {
-                tx.set(winnerRef, {
-                    skipped: skip,
-                    rank: winner.rank,
-                    tickets: 0,
-                    awardedAt: Date.now()
-                });
-                return false;
-            }
-            tx.set(winnerRef, {
-                rank: winner.rank,
-                tickets: winner.tickets,
-                correct: winner.correct,
-                total: winner.total,
-                awardedAt: Date.now()
-            });
-            const badgeField = period === 'monthly' ? 'predTopMonths' : 'predTopWeeks';
-            const ticketUpdate = {
-                orangeTickets: admin.firestore.FieldValue.increment(winner.tickets),
-                pendingLeaderboardReward: admin.firestore.FieldValue.arrayUnion({
-                    tickets: winner.tickets,
-                    reason: label,
-                    awardedAt: Date.now()
-                })
-            };
-            ticketUpdate[badgeField] = admin.firestore.FieldValue.increment(1);
-            tx.update(userRef, ticketUpdate);
-            tx.set(notifRef, {
-                recipientId: winner.uid,
-                senderId: 'system',
-                senderName: 'Leaderboard',
-                type: 'leaderboard_reward',
-                message: '🏆 ' + label + ' — you earned ' + winner.tickets + ' 🎫 Orange Tickets! Check your wallet.',
-                targetType: null,
-                targetId: null,
-                read: false,
-                createdAt: admin.firestore.FieldValue.serverTimestamp()
-            });
-            return true;
-        });
-        if (awardedNow) {
-            try {
-                const field = period === 'monthly' ? 'predTopMonths' : 'predTopWeeks';
-                await require('./badgeCredit').grantIds(db, admin, winner.uid, require('./grantBadge').familyFor(field));
-            } catch (badgeErr) {
-                console.warn('[predict] badge', badgeErr.message);
-            }
-        }
-        if (awardedNow && pushHooks.sendPush) {
-            try {
-                await pushHooks.sendPush(winner.uid, 'predictions', {
-                    title: 'Predictor reward',
-                    body: label + ' — ' + winner.tickets + ' Orange Tickets were added.',
-                    url: 'https://bitcoineducation.quest/#questhub',
-                    type: 'predictions'
-                });
-            } catch (pushErr) {
-                console.warn('[predict] winner push failed', pushErr.message);
-            }
-        }
-    }
-
     async function resetPeriod(period, endedKey, currentKey) {
         if (!endedKey || endedKey === currentKey) return 0;
         const field = period === 'weekly' ? 'weekKey' : 'monthKey';
@@ -441,57 +399,21 @@ function createPredictionJobs(db, admin, hooks) {
         return updated;
     }
 
-    async function payout(period, now) {
+    async function resetClosed(period, now) {
         now = now || new Date();
         const endedKey = period === 'weekly' ? ps.previousWeekKey(now) : ps.previousMonthKey(now);
         const currentKey = period === 'weekly' ? ps.weekKey(now) : ps.monthKey(now);
-        const ref = db.collection('prediction_payouts').doc(endedKey);
-        let snap = await ref.get();
-        let existing = snap.exists ? snap.data() : null;
-        const rows = await loadRows(period, endedKey);
-        let plan = ps.payoutPlan(existing, rows, period);
-        if (plan.action === 'skip') return Object.assign({ periodId: endedKey }, plan);
-        if (!existing) {
-            try {
-                await ref.create({
-                    status: 'pending',
-                    period: period,
-                    periodId: endedKey,
-                    awardedUids: [],
-                    resetDone: false,
-                    createdAt: Date.now()
-                });
-            } catch (e) {
-                snap = await ref.get();
-                existing = snap.exists ? snap.data() : null;
-                plan = ps.payoutPlan(existing, rows, period);
-                if (plan.action === 'skip') return Object.assign({ periodId: endedKey }, plan);
-            }
-        }
-        const awarded = new Set((existing && existing.awardedUids) || []);
-        for (let i = 0; i < plan.due.length; i++) {
-            const winner = plan.due[i];
-            await awardWinner(endedKey, period, winner);
-            awarded.add(winner.uid);
-            await ref.set({ awardedUids: Array.from(awarded), status: 'pending' }, { merge: true });
-        }
-        await ref.set({
-            status: 'complete',
-            period: period,
-            periodId: endedKey,
-            ticketsEach: ps.ticketsForPeriod(period),
-            winnerUids: plan.winnerUids,
-            completedAt: Date.now()
-        }, { merge: true });
-        let reset = 0;
-        if (plan.needsReset) {
-            reset = await resetPeriod(period, endedKey, currentKey);
-            await ref.set({ resetDone: true }, { merge: true });
-        }
+        const reset = await resetPeriod(period, endedKey, currentKey);
         try { await refreshLeaderboard(now); } catch (e) {
             console.error('[predict] leaderboard refresh failed:', e.message);
         }
-        return Object.assign({ periodId: endedKey, reset: reset }, plan);
+        return { endedKey: endedKey, currentKey: currentKey, reset: reset };
+    }
+
+    async function payout(period, now) {
+        // Ticket grants moved to lbPrizes. Calling this cannot pay twice.
+        console.warn('[predict] payout() no longer grants tickets');
+        return resetClosed(period, now);
     }
 
     async function writeVoidStats(uid, data, reason) {
@@ -564,6 +486,7 @@ function createPredictionJobs(db, admin, hooks) {
         refreshLeaderboard: refreshLeaderboard,
         resolveDue: resolveDue,
         payout: payout,
+        resetClosed: resetClosed,
         syncPending: syncPending
     };
 }

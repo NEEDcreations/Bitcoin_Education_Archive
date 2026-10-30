@@ -694,7 +694,7 @@ function publicEntry(row, rank) {
     };
 }
 
-function selectBoard(rows, period) {
+function ranked(rows, period) {
     const min = MIN[period] || MIN.alltime;
     const qualified = (rows || []).filter(function (row) {
         if (!row || row.ghostMode === true) return false;
@@ -702,8 +702,29 @@ function selectBoard(rows, period) {
         return whole(row.attempts) >= min;
     });
     qualified.sort(compareRows);
-    return qualified.slice(0, BOARD_SIZE).map(function (row, i) {
+    return qualified.slice(0, BOARD_SIZE);
+}
+
+function selectBoard(rows, period) {
+    return ranked(rows, period).map(function (row, i) {
         return publicEntry(row, i + 1);
+    });
+}
+
+// Same order as the public board, plus uid and a banned flag for the payout.
+// Banned players keep their display rank. The prize step skips them.
+function rankForPrize(rows, period) {
+    return ranked(rows, period).map(function (row, i) {
+        const pub = publicEntry(row, i + 1);
+        return {
+            rank: pub.rank,
+            uid: String(row.uid || ''),
+            username: pub.username,
+            profilePic: pub.profilePic,
+            passes: pub.passes,
+            pct: pub.pct,
+            banned: row.banned === true
+        };
     });
 }
 
@@ -911,6 +932,7 @@ module.exports = {
     displayPct: displayPct,
     viewFromStats: viewFromStats,
     selectBoard: selectBoard,
+    rankForPrize: rankForPrize,
     buildBoards: buildBoards,
     packPeriod: packPeriod,
     attemptRecord: attemptRecord,
