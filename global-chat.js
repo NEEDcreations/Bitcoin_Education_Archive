@@ -1735,10 +1735,88 @@ function createChatOverlay() {
     btn.style.position = 'fixed'; // ensure btn is positioned
     btn.appendChild(badge);
 
-    // Chat panel desktop sizing
+    // Chat panel desktop sizing. Contain overscroll so a flick inside the
+    // thread does not chain into the page behind the panel.
     var style = document.createElement('style');
-    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}}@keyframes djPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.5)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}';
+    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}}' +
+        '#chatOverlay,#chatOverlayBody,#globalChatMessages,#overlayAnnouncementsBody,#overlayDMsBody,#chatAutocomplete,#gifResults,#emojiGrid{overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}' +
+        '@keyframes djPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.5)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}';
     document.head.appendChild(style);
+    bindChatScrollContain(panel);
+    bindChatOutsideClose();
+}
+
+// Portaled chat controls sit outside #chatOverlay. A tap on them is still "inside" chat.
+var CHAT_SURFACE = '#chatOverlay, #chatOverlayBtn, #gifPicker, #gcEmojiPicker, #reactPicker, #djTrackPicker, #annReactPicker, #chatImageLightbox, #chatImagePreview, #_gcBadgeTip';
+var CHAT_SCROLLER = '#globalChatMessages, #overlayAnnouncementsBody, #overlayDMsBody, #chatAutocomplete, #gifResults, #emojiGrid';
+
+function chatSurfaceHit(node) {
+    if (!node) return false;
+    if (node.nodeType !== 1) node = node.parentElement;
+    if (!node || !node.closest) return false;
+    return !!node.closest(CHAT_SURFACE);
+}
+
+function chatScroller(node) {
+    if (!node || !node.closest) return null;
+    return node.closest(CHAT_SCROLLER);
+}
+
+function bindChatScrollContain(panel) {
+    if (!panel || panel._chatScrollBound) return;
+    panel._chatScrollBound = true;
+    var lastY = 0;
+    panel.addEventListener('touchstart', function (e) {
+        if (e.touches && e.touches[0]) lastY = e.touches[0].clientY;
+    }, { passive: true });
+    panel.addEventListener('touchmove', function (e) {
+        if (!_overlayOpen) return;
+        var scroller = chatScroller(e.target);
+        var y = e.touches && e.touches[0] ? e.touches[0].clientY : lastY;
+        var dy = lastY - y;
+        lastY = y;
+        if (!scroller) {
+            if (e.cancelable) e.preventDefault();
+            return;
+        }
+        var max = scroller.scrollHeight - scroller.clientHeight;
+        var atEdge = max <= 1 || (scroller.scrollTop <= 0 && dy < 0) || (scroller.scrollTop >= max - 1 && dy > 0);
+        if (atEdge && e.cancelable) e.preventDefault();
+    }, { passive: false });
+    panel.addEventListener('wheel', function (e) {
+        if (!_overlayOpen) return;
+        var scroller = chatScroller(e.target);
+        if (!scroller) {
+            e.preventDefault();
+            return;
+        }
+        var max = scroller.scrollHeight - scroller.clientHeight;
+        var atEdge = max <= 1 || (scroller.scrollTop <= 0 && e.deltaY < 0) || (scroller.scrollTop >= max - 1 && e.deltaY > 0);
+        if (atEdge) e.preventDefault();
+    }, { passive: false });
+}
+
+// pointerdown arms an outside tap. A drag (page scroll) does not close the panel.
+var _chatOutside = null;
+function bindChatOutsideClose() {
+    if (window._chatOutsideCloseBound) return;
+    window._chatOutsideCloseBound = true;
+    document.addEventListener('pointerdown', function (e) {
+        _chatOutside = null;
+        if (!_overlayOpen) return;
+        if (chatSurfaceHit(e.target)) return;
+        _chatOutside = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    }, true);
+    document.addEventListener('pointerup', function (e) {
+        var start = _chatOutside;
+        _chatOutside = null;
+        if (!start || !_overlayOpen) return;
+        if (start.id != null && e.pointerId != null && e.pointerId !== start.id) return;
+        if (chatSurfaceHit(e.target)) return;
+        if (Math.abs(e.clientX - start.x) > 10 || Math.abs(e.clientY - start.y) > 10) return;
+        if (typeof window.toggleChatOverlay === 'function') window.toggleChatOverlay();
+    }, true);
+    document.addEventListener('pointercancel', function () { _chatOutside = null; }, true);
 }
 
 window.toggleChatOverlay = function() {
@@ -1786,19 +1864,10 @@ window.toggleChatOverlay = function() {
         btn.style.display = _overlayOpen ? 'none' : '';
     }
 
-    // Click-outside backdrop
+    // The old full-screen backdrop swallowed wheel and touch on the page.
     var backdrop = document.getElementById('chatOverlayBackdrop');
-    if (_overlayOpen) {
-        if (!backdrop) {
-            backdrop = document.createElement('div');
-            backdrop.id = 'chatOverlayBackdrop';
-            backdrop.style.cssText = 'position:fixed;inset:0;z-index:298;background:transparent;';
-            backdrop.onclick = function() { toggleChatOverlay(); };
-            document.body.appendChild(backdrop);
-        }
-    } else {
-        if (backdrop) backdrop.remove();
-    }
+    if (backdrop) backdrop.remove();
+    bindChatOutsideClose();
 
     // Clear badge
     var badge = document.getElementById('chatOverlayBadge');
@@ -2038,6 +2107,7 @@ window.renderChatHub = function(tab) {
         if (btn) { btn.innerHTML = '💬'; btn.style.background = 'var(--accent,#f7931a)'; btn.style.color = '#fff'; }
         var bd = document.getElementById('chatOverlayBackdrop');
         if (bd) bd.remove();
+        _chatOutside = null;
     }
     return _origRenderChatHub(tab);
 };

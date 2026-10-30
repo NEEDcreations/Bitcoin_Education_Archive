@@ -2189,7 +2189,7 @@
     <script src="achievement-share.js?v=20261026_v2391" defer></script>
     <script src="pvp-lobby-alert.js?v=20261026_v2391" defer></script>
     <script src="patches.js?v=20261026_v2385" defer></script>
-    <script src="onboarding.js?v=20261026_v2373" defer></script>
+    <script src="onboarding.js?v=20261030_v2442" defer></script>
     <script src="learning-quests.js?v=20261026_v2377" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
@@ -2200,7 +2200,7 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261030_v2438',
+            'global-chat.js?v=20261030_v2442',
             'satoshi-favor.js?v=20261026_v2368'
         ];
         var _lazyScripts = [
@@ -2469,10 +2469,10 @@
         }
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2391', 'global-chat.js?v=20261030_v2438'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2391', 'global-chat.js?v=20261030_v2438'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261030_v2438'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261030_v2438'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2391', 'global-chat.js?v=20261030_v2442'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2391', 'global-chat.js?v=20261030_v2442'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261030_v2442'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261030_v2442'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
             'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261022_v2279'],
             'pvp':           ['pvp.js?v=20261026_v2391'],

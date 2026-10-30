@@ -14,11 +14,11 @@
         advanced: ['pick_topic', 'send_chat', 'spin_wheel', 'find_nacho', 'first_quiz']
     };
     var QUEST_STEPS = {
-        pick_topic: { title: 'Open a channel', detail: 'Tap any topic and start reading.', signal: 'channel', beacon: '#channelList' },
-        send_chat: { title: 'Say hello in chat', detail: 'Send a message in Global Chat.', signal: 'chat', beacon: '#chatOverlayBtn' },
-        spin_wheel: { title: 'Take the daily spin', detail: 'Open the daily spin and spin once.', signal: 'spin', beacon: '#nqSpinBtn' },
-        find_nacho: { title: 'Ask Nacho', detail: 'Ask Nacho a Bitcoin question.', signal: 'nacho', beacon: '#nacho-container' },
-        first_quiz: { title: 'Try a quiz', detail: 'Finish a quiz, a trivia question, or a poll.', signal: 'quiz', beacon: '#onboardingQuizEntry' }
+        pick_topic: { title: 'Open a channel', detail: 'Tap any topic and start reading.', signal: 'channel', beacon: '#channelList', hash: 'app/channels' },
+        send_chat: { title: 'Say hello in chat', detail: 'Send a message in Global Chat.', signal: 'chat', beacon: '#chatOverlayBtn', hash: 'chat' },
+        spin_wheel: { title: 'Take the daily spin', detail: 'Open the daily spin and spin once.', signal: 'spin', beacon: '#nqSpinBtn', hash: 'app/wheel' },
+        find_nacho: { title: 'Ask Nacho', detail: 'Ask Nacho a Bitcoin question.', signal: 'nacho', beacon: '#nacho-container', hash: 'app/mini-nacho' },
+        first_quiz: { title: 'Try a quiz', detail: 'Finish a quiz, a trivia question, or a poll.', signal: 'quiz', beacon: '#onboardingQuizEntry', hash: 'app/quiz' }
     };
 
     function esc(s) {
@@ -539,6 +539,15 @@
         var detail = document.createElement('p');
         detail.style.cssText = 'color:var(--text-muted,#94a3b8);font-size:0.95rem;line-height:1.45;margin:0 0 16px;';
         detail.textContent = step.detail;
+        var go = document.createElement('button');
+        go.type = 'button';
+        go.textContent = 'Go to task';
+        go.style.cssText = 'width:100%;margin:0 0 8px;padding:12px;border-radius:12px;border:none;background:var(--accent,#f97316);color:#fff;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;';
+        go.addEventListener('click', function () {
+            var live = QUEST_STEPS[currentStepId()] || step;
+            overlay.remove();
+            openQuestTask(live);
+        });
         var row = document.createElement('div');
         row.style.cssText = 'display:flex;gap:8px;';
         var close = document.createElement('button');
@@ -549,13 +558,14 @@
         var skip = document.createElement('button');
         skip.type = 'button';
         skip.textContent = 'Skip quest';
-        skip.style.cssText = 'flex:1;padding:12px;border-radius:12px;border:none;background:var(--accent,#f97316);color:#fff;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;';
+        skip.style.cssText = 'flex:1;padding:12px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;';
         skip.addEventListener('click', function () { window._skipNachoQuest(); overlay.remove(); });
         row.appendChild(close);
         row.appendChild(skip);
         card.appendChild(kicker);
         card.appendChild(title);
         card.appendChild(detail);
+        card.appendChild(go);
         card.appendChild(row);
         overlay.appendChild(card);
         overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
@@ -603,6 +613,52 @@
         if (step && step.beacon) window._showNachoQuestBeacon(step.beacon);
         else window._clearNachoQuestBeacon();
     };
+
+    function questBeaconVisible(el) {
+        if (!el || !el.getBoundingClientRect) return false;
+        var cs = window.getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+        var box = el.getBoundingClientRect();
+        return box.width > 1 && box.height > 1;
+    }
+
+    // Deep links live in features.registry.js (bqOpenByHash / bqRouteHash).
+    // Hashes are the registry entries for this step, not user input.
+    function openQuestTask(step) {
+        if (!step) return;
+        if (step.signal !== 'chat' && window._chatOverlayOpen && typeof window.toggleChatOverlay === 'function') {
+            window.toggleChatOverlay();
+        }
+        var hash = step.hash || '';
+        if (hash && typeof window.bqOpenByHash === 'function') window.bqOpenByHash(hash);
+        else if (hash && typeof window.bqRouteHash === 'function') window.bqRouteHash(hash);
+        else if (step.signal === 'channel') {
+            if (typeof window.goHome === 'function') window.goHome();
+        } else if (step.signal === 'chat') {
+            if (typeof window.renderChatHub === 'function') window.renderChatHub('global');
+            else if (typeof window.toggleChatOverlay === 'function') window.toggleChatOverlay();
+        } else if (step.signal === 'spin') {
+            if (typeof window.showSpinWheel === 'function') window.showSpinWheel();
+        } else if (step.signal === 'nacho') {
+            if (typeof window.showNachoInput === 'function') window.showNachoInput();
+            else if (typeof window.enterNachoMode === 'function') window.enterNachoMode();
+        } else if (step.signal === 'quiz') {
+            if (typeof window.showQuestHub === 'function') window.showQuestHub('quiz');
+        }
+        setTimeout(function () {
+            if (typeof window._nachoQuestBeaconForStep === 'function') {
+                window._nachoQuestBeaconForStep(window.getNachoQuestStep());
+            }
+            if (step.beacon === '#channelList' && !questBeaconVisible(document.querySelector(step.beacon)) && typeof window.toggleMenu === 'function') {
+                window.toggleMenu();
+            }
+            var el = step.beacon ? document.querySelector(step.beacon) : null;
+            if (el && el.scrollIntoView) {
+                try { el.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) {}
+            }
+        }, 400);
+    }
+    window._openNachoQuestTask = openQuestTask;
 
     window.startNachoQuest = function (opts) {
         if (window.isNachoQuestDone()) return;
