@@ -76,6 +76,7 @@ const TESTS = [
     { name: 'Share one link', file: 'test-share-one-link.js' },
     { name: 'Certificate fast path', file: 'test-cert-fast-path.js' },
     { name: 'Nacho mobile tap', file: 'test-nacho-mobile-tap.js' },
+    { name: 'Nacho Quiz Me', file: 'test-nacho-quiz-me.js' },
     { name: 'Nacho quiet on certificate links', file: 'test-nacho-cert-quiet.js' },
     { name: 'Say hi reward', file: 'test-say-hi.js' },
     { name: 'Flex day goal', file: 'test-flex-day.js' },
