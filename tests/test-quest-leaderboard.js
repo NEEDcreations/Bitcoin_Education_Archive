@@ -84,6 +84,28 @@ test('a pass is 3/5, and a replay of a passed quest leaves the rate unchanged', 
     assert.strictEqual(second.reachedAt, MONDAY + 4000);
 });
 
+test('rolling into a new week keeps the closed week counts', () => {
+    const first = board.applyAttempt(null, { questId: Q1, score: 5, at: SUNDAY }, SUNDAY);
+    const closed = first.weekKey;
+    assert.strictEqual(first.weekPasses, 1);
+    const rolled = board.applyAttempt(first, { questId: Q2, score: 5, at: MONDAY }, MONDAY);
+    assert.notStrictEqual(rolled.weekKey, closed);
+    assert.strictEqual(rolled.prevWeekKey, closed);
+    assert.strictEqual(rolled.prevWeekPasses, 1);
+    assert.strictEqual(rolled.prevWeekAttempts, first.weekAttempts);
+    assert.strictEqual(rolled.weekPasses, 1);
+    const closedRow = board.closedView(rolled, 'week', closed);
+    assert.strictEqual(closedRow.passes, 1);
+    assert.strictEqual(closedRow.attempts, first.weekAttempts);
+    assert.strictEqual(board.closedView(rolled, 'week', rolled.weekKey).passes, 1);
+    const monthFirst = board.applyAttempt(null, { questId: Q1, score: 5, at: Date.parse('2026-10-31T20:00:00Z') }, Date.parse('2026-10-31T20:00:00Z'));
+    const monthClosed = monthFirst.monthKey;
+    const monthRolled = board.applyAttempt(monthFirst, { questId: Q2, score: 5, at: Date.parse('2026-11-01T05:00:00Z') }, Date.parse('2026-11-01T05:00:00Z'));
+    assert.strictEqual(monthRolled.prevMonthKey, monthClosed);
+    assert.strictEqual(monthRolled.prevMonthPasses, 1);
+    assert.strictEqual(board.closedView(monthRolled, 'month', monthClosed).passes, 1);
+});
+
 test('a replay of a quest passed last week does not count this week', () => {
     let stats = board.applyAttempt(null, { questId: Q1, score: 5, at: SUNDAY }, SUNDAY);
     const replay = board.applyAttempt(stats, { questId: Q1, score: 4, at: MONDAY }, MONDAY);
@@ -288,7 +310,7 @@ test('rules deny client writes and the page reads one doc per tab', () => {
     assert.ok(ranking.indexOf('id="streakBoard"') < ranking.indexOf('id="questBoard"'));
     assert.ok(ranking.indexOf('id="questBoard"') < ranking.indexOf('id="predictorBoard"'));
     const fnStart = ranking.indexOf('// Quests — All Time');
-    const fnEnd = ranking.indexOf('// PVP Leaderboard - loaded after main leaderboard');
+    const fnEnd = ranking.indexOf('// PVP leaderboard. One snapshot doc');
     const fn = ranking.slice(fnStart, fnEnd);
     assert.ok(fn.includes("doc(QUEST_LB_DOC[period])"));
     assert.ok(fn.includes('window._questLbTab'));

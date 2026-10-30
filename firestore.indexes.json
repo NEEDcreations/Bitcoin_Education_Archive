@@ -813,6 +813,34 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "prevWeekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "prevWeekPasses",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "prevMonthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "prevMonthPasses",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [

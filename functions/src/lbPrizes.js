@@ -81,15 +81,11 @@ function closedQuestMonthKey(nowMs) {
     return '';
 }
 
-// Monday 05:00 UTC is at or after Eastern Monday 00:00, so the week to pay
-// is the Eastern week that just ended.
-// The 1st at 00:00 UTC is still the previous evening in Eastern time, so the
-// Eastern month on the clock is the one closing within a few hours. That is
-// the month the monthly quest job pays. Paying the previous key here would
-// wait until the following UTC month.
+// Both jobs run at 05:00 UTC, which is at or after Eastern midnight.
+// The week and the month to pay are the Eastern periods that just closed.
 function questKeyForJob(period, nowMs) {
     const now = Number(nowMs) || Date.now();
-    if (period === 'monthly') return questBoard.monthKey(now);
+    if (period === 'monthly') return closedQuestMonthKey(now);
     return closedQuestWeekKey(now);
 }
 
@@ -147,6 +143,27 @@ function prizeReason(board, periodKey, rank) {
     }
     if (board === 'quest') return 'Quest ' + periodKey + ' Top ' + rank + '!';
     return 'Predictors ' + periodKey + ' Top ' + rank + '!';
+}
+
+// The lock stores this list. A retry pays these rows and no one else,
+// so a partial run cannot grow past the original top 10.
+function lockPlan(rows, tickets) {
+    const amount = Math.max(0, Math.floor(Number(tickets) || 0));
+    const plan = [];
+    (rows || []).forEach(function (row, i) {
+        if (!row || !row.uid || plan.length >= TOP) return;
+        const banned = row.banned === true;
+        const ghost = row.ghostMode === true;
+        const skip = ghost ? 'ghost' : (banned ? 'banned' : (amount <= 0 ? 'no_prize' : ''));
+        plan.push({
+            uid: String(row.uid),
+            username: publicName(row.username),
+            rank: row.rank || (i + 1),
+            tickets: skip ? 0 : amount,
+            skipped: skip
+        });
+    });
+    return plan;
 }
 
 // rows are already the displayed top, ghosts removed, banned still present.
@@ -233,17 +250,31 @@ async function loadXpDisplay(db, field) {
     });
 }
 
+async function questPeriodDocs(db, field, orderField, key) {
+    const snap = await db.collection('quest_lb_stats').where(field, '==', key).orderBy(orderField, 'desc').limit(200).get();
+    const docs = [];
+    snap.forEach(function (doc) { docs.push(doc); });
+    return docs;
+}
+
 async function loadQuestDisplay(db, period, nowMs) {
     const weekly = period !== 'monthly';
     const now = Number(nowMs) || Date.now();
     const key = questKeyForJob(weekly ? 'weekly' : 'monthly', now);
     const viewPeriod = weekly ? 'week' : 'month';
-    const anchor = anchorForQuestKey(key, viewPeriod, now);
-    const field = weekly ? 'weekKey' : 'monthKey';
-    const orderField = weekly ? 'weekPasses' : 'monthPasses';
-    const snap = await db.collection('quest_lb_stats').where(field, '==', key).orderBy(orderField, 'desc').limit(200).get();
-    const docs = [];
-    snap.forEach(function (doc) { docs.push(doc); });
+    const openField = weekly ? 'weekKey' : 'monthKey';
+    const openOrder = weekly ? 'weekPasses' : 'monthPasses';
+    const prevField = weekly ? 'prevWeekKey' : 'prevMonthKey';
+    const prevOrder = weekly ? 'prevWeekPasses' : 'prevMonthPasses';
+    const parts = await Promise.all([
+        questPeriodDocs(db, openField, openOrder, key),
+        questPeriodDocs(db, prevField, prevOrder, key)
+    ]);
+    const byId = {};
+    parts.forEach(function (docs) {
+        docs.forEach(function (doc) { byId[doc.id] = doc; });
+    });
+    const docs = Object.keys(byId).map(function (id) { return byId[id]; });
     const users = indexSnaps(await readAll(db, docs.map(function (doc) {
         return db.collection('users').doc(doc.id);
     })));
@@ -254,7 +285,7 @@ async function loadQuestDisplay(db, period, nowMs) {
         return db.collection('faucet_ledger').doc(doc.id);
     })));
     const entries = docs.map(function (doc) {
-        const view = questBoard.viewFromStats(doc.data() || {}, viewPeriod, anchor);
+        const view = questBoard.closedView(doc.data() || {}, viewPeriod, key);
         const user = users[doc.id] || {};
         const pub = pubs[doc.id] || {};
         const ledger = ledgers[doc.id] || {};
@@ -307,7 +338,8 @@ async function payWinners(db, admin, opts) {
     const board = src.board;
     const periodKey = src.periodKey;
     const tickets = Math.max(0, Math.floor(Number(src.tickets) || 0));
-    const plan = payableFromDisplayed(src.rows || [], tickets);
+    const freshPlan = lockPlan(src.rows || [], tickets);
+    const plan = payableFromDisplayed(freshPlan, tickets);
     const markerRef = db.collection('lb_prize_markers').doc(markerId(board, periodKey));
     const legacyRefs = src.legacyRefs || [];
     const inc = admin.firestore.FieldValue.increment;
@@ -318,8 +350,9 @@ async function payWinners(db, admin, opts) {
             const ref = db.collection(legacyRefs[i].collection).doc(legacyRefs[i].id);
             legacySnaps.push(await tx.get(ref));
         }
-        if (markerSnap.exists && (markerSnap.data() || {}).status === 'complete') {
-            return { action: 'skip', reason: 'marker' };
+        const markerData = markerSnap.exists ? (markerSnap.data() || {}) : null;
+        if (markerData && markerData.status === 'complete') {
+            return { action: 'skip', reason: 'marker', plan: markerData.plan || [] };
         }
         for (let i = 0; i < legacySnaps.length; i++) {
             if (legacySnaps[i].exists && legacySettled(legacySnaps[i].data() || {})) {
@@ -329,27 +362,31 @@ async function payWinners(db, admin, opts) {
                     status: 'complete',
                     reason: 'legacy',
                     tickets: tickets,
-                    paidUids: [],
+                    plan: (markerData && markerData.plan) || freshPlan,
+                    paidUids: (markerData && markerData.paidUids) || [],
                     completedAt: Date.now()
                 }, { merge: true });
-                return { action: 'skip', reason: 'legacy' };
+                return { action: 'skip', reason: 'legacy', plan: (markerData && markerData.plan) || freshPlan };
             }
         }
-        if (!markerSnap.exists) {
-            tx.set(markerRef, {
-                board: board,
-                periodKey: periodKey,
-                status: 'pending',
-                tickets: tickets,
-                paidUids: [],
-                createdAt: Date.now()
-            });
+        if (markerData && Array.isArray(markerData.plan)) {
+            const resumePay = markerData.plan.some(function (row) { return row && row.tickets > 0; });
+            return { action: resumePay ? 'pay' : 'skip', reason: 'resume', plan: markerData.plan };
         }
-        return { action: tickets > 0 ? 'pay' : 'skip', reason: tickets > 0 ? '' : 'no_prize' };
+        tx.set(markerRef, {
+            board: board,
+            periodKey: periodKey,
+            status: 'pending',
+            tickets: tickets,
+            plan: freshPlan,
+            paidUids: [],
+            createdAt: Date.now()
+        }, { merge: true });
+        return { action: tickets > 0 ? 'pay' : 'skip', reason: tickets > 0 ? '' : 'no_prize', plan: freshPlan };
     });
 
     if (claimed.action !== 'pay') {
-        if (claimed.reason === 'no_prize') {
+        if (claimed.reason === 'no_prize' || claimed.reason === 'resume') {
             await markerRef.set({
                 board: board,
                 periodKey: periodKey,
@@ -371,10 +408,14 @@ async function payWinners(db, admin, opts) {
         };
     }
 
+    const locked = Array.isArray(claimed.plan) ? claimed.plan : freshPlan;
+    const payable = locked.filter(function (row) {
+        return row && row.uid && !row.skipped && row.tickets > 0;
+    });
     const paid = [];
-    const skipped = plan.skipped.slice();
-    for (let i = 0; i < plan.paid.length; i++) {
-        const winner = plan.paid[i];
+    const skipped = locked.filter(function (row) { return row && row.skipped; });
+    for (let i = 0; i < payable.length; i++) {
+        const winner = payable[i];
         const winnerRef = board === 'prediction'
             ? db.collection('prediction_payouts').doc(periodKey).collection('winners').doc(winner.uid)
             : markerRef.collection('winners').doc(winner.uid);

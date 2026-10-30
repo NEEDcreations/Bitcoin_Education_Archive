@@ -63,11 +63,11 @@ test('quest prize rank matches the public board and keeps a banned player in pla
     assert.strictEqual(paid.paid[0].tickets, 100);
 });
 
-test('quest month job at 00:00 UTC pays the Eastern month that is about to close', function () {
-    const nov1 = new Date('2026-11-01T00:00:00.000Z').getTime();
-    assert.strictEqual(lb.questKeyForJob('monthly', nov1), questBoard.monthKey(nov1));
-    assert.strictEqual(lb.questKeyForJob('monthly', nov1), '2026-10');
-    assert.strictEqual(lb.closedQuestMonthKey(nov1), '2026-09');
+test('quest month job at 05:00 UTC on the 1st pays the Eastern month that just closed', function () {
+    const job = new Date('2026-11-01T05:00:00.000Z').getTime();
+    assert.strictEqual(lb.questKeyForJob('monthly', job), lb.closedQuestMonthKey(job));
+    assert.strictEqual(lb.questKeyForJob('monthly', job), '2026-10');
+    assert.notStrictEqual(lb.questKeyForJob('monthly', job), questBoard.monthKey(job));
     const monday = new Date('2026-11-02T05:00:00.000Z').getTime();
     assert.notStrictEqual(lb.questKeyForJob('weekly', monday), questBoard.weekKey(monday));
     assert.strictEqual(lb.questKeyForJob('weekly', monday), lb.closedQuestWeekKey(monday));
@@ -171,6 +171,47 @@ function memoryDb() {
     return { db: db, store: store };
 }
 
+test('a retry pays the locked list and does not add a new winner', async function () {
+    const mem = memoryDb();
+    mem.store['users/u1'] = { username: 'Ada', orangeTickets: 0, ghostMode: false };
+    mem.store['users/extra'] = { username: 'Extra', orangeTickets: 0, ghostMode: false };
+    mem.store['lb_prize_markers/xp_2026-W44'] = {
+        status: 'pending',
+        tickets: 25,
+        paidUids: [],
+        plan: [
+            { uid: 'u1', username: 'Ada', rank: 1, tickets: 25, skipped: '' },
+            { uid: 'ban', username: 'Ban', rank: 2, tickets: 0, skipped: 'banned' }
+        ]
+    };
+    const admin = {
+        firestore: {
+            FieldValue: {
+                increment: function (n) { return { __inc: n }; },
+                arrayUnion: function (v) { return { __arr: [v] }; },
+                serverTimestamp: function () { return { __ts: true }; }
+            }
+        }
+    };
+    const result = await lb.payWinners(mem.db, admin, {
+        board: 'xp',
+        period: 'weekly',
+        periodKey: '2026-W44',
+        tickets: 25,
+        rows: [
+            { uid: 'extra', username: 'Extra', rank: 1, score: 99 },
+            { uid: 'u1', username: 'Ada', rank: 2, score: 1 },
+            { uid: 'third', username: 'Third', rank: 3, score: 1 }
+        ]
+    });
+    assert.strictEqual(result.paidCount, 1);
+    assert.strictEqual(result.paid[0].uid, 'u1');
+    assert.strictEqual(mem.store['users/u1'].orangeTickets, 25);
+    assert.strictEqual(mem.store['users/extra'].orangeTickets, 0);
+    assert.ok(!mem.store['users/third']);
+    assert.deepStrictEqual(mem.store['lb_prize_markers/xp_2026-W44'].plan.map(function (row) { return row.uid; }), ['u1', 'ban']);
+});
+
 test('a retry does not grant the same winner twice', async function () {
     const mem = memoryDb();
     mem.store['users/u1'] = { username: 'Ada', orangeTickets: 3, ghostMode: false };
@@ -200,6 +241,7 @@ test('a retry does not grant the same winner twice', async function () {
     assert.strictEqual(second.reason, 'marker');
     assert.strictEqual(mem.store['users/u1'].orangeTickets, 28);
     assert.strictEqual(mem.store['lb_prize_markers/xp_2026-W44'].status, 'complete');
+    assert.deepStrictEqual(mem.store['lb_prize_markers/xp_2026-W44'].plan.map(function (row) { return row.uid; }), ['u1', 'ban']);
     const noteKey = Object.keys(mem.store).filter(function (key) { return key.indexOf('notifications/') === 0; })[0];
     assert.ok(noteKey);
     assert.ok(String(mem.store[noteKey].message).indexOf('25') !== -1);

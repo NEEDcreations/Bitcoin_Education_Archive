@@ -210,7 +210,9 @@ async function main() {
     const week = lb.xpClosedWeek(now);
     const month = lb.xpClosedMonth(now);
     const weekJob = new Date(week.end);
-    const monthJob = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    let monthMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 5, 0, 0);
+    if (now.getTime() < monthMs) monthMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1, 5, 0, 0);
+    const monthJob = new Date(monthMs);
 
     console.log('Orange Ticket board prizes — dry run');
     console.log('Would pay top ' + lb.TOP + ': week ' + lb.TICKETS.weekly + ' OT, month ' + lb.TICKETS.monthly + ' OT.');
@@ -245,14 +247,14 @@ async function main() {
         'Quest week ' + questWeek.key,
         questWeek.rows,
         lb.TICKETS.weekly,
-        'same rank as the server board, fresh from quest_lb_stats. A quest after the week rolled drops that player off this key.'
+        'closed Eastern week from quest_lb_stats, including prevWeek counts saved when the week rolled'
     );
     const questMonth = await lb.loadQuestDisplay(db, 'monthly', monthJob.getTime());
     printBoard(
         'Quest month ' + questMonth.key + '  (job clock ' + monthJob.toISOString() + ')',
         questMonth.rows,
         lb.TICKETS.monthly,
-        'Eastern month that the 1st 00:00 UTC job pays. Players who already rolled to the next month are not in this key.'
+        'closed Eastern month at 05:00 UTC on the 1st, including prevMonth counts saved on rollover'
     );
 
     const predWeek = await predictionFromRecords(db, week.start, week.end, 'weekly');
