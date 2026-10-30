@@ -489,6 +489,9 @@ service cloud.firestore {
       // No allow matches statId == 'predictions', so client writes are denied.
       // stats/streak_leaderboard is the same: refreshStreakLeaderboard writes
       // it with the Admin SDK. No write rule matches that id. Read stays open.
+      // stats/quest_leaderboard_alltime, stats/quest_leaderboard_week, and
+      // stats/quest_leaderboard_month are written by refreshQuestLeaderboard.
+      // No write rule matches those ids. Clients only read them.
       // Read stays open via `allow read: if true` above.
       // ─── Global community stats ───
       // Authenticated (non-anonymous) users may increment whitelisted counters
@@ -573,6 +576,12 @@ service cloud.firestore {
       allow get: if request.auth != null && request.auth.uid == uid;
       allow list: if false;
       allow create, update, delete: if false;
+    }
+
+    // Quest leaderboard totals. gradeQuest and the backfill write these.
+    // Clients read the public stats/quest_leaderboard_* docs, not this.
+    match /quest_lb_stats/{uid} {
+      allow read, write: if false;
     }
 
     // Immutable resolved predictions. Owner may read their own history.
@@ -1829,6 +1838,11 @@ service cloud.firestore {
 
     // One pass per quiz part. gradeQuest writes this so questsPassed cannot be farmed.
     match /users/{userId}/quest_passes/{docId} {
+      allow read, write: if false;
+    }
+
+    // Every server-graded quest attempt. gradeQuest writes this. Clients cannot.
+    match /users/{userId}/quest_attempts/{docId} {
       allow read, write: if false;
     }
 

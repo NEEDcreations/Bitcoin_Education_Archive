@@ -6649,8 +6649,11 @@ async function toggleLeaderboard() {
             html += '<div class="lb-levels"><h4>Your Badges</h4>' + getBadgeHTML() + '</div>';
         }
 
-        // Daily Streaks — directly above Top Predictors. One cached stats doc.
+        // Daily Streaks — directly above the Quest list. One cached stats doc.
         html += '<div id="streakBoard" class="streak-board"><div class="streak-lb-loading">Loading Daily Streaks...</div></div>';
+
+        // Quests — between Daily Streaks and Top Predictors. One stats doc per tab.
+        html += '<div id="questBoard" class="quest-board"><div class="quest-lb-loading">Loading Quests...</div></div>';
 
         // Top Predictors — above PVP. One stats doc holds all three periods.
         html += '<div id="predictorBoard" style="margin-top:24px;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
@@ -6676,6 +6679,7 @@ async function toggleLeaderboard() {
 
         // Load PVP leaderboard data asynchronously (must be after innerHTML so DOM element exists)
         _loadStreakLeaderboard();
+        _loadQuestLeaderboard();
         _loadPredictorLeaderboard();
         _loadPVPLeaderboard();
     } catch(e) {
@@ -7019,6 +7023,115 @@ async function _loadStreakLeaderboard() {
         }
     }
     _renderStreakBoard();
+}
+
+// Quests — All Time / This Week / This Month. Each tab is one server doc.
+var QUEST_LB_DOC = {
+    alltime: 'quest_leaderboard_alltime',
+    week: 'quest_leaderboard_week',
+    month: 'quest_leaderboard_month'
+};
+var QUEST_LB_NOTE = {
+    alltime: 'Different quests passed, all time. At least 5 attempts. The percent is passed attempts out of every attempt.',
+    week: 'This week starts Monday at midnight Eastern. At least 3 attempts.',
+    month: 'This month is Eastern time. At least 3 attempts.'
+};
+
+function _questLbPeriod() {
+    var period = window._questLbTab;
+    if (period === 'week' || period === 'month') return period;
+    return 'alltime';
+}
+
+function _questOpenProfile(el) {
+    if (!el || typeof db === 'undefined' || !db) return;
+    var name = el.getAttribute('data-quest-name') || '';
+    if (!name || name === 'Anon') return;
+    db.collection('public_profiles').where('username_lower', '==', name.toLowerCase()).limit(1).get().then(function(snap) {
+        if (!snap || snap.empty || typeof showUserProfile !== 'function') return;
+        showUserProfile(snap.docs[0].id);
+    }).catch(function() {});
+}
+window._questOpenProfile = _questOpenProfile;
+
+function _renderQuestBoard() {
+    var root = document.getElementById('questBoard');
+    if (!root) return;
+    var period = _questLbPeriod();
+    var slot = window._questLbCache && window._questLbCache[period];
+    var data = (slot && slot.data) || {};
+    var rows = data.rows || [];
+    var tabs = [['alltime', 'All Time'], ['week', 'This Week'], ['month', 'This Month']];
+    var html = '<div class="quest-lb-head"><h4>🏆 Quests</h4></div>';
+    html += '<p class="quest-lb-note">' + QUEST_LB_NOTE[period] + '</p>';
+    html += '<div class="quest-lb-tabs">';
+    tabs.forEach(function(p) {
+        var active = period === p[0];
+        html += '<button type="button" onclick="_questLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;min-width:0;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
+    });
+    html += '</div><div id="questLeaderboardList">';
+    if (!rows.length) {
+        html += '<div class="quest-lb-empty">Nobody has qualified yet.</div>';
+    } else {
+        var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username).trim().toLowerCase() : '';
+        rows.forEach(function(entry) {
+            var rank = entry.rank || 0;
+            var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
+            var rawName = entry.username || '';
+            var blank = typeof window.missingPublicName === 'function'
+                ? window.missingPublicName(rawName)
+                : (!String(rawName).trim() || /^(anon|anonymous)$/i.test(String(rawName).trim()));
+            var shown = blank ? 'Anon' : rawName;
+            if (String(shown).indexOf('@') !== -1) {
+                shown = 'Anon';
+                blank = true;
+            }
+            var name = typeof escapeHtml === 'function' ? escapeHtml(shown) : String(shown);
+            var isMe = !blank && myName && myName === String(shown).trim().toLowerCase();
+            var passes = Number(entry.passes) || 0;
+            var pct = Number(entry.pct) || 0;
+            var open = blank ? '' : ' onclick="_questOpenProfile(this)"';
+            html += '<div class="lb-row' + (isMe ? ' lb-me' : '') + '"' + open + ' data-quest-name="' + _streakAttr(shown) + '" style="cursor:' + (blank ? 'default' : 'pointer') + ';" title="' + (blank ? '' : 'View profile') + '">' +
+                '<span class="lb-rank">' + medal + '</span>' +
+                (typeof _predAvatarHtml === 'function' ? _predAvatarHtml(entry) : '') +
+                '<span class="lb-name">' + name + '</span>' +
+                '<span class="lb-score" title="Pass rate">' + passes + ' · ' + pct + '%</span>' +
+            '</div>';
+        });
+    }
+    html += '</div>';
+    root.innerHTML = html;
+    if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(root);
+}
+
+function _questLbSwitchPeriod(period) {
+    window._questLbTab = period === 'week' || period === 'month' ? period : 'alltime';
+    _loadQuestLeaderboard();
+}
+window._questLbSwitchPeriod = _questLbSwitchPeriod;
+
+async function _loadQuestLeaderboard() {
+    var root = document.getElementById('questBoard');
+    if (!root) return;
+    var period = _questLbPeriod();
+    window._questLbCache = window._questLbCache || {};
+    var slot = window._questLbCache[period];
+    var now = Date.now();
+    var fresh = slot && slot.time && (now - slot.time < 600000);
+    if (!fresh) {
+        try {
+            if (typeof db === 'undefined' || !db) {
+                window._questLbCache[period] = { data: {}, time: now };
+            } else {
+                var doc = await db.collection('stats').doc(QUEST_LB_DOC[period]).get();
+                window._questLbCache[period] = { data: doc.exists ? (doc.data() || {}) : {}, time: now };
+            }
+        } catch (e) {
+            window._questLbCache[period] = window._questLbCache[period] || { data: {}, time: now };
+            window._questLbCache[period].time = now;
+        }
+    }
+    _renderQuestBoard();
 }
 
 // PVP Leaderboard - loaded after main leaderboard renders, sorted by win %
