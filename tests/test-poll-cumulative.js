@@ -7,8 +7,11 @@ const path = require('path');
 const { createPollVote, pollForDay } = require(path.join(__dirname, '..', 'functions/src/pollVote'));
 const { offsetDateKey } = require(path.join(__dirname, '..', 'functions/src/grantBadge'));
 
+const fs = require('fs');
 const docs = Object.create(null);
 const writes = [];
+const gets = [];
+const batches = [];
 
 function applyWrite(pathKey, data, merge) {
     const cur = merge && docs[pathKey] ? Object.assign({}, docs[pathKey]) : {};
@@ -48,7 +51,10 @@ const db = {
     runTransaction: async function (fn) {
         const pending = [];
         const tx = {
-            get: async function (docRef) { return snap(docRef.path); },
+            get: async function (docRef) {
+                gets.push(docRef.path);
+                return snap(docRef.path);
+            },
             set: function (docRef, data, opts) {
                 pending.push({ path: docRef.path, data: data, merge: !!(opts && opts.merge) });
             },
@@ -57,6 +63,7 @@ const db = {
             },
         };
         const result = await fn(tx);
+        batches.push(pending.slice());
         pending.forEach(function (write) {
             writes.push(write);
             applyWrite(write.path, write.data, write.merge);
@@ -108,6 +115,34 @@ function context(uid) {
     assert.strictEqual(docs['poll_cumulative/' + tallyId].option_2, undefined);
     const tallyWrites = writes.filter(function (write) { return write.path.indexOf('poll_cumulative/') === 0; });
     assert.strictEqual(tallyWrites.length, 1);
+    assert.ok(gets.indexOf('poll_cumulative/' + tallyId) !== -1, 'cumulative tally is read in the transaction');
+    const firstBatch = batches[0];
+    assert.ok(firstBatch.some(function (write) { return write.path === 'poll_votes/' + tallyId; }));
+    assert.ok(firstBatch.some(function (write) { return write.path === 'poll_cumulative/' + tallyId; }));
+    docs['users/bob'] = { points: 0, username: 'bob' };
+    const third = await vote({ chosenIdx: 0 }, context('bob'));
+    assert.strictEqual(third.already, false);
+    assert.strictEqual(docs['poll_cumulative/' + tallyId].total, 2);
+    assert.strictEqual(docs['poll_cumulative/' + tallyId].option_0, 1);
+    assert.strictEqual(docs['poll_cumulative/' + tallyId].option_1, 1);
+    assert.strictEqual(docs['poll_votes/' + tallyId].votes[0], 1);
+    assert.strictEqual(docs['poll_votes/' + tallyId].votes[1], 1);
+    const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    function rulesBlock(marker) {
+        const at = rules.indexOf(marker);
+        assert.ok(at > 0, marker);
+        return rules.slice(at, rules.indexOf('\n    match /', at + marker.length));
+    }
+    ['match /poll_votes/{pollId}', 'match /poll_cumulative/{pollId}', 'match /polls/{pollId}'].forEach(function (marker) {
+        const block = rulesBlock(marker);
+        assert.ok(block.includes('allow read: if true'), marker);
+        assert.ok(block.includes('allow create, update, delete: if false'), marker);
+        assert.strictEqual(block.includes('allow create: if request.auth'), false, marker);
+    });
+    const quests = fs.readFileSync(path.join(__dirname, '..', 'quests.js'), 'utf8');
+    assert.ok(quests.includes("httpsCallable('dailyPollVote')"));
+    assert.strictEqual(quests.includes("collection('poll_votes').doc(pollId).set"), false);
+    assert.strictEqual(quests.includes("collection('poll_cumulative').doc"), false);
     console.log('poll cumulative tests ok');
 })().catch(function (err) {
     console.error(err && err.stack ? err.stack : err);

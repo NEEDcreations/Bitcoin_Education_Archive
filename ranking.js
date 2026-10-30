@@ -380,6 +380,7 @@ var APP_CHECK_CALLABLES = {
     pvpStoreAnswerKey: 1,
     pvpSubmitAnswer: 1,
     pvpTimeoutOpponent: 1,
+    recordNachoAnalytics: 1,
     resetLightningAddressOnce: 1,
     startQuest: 1,
     startScholarExam: 1,
