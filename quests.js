@@ -5959,10 +5959,22 @@ function _raidHistoryBar(row) {
     '</div>';
 }
 
+function _raidHistorySort(a, b) {
+    var am = String(a && a.monthKey || '');
+    var bm = String(b && b.monthKey || '');
+    if (am !== bm) {
+        if (!am) return 1;
+        if (!bm) return -1;
+        return am < bm ? 1 : -1;
+    }
+    return (Number(b && b.endedAtMs) || 0) - (Number(a && a.endedAtMs) || 0);
+}
+
 window._renderRaidHistoryCards = function (docs) {
-    var rows = (docs || []).slice().sort(function (a, b) {
-        return (Number(b.endedAtMs) || 0) - (Number(a.endedAtMs) || 0);
-    });
+    var rows = (docs || []).filter(function (row) {
+        var name = String(row && row.name || '').trim().toLowerCase();
+        return name !== 'no boss spawned' && !(row && row.placeholder);
+    }).slice().sort(_raidHistorySort);
     if (!rows.length) {
         return '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">No past bosses yet.</div>';
     }
@@ -6048,7 +6060,7 @@ function _fetchRaidHistory() {
         return;
     }
     window._raidHistoryLoading = true;
-    db.collection('raid_history').orderBy('endedAtMs', 'desc').limit(12).get().then(function (snap) {
+    db.collection('raid_history').orderBy('monthKey', 'desc').limit(12).get().then(function (snap) {
         window._raidHistoryLoading = false;
         var docs = [];
         if (snap && snap.docs) {

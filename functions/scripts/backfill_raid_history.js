@@ -7,6 +7,8 @@
 //
 //   node functions/scripts/backfill_raid_history.js
 //   node functions/scripts/backfill_raid_history.js --apply
+//   node functions/scripts/backfill_raid_history.js --repair
+//   node functions/scripts/backfill_raid_history.js --repair --apply
 
 const path = require('path');
 
@@ -14,6 +16,7 @@ function parseArgs(argv) {
     return {
         help: argv.indexOf('--help') !== -1 || argv.indexOf('-h') !== -1,
         apply: argv.indexOf('--apply') !== -1,
+        repair: argv.indexOf('--repair') !== -1,
     };
 }
 
@@ -24,8 +27,17 @@ function loadHistory() {
 async function main() {
     const args = parseArgs(process.argv.slice(2));
     if (args.help) {
-        console.log('Usage: node functions/scripts/backfill_raid_history.js [--apply]');
-        console.log('Dry-run is the default. --apply writes missing raid_history docs and missing winner names.');
+        console.log('Usage: node functions/scripts/backfill_raid_history.js [--apply] [--repair]');
+        console.log('Dry-run is the default. --apply writes. --repair recomputes endedAtMs and recap on existing history docs.');
+        return;
+    }
+    if (args.repair) {
+        const history = loadHistory();
+        const admin = require('firebase-admin');
+        if (!admin.apps.length) admin.initializeApp();
+        const result = await history.repairRaidHistory(admin.firestore(), admin, new Date(), { apply: args.apply });
+        const count = args.apply ? result.repaired : result.wouldRepair;
+        console.log((args.apply ? 'repaired ' : 'would repair ') + count + ' history docs');
         return;
     }
     const admin = require('firebase-admin');

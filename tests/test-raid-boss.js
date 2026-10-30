@@ -1171,7 +1171,8 @@ async function main() {
         assert.ok(block.indexOf('allow read: if true') !== -1);
         assert.ok(block.indexOf('allow create, update, delete: if false') !== -1);
         const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
-        assert.ok(quests.indexOf("orderBy('endedAtMs', 'desc').limit(12)") !== -1);
+        assert.ok(quests.indexOf("orderBy('monthKey', 'desc').limit(12)") !== -1);
+        assert.strictEqual(quests.indexOf("orderBy('endedAtMs', 'desc')"), -1);
         assert.ok(quests.indexOf('Winner announced soon') !== -1);
         assert.ok(quests.indexOf('showUserProfileByUsername') !== -1);
         assert.ok(quests.indexOf('📜 Boss History') !== -1);
@@ -1290,6 +1291,261 @@ async function main() {
         const again = await engine.recordBossHistory(db, admin, ref, '2026-09', { now: new Date(readyAt.getTime() + 60000) });
         assert.strictEqual(again.reason, 'exists');
         assert.strictEqual((await db.collection('raid_history').doc('2026-09').get()).data().recap, fallen.recap);
+    });
+
+    await test('a defeat with no defeatedAt ends at the last hit, and repair rewrites only that end and the recap', async function () {
+        const history = require('../functions/src/raidHistory');
+        const DAY = 86400000;
+        const now = Date.parse('2026-10-30T16:27:00.000Z');
+        const juneEnd = 1780555032466;
+        const julyEnd = 1784265305780;
+        const augustEnd = 1786335242758;
+        assert.notStrictEqual(history.resolveEndedAtMs({
+            defeated: true,
+            startTime: juneEnd - 2 * DAY,
+            endTime: juneEnd + 20 * DAY,
+        }, [{ lastUpdate: juneEnd - 10 }, { lastUpdate: juneEnd }], now), now);
+        assert.strictEqual(history.resolveEndedAtMs({
+            defeated: true,
+            defeatedAt: 111,
+            endTime: 999,
+        }, [{ lastUpdate: 222 }], now), 111);
+        assert.strictEqual(history.resolveEndedAtMs({
+            defeated: true,
+            startTime: juneEnd - 2 * DAY,
+            endTime: juneEnd + 20 * DAY,
+        }, [{ username: 'Ada', lastUpdate: juneEnd - 50 }, { username: 'Nia', lastUpdate: juneEnd }], now), juneEnd);
+        assert.strictEqual(history.resolveEndedAtMs({
+            defeated: true,
+            startTime: juneEnd - 2 * DAY,
+            endTime: juneEnd,
+        }, [], now), juneEnd);
+        const beforeEnd = juneEnd - DAY;
+        assert.strictEqual(history.resolveEndedAtMs({
+            defeated: true,
+            startTime: juneEnd - 5 * DAY,
+            endTime: juneEnd,
+        }, [], beforeEnd), beforeEnd);
+        assert.strictEqual(history.resolveEndedAtMs({
+            defeated: true,
+            startTime: juneEnd - 2 * DAY,
+        }, [], now), juneEnd - 2 * DAY);
+        assert.strictEqual(history.resolveEndedAtMs({
+            defeated: false,
+            startTime: juneEnd - 2 * DAY,
+            endTime: juneEnd,
+        }, [{ lastUpdate: now }], now), juneEnd);
+
+        const fixes = [
+            { id: 'T3jKFDFbS9B3ngvv7tUF', end: juneEnd, days: 2, phrase: 'across 2 days', monthKey: '2026-06' },
+            { id: 'HsUI6c4FDg0wu1auGf3H', end: julyEnd, days: 16, phrase: 'in 16 days', monthKey: '2026-07' },
+            { id: 'oorcRcvbdY1RC9gwxpdq', end: augustEnd, days: 9, phrase: 'across 9 days', monthKey: '2026-08' },
+        ];
+        fixes.forEach(function (row) {
+            const built = history.buildHistoryDoc(row.id, {
+                name: 'Poll-Patroller',
+                metric: 'pollVotes',
+                communityTarget: 10,
+                target: 100,
+                current: 100,
+                defeated: true,
+                monthKey: row.monthKey,
+                startTime: row.end - row.days * DAY,
+                endTime: row.end + 20 * DAY,
+            }, [{ username: 'Ada', contributed: 10, lastUpdate: row.end }], [], now);
+            assert.strictEqual(built.endedAtMs, row.end);
+            assert.notStrictEqual(built.endedAtMs, now);
+            assert.ok(built.recap.indexOf(row.phrase) !== -1, built.recap);
+            assert.strictEqual(built.recap.indexOf('148 days'), -1);
+        });
+
+        const db = memoryDb();
+        const admin = adminFor();
+        const septemberEnd = Date.parse('2026-09-28T16:00:00.000Z');
+        const septemberStart = septemberEnd - 12 * DAY;
+        const septemberBoss = {
+            name: 'Chat-Charger',
+            metric: 'chatMessages',
+            communityTarget: 20,
+            target: 100,
+            current: 100,
+            defeated: true,
+            placeholder: false,
+            monthKey: '2026-09',
+            startTime: ts(new Date(septemberStart)),
+            endTime: ts(new Date(septemberEnd + 3 * DAY)),
+            defeatedAt: ts(new Date(septemberEnd)),
+        };
+        await db.collection('raid_bosses').doc('2026-09').set(septemberBoss);
+        await db.collection('raid_bosses').doc('2026-09').collection('participants').doc('uid-secret').set({
+            username: 'Ada',
+            contributed: 20,
+            email: 'ada@example.com',
+            lastUpdate: ts(new Date(septemberEnd - DAY)),
+        });
+        const septemberDoc = history.buildHistoryDoc('2026-09', Object.assign({}, septemberBoss, {
+            startTime: septemberStart,
+            endTime: septemberEnd + 3 * DAY,
+            defeatedAt: septemberEnd,
+        }), [{ username: 'Ada', contributed: 20, lastUpdate: septemberEnd - DAY }], [], now, 'Nia');
+        await db.collection('raid_history').doc('2026-09').set(septemberDoc);
+        assert.strictEqual(history.repairHistoryFields('2026-09', Object.assign({}, septemberBoss, {
+            startTime: septemberStart,
+            endTime: septemberEnd + 3 * DAY,
+            defeatedAt: septemberEnd,
+        }), [{ username: 'Ada', contributed: 20, lastUpdate: septemberEnd - DAY }], septemberDoc, now, 'Nia'), null);
+
+        for (let i = 0; i < fixes.length; i++) {
+            const row = fixes[i];
+            await db.collection('raid_bosses').doc(row.id).set({
+                name: 'Poll-Patroller',
+                metric: 'pollVotes',
+                communityTarget: 10,
+                target: 100,
+                current: 100,
+                defeated: true,
+                placeholder: false,
+                monthKey: row.monthKey,
+                startTime: ts(new Date(row.end - row.days * DAY)),
+                endTime: ts(new Date(row.end + 20 * DAY)),
+            });
+            await db.collection('raid_bosses').doc(row.id).collection('participants').doc('uid-secret-' + i).set({
+                username: 'Ada',
+                contributed: 10,
+                email: 'ada@example.com',
+                lastUpdate: ts(new Date(row.end)),
+            });
+            await db.collection('raid_history').doc(row.id).set({
+                name: 'Poll-Patroller',
+                monthKey: row.monthKey,
+                monthLabel: 'keep',
+                result: 'defeated',
+                prizeWinner: 'Nia',
+                current: 100,
+                endedAtMs: now,
+                recap: 'stale',
+                untouched: 'keep',
+            });
+        }
+        await db.collection('raid_bosses').doc('empty-month').set({
+            name: 'No boss spawned',
+            defeated: true,
+            placeholder: false,
+            current: 0,
+            target: 1,
+            startTime: ts(new Date(juneEnd - 2 * DAY)),
+            endTime: ts(new Date(juneEnd)),
+        });
+        await db.collection('raid_history').doc('empty-month').set({
+            name: 'No boss spawned',
+            monthKey: '2026-05',
+            endedAtMs: now,
+            recap: 'should stay',
+            untouched: 'placeholder',
+        });
+        await db.collection('raid_bosses').doc('placeholder-flag').set({
+            name: 'Quiz-Crusader',
+            placeholder: true,
+            defeated: true,
+            startTime: ts(new Date(juneEnd - DAY)),
+            endTime: ts(new Date(juneEnd)),
+        });
+        const skipped = await history.recordBossHistory(db, admin, db.collection('raid_bosses').doc('empty-month'), 'empty-month', { now: new Date(now) });
+        assert.strictEqual(skipped.reason, 'placeholder');
+        const flagged = await history.recordBossHistory(db, admin, db.collection('raid_bosses').doc('placeholder-flag'), 'placeholder-flag', { now: new Date(now) });
+        assert.strictEqual(flagged.reason, 'placeholder');
+        assert.strictEqual((await db.collection('raid_history').doc('placeholder-flag').get()).exists, false);
+        const closed = await history.closeEndedBosses(db, admin, new Date(now));
+        assert.strictEqual(closed.wrote, 0);
+        const planned = await history.backfillRaidHistory(db, admin, new Date(now), { apply: false });
+        assert.strictEqual(planned.wouldCreate, 0);
+
+        const dry = await history.repairRaidHistory(db, admin, new Date(now), { apply: false });
+        assert.strictEqual(dry.wouldRepair, 3);
+        assert.strictEqual(dry.repaired, 0);
+        assert.strictEqual(dry.changes.length, 3);
+        fixes.forEach(function (row) {
+            const hit = dry.changes.filter(function (change) { return change.id === row.id; })[0];
+            assert.ok(hit);
+            assert.strictEqual(hit.endedAtMs, row.end);
+            assert.ok(String(hit.recap).indexOf(row.phrase) !== -1, hit.recap);
+        });
+        assert.strictEqual(dry.changes.some(function (change) { return change.id === '2026-09' || change.id === 'empty-month'; }), false);
+        const stillStale = (await db.collection('raid_history').doc('T3jKFDFbS9B3ngvv7tUF').get()).data();
+        assert.strictEqual(stillStale.endedAtMs, now);
+        assert.strictEqual(stillStale.recap, 'stale');
+        assert.strictEqual((await db.collection('raid_history').doc('empty-month').get()).data().recap, 'should stay');
+
+        const applied = await history.repairRaidHistory(db, admin, new Date(now), { apply: true });
+        assert.strictEqual(applied.repaired, 3);
+        assert.strictEqual(applied.wouldRepair, 3);
+        for (let i = 0; i < fixes.length; i++) {
+            const row = fixes[i];
+            const saved = (await db.collection('raid_history').doc(row.id).get()).data();
+            assert.strictEqual(saved.endedAtMs, row.end);
+            assert.ok(saved.recap.indexOf(row.phrase) !== -1, saved.recap);
+            assert.strictEqual(saved.untouched, 'keep');
+            assert.strictEqual(saved.prizeWinner, 'Nia');
+            assert.strictEqual(saved.monthLabel, 'keep');
+            assert.strictEqual(saved.current, 100);
+            assert.strictEqual(saved.name, 'Poll-Patroller');
+            assert.strictEqual(JSON.stringify(saved).indexOf('uid-secret'), -1);
+            assert.strictEqual(JSON.stringify(saved).indexOf('ada@example.com'), -1);
+        }
+        const septemberSaved = (await db.collection('raid_history').doc('2026-09').get()).data();
+        assert.strictEqual(septemberSaved.endedAtMs, septemberDoc.endedAtMs);
+        assert.strictEqual(septemberSaved.recap, septemberDoc.recap);
+        assert.strictEqual(septemberSaved.prizeWinner, 'Nia');
+        const placeholderSaved = (await db.collection('raid_history').doc('empty-month').get()).data();
+        assert.strictEqual(placeholderSaved.endedAtMs, now);
+        assert.strictEqual(placeholderSaved.recap, 'should stay');
+        const second = await history.repairRaidHistory(db, admin, new Date(now), { apply: true });
+        assert.strictEqual(second.wouldRepair, 0);
+        assert.strictEqual(second.repaired, 0);
+
+        const script = fs.readFileSync(path.join(root, 'functions/scripts/backfill_raid_history.js'), 'utf8');
+        const parsed = require('../functions/scripts/backfill_raid_history').parseArgs;
+        assert.deepStrictEqual(parsed([]), { help: false, apply: false, repair: false });
+        assert.strictEqual(parsed(['--repair']).apply, false);
+        assert.strictEqual(parsed(['--repair']).repair, true);
+        assert.strictEqual(parsed(['--repair', '--apply']).apply, true);
+        assert.ok(script.indexOf("'--repair'") !== -1);
+        assert.ok(script.indexOf('result.repaired') !== -1);
+        assert.ok(script.indexOf('result.wouldRepair') !== -1);
+        assert.strictEqual(script.indexOf('result.changes'), -1);
+
+        const questsSrc = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
+        const renderSrc = questsSrc.slice(questsSrc.indexOf('function _raidEsc'), questsSrc.indexOf('function _raidHistoryShell'));
+        const sandbox = {};
+        require('vm').runInNewContext('var window = {}; var RAID_BOSS_IMAGES = {};\n' + renderSrc + '\nthis.sort = _raidHistorySort; this.render = window._renderRaidHistoryCards;', sandbox);
+        const cards = [
+            { monthKey: '2026-06', endedAtMs: 999, id: 'june', name: 'June-Boss', monthLabel: 'June 2026' },
+            { monthKey: '2026-08', endedAtMs: 5, id: 'cccc', name: 'Mid-Boss', monthLabel: 'August 2026' },
+            { monthKey: '2026-08', endedAtMs: 9, id: 'bbbb', name: 'Late-Boss', monthLabel: 'August late' },
+            { monthKey: '2026-08', endedAtMs: 1, id: 'aaaa', name: 'Early-Boss', monthLabel: 'August early' },
+            { monthKey: '2026-09', endedAtMs: 1, id: 'sept', name: 'Sept-Boss', monthLabel: 'September 2026' },
+            { monthKey: '', endedAtMs: 9999, id: 'none', name: 'Missing-Month', monthLabel: 'Missing month' },
+            { monthKey: '2026-04', endedAtMs: 50, name: 'No boss spawned', monthLabel: 'April 2026' },
+            { monthKey: '2026-03', endedAtMs: 50, name: 'Ghost-Boss', placeholder: true, monthLabel: 'March 2026' },
+        ];
+        const sorted = cards.filter(function (row) { return row.name !== 'No boss spawned' && !row.placeholder; }).slice().sort(sandbox.sort);
+        assert.deepStrictEqual(sorted.map(function (row) { return row.id; }), ['sept', 'bbbb', 'cccc', 'aaaa', 'june', 'none']);
+        assert.strictEqual(sandbox.sort(
+            { monthKey: '2026-08', endedAtMs: 4, id: 'zzzz' },
+            { monthKey: '2026-08', endedAtMs: 4, id: 'aaaa' }
+        ), 0);
+        const html = sandbox.render(cards);
+        assert.ok(html.indexOf('September 2026') < html.indexOf('August late'));
+        assert.ok(html.indexOf('August late') < html.indexOf('August 2026'));
+        assert.ok(html.indexOf('August 2026') < html.indexOf('August early'));
+        assert.ok(html.indexOf('August early') < html.indexOf('June 2026'));
+        assert.ok(html.indexOf('June 2026') < html.indexOf('Missing month'));
+        assert.strictEqual(html.indexOf('No boss spawned'), -1);
+        assert.strictEqual(html.indexOf('April 2026'), -1);
+        assert.strictEqual(html.indexOf('Ghost-Boss'), -1);
+        assert.strictEqual(html.indexOf('March 2026'), -1);
+        assert.ok(questsSrc.indexOf('function _raidHistorySort') !== -1);
+        assert.ok(questsSrc.indexOf("orderBy('monthKey', 'desc').limit(12)") !== -1);
     });
 
     if (failed) {
