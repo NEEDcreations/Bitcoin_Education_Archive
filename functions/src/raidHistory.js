@@ -269,6 +269,41 @@ function spanDays(startMs, endMs) {
     return Math.max(1, Math.round(ms / 86400000));
 }
 
+function latestLastUpdateMs(participants) {
+    let best = 0;
+    asRows(participants).forEach(function (row) {
+        const ms = timeMs(row.lastUpdate);
+        if (ms > best) best = ms;
+    });
+    return best;
+}
+
+// A defeat with no defeatedAt uses the latest hit. If nobody has a hit time,
+// cap at the scheduled end. Never stamp the card with a bare "now".
+function resolveEndedAtMs(data, participants, nowMs) {
+    const src = data || {};
+    const startMs = timeMs(src.startTime);
+    const scheduledEnd = timeMs(src.endTime);
+    const now = Number(nowMs) || 0;
+    if (src.defeated === true) {
+        const defeatedAt = timeMs(src.defeatedAt);
+        if (defeatedAt) return defeatedAt;
+        const last = latestLastUpdateMs(participants);
+        if (last) return last;
+        if (scheduledEnd && now) return Math.min(scheduledEnd, now);
+        if (scheduledEnd) return scheduledEnd;
+        return startMs || 0;
+    }
+    if (scheduledEnd) return scheduledEnd;
+    return startMs || 0;
+}
+
+function isUnspawnedBoss(data) {
+    if (!data) return false;
+    if (data.placeholder === true) return true;
+    return String(data.name || '').trim().toLowerCase() === 'no boss spawned';
+}
+
 function finisherName(raiders, defeated) {
     if (!defeated || !raiders.length) return '';
     let timed = null;
@@ -368,8 +403,7 @@ function buildHistoryDoc(bossId, data, participants, winners, nowMs, prizeWinner
     const target = Number(src.target) || Number(src.targetHP) || 0;
     const pct = damagePct(current, target, defeated);
     const hpPct = target > 0 ? Math.max(0, 100 - pct) : 0;
-    let endedAt = defeated ? timeMs(src.defeatedAt) : scheduledEnd;
-    if (!endedAt) endedAt = defeated ? (nowMs || scheduledEnd || startMs) : (scheduledEnd || nowMs || startMs);
+    const endedAt = resolveEndedAtMs(src, participants, nowMs);
     const raiders = raidersFrom(participants);
     const name = publicName(src.name) || 'Raid Boss';
     const metric = String(src.metric || '');
@@ -502,7 +536,7 @@ async function recordBossHistory(db, admin, bossRef, bossId, opts) {
     if (!bossSnap.exists) return { wrote: false, reason: 'missing' };
     const data = bossSnap.data() || {};
     const nowMs = nowMsOf(opts && opts.now);
-    if (data.placeholder === true) return { wrote: false, reason: 'active' };
+    if (isUnspawnedBoss(data)) return { wrote: false, reason: 'placeholder' };
     if (data.defeated !== true) {
         const end = timeMs(data.endTime);
         if (!(end > 0 && nowMs >= end + SURVIVE_GRACE_MS)) {
@@ -558,7 +592,7 @@ async function closeEndedBosses(db, admin, now) {
     for (let i = 0; i < docs.length; i++) {
         const doc = docs[i];
         const data = typeof doc.data === 'function' ? (doc.data() || {}) : {};
-        if (!fightOver(data, nowMs)) continue;
+        if (isUnspawnedBoss(data) || !fightOver(data, nowMs)) continue;
         const ref = db.collection('raid_bosses').doc(doc.id);
         try {
             const result = await recordBossHistory(db, admin, ref, doc.id, { now: new Date(nowMs) });
@@ -568,6 +602,49 @@ async function closeEndedBosses(db, admin, now) {
         catch (e) { /* next sweep retries */ }
     }
     return { wrote: wrote };
+}
+
+function repairHistoryFields(bossId, bossData, participants, existing, nowMs, prizeWinnerName) {
+    if (isUnspawnedBoss(bossData) || isUnspawnedBoss(existing)) return null;
+    if (!bossData) return null;
+    const next = buildHistoryDoc(bossId, bossData, participants, [], nowMs, prizeWinnerName);
+    const patch = {};
+    if (Number(existing && existing.endedAtMs) !== Number(next.endedAtMs)) patch.endedAtMs = next.endedAtMs;
+    if (String((existing && existing.recap) || '') !== next.recap) patch.recap = next.recap;
+    return Object.keys(patch).length ? patch : null;
+}
+
+async function repairRaidHistory(db, admin, now, opts) {
+    const apply = !!(opts && opts.apply);
+    const nowMs = nowMsOf(now);
+    const snap = await db.collection('raid_history').get();
+    const docs = [];
+    if (snap && typeof snap.forEach === 'function') snap.forEach(function (doc) { docs.push(doc); });
+    let wouldRepair = 0;
+    let repaired = 0;
+    const changes = [];
+    for (let i = 0; i < docs.length; i++) {
+        const doc = docs[i];
+        const saved = typeof doc.data === 'function' ? (doc.data() || {}) : {};
+        if (isUnspawnedBoss(saved)) continue;
+        let boss = null;
+        try {
+            const bossSnap = await db.collection('raid_bosses').doc(doc.id).get();
+            if (bossSnap.exists) boss = bossSnap.data() || {};
+        } catch (e) { boss = null; }
+        if (!boss || isUnspawnedBoss(boss)) continue;
+        let participants = [];
+        try { participants = await db.collection('raid_bosses').doc(doc.id).collection('participants').get(); }
+        catch (e) { participants = []; }
+        const patch = repairHistoryFields(doc.id, boss, participants, saved, nowMs, saved.prizeWinner || '');
+        if (!patch) continue;
+        wouldRepair += 1;
+        changes.push({ id: doc.id, endedAtMs: patch.endedAtMs, recap: patch.recap });
+        if (!apply) continue;
+        await db.collection('raid_history').doc(doc.id).update(patch);
+        repaired += 1;
+    }
+    return { wouldRepair: wouldRepair, repaired: repaired, changes: changes };
 }
 
 async function backfillRaidHistory(db, admin, now, opts) {
@@ -583,7 +660,7 @@ async function backfillRaidHistory(db, admin, now, opts) {
     for (let i = 0; i < docs.length; i++) {
         const doc = docs[i];
         const data = typeof doc.data === 'function' ? (doc.data() || {}) : {};
-        if (!fightOver(data, nowMs)) continue;
+        if (isUnspawnedBoss(data) || !fightOver(data, nowMs)) continue;
         const hist = await db.collection('raid_history').doc(doc.id).get();
         const winner = data.defeated === true ? await readPrizeWinner(db, doc.id) : '';
         if (!hist.exists) {
@@ -620,11 +697,15 @@ module.exports = {
     templateIndex: templateIndex,
     buildHistoryDoc: buildHistoryDoc,
     buildRecap: buildRecap,
+    resolveEndedAtMs: resolveEndedAtMs,
+    repairHistoryFields: repairHistoryFields,
+    isUnspawnedBoss: isUnspawnedBoss,
     SURVIVE_GRACE_MS: SURVIVE_GRACE_MS,
     prizeWinnerFromSnapshot: prizeWinnerFromSnapshot,
     recordBossHistory: recordBossHistory,
     syncPrizeWinner: syncPrizeWinner,
     closeEndedBosses: closeEndedBosses,
     backfillRaidHistory: backfillRaidHistory,
+    repairRaidHistory: repairRaidHistory,
     safeBossId: safeBossId,
 };

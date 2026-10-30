@@ -478,7 +478,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2279'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2271'), false);
     assert.strictEqual(html.includes('bundle.min.js?v=20261022_v2268'), false);
-    assert.ok(html.includes('global-chat.js?v=20261030_v2436'));
+    assert.ok(html.includes('global-chat.js?v=20261030_v2438'));
+    assert.ok(!html.includes('global-chat.js?v=20261030_v2436'));
     assert.ok(!html.includes('global-chat.js?v=20261029_v2432'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2379'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2378'));
@@ -528,7 +529,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.ok(!html.includes('satoshi-favor.js?v=20261024_v2351'));
     assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2323'));
     assert.strictEqual(html.includes('satoshi-favor.js?v=20261022_v2250'), false);
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261030_v2436/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261030_v2438/g) || []).length, 4);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261030_v2435/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261028_v2415/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2381/g) || []).length, 0);
@@ -558,7 +559,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('quests.js?v=20261022_v2245'), false);
     assert.strictEqual(html.includes('quests.js?v=20261022_openpolish'), false);
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2437'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2438'"));
+    assert.ok(!sw.includes('btc-archive-v2437'));
     assert.ok(!sw.includes('btc-archive-v2436'));
     assert.ok(!sw.includes('btc-archive-v2435'));
     assert.ok(!sw.includes('btc-archive-v2434'));
