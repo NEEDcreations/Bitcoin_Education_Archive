@@ -303,25 +303,56 @@
         describeMeter(line);
     };
 
+    var triviaXpInflight = null;
+    var triviaXpCache = null;
+    var triviaXpCacheAt = 0;
+    var triviaXpCacheUid = '';
+    var TRIVIA_XP_TTL_MS = 60000;
+
+    function triviaCallerUid() {
+        try {
+            if (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                return String(auth.currentUser.uid || '');
+            }
+        } catch (e) {}
+        return '';
+    }
+
     function loadDailyXpMeter() {
         if (!signedIn()) {
             window._paintDailyXpMeter({ signedIn: false });
             return;
         }
-        if (window._serverDailyXp) {
+        var uid = triviaCallerUid();
+        var now = Date.now();
+        if (triviaXpCache && triviaXpCacheUid === uid && (now - triviaXpCacheAt) < TRIVIA_XP_TTL_MS) {
+            window._serverDailyXp = triviaXpCache;
+            window._paintDailyXpMeter(Object.assign({ signedIn: true }, triviaXpCache));
+            return;
+        }
+        if (window._serverDailyXp && triviaXpCacheUid === uid) {
             window._paintDailyXpMeter(Object.assign({ signedIn: true }, window._serverDailyXp));
         } else {
             window._paintDailyXpMeter({ signedIn: true, dailyXp: 0 });
         }
+        if (triviaXpInflight) return;
         try {
             if (typeof firebase === 'undefined' || !firebase.functions) return;
             var callable = firebase.functions().httpsCallable('triviaXpStatus');
-            callable({}).then(function (res) {
+            triviaXpInflight = callable({}).then(function (res) {
                 var data = (res && res.data) || {};
+                if (triviaCallerUid() !== uid) return;
+                triviaXpCache = data;
+                triviaXpCacheAt = Date.now();
+                triviaXpCacheUid = uid;
                 window._serverDailyXp = data;
                 window._paintDailyXpMeter(Object.assign({ signedIn: true }, data));
-            }).catch(function () {});
-        } catch (e) {}
+            }).catch(function () {}).then(function () {
+                triviaXpInflight = null;
+            });
+        } catch (e) {
+            triviaXpInflight = null;
+        }
     }
 
     window._paintTodayCard = function () {

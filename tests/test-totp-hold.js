@@ -382,6 +382,118 @@ test('profile cache keeps display fields and drops email', function () {
     assert.strictEqual(cached.data.idToken, undefined);
 });
 
+function pendingCallables(env) {
+    const state = {
+        totpCalls: 0,
+        emailCalls: 0,
+        totpDone: false,
+        emailDone: false
+    };
+    env.sandbox._serverTotpAllows = function () {
+        state.totpCalls++;
+        return new Promise(function (resolve) {
+            state.totpResolve = function (open) {
+                state.totpDone = true;
+                resolve(open);
+            };
+        });
+    };
+    env.sandbox.firebase.functions = function () {
+        return {
+            httpsCallable: function (name) {
+                return function () {
+                    if (name !== 'syncEmailChange') return Promise.resolve({ data: {} });
+                    state.emailCalls++;
+                    return new Promise(function (resolve) {
+                        state.emailResolve = function (body) {
+                            state.emailDone = true;
+                            resolve({ data: body || {} });
+                        };
+                    });
+                };
+            }
+        };
+    };
+    return state;
+}
+
+function profileDoc(totp, today) {
+    return {
+        exists: true,
+        data: function () {
+            return {
+                username: 'MeasurePleb',
+                points: 2500,
+                totpEnabled: totp,
+                tosVersion: '2026-10-23',
+                lastVisit: today
+            };
+        }
+    };
+}
+
+function signIn(env) {
+    env.authObj.currentUser = {
+        uid: 'userUid123456',
+        isAnonymous: false,
+        getIdTokenResult: async function () { return { claims: {} }; }
+    };
+}
+
+test('a profile without 2FA renders before totpStatus and syncEmailChange resolve', async function () {
+    const env = boot();
+    const state = pendingCallables(env);
+    signIn(env);
+    const pending = env.sandbox.loadUser('userUid123456', profileDoc(false, env.today));
+    const bar = env.ui.nodes.rankBar;
+    assert.ok(String(bar.innerHTML).indexOf('MeasurePleb') !== -1, bar.innerHTML);
+    assert.strictEqual(state.totpCalls, 1);
+    assert.strictEqual(state.emailCalls, 1);
+    assert.strictEqual(state.totpDone, false);
+    assert.strictEqual(state.emailDone, false);
+    assert.strictEqual(env.sandbox.challenges, 0);
+    state.totpResolve(true);
+    state.emailResolve({});
+    await pending;
+    assert.ok(String(bar.innerHTML).indexOf('MeasurePleb') !== -1);
+    assert.strictEqual(env.sandbox._btcTotpHold, false);
+    assert.strictEqual(env.sandbox.challenges, 0);
+});
+
+test('a profile without 2FA hides when the parallel status says blocked', async function () {
+    const env = boot();
+    const state = pendingCallables(env);
+    signIn(env);
+    const pending = env.sandbox.loadUser('userUid123456', profileDoc(false, env.today));
+    const bar = env.ui.nodes.rankBar;
+    assert.ok(String(bar.innerHTML).indexOf('MeasurePleb') !== -1, 'painted before the status call finished');
+    assert.strictEqual(state.totpDone, false);
+    state.totpResolve(false);
+    await pending;
+    assert.strictEqual(env.sandbox.challenges, 1);
+    assert.strictEqual(vm.runInContext('currentUser', env.sandbox), null);
+    assert.strictEqual(String(bar.innerHTML).indexOf('MeasurePleb'), -1);
+    assert.strictEqual(env.sandbox._btcTotpHold, true);
+});
+
+test('a 2FA profile still waits for totpStatus before it renders', async function () {
+    const env = boot();
+    const state = pendingCallables(env);
+    signIn(env);
+    const pending = env.sandbox.loadUser('userUid123456', profileDoc(true, env.today));
+    const bar = env.ui.nodes.rankBar;
+    assert.strictEqual(String(bar.innerHTML).indexOf('MeasurePleb'), -1, bar.innerHTML);
+    assert.strictEqual(state.totpCalls, 1);
+    assert.strictEqual(state.totpDone, false);
+    assert.strictEqual(state.emailCalls, 0);
+    state.totpResolve(true);
+    await pending;
+    assert.ok(String(bar.innerHTML).indexOf('MeasurePleb') !== -1, bar.innerHTML);
+    assert.strictEqual(state.emailCalls, 1);
+    assert.strictEqual(state.emailDone, false);
+    state.emailResolve({});
+});
+
 Promise.all(pending).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);
