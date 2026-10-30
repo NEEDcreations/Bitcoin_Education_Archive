@@ -14,9 +14,27 @@ function read(name) {
 
 let passed = 0;
 let failed = 0;
+const pending = [];
 function test(name, fn) {
-    try { fn(); console.log('✅ ' + name); passed++; }
-    catch (e) { console.log('❌ ' + name + ': ' + (e && e.message ? e.message : e)); failed++; }
+    let run;
+    try { run = fn(); }
+    catch (e) {
+        console.log('❌ ' + name + ': ' + (e && e.message ? e.message : e));
+        failed++;
+        return;
+    }
+    if (run && typeof run.then === 'function') {
+        pending.push(run.then(function () {
+            console.log('✅ ' + name);
+            passed++;
+        }, function (e) {
+            console.log('❌ ' + name + ': ' + (e && e.message ? e.message : e));
+            failed++;
+        }));
+        return;
+    }
+    console.log('✅ ' + name);
+    passed++;
 }
 
 const NOW = Date.parse('2026-10-30T16:00:00Z');
@@ -270,5 +288,106 @@ test('rules deny client writes and the page reads one doc per tab', () => {
     assert.strictEqual(read('index.html'), read('404.html'));
 });
 
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-if (failed) process.exit(1);
+function memoryDb(initial) {
+    const store = Object.assign({}, initial);
+    function snapOf(path) {
+        const id = path.slice(path.lastIndexOf('/') + 1);
+        const data = Object.prototype.hasOwnProperty.call(store, path) ? store[path] : undefined;
+        return {
+            id: id,
+            exists: data != null,
+            data: function () { return data; }
+        };
+    }
+    function ref(path) {
+        return {
+            id: path.slice(path.lastIndexOf('/') + 1),
+            path: path,
+            get: async function () { return snapOf(path); },
+            set: async function (data) { store[path] = data; }
+        };
+    }
+    function statsQuery() {
+        const rows = Object.keys(store).filter(function (path) {
+            return path.indexOf('quest_lb_stats/') === 0;
+        }).map(function (path) {
+            return { id: path.slice('quest_lb_stats/'.length), data: function () { return store[path]; } };
+        });
+        return {
+            get: async function () {
+                return { forEach: function (fn) { rows.forEach(fn); } };
+            }
+        };
+    }
+    const limited = { limit: function () { return statsQuery(); } };
+    return {
+        store: store,
+        getAll: function () {
+            const refs = Array.prototype.slice.call(arguments);
+            return Promise.resolve(refs.map(function (item) { return snapOf(item.path); }));
+        },
+        collection: function (name) {
+            return {
+                doc: function (id) { return ref(name + '/' + id); },
+                orderBy: function () { return limited; },
+                where: function () { return { orderBy: function () { return limited; } }; }
+            };
+        }
+    };
+}
+
+test('refresh keeps a packed percent instead of writing 0', async () => {
+    const week = board.weekKey(NOW);
+    const month = board.monthKey(NOW);
+    const packed = board.packPeriod('alltime', [
+        { rank: 1, username: 'Ada', passes: 6, pct: 80, profilePic: '' }
+    ], NOW, {});
+    assert.strictEqual(packed.rows[0].pct, 80);
+    assert.strictEqual(packed.rows[0].passes, 6);
+
+    const db = memoryDb({
+        'quest_lb_stats/ada': {
+            attempts: 10,
+            passedAttempts: 8,
+            passes: 6,
+            reachedAt: MONDAY,
+            passed: {},
+            weekKey: week,
+            weekAttempts: 4,
+            weekPassedAttempts: 3,
+            weekPasses: 2,
+            weekReachedAt: MONDAY,
+            weekPassed: {},
+            monthKey: month,
+            monthAttempts: 5,
+            monthPassedAttempts: 4,
+            monthPasses: 3,
+            monthReachedAt: MONDAY,
+            monthPassed: {},
+            live: true,
+            updatedAt: NOW
+        },
+        'users/ada': { username: 'Ada', profilePic: '', ghostMode: false }
+    });
+    const result = await board.refresh(db, NOW, { force: true });
+    assert.strictEqual(result.skipped, false);
+    const all = db.store['stats/quest_leaderboard_alltime'];
+    const wk = db.store['stats/quest_leaderboard_week'];
+    const mo = db.store['stats/quest_leaderboard_month'];
+    assert.strictEqual(all.rows[0].username, 'Ada');
+    assert.strictEqual(all.rows[0].passes, 6);
+    assert.strictEqual(all.rows[0].pct, 80);
+    assert.strictEqual(wk.rows[0].pct, 75);
+    assert.strictEqual(wk.rows[0].passes, 2);
+    assert.strictEqual(mo.rows[0].pct, 80);
+    assert.strictEqual(mo.rows[0].passes, 3);
+    assert.strictEqual(JSON.stringify(all).indexOf('ada'), -1);
+});
+
+function finish() {
+    console.log('\n' + passed + ' passed, ' + failed + ' failed');
+    if (failed) process.exit(1);
+}
+
+if (pending.length) Promise.all(pending).then(finish, finish);
+else finish();
