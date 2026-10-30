@@ -928,7 +928,7 @@ function auth(uid, extras) {
     test('the client calls the server wipe and does not delete Firestore itself', function() {
         const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
         assert.ok(ranking.includes('z-index:450000'));
-        assert.ok(ranking.includes('z-index:490000'));
+        assert.ok(ranking.includes('z-index:2200010'));
         assert.ok(ranking.includes('html += accountEmailCardHtml(user)'));
         assert.ok(ranking.includes('html += accountDeleteRowHtml(user)'));
         assert.ok(ranking.includes('id="accountEmailCard"'));
