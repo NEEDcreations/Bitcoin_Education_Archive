@@ -10,6 +10,25 @@ const reset = require(path.join(__dirname, '..', 'functions/scripts/reset_nacho_
 
 const docs = Object.create(null);
 const sets = [];
+const updates = [];
+
+function sentNachoSources(files) {
+    const found = {};
+    files.forEach(function (file) {
+        let src = fs.readFileSync(file, 'utf8');
+        src = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:\\])\/\/.*$/gm, '$1');
+        let match;
+        const typeRe = /type:\s*'([A-Za-z0-9+]+)'/g;
+        while ((match = typeRe.exec(src))) {
+            if (match[1] === 'playlist' || match[1] === 'track') continue;
+            found[match[1]] = true;
+        }
+        const callRe = /(?:nachoTrackTopic|reply)\([\s\S]{0,180}?,\s*'([A-Za-z0-9+]+)'\s*\)/g;
+        while ((match = callRe.exec(src))) found[match[1]] = true;
+        if (/source\s*\|\|\s*'unknown'/.test(src)) found.unknown = true;
+    });
+    return Object.keys(found).sort();
+}
 
 function apply(pathKey, data, merge) {
     const cur = merge && docs[pathKey] ? Object.assign({}, docs[pathKey]) : {};
@@ -55,6 +74,26 @@ function ref(pathKey) {
     };
 }
 
+function nestUpdate(args) {
+    const data = {};
+    for (let i = 0; i < args.length; i += 2) {
+        const key = args[i];
+        const value = args[i + 1];
+        if (key && key.segments) {
+            let cur = data;
+            for (let s = 0; s < key.segments.length - 1; s++) {
+                const seg = key.segments[s];
+                if (!cur[seg] || typeof cur[seg] !== 'object') cur[seg] = {};
+                cur = cur[seg];
+            }
+            cur[key.segments[key.segments.length - 1]] = value;
+        } else {
+            data[key] = value;
+        }
+    }
+    return data;
+}
+
 const db = {
     collection: function (name) {
         return { doc: function (id) { return ref(name + '/' + id); } };
@@ -64,7 +103,13 @@ const db = {
         const tx = {
             get: async function (docRef) { return snap(docRef.path); },
             set: function (docRef, data) { pending.push({ path: docRef.path, data: data, merge: false }); },
-            update: function (docRef, data) { pending.push({ path: docRef.path, data: data, merge: true }); },
+            update: function (docRef, dataOrPath) {
+                const raw = Array.prototype.slice.call(arguments, 1);
+                const varargs = typeof dataOrPath === 'string' || (dataOrPath && dataOrPath.segments);
+                const data = varargs ? nestUpdate(raw) : dataOrPath;
+                updates.push(raw);
+                pending.push({ path: docRef.path, data: data, merge: true, raw: raw });
+            },
         };
         const result = await fn(tx);
         pending.forEach(function (write) { apply(write.path, write.data, write.merge); });
@@ -75,6 +120,9 @@ const db = {
 function FieldValue() {}
 FieldValue.serverTimestamp = function () { return { _ts: true }; };
 FieldValue.increment = function (n) { return { _inc: n }; };
+function FieldPath() {
+    this.segments = Array.prototype.slice.call(arguments);
+}
 function HttpsError(code, message) {
     const err = new Error(message);
     err.code = code;
@@ -83,7 +131,7 @@ function HttpsError(code, message) {
 
 let now = 1_700_000_000_000;
 const record = analytics.createRecordNachoAnalytics({
-    admin: { firestore: { FieldValue: FieldValue } },
+    admin: { firestore: { FieldValue: FieldValue, FieldPath: FieldPath } },
     db: db,
     HttpsError: HttpsError,
     now: function () { return now; },
@@ -163,6 +211,75 @@ function signedIn(uid) {
     assert.strictEqual(docs['stats/nacho-analytics'].topics.lightning, 1);
     assert.strictEqual(docs['stats/nacho-analytics'].topics.other, 1);
 
+    const plus = await record({
+        kind: 'question',
+        topic: 'basics',
+        source: 'ai+kb',
+        eventId: 'question03',
+    }, signedIn('ada'));
+    assert.strictEqual(plus.counted, true);
+    assert.strictEqual(docs['stats/nacho-analytics'].sources['ai+kb'], 1);
+    assert.strictEqual(docs['stats/nacho-analytics'].sources.ai, undefined);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(docs['stats/nacho-analytics'], 'sources.ai+kb'), false);
+    assert.strictEqual(docs['stats/nacho-analytics'].sources['ai+kb.pwned'], undefined);
+    const plusUpdate = updates[updates.length - 1];
+    const sourcePath = plusUpdate.filter(function (part) { return part && part.segments && part.segments[0] === 'sources'; })[0];
+    assert.deepStrictEqual(sourcePath.segments, ['sources', 'ai+kb']);
+    plusUpdate.forEach(function (part) {
+        if (typeof part === 'string') assert.strictEqual(part.indexOf('sources.'), -1);
+    });
+
+    const sent = sentNachoSources([
+        path.join(root, 'nacho-qa.js'),
+        path.join(root, 'app.js'),
+    ]);
+    sent.forEach(function (name) {
+        const parsed = analytics.normalizeEvent({
+            kind: 'question',
+            eventId: 'sourceok01',
+            topic: 'basics',
+            source: name,
+        });
+        assert.strictEqual(parsed.event.source, name, name + ' must stay on the allowlist');
+    });
+    ['ai+kb', 'site', 'websearch', 'math', 'deepsearch', 'statement', 'live'].forEach(function (name) {
+        assert.ok(sent.indexOf(name) !== -1, name + ' is sent by the client');
+    });
+    assert.strictEqual(analytics.normalizeEvent({
+        kind: 'question', eventId: 'sourceok01', source: 'ai+kb.extra', topic: 'basics',
+    }).event.source, 'unknown');
+    const prototypeNames = ['constructor', '__proto__', 'toString', 'hasOwnProperty'];
+    for (let i = 0; i < prototypeNames.length; i++) {
+        const name = prototypeNames[i];
+        const parsed = analytics.normalizeEvent({
+            kind: 'question',
+            eventId: 'protook01',
+            topic: name,
+            source: name,
+        });
+        assert.strictEqual(parsed.ok, true, name);
+        assert.strictEqual(parsed.event.source, 'unknown', 'source ' + name);
+        assert.strictEqual(parsed.event.topic, 'other', 'topic ' + name);
+        const saved = await record({
+            kind: 'question',
+            topic: name,
+            source: name,
+            eventId: ('proto_' + name + '_01').replace(/[^A-Za-z0-9_-]/g, '_'),
+        }, signedIn('ada'));
+        assert.strictEqual(saved.counted, true, name);
+        const stats = docs['stats/nacho-analytics'];
+        assert.strictEqual(Object.prototype.hasOwnProperty.call(stats.sources, name), false, 'sources.' + name);
+        assert.strictEqual(Object.prototype.hasOwnProperty.call(stats.topics, name), false, 'topics.' + name);
+        const sourcePath = updates[updates.length - 1].filter(function (part) {
+            return part && part.segments && part.segments[0] === 'sources';
+        })[0];
+        const topicPath = updates[updates.length - 1].filter(function (part) {
+            return part && part.segments && part.segments[0] === 'topics';
+        })[0];
+        assert.deepStrictEqual(sourcePath.segments, ['sources', 'unknown'], name);
+        assert.deepStrictEqual(topicPath.segments, ['topics', 'other'], name);
+    }
+
     const up = await record({ kind: 'vote', rating: 1, eventId: 'vote_msg_up' }, signedIn('ada'));
     assert.strictEqual(up.counted, true);
     assert.strictEqual(docs['stats/nacho-analytics'].upvotes, 1);
@@ -185,7 +302,7 @@ function signedIn(uid) {
     }, signedIn('ada')), function (err) {
         return err.code === 'resource-exhausted';
     });
-    assert.strictEqual(docs['stats/nacho-analytics'].totalQuestions, 2);
+    assert.strictEqual(docs['stats/nacho-analytics'].totalQuestions, 7);
 
     const capped = Object.assign({}, docs['rate_limits/nacho_analytics_ada'], {
         count: 0,
