@@ -1991,10 +1991,15 @@ service cloud.firestore {
     }
 
     // Cumulative poll totals. Clients may read the community number.
-    // Creates and edits are denied. Only the Admin SDK writes a tally.
+    // Creates and edits are denied. dailyPollVote increments the tally.
     match /poll_cumulative/{pollId} {
       allow read: if true;
       allow create, update, delete: if false;
+    }
+
+    // Trivia answer key. Admin SDK only. Clients cannot read or write it.
+    match /private_banks/{docId} {
+      allow read, write: if false;
     }
 
     // Trivia cumulative stats. The tally is written by answerTrivia. Clients can read it.

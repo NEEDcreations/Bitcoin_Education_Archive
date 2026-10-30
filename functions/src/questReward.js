@@ -2,9 +2,9 @@
 
 // Server-side grading for daily trivia and quiz quests.
 // The browser is hostile: answer keys, indexes, and "correct" flags it sends
-// are ignored. Points are decided from functions/reward-banks.json, which
-// build.sh copies from functions/src/trivia-bank.js, quests.js, and
-// learning-quests.js. The public trivia file has no answer index.
+// are ignored. Quiz points come from functions/reward-banks.json. The trivia
+// rows in that file are questions and options only. answerTrivia passes the
+// key it loaded from Firestore as input.trivia. A missing key is not graded.
 //
 // Trivia and quiz XP use the shared daily counter: full through 500, half
 // through 900, then a quarter until 1,000, on the offset-day daily_points
@@ -158,8 +158,14 @@ function triviaQuestionFrom(item) {
     };
 }
 
-function triviaQuestion(index) {
-    return triviaQuestionFrom(banks.trivia[index]);
+function triviaRows(src) {
+    if (src && Array.isArray(src.trivia) && src.trivia.length) return src.trivia;
+    return banks.trivia;
+}
+
+function triviaQuestion(index, list) {
+    const rows = list || banks.trivia;
+    return triviaQuestionFrom(rows[index]);
 }
 
 function triviaLength() {
@@ -293,8 +299,9 @@ function clientQuestionText(src) {
 function selectTriviaQuestion(src, now) {
     const today = offsetDateKey(now);
     const questionIndex = Number(src.questionIndex);
-    const currentIndex = triviaIndexForDay(today);
-    const currentQ = triviaQuestion(currentIndex);
+    const rows = triviaRows(src);
+    const currentIndex = triviaIndexForDay(today, rows.length);
+    const currentQ = triviaQuestion(currentIndex, rows);
     const prev = activePrevious(now, src.prev);
     const prevLen = prev && Array.isArray(prev.trivia) ? prev.trivia.length : 0;
     const prevIndex = prevLen ? triviaIndexForDay(today, prevLen) : -1;

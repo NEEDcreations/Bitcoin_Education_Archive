@@ -39,7 +39,9 @@ function createPollVote(opts) {
         const voteRef = db.collection('polls').doc(day).collection('votes').doc(uid);
         const proofRef = userRef.collection('daily_action_counts').doc(day + '_poll_vote');
         const dailyRef = userRef.collection('daily_points').doc(day);
-        const tallyRef = db.collection('poll_votes').doc((today.poll.id || 'poll') + '_' + day);
+        const tallyId = (today.poll.id || 'poll') + '_' + day;
+        const tallyRef = db.collection('poll_votes').doc(tallyId);
+        const cumulativeRef = db.collection('poll_cumulative').doc(tallyId);
         const ledgerRef = db.collection('faucet_ledger').doc(uid);
 
         const result = await db.runTransaction(async function (t) {
@@ -85,6 +87,13 @@ function createPollVote(opts) {
                 total: prevVotes[0] + prevVotes[1] + prevVotes[2] + prevVotes[3],
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
+            const cumulativePatch = {
+                total: admin.firestore.FieldValue.increment(1),
+                pollId: today.poll.id || '',
+                day: day,
+            };
+            cumulativePatch['option_' + chosen] = admin.firestore.FieldValue.increment(1);
+            t.set(cumulativeRef, cumulativePatch, { merge: true });
             t.update(userRef, update);
             if (split.awarded > 0) {
                 t.set(dailyRef, { total: split.dailyXp }, { merge: true });

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 
-// Copies the trivia key, quiz, and learning-quest banks into
-// functions/reward-banks.json. Cloud Functions grade from that file.
-// The trivia key is functions/src/trivia-bank.js. This script also writes
-// data/trivia-bank.js with questions and options only.
+// Copies quiz and learning-quest banks into functions/reward-banks.json.
+// Trivia rows in that file are questions and options only. The answer key
+// is not written here. answerTrivia loads it from Firestore at runtime.
+// This script also writes data/trivia-bank.js with questions and options only.
 // build.sh runs this. tests/test-quest-reward.js fails if the committed
 // file drifts from those sources.
 //
@@ -84,12 +84,19 @@ function questRows(list) {
     return rows;
 }
 
-function publicTriviaBody(trivia) {
-    const rows = trivia.map(function(item) {
-        return { q: item.q, options: item.options.slice() };
+function triviaPublic(list) {
+    if (!Array.isArray(list)) return [];
+    return list.map(function(item) {
+        return {
+            q: item && item.q,
+            options: item && Array.isArray(item.options) ? item.options.slice() : [],
+        };
     });
+}
+
+function publicTriviaBody(trivia) {
     return '// Questions and options only. answerTrivia grades the choice and then returns the explanation.\n'
-        + 'var TRIVIA_BANK=' + JSON.stringify(rows) + ';\n';
+        + 'var TRIVIA_BANK=' + JSON.stringify(triviaPublic(trivia)) + ';\n';
 }
 
 function buildBanks() {
@@ -113,17 +120,9 @@ function buildBanks() {
         if (!item || typeof item.q !== 'string' || !Array.isArray(item.options) || item.options.length !== 4) {
             throw new Error('Malformed trivia question at ' + i);
         }
-        if (!Number.isInteger(item.answer) || item.answer < 0 || item.answer > 3) {
-            throw new Error('Trivia answer out of range at ' + i);
-        }
-        if (typeof item.explanation !== 'string' || !item.explanation) {
-            throw new Error('Trivia explanation missing at ' + i);
-        }
         return {
             q: item.q,
             options: item.options.slice(),
-            answer: item.answer,
-            explanation: item.explanation,
         };
     });
 
@@ -145,7 +144,7 @@ function buildBanks() {
 
 function bankBody(doc) {
     if (!doc || !Array.isArray(doc.trivia) || !doc.quests || !doc.learning) return null;
-    return { trivia: doc.trivia, quests: doc.quests, learning: doc.learning };
+    return { trivia: triviaPublic(doc.trivia), quests: doc.quests, learning: doc.learning };
 }
 
 // Previous committed banks, kept for GRACE_MS after a content change.
@@ -193,5 +192,6 @@ module.exports = {
     buildBanks: buildBanks,
     snapshotPrevious: snapshotPrevious,
     publicTriviaBody: publicTriviaBody,
+    triviaPublic: triviaPublic,
     GRACE_MS: GRACE_MS,
 };

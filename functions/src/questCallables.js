@@ -12,6 +12,7 @@
 const functionsV1 = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const reward = require('./questReward');
+const { loadTriviaKey } = require('./triviaKey');
 const rewardNotify = require('./rewardNotify');
 const { DAILY_CAP, TAPER_FULL_UNTIL, TAPER_HALF_UNTIL } = require('./dailyXp');
 const { grantFamily, familyFor } = require('./grantBadge');
@@ -83,6 +84,24 @@ const answerTrivia = onCall(async (data, context) => {
     const dayKey = reward.offsetDateKey(now);
     const payload = data || {};
 
+    let triviaKey = null;
+    try {
+        triviaKey = await loadTriviaKey(db);
+    } catch (err) {
+        triviaKey = null;
+    }
+    // No key: do not grade, do not pay, and do not describe the failure.
+    if (!triviaKey) {
+        return {
+            success: false,
+            correct: false,
+            awarded: 0,
+            graded: false,
+            statsRecorded: false,
+            reason: 'unavailable',
+        };
+    }
+
     const userRef = db.collection('users').doc(uid);
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
     const rateRef = db.collection('rate_limits').doc('trivia_' + uid);
@@ -111,6 +130,7 @@ const answerTrivia = onCall(async (data, context) => {
             banned: banned,
             dailyUsed: alreadyClaimed ? 0 : dailyUsed,
             user: user,
+            trivia: triviaKey,
         });
         const awarded = (graded.ok && !alreadyClaimed) ? (graded.awarded || 0) : 0;
         const pointsBefore = user.points || 0;

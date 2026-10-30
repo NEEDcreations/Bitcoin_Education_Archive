@@ -5282,6 +5282,10 @@ window.triviaAnswer = function(chosenIdx) {
             chosen: chosenText
         }).then(function(res) {
             var d = (res && res.data) || {};
+            if (d.reason === 'unavailable') {
+                _abortTrivia('Try again later.');
+                return;
+            }
             if (d.banned === true || d.reason === 'banned') {
                 _abortTrivia('Trivia is unavailable on this account.');
                 return;

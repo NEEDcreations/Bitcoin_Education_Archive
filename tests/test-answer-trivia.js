@@ -11,6 +11,9 @@ const path = require('path');
 
 const root = path.join(__dirname, '..');
 const reward = require(path.join(root, 'functions/src/questReward'));
+const triviaKey = require(path.join(root, 'functions/src/triviaKey'));
+const FAKE_TRIVIA = require('./fake-trivia-key');
+triviaKey.useTriviaKeyForTests(FAKE_TRIVIA);
 
 const state = { docs: Object.create(null), writes: [] };
 
@@ -110,8 +113,8 @@ function reset(seed) {
 function todayPayload(chosen, extra) {
     const now = Date.now();
     const dayKey = reward.offsetDateKey(now);
-    const questionIndex = reward.triviaIndexForDay(dayKey);
-    const question = reward.triviaQuestion(questionIndex);
+    const questionIndex = reward.triviaIndexForDay(dayKey, FAKE_TRIVIA.length);
+    const question = FAKE_TRIVIA[questionIndex];
     return {
         dayKey: dayKey,
         questionIndex: questionIndex,
@@ -165,11 +168,11 @@ function assertNoAnswerWrites() {
 test('gradeTrivia counts a valid optionId and drops a mismatch', function () {
     const now = Date.now();
     const dayKey = reward.offsetDateKey(now);
-    const questionIndex = reward.triviaIndexForDay(dayKey);
-    const question = reward.triviaQuestion(questionIndex);
+    const questionIndex = reward.triviaIndexForDay(dayKey, FAKE_TRIVIA.length);
+    const question = FAKE_TRIVIA[questionIndex];
     const correctText = question.options[question.answer];
     const other = question.options.find(function (option) { return option !== correctText; });
-    const base = { dayKey: dayKey, questionIndex: questionIndex, q: question.q, now: now, dailyUsed: 0 };
+    const base = { dayKey: dayKey, questionIndex: questionIndex, q: question.q, now: now, dailyUsed: 0, trivia: FAKE_TRIVIA };
     const idOnly = reward.gradeTrivia(Object.assign({}, base, { chosen: { optionId: reward.optionId(correctText) } }));
     assert.strictEqual(idOnly.correct, true);
     assert.strictEqual(idOnly.optionIndex, question.answer);
@@ -216,6 +219,22 @@ test('an optionId-only answer counts that bank slot', async function () {
     assert.strictEqual(result.correct, true);
     assert.strictEqual(result.statsRecorded, true);
     assertCountedOnce(pack, pack.question.answer);
+});
+
+test('a missing trivia key pays nothing and does not reveal an answer', async function () {
+    triviaKey.useTriviaKeyForTests(null);
+    const pack = todayPayload('Red');
+    reset({ 'users/nokey': { points: 10 } });
+    const result = await answerTrivia.run(pack.data, context('nokey'));
+    assert.strictEqual(result.success, false);
+    assert.strictEqual(result.reason, 'unavailable');
+    assert.strictEqual(result.awarded, 0);
+    assert.strictEqual(result.correct, false);
+    assert.strictEqual(result.graded, false);
+    assert.strictEqual(result.explanation, undefined);
+    assert.strictEqual(result.answerIndex, undefined);
+    assertNoAnswerWrites();
+    triviaKey.useTriviaKeyForTests(FAKE_TRIVIA);
 });
 
 test('a banned user does not count and cannot read the answer', async function () {
@@ -362,6 +381,43 @@ test('a non-string optionId does not choose a slot', async function () {
     assert.strictEqual(ignored.statsRecorded, false);
     assert.strictEqual(ignored.awarded, 0);
     assertNotCounted();
+});
+
+test('the trivia key is cached in memory and a miss is not cached', async function () {
+    triviaKey.resetTriviaKeyForTests();
+    const pub = FAKE_TRIVIA.map(function (row) {
+        return { q: row.q, options: row.options.slice() };
+    });
+    let gets = 0;
+    function dbWith(snap) {
+        return {
+            collection: function () {
+                return {
+                    doc: function () {
+                        return {
+                            get: async function () {
+                                gets++;
+                                return snap;
+                            },
+                        };
+                    },
+                };
+            },
+        };
+    }
+    const hit = dbWith({ exists: true, data: function () { return { questions: FAKE_TRIVIA }; } });
+    const first = await triviaKey.loadTriviaKey(hit, pub, 1000);
+    const second = await triviaKey.loadTriviaKey(hit, pub, 2000);
+    assert.strictEqual(gets, 1);
+    assert.strictEqual(first[0].answer, FAKE_TRIVIA[0].answer);
+    assert.strictEqual(second[1].explanation, FAKE_TRIVIA[1].explanation);
+    triviaKey.clearTriviaKeyCache();
+    gets = 0;
+    const miss = dbWith({ exists: false, data: function () { return null; } });
+    assert.strictEqual(await triviaKey.loadTriviaKey(miss, pub, 5000), null);
+    assert.strictEqual(await triviaKey.loadTriviaKey(miss, pub, 5001), null);
+    assert.strictEqual(gets, 2);
+    triviaKey.useTriviaKeyForTests(FAKE_TRIVIA);
 });
 
 chain.then(function () {

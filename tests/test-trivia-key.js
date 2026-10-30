@@ -11,7 +11,10 @@ const vm = require('vm');
 
 const root = path.join(__dirname, '..');
 const reward = require(path.join(root, 'functions/src/questReward'));
+const triviaKey = require(path.join(root, 'functions/src/triviaKey'));
+const uploader = require(path.join(root, 'functions/scripts/upload-trivia-key'));
 const { publicTriviaBody } = require(path.join(root, 'functions/build-reward-banks'));
+const FAKE_TRIVIA = require('./fake-trivia-key');
 
 let passed = 0;
 let failed = 0;
@@ -68,49 +71,43 @@ function servedFiles() {
     return out;
 }
 
-test('served client files do not contain trivia answers or explanations', function () {
+test('committed trivia files are questions and options only', function () {
     const pub = loadBank('data/trivia-bank.js');
     const priv = loadBank('functions/src/trivia-bank.js');
-    assert.strictEqual(pub.length, priv.length);
+    assert.strictEqual(pub.length, 158);
+    assert.strictEqual(priv.length, pub.length);
     assert.strictEqual(read('data/trivia-bank.js'), publicTriviaBody(priv));
-    const counts = { 0: 0, 1: 0, 2: 0, 3: 0 };
     pub.forEach(function (row, i) {
         assert.deepStrictEqual(Object.keys(row).sort(), ['options', 'q']);
+        assert.deepStrictEqual(Object.keys(priv[i]).sort(), ['options', 'q']);
         assert.strictEqual(row.q, priv[i].q);
         assert.deepStrictEqual(row.options, priv[i].options);
-        assert.ok(Number.isInteger(priv[i].answer) && priv[i].answer >= 0 && priv[i].answer < 4);
-        assert.strictEqual(priv[i].options[priv[i].answer] !== undefined, true);
-        assert.ok(priv[i].explanation && priv[i].explanation.length > 20);
-        counts[priv[i].answer]++;
+        assert.strictEqual(row.options.length, 4);
     });
-    // The old bank put the correct choice first on 157 of 158 rows.
-    Object.keys(counts).forEach(function (slot) {
-        assert.ok(counts[slot] < 60, 'answer slot ' + slot + ' has ' + counts[slot]);
-    });
-    const files = servedFiles();
-    assert.ok(files.indexOf('data/trivia-bank.js') !== -1);
-    assert.ok(files.indexOf('quests.js') !== -1);
-    assert.ok(files.indexOf('index.html') !== -1);
-    assert.strictEqual(files.indexOf('functions/src/trivia-bank.js'), -1);
-    const needles = priv.map(function (row) { return row.explanation; });
-    files.forEach(function (rel) {
-        const text = read(rel);
-        needles.forEach(function (explanation) {
-            assert.ok(text.indexOf(explanation) === -1, rel + ' contains a trivia explanation');
+    function assertTriviaPublic(rows, name) {
+        rows.forEach(function (row, i) {
+            assert.deepStrictEqual(Object.keys(row).sort(), ['options', 'q'], name + ' ' + i);
         });
-    });
-    const publicText = read('data/trivia-bank.js');
-    assert.ok(!/"answer"\s*:/.test(publicText));
-    assert.ok(!/\bexplanation\s*:/.test(publicText));
+    }
+    const banks = JSON.parse(read('functions/reward-banks.json'));
+    const prev = JSON.parse(read('functions/reward-banks.prev.json'));
+    assertTriviaPublic(banks.trivia, 'reward-banks');
+    assertTriviaPublic(prev.trivia, 'reward-banks.prev');
+    assert.strictEqual(banks.trivia.length, pub.length);
+    const rules = read('firestore.rules');
+    const block = rules.slice(rules.indexOf('match /private_banks/{docId}'), rules.indexOf('match /private_banks/{docId}') + 180);
+    assert.ok(block.includes('allow read, write: if false'));
+    assert.ok(read('.gitignore').includes('functions/private-bank/trivia-key.json'));
+    assert.ok(String(uploader.EXPECTED).endsWith('functions/private-bank/trivia-key.json'));
 });
 
 test('grading returns the explanation only after a real attempt', function () {
     const dayKey = reward.offsetDateKey(Date.now());
-    const index = reward.triviaIndexForDay(dayKey);
-    const question = reward.triviaQuestion(index);
+    const index = reward.triviaIndexForDay(dayKey, FAKE_TRIVIA.length);
+    const question = FAKE_TRIVIA[index];
     const correctText = question.options[question.answer];
     const wrong = question.options.find(function (option) { return option !== correctText; });
-    const base = { dayKey: dayKey, questionIndex: index, q: question.q, now: Date.now(), dailyUsed: 0 };
+    const base = { dayKey: dayKey, questionIndex: index, q: question.q, now: Date.now(), dailyUsed: 0, trivia: FAKE_TRIVIA };
     const right = reward.gradeTrivia(Object.assign({}, base, { chosen: correctText }));
     assert.strictEqual(right.correct, true);
     assert.strictEqual(right.awarded, 50);
@@ -149,6 +146,7 @@ test('guest and offline trivia cannot earn XP', function () {
     assert.ok(start > 0 && end > start);
     const fn = src.slice(start, end);
     assert.ok(fn.includes("httpsCallable('answerTrivia')"));
+    assert.ok(fn.includes('Try again later.'));
     assert.ok(fn.includes("d.reason === 'banned'"));
     assert.ok(fn.indexOf("d.reason === 'banned'") < fn.indexOf('_finishTrivia(d.correct'));
     assert.ok(fn.includes('Trivia is unavailable on this account.'));
@@ -237,6 +235,40 @@ test('guest and offline trivia cannot earn XP', function () {
     sandbox.triviaAnswer(1);
     assert.strictEqual(awards.length, 0);
     assert.strictEqual(store.btc_points, undefined);
+});
+
+test('the uploader plans a fake key and its summary does not contain it', function () {
+    const pub = FAKE_TRIVIA.map(function (row) {
+        return { q: row.q, options: row.options.slice() };
+    });
+    const plan = uploader.planUpload(FAKE_TRIVIA, pub);
+    assert.strictEqual(plan.ok, true);
+    assert.strictEqual(plan.questions, 2);
+    const broken = FAKE_TRIVIA.map(function (row, i) {
+        return i === 0 ? { q: row.q, options: row.options.slice(), answer: 9, explanation: row.explanation } : row;
+    });
+    assert.strictEqual(uploader.planUpload(broken, pub).ok, false);
+    const mismatched = FAKE_TRIVIA.map(function (row, i) {
+        if (i !== 0) return row;
+        return {
+            q: 'Different question?',
+            options: row.options.slice(),
+            answer: row.answer,
+            explanation: row.explanation,
+        };
+    });
+    assert.strictEqual(uploader.planUpload(mismatched, pub).ok, false);
+    const report = JSON.stringify(uploader.summary(plan, false));
+    assert.strictEqual(report.indexOf(FAKE_TRIVIA[0].q), -1);
+    assert.strictEqual(report.indexOf(FAKE_TRIVIA[0].explanation), -1);
+    assert.strictEqual(report.indexOf('Green'), -1);
+    const args = uploader.parseArgs(['functions/private-bank/trivia-key.json', '--apply']);
+    assert.strictEqual(args.apply, true);
+    assert.strictEqual(args.file, 'functions/private-bank/trivia-key.json');
+    assert.strictEqual(uploader.parseArgs(['functions/private-bank/trivia-key.json']).apply, false);
+    const aligned = triviaKey.questionsAligned(FAKE_TRIVIA, pub);
+    assert.strictEqual(aligned.length, 2);
+    assert.strictEqual(triviaKey.questionsAligned(broken, pub), null);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

@@ -192,6 +192,27 @@ const parts = emu.split(':');
         await expect('ATTACK poll_cumulative delete', function () {
             return deleteDoc(doc(user, 'poll_cumulative', 'poll_live'));
         }, false);
+        await env.withSecurityRulesDisabled(async function (ctx) {
+            await setDoc(doc(ctx.firestore(), 'private_banks', 'trivia'), {
+                questions: [{ q: 'Hidden fake question?', options: ['A', 'B', 'C', 'D'], answer: 1, explanation: 'Fake only.' }],
+            });
+        });
+        const anon = env.unauthenticatedContext().firestore();
+        await expect('guest private_banks read', function () {
+            return getDoc(doc(anon, 'private_banks', 'trivia'));
+        }, false);
+        await expect('ATTACK private_banks read', function () {
+            return getDoc(doc(user, 'private_banks', 'trivia'));
+        }, false);
+        await expect('ATTACK private_banks create', function () {
+            return setDoc(doc(user, 'private_banks', 'other'), { questions: [] });
+        }, false);
+        await expect('ATTACK private_banks update', function () {
+            return updateDoc(doc(user, 'private_banks', 'trivia'), { questions: [] });
+        }, false);
+        await expect('ATTACK private_banks delete', function () {
+            return deleteDoc(doc(user, 'private_banks', 'trivia'));
+        }, false);
         await expect('ATTACK market_listing_daily', function () {
             return setDoc(doc(user, 'market_listing_daily', 'user1_2026-10-22'), { n: 0 });
         }, false);

@@ -56,6 +56,7 @@ const TESTS = [
     { name: 'Claimable sats cap', file: 'test-claimable-sats.js' },
     { name: 'Quiz And Trivia Rewards', file: 'test-quest-reward.js' },
     { name: 'Trivia tally transaction', file: 'test-answer-trivia.js' },
+    { name: 'Poll cumulative tally', file: 'test-poll-cumulative.js' },
     { name: 'Trivia answer key stays off the client', file: 'test-trivia-key.js' },
     { name: 'Community result totals', file: 'test-community-results.js' },
     { name: 'Prediction Stats', file: 'test-prediction-stats.js' },
