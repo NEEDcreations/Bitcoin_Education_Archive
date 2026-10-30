@@ -37,28 +37,55 @@ function memStore(seed) {
     };
 }
 
+let activeNodes = null;
 function makeEl(id) {
     const el = {
         id: id || '',
         style: {},
         attrs: {},
         className: '',
-        textContent: '',
-        innerHTML: '',
+        _text: '',
+        _html: '',
         children: [],
+        parentNode: null,
         setAttribute: function (k, v) { this.attrs[k] = String(v); },
         getAttribute: function (k) { return Object.prototype.hasOwnProperty.call(this.attrs, k) ? this.attrs[k] : null; },
         removeAttribute: function (k) { delete this.attrs[k]; },
-        appendChild: function (child) { this.children.push(child); return child; },
+        appendChild: function (child) { child.parentNode = this; this.children.push(child); return child; },
         insertBefore: function (child) { return this.appendChild(child); },
+        removeChild: function (child) {
+            this.children = this.children.filter(function (c) { return c !== child; });
+            if (child) child.parentNode = null;
+            if (child && child.id && activeNodes && activeNodes[child.id] === child) delete activeNodes[child.id];
+            return child;
+        },
+        remove: function () {
+            if (this.parentNode && this.parentNode.removeChild) this.parentNode.removeChild(this);
+        },
         querySelector: function (sel) {
-            if (sel === '.rank-info' && this.innerHTML.indexOf('rank-info') !== -1) return { textContent: this.innerHTML };
+            if (sel === '.rank-info' && String(this.innerHTML).indexOf('rank-info') !== -1) return { textContent: this.innerHTML };
+            if (sel === '[data-streak-count]') {
+                for (var i = 0; i < this.children.length; i++) {
+                    if (this.children[i].getAttribute && this.children[i].getAttribute('data-streak-count')) return this.children[i];
+                }
+            }
             return null;
         },
         querySelectorAll: function () { return []; },
         addEventListener: function () {},
         removeEventListener: function () {}
     };
+    Object.defineProperty(el, 'textContent', {
+        get: function () { return this._text; },
+        set: function (v) { this._text = String(v == null ? '' : v); this._html = this._text; }
+    });
+    Object.defineProperty(el, 'innerHTML', {
+        get: function () { return this._html; },
+        set: function (v) {
+            this._html = String(v == null ? '' : v);
+            this._text = this._html.replace(/<[^>]*>/g, '');
+        }
+    });
     const classes = {};
     el.classList = {
         add: function (c) { classes[c] = 1; },
@@ -96,6 +123,7 @@ function cacheRecord(extra) {
 function boot() {
     const calls = [];
     const nodes = {};
+    activeNodes = nodes;
     function byId(id) {
         if (!nodes[id]) nodes[id] = makeEl(id);
         return nodes[id];
@@ -116,6 +144,16 @@ function boot() {
     byId('rankBar');
     byId('homeSatsValue');
     byId('userDisplay');
+    byId('homeInvitesTier').textContent = '—';
+    byId('homeInvitesNote').textContent = 'reached Maxi';
+    byId('homeInvitesProgress');
+    byId('homeInvitesOpen');
+    byId('homeWithdrawValue').textContent = '—';
+    byId('homeWithdrawNote').textContent = '—';
+    const body = byId('body');
+    byId('bqMobileStreak').parentNode = body;
+    byId('bqDailyStreakText').parentNode = body;
+    byId('bqDailyStreak').parentNode = body;
     const authObj = {
         currentUser: null,
         isSignInWithEmailLink: function () { return false; },
@@ -198,7 +236,8 @@ function boot() {
     vm.createContext(sandbox);
     vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'ranking.js'), 'utf8'), sandbox, { filename: 'ranking.js' });
     sandbox.initRanking();
-    return { sandbox: sandbox, nodes: nodes, calls: calls, authObj: authObj };
+    sandbox.referralTiers = require('../referral-tiers.js');
+    return { sandbox: sandbox, nodes: nodes, calls: calls, authObj: authObj, byId: byId, doc: doc };
 }
 
 function seed(env, rec) {
@@ -313,10 +352,130 @@ test('IndexedDB uid is the gate and a stale cache still paints', async function 
     };
     const uid = await env.sandbox.readPersistedAuthUid();
     assert.strictEqual(uid, UID);
+    seed(env, cacheRecord());
     assert.strictEqual(env.sandbox.considerOptimisticProfile(uid), true);
     assert.ok(env.nodes.rankBar.innerHTML.indexOf(NAME) !== -1);
     const tenDays = JSON.parse(env.sandbox.localStorage.getItem('btc_profile_cache'));
     assert.ok(Date.now() - tenDays.ts > 86400000);
+});
+
+function plantAccountChrome(env) {
+    const mobile = env.byId('bqMobileStreak');
+    mobile.parentNode = env.nodes.body;
+    mobile.textContent = '🔥3↗';
+    env.nodes.bqMobileStreak = mobile;
+    const daily = env.byId('bqDailyStreakText');
+    daily.parentNode = env.nodes.body;
+    daily.textContent = '🔥 3-day streak';
+    env.nodes.bqDailyStreakText = daily;
+    const row = env.byId('bqDailyStreak');
+    row.parentNode = env.nodes.body;
+    env.nodes.bqDailyStreak = row;
+    env.nodes.homeInvitesTier.textContent = '🎟️ Attendee';
+    env.nodes.homeInvitesNote.textContent = '0 reached Maxi';
+    env.nodes.homeSatsValue.textContent = '250';
+    env.nodes.homeWithdrawValue.textContent = 'Withdraw ›';
+    env.doc.documentElement.classList.add('home-signed-in');
+    env.sandbox.localStorage.setItem('btc_username', NAME);
+}
+
+function assertGuestHome(env) {
+    assert.strictEqual(env.doc.getElementById('bqMobileStreak'), null);
+    assert.strictEqual(env.doc.getElementById('bqDailyStreakText'), null);
+    assert.strictEqual(env.doc.getElementById('bqDailyStreak'), null);
+    assert.strictEqual(env.nodes.homeSatsValue.textContent, '—');
+    assert.strictEqual(env.nodes.homeInvitesTier.textContent, '—');
+    assert.ok(env.nodes.homeInvitesNote.textContent.indexOf('Attendee') === -1);
+    assert.ok(env.nodes.homeInvitesNote.textContent.indexOf('0 reached Maxi') === -1);
+    assert.ok(env.nodes.rankBar.innerHTML.indexOf(NAME) === -1);
+    const btn = (env.nodes.authBtn.textContent || '') + (env.nodes.authBtn.innerHTML || '');
+    assert.ok(btn.indexOf('Create Free Account') !== -1, btn);
+    assert.ok(btn.indexOf('Settings') === -1, btn);
+    assert.ok(btn.indexOf('My Account') === -1, btn);
+    assert.ok(btn.indexOf(NAME) === -1, btn);
+    assert.ok(!env.doc.documentElement.classList.contains('home-signed-in'));
+    assert.strictEqual(env.sandbox.localStorage.getItem('btc_profile_cache'), null);
+}
+
+test('A paint then B auth, and A paint then null, clear the other account home', function () {
+    seed(env, cacheRecord());
+    assert.strictEqual(env.sandbox.considerOptimisticProfile(UID), true);
+    assert.strictEqual(env.nodes.homeInvitesTier.textContent, '—');
+    assert.ok(env.nodes.homeInvitesTier.textContent.indexOf('Attendee') === -1);
+    plantAccountChrome(env);
+    env.authObj.currentUser = { uid: OTHER, isAnonymous: false, displayName: '' };
+    const mismatch = env.sandbox.reconcileOptimisticAuth({ uid: OTHER, isAnonymous: false }, false);
+    assert.strictEqual(mismatch.action, 'mismatch');
+    assertGuestHome(env);
+
+    seed(env, cacheRecord());
+    assert.strictEqual(env.sandbox.considerOptimisticProfile(UID), true);
+    plantAccountChrome(env);
+    env.authObj.currentUser = null;
+    const signedOut = env.sandbox.reconcileOptimisticAuth(null, false);
+    assert.strictEqual(signedOut.action, 'signed-out');
+    assertGuestHome(env);
+});
+
+test('anonymous persistence and a missing auth database do not paint', async function () {
+    let opened = 0;
+    env.sandbox.indexedDB = {
+        databases: function () {
+            return Promise.resolve([{ name: 'firebaseLocalStorageDb', version: 1 }]);
+        },
+        open: function () {
+            opened++;
+            var req = {};
+            setTimeout(function () {
+                req.result = {
+                    objectStoreNames: { contains: function () { return true; } },
+                    close: function () {},
+                    transaction: function () {
+                        return {
+                            objectStore: function () {
+                                return {
+                                    get: function () {
+                                        var getReq = {};
+                                        setTimeout(function () {
+                                            getReq.result = { value: { uid: UID, isAnonymous: true } };
+                                            if (getReq.onsuccess) getReq.onsuccess();
+                                        }, 0);
+                                        return getReq;
+                                    }
+                                };
+                            }
+                        };
+                    }
+                };
+                if (req.onsuccess) req.onsuccess();
+            }, 0);
+            return req;
+        }
+    };
+    assert.strictEqual(await env.sandbox.readPersistedAuthUid(), '');
+    assert.ok(opened >= 1);
+
+    opened = 0;
+    env.sandbox.indexedDB = {
+        databases: function () { return Promise.resolve([]); },
+        open: function () { opened++; throw new Error('should not create firebaseLocalStorageDb'); }
+    };
+    assert.strictEqual(await env.sandbox.readPersistedAuthUid(), '');
+    assert.strictEqual(opened, 0);
+
+    let aborted = false;
+    env.sandbox.indexedDB = {
+        open: function () {
+            var req = {};
+            setTimeout(function () {
+                req.transaction = { abort: function () { aborted = true; } };
+                if (req.onupgradeneeded) req.onupgradeneeded({ target: { transaction: req.transaction } });
+            }, 0);
+            return req;
+        }
+    };
+    assert.strictEqual(await env.sandbox.readPersistedAuthUid(), '');
+    assert.strictEqual(aborted, true);
 });
 
 test('loadUser does not await a forced token refresh before the profile UI', function () {

@@ -595,9 +595,6 @@ function readPersistedAuthUid() {
         try { if (typeof indexedDB !== 'undefined') idb = indexedDB; } catch (e) { idb = null; }
         if (!idb && typeof window !== 'undefined') idb = window.indexedDB;
         if (!apiKey || !idb || typeof idb.open !== 'function') { resolve(''); return; }
-        var openReq;
-        try { openReq = idb.open('firebaseLocalStorageDb'); }
-        catch (e) { resolve(''); return; }
         var settled = false;
         function finish(uid) {
             if (settled) return;
@@ -606,31 +603,81 @@ function readPersistedAuthUid() {
             resolve(/^[A-Za-z0-9:_\-]{6,128}$/.test(id) ? id : '');
         }
         var timer = setTimeout(function () { finish(''); }, 800);
-        openReq.onerror = function () { clearTimeout(timer); finish(''); };
-        openReq.onsuccess = function () {
-            clearTimeout(timer);
-            var dbh = openReq.result;
+        function done(uid) { clearTimeout(timer); finish(uid); }
+        function uidFromRow(row) {
+            if (!row) return '';
+            var value = (row.value && typeof row.value === 'object') ? row.value : row;
+            // Anonymous persistence is not a signed-in profile.
+            if (value && value.isAnonymous === true) return '';
+            return (value && value.uid) || row.uid || '';
+        }
+        function readDb(dbh) {
+            if (!dbh) { done(''); return; }
             try {
                 if (!dbh.objectStoreNames || !dbh.objectStoreNames.contains('firebaseLocalStorage')) {
                     try { dbh.close(); } catch (e) {}
-                    finish('');
+                    done('');
                     return;
                 }
                 var tx = dbh.transaction('firebaseLocalStorage', 'readonly');
                 var req = tx.objectStore('firebaseLocalStorage').get('firebase:authUser:' + apiKey + ':[DEFAULT]');
                 req.onsuccess = function () {
-                    var row = req.result;
-                    var uid = '';
-                    if (row) uid = row.uid || (row.value && row.value.uid) || '';
+                    var uid = uidFromRow(req.result);
                     try { dbh.close(); } catch (e) {}
-                    finish(uid);
+                    done(uid);
                 };
-                req.onerror = function () { try { dbh.close(); } catch (e) {} finish(''); };
+                req.onerror = function () { try { dbh.close(); } catch (e) {} done(''); };
             } catch (e) {
                 try { dbh.close(); } catch (e2) {}
-                finish('');
+                done('');
             }
-        };
+        }
+        // Never create or upgrade Firebase's database. A first visit has no row.
+        function readExistingAuthDb() {
+            var openReq;
+            try { openReq = idb.open('firebaseLocalStorageDb'); }
+            catch (e) { done(''); return; }
+            var stopped = false;
+            function stop(uid) {
+                if (stopped) return;
+                stopped = true;
+                done(uid);
+            }
+            openReq.onupgradeneeded = function (ev) {
+                try {
+                    var tx = (ev && ev.target && ev.target.transaction) || openReq.transaction;
+                    if (tx && typeof tx.abort === 'function') tx.abort();
+                } catch (e) {}
+                try { if (openReq.result && openReq.result.close) openReq.result.close(); } catch (e2) {}
+                stop('');
+            };
+            openReq.onerror = function () { stop(''); };
+            openReq.onsuccess = function () {
+                if (stopped) {
+                    try { if (openReq.result && openReq.result.close) openReq.result.close(); } catch (e) {}
+                    return;
+                }
+                readDb(openReq.result);
+            };
+        }
+        if (typeof idb.databases === 'function') {
+            var listed;
+            try { listed = idb.databases(); } catch (e) { listed = null; }
+            if (listed && typeof listed.then === 'function') {
+                listed.then(function (rows) {
+                    var found = false;
+                    var i;
+                    rows = rows || [];
+                    for (i = 0; i < rows.length; i++) {
+                        if (rows[i] && rows[i].name === 'firebaseLocalStorageDb') found = true;
+                    }
+                    if (!found) { done(''); return; }
+                    readExistingAuthDb();
+                }).catch(function () { readExistingAuthDb(); });
+                return;
+            }
+        }
+        readExistingAuthDb();
     });
 }
 
@@ -711,33 +758,10 @@ function clearOptimisticProfile(dropCache) {
     try { clearAuthDisplay(); } catch (e) {}
     if (window.btcAuthDisplay && typeof window.btcAuthDisplay.forceClearProfile === 'function') {
         try { window.btcAuthDisplay.forceClearProfile(); } catch (e) {}
-    } else {
-        try {
-            var bar = document.getElementById('rankBar');
-            if (bar) {
-                bar.textContent = '';
-                bar.innerHTML = '';
-                bar.style.display = 'none';
-                bar.removeAttribute('data-profile-cache');
-                bar.removeAttribute('data-auth-live');
-            }
-            var sats = document.getElementById('homeSatsValue');
-            if (sats) {
-                sats.textContent = '\u2014';
-                sats.removeAttribute('data-profile-cache');
-                sats.removeAttribute('data-auth-live');
-            }
-            var btn = document.getElementById('authBtn');
-            if (btn) {
-                btn.textContent = 'Create Free Account / Sign In';
-                btn.innerHTML = 'Create Free Account / Sign In';
-                btn.removeAttribute('data-auth-live');
-                btn.removeAttribute('data-auth-display');
-            }
-            document.documentElement.classList.remove('home-signed-in');
-            if (document.body) document.body.classList.remove('home-signed-in');
-        } catch (e) {}
     }
+    try { resetOptimisticHomeChrome(); } catch (e) {}
+    // The next updateAuthButton must stay on the guest home while currentUser is null.
+    window._btcHoldGuestUntilProfile = true;
     try { if (typeof updateAuthButton === 'function') updateAuthButton(); } catch (e) {}
 }
 
@@ -3856,7 +3880,9 @@ function paintHomeStrip(snap) {
     var claimNow = Math.min(Number(snap.claimable) || 0, 200, Number(snap.lifetimeLeft) || 0);
     if (satsEl) satsEl.textContent = Number(snap.claimable || 0).toLocaleString();
     var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
-    paintInviteTier(serverMaxiReferralCount(user));
+    // The profile cache has no referral count. Leave the Invites tile on its
+    // placeholder until referral stats arrive.
+    if (!optimisticProfilePending()) paintInviteTier(serverMaxiReferralCount(user));
     var kicker = document.getElementById('homeWithdrawKicker');
     var value = document.getElementById('homeWithdrawValue');
     var note = document.getElementById('homeWithdrawNote');
@@ -4119,9 +4145,74 @@ function openHomeWithdraw() {
 }
 window.openHomeWithdraw = openHomeWithdraw;
 
+function removePaintedNode(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (el.parentNode && el.parentNode.removeChild) el.parentNode.removeChild(el);
+    else if (typeof el.remove === 'function') el.remove();
+}
+
+function resetOptimisticHomeChrome() {
+    removePaintedNode('bqMobileStreak');
+    removePaintedNode('bqDailyStreak');
+    removePaintedNode('bqDailyStreakText');
+    var sats = document.getElementById('homeSatsValue');
+    if (sats) {
+        sats.textContent = '\u2014';
+        sats.removeAttribute('data-profile-cache');
+        sats.removeAttribute('data-auth-live');
+    }
+    var withdraw = document.getElementById('homeWithdrawValue');
+    if (withdraw) withdraw.textContent = '\u2014';
+    var withdrawNote = document.getElementById('homeWithdrawNote');
+    if (withdrawNote) withdrawNote.textContent = '\u2014';
+    var tier = document.getElementById('homeInvitesTier');
+    if (tier) tier.textContent = '\u2014';
+    var note = document.getElementById('homeInvitesNote');
+    if (note) note.textContent = 'reached Maxi';
+    var prog = document.getElementById('homeInvitesProgress');
+    if (prog) prog.textContent = '';
+    var openBtn = document.getElementById('homeInvitesOpen');
+    if (openBtn) openBtn.setAttribute('aria-label', 'Invites');
+    var tile = document.getElementById('homeInvitesTile');
+    if (tile) tile.removeAttribute('data-referral-tier');
+    var bar = document.getElementById('rankBar');
+    if (bar) {
+        bar.textContent = '';
+        if ('innerHTML' in bar) bar.innerHTML = '';
+        bar.style.display = 'none';
+        bar.removeAttribute('data-profile-cache');
+        bar.removeAttribute('data-auth-live');
+    }
+    var shown = document.getElementById('userDisplay');
+    if (shown) {
+        shown.textContent = '';
+        if ('innerHTML' in shown) shown.innerHTML = '';
+        shown.style.display = 'none';
+    }
+    try {
+        document.documentElement.classList.remove('home-signed-in');
+        document.documentElement.removeAttribute('data-auth-display');
+        if (document.body) document.body.classList.remove('home-signed-in');
+    } catch (e) {}
+}
+
 function updateAuthButton() {
     const btn = document.getElementById('authBtn');
     if (!btn) return;
+    if (currentUser) window._btcHoldGuestUntilProfile = false;
+    // Account A was cleared and B's profile is not in yet. Do not keep A's
+    // signed-in chrome, and do not invent "My Account" from the new auth user.
+    if (!currentUser && window._btcHoldGuestUntilProfile) {
+        _authBtnSignedIn = false;
+        applyGuestAuthButton(btn);
+        document.documentElement.classList.remove('home-signed-in');
+        document.documentElement.removeAttribute('data-auth-display');
+        if (document.body) document.body.classList.remove('home-signed-in');
+        if (typeof window.refreshHomeStrip === 'function') window.refreshHomeStrip();
+        if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
+        return;
+    }
     // The authenticator check has not passed. Do not turn this into Settings.
     if (window._btcTotpHold) {
         _authBtnSignedIn = false;

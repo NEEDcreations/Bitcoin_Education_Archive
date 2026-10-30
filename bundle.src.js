@@ -19703,6 +19703,169 @@ document.addEventListener('btcProfileSaved', function() {
         window.open('https://primal.net/home', '_blank', 'noopener,noreferrer');
     }
 
+    // Daily spin clock. Phase 1 is a short free spin in parallel with dailySpin.
+    // After PHASE1_CAP_MS the wheel eases into a light settle until the server
+    // answers. Phase 2 is an 800ms landing on the server reward index only.
+    // The previous build spun phase 1 until the callable returned, then
+    // decelerated for 1500ms, so click-to-result was server RTT + 1500ms.
+    window._dailySpinClock = (function() {
+        var PHASE1_CAP_MS = 600;
+        var PHASE2_MS = 800;
+        var PHASE1_SPEED = 0.18;
+        var SETTLE_SPEED = 0.04;
+        var MIN_LAND_TURNS = 0.75;
+        var FRAME_MS = 1000 / 60;
+
+        function mod2pi(angle) {
+            var turn = Math.PI * 2;
+            return ((angle % turn) + turn) % turn;
+        }
+
+        function easeOutQuart(t) {
+            return 1 - Math.pow(1 - t, 4);
+        }
+
+        function segmentIndex(angle, count) {
+            var n = count || 10;
+            var seg = (Math.PI * 2) / n;
+            var verify = mod2pi((3 * Math.PI / 2) - angle);
+            var idx = Math.floor(verify / seg) % n;
+            if (idx < 0) idx += n;
+            return idx;
+        }
+
+        function landingRotation(angleNow, selIdx, count, randUnit) {
+            var n = count || 10;
+            var seg = (Math.PI * 2) / n;
+            var unit = (typeof randUnit === 'number' && isFinite(randUnit)) ? randUnit : 0.5;
+            if (unit < 0) unit = 0;
+            if (unit > 1) unit = 1;
+            var offset = (0.15 + unit * 0.7) * seg;
+            var target = mod2pi((3 * Math.PI / 2) - (selIdx * seg) - offset);
+            var deficit = target - mod2pi(angleNow);
+            if (deficit < 0) deficit += Math.PI * 2;
+            var minExtra = MIN_LAND_TURNS * Math.PI * 2;
+            var extra = Math.ceil((minExtra - deficit) / (Math.PI * 2));
+            if (extra < 0) extra = 0;
+            var total = extra * Math.PI * 2 + deficit;
+            var verify = mod2pi((3 * Math.PI / 2) - (angleNow + total));
+            var idx = Math.floor(verify / seg) % n;
+            if (idx < 0) idx += n;
+            if (idx !== selIdx) {
+                var want = mod2pi(selIdx * seg + offset);
+                var fix = mod2pi(verify - want);
+                if (fix === 0) fix = Math.PI * 2;
+                total += fix;
+            }
+            return total;
+        }
+
+        function createState() {
+            return {
+                phase: 'free',
+                angle: 0,
+                started: 0,
+                phase2Start: 0,
+                phase2From: 0,
+                totalRot: 0,
+                serverIndex: -1,
+                randUnit: 0.5,
+                error: null,
+                segments: 10
+            };
+        }
+
+        function step(state, now) {
+            if (!state || state.phase === 'done' || state.phase === 'error') return state;
+            if (state.phase === 'free' || state.phase === 'settle') {
+                state.angle += state.phase === 'free' ? PHASE1_SPEED : SETTLE_SPEED;
+                if (state.phase === 'free' && (now - state.started) >= PHASE1_CAP_MS) state.phase = 'settle';
+                if (state.error) {
+                    state.phase = 'error';
+                    return state;
+                }
+                if (typeof state.serverIndex === 'number' && state.serverIndex >= 0) {
+                    state.phase = 'land';
+                    state.phase2Start = now;
+                    state.phase2From = state.angle;
+                    state.totalRot = landingRotation(state.angle, state.serverIndex, state.segments, state.randUnit);
+                }
+                return state;
+            }
+            var elapsed = now - state.phase2Start;
+            var progress = elapsed / PHASE2_MS;
+            if (progress < 0) progress = 0;
+            if (progress > 1) progress = 1;
+            state.angle = state.phase2From + (state.totalRot * easeOutQuart(progress));
+            if (progress >= 1) state.phase = 'done';
+            return state;
+        }
+
+        function simulate(serverMs, opts) {
+            opts = opts || {};
+            var state = createState();
+            state.started = 0;
+            state.segments = opts.segments || 10;
+            state.randUnit = (typeof opts.rand === 'number') ? opts.rand : 0.42;
+            var index = (typeof opts.index === 'number') ? opts.index : 0;
+            var now = 0;
+            var sawSettle = false;
+            var guard = 0;
+            while (guard++ < 40000 && state.phase !== 'done' && state.phase !== 'error') {
+                if (state.serverIndex < 0 && now >= serverMs) state.serverIndex = index;
+                step(state, now);
+                if (state.phase === 'settle') sawSettle = true;
+                if (state.phase === 'done' || state.phase === 'error') break;
+                now += FRAME_MS;
+            }
+            return {
+                ms: now,
+                settled: sawSettle,
+                phase: state.phase,
+                landed: segmentIndex(state.angle, state.segments),
+                index: index
+            };
+        }
+
+        // Previous clock: free spin until the callable returns, then 1500ms.
+        function simulateLegacy(serverMs) {
+            var phase2 = 1500;
+            var now = 0;
+            var phase = 1;
+            var phase2Start = 0;
+            var guard = 0;
+            while (guard++ < 40000) {
+                if (phase === 1) {
+                    if (now >= serverMs) {
+                        phase = 2;
+                        phase2Start = now;
+                    }
+                } else if ((now - phase2Start) >= phase2) {
+                    return { ms: now, serverMs: serverMs };
+                }
+                now += FRAME_MS;
+            }
+            return { ms: now, serverMs: serverMs, timedOut: true };
+        }
+
+        return {
+            PHASE1_CAP_MS: PHASE1_CAP_MS,
+            PHASE2_MS: PHASE2_MS,
+            PHASE1_SPEED: PHASE1_SPEED,
+            SETTLE_SPEED: SETTLE_SPEED,
+            MIN_LAND_TURNS: MIN_LAND_TURNS,
+            FRAME_MS: FRAME_MS,
+            mod2pi: mod2pi,
+            easeOutQuart: easeOutQuart,
+            segmentIndex: segmentIndex,
+            landingRotation: landingRotation,
+            createState: createState,
+            step: step,
+            simulate: simulate,
+            simulateLegacy: simulateLegacy
+        };
+    })();
+
     window.showSpinWheel = function() {
         // Auth gate — must be signed in to spin
         if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
@@ -19735,29 +19898,16 @@ document.addEventListener('btcProfileSaved', function() {
         var segments = [
             { label: '🎫 1 Ticket', value: 'ticket_1', weight: 25, color: '#f7931a' },
             { label: '🎫 2 Tickets', value: 'ticket_2', weight: 22, color: '#ea580c' },
-            { label: '⭐ 25 XP', value: 'points_25', weight: 18, color: '#22c55e' },
+            { label: '⭐ 10 XP', value: 'points_10', weight: 18, color: '#22c55e' },
             { label: '🎫 3 Tickets', value: 'ticket_3', weight: 12, color: '#fbbf24' },
-            { label: '⭐ 50 XP', value: 'points_50', weight: 8, color: '#3b82f6' },
+            { label: '⭐ 25 XP', value: 'points_25', weight: 8, color: '#3b82f6' },
             { label: '👔 Closet!', value: 'closet_item', weight: 5, color: '#ec4899' },
             { label: '🧊 Freeze!', value: 'freeze', weight: 4, color: '#06b6d4' },
-            { label: '⭐ 100 XP', value: 'points_100', weight: 3, color: '#8b5cf6' },
+            { label: '⭐ 50 XP', value: 'points_50', weight: 3, color: '#8b5cf6' },
             { label: '🎫 5 Tickets', value: 'ticket_5', weight: 1.5, color: '#a855f7' },
             { label: '💎 RARE!', value: 'rare_drop', weight: 1.5, color: '#ef4444' }
         ];
 
-        // Hidden ultra-rare jackpots (resolved AFTER the wheel lands on 💎 RARE!)
-        var RARE_TABLE = [
-            { label: '🎫 10 Tickets', value: 'ticket_10', weight: 1000 },
-            { label: '🎫 25 Tickets', value: 'ticket_25', weight: 500 },
-            { label: '🎫 50 Tickets', value: 'ticket_50', weight: 100 },
-            { label: '🎫 100 Tickets!', value: 'ticket_100', weight: 50 },
-            { label: '🎫 500 Tickets!!', value: 'ticket_500', weight: 10 },
-            { label: '💎 1,000 Tickets!!!', value: 'ticket_1000', weight: 3 },
-            { label: '👑 10,000 TICKETS!!!!', value: 'ticket_10000', weight: 1 },
-            // 10,000 tickets: ~1.5% base × 1/1664 rare table = ~1 in 110,000 spins
-            // To hit 1 in 10 million, we add a second roll:
-        ];
-        
         modal.innerHTML =
             '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent,#f7931a);border-radius:20px;padding:28px 24px;max-width:360px;width:100%;text-align:center;position:relative;box-shadow:0 8px 40px rgba(0,0,0,0.5);margin:auto;">' +
                 '<button onclick="document.getElementById(\'spinModal\').remove()" style="position:absolute;top:10px;right:12px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#888);width:32px;height:32px;border-radius:8px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;">✕</button>' +
@@ -19813,22 +19963,16 @@ document.addEventListener('btcProfileSaved', function() {
             spinBtn.style.opacity = '0.6';
             spinBtn.textContent = '🎰 Spinning...';
 
-            // Fire server call immediately in parallel — don't wait before animating
+            // Fire the callable on click. The wheel never picks a prize itself.
             var spinFn = (typeof firebase !== 'undefined' && firebase.functions) ? firebase.functions().httpsCallable('dailySpin') : null;
             var serverSpinPromise = spinFn ? spinFn({}) : Promise.resolve({ data: null });
-
-            // ---- Phase 1: Free spin ---- starts right now, no destination yet
-            var PHASE1_SPEED   = 0.18;   // radians per frame at 60fps (≈ 1.7 full rotations/sec)
-            var currentAngle   = 0;
-            var phase          = 1;      // 1 = free-spin, 2 = decelerate to target
-            var totalRotP2     = 0;      // phase-2 total rotation (set when server resolves)
-            var phase2Start    = 0;      // Date.now() when phase 2 begins
-            var phase2Duration = 1500;   // ms to decelerate once we have the result (half the old 3s)
-            var phase2AngleAt0 = 0;      // wheel angle at the moment phase 2 starts
-            var serverError    = null;   // set if server call failed
-            var serverData     = null;
-            var selectedFinal  = null;   // set when server resolves
-            var selectedIndexFinal = -1;
+            var clock = window._dailySpinClock;
+            var spinState = clock.createState();
+            spinState.started = Date.now();
+            spinState.segments = segments.length;
+            spinState.randUnit = Math.random();
+            var serverReward = null;
+            var lastTick = null;
 
             function drawWheel(angle) {
                 if (!canvas || !ctx) return;
@@ -19858,277 +20002,184 @@ document.addEventListener('btcProfileSaved', function() {
                 ctx.restore();
             }
 
-            function easeOutQuart(t) { return 1 - Math.pow(1 - t, 4); }
-
-            function animate() {
-                if (phase === 1) {
-                    // ---- Free spin: constant velocity ----
-                    currentAngle += PHASE1_SPEED;
-
-                    // Tick sound
-                    var _tickFrame = Math.floor(currentAngle / segmentAngle);
-                    if (typeof animate._lastTick === 'undefined') animate._lastTick = 0;
-                    if (_tickFrame !== animate._lastTick) {
-                        animate._lastTick = _tickFrame;
-                        if (typeof playSpinTick === 'function') playSpinTick();
-                    }
-
-                    drawWheel(currentAngle);
-
-                    if (serverError !== null) {
-                        // Server came back with an error — stop and display it
-                        isSpinning = false;
-                        spinBtn.disabled = false;
-                        spinBtn.style.opacity = '';
-                        spinBtn.textContent = 'SPIN! 🎰';
-                        var msg = (serverError && serverError.message) ? serverError.message : '';
-                        if (msg.indexOf('Already spun') !== -1 || msg.indexOf('already-exists') !== -1 || msg.indexOf('already spun') !== -1) {
-                            localStorage.setItem('btc_last_spin_date', new Date().toISOString().split('T')[0]);
-                            var modal = document.getElementById('spinModal');
-                            if (modal) modal.remove();
-                            if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
-                            if (typeof showToast === 'function') showToast('🎡 You already spun today! Come back tomorrow!');
-                        } else {
-                            if (typeof showToast === 'function') showToast('❌ Spin failed — try again.');
-                        }
-                        return;
-                    }
-
-                    if (selectedIndexFinal !== -1 && typeof totalRotP2 === 'number' && totalRotP2 > 0) {
-                        // Server has resolved — transition to phase 2
-                        phase = 2;
-                        phase2AngleAt0 = currentAngle;
-                        phase2Start    = Date.now();
-                        requestAnimationFrame(animate);
-                    } else {
-                        requestAnimationFrame(animate);
-                    }
-
-                } else {
-                    // ---- Phase 2: decelerate to target ----
-                    var elapsed  = Date.now() - phase2Start;
-                    var progress = Math.min(elapsed / phase2Duration, 1);
-                    var eased    = easeOutQuart(progress);
-                    currentAngle = phase2AngleAt0 + (totalRotP2 * eased);
-
-                    // Tick sounds, slowing down
-                    var _tickFrame2 = Math.floor(currentAngle / segmentAngle);
-                    if (typeof animate._lastTick === 'undefined') animate._lastTick = 0;
-                    if (_tickFrame2 !== animate._lastTick) {
-                        animate._lastTick = _tickFrame2;
-                        if (typeof playSpinTick === 'function') playSpinTick();
-                    }
-
-                    drawWheel(currentAngle);
-
-                    if (progress < 1) {
-                        requestAnimationFrame(animate);
-                    } else {
-                        // Win!
-                        if (typeof playSpinWin === 'function') playSpinWin();
-                        spinBtn.textContent = 'SPIN! 🎰';
-                        showSpinReward(selectedFinal, selectedIndexFinal, serverData);
-                    }
+            function failSpin(err) {
+                isSpinning = false;
+                spinBtn.disabled = false;
+                spinBtn.style.opacity = '';
+                spinBtn.textContent = 'SPIN! 🎰';
+                var msg = (err && err.message) ? err.message : '';
+                if (msg.indexOf('Already spun') !== -1 || msg.indexOf('already-exists') !== -1 || msg.indexOf('already spun') !== -1) {
+                    localStorage.setItem('btc_last_spin_date', new Date().toISOString().split('T')[0]);
+                    var openModal = document.getElementById('spinModal');
+                    if (openModal) openModal.remove();
+                    if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
+                    if (typeof showToast === 'function') showToast('🎡 You already spun today! Come back tomorrow!');
+                } else if (typeof showToast === 'function') {
+                    showToast('❌ Spin failed — try again.');
                 }
             }
 
-            // Kick off Phase 1 immediately
+            function animate() {
+                if (!document.getElementById('spinModal')) return;
+                var now = Date.now();
+                clock.step(spinState, now);
+                var tickFrame = Math.floor(spinState.angle / segmentAngle);
+                if (lastTick === null) lastTick = tickFrame;
+                if (tickFrame !== lastTick) {
+                    lastTick = tickFrame;
+                    if (typeof playSpinTick === 'function') playSpinTick();
+                }
+                drawWheel(spinState.angle);
+                if (spinState.phase === 'error') {
+                    failSpin(spinState.error);
+                    return;
+                }
+                if (spinState.phase === 'done') {
+                    if (typeof playSpinWin === 'function') playSpinWin();
+                    spinBtn.textContent = 'SPIN! 🎰';
+                    showSpinReward(serverReward, spinState.serverIndex);
+                    return;
+                }
+                requestAnimationFrame(animate);
+            }
+
             requestAnimationFrame(animate);
 
-            // Server resolves → compute Phase 2 destination
             serverSpinPromise.then(function(result) {
-                var sData = result && result.data;
-                serverData = sData;
-                var selIdx;
-                if (sData && typeof sData.rewardIndex === 'number') {
-                    selIdx = sData.rewardIndex % segments.length;
-                } else {
-                    // Anonymous / offline fallback
-                    var totalWeight = segments.reduce(function(sum, s) { return sum + s.weight; }, 0);
-                    var random = Math.random() * totalWeight;
-                    selIdx = 0;
-                    var cw = 0;
-                    for (var i = 0; i < segments.length; i++) {
-                        cw += segments[i].weight;
-                        if (random <= cw) { selIdx = i; break; }
-                    }
+                var data = result && result.data;
+                var reward = data && data.reward;
+                var idx = null;
+                if (reward && typeof reward.rewardIndex === 'number' && isFinite(reward.rewardIndex)) idx = reward.rewardIndex;
+                else if (data && typeof data.rewardIndex === 'number' && isFinite(data.rewardIndex)) idx = data.rewardIndex;
+                if (idx == null) {
+                    spinState.error = new Error('Spin failed');
+                    return;
                 }
-
-                // Calculate how far phase 2 must rotate from current angle to land on selIdx
-                // We pick the nearest whole-rotation multiple ≥ 1.5 full rotations for natural feel
-                var offsetInSeg = (0.15 + Math.random() * 0.7) * segmentAngle;
-                var targetR = (3 * Math.PI / 2) - (selIdx * segmentAngle) - offsetInSeg;
-                targetR = ((targetR % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
-
-                // We want currentAngle (at transition moment, ≈ phase2AngleAt0 once set) + totalRotP2 = targetR + N*2π
-                // Compute using currentAngle as approximation (exact value set in phase2AngleAt0)
-                var baseAngle  = currentAngle;
-                var deficit    = targetR - (baseAngle % (Math.PI * 2));
-                if (deficit < 0) deficit += Math.PI * 2;
-                var minExtraRot = 1.5 * Math.PI * 2; // at least 1.5 more full spins in phase 2
-                var extraSpins  = Math.ceil((minExtraRot - deficit) / (Math.PI * 2));
-                if (extraSpins < 0) extraSpins = 0;
-                totalRotP2 = extraSpins * Math.PI * 2 + deficit;
-
-                // Verify
-                var verifyAngle = ((3 * Math.PI / 2) - (baseAngle + totalRotP2)) % (Math.PI * 2);
-                if (verifyAngle < 0) verifyAngle += Math.PI * 2;
-                var verifyIdx = Math.floor(verifyAngle / segmentAngle) % segments.length;
-                if (verifyIdx !== selIdx) {
-                    console.warn('[Spin] Mismatch — adjusting to visual result', verifyIdx);
-                    selIdx = verifyIdx;
-                }
-
-                selectedFinal      = segments[selIdx];
-                selectedIndexFinal = selIdx;
-
+                var n = segments.length;
+                idx = ((idx % n) + n) % n;
+                serverReward = reward || { rewardIndex: idx };
+                spinState.serverIndex = idx;
             }).catch(function(err) {
-                serverError = err || new Error('unknown');
+                spinState.error = err || new Error('unknown');
             });
 
-            function showSpinReward(selected, selectedIndex, serverData) {
-            // (reward logic extracted from old doSpin)
-            var rewardText = '';
-            var rewardType = selected.value.split('_')[0];
-            var rewardAmount = parseInt(selected.value.split('_')[1]) || 1;
-            var today = new Date().toISOString().split('T')[0];
+            function mirrorServerSpin(reward) {
+                if (!reward) return;
+                if (typeof currentUser !== 'undefined' && currentUser) {
+                    if (reward.pts > 0) currentUser.points = (currentUser.points || 0) + reward.pts;
+                    if (reward.tickets > 0) currentUser.orangeTickets = (currentUser.orangeTickets || 0) + reward.tickets;
+                    if (reward.freezes > 0) currentUser.streakFreezes = (currentUser.streakFreezes || 0) + reward.freezes;
+                    if (reward.doubleXpUntil) {
+                        currentUser.doubleXpUntil = reward.doubleXpUntil;
+                        currentUser.doubleXPExpiry = reward.doubleXpUntil;
+                    }
+                }
+                if (reward.freezes > 0) {
+                    var freezes = parseInt(localStorage.getItem('btc_streak_freezes') || '0', 10);
+                    if (isNaN(freezes)) freezes = 0;
+                    localStorage.setItem('btc_streak_freezes', String(freezes + reward.freezes));
+                }
+                if (typeof updateRankUI === 'function') updateRankUI();
+            }
 
-            if (selected.value === 'rare_drop') {
-                var rareTotalWeight = RARE_TABLE.reduce(function(s, r) { return s + r.weight; }, 0);
-                var rareRandom = Math.random() * rareTotalWeight;
-                var rareSelected = RARE_TABLE[0];
-                var rareCurrentWeight = 0;
-                for (var ri = 0; ri < RARE_TABLE.length; ri++) {
-                    rareCurrentWeight += RARE_TABLE[ri].weight;
-                    if (rareRandom <= rareCurrentWeight) { rareSelected = RARE_TABLE[ri]; break; }
+            function closetLine(reward) {
+                var ownedItems = (typeof safeJSON === 'function') ? safeJSON('btc_spin_closet_items', []) : [];
+                var allClosetItems = ['orange_scarf','sunglasses','bowtie','mining_helmet','lightning_chain','party_hat','hodl_hoodie','crown','steak','diamond_hooves'];
+                var available = allClosetItems.filter(function(id) { return ownedItems.indexOf(id) === -1; });
+                var itemNames = { orange_scarf:'Bitcoin Scarf 🧣', sunglasses:'Cool Shades 🕶️', bowtie:'Fancy Bowtie 🎀', mining_helmet:'Mining Helmet ⛑️', lightning_chain:'Lightning Chain ⚡', party_hat:'Party Hat 🎉', hodl_hoodie:'HODL Hoodie 🧥', crown:'Royal Crown 👑', steak:'Proof of Steak 🥩', diamond_hooves:'Diamond Hooves 💎' };
+                var ptsBit = (reward.pts > 0) ? (' +' + reward.pts + ' XP') : '';
+                if (!available.length) {
+                    return '👔 You already own the spin closet items.' + (ptsBit ? (' ' + ptsBit.trim() + ' from this spin.') : '');
                 }
-                var rareAmount = parseInt(rareSelected.value.split('_')[1]) || 10;
-                if (rareAmount === 10000 && Math.random() > 0.01) {
-                    rareAmount = 100;
-                    rareSelected = { label: '🎫 100 Tickets!', value: 'ticket_100' };
-                }
-                rewardText = '💎 RARE DROP! ' + rareSelected.label;
-                if (typeof awardOrangeTickets === 'function') {
-                    awardOrangeTickets(rareAmount, 'Rare Spin Drop');
+                var wonItem = available[Math.floor(spinState.randUnit * available.length) % available.length];
+                ownedItems.push(wonItem);
+                try { localStorage.setItem('btc_spin_closet_items', JSON.stringify(ownedItems)); } catch (e) {}
+                return '👔 Closet item: ' + (itemNames[wonItem] || wonItem) + '.' + ptsBit;
+            }
+
+            function showSpinReward(reward, selectedIndex) {
+                reward = reward || {};
+                var rewardText = '';
+                var emoji = '🎡';
+                if (reward.rare) {
+                    emoji = '💎';
+                    rewardText = '💎 RARE DROP! ' + (reward.rareLabel || 'Rare drop');
+                } else if (reward.closet) {
+                    emoji = '👔';
+                    rewardText = closetLine(reward);
+                } else if (reward.freezes > 0) {
+                    emoji = '🧊';
+                    rewardText = '🧊 STREAK FREEZE! Your streak is protected for ' + reward.freezes + ' missed day' + (reward.freezes > 1 ? 's' : '') + '.';
+                } else if (reward.tickets > 0 && !(reward.pts > 0)) {
+                    emoji = '🎫';
+                    rewardText = '🎫 You won ' + reward.tickets + ' Orange Ticket' + (reward.tickets > 1 ? 's' : '') + '!';
+                } else if (reward.pts > 0) {
+                    emoji = '⭐';
+                    rewardText = '⭐ You won ' + reward.pts + ' XP' + (reward.doubled ? ' (2×)' : '') + '!';
+                    if (reward.tickets > 0) rewardText += ' +' + reward.tickets + ' ticket' + (reward.tickets > 1 ? 's' : '');
                 } else {
-                    var rt = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
-                    localStorage.setItem('btc_orange_tickets', rt + rareAmount);
+                    var landed = segments[selectedIndex] || segments[0];
+                    emoji = (landed && landed.label) ? landed.label.split(' ')[0] : '🎡';
+                    rewardText = (reward.label || (landed && landed.label) || 'Spin complete');
                 }
-                if (rareAmount >= 100) {
+                mirrorServerSpin(reward);
+                if ((reward.tickets || 0) >= 100 || reward.rare) {
                     if (typeof launchConfetti === 'function') launchConfetti();
                     if (typeof playBadgeSound === 'function') playBadgeSound();
                 }
-            } else if (rewardType === 'closet') {
-                var ownedItems = safeJSON('btc_spin_closet_items', []);
-                var allClosetItems = ['orange_scarf','sunglasses','bowtie','mining_helmet','lightning_chain','party_hat','hodl_hoodie','crown','steak','diamond_hooves'];
-                var available = allClosetItems.filter(function(id) { return ownedItems.indexOf(id) === -1; });
-                if (available.length > 0) {
-                    var wonItem = available[Math.floor(Math.random() * available.length)];
-                    ownedItems.push(wonItem);
-                    localStorage.setItem('btc_spin_closet_items', JSON.stringify(ownedItems));
-                    if (typeof currentUser !== 'undefined' && currentUser && !currentUser._isLocal) {
-                        try { db.collection('users').doc(auth.currentUser.uid).update({ spinClosetItems: firebase.firestore.FieldValue.arrayUnion(wonItem) }).catch(function(){}); } catch(e) {}
-                    }
-                    var itemNames = { orange_scarf:'Bitcoin Scarf 🧣', sunglasses:'Cool Shades 🕶️', bowtie:'Fancy Bowtie 🎀', mining_helmet:'Mining Helmet ⛑️', lightning_chain:'Lightning Chain ⚡', party_hat:'Party Hat 🎉', hodl_hoodie:'HODL Hoodie 🧥', crown:'Royal Crown 👑', steak:'Proof of Steak 🥩', diamond_hooves:'Diamond Hooves 💎' };
-                    rewardText = '👔 CLOSET ITEM! You unlocked: ' + (itemNames[wonItem] || wonItem) + '! Equip it in Nacho\'s Closet!';
-                } else {
-                    var closetPts = (serverData && serverData.reward && typeof serverData.reward.pts === 'number') ? serverData.reward.pts : 25;
-                    rewardText = '👔 You already own all spin closet items! +' + closetPts + ' bonus XP instead!';
-                    if (!(serverData && serverData.reward && typeof serverData.reward.pts === 'number') && typeof awardPoints === 'function') awardPoints(25, 'Closet bonus');
-                }
-            } else if (rewardType === 'freeze') {
-                rewardText = '🧊 STREAK FREEZE TICKET! Your streak is protected for 1 missed day!';
-                var freezes = parseInt(localStorage.getItem('btc_streak_freezes') || '0');
-                localStorage.setItem('btc_streak_freezes', freezes + 1);
-                if (typeof awardPoints === 'function') awardPoints(0, '🧊 Streak Freeze', null, 0, 1);
-                if (typeof currentUser !== 'undefined' && currentUser) {
-                    currentUser.streakFreezes = (currentUser.streakFreezes || 0) + 1;
-                }
-            } else if (rewardType === 'ticket') {
-                rewardText = '🎫 You won ' + rewardAmount + ' Orange Ticket' + (rewardAmount > 1 ? 's' : '') + '!';
-                if (typeof awardOrangeTickets === 'function') {
-                    awardOrangeTickets(rewardAmount, 'Daily Spin');
-                } else {
-                    var tickets = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
-                    localStorage.setItem('btc_orange_tickets', tickets + rewardAmount);
-                }
-            } else if (rewardType === 'points') {
-                var wonPts = (serverData && serverData.reward && typeof serverData.reward.pts === 'number') ? serverData.reward.pts : rewardAmount;
-                rewardText = '⭐ You won ' + wonPts + ' XP!' + (serverData && serverData.reward && serverData.reward.doubled === true ? ' 2x' : '');
-                if (serverData && serverData.reward && typeof serverData.reward.pts === 'number') {
-                    if (typeof currentUser !== 'undefined' && currentUser) {
-                        currentUser.points = (currentUser.points || 0) + wonPts;
-                        if (serverData.reward.doubleXpUntil) {
-                            currentUser.doubleXpUntil = serverData.reward.doubleXpUntil;
-                            currentUser.doubleXPExpiry = serverData.reward.doubleXpUntil;
+
+                resultDiv.innerHTML = '<div style="animation:fadeSlideIn 0.5s ease-out;">' +
+                    '<div style="font-size:3rem;margin-bottom:8px;">' + emoji + '</div>' +
+                    '<div style="color:var(--heading);font-weight:700;font-size:1.1rem;">' + rewardText + '</div>' +
+                    '<button onclick="document.getElementById(\'spinModal\').remove()" style="margin-top:12px;padding:10px 24px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Awesome! 🎉</button>' +
+                '</div>';
+
+                if (typeof notifySelfSpin === 'function') notifySelfSpin(rewardText);
+
+                if (!isBonusSpin) {
+                    setTimeout(function() {
+                        if (typeof window.awardDailyGifts === 'function') {
+                            window.awardDailyGifts();
+                        } else {
+                            var _giftRetries = 0;
+                            var _giftRetryTimer = setInterval(function() {
+                                if (typeof window.awardDailyGifts === 'function') {
+                                    clearInterval(_giftRetryTimer);
+                                    window.awardDailyGifts();
+                                } else if (++_giftRetries >= 20) {
+                                    clearInterval(_giftRetryTimer);
+                                    console.warn('[spin] gifting.js never loaded — gifts not awarded');
+                                }
+                            }, 500);
                         }
+                    }, 800);
+                }
+
+                var _sc = parseInt(localStorage.getItem('btc_spin_count') || '0') + 1; localStorage.setItem('btc_spin_count', String(_sc));
+                if (typeof firebase !== 'undefined' && firebase.firestore && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                    try { firebase.firestore().collection('users').doc(auth.currentUser.uid).update({ spinCount: _sc }).catch(function(){}); } catch(e) {}
+                }
+                var _lastSpinDay = localStorage.getItem('btc_spin_last_day') || '';
+                var _dk = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
+                var _yesterday = new Date(Date.now() - (5 + 24) * 3600000).toISOString().split('T')[0];
+                if (_lastSpinDay === _yesterday) {
+                    var _ss = parseInt(localStorage.getItem('btc_spin_streak') || '0'); localStorage.setItem('btc_spin_streak', String(_ss + 1));
+                } else if (_lastSpinDay !== _dk) {
+                    localStorage.setItem('btc_spin_streak', '1');
+                }
+                localStorage.setItem('btc_spin_last_day', _dk);
+                if (reward.rare) localStorage.setItem('btc_spin_hit_rare', 'true');
+
+                if (!isBonusSpin) {
+                    localStorage.setItem('btc_last_spin_date', _dk);
+                    if (typeof currentUser !== 'undefined' && currentUser) {
+                        currentUser.lastSpinDate = _dk;
                     }
-                    if (typeof updateRankUI === 'function') updateRankUI();
-                } else if (typeof awardPoints === 'function') {
-                    awardPoints(rewardAmount, 'Daily Spin');
-                } else {
-                    var pts = parseInt(localStorage.getItem('btc_points') || '0');
-                    localStorage.setItem('btc_points', pts + rewardAmount);
+                    if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
                 }
             }
-
-            resultDiv.innerHTML = '<div style="animation:fadeSlideIn 0.5s ease-out;">' +
-                '<div style="font-size:3rem;margin-bottom:8px;">' + selected.label.split(' ')[0] + '</div>' +
-                '<div style="color:var(--heading);font-weight:700;font-size:1.1rem;">' + rewardText + '</div>' +
-                '<button onclick="document.getElementById(\'spinModal\').remove()" style="margin-top:12px;padding:10px 24px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Awesome! 🎉</button>' +
-            '</div>';
-
-            if (typeof notifySelfSpin === 'function') notifySelfSpin(rewardText);
-
-            // Award daily gifts after successful spin
-            // gifting.js is lazy-loaded — retry until it's available (up to 10s)
-            if (!isBonusSpin) {
-                setTimeout(function() {
-                    if (typeof window.awardDailyGifts === 'function') {
-                        window.awardDailyGifts();
-                    } else {
-                        var _giftRetries = 0;
-                        var _giftRetryTimer = setInterval(function() {
-                            if (typeof window.awardDailyGifts === 'function') {
-                                clearInterval(_giftRetryTimer);
-                                window.awardDailyGifts();
-                            } else if (++_giftRetries >= 20) {
-                                clearInterval(_giftRetryTimer);
-                                console.warn('[spin] gifting.js never loaded — gifts not awarded');
-                            }
-                        }, 500);
-                    }
-                }, 800);
-            }
-
-            var _sc = parseInt(localStorage.getItem('btc_spin_count') || '0') + 1; localStorage.setItem('btc_spin_count', String(_sc));
-            // Persist spinCount to Firestore so badge dedup survives cache clears / new devices
-            if (typeof firebase !== 'undefined' && firebase.firestore && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-                try { firebase.firestore().collection('users').doc(auth.currentUser.uid).update({ spinCount: _sc }).catch(function(){}); } catch(e) {}
-            }
-            var _lastSpinDay = localStorage.getItem('btc_spin_last_day') || '';
-            var _dk = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
-            var _yesterday = new Date(Date.now() - (5 + 24) * 3600000).toISOString().split('T')[0]; // yesterday in offset-day space
-            if (_lastSpinDay === _yesterday) {
-                var _ss = parseInt(localStorage.getItem('btc_spin_streak') || '0'); localStorage.setItem('btc_spin_streak', String(_ss + 1));
-            } else if (_lastSpinDay !== _dk) {
-                localStorage.setItem('btc_spin_streak', '1');
-            }
-            localStorage.setItem('btc_spin_last_day', _dk);
-            if (selected.value === 'rare_drop') { localStorage.setItem('btc_spin_hit_rare', 'true'); }
-
-            // Only mark the daily spin as used for non-bonus spins.
-            // Bonus spins must not consume the user's regular daily spin slot.
-            if (!isBonusSpin) {
-                localStorage.setItem('btc_last_spin_date', _dk);
-                if (typeof currentUser !== 'undefined' && currentUser) {
-                    currentUser.lastSpinDate = _dk;
-                }
-                if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
-            }
-            } // end doSpin
         });
-        
+
         modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
     };
 
