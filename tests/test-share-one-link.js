@@ -89,6 +89,8 @@ test('certificate, invite, badge celebration, Nacho, channel, beats, and PVP pos
     vm.runInContext(read('shareable-certs.js'), certCtx);
     const certOn = certCtx.certShareText('Scholar', 'CERT-ABC12', 'abc12345');
     assert.strictEqual(linkCount(certOn), 1);
+    assert.ok(certOn.includes('@BTCedu_app'));
+    assert.strictEqual(certOn.includes('@BTCeduArchive'), false);
     assert.ok(certOn.includes('https://bitcoineducation.quest/?ref=abc12345#cert/CERT-ABC12'));
     assert.ok(certOn.includes(TAG));
     const certOff = certCtx.certShareText('Scholar', 'CERT-ABC12', '');
@@ -298,7 +300,18 @@ test('stripShareLinks finishes a 1 MB dotted string in under 50 ms', () => {
 test('patch notes keep one Latest line and pages match', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    const latestAt = notes.indexOf('Latest: Daily trivia keeps the answer on the server. A signed-in answer is graded there, then the explanation is shown. Guests and offline play do not earn trivia XP.');
+    const latestAt = notes.indexOf('Latest: Daily trivia shows the explanation after you answer, and a guest answer does not earn XP.');
+    assert.ok(notes.includes("Earned posts in GGs chat have a 🎉 button. Tap once to celebrate, and tap again to take it back."));
+    assert.ok(!notes.includes('Latest: Earned posts in GGs chat'));
+    assert.ok(latestAt >= 0);
+    assert.ok(notes.includes("The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front."));
+    assert.ok(!notes.includes('Latest: The daily wheel'));
+    assert.ok(notes.includes('Fixed leaderboards and your saved profile taking too long to load.'));
+    assert.ok(!notes.includes('Latest: Fixed leaderboards'));
+    assert.ok(notes.includes('Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.'));
+    assert.ok(!notes.includes('Latest: Daily Streaks'));
+    assert.ok(notes.includes('Double XP now applies to every way you earn XP.'));
+    assert.ok(!notes.includes('Latest: Double XP'));
     assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
     assert.ok(!notes.includes('Latest: The raid boss'));
     const noteAt = notes.indexOf(NOTE);

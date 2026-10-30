@@ -402,5 +402,198 @@ test('2FA verified flag is stored and compared per uid', () => {
     assert.strictEqual(src.indexOf('_btcTotpVerified = false'), -1);
 });
 
+function dom() {
+    const nodes = {};
+    function make(id) {
+        const node = {
+            id: id,
+            attrs: {},
+            text: '',
+            children: [],
+            style: {},
+            classList: {
+                _c: {},
+                add: function (c) { this._c[c] = 1; },
+                remove: function (c) { delete this._c[c]; },
+                contains: function (c) { return !!this._c[c]; }
+            },
+            setAttribute: function (k, v) { this.attrs[k] = String(v); },
+            getAttribute: function (k) { return Object.prototype.hasOwnProperty.call(this.attrs, k) ? this.attrs[k] : null; },
+            removeAttribute: function (k) { delete this.attrs[k]; },
+            appendChild: function (child) { this.children.push(child); }
+        };
+        Object.defineProperty(node, 'textContent', {
+            get: function () { return node.text; },
+            set: function (v) { node.text = String(v); node.children = []; }
+        });
+        if (id) nodes[id] = node;
+        return node;
+    }
+    const doc = {
+        documentElement: make('html'),
+        body: make('body'),
+        getElementById: function (id) { return nodes[id] || null; },
+        createElement: function (tag) { return make(''); },
+        createTextNode: function (t) { return { textContent: String(t) }; }
+    };
+    make('homeSignedInChip');
+    make('authBtn');
+    make('rankBar');
+    make('homeSatsValue');
+    doc.getElementById('homeSatsValue').textContent = '—';
+    return { doc: doc, nodes: nodes };
+}
+
+function withPage(storage, fn) {
+    const page = dom();
+    const prevDoc = global.document;
+    const prevLocal = global.localStorage;
+    const prevEarly = global._btcEarlyAuthUser;
+    global.document = page.doc;
+    global.localStorage = storage;
+    delete global._btcEarlyAuthUser;
+    try { fn(page); }
+    finally {
+        if (prevDoc === undefined) delete global.document;
+        else global.document = prevDoc;
+        if (prevLocal === undefined) delete global.localStorage;
+        else global.localStorage = prevLocal;
+        if (prevEarly === undefined) delete global._btcEarlyAuthUser;
+        else global._btcEarlyAuthUser = prevEarly;
+    }
+}
+
+const UID = 'userUid123456';
+function profileCache(extra) {
+    return Object.assign({
+        uid: UID,
+        ts: Date.now() - (10 * 86400000),
+        twoFa: false,
+        data: {
+            username: 'MeasurePleb',
+            points: 2500,
+            email: 'secret@example.com',
+            idToken: 'tok',
+            totpEnabled: false
+        }
+    }, extra || {});
+}
+
+test('cached non-2FA profile paints level, sats, rank, and the button', () => {
+    const storage = mem();
+    storage.setItem('btc_last_auth_uid', UID);
+    storage.setItem(display.PROFILE_KEY, JSON.stringify(profileCache()));
+    display.write({ uid: UID, username: 'MeasurePleb', xp: 2500 }, storage);
+    withPage(storage, function (page) {
+        display.applyBoot();
+        const bar = page.nodes.rankBar;
+        const barText = [bar.textContent].concat(bar.children.map(function (c) { return c.textContent; })).join(' ');
+        assert.ok(barText.indexOf('Maxi') !== -1, barText);
+        assert.ok(barText.indexOf('MeasurePleb') !== -1, barText);
+        assert.ok(barText.indexOf('XP') !== -1, barText);
+        assert.strictEqual(bar.getAttribute('data-profile-cache'), '1');
+        assert.strictEqual(page.nodes.homeSatsValue.textContent, Number(display.claimableDisplay({ points: 2500 })).toLocaleString());
+        assert.ok(page.nodes.authBtn.textContent.indexOf('MeasurePleb') !== -1);
+        assert.ok(page.doc.documentElement.classList.contains('home-signed-in'));
+        assert.strictEqual(barText.indexOf('secret@example.com'), -1);
+        assert.strictEqual(barText.indexOf('tok'), -1);
+        const view = display.profileView(profileCache());
+        assert.strictEqual(view.email, undefined);
+        assert.strictEqual(view.idToken, undefined);
+    });
+});
+
+test('uid mismatch does not paint the cached profile and auth null clears it', () => {
+    const storage = mem();
+    storage.setItem('btc_last_auth_uid', 'userUidBBBBBB');
+    storage.setItem(display.PROFILE_KEY, JSON.stringify(profileCache()));
+    display.write({ uid: UID, username: 'MeasurePleb', xp: 2500 }, storage);
+    const mismatch = display.earlyProfileDecision(display.readProfile(storage), 'userUidBBBBBB');
+    assert.strictEqual(mismatch.action, 'skip');
+    assert.strictEqual(mismatch.reason, 'uid-mismatch');
+    withPage(storage, function (page) {
+        display.applyBoot();
+        assert.strictEqual(page.nodes.rankBar.getAttribute('data-profile-cache'), null);
+        assert.strictEqual(page.nodes.homeSatsValue.textContent, '—');
+        assert.ok(!page.doc.documentElement.classList.contains('home-signed-in'));
+        assert.strictEqual(page.nodes.authBtn.textContent.indexOf('MeasurePleb'), -1);
+    });
+    storage.setItem('btc_last_auth_uid', UID);
+    withPage(storage, function (page) {
+        display.applyBoot();
+        assert.strictEqual(page.nodes.rankBar.getAttribute('data-profile-cache'), '1');
+        global._btcEarlyAuthUser = null;
+        display.applyBoot();
+        assert.strictEqual(page.nodes.rankBar.getAttribute('data-profile-cache'), null);
+        assert.strictEqual(page.nodes.homeSatsValue.textContent, '—');
+        assert.ok(!page.doc.documentElement.classList.contains('home-signed-in'));
+        assert.strictEqual(display.read(storage), null);
+    });
+});
+
+test('2FA flag set or unknown holds the cached profile', () => {
+    const storage = mem();
+    storage.setItem('btc_last_auth_uid', UID);
+    const on = display.earlyProfileDecision(profileCache({ twoFa: true, data: { username: 'MeasurePleb', points: 2500, totpEnabled: true } }), UID);
+    assert.strictEqual(on.action, 'hold');
+    assert.strictEqual(on.reason, 'needs2fa');
+    const unknown = display.earlyProfileDecision(profileCache({ twoFa: undefined, data: { username: 'MeasurePleb', points: 2500 } }), UID);
+    assert.strictEqual(unknown.action, 'hold');
+    assert.strictEqual(unknown.reason, 'unknown-2fa');
+    const legacyOff = JSON.parse(JSON.stringify(profileCache()));
+    delete legacyOff.twoFa;
+    assert.strictEqual(display.earlyProfileDecision(legacyOff, UID).action, 'paint');
+    const missingFlag = JSON.parse(JSON.stringify(profileCache({ data: { username: 'MeasurePleb', points: 2500 } })));
+    delete missingFlag.twoFa;
+    assert.strictEqual(display.earlyProfileDecision(missingFlag, UID).action, 'hold');
+    storage.setItem(display.PROFILE_KEY, JSON.stringify(profileCache({ twoFa: true })));
+    display.write({ uid: UID, username: 'MeasurePleb', xp: 2500 }, storage);
+    withPage(storage, function (page) {
+        display.applyBoot();
+        assert.strictEqual(page.nodes.rankBar.getAttribute('data-profile-cache'), null);
+        assert.strictEqual(page.nodes.homeSatsValue.textContent, '—');
+        assert.ok(!page.doc.documentElement.classList.contains('home-signed-in'));
+        const chipText = page.nodes.homeSignedInChip.children.map(function (c) { return c.textContent || ''; }).join('') + page.nodes.homeSignedInChip.textContent;
+        assert.strictEqual(chipText.indexOf('MeasurePleb'), -1);
+    });
+    storage.setItem(display.PROFILE_KEY, JSON.stringify(legacyOff));
+    withPage(storage, function (page) {
+        display.applyBoot();
+        assert.strictEqual(page.nodes.rankBar.getAttribute('data-profile-cache'), '1');
+        assert.ok(page.doc.documentElement.classList.contains('home-signed-in'));
+    });
+    storage.setItem(display.PROFILE_KEY, JSON.stringify(missingFlag));
+    withPage(storage, function (page) {
+        display.applyBoot();
+        assert.strictEqual(page.nodes.rankBar.getAttribute('data-profile-cache'), null);
+        assert.strictEqual(page.nodes.homeSatsValue.getAttribute('data-profile-cache'), null);
+    });
+});
+
+test('ranking treats the profile cache as stale-while-revalidate and stamps 2FA', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const src = fs.readFileSync(path.join(__dirname, '..', 'ranking.js'), 'utf8');
+    const boot = fs.readFileSync(path.join(__dirname, '..', 'app-check-boot.js'), 'utf8');
+    assert.strictEqual(src.indexOf('(Date.now() - _cp.ts) < 86400000'), -1);
+    assert.ok(src.indexOf('_cachedProfile.twoFa === false') !== -1);
+    assert.ok(src.indexOf('function saveProfileCache') !== -1);
+    assert.ok(src.indexOf('function stampProfileTwoFa') !== -1);
+    const hold = src.slice(src.indexOf('function holdAuthDisplayForTotp'), src.indexOf('function publishAuthDisplay'));
+    assert.ok(hold.indexOf('stampProfileTwoFa(uid, true)') !== -1);
+    const pub = src.slice(src.indexOf('function publishAuthDisplay'), src.indexOf('function clearAuthDisplay'));
+    assert.ok(pub.indexOf('stampProfileTwoFa(uid, false)') !== -1);
+    assert.ok(pub.indexOf('stampProfileTwoFa(uid, false)') < pub.indexOf('.write('));
+    assert.ok(boot.indexOf('firebase.appCheck().activate(') !== -1);
+    assert.strictEqual(boot.indexOf('provider.initialize'), -1);
+    assert.ok(boot.indexOf('ReCaptchaV3Provider') !== -1);
+    assert.ok(boot.indexOf('_btcAppCheckForClaim') !== -1);
+    assert.ok(boot.indexOf('new firebase.appCheck.ReCaptchaV3Provider') !== -1);
+    assert.ok(boot.indexOf("Promise.reject(new Error('app-check-unavailable'))") !== -1);
+    assert.strictEqual(boot.indexOf('expireTimeMillis: Date.now() - 1'), -1);
+    assert.strictEqual(boot.indexOf('firebase.appCheck().activate(SITE_KEY, true)'), -1);
+    assert.strictEqual((src.match(/firebase\.appCheck\(\)\.activate/g) || []).length, 1);
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed > 0 ? 1 : 0);

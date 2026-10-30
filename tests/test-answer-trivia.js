@@ -218,15 +218,48 @@ test('an optionId-only answer counts that bank slot', async function () {
     assertCountedOnce(pack, pack.question.answer);
 });
 
-test('a banned user does not count', async function () {
+test('a banned user does not count and cannot read the answer', async function () {
     const pack = todayPayload(null);
     const correctText = pack.question.options[pack.question.answer];
+    const wrong = pack.question.options.find(function (option) { return option !== correctText; });
     reset({ 'users/banned': { points: 100000, satsDisabled: true } });
     const result = await answerTrivia.run(Object.assign({}, pack.data, { chosen: correctText }), context('banned'));
-    assert.strictEqual(result.success, true);
+    assert.strictEqual(result.success, false);
     assert.strictEqual(result.banned, true);
+    assert.strictEqual(result.correct, false);
+    assert.strictEqual(result.awarded, 0);
+    assert.strictEqual(result.graded, false);
     assert.strictEqual(result.statsRecorded, false);
+    assert.strictEqual(result.reason, 'banned');
+    assert.strictEqual(result.explanation, undefined);
+    assert.strictEqual(result.answerIndex, undefined);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(result, 'explanation'), false);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(result, 'answerIndex'), false);
     assertNotCounted();
+
+    const again = await answerTrivia.run(Object.assign({}, pack.data, { chosen: wrong }), context('banned'));
+    assert.strictEqual(again.success, false);
+    assert.strictEqual(again.correct, false);
+    assert.strictEqual(again.reason, 'banned');
+    assert.strictEqual(again.explanation, undefined);
+    assert.strictEqual(again.answerIndex, undefined);
+    assert.deepStrictEqual(
+        { success: again.success, correct: again.correct, explanation: again.explanation, answerIndex: again.answerIndex },
+        { success: result.success, correct: result.correct, explanation: result.explanation, answerIndex: result.answerIndex }
+    );
+    assertNotCounted();
+
+    reset({ 'users/later': { points: 100000 } });
+    const first = await answerTrivia.run(Object.assign({}, pack.data, { chosen: correctText }), context('later'));
+    assert.strictEqual(first.success, true);
+    assert.strictEqual(first.answerIndex, pack.question.answer);
+    state.docs['users/later'].satsDisabled = true;
+    const later = await answerTrivia.run(Object.assign({}, pack.data, { chosen: wrong }), context('later'));
+    assert.strictEqual(later.banned, true);
+    assert.strictEqual(later.success, false);
+    assert.strictEqual(later.correct, false);
+    assert.strictEqual(later.explanation, undefined);
+    assert.strictEqual(later.answerIndex, undefined);
 });
 
 test('an unmatched option does not count', async function () {

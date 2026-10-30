@@ -476,10 +476,16 @@ test('home invite card is top-right and reads counts the user may see', () => {
     const privacy = fs.readFileSync(path.join(__dirname, '..', 'privacy.html'), 'utf8');
     assert.ok(privacy.includes('server-only'));
     assert.ok(privacy.includes('referral signup'));
-    assert.ok(privacy.includes('HMAC'));
-    assert.ok(privacy.includes('90-day'));
+    assert.ok(privacy.includes('one-way, non-reversible fingerprint of your network address, kept 90 days'));
+    assert.ok(!privacy.includes('HMAC'));
+    assert.ok(privacy.includes('kept 90 days'));
+    assert.ok(!privacy.includes('btc_auth_display'));
+    assert.ok(!privacy.includes('btc_profile_cache'));
     assert.ok(service.indexOf("collection('notifications')") === -1);
     const terms = fs.readFileSync(path.join(__dirname, '..', 'terms.html'), 'utf8');
+    assert.ok(!terms.includes('HMAC'));
+    assert.ok(terms.includes('We use App Check to help block automated abuse'));
+    assert.ok(!terms.includes('including sats claims and Say hi'));
     assert.ok(terms.includes('2,140 points'));
     assert.ok(terms.includes('50 Orange Tickets'));
     assert.ok(terms.includes('72 hours'));

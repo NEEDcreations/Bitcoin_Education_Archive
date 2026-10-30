@@ -102,7 +102,9 @@ test('the Today tile reads the server count and shows n/5', function () {
     assert.ok(html.indexOf('>Flex</span>') > 0);
     assert.ok(html.indexOf('id="todayFlexSub"') > 0);
     assert.ok(html.indexOf('>0/5</span>') > 0);
-    assert.ok(html.indexOf('today-card.js?v=20261026_v2371') > 0);
+    assert.ok(html.indexOf('today-card.js?v=20261030_v2433') > 0);
+    assert.ok(html.indexOf('today-card.js?v=20261030_v2432') === -1);
+    assert.ok(html.indexOf('today-card.js?v=20261026_v2371') === -1);
     assert.ok(html.indexOf('today-card.js?v=20261026_v2375') === -1);
     assert.ok(html.indexOf('today-card.js?v=20261026_v2365') === -1);
     assert.ok(html.indexOf('today-card.js?v=20261024_v2368') === -1);
@@ -119,7 +121,8 @@ test('the Today tile reads the server count and shows n/5', function () {
     assert.ok(quests.indexOf('FLEX_ACTIONS.every') === -1);
     assert.ok(quests.indexOf('_flexDayGoal') > 0);
     assert.ok(quests.indexOf('5 * 3600000') > 0);
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261027_v2393/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261030_v2435/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261028_v2415/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2381/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2380/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2372/g) || []).length, 0);

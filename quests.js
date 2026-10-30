@@ -1921,7 +1921,8 @@ async function submitQuest() {
     // XP on screen is only what gradeQuest actually paid.
     var awarded = serverData && typeof serverData.awarded === 'number' ? serverData.awarded : 0;
     var pts = awarded;
-    var xpSuffix = awarded > 0 ? ' +' + awarded + ' XP!' : '';
+    var xpMark = serverData && serverData.doubled === true ? ' 2x' : '';
+    var xpSuffix = awarded > 0 ? ' +' + awarded + ' XP' + xpMark + '!' : '';
 
     let msg = '';
     var isPerfect = score === 5;
@@ -5281,6 +5282,10 @@ window.triviaAnswer = function(chosenIdx) {
             chosen: chosenText
         }).then(function(res) {
             var d = (res && res.data) || {};
+            if (d.banned === true || d.reason === 'banned') {
+                _abortTrivia('Trivia is unavailable on this account.');
+                return;
+            }
             if (d.success === false && d.reason && d.reason !== 'incorrect') {
                 _abortTrivia(d.reason === 'wrong-question'
                     ? 'Trivia updated, please refresh'
@@ -5677,7 +5682,7 @@ window.pollVote = function(chosenIdx) {
                     var awarded = Number(data.awarded) || 0;
                     if (typeof window._raidOnPollVote === 'function') window._raidOnPollVote();
                     if (awarded > 0 && typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(awarded);
-                    if (typeof showToast === 'function') showToast(awarded > 0 ? ('📊 Vote recorded! +' + awarded + ' XP') : '📊 Vote recorded!', 3000);
+                    if (typeof showToast === 'function') showToast(awarded > 0 ? ('📊 Vote recorded! +' + awarded + ' XP' + (data.doubled === true ? ' 2x' : '')) : '📊 Vote recorded!', 3000);
                     _markDailyActivity('poll');
                     _checkDailyAllThree();
                     _showPollBody(true);
@@ -5830,7 +5835,7 @@ function _raidVictoryBanner(boss) {
             '<div style="color:var(--text-muted);font-size:0.82rem;line-height:1.5;margin-bottom:10px;">The community worked together and took it down! Great job everyone!</div>' +
             '<div style="padding:10px 14px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:10px;">' +
                 '<div style="font-size:0.78rem;font-weight:800;color:var(--accent);">\uD83C\uDFC6 Community reward unlocked!</div>' +
-                '<div style="font-size:0.82rem;color:var(--text);margin-top:4px;">Extra orange ticket drawing for <strong style=\"color:var(--accent);\">21,000 sats</strong> - <strong>this Friday night!</strong></div>' +
+                '<div style="font-size:0.82rem;color:var(--text);margin-top:4px;">An extra Orange Ticket giveaway winner will be announced by the end of the week.</div>' +
             '</div>' +
             '<button id="raidDamageDealersBtn" onclick="window._toggleRaidDamageDealers()" style="width:100%;margin-top:12px;padding:10px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:10px;color:#8b5cf6;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">\u2694\uFE0F Top Damage Dealers</button>' +
             '<div id="raidDamageDealers" style="display:none;margin-top:8px;"></div>' +
@@ -5861,6 +5866,12 @@ function _getRaidBossImage(boss) {
     return boss.image || RAID_BOSS_IMAGES[boss.name] || '';
 }
 
+function _raidSafeEmoji(boss) {
+    var raw = boss && typeof boss.emoji === 'string' ? boss.emoji : '';
+    if (!raw || raw.length > 8 || /[<>&]/.test(raw)) return '\uD83D\uDC79';
+    return raw;
+}
+
 function _renderRaidBossCard(container, boss) {
     var now = Date.now();
     var startMs = boss.startTime ? (boss.startTime.toMillis ? boss.startTime.toMillis() : boss.startTime) : 0;
@@ -5871,7 +5882,7 @@ function _renderRaidBossCard(container, boss) {
     if (boss.placeholder) {
         var startDate = startMs ? new Date(startMs) : null;
         var dateStr = startDate ? startDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Soon';
-        var upcomingImgHtml = bossImage ? '<img src="' + bossImage + '" alt="' + (boss.name || 'Boss') + '" style="width:120px;height:120px;border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.3);margin-bottom:12px;">' : '<div style="font-size:3rem;margin-bottom:12px;">\u2694\uFE0F</div>';
+        var upcomingImgHtml = bossImage ? '<img src="' + bossImage + '" alt="' + (boss.name || 'Boss') + '" style="width:120px;height:120px;border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.3);margin-bottom:12px;">' : '<div style="font-size:3rem;margin-bottom:12px;">' + _raidSafeEmoji(boss) + '</div>';
         container.innerHTML = '<div style="padding:20px 0;">' +
             upcomingImgHtml +
             '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">' + (typeof escapeHtml === 'function' ? escapeHtml(boss.name || 'Raid Boss') : (boss.name || 'Raid Boss')) + '</div>' +
@@ -5881,7 +5892,7 @@ function _renderRaidBossCard(container, boss) {
             '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:12px;">Get ready to team up and take it down!</div>' +
             '<div style="margin-top:14px;padding:10px 14px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:10px;">' +
                 '<div style="font-size:0.72rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">\uD83C\uDFC6 Community Prize</div>' +
-                '<div style="font-size:0.78rem;color:var(--text);line-height:1.4;">Defeat the boss = extra orange ticket giveaway for <strong style="color:var(--accent);">21,000 sats!</strong></div>' +
+                '<div style="font-size:0.78rem;color:var(--text);line-height:1.4;">On a win, an extra Orange Ticket giveaway winner will be announced by the end of the week.</div>' +
             '</div>' +
         '</div>';
         _startRaidCountdown('raidCountdownPlaceholder', startMs);
@@ -5917,7 +5928,7 @@ function _renderRaidBossCard(container, boss) {
             '<div style="color:var(--text-muted);font-size:0.82rem;">' + (typeof escapeHtml === 'function' ? escapeHtml(boss.description || '') : (boss.description || '')) + '</div>' +
             '<div style="margin-top:14px;padding:10px 14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;text-align:center;">' +
                 '<div style="font-size:0.85rem;font-weight:800;color:#22c55e;">\uD83C\uDF89 Community reward unlocked!</div>' +
-                '<div style="font-size:0.78rem;color:var(--text);margin-top:2px;">Extra orange ticket giveaway for <strong style="color:var(--accent);">21,000 sats!</strong></div>' +
+                '<div style="font-size:0.78rem;color:var(--text);margin-top:2px;">An extra Orange Ticket giveaway winner will be announced by the end of the week.</div>' +
             '</div>' +
             '<button id="raidDamageDealersBtn" onclick="window._toggleRaidDamageDealers()" style="width:100%;margin-top:16px;padding:12px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.05));border:1px solid rgba(139,92,246,0.3);border-radius:12px;color:#8b5cf6;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;transition:all 0.2s;touch-action:manipulation;">\u2694\uFE0F Top Damage Dealers</button>' +
             '<div id="raidDamageDealers" style="display:none;margin-top:12px;"></div>' +
@@ -5936,7 +5947,7 @@ function _renderRaidBossCard(container, boss) {
     var target = stats.maxHp;
     var bossName = typeof escapeHtml === 'function' ? escapeHtml(boss.name || 'Raid Boss') : (boss.name || 'Raid Boss');
     var bossDesc = typeof escapeHtml === 'function' ? escapeHtml(boss.description || '') : (boss.description || '');
-    var activeImgHtml = bossImage ? '<img src="' + bossImage + '" alt="' + bossName + '" style="width:140px;height:140px;border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.4);margin-bottom:12px;box-shadow:0 0 20px rgba(139,92,246,0.3);">' : '<div style="font-size:2.5rem;margin-bottom:8px;">\uD83D\uDC79</div>';
+    var activeImgHtml = bossImage ? '<img src="' + bossImage + '" alt="' + bossName + '" style="width:140px;height:140px;border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.4);margin-bottom:12px;box-shadow:0 0 20px rgba(139,92,246,0.3);">' : '<div style="font-size:2.5rem;margin-bottom:8px;">' + _raidSafeEmoji(boss) + '</div>';
     var hpMeter = '';
     if (stats.hasMax) {
         hpMeter = '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
@@ -5973,7 +5984,7 @@ function _renderRaidBossCard(container, boss) {
         // Prize note
         '<div style="padding:10px 14px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:10px;margin-bottom:16px;text-align:center;">' +
             '<div style="font-size:0.72rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">🏆 Community Prize</div>' +
-            '<div style="font-size:0.8rem;color:var(--text);line-height:1.4;">Defeat the boss and the community earns an <strong style="color:var(--accent);">extra orange ticket giveaway for 21,000 sats!</strong></div>' +
+            '<div style="font-size:0.8rem;color:var(--text);line-height:1.4;">On a win, an extra Orange Ticket giveaway winner will be announced by the end of the week.</div>' +
         '</div>' +
         // Participants list with tabs
         '<div>' +
@@ -6218,12 +6229,20 @@ var RAID_GUIDANCE = {
     'flashcardCompletions':{ action: 'Complete flashcard sets to deal damage!',               nav: 'learning-quests', unitLabel: 'flashcard set completed',    unitAmt: 1   },
     'totalXP':            { action: 'Earn XP from any activity to deal damage!',              nav: 'home',            unitLabel: '100 XP earned',              unitAmt: 100 },
     'pollVotes':          { action: 'Vote in the daily Quest Hub poll to deal damage!',       nav: 'quests',          unitLabel: 'poll vote',                  unitAmt: 1   },
-    'chatMessages':       { action: 'Send messages in Global Chat (up to 3/day count)!',      nav: 'chat',            unitLabel: 'chat message (max 3/day)',    unitAmt: 1   },
+    'chatMessages':       { action: 'Send a real Global Chat message. The server counts it, up to 10 a day, and it needs at least 8 characters.', nav: 'chat', unitLabel: 'chat message (max 10/day)', unitAmt: 1 },
+    'cipherPeerKey':      { action: 'Accept a peer request or open someone else\'s cipher share. Linked accounts do not count. Up to 2 a day.', nav: 'home', unitLabel: 'peer accept or cipher open (max 2/day)', unitAmt: 1 },
+    'favorHashes':        { action: 'Hash for Satoshi\'s Favor. Each real hash counts, up to 15 a day.', nav: 'quests', unitLabel: 'Satoshi\'s Favor hash (max 15/day)', unitAmt: 1 },
+    'sayHi':              { action: 'Say hi in Global Chat. The server counts one hello a day.', nav: 'chat', unitLabel: 'Say hi (1/day)', unitAmt: 1 },
+    'trifecta':           { action: 'Finish trivia, a quest, and the daily poll on the same day.', nav: 'quests', unitLabel: 'daily trifecta (1/day)', unitAmt: 1 },
+    'certPasses':         { action: 'Pass the Scholar or Protocol Expert certification.', nav: 'learning-quests', unitLabel: 'certification passed', unitAmt: 1 },
+    'tctvWatchDays':      { action: 'Finish the daily Timechain TV watch.', nav: 'tctv', unitLabel: 'Timechain TV watch day (1/day)', unitAmt: 1 },
+    'referralsPaid':      { action: 'Invite a friend who reaches Maxi. Self-invites do not count.', nav: 'home', unitLabel: 'qualified referral', unitAmt: 1 },
+    'articlesPublished':  { action: 'Publish a substantial, original article. The server counts it after 24 hours if it is still up. Posts and articles share a cap of 2 a day.', nav: 'forum', unitLabel: 'article published (max 2/day)', unitAmt: 1 },
     'badgesEarned':       { action: 'Earn badges to deal damage! Find them in the Leaderboard 🏆', nav: 'badges', unitLabel: 'badge earned',          unitAmt: 1   },
     'streakUsers':        { action: 'Hit a 7-day daily visit streak to deal damage!',         nav: 'home',            unitLabel: '7-day streak milestone',     unitAmt: 1   },
     'uniqueTopicsVisited':{ action: "Visit learning topics you haven't read yet (up to 3/day count)!", nav: 'home',  unitLabel: 'new topic visited (max 3/day)', unitAmt: 1 },
     'tipsSent':           { action: 'Send Lightning tips to deal damage!',                    nav: 'home',            unitLabel: 'Lightning tip sent',         unitAmt: 1   },
-    'forumPosts':         { action: 'Create forum posts to deal damage!',                     nav: 'forum',           unitLabel: 'forum post created',         unitAmt: 1   },
+    'forumPosts':         { action: 'Publish a substantial, original forum post or article. The server counts it after 24 hours if it is still up. 2 a day.', nav: 'forum', unitLabel: 'forum post or article (max 2/day)', unitAmt: 1 },
     'triviaCorrect':      { action: 'Answer trivia correctly in Quest Hub to deal damage!',   nav: 'quests',          unitLabel: 'correct trivia answer',      unitAmt: 1   },
     'totalTopicReads':    { action: 'Read learning topics to deal damage (up to 3/day count)!', nav: 'home',          unitLabel: 'topic read (max 3/day)',      unitAmt: 1   }
 };
@@ -6352,7 +6371,7 @@ window._contributeRaidNav = function() {
     // Load trivia bank
     if (typeof TRIVIA_BANK === 'undefined') {
         var ts = document.createElement('script');
-        ts.src = 'data/trivia-bank.js?v=20261027_v2402';
+        ts.src = 'data/trivia-bank.js?v=20261030_v2435';
         ts.onerror = function() { console.warn('[QUEST] Trivia bank failed to load'); };
         document.head.appendChild(ts);
     }
@@ -6508,17 +6527,17 @@ window._raidContribute = function(metric, amount, detail) {
 
 // Hook: quiz quest completion
 window._raidOnQuizComplete = function() {
-    window._raidContribute('quizCompletions', 1);
+    // Quiz-Crusader damage is counted on the server when a quest is passed.
 };
 
 // Hook: trivia correct answer
 window._raidOnTriviaCorrect = function() {
-    window._raidContribute('triviaCorrect', 1);
+    // Trivia-Tactician damage is counted on the server from the graded answer.
 };
 
 // Hook: poll vote
 window._raidOnPollVote = function() {
-    window._raidContribute('pollVotes', 1);
+    // Poll-Patroller damage is counted on the server from the recorded vote.
 };
 
 // Hook: flashcard set completion
@@ -6541,7 +6560,7 @@ window._raidOnXPEarned = function(amount) {
 
 // Hook: chat message sent
 window._raidOnChatMessage = function() {
-    window._raidContribute('chatMessages', 1);
+    // Chat-Charger damage is counted on the server from the chat message.
 };
 
 // Hook: badge earned
@@ -6562,7 +6581,7 @@ window._raidOnStreakMilestone = function() {
 
 // Hook: forum post created
 window._raidOnForumPost = function() {
-    window._raidContribute('forumPosts', 1);
+    // Forum-Forge damage is counted on the server when the post is accepted.
 };
 
 // Hook: channel/topic visit (contributes to multiple boss metrics)
@@ -6774,7 +6793,11 @@ function _flexClaimDayRewards(data) {
                     try { localStorage.removeItem(flag); } catch (e3) {}
                     return;
                 }
-                if (info && info.success && typeof showToast === 'function') showToast('💪 Full Stack! Flex done today! +50 XP');
+                if (info && info.success && typeof showToast === 'function') {
+                    var paid = Number(info.awarded) || 0;
+                    var mark = info.doubled === true ? ' 2x' : '';
+                    showToast('💪 Full Stack! Flex done today!' + (paid > 0 ? (' +' + paid + ' XP' + mark) : ''));
+                }
             }).catch(function () {
                 try { localStorage.removeItem(flag); } catch (e4) {}
             });

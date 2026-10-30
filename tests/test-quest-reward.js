@@ -132,6 +132,10 @@ test('banned accounts and the daily cap hold for trivia', function() {
     assert.strictEqual(banned.correct, true);
     assert.strictEqual(banned.awarded, 0);
     assert.strictEqual(banned.reason, 'banned');
+    assert.strictEqual(banned.explanation, undefined);
+    assert.strictEqual(banned.answerIndex, undefined);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(banned, 'explanation'), false);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(banned, 'answerIndex'), false);
     assert.strictEqual(reward.isRewardBanned({ satsDisabled: true }, null), true);
     assert.strictEqual(reward.isRewardBanned({ ban_reason: 'spam' }, null), true);
     assert.strictEqual(reward.isRewardBanned({ banned: true }, null), true);
@@ -350,7 +354,7 @@ test('callables enforce App Check, bans, and rate limits, and ignore client keys
     assert.strictEqual(quests.includes('Trivia Quest correct'), false);
     assert.strictEqual(quests.includes("httpsCallable('startQuest')"), false);
     assert.ok(quests.includes('Trivia updated, please refresh'));
-    assert.ok(quests.includes('data/trivia-bank.js?v=20261027_v2402'));
+    assert.ok(quests.includes('data/trivia-bank.js?v=20261030_v2435'));
     assert.ok(read('patch-notes.html').includes('Quiz and trivia rewards are now checked by the server, and Part 2 quizzes pay out correctly again.'));
     assert.ok(read('firestore.rules').includes('quest_completions'));
 });
@@ -484,7 +488,12 @@ test('trivia stats record the bank index, not the shuffled display slot', functi
     });
     const polls = rulesBlock('match /poll_votes/{pollId}');
     assert.ok(polls.includes('allow create, update, delete: if false'));
-    assert.ok(rules.includes('match /poll_cumulative/{pollId}'));
+    const pollTotals = rulesBlock('match /poll_cumulative/{pollId}');
+    assert.ok(pollTotals.includes('allow read: if true'));
+    assert.ok(pollTotals.includes('allow create, update, delete: if false'));
+    assert.strictEqual(pollTotals.includes('request.auth'), false);
+    assert.strictEqual(pollTotals.includes('allow create: if request.auth'), false);
+    assert.strictEqual(pollTotals.includes('allow update: if request.auth'), false);
     assert.ok(rules.includes('match /satoshiFavor/announceDedup') || rules.includes('match /sf_live_announcements/{cycleId}'));
 });
 

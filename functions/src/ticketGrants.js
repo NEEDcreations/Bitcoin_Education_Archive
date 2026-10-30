@@ -48,7 +48,10 @@ function amountFor(action, requested) {
 }
 
 function raidTickets(damage) {
-    return amountFor('raid_damage_ticket', damage);
+    const n = Number(damage);
+    if (!(n > 0)) return 0;
+    const whole = Math.floor(n);
+    return Math.min(RAID_MAX_PER_GRANT, whole > 0 ? whole : 1);
 }
 
 // Daily ticket total, not a per-call count. A 250 XP day or 240 watch

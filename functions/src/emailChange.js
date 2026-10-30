@@ -492,15 +492,17 @@ function bindEmailChange(functionsV1, admin, db, deletionHmacSecret) {
         authApi: admin.auth(),
         HttpsError: functionsV1.https.HttpsError,
     });
-    function onCall(handler) {
-        return functionsV1.runWith({
+    function onCall(handler, warm) {
+        var opts = {
             enforceAppCheck: true,
             secrets: [secret],
-        }).https.onCall(handler);
+        };
+        if (warm === true) opts.minInstances = 1;
+        return functionsV1.runWith(opts).https.onCall(handler);
     }
     return {
         prepareEmailChange: onCall(handlers.prepareEmailChange),
-        syncEmailChange: onCall(handlers.syncEmailChange),
+        syncEmailChange: onCall(handlers.syncEmailChange, true),
         confirmAccountLink: onCall(handlers.confirmAccountLink),
     };
 }

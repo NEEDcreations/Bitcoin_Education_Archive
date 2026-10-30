@@ -1,7 +1,7 @@
 'use strict';
 
 const POLL_BANK = require('./pollBank.json');
-const { planDailyXp } = require('./dailyXp');
+const { planXpGrant } = require('./grantXp');
 const { rewardBlocked } = require('./cipherClaim');
 const { grantFamily, offsetDateKey } = require('./grantBadge');
 
@@ -56,7 +56,7 @@ function createPollVote(opts) {
             while (prevVotes.length < 4) prevVotes.push(0);
             prevVotes[chosen] = Number(prevVotes[chosen] || 0) + 1;
             const dailyUsed = dailySnap.exists ? Number(dailySnap.data().total || 0) : 0;
-            const split = planDailyXp(dailyUsed, POLL_XP);
+            const split = planXpGrant({ base: POLL_XP, user: user, now: Date.now(), dailyUsed: dailyUsed });
             const update = { pollDays: admin.firestore.FieldValue.increment(1), lastPollDate: day };
             if (split.awarded > 0) {
                 update.points = admin.firestore.FieldValue.increment(split.awarded);
@@ -87,9 +87,9 @@ function createPollVote(opts) {
             }, { merge: true });
             t.update(userRef, update);
             if (split.awarded > 0) {
-                t.set(dailyRef, { total: dailyUsed + split.awarded }, { merge: true });
+                t.set(dailyRef, { total: split.dailyXp }, { merge: true });
             }
-            return { already: false, day: day, awarded: split.awarded, votes: prevVotes };
+            return { already: false, day: day, awarded: split.awarded, doubled: split.doubled === true, votes: prevVotes };
         });
 
         if (!result.already && typeof opts.afterVote === 'function') {
@@ -101,7 +101,7 @@ function createPollVote(opts) {
             try { await grantFamily(db, admin, uid, ['poll_first', 'poll_10', 'poll_50', 'poll_100', 'poll_days_7', 'poll_days_30', 'poll_days_100'], { day: day }); }
             catch (err) { console.warn('[pollVote] badge grant skipped', err && err.message); }
         }
-        return { success: true, already: result.already === true, day: day, awarded: result.awarded || 0, pollIndex: today.index };
+        return { success: true, already: result.already === true, day: day, awarded: result.awarded || 0, doubled: result.doubled === true, pollIndex: today.index };
     };
 }
 

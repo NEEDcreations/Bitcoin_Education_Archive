@@ -125,6 +125,14 @@ test('grading returns the explanation only after a real attempt', function () {
     assert.strictEqual(wrongDay.ok, false);
     assert.strictEqual(wrongDay.explanation, undefined);
     assert.strictEqual(wrongDay.answerIndex, undefined);
+    const banned = reward.gradeTrivia(Object.assign({}, base, { chosen: correctText, banned: true }));
+    assert.strictEqual(banned.reason, 'banned');
+    assert.strictEqual(banned.awarded, 0);
+    assert.strictEqual(banned.explanation, undefined);
+    assert.strictEqual(banned.answerIndex, undefined);
+    const bannedMiss = reward.gradeTrivia(Object.assign({}, base, { chosen: wrong, banned: true }));
+    assert.strictEqual(bannedMiss.explanation, undefined);
+    assert.strictEqual(bannedMiss.answerIndex, undefined);
     const callables = read('functions/src/questCallables.js');
     assert.ok(callables.includes("provider === 'anonymous'"));
     assert.ok(callables.includes('function triviaReveal'));
@@ -141,6 +149,9 @@ test('guest and offline trivia cannot earn XP', function () {
     assert.ok(start > 0 && end > start);
     const fn = src.slice(start, end);
     assert.ok(fn.includes("httpsCallable('answerTrivia')"));
+    assert.ok(fn.includes("d.reason === 'banned'"));
+    assert.ok(fn.indexOf("d.reason === 'banned'") < fn.indexOf('_finishTrivia(d.correct'));
+    assert.ok(fn.includes('Trivia is unavailable on this account.'));
     assert.ok(fn.includes('Guest and offline answers are not graded and do not earn XP'));
     assert.ok(fn.includes('_triviaCanGrade'));
     assert.ok(fn.includes('_markTriviaChecking'));

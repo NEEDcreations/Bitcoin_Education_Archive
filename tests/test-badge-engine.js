@@ -314,6 +314,12 @@ queue.push(test('user updates deny server fields and poll votes are server-only'
     const polls = rules.slice(rules.indexOf('match /poll_votes/{pollId}'), rules.indexOf('match /poll_cumulative/'));
     assert.ok(polls.includes('allow read: if true'));
     assert.ok(polls.includes('allow create, update, delete: if false'));
+    const cumulativeAt = rules.indexOf('match /poll_cumulative/{pollId}');
+    const cumulative = rules.slice(cumulativeAt, rules.indexOf('match /', cumulativeAt + 10));
+    assert.ok(cumulative.includes('allow read: if true'));
+    assert.ok(cumulative.includes('allow create, update, delete: if false'));
+    assert.strictEqual(cumulative.includes('allow create: if request.auth'), false);
+    assert.strictEqual(cumulative.includes('allow update: if request.auth'), false);
     assert.ok(rules.includes('match /market_listing_daily/{docId}'));
     assert.ok(rules.includes('match /market_message_counts/{docId}'));
     assert.ok(rules.includes('match /market_sale_counts/{docId}'));

@@ -884,6 +884,18 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
     difficultyTarget: DIFFICULTY_TARGET,
   });
 
+  try {
+    await require('./raidBossEngine').noteTrusted(db, admin, {
+      metric: 'favorHashes',
+      uid: uid,
+      dedupeKey: 'hash-' + hashDoc.id,
+      amount: 1,
+      now: new Date(),
+    });
+  } catch (raidErr) {
+    console.warn('[FAVOR] raid', raidErr && raidErr.message);
+  }
+
   // Feature 2A: Write session hash count for live leaderboard (per-cycle, resets on new window)
   try {
     const sessionHashRef = stateRef.collection('session_hashes').doc(uid);
