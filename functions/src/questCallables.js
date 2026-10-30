@@ -360,6 +360,8 @@ const gradeQuest = onCall(async (data, context) => {
 
         // Leaderboard only. XP, badges, and quest_passes stay as they were.
         // Banned players are recorded too. A daily-limit rejection is not an attempt.
+        // applyAttempt ignores a quest this player has already passed, in this
+        // same transaction, so a replay cannot move the pass rate.
         let boardRecorded = false;
         if (settled.reason !== 'daily-limit') {
             const nextStats = questBoard.applyAttempt(statsDoc.exists ? statsDoc.data() : null, {

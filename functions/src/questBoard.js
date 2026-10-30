@@ -193,12 +193,28 @@ function notePass(stats, prefix, questId, at) {
     if (at > 0) stats[reachKey] = at;
 }
 
+// Commit 0730b656, when gradeQuest started scoring from the server bank.
+// Answer-key docs created before this are pre-cutover history. Later ones
+// overlap the server pass and attempt records.
+const CUTOVER_MS = Date.parse('2026-10-23T17:14:38.000Z');
+
+function alreadyPassed(stats, questId) {
+    return !!(questId && stats && stats.passed && Object.prototype.hasOwnProperty.call(stats.passed, questId));
+}
+
+// A replay of a quest that already passed does not move attempts or
+// passedAttempts on any period. Fails before the first pass still count.
+// Only that first pass increases the distinct-quest rank.
 function applyAttempt(prev, attempt, nowMs) {
     const stats = normalizeStats(prev);
     const at = timeMs(attempt && attempt.at) || timeMs(nowMs);
     const score = Math.floor(Number(attempt && attempt.score) || 0);
     const questId = sanitizeQuestId(attempt && attempt.questId);
     const passed = score >= PASS_SCORE;
+    if (alreadyPassed(stats, questId)) {
+        stats.updatedAt = timeMs(nowMs) || at;
+        return stats;
+    }
     stats.attempts += 1;
     if (passed) stats.passedAttempts += 1;
     if (passed) notePass(stats, '', questId, at);
@@ -213,7 +229,144 @@ function applyAttempt(prev, attempt, nowMs) {
     if (passed) stats.monthPassedAttempts += 1;
     if (passed) notePass(stats, 'month', questId, at);
     stats.updatedAt = timeMs(nowMs) || at;
+    delete stats.estimatedRate;
     return stats;
+}
+
+// completedQuests, answer-key topic keys, and quest_passes ids share one shape:
+// quest_<topic>__<part>, part 1-based. Legacy part 1 was quest_<topic>.
+// Static client ids were q__<topic>__<part>.
+function canonicalQuestId(raw) {
+    const s = String(raw == null ? '' : raw).trim();
+    if (!s || s.length > 160) return '';
+    let match = /^q__([A-Za-z0-9_-]+)__(\d+)$/.exec(s);
+    if (match) return sanitizeQuestId('quest_' + match[1] + '__' + String(Number(match[2])));
+    match = /^quest_([A-Za-z0-9_-]+)__(\d+)$/.exec(s);
+    if (match) return sanitizeQuestId('quest_' + match[1] + '__' + String(Number(match[2])));
+    match = /^quest_([A-Za-z0-9_-]+)$/.exec(s);
+    if (match) return sanitizeQuestId(s + '__1');
+    match = /^([A-Za-z0-9_-]+)$/.exec(s);
+    if (match) return sanitizeQuestId('quest_' + s + '__1');
+    return '';
+}
+
+function copyPeriod(stats, from, prefix) {
+    stats[prefix + 'Key'] = from[prefix + 'Key'];
+    stats[prefix + 'Attempts'] = from[prefix + 'Attempts'];
+    stats[prefix + 'PassedAttempts'] = from[prefix + 'PassedAttempts'];
+    stats[prefix + 'Passes'] = from[prefix + 'Passes'];
+    stats[prefix + 'ReachedAt'] = from[prefix + 'ReachedAt'];
+    stats[prefix + 'Passed'] = from[prefix + 'Passed'];
+}
+
+// Pre-cutover history plus server records after 0730b656.
+// All-time attempts = distinct passes + each pre-cutover failed answer key.
+// Repeat passes add nothing. Week and month use dated rows only.
+// estimatedRate (the old 65.5% placeholder) is dropped when this rebuild
+// has real attempts.
+function buildLegacyStats(input, nowMs) {
+    const src = input || {};
+    const cutover = src.cutoverMs == null ? CUTOVER_MS : Number(src.cutoverMs);
+    const passAt = Object.create(null);
+    const datedPassAt = Object.create(null);
+
+    function addPass(raw, at) {
+        const id = canonicalQuestId(raw);
+        if (!id) return;
+        const t = timeMs(at);
+        if (!Object.prototype.hasOwnProperty.call(passAt, id)) passAt[id] = t;
+        else if (t > 0 && (passAt[id] === 0 || t < passAt[id])) passAt[id] = t;
+        if (t > 0) {
+            if (!Object.prototype.hasOwnProperty.call(datedPassAt, id) || t < datedPassAt[id]) datedPassAt[id] = t;
+        }
+    }
+
+    const completed = Array.isArray(src.completedQuests) ? src.completedQuests : [];
+    completed.forEach(function (id) { addPass(id, 0); });
+
+    const oldFails = [];
+    (src.answerKeys || []).forEach(function (doc) {
+        if (!doc || doc.graded !== true) return;
+        const at = timeMs(doc.createdAt);
+        if (!(at > 0) || !(at < cutover)) return;
+        const score = Number(doc.score);
+        if (score >= PASS_SCORE) addPass(doc.topicKey, at);
+        else oldFails.push({ questId: canonicalQuestId(doc.topicKey), at: at, score: score });
+    });
+
+    (src.passes || []).forEach(function (row) {
+        const at = timeMs(row && row.at);
+        if (at >= cutover) return;
+        addPass(row.questId || row.id, at);
+    });
+
+    const postEvents = [];
+    (src.passes || []).forEach(function (row) {
+        const at = timeMs(row && row.at);
+        if (!(at >= cutover)) return;
+        postEvents.push({
+            questId: canonicalQuestId(row.questId || row.id),
+            score: row.score == null ? PASS_SCORE : Number(row.score),
+            at: at
+        });
+    });
+    (src.attempts || []).forEach(function (row) {
+        const at = timeMs(row && row.at);
+        if (!(at >= cutover)) return;
+        postEvents.push({
+            questId: canonicalQuestId(row.questId),
+            score: Number(row.score) || 0,
+            at: at
+        });
+    });
+    postEvents.sort(function (a, b) { return a.at - b.at || String(a.questId).localeCompare(String(b.questId)); });
+
+    // A post-cutover dated pass should be applied in order, so fails recorded
+    // before it still count. Keep an earlier dated pass in the seed so a
+    // later replay does not move the rate.
+    const postPassIds = Object.create(null);
+    postEvents.forEach(function (ev) {
+        if (ev.questId && ev.score >= PASS_SCORE) postPassIds[ev.questId] = true;
+    });
+    Object.keys(postPassIds).forEach(function (id) {
+        if (!(datedPassAt[id] > 0) || datedPassAt[id] >= cutover) delete passAt[id];
+    });
+
+    const seedIds = Object.keys(passAt);
+    let stats = emptyStats();
+    seedIds.forEach(function (id) { stats.passed[id] = passAt[id]; });
+    stats.passes = seedIds.length;
+    stats.passedAttempts = seedIds.length;
+    stats.attempts = seedIds.length + oldFails.length;
+    let reached = 0;
+    seedIds.forEach(function (id) { if (passAt[id] > reached) reached = passAt[id]; });
+    stats.reachedAt = reached;
+    postEvents.forEach(function (ev) {
+        stats = applyAttempt(stats, ev, ev.at);
+    });
+
+    const dated = oldFails.map(function (row) {
+        return { questId: row.questId, score: row.score, at: row.at };
+    });
+    Object.keys(datedPassAt).forEach(function (id) {
+        if (postPassIds[id]) return;
+        dated.push({ questId: id, score: PASS_SCORE, at: datedPassAt[id] });
+    });
+    postEvents.forEach(function (ev) { dated.push(ev); });
+    dated.sort(function (a, b) { return a.at - b.at || String(a.questId).localeCompare(String(b.questId)); });
+    let periods = emptyStats();
+    dated.forEach(function (ev) { periods = applyAttempt(periods, ev, ev.at); });
+    copyPeriod(stats, periods, 'week');
+    copyPeriod(stats, periods, 'month');
+    stats.updatedAt = timeMs(nowMs) || stats.updatedAt;
+    stats.live = postEvents.length > 0;
+    delete stats.estimatedRate;
+    return {
+        stats: stats,
+        distinctPasses: stats.passes,
+        oldFails: oldFails.length,
+        postEvents: postEvents.length
+    };
 }
 
 function seedStatsFromPasses(events) {
@@ -315,6 +468,13 @@ function safePic(pic) {
     if (/^data:image\/(jpeg|jpg|png|webp);base64,[a-z0-9+/=]+$/i.test(pic)) return pic;
     if (/^https:\/\/[^\s"'<>]+$/i.test(pic) && pic.length < 500) return pic;
     return '';
+}
+
+function boardLines(rows) {
+    return (rows || []).map(function (row) {
+        const name = displayName(row && row.username);
+        return String(row && row.rank || 0) + '. ' + name + '  ' + whole(row && row.passes) + '  ' + whole(row && row.pct) + '%';
+    });
 }
 
 function displayPct(passedAttempts, attempts) {
@@ -610,12 +770,16 @@ module.exports = {
     timeMs: timeMs,
     emptyStats: emptyStats,
     normalizeStats: normalizeStats,
+    CUTOVER_MS: CUTOVER_MS,
+    canonicalQuestId: canonicalQuestId,
+    buildLegacyStats: buildLegacyStats,
     applyAttempt: applyAttempt,
     seedStatsFromPasses: seedStatsFromPasses,
     absorbHistoricalPasses: absorbHistoricalPasses,
     mergeForBackfill: mergeForBackfill,
     sameTotals: sameTotals,
     displayName: displayName,
+    boardLines: boardLines,
     safePic: safePic,
     displayPct: displayPct,
     viewFromStats: viewFromStats,
