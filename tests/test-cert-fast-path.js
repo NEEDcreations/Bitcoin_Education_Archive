@@ -194,7 +194,8 @@ test('sources post verifyCertificate and paint fields as text', () => {
     assert.ok(early.includes('firebase.firestore'));
     assert.strictEqual(early.includes("window._loadDeferred();") && early.indexOf('DOMContentLoaded') < early.lastIndexOf('_loadDeferred'), true);
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2434'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2435'"));
+    assert.ok(!sw.includes('btc-archive-v2434'));
     assert.ok(!sw.includes('btc-archive-v2433'));
     assert.ok(!sw.includes('btc-archive-v2432'));
     assert.ok(!sw.includes('btc-archive-v2431'));

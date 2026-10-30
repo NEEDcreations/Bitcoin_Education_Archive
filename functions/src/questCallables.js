@@ -12,6 +12,7 @@
 const functionsV1 = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const reward = require('./questReward');
+const { loadTriviaKey } = require('./triviaKey');
 const rewardNotify = require('./rewardNotify');
 const { DAILY_CAP, TAPER_FULL_UNTIL, TAPER_HALF_UNTIL } = require('./dailyXp');
 const { grantFamily, familyFor } = require('./grantBadge');
@@ -56,6 +57,19 @@ function meterFrom(used, awarded) {
     };
 }
 
+// The explanation and the correct slot are returned only after this call
+// grades a choice for an account that is allowed to play. Wrong-day,
+// wrong-question, and banned responses omit both.
+function triviaReveal(graded) {
+    if (!graded || graded.ok !== true || graded.banned === true) return {};
+    const explanation = typeof graded.explanation === 'string' ? graded.explanation : '';
+    const answerIndex = Number.isInteger(graded.answerIndex) ? graded.answerIndex : -1;
+    return {
+        explanation: explanation,
+        answerIndex: answerIndex >= 0 && answerIndex < 4 ? answerIndex : -1,
+    };
+}
+
 function applyRate(tx, rateRef, rateDoc, now, max, kind) {
     const existing = rateDoc.exists ? rateDoc.data() : null;
     const rate = reward.nextCallRate(existing, now, RATE_WINDOW_MS, max);
@@ -70,6 +84,24 @@ const answerTrivia = onCall(async (data, context) => {
     const now = Date.now();
     const dayKey = reward.offsetDateKey(now);
     const payload = data || {};
+
+    let triviaKey = null;
+    try {
+        triviaKey = await loadTriviaKey(db);
+    } catch (err) {
+        triviaKey = null;
+    }
+    // No key: do not grade, do not pay, and do not describe the failure.
+    if (!triviaKey) {
+        return {
+            success: false,
+            correct: false,
+            awarded: 0,
+            graded: false,
+            statsRecorded: false,
+            reason: 'unavailable',
+        };
+    }
 
     const userRef = db.collection('users').doc(uid);
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
@@ -99,6 +131,7 @@ const answerTrivia = onCall(async (data, context) => {
             banned: banned,
             dailyUsed: alreadyClaimed ? 0 : dailyUsed,
             user: user,
+            trivia: triviaKey,
         });
         const awarded = (graded.ok && !alreadyClaimed) ? (graded.awarded || 0) : 0;
         const pointsBefore = user.points || 0;
@@ -106,19 +139,34 @@ const answerTrivia = onCall(async (data, context) => {
 
         applyRate(tx, rateRef, rateDoc, now, TRIVIA_RATE_MAX, 'trivia');
 
+        // Banned accounts are not an answer lookup. The response is the same
+        // for every choice: no correct bit, no slot, and no explanation.
+        if (banned) {
+            return {
+                success: false,
+                correct: false,
+                awarded: 0,
+                banned: true,
+                alreadyClaimed: false,
+                graded: false,
+                statsRecorded: false,
+                reason: 'banned',
+            };
+        }
+
         if (!graded.ok) {
             return { success: false, correct: false, awarded: 0, reason: graded.reason };
         }
         if (!userDoc.exists) throw httpsError('not-found', 'User not found');
         if (alreadyClaimed) {
-            return {
+            return Object.assign({
                 success: true,
                 correct: claimDoc.data().correct === true,
                 awarded: 0,
                 alreadyClaimed: true,
                 statsRecorded: false,
                 reason: 'already-claimed',
-            };
+            }, triviaReveal(graded));
         }
 
         let statsRecorded = false;
@@ -193,7 +241,7 @@ const answerTrivia = onCall(async (data, context) => {
             graded: true,
             statsRecorded: statsRecorded,
             reason: banned ? 'banned' : (graded.correct ? '' : 'incorrect'),
-        }, meterFrom(dailyUsed, banned ? 0 : (graded.awarded || 0)));
+        }, meterFrom(dailyUsed, banned ? 0 : (graded.awarded || 0)), triviaReveal(graded));
     });
     if (triviaResult && triviaResult.correct === true && triviaResult.success === true && triviaResult.alreadyClaimed !== true && triviaResult.banned !== true) {
         await require('./raidBossEngine').noteTrusted(db, admin, {
