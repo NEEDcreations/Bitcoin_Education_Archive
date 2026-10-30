@@ -353,9 +353,10 @@ function copyPeriod(stats, from, prefix) {
 }
 
 // Pre-cutover history plus server records after 0730b656.
-// All-time attempts = distinct catalog passes + pre-cutover failed keys
-// for a known part + answer keys that name a real topic but no part.
-// Repeat passes add nothing. A key with no part is never a distinct pass.
+// All-time attempts = distinct catalog passes + failed keys. A pre-cutover
+// key with no part and score >= 3 is ignored; the pass comes from
+// completedQuests. A no-part key with score < 3 on a real topic is one
+// failed attempt. Repeat passes add nothing.
 // Ids that are not in the current or previous quest bank are dropped,
 // including failed keys and quest_dynamic_N. Week and month use dated
 // rows only. estimatedRate (the old 65.5% placeholder) is not kept.
