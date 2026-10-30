@@ -1577,13 +1577,24 @@ service cloud.firestore {
       // All announcements must now go through the nachoAnnounce Cloud Function
       // (Admin SDK write, non-anonymous auth required, link allowlist enforced).
       allow create: if false;
-      // Any signed-in user can toggle their own emoji reaction (only their own uid key within reactions)
+      // Any signed-in user can toggle their own emoji reaction (only their own uid key within reactions).
+      // partyCount is the server 🎉 total. Clients cannot write it. Per-player
+      // markers live in the reactions subcollection and are Admin SDK only.
       allow update: if request.auth != null
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['partyCount'])
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
                     && request.resource.data.reactions.diff(resource.data.get('reactions', {})).affectedKeys().hasOnly([request.auth.uid]);
       // Admin-only delete and full update
       allow delete: if request.auth != null
                     && isAdmin();
+
+      match /reactions/{uid} {
+        allow get: if request.auth != null
+                   && request.auth.uid == uid
+                   && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
+        allow list: if false;
+        allow create, update, delete: if false;
+      }
     }
 
     // =============================================

@@ -300,7 +300,7 @@ test('stripShareLinks finishes a 1 MB dotted string in under 50 ms', () => {
 test('patch notes keep one Latest line and pages match', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    const latestAt = notes.indexOf('Latest: Faster profile load when you open the app.');
+    const latestAt = notes.indexOf("Latest: Earned posts in GGs chat have a 🎉 button. Tap once to celebrate, and tap again to take it back.");
     assert.ok(latestAt >= 0);
     assert.ok(notes.includes("The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front."));
     assert.ok(!notes.includes('Latest: The daily wheel'));

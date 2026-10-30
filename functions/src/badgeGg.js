@@ -249,6 +249,7 @@ function stageAnnouncement(t, db, adminSdk, burst, user, existingSnap) {
             isNachoAuto: true,
             mentionUid: burst.uid,
             badgeIds: postedBadgeIds(burst.items),
+            ggKind: 'badge',
             ts: adminSdk.firestore.FieldValue.serverTimestamp(),
             postedByUid: 'badge-gg',
         });

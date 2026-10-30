@@ -322,10 +322,6 @@ export default {
       console.error('Worker error:', e);
       return corsResponse({ error: e.message }, 500);
     }
-  },
-
-  async scheduled(event, env, ctx) {
-    ctx.waitUntil(nachoDJCheck(env));
   }
 };
 
