@@ -48,7 +48,7 @@ function ready(extra) {
 }
 
 test('under 1,000 credits the balance once per open and 1,000 stays manual', () => {
-    [5, 10, 25, 50, 100, 500].forEach(function(amount) {
+    [5, 10, 25, 50, 100, 250, 500].forEach(function(amount) {
         assert.strictEqual(reward.satsDisposition(amount), 'balance');
         const first = claim.applyCipherBalanceCredit({ users: {}, credits: {} }, {
             cipherId: 'c1', role: 'opener', uid: 'player1', amount: amount,
@@ -78,7 +78,7 @@ test('under 1,000 credits the balance once per open and 1,000 stays manual', () 
 });
 
 test('the sender is offered the same roll, including the new small amounts', () => {
-    [5, 10, 25, 50, 100, 500, 1000].forEach(function(amount) {
+    [5, 10, 25, 50, 100, 250, 500, 1000].forEach(function(amount) {
         const plan = share.planCipherShare({
             cipherId: 'same' + amount,
             cipherLabel: '3A',
@@ -228,7 +228,7 @@ test('claim source does not read or write the faucet clock, and the faucet does 
     assert.ok(decrypt.includes("collection('cipher_sats_credits')"));
     assert.ok(decrypt.includes('cipherSatsBalance'));
     assert.ok(decrypt.includes("sats added to your cipher balance"));
-    assert.deepStrictEqual(reward.ALLOWED_SATS_AMOUNTS, [100000, 50000, 10000, 5000, 1000, 500, 100, 50, 25, 10, 5]);
+    assert.deepStrictEqual(reward.ALLOWED_SATS_AMOUNTS, [100000, 50000, 10000, 5000, 1000, 500, 250, 100, 50, 25, 10, 5]);
 });
 
 test('rules deny client writes of the balance and the claim collections', () => {

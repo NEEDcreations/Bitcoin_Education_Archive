@@ -10,12 +10,13 @@
 //   roll 31–130                    1/100,000    → 5,000
 //   roll 131–330                   1/50,000     → 1,000
 //   roll 331–1,330                 1/10,000     → 500
-//   roll 1,331–3,330               1/5,000      → 100
-//   roll 3,331–13,330              1/1,000      → 50
-//   roll 13,331–113,330            1/100        → 25
-//   roll 113,331–313,330           1/50         → 10
-//   roll 313,331–1,313,330         1/10         → 5
-//   roll 1,313,331–9,999,999       otherwise    → XP 50–250 and tickets 0–10
+//   roll 1,331–3,330               1/5,000      → 250
+//   roll 3,331–13,330              1/1,000      → 100
+//   roll 13,331–113,330            1/100        → 50
+//   roll 113,331–313,330           1/50         → 25
+//   roll 313,331–1,313,330         1/10         → 10
+//   roll 1,313,331–3,313,330       1/5          → 5
+//   roll 3,313,331–9,999,999       otherwise    → XP 50–250 and tickets 0–10
 
 const crypto = require('crypto');
 
@@ -30,11 +31,12 @@ const SATS_TIERS = [
     { amount: 5000,   odds: 100000 },
     { amount: 1000,   odds: 50000 },
     { amount: 500,    odds: 10000 },
-    { amount: 100,    odds: 5000 },
-    { amount: 50,     odds: 1000 },
-    { amount: 25,     odds: 100 },
-    { amount: 10,     odds: 50 },
-    { amount: 5,      odds: 10 },
+    { amount: 250,    odds: 5000 },
+    { amount: 100,    odds: 1000 },
+    { amount: 50,     odds: 100 },
+    { amount: 25,     odds: 50 },
+    { amount: 10,     odds: 10 },
+    { amount: 5,      odds: 5 },
 ];
 
 const ALLOWED_SATS_AMOUNTS = SATS_TIERS.map(function(tier) { return tier.amount; });
