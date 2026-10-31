@@ -1,20 +1,20 @@
 // Cache-buster pin. This ship is btc-archive-v2448.
-// Live gh-pages was v2446. quests.js and bundle.min.js stay v2443. global-chat.js is v2448.
+// Live gh-pages was v2446. quests.js stays v2443. bundle.min.js is v2447. global-chat.js is v2448.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
-// timechain-tv.js stays 20261026_v2383. scholar.js stays 20261026_v2386.
-// patches.js stays 20261026_v2385. bundle.min.js is 20261030_v2443.
+// timechain-tv.js is 20261031_v2447. scholar.js stays 20261026_v2386.
+// patches.js stays 20261026_v2385. bundle.min.js is 20261031_v2447.
 // earn-xp-guide.js and guide.js stay 20261026_v2382. ranking.js is 20261031_v2446.
 // modules.js and learning-quests.js stay 20261026_v2377.
 // scholar.js matches window.SCHOLAR_SCRIPT.
 // global-chat.js is 20261031_v2448. gifting.js is 20261030_v2439. quests.js is 20261030_v2443.
 // satoshi-favor.js stays 20261026_v2368.
 // onboarding.js is 20261030_v2442. today-card.js is 20261031_v2448.
-// features.registry.js stays 20261024_v2368. achievement-share.js is 20261026_v2391.
+// features.registry.js stays 20261024_v2368. achievement-share.js and miniapp-share.js are 20261031_v2447.
 // patches.js stays 20261026_v2385. nacho-qa.js stays 20261024_v2350.
 // gifting.js is 20261030_v2439.
 // notifications.js stays 20261024_v2357.
 // username-repick.js stays 20261024_v2352.
-// beats.js, pvp.js, and pvp-lobby-alert.js stay 20261026_v2391. shareable-certs.js is 20261028_v2410. guide.js stays 20261026_v2382.
+// beats.js, pvp.js, pvp-lobby-alert.js, and proof-of-play.js are 20261031_v2447. shareable-certs.js is 20261028_v2410. guide.js stays 20261026_v2382.
 // tctv-watch.js is 20261031_v2448.
 // learning-quests.js and modules.js stay 20261026_v2377. scholar.js is 20261026_v2386.
 // lightning.js stays 20261023_v2323.
@@ -133,12 +133,13 @@ test('service worker cache is v2448', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261030_v2443/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261031_v2447/g) || []).length, 2);
     assert.ok(!html.includes('bundle.min.js?v=20261029_v2429'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2418'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2415'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2411'));
-    assert.ok(html.includes('bundle.min.js?v=20261030_v2443'));
+    assert.ok(html.includes('bundle.min.js?v=20261031_v2447'));
+    assert.ok(!html.includes('bundle.min.js?v=20261030_v2443'));
     assert.ok(!html.includes('bundle.min.js?v=20261027_v2395'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2391'));
     assert.ok(!html.includes('bundle.min.js?v=20261026_v2390'));
@@ -231,7 +232,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('auth-boot.js?v=20261027_v2394'));
     assert.ok(html.includes('bundle-ready.js?v=20261027_v2394'));
     assert.ok(html.indexOf('firebase-config.js?v=20261027_v2394') < html.indexOf('auth-boot.js?v=20261027_v2394'));
-    assert.ok(html.indexOf('bundle.min.js?v=20261030_v2443') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
+    assert.ok(html.indexOf('bundle.min.js?v=20261031_v2447') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
     assert.ok(html.includes('fetchpriority="high"'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2382'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
@@ -271,6 +272,10 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('shareable-certs.js?v=20261026_v2386'));
     assert.ok(!html.includes('shareable-certs.js?v=20261026_v2410'));
     assert.ok(read('app.js').includes("shareable-certs.js?v=20261028_v2410"));
+    assert.ok(read('app.js').includes('proof-of-play.js?v=20261031_v2447'));
+    assert.ok(!read('app.js').includes('proof-of-play.js?v=20260609_pop'));
+    assert.ok(!read('app.js').includes('proof-of-play.js?v=20261027_v2398'));
+    assert.ok(read('pvp-lobby-alert.js').includes('pvp.js?v=20261031_v2447'));
     assert.ok(!html.includes('scholar.js?v=20261026_v2377'));
     assert.ok(!html.includes('scholar.js?v=20261026_v2379'));
     assert.ok(!html.includes('scholar.js?v=20261026_v2378'));
@@ -357,21 +362,28 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2265'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2252'));
-    assert.ok(html.includes('beats.js?v=20261026_v2391'));
+    assert.ok(html.includes('beats.js?v=20261031_v2447'));
+    assert.ok(!html.includes('beats.js?v=20261026_v2391'));
     assert.ok(!html.includes('beats.js?v=20261026_v2390'));
     assert.ok(!html.includes('beats.js?v=20261023_v2349'));
     assert.ok(!html.includes('beats.js?v=20261022_v2322'));
     assert.ok(!html.includes('beats.js?v=20261013_2307'));
     assert.ok(html.includes('beats-censor.js?v=20261022_v2322'));
     assert.ok(html.includes('features.registry.js?v=20261024_v2368'));
-    assert.ok(html.includes('achievement-share.js?v=20261026_v2391'));
+    assert.ok(html.includes('achievement-share.js?v=20261031_v2447'));
+    assert.ok(html.includes('miniapp-share.js?v=20261031_v2447'));
+    assert.ok(!html.includes('achievement-share.js?v=20261026_v2391'));
     assert.ok(!html.includes('achievement-share.js?v=20261026_v2390'));
     assert.ok(!html.includes('achievement-share.js?v=20261026_v2384'));
     assert.ok(html.includes('shareable-certs.js?v=20261028_v2410'));
     assert.ok(!html.includes('shareable-certs.js?v=20261026_v2390'));
-    assert.ok(html.includes('pvp.js?v=20261026_v2391'));
+    assert.ok(html.includes('pvp.js?v=20261031_v2447'));
+    assert.ok(!html.includes('pvp.js?v=20261026_v2391'));
+    assert.ok(html.includes('proof-of-play.js?v=20261031_v2447'));
+    assert.ok(!html.includes('proof-of-play.js?v=20260609_pop'));
     assert.ok(!html.includes('pvp.js?v=20261026_v2390'));
-    assert.ok(html.includes('pvp-lobby-alert.js?v=20261026_v2391'));
+    assert.ok(html.includes('pvp-lobby-alert.js?v=20261031_v2447'));
+    assert.ok(!html.includes('pvp-lobby-alert.js?v=20261026_v2391'));
     assert.ok(!html.includes('pvp-lobby-alert.js?v=20261026_v2390'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2361'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2359'));
@@ -384,7 +396,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('features.registry.js?v=20261023_v2342'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2341'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2339'));
-    assert.ok(html.indexOf('beats-censor.js?v=20261022_v2322') < html.indexOf('beats.js?v=20261026_v2391'));
+    assert.ok(html.indexOf('beats-censor.js?v=20261022_v2322') < html.indexOf('beats.js?v=20261031_v2447'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2330'));
     assert.ok(html.includes('nacho-qa.js?v=20261030_v2440'));
     assert.ok(!html.includes('nacho-qa.js?v=20261027_v2395'));
@@ -497,7 +509,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('patches.js?v=20261023_v2349'));
     assert.ok(!html.includes('patches.js?v=20261022_v2263'));
     assert.ok(!html.includes('guide.js?v=20261022_v2322'));
-    assert.ok(html.includes('timechain-tv.js?v=20261026_v2383'));
+    assert.ok(html.includes('timechain-tv.js?v=20261031_v2447'));
+    assert.ok(!html.includes('timechain-tv.js?v=20261026_v2383'));
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));

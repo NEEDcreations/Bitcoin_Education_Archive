@@ -389,8 +389,8 @@ test('shown marker is an owner string and the worker OG is static', () => {
 test('pages ship one script, one Latest line, and the v2394 cache', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('achievement-share.js?v=20261026_v2391'));
-    assert.ok(html.includes('timechain-tv.js?v=20261026_v2383'));
+    assert.ok(html.includes('achievement-share.js?v=20261031_v2447'));
+    assert.ok(html.includes('timechain-tv.js?v=20261031_v2447'));
     assert.ok(html.includes('features.registry.js?v=20261024_v2368'));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);

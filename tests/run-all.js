@@ -76,6 +76,7 @@ const TESTS = [
     { name: 'Feature Registry + Nacho', file: 'test-feature-registry.js' },
     { name: 'Achievement share cards', file: 'test-achievement-share.js' },
     { name: 'Share one link', file: 'test-share-one-link.js' },
+    { name: 'Mini app share', file: 'test-miniapp-share.js' },
     { name: 'Certificate fast path', file: 'test-cert-fast-path.js' },
     { name: 'Nacho mobile tap', file: 'test-nacho-mobile-tap.js' },
     { name: 'Nacho Quiz Me', file: 'test-nacho-quiz-me.js' },
