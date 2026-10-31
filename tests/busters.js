@@ -1,9 +1,9 @@
 // Cache-buster pin. This ship is btc-archive-v2447.
-// Live gh-pages was v2445. quests.js and global-chat.js stay v2443. bundle.min.js is v2447.
+// Live gh-pages was v2446. quests.js and global-chat.js stay v2443. bundle.min.js is v2447.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
 // timechain-tv.js is 20261031_v2447. scholar.js stays 20261026_v2386.
 // patches.js stays 20261026_v2385. bundle.min.js is 20261031_v2447.
-// earn-xp-guide.js and guide.js stay 20261026_v2382. ranking.js is 20261031_v2445.
+// earn-xp-guide.js and guide.js stay 20261026_v2382. ranking.js is 20261031_v2446.
 // modules.js and learning-quests.js stay 20261026_v2377.
 // scholar.js matches window.SCHOLAR_SCRIPT.
 // global-chat.js is 20261030_v2443. gifting.js is 20261030_v2439. quests.js is 20261030_v2443.
@@ -200,7 +200,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('username-repick.js?v=20261024_v2351'));
     assert.ok(html.includes('earn-xp-guide.js?v=20261026_v2382'));
     assert.ok(html.includes('referral-tiers.js?v=20261028_v2418'));
-    assert.ok(html.includes('ranking.js?v=20261031_v2445'));
+    assert.ok(html.includes('ranking.js?v=20261031_v2446'));
+    assert.ok(!html.includes('ranking.js?v=20261031_v2445'));
     assert.ok(!html.includes('ranking.js?v=20261030_v2444'));
     assert.ok(!html.includes('ranking.js?v=20261030_v2443'));
     assert.ok(!html.includes('ranking.js?v=20261030_v2441'));
@@ -214,7 +215,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261029_v2420'));
     assert.ok(!html.includes('ranking.js?v=20261028_v2416'));
     assert.ok(!html.includes('ranking.js?v=20261028_v2403'));
-    assert.ok(html.indexOf('referral-tiers.js?v=20261028_v2418') < html.indexOf('ranking.js?v=20261031_v2445'));
+    assert.ok(html.indexOf('referral-tiers.js?v=20261028_v2418') < html.indexOf('ranking.js?v=20261031_v2446'));
     assert.ok(html.includes('auth-display.js?v=20261028_v2425'));
     assert.ok(!html.includes('auth-display.js?v=20261029_v2420'));
     assert.ok(!html.includes('auth-display.js?v=20261028_v2403'));
@@ -239,8 +240,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261026_v2373'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2367'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
-    assert.ok(html.indexOf('earn-xp-guide.js?v=20261026_v2382') < html.indexOf('ranking.js?v=20261031_v2445'));
-    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261031_v2445'));
+    assert.ok(html.indexOf('earn-xp-guide.js?v=20261026_v2382') < html.indexOf('ranking.js?v=20261031_v2446'));
+    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261031_v2446'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2359'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
@@ -554,6 +555,7 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
+    assert.ok(notes.includes('October 31, 2026 · v2446'));
     assert.ok(notes.includes('October 30, 2026 · v2438'));
     assert.ok(notes.includes('October 30, 2026 · v2437'));
     assert.ok(notes.includes('Quiz Me in Nacho Mode shows a question again.'));
@@ -590,7 +592,9 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(!notes.includes('October 27, 2026 · v2394'));
     assert.ok(!notes.includes('October 27, 2026 · v2393'));
     assert.ok(!notes.includes('October 26, 2026 · v2391'));
-    assert.ok(notes.includes('Latest: Boss History shows when each fight actually ended, and past bosses are listed by month.'));
+    assert.ok(notes.includes('Latest: Search any player on the XP, Daily Streaks, Quests and Top Predictors leaderboards and see their exact rank, even outside the top 25.'));
+    assert.ok(notes.includes('Boss History shows when each fight actually ended, and past bosses are listed by month.'));
+    assert.ok(!notes.includes('Latest: Boss History shows'));
     assert.ok(notes.includes('Boss History sits at the bottom of the Raid screen. Open it to see past bosses, the month they showed up, and how the fight ended.'));
     assert.ok(!notes.includes('Latest: Boss History sits'));
     assert.ok(notes.includes('Daily trivia shows the explanation after you answer, and a guest answer does not earn XP.'));

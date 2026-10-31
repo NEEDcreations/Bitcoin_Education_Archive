@@ -269,7 +269,7 @@ test('pages ship the helper, one Latest line, and the v2447 cache', () => {
     assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2447'"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Boss History shows when each fight actually ended, and past bosses are listed by month.'));
+    assert.ok(notes.includes('Latest: Search any player on the XP, Daily Streaks, Quests and Top Predictors leaderboards and see their exact rank, even outside the top 25.'));
     assert.ok(notes.includes('A returning signed-in player sees their home as soon as the page paints.'));
     assert.strictEqual(notes.includes('Latest: A returning signed-in player'), false);
     assert.ok(read('app.js').includes('window.miniAppConsumeHash'));
