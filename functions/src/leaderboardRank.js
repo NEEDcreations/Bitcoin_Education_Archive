@@ -694,19 +694,26 @@ function xpGroups(field, value, lower, uid) {
     return groups;
 }
 
-// Equality filters, then range filters, in the order a composite index must
-// list them. Two bounds on one field are one index field. __name__ is a range.
+// Composite index for a count() that does not set orderBy.
+// Equality fields stay in first-seen order. Firestore then orders the
+// remaining range fields by field name. __name__ is not part of that
+// sort: it is appended last, the same way an unordered query appends it.
+// Two bounds on one field are one index field.
 function indexFields(clauses) {
     const equality = [];
     const range = [];
+    let documentId = false;
     const seen = {};
     (clauses || []).forEach(function (clause) {
         const field = clause[0];
         if (seen[field]) return;
         seen[field] = true;
         if (clause[1] === '==') equality.push(field);
+        else if (field === '__name__') documentId = true;
         else range.push(field);
     });
+    range.sort();
+    if (documentId) range.push('__name__');
     return equality.concat(range);
 }
 

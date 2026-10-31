@@ -639,11 +639,37 @@ async function main() {
             return paths.join(',') === fields.join(',');
         });
     }
+    // Firestore, with no orderBy, sorts range fields by name and appends __name__.
+    // This is independent of indexFields, so a helper that keeps filter order fails.
+    function firestoreIndex(clauses) {
+        const equality = [];
+        const range = [];
+        let documentId = false;
+        const seen = {};
+        clauses.forEach(function (clause) {
+            const field = clause[0];
+            if (seen[field]) return;
+            seen[field] = true;
+            if (clause[1] === '==') equality.push(field);
+            else if (field === '__name__') documentId = true;
+            else range.push(field);
+        });
+        range.sort();
+        if (documentId) range.push('__name__');
+        return equality.concat(range);
+    }
+    assert.deepStrictEqual(rank.indexFields([['passes', '>', 1], ['attempts', '>=', 5]]), ['attempts', 'passes']);
+    assert.deepStrictEqual(rank.indexFields([['streak', '==', 3], ['bestStreakAt', '>', 0], ['bestStreak', '<', 3]]), ['streak', 'bestStreak', 'bestStreakAt']);
+    assert.deepStrictEqual(
+        rank.indexFields([['streak', '==', 3], ['bestStreakAt', '==', 1], ['nameKey', '==', 'a'], ['bestStreak', '<', 3], ['__name__', '<', 'u']]),
+        ['streak', 'bestStreakAt', 'nameKey', 'bestStreak', '__name__']
+    );
     rank.queryCatalog(NOW).forEach(function (row) {
         const shapes = [row[1], rank.ghostClauses(row[1])];
         shapes.forEach(function (clauses) {
             assert.ok(rank.clausesServable(clauses), 'unservable ' + row[0] + ' ' + JSON.stringify(clauses));
-            const fields = rank.indexFields(clauses);
+            const fields = firestoreIndex(clauses);
+            assert.deepStrictEqual(rank.indexFields(clauses), fields, row[0] + ' ' + JSON.stringify(clauses));
             if (fields.length < 2) return;
             assert.ok(hasIndex(row[0], fields), 'missing index ' + row[0] + ' ' + fields.join(','));
         });
@@ -651,10 +677,14 @@ async function main() {
     rank.INDEX_SPECS.forEach(function (spec) {
         assert.ok(hasIndex(spec[0], spec[1]), 'missing index ' + spec[0] + ' ' + spec[1].join(','));
     });
+    assert.ok(hasIndex('quest_lb_stats', ['attempts', 'passes']));
+    assert.ok(hasIndex('quest_lb_stats', ['ghostMode', 'attempts', 'passes']));
+    assert.ok(hasIndex('users', ['streak', 'bestStreak', 'bestStreakAt']));
+    assert.ok(hasIndex('users', ['ghostMode', 'streak', 'bestStreak', 'bestStreakAt']));
     assert.ok(hasIndex('users', ['streak', 'bestStreakAt', 'bestStreak', 'nameKey']));
     assert.ok(hasIndex('users', ['ghostMode', 'streak', 'bestStreakAt', 'bestStreak', 'nameKey']));
-    assert.ok(hasIndex('users', ['lastVisit', 'streak', 'streakReachedAt', 'streakFreezes', 'nameKey']));
-    assert.ok(hasIndex('users', ['ghostMode', 'lastVisit', 'streak', 'streakReachedAt', 'streakFreezes', 'nameKey']));
+    assert.ok(hasIndex('users', ['lastVisit', 'streak', 'streakReachedAt', 'nameKey', 'streakFreezes']));
+    assert.ok(hasIndex('users', ['ghostMode', 'lastVisit', 'streak', 'streakReachedAt', 'nameKey', 'streakFreezes']));
 
     const src = read('functions/src/leaderboardRank.js');
     const ranking = read('ranking.js');
