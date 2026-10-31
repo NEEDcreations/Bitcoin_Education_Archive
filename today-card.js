@@ -323,25 +323,106 @@
         describeMeter(line);
     };
 
+    var triviaXpInflight = null;
+    var triviaXpCache = null;
+    var triviaXpCacheAt = 0;
+    var triviaXpCacheUid = '';
+    var TRIVIA_XP_TTL_MS = 60000;
+
+    function triviaCallerUid() {
+        try {
+            if (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                return String(auth.currentUser.uid || '');
+            }
+        } catch (e) {}
+        return '';
+    }
+
+    function xpNotedAt(snap) {
+        var n = snap && Number(snap._xpNotedAt);
+        return isFinite(n) ? n : 0;
+    }
+
+    function xpAmount(snap) {
+        if (!snap) return -1;
+        var raw = snap.dailyXp != null ? snap.dailyXp : snap.dailyQuizXp;
+        var n = Number(raw);
+        return isFinite(n) && n >= 0 ? n : -1;
+    }
+
+    // A later note wins. Equal times keep the higher total.
+    function newerDailyXp(a, b) {
+        if (!a) return b || null;
+        if (!b) return a;
+        var at = xpNotedAt(a);
+        var bt = xpNotedAt(b);
+        if (at !== bt) return at > bt ? a : b;
+        return xpAmount(a) >= xpAmount(b) ? a : b;
+    }
+
+    function rememberDailyXp(snap, uid) {
+        if (!snap) return null;
+        var stamped = Object.assign({}, snap);
+        if (!xpNotedAt(stamped)) stamped._xpNotedAt = Date.now();
+        var chosen = newerDailyXp(stamped, triviaXpCache);
+        chosen = newerDailyXp(chosen, window._serverDailyXp);
+        triviaXpCache = chosen;
+        triviaXpCacheAt = xpNotedAt(chosen) || Date.now();
+        if (uid) triviaXpCacheUid = uid;
+        window._serverDailyXp = chosen;
+        return chosen;
+    }
+
+    // Award paths call this so a 60s status cache cannot paint an older total.
+    window._noteServerDailyXp = function (snap) {
+        var chosen = rememberDailyXp(snap, triviaCallerUid() || triviaXpCacheUid);
+        if (chosen && typeof window._paintDailyXpMeter === 'function') {
+            window._paintDailyXpMeter(Object.assign({ signedIn: true }, chosen));
+        }
+        return chosen;
+    };
+
     function loadDailyXpMeter() {
         if (!signedIn()) {
             window._paintDailyXpMeter({ signedIn: false });
             return;
         }
-        if (window._serverDailyXp) {
+        var uid = triviaCallerUid();
+        var now = Date.now();
+        if (triviaXpCache && triviaXpCacheUid === uid && (now - triviaXpCacheAt) < TRIVIA_XP_TTL_MS) {
+            var chosen = newerDailyXp(triviaXpCache, window._serverDailyXp);
+            if (chosen !== triviaXpCache) {
+                triviaXpCache = chosen;
+                triviaXpCacheAt = xpNotedAt(chosen) || now;
+            }
+            window._serverDailyXp = chosen;
+            window._paintDailyXpMeter(Object.assign({ signedIn: true }, chosen));
+            return;
+        }
+        if (window._serverDailyXp && triviaXpCacheUid === uid) {
+            window._paintDailyXpMeter(Object.assign({ signedIn: true }, window._serverDailyXp));
+        } else if (window._serverDailyXp && xpNotedAt(window._serverDailyXp)) {
             window._paintDailyXpMeter(Object.assign({ signedIn: true }, window._serverDailyXp));
         } else {
             window._paintDailyXpMeter({ signedIn: true, dailyXp: 0 });
         }
+        if (triviaXpInflight) return;
         try {
             if (typeof firebase === 'undefined' || !firebase.functions) return;
             var callable = firebase.functions().httpsCallable('triviaXpStatus');
-            callable({}).then(function (res) {
-                var data = (res && res.data) || {};
-                window._serverDailyXp = data;
-                window._paintDailyXpMeter(Object.assign({ signedIn: true }, data));
-            }).catch(function () {});
-        } catch (e) {}
+            var startedAt = Date.now();
+            triviaXpInflight = callable({}).then(function (res) {
+                var data = Object.assign({}, (res && res.data) || {});
+                data._xpNotedAt = startedAt;
+                if (triviaCallerUid() !== uid) return;
+                var picked = rememberDailyXp(data, uid);
+                window._paintDailyXpMeter(Object.assign({ signedIn: true }, picked));
+            }).catch(function () {}).then(function () {
+                triviaXpInflight = null;
+            });
+        } catch (e) {
+            triviaXpInflight = null;
+        }
     }
 
     function predictPending(stats) {

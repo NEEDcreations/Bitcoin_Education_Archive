@@ -108,6 +108,7 @@ const DEFERRED_USER_SUBCOLLECTIONS = [
     'proof_of_walk_stats',
     'quest_completions',
     'quest_passes',
+    'quest_attempts',
     'lifetime_awards',
     'onboarding_evidence',
 ];
@@ -136,6 +137,8 @@ const RETAINED_COLLECTIONS = [
     'reports',
     'prediction_payouts',
     'prediction_records',
+    // Deleting the prize marker would let a later retry pay that period again.
+    'lb_prize_markers',
     'deleted_accounts',
 ];
 
@@ -193,6 +196,8 @@ const DEFERRED_QUERIES = [
     ['scholar_exam_keys', 'uid', '==', []],
     ['shoutout_claims', 'authorUid', '==', []],
     ['raid_deck_completions', 'uid', '==', []],
+    ['raid_damage_events', 'uid', '==', []],
+    ['raid_forum_pending', 'uid', '==', []],
     ['reply_bonus_pairs', 'replierUid', '==', []],
     ['reply_bonus_pairs', 'targetUid', '==', []],
     ['reply_bonus_claims', 'uid', '==', []],
@@ -1309,6 +1314,7 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         ['giveaway_entries', uid, []],
         ['active_predictions', uid, []],
         ['prediction_stats', uid, []],
+        ['quest_lb_stats', uid, []],
         ['tctv_presence', uid, []],
         ['buddy_pool', uid, []],
         ['pvp_lobby', uid, []],

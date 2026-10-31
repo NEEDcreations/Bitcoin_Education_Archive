@@ -56,7 +56,7 @@
     }
 })();
 </script>
-    <script src="auth-display.js?v=20261028_v2403"></script>
+    <script src="auth-display.js?v=20261028_v2425"></script>
     <meta charset="UTF-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -73,13 +73,13 @@
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" as="script" integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" as="script" integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" as="script" integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous">
-    <link rel="preload" href="bundle.min.js?v=20261028_v2411" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261030_v2443" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" defer integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous"></script>
     <script src="firebase-config.js?v=20261027_v2394" defer></script>
-    <script src="app-check-boot.js?v=20261028_v2403" defer></script>
+    <script src="app-check-boot.js?v=20261029_v2426" defer></script>
     <script src="auth-boot.js?v=20261027_v2394" defer></script>
     <meta name="description" content="A curated Bitcoin education archive with 145 topics, Timechain TV (24/7 Bitcoin video streaming), 7 mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
@@ -388,7 +388,7 @@
         #leaderboard.minimized { max-height: 48px; overflow: hidden; border-radius: 24px; width: auto; cursor: pointer; }
         .lb-min-bar { display: none; padding: 12px 18px; font-size: 0.85rem; font-weight: 700; color: var(--accent); text-align: center; }
         #leaderboard.minimized .lb-min-bar { display: block; }
-        #leaderboard.minimized .lb-header, #leaderboard.minimized .lb-list, #leaderboard.minimized .lb-levels { display: none; }
+        #leaderboard.minimized .lb-header, #leaderboard.minimized .lb-list, #leaderboard.minimized .lb-levels, #leaderboard.minimized .lb-rank-search { display: none; }
         @media (max-width: 900px) { #leaderboard { right: 10px; left: 10px; bottom: 10px; width: auto; max-height: 60vh; -webkit-overflow-scrolling: touch; border-radius: 16px; } }
         .lb-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); }
         .lb-header h3 { color: var(--heading); font-size: 1.1rem; }
@@ -404,6 +404,16 @@
         .lb-search-result a:hover { text-decoration: underline; }
         .lb-sr-pts { color: var(--text-muted); margin-left: auto; white-space: nowrap; font-size: 0.82rem; }
         .lb-search-none { margin: 4px 12px; padding: 8px 14px; color: var(--text-faint); font-size: 0.82rem; text-align: center; }
+        .lb-rank-search { padding: 0 12px 8px; }
+        .lb-rank-search-row { display: flex; gap: 6px; align-items: center; }
+        .lb-rank-input { flex: 1; min-width: 0; width: auto; box-sizing: border-box; background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; color: var(--text); font-size: 0.85rem; font-family: inherit; outline: none; }
+        .lb-rank-input:focus { border-color: var(--accent); }
+        .lb-rank-find { flex: 0 0 auto; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: none; color: var(--text); font-size: 0.75rem; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; }
+        .lb-rank-find:hover, .lb-rank-find:focus-visible { border-color: var(--accent); color: var(--accent); }
+        .lb-rank-result { margin-top: 6px; }
+        .lb-rank-hit { padding: 8px 10px; border-radius: 8px; background: var(--card-bg); border: 1px solid var(--border); font-size: 0.82rem; line-height: 1.35; overflow-wrap: anywhere; color: var(--text); }
+        .lb-rank-suggest { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+        .lb-rank-suggest-item { padding: 4px 8px; border-radius: 999px; border: 1px solid var(--border); background: none; color: var(--accent); font-size: 0.72rem; font-weight: 700; cursor: pointer; font-family: inherit; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
         .lb-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px; }
         .lb-row:hover, .lb-row:active { background: var(--card-bg); }
         .lb-me { background: var(--accent-bg); border: 1px solid var(--accent-glow); }
@@ -418,6 +428,24 @@
         .pred-lb-info:hover, .pred-lb-info:focus-visible { border-color: var(--accent); color: var(--accent); outline: 2px solid var(--accent); outline-offset: 2px; }
         .pred-lb-tip { background: #0f172a; color: #e2e8f0; border: 1px solid rgba(247,147,26,0.5); border-radius: 10px; padding: 10px 12px; font-size: 0.75rem; line-height: 1.45; text-align: left; box-shadow: 0 10px 28px rgba(0,0,0,0.5); }
         .pred-lb-tip[hidden] { display: none !important; }
+        .streak-board, .quest-board { margin-top: 24px; padding: 16px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; }
+        .streak-board h4, .quest-board h4 { margin: 0; color: var(--heading); font-size: 1rem; }
+        .streak-lb-head, .quest-lb-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+        .streak-lb-loading, .streak-lb-empty, .quest-lb-loading, .quest-lb-empty { text-align: center; color: var(--text-faint); font-size: 0.8rem; padding: 8px 0; }
+        .streak-lb-note, .quest-lb-note { margin: 0 0 8px; font-size: 0.72rem; line-height: 1.35; color: var(--text-muted); }
+        .streak-lb-tabs, .quest-lb-tabs { display: flex; gap: 4px; padding: 0 0 10px; }
+        #leaderboard.minimized .streak-board, #leaderboard.minimized .quest-board { display: none; }
+        @media (max-width: 360px) {
+            .streak-board, .quest-board { padding: 12px; margin-top: 16px; }
+            .streak-board .lb-row, .quest-board .lb-row { gap: 6px; padding: 8px 4px; }
+            .streak-board .lb-name, .quest-board .lb-name { font-size: 0.8rem; }
+            .streak-board .lb-score, .quest-board .lb-score { font-size: 0.75rem; }
+            .streak-board .lb-rank, .quest-board .lb-rank { min-width: 22px; font-size: 0.8rem; }
+            .lb-rank-search { padding-left: 8px; padding-right: 8px; }
+            .lb-rank-search-row { flex-wrap: wrap; }
+            .lb-rank-input { font-size: 16px; }
+            .lb-rank-find { padding: 8px; }
+        }
         @media (max-width: 600px) {
             .btc-pred-overlay { padding: 12px !important; }
             .btc-pred-card { padding: 18px 14px !important; }
@@ -1085,7 +1113,26 @@
     .mobile-bar h2 { letter-spacing:0; font-size:clamp(11px, 3.1vw, 0.85rem); line-height:1.05; }
     .mobile-bar h2 span { display:block; }
     @media (max-width: 380px) { .mobile-bar h2 { font-size:clamp(10px, 3.2vw, 0.72rem); letter-spacing:0; } }
-    #homeWalletStrip { display:none; grid-template-columns:1fr 1fr 1.15fr; gap:8px; margin:0 0 12px; text-align:left; }
+    #homeWalletStrip { display:none; grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.15fr); gap:8px; margin:0 0 12px; text-align:left; }
+    .home-invites-tile { position:relative; min-width:0; padding:8px 6px 6px; }
+    .home-invites-open { display:flex; flex-direction:column; align-items:flex-start; gap:2px; width:100%; min-width:0; margin:0; padding:0; background:none; border:none; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+    #homeInvitesTile .home-tile-kicker { font-size:0.58rem; letter-spacing:0.02em; white-space:nowrap; padding-right:16px; }
+    #homeInvitesTier, #homeInvitesNote, #homeInvitesProgress { display:block; min-width:0; max-width:100%; overflow-wrap:break-word; line-height:1.15; }
+    #homeInvitesTier { font-size:0.68rem; font-weight:800; color:#f7931a; }
+    #homeInvitesNote, #homeInvitesProgress { font-size:0.6rem; color:#94a3b8; }
+    #homeInvitesInfo { position:absolute; top:6px; right:4px; width:16px; height:16px; padding:0; border-radius:50%; border:1px solid #64748b; background:transparent; color:#94a3b8; font-size:0.62rem; font-weight:800; font-style:italic; font-family:inherit; line-height:14px; text-align:center; cursor:pointer; }
+    #homeInvitesInfoText { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+    #homeInvitesInfoText.is-open { position:fixed; z-index:2100005; width:min(240px, calc(100vw - 24px)); height:auto; margin:0; padding:10px 12px; overflow:visible; clip:auto; white-space:normal; background:#111827; color:#e2e8f0; border:1px solid #334155; border-radius:10px; font-size:0.78rem; line-height:1.35; text-align:left; box-shadow:0 8px 24px rgba(0,0,0,0.45); }
+    #referralTierLadder { position:fixed; inset:0; z-index:2100004; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.55); padding:16px; }
+    #referralTierLadder[hidden] { display:none !important; }
+    .referral-tier-ladder-card { width:min(300px, calc(100vw - 32px)); background:#111827; border:1px solid #1e293b; border-radius:14px; padding:14px; color:#e2e8f0; text-align:left; }
+    .referral-tier-ladder-card h2 { margin:0 0 10px; font-size:1rem; color:#fff; }
+    .referral-tier-row { display:flex; justify-content:space-between; gap:8px; padding:6px 0; border-top:1px solid #1e293b; font-size:0.85rem; }
+    .referral-tier-row.is-current { color:#f7931a; font-weight:800; }
+    .referral-tier-ladder-actions { display:flex; gap:8px; margin-top:12px; }
+    .referral-tier-ladder-actions button { flex:1; min-height:40px; border-radius:10px; font-family:inherit; font-weight:800; cursor:pointer; }
+    #referralTierLadderClose { background:transparent; color:#e2e8f0; border:1px solid #334155; }
+    #referralTierLadderInvite { background:#f7931a; color:#1a1208; border:none; }
     #homeSignedInChip { display:none; align-items:center; gap:8px; margin:0 0 10px; font-weight:800; color:var(--heading,#fff); }
     html.home-signed-in #homeSignedInChip.on { display:flex; }
     #homeSignedInChip img { width:28px; height:28px; border-radius:50%; object-fit:cover; }
@@ -1109,6 +1156,12 @@
     #homeHero .home-logos img { width:72px !important; height:72px !important; }
     #homeHero .home-title { font-size:1.7rem; margin-bottom:8px; }
     #homeHero .home-subtitle { font-size:1rem; margin-bottom:12px; }
+    #patchNotesHome { width:100%; max-width:100%; box-sizing:border-box; text-align:center; }
+    #patchNotesHome p { max-width:100%; overflow-wrap:anywhere; }
+    #patchNotesHome a { display:inline-block; max-width:100%; }
+    @media (max-width: 390px) {
+        #patchNotesHome { padding:0 2px; }
+    }
     #homeLearnCard { background:#0f172a; border:1px solid #1e293b; border-radius:16px; padding:14px; text-align:left; margin:0 0 12px; }
     .home-learn-kicker { font-size:0.68rem; font-weight:800; letter-spacing:0.08em; color:#93c5fd; }
     .home-learn-title { font-size:1.25rem; font-weight:900; color:#fff; margin:4px 0; }
@@ -1575,16 +1628,31 @@
                         <span class="home-tile-value" id="homeSatsValue">—</span>
                         <span class="home-tile-note">claimable</span>
                     </button>
-                    <button type="button" class="home-tile" id="homeInvitesTile" onclick="openHomeInvites()">
-                        <span class="home-tile-kicker">👥 INVITES</span>
-                        <span class="home-tile-value" id="homeInvitesValue">—</span>
-                        <span class="home-tile-note" id="homeInvitesNote">reached Maxi</span>
-                    </button>
+                    <div class="home-tile home-invites-tile" id="homeInvitesTile">
+                        <button type="button" class="home-invites-open" id="homeInvitesOpen" aria-describedby="homeInvitesInfoText" onclick="openHomeInvites(event)">
+                            <span class="home-tile-kicker">👥 INVITES</span>
+                            <span id="homeInvitesTier" data-tier-ladder="1">—</span>
+                            <span class="home-tile-note" id="homeInvitesNote">reached Maxi</span>
+                            <span id="homeInvitesProgress" data-tier-ladder="1"></span>
+                        </button>
+                        <button type="button" id="homeInvitesInfo" aria-expanded="false" aria-controls="homeInvitesInfoText" aria-describedby="homeInvitesInfoText" aria-label="About reached Maxi">i</button>
+                    </div>
+                    <p id="homeInvitesInfoText" role="tooltip"></p>
                     <button type="button" class="home-tile home-tile-claim" id="homeWithdrawTile" onclick="openHomeWithdraw()">
                         <span class="home-tile-kicker" id="homeWithdrawKicker">WITHDRAW</span>
                         <span class="home-tile-value" id="homeWithdrawValue">—</span>
                         <span class="home-tile-note" id="homeWithdrawNote">—</span>
                     </button>
+                </div>
+                <div id="referralTierLadder" class="referral-tier-ladder" hidden role="dialog" aria-modal="true" aria-labelledby="referralTierLadderTitle">
+                    <div class="referral-tier-ladder-card">
+                        <h2 id="referralTierLadderTitle">Invite tiers</h2>
+                        <div id="referralTierLadderList"></div>
+                        <div class="referral-tier-ladder-actions">
+                            <button type="button" id="referralTierLadderClose">Close</button>
+                            <button type="button" id="referralTierLadderInvite">Invite friends</button>
+                        </div>
+                    </div>
                 </div>
                 <div id="homeGuestActions">
                     <button type="button" id="homeGuestCta" class="home-guest-cta" onclick="showUsernamePrompt()">Sign up free and earn sats</button>
@@ -1597,7 +1665,8 @@
                 </div>
                 <h1 class="home-title">Bitcoin Quest<span style="display:inline-block;background:#f7931a;color:#fff;font-size:0.32em;font-weight:800;padding:3px 8px;border-radius:6px;vertical-align:middle;margin-left:10px;letter-spacing:0.04em;text-transform:uppercase;line-height:1.4;">Beta</span></h1>
                 <div id="patchNotesHome">
-                <p style="margin:0 0 16px;font-size:0.78rem;"><a id="patchNotesLink" href="/patch-notes.html" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">📋 Patch Notes — Latest updates</a></p>
+                <p style="margin:0 0 6px;font-size:0.78rem;line-height:1.35;"><a id="patchNotesLink" href="/patch-notes.html" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">📋 Patch Notes — Latest updates</a></p>
+                <p style="margin:0 0 16px;font-size:0.78rem;line-height:1.35;"><a id="resetsTimelinesLink" href="https://misty-tundra-nn5uvj.pages.grok.bot/" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">⏰ Resets &amp; Timelines</a></p>
                 <script>
                 (function () {
                     window._applyWhatsNew = function (version) {
@@ -2096,7 +2165,7 @@
                 </div>
             </div>
             </details>
-            <div id="turnstileWidget" class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>
+            <div id="turnstileWidget" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>
             <div class="tos-check-row" id="signupConsentRow">
                 <input type="checkbox" id="signupTosCheck">
                 <label for="signupTosCheck">I have read and agree to the Terms of Service and Privacy Policy.</label>
@@ -2153,18 +2222,18 @@
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
     <script src="username-repick.js?v=20261024_v2352" defer></script>
     <script src="earn-xp-guide.js?v=20261026_v2382" defer></script>
-    <script src="ranking.js?v=20261028_v2403" defer></script>
+    <script src="referral-tiers.js?v=20261028_v2418" defer></script>
+    <script src="ranking.js?v=20261031_v2445" defer></script>
     <!-- Critical: needed for initial page render -->
-    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-    <script src="bundle.min.js?v=20261028_v2411" defer fetchpriority="high"></script>
+    <script src="bundle.min.js?v=20261030_v2443" defer fetchpriority="high"></script>
     <script src="bundle-ready.js?v=20261027_v2394" defer></script>
     <script src="features.registry.js?v=20261024_v2368" defer></script>
-    <script src="tctv-watch.js?v=20261028_v2414" defer></script>
-    <script src="today-card.js?v=20261028_v2414" defer></script>
+    <script src="tctv-watch.js?v=20261031_v2448" defer></script>
+    <script src="today-card.js?v=20261031_v2448" defer></script>
     <script src="achievement-share.js?v=20261026_v2391" defer></script>
     <script src="pvp-lobby-alert.js?v=20261026_v2391" defer></script>
     <script src="patches.js?v=20261026_v2385" defer></script>
-    <script src="onboarding.js?v=20261026_v2373" defer></script>
+    <script src="onboarding.js?v=20261030_v2442" defer></script>
     <script src="learning-quests.js?v=20261026_v2377" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
@@ -2175,18 +2244,18 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261028_v2414',
+            'global-chat.js?v=20261031_v2448',
             'satoshi-favor.js?v=20261026_v2368'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261027_v2393',
+            'quests.js?v=20261030_v2443',
             'hot-topics.js?v=20261022_hottopics',
-            'pvp.js?v=20261026_v2391','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261027_v2395',
+            'pvp.js?v=20261026_v2391','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261030_v2440',
             'scholar.js?v=20261026_v2386','beats.js?v=20261026_v2391',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261022_v2279',
-            'notifications.js?v=20261024_v2357','gifting.js?v=20261026_v2378','guide.js?v=20261026_v2382','modules.js?v=20261026_v2377',
+            'notifications.js?v=20261024_v2357','gifting.js?v=20261030_v2439','guide.js?v=20261026_v2382','modules.js?v=20261026_v2377',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20261028_v2410',
-            'sats-vs-bits.js?v=20260713_fullnum','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
+            'sats-vs-bits.js?v=20261030_v2440','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
             'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261022_v2252',
             'timechain-tv.js?v=20261026_v2383',
@@ -2444,10 +2513,10 @@
         }
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2391', 'global-chat.js?v=20261028_v2414'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2391', 'global-chat.js?v=20261028_v2414'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261028_v2414'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261028_v2414'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2391', 'global-chat.js?v=20261031_v2448'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261026_v2391', 'global-chat.js?v=20261031_v2448'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261031_v2448'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261031_v2448'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
             'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261022_v2279'],
             'pvp':           ['pvp.js?v=20261026_v2391'],
@@ -2455,9 +2524,9 @@
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261026_v2377'],
             'learning-quests': ['learning-quests.js?v=20261026_v2377'],
-            'quests':        ['quests.js?v=20261027_v2393'],
-            'questhub':      ['quests.js?v=20261027_v2393'],
-            'app':           ['quests.js?v=20261027_v2393'],
+            'quests':        ['quests.js?v=20261030_v2443'],
+            'questhub':      ['quests.js?v=20261030_v2443'],
+            'app':           ['quests.js?v=20261030_v2443'],
             'timechain-tv':  ['timechain-tv.js?v=20261026_v2383'],
             'tv':            ['timechain-tv.js?v=20261026_v2383'],
             'cert':          ['shareable-certs.js?v=20261028_v2410']
@@ -2509,7 +2578,6 @@ if ('serviceWorker' in navigator) {
         function _reloadOnce() {
             if (_updateReloaded) return;
             _updateReloaded = true;
-            // One-shot auth and referral params must not run again after Update.
             var params;
             try { params = new URLSearchParams(window.location.search); } catch (e) { params = null; }
             var oneShot = ['oobCode', 'apiKey', 'mode', 'ref', 'continueUrl', 'lang', 'signin_email'];
@@ -2519,7 +2587,8 @@ if ('serviceWorker' in navigator) {
                     if (params.has(oneShot[i])) { strip = true; break; }
                 }
             }
-            if (strip) {
+            var emailLink = params && (params.has('oobCode') || params.has('account_link') || params.get('mode') === 'signIn');
+            if (strip && !emailLink) {
                 window.location.replace(window.location.origin + '/');
                 return;
             }

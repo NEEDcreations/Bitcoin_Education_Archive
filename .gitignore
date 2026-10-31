@@ -2,10 +2,15 @@
 functions/.env
 functions/private-bank/*
 !functions/private-bank/README.md
+# Trivia answer key for functions/scripts/upload-trivia-key.js. Never commit.
+functions/private-bank/trivia-key.json
 test.sh
 scripts/*
 !scripts/migrate-push-optin.js
 !scripts/backfill-badge-favor.js
+!scripts/raid-boss-activity.js
+!scripts/raid-boss-inspect.js
+!scripts/backfill-leaderboard-snapshots.js
 .keys/
 firebase-debug.log
 firestore-debug.log

@@ -305,6 +305,14 @@ function mfaIsTransientError(err) {
     return code === 'unavailable' || code === 'deadline-exceeded' || code === 'internal' || code === 'aborted' || code === 'cancelled';
 }
 
+function mfaIsAppCheckError(err) {
+    var code = mfaErrorCode(err);
+    var msg = String((err && err.message) || '').toLowerCase();
+    if (code.indexOf('app-check') !== -1 || code.indexOf('appcheck') !== -1) return true;
+    if (msg.indexOf('app check') !== -1 || msg.indexOf('appcheck') !== -1 || msg.indexOf('recaptcha') !== -1) return true;
+    return false;
+}
+
 function mfaAllowsAfterStatusError(totpEnabled) {
     return !totpEnabled;
 }
@@ -345,6 +353,51 @@ function mfaClearDevice(uid) {
     } catch (e) {}
 }
 
+// Names of https callables whose server options set enforceAppCheck: true.
+// Everything else is sent immediately. A ready App Check token is still
+// attached by the SDK; a missing one must not block sign-in or these calls.
+var APP_CHECK_CALLABLES = {
+    ackBadgeBackfillToast: 1,
+    ackCipherShare: 1,
+    answerTrivia: 1,
+    armSayHi: 1,
+    chooseFaction: 1,
+    claimOnboardingQuestStep: 1,
+    claimReplyBonus: 1,
+    claimSats: 1,
+    claimSayHi: 1,
+    confirmAccountLink: 1,
+    deleteAccount: 1,
+    gradeQuest: 1,
+    gradeScholarExam: 1,
+    issueCertificate: 1,
+    leaderboardRank: 1,
+    linkGuestAccount: 1,
+    markIntroSeen: 1,
+    noteNachoQuestion: 1,
+    prepareEmailChange: 1,
+    prepareGuestLink: 1,
+    pvpCreateMatch: 1,
+    pvpStoreAnswerKey: 1,
+    pvpSubmitAnswer: 1,
+    pvpTimeoutOpponent: 1,
+    recordNachoAnalytics: 1,
+    resetLightningAddressOnce: 1,
+    startQuest: 1,
+    startScholarExam: 1,
+    syncEmailChange: 1,
+    syncUserFactionPoints: 1,
+    tctvWatchHeartbeat: 1,
+    toggleGgReaction: 1,
+    totpListDevices: 1,
+    totpResumeDevice: 1,
+    totpRevokeAllTrust: 1,
+    totpRevokeDevice: 1,
+    totpSignOutOtherDevices: 1,
+    totpStepUp: 1,
+    triviaXpStatus: 1
+};
+
 function installMfaCallablePatch() {
     if (typeof firebase === 'undefined' || !firebase.functions || window._mfaCallablePatched) return;
     var probe;
@@ -361,7 +414,25 @@ function installMfaCallablePatch() {
                 var sid = window._mfaSessionId ? window._mfaSessionId() : '';
                 if (sid && payload.mfaSessionId == null) payload.mfaSessionId = sid;
             }
-            return callable(payload);
+            if (!APP_CHECK_CALLABLES[name]) return callable(payload);
+            if (window._btcRecaptchaFailed) {
+                var fast = new Error('Security check did not load. Refresh the page and try again.');
+                fast.code = 'app-check-unavailable';
+                return Promise.reject(fast);
+            }
+            var ready = (typeof window._btcAppCheckForClaim === 'function')
+                ? window._btcAppCheckForClaim(8000)
+                : Promise.resolve('skip');
+            return ready.then(function (token) {
+                if (token === '') {
+                    var missing = new Error(window._btcRecaptchaFailed
+                        ? 'Security check did not load. Refresh the page and try again.'
+                        : 'App Check token is not ready');
+                    missing.code = 'app-check-unavailable';
+                    throw missing;
+                }
+                return callable(payload);
+            });
         };
     }
     wrapped._mfaPatched = true;
@@ -425,9 +496,11 @@ window._serverTotpAllows = async function (uid) {
         }
         return false;
     } catch (e3) {
-        var resumeCode = mfaErrorCode(e3);
-        if (!mfaIsTransientError(e3) && resumeCode !== 'resource-exhausted') mfaClearDevice(uid);
-        return mfaAllowsAfterStatusError(true);
+        // Only the server's exact "Device is not trusted." answer forgets
+        // this browser. App Check, network, and rate-limit errors do not.
+        var resumeMsg = String((e3 && e3.message) || '');
+        if (!mfaIsAppCheckError(e3) && resumeMsg.indexOf('Device is not trusted') !== -1) mfaClearDevice(uid);
+        return false;
     }
 };
 
@@ -461,8 +534,310 @@ function _resumeAfterSecondFactor() {
     }
 }
 
+// Display-only profile paint. Reads the persisted Firebase uid from IndexedDB
+// (no network) and, when it matches btc_profile_cache, runs the same cache
+// render the auth callback uses. Age is ignored: stale XP is fine to show.
+// Rewards, claims, writes, and callables stay off until auth confirms this uid.
+// needs2fa / unknown 2FA still hide the name.
+var _optimisticProfileUid = '';
+var _profileShownUid = '';
+var _optimisticGen = 0;
+var _optimisticPaintStarted = false;
+
+function displayClaimableMath(user) {
+    var u = user || {};
+    var points = Number(u.points) || 0;
+    var claimed = Number(u.pointsClaimed) || 0;
+    var donated = Number(u.pointsDonated) || 0;
+    var exchanged = Number(u.pointsExchanged) || 0;
+    var withdrawn = Number(u.satsWithdrawn) || 0;
+    if (withdrawn < 0) withdrawn = 0;
+    var balance = Math.floor(Math.max(0, points - claimed - donated - exchanged) / 10);
+    var left = Math.max(0, lifetimeSatCap() - withdrawn);
+    return {
+        balance: balance,
+        lifetimeLeft: left,
+        claimable: Math.min(balance, left),
+        cap: lifetimeSatCap(),
+        withdrawn: withdrawn
+    };
+}
+
+function optimisticProfilePending() {
+    if (!_optimisticProfileUid) return false;
+    var user = null;
+    try { user = auth && auth.currentUser; } catch (e) { user = null; }
+    if (user && !user.isAnonymous && user.uid === _optimisticProfileUid) return false;
+    return true;
+}
+
+function readProfileCacheRecord() {
+    try {
+        var cp = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
+        if (!cp || !cp.uid || !cp.data) return null;
+        return cp;
+    } catch (e) { return null; }
+}
+
+// Any age. twoFa must be known off. A needs2fa or unknown flag does not paint.
+function profileCacheReadyForDisplay(uid) {
+    var cp = readProfileCacheRecord();
+    if (!cp || !uid || String(cp.uid) !== String(uid)) return null;
+    var needs2fa = cp.twoFa === true || !!(cp.data && cp.data.totpEnabled);
+    if (needs2fa) return null;
+    var knownOff = cp.twoFa === false || (cp.data && cp.data.totpEnabled === false);
+    if (!knownOff) return null;
+    return cp;
+}
+
+function readPersistedAuthUid() {
+    return new Promise(function (resolve) {
+        var cfg = (typeof FIREBASE_CONFIG !== 'undefined' && FIREBASE_CONFIG) || (typeof window !== 'undefined' && window.FIREBASE_CONFIG) || null;
+        var apiKey = cfg && cfg.apiKey;
+        var idb = null;
+        try { if (typeof indexedDB !== 'undefined') idb = indexedDB; } catch (e) { idb = null; }
+        if (!idb && typeof window !== 'undefined') idb = window.indexedDB;
+        if (!apiKey || !idb || typeof idb.open !== 'function') { resolve(''); return; }
+        var settled = false;
+        function finish(uid) {
+            if (settled) return;
+            settled = true;
+            var id = String(uid || '');
+            resolve(/^[A-Za-z0-9:_\-]{6,128}$/.test(id) ? id : '');
+        }
+        var timer = setTimeout(function () { finish(''); }, 800);
+        function done(uid) { clearTimeout(timer); finish(uid); }
+        function uidFromRow(row) {
+            if (!row) return '';
+            var value = (row.value && typeof row.value === 'object') ? row.value : row;
+            // Anonymous persistence is not a signed-in profile.
+            if (value && value.isAnonymous === true) return '';
+            return (value && value.uid) || row.uid || '';
+        }
+        function readDb(dbh) {
+            if (!dbh) { done(''); return; }
+            try {
+                if (!dbh.objectStoreNames || !dbh.objectStoreNames.contains('firebaseLocalStorage')) {
+                    try { dbh.close(); } catch (e) {}
+                    done('');
+                    return;
+                }
+                var tx = dbh.transaction('firebaseLocalStorage', 'readonly');
+                var req = tx.objectStore('firebaseLocalStorage').get('firebase:authUser:' + apiKey + ':[DEFAULT]');
+                req.onsuccess = function () {
+                    var uid = uidFromRow(req.result);
+                    try { dbh.close(); } catch (e) {}
+                    done(uid);
+                };
+                req.onerror = function () { try { dbh.close(); } catch (e) {} done(''); };
+            } catch (e) {
+                try { dbh.close(); } catch (e2) {}
+                done('');
+            }
+        }
+        // Never create or upgrade Firebase's database. A first visit has no row.
+        function readExistingAuthDb() {
+            var openReq;
+            try { openReq = idb.open('firebaseLocalStorageDb'); }
+            catch (e) { done(''); return; }
+            var stopped = false;
+            function stop(uid) {
+                if (stopped) return;
+                stopped = true;
+                done(uid);
+            }
+            openReq.onupgradeneeded = function (ev) {
+                try {
+                    var tx = (ev && ev.target && ev.target.transaction) || openReq.transaction;
+                    if (tx && typeof tx.abort === 'function') tx.abort();
+                } catch (e) {}
+                try { if (openReq.result && openReq.result.close) openReq.result.close(); } catch (e2) {}
+                stop('');
+            };
+            openReq.onerror = function () { stop(''); };
+            openReq.onsuccess = function () {
+                if (stopped) {
+                    try { if (openReq.result && openReq.result.close) openReq.result.close(); } catch (e) {}
+                    return;
+                }
+                readDb(openReq.result);
+            };
+        }
+        if (typeof idb.databases === 'function') {
+            var listed;
+            try { listed = idb.databases(); } catch (e) { listed = null; }
+            if (listed && typeof listed.then === 'function') {
+                listed.then(function (rows) {
+                    var found = false;
+                    var i;
+                    rows = rows || [];
+                    for (i = 0; i < rows.length; i++) {
+                        if (rows[i] && rows[i].name === 'firebaseLocalStorageDb') found = true;
+                    }
+                    if (!found) { done(''); return; }
+                    readExistingAuthDb();
+                }).catch(function () { readExistingAuthDb(); });
+                return;
+            }
+        }
+        readExistingAuthDb();
+    });
+}
+
+function paintCachedSats(user, optimistic) {
+    var satsEl = document.getElementById('homeSatsValue');
+    if (!satsEl) return;
+    var math = (typeof window.claimableSats === 'function') ? window.claimableSats(user || {}) : displayClaimableMath(user || {});
+    satsEl.textContent = Number((math && math.claimable) || 0).toLocaleString();
+    if (optimistic) {
+        satsEl.setAttribute('data-profile-cache', '1');
+        satsEl.removeAttribute('data-auth-live');
+    } else {
+        satsEl.setAttribute('data-auth-live', '1');
+        satsEl.removeAttribute('data-profile-cache');
+    }
+}
+
+function applyCachedProfileRender(uid, cache, confirmed) {
+    var data = profileCacheData(cache.data);
+    currentUser = { uid: uid };
+    var key;
+    for (key in data) {
+        if (Object.prototype.hasOwnProperty.call(data, key)) currentUser[key] = data[key];
+    }
+    if (confirmed) {
+        _optimisticProfileUid = '';
+        window._optimisticProfileUid = '';
+        _profileShownUid = uid;
+        window._profileAuthConfirmedUid = uid;
+        publishAuthDisplay(uid, cache.data);
+        window._myPeers = new Set(currentUser.peers || []);
+        rankingReady = true;
+        window._badgesReady = true;
+        if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady();
+        window._hiddenBadgesReady = true;
+    } else {
+        _optimisticProfileUid = uid;
+        window._optimisticProfileUid = uid;
+        _profileShownUid = uid;
+        // rankingReady stays false. Nothing here may grant, claim, or call.
+    }
+    try { restoreVisitedUI(); } catch (e) { console.warn('[Auth] early restore', e); }
+    try { updateRankUI(); } catch (e) { console.warn('[Auth] early rank', e); }
+    try { updateAuthButton(); } catch (e) { console.warn('[Auth] early button', e); }
+    try { paintCachedSats(currentUser, !confirmed); } catch (e) {}
+    try {
+        var liveBar = document.getElementById('rankBar');
+        if (liveBar) {
+            if (confirmed) {
+                liveBar.setAttribute('data-auth-live', '1');
+                liveBar.removeAttribute('data-profile-cache');
+            } else {
+                liveBar.setAttribute('data-profile-cache', '1');
+                liveBar.removeAttribute('data-auth-live');
+            }
+        }
+    } catch (e) {}
+    if (confirmed && typeof renderProgressRings === 'function') {
+        try { renderProgressRings(); } catch (e) {}
+    }
+    try {
+        if (window.performance && performance.mark) performance.mark(confirmed ? 'btc-profile-cache-live' : 'btc-profile-full');
+    } catch (e) {}
+}
+
+function clearOptimisticProfile(dropCache) {
+    _optimisticGen++;
+    _optimisticProfileUid = '';
+    window._optimisticProfileUid = '';
+    _profileShownUid = '';
+    window._profileAuthConfirmedUid = '';
+    currentUser = null;
+    rankingReady = false;
+    _authBtnSignedIn = false;
+    if (dropCache) {
+        try { localStorage.removeItem('btc_profile_cache'); } catch (e) {}
+    }
+    try { clearAuthDisplay(); } catch (e) {}
+    if (window.btcAuthDisplay && typeof window.btcAuthDisplay.forceClearProfile === 'function') {
+        try { window.btcAuthDisplay.forceClearProfile(); } catch (e) {}
+    }
+    try { resetOptimisticHomeChrome(); } catch (e) {}
+    // The next updateAuthButton must stay on the guest home while currentUser is null.
+    window._btcHoldGuestUntilProfile = true;
+    try { if (typeof updateAuthButton === 'function') updateAuthButton(); } catch (e) {}
+}
+
+// Match keeps the paint and lets the auth path continue. A different uid,
+// null, or signed-out drops the optimistic UI and the cache immediately.
+// A redirect that has not settled yet hides the UI but keeps the cache.
+function reconcileOptimisticAuth(user, pendingRedirect) {
+    var real = (user && !user.isAnonymous && user.uid) ? String(user.uid) : '';
+    var shown = _optimisticProfileUid || _profileShownUid;
+    if (real && shown && real === shown) {
+        window._profileAuthConfirmedUid = real;
+        _optimisticProfileUid = '';
+        window._optimisticProfileUid = '';
+        _profileShownUid = real;
+        return { action: 'match' };
+    }
+    var cached = readProfileCacheRecord();
+    if (real && ((shown && shown !== real) || (cached && String(cached.uid) !== real))) {
+        clearOptimisticProfile(true);
+        return { action: 'mismatch' };
+    }
+    if (!real && shown) {
+        clearOptimisticProfile(!pendingRedirect);
+        return { action: pendingRedirect ? 'wait' : 'signed-out' };
+    }
+    return { action: real ? 'none' : 'signed-out-idle' };
+}
+
+function considerOptimisticProfile(uid) {
+    if (!uid) return false;
+    if (window._profileAuthConfirmedUid && window._profileAuthConfirmedUid === uid) return false;
+    var early = window._btcEarlyAuthUser;
+    if (typeof early !== 'undefined') {
+        if (!early || early.isAnonymous || String(early.uid) !== String(uid)) return false;
+    }
+    var cache = profileCacheReadyForDisplay(uid);
+    if (!cache) return false;
+    applyCachedProfileRender(uid, cache, false);
+    return true;
+}
+
+function startOptimisticProfilePaint() {
+    if (_optimisticPaintStarted) return;
+    _optimisticPaintStarted = true;
+    var gen = _optimisticGen;
+    readPersistedAuthUid().then(function (uid) {
+        if (gen !== _optimisticGen || !uid) return;
+        function paint() {
+            if (gen !== _optimisticGen) return;
+            considerOptimisticProfile(uid);
+        }
+        // Defer scripts run after the document is parsed. A test harness that
+        // evaluates this file early waits until the document is ready.
+        if (document.readyState === 'interactive' || document.readyState === 'complete') {
+            paint();
+            return;
+        }
+        document.addEventListener('DOMContentLoaded', paint);
+    }).catch(function () {});
+}
+
+window.considerOptimisticProfile = considerOptimisticProfile;
+window.reconcileOptimisticAuth = reconcileOptimisticAuth;
+window.clearOptimisticProfile = clearOptimisticProfile;
+window.profileCacheReadyForDisplay = profileCacheReadyForDisplay;
+window.readPersistedAuthUid = readPersistedAuthUid;
+window.startOptimisticProfilePaint = startOptimisticProfilePaint;
+
 function initRanking() {
     try {
+        // Start the IndexedDB uid read before App Check, Firestore, or the auth
+        // listener. The paint must not wait on the first onAuthStateChanged.
+        startOptimisticProfilePaint();
         if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
 
         // App Check for claimSats. One activation per page, before any claim.
@@ -470,7 +845,8 @@ function initRanking() {
         // reCAPTCHA v3. Token TTL is 1 hour in the Firebase console.
         if (!window._btcAppCheckReady) {
             try {
-                firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
+                if (typeof window._btcActivateAppCheck === 'function') window._btcActivateAppCheck();
+                else firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
                 window._btcAppCheckReady = true;
             } catch (appCheckErr) {
                 console.warn('App Check init failed', appCheckErr);
@@ -628,6 +1004,9 @@ function initRanking() {
             // A verified pass belongs to one uid. Sign-out, anonymous, and a
             // different account all drop it before any profile work.
             syncTotpVerified(user);
+            // Optimistic paint is display-only. A different uid, null, or
+            // signed-out clears that UI and the cache before any other work.
+            reconcileOptimisticAuth(user, _pendingRedirect);
             // getRedirectResult() waits on the auth iframe. Calling it before this
             // listener, or on every reload, stalled the signed-in home for seconds.
             // A returning real user has nothing to consume. Only a redirect return
@@ -678,32 +1057,11 @@ function initRanking() {
                         window._btcTotpHold = true;
                         holdAuthDisplayForTotp(user.uid);
                         loadUser(user.uid).catch(function(){});
-                    } else if (_cachedProfile && _cachedProfile.twoFa === false && !(_cachedProfile.data && _cachedProfile.data.totpEnabled)) {
-                        // Instant render from cache. Display snapshot stays display-only;
-                        // rankingReady here is the existing profile cache, after auth matched this uid.
-                        currentUser = { uid: user.uid, ...profileCacheData(_cachedProfile.data) };
-                        publishAuthDisplay(user.uid, _cachedProfile.data);
-                        window._myPeers = new Set(currentUser.peers || []);
-                        rankingReady = true;
-                        window._badgesReady = true;
-                        if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady();
-                        window._hiddenBadgesReady = true;
-                        try { restoreVisitedUI(); } catch (e) { console.warn('[Auth] early restore', e); }
-                        try { updateRankUI(); } catch (e) { console.warn('[Auth] early rank', e); }
-                        try { updateAuthButton(); } catch (e) { console.warn('[Auth] early button', e); }
-                        try {
-                            var _liveBar = document.getElementById('rankBar');
-                            if (_liveBar) {
-                                _liveBar.setAttribute('data-auth-live', '1');
-                                _liveBar.removeAttribute('data-profile-cache');
-                            }
-                            var _liveSats = document.getElementById('homeSatsValue');
-                            if (_liveSats) {
-                                _liveSats.setAttribute('data-auth-live', '1');
-                                _liveSats.removeAttribute('data-profile-cache');
-                            }
-                        } catch (e) {}
-                        if (typeof renderProgressRings === 'function') renderProgressRings();
+                    } else if (_cachedProfile && !_cacheNeeds2fa && (_cachedProfile.twoFa === false || (_cachedProfile.data && _cachedProfile.data.totpEnabled === false))) {
+                        // Auth confirmed this uid. Same cache render as the optimistic
+                        // paint, now allowed to mark the profile live. rankingReady
+                        // here is the existing profile cache, after auth matched this uid.
+                        applyCachedProfileRender(user.uid, _cachedProfile, true);
                         // Stale-while-revalidate: Firestore refreshes the cache and does not block the paint above.
                         setTimeout(function() { loadUser(user.uid).catch(function(){}); }, 500);
                     } else {
@@ -747,7 +1105,7 @@ function initRanking() {
                     if (!_pendingRedirect) clearAuthDisplay();
                     if (redirectResultResolved && !_pendingRedirect) {
                         // Redirect already resolved (no redirect happened) - safe to go anonymous
-                        auth.signInAnonymously().then(() => {});
+                        startAnonymousSession();
                     } else {
                         // Wait for redirect result to resolve first, with extra timeout for mobile
                         var _nullUserTimeout = setTimeout(function() {
@@ -760,7 +1118,7 @@ function initRanking() {
                                 sessionStorage.removeItem('btc_redirect_pending');
                                 _pendingRedirect = false;
                                 clearAuthDisplay();
-                                auth.signInAnonymously().then(() => {});
+                                startAnonymousSession();
                             }
                         }, 10000);
                         redirectResultPromise.then(function(redirectUser) {
@@ -769,7 +1127,7 @@ function initRanking() {
                             if (!redirectUser && !auth.currentUser) {
                                 _pendingRedirect = false;
                                 clearAuthDisplay();
-                                auth.signInAnonymously().then(() => {});
+                                startAnonymousSession();
                             }
                         });
                     }
@@ -794,13 +1152,13 @@ function initRanking() {
                 if (!_pendingRedirect) clearAuthDisplay();
                 // Only sign in anonymously if redirect has already resolved
                 if (redirectResultResolved) {
-                    auth.signInAnonymously().then(() => {});
+                    startAnonymousSession();
                 } else {
                     redirectResultPromise.then(function(redirectUser) {
                         if (!redirectUser && !auth.currentUser) {
                             _pendingRedirect = false;
                             clearAuthDisplay();
-                            auth.signInAnonymously().then(() => {});
+                            startAnonymousSession();
                         }
                     });
                 }
@@ -817,24 +1175,28 @@ function initRanking() {
 async function handleEmailSignIn() {
     // Save the full URL before any modifications - needed for signInWithEmailLink
     var _signInUrl = window.location.href;
+    if (isAccountLinkHref(_signInUrl)) window._accountLinkHold = true;
 
     // Try to get email from: 1) URL param (works cross-device), 2) localStorage (same device), 3) prompt (last resort)
-    let email = null;
+    let email = emailFromHref(_signInUrl) || null;
     // Check URL parameter first - this is embedded in the magic link
-    var urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('signin_email')) {
-        email = decodeURIComponent(urlParams.get('signin_email'));
-    }
-    // Fallback to localStorage (same device/browser)
     if (!email) {
-        email = localStorage.getItem('btc_signin_email');
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('signin_email')) {
+            email = decodeURIComponent(urlParams.get('signin_email'));
+        }
+    }
+    // Fallback to localStorage (same device/browser). emailForSignIn is the
+    // key Firebase's own samples use; this app also stores btc_signin_email.
+    if (!email) {
+        email = localStorage.getItem('btc_signin_email') || localStorage.getItem('emailForSignIn');
     }
     // Last resort: show a friendly inline prompt (cross-device scenario)
     if (!email) {
         return new Promise(function(resolve) {
             var ov = document.createElement('div');
             ov.id = 'emailConfirmOverlay';
-            ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
+            ov.style.cssText = 'position:fixed;inset:0;z-index:2200010;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
             ov.innerHTML = '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:28px;max-width:380px;width:100%;text-align:center;">' +
                 '<div style="font-size:2rem;margin-bottom:12px;">📧</div>' +
                 '<div style="font-size:1.1rem;font-weight:800;color:var(--heading,#fff);margin-bottom:8px;">Confirm Your Email</div>' +
@@ -887,6 +1249,83 @@ function shouldSkipInPlaceLink(flagEmail, email) {
 function guestLinkIsMfaHold(message) {
     var msg = String(message || '');
     return msg.indexOf('Authenticator session required') !== -1 || msg.indexOf('phone verification') !== -1;
+}
+
+function queryValue(query, key) {
+    var match = String(query || '').match(new RegExp('(?:^|[?&])' + key + '=([^&#]+)'));
+    if (!match) return '';
+    try { return decodeURIComponent(match[1]); } catch (e) { return match[1]; }
+}
+
+function isAccountLinkHref(href) {
+    var text = String(href || '');
+    if (queryValue(text, 'account_link') === '1') return true;
+    var cont = queryValue(text, 'continueUrl');
+    return !!cont && queryValue(cont, 'account_link') === '1';
+}
+
+function emailFromHref(href) {
+    var text = String(href || '');
+    var direct = queryValue(text, 'signin_email').trim().toLowerCase();
+    if (direct) return direct;
+    var cont = queryValue(text, 'continueUrl');
+    if (!cont) return '';
+    return queryValue(cont, 'signin_email').trim().toLowerCase();
+}
+
+function anonymousSignInBlocked(href, hold) {
+    if (hold === true) return true;
+    var text = String(href || '');
+    if (isAccountLinkHref(text)) return true;
+    if (queryValue(text, 'mode') === 'signIn' && queryValue(text, 'oobCode')) return true;
+    var cont = queryValue(text, 'continueUrl');
+    if (cont && queryValue(cont, 'mode') === 'signIn' && queryValue(cont, 'oobCode')) return true;
+    return false;
+}
+
+function accountLinkCompletion(spec) {
+    var src = spec || {};
+    var intent = src.intent || null;
+    var accountLink = src.accountLink === true;
+    var user = src.user || null;
+    var email = String(src.email || '').trim().toLowerCase();
+    if (!intent && !accountLink) return 'ignore';
+    if (intent && email && String(intent.email || '').trim().toLowerCase() !== email) {
+        return accountLink ? 'mismatch' : 'stale';
+    }
+    if (!user) return 'need-session';
+    if (user.isAnonymous) {
+        if (intent && intent.uid && user.uid === intent.uid) return 'link';
+        return 'need-session';
+    }
+    if (intent && intent.uid && user.uid !== intent.uid) return 'wrong-account';
+    if (!intent && String(user.uid || '').indexOf('ln:') !== 0) return 'need-lightning';
+    return 'link';
+}
+
+function accountLinkHoldMessage(decision) {
+    if (decision === 'wrong-account') return 'This link adds an email to the account that asked for it. Sign in with Lightning on that account, then open the link again. We did not switch accounts.';
+    if (decision === 'need-lightning') return 'Sign in with Lightning on this device, then open the link again. We did not add the email to a different account.';
+    if (decision === 'mismatch') return 'That link does not match the email you asked to add. Send a new link from this account. We did not create a new account.';
+    return "Open this link on the device where you're signed in, or sign in with Lightning first and then open the link again. We did not create a new account.";
+}
+
+function anonymousSignInBlockedNow() {
+    var href = '';
+    try { href = window.location.href; } catch (e) {}
+    var hold = false;
+    try { hold = window._accountLinkHold === true; } catch (e2) { hold = false; }
+    if (anonymousSignInBlocked(href, hold)) return true;
+    try {
+        if (typeof auth !== 'undefined' && auth && typeof auth.isSignInWithEmailLink === 'function' && auth.isSignInWithEmailLink(href)) return true;
+    } catch (e3) {}
+    return false;
+}
+
+function startAnonymousSession() {
+    if (anonymousSignInBlockedNow()) return;
+    if (typeof auth === 'undefined' || !auth || auth.currentUser) return;
+    auth.signInAnonymously().then(function () {});
 }
 
 // ACCOUNT_LINK_PLAN_START
@@ -1113,6 +1552,42 @@ async function syncAccountEmailFromAuth() {
     return data;
 }
 
+// Profile paint must not wait on this. The server still applies email-change holds.
+function scheduleAccountEmailSync(uid) {
+    if (!uid || !auth || !auth.currentUser || auth.currentUser.isAnonymous || auth.currentUser.uid !== uid) return;
+    if (window._emailSyncUid === uid) return;
+    window._emailSyncUid = uid;
+    syncAccountEmailFromAuth().catch(function () {
+        if (window._emailSyncUid === uid) window._emailSyncUid = null;
+    });
+}
+
+var _profileTotpGen = 0;
+
+// Starts totpStatus immediately. Callers paint first, then await the promise.
+function watchProfileTotp(uid) {
+    var gen = ++_profileTotpGen;
+    var pending;
+    try {
+        pending = window._serverTotpAllows(uid);
+    } catch (e) {
+        pending = Promise.resolve(true);
+    }
+    var promise = Promise.resolve(pending).then(function (open) {
+        return open !== false;
+    }, function () {
+        return true;
+    });
+    return {
+        promise: promise,
+        live: function () {
+            if (gen !== _profileTotpGen) return false;
+            var user = auth && auth.currentUser;
+            return !!(user && !user.isAnonymous && user.uid === uid);
+        }
+    };
+}
+
 window.reauthForSensitiveAction = async function(purpose) {
     var user = auth && auth.currentUser;
     if (!user) {
@@ -1134,7 +1609,7 @@ window.showReauthStep = function(user, purpose) {
         if (existing) existing.remove();
         var overlay = document.createElement('div');
         overlay.id = 'reauthOverlay';
-        overlay.style.cssText = 'position:fixed;inset:0;z-index:490000;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:2200010;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
         var ids = linkedProviderIds(user);
         var uid = String((user && user.uid) || '');
         var buttons = '';
@@ -1218,8 +1693,9 @@ window.showReauthStep = function(user, purpose) {
         if (lnBtn) lnBtn.onclick = async function() {
             try {
                 var startLightning = window['signInWithLightning'];
-                if (typeof startLightning === 'function') await startLightning();
-                finish(true);
+                var ok = false;
+                if (typeof startLightning === 'function') ok = await startLightning();
+                finish(!!ok);
             } catch (err) { finish(false); }
         };
     });
@@ -1259,11 +1735,12 @@ window.linkFullAccountProvider = async function(pid) {
         var proof = await freshProviderStep('linkProvider');
         if (!proof) return;
         try {
+            var preparePayload = {};
+            preparePayload.email = String(email).trim();
+            await firebase.functions().httpsCallable('prepareEmailChange')(preparePayload);
             writeAccountLinkIntent(user, email);
-            await auth.sendSignInLinkToEmail(String(email).trim(), {
-                url: window.location.origin + window.location.pathname,
-                handleCodeInApp: true
-            });
+            var sentLink = await sendMagicLink(String(email).trim(), { accountLink: true });
+            if (!sentLink) throw new Error('send');
             if (typeof showToast === 'function') showToast('Check that email for a link to add it to this account.');
         } catch (err) {
             var conflict = accountLinkConflictMessage(err && err.code);
@@ -1326,12 +1803,16 @@ window.showChangeEmailModal = function() {
     if (existing) existing.remove();
     var overlay = document.createElement('div');
     overlay.id = 'changeEmailModal';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:490000;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:2200010;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
     var title = mode === 'add' ? 'Add email' : 'Change email';
+    var blurb = mode === 'add'
+        ? 'We email you a link. Open it while this account is signed in. The email is added to this account and does not open a new one.'
+        : 'We email the new address to confirm it, and the previous address gets a link to revert the change.';
     overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:420px;width:100%;">' +
         '<h2 style="margin:0 0 8px;color:var(--heading);font-size:1.1rem;">' + title + '</h2>' +
-        '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0 0 12px;">We email the new address to confirm it, and the previous address gets a link to revert the change.</p>' +
+        '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0 0 12px;">' + blurb + '</p>' +
         '<input id="changeEmailInput" type="email" autocomplete="email" placeholder="name@example.com" style="width:100%;padding:12px;box-sizing:border-box;border-radius:10px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-family:inherit;margin-bottom:12px;">' +
+        '<div id="changeEmailStatus" style="color:var(--text-muted);font-size:0.8rem;line-height:1.4;margin:-4px 0 12px;"></div>' +
         '<div style="display:flex;gap:8px;">' +
         '<button type="button" onclick="document.getElementById(\'changeEmailModal\').remove()" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>' +
         '<button type="button" id="changeEmailSubmit" onclick="submitEmailChange()" style="flex:1;padding:12px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:800;cursor:pointer;font-family:inherit;">Send link</button>' +
@@ -1344,7 +1825,18 @@ window.submitEmailChange = async function() {
     var email = input ? String(input.value || '').trim() : '';
     if (!email) return;
     var btn = document.getElementById('changeEmailSubmit');
+    var status = document.getElementById('changeEmailStatus');
     if (btn) btn.disabled = true;
+    var user = auth && auth.currentUser;
+    if (user && accountEmailAction(user) === 'add') {
+        var added = await requestAccountEmailLink(email, status);
+        if (!added && btn) btn.disabled = false;
+        if (added) {
+            var modal = document.getElementById('changeEmailModal');
+            if (modal) modal.remove();
+        }
+        return;
+    }
     try {
         var ready = await window.reauthForSensitiveAction('changing your email');
         if (!ready) { if (btn) btn.disabled = false; return; }
@@ -1359,8 +1851,8 @@ window.submitEmailChange = async function() {
             url: window.location.origin + window.location.pathname + '?emailChange=1',
             handleCodeInApp: true
         });
-        var modal = document.getElementById('changeEmailModal');
-        if (modal) modal.remove();
+        var changed = document.getElementById('changeEmailModal');
+        if (changed) changed.remove();
         if (typeof showToast === 'function') showToast('Check both email addresses. The new one gets a confirm link, and the old one gets a revert link.');
     } catch (err) {
         var code = err && err.code;
@@ -1449,32 +1941,111 @@ async function waitForAccountLinkUser(uid) {
     return (auth && auth.currentUser && auth.currentUser.uid === uid) ? auth.currentUser : null;
 }
 
+function presentAccountLinkHold(decision) {
+    window._accountLinkHold = true;
+    window._accountLinkHoldDecision = decision || 'need-session';
+    var existing = document.getElementById('accountLinkHold');
+    if (existing) existing.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'accountLinkHold';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:2200010;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
+    var message = accountLinkHoldMessage(decision);
+    overlay.innerHTML = '<div role="dialog" aria-modal="true" style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:420px;width:100%;text-align:center;">' +
+        '<div style="font-size:2rem;margin-bottom:8px;">📧</div>' +
+        '<div style="color:var(--heading,#fff);font-weight:800;font-size:1.05rem;margin-bottom:8px;">Finish adding your email</div>' +
+        '<div style="color:var(--text,#fff);font-size:0.9rem;line-height:1.5;margin-bottom:16px;">' + accountLinkEscape(message) + '</div>' +
+        '<button type="button" onclick="signInWithLightningThenEmailLink()" style="width:100%;padding:12px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">Sign in with Lightning</button>' +
+        '<button type="button" onclick="document.getElementById(\'accountLinkHold\').remove()" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-weight:700;cursor:pointer;font-family:inherit;">Close</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+}
+
+async function maybeCompleteAccountEmailLink() {
+    var href = '';
+    try { href = window.location.href; } catch (e) { return; }
+    var accountLink = isAccountLinkHref(href);
+    var signInLink = false;
+    try { signInLink = !!(auth && auth.isSignInWithEmailLink && auth.isSignInWithEmailLink(href)); } catch (e2) { signInLink = false; }
+    if (!accountLink && !signInLink) return;
+    var email = emailFromHref(href);
+    if (!email) {
+        try { email = localStorage.getItem('btc_signin_email') || localStorage.getItem('emailForSignIn') || ''; } catch (e3) { email = ''; }
+    }
+    if (!email) {
+        if (accountLink) presentAccountLinkHold('need-session');
+        return;
+    }
+    await finishAccountEmailLink(email, href);
+}
+
+window.signInWithLightningThenEmailLink = async function() {
+    var hold = document.getElementById('accountLinkHold');
+    if (hold) hold.remove();
+    var ok = false;
+    try {
+        if (typeof window.signInWithLightning === 'function') ok = await window.signInWithLightning();
+    } catch (e) { ok = false; }
+    if (ok) return;
+    if (window._accountLinkHold === true && isAccountLinkHref(window.location.href)) presentAccountLinkHold(window._accountLinkHoldDecision || 'need-session');
+};
+
 async function finishAccountEmailLink(email, signInUrl) {
     var intent = readAccountLinkIntent();
-    if (!intent) return false;
+    var accountLink = isAccountLinkHref(signInUrl);
+    if (accountLink) window._accountLinkHold = true;
+    var userNow = (auth && auth.currentUser) ? auth.currentUser : null;
+    if (intent && intent.uid && (!userNow || userNow.uid !== intent.uid)) {
+        userNow = await waitForAccountLinkUser(intent.uid);
+    }
+    var linkSpec = { intent: intent, accountLink: accountLink };
+    linkSpec.user = userNow ? { uid: userNow.uid, isAnonymous: !!userNow.isAnonymous } : null;
+    linkSpec.email = email;
+    var decision = accountLinkCompletion(linkSpec);
+    if (decision === 'ignore') return false;
+    if (decision === 'stale') {
+        clearAccountLinkIntent();
+        return false;
+    }
+    if (decision !== 'link') {
+        if (decision === 'mismatch') clearAccountLinkIntent();
+        presentAccountLinkHold(decision);
+        if (userNow && !userNow.isAnonymous && typeof loadUser === 'function') loadUser(userNow.uid);
+        return true;
+    }
     if (accountLinkTotpPending()) {
         if (typeof showToast === 'function') showToast(accountLinkTotpHoldMessage());
         return true;
     }
-    var wanted = String(email || '').trim().toLowerCase();
-    if (wanted !== String(intent.email || '').trim().toLowerCase()) {
-        clearAccountLinkIntent();
-        return false;
-    }
-    var user = await waitForAccountLinkUser(intent.uid);
+    var user = userNow;
     if (!user) {
-        clearAccountLinkIntent();
-        return false;
-    }
-    var profile = (typeof currentUser !== 'undefined') ? currentUser : null;
-    if (!accountCanLinkSignIn(user, profile)) {
-        clearAccountLinkIntent();
-        if (typeof showToast === 'function') showToast('This account already has a sign-in method.');
-        window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+        presentAccountLinkHold('need-session');
         return true;
     }
     var linkedUid = user.uid;
     var wasGuest = !!user.isAnonymous;
+    if (!wasGuest && !(intent && intent.uid === user.uid)) {
+        var preparePayload = {};
+        preparePayload.email = email;
+        if (typeof mfaNeedsFreshCode === 'function' && mfaNeedsFreshCode() && typeof window._showFreshStepUp === 'function') {
+            var prepareProof = await window._showFreshStepUp('changeEmail');
+            if (!prepareProof) {
+                presentAccountLinkHold('need-session');
+                return true;
+            }
+            preparePayload.freshProofId = prepareProof;
+        }
+        try {
+            await firebase.functions().httpsCallable('prepareEmailChange')(preparePayload);
+        } catch (prepErr) {
+            var prepCode = prepErr && prepErr.code;
+            if (prepCode === 'functions/failed-precondition' || prepCode === 'failed-precondition') {
+                presentAccountLinkHold('need-session');
+            } else if (typeof showToast === 'function') {
+                showToast(prepCode === 'functions/resource-exhausted' ? 'Too many attempts. Try again later.' : "That email can't be used.");
+            }
+            return true;
+        }
+    }
     try {
         var emailCred = firebase.auth.EmailAuthProvider.credentialWithLink(email, signInUrl);
         await user.linkWithCredential(emailCred);
@@ -1487,6 +2058,7 @@ async function finishAccountEmailLink(email, signInUrl) {
         var conflict = accountLinkConflictMessage(code);
         if (conflict) {
             clearAccountLinkIntent();
+            window._accountLinkHold = false;
             if (typeof showToast === 'function') showToast(conflict);
             window.history.replaceState(null, '', window.location.pathname + window.location.hash);
             return true;
@@ -1498,7 +2070,6 @@ async function finishAccountEmailLink(email, signInUrl) {
                 showToast('Could not link that email. You are still on this account.');
             }
         }
-        window.history.replaceState(null, '', window.location.pathname + window.location.hash);
         return true;
     }
     if (!auth.currentUser || auth.currentUser.uid !== linkedUid) {
@@ -1507,12 +2078,26 @@ async function finishAccountEmailLink(email, signInUrl) {
         return true;
     }
     clearAccountLinkIntent();
+    window._accountLinkHold = false;
     try { localStorage.removeItem('btc_signin_email'); } catch (e1) {}
+    try { localStorage.removeItem('emailForSignIn'); } catch (eFor) {}
     try { localStorage.removeItem('btc_guest_link'); } catch (e2) {}
     window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+    var holdEl = document.getElementById('accountLinkHold');
+    if (holdEl) holdEl.remove();
     if (wasGuest && typeof _handleSignInResultGlobal === 'function') {
         await _handleSignInResultGlobal(auth.currentUser, null, null);
     }
+    var synced = null;
+    try { synced = await syncAccountEmailFromAuth(); } catch (syncErr) { synced = null; }
+    if (synced && synced.conflict) {
+        if (typeof showToast === 'function') showToast(accountLinkConflictMessage('auth/email-already-in-use'));
+        try { if (auth.currentUser && auth.currentUser.reload) await auth.currentUser.reload(); } catch (reloadErr) {}
+        if (typeof loadUser === 'function') loadUser(linkedUid);
+        refreshAccountSignInCard();
+        return true;
+    }
+    if (!wasGuest && typeof loadUser === 'function') loadUser(linkedUid);
     if (typeof showToast === 'function') showToast('Email linked. You can use it to sign in next time.');
     refreshAccountSignInCard();
     return true;
@@ -1746,9 +2331,14 @@ async function finishEmailSignIn(email, _signInUrl) {
         } else {
             showToast('Sign-in error (' + (e.code || 'unknown') + '). Please try again.');
         }
-        // Clean URL so the broken link doesn't keep retrying
+        // A failed account link must not mint a guest. A normal sign-in
+        // failure can, once the one-time code is gone from the address bar.
+        if (window._accountLinkHold === true || anonymousSignInBlockedNow()) {
+            presentAccountLinkHold(window._accountLinkHoldDecision || 'need-session');
+            return;
+        }
         window.history.replaceState(null, '', window.location.pathname + window.location.hash);
-        auth.signInAnonymously();
+        startAnonymousSession();
     }
 }
 
@@ -2308,7 +2898,14 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
 
 // Lightning (LNURL-auth) Sign-In
 window.signInWithLightning = async function() {
-    if (!checkRateLimit()) return;
+    if (!checkRateLimit()) return false;
+    var lnSettled = false;
+    function settleLn(value) {
+        if (lnSettled) return;
+        lnSettled = true;
+        if (typeof window._settleLightning === 'function') window._settleLightning(!!value);
+    }
+    window._lightningSignIn = new Promise(function(resolve) { window._settleLightning = resolve; });
     window._captureSignupFormState();
     // Close the sign-in modal so the LN overlay isn't buried under it
     var _um = document.getElementById('usernameModal');
@@ -2317,8 +2914,8 @@ window.signInWithLightning = async function() {
     // Show modal immediately with loading skeleton (Cloud Function can be slow on cold start)
     var qrModal = document.createElement('div');
     qrModal.id = 'lnAuthModal';
-    qrModal.style.cssText = 'position:fixed;inset:0;z-index:500000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);';
-    qrModal.onclick = function(e) { if (e.target === qrModal) qrModal.remove(); };
+    qrModal.style.cssText = 'position:fixed;inset:0;z-index:2200020;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);';
+    qrModal.onclick = function(e) { if (e.target === qrModal) { qrModal.remove(); settleLn(false); } };
     qrModal.innerHTML =
         '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent);border-radius:20px;padding:28px;max-width:380px;width:90%;text-align:center;">' +
             '<div style="font-size:2rem;margin-bottom:10px;">⚡</div>' +
@@ -2329,9 +2926,11 @@ window.signInWithLightning = async function() {
             '</div>' +
             '<div id="lnAuthCopyWrap" style="margin-bottom:12px;display:none;"></div>' +
             '<p id="lnAuthStatus" style="color:var(--text-muted);font-size:0.85rem;font-weight:600;">Connecting to server...</p>' +
-            '<button onclick="document.getElementById(\'lnAuthModal\').remove()" style="margin-top:10px;padding:8px 20px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+            '<button type="button" id="lnAuthCancel" style="margin-top:10px;padding:8px 20px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
         '</div>';
     document.body.appendChild(qrModal);
+    var lnCancel = document.getElementById('lnAuthCancel');
+    if (lnCancel) lnCancel.onclick = function() { qrModal.remove(); settleLn(false); };
 
     try {
         // Request challenge from Cloud Function
@@ -2339,12 +2938,13 @@ window.signInWithLightning = async function() {
         var challengeResult = await lnAuthChallenge();
 
         // Check modal still exists (user might have cancelled)
-        if (!document.getElementById('lnAuthModal')) return;
+        if (!document.getElementById('lnAuthModal')) { settleLn(false); return window._lightningSignIn; }
 
         if (!challengeResult.data || !challengeResult.data.k1 || !challengeResult.data.lnurl) {
             if (typeof showToast === 'function') showToast('Failed to generate login challenge');
             qrModal.remove();
-            return;
+            settleLn(false);
+            return window._lightningSignIn;
         }
 
         var k1 = challengeResult.data.k1;
@@ -2393,6 +2993,7 @@ window.signInWithLightning = async function() {
             pollCount++;
             if (pollCount > maxPolls || !document.getElementById('lnAuthModal')) {
                 clearInterval(pollInterval);
+                settleLn(false);
                 return;
             }
             try {
@@ -2419,17 +3020,20 @@ window.signInWithLightning = async function() {
 
                     loadUser(uid);
                     hideUsernamePrompt();
+                    try { await maybeCompleteAccountEmailLink(); } catch (linkAfterLn) {}
                     setTimeout(function() {
                         var modal = document.getElementById('lnAuthModal');
                         if (modal) modal.remove();
                     }, 1000);
                     if (typeof showToast === 'function') showToast('⚡ Signed in with Lightning!');
+                    settleLn(true);
                 }
             } catch(e) {
                 if (surfaceMfaRequired(e)) {
                     clearInterval(pollInterval);
                     var mfaModal = document.getElementById('lnAuthModal');
                     if (mfaModal) mfaModal.remove();
+                    settleLn(false);
                     return;
                 }
                 // Not ready yet, keep polling
@@ -2442,7 +3046,9 @@ window.signInWithLightning = async function() {
         if (typeof showToast === 'function') showToast('Lightning sign-in failed. Try again.');
         var modal = document.getElementById('lnAuthModal');
         if (modal) modal.remove();
+        settleLn(false);
     }
+    return window._lightningSignIn;
 };
 
 // Rate limiting check
@@ -2837,15 +3443,20 @@ window.sendReturningMagicLink = async function() {
 };
 
 // Send magic link email
-async function sendMagicLink(email) {
+async function sendMagicLink(email, opts) {
+    var accountLink = !!(opts && opts.accountLink);
+    var continueUrl = window.location.origin + window.location.pathname + '?signin_email=' + encodeURIComponent(email);
+    if (accountLink) continueUrl += '&account_link=1';
     const actionCodeSettings = {
-        // Embed email in URL so it works even when opened on a different device/browser
-        url: window.location.origin + window.location.pathname + '?signin_email=' + encodeURIComponent(email),
+        // Embed email in URL so it works even when opened on a different device/browser.
+        // account_link marks a link that must attach to the signed-in account.
+        url: continueUrl,
         handleCodeInApp: true,
     };
     try {
         await auth.sendSignInLinkToEmail(email, actionCodeSettings);
         localStorage.setItem('btc_signin_email', email);
+        try { localStorage.setItem('emailForSignIn', email); } catch (storeErr) {}
         return true;
     } catch(e) {
         console.log('Magic link error:', e);
@@ -2880,10 +3491,41 @@ function loadUserLocal(uid) {
     startReadTimer();
 }
 
+function settleAdminClaim() {
+    var user = auth && auth.currentUser;
+    if (!user || user.isAnonymous || typeof user.getIdTokenResult !== 'function') {
+        window._isAdminClaim = false;
+        return;
+    }
+    var forcedLanded = false;
+    function applyClaim(tokenResult) {
+        window._isAdminClaim = !!(tokenResult && tokenResult.claims && tokenResult.claims.admin === true);
+        // Firestore's onSnapshot often fires from cache before the claim lands,
+        // so own messages render with isAdmin=false and miss the pin button.
+        if (window._isAdminClaim && window._chatAllMsgs && typeof renderChatMessages === 'function') {
+            renderChatMessages(window._chatAllMsgs);
+        }
+    }
+    // Non-forced: uses the cached token when it is still valid.
+    user.getIdTokenResult().then(function (tokenResult) {
+        if (forcedLanded) return;
+        applyClaim(tokenResult);
+    }).catch(function () {
+        if (!forcedLanded) window._isAdminClaim = false;
+    });
+    // Forced refresh stays off the UI path. It only corrects a stale admin claim.
+    user.getIdTokenResult(true).then(function (tokenResult) {
+        forcedLanded = true;
+        applyClaim(tokenResult);
+    }).catch(function () {});
+}
+
 async function loadUser(uid, prefetchedDoc) {
     const doc = prefetchedDoc || await db.collection('users').doc(uid).get();
+    var docSaysTotp = false;
     if (doc.exists) {
         currentUser = { uid, ...doc.data() };
+        docSaysTotp = !!(currentUser && currentUser.totpEnabled);
         // Cache profile for instant next-load. The display snapshot is a separate,
         // non-sensitive projection and is not allowed to grant anything.
         // twoFa is explicit: true, false, or left unknown when the doc has no flag.
@@ -2902,22 +3544,10 @@ async function loadUser(uid, prefetchedDoc) {
             updateAuthButton();
         }
     }
-    // Token refresh and callables must not block the signed-in chrome above.
-    // Resolve admin status from custom claim (not email allowlist)
-    try {
-        if (auth.currentUser && !auth.currentUser.isAnonymous) {
-            const tokenResult = await auth.currentUser.getIdTokenResult(true); // forceRefresh — stale token won't carry admin claim
-            window._isAdminClaim = tokenResult.claims.admin === true;
-        } else {
-            window._isAdminClaim = false;
-        }
-    } catch(e) { window._isAdminClaim = false; }
-    // Re-render chat messages now that admin claim is resolved.
-    // Firestore's onSnapshot often fires from cache before loadUser() finishes,
-    // so own messages render with isAdmin=false and miss the pin button.
-    if (window._isAdminClaim && window._chatAllMsgs && typeof renderChatMessages === 'function') {
-        renderChatMessages(window._chatAllMsgs);
-    }
+    // Admin chrome reads the cached token. A forced refresh always waits on
+    // the network and used to sit in front of this profile UI. Server-side
+    // checks still verify the live token on each callable.
+    settleAdminClaim();
     if (doc.exists) {
         // TOS check — show acceptance modal if user hasn't accepted current version
         if (currentUser && !auth.currentUser.isAnonymous && currentUser.tosVersion !== TOS_CURRENT_VERSION) {
@@ -2926,31 +3556,47 @@ async function loadUser(uid, prefetchedDoc) {
 
         // Authenticator gate. The server, not a localStorage flag, decides.
         // Phone sign-in is enforced by Firebase before we get here.
+        // 2FA accounts still wait here. Everyone else paints, then the same
+        // check finishes in parallel and hides the profile if it is blocked.
+        var fastTotp = null;
         if (!auth.currentUser.isAnonymous) {
-            var gateOpen = await window._serverTotpAllows(auth.currentUser.uid);
-            if (!gateOpen) {
+            if (docSaysTotp) {
+                var gateOpen = await window._serverTotpAllows(auth.currentUser.uid);
+                if (!gateOpen) {
+                    window._btcTotpHold = true;
+                    clearTotpVerified();
+                    holdAuthDisplayForTotp(auth.currentUser.uid);
+                    _showTotpSignInChallenge();
+                    return;
+                }
+                // A passing server check means this session may use the account.
+                // That includes a recovery code that just turned 2FA off, so the
+                // hold clears even when totpEnabled is already false.
+                clearTotpHold();
+                if (!currentUser && doc && doc.exists) currentUser = { uid: uid, ...doc.data() };
+                if (currentUser && currentUser.totpEnabled) noteTotpVerified(auth.currentUser.uid);
+                publishAuthDisplay(uid, currentUser);
+                updateAuthButton();
+            } else {
+                fastTotp = watchProfileTotp(auth.currentUser.uid);
+                rankingReady = true;
+                updateRankUI();
+                scheduleAccountEmailSync(uid);
+            }
+        }
+        if (fastTotp) {
+            var fastOpen = true;
+            try { fastOpen = await fastTotp.promise; }
+            catch (fastErr) { fastOpen = true; }
+            if (!fastTotp.live()) return;
+            if (!fastOpen) {
                 window._btcTotpHold = true;
                 clearTotpVerified();
-                holdAuthDisplayForTotp(auth.currentUser.uid);
+                holdAuthDisplayForTotp(uid);
                 _showTotpSignInChallenge();
                 return;
             }
-            // A passing server check means this session may use the account.
-            // That includes a recovery code that just turned 2FA off, so the
-            // hold clears even when totpEnabled is already false.
             clearTotpHold();
-            if (!currentUser && doc && doc.exists) currentUser = { uid: uid, ...doc.data() };
-            if (currentUser && currentUser.totpEnabled) noteTotpVerified(auth.currentUser.uid);
-            publishAuthDisplay(uid, currentUser);
-            updateAuthButton();
-            if (window._emailSyncUid !== uid) {
-                window._emailSyncUid = uid;
-                try {
-                    await syncAccountEmailFromAuth();
-                } catch (syncErr) {
-                    window._emailSyncUid = null;
-                }
-            }
         }
         window._myPeers = new Set(currentUser.peers || []);
         // Restore visited channels so we don't re-award
@@ -3038,6 +3684,7 @@ async function loadUser(uid, prefetchedDoc) {
 
         rankingReady = true;
         updateRankUI();
+        scheduleAccountEmailSync(uid);
         if (typeof renderProgressRings === 'function') renderProgressRings();
         awardVisitPoints();
         startReadTimer();
@@ -3397,7 +4044,7 @@ function satsHomeSnapshot(user) {
     var u = user || {};
     var math = (typeof window.claimableSats === 'function')
         ? window.claimableSats(u)
-        : { balance: 0, lifetimeLeft: 0, claimable: 0, cap: lifetimeSatCap(), withdrawn: Number(u.satsWithdrawn) || 0 };
+        : displayClaimableMath(u);
     var address = String(u.lightning || u.lightningAddress || '').trim();
     var anon = true;
     var emailOk = false;
@@ -3442,14 +4089,75 @@ function satsHomeSnapshot(user) {
 }
 window.satsHomeSnapshot = satsHomeSnapshot;
 
-function paintHomeStrip(snap, invited, maxi) {
+function referralTierApi() {
+    if (typeof referralTiers !== 'undefined' && referralTiers) return referralTiers;
+    if (typeof window !== 'undefined' && window.referralTiers) return window.referralTiers;
+    return null;
+}
+
+// Display count is the server field only. A missing field paints as 0.
+function serverMaxiReferralCount(user) {
+    var api = referralTierApi();
+    var raw = user && user.referralMaxiCount;
+    if (api && typeof api.normalizeCount === 'function') return api.normalizeCount(raw);
+    var n = Math.floor(Number(raw));
+    if (!isFinite(n) || n < 0) return 0;
+    return n;
+}
+window.serverMaxiReferralCount = serverMaxiReferralCount;
+
+function invitedReferralCount(user) {
+    var n = Math.floor(Number(user && user.referralInvited));
+    if (!isFinite(n) || n < 0) return 0;
+    return n;
+}
+
+var _homeInvitedCount = 0;
+var _homeMaxiCount = 0;
+
+function paintInviteTier(count, invited) {
+    var api = referralTierApi();
+    var n = (api && typeof api.normalizeCount === 'function') ? api.normalizeCount(count) : (Number(count) || 0);
+    var progress = (api && typeof api.tierProgress === 'function') ? api.tierProgress(n) : {
+        tierLabel: '—',
+        countText: (n === 1 ? '1 reached Maxi' : n + ' reached Maxi'),
+        progressText: '',
+        level: 0
+    };
+    var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+    var inv = (typeof invited === 'number') ? Math.floor(invited) : invitedReferralCount(user);
+    if (!isFinite(inv) || inv < 0) inv = 0;
+    _homeInvitedCount = inv;
+    _homeMaxiCount = n;
+    var tierEl = document.getElementById('homeInvitesTier');
+    var noteEl = document.getElementById('homeInvitesNote');
+    var progEl = document.getElementById('homeInvitesProgress');
+    var tile = document.getElementById('homeInvitesTile');
+    var openBtn = document.getElementById('homeInvitesOpen') || tile;
+    if (tierEl) tierEl.textContent = progress.tierLabel;
+    if (noteEl) noteEl.textContent = progress.countText;
+    var helpEl = document.getElementById('homeInvitesInfoText');
+    if (helpEl && api && typeof api.maxiCountHelp === 'function') helpEl.textContent = api.maxiCountHelp(inv, n);
+    if (progEl) progEl.textContent = progress.progressText;
+    if (tile) tile.setAttribute('data-referral-tier', String(progress.level));
+    if (openBtn) {
+        var label = progress.tierLabel + ', ' + progress.countText;
+        if (progress.progressText) label += ', ' + progress.progressText;
+        openBtn.setAttribute('aria-label', label);
+    }
+    var ladder = document.getElementById('referralTierLadder');
+    if (ladder && !ladder.hidden) renderReferralTierLadder(progress);
+}
+window.paintInviteTier = paintInviteTier;
+
+function paintHomeStrip(snap) {
     var satsEl = document.getElementById('homeSatsValue');
     var claimNow = Math.min(Number(snap.claimable) || 0, 200, Number(snap.lifetimeLeft) || 0);
     if (satsEl) satsEl.textContent = Number(snap.claimable || 0).toLocaleString();
-    var invEl = document.getElementById('homeInvitesValue');
-    if (invEl) invEl.textContent = String(invited || 0);
-    var invNote = document.getElementById('homeInvitesNote');
-    if (invNote) invNote.textContent = (Number(maxi) === 1) ? '1 reached Maxi' : (Number(maxi) || 0) + ' reached Maxi';
+    var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+    // The profile cache has no referral count. Leave the Invites tile on its
+    // placeholder until referral stats arrive.
+    if (!optimisticProfilePending()) paintInviteTier(serverMaxiReferralCount(user));
     var kicker = document.getElementById('homeWithdrawKicker');
     var value = document.getElementById('homeWithdrawValue');
     var note = document.getElementById('homeWithdrawNote');
@@ -3485,23 +4193,22 @@ window.refreshHomeStrip = function() {
     document.documentElement.classList.toggle('home-signed-in', signed);
     if (document.body) document.body.classList.toggle('home-signed-in', signed);
     if (!signed) {
+        closeReferralTierLadder();
+        setMaxiInfoOpen(false);
         if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
         if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
         return;
     }
     var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
     var snap = satsHomeSnapshot(user);
-    var invited = Number(user.referralInvited) || 0;
-    var maxi = Number(user.referralCount) || 0;
-    paintHomeStrip(snap, invited, maxi);
-    if (typeof getReferralStats === 'function') {
-        getReferralStats().then(function(stats) {
-            if (!stats) return;
-            var gotInvited = (typeof stats.invited === 'number') ? stats.invited : invited;
-            var gotMaxi = (typeof stats.maxi === 'number') ? stats.maxi : maxi;
-            if (stats.failed && !gotInvited && !gotMaxi) return;
-            paintHomeStrip(snap, gotInvited, gotMaxi);
-        }).catch(function() {});
+    paintHomeStrip(snap);
+    // Optimistic profile paint is display-only. Referral stats are a callable
+    // and wait until auth confirms this uid.
+    if (typeof getReferralStats === 'function' && !optimisticProfilePending()) {
+        getReferralStats().then(function (stats) {
+            if (!stats || stats.failed || typeof stats.invited !== 'number') return;
+            paintInviteTier(serverMaxiReferralCount(user), stats.invited);
+        }).catch(function () {});
     }
     if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
     if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
@@ -3513,7 +4220,191 @@ function openHomeSats() {
 }
 window.openHomeSats = openHomeSats;
 
-function openHomeInvites() {
+function invitesSurfaceHidden() {
+    var tile = document.getElementById('homeInvitesTile');
+    if (!tile) return true;
+    var node = tile;
+    while (node && node.nodeType === 1) {
+        if (node.getAttribute && node.hasAttribute('data-em-hidden')) return true;
+        if (typeof window.getComputedStyle === 'function') {
+            var cs = window.getComputedStyle(node);
+            if (cs && cs.display === 'none') return true;
+        }
+        node = node.parentElement;
+    }
+    if (tile.offsetWidth === 0 && tile.offsetHeight === 0) return true;
+    return false;
+}
+
+function renderReferralTierLadder(progress) {
+    var list = document.getElementById('referralTierLadderList');
+    var api = referralTierApi();
+    if (!list || !api || !api.TIERS) return;
+    var current = progress;
+    if (!current || typeof current.level !== 'number') {
+        var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+        current = api.tierProgress(serverMaxiReferralCount(user));
+    }
+    list.textContent = '';
+    var i;
+    for (i = 0; i < api.TIERS.length; i++) {
+        var tier = api.TIERS[i];
+        var row = document.createElement('div');
+        row.className = 'referral-tier-row' + (tier.level === current.level ? ' is-current' : '');
+        var label = document.createElement('span');
+        label.textContent = tier.emoji + ' ' + tier.name;
+        var need = document.createElement('span');
+        need.textContent = tier.min === 0 ? '0' : (tier.min + '+');
+        row.appendChild(label);
+        row.appendChild(need);
+        list.appendChild(row);
+    }
+}
+
+function closeReferralTierLadder() {
+    var dialog = document.getElementById('referralTierLadder');
+    if (!dialog || dialog.hidden) return;
+    dialog.hidden = true;
+}
+
+function toggleReferralTierLadder() {
+    var dialog = document.getElementById('referralTierLadder');
+    if (!dialog) return;
+    if (invitesSurfaceHidden()) {
+        closeReferralTierLadder();
+        return;
+    }
+    if (!dialog.hidden) {
+        closeReferralTierLadder();
+        return;
+    }
+    renderReferralTierLadder();
+    dialog.hidden = false;
+    var closeBtn = document.getElementById('referralTierLadderClose');
+    if (closeBtn && closeBtn.focus) closeBtn.focus();
+}
+
+var _tierLadderBound = false;
+function bindReferralTierLadder() {
+    if (_tierLadderBound) return;
+    var dialog = document.getElementById('referralTierLadder');
+    if (!dialog) return;
+    _tierLadderBound = true;
+    // main uses contain:content and #home animates opacity and transform.
+    // A fixed dialog inside either one stays clipped. Park it on the body.
+    if (dialog.parentElement !== document.body) document.body.appendChild(dialog);
+    dialog.addEventListener('click', function (ev) {
+        if (ev.target === dialog) closeReferralTierLadder();
+    });
+    var closeBtn = document.getElementById('referralTierLadderClose');
+    if (closeBtn) closeBtn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        closeReferralTierLadder();
+    });
+    var inviteBtn = document.getElementById('referralTierLadderInvite');
+    if (inviteBtn) inviteBtn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        closeReferralTierLadder();
+        if (typeof openInviteFriends === 'function') openInviteFriends(true);
+    });
+    document.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Escape') {
+            closeReferralTierLadder();
+            setMaxiInfoOpen(false);
+        }
+    });
+    document.addEventListener('click', function (ev) {
+        var tip = document.getElementById('homeInvitesInfoText');
+        if (!tip || !tip.classList.contains('is-open')) return;
+        var t = ev.target;
+        if (t && t.closest && (t.closest('#homeInvitesInfo') || t.closest('#homeInvitesInfoText'))) return;
+        setMaxiInfoOpen(false);
+    });
+    var info = document.getElementById('homeInvitesInfo');
+    var fineHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    var hoverTimer = 0;
+    function hoverClose() {
+        clearTimeout(hoverTimer);
+        hoverTimer = setTimeout(function () {
+            var tip = document.getElementById('homeInvitesInfoText');
+            var btn = document.getElementById('homeInvitesInfo');
+            if (tip && tip.matches(':hover')) return;
+            if (btn && btn.matches(':hover')) return;
+            setMaxiInfoOpen(false);
+        }, 120);
+    }
+    if (info) info.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (fineHover && ev.detail !== 0) return;
+        toggleMaxiInfo();
+    });
+    if (info && fineHover) {
+        info.addEventListener('mouseenter', function () {
+            clearTimeout(hoverTimer);
+            setMaxiInfoOpen(true);
+        });
+        info.addEventListener('mouseleave', hoverClose);
+    }
+    var help = document.getElementById('homeInvitesInfoText');
+    if (help && fineHover) {
+        help.addEventListener('mouseenter', function () { clearTimeout(hoverTimer); });
+        help.addEventListener('mouseleave', hoverClose);
+    }
+    var api = referralTierApi();
+    if (help && api && typeof api.maxiCountHelp === 'function') help.textContent = api.maxiCountHelp(_homeInvitedCount, _homeMaxiCount);
+}
+bindReferralTierLadder();
+
+function setMaxiInfoOpen(open) {
+    var tip = document.getElementById('homeInvitesInfoText');
+    var btn = document.getElementById('homeInvitesInfo');
+    if (!tip) return;
+    if (tip.parentElement !== document.body) document.body.appendChild(tip);
+    var api = referralTierApi();
+    if (api && typeof api.maxiCountHelp === 'function') tip.textContent = api.maxiCountHelp(_homeInvitedCount, _homeMaxiCount);
+    tip.classList.toggle('is-open', !!open);
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (!open) return;
+    var anchor = btn || document.getElementById('homeInvitesNote');
+    if (!anchor) return;
+    var rect = anchor.getBoundingClientRect();
+    var width = Math.min(240, window.innerWidth - 24);
+    var left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+    tip.style.width = width + 'px';
+    tip.style.left = left + 'px';
+    var top = rect.bottom + 6;
+    tip.style.top = top + 'px';
+    if (top + tip.offsetHeight > window.innerHeight - 8) {
+        tip.style.top = Math.max(8, rect.top - tip.offsetHeight - 6) + 'px';
+    }
+}
+
+function toggleMaxiInfo() {
+    var tip = document.getElementById('homeInvitesInfoText');
+    if (!tip) return;
+    if (invitesSurfaceHidden()) {
+        setMaxiInfoOpen(false);
+        return;
+    }
+    setMaxiInfoOpen(!tip.classList.contains('is-open'));
+}
+
+function openHomeInvites(ev) {
+    var target = ev && ev.target;
+    if (target && target.closest && target.closest('[data-maxi-info]')) {
+        if (ev.preventDefault) ev.preventDefault();
+        if (ev.stopPropagation) ev.stopPropagation();
+        toggleMaxiInfo();
+        return;
+    }
+    if (target && target.closest && target.closest('[data-tier-ladder]')) {
+        if (ev.preventDefault) ev.preventDefault();
+        if (ev.stopPropagation) ev.stopPropagation();
+        toggleReferralTierLadder();
+        return;
+    }
+    if (invitesSurfaceHidden()) return;
     if (typeof openInviteFriends === 'function') openInviteFriends(true);
 }
 window.openHomeInvites = openHomeInvites;
@@ -3529,9 +4420,74 @@ function openHomeWithdraw() {
 }
 window.openHomeWithdraw = openHomeWithdraw;
 
+function removePaintedNode(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (el.parentNode && el.parentNode.removeChild) el.parentNode.removeChild(el);
+    else if (typeof el.remove === 'function') el.remove();
+}
+
+function resetOptimisticHomeChrome() {
+    removePaintedNode('bqMobileStreak');
+    removePaintedNode('bqDailyStreak');
+    removePaintedNode('bqDailyStreakText');
+    var sats = document.getElementById('homeSatsValue');
+    if (sats) {
+        sats.textContent = '\u2014';
+        sats.removeAttribute('data-profile-cache');
+        sats.removeAttribute('data-auth-live');
+    }
+    var withdraw = document.getElementById('homeWithdrawValue');
+    if (withdraw) withdraw.textContent = '\u2014';
+    var withdrawNote = document.getElementById('homeWithdrawNote');
+    if (withdrawNote) withdrawNote.textContent = '\u2014';
+    var tier = document.getElementById('homeInvitesTier');
+    if (tier) tier.textContent = '\u2014';
+    var note = document.getElementById('homeInvitesNote');
+    if (note) note.textContent = 'reached Maxi';
+    var prog = document.getElementById('homeInvitesProgress');
+    if (prog) prog.textContent = '';
+    var openBtn = document.getElementById('homeInvitesOpen');
+    if (openBtn) openBtn.setAttribute('aria-label', 'Invites');
+    var tile = document.getElementById('homeInvitesTile');
+    if (tile) tile.removeAttribute('data-referral-tier');
+    var bar = document.getElementById('rankBar');
+    if (bar) {
+        bar.textContent = '';
+        if ('innerHTML' in bar) bar.innerHTML = '';
+        bar.style.display = 'none';
+        bar.removeAttribute('data-profile-cache');
+        bar.removeAttribute('data-auth-live');
+    }
+    var shown = document.getElementById('userDisplay');
+    if (shown) {
+        shown.textContent = '';
+        if ('innerHTML' in shown) shown.innerHTML = '';
+        shown.style.display = 'none';
+    }
+    try {
+        document.documentElement.classList.remove('home-signed-in');
+        document.documentElement.removeAttribute('data-auth-display');
+        if (document.body) document.body.classList.remove('home-signed-in');
+    } catch (e) {}
+}
+
 function updateAuthButton() {
     const btn = document.getElementById('authBtn');
     if (!btn) return;
+    if (currentUser) window._btcHoldGuestUntilProfile = false;
+    // Account A was cleared and B's profile is not in yet. Do not keep A's
+    // signed-in chrome, and do not invent "My Account" from the new auth user.
+    if (!currentUser && window._btcHoldGuestUntilProfile) {
+        _authBtnSignedIn = false;
+        applyGuestAuthButton(btn);
+        document.documentElement.classList.remove('home-signed-in');
+        document.documentElement.removeAttribute('data-auth-display');
+        if (document.body) document.body.classList.remove('home-signed-in');
+        if (typeof window.refreshHomeStrip === 'function') window.refreshHomeStrip();
+        if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
+        return;
+    }
     // The authenticator check has not passed. Do not turn this into Settings.
     if (window._btcTotpHold) {
         _authBtnSignedIn = false;
@@ -3949,6 +4905,10 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
         return;
     }
     if (!auth.currentUser) {
+        if (anonymousSignInBlockedNow()) {
+            showToast('Finish the email link on this page before starting a guest session.');
+            return;
+        }
         try {
             const cred = await auth.signInAnonymously();
             // Wait a moment for auth.currentUser to update
@@ -4070,7 +5030,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
 }
 
 async function awardVisitPoints() {
-    if (!currentUser) return;
+    if (!currentUser || optimisticProfilePending()) return;
     // Snapshot the previous visit before recordDailyVisit overwrites it,
     // so the push prompt can tell a 7-day return from a same-day reload.
     try {
@@ -4197,7 +5157,7 @@ window._doubleXpUntilMs = function(u) {
 };
 
 async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badgeId, extra) {
-    if (!currentUser || !rankingReady) return;
+    if (!currentUser || !rankingReady || optimisticProfilePending()) return;
 
     // Anti-abuse: validate pts is a reasonable number.
     // badge_earned uses a higher ceiling because the CF catalog contains milestones
@@ -4367,7 +5327,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             }
             if (totalAdded > 0) {
                 currentUser.points = (currentUser.points || 0) + totalAdded;
-                _showPointsToast(awarded, reason);
+                _showPointsToast(awarded, reason, result.data.doubled === true);
             }
             if (result.data.dailyXp != null && typeof window._paintDailyXpMeter === 'function') {
                 window._serverDailyXp = {
@@ -4376,9 +5336,13 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
                     dailyCap: result.data.dailyCap || 1000,
                     fullUntil: result.data.fullUntil || 500,
                     halfUntil: result.data.halfUntil || 900,
-                    pastCap: result.data.pastCap === true
+                    pastCap: result.data.pastCap === true,
+                    _xpNotedAt: Date.now()
                 };
-                window._paintDailyXpMeter(window._serverDailyXp);
+                // Keep the Today card's status cache on this total. A later
+                // paint must not put the older triviaXpStatus result back.
+                if (typeof window._noteServerDailyXp === 'function') window._noteServerDailyXp(window._serverDailyXp);
+                else window._paintDailyXpMeter(window._serverDailyXp);
             }
             if (result.data.capped || result.data.pastCap) {
                 var _capNotifKey = 'btc_daily_cap_notified_' + new Date(Date.now() - 5 * 3600000).toISOString().split('T')[0];
@@ -4404,7 +5368,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
 }
 
 // Helper: smart toast throttling for point awards
-function _showPointsToast(pts, reason) {
+function _showPointsToast(pts, reason, doubled) {
     var _show = false;
     if (pts >= 25) {
         _show = true;
@@ -4414,7 +5378,8 @@ function _showPointsToast(pts, reason) {
     }
     if (_show && reason) {
         window._lastPtsToast = Date.now();
-        showToast('+' + pts + ' XP - ' + reason, 2500);
+        var mark = doubled === true ? ' 2x' : '';
+        showToast('+' + pts + ' XP' + mark + ' - ' + reason, 2500);
     }
 }
 
@@ -4459,35 +5424,18 @@ window._correctLastPointsNotif = function(ts, actualPts) {
 };
 
 // Auto-refresh leaderboard if it's currently open
-// Switch leaderboard period WITHOUT closing - used by the tab buttons
+// Switch leaderboard period WITHOUT closing - used by the tab buttons.
+// The snapshot for the new tab is painted from localStorage inside toggleLeaderboard.
 function _lbSwitchPeriod(period) {
     window._lbPeriod = period;
-    window._lbCache = null;
-    window._lbWeekCache = null;
-    window._lbMonthCache = null;
-    window._lbCacheTime = null;
-    // Force re-render: temporarily remove 'open' class flag check by calling internal render
     var lb = document.getElementById('leaderboard');
     if (!lb) return;
     lb.classList.add('open');
     lb.classList.remove('minimized');
-    toggleLeaderboard._renderOnly = true;
-    // Re-invoke render path directly - set lb to loading state, then reload
-    lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading...</div>';
-    // Call the actual data+render logic by temporarily forcing open state
     var fab = document.getElementById('lbFloatBtn');
     if (fab) fab.style.display = 'none';
-    // Directly invoke the async render (same as toggleLeaderboard but skip the close check)
-    (async function() {
-        try {
-            // Reuse toggleLeaderboard's render but the lb is already open so it won't close
-            // Trick: remove open class briefly so toggleLeaderboard won't see it as open
-            lb.classList.remove('open');
-            await toggleLeaderboard();
-        } catch(e) {
-            lb.innerHTML = '<div style="padding:20px;text-align:center;color:#ef4444;">Failed to load</div>';
-        }
-    })();
+    lb.classList.remove('open');
+    toggleLeaderboard();
 }
 window._lbSwitchPeriod = _lbSwitchPeriod;
 
@@ -4516,11 +5464,6 @@ async function onChannelOpen(channelId) {
         sessionChannels.add(channelId);
 
         let ptsAwarded = POINTS.openChannel;
-        // Apply daily 2X boost
-        if (window._dailyBoosts && window._dailyBoosts.includes(channelId)) {
-            ptsAwarded *= 2;
-            setTimeout(() => { showToast('⚡ 2X XP! Daily boost applied! +' + ptsAwarded + ' XP'); }, 2000);
-        }
 
         // Update local tracking
         if (currentUser._isLocal) {
@@ -5185,160 +6128,156 @@ function hideLeaderboard() {
     if (fab) fab.style.display = 'flex';
 }
 
-// Leaderboard username search
-var _lbSearchTimer = null;
-var _lbSearchQuery = '';
-var _lbSearchLastRank = 0;
-var _lbSearchHasMore = false;
-var _lbSearchLoading = false;
-var _lbSearchGeneration = 0; // incremented on every new query; stale in-flight results self-discard
+// Exact rank on one board. One callable, never a full board read.
+// The fourth board in this panel is Daily Streaks (All-Time / Current).
+window._lbRankState = window._lbRankState || {};
+var _lbRankGen = { xp: 0, quest: 0, predict: 0, streak: 0 };
+var _lbRankTimer = {};
 
-function _lbBuildResultRow(u) {
-    var pts = (u.points || 0).toLocaleString();
-    var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '' };
-    var factionStyle = u.faction && typeof window._factionNameStyle === 'function' ? ' style="' + window._factionNameStyle(u.faction) + '"' : '';
-    var peerTag = (window._myPeers && window._myPeers.has(u.uid || u.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
-    return '<div class="lb-search-result">' +
-        '<span>' + lv.emoji + '</span>' +
-        '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.uid) + '\')">' + peerTag + escapeHtml(u.username || 'Anon') + '</a>' +
-        '<span class="lb-sr-pts">' + pts + ' XP · <strong>' + (u.rank ? '#' + u.rank : '—') + '</strong></span>' +
-    '</div>';
+function _lbRankPeriod(board) {
+    if (board === 'quest') return (typeof _questLbPeriod === 'function') ? _questLbPeriod() : 'alltime';
+    if (board === 'predict') return window._predLbPeriod || 'alltime';
+    if (board === 'streak') return window._streakLbPeriod === 'current' ? 'current' : 'alltime';
+    return window._lbPeriod || 'alltime';
 }
 
-async function _lbSearchLoad(query, afterRank, append) {
-    // Stamp this call; any older in-flight request will discard its results when it lands
-    var myGen = ++_lbSearchGeneration;
-    // For fresh searches, always proceed (cancel previous); for load-more, gate on flag
-    if (!append) {
-        _lbSearchLoading = false; // release any stuck lock from previous query
-    } else if (_lbSearchLoading) {
+function _lbRankScoreText(board, period, data) {
+    var n = Number(data && data.score) || 0;
+    var text = n.toLocaleString();
+    if (board === 'xp') {
+        if (period === 'weekly') return text + ' wXP';
+        if (period === 'monthly') return text + ' mXP';
+        return text + ' XP';
+    }
+    if (board === 'quest') return text + ' \u00b7 ' + (Number(data.pct) || 0) + '%';
+    if (board === 'predict') return (Number(data.pct) || n) + '%';
+    return text + ' days';
+}
+
+function _lbRankLine(board, period, data) {
+    if (!data || data.status !== 'ok') return (data && data.message) || 'No player found';
+    return '#' + data.rank + ' @' + (data.username || 'Anon') + ' ' + _lbRankScoreText(board, period, data);
+}
+
+function _lbRankAuthUser() {
+    if (typeof auth !== 'undefined' && auth && auth.currentUser) return auth.currentUser;
+    if (window.auth && window.auth.currentUser) return window.auth.currentUser;
+    return null;
+}
+
+function _lbRankBox(board) {
+    var state = window._lbRankState[board] || {};
+    var value = state.text || '';
+    return '<div class="lb-rank-search" data-board="' + board + '">' +
+        '<div class="lb-rank-search-row">' +
+        '<input id="lbRankInput-' + board + '" class="lb-rank-input" type="text" maxlength="40" enterkeyhint="search" placeholder="Search username" value="' + escapeHtml(value) + '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" oninput="_lbRankType(\'' + board + '\', this.value)" onkeydown="_lbRankKey(event, \'' + board + '\')">' +
+        '<button type="button" class="lb-rank-find" onclick="_lbRankFindMe(\'' + board + '\')">Find me</button>' +
+        '</div>' +
+        '<div id="lbRankResult-' + board + '" class="lb-rank-result" hidden></div>' +
+        '</div>';
+}
+
+function _lbRankPaint(board, data, period) {
+    var el = document.getElementById('lbRankResult-' + board);
+    if (!el) return;
+    if (!data) {
+        el.hidden = true;
+        el.innerHTML = '';
         return;
     }
-    _lbSearchLoading = true;
-    var resultEl = document.getElementById('lbSearchResult');
-    if (!resultEl) { _lbSearchLoading = false; return; }
-
-    // Remove old load-more button if present
-    var oldBtn = document.getElementById('lbSearchMoreBtn');
-    if (oldBtn) oldBtn.remove();
-
-    if (!append) {
-        // Keep any local hits visible; show a subtle spinner below them
-        var _existingHits = resultEl.querySelectorAll('.lb-search-result');
-        if (!_existingHits.length) {
-            resultEl.innerHTML = '<div class="lb-search-none">Searching...</div>';
-        } else {
-            var spinDiv = document.createElement('div');
-            spinDiv.id = 'lbSearchSpinner';
-            spinDiv.className = 'lb-search-none';
-            spinDiv.style.cssText = 'font-size:0.75rem;opacity:0.5;padding:4px 0;';
-            spinDiv.textContent = '\u29d7 Searching all users...';
-            resultEl.appendChild(spinDiv);
-        }
-    } else {
-        var loadingRow = document.createElement('div');
-        loadingRow.id = 'lbSearchLoadingRow';
-        loadingRow.className = 'lb-search-none';
-        loadingRow.textContent = 'Loading more...';
-        resultEl.appendChild(loadingRow);
+    el.hidden = false;
+    var line = _lbRankLine(board, period || _lbRankPeriod(board), data);
+    var html = '<div class="lb-rank-hit">' + escapeHtml(line) + '</div>';
+    var suggestions = data.suggestions || [];
+    if (suggestions.length) {
+        html += '<div class="lb-rank-suggest">';
+        suggestions.slice(0, 8).forEach(function (row) {
+            var name = row && row.username;
+            if (!name) return;
+            html += '<button type="button" class="lb-rank-suggest-item" data-name="' + escapeHtml(name) + '" onclick="_lbRankPick(\'' + board + '\', this.getAttribute(\'data-name\'))">@' + escapeHtml(name) + '</button>';
+        });
+        html += '</div>';
     }
-
-    try {
-        var searchFn = firebase.functions().httpsCallable('searchUsers');
-        var res = await searchFn({ query: query, pageSize: 10, afterRank: afterRank });
-
-        // Stale response - a newer query already took over; silently discard
-        if (myGen !== _lbSearchGeneration) { _lbSearchLoading = false; return; }
-
-        var users = (res.data && res.data.users) || [];
-        var hasMore = !!(res.data && res.data.hasMore);
-
-        // Remove loading indicators
-        var lr = document.getElementById('lbSearchLoadingRow');
-        if (lr) lr.remove();
-        var sp = document.getElementById('lbSearchSpinner');
-        if (sp) sp.remove();
-
-        if (!append && !users.length) {
-            // If local hits are already shown, don't wipe them - just remove spinner
-            if (!resultEl.querySelector('.lb-search-result')) {
-                resultEl.innerHTML = '<div class="lb-search-none">No users found matching \u201c' + escapeHtml(query) + '\u201d</div>';
-            }
-            _lbSearchLoading = false;
-            return;
-        }
-
-        if (!append) resultEl.innerHTML = '';
-        users.forEach(function(u) { resultEl.insertAdjacentHTML('beforeend', _lbBuildResultRow(u)); });
-
-        _lbSearchLastRank = users.length ? users[users.length - 1].rank : afterRank;
-        _lbSearchHasMore = hasMore;
-
-        if (hasMore) {
-            var btn = document.createElement('button');
-            btn.id = 'lbSearchMoreBtn';
-            btn.style.cssText = 'width:100%;padding:8px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;margin:4px 0 2px;';
-            btn.textContent = 'Show more results \u25bc';
-            btn.onclick = function() { _lbSearchLoad(_lbSearchQuery, _lbSearchLastRank, true); };
-            resultEl.appendChild(btn);
-        }
-    } catch(e) {
-        if (myGen !== _lbSearchGeneration) { _lbSearchLoading = false; return; }
-        console.warn('[lbSearch]', e);
-        var lr2 = document.getElementById('lbSearchLoadingRow');
-        if (lr2) lr2.remove();
-        var sp2 = document.getElementById('lbSearchSpinner');
-        if (sp2) sp2.remove();
-        if (!append && !resultEl.querySelector('.lb-search-result')) {
-            resultEl.innerHTML = '<div class="lb-search-none">Search error \u2014 try again</div>';
-        }
-    }
-    _lbSearchLoading = false;
+    el.innerHTML = html;
 }
 
-window.lbSearchUser = function(val) {
-    var resultEl = document.getElementById('lbSearchResult');
-    if (!resultEl) return;
-    val = (val || '').trim();
-    // Clear on empty; allow single-char (catches short usernames)
-    if (!val) { resultEl.innerHTML = ''; _lbSearchQuery = ''; _lbSearchGeneration++; clearTimeout(_lbSearchTimer); return; }
-
-    // Track search use for Search Sleuth badge
-    try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('user') === -1) { _ss.push('user'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
-
-    // Instant local search against already-loaded leaderboard cache (zero latency for top 150)
-    var q = val.toLowerCase();
-    var localHits = window._lbCache ? window._lbCache.filter(function(u) {
-        return (u.username || '').toLowerCase().includes(q);
-    }) : [];
-    if (localHits.length) {
-        resultEl.innerHTML = localHits.slice(0, 10).map(function(u, i) {
-            var rank = (window._lbCache ? window._lbCache.indexOf(u) : i) + 1;
-            var pts = (u.points || 0).toLocaleString();
-            var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '' };
-            var factionStyle = u.faction && typeof window._factionNameStyle === 'function' ? ' style="' + window._factionNameStyle(u.faction) + '"' : '';
-            var peerTag = (window._myPeers && window._myPeers.has(u.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
-            return '<div class="lb-search-result">' +
-                '<span>' + (lv.emoji || '') + '</span>' +
-                '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.id) + '\')">' + peerTag
-                    + escapeHtml(u.username || 'Anon') + '</a>' +
-                '<span class="lb-sr-pts">' + pts + ' XP · <strong>#' + rank + '</strong></span>' +
-                '</div>';
-        }).join('');
-        // Still fire cloud search in background to catch users not in top 150
+window._lbRankType = function (board, val) {
+    window._lbRankState[board] = { text: val || '', me: false };
+    clearTimeout(_lbRankTimer[board]);
+    if (!String(val || '').trim()) {
+        _lbRankGen[board] = (_lbRankGen[board] || 0) + 1;
+        _lbRankPaint(board, null);
+        return;
     }
-
-    // Always update query immediately so any in-flight call resolves to latest
-    _lbSearchQuery = val;
-    clearTimeout(_lbSearchTimer);
-    // Shorter debounce for very short queries (mostly resolved from local cache anyway)
-    var _debounceMs = val.length <= 2 ? 160 : 260;
-    _lbSearchTimer = setTimeout(function() {
-        _lbSearchLastRank = 0;
-        _lbSearchHasMore = false;
-        _lbSearchLoad(val, 0, false);
-    }, _debounceMs);
+    _lbRankTimer[board] = setTimeout(function () { _lbRankRun(board); }, 450);
 };
+
+window._lbRankKey = function (event, board) {
+    if (!event || event.key !== 'Enter') return;
+    event.preventDefault();
+    clearTimeout(_lbRankTimer[board]);
+    _lbRankRun(board);
+};
+
+window._lbRankPick = function (board, name) {
+    window._lbRankState[board] = { text: name, me: false };
+    var input = document.getElementById('lbRankInput-' + board);
+    if (input) input.value = name;
+    _lbRankRun(board);
+};
+
+window._lbRankFindMe = function (board) {
+    var name = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username) : '';
+    window._lbRankState[board] = { text: name, me: true };
+    var input = document.getElementById('lbRankInput-' + board);
+    if (input) input.value = name;
+    _lbRankRun(board);
+};
+
+function _lbRankReplay(board) {
+    var state = window._lbRankState && window._lbRankState[board];
+    if (!state) return;
+    if (state.me || String(state.text || '').trim()) _lbRankRun(board);
+}
+
+function _lbRankReplayAll() {
+    ['xp', 'quest', 'predict', 'streak'].forEach(_lbRankReplay);
+}
+window._lbRankReplayAll = _lbRankReplayAll;
+
+async function _lbRankRun(board) {
+    var state = window._lbRankState[board] || {};
+    var resultEl = document.getElementById('lbRankResult-' + board);
+    if (!resultEl) return;
+    var gen = (_lbRankGen[board] = (_lbRankGen[board] || 0) + 1);
+    var user = _lbRankAuthUser();
+    if (!user) {
+        _lbRankPaint(board, { status: 'not_found', message: 'Sign in to search the leaderboard.' });
+        return;
+    }
+    var period = _lbRankPeriod(board);
+    resultEl.hidden = false;
+    resultEl.innerHTML = '<div class="lb-rank-hit">Searching\u2026</div>';
+    try {
+        var fn = firebase.functions().httpsCallable('leaderboardRank');
+        var payload = { board: board, period: period };
+        if (state.me) payload.me = true;
+        else payload.username = state.text || '';
+        var res = await fn(payload);
+        if (gen !== _lbRankGen[board]) return;
+        _lbRankPaint(board, (res && res.data) || { status: 'not_found', message: 'No player found' }, period);
+    } catch (e) {
+        if (gen !== _lbRankGen[board]) return;
+        var code = (e && e.code) || '';
+        var msg = (e && e.message) || '';
+        var text = 'Search failed. Try again.';
+        if (code.indexOf('resource-exhausted') !== -1 || msg.indexOf('Too many lookups') !== -1) text = 'Too many lookups. Try again in a minute.';
+        else if (code.indexOf('unauthenticated') !== -1 || code.indexOf('permission-denied') !== -1) text = 'Sign in to search the leaderboard.';
+        else if (code.indexOf('failed-precondition') !== -1) text = 'Rank lookup is still indexing. Try again shortly.';
+        else if (code.indexOf('app-check') !== -1 || msg.indexOf('App Check') !== -1) text = 'Security check is not ready. Refresh and try again.';
+        _lbRankPaint(board, { status: 'not_found', message: text });
+    }
+}
 
 // Close leaderboard when clicking/tapping outside.
 // Uses capture phase + both mousedown and touchstart so it fires BEFORE
@@ -5685,6 +6624,208 @@ function _lbBadgeEmoji(emoji) {
         chars.map(function(c) { return '<span>' + c + '</span>'; }).join('') + '</span>';
 }
 
+// public_profiles allows any signed-in user, including anonymous, and rejects
+// a signed-out read. Anonymous sign-in can land after the first paint.
+function _lbAuthReady(timeoutMs) {
+    var limit = typeof timeoutMs === 'number' ? timeoutMs : 15000;
+    function currentAuth() {
+        if (typeof auth !== 'undefined' && auth) return auth;
+        if (typeof window !== 'undefined' && window.auth) return window.auth;
+        return null;
+    }
+    var ready = currentAuth();
+    if (ready && ready.currentUser) return Promise.resolve(ready.currentUser);
+    return new Promise(function (resolve) {
+        var settled = false;
+        var unsub = null;
+        function finish(user) {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            if (typeof unsub === 'function') {
+                try { unsub(); } catch (e) {}
+            }
+            resolve(user || null);
+        }
+        var timer = setTimeout(function () {
+            var live = currentAuth();
+            finish(live && live.currentUser);
+        }, limit);
+        var live = ready || currentAuth();
+        if (!live || typeof live.onAuthStateChanged !== 'function') return;
+        unsub = live.onAuthStateChanged(function (user) {
+            if (user) finish(user);
+        });
+        if (settled && typeof unsub === 'function') {
+            try { unsub(); } catch (e) {}
+        }
+    });
+}
+
+// One public snapshot doc per board. Intervals match the scheduled writers.
+// localStorage paints immediately. A board refetches when that copy is older
+// than its interval. Rank past 25 is the profile score with the label 25+.
+var LB_BOARDS = {
+    xpAll: { key: 'xpAll', docId: 'lb_xp_alltime', intervalMs: 15 * 60 * 1000 },
+    xpWeek: { key: 'xpWeek', docId: 'lb_xp_week', intervalMs: 10 * 60 * 1000 },
+    xpMonth: { key: 'xpMonth', docId: 'lb_xp_month', intervalMs: 10 * 60 * 1000 },
+    pvp: { key: 'pvp', docId: 'lb_pvp', intervalMs: 15 * 60 * 1000 },
+    favor: { key: 'favor', docId: 'lb_favor_hashers', intervalMs: 5 * 60 * 1000 },
+    raid: { key: 'raid', docId: 'lb_raid_alltime', intervalMs: 15 * 60 * 1000 }
+};
+window.LB_BOARDS = LB_BOARDS;
+
+function _lbBoardSpec(period) {
+    if (period === 'weekly') return LB_BOARDS.xpWeek;
+    if (period === 'monthly') return LB_BOARDS.xpMonth;
+    return LB_BOARDS.xpAll;
+}
+
+function _lbSnapStorageKey(docId) {
+    return 'btc_lb_snap_' + docId;
+}
+
+function _lbSnapRead(docId) {
+    try {
+        var raw = localStorage.getItem(_lbSnapStorageKey(docId));
+        if (!raw) return null;
+        var doc = JSON.parse(raw);
+        if (!doc || typeof doc !== 'object') return null;
+        return doc;
+    } catch (e) { return null; }
+}
+
+function _lbSnapWrite(docId, doc) {
+    try { localStorage.setItem(_lbSnapStorageKey(docId), JSON.stringify(doc)); } catch (e) {}
+}
+
+function _lbSnapFresh(doc, intervalMs) {
+    var updated = Number(doc && doc.updatedAt) || 0;
+    if (!updated) return false;
+    var interval = Number(doc.intervalMs) || intervalMs;
+    if (!(interval > 0)) interval = intervalMs;
+    // Favor's idle snapshot says 30 minutes. Revalidate on the 5 minute
+    // active cadence so a cycle that just started is not stuck behind that.
+    if (doc && doc.favorActive === false && intervalMs && interval > intervalMs) interval = intervalMs;
+    return (Date.now() - updated) < interval;
+}
+
+function _lbFeedTicker(rows) {
+    if (typeof window._lbFeedTicker === 'function') {
+        try { window._lbFeedTicker(rows || []); } catch (e) {}
+    }
+}
+
+async function _lbSnapFetch(boardKey) {
+    var spec = LB_BOARDS[boardKey];
+    if (!spec || typeof db === 'undefined' || !db) return null;
+    var snap = await db.collection('stats').doc(spec.docId).get();
+    if (!snap.exists) return _lbSnapRead(spec.docId);
+    var data = snap.data() || {};
+    if (!data.updatedAt) data.updatedAt = Date.now();
+    if (!data.intervalMs) data.intervalMs = spec.intervalMs;
+    _lbSnapWrite(spec.docId, data);
+    if (boardKey === 'xpAll') _lbFeedTicker(data.rows);
+    return data;
+}
+window._lbSnapRead = _lbSnapRead;
+window._lbSnapFetch = _lbSnapFetch;
+window._lbSnapFresh = _lbSnapFresh;
+window._lbSnapWrite = _lbSnapWrite;
+
+function _lbUsersFromSnap(doc, period) {
+    var rows = (doc && doc.rows) || [];
+    return rows.map(function (r) {
+        var certs = [];
+        if (r.certScholar) certs.push('cert_scholar');
+        if (r.certTech) certs.push('cert_tech');
+        var points = Number(r.points);
+        if (!(points > 0)) points = period === 'weekly' || period === 'monthly' ? 0 : (Number(r.value) || 0);
+        return {
+            id: r.uid,
+            username: r.username || 'Anon',
+            points: points,
+            weeklyXP: period === 'weekly' ? (Number(r.value) || 0) : 0,
+            monthlyXP: period === 'monthly' ? (Number(r.value) || 0) : 0,
+            faction: r.faction || '',
+            earnedHidden: certs,
+            lastSeen: r.lastSeen || null,
+            lightningAddress: r.lightningAddress || '',
+            _rank: r.rank || 0
+        };
+    });
+}
+
+function _lbYouOutside(users, period) {
+    var me = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser : null;
+    if (!me || me.isAnonymous || typeof currentUser === 'undefined' || !currentUser) return null;
+    var uid = me.uid;
+    for (var i = 0; i < users.length; i++) {
+        if (users[i] && users[i].id === uid) return null;
+    }
+    var value = period === 'weekly' ? (currentUser.weeklyXP || 0) : period === 'monthly' ? (currentUser.monthlyXP || 0) : (currentUser.points || 0);
+    if (!(value > 0)) return null;
+    return {
+        id: uid,
+        username: currentUser.username || 'Anon',
+        points: currentUser.points || 0,
+        weeklyXP: currentUser.weeklyXP || 0,
+        monthlyXP: currentUser.monthlyXP || 0,
+        faction: currentUser.faction || '',
+        earnedHidden: currentUser.earnedHidden || [],
+        lastSeen: currentUser.lastSeen || null,
+        lightningAddress: currentUser.lightningAddress || currentUser.lightning || '',
+        _rankLabel: '25+',
+        _you: true
+    };
+}
+
+function _lbXpRowHtml(d, period, index) {
+    var rank = d._rank || (index + 1);
+    var lv = getLevel(d.points || 0);
+    var isMe = (auth.currentUser && d.id === auth.currentUser.uid) || d._you;
+    if (isMe && !d._you && currentUser && (d.points || 0) > (currentUser.points || 0)) {
+        currentUser.points = d.points;
+        if (typeof updateRankUI === 'function') updateRankUI();
+    }
+    var medal = d._rankLabel ? d._rankLabel : (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank);
+    var hidden = (!d._you && rank > 10)
+        ? ' style="display:none;" class="lb-row lb-extra' + (isMe ? ' lb-me' : '') + '"'
+        : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+    var statusDot = typeof onlineStatusDot === 'function' ? onlineStatusDot(d.lastSeen) : '';
+    var certIcons = '';
+    if (d.earnedHidden && d.earnedHidden.indexOf('cert_scholar') !== -1) certIcons += ' 🎓';
+    if (d.earnedHidden && d.earnedHidden.indexOf('cert_tech') !== -1) certIcons += ' 🛠️';
+    var safeId = String(d.id || '').replace(/[^A-Za-z0-9_-]/g, '');
+    var _lbTipData = JSON.stringify({ recipientName: d.username || 'Anon', recipientUid: safeId, lightningAddress: d.lightningAddress || d.lightning || '', context: 'leaderboard', label: 'Tip ' + (d.username || 'Anon') }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+    var _lbNameStyle = d.faction && typeof window._factionNameStyle === 'function' ? window._factionNameStyle(d.faction) : '';
+    var peerTag = (window._myPeers && window._myPeers.has(d.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
+    var score = period === 'weekly' ? (d.weeklyXP || 0).toLocaleString() + ' wXP' : period === 'monthly' ? (d.monthlyXP || 0).toLocaleString() + ' mXP' : (d.points || 0).toLocaleString() + ' XP';
+    return '<div' + hidden + ' onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
+        '<span class="lb-rank">' + medal + '</span>' +
+        '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
+        '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + peerTag + escapeHtml(d.username || 'Anon') + (d._you ? ' (you)' : '') + statusDot + certIcons + '</span>' +
+        '<span class="lb-score">' + score + '</span>' +
+        '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
+        '</div>';
+}
+
+function _lbXpRowsHtml(allUsers, period) {
+    var html = '';
+    var ranked = [];
+    (allUsers || []).forEach(function (d) { if (d && !d._you) ranked.push(d); });
+    ranked.forEach(function (d, i) { html += _lbXpRowHtml(d, period, i); });
+    if (ranked.length > 10) {
+        html += '<button id="lbShowMore" onclick="expandLeaderboard(event)" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;transition:0.2s;">Show Top ' + ranked.length + ' Users ▼</button>';
+    }
+    var you = _lbYouOutside(ranked, period);
+    if (you) html += _lbXpRowHtml(you, period, ranked.length);
+    if (!ranked.length && !you) {
+        html += '<div style="padding:12px;text-align:center;color:var(--text-faint);font-size:0.85rem;">No rankings yet.</div>';
+    }
+    return html;
+}
+
 async function toggleLeaderboard() {
     const lb = document.getElementById('leaderboard');
     if (!lb) return;
@@ -5717,7 +6858,13 @@ async function toggleLeaderboard() {
     })();
 
     lb.classList.remove('minimized');
-    lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading leaderboard...</div>';
+    var _lbEarlyPeriod = window._lbPeriod || 'alltime';
+    var _lbEarlyDoc = _lbSnapRead(_lbBoardSpec(_lbEarlyPeriod).docId);
+    if (_lbEarlyDoc) {
+        lb.innerHTML = '<div class="lb-header"><h3>🏆 Leaderboard</h3></div><div class="lb-list" id="lbXpList">' + _lbXpRowsHtml(_lbUsersFromSnap(_lbEarlyDoc, _lbEarlyPeriod), _lbEarlyPeriod) + '</div>';
+    } else {
+        lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading leaderboard...</div>';
+    }
     lb.classList.add('open');
     if (fab) fab.style.display = 'none';
 
@@ -5754,60 +6901,19 @@ async function toggleLeaderboard() {
     }
 
     try {
-        // Cache leaderboard data for 10 minutes to reduce Firestore reads
-        var now = Date.now();
-        var _lbPeriod = window._lbPeriod || 'alltime';
-        let allUsers = [];
-
-        if (_lbPeriod === 'weekly') {
-            var useWeekCache = window._lbWeekCache && window._lbWeekCacheTime && (now - window._lbWeekCacheTime < 600000);
-            if (useWeekCache) {
-                allUsers = window._lbWeekCache;
-            } else {
-                const snap = await db.collection('public_profiles').orderBy('weeklyXP', 'desc').limit(150).get();
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
-                    if ((d.weeklyXP || 0) > 0 && (!d.ghostMode || isMe)) {
-                        allUsers.push({ id: doc.id, ...d, _sortXP: d.weeklyXP || 0 });
-                    }
-                });
-                window._lbWeekCache = allUsers;
-                window._lbWeekCacheTime = now;
-            }
-        } else if (_lbPeriod === 'monthly') {
-            var useMonthCache = window._lbMonthCache && window._lbMonthCacheTime && (now - window._lbMonthCacheTime < 600000);
-            if (useMonthCache) {
-                allUsers = window._lbMonthCache;
-            } else {
-                const snap = await db.collection('public_profiles').orderBy('monthlyXP', 'desc').limit(150).get();
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
-                    if ((d.monthlyXP || 0) > 0 && (!d.ghostMode || isMe)) {
-                        allUsers.push({ id: doc.id, ...d, _sortXP: d.monthlyXP || 0 });
-                    }
-                });
-                window._lbMonthCache = allUsers;
-                window._lbMonthCacheTime = now;
-            }
-        } else {
-            var useCache = window._lbCache && window._lbCacheTime && (now - window._lbCacheTime < 600000);
-            if (useCache) {
-                allUsers = window._lbCache;
-            } else {
-                const snap = await db.collection('public_profiles').orderBy('points', 'desc').limit(150).get();
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
-                    if (d.points > 0 && (!d.ghostMode || isMe)) {
-                        allUsers.push({ id: doc.id, ...d });
-                    }
-                });
-                window._lbCache = allUsers;
-                window._lbCacheTime = now;
-            }
+        await _lbAuthReady(15000);
+        if (!((typeof auth !== 'undefined' && auth && auth.currentUser) || (window.auth && window.auth.currentUser))) {
+            lb.innerHTML = '<div style="padding:20px;text-align:center;color:#f97316;">Sign-in is still finishing. <button type="button" onclick="toggleLeaderboard()" style="margin-left:8px;padding:6px 12px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Try again</button></div>';
+            return;
         }
+        // One snapshot doc. localStorage paints first; refetch when it is older than the board interval.
+        var _lbPeriod = window._lbPeriod || 'alltime';
+        var _lbSpec = _lbBoardSpec(_lbPeriod);
+        var _lbCachedDoc = _lbSnapRead(_lbSpec.docId);
+        var _lbFresh = !!(_lbCachedDoc && _lbSnapFresh(_lbCachedDoc, _lbSpec.intervalMs));
+        var _lbSnapDoc = _lbCachedDoc;
+        if (!_lbSnapDoc) _lbSnapDoc = await _lbSnapFetch(_lbSpec.key);
+        let allUsers = _lbUsersFromSnap(_lbSnapDoc, _lbPeriod);
 
         // Period (all-time, weekly, monthly)
         var _lbPeriod = window._lbPeriod || 'alltime';
@@ -5824,50 +6930,21 @@ async function toggleLeaderboard() {
         // Prize banners for weekly/monthly
         if (_lbPeriod === 'weekly') html += '<div style="text-align:center;padding:8px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;margin:0 12px 10px;font-size:0.72rem;color:var(--accent);font-weight:700;">🏆 Top 10 this week win 25 🎫 Orange Tickets!</div>';
         if (_lbPeriod === 'monthly') html += '<div style="text-align:center;padding:8px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;margin:0 12px 10px;font-size:0.72rem;color:var(--accent);font-weight:700;">🏆 Top 10 this month win 100 🏟️ Orange Tickets!</div>';
-        html += '<div class="lb-search-wrap"><input id="lbSearchInput" type="text" placeholder="🔍 Search username..." oninput="lbSearchUser(this.value)" autocomplete="off" autocorrect="off" spellcheck="false"></div>';
-        html += '<div id="lbSearchResult"></div>';
-        html += '<div class="lb-list">';
-
-        const showInitial = Math.min(10, allUsers.length);
-        allUsers.forEach((d, i) => {
-            const rank = i + 1;
-            const lv = getLevel(d.points || 0);
-            const isMe = auth.currentUser && d.id === auth.currentUser.uid;
-            // Sync local points with Firestore if leaderboard has newer data
-            if (isMe && currentUser && (d.points || 0) > (currentUser.points || 0)) {
-                currentUser.points = d.points;
-                updateRankUI();
-            }
-            const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
-            const hidden = rank > 10 ? ' style="display:none;" class="lb-row lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
-            var statusDot = typeof onlineStatusDot === 'function' ? onlineStatusDot(d.lastSeen) : '';
-
-            // Certifications display
-            let certIcons = '';
-            if (d.earnedHidden && d.earnedHidden.includes('cert_scholar')) certIcons += ' 🎓';
-            if (d.earnedHidden && d.earnedHidden.includes('cert_tech')) certIcons += ' 🛠️';
-
-            var _lbTipData = JSON.stringify({recipientName: d.username || 'Anon', recipientUid: d.id, lightningAddress: d.lightningAddress || d.lightning || '', context: 'leaderboard', label: 'Tip ' + (d.username || 'Anon')}).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-            var _lbNameStyle = d.faction ? window._factionNameStyle(d.faction) : '';
-            var peerTag = (window._myPeers && window._myPeers.has(d.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
-            html += '<div' + hidden + ' onclick="showUserProfile(\'' + d.id + '\')" style="cursor:pointer;" title="View profile">' +
-                '<span class="lb-rank">' + medal + '</span>' +
-                '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
-                '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + peerTag + escapeHtml(d.username || 'Anon') + statusDot + certIcons + '</span>' +
-                '<span class="lb-score">' + (_lbPeriod === 'weekly' ? (d.weeklyXP || 0).toLocaleString() + ' wXP' : _lbPeriod === 'monthly' ? (d.monthlyXP || 0).toLocaleString() + ' mXP' : (d.points || 0).toLocaleString() + ' XP') + '</span>' +
-                '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
-            '</div>';
-        });
-
-        if (allUsers.length > 10) {
-            html += '<button id="lbShowMore" onclick="expandLeaderboard(event)" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;transition:0.2s;">Show Top ' + Math.min(allUsers.length, 150) + ' Users ▼</button>';
-        }
+        html += _lbRankBox('xp');
+        html += '<div class="lb-list" id="lbXpList">';
+        html += _lbXpRowsHtml(allUsers, _lbPeriod);
         html += '</div>';
 
         // Badges section
         if (typeof getBadgeHTML === 'function') {
             html += '<div class="lb-levels"><h4>Your Badges</h4>' + getBadgeHTML() + '</div>';
         }
+
+        // Daily Streaks — directly above the Quest list. One cached stats doc.
+        html += '<div id="streakBoard" class="streak-board"><div class="streak-lb-loading">Loading Daily Streaks...</div></div>';
+
+        // Quests — between Daily Streaks and Top Predictors. One stats doc per tab.
+        html += '<div id="questBoard" class="quest-board"><div class="quest-lb-loading">Loading Quests...</div></div>';
 
         // Top Predictors — above PVP. One stats doc holds all three periods.
         html += '<div id="predictorBoard" style="margin-top:24px;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
@@ -5892,8 +6969,22 @@ async function toggleLeaderboard() {
         lb.innerHTML = html;
 
         // Load PVP leaderboard data asynchronously (must be after innerHTML so DOM element exists)
+        _loadStreakLeaderboard();
+        _loadQuestLeaderboard();
         _loadPredictorLeaderboard();
         _loadPVPLeaderboard();
+        _lbRankReplayAll();
+        if (_lbCachedDoc && !_lbFresh) {
+            var _lbPaintPeriod = _lbPeriod;
+            _lbSnapFetch(_lbSpec.key).then(function (next) {
+                var open = document.getElementById('leaderboard');
+                var list = document.getElementById('lbXpList');
+                if (!next || !open || !list || !open.classList.contains('open')) return;
+                if ((window._lbPeriod || 'alltime') !== _lbPaintPeriod) return;
+                if (Number(next.updatedAt) === Number(_lbCachedDoc.updatedAt)) return;
+                list.innerHTML = _lbXpRowsHtml(_lbUsersFromSnap(next, _lbPaintPeriod), _lbPaintPeriod);
+            }).catch(function () {});
+        }
     } catch(e) {
         console.error('[Leaderboard] Error:', e);
         lb.innerHTML = '<div style="padding:20px;color:#f97316;">Error loading leaderboard: ' + (e.message || 'Unknown error') + '</div>';
@@ -5902,8 +6993,8 @@ async function toggleLeaderboard() {
 
 // Top Predictors — All Time / This Week / This Month, same tab chrome as XP.
 var PRED_LB_COPY = {
-    weekly: 'This Week: make at least 5 predictions to qualify. Top 5 each win 25 orange tickets.',
-    monthly: 'This Month: at least 15 predictions. Top 5 each win 50 orange tickets.',
+    weekly: 'This Week: make at least 5 predictions to qualify. Top 10 each win 25 orange tickets.',
+    monthly: 'This Month: at least 15 predictions. Top 10 each win 100 orange tickets.',
     alltime: 'All Time: at least 10 predictions.'
 };
 var PRED_LB_MIN = { weekly: 5, monthly: 15, alltime: 10 };
@@ -6075,7 +7166,7 @@ function _renderPredictorBoard() {
         var active = period === p[0];
         html += '<button type="button" onclick="_predLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
     });
-    html += '</div><div id="predictorLeaderboardList">';
+    html += '</div>' + _lbRankBox('predict') + '<div id="predictorLeaderboardList">';
     if (!rows.length) {
         html += '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No Questers have qualified yet.</div>';
     } else {
@@ -6083,6 +7174,11 @@ function _renderPredictorBoard() {
         rows.forEach(function(entry) {
             var rank = entry.rank || 0;
             var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
+            var correctN = Number(entry.correct) || 0;
+            var totalN = Number(entry.total) || 0;
+            var pctN = Number(entry.pct);
+            if (!isFinite(pctN) || pctN < 0) pctN = 0;
+            if (totalN > 0 && correctN > 0 && pctN === 0) pctN = Math.round((correctN / totalN) * 100);
             var uid = String(entry.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
             var isMe = myUid && uid === myUid;
             var rawPredName = entry.username || '';
@@ -6098,7 +7194,7 @@ function _renderPredictorBoard() {
                 '<span class="lb-rank">' + medal + '</span>' +
                 _predAvatarHtml(entry) +
                 '<span class="lb-name">' + peerTag + '<span' + predNameAttrs + '>' + name + '</span></span>' +
-                '<span class="lb-score pred-score">' + (entry.pct || 0) + '%<span class="pred-score-frac">' + (entry.correct || 0) + '/' + (entry.total || 0) + '</span></span>' +
+                '<span class="lb-score pred-score">' + pctN + '%<span class="pred-score-frac">' + correctN + '/' + totalN + '</span></span>' +
             '</div>';
         });
         if (rows.length > 10) {
@@ -6108,6 +7204,7 @@ function _renderPredictorBoard() {
     html += '</div><p id="predLbProgress" style="margin:8px 0 0;font-size:0.75rem;line-height:1.4;color:var(--text-muted);"></p>';
     root.innerHTML = html;
     if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(root);
+    if (typeof _lbRankReplay === 'function') _lbRankReplay('predict');
     _predLbBindInfo();
     var tip = document.getElementById('predLbTip');
     if (tip && !tip.hidden) tip.textContent = _predLbInfoText(period);
@@ -6142,70 +7239,274 @@ async function _loadPredictorLeaderboard() {
     _renderPredictorBoard();
 }
 
-// PVP Leaderboard - loaded after main leaderboard renders, sorted by win %
+// Daily Streaks — All-Time / Current, same tab chrome as Top Predictors.
+// The list is the server doc stats/streak_leaderboard. No per-user reads.
+function _streakAttr(value) {
+    return String(value || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/'/g, '&#39;');
+}
+
+function _streakOpenProfile(el) {
+    if (!el || typeof db === 'undefined' || !db) return;
+    var name = el.getAttribute('data-streak-name') || '';
+    if (!name || name === 'Anon') return;
+    db.collection('public_profiles').where('username_lower', '==', name.toLowerCase()).limit(1).get().then(function(snap) {
+        if (!snap || snap.empty || typeof showUserProfile !== 'function') return;
+        showUserProfile(snap.docs[0].id);
+    }).catch(function() {});
+}
+window._streakOpenProfile = _streakOpenProfile;
+
+function _renderStreakBoard() {
+    var root = document.getElementById('streakBoard');
+    if (!root) return;
+    var period = window._streakLbPeriod === 'current' ? 'current' : 'alltime';
+    var data = (window._streakLbCache && window._streakLbCache.data) || {};
+    var rows = data[period] || [];
+    var tabs = [['alltime', 'All-Time'], ['current', 'Current']];
+    var note = period === 'current'
+        ? 'Still going. Older than the daily window drops off.'
+        : 'Longest daily streak each player has reached.';
+    var html = '<div class="streak-lb-head"><h4>🔥 Daily Streaks</h4></div>';
+    html += '<p class="streak-lb-note">' + note + '</p>';
+    html += '<div class="streak-lb-tabs">';
+    tabs.forEach(function(p) {
+        var active = period === p[0];
+        html += '<button type="button" onclick="_streakLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;min-width:0;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
+    });
+    html += '</div>' + _lbRankBox('streak') + '<div id="streakLeaderboardList">';
+    if (!rows.length) {
+        html += '<div class="streak-lb-empty">' + (period === 'current' ? 'No streaks still going.' : 'No streaks yet.') + '</div>';
+    } else {
+        var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username).trim().toLowerCase() : '';
+        rows.forEach(function(entry) {
+            var rank = entry.rank || 0;
+            var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
+            var rawName = entry.username || '';
+            var blank = typeof window.missingPublicName === 'function'
+                ? window.missingPublicName(rawName)
+                : (!String(rawName).trim() || /^(anon|anonymous)$/i.test(String(rawName).trim()));
+            var shown = blank ? 'Anon' : rawName;
+            var name = typeof escapeHtml === 'function' ? escapeHtml(shown) : String(shown);
+            var isMe = !blank && myName && myName === String(shown).trim().toLowerCase();
+            var hidden = rank > 10 ? ' style="display:none;" class="lb-row streak-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+            var open = blank ? '' : ' onclick="_streakOpenProfile(this)"';
+            html += '<div' + hidden + open + ' data-streak-name="' + _streakAttr(shown) + '" style="cursor:' + (blank ? 'default' : 'pointer') + ';" title="' + (blank ? '' : 'View profile') + '">' +
+                '<span class="lb-rank">' + medal + '</span>' +
+                (typeof _predAvatarHtml === 'function' ? _predAvatarHtml(entry) : '') +
+                '<span class="lb-name">' + name + '</span>' +
+                '<span class="lb-score">🔥 ' + (Number(entry.streak) || 0) + '</span>' +
+            '</div>';
+        });
+        if (rows.length > 10) {
+            html += '<button type="button" onclick="event.stopPropagation();document.querySelectorAll(\'.streak-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + rows.length + ' streaks ▼</button>';
+        }
+    }
+    html += '</div>';
+    root.innerHTML = html;
+    if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(root);
+    if (typeof _lbRankReplay === 'function') _lbRankReplay('streak');
+}
+
+function _streakLbSwitchPeriod(period) {
+    window._streakLbPeriod = period === 'current' ? 'current' : 'alltime';
+    _renderStreakBoard();
+}
+window._streakLbSwitchPeriod = _streakLbSwitchPeriod;
+
+async function _loadStreakLeaderboard() {
+    var root = document.getElementById('streakBoard');
+    if (!root) return;
+    var now = Date.now();
+    var fresh = window._streakLbCache && window._streakLbCacheTime && (now - window._streakLbCacheTime < 600000);
+    if (!fresh) {
+        try {
+            if (typeof db === 'undefined') {
+                window._streakLbCache = { data: {} };
+            } else {
+                var doc = await db.collection('stats').doc('streak_leaderboard').get();
+                window._streakLbCache = { data: doc.exists ? (doc.data() || {}) : {} };
+            }
+            window._streakLbCacheTime = now;
+        } catch (e) {
+            window._streakLbCache = window._streakLbCache || { data: {} };
+            window._streakLbCacheTime = now;
+        }
+    }
+    _renderStreakBoard();
+}
+
+// Quests — All Time / This Week / This Month. Each tab is one server doc.
+var QUEST_LB_DOC = {
+    alltime: 'quest_leaderboard_alltime',
+    week: 'quest_leaderboard_week',
+    month: 'quest_leaderboard_month'
+};
+var QUEST_LB_NOTE = {
+    alltime: 'Different quests passed, all time. At least 5 attempts. The percent is passed attempts out of every attempt.',
+    week: 'This week starts Monday at midnight Eastern. At least 3 attempts. Top 10 win 25 Orange Tickets.',
+    month: 'This month is Eastern time. At least 3 attempts. Top 10 win 100 Orange Tickets.'
+};
+
+function _questLbPeriod() {
+    var period = window._questLbTab;
+    if (period === 'week' || period === 'month') return period;
+    return 'alltime';
+}
+
+function _questOpenProfile(el) {
+    if (!el || typeof db === 'undefined' || !db) return;
+    var name = el.getAttribute('data-quest-name') || '';
+    if (!name || name === 'Anon') return;
+    db.collection('public_profiles').where('username_lower', '==', name.toLowerCase()).limit(1).get().then(function(snap) {
+        if (!snap || snap.empty || typeof showUserProfile !== 'function') return;
+        showUserProfile(snap.docs[0].id);
+    }).catch(function() {});
+}
+window._questOpenProfile = _questOpenProfile;
+
+function _renderQuestBoard() {
+    var root = document.getElementById('questBoard');
+    if (!root) return;
+    var period = _questLbPeriod();
+    var slot = window._questLbCache && window._questLbCache[period];
+    var data = (slot && slot.data) || {};
+    var rows = data.rows || [];
+    var tabs = [['alltime', 'All Time'], ['week', 'This Week'], ['month', 'This Month']];
+    var html = '<div class="quest-lb-head"><h4>🏆 Quests</h4></div>';
+    html += '<p class="quest-lb-note">' + QUEST_LB_NOTE[period] + '</p>';
+    html += '<div class="quest-lb-tabs">';
+    tabs.forEach(function(p) {
+        var active = period === p[0];
+        html += '<button type="button" onclick="_questLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;min-width:0;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
+    });
+    html += '</div>' + _lbRankBox('quest') + '<div id="questLeaderboardList">';
+    if (!rows.length) {
+        html += '<div class="quest-lb-empty">Nobody has qualified yet.</div>';
+    } else {
+        var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username).trim().toLowerCase() : '';
+        rows.forEach(function(entry) {
+            var rank = entry.rank || 0;
+            var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
+            var rawName = entry.username || '';
+            var blank = typeof window.missingPublicName === 'function'
+                ? window.missingPublicName(rawName)
+                : (!String(rawName).trim() || /^(anon|anonymous)$/i.test(String(rawName).trim()));
+            var shown = blank ? 'Anon' : rawName;
+            if (String(shown).indexOf('@') !== -1) {
+                shown = 'Anon';
+                blank = true;
+            }
+            var name = typeof escapeHtml === 'function' ? escapeHtml(shown) : String(shown);
+            var isMe = !blank && myName && myName === String(shown).trim().toLowerCase();
+            var passes = Number(entry.passes) || 0;
+            var pct = Number(entry.pct) || 0;
+            var open = blank ? '' : ' onclick="_questOpenProfile(this)"';
+            html += '<div class="lb-row' + (isMe ? ' lb-me' : '') + '"' + open + ' data-quest-name="' + _streakAttr(shown) + '" style="cursor:' + (blank ? 'default' : 'pointer') + ';" title="' + (blank ? '' : 'View profile') + '">' +
+                '<span class="lb-rank">' + medal + '</span>' +
+                (typeof _predAvatarHtml === 'function' ? _predAvatarHtml(entry) : '') +
+                '<span class="lb-name">' + name + '</span>' +
+                '<span class="lb-score" title="Pass rate">' + passes + ' · ' + pct + '%</span>' +
+            '</div>';
+        });
+    }
+    html += '</div>';
+    root.innerHTML = html;
+    if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(root);
+    if (typeof _lbRankReplay === 'function') _lbRankReplay('quest');
+}
+
+function _questLbSwitchPeriod(period) {
+    window._questLbTab = period === 'week' || period === 'month' ? period : 'alltime';
+    _loadQuestLeaderboard();
+}
+window._questLbSwitchPeriod = _questLbSwitchPeriod;
+
+async function _loadQuestLeaderboard() {
+    var root = document.getElementById('questBoard');
+    if (!root) return;
+    var period = _questLbPeriod();
+    window._questLbCache = window._questLbCache || {};
+    var slot = window._questLbCache[period];
+    var now = Date.now();
+    var fresh = slot && slot.time && (now - slot.time < 600000);
+    if (!fresh) {
+        try {
+            if (typeof db === 'undefined' || !db) {
+                window._questLbCache[period] = { data: {}, time: now };
+            } else {
+                var doc = await db.collection('stats').doc(QUEST_LB_DOC[period]).get();
+                window._questLbCache[period] = { data: doc.exists ? (doc.data() || {}) : {}, time: now };
+            }
+        } catch (e) {
+            window._questLbCache[period] = window._questLbCache[period] || { data: {}, time: now };
+            window._questLbCache[period].time = now;
+        }
+    }
+    _renderQuestBoard();
+}
+
+// PVP leaderboard. One snapshot doc, already ordered by win rate. Wins and losses are on each row.
+function _renderPvpSnapshot(container, doc) {
+    if (!container) return;
+    var rows = (doc && doc.rows) || [];
+    var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
+    if (!rows.length && !(currentUser && ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0)) > 0)) {
+        container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet - be the first to compete!</div>';
+        return;
+    }
+    var seenMe = false;
+    var pvpHtml = '';
+    rows.forEach(function (p) {
+        var rank = p.rank || 0;
+        var wins = p.wins || 0;
+        var losses = p.losses || 0;
+        var safeId = String(p.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
+        var isMe = !!(myUid && safeId === myUid);
+        if (isMe) seenMe = true;
+        var name = escapeHtml(p.username || 'Anon');
+        var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
+        var pvpIcon = wins >= 100 ? '👑' : wins >= 50 ? '🏆' : wins >= 25 ? '🏟️' : wins >= 5 ? '🥊' : '⚔️';
+        var hidden = rank > 10 ? ' style="display:none;" class="lb-row pvp-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+        var _pvpTipData = JSON.stringify({ recipientName: p.username || 'Anon', recipientUid: safeId, lightningAddress: p.lightningAddress || '', context: 'pvp', label: 'Tip ' + (p.username || 'Anon') }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+        var peerTag = (window._myPeers && window._myPeers.has(safeId)) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
+        var rate = Number(p.value) || 0;
+        pvpHtml += '<div' + hidden + ' onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
+            '<span class="lb-rank">' + medal + '</span>' +
+            '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + pvpIcon + '</span>' +
+            '<span class="lb-name">' + peerTag + name + '</span>' +
+            '<span class="lb-score" title="' + Math.round(rate) + '% win rate" style="cursor:help;">' + wins + 'W - ' + losses + 'L</span>' +
+            '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + name + '">⚡</span>' +
+            '</div>';
+    });
+    if (rows.length > 10) {
+        pvpHtml += '<button onclick="event.stopPropagation();document.querySelectorAll(\'.pvp-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + rows.length + ' PVP players ▼</button>';
+    }
+    if (!seenMe && currentUser && ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0)) > 0) {
+        var mine = (currentUser.pvpWins || 0) + 'W - ' + (currentUser.pvpLosses || 0) + 'L';
+        pvpHtml += '<div class="lb-row lb-me" style="cursor:default;">' +
+            '<span class="lb-rank">25+</span>' +
+            '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">⚔️</span>' +
+            '<span class="lb-name">' + escapeHtml(currentUser.username || 'Anon') + ' (you)</span>' +
+            '<span class="lb-score">' + mine + '</span>' +
+            '</div>';
+    }
+    container.innerHTML = pvpHtml || '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet!</div>';
+}
+
 async function _loadPVPLeaderboard() {
     var container = document.getElementById('pvpLeaderboardList');
     if (!container) return;
+    var spec = LB_BOARDS.pvp;
+    var cached = _lbSnapRead(spec.docId);
+    if (cached) _renderPvpSnapshot(container, cached);
+    if (cached && _lbSnapFresh(cached, spec.intervalMs)) return;
     try {
-        // Cache PVP leaderboard for 5 minutes
-        var _pvpNow = Date.now();
-        var _pvpCached = window._pvpLbCache && window._pvpLbCacheTime && (_pvpNow - window._pvpLbCacheTime < 300000);
-        var winsSnap, lossSnap;
-        if (_pvpCached) {
-            winsSnap = window._pvpLbCache.wins;
-            lossSnap = window._pvpLbCache.losses;
-        } else {
-            [winsSnap, lossSnap] = await Promise.all([
-                db.collection('public_profiles').where('pvpWins', '>', 0).orderBy('pvpWins', 'desc').limit(50).get(),
-                db.collection('public_profiles').where('pvpLosses', '>', 0).orderBy('pvpLosses', 'desc').limit(50).get()
-            ]);
-            window._pvpLbCache = { wins: winsSnap, losses: lossSnap };
-            window._pvpLbCacheTime = _pvpNow;
-        }
-        var playerMap = {};
-        var myUid = auth.currentUser ? auth.currentUser.uid : null;
-        function addPlayer(doc) {
-            if (playerMap[doc.id]) return;
-            var d = doc.data();
-            if (d.ghostMode && doc.id !== myUid) return;
-            var wins = d.pvpWins || 0;
-            var losses = d.pvpLosses || 0;
-            var total = wins + losses;
-            if (total === 0) return;
-            var winRate = total > 0 ? (wins / total) * 100 : 0;
-            playerMap[doc.id] = { id: doc.id, username: escapeHtml(d.username || 'Anon'), wins: wins, losses: losses, total: total, winRate: winRate, isMe: doc.id === myUid, lightningAddress: d.lightningAddress || d.lightning || '' };
-        }
-        winsSnap.forEach(addPlayer);
-        lossSnap.forEach(addPlayer);
-        var players = Object.values(playerMap);
-        if (players.length === 0) {
-            container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet - be the first to compete!</div>';
-            return;
-        }
-        players.sort(function(a, b) { return b.winRate - a.winRate || b.wins - a.wins; });
-
-        var pvpHtml = '';
-        players.forEach(function(p, idx) {
-            var rank = idx + 1;
-            var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
-            var pvpIcon = p.wins >= 100 ? '👑' : p.wins >= 50 ? '🏆' : p.wins >= 25 ? '🏟️' : p.wins >= 5 ? '🥊' : '⚔️';
-            var hidden = rank > 10 ? ' style="display:none;" class="lb-row pvp-lb-extra' + (p.isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (p.isMe ? ' lb-me' : '') + '"';
-            var _pvpTipData = JSON.stringify({recipientName: p.username, recipientUid: p.id, lightningAddress: p.lightningAddress, context: 'pvp', label: 'Tip ' + p.username}).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-            var peerTag = (window._myPeers && window._myPeers.has(p.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
-            pvpHtml += '<div' + hidden + ' onclick="showUserProfile(\'' + p.id + '\')" style="cursor:pointer;" title="View profile">' +
-                '<span class="lb-rank">' + medal + '</span>' +
-                '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + pvpIcon + '</span>' +
-                '<span class="lb-name">' + peerTag + p.username + '</span>' +
-                '<span class="lb-score" title="' + Math.round(p.winRate) + '% win rate" style="cursor:help;">' + p.wins + 'W - ' + p.losses + 'L</span>' +
-                '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + p.username + '">⚡</span>' +
-            '</div>';
-        });
-        if (players.length > 10) {
-            pvpHtml += '<button onclick="event.stopPropagation();document.querySelectorAll(\'.pvp-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + players.length + ' PVP players ▼</button>';
-        }
-        container.innerHTML = pvpHtml || '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet!</div>';
-    } catch(e) {
-        container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet - be the first to compete!</div>';
+        var next = await _lbSnapFetch(spec.key);
+        var el = document.getElementById('pvpLeaderboardList');
+        if (next && el) _renderPvpSnapshot(el, next);
+        else if (!cached && el) _renderPvpSnapshot(el, { rows: [] });
+    } catch (e) {
+        if (!cached) container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet - be the first to compete!</div>';
     }
 }
 
@@ -6282,6 +7583,58 @@ window._signupGoGetLnAddress = function() {
     setTimeout(function() { if (typeof go === 'function') go('lightning'); }, 200);
 };
 
+// Turnstile's flexible widget used to boot with the page. Its iframe fights
+// Edge Tracking Prevention and is only needed when a person submits a check.
+window._ensureTurnstile = function (el) {
+    function render() {
+        if (!el || !window.turnstile) return;
+        if (el.getAttribute('data-rendered') === '1') return;
+        var sitekey = el.getAttribute('data-sitekey');
+        if (!sitekey) return;
+        try {
+            window.turnstile.render(el, {
+                sitekey: sitekey,
+                theme: el.getAttribute('data-theme') || 'dark',
+                size: el.getAttribute('data-size') || 'flexible'
+            });
+            el.setAttribute('data-rendered', '1');
+        } catch (e) {}
+    }
+    render._el = el;
+    if (window.turnstile) { render(); return; }
+    window._turnstileWaiters = window._turnstileWaiters || [];
+    window._turnstileWaiters.push(render);
+    if (window._turnstileLoading) return;
+    window._turnstileLoading = true;
+    var s = document.createElement('script');
+    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    s.async = true;
+    s.onload = function () {
+        window._turnstileLoading = false;
+        var waiters = window._turnstileWaiters || [];
+        window._turnstileWaiters = [];
+        waiters.forEach(function (fn) { try { fn(); } catch (e) {} });
+    };
+    s.onerror = function () {
+        window._turnstileLoading = false;
+        var waiters = window._turnstileWaiters || [];
+        window._turnstileWaiters = [];
+        var retryEl = null;
+        if (!window._lnTurnstileRetried) {
+            for (var i = 0; i < waiters.length; i++) {
+                var waiterEl = waiters[i] && waiters[i]._el;
+                if (waiterEl && waiterEl.id === 'lnAddrTurnstile') retryEl = waiterEl;
+            }
+        }
+        if (retryEl) {
+            window._lnTurnstileRetried = true;
+            window._ensureTurnstile(retryEl);
+            return;
+        }
+    };
+    document.head.appendChild(s);
+};
+
 function showUsernamePrompt() {
     try {
         // Hold keeps the guest button. A real session still exists, so the
@@ -6317,12 +7670,14 @@ function showUsernamePrompt() {
                     showAccountInfo();
                 } else {
                     document.getElementById('usernameModal').classList.add('open');
+                    if (typeof window._ensureTurnstile === 'function') window._ensureTurnstile(document.getElementById('turnstileWidget'));
                     history.pushState({ modal: 'signin' }, '', window.location.pathname + window.location.hash);
                 }
             });
             return;
         }
         document.getElementById('usernameModal').classList.add('open');
+        if (typeof window._ensureTurnstile === 'function') window._ensureTurnstile(document.getElementById('turnstileWidget'));
         // Push history state so back button closes modal instead of exiting app
         history.pushState({ modal: 'signin' }, '', window.location.pathname + window.location.hash);
     } catch(e) {
@@ -9491,20 +10846,72 @@ window.sendAccountLinkEmail = async function() {
         return;
     }
     if (input) input.disabled = true;
+    var sent = await requestAccountEmailLink(email, status);
+    if (!sent && input) input.disabled = false;
+};
+
+async function requestAccountEmailLink(email, status) {
+    if (accountLinkTotpPending()) {
+        if (typeof showToast === 'function') showToast(accountLinkTotpHoldMessage());
+        return false;
+    }
+    var user = auth && auth.currentUser;
+    var profile = (typeof currentUser !== 'undefined') ? currentUser : null;
+    if (!user) {
+        if (status) status.textContent = 'Sign in, then try this.';
+        return false;
+    }
+    if (user.isAnonymous && !accountCanLinkSignIn(user, profile)) {
+        if (typeof showToast === 'function') showToast('This account already has a sign-in method.');
+        return false;
+    }
+    var clean = String(email || '').trim();
+    if (!clean || clean.indexOf('@') < 1 || clean.indexOf('.') < 0 || clean.length > 100) {
+        if (status) status.textContent = 'Enter the email you want to link.';
+        return false;
+    }
+    if (!user.isAnonymous) {
+        var ready = await window.reauthForSensitiveAction('linking email');
+        if (!ready) {
+            if (status) status.textContent = 'Sign in again, then try this.';
+            return false;
+        }
+        var payload = {};
+        payload.email = clean;
+        if (typeof mfaNeedsFreshCode === 'function' && mfaNeedsFreshCode() && typeof window._showFreshStepUp === 'function') {
+            var proof = await window._showFreshStepUp('changeEmail');
+            if (!proof) {
+                if (status) status.textContent = 'Finish the authenticator check, then try again.';
+                return false;
+            }
+            payload.freshProofId = proof;
+        }
+        try {
+            await firebase.functions().httpsCallable('prepareEmailChange')(payload);
+        } catch (err) {
+            var code = err && err.code;
+            var friendly = "That email can't be used.";
+            if (code === 'functions/resource-exhausted' || code === 'resource-exhausted') friendly = 'Too many attempts. Try again later.';
+            else if (code === 'functions/failed-precondition' || code === 'failed-precondition') friendly = 'Sign in again, then try this.';
+            if (status) status.textContent = friendly;
+            if (typeof showToast === 'function') showToast(friendly);
+            return false;
+        }
+    }
     if (status) status.textContent = 'Sending a link…';
-    writeAccountLinkIntent(user, email);
+    writeAccountLinkIntent(user, clean);
     var sent = false;
-    try { sent = await sendMagicLink(email); } catch (e) { sent = false; }
+    try { sent = await sendMagicLink(clean, { accountLink: true }); } catch (e) { sent = false; }
     if (!sent) {
         clearAccountLinkIntent();
-        if (input) input.disabled = false;
         if (status) status.textContent = 'Could not send the link. Try again.';
         if (typeof showToast === 'function') showToast('Could not send the link. Try again.');
-        return;
+        return false;
     }
-    if (status) status.textContent = 'Check your email and tap the link on this browser. It links this account and does not open a different one.';
-    if (typeof showToast === 'function') showToast('Check your email and open the link in this browser.');
-};
+    if (status) status.textContent = 'Check your email. Open the link while this account is signed in. It does not create a new account.';
+    if (typeof showToast === 'function') showToast('Check your email and open the link while you are signed in.');
+    return true;
+}
 
 window.linkGoogleFromAccount = async function() {
     if (accountLinkTotpPending()) {
@@ -9750,9 +11157,13 @@ window.submitUsername = async function() {
         var tsEl = document.querySelector('#turnstileWidget [name="cf-turnstile-response"]');
         if (tsEl) tsToken = tsEl.value || '';
         if (!tsToken) {
-            // Widget may not have rendered yet (slow connection) - check window.turnstile
             showToast('⏳ Security check pending, please try again in a moment.');
-            if (window.turnstile) window.turnstile.reset('#turnstileWidget');
+            var signupWidget = document.getElementById('turnstileWidget');
+            if (signupWidget && signupWidget.getAttribute('data-rendered') !== '1' && typeof window._ensureTurnstile === 'function') {
+                window._ensureTurnstile(signupWidget);
+            } else if (window.turnstile) {
+                window.turnstile.reset('#turnstileWidget');
+            }
             return;
         }
         window._signupTurnstileToken = tsToken;
@@ -10010,11 +11421,11 @@ function openWithdrawalAddress(opts) {
             stepConfirm.style.display = name === 'confirm' ? 'block' : 'none';
             stepRead.style.display = name === 'readonly' ? 'block' : 'none';
             title.textContent = name === 'readonly' ? 'Withdrawal Lightning Address' : LN_SET_TITLE;
-            if (name === 'confirm' && mode === 'reset' && !widgetRendered && window.turnstile) {
+            if (name === 'confirm' && mode === 'reset' && !widgetRendered) {
                 widgetRendered = true;
-                try {
-                    window.turnstile.render('#lnAddrTurnstile', { sitekey: LN_TURNSTILE_SITEKEY, theme: 'dark', size: 'flexible' });
-                } catch (e) {}
+                var lnWidget = document.getElementById('lnAddrTurnstile');
+                if (lnWidget && !lnWidget.getAttribute('data-sitekey')) lnWidget.setAttribute('data-sitekey', LN_TURNSTILE_SITEKEY);
+                if (typeof window._ensureTurnstile === 'function') window._ensureTurnstile(lnWidget);
             }
             if (name === 'confirm' && mode !== 'reset') ts.style.display = 'none';
         }
@@ -10099,7 +11510,11 @@ function _callResetLightning(addr, proofId) {
     if (!token) return Promise.resolve({ ok: false, error: 'Security check pending — please wait a moment and try again.', code: 'turnstile' });
     var appCheckReady;
     try {
-        appCheckReady = firebase.appCheck().getToken(false);
+        appCheckReady = (typeof window._btcAppCheckForClaim === 'function')
+            ? window._btcAppCheckForClaim(8000).then(function (token) {
+                if (!token) throw new Error('app-check');
+            })
+            : firebase.appCheck().getToken(false);
     } catch (e) {
         return Promise.resolve({ ok: false, error: 'Security check failed. Refresh the page and try again.' });
     }
@@ -10146,38 +11561,15 @@ window._withdrawalLnEligible = _withdrawalLnEligible;
 
 
 // ---- Init Firebase & Auth ----
+// IndexedDB uid read starts as soon as this file runs, not inside auth.
+startOptimisticProfilePaint();
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initRanking);
 } else {
     initRanking();
 }
 
-// ---- Leaderboard pre-fetch: warm cache ~5s after page load so open is instant ----
-(function() {
-    var _prefetched = false;
-    function _prefetchLeaderboard() {
-        if (_prefetched) return;
-        if (!db) return;
-        var now = Date.now();
-        var useCache = window._lbCache && window._lbCacheTime && (now - window._lbCacheTime < 600000);
-        if (useCache) { _prefetched = true; return; }
-        _prefetched = true;
-        db.collection('public_profiles').orderBy('points', 'desc').limit(150).get().then(function(snap) {
-            var users = [];
-            snap.forEach(function(doc) {
-                var d = doc.data();
-                if ((d.points || 0) > 0 && !d.ghostMode) {
-                    users.push(Object.assign({ id: doc.id }, d));
-                }
-            });
-            window._lbCache = users;
-            window._lbCacheTime = Date.now();
-        }).catch(function() { _prefetched = false; });
-    }
-    // Fire after 5s — well after Firebase init, without blocking critical path
-    setTimeout(_prefetchLeaderboard, 5000);
-    window._prefetchLeaderboard = _prefetchLeaderboard;
-})();
+// Leaderboard snapshots load when a board opens. Nothing is prefetched at boot.
 
 // ---- OPENCLAW EXPORTS ----
 if (typeof toggleLeaderboard !== "undefined") window.toggleLeaderboard = toggleLeaderboard;
@@ -10861,7 +12253,8 @@ window._showFreshStepUp = function (action) {
         resetLightningAddress: 'Enter a fresh authenticator code to change your Lightning Address. Remembering this device is not enough.',
         deleteAccount: 'Enter a fresh authenticator code to delete this account. Remembering this device is not enough.',
         disableTotp: 'Enter a fresh authenticator code to turn off two-factor authentication. A saved session is not enough.',
-        regenerateRecoveryCodes: 'Enter a fresh authenticator code to create new recovery codes. A saved session is not enough.'
+        regenerateRecoveryCodes: 'Enter a fresh authenticator code to create new recovery codes. A saved session is not enough.',
+        changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.'
     };
     return new Promise(function (resolve) {
         var old = document.getElementById('freshStepUpOverlay');
@@ -10876,7 +12269,7 @@ window._showFreshStepUp = function (action) {
         }
         var overlay = document.createElement('div');
         overlay.id = 'freshStepUpOverlay';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:710000;display:flex;align-items:center;justify-content:center;padding:16px;';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:2200030;display:flex;align-items:center;justify-content:center;padding:16px;';
         overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:380px;width:100%;text-align:center;">' +
             '<div style="font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:8px;">Fresh authenticator code</div>' +
             '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;line-height:1.45;margin-bottom:14px;">' + mfaEscapeText(copy[action] || 'Enter a fresh authenticator code. A remembered device is not enough.') + '</div>' +
@@ -11149,7 +12542,7 @@ window.initSatsClaim = function() {
 
     html += '<div id="satsClaimError" style="display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.78rem;color:#ef4444;text-align:center;"></div>';
 
-    html += '<div id="satsClaimTurnstile" class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>';
+    html += '<div id="satsClaimTurnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>';
 
     html += '<button id="satsClaimBtn" onclick="submitSatsClaim()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;">⚡ Send Sats to My Wallet</button>';
     html += '<button onclick="document.getElementById(\'satsClaimOverlay\').remove()" style="width:100%;padding:12px;background:none;border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-top:8px;">Cancel</button>';
@@ -11157,14 +12550,7 @@ window.initSatsClaim = function() {
 
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
-    // Re-render Turnstile widget now that the element is in the DOM
-    if (window.turnstile) {
-        window.turnstile.render('#satsClaimTurnstile', {
-            sitekey: '0x4AAAAAAD-ivgpRkbXpgz86',
-            theme: 'dark',
-            size: 'flexible',
-        });
-    }
+    if (typeof window._ensureTurnstile === 'function') window._ensureTurnstile(document.getElementById('satsClaimTurnstile'));
 };
 
 // Device fingerprint for multi-account detection (Fix #3)
@@ -11243,9 +12629,16 @@ window.submitSatsClaim = async function() {
 
     try {
         try {
-            // Mint or reuse the cached token (1h TTL). httpsCallable attaches it
-            // as X-Firebase-AppCheck on the claimSats request.
-            await firebase.appCheck().getToken(false);
+            // Enforced on the server. Wait here, not during sign-in or Firestore.
+            // httpsCallable attaches the token as X-Firebase-AppCheck.
+            var _appTok = '';
+            if (typeof window._btcAppCheckForClaim === 'function') {
+                _appTok = await window._btcAppCheckForClaim(8000);
+            } else {
+                var _got = await firebase.appCheck().getToken(false);
+                _appTok = _got && _got.token;
+            }
+            if (!_appTok) throw new Error('app-check');
         } catch (appCheckErr) {
             if (errorEl) { errorEl.textContent = 'Security check failed. Refresh the page and try again.'; errorEl.style.display = 'block'; }
             btn.disabled = false;

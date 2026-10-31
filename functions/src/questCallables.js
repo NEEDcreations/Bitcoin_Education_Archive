@@ -12,10 +12,12 @@
 const functionsV1 = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const reward = require('./questReward');
+const { loadTriviaKey } = require('./triviaKey');
 const rewardNotify = require('./rewardNotify');
 const { DAILY_CAP, TAPER_FULL_UNTIL, TAPER_HALF_UNTIL } = require('./dailyXp');
 const { grantFamily, familyFor } = require('./grantBadge');
 const { planQuestDay } = require('./badgeProgress');
+const questBoard = require('./questBoard');
 
 const db = admin.firestore();
 const FieldValue = admin.firestore.FieldValue;
@@ -55,6 +57,19 @@ function meterFrom(used, awarded) {
     };
 }
 
+// The explanation and the correct slot are returned only after this call
+// grades a choice for an account that is allowed to play. Wrong-day,
+// wrong-question, and banned responses omit both.
+function triviaReveal(graded) {
+    if (!graded || graded.ok !== true || graded.banned === true) return {};
+    const explanation = typeof graded.explanation === 'string' ? graded.explanation : '';
+    const answerIndex = Number.isInteger(graded.answerIndex) ? graded.answerIndex : -1;
+    return {
+        explanation: explanation,
+        answerIndex: answerIndex >= 0 && answerIndex < 4 ? answerIndex : -1,
+    };
+}
+
 function applyRate(tx, rateRef, rateDoc, now, max, kind) {
     const existing = rateDoc.exists ? rateDoc.data() : null;
     const rate = reward.nextCallRate(existing, now, RATE_WINDOW_MS, max);
@@ -70,13 +85,31 @@ const answerTrivia = onCall(async (data, context) => {
     const dayKey = reward.offsetDateKey(now);
     const payload = data || {};
 
+    let triviaKey = null;
+    try {
+        triviaKey = await loadTriviaKey(db);
+    } catch (err) {
+        triviaKey = null;
+    }
+    // No key: do not grade, do not pay, and do not describe the failure.
+    if (!triviaKey) {
+        return {
+            success: false,
+            correct: false,
+            awarded: 0,
+            graded: false,
+            statsRecorded: false,
+            reason: 'unavailable',
+        };
+    }
+
     const userRef = db.collection('users').doc(uid);
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
     const rateRef = db.collection('rate_limits').doc('trivia_' + uid);
     const claimRef = userRef.collection('daily_action_counts').doc(dayKey + '_trivia');
     const dailyPtsRef = userRef.collection('daily_points').doc(dayKey);
 
-    return db.runTransaction(async (tx) => {
+    const triviaResult = await db.runTransaction(async (tx) => {
         const rateDoc = await tx.get(rateRef);
         const userDoc = await tx.get(userRef);
         const ledgerDoc = await tx.get(ledgerRef);
@@ -97,6 +130,8 @@ const answerTrivia = onCall(async (data, context) => {
             now: now,
             banned: banned,
             dailyUsed: alreadyClaimed ? 0 : dailyUsed,
+            user: user,
+            trivia: triviaKey,
         });
         const awarded = (graded.ok && !alreadyClaimed) ? (graded.awarded || 0) : 0;
         const pointsBefore = user.points || 0;
@@ -104,19 +139,34 @@ const answerTrivia = onCall(async (data, context) => {
 
         applyRate(tx, rateRef, rateDoc, now, TRIVIA_RATE_MAX, 'trivia');
 
+        // Banned accounts are not an answer lookup. The response is the same
+        // for every choice: no correct bit, no slot, and no explanation.
+        if (banned) {
+            return {
+                success: false,
+                correct: false,
+                awarded: 0,
+                banned: true,
+                alreadyClaimed: false,
+                graded: false,
+                statsRecorded: false,
+                reason: 'banned',
+            };
+        }
+
         if (!graded.ok) {
             return { success: false, correct: false, awarded: 0, reason: graded.reason };
         }
         if (!userDoc.exists) throw httpsError('not-found', 'User not found');
         if (alreadyClaimed) {
-            return {
+            return Object.assign({
                 success: true,
                 correct: claimDoc.data().correct === true,
                 awarded: 0,
                 alreadyClaimed: true,
                 statsRecorded: false,
                 reason: 'already-claimed',
-            };
+            }, triviaReveal(graded));
         }
 
         let statsRecorded = false;
@@ -184,14 +234,25 @@ const answerTrivia = onCall(async (data, context) => {
             success: true,
             correct: graded.correct === true,
             awarded: graded.awarded || 0,
+            doubled: graded.doubled === true,
             capped: graded.capped === true,
             banned: banned,
             alreadyClaimed: false,
             graded: true,
             statsRecorded: statsRecorded,
             reason: banned ? 'banned' : (graded.correct ? '' : 'incorrect'),
-        }, meterFrom(dailyUsed, banned ? 0 : (graded.awarded || 0)));
+        }, meterFrom(dailyUsed, banned ? 0 : (graded.awarded || 0)), triviaReveal(graded));
     });
+    if (triviaResult && triviaResult.correct === true && triviaResult.success === true && triviaResult.alreadyClaimed !== true && triviaResult.banned !== true) {
+        await require('./raidBossEngine').noteTrusted(db, admin, {
+            metric: 'triviaCorrect',
+            uid: uid,
+            dedupeKey: 'trivia-' + uid + '-' + dayKey,
+            amount: 1,
+            now: new Date(now),
+        });
+    }
+    return triviaResult;
 });
 
 const gradeQuest = onCall(async (data, context) => {
@@ -226,6 +287,9 @@ const gradeQuest = onCall(async (data, context) => {
         ? reward.questCompletionKey(graded.topicKey, graded.questIndex)
         : '';
     const passRef = passKey ? userRef.collection('quest_passes').doc(passKey) : null;
+    // Stable for a transaction retry. The attempt log is server-only.
+    const attemptNonce = Math.random().toString(36).slice(2, 10);
+    const statsRef = db.collection('quest_lb_stats').doc(uid);
 
     const result = await db.runTransaction(async (tx) => {
         const rateDoc = await tx.get(rateRef);
@@ -235,6 +299,7 @@ const gradeQuest = onCall(async (data, context) => {
         const dailyDoc = await tx.get(dailyPtsRef);
         const completionDoc = completionRef ? await tx.get(completionRef) : null;
         const passDoc = passRef ? await tx.get(passRef) : null;
+        const statsDoc = await tx.get(statsRef);
 
         const user = userDoc.exists ? (userDoc.data() || {}) : {};
         const banned = reward.isRewardBanned(user, ledgerDoc.exists ? ledgerDoc.data() : null);
@@ -247,6 +312,8 @@ const gradeQuest = onCall(async (data, context) => {
             alreadyPerfect: !!(completionDoc && completionDoc.exists)
                 || reward.legacyPartRecorded(user.completedQuests, graded.topicKey, graded.questIndex),
             questsToday: questsToday,
+            user: user,
+            now: now,
         }) : { awarded: 0, reason: graded.reason || 'need-text-answers' };
         const awarded = settled.awarded || 0;
         const pointsBefore = user.points || 0;
@@ -339,11 +406,37 @@ const gradeQuest = onCall(async (data, context) => {
             }
         }
 
+        // Leaderboard only. XP, badges, and quest_passes stay as they were.
+        // Banned players are recorded too. A daily-limit rejection is not an attempt.
+        // applyAttempt ignores a quest this player has already passed, in this
+        // same transaction, so a replay cannot move the pass rate.
+        let boardRecorded = false;
+        if (settled.reason !== 'daily-limit') {
+            const nextStats = questBoard.applyAttempt(statsDoc.exists ? statsDoc.data() : null, {
+                questId: passKey,
+                score: settled.score || 0,
+                at: now,
+            }, now);
+            nextStats.live = true;
+            nextStats.ghostMode = user.ghostMode === true;
+            questBoard.stampSortKeys(nextStats, user.username);
+            tx.set(statsRef, nextStats);
+            tx.set(userRef.collection('quest_attempts').doc('q' + now + '_' + attemptNonce), questBoard.attemptRecord({
+                questId: passKey,
+                topicKey: graded.topicKey || '',
+                questIndex: graded.questIndex,
+                score: settled.score || 0,
+                at: now,
+            }));
+            boardRecorded = true;
+        }
+
         return Object.assign({
             success: true,
             score: settled.score,
             pts: settled.pts,
             awarded: settled.awarded,
+            doubled: settled.doubled === true,
             capped: settled.capped === true,
             banned: banned === true,
             reason: settled.reason || '',
@@ -352,6 +445,7 @@ const gradeQuest = onCall(async (data, context) => {
             dailyQuestLimit: reward.DAILY_QUEST_LIMIT,
             questsPassed: questsPassed,
             questDay: questDay,
+            boardRecorded: boardRecorded,
         }, meterFrom(dailyUsed, settled.awarded || 0));
     });
     if (result && result.questsPassed) {
@@ -361,6 +455,19 @@ const gradeQuest = onCall(async (data, context) => {
     if (result && result.questDay) {
         try { await grantFamily(db, admin, uid, familyFor('questDays')); }
         catch (questDayErr) { console.warn('[gradeQuest] quest days', questDayErr && questDayErr.message); }
+    }
+    if (result && result.boardRecorded) {
+        try { await questBoard.refresh(db, now, { force: false }); }
+        catch (boardErr) { console.warn('[quest board]', boardErr && boardErr.message); }
+    }
+    if (result && result.questsPassed && result.banned !== true) {
+        await require('./raidBossEngine').noteTrusted(db, admin, {
+            metric: 'quizCompletions',
+            uid: uid,
+            dedupeKey: 'quest-' + uid + '-' + dayKey + '-' + String(result.questsToday || 1),
+            amount: 1,
+            now: new Date(now),
+        });
     }
     return result;
 });

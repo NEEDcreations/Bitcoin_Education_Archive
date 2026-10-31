@@ -1371,6 +1371,40 @@ test('a fully filtered batch does not spend a group slot', async function () {
     assert.strictEqual(db.docs['telegram_mirror_state/group'].sentAtMs.length, 1);
 });
 
+test('a partyCount-only update does not mirror or delete the Telegram copy', async function () {
+    const before = {
+        uid: 'nacho-bot',
+        name: '🦌 Nacho',
+        text: '🏅 @Pat just earned the Pathfinder badge! 🎉',
+        telegramMsgId: '55',
+        telegramChatId: '-100',
+        partyCount: 1,
+    };
+    const after = Object.assign({}, before, { partyCount: 2 });
+    assert.strictEqual(mirror.reactionCounterOnly(before, after), true);
+    assert.strictEqual(mirror.reactionCounterOnly(before, Object.assign({}, after, { text: 'edited' })), false);
+    assert.strictEqual(mirror.reactionCounterOnly({ text: 'hi' }, { text: 'hi', partyCount: 1 }), true);
+    assert.strictEqual(mirror.reactionCounterOnly(null, after), false);
+    let called = 0;
+    const left = await mirror.retractMirroredChat({}, before, after, {
+        token: 'test-token-value',
+        fetch: async function () { called++; throw new Error('counter update was sent'); },
+    });
+    assert.strictEqual(left.deleted, false);
+    assert.strictEqual(left.reason, 'visible');
+    assert.strictEqual(called, 0);
+    const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
+    const retractAt = index.indexOf('async function mirrorChatRetract');
+    const retractEnd = index.indexOf('exports.onGlobalChatTelegram', retractAt);
+    const retract = index.slice(retractAt, retractEnd);
+    assert.ok(retract.includes('reactionCounterOnly'));
+    assert.strictEqual(retract.includes('handleChatMirror'), false);
+    assert.strictEqual(retract.includes('enqueueChatMirror'), false);
+    const annUp = index.slice(index.indexOf('exports.onAnnouncementsTelegramUpdated'), index.indexOf('exports.onAnnouncementsTelegramDeleted'));
+    assert.ok(annUp.includes('mirrorChatRetract'));
+    assert.strictEqual(annUp.includes('handleChatMirror'), false);
+});
+
 Promise.all(queue).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);

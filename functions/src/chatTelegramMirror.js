@@ -1006,6 +1006,49 @@ async function retractMirroredChat(db, before, after, options) {
     return { deleted: !!result.ok, reason: result.ok ? '' : (result.error || 'http') };
 }
 
+// A 🎉 count change is not a new chat line. Same values, including Firestore
+// timestamps, do not count. Only partyCount may differ.
+function sameMirrorValue(a, b) {
+    if (a === b) return true;
+    if (a == null || b == null) return a == null && b == null;
+    if (typeof a !== typeof b) return false;
+    if (typeof a !== 'object') return false;
+    if (typeof a.toMillis === 'function' && typeof b.toMillis === 'function') {
+        try { return a.toMillis() === b.toMillis(); } catch (err) { return false; }
+    }
+    if (Array.isArray(a) || Array.isArray(b)) {
+        if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+            if (!sameMirrorValue(a[i], b[i])) return false;
+        }
+        return true;
+    }
+    const ak = Object.keys(a);
+    const bk = Object.keys(b);
+    if (ak.length !== bk.length) return false;
+    for (let i = 0; i < ak.length; i++) {
+        if (!Object.prototype.hasOwnProperty.call(b, ak[i])) return false;
+        if (!sameMirrorValue(a[ak[i]], b[ak[i]])) return false;
+    }
+    return true;
+}
+
+function reactionCounterOnly(before, after) {
+    if (!before || !after) return false;
+    const keys = {};
+    Object.keys(before).forEach(function (key) { keys[key] = true; });
+    Object.keys(after).forEach(function (key) { keys[key] = true; });
+    const names = Object.keys(keys);
+    let saw = false;
+    for (let i = 0; i < names.length; i++) {
+        const key = names[i];
+        if (sameMirrorValue(before[key], after[key])) continue;
+        if (key !== 'partyCount') return false;
+        saw = true;
+    }
+    return saw;
+}
+
 function safeMirrorLog(log, secret, message) {
     if (!log || typeof log !== 'function') return;
     log(redactForLog(message, secret));
@@ -1043,4 +1086,5 @@ module.exports = {
     DUE_LIMIT: DUE_LIMIT,
     rateDocId: rateDocId,
     retractMirroredChat: retractMirroredChat,
+    reactionCounterOnly: reactionCounterOnly,
 };

@@ -60,6 +60,9 @@ function xpLedgerData(fields) {
         amount: awarded,
         requested: Math.max(0, Math.floor(Number(src.requested) || 0)),
         awarded: awarded,
+        base: src.base != null ? Math.max(0, Math.floor(Number(src.base) || 0)) : Math.max(0, Math.floor(Number(src.requested) || 0)),
+        boosted: src.boosted != null ? Math.max(0, Math.floor(Number(src.boosted) || 0)) : awarded,
+        doubled: src.doubled === true,
         day: src.day || '',
         createdAtMs: Number(src.nowMs) || Date.now(),
         uid: src.uid || '',
@@ -114,7 +117,7 @@ async function creditPeerKeyUse(db, adminSdk, args) {
         });
         let xpGrant = null;
         if (plan.senderXp > 0) {
-            xpGrant = await applyDailyXp(senderUid, plan.senderXp, tx, { day: day, userRef: senderRef });
+            xpGrant = await applyDailyXp(senderUid, plan.senderXp, tx, { day: day, userRef: senderRef, user: sender, now: nowMs });
         }
         const openerUpdate = {};
         const senderUpdate = {};
@@ -155,6 +158,9 @@ async function creditPeerKeyUse(db, adminSdk, args) {
                 uid: senderUid,
                 requested: plan.senderXp,
                 awarded: senderXp,
+                base: xpGrant ? xpGrant.base : plan.senderXp,
+                boosted: xpGrant ? xpGrant.boosted : senderXp,
+                doubled: !!(xpGrant && xpGrant.doubled),
                 day: day,
                 nowMs: nowMs,
                 keyId: keyId,
@@ -261,8 +267,8 @@ async function creditPeerAcceptXp(db, adminSdk, leftUid, rightUid, nowMs) {
         if (!plan.mark) return plan;
         let leftGrant = null;
         let rightGrant = null;
-        if (plan.leftXp > 0) leftGrant = await applyDailyXp(leftUid, plan.leftXp, tx, { day: day, userRef: leftRef });
-        if (plan.rightXp > 0) rightGrant = await applyDailyXp(rightUid, plan.rightXp, tx, { day: day, userRef: rightRef });
+        if (plan.leftXp > 0) leftGrant = await applyDailyXp(leftUid, plan.leftXp, tx, { day: day, userRef: leftRef, user: left, now: now });
+        if (plan.rightXp > 0) rightGrant = await applyDailyXp(rightUid, plan.rightXp, tx, { day: day, userRef: rightRef, user: right, now: now });
         const leftAwarded = leftGrant ? leftGrant.awarded : 0;
         const rightAwarded = rightGrant ? rightGrant.awarded : 0;
         const stamp = adminSdk.firestore.FieldValue.serverTimestamp();
@@ -290,6 +296,9 @@ async function creditPeerAcceptXp(db, adminSdk, leftUid, rightUid, nowMs) {
                 uid: leftUid,
                 requested: plan.leftXp,
                 awarded: leftAwarded,
+                base: leftGrant ? leftGrant.base : plan.leftXp,
+                boosted: leftGrant ? leftGrant.boosted : leftAwarded,
+                doubled: !!(leftGrant && leftGrant.doubled),
                 day: day,
                 nowMs: now,
                 pairId: pairId,
@@ -301,6 +310,9 @@ async function creditPeerAcceptXp(db, adminSdk, leftUid, rightUid, nowMs) {
                 uid: rightUid,
                 requested: plan.rightXp,
                 awarded: rightAwarded,
+                base: rightGrant ? rightGrant.base : plan.rightXp,
+                boosted: rightGrant ? rightGrant.boosted : rightAwarded,
+                doubled: !!(rightGrant && rightGrant.doubled),
                 day: day,
                 nowMs: now,
                 pairId: pairId,

@@ -15,7 +15,7 @@ function tctvClaimId(day) {
 const { rewardBlocked } = require('./cipherClaim');
 const DAILY_FIVE_XP = 100;
 const DAILY_FIVE_TICKETS = 1;
-const { planDailyXp } = require('./dailyXp');
+const { planXpGrant } = require('./grantXp');
 const { grantFamily } = require('./grantBadge');
 
 function offsetDateKey(nowMs) {
@@ -62,6 +62,17 @@ async function maybeCompleteTrifecta(opts) {
             'daily_triple_1', 'daily_triple_7', 'daily_triple_30', 'daily_triple_90', 'daily_triple_365',
             'sf_trifecta_10', 'sf_trifecta_50', 'sf_trifecta_100',
         ], { day: o.day });
+        try {
+            await require('./raidBossEngine').noteTrusted(o.db, o.admin, {
+                metric: 'trifecta',
+                uid: o.uid,
+                dedupeKey: 'trifecta-' + o.uid + '-' + o.day,
+                amount: 1,
+                now: new Date(),
+            });
+        } catch (raidErr) {
+            console.warn('[trifecta] raid', raidErr && raidErr.message);
+        }
     }
     return { ok: !!(credited && (credited.created || credited.already)), credited: credited, proofs: proofs };
 }
@@ -96,7 +107,7 @@ async function maybeCompleteDailyFive(opts) {
         const days = Number(user.dailyFiveDays || 0) + 1;
         const streak = prevSnap.exists ? Number(user.dailyFiveStreak || 0) + 1 : 1;
         const dailyUsed = dailySnap.exists ? Number(dailySnap.data().total || 0) : 0;
-        const split = planDailyXp(dailyUsed, DAILY_FIVE_XP);
+        const split = planXpGrant({ base: DAILY_FIVE_XP, user: user, now: Date.now(), dailyUsed: dailyUsed });
         const update = {
             dailyFiveDays: days,
             dailyFiveStreak: streak,
@@ -110,9 +121,9 @@ async function maybeCompleteDailyFive(opts) {
         t.set(markerRef, { day: o.day, at: o.admin.firestore.FieldValue.serverTimestamp() });
         t.update(userRef, update);
         if (split.awarded > 0) {
-            t.set(dailyRef, { total: dailyUsed + split.awarded }, { merge: true });
+            t.set(dailyRef, { total: split.dailyXp }, { merge: true });
         }
-        return { created: true, days: days, streak: streak, awarded: split.awarded };
+        return { created: true, days: days, streak: streak, awarded: split.awarded, doubled: split.doubled === true };
     });
     if (written && written.created) {
         await grantFamily(o.db, o.admin, o.uid, [

@@ -23,7 +23,7 @@ if (!process.env.FIRESTORE_EMULATOR_HOST) {
 
 const fs = require('fs');
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');
-const { doc, setDoc, updateDoc, deleteField, increment, getDoc } = require('firebase/firestore');
+const { doc, setDoc, updateDoc, deleteDoc, deleteField, increment, getDoc } = require('firebase/firestore');
 
 const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
 const emu = process.env.FIRESTORE_EMULATOR_HOST || '127.0.0.1:8085';
@@ -50,7 +50,8 @@ const parts = emu.split(':');
         const password = { firebase: { sign_in_provider: 'password' } };
         const user = env.authenticatedContext('user1', password).firestore();
         await env.withSecurityRulesDisabled(async function (ctx) {
-            await setDoc(doc(ctx.firestore(), 'users', 'user1'), {
+            const adminDb = ctx.firestore();
+            await setDoc(doc(adminDb, 'users', 'user1'), {
                 username: 'phil',
                 points: 10,
                 visibleBadges: ['peer_1'],
@@ -69,6 +70,10 @@ const parts = emu.split(':');
                 scholar_tech_passed: true,
                 scholar_tech_score: 25,
             });
+            await setDoc(doc(adminDb, 'stats', 'nacho-analytics'), {
+                totalQuestions: 4, upvotes: 1, downvotes: 0,
+            });
+            await setDoc(doc(adminDb, 'polls', 'sats_vs_bits'), { sats: 3, bits: 2 });
         });
         const ref = doc(user, 'users', 'user1');
         await expect('profile bio is writable', function () {
@@ -164,6 +169,75 @@ const parts = emu.split(':');
                 pollId: 'poll_001_2026-10-22', question: 'q', options: ['a', 'b', 'c', 'd'],
                 votes: [1, 0, 0, 0], voters: ['user1'],
             });
+        }, false);
+        await expect('ATTACK polls tally create', function () {
+            return setDoc(doc(user, 'polls', 'sats_vs_bits'), { sats: 999999, bits: 0, devices: {} });
+        }, false);
+        await expect('ATTACK nacho-analytics create', function () {
+            return setDoc(doc(user, 'stats', 'nacho-analytics'), {
+                totalQuestions: 999999, upvotes: 999999, downvotes: 0,
+                lastUpdated: new Date(), topics: { pwned: 999999 }, sources: { kb: 1 },
+            });
+        }, false);
+        await expect('ATTACK analytics counter create', function () {
+            return setDoc(doc(user, 'analytics', 'nacho_feedback'), { total: 999999, thumbsUp: 999999 });
+        }, false);
+        await expect('read nacho-analytics', function () {
+            return getDoc(doc(user, 'stats', 'nacho-analytics'));
+        }, true);
+        await expect('ATTACK nacho-analytics update', function () {
+            return updateDoc(doc(user, 'stats', 'nacho-analytics'), { totalQuestions: increment(1) });
+        }, false);
+        await expect('read sats vs bits tally', function () {
+            return getDoc(doc(user, 'polls', 'sats_vs_bits'));
+        }, true);
+        await expect('ATTACK poll_cumulative create', function () {
+            return setDoc(doc(user, 'poll_cumulative', 'poll_open'), {
+                total: 1, option_0: 1, option_1: 0, option_2: 0, option_3: 0,
+                pollId: 'poll_open', question: 'q',
+            });
+        }, false);
+        await expect('ATTACK poll_cumulative inflated create', function () {
+            return setDoc(doc(user, 'poll_cumulative', 'poll_inflate'), {
+                total: 9999, option_0: 9999, option_1: 0, option_2: 0, option_3: 0,
+                pollId: 'poll_inflate', question: 'q',
+            });
+        }, false);
+        await env.withSecurityRulesDisabled(async function (ctx) {
+            await setDoc(doc(ctx.firestore(), 'poll_cumulative', 'poll_live'), {
+                total: 4, option_0: 1, option_1: 1, option_2: 1, option_3: 1,
+                pollId: 'poll_live', question: 'q',
+            });
+        });
+        await expect('read poll_cumulative', function () {
+            return getDoc(doc(user, 'poll_cumulative', 'poll_live'));
+        }, true);
+        await expect('ATTACK poll_cumulative update', function () {
+            return updateDoc(doc(user, 'poll_cumulative', 'poll_live'), { total: 5, option_0: 2 });
+        }, false);
+        await expect('ATTACK poll_cumulative delete', function () {
+            return deleteDoc(doc(user, 'poll_cumulative', 'poll_live'));
+        }, false);
+        await env.withSecurityRulesDisabled(async function (ctx) {
+            await setDoc(doc(ctx.firestore(), 'private_banks', 'trivia'), {
+                questions: [{ q: 'Hidden fake question?', options: ['A', 'B', 'C', 'D'], answer: 1, explanation: 'Fake only.' }],
+            });
+        });
+        const anon = env.unauthenticatedContext().firestore();
+        await expect('guest private_banks read', function () {
+            return getDoc(doc(anon, 'private_banks', 'trivia'));
+        }, false);
+        await expect('ATTACK private_banks read', function () {
+            return getDoc(doc(user, 'private_banks', 'trivia'));
+        }, false);
+        await expect('ATTACK private_banks create', function () {
+            return setDoc(doc(user, 'private_banks', 'other'), { questions: [] });
+        }, false);
+        await expect('ATTACK private_banks update', function () {
+            return updateDoc(doc(user, 'private_banks', 'trivia'), { questions: [] });
+        }, false);
+        await expect('ATTACK private_banks delete', function () {
+            return deleteDoc(doc(user, 'private_banks', 'trivia'));
         }, false);
         await expect('ATTACK market_listing_daily', function () {
             return setDoc(doc(user, 'market_listing_daily', 'user1_2026-10-22'), { n: 0 });

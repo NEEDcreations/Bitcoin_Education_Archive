@@ -17,10 +17,9 @@ const { updatePeerLevelAfterGift } = require('./peerLevel');
 const { rollCipherReward } = require('./cipherReward');
 const { planCipherShare, senderFromKey, clonePrize } = require('./cipherShare');
 const { rollGiftReward: rollGiftRewardImpl, rollGiftCount } = require('./giftRoll');
-const { planDailyXp } = require('./dailyXp');
 const { applyDailyXp } = require('./applyDailyXp');
 const rewardNotify = require('./rewardNotify');
-const doubleXp = require('./doubleXp');
+const { planXpGrant } = require('./grantXp');
 const {
     assessCipherClaim,
     isSatsBanned,
@@ -349,18 +348,21 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
         } else if (reward.rewardType === 'xp_bonus') {
             const ledger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : null;
             let xp = reward.xpAmount || 50;
+            let giftDoubled = false;
             if (rewardBlocked(user, ledger)) xp = 0;
             else {
                 const used = dailyDoc.exists ? (Number(dailyDoc.data().total) || 0) : 0;
-                xp = planDailyXp(used, xp).awarded;
+                const giftPlan = planXpGrant({ base: xp, user: user, now: Date.now(), dailyUsed: used });
+                xp = giftPlan.awarded;
+                giftDoubled = giftPlan.doubled === true;
                 if (xp > 0) {
                     t.set(dailyRef, {
-                        total: used + xp,
+                        total: giftPlan.dailyXp,
                         lastUpdated: now,
                     }, { merge: true });
                 }
             }
-            reward = Object.assign({}, reward, { xpAmount: xp });
+            reward = Object.assign({}, reward, { xpAmount: xp, doubled: giftDoubled });
             if (xp > 0) {
                 userUpdate.points = admin.firestore.FieldValue.increment(xp);
                 userUpdate.weeklyXP = admin.firestore.FieldValue.increment(xp);
@@ -561,8 +563,12 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
             sentLabels.push(key.label);
         });
 
-        const keyXp = doubleXp.boostPoints(KEY_SEND_XP, sender, Date.now()).points;
-        const xpGrant = await applyDailyXp(uid, keyXp, t, { day: todayOffset, userRef: senderRef });
+        const xpGrant = await applyDailyXp(uid, KEY_SEND_XP, t, {
+            day: todayOffset,
+            userRef: senderRef,
+            user: sender,
+            now: Date.now(),
+        });
         xpAwarded = xpGrant.awarded;
 
         const now = admin.firestore.FieldValue.serverTimestamp();
@@ -742,8 +748,11 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
             if (rewardBlocked(user, ledger)) xp = 0;
             else {
                 const used = dailyDoc.exists ? (Number(dailyDoc.data().total) || 0) : 0;
-                const tapered = planDailyXp(used, xp);
+                const tapered = planXpGrant({ base: xp, user: user, now: Date.now(), dailyUsed: used });
                 xp = tapered.awarded;
+                reward.doubled = tapered.doubled === true;
+                reward.base = tapered.base;
+                reward.boosted = tapered.boosted;
                 if (xp > 0) openerDailyTotal = tapered.dailyXp;
             }
             reward.xpAmount = xp;
@@ -967,6 +976,17 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         }
     } catch (cipherBadgeErr) {
         console.warn('[decryptCipher] badges', cipherBadgeErr && cipherBadgeErr.message);
+    }
+    if (applied && applied.share && applied.share.senderUid && applied.share.senderUid !== uid) {
+        try {
+            await require('./raidBossEngine').noteTrusted(db, admin, {
+                metric: 'cipherPeerKey',
+                uid: uid,
+                dedupeKey: 'cipher-' + uid + '-' + cipherId,
+                amount: 1,
+                now: new Date(),
+            });
+        } catch (cipherRaidErr) { console.warn('[decryptCipher] raid', cipherRaidErr && cipherRaidErr.message); }
     }
     const pub = publicReward(applied.reward);
     pub.opensToday = applied.opensToday;

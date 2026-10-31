@@ -4987,24 +4987,11 @@ window.nachoTrackMiss = function(question) {
         localStorage.setItem('btc_nacho_misses', JSON.stringify(misses));
     } catch(e) {}
 
-    // Phase 1: Aggregate misses to Firestore for review
-    try {
-        if (typeof db !== 'undefined' && db) {
-            var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : 'anon';
-            db.collection('nacho_misses').add({
-                q: question.substring(0, 120),
-                topic: typeof classifyTopic === 'function' ? classifyTopic(question) : 'unknown',
-                uid: uid,
-                ts: firebase.firestore.FieldValue.serverTimestamp()
-            }).catch(function() {});
-
-            // Increment miss counter
-            db.collection('analytics').doc('nacho_misses').set({
-                total: firebase.firestore.FieldValue.increment(1),
-                lastMiss: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true }).catch(function() {});
-        }
-    } catch(e) {}
+    recordNachoServer({
+        kind: 'miss',
+        topic: typeof classifyTopic === 'function' ? classifyTopic(question) : 'other',
+        eventId: nachoEventId('miss')
+    });
 };
 
 // =============================================
@@ -5027,45 +5014,12 @@ window.nachoRate = function(msgId, rating) {
         localStorage.setItem('btc_nacho_ratings', JSON.stringify(ratings));
     } catch(e) {}
 
-    // Phase 4: Enhanced feedback loop — sync to Firestore with full context
-    try {
-        if (typeof db !== 'undefined' && db) {
-            var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : 'anon';
-            var feedbackData = {
-                msgId: msgId,
-                rating: rating,
-                uid: uid,
-                question: window._nachoLastQ || '',
-                source: window._nachoLastSource || 'unknown',
-                ts: firebase.firestore.FieldValue.serverTimestamp()
-            };
-
-            // On thumbs down, include the answer text so we can see what was wrong
-            if (rating === -1 && window._nachoAnswerData && window._nachoAnswerData[msgId]) {
-                feedbackData.answerSnippet = (window._nachoAnswerData[msgId] || '').replace(/<[^>]+>/g, '').substring(0, 200);
-            }
-
-            db.collection('nacho_feedback').add(feedbackData).catch(function() {});
-
-            // Increment global counters
-            var counterRef = db.collection('analytics').doc('nacho_feedback');
-            var update = {};
-            update[rating === 1 ? 'thumbsUp' : 'thumbsDown'] = firebase.firestore.FieldValue.increment(1);
-            update.total = firebase.firestore.FieldValue.increment(1);
-            counterRef.set(update, { merge: true }).catch(function() {});
-
-            // Phase 4: On thumbs down, also push to nacho_bad_matches for targeted review
-            if (rating === -1 && window._nachoLastQ) {
-                db.collection('nacho_bad_matches').add({
-                    question: window._nachoLastQ,
-                    source: window._nachoLastSource || 'unknown',
-                    answerSnippet: feedbackData.answerSnippet || '',
-                    uid: uid,
-                    ts: firebase.firestore.FieldValue.serverTimestamp()
-                }).catch(function() {});
-            }
-        }
-    } catch(e) {}
+    recordNachoServer({
+        kind: 'vote',
+        rating: rating === 1 ? 1 : -1,
+        source: window._nachoLastSource || 'unknown',
+        eventId: nachoVoteEventId(msgId, rating)
+    });
 
     // Update button styles
     var up = document.getElementById('nachoUp_' + msgId);
@@ -5118,107 +5072,40 @@ window.getNachoAnalytics = function() {
 };
 
 // =============================================
-// 🔥 Firestore Analytics Sync (anonymous aggregates)
+// Server analytics. One counted event per call. The client cannot set totals.
 // =============================================
 
-// Sync local analytics to Firestore periodically
-// Uses a single doc: stats/nacho-analytics
-// No user IDs — just incremented counters
-window.syncNachoAnalytics = function() {
-    if (typeof db === 'undefined' || !db) return;
-    if (typeof firebase === 'undefined') return;
+function nachoEventId(prefix) {
+    var rnd = Math.random().toString(36).slice(2, 10);
+    var stamp = Date.now().toString(36);
+    return (String(prefix || 'e') + '_' + stamp + '_' + rnd).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64);
+}
 
+function nachoVoteEventId(msgId, rating) {
+    var id = ('vote_' + String(msgId || 'msg') + '_' + (rating === 1 ? 'up' : 'down')).replace(/[^a-zA-Z0-9_-]/g, '_');
+    if (id.length < 8) id = (id + '_pad00000').slice(0, 16);
+    return id.slice(0, 64);
+}
+
+function recordNachoServer(payload) {
     try {
-        var lastSync = parseInt(localStorage.getItem('btc_nacho_sync_ts') || '0');
-        var now = Date.now();
-        // Only sync every 5 minutes max
-        if (now - lastSync < 300000) return;
+        if (!payload || typeof firebase === 'undefined' || !firebase.functions || !firebase.auth) return;
+        var user = firebase.auth().currentUser;
+        if (!user || user.isAnonymous) return;
+        firebase.functions().httpsCallable('recordNachoAnalytics')(payload).catch(function () {});
+    } catch (e) {}
+}
 
-        var localTopics = JSON.parse(localStorage.getItem('btc_nacho_topics') || '{}');
-        var localRatings = JSON.parse(localStorage.getItem('btc_nacho_ratings') || '[]');
-        var localMisses = JSON.parse(localStorage.getItem('btc_nacho_misses') || '[]');
-
-        // Calculate what's new since last sync
-        var lastSyncedTotal = parseInt(localStorage.getItem('btc_nacho_synced_total') || '0');
-        var currentTotal = localTopics.total || 0;
-        var newQuestions = currentTotal - lastSyncedTotal;
-        if (newQuestions <= 0) return; // Nothing new to sync
-
-        var inc = firebase.firestore.FieldValue.increment;
-        var ref = db.collection('stats').doc('nacho-analytics');
-
-        // Build update object with increments
-        var update = {
-            totalQuestions: inc(newQuestions),
-            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-        };
-
-        // Increment topic counts
-        var topics = localTopics.topics || {};
-        var lastSyncedTopics = JSON.parse(localStorage.getItem('btc_nacho_synced_topics') || '{}');
-        for (var topic in topics) {
-            var diff = (topics[topic] || 0) - (lastSyncedTopics[topic] || 0);
-            if (diff > 0) update['topics.' + topic] = inc(diff);
-        }
-
-        // Increment source counts
-        var sources = localTopics.sources || {};
-        var lastSyncedSources = JSON.parse(localStorage.getItem('btc_nacho_synced_sources') || '{}');
-        for (var src in sources) {
-            var srcDiff = (sources[src] || 0) - (lastSyncedSources[src] || 0);
-            if (srcDiff > 0) update['sources.' + src] = inc(srcDiff);
-        }
-
-        // Increment ratings
-        var lastSyncedRatingIdx = parseInt(localStorage.getItem('btc_nacho_synced_ratings') || '0');
-        var newUpvotes = 0, newDownvotes = 0;
-        for (var ri = lastSyncedRatingIdx; ri < localRatings.length; ri++) {
-            if (localRatings[ri].rating === 1) newUpvotes++;
-            else if (localRatings[ri].rating === -1) newDownvotes++;
-        }
-        if (newUpvotes > 0) update.upvotes = inc(newUpvotes);
-        if (newDownvotes > 0) update.downvotes = inc(newDownvotes);
-
-        // Add new misses (append to array, keep last 100 in Firestore)
-        var lastSyncedMissIdx = parseInt(localStorage.getItem('btc_nacho_synced_misses') || '0');
-        var newMisses = localMisses.slice(lastSyncedMissIdx);
-        if (newMisses.length > 0) {
-            // Store misses as individual fields to avoid array limits
-            update.missCount = inc(newMisses.length);
-            // Store latest misses (overwrite — just recent ones for review)
-            for (var mi = 0; mi < Math.min(newMisses.length, 10); mi++) {
-                update['recentMisses.' + (Date.now() + mi)] = {
-                    topic: newMisses[mi].topic || 'other',
-                    q: (newMisses[mi].q || '').substring(0, 80),
-                    ts: newMisses[mi].ts || Date.now()
-                };
-            }
-        }
-
-        // Use set with merge to create doc if it doesn't exist
-        ref.set(update, { merge: true }).then(function() {
-            // Save sync state
-            localStorage.setItem('btc_nacho_sync_ts', now.toString());
-            localStorage.setItem('btc_nacho_synced_total', currentTotal.toString());
-            localStorage.setItem('btc_nacho_synced_topics', JSON.stringify(topics));
-            localStorage.setItem('btc_nacho_synced_sources', JSON.stringify(sources));
-            localStorage.setItem('btc_nacho_synced_ratings', localRatings.length.toString());
-            localStorage.setItem('btc_nacho_synced_misses', localMisses.length.toString());
-        }).catch(function() {
-            // Silent fail — will retry next time
-        });
-    } catch(e) {}
-};
-
-// Auto-sync after answering questions (debounced)
-var _nachoSyncTimer = null;
 var _origTrackTopic = window.nachoTrackTopic;
 window.nachoTrackTopic = function(question, source) {
     window._nachoLastSource = source || 'unknown';
     if (_origTrackTopic) _origTrackTopic(question, source);
-    // Debounced sync — 30s after last question
-    if (_nachoSyncTimer) clearTimeout(_nachoSyncTimer);
-    _nachoSyncTimer = setTimeout(function() { syncNachoAnalytics(); }, 30000);
+    recordNachoServer({
+        kind: 'question',
+        topic: typeof classifyTopic === 'function' ? classifyTopic(question || '') : 'other',
+        source: source || 'unknown',
+        eventId: nachoEventId('q')
+    });
 };
 
 // =============================================

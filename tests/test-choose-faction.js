@@ -377,9 +377,19 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
-    assert.ok(notes.indexOf("Latest: Daily tiles now show a checkmark when you finish them.") > 0);
-    assert.ok(notes.indexOf("Tap Nacho to ask a question, read his story, or open his closet. The minimize button stays out of the way, and the first visit shows a short hint that stays off the buttons and tiles.") > 0);
-    assert.ok(notes.indexOf("Latest: Tap Nacho") === -1);
+    assert.ok(notes.includes('Latest: Boss History shows when each fight actually ended, and past bosses are listed by month.'));
+    assert.ok(notes.includes('Daily trivia shows the explanation after you answer, and a guest answer does not earn XP.'));
+    assert.ok(!notes.includes('Latest: Daily trivia'));
+    assert.ok(notes.includes("Earned posts in GGs chat have a 🎉 button. Tap once to celebrate, and tap again to take it back."));
+    assert.ok(!notes.includes('Latest: Earned posts in GGs chat'));
+    assert.ok(notes.includes("The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front."));
+    assert.ok(!notes.includes('Latest: The daily wheel'));
+    assert.ok(notes.includes('Fixed leaderboards and your saved profile taking too long to load.'));
+    assert.ok(!notes.includes('Latest: Fixed leaderboards'));
+    assert.ok(notes.indexOf("Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.") > 0);
+    assert.ok(notes.indexOf("Latest: Daily Streaks") === -1);
+    assert.ok(notes.indexOf("Double XP now applies to every way you earn XP.") > 0);
+    assert.ok(notes.indexOf("Latest: Double XP") === -1);
     assert.ok(notes.indexOf("The raid boss shows HP remaining, the same remaining over max HP as the raid screen.") > 0);
     assert.ok(notes.indexOf("Latest: The raid boss") === -1);
     assert.ok(notes.indexOf("Timechain TV: 29 new full-length documentaries on the History & Documentaries channel.") > 0);

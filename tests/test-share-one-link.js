@@ -300,9 +300,18 @@ test('stripShareLinks finishes a 1 MB dotted string in under 50 ms', () => {
 test('patch notes keep one Latest line and pages match', () => {
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    const latestAt = notes.indexOf('Latest: Daily tiles now show a checkmark when you finish them.');
-    assert.ok(notes.includes('Tap Nacho to ask a question, read his story, or open his closet. The minimize button stays out of the way, and the first visit shows a short hint that stays off the buttons and tiles.'));
-    assert.ok(!notes.includes('Latest: Tap Nacho'));
+    const latestAt = notes.indexOf('Latest: Boss History shows when each fight actually ended, and past bosses are listed by month.');
+    assert.ok(notes.includes("Earned posts in GGs chat have a 🎉 button. Tap once to celebrate, and tap again to take it back."));
+    assert.ok(!notes.includes('Latest: Earned posts in GGs chat'));
+    assert.ok(latestAt >= 0);
+    assert.ok(notes.includes("The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front."));
+    assert.ok(!notes.includes('Latest: The daily wheel'));
+    assert.ok(notes.includes('Fixed leaderboards and your saved profile taking too long to load.'));
+    assert.ok(!notes.includes('Latest: Fixed leaderboards'));
+    assert.ok(notes.includes('Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.'));
+    assert.ok(!notes.includes('Latest: Daily Streaks'));
+    assert.ok(notes.includes('Double XP now applies to every way you earn XP.'));
+    assert.ok(!notes.includes('Latest: Double XP'));
     assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
     assert.ok(!notes.includes('Latest: The raid boss'));
     const noteAt = notes.indexOf(NOTE);

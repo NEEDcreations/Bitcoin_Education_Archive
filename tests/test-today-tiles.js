@@ -196,7 +196,7 @@ test('the home card styles a check badge for dark, light, and oled', function ()
     assert.strictEqual((html.match(/Latest:/g) || []).length, 0);
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Daily tiles now show a checkmark when you finish them.'));
+    assert.ok(notes.includes('Latest: Boss History shows when each fight actually ended, and past bosses are listed by month.'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

@@ -1,7 +1,8 @@
 'use strict';
 
-// Same daily question the client rotates, graded here before triviaCorrect moves.
-// The choice has to match this answer. A missing or wrong choice is not correct.
+// Same daily question the client rotates. The shipped file is questions and
+// options only, so this grade cannot know the correct slot. answerTrivia
+// loads that key from Firestore. A missing answer is not correct.
 
 const fs = require('fs');
 const path = require('path');
