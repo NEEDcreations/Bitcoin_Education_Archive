@@ -217,6 +217,8 @@ function createPredictionJobs(db, admin, hooks) {
             }
             if (!(Number(price) > 0)) return { needsPrice: true };
             const applied = ps.applyResolution(statsSnap.exists ? statsSnap.data() : null, prediction, price, now, serverRecord);
+            const scoredUser = userSnap.exists ? (userSnap.data() || {}) : {};
+            applied.stats.ghostMode = scoredUser.ghostMode === true;
             tx.set(statsRef, applied.stats);
             tx.set(recordRef, {
                 uid: liveUid,

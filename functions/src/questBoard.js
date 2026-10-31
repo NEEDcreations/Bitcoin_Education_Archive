@@ -664,8 +664,55 @@ function displayPct(passedAttempts, attempts) {
     return Math.round((whole(passedAttempts) / total) * 100);
 }
 
+// Same scale as prediction accuracy: 10000 is a perfect rate.
+// 6/8 (7500) beats 5/7 (7143). A missing reached time sorts last.
+const REACHED_UNKNOWN = 9000000000000000;
+
+function passRateOf(passedAttempts, attempts) {
+    const total = whole(attempts);
+    if (total <= 0) return 0;
+    return Math.round((whole(passedAttempts) / total) * 10000);
+}
+
+function reachedSortOf(value) {
+    const n = timeMs(value);
+    return n > 0 ? n : REACHED_UNKNOWN;
+}
+
+function nameKeyOf(username) {
+    return displayName(username).toLowerCase();
+}
+
+function stampSortKeys(stats, username) {
+    const s = stats || {};
+    s.nameKey = nameKeyOf(username);
+    s.passRate = passRateOf(s.passedAttempts, s.attempts);
+    s.reachedSort = reachedSortOf(s.reachedAt);
+    s.weekPassRate = passRateOf(s.weekPassedAttempts, s.weekAttempts);
+    s.weekReachedSort = reachedSortOf(s.weekReachedAt);
+    s.monthPassRate = passRateOf(s.monthPassedAttempts, s.monthAttempts);
+    s.monthReachedSort = reachedSortOf(s.monthReachedAt);
+    return s;
+}
+
 function blankView() {
-    return { passes: 0, attempts: 0, passedAttempts: 0, reachedAt: 0 };
+    return { passes: 0, attempts: 0, passedAttempts: 0, reachedAt: 0, passRate: 0, reachedSort: REACHED_UNKNOWN, nameKey: '' };
+}
+
+function storedRate(value, passed, attempts) {
+    if (value != null && value !== '') {
+        const n = Number(value);
+        if (Number.isFinite(n)) return n;
+    }
+    return passRateOf(passed, attempts);
+}
+
+function storedReached(value, raw) {
+    if (value != null && value !== '') {
+        const n = Number(value);
+        if (n > 0) return n;
+    }
+    return reachedSortOf(raw);
 }
 
 function viewFromStats(stats, period, nowMs) {
@@ -676,7 +723,10 @@ function viewFromStats(stats, period, nowMs) {
             passes: whole(s.weekPasses),
             attempts: whole(s.weekAttempts),
             passedAttempts: whole(s.weekPassedAttempts),
-            reachedAt: timeMs(s.weekReachedAt)
+            reachedAt: timeMs(s.weekReachedAt),
+            passRate: storedRate(s.weekPassRate, s.weekPassedAttempts, s.weekAttempts),
+            reachedSort: storedReached(s.weekReachedSort, s.weekReachedAt),
+            nameKey: typeof s.nameKey === 'string' ? s.nameKey : ''
         };
     }
     if (period === 'month') {
@@ -685,14 +735,20 @@ function viewFromStats(stats, period, nowMs) {
             passes: whole(s.monthPasses),
             attempts: whole(s.monthAttempts),
             passedAttempts: whole(s.monthPassedAttempts),
-            reachedAt: timeMs(s.monthReachedAt)
+            reachedAt: timeMs(s.monthReachedAt),
+            passRate: storedRate(s.monthPassRate, s.monthPassedAttempts, s.monthAttempts),
+            reachedSort: storedReached(s.monthReachedSort, s.monthReachedAt),
+            nameKey: typeof s.nameKey === 'string' ? s.nameKey : ''
         };
     }
     return {
         passes: whole(s.passes),
         attempts: whole(s.attempts),
         passedAttempts: whole(s.passedAttempts),
-        reachedAt: timeMs(s.reachedAt)
+        reachedAt: timeMs(s.reachedAt),
+        passRate: storedRate(s.passRate, s.passedAttempts, s.attempts),
+        reachedSort: storedReached(s.reachedSort, s.reachedAt),
+        nameKey: typeof s.nameKey === 'string' ? s.nameKey : ''
     };
 }
 
@@ -713,19 +769,33 @@ function reachOf(value) {
     return n > 0 ? n : Number.MAX_SAFE_INTEGER;
 }
 
+function rowRate(row) {
+    return storedRate(row && row.passRate, row && row.passedAttempts, row && row.attempts);
+}
+
+function rowReached(row) {
+    return storedReached(row && row.reachedSort, row && row.reachedAt);
+}
+
+function rowName(row) {
+    if (row && typeof row.nameKey === 'string' && row.nameKey) return row.nameKey;
+    return nameKeyOf(row && row.username);
+}
+
 function compareRows(a, b) {
     const ap = whole(a.passes);
     const bp = whole(b.passes);
     if (bp !== ap) return bp - ap;
-    const rate = rateDelta(a, b);
-    if (rate !== 0) return rate;
-    const ar = reachOf(a.reachedAt);
-    const br = reachOf(b.reachedAt);
-    if (ar !== br) return ar - br;
-    const an = displayName(a.username).toLowerCase();
-    const bn = displayName(b.username).toLowerCase();
+    const arate = rowRate(a);
+    const brate = rowRate(b);
+    if (brate !== arate) return brate - arate;
+    const areach = rowReached(a);
+    const breach = rowReached(b);
+    if (areach !== breach) return areach - breach;
+    const an = rowName(a);
+    const bn = rowName(b);
     if (an !== bn) return an < bn ? -1 : 1;
-    return 0;
+    return String(a.uid || '').localeCompare(String(b.uid || ''));
 }
 
 // selectBoard computes pct from attempt counts. refresh then packs those
@@ -791,13 +861,17 @@ function buildBoards(entries, nowMs) {
             const src = entry || {};
             const view = viewFromStats(src.stats || src, period, now);
             return {
+                uid: src.uid || '',
                 username: src.username,
+                nameKey: view.nameKey || nameKeyOf(src.username),
                 profilePic: src.profilePic,
                 ghostMode: src.ghostMode === true,
                 passes: view.passes,
                 attempts: view.attempts,
                 passedAttempts: view.passedAttempts,
-                reachedAt: view.reachedAt
+                passRate: view.passRate,
+                reachedAt: view.reachedAt,
+                reachedSort: view.reachedSort
             };
         });
     }
@@ -936,10 +1010,11 @@ async function refresh(db, nowMs, opts) {
     const entries = ids.map(function (id) {
         const user = users[id] || {};
         return {
+            uid: id,
             stats: byId[id],
-            username: user.username,
+            username: user.username || byId[id].nameKey || '',
             profilePic: user.profilePic,
-            ghostMode: user.ghostMode === true
+            ghostMode: user.ghostMode === true || byId[id].ghostMode === true
         };
     });
     const built = buildBoards(entries, now);
@@ -982,7 +1057,13 @@ module.exports = {
     absorbHistoricalPasses: absorbHistoricalPasses,
     mergeForBackfill: mergeForBackfill,
     sameTotals: sameTotals,
+    REACHED_UNKNOWN: REACHED_UNKNOWN,
+    passRateOf: passRateOf,
+    reachedSortOf: reachedSortOf,
+    nameKeyOf: nameKeyOf,
+    stampSortKeys: stampSortKeys,
     displayName: displayName,
+    compareRows: compareRows,
     boardLines: boardLines,
     safePic: safePic,
     displayPct: displayPct,

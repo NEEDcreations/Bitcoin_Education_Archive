@@ -371,6 +371,7 @@ var APP_CHECK_CALLABLES = {
     gradeQuest: 1,
     gradeScholarExam: 1,
     issueCertificate: 1,
+    leaderboardRank: 1,
     linkGuestAccount: 1,
     markIntroSeen: 1,
     noteNachoQuestion: 1,
@@ -6127,160 +6128,156 @@ function hideLeaderboard() {
     if (fab) fab.style.display = 'flex';
 }
 
-// Leaderboard username search
-var _lbSearchTimer = null;
-var _lbSearchQuery = '';
-var _lbSearchLastRank = 0;
-var _lbSearchHasMore = false;
-var _lbSearchLoading = false;
-var _lbSearchGeneration = 0; // incremented on every new query; stale in-flight results self-discard
+// Exact rank on one board. One callable, never a full board read.
+// The fourth board in this panel is Daily Streaks (All-Time / Current).
+window._lbRankState = window._lbRankState || {};
+var _lbRankGen = { xp: 0, quest: 0, predict: 0, streak: 0 };
+var _lbRankTimer = {};
 
-function _lbBuildResultRow(u) {
-    var pts = (u.points || 0).toLocaleString();
-    var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '' };
-    var factionStyle = u.faction && typeof window._factionNameStyle === 'function' ? ' style="' + window._factionNameStyle(u.faction) + '"' : '';
-    var peerTag = (window._myPeers && window._myPeers.has(u.uid || u.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
-    return '<div class="lb-search-result">' +
-        '<span>' + lv.emoji + '</span>' +
-        '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.uid) + '\')">' + peerTag + escapeHtml(u.username || 'Anon') + '</a>' +
-        '<span class="lb-sr-pts">' + pts + ' XP · <strong>' + (u.rank ? '#' + u.rank : '—') + '</strong></span>' +
-    '</div>';
+function _lbRankPeriod(board) {
+    if (board === 'quest') return (typeof _questLbPeriod === 'function') ? _questLbPeriod() : 'alltime';
+    if (board === 'predict') return window._predLbPeriod || 'alltime';
+    if (board === 'streak') return window._streakLbPeriod === 'current' ? 'current' : 'alltime';
+    return window._lbPeriod || 'alltime';
 }
 
-async function _lbSearchLoad(query, afterRank, append) {
-    // Stamp this call; any older in-flight request will discard its results when it lands
-    var myGen = ++_lbSearchGeneration;
-    // For fresh searches, always proceed (cancel previous); for load-more, gate on flag
-    if (!append) {
-        _lbSearchLoading = false; // release any stuck lock from previous query
-    } else if (_lbSearchLoading) {
+function _lbRankScoreText(board, period, data) {
+    var n = Number(data && data.score) || 0;
+    var text = n.toLocaleString();
+    if (board === 'xp') {
+        if (period === 'weekly') return text + ' wXP';
+        if (period === 'monthly') return text + ' mXP';
+        return text + ' XP';
+    }
+    if (board === 'quest') return text + ' \u00b7 ' + (Number(data.pct) || 0) + '%';
+    if (board === 'predict') return (Number(data.pct) || n) + '%';
+    return text + ' days';
+}
+
+function _lbRankLine(board, period, data) {
+    if (!data || data.status !== 'ok') return (data && data.message) || 'No player found';
+    return '#' + data.rank + ' @' + (data.username || 'Anon') + ' ' + _lbRankScoreText(board, period, data);
+}
+
+function _lbRankAuthUser() {
+    if (typeof auth !== 'undefined' && auth && auth.currentUser) return auth.currentUser;
+    if (window.auth && window.auth.currentUser) return window.auth.currentUser;
+    return null;
+}
+
+function _lbRankBox(board) {
+    var state = window._lbRankState[board] || {};
+    var value = state.text || '';
+    return '<div class="lb-rank-search" data-board="' + board + '">' +
+        '<div class="lb-rank-search-row">' +
+        '<input id="lbRankInput-' + board + '" class="lb-rank-input" type="text" maxlength="40" enterkeyhint="search" placeholder="Search username" value="' + escapeHtml(value) + '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" oninput="_lbRankType(\'' + board + '\', this.value)" onkeydown="_lbRankKey(event, \'' + board + '\')">' +
+        '<button type="button" class="lb-rank-find" onclick="_lbRankFindMe(\'' + board + '\')">Find me</button>' +
+        '</div>' +
+        '<div id="lbRankResult-' + board + '" class="lb-rank-result" hidden></div>' +
+        '</div>';
+}
+
+function _lbRankPaint(board, data, period) {
+    var el = document.getElementById('lbRankResult-' + board);
+    if (!el) return;
+    if (!data) {
+        el.hidden = true;
+        el.innerHTML = '';
         return;
     }
-    _lbSearchLoading = true;
-    var resultEl = document.getElementById('lbSearchResult');
-    if (!resultEl) { _lbSearchLoading = false; return; }
-
-    // Remove old load-more button if present
-    var oldBtn = document.getElementById('lbSearchMoreBtn');
-    if (oldBtn) oldBtn.remove();
-
-    if (!append) {
-        // Keep any local hits visible; show a subtle spinner below them
-        var _existingHits = resultEl.querySelectorAll('.lb-search-result');
-        if (!_existingHits.length) {
-            resultEl.innerHTML = '<div class="lb-search-none">Searching...</div>';
-        } else {
-            var spinDiv = document.createElement('div');
-            spinDiv.id = 'lbSearchSpinner';
-            spinDiv.className = 'lb-search-none';
-            spinDiv.style.cssText = 'font-size:0.75rem;opacity:0.5;padding:4px 0;';
-            spinDiv.textContent = '\u29d7 Searching all users...';
-            resultEl.appendChild(spinDiv);
-        }
-    } else {
-        var loadingRow = document.createElement('div');
-        loadingRow.id = 'lbSearchLoadingRow';
-        loadingRow.className = 'lb-search-none';
-        loadingRow.textContent = 'Loading more...';
-        resultEl.appendChild(loadingRow);
+    el.hidden = false;
+    var line = _lbRankLine(board, period || _lbRankPeriod(board), data);
+    var html = '<div class="lb-rank-hit">' + escapeHtml(line) + '</div>';
+    var suggestions = data.suggestions || [];
+    if (suggestions.length) {
+        html += '<div class="lb-rank-suggest">';
+        suggestions.slice(0, 8).forEach(function (row) {
+            var name = row && row.username;
+            if (!name) return;
+            html += '<button type="button" class="lb-rank-suggest-item" data-name="' + escapeHtml(name) + '" onclick="_lbRankPick(\'' + board + '\', this.getAttribute(\'data-name\'))">@' + escapeHtml(name) + '</button>';
+        });
+        html += '</div>';
     }
-
-    try {
-        var searchFn = firebase.functions().httpsCallable('searchUsers');
-        var res = await searchFn({ query: query, pageSize: 10, afterRank: afterRank });
-
-        // Stale response - a newer query already took over; silently discard
-        if (myGen !== _lbSearchGeneration) { _lbSearchLoading = false; return; }
-
-        var users = (res.data && res.data.users) || [];
-        var hasMore = !!(res.data && res.data.hasMore);
-
-        // Remove loading indicators
-        var lr = document.getElementById('lbSearchLoadingRow');
-        if (lr) lr.remove();
-        var sp = document.getElementById('lbSearchSpinner');
-        if (sp) sp.remove();
-
-        if (!append && !users.length) {
-            // If local hits are already shown, don't wipe them - just remove spinner
-            if (!resultEl.querySelector('.lb-search-result')) {
-                resultEl.innerHTML = '<div class="lb-search-none">No users found matching \u201c' + escapeHtml(query) + '\u201d</div>';
-            }
-            _lbSearchLoading = false;
-            return;
-        }
-
-        if (!append) resultEl.innerHTML = '';
-        users.forEach(function(u) { resultEl.insertAdjacentHTML('beforeend', _lbBuildResultRow(u)); });
-
-        _lbSearchLastRank = users.length ? users[users.length - 1].rank : afterRank;
-        _lbSearchHasMore = hasMore;
-
-        if (hasMore) {
-            var btn = document.createElement('button');
-            btn.id = 'lbSearchMoreBtn';
-            btn.style.cssText = 'width:100%;padding:8px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;margin:4px 0 2px;';
-            btn.textContent = 'Show more results \u25bc';
-            btn.onclick = function() { _lbSearchLoad(_lbSearchQuery, _lbSearchLastRank, true); };
-            resultEl.appendChild(btn);
-        }
-    } catch(e) {
-        if (myGen !== _lbSearchGeneration) { _lbSearchLoading = false; return; }
-        console.warn('[lbSearch]', e);
-        var lr2 = document.getElementById('lbSearchLoadingRow');
-        if (lr2) lr2.remove();
-        var sp2 = document.getElementById('lbSearchSpinner');
-        if (sp2) sp2.remove();
-        if (!append && !resultEl.querySelector('.lb-search-result')) {
-            resultEl.innerHTML = '<div class="lb-search-none">Search error \u2014 try again</div>';
-        }
-    }
-    _lbSearchLoading = false;
+    el.innerHTML = html;
 }
 
-window.lbSearchUser = function(val) {
-    var resultEl = document.getElementById('lbSearchResult');
-    if (!resultEl) return;
-    val = (val || '').trim();
-    // Clear on empty; allow single-char (catches short usernames)
-    if (!val) { resultEl.innerHTML = ''; _lbSearchQuery = ''; _lbSearchGeneration++; clearTimeout(_lbSearchTimer); return; }
-
-    // Track search use for Search Sleuth badge
-    try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('user') === -1) { _ss.push('user'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
-
-    // Instant local search against already-loaded leaderboard cache (zero latency for top 150)
-    var q = val.toLowerCase();
-    var localHits = window._lbCache ? window._lbCache.filter(function(u) {
-        return (u.username || '').toLowerCase().includes(q);
-    }) : [];
-    if (localHits.length) {
-        resultEl.innerHTML = localHits.slice(0, 10).map(function(u, i) {
-            var rank = (window._lbCache ? window._lbCache.indexOf(u) : i) + 1;
-            var pts = (u.points || 0).toLocaleString();
-            var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '' };
-            var factionStyle = u.faction && typeof window._factionNameStyle === 'function' ? ' style="' + window._factionNameStyle(u.faction) + '"' : '';
-            var peerTag = (window._myPeers && window._myPeers.has(u.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
-            return '<div class="lb-search-result">' +
-                '<span>' + (lv.emoji || '') + '</span>' +
-                '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.id) + '\')">' + peerTag
-                    + escapeHtml(u.username || 'Anon') + '</a>' +
-                '<span class="lb-sr-pts">' + pts + ' XP · <strong>#' + rank + '</strong></span>' +
-                '</div>';
-        }).join('');
-        // Still fire cloud search in background to catch users not in top 150
+window._lbRankType = function (board, val) {
+    window._lbRankState[board] = { text: val || '', me: false };
+    clearTimeout(_lbRankTimer[board]);
+    if (!String(val || '').trim()) {
+        _lbRankGen[board] = (_lbRankGen[board] || 0) + 1;
+        _lbRankPaint(board, null);
+        return;
     }
-
-    // Always update query immediately so any in-flight call resolves to latest
-    _lbSearchQuery = val;
-    clearTimeout(_lbSearchTimer);
-    // Shorter debounce for very short queries (mostly resolved from local cache anyway)
-    var _debounceMs = val.length <= 2 ? 160 : 260;
-    _lbSearchTimer = setTimeout(function() {
-        _lbSearchLastRank = 0;
-        _lbSearchHasMore = false;
-        _lbSearchLoad(val, 0, false);
-    }, _debounceMs);
+    _lbRankTimer[board] = setTimeout(function () { _lbRankRun(board); }, 450);
 };
+
+window._lbRankKey = function (event, board) {
+    if (!event || event.key !== 'Enter') return;
+    event.preventDefault();
+    clearTimeout(_lbRankTimer[board]);
+    _lbRankRun(board);
+};
+
+window._lbRankPick = function (board, name) {
+    window._lbRankState[board] = { text: name, me: false };
+    var input = document.getElementById('lbRankInput-' + board);
+    if (input) input.value = name;
+    _lbRankRun(board);
+};
+
+window._lbRankFindMe = function (board) {
+    var name = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username) : '';
+    window._lbRankState[board] = { text: name, me: true };
+    var input = document.getElementById('lbRankInput-' + board);
+    if (input) input.value = name;
+    _lbRankRun(board);
+};
+
+function _lbRankReplay(board) {
+    var state = window._lbRankState && window._lbRankState[board];
+    if (!state) return;
+    if (state.me || String(state.text || '').trim()) _lbRankRun(board);
+}
+
+function _lbRankReplayAll() {
+    ['xp', 'quest', 'predict', 'streak'].forEach(_lbRankReplay);
+}
+window._lbRankReplayAll = _lbRankReplayAll;
+
+async function _lbRankRun(board) {
+    var state = window._lbRankState[board] || {};
+    var resultEl = document.getElementById('lbRankResult-' + board);
+    if (!resultEl) return;
+    var gen = (_lbRankGen[board] = (_lbRankGen[board] || 0) + 1);
+    var user = _lbRankAuthUser();
+    if (!user) {
+        _lbRankPaint(board, { status: 'not_found', message: 'Sign in to search the leaderboard.' });
+        return;
+    }
+    var period = _lbRankPeriod(board);
+    resultEl.hidden = false;
+    resultEl.innerHTML = '<div class="lb-rank-hit">Searching\u2026</div>';
+    try {
+        var fn = firebase.functions().httpsCallable('leaderboardRank');
+        var payload = { board: board, period: period };
+        if (state.me) payload.me = true;
+        else payload.username = state.text || '';
+        var res = await fn(payload);
+        if (gen !== _lbRankGen[board]) return;
+        _lbRankPaint(board, (res && res.data) || { status: 'not_found', message: 'No player found' }, period);
+    } catch (e) {
+        if (gen !== _lbRankGen[board]) return;
+        var code = (e && e.code) || '';
+        var msg = (e && e.message) || '';
+        var text = 'Search failed. Try again.';
+        if (code.indexOf('resource-exhausted') !== -1 || msg.indexOf('Too many lookups') !== -1) text = 'Too many lookups. Try again in a minute.';
+        else if (code.indexOf('unauthenticated') !== -1 || code.indexOf('permission-denied') !== -1) text = 'Sign in to search the leaderboard.';
+        else if (code.indexOf('failed-precondition') !== -1) text = 'Rank lookup is still indexing. Try again shortly.';
+        else if (code.indexOf('app-check') !== -1 || msg.indexOf('App Check') !== -1) text = 'Security check is not ready. Refresh and try again.';
+        _lbRankPaint(board, { status: 'not_found', message: text });
+    }
+}
 
 // Close leaderboard when clicking/tapping outside.
 // Uses capture phase + both mousedown and touchstart so it fires BEFORE
@@ -6933,8 +6930,7 @@ async function toggleLeaderboard() {
         // Prize banners for weekly/monthly
         if (_lbPeriod === 'weekly') html += '<div style="text-align:center;padding:8px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;margin:0 12px 10px;font-size:0.72rem;color:var(--accent);font-weight:700;">🏆 Top 10 this week win 25 🎫 Orange Tickets!</div>';
         if (_lbPeriod === 'monthly') html += '<div style="text-align:center;padding:8px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;margin:0 12px 10px;font-size:0.72rem;color:var(--accent);font-weight:700;">🏆 Top 10 this month win 100 🏟️ Orange Tickets!</div>';
-        html += '<div class="lb-search-wrap"><input id="lbSearchInput" type="text" placeholder="🔍 Search username..." oninput="lbSearchUser(this.value)" autocomplete="off" autocorrect="off" spellcheck="false"></div>';
-        html += '<div id="lbSearchResult"></div>';
+        html += _lbRankBox('xp');
         html += '<div class="lb-list" id="lbXpList">';
         html += _lbXpRowsHtml(allUsers, _lbPeriod);
         html += '</div>';
@@ -6977,6 +6973,7 @@ async function toggleLeaderboard() {
         _loadQuestLeaderboard();
         _loadPredictorLeaderboard();
         _loadPVPLeaderboard();
+        _lbRankReplayAll();
         if (_lbCachedDoc && !_lbFresh) {
             var _lbPaintPeriod = _lbPeriod;
             _lbSnapFetch(_lbSpec.key).then(function (next) {
@@ -7169,7 +7166,7 @@ function _renderPredictorBoard() {
         var active = period === p[0];
         html += '<button type="button" onclick="_predLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
     });
-    html += '</div><div id="predictorLeaderboardList">';
+    html += '</div>' + _lbRankBox('predict') + '<div id="predictorLeaderboardList">';
     if (!rows.length) {
         html += '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No Questers have qualified yet.</div>';
     } else {
@@ -7207,6 +7204,7 @@ function _renderPredictorBoard() {
     html += '</div><p id="predLbProgress" style="margin:8px 0 0;font-size:0.75rem;line-height:1.4;color:var(--text-muted);"></p>';
     root.innerHTML = html;
     if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(root);
+    if (typeof _lbRankReplay === 'function') _lbRankReplay('predict');
     _predLbBindInfo();
     var tip = document.getElementById('predLbTip');
     if (tip && !tip.hidden) tip.textContent = _predLbInfoText(period);
@@ -7275,7 +7273,7 @@ function _renderStreakBoard() {
         var active = period === p[0];
         html += '<button type="button" onclick="_streakLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;min-width:0;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
     });
-    html += '</div><div id="streakLeaderboardList">';
+    html += '</div>' + _lbRankBox('streak') + '<div id="streakLeaderboardList">';
     if (!rows.length) {
         html += '<div class="streak-lb-empty">' + (period === 'current' ? 'No streaks still going.' : 'No streaks yet.') + '</div>';
     } else {
@@ -7306,6 +7304,7 @@ function _renderStreakBoard() {
     html += '</div>';
     root.innerHTML = html;
     if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(root);
+    if (typeof _lbRankReplay === 'function') _lbRankReplay('streak');
 }
 
 function _streakLbSwitchPeriod(period) {
@@ -7380,7 +7379,7 @@ function _renderQuestBoard() {
         var active = period === p[0];
         html += '<button type="button" onclick="_questLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;min-width:0;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
     });
-    html += '</div><div id="questLeaderboardList">';
+    html += '</div>' + _lbRankBox('quest') + '<div id="questLeaderboardList">';
     if (!rows.length) {
         html += '<div class="quest-lb-empty">Nobody has qualified yet.</div>';
     } else {
@@ -7413,6 +7412,7 @@ function _renderQuestBoard() {
     html += '</div>';
     root.innerHTML = html;
     if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(root);
+    if (typeof _lbRankReplay === 'function') _lbRankReplay('quest');
 }
 
 function _questLbSwitchPeriod(period) {
