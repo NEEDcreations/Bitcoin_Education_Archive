@@ -701,7 +701,7 @@ async function main() {
         assert.ok(ranking.indexOf("_lbRankBox('" + board + "')") !== -1, board);
     });
     assert.ok(ranking.indexOf('Find me') !== -1);
-    assert.ok(read('sw.js').indexOf("const CACHE_NAME = 'btc-archive-v2445'") !== -1);
+    assert.ok(read('sw.js').indexOf("const CACHE_NAME = 'btc-archive-v2446'") !== -1);
     assert.strictEqual(read('index.html'), read('404.html'));
 
     const ordered = questBoard.selectBoard([
