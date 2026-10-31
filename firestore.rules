@@ -119,7 +119,7 @@ service cloud.firestore {
         'spinClosetAwards', 'tipsVerified', 'tipsSentSats', 'tipsReceived',
         'raidDamageAllTime', 'raidBossesDefeated', 'raidWins', 'streakFreezesUsed',
         'giftsOpened', 'giftShoutoutWon', 'keyPeersDistinct', 'peerKeyCiphers',
-        'cipherFullRing', 'cipherSatsPaid', 'cipherBiggestWin', 'peerBestLevel', 'peersAtL3',
+        'cipherFullRing', 'cipherSatsPaid', 'cipherBiggestWin', 'cipherSatsBalance', 'peerBestLevel', 'peersAtL3',
         'topicComments', 'topicChannelsCommented', 'topicChannelCounts',
         'shopPurchases', 'raffleTicketsBought', 'raffleEntered', 'raffleWins',
         'predTopWeeks', 'predTopMonths', 'pushEnabled',
@@ -201,7 +201,7 @@ service cloud.firestore {
           || changed.hasAny([
                         // Core economy
                         'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
-                        'sats', 'satsEarned', 'satsWithdrawn', 'satsDisabled',
+                        'sats', 'satsEarned', 'satsWithdrawn', 'satsDisabled', 'cipherSatsBalance',
                         'orangeTickets', 'tickets',
                         // Timechain TV daily watch (tctvWatchHeartbeat only)
                         'tctvWatchSeconds', 'tctvWatchDay', 'tctvWatchLastCredit',
@@ -2335,6 +2335,32 @@ service cloud.firestore {
     // cannot mark a share paid or revealed, and cannot invent a sender.
     match /cipher_shares/{shareId} {
       allow read, write: if false;
+    }
+
+    // Cipher sats balance credits, claims, and payout audit. Admin SDK only.
+    // The balance itself lives on users/{uid}.cipherSatsBalance and is in the
+    // server-only denylist above. Clients cannot write any of these.
+    match /cipher_sats_credits/{docId} {
+      allow read, write: if false;
+    }
+    match /cipher_sats_locks/{docId} {
+      allow read, write: if false;
+    }
+    match /cipher_sats_player_daily/{docId} {
+      allow read, write: if false;
+    }
+    match /cipher_sats_site_daily/{docId} {
+      allow read, write: if false;
+    }
+    match /cipher_sats_payouts/{docId} {
+      allow read, write: if false;
+    }
+    match /cipher_sats_invoices/{docId} {
+      allow read, write: if false;
+    }
+    match /cipher_sats_config/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // =============================================

@@ -1,36 +1,52 @@
 'use strict';
 
-// Cipher-open rewards. One crypto-secure roll per open (0..999,999).
+// Cipher-open rewards. One crypto-secure roll per open (0..9,999,999).
 // Sats tiers are disjoint so the stated odds are exact and a single open
 // can pay at most one sats amount. Anything else is XP plus tickets.
 //
-//   roll 0                 1/1,000,000 → 100,000 sats
-//   roll 1–2               1/500,000   → 50,000
-//   roll 3–12              1/100,000   → 10,000
-//   roll 13–32             1/50,000    → 5,000
-//   roll 33–132            1/10,000    → 1,000
-//   roll 133–332           1/5,000     → 500
-//   roll 333–1,332         1/1,000     → 100
-//   roll 1,333–999,999     otherwise   → XP 50–250 and tickets 0–10
+//   roll 0                         1/10,000,000 → 100,000 sats
+//   roll 1–10                      1/1,000,000  → 50,000
+//   roll 11–30                     1/500,000    → 10,000
+//   roll 31–130                    1/100,000    → 5,000
+//   roll 131–330                   1/50,000     → 1,000
+//   roll 331–1,330                 1/10,000     → 500
+//   roll 1,331–3,330               1/5,000      → 100
+//   roll 3,331–13,330              1/1,000      → 50
+//   roll 13,331–113,330            1/100        → 25
+//   roll 113,331–313,330           1/50         → 10
+//   roll 313,331–1,313,330         1/10         → 5
+//   roll 1,313,331–9,999,999       otherwise    → XP 50–250 and tickets 0–10
 
 const crypto = require('crypto');
 
-const ROLL_SPACE = 1000000;
+const ROLL_SPACE = 10000000;
+// Under 1,000 sats credit cipherSatsBalance. 1,000 and above stay manual.
+const BALANCE_UNDER = 1000;
 
 const SATS_TIERS = [
-    { amount: 100000, odds: 1000000 },
-    { amount: 50000,  odds: 500000 },
-    { amount: 10000,  odds: 100000 },
-    { amount: 5000,   odds: 50000 },
-    { amount: 1000,   odds: 10000 },
-    { amount: 500,    odds: 5000 },
-    { amount: 100,    odds: 1000 },
+    { amount: 100000, odds: 10000000 },
+    { amount: 50000,  odds: 1000000 },
+    { amount: 10000,  odds: 500000 },
+    { amount: 5000,   odds: 100000 },
+    { amount: 1000,   odds: 50000 },
+    { amount: 500,    odds: 10000 },
+    { amount: 100,    odds: 5000 },
+    { amount: 50,     odds: 1000 },
+    { amount: 25,     odds: 100 },
+    { amount: 10,     odds: 50 },
+    { amount: 5,      odds: 10 },
 ];
 
-const AUTO_PAY_MAX = 999; // under 1,000 sats pay from the faucet; 1,000+ are manual
+const ALLOWED_SATS_AMOUNTS = SATS_TIERS.map(function(tier) { return tier.amount; });
 
 function slotsFor(odds) {
     return ROLL_SPACE / odds;
+}
+
+function satsDisposition(amount) {
+    const n = Math.floor(Number(amount));
+    if (ALLOWED_SATS_AMOUNTS.indexOf(n) === -1) return 'invalid';
+    return n >= BALANCE_UNDER ? 'manual' : 'balance';
 }
 
 function rollCipherReward(forcedRoll) {
@@ -58,7 +74,11 @@ function rollCipherReward(forcedRoll) {
 
 module.exports = {
     ROLL_SPACE: ROLL_SPACE,
+    BALANCE_UNDER: BALANCE_UNDER,
     SATS_TIERS: SATS_TIERS,
-    AUTO_PAY_MAX: AUTO_PAY_MAX,
+    ALLOWED_SATS_AMOUNTS: ALLOWED_SATS_AMOUNTS,
+    AUTO_PAY_MAX: BALANCE_UNDER - 1,
+    slotsFor: slotsFor,
+    satsDisposition: satsDisposition,
     rollCipherReward: rollCipherReward,
 };

@@ -7,6 +7,7 @@
 const { planXpGrant } = require('./grantXp');
 const { createdMs, samePerson } = require('./badgeProgress');
 const { assessCipherClaim } = require('./cipherClaim');
+const { satsDisposition } = require('./cipherReward');
 
 const CIPHER_OPENS_PER_DAY = 21;
 const SHARE_MIN_AGE_MS = 3 * 24 * 60 * 60 * 1000;
@@ -187,7 +188,7 @@ function planCipherShare(input) {
     credit.fullRing = credit.opensToday >= CIPHER_OPENS_PER_DAY;
     if (prize.rewardType === 'sats') {
         credit.sats = prize.satsAmount;
-        credit.satsStatus = prize.satsAmount >= SATS_PENDING_MIN ? 'pending' : 'claimable';
+        credit.satsStatus = satsDisposition(prize.satsAmount) === 'balance' ? 'balance' : 'pending';
     } else {
         const tapered = planXpGrant({
             base: prize.xpAmount,
@@ -203,7 +204,10 @@ function planCipherShare(input) {
         credit.tickets = prize.ticketCount;
     }
     const name = String(src.openerUsername || 'a Bitcoiner').replace(/[\r\n<>]/g, ' ').trim().slice(0, 40) || 'a Bitcoiner';
-    const message = ('Your key opened @' + name + "'s cipher. You both won " + prizeText(prize) + '!').slice(0, 180);
+    let message = ('Your key opened @' + name + "'s cipher. You both won " + prizeText(prize) + '!').slice(0, 180);
+    if (credit.satsStatus === 'balance') {
+        message = ('Your key opened @' + name + "'s cipher. +" + credit.sats.toLocaleString('en-US') + ' sats added to your cipher balance.').slice(0, 180);
+    }
     base.pay = true;
     base.reason = 'ok';
     base.credit = credit;
@@ -262,7 +266,10 @@ function applyCipherShare(books, input) {
     if (plan.credit.fullRing) user.cipherFullRing = true;
     next.users[uid] = user;
     if (plan.credit.xp > 0) next.daily[uid] = plan.credit.dailyXp;
-    if (plan.credit.sats > 0) {
+    if (plan.credit.sats > 0 && plan.credit.satsStatus === 'balance') {
+        user.cipherSatsBalance = (Number(user.cipherSatsBalance) || 0) + plan.credit.sats;
+        next.users[uid] = user;
+    } else if (plan.credit.sats > 0) {
         next.wins.push({
             uid: uid,
             amount: plan.credit.sats,

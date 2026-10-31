@@ -45,6 +45,7 @@ const TESTS = [
     { name: 'Daily spin timing', file: 'test-spin-timing.js' },
     { name: 'Gift modal stacking', file: 'test-modal-stack.js' },
     { name: 'Cipher Reward Odds', file: 'test-cipher-reward.js' },
+    { name: 'Cipher sats balance claim', file: 'test-cipher-sats-claim.js' },
     { name: 'Cipher Claim Safety', file: 'test-cipher-claim.js' },
     { name: 'Cipher share rewards', file: 'test-cipher-share.js' },
     { name: 'Nacho Shoutout', file: 'test-shoutout.js' },
