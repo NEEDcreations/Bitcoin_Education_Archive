@@ -4,7 +4,7 @@
  * Routes:
  *   /channels/{id} → serves pre-rendered HTML for bots, SPA for humans
  *   /app/{page}    → serves pre-rendered HTML for bots, SPA for humans
- *   Everything else → passes through to origin (GitHub Pages)
+ *   Everything else → passes through to origin (Cloudflare Pages)
  *
  * Security:
  *   - Generates a unique nonce per request
@@ -22,7 +22,10 @@
 const BOT_UA = /googlebot|bingbot|yandex|baiduspider|duckduckbot|slurp|facebot|facebookexternalhit|twitterbot|linkedinbot|telegrambot|discordbot|whatsapp|ia_archiver|archive\.org_bot|applebot|semrushbot|ahrefsbot|mj12bot|dotbot|petalbot|rogerbot|sogou|exabot|swiftbot/i;
 
 const PRIMARY_ORIGIN = 'https://bitcoineducation.quest';
-const CHANNEL_INDEX_URL = PRIMARY_ORIGIN + '/channel_index.js';
+// Pages hosts the static site. The custom domain is this worker, so the
+// channel index and pass-through fetches must not go back through PRIMARY_ORIGIN.
+const PAGES_ORIGIN = 'https://bitcoin-quest.pages.dev';
+const CHANNEL_INDEX_URL = PAGES_ORIGIN + '/channel_index.js';
 
 function getOrigin(request) {
     return new URL(request.url).origin;
@@ -414,6 +417,39 @@ function renderAchievementPage(type, origin, ref) {
 </html>`;
 }
 
+// ─── Cloudflare Pages origin ─────────────────────────────────────────────────
+// Isolated from referral handling. Matches live seo-router 591bd32b:
+// strip GitHub-style .html paths, fetch Pages directly, follow same-origin
+// .html redirects, and rewrite other Pages redirects back to this host.
+
+function pagesPath(path) {
+    if (path.endsWith('/index.html')) return path.slice(0, -10);
+    if (path.endsWith('.html')) return path.slice(0, -5);
+    return path;
+}
+
+async function fetchOrigin(request, url) {
+    const target = PAGES_ORIGIN + pagesPath(url.pathname) + url.search;
+    let resp = await fetch(new Request(target, request), { redirect: 'manual' });
+    for (let i = 0; i < 3 && resp.status >= 300 && resp.status < 400; i++) {
+        const loc = resp.headers.get('location');
+        if (!loc) break;
+        const next = new URL(loc, target);
+        if (next.origin !== PAGES_ORIGIN) break;
+        if (url.pathname.endsWith('.html')) {
+            resp = await fetch(new Request(next.toString(), request), { redirect: 'manual' });
+            continue;
+        }
+        const headers = new Headers(resp.headers);
+        headers.set('location', url.origin + next.pathname + next.search + next.hash);
+        headers.delete('x-robots-tag');
+        return new Response(resp.body, { status: resp.status, statusText: resp.statusText, headers });
+    }
+    const headers = new Headers(resp.headers);
+    headers.delete('x-robots-tag');
+    return new Response(resp.body, { status: resp.status, statusText: resp.statusText, headers });
+}
+
 // ─── Main Handler ─────────────────────────────────────────────────────────────
 
 export default {
@@ -537,8 +573,8 @@ export default {
             }
         }
 
-        // Pass-through: fetch from origin, inject security headers + nonce into HTML
-        const resp = await fetch(request);
+        // Pass-through: fetch from Cloudflare Pages, inject security headers + nonce into HTML
+        const resp = await fetchOrigin(request, url);
         const ct   = resp.headers.get('content-type') || '';
         if (ct.includes('text/html')) {
             return applySecurityHeaders(resp, nonce, ref);
