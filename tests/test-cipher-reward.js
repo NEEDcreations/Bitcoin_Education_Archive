@@ -60,11 +60,12 @@ test('exhaustive slot counts match the stated odds and do not overlap', () => {
         5000: 100,
         1000: 200,
         500: 1000,
-        100: 2000,
-        50: 10000,
-        25: 100000,
-        10: 200000,
-        5: 1000000,
+        250: 2000,
+        100: 10000,
+        50: 100000,
+        25: 200000,
+        10: 1000000,
+        5: 2000000,
     };
     const counts = {};
     let cursor = 0;
@@ -88,7 +89,7 @@ test('exhaustive slot counts match the stated odds and do not overlap', () => {
         assert.strictEqual(counts[tier.amount], expected[tier.amount]);
         total += counts[tier.amount];
     });
-    assert.strictEqual(total, 1313331);
+    assert.strictEqual(total, 3313331);
     assert.strictEqual(cursor, total);
     assert.ok(cursor < ROLL_SPACE);
     assert.strictEqual(rollCipherReward(cursor).rewardType, 'xp_tickets');
