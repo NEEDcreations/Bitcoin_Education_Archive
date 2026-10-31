@@ -78,17 +78,20 @@ function pushSpec(coll, fields) {
 
 [
     ['passes', 'attempts'],
-    ['passes', 'passedAttempts', 'attempts'],
-    ['passes', 'passedAttempts', 'attempts', 'reachedAt'],
-    ['passes', 'passedAttempts', 'attempts', 'reachedAt', '__name__'],
+    ['passes', 'passRate', 'attempts'],
+    ['passes', 'passRate', 'reachedSort', 'attempts'],
+    ['passes', 'passRate', 'reachedSort', 'nameKey', 'attempts'],
+    ['passes', 'passRate', 'reachedSort', 'nameKey', 'attempts', '__name__'],
     ['weekKey', 'weekPasses', 'weekAttempts'],
-    ['weekKey', 'weekPasses', 'weekPassedAttempts', 'weekAttempts'],
-    ['weekKey', 'weekPasses', 'weekPassedAttempts', 'weekAttempts', 'weekReachedAt'],
-    ['weekKey', 'weekPasses', 'weekPassedAttempts', 'weekAttempts', 'weekReachedAt', '__name__'],
+    ['weekKey', 'weekPasses', 'weekPassRate', 'weekAttempts'],
+    ['weekKey', 'weekPasses', 'weekPassRate', 'weekReachedSort', 'weekAttempts'],
+    ['weekKey', 'weekPasses', 'weekPassRate', 'weekReachedSort', 'nameKey', 'weekAttempts'],
+    ['weekKey', 'weekPasses', 'weekPassRate', 'weekReachedSort', 'nameKey', 'weekAttempts', '__name__'],
     ['monthKey', 'monthPasses', 'monthAttempts'],
-    ['monthKey', 'monthPasses', 'monthPassedAttempts', 'monthAttempts'],
-    ['monthKey', 'monthPasses', 'monthPassedAttempts', 'monthAttempts', 'monthReachedAt'],
-    ['monthKey', 'monthPasses', 'monthPassedAttempts', 'monthAttempts', 'monthReachedAt', '__name__']
+    ['monthKey', 'monthPasses', 'monthPassRate', 'monthAttempts'],
+    ['monthKey', 'monthPasses', 'monthPassRate', 'monthReachedSort', 'monthAttempts'],
+    ['monthKey', 'monthPasses', 'monthPassRate', 'monthReachedSort', 'nameKey', 'monthAttempts'],
+    ['monthKey', 'monthPasses', 'monthPassRate', 'monthReachedSort', 'nameKey', 'monthAttempts', '__name__']
 ].forEach(function (fields) { pushSpec('quest_lb_stats', fields); });
 
 [
@@ -112,16 +115,21 @@ function pushSpec(coll, fields) {
     ['streak', 'bestStreak'],
     ['bestStreak', 'bestStreakAt', 'streak'],
     ['streak', 'bestStreak', 'bestStreakAt'],
-    ['bestStreak', 'streak', 'username_lower'],
-    ['bestStreak', 'bestStreakAt', 'streak', 'username_lower'],
-    ['bestStreak', 'bestStreakAt', 'username_lower', 'streak', '__name__'],
+    ['bestStreak', 'streak', 'nameKey'],
+    ['bestStreak', 'nameKey', 'streak', '__name__'],
+    ['streak', 'bestStreak', 'nameKey'],
+    ['bestStreak', 'bestStreakAt', 'streak', 'nameKey'],
+    ['bestStreak', 'bestStreakAt', 'nameKey', 'streak', '__name__'],
+    ['streak', 'bestStreak', 'bestStreakAt', 'nameKey'],
     ['lastVisit', 'streak'],
+    ['lastVisit', 'streak', 'nameKey'],
     ['lastVisit', 'streak', 'streakFreezes'],
     ['lastVisit', 'streak', 'streakReachedAt'],
     ['lastVisit', 'streak', 'streakFreezes', 'streakReachedAt'],
-    ['lastVisit', 'streak', 'streakReachedAt', 'username_lower'],
-    ['lastVisit', 'streak', 'streakReachedAt', 'username_lower', '__name__'],
-    ['lastVisit', 'streak', 'streakFreezes', 'streakReachedAt', 'username_lower']
+    ['lastVisit', 'streak', 'streakReachedAt', 'nameKey'],
+    ['lastVisit', 'streak', 'streakReachedAt', 'nameKey', '__name__'],
+    ['lastVisit', 'streak', 'streakReachedAt', 'streakFreezes', 'nameKey'],
+    ['lastVisit', 'streak', 'streakFreezes', 'nameKey']
 ].forEach(function (fields) { pushSpec('users', fields); });
 
 function whole(value) {
@@ -445,65 +453,46 @@ function questFields(period, nowMs) {
         return {
             key: ['weekKey', '==', questBoard.weekKey(nowMs)],
             passes: 'weekPasses',
-            passed: 'weekPassedAttempts',
             attempts: 'weekAttempts',
-            reached: 'weekReachedAt'
+            rate: 'weekPassRate',
+            reached: 'weekReachedSort'
         };
     }
     if (period === 'month') {
         return {
             key: ['monthKey', '==', questBoard.monthKey(nowMs)],
             passes: 'monthPasses',
-            passed: 'monthPassedAttempts',
             attempts: 'monthAttempts',
-            reached: 'monthReachedAt'
+            rate: 'monthPassRate',
+            reached: 'monthReachedSort'
         };
     }
-    return { key: null, passes: 'passes', passed: 'passedAttempts', attempts: 'attempts', reached: 'reachedAt' };
+    return { key: null, passes: 'passes', attempts: 'attempts', rate: 'passRate', reached: 'reachedSort' };
 }
 
 function keyed(fields, clauses) {
     return fields.key ? [fields.key].concat(clauses) : clauses;
 }
 
-// Same passes, then a better pass rate, then an earlier reachedAt, then uid.
-// A better rate is a count: the same number of successful attempts in fewer
-// tries, or more successful attempts without more tries. Ghosts are removed
-// with a second count on ghostMode, not by reading their docs.
+// Board order: more passes, higher passRate, earlier reachedSort, nameKey, uid.
+// A missing reached time is the same large sentinel the board sorts last.
 function questTieGroups(fields, view, min, uid) {
     const passes = whole(view.passes);
-    const passed = whole(view.passedAttempts);
-    const attempts = whole(view.attempts);
-    const reached = whole(view.reachedAt);
-    const groups = [
-        keyed(fields, [[fields.passes, '>', passes], [fields.attempts, '>=', min]])
-    ];
-    if (attempts > min) {
-        groups.push(keyed(fields, [
-            [fields.passes, '==', passes],
-            [fields.passed, '==', passed],
-            [fields.attempts, '>=', min],
-            [fields.attempts, '<', attempts]
-        ]));
-    }
-    groups.push(keyed(fields, [
+    const rate = Number(view.passRate) || 0;
+    const reached = Number(view.reachedSort) || questBoard.REACHED_UNKNOWN;
+    const name = view.nameKey || '';
+    const same = [
         [fields.passes, '==', passes],
-        [fields.passed, '>', passed],
-        [fields.attempts, '>=', min],
-        [fields.attempts, '<=', attempts]
-    ]));
-    const sameRate = [
-        [fields.passes, '==', passes],
-        [fields.passed, '==', passed],
-        [fields.attempts, '==', attempts]
+        [fields.rate, '==', rate],
+        [fields.reached, '==', reached]
     ];
-    if (reached > 0) {
-        groups.push(keyed(fields, sameRate.concat([[fields.reached, '>', 0], [fields.reached, '<', reached]])));
-        groups.push(keyed(fields, sameRate.concat([[fields.reached, '==', reached], ['__name__', '<', uid]])));
-    } else {
-        groups.push(keyed(fields, sameRate.concat([[fields.reached, '>', 0]])));
-    }
-    return groups;
+    return [
+        keyed(fields, [[fields.passes, '>', passes], [fields.attempts, '>=', min]]),
+        keyed(fields, [[fields.passes, '==', passes], [fields.rate, '>', rate], [fields.attempts, '>=', min]]),
+        keyed(fields, [[fields.passes, '==', passes], [fields.rate, '==', rate], [fields.reached, '<', reached], [fields.attempts, '>=', min]]),
+        keyed(fields, same.concat([['nameKey', '<', name], [fields.attempts, '>=', min]])),
+        keyed(fields, same.concat([['nameKey', '==', name], [fields.attempts, '>=', min], ['__name__', '<', uid]]))
+    ];
 }
 
 async function rankQuest(db, player, period, nowMs, docId) {
@@ -623,18 +612,33 @@ function reachedMs(value) {
     return n > 0 ? n : 0;
 }
 
-function streakTimeGroups(prefix, timeField, time, lower, uid, tail) {
+// A missing reached time is stored as 0. The board ignores time unless both
+// players have one, then falls through to nameKey and uid.
+function streakTimeGroups(prefix, timeField, time, name, uid, tail) {
     const rest = tail || [];
     const groups = [];
+    function named(when) {
+        if (!name) return;
+        if (rest.length) {
+            groups.push(prefix.concat([[timeField, '==', when]]).concat(rest).concat([['nameKey', '<', name]]));
+            groups.push(prefix.concat([[timeField, '==', when], ['nameKey', '==', name]]).concat(rest).concat([['__name__', '<', uid]]));
+        } else {
+            groups.push(prefix.concat([[timeField, '==', when], ['nameKey', '<', name]]));
+            groups.push(prefix.concat([[timeField, '==', when], ['nameKey', '==', name], ['__name__', '<', uid]]));
+        }
+    }
     if (time > 0) {
         groups.push(prefix.concat(rest).concat([[timeField, '>', 0], [timeField, '<', time]]));
-        if (lower && !rest.length) {
-            groups.push(prefix.concat([[timeField, '==', time], ['username_lower', '<', lower]]));
-            groups.push(prefix.concat([[timeField, '==', time], ['username_lower', '==', lower], ['__name__', '<', uid]]));
+        named(0);
+        named(time);
+    } else if (name) {
+        if (rest.length) {
+            groups.push(prefix.concat(rest).concat([['nameKey', '<', name]]));
+            groups.push(prefix.concat([['nameKey', '==', name]]).concat(rest).concat([['__name__', '<', uid]]));
+        } else {
+            groups.push(prefix.concat([['nameKey', '<', name]]));
+            groups.push(prefix.concat([['nameKey', '==', name], ['__name__', '<', uid]]));
         }
-    } else if (lower && !rest.length) {
-        groups.push(prefix.concat([['username_lower', '<', lower]]));
-        groups.push(prefix.concat([['username_lower', '==', lower], ['__name__', '<', uid]]));
     }
     return groups;
 }
@@ -644,7 +648,7 @@ async function rankStreak(db, player, period, nowMs, docId) {
     const today = offsetDateKey(nowMs);
     const shown = displayName(player.username || user.username);
     const coll = db.collection('users');
-    const lower = player.usernameLower || nameLower(user);
+    const lower = user.nameKey || questBoard.nameKeyOf(user.username || player.username);
     if (period === 'current') {
         const value = streakBoard.currentStreak(user, today);
         if (value <= 0) {
@@ -697,23 +701,53 @@ async function rankStreak(db, player, period, nowMs, docId) {
         if (lower) {
             groups.push([
                 ['bestStreak', '==', value],
-                ['bestStreakAt', '==', time],
+                ['bestStreakAt', '==', 0],
                 ['streak', '<=', value],
-                ['username_lower', '<', lower]
+                ['nameKey', '<', lower]
+            ]);
+            groups.push([
+                ['bestStreak', '==', value],
+                ['bestStreakAt', '==', 0],
+                ['nameKey', '==', lower],
+                ['streak', '<=', value],
+                ['__name__', '<', player.uid]
             ]);
             groups.push([
                 ['bestStreak', '==', value],
                 ['bestStreakAt', '==', time],
-                ['username_lower', '==', lower],
+                ['streak', '<=', value],
+                ['nameKey', '<', lower]
+            ]);
+            groups.push([
+                ['bestStreak', '==', value],
+                ['bestStreakAt', '==', time],
+                ['nameKey', '==', lower],
                 ['streak', '<=', value],
                 ['__name__', '<', player.uid]
+            ]);
+            groups.push([
+                ['streak', '==', value],
+                ['bestStreak', '<', value],
+                ['bestStreakAt', '==', 0],
+                ['nameKey', '<', lower]
             ]);
         }
     } else if (lower) {
         groups.push([
             ['bestStreak', '==', value],
             ['streak', '<=', value],
-            ['username_lower', '<', lower]
+            ['nameKey', '<', lower]
+        ]);
+        groups.push([
+            ['bestStreak', '==', value],
+            ['nameKey', '==', lower],
+            ['streak', '<=', value],
+            ['__name__', '<', player.uid]
+        ]);
+        groups.push([
+            ['streak', '==', value],
+            ['bestStreak', '<', value],
+            ['nameKey', '<', lower]
         ]);
     }
     const parts = await Promise.all([

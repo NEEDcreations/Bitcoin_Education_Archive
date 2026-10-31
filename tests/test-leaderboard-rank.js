@@ -273,12 +273,11 @@ async function main() {
             username_lower: name.toLowerCase(),
             ghostMode: ghost === true
         };
-        questSeed['quest_lb_stats/' + id] = {
+        const stats = {
             passes: passes,
             attempts: attempts,
             passedAttempts: passes,
             reachedAt: reached,
-            ghostMode: ghost === true,
             weekKey: weekKey,
             weekPasses: passes,
             weekAttempts: attempts,
@@ -290,6 +289,10 @@ async function main() {
             monthPassedAttempts: passes,
             monthReachedAt: reached
         };
+        questBoard.stampSortKeys(stats, name);
+        stats.ghostMode = ghost === true;
+        questSeed['quest_lb_stats/' + id] = stats;
+        questSeed['users/' + id] = { username: name, nameKey: questBoard.nameKeyOf(name), ghostMode: ghost === true };
     }
     questPlayer('q1', 'QuestAda', 4, 8, 3000, false);
     questPlayer('q2', 'QuestBo', 4, 4, 2000, false);
@@ -494,6 +497,91 @@ async function main() {
         signedOut = err;
     }
     assert.strictEqual(signedOut.code, 'unauthenticated');
+
+    const tieSeed = {};
+    function tieQuest(id, name, passes, attempts, passed, ghost) {
+        tieSeed['public_profiles/' + id] = {
+            username: name,
+            username_lower: name.toLowerCase(),
+            ghostMode: ghost === true
+        };
+        const stats = {
+            passes: passes,
+            attempts: attempts,
+            passedAttempts: passed,
+            reachedAt: 0,
+            weekKey: questBoard.weekKey(NOW),
+            weekPasses: passes,
+            weekAttempts: attempts,
+            weekPassedAttempts: passed,
+            weekReachedAt: 0,
+            monthKey: questBoard.monthKey(NOW),
+            monthPasses: passes,
+            monthAttempts: attempts,
+            monthPassedAttempts: passed,
+            monthReachedAt: 0
+        };
+        questBoard.stampSortKeys(stats, name);
+        stats.ghostMode = ghost === true;
+        tieSeed['quest_lb_stats/' + id] = stats;
+    }
+    tieQuest('low', 'FiveSeven', 5, 7, 5, false);
+    tieQuest('high', 'SixEight', 5, 8, 6, false);
+    tieQuest('sur', 'Suraz2', 3, 5, 3, false);
+    tieQuest('yuv', 'Yuv_s', 3, 5, 3, false);
+    tieQuest('g', 'AaaGhost', 3, 5, 3, true);
+    const tieDb = memoryDb(tieSeed);
+    const six = await call(tieDb, 'low', { board: 'quest', period: 'alltime', username: 'SixEight' });
+    const five = await call(tieDb, 'low', { board: 'quest', period: 'alltime', username: 'FiveSeven' });
+    const sur = await call(tieDb, 'low', { board: 'quest', period: 'alltime', username: 'Suraz2' });
+    const yuv = await call(tieDb, 'low', { board: 'quest', period: 'alltime', username: 'Yuv_s' });
+    const hiddenName = await call(tieDb, 'low', { board: 'quest', period: 'alltime', username: 'AaaGhost' });
+    assert.strictEqual(hiddenName.status, 'not_found');
+    assert.ok(six.rank < five.rank, '6/8 outranks 5/7');
+    assert.ok(questBoard.passRateOf(6, 8) > questBoard.passRateOf(5, 7));
+    assert.ok(sur.rank < yuv.rank, 'name tiebreak');
+    const boardOrder = questBoard.selectBoard([
+        { uid: 'low', username: 'FiveSeven', passes: 5, attempts: 7, passedAttempts: 5, reachedAt: 0 },
+        { uid: 'high', username: 'SixEight', passes: 5, attempts: 8, passedAttempts: 6, reachedAt: 0 },
+        { uid: 'sur', username: 'Suraz2', passes: 3, attempts: 5, passedAttempts: 3, reachedAt: 0 },
+        { uid: 'yuv', username: 'Yuv_s', passes: 3, attempts: 5, passedAttempts: 3, reachedAt: 0 },
+        { uid: 'g', username: 'AaaGhost', ghostMode: true, passes: 3, attempts: 5, passedAttempts: 3, reachedAt: 0 }
+    ], 'alltime').map(function (row) { return row.username; });
+    assert.deepStrictEqual(boardOrder, ['SixEight', 'FiveSeven', 'Suraz2', 'Yuv_s']);
+    assert.deepStrictEqual([six.rank, five.rank, sur.rank, yuv.rank], [1, 2, 3, 4]);
+
+    const streakTie = {};
+    const tieDay = offsetDateKey(NOW);
+    function tieStreak(id, name, ghost) {
+        streakTie['users/' + id] = {
+            username: name,
+            nameKey: questBoard.nameKeyOf(name),
+            streak: 4,
+            bestStreak: 4,
+            lastVisit: tieDay,
+            streakReachedAt: 0,
+            bestStreakAt: 0,
+            ghostMode: ghost === true
+        };
+        streakTie['public_profiles/' + id] = {
+            username: name,
+            username_lower: name.toLowerCase(),
+            ghostMode: ghost === true
+        };
+    }
+    tieStreak('azi', 'Azi_Za', false);
+    tieStreak('astro', 'AstroFounder32', false);
+    tieStreak('gg', 'Aaa', true);
+    const streakTieDb = memoryDb(streakTie);
+    const astro = await call(streakTieDb, 'azi', { board: 'streak', period: 'current', username: 'AstroFounder32' });
+    const azi = await call(streakTieDb, 'azi', { board: 'streak', period: 'current', username: 'Azi_Za' });
+    const streakNames = streakBoard.selectBoard([
+        { uid: 'azi', username: 'Azi_Za', current: 4, streakReachedAt: 0, ghostMode: false },
+        { uid: 'astro', username: 'AstroFounder32', current: 4, streakReachedAt: 0, ghostMode: false },
+        { uid: 'gg', username: 'Aaa', current: 4, streakReachedAt: 0, ghostMode: true }
+    ], 'current').map(function (row) { return row.username; });
+    assert.deepStrictEqual(streakNames, ['AstroFounder32', 'Azi_Za']);
+    assert.deepStrictEqual([astro.rank, azi.rank], [1, 2]);
 
     const indexes = JSON.parse(read('firestore.indexes.json'));
     rank.INDEX_SPECS.forEach(function (spec) {

@@ -45,6 +45,7 @@ const streakBoard = require('./src/streakBoard');
 const questBoard = require('./src/questBoard');
 const lbPrizes = require('./src/lbPrizes');
 const boardSnapshots = require('./src/boardSnapshots');
+const leaderboardIdentity = require('./src/leaderboardIdentity');
 const leaderboardRank = require('./src/leaderboardRank');
 // Daily key with 5-hour UTC offset — matches client getDailyKey() (resets at 5 AM UTC)
 // Prevents server/client day mismatch that lets users double-complete daily challenges
@@ -5269,6 +5270,11 @@ exports.syncPublicProfile = onDocumentWritten('users/{uid}', async (event) => {
             await pubRef.set(pub, { merge: false });
             const beforeData = change.before && change.before.exists ? (change.before.data() || {}) : null;
             await stampLeaderboardDirty(beforeData, data);
+            try {
+                await leaderboardIdentity.syncBoardIdentity(db, uid, beforeData, data);
+            } catch (identityErr) {
+                console.error('[lb identity] stats sync failed');
+            }
         } catch(e) { console.error('[syncPublicProfile] write failed:', e); }
         return null;
     });
