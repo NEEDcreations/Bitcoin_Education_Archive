@@ -249,8 +249,10 @@ test('the link sheet keeps the sentence and still grants nothing', () => {
 test('a TCTV landing still stores the referral code for signup', () => {
     assert.ok(ticketsSrc.includes("localStorage.setItem('btc_referral_code', ref)"));
     assert.ok(ticketsSrc.includes('window.location.pathname + window.location.hash'));
-    const attach = ticketsSrc.slice(ticketsSrc.indexOf('async function attachReferral'), ticketsSrc.indexOf('async function attachReferral') + 900);
-    assert.ok(attach.includes("localStorage.getItem('btc_referral_code')"));
+    const attach = ticketsSrc.slice(ticketsSrc.indexOf('async function attachReferral'), ticketsSrc.indexOf('async function attachReferral') + 1200);
+    const reader = ticketsSrc.slice(ticketsSrc.indexOf('function storedReferralCode'), ticketsSrc.indexOf('function storedReferralCode') + 800);
+    assert.ok(attach.includes('storedReferralCode()'));
+    assert.ok(reader.includes("localStorage.getItem('btc_referral_code')"));
     assert.ok(attach.includes('registerReferral'));
     const landing = api.splitLanding('https://bitcoineducation.quest/?ref=abc12345#timechain-tv/health-fitness');
     assert.strictEqual(landing.ref, 'abc12345');
@@ -261,12 +263,12 @@ test('a TCTV landing still stores the referral code for signup', () => {
     assert.strictEqual(api.shareModel('chat', { code: CODE }).hash, 'chat');
 });
 
-test('pages ship the helper, one Latest line, and the v2448 cache', () => {
+test('pages ship the helper, one Latest line, and the v2451 cache', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
     assert.ok(html.includes('miniapp-share.js?v=20261031_v2447'));
     assert.ok(html.includes('achievement-share.js?v=20261031_v2447'));
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2448'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2451'"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Search any player on the XP, Daily Streaks, Quests and Top Predictors leaderboards and see their exact rank, even outside the top 25.'));

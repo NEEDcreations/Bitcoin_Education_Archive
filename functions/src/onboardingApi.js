@@ -473,6 +473,13 @@ function registerOnboarding(deps) {
             }
             return { ok: true, already: false, points: movedPoints, tickets: again.tickets };
         });
+        if (written && written.ok) {
+            try {
+                await require('./referralService').adoptGuestArrival(anonUid, uid);
+            } catch (arrivalErr) {
+                console.warn('[guest-link] arrival', arrivalErr && arrivalErr.message ? arrivalErr.message : arrivalErr);
+            }
+        }
         return {
             ok: !!written.ok,
             already: !!written.already,

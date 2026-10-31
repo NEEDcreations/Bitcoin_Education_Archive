@@ -51,7 +51,7 @@
     <p>An invite link can attach a referral to a new account: the code, who shared it, and whether it is still pending. At signup we keep a one-way, non-reversible fingerprint of your network address, kept 90 days, in a server-only <code>referral_signals</code> record. Other users cannot read it. Deleting the account deletes that record. The raw address is not stored in that referral record. A referral is paid only after the checks in the Terms, including account age, active days, and a verified sign-in. Each verified referral adds one to <code>referralCount</code> for the person who shared the link.</p>
 
     <h3>Referral tiers</h3>
-    <p>Badge tiers count verified referrals: friends whose referral was paid after they reached Maxi. The tiers are 1, 5, 10, 25, 50, and 100. The server grants those badges from <code>referralCount</code>. The invite card shows how many friends were invited and how many reached Maxi.</p>
+    <p>Badge tiers count verified referrals: friends whose referral was paid after they earned 2,140 points outside the Scholar exam. The tiers are 1, 5, 10, 25, 50, and 100. The server grants those badges from <code>referralCount</code>. The invite card shows how many friends were invited and how many earned those points.</p>
 
     <h3>Two-factor authentication</h3>
     <p>You can turn on an authenticator app. We store an encrypted TOTP secret on the account. After a successful code you can remember this browser for 30 days, counted from the day you checked the box. That record stores a hash of a random device token, a short browser and operating-system label, and the times it was added, last used, and when the 30 days end. It does not store an IP address. The token itself stays in this browser. Turning off two-factor authentication, using a recovery code, the in-app password reset, or an admin reset revokes every remembered device.</p>
@@ -392,7 +392,7 @@
     <ul>
         <li>Display your rank and username on the leaderboard</li>
         <li>Track your progress, points, streaks, badges, and ticket earnings</li>
-        <li>Process referrals and pay both sides 50 orange tickets when the referred friend reaches Maxi (2,140 points). The signup IP used for that check is stored only as a one-way, non-reversible fingerprint of your network address, kept 90 days, in a server-only record, and is not shown to the referrer or anyone else. Deleting your account deletes that record.</li>
+        <li>Process referrals and pay both sides 50 orange tickets when the referred friend earns 2,140 points outside the Scholar exam. The signup IP used for that check is stored only as a one-way, non-reversible fingerprint of your network address, kept 90 days, in a server-only record, and is not shown to the referrer or anyone else. Deleting your account deletes that record.</li>
         <li>Determine giveaway eligibility based on Orange Ticket count</li>
         <li>Send sign-in magic links to verify your email</li>
         <li>Send optional web push notifications to devices you opt in, using the category switches in Settings</li>

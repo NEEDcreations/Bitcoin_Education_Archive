@@ -8,9 +8,20 @@ const ipHmac = require('../functions/src/ipHmac');
 let passed = 0;
 let failed = 0;
 
+const pendingTests = [];
 function test(name, fn) {
     try {
-        fn();
+        const result = fn();
+        if (result && typeof result.then === 'function') {
+            pendingTests.push(result.then(function () {
+                console.log('✅ ' + name);
+                passed++;
+            }, function (e) {
+                console.log('❌ ' + name + ': ' + (e && e.message ? e.message : e));
+                failed++;
+            }));
+            return;
+        }
         console.log('✅ ' + name);
         passed++;
     } catch (e) {
@@ -209,6 +220,167 @@ test('a referral is accepted only for a new account under the points cap', () =>
     });
     assert.strictEqual(linked.status, 'flagged');
     assert.strictEqual(linked.reason, 'linked-account');
+    const guestUpgrade = referrals.registrationGate({
+        nowMs: now,
+        createdMs: now - 60 * 60 * 1000,
+        points: 500,
+        fairWindow: true,
+    });
+    assert.strictEqual(guestUpgrade.ok, true);
+    assert.strictEqual(guestUpgrade.status, 'pending');
+    const oldGuest = referrals.registrationGate({
+        nowMs: now,
+        createdMs: now - referrals.SIGNUP_WINDOW_MS - 1,
+        points: 10,
+        fairWindow: true,
+    });
+    assert.strictEqual(oldGuest.ok, false);
+    assert.strictEqual(oldGuest.reason, 'account-age');
+});
+
+test('the signup window uses the earliest server clock, never a client one', () => {
+    const now = 1_700_000_000_000;
+    const start = referrals.referralWindowStart({
+        authCreatedMs: now - 1000,
+        serverArrivalMs: now - 2 * 60 * 60 * 1000,
+        guestArrivalMs: now - 60 * 60 * 1000,
+    });
+    assert.strictEqual(start, now - 2 * 60 * 60 * 1000);
+    assert.strictEqual(referrals.referralWindowStart({ authCreatedMs: now - 1000 }), now - 1000);
+    assert.strictEqual(referrals.referralWindowStart({}), null);
+    assert.strictEqual(referrals.fairUpgradeWindow({
+        nowMs: now,
+        ownArrivalMs: now - 60 * 60 * 1000,
+        ownAnonymous: true,
+    }), true);
+    assert.strictEqual(referrals.fairUpgradeWindow({
+        nowMs: now,
+        ownArrivalMs: now - 60 * 60 * 1000,
+        ownAnonymous: false,
+        guestArrivalMs: now - 1000,
+        guestAnonymous: true,
+        guestMergedHere: false,
+    }), false);
+    assert.strictEqual(referrals.fairUpgradeWindow({
+        nowMs: now,
+        guestArrivalMs: now - 60 * 60 * 1000,
+        guestAnonymous: true,
+        guestMergedHere: true,
+    }), true);
+    const service = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'referralService.js'), 'utf8');
+    const reg = service.slice(service.indexOf('async function registerReferral'), service.indexOf('async function payIfQualified'));
+    assert.strictEqual(reg.indexOf('data.arrivalMs'), -1);
+    assert.strictEqual(reg.indexOf('data.createdMs'), -1);
+    assert.strictEqual(reg.indexOf('data.points'), -1);
+    assert.ok(reg.indexOf('referralWindowStart') !== -1);
+    assert.ok(reg.indexOf('fairUpgradeWindow') !== -1);
+    assert.strictEqual(referrals.writesReferredBy('pending'), true);
+    assert.strictEqual(referrals.writesReferredBy('flagged'), true);
+    assert.strictEqual(referrals.writesReferredBy('late'), false);
+    assert.strictEqual(referrals.writesReferredBy('rejected'), false);
+    const tx = reg.slice(reg.indexOf('runTransaction'), reg.indexOf('let paid = false'));
+    assert.ok(tx.indexOf('writesReferredBy(status)') !== -1);
+    assert.ok(tx.indexOf('writesReferredBy(status)') < tx.indexOf('referredBy: code'));
+    assert.strictEqual(tx.indexOf('referredBy: code, referralVerified: false };'), -1);
+    const lnUid = 'ln:' + 'ab'.repeat(16);
+    assert.strictEqual(referrals.fairUpgradeWindow({
+        nowMs: now,
+        uid: lnUid,
+        ownArrivalMs: now - 60 * 1000,
+        ownAnonymous: true,
+    }), false);
+    const lnCap = referrals.registrationGate({
+        nowMs: now,
+        createdMs: now - 60 * 1000,
+        points: referrals.SIGNUP_MAX_POINTS + 1,
+        fairWindow: referrals.fairUpgradeWindow({
+            nowMs: now,
+            uid: lnUid,
+            ownArrivalMs: now - 60 * 1000,
+            ownAnonymous: true,
+        }),
+    });
+    assert.strictEqual(lnCap.ok, false);
+    assert.strictEqual(lnCap.reason, 'points');
+    assert.strictEqual(referrals.blocksProductionApply('staging', 'bitcoin-education-archive'), true);
+    assert.strictEqual(referrals.blocksProductionApply('bitcoin-education-archive', 'staging'), true);
+    assert.strictEqual(referrals.blocksProductionApply('staging', 'staging'), false);
+    assert.ok(reg.indexOf('referral_arrivals') !== -1 || service.indexOf("collection('referral_arrivals')") !== -1);
+});
+
+test('Lightning uids get a stable alphanumeric code and a lookup row', () => {
+    const uid = 'ln:' + 'ab'.repeat(32);
+    assert.strictEqual(referrals.referralCodeForUid(uid), '');
+    assert.strictEqual(referrals.needsMintedReferralCode(uid), true);
+    const code = referrals.mintedReferralCode(uid, 0);
+    assert.strictEqual(code, referrals.mintedReferralCode(uid, 0));
+    assert.notStrictEqual(code, referrals.mintedReferralCode(uid, 1));
+    assert.ok(/^[A-Z0-9]{8}$/.test(code));
+    assert.strictEqual(code.indexOf(':'), -1);
+    assert.strictEqual(referrals.normalizeCode(code), code);
+    assert.strictEqual(referrals.normalizeCode('ln:abcdef'), '');
+    const users = [];
+    for (let i = 0; i < 121; i++) {
+        users.push({ uid: 'user' + String(i).padStart(4, '0') + 'WXYZ', referralCode: '' });
+    }
+    users.push({ uid: uid, referralCode: '' });
+    const plan = referrals.planCodeLookup(users, {});
+    assert.strictEqual(plan.counts.missing, 122);
+    assert.strictEqual(plan.counts.collisions, 0);
+    const again = referrals.planCodeLookup(users, plan.writes.reduce(function (index, row) {
+        index[row.code] = row.uid;
+        return index;
+    }, {}));
+    assert.strictEqual(again.counts.missing, 0);
+    const ln = plan.writes.filter(function (row) { return row.uid === uid; })[0];
+    assert.strictEqual(ln.code, code);
+    const script = fs.readFileSync(path.join(__dirname, '..', 'functions', 'scripts', 'backfill_referral_code_lookup.js'), 'utf8');
+    assert.ok(script.indexOf("process.argv.indexOf('--apply')") !== -1);
+    assert.ok(script.indexOf('dry-run only') !== -1);
+    assert.ok(script.indexOf('refusing --apply against production') !== -1);
+    assert.ok(script.indexOf('GOOGLE_APPLICATION_CREDENTIALS') !== -1);
+    assert.ok(script.indexOf('project_id') !== -1);
+    assert.ok(script.indexOf('blocksProductionApply') !== -1);
+    assert.ok(script.indexOf('Do not run it against production') !== -1);
+});
+
+test('a paid referral records the raid stat where the payout happens', () => {
+    const service = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'referralService.js'), 'utf8');
+    const pay = service.slice(service.indexOf('async function payIfQualified'), service.indexOf('async function grantReferralBadges'));
+    const sync = service.slice(service.indexOf('async function syncReferralMaxiCount'), service.indexOf('async function onUserWritten'));
+    assert.ok(pay.indexOf("metric: 'referralsPaid'") !== -1);
+    assert.ok(pay.indexOf('noteTrusted') !== -1);
+    assert.strictEqual(sync.indexOf('outcome'), -1);
+    assert.strictEqual(sync.indexOf('referralsPaid'), -1);
+    const written = service.slice(service.indexOf('async function onUserWritten'), service.indexOf('async function scanPending'));
+    assert.ok(written.indexOf('activityPoints(before)') !== -1);
+    assert.ok(written.indexOf('activityPoints(after)') !== -1);
+    const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    assert.ok(rules.indexOf('match /referral_arrivals/{uid}') !== -1);
+    assert.ok(rules.indexOf('match /referral_arrivals/{uid}') < rules.indexOf('allow read, write: if false;', rules.indexOf('match /referral_arrivals/{uid}')));
+});
+
+test('short links and previews keep a validated ref, and http redirects to https', () => {
+    const worker = fs.readFileSync(path.join(__dirname, '..', 'workers', 'seo-router', 'worker.js'), 'utf8');
+    const start = worker.indexOf('const PRIMARY_ORIGIN');
+    const end = worker.indexOf('let channelCache');
+    const fns = new Function(worker.slice(start, end) + '\nreturn { validatedReferralRef, urlWithRef, httpsRedirectTarget, spaRedirectTarget };')();
+    assert.strictEqual(fns.validatedReferralRef('?ref=abc12345'), 'abc12345');
+    assert.strictEqual(fns.validatedReferralRef('?ref=abc12345&x=1'), 'abc12345');
+    assert.strictEqual(fns.validatedReferralRef('?ref=ln:abcdef'), '');
+    assert.strictEqual(fns.validatedReferralRef('?ref=abc'), '');
+    assert.strictEqual(fns.validatedReferralRef('?ref=abc12345<script>'), '');
+    assert.strictEqual(fns.spaRedirectTarget('pvp', '?ref=abc12345'), 'https://bitcoineducation.quest/?ref=abc12345#pvp');
+    assert.strictEqual(fns.spaRedirectTarget('beats', ''), 'https://bitcoineducation.quest/#beats');
+    assert.strictEqual(fns.httpsRedirectTarget('http://bitcoineducation.quest/channels/mining?ref=abc12345'), 'https://bitcoineducation.quest/channels/mining?ref=abc12345');
+    assert.strictEqual(fns.httpsRedirectTarget('https://bitcoineducation.quest/'), '');
+    assert.ok(fns.urlWithRef('https://bitcoineducation.quest/channels/mining', 'abc12345').indexOf('og:url') === -1);
+    assert.strictEqual(fns.urlWithRef('https://bitcoineducation.quest/channels/mining', 'abc12345'), 'https://bitcoineducation.quest/channels/mining?ref=abc12345');
+    assert.ok(worker.indexOf('ogUrl') !== -1);
+    assert.strictEqual(worker.indexOf("searchParams.get('ref')"), -1);
+    assert.strictEqual(worker.indexOf('searchParams.get("ref")'), -1);
+    assert.ok(worker.indexOf('return Response.redirect(httpsTarget, 301)') !== -1);
+    assert.ok(worker.indexOf('spaRedirectTarget') !== -1);
 });
 
 function fixture() {
@@ -355,8 +527,10 @@ test('home invite card is top-right and reads counts the user may see', () => {
     const tickets = fs.readFileSync(path.join(__dirname, '..', 'tickets.js'), 'utf8');
     const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
     assert.ok(html.includes('id="inviteCard"'));
-    assert.ok(html.includes('When a friend you invite reaches Maxi rank, you both get 50 orange tickets.'));
-    assert.ok(html.includes('Share your link. Your friend signs up with it. When they reach Maxi (2,140 XP), you both get 50 orange tickets automatically.'));
+    assert.ok(html.includes("When a friend you invite reaches 2,140 points (Scholar exam points don't count), you both get 50 orange tickets."));
+    assert.ok(html.includes("Share your link. Your friend signs up with it. When they reach 2,140 points (Scholar exam points don't count), you both get 50 orange tickets automatically."));
+    assert.ok(html.includes('earned 2,140'));
+    assert.ok(!html.includes('reaches Maxi rank, you both get 50 orange tickets.'));
     assert.ok(html.includes('How it works'));
     assert.ok(html.includes('id="inviteCopy"'));
     assert.ok(html.includes('id="inviteShare"'));
@@ -772,6 +946,63 @@ function inviteState(page) {
     return page.document.getElementById('inviteCard').getAttribute('data-state');
 }
 
+test('the first stored referral wins until it expires', () => {
+    const page = invitePage;
+    page.localStorage.removeItem('btc_referral_code');
+    page.localStorage.removeItem('btc_referral_code_at');
+    page.location.search = '?ref=firstcode';
+    page.captureReferralCode();
+    assert.strictEqual(page.localStorage.getItem('btc_referral_code'), 'firstcode');
+    page.location.search = '?ref=latercode';
+    page.captureReferralCode();
+    assert.strictEqual(page.localStorage.getItem('btc_referral_code'), 'firstcode');
+    page.location.search = '?ref=ln:abcdef';
+    page.captureReferralCode();
+    assert.strictEqual(page.localStorage.getItem('btc_referral_code'), 'firstcode');
+    page.localStorage.setItem('btc_referral_code_at', String(Date.now() - 31 * 24 * 60 * 60 * 1000));
+    page.location.search = '?ref=latercode';
+    page.captureReferralCode();
+    assert.strictEqual(page.localStorage.getItem('btc_referral_code'), 'latercode');
+    page.location.search = '';
+});
+
+test('a signed-in load retries a stored ref and clears it once accepted', async () => {
+    const page = invitePage;
+    page.localStorage.setItem('btc_referral_code', 'hostcode');
+    page.localStorage.setItem('btc_referral_code_at', String(Date.now()));
+    const calls = [];
+    page.firebase = {
+        functions: function () {
+            return {
+                httpsCallable: function () {
+                    return function (payload) {
+                        calls.push(payload);
+                        return Promise.resolve({ data: { success: true, status: 'pending' } });
+                    };
+                }
+            };
+        }
+    };
+    await page.attachReferral(page.auth.currentUser.uid);
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0].refCode, 'hostcode');
+    assert.strictEqual(page.localStorage.getItem('btc_referral_code'), null);
+    page.auth.currentUser.isAnonymous = true;
+    page.localStorage.setItem('btc_referral_code', 'hostcode');
+    page.localStorage.setItem('btc_referral_code_at', String(Date.now()));
+    await page.attachReferral(page.auth.currentUser.uid);
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(page.localStorage.getItem('btc_referral_code'), 'hostcode');
+    page.auth.currentUser.isAnonymous = false;
+    page.currentUser.uid = 'ln:' + 'cd'.repeat(20);
+    page.currentUser.referralCode = '';
+    assert.strictEqual(page.getReferralCode(), null);
+    page.currentUser.referralCode = 'LNCODE12';
+    assert.strictEqual(page.getReferralCode(), 'LNCODE12');
+    page.currentUser.uid = page._uid;
+    page.currentUser.referralCode = 'user1234';
+});
+
 test('a closed chat overlay does not block expandInviteCard', () => {
     chatOverlay(invitePage, 'translateY(100%)');
     assert.strictEqual(invitePage._invitePopupElement(invitePage.document.getElementById('chatOverlay')), false);
@@ -804,5 +1035,7 @@ test('a tap opens the invite card even when the session popup budget is taken', 
     assert.strictEqual(inviteState(invitePage), 'min');
 });
 
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-process.exit(failed > 0 ? 1 : 0);
+Promise.all(pendingTests).then(function () {
+    console.log('\n' + passed + ' passed, ' + failed + ' failed');
+    process.exit(failed > 0 ? 1 : 0);
+});

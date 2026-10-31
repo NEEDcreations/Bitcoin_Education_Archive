@@ -10,6 +10,8 @@ const CODE_LENGTH = 8;
 
 const SIGNUP_WINDOW_MS = 72 * 60 * 60 * 1000;
 const SIGNUP_MAX_POINTS = 100;
+const REFERRAL_LINK_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const MINT_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const PAYOUT_MIN_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const MIN_ACTIVE_DAYS = 3;
 const REFERRAL_PAY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
@@ -31,9 +33,88 @@ const BLOCKING_FLAGS = {
     'prior-referral': 'rejected',
 };
 
+function needsMintedReferralCode(uid) {
+    return String(uid || '').indexOf('ln:') === 0;
+}
+
 function referralCodeForUid(uid) {
+    if (needsMintedReferralCode(uid)) return '';
     const id = String(uid || '');
-    return id.length >= CODE_LENGTH ? id.substring(0, CODE_LENGTH) : '';
+    const prefix = id.length >= CODE_LENGTH ? id.substring(0, CODE_LENGTH) : '';
+    if (!/^[A-Za-z0-9]{6,28}$/.test(prefix)) return '';
+    return prefix;
+}
+
+// Stable alphanumeric code for Lightning uids. The uid itself contains a
+// colon, which cannot be a referral code. salt walks forward on collision.
+function mintedReferralCode(uid, salt) {
+    const crypto = require('crypto');
+    const digest = crypto.createHash('sha256')
+        .update('ln-ref-v1\0' + String(uid || '') + '\0' + String(salt == null ? 0 : salt))
+        .digest();
+    let out = '';
+    for (let i = 0; i < CODE_LENGTH; i++) out += MINT_ALPHABET[digest[i] % MINT_ALPHABET.length];
+    return out;
+}
+
+function normalizeGuestUid(raw) {
+    const uid = String(raw || '').trim();
+    if (!/^[A-Za-z0-9:_\-]{6,128}$/.test(uid)) return '';
+    return uid;
+}
+
+function earliestServerMs(values) {
+    let best = null;
+    (values || []).forEach(function (value) {
+        if (value == null || value === '') return;
+        const n = Number(value);
+        if (!isFinite(n) || n <= 0) return;
+        if (best == null || n < best) best = n;
+    });
+    return best;
+}
+
+// Window clock. Every input is a timestamp the server already stored
+// (Auth creationTime, referral_arrivals, or a guest doc created with
+// request.time). A missing guest clock falls back to the account clock,
+// which is the fair window for an upgrade we can verify. Callers must not
+// pass a value the client sent.
+function referralWindowStart(input) {
+    const src = input || {};
+    return earliestServerMs([src.authCreatedMs, src.serverArrivalMs, src.guestArrivalMs]);
+}
+
+function arrivalWithinWindow(nowMs, arrivalMs) {
+    const now = Number(nowMs) || 0;
+    const n = Number(arrivalMs);
+    if (!isFinite(n) || n <= 0) return false;
+    const age = now - n;
+    return age <= SIGNUP_WINDOW_MS && age >= -5 * 60 * 1000;
+}
+
+// Points cap waiver for a guest who could not register until they upgraded.
+// Own arrival must have been stamped anonymous by the server, or the guest
+// doc must have been merged into this account by the server. A client-named
+// uid is not enough.
+function fairUpgradeWindow(input) {
+    const src = input || {};
+    // Lightning sign-in is a full account. An empty provider list is not a guest,
+    // so it does not skip the 100-point signup cap. A merged guest still can.
+    const lightning = needsMintedReferralCode(src.uid);
+    if (!lightning && src.ownAnonymous === true && arrivalWithinWindow(src.nowMs, src.ownArrivalMs)) return true;
+    if (src.guestMergedHere === true && src.guestAnonymous === true && arrivalWithinWindow(src.nowMs, src.guestArrivalMs)) return true;
+    return false;
+}
+
+// The Referred Friend badge keys off users.referredBy. Only a referral the
+// server is still willing to pay (pending or flagged) may set that field.
+function writesReferredBy(status) {
+    return status === 'pending' || status === 'flagged';
+}
+
+function blocksProductionApply(envProject, keyProject) {
+    const prod = 'bitcoin-education-archive';
+    return String(envProject || '') === prod || String(keyProject || '') === prod;
 }
 
 function normalizeCode(raw) {
@@ -111,7 +192,7 @@ function fraudFlags(referred, referrer, signupIp) {
     const lnA = lightningOf(referred);
     const lnB = lightningOf(referrer);
     if (lnA && lnB && lnA === lnB) flags.push('same-lightning');
-    const referredCode = referralCodeForUid(referred.uid);
+    const referredCode = normalizeCode(referred.referralCode) || referralCodeForUid(referred.uid);
     if (referredCode && lower(referrer.referredBy) === lower(referredCode)) flags.push('circular');
     if (referred.priorReferral === true) flags.push('prior-referral');
     return flags;
@@ -247,7 +328,9 @@ function registrationGate(input) {
     if (age > SIGNUP_WINDOW_MS || age < -5 * 60 * 1000) {
         return { ok: false, status: 'late', reason: 'account-age', record: true };
     }
-    if (points > SIGNUP_MAX_POINTS) {
+    // fairWindow is set by the service only after it reads a server arrival
+    // for a guest upgrade. The points cap still applies to every other account.
+    if (src.fairWindow !== true && points > SIGNUP_MAX_POINTS) {
         return { ok: false, status: 'late', reason: 'points', record: true };
     }
     if (src.linked) {
@@ -311,6 +394,47 @@ function registerRateDecision(prev, nowMs) {
         lastMs: now,
         windowStart: sameHour ? windowStart : now,
         count: sameHour ? count + 1 : 1,
+    };
+}
+
+// Users whose alphanumeric code has no referralCodes/{code} doc.
+// Lightning uids get a minted code. Dry-run callers print counts only.
+function planCodeLookup(users, existingIndex) {
+    const index = Object.assign({}, existingIndex || {});
+    const writes = [];
+    let collisions = 0;
+    (users || []).forEach(function (user) {
+        if (!user || !user.uid) return;
+        let code = normalizeCode(user.referralCode);
+        if (!code && !needsMintedReferralCode(user.uid)) code = referralCodeForUid(user.uid);
+        if (!code && needsMintedReferralCode(user.uid)) {
+            let salt = 0;
+            let candidate = '';
+            while (salt < 8) {
+                candidate = mintedReferralCode(user.uid, salt);
+                const owner = index[candidate];
+                if (!owner || owner === user.uid) break;
+                salt++;
+                candidate = '';
+            }
+            code = candidate;
+        }
+        if (!code) return;
+        const owner = Object.prototype.hasOwnProperty.call(index, code) ? index[code] : '';
+        if (owner === user.uid) return;
+        if (owner && owner !== user.uid) {
+            collisions++;
+            return;
+        }
+        writes.push({ uid: user.uid, code: code });
+        index[code] = user.uid;
+    });
+    return {
+        writes: writes,
+        counts: {
+            missing: writes.length,
+            collisions: collisions,
+        },
     };
 }
 
@@ -417,6 +541,8 @@ module.exports = {
     REFERRAL_TICKETS: REFERRAL_TICKETS,
     SIGNUP_WINDOW_MS: SIGNUP_WINDOW_MS,
     SIGNUP_MAX_POINTS: SIGNUP_MAX_POINTS,
+    REFERRAL_LINK_TTL_MS: REFERRAL_LINK_TTL_MS,
+    CODE_LENGTH: CODE_LENGTH,
     PAYOUT_MIN_AGE_MS: PAYOUT_MIN_AGE_MS,
     MIN_ACTIVE_DAYS: MIN_ACTIVE_DAYS,
     REFERRAL_PAY_CAP: REFERRAL_PAY_CAP,
@@ -430,6 +556,14 @@ module.exports = {
     countRecentPays: countRecentPays,
     BLOCKING_FLAGS: BLOCKING_FLAGS,
     referralCodeForUid: referralCodeForUid,
+    needsMintedReferralCode: needsMintedReferralCode,
+    mintedReferralCode: mintedReferralCode,
+    normalizeGuestUid: normalizeGuestUid,
+    referralWindowStart: referralWindowStart,
+    fairUpgradeWindow: fairUpgradeWindow,
+    writesReferredBy: writesReferredBy,
+    blocksProductionApply: blocksProductionApply,
+    planCodeLookup: planCodeLookup,
     normalizeCode: normalizeCode,
     isSelfReferral: isSelfReferral,
     crossedMaxi: crossedMaxi,
