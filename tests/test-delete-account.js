@@ -965,7 +965,7 @@ function auth(uid, extras) {
         assert.ok(privacy.includes('50 Orange Tickets') === false || privacy.includes('referral') );
         // The reward sentence in the terms is unchanged. Privacy still describes the check.
         const terms = fs.readFileSync(path.join(root, 'terms.html'), 'utf8');
-        assert.ok(terms.includes('The referral reward at Maxi is 50 Orange Tickets for the person who shared the link and 50 Orange Tickets for the referred account.'));
+        assert.ok(terms.includes('The referral reward is 50 Orange Tickets for the person who shared the link and 50 Orange Tickets for the referred account.'));
         assert.ok(terms.includes('Settings includes a referral card with your personal link and a copy button.'));
         assert.strictEqual(terms.includes('You can mark a notice read or delete it'), false);
         assert.ok(terms.includes('You can mark a notice read.'));

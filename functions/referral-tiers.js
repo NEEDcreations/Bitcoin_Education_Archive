@@ -55,8 +55,16 @@
         return null;
     }
 
+    function activityPoints(user) {
+        var points = Math.floor(Number(user && user.points) || 0);
+        var scholar = Math.floor(Number(user && user.scholarPoints) || 0);
+        if (!isFinite(points) || points < 0) points = 0;
+        if (!isFinite(scholar) || scholar < 0) scholar = 0;
+        return Math.max(0, points - scholar);
+    }
+
     function countText(n) {
-        return n === 1 ? '1 reached Maxi' : n + ' reached Maxi';
+        return n === 1 ? '1 earned 2,140' : n + ' earned 2,140';
     }
 
     function tierProgress(count) {
@@ -76,9 +84,10 @@
         };
     }
 
+    // Same bar the payout uses: points minus Scholar exam points.
     function holdsMaxiRank(user) {
         if (!user) return false;
-        return Math.floor(Number(user.points) || 0) >= MAXI_RANK_POINTS;
+        return activityPoints(user) >= MAXI_RANK_POINTS;
     }
 
     function maxiCountHelp(invited, reached) {
@@ -88,8 +97,8 @@
         var got = Math.floor(Number(reached));
         if (!isFinite(got) || got < 0) got = 0;
         var people = inv === 1 ? "You've invited 1 person." : "You've invited " + inv + " people.";
-        var rank = (got === 1 ? '1 reached' : got + ' reached') + ' Maxi rank (' + points + '+ XP).';
-        return people + ' ' + rank + ' Only referrals that reached Maxi count.';
+        var rank = (got === 1 ? '1 earned' : got + ' earned') + ' ' + points + ' points outside the Scholar exam.';
+        return people + ' ' + rank + ' Only those referrals count.';
     }
 
     function badgeTiers() {
@@ -306,6 +315,7 @@
         normalizeCount: normalizeCount,
         tierForCount: tierForCount,
         tierProgress: tierProgress,
+        activityPoints: activityPoints,
         holdsMaxiRank: holdsMaxiRank,
         maxiCountHelp: maxiCountHelp,
         badgeTiers: badgeTiers,

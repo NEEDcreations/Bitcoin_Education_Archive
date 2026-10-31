@@ -26,8 +26,10 @@ function getReferralCode() {
     var stored = user && user.referralCode;
     if (typeof stored === 'string' && /^[A-Za-z0-9]{6,28}$/.test(stored)) return stored;
     var uid = (user && user.uid) || (authUser && authUser.uid) || '';
-    if (!uid) return null;
-    return String(uid).substring(0, 8);
+    if (!uid || String(uid).indexOf('ln:') === 0) return null;
+    var prefix = String(uid).substring(0, 8);
+    if (!/^[A-Za-z0-9]{6,28}$/.test(prefix)) return null;
+    return prefix;
 }
 
 function getReferralLink() {
@@ -166,23 +168,80 @@ function inviteSharePayload(link) {
     var url = String(link || '').trim() || shareHomeUrl();
     return {
         title: 'Bitcoin Quest',
-        text: 'Learn Bitcoin with me. When you reach Maxi rank, we both get 50 orange tickets.',
+        text: 'Learn Bitcoin with me. When you earn 2,140 points outside the Scholar exam, we both get 50 orange tickets.',
         url: url
     };
+}
+
+// First referral link wins for 30 days. A later link does not replace it.
+var REFERRAL_LINK_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+function _validRefCode(raw) {
+    return /^[A-Za-z0-9]{6,28}$/.test(String(raw || ''));
+}
+
+function _clearStoredReferral() {
+    try {
+        localStorage.removeItem('btc_referral_code');
+        localStorage.removeItem('btc_referral_code_at');
+    } catch (e) {}
+}
+
+function storedReferralCode() {
+    var code = '';
+    var at = 0;
+    try {
+        code = localStorage.getItem('btc_referral_code') || '';
+        at = parseInt(localStorage.getItem('btc_referral_code_at') || '0', 10) || 0;
+    } catch (e) {
+        return '';
+    }
+    if (!_validRefCode(code)) {
+        if (code) _clearStoredReferral();
+        return '';
+    }
+    if (!at) {
+        try { localStorage.setItem('btc_referral_code_at', String(Date.now())); } catch (e2) {}
+        return code;
+    }
+    if (Date.now() - at > REFERRAL_LINK_TTL_MS) {
+        _clearStoredReferral();
+        return '';
+    }
+    return code;
+}
+
+function referralAttachShouldClear(data) {
+    if (!data) return false;
+    if (data.success) return true;
+    var reason = String(data.reason || '');
+    var status = String(data.status || '');
+    if (reason === 'self' || reason === 'late' || reason === 'account-age' || reason === 'points' || reason === 'exists' || reason === 'rejected') return true;
+    if (status === 'rejected' || status === 'late') return true;
+    return false;
 }
 
 // ---- Check for referral code in URL on page load ----
 function captureReferralCode() {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
-    if (ref && ref.length >= 6) {
-        // Store it locally — we'll attach it to the user doc when they create an account
-        localStorage.setItem('btc_referral_code', ref);
+    if (ref && _validRefCode(ref)) {
+        // Store it locally — we'll attach it when a real account is signed in.
+        // An existing unexpired code stays. The first link wins.
+        if (!storedReferralCode()) {
+            try {
+                localStorage.setItem('btc_referral_code', ref);
+                localStorage.setItem('btc_referral_code_at', String(Date.now()));
+            } catch (e) {}
+        }
         // Clean URL without reload
         if (window.history && window.history.replaceState) {
             const clean = window.location.pathname + window.location.hash;
             window.history.replaceState({}, '', clean);
         }
+    } else if (ref && window.history && window.history.replaceState) {
+        const clean = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, '', clean);
     }
 
     // ---- Campaign source tracking (?src=Stacker_News etc.) ----
@@ -209,23 +268,40 @@ async function awardDailyTicket() {
 
 // ---- Attach referral to new user on account creation ----
 async function attachReferral(uid) {
-    const refCode = localStorage.getItem('btc_referral_code');
+    var refCode = storedReferralCode();
     if (!refCode || !uid) return;
-    if (String(uid).indexOf(refCode) === 0) return;
+    var authUser = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser : null;
+    if (!authUser || authUser.isAnonymous || authUser.uid !== uid) return;
+    if (String(uid).indexOf(refCode) === 0) {
+        _clearStoredReferral();
+        return;
+    }
+    var ownCode = (typeof currentUser !== 'undefined' && currentUser && currentUser.referralCode) ? String(currentUser.referralCode) : '';
+    if (_validRefCode(ownCode) && ownCode === refCode) {
+        _clearStoredReferral();
+        return;
+    }
     try {
         if (typeof firebase === 'undefined' || !firebase.functions) return;
+        var payload = { refCode: refCode };
+        var guestUid = '';
+        try { guestUid = localStorage.getItem('btc_anon_uid') || ''; } catch (e0) { guestUid = ''; }
+        if (guestUid && guestUid !== uid && /^[A-Za-z0-9:_\-]{6,128}$/.test(guestUid)) payload.guestUid = guestUid;
         var fn = firebase.functions().httpsCallable('registerReferral');
-        var result = await fn({ refCode: refCode });
+        var result = await fn(payload);
         var data = result && result.data;
-        if (data && (data.success || data.reason === 'self' || data.reason === 'late' || data.reason === 'account-age' || data.reason === 'points' || data.reason === 'exists')) {
-            localStorage.removeItem('btc_referral_code');
+        if (referralAttachShouldClear(data)) {
+            _clearStoredReferral();
             if (typeof currentUser !== 'undefined' && currentUser && currentUser.uid === uid && data.success) {
                 currentUser.referredBy = refCode;
             }
         }
     } catch (e) {
-        // Keep btc_referral_code so a later session can retry the callable.
-        console.log('Referral attach error:', e);
+        // A guest rejection, a rate limit, or a dropped connection keeps the
+        // code so the next signed-in load can retry. A bad code does not.
+        var code = String((e && (e.code || e.message)) || '');
+        if (code.indexOf('invalid-argument') !== -1) _clearStoredReferral();
+        else console.log('Referral attach error:', e);
     }
 }
 
@@ -315,7 +391,7 @@ function renderReferralSection() {
 
     return '<div id="inviteSettingsBlock" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
         '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Invite friends</div>' +
-        '<p id="inviteSettingsEarn" style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin:0 0 12px;">When a friend you invite reaches Maxi rank, you both get 50 orange tickets.</p>' +
+        '<p id="inviteSettingsEarn" style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin:0 0 12px;">When a friend you invite earns 2,140 points outside the Scholar exam, you both get 50 orange tickets.</p>' +
         '<p id="inviteSettingsLink" style="margin:0 0 12px;padding:10px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:monospace;word-break:break-all;"></p>' +
         '<button type="button" onclick="openInviteFriends(true)" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Invite friends</button>' +
         '<div id="referralStats" style="color:var(--text-muted);font-size:0.8rem;margin-top:10px;"></div>' +
@@ -348,6 +424,10 @@ async function loadReferralStatsUI() {
 async function onUserLoadedTickets() {
     if (typeof refreshReferFriendCard === 'function') refreshReferFriendCard();
     if (!currentUser || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+
+    // Retry a stored ref after a guest upgrades, after Lightning sign-in,
+    // and on any later signed-in load until the server accepts or rejects it.
+    try { await attachReferral(auth.currentUser.uid); } catch (e) {}
 
     await ensureReferralCode();
     await awardDailyTicket();
@@ -533,7 +613,7 @@ function _inviteCountLine(stats) {
     var maxi = stats && typeof stats.maxi === 'number' ? stats.maxi : 0;
     if (!invited && !maxi) return 'No invites yet.';
     var invitedLabel = invited === 1 ? '1 friend invited' : invited + ' friends invited';
-    var maxiLabel = maxi === 1 ? '1 reached Maxi' : maxi + ' reached Maxi';
+    var maxiLabel = maxi === 1 ? '1 earned 2,140' : maxi + ' earned 2,140';
     return invitedLabel + ' · ' + maxiLabel;
 }
 
@@ -562,7 +642,7 @@ function _loadInviteCounts() {
         }
         var el = document.getElementById('inviteCounts');
         if (!el) return;
-        if (maxi) el.textContent = maxi + (maxi === 1 ? ' reached Maxi' : ' reached Maxi');
+        if (maxi) el.textContent = maxi + (maxi === 1 ? ' earned 2,140' : ' earned 2,140');
         else el.textContent = 'Invite counts load when you are online.';
     });
 }

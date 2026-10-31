@@ -973,7 +973,7 @@ const NACHO_KB = [
       channel: null, channelName: null },
 
     { keys: ['ticket','tickets','orange ticket','giveaway','sats giveaway'],
-      answer: "Orange Tickets come from the daily spin, activity, and referrals. When a friend you referred reaches Maxi rank, you both get 50 Orange Tickets. Your link is in Settings → Account.",
+      answer: "Orange Tickets come from the daily spin, activity, and referrals. When a friend you referred earns 2,140 points outside the Scholar exam, you both get 50 Orange Tickets. Your link is in Settings → Account.",
       channel: null, channelName: null },
 
     { keys: ['badge','badges','hidden badge','achievements','unlock'],
@@ -3489,7 +3489,7 @@ function matchSiteNavigation(input) {
           answer: "Nacho's Closet is where you dress up your favorite deer with items you unlock! 👔🦌",
           action: "showSettings();setTimeout(function(){var t=document.querySelector('[onclick*=nacho]');if(t)t.click()},300)", label: "🎽 Open Closet" },
         { patterns: /where.*(referral|invite|share.*link)|referral|invite.*friend|share.*link|how.*refer/,
-          answer: "When a friend you referred reaches Maxi rank, you both get 50 Orange Tickets. Your link is in Settings → Account. 🔗",
+          answer: "When a friend you referred earns 2,140 points outside the Scholar exam, you both get 50 Orange Tickets. Your link is in Settings → Account. 🔗",
           action: "window.bqOpenFeature?window.bqOpenFeature('referral'):showSettings()", label: "Open it" },
         { patterns: /where.*(story|chapter|adventure|tale)|nacho.*story|read.*story/,
           answer: "Nacho's Story is a daily Bitcoin adventure — one chapter unlocks each day! 📖",

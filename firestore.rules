@@ -668,6 +668,12 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // First arrival of a guest or account. Admin SDK only. The client cannot
+    // write the timestamp or the anonymous flag.
+    match /referral_arrivals/{uid} {
+      allow read, write: if false;
+    }
+
     match /tip_confirmations/{docId} {
       allow read, write: if false;
     }

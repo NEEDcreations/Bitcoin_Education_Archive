@@ -103,7 +103,7 @@ test('sats answers do not publish faucet limits', function () {
     assert.ok(!/lightning address/i.test(hit.answer));
     assert.ok(!/\b200 sats\b|\b15,?000\b|\b100 sats\b|\b7 days\b|\b1,000 points\b/i.test(hit.answer));
     const ref = reg.resolveNachoFeature('how does the referral program work');
-    assert.ok(/maxi/i.test(ref.answer) && /50/.test(ref.answer) && /orange ticket/i.test(ref.answer));
+    assert.ok(/2,140/.test(ref.answer) && /scholar/i.test(ref.answer) && /50/.test(ref.answer) && /orange ticket/i.test(ref.answer));
     const qa = fs.readFileSync(path.join(root, 'nacho-qa.js'), 'utf8');
     const faucet = qa.slice(qa.indexOf('Sats Faucet'), qa.indexOf('points to sats'));
     assert.ok(faucet.length > 100);
