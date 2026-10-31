@@ -2664,7 +2664,7 @@ if ('serviceWorker' in navigator) {
                 <button type="button" id="inviteDismissBtn" onclick="dismissInviteCard()" aria-label="Dismiss invite card">✕</button>
             </div>
         </div>
-        <p class="invite-earn" id="inviteEarn">When a friend you invite earns 2,140 points outside the Scholar exam, you both get 50 orange tickets.</p>
+        <p class="invite-earn" id="inviteEarn">When a friend you invite reaches 2,140 points (Scholar exam points don't count), you both get 50 orange tickets.</p>
         <p class="invite-link" id="inviteLink"></p>
         <div class="invite-actions">
             <button type="button" id="inviteCopy" onclick="copyInviteLink()">Copy</button>
@@ -2673,7 +2673,7 @@ if ('serviceWorker' in navigator) {
         <p class="invite-counts" id="inviteCounts"></p>
         <button type="button" class="invite-how-btn" id="inviteHowBtn" onclick="toggleInviteHow()" aria-expanded="false" aria-controls="inviteHow">How it works</button>
         <div id="inviteHow" class="invite-how" hidden>
-            <p id="inviteHowText">Share your link. Your friend signs up with it. When they earn 2,140 points outside the Scholar exam, you both get 50 orange tickets automatically.</p>
+            <p id="inviteHowText">Share your link. Your friend signs up with it. When they reach 2,140 points (Scholar exam points don't count), you both get 50 orange tickets automatically.</p>
         </div>
     </div>
     <button type="button" class="invite-pill" id="invitePill" aria-label="Invite friends" onclick="expandInviteCard()">🎟️ Invite</button>

@@ -274,6 +274,37 @@ test('the signup window uses the earliest server clock, never a client one', () 
     assert.strictEqual(reg.indexOf('data.points'), -1);
     assert.ok(reg.indexOf('referralWindowStart') !== -1);
     assert.ok(reg.indexOf('fairUpgradeWindow') !== -1);
+    assert.strictEqual(referrals.writesReferredBy('pending'), true);
+    assert.strictEqual(referrals.writesReferredBy('flagged'), true);
+    assert.strictEqual(referrals.writesReferredBy('late'), false);
+    assert.strictEqual(referrals.writesReferredBy('rejected'), false);
+    const tx = reg.slice(reg.indexOf('runTransaction'), reg.indexOf('let paid = false'));
+    assert.ok(tx.indexOf('writesReferredBy(status)') !== -1);
+    assert.ok(tx.indexOf('writesReferredBy(status)') < tx.indexOf('referredBy: code'));
+    assert.strictEqual(tx.indexOf('referredBy: code, referralVerified: false };'), -1);
+    const lnUid = 'ln:' + 'ab'.repeat(16);
+    assert.strictEqual(referrals.fairUpgradeWindow({
+        nowMs: now,
+        uid: lnUid,
+        ownArrivalMs: now - 60 * 1000,
+        ownAnonymous: true,
+    }), false);
+    const lnCap = referrals.registrationGate({
+        nowMs: now,
+        createdMs: now - 60 * 1000,
+        points: referrals.SIGNUP_MAX_POINTS + 1,
+        fairWindow: referrals.fairUpgradeWindow({
+            nowMs: now,
+            uid: lnUid,
+            ownArrivalMs: now - 60 * 1000,
+            ownAnonymous: true,
+        }),
+    });
+    assert.strictEqual(lnCap.ok, false);
+    assert.strictEqual(lnCap.reason, 'points');
+    assert.strictEqual(referrals.blocksProductionApply('staging', 'bitcoin-education-archive'), true);
+    assert.strictEqual(referrals.blocksProductionApply('bitcoin-education-archive', 'staging'), true);
+    assert.strictEqual(referrals.blocksProductionApply('staging', 'staging'), false);
     assert.ok(reg.indexOf('referral_arrivals') !== -1 || service.indexOf("collection('referral_arrivals')") !== -1);
 });
 
@@ -307,6 +338,9 @@ test('Lightning uids get a stable alphanumeric code and a lookup row', () => {
     assert.ok(script.indexOf("process.argv.indexOf('--apply')") !== -1);
     assert.ok(script.indexOf('dry-run only') !== -1);
     assert.ok(script.indexOf('refusing --apply against production') !== -1);
+    assert.ok(script.indexOf('GOOGLE_APPLICATION_CREDENTIALS') !== -1);
+    assert.ok(script.indexOf('project_id') !== -1);
+    assert.ok(script.indexOf('blocksProductionApply') !== -1);
     assert.ok(script.indexOf('Do not run it against production') !== -1);
 });
 
@@ -493,8 +527,8 @@ test('home invite card is top-right and reads counts the user may see', () => {
     const tickets = fs.readFileSync(path.join(__dirname, '..', 'tickets.js'), 'utf8');
     const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
     assert.ok(html.includes('id="inviteCard"'));
-    assert.ok(html.includes('When a friend you invite earns 2,140 points outside the Scholar exam, you both get 50 orange tickets.'));
-    assert.ok(html.includes('Share your link. Your friend signs up with it. When they earn 2,140 points outside the Scholar exam, you both get 50 orange tickets automatically.'));
+    assert.ok(html.includes("When a friend you invite reaches 2,140 points (Scholar exam points don't count), you both get 50 orange tickets."));
+    assert.ok(html.includes("Share your link. Your friend signs up with it. When they reach 2,140 points (Scholar exam points don't count), you both get 50 orange tickets automatically."));
     assert.ok(html.includes('earned 2,140'));
     assert.ok(!html.includes('reaches Maxi rank, you both get 50 orange tickets.'));
     assert.ok(html.includes('How it works'));

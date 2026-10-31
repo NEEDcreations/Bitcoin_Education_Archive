@@ -8694,7 +8694,7 @@ function accountDeleteRowHtml(user) {
                 '<strong style="color:var(--text);">🎧 DJ Set:</strong> Start a DJ set = +5 tickets/set.<br>' +
                 '<strong style="color:var(--text);">📚 Scholar:</strong> Complete a flashcard deck = +5 tickets.<br>' +
                 '<strong style="color:var(--text);">❤️ Donate XP:</strong> Donate 1,000+ XP = +1 ticket/day.<br>' +
-                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who earns ' + referralPointsLabel() + ' points outside the Scholar exam.<br>' +
+                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who reaches ' + referralPointsLabel() + ' points (Scholar exam points don\'t count).<br>' +
                 '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket also earns +5 XP.<br>' +
                 '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats!' +
                 '</div></div>';
@@ -9679,7 +9679,7 @@ function accountDeleteRowHtml(user) {
                 '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
                 '<strong style="color:var(--text);">📅 Daily Login:</strong> +1 ticket just for visiting.<br>' +
                 '<strong style="color:var(--text);">🎡 Spin the Wheel:</strong> Spin daily for bonus tickets!<br>' +
-                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and earns ' + referralPointsLabel() + ' points outside the Scholar exam.<br>' +
+                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches ' + referralPointsLabel() + ' points (Scholar exam points don\'t count).<br>' +
                 '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock at 25 🐟, 50 🦈, and 100 🐋 tickets.<br>' +
                 '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 XP towards your rank.<br>' +
                 '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats!' +

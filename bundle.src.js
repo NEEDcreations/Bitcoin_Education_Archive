@@ -2765,7 +2765,7 @@ function inviteSharePayload(link) {
     var url = String(link || '').trim() || shareHomeUrl();
     return {
         title: 'Bitcoin Quest',
-        text: 'Learn Bitcoin with me. When you earn 2,140 points outside the Scholar exam, we both get 50 orange tickets.',
+        text: "Learn Bitcoin with me. When you reach 2,140 points (Scholar exam points don't count), we both get 50 orange tickets.",
         url: url
     };
 }
@@ -2988,7 +2988,7 @@ function renderReferralSection() {
 
     return '<div id="inviteSettingsBlock" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
         '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Invite friends</div>' +
-        '<p id="inviteSettingsEarn" style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin:0 0 12px;">When a friend you invite earns 2,140 points outside the Scholar exam, you both get 50 orange tickets.</p>' +
+        '<p id="inviteSettingsEarn" style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin:0 0 12px;">When a friend you invite reaches 2,140 points (Scholar exam points don\'t count), you both get 50 orange tickets.</p>' +
         '<p id="inviteSettingsLink" style="margin:0 0 12px;padding:10px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:monospace;word-break:break-all;"></p>' +
         '<button type="button" onclick="openInviteFriends(true)" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Invite friends</button>' +
         '<div id="referralStats" style="color:var(--text-muted);font-size:0.8rem;margin-top:10px;"></div>' +

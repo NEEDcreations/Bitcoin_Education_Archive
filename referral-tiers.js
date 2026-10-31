@@ -97,7 +97,7 @@
         var got = Math.floor(Number(reached));
         if (!isFinite(got) || got < 0) got = 0;
         var people = inv === 1 ? "You've invited 1 person." : "You've invited " + inv + " people.";
-        var rank = (got === 1 ? '1 earned' : got + ' earned') + ' ' + points + ' points outside the Scholar exam.';
+        var rank = (got === 1 ? '1 reached' : got + ' reached') + ' ' + points + " points (Scholar exam points don't count).";
         return people + ' ' + rank + ' Only those referrals count.';
     }
 

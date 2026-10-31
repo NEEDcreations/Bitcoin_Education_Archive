@@ -207,16 +207,20 @@ async function recordReferralArrival(uid, data) {
     if (!id) return;
     const ref = db().collection('referral_arrivals').doc(id);
     let anonymous = false;
-    try {
-        const record = await admin.auth().getUser(id);
-        const providers = ((record && record.providerData) || []).map(function (row) {
-            return row && row.providerId ? String(row.providerId) : '';
-        }).filter(Boolean);
-        anonymous = providers.length === 0 || providers.every(function (provider) {
-            return provider === 'anonymous';
-        });
-    } catch (e) {
-        anonymous = false;
+    // A new Lightning login has no provider rows. That is a full account,
+    // not a guest, so the 100-point signup cap still applies.
+    if (!referrals.needsMintedReferralCode(id)) {
+        try {
+            const record = await admin.auth().getUser(id);
+            const providers = ((record && record.providerData) || []).map(function (row) {
+                return row && row.providerId ? String(row.providerId) : '';
+            }).filter(Boolean);
+            anonymous = providers.length === 0 || providers.every(function (provider) {
+                return provider === 'anonymous';
+            });
+        } catch (e) {
+            anonymous = false;
+        }
     }
     const fromDoc = millisOf(data && data.created);
     await db().runTransaction(async function (t) {
@@ -392,6 +396,7 @@ async function registerReferral(data, context) {
     });
     const fairWindow = referrals.fairUpgradeWindow({
         nowMs: now,
+        uid: uid,
         ownArrivalMs: ownArrival && ownArrival.ms,
         ownAnonymous: !!(ownArrival && ownArrival.anonymous),
         guestArrivalMs: guestMergedHere ? guestArrival.ms : null,
@@ -469,9 +474,10 @@ async function registerReferral(data, context) {
             flags: flags,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-        const userUpdate = { referredBy: code, referralVerified: false };
-        t.update(userRef, userUpdate);
-        if (referrerRef && (status === 'pending' || status === 'flagged')) {
+        if (referrals.writesReferredBy(status)) {
+            t.update(userRef, { referredBy: code, referralVerified: false });
+        }
+        if (referrerRef && referrals.writesReferredBy(status)) {
             t.update(referrerRef, {
                 referralInvited: admin.firestore.FieldValue.increment(1),
             });

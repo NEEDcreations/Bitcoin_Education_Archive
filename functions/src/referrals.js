@@ -98,9 +98,23 @@ function arrivalWithinWindow(nowMs, arrivalMs) {
 // uid is not enough.
 function fairUpgradeWindow(input) {
     const src = input || {};
-    if (src.ownAnonymous === true && arrivalWithinWindow(src.nowMs, src.ownArrivalMs)) return true;
+    // Lightning sign-in is a full account. An empty provider list is not a guest,
+    // so it does not skip the 100-point signup cap. A merged guest still can.
+    const lightning = needsMintedReferralCode(src.uid);
+    if (!lightning && src.ownAnonymous === true && arrivalWithinWindow(src.nowMs, src.ownArrivalMs)) return true;
     if (src.guestMergedHere === true && src.guestAnonymous === true && arrivalWithinWindow(src.nowMs, src.guestArrivalMs)) return true;
     return false;
+}
+
+// The Referred Friend badge keys off users.referredBy. Only a referral the
+// server is still willing to pay (pending or flagged) may set that field.
+function writesReferredBy(status) {
+    return status === 'pending' || status === 'flagged';
+}
+
+function blocksProductionApply(envProject, keyProject) {
+    const prod = 'bitcoin-education-archive';
+    return String(envProject || '') === prod || String(keyProject || '') === prod;
 }
 
 function normalizeCode(raw) {
@@ -547,6 +561,8 @@ module.exports = {
     normalizeGuestUid: normalizeGuestUid,
     referralWindowStart: referralWindowStart,
     fairUpgradeWindow: fairUpgradeWindow,
+    writesReferredBy: writesReferredBy,
+    blocksProductionApply: blocksProductionApply,
     planCodeLookup: planCodeLookup,
     normalizeCode: normalizeCode,
     isSelfReferral: isSelfReferral,

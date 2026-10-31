@@ -185,7 +185,7 @@ test('the reached-Maxi explainer uses the rank threshold', () => {
     assert.strictEqual(tiers.MAXI_RANK_POINTS, 2140);
     assert.strictEqual(
         tiers.maxiCountHelp(12, 3),
-        "You've invited 12 people. 3 earned 2,140 points outside the Scholar exam. Only those referrals count."
+        "You've invited 12 people. 3 reached 2,140 points (Scholar exam points don't count). Only those referrals count."
     );
     assert.strictEqual(tiers.maxiCountHelp(1, 1).indexOf("You've invited 1 person."), 0);
     const rules = require(path.join(root, 'functions/src/badgeRules'));

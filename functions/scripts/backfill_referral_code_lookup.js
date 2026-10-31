@@ -11,6 +11,7 @@
 //
 // No user id, email, code, or address is printed.
 
+const fs = require('fs');
 const path = require('path');
 const referrals = require('../src/referrals');
 
@@ -69,6 +70,17 @@ async function loadCodeIndex(db, admin) {
     return index;
 }
 
+function keyProjectId() {
+    const file = process.env.GOOGLE_APPLICATION_CREDENTIALS || '';
+    if (!file) return '';
+    try {
+        const json = JSON.parse(fs.readFileSync(file, 'utf8'));
+        return String(json && json.project_id || '');
+    } catch (e) {
+        return '';
+    }
+}
+
 function printCounts(counts, mode) {
     console.log('[referral-code-lookup] mode=' + mode);
     console.log('[referral-code-lookup] missing=' + counts.missing);
@@ -77,7 +89,7 @@ function printCounts(counts, mode) {
 
 async function main() {
     const apply = process.argv.indexOf('--apply') !== -1;
-    if (apply && PROJECT_ID === PRODUCTION_PROJECT) {
+    if (apply && referrals.blocksProductionApply(PROJECT_ID, keyProjectId())) {
         console.error('[referral-code-lookup] refusing --apply against production');
         process.exit(1);
     }
