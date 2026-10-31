@@ -24501,7 +24501,7 @@ if (locked) {
                     var _em = (typeof window.getExperienceMode === 'function' && window.getExperienceMode()) || 'advanced';
                     var _all = [
                         appBtn('🦌', 'Nacho Mode', 'enterNachoMode()', false),
-                        _em !== 'beginner' ? appBtn('🕹️', 'Proof of Play', "if(typeof enterProofOfPlay==='function'){enterProofOfPlay();}else{var _s=document.createElement('script');_s.src='proof-of-play.js?v=20261031_v2446';_s.onload=function(){if(typeof enterProofOfPlay==='function')enterProofOfPlay();};document.head.appendChild(_s);}", false) : '',
+                        _em !== 'beginner' ? appBtn('🕹️', 'Proof of Play', "if(typeof enterProofOfPlay==='function'){enterProofOfPlay();}else{var _s=document.createElement('script');_s.src='proof-of-play.js?v=20261031_v2447';_s.onload=function(){if(typeof enterProofOfPlay==='function')enterProofOfPlay();};document.head.appendChild(_s);}", false) : '',
                         _em !== 'beginner' ? appBtn('🗣️', 'Pleb Talk', "go('forum')", forumLock, forumMsg) : '',
                         _em !== 'beginner' ? appBtn('⚡', 'Lightning Mart', "go('marketplace')", marketLock, marketMsg) : '',
                         _em !== 'beginner' ? appBtn('🤝', 'IRL Sync', "go('irl-sync')", irlLock, irlMsg) : '',
@@ -25032,7 +25032,7 @@ if (locked) {
                     if (!window._popScriptLoading) {
                         window._popScriptLoading = true;
                         var _popS = document.createElement('script');
-                        _popS.src = 'proof-of-play.js?v=20261031_v2446';
+                        _popS.src = 'proof-of-play.js?v=20261031_v2447';
                         _popS.onload = function() { window._popScriptLoading = false; };
                         document.head.appendChild(_popS);
                     }
