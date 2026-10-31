@@ -36,18 +36,63 @@ test('tier boundaries match the stated odds', () => {
     assert.ok(consolation.ticketCount >= 0 && consolation.ticketCount <= 10);
 });
 
-test('live roll stays inside the space and is shaped correctly', () => {
+test('live roll stays inside 0..9,999,999 and is shaped correctly', () => {
+    const allowed = SATS_TIERS.map(function(tier) { return tier.amount; });
     for (let i = 0; i < 30; i++) {
         const r = rollCipherReward();
         assert.ok(r.roll >= 0 && r.roll < ROLL_SPACE);
+        assert.strictEqual(ROLL_SPACE, 10000000);
         if (r.rewardType === 'sats') {
-            assert.ok([100, 500, 1000, 5000, 10000, 50000, 100000].indexOf(r.satsAmount) !== -1);
+            assert.ok(allowed.indexOf(r.satsAmount) !== -1);
         } else {
             assert.strictEqual(r.rewardType, 'xp_tickets');
             assert.ok(r.xpAmount >= 50 && r.xpAmount <= 250);
             assert.ok(r.ticketCount >= 0 && r.ticketCount <= 10);
         }
     }
+});
+
+test('exhaustive slot counts match the stated odds and do not overlap', () => {
+    const expected = {
+        100000: 1,
+        50000: 10,
+        10000: 20,
+        5000: 100,
+        1000: 200,
+        500: 1000,
+        100: 2000,
+        50: 10000,
+        25: 100000,
+        10: 200000,
+        5: 1000000,
+    };
+    const counts = {};
+    let cursor = 0;
+    SATS_TIERS.forEach(function(tier) {
+        const slots = ROLL_SPACE / tier.odds;
+        assert.strictEqual(slots, expected[tier.amount], 'slot count for ' + tier.amount);
+        assert.strictEqual(slots * tier.odds, ROLL_SPACE);
+        counts[tier.amount] = 0;
+        for (let roll = cursor; roll < cursor + slots; roll++) {
+            const r = rollCipherReward(roll);
+            assert.strictEqual(r.rewardType, 'sats');
+            assert.strictEqual(r.satsAmount, tier.amount);
+            counts[tier.amount]++;
+        }
+        const before = rollCipherReward(cursor - 1);
+        if (cursor > 0) assert.notStrictEqual(before.satsAmount, tier.amount);
+        cursor += slots;
+    });
+    let total = 0;
+    SATS_TIERS.forEach(function(tier) {
+        assert.strictEqual(counts[tier.amount], expected[tier.amount]);
+        total += counts[tier.amount];
+    });
+    assert.strictEqual(total, 1313331);
+    assert.strictEqual(cursor, total);
+    assert.ok(cursor < ROLL_SPACE);
+    assert.strictEqual(rollCipherReward(cursor).rewardType, 'xp_tickets');
+    assert.strictEqual(rollCipherReward(ROLL_SPACE - 1).rewardType, 'xp_tickets');
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

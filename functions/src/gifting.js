@@ -14,7 +14,21 @@ const bolt11 = require('bolt11');
 const { resolveLnurlInvoice } = require('./lnurlResolve');
 const { NWCClient } = require('@getalby/sdk');
 const { updatePeerLevelAfterGift } = require('./peerLevel');
-const { rollCipherReward } = require('./cipherReward');
+const faucetGuard = require('./faucetGuard');
+const { rollCipherReward, satsDisposition, ALLOWED_SATS_AMOUNTS } = require('./cipherReward');
+const {
+    creditDocId,
+    planCipherSatsClaim,
+    cipherClaimUserPatch,
+    assessAttemptRate,
+    claimsDisabledFromConfig,
+    claimReadyToPay,
+    lockOwnedByClaim,
+    adminMayResolveClaim,
+    adminReleaseFromLookup,
+    RATE_ERROR,
+    UNAVAILABLE,
+} = require('./cipherSatsClaim');
 const { planCipherShare, senderFromKey, clonePrize } = require('./cipherShare');
 const { rollGiftReward: rollGiftRewardImpl, rollGiftCount } = require('./giftRoll');
 const { applyDailyXp } = require('./applyDailyXp');
@@ -28,6 +42,7 @@ const {
     lookupRequestFromDecoded,
     shouldLookupPay,
     lookupSettlement,
+    classifyLookup,
     adminClaimFlag,
 } = require('./cipherClaim');
 const { planShoutout, applyShoutoutCap, shoutoutDocId } = require('./shoutout');
@@ -117,6 +132,7 @@ function publicReward(reward) {
     if (reward.satsAmount) out.satsAmount = reward.satsAmount;
     if (reward.winId) out.winId = reward.winId;
     if (reward.satsStatus) out.satsStatus = reward.satsStatus;
+    if (reward.cipherSatsBalance != null) out.cipherSatsBalance = reward.cipherSatsBalance;
     if (reward.shoutoutConverted) out.shoutoutConverted = true;
     if (reward.conversionMessage) out.conversionMessage = reward.conversionMessage;
     return out;
@@ -664,9 +680,11 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
     const userRef = db.collection('users').doc(uid);
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
     const reward = rollCipherReward();
-    if (reward.rewardType === 'sats' && [100, 500, 1000, 5000, 10000, 50000, 100000].indexOf(reward.satsAmount) === -1) {
+    // Allowed sats amounts: 100000, 50000, 10000, 5000, 1000, 500, 100, 50, 25, 10, 5.
+    if (reward.rewardType === 'sats' && ALLOWED_SATS_AMOUNTS.indexOf(reward.satsAmount) === -1) {
         throw httpsError('internal', 'Bad reward roll');
     }
+    const satsMode = reward.rewardType === 'sats' ? satsDisposition(reward.satsAmount) : '';
     // One roll. The opener's daily XP taper must not change the prize the sender is offered.
     const sharedPrize = clonePrize(reward);
     // Sats shares use the same claim gates as claimCipherWin. Age comes from
@@ -697,6 +715,13 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         const userDoc = await t.get(userRef);
         const ledgerDoc = await t.get(ledgerRef);
         const dailyDoc = await t.get(dailyRef);
+        let openerCreditRef = null;
+        let openerCreditSnap = null;
+        const openerCreditId = satsMode === 'balance' ? creditDocId(cipherId, 'opener') : '';
+        if (openerCreditId) {
+            openerCreditRef = db.collection('cipher_sats_credits').doc(openerCreditId);
+            openerCreditSnap = await t.get(openerCreditRef);
+        }
         if (!cipherDoc.exists) throw httpsError('not-found', 'Cipher not found');
         if (!keyDoc.exists) throw httpsError('not-found', 'Key not found');
         if (!userDoc.exists) throw httpsError('not-found', 'User not found');
@@ -740,9 +765,19 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
 
         // Decide the opener's prize before any write so the sender reads
         // still happen first. The roll above is the only roll.
+        let openerBalance = null;
         if (reward.rewardType === 'sats') {
-            satsStatus = reward.satsAmount >= 1000 ? 'pending' : 'claimable'; // under 1,000 auto-pay; 1,000+ manual
-            winId = db.collection('cipher_wins').doc().id;
+            // Under 1,000 credits the server balance once per open. 1,000+ stay manual.
+            satsStatus = satsMode === 'balance' ? 'balance' : 'pending';
+            if (satsMode === 'manual') winId = db.collection('cipher_wins').doc().id;
+            const priorBalance = Math.max(0, Math.floor(Number(user.cipherSatsBalance) || 0));
+            const alreadyCredited = !!(openerCreditSnap && openerCreditSnap.exists);
+            if (satsMode === 'balance' && openerCreditRef && !alreadyCredited) {
+                userUpdate.cipherSatsBalance = admin.firestore.FieldValue.increment(reward.satsAmount);
+                openerBalance = priorBalance + reward.satsAmount;
+            } else {
+                openerBalance = priorBalance;
+            }
         } else {
             let xp = reward.xpAmount || 50;
             if (rewardBlocked(user, ledger)) xp = 0;
@@ -770,6 +805,8 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         let sharePlan = null;
         let senderRef = null;
         let senderDailyRef = null;
+        let senderCreditRef = null;
+        let senderCreditSnap = null;
         let shareSenderName = 'a Bitcoiner';
         const shareSender = senderFromKey(key);
         const shareRef = db.collection('cipher_shares').doc(cipherId);
@@ -779,6 +816,11 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
             senderDailyRef = senderRef.collection('daily_points').doc(cipherDay);
             const shareSnap = await t.get(shareRef);
             const senderSnap = await t.get(senderRef);
+            const senderCreditId = satsMode === 'balance' ? creditDocId(cipherId, 'sender') : '';
+            if (senderCreditId) {
+                senderCreditRef = db.collection('cipher_sats_credits').doc(senderCreditId);
+                senderCreditSnap = await t.get(senderCreditRef);
+            }
             shareSenderName = safeName(senderSnap.exists ? (senderSnap.data() || {}).username : '');
             const senderLedgerSnap = await t.get(senderLedgerRef);
             const senderDailySnap = await t.get(senderDailyRef);
@@ -811,7 +853,7 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
             }
         }
 
-        if (reward.rewardType === 'sats') {
+        if (reward.rewardType === 'sats' && satsMode === 'manual' && winId) {
             t.set(db.collection('cipher_wins').doc(winId), {
                 uid: uid,
                 username: safeName(user.username),
@@ -828,6 +870,14 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
                 createdAt: now,
                 paidAt: null,
                 paidBy: null,
+            });
+        } else if (reward.rewardType === 'sats' && satsMode === 'balance' && openerCreditRef && openerCreditSnap && !openerCreditSnap.exists) {
+            t.set(openerCreditRef, {
+                uid: uid,
+                cipherId: cipherId,
+                amount: reward.satsAmount,
+                role: 'opener',
+                createdAt: now,
             });
         } else if (openerDailyTotal != null) {
             t.set(dailyRef, {
@@ -855,8 +905,19 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
             if (credit.tickets > 0) {
                 senderUpdate.orangeTickets = admin.firestore.FieldValue.increment(credit.tickets);
             }
+            if (credit.sats > 0 && credit.satsStatus === 'balance' && senderCreditRef && senderCreditSnap && !senderCreditSnap.exists) {
+                senderUpdate.cipherSatsBalance = admin.firestore.FieldValue.increment(credit.sats);
+            }
             t.update(senderRef, senderUpdate);
-            if (credit.sats > 0) {
+            if (credit.sats > 0 && credit.satsStatus === 'balance' && senderCreditRef && senderCreditSnap && !senderCreditSnap.exists) {
+                t.set(senderCreditRef, {
+                    uid: shareSender,
+                    cipherId: cipherId,
+                    amount: credit.sats,
+                    role: 'sender',
+                    createdAt: now,
+                });
+            } else if (credit.sats > 0) {
                 const shareWinRef = db.collection('cipher_wins').doc();
                 t.set(shareWinRef, {
                     uid: shareSender,
@@ -908,7 +969,11 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
 
         cipherPointsBefore = user.points || 0;
         applied = {
-            reward: Object.assign({}, reward, { winId: winId, satsStatus: satsStatus }),
+            reward: Object.assign({}, reward, {
+                winId: winId,
+                satsStatus: satsStatus,
+                cipherSatsBalance: openerBalance,
+            }),
             keySentBy: peerKey ? (key.sentBy || null) : null,
             sendPairId: peerKey ? (key.sendPairId || '') : '',
             opensToday: decToday + 1,
@@ -948,7 +1013,9 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         };
         if (r.rewardType === 'sats') {
             spec.icon = '⚡';
-            spec.message = '+' + Number(r.satsAmount || 0).toLocaleString('en-US') + ' sats from a cipher (' + (r.satsStatus === 'claimable' ? 'ready to claim' : 'pending review') + ')';
+            spec.message = r.satsStatus === 'balance'
+                ? ('+' + Number(r.satsAmount || 0).toLocaleString('en-US') + ' sats added to your cipher balance')
+                : ('+' + Number(r.satsAmount || 0).toLocaleString('en-US') + ' sats from a cipher (pending review)');
         } else if (r.rewardType === 'nacho_shoutout') {
             spec.message = '🎁 Nacho shoutout from opening a cipher';
             spec.icon = '🎁';
@@ -1464,6 +1531,494 @@ const ackCipherShare = functionsV1.runWith({ enforceAppCheck: true }).https.onCa
     }
 });
 
+function cipherPlayerDayId(uid, day) {
+    return String(uid || '').replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120) + '_' + day;
+}
+
+function holdMillis(value) {
+    if (!value) return 0;
+    if (typeof value.toMillis === 'function') return value.toMillis();
+    if (typeof value.seconds === 'number') return value.seconds * 1000;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function dayAmount(snap) {
+    if (!snap || !snap.exists) return 0;
+    const data = snap.data() || {};
+    return Math.max(0, Math.floor(Number(data.amount) || 0));
+}
+
+async function payCipherBalanceInvoice(invoice) {
+    const nwc = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
+    let phase = 'balance';
+    let payResult = null;
+    let payError = null;
+    try {
+        const balanceResult = await withTimeout(nwc.getBalance(), 20000, 'getBalance');
+        const walletSats = Math.floor((balanceResult.balance || 0) / 1000);
+        if (walletSats < WALLET_FLOOR_SATS) throw new Error('WALLET_LOW');
+        phase = 'pay';
+        payResult = await withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
+        if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
+    } catch (e) {
+        payError = e;
+    }
+    if (payResult && payResult.preimage) return { action: 'paid' };
+    if (!shouldLookupPay({ phase: phase, error: payError, payResult: payResult })) {
+        return { action: 'release', low: !!(payError && payError.message === 'WALLET_LOW') };
+    }
+    let lookupReq = null;
+    try { lookupReq = lookupRequestFromDecoded(bolt11.decode(invoice)); }
+    catch (e) { lookupReq = null; }
+    if (!lookupReq) return { action: 'hold' };
+    const settlement = await lookupSettlement({
+        lookup: function() {
+            return withTimeout(nwc.lookupInvoice(lookupReq), 10000, 'lookupInvoice');
+        },
+        sleep: function(ms) {
+            return new Promise(function(resolve) { setTimeout(resolve, ms); });
+        },
+    });
+    if (settlement.action === 'paid') return { action: 'paid' };
+    if (settlement.action === 'release') return { action: 'release', low: false };
+    return { action: 'hold' };
+}
+
+async function finishCipherClaim(reserved, outcome) {
+    const lockRef = db.collection('cipher_sats_locks').doc(reserved.lockId);
+    const auditRef = db.collection('cipher_sats_payouts').doc(reserved.claimId);
+    const userRef = db.collection('users').doc(reserved.uid);
+    const playerRef = db.collection('cipher_sats_player_daily').doc(reserved.playerDayId);
+    const siteRef = db.collection('cipher_sats_site_daily').doc(reserved.day);
+    await db.runTransaction(async (t) => {
+        const auditSnap = await t.get(auditRef);
+        const lockSnap = await t.get(lockRef);
+        const status = auditSnap.exists ? String((auditSnap.data() || {}).status || '') : '';
+        if (status === 'paid' || status === 'restored' || status === 'unknown') return;
+        const lock = lockSnap.exists ? (lockSnap.data() || {}) : null;
+        const owns = lockOwnedByClaim(lock, reserved.claimId);
+        const stamp = admin.firestore.FieldValue.serverTimestamp();
+        if (outcome === 'paid') {
+            t.set(auditRef, { status: 'paid', paidAt: stamp }, { merge: true });
+            if (owns) t.delete(lockRef);
+            return;
+        }
+        if (outcome === 'hold') {
+            t.set(auditRef, { status: 'unknown', heldAt: stamp }, { merge: true });
+            if (owns) t.set(lockRef, { phase: 'unknown', claimId: reserved.claimId }, { merge: true });
+            return;
+        }
+        t.update(userRef, {
+            cipherSatsBalance: admin.firestore.FieldValue.increment(reserved.amount),
+        });
+        t.set(playerRef, { amount: admin.firestore.FieldValue.increment(-reserved.amount) }, { merge: true });
+        t.set(siteRef, { amount: admin.firestore.FieldValue.increment(-reserved.amount) }, { merge: true });
+        t.set(auditRef, { status: 'restored', restoredAt: stamp }, { merge: true });
+        if (owns) t.delete(lockRef);
+    });
+}
+
+// Flip reserved -> paying only if this claim still owns both records.
+// Any miss or error means the caller must not pay.
+async function beginCipherPay(reserved) {
+    const lockRef = db.collection('cipher_sats_locks').doc(reserved.lockId);
+    const auditRef = db.collection('cipher_sats_payouts').doc(reserved.claimId);
+    let ready = false;
+    await db.runTransaction(async (t) => {
+        const lockSnap = await t.get(lockRef);
+        const auditSnap = await t.get(auditRef);
+        const lock = lockSnap.exists ? (lockSnap.data() || {}) : null;
+        const audit = auditSnap.exists ? (auditSnap.data() || {}) : null;
+        if (!claimReadyToPay({
+            lock: lock,
+            audit: audit,
+            claimId: reserved.claimId,
+            uid: reserved.uid,
+        })) return;
+        const stamp = admin.firestore.FieldValue.serverTimestamp();
+        t.set(lockRef, { phase: 'paying' }, { merge: true });
+        t.set(auditRef, { status: 'paying', payingAt: stamp, payingAtMs: Date.now() }, { merge: true });
+        ready = true;
+    });
+    return ready;
+}
+
+// Pays min(balance, 200) from cipherSatsBalance. Independent of the faucet
+// withdrawal clock and of faucet daily caps. Cipher caps and the config flag
+// are the only payout limits here.
+const claimCipherSats = functionsV1.runWith({
+    timeoutSeconds: 180,
+    enforceAppCheck: true,
+    secrets: [deletionHmacSecret],
+}).https.onCall(async (data, context) => {
+    const secondFactor = require('./secondFactor');
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
+    const uid = requireUser(context);
+    if (!NWC_URL) throw httpsError('failed-precondition', 'Prize wallet is not configured yet.');
+    const accountTombstone = require('./accountTombstone');
+    const emailChange = require('./emailChange');
+    if (!accountTombstone.secretReady()) throw httpsError('failed-precondition', UNAVAILABLE);
+
+    let ageDays = 0;
+    let ageKnown = false;
+    let authUser = null;
+    let tombSatsDisabled = false;
+    let tombLedgerBanned = false;
+    try {
+        authUser = await admin.auth().getUser(uid);
+        const created = new Date(authUser.metadata.creationTime).getTime();
+        if (Number.isFinite(created)) {
+            ageDays = accountTombstone.effectiveAgeDays(Math.floor((Date.now() - created) / 86400000), null);
+            ageKnown = true;
+        }
+    } catch (e) {
+        console.error('[claimCipherSats] Could not verify account age');
+        throw httpsError('failed-precondition', 'Try again later.');
+    }
+    if (!authUser || !Array.isArray(authUser.providerData)) {
+        throw httpsError('failed-precondition', 'Try again later.');
+    }
+    const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, authUser, Date.now(), (context.auth && context.auth.token) || {}, true);
+    if (!payoutGate.ok) throw httpsError('failed-precondition', payoutGate.error);
+    const looked = payoutGate.tomb || { configured: false, summary: accountTombstone.emptySummary() };
+    if (looked.configured && looked.summary && (looked.summary.banned || looked.summary.satsDisabled || looked.summary.ledgerBanned)) {
+        await accountTombstone.applyIdentityFlags(db, uid, looked.summary);
+    }
+    if (looked.summary && Number.isFinite(Number(looked.summary.ageDays))) {
+        ageDays = accountTombstone.effectiveAgeDays(ageDays, looked.summary);
+    }
+    tombSatsDisabled = !!(looked.summary && looked.summary.satsDisabled);
+    tombLedgerBanned = !!(looked.summary && looked.summary.ledgerBanned);
+
+    const day = utcDateKey();
+    const nowMs = Date.now();
+    const lockId = String(uid).replace(/\//g, '_').slice(0, 200);
+    const claimId = db.collection('cipher_sats_payouts').doc().id;
+    const userRef = db.collection('users').doc(uid);
+    const ledgerRef = db.collection('faucet_ledger').doc(uid);
+    const lockRef = db.collection('cipher_sats_locks').doc(lockId);
+    const playerDayId = cipherPlayerDayId(uid, day);
+    const playerRef = db.collection('cipher_sats_player_daily').doc(playerDayId);
+    const siteRef = db.collection('cipher_sats_site_daily').doc(day);
+    const rateRef = db.collection('rate_limits').doc('cipher_sats_' + lockId);
+    const configRef = db.collection('cipher_sats_config').doc('settings');
+    const auditRef = db.collection('cipher_sats_payouts').doc(claimId);
+
+    let reserved = null;
+    let denial = '';
+    await db.runTransaction(async (t) => {
+        const userSnap = await t.get(userRef);
+        const ledgerSnap = await t.get(ledgerRef);
+        const lockSnap = await t.get(lockRef);
+        const playerSnap = await t.get(playerRef);
+        const siteSnap = await t.get(siteRef);
+        const rateSnap = await t.get(rateRef);
+        const configSnap = await t.get(configRef);
+        if (!userSnap.exists) throw httpsError('not-found', 'User not found');
+        const user = userSnap.data() || {};
+        const saved = faucetGuard.normalizeLightningAddress(user.lightningAddress || user.lightning || user.lnAddress || '');
+        let addrSnap = null;
+        if (saved && saved.indexOf('/') === -1 && saved.length <= 300) {
+            addrSnap = await t.get(db.collection('lightning_addresses').doc(saved));
+        }
+        const flight = lockSnap.exists ? (lockSnap.data() || {}) : null;
+        const attempt = assessAttemptRate(rateSnap.exists ? (rateSnap.data() || {}) : null, nowMs);
+        if (!attempt.ok) {
+            denial = RATE_ERROR;
+            return;
+        }
+        t.set(rateRef, {
+            count: attempt.count,
+            windowStartMs: attempt.windowStartMs,
+            uid: uid,
+        }, { merge: true });
+        const token = (context.auth && context.auth.token) || {};
+        const verifiedAuthEmail = authUser && authUser.email && authUser.emailVerified === true;
+        const verifiedTokenEmail = token.email && token.email_verified === true;
+        const plan = planCipherSatsClaim({
+            authed: true,
+            anonymous: false,
+            uid: uid,
+            email: verifiedAuthEmail ? authUser.email : (verifiedTokenEmail ? token.email : ''),
+            emailVerified: verifiedAuthEmail || verifiedTokenEmail === true,
+            ageKnown: ageKnown,
+            ageDays: ageDays,
+            satsDisabled: user.satsDisabled === true || tombSatsDisabled,
+            ledgerBanned: (ledgerSnap.exists && ledgerSnap.data().banned === true) || tombLedgerBanned,
+            profileBanned: user.banned === true || !!user.ban_reason,
+            satsHeld: holdMillis(user.satsHold) > nowMs,
+            claimsDisabled: claimsDisabledFromConfig(configSnap.exists, configSnap.exists ? (configSnap.data() || {}) : null),
+            balance: user.cipherSatsBalance,
+            playerDayUsed: dayAmount(playerSnap),
+            siteDayUsed: dayAmount(siteSnap),
+            day: day,
+            nowMs: nowMs,
+            saved: saved,
+            lockExists: !!(addrSnap && addrSnap.exists),
+            lockOwner: addrSnap && addrSnap.exists ? String((addrSnap.data() || {}).uid || '') : '',
+            lock: flight,
+            rate: { count: Math.max(0, attempt.count - 1), windowStartMs: attempt.windowStartMs },
+        });
+        const userPatch = cipherClaimUserPatch(plan);
+        if (!plan.ok) {
+            denial = plan.error || UNAVAILABLE;
+            return;
+        }
+        if (userPatch.cipherSatsBalanceDelta) {
+            t.update(userRef, {
+                cipherSatsBalance: admin.firestore.FieldValue.increment(userPatch.cipherSatsBalanceDelta),
+            });
+        }
+        if (plan.playerDelta) {
+            t.set(playerRef, { amount: admin.firestore.FieldValue.increment(plan.playerDelta), day: day }, { merge: true });
+        }
+        if (plan.siteDelta) {
+            t.set(siteRef, { amount: admin.firestore.FieldValue.increment(plan.siteDelta), day: day }, { merge: true });
+        }
+        if (plan.otherDay && plan.otherDayDelta) {
+            t.set(db.collection('cipher_sats_player_daily').doc(cipherPlayerDayId(uid, plan.otherDay)), {
+                amount: admin.firestore.FieldValue.increment(plan.otherDayDelta),
+                day: plan.otherDay,
+            }, { merge: true });
+            t.set(db.collection('cipher_sats_site_daily').doc(plan.otherDay), {
+                amount: admin.firestore.FieldValue.increment(plan.otherDayDelta),
+                day: plan.otherDay,
+            }, { merge: true });
+        }
+        if (plan.abandon && plan.abandon.claimId) {
+            t.set(db.collection('cipher_sats_payouts').doc(plan.abandon.claimId), {
+                status: 'restored',
+                restoredAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+        }
+        t.set(lockRef, {
+            uid: uid,
+            phase: 'reserved',
+            amount: plan.amount,
+            claimId: claimId,
+            day: day,
+            startedAtMs: nowMs,
+        });
+        t.set(auditRef, {
+            uid: uid,
+            amount: plan.amount,
+            status: 'reserved',
+            day: day,
+            claimId: claimId,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        reserved = {
+            uid: uid,
+            lockId: lockId,
+            claimId: claimId,
+            amount: plan.amount,
+            address: plan.address,
+            day: day,
+            playerDayId: playerDayId,
+            balanceAfter: plan.balanceAfter,
+        };
+    });
+
+    if (!reserved) return { success: false, error: denial || UNAVAILABLE };
+
+    let invoice = '';
+    try {
+        invoice = await _resolvePrizeInvoice('', reserved.address, reserved.amount);
+    } catch (e) {
+        await finishCipherClaim(reserved, 'restore');
+        console.error('[claimCipherSats] address did not resolve');
+        return { success: false, error: (e && e.message) ? e.message : 'Could not pay that Lightning Address.' };
+    }
+
+    const invoiceHash = crypto.createHash('sha256').update(invoice).digest('hex').slice(0, 32);
+    let paymentHash = '';
+    try {
+        const decodedInvoice = bolt11.decode(invoice);
+        const lookupReq = lookupRequestFromDecoded(decodedInvoice);
+        if (lookupReq && lookupReq.payment_hash) paymentHash = String(lookupReq.payment_hash);
+    } catch (e) { paymentHash = ''; }
+    const invoiceRef = db.collection('cipher_sats_invoices').doc(invoiceHash);
+    const payoutRef = db.collection('cipher_sats_payouts').doc(reserved.claimId);
+    try {
+        await db.runTransaction(async (t) => {
+            const existing = await t.get(invoiceRef);
+            const payoutSnap = await t.get(payoutRef);
+            if (existing.exists) throw new Error('used');
+            const payout = payoutSnap.exists ? (payoutSnap.data() || {}) : null;
+            if (!payout || payout.status !== 'reserved' || String(payout.claimId || '') !== reserved.claimId) {
+                throw new Error('moved');
+            }
+            const stamp = admin.firestore.FieldValue.serverTimestamp();
+            t.set(invoiceRef, {
+                uid: uid,
+                claimId: reserved.claimId,
+                amount: reserved.amount,
+                invoiceHash: invoiceHash,
+                paymentHash: paymentHash,
+                status: 'pending',
+                ts: stamp,
+            });
+            t.set(payoutRef, {
+                invoiceHash: invoiceHash,
+                paymentHash: paymentHash,
+            }, { merge: true });
+        });
+    } catch (e) {
+        await finishCipherClaim(reserved, 'restore');
+        return { success: false, error: 'That payout was already used. Wait a moment and try again.' };
+    }
+
+    let readyToPay = false;
+    try {
+        readyToPay = await beginCipherPay(reserved);
+    } catch (e) {
+        readyToPay = false;
+        console.error('[claimCipherSats] could not mark claim paying claim=' + reserved.claimId);
+    }
+    if (!readyToPay) {
+        await invoiceRef.delete().catch(function() {});
+        return { success: false, error: 'A claim is already in progress.' };
+    }
+    const paid = await payCipherBalanceInvoice(invoice);
+    if (paid.action === 'paid') {
+        try {
+            await finishCipherClaim(reserved, 'paid');
+            await invoiceRef.set({ status: 'used', ts: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        } catch (e) {
+            console.error('[claimCipherSats] paid but the receipt did not save claim=' + reserved.claimId);
+        }
+        await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan({
+            uid: uid,
+            sats: reserved.amount,
+            sourceLabel: 'cipher sats',
+            icon: '⚡',
+        }));
+        return { success: true, amount: reserved.amount, balance: reserved.balanceAfter };
+    }
+    if (paid.action === 'hold') {
+        try { await finishCipherClaim(reserved, 'hold'); }
+        catch (e) { console.error('[claimCipherSats] could not hold the claim'); }
+        await invoiceRef.set({ status: 'unknown', ts: admin.firestore.FieldValue.serverTimestamp() }, { merge: true }).catch(function() {});
+        return { success: false, error: 'The payment is not confirmed yet. This claim is on hold so it cannot be paid twice.' };
+    }
+    await finishCipherClaim(reserved, 'restore');
+    await invoiceRef.delete().catch(function() {});
+    if (paid.low) return { success: false, error: 'The prize wallet is being refilled. Try again later.' };
+    return { success: false, error: 'Payment failed. Your cipher sats balance was restored.' };
+});
+
+// Admin-only resolution of a held cipher-sats claim. Does not send a payment.
+// unknown/hold can be resolved any time. paying can be resolved only after
+// 10 minutes. release refunds only when the wallet says the payment failed.
+const adminResolveCipherSatsClaim = functionsV1.runWith({
+    enforceAppCheck: true,
+    timeoutSeconds: 60,
+}).https.onCall(async (data, context) => {
+    requireAdmin(context);
+    const claimId = (data && data.claimId || '').toString().trim();
+    const action = (data && data.action || '').toString().trim();
+    if (!claimId || claimId.length > 128 || !/^[A-Za-z0-9_-]+$/.test(claimId)) {
+        throw httpsError('invalid-argument', 'Invalid claim');
+    }
+    if (action !== 'paid' && action !== 'release') {
+        throw httpsError('invalid-argument', 'Invalid resolution');
+    }
+    const auditRef = db.collection('cipher_sats_payouts').doc(claimId);
+    const pre = await auditRef.get();
+    if (!pre.exists) throw httpsError('not-found', 'Claim not found');
+    const preview = pre.data() || {};
+    const nowMs = Date.now();
+    const gate = adminMayResolveClaim({
+        status: preview.status,
+        payingAtMs: preview.payingAtMs,
+        nowMs: nowMs,
+    });
+    if (!gate.ok) throw httpsError('failed-precondition', 'This claim cannot be resolved.');
+
+    let resolution = action;
+    if (action === 'release') {
+        const paymentHash = String(preview.paymentHash || '');
+        if (!paymentHash || !NWC_URL) {
+            throw httpsError('failed-precondition', 'This claim cannot be released yet.');
+        }
+        let kind = 'unknown';
+        try {
+            const nwc = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
+            const raw = await withTimeout(nwc.lookupInvoice({ payment_hash: paymentHash }), 15000, 'lookupInvoice');
+            kind = classifyLookup(raw).kind;
+        } catch (e) {
+            kind = 'error';
+            console.error('[adminResolveCipherSatsClaim] lookup failed claim=' + claimId);
+        }
+        resolution = adminReleaseFromLookup(kind);
+        if (resolution === 'refuse') {
+            throw httpsError('failed-precondition', 'This claim cannot be released yet.');
+        }
+    }
+
+    const adminUid = context.auth.uid;
+    await db.runTransaction(async (t) => {
+        const auditSnap = await t.get(auditRef);
+        if (!auditSnap.exists) throw httpsError('not-found', 'Claim not found');
+        const row = auditSnap.data() || {};
+        const still = adminMayResolveClaim({
+            status: row.status,
+            payingAtMs: row.payingAtMs,
+            nowMs: Date.now(),
+        });
+        if (!still.ok) throw httpsError('failed-precondition', 'This claim cannot be resolved.');
+        const winnerUid = String(row.uid || '');
+        const amount = Math.max(0, Math.floor(Number(row.amount) || 0));
+        const day = String(row.day || '');
+        const lockId = winnerUid.replace(/\//g, '_').slice(0, 200);
+        const lockRef = lockId ? db.collection('cipher_sats_locks').doc(lockId) : null;
+        const lockSnap = lockRef ? await t.get(lockRef) : null;
+        const lock = lockSnap && lockSnap.exists ? (lockSnap.data() || {}) : null;
+        const owns = lockOwnedByClaim(lock, claimId);
+        const stamp = admin.firestore.FieldValue.serverTimestamp();
+        if (resolution === 'paid') {
+            t.set(auditRef, {
+                status: 'paid',
+                paidAt: stamp,
+                resolvedBy: adminUid,
+                resolution: action === 'release' ? 'lookup_paid' : 'admin_paid',
+            }, { merge: true });
+        } else {
+            if (winnerUid && amount) {
+                t.update(db.collection('users').doc(winnerUid), {
+                    cipherSatsBalance: admin.firestore.FieldValue.increment(amount),
+                });
+            }
+            if (winnerUid && day && amount) {
+                t.set(db.collection('cipher_sats_player_daily').doc(cipherPlayerDayId(winnerUid, day)), {
+                    amount: admin.firestore.FieldValue.increment(-amount),
+                    day: day,
+                }, { merge: true });
+                t.set(db.collection('cipher_sats_site_daily').doc(day), {
+                    amount: admin.firestore.FieldValue.increment(-amount),
+                    day: day,
+                }, { merge: true });
+            }
+            t.set(auditRef, {
+                status: 'restored',
+                restoredAt: stamp,
+                resolvedBy: adminUid,
+                resolution: 'admin_release',
+            }, { merge: true });
+        }
+        if (owns && lockRef) t.delete(lockRef);
+        t.set(db.collection('admin_audit_log').doc('cipher_sats_' + claimId), {
+            action: 'resolveCipherSatsClaim',
+            claimId: claimId,
+            adminUid: adminUid,
+            resolution: resolution,
+            ts: stamp,
+        });
+    });
+    return { success: true, resolution: resolution };
+});
+
 module.exports = {
     awardDailyGifts: awardDailyGifts,
     openGift: openGift,
@@ -1471,6 +2026,8 @@ module.exports = {
     decryptCipher: decryptCipher,
     ackCipherShare: ackCipherShare,
     claimCipherWin: claimCipherWin,
+    claimCipherSats: claimCipherSats,
+    adminResolveCipherSatsClaim: adminResolveCipherSatsClaim,
     listMyCipherWins: listMyCipherWins,
     adminListCipherWins: adminListCipherWins,
     adminMarkCipherWinPaid: adminMarkCipherWinPaid,

@@ -9065,6 +9065,8 @@ const {
     decryptCipher,
     ackCipherShare,
     claimCipherWin,
+    claimCipherSats,
+    adminResolveCipherSatsClaim,
     listMyCipherWins,
     adminListCipherWins,
     adminMarkCipherWinPaid,
@@ -9075,6 +9077,8 @@ exports.sendKeys = sendKeys;
 exports.decryptCipher = decryptCipher;
 exports.ackCipherShare = ackCipherShare;
 exports.claimCipherWin = claimCipherWin;
+exports.claimCipherSats = claimCipherSats;
+exports.adminResolveCipherSatsClaim = adminResolveCipherSatsClaim;
 exports.listMyCipherWins = listMyCipherWins;
 exports.adminListCipherWins = adminListCipherWins;
 exports.adminMarkCipherWinPaid = adminMarkCipherWinPaid;

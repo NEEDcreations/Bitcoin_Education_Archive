@@ -121,7 +121,7 @@ test('the Today tile reads the server count and shows n/5', function () {
     assert.ok(quests.indexOf('FLEX_ACTIONS.every') === -1);
     assert.ok(quests.indexOf('_flexDayGoal') > 0);
     assert.ok(quests.indexOf('5 * 3600000') > 0);
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261031_v2451/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261031_v2452/g) || []).length, 4);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261030_v2435/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261028_v2415/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261026_v2381/g) || []).length, 0);

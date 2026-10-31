@@ -172,6 +172,7 @@ function _rewardLabel(rw) {
     }
     if (rw.rewardType === 'sats') {
         var amt = (rw.satsAmount || 0).toLocaleString();
+        if (rw.satsStatus === 'balance') return '+' + amt + ' sats added to your cipher balance';
         if (rw.satsStatus === 'pending') return amt + ' sats — Phil will pay this one';
         return amt + ' sats';
     }
@@ -1437,6 +1438,52 @@ function _card(el) {
     return d;
 }
 
+function cipherSatsBalanceValue() {
+    var n = 0;
+    if (typeof currentUser !== 'undefined' && currentUser) n = Math.floor(Number(currentUser.cipherSatsBalance) || 0);
+    return n > 0 ? n : 0;
+}
+
+function mountCipherSatsBalance(parent, opts) {
+    if (!parent) return null;
+    var options = opts || {};
+    var bal = typeof options.balance === 'number' ? options.balance : cipherSatsBalanceValue();
+    if (bal < 0) bal = 0;
+    var box = document.createElement('div');
+    box.className = 'cipher-sats-balance';
+    box.id = options.id || 'cipherSatsBalance';
+    box.setAttribute('data-surface', options.surface || 'ciphers');
+    box.style.cssText = 'margin:0 0 12px;padding:12px;border-radius:12px;border:1px solid rgba(247,147,26,0.45);background:rgba(247,147,26,0.08);text-align:center;';
+    var label = document.createElement('div');
+    label.style.cssText = 'font-size:0.68rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);font-weight:800;';
+    label.textContent = 'Cipher sats balance';
+    var num = document.createElement('div');
+    num.className = 'cipher-sats-balance-amount';
+    num.style.cssText = 'font-size:1.35rem;font-weight:900;color:#f7931a;margin:4px 0;';
+    num.textContent = bal.toLocaleString() + ' sats';
+    var note = document.createElement('div');
+    note.style.cssText = 'font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;';
+    note.textContent = 'Small sats wins from locked ciphers land here.';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'cipher-sats-claim-btn';
+    btn.textContent = 'Claim ' + Math.min(bal, 200).toLocaleString() + ' sats';
+    var ready = bal >= 100 && !options.disabled;
+    btn.disabled = !ready;
+    btn.style.cssText = 'min-height:44px;padding:10px 14px;border:none;border-radius:10px;font-weight:800;font-family:inherit;width:100%;' + (ready ? 'background:#f7931a;color:#fff;cursor:pointer;' : 'background:var(--card-bg,#222);color:var(--text-muted);cursor:default;opacity:0.65;');
+    btn.onclick = function() {
+        if (!ready || typeof window.claimCipherSats !== 'function') return;
+        window.claimCipherSats();
+    };
+    box.appendChild(label);
+    box.appendChild(num);
+    box.appendChild(note);
+    box.appendChild(btn);
+    parent.appendChild(box);
+    return box;
+}
+window.mountCipherSatsBalance = mountCipherSatsBalance;
+
 function _lockedCipherNote(parent, label) {
     var note = document.createElement('div');
     note.className = 'locked-cipher-note';
@@ -1644,10 +1691,13 @@ window.renderKeysAndCiphersPanel = async function(container) {
     introRow.className = 'kc-intro';
     var intro = document.createElement('p');
     intro.style.cssText = 'font-size:0.78rem;color:var(--text-muted);line-height:1.4;';
-    intro.textContent = 'A key and a cipher with the same label, like F6, are a pair. Open the pair, or send a spare key to a peer. If an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won. That counts as one of your 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible.';
+    intro.textContent = 'A key and a cipher with the same label, like F6, are a pair. Open the pair, or send a spare key to a peer. If an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won. That counts as one of your 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible. Smaller sats wins are added to your cipher sats balance.';
     introRow.appendChild(intro);
     introRow.appendChild(_soundButton('nookSoundToggle'));
     el.appendChild(introRow);
+    if (!document.getElementById('cipherSatsBalanceInventory')) {
+        mountCipherSatsBalance(el, { id: 'cipherSatsBalanceCiphers', surface: 'ciphers', disabled: !!satsOff });
+    }
 
     var heading = document.createElement('div');
     heading.className = 'kc-accent';
@@ -1994,6 +2044,10 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
         line.textContent = _rewardLabel(rw);
         resultDiv.appendChild(emoji);
         resultDiv.appendChild(line);
+        if (rw.cipherSatsBalance != null && typeof currentUser !== 'undefined' && currentUser) {
+            currentUser.cipherSatsBalance = Math.max(0, Math.floor(Number(rw.cipherSatsBalance) || 0));
+        }
+        mountCipherSatsBalance(resultDiv, { id: 'cipherSatsBalanceOpen', surface: 'open' });
         if (rw.opensToday) {
             var used = document.createElement('div');
             used.style.cssText = 'font-size:0.72rem;color:var(--text-faint);margin-top:6px;';

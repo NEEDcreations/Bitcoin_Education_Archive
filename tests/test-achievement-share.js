@@ -391,7 +391,7 @@ test('pages ship one script, one Latest line, and the v2394 cache', () => {
     assert.strictEqual(html, read('404.html'));
     assert.ok(html.includes('achievement-share.js?v=20261031_v2447'));
     assert.ok(html.includes('timechain-tv.js?v=20261031_v2447'));
-    assert.ok(html.includes('features.registry.js?v=20261031_v2451'));
+    assert.ok(html.includes('features.registry.js?v=20261031_v2452'));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(LATEST));
@@ -406,7 +406,7 @@ test('pages ship one script, one Latest line, and the v2394 cache', () => {
     assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
     assert.ok(!notes.includes('Latest: Inventory explains'));
 
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2451'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2452'"));
     assert.ok(!read('sw.js').includes('btc-archive-v2438'));
     assert.ok(!read('sw.js').includes('btc-archive-v2437'));
     assert.ok(!read('sw.js').includes('btc-archive-v2436'));
