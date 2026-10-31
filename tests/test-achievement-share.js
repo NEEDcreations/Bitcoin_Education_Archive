@@ -16,7 +16,9 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-const LATEST = "Latest: Share the channel or mini app you are in. The post has one referral link, and that link opens the same spot.";
+const LATEST = 'Latest: Boss History shows when each fight actually ended, and past bosses are listed by month.';
+const STREAKS_NOTE = "Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.";
+const DOUBLE_XP_NOTE = "Double XP now applies to every way you earn XP.";
 const RAID = "The raid boss shows HP remaining, the same remaining over max HP as the raid screen.";
 const SHARE_NOTE = "When you hit a big milestone, a share card lets friends open Bitcoin Quest from your link. Finishing the day's quests shows a small card, and a streak button lets you share your streak.";
 
@@ -387,12 +389,16 @@ test('shown marker is an owner string and the worker OG is static', () => {
 test('pages ship one script, one Latest line, and the v2394 cache', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('achievement-share.js?v=20261027_v2398'));
-    assert.ok(html.includes('timechain-tv.js?v=20261027_v2398'));
+    assert.ok(html.includes('achievement-share.js?v=20261031_v2446'));
+    assert.ok(html.includes('timechain-tv.js?v=20261031_v2446'));
     assert.ok(html.includes('features.registry.js?v=20261024_v2368'));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(LATEST));
+    assert.ok(notes.includes(STREAKS_NOTE));
+    assert.ok(!notes.includes('Latest: ' + STREAKS_NOTE));
+    assert.ok(notes.includes(DOUBLE_XP_NOTE));
+    assert.ok(!notes.includes('Latest: ' + DOUBLE_XP_NOTE));
     assert.ok(notes.includes(RAID));
     assert.ok(!notes.includes('Latest: ' + RAID));
     assert.ok(notes.includes(SHARE_NOTE));
@@ -400,12 +406,21 @@ test('pages ship one script, one Latest line, and the v2394 cache', () => {
     assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
     assert.ok(!notes.includes('Latest: Inventory explains'));
 
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2398'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2446'"));
+    assert.ok(!read('sw.js').includes('btc-archive-v2438'));
+    assert.ok(!read('sw.js').includes('btc-archive-v2437'));
+    assert.ok(!read('sw.js').includes('btc-archive-v2436'));
+    assert.ok(!read('sw.js').includes('btc-archive-v2435'));
+    assert.ok(!read('sw.js').includes('btc-archive-v2434'));
+    assert.ok(!read('sw.js').includes('btc-archive-v2433'));
+    assert.ok(!read('sw.js').includes('btc-archive-v2432'));
+    assert.ok(!read('sw.js').includes('btc-archive-v2431'));
+    assert.ok(!read('sw.js').includes('btc-archive-v2430'));
+    assert.ok(!read('sw.js').includes('btc-archive-v2422'));
     assert.ok(!read('sw.js').includes('btc-archive-v2391'));
     assert.ok(!read('sw.js').includes('btc-archive-v2386'));
-    assert.ok(!read('sw.js').includes('btc-archive-v2410'));
+    assert.ok(!read('sw.js').includes('btc-archive-v2407'));
     assert.ok(!read('sw.js').includes('btc-archive-v2385'));
-    assert.ok(!read('sw.js').includes('btc-archive-v2425'));
     assert.ok(!read('sw.js').includes('btc-archive-v2384'));
     assert.ok(!read('sw.js').includes('btc-archive-v2383'));
     const src = read('achievement-share.js');

@@ -98,6 +98,10 @@ function page() {
     // The auth button and the settings modal exist on the real homepage.
     byId('authBtn');
     byId('usernameModal');
+    byId('rankBar');
+    byId('homeSatsValue');
+    byId('homeSignedInChip');
+    byId('userDisplay');
     return { doc: doc, nodes: nodes, modal: modal, box: box };
 }
 
@@ -271,6 +275,223 @@ test('signed-out auth state without signOutUser opens the sign-in prompt', async
     await Promise.resolve();
     assert.strictEqual(env.sandbox.challenges, 0);
     assert.ok(env.ui.modal.classList.contains('open'), 'username prompt opened');
+});
+
+test('stale twoFa false then a server 2FA-on result hides the live profile', async function () {
+    const env = boot({ init: false });
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'auth-display.js'), 'utf8'), env.sandbox, { filename: 'auth-display.js' });
+    const uid = 'userUid123456';
+    env.sandbox.localStorage.setItem('btc_last_auth_uid', uid);
+    env.sandbox.localStorage.setItem('btc_profile_cache', JSON.stringify({
+        uid: uid,
+        ts: Date.now() - 1000,
+        twoFa: false,
+        data: {
+            username: 'MeasurePleb',
+            points: 2500,
+            totpEnabled: false,
+            email: 'secret@example.com',
+            lightningAddress: 'pleb@getalby.com'
+        }
+    }));
+    env.authObj.currentUser = {
+        uid: uid,
+        isAnonymous: false,
+        getIdTokenResult: async function () { return { claims: {} }; }
+    };
+    vm.runInContext(
+        'auth = window.auth; currentUser = { uid: ' + JSON.stringify(uid) + ', username: "MeasurePleb", points: 2500, totpEnabled: false, email: "secret@example.com" };',
+        env.sandbox
+    );
+    env.sandbox.updateRankUI();
+    env.sandbox.updateAuthButton();
+    env.sandbox.publishAuthDisplay(uid, { uid: uid, username: 'MeasurePleb', points: 2500, totpEnabled: false });
+    const bar = env.ui.nodes.rankBar;
+    const sats = env.ui.nodes.homeSatsValue;
+    bar.setAttribute('data-auth-live', '1');
+    bar.removeAttribute('data-profile-cache');
+    sats.setAttribute('data-auth-live', '1');
+    sats.removeAttribute('data-profile-cache');
+    if (!sats.textContent || sats.textContent === '—') sats.textContent = '250';
+    assert.ok(String(bar.innerHTML).indexOf('MeasurePleb') !== -1, 'live rank shows the name before the server check');
+    assert.ok(String(env.ui.nodes.authBtn.innerHTML || env.ui.nodes.authBtn.textContent).indexOf('MeasurePleb') !== -1);
+    env.sandbox._serverTotpAllows = async function () { return false; };
+    await env.sandbox.loadUser(uid, {
+        exists: true,
+        data: function () {
+            return {
+                username: 'MeasurePleb',
+                points: 2500,
+                totpEnabled: true,
+                email: 'secret@example.com',
+                lightningAddress: 'pleb@getalby.com',
+                tosVersion: '2026-10-23'
+            };
+        }
+    });
+    assert.strictEqual(vm.runInContext('currentUser', env.sandbox), null);
+    assert.strictEqual(env.sandbox._btcTotpHold, true);
+    const shown = [
+        bar.innerHTML, bar.textContent, sats.textContent,
+        env.ui.nodes.authBtn.innerHTML, env.ui.nodes.authBtn.textContent,
+        env.ui.nodes.homeSignedInChip.innerHTML, env.ui.nodes.homeSignedInChip.textContent,
+        env.ui.nodes.userDisplay.innerHTML, env.ui.nodes.userDisplay.textContent
+    ].join('\n');
+    assert.strictEqual(shown.indexOf('MeasurePleb'), -1, shown);
+    assert.strictEqual(shown.indexOf('secret@example.com'), -1, shown);
+    assert.strictEqual(shown.indexOf('pleb@getalby.com'), -1, shown);
+    assert.ok(sats.textContent === '—' || sats.textContent === '', sats.textContent);
+    assert.ok(!env.ui.doc.documentElement.classList.contains('home-signed-in'));
+    assert.strictEqual(bar.getAttribute('data-auth-live'), null);
+    assert.strictEqual(sats.getAttribute('data-auth-live'), null);
+    const cached = JSON.parse(env.sandbox.localStorage.getItem('btc_profile_cache'));
+    assert.strictEqual(cached.twoFa, true);
+    assert.strictEqual(cached.data.email, undefined);
+    assert.strictEqual(cached.data.lightningAddress, undefined);
+    assert.strictEqual(cached.data.username, 'MeasurePleb');
+});
+
+test('clearUserLocalStorage removes the profile cache', function () {
+    const env = boot({ init: false });
+    env.sandbox.localStorage.setItem('btc_profile_cache', JSON.stringify({
+        uid: 'userUid123456',
+        data: { username: 'MeasurePleb', email: 'secret@example.com' }
+    }));
+    env.sandbox.localStorage.setItem('btc_theme_oled', '1');
+    env.sandbox.clearUserLocalStorage();
+    assert.strictEqual(env.sandbox.localStorage.getItem('btc_profile_cache'), null);
+    assert.strictEqual(env.sandbox.localStorage.getItem('btc_theme_oled'), '1');
+});
+
+test('profile cache keeps display fields and drops email', function () {
+    const env = boot({ init: false });
+    env.sandbox.saveProfileCache('userUid123456', {
+        username: 'MeasurePleb',
+        points: 2500,
+        totpEnabled: false,
+        email: 'secret@example.com',
+        lightningAddress: 'pleb@getalby.com',
+        idToken: 'tok'
+    });
+    const cached = JSON.parse(env.sandbox.localStorage.getItem('btc_profile_cache'));
+    assert.strictEqual(cached.twoFa, false);
+    assert.strictEqual(cached.data.username, 'MeasurePleb');
+    assert.strictEqual(cached.data.points, 2500);
+    assert.strictEqual(cached.data.email, undefined);
+    assert.strictEqual(cached.data.lightningAddress, undefined);
+    assert.strictEqual(cached.data.idToken, undefined);
+});
+
+function pendingCallables(env) {
+    const state = {
+        totpCalls: 0,
+        emailCalls: 0,
+        totpDone: false,
+        emailDone: false
+    };
+    env.sandbox._serverTotpAllows = function () {
+        state.totpCalls++;
+        return new Promise(function (resolve) {
+            state.totpResolve = function (open) {
+                state.totpDone = true;
+                resolve(open);
+            };
+        });
+    };
+    env.sandbox.firebase.functions = function () {
+        return {
+            httpsCallable: function (name) {
+                return function () {
+                    if (name !== 'syncEmailChange') return Promise.resolve({ data: {} });
+                    state.emailCalls++;
+                    return new Promise(function (resolve) {
+                        state.emailResolve = function (body) {
+                            state.emailDone = true;
+                            resolve({ data: body || {} });
+                        };
+                    });
+                };
+            }
+        };
+    };
+    return state;
+}
+
+function profileDoc(totp, today) {
+    return {
+        exists: true,
+        data: function () {
+            return {
+                username: 'MeasurePleb',
+                points: 2500,
+                totpEnabled: totp,
+                tosVersion: '2026-10-23',
+                lastVisit: today
+            };
+        }
+    };
+}
+
+function signIn(env) {
+    env.authObj.currentUser = {
+        uid: 'userUid123456',
+        isAnonymous: false,
+        getIdTokenResult: async function () { return { claims: {} }; }
+    };
+}
+
+test('a profile without 2FA renders before totpStatus and syncEmailChange resolve', async function () {
+    const env = boot();
+    const state = pendingCallables(env);
+    signIn(env);
+    const pending = env.sandbox.loadUser('userUid123456', profileDoc(false, env.today));
+    const bar = env.ui.nodes.rankBar;
+    assert.ok(String(bar.innerHTML).indexOf('MeasurePleb') !== -1, bar.innerHTML);
+    assert.strictEqual(state.totpCalls, 1);
+    assert.strictEqual(state.emailCalls, 1);
+    assert.strictEqual(state.totpDone, false);
+    assert.strictEqual(state.emailDone, false);
+    assert.strictEqual(env.sandbox.challenges, 0);
+    state.totpResolve(true);
+    state.emailResolve({});
+    await pending;
+    assert.ok(String(bar.innerHTML).indexOf('MeasurePleb') !== -1);
+    assert.strictEqual(env.sandbox._btcTotpHold, false);
+    assert.strictEqual(env.sandbox.challenges, 0);
+});
+
+test('a profile without 2FA hides when the parallel status says blocked', async function () {
+    const env = boot();
+    const state = pendingCallables(env);
+    signIn(env);
+    const pending = env.sandbox.loadUser('userUid123456', profileDoc(false, env.today));
+    const bar = env.ui.nodes.rankBar;
+    assert.ok(String(bar.innerHTML).indexOf('MeasurePleb') !== -1, 'painted before the status call finished');
+    assert.strictEqual(state.totpDone, false);
+    state.totpResolve(false);
+    await pending;
+    assert.strictEqual(env.sandbox.challenges, 1);
+    assert.strictEqual(vm.runInContext('currentUser', env.sandbox), null);
+    assert.strictEqual(String(bar.innerHTML).indexOf('MeasurePleb'), -1);
+    assert.strictEqual(env.sandbox._btcTotpHold, true);
+});
+
+test('a 2FA profile still waits for totpStatus before it renders', async function () {
+    const env = boot();
+    const state = pendingCallables(env);
+    signIn(env);
+    const pending = env.sandbox.loadUser('userUid123456', profileDoc(true, env.today));
+    const bar = env.ui.nodes.rankBar;
+    assert.strictEqual(String(bar.innerHTML).indexOf('MeasurePleb'), -1, bar.innerHTML);
+    assert.strictEqual(state.totpCalls, 1);
+    assert.strictEqual(state.totpDone, false);
+    assert.strictEqual(state.emailCalls, 0);
+    state.totpResolve(true);
+    await pending;
+    assert.ok(String(bar.innerHTML).indexOf('MeasurePleb') !== -1, bar.innerHTML);
+    assert.strictEqual(state.emailCalls, 1);
+    assert.strictEqual(state.emailDone, false);
+    state.emailResolve({});
 });
 
 Promise.all(pending).then(function () {

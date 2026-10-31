@@ -261,15 +261,15 @@ test('a TCTV landing still stores the referral code for signup', () => {
     assert.strictEqual(api.shareModel('chat', { code: CODE }).hash, 'chat');
 });
 
-test('pages ship the helper, one Latest line, and the v2398 cache', () => {
+test('pages ship the helper, one Latest line, and the v2446 cache', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('miniapp-share.js?v=20261027_v2398'));
-    assert.ok(html.includes('achievement-share.js?v=20261027_v2398'));
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2398'"));
+    assert.ok(html.includes('miniapp-share.js?v=20261031_v2446'));
+    assert.ok(html.includes('achievement-share.js?v=20261031_v2446'));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2446'"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Share the channel or mini app you are in. The post has one referral link, and that link opens the same spot.'));
+    assert.ok(notes.includes('Latest: Boss History shows when each fight actually ended, and past bosses are listed by month.'));
     assert.ok(notes.includes('A returning signed-in player sees their home as soon as the page paints.'));
     assert.strictEqual(notes.includes('Latest: A returning signed-in player'), false);
     assert.ok(read('app.js').includes('window.miniAppConsumeHash'));

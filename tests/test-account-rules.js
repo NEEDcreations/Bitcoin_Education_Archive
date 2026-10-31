@@ -17,7 +17,7 @@ assert.ok(keysFn.includes("'providersHash'"));
 assert.ok(keysFn.includes("'providerHashes'"));
 assert.ok(!keysFn.includes("'referredBy'"), 'referredBy stays out of userProfileServerOnlyKeys');
 assert.ok(!createRule.includes("'email'"), 'create allowlist no longer includes email');
-['deleted_accounts', 'email_history', 'email_change_pending', 'identity_history'].forEach(function (name) {
+['deleted_accounts', 'email_history', 'email_change_pending', 'email_link_claims', 'identity_history'].forEach(function (name) {
     const at = rules.indexOf('match /' + name + '/{docId}');
     assert.ok(at !== -1, name);
     const block = rules.slice(at, rules.indexOf('match /', at + 10));

@@ -978,7 +978,7 @@ function initSecondFactor(deps) {
         return { success: true };
     });
 
-    const totpStatus = functionsV1.https.onCall(async function (data, context) {
+    const totpStatus = functionsV1.runWith({ minInstances: 1 }).https.onCall(async function (data, context) {
         const uid = requireUser(context);
         forgetPhone(uid);
         const nowMs = currentNow();

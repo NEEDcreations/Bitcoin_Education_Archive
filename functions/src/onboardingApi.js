@@ -2,11 +2,13 @@
 
 const crypto = require('crypto');
 const quest = require('./onboardingQuest');
+const { planXpGrant } = require('./grantXp');
 const names = require('./usernamePolicy');
 const faucetGuard = require('./faucetGuard');
 const rateSalt = require('./rateLimitSalt');
 const { isSatsBanned } = require('./cipherClaim');
 const accountTombstone = require('./accountTombstone');
+const streakBoard = require('./streakBoard');
 
 const QUIZ_DOC = /_(quest|trivia|poll_vote)$/;
 const USERNAME_HOUR_MS = 60 * 60 * 1000;
@@ -198,6 +200,8 @@ function registerOnboarding(deps) {
                 pendingOverflow: user.pendingOverflow || 0,
                 lastOverflowDate: user.lastOverflowDate || '',
                 today: today,
+                user: user,
+                now: Date.now(),
             });
             grant.today = today;
             const prev = (user.onboardingQuest && user.onboardingQuest.steps) || {};
@@ -225,6 +229,7 @@ function registerOnboarding(deps) {
                 already: false,
                 mode: mode,
                 awarded: grant.pointsOut,
+                doubled: grant.doubled === true,
                 tickets: again.tickets,
                 complete: complete,
             };
@@ -239,6 +244,7 @@ function registerOnboarding(deps) {
             already: !!written.already,
             error: written.error || '',
             awarded: written.awarded || 0,
+            doubled: written.doubled === true,
             tickets: written.tickets || 0,
             complete: !!written.complete,
             totalPts: totals.pts,
@@ -385,8 +391,15 @@ function registerOnboarding(deps) {
                 if (nonceMatches) clearGuestNonce(tx, admin, anonRef);
                 return { ok: true, already: true, points: 0, tickets: 0 };
             }
-            // Guest points were already earned. Moving them is not a new daily grant.
-            const movedPoints = Math.max(0, Math.floor(Number(again.points) || 0));
+            // Guest points were already earned. Moving them is not a new grant
+            // and is not doubled.
+            const movedGrant = planXpGrant({
+                base: Math.max(0, Math.floor(Number(again.points) || 0)),
+                boost: false,
+                capExempt: true,
+                now: nowMs,
+            });
+            const movedPoints = movedGrant.awarded;
             let movedName = '';
             if (nameRef) {
                 const reserved = nameSnap && nameSnap.exists ? reservationView(nameSnap.data()) : null;
@@ -395,17 +408,16 @@ function registerOnboarding(deps) {
                 if (free && names.assessUsername(guestName, { allowReserved: true }).ok) movedName = guestName;
             }
             if (!freshDest.exists) {
-                const created = {
+                const created = Object.assign({
                     points: movedPoints,
                     weeklyXP: movedPoints,
                     monthlyXP: movedPoints,
                     orangeTickets: again.tickets,
                     channelsVisited: again.channelsVisited,
                     totalVisits: 1,
-                    streak: 1,
                     mergedFromGuest: true,
                     created: admin.firestore.FieldValue.serverTimestamp(),
-                };
+                }, streakBoard.applyStreakUpdate({}, 1, nowMs, null));
                 if (movedName) {
                     created.username = movedName;
                     created.username_lower = guestLower;
@@ -593,9 +605,8 @@ function registerOnboarding(deps) {
                     points: 0,
                     channelsVisited: 0,
                     totalVisits: 1,
-                    streak: 1,
                     created: admin.firestore.FieldValue.serverTimestamp(),
-                }, patch));
+                }, streakBoard.applyStreakUpdate({}, 1, nowMs, null), patch));
             } else {
                 tx.update(userRef, patch);
             }

@@ -2,8 +2,9 @@
 
 // Server-side grading for daily trivia and quiz quests.
 // The browser is hostile: answer keys, indexes, and "correct" flags it sends
-// are ignored. Points are decided from functions/reward-banks.json, which
-// build.sh copies from data/trivia-bank.js, quests.js, and learning-quests.js.
+// are ignored. Quiz points come from functions/reward-banks.json. The trivia
+// rows in that file are questions and options only. answerTrivia passes the
+// key it loaded from Firestore as input.trivia. A missing key is not graded.
 //
 // Trivia and quiz XP use the shared daily counter: full through 500, half
 // through 900, then a quarter until 1,000, on the offset-day daily_points
@@ -11,7 +12,7 @@
 
 const crypto = require('crypto');
 const banks = require('../reward-banks.json');
-const { planDailyXp } = require('./dailyXp');
+const { planXpGrant } = require('./grantXp');
 
 // Previous published bank. build-reward-banks.js writes this when the
 // client banks change, with validUntil 72 hours later. Grading uses it
@@ -149,11 +150,22 @@ function previousQuestParts(prev) {
 
 function triviaQuestionFrom(item) {
     if (!item || !Array.isArray(item.options)) return null;
-    return { q: item.q, options: item.options.slice(), answer: item.answer };
+    return {
+        q: item.q,
+        options: item.options.slice(),
+        answer: item.answer,
+        explanation: typeof item.explanation === 'string' ? item.explanation : '',
+    };
 }
 
-function triviaQuestion(index) {
-    return triviaQuestionFrom(banks.trivia[index]);
+function triviaRows(src) {
+    if (src && Array.isArray(src.trivia) && src.trivia.length) return src.trivia;
+    return banks.trivia;
+}
+
+function triviaQuestion(index, list) {
+    const rows = list || banks.trivia;
+    return triviaQuestionFrom(rows[index]);
 }
 
 function triviaLength() {
@@ -287,8 +299,9 @@ function clientQuestionText(src) {
 function selectTriviaQuestion(src, now) {
     const today = offsetDateKey(now);
     const questionIndex = Number(src.questionIndex);
-    const currentIndex = triviaIndexForDay(today);
-    const currentQ = triviaQuestion(currentIndex);
+    const rows = triviaRows(src);
+    const currentIndex = triviaIndexForDay(today, rows.length);
+    const currentQ = triviaQuestion(currentIndex, rows);
     const prev = activePrevious(now, src.prev);
     const prevLen = prev && Array.isArray(prev.trivia) ? prev.trivia.length : 0;
     const prevIndex = prevLen ? triviaIndexForDay(today, prevLen) : -1;
@@ -332,21 +345,30 @@ function gradeTrivia(input) {
     const expected = selected.questionIndex;
     const optionIndex = choice == null ? -1 : triviaOptionIndex(question, choice);
     const correct = optionIndex >= 0 && triviaChoiceCorrect(question, choice);
+    // Returned only after the choice is graded for an account that can play.
+    // A wrong day, a wrong question, or a ban leaves the key off the result.
     if (src.banned === true) {
         return { ok: true, correct: correct, awarded: 0, overflowAdded: 0, capped: false, pts: 0, reason: 'banned', banned: true, questionIndex: expected, optionIndex: optionIndex };
     }
+    const explanation = typeof question.explanation === 'string' ? question.explanation : '';
+    const answerIndex = Number.isInteger(question.answer) ? question.answer : -1;
     const pts = correct ? TRIVIA_CORRECT_XP : 0;
-    const split = planDailyXp(src.dailyUsed || 0, pts);
+    const split = planXpGrant({ base: pts, user: src.user, now: src.now, dailyUsed: src.dailyUsed || 0 });
     return {
         ok: true,
         correct: correct,
         awarded: split.awarded,
-        overflowAdded: split.overflowAdded,
+        base: split.base,
+        boosted: split.boosted,
+        doubled: split.doubled === true,
+        overflowAdded: 0,
         capped: split.capped,
         pts: pts,
         reason: correct ? '' : 'incorrect',
         questionIndex: expected,
         optionIndex: optionIndex,
+        explanation: explanation,
+        answerIndex: answerIndex,
     };
 }
 
@@ -485,10 +507,14 @@ function settleQuizReward(input) {
     // when this call will not write the completion doc.
     const already = src.alreadyPerfect === true;
     const pts = already ? 0 : (graded.pts || 0);
-    const split = planDailyXp(src.dailyUsed || 0, pts);
+    const split = planXpGrant({ base: pts, user: src.user, now: src.now, dailyUsed: src.dailyUsed || 0 });
     return {
         awarded: split.awarded,
-        overflowAdded: split.overflowAdded,
+        base: split.base,
+        boosted: split.boosted,
+        doubled: split.doubled === true,
+        dailyXp: split.dailyXp,
+        overflowAdded: 0,
         capped: split.capped,
         pts: pts,
         score: score,
