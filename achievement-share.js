@@ -358,6 +358,7 @@
     }
 
     function shareText(model) {
+        if (model && model.linkShare) return String(model.sentence || model.title || '') + '\n' + String(model.url || '');
         return model.title + '\n' + SHARE_LINE + '\n' + model.url;
     }
 
@@ -370,6 +371,9 @@
     }
 
     function telegramShare(model) {
+        if (model && model.linkShare) {
+            return { url: model.url, text: String(model.sentence || model.title || '') };
+        }
         return {
             url: model.url,
             text: model.title + '\n' + SHARE_LINE
@@ -1008,15 +1012,35 @@
         return b;
     }
 
+    function openLinkSheet(opts) {
+        opts = opts || {};
+        var sentence = String(opts.sentence || '');
+        paintSheet({
+            type: 'miniapp',
+            linkShare: true,
+            title: sentence,
+            sentence: sentence,
+            name: String(opts.name || 'Bitcoin Quest'),
+            cta: 'Check it out!',
+            url: String(opts.url || '')
+        });
+    }
+
     function openSheet(event) {
+        var d = doc();
+        if (!d || !d.body) return;
+        event = event || {};
+        var user = Object.assign({}, getCurrentUser() || {});
+        if (!user.referralCode) user.referralCode = event.code || currentCode();
+        if (event.type === 'streak') event.days = event.days != null ? event.days : serverStreak(user);
+        paintSheet(cardModel(event, user));
+    }
+
+    function paintSheet(model) {
         var d = doc();
         if (!d || !d.body) return;
         var existing = d.getElementById('bqShareSheet');
         if (existing) existing.remove();
-        var user = Object.assign({}, getCurrentUser() || {});
-        if (!user.referralCode) user.referralCode = event.code || currentCode();
-        if (event.type === 'streak') event.days = event.days != null ? event.days : serverStreak(user);
-        var model = cardModel(event, user);
         sheetReturn = d.activeElement;
         var overlay = d.createElement('div');
         overlay.id = 'bqShareSheet';
@@ -1060,6 +1084,13 @@
         link.textContent = model.url;
         link.style.cssText = 'word-break:break-all;font-size:0.8rem;color:#f7931a;margin:12px 0;';
         panel.appendChild(link);
+        if (model.linkShare) {
+            var post = d.createElement('p');
+            post.id = 'bqSharePostText';
+            post.textContent = shareText(model);
+            post.style.cssText = 'white-space:pre-wrap;word-break:break-word;font-size:0.95rem;line-height:1.45;margin:0 0 12px;';
+            panel.appendChild(post);
+        }
         var actions = d.createElement('div');
         actions.className = 'bq-share-actions';
         actions.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;';
@@ -1413,6 +1444,7 @@
         acceptEvents: function (events) { (events || []).forEach(consider); },
         currentState: function () { return cloneState(state); },
         closeSheet: closeSheet,
+        openLinkSheet: openLinkSheet,
         serverStreak: serverStreak,
         drawCard: drawCard,
         install: install
