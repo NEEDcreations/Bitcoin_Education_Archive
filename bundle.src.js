@@ -12716,6 +12716,108 @@ window.onlineStatusDot = function(lastSeen) {
 };
 
 // ---- USER PROFILE MODAL ----
+// PROFILE_JOIN_START
+// Join date for the profile card. First usable field wins.
+// Activity times are not join dates.
+var PROFILE_JOIN_KEYS = ['created', 'createdAt', 'joinedAt', 'joined', 'signupAt', 'accountCreated', 'createdAtMs', 'joinedAtMs'];
+var PROFILE_JOIN_MIN_MS = Date.UTC(2020, 0, 1);
+var PROFILE_JOIN_MAX_FUTURE_MS = 48 * 60 * 60 * 1000;
+
+function profileJoinNumberMillis(n) {
+    // A bare number is milliseconds. Unix seconds belong on .seconds.
+    // Guessing would turn a 1970 millisecond value into a modern date.
+    if (typeof n !== 'number' || !isFinite(n) || n <= 0) return null;
+    if (n >= 1e12 && n < 1e14) return Math.round(n);
+    return null;
+}
+
+function profileJoinSecondsMillis(sec, nano) {
+    var s = Number(sec);
+    if (!isFinite(s) || s <= 0) return null;
+    var n = Number(nano);
+    if (!isFinite(n)) n = 0;
+    if (s >= 1e12 && s < 1e14) return Math.round(s);
+    if (s >= 1e9 && s < 1e12) return Math.round(s * 1000 + n / 1e6);
+    return null;
+}
+
+function profileJoinRawMillis(value) {
+    if (value == null || value === false) return null;
+    if (typeof value === 'number') return profileJoinNumberMillis(value);
+    if (typeof value === 'string') {
+        var trimmed = value.trim();
+        if (!trimmed) return null;
+        if (/^\d+(\.\d+)?$/.test(trimmed)) return profileJoinNumberMillis(Number(trimmed));
+        var parsed = Date.parse(trimmed);
+        return isFinite(parsed) ? parsed : null;
+    }
+    if (typeof value === 'object') {
+        if (typeof value.toDate === 'function') {
+            try {
+                var dated = value.toDate();
+                if (dated && typeof dated.getTime === 'function') {
+                    var fromDate = dated.getTime();
+                    if (isFinite(fromDate)) return fromDate;
+                }
+            } catch (e) {}
+        }
+        if (typeof value.toMillis === 'function') {
+            try {
+                var fromMillis = Number(value.toMillis());
+                if (isFinite(fromMillis)) return fromMillis;
+            } catch (e2) {}
+        }
+        if (typeof value.getTime === 'function' && typeof value.toDate !== 'function') {
+            try {
+                var fromGetTime = value.getTime();
+                if (isFinite(fromGetTime)) return fromGetTime;
+            } catch (e3) {}
+        }
+        var seconds = value.seconds != null ? value.seconds : value._seconds;
+        if (seconds != null && seconds !== '') {
+            var nano = value.nanoseconds != null ? value.nanoseconds : value._nanoseconds;
+            return profileJoinSecondsMillis(seconds, nano);
+        }
+    }
+    return null;
+}
+
+function profileJoinMillis(value, nowMs) {
+    var now = typeof nowMs === 'number' && isFinite(nowMs) ? nowMs : Date.now();
+    var ms = profileJoinRawMillis(value);
+    if (ms == null) return null;
+    if (ms < PROFILE_JOIN_MIN_MS || ms > now + PROFILE_JOIN_MAX_FUTURE_MS) return null;
+    return ms;
+}
+
+function profileJoinMillisFromSources(sources, nowMs) {
+    var now = typeof nowMs === 'number' && isFinite(nowMs) ? nowMs : Date.now();
+    var list = sources || [];
+    var s, k, row, key, ms;
+    for (s = 0; s < list.length; s++) {
+        row = list[s];
+        if (!row) continue;
+        for (k = 0; k < PROFILE_JOIN_KEYS.length; k++) {
+            key = PROFILE_JOIN_KEYS[k];
+            if (!Object.prototype.hasOwnProperty.call(row, key)) continue;
+            ms = profileJoinMillis(row[key], now);
+            if (ms != null) return ms;
+        }
+    }
+    return null;
+}
+
+function profileJoinLabel(sources, nowMs) {
+    var ms = profileJoinMillisFromSources(sources, nowMs);
+    if (ms == null) return '';
+    try {
+        return new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch (e) {
+        return '';
+    }
+}
+// PROFILE_JOIN_END
+
 window.showUserProfile = function(uid) {
     if (!uid || !db) return;
 
@@ -12839,24 +12941,18 @@ window.showUserProfile = function(uid) {
 
         var status = getOnlineStatus(u.lastSeen);
         var lvl = typeof getLevel === 'function' ? getLevel(u.points || 0) : { name: 'Newbie', emoji: '🌱' };
-        var joinDate = ''; // will be set below; empty means unknown join date
-        try {
-            // Field is 'created' in Firestore (ranking.js writes it as 'created')
-            // Also check 'createdAt' for any accounts written via other paths
-            var _rawCreated = u.created || u.createdAt || null;
-            if (_rawCreated) {
-                var jd = _rawCreated.toDate ? _rawCreated.toDate() : (_rawCreated.seconds ? new Date(_rawCreated.seconds * 1000) : new Date(_rawCreated));
-                if (!isNaN(jd.getTime())) joinDate = jd.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+        var joinSources = [u];
+        // Auth creationTime is only known for the signed-in viewer. It is a
+        // real account birth, used when the public profile has no join field.
+        if (auth && auth.currentUser && String(auth.currentUser.uid) === String(uid)) {
+            if (typeof currentUser !== 'undefined' && currentUser && (!currentUser.uid || String(currentUser.uid) === String(uid))) {
+                joinSources.push(currentUser);
             }
-            // If still empty after parsing, fall back to lastLogin or lastVisit as best estimate
-            if (!joinDate) {
-                var _fallback = u.lastLogin || null;
-                if (_fallback) {
-                    var _fd = _fallback.toDate ? _fallback.toDate() : (_fallback.seconds ? new Date(_fallback.seconds * 1000) : new Date(_fallback));
-                    if (!isNaN(_fd.getTime())) joinDate = _fd.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
-                }
-            }
-        } catch(e) {}
+            var _joinMeta = auth.currentUser.metadata;
+            if (_joinMeta && _joinMeta.creationTime) joinSources.push({ created: _joinMeta.creationTime });
+        }
+        var joinDate = '';
+        try { joinDate = profileJoinLabel(joinSources); } catch (e) { joinDate = ''; }
         
         // 🏅 DISPLAY BADGE: Check for user-selected badge, fallback to rank emoji
         var displayBadge = (typeof escapeHtml === 'function' ? escapeHtml(u.displayBadge || u.equippedBadge || '') : (u.displayBadge || u.equippedBadge || '').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'));

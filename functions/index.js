@@ -47,6 +47,7 @@ const lbPrizes = require('./src/lbPrizes');
 const boardSnapshots = require('./src/boardSnapshots');
 const leaderboardIdentity = require('./src/leaderboardIdentity');
 const leaderboardRank = require('./src/leaderboardRank');
+const joinDate = require('./src/joinDate');
 // Daily key with 5-hour UTC offset — matches client getDailyKey() (resets at 5 AM UTC)
 // Prevents server/client day mismatch that lets users double-complete daily challenges
 function getOffsetDateKey() {
@@ -460,11 +461,16 @@ exports.nostrAuth = functionsV1.https.onCall(async (data, context) => {
         nostrPubkey: pubkey,
     });
 
-    // Store/update pubkey in Firestore
-    await db.collection('users').doc(nostrUid).set({
+    // Store/update pubkey in Firestore. created is immutable after the first
+    // write, so a doc created here without it can never be fixed by the client.
+    const nostrRef = db.collection('users').doc(nostrUid);
+    const nostrExisting = await nostrRef.get();
+    const nostrPatch = {
         nostr: pubkey,
         lastLogin: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
+    };
+    await joinDate.applyMissingJoin(admin, nostrUid, nostrPatch, nostrExisting);
+    await nostrRef.set(nostrPatch, { merge: true });
 
     return { token: customToken, uid: nostrUid };
 });
@@ -631,12 +637,17 @@ exports.lnAuthCallback = functionsV1.https.onRequest(async (req, res) => {
         completedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // Update/create user doc
-    await db.collection('users').doc(lnUid).set({
+    // Update/create user doc. Same created-field rule as nostrAuth: the first
+    // server write has to carry the join instant or the client cannot add it.
+    const lnRef = db.collection('users').doc(lnUid);
+    const lnExisting = await lnRef.get();
+    const lnPatch = {
         lnPubkey: key,
         authMethod: 'lightning',
         lastLogin: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
+    };
+    await joinDate.applyMissingJoin(admin, lnUid, lnPatch, lnExisting);
+    await lnRef.set(lnPatch, { merge: true });
 
     return res.json({ status: 'OK' });
 });
@@ -5204,9 +5215,14 @@ exports.onUserDocCreated = onDocumentCreated('users/{uid}', async (event) => {
                 t.set(statsRef, { userCount: admin.firestore.FieldValue.increment(1) }, { merge: true });
                 return newCount;
             });
-            // Write plebNumber back to the user doc if not already set
+            // Write plebNumber back to the user doc if not already set.
+            // Every create path lands here. If that first write omitted created,
+            // stamp Auth metadata.creationTime. The server clock is only used
+            // when Auth has no creation time, because this document is new.
             const userDocRef = db.collection('users').doc(uid);
-            await userDocRef.set({ plebNumber: plebNumber }, { merge: true });
+            const createdPatch = { plebNumber: plebNumber };
+            await joinDate.applyMissingJoin(admin, uid, createdPatch, snap, { allowNow: true });
+            await userDocRef.set(createdPatch, { merge: true });
         } catch (e) { console.error('[onUserDocCreated] failed:', e); }
         return null;
     });
@@ -5234,7 +5250,7 @@ const PUBLIC_PROFILE_FIELDS = [
     'lastSeen', 'isOnline', 'ghostMode',
     'lightningAddress',   // display-only; tip button uses this
     'lightning',           // alias saved by older clients; tip lookup checks both
-    'created', 'createdAt',
+    'created', 'createdAt', 'joinedAt', 'joined', 'signupAt', 'accountCreated', 'createdAtMs', 'joinedAtMs',
     'earnedHidden',
     'peerCount', // peer network size (peers array stays server-only)
 ];
@@ -7024,112 +7040,43 @@ exports.backfillDonationFaction = functionsV1.https.onCall(async (data, context)
 });
 
 // ══════════════════════════════════════════════════════════════════════
-// 📅 BACKFILL: Join Dates
-// One-shot HTTP trigger — fills `created` field for users missing it.
-// Uses Firebase Auth creationTime as ground truth; point-rank estimate as fallback.
+// Join dates — dry-run report only.
+// Reads Auth metadata.creationTime. Does not write, and does not invent a
+// date from points, last login, or a rank estimate. The operator script is
+// scripts/backfill-join-dates.js, which is also dry-run only.
 // ══════════════════════════════════════════════════════════════════════
 exports.backfillJoinDates = functionsV1.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
-    const dryRun = req.query.dry === '1';
-
-    const LAUNCH_DATE = new Date('2026-03-01T00:00:00Z');
-    const NOW = new Date();
-
     try {
-        // Fetch all Firestore user docs
-        const snap = await db.collection('users').get();
-        const allUsers = snap.docs.map(d => ({ id: d.id, data: d.data() }));
-        console.log('[backfillJoinDates] Total user docs:', allUsers.length);
-
-        // Fetch all Firebase Auth users for creationTime
+        const snap = await db.collection('users').select('username', ...joinDate.JOIN_KEYS).get();
+        const rows = snap.docs.map(function (doc) { return { id: doc.id, data: doc.data() || {} }; });
         const authMap = {};
         let pageToken;
         do {
             const listResult = await admin.auth().listUsers(1000, pageToken);
-            listResult.users.forEach(u => {
-                if (u.metadata && u.metadata.creationTime) {
-                    authMap[u.uid] = new Date(u.metadata.creationTime);
-                }
+            listResult.users.forEach(function (user) {
+                const ms = joinDate.creationTimeMillis(user.metadata);
+                if (ms != null) authMap[user.uid] = ms;
             });
             pageToken = listResult.pageToken;
         } while (pageToken);
-        console.log('[backfillJoinDates] Auth users fetched:', Object.keys(authMap).length);
-
-        // Build point-rank list for estimation fallback
-        const pointRanked = allUsers
-            .filter(u => (u.data.points || 0) > 0)
-            .sort((a, b) => (b.data.points || 0) - (a.data.points || 0));
-        const totalRanked = pointRanked.length || 1;
-
-        let toUpdate = [];
-        let skipped = 0;
-
-        for (const { id, data } of allUsers) {
-            // Already has a valid created field? Skip.
-            const existing = data.created || data.createdAt;
-            if (existing) {
-                try {
-                    const d = existing.toDate ? existing.toDate() : (existing.seconds ? new Date(existing.seconds * 1000) : new Date(existing));
-                    if (!isNaN(d.getTime())) { skipped++; continue; }
-                } catch(e) {}
-            }
-
-            let createdDate = null;
-            let method = 'estimate';
-
-            // 1. Firebase Auth creationTime (ground truth)
-            if (authMap[id]) {
-                createdDate = authMap[id];
-                method = 'auth';
-            }
-
-            // 2. Point-rank interpolation
-            if (!createdDate) {
-                const rank = pointRanked.findIndex(u => u.id === id);
-                const fraction = rank >= 0 ? (rank / totalRanked) : 1;
-                const msRange = NOW.getTime() - LAUNCH_DATE.getTime();
-                createdDate = new Date(LAUNCH_DATE.getTime() + fraction * msRange);
-                method = 'estimate';
-            }
-
-            toUpdate.push({ id, createdDate, method, username: data.username || '(anon)' });
-        }
-
-        console.log('[backfillJoinDates] To update:', toUpdate.length, 'Skipped (already set):', skipped);
-
-        if (!dryRun && toUpdate.length > 0) {
-            const CHUNK = 400;
-            for (let i = 0; i < toUpdate.length; i += CHUNK) {
-                const chunk = toUpdate.slice(i, i + CHUNK);
-                const batch = db.batch();
-                chunk.forEach(({ id, createdDate }) => {
-                    batch.update(db.collection('users').doc(id), {
-                        created: admin.firestore.Timestamp.fromDate(createdDate),
-                    });
-                });
-                await batch.commit();
-            }
-        }
-
-        const authCount = toUpdate.filter(u => u.method === 'auth').length;
-        const estCount = toUpdate.filter(u => u.method === 'estimate').length;
-
+        const plan = joinDate.planJoinBackfill(rows, authMap);
+        console.log('[backfillJoinDates] dry-run', plan.already, 'set,', plan.wouldStamp.length, 'would stamp,', plan.skippedNoAuth, 'no auth time');
         res.json({
             ok: true,
-            dryRun,
-            totalDocs: allUsers.length,
-            alreadySet: skipped,
-            updated: toUpdate.length,
-            byMethod: { auth: authCount, estimate: estCount },
-            sample: toUpdate.slice(0, 10).map(u => ({
-                username: u.username,
-                method: u.method,
-                date: u.createdDate.toISOString().substring(0, 10),
-            })),
+            dryRun: true,
+            writes: false,
+            totalDocs: rows.length,
+            alreadySet: plan.already,
+            wouldStamp: plan.wouldStamp.length,
+            skippedNoAuth: plan.skippedNoAuth,
+            sample: plan.wouldStamp.slice(0, 10).map(function (row) {
+                return { username: row.username || '(no username)', joined: row.iso.slice(0, 10) };
+            }),
         });
     } catch (err) {
-        console.error('[backfillJoinDates] Error:', err);
-        res.status(500).json({ error: err.message });
+        console.error('[backfillJoinDates] Error:', err && err.message ? err.message : err);
+        res.status(500).json({ error: 'Join date report failed' });
     }
 });
 

@@ -11,6 +11,7 @@ scripts/*
 !scripts/raid-boss-activity.js
 !scripts/raid-boss-inspect.js
 !scripts/backfill-leaderboard-snapshots.js
+!scripts/backfill-join-dates.js
 .keys/
 firebase-debug.log
 firestore-debug.log

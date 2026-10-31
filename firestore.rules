@@ -179,9 +179,11 @@ service cloud.firestore {
                     && (!('lightning' in request.resource.data) || !('lightningAddress' in request.resource.data)
                         || request.resource.data.lightning == '' || request.resource.data.lightningAddress == ''
                         || request.resource.data.lightning == request.resource.data.lightningAddress)
-                    // created is optional: Nostr link and TOS acceptance can create a partial
-                    // doc without it. When the field is sent, it must be the server clock.
-                    // Signup, provider, Lightning, and Nostr profile creates send serverTimestamp().
+                    // created is optional on this create: Nostr link and TOS acceptance can
+                    // open a partial doc without it. onUserDocCreated then stamps created
+                    // from Auth metadata.creationTime. When the client sends created, it
+                    // must be the server clock. Signup, provider, Lightning, and Nostr
+                    // profile creates send serverTimestamp() when they are the first write.
                     && (!('created' in request.resource.data) || request.resource.data.created == request.time);
 
       // A denied field used to keep evaluating the lock helpers (&& does not
