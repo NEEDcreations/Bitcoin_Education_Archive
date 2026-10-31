@@ -255,13 +255,15 @@ test('the client shows the balance and claim button without publishing caps', ()
     const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
     const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
     const mount = gifting.slice(gifting.indexOf('function mountCipherSatsBalance'), gifting.indexOf('function _lockedCipherNote'));
-    assert.ok(mount.includes('claim 100-200 sats'));
+    assert.ok(mount.includes("btn.textContent = 'Claim ' + Math.min(bal, 200).toLocaleString() + ' sats'"));
     assert.ok(mount.includes('Cipher sats balance'));
+    assert.strictEqual(mount.indexOf('claim 100-200 sats'), -1);
     assert.ok(gifting.includes('cipherSatsBalanceOpen'));
     assert.ok(gifting.includes('cipherSatsBalanceCiphers'));
     assert.ok(gifting.includes("getElementById('cipherSatsBalanceInventory')"));
     [mount, cipherUi(ranking, 'cipherSatsBalanceSettings'), cipherUi(quests, 'cipherSatsBalanceInventory')].forEach(function(chunk) {
-        assert.ok(chunk.includes('claim 100-200 sats'));
+        assert.ok(chunk.includes('Claim '));
+        assert.strictEqual(chunk.indexOf('claim 100-200 sats'), -1);
         assert.strictEqual(chunk.indexOf('2,000'), -1);
         assert.strictEqual(/kill switch/i.test(chunk), false);
         assert.strictEqual(chunk.indexOf('per day'), -1);
@@ -340,6 +342,42 @@ test('a missing cipher sats config disables claims', () => {
     assert.ok(body.includes("collection('admin_audit_log')"));
     assert.strictEqual(body.indexOf('callerIp'), -1);
     assert.ok(body.includes('requireAdmin(context)'));
+    assert.ok(body.includes('enforceAppCheck: true'));
+    assert.ok(body.includes('adminMayResolveClaim'));
+    assert.ok(body.includes('adminReleaseFromLookup'));
+    assert.ok(body.includes('lookupInvoice'));
+    assert.ok(body.includes('invoiceHash: invoiceHash'));
+    assert.ok(body.includes('paymentHash: paymentHash'));
+    const settings = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
+    assert.ok(settings.includes('Separate from your faucet balance'));
+    assert.ok(settings.includes('adminResolveCipherSatsClaim: 1'));
+});
+
+test('admin resolve allows held claims and only a stale paying claim', () => {
+    assert.deepStrictEqual(claim.adminMayResolveClaim({ status: 'unknown', nowMs: NOW }), { ok: true, reason: 'held' });
+    assert.deepStrictEqual(claim.adminMayResolveClaim({ status: 'hold', nowMs: NOW }), { ok: true, reason: 'held' });
+    assert.strictEqual(claim.adminMayResolveClaim({
+        status: 'paying',
+        payingAtMs: NOW - claim.ABANDON_MS,
+        nowMs: NOW,
+    }).ok, true);
+    assert.strictEqual(claim.adminMayResolveClaim({
+        status: 'paying',
+        payingAtMs: NOW - (9 * 60 * 1000),
+        nowMs: NOW,
+    }).reason, 'paying-fresh');
+    assert.strictEqual(claim.adminMayResolveClaim({ status: 'paying', nowMs: NOW }).ok, false);
+    ['reserved', 'paid', 'restored', 'claimable', ''].forEach(function(status) {
+        assert.strictEqual(claim.adminMayResolveClaim({ status: status, nowMs: NOW }).reason, 'not-held', status);
+    });
+});
+
+test('a release refunds only when the wallet says the payment failed', () => {
+    assert.strictEqual(claim.adminReleaseFromLookup('failed'), 'release');
+    assert.strictEqual(claim.adminReleaseFromLookup('paid'), 'paid');
+    ['pending', 'unknown', 'error', '', 'expired'].forEach(function(kind) {
+        assert.strictEqual(claim.adminReleaseFromLookup(kind), 'refuse', kind);
+    });
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

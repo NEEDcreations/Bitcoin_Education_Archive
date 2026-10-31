@@ -359,6 +359,7 @@ function mfaClearDevice(uid) {
 var APP_CHECK_CALLABLES = {
     ackBadgeBackfillToast: 1,
     ackCipherShare: 1,
+    adminResolveCipherSatsClaim: 1,
     answerTrivia: 1,
     armSayHi: 1,
     chooseFaction: 1,
@@ -8792,8 +8793,9 @@ function accountDeleteRowHtml(user) {
         html += '<div id="cipherSatsBalanceSettings" data-surface="settings" style="background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.45);border-radius:16px;padding:16px;margin-bottom:16px;text-align:center;">';
         html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Cipher sats balance</div>';
         html += '<div id="cipherSatsBalanceSettingsAmount" class="cipher-sats-balance-amount" style="font-size:1.6rem;font-weight:900;color:#f7931a;margin:8px 0;">' + cipherBal.toLocaleString() + ' sats</div>';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">Separate from your faucet balance</div>';
         html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;">Small sats wins from locked ciphers land here.</div>';
-        html += '<button id="cipherSatsClaimSettings" type="button" class="cipher-sats-claim-btn" ' + (cipherReady ? '' : 'disabled ') + 'onclick="if(window.claimCipherSats)window.claimCipherSats()" style="width:100%;min-height:44px;padding:12px;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;font-family:inherit;' + (cipherReady ? 'background:#f7931a;color:#fff;cursor:pointer;' : 'background:var(--card-bg);color:var(--text-muted);cursor:default;opacity:0.65;') + '">claim 100-200 sats</button>';
+        html += '<button id="cipherSatsClaimSettings" type="button" class="cipher-sats-claim-btn" ' + (cipherReady ? '' : 'disabled ') + 'onclick="if(window.claimCipherSats)window.claimCipherSats()" style="width:100%;min-height:44px;padding:12px;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;font-family:inherit;' + (cipherReady ? 'background:#f7931a;color:#fff;cursor:pointer;' : 'background:var(--card-bg);color:var(--text-muted);cursor:default;opacity:0.65;') + '">Claim ' + Math.min(cipherBal, 200).toLocaleString() + ' sats</button>';
         html += '</div>';
         // ── Overflow queue section ──
         var _pendingOf = currentUser ? parseInt(currentUser.pendingOverflow || 0, 10) : 0;

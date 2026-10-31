@@ -116,6 +116,28 @@ function lockOwnedByClaim(lock, claimId) {
     return !!(id && lock && String(lock.claimId || '') === id);
 }
 
+// Held claims (unknown/hold) can be resolved any time. A paying claim can
+// be resolved only after the abandon window, so a live pay is left alone.
+function adminMayResolveClaim(info) {
+    const src = info || {};
+    const status = String(src.status || '');
+    if (status === 'unknown' || status === 'hold') return { ok: true, reason: 'held' };
+    if (status === 'paying') {
+        const started = Number(src.payingAtMs) || 0;
+        const now = Number(src.nowMs) || 0;
+        if (started > 0 && now - started >= ABANDON_MS) return { ok: true, reason: 'stale-paying' };
+        return { ok: false, reason: 'paying-fresh' };
+    }
+    return { ok: false, reason: 'not-held' };
+}
+
+// Wallet lookup before a refund. Only an explicit failure proves it was not paid.
+function adminReleaseFromLookup(kind) {
+    if (kind === 'paid') return 'paid';
+    if (kind === 'failed') return 'release';
+    return 'refuse';
+}
+
 function assessAttemptRate(row, nowMs) {
     const start = Number(row && row.windowStartMs) || 0;
     const count = nonNeg(row && row.count);
@@ -242,6 +264,8 @@ module.exports = {
     claimsDisabledFromConfig: claimsDisabledFromConfig,
     claimReadyToPay: claimReadyToPay,
     lockOwnedByClaim: lockOwnedByClaim,
+    adminMayResolveClaim: adminMayResolveClaim,
+    adminReleaseFromLookup: adminReleaseFromLookup,
     RATE_WINDOW_MS: RATE_WINDOW_MS,
     RATE_MAX: RATE_MAX,
     UNAVAILABLE: UNAVAILABLE,

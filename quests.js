@@ -4141,7 +4141,7 @@ function _renderNookInventoryContent(el) {
         '<div style="font-size:0.68rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);font-weight:800;">Cipher sats balance</div>' +
         '<div class="cipher-sats-balance-amount" style="font-size:1.35rem;font-weight:900;color:#f7931a;margin:4px 0;">' + _cipherBal.toLocaleString() + ' sats</div>' +
         '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;">Small sats wins from locked ciphers land here.</div>' +
-        '<button type="button" class="cipher-sats-claim-btn" ' + (_cipherReady ? '' : 'disabled ') + 'onclick="if(window.claimCipherSats)window.claimCipherSats()" style="min-height:44px;padding:10px 14px;border:none;border-radius:10px;font-weight:800;font-family:inherit;width:100%;' + (_cipherReady ? 'background:#f7931a;color:#fff;cursor:pointer;' : 'background:var(--card-bg,#222);color:var(--text-muted);cursor:default;opacity:0.65;') + '">claim 100-200 sats</button>' +
+        '<button type="button" class="cipher-sats-claim-btn" ' + (_cipherReady ? '' : 'disabled ') + 'onclick="if(window.claimCipherSats)window.claimCipherSats()" style="min-height:44px;padding:10px 14px;border:none;border-radius:10px;font-weight:800;font-family:inherit;width:100%;' + (_cipherReady ? 'background:#f7931a;color:#fff;cursor:pointer;' : 'background:var(--card-bg,#222);color:var(--text-muted);cursor:default;opacity:0.65;') + '">Claim ' + Math.min(_cipherBal, 200).toLocaleString() + ' sats</button>' +
         '</div>';
     html += '<div id="nookKeysCiphers" style="margin:0 0 16px;"></div>';
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';

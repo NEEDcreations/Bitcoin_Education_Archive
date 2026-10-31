@@ -24,6 +24,8 @@ const {
     claimsDisabledFromConfig,
     claimReadyToPay,
     lockOwnedByClaim,
+    adminMayResolveClaim,
+    adminReleaseFromLookup,
     RATE_ERROR,
     UNAVAILABLE,
 } = require('./cipherSatsClaim');
@@ -40,6 +42,7 @@ const {
     lookupRequestFromDecoded,
     shouldLookupPay,
     lookupSettlement,
+    classifyLookup,
     adminClaimFlag,
 } = require('./cipherClaim');
 const { planShoutout, applyShoutoutCap, shoutoutDocId } = require('./shoutout');
@@ -1635,7 +1638,7 @@ async function beginCipherPay(reserved) {
         })) return;
         const stamp = admin.firestore.FieldValue.serverTimestamp();
         t.set(lockRef, { phase: 'paying' }, { merge: true });
-        t.set(auditRef, { status: 'paying', payingAt: stamp }, { merge: true });
+        t.set(auditRef, { status: 'paying', payingAt: stamp, payingAtMs: Date.now() }, { merge: true });
         ready = true;
     });
     return ready;
@@ -1829,18 +1832,37 @@ const claimCipherSats = functionsV1.runWith({
     }
 
     const invoiceHash = crypto.createHash('sha256').update(invoice).digest('hex').slice(0, 32);
+    let paymentHash = '';
+    try {
+        const decodedInvoice = bolt11.decode(invoice);
+        const lookupReq = lookupRequestFromDecoded(decodedInvoice);
+        if (lookupReq && lookupReq.payment_hash) paymentHash = String(lookupReq.payment_hash);
+    } catch (e) { paymentHash = ''; }
     const invoiceRef = db.collection('cipher_sats_invoices').doc(invoiceHash);
+    const payoutRef = db.collection('cipher_sats_payouts').doc(reserved.claimId);
     try {
         await db.runTransaction(async (t) => {
             const existing = await t.get(invoiceRef);
+            const payoutSnap = await t.get(payoutRef);
             if (existing.exists) throw new Error('used');
+            const payout = payoutSnap.exists ? (payoutSnap.data() || {}) : null;
+            if (!payout || payout.status !== 'reserved' || String(payout.claimId || '') !== reserved.claimId) {
+                throw new Error('moved');
+            }
+            const stamp = admin.firestore.FieldValue.serverTimestamp();
             t.set(invoiceRef, {
                 uid: uid,
                 claimId: reserved.claimId,
                 amount: reserved.amount,
+                invoiceHash: invoiceHash,
+                paymentHash: paymentHash,
                 status: 'pending',
-                ts: admin.firestore.FieldValue.serverTimestamp(),
+                ts: stamp,
             });
+            t.set(payoutRef, {
+                invoiceHash: invoiceHash,
+                paymentHash: paymentHash,
+            }, { merge: true });
         });
     } catch (e) {
         await finishCipherClaim(reserved, 'restore');
@@ -1887,8 +1909,12 @@ const claimCipherSats = functionsV1.runWith({
 });
 
 // Admin-only resolution of a held cipher-sats claim. Does not send a payment.
-// paid: the wallet already paid. release: give the balance back.
-const adminResolveCipherSatsClaim = functionsV1.https.onCall(async (data, context) => {
+// unknown/hold can be resolved any time. paying can be resolved only after
+// 10 minutes. release refunds only when the wallet says the payment failed.
+const adminResolveCipherSatsClaim = functionsV1.runWith({
+    enforceAppCheck: true,
+    timeoutSeconds: 60,
+}).https.onCall(async (data, context) => {
     requireAdmin(context);
     const claimId = (data && data.claimId || '').toString().trim();
     const action = (data && data.action || '').toString().trim();
@@ -1899,14 +1925,49 @@ const adminResolveCipherSatsClaim = functionsV1.https.onCall(async (data, contex
         throw httpsError('invalid-argument', 'Invalid resolution');
     }
     const auditRef = db.collection('cipher_sats_payouts').doc(claimId);
+    const pre = await auditRef.get();
+    if (!pre.exists) throw httpsError('not-found', 'Claim not found');
+    const preview = pre.data() || {};
+    const nowMs = Date.now();
+    const gate = adminMayResolveClaim({
+        status: preview.status,
+        payingAtMs: preview.payingAtMs,
+        nowMs: nowMs,
+    });
+    if (!gate.ok) throw httpsError('failed-precondition', 'This claim cannot be resolved.');
+
+    let resolution = action;
+    if (action === 'release') {
+        const paymentHash = String(preview.paymentHash || '');
+        if (!paymentHash || !NWC_URL) {
+            throw httpsError('failed-precondition', 'This claim cannot be released yet.');
+        }
+        let kind = 'unknown';
+        try {
+            const nwc = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
+            const raw = await withTimeout(nwc.lookupInvoice({ payment_hash: paymentHash }), 15000, 'lookupInvoice');
+            kind = classifyLookup(raw).kind;
+        } catch (e) {
+            kind = 'error';
+            console.error('[adminResolveCipherSatsClaim] lookup failed claim=' + claimId);
+        }
+        resolution = adminReleaseFromLookup(kind);
+        if (resolution === 'refuse') {
+            throw httpsError('failed-precondition', 'This claim cannot be released yet.');
+        }
+    }
+
     const adminUid = context.auth.uid;
     await db.runTransaction(async (t) => {
         const auditSnap = await t.get(auditRef);
         if (!auditSnap.exists) throw httpsError('not-found', 'Claim not found');
         const row = auditSnap.data() || {};
-        if (row.status !== 'unknown' && row.status !== 'paying') {
-            throw httpsError('failed-precondition', 'This claim is not held');
-        }
+        const still = adminMayResolveClaim({
+            status: row.status,
+            payingAtMs: row.payingAtMs,
+            nowMs: Date.now(),
+        });
+        if (!still.ok) throw httpsError('failed-precondition', 'This claim cannot be resolved.');
         const winnerUid = String(row.uid || '');
         const amount = Math.max(0, Math.floor(Number(row.amount) || 0));
         const day = String(row.day || '');
@@ -1916,12 +1977,12 @@ const adminResolveCipherSatsClaim = functionsV1.https.onCall(async (data, contex
         const lock = lockSnap && lockSnap.exists ? (lockSnap.data() || {}) : null;
         const owns = lockOwnedByClaim(lock, claimId);
         const stamp = admin.firestore.FieldValue.serverTimestamp();
-        if (action === 'paid') {
+        if (resolution === 'paid') {
             t.set(auditRef, {
                 status: 'paid',
                 paidAt: stamp,
                 resolvedBy: adminUid,
-                resolution: 'admin_paid',
+                resolution: action === 'release' ? 'lookup_paid' : 'admin_paid',
             }, { merge: true });
         } else {
             if (winnerUid && amount) {
@@ -1951,11 +2012,11 @@ const adminResolveCipherSatsClaim = functionsV1.https.onCall(async (data, contex
             action: 'resolveCipherSatsClaim',
             claimId: claimId,
             adminUid: adminUid,
-            resolution: action,
+            resolution: resolution,
             ts: stamp,
         });
     });
-    return { success: true };
+    return { success: true, resolution: resolution };
 });
 
 module.exports = {
