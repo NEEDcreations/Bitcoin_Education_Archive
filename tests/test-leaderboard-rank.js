@@ -26,6 +26,7 @@ function read(name) {
 
 function memoryDb(seed) {
     const store = {};
+    const meter = { reads: 0 };
     Object.keys(seed || {}).forEach(function (key) {
         store[key] = JSON.parse(JSON.stringify(seed[key]));
     });
@@ -121,6 +122,7 @@ function memoryDb(seed) {
             },
             get: async function () {
                 const docs = rowsOf(coll, filters, orders, limitN, cursor).map(snap);
+                meter.reads += docs.length;
                 return {
                     empty: docs.length === 0,
                     size: docs.length,
@@ -132,6 +134,8 @@ function memoryDb(seed) {
     }
 
     return {
+        get reads() { return meter.reads; },
+        set reads(n) { meter.reads = n; },
         collection: function (name) {
             return {
                 doc: function (id) {
@@ -140,6 +144,7 @@ function memoryDb(seed) {
                         id: id,
                         path: key,
                         get: async function () {
+                            meter.reads += 1;
                             if (!Object.prototype.hasOwnProperty.call(store, key)) {
                                 return { id: id, exists: false, data: function () { return undefined; } };
                             }
@@ -162,8 +167,17 @@ function memoryDb(seed) {
     };
 }
 
-function call(db, uid, data) {
-    return rank.handleLeaderboardRank(db, admin, data, { auth: { uid: uid } }, NOW);
+async function call(db, uid, data, context) {
+    db.reads = 0;
+    const ctx = context || { auth: { uid: uid } };
+    try {
+        const result = await rank.handleLeaderboardRank(db, admin, data, ctx, NOW);
+        assert.ok(db.reads <= 20, 'lookup read ' + db.reads + ' docs');
+        return result;
+    } catch (err) {
+        assert.ok(db.reads <= 20, 'lookup read ' + db.reads + ' docs');
+        throw err;
+    }
 }
 
 function xpProfile(id, username, points, extra) {
@@ -264,6 +278,7 @@ async function main() {
             attempts: attempts,
             passedAttempts: passes,
             reachedAt: reached,
+            ghostMode: ghost === true,
             weekKey: weekKey,
             weekPasses: passes,
             weekAttempts: attempts,
@@ -322,6 +337,7 @@ async function main() {
             predAccuracy: accuracy,
             reachedAt: reached,
             reachedSort: reached,
+            ghostMode: ghost === true,
             weekKey: stale ? '1999-W01' : week,
             weekCorrect: correct,
             weekTotal: total,
@@ -456,6 +472,21 @@ async function main() {
     assert.ok(limited);
     assert.strictEqual(limited.code, 'resource-exhausted');
 
+    const anonDb = memoryDb({ 'public_profiles/guest': xpProfile('guest', 'Guest', 4), 'users/guest': { username: 'Guest' } });
+    const anonCtx = { auth: { uid: 'guest', token: { firebase: { sign_in_provider: 'anonymous' } } } };
+    for (let i = 0; i < rank.RATE_ANON_MAX; i++) {
+        const row = await call(anonDb, 'guest', { board: 'xp', period: 'alltime', me: true }, anonCtx);
+        assert.strictEqual(row.status, 'ok');
+    }
+    let anonLimited = null;
+    try {
+        await call(anonDb, 'guest', { board: 'xp', period: 'alltime', me: true }, anonCtx);
+    } catch (err) {
+        anonLimited = err;
+    }
+    assert.ok(anonLimited);
+    assert.strictEqual(anonLimited.code, 'resource-exhausted');
+
     let signedOut = null;
     try {
         await rank.handleLeaderboardRank(memoryDb({}), admin, { board: 'xp' }, {}, NOW);
@@ -478,6 +509,9 @@ async function main() {
     const ranking = read('ranking.js');
     const index = read('functions/index.js');
     assert.ok(src.indexOf('enforceAppCheck: true') !== -1);
+    assert.strictEqual(src.indexOf('queryDocs'), -1);
+    assert.strictEqual(src.indexOf('4000'), -1);
+    assert.strictEqual(rank.RATE_ANON_MAX, 5);
     assert.ok(index.indexOf('exports.leaderboardRank') !== -1);
     assert.ok(ranking.indexOf("httpsCallable('leaderboardRank')") !== -1);
     assert.strictEqual(ranking.indexOf("httpsCallable('searchUsers')"), -1);

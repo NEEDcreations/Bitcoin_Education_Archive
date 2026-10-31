@@ -5,7 +5,8 @@
 // The XP search box used to call searchUsers, which read the top 500 users
 // and then ran one count() per prefix hit outside that page. This module
 // does not scan a board. It reads the named player's own score and counts
-// players who sort ahead of them.
+// players who sort ahead of them. Ties are more count() queries, not a
+// page of tied docs. A lookup does not read the ghost list.
 //
 // Ghost mode is absent on most profiles, so a count() cannot filter
 // ghostMode != true (that drops documents where the field is missing).
@@ -26,8 +27,10 @@ const streakBoard = require('./streakBoard');
 const { offsetDateKey } = require('./offsetDay');
 
 const RATE_MAX = 20;
+const RATE_ANON_MAX = 5;
 const RATE_WINDOW_MS = 60 * 1000;
 const SUGGEST_LIMIT = 8;
+const SUGGEST_FETCH = 12;
 
 const BOARD_ALIAS = {
     xp: 'xp',
@@ -65,36 +68,61 @@ const INDEX_SPECS = [
     ['public_profiles', ['monthlyXP', 'username_lower']],
     ['public_profiles', ['ghostMode', 'monthlyXP', 'username_lower']],
     ['public_profiles', ['monthlyXP', 'username_lower', '__name__']],
-    ['public_profiles', ['ghostMode', 'monthlyXP', 'username_lower', '__name__']],
-    ['public_profiles', ['ghostMode', '__name__']],
-    ['quest_lb_stats', ['passes', 'attempts']],
-    ['quest_lb_stats', ['passes', 'attempts', '__name__']],
-    ['quest_lb_stats', ['weekKey', 'weekPasses', 'weekAttempts']],
-    ['quest_lb_stats', ['weekKey', 'weekPasses', 'weekAttempts', '__name__']],
-    ['quest_lb_stats', ['monthKey', 'monthPasses', 'monthAttempts']],
-    ['quest_lb_stats', ['monthKey', 'monthPasses', 'monthAttempts', '__name__']],
-    ['prediction_stats', ['predAccuracy', 'predTotal']],
-    ['prediction_stats', ['predAccuracy', 'predCorrect', 'predTotal']],
-    ['prediction_stats', ['predAccuracy', 'predCorrect', 'predTotal', '__name__']],
-    ['prediction_stats', ['weekKey', 'weekAccuracy', 'weekTotal']],
-    ['prediction_stats', ['weekKey', 'weekAccuracy', 'weekCorrect', 'weekTotal']],
-    ['prediction_stats', ['weekKey', 'weekAccuracy', 'weekCorrect', 'weekTotal', '__name__']],
-    ['prediction_stats', ['monthKey', 'monthAccuracy', 'monthTotal']],
-    ['prediction_stats', ['monthKey', 'monthAccuracy', 'monthCorrect', 'monthTotal']],
-    ['prediction_stats', ['monthKey', 'monthAccuracy', 'monthCorrect', 'monthTotal', '__name__']],
-    ['users', ['ghostMode', 'bestStreak']],
-    ['users', ['ghostMode', 'streak']],
-    ['users', ['streak', 'bestStreak']],
-    ['users', ['ghostMode', 'streak', 'bestStreak']],
-    ['users', ['bestStreak', '__name__']],
-    ['users', ['streak', '__name__']],
-    ['users', ['lastVisit', 'streak']],
-    ['users', ['lastVisit', 'streak', '__name__']],
-    ['users', ['ghostMode', 'lastVisit', 'streak']],
-    ['users', ['lastVisit', 'streak', 'streakFreezes']],
-    ['users', ['lastVisit', 'streak', 'streakFreezes', '__name__']],
-    ['users', ['ghostMode', 'lastVisit', 'streak', 'streakFreezes']]
+    ['public_profiles', ['ghostMode', 'monthlyXP', 'username_lower', '__name__']]
 ];
+
+function pushSpec(coll, fields) {
+    if (fields.length > 1) INDEX_SPECS.push([coll, fields]);
+    INDEX_SPECS.push([coll, ['ghostMode'].concat(fields)]);
+}
+
+[
+    ['passes', 'attempts'],
+    ['passes', 'passedAttempts', 'attempts'],
+    ['passes', 'passedAttempts', 'attempts', 'reachedAt'],
+    ['passes', 'passedAttempts', 'attempts', 'reachedAt', '__name__'],
+    ['weekKey', 'weekPasses', 'weekAttempts'],
+    ['weekKey', 'weekPasses', 'weekPassedAttempts', 'weekAttempts'],
+    ['weekKey', 'weekPasses', 'weekPassedAttempts', 'weekAttempts', 'weekReachedAt'],
+    ['weekKey', 'weekPasses', 'weekPassedAttempts', 'weekAttempts', 'weekReachedAt', '__name__'],
+    ['monthKey', 'monthPasses', 'monthAttempts'],
+    ['monthKey', 'monthPasses', 'monthPassedAttempts', 'monthAttempts'],
+    ['monthKey', 'monthPasses', 'monthPassedAttempts', 'monthAttempts', 'monthReachedAt'],
+    ['monthKey', 'monthPasses', 'monthPassedAttempts', 'monthAttempts', 'monthReachedAt', '__name__']
+].forEach(function (fields) { pushSpec('quest_lb_stats', fields); });
+
+[
+    ['predAccuracy', 'predTotal'],
+    ['predAccuracy', 'predCorrect', 'predTotal'],
+    ['predAccuracy', 'predCorrect', 'predTotal', 'reachedAt'],
+    ['predAccuracy', 'predCorrect', 'predTotal', 'reachedAt', '__name__'],
+    ['weekKey', 'weekAccuracy', 'weekTotal'],
+    ['weekKey', 'weekAccuracy', 'weekCorrect', 'weekTotal'],
+    ['weekKey', 'weekAccuracy', 'weekCorrect', 'weekTotal', 'weekReachedAt'],
+    ['weekKey', 'weekAccuracy', 'weekCorrect', 'weekTotal', 'weekReachedAt', '__name__'],
+    ['monthKey', 'monthAccuracy', 'monthTotal'],
+    ['monthKey', 'monthAccuracy', 'monthCorrect', 'monthTotal'],
+    ['monthKey', 'monthAccuracy', 'monthCorrect', 'monthTotal', 'monthReachedAt'],
+    ['monthKey', 'monthAccuracy', 'monthCorrect', 'monthTotal', 'monthReachedAt', '__name__']
+].forEach(function (fields) { pushSpec('prediction_stats', fields); });
+
+[
+    ['bestStreak'],
+    ['streak'],
+    ['streak', 'bestStreak'],
+    ['bestStreak', 'bestStreakAt', 'streak'],
+    ['streak', 'bestStreak', 'bestStreakAt'],
+    ['bestStreak', 'streak', 'username_lower'],
+    ['bestStreak', 'bestStreakAt', 'streak', 'username_lower'],
+    ['bestStreak', 'bestStreakAt', 'username_lower', 'streak', '__name__'],
+    ['lastVisit', 'streak'],
+    ['lastVisit', 'streak', 'streakFreezes'],
+    ['lastVisit', 'streak', 'streakReachedAt'],
+    ['lastVisit', 'streak', 'streakFreezes', 'streakReachedAt'],
+    ['lastVisit', 'streak', 'streakReachedAt', 'username_lower'],
+    ['lastVisit', 'streak', 'streakReachedAt', 'username_lower', '__name__'],
+    ['lastVisit', 'streak', 'streakFreezes', 'streakReachedAt', 'username_lower']
+].forEach(function (fields) { pushSpec('users', fields); });
 
 function whole(value) {
     const n = Math.floor(Number(value) || 0);
@@ -144,15 +172,22 @@ function nameLower(data) {
     return displayName(data && data.username).toLowerCase();
 }
 
-function nextRate(prev, nowMs) {
+function nextRate(prev, nowMs, max) {
     const now = Number(nowMs) || 0;
     const start = Number(prev && prev.windowStartMs) || 0;
     const count = Number(prev && prev.count) || 0;
+    const limit = max > 0 ? max : RATE_MAX;
     if (!start || now - start >= RATE_WINDOW_MS) {
         return { allowed: true, count: 1, windowStartMs: now };
     }
-    if (count >= RATE_MAX) return { allowed: false, count: count, windowStartMs: start };
+    if (count >= limit) return { allowed: false, count: count, windowStartMs: start };
     return { allowed: true, count: count + 1, windowStartMs: start };
+}
+
+function anonymousCaller(context) {
+    const token = context && context.auth && context.auth.token;
+    const firebase = token && token.firebase;
+    return !!(firebase && firebase.sign_in_provider === 'anonymous');
 }
 
 function publicResult(row) {
@@ -214,13 +249,13 @@ function indexProblem(err) {
     return msg.indexOf('index') !== -1 || msg.indexOf('requires an index') !== -1;
 }
 
-async function takeRate(db, uid, nowMs) {
+async function takeRate(db, uid, nowMs, max) {
     const ref = db.collection('rate_limits').doc('lb_rank_' + uid);
     const expireAt = new Date((Number(nowMs) || 0) + RATE_WINDOW_MS * 2);
     return db.runTransaction(async function (tx) {
         const snap = await tx.get(ref);
         const prev = snap && snap.exists ? (snap.data() || {}) : {};
-        const decision = nextRate(prev, nowMs);
+        const decision = nextRate(prev, nowMs, max);
         if (!decision.allowed) return decision;
         tx.set(ref, {
             count: decision.count,
@@ -238,7 +273,7 @@ async function suggestNames(db, prefix, callerUid) {
     const snap = await db.collection('public_profiles')
         .where('username_lower', '>=', lower)
         .where('username_lower', '<=', end)
-        .limit(24)
+        .limit(SUGGEST_FETCH)
         .get();
     const rows = [];
     const list = [];
@@ -395,74 +430,83 @@ function compareQuest(a, b) {
     return String(a.uid || '').localeCompare(String(b.uid || ''));
 }
 
-async function ghostIdList(db, docId) {
-    const ids = [];
-    let cursor = null;
-    for (let page = 0; page < 25; page++) {
-        let q = db.collection('public_profiles').where('ghostMode', '==', true).orderBy(docId).limit(200);
-        if (cursor) q = q.startAfter(cursor);
-        const snap = await q.get();
-        const docs = (snap && snap.docs) || [];
-        if (!docs.length) break;
-        docs.forEach(function (doc) { ids.push(doc.id); });
-        cursor = docs[docs.length - 1];
-        if (docs.length < 200) break;
+async function sumVisible(collection, groups, docId) {
+    const lists = (groups || []).filter(function (clauses) { return clauses && clauses.length; });
+    const parts = await Promise.all(lists.map(function (clauses) {
+        return countVisible(collection, clauses, docId);
+    }));
+    let total = 0;
+    parts.forEach(function (n) { total += n; });
+    return total;
+}
+
+function questFields(period, nowMs) {
+    if (period === 'week') {
+        return {
+            key: ['weekKey', '==', questBoard.weekKey(nowMs)],
+            passes: 'weekPasses',
+            passed: 'weekPassedAttempts',
+            attempts: 'weekAttempts',
+            reached: 'weekReachedAt'
+        };
     }
-    return ids;
-}
-
-async function readIds(db, coll, ids) {
-    const out = [];
-    for (let i = 0; i < ids.length; i += 40) {
-        const part = ids.slice(i, i + 40);
-        const snaps = await Promise.all(part.map(function (id) { return db.collection(coll).doc(id).get(); }));
-        snaps.forEach(function (snap) {
-            if (snap && snap.exists) out.push({ id: snap.id, data: snap.data() || {} });
-        });
+    if (period === 'month') {
+        return {
+            key: ['monthKey', '==', questBoard.monthKey(nowMs)],
+            passes: 'monthPasses',
+            passed: 'monthPassedAttempts',
+            attempts: 'monthAttempts',
+            reached: 'monthReachedAt'
+        };
     }
-    return out;
+    return { key: null, passes: 'passes', passed: 'passedAttempts', attempts: 'attempts', reached: 'reachedAt' };
 }
 
-function rangeField(clauses) {
-    let field = '';
-    (clauses || []).forEach(function (clause) {
-        if (clause[1] !== '==') field = clause[0];
-    });
-    return field;
+function keyed(fields, clauses) {
+    return fields.key ? [fields.key].concat(clauses) : clauses;
 }
 
-// Page peers who tie the score. A range filter has to be the first orderBy,
-// then document id, so a later page cannot skip someone who should rank ahead.
-async function queryDocs(collection, clauses, docId) {
-    const range = rangeField(clauses);
-    const rows = [];
-    const seen = {};
-    let cursor = null;
-    for (let page = 0; page < 20; page++) {
-        let q = whereAll(collection, clauses, docId);
-        if (range) q = q.orderBy(range);
-        q = q.orderBy(docId).limit(200);
-        if (cursor) {
-            q = range ? q.startAfter(cursor.range, cursor.id) : q.startAfter(cursor.snap);
-        }
-        const snap = await q.get();
-        const docs = (snap && snap.docs) || [];
-        if (!docs.length) break;
-        docs.forEach(function (doc) {
-            if (seen[doc.id]) return;
-            seen[doc.id] = true;
-            const data = (doc.data && doc.data()) || {};
-            rows.push({ id: doc.id, data: data });
-        });
-        const last = docs[docs.length - 1];
-        const lastData = (last.data && last.data()) || {};
-        cursor = { snap: last, id: last.id, range: lastData[range] };
-        if (docs.length < 200 || rows.length >= 4000) break;
+// Same passes, then a better pass rate, then an earlier reachedAt, then uid.
+// A better rate is a count: the same number of successful attempts in fewer
+// tries, or more successful attempts without more tries. Ghosts are removed
+// with a second count on ghostMode, not by reading their docs.
+function questTieGroups(fields, view, min, uid) {
+    const passes = whole(view.passes);
+    const passed = whole(view.passedAttempts);
+    const attempts = whole(view.attempts);
+    const reached = whole(view.reachedAt);
+    const groups = [
+        keyed(fields, [[fields.passes, '>', passes], [fields.attempts, '>=', min]])
+    ];
+    if (attempts > min) {
+        groups.push(keyed(fields, [
+            [fields.passes, '==', passes],
+            [fields.passed, '==', passed],
+            [fields.attempts, '>=', min],
+            [fields.attempts, '<', attempts]
+        ]));
     }
-    return rows;
+    groups.push(keyed(fields, [
+        [fields.passes, '==', passes],
+        [fields.passed, '>', passed],
+        [fields.attempts, '>=', min],
+        [fields.attempts, '<=', attempts]
+    ]));
+    const sameRate = [
+        [fields.passes, '==', passes],
+        [fields.passed, '==', passed],
+        [fields.attempts, '==', attempts]
+    ];
+    if (reached > 0) {
+        groups.push(keyed(fields, sameRate.concat([[fields.reached, '>', 0], [fields.reached, '<', reached]])));
+        groups.push(keyed(fields, sameRate.concat([[fields.reached, '==', reached], ['__name__', '<', uid]])));
+    } else {
+        groups.push(keyed(fields, sameRate.concat([[fields.reached, '>', 0]])));
+    }
+    return groups;
 }
 
-async function rankQuest(db, player, period, nowMs, ghosts, docId) {
+async function rankQuest(db, player, period, nowMs, docId) {
     const min = questBoard.MIN[period] || questBoard.MIN.alltime;
     const statsSnap = await db.collection('quest_lb_stats').doc(player.uid).get();
     const stats = statsSnap && statsSnap.exists ? (statsSnap.data() || {}) : {};
@@ -486,61 +530,54 @@ async function rankQuest(db, player, period, nowMs, ghosts, docId) {
             message: '@' + shown + ' needs a passed quest'
         };
     }
-    const coll = db.collection('quest_lb_stats');
-    let higherClauses;
-    let tieClauses;
-    if (period === 'week') {
-        const key = questBoard.weekKey(nowMs);
-        higherClauses = [['weekKey', '==', key], ['weekPasses', '>', view.passes], ['weekAttempts', '>=', min]];
-        tieClauses = [['weekKey', '==', key], ['weekPasses', '==', view.passes], ['weekAttempts', '>=', min]];
-    } else if (period === 'month') {
-        const key = questBoard.monthKey(nowMs);
-        higherClauses = [['monthKey', '==', key], ['monthPasses', '>', view.passes], ['monthAttempts', '>=', min]];
-        tieClauses = [['monthKey', '==', key], ['monthPasses', '==', view.passes], ['monthAttempts', '>=', min]];
-    } else {
-        higherClauses = [['passes', '>', view.passes], ['attempts', '>=', min]];
-        tieClauses = [['passes', '==', view.passes], ['attempts', '>=', min]];
-    }
-    const higherRaw = await countOf(whereAll(coll, higherClauses));
-    const ghostStats = await readIds(db, 'quest_lb_stats', ghosts);
-    const playerView = { passes: view.passes, min: min };
-    let ghostHigher = 0;
-    ghostStats.forEach(function (doc) {
-        if (questAhead(questView(doc.data, period, nowMs), playerView)) ghostHigher++;
-    });
-    const ties = await queryDocs(coll, tieClauses, docId);
-    const ids = ties.map(function (row) { return row.id; });
-    const profiles = await readIds(db, 'public_profiles', ids);
-    const byId = {};
-    profiles.forEach(function (row) { byId[row.id] = row.data; });
-    const ghostSet = {};
-    ghosts.forEach(function (id) { ghostSet[id] = true; });
-    const self = {
-        uid: player.uid,
-        username: player.username,
-        passes: view.passes,
-        attempts: view.attempts,
-        passedAttempts: view.passedAttempts,
-        reachedAt: view.reachedAt
-    };
-    let tiesAhead = 0;
-    ties.forEach(function (row) {
-        if (row.id === player.uid || ghostSet[row.id]) return;
-        const pub = byId[row.id] || {};
-        if (pub.ghostMode === true) return;
-        const other = questView(row.data, period, nowMs);
-        if (whole(other.attempts) < min || whole(other.passes) !== view.passes) return;
-        other.uid = row.id;
-        other.username = pub.username || '';
-        if (compareQuest(other, self) < 0) tiesAhead++;
-    });
+    const fields = questFields(period, nowMs);
+    const ahead = await sumVisible(db.collection('quest_lb_stats'), questTieGroups(fields, view, min, player.uid), docId);
     return {
         status: 'ok',
         username: player.username,
-        rank: 1 + Math.max(0, higherRaw - ghostHigher) + tiesAhead,
+        rank: 1 + ahead,
         score: whole(view.passes),
         pct: questBoard.displayPct(view.passedAttempts, view.attempts)
     };
+}
+
+function predictFields(period) {
+    if (period === 'weekly') {
+        return { keyName: 'weekKey', keyOf: predictionStats.weekKey, accuracy: 'weekAccuracy', correct: 'weekCorrect', total: 'weekTotal', reached: 'weekReachedAt' };
+    }
+    if (period === 'monthly') {
+        return { keyName: 'monthKey', keyOf: predictionStats.monthKey, accuracy: 'monthAccuracy', correct: 'monthCorrect', total: 'monthTotal', reached: 'monthReachedAt' };
+    }
+    return { keyName: '', keyOf: null, accuracy: 'predAccuracy', correct: 'predCorrect', total: 'predTotal', reached: 'reachedAt' };
+}
+
+function predictKeyed(fields, clauses, nowMs) {
+    if (!fields.keyName) return clauses;
+    return [[fields.keyName, '==', fields.keyOf(nowMs)]].concat(clauses);
+}
+
+function predictTieGroups(fields, view, min, uid, nowMs) {
+    const accuracy = Number(view.accuracy) || 0;
+    const correct = whole(view.correct);
+    const total = whole(view.total);
+    const reached = whole(view.reachedAt);
+    const groups = [
+        predictKeyed(fields, [[fields.accuracy, '>', accuracy], [fields.total, '>=', min]], nowMs),
+        predictKeyed(fields, [[fields.accuracy, '==', accuracy], [fields.correct, '>', correct], [fields.total, '>=', min]], nowMs),
+        predictKeyed(fields, [[fields.accuracy, '==', accuracy], [fields.correct, '==', correct], [fields.total, '>', total]], nowMs)
+    ];
+    const same = [
+        [fields.accuracy, '==', accuracy],
+        [fields.correct, '==', correct],
+        [fields.total, '==', total]
+    ];
+    if (reached > 0) {
+        groups.push(predictKeyed(fields, same.concat([[fields.reached, '>', 0], [fields.reached, '<', reached]]), nowMs));
+        groups.push(predictKeyed(fields, same.concat([[fields.reached, '==', reached], ['__name__', '<', uid]]), nowMs));
+    } else {
+        groups.push(predictKeyed(fields, same.concat([[fields.reached, '>', 0]]), nowMs));
+    }
+    return groups;
 }
 
 function predictView(stats, period, nowMs) {
@@ -554,13 +591,7 @@ function predictView(stats, period, nowMs) {
     return predictionStats.viewOf(src, period);
 }
 
-function predictFields(period) {
-    if (period === 'weekly') return { key: 'weekKey', accuracy: 'weekAccuracy', correct: 'weekCorrect', total: 'weekTotal', keyOf: predictionStats.weekKey };
-    if (period === 'monthly') return { key: 'monthKey', accuracy: 'monthAccuracy', correct: 'monthCorrect', total: 'monthTotal', keyOf: predictionStats.monthKey };
-    return { key: '', accuracy: 'predAccuracy', correct: 'predCorrect', total: 'predTotal', keyOf: null };
-}
-
-async function rankPredict(db, player, period, nowMs, ghosts, docId) {
+async function rankPredict(db, player, period, nowMs, docId) {
     const min = predictionStats.minimumFor(period);
     const statsSnap = await db.collection('prediction_stats').doc(player.uid).get();
     const stats = statsSnap && statsSnap.exists ? (statsSnap.data() || {}) : {};
@@ -577,62 +608,11 @@ async function rankPredict(db, player, period, nowMs, ghosts, docId) {
         };
     }
     const fields = predictFields(period);
-    const periodKey = fields.keyOf ? fields.keyOf(nowMs) : '';
-    function withKey(clauses) {
-        if (!fields.key) return clauses;
-        return [[fields.key, '==', periodKey]].concat(clauses);
-    }
-    const coll = db.collection('prediction_stats');
-    const accuracy = Number(view.accuracy) || 0;
-    const correct = whole(view.correct);
-    const total = whole(view.total);
-    const counts = await Promise.all([
-        countOf(whereAll(coll, withKey([[fields.accuracy, '>', accuracy], [fields.total, '>=', min]]))),
-        countOf(whereAll(coll, withKey([[fields.accuracy, '==', accuracy], [fields.correct, '>', correct], [fields.total, '>=', min]]))),
-        countOf(whereAll(coll, withKey([[fields.accuracy, '==', accuracy], [fields.correct, '==', correct], [fields.total, '>', total]])))
-    ]);
-    const ghostStats = await readIds(db, 'prediction_stats', ghosts);
-    let ghostHigher = 0;
-    ghostStats.forEach(function (doc) {
-        const other = predictView(doc.data, period, nowMs);
-        if (whole(other.total) < min) return;
-        const better = (Number(other.accuracy) || 0) > accuracy
-            || ((Number(other.accuracy) || 0) === accuracy && whole(other.correct) > correct)
-            || ((Number(other.accuracy) || 0) === accuracy && whole(other.correct) === correct && whole(other.total) > total);
-        if (better) ghostHigher++;
-    });
-    const ties = await queryDocs(coll, withKey([
-        [fields.accuracy, '==', accuracy],
-        [fields.correct, '==', correct],
-        [fields.total, '==', total]
-    ]), docId);
-    const ghostSet = {};
-    ghosts.forEach(function (id) { ghostSet[id] = true; });
-    const self = {
-        uid: player.uid,
-        accuracy: accuracy,
-        correct: correct,
-        total: total,
-        reachedAt: view.reachedAt
-    };
-    let tiesAhead = 0;
-    ties.forEach(function (row) {
-        if (row.id === player.uid || ghostSet[row.id]) return;
-        const other = predictView(row.data, period, nowMs);
-        if (whole(other.total) !== total) return;
-        if ((Number(other.accuracy) || 0) !== accuracy || whole(other.correct) !== correct) return;
-        if (predictionStats.comparePredictors({
-            uid: row.id,
-            accuracy: other.accuracy,
-            correct: other.correct,
-            total: other.total,
-            reachedAt: other.reachedAt
-        }, self) < 0) tiesAhead++;
-    });
+    const ahead = await sumVisible(db.collection('prediction_stats'), predictTieGroups(fields, view, min, player.uid, nowMs), docId);
     return {
         status: 'ok',
         username: player.username,
-        rank: 1 + Math.max(0, counts[0] + counts[1] + counts[2] - ghostHigher) + tiesAhead,
+        rank: 1 + ahead,
         score: predictionStats.displayPct(view.correct, view.total),
         pct: predictionStats.displayPct(view.correct, view.total)
     };
@@ -643,17 +623,20 @@ function reachedMs(value) {
     return n > 0 ? n : 0;
 }
 
-function compareStreak(a, b, valueKey, reachedKey) {
-    const av = Number(a[valueKey]) || 0;
-    const bv = Number(b[valueKey]) || 0;
-    if (bv !== av) return bv - av;
-    const ar = reachedMs(a[reachedKey]);
-    const br = reachedMs(b[reachedKey]);
-    if (ar > 0 && br > 0 && ar !== br) return ar - br;
-    const an = displayName(a.username).toLowerCase();
-    const bn = displayName(b.username).toLowerCase();
-    if (an !== bn) return an < bn ? -1 : 1;
-    return String(a.uid || '').localeCompare(String(b.uid || ''));
+function streakTimeGroups(prefix, timeField, time, lower, uid, tail) {
+    const rest = tail || [];
+    const groups = [];
+    if (time > 0) {
+        groups.push(prefix.concat(rest).concat([[timeField, '>', 0], [timeField, '<', time]]));
+        if (lower && !rest.length) {
+            groups.push(prefix.concat([[timeField, '==', time], ['username_lower', '<', lower]]));
+            groups.push(prefix.concat([[timeField, '==', time], ['username_lower', '==', lower], ['__name__', '<', uid]]));
+        }
+    } else if (lower && !rest.length) {
+        groups.push(prefix.concat([['username_lower', '<', lower]]));
+        groups.push(prefix.concat([['username_lower', '==', lower], ['__name__', '<', uid]]));
+    }
+    return groups;
 }
 
 async function rankStreak(db, player, period, nowMs, docId) {
@@ -661,6 +644,7 @@ async function rankStreak(db, player, period, nowMs, docId) {
     const today = offsetDateKey(nowMs);
     const shown = displayName(player.username || user.username);
     const coll = db.collection('users');
+    const lower = player.usernameLower || nameLower(user);
     if (period === 'current') {
         const value = streakBoard.currentStreak(user, today);
         if (value <= 0) {
@@ -669,87 +653,74 @@ async function rankStreak(db, player, period, nowMs, docId) {
         const yesterday = streakBoard.shiftDateKey(today, -1);
         const twoAgo = streakBoard.shiftDateKey(today, -2);
         const alive = [
-            [['lastVisit', '==', today], ['streak', '>', value]],
-            [['lastVisit', '==', yesterday], ['streak', '>', value]],
-            [['lastVisit', '==', twoAgo], ['streak', '>', value], ['streakFreezes', '>', 0]]
+            { visit: today, tail: [] },
+            { visit: yesterday, tail: [] },
+            { visit: twoAgo, tail: [['streakFreezes', '>', 0]] }
         ];
-        const higherParts = await Promise.all(alive.map(function (clauses) {
-            return countVisible(coll, clauses, docId);
-        }));
-        const higher = higherParts[0] + higherParts[1] + higherParts[2];
-        const tieQueries = [
-            [['lastVisit', '==', today], ['streak', '==', value]],
-            [['lastVisit', '==', yesterday], ['streak', '==', value]],
-            [['lastVisit', '==', twoAgo], ['streak', '==', value], ['streakFreezes', '>', 0]]
-        ];
-        const groups = await Promise.all(tieQueries.map(function (clauses) {
-            return queryDocs(coll, clauses, docId);
-        }));
-        const self = {
-            uid: player.uid,
-            username: player.username,
-            current: value,
-            streakReachedAt: reachedMs(user.streakReachedAt)
-        };
-        const seen = {};
-        let tiesAhead = 0;
-        groups.forEach(function (rows) {
-            rows.forEach(function (row) {
-                if (seen[row.id] || row.id === player.uid) return;
-                seen[row.id] = true;
-                const data = row.data || {};
-                if (data.ghostMode === true) return;
-                if (streakBoard.currentStreak(data, today) !== value) return;
-                const other = {
-                    uid: row.id,
-                    username: data.username,
-                    current: value,
-                    streakReachedAt: reachedMs(data.streakReachedAt)
-                };
-                if (compareStreak(other, self, 'current', 'streakReachedAt') < 0) tiesAhead++;
+        const groups = [];
+        const reached = reachedMs(user.streakReachedAt);
+        alive.forEach(function (bucket) {
+            const visit = [['lastVisit', '==', bucket.visit]];
+            groups.push(visit.concat([['streak', '>', value]]).concat(bucket.tail));
+            streakTimeGroups(visit.concat([['streak', '==', value]]), 'streakReachedAt', reached, lower, player.uid, bucket.tail).forEach(function (clauses) {
+                groups.push(clauses);
             });
         });
-        return { status: 'ok', username: player.username, rank: 1 + higher + tiesAhead, score: value };
+        const ahead = await sumVisible(coll, groups, docId);
+        return { status: 'ok', username: player.username, rank: 1 + ahead, score: value };
     }
     const value = streakBoard.allTimeStreak(user);
     if (value <= 0) {
         return { status: 'unqualified', username: player.username, have: 0, needed: 1, message: '@' + shown + ' has no streak yet' };
     }
+    const time = reachedMs(user.bestStreakAt);
+    const groups = [
+        [['bestStreak', '>', value]],
+        [['streak', '>', value]],
+        [['streak', '>', value], ['bestStreak', '>', value]]
+    ];
+    // The third count is the overlap of the first two, subtracted below.
+    const overlap = groups.pop();
+    if (time > 0) {
+        groups.push([
+            ['bestStreak', '==', value],
+            ['bestStreakAt', '>', 0],
+            ['bestStreakAt', '<', time],
+            ['streak', '<=', value]
+        ]);
+        groups.push([
+            ['streak', '==', value],
+            ['bestStreak', '<', value],
+            ['bestStreakAt', '>', 0],
+            ['bestStreakAt', '<', time]
+        ]);
+        if (lower) {
+            groups.push([
+                ['bestStreak', '==', value],
+                ['bestStreakAt', '==', time],
+                ['streak', '<=', value],
+                ['username_lower', '<', lower]
+            ]);
+            groups.push([
+                ['bestStreak', '==', value],
+                ['bestStreakAt', '==', time],
+                ['username_lower', '==', lower],
+                ['streak', '<=', value],
+                ['__name__', '<', player.uid]
+            ]);
+        }
+    } else if (lower) {
+        groups.push([
+            ['bestStreak', '==', value],
+            ['streak', '<=', value],
+            ['username_lower', '<', lower]
+        ]);
+    }
     const parts = await Promise.all([
-        countVisible(coll, [['bestStreak', '>', value]], docId),
-        countVisible(coll, [['streak', '>', value]], docId),
-        countVisible(coll, [['streak', '>', value], ['bestStreak', '>', value]], docId)
+        sumVisible(coll, groups, docId),
+        countVisible(coll, overlap, docId)
     ]);
-    const higher = Math.max(0, parts[0] + parts[1] - parts[2]);
-    const groups = await Promise.all([
-        queryDocs(coll, [['bestStreak', '==', value]], docId),
-        queryDocs(coll, [['streak', '==', value]], docId)
-    ]);
-    const self = {
-        uid: player.uid,
-        username: player.username,
-        best: value,
-        bestStreakAt: reachedMs(user.bestStreakAt)
-    };
-    const seen = {};
-    let tiesAhead = 0;
-    groups.forEach(function (rows) {
-        rows.forEach(function (row) {
-            if (seen[row.id] || row.id === player.uid) return;
-            seen[row.id] = true;
-            const data = row.data || {};
-            if (data.ghostMode === true) return;
-            if (streakBoard.allTimeStreak(data) !== value) return;
-            const other = {
-                uid: row.id,
-                username: data.username,
-                best: value,
-                bestStreakAt: reachedMs(data.bestStreakAt)
-            };
-            if (compareStreak(other, self, 'best', 'bestStreakAt') < 0) tiesAhead++;
-        });
-    });
-    return { status: 'ok', username: player.username, rank: 1 + higher + tiesAhead, score: value };
+    return { status: 'ok', username: player.username, rank: 1 + Math.max(0, parts[0] - parts[1]), score: value };
 }
 
 async function lookup(db, data, callerUid, board, period, nowMs, docId) {
@@ -765,13 +736,9 @@ async function lookup(db, data, callerUid, board, period, nowMs, docId) {
     }
     let ranked;
     if (board === 'xp') ranked = await rankXp(db, player, period, docId);
-    else if (board === 'quest') {
-        const ghosts = await ghostIdList(db, docId);
-        ranked = await rankQuest(db, player, period, nowMs, ghosts, docId);
-    } else if (board === 'predict') {
-        const ghosts = await ghostIdList(db, docId);
-        ranked = await rankPredict(db, player, period, nowMs, ghosts, docId);
-    } else ranked = await rankStreak(db, player, period, nowMs, docId);
+    else if (board === 'quest') ranked = await rankQuest(db, player, period, nowMs, docId);
+    else if (board === 'predict') ranked = await rankPredict(db, player, period, nowMs, docId);
+    else ranked = await rankStreak(db, player, period, nowMs, docId);
     ranked.board = board;
     ranked.period = period;
     return ranked;
@@ -785,7 +752,7 @@ async function handleLeaderboardRank(db, adminSdk, data, context, nowMs) {
     const period = board && canonPeriod(board, data && data.period);
     if (!board || !period) throw fail('invalid-argument', 'Unknown board or period.');
     const caller = context.auth.uid;
-    const rate = await takeRate(db, caller, nowMs);
+    const rate = await takeRate(db, caller, nowMs, anonymousCaller(context) ? RATE_ANON_MAX : RATE_MAX);
     if (!rate.allowed) throw fail('resource-exhausted', 'Too many lookups. Try again in a minute.');
     const docId = adminSdk.firestore.FieldPath.documentId();
     try {
@@ -816,6 +783,7 @@ const leaderboardRank = functionsV1.runWith({ enforceAppCheck: true, timeoutSeco
 
 module.exports = {
     RATE_MAX: RATE_MAX,
+    RATE_ANON_MAX: RATE_ANON_MAX,
     SUGGEST_LIMIT: SUGGEST_LIMIT,
     INDEX_SPECS: INDEX_SPECS,
     canonBoard: canonBoard,
