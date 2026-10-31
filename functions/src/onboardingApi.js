@@ -9,6 +9,7 @@ const rateSalt = require('./rateLimitSalt');
 const { isSatsBanned } = require('./cipherClaim');
 const accountTombstone = require('./accountTombstone');
 const streakBoard = require('./streakBoard');
+const joinDate = require('./joinDate');
 
 const QUIZ_DOC = /_(quest|trivia|poll_vote)$/;
 const USERNAME_HOUR_MS = 60 * 60 * 1000;
@@ -285,10 +286,12 @@ function registerOnboarding(deps) {
         const user = userSnap.exists ? (userSnap.data() || {}) : {};
         const ledger = ledgerSnap.exists ? (ledgerSnap.data() || {}) : {};
         if (accountBlocked(user, ledger)) return { ok: false, error: 'unavailable' };
-        await db.collection('users').doc(uid).set({
+        const introPatch = {
             introSeen: true,
             introSeenAt: admin.firestore.FieldValue.serverTimestamp(),
-        }, { merge: true });
+        };
+        await joinDate.applyMissingJoin(admin, uid, introPatch, userSnap);
+        await db.collection('users').doc(uid).set(introPatch, { merge: true });
         return { ok: true, stored: 'server' };
     }
 
@@ -305,10 +308,14 @@ function registerOnboarding(deps) {
         if (accountBlocked(prev, ledger)) return { ok: false, error: 'unavailable' };
         if (prev.mergedInto) return { ok: false, error: 'already_linked' };
         const nonce = crypto.randomBytes(24).toString('hex');
-        await ref.set({
+        const guestPatch = {
             guestLinkNonce: nonce,
             guestLinkNonceAt: admin.firestore.FieldValue.serverTimestamp(),
-        }, { merge: true });
+        };
+        // Guest age is read from created. A doc born here without it fails
+        // the later merge as guest_too_old. Auth creationTime is that age.
+        await joinDate.applyMissingJoin(admin, uid, guestPatch, snap);
+        await ref.set(guestPatch, { merge: true });
         return { ok: true, nonce: nonce };
     }
 
@@ -332,6 +339,7 @@ function registerOnboarding(deps) {
         const anonRef = db.collection('users').doc(anonUid);
         const destRef = db.collection('users').doc(uid);
         const nowMs = Date.now();
+        const destJoinStamp = await joinDate.authJoinTimestamp(admin, uid, nowMs);
         let guestHadQuiz = false;
         try {
             const counts = await anonRef.collection('daily_action_counts').limit(30).get();
@@ -416,7 +424,7 @@ function registerOnboarding(deps) {
                     channelsVisited: again.channelsVisited,
                     totalVisits: 1,
                     mergedFromGuest: true,
-                    created: admin.firestore.FieldValue.serverTimestamp(),
+                    created: destJoinStamp || admin.firestore.FieldValue.serverTimestamp(),
                 }, streakBoard.applyStreakUpdate({}, 1, nowMs, null));
                 if (movedName) {
                     created.username = movedName;
@@ -425,6 +433,7 @@ function registerOnboarding(deps) {
                 tx.set(destRef, created);
             } else {
                 const update = { mergedFromGuest: true };
+                if (!joinDate.hasJoin(dest, nowMs) && destJoinStamp) update.created = destJoinStamp;
                 if (movedPoints > 0) {
                     update.points = admin.firestore.FieldValue.increment(movedPoints);
                     update.weeklyXP = admin.firestore.FieldValue.increment(movedPoints);
@@ -612,9 +621,14 @@ function registerOnboarding(deps) {
                     points: 0,
                     channelsVisited: 0,
                     totalVisits: 1,
-                    created: admin.firestore.FieldValue.serverTimestamp(),
+                    created: joinDate.timestampFromUserRecord(admin, authUser, nowMs)
+                        || admin.firestore.FieldValue.serverTimestamp(),
                 }, streakBoard.applyStreakUpdate({}, 1, nowMs, null), patch));
             } else {
+                if (!joinDate.hasJoin(current, nowMs)) {
+                    const born = joinDate.timestampFromUserRecord(admin, authUser, nowMs);
+                    if (born) patch.created = born;
+                }
                 tx.update(userRef, patch);
             }
             if (profileSnap.exists) {

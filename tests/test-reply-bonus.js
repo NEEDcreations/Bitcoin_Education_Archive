@@ -541,8 +541,10 @@ test('rules keep XP, the bonus flag, and replyTo on the server', function () {
     assert.ok((ranking.match(/clientCreatePayload\(/g) || []).length >= 3);
     assert.strictEqual((ranking.match(/anonData\.created = firebase\.firestore\.FieldValue\.serverTimestamp\(\)/g) || []).length, 0);
     const createdLines = ranking.match(/created:\s*[^\n]+/g) || [];
-    assert.ok(createdLines.length >= 2);
-    createdLines.forEach(function (line) {
+    const nostrPatchLines = ranking.match(/nostrPatch\.created\s*=\s*[^\n]+/g) || [];
+    const joinLines = createdLines.concat(nostrPatchLines);
+    assert.ok(joinLines.length >= 2, 'expected clientCreatePayload and nostrPatch created stamps');
+    joinLines.forEach(function (line) {
         assert.ok(line.indexOf('serverTimestamp()') !== -1, line);
     });
     const chat = rules.slice(rules.indexOf('match /global_chat/{msgId}'), rules.indexOf('// NOTIFICATIONS'));
@@ -642,7 +644,7 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('global-chat.js?v=20261022_v2272'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2269'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
-    assert.ok(html.includes('ranking.js?v=20261031_v2452'));
+    assert.ok(html.includes('ranking.js?v=20261031_v2453'));
     assert.ok(!html.includes('ranking.js?v=20261029_v2431'));
     assert.ok(!html.includes('global-chat.js?v=20261029_v2431'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
@@ -668,7 +670,7 @@ test('client shows the server amount and does not render user text', function ()
     assert.ok(!html.includes('ranking.js?v=20261022_v2269'));
     const swText = fs.readFileSync(path.join(root, 'sw.js'), 'utf8');
 
-    assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2452'"));
+    assert.ok(swText.includes("const CACHE_NAME = 'btc-archive-v2453'"));
     assert.ok(!swText.includes('btc-archive-v2438'));
     assert.ok(!swText.includes('btc-archive-v2437'));
     assert.ok(!swText.includes('btc-archive-v2436'));

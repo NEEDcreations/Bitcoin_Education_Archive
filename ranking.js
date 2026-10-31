@@ -2848,7 +2848,11 @@ window.nostrSignInWithNpub = async function() {
     try {
         if (!auth.currentUser) await auth.signInAnonymously();
         var uid = auth.currentUser.uid;
-        await db.collection('users').doc(uid).set({ nostr: pubkey, lastLogin: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        var nostrPatch = { nostr: pubkey, lastLogin: firebase.firestore.FieldValue.serverTimestamp() };
+        var nostrDoc = await db.collection('users').doc(uid).get();
+        // created can only be set on create. An update that adds it is rejected.
+        if (!nostrDoc.exists) nostrPatch.created = firebase.firestore.FieldValue.serverTimestamp();
+        await db.collection('users').doc(uid).set(nostrPatch, { merge: true });
         if (currentUser) currentUser.nostr = pubkey;
         var overlay = document.getElementById('nostrAuthOverlay'); if (overlay) overlay.remove();
         showToast('🟣 Nostr identity linked! (npub)');
@@ -2865,11 +2869,9 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
             await auth.signInWithCustomToken(result.data.token);
             var uid = result.data.uid;
             var userDoc = await db.collection('users').doc(uid).get();
-            // Always patch 'created' if missing — even for returning users who already have a username
-            // Fixes Nostr users who logged in before this field was written
-            if (!userDoc.exists || !userDoc.data().created) {
-                await db.collection('users').doc(uid).set({ created: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
-            }
+            // nostrAuth writes created from Auth creationTime before this read.
+            // A later client update of created is rejected by the rules, so do
+            // not try to patch it here.
             if (!userDoc.exists) {
                 await db.collection('users').doc(uid).set(clientCreatePayload({ nostr: pubkey }), { merge: true });
                 try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
