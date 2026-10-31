@@ -541,8 +541,10 @@ test('rules keep XP, the bonus flag, and replyTo on the server', function () {
     assert.ok((ranking.match(/clientCreatePayload\(/g) || []).length >= 3);
     assert.strictEqual((ranking.match(/anonData\.created = firebase\.firestore\.FieldValue\.serverTimestamp\(\)/g) || []).length, 0);
     const createdLines = ranking.match(/created:\s*[^\n]+/g) || [];
-    assert.ok(createdLines.length >= 2);
-    createdLines.forEach(function (line) {
+    const nostrPatchLines = ranking.match(/nostrPatch\.created\s*=\s*[^\n]+/g) || [];
+    const joinLines = createdLines.concat(nostrPatchLines);
+    assert.ok(joinLines.length >= 2, 'expected clientCreatePayload and nostrPatch created stamps');
+    joinLines.forEach(function (line) {
         assert.ok(line.indexOf('serverTimestamp()') !== -1, line);
     });
     const chat = rules.slice(rules.indexOf('match /global_chat/{msgId}'), rules.indexOf('// NOTIFICATIONS'));

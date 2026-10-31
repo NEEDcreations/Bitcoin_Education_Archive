@@ -94,10 +94,16 @@ tests.push(test('field variants win in order and last login is ignored', functio
     assert.strictEqual(joinDate.joinMillis(badCreated.created, NOW), null);
     const onlyLogin = { lastLogin: APRIL, lastSeen: APRIL, lastVisit: '2026-04-02' };
     assert.strictEqual(joinDate.hasJoin(onlyLogin, NOW), false);
-    const joinedAt = { joinedAt: { seconds: APRIL_SEC, nanoseconds: 0 } };
-    assert.strictEqual(joinDate.hasJoin(joinedAt, NOW), true);
-    const msField = { createdAtMs: APRIL };
-    assert.strictEqual(joinDate.hasJoin(msField, NOW), true);
+    const planted = {
+        joinedAt: { seconds: APRIL_SEC, nanoseconds: 0 },
+        joined: APRIL,
+        signupAt: APRIL,
+        accountCreated: APRIL,
+        createdAtMs: APRIL,
+        joinedAtMs: APRIL,
+    };
+    assert.strictEqual(joinDate.hasJoin(planted, NOW), false);
+    assert.deepStrictEqual(joinDate.JOIN_KEYS, ['created', 'createdAt']);
 }));
 
 tests.push(test('auth creationTime is the only backfill source', function () {
@@ -160,10 +166,11 @@ tests.push(test('client profile card matches the server parser and skips last lo
     assert.strictEqual(api.profileJoinMillis({ _seconds: APRIL_SEC, _nanoseconds: 0 }, NOW), APRIL_SEC * 1000);
     assert.strictEqual(api.profileJoinMillis(3840, NOW), null);
     const label = api.profileJoinLabel([
-        { lastLogin: new Date(NOW).toISOString(), points: 3840 },
-        { createdAtMs: APRIL },
+        { lastLogin: new Date(NOW).toISOString(), points: 3840, createdAtMs: APRIL, joinedAt: APRIL },
+        { createdAt: APRIL },
     ], NOW);
     assert.strictEqual(label, new Date(APRIL).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+    assert.strictEqual(api.profileJoinLabel([{ createdAtMs: APRIL, joinedAt: APRIL, signupAt: APRIL }], NOW), '');
     const own = api.profileJoinLabel([
         { lastLogin: '2026-10-01T00:00:00.000Z' },
         { created: '2026-04-02T15:00:00.000Z' },
@@ -186,7 +193,17 @@ tests.push(test('signup paths stamp created on the server', function () {
     assert.ok(index.includes('await joinDate.applyMissingJoin(admin, nostrUid, nostrPatch, nostrExisting);'));
     assert.ok(index.includes('await joinDate.applyMissingJoin(admin, lnUid, lnPatch, lnExisting);'));
     assert.ok(index.includes('await joinDate.applyMissingJoin(admin, uid, createdPatch, snap, { allowNow: true });'));
-    assert.ok(index.includes("'joinedAt'"));
+    const profileFields = index.slice(index.indexOf('const PUBLIC_PROFILE_FIELDS'), index.indexOf('const lbDirtyStampAt'));
+    ['joinedAt', 'signupAt', 'accountCreated', 'createdAtMs', 'joinedAtMs'].forEach(function (name) {
+        assert.strictEqual(profileFields.includes("'" + name + "'"), false, name);
+    });
+    assert.strictEqual(profileFields.includes("'joined'"), false);
+    const card = read('messaging.js');
+    const cardKeys = card.slice(card.indexOf('var PROFILE_JOIN_KEYS'), card.indexOf('var PROFILE_JOIN_MIN_MS'));
+    assert.ok(cardKeys.includes("'created'") && cardKeys.includes("'createdAt'"));
+    ['joinedAt', 'signupAt', 'accountCreated', 'createdAtMs', 'joinedAtMs'].forEach(function (name) {
+        assert.strictEqual(cardKeys.includes(name), false, name);
+    });
     assert.ok(!index.includes('LAUNCH_DATE'));
     assert.ok(!index.includes("method = 'estimate'"));
     assert.ok(index.includes('writes: false'));

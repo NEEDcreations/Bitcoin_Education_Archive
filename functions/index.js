@@ -5250,7 +5250,7 @@ const PUBLIC_PROFILE_FIELDS = [
     'lastSeen', 'isOnline', 'ghostMode',
     'lightningAddress',   // display-only; tip button uses this
     'lightning',           // alias saved by older clients; tip lookup checks both
-    'created', 'createdAt', 'joinedAt', 'joined', 'signupAt', 'accountCreated', 'createdAtMs', 'joinedAtMs',
+    'created', 'createdAt',
     'earnedHidden',
     'peerCount', // peer network size (peers array stays server-only)
 ];

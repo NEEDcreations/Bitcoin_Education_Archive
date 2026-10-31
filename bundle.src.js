@@ -12717,9 +12717,9 @@ window.onlineStatusDot = function(lastSeen) {
 
 // ---- USER PROFILE MODAL ----
 // PROFILE_JOIN_START
-// Join date for the profile card. First usable field wins.
-// Activity times are not join dates.
-var PROFILE_JOIN_KEYS = ['created', 'createdAt', 'joinedAt', 'joined', 'signupAt', 'accountCreated', 'createdAtMs', 'joinedAtMs'];
+// Join date for the profile card. `created`, then legacy `createdAt`.
+// Other field names are client-writable, so they are not a join date.
+var PROFILE_JOIN_KEYS = ['created', 'createdAt'];
 var PROFILE_JOIN_MIN_MS = Date.UTC(2020, 0, 1);
 var PROFILE_JOIN_MAX_FUTURE_MS = 48 * 60 * 60 * 1000;
 

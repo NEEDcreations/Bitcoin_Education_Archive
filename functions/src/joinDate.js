@@ -1,17 +1,13 @@
 'use strict';
 
 // Join instant for a user profile.
-// The profile card reads public_profiles. The field written on signup is
-// `created`. Older and newer paths have also used createdAt, joinedAt, a
-// millisecond number, a unix-seconds number, or a date string.
-// lastLogin, lastSeen, and lastVisit are not join dates and are never used.
+// Signup writes `created`. `createdAt` is the only legacy name still read.
+// Other names are client-writable on users docs, so they are not a join date.
+// lastLogin, lastSeen, and lastVisit are not join dates either.
 // A value before 2020-01-01 or more than 48 hours in the future is rejected
 // so a seconds/milliseconds mixup cannot show 1970.
 
-const JOIN_KEYS = [
-    'created', 'createdAt', 'joinedAt', 'joined',
-    'signupAt', 'accountCreated', 'createdAtMs', 'joinedAtMs',
-];
+const JOIN_KEYS = ['created', 'createdAt'];
 const MIN_MS = Date.UTC(2020, 0, 1);
 const MAX_FUTURE_MS = 48 * 60 * 60 * 1000;
 

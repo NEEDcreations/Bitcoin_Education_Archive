@@ -3,8 +3,8 @@
 
 // Report user profiles whose Joined date is missing.
 //
-// Reads each users doc for created, createdAt, joinedAt, and the other join
-// field names, then reads Firebase Auth metadata.creationTime. A profile
+// Reads each users doc for created and legacy createdAt, then reads Firebase
+// Auth metadata.creationTime. A profile
 // with no usable join field and a real Auth creation time is listed as
 // "would stamp". Profiles with no Auth user, or a creation time outside
 // 2020-01-01 through 48 hours from now, are counted and skipped.
