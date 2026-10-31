@@ -6560,7 +6560,7 @@ var RAID_GUIDANCE = {
     'trifecta':           { action: 'Finish trivia, a quest, and the daily poll on the same day.', nav: 'quests', unitLabel: 'daily trifecta (1/day)', unitAmt: 1 },
     'certPasses':         { action: 'Pass the Scholar or Protocol Expert certification.', nav: 'learning-quests', unitLabel: 'certification passed', unitAmt: 1 },
     'tctvWatchDays':      { action: 'Finish the daily Timechain TV watch.', nav: 'tctv', unitLabel: 'Timechain TV watch day (1/day)', unitAmt: 1 },
-    'referralsPaid':      { action: 'Invite a friend who reaches Maxi. Self-invites do not count.', nav: 'home', unitLabel: 'qualified referral', unitAmt: 1 },
+    'referralsPaid':      { action: 'Invite a friend who earns 2,140 points outside the Scholar exam. Self-invites do not count.', nav: 'home', unitLabel: 'qualified referral', unitAmt: 1 },
     'articlesPublished':  { action: 'Publish a substantial, original article. The server counts it after 24 hours if it is still up. Posts and articles share a cap of 2 a day.', nav: 'forum', unitLabel: 'article published (max 2/day)', unitAmt: 1 },
     'badgesEarned':       { action: 'Earn badges to deal damage! Find them in the Leaderboard 🏆', nav: 'badges', unitLabel: 'badge earned',          unitAmt: 1   },
     'streakUsers':        { action: 'Hit a 7-day daily visit streak to deal damage!',         nav: 'home',            unitLabel: '7-day streak milestone',     unitAmt: 1   },

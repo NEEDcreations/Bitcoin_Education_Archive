@@ -73,7 +73,7 @@
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" as="script" integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" as="script" integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" as="script" integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous">
-    <link rel="preload" href="bundle.min.js?v=20261031_v2450" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261031_v2452" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
@@ -1632,10 +1632,10 @@
                         <button type="button" class="home-invites-open" id="homeInvitesOpen" aria-describedby="homeInvitesInfoText" onclick="openHomeInvites(event)">
                             <span class="home-tile-kicker">👥 INVITES</span>
                             <span id="homeInvitesTier" data-tier-ladder="1">—</span>
-                            <span class="home-tile-note" id="homeInvitesNote">reached Maxi</span>
+                            <span class="home-tile-note" id="homeInvitesNote">earned 2,140</span>
                             <span id="homeInvitesProgress" data-tier-ladder="1"></span>
                         </button>
-                        <button type="button" id="homeInvitesInfo" aria-expanded="false" aria-controls="homeInvitesInfoText" aria-describedby="homeInvitesInfoText" aria-label="About reached Maxi">i</button>
+                        <button type="button" id="homeInvitesInfo" aria-expanded="false" aria-controls="homeInvitesInfoText" aria-describedby="homeInvitesInfoText" aria-label="About the invite reward">i</button>
                     </div>
                     <p id="homeInvitesInfoText" role="tooltip"></p>
                     <button type="button" class="home-tile home-tile-claim" id="homeWithdrawTile" onclick="openHomeWithdraw()">
@@ -2222,12 +2222,12 @@
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
     <script src="username-repick.js?v=20261024_v2352" defer></script>
     <script src="earn-xp-guide.js?v=20261026_v2382" defer></script>
-    <script src="referral-tiers.js?v=20261028_v2418" defer></script>
-    <script src="ranking.js?v=20261031_v2450" defer></script>
+    <script src="referral-tiers.js?v=20261031_v2451" defer></script>
+    <script src="ranking.js?v=20261031_v2452" defer></script>
     <!-- Critical: needed for initial page render -->
-    <script src="bundle.min.js?v=20261031_v2450" defer fetchpriority="high"></script>
+    <script src="bundle.min.js?v=20261031_v2452" defer fetchpriority="high"></script>
     <script src="bundle-ready.js?v=20261027_v2394" defer></script>
-    <script src="features.registry.js?v=20261031_v2450" defer></script>
+    <script src="features.registry.js?v=20261031_v2452" defer></script>
     <script src="tctv-watch.js?v=20261031_v2448" defer></script>
     <script src="today-card.js?v=20261031_v2448" defer></script>
     <script src="achievement-share.js?v=20261031_v2447" defer></script>
@@ -2245,13 +2245,13 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261031_v2450',
+            'global-chat.js?v=20261031_v2452',
             'satoshi-favor.js?v=20261026_v2368'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261031_v2450',
+            'quests.js?v=20261031_v2452',
             'hot-topics.js?v=20261022_hottopics',
-            'pvp.js?v=20261031_v2447','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261030_v2440',
+            'pvp.js?v=20261031_v2447','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261031_v2451',
             'scholar.js?v=20261026_v2386','beats.js?v=20261031_v2447',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261022_v2279',
             'notifications.js?v=20261024_v2357','gifting.js?v=20261031_v2450','guide.js?v=20261026_v2382','modules.js?v=20261026_v2377',
@@ -2514,10 +2514,10 @@
         }
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261031_v2447', 'global-chat.js?v=20261031_v2450'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261031_v2447', 'global-chat.js?v=20261031_v2450'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261031_v2450'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261031_v2450'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261031_v2447', 'global-chat.js?v=20261031_v2452'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261031_v2447', 'global-chat.js?v=20261031_v2452'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261031_v2452'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261031_v2452'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
             'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261022_v2279'],
             'pvp':           ['pvp.js?v=20261031_v2447'],
@@ -2525,9 +2525,9 @@
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261026_v2377'],
             'learning-quests': ['learning-quests.js?v=20261026_v2377'],
-            'quests':        ['quests.js?v=20261031_v2450'],
-            'questhub':      ['quests.js?v=20261031_v2450'],
-            'app':           ['quests.js?v=20261031_v2450'],
+            'quests':        ['quests.js?v=20261031_v2452'],
+            'questhub':      ['quests.js?v=20261031_v2452'],
+            'app':           ['quests.js?v=20261031_v2452'],
             'timechain-tv':  ['timechain-tv.js?v=20261031_v2447'],
             'tv':            ['timechain-tv.js?v=20261031_v2447'],
             'cert':          ['shareable-certs.js?v=20261028_v2410']
@@ -2664,7 +2664,7 @@ if ('serviceWorker' in navigator) {
                 <button type="button" id="inviteDismissBtn" onclick="dismissInviteCard()" aria-label="Dismiss invite card">✕</button>
             </div>
         </div>
-        <p class="invite-earn" id="inviteEarn">When a friend you invite reaches Maxi rank, you both get 50 orange tickets.</p>
+        <p class="invite-earn" id="inviteEarn">When a friend you invite reaches 2,140 points (Scholar exam points don't count), you both get 50 orange tickets.</p>
         <p class="invite-link" id="inviteLink"></p>
         <div class="invite-actions">
             <button type="button" id="inviteCopy" onclick="copyInviteLink()">Copy</button>
@@ -2673,7 +2673,7 @@ if ('serviceWorker' in navigator) {
         <p class="invite-counts" id="inviteCounts"></p>
         <button type="button" class="invite-how-btn" id="inviteHowBtn" onclick="toggleInviteHow()" aria-expanded="false" aria-controls="inviteHow">How it works</button>
         <div id="inviteHow" class="invite-how" hidden>
-            <p id="inviteHowText">Share your link. Your friend signs up with it. When they reach Maxi (2,140 XP), you both get 50 orange tickets automatically.</p>
+            <p id="inviteHowText">Share your link. Your friend signs up with it. When they reach 2,140 points (Scholar exam points don't count), you both get 50 orange tickets automatically.</p>
         </div>
     </div>
     <button type="button" class="invite-pill" id="invitePill" aria-label="Invite friends" onclick="expandInviteCard()">🎟️ Invite</button>

@@ -9,4 +9,4 @@ fi
 ACCOUNT_ID=$(grep '^CF_ACCOUNT_ID' "$ENV_FILE" | cut -d'"' -f2)
 
 cd "$(dirname "$0")"
-CLOUDFLARE_API_TOKEN="***" npx wrangler deploy --account-id "$ACCOUNT_ID"
+CLOUDFLARE_API_TOKEN="***" npx wrangler deploy --keep-vars --account-id "$ACCOUNT_ID"

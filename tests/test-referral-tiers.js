@@ -62,7 +62,7 @@ test('tier mapping hits every boundary', () => {
         assert.strictEqual(progress.tierLabel, progress.tier.emoji + ' ' + row[2]);
         assert.strictEqual(progress.progressText, row[3], 'progress ' + row[0]);
         assert.strictEqual(progress.maxed, row[1] === 5);
-        assert.strictEqual(progress.countText, row[0] === 1 ? '1 reached Maxi' : row[0] + ' reached Maxi');
+        assert.strictEqual(progress.countText, row[0] === 1 ? '1 earned 2,140' : row[0] + ' earned 2,140');
     });
     assert.strictEqual(tiers.normalizeCount(-3), 0);
     assert.strictEqual(tiers.normalizeCount('nope'), 0);
@@ -89,6 +89,9 @@ test('only a credited referee who still holds Maxi counts', () => {
     assert.strictEqual(tiers.holdsMaxiRank({ points: 2139 }), false);
     assert.strictEqual(tiers.holdsMaxiRank({ points: 2140 }), true);
     assert.strictEqual(tiers.holdsMaxiRank({ points: 10000 }), true);
+    assert.strictEqual(tiers.holdsMaxiRank({ points: 4240, scholarPoints: 2100 }), true);
+    assert.strictEqual(tiers.holdsMaxiRank({ points: 4200, scholarPoints: 4200 }), false);
+    assert.strictEqual(tiers.activityPoints({ points: 4240, scholarPoints: 2100 }), 2140);
     assert.strictEqual(tiers.countsForLevel(credited({ referredUid: 'a' }), { points: 2139 }, null), false);
     assert.strictEqual(tiers.countsForLevel(credited({ referredUid: 'a' }), { points: 10000 }, null), true);
     assert.strictEqual(tiers.countsForLevel(credited({ referredUid: 'a' }), maxi({ banned: true }), null), false);
@@ -182,7 +185,7 @@ test('the reached-Maxi explainer uses the rank threshold', () => {
     assert.strictEqual(tiers.MAXI_RANK_POINTS, 2140);
     assert.strictEqual(
         tiers.maxiCountHelp(12, 3),
-        "You've invited 12 people. 3 reached Maxi rank (2,140+ XP). Only referrals that reached Maxi count."
+        "You've invited 12 people. 3 reached 2,140 points (Scholar exam points don't count). Only those referrals count."
     );
     assert.strictEqual(tiers.maxiCountHelp(1, 1).indexOf("You've invited 1 person."), 0);
     const rules = require(path.join(root, 'functions/src/badgeRules'));

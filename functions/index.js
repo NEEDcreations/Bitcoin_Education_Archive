@@ -1400,7 +1400,7 @@ exports.verifyReferral = functionsV1.runWith({ secrets: [referralIpSecret, delet
         try {
             await sendUserPush(result.referrerUid, 'referrals', {
                 title: 'Referral reward',
-                body: 'Someone you invited reached Maxi. 50 Orange Tickets were added.',
+                body: 'Someone you invited earned 2,140 points outside the Scholar exam. 50 Orange Tickets were added.',
                 url: 'https://bitcoineducation.quest/#questhub'
             });
         } catch (e) {

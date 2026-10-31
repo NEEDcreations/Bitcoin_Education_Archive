@@ -3021,6 +3021,7 @@ window.signInWithLightning = async function() {
                     }
 
                     loadUser(uid);
+                    if (typeof attachReferral === 'function') attachReferral(uid);
                     hideUsernamePrompt();
                     try { await maybeCompleteAccountEmailLink(); } catch (linkAfterLn) {}
                     setTimeout(function() {
@@ -4097,6 +4098,12 @@ function referralTierApi() {
     return null;
 }
 
+function referralPointsLabel() {
+    var api = referralTierApi();
+    var n = api && api.MAXI_RANK_POINTS ? api.MAXI_RANK_POINTS : 2140;
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
 // Display count is the server field only. A missing field paints as 0.
 function serverMaxiReferralCount(user) {
     var api = referralTierApi();
@@ -4122,7 +4129,7 @@ function paintInviteTier(count, invited) {
     var n = (api && typeof api.normalizeCount === 'function') ? api.normalizeCount(count) : (Number(count) || 0);
     var progress = (api && typeof api.tierProgress === 'function') ? api.tierProgress(n) : {
         tierLabel: '—',
-        countText: (n === 1 ? '1 reached Maxi' : n + ' reached Maxi'),
+        countText: (n === 1 ? '1 earned ' : n + ' earned ') + referralPointsLabel(),
         progressText: '',
         level: 0
     };
@@ -4446,7 +4453,7 @@ function resetOptimisticHomeChrome() {
     var tier = document.getElementById('homeInvitesTier');
     if (tier) tier.textContent = '\u2014';
     var note = document.getElementById('homeInvitesNote');
-    if (note) note.textContent = 'reached Maxi';
+    if (note) note.textContent = 'earned ' + referralPointsLabel();
     var prog = document.getElementById('homeInvitesProgress');
     if (prog) prog.textContent = '';
     var openBtn = document.getElementById('homeInvitesOpen');
@@ -8689,7 +8696,7 @@ function accountDeleteRowHtml(user) {
                 '<strong style="color:var(--text);">🎧 DJ Set:</strong> Start a DJ set = +5 tickets/set.<br>' +
                 '<strong style="color:var(--text);">📚 Scholar:</strong> Complete a flashcard deck = +5 tickets.<br>' +
                 '<strong style="color:var(--text);">❤️ Donate XP:</strong> Donate 1,000+ XP = +1 ticket/day.<br>' +
-                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who reaches Maxi rank.<br>' +
+                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who reaches ' + referralPointsLabel() + ' points (Scholar exam points don\'t count).<br>' +
                 '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket also earns +5 XP.<br>' +
                 '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats!' +
                 '</div></div>';
@@ -9683,7 +9690,7 @@ function accountDeleteRowHtml(user) {
                 '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
                 '<strong style="color:var(--text);">📅 Daily Login:</strong> +1 ticket just for visiting.<br>' +
                 '<strong style="color:var(--text);">🎡 Spin the Wheel:</strong> Spin daily for bonus tickets!<br>' +
-                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches Maxi rank.<br>' +
+                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches ' + referralPointsLabel() + ' points (Scholar exam points don\'t count).<br>' +
                 '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock at 25 🐟, 50 🦈, and 100 🐋 tickets.<br>' +
                 '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 XP towards your rank.<br>' +
                 '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats!' +

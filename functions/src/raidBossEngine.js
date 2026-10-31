@@ -286,9 +286,9 @@ const SCHEDULE = [
         goalFloor: 31,
         goalCeiling: 60,
         dailyCap: 1,
-        lore: 'Referral-Ranger counts a friend who actually reaches Maxi. Linked accounts and self-invites do not count.',
+        lore: 'Referral-Ranger counts a friend who earns 2,140 points outside the Scholar exam. Linked accounts and self-invites do not count.',
         detail: 'The referrer gets the hit only after the server pays the referral. One a day, about 30 in a month, so the goal will not sit under 31 and one person cannot finish it. Two people can. A floor that also stopped the second person would sit above the referrals this community actually pays.',
-        players: 'A friend you invited reaches Maxi and the server pays the referral. Not you, not a linked account. 1 a day.',
+        players: 'A friend you invited earns 2,140 points outside the Scholar exam and the server pays the referral. Not you, not a linked account. 1 a day.',
     }),
 ].map(function (entry, index) {
     entry.index = index;
