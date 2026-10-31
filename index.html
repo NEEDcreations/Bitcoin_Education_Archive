@@ -388,7 +388,7 @@
         #leaderboard.minimized { max-height: 48px; overflow: hidden; border-radius: 24px; width: auto; cursor: pointer; }
         .lb-min-bar { display: none; padding: 12px 18px; font-size: 0.85rem; font-weight: 700; color: var(--accent); text-align: center; }
         #leaderboard.minimized .lb-min-bar { display: block; }
-        #leaderboard.minimized .lb-header, #leaderboard.minimized .lb-list, #leaderboard.minimized .lb-levels { display: none; }
+        #leaderboard.minimized .lb-header, #leaderboard.minimized .lb-list, #leaderboard.minimized .lb-levels, #leaderboard.minimized .lb-rank-search { display: none; }
         @media (max-width: 900px) { #leaderboard { right: 10px; left: 10px; bottom: 10px; width: auto; max-height: 60vh; -webkit-overflow-scrolling: touch; border-radius: 16px; } }
         .lb-header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--border); }
         .lb-header h3 { color: var(--heading); font-size: 1.1rem; }
@@ -404,6 +404,16 @@
         .lb-search-result a:hover { text-decoration: underline; }
         .lb-sr-pts { color: var(--text-muted); margin-left: auto; white-space: nowrap; font-size: 0.82rem; }
         .lb-search-none { margin: 4px 12px; padding: 8px 14px; color: var(--text-faint); font-size: 0.82rem; text-align: center; }
+        .lb-rank-search { padding: 0 12px 8px; }
+        .lb-rank-search-row { display: flex; gap: 6px; align-items: center; }
+        .lb-rank-input { flex: 1; min-width: 0; width: auto; box-sizing: border-box; background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; color: var(--text); font-size: 0.85rem; font-family: inherit; outline: none; }
+        .lb-rank-input:focus { border-color: var(--accent); }
+        .lb-rank-find { flex: 0 0 auto; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: none; color: var(--text); font-size: 0.75rem; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; }
+        .lb-rank-find:hover, .lb-rank-find:focus-visible { border-color: var(--accent); color: var(--accent); }
+        .lb-rank-result { margin-top: 6px; }
+        .lb-rank-hit { padding: 8px 10px; border-radius: 8px; background: var(--card-bg); border: 1px solid var(--border); font-size: 0.82rem; line-height: 1.35; overflow-wrap: anywhere; color: var(--text); }
+        .lb-rank-suggest { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+        .lb-rank-suggest-item { padding: 4px 8px; border-radius: 999px; border: 1px solid var(--border); background: none; color: var(--accent); font-size: 0.72rem; font-weight: 700; cursor: pointer; font-family: inherit; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
         .lb-row { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 8px; }
         .lb-row:hover, .lb-row:active { background: var(--card-bg); }
         .lb-me { background: var(--accent-bg); border: 1px solid var(--accent-glow); }
@@ -431,6 +441,10 @@
             .streak-board .lb-name, .quest-board .lb-name { font-size: 0.8rem; }
             .streak-board .lb-score, .quest-board .lb-score { font-size: 0.75rem; }
             .streak-board .lb-rank, .quest-board .lb-rank { min-width: 22px; font-size: 0.8rem; }
+            .lb-rank-search { padding-left: 8px; padding-right: 8px; }
+            .lb-rank-search-row { flex-wrap: wrap; }
+            .lb-rank-input { font-size: 16px; }
+            .lb-rank-find { padding: 8px; }
         }
         @media (max-width: 600px) {
             .btc-pred-overlay { padding: 12px !important; }
@@ -2179,7 +2193,7 @@
     <script src="username-repick.js?v=20261024_v2352" defer></script>
     <script src="earn-xp-guide.js?v=20261026_v2382" defer></script>
     <script src="referral-tiers.js?v=20261028_v2418" defer></script>
-    <script src="ranking.js?v=20261030_v2444" defer></script>
+    <script src="ranking.js?v=20261031_v2445" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="bundle.min.js?v=20261030_v2443" defer fetchpriority="high"></script>
     <script src="bundle-ready.js?v=20261027_v2394" defer></script>

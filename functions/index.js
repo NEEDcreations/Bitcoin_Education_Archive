@@ -45,6 +45,7 @@ const streakBoard = require('./src/streakBoard');
 const questBoard = require('./src/questBoard');
 const lbPrizes = require('./src/lbPrizes');
 const boardSnapshots = require('./src/boardSnapshots');
+const leaderboardRank = require('./src/leaderboardRank');
 // Daily key with 5-hour UTC offset — matches client getDailyKey() (resets at 5 AM UTC)
 // Prevents server/client day mismatch that lets users double-complete daily challenges
 function getOffsetDateKey() {
@@ -6699,8 +6700,13 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
 });
 
 // ===== LEADERBOARD USER SEARCH =====
-// Fetches top users ordered by points, filters by substring match (case-insensitive),
-// returns matched users with their true rank. Supports cursor-based pagination.
+// The leaderboard boxes call leaderboardRank, not this. searchUsers always
+// reads a prefix page plus the top 500 users by points, then runs one count()
+// per prefix hit outside that page. That is slow, and the rank is the index
+// inside the 500 (ghosts included) or a count that does not use the snapshot
+// tiebreak. Weekly and monthly boards are ignored. It stays deployed so older
+// pages do not 404, but new clients do not call it.
+exports.leaderboardRank = leaderboardRank.leaderboardRank;
 exports.searchUsers = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
 
