@@ -418,6 +418,7 @@ const gradeQuest = onCall(async (data, context) => {
                 at: now,
             }, now);
             nextStats.live = true;
+            nextStats.ghostMode = user.ghostMode === true;
             tx.set(statsRef, nextStats);
             tx.set(userRef.collection('quest_attempts').doc('q' + now + '_' + attemptNonce), questBoard.attemptRecord({
                 questId: passKey,
