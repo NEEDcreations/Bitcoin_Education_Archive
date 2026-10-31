@@ -887,8 +887,28 @@
         #todayTrifectaChooser button,
         .today-more-item,
         #todayMoreToggle { background-color: #111827 !important; }
-        #em-quick-actions .today-tile { position: relative; min-width: 0; }
-        #em-quick-actions .today-tile.is-done::after { content: ''; position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+        #em-quick-actions .today-tile { position: relative; min-width: 0; overflow: hidden; }
+        #nqSpinSub:empty { display: none; }
+        #em-quick-actions .today-tile.is-done {
+            border-color: #22c55e !important;
+            background-color: rgba(34, 197, 94, 0.12) !important;
+            box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.45);
+        }
+        #em-quick-actions .today-tile.is-done::after {
+            content: '\2713';
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #22c55e;
+            color: #052e16;
+            font-size: 11px;
+            font-weight: 900;
+            line-height: 16px;
+            text-align: center;
+        }
         .today-ring { position: relative; width: 22px; height: 22px; margin: 0 auto 2px; display: grid; place-items: center; }
         .today-ring svg { width: 22px; height: 22px; transform: rotate(-90deg); }
         .today-ring circle { fill: none; stroke: #64748b; stroke-width: 3.5; }
@@ -914,6 +934,16 @@
         [data-theme="light"] #todayTrifectaChooser button,
         [data-theme="light"] .today-more-item,
         [data-theme="light"] #todayMoreToggle { background-color: #f8fafc !important; color: #1e293b; border-color: #e2e8f0; }
+        [data-theme="light"] #em-quick-actions .today-tile.is-done {
+            background-color: rgba(22, 163, 74, 0.14) !important;
+            border-color: #15803d !important;
+            box-shadow: inset 0 0 0 1px rgba(21, 128, 61, 0.35);
+        }
+        [data-theme="light"] #em-quick-actions .today-tile.is-done::after { background: #15803d; color: #f0fdf4; }
+        .oled-theme #em-quick-actions .today-tile.is-done {
+            background-color: rgba(34, 197, 94, 0.16) !important;
+            border-color: #22c55e !important;
+        }
         [data-theme="light"] .today-ring circle { stroke: #94a3b8; }
         [data-theme="light"] .today-ring circle.today-ring-val { stroke: #f7931a; }
         @media (max-width: 900px) {
@@ -1769,9 +1799,9 @@
                         </div>
                         <div id="em-quick-actions" role="group" aria-label="Daily checklist">
                             <button type="button" id="todayTrifectaBtn" class="today-tile" aria-expanded="false" aria-controls="todayTrifectaChooser" aria-label="Daily Trifecta, 0 of 3 done. Opens Quiz, Trivia, and Poll." onclick="if(window.toggleTodayTrifecta)window.toggleTodayTrifecta()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span class="today-ring" aria-hidden="true"><svg viewBox="0 0 36 36"><circle class="today-ring-track" cx="18" cy="18" r="15"></circle><circle class="today-ring-val" cx="18" cy="18" r="15" stroke-dasharray="0 94.248"></circle></svg><span class="today-ring-icon">🎯</span></span><span>Daily Trifecta</span><span id="todayTrifectaCount">0/3</span></button>
-                            <button id="nqSpinBtn" class="today-tile" type="button" onclick="if(typeof showSpinWheel==='function')showSpinWheel()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🎡</span>Daily Spin</button>
+                            <button id="nqSpinBtn" class="today-tile" type="button" onclick="if(typeof showSpinWheel==='function')showSpinWheel()" aria-label="Daily Spin" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🎡</span>Daily Spin<span id="nqSpinSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;"></span></button>
                             <button id="tctvWatchBtn" class="today-tile" type="button" onclick="if(typeof startTctvDailyWatch==='function')startTctvDailyWatch()" aria-label="Watch 10 minutes of Timechain TV" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span id="tctvWatchEmoji" style="font-size:1.3rem;display:block;margin-bottom:2px;">📺</span><span id="tctvWatchLabel">Watch TV</span><span id="tctvWatchSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">0/10 min</span></button>
-                            <button class="today-tile" type="button" onclick="if(typeof showPricePrediction==='function')showPricePrediction()" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📈</span>Predict Price<span id="predAccuracyLabel" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;"></span></button>
+                            <button id="todayPredictBtn" class="today-tile" type="button" onclick="if(typeof showPricePrediction==='function')showPricePrediction()" aria-label="Predict Price" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">📈</span>Predict Price<span id="predAccuracyLabel" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;"></span></button>
                             <button id="sayHiBtn" class="today-tile" type="button" onclick="if(typeof openSayHi==='function')openSayHi();else{window._pendingSayHi=true;if(window._loadDeferred)window._loadDeferred();}" aria-label="Say hi!" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span id="sayHiBtnEmoji" style="font-size:1.3rem;display:block;margin-bottom:2px;">👋</span><span id="sayHiBtnLabel">Say hi!</span><span id="sayHiBtnSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">to the community</span></button>
                             <button id="todayFlexBtn" class="today-tile" type="button" onclick="if(window.openTodayQuest)window.openTodayQuest('flex')" aria-label="Flex, 0 of 5" style="padding:12px 4px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;touch-action:manipulation;-webkit-tap-highlight-color:rgba(247,147,26,0.2);"><span style="font-size:1.3rem;display:block;margin-bottom:2px;">🏆</span><span id="todayFlexLabel">Flex</span><span id="todayFlexSub" style="display:block;font-size:0.65rem;color:var(--text-faint);font-weight:500;margin-top:2px;">0/5</span></button>
                         </div>
@@ -2198,8 +2228,8 @@
     <script src="bundle.min.js?v=20261031_v2447" defer fetchpriority="high"></script>
     <script src="bundle-ready.js?v=20261027_v2394" defer></script>
     <script src="features.registry.js?v=20261024_v2368" defer></script>
-    <script src="tctv-watch.js?v=20261023_v2340" defer></script>
-    <script src="today-card.js?v=20261030_v2433" defer></script>
+    <script src="tctv-watch.js?v=20261031_v2448" defer></script>
+    <script src="today-card.js?v=20261031_v2448" defer></script>
     <script src="achievement-share.js?v=20261031_v2447" defer></script>
     <script src="miniapp-share.js?v=20261031_v2447" defer></script>
     <script src="pvp-lobby-alert.js?v=20261031_v2447" defer></script>
@@ -2215,7 +2245,7 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261030_v2443',
+            'global-chat.js?v=20261031_v2448',
             'satoshi-favor.js?v=20261026_v2368'
         ];
         var _lazyScripts = [
@@ -2484,10 +2514,10 @@
         }
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261031_v2447', 'global-chat.js?v=20261030_v2443'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261031_v2447', 'global-chat.js?v=20261030_v2443'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261030_v2443'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261030_v2443'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261031_v2447', 'global-chat.js?v=20261031_v2448'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261031_v2447', 'global-chat.js?v=20261031_v2448'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261031_v2448'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261031_v2448'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
             'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261022_v2279'],
             'pvp':           ['pvp.js?v=20261031_v2447'],

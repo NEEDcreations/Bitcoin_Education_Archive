@@ -261,12 +261,12 @@ test('a TCTV landing still stores the referral code for signup', () => {
     assert.strictEqual(api.shareModel('chat', { code: CODE }).hash, 'chat');
 });
 
-test('pages ship the helper, one Latest line, and the v2447 cache', () => {
+test('pages ship the helper, one Latest line, and the v2448 cache', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
     assert.ok(html.includes('miniapp-share.js?v=20261031_v2447'));
     assert.ok(html.includes('achievement-share.js?v=20261031_v2447'));
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2447'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2448'"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes('Latest: Search any player on the XP, Daily Streaks, Quests and Top Predictors leaderboards and see their exact rank, even outside the top 25.'));

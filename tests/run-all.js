@@ -82,6 +82,8 @@ const TESTS = [
     { name: 'Nacho Quiz Me', file: 'test-nacho-quiz-me.js' },
     { name: 'Nacho quiet on certificate links', file: 'test-nacho-cert-quiet.js' },
     { name: 'Say hi reward', file: 'test-say-hi.js' },
+    { name: 'Today tile completed state', file: 'test-today-tiles.js' },
+    { name: 'Chat posted day', file: 'test-chat-posted-day.js' },
     { name: 'Flex day goal', file: 'test-flex-day.js' },
     { name: 'Raid HP remaining', file: 'test-raid-hp.js' },
     { name: 'LNURL resolve', file: 'test-lnurl-resolve.js' },

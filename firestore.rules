@@ -107,7 +107,7 @@ service cloud.firestore {
         'visibleBadges', 'hiddenBadges', 'badges', 'payingBadgeCount', 'badgeCounters',
         'marketListings', 'marketMessages', 'marketSold',
         'dailyTripleCount', 'trifectaDays', 'dailyFiveDays', 'dailyFiveStreak',
-        'sayHiArmedDay', 'sayHiDays', 'replyBonusCount',
+        'sayHiArmedDay', 'sayHiDays', 'replyBonusCount', 'chatPostedDay',
         'lastTriviaDate', 'lastPollDate', 'lastQuestDate', 'triviaStreak',
         'purpleTickets', 'blueTickets', 'pollDays',
         'chatCount', 'dmCount', 'beatsUploads', 'articlesPublished',

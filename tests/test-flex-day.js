@@ -102,7 +102,7 @@ test('the Today tile reads the server count and shows n/5', function () {
     assert.ok(html.indexOf('>Flex</span>') > 0);
     assert.ok(html.indexOf('id="todayFlexSub"') > 0);
     assert.ok(html.indexOf('>0/5</span>') > 0);
-    assert.ok(html.indexOf('today-card.js?v=20261030_v2433') > 0);
+    assert.ok(html.indexOf('today-card.js?v=20261031_v2448') > 0);
     assert.ok(html.indexOf('today-card.js?v=20261030_v2432') === -1);
     assert.ok(html.indexOf('today-card.js?v=20261026_v2371') === -1);
     assert.ok(html.indexOf('today-card.js?v=20261026_v2375') === -1);
@@ -145,7 +145,7 @@ test('Say hi stays labeled Say hi, and an active Favor banner can pulse', functi
     assert.ok(html.indexOf('Said hi') === -1);
     assert.ok(card.indexOf("sayHiLabel.textContent = 'Say hi!'") > 0);
     const userExpr = "(typeof currentUser !== 'undefined' && currentUser) || window.currentUser";
-    assert.strictEqual((card.split(userExpr).length - 1), 2);
+    assert.strictEqual((card.split(userExpr).length - 1), 1);
     assert.ok(chat.indexOf("label.textContent = 'Say hi!'") > 0);
     assert.ok(chat.indexOf('Said hi') === -1);
     assert.ok(html.indexOf('todayFavorPulse 2s') > 0);

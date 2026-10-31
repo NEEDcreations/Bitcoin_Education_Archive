@@ -1395,6 +1395,7 @@ window.sendGlobalChat = function() {
         // Raid Boss: chat message
         if (typeof window._raidOnChatMessage === 'function') window._raidOnChatMessage();
         if (docRef && docRef.id) {
+            if (typeof window._noteTodayChatPosted === 'function') window._noteTodayChatPosted();
             if (typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
             if (replyData.replyTo) _maybeClaimReplyBonus(docRef.id);
         }
@@ -2490,6 +2491,7 @@ window.sendGifMessage = function(url, caption) {
         username = name;
         return db.collection(CHAT_COLLECTION).add(msgData);
     }, username, function(docRef) {
+        if (docRef && docRef.id && typeof window._noteTodayChatPosted === 'function') window._noteTodayChatPosted();
         if (docRef && docRef.id && typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
         if (replyToId && docRef && docRef.id) _maybeClaimReplyBonus(docRef.id);
     }, function(e) {
@@ -2865,6 +2867,7 @@ function sendImageMessage(dataUrl, caption, imgBlob, imgType) {
                 return db.collection(CHAT_COLLECTION).add(msgData);
             }, username, function(docRef) {
                 if (typeof showToast === 'function') showToast('📷 Image sent!');
+                if (docRef && docRef.id && typeof window._noteTodayChatPosted === 'function') window._noteTodayChatPosted();
                 if (docRef && docRef.id && typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
                 if (replyCopy && replyCopy.id && docRef && docRef.id) _maybeClaimReplyBonus(docRef.id);
             }, function(e) {
@@ -5099,6 +5102,10 @@ function _sayHiSignedIn() {
 }
 
 function _paintSayHiButton() {
+    if (typeof window._paintTodayCard === 'function') {
+        try { window._paintTodayCard({ tilesOnly: true }); } catch (e) {}
+        return;
+    }
     var btn = document.getElementById('sayHiBtn');
     if (!btn) return;
     var emoji = document.getElementById('sayHiBtnEmoji');
@@ -5107,12 +5114,12 @@ function _paintSayHiButton() {
     var claimed = typeof currentUser !== 'undefined' && currentUser && currentUser.sayHiClaimedDay === _sayHiDay();
     if (emoji) emoji.textContent = '\uD83D\uDC4B';
     if (label) label.textContent = 'Say hi!';
-    if (sub) sub.textContent = 'to the community';
+    if (sub) sub.textContent = claimed ? 'Done' : 'to the community';
     btn.style.color = 'var(--text)';
     btn.style.background = 'var(--card-bg)';
     btn.style.borderColor = 'var(--border)';
     btn.style.opacity = '1';
-    btn.setAttribute('aria-label', claimed ? 'Say hi! Done today' : 'Say hi!');
+    btn.setAttribute('aria-label', claimed ? 'Say hi, completed' : 'Say hi!');
 }
 window._paintSayHiButton = _paintSayHiButton;
 
@@ -5260,8 +5267,11 @@ window._maybeClaimSayHi = function(messageId) {
 var _sayHiPaintTries = 0;
 var _sayHiPaintTimer = setInterval(function() {
     _sayHiPaintTries++;
+    if (typeof window._paintTodayCard === 'function' || _sayHiPaintTries > 20) {
+        clearInterval(_sayHiPaintTimer);
+        return;
+    }
     _paintSayHiButton();
-    if (_sayHiPaintTries > 20) clearInterval(_sayHiPaintTimer);
 }, 1000);
 if (typeof auth !== 'undefined' && auth && typeof auth.onAuthStateChanged === 'function') {
     try { auth.onAuthStateChanged(function() { setTimeout(_paintSayHiButton, 600); }); } catch (e) {}
