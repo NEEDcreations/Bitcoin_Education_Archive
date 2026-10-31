@@ -126,15 +126,29 @@ function reachedMs(value) {
     return n > 0 ? n : 0;
 }
 
+// Same sentinel quests use. A missing reached time sorts after every real time,
+// so the comparison is a total order (time, then nameKey, then uid).
+const REACHED_UNKNOWN = 9000000000000000;
+
+function reachedSort(value) {
+    const n = reachedMs(value);
+    return n > 0 ? n : REACHED_UNKNOWN;
+}
+
+function rowNameKey(row) {
+    if (row && typeof row.nameKey === 'string' && row.nameKey) return row.nameKey;
+    return displayName(row && row.username).toLowerCase();
+}
+
 function compareBoard(a, b, valueKey, reachedKey) {
     const av = Number(a[valueKey]) || 0;
     const bv = Number(b[valueKey]) || 0;
     if (bv !== av) return bv - av;
-    const ar = reachedMs(a[reachedKey]);
-    const br = reachedMs(b[reachedKey]);
-    if (ar > 0 && br > 0 && ar !== br) return ar - br;
-    const an = displayName(a.username).toLowerCase();
-    const bn = displayName(b.username).toLowerCase();
+    const ar = reachedSort(a[reachedKey]);
+    const br = reachedSort(b[reachedKey]);
+    if (ar !== br) return ar - br;
+    const an = rowNameKey(a);
+    const bn = rowNameKey(b);
     if (an !== bn) return an < bn ? -1 : 1;
     return String(a.uid || '').localeCompare(String(b.uid || ''));
 }
@@ -171,7 +185,8 @@ function rowFromUser(id, data, todayKey) {
         best: allTimeStreak(user),
         bestStreakAt: reachedMs(user.bestStreakAt),
         current: currentStreak(user, todayKey),
-        streakReachedAt: reachedMs(user.streakReachedAt)
+        streakReachedAt: reachedMs(user.streakReachedAt),
+        nameKey: rowNameKey(user)
     };
 }
 
@@ -248,8 +263,10 @@ module.exports = {
     allTimeStreak: allTimeStreak,
     applyStreakUpdate: applyStreakUpdate,
     backfillPatch: backfillPatch,
+    REACHED_UNKNOWN: REACHED_UNKNOWN,
     displayName: displayName,
     safePic: safePic,
+    compareBoard: compareBoard,
     selectBoard: selectBoard,
     buildBoards: buildBoards,
     packDoc: packDoc,

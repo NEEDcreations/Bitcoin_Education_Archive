@@ -14,7 +14,8 @@
 // players stay in the count. The order matches the snapshot builders:
 // XP value, then username, then uid; quest passes, then pass rate, then
 // who got there first; prediction accuracy, then correct, then volume,
-// then who got there first; streak length, then who got there first.
+// then who got there first; streak length, then who got there first
+// (a missing time sorts last), then nameKey, then uid.
 //
 // Indexes for these counts are in firestore.indexes.json. Deploy those
 // before this function. A missing index returns failed-precondition.
@@ -51,86 +52,6 @@ const PERIOD_ALIAS = {
 };
 
 const XP_FIELD = { alltime: 'points', weekly: 'weeklyXP', monthly: 'monthlyXP' };
-
-// Composite indexes the count queries need. Single-field ranges are automatic.
-const INDEX_SPECS = [
-    ['public_profiles', ['ghostMode', 'points']],
-    ['public_profiles', ['points', 'username_lower']],
-    ['public_profiles', ['ghostMode', 'points', 'username_lower']],
-    ['public_profiles', ['points', 'username_lower', '__name__']],
-    ['public_profiles', ['ghostMode', 'points', 'username_lower', '__name__']],
-    ['public_profiles', ['ghostMode', 'weeklyXP']],
-    ['public_profiles', ['weeklyXP', 'username_lower']],
-    ['public_profiles', ['ghostMode', 'weeklyXP', 'username_lower']],
-    ['public_profiles', ['weeklyXP', 'username_lower', '__name__']],
-    ['public_profiles', ['ghostMode', 'weeklyXP', 'username_lower', '__name__']],
-    ['public_profiles', ['ghostMode', 'monthlyXP']],
-    ['public_profiles', ['monthlyXP', 'username_lower']],
-    ['public_profiles', ['ghostMode', 'monthlyXP', 'username_lower']],
-    ['public_profiles', ['monthlyXP', 'username_lower', '__name__']],
-    ['public_profiles', ['ghostMode', 'monthlyXP', 'username_lower', '__name__']]
-];
-
-function pushSpec(coll, fields) {
-    if (fields.length > 1) INDEX_SPECS.push([coll, fields]);
-    INDEX_SPECS.push([coll, ['ghostMode'].concat(fields)]);
-}
-
-[
-    ['passes', 'attempts'],
-    ['passes', 'passRate', 'attempts'],
-    ['passes', 'passRate', 'reachedSort', 'attempts'],
-    ['passes', 'passRate', 'reachedSort', 'nameKey', 'attempts'],
-    ['passes', 'passRate', 'reachedSort', 'nameKey', 'attempts', '__name__'],
-    ['weekKey', 'weekPasses', 'weekAttempts'],
-    ['weekKey', 'weekPasses', 'weekPassRate', 'weekAttempts'],
-    ['weekKey', 'weekPasses', 'weekPassRate', 'weekReachedSort', 'weekAttempts'],
-    ['weekKey', 'weekPasses', 'weekPassRate', 'weekReachedSort', 'nameKey', 'weekAttempts'],
-    ['weekKey', 'weekPasses', 'weekPassRate', 'weekReachedSort', 'nameKey', 'weekAttempts', '__name__'],
-    ['monthKey', 'monthPasses', 'monthAttempts'],
-    ['monthKey', 'monthPasses', 'monthPassRate', 'monthAttempts'],
-    ['monthKey', 'monthPasses', 'monthPassRate', 'monthReachedSort', 'monthAttempts'],
-    ['monthKey', 'monthPasses', 'monthPassRate', 'monthReachedSort', 'nameKey', 'monthAttempts'],
-    ['monthKey', 'monthPasses', 'monthPassRate', 'monthReachedSort', 'nameKey', 'monthAttempts', '__name__']
-].forEach(function (fields) { pushSpec('quest_lb_stats', fields); });
-
-[
-    ['predAccuracy', 'predTotal'],
-    ['predAccuracy', 'predCorrect', 'predTotal'],
-    ['predAccuracy', 'predCorrect', 'predTotal', 'reachedAt'],
-    ['predAccuracy', 'predCorrect', 'predTotal', 'reachedAt', '__name__'],
-    ['weekKey', 'weekAccuracy', 'weekTotal'],
-    ['weekKey', 'weekAccuracy', 'weekCorrect', 'weekTotal'],
-    ['weekKey', 'weekAccuracy', 'weekCorrect', 'weekTotal', 'weekReachedAt'],
-    ['weekKey', 'weekAccuracy', 'weekCorrect', 'weekTotal', 'weekReachedAt', '__name__'],
-    ['monthKey', 'monthAccuracy', 'monthTotal'],
-    ['monthKey', 'monthAccuracy', 'monthCorrect', 'monthTotal'],
-    ['monthKey', 'monthAccuracy', 'monthCorrect', 'monthTotal', 'monthReachedAt'],
-    ['monthKey', 'monthAccuracy', 'monthCorrect', 'monthTotal', 'monthReachedAt', '__name__']
-].forEach(function (fields) { pushSpec('prediction_stats', fields); });
-
-[
-    ['bestStreak'],
-    ['streak'],
-    ['streak', 'bestStreak'],
-    ['bestStreak', 'bestStreakAt', 'streak'],
-    ['streak', 'bestStreak', 'bestStreakAt'],
-    ['bestStreak', 'streak', 'nameKey'],
-    ['bestStreak', 'nameKey', 'streak', '__name__'],
-    ['streak', 'bestStreak', 'nameKey'],
-    ['bestStreak', 'bestStreakAt', 'streak', 'nameKey'],
-    ['bestStreak', 'bestStreakAt', 'nameKey', 'streak', '__name__'],
-    ['streak', 'bestStreak', 'bestStreakAt', 'nameKey'],
-    ['lastVisit', 'streak'],
-    ['lastVisit', 'streak', 'nameKey'],
-    ['lastVisit', 'streak', 'streakFreezes'],
-    ['lastVisit', 'streak', 'streakReachedAt'],
-    ['lastVisit', 'streak', 'streakFreezes', 'streakReachedAt'],
-    ['lastVisit', 'streak', 'streakReachedAt', 'nameKey'],
-    ['lastVisit', 'streak', 'streakReachedAt', 'nameKey', '__name__'],
-    ['lastVisit', 'streak', 'streakReachedAt', 'streakFreezes', 'nameKey'],
-    ['lastVisit', 'streak', 'streakFreezes', 'nameKey']
-].forEach(function (fields) { pushSpec('users', fields); });
 
 function whole(value) {
     const n = Math.floor(Number(value) || 0);
@@ -388,11 +309,9 @@ async function rankXp(db, player, period, docId) {
     }
     const coll = db.collection('public_profiles');
     const lower = player.usernameLower || '';
-    const parts = await Promise.all([
-        countVisible(coll, [[field, '>', value]], docId),
-        lower ? countVisible(coll, [[field, '==', value], ['username_lower', '<', lower]], docId) : 0,
-        lower ? countVisible(coll, [[field, '==', value], ['username_lower', '==', lower], ['__name__', '<', player.uid]], docId) : 0
-    ]);
+    const parts = await Promise.all(xpGroups(field, value, lower, player.uid).map(function (clauses) {
+        return countVisible(coll, clauses, docId);
+    }));
     return {
         status: 'ok',
         username: player.username,
@@ -612,8 +531,10 @@ function reachedMs(value) {
     return n > 0 ? n : 0;
 }
 
-// A missing reached time is stored as 0. The board ignores time unless both
-// players have one, then falls through to nameKey and uid.
+// Missing reached time sorts last, the same way quests do. Equality fields
+// stay in front of every range so the composite index can serve the count.
+// A freeze bound is a range, so it follows streakReachedAt and follows a
+// nameKey equality.
 function streakTimeGroups(prefix, timeField, time, name, uid, tail) {
     const rest = tail || [];
     const groups = [];
@@ -628,19 +549,66 @@ function streakTimeGroups(prefix, timeField, time, name, uid, tail) {
         }
     }
     if (time > 0) {
-        groups.push(prefix.concat(rest).concat([[timeField, '>', 0], [timeField, '<', time]]));
-        named(0);
+        groups.push(prefix.concat([[timeField, '>', 0], [timeField, '<', time]]).concat(rest));
         named(time);
-    } else if (name) {
-        if (rest.length) {
-            groups.push(prefix.concat(rest).concat([['nameKey', '<', name]]));
-            groups.push(prefix.concat([['nameKey', '==', name]]).concat(rest).concat([['__name__', '<', uid]]));
-        } else {
-            groups.push(prefix.concat([['nameKey', '<', name]]));
-            groups.push(prefix.concat([['nameKey', '==', name], ['__name__', '<', uid]]));
-        }
+    } else {
+        groups.push(prefix.concat([[timeField, '>', 0]]).concat(rest));
+        named(0);
     }
     return groups;
+}
+
+function streakCurrentGroups(value, reached, name, uid, todayKey) {
+    const yesterday = streakBoard.shiftDateKey(todayKey, -1);
+    const twoAgo = streakBoard.shiftDateKey(todayKey, -2);
+    const alive = [
+        { visit: todayKey, tail: [] },
+        { visit: yesterday, tail: [] },
+        { visit: twoAgo, tail: [['streakFreezes', '>', 0]] }
+    ];
+    const groups = [];
+    alive.forEach(function (bucket) {
+        const visit = [['lastVisit', '==', bucket.visit]];
+        groups.push(visit.concat([['streak', '>', value]]).concat(bucket.tail));
+        streakTimeGroups(visit.concat([['streak', '==', value]]), 'streakReachedAt', reached, name, uid, bucket.tail).forEach(function (clauses) {
+            groups.push(clauses);
+        });
+    });
+    return groups;
+}
+
+function streakAllTimePlan(value, time, name, uid) {
+    const groups = [
+        [['bestStreak', '>', value]],
+        [['streak', '>', value]]
+    ];
+    const overlap = [['streak', '>', value], ['bestStreak', '>', value]];
+    function bestSide(rest) {
+        groups.push([['bestStreak', '==', value]].concat(rest));
+    }
+    function streakSide(rest) {
+        groups.push([['streak', '==', value]].concat(rest));
+    }
+    if (time > 0) {
+        bestSide([['bestStreakAt', '>', 0], ['bestStreakAt', '<', time], ['streak', '<=', value]]);
+        streakSide([['bestStreakAt', '>', 0], ['bestStreakAt', '<', time], ['bestStreak', '<', value]]);
+        if (name) {
+            bestSide([['bestStreakAt', '==', time], ['streak', '<=', value], ['nameKey', '<', name]]);
+            bestSide([['bestStreakAt', '==', time], ['nameKey', '==', name], ['streak', '<=', value], ['__name__', '<', uid]]);
+            streakSide([['bestStreakAt', '==', time], ['bestStreak', '<', value], ['nameKey', '<', name]]);
+            streakSide([['bestStreakAt', '==', time], ['nameKey', '==', name], ['bestStreak', '<', value], ['__name__', '<', uid]]);
+        }
+    } else {
+        bestSide([['bestStreakAt', '>', 0], ['streak', '<=', value]]);
+        streakSide([['bestStreakAt', '>', 0], ['bestStreak', '<', value]]);
+        if (name) {
+            bestSide([['bestStreakAt', '==', 0], ['streak', '<=', value], ['nameKey', '<', name]]);
+            bestSide([['bestStreakAt', '==', 0], ['nameKey', '==', name], ['streak', '<=', value], ['__name__', '<', uid]]);
+            streakSide([['bestStreakAt', '==', 0], ['bestStreak', '<', value], ['nameKey', '<', name]]);
+            streakSide([['bestStreakAt', '==', 0], ['nameKey', '==', name], ['bestStreak', '<', value], ['__name__', '<', uid]]);
+        }
+    }
+    return { groups: groups, overlap: overlap };
 }
 
 async function rankStreak(db, player, period, nowMs, docId) {
@@ -654,22 +622,8 @@ async function rankStreak(db, player, period, nowMs, docId) {
         if (value <= 0) {
             return { status: 'unqualified', username: player.username, have: 0, needed: 1, message: '@' + shown + ' has no current streak' };
         }
-        const yesterday = streakBoard.shiftDateKey(today, -1);
-        const twoAgo = streakBoard.shiftDateKey(today, -2);
-        const alive = [
-            { visit: today, tail: [] },
-            { visit: yesterday, tail: [] },
-            { visit: twoAgo, tail: [['streakFreezes', '>', 0]] }
-        ];
-        const groups = [];
         const reached = reachedMs(user.streakReachedAt);
-        alive.forEach(function (bucket) {
-            const visit = [['lastVisit', '==', bucket.visit]];
-            groups.push(visit.concat([['streak', '>', value]]).concat(bucket.tail));
-            streakTimeGroups(visit.concat([['streak', '==', value]]), 'streakReachedAt', reached, lower, player.uid, bucket.tail).forEach(function (clauses) {
-                groups.push(clauses);
-            });
-        });
+        const groups = streakCurrentGroups(value, reached, lower, player.uid, today);
         const ahead = await sumVisible(coll, groups, docId);
         return { status: 'ok', username: player.username, rank: 1 + ahead, score: value };
     }
@@ -678,81 +632,10 @@ async function rankStreak(db, player, period, nowMs, docId) {
         return { status: 'unqualified', username: player.username, have: 0, needed: 1, message: '@' + shown + ' has no streak yet' };
     }
     const time = reachedMs(user.bestStreakAt);
-    const groups = [
-        [['bestStreak', '>', value]],
-        [['streak', '>', value]],
-        [['streak', '>', value], ['bestStreak', '>', value]]
-    ];
-    // The third count is the overlap of the first two, subtracted below.
-    const overlap = groups.pop();
-    if (time > 0) {
-        groups.push([
-            ['bestStreak', '==', value],
-            ['bestStreakAt', '>', 0],
-            ['bestStreakAt', '<', time],
-            ['streak', '<=', value]
-        ]);
-        groups.push([
-            ['streak', '==', value],
-            ['bestStreak', '<', value],
-            ['bestStreakAt', '>', 0],
-            ['bestStreakAt', '<', time]
-        ]);
-        if (lower) {
-            groups.push([
-                ['bestStreak', '==', value],
-                ['bestStreakAt', '==', 0],
-                ['streak', '<=', value],
-                ['nameKey', '<', lower]
-            ]);
-            groups.push([
-                ['bestStreak', '==', value],
-                ['bestStreakAt', '==', 0],
-                ['nameKey', '==', lower],
-                ['streak', '<=', value],
-                ['__name__', '<', player.uid]
-            ]);
-            groups.push([
-                ['bestStreak', '==', value],
-                ['bestStreakAt', '==', time],
-                ['streak', '<=', value],
-                ['nameKey', '<', lower]
-            ]);
-            groups.push([
-                ['bestStreak', '==', value],
-                ['bestStreakAt', '==', time],
-                ['nameKey', '==', lower],
-                ['streak', '<=', value],
-                ['__name__', '<', player.uid]
-            ]);
-            groups.push([
-                ['streak', '==', value],
-                ['bestStreak', '<', value],
-                ['bestStreakAt', '==', 0],
-                ['nameKey', '<', lower]
-            ]);
-        }
-    } else if (lower) {
-        groups.push([
-            ['bestStreak', '==', value],
-            ['streak', '<=', value],
-            ['nameKey', '<', lower]
-        ]);
-        groups.push([
-            ['bestStreak', '==', value],
-            ['nameKey', '==', lower],
-            ['streak', '<=', value],
-            ['__name__', '<', player.uid]
-        ]);
-        groups.push([
-            ['streak', '==', value],
-            ['bestStreak', '<', value],
-            ['nameKey', '<', lower]
-        ]);
-    }
+    const plan = streakAllTimePlan(value, time, lower, player.uid);
     const parts = await Promise.all([
-        sumVisible(coll, groups, docId),
-        countVisible(coll, overlap, docId)
+        sumVisible(coll, plan.groups, docId),
+        countVisible(coll, plan.overlap, docId)
     ]);
     return { status: 'ok', username: player.username, rank: 1 + Math.max(0, parts[0] - parts[1]), score: value };
 }
@@ -802,6 +685,117 @@ async function handleLeaderboardRank(db, adminSdk, data, context, nowMs) {
     }
 }
 
+function xpGroups(field, value, lower, uid) {
+    const groups = [[[field, '>', value]]];
+    if (lower) {
+        groups.push([[field, '==', value], ['username_lower', '<', lower]]);
+        groups.push([[field, '==', value], ['username_lower', '==', lower], ['__name__', '<', uid]]);
+    }
+    return groups;
+}
+
+// Equality filters, then range filters, in the order a composite index must
+// list them. Two bounds on one field are one index field. __name__ is a range.
+function indexFields(clauses) {
+    const equality = [];
+    const range = [];
+    const seen = {};
+    (clauses || []).forEach(function (clause) {
+        const field = clause[0];
+        if (seen[field]) return;
+        seen[field] = true;
+        if (clause[1] === '==') equality.push(field);
+        else range.push(field);
+    });
+    return equality.concat(range);
+}
+
+function clausesServable(clauses) {
+    let ranged = false;
+    const rangeAt = {};
+    const list = clauses || [];
+    for (let i = 0; i < list.length; i++) {
+        const field = list[i][0];
+        const op = list[i][1];
+        if (op === '==') {
+            if (ranged) return false;
+        } else {
+            if (Object.prototype.hasOwnProperty.call(rangeAt, field)) {
+                for (let j = rangeAt[field] + 1; j < i; j++) {
+                    if (list[j][1] !== '==' && list[j][0] !== field) return false;
+                }
+            }
+            rangeAt[field] = i;
+            ranged = true;
+        }
+    }
+    return true;
+}
+
+function ghostClauses(clauses) {
+    return [['ghostMode', '==', true]].concat(clauses);
+}
+
+// Every count() shape the lookup issues, including both reached-time branches.
+function queryCatalog(nowMs) {
+    const now = Number(nowMs) || Date.UTC(2026, 5, 15, 16, 0, 0);
+    const today = offsetDateKey(now);
+    const out = [];
+    function add(coll, groups) {
+        (groups || []).forEach(function (clauses) {
+            if (clauses && clauses.length) out.push([coll, clauses]);
+        });
+    }
+    Object.keys(XP_FIELD).forEach(function (period) {
+        add('public_profiles', xpGroups(XP_FIELD[period], 10, 'ada', 'uid-a'));
+    });
+    ['alltime', 'week', 'month'].forEach(function (period) {
+        const fields = questFields(period, now);
+        const min = questBoard.MIN[period] || questBoard.MIN.alltime;
+        add('quest_lb_stats', questTieGroups(fields, {
+            passes: 3, passRate: 6000, reachedSort: 1000, nameKey: 'ada'
+        }, min, 'uid-a'));
+        add('quest_lb_stats', questTieGroups(fields, {
+            passes: 3, passRate: 6000, reachedSort: questBoard.REACHED_UNKNOWN, nameKey: 'ada'
+        }, min, 'uid-a'));
+    });
+    ['alltime', 'weekly', 'monthly'].forEach(function (period) {
+        const fields = predictFields(period);
+        const min = predictionStats.minimumFor(period);
+        add('prediction_stats', predictTieGroups(fields, {
+            accuracy: 8000, correct: 8, total: 10, reachedAt: 1000
+        }, min, 'uid-a', now));
+        add('prediction_stats', predictTieGroups(fields, {
+            accuracy: 8000, correct: 8, total: 10, reachedAt: 0
+        }, min, 'uid-a', now));
+    });
+    add('users', streakCurrentGroups(4, 1000, 'ada', 'uid-a', today));
+    add('users', streakCurrentGroups(4, 0, 'ada', 'uid-a', today));
+    const timed = streakAllTimePlan(5, 1000, 'ada', 'uid-a');
+    add('users', timed.groups.concat([timed.overlap]));
+    const missingTime = streakAllTimePlan(5, 0, 'bee', 'uid-b');
+    add('users', missingTime.groups.concat([missingTime.overlap]));
+    return out;
+}
+
+function requiredIndexes() {
+    const seen = {};
+    const specs = [];
+    queryCatalog().forEach(function (row) {
+        [row[1], ghostClauses(row[1])].forEach(function (clauses) {
+            const fields = indexFields(clauses);
+            if (fields.length < 2) return;
+            const key = row[0] + '\n' + fields.join('\n');
+            if (seen[key]) return;
+            seen[key] = true;
+            specs.push([row[0], fields]);
+        });
+    });
+    return specs;
+}
+
+const INDEX_SPECS = requiredIndexes();
+
 const leaderboardRank = functionsV1.runWith({ enforceAppCheck: true, timeoutSeconds: 30, memory: '256MB' }).https.onCall(async function (data, context) {
     try {
         return await handleLeaderboardRank(admin.firestore(), admin, data, context, Date.now());
@@ -820,6 +814,11 @@ module.exports = {
     RATE_ANON_MAX: RATE_ANON_MAX,
     SUGGEST_LIMIT: SUGGEST_LIMIT,
     INDEX_SPECS: INDEX_SPECS,
+    indexFields: indexFields,
+    clausesServable: clausesServable,
+    ghostClauses: ghostClauses,
+    queryCatalog: queryCatalog,
+    compareBoard: streakBoard.compareBoard,
     canonBoard: canonBoard,
     canonPeriod: canonPeriod,
     cleanQuery: cleanQuery,

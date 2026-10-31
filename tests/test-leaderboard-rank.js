@@ -583,15 +583,78 @@ async function main() {
     assert.deepStrictEqual(streakNames, ['AstroFounder32', 'Azi_Za']);
     assert.deepStrictEqual([astro.rank, azi.rank], [1, 2]);
 
+    const cycle = {};
+    const cycleDay = offsetDateKey(NOW);
+    function cycleUser(id, name, best, streak, bestAt, reachedAt, lastVisit) {
+        cycle['users/' + id] = {
+            username: name,
+            nameKey: questBoard.nameKeyOf(name),
+            bestStreak: best,
+            streak: streak,
+            lastVisit: lastVisit || cycleDay,
+            bestStreakAt: bestAt,
+            streakReachedAt: reachedAt,
+            streakFreezes: 0,
+            ghostMode: false
+        };
+        cycle['public_profiles/' + id] = {
+            username: name,
+            username_lower: name.toLowerCase(),
+            ghostMode: false
+        };
+    }
+    const lapsed = streakBoard.shiftDateKey(cycleDay, -10);
+    cycleUser('cee', 'Cee', 5, 5, 1, 1);
+    cycleUser('aaa', 'Aaa', 5, 5, 2, 2);
+    cycleUser('bee', 'Bee', 5, 5, 0, 0);
+    cycleUser('best', 'Best', 5, 1, 50, 50, lapsed);
+    cycleUser('via', 'Via', 2, 5, 100, 100, lapsed);
+    cycleUser('miss', 'Miss', 5, 1, 0, 9, lapsed);
+    const cycleDb = memoryDb(cycle);
+    const cycleRows = [
+        { uid: 'cee', username: 'Cee', nameKey: 'cee', best: 5, current: 5, bestStreakAt: 1, streakReachedAt: 1 },
+        { uid: 'aaa', username: 'Aaa', nameKey: 'aaa', best: 5, current: 5, bestStreakAt: 2, streakReachedAt: 2 },
+        { uid: 'bee', username: 'Bee', nameKey: 'bee', best: 5, current: 5, bestStreakAt: 0, streakReachedAt: 0 }
+    ];
+    const cycleBoard = streakBoard.selectBoard(cycleRows, 'current').map(function (row) { return row.username; });
+    assert.deepStrictEqual(cycleBoard, ['Cee', 'Aaa', 'Bee']);
+    const ceeRank = await call(cycleDb, 'cee', { board: 'streak', period: 'current', username: 'Cee' });
+    const aaaRank = await call(cycleDb, 'cee', { board: 'streak', period: 'current', username: 'Aaa' });
+    const beeRank = await call(cycleDb, 'cee', { board: 'streak', period: 'current', username: 'Bee' });
+    assert.deepStrictEqual([ceeRank.rank, aaaRank.rank, beeRank.rank], [1, 2, 3]);
+    const allBest = await call(cycleDb, 'cee', { board: 'streak', period: 'alltime', username: 'Best' });
+    const allVia = await call(cycleDb, 'cee', { board: 'streak', period: 'alltime', username: 'Via' });
+    const allMiss = await call(cycleDb, 'cee', { board: 'streak', period: 'alltime', username: 'Miss' });
+    const allCee = await call(cycleDb, 'cee', { board: 'streak', period: 'alltime', username: 'Cee' });
+    assert.ok(allBest.rank < allVia.rank);
+    assert.ok(allVia.rank < allMiss.rank);
+    assert.ok(allCee.rank < allBest.rank);
+    assert.strictEqual(allCee.score, 5);
+
     const indexes = JSON.parse(read('firestore.indexes.json'));
-    rank.INDEX_SPECS.forEach(function (spec) {
-        const found = indexes.indexes.some(function (entry) {
-            if (entry.collectionGroup !== spec[0]) return false;
-            const fields = (entry.fields || []).map(function (field) { return field.fieldPath; });
-            return fields.join(',') === spec[1].join(',');
+    function hasIndex(coll, fields) {
+        return indexes.indexes.some(function (entry) {
+            if (entry.collectionGroup !== coll) return false;
+            const paths = (entry.fields || []).map(function (field) { return field.fieldPath; });
+            return paths.join(',') === fields.join(',');
         });
-        assert.ok(found, 'missing index ' + spec[0] + ' ' + spec[1].join(','));
+    }
+    rank.queryCatalog(NOW).forEach(function (row) {
+        const shapes = [row[1], rank.ghostClauses(row[1])];
+        shapes.forEach(function (clauses) {
+            assert.ok(rank.clausesServable(clauses), 'unservable ' + row[0] + ' ' + JSON.stringify(clauses));
+            const fields = rank.indexFields(clauses);
+            if (fields.length < 2) return;
+            assert.ok(hasIndex(row[0], fields), 'missing index ' + row[0] + ' ' + fields.join(','));
+        });
     });
+    rank.INDEX_SPECS.forEach(function (spec) {
+        assert.ok(hasIndex(spec[0], spec[1]), 'missing index ' + spec[0] + ' ' + spec[1].join(','));
+    });
+    assert.ok(hasIndex('users', ['streak', 'bestStreakAt', 'bestStreak', 'nameKey']));
+    assert.ok(hasIndex('users', ['ghostMode', 'streak', 'bestStreakAt', 'bestStreak', 'nameKey']));
+    assert.ok(hasIndex('users', ['lastVisit', 'streak', 'streakReachedAt', 'streakFreezes', 'nameKey']));
+    assert.ok(hasIndex('users', ['ghostMode', 'lastVisit', 'streak', 'streakReachedAt', 'streakFreezes', 'nameKey']));
 
     const src = read('functions/src/leaderboardRank.js');
     const ranking = read('ranking.js');

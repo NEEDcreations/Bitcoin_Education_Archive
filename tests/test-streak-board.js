@@ -84,11 +84,32 @@ test('ties go to whoever reached it first, then by username', () => {
         user('known', { username: 'Zed', bestStreak: 7, streak: 7, bestStreakAt: 50, lastVisit: TODAY })
     ];
     const doc = board.buildBoards(rows, NOW);
-    assert.deepStrictEqual(doc.alltime.map(function (r) { return r.username; }), ['Zoe', 'Amy', 'Zoe', 'Ada', 'Bea', 'Zed']);
+    assert.deepStrictEqual(doc.alltime.map(function (r) { return r.username; }), ['Zoe', 'Amy', 'Zoe', 'Zed', 'Ada', 'Bea']);
     assert.strictEqual(doc.alltime[0].rank, 1);
     assert.strictEqual(doc.alltime[1].username, 'Amy');
-    assert.strictEqual(doc.alltime[3].username, 'Ada');
-    assert.strictEqual(doc.alltime[5].username, 'Zed');
+    assert.strictEqual(doc.alltime[3].username, 'Zed');
+    assert.strictEqual(doc.alltime[5].username, 'Bea');
+});
+
+test('a missing reached time sorts last, so streak order is total', () => {
+    // The old compare skipped time when either side was missing:
+    // Cee (time 1) before Aaa (time 2), Aaa before Bee (name), Bee before Cee (name).
+    // That cycle is gone. Real times go earliest first, then nameKey, then uid.
+    const cee = { uid: 'a', username: 'Cee', nameKey: 'cee', best: 5, current: 5, bestStreakAt: 1, streakReachedAt: 1 };
+    const aaa = { uid: 'b', username: 'Aaa', nameKey: 'aaa', best: 5, current: 5, bestStreakAt: 2, streakReachedAt: 2 };
+    const bee = { uid: 'c', username: 'Bee', nameKey: 'bee', best: 5, current: 5, bestStreakAt: 0, streakReachedAt: 0 };
+    function cmp(x, y) { return board.compareBoard(x, y, 'best', 'bestStreakAt'); }
+    assert.ok(cmp(cee, aaa) < 0);
+    assert.ok(cmp(aaa, bee) < 0);
+    assert.ok(cmp(cee, bee) < 0);
+    assert.ok(cmp(aaa, cee) > 0);
+    assert.ok(cmp(bee, aaa) > 0);
+    assert.ok(cmp(bee, cee) > 0);
+    const laterUid = { uid: 'm', username: 'Cee', nameKey: 'cee', best: 5, bestStreakAt: 1 };
+    assert.ok(cmp(cee, laterUid) < 0);
+    assert.deepStrictEqual(board.selectBoard([aaa, bee, cee], 'alltime').map(function (r) { return r.username; }), ['Cee', 'Aaa', 'Bee']);
+    assert.deepStrictEqual(board.selectBoard([bee, aaa, cee], 'current').map(function (r) { return r.username; }), ['Cee', 'Aaa', 'Bee']);
+    assert.strictEqual(board.REACHED_UNKNOWN, 9000000000000000);
 });
 
 test('best tracking keeps the earlier best and raises it when the streak passes it', () => {
@@ -166,7 +187,7 @@ test('rules block client streak writes and the cached doc is not client-writable
     const start = rules.indexOf('function profileUpdateBlocked()');
     const end = rules.indexOf('function shareCardsShownOk()');
     const block = rules.slice(start, end);
-    ['streak', 'bestStreak', 'streakReachedAt', 'bestStreakAt', 'lastVisit'].forEach(function (field) {
+    ['streak', 'bestStreak', 'streakReachedAt', 'bestStreakAt', 'lastVisit', 'nameKey'].forEach(function (field) {
         assert.ok(block.indexOf("'" + field + "'") !== -1, field);
     });
     assert.ok(rules.includes('stats/streak_leaderboard'));

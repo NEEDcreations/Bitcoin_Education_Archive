@@ -208,8 +208,10 @@ service cloud.firestore {
                         'tctvWatchAwardedDay', 'tctvWatchToastSeen',
                         // Streak / activity (CF-managed). lastVisit is set on create
                         // and after that only by recordDailyVisit, so a client cannot
-                        // keep a lapsed streak looking current.
+                        // keep a lapsed streak looking current. nameKey is the
+                        // leaderboard sort key; only syncPublicProfile writes it.
                         'streak', 'bestStreak', 'streakReachedAt', 'bestStreakAt', 'lastVisit',
+                        'nameKey',
                         'totalVisits', 'channelsVisited',
                         'readChannels', 'visitedChannelsList',
                         // Claim / withdrawal state
