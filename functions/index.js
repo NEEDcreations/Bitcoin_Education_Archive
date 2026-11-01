@@ -8163,6 +8163,13 @@ exports.onGlobalChatTelegram = onDocumentCreated({ document: 'global_chat/{msgId
     if (!snap) return null;
     return mirrorChatCreate('global_chat', event.params.msgId, snap.data());
 });
+// Easter egg: gettxoutsetinfo -> Nacho posts Satoshimon supply. See src/supplyEgg.js.
+exports.onGlobalChatSupplyEgg = onDocumentCreated({ document: 'global_chat/{msgId}', maxInstances: 5 }, async (event) => {
+    if (!event.data) return null;
+    try { await require('./src/supplyEgg').handle(db, admin, event.params.msgId, event.data.data()); }
+    catch (e) { console.warn('[supplyEgg] failed'); }
+    return null;
+});
 exports.onAnnouncementsTelegram = onDocumentCreated({ document: 'announcements/{msgId}', retry: true }, async (event) => {
     const snap = event.data;
     if (!snap) return null;

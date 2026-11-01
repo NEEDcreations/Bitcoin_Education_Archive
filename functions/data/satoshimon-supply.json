@@ -1,0 +1,181 @@
+{
+"note": "Server-only Satoshimon card supply snapshot. Set ids of unreleased sets are opaque aliases.",
+"cards": [
+{
+"n": 1,
+"set": "genesis"
+},
+{
+"n": 2,
+"set": "genesis"
+},
+{
+"n": 3,
+"set": "genesis"
+},
+{
+"n": 4,
+"set": "genesis"
+},
+{
+"n": 5,
+"set": "genesis"
+},
+{
+"n": 6,
+"set": "genesis"
+},
+{
+"n": 7,
+"set": "genesis"
+},
+{
+"n": 8,
+"set": "genesis"
+},
+{
+"n": 9,
+"set": "genesis"
+},
+{
+"n": 10,
+"set": "genesis"
+},
+{
+"n": 11,
+"set": "genesis"
+},
+{
+"n": 12,
+"set": "genesis"
+},
+{
+"n": 13,
+"set": "genesis"
+},
+{
+"n": 14,
+"set": "genesis"
+},
+{
+"n": 15,
+"set": "genesis"
+},
+{
+"n": 16,
+"set": "genesis"
+},
+{
+"n": 17,
+"set": "genesis"
+},
+{
+"n": 18,
+"set": "genesis"
+},
+{
+"n": 19,
+"set": "genesis"
+},
+{
+"n": 20,
+"set": "genesis"
+},
+{
+"n": 21,
+"set": "genesis"
+},
+{
+"n": 22,
+"set": "x1"
+},
+{
+"n": 23,
+"set": "x1"
+},
+{
+"n": 24,
+"set": "x1"
+},
+{
+"n": 25,
+"set": "x1"
+},
+{
+"n": 26,
+"set": "x1"
+},
+{
+"n": 27,
+"set": "x1"
+},
+{
+"n": 28,
+"set": "x1"
+},
+{
+"n": 29,
+"set": "x1"
+},
+{
+"n": 30,
+"set": "x1"
+},
+{
+"n": 31,
+"set": "x1"
+},
+{
+"n": 32,
+"set": "x1"
+},
+{
+"n": 33,
+"set": "x1"
+},
+{
+"n": 34,
+"set": "x1"
+},
+{
+"n": 35,
+"set": "x1"
+},
+{
+"n": 36,
+"set": "x1"
+},
+{
+"n": 37,
+"set": "x1"
+},
+{
+"n": 38,
+"set": "x1"
+},
+{
+"n": 39,
+"set": "x1"
+},
+{
+"n": 40,
+"set": "x1"
+},
+{
+"n": 41,
+"set": "x1"
+},
+{
+"n": 42,
+"set": "x1"
+},
+{
+"n": 43,
+"set": "x1"
+},
+{
+"n": 44,
+"set": "x1"
+}
+]
+}
