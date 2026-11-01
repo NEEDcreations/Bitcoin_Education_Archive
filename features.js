@@ -461,10 +461,14 @@ function _dirHtml(direction) {
     return '<b style="color:' + (up ? '#22c55e' : '#ef4444') + '">' + (up ? '📈 UP' : '📉 DOWN') + '</b>';
 }
 
+var PRED_STALE_MS = 36 * 3600000;
+
 function _localPredModel(saved, currentPrice) {
     var pending = null;
     var mode = 'form';
-    if (saved && saved.time && !saved.resolved && !saved.serverScored) {
+    // A local pick older than 36h is stale: the server scores within 24h + one 6h resolver run.
+    // Usually it means the Firestore write was rejected, so it must not lock the vote buttons.
+    if (saved && saved.time && !saved.resolved && !saved.serverScored && (Date.now() - saved.time) < PRED_STALE_MS) {
         var elapsed = Date.now() - saved.time;
         var awaiting = elapsed >= 86400000;
         var hoursLeft = awaiting ? 0 : Math.max(1, Math.ceil((86400000 - elapsed) / 3600000));
@@ -479,6 +483,7 @@ function _mergePredModel(saved, currentPrice, stats) {
     var lastRaw = stats && stats.predLastResult;
     var last = lastRaw && (lastRaw.outcome === 'void' || lastRaw.resolvedPrice != null) ? lastRaw : null;
     var serverPending = stats && stats.predPending && stats.predPending.time ? stats.predPending : null;
+    if (serverPending && (Date.now() - Number(serverPending.time)) >= PRED_STALE_MS) serverPending = null;
     if (serverPending && !model.pending) {
         var elapsed = Date.now() - serverPending.time;
         var awaiting = elapsed >= 86400000;
@@ -632,6 +637,8 @@ function _syncPredictionToFirestore(prediction) {
             time: firebase.firestore.FieldValue.serverTimestamp(),
             resolved: false
         }).catch(function() {
+            // Drop the local copy so a rejected write does not leave the card stuck on Pending.
+            try { localStorage.removeItem('btc_price_prediction'); } catch (e) {}
             if (typeof showToast === 'function') showToast('Could not save that prediction. If one is still open, wait for the server to score it.');
         });
     } catch (e) {}
