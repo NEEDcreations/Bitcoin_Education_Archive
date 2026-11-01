@@ -38,7 +38,9 @@ test('claim and daily caps are 200 sats', function() {
     assert.strictEqual(guard.assessClaimAmount(200).ok, true);
     assert.strictEqual(guard.assessClaimAmount(201).ok, false);
     assert.strictEqual(guard.assessClaimAmount(100).amount, 100);
-    assert.strictEqual(guard.assessClaimAmount(99).ok, false);
+    // 50 is the absolute floor; the day's variable minimum (50-100) is checked in claimSats.
+    assert.strictEqual(guard.assessClaimAmount(50).ok, true);
+    assert.strictEqual(guard.assessClaimAmount(49).ok, false);
 });
 
 test('a lightning address is required and a raw invoice is ignored', function() {

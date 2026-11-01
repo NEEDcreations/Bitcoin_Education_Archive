@@ -8,7 +8,8 @@ const cipher = require('./cipherClaim');
 
 const MAX_PER_CLAIM_SATS = 200;
 const MAX_DAILY_PER_USER_SATS = 200;
-const MIN_WITHDRAWAL_SATS = 100;
+// Absolute floor. The day's variable minimum (50-100) is enforced in claimSats.
+const MIN_WITHDRAWAL_SATS = 50;
 const SUBNET_WINDOW_MS = 24 * 60 * 60 * 1000;
 const ADDRESS_WINDOW_MS = 24 * 60 * 60 * 1000;
 const NETWORK_ACCOUNT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;

@@ -4045,6 +4045,38 @@ function homeSignedInNow() {
 }
 
 // Strip numbers come only from server-maintained counters.
+// ── Variable payout rates (server-locked per ET day) ──
+// payout_rates_public/today holds today's minimum claim and XP per sat.
+// Fallback matches the server defaults when the doc is not loaded yet.
+window._payoutRates = window._payoutRates || null;
+function payoutRatesNow() {
+    var r = window._payoutRates || {};
+    var minSats = Math.floor(Number(r.minSats)) || 100;
+    var pps = Math.round((Number(r.pointsPerSat) || 10) * 10) / 10;
+    if (pps <= 0) pps = 10;
+    return { minSats: minSats, pointsPerSat: pps, minXp: Math.ceil(minSats * pps), day: r.day || '' };
+}
+window.payoutRatesNow = payoutRatesNow;
+var _payoutRatesLoadedAt = 0;
+function loadPayoutRates(onChange) {
+    if (typeof db === 'undefined' || !db || (Date.now() - _payoutRatesLoadedAt) < 10 * 60 * 1000) return;
+    _payoutRatesLoadedAt = Date.now();
+    db.collection('payout_rates_public').doc('today').get().then(function(doc) {
+        if (!doc.exists) return;
+        var d = doc.data() || {};
+        var prev = JSON.stringify(window._payoutRates || {});
+        window._payoutRates = { minSats: d.minSats, pointsPerSat: d.pointsPerSat, day: d.day };
+        if (prev !== JSON.stringify(window._payoutRates) && typeof onChange === 'function') onChange();
+    }).catch(function() { _payoutRatesLoadedAt = 0; });
+}
+window.loadPayoutRates = loadPayoutRates;
+function formatClaimWait(ms) {
+    var m = Math.max(1, Math.ceil(Math.max(0, ms) / 60000));
+    var h = Math.floor(m / 60);
+    return h > 0 ? h + 'h ' + (m % 60) + 'm' : m + 'm';
+}
+window.formatClaimWait = formatClaimWait;
+
 function satsHomeSnapshot(user) {
     var u = user || {};
     var math = (typeof window.claimableSats === 'function')
@@ -4077,7 +4109,11 @@ function satsHomeSnapshot(user) {
         var claimMs = lastClaim.seconds ? lastClaim.seconds * 1000 : new Date(lastClaim).getTime();
         if (claimMs && Date.now() < claimMs + 24 * 60 * 60 * 1000) onCooldown = true;
     }
-    var checks = [!anon, emailOk, ageDays >= 7, channels >= 10, math.claimable >= 100];
+    var _hr = payoutRatesNow();
+    var _avail = (Number(u.points) || 0) - (Number(u.pointsClaimed) || 0) - (Number(u.pointsDonated) || 0) - (Number(u.pointsExchanged) || 0);
+    var _bal = Math.floor(Math.max(0, _avail) / _hr.pointsPerSat);
+    math = Object.assign({}, math, { balance: _bal, claimable: Math.min(_bal, math.lifetimeLeft) });
+    var checks = [!anon, emailOk, ageDays >= 7, channels >= 10, math.claimable >= _hr.minSats];
     var met = 0;
     for (var i = 0; i < checks.length; i++) if (checks[i]) met++;
     return {
@@ -8721,9 +8757,13 @@ function accountDeleteRowHtml(user) {
         var availableForClaim = userPts - pointsClaimed - pointsDonated - pointsExchanged;
         var _claimMath = (typeof window.claimableSats === 'function') ? window.claimableSats(currentUser || {}) : null;
         var satsWithdrawn = _claimMath ? _claimMath.withdrawn : (currentUser ? currentUser.satsWithdrawn || 0 : 0);
-        var satsBalance = _claimMath ? _claimMath.balance : Math.floor(Math.max(0, availableForClaim) / 10); // 10 pts = 1 sat
+        var _rates = payoutRatesNow();
+        loadPayoutRates(function() { if (typeof showSettingsPage === 'function' && settingsTab === 'sats') showSettingsPage('sats'); });
+        // Today's XP rate is set by the server each day (payout_rates_public).
+        var satsBalance = Math.floor(Math.max(0, availableForClaim) / _rates.pointsPerSat);
         var _satCap = _claimMath ? _claimMath.cap : lifetimeSatCap();
         var lifetimeLeft = _claimMath ? _claimMath.lifetimeLeft : Math.max(0, _satCap - satsWithdrawn);
+        satsBalance = Math.min(satsBalance, lifetimeLeft);
         var claimable = Math.min(satsBalance, 200, lifetimeLeft);
         var lastClaim = currentUser ? currentUser.lastSatsClaim || null : null;
         var canClaimTime = lastClaim ? new Date(lastClaim.seconds ? lastClaim.seconds * 1000 : lastClaim).getTime() + (24 * 60 * 60 * 1000) : 0;
@@ -8731,10 +8771,7 @@ function accountDeleteRowHtml(user) {
         var onCooldown = lastClaim && now < canClaimTime;
         var cooldownStr = '';
         if (onCooldown) {
-            var diff = canClaimTime - now;
-            var hrs = Math.floor(diff / 3600000);
-            var mins = Math.floor((diff % 3600000) / 60000);
-            cooldownStr = hrs + 'h ' + mins + 'm';
+            cooldownStr = formatClaimWait(canClaimTime - now);
         }
         // Prefer the server-tracked arrayUnion-only field (visitedChannelsList); fall back
         // to the legacy readChannels array for users who haven't been migrated yet.
@@ -8766,7 +8803,7 @@ function accountDeleteRowHtml(user) {
 
         // Eligibility checks
         var eligible = !isAnon && hasEmail && acctAgeDays >= 7 && channelsRead >= 10;
-        var meetsMin = satsBalance >= 100;
+        var meetsMin = satsBalance >= _rates.minSats;
 
         // Sub-tab switcher
         html += '<div style="display:flex;gap:8px;margin-bottom:20px;">';
@@ -8824,15 +8861,15 @@ function accountDeleteRowHtml(user) {
         }
 
         // Claim button area
-        if (!isAnon && eligible && meetsMin && !onCooldown && claimable >= 100) {
+        if (!isAnon && eligible && meetsMin && !onCooldown && claimable >= _rates.minSats) {
             html += '<button onclick="initSatsClaim()" style="width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:16px;transition:0.2s;touch-action:manipulation;">⚡ Claim Up to ' + Math.min(claimable, 200) + ' Sats</button>';
         } else if (onCooldown) {
-            html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">⏳ Next claim in <strong>' + cooldownStr + '</strong></div>';
+            html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">⏳ You can claim again in <strong>' + cooldownStr + '</strong><div style="font-size:0.72rem;margin-top:4px;">Claims are 24 hours apart.</div></div>';
         } else if (!meetsMin && eligible) {
             if (availableForClaim < 0) {
-                html += '<div style="width:100%;padding:16px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">⚠️ Your XP is fully used up between past claims and donations.<br><span style="font-size:0.75rem;">Earn <strong style="color:var(--accent);">' + Math.abs(availableForClaim + 1000).toLocaleString() + ' more XP</strong> to unlock your next claim.</span></div>';
+                html += '<div style="width:100%;padding:16px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">⚠️ Your XP is fully used up between past claims and donations.<br><span style="font-size:0.75rem;">Earn <strong style="color:var(--accent);">' + Math.abs(availableForClaim + _rates.minXp).toLocaleString() + ' more XP</strong> to unlock your next claim.</span></div>';
             } else {
-                html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">Need <strong>' + (100 - satsBalance) + ' more sats</strong> (' + ((100 - satsBalance) * 10) + ' XP) to reach minimum claim</div>';
+                html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">Need <strong>' + (_rates.minSats - satsBalance) + ' more sats</strong> (' + Math.ceil((_rates.minSats - satsBalance) * _rates.pointsPerSat).toLocaleString() + ' XP) to reach today\'s minimum claim</div>';
             }
         } else {
             html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">Complete requirements below to claim</div>';
@@ -8847,7 +8884,7 @@ function accountDeleteRowHtml(user) {
             { met: hasEmail, label: 'Email verified', detail: hasEmail ? '✓ ' + user.email : 'Link & verify your email in Account tab' },
             { met: acctAgeDays >= 7, label: 'Account age ≥ 7 days', detail: acctAgeDays >= 7 ? '✓ ' + acctAgeDays + ' days old' : acctAgeDays + '/7 days - ' + (7 - acctAgeDays) + ' more to go' },
             { met: channelsRead >= 10, label: 'Read ≥ 10 topics', detail: channelsRead >= 10 ? '✓ ' + channelsRead + ' topics read' : channelsRead + '/10 topics - read ' + (10 - channelsRead) + ' more' },
-            { met: meetsMin, label: 'Minimum 100 sats (1,000 pts)', detail: meetsMin ? '✓ ' + satsBalance + ' sats available' : satsBalance + '/100 sats - earn ' + ((100 - satsBalance) * 10) + ' more XP' }
+            { met: meetsMin, label: 'Today\'s minimum: ' + _rates.minSats + ' sats (' + _rates.minXp.toLocaleString() + ' XP)', detail: meetsMin ? '✓ ' + satsBalance + ' sats available' : satsBalance + '/' + _rates.minSats + ' sats - earn ' + Math.ceil((_rates.minSats - satsBalance) * _rates.pointsPerSat).toLocaleString() + ' more XP' }
         ];
         checks.forEach(function(c) {
             html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">';
@@ -8861,10 +8898,11 @@ function accountDeleteRowHtml(user) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
         html += '<div style="font-weight:700;font-size:0.85rem;margin-bottom:12px;color:var(--text);">⚡ How It Works</div>';
         html += '<div style="font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
-        html += '• <strong>1,000 XP = 100 sats</strong> - earn XP by reading, quests, and daily visits<br>';
-        html += '• <strong>Min claim: 100 sats</strong> (1,000 XP)<br>';
-        html += '• <strong>Max claim: 200 sats/day</strong><br>';
-        html += '• <strong>1 claim per 24 hours</strong><br>';
+        html += '• <strong>Today: 1,000 XP = ' + Math.floor(1000 / _rates.pointsPerSat) + ' sats</strong> (' + _rates.pointsPerSat + ' XP per sat) - earn XP by reading, quests, and daily visits<br>';
+        html += '• <strong>Today\'s min claim: ' + _rates.minSats + ' sats</strong> (' + _rates.minXp.toLocaleString() + ' XP)<br>';
+        html += '• The XP rate and daily minimum are set each day at midnight ET (min 50-100 sats) to keep payouts within our monthly budget<br>';
+        html += '• <strong>Max claim: 200 sats</strong> per claim<br>';
+        html += '• <strong>24 hours between claims</strong><br>';
         html += '• <strong>Lifetime max: 15,000 sats</strong> per account<br>';
         html += '• <strong>Daily XP:</strong> full through 500, half through 900, then a quarter until 1,000<br>';
         html += '• Unclaimed sats roll over - no expiration<br>';
@@ -12539,15 +12577,16 @@ window.initSatsClaim = function() {
     // All three offset counters (claimed, donated, exchanged) reduce the redeemable pool
     var availPts = (currentUser.points || 0) - (currentUser.pointsClaimed || 0) - (currentUser.pointsDonated || 0) - (currentUser.pointsExchanged || 0);
     var _claimMath = (typeof window.claimableSats === 'function') ? window.claimableSats(currentUser) : null;
-    var satsBalance = _claimMath ? _claimMath.balance : Math.floor(Math.max(0, availPts) / 10);
+    var _cr = payoutRatesNow();
+    var satsBalance = Math.floor(Math.max(0, availPts) / _cr.pointsPerSat);
     var satsWithdrawn = _claimMath ? _claimMath.withdrawn : (currentUser.satsWithdrawn || 0);
     var _satCap = _claimMath ? _claimMath.cap : lifetimeSatCap();
     var lifetimeLeft = _claimMath ? _claimMath.lifetimeLeft : Math.max(0, _satCap - satsWithdrawn);
     var maxClaim = Math.min(satsBalance, 200, lifetimeLeft);
     console.log('[SATS] maxClaim:', maxClaim, '| satsBalance:', satsBalance, '| lifetimeLeft:', lifetimeLeft, '| satsWithdrawn:', satsWithdrawn);
-    if (maxClaim < 100) {
-        console.log('[SATS] BLOCKED: maxClaim < 100');
-        showToast('⚡ Need at least 100 claimable sats (1,000 unclaimed XP) to withdraw. Keep earning!', 5000);
+    if (maxClaim < _cr.minSats) {
+        console.log('[SATS] BLOCKED: maxClaim < today\'s minimum');
+        showToast('⚡ Need at least ' + _cr.minSats + ' claimable sats (' + _cr.minXp.toLocaleString() + ' unclaimed XP) to withdraw today. Keep earning!', 5000);
         return;
     }
     console.log('[SATS] Passed all checks, showing overlay');
@@ -12585,9 +12624,9 @@ window.initSatsClaim = function() {
     }
     html += '</div>';
     html += '<div style="margin-bottom:12px;">';
-    html += '<label style="display:block;font-size:0.78rem;color:var(--text-muted);margin-bottom:5px;">Amount <span style="color:var(--text-faint);">(100-' + maxClaim + ' sats)</span></label>';
+    html += '<label style="display:block;font-size:0.78rem;color:var(--text-muted);margin-bottom:5px;">Amount <span style="color:var(--text-faint);">(' + _cr.minSats + '-' + maxClaim + ' sats)</span></label>';
     html += '<div style="display:flex;gap:6px;align-items:center;">';
-    html += '<input id="satsLnAmount" type="number" min="100" max="' + maxClaim + '" value="' + maxClaim + '" style="flex:1;padding:11px 13px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;text-align:center;font-weight:700;">';
+    html += '<input id="satsLnAmount" type="number" min="' + _cr.minSats + '" max="' + maxClaim + '" value="' + maxClaim + '" style="flex:1;padding:11px 13px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;text-align:center;font-weight:700;">';
     html += '<button onclick="document.getElementById(\'satsLnAmount\').value=' + maxClaim + '" style="padding:10px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--accent);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">Max</button>';
     html += '</div></div>';
     html += '<div style="font-size:0.7rem;color:#22c55e;margin-bottom:14px;">Your wallet receives sats automatically.</div>';
@@ -12660,8 +12699,9 @@ window.submitSatsClaim = async function() {
         return;
     }
     var _maxCl = window._satsClaimMaxClaim || 200;
-    if (!lnAmt || lnAmt < 100 || lnAmt > _maxCl) {
-        if (errorEl) { errorEl.textContent = 'Amount must be between 100 and ' + _maxCl + ' sats'; errorEl.style.display = 'block'; }
+    var _minCl = payoutRatesNow().minSats;
+    if (!lnAmt || lnAmt < _minCl || lnAmt > _maxCl) {
+        if (errorEl) { errorEl.textContent = 'Amount must be between ' + _minCl + ' and ' + _maxCl + ' sats'; errorEl.style.display = 'block'; }
         return;
     }
     var savedNow = normalizeClientLn((typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightning || currentUser.lightningAddress || currentUser.lnAddress || '') : '');
@@ -12716,7 +12756,8 @@ window.submitSatsClaim = async function() {
         var result = await claimSats(Object.assign({}, claimPayload, { fingerprint: _fp, turnstileToken: _tsToken }));
         if (result.data && result.data.success) {
             var paidAmount = result.data.amount || 0;
-            currentUser.pointsClaimed = (currentUser.pointsClaimed || 0) + (paidAmount * 10);
+            var _usedPts = Number(result.data.pointsUsed) || (paidAmount * payoutRatesNow().pointsPerSat);
+            currentUser.pointsClaimed = (currentUser.pointsClaimed || 0) + _usedPts;
             currentUser.satsWithdrawn = (currentUser.satsWithdrawn || 0) + paidAmount;
             currentUser.lastSatsClaim = new Date();
             document.getElementById('satsClaimOverlay').remove();
@@ -12765,6 +12806,9 @@ window.submitSatsClaim = async function() {
             setTimeout(function() { showSettingsPage('sats'); }, 500);
         } else {
             var errMsg = (result.data && result.data.error) ? result.data.error : 'Claim failed - try again';
+            if (result.data && result.data.code === 'claim_gap' && result.data.retryAtMs) {
+                errMsg = 'You can claim again in ' + formatClaimWait(Number(result.data.retryAtMs) - Date.now()) + '. Claims are 24 hours apart.';
+            }
             if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
             if (result.data && (result.data.code === 'address_unresolved' || String(errMsg).indexOf('Could not resolve Lightning Address') !== -1)) {
                 try { sessionStorage.setItem('btc_ln_needs_reset', '1'); } catch (flagErr) {}

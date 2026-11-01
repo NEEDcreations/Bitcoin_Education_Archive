@@ -204,7 +204,7 @@ test('claim source does not read or write the faucet clock, and the faucet does 
     assert.ok(body.includes('payCipherBalanceInvoice'));
     assert.ok(body.includes('_resolvePrizeInvoice'));
     assert.ok(body.includes('requireSecondFactor'));
-    assert.ok(payPath.includes('WALLET_FLOOR_SATS'));
+    assert.ok(payPath.includes('walletFloorNow'));
     assert.ok(payPath.includes('nwc.payInvoice'));
 
     const moduleSrc = fs.readFileSync(path.join(root, 'functions/src/cipherSatsClaim.js'), 'utf8');
@@ -331,7 +331,7 @@ test('a missing cipher sats config disables claims', () => {
     assert.strictEqual(claim.claimsDisabledFromConfig(true, {}), false);
     const gifting = fs.readFileSync(path.join(root, 'functions/src/gifting.js'), 'utf8');
     const body = gifting.slice(gifting.indexOf('const claimCipherSats'), gifting.indexOf('module.exports'));
-    const payAt = body.indexOf('const paid = await payCipherBalanceInvoice(invoice)');
+    const payAt = body.indexOf('const paid = await payCipherBalanceInvoice(invoice, ');
     const gateAt = body.indexOf('readyToPay = await beginCipherPay(reserved)');
     assert.ok(gateAt !== -1 && payAt !== -1 && gateAt < payAt);
     assert.ok(body.includes('if (!readyToPay)'));

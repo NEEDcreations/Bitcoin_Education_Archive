@@ -3,6 +3,8 @@
 // Pure helpers for cipher-prize claims. No Firebase, so tests can run them directly.
 // Mirrors the claimSats entry errors (verified email, 7-day account, satsDisabled, ledger ban).
 
+const { cipherNeedsReview } = require('./payoutBudget');
+
 const MIN_ACCOUNT_AGE_DAYS = 7;
 const LOOKUP_ATTEMPTS = 4;
 const LOOKUP_INTERVAL_MS = 20000; // 3 gaps = 60s between the first and last lookup
@@ -164,7 +166,8 @@ function adminClaimFlag(win, user, ledger) {
     return {
         claimBlocked: claimBlocked,
         claimBlockReason: claimBlockReason,
-        flagForAdmin: claimBlocked && amount >= 1000,
+        // Shared review threshold (> 1000), same as claimCipherWin and cipher drops.
+        flagForAdmin: claimBlocked && cipherNeedsReview(amount),
     };
 }
 
