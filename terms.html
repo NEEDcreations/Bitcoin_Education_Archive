@@ -20,13 +20,14 @@
         .divider { border: none; border-top: 1px solid #222; margin: 32px 0; }
         .warn { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 16px; margin: 20px 0; }
         .warn strong { color: #ef4444; }
+        .odds-table td { padding:4px 16px 4px 0; }
     </style>
 </head>
 <body>
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Terms of Service</h1>
-    <p class="subtitle">Last updated: October 28, 2026</p>
+    <p class="subtitle">Last updated: November 1, 2026</p>
 
     <h2>1. Acceptance of Terms</h2>
     <p>By accessing or using the Bitcoin Education Archive website at <a href="https://bitcoineducation.quest">bitcoineducation.quest</a> ("the Site"), you agree to be bound by these Terms of Service. If you do not agree, please do not use the Site.</p>
@@ -471,6 +472,36 @@
         <li>The in-app inbox stores notices for you, such as messages, mentions, tips, gifts, and rewards. Only you can read your inbox. You can mark a notice read. The app does not delete a single notice</li>
         <li>Web push is optional. If you allow it, we store a token for that device so Firebase Cloud Messaging can deliver a notification. Settings includes per-category controls and a switch that turns push off. You can also block notifications in your browser or device settings. Turning push off stops new pushes to that device. Category defaults can change</li>
         <li>New visitors may see a short onboarding guide from Nacho: pick a topic, open chat, try the daily spin, and similar steps. Finishing a step can award a small amount of XP. Your place in the guide is stored in this browser</li>
+    </ul>
+
+    <h2 id="odds">13g. Odds</h2>
+    <p>These are the current odds. The server rolls every result. Your browser does not choose it.</p>
+    <h3>Satoshi's Favor</h3>
+    <ul>
+        <li>Each hash is a random number from 0 to 100,000,000. A hash below the current difficulty of 20,000 solves a block. That is about 1 in 5,000 per hash (about 0.02%)</li>
+    </ul>
+    <h3>Locked cipher sats</h3>
+    <p>Each time you open a locked cipher, the server makes one roll. These are the odds of each sats prize on a single open. If no sats prize is rolled, the open pays XP and may include Orange Tickets instead.</p>
+    <table class="odds-table" style="border-collapse:collapse;margin:8px 0 12px;">
+        <thead><tr><th style="text-align:left;padding:4px 16px 4px 0;">Prize</th><th style="text-align:left;padding:4px 0;">Odds per open</th></tr></thead>
+        <tbody>
+        <tr><td>100,000 sats</td><td>1 in 10,000,000</td></tr>
+        <tr><td>50,000 sats</td><td>1 in 1,000,000</td></tr>
+        <tr><td>10,000 sats</td><td>1 in 500,000</td></tr>
+        <tr><td>5,000 sats</td><td>1 in 100,000</td></tr>
+        <tr><td>1,000 sats</td><td>1 in 50,000</td></tr>
+        <tr><td>500 sats</td><td>1 in 10,000</td></tr>
+        <tr><td>250 sats</td><td>1 in 5,000</td></tr>
+        <tr><td>100 sats</td><td>1 in 1,000</td></tr>
+        <tr><td>50 sats</td><td>1 in 100</td></tr>
+        <tr><td>25 sats</td><td>1 in 50</td></tr>
+        <tr><td>10 sats</td><td>1 in 10</td></tr>
+        <tr><td>5 sats</td><td>1 in 5</td></tr>
+        </tbody>
+    </table>
+    <ul>
+        <li>Odds can change at any time. We update this section when they do</li>
+        <li>Winning a roll does not guarantee a payout. Payouts depend on the prize pool available at the time, and the sats rules in Section 6 and the eligibility rules in these Terms still apply</li>
     </ul>
 
     <h2>14. User Profiles & Online Status</h2>
