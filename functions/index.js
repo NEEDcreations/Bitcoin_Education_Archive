@@ -6611,6 +6611,7 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
 
     let newBadges = [];
     let bonusPts = 0;
+    let donationTicket = 0; // hoisted: read after the transaction in the return value
 
     await db.runTransaction(async (tx) => {
         const userDoc = await tx.get(userRef);
@@ -6652,7 +6653,7 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
         const today = new Date().toISOString().split('T')[0];
 
         // Award 1 orange ticket if donation >= 1000 XP, once per day (5 AM UTC reset)
-        let donationTicket = 0;
+        donationTicket = 0;
         const _donateOffsetToday = getOffsetDateKey();
         const donationTicketRef = userRef.collection('daily_action_counts').doc(_donateOffsetToday + '_donate_ticket');
         const donationTicketDoc = await tx.get(donationTicketRef);
