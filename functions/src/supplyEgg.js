@@ -1,10 +1,10 @@
 'use strict';
-// Easter egg: `gettxoutsetinfo` / `bitcoin-cli gettxoutsetinfo` in global chat
+// Easter egg: `gettxoutsetinfo` / `satoshimon-cli gettxoutsetinfo` in global chat
 // makes Nacho reply with the live Satoshimon card supply by set. No explanation.
 // Counts come from Firestore satoshimon_cards (field `set`) when present, else
 // the bundled server-only snapshot. Only release state is mapped here.
 
-const TRIGGER = /^(bitcoin-cli\s+)?gettxoutsetinfo$/i;
+const TRIGGER = /^(satoshimon-cli\s+)?gettxoutsetinfo$/i;
 // Sets not in this list are shown as [REDACTED]. Add a set id here on release.
 const RELEASED_SETS = ['genesis'];
 const USER_COOLDOWN_MS = 60 * 1000;
