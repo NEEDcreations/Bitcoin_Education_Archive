@@ -1189,6 +1189,9 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     tombSatsDisabled = !!(looked.summary && looked.summary.satsDisabled);
     tombLedgerBanned = !!(looked.summary && looked.summary.ledgerBanned);
 
+    // Each claim attempt owns its 'paying' lock and its ledger row; only the
+    // same attempt can release either (Red Team H2 / M5).
+    const attemptId = crypto.randomBytes(9).toString('hex');
     await db.runTransaction(async (t) => {
         const budget = await payoutLedger.readBudgetTx(t, db, Date.now(), 'cipherwin_' + winId);
         const winDoc = await t.get(winRef);
@@ -1201,7 +1204,8 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         if (win.status === 'paying') throw httpsError('failed-precondition', 'A payment is already in progress. Wait a minute and try again.');
         if (win.status === 'unknown') throw httpsError('failed-precondition', 'This payment needs Phil to confirm it before it can be claimed again.');
         if (win.status !== 'claimable') throw httpsError('failed-precondition', 'This prize is waiting for Phil to pay it.');
-        if (win.amount >= 1000 || (win.amount !== 100 && win.amount !== 500)) {
+        // One threshold (payoutBudget.cipherNeedsReview, > 1000): exactly 1000 pays normally.
+        if (payoutBudget.cipherNeedsReview(win.amount) || [100, 500, 1000].indexOf(win.amount) === -1) {
             throw httpsError('failed-precondition', 'This prize is paid manually.');
         }
         const userRow = userDoc.exists ? (userDoc.data() || {}) : {};
@@ -1228,19 +1232,41 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         amount = win.amount;
         username = win.username || username;
         // Reserve against the month now; a release below gives it back.
-        payoutLedger.recordPayoutTx(t, admin, budget, 'misc', win.amount, 'cipherwin_' + winId, { uid: uid, winId: winId, kind: 'cipher_win' });
+        payoutLedger.recordPayoutTx(t, admin, budget, 'misc', win.amount, 'cipherwin_' + winId, { uid: uid, winId: winId, kind: 'cipher_win', attemptId: attemptId });
         t.update(winRef, {
             status: 'paying',
+            payAttemptId: attemptId,
             payingAt: admin.firestore.FieldValue.serverTimestamp(),
         });
     });
+
+    // Reverts to claimable and refunds the budget in ONE transaction, and only
+    // while the win is still 'paying' under this attempt. If Phil marked it
+    // paid (or anything else changed it), nothing is reopened or refunded.
+    async function releaseAttempt() {
+        let released = false;
+        await db.runTransaction(async (t) => {
+            released = false;
+            const snap = await t.get(winRef);
+            const refund = await payoutLedger.readRefundTx(t, db, 'cipherwin_' + winId);
+            const w = snap.exists ? (snap.data() || {}) : {};
+            if (w.status !== 'paying' || w.payAttemptId !== attemptId) return;
+            t.update(winRef, {
+                status: 'claimable',
+                payingAt: admin.firestore.FieldValue.delete(),
+                payAttemptId: admin.firestore.FieldValue.delete(),
+            });
+            payoutLedger.applyRefundTx(t, db, admin, refund, attemptId);
+            released = true;
+        });
+        return released;
+    }
 
     let invoice;
     try {
         invoice = await _resolvePrizeInvoice(data.invoice, data.lightningAddress, amount);
     } catch (e) {
-        await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
-        await payoutLedger.refundPayout(db, admin, 'cipherwin_' + winId).catch(function() {});
+        await releaseAttempt().catch(function(err) { console.error('[claimCipherWin] release failed:', err.message); });
         return { success: false, error: e.message || 'Could not pay that invoice.' };
     }
 
@@ -1253,14 +1279,12 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
             t.set(invoiceRef, { uid: uid, winId: winId, amount: amount, status: 'pending', ts: admin.firestore.FieldValue.serverTimestamp() });
         });
     } catch (e) {
-        await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
-        await payoutLedger.refundPayout(db, admin, 'cipherwin_' + winId).catch(function() {});
+        await releaseAttempt().catch(function(err) { console.error('[claimCipherWin] release failed:', err.message); });
         return { success: false, error: e.message || 'Could not reserve that invoice.' };
     }
 
     async function releaseUnpaid() {
-        await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
-        await payoutLedger.refundPayout(db, admin, 'cipherwin_' + winId).catch(function() {});
+        await releaseAttempt().catch(function(err) { console.error('[claimCipherWin] release failed:', err.message); });
         await invoiceRef.delete().catch(function() {});
     }
 
@@ -1326,10 +1350,16 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     let phase = 'balance';
     let payResult = null;
     let payError = null;
+    let walletReserved = false;
     try {
         const balanceResult = await withTimeout(nwc.getBalance(), 20000, 'getBalance');
         const walletSats = Math.floor((balanceResult.balance || 0) / 1000);
-        if (walletSats < await walletFloorNow()) { await payoutLedger.noteWalletLow(db, Date.now()); throw new Error('WALLET_LOW'); }
+        const floorSats = await walletFloorNow();
+        if (walletSats < floorSats) { await payoutLedger.noteWalletLow(db, Date.now()); throw new Error('WALLET_LOW'); }
+        if (!(await payoutLedger.reserveWalletSats(db, admin, 'cipherwin_' + winId, amount, walletSats, floorSats))) {
+            await payoutLedger.noteWalletLow(db, Date.now()); throw new Error('WALLET_LOW');
+        }
+        walletReserved = true;
         phase = 'pay';
         payResult = await withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
@@ -1337,6 +1367,9 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         payError = e;
     }
 
+    if (walletReserved && ((payResult && payResult.preimage) || phase !== 'pay' || !shouldLookupPay({ phase: phase, error: payError, payResult: payResult }))) {
+        await payoutLedger.releaseWalletSats(db, admin, 'cipherwin_' + winId);
+    }
     if (payResult && payResult.preimage) return markPaid(payResult.preimage);
 
     // Balance-check failures never reached the wallet. Explicit refusals
@@ -1497,7 +1530,12 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
             t.update(winRef, { announced: true });
             return;
         }
-        if (win.status !== 'pending' && win.status !== 'claimable' && win.status !== 'paying' && win.status !== 'unknown') {
+        // An automatic send may be in flight: wait until it settles or is held
+        // as 'unknown', so a failed send can't reopen a prize Phil paid.
+        if (win.status === 'paying') {
+            throw httpsError('failed-precondition', 'An automatic payment is in progress. Wait a minute, then check again.');
+        }
+        if (win.status !== 'pending' && win.status !== 'claimable' && win.status !== 'unknown') {
             throw httpsError('failed-precondition', 'This win cannot be marked paid');
         }
         shouldAnnounce = true;

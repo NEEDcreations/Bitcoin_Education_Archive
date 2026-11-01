@@ -26,6 +26,7 @@ const TESTS = [
     { name: 'Sidebar topics', file: 'test-sidebar-topics.js' },
     { name: 'Cache Busters', file: 'busters.js' },
     { name: 'Variable payouts', file: 'test-payout-budget.js' },
+    { name: 'Variable payouts Red Team fixes', file: 'test-payout-redteam.js' },
     { name: 'Google sign-in GIS', file: 'test-google-signin-gis.js' },
     { name: 'Beats moderation', file: 'test-beats-moderation.js' },
     { name: 'Nacho Radio shuffle', file: 'test-nacho-radio.js' },

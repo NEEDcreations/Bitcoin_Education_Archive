@@ -127,6 +127,31 @@ function assessPayout(monthDoc, source, amount, caps, nowMs) {
     return { ok: true, amount: amt, after: t.total + amt };
 }
 
+// Global daily faucet ceiling (Red Team M3): the faucet's remaining monthly
+// room, as of the start of this ET day, spread over the days left. Stops a
+// group of accounts draining the whole month in one day. paidToday comes from
+// the server-only payout_rates/{ET day}.faucetPaid counter.
+function faucetDailyCeiling(monthDoc, paidToday, caps, nowMs) {
+    const c = caps || readCaps(null);
+    const info = periodInfo(nowMs);
+    const t = monthTotals(monthDoc);
+    const today = n0(paidToday);
+    const before = Math.max(0, t.bySource.faucet - today);
+    const room = Math.max(0, c.faucet - before);
+    const daysLeft = Math.max(1, info.daysInMonth - info.dayOfMonth + 1);
+    return Math.ceil(room / daysLeft);
+}
+function assessFaucetDaily(monthDoc, paidToday, amount, caps, nowMs) {
+    const ceiling = faucetDailyCeiling(monthDoc, paidToday, caps, nowMs);
+    if (n0(paidToday) + n0(amount) > ceiling) {
+        return {
+            ok: false, code: 'budget_daily', resumeAtMs: periodInfo(nowMs).nextDayMs,
+            error: 'Today\'s sats payouts are used up. They restart at midnight ET.',
+        };
+    }
+    return { ok: true };
+}
+
 function assessClaimGap(lastClaimMs, nowMs) {
     const last = Number(lastClaimMs) || 0;
     const now = Number(nowMs) || 0;
@@ -211,6 +236,7 @@ function pointsForSats(sats, pointsPerSat) {
     return Math.ceil(n0(sats) * pps);
 }
 
+// Single source of truth for the cipher manual-review threshold (> 1000).
 function cipherNeedsReview(amount) {
     return n0(amount) > MANUAL_REVIEW_OVER;
 }
@@ -230,6 +256,9 @@ function assessFavorEpoch(info) {
     const t = monthTotals(src.monthDoc);
     const amount = n0(src.amount) || EPOCH_SATS;
     if (reserve < amount) return { ok: false, code: 'favor_reserve', reserve: reserve };
+    // Hard app-wide monthly limit (Phil: epochs paid "in accordance to our
+    // 25k/mo limit"). An epoch that doesn't fit waits (pending) for Phil.
+    if (t.total + amount > caps.total) return { ok: false, code: 'budget_total', reserve: reserve, monthAfter: t.total + amount };
     return { ok: true, amount: amount, monthAfter: t.total + amount };
 }
 
@@ -286,7 +315,7 @@ module.exports = {
     TZ, MONTHLY_TOTAL, DEFAULT_CAPS, AUTO_SOURCES, MANUAL_SOURCES, SOURCES, RATE_BOUNDS, DEFAULT_RATES,
     CLAIM_GAP_MS, WALLET_FLOOR_SATS, MANUAL_REVIEW_OVER, EPOCH_SATS, BLOCKS_PER_EPOCH, RETARGET_DAYS,
     MAX_RETARGET_FACTOR, HASH_SPACE,
-    periodInfo, readCaps, readBounds, monthTotals, formatWait, assessPayout, assessClaimGap, walletFloor,
+    periodInfo, readCaps, faucetDailyCeiling, assessFaucetDaily, readBounds, monthTotals, formatWait, assessPayout, assessClaimGap, walletFloor,
     planDailyRates, satsForPoints, pointsForSats, cipherNeedsReview, cipherExpectedValue,
     assessFavorEpoch, planRetarget, targetAtTime,
 };

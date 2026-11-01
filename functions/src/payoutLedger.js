@@ -57,7 +57,7 @@ async function readBudgetTx(t, db, nowMs, payoutId) {
 function writeRatesTx(t, admin, ctx) {
     if (!ctx.ratesNew) return;
     const stamp = admin.firestore.FieldValue.serverTimestamp();
-    t.set(ctx.refs.rates, Object.assign({}, ctx.rates, { lockedAt: stamp }));
+    t.set(ctx.refs.rates, Object.assign({}, ctx.rates, { lockedAt: stamp }), { merge: true });
     t.set(ctx.refs.publicRates, {
         day: ctx.rates.day, minSats: ctx.rates.minSats, pointsPerSat: ctx.rates.pointsPerSat,
         xpPer100Sats: ctx.rates.xpPer100Sats, updatedAt: stamp,
@@ -69,17 +69,25 @@ function writeRatesTx(t, admin, ctx) {
 // (auto sources) or for manual sources. Idempotent on payoutId.
 function recordPayoutTx(t, admin, ctx, source, amount, payoutId, meta) {
     writeRatesTx(t, admin, ctx);
-    if (ctx.alreadyRecorded) return false;
+    const attemptId = meta && meta.attemptId ? String(meta.attemptId) : '';
+    if (ctx.alreadyRecorded) {
+        // Row still counted from an earlier attempt: hand it to this attempt
+        // so only this attempt's release can refund it.
+        if (attemptId && ctx.refs.ledger) t.set(ctx.refs.ledger, { attemptId: attemptId }, { merge: true });
+        return false;
+    }
     const amt = Math.max(0, Math.floor(Number(amount) || 0));
     const inc = admin.firestore.FieldValue.increment;
     const patch = { month: ctx.info.month, total: inc(amt), updatedAt: admin.firestore.FieldValue.serverTimestamp() };
     patch.bySource = {};
     patch.bySource[source] = inc(amt);
     t.set(ctx.refs.month, patch, { merge: true });
+    // Per-ET-day faucet counter for the daily ceiling (server-only doc).
+    if (source === 'faucet') t.set(ctx.refs.rates, { faucetPaid: inc(amt) }, { merge: true });
     if (ctx.refs.ledger) {
         t.set(ctx.refs.ledger, Object.assign({
             source: source, amount: amt, month: ctx.info.month, day: ctx.info.day,
-            status: 'recorded', payoutId: String(payoutId || ''),
+            status: 'recorded', payoutId: String(payoutId || ''), attemptId: '',
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         }, meta || {}));
     }
@@ -87,24 +95,88 @@ function recordPayoutTx(t, admin, ctx, source, amount, payoutId, meta) {
     return true;
 }
 
+function ledgerRef(db, payoutId) {
+    return db.collection('payout_ledger').doc(String(payoutId).replace(/\//g, '_').slice(0, 200));
+}
+
+// Pure: may this refund apply to this row? attemptId, when given, must match
+// the row's attempt so a late refund can't cancel a later payout.
+function refundAllowed(row, attemptId) {
+    if (!row || row.status === 'refunded') return false;
+    if (attemptId && String(row.attemptId || '') !== String(attemptId)) return false;
+    return true;
+}
+
+// In-transaction refund. Call readRefundTx with the other reads, then
+// applyRefundTx with the other writes, so the refund commits or rolls back
+// together with the caller's state change.
+async function readRefundTx(t, db, payoutId) {
+    if (!payoutId) return null;
+    const ref = ledgerRef(db, payoutId);
+    const snap = await t.get(ref);
+    return { ref: ref, row: snap.exists ? (snap.data() || {}) : null };
+}
+function applyRefundTx(t, db, admin, read, attemptId) {
+    if (!read || !refundAllowed(read.row, attemptId)) return false;
+    const row = read.row;
+    const inc = admin.firestore.FieldValue.increment;
+    const patch = { total: inc(-row.amount), bySource: {} };
+    patch.bySource[row.source] = inc(-row.amount);
+    t.set(db.collection('payout_budget').doc(row.month), patch, { merge: true });
+    if (row.source === 'faucet' && row.day) {
+        t.set(db.collection('payout_rates').doc(row.day), { faucetPaid: inc(-row.amount) }, { merge: true });
+    }
+    t.update(read.ref, { status: 'refunded', refundedAt: admin.firestore.FieldValue.serverTimestamp() });
+    return true;
+}
+
 // Gives a failed payout back to the month it was recorded in. Idempotent.
-async function refundPayout(db, admin, payoutId) {
+async function refundPayout(db, admin, payoutId, attemptId) {
     if (!payoutId) return false;
-    const ledgerRef = db.collection('payout_ledger').doc(String(payoutId).replace(/\//g, '_').slice(0, 200));
     let done = false;
     await db.runTransaction(async (t) => {
-        const snap = await t.get(ledgerRef);
-        if (!snap.exists) return;
-        const row = snap.data() || {};
-        if (row.status === 'refunded') return;
-        const inc = admin.firestore.FieldValue.increment;
-        const patch = { total: inc(-row.amount), bySource: {} };
-        patch.bySource[row.source] = inc(-row.amount);
-        t.set(db.collection('payout_budget').doc(row.month), patch, { merge: true });
-        t.update(ledgerRef, { status: 'refunded', refundedAt: admin.firestore.FieldValue.serverTimestamp() });
-        done = true;
+        done = false;
+        const read = await readRefundTx(t, db, payoutId);
+        done = applyRefundTx(t, db, admin, read, attemptId);
     });
     return done;
+}
+
+// Wallet floor with in-flight reservations (Red Team L6). Concurrent claims
+// each reserve their amount in one server-only doc inside a transaction, so N
+// parallel claims can't all pass a balance check that only one could afford.
+// Entries older than INFLIGHT_TTL_MS are ignored (crashed sends).
+const INFLIGHT_TTL_MS = 5 * 60 * 1000;
+function inflightSats(entries, nowMs) {
+    const e = entries || {};
+    return Object.keys(e).reduce(function(sum, k) {
+        const row = e[k] || {};
+        if (!(Number(row.at) > nowMs - INFLIGHT_TTL_MS)) return sum;
+        return sum + Math.max(0, Math.floor(Number(row.amt) || 0));
+    }, 0);
+}
+function walletFloorOk(walletSats, floorSats, entries, amount, nowMs) {
+    return (Number(walletSats) || 0) - inflightSats(entries, nowMs) - (Number(amount) || 0) >= (Number(floorSats) || 0);
+}
+async function reserveWalletSats(db, admin, key, amount, walletSats, floorSats) {
+    const ref = db.collection('payout_config').doc('walletInflight');
+    const k = String(key).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120);
+    let ok = false;
+    await db.runTransaction(async (t) => {
+        const snap = await t.get(ref);
+        const now = Date.now();
+        const entries = snap.exists ? ((snap.data() || {}).entries || {}) : {};
+        ok = walletFloorOk(walletSats, floorSats, entries, amount, now);
+        if (!ok) return;
+        const patch = {}; patch[k] = { amt: Math.floor(Number(amount) || 0), at: now };
+        t.set(ref, { entries: patch }, { merge: true });
+    });
+    return ok;
+}
+async function releaseWalletSats(db, admin, key) {
+    const k = String(key).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120);
+    const upd = {}; upd['entries.' + k] = admin.firestore.FieldValue.delete();
+    await db.collection('payout_config').doc('walletInflight').update(upd).catch(function() {});
 }
 
 // Wallet-low marker feeds the next day's pacing.
@@ -123,4 +195,4 @@ async function reservedPotSats(db) {
     } catch (e) { return 0; }
 }
 
-module.exports = { refs, readBudgetTx, writeRatesTx, recordPayoutTx, refundPayout, noteWalletLow, reservedPotSats };
+module.exports = { INFLIGHT_TTL_MS, inflightSats, walletFloorOk, reserveWalletSats, releaseWalletSats, refs, ledgerRef, refundAllowed, readRefundTx, applyRefundTx, readBudgetTx, writeRatesTx, recordPayoutTx, refundPayout, noteWalletLow, reservedPotSats };

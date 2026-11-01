@@ -1872,6 +1872,12 @@ exports.claimSats = functionsV1.runWith({
                 txBudget = budgetDecision;
                 deny(budgetDecision.error);
             }
+            // Global daily faucet ceiling (server-side), per ET day.
+            const dailyDecision = payoutBudget.assessFaucetDaily(budget.monthDoc, (budget.rates || {}).faucetPaid, amount, budget.caps, Date.now());
+            if (!dailyDecision.ok) {
+                txBudget = dailyDecision;
+                deny(dailyDecision.error);
+            }
 
             const saved = faucetGuard.normalizeLightningAddress(user.lightningAddress || user.lightning || user.lnAddress || '');
             const lockOwner = lockDoc.exists ? String((lockDoc.data().uid || '')) : '';
@@ -2075,6 +2081,7 @@ exports.claimSats = functionsV1.runWith({
     let phase = 'balance';
     let payResult = null;
     let payError = null;
+    let walletReserved = false;
     try {
         nwc = new NWCClient({ nostrWalletConnectUrl: FAUCET.NWC_URL });
         const balanceResult = await _withTimeout(nwc.getBalance(), 20000, 'getBalance');
@@ -2084,12 +2091,23 @@ exports.claimSats = functionsV1.runWith({
             await payoutLedger.noteWalletLow(db, Date.now());
             throw new Error('WALLET_LOW');
         }
+        // Reserve this claim's sats so parallel claims can't all dip the floor.
+        if (!(await payoutLedger.reserveWalletSats(db, admin, 'faucet_' + invoiceHash, amount, walletSats, floorSats))) {
+            await payoutLedger.noteWalletLow(db, Date.now());
+            throw new Error('WALLET_LOW');
+        }
+        walletReserved = true;
         if (amount > faucetGuard.MAX_PER_CLAIM_SATS) throw new Error('HARD_CAP');
         phase = 'pay';
         payResult = await _withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
     } catch (e) {
         payError = e;
+    }
+    // Settled or refused, the wallet balance now reflects it. Ambiguous sends
+    // keep counting until the reservation's TTL.
+    if (walletReserved && ((payResult && payResult.preimage) || phase !== 'pay')) {
+        await payoutLedger.releaseWalletSats(db, admin, 'faucet_' + invoiceHash);
     }
 
     const decision = faucetGuard.decideFaucetPayment({ phase: phase, error: payError, payResult: payResult });
@@ -2201,32 +2219,41 @@ async function _notifyClaimedSats(uid, amount) {
 }
 
 async function _rollbackClaim(uid, amount, today, invoiceRef, pointsUsed, payoutId) {
+    // User/ledger/stats revert and the budget refund commit in ONE transaction
+    // (Red Team M4), so the monthly totals can't drift from a half rollback.
+    const pointsToRefund = Number(pointsUsed) > 0 ? Number(pointsUsed) : amount * FAUCET.POINTS_PER_SAT;
+    const inc = admin.firestore.FieldValue.increment;
     try {
-        const pointsToRefund = Number(pointsUsed) > 0 ? Number(pointsUsed) : amount * FAUCET.POINTS_PER_SAT;
-        const batch = db.batch();
-        batch.update(db.collection('users').doc(uid), {
-            pointsClaimed: admin.firestore.FieldValue.increment(-pointsToRefund),
-            satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
-            _pendingClaim: admin.firestore.FieldValue.delete(),
-            _pendingClaimAt: admin.firestore.FieldValue.delete()
+        await db.runTransaction(async (t) => {
+            const refund = payoutId ? await payoutLedger.readRefundTx(t, db, payoutId) : null;
+            t.update(db.collection('users').doc(uid), {
+                pointsClaimed: inc(-pointsToRefund),
+                satsWithdrawn: inc(-amount),
+                _pendingClaim: admin.firestore.FieldValue.delete(),
+                _pendingClaimAt: admin.firestore.FieldValue.delete()
+            });
+            t.set(db.collection('faucet_ledger').doc(uid), {
+                satsWithdrawn: inc(-amount),
+                claimCount: inc(-1)
+            }, { merge: true });
+            t.set(db.collection('users').doc(uid).collection('sats_daily').doc(today), {
+                amount: inc(-amount)
+            }, { merge: true });
+            t.set(db.collection('faucet_stats').doc(today), {
+                totalPaid: inc(-amount),
+                claimCount: inc(-1)
+            }, { merge: true });
+            if (invoiceRef) t.delete(invoiceRef);
+            if (refund) payoutLedger.applyRefundTx(t, db, admin, refund);
         });
-        batch.set(db.collection('faucet_ledger').doc(uid), {
-            satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
-            claimCount: admin.firestore.FieldValue.increment(-1)
-        }, { merge: true });
-        batch.set(db.collection('users').doc(uid).collection('sats_daily').doc(today), {
-            amount: admin.firestore.FieldValue.increment(-amount)
-        }, { merge: true });
-        batch.set(db.collection('faucet_stats').doc(today), {
-            totalPaid: admin.firestore.FieldValue.increment(-amount),
-            claimCount: admin.firestore.FieldValue.increment(-1)
-        }, { merge: true });
-        if (invoiceRef) batch.delete(invoiceRef);
-        await batch.commit();
         console.log('[FAUCET] Rolled back ' + amount + ' sats for ' + uid);
-        if (payoutId) await payoutLedger.refundPayout(db, admin, payoutId);
     } catch (e) {
         console.error('[FAUCET] CRITICAL: Rollback failed for ' + uid + ', amount=' + amount + ':', e.message);
+        // Still give the budget back on its own (idempotent on the ledger row).
+        if (payoutId) {
+            try { await payoutLedger.refundPayout(db, admin, payoutId); }
+            catch (e2) { console.error('[FAUCET] budget refund after failed rollback also failed:', e2.message); }
+        }
     }
 }
 

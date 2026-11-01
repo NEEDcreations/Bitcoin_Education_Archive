@@ -1031,15 +1031,15 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
       await db.runTransaction(async (tx) => {
         const epochDoc = await tx.get(epochRef);
         const epochData = epochDoc.exists ? epochDoc.data() : {};
-        const epochNumPre = epochData.epochNumber || 1;
-        const budget = await payoutLedger.readBudgetTx(tx, db, Date.now(), 'favor_epoch_' + epochNumPre);
+        // One epoch number for the ledger read, the record and the alert.
+        const epochNum = epochData.epochNumber || 1;
+        const budget = await payoutLedger.readBudgetTx(tx, db, Date.now(), 'favor_epoch_' + epochNum);
         const reserveRef = db.collection('payout_config').doc('favorReserve');
         const reserveSnap = await tx.get(reserveRef);
         const blocks = (epochData.blocks || []).map((b) => {
           if (!b || typeof b !== 'object') return b;
           return Object.assign({}, b, { username: cleanSolverName(b.username) || null });
         });
-        const epochNum = epochData.epochNumber || 1;
 
         const newBlock = {
           uid,
