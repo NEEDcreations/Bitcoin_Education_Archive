@@ -944,10 +944,6 @@ function createNacho() {
         @media (max-width: 900px) {
             #nacho-container { bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-gap, 12px)); left: 18px; }
             #nacho-avatar { width: 48px; height: 48px; min-width: 48px; min-height: 48px; z-index: 200060; }
-            /* Keep the Today card out of the left column Nacho stands in. */
-            body.nacho-dock #todayCard {
-                margin-left: 68px;
-            }
             #nachoDragHandle { bottom: 2px !important; }
             #nacho-avatar .nacho-name { top: auto; bottom: calc(100% + 4px); }
             /* Speech bubble shares the FAB baseline: nav + safe area + gap,
