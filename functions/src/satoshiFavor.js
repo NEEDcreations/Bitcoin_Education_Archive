@@ -86,12 +86,42 @@ const DIFFICULTY_HISTORY = [
   { target: 10000, since: '2026-08-20' }, // -30% decrease — easing odds to 1:10,000
   { target: 20000, since: '2026-10-01' }, // -50% decrease — easing odds to 1:5,000
 ];
-const DIFFICULTY_TARGET = DIFFICULTY_HISTORY[DIFFICULTY_HISTORY.length - 1].target;
+// Static history above is the seed. From Nov 2026 the target is retargeted
+// automatically (~every 14 days, favorDifficultyRetarget) and stored in the
+// server-only doc payout_config/favorDifficulty { target, history[], ... }.
+const payoutBudget = require('./payoutBudget');
+const payoutLedger = require('./payoutLedger');
+const DIFFICULTY_SEED_TARGET = DIFFICULTY_HISTORY[DIFFICULTY_HISTORY.length - 1].target;
+const DIFFICULTY_CACHE_MS = 60 * 1000;
+let _difficultyCache = { at: 0, target: DIFFICULTY_SEED_TARGET, history: [] };
 
-// Return the difficulty target that was active at a given timestamp (ms)
+function difficultyRef() {
+  return db.collection('payout_config').doc('favorDifficulty');
+}
+
+async function currentDifficulty() {
+  const now = Date.now();
+  if (now - _difficultyCache.at < DIFFICULTY_CACHE_MS) return _difficultyCache.target;
+  try {
+    const snap = await difficultyRef().get();
+    const d = snap.exists ? (snap.data() || {}) : {};
+    const t = Math.floor(Number(d.target));
+    _difficultyCache = {
+      at: now,
+      target: t > 0 ? t : DIFFICULTY_SEED_TARGET,
+      history: Array.isArray(d.history) ? d.history : [],
+    };
+  } catch (e) {
+    console.warn('[FAVOR] difficulty read failed, using cached', e.message);
+    _difficultyCache.at = now;
+  }
+  return _difficultyCache.target;
+}
+
+// Return the difficulty target that was active at a given timestamp (ms).
+// Static seed history plus the automatic retarget history.
 function difficultyAtTime(tsMs) {
-  const active = DIFFICULTY_HISTORY.filter(h => new Date(h.since).getTime() <= tsMs);
-  return active.length ? active[active.length - 1].target : DIFFICULTY_HISTORY[0].target;
+  return payoutBudget.targetAtTime(DIFFICULTY_HISTORY.concat(_difficultyCache.history || []), tsMs, DIFFICULTY_SEED_TARGET);
 }
 const HASHES_PER_MINUTE = 10;
 const HASH_WINDOW_MS = 60000; // 60 seconds
@@ -270,7 +300,7 @@ function checkAndResetFavor(stateData, transaction, stateRef, store) {
         })(),
         totalHashes: stateData.totalHashes || 0,
         lowestHash: stateData.lowestHashThisWindow || null,
-        difficultyTarget: DIFFICULTY_TARGET,
+        difficultyTarget: _difficultyCache.target,
         winner: stateData.lowestHashThisWindowUid ? {
           uid: stateData.lowestHashThisWindowUid,
           username: stateData.lowestHashThisWindowUsername || null,
@@ -720,6 +750,7 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
  * The mining/hashing function. Auth required.
  */
 exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
+  const hashTarget = await currentDifficulty();
   const data = request.data;
   const context = request;
   if (!context.auth) {
@@ -843,7 +874,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
 
     // Generate random value 0 to 100,000,000
     const val = crypto.randomInt(0, 100000001);
-    const winner = val < DIFFICULTY_TARGET;
+    const winner = val < hashTarget;
 
     // Consume booster / rig2 charge atomically — single update object to avoid double-write
     const userUpdate = {};
@@ -881,7 +912,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
     timestamp: admin.firestore.FieldValue.serverTimestamp(),
     isWinner,
     cycleId: stateData.currentCycleId || null,
-    difficultyTarget: DIFFICULTY_TARGET,
+    difficultyTarget: _difficultyCache.target,
   });
 
   try {
@@ -942,7 +973,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
   try {
     const diffStatsRef = db.collection('satoshiFavor').doc('difficultyStats');
     await diffStatsRef.set(
-      { ['target_' + DIFFICULTY_TARGET]: admin.firestore.FieldValue.increment(1) },
+      { ['target_' + hashTarget]: admin.firestore.FieldValue.increment(1) },
       { merge: true }
     );
   } catch (e) {
@@ -1000,6 +1031,10 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
       await db.runTransaction(async (tx) => {
         const epochDoc = await tx.get(epochRef);
         const epochData = epochDoc.exists ? epochDoc.data() : {};
+        const epochNumPre = epochData.epochNumber || 1;
+        const budget = await payoutLedger.readBudgetTx(tx, db, Date.now(), 'favor_epoch_' + epochNumPre);
+        const reserveRef = db.collection('payout_config').doc('favorReserve');
+        const reserveSnap = await tx.get(reserveRef);
         const blocks = (epochData.blocks || []).map((b) => {
           if (!b || typeof b !== 'object') return b;
           return Object.assign({}, b, { username: cleanSolverName(b.username) || null });
@@ -1014,14 +1049,47 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
         };
         const updatedBlocks = [...blocks, newBlock];
 
+        // Count blocks for the next difficulty retarget (server-only doc).
+        tx.set(difficultyRef(), { blocksSinceRetarget: admin.firestore.FieldValue.increment(1) }, { merge: true });
         if (updatedBlocks.length >= 5) {
           // Epoch complete — archive it
+          // Budget gate: the 21,000 counts toward this ET month when the
+          // Favor reserve covers it. Otherwise it waits for Phil. Mining is
+          // never blocked.
+          const reserveRow = reserveSnap.exists ? (reserveSnap.data() || {}) : {};
+          const sinceMonth = reserveRow.sinceMonth || budget.info.month;
+          const months = monthsInclusive(sinceMonth, budget.info.month);
+          const favorReserve = months * budget.caps.favor - Math.max(0, Number(reserveRow.paidSats) || 0);
+          const gate = payoutBudget.assessFavorEpoch({
+            caps: budget.caps, favorReserve: favorReserve, monthDoc: budget.monthDoc, amount: payoutBudget.EPOCH_SATS,
+          });
+          const payStatus = gate.ok ? 'covered' : 'pending';
+          if (gate.ok) {
+            payoutLedger.recordPayoutTx(tx, admin, budget, 'favor', payoutBudget.EPOCH_SATS, 'favor_epoch_' + epochNum, { epochNumber: epochNum });
+            tx.set(reserveRef, {
+              sinceMonth: sinceMonth,
+              paidSats: admin.firestore.FieldValue.increment(payoutBudget.EPOCH_SATS),
+            }, { merge: true });
+          } else {
+            payoutLedger.writeRatesTx(tx, admin, budget);
+            if (!reserveSnap.exists) tx.set(reserveRef, { sinceMonth: sinceMonth, paidSats: 0 }, { merge: true });
+          }
+          tx.set(db.collection('admin_alerts').doc('favor_epoch_' + epochNum), {
+            type: 'favor_epoch',
+            epochNumber: epochNum,
+            amount: payoutBudget.EPOCH_SATS,
+            status: payStatus,
+            favorReserve: Math.max(0, Math.floor(favorReserve)),
+            month: budget.info.month,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          }, { merge: true });
           const histRef = db.collection('sfPoolHistory').doc();
           tx.set(histRef, {
             epochNumber: epochNum,
             blocks: updatedBlocks,
             completedAt: admin.firestore.Timestamp.now(),
             totalSats: 21000,
+            budgetStatus: payStatus,
           });
           // Reset poolEpoch for next epoch
           tx.set(epochRef, {
@@ -1032,6 +1100,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
           // Flag for post-transaction epoch completion announcement
           epochComplete = { epochNum, blocks: updatedBlocks };
         } else {
+          payoutLedger.writeRatesTx(tx, admin, budget);
           // Still accumulating
           tx.set(epochRef, {
             epochNumber: epochNum,
@@ -1133,7 +1202,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
           username,
           value,
           timestamp: nowTs,
-          difficultyTarget: DIFFICULTY_TARGET,
+          difficultyTarget: _difficultyCache.target,
         }));
         entries.sort((a, b) => a.value - b.value);
         entries = entries.slice(0, 50);
@@ -1161,7 +1230,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
   // Feature 7B/C: Win announcement — post to Global Chat and GGs/Announcements
   if (isWinner) {
     const handle = favorChatHandle(username, 50);
-    const winMsg = `⛏️ BLOCK FOUND! ⚡\n\n${handle} solved a block with hash ${value.toLocaleString()} (target: < ${DIFFICULTY_TARGET.toLocaleString()}) 🎉\n\n👑 Congratulations! Will you be next? ⛏️`;
+    const winMsg = `⛏️ BLOCK FOUND! ⚡\n\n${handle} solved a block with hash ${value.toLocaleString()} (target: < ${_difficultyCache.target.toLocaleString()}) 🎉\n\n👑 Congratulations! Will you be next? ⛏️`;
     const nachoUid = 'nacho-bot';
     const winTs = admin.firestore.FieldValue.serverTimestamp();
 
@@ -1499,3 +1568,68 @@ exports.getFactionTotals = functionsV1.https.onCall(async (data, context) => {
     unaffiliated: d.unaffiliated || 0,
   };
 });
+
+
+function monthsInclusive(fromMonth, toMonth) {
+  const a = String(fromMonth || '').split('-').map(Number);
+  const b = String(toMonth || '').split('-').map(Number);
+  if (a.length !== 2 || b.length !== 2 || !a[0] || !b[0]) return 1;
+  return Math.max(1, (b[0] - a[0]) * 12 + (b[1] - a[1]) + 1);
+}
+exports.monthsInclusive = monthsInclusive;
+exports.difficultyAtTime = difficultyAtTime;
+
+// Automatic difficulty adjustment. Runs daily just after midnight ET and
+// retargets when 14+ days have passed. Idempotent: the retarget is a
+// transaction keyed on lastRetargetMs.
+async function runFavorRetarget(nowMs) {
+  const now = Number(nowMs) || Date.now();
+  const ref = difficultyRef();
+  const pre = await ref.get();
+  const row = pre.exists ? (pre.data() || {}) : {};
+  const last = Number(row.lastRetargetMs) || 0;
+  if (!last) {
+    // First run seeds the doc from the static history, no change.
+    await ref.set({
+      target: Math.floor(Number(row.target)) || DIFFICULTY_SEED_TARGET,
+      history: [],
+      lastRetargetMs: now,
+      blocksSinceRetarget: Math.max(0, Number(row.blocksSinceRetarget) || 0),
+    }, { merge: true });
+    return { seeded: true };
+  }
+  const windowMs = now - last;
+  if (windowMs < (payoutBudget.RETARGET_DAYS * 86400000) - 3600000) return { skipped: true };
+  const windowDays = windowMs / 86400000;
+  const ledger = await db.collection('payout_ledger').where('createdAt', '>=', admin.firestore.Timestamp.fromMillis(last)).get();
+  let otherPaid = 0;
+  ledger.forEach(function(d) {
+    const r = d.data() || {};
+    if (r.status === 'refunded' || r.source === 'favor') return;
+    otherPaid += Math.max(0, Number(r.amount) || 0);
+  });
+  const cfgSnap = await db.collection('payout_config').doc('settings').get();
+  const caps = payoutBudget.readCaps(cfgSnap.exists ? cfgSnap.data() : null);
+  let result = null;
+  await db.runTransaction(async (t) => {
+    const snap = await t.get(ref);
+    const cur = snap.exists ? (snap.data() || {}) : {};
+    if ((Number(cur.lastRetargetMs) || 0) !== last) return; // someone else retargeted
+    result = payoutBudget.planRetarget({
+      currentTarget: cur.target || DIFFICULTY_SEED_TARGET,
+      blocksInWindow: cur.blocksSinceRetarget || 0,
+      windowDays: windowDays,
+      otherPaidInWindow: otherPaid,
+      caps: caps,
+    });
+    const hist = (Array.isArray(cur.history) ? cur.history : []).concat([{
+      target: result.target, since: now, previous: result.previousTarget, factor: result.factor,
+      blocks: result.blocksInWindow, windowDays: Math.round(windowDays * 100) / 100,
+      favorBudgetPerMonth: result.favorBudgetPerMonth,
+    }]).slice(-200);
+    t.set(ref, { target: result.target, history: hist, lastRetargetMs: now, blocksSinceRetarget: 0, lastPlan: result }, { merge: true });
+  });
+  _difficultyCache.at = 0;
+  return result || { skipped: true };
+}
+exports.runFavorRetarget = runFavorRetarget;

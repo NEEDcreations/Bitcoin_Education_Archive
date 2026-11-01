@@ -478,7 +478,8 @@
     <p>These are the current odds. The server rolls every result. Your browser does not choose it.</p>
     <h3>Satoshi's Favor</h3>
     <ul>
-        <li>Each hash is a random number from 0 to 100,000,000. A hash below the current difficulty of 20,000 solves a block. That is about 1 in 5,000 per hash (about 0.02%)</li>
+        <li>Each hash is a random number from 0 to 100,000,000. A hash below the current difficulty target solves a block. The target started at 20,000 (about 1 in 5,000 per hash, about 0.02%)</li>
+        <li><strong>Difficulty adjustment:</strong> like Bitcoin, the difficulty retargets automatically, about every 2 weeks. The server looks at how fast active players found blocks (their combined hashrate) and at how much of the monthly sats budget is left after other rewards, then makes blocks easier or harder so that 21,000-sat epochs pay out in line with the budget (roughly one epoch every couple of months). Each adjustment is limited to at most 4× easier or harder. Past blocks keep the difficulty that was active when they were found. If a completed epoch arrives when the budget cannot cover it yet, it is still recorded and its payout waits for review; mining is never stopped</li>
     </ul>
     <h3>Locked cipher sats</h3>
     <p>Each time you open a locked cipher, the server makes one roll. These are the odds of each sats prize on a single open. If no sats prize is rolled, the open pays XP and may include Orange Tickets instead.</p>
@@ -660,8 +661,10 @@
     <ul>
         <li>Sats (satoshis) are earned through genuine engagement with the Site's educational content — they are <strong>not purchased, traded, or invested</strong></li>
         <li>The sats faucet is an <strong>educational reward program</strong>, not a financial service. 603BTC LLC is not a money transmitter, bank, or financial institution</li>
-        <li>All claims are subject to the following limits: <strong>minimum 100 sats</strong> per claim, <strong>maximum 200 sats per day</strong>, <strong>lifetime cap of 15,000 sats per user</strong>, and a <strong>24-hour cooldown</strong> between claims</li>
-        <li>XP converts to sats at a fixed rate of <strong>10 XP = 1 sat</strong>. Daily XP earning follows the cap in Section 5</li>
+        <li>All claims are subject to the following limits: a <strong>daily minimum claim between 50 and 100 sats</strong>, <strong>maximum 200 sats per claim</strong>, <strong>lifetime cap of 15,000 sats per user</strong>, and <strong>24 hours between claims</strong>, measured from your last claim. If you try early, the app shows how long until you can claim again</li>
+        <li><strong>Payouts follow a monthly budget.</strong> Rewards across the faucet, cipher prizes, raffles, and Satoshi's Favor are paid from a fixed monthly sats budget. To keep payouts steady through the month, some settings adjust automatically: daily at midnight Eastern Time for the faucet, and about every 2 weeks for Satoshi's Favor. If the month's budget runs out, a reward type may pause until the 1st of the next month</li>
+        <li><strong>The daily minimum and the XP rate are variable.</strong> Each day at midnight Eastern Time the server sets that day's minimum claim (between 50 and 100 sats) and that day's XP-to-sats rate (how many XP make 1 sat), within a set range. Both stay fixed for the whole day and change only a little from one day to the next. They go up slightly when payouts are running ahead of the budget and come down when there is room. Today's values are shown in Claim Sats → How It Works. Daily XP earning follows the cap in Section 5</li>
+        <li>Large prizes (over 1,000 sats) are reviewed and paid manually</li>
         <li>Lightning Network routing fees are deducted from claims — the amount you receive may be slightly less than the amount claimed</li>
         <li>Payouts are processed via the Lightning Network through Alby Hub NWC to the Lightning Address saved on your account. That address is permanent. If you ever need to change it, contact support at <a href="mailto:info.603btc@gmail.com">info.603btc@gmail.com</a>. You can set a fresh address once when the saved one is missing or does not resolve</li>
         <li>Eligibility requirements: account age ≥7 days, ≥10 topics read, verified email address</li>

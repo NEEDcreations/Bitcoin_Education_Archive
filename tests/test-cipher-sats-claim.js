@@ -204,7 +204,7 @@ test('claim source does not read or write the faucet clock, and the faucet does 
     assert.ok(body.includes('payCipherBalanceInvoice'));
     assert.ok(body.includes('_resolvePrizeInvoice'));
     assert.ok(body.includes('requireSecondFactor'));
-    assert.ok(payPath.includes('WALLET_FLOOR_SATS'));
+    assert.ok(payPath.includes('walletFloorNow'));
     assert.ok(payPath.includes('nwc.payInvoice'));
 
     const moduleSrc = fs.readFileSync(path.join(root, 'functions/src/cipherSatsClaim.js'), 'utf8');

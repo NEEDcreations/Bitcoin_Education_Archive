@@ -157,6 +157,8 @@ async function verifyTurnstile(token, remoteip) {
 const bolt11 = require('bolt11');
 const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
+const payoutBudget = require('./src/payoutBudget');
+const payoutLedger = require('./src/payoutLedger');
 const rewardNotify = require('./src/rewardNotify');
 const awardActions = require('./src/awardActions');
 const ticketGrants = require('./src/ticketGrants');
@@ -190,16 +192,20 @@ const VALID_CHANNEL_IDS = new Set(["0_mining__hashing","100_sats","1_first_princ
 
 // ===== SATS FAUCET CONFIG =====
 const FAUCET = {
-    POINTS_PER_SAT: 10,
-    MIN_WITHDRAWAL_SATS: 100,
+    // Default only. The live rate is payout_rates/{ET day}.pointsPerSat (variable, server-side).
+    POINTS_PER_SAT: payoutBudget.DEFAULT_RATES.pointsPerSat,
+    // Absolute floor. The day's minimum (50-100) is payout_rates/{ET day}.minSats.
+    MIN_WITHDRAWAL_SATS: faucetGuard.MIN_WITHDRAWAL_SATS,
     MAX_PER_CLAIM_SATS: faucetGuard.MAX_PER_CLAIM_SATS,
     MAX_DAILY_PER_USER_SATS: faucetGuard.MAX_DAILY_PER_USER_SATS,
     MAX_LIFETIME_PER_USER_SATS: 15000,
     GLOBAL_DAILY_MAX_SATS: 10000,
-    COOLDOWN_HOURS: 24,
+    // 24-hour gap between claims (payoutBudget.CLAIM_GAP_MS). The old midnight-UTC
+    // per-user daily limit and the global daily max are replaced by the monthly budget.
     MIN_ACCOUNT_AGE_DAYS: 7,
     MIN_CHANNELS_READ: 10,
-    WALLET_BALANCE_FLOOR_SATS: 5000,
+    // Payouts pause below 10,000 sats plus the reserved drip pot (payoutBudget.walletFloor).
+    WALLET_BALANCE_FLOOR_SATS: payoutBudget.WALLET_FLOOR_SATS,
     NWC_URL: process.env.NWC_URL || ''
 };
 
@@ -1592,6 +1598,13 @@ exports.claimSats = functionsV1.runWith({
     );
     if (!preBan.ok) return { success: false, error: preBan.error };
 
+    // Cheap early answer for a quick double claim (the transaction re-checks).
+    const preGap = payoutBudget.assessClaimGap(Math.max(
+        _toMillis(userPreSnap.exists ? userPreSnap.data().lastSatsClaim : null),
+        _toMillis(ledgerPreSnap.exists ? ledgerPreSnap.data().lastSatsClaim : null)
+    ), Date.now());
+    if (!preGap.ok) return { success: false, code: preGap.code, retryAtMs: preGap.retryAtMs, error: preGap.error };
+
     const accountTombstone = require('./src/accountTombstone');
     if (!accountTombstone.secretReady()) {
         return { success: false, error: 'Sats claims are paused. Try again later.' };
@@ -1745,10 +1758,16 @@ exports.claimSats = functionsV1.runWith({
     const signalRef = db.collection('faucet_uid_signals').doc(uid);
 
     let txFlag = null;
+    let txGap = null;
+    let txBudget = null;
+    let pointsToClaim = 0;
+    let dayRates = null;
     let displayName = 'Bitcoiner';
     try {
         await db.runTransaction(async (t) => {
             txFlag = null;
+            txGap = null;
+            txBudget = null;
             function deny(message, extra) {
                 txFlag = extra || null;
                 const err = new Error('FAUCET_USER:' + message);
@@ -1756,6 +1775,8 @@ exports.claimSats = functionsV1.runWith({
                 throw err;
             }
 
+            const budget = await payoutLedger.readBudgetTx(t, db, Date.now(), 'faucet_' + invoiceHash);
+            dayRates = budget.rates;
             const invoiceDoc = await t.get(invoiceRef);
             const userDoc = await t.get(userRef);
             const ledgerDoc = await t.get(ledgerRef);
@@ -1809,7 +1830,10 @@ exports.claimSats = functionsV1.runWith({
 
             const userPoints = user.points || 0;
             const availablePoints = userPoints - (user.pointsClaimed || 0) - (user.pointsDonated || 0) - (user.pointsExchanged || 0);
-            const satsBalance = Math.floor(availablePoints / FAUCET.POINTS_PER_SAT);
+            const satsBalance = payoutBudget.satsForPoints(availablePoints, budget.rates.pointsPerSat);
+            if (amount < budget.rates.minSats) {
+                deny('Today\'s minimum claim is ' + budget.rates.minSats + ' sats.');
+            }
             if (satsBalance < amount) {
                 deny('Insufficient unclaimed points. You have ' + satsBalance + ' sats worth of unclaimed points (' + availablePoints + ' pts).');
             }
@@ -1836,23 +1860,17 @@ exports.claimSats = functionsV1.runWith({
             const ledgerLastClaim = _toMillis(ledger.lastSatsClaim);
             const tombLastClaim = accountTombstone.millisOf(tombSummary && tombSummary.lastClaimAt);
             const lastClaim = Math.max(userLastClaim, ledgerLastClaim, tombLastClaim);
-            if (lastClaim) {
-                const cooldownEnd = lastClaim + (FAUCET.COOLDOWN_HOURS * 60 * 60 * 1000);
-                if (Date.now() < cooldownEnd) {
-                    const hoursLeft = Math.ceil((cooldownEnd - Date.now()) / 3600000);
-                    deny('Cooldown active. Try again in ~' + hoursLeft + ' hour(s).');
-                }
+            const gap = payoutBudget.assessClaimGap(lastClaim, Date.now());
+            if (!gap.ok) {
+                txGap = gap;
+                deny(gap.error);
             }
 
-            const dailyUsed = dailyDoc.exists ? (dailyDoc.data().amount || 0) : 0;
-            if (dailyUsed + amount > FAUCET.MAX_DAILY_PER_USER_SATS) {
-                const remaining = FAUCET.MAX_DAILY_PER_USER_SATS - dailyUsed;
-                deny('Daily limit reached. You can claim ' + remaining + ' more sats today.');
-            }
-
-            const globalUsed = globalDoc.exists ? (globalDoc.data().totalPaid || 0) : 0;
-            if (globalUsed + amount > FAUCET.GLOBAL_DAILY_MAX_SATS) {
-                deny('Daily faucet limit reached. Try again tomorrow.');
+            if (budget.paused) deny('Sats payouts are paused. Try again later.');
+            const budgetDecision = payoutBudget.assessPayout(budget.monthDoc, 'faucet', amount, budget.caps, Date.now());
+            if (!budgetDecision.ok) {
+                txBudget = budgetDecision;
+                deny(budgetDecision.error);
             }
 
             const saved = faucetGuard.normalizeLightningAddress(user.lightningAddress || user.lightning || user.lnAddress || '');
@@ -1944,7 +1962,8 @@ exports.claimSats = functionsV1.runWith({
             const rate = faucetGuard.assessAddressRate(priorClaims, nowMs);
             if (!rate.ok) deny(rate.error);
 
-            const pointsToClaim = amount * FAUCET.POINTS_PER_SAT;
+            pointsToClaim = payoutBudget.pointsForSats(amount, budget.rates.pointsPerSat);
+            payoutLedger.recordPayoutTx(t, admin, budget, 'faucet', amount, 'faucet_' + invoiceHash, { uid: uid, pointsUsed: pointsToClaim });
             const userUpdate = {
                 pointsClaimed: admin.firestore.FieldValue.increment(pointsToClaim),
                 satsWithdrawn: admin.firestore.FieldValue.increment(amount),
@@ -1973,6 +1992,9 @@ exports.claimSats = functionsV1.runWith({
                 amount: amount,
                 status: 'pending',
                 paymentHash: paymentHash,
+                pointsUsed: pointsToClaim,
+                pointsPerSat: budget.rates.pointsPerSat,
+                rateDay: budget.rates.day,
                 ts: admin.firestore.Timestamp.now(),
             });
             t.set(fpRef, {
@@ -2027,7 +2049,10 @@ exports.claimSats = functionsV1.runWith({
         if (at !== -1) {
             const extra = (e && e.faucetExtra) || txFlag;
             if (extra) await _flagFaucetAdmin(extra);
-            return { success: false, error: raw.slice(at + marker.length) };
+            const out = { success: false, error: raw.slice(at + marker.length) };
+            if (txGap) { out.code = txGap.code; out.retryAtMs = txGap.retryAtMs; }
+            if (txBudget) { out.code = txBudget.code; out.resumeAtMs = txBudget.resumeAtMs; }
+            return out;
         }
         console.error('[FAUCET] Transaction failed:', raw);
         return { success: false, error: 'Claim validation failed. Please try again.' };
@@ -2042,6 +2067,8 @@ exports.claimSats = functionsV1.runWith({
         address: lnNorm,
         paymentHash: paymentHash,
         displayName: displayName,
+        pointsUsed: pointsToClaim,
+        payoutId: 'faucet_' + invoiceHash,
     };
 
     let nwc;
@@ -2052,7 +2079,11 @@ exports.claimSats = functionsV1.runWith({
         nwc = new NWCClient({ nostrWalletConnectUrl: FAUCET.NWC_URL });
         const balanceResult = await _withTimeout(nwc.getBalance(), 20000, 'getBalance');
         const walletSats = Math.floor(balanceResult.balance / 1000);
-        if (walletSats < FAUCET.WALLET_BALANCE_FLOOR_SATS) throw new Error('WALLET_LOW');
+        const floorSats = payoutBudget.walletFloor(await payoutLedger.reservedPotSats(db));
+        if (walletSats < floorSats) {
+            await payoutLedger.noteWalletLow(db, Date.now());
+            throw new Error('WALLET_LOW');
+        }
         if (amount > faucetGuard.MAX_PER_CLAIM_SATS) throw new Error('HARD_CAP');
         phase = 'pay';
         payResult = await _withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
@@ -2079,7 +2110,7 @@ exports.claimSats = functionsV1.runWith({
         return { success: true, amount: amount, preimage: decision.preimage, message: '⚡ ' + amount + ' sats sent to your wallet!' };
     }
     if (decision.action === 'refund') {
-        await _rollbackClaim(uid, amount, today, invoiceRef);
+        await _rollbackClaim(uid, amount, today, invoiceRef, pointsToClaim, 'faucet_' + invoiceHash);
         if (payError && payError.message === 'WALLET_LOW') {
             return { success: false, error: 'Faucet is being refilled. Try again later.' };
         }
@@ -2128,7 +2159,7 @@ exports.claimSats = functionsV1.runWith({
         return { success: true, amount: amount, preimage: afterLookup.preimage, message: '⚡ ' + amount + ' sats sent to your wallet!' };
     }
     if (afterLookup.action === 'refund') {
-        await _rollbackClaim(uid, amount, today, invoiceRef);
+        await _rollbackClaim(uid, amount, today, invoiceRef, pointsToClaim, 'faucet_' + invoiceHash);
         return { success: false, error: 'Payment failed. Your sats were not sent. Please try again.' };
     }
 
@@ -2138,7 +2169,7 @@ exports.claimSats = functionsV1.runWith({
 });
 
 function _unknownPayError() {
-    return 'Payment status is unknown, so these sats were not refunded and the 24 hour cooldown still applies. Email support at ' + faucetGuard.SUPPORT_EMAIL + '.';
+    return 'Payment status is unknown, so these sats were not refunded and the 24-hour gap between claims still applies. Email support at ' + faucetGuard.SUPPORT_EMAIL + '.';
 }
 
 function _toMillis(v) {
@@ -2169,9 +2200,9 @@ async function _notifyClaimedSats(uid, amount) {
     }));
 }
 
-async function _rollbackClaim(uid, amount, today, invoiceRef) {
+async function _rollbackClaim(uid, amount, today, invoiceRef, pointsUsed, payoutId) {
     try {
-        const pointsToRefund = amount * FAUCET.POINTS_PER_SAT;
+        const pointsToRefund = Number(pointsUsed) > 0 ? Number(pointsUsed) : amount * FAUCET.POINTS_PER_SAT;
         const batch = db.batch();
         batch.update(db.collection('users').doc(uid), {
             pointsClaimed: admin.firestore.FieldValue.increment(-pointsToRefund),
@@ -2193,6 +2224,7 @@ async function _rollbackClaim(uid, amount, today, invoiceRef) {
         if (invoiceRef) batch.delete(invoiceRef);
         await batch.commit();
         console.log('[FAUCET] Rolled back ' + amount + ' sats for ' + uid);
+        if (payoutId) await payoutLedger.refundPayout(db, admin, payoutId);
     } catch (e) {
         console.error('[FAUCET] CRITICAL: Rollback failed for ' + uid + ', amount=' + amount + ':', e.message);
     }
@@ -2226,7 +2258,7 @@ async function _recordFaucetPaid(info) {
     });
     batch.set(info.userRef.collection('sats_withdrawals').doc(), {
         amount: info.amount,
-        pointsUsed: info.amount * FAUCET.POINTS_PER_SAT,
+        pointsUsed: Number(info.pointsUsed) > 0 ? info.pointsUsed : info.amount * FAUCET.POINTS_PER_SAT,
         invoice: String(info.invoice || '').substring(0, 50) + '...',
         preimage: info.preimage || '',
         paymentHash: info.paymentHash || '',
@@ -2260,7 +2292,7 @@ async function _holdFaucetUnknown(info) {
     }, { merge: true });
     batch.set(info.userRef.collection('sats_withdrawals').doc(), {
         amount: info.amount,
-        pointsUsed: info.amount * FAUCET.POINTS_PER_SAT,
+        pointsUsed: Number(info.pointsUsed) > 0 ? info.pointsUsed : info.amount * FAUCET.POINTS_PER_SAT,
         status: 'unknown',
         paymentHash: info.paymentHash || '',
         lightningAddress: info.address,
@@ -9206,4 +9238,22 @@ exports.onTopicPostMirrorSync = onDocumentUpdated({
         console.warn('[onTopicPostMirrorSync]', e && e.message ? e.message : '');
     }
     return null;
+});
+
+// ── Variable payouts: lock today's rates at midnight ET (DST-safe via
+// timeZone) and run the Satoshi's Favor difficulty retarget check.
+exports.payoutDailyRates = onSchedule({ schedule: '1 0 * * *', timeZone: 'America/New_York', timeoutSeconds: 120 }, async () => {
+    const db = admin.firestore();
+    let out = null;
+    await db.runTransaction(async (t) => {
+        const ctx = await payoutLedger.readBudgetTx(t, db, Date.now(), null);
+        payoutLedger.writeRatesTx(t, admin, ctx);
+        out = { day: ctx.info.day, rates: ctx.rates, created: !!ctx.ratesNew };
+    });
+    console.log('[PAYOUT] daily rates', JSON.stringify(out));
+});
+
+exports.favorDifficultyRetarget = onSchedule({ schedule: '10 0 * * *', timeZone: 'America/New_York', timeoutSeconds: 300 }, async () => {
+    const r = await require('./src/satoshiFavor').runFavorRetarget(Date.now());
+    console.log('[FAVOR] retarget', JSON.stringify(r));
 });

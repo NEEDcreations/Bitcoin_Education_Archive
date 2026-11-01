@@ -2560,6 +2560,30 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // ── Variable payouts (budget, caps, ledger, rates, Favor difficulty) ──
+    // Server only (Admin SDK). Clients can never read or write these.
+    match /payout_config/{docId} {
+      allow read, write: if false;
+    }
+    match /payout_budget/{monthId} {
+      allow read, write: if false;
+    }
+    match /payout_rates/{dayId} {
+      allow read, write: if false;
+    }
+    match /payout_ledger/{payoutId} {
+      allow read, write: if false;
+    }
+    match /admin_alerts/{alertId} {
+      allow read, write: if false;
+    }
+    // Today's public rates (min claim, XP per sat) for the Claim Sats UI.
+    // Read-only copy; written by Cloud Functions only.
+    match /payout_rates_public/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

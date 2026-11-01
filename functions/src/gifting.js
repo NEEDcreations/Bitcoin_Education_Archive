@@ -15,6 +15,8 @@ const { resolveLnurlInvoice } = require('./lnurlResolve');
 const { NWCClient } = require('@getalby/sdk');
 const { updatePeerLevelAfterGift } = require('./peerLevel');
 const faucetGuard = require('./faucetGuard');
+const payoutBudget = require('./payoutBudget');
+const payoutLedger = require('./payoutLedger');
 const { rollCipherReward, satsDisposition, ALLOWED_SATS_AMOUNTS } = require('./cipherReward');
 const {
     creditDocId,
@@ -58,7 +60,11 @@ function rewardStamp() {
 const CIPHER_LABELS = ['3A', '7F', 'B2', 'D9', '1C', '8E', 'A4', 'F6'];
 const CIPHER_OPENS_PER_DAY = 21;
 const KEYS_PER_SEND = 3;
-const WALLET_FLOOR_SATS = 5000; // matches FAUCET.WALLET_BALANCE_FLOOR_SATS
+// Payouts pause below 10,000 sats plus the reserved drip pot (see walletFloorNow).
+const WALLET_FLOOR_SATS = payoutBudget.WALLET_FLOOR_SATS;
+async function walletFloorNow() {
+    return payoutBudget.walletFloor(await payoutLedger.reservedPotSats(db));
+}
 const KEY_SEND_XP = 25;
 const NWC_URL = process.env.NWC_URL || '';
 
@@ -866,10 +872,22 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
                 keyOrigin: peerKey ? 'peer' : 'own',
                 roll: reward.roll,
                 status: satsStatus,
+                reviewStatus: payoutBudget.cipherNeedsReview(reward.satsAmount) ? 'pending_review' : 'manual',
                 announced: false,
                 createdAt: now,
                 paidAt: null,
                 paidBy: null,
+            });
+            // Phil reviews and pays big prizes himself. When he marks it paid it
+            // counts toward that month's 25,000-sat budget (adminMarkCipherWinPaid).
+            t.set(db.collection('admin_alerts').doc('cipher_win_' + winId), {
+                type: 'cipher_jackpot_review',
+                winId: winId,
+                uid: uid,
+                username: safeName(user.username),
+                amount: reward.satsAmount,
+                status: 'pending_review',
+                createdAt: now,
             });
         } else if (reward.rewardType === 'sats' && satsMode === 'balance' && openerCreditRef && openerCreditSnap && !openerCreditSnap.exists) {
             t.set(openerCreditRef, {
@@ -1172,6 +1190,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     tombLedgerBanned = !!(looked.summary && looked.summary.ledgerBanned);
 
     await db.runTransaction(async (t) => {
+        const budget = await payoutLedger.readBudgetTx(t, db, Date.now(), 'cipherwin_' + winId);
         const winDoc = await t.get(winRef);
         const userDoc = await t.get(userRef);
         const ledgerDoc = await t.get(ledgerRef);
@@ -1201,8 +1220,15 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
             ledgerBanned: (ledgerDoc.exists && ledgerDoc.data().banned === true) || tombLedgerBanned,
         });
         if (!gate.ok) throw httpsError('failed-precondition', gate.error);
+        if (budget.paused) throw httpsError('failed-precondition', 'Sats payouts are paused. Try again later.');
+        if (!budget.alreadyRecorded) {
+            const room = payoutBudget.assessPayout(budget.monthDoc, 'misc', win.amount, budget.caps, Date.now());
+            if (!room.ok) throw httpsError('failed-precondition', room.error);
+        }
         amount = win.amount;
         username = win.username || username;
+        // Reserve against the month now; a release below gives it back.
+        payoutLedger.recordPayoutTx(t, admin, budget, 'misc', win.amount, 'cipherwin_' + winId, { uid: uid, winId: winId, kind: 'cipher_win' });
         t.update(winRef, {
             status: 'paying',
             payingAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1214,6 +1240,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         invoice = await _resolvePrizeInvoice(data.invoice, data.lightningAddress, amount);
     } catch (e) {
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
+        await payoutLedger.refundPayout(db, admin, 'cipherwin_' + winId).catch(function() {});
         return { success: false, error: e.message || 'Could not pay that invoice.' };
     }
 
@@ -1227,11 +1254,13 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         });
     } catch (e) {
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
+        await payoutLedger.refundPayout(db, admin, 'cipherwin_' + winId).catch(function() {});
         return { success: false, error: e.message || 'Could not reserve that invoice.' };
     }
 
     async function releaseUnpaid() {
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
+        await payoutLedger.refundPayout(db, admin, 'cipherwin_' + winId).catch(function() {});
         await invoiceRef.delete().catch(function() {});
     }
 
@@ -1300,7 +1329,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     try {
         const balanceResult = await withTimeout(nwc.getBalance(), 20000, 'getBalance');
         const walletSats = Math.floor((balanceResult.balance || 0) / 1000);
-        if (walletSats < WALLET_FLOOR_SATS) throw new Error('WALLET_LOW');
+        if (walletSats < await walletFloorNow()) { await payoutLedger.noteWalletLow(db, Date.now()); throw new Error('WALLET_LOW'); }
         phase = 'pay';
         payResult = await withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
@@ -1451,7 +1480,9 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
     let shouldAnnounce = false;
     let newlyPaid = false;
 
+    let budgetLeft = null;
     await db.runTransaction(async (t) => {
+        const budget = await payoutLedger.readBudgetTx(t, db, Date.now(), 'cipherwin_' + winId);
         const winDoc = await t.get(winRef);
         if (!winDoc.exists) throw httpsError('not-found', 'Win not found');
         const win = winDoc.data();
@@ -1471,7 +1502,14 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
         }
         shouldAnnounce = true;
         newlyPaid = true;
+        // Manual payout: recorded, never blocked. Counts toward this ET month.
+        payoutLedger.recordPayoutTx(t, admin, budget, 'jackpot', amount, 'cipherwin_' + winId, { uid: winnerUid, winId: winId });
+        budgetLeft = budget.caps.total - payoutBudget.monthTotals(budget.monthDoc).total - Math.max(0, Math.floor(Number(amount) || 0));
+        t.set(db.collection('admin_alerts').doc('cipher_win_' + winId), {
+            status: 'paid', paidAt: admin.firestore.FieldValue.serverTimestamp(), budgetLeftAfter: budgetLeft,
+        }, { merge: true });
         t.update(winRef, {
+            reviewStatus: 'paid',
             status: 'paid',
             paidAt: admin.firestore.FieldValue.serverTimestamp(),
             paidBy: context.auth.uid,
@@ -1492,7 +1530,7 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
             return { success: true, announced: false };
         }
     }
-    return { success: true, announced: true };
+    return { success: true, announced: true, budgetLeft: budgetLeft };
 });
 
 // The sender marks a cipher-share reveal as seen. The flag is server-written,
@@ -1557,7 +1595,7 @@ async function payCipherBalanceInvoice(invoice) {
     try {
         const balanceResult = await withTimeout(nwc.getBalance(), 20000, 'getBalance');
         const walletSats = Math.floor((balanceResult.balance || 0) / 1000);
-        if (walletSats < WALLET_FLOOR_SATS) throw new Error('WALLET_LOW');
+        if (walletSats < await walletFloorNow()) { await payoutLedger.noteWalletLow(db, Date.now()); throw new Error('WALLET_LOW'); }
         phase = 'pay';
         payResult = await withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
@@ -1591,6 +1629,7 @@ async function finishCipherClaim(reserved, outcome) {
     const userRef = db.collection('users').doc(reserved.uid);
     const playerRef = db.collection('cipher_sats_player_daily').doc(reserved.playerDayId);
     const siteRef = db.collection('cipher_sats_site_daily').doc(reserved.day);
+    let restored = false;
     await db.runTransaction(async (t) => {
         const auditSnap = await t.get(auditRef);
         const lockSnap = await t.get(lockRef);
@@ -1615,8 +1654,12 @@ async function finishCipherClaim(reserved, outcome) {
         t.set(playerRef, { amount: admin.firestore.FieldValue.increment(-reserved.amount) }, { merge: true });
         t.set(siteRef, { amount: admin.firestore.FieldValue.increment(-reserved.amount) }, { merge: true });
         t.set(auditRef, { status: 'restored', restoredAt: stamp }, { merge: true });
+        restored = true;
         if (owns) t.delete(lockRef);
     });
+    if (restored) {
+        await payoutLedger.refundPayout(db, admin, 'ciphersats_' + reserved.claimId).catch(function() {});
+    }
 }
 
 // Flip reserved -> paying only if this claim still owns both records.
@@ -1708,6 +1751,7 @@ const claimCipherSats = functionsV1.runWith({
     let reserved = null;
     let denial = '';
     await db.runTransaction(async (t) => {
+        const budget = await payoutLedger.readBudgetTx(t, db, nowMs, 'ciphersats_' + claimId);
         const userSnap = await t.get(userRef);
         const ledgerSnap = await t.get(ledgerRef);
         const lockSnap = await t.get(lockRef);
@@ -1765,6 +1809,16 @@ const claimCipherSats = functionsV1.runWith({
             denial = plan.error || UNAVAILABLE;
             return;
         }
+        if (budget.paused) {
+            denial = 'Sats payouts are paused. Try again later.';
+            return;
+        }
+        const room = payoutBudget.assessPayout(budget.monthDoc, 'misc', plan.amount, budget.caps, nowMs);
+        if (!room.ok) {
+            denial = room.error;
+            return;
+        }
+        payoutLedger.recordPayoutTx(t, admin, budget, 'misc', plan.amount, 'ciphersats_' + claimId, { uid: uid, kind: 'cipher_balance' });
         if (userPatch.cipherSatsBalanceDelta) {
             t.update(userRef, {
                 cipherSatsBalance: admin.firestore.FieldValue.increment(userPatch.cipherSatsBalanceDelta),
