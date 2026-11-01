@@ -1,6 +1,6 @@
 'use strict';
 // Easter egg: `gettxoutsetinfo` / `satoshimon-cli gettxoutsetinfo` in global chat
-// makes Nacho reply with the live Satoshimon card supply by set. No explanation.
+// makes Nacho reply with the serial-numbered Satoshimon supply by set. No explanation.
 // Counts come from Firestore satoshimon_cards (field `set`) when present, else
 // the bundled server-only snapshot. Only release state is mapped here.
 
@@ -25,26 +25,40 @@ function countBySet(cards) {
     return counts;
 }
 
-function formatSupply(counts) {
+const SERIALS_PER_CARD = 21;
+
+// Only serial-numbered cards are capped. max_supply = cards in set x 21.
+// circulating = serials issued (satoshimon_serials docs, field `set`), else 0.
+function formatSupply(cardCounts, serialCounts) {
+    serialCounts = serialCounts || {};
     const sets = {};
-    let total = 0;
-    let redacted = 0;
-    for (const id of Object.keys(counts).sort()) {
-        const n = counts[id];
-        total += n;
-        if (RELEASED_SETS.includes(id)) sets[id] = n;
-        else redacted += n;
+    const redacted = { max_supply: 0, circulating: 0 };
+    const total = { max_supply: 0, circulating: 0 };
+    for (const id of Object.keys(cardCounts).sort()) {
+        const max = cardCounts[id] * SERIALS_PER_CARD;
+        const circ = Math.min(serialCounts[id] || 0, max);
+        total.max_supply += max;
+        total.circulating += circ;
+        if (RELEASED_SETS.includes(id)) sets[id] = { max_supply: max, circulating: circ };
+        else { redacted.max_supply += max; redacted.circulating += circ; }
     }
-    if (redacted) sets['[REDACTED]'] = redacted;
-    return JSON.stringify({ total_supply: total, sets: sets }, null, 2);
+    if (redacted.max_supply) sets['[REDACTED]'] = redacted;
+    return JSON.stringify({ total: total, sets: sets }, null, 2);
 }
 
 async function loadCounts(db) {
     try {
         const snap = await db.collection('satoshimon_cards').select('set').get();
         if (!snap.empty) return countBySet(snap.docs.map((d) => d.data()));
-    } catch (e) { console.warn('[supplyEgg] firestore read failed'); }
+    } catch (e) { console.warn('[supplyEgg] cards read failed'); }
     return countBySet(require('../data/satoshimon-supply.json').cards);
+}
+
+async function loadSerialCounts(db) {
+    try {
+        const snap = await db.collection('satoshimon_serials').select('set').get();
+        return countBySet(snap.docs.map((d) => d.data()));
+    } catch (e) { console.warn('[supplyEgg] serials read failed'); return {}; }
 }
 
 async function handle(db, admin, msgId, data) {
@@ -65,7 +79,8 @@ async function handle(db, admin, msgId, data) {
         return true;
     });
     if (!ok) return null;
-    const text = formatSupply(await loadCounts(db));
+    const [cards, serials] = await Promise.all([loadCounts(db), loadSerialCounts(db)]);
+    const text = formatSupply(cards, serials);
     await replyRef.set({
         uid: 'nacho-bot',
         name: '🦌 Nacho',
