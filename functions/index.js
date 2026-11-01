@@ -1584,11 +1584,6 @@ exports.claimSats = functionsV1.runWith({
         return { success: false, error: 'Security check failed. Please refresh and try again.' };
     }
 
-    if (!FAUCET.NWC_URL) {
-        console.error('[FAUCET] NWC_URL not configured');
-        return { success: false, error: 'Faucet not configured. Contact admin.' };
-    }
-
     // Banned accounts fail before any Lightning, IP, or fingerprint lookup.
     const userPreSnap = await db.collection('users').doc(uid).get();
     const ledgerPreSnap = await db.collection('faucet_ledger').doc(uid).get();
@@ -1604,6 +1599,11 @@ exports.claimSats = functionsV1.runWith({
         _toMillis(ledgerPreSnap.exists ? ledgerPreSnap.data().lastSatsClaim : null)
     ), Date.now());
     if (!preGap.ok) return { success: false, code: preGap.code, retryAtMs: preGap.retryAtMs, error: preGap.error };
+
+    if (!FAUCET.NWC_URL) {
+        console.error('[FAUCET] NWC_URL not configured');
+        return { success: false, error: 'Faucet not configured. Contact admin.' };
+    }
 
     const accountTombstone = require('./src/accountTombstone');
     if (!accountTombstone.secretReady()) {

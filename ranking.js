@@ -8901,7 +8901,7 @@ function accountDeleteRowHtml(user) {
         html += '• <strong>Today: 1,000 XP = ' + Math.floor(1000 / _rates.pointsPerSat) + ' sats</strong> (' + _rates.pointsPerSat + ' XP per sat) - earn XP by reading, quests, and daily visits<br>';
         html += '• <strong>Today\'s min claim: ' + _rates.minSats + ' sats</strong> (' + _rates.minXp.toLocaleString() + ' XP)<br>';
         html += '• The XP rate and daily minimum are set each day at midnight ET (min 50-100 sats) to keep payouts within our monthly budget<br>';
-        html += '• <strong>Max claim: 200 sats/day</strong><br>';
+        html += '• <strong>Max claim: 200 sats</strong> per claim<br>';
         html += '• <strong>24 hours between claims</strong><br>';
         html += '• <strong>Lifetime max: 15,000 sats</strong> per account<br>';
         html += '• <strong>Daily XP:</strong> full through 500, half through 900, then a quarter until 1,000<br>';
