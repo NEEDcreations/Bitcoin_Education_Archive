@@ -1625,20 +1625,30 @@ function dayAmount(snap) {
     return Math.max(0, Math.floor(Number(data.amount) || 0));
 }
 
-async function payCipherBalanceInvoice(invoice) {
+async function payCipherBalanceInvoice(invoice, reserveKey, amount) {
     const nwc = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
     let phase = 'balance';
     let payResult = null;
     let payError = null;
+    let walletReserved = false;
     try {
         const balanceResult = await withTimeout(nwc.getBalance(), 20000, 'getBalance');
         const walletSats = Math.floor((balanceResult.balance || 0) / 1000);
-        if (walletSats < await walletFloorNow()) { await payoutLedger.noteWalletLow(db, Date.now()); throw new Error('WALLET_LOW'); }
+        const floorSats = await walletFloorNow();
+        if (walletSats < floorSats) { await payoutLedger.noteWalletLow(db, Date.now()); throw new Error('WALLET_LOW'); }
+        // Reserve this claim's sats so parallel claims can't all dip the floor.
+        if (!(await payoutLedger.reserveWalletSats(db, admin, reserveKey, amount, walletSats, floorSats))) {
+            await payoutLedger.noteWalletLow(db, Date.now()); throw new Error('WALLET_LOW');
+        }
+        walletReserved = true;
         phase = 'pay';
         payResult = await withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
     } catch (e) {
         payError = e;
+    }
+    if (walletReserved && ((payResult && payResult.preimage) || phase !== 'pay' || !shouldLookupPay({ phase: phase, error: payError, payResult: payResult }))) {
+        await payoutLedger.releaseWalletSats(db, admin, reserveKey);
     }
     if (payResult && payResult.preimage) return { action: 'paid' };
     if (!shouldLookupPay({ phase: phase, error: payError, payResult: payResult })) {
@@ -1972,7 +1982,7 @@ const claimCipherSats = functionsV1.runWith({
         await invoiceRef.delete().catch(function() {});
         return { success: false, error: 'A claim is already in progress.' };
     }
-    const paid = await payCipherBalanceInvoice(invoice);
+    const paid = await payCipherBalanceInvoice(invoice, 'ciphersats_' + reserved.claimId, reserved.amount);
     if (paid.action === 'paid') {
         try {
             await finishCipherClaim(reserved, 'paid');

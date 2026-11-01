@@ -227,8 +227,11 @@ later('a connection drop is looked up and then held', async function() {
     assert.strictEqual(decision.action, 'hold');
 });
 
-later('a 1,000+ win for a banned account is flagged for admin', function() {
-    const big = adminClaimFlag({ amount: 1000 }, { satsDisabled: false }, { banned: true });
+later('a win over 1,000 for a banned account is flagged for admin (shared > 1000 rule)', function() {
+    const edge = adminClaimFlag({ amount: 1000 }, { satsDisabled: false }, { banned: true });
+    assert.strictEqual(edge.claimBlocked, true);
+    assert.strictEqual(edge.flagForAdmin, false);
+    const big = adminClaimFlag({ amount: 1001 }, { satsDisabled: false }, { banned: true });
     assert.strictEqual(big.claimBlocked, true);
     assert.strictEqual(big.claimBlockReason, 'banned');
     assert.strictEqual(big.flagForAdmin, true);

@@ -200,6 +200,25 @@ test('L7: one cipher review threshold (> 1000); exactly 1000 pays normally', () 
     assert.ok(s.includes('payoutBudget.cipherNeedsReview(win.amount) || [100, 500, 1000].indexOf(win.amount) === -1'));
 });
 
+test('L6: claimCipherSats reserves and releases wallet sats like the faucet', () => {
+    const s = src('src/gifting.js');
+    const f = s.slice(s.indexOf('async function payCipherBalanceInvoice('));
+    const body = f.slice(0, f.indexOf('\n}\n'));
+    assert.ok(body.includes('payoutLedger.reserveWalletSats(db, admin, reserveKey, amount, walletSats, floorSats)'));
+    assert.ok(body.includes('payoutLedger.releaseWalletSats(db, admin, reserveKey)'));
+    assert.ok(body.indexOf('reserveWalletSats') < body.indexOf('payInvoice'));
+    assert.ok(s.includes("payCipherBalanceInvoice(invoice, 'ciphersats_' + reserved.claimId, reserved.amount)"));
+    assert.ok(!/payCipherBalanceInvoice\(invoice\)/.test(s));
+});
+test('L7: adminClaimFlag uses the shared > 1000 helper', () => {
+    const cc = require('../functions/src/cipherClaim');
+    assert.strictEqual(cc.adminClaimFlag({ amount: 1000 }, {}, { banned: true }).flagForAdmin, false);
+    assert.strictEqual(cc.adminClaimFlag({ amount: 1001 }, {}, { banned: true }).flagForAdmin, true);
+    const s = src('src/cipherClaim.js');
+    assert.ok(s.includes('cipherNeedsReview(amount)'));
+    assert.ok(!/>=\s*1000/.test(s));
+});
+
 // L8
 test('L8: Favor block uses one epoch number for ledger read and record', () => {
     const s = src('src/satoshiFavor.js');

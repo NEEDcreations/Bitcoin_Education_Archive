@@ -331,7 +331,7 @@ test('a missing cipher sats config disables claims', () => {
     assert.strictEqual(claim.claimsDisabledFromConfig(true, {}), false);
     const gifting = fs.readFileSync(path.join(root, 'functions/src/gifting.js'), 'utf8');
     const body = gifting.slice(gifting.indexOf('const claimCipherSats'), gifting.indexOf('module.exports'));
-    const payAt = body.indexOf('const paid = await payCipherBalanceInvoice(invoice)');
+    const payAt = body.indexOf('const paid = await payCipherBalanceInvoice(invoice, ');
     const gateAt = body.indexOf('readyToPay = await beginCipherPay(reserved)');
     assert.ok(gateAt !== -1 && payAt !== -1 && gateAt < payAt);
     assert.ok(body.includes('if (!readyToPay)'));
