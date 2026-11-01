@@ -1,49 +1,64 @@
 'use strict';
-// Easter egg: `gettxoutsetinfo` / `satoshimon-cli gettxoutsetinfo` in global chat
-// makes Nacho reply with the serial-numbered Satoshimon supply by set. No explanation.
-// Counts come from Firestore satoshimon_cards (field `set`) when present, else
-// the bundled server-only snapshot. Only release state is mapped here.
+// Global chat easter eggs. A message of the form `[satoshimon-cli ]<command> [arg]`
+// (case-insensitive, trimmed) is looked up in COMMANDS; Nacho replies with the
+// handler's terminal-style output and no explanation. Add commands to COMMANDS.
 
-const TRIGGER = /^(satoshimon-cli\s+)?gettxoutsetinfo$/i;
-// Sets not in this list are shown as [REDACTED]. Add a set id here on release.
+const PARSE = /^(?:satoshimon-cli\s+)?([a-z0-9_-]{1,32})(?:\s+([a-z0-9_-]{1,32}))?$/i;
+// Sets not listed here are unreleased: shown as [REDACTED] and never matched by id.
 const RELEASED_SETS = ['genesis'];
+const SERIALS_PER_CARD = 21;
 const USER_COOLDOWN_MS = 60 * 1000;
 const GLOBAL_COOLDOWN_MS = 15 * 1000;
+const REDACTED = '[REDACTED]';
 
-function isTrigger(text) {
-    if (typeof text !== 'string' || text.length > 64) return false;
-    return TRIGGER.test(text.trim());
+function parseCommand(text) {
+    if (typeof text !== 'string' || text.length > 80) return null;
+    const m = PARSE.exec(text.trim());
+    if (!m) return null;
+    const name = m[1].toLowerCase();
+    if (!Object.prototype.hasOwnProperty.call(COMMANDS, name)) return null;
+    return { name: name, arg: m[2] ? m[2].toLowerCase() : null };
 }
+function isTrigger(text) { return parseCommand(text) !== null; }
 
-function countBySet(cards) {
+function countBySet(items) {
     const counts = {};
-    for (const c of cards || []) {
+    for (const c of items || []) {
         const s = c && typeof c.set === 'string' ? c.set : '';
-        if (!s) continue;
-        counts[s] = (counts[s] || 0) + 1;
+        if (s) counts[s] = (counts[s] || 0) + 1;
     }
     return counts;
 }
 
-const SERIALS_PER_CARD = 21;
+function setStats(cardCounts, serialCounts, id) {
+    const max = (cardCounts[id] || 0) * SERIALS_PER_CARD;
+    return { max_supply: max, circulating: Math.min((serialCounts || {})[id] || 0, max) };
+}
 
-// Only serial-numbered cards are capped. max_supply = cards in set x 21.
-// circulating = serials issued (satoshimon_serials docs, field `set`), else 0.
-function formatSupply(cardCounts, serialCounts) {
-    serialCounts = serialCounts || {};
-    const sets = {};
-    const redacted = { max_supply: 0, circulating: 0 };
-    const total = { max_supply: 0, circulating: 0 };
+// All sets; unreleased ones merge into one [REDACTED] entry.
+function formatAllSets(cardCounts, serialCounts) {
+    const out = {};
+    const red = { max_supply: 0, circulating: 0 };
     for (const id of Object.keys(cardCounts).sort()) {
-        const max = cardCounts[id] * SERIALS_PER_CARD;
-        const circ = Math.min(serialCounts[id] || 0, max);
-        total.max_supply += max;
-        total.circulating += circ;
-        if (RELEASED_SETS.includes(id)) sets[id] = { max_supply: max, circulating: circ };
-        else { redacted.max_supply += max; redacted.circulating += circ; }
+        const st = setStats(cardCounts, serialCounts, id);
+        if (RELEASED_SETS.includes(id)) out[id] = st;
+        else { red.max_supply += st.max_supply; red.circulating += st.circulating; }
     }
-    if (redacted.max_supply) sets['[REDACTED]'] = redacted;
-    return JSON.stringify({ total: total, sets: sets }, null, 2);
+    if (red.max_supply) out[REDACTED] = red;
+    return JSON.stringify(out, null, 2);
+}
+
+// One set. Released sets match by id; unreleased only via a server-side secret
+// alias map { alias: internalSetId } (never in the repo).
+function formatOneSet(cardCounts, serialCounts, arg, aliases) {
+    let id = null, label = null;
+    if (RELEASED_SETS.includes(arg) && cardCounts[arg]) { id = arg; label = arg; }
+    else if (aliases && Object.prototype.hasOwnProperty.call(aliases, arg)) {
+        const target = aliases[arg];
+        if (typeof target === 'string' && cardCounts[target] && !RELEASED_SETS.includes(target)) { id = target; label = REDACTED; }
+    }
+    if (!id) return JSON.stringify({ error: 'set not found' });
+    return JSON.stringify({ [label]: setStats(cardCounts, serialCounts, id) }, null, 2);
 }
 
 async function loadCounts(db) {
@@ -53,16 +68,41 @@ async function loadCounts(db) {
     } catch (e) { console.warn('[supplyEgg] cards read failed'); }
     return countBySet(require('../data/satoshimon-supply.json').cards);
 }
-
 async function loadSerialCounts(db) {
     try {
         const snap = await db.collection('satoshimon_serials').select('set').get();
         return countBySet(snap.docs.map((d) => d.data()));
     } catch (e) { console.warn('[supplyEgg] serials read failed'); return {}; }
 }
+// Secret aliases: env SATOSHIMON_SET_ALIASES (JSON) or Firestore
+// easter_egg_config/supply.setAliases. Empty by default.
+async function loadAliases(db) {
+    const out = {};
+    try { Object.assign(out, JSON.parse(process.env.SATOSHIMON_SET_ALIASES || '{}')); } catch (e) { /* ignore */ }
+    try {
+        const doc = await db.collection('easter_egg_config').doc('supply').get();
+        const m = doc.exists ? doc.data().setAliases : null;
+        if (m && typeof m === 'object') Object.assign(out, m);
+    } catch (e) { console.warn('[supplyEgg] alias read failed'); }
+    const clean = {};
+    for (const k of Object.keys(out)) if (typeof out[k] === 'string') clean[k.toLowerCase()] = out[k];
+    return clean;
+}
+
+async function gettxoutsetinfo(db, arg) {
+    const [cards, serials] = await Promise.all([loadCounts(db), loadSerialCounts(db)]);
+    if (!arg) return formatAllSets(cards, serials);
+    return formatOneSet(cards, serials, arg, await loadAliases(db));
+}
+
+// command name -> async (db, arg) => reply text
+const COMMANDS = {
+    gettxoutsetinfo: gettxoutsetinfo,
+};
 
 async function handle(db, admin, msgId, data) {
-    if (!data || !isTrigger(data.text)) return null;
+    const cmd = data ? parseCommand(data.text) : null;
+    if (!cmd) return null;
     const uid = typeof data.uid === 'string' ? data.uid : '';
     if (!uid || uid === 'nacho-bot' || uid === 'system' || data.source === 'telegram' || data.isNachoAuto === true) return null;
     const replyRef = db.collection('global_chat').doc('supplyegg_' + msgId);
@@ -79,12 +119,12 @@ async function handle(db, admin, msgId, data) {
         return true;
     });
     if (!ok) return null;
-    const [cards, serials] = await Promise.all([loadCounts(db), loadSerialCounts(db)]);
-    const text = formatSupply(cards, serials);
+    const text = await COMMANDS[cmd.name](db, cmd.arg);
+    if (!text) return null;
     await replyRef.set({
         uid: 'nacho-bot',
         name: '🦌 Nacho',
-        text: text.slice(0, 500),
+        text: String(text).slice(0, 500),
         isNachoAuto: false,
         replyTo: msgId,
         ts: admin.firestore.FieldValue.serverTimestamp(),
@@ -92,4 +132,4 @@ async function handle(db, admin, msgId, data) {
     return null;
 }
 
-module.exports = { isTrigger, countBySet, formatSupply, handle, RELEASED_SETS };
+module.exports = { parseCommand, isTrigger, countBySet, formatAllSets, formatOneSet, handle, COMMANDS, RELEASED_SETS };
