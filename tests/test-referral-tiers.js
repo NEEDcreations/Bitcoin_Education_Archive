@@ -62,7 +62,7 @@ test('tier mapping hits every boundary', () => {
         assert.strictEqual(progress.tierLabel, progress.tier.emoji + ' ' + row[2]);
         assert.strictEqual(progress.progressText, row[3], 'progress ' + row[0]);
         assert.strictEqual(progress.maxed, row[1] === 5);
-        assert.strictEqual(progress.countText, row[0] === 1 ? '1 earned 2,140' : row[0] + ' earned 2,140');
+        assert.strictEqual(progress.countText, row[0] === 1 ? '1 earned 2,140 XP' : row[0] + ' earned 2,140 XP');
     });
     assert.strictEqual(tiers.normalizeCount(-3), 0);
     assert.strictEqual(tiers.normalizeCount('nope'), 0);

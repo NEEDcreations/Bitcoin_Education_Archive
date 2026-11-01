@@ -64,7 +64,7 @@
     }
 
     function countText(n) {
-        return n === 1 ? '1 earned 2,140' : n + ' earned 2,140';
+        return n === 1 ? '1 earned 2,140 XP' : n + ' earned 2,140 XP';
     }
 
     function tierProgress(count) {

@@ -4131,7 +4131,7 @@ function paintInviteTier(count, invited) {
     var n = (api && typeof api.normalizeCount === 'function') ? api.normalizeCount(count) : (Number(count) || 0);
     var progress = (api && typeof api.tierProgress === 'function') ? api.tierProgress(n) : {
         tierLabel: '—',
-        countText: (n === 1 ? '1 earned ' : n + ' earned ') + referralPointsLabel(),
+        countText: (n === 1 ? '1 earned ' : n + ' earned ') + referralPointsLabel() + ' XP',
         progressText: '',
         level: 0
     };
@@ -4455,7 +4455,7 @@ function resetOptimisticHomeChrome() {
     var tier = document.getElementById('homeInvitesTier');
     if (tier) tier.textContent = '\u2014';
     var note = document.getElementById('homeInvitesNote');
-    if (note) note.textContent = 'earned ' + referralPointsLabel();
+    if (note) note.textContent = 'earned ' + referralPointsLabel() + ' XP';
     var prog = document.getElementById('homeInvitesProgress');
     if (prog) prog.textContent = '';
     var openBtn = document.getElementById('homeInvitesOpen');
