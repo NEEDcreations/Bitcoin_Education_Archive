@@ -1,3 +1,15 @@
+// Difficulty History compact formatters (mobile fit): 44486 -> "44.5k", "2026-06-02" -> "6/2/26"
+function _sfCompactNum(n) {
+    n = Number(n) || 0;
+    var a = Math.abs(n);
+    if (a >= 1e6) return (n / 1e6).toFixed(a >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M';
+    if (a >= 1e4) return (n / 1e3).toFixed(a >= 1e5 ? 0 : 1).replace(/\.0$/, '') + 'k';
+    return n.toLocaleString('en-US');
+}
+function _sfShortDate(d) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d || ''));
+    return m ? (parseInt(m[2], 10) + '/' + parseInt(m[3], 10) + '/' + m[1].slice(2)) : String(d || '');
+}
 const QUESTION_BANK = {
     "whitepaper": [
         { q: "When was the Bitcoin Whitepaper published?", a: "October 31, 2008", wrong: ["January 3, 2009", "March 15, 2007", "December 25, 2010"] },
@@ -2544,18 +2556,16 @@ function _renderFavorTab(body) {
             { date: '2026-06-21', target: 30000, label: '-96.67% drop' },
             { date: '2026-06-30', target: 15000, label: '+100% raise' },
         ];
-        var _dhHtml = '<div style="margin-top:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">' +
+        var _dhHtml = '<style>' +
+            '.sf-dh-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}' +
+            '.sf-dh{width:100%;border-collapse:collapse;font-size:0.68rem;font-variant-numeric:tabular-nums;}' +
+            '.sf-dh th,.sf-dh td{white-space:nowrap;}' +
+            '@media (max-width:480px){.sf-dh{font-size:0.6rem;}.sf-dh th,.sf-dh td{padding:3px 2px;}.sf-dh .sf-dh-mono{font-family:inherit;}}' +
+            '@media (max-width:340px){.sf-dh{font-size:0.54rem;}.sf-dh th,.sf-dh td{padding:3px 1px;}}' +
+            '</style>' +
+            '<div style="margin-top:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">' +
             '<div style="font-size:0.82rem;font-weight:800;color:var(--heading);margin-bottom:8px;">\uD83D\uDCCA Difficulty History</div>' +
-            '<table style="width:100%;border-collapse:collapse;font-size:0.68rem;table-layout:fixed;">' +
-            '<colgroup>' +
-                '<col style="width:22%">' +
-                '<col style="width:13%">' +
-                '<col style="width:14%">' +
-                '<col style="width:17%">' +
-                '<col style="width:8%">' +
-                '<col style="width:14%">' +
-                '<col style="width:12%">' +
-            '</colgroup>' +
+            '<div class="sf-dh-wrap"><table class="sf-dh">' +
             '<thead><tr style="color:var(--text-faint);">' +
                 '<th style="text-align:left;padding:3px 4px;border-bottom:1px solid var(--border);">Date</th>' +
                 '<th style="text-align:right;padding:3px 4px;border-bottom:1px solid var(--border);">Target</th>' +
@@ -2569,12 +2579,13 @@ function _renderFavorTab(body) {
         _dh.forEach(function(row, i) {
             var isCurrent = (i === _dh.length - 1);
             var prevTarget = i > 0 ? _dh[i - 1].target : null;
-            var odds = '1:' + Math.round(100000000 / row.target).toLocaleString();
+            var odds = '1:' + _sfCompactNum(Math.round(100000000 / row.target));
             var changeColor = !prevTarget ? 'var(--text-faint)' : (row.target < prevTarget ? '#22c55e' : '#ef4444');
             var changeTxt = row.label || (!prevTarget ? 'Genesis' : (((row.target - prevTarget) / prevTarget * 100).toFixed(2) + '%'));
+            changeTxt = String(changeTxt).replace(/(\d+\.\d{2,})%/, function(m, n) { return parseFloat(n).toFixed(1) + '%'; }); // -96.67% -> -96.7% (mobile fit)
             // Hashes: use static value from SF_DIFFICULTY_HISTORY for past periods; live cell for current
             var hashTxt = isCurrent ? '<span id="sfHashesRow' + i + '">\u2026</span>' :
-                (row.hashes != null ? row.hashes.toLocaleString() : '—');
+                (row.hashes != null ? _sfCompactNum(row.hashes) : '—');
             // Luck: null = current period (live) or genesis period (0 blocks)
             var luckTxt, luckColor;
             if (isCurrent) {
@@ -2592,16 +2603,16 @@ function _renderFavorTab(body) {
                 ? 'color:var(--heading);background:rgba(247,147,26,0.08);outline:2px solid #f7931a;outline-offset:-2px;'
                 : 'color:var(--text-muted);';
             var currentDateCell = isCurrent
-                ? '<span style="display:block;font-weight:700;">' + row.date + '</span><span style="display:inline-block;margin-top:2px;font-size:0.58rem;font-weight:800;background:#f7931a;color:#000;border-radius:3px;padding:0px 4px;letter-spacing:0.03em;">CURRENT</span>'
-                : row.date;
+                ? '<span style="display:block;font-weight:700;" title="' + row.date + '">' + _sfShortDate(row.date) + '</span><span style="display:inline-block;margin-top:2px;font-size:0.5rem;font-weight:800;background:#f7931a;color:#000;border-radius:3px;padding:0px 4px;letter-spacing:0.03em;">CURRENT</span>'
+                : '<span title="' + row.date + '">' + _sfShortDate(row.date) + '</span>';
             _dhHtml += '<tr style="' + currentRowStyle + '">' +
-                '<td style="padding:4px 4px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + currentDateCell + '</td>' +
-                '<td style="text-align:right;padding:4px 4px;font-family:monospace;' + (isCurrent ? 'font-weight:700;color:#22c55e;' : '') + '">' + row.target.toLocaleString() + '</td>' +
-                '<td style="text-align:right;padding:4px 4px;color:' + changeColor + ';' + (isCurrent ? 'font-weight:700;' : '') + 'white-space:nowrap;">' + changeTxt + '</td>' +
-                '<td style="text-align:right;padding:4px 4px;white-space:nowrap;">' + odds + '</td>' +
-                '<td id="sfBlocksRow' + i + '" style="text-align:right;padding:4px 4px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + (isCurrent ? '\u2026' : '0') + '</td>' +
-                '<td style="text-align:right;padding:4px 4px;font-family:monospace;">' + hashTxt + '</td>' +
-                '<td style="text-align:right;padding:4px 4px;font-weight:600;color:' + luckColor + ';white-space:nowrap;">' + luckTxt + '</td>' +
+                '<td style="' + (isCurrent ? 'font-weight:700;' : '') + '">' + currentDateCell + '</td>' +
+                '<td style="text-align:right;' + (isCurrent ? 'font-weight:700;color:#22c55e;' : '') + '">' + _sfCompactNum(row.target) + '</td>' +
+                '<td style="text-align:right;color:' + changeColor + ';' + (isCurrent ? 'font-weight:700;' : '') + 'white-space:nowrap;">' + changeTxt + '</td>' +
+                '<td style="text-align:right;white-space:nowrap;">' + odds + '</td>' +
+                '<td id="sfBlocksRow' + i + '" style="text-align:right;' + (isCurrent ? 'font-weight:700;' : '') + '">' + (isCurrent ? '\u2026' : '0') + '</td>' +
+                '<td style="text-align:right;">' + hashTxt + '</td>' +
+                '<td style="text-align:right;font-weight:600;color:' + luckColor + ';white-space:nowrap;">' + luckTxt + '</td>' +
             '</tr>';
         });
         // Totals row — static hashes for past periods; live cells for current-period contribution
@@ -2615,15 +2626,15 @@ function _renderFavorTab(body) {
         });
         _dhHtml +=
             '<tr id="sfDifficultyTotalsRow" style="color:var(--text-faint);border-top:1px solid var(--border);font-size:0.68rem;">' +
-                '<td style="padding:4px 4px;font-weight:700;color:var(--text-muted);">Total</td>' +
-                '<td style="padding:4px 4px;"></td>' +
-                '<td style="padding:4px 4px;"></td>' +
-                '<td style="padding:4px 4px;"></td>' +
-                '<td style="text-align:right;padding:4px 4px;font-weight:700;color:var(--text-muted);"><span id="sfTotalBlocks">…</span></td>' +
-                '<td style="text-align:right;padding:4px 4px;font-weight:700;color:var(--text-muted);font-family:monospace;"><span id="sfTotalHashes">…</span></td>' +
-                '<td style="padding:4px 4px;"></td>' +
+                '<td style="font-weight:700;color:var(--text-muted);">Total</td>' +
+                '<td style=""></td>' +
+                '<td style=""></td>' +
+                '<td style=""></td>' +
+                '<td style="text-align:right;font-weight:700;color:var(--text-muted);"><span id="sfTotalBlocks">…</span></td>' +
+                '<td style="text-align:right;font-weight:700;color:var(--text-muted);"><span id="sfTotalHashes">…</span></td>' +
+                '<td style=""></td>' +
             '</tr>';
-        _dhHtml += '</tbody></table></div>';
+        _dhHtml += '</tbody></table></div></div>';
         html += _dhHtml;
     })();
     '</div>';
@@ -3086,7 +3097,7 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
             var offset = (curRow.eraHashOffset != null) ? curRow.eraHashOffset : 0;
             var eraHashes = Math.max(0, rawEraHashes - offset);
             var hashEl = document.getElementById('sfHashesRow' + currentIdx);
-            if (hashEl) hashEl.textContent = eraHashes.toLocaleString();
+            if (hashEl) hashEl.textContent = _sfCompactNum(eraHashes);
 
             // Update total hashes = sum of all past static hashes + current difficulty era
             var pastHashSum = 0;
@@ -3094,7 +3105,7 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
                 if (_dh[_pi].hashes != null) pastHashSum += _dh[_pi].hashes;
             }
             var totalHashEl = document.getElementById('sfTotalHashes');
-            if (totalHashEl) totalHashEl.textContent = (pastHashSum + eraHashes).toLocaleString();
+            if (totalHashEl) totalHashEl.textContent = _sfCompactNum(pastHashSum + eraHashes);
 
             var luckEl = document.getElementById('sfLuckRow' + currentIdx);
             if (!luckEl) return;
