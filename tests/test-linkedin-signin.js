@@ -14,9 +14,7 @@ test('provider factory uses oidc.linkedin with openid profile email', () => {
 });
 test('signInWithLinkedIn uses the shared provider path (rate limit, IAB, link/conflict handling)', () => {
     const fn = ranking.slice(ranking.indexOf('window.signInWithLinkedIn'), ranking.indexOf('window.signInWithLinkedIn') + 800);
-    assert.ok(fn.includes('linkOrSignInPopup(newLinkedInProvider())'));
     assert.ok(fn.includes('signInWithProvider(newLinkedInProvider())'));
-    assert.ok(fn.includes('surfaceMfaRequired(e)'));
 });
 test('reauth, providerForId and labels know LinkedIn', () => {
     assert.ok(ranking.includes("if (pid === 'oidc.linkedin') return newLinkedInProvider();"));
@@ -31,6 +29,11 @@ test('deleted/banned LinkedIn identities are tombstoned server-side', () => {
     process.env.TOMBSTONE_TEST = '1';
     const src = read('functions/src/accountTombstone.js');
     assert.ok(src.includes("id === 'oidc.linkedin') out.push('linkedin:' + puid)"));
+});
+test('mobile/touch uses redirect + extended login', () => {
+    assert.ok(ranking.includes("enable_extended_login: 'true'"));
+    assert.ok(ranking.includes('isStandalone || isSafariBrowser || isIOS || isTouchAuthDevice()'));
+    assert.ok(/signInWithFacebook[\s\S]{0,300}isTouchAuthDevice\(\)/.test(ranking));
 });
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

@@ -1735,6 +1735,9 @@ function newLinkedInProvider() {
     p.addScope('openid');
     p.addScope('profile');
     p.addScope('email');
+    // LinkedIn docs: enable_extended_login=true shows Google/Apple/passkey sign-in
+    // on platforms where LinkedIn hides them by default (e.g. iOS).
+    p.setCustomParameters({ enable_extended_login: 'true' });
     return p;
 }
 window.newLinkedInProvider = newLinkedInProvider;
@@ -2408,8 +2411,10 @@ function googleSignInErrorMessage(e) {
     if (code === 'auth/operation-not-allowed') return 'This sign-in method is not enabled. Try a different option.';
     if (code === 'auth/account-exists-with-different-credential') return 'This email already has an account with another sign-in method. Sign in that way, then link Google in settings.';
     if (code === 'auth/network-request-failed') return 'Network error. Check your connection and try again.';
-    if (code === 'auth/popup-blocked') return 'The sign-in window was blocked. Allow popups and try again.';
+    if (code === 'auth/popup-blocked') return 'The sign-in window was blocked. Tap the button again, or allow popups for this site.';
     if (code === 'auth/user-disabled') return 'This account is disabled. Please contact support.';
+    if (code === 'auth/redirect-cancelled-by-user') return '';
+    if (code === 'auth/disallowed-useragent' || /disallowed_useragent/i.test((e && e.message) || '')) return 'Google sign-in does not work inside this app. Open this page in Safari or Chrome to continue.';
     if (code === 'auth/too-many-requests') return 'Too many attempts. Wait a moment and try again.';
     if (code === 'auth/web-storage-unsupported') return 'This browser is blocking sign-in storage. Try another browser.';
     if (code === 'auth/invalid-credential' || code === 'auth/invalid-id-token' || code === 'auth/user-token-expired') return 'That sign-in was rejected. Please try again.';
@@ -2657,22 +2662,17 @@ window.signInWithGithub = async function() {
     await signInWithProvider(new firebase.auth.GithubAuthProvider());
 }
 
-// LinkedIn Sign-In (OIDC) - same popup/redirect + linking path as GitHub/X
+// LinkedIn Sign-In (OIDC) - shared path: redirect on mobile/PWA/Safari (full LinkedIn
+// login page incl. Continue with Google), popup on desktop with redirect fallback.
 window.signInWithLinkedIn = async function() {
     window._captureSignupFormState();
-    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-    if (isStandalone) {
-        try {
-            await linkOrSignInPopup(newLinkedInProvider());
-            return;
-        } catch(e) {
-            if (e && e.code === 'auth/popup-closed-by-user') return;
-            if (surfaceMfaRequired(e)) return;
-            showPWAAuthFallback('LinkedIn');
-            return;
-        }
-    }
     await signInWithProvider(newLinkedInProvider());
+}
+
+function isTouchAuthDevice() {
+    var ua = navigator.userAgent || '';
+    if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return true;
+    try { return !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches && navigator.maxTouchPoints > 0); } catch(e) { return false; }
 }
 
 // PWA auth fallback for providers without client SDKs
@@ -2715,6 +2715,11 @@ function _loadFBSDK() {
 
 window.signInWithFacebook = async function() {
     window._captureSignupFormState();
+    // Mobile/in-app: the FB SDK popup opens after an await and gets blocked; use the shared redirect path.
+    if (isTouchAuthDevice() || isInAppBrowser()) {
+        await signInWithProvider(new firebase.auth.FacebookAuthProvider());
+        return;
+    }
     await _loadFBSDK();
     if (typeof FB !== 'undefined') {
         try {
@@ -2810,7 +2815,7 @@ window.nostrSignInWithExtension = async function() {
         var signed = await window.nostr.signEvent({ kind: 22242, created_at: Math.floor(Date.now() / 1000), tags: [['challenge', 'btc-edu-' + Date.now()]], content: 'Sign in to Bitcoin Education Archive', pubkey: pubkey });
         if (!signed || !signed.sig) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Signing cancelled</span>'; return; }
         await nostrCompleteAuth(pubkey, signed.sig, signed);
-    } catch(e) { console.error('Nostr extension error:', e); if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Extension error: ' + (e.message || 'Unknown') + '</span>'; }
+    } catch(e) { console.error('Nostr extension error:', e); if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Extension error: ' + accountLinkEscape((e.message || 'Unknown')) + '</span>'; }
 };
 
 // nsec sign-in - uses nostr-tools CDN for key derivation and signing
@@ -2857,7 +2862,7 @@ window.nostrSignInWithNsec = async function() {
         try { document.getElementById('nostrNsecInput').value = ''; } catch(_) {}
         nsec = '';
         console.error('Nostr nsec error:', e && e.message ? e.message : 'unknown');
-        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Error: ' + (e.message || 'Failed to sign') + '</span>';
+        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Error: ' + accountLinkEscape((e.message || 'Failed to sign')) + '</span>';
         btn.disabled = false; btn.textContent = 'Sign In with nsec';
     }
 };
@@ -2901,7 +2906,7 @@ window.nostrSignInWithNpub = async function() {
         if (currentUser) currentUser.nostr = pubkey;
         var overlay = document.getElementById('nostrAuthOverlay'); if (overlay) overlay.remove();
         showToast('🟣 Nostr identity linked! (npub)');
-    } catch(e) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Error: ' + (e.message || 'Unknown') + '</span>'; }
+    } catch(e) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Error: ' + accountLinkEscape((e.message || 'Unknown')) + '</span>'; }
 };
 
 // Complete Nostr auth - send signed event to Cloud Function for verification
@@ -2939,7 +2944,7 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
             return;
         }
         console.error('Nostr auth error:', e);
-        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Verification failed: ' + (e.message || 'Unknown') + '</span>';
+        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Verification failed: ' + accountLinkEscape((e.message || 'Unknown')) + '</span>';
     }
 };
 
@@ -3125,7 +3130,7 @@ function checkRateLimit() {
 // Generic provider sign-in (reused by Google, Twitter, GitHub)
 function isInAppBrowser() {
     var ua = navigator.userAgent || '';
-    return /FBAN|FBAV|Instagram|Twitter|Line\/|Snapchat|BytedanceWebview|musical_ly|TikTok|Weibo|MicroMessenger|LinkedInApp|Telegram/i.test(ua);
+    return /FBAN|FBAV|Instagram|Twitter|Line\/|Snapchat|BytedanceWebview|musical_ly|TikTok|Weibo|MicroMessenger|LinkedInApp|Telegram|Pinterest|Discord|; wv\)/i.test(ua);
 }
 
 // Module-scope auth helpers (accessible from GIS, FB SDK, and signInWithProvider)
@@ -3356,15 +3361,15 @@ async function signInWithProvider(provider) {
 
     // Android Chrome handles popups fine (no ITP) - only iOS Safari needs redirect
     var isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
-    if (isStandalone || isSafariBrowser || isIOS) {
+    if (isStandalone || isSafariBrowser || isIOS || isTouchAuthDevice()) {
         // Safari/iOS blocks popup postMessage via ITP - skip popup entirely and go straight to redirect.
         try {
             showToast('⏳ Opening sign-in...');
             await redirectForProvider(provider);
             return;
         } catch(e) {
-            console.error('Mobile/Safari sign-in error:', e);
-            showToast('Sign-in failed: ' + (e.message || 'Unknown error'));
+            console.error('Mobile/Safari sign-in error:', e && e.code);
+            var _rm = googleSignInErrorMessage(e); if (_rm) showToast(_rm);
             return;
         }
     }
@@ -3390,7 +3395,7 @@ async function signInWithProvider(provider) {
                 return;
             } catch(redirectErr) {
                 console.error('Redirect fallback also failed:', redirectErr);
-                showToast('Sign-in failed. Please try a different browser.');
+                showToast(googleSignInErrorMessage(redirectErr) || 'Sign-in did not open. Try another browser.');
             }
             return;
         }
