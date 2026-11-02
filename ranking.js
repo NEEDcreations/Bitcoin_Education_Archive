@@ -9428,8 +9428,8 @@ function accountDeleteRowHtml(user) {
         html += '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🧊 Buy Streak Freezes</div>';
         html += '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;">Protect your streak - freezes auto-activate when you miss a day. You have <strong>' + _tcktCount + ' 🏟️ Orange Tickets</strong>.</div>';
         html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
-        html += '<button onclick="_buyStreakFreeze(1)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 1 Freeze<br><span style="font-size:0.7rem;font-weight:400;">5 🏟️ tickets</span></button>';
-        html += '<button onclick="_buyStreakFreeze(3)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 3 Freezes<br><span style="font-size:0.7rem;font-weight:400;">12 🏟️ tickets</span></button>';
+        html += '<button onclick="_buyStreakFreeze(1)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 1 Freeze<br><span style="font-size:0.7rem;font-weight:400;">' + (typeof _nookPrice === 'function' ? _nookPrice('streak_freeze') : 6) + ' 🏟️ tickets</span></button>';
+        html += '<button onclick="_buyStreakFreeze(3)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 3 Freezes<br><span style="font-size:0.7rem;font-weight:400;">' + (typeof _nookPrice === 'function' ? _nookPrice('streak_freeze_3') : 15) + ' 🏟️ tickets</span></button>';
         html += '</div></div>';
         html += statRow('Total Site Visits', totalVisits, '👁️');
         html += statRow('Topics Explored', Math.max(chVisited, localVisited) + ' / ' + Object.keys(CHANNELS).length, '🗺️');
@@ -13014,8 +13014,9 @@ window._buyStreakFreeze = async function(amount) {
         if (typeof showToast === 'function') showToast('Sign in to buy streak freezes!');
         return;
     }
-    var COSTS = { 1: 5, 3: 12 };
-    var cost = COSTS[amount] || 5;
+    var COSTS = { 1: 6, 3: 15 };
+    if (typeof _nookPrice === 'function') { COSTS[1] = _nookPrice('streak_freeze'); COSTS[3] = _nookPrice('streak_freeze_3'); }
+    var cost = COSTS[amount] || COSTS[1];
     var currentTickets = currentUser ? (currentUser.orangeTickets || 0) : 0;
     if (currentTickets < cost) {
         if (typeof showToast === 'function') showToast('\u274c Not enough tickets! Need ' + cost + ', have ' + currentTickets);
