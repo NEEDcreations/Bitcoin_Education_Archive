@@ -289,6 +289,43 @@ function applyWatchHeartbeat(prev, nowMs) {
     };
 }
 
+// Lifetime watch time for the 5-tier Timechain TV badges (badgeTiers).
+// Same clock rules as the daily goal (55 s minimum gap, 60 s credit, a gap
+// over 3 minutes only restarts the clock), but it keeps counting after the
+// 10-minute daily goal, up to LIFE_DAY_CAP_SECONDS per offset day. Fields
+// live on tctv_watch/{uid} (client cannot write) and are separate from the
+// daily goal fields so the daily reward logic is unchanged.
+// prev: { lifeDay, lifeDaySeconds, lifeLastMs, presenceFresh, banned }
+const LIFE_DAY_CAP_SECONDS = require('./badgeTiers').TCTV_LIFE_DAY_CAP_SECONDS;
+
+function applyLifetimeCredit(prev, nowMs) {
+    const now = Math.floor(Number(nowMs));
+    const src = prev || {};
+    if (!Number.isFinite(now)) return { write: false, credit: 0, capped: false, reason: 'bad-clock' };
+    if (src.banned === true) return { write: false, credit: 0, capped: true, reason: 'banned' };
+    const day = offsetDateKey(now);
+    let daySeconds = src.lifeDay === day ? Math.max(0, Math.floor(Number(src.lifeDaySeconds) || 0)) : 0;
+    if (daySeconds > LIFE_DAY_CAP_SECONDS) daySeconds = LIFE_DAY_CAP_SECONDS;
+    const capped = daySeconds >= LIFE_DAY_CAP_SECONDS;
+    if (src.presenceFresh !== true) return { write: false, credit: 0, capped: capped, reason: 'not-watching', daySeconds: daySeconds };
+    if (capped) return { write: false, credit: 0, capped: true, reason: 'day-cap', daySeconds: daySeconds };
+    const last = creditMillis(src.lifeLastMs);
+    if (last == null || now - last > CLOCK_GAP_MS || now < last) {
+        return {
+            write: true, credit: 0, capped: false, reason: 'clock', daySeconds: daySeconds,
+            state: { lifeDay: day, lifeDaySeconds: daySeconds, lifeLastMs: now },
+        };
+    }
+    if (now - last < MIN_GAP_MS) return { write: false, credit: 0, capped: false, reason: 'too-fast', daySeconds: daySeconds };
+    let credit = Math.min(CREDIT_SECONDS, Math.floor((now - last) / 1000));
+    if (daySeconds + credit > LIFE_DAY_CAP_SECONDS) credit = LIFE_DAY_CAP_SECONDS - daySeconds;
+    const next = daySeconds + credit;
+    return {
+        write: true, credit: credit, capped: next >= LIFE_DAY_CAP_SECONDS, reason: 'credited', daySeconds: next,
+        state: { lifeDay: day, lifeDaySeconds: next, lifeLastMs: now },
+    };
+}
+
 // 4 calls per 60 seconds per uid. The credit gap is the real limit; this
 // only stops a tight loop from invoking the function. Count is per uid.
 // 'done' and 'too-fast' still consult this, and a reject throws, but those
@@ -329,6 +366,8 @@ module.exports = {
     planWatchXp: planWatchXp,
     presenceIsWatching: presenceIsWatching,
     applyWatchHeartbeat: applyWatchHeartbeat,
+    applyLifetimeCredit: applyLifetimeCredit,
+    LIFE_DAY_CAP_SECONDS: LIFE_DAY_CAP_SECONDS,
     nextWatchRate: nextWatchRate,
     watchButtonText: watchButtonText,
 };

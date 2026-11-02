@@ -22,6 +22,7 @@
     var TOAST_TEXT = '📺 +100 XP and +1 🎟️ orange ticket for watching Timechain TV!';
     var timer = null;
     var inflight = false;
+    var lifeCapped = false;
     var confirmedSeconds = 0;
     var creditAnchorMs = null;
     var playedMs = 0;
@@ -197,6 +198,7 @@
 
     function applyResult(res) {
         var data = res && res.data ? res.data : (res || {});
+        if (data && typeof data.lifeCapped === 'boolean') lifeCapped = data.lifeCapped;
         var seconds = typeof data.seconds === 'number' ? data.seconds : confirmedSeconds;
         var done = data.done === true;
         var moved = data.reason === 'clock' || data.reason === 'credited' || data.reason === 'award';
@@ -213,8 +215,15 @@
         }
     }
 
+    // After the 10-minute daily goal the server still counts lifetime watch
+    // time for the 5-tier badges (up to 3 h a day). Keep sending heartbeats
+    // until the server says today's lifetime credit is capped.
+    function heartbeatsDone() {
+        return window._tctvWatchDoneToday === true && lifeCapped;
+    }
+
     function sendHeartbeat() {
-        if (inflight || window._tctvWatchDoneToday) return;
+        if (inflight || heartbeatsDone()) return;
         if (document.visibilityState !== 'visible') return;
         if (!onTv() || !isPlaying() || !watchUser()) return;
         if (typeof firebase === 'undefined' || !firebase.functions) return;
@@ -232,7 +241,7 @@
     }
 
     function maybeKick() {
-        if (inflight || window._tctvWatchDoneToday) return;
+        if (inflight || heartbeatsDone()) return;
         if (clockFresh(Date.now())) return;
         var now = Date.now();
         if (kickAt && now - kickAt < KICK_GAP_MS) return;
@@ -253,11 +262,11 @@
 
     function monitor() {
         var day = todayKey();
-        if (seenDay && day !== seenDay) refresh();
+        if (seenDay && day !== seenDay) { lifeCapped = false; refresh(); }
         seenDay = day;
         observeRow();
         samplePlay();
-        if (window._tctvWatchDoneToday || document.visibilityState !== 'visible' || !watchUser() || !onTv()) {
+        if (heartbeatsDone() || document.visibilityState !== 'visible' || !watchUser() || !onTv()) {
             disarm();
             render();
             return;

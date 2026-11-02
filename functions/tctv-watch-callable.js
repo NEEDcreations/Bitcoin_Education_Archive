@@ -16,6 +16,16 @@ const { rewardBlocked } = require('./src/cipherClaim');
 
 const db = admin.firestore();
 
+// True when a lifetime total crosses a 5-tier threshold (badgeTiers).
+function tierCrossed(before, after) {
+    const ids = require('./src/badgeTiers').familyForField('tctvLifetimeSeconds');
+    const info = require('./src/badgeTiers').tierInfo;
+    return ids.some(function (id) {
+        const gte = info(id).gte;
+        return before < gte && after >= gte;
+    });
+}
+
 const tctvWatchHeartbeat = functionsV1.runWith({
     enforceAppCheck: true,
 }).https.onCall(async (data, context) => {
@@ -85,9 +95,33 @@ const tctvWatchHeartbeat = functionsV1.runWith({
             presenceFresh: freshOk && stationOk,
         }, nowMs);
 
-        // 'done' and 'too-fast' must not consume the rate budget. The check
-        // above already threw when the stored window was exhausted.
-        if (decision.reason !== 'done' && decision.reason !== 'too-fast') {
+        // Lifetime watch seconds for the 5-tier badges. Server clock only;
+        // keeps counting after the daily goal, up to 3 hours per offset day.
+        const life = watch.applyLifetimeCredit({
+            lifeDay: stored.lifeDay,
+            lifeDaySeconds: stored.lifeDaySeconds,
+            lifeLastMs: watch.creditMillis(stored.lifeLastMs),
+            banned: banned,
+            presenceFresh: freshOk && stationOk,
+        }, nowMs);
+        const lifeBefore = Math.max(0, Math.floor(Number(user.tctvLifetimeSeconds) || 0));
+        if (life.write && life.state) {
+            tx.set(watchRef, {
+                lifeDay: life.state.lifeDay,
+                lifeDaySeconds: life.state.lifeDaySeconds,
+                lifeLastMs: life.state.lifeLastMs,
+            }, { merge: true });
+        }
+        if (life.credit > 0) {
+            tx.set(userRef, {
+                tctvLifetimeSeconds: admin.firestore.FieldValue.increment(life.credit),
+            }, { merge: true });
+        }
+
+        // 'done' and 'too-fast' must not consume the rate budget unless the
+        // lifetime clock wrote. The check above already threw when the
+        // stored window was exhausted.
+        if ((decision.reason !== 'done' && decision.reason !== 'too-fast') || life.write) {
             tx.set(rateRef, {
                 windowStartMs: rate.windowStartMs,
                 windowStart: admin.firestore.Timestamp.fromMillis(rate.windowStartMs),
@@ -173,6 +207,13 @@ const tctvWatchHeartbeat = functionsV1.runWith({
             doubled: xpDoubled,
             tickets: view.awarded ? ticketsOut : 0,
             watchDay: ticketsOut > 0,
+            // false while lifetime watch time can still be credited today,
+            // so the client keeps sending heartbeats after the daily goal.
+            lifeCapped: life.capped === true || life.reason === 'banned',
+            // Also re-check at the start of each watch session, so a failed
+            // grant after a crossing is retried later (grantFamily is idempotent).
+            lifeTierCrossed: tierCrossed(lifeBefore, lifeBefore + (life.credit || 0))
+                || (life.reason === 'clock' && lifeBefore >= 600),
         };
     });
     if (watchResult && watchResult.watchDay) {
@@ -190,6 +231,13 @@ const tctvWatchHeartbeat = functionsV1.runWith({
             });
         } catch (e) { console.warn('[tctvWatch] raid', e && e.message); }
     }
+    if (watchResult && watchResult.lifeTierCrossed) {
+        try {
+            const grant = require('./src/grantBadge');
+            await grant.grantFamily(db, admin, uid, grant.familyFor('tctvLifetimeSeconds'));
+        } catch (e) { console.warn('[tctvWatch] tier badges', e.message); }
+    }
+    if (watchResult) delete watchResult.lifeTierCrossed;
     if (watchResult && watchResult.tickets > 0) {
         try {
             await require('./src/comboActivity').noteComboZone(db, admin, uid, 'tctv', today);
@@ -200,4 +248,5 @@ const tctvWatchHeartbeat = functionsV1.runWith({
 
 module.exports = {
     tctvWatchHeartbeat: tctvWatchHeartbeat,
+    tierCrossed: tierCrossed,
 };

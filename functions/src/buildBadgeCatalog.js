@@ -183,6 +183,10 @@ const extra = {
     set_raffle: { name: 'Raffle Regular Set', emoji: '🎟️', desc: 'Completed the Raffle Regular collection', xp: 500, category: 'Collections' },
 };
 
+// 5-tier families (badgeTiers). Display XP is capped at the server's
+// per-badge XP_CAP so the card never promises more than awardBadge pays.
+Object.assign(extra, require('./badgeTiers').catalogExtras(5000));
+
 const badges = {};
 Object.keys(serverXp).forEach(function (id) {
     const meta = client[id] || {};

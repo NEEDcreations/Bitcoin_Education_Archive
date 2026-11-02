@@ -194,6 +194,7 @@ const FAMILY = {
     predTopWeeks: ['predict_top_week', 'predict_top_week_5'],
     predTopMonths: ['predict_top_month'],
     questDays: ['quest_days_7', 'quest_days_30', 'quest_days_100'],
+    tctvLifetimeSeconds: require('./badgeTiers').familyForField('tctvLifetimeSeconds'),
     tctvWatchDays: ['tctv_daily_1', 'tctv_daily_7', 'tctv_daily_30', 'tctv_daily_100'],
     onboardingComplete: ['onboarding_complete'],
     pushEnabled: ['push_enabled'],

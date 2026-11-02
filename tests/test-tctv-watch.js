@@ -376,7 +376,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(html.includes('startTctvDailyWatch()'));
     assert.ok(html.includes('#em-quick-actions { display:grid; gap:8px; grid-template-columns: repeat(6, minmax(0, 1fr)); }'));
     assert.strictEqual(html.includes('.em-quick-actions {'), false);
-    assert.ok(html.includes('tctv-watch.js?v=20261031_v2448'));
+    assert.ok(html.includes('tctv-watch.js?v=20261102_v2464'));
     assert.ok(!html.includes('tctv-watch.js?v=20261023_v2338'));
     assert.ok(!html.includes('tctv-watch.js?v=20261022_v2301'));
     assert.ok(html.includes('id="tctvWatchSub"'));
@@ -784,8 +784,11 @@ test('reaching the server goal shows done and keeps the chip', () => {
     page.setNow(T0 + 20000);
     page.run(1000);
     assert.strictEqual(page.ids.tctvWatchSub.textContent, 'Done ✓');
-    assert.strictEqual(page.calls.length, 0);
     assert.strictEqual(page.ids.tctvWatchBtn.getAttribute('aria-label'), 'Watch Timechain TV, completed');
+    // 5-tier badges: lifetime watch time keeps counting after the daily goal,
+    // so the page stops heartbeating only once the server says lifeCapped.
+    const src = read('tctv-watch.js');
+    assert.ok(/function heartbeatsDone\(\) \{\s*return window\._tctvWatchDoneToday === true && lifeCapped;/.test(src));
 });
 
 test('a signed-out viewer does not get a ticking chip', () => {

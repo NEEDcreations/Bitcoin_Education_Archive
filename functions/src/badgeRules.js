@@ -7,6 +7,7 @@
 
 const catalog = require('./badges.catalog.json');
 const badgeXp = require('./badgeXpTable');
+const badgeTiers = require('./badgeTiers');
 
 const XP_CAP = 5000;
 const SF_MIN_XP = 50;
@@ -241,6 +242,8 @@ function isCosmeticId(id) {
     for (let i = 0; i < COSMETIC_PREFIXES.length; i++) {
         if (id.indexOf(COSMETIC_PREFIXES[i]) === 0) return true;
     }
+    // Server-tracked 5-tier families (badgeTiers) always pay.
+    if (badgeTiers.isTierId(id)) return false;
     // Old Timechain TV minute badges are device-local. The new tctv_daily_* family is not.
     if (id.indexOf('tctv_') === 0 && id.indexOf('tctv_daily_') !== 0) return true;
     return false;
@@ -336,6 +339,8 @@ function lqSource(id) {
 }
 
 function sourceFor(id) {
+    const tier = badgeTiers.tierInfo(id);
+    if (tier) return counter(tier.field, tier.gte);
     if (NEW_SOURCES[id]) return NEW_SOURCES[id];
     if (WAITING_COUNTERS[id]) return WAITING_COUNTERS[id];
     if (MILESTONES[id]) return { type: 'awards', gte: MILESTONES[id] };
@@ -471,7 +476,7 @@ function ruleFor(id) {
         category: row.category || '',
         hidden: row.hidden === true,
         xp: xp,
-        tickets: referralTier ? referralTier.tickets : 0,
+        tickets: referralTier ? referralTier.tickets : (pays && badgeTiers.isTierId(id) ? badgeTiers.tierInfo(id).tickets : 0),
         displayXp: badgeXp.has(id) ? badgeXp.xpOf(id) : (Number(row.displayXp != null ? row.displayXp : row.xp) || 0),
         cosmetic: !pays,
         source: source,
