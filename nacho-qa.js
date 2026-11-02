@@ -2855,12 +2855,16 @@ const NACHO_KB = [
   siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: '⚡ Go to Sats Tab', isSiteNav: true },
 
 { keys: ['claim sats','how to claim sats','withdraw sats','withdraw bitcoin','how to withdraw','cash out points','convert points','redeem points','redeem sats','claim bitcoin','how do i claim','sats tab','get my sats'],
-  answer: "You can claim sats from the faucet, {name}. ⚡🦌 Open Settings → Sats. The faucet has a few quiet checks so it stays fair for real learners — those details stay vague on purpose.",
+  answer: "You can claim sats from the faucet, {name}. ⚡🦌 Open Settings → Sats. A flat 10 sat Lightning fee comes out of each claim, and you'll see exactly what you receive before you confirm. The faucet has a few quiet checks so it stays fair for real learners — those details stay vague on purpose.",
   siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: 'Open it', isSiteNav: true },
 
 { keys: ['requirements to claim sats','sats requirements','claim requirements','who can claim sats','eligible for sats','qualify for sats','sats eligibility','requirements for sats'],
   answer: "The faucet has a few quiet checks so it stays fair for real learners, {name}. 📋🦌 I don't publish the exact rules. Open Settings → Sats when you want to claim.",
   siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: '⚡ Check Eligibility', isSiteNav: true },
+
+{ keys: ['lightning fee','claim fee','withdraw fee','withdrawal fee','routing fee','fees on claims','why did i get less','received less sats','sats missing from claim','do you charge a fee','is there a fee','zero fees'],
+  answer: "Yes, {name}, you pay the Lightning fee. ⚡🦌 Every sats payout (faucet claims, cipher sats and cipher prizes) has a flat **10 sat** Lightning fee taken out of the amount. Claim 100, receive 90. The claim screen shows the amount, the fee and what you'll receive before you confirm. It's one flat fee so the math stays simple.",
+  siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: '⚡ Go to Sats Tab', isSiteNav: true },
 
 { keys: ['sats limit','daily limit','lifetime limit','how many sats can i claim','maximum sats','sats cap','claim limit','200 sats','15000 sats','sats per day','cooldown','how often can i claim'],
   answer: "I don't publish the claim limits or the anti-abuse rules, {name}. ⚡🦌 They stay vague so the faucet stays fair. Open Settings → Sats to claim when you're eligible." },
@@ -2872,7 +2876,7 @@ const NACHO_KB = [
   answer: "The conversion rate is simple, {name}: **10 points = 1 sat**! 🔢🦌\n\nSo 1,000 points = 100 sats, 2,000 points = 200 sats. You earn points by reading channels (+15), daily visits (+5), quests, badges, chatting, and more. A day pays full points through 500, half through 900, then a quarter until 1,000. Each tier rounds down, and extra points are not saved. Think of it as earning Bitcoin by learning about Bitcoin — how cool is that? ⚡🧡" },
 
 { keys: ['lightning wallet for sats','need a wallet to claim','lightning invoice','how to get invoice','wallet for claiming sats','where to get lightning invoice','do i need a lightning wallet','claiming wallet'],
-  answer: "Yes, you need a Lightning wallet to receive sats, {name}! ⚡🦌 When you claim, you paste a **Lightning invoice** (a one-time payment request) for the exact amount. Here are the easiest wallets to get started:\n\n⚡ **Wallet of Satoshi** — easiest, 2-minute setup\n⚡ **Phoenix** — self-custodial, you hold the keys\n⚡ **Alby** — browser extension + NWC\n⚡ **Coinos** — web-based, no download\n\nOpen your wallet, create an invoice for the amount you want to claim, copy it, and paste it into the Sats tab. Instant sats! 🧡",
+  answer: "Yes, you need a Lightning wallet to receive sats, {name}! ⚡🦌 Faucet claims go to the Lightning Address saved on your account. For a cipher prize you can also paste a **Lightning invoice** for the exact amount shown (the prize minus the flat 10 sat Lightning fee). Here are the easiest wallets to get started:\n\n⚡ **Wallet of Satoshi** — easiest, 2-minute setup\n⚡ **Phoenix** — self-custodial, you hold the keys\n⚡ **Alby** — browser extension + NWC\n⚡ **Coinos** — web-based, no download\n\nCopy your wallet's Lightning Address (it looks like an email) and save it in Settings → Sats. Instant sats! 🧡",
   siteAction: "go('lightning')", siteLabel: '⚡ Set Up Lightning Wallet', isSiteNav: true }
 ];
 

@@ -8875,7 +8875,7 @@ function accountDeleteRowHtml(user) {
         html += '• Payouts via Lightning Network ⚡<br>';
         html += '</div>';
         html += '<div style="margin-top:10px;padding:10px 12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;font-size:0.75rem;color:#22c55e;line-height:1.5;">';
-        html += '💚 <strong>Zero fees for you!</strong> We pay all Lightning network fees so you receive the full amount you claim. You earned it!';
+        html += '⚡ <strong>Lightning fee:</strong> a flat ' + window.BQ_LN_FEE_SATS + ' sats comes out of each claim to cover routing. Example: claim 100, receive ' + (100 - window.BQ_LN_FEE_SATS) + '. You always see the fee and the amount you will receive before you confirm.';
         html += '</div></div>';
 
         // Earning guide (collapsible)
@@ -12488,6 +12488,58 @@ function showSignInPrompt() {
     showUsernamePrompt();
 }
 
+// ===== LIGHTNING FEE (display only) =====
+// The server decides and charges the fee (functions/src/lnFee.js LN_FEE_SATS).
+// This copy only shows the player what will happen before they confirm.
+window.BQ_LN_FEE_SATS = 10;
+window.bqLnFeeQuote = function(gross) {
+    var g = Math.floor(Number(gross) || 0);
+    var fee = window.BQ_LN_FEE_SATS;
+    var net = g - fee;
+    return { gross: g, fee: fee, net: net > 0 ? net : 0, ok: net >= 1 };
+};
+// Resolves true only when the player taps Confirm.
+window.bqConfirmLnFee = function(gross, label) {
+    return new Promise(function(resolve) {
+        var q = window.bqLnFeeQuote(gross);
+        if (!q.ok) {
+            if (typeof showToast === 'function') showToast('This claim is too small to cover the Lightning fee.');
+            resolve(false);
+            return;
+        }
+        var old = document.getElementById('lnFeeConfirmOverlay');
+        if (old) old.remove();
+        var ov = document.createElement('div');
+        ov.id = 'lnFeeConfirmOverlay';
+        ov.setAttribute('role', 'dialog');
+        ov.setAttribute('aria-modal', 'true');
+        ov.setAttribute('aria-labelledby', 'lnFeeConfirmTitle');
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:600000;display:flex;align-items:center;justify-content:center;padding:16px;';
+        var row = 'display:flex;justify-content:space-between;gap:12px;padding:6px 0;font-size:0.88rem;';
+        ov.innerHTML = '<div style="background:var(--bg-side,#14151f);border:1px solid var(--border,#333);border-radius:16px;padding:20px;max-width:360px;width:100%;box-sizing:border-box;">' +
+            '<div id="lnFeeConfirmTitle" style="font-weight:800;font-size:1rem;color:var(--accent,#f7931a);text-align:center;margin-bottom:12px;">Confirm your claim</div>' +
+            '<div style="' + row + 'color:var(--text-muted,#aaa);"><span>' + (label || 'Claim amount') + '</span><span>' + q.gross.toLocaleString() + ' sats</span></div>' +
+            '<div style="' + row + 'color:var(--text-muted,#aaa);"><span>Lightning fee</span><span>−' + q.fee.toLocaleString() + ' sats</span></div>' +
+            '<div style="' + row + 'border-top:1px solid var(--border,#333);margin-top:4px;padding-top:10px;font-weight:800;color:var(--text,#fff);"><span>You will receive</span><span>' + q.net.toLocaleString() + ' sats</span></div>' +
+            '<div style="font-size:0.72rem;color:var(--text-faint,#888);line-height:1.45;margin:8px 0 14px;">Lightning payments cost a small routing fee. We take one flat fee from every claim so the math is simple.</div>' +
+            '<button type="button" id="lnFeeConfirmYes" style="width:100%;min-height:44px;padding:12px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:12px;font-weight:700;font-size:0.92rem;cursor:pointer;font-family:inherit;">Confirm and claim ' + q.net.toLocaleString() + ' sats</button>' +
+            '<button type="button" id="lnFeeConfirmNo" style="width:100%;min-height:44px;padding:10px;margin-top:8px;background:none;border:1px solid var(--border,#333);border-radius:12px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+            '</div>';
+        function done(v) {
+            document.removeEventListener('keydown', onKey, true);
+            ov.remove();
+            resolve(v);
+        }
+        function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); done(false); } }
+        document.addEventListener('keydown', onKey, true);
+        ov.addEventListener('click', function(e) { if (e.target === ov) done(false); });
+        document.body.appendChild(ov);
+        document.getElementById('lnFeeConfirmYes').onclick = function() { done(true); };
+        document.getElementById('lnFeeConfirmNo').onclick = function() { done(false); };
+        setTimeout(function() { var y = document.getElementById('lnFeeConfirmYes'); if (y) y.focus(); }, 30);
+    });
+};
+
 // ===== SATS CLAIM FLOW =====
 window.saveSatsLnAddress = function() {
     var input = document.getElementById('satsLnAddrInput');
@@ -12510,6 +12562,9 @@ window.claimCipherSats = async function() {
     }
     window._cipherSatsClaiming = true;
     try {
+        var _gross = Math.min(bal, 200);
+        var _ok = await window.bqConfirmLnFee(_gross, 'Cipher sats claim (up to)');
+        if (!_ok) return { success: false, cancelled: true };
         var res = await firebase.functions().httpsCallable('claimCipherSats')({});
         var d = (res && res.data) || {};
         if (!d.success) {
@@ -12519,7 +12574,7 @@ window.claimCipherSats = async function() {
         if (typeof currentUser !== 'undefined' && currentUser && typeof d.balance === 'number') {
             currentUser.cipherSatsBalance = Math.max(0, Math.floor(d.balance));
         }
-        if (typeof showToast === 'function') showToast('⚡ ' + (d.amount || 0) + ' sats sent');
+        if (typeof showToast === 'function') showToast('⚡ ' + (typeof d.sent === 'number' ? d.sent : (d.amount || 0)) + ' sats sent' + (d.fee ? ' (' + d.fee + ' sat Lightning fee)' : ''));
         var host = document.getElementById('nookKeysCiphers');
         if (host && typeof window.renderKeysAndCiphersPanel === 'function') window.renderKeysAndCiphersPanel(host);
         if (document.getElementById('cipherSatsBalanceSettings') && typeof showSettingsPage === 'function') showSettingsPage('sats');
@@ -12574,7 +12629,7 @@ window.initSatsClaim = function() {
     html += '<div style="background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.3);border-radius:10px;padding:12px;margin-bottom:16px;text-align:center;">';
     html += '<div style="font-size:0.75rem;color:var(--text-muted);">You can claim up to</div>';
     html += '<div style="font-size:1.5rem;font-weight:900;color:var(--accent);">⚡ ' + maxClaim + ' sats</div>';
-    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">Zero fees - we cover all routing costs</div>';
+    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">A flat ' + window.BQ_LN_FEE_SATS + ' sat Lightning fee comes out of each claim. You will see the exact amount before you confirm.</div>';
     html += '</div>';
 
     html += '<div id="satsLnPanel">';
@@ -12675,6 +12730,8 @@ window.submitSatsClaim = async function() {
         lnAddr = confirmedAddr;
     }
     claimPayload = { lightningAddress: lnAddr, amount: lnAmt };
+    var feeOk = await window.bqConfirmLnFee(lnAmt, 'Claim amount');
+    if (!feeOk) return;
 
     // Hide previous errors
     if (errorEl) errorEl.style.display = 'none';
@@ -12720,6 +12777,8 @@ window.submitSatsClaim = async function() {
         var result = await claimSats(Object.assign({}, claimPayload, { fingerprint: _fp, turnstileToken: _tsToken }));
         if (result.data && result.data.success) {
             var paidAmount = result.data.amount || 0;
+            var sentAmount = typeof result.data.sent === 'number' ? result.data.sent : paidAmount;
+            var feeAmount = typeof result.data.fee === 'number' ? result.data.fee : 0;
             currentUser.pointsClaimed = (currentUser.pointsClaimed || 0) + (paidAmount * 10);
             currentUser.satsWithdrawn = (currentUser.satsWithdrawn || 0) + paidAmount;
             currentUser.lastSatsClaim = new Date();
@@ -12753,8 +12812,8 @@ window.submitSatsClaim = async function() {
             _celebOverlay.innerHTML = '<div style="background:linear-gradient(135deg,#1a1b2e,#12131f);border:2px solid #f7931a;border-radius:24px;padding:32px;max-width:360px;width:100%;text-align:center;animation:nachoPop 0.4s cubic-bezier(0.175,0.885,0.32,1.275);">' +
                 '<div style="font-size:4rem;margin-bottom:12px;">⚡🎉</div>' +
                 '<h2 style="color:#f7931a;font-size:1.4rem;margin:0 0 8px;">Sats Claimed!</h2>' +
-                '<div style="font-size:2rem;font-weight:900;color:#fff;margin-bottom:8px;">' + paidAmount + ' sats</div>' +
-                '<div style="font-size:0.85rem;color:#94a3b8;line-height:1.5;margin-bottom:16px;">sent to your Lightning wallet ⚡<br>Check your wallet to confirm!</div>' +
+                '<div style="font-size:2rem;font-weight:900;color:#fff;margin-bottom:8px;">' + sentAmount + ' sats</div>' +
+                '<div style="font-size:0.85rem;color:#94a3b8;line-height:1.5;margin-bottom:16px;">sent to your Lightning wallet ⚡' + (feeAmount ? '<br>' + paidAmount + ' claimed − ' + feeAmount + ' sat Lightning fee' : '') + '<br>Check your wallet to confirm!</div>' +
                 '<div style="padding:10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;margin-bottom:12px;">' +
                     '<div style="font-size:0.85rem;color:#f7931a;font-weight:800;">⚡ ' + _remaining.toLocaleString() + ' sats remaining to claim!</div>' +
                     '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:3px;">' + _totalClaimed.toLocaleString() + ' / 15,000 lifetime total claimed</div>' +
