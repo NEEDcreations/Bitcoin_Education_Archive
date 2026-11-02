@@ -410,8 +410,6 @@
         .lb-rank-input:focus { border-color: var(--accent); }
         .lb-rank-find { flex: 0 0 auto; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: none; color: var(--text); font-size: 0.75rem; font-weight: 700; cursor: pointer; font-family: inherit; white-space: nowrap; }
         .lb-rank-find:hover, .lb-rank-find:focus-visible { border-color: var(--accent); color: var(--accent); }
-        .lb-share-btn { display: block; width: 100%; margin-top: 6px; min-height: 40px; padding: 8px 10px; border-radius: 8px; border: 1px solid rgba(247,147,26,0.5); background: rgba(247,147,26,0.1); color: #f7931a; font-size: 0.78rem; font-weight: 800; cursor: pointer; font-family: inherit; }
-        .lb-share-btn:hover, .lb-share-btn:focus-visible { background: rgba(247,147,26,0.2); }
         .lb-rank-result { margin-top: 6px; }
         .lb-rank-hit { padding: 8px 10px; border-radius: 8px; background: var(--card-bg); border: 1px solid var(--border); font-size: 0.82rem; line-height: 1.35; overflow-wrap: anywhere; color: var(--text); }
         .lb-rank-suggest { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
@@ -2225,7 +2223,7 @@
     <script src="username-repick.js?v=20261024_v2352" defer></script>
     <script src="earn-xp-guide.js?v=20261026_v2382" defer></script>
     <script src="referral-tiers.js?v=20261101_v2458" defer></script>
-    <script src="ranking.js?v=20261102_v2460" defer></script>
+    <script src="ranking.js?v=20261102_v2465" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="bundle.min.js?v=20261101_v2458" defer fetchpriority="high"></script>
     <script src="bundle-ready.js?v=20261027_v2394" defer></script>
@@ -2247,16 +2245,16 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261102_v2460',
+            'global-chat.js?v=20261102_v2465',
             'satoshi-favor.js?v=20261026_v2368'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261102_v2460',
+            'quests.js?v=20261102_v2465',
             'hot-topics.js?v=20261022_hottopics',
-            'pvp.js?v=20261031_v2447','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261031_v2451',
+            'pvp.js?v=20261031_v2447','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261102_v2463',
             'scholar.js?v=20261026_v2386','beats.js?v=20261031_v2447',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261022_v2279',
-            'notifications.js?v=20261024_v2357','gifting.js?v=20261102_v2460','guide.js?v=20261026_v2382','modules.js?v=20261026_v2377',
+            'notifications.js?v=20261024_v2357','gifting.js?v=20261102_v2465','guide.js?v=20261026_v2382','modules.js?v=20261026_v2377',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20261028_v2410',
             'sats-vs-bits.js?v=20261030_v2440','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
@@ -2516,10 +2514,10 @@
         }
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261031_v2447', 'global-chat.js?v=20261102_v2460'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261031_v2447', 'global-chat.js?v=20261102_v2460'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261102_v2460'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261102_v2460'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261031_v2447', 'global-chat.js?v=20261102_v2465'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261031_v2447', 'global-chat.js?v=20261102_v2465'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261102_v2465'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261102_v2465'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
             'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261022_v2279'],
             'pvp':           ['pvp.js?v=20261031_v2447'],
@@ -2527,9 +2525,9 @@
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261026_v2377'],
             'learning-quests': ['learning-quests.js?v=20261026_v2377'],
-            'quests':        ['quests.js?v=20261102_v2460'],
-            'questhub':      ['quests.js?v=20261102_v2460'],
-            'app':           ['quests.js?v=20261102_v2460'],
+            'quests':        ['quests.js?v=20261102_v2465'],
+            'questhub':      ['quests.js?v=20261102_v2465'],
+            'app':           ['quests.js?v=20261102_v2465'],
             'timechain-tv':  ['timechain-tv.js?v=20261031_v2447'],
             'tv':            ['timechain-tv.js?v=20261031_v2447'],
             'cert':          ['shareable-certs.js?v=20261028_v2410']

@@ -15,8 +15,10 @@ execSync('npm ci', { cwd: rulesDir, stdio: 'inherit' });
 
 const TESTS = [
     { name: 'Syntax Validation', file: 'test-syntax.js' },
+    { name: 'Lightning fee', file: 'test-ln-fee.js' },
     { name: 'HTML Integrity', file: 'test-html-integrity.js' },
     { name: 'Auth display snapshot', file: 'test-auth-display.js' },
+    { name: 'Nook shop pricing + caps', file: 'test-nook-shop.js' },
     { name: 'Optimistic profile', file: 'test-optimistic-profile.js' },
     { name: '2FA hold release', file: 'test-totp-hold.js' },
     { name: 'Profile paint and trivia status', file: 'test-trivia-xp-status.js' },

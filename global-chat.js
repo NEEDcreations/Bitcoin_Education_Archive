@@ -765,7 +765,7 @@ window.openRaidHub = function() {
     var existing = document.querySelector('script[src*="quests.js"]');
     if (!existing) {
         var s = document.createElement('script');
-        s.src = 'quests.js?v=20261102_v2460';
+        s.src = 'quests.js?v=20261102_v2465';
         s.onload = function() { setTimeout(openNow, 0); };
         document.body.appendChild(s);
         return;
@@ -1635,16 +1635,10 @@ function renderDMsTab() {
     // Use existing inbox renderer if available
     if (typeof window._renderInboxInto === 'function') {
         window._renderInboxInto(document.getElementById('dmTabContainer'));
-    } else if (typeof showInbox === 'function') {
-        // Fallback: render the existing inbox into forumContainer, then move it
-        var fc = document.getElementById('forumContainer');
-        var savedHtml = fc.innerHTML;
-        showInbox();
-        var inboxContent = fc.innerHTML;
-        fc.innerHTML = savedHtml;
-        // Re-render the chat hub with DM content injected
-        var dmContainer = document.getElementById('dmTabContainer');
-        if (dmContainer) dmContainer.innerHTML = inboxContent;
+    } else if (typeof window._showInboxOriginal === 'function') {
+        // The DM inbox renderer opens its own panel. Call the original directly:
+        // window.showInbox routes back here, so calling it recursed until the stack overflowed.
+        window._showInboxOriginal();
     } else {
         content.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:0.85rem;">DMs not available yet. Sign in to enable messaging.</div>';
     }

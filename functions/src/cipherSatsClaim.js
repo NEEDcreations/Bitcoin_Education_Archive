@@ -8,6 +8,7 @@
 const { assessCipherClaim, SATS_BANNED_ERROR } = require('./cipherClaim');
 const faucetGuard = require('./faucetGuard');
 const { satsDisposition } = require('./cipherReward');
+const lnFee = require('./lnFee');
 
 const CLAIM_MIN = 100;
 const CLAIM_MAX = 200;
@@ -218,12 +219,16 @@ function planCipherSatsClaim(input) {
     const siteLeft = SITE_DAILY_CAP - norm.siteDayUsed;
     const amount = Math.min(norm.balance, CLAIM_MAX, playerLeft, siteLeft);
     if (!(amount >= CLAIM_MIN)) return fail('cap', UNAVAILABLE);
+    const feeQuote = lnFee.quote(amount);
+    if (!feeQuote.ok) return fail('fee', feeQuote.error);
     const sameDayAbandon = norm.abandon && norm.abandon.day === norm.day ? norm.abandon.amount : 0;
     const otherDayAbandon = norm.abandon && norm.abandon.day !== norm.day ? norm.abandon : null;
     return {
         ok: true,
         code: 'ok',
         amount: amount,
+        fee: feeQuote.fee,
+        net: feeQuote.net,
         address: addr.address,
         balanceAfter: norm.balance - amount,
         balanceDelta: (norm.balance - amount) - norm.originalBalance,
