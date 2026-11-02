@@ -1345,6 +1345,7 @@ function listSignInMethodLabels(user, profile) {
         'twitter.com': 'Twitter/X',
         'github.com': 'GitHub',
         'facebook.com': 'Facebook',
+        'oidc.linkedin': 'LinkedIn',
         'phone': 'Phone'
     };
     var providers = (user && user.providerData) || [];
@@ -1496,7 +1497,8 @@ function renderSignInMethodsCard(user, profile) {
                 { id: 'password', label: 'Email' },
                 { id: 'google.com', label: 'Google' },
                 { id: 'twitter.com', label: 'X' },
-                { id: 'github.com', label: 'GitHub' }
+                { id: 'github.com', label: 'GitHub' },
+                { id: 'oidc.linkedin', label: 'LinkedIn' }
             ];
             html += '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
             addable.forEach(function(item) {
@@ -1506,7 +1508,7 @@ function renderSignInMethodsCard(user, profile) {
             if (linkedIds.length > 1) {
                 linkedIds.forEach(function(pid) {
                     if (pid === 'phone') return;
-                    var label = ({ 'password': 'Email', 'google.com': 'Google', 'twitter.com': 'X', 'github.com': 'GitHub', 'facebook.com': 'Facebook' })[pid] || pid;
+                    var label = ({ 'password': 'Email', 'google.com': 'Google', 'twitter.com': 'X', 'github.com': 'GitHub', 'facebook.com': 'Facebook', 'oidc.linkedin': 'LinkedIn' })[pid] || pid;
                     html += '<button type="button" onclick="unlinkFullAccountProvider(\'' + pid + '\')" style="padding:8px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">Remove ' + accountLinkEscape(label) + '</button>';
                 });
             }
@@ -1530,7 +1532,7 @@ function maskEmailAddress(email) {
 
 function oauthOwnsEmail(user) {
     var ids = linkedProviderIds(user);
-    var oauth = ids.indexOf('google.com') !== -1 || ids.indexOf('twitter.com') !== -1 || ids.indexOf('github.com') !== -1 || ids.indexOf('facebook.com') !== -1;
+    var oauth = ids.indexOf('google.com') !== -1 || ids.indexOf('twitter.com') !== -1 || ids.indexOf('github.com') !== -1 || ids.indexOf('facebook.com') !== -1 || ids.indexOf('oidc.linkedin') !== -1;
     return oauth && ids.indexOf('password') === -1;
 }
 
@@ -1619,6 +1621,7 @@ window.showReauthStep = function(user, purpose) {
         if (ids.indexOf('twitter.com') !== -1) buttons += '<button type="button" id="reauthX" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Continue with X</button>';
         if (ids.indexOf('github.com') !== -1) buttons += '<button type="button" id="reauthGitHub" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Continue with GitHub</button>';
         if (ids.indexOf('facebook.com') !== -1) buttons += '<button type="button" id="reauthFacebook" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Continue with Facebook</button>';
+        if (ids.indexOf('oidc.linkedin') !== -1) buttons += '<button type="button" id="reauthLinkedIn" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Continue with LinkedIn</button>';
         if (ids.indexOf('password') !== -1) {
             buttons += '<label for="reauthPassword" style="display:block;font-size:0.75rem;color:var(--text-faint);margin:8px 0 6px;">Password</label>';
             buttons += '<input id="reauthPassword" type="password" autocomplete="current-password" style="width:100%;padding:12px;margin-bottom:8px;box-sizing:border-box;border-radius:10px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-family:inherit;">';
@@ -1660,6 +1663,8 @@ window.showReauthStep = function(user, purpose) {
         if (ghBtn) ghBtn.onclick = function() { popup(new firebase.auth.GithubAuthProvider()); };
         var fbBtn = document.getElementById('reauthFacebook');
         if (fbBtn) fbBtn.onclick = function() { popup(new firebase.auth.FacebookAuthProvider()); };
+        var liBtn = document.getElementById('reauthLinkedIn');
+        if (liBtn) liBtn.onclick = function() { popup(newLinkedInProvider()); };
         var pwBtn = document.getElementById('reauthPasswordBtn');
         if (pwBtn) pwBtn.onclick = async function() {
             var password = (document.getElementById('reauthPassword').value || '');
@@ -1719,8 +1724,20 @@ function providerForId(pid) {
     if (pid === 'twitter.com') return new firebase.auth.TwitterAuthProvider();
     if (pid === 'github.com') return new firebase.auth.GithubAuthProvider();
     if (pid === 'facebook.com') return new firebase.auth.FacebookAuthProvider();
+    if (pid === 'oidc.linkedin') return newLinkedInProvider();
     return null;
 }
+
+// LinkedIn via Identity Platform OIDC provider (oidc.linkedin). Firebase handles state + nonce.
+// No LinkedIn tokens are stored client-side.
+function newLinkedInProvider() {
+    var p = new firebase.auth.OAuthProvider('oidc.linkedin');
+    p.addScope('openid');
+    p.addScope('profile');
+    p.addScope('email');
+    return p;
+}
+window.newLinkedInProvider = newLinkedInProvider;
 
 window.linkFullAccountProvider = async function(pid) {
     if (accountLinkTotpPending()) {
@@ -2638,6 +2655,24 @@ window.signInWithGithub = async function() {
         }
     }
     await signInWithProvider(new firebase.auth.GithubAuthProvider());
+}
+
+// LinkedIn Sign-In (OIDC) - same popup/redirect + linking path as GitHub/X
+window.signInWithLinkedIn = async function() {
+    window._captureSignupFormState();
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (isStandalone) {
+        try {
+            await linkOrSignInPopup(newLinkedInProvider());
+            return;
+        } catch(e) {
+            if (e && e.code === 'auth/popup-closed-by-user') return;
+            if (surfaceMfaRequired(e)) return;
+            showPWAAuthFallback('LinkedIn');
+            return;
+        }
+    }
+    await signInWithProvider(newLinkedInProvider());
 }
 
 // PWA auth fallback for providers without client SDKs
@@ -8276,6 +8311,7 @@ function showSettingsPage(tab) {
             else if (pid === 'twitter.com') provider = 'Twitter/X';
             else if (pid === 'github.com') provider = 'GitHub';
             else if (pid === 'facebook.com') provider = 'Facebook';
+            else if (pid === 'oidc.linkedin') provider = 'LinkedIn';
             else if (pid === 'password') provider = 'Email';
         }
         _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Sign-in method</span><span style="color:var(--text);font-size:0.85rem;">' + provider + '</span></div>';

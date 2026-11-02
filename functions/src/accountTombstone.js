@@ -60,6 +60,7 @@ function providerMaterials(spec) {
         else if (id === 'twitter.com') out.push('twitter:' + puid);
         else if (id === 'github.com') out.push('github:' + puid);
         else if (id === 'facebook.com') out.push('facebook:' + puid);
+        else if (id === 'oidc.linkedin') out.push('linkedin:' + puid);
     });
     const seen = {};
     return out.filter(function (material) {

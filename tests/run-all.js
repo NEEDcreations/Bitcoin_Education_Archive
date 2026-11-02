@@ -19,6 +19,7 @@ const TESTS = [
     { name: '5-tier badges', file: 'test-badge-tiers.js' },
     { name: 'HTML Integrity', file: 'test-html-integrity.js' },
     { name: 'Auth display snapshot', file: 'test-auth-display.js' },
+    { name: 'LinkedIn sign-in', file: 'test-linkedin-signin.js' },
     { name: 'Nook shop pricing + caps', file: 'test-nook-shop.js' },
     { name: 'Optimistic profile', file: 'test-optimistic-profile.js' },
     { name: '2FA hold release', file: 'test-totp-hold.js' },

@@ -1,4 +1,4 @@
-// Cache-buster pin. This ship is btc-archive-v2467 (#209 rig 2 reload: satoshi-favor.js, quests.js, global-chat.js 20261102_v2467). Before: btc-archive-v2466 (#208 auth hardening: ranking.js 20261102_v2466). Before: btc-archive-v2465 (PR #203: ranking.js, gifting.js, quests.js, global-chat.js 20261102_v2465; nacho-qa.js stays 20261102_v2463). Before: btc-archive-v2464 (#206 5-tier badges: bundle.min.js, tctv-watch.js 20261102_v2464). Before: btc-archive-v2463.
+// Cache-buster pin. This ship is btc-archive-v2468 (LinkedIn sign-in PLACEHOLDER: ranking.js 20261102_v2468; renumber at merge). Before: btc-archive-v2467 (#209 rig 2 reload: satoshi-favor.js, quests.js, global-chat.js 20261102_v2467). Before: btc-archive-v2466 (#208 auth hardening: ranking.js 20261102_v2466). Before: btc-archive-v2465 (PR #203: ranking.js, gifting.js, quests.js, global-chat.js 20261102_v2465; nacho-qa.js stays 20261102_v2463). Before: btc-archive-v2464 (#206 5-tier badges: bundle.min.js, tctv-watch.js 20261102_v2464). Before: btc-archive-v2463.
 // Live gh-pages was v2446. quests.js stays v2443. bundle.min.js is v2447. global-chat.js is v2448.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
 // timechain-tv.js is 20261031_v2447. scholar.js stays 20261026_v2386.
@@ -36,9 +36,9 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2467', () => {
+test('service worker cache is v2468', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2467'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2468'"));
     assert.ok(!sw.includes('btc-archive-v2463'));
     assert.ok(!sw.includes('btc-archive-v2464'));
     assert.ok(!sw.includes('btc-archive-v2465'));
@@ -211,7 +211,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('username-repick.js?v=20261024_v2351'));
     assert.ok(html.includes('earn-xp-guide.js?v=20261026_v2382'));
     assert.ok(html.includes('referral-tiers.js?v=20261101_v2458'));
-    assert.ok(html.includes('ranking.js?v=20261102_v2466'));
+    assert.ok(html.includes('ranking.js?v=20261102_v2468'));
     assert.ok(!html.includes('ranking.js?v=20261031_v2453'));
     assert.ok(!html.includes('referral-tiers.js?v=20261031_v2451'));
     assert.ok(!html.includes('ranking.js?v=20261031_v2452'));
@@ -229,7 +229,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261029_v2420'));
     assert.ok(!html.includes('ranking.js?v=20261028_v2416'));
     assert.ok(!html.includes('ranking.js?v=20261028_v2403'));
-    assert.ok(html.indexOf('referral-tiers.js?v=20261101_v2458') < html.indexOf('ranking.js?v=20261102_v2466'));
+    assert.ok(html.indexOf('referral-tiers.js?v=20261101_v2458') < html.indexOf('ranking.js?v=20261102_v2468'));
     assert.ok(html.includes('auth-display.js?v=20261028_v2425'));
     assert.ok(!html.includes('auth-display.js?v=20261029_v2420'));
     assert.ok(!html.includes('auth-display.js?v=20261028_v2403'));
@@ -254,8 +254,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261026_v2373'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2367'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
-    assert.ok(html.indexOf('earn-xp-guide.js?v=20261026_v2382') < html.indexOf('ranking.js?v=20261102_v2466'));
-    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261102_v2466'));
+    assert.ok(html.indexOf('earn-xp-guide.js?v=20261026_v2382') < html.indexOf('ranking.js?v=20261102_v2468'));
+    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261102_v2468'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2359'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
@@ -529,7 +529,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2467');
+    assert.ok(swVersion && swVersion[1] === 'v2468');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
