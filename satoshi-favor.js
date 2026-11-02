@@ -456,6 +456,8 @@
                     window._satsDisabled = fresh.satsDisabled === true;
                     if (typeof currentUser !== 'undefined' && currentUser) {
                         currentUser.secondRigCharges = fresh.secondRigCharges || 0;
+                        // Server-side record of the window rig 2 was unlocked for (survives reload/crash)
+                        currentUser.lastSecondRigCycleId = fresh.lastSecondRigCycleId || null;
                         currentUser.hashBoosterHashes = fresh.hashBoosterHashes || 0;
                         currentUser.satsDisabled = fresh.satsDisabled === true;
                     }
@@ -595,7 +597,8 @@
         var _cycleNow = (favorState && favorState.currentCycleId) || 'unknown';
         // Show Rig 2 button if user has charges unused, OR if they already consumed a charge this cycle
         // (charge unlocks the rig for the entire SF window, not just one hash)
-        var hasSecondRig = (u.secondRigCharges || 0) > 0 || window._sfSecondRigConsumedCycle === _cycleNow;
+        var hasSecondRig = (u.secondRigCharges || 0) > 0 || window._sfSecondRigConsumedCycle === _cycleNow
+            || (_cycleNow !== 'unknown' && u.lastSecondRigCycleId === _cycleNow);
         var boosterHashes = u.hashBoosterHashes || 0;
 
         const overlay = document.createElement('div');
@@ -1008,7 +1011,8 @@
         var boosterHashes = u.hashBoosterHashes || 0;
         var _cycleForHash = (favorState && favorState.currentCycleId) || 'unknown';
         // Rig 2 is active for this window if: charges remain, OR the charge was already consumed this cycle
-        var hasSecondRig = (u.secondRigCharges || 0) > 0 || window._sfSecondRigConsumedCycle === _cycleForHash;
+        var hasSecondRig = (u.secondRigCharges || 0) > 0 || window._sfSecondRigConsumedCycle === _cycleForHash
+            || (_cycleForHash !== 'unknown' && u.lastSecondRigCycleId === _cycleForHash);
 
         // Supercharged Window: 1 click = 10 hashes (only Rig 1, rate-limited naturally)
         if (window._sfEasyWindowActive && rig === 1) {
@@ -1110,6 +1114,7 @@
             var _cycleId = (favorState && favorState.currentCycleId) || 'unknown';
             if (rig === 2 && window._sfSecondRigConsumedCycle !== _cycleId) {
                 window._sfSecondRigConsumedCycle = _cycleId;
+                if (typeof currentUser !== 'undefined' && currentUser) currentUser.lastSecondRigCycleId = _cycleId;
                 // Reflect decrement in local currentUser so UI updates immediately
                 if (typeof currentUser !== 'undefined' && currentUser && (currentUser.secondRigCharges || 0) > 0) {
                     currentUser.secondRigCharges = currentUser.secondRigCharges - 1;
