@@ -26,8 +26,10 @@ function getReferralCode() {
     var stored = user && user.referralCode;
     if (typeof stored === 'string' && /^[A-Za-z0-9]{6,28}$/.test(stored)) return stored;
     var uid = (user && user.uid) || (authUser && authUser.uid) || '';
-    if (!uid) return null;
-    return String(uid).substring(0, 8);
+    if (!uid || String(uid).indexOf('ln:') === 0) return null;
+    var prefix = String(uid).substring(0, 8);
+    if (!/^[A-Za-z0-9]{6,28}$/.test(prefix)) return null;
+    return prefix;
 }
 
 function getReferralLink() {
@@ -36,18 +38,210 @@ function getReferralLink() {
     return window.location.origin + window.location.pathname + '?ref=' + code;
 }
 
+function liveRefCode() {
+    var code = '';
+    try {
+        if (typeof getReferralCode === 'function') code = String(getReferralCode() || '');
+    } catch (e) { code = ''; }
+    if (!/^[A-Za-z0-9]{6,28}$/.test(code)) {
+        try {
+            var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
+            code = user && user.referralCode ? String(user.referralCode) : '';
+        } catch (e2) { code = ''; }
+    }
+    return /^[A-Za-z0-9]{6,28}$/.test(code) ? code : '';
+}
+
+function shareHomeUrl(code) {
+    var c = code == null ? liveRefCode() : String(code || '');
+    if (!/^[A-Za-z0-9]{6,28}$/.test(c)) return 'https://bitcoineducation.quest';
+    return 'https://bitcoineducation.quest/?ref=' + encodeURIComponent(c);
+}
+
+function shareDeepUrl(baseUrl, code) {
+    var c = code == null ? liveRefCode() : String(code || '');
+    var url = String(baseUrl || 'https://bitcoineducation.quest');
+    if (!/^[A-Za-z0-9]{6,28}$/.test(c)) return url || 'https://bitcoineducation.quest';
+    if (url.indexOf('ref=') !== -1) return url;
+    var hash = '';
+    var cut = url.indexOf('#');
+    if (cut >= 0) { hash = url.slice(cut); url = url.slice(0, cut); }
+    if (!url) url = 'https://bitcoineducation.quest';
+    url += (url.indexOf('?') >= 0 ? '&' : '?') + 'ref=' + encodeURIComponent(c);
+    return url + hash;
+}
+
+function stripShareLinks(text) {
+    var s = String(text || '').slice(0, 1000);
+    var tlds = ' com org net io space quest info xyz app dev co me gg tv ly so to us uk news money finance bitcoin edu gov biz online site store tech live world cloud link page wiki blog shop ai cc it de fr ca au nz in jp nl se no fi ch at be es pt br mx club fun pro network media one bio cash email social exchange market fund example ';
+    function isGap(ch) {
+        return ch === ' ' || ch === '\n' || ch === '\t' || ch === '\r' ||
+            ch === '<' || ch === '>' || ch === '"' || ch === "'" ||
+            ch === '(' || ch === ')' || ch === '[' || ch === ']' ||
+            ch === '{' || ch === '}';
+    }
+    function isUrl(token) {
+        var t = token.toLowerCase();
+        return t.indexOf('https://') === 0 || t.indexOf('http://') === 0 || t.indexOf('www.') === 0;
+    }
+    function isEmail(token) {
+        var at = token.indexOf('@');
+        if (at <= 0 || token.indexOf('@', at + 1) !== -1) return false;
+        var domain = token.slice(at + 1);
+        var dot = domain.indexOf('.');
+        return dot > 0 && dot < domain.length - 1 && domain.indexOf('@') === -1;
+    }
+    function domainName(token) {
+        var i, ch, p;
+        if (!token || token.indexOf('@') !== -1) return null;
+        var slash = token.indexOf('/');
+        var host = slash === -1 ? token : token.slice(0, slash);
+        if (!host || host.indexOf('.') < 0) return null;
+        for (i = 0; i < host.length; i++) {
+            ch = host.charAt(i);
+            if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch === '.' || ch === '-')) return null;
+        }
+        var parts = host.split('.');
+        if (parts.length < 2) return null;
+        var tld = parts[parts.length - 1].toLowerCase();
+        if (!tld || tlds.indexOf(' ' + tld + ' ') === -1) return null;
+        for (i = 0; i < parts.length; i++) {
+            p = parts[i];
+            if (!p || p.length > 63 || p.charAt(0) === '-' || p.charAt(p.length - 1) === '-') return null;
+        }
+        return parts[parts.length - 2];
+    }
+    function rewrite(token) {
+        var lead = '';
+        var trail = '';
+        var core = token;
+        var wrap = '*_\'"\u2018\u2019\u201c\u201d';
+        while (core && wrap.indexOf(core.charAt(0)) !== -1) {
+            lead += core.charAt(0);
+            core = core.slice(1);
+        }
+        while (core && wrap.indexOf(core.charAt(core.length - 1)) !== -1) {
+            trail = core.charAt(core.length - 1) + trail;
+            core = core.slice(0, -1);
+        }
+        var guard = 0;
+        while (core && guard < 8 && '.,;:!?'.indexOf(core.charAt(core.length - 1)) !== -1) {
+            trail = core.charAt(core.length - 1) + trail;
+            core = core.slice(0, -1);
+            guard++;
+        }
+        if (core.length >= 2) {
+            var apost = core.charAt(core.length - 2);
+            var ess = core.charAt(core.length - 1);
+            if ((apost === "'" || apost === '\u2019') && (ess === 's' || ess === 'S')) {
+                var owned = core.slice(0, -2);
+                if (isUrl(owned) || isEmail(owned) || domainName(owned) != null) {
+                    trail = core.slice(-2) + trail;
+                    core = owned;
+                }
+            }
+        }
+        if (!core) return token;
+        if (isUrl(core) || isEmail(core)) return lead + trail;
+        var name = domainName(core);
+        if (name == null) return token;
+        return lead + name + trail;
+    }
+    var out = '';
+    var i = 0;
+    while (i < s.length) {
+        if (isGap(s.charAt(i))) { out += s.charAt(i); i++; continue; }
+        var j = i + 1;
+        while (j < s.length && !isGap(s.charAt(j))) j++;
+        out += rewrite(s.slice(i, j));
+        i = j;
+    }
+    out = out.replace(/[ \t]{2,}/g, ' ');
+    out = out.replace(/[ \t]+([,.;:!])/g, '$1');
+    out = out.replace(/\(\s*\)/g, '');
+    out = out.replace(/[ \t]+\n/g, '\n');
+    out = out.replace(/\n{3,}/g, '\n\n');
+    return out.replace(/^\s+|\s+$/g, '');
+}
+
+function inviteSharePayload(link) {
+    var url = String(link || '').trim() || shareHomeUrl();
+    return {
+        title: 'Bitcoin Quest',
+        text: "Learn Bitcoin with me. When you reach 2,140 points (Scholar exam points don't count), we both get 50 orange tickets.",
+        url: url
+    };
+}
+
+// First referral link wins for 30 days. A later link does not replace it.
+var REFERRAL_LINK_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+
+function _validRefCode(raw) {
+    return /^[A-Za-z0-9]{6,28}$/.test(String(raw || ''));
+}
+
+function _clearStoredReferral() {
+    try {
+        localStorage.removeItem('btc_referral_code');
+        localStorage.removeItem('btc_referral_code_at');
+    } catch (e) {}
+}
+
+function storedReferralCode() {
+    var code = '';
+    var at = 0;
+    try {
+        code = localStorage.getItem('btc_referral_code') || '';
+        at = parseInt(localStorage.getItem('btc_referral_code_at') || '0', 10) || 0;
+    } catch (e) {
+        return '';
+    }
+    if (!_validRefCode(code)) {
+        if (code) _clearStoredReferral();
+        return '';
+    }
+    if (!at) {
+        try { localStorage.setItem('btc_referral_code_at', String(Date.now())); } catch (e2) {}
+        return code;
+    }
+    if (Date.now() - at > REFERRAL_LINK_TTL_MS) {
+        _clearStoredReferral();
+        return '';
+    }
+    return code;
+}
+
+function referralAttachShouldClear(data) {
+    if (!data) return false;
+    if (data.success) return true;
+    var reason = String(data.reason || '');
+    var status = String(data.status || '');
+    if (reason === 'self' || reason === 'late' || reason === 'account-age' || reason === 'points' || reason === 'exists' || reason === 'rejected') return true;
+    if (status === 'rejected' || status === 'late') return true;
+    return false;
+}
+
 // ---- Check for referral code in URL on page load ----
 function captureReferralCode() {
     const params = new URLSearchParams(window.location.search);
     const ref = params.get('ref');
-    if (ref && ref.length >= 6) {
-        // Store it locally — we'll attach it to the user doc when they create an account
-        localStorage.setItem('btc_referral_code', ref);
+    if (ref && _validRefCode(ref)) {
+        // Store it locally — we'll attach it when a real account is signed in.
+        // An existing unexpired code stays. The first link wins.
+        if (!storedReferralCode()) {
+            try {
+                localStorage.setItem('btc_referral_code', ref);
+                localStorage.setItem('btc_referral_code_at', String(Date.now()));
+            } catch (e) {}
+        }
         // Clean URL without reload
         if (window.history && window.history.replaceState) {
             const clean = window.location.pathname + window.location.hash;
             window.history.replaceState({}, '', clean);
         }
+    } else if (ref && window.history && window.history.replaceState) {
+        const clean = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, '', clean);
     }
 
     // ---- Campaign source tracking (?src=Stacker_News etc.) ----
@@ -74,23 +268,40 @@ async function awardDailyTicket() {
 
 // ---- Attach referral to new user on account creation ----
 async function attachReferral(uid) {
-    const refCode = localStorage.getItem('btc_referral_code');
+    var refCode = storedReferralCode();
     if (!refCode || !uid) return;
-    if (String(uid).indexOf(refCode) === 0) return;
+    var authUser = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser : null;
+    if (!authUser || authUser.isAnonymous || authUser.uid !== uid) return;
+    if (String(uid).indexOf(refCode) === 0) {
+        _clearStoredReferral();
+        return;
+    }
+    var ownCode = (typeof currentUser !== 'undefined' && currentUser && currentUser.referralCode) ? String(currentUser.referralCode) : '';
+    if (_validRefCode(ownCode) && ownCode === refCode) {
+        _clearStoredReferral();
+        return;
+    }
     try {
         if (typeof firebase === 'undefined' || !firebase.functions) return;
+        var payload = { refCode: refCode };
+        var guestUid = '';
+        try { guestUid = localStorage.getItem('btc_anon_uid') || ''; } catch (e0) { guestUid = ''; }
+        if (guestUid && guestUid !== uid && /^[A-Za-z0-9:_\-]{6,128}$/.test(guestUid)) payload.guestUid = guestUid;
         var fn = firebase.functions().httpsCallable('registerReferral');
-        var result = await fn({ refCode: refCode });
+        var result = await fn(payload);
         var data = result && result.data;
-        if (data && (data.success || data.reason === 'self' || data.reason === 'late' || data.reason === 'account-age' || data.reason === 'points' || data.reason === 'exists')) {
-            localStorage.removeItem('btc_referral_code');
+        if (referralAttachShouldClear(data)) {
+            _clearStoredReferral();
             if (typeof currentUser !== 'undefined' && currentUser && currentUser.uid === uid && data.success) {
                 currentUser.referredBy = refCode;
             }
         }
     } catch (e) {
-        // Keep btc_referral_code so a later session can retry the callable.
-        console.log('Referral attach error:', e);
+        // A guest rejection, a rate limit, or a dropped connection keeps the
+        // code so the next signed-in load can retry. A bad code does not.
+        var code = String((e && (e.code || e.message)) || '');
+        if (code.indexOf('invalid-argument') !== -1) _clearStoredReferral();
+        else console.log('Referral attach error:', e);
     }
 }
 
@@ -180,7 +391,7 @@ function renderReferralSection() {
 
     return '<div id="inviteSettingsBlock" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
         '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Invite friends</div>' +
-        '<p id="inviteSettingsEarn" style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin:0 0 12px;">When a friend you invite reaches Maxi rank, you both get 50 orange tickets.</p>' +
+        '<p id="inviteSettingsEarn" style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin:0 0 12px;">When a friend you invite reaches 2,140 points (Scholar exam points don\'t count), you both get 50 orange tickets.</p>' +
         '<p id="inviteSettingsLink" style="margin:0 0 12px;padding:10px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:monospace;word-break:break-all;"></p>' +
         '<button type="button" onclick="openInviteFriends(true)" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Invite friends</button>' +
         '<div id="referralStats" style="color:var(--text-muted);font-size:0.8rem;margin-top:10px;"></div>' +
@@ -214,6 +425,10 @@ async function onUserLoadedTickets() {
     if (typeof refreshReferFriendCard === 'function') refreshReferFriendCard();
     if (!currentUser || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
 
+    // Retry a stored ref after a guest upgrades, after Lightning sign-in,
+    // and on any later signed-in load until the server accepts or rejects it.
+    try { await attachReferral(auth.currentUser.uid); } catch (e) {}
+
     await ensureReferralCode();
     await awardDailyTicket();
 
@@ -231,26 +446,21 @@ window.awardTickets = async function() {
 };
 
 // ---- Home "Invite friends" corner card ----
-// Top-right. Signed-in users get the link. Guests see nothing unless this
-// session has no other popup, in which case one short sign-up line appears.
+// Signed-in users always keep a small pill on the home screen. Dismiss and
+// minimize both collapse to that pill. A stored "off" is read as "min" so
+// older clients can still save off, and this client never hides the pill.
+// The full card opens on its own at most once every 7 days, and only when
+// no other session popup or modal is up. Guests always keep a small
+// "Invite friends" pill. Their larger sign-up prompt still shows once a session.
 
 var INVITE_STATES = { open: 1, min: 1, off: 1 };
-
-function _invitePreviewOn() {
-    try {
-        var host = String(location.hostname || '');
-        if (host !== 'localhost' && host !== '127.0.0.1' && host !== '::1' && host !== '[::1]') return false;
-    } catch (e) { return false; }
-    return !!window._homePreviewUser;
-}
+var INVITE_AUTO_MS = 7 * 24 * 60 * 60 * 1000;
 
 function _inviteSignedIn() {
-    if (_invitePreviewOn()) return true;
     return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
 }
 
 function _inviteUid() {
-    if (_invitePreviewOn()) return 'preview';
     if (!_inviteSignedIn()) return '';
     return String(auth.currentUser.uid || '');
 }
@@ -259,28 +469,95 @@ function _inviteStorageKey(uid) {
     return 'btc_invite_card_' + String(uid || '');
 }
 
+function _inviteNormalize(state) {
+    if (state === 'off') return 'min';
+    // A stored "open" is a past visit. Later visits rest on the pill.
+    if (state === 'open') return 'min';
+    if (state === 'min') return state;
+    return '';
+}
+
+function _inviteStoredOpen(uid) {
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.inviteCard === 'open') return true;
+    try { return localStorage.getItem(_inviteStorageKey(uid)) === 'open'; } catch (e) { return false; }
+}
+
 function _inviteReadStored(uid) {
     var fromUser = '';
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.inviteCard) {
-        fromUser = String(currentUser.inviteCard);
+        fromUser = _inviteNormalize(String(currentUser.inviteCard));
     }
-    if (fromUser === 'off') return 'min';
-    if (INVITE_STATES[fromUser]) return fromUser;
+    if (fromUser) return fromUser;
     try {
-        var local = localStorage.getItem(_inviteStorageKey(uid));
-        if (local === 'off') return 'min';
-        if (INVITE_STATES[local]) return local;
+        var local = _inviteNormalize(localStorage.getItem(_inviteStorageKey(uid)));
+        if (local) return local;
     } catch (e) {}
     return 'min';
 }
 
 function _inviteWriteStored(state) {
+    if (state === 'off') state = 'min';
+    if (state === 'open') state = 'min';
     var uid = _inviteUid();
     if (!uid || !INVITE_STATES[state]) return;
     try { localStorage.setItem(_inviteStorageKey(uid), state); } catch (e) {}
     if (typeof currentUser !== 'undefined' && currentUser) currentUser.inviteCard = state;
     if (typeof db === 'undefined' || !db) return;
     db.collection('users').doc(uid).update({ inviteCard: state }).catch(function() {});
+}
+
+function _inviteAutoKey(uid) {
+    return 'btc_invite_auto_' + String(uid || '');
+}
+
+function _inviteAutoDue(uid) {
+    try {
+        var at = parseInt(localStorage.getItem(_inviteAutoKey(uid)), 10);
+        if (!at) return true;
+        return (Date.now() - at) >= INVITE_AUTO_MS;
+    } catch (e) { return false; }
+}
+
+function _inviteMarkAuto(uid) {
+    if (!uid) return;
+    try { localStorage.setItem(_inviteAutoKey(uid), String(Date.now())); } catch (e) {}
+}
+
+function _invitePopupElement(el) {
+    if (!el || el.nodeType !== 1) return false;
+    if (el.id === 'inviteCard' || el.id === 'inviteGuestPill' || el.id === 'todayInviteGuest') return false;
+    if (el.closest && (el.closest('#inviteCard') || el.closest('#introVideoSection') || el.closest('#featuredOnSection'))) return false;
+    if (el.hasAttribute('hidden')) return false;
+    var style;
+    try { style = window.getComputedStyle(el); } catch (e) { return false; }
+    if (!style || style.display === 'none' || style.visibility === 'hidden' || style.pointerEvents === 'none') return false;
+    if (style.position !== 'fixed') return false;
+    var box = el.getBoundingClientRect();
+    if (box.width < 160 || box.height < 80) return false;
+    // A fixed overlay that is only slid off-screen (translateY(100%), opacity 0)
+    // still has a large layout box. It is not a popup the invite card should yield to.
+    if (box.bottom <= 1 || box.top >= window.innerHeight - 1 || box.right <= 1 || box.left >= window.innerWidth - 1) return false;
+    if (parseFloat(style.opacity) === 0) return false;
+    var id = String(el.id || '');
+    var cls = typeof el.className === 'string' ? el.className : '';
+    var role = el.getAttribute('role') || '';
+    var named = /modal|overlay|dialog|lightbox|leaderboard/i.test(id + ' ' + cls) || role === 'dialog' || el.getAttribute('aria-modal') === 'true';
+    var opened = el.classList.contains('open') || el.hasAttribute('open') || el.getAttribute('data-open') === '1';
+    if (!named && !opened) return false;
+    return true;
+}
+
+function _inviteModalOpen() {
+    var nodes = document.querySelectorAll('[role="dialog"], [aria-modal="true"], [id*="Modal"], [id*="modal"], [id*="Overlay"], [id*="overlay"], [class*="modal"], [class*="overlay"], [class*="Modal"], [class*="Overlay"], .open, dialog[open]');
+    var i;
+    for (i = 0; i < nodes.length; i++) {
+        if (_invitePopupElement(nodes[i])) return true;
+    }
+    return false;
+}
+
+function _inviteAutoBlocked() {
+    return _inviteModalOpen() || _invitePopupTaken();
 }
 
 function _inviteHomeVisible() {
@@ -336,7 +613,7 @@ function _inviteCountLine(stats) {
     var maxi = stats && typeof stats.maxi === 'number' ? stats.maxi : 0;
     if (!invited && !maxi) return 'No invites yet.';
     var invitedLabel = invited === 1 ? '1 friend invited' : invited + ' friends invited';
-    var maxiLabel = maxi === 1 ? '1 reached Maxi' : maxi + ' reached Maxi';
+    var maxiLabel = maxi === 1 ? '1 earned 2,140' : maxi + ' earned 2,140';
     return invitedLabel + ' · ' + maxiLabel;
 }
 
@@ -365,7 +642,7 @@ function _loadInviteCounts() {
         }
         var el = document.getElementById('inviteCounts');
         if (!el) return;
-        if (maxi) el.textContent = maxi + (maxi === 1 ? ' reached Maxi' : ' reached Maxi');
+        if (maxi) el.textContent = maxi + (maxi === 1 ? ' earned 2,140' : ' earned 2,140');
         else el.textContent = 'Invite counts load when you are online.';
     });
 }
@@ -373,20 +650,123 @@ function _loadInviteCounts() {
 function _applyInviteState(state) {
     var card = document.getElementById('inviteCard');
     if (!card) return;
-    card.setAttribute('data-state', state);
-    card.setAttribute('data-show', state === 'off' ? '0' : '1');
+    var show = state === 'off' ? '0' : '1';
+    if (card.getAttribute('data-state') !== state) card.setAttribute('data-state', state);
+    if (card.getAttribute('data-show') !== show) card.setAttribute('data-show', show);
+}
+
+var _inviteHeldOpen = false;
+
+function _paintGuestPill(show) {
+    var pill = document.getElementById('inviteGuestPill');
+    if (!pill) return;
+    if (pill.textContent !== '🎟️ Invite friends') pill.textContent = '🎟️ Invite friends';
+    if (pill.getAttribute('aria-label') !== 'Invite friends') pill.setAttribute('aria-label', 'Invite friends');
+    if (show) {
+        if (pill.hasAttribute('hidden')) pill.removeAttribute('hidden');
+    } else if (!pill.hasAttribute('hidden')) {
+        pill.setAttribute('hidden', '');
+    }
+}
+
+function _showSignedInOpen() {
+    _paintGuestPill(false);
+    _applyInviteState('open');
+    _fillInviteCard();
+    _loadInviteCounts();
+}
+
+function _collapseSignedIn() {
+    _inviteHeldOpen = false;
+    _inviteMarkAuto(_inviteUid());
+    _inviteWriteStored('min');
+    _paintGuestPill(false);
+    _applyInviteState('min');
+    _placeInvitePills();
+}
+
+function _obstacleBox(id) {
+    var el = document.getElementById(id);
+    if (!el) return null;
+    var style = window.getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden') return null;
+    var box = el.getBoundingClientRect();
+    if (box.width < 1 || box.height < 1) return null;
+    return box;
+}
+
+function _inviteClampTop(top, pillH) {
+    var floor = window.innerHeight - 16 - pillH;
+    var ids = ['chatOverlayBtn', 'nacho-toggle', 'fabExpandBtn', 'bottomNav', 'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn', 'fabMinimizeBtn'];
+    var i;
+    for (i = 0; i < ids.length; i++) {
+        var ob = _obstacleBox(ids[i]);
+        if (!ob || ob.top < window.innerHeight * 0.45) continue;
+        var limit = ob.top - 12 - pillH;
+        if (limit < floor) floor = limit;
+    }
+    if (top > floor) return Math.max(8, Math.round(floor));
+    return top;
+}
+
+function _nudgeInvitePill(node) {
+    if (!node) return;
+    node.style.bottom = '';
+    var box = node.getBoundingClientRect();
+    if (box.width < 1 || box.height < 1) return;
+    var floor = window.innerHeight - 16;
+    var ids = ['notifOverlayBtn', 'guestPointsBanner', 'chatOverlayBtn', 'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn', 'fabMinimizeBtn', 'nacho-toggle', 'fabExpandBtn'];
+    var top = box.top;
+    var changed = false;
+    var i;
+    for (i = 0; i < ids.length; i++) {
+        var ob = _obstacleBox(ids[i]);
+        if (!ob) continue;
+        var hit = !(box.right < ob.left - 8 || box.left > ob.right + 8 || box.bottom < ob.top - 8 || box.top > ob.bottom + 8);
+        if (!hit) continue;
+        var below = Math.round(ob.bottom + 12);
+        if (below + box.height < floor - 80) {
+            if (below > top) { top = below; changed = true; }
+        } else {
+            var above = Math.round(ob.top - 12 - box.height);
+            if (above < top) { top = Math.max(8, above); changed = true; }
+        }
+        box = { left: box.left, right: box.right, width: box.width, height: box.height, top: top, bottom: top + box.height };
+    }
+    if (changed) {
+        node.style.top = _inviteClampTop(Math.max(8, Math.round(top)), box.height) + 'px';
+        node.style.bottom = 'auto';
+    }
+}
+
+function _placeInvitePills() {
     placeInvitePill();
 }
 
 function placeInvitePill() {
     var card = document.getElementById('inviteCard');
     var today = document.getElementById('todayCard');
-    if (!card) return;
+    var guest = document.getElementById('inviteGuestPill');
+    if (!card) {
+        if (guest && !guest.hasAttribute('hidden')) {
+            guest.style.top = '';
+            guest.style.bottom = '';
+            _nudgeInvitePill(guest);
+        }
+        if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
+        return;
+    }
     var state = card.getAttribute('data-state');
     var shown = card.getAttribute('data-show') === '1' && state !== 'off';
     if (!shown) {
         card.style.top = '';
         if (today) today.style.marginTop = '';
+        if (guest && !guest.hasAttribute('hidden')) {
+            guest.style.top = '';
+            guest.style.bottom = '';
+            _nudgeInvitePill(guest);
+        }
+        if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
         return;
     }
     var anchorBottom = 0;
@@ -404,43 +784,77 @@ function placeInvitePill() {
         top = Math.round(bar.getBoundingClientRect().bottom + 8);
     }
     if (anchorBottom > 1) top = Math.max(top, Math.round(anchorBottom + 8));
-    card.style.top = top + 'px';
-    if (today && (state === 'min' || state === 'guest')) {
-        var pillH = card.getBoundingClientRect().height || 40;
-        today.style.marginTop = Math.round(pillH + 12) + 'px';
+    var pillH = card.getBoundingClientRect().height || 40;
+    if (state === 'min' || state === 'guest') {
+        top = _inviteClampTop(top, pillH);
+        card.style.top = top + 'px';
+        if (today) today.style.marginTop = Math.round(pillH + 12) + 'px';
+        _nudgeInvitePill(card);
     } else if (today) {
+        card.style.top = '';
         today.style.marginTop = '';
     }
+    if (guest && !guest.hasAttribute('hidden')) {
+        guest.style.top = '';
+        guest.style.bottom = '';
+        _nudgeInvitePill(guest);
+    }
+    if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
 }
 window.placeInvitePill = placeInvitePill;
+
+function _scheduleInvitePlace() {
+    if (window._invitePlaceRaf) return;
+    window._invitePlaceRaf = requestAnimationFrame(function () {
+        window._invitePlaceRaf = 0;
+        placeInvitePill();
+    });
+}
 
 function refreshInviteCard() {
     var card = document.getElementById('inviteCard');
     if (!card) return;
-    if (!_inviteHomeVisible()) {
+    if (!_inviteHomeVisible() || typeof auth === 'undefined' || !auth) {
         card.setAttribute('data-show', '0');
-        return;
-    }
-    if (typeof auth === 'undefined' || !auth) {
-        card.setAttribute('data-show', '0');
+        _paintGuestPill(false);
         return;
     }
     if (_inviteSignedIn()) {
-        var state = _inviteReadStored(_inviteUid());
-        _applyInviteState(state);
-        if (state === 'open') {
-            _fillInviteCard();
-            _loadInviteCounts();
+        var uid = _inviteUid();
+        if (_inviteStoredOpen(uid)) {
+            _inviteMarkAuto(uid);
+            _inviteWriteStored('min');
         }
+        // A tap sets _inviteHeldOpen. The session popup budget is only for
+        // automatic opens; a later refresh must not collapse the card the
+        // user just asked for. A real on-screen modal still wins.
+        if (_inviteHeldOpen && !_inviteModalOpen()) {
+            _claimInvitePopup();
+            _showSignedInOpen();
+            return;
+        }
+        if (_inviteAutoDue(uid) && !_inviteAutoBlocked() && _claimInvitePopup()) {
+            _inviteMarkAuto(uid);
+            _inviteHeldOpen = true;
+            _showSignedInOpen();
+            return;
+        }
+        _paintGuestPill(false);
+        _applyInviteState('min');
+        _placeInvitePills();
         return;
     }
+    var homeGuest = _inviteHomeVisible();
     var dismissed = false;
     try { dismissed = sessionStorage.getItem('btc_invite_guest_dismissed') === '1'; } catch (e) {}
-    if (dismissed || _guestBannerVisible() || _invitePopupTaken() || !_claimInvitePopup()) {
-        _applyInviteState('off');
+    if (!dismissed && !_guestBannerVisible() && !_inviteAutoBlocked() && _claimInvitePopup()) {
+        _paintGuestPill(false);
+        _applyInviteState('guest');
         return;
     }
-    _applyInviteState('guest');
+    _paintGuestPill(homeGuest);
+    _applyInviteState('off');
+    _placeInvitePills();
 }
 
 function openInviteFriends(force) {
@@ -448,39 +862,46 @@ function openInviteFriends(force) {
         if (!force && (_invitePopupTaken() || !_claimInvitePopup())) return;
         try { sessionStorage.removeItem('btc_invite_guest_dismissed'); } catch (e) {}
         if (typeof goHome === 'function') goHome();
+        _paintGuestPill(false);
         _applyInviteState('guest');
         return;
     }
-    if (force) _inviteWriteStored('open');
     var modal = document.getElementById('usernameModal');
     if (modal) modal.classList.remove('open');
     if (typeof goHome === 'function') goHome();
-    _applyInviteState('open');
-    _fillInviteCard();
-    _loadInviteCounts();
+    expandInviteCard();
 }
 
 function minimizeInviteCard() {
     if (!_inviteSignedIn()) return;
-    _inviteWriteStored('min');
-    _applyInviteState('min');
+    _collapseSignedIn();
 }
 
 function expandInviteCard() {
     if (!_inviteSignedIn()) return;
-    _inviteWriteStored('open');
-    _applyInviteState('open');
-    _fillInviteCard();
-    _loadInviteCounts();
+    _inviteWriteStored('min');
+    _inviteMarkAuto(_inviteUid());
+    _inviteHeldOpen = true;
+    // A tap is not an automatic popup, so the session budget does not apply.
+    if (_inviteModalOpen()) {
+        _paintGuestPill(false);
+        _applyInviteState('min');
+        _placeInvitePills();
+        return;
+    }
+    _claimInvitePopup();
+    _showSignedInOpen();
 }
 
 function dismissInviteCard() {
     if (!_inviteSignedIn()) {
         try { sessionStorage.setItem('btc_invite_guest_dismissed', '1'); } catch (e) {}
         _applyInviteState('off');
+        _paintGuestPill(_inviteHomeVisible() && typeof auth !== 'undefined' && !!auth);
+        _placeInvitePills();
         return;
     }
-    minimizeInviteCard();
+    _collapseSignedIn();
 }
 
 function toggleInviteHow() {
@@ -520,12 +941,8 @@ function copyInviteLink() {
 function shareInviteLink() {
     var linkEl = document.getElementById('inviteLink');
     var link = (linkEl && linkEl.textContent) || getReferralLink();
-    if (!link || !navigator.share) return;
-    navigator.share({
-        title: 'Bitcoin Quest',
-        text: 'Learn Bitcoin with me. When you reach Maxi rank, we both get 50 orange tickets.',
-        url: link
-    }).catch(function() {});
+    if (!navigator.share) return;
+    navigator.share(inviteSharePayload(link)).catch(function() {});
 }
 
 function inviteGuestSignup() {
@@ -575,11 +992,22 @@ if (typeof window !== 'undefined') {
             if (bindInviteAuth() || inviteTries > 60) clearInterval(inviteWatch);
         }, 1000);
     }
-    refreshInviteCard();
-    if (!window._invitePillWatch) {
-        window._invitePillWatch = true;
-        window.addEventListener('resize', function() { placeInvitePill(); });
+    if (!window._invitePlaceBound) {
+        window._invitePlaceBound = true;
+        window.addEventListener('resize', _scheduleInvitePlace);
         var inviteMain = document.getElementById('main');
-        if (inviteMain) inviteMain.addEventListener('scroll', function() { placeInvitePill(); }, { passive: true });
+        if (inviteMain) inviteMain.addEventListener('scroll', _scheduleInvitePlace, { passive: true });
     }
+    if (!window._invitePopupWatch && typeof MutationObserver === 'function') {
+        window._invitePopupWatch = true;
+        new MutationObserver(function() {
+            if (window._inviteRefreshQueued) return;
+            window._inviteRefreshQueued = true;
+            setTimeout(function() {
+                window._inviteRefreshQueued = false;
+                refreshInviteCard();
+            }, 50);
+        }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'hidden', 'open', 'data-open', 'aria-modal'] });
+    }
+    refreshInviteCard();
 }

@@ -581,11 +581,12 @@ test('triggers reuse the shoutout writer and clients cannot post as Nacho', func
     assert.ok(chat.indexOf('marketplace/listing/') !== -1);
     assert.ok(chat.indexOf('window.formatChatText = formatChatText') !== -1);
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
-    const latestAt = notes.indexOf('Latest updates');
-    const previousAt = notes.indexOf('PREVIOUS PATCH');
-    assert.ok(latestAt !== -1 && previousAt > latestAt);
-    const latest = notes.slice(latestAt, previousAt);
-    assert.ok(latest.indexOf('Nacho now gives a shout in Global Chat when someone starts a new PlebTalk thread or posts a Marketplace listing.') !== -1);
+    const oct22At = notes.indexOf('id="2026-10-22"');
+    const nextCard = notes.indexOf('<details class="patch"', oct22At + 1);
+    assert.ok(oct22At !== -1 && nextCard > oct22At);
+    const oct22 = notes.slice(oct22At, nextCard);
+    assert.ok(oct22.indexOf('October 22, 2026') !== -1);
+    assert.ok(oct22.indexOf('Nacho now gives a shout in Global Chat when someone starts a new PlebTalk thread or posts a Marketplace listing.') !== -1);
 });
 
 queue.push(later('a guest account is skipped after the cheap checks, without sleeping when rate limited', async function() {

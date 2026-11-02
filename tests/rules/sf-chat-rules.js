@@ -94,6 +94,12 @@ const parts = emu.split(':');
         await expect('write sf live dedup', function () {
             return setDoc(doc(user, 'sf_live_announcements', 'cycle_1'), { cycleId: 'cycle_1' });
         }, false);
+        await expect('read sf ending marker', function () {
+            return getDoc(doc(user, 'sf_ending_announcements', 'cycle_1'));
+        }, false);
+        await expect('write sf ending marker', function () {
+            return setDoc(doc(user, 'sf_ending_announcements', 'cycle_1'), { cycleId: 'cycle_1' });
+        }, false);
         await expect('write badge burst', function () {
             return setDoc(doc(user, 'badge_gg_bursts', 'user1'), { posted: false });
         }, false);

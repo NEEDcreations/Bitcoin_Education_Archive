@@ -10,7 +10,7 @@
 // account under a day old, a missing linked provider, a banned replier, or
 // a banned original author gets nothing.
 
-const { planDailyXp } = require('./dailyXp');
+const { planXpGrant } = require('./grantXp');
 const { applyDailyXp } = require('./applyDailyXp');
 const {
     timestampMs,
@@ -61,11 +61,12 @@ function noticeId(messageId) {
     return 'rx_' + messageId;
 }
 
-function replyToastText(xp, first) {
+function replyToastText(xp, first, doubled) {
     const n = Math.round(Number(xp));
     if (!Number.isFinite(n) || n <= 0) return '';
-    if (first === true) return '💬 +' + n + ' XP for joining the conversation!';
-    return '+' + n + ' XP';
+    const mark = doubled === true ? ' 2x' : '';
+    if (first === true) return '💬 +' + n + ' XP' + mark + ' for joining the conversation!';
+    return '+' + n + ' XP' + mark;
 }
 
 // Admin UserRecord.metadata.creationTime is a UTC date string. Missing,
@@ -150,12 +151,20 @@ function assessReplyBonus(input) {
 
     const first = src.firstClaimed !== true;
     const nominal = first ? FIRST_REPLY_XP : LATER_REPLY_XP;
-    const split = planDailyXp(Number(src.dailyUsed) || 0, nominal);
+    const split = planXpGrant({
+        base: nominal,
+        user: src.user,
+        now: src.nowMs,
+        dailyUsed: Number(src.dailyUsed) || 0,
+    });
     return {
         ok: true,
         code: 'ok',
         xp: split.awarded,
         nominal: nominal,
+        doubled: split.doubled === true,
+        base: split.base,
+        boosted: split.boosted,
         first: first,
         showToast: split.awarded > 0,
         overflowAdded: split.overflowAdded,
@@ -309,8 +318,16 @@ function createReplyBonusHandlers(opts) {
             if (decision.code === 'already' || decision.code === 'rate') return decision;
             if (decision.ok && !pairRef) return fail('not-reply');
             if (decision.ok) {
-                const grant = await applyDailyXp(uid, decision.nominal, tx, { day: today, userRef: userRef });
+                const grant = await applyDailyXp(uid, decision.nominal, tx, {
+                    day: today,
+                    userRef: userRef,
+                    user: user,
+                    now: nowMs,
+                });
                 decision.xp = grant.awarded;
+                decision.doubled = grant.doubled === true;
+                decision.base = grant.base;
+                decision.boosted = grant.boosted;
                 decision.dailyXp = grant.dailyXp;
                 decision.dailyRef = grant.dailyRef;
                 decision.showToast = grant.awarded > 0;
@@ -374,7 +391,7 @@ function createReplyBonusHandlers(opts) {
                         senderId: 'system',
                         senderName: 'Bitcoin Quest',
                         type: 'reward',
-                        message: replyToastText(decision.xp, decision.first === true),
+                        message: replyToastText(decision.xp, decision.first === true, decision.doubled === true),
                         targetType: null,
                         targetId: null,
                         read: false,

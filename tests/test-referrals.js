@@ -8,9 +8,20 @@ const ipHmac = require('../functions/src/ipHmac');
 let passed = 0;
 let failed = 0;
 
+const pendingTests = [];
 function test(name, fn) {
     try {
-        fn();
+        const result = fn();
+        if (result && typeof result.then === 'function') {
+            pendingTests.push(result.then(function () {
+                console.log('✅ ' + name);
+                passed++;
+            }, function (e) {
+                console.log('❌ ' + name + ': ' + (e && e.message ? e.message : e));
+                failed++;
+            }));
+            return;
+        }
         console.log('✅ ' + name);
         passed++;
     } catch (e) {
@@ -209,6 +220,167 @@ test('a referral is accepted only for a new account under the points cap', () =>
     });
     assert.strictEqual(linked.status, 'flagged');
     assert.strictEqual(linked.reason, 'linked-account');
+    const guestUpgrade = referrals.registrationGate({
+        nowMs: now,
+        createdMs: now - 60 * 60 * 1000,
+        points: 500,
+        fairWindow: true,
+    });
+    assert.strictEqual(guestUpgrade.ok, true);
+    assert.strictEqual(guestUpgrade.status, 'pending');
+    const oldGuest = referrals.registrationGate({
+        nowMs: now,
+        createdMs: now - referrals.SIGNUP_WINDOW_MS - 1,
+        points: 10,
+        fairWindow: true,
+    });
+    assert.strictEqual(oldGuest.ok, false);
+    assert.strictEqual(oldGuest.reason, 'account-age');
+});
+
+test('the signup window uses the earliest server clock, never a client one', () => {
+    const now = 1_700_000_000_000;
+    const start = referrals.referralWindowStart({
+        authCreatedMs: now - 1000,
+        serverArrivalMs: now - 2 * 60 * 60 * 1000,
+        guestArrivalMs: now - 60 * 60 * 1000,
+    });
+    assert.strictEqual(start, now - 2 * 60 * 60 * 1000);
+    assert.strictEqual(referrals.referralWindowStart({ authCreatedMs: now - 1000 }), now - 1000);
+    assert.strictEqual(referrals.referralWindowStart({}), null);
+    assert.strictEqual(referrals.fairUpgradeWindow({
+        nowMs: now,
+        ownArrivalMs: now - 60 * 60 * 1000,
+        ownAnonymous: true,
+    }), true);
+    assert.strictEqual(referrals.fairUpgradeWindow({
+        nowMs: now,
+        ownArrivalMs: now - 60 * 60 * 1000,
+        ownAnonymous: false,
+        guestArrivalMs: now - 1000,
+        guestAnonymous: true,
+        guestMergedHere: false,
+    }), false);
+    assert.strictEqual(referrals.fairUpgradeWindow({
+        nowMs: now,
+        guestArrivalMs: now - 60 * 60 * 1000,
+        guestAnonymous: true,
+        guestMergedHere: true,
+    }), true);
+    const service = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'referralService.js'), 'utf8');
+    const reg = service.slice(service.indexOf('async function registerReferral'), service.indexOf('async function payIfQualified'));
+    assert.strictEqual(reg.indexOf('data.arrivalMs'), -1);
+    assert.strictEqual(reg.indexOf('data.createdMs'), -1);
+    assert.strictEqual(reg.indexOf('data.points'), -1);
+    assert.ok(reg.indexOf('referralWindowStart') !== -1);
+    assert.ok(reg.indexOf('fairUpgradeWindow') !== -1);
+    assert.strictEqual(referrals.writesReferredBy('pending'), true);
+    assert.strictEqual(referrals.writesReferredBy('flagged'), true);
+    assert.strictEqual(referrals.writesReferredBy('late'), false);
+    assert.strictEqual(referrals.writesReferredBy('rejected'), false);
+    const tx = reg.slice(reg.indexOf('runTransaction'), reg.indexOf('let paid = false'));
+    assert.ok(tx.indexOf('writesReferredBy(status)') !== -1);
+    assert.ok(tx.indexOf('writesReferredBy(status)') < tx.indexOf('referredBy: code'));
+    assert.strictEqual(tx.indexOf('referredBy: code, referralVerified: false };'), -1);
+    const lnUid = 'ln:' + 'ab'.repeat(16);
+    assert.strictEqual(referrals.fairUpgradeWindow({
+        nowMs: now,
+        uid: lnUid,
+        ownArrivalMs: now - 60 * 1000,
+        ownAnonymous: true,
+    }), false);
+    const lnCap = referrals.registrationGate({
+        nowMs: now,
+        createdMs: now - 60 * 1000,
+        points: referrals.SIGNUP_MAX_POINTS + 1,
+        fairWindow: referrals.fairUpgradeWindow({
+            nowMs: now,
+            uid: lnUid,
+            ownArrivalMs: now - 60 * 1000,
+            ownAnonymous: true,
+        }),
+    });
+    assert.strictEqual(lnCap.ok, false);
+    assert.strictEqual(lnCap.reason, 'points');
+    assert.strictEqual(referrals.blocksProductionApply('staging', 'bitcoin-education-archive'), true);
+    assert.strictEqual(referrals.blocksProductionApply('bitcoin-education-archive', 'staging'), true);
+    assert.strictEqual(referrals.blocksProductionApply('staging', 'staging'), false);
+    assert.ok(reg.indexOf('referral_arrivals') !== -1 || service.indexOf("collection('referral_arrivals')") !== -1);
+});
+
+test('Lightning uids get a stable alphanumeric code and a lookup row', () => {
+    const uid = 'ln:' + 'ab'.repeat(32);
+    assert.strictEqual(referrals.referralCodeForUid(uid), '');
+    assert.strictEqual(referrals.needsMintedReferralCode(uid), true);
+    const code = referrals.mintedReferralCode(uid, 0);
+    assert.strictEqual(code, referrals.mintedReferralCode(uid, 0));
+    assert.notStrictEqual(code, referrals.mintedReferralCode(uid, 1));
+    assert.ok(/^[A-Z0-9]{8}$/.test(code));
+    assert.strictEqual(code.indexOf(':'), -1);
+    assert.strictEqual(referrals.normalizeCode(code), code);
+    assert.strictEqual(referrals.normalizeCode('ln:abcdef'), '');
+    const users = [];
+    for (let i = 0; i < 121; i++) {
+        users.push({ uid: 'user' + String(i).padStart(4, '0') + 'WXYZ', referralCode: '' });
+    }
+    users.push({ uid: uid, referralCode: '' });
+    const plan = referrals.planCodeLookup(users, {});
+    assert.strictEqual(plan.counts.missing, 122);
+    assert.strictEqual(plan.counts.collisions, 0);
+    const again = referrals.planCodeLookup(users, plan.writes.reduce(function (index, row) {
+        index[row.code] = row.uid;
+        return index;
+    }, {}));
+    assert.strictEqual(again.counts.missing, 0);
+    const ln = plan.writes.filter(function (row) { return row.uid === uid; })[0];
+    assert.strictEqual(ln.code, code);
+    const script = fs.readFileSync(path.join(__dirname, '..', 'functions', 'scripts', 'backfill_referral_code_lookup.js'), 'utf8');
+    assert.ok(script.indexOf("process.argv.indexOf('--apply')") !== -1);
+    assert.ok(script.indexOf('dry-run only') !== -1);
+    assert.ok(script.indexOf('refusing --apply against production') !== -1);
+    assert.ok(script.indexOf('GOOGLE_APPLICATION_CREDENTIALS') !== -1);
+    assert.ok(script.indexOf('project_id') !== -1);
+    assert.ok(script.indexOf('blocksProductionApply') !== -1);
+    assert.ok(script.indexOf('Do not run it against production') !== -1);
+});
+
+test('a paid referral records the raid stat where the payout happens', () => {
+    const service = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'referralService.js'), 'utf8');
+    const pay = service.slice(service.indexOf('async function payIfQualified'), service.indexOf('async function grantReferralBadges'));
+    const sync = service.slice(service.indexOf('async function syncReferralMaxiCount'), service.indexOf('async function onUserWritten'));
+    assert.ok(pay.indexOf("metric: 'referralsPaid'") !== -1);
+    assert.ok(pay.indexOf('noteTrusted') !== -1);
+    assert.strictEqual(sync.indexOf('outcome'), -1);
+    assert.strictEqual(sync.indexOf('referralsPaid'), -1);
+    const written = service.slice(service.indexOf('async function onUserWritten'), service.indexOf('async function scanPending'));
+    assert.ok(written.indexOf('activityPoints(before)') !== -1);
+    assert.ok(written.indexOf('activityPoints(after)') !== -1);
+    const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    assert.ok(rules.indexOf('match /referral_arrivals/{uid}') !== -1);
+    assert.ok(rules.indexOf('match /referral_arrivals/{uid}') < rules.indexOf('allow read, write: if false;', rules.indexOf('match /referral_arrivals/{uid}')));
+});
+
+test('short links and previews keep a validated ref, and http redirects to https', () => {
+    const worker = fs.readFileSync(path.join(__dirname, '..', 'workers', 'seo-router', 'worker.js'), 'utf8');
+    const start = worker.indexOf('const PRIMARY_ORIGIN');
+    const end = worker.indexOf('let channelCache');
+    const fns = new Function(worker.slice(start, end) + '\nreturn { validatedReferralRef, urlWithRef, httpsRedirectTarget, spaRedirectTarget };')();
+    assert.strictEqual(fns.validatedReferralRef('?ref=abc12345'), 'abc12345');
+    assert.strictEqual(fns.validatedReferralRef('?ref=abc12345&x=1'), 'abc12345');
+    assert.strictEqual(fns.validatedReferralRef('?ref=ln:abcdef'), '');
+    assert.strictEqual(fns.validatedReferralRef('?ref=abc'), '');
+    assert.strictEqual(fns.validatedReferralRef('?ref=abc12345<script>'), '');
+    assert.strictEqual(fns.spaRedirectTarget('pvp', '?ref=abc12345'), 'https://bitcoineducation.quest/?ref=abc12345#pvp');
+    assert.strictEqual(fns.spaRedirectTarget('beats', ''), 'https://bitcoineducation.quest/#beats');
+    assert.strictEqual(fns.httpsRedirectTarget('http://bitcoineducation.quest/channels/mining?ref=abc12345'), 'https://bitcoineducation.quest/channels/mining?ref=abc12345');
+    assert.strictEqual(fns.httpsRedirectTarget('https://bitcoineducation.quest/'), '');
+    assert.ok(fns.urlWithRef('https://bitcoineducation.quest/channels/mining', 'abc12345').indexOf('og:url') === -1);
+    assert.strictEqual(fns.urlWithRef('https://bitcoineducation.quest/channels/mining', 'abc12345'), 'https://bitcoineducation.quest/channels/mining?ref=abc12345');
+    assert.ok(worker.indexOf('ogUrl') !== -1);
+    assert.strictEqual(worker.indexOf("searchParams.get('ref')"), -1);
+    assert.strictEqual(worker.indexOf('searchParams.get("ref")'), -1);
+    assert.ok(worker.indexOf('return Response.redirect(httpsTarget, 301)') !== -1);
+    assert.ok(worker.indexOf('spaRedirectTarget') !== -1);
 });
 
 function fixture() {
@@ -355,8 +527,10 @@ test('home invite card is top-right and reads counts the user may see', () => {
     const tickets = fs.readFileSync(path.join(__dirname, '..', 'tickets.js'), 'utf8');
     const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
     assert.ok(html.includes('id="inviteCard"'));
-    assert.ok(html.includes('When a friend you invite reaches Maxi rank, you both get 50 orange tickets.'));
-    assert.ok(html.includes('Share your link. Your friend signs up with it. When they reach Maxi (2,140 XP), you both get 50 orange tickets automatically.'));
+    assert.ok(html.includes("When a friend you invite reaches 2,140 points (Scholar exam points don't count), you both get 50 orange tickets."));
+    assert.ok(html.includes("Share your link. Your friend signs up with it. When they reach 2,140 points (Scholar exam points don't count), you both get 50 orange tickets automatically."));
+    assert.ok(html.includes('earned 2,140'));
+    assert.ok(!html.includes('reaches Maxi rank, you both get 50 orange tickets.'));
     assert.ok(html.includes('How it works'));
     assert.ok(html.includes('id="inviteCopy"'));
     assert.ok(html.includes('id="inviteShare"'));
@@ -390,6 +564,38 @@ test('home invite card is top-right and reads counts the user may see', () => {
     assert.ok(tickets.includes('btc_session_popup'));
     assert.ok(tickets.includes('inviteCard: state'));
     assert.ok(tickets.includes("localStorage.setItem(_inviteStorageKey(uid), state)"));
+    assert.ok(html.includes('id="inviteGuestPill"'));
+    assert.ok(html.includes('🎟️ Invite friends'));
+    assert.ok(tickets.includes("if (state === 'off') return 'min'"));
+    assert.ok(tickets.includes("if (state === 'open') return 'min'"));
+    assert.ok(tickets.includes("if (state === 'off') state = 'min'"));
+    assert.ok(tickets.includes("if (state === 'open') state = 'min'"));
+    assert.ok(tickets.includes('btc_invite_auto_'));
+    assert.ok(tickets.includes('7 * 24 * 60 * 60 * 1000'));
+    assert.ok(tickets.includes('function _scheduleInvitePlace'));
+    assert.ok(tickets.includes('requestAnimationFrame'));
+    assert.ok(!tickets.includes('_inviteSessionAuto'));
+    assert.ok(!tickets.includes('btc_invite_auto_session'));
+    assert.ok(!tickets.includes('_invitePreviewOn'));
+    assert.ok(!tickets.includes('_homePreviewUser'));
+    assert.ok(tickets.includes('_inviteHeldOpen && !_inviteModalOpen()'));
+    assert.ok(tickets.includes('box.bottom <= 1 || box.top >= window.innerHeight - 1'));
+    assert.ok(tickets.includes('parseFloat(style.opacity) === 0'));
+    assert.ok(tickets.includes("style.display === 'none' || style.visibility === 'hidden'"));
+    const expandBody = tickets.slice(tickets.indexOf('function expandInviteCard'), tickets.indexOf('function dismissInviteCard'));
+    assert.ok(expandBody.includes('_inviteModalOpen()'));
+    assert.ok(!expandBody.includes('_inviteAutoBlocked()'));
+    const refreshBody = tickets.slice(tickets.indexOf('function refreshInviteCard'), tickets.indexOf('function openInviteFriends'));
+    assert.ok(refreshBody.includes('_inviteAutoDue(uid) && !_inviteAutoBlocked()'));
+    assert.ok(tickets.includes("_inviteWriteStored('min')"));
+    assert.ok(!tickets.includes("_inviteWriteStored('off')"));
+    assert.ok(!tickets.includes("_inviteWriteStored('open')"));
+    assert.ok(tickets.includes("pill.textContent = '🎟️ Invite friends'"));
+    assert.ok(tickets.includes('querySelectorAll'));
+    assert.ok(!tickets.includes("var ids = ['usernameModal', 'questModal', 'tosModal', 'leaderboard', 'lb']"));
+    assert.ok(html.includes('aria-label="Invite friends"'));
+    assert.strictEqual((html.match(/aria-label="Invite friends"/g) || []).length, 2);
+    assert.ok(html.includes('body:has(#inviteCard[data-state="guest"][data-show="1"]) #inviteGuestPill { display: none !important; }'));
     assert.ok(rules.includes("request.resource.data.inviteCard == 'open'"));
     assert.ok(rules.includes("request.resource.data.inviteCard == 'min'"));
     assert.ok(rules.includes("request.resource.data.inviteCard == 'off'"));
@@ -424,8 +630,11 @@ test('home invite card is top-right and reads counts the user may see', () => {
     assert.ok(deleter.indexOf("'referral_signals'") !== -1);
     const indexJs = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
     const scholar = indexJs.slice(indexJs.indexOf('exports.gradeScholarExam'), indexJs.indexOf('exports.startQuest'));
-    assert.ok(scholar.indexOf('planDailyXp(scholarUsed, 2100)') !== -1);
-    assert.ok(scholar.indexOf('scholarPoints') !== -1);
+    assert.ok(scholar.indexOf('planDailyXp') === -1);
+    assert.ok(scholar.indexOf("require('./src/certBonus')") !== -1);
+    assert.ok(scholar.indexOf('certBonus.bonusUserFields') !== -1);
+    const bonusSrc = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'certBonus.js'), 'utf8');
+    assert.ok(bonusSrc.indexOf('scholarPoints') !== -1);
     assert.ok(indexJs.indexOf('activeDayKeys') !== -1);
     assert.ok(rules.includes('resource.data.referrerUid == request.auth.uid'));
     assert.ok(rules.includes('resource.data.referredUserUid == request.auth.uid'));
@@ -441,10 +650,16 @@ test('home invite card is top-right and reads counts the user may see', () => {
     const privacy = fs.readFileSync(path.join(__dirname, '..', 'privacy.html'), 'utf8');
     assert.ok(privacy.includes('server-only'));
     assert.ok(privacy.includes('referral signup'));
-    assert.ok(privacy.includes('HMAC'));
-    assert.ok(privacy.includes('90-day'));
+    assert.ok(privacy.includes('one-way, non-reversible fingerprint of your network address, kept 90 days'));
+    assert.ok(!privacy.includes('HMAC'));
+    assert.ok(privacy.includes('kept 90 days'));
+    assert.ok(!privacy.includes('btc_auth_display'));
+    assert.ok(!privacy.includes('btc_profile_cache'));
     assert.ok(service.indexOf("collection('notifications')") === -1);
     const terms = fs.readFileSync(path.join(__dirname, '..', 'terms.html'), 'utf8');
+    assert.ok(!terms.includes('HMAC'));
+    assert.ok(terms.includes('We use App Check to help block automated abuse'));
+    assert.ok(!terms.includes('including sats claims and Say hi'));
     assert.ok(terms.includes('2,140 points'));
     assert.ok(terms.includes('50 Orange Tickets'));
     assert.ok(terms.includes('72 hours'));
@@ -459,5 +674,368 @@ test('home invite card is top-right and reads counts the user may see', () => {
     assert.ok(notes.includes('I sent the tip'));
 });
 
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-process.exit(failed > 0 ? 1 : 0);
+// Behavioral invite-card cases. tickets.js is loaded once in a tiny DOM so
+// these stay free of jsdom. A fixed overlay slid off-screen is not a popup.
+function loadInvitePage() {
+    const vm = require('vm');
+    const uid = 'user1234abcd';
+    const store = Object.create(null);
+    const session = Object.create(null);
+    function Storage(map) {
+        this.getItem = function(k) { return Object.prototype.hasOwnProperty.call(map, k) ? map[k] : null; };
+        this.setItem = function(k, v) { map[String(k)] = String(v); };
+        this.removeItem = function(k) { delete map[k]; };
+    }
+    store['btc_invite_auto_' + uid] = String(Date.now());
+
+    function Element(tag) {
+        this.tagName = String(tag || 'div').toUpperCase();
+        this.nodeType = 1;
+        this.id = '';
+        this.className = '';
+        this.style = {};
+        this.children = [];
+        this.parentNode = null;
+        this.textContent = '';
+        this.attributes = Object.create(null);
+        const self = this;
+        this.classList = {
+            contains: function(c) { return self.className.split(/\s+/).indexOf(c) !== -1; },
+            add: function(c) {
+                if (!this.contains(c)) self.className = (self.className + ' ' + c).trim();
+                self.attributes.class = self.className;
+            },
+            remove: function(c) {
+                self.className = self.className.split(/\s+/).filter(function(x) { return x && x !== c; }).join(' ');
+                self.attributes.class = self.className;
+            },
+        };
+    }
+    Element.prototype.setAttribute = function(name, value) {
+        this.attributes[name] = String(value);
+        if (name === 'id') {
+            this.id = String(value);
+            if (this.ownerDocument) this.ownerDocument._ids[this.id] = this;
+        }
+        if (name === 'class') this.className = String(value);
+    };
+    Element.prototype.getAttribute = function(name) {
+        if (name === 'id') return this.id || null;
+        if (name === 'class') return this.className || null;
+        return Object.prototype.hasOwnProperty.call(this.attributes, name) ? this.attributes[name] : null;
+    };
+    Element.prototype.hasAttribute = function(name) {
+        if (name === 'id') return !!this.id;
+        if (name === 'class') return !!this.className;
+        return Object.prototype.hasOwnProperty.call(this.attributes, name);
+    };
+    Element.prototype.removeAttribute = function(name) {
+        if (name === 'id') this.id = '';
+        if (name === 'class') this.className = '';
+        delete this.attributes[name];
+    };
+    Element.prototype.appendChild = function(child) {
+        if (child.parentNode) {
+            const i = child.parentNode.children.indexOf(child);
+            if (i >= 0) child.parentNode.children.splice(i, 1);
+        }
+        child.parentNode = this;
+        child.ownerDocument = this.ownerDocument;
+        this.children.push(child);
+        if (child.id && child.ownerDocument) child.ownerDocument._ids[child.id] = child;
+        return child;
+    };
+    Element.prototype.remove = function() {
+        if (!this.parentNode) return;
+        const i = this.parentNode.children.indexOf(this);
+        if (i >= 0) this.parentNode.children.splice(i, 1);
+        this.parentNode = null;
+    };
+    Element.prototype.focus = function() {};
+    Element.prototype.select = function() {};
+    Element.prototype.addEventListener = function() {};
+    Object.defineProperty(Element.prototype, 'hidden', {
+        get: function() { return this.hasAttribute('hidden'); },
+        set: function(v) { if (v) this.setAttribute('hidden', ''); else this.removeAttribute('hidden'); },
+    });
+    function matches(el, sel) {
+        sel = String(sel || '').trim();
+        if (!sel || !el || el.nodeType !== 1) return false;
+        if (sel.indexOf(',') !== -1) {
+            return sel.split(',').some(function(part) { return matches(el, part); });
+        }
+        if (sel.charAt(0) === '.') return el.classList.contains(sel.slice(1));
+        if (sel.charAt(0) === '#') return el.id === sel.slice(1);
+        const wrapped = sel.match(/^([a-zA-Z][\w-]*)?\[(.+)\]$/);
+        if (!wrapped) return false;
+        if (wrapped[1] && el.tagName.toLowerCase() !== wrapped[1].toLowerCase()) return false;
+        const attr = wrapped[2].match(/^([\w:-]+)(?:(\*|~|\^|\$)?=(?:"([^"]*)"|'([^']*)'))?$/);
+        if (!attr) return false;
+        const name = attr[1];
+        const actual = el.getAttribute(name);
+        if (attr[2] == null && attr[3] == null && attr[4] == null) return el.hasAttribute(name);
+        const expected = attr[3] != null ? attr[3] : attr[4];
+        const have = actual == null ? '' : String(actual);
+        if (attr[2] === '*') return have.indexOf(expected) !== -1;
+        if (attr[2] === '^') return have.indexOf(expected) === 0;
+        if (attr[2] === '$') return have.slice(-expected.length) === expected;
+        return have === expected;
+    }
+    Element.prototype.closest = function(sel) {
+        let n = this;
+        while (n && n.nodeType === 1) {
+            if (matches(n, sel)) return n;
+            n = n.parentNode;
+        }
+        return null;
+    };
+    function walk(node, out) {
+        const kids = node.children || [];
+        for (let i = 0; i < kids.length; i++) {
+            if (kids[i].nodeType === 1) out.push(kids[i]);
+            walk(kids[i], out);
+        }
+    }
+    function queryAll(root, sel) {
+        const all = [];
+        walk(root, all);
+        return all.filter(function(el) { return matches(el, sel); });
+    }
+
+    const document = { nodeType: 9, children: [], readyState: 'complete', _ids: Object.create(null) };
+    document.createElement = function(tag) {
+        const el = new Element(tag);
+        el.ownerDocument = document;
+        return el;
+    };
+    document.getElementById = function(id) { return this._ids[id] || null; };
+    document.querySelector = function(sel) {
+        const found = queryAll(this, sel);
+        return found[0] || null;
+    };
+    document.querySelectorAll = function(sel) { return queryAll(this, sel); };
+    document.addEventListener = function() {};
+    document.execCommand = function() { return false; };
+    Element.prototype.querySelector = function(sel) {
+        const found = queryAll(this, sel);
+        return found[0] || null;
+    };
+    Element.prototype.querySelectorAll = function(sel) { return queryAll(this, sel); };
+
+    const body = document.createElement('div');
+    body.tagName = 'BODY';
+    document.body = body;
+    document.children.push(body);
+    body.ownerDocument = document;
+
+    function mount(id, tag) {
+        const el = document.createElement(tag || 'div');
+        if (id) el.setAttribute('id', id);
+        body.appendChild(el);
+        return el;
+    }
+    const home = mount('home');
+    const card = mount('inviteCard');
+    card.setAttribute('data-state', 'min');
+    card.setAttribute('data-show', '0');
+    card.appendChild(mount('inviteLink', 'p'));
+    card.appendChild(mount('inviteCopy', 'button'));
+    const share = mount('inviteShare', 'button');
+    share.setAttribute('hidden', '');
+    card.appendChild(share);
+    card.appendChild(mount('inviteCounts', 'p'));
+    card.appendChild(mount('invitePill', 'button'));
+    const guest = mount('inviteGuestPill', 'button');
+    guest.setAttribute('hidden', '');
+    mount('main');
+
+    const sandbox = {
+        console: console,
+        setTimeout: setTimeout,
+        clearTimeout: clearTimeout,
+        setInterval: setInterval,
+        clearInterval: clearInterval,
+        Date: Date,
+        Math: Math,
+        URLSearchParams: URLSearchParams,
+        parseInt: parseInt,
+        parseFloat: parseFloat,
+        String: String,
+        Number: Number,
+        Object: Object,
+        Array: Array,
+        RegExp: RegExp,
+        Error: Error,
+        JSON: JSON,
+        document: document,
+        navigator: {},
+        history: { replaceState: function() {} },
+        location: { origin: 'https://example.test', pathname: '/', search: '', hash: '', hostname: 'example.test' },
+        localStorage: new Storage(store),
+        sessionStorage: new Storage(session),
+        innerWidth: 390,
+        innerHeight: 800,
+        addEventListener: function() {},
+        removeEventListener: function() {},
+        requestAnimationFrame: function(fn) { return setTimeout(fn, 0); },
+        cancelAnimationFrame: function(id) { clearTimeout(id); },
+        MutationObserver: function() {},
+        currentUser: { uid: uid, inviteCard: 'min', referralCode: 'user1234', referralCount: 0 },
+        auth: {
+            currentUser: { uid: uid, isAnonymous: false },
+            onAuthStateChanged: function(fn) { this._cb = fn; },
+        },
+    };
+    sandbox.MutationObserver.prototype = { observe: function() {}, disconnect: function() {} };
+    sandbox.window = sandbox;
+    sandbox.globalThis = sandbox;
+    sandbox.getComputedStyle = function(el) {
+        const st = (el && el.style) || {};
+        return {
+            display: st.display || 'block',
+            visibility: st.visibility || 'visible',
+            pointerEvents: st.pointerEvents || 'auto',
+            position: st.position || 'static',
+            opacity: (st.opacity != null && st.opacity !== '') ? String(st.opacity) : '1',
+        };
+    };
+    Element.prototype.getBoundingClientRect = function() {
+        const st = this.style || {};
+        const w = parseFloat(st.width) || 0;
+        const h = parseFloat(st.height) || 0;
+        let left = parseFloat(st.left);
+        if (!isFinite(left)) left = 0;
+        let top = parseFloat(st.top);
+        if (!isFinite(top)) {
+            if (st.bottom === '0' || st.bottom === '0px') top = sandbox.innerHeight - h;
+            else top = 0;
+        }
+        const tr = String(st.transform || '');
+        const y = tr.match(/translateY\(\s*(-?[\d.]+)\s*(%|px)?\s*\)/);
+        if (y) top += (y[2] === '%') ? h * parseFloat(y[1]) / 100 : parseFloat(y[1]);
+        return { x: left, y: top, left: left, top: top, width: w, height: h, right: left + w, bottom: top + h };
+    };
+
+    vm.createContext(sandbox);
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'tickets.js'), 'utf8'), sandbox, { filename: 'tickets.js' });
+    sandbox._uid = uid;
+    return sandbox;
+}
+
+const invitePage = loadInvitePage();
+
+function chatOverlay(page, translateY) {
+    let el = page.document.getElementById('chatOverlay');
+    if (!el) {
+        el = page.document.createElement('div');
+        el.setAttribute('id', 'chatOverlay');
+        page.document.body.appendChild(el);
+    }
+    el.style.position = 'fixed';
+    el.style.display = 'flex';
+    el.style.height = '776px';
+    el.style.width = page.innerWidth + 'px';
+    el.style.bottom = '0';
+    el.style.left = '0';
+    el.style.right = '0';
+    el.style.transform = translateY;
+    return el;
+}
+
+function inviteState(page) {
+    return page.document.getElementById('inviteCard').getAttribute('data-state');
+}
+
+test('the first stored referral wins until it expires', () => {
+    const page = invitePage;
+    page.localStorage.removeItem('btc_referral_code');
+    page.localStorage.removeItem('btc_referral_code_at');
+    page.location.search = '?ref=firstcode';
+    page.captureReferralCode();
+    assert.strictEqual(page.localStorage.getItem('btc_referral_code'), 'firstcode');
+    page.location.search = '?ref=latercode';
+    page.captureReferralCode();
+    assert.strictEqual(page.localStorage.getItem('btc_referral_code'), 'firstcode');
+    page.location.search = '?ref=ln:abcdef';
+    page.captureReferralCode();
+    assert.strictEqual(page.localStorage.getItem('btc_referral_code'), 'firstcode');
+    page.localStorage.setItem('btc_referral_code_at', String(Date.now() - 31 * 24 * 60 * 60 * 1000));
+    page.location.search = '?ref=latercode';
+    page.captureReferralCode();
+    assert.strictEqual(page.localStorage.getItem('btc_referral_code'), 'latercode');
+    page.location.search = '';
+});
+
+test('a signed-in load retries a stored ref and clears it once accepted', async () => {
+    const page = invitePage;
+    page.localStorage.setItem('btc_referral_code', 'hostcode');
+    page.localStorage.setItem('btc_referral_code_at', String(Date.now()));
+    const calls = [];
+    page.firebase = {
+        functions: function () {
+            return {
+                httpsCallable: function () {
+                    return function (payload) {
+                        calls.push(payload);
+                        return Promise.resolve({ data: { success: true, status: 'pending' } });
+                    };
+                }
+            };
+        }
+    };
+    await page.attachReferral(page.auth.currentUser.uid);
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0].refCode, 'hostcode');
+    assert.strictEqual(page.localStorage.getItem('btc_referral_code'), null);
+    page.auth.currentUser.isAnonymous = true;
+    page.localStorage.setItem('btc_referral_code', 'hostcode');
+    page.localStorage.setItem('btc_referral_code_at', String(Date.now()));
+    await page.attachReferral(page.auth.currentUser.uid);
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(page.localStorage.getItem('btc_referral_code'), 'hostcode');
+    page.auth.currentUser.isAnonymous = false;
+    page.currentUser.uid = 'ln:' + 'cd'.repeat(20);
+    page.currentUser.referralCode = '';
+    assert.strictEqual(page.getReferralCode(), null);
+    page.currentUser.referralCode = 'LNCODE12';
+    assert.strictEqual(page.getReferralCode(), 'LNCODE12');
+    page.currentUser.uid = page._uid;
+    page.currentUser.referralCode = 'user1234';
+});
+
+test('a closed chat overlay does not block expandInviteCard', () => {
+    chatOverlay(invitePage, 'translateY(100%)');
+    assert.strictEqual(invitePage._invitePopupElement(invitePage.document.getElementById('chatOverlay')), false);
+    invitePage.expandInviteCard();
+    assert.strictEqual(inviteState(invitePage), 'open');
+    invitePage.refreshInviteCard();
+    assert.strictEqual(inviteState(invitePage), 'open');
+});
+
+test('an on-screen chat overlay keeps the invite card minimized', () => {
+    chatOverlay(invitePage, 'translateY(0)');
+    assert.strictEqual(invitePage._invitePopupElement(invitePage.document.getElementById('chatOverlay')), true);
+    invitePage.expandInviteCard();
+    assert.strictEqual(inviteState(invitePage), 'min');
+    invitePage.refreshInviteCard();
+    assert.strictEqual(inviteState(invitePage), 'min');
+});
+
+test('a tap opens the invite card even when the session popup budget is taken', () => {
+    chatOverlay(invitePage, 'translateY(100%)');
+    invitePage.sessionStorage.setItem('btc_session_popup', 'quest');
+    invitePage.expandInviteCard();
+    assert.strictEqual(inviteState(invitePage), 'open');
+    invitePage.refreshInviteCard();
+    assert.strictEqual(inviteState(invitePage), 'open');
+    invitePage.minimizeInviteCard();
+    assert.strictEqual(inviteState(invitePage), 'min');
+    invitePage.localStorage.removeItem('btc_invite_auto_' + invitePage._uid);
+    invitePage.refreshInviteCard();
+    assert.strictEqual(inviteState(invitePage), 'min');
+});
+
+Promise.all(pendingTests).then(function () {
+    console.log('\n' + passed + ' passed, ' + failed + ' failed');
+    process.exit(failed > 0 ? 1 : 0);
+});

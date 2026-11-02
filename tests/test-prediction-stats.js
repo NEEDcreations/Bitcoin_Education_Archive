@@ -161,7 +161,7 @@ test('minimums are weekly 5, monthly 15, all-time 10', function() {
     assert.strictEqual(ps.selectBoard([row(10, 6)], 'alltime')[0].uid, 'u10x6');
 });
 
-test('banned users are dropped from the board and the next user moves up', function() {
+test('banned users stay on the board and are not paid or replaced', function() {
     function row(uid, correct, extra) {
         return Object.assign({
             uid: uid,
@@ -181,11 +181,18 @@ test('banned users are dropped from the board and the next user moves up', funct
         row('after', 10)
     ];
     const board = ps.selectBoard(rows, 'alltime');
-    assert.deepStrictEqual(board.map(function(r) { return r.uid; }), ['next', 'after']);
+    assert.deepStrictEqual(board.map(function(r) { return r.uid; }), ['sats', 'ledger', 'next', 'after']);
     assert.strictEqual(board[0].rank, 1);
-    assert.strictEqual(board[1].rank, 2);
+    assert.strictEqual(board[0].banned, true);
+    assert.strictEqual(board[2].rank, 3);
+    assert.strictEqual(board[2].banned, false);
     const paid = ps.payoutPlan(null, rows, 'weekly');
     assert.deepStrictEqual(paid.due.map(function(d) { return d.uid; }), ['next', 'after']);
+    assert.ok(paid.winnerUids.indexOf('sats') !== -1);
+    rows.unshift({ uid: 'ghost', username: 'G', correct: 20, total: 20, accuracy: 10000, reachedAt: 1, ghostMode: true });
+    const withGhost = ps.selectBoard(rows, 'alltime');
+    assert.ok(withGhost.every(function(r) { return r.uid !== 'ghost'; }));
+    assert.strictEqual(withGhost[0].uid, 'sats');
     assert.strictEqual(ps.winnerSkipReason(false, null, null), 'missing_user');
     assert.strictEqual(ps.winnerSkipReason(true, { satsDisabled: true }, { banned: false }), 'sats_banned');
     assert.strictEqual(ps.winnerSkipReason(true, { satsDisabled: false }, { banned: true }), 'sats_banned');
@@ -204,27 +211,32 @@ test('tie-break is more correct, then more total, then earliest reached', functi
         { uid: 'short', correct: 4, total: 4, accuracy: 10000, reachedAt: 1 }
     ];
     const board = ps.selectBoard(rows, 'alltime');
-    assert.deepStrictEqual(board.map(function(r) { return r.uid; }), ['perfectSmall', 'moreCorrect', 'early', 'late']);
-    assert.strictEqual(board[0].pct, 100);
-    assert.strictEqual(board[1].correct, 9);
-    assert.strictEqual(board[2].uid, 'early');
+    assert.deepStrictEqual(board.map(function(r) { return r.uid; }), ['banned', 'perfectSmall', 'moreCorrect', 'early', 'late']);
+    assert.strictEqual(board[0].banned, true);
+    assert.strictEqual(board[1].pct, 100);
+    assert.strictEqual(board[2].correct, 9);
+    assert.strictEqual(board[3].uid, 'early');
 });
 
-test('weekly and monthly prizes are flat 25 and 50 for each of the top 5', function() {
-    for (let rank = 1; rank <= 5; rank++) {
+test('weekly and monthly prizes are flat 25 and 100 for each of the top 10', function() {
+    for (let rank = 1; rank <= 10; rank++) {
         assert.strictEqual(ps.ticketsForRank('weekly', rank), 25);
-        assert.strictEqual(ps.ticketsForRank('monthly', rank), 50);
+        assert.strictEqual(ps.ticketsForRank('monthly', rank), 100);
     }
-    assert.strictEqual(ps.ticketsForRank('weekly', 6), 0);
+    assert.strictEqual(ps.ticketsForRank('weekly', 11), 0);
     assert.strictEqual(ps.ticketsForRank('monthly', 0), 0);
     assert.strictEqual(ps.ticketsForRank('alltime', 1), 0);
     assert.strictEqual(ps.TICKETS.weekly, 25);
-    assert.strictEqual(ps.TICKETS.monthly, 50);
+    assert.strictEqual(ps.TICKETS.monthly, 100);
+    assert.strictEqual(ps.PAYOUT_SIZE, 10);
     assert.deepStrictEqual(ps.COPY, {
-        weekly: 'This Week: make at least 5 predictions to qualify. Top 5 each win 25 orange tickets.',
-        monthly: 'This Month: at least 15 predictions. Top 5 each win 50 orange tickets.',
+        weekly: 'This Week: make at least 5 predictions to qualify. Top 10 each win 25 orange tickets.',
+        monthly: 'This Month: at least 15 predictions. Top 10 each win 100 orange tickets.',
         alltime: 'All Time: at least 10 predictions.'
     });
+    assert.strictEqual(ps.boardEligible({ weekTotal: 5, weekCorrect: 3, qualifiesWeek: false }, 'weekly'), true);
+    assert.strictEqual(ps.boardEligible({ weekTotal: 4, qualifiesWeek: true }, 'weekly'), false);
+    assert.strictEqual(ps.boardEligible({ monthTotal: 15, qualifiesMonth: false }, 'monthly'), true);
 });
 
 test('payout is idempotent per period and skips users already paid', function() {
@@ -237,16 +249,16 @@ test('payout is idempotent per period and skips users already paid', function() 
     const first = ps.payoutPlan(null, winners, 'weekly');
     assert.strictEqual(first.action, 'pay');
     assert.strictEqual(first.needsReset, true);
-    assert.strictEqual(first.due.length, 5);
+    assert.strictEqual(first.due.length, 6);
     first.due.forEach(function(d) { assert.strictEqual(d.tickets, 25); });
-    assert.ok(first.due.every(function(d) { return d.uid !== 'banned' && d.uid !== 'ledger' && d.uid !== 'w6'; }));
-    assert.deepStrictEqual(first.due.map(function(d) { return d.uid; }), ['w1', 'w2', 'w3', 'w4', 'w5']);
-    assert.deepStrictEqual(first.due.map(function(d) { return d.rank; }), [1, 2, 3, 4, 5]);
+    assert.ok(first.due.every(function(d) { return d.uid !== 'banned' && d.uid !== 'ledger'; }));
+    assert.deepStrictEqual(first.due.map(function(d) { return d.uid; }), ['w1', 'w2', 'w3', 'w4', 'w5', 'w6']);
+    assert.strictEqual(first.due[0].rank, 3);
 
     const partial = ps.payoutPlan({ status: 'pending', awardedUids: ['w1', 'w2'], resetDone: false }, winners, 'monthly');
     assert.strictEqual(partial.action, 'pay');
-    assert.deepStrictEqual(partial.due.map(function(d) { return d.uid; }), ['w3', 'w4', 'w5']);
-    partial.due.forEach(function(d) { assert.strictEqual(d.tickets, 50); });
+    assert.deepStrictEqual(partial.due.map(function(d) { return d.uid; }), ['w3', 'w4', 'w5', 'w6']);
+    partial.due.forEach(function(d) { assert.strictEqual(d.tickets, 100); });
 
     const paidNotReset = ps.payoutPlan({ status: 'complete', awardedUids: ['w1'], resetDone: false }, winners, 'weekly');
     assert.strictEqual(paidNotReset.action, 'reset_only');
@@ -493,7 +505,10 @@ test('client copy, aria hook, and server-only scoring are wired', function() {
     assert.ok(jobs.indexOf('serverPriceSetAt') !== -1);
     assert.ok(jobs.indexOf("collection('prediction_server')") !== -1);
     assert.ok(jobs.indexOf('faucet_ledger') !== -1);
-    assert.ok(jobs.indexOf('winnerSkipReason') !== -1);
+    assert.ok(jobs.indexOf('no longer grants tickets') !== -1);
+    const prizes = fs.readFileSync(path.join(root, 'functions/src/lbPrizes.js'), 'utf8');
+    assert.ok(prizes.indexOf('rewardBlocked') !== -1);
+    assert.ok(index.indexOf('settlePrediction') !== -1);
     assert.ok(jobs.indexOf('price: live.price') === -1);
     assert.ok(jobs.indexOf('startPrice: Number(live.price)') === -1);
     assert.ok(jobs.indexOf('serverStartPriceOf') === -1);

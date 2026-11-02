@@ -14,11 +14,11 @@
         advanced: ['pick_topic', 'send_chat', 'spin_wheel', 'find_nacho', 'first_quiz']
     };
     var QUEST_STEPS = {
-        pick_topic: { title: 'Open a channel', detail: 'Tap any topic and start reading.', signal: 'channel', beacon: '#channelList' },
-        send_chat: { title: 'Say hello in chat', detail: 'Send a message in Global Chat.', signal: 'chat', beacon: '#chatOverlayBtn' },
-        spin_wheel: { title: 'Take the daily spin', detail: 'Open the daily spin and spin once.', signal: 'spin', beacon: '#nqSpinBtn' },
-        find_nacho: { title: 'Ask Nacho', detail: 'Ask Nacho a Bitcoin question.', signal: 'nacho', beacon: '#nacho-container' },
-        first_quiz: { title: 'Try a quiz', detail: 'Finish a quiz, a trivia question, or a poll.', signal: 'quiz', beacon: '#onboardingQuizEntry' }
+        pick_topic: { title: 'Open a channel', detail: 'Tap any topic and start reading.', signal: 'channel', beacon: '#channelList', hash: 'app/channels' },
+        send_chat: { title: 'Say hello in chat', detail: 'Send a message in Global Chat.', signal: 'chat', beacon: '#chatOverlayBtn', hash: 'chat' },
+        spin_wheel: { title: 'Take the daily spin', detail: 'Open the daily spin and spin once.', signal: 'spin', beacon: '#nqSpinBtn', hash: 'app/wheel' },
+        find_nacho: { title: 'Ask Nacho', detail: 'Ask Nacho a Bitcoin question.', signal: 'nacho', beacon: '#nacho-container', hash: 'app/mini-nacho' },
+        first_quiz: { title: 'Try a quiz', detail: 'Finish a quiz, a trivia question, or a poll.', signal: 'quiz', beacon: '#onboardingQuizEntry', hash: 'app/quiz' }
     };
 
     function esc(s) {
@@ -337,20 +337,34 @@
                 btn.style.transform = 'none';
             }
         }
-        var invite = document.getElementById('invitePill');
+        var blockers = [];
+        var guestPill = document.getElementById('inviteGuestPill');
+        if (guestPill && !guestPill.hasAttribute('hidden')) blockers.push(guestPill);
         var card = document.getElementById('inviteCard');
-        if (invite && card && card.getAttribute('data-show') === '1' && card.getAttribute('data-state') === 'min') {
-            var ib = invite.getBoundingClientRect();
-            var qb = btn.getBoundingClientRect();
-            if (ib.width >= 1 && ib.height >= 1) {
-                var stacked = !(qb.right < ib.left - 8 || qb.left > ib.right + 8 || qb.bottom < ib.top - 8 || qb.top > ib.bottom + 8);
-                if (stacked) {
-                    btn.style.top = Math.round(ib.bottom + 12) + 'px';
-                    btn.style.bottom = 'auto';
-                }
+        if (card && card.getAttribute('data-show') === '1') {
+            var inviteState = card.getAttribute('data-state');
+            if (inviteState === 'min') {
+                var invite = document.getElementById('invitePill');
+                if (invite) blockers.push(invite);
+            } else if (inviteState === 'open') {
+                blockers.push(card);
             }
         }
-        var avoidIds = ['homeHero', 'homeWalletStrip', 'homeGuestActions', 'curatedStartSection', 'todayFavorStrip', 'todayCardTitle', 'homeLearnTitle', 'homeLearnKicker'];
+        var lowest = null;
+        var b;
+        for (b = 0; b < blockers.length; b++) {
+            var ib = blockers[b].getBoundingClientRect();
+            var qb = btn.getBoundingClientRect();
+            if (ib.width < 1 || ib.height < 1) continue;
+            var stacked = !(qb.right < ib.left - 8 || qb.left > ib.right + 8 || qb.bottom < ib.top - 8 || qb.top > ib.bottom + 8);
+            if (!stacked) continue;
+            if (lowest === null || ib.bottom > lowest) lowest = ib.bottom;
+        }
+        if (lowest !== null) {
+            btn.style.top = Math.round(lowest + 12) + 'px';
+            btn.style.bottom = 'auto';
+        }
+        var avoidIds = ['homeHero', 'homeWalletStrip', 'homeGuestActions', 'curatedStartSection', 'todayFavorStrip', 'todayCardTitle', 'homeLearnTitle', 'homeLearnKicker', 'guestPointsBanner'];
         for (var a = 0; a < avoidIds.length; a++) {
             var block = document.getElementById(avoidIds[a]);
             if (!block) continue;
@@ -377,6 +391,37 @@
             btn.style.top = Math.round(hr.bottom + 8) + 'px';
             btn.style.bottom = 'auto';
         }
+        function clearOfTodayCard() {
+            var ids = ['todayCard', 'dailyXpMeter', 'dailyXpMeterText', 'dailyXpMeterFill'];
+            var limitIds = ['bottomNav', 'chatOverlayBtn', 'nacho-toggle', 'fabExpandBtn'];
+            var i, el, br, qb, above, below, limit, j, ob, or;
+            for (i = 0; i < ids.length; i++) {
+                el = document.getElementById(ids[i]);
+                if (!el) continue;
+                var cs = window.getComputedStyle(el);
+                if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+                br = el.getBoundingClientRect();
+                qb = btn.getBoundingClientRect();
+                if (br.width < 1 || br.height < 1) continue;
+                if (qb.right < br.left || qb.left > br.right || qb.bottom < br.top || qb.top > br.bottom) continue;
+                above = Math.round(br.top - 8 - qb.height);
+                below = Math.round(br.bottom + 8);
+                limit = window.innerHeight - 8;
+                for (j = 0; j < limitIds.length; j++) {
+                    ob = document.getElementById(limitIds[j]);
+                    if (!ob) continue;
+                    var ocs = window.getComputedStyle(ob);
+                    if (ocs.display === 'none' || ocs.visibility === 'hidden') continue;
+                    or = ob.getBoundingClientRect();
+                    if (or.height < 8 || or.top < window.innerHeight * 0.45) continue;
+                    if (or.top - 8 < limit) limit = or.top - 8;
+                }
+                if (phone || below + qb.height > limit) btn.style.top = Math.max(8, above) + 'px';
+                else btn.style.top = below + 'px';
+                btn.style.bottom = 'auto';
+            }
+        }
+        clearOfTodayCard();
         var nav = document.getElementById('bottomNav');
         var maxBottom = window.innerHeight - 8;
         if (nav) {
@@ -387,6 +432,45 @@
         if (pb.bottom > maxBottom) {
             btn.style.top = Math.max(8, Math.round(maxBottom - pb.height)) + 'px';
             btn.style.bottom = 'auto';
+        }
+        clearOfTodayCard();
+        // Phones keep the quest pill on the Invite row, left side, the same
+        // band used at 320. Never drop it onto the Today card or the Learn card.
+        if (phone) {
+            var anchor = null;
+            var inviteCard = document.getElementById('inviteCard');
+            if (inviteCard && inviteCard.getAttribute('data-show') === '1' && inviteCard.getAttribute('data-state') === 'min') {
+                anchor = document.getElementById('invitePill');
+            }
+            var guestPill = document.getElementById('inviteGuestPill');
+            if ((!anchor || anchor.getBoundingClientRect().height < 1) && guestPill && !guestPill.hasAttribute('hidden')) {
+                anchor = guestPill;
+            }
+            if (anchor) {
+                var ar = anchor.getBoundingClientRect();
+                if (ar.height > 1) {
+                    btn.style.top = Math.round(ar.top) + 'px';
+                    btn.style.bottom = 'auto';
+                    btn.style.left = 'max(12px, env(safe-area-inset-left, 0px))';
+                    btn.style.right = 'auto';
+                }
+            }
+            var cardIds = ['todayCard', 'dailyXpMeter', 'dailyXpMeterText', 'dailyXpMeterFill', 'homeLearnCard', 'homeLearnKicker', 'homeLearnTitle', 'homeLearnContinue', 'homeLearnDesc'];
+            var c;
+            for (c = 0; c < cardIds.length; c++) {
+                var cardEl = document.getElementById(cardIds[c]);
+                if (!cardEl) continue;
+                var cardCs = window.getComputedStyle(cardEl);
+                if (cardCs.display === 'none' || cardCs.visibility === 'hidden') continue;
+                var cardBox = cardEl.getBoundingClientRect();
+                var questBox = btn.getBoundingClientRect();
+                if (cardBox.width < 1 || cardBox.height < 1) continue;
+                if (questBox.right < cardBox.left || questBox.left > cardBox.right || questBox.bottom < cardBox.top || questBox.top > cardBox.bottom) continue;
+                btn.style.top = Math.max(8, Math.round(cardBox.top - 8 - questBox.height)) + 'px';
+                btn.style.bottom = 'auto';
+                btn.style.left = 'max(12px, env(safe-area-inset-left, 0px))';
+                btn.style.right = 'auto';
+            }
         }
     }
     window._placeNachoQuestPill = placeNachoQuestPill;
@@ -422,6 +506,15 @@
                 if (pill) placeNachoQuestPill(pill);
             }).observe(modal, { attributes: true, attributeFilter: ['class'] });
         }
+        function watchInvite(el, filter) {
+            if (!el || !window.MutationObserver) return;
+            new MutationObserver(function () {
+                var pill = document.getElementById('nachoQuestPill');
+                if (pill) placeNachoQuestPill(pill);
+            }).observe(el, { attributes: true, attributeFilter: filter });
+        }
+        watchInvite(document.getElementById('inviteCard'), ['data-state', 'data-show', 'style']);
+        watchInvite(document.getElementById('inviteGuestPill'), ['hidden', 'style']);
     };
 
     window._showNachoQuestOverlay = function () {
@@ -446,6 +539,15 @@
         var detail = document.createElement('p');
         detail.style.cssText = 'color:var(--text-muted,#94a3b8);font-size:0.95rem;line-height:1.45;margin:0 0 16px;';
         detail.textContent = step.detail;
+        var go = document.createElement('button');
+        go.type = 'button';
+        go.textContent = 'Go to task';
+        go.style.cssText = 'width:100%;margin:0 0 8px;padding:12px;border-radius:12px;border:none;background:var(--accent,#f97316);color:#fff;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;';
+        go.addEventListener('click', function () {
+            var live = QUEST_STEPS[currentStepId()] || step;
+            overlay.remove();
+            openQuestTask(live);
+        });
         var row = document.createElement('div');
         row.style.cssText = 'display:flex;gap:8px;';
         var close = document.createElement('button');
@@ -456,13 +558,14 @@
         var skip = document.createElement('button');
         skip.type = 'button';
         skip.textContent = 'Skip quest';
-        skip.style.cssText = 'flex:1;padding:12px;border-radius:12px;border:none;background:var(--accent,#f97316);color:#fff;font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;';
+        skip.style.cssText = 'flex:1;padding:12px;border-radius:12px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;';
         skip.addEventListener('click', function () { window._skipNachoQuest(); overlay.remove(); });
         row.appendChild(close);
         row.appendChild(skip);
         card.appendChild(kicker);
         card.appendChild(title);
         card.appendChild(detail);
+        card.appendChild(go);
         card.appendChild(row);
         overlay.appendChild(card);
         overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
@@ -510,6 +613,52 @@
         if (step && step.beacon) window._showNachoQuestBeacon(step.beacon);
         else window._clearNachoQuestBeacon();
     };
+
+    function questBeaconVisible(el) {
+        if (!el || !el.getBoundingClientRect) return false;
+        var cs = window.getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+        var box = el.getBoundingClientRect();
+        return box.width > 1 && box.height > 1;
+    }
+
+    // Deep links live in features.registry.js (bqOpenByHash / bqRouteHash).
+    // Hashes are the registry entries for this step, not user input.
+    function openQuestTask(step) {
+        if (!step) return;
+        if (step.signal !== 'chat' && window._chatOverlayOpen && typeof window.toggleChatOverlay === 'function') {
+            window.toggleChatOverlay();
+        }
+        var hash = step.hash || '';
+        if (hash && typeof window.bqOpenByHash === 'function') window.bqOpenByHash(hash);
+        else if (hash && typeof window.bqRouteHash === 'function') window.bqRouteHash(hash);
+        else if (step.signal === 'channel') {
+            if (typeof window.goHome === 'function') window.goHome();
+        } else if (step.signal === 'chat') {
+            if (typeof window.renderChatHub === 'function') window.renderChatHub('global');
+            else if (typeof window.toggleChatOverlay === 'function') window.toggleChatOverlay();
+        } else if (step.signal === 'spin') {
+            if (typeof window.showSpinWheel === 'function') window.showSpinWheel();
+        } else if (step.signal === 'nacho') {
+            if (typeof window.showNachoInput === 'function') window.showNachoInput();
+            else if (typeof window.enterNachoMode === 'function') window.enterNachoMode();
+        } else if (step.signal === 'quiz') {
+            if (typeof window.showQuestHub === 'function') window.showQuestHub('quiz');
+        }
+        setTimeout(function () {
+            if (typeof window._nachoQuestBeaconForStep === 'function') {
+                window._nachoQuestBeaconForStep(window.getNachoQuestStep());
+            }
+            if (step.beacon === '#channelList' && !questBeaconVisible(document.querySelector(step.beacon)) && typeof window.toggleMenu === 'function') {
+                window.toggleMenu();
+            }
+            var el = step.beacon ? document.querySelector(step.beacon) : null;
+            if (el && el.scrollIntoView) {
+                try { el.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) {}
+            }
+        }, 400);
+    }
+    window._openNachoQuestTask = openQuestTask;
 
     window.startNachoQuest = function (opts) {
         if (window.isNachoQuestDone()) return;

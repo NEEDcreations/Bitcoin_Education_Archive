@@ -4,10 +4,11 @@
   "desc": "The essential Bitcoin reading list: The Bitcoin Standard, 21 Lessons, Mastering Bitcoin, and more.",
   "msgs": [
     {
-      "text": "<b>\"The Bitcoin Standard\"</b> is a must read for all Bitcoiners. It goes through the history of money throughout mankind, the process of qualitative easing and debasement, and Bitcoin's solution to these problems. \nFree PDF: \nhttps://amzn.to/3mx4PCu",
+      "text": "<b>\"The Bitcoin Standard\"</b> is a must read for all Bitcoiners. It goes through the history of money throughout mankind, the process of qualitative easing and debasement, and Bitcoin's solution to these problems. \nBuy: \nhttps://www.amazon.com/dp/1119473861",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/books_0268_books_41x6NvXWekS._SR600_2c315_PIWhiteStrip_2cBottomLeft_2c0_2c35_PIStarRatingFO.jpg"
-      ]
+      ],
+      "link": "https://www.amazon.com/dp/1119473861"
     },
     {
       "text": "I haven't read this one yet, but <b>\"The Sovereign Individual\"</b> is highly recommended in this space. \nhttps://amzn.to/3mBhMv3",
@@ -38,8 +39,8 @@
       ]
     },
     {
-      "text": "FREE LINK for <b>Inventing Bitcoin: The Technology Behind The First Truly Scarce and Decentralized Money Explained</b> by Yan Pritzker. Some of the best say this is the greatest Bitcoin introduction that is also noob friendly.",
-      "link": "",
+      "text": "FREE LINK for <b>Inventing Bitcoin: The Technology Behind The First Truly Scarce and Decentralized Money Explained</b> by Yan Pritzker. Some of the best say this is the greatest Bitcoin introduction that is also noob friendly.\nhttps://www.swanbitcoin.com/inventing-bitcoin/",
+      "link": "https://www.swanbitcoin.com/inventing-bitcoin/",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/books_0263_books_free-inventing-bitcoin-yan-pritzker-swan-bitcoin.png"
       ]
@@ -59,12 +60,12 @@
       ]
     },
     {
-      "text": "The Blocksize War can be read for free (Google the book, chapter number you want, and \"Bitmex\") on Bitmex: https://blog.bitmex.com/the-blocksize-war-chapter-1-first-strike/",
-      "link": "https://blog.bitmex.com/the-blocksize-war-chapter-1-first-strike/"
+      "text": "The Blocksize War chapters were published weekly on the BitMEX Research blog from 22 March 2021. Farside hosts them now. Chapter 1:\nhttps://farside.co.uk/the-blocksize-war-chapter-1-first-strike/",
+      "link": "https://farside.co.uk/the-blocksize-war-chapter-1-first-strike/"
     },
     {
-      "text": "Many more fabulous Bitcoin books:\nhttps://store.bitcoinmagazine.com/collections/bitcoin-books",
-      "link": "https://store.bitcoinmagazine.com/collections/bitcoin-books",
+      "text": "Many more fabulous Bitcoin books:\nhttps://store.bitcoinmagazine.com/collections/books",
+      "link": "https://store.bitcoinmagazine.com/collections/books",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/books_0260_books_51egote5jgL_1024x.jpg"
       ]
@@ -105,15 +106,15 @@
       ]
     },
     {
-      "text": "Directory of Bitcoin books (many free pdfs included):\nhttps://btcdir.org/links/books/",
+      "text": "Directory of Bitcoin links:\nhttps://btcdir.org/links/books/",
       "link": "https://btcdir.org/links/books/",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/books_0253_books_TwitterCard-2.jpg"
       ]
     },
     {
-      "text": "Why Bitcoin? Free E-book PDF written by Tomer Strolight and produced by Swan Bitcoin:\nhttps://drive.google.com/file/d/10gMJD34AB7tcSlwTJaWyLGcD2p1izfcK/view?usp=drivesdk",
-      "link": "https://drive.google.com/file/d/10gMJD34AB7tcSlwTJaWyLGcD2p1izfcK/view?usp=drivesdk"
+      "text": "Why Bitcoin? Free essay by Tomer Strolight, published by Swan Bitcoin:\nhttps://www.swanbitcoin.com/whybitcoin/",
+      "link": "https://www.swanbitcoin.com/whybitcoin/"
     },
     {
       "text": "https://twitter.com/parman_the/status/1451473963834429444?t=OjGPc5BY6sHtNe3gSlmBiQ&s=19",
@@ -182,7 +183,8 @@
       "link": "https://amzn.to/3osaFFX"
     },
     {
-      "text": "Book of Satoshi free PDF Book_of_Satoshi.pdf"
+      "text": "Satoshi's own writings are free at the Nakamoto Institute. Phil Champagne's commentary in The Book of Satoshi is a separate paid book.\nhttps://satoshi.nakamotoinstitute.org/",
+      "link": "https://satoshi.nakamotoinstitute.org/"
     },
     {
       "text": "Bitcoin: Hard Money You Can't F*ck With: Why bitcoin will be the next global reserve currency by Jason Williams (@GoingParabolic)\nhttps://amzn.to/3p1wwUO",
@@ -201,10 +203,6 @@
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/books_0244_books_410VQe4Cl3L._SR600_2c315_PIWhiteStrip_2cBottomLeft_2c0_2c35_SCLZZZZZZZ_FMp.jpg"
       ]
-    },
-    {
-      "text": "Another free PDF of The Bitcoin Standard:",
-      "link": ""
     },
     {
       "text": "Learn Bitcoin by Anita Posch\nhttps://learnbitcoin.link/",
@@ -312,8 +310,8 @@
       ]
     },
     {
-      "text": "Bitcoin is Venice free pdf\nhttps://web.archive.org/web/20220702091018/https://www.uncerto.com/book-pdf",
-      "link": ""
+      "text": "Bitcoin is Venice, free non-commercial PDF from the authors:\nhttps://uncerto.com/book",
+      "link": "https://uncerto.com/book"
     },
     {
       "text": "Does anyone know if the Bitcoin Dog (delves into c++ source code of btc) is a good book?"
@@ -336,8 +334,8 @@
       "link": "https://twitter.com/jackleepv/status/1561279706342703106?t=Ngl7HQDybJ2Ku6rc9cKfFA&s=19"
     },
     {
-      "text": "What is Money? The Saylor Series. Robert Breedlove\nI won this in a giveaway! Enjoy\nhttps://drive.proton.me/urls/7C7VTHDQ24#LdATk9d2WGzY",
-      "link": "https://drive.proton.me/urls/7C7VTHDQ24#LdATk9d2WGzY",
+      "text": "What is Money? The Saylor Series, with Robert Breedlove. Official series page:\nhttps://www.michael.com/the-saylor-series",
+      "link": "https://www.michael.com/the-saylor-series",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/books_0225_books_proton-og-image.png"
       ]
@@ -388,8 +386,8 @@
       ]
     },
     {
-      "text": "You can now download a PDF of The Bitcoin Effect. Feel free to repurpose and share. #Bitcoin . This is what Bitcoin has mentally done for me.\nBy https://twitter.com/BitcoinPoems",
-      "link": "."
+      "text": "The Bitcoin Effect by Christopher Westra, archived copy of the author's free edition (CC BY 4.0):\nhttps://web.archive.org/web/20240706151622id_/https://thebitcoineffect.com/downloads/TheBitcoinEffect.com.VersionApril2024.pdf",
+      "link": "https://web.archive.org/web/20240706151622id_/https://thebitcoineffect.com/downloads/TheBitcoinEffect.com.VersionApril2024.pdf"
     },
     {
       "text": "List of books\nhttps://twitter.com/gopal_bharvad/status/1659486337295056896?s=20",
@@ -400,8 +398,8 @@
       "link": "https://twitter.com/VailshireCap/status/1660047011238772739?t=OBCJMPO6rSUUcZ3NA1bCQw&s=19"
     },
     {
-      "text": "SoftWar by Lowery free pdf\nhttps://aul.primo.exlibrisgroup.com/discovery/fulldisplay?context=L&vid=01AUL_INST:AUL&search_scope=MyInst_and_CI&tab=Everything&docid=alma995901882406836",
-      "link": "https://aul.primo.exlibrisgroup.com/discovery/fulldisplay?context=L&vid=01AUL_INST:AUL&search_scope=MyInst_and_CI&tab=Everything&docid=alma995901882406836"
+      "text": "Softwar thesis by Jason Lowery, free under CC BY 4.0 from MIT:\nhttps://hdl.handle.net/1721.1/153030",
+      "link": "https://hdl.handle.net/1721.1/153030"
     },
     {
       "text": "Bitcoin kids children's book by @bitcoinsophist\nhttps://thebitcoinkids.com/",
@@ -440,10 +438,6 @@
       "link": "https://x.com/_AustinHerbert/status/1704284857591906441?s=20"
     },
     {
-      "text": "Latest version of SOFTWAR in HD\n\nhttps://drive.google.com/file/d/15uMzo9qbV-GY4xNH7ZhenXuE_q5xO4ZL/view?usp=drivesdk",
-      "link": "https://drive.google.com/file/d/15uMzo9qbV-GY4xNH7ZhenXuE_q5xO4ZL/view?usp=drivesdk"
-    },
-    {
       "text": "The Bitcoin Miners Almanac https://store.bitcoinmagazine.com/collections/books\n\nwill buy this eventually",
       "link": "https://store.bitcoinmagazine.com/collections/books",
       "imgs": [
@@ -451,15 +445,11 @@
       ]
     },
     {
-      "text": "Conceived in Liberty \nfree download \nhttps://archive.org/details/ConceivedInLiberty\n\nIt is a detailed narrative history of the struggle between liberty and power, as we might expect, but it is more. Rothbard offers a third alternative to the conventional interpretive devices. Against those on the right who see the American Revolution as a \"conservative\" event, and those on the left who want to invoke it as some sort of proto-socialist uprising, Rothbard views this period as a time of accelerating libertarian radicalism. Through this prism, Rothbard illuminates events as never before.\n\nThe volumes were brought out in the 1970s, but the odd timing and uneven distribution prevented any kind of large audience. They were beloved only by a few specialists, and sought after by many, thanks to their outstanding reputation. The Mises Institute is pleased to be the publisher of this integrated book.\n\nThis single volume covers the discovery of the Americas and the colonies in the 17th century, the period of \"salutary neglect\" in the first half of the 18th century, the advance to revolution, from 1760-1775 and the political, military, and ideological history of the revolution and after.",
-      "link": "https://archive.org/details/ConceivedInLiberty",
+      "text": "Conceived in Liberty \nfree download \nhttps://mises.org/library/book/conceived-liberty\n\nIt is a detailed narrative history of the struggle between liberty and power, as we might expect, but it is more. Rothbard offers a third alternative to the conventional interpretive devices. Against those on the right who see the American Revolution as a \"conservative\" event, and those on the left who want to invoke it as some sort of proto-socialist uprising, Rothbard views this period as a time of accelerating libertarian radicalism. Through this prism, Rothbard illuminates events as never before.\n\nThe volumes were brought out in the 1970s, but the odd timing and uneven distribution prevented any kind of large audience. They were beloved only by a few specialists, and sought after by many, thanks to their outstanding reputation. The Mises Institute is pleased to be the publisher of this integrated book.\n\nThis single volume covers the discovery of the Americas and the colonies in the 17th century, the period of \"salutary neglect\" in the first half of the 18th century, the advance to revolution, from 1760-1775 and the political, military, and ideological history of the revolution and after.",
+      "link": "https://mises.org/library/book/conceived-liberty",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/books_0218_books_default.jpg"
       ]
-    },
-    {
-      "text": "Fresh (free) Soft War links (Jason Lowery) \nhttps://drive.google.com/file/d/15uMzo9qbV-GY4xNH7ZhenXuE_q5xO4ZL/view?pli=1\nhttps://aul.primo.exlibrisgroup.com/discovery/delivery/01AUL_INST:AUL/1297573990006836",
-      "link": "https://drive.google.com/file/d/15uMzo9qbV-GY4xNH7ZhenXuE_q5xO4ZL/view?pli=1"
     },
     {
       "text": "https://twitter.com/parman_the/status/1451473963834429444?t=OjGPc5BY6sHtNe3gSlmBiQ&s=19",
@@ -470,7 +460,7 @@
       "link": "https://twitter.com/BVBTC/status/1468687435181674496?t=bPd_q_-1Xz_A7vkagsLye0XN455fLrobWixzrvHn_Uo&s=19"
     },
     {
-      "text": "Books recommended by <@!232636672892731392> :\nArgentarius - The Essence of Money: https://www.amazon.com/Essence-Money-Argentarius-director-Bankdirektor-ebook/dp/B09N42B5S4\nMurray N. Rothbard - What Has Government Done to Our Money? : https://mises.org/library/what-has-government-done-our-money\nHenry Hazlitt - Economics in One Lesson: https://en.wikipedia.org/wiki/Economics_in_One_Lesson\nJörg Guido Hülsmann - The Ethics of Money Production : https://www.amazon.de/Ethics-Money-Production-jorg-guido-hulsmann/dp/1933550090\nAdam Fergusson - When Money Dies: The Nightmare of Deficit Spending, Devaluation, and Hyperinflation in Weimar Germany : https://www.amazon.de/When-Money-Dies-Devaluation-Hyperinflation/dp/1586489941\nLudwig Mises – Human Action: https://mises.org/library/human-action-0",
+      "text": "Books recommended by a community member :\nArgentarius - The Essence of Money: https://www.amazon.com/Essence-Money-Argentarius-director-Bankdirektor-ebook/dp/B09N42B5S4\nMurray N. Rothbard - What Has Government Done to Our Money? : https://mises.org/library/what-has-government-done-our-money\nHenry Hazlitt - Economics in One Lesson: https://en.wikipedia.org/wiki/Economics_in_One_Lesson\nJörg Guido Hülsmann - The Ethics of Money Production : https://www.amazon.de/Ethics-Money-Production-jorg-guido-hulsmann/dp/1933550090\nAdam Fergusson - When Money Dies: The Nightmare of Deficit Spending, Devaluation, and Hyperinflation in Weimar Germany : https://www.amazon.de/When-Money-Dies-Devaluation-Hyperinflation/dp/1586489941\nLudwig Mises – Human Action: https://mises.org/library/human-action-0",
       "link": "https://www.amazon.com/Essence-Money-Argentarius-director-Bankdirektor-ebook/dp/B09N42B5S4"
     },
     {
@@ -498,28 +488,12 @@
       "link": "https://twitter.com/jackleepv/status/1561279706342703106?t=Ngl7HQDybJ2Ku6rc9cKfFA&s=19"
     },
     {
-      "text": "https://a.co/4ch2itR",
-      "link": ""
-    },
-    {
       "text": "https://twitter.com/BitcoinMagEDU/status/1588189330023108610?t=ePWrH4bT6F7hMfuFJ0MVxQ&s=19",
       "link": "https://twitter.com/BitcoinMagEDU/status/1588189330023108610?t=ePWrH4bT6F7hMfuFJ0MVxQ&s=19"
     },
     {
-      "text": "You can now download a PDF of The Bitcoin Effect.  Feel free to repurpose and share.  #Bitcoin  .  This is what Bitcoin has mentally done for me.\nBy https://twitter.com/BitcoinPoems",
-      "link": "."
-    },
-    {
-      "text": "The Bitcoin Miners Almanac  https://store.bitcoinmagazine.com/collections/books/products/the-bitcoin-miners-almanac-pre-order\n\nwill buy this eventually",
-      "link": ""
-    },
-    {
-      "text": "Fresh (free) Soft War links  (Jason Lowery) \nhttps://drive.google.com/file/d/15uMzo9qbV-GY4xNH7ZhenXuE_q5xO4ZL/view?pli=1\nhttps://aul.primo.exlibrisgroup.com/discovery/delivery/01AUL_INST:AUL/1297573990006836",
-      "link": "https://drive.google.com/file/d/15uMzo9qbV-GY4xNH7ZhenXuE_q5xO4ZL/view?pli=1"
-    },
-    {
-      "text": "The Bitcoin Standard by Saifedean Ammous, full book, free",
-      "link": "https://ia601407.us.archive.org/10/items/the-bitcoin-standard-the-decentralized-alternative-to-central-banking_202205/The%20Bitcoin%20Standard%20The%20Decentralized%20Alternative%20to%20Central%20Banking%20.pdf"
+      "text": "The Bitcoin Miners Almanac\nhttps://store.bitcoinmagazine.com/collections/books\n\nwill buy this eventually",
+      "link": "https://store.bitcoinmagazine.com/collections/books"
     },
     {
       "text": "Bitcoin books",

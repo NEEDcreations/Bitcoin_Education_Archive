@@ -7,23 +7,24 @@
  *   month — 1st 00:00 UTC   (resetMonthlyXP: "0 0 1 * *")
  */
 
-const { isSatsBanned } = require('./cipherClaim');
+const { isSatsBanned, rewardBlocked } = require('./cipherClaim');
 
 const WEEK_RESET_HOUR_UTC = 5;
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 const CORRECT_XP = 25;
 const BOARD_SIZE = 25;
-const PAYOUT_SIZE = 5;
+const PAYOUT_SIZE = 10;
 const UNKNOWN_REACHED = 9000000000000000;
 
 const MIN = { weekly: 5, monthly: 15, alltime: 10 };
 
-// Flat prizes. Every rank in the top 5 of a period gets the same amount.
-const TICKETS = { weekly: 25, monthly: 50 };
+// Before the shared leaderboard payout this was top 5: 25 weekly and 50 monthly.
+// It now matches XP: top 10, 25 weekly and 100 monthly. All-time still pays nothing.
+const TICKETS = { weekly: 25, monthly: 100 };
 
 const COPY = {
-    weekly: 'This Week: make at least 5 predictions to qualify. Top 5 each win 25 orange tickets.',
-    monthly: 'This Month: at least 15 predictions. Top 5 each win 50 orange tickets.',
+    weekly: 'This Week: make at least 5 predictions to qualify. Top 10 each win 25 orange tickets.',
+    monthly: 'This Month: at least 15 predictions. Top 10 each win 100 orange tickets.',
     alltime: 'All Time: at least 10 predictions.'
 };
 
@@ -301,10 +302,23 @@ function winnerSkipReason(userExists, user, ledger) {
 
 function rowIsBanned(row) {
     if (!row) return false;
-    return isSatsBanned(
-        { satsDisabled: row.satsDisabled === true },
+    return rewardBlocked(
+        {
+            ban_reason: row.ban_reason || '',
+            banned: row.banned === true,
+            satsDisabled: row.satsDisabled === true
+        },
         { banned: row.ledgerBanned === true }
     );
+}
+
+// The public weekly/monthly lists follow the period counters. qualifiesWeek
+// and qualifiesMonth are a denormalized flag. A doc can have a real total
+// and still be missing that flag or weekReachedSort, which drops it from the
+// composite index and the tab renders empty.
+function boardEligible(stats, period) {
+    const view = viewOf(stats, period);
+    return view.total >= minimumFor(period);
 }
 
 function minimumFor(period) {
@@ -396,7 +410,7 @@ function comparePredictors(a, b) {
 function selectBoard(rows, period) {
     const min = minimumFor(period);
     const qualified = (rows || []).filter(function(r) {
-        return r && !rowIsBanned(r) && (Number(r.total) || 0) >= min;
+        return r && r.ghostMode !== true && (Number(r.total) || 0) >= min;
     });
     qualified.sort(comparePredictors);
     return qualified.slice(0, BOARD_SIZE).map(function(r, i) {
@@ -409,7 +423,8 @@ function selectBoard(rows, period) {
             correct: Number(r.correct) || 0,
             total: Number(r.total) || 0,
             accuracy: Number(r.accuracy) || 0,
-            reachedAt: r.reachedAt == null ? null : r.reachedAt
+            reachedAt: r.reachedAt == null ? null : r.reachedAt,
+            banned: rowIsBanned(r)
         };
     });
 }
@@ -426,7 +441,7 @@ function payoutPlan(existing, rankedWinners, period) {
     const due = [];
     if (!complete) {
         top.forEach(function(w) {
-            if (awarded[w.uid]) return;
+            if (awarded[w.uid] || w.banned) return;
             due.push({
                 uid: w.uid,
                 username: w.username || 'Anon',
@@ -614,6 +629,7 @@ module.exports = {
     madeCount: madeCount,
     viewOf: viewOf,
     comparePredictors: comparePredictors,
+    boardEligible: boardEligible,
     selectBoard: selectBoard,
     payoutPlan: payoutPlan,
     resetPeriodFields: resetPeriodFields,

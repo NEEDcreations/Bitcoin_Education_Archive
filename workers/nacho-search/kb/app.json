@@ -2150,7 +2150,7 @@
       "Describe XP and points in Bitcoin Quest?",
       "Define XP and points in Bitcoin Quest?"
     ],
-    "answer": "XP (points) is how you rank up. Full XP through 500 a day, half through 900, then a quarter until the 1,000 daily cap. Each tier rounds down. Earn points by reading, quests, chat, and badges. The Today card shows today’s XP, the 500 full-rate mark, the 900 half-rate mark, and the 1,000 cap. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "XP (points) is how you rank up. Full XP through 500 a day, half through 900, then a quarter until the 1,000 daily cap. Each tier rounds down. Earn points by reading, quests, chat, and badges. The Today card shows today’s XP, with 500, 900, and 1,000 above the bar and Full rate, Half rate, and Quarter rate underneath. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "xp",
       "one-stop-shop"
@@ -2171,7 +2171,7 @@
       "Describe how XP and points work in the app?",
       "In what way do XP and points work in the app?"
     ],
-    "answer": "XP (points) is how you rank up. Full XP through 500 a day, half through 900, then a quarter until the 1,000 daily cap. Each tier rounds down. Earn points by reading, quests, chat, and badges. The Today card shows today’s XP, the 500 full-rate mark, the 900 half-rate mark, and the 1,000 cap. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "XP (points) is how you rank up. Full XP through 500 a day, half through 900, then a quarter until the 1,000 daily cap. Each tier rounds down. Earn points by reading, quests, chat, and badges. The Today card shows today’s XP, with 500, 900, and 1,000 above the bar and Full rate, Half rate, and Quarter rate underneath. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "xp",
       "one-stop-shop"
@@ -3397,7 +3397,7 @@
     "followUps": [
       "app-security-what",
       "app-security-how",
-      "app-prefs-what"
+      "app-delete-account-what"
     ],
     "sources": "features.registry.js entry faction."
   },
@@ -3410,15 +3410,15 @@
       "Explain Security and 2FA?",
       "Describe Security and 2FA?"
     ],
-    "answer": "The Security page has 2FA, your password, linked accounts, blocking, and account deletion. Open Settings → Security and turn on 2FA with an authenticator app or the phone option. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "The Security page has 2FA, your password, and blocking. Account deletion and linked sign-ins are on the Account tab. Open Settings → Security and turn on 2FA with an authenticator app or the phone option. Open Settings → Account to delete the account or change an email sign-in. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "security",
       "one-stop-shop"
     ],
     "followUps": [
       "app-security-how",
-      "app-prefs-what",
-      "app-prefs-how"
+      "app-delete-account-what",
+      "app-delete-account-how"
     ],
     "sources": "features.registry.js entry security."
   },
@@ -3431,9 +3431,93 @@
       "Show me how to open Security and 2FA?",
       "What is the way to open Security and 2FA?"
     ],
-    "answer": "The Security page has 2FA, your password, linked accounts, blocking, and account deletion. Open Settings → Security and turn on 2FA with an authenticator app or the phone option. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "The Security page has 2FA, your password, and blocking. Account deletion and linked sign-ins are on the Account tab. Open Settings → Security and turn on 2FA with an authenticator app or the phone option. Open Settings → Account to delete the account or change an email sign-in. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "security",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-delete-account-what",
+      "app-delete-account-how",
+      "app-change-email-what"
+    ],
+    "sources": "features.registry.js entry security."
+  },
+  {
+    "id": "app-delete-account-what",
+    "category": "app",
+    "question": "What is Delete account?",
+    "alts": [
+      "Define Delete account?",
+      "Explain Delete account?",
+      "Describe Delete account?"
+    ],
+    "answer": "Delete account is on the Account tab. You confirm your username, and any sats balance is forfeited. There is no waiting period. Open Settings → Account and choose Delete account. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "faq",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-delete-account-how",
+      "app-change-email-what",
+      "app-change-email-how"
+    ],
+    "sources": "features.registry.js entry delete-account."
+  },
+  {
+    "id": "app-delete-account-how",
+    "category": "app",
+    "question": "How do I use Delete account?",
+    "alts": [
+      "How can I use Delete account?",
+      "Show me how to use Delete account?",
+      "What is the way to use Delete account?"
+    ],
+    "answer": "Delete account is on the Account tab. You confirm your username, and any sats balance is forfeited. There is no waiting period. Open Settings → Account and choose Delete account. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "faq",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-change-email-what",
+      "app-change-email-how",
+      "app-prefs-what"
+    ],
+    "sources": "features.registry.js entry delete-account."
+  },
+  {
+    "id": "app-change-email-what",
+    "category": "app",
+    "question": "What is Change email?",
+    "alts": [
+      "Define Change email?",
+      "Explain Change email?",
+      "Describe Change email?"
+    ],
+    "answer": "Email sign-ins can change the address from the Account tab. Linked Google, X, GitHub, and Facebook emails stay with that sign-in. Open Settings → Account and choose Change email or Add email. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "faq",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "app-change-email-how",
+      "app-prefs-what",
+      "app-prefs-how"
+    ],
+    "sources": "features.registry.js entry change-email."
+  },
+  {
+    "id": "app-change-email-how",
+    "category": "app",
+    "question": "How do I use Change email?",
+    "alts": [
+      "How can I use Change email?",
+      "Show me how to use Change email?",
+      "What is the way to use Change email?"
+    ],
+    "answer": "Email sign-ins can change the address from the Account tab. Linked Google, X, GitHub, and Facebook emails stay with that sign-in. Open Settings → Account and choose Change email or Add email. This describes a Bitcoin Quest feature, not financial advice.",
+    "topics": [
+      "faq",
       "one-stop-shop"
     ],
     "followUps": [
@@ -3441,7 +3525,7 @@
       "app-prefs-how",
       "app-export-what"
     ],
-    "sources": "features.registry.js entry security."
+    "sources": "features.registry.js entry change-email."
   },
   {
     "id": "app-prefs-what",

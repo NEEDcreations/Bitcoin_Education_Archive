@@ -3,6 +3,8 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 const live = require('../functions/src/favorLiveAnnounce');
+const ending = require('../functions/src/favorEndingAnnounce');
+const mirror = require('../functions/src/chatTelegramMirror');
 const badgeGg = require('../functions/src/badgeGg');
 const { resetExpiredFavorWith } = require('../functions/src/satoshiFavor');
 
@@ -108,7 +110,9 @@ function memoryDb(seed) {
                     const copy = {};
                     Object.keys(w.data || {}).forEach(function (key) {
                         const value = w.data[key];
-                        copy[key] = Array.isArray(value) ? value.map(function (item) { return Object.assign({}, item); }) : value;
+                        copy[key] = Array.isArray(value) ? value.map(function (item) {
+                            return (item && typeof item === 'object') ? Object.assign({}, item) : item;
+                        }) : value;
                     });
                     docs[w.path] = copy;
                 });
@@ -204,6 +208,9 @@ queue.push(test('badges in one 60s burst become one GGs post', async function ()
     assert.strictEqual(flushed[0].text, '🏅 @Pat earned 12 flex badges (+12 SF points)');
     const annId = badgeGg.announcementId('pat', start);
     assert.strictEqual(db.docs['announcements/' + annId].text, flushed[0].text);
+    assert.deepStrictEqual(db.docs['announcements/' + annId].badgeIds, ids);
+    assert.strictEqual(db.docs['announcements/' + annId].text.indexOf('<'), -1);
+    assert.strictEqual(db.docs['announcements/' + annId].postedByUid, 'badge-gg');
     assert.strictEqual(db.docs['announcements/' + annId].mentionUid, 'pat');
     assert.strictEqual(db.docs['announcements/' + annId].uid, 'nacho-bot');
     assert.ok(flushed[0].text.indexOf('pat') === -1);
@@ -350,6 +357,14 @@ queue.push(test('an expired reset keeps eraHashes inside the transaction', async
     const cron = index.slice(cronAt, cronAt + 500);
     assert.ok(cron.includes('resetExpiredFavor'));
     assert.ok(!cron.includes('archivedBy'));
+    const cronBody = index.slice(cronAt, index.indexOf('// ===== TELEGRAM REACTION BRIDGE ====='));
+    assert.ok(cronBody.includes('announceFavorEnding'));
+    assert.ok(cronBody.includes('onSchedule'));
+    assert.ok(!cronBody.includes("invoker: 'public'"));
+    assert.ok(!cronBody.includes('invoker: "public"'));
+    assert.ok(!cronBody.includes('onRequest'));
+    assert.ok(!index.includes("invoker: 'public'"));
+    assert.ok(!index.includes('invoker: "public"'));
     const favor = fs.readFileSync(path.join(root, 'functions', 'src', 'satoshiFavor.js'), 'utf8');
     const stateAt = favor.indexOf('exports.checkFavorState');
     const stateFn = favor.slice(stateAt, stateAt + 1200);
@@ -388,18 +403,247 @@ queue.push(test('client copies and the tweet use the new wording', function () {
     assert.ok(dedup.includes('allow read: if true'));
     assert.ok(dedup.includes('allow write: if false'));
     assert.ok(rules.includes('match /sf_live_announcements/{cycleId}'));
+    const endingRulesAt = rules.indexOf('match /sf_ending_announcements/{cycleId}');
+    const endingRules = rules.slice(endingRulesAt, endingRulesAt + 120);
+    assert.ok(endingRules.includes('allow read, write: if false'));
     assert.ok(rules.includes('match /badge_gg_bursts/{uid}'));
     assert.ok(rules.includes('match /badge_gg_claims/{claimId}'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Completing one of the 11 badge collections pays the full server bonus you have not already received, that bonus is not limited by the daily XP cap, it adds 10 Satoshi\'s Favor points, and Nacho congratulates you in Global Chat, tagging your username when you have one.'));
-    assert.ok(notes.includes('The 32 badge collections are now 11. Completing one pays the server bonus you have not already received from the old sets.'));
-    assert.ok(!notes.includes('Latest: The 32 badge collections'));
+    assert.ok(notes.includes('Latest: Search any player on the XP, Daily Streaks, Quests and Top Predictors leaderboards and see their exact rank, even outside the top 25.'));
+    assert.ok(notes.includes('Daily trivia shows the explanation after you answer, and a guest answer does not earn XP.'));
+    assert.ok(!notes.includes('Latest: Daily trivia'));
+    assert.ok(notes.includes("Earned posts in GGs chat have a 🎉 button. Tap once to celebrate, and tap again to take it back."));
+    assert.ok(!notes.includes('Latest: Earned posts in GGs chat'));
+    assert.ok(notes.includes("The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front."));
+    assert.ok(!notes.includes('Latest: The daily wheel'));
+    assert.ok(notes.includes('Fixed leaderboards and your saved profile taking too long to load.'));
+    assert.ok(!notes.includes('Latest: Fixed leaderboards'));
+    const streaksNote = 'Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.';
+    assert.ok(notes.includes(streaksNote));
+    assert.ok(!notes.includes('Latest: ' + streaksNote));
+    assert.ok(!/\d/.test(streaksNote));
+    assert.strictEqual(streaksNote.indexOf('@'), -1);
+    assert.strictEqual(streaksNote.toLowerCase().indexOf('threshold'), -1);
+    assert.ok(notes.includes('Double XP now applies to every way you earn XP.'));
+    assert.ok(!notes.includes('Latest: Double XP'));
+    assert.ok(notes.includes('Referral badges line up with the meetup tiers, and only friends who reached Maxi count.'));
+    assert.ok(!notes.includes('Latest: Referral badges'));
+    const headsUp = "Global Chat now gives a heads-up when Satoshi's Favor is about to end.";
+    assert.ok(notes.includes(headsUp));
+    assert.ok(!notes.includes('Latest: ' + headsUp));
+    assert.ok(!/\d/.test(headsUp));
+    assert.strictEqual(headsUp.indexOf('@'), -1);
+    assert.strictEqual(headsUp.toLowerCase().indexOf('threshold'), -1);
+    assert.ok(!notes.includes('Latest: Global Chat'));
+    assert.ok(notes.includes('Tap Nacho to ask a question, read his story, or open his closet. The minimize button stays out of the way, and the first visit shows a short hint that stays off the buttons and tiles.'));
+    assert.ok(!notes.includes('Latest: Tap Nacho'));
+    assert.ok(notes.includes('Raid bosses spawn at 1 PM Eastern on the first of the month. Chat-Charger counts real Global Chat messages on the server, and each month\'s boss has a goal the community can actually reach.'));
+    assert.ok(!notes.includes('Latest: Raid bosses'));
+    assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
+    assert.ok(!notes.includes('Latest: The raid boss'));
+    assert.ok(notes.includes('Timechain TV: 29 new full-length documentaries on the History & Documentaries channel.'));
+    assert.ok(!notes.includes('Latest: Timechain TV: 29'));
+    assert.ok(notes.includes('Fixed: the Invite button and Invites tile on the homepage open your invite card again.'));
+    assert.ok(!notes.includes('Latest: Fixed: the Invite button'));
+    assert.ok(notes.includes('Publishing an article awards 30 XP, once per article, up to 2 a day.'));
+    assert.ok(!notes.includes('Latest: Publishing an article'));
+    assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
+    assert.ok(!notes.includes('Latest: Inventory explains'));
+    assert.ok(notes.includes('Scholar and Protocol Expert exams keep the answer key on the server, and a passing certificate shows a real verification link.'));
+    assert.ok(!notes.includes('Latest: Scholar and Protocol Expert'));
+    assert.ok(notes.includes('Missing XP has been awarded to affected users.'));
+    assert.ok(!notes.includes('Latest: Missing XP'));
+    assert.ok(notes.includes('Settings → Sats now lists the XP you can actually earn, including the daily cap.'));
+    assert.ok(!notes.includes('Latest: Settings → Sats'));
+    assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
+    assert.ok(!notes.includes('Latest: Inventory explains'));
+    assert.ok(notes.includes("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon."));
+    assert.ok(!notes.includes("Latest: A miner's public name"));
+    assert.ok(notes.includes("Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications."));
+    assert.ok(!notes.includes("Latest: Passing the Bitcoin Scholar"));
+    assert.ok(notes.includes('On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.'));
+    assert.ok(!notes.includes('Latest: On a computer'));
+    assert.ok(notes.includes('A miner\'s public name is what Satoshi\'s Favor saves, and a player with no name shows as Anon.'));
+    assert.ok(!notes.includes('Latest: A miner'));
+    assert.ok(notes.includes('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.'));
+    assert.ok(!notes.includes('Latest: Sidebar topic names'));
+    assert.ok(notes.includes('Badge tooltips are back in GGs chat, so each badge name in a single or grouped post opens the icon, name, description, and how to earn it.'));
+    assert.ok(!notes.includes('Latest: Badge tooltips'));
+    assert.ok(notes.includes('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.'));
+    assert.ok(!notes.includes('Latest: Opening gifts'));
+    assert.ok(notes.includes('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.'));
+    assert.ok(!notes.includes('Latest: Sidebar'));
+    assert.ok(notes.includes('The Invite button now stays on the home screen as a small pill, so you can always invite a friend.'));
+    assert.ok(!notes.includes('Latest: The Invite button'));
+    assert.ok(notes.includes('The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.'));
+    assert.ok(!notes.includes('Latest: The daily XP bar'));
+    assert.ok(notes.includes('On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.'));
+    assert.ok(!notes.includes('Latest: On a computer'));
+    assert.ok(notes.includes('Trivia and poll community totals now update the moment you answer and stay live while the results are open.'));
+    assert.ok(!notes.includes('Latest: Trivia'));
     assert.ok(notes.includes('A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.'));
-    assert.ok(!notes.includes('Latest: A More tools'));
+    assert.ok(!notes.includes('Latest: A More tools button'));
     assert.ok(notes.includes('Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
-    assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.'));
+    assert.ok(!notes.includes('Latest: Nacho now announces'));
     assert.ok(!notes.includes('Latest: Nacho now announces in global chat when Satoshi\'s Favor goes live, and every badge you earn now shows in GGs chat.'));
+}));
+
+function openWindow(cycleId, now, remainingMs, extra) {
+    return Object.assign({
+        favorActive: true,
+        currentCycleId: cycleId,
+        favorEndBase: now + remainingMs,
+        bonusMinutes: 0,
+        points: 21,
+        winnersThisWindow: [{ uid: 'uid-alice', username: 'Alice' }],
+    }, extra || {});
+}
+
+function chatPaths(db) {
+    return Object.keys(db.docs).filter(function (key) { return key.indexOf('global_chat/') === 0; });
+}
+
+queue.push(test('ten minutes left posts once, and a retry reuses the stored chat id', async function () {
+    const now = 1700000000000;
+    const state = openWindow('cycle_2000', now, ending.HEADS_UP_MS);
+    const db = memoryDb({ 'satoshiFavor/current': state });
+    const calls = [];
+    for (let i = 0; i < 5; i++) calls.push(ending.announceFavorEnding(db, admin, now));
+    const results = await Promise.all(calls);
+    const posted = results.filter(function (row) { return row && row.posted; });
+    assert.strictEqual(posted.length, 1);
+    const text = "⏳ Satoshi's Favor ends soon. Hash now!";
+    assert.strictEqual(ending.formatEndingAnnouncement(), text);
+    assert.strictEqual(posted[0].text, text);
+    assert.strictEqual(text.indexOf('⚡'), -1);
+    assert.strictEqual(text.indexOf('#favor'), -1);
+    const liveText = live.formatLiveAnnouncement({ total: 21, players: 5, flex: 12, badges: 5, trifectas: 4 }, 21);
+    assert.strictEqual(liveText.indexOf('#favor'), -1);
+    assert.ok(!/\d/.test(text));
+    assert.strictEqual(ending.HEADS_UP_MS, 10 * 60 * 1000);
+    const chatId = posted[0].chatId;
+    assert.ok(/^[a-f0-9]{32}$/.test(chatId));
+    assert.strictEqual(chatId.indexOf('cycle_2000'), -1);
+    assert.strictEqual(chatId.indexOf('sf_ending'), -1);
+    const chat = db.docs['global_chat/' + chatId];
+    assert.strictEqual(chat.text, text);
+    assert.strictEqual(chat.uid, 'nacho-bot');
+    assert.strictEqual(chat.name, '🦌 Nacho');
+    assert.strictEqual(chat.isNachoAuto, false);
+    assert.strictEqual(chat.cycleId, 'cycle_2000');
+    assert.strictEqual(db.docs['sf_ending_announcements/cycle_2000'].chatId, chatId);
+    assert.strictEqual(text.indexOf('Alice'), -1);
+    assert.strictEqual(text.indexOf('uid-alice'), -1);
+    assert.strictEqual(text.indexOf('@'), -1);
+    const forwarded = mirror.decideMirror({ collection: 'global_chat', data: chat });
+    assert.strictEqual(forwarded.forward, true);
+    assert.ok(forwarded.line.indexOf('ends soon') !== -1);
+    let transactions = 0;
+    const origTx = db.runTransaction;
+    db.runTransaction = function (fn) {
+        transactions += 1;
+        return origTx(fn);
+    };
+    const again = await ending.announceFavorEnding(db, admin, now);
+    assert.strictEqual(again.posted, false);
+    assert.strictEqual(again.reason, 'exists');
+    assert.strictEqual(again.chatId, chatId);
+    assert.strictEqual(transactions, 0);
+    assert.strictEqual(chatPaths(db).length, 1);
+    assert.strictEqual(Object.keys(db.docs).filter(function (key) { return key.indexOf('sf_ending_announcements/') === 0; }).length, 1);
+}));
+
+queue.push(test('a forged chat doc does not suppress the heads-up, and the marker does', async function () {
+    const now = 1700000000000;
+    const state = openWindow('cycle_forge', now, 9 * 60 * 1000 + 1);
+    const db = memoryDb({
+        'satoshiFavor/current': state,
+        'global_chat/sf_ending_cycle_forge': { uid: 'user1', name: 'phil', text: 'not the heads-up' },
+    });
+    const first = await ending.announceFavorEnding(db, admin, now);
+    assert.strictEqual(first.posted, true);
+    assert.strictEqual(first.text, "⏳ Satoshi's Favor ends soon. Hash now!");
+    assert.strictEqual(db.docs['global_chat/sf_ending_cycle_forge'].uid, 'user1');
+    assert.strictEqual(db.docs['global_chat/sf_ending_cycle_forge'].text, 'not the heads-up');
+    assert.notStrictEqual(first.chatId, 'sf_ending_cycle_forge');
+    assert.strictEqual(db.docs['global_chat/' + first.chatId].uid, 'nacho-bot');
+    assert.strictEqual(chatPaths(db).length, 2);
+    const held = memoryDb({
+        'satoshiFavor/current': state,
+        'sf_ending_announcements/cycle_forge': { cycleId: 'cycle_forge', chatId: 'a1b2c3d4e5f67890' },
+    });
+    let transactions = 0;
+    const origTx = held.runTransaction;
+    held.runTransaction = function (fn) {
+        transactions += 1;
+        return origTx(fn);
+    };
+    const second = await ending.announceFavorEnding(held, admin, now);
+    assert.strictEqual(second.posted, false);
+    assert.strictEqual(second.reason, 'exists');
+    assert.strictEqual(second.chatId, 'a1b2c3d4e5f67890');
+    assert.strictEqual(transactions, 0);
+    assert.strictEqual(chatPaths(held).length, 0);
+}));
+
+queue.push(test('an early close or no time left does not post', async function () {
+    const now = 1700000000000;
+    const early = memoryDb({
+        'satoshiFavor/current': openWindow('cycle_early', now, 20 * 60 * 1000, { favorActive: false }),
+    });
+    const closed = await ending.announceFavorEnding(early, admin, now);
+    assert.strictEqual(closed.posted, false);
+    assert.strictEqual(closed.reason, 'inactive');
+    assert.strictEqual(Object.keys(early.docs).filter(function (key) { return key.indexOf('sf_ending_') === 0 || key.indexOf('global_chat/') === 0; }).length, 0);
+    const done = memoryDb({
+        'satoshiFavor/current': openWindow('cycle_done', now, -1000),
+    });
+    const none = await ending.announceFavorEnding(done, admin, now);
+    assert.strictEqual(none.posted, false);
+    assert.strictEqual(none.reason, 'no_time');
+    assert.strictEqual(Object.keys(done.docs).length, 1);
+    const later = memoryDb({
+        'satoshiFavor/current': openWindow('cycle_later', now, ending.HEADS_UP_MS + 1),
+    });
+    const waiting = await ending.announceFavorEnding(later, admin, now);
+    assert.strictEqual(waiting.posted, false);
+    assert.strictEqual(waiting.reason, 'not_yet');
+    const extended = memoryDb({
+        'satoshiFavor/current': openWindow('cycle_bonus', now, 8 * 60 * 1000, { bonusMinutes: 5 }),
+    });
+    const bonus = await ending.announceFavorEnding(extended, admin, now);
+    assert.strictEqual(bonus.posted, false);
+    assert.strictEqual(bonus.reason, 'not_yet');
+    const raced = memoryDb({
+        'satoshiFavor/current': openWindow('cycle_race', now, 5 * 60 * 1000),
+    });
+    const orig = raced.runTransaction;
+    raced.runTransaction = function (fn) {
+        return orig(async function (t) {
+            const get = t.get;
+            t.get = async function (r) {
+                if (r.path === 'satoshiFavor/current') raced.docs['satoshiFavor/current'].favorActive = false;
+                return get(r);
+            };
+            return fn(t);
+        });
+    };
+    const lost = await ending.announceFavorEnding(raced, admin, now);
+    assert.strictEqual(lost.posted, false);
+    assert.strictEqual(lost.reason, 'inactive');
+    assert.strictEqual(raced.docs['sf_ending_announcements/cycle_race'], undefined);
+    assert.strictEqual(chatPaths(raced).length, 0);
+    const one = memoryDb({
+        'satoshiFavor/current': openWindow('cycle_one', now, 1, {
+            favorEndBase: { toMillis: function () { return now + 1; } },
+        }),
+    });
+    const last = await ending.announceFavorEnding(one, admin, now);
+    assert.strictEqual(last.posted, true);
+    assert.strictEqual(last.text, "⏳ Satoshi's Favor ends soon. Hash now!");
+    assert.strictEqual(last.text.indexOf('Alice'), -1);
+    assert.ok(!/\d/.test(last.text));
 }));
 
 queue.reduce(function (p, next) { return p.then(function () { return next; }); }, Promise.resolve()).then(function () {

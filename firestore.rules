@@ -107,7 +107,7 @@ service cloud.firestore {
         'visibleBadges', 'hiddenBadges', 'badges', 'payingBadgeCount', 'badgeCounters',
         'marketListings', 'marketMessages', 'marketSold',
         'dailyTripleCount', 'trifectaDays', 'dailyFiveDays', 'dailyFiveStreak',
-        'sayHiArmedDay', 'sayHiDays', 'replyBonusCount',
+        'sayHiArmedDay', 'sayHiDays', 'replyBonusCount', 'chatPostedDay',
         'lastTriviaDate', 'lastPollDate', 'lastQuestDate', 'triviaStreak',
         'purpleTickets', 'blueTickets', 'pollDays',
         'chatCount', 'dmCount', 'beatsUploads', 'articlesPublished',
@@ -119,7 +119,7 @@ service cloud.firestore {
         'spinClosetAwards', 'tipsVerified', 'tipsSentSats', 'tipsReceived',
         'raidDamageAllTime', 'raidBossesDefeated', 'raidWins', 'streakFreezesUsed',
         'giftsOpened', 'giftShoutoutWon', 'keyPeersDistinct', 'peerKeyCiphers',
-        'cipherFullRing', 'cipherSatsPaid', 'cipherBiggestWin', 'peerBestLevel', 'peersAtL3',
+        'cipherFullRing', 'cipherSatsPaid', 'cipherBiggestWin', 'cipherSatsBalance', 'peerBestLevel', 'peersAtL3',
         'topicComments', 'topicChannelsCommented', 'topicChannelCounts',
         'shopPurchases', 'raffleTicketsBought', 'raffleEntered', 'raffleWins',
         'predTopWeeks', 'predTopMonths', 'pushEnabled',
@@ -128,6 +128,7 @@ service cloud.firestore {
         'badgeBackfillToast',
         'certPassed_prop', 'certPassed_tech', 'certPassedAt_prop', 'certPassedAt_tech',
         'lastExamAttempt_prop', 'lastExamAttempt_tech',
+        'examSlotId_prop', 'examSlotId_tech', 'certId_prop', 'certId_tech',
         'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score',
         'email', 'emailHash', 'satsHold', 'emailHistory', 'emailHistoryHashes',
         'providersHash', 'providerHashes'
@@ -178,9 +179,11 @@ service cloud.firestore {
                     && (!('lightning' in request.resource.data) || !('lightningAddress' in request.resource.data)
                         || request.resource.data.lightning == '' || request.resource.data.lightningAddress == ''
                         || request.resource.data.lightning == request.resource.data.lightningAddress)
-                    // created is optional: Nostr link and TOS acceptance can create a partial
-                    // doc without it. When the field is sent, it must be the server clock.
-                    // Signup, provider, Lightning, and Nostr profile creates send serverTimestamp().
+                    // created is optional on this create: Nostr link and TOS acceptance can
+                    // open a partial doc without it. onUserDocCreated then stamps created
+                    // from Auth metadata.creationTime. When the client sends created, it
+                    // must be the server clock. Signup, provider, Lightning, and Nostr
+                    // profile creates send serverTimestamp() when they are the first write.
                     && (!('created' in request.resource.data) || request.resource.data.created == request.time);
 
       // A denied field used to keep evaluating the lock helpers (&& does not
@@ -200,13 +203,18 @@ service cloud.firestore {
           || changed.hasAny([
                         // Core economy
                         'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
-                        'sats', 'satsEarned', 'satsWithdrawn', 'satsDisabled',
+                        'sats', 'satsEarned', 'satsWithdrawn', 'satsDisabled', 'cipherSatsBalance',
                         'orangeTickets', 'tickets',
                         // Timechain TV daily watch (tctvWatchHeartbeat only)
                         'tctvWatchSeconds', 'tctvWatchDay', 'tctvWatchLastCredit',
                         'tctvWatchAwardedDay', 'tctvWatchToastSeen',
-                        // Streak / activity (CF-managed)
-                        'streak', 'bestStreak', 'totalVisits', 'channelsVisited',
+                        // Streak / activity (CF-managed). lastVisit is set on create
+                        // and after that only by recordDailyVisit, so a client cannot
+                        // keep a lapsed streak looking current. nameKey is the
+                        // leaderboard sort key; only syncPublicProfile writes it.
+                        'streak', 'bestStreak', 'streakReachedAt', 'bestStreakAt', 'lastVisit',
+                        'nameKey',
+                        'totalVisits', 'channelsVisited',
                         'readChannels', 'visitedChannelsList',
                         // Claim / withdrawal state
                         'pointsClaimed', 'pointsExchanged',
@@ -241,7 +249,7 @@ service cloud.firestore {
                         // A client cannot plant it on the profile either.
                         'sender',
                         'marketListings', 'marketMessages',
-                        'referralTicketsEarned', 'referralCode', 'referralCount', 'referralInvited',
+                        'referralTicketsEarned', 'referralCode', 'referralCount', 'referralInvited', 'referralMaxiCount',
                         'referredBy', 'referralVerified', 'scholarPoints', 'activeDayKeys',
                         'tipChallengeDate', 'tipConfirmedDate',
                         'pointsDonated', 'donationBadges',
@@ -298,6 +306,16 @@ service cloud.firestore {
               && 'pendingLeaderboardReward' in request.resource.data);
       }
 
+      // Owner-only record of which share cards were already shown. Not a reward.
+      // A string, not a map: rules cannot loop map entries. The owner update below
+      // already requires request.auth.uid == userId, and this shape check is the allowlist.
+      function shareCardsShownOk() {
+        let v = request.resource.data.shareCardsShown;
+        return v is string
+          && v.size() <= 1500
+          && v.matches('^[a-z0-9_:,]*$');
+      }
+
       function profileShapeOk() {
         let changed = request.resource.data.diff(resource.data).affectedKeys();
         return (!changed.hasAny(['username'])
@@ -337,6 +355,7 @@ service cloud.firestore {
             || request.resource.data.beatsShowUncensored == true
             || request.resource.data.beatsShowUncensored == false)
           && (!changed.hasAny(['lightning', 'lightningAddress', 'lnAddress']) || (true && lightningLockOk()))
+          && (!changed.hasAny(['shareCardsShown']) || shareCardsShownOk())
           && (!changed.hasAny(['notificationPrefs']) || notificationPrefsOk())
           && (!changed.hasAny(['notifPrompt']) || notifPromptOk());
       }
@@ -450,29 +469,37 @@ service cloud.firestore {
 
     // =============================================
     // STATS COLLECTION
-    // [AUDIT FIX S6] nacho-analytics now requires auth
+    // stats/nacho-analytics is server-written. Clients may read it.
     // =============================================
     match /stats/{statId} {
-      allow read: if true;
+      // Leaderboard snapshots (stats/lb_*) match the old profile boards:
+      // any signed-in user, including anonymous, may read them. A signed-out
+      // read is denied. Every other stats doc stays public.
+      allow read: if !statId.matches('lb_.*') || request.auth != null;
       allow update: if request.auth != null
                     && statId == 'visits'
                     && request.resource.data.total == resource.data.total + 1;
       allow create: if request.auth != null
                     && statId == 'visits';
-      // [AUDIT FIX S6 + LOW-4] nacho-analytics: non-anon auth + field allowlist to prevent junk data
-      // Only whitelisted increment fields accepted; no arbitrary keys.
-      allow create, update: if statId == 'nacho-analytics'
-                            && request.auth != null
-                            && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                            && request.resource.data.keys().hasOnly([
-                                'totalQuestions', 'upvotes', 'downvotes', 'lastUpdated',
-                                'topics', 'sources'
-                            ]);
+      // stats/nacho-analytics is written only by recordNachoAnalytics.
+      // A signed-in client used to create and set these counters to any value.
+      // No write rule matches statId == 'nacho-analytics'. Clients can still read it.
       // Community prediction totals (stats/predictions) are written only by
       // resolvePredictions via the Admin SDK. The old client +1 rules are
       // closed so a hostile client cannot inflate community accuracy.
       // No allow matches statId == 'predictions', so client writes are denied.
-      // Read stays open via `allow read: if true` above.
+      // stats/streak_leaderboard is the same: refreshStreakLeaderboard writes
+      // it with the Admin SDK. No write rule matches that id. Read stays open.
+      // stats/quest_leaderboard_alltime, stats/quest_leaderboard_week, and
+      // stats/quest_leaderboard_month are written by refreshQuestLeaderboard.
+      // No write rule matches those ids. Clients only read them.
+      // Read for these ids stays open: they do not match lb_*.
+      // stats/lb_xp_alltime, stats/lb_xp_week, stats/lb_xp_month, stats/lb_pvp,
+      // stats/lb_favor_hashers, stats/lb_raid_alltime, and stats/lb_dirty are
+      // leaderboard snapshots and the dirty marker. The scheduled refreshes
+      // and syncPublicProfile write them with the Admin SDK.
+      // No write rule matches those ids, so client create/update/delete is
+      // false. Signed-in clients may read them. Signed-out clients may not.
       // ─── Global community stats ───
       // Authenticated (non-anonymous) users may increment whitelisted counters
       // by exactly +1 per write (watchTimeMinutes allows +1..+5 for batched TCTV pings).
@@ -528,6 +555,12 @@ service cloud.firestore {
                     && request.resource.data.values()[0] <= 5;
     }
 
+    // Nacho miss and feedback counters. The client used to increment these.
+    // recordNachoAnalytics writes them. Clients cannot read or write them.
+    match /analytics/{docId} {
+      allow read, write: if false;
+    }
+
     // Active predictions (for server-side resolution)
     // [AUDIT FIX L-NEW-11] Prevent backdating predictions.
     // hasOnly rejects a client-supplied serverStartPrice, void, or any other key.
@@ -556,6 +589,12 @@ service cloud.firestore {
       allow get: if request.auth != null && request.auth.uid == uid;
       allow list: if false;
       allow create, update, delete: if false;
+    }
+
+    // Quest leaderboard totals. gradeQuest and the backfill write these.
+    // Clients read the public stats/quest_leaderboard_* docs, not this.
+    match /quest_lb_stats/{uid} {
+      allow read, write: if false;
     }
 
     // Immutable resolved predictions. Owner may read their own history.
@@ -628,6 +667,12 @@ service cloud.firestore {
     // Referral code index. Server writes one doc per user. Clients cannot
     // mint or overwrite a code.
     match /referralCodes/{code} {
+      allow read, write: if false;
+    }
+
+    // First arrival of a guest or account. Admin SDK only. The client cannot
+    // write the timestamp or the anonymous flag.
+    match /referral_arrivals/{uid} {
       allow read, write: if false;
     }
 
@@ -1385,11 +1430,18 @@ service cloud.firestore {
                     && request.resource.data.title.size() >= 10
                     && request.resource.data.title.size() <= 120
                     && request.resource.data.body is string
+                    && request.resource.data.body.size() <= 50000
                     && request.resource.data.agreedToTerms == true;
       allow update: if request.auth != null
                     && (
-                      // Author can edit their own article
+                      // Author can edit their own article, but cannot hand authorship to someone else.
                       resource.data.authorId == request.auth.uid
+                      && request.resource.data.authorId == resource.data.authorId
+                      && request.resource.data.body is string
+                      && request.resource.data.body.size() <= 50000
+                      && request.resource.data.title is string
+                      && request.resource.data.title.size() >= 10
+                      && request.resource.data.title.size() <= 120
                       // Upvotes/tips/saves: anyone authenticated
                       // [SECURITY FIX] Each branch now freezes the fields it does NOT own.
                       // Previously the OR logic let any branch pass while the caller freely
@@ -1545,19 +1597,32 @@ service cloud.firestore {
     // =============================================
     match /announcements/{msgId} {
       allow read: if true;
+      // badgeIds is server-only (badge GGs Admin SDK). Clients cannot create
+      // announcements, and an update may change reactions only.
       // [BUG-6 FIX] Client writes to announcements are permanently disabled.
       // Any authenticated user (including anonymous) could set isNachoAuto=true
       // and inject fake "official Nacho" announcements with arbitrary markdown links.
       // All announcements must now go through the nachoAnnounce Cloud Function
       // (Admin SDK write, non-anonymous auth required, link allowlist enforced).
       allow create: if false;
-      // Any signed-in user can toggle their own emoji reaction (only their own uid key within reactions)
+      // Any signed-in user can toggle their own emoji reaction (only their own uid key within reactions).
+      // partyCount is the server 🎉 total. Clients cannot write it. Per-player
+      // markers live in the reactions subcollection and are Admin SDK only.
       allow update: if request.auth != null
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['partyCount'])
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
                     && request.resource.data.reactions.diff(resource.data.get('reactions', {})).affectedKeys().hasOnly([request.auth.uid]);
       // Admin-only delete and full update
       allow delete: if request.auth != null
                     && isAdmin();
+
+      match /reactions/{uid} {
+        allow get: if request.auth != null
+                   && request.auth.uid == uid
+                   && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
+        allow list: if false;
+        allow create, update, delete: if false;
+      }
     }
 
     // =============================================
@@ -1689,17 +1754,26 @@ service cloud.firestore {
     }
 
     // =============================================
-    // Polls (Sats vs Bits — anonymous voting allowed)
+    // Sats vs Bits tally. Clients may read the totals. They cannot create the
+    // document. pollVote creates it and increments sats/bits in one transaction.
     match /polls/{pollId} {
       allow read: if true;
-      // Writes handled server-side via pollVote Cloud Function
-      allow write: if false;
+      allow create, update, delete: if false;
     }
 
-    // Certificates (public read, Cloud Function writes only via Admin SDK)
+    // Certificates are not readable by the client. verifyCertificate returns
+    // the public fields. Owner ids live in cert_owners.
     match /certs/{certId} {
-      allow read: if true;
-      allow write: if false;
+      allow read: if false;
+      allow create, update, delete: if false;
+    }
+
+    match /cert_owners/{certId} {
+      allow read, write: if false;
+    }
+
+    match /cert_by_user/{docId} {
+      allow read, write: if false;
     }
 
     // Buddy matching pool
@@ -1754,6 +1828,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Paying article publishes per offset day. Cloud Function only.
+    match /users/{userId}/article_publish_days/{docId} {
+      allow read, write: if false;
+    }
+
     // Onboarding evidence (Nacho asked, copied quiz proof). Cloud Function only.
     match /users/{userId}/onboarding_evidence/{docId} {
       allow read: if request.auth != null && request.auth.uid == userId;
@@ -1781,6 +1860,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Every server-graded quest attempt. gradeQuest writes this. Clients cannot.
+    match /users/{userId}/quest_attempts/{docId} {
+      allow read, write: if false;
+    }
+
     // Server-side badge award deduplication (Cloud Function only)
     match /users/{userId}/badge_awards/{docId} {
       allow read, write: if false;
@@ -1789,6 +1873,12 @@ service cloud.firestore {
     // Topic conversation XP ledger. Written only by the server function that
     // accepts the post. source is topic_conversation. Clients cannot write it.
     match /users/{userId}/xp_ledger/{docId} {
+      allow read, write: if false;
+    }
+
+    // One certification completion bonus per cert type. gradeScholarExam
+    // writes prop or tech. Clients cannot create or edit the marker.
+    match /users/{userId}/cert_bonuses/{docId} {
       allow read, write: if false;
     }
 
@@ -1926,76 +2016,59 @@ service cloud.firestore {
       allow read, update, delete: if false;
     }
 
-    // Poll Quest votes — anyone can read, signed-in users can write
-    // Poll Quest votes. The tally is written by dailyPollVote. Clients can read it.
+    // Poll Quest tally. dailyPollVote creates and updates it in the vote
+    // transaction. Clients may read the results. They cannot create the doc.
     match /poll_votes/{pollId} {
       allow read: if true;
       allow create, update, delete: if false;
     }
 
+    // Cumulative poll totals. Clients may read the community number.
+    // Creates and edits are denied. dailyPollVote increments the tally.
     match /poll_cumulative/{pollId} {
       allow read: if true;
-      allow create: if request.auth != null
-                    && pollId.matches('^[a-zA-Z0-9_-]{1,80}$')
-                    && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question']);
-      // [SECURITY FIX] create: values must be 0 or 1; total must equal 1 (first vote).
-      // Previously unconstrained — any value could be set on create.
-      allow create: if request.auth != null
-                    && pollId.matches('^[a-zA-Z0-9_-]{1,80}$')
-                    && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question'])
-                    && request.resource.data.total == 1
-                    && request.resource.data.get('option_0', 0) >= 0 && request.resource.data.get('option_0', 0) <= 1
-                    && request.resource.data.get('option_1', 0) >= 0 && request.resource.data.get('option_1', 0) <= 1
-                    && request.resource.data.get('option_2', 0) >= 0 && request.resource.data.get('option_2', 0) <= 1
-                    && request.resource.data.get('option_3', 0) >= 0 && request.resource.data.get('option_3', 0) <= 1;
-      // All numeric fields are monotonically increasing AND bounded to +1 per update.
-      allow update: if request.auth != null
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question'])
-                    // total: monotone increasing, at most +1
-                    && request.resource.data.total >= resource.data.get('total', 0)
-                    && request.resource.data.total <= resource.data.get('total', 0) + 1
-                    // each option: monotone increasing, at most +1
-                    && request.resource.data.get('option_0', 0) >= resource.data.get('option_0', 0)
-                    && request.resource.data.get('option_0', 0) <= resource.data.get('option_0', 0) + 1
-                    && request.resource.data.get('option_1', 0) >= resource.data.get('option_1', 0)
-                    && request.resource.data.get('option_1', 0) <= resource.data.get('option_1', 0) + 1
-                    && request.resource.data.get('option_2', 0) >= resource.data.get('option_2', 0)
-                    && request.resource.data.get('option_2', 0) <= resource.data.get('option_2', 0) + 1
-                    && request.resource.data.get('option_3', 0) >= resource.data.get('option_3', 0)
-                    && request.resource.data.get('option_3', 0) <= resource.data.get('option_3', 0) + 1;
+      allow create, update, delete: if false;
     }
 
-    // Trivia cumulative stats (all-time per question) — read public, increment only
+    // Trivia answer key. Admin SDK only. Clients cannot read or write it.
+    match /private_banks/{docId} {
+      allow read, write: if false;
+    }
+
+    // Trivia cumulative stats. The tally is written by answerTrivia. Clients can read it.
     match /trivia_cumulative/{triviaId} {
       allow read: if true;
-      // [SECURITY FIX] create: schema locked + values bounded (was completely unconstrained)
-      allow create: if request.auth != null
-                    && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'triviaIndex'])
-                    && request.resource.data.total == 1
-                    && request.resource.data.get('option_0', 0) >= 0 && request.resource.data.get('option_0', 0) <= 1
-                    && request.resource.data.get('option_1', 0) >= 0 && request.resource.data.get('option_1', 0) <= 1
-                    && request.resource.data.get('option_2', 0) >= 0 && request.resource.data.get('option_2', 0) <= 1
-                    && request.resource.data.get('option_3', 0) >= 0 && request.resource.data.get('option_3', 0) <= 1;
-      // [SECURITY FIX] update: monotone increasing AND at most +1 per field per update
-      allow update: if request.auth != null
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'triviaIndex'])
-                    && request.resource.data.total >= resource.data.get('total', 0)
-                    && request.resource.data.total <= resource.data.get('total', 0) + 1
-                    && request.resource.data.get('option_0', 0) >= resource.data.get('option_0', 0)
-                    && request.resource.data.get('option_0', 0) <= resource.data.get('option_0', 0) + 1
-                    && request.resource.data.get('option_1', 0) >= resource.data.get('option_1', 0)
-                    && request.resource.data.get('option_1', 0) <= resource.data.get('option_1', 0) + 1
-                    && request.resource.data.get('option_2', 0) >= resource.data.get('option_2', 0)
-                    && request.resource.data.get('option_2', 0) <= resource.data.get('option_2', 0) + 1
-                    && request.resource.data.get('option_3', 0) >= resource.data.get('option_3', 0)
-                    && request.resource.data.get('option_3', 0) <= resource.data.get('option_3', 0) + 1;
+      allow create, update, delete: if false;
     }
 
     // ===== RAID BOSS =====
+    // Chat-Charger and every other scheduled boss take damage only from
+    // trusted Cloud Functions (Admin SDK). Clients cannot write boss HP,
+    // participants, winners, daily caps, or damage events.
     // Per-user daily contribution caps — Cloud Function writes only
     match /raid_daily_caps/{docId} {
+      allow read, write: if false; // Admin SDK bypasses rules
+    }
+
+    match /raid_damage_events/{docId} {
+      allow read, write: if false; // Admin SDK bypasses rules
+    }
+
+    match /raid_boss_posts/{docId} {
+      allow read, write: if false; // Admin SDK bypasses rules
+    }
+
+    match /raid_boss_alerts/{docId} {
+      allow read, write: if false; // Admin SDK bypasses rules
+    }
+
+    // Forum and article damage waits here for 24 hours. Clients cannot queue it.
+    match /raid_forum_pending/{docId} {
+      allow read, write: if false; // Admin SDK bypasses rules
+    }
+
+    // Goal inputs and formula. Not a public boss field.
+    match /raid_boss_meta/{docId} {
       allow read, write: if false; // Admin SDK bypasses rules
     }
 
@@ -2015,6 +2088,13 @@ service cloud.firestore {
         allow read: if true;
         allow write: if false; // Admin SDK bypasses rules
       }
+    }
+
+    // Past boss snapshots. The server writes them when a fight ends.
+    // Clients may read the cards. They cannot create, edit, or delete them.
+    match /raid_history/{bossId} {
+      allow read: if true;
+      allow create, update, delete: if false;
     }
 
     // ===== SATOSHI'S FAVOR =====
@@ -2059,6 +2139,11 @@ service cloud.firestore {
 
     // One live-window announcement per cycle. Admin SDK only.
     match /sf_live_announcements/{cycleId} {
+      allow read, write: if false;
+    }
+
+    // One ending heads-up per Favor window. Admin SDK only.
+    match /sf_ending_announcements/{cycleId} {
       allow read, write: if false;
     }
 
@@ -2149,26 +2234,10 @@ service cloud.firestore {
       }
     }
 
-    // Trivia answer stats — public read, authenticated users can merge-increment
+    // Trivia answer stats. The tally is written by answerTrivia. Clients can read it.
     match /trivia_stats/{date} {
       allow read: if true;
-      allow create: if request.auth != null
-                   && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3'])
-                   && request.resource.data.total == 1;
-      // [SECURITY FIX] update: monotone increasing AND at most +1 per field per update
-      allow update: if request.auth != null
-                   && request.resource.data.diff(resource.data).affectedKeys()
-                      .hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3'])
-                   && request.resource.data.total >= resource.data.get('total', 0)
-                   && request.resource.data.total <= resource.data.get('total', 0) + 1
-                   && request.resource.data.get('option_0', 0) >= resource.data.get('option_0', 0)
-                   && request.resource.data.get('option_0', 0) <= resource.data.get('option_0', 0) + 1
-                   && request.resource.data.get('option_1', 0) >= resource.data.get('option_1', 0)
-                   && request.resource.data.get('option_1', 0) <= resource.data.get('option_1', 0) + 1
-                   && request.resource.data.get('option_2', 0) >= resource.data.get('option_2', 0)
-                   && request.resource.data.get('option_2', 0) <= resource.data.get('option_2', 0) + 1
-                   && request.resource.data.get('option_3', 0) >= resource.data.get('option_3', 0)
-                   && request.resource.data.get('option_3', 0) <= resource.data.get('option_3', 0) + 1;
+      allow create, update, delete: if false;
     }
 
     // Charity donations — public read (for leaderboard/feed), CF-only write
@@ -2193,6 +2262,15 @@ service cloud.firestore {
     match /leaderboard_winners/{period} {
       allow read: if true;
       allow write: if false;
+    }
+
+    // Paid-once marker for weekly/monthly Orange Ticket board prizes.
+    // Clients cannot read or write the lock or the per-winner docs.
+    match /lb_prize_markers/{markerId} {
+      allow read, write: if false;
+      match /winners/{winnerId} {
+        allow read, write: if false;
+      }
     }
 
     // Hot Topics — public read, Cloud Function write only
@@ -2265,6 +2343,32 @@ service cloud.firestore {
     // cannot mark a share paid or revealed, and cannot invent a sender.
     match /cipher_shares/{shareId} {
       allow read, write: if false;
+    }
+
+    // Cipher sats balance credits, claims, and payout audit. Admin SDK only.
+    // The balance itself lives on users/{uid}.cipherSatsBalance and is in the
+    // server-only denylist above. Clients cannot write any of these.
+    match /cipher_sats_credits/{docId} {
+      allow read, write: if false;
+    }
+    match /cipher_sats_locks/{docId} {
+      allow read, write: if false;
+    }
+    match /cipher_sats_player_daily/{docId} {
+      allow read, write: if false;
+    }
+    match /cipher_sats_site_daily/{docId} {
+      allow read, write: if false;
+    }
+    match /cipher_sats_payouts/{docId} {
+      allow read, write: if false;
+    }
+    match /cipher_sats_invoices/{docId} {
+      allow read, write: if false;
+    }
+    match /cipher_sats_config/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // =============================================
@@ -2363,6 +2467,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // One article-publish XP marker per article id. Cloud Function only.
+    match /article_xp/{articleId} {
+      allow read, write: if false;
+    }
+
     match /market_listing_daily/{docId} {
       allow read, write: if false;
     }
@@ -2438,7 +2547,16 @@ service cloud.firestore {
     match /email_change_pending/{docId} {
       allow read, write: if false;
     }
+    match /email_link_claims/{docId} {
+      allow read, write: if false;
+    }
     match /identity_history/{docId} {
+      allow read, write: if false;
+    }
+
+    // Nacho Radio shuffle bag (nacho_radio/queue). The scheduled tick is the
+    // only reader and writer. Clients must not see or edit the upcoming order.
+    match /nacho_radio/{docId} {
       allow read, write: if false;
     }
 

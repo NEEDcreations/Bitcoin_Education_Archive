@@ -21,6 +21,7 @@ const port = Number(emuParts[1] || 8085);
 const FIELDS = [
     'lastQuizDate', 'quizStreak', 'quizAnswered', 'quizCorrect',
     'xpBankPayoutApplied', 'xpBankPayoutAmount', 'xpBankPayoutBank', 'xpBankPayoutAt',
+    'referralMaxiCount',
 ];
 
 (async function main() {

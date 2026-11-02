@@ -125,7 +125,8 @@ function ledgerRef(userRef, postId, kind) {
     return userRef.collection('xp_ledger').doc(id);
 }
 
-function ledgerData(uid, amount, kind, channelId, postId, day, nowMs) {
+function ledgerData(uid, amount, kind, channelId, postId, day, nowMs, windowFields) {
+    const win = windowFields || {};
     return {
         source: LEDGER_SOURCE,
         amount: amount,
@@ -135,6 +136,9 @@ function ledgerData(uid, amount, kind, channelId, postId, day, nowMs) {
         day: day || '',
         createdAtMs: nowMs,
         uid: uid,
+        base: win.base != null ? win.base : amount,
+        boosted: win.boosted != null ? win.boosted : amount,
+        doubled: win.doubled === true,
     };
 }
 
@@ -232,26 +236,26 @@ async function grantInTransaction(tx, opts) {
     let authorAwarded = 0;
     let starterAwarded = 0;
     if (authorNominal > 0 && o.authorRef) {
-        const grant = await applyDailyXp(o.authorUid, authorNominal, tx, { day: day, userRef: o.authorRef });
+        const grant = await applyDailyXp(o.authorUid, authorNominal, tx, { day: day, userRef: o.authorRef, user: authorUser, now: nowMs });
         authorAwarded = grant.awarded;
         if (authorAwarded > 0) {
             writes.push({ ref: o.authorRef, data: pointsPatch(authorUser, authorAwarded) });
             writes.push({ ref: grant.dailyRef, data: { total: grant.dailyXp, lastUpdated: nowMs } });
             writes.push({
                 ref: ledgerRef(o.authorRef, o.postId, o.isStart ? 'start' : 'reply'),
-                data: ledgerData(o.authorUid, authorAwarded, o.isStart ? 'start' : 'reply', o.channelId, o.postId, day, nowMs),
+                data: ledgerData(o.authorUid, authorAwarded, o.isStart ? 'start' : 'reply', o.channelId, o.postId, day, nowMs, grant),
             });
         }
     }
     if (starterNominal > 0 && starterRef) {
-        const grant = await applyDailyXp(starterUid, starterNominal, tx, { day: day, userRef: starterRef });
+        const grant = await applyDailyXp(starterUid, starterNominal, tx, { day: day, userRef: starterRef, user: starterUser, now: nowMs });
         starterAwarded = grant.awarded;
         if (starterAwarded > 0) {
             writes.push({ ref: starterRef, data: pointsPatch(starterUser, starterAwarded) });
             writes.push({ ref: grant.dailyRef, data: { total: grant.dailyXp, lastUpdated: nowMs } });
             writes.push({
                 ref: ledgerRef(starterRef, o.postId, 'starter_reply'),
-                data: ledgerData(starterUid, starterAwarded, 'starter_reply', o.channelId, o.postId, day, nowMs),
+                data: ledgerData(starterUid, starterAwarded, 'starter_reply', o.channelId, o.postId, day, nowMs, grant),
             });
             const usedAwards = starterAwardsUsed(starterLimit, day);
             writes.push({

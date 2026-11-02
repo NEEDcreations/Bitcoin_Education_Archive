@@ -41,6 +41,13 @@ const { sendUserPush, broadcastCategory, cleanStaleTokens, releaseTokenFromOther
 const { testPushTargetAllowed } = require('./src/pushPrefs');
 const { createPredictionJobs } = require('./src/predictionJobs');
 const predictionJobs = createPredictionJobs(db, admin, { sendPush: sendUserPush });
+const streakBoard = require('./src/streakBoard');
+const questBoard = require('./src/questBoard');
+const lbPrizes = require('./src/lbPrizes');
+const boardSnapshots = require('./src/boardSnapshots');
+const leaderboardIdentity = require('./src/leaderboardIdentity');
+const leaderboardRank = require('./src/leaderboardRank');
+const joinDate = require('./src/joinDate');
 // Daily key with 5-hour UTC offset — matches client getDailyKey() (resets at 5 AM UTC)
 // Prevents server/client day mismatch that lets users double-complete daily challenges
 function getOffsetDateKey() {
@@ -155,6 +162,7 @@ const awardActions = require('./src/awardActions');
 const ticketGrants = require('./src/ticketGrants');
 const { grantServerTickets, claimNachoChat } = require('./src/grantServerTickets');
 const doubleXp = require('./src/doubleXp');
+const { planXpGrant } = require('./src/grantXp');
 const referralService = require('./src/referralService');
 const referralDecisions = require('./src/referrals');
 const tipService = require('./src/tipService');
@@ -167,6 +175,8 @@ const { grantFamily, familyFor } = require('./src/grantBadge');
 const { awardBadge } = require('./src/awardBadge');
 const dailyFive = require('./src/dailyFive');
 const { createPollVote } = require('./src/pollVote');
+const { createSvbVote } = require('./src/svbPoll');
+const nachoAnalytics = require('./src/nachoAnalytics');
 const { countMarketplaceMessage, countMarketplaceSale } = require('./src/marketMessages');
 const activityCounters = require('./src/activityCounters');
 const { refreshBadgeDistribution } = require('./src/badgeDistribution');
@@ -451,11 +461,16 @@ exports.nostrAuth = functionsV1.https.onCall(async (data, context) => {
         nostrPubkey: pubkey,
     });
 
-    // Store/update pubkey in Firestore
-    await db.collection('users').doc(nostrUid).set({
+    // Store/update pubkey in Firestore. created is immutable after the first
+    // write, so a doc created here without it can never be fixed by the client.
+    const nostrRef = db.collection('users').doc(nostrUid);
+    const nostrExisting = await nostrRef.get();
+    const nostrPatch = {
         nostr: pubkey,
         lastLogin: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
+    };
+    await joinDate.applyMissingJoin(admin, nostrUid, nostrPatch, nostrExisting);
+    await nostrRef.set(nostrPatch, { merge: true });
 
     return { token: customToken, uid: nostrUid };
 });
@@ -622,12 +637,17 @@ exports.lnAuthCallback = functionsV1.https.onRequest(async (req, res) => {
         completedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // Update/create user doc
-    await db.collection('users').doc(lnUid).set({
+    // Update/create user doc. Same created-field rule as nostrAuth: the first
+    // server write has to carry the join instant or the client cannot add it.
+    const lnRef = db.collection('users').doc(lnUid);
+    const lnExisting = await lnRef.get();
+    const lnPatch = {
         lnPubkey: key,
         authMethod: 'lightning',
         lastLogin: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
+    };
+    await joinDate.applyMissingJoin(admin, lnUid, lnPatch, lnExisting);
+    await lnRef.set(lnPatch, { merge: true });
 
     return res.json({ status: 'OK' });
 });
@@ -889,6 +909,7 @@ exports.onForumPost = onDocumentCreated('forum_posts/{postId}', async (event) =>
 // Separate from onForumPost so a mail failure cannot drop the chat post.
 const { announceActivity, retractActivity, retractIfRemoved } = require('./src/activityShoutout');
 const { countMarketplaceListing } = require('./src/marketListingCount');
+const { handleArticlePublishWrite } = require('./src/articlePublishXp');
 
 const ACTIVITY_SHOUTOUT_OPTS = { maxInstances: 10 };
 
@@ -1025,7 +1046,18 @@ exports.onForumPostBadgeCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
-    try { await activityCounters.recordForumPost(db, admin, event.data.data()); }
+    try {
+        const recorded = await activityCounters.recordForumPost(db, admin, event.data.data());
+        if (recorded && recorded.bumped && recorded.uid) {
+            await require('./src/raidBossEngine').queueForumDamage(db, admin, {
+                kind: 'forum',
+                sourceId: String(event.params.postId || ''),
+                uid: recorded.uid,
+                data: event.data.data(),
+                now: new Date(),
+            });
+        }
+    }
     catch (e) { console.warn('[onForumPostBadgeCount]', e && e.message); }
     return null;
 });
@@ -1055,10 +1087,53 @@ exports.onArticleBadgeCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
-    try { await activityCounters.recordArticle(db, admin, event.data.data()); }
+    try {
+        const recorded = await activityCounters.recordArticle(db, admin, event.data.data());
+        if (recorded && recorded.bumped && recorded.uid) {
+            await require('./src/raidBossEngine').queueForumDamage(db, admin, {
+                kind: 'article',
+                sourceId: String(event.params.articleId || ''),
+                uid: recorded.uid,
+                data: event.data.data(),
+                now: new Date(),
+            });
+        }
+    }
     catch (e) { console.warn('[onArticleBadgeCount]', e && e.message); }
     return null;
 });
+
+// Article XP. Separate from onArticleBadgeCount and from awardPoints.
+// retry is on so a missing user doc (the only path that throws) runs again.
+// Every other outcome writes article_xp first, so a second delivery pays nothing.
+exports.onArticlePublishXp = onDocumentWritten({
+    document: 'articles/{articleId}',
+    maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+    retry: true,
+}, async (event) => {
+    const change = event.data;
+    if (!change) return null;
+    const beforeSnap = change.before;
+    const afterSnap = change.after;
+    const before = beforeSnap && beforeSnap.exists ? beforeSnap.data() : null;
+    const after = afterSnap && afterSnap.exists ? afterSnap.data() : null;
+    try {
+        const result = await handleArticlePublishWrite({
+            db: db,
+            admin: admin,
+            articleId: event.params.articleId,
+            before: before,
+            after: after,
+        });
+        if (result && result.retry) throw new Error('article publish xp retry');
+    } catch (e) {
+        console.warn('[onArticlePublishXp]', e && e.message);
+        throw e;
+    }
+    return null;
+});
+
+exports.recordNachoAnalytics = nachoAnalytics.attachRecordNachoAnalytics(functionsV1, admin, db);
 
 exports.dailyPollVote = functionsV1.https.onCall(createPollVote({
     admin: admin,
@@ -1069,6 +1144,13 @@ exports.dailyPollVote = functionsV1.https.onCall(createPollVote({
             db: db, admin: admin, uid: uid, day: day, creditDailyAllThree: require('./src/satoshiFavor').creditDailyAllThree,
         });
         await dailyFive.maybeCompleteDailyFive({ db: db, admin: admin, uid: uid, day: day });
+        await require('./src/raidBossEngine').noteTrusted(db, admin, {
+            metric: 'pollVotes',
+            uid: uid,
+            dedupeKey: 'poll-' + uid + '-' + day,
+            amount: 1,
+            now: new Date(),
+        });
     },
 }));
 
@@ -1329,7 +1411,7 @@ exports.verifyReferral = functionsV1.runWith({ secrets: [referralIpSecret, delet
         try {
             await sendUserPush(result.referrerUid, 'referrals', {
                 title: 'Referral reward',
-                body: 'Someone you invited reached Maxi. 50 Orange Tickets were added.',
+                body: 'Someone you invited earned 2,140 points outside the Scholar exam. 50 Orange Tickets were added.',
                 url: 'https://bitcoineducation.quest/#questhub'
             });
         } catch (e) {
@@ -2701,6 +2783,28 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
             await require('./src/badgeCredit').creditPeerAcceptXp(db, admin, uid, targetUid);
         } catch (peerBadgeErr) { console.warn('[managePeer] peer badges', peerBadgeErr && peerBadgeErr.message); }
 
+        try {
+            const { samePerson } = require('./src/badgeProgress');
+            const { rewardBlocked } = require('./src/cipherClaim');
+            const accepterSnap = await userRef.get();
+            const otherSnap = await targetRef.get();
+            const accepter = Object.assign({}, accepterSnap.exists ? accepterSnap.data() : {}, { uid: uid });
+            const other = Object.assign({}, otherSnap.exists ? otherSnap.data() : {}, { uid: targetUid });
+            const ledgerA = await db.collection('faucet_ledger').doc(uid).get();
+            const ledgerB = await db.collection('faucet_ledger').doc(targetUid).get();
+            const bannedPair = rewardBlocked(accepter, ledgerA.exists ? ledgerA.data() : {})
+                || rewardBlocked(other, ledgerB.exists ? ledgerB.data() : {});
+            if (!samePerson(accepter, other) && !bannedPair) {
+                await require('./src/raidBossEngine').noteTrusted(db, admin, {
+                    metric: 'cipherPeerKey',
+                    uid: uid,
+                    dedupeKey: 'peer-' + uid + '-' + revReqId,
+                    amount: 1,
+                    now: new Date(),
+                });
+            }
+        } catch (peerRaidErr) { console.warn('[managePeer] raid', peerRaidErr && peerRaidErr.message); }
+
         return { success: true };
     }
 
@@ -3084,6 +3188,12 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     if (!resolved.ok) {
         return { success: false, error: resolved.error || 'Unknown action', awarded: 0, tickets: 0 };
     }
+    // dailySpin is the only spin reward. Do not write points, tickets, or a
+    // claim. success + awarded 0 matches a normal zero grant so a cached
+    // client that still calls this phrase does not throw.
+    if (resolved.id === 'daily_spin') {
+        return { success: true, awarded: 0, tickets: 0 };
+    }
 
     let pts = resolved.xp;
     let matchedAction = resolved.id;
@@ -3120,6 +3230,10 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             capped: badgeResult.capped === true,
             favor: !!badgeResult.favor,
             badgeId: badgeResult.badgeId || badgeId,
+            doubled: badgeResult.doubled === true,
+            base: badgeResult.base || 0,
+            boosted: badgeResult.boosted || 0,
+            doubleXpUntil: badgeResult.until || 0,
         };
     }
 
@@ -3221,19 +3335,8 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             if (resolved.requiresDoubleXp && !doubleXp.isActive(userData, Date.now())) {
                 throw new Error('DOUBLE_XP_REQUIRED');
             }
-            // Double XP covers daily-capped activity only. Badges, the scholar
-            // exam, and onboarding are not multiplied. A client amount that is
-            // already the doubled allowlist value is not multiplied again.
-            const actionLower = String(reason || '').toLowerCase();
-            const skipDouble = matchedAction === 'badge_earned'
-                || matchedAction === 'scholar_cert'
-                || actionLower.indexOf('nacho quest') !== -1
-                || actionLower.indexOf('onboarding') !== -1
-                || resolved.requiresDoubleXp;
-            const xpBoost = skipDouble
-                ? { points: pts, doubled: !!resolved.requiresDoubleXp, until: doubleXp.untilMillis(userData) }
-                : doubleXp.boostPoints(pts, userData, Date.now());
-            pts = xpBoost.points;
+            // resolved.xp is the catalog base. A legacy doubled client integer
+            // was already mapped back to that base. planXpGrant doubles it once.
 
             if (matchedAction === 'badge_earned' && badgeKnown) {
                 const MILESTONE_BADGE_THRESHOLDS = {
@@ -3287,11 +3390,26 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
             if (claimDoc && claimDoc.exists) throw new Error('ALREADY_CLAIMED');
 
             const dailyUsed = dailyDoc && dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
-            const grant = awardActions.planGrant({
-                xp: pts,
+            const xpPlan = planXpGrant({
+                base: pts,
+                user: userData,
+                now: Date.now(),
                 dailyUsed: dailyUsed,
-                dailyCap: DAILY_CAP,
+                boost: resolved.boost !== false,
             });
+            const xpBoost = { doubled: xpPlan.doubled, until: xpPlan.until, base: xpPlan.base, boosted: xpPlan.boosted };
+            const grant = {
+                awarded: xpPlan.awarded,
+                dropped: xpPlan.dropped,
+                overflowAdded: 0,
+                tickets: 0,
+                capped: xpPlan.capped,
+                pastCap: xpPlan.pastCap,
+                dailyXp: xpPlan.dailyXp,
+                dailyCap: xpPlan.dailyCap,
+                fullUntil: xpPlan.fullUntil,
+                halfUntil: xpPlan.halfUntil,
+            };
             const awarded = grant.awarded;
             const capped = grant.capped;
             const dropped = grant.dropped;
@@ -3357,6 +3475,9 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 t.set(claimRef, {
                     action: matchedAction,
                     xp: awarded,
+                    base: xpPlan.base,
+                    boosted: xpPlan.boosted,
+                    doubled: xpPlan.doubled === true,
                     day: offsetToday,
                     at: admin.firestore.FieldValue.serverTimestamp(),
                 });
@@ -3427,6 +3548,8 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                 channelTracked: channelTracked,
                 progress: progress,
                 doubled: xpBoost.doubled,
+                base: xpBoost.base || 0,
+                boosted: xpBoost.boosted || 0,
                 doubleXpUntil: xpBoost.until || 0,
                 flexCount: flexMeta ? flexMeta.count : null,
                 flexDayComplete: flexMeta ? flexMeta.complete : false,
@@ -3504,6 +3627,8 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         halfUntil: transactionResult.halfUntil,
         channelTracked: transactionResult.channelTracked,
         doubled: !!transactionResult.doubled,
+        base: transactionResult.base || 0,
+        boosted: transactionResult.boosted || 0,
         doubleXpUntil: transactionResult.doubleXpUntil || 0,
         flexCount: transactionResult.flexCount,
         flexDayComplete: !!transactionResult.flexDayComplete,
@@ -3606,11 +3731,14 @@ exports.syncPredictionPending = onDocumentWritten('active_predictions/{uid}', as
 });
 
 // Monday 05:00 UTC — same boundary as resetWeeklyXP.
-// Each of the top 5 (min 5 resolved, not isSatsBanned) gets 25 orange tickets.
+// Top 10 (min 5 resolved) get 25 orange tickets. Previously top 5 got 25.
+// A finished prediction_payouts doc is not paid again.
 exports.payWeeklyPredictors = onSchedule({ schedule: '0 5 * * 1', timeZone: 'UTC', timeoutSeconds: 540 }, async () => {
     try {
-        const result = await predictionJobs.payout('weekly', new Date());
-        console.log('[payWeeklyPredictors]', JSON.stringify({ action: result.action, periodId: result.periodId, winners: (result.due || []).length, reset: result.reset }));
+        const result = await lbPrizes.settlePrediction(db, admin, predictionJobs, {
+            period: 'weekly', now: new Date(), sendPush: sendUserPush
+        });
+        console.log('[payWeeklyPredictors]', JSON.stringify(result));
     } catch (e) {
         console.error('[payWeeklyPredictors] failed:', e);
     }
@@ -3618,11 +3746,13 @@ exports.payWeeklyPredictors = onSchedule({ schedule: '0 5 * * 1', timeZone: 'UTC
 });
 
 // 1st of the month 00:00 UTC — same boundary as resetMonthlyXP.
-// Each of the top 5 (min 15 resolved, not isSatsBanned) gets 50 orange tickets.
+// Top 10 (min 15 resolved) get 100 orange tickets. Previously top 5 got 50.
 exports.payMonthlyPredictors = onSchedule({ schedule: '0 0 1 * *', timeZone: 'UTC', timeoutSeconds: 540 }, async () => {
     try {
-        const result = await predictionJobs.payout('monthly', new Date());
-        console.log('[payMonthlyPredictors]', JSON.stringify({ action: result.action, periodId: result.periodId, winners: (result.due || []).length, reset: result.reset }));
+        const result = await lbPrizes.settlePrediction(db, admin, predictionJobs, {
+            period: 'monthly', now: new Date(), sendPush: sendUserPush
+        });
+        console.log('[payMonthlyPredictors]', JSON.stringify(result));
     } catch (e) {
         console.error('[payMonthlyPredictors] failed:', e);
     }
@@ -3760,35 +3890,14 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
                 accountAgeDays = Math.max(1, Math.floor((Date.now() - creationDate.getTime()) / 86400000) + 1);
             } catch(e) {}
 
-            // Calculate streak
-            let newStreak = 1;
-            let usedFreeze = false;
+            // Calculate streak. Grace lives in streakBoard.nextVisitStreak:
+            // yesterday continues, a saved freeze covers one missed day, older resets.
             let bonusTickets = 0;
             let oldStreak = user.streak || 0;
-            const streakFreezes = user.streakFreezes || 0;
-
-            // Cap existing streak to account age (fixes pre-patch inflated values)
-            if (oldStreak > accountAgeDays) {
-                oldStreak = accountAgeDays;
-            }
-
-            if (lastVisit) {
-                const lastDate = new Date(lastVisit);
-                const todayDate = new Date(today);
-                const diffDays = Math.round((todayDate - lastDate) / 86400000);
-
-                if (diffDays === 1) {
-                    // Consecutive day
-                    newStreak = oldStreak + 1;
-                } else if (diffDays === 2 && streakFreezes > 0) {
-                    // Missed one day but have a freeze
-                    newStreak = oldStreak + 1;
-                    usedFreeze = true;
-                } else {
-                    // Streak broken
-                    newStreak = 1;
-                }
-            }
+            if (oldStreak > accountAgeDays) oldStreak = accountAgeDays;
+            const step = streakBoard.nextVisitStreak(Object.assign({}, user, { streak: oldStreak }), today);
+            let newStreak = step.streak;
+            let usedFreeze = step.usedFreeze;
 
             // Bonus tickets for streak milestones
             if (newStreak === 7) bonusTickets = 3;
@@ -3799,15 +3908,17 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
             // Cap streak to account age
             if (newStreak > accountAgeDays) newStreak = accountAgeDays;
 
-            const currentBest = Math.min(user.bestStreak || 0, accountAgeDays);
-            const newBest = Math.max(currentBest, newStreak);
+            const tracked = streakBoard.applyStreakUpdate(user, newStreak, Date.now(), accountAgeDays);
+            newStreak = tracked.streak;
 
             const updateData = {
                 totalVisits: admin.firestore.FieldValue.increment(1),
                 lastVisit: today,
-                streak: newStreak,
-                bestStreak: newBest,
+                streak: tracked.streak,
+                bestStreak: tracked.bestStreak,
+                streakReachedAt: tracked.streakReachedAt,
             };
+            if (tracked.bestStreakAt) updateData.bestStreakAt = tracked.bestStreakAt;
             if (bonusTickets > 0) {
                 updateData.orangeTickets = admin.firestore.FieldValue.increment(bonusTickets);
             }
@@ -3837,7 +3948,7 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
             return {
                 alreadyVisited: false,
                 streak: newStreak,
-                bestStreak: newBest,
+                bestStreak: tracked.bestStreak,
                 oldStreak: oldStreak,
                 usedFreeze: usedFreeze,
                 bonusTickets: bonusTickets,
@@ -3851,6 +3962,10 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
             await grantFamily(db, admin, uid, visitIds);
         }
         catch (streakBadgeErr) { console.warn('[VISIT] streak badges', streakBadgeErr && streakBadgeErr.message); }
+        // The streak board is rebuilt by refreshStreakLeaderboard on its
+        // hourly schedule. It used to run here, awaited, and that refresh
+        // was on the login path (p90 about 18s). Reward and streak fields
+        // above are unchanged. The board can lag until the next scheduled run.
         return { success: true, ...result };
     } catch (e) {
         console.error('[VISIT] recordDailyVisit failed for ' + uid + ':', e.message);
@@ -3858,70 +3973,100 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
     }
 });
 
-// ---- Poll Vote (server-side with IP + fingerprint rate limiting) ----
-exports.pollVote = functionsV1.https.onCall(async (data, context) => {
-    const { side, fingerprint, satsCount, bitsCount } = data || {};
-
-    // Support batched votes: satsCount + bitsCount, or single side vote (backward compat)
-    let sInc = Math.max(0, Math.min(parseInt(satsCount) || 0, 50));
-    let bInc = Math.max(0, Math.min(parseInt(bitsCount) || 0, 50));
-    // Backward compat: if no batch counts, use single side
-    if (sInc === 0 && bInc === 0) {
-        if (side === 'sats') sInc = 1;
-        else if (side === 'bits') bInc = 1;
-        else return { success: false, error: 'Invalid side' };
+// Cached Daily Streaks board. Public read, Admin SDK write. Rebuilt hourly
+// so a lapsed streak drops off Current even if that player never comes back.
+// recordDailyVisit no longer waits on this refresh.
+exports.refreshStreakLeaderboard = onSchedule({
+    schedule: 'every 60 minutes',
+    timeZone: 'UTC',
+    timeoutSeconds: 120
+}, async () => {
+    try {
+        const doc = await streakBoard.refresh(db, Date.now(), { force: true });
+        console.log('[streak board]', JSON.stringify({
+            alltime: doc && doc.alltime ? doc.alltime.length : 0,
+            current: doc && doc.current ? doc.current.length : 0
+        }));
+    } catch (e) {
+        console.error('[streak board] refresh failed:', e && e.message);
     }
-    const totalInc = sInc + bInc;
-    if (totalInc === 0) return { success: false, error: 'No votes' };
-
-    const ip = (context.rawRequest && context.rawRequest.ip) || 'unknown';
-    const fp = (fingerprint || '').toString().substring(0, 32) || 'none';
-    const db = admin.firestore();
-    const dayKey = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
-    // Rate limit: max 200 votes per IP per day, max 200 per fingerprint per day (atomic)
-    const MAX_PER_DAY = 200;
-    const ratePath = `poll_rate_limits/${dayKey}`;
-    const ipKey = 'ip_' + ip.replace(/[.\/:]/g, '_');
-    const fpKey = 'fp_' + fp;
-    const pollRef = db.doc('polls/sats_vs_bits');
-    const rateRef = db.doc(ratePath);
-
-    await db.runTransaction(async (tx) => {
-        const rateDoc = await tx.get(rateRef);
-        const rateData = rateDoc.exists ? rateDoc.data() : {};
-        const ipCount = (rateData[ipKey] || 0);
-        const fpCount = (rateData[fpKey] || 0);
-
-        if (ipCount >= MAX_PER_DAY) throw new functionsV1.https.HttpsError('resource-exhausted', 'Daily IP limit reached');
-        if (fpCount >= MAX_PER_DAY) throw new functionsV1.https.HttpsError('resource-exhausted', 'Daily device limit reached');
-
-        // Clamp to remaining daily budget
-        const remaining = Math.max(0, MAX_PER_DAY - Math.max(ipCount, fpCount));
-        const allowed = Math.min(totalInc, remaining);
-        // Proportionally distribute if clamped
-        const ratio = allowed / totalInc;
-        const aSats = Math.round(sInc * ratio);
-        const aBits = allowed - aSats;
-
-        // Atomic: increment poll + rate limits together
-        const inc = {};
-        if (aSats > 0) inc.sats = admin.firestore.FieldValue.increment(aSats);
-        if (aBits > 0) inc.bits = admin.firestore.FieldValue.increment(aBits);
-        if (aSats > 0 || aBits > 0) tx.set(pollRef, inc, { merge: true });
-
-        const rateInc = {};
-        rateInc[ipKey] = admin.firestore.FieldValue.increment(allowed);
-        rateInc[fpKey] = admin.firestore.FieldValue.increment(allowed);
-        tx.set(rateRef, rateInc, { merge: true });
-    });
-
-    // Read current totals to return
-    const pollDoc = await pollRef.get();
-    const pollData = pollDoc.exists ? pollDoc.data() : { sats: 0, bits: 0 };
-
-    return { success: true, sats: pollData.sats || 0, bits: pollData.bits || 0 };
 });
+
+// Quest lists. One public doc per tab, rebuilt from quest_lb_stats.
+// gradeQuest also refreshes, debounced. Period math is Eastern Time.
+exports.refreshQuestLeaderboard = onSchedule({
+    schedule: 'every 60 minutes',
+    timeZone: 'UTC',
+    timeoutSeconds: 120
+}, async () => {
+    try {
+        const doc = await questBoard.refresh(db, Date.now(), { force: true });
+        console.log('[quest board]', JSON.stringify({
+            alltime: doc && doc.alltime ? doc.alltime : 0,
+            week: doc && doc.week ? doc.week : 0,
+            month: doc && doc.month ? doc.month : 0
+        }));
+    } catch (e) {
+        console.error('[quest board] refresh failed:', e && e.message);
+    }
+});
+
+// Leaderboard snapshots. One stats doc per board, top 25, public read.
+// Each run rebuilds a board only when stats/lb_dirty is newer than the
+// snapshot. XP week/month every 10 minutes. XP all-time, PvP, and raid
+// every 15. Favor every 5 minutes, and the function itself waits 30 minutes
+// between rebuilds while no Favor cycle is active.
+exports.refreshXpPeriodBoards = onSchedule({
+    schedule: 'every 10 minutes',
+    timeZone: 'UTC',
+    timeoutSeconds: 120
+}, async () => {
+    try {
+        const results = await boardSnapshots.refreshMany(db, ['xpWeek', 'xpMonth'], Date.now(), {});
+        console.log('[lb snap]', JSON.stringify(results.map(function (r) {
+            return { docId: r.docId, skipped: r.skipped, reason: r.reason, rows: r.rows || 0 };
+        })));
+    } catch (e) {
+        console.error('[lb snap] week/month failed:', e && e.message);
+    }
+});
+
+exports.refreshXpAllPvpRaidBoards = onSchedule({
+    schedule: 'every 15 minutes',
+    timeZone: 'UTC',
+    timeoutSeconds: 180
+}, async () => {
+    try {
+        const results = await boardSnapshots.refreshMany(db, ['xpAll', 'pvp', 'raid'], Date.now(), {});
+        console.log('[lb snap]', JSON.stringify(results.map(function (r) {
+            return { docId: r.docId, skipped: r.skipped, reason: r.reason, rows: r.rows || 0 };
+        })));
+    } catch (e) {
+        console.error('[lb snap] all/pvp/raid failed:', e && e.message);
+    }
+});
+
+exports.refreshFavorHashersBoard = onSchedule({
+    schedule: 'every 5 minutes',
+    timeZone: 'UTC',
+    timeoutSeconds: 120
+}, async () => {
+    try {
+        const results = await boardSnapshots.refreshMany(db, ['favor'], Date.now(), {});
+        console.log('[lb snap]', JSON.stringify(results.map(function (r) {
+            return { docId: r.docId, skipped: r.skipped, reason: r.reason, rows: r.rows || 0 };
+        })));
+    } catch (e) {
+        console.error('[lb snap] favor failed:', e && e.message);
+    }
+});
+
+// Sats vs Bits. The tally doc is created inside the transaction. Clients cannot.
+exports.pollVote = functionsV1.https.onCall(createSvbVote({
+    admin: admin,
+    db: db,
+    HttpsError: functionsV1.https.HttpsError,
+}));
 
 // ---- PVP Answer Submission (server records the choice; pvpResolveRound grades it) ----
 async function pvpRateLimit(uid, bucket, maxCount, windowMs) {
@@ -4113,15 +4258,20 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         if (reward.closet) {
             totalPts = 25; // Closet item selection handled client-side from server response
         }
-        // Double XP does not apply. The wheel still shares the 500 / 900 / 1,000 cap.
-        const spinDoubled = false;
+        // Tickets and freezes are not doubled. The closet reward's 25 XP is,
+        // with every other XP amount: the base is doubled once, then the
+        // 500 / 900 / 1,000 taper runs on that amount.
         const spinLedger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : {};
         const spinBlocked = !!(userData.ban_reason) || userData.banned === true || userData.satsDisabled === true || spinLedger.banned === true;
         const spinUsed = dailyDoc.exists ? (Number((dailyDoc.data() || {}).total) || 0) : 0;
-        if (spinBlocked) totalPts = 0;
-        else if (totalPts > 0) {
-            totalPts = require('./src/dailyXp').planDailyXp(spinUsed, totalPts).awarded;
-        }
+        const spinPlan = planXpGrant({
+            base: spinBlocked ? 0 : totalPts,
+            user: userData,
+            now: Date.now(),
+            dailyUsed: spinUsed,
+        });
+        const spinDoubled = spinPlan.doubled === true;
+        totalPts = spinPlan.awarded;
 
         // Atomic update
         const update = {};
@@ -4146,7 +4296,7 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         tx.update(userRef, update);
         if (totalPts > 0) {
             tx.set(dailyRef, {
-                total: spinUsed + totalPts,
+                total: spinPlan.dailyXp,
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
         }
@@ -4381,68 +4531,104 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
 });
 
 // ── Scholar Exam: Server-Side Grading ──
-// SCHOLAR_BANK is loaded once per cold start. Contains authoritative correct answers.
-// Format: { properties: [{a: "..."}, ...], technical: [{a: "..."}, ...] }
-const SCHOLAR_BANK = require('./scholar-bank.json');
+// The question bank and the correct option ids stay in scholar_exam_keys.
+// The client receives question text and opaque option ids only.
+// The bank is read on the first start or grade from functions/private-bank,
+// then cached. It is not in the repo. A missing or invalid file fails these
+// two calls closed. Other functions in this file do not read it.
+const scholarBank = require('./src/scholarBank');
 
-function _pickScholarQuestions(type) {
-    const pool = type === 'technical' ? SCHOLAR_BANK.technical : SCHOLAR_BANK.properties;
-    if (!Array.isArray(pool) || pool.length < 25) {
-        throw new functionsV1.https.HttpsError('internal', 'Exam bank misconfigured');
+function scholarBankOrThrow() {
+    if (!scholarBank.ready()) {
+        console.error('[SCHOLAR] exam bank unavailable');
+        throw new functionsV1.https.HttpsError('failed-precondition', 'Exam temporarily unavailable');
     }
-    // Pick 25 unique indices
-    const indices = [];
-    const used = new Set();
-    while (indices.length < 25) {
-        const i = Math.floor(Math.random() * pool.length);
-        if (!used.has(i)) { used.add(i); indices.push(i); }
-    }
-    return indices; // array of 25 ints into SCHOLAR_BANK[type]
 }
 
-exports.startScholarExam = functionsV1.https.onCall(async (data, context) => {
+exports.startScholarExam = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
-    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+    scholarBankOrThrow();
+    if (!context.auth.token || !context.auth.token.firebase || context.auth.token.firebase.sign_in_provider === 'anonymous') {
         throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot take exams');
     }
 
-    const { type } = data || {};
+    const type = data && data.type;
     if (type !== 'properties' && type !== 'technical') {
         throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid exam type');
     }
 
     const uid = context.auth.uid;
-    const examId = uid + '_' + type + '_' + Date.now();
+    const attemptLib = require('./src/scholarAttempt');
+    const now = Date.now();
+    const today = attemptLib.utcDay(now);
+    const keyPrefix = type === 'technical' ? 'tech' : 'prop';
+    const slotField = 'examSlotId_' + keyPrefix;
+    const userRef = db.collection('users').doc(uid);
 
-    // SERVER picks the questions (by index into its own bank). The client
-    // never gets to supply answer keys - this closes C-NEW-7.
-    const indices = _pickScholarQuestions(type);
-    // Build the authoritative key array: the correct answer for each picked question
-    const keys = indices.map((idx, i) => ({
-        index: i,
-        poolIdx: idx,
-        correct: SCHOLAR_BANK[type][idx].a
-    }));
+    return db.runTransaction(async (tx) => {
+        const userDoc = await tx.get(userRef);
+        const userData = userDoc.exists ? (userDoc.data() || {}) : {};
+        const priorPassedSnap = await tx.get(db.collection('scholar_exam_keys').where('uid', '==', uid));
+        const alreadyPassed = !!require('./src/scholarExam').passedExam(priorPassedSnap, type, null);
+        if (alreadyPassed) {
+            throw new functionsV1.https.HttpsError('failed-precondition', 'You already passed this certification.');
+        }
 
-    await db.collection('scholar_exam_keys').doc(examId).set({
-        uid,
-        type,
-        indices, // indices into the pool - client fetches these
-        keys,    // correct answers - never sent to client
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        graded: false,
+        const slotId = typeof userData[slotField] === 'string' ? userData[slotField] : '';
+        let slotSnap = null;
+        if (slotId) slotSnap = await tx.get(db.collection('scholar_exam_keys').doc(slotId));
+        if (slotSnap && slotSnap.exists) {
+            const open = slotSnap.data() || {};
+            const stillOpen = open.uid === uid && open.type === type && open.graded !== true && !attemptLib.expired(open.startedAtMs, now);
+            if (stillOpen) {
+                return {
+                    examId: slotSnap.id,
+                    resumed: true,
+                    startedAtMs: open.startedAtMs,
+                    questions: Array.isArray(open.questions) ? open.questions : [],
+                };
+            }
+        }
+
+        const lastAttempt = userData['lastExamAttempt_' + keyPrefix];
+        if (lastAttempt === today) {
+            throw new functionsV1.https.HttpsError('resource-exhausted', attemptLib.EXAM_DAILY_MESSAGE);
+        }
+
+        const drawn = attemptLib.drawExam(type);
+        const examId = attemptLib.newExamId();
+        const examRef = db.collection('scholar_exam_keys').doc(examId);
+        tx.set(examRef, {
+            uid: uid,
+            type: type,
+            questions: drawn.questions,
+            served: drawn.served,
+            startedAtMs: now,
+            attemptDay: today,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            graded: false,
+        });
+        const userUpdate = {};
+        userUpdate[slotField] = examId;
+        userUpdate['lastExamAttempt_' + keyPrefix] = today;
+        tx.set(userRef, userUpdate, { merge: true });
+        return {
+            examId: examId,
+            resumed: false,
+            startedAtMs: now,
+            questions: drawn.questions,
+        };
     });
-
-    // Return ONLY the indices to the client. The client already has the
-    // client-side pool and can render questions by index.
-    return { examId, indices };
 });
 
-exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
+exports.gradeScholarExam = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    scholarBankOrThrow();
 
-    const { examId, answers } = data || {};
-    if (!examId || !answers || !Array.isArray(answers)) {
+    const examId = data && data.examId;
+    const answers = data && data.answers;
+    const attemptLib = require('./src/scholarAttempt');
+    if (!examId || typeof examId !== 'string' || !attemptLib.examIdOk(examId) || !answers || !Array.isArray(answers)) {
         throw new functionsV1.https.HttpsError('invalid-argument', 'Missing examId or answers');
     }
     if (answers.length !== 25) {
@@ -4450,6 +4636,8 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
     }
 
     const uid = context.auth.uid;
+    const certLib = require('./src/scholarCert');
+    const now = Date.now();
     const examRef = db.collection('scholar_exam_keys').doc(examId);
 
     const result = await db.runTransaction(async (tx) => {
@@ -4463,20 +4651,28 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
         const type = exam.type;
         const keyPrefix = type === 'technical' ? 'tech' : 'prop';
         const today = new Date().toISOString().split('T')[0];
+        const certType = certLib.certTypeForExam(type);
 
         // Read user doc for the daily cooldown. The pass guard is a
         // scholar_exam_keys row. The client cannot write or delete those.
         // gradeScholarExam is the only writer of certPassed_*, certPassedAt_*,
         // and lastExamAttempt_*.
         const userRef = db.collection('users').doc(uid);
-        const scholarDay = getOffsetDateKey();
-        const dailyRef = userRef.collection('daily_points').doc(scholarDay);
+        const certBonus = require('./src/certBonus');
+        const bonusMarkerRef = certBonus.markerRef(userRef, type);
+        const bonusLedgerRef = certBonus.ledgerRef(userRef, type);
         const ledgerRef = db.collection('faucet_ledger').doc(uid);
+        const certIndexRef = db.collection('cert_by_user').doc(certLib.indexId(uid, certType));
         const userDoc = await tx.get(userRef);
-        const dailyDoc = await tx.get(dailyRef);
         const ledgerDoc = await tx.get(ledgerRef);
+        const bonusMarkerSnap = await tx.get(bonusMarkerRef);
+        const bonusLedgerSnap = await tx.get(bonusLedgerRef);
         const userData = userDoc.exists ? userDoc.data() : {};
         const priorPassedSnap = await tx.get(db.collection('scholar_exam_keys').where('uid', '==', uid));
+        const certIndexSnap = await tx.get(certIndexRef);
+        let existingCertSnap = null;
+        const existingCertId = certIndexSnap.exists ? ((certIndexSnap.data() || {}).certId || '') : '';
+        if (existingCertId) existingCertSnap = await tx.get(db.collection('certs').doc(existingCertId));
         const alreadyPassed = !!require('./src/scholarExam').passedExam(priorPassedSnap, type, examId);
         const lastAttempt = userData['lastExamAttempt_' + keyPrefix];
 
@@ -4499,34 +4695,46 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
                 }
                 tx.update(userRef, repair);
             }
-            return { score: 0, passed: false, type: type, pointsAwarded: 0, blocked: 'already_certified' };
-        }
-        // Block rapid retakes same day (daily cooldown)
-        if (lastAttempt === today) {
-            tx.update(examRef, { graded: true, score: 0, passed: false, blocked: 'daily_limit', gradedAt: admin.firestore.FieldValue.serverTimestamp() });
-            throw new functionsV1.https.HttpsError('resource-exhausted', 'Only one exam attempt per 24 hours.');
+            return { score: 0, passed: false, type: type, pointsAwarded: 0, blocked: 'already_certified', already: true };
         }
 
-        // Grade server-side using server-held keys
-        let score = 0;
-        const keys = exam.keys;
-        for (let i = 0; i < 25; i++) {
-            if (answers[i] === keys[i].correct) score++;
+        if (attemptLib.missingStart(exam.startedAtMs)) {
+            throw new functionsV1.https.HttpsError('deadline-exceeded', attemptLib.EXAM_EXPIRED_OPEN_MESSAGE);
+        }
+        if (attemptLib.tooFast(exam.startedAtMs, now)) {
+            throw new functionsV1.https.HttpsError('failed-precondition', 'Submit the exam after one minute.');
+        }
+        if (attemptLib.expired(exam.startedAtMs, now)) {
+            throw new functionsV1.https.HttpsError('deadline-exceeded', 'This attempt has expired.');
         }
 
+        const slotId = userData['examSlotId_' + keyPrefix];
+        if (!slotId || slotId !== examId) {
+            throw new functionsV1.https.HttpsError('resource-exhausted', attemptLib.EXAM_DAILY_MESSAGE);
+        }
+
+        const graded = attemptLib.gradeByOptionId(exam.served, answers);
+        if (!graded.ok) {
+            const reason = graded.reason === 'duplicate'
+                ? 'Each question can be answered once.'
+                : 'That question was not part of this attempt.';
+            throw new functionsV1.https.HttpsError('invalid-argument', reason);
+        }
+        const score = graded.score;
         const passed = score >= 20;
         const scholarLedger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : {};
         const scholarBlocked = !!(userData.ban_reason) || userData.banned === true || userData.satsDisabled === true || scholarLedger.banned === true;
-        const scholarUsed = dailyDoc.exists ? (Number((dailyDoc.data() || {}).total) || 0) : 0;
-        const scholarPlan = (passed && !scholarBlocked)
-            ? require('./src/dailyXp').planDailyXp(scholarUsed, 2100)
-            : { awarded: 0 };
-        const scholarRankPrev = scholarPlan.awarded > 0
-            ? await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, scholarPlan.awarded)
+        // 2,100 is paid in full and is not added to the day's capped total.
+        // The marker and the cert_bonus ledger row make a second credit a no-op.
+        const scholarPlan = certBonus.applyXpWindow(certBonus.planCertBonus({
+            type: type,
+            passed: passed,
+            banned: scholarBlocked,
+            alreadyPaid: certBonus.alreadyPaid(bonusMarkerSnap, bonusLedgerSnap),
+        }), userData, now);
+        const scholarRankPrev = scholarPlan.pay
+            ? await rewardNotify.readRankPrev(tx, db, uid, userData.points || 0, scholarPlan.amount)
             : {};
-
-        // Mark exam as graded
-        tx.update(examRef, { graded: true, score, passed, gradedAt: admin.firestore.FieldValue.serverTimestamp() });
 
         // Save attempt date (rate-limits to one attempt per UTC day)
         const attemptField = 'lastExamAttempt_' + keyPrefix;
@@ -4535,22 +4743,61 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
 
         let pointsAwarded = 0;
         if (passed) {
-            // Once per cert type. The 2,100 XP still shares the daily 500 / 900 / 1,000 taper.
-            pointsAwarded = scholarPlan.awarded;
-            if (pointsAwarded > 0) {
-                update.points = admin.firestore.FieldValue.increment(pointsAwarded);
-                update.scholarPoints = admin.firestore.FieldValue.increment(pointsAwarded);
-            }
+            pointsAwarded = scholarPlan.pay ? scholarPlan.amount : 0;
+            Object.assign(update, certBonus.bonusUserFields(admin, scholarPlan));
             update['certPassed_' + keyPrefix] = true;
             update['certPassedAt_' + keyPrefix] = admin.firestore.FieldValue.serverTimestamp();
         }
 
+        let certView = null;
+        if (passed && !scholarBlocked) {
+            if (existingCertId) {
+                update['certId_' + keyPrefix] = existingCertId;
+                if (existingCertSnap && existingCertSnap.exists) {
+                    certView = certLib.publicView(existingCertSnap.data(), existingCertId);
+                }
+            } else if (certType) {
+                const record = certLib.buildRecord({
+                    uid: uid,
+                    examType: type,
+                    userData: userData,
+                    score: score,
+                    now: now,
+                });
+                const publicDoc = Object.assign({}, record.publicDoc, {
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+                tx.set(db.collection('certs').doc(record.id), publicDoc);
+                tx.set(db.collection('cert_owners').doc(record.id), record.ownerDoc);
+                tx.set(certIndexRef, record.indexDoc);
+                update['certId_' + keyPrefix] = record.id;
+                certView = certLib.publicView(publicDoc, record.id);
+            }
+        }
+
+        // pointsAwarded stays on the exam key so a later backfill can see it.
+        // A ban that withholds the bonus is stamped so a later unban cannot collect it.
+        const examUpdate = {
+            graded: true,
+            score: score,
+            passed: passed,
+            pointsAwarded: pointsAwarded,
+            gradedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        if (passed && scholarPlan.reason === 'banned') {
+            examUpdate.bonusBlocked = 'banned';
+            examUpdate.bonusBlockedAt = admin.firestore.FieldValue.serverTimestamp();
+        }
+        tx.update(examRef, examUpdate);
         tx.update(userRef, update);
-        if (pointsAwarded > 0) {
-            tx.set(dailyRef, {
-                total: scholarUsed + pointsAwarded,
-                lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-            }, { merge: true });
+        if (scholarPlan.pay) {
+            certBonus.writeMarkers(tx, admin, {
+                uid: uid,
+                type: type,
+                markerRef: bonusMarkerRef,
+                ledgerRef: bonusLedgerRef,
+                day: getOffsetDateKey(),
+            }, scholarPlan, Date.now());
         }
         if (passed && pointsAwarded > 0) {
             try {
@@ -4569,20 +4816,68 @@ exports.gradeScholarExam = functionsV1.https.onCall(async (data, context) => {
             }
         }
 
-        return { score, passed, type, pointsAwarded };
+        return {
+            score: score,
+            passed: passed,
+            type: type,
+            pointsAwarded: pointsAwarded,
+            doubled: scholarPlan.doubled === true,
+            base: scholarPlan.base || 0,
+            boosted: scholarPlan.boosted || scholarPlan.amount || 0,
+            already: scholarPlan.reason === 'already',
+            capExempt: scholarPlan.pay === true,
+            raidCredit: passed === true && !scholarBlocked && scholarPlan.reason !== 'already',
+            cert: certView,
+        };
     });
 
     if (result.passed && result.type !== 'technical') {
         try { await grantFamily(db, admin, uid, ['scholar']); }
         catch (scholarBadgeErr) { console.warn('[SCHOLAR] badge', scholarBadgeErr && scholarBadgeErr.message); }
     }
+    if (result.raidCredit && result.already !== true) {
+        try {
+            await require('./src/raidBossEngine').noteTrusted(db, admin, {
+                metric: 'certPasses',
+                uid: uid,
+                dedupeKey: 'cert-' + uid + '-' + String(result.type || 'exam'),
+                amount: 1,
+                now: new Date(),
+            });
+        } catch (scholarRaidErr) { console.warn('[SCHOLAR] raid', scholarRaidErr && scholarRaidErr.message); }
+    }
+
+    let certOut = null;
+    if (result.cert && result.cert.certId) {
+        certOut = {
+            certId: result.cert.certId,
+            title: result.cert.title,
+            name: result.cert.name,
+            date: result.cert.date,
+            score: result.cert.score,
+            quest: result.cert.quest,
+            verifyUrl: result.cert.verifyUrl,
+        };
+        try {
+            certOut.qr = require('./src/qrMatrix').matrixFor(certOut.verifyUrl);
+        } catch (qrErr) {
+            console.warn('[SCHOLAR] qr', qrErr && qrErr.message);
+        }
+    }
+
     return {
         success: true,
         score: result.score,
         passed: result.passed,
         type: result.type,
         pointsAwarded: result.pointsAwarded || 0,
-        blocked: result.blocked || null
+        doubled: result.doubled === true,
+        base: result.base || 0,
+        boosted: result.boosted || 0,
+        blocked: result.blocked || null,
+        already: result.already === true,
+        capExempt: result.capExempt === true,
+        cert: certOut,
     };
 });
 
@@ -4599,63 +4894,114 @@ exports.triviaXpStatus = triviaXpStatus;
 // AUDIT FIX: Secure Certificate Issuance (M-NEW-15)
 // Only issues certificates if user has passed the exam server-side
 // =============================================
-exports.issueCertificate = functionsV1.https.onCall(async (data, context) => {
+exports.issueCertificate = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
 
     const uid = context.auth.uid;
-    const { type, name } = data || {};
-
-    if (!type || !['scholar', 'technical', 'trail_meadow', 'trail_mountain', 'trail_summit'].includes(type)) {
+    const certLib = require('./src/scholarCert');
+    const requested = data && data.type;
+    const meta = certLib.metaForCertType(requested);
+    if (!meta) {
         throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid certificate type');
     }
 
     const userRef = db.collection('users').doc(uid);
-    const userDoc = await userRef.get();
-    if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
-    const userData = userDoc.data();
+    const ledgerRef = db.collection('faucet_ledger').doc(uid);
+    const indexRef = db.collection('cert_by_user').doc(certLib.indexId(uid, meta.certType));
 
-    // Scholar and protocol certificates require a passed scholar_exam_keys row.
-    // Profile flags are not proof. Trail certificates still use trails_passed.
-    let passed = false;
-    let title = 'Bitcoiner';
-    let score = null;
+    const issued = await db.runTransaction(async (tx) => {
+        const userDoc = await tx.get(userRef);
+        if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
+        const userData = userDoc.data() || {};
+        const ledgerDoc = await tx.get(ledgerRef);
+        const ledger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : {};
+        const blocked = !!(userData.ban_reason) || userData.banned === true || userData.satsDisabled === true || ledger.banned === true;
+        if (blocked) {
+            throw new functionsV1.https.HttpsError('permission-denied', 'You have not passed the requirements for this certificate.');
+        }
 
-    if (type === 'scholar' || type === 'technical') {
-        const examType = type === 'technical' ? 'technical' : 'properties';
-        const prior = await db.collection('scholar_exam_keys').where('uid', '==', uid).get();
-        const examRow = require('./src/scholarExam').passedExam(prior, examType, null);
-        passed = !!examRow;
-        title = type === 'technical' ? 'Bitcoin Protocol Expert' : 'Bitcoin Scholar';
-        score = examRow && examRow.score != null ? examRow.score : (passed ? 'Passed' : null);
-    } else if (type.startsWith('trail_')) {
-        // Find the specific trail in the list of passed trails
-        const passedTrails = userData.trails_passed || [];
-        passed = passedTrails.includes(type.replace('trail_', ''));
-        title = 'Nacho Trail Complete';
+        let passed = false;
+        let score = null;
+        if (meta.certType === 'scholar' || meta.certType === 'technical') {
+            const examType = meta.certType === 'technical' ? 'technical' : 'properties';
+            const prior = await tx.get(db.collection('scholar_exam_keys').where('uid', '==', uid));
+            const examRow = require('./src/scholarExam').passedExam(prior, examType, null);
+            passed = !!examRow;
+            score = examRow && examRow.score != null ? examRow.score : null;
+        } else if (String(meta.certType).indexOf('trail_') === 0) {
+            const passedTrails = userData.trails_passed || [];
+            passed = passedTrails.includes(String(meta.certType).replace('trail_', ''));
+        }
+
+        if (!passed) {
+            throw new functionsV1.https.HttpsError('permission-denied', 'You have not passed the requirements for this certificate.');
+        }
+
+        const indexSnap = await tx.get(indexRef);
+        if (indexSnap.exists) {
+            const existingId = (indexSnap.data() || {}).certId;
+            if (!existingId) throw new functionsV1.https.HttpsError('not-found', 'Certificate record is missing.');
+            const existing = await tx.get(db.collection('certs').doc(existingId));
+            if (!existing.exists) throw new functionsV1.https.HttpsError('not-found', 'Certificate record is missing.');
+            return certLib.publicView(existing.data(), existingId);
+        }
+
+        const officialName = certLib.snapshotName(userData);
+        const record = certLib.buildRecord({
+            uid: uid,
+            certType: meta.certType,
+            meta: meta,
+            name: officialName,
+            score: score,
+            now: Date.now(),
+        });
+        const publicDoc = Object.assign({}, record.publicDoc, {
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        tx.set(db.collection('certs').doc(record.id), publicDoc);
+        tx.set(db.collection('cert_owners').doc(record.id), record.ownerDoc);
+        tx.set(indexRef, record.indexDoc);
+        const prefix = meta.certType === 'technical' ? 'tech' : (meta.certType === 'scholar' ? 'prop' : '');
+        if (prefix) {
+            const certField = {};
+            certField['certId_' + prefix] = record.id;
+            tx.set(userRef, certField, { merge: true });
+        }
+        return certLib.publicView(publicDoc, record.id);
+    });
+
+    let qr = null;
+    try {
+        qr = require('./src/qrMatrix').matrixFor(issued.verifyUrl);
+    } catch (qrErr) {
+        console.warn('[CERT] qr', qrErr && qrErr.message);
     }
 
-    if (!passed) {
-        throw new functionsV1.https.HttpsError('permission-denied', 'You have not passed the requirements for this certificate.');
-    }
-
-    // Generate unique Cert ID
-    const certId = 'CERT-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substr(2, 5).toUpperCase();
-
-    const certData = {
-        id: certId,
-        uid: uid,
-        name: (name || userData.username || 'Bitcoiner').substring(0, 50),
-        username: userData.username || null,
-        type: type,
-        title: title,
-        score: score,
-        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),
-        createdAt: admin.firestore.FieldValue.serverTimestamp()
+    return {
+        success: true,
+        certId: issued.certId,
+        title: issued.title,
+        name: issued.name,
+        date: issued.date,
+        score: issued.score,
+        quest: issued.quest,
+        verifyUrl: issued.verifyUrl,
+        qr: qr,
     };
+});
 
-    await db.collection('certs').doc(certId).set(certData);
-
-    return { success: true, certId: certId, title: title, name: certData.name };
+// Public verify. Certificates are not readable by the client. Old ids still
+// match. The id's entropy is the limit; App Check is off so a shared link
+// and a crawler can open the page.
+exports.verifyCertificate = functionsV1.https.onCall(async (data) => {
+    const certLib = require('./src/scholarCert');
+    const certId = data && data.certId;
+    if (!certLib.certIdOk(certId)) {
+        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid certificate id');
+    }
+    const snap = await db.collection('certs').doc(String(certId)).get();
+    if (!snap.exists) return { valid: false };
+    return certLib.verifyView(snap.data(), certId);
 });
 
 // =============================================
@@ -4674,12 +5020,33 @@ exports.onChatMessageCreated = onDocumentCreated('global_chat/{msgId}', async (e
         if (data.uid && String(data.text || '').trim()) {
             await grantServerTickets(data.uid, 'daily_chat_ticket');
         }
-        try {
-            await db.collection('stats').doc('global').set({
-                chatMessages: admin.firestore.FieldValue.increment(1)
-            }, { merge: true });
-        } catch (e) { console.error('[onChatMessageCreated] failed:', e); }
+        // Display only. Does not grant the Say hi reward or any XP.
+        // Runs with the stats write, not ahead of it.
+        const chatDay = require('./src/chatPostedDay').stampChatPostedDay(db, data).catch(function (e) {
+            console.warn('[onChatMessageCreated] chat day skipped', e && e.message);
+        });
+        const chatStats = db.collection('stats').doc('global').set({
+            chatMessages: admin.firestore.FieldValue.increment(1)
+        }, { merge: true }).catch(function (e) {
+            console.error('[onChatMessageCreated] failed:', e);
+        });
+        await Promise.all([chatDay, chatStats]);
         const mentioned = data.mentionUid;
+        const raidMedia = !!(data.imageUrl || data.gifUrl || data.imageBase64 || data.stickerUrl || data.attachmentUrl);
+        const raidText = (data.isGif === true || data.source === 'telegram' || (raidMedia && !String(data.text || '').trim())) ? null : (data.text || '');
+        if (raidText != null) {
+            try {
+                await require('./src/raidBossEngine').noteTrusted(db, admin, {
+                    metric: 'chatMessages',
+                    uid: data.uid,
+                    dedupeKey: 'chat-' + String(_context.params.msgId || ''),
+                    amount: 1,
+                    text: raidText,
+                    isNachoAuto: data.isNachoAuto === true,
+                    now: new Date(),
+                });
+            } catch (raidChatErr) { console.warn('[onChatMessageCreated] raid', raidChatErr && raidChatErr.message); }
+        }
         if (mentioned && mentioned !== data.uid && /^[A-Za-z0-9_-]{4,128}$/.test(String(mentioned))) {
             try {
                 await sendUserPush(mentioned, 'mentions', {
@@ -4848,9 +5215,14 @@ exports.onUserDocCreated = onDocumentCreated('users/{uid}', async (event) => {
                 t.set(statsRef, { userCount: admin.firestore.FieldValue.increment(1) }, { merge: true });
                 return newCount;
             });
-            // Write plebNumber back to the user doc if not already set
+            // Write plebNumber back to the user doc if not already set.
+            // Every create path lands here. If that first write omitted created,
+            // stamp Auth metadata.creationTime. The server clock is only used
+            // when Auth has no creation time, because this document is new.
             const userDocRef = db.collection('users').doc(uid);
-            await userDocRef.set({ plebNumber: plebNumber }, { merge: true });
+            const createdPatch = { plebNumber: plebNumber };
+            await joinDate.applyMissingJoin(admin, uid, createdPatch, snap, { allowNow: true });
+            await userDocRef.set(createdPatch, { merge: true });
         } catch (e) { console.error('[onUserDocCreated] failed:', e); }
         return null;
     });
@@ -4883,13 +5255,34 @@ const PUBLIC_PROFILE_FIELDS = [
     'peerCount', // peer network size (peers array stays server-only)
 ];
 
+const lbDirtyStampAt = Object.create(null);
+
+async function stampLeaderboardDirty(before, after) {
+    const now = Date.now();
+    const patch = boardSnapshots.dirtyPatch(before, after, now);
+    if (!patch) return;
+    const write = boardSnapshots.throttleDirtyPatch(patch, now, lbDirtyStampAt);
+    if (!write) return;
+    const keys = Object.keys(write);
+    keys.forEach(function (key) { lbDirtyStampAt[key] = now; });
+    try {
+        await db.collection('stats').doc(boardSnapshots.DIRTY_DOC).set(write, { merge: true });
+    } catch (e) {
+        keys.forEach(function (key) { delete lbDirtyStampAt[key]; });
+        console.error('[lb dirty] stamp failed:', keys.join(','), e && e.message);
+    }
+}
+
 exports.syncPublicProfile = onDocumentWritten('users/{uid}', async (event) => {
     const change = { before: event.data.before, after: event.data.after }; const context = { params: event.params };
         const uid = context.params.uid;
         const pubRef = db.collection('public_profiles').doc(uid);
         // Deleted user → remove public profile
         if (!change.after.exists) {
-            try { await pubRef.delete(); } catch(e) { console.error('[syncPublicProfile] delete failed:', e); }
+            try {
+                await pubRef.delete();
+                await stampLeaderboardDirty(null, null);
+            } catch(e) { console.error('[syncPublicProfile] delete failed:', e); }
             return null;
         }
         const data = change.after.data() || {};
@@ -4897,6 +5290,13 @@ exports.syncPublicProfile = onDocumentWritten('users/{uid}', async (event) => {
         PUBLIC_PROFILE_FIELDS.forEach(f => { if (f in data) pub[f] = data[f]; });
         try {
             await pubRef.set(pub, { merge: false });
+            const beforeData = change.before && change.before.exists ? (change.before.data() || {}) : null;
+            await stampLeaderboardDirty(beforeData, data);
+            try {
+                await leaderboardIdentity.syncBoardIdentity(db, uid, beforeData, data);
+            } catch (identityErr) {
+                console.error('[lb identity] stats sync failed');
+            }
         } catch(e) { console.error('[syncPublicProfile] write failed:', e); }
         return null;
     });
@@ -5983,9 +6383,12 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
             dailyData: dailyDoc.exists ? (dailyDoc.data() || {}) : { date: '', distance: 0 },
         });
         const blocked = rewardBlocked(userData, ledgerDoc.exists ? (ledgerDoc.data() || {}) : {});
+        const walkDay = getOffsetDateKey();
         const grant = await applyDailyXp(uid, blocked ? 0 : plan.rawPoints, transaction, {
-            day: getOffsetDateKey(),
+            day: walkDay,
             userRef: userRef,
+            user: userData,
+            now: Date.now(),
         });
 
         // A ban pays nothing and does not consume the activities.
@@ -6101,31 +6504,42 @@ exports.adminUnbanUser = functionsV1.https.onRequest(async (req, res) => {
         await logAdminAction(req, 'adminUnbanUser', { uid });
         // [VULN-7 FIX] Unban atomically in both user doc AND faucet_ledger.
         // Both must be cleared so a re-banned user can't exploit a stale ledger state.
-        const batch = db.batch();
-        batch.update(db.collection('users').doc(uid), {
-            withdrawals_disabled: false,
-            satsDisabled: false,
-            flagged: false,
-            flag_reason: admin.firestore.FieldValue.delete(),
-            ban_reason: admin.firestore.FieldValue.delete(),
-            _pendingClaim: admin.firestore.FieldValue.delete(),
-            _pendingClaimAt: admin.firestore.FieldValue.delete(),
+        // The closed window is appended in the same transaction as the clear,
+        // so a concurrent ban or unban cannot drop the history entry.
+        const certBonus = require('./src/certBonus');
+        const faucetRef = db.collection('faucet_ledger').doc(uid);
+        const userRef = db.collection('users').doc(uid);
+        await db.runTransaction(async (tx) => {
+            const faucetSnap = await tx.get(faucetRef);
+            const faucet = faucetSnap.exists ? (faucetSnap.data() || {}) : {};
+            const banHistory = certBonus.banHistoryAfterUnban(faucet, Date.now());
+            tx.update(userRef, {
+                withdrawals_disabled: false,
+                satsDisabled: false,
+                flagged: false,
+                flag_reason: admin.firestore.FieldValue.delete(),
+                ban_reason: admin.firestore.FieldValue.delete(),
+                _pendingClaim: admin.firestore.FieldValue.delete(),
+                _pendingClaimAt: admin.firestore.FieldValue.delete(),
+            });
+            // Clear the ledger ban. set+merge so the doc is created if it doesn't exist yet.
+            tx.set(faucetRef, {
+                banned: false,
+                ban_reason: admin.firestore.FieldValue.delete(),
+                bannedAt: admin.firestore.FieldValue.delete(),
+                banHistory: banHistory,
+            }, { merge: true });
         });
-        // Clear the ledger ban. set+merge so the doc is created if it doesn't exist yet.
-        batch.set(db.collection('faucet_ledger').doc(uid), {
-            banned: false,
-            ban_reason: admin.firestore.FieldValue.delete(),
-            bannedAt: admin.firestore.FieldValue.delete(),
-        }, { merge: true });
-        await batch.commit();
         res.json({success: true, uid});
     } catch(e) { console.error('[adminUnbanUser] error:', e); res.status(500).json({error: 'Internal server error'});}
 });
 
 // ===== RAID BOSS =====
-const { scheduleRaidBoss } = require('./src/scheduleRaidBoss');
+const { scheduleRaidBoss, scheduleRaidBossCatchup, scheduleRaidForumCredit } = require('./src/scheduleRaidBoss');
 const { contributeRaid } = require('./src/contributeRaid');
 exports.scheduleRaidBoss = scheduleRaidBoss;
+exports.scheduleRaidBossCatchup = scheduleRaidBossCatchup;
+exports.scheduleRaidForumCredit = scheduleRaidForumCredit;
 exports.contributeRaid = contributeRaid;
 
 // ===== SATOSHI'S FAVOR =====
@@ -6138,7 +6552,9 @@ exports.syncCycleToTop10 = syncCycleToTop10;
 exports.backfillFactionTotals = backfillFactionTotals;
 exports.getFactionTotals = getFactionTotals;
 
-// Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online)
+// Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online).
+// The same private minute job posts the one ending heads-up. No public invoker.
+const { announceFavorEnding } = require('./src/favorEndingAnnounce');
 exports.satoshiFavorAutoReset = onSchedule({ schedule: '* * * * *', timeZone: 'UTC' }, async (event) => {
     try {
         const result = await resetExpiredFavor();
@@ -6147,6 +6563,12 @@ exports.satoshiFavorAutoReset = onSchedule({ schedule: '* * * * *', timeZone: 'U
         }
     } catch (e) {
         console.warn('[SF-CRON] reset failed:', e.message);
+    }
+    try {
+        await announceFavorEnding(db, admin, Date.now());
+    } catch (e) {
+        console.error('[SF ENDING] announce failed');
+        throw e;
     }
 });
 
@@ -6189,6 +6611,7 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
 
     let newBadges = [];
     let bonusPts = 0;
+    let donationTicket = 0; // hoisted: read after the transaction in the return value
 
     await db.runTransaction(async (tx) => {
         const userDoc = await tx.get(userRef);
@@ -6230,7 +6653,7 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
         const today = new Date().toISOString().split('T')[0];
 
         // Award 1 orange ticket if donation >= 1000 XP, once per day (5 AM UTC reset)
-        let donationTicket = 0;
+        donationTicket = 0;
         const _donateOffsetToday = getOffsetDateKey();
         const donationTicketRef = userRef.collection('daily_action_counts').doc(_donateOffsetToday + '_donate_ticket');
         const donationTicketDoc = await tx.get(donationTicketRef);
@@ -6306,8 +6729,13 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
 });
 
 // ===== LEADERBOARD USER SEARCH =====
-// Fetches top users ordered by points, filters by substring match (case-insensitive),
-// returns matched users with their true rank. Supports cursor-based pagination.
+// The leaderboard boxes call leaderboardRank, not this. searchUsers always
+// reads a prefix page plus the top 500 users by points, then runs one count()
+// per prefix hit outside that page. That is slow, and the rank is the index
+// inside the 500 (ghosts included) or a count that does not use the snapshot
+// tiebreak. Weekly and monthly boards are ignored. It stays deployed so older
+// pages do not 404, but new clients do not call it.
+exports.leaderboardRank = leaderboardRank.leaderboardRank;
 exports.searchUsers = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
 
@@ -6613,112 +7041,43 @@ exports.backfillDonationFaction = functionsV1.https.onCall(async (data, context)
 });
 
 // ══════════════════════════════════════════════════════════════════════
-// 📅 BACKFILL: Join Dates
-// One-shot HTTP trigger — fills `created` field for users missing it.
-// Uses Firebase Auth creationTime as ground truth; point-rank estimate as fallback.
+// Join dates — dry-run report only.
+// Reads Auth metadata.creationTime. Does not write, and does not invent a
+// date from points, last login, or a rank estimate. The operator script is
+// scripts/backfill-join-dates.js, which is also dry-run only.
 // ══════════════════════════════════════════════════════════════════════
 exports.backfillJoinDates = functionsV1.https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
-    const dryRun = req.query.dry === '1';
-
-    const LAUNCH_DATE = new Date('2026-03-01T00:00:00Z');
-    const NOW = new Date();
-
     try {
-        // Fetch all Firestore user docs
-        const snap = await db.collection('users').get();
-        const allUsers = snap.docs.map(d => ({ id: d.id, data: d.data() }));
-        console.log('[backfillJoinDates] Total user docs:', allUsers.length);
-
-        // Fetch all Firebase Auth users for creationTime
+        const snap = await db.collection('users').select('username', ...joinDate.JOIN_KEYS).get();
+        const rows = snap.docs.map(function (doc) { return { id: doc.id, data: doc.data() || {} }; });
         const authMap = {};
         let pageToken;
         do {
             const listResult = await admin.auth().listUsers(1000, pageToken);
-            listResult.users.forEach(u => {
-                if (u.metadata && u.metadata.creationTime) {
-                    authMap[u.uid] = new Date(u.metadata.creationTime);
-                }
+            listResult.users.forEach(function (user) {
+                const ms = joinDate.creationTimeMillis(user.metadata);
+                if (ms != null) authMap[user.uid] = ms;
             });
             pageToken = listResult.pageToken;
         } while (pageToken);
-        console.log('[backfillJoinDates] Auth users fetched:', Object.keys(authMap).length);
-
-        // Build point-rank list for estimation fallback
-        const pointRanked = allUsers
-            .filter(u => (u.data.points || 0) > 0)
-            .sort((a, b) => (b.data.points || 0) - (a.data.points || 0));
-        const totalRanked = pointRanked.length || 1;
-
-        let toUpdate = [];
-        let skipped = 0;
-
-        for (const { id, data } of allUsers) {
-            // Already has a valid created field? Skip.
-            const existing = data.created || data.createdAt;
-            if (existing) {
-                try {
-                    const d = existing.toDate ? existing.toDate() : (existing.seconds ? new Date(existing.seconds * 1000) : new Date(existing));
-                    if (!isNaN(d.getTime())) { skipped++; continue; }
-                } catch(e) {}
-            }
-
-            let createdDate = null;
-            let method = 'estimate';
-
-            // 1. Firebase Auth creationTime (ground truth)
-            if (authMap[id]) {
-                createdDate = authMap[id];
-                method = 'auth';
-            }
-
-            // 2. Point-rank interpolation
-            if (!createdDate) {
-                const rank = pointRanked.findIndex(u => u.id === id);
-                const fraction = rank >= 0 ? (rank / totalRanked) : 1;
-                const msRange = NOW.getTime() - LAUNCH_DATE.getTime();
-                createdDate = new Date(LAUNCH_DATE.getTime() + fraction * msRange);
-                method = 'estimate';
-            }
-
-            toUpdate.push({ id, createdDate, method, username: data.username || '(anon)' });
-        }
-
-        console.log('[backfillJoinDates] To update:', toUpdate.length, 'Skipped (already set):', skipped);
-
-        if (!dryRun && toUpdate.length > 0) {
-            const CHUNK = 400;
-            for (let i = 0; i < toUpdate.length; i += CHUNK) {
-                const chunk = toUpdate.slice(i, i + CHUNK);
-                const batch = db.batch();
-                chunk.forEach(({ id, createdDate }) => {
-                    batch.update(db.collection('users').doc(id), {
-                        created: admin.firestore.Timestamp.fromDate(createdDate),
-                    });
-                });
-                await batch.commit();
-            }
-        }
-
-        const authCount = toUpdate.filter(u => u.method === 'auth').length;
-        const estCount = toUpdate.filter(u => u.method === 'estimate').length;
-
+        const plan = joinDate.planJoinBackfill(rows, authMap);
+        console.log('[backfillJoinDates] dry-run', plan.already, 'set,', plan.wouldStamp.length, 'would stamp,', plan.skippedNoAuth, 'no auth time');
         res.json({
             ok: true,
-            dryRun,
-            totalDocs: allUsers.length,
-            alreadySet: skipped,
-            updated: toUpdate.length,
-            byMethod: { auth: authCount, estimate: estCount },
-            sample: toUpdate.slice(0, 10).map(u => ({
-                username: u.username,
-                method: u.method,
-                date: u.createdDate.toISOString().substring(0, 10),
-            })),
+            dryRun: true,
+            writes: false,
+            totalDocs: rows.length,
+            alreadySet: plan.already,
+            wouldStamp: plan.wouldStamp.length,
+            skippedNoAuth: plan.skippedNoAuth,
+            sample: plan.wouldStamp.slice(0, 10).map(function (row) {
+                return { username: row.username || '(no username)', joined: row.iso.slice(0, 10) };
+            }),
         });
     } catch (err) {
-        console.error('[backfillJoinDates] Error:', err);
-        res.status(500).json({ error: err.message });
+        console.error('[backfillJoinDates] Error:', err && err.message ? err.message : err);
+        res.status(500).json({ error: 'Join date report failed' });
     }
 });
 
@@ -6726,144 +7085,60 @@ exports.backfillJoinDates = functionsV1.https.onRequest(async (req, res) => {
 // ⏰ FEATURE 3: Weekly/Monthly XP Reset + Ticket Prizes
 // ══════════════════════════════════════════════════════════════════════
 
-async function _awardTicketsToUser(uid, ticketCount, reason) {
-    const userRef = db.collection('users').doc(uid);
-    // Award tickets + queue a login-toast notification
-    await userRef.update({
-        orangeTickets: admin.firestore.FieldValue.increment(ticketCount),
-        pendingLeaderboardReward: admin.firestore.FieldValue.arrayUnion({
-            tickets: ticketCount,
-            reason: reason,
-            awardedAt: Date.now()
-        })
-    });
-    // Bell feed. Same grant, display-only, written with the ticket update above.
-    await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
-        uid: uid,
-        tickets: ticketCount,
-        sourceLabel: reason,
-        icon: '🏆',
-        type: 'leaderboard_reward',
-        onceKey: 'lb_' + Date.now(),
-    }));
-    try {
-        await sendUserPush(uid, 'rewards', {
-            title: 'You won a reward',
-            body: reason + ' — ' + ticketCount + ' Orange Tickets were added.',
-            url: 'https://bitcoineducation.quest/#questhub'
-        });
-    } catch (e) { console.warn('[leaderboard] push failed', e.message); }
-}
-
-async function _resetPeriodXP(periodField, winnerKey, ticketsPerWinner, label) {
-    const BATCH_SIZE = 499;
-    // Get top 10 winners before reset
-    const topSnap = await db.collection('users').orderBy(periodField, 'desc').limit(10).get();
-    const winners = [];
-    topSnap.forEach(doc => {
-        const d = doc.data();
-        if ((d[periodField] || 0) > 0) {
-            winners.push({ uid: doc.id, username: d.username || 'Anon', xp: d[periodField] || 0 });
-        }
-    });
-    for (let wi = 0; wi < winners.length; wi++) {
-        const stored = winners[wi].username ? String(winners[wi].username).trim() : '';
-        if (stored && stored !== 'Anon' && stored !== 'Anonymous') continue;
-        try {
-            const pub = await db.collection('public_profiles').doc(winners[wi].uid).get();
-            const pubName = pub.exists ? String((pub.data() || {}).username || '').trim() : '';
-            if (pubName && pubName !== 'Anon' && pubName !== 'Anonymous') {
-                winners[wi].username = pubName.slice(0, 40);
-            }
-        } catch (e) {
-            console.warn('[leaderboard] public name lookup failed');
-        }
-    }
-
-    // Award tickets to winners
-    const awardPromises = winners.map((w, i) =>
-        _awardTicketsToUser(w.uid, ticketsPerWinner, `${label} Top ${i + 1}!`)
-    );
-    await Promise.all(awardPromises);
-
-    // Store winners for history
-    if (winners.length > 0) {
-        await db.collection('leaderboard_winners').doc(winnerKey).set({
-            period: winnerKey,
-            label,
-            winners,
-            uids: winners.map(function(w) { return w.uid; }),
-            ticketsPerWinner,
-            settledAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-    }
-
-    // Reset ALL users' period XP in batches
-    let lastDoc = null;
-    let processed = 0;
-    while (true) {
-        let query = db.collection('users').orderBy(admin.firestore.FieldPath.documentId()).limit(BATCH_SIZE);
-        if (lastDoc) query = query.startAfter(lastDoc);
-        const snap = await query.get();
-        if (snap.empty) break;
-        lastDoc = snap.docs[snap.docs.length - 1];
-        const batch = db.batch();
-        snap.forEach(doc => {
-            if ((doc.data()[periodField] || 0) > 0) {
-                batch.update(doc.ref, { [periodField]: 0 });
-            }
-        });
-        await batch.commit();
-        processed += snap.size;
-        if (snap.size < BATCH_SIZE) break;
-    }
-
-    console.log(`[LEADERBOARD RESET] ${label}: ${winners.length} winners, ${processed} users reset`);
-    return { winners: winners.length, processed, label };
-}
-
 // Rewards start from July 2026 onwards — skip June entirely.
 // Weekly: skip any week that ends before 2026-07-01.
-// Monthly: skip any month reset where the completed month is before 2026-07 (i.e. June 2026 and earlier).
+// Monthly: skip any month reset where the completed month is before 2026-07.
+// Week labels are ISO week-year (Monday 05:00 UTC), so 2026-W53 and 2027-W01
+// do not share a key.
 const REWARDS_START_DATE = new Date('2026-07-01T00:00:00Z');
 
-exports.resetWeeklyXP = onSchedule({ schedule: '0 5 * * 1', timeZone: 'UTC' }, async (ctx) => { // Monday 5 AM UTC — consistent with daily reset boundary
+exports.resetWeeklyXP = onSchedule({ schedule: '0 5 * * 1', timeZone: 'UTC', timeoutSeconds: 540 }, async () => {
     const now = new Date();
-    // Skip weeks that end before rewards start date
-    if (now < REWARDS_START_DATE) {
-        console.log('[WEEKLY RESET] Skipping — rewards start July 2026. Resetting XP without awarding tickets.');
-        // Still reset XP so the board is clean, just no ticket awards
-        const year = now.getFullYear();
-        const startOfYear = new Date(year, 0, 1);
-        const weekNum = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
-        const prevWeek = weekNum - 1;
-        const weekKey = `${year}-W${String(prevWeek || 52).padStart(2, '0')}`;
-        await _resetPeriodXP('weeklyXP', weekKey, 0, `Week ${weekKey} (no rewards yet)`);
-        return null;
-    }
-    const year = now.getFullYear();
-    const startOfYear = new Date(year, 0, 1);
-    const weekNum = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
-    const prevWeek = weekNum - 1;
-    const weekKey = `${year}-W${String(prevWeek || 52).padStart(2, '0')}`;
-    const result = await _resetPeriodXP('weeklyXP', weekKey, 25, `Week ${weekKey}`);
-    console.log('[WEEKLY RESET COMPLETE]', result);
+    const tickets = now < REWARDS_START_DATE ? 0 : 25;
+    if (!tickets) console.log('[WEEKLY RESET] Rewards start July 2026. Resetting XP without tickets.');
+    const result = await lbPrizes.settleXp(db, admin, {
+        period: 'weekly', now: now, tickets: tickets, sendPush: sendUserPush
+    });
+    console.log('[WEEKLY RESET COMPLETE]', JSON.stringify(result));
     return null;
 });
 
-exports.resetMonthlyXP = onSchedule({ schedule: '0 0 1 * *', timeZone: 'UTC' }, async (ctx) => {
+exports.resetMonthlyXP = onSchedule({ schedule: '0 0 1 * *', timeZone: 'UTC', timeoutSeconds: 540 }, async () => {
     const now = new Date();
-    const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const monthKey = `${prevMonth.getFullYear()}-M${String(prevMonth.getMonth() + 1).padStart(2, '0')}`;
-    // Skip June 2026 and any earlier month
-    if (prevMonth < REWARDS_START_DATE) {
-        console.log('[MONTHLY RESET] Skipping ticket awards for', monthKey, '— rewards start July 2026. Resetting XP only.');
-        await _resetPeriodXP('monthlyXP', monthKey, 0, `Month ${monthKey} (no rewards yet)`);
-        return null;
-    }
-    const result = await _resetPeriodXP('monthlyXP', monthKey, 100, `Month ${monthKey}`);
-    console.log('[MONTHLY RESET COMPLETE]', result);
+    const prevMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
+    const tickets = prevMonth < REWARDS_START_DATE ? 0 : 100;
+    if (!tickets) console.log('[MONTHLY RESET] Rewards start July 2026. Resetting XP without tickets.');
+    const result = await lbPrizes.settleXp(db, admin, {
+        period: 'monthly', now: now, tickets: tickets, sendPush: sendUserPush
+    });
+    console.log('[MONTHLY RESET COMPLETE]', JSON.stringify(result));
+    return null;
+});
 
+// Quest week: Monday 05:00 UTC, the Eastern week that just ended.
+// Quest month: 05:00 UTC on the 1st, after Eastern midnight (04:00 or 05:00 UTC),
+// so closedQuestMonthKey is the month that just ended.
+exports.payWeeklyQuestLB = onSchedule({ schedule: '0 5 * * 1', timeZone: 'UTC', timeoutSeconds: 540 }, async () => {
+    try {
+        const result = await lbPrizes.settleQuest(db, admin, {
+            period: 'weekly', now: new Date(), sendPush: sendUserPush
+        });
+        console.log('[QUEST WEEK]', JSON.stringify(result));
+    } catch (e) {
+        console.error('[QUEST WEEK] failed:', e);
+    }
+    return null;
+});
+
+exports.payMonthlyQuestLB = onSchedule({ schedule: '0 5 1 * *', timeZone: 'UTC', timeoutSeconds: 540 }, async () => {
+    try {
+        const result = await lbPrizes.settleQuest(db, admin, {
+            period: 'monthly', now: new Date(), sendPush: sendUserPush
+        });
+        console.log('[QUEST MONTH]', JSON.stringify(result));
+    } catch (e) {
+        console.error('[QUEST MONTH] failed:', e);
+    }
     return null;
 });
 
@@ -7876,7 +8151,7 @@ exports.flushBadgeGgBursts = onSchedule({ schedule: '* * * * *', timeZone: 'UTC'
     }
 });
 
-const { handleChatMirror, flushTelegramMirror, retractMirroredChat } = require('./src/chatTelegramMirror');
+const { handleChatMirror, flushTelegramMirror, retractMirroredChat, reactionCounterOnly } = require('./src/chatTelegramMirror');
 async function mirrorChatCreate(collection, docId, data) {
     try {
         await handleChatMirror(db, collection, docId, data || {});
@@ -7891,8 +8166,13 @@ function snapData(snap) {
     try { return snap.data() || null; } catch (err) { return null; }
 }
 async function mirrorChatRetract(beforeSnap, afterSnap) {
+    const before = snapData(beforeSnap);
+    const after = snapData(afterSnap);
+    // A partyCount-only write is a 🎉 toggle. It must not enqueue or delete
+    // the Telegram copy of the original GGs line.
+    if (reactionCounterOnly(before, after)) return null;
     try {
-        await retractMirroredChat(db, snapData(beforeSnap), snapData(afterSnap));
+        await retractMirroredChat(db, before, after);
     } catch (e) {
         console.error('[TG MIRROR] retract failed');
         throw e;
@@ -7977,69 +8257,15 @@ exports.searchGifs = functionsV1.https.onCall(async (data, context) => {
     }
 });
 
-// ===== WEEKLY RAID BOSS ANNOUNCEMENT =====
-// Fires Sunday 7 PM ET (11 PM UTC / 23:00 UTC)
-// Posts a boss status update to global_chat (visible to all users)
-// with a deep link to the Quest Hub Raid section
+// Sunday 7 PM America/New_York. One post per Eastern week, including after a win.
 exports.raidBossWeeklyAnnouncement = onSchedule(
-  { schedule: '0 23 * * 0', timeZone: 'UTC', region: 'us-central1' },
-  async (event) => {
-    const now = admin.firestore.Timestamp.now();
-    const nowMs = now.toDate().getTime();
-
-    // Find active boss
-    const bossQuery = await db.collection('raid_bosses')
-      .orderBy('startTime', 'desc')
-      .limit(5)
-      .get();
-
-    let activeBoss = null;
-    bossQuery.forEach((doc) => {
-      if (activeBoss) return;
-      const d = doc.data();
-      if (d.defeated || d.placeholder) return;
-      const startMs = d.startTime ? d.startTime.toDate().getTime() : 0;
-      const endMs = d.endTime ? d.endTime.toDate().getTime() : 0;
-      if (startMs <= nowMs && endMs > nowMs) {
-        activeBoss = d;
-      }
-    });
-
-    if (!activeBoss) {
-      console.log('[RAID ANNOUNCE] No active boss found — skipping announcement.');
-      return null;
+  { schedule: '0 19 * * 0', timeZone: 'America/New_York', region: 'us-central1' },
+  async () => {
+    try {
+      await require('./src/raidBossEngine').postWeekly(db, admin, new Date());
+    } catch (e) {
+      console.error('[RAID ANNOUNCE]', e && e.message);
     }
-
-    const current = activeBoss.current || 0;
-    const target = activeBoss.target || 0;
-    const name = activeBoss.name || 'Raid Boss';
-    const pct = target > 0 ? Math.round((current / target) * 100) : 0;
-    const hp = Math.max(0, target - current);
-    const defeated = activeBoss.defeated || false;
-
-    const hpPct = target > 0 ? Math.round((hp / target) * 100) : 0;
-    let text;
-    if (defeated) {
-      text = `⚔️ BOSS DEFEATED! The community took down **${name}** — amazing work everyone! 🏆 Check the [Quest Hub → Raid](#questhub) for results.`;
-    } else if (pct === 0) {
-      text = `⚔️ **${name}** is waiting! Boss has ${hp}/${target} HP remaining — we haven't dealt any damage yet. Every action counts! 👉 [Quest Hub → Raid](#questhub)`;
-    } else if (pct >= 75) {
-      text = `⚔️ ALMOST THERE! **${name}** has only ${hpPct}% health remaining — only ${hp} HP left! Push through and claim the community prize! 🔥👉 [Quest Hub → Raid](#questhub)`;
-    } else if (pct >= 50) {
-      text = `⚔️ Halfway there! **${name}** is at ${hpPct}% health remaining (${hp} HP left). Keep it up! 💪 [Quest Hub → Raid](#questhub)`;
-    } else {
-      text = `⚔️ Weekly Raid Update: **${name}** — ${hpPct}% health remaining (${hp}/${target} HP). Deal more damage — [Quest Hub → Raid](#questhub) 🗡️`;
-    }
-
-    await db.collection('global_chat').add({
-      uid: 'nacho-bot',
-      name: '🦌 Nacho',
-      text: text,
-      isNachoAuto: false,
-      ts: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    console.log(`[RAID ANNOUNCE] Posted to global_chat: "${text}"`);
     return null;
   }
 );
@@ -8162,11 +8388,17 @@ async function settlePvpMatch(matchId, after) {
             const pvpUser = userSnaps[i].data() || {};
             const pvpLedger = ledgerSnaps[i].exists ? (ledgerSnaps[i].data() || {}) : {};
             const pvpBlocked = !!(pvpUser.ban_reason) || pvpUser.banned === true || pvpUser.satsDisabled === true || pvpLedger.banned === true;
-            const grant = awardActions.planGrant({
-                xp: pvpBlocked ? 0 : p.points,
+            const xpPlan = planXpGrant({
+                base: pvpBlocked ? 0 : p.points,
+                user: pvpUser,
+                now: Date.now(),
                 dailyUsed: used,
-                dailyCap: awardActions.DAILY_CAP,
             });
+            const grant = {
+                awarded: xpPlan.awarded,
+                dropped: xpPlan.dropped,
+                dailyXp: xpPlan.dailyXp,
+            };
             const write = pvpFlow.planXpWrite(grant.awarded);
             const ticket = pvpFlow.planWinTicket(Object.assign({}, p, {
                 ticketClaimedToday: ticketSnaps[i].exists,
@@ -8182,7 +8414,7 @@ async function settlePvpMatch(matchId, after) {
             if (ticket.tickets > 0) upd.orangeTickets = admin.firestore.FieldValue.increment(ticket.tickets);
             if (Object.keys(upd).length) tx.update(userRefs[i], upd);
             if (write.write) {
-                tx.set(dailyRefs[i], { total: admin.firestore.FieldValue.increment(write.points) }, { merge: true });
+                tx.set(dailyRefs[i], { total: xpPlan.dailyXp, lastUpdated: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
             }
             if (ticket.tickets > 0) {
                 tx.set(ticketRefs[i], {
@@ -8199,11 +8431,14 @@ async function settlePvpMatch(matchId, after) {
                 pendingOverflow: userSnaps[i].data().pendingOverflow || 0,
                 tickets: ticket.tickets,
                 outcome: p.outcome,
+                doubled: xpPlan.doubled === true,
+                base: xpPlan.base,
+                boosted: xpPlan.boosted,
             });
         }
         const rewardsMap = {};
         applied.forEach(function (a) {
-            rewardsMap[a.uid] = { points: a.points, outcome: a.outcome, tickets: a.tickets };
+            rewardsMap[a.uid] = { points: a.points, outcome: a.outcome, tickets: a.tickets, doubled: a.doubled === true, base: a.base || 0, boosted: a.boosted || 0 };
         });
         tx.set(rewardRef, {
             matchId: matchId,
@@ -8546,8 +8781,10 @@ exports.recountCountryStats = onSchedule({ schedule: '0 3 * * 0', timeZone: 'UTC
     });
 
 // ── Badge Distribution Cache Refresh ─────────────────────────────────────────
-// Scans all users' badge_awards subcollections and caches counts to
-// stats/badge_distribution. Runs nightly, also callable via HTTP.
+// Rebuilds stats/badge_distribution from public badge holdings. The nightly
+// job is Cloud Scheduler only (no public invoker). The HTTP trigger is the
+// manual path: requireAdmin runs before any read, so an open function URL
+// cannot start the scan. Logs are counts only.
 
 async function _refreshBadgeDistribution() {
     return refreshBadgeDistribution(db, admin);
@@ -8560,13 +8797,16 @@ exports.refreshBadgeDistribution = onScheduleV2({
     timeoutSeconds: 540,
 }, async () => { await _refreshBadgeDistribution(); });
 
-exports.refreshBadgeDistributionHttp = functionsV1.https.onRequest(async (req, res) => {
+exports.refreshBadgeDistributionHttp = functionsV1.runWith({
+    timeoutSeconds: 540,
+    memory: '512MB',
+}).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const result = await _refreshBadgeDistribution();
         res.json({ ok: true, ...result });
     } catch (e) {
-        console.error('[BADGE DIST HTTP]', e);
+        console.error('[BADGE DIST HTTP] refresh failed');
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -8669,6 +8909,12 @@ exports.nachoAnnounce = functionsV1.https.onCall(async (data, context) => {
     return { ok: true };
 });
 
+// 🎉 on an earned GGs post. App Check is on the module bind so index.js
+// does not pick up another enforceAppCheck. The handler grants nothing.
+const { bindToggleGgReaction } = require('./src/ggReaction');
+const ggFns = bindToggleGgReaction(functionsV1, { db: db });
+exports.toggleGgReaction = ggFns.toggleGgReaction;
+
 
 // ── PVP Round Resolution (server-side, tamper-proof) ────────────
 const { pvpResolveRound } = require('./src/pvpResolve');
@@ -8761,143 +9007,19 @@ exports.dailyFirestoreBackup = onSchedule('0 2 * * *', async (event) => {
 // ================================================================
 // NACHO RADIO — Auto-DJ that keeps beats playing in Global Chat
 // Runs every minute: starts Nacho when no human is DJing,
-// advances to next track when current one finishes.
-// Schema mirrors the live_dj doc written by human DJs.
+// advances when the current track finishes.
+// Playlist: shuffle bag in nacho_radio/queue (see src/nachoRadio.js).
+// Every eligible beats_tracks doc plays once per cycle. The queue doc
+// is server-only. live_dj still mirrors a human DJ booth.
 // ================================================================
+const { runNachoRadioTick } = require('./src/nachoRadio');
 exports.nachoRadioTick = onSchedule({
     schedule: 'every 1 minutes',
     timeZone: 'UTC',
     region: 'us-central1',
     memory: '256MiB',
-}, async (event) => {
-    const djRef  = db.collection('global_chat_meta').doc('live_dj');
-    const radioRef = db.collection('global_chat_meta').doc('nacho_radio');
-
-    const [djDoc, radioDoc] = await Promise.all([djRef.get(), radioRef.get()]);
-    const dj    = djDoc.exists ? djDoc.data() : {};
-    const radio = radioDoc.exists ? radioDoc.data() : {};
-
-    // ── 1. Human DJ is live — leave them alone ─────────────────
-    if (dj.active && dj.djUid && dj.djUid !== 'nacho-dj') {
-        console.log('[NachoRadio] Human DJ active:', dj.djUid);
-        return;
-    }
-
-    const now = Date.now();
-
-    // ── 2. Nacho track still playing — nothing to do ────────────
-    if (dj.active && dj.isNachoDJ && dj.trackStartedAt && dj.trackDuration) {
-        const startMs = dj.trackStartedAt._seconds
-            ? dj.trackStartedAt._seconds * 1000
-            : (dj.trackStartedAt.toMillis ? dj.trackStartedAt.toMillis() : now);
-        const elapsed = (now - startMs) / 1000;
-        const remaining = dj.trackDuration - elapsed;
-        if (remaining > 5) {
-            console.log(`[NachoRadio] Playing: "${dj.trackTitle}" — ${remaining.toFixed(0)}s left`);
-            return;
-        }
-    }
-
-    // ── 3. Need to pick next track ────────────────────────────────
-    const playedRecently = (radio.playedRecently || []).slice(-80);
-
-    // Fetch up to 500 playable tracks
-    let snap;
-    try {
-        snap = await db.collection('beats_tracks').orderBy('title').limit(500).get();
-    } catch (e) {
-        console.error('[NachoRadio] fetch error:', e.message);
-        return;
-    }
-
-    let candidates = [];
-    snap.forEach(d => {
-        const t = d.data();
-        if (t.hidden === true) return;
-        if (
-            t.audioUrl &&
-            (t.duration || 0) >= 60 &&
-            t.genre !== 'podcast' &&
-            !playedRecently.includes(d.id)
-        ) {
-            candidates.push({ id: d.id, ...t });
-        }
-    });
-
-    // If pool runs dry, reset played history and try again
-    if (candidates.length < 5) {
-        console.log('[NachoRadio] Pool exhausted — resetting history');
-        candidates = [];
-        snap.forEach(d => {
-            const t = d.data();
-            if (t.hidden === true) return;
-            if (t.audioUrl && (t.duration || 0) >= 60 && t.genre !== 'podcast') {
-                candidates.push({ id: d.id, ...t });
-            }
-        });
-        playedRecently.length = 0;
-    }
-
-    if (candidates.length === 0) {
-        console.error('[NachoRadio] No playable tracks found');
-        return;
-    }
-
-    const track    = candidates[Math.floor(Math.random() * candidates.length)];
-    const publicTitle = beatsCensor(track.title || 'Untitled');
-    const publicArtist = beatsCensor(track.artist || track.authorName || 'Unknown');
-    const wasActive = dj.active === true;
-    const songCount = (radio.songCount || 0) + 1;
-    const newPlayed = [...playedRecently, track.id];
-
-    const batch = db.batch();
-
-    // Update live_dj doc
-    batch.set(djRef, {
-        djUid:          'nacho-dj',
-        djName:         '🦌 Nacho',
-        isNachoDJ:      true,
-        active:         true,
-        trackId:        track.id,
-        trackTitle:     publicTitle,
-        trackArtist:    publicArtist,
-        trackAudioUrl:  track.audioUrl,
-        trackCoverArt:  track.coverArt  || track.coverUrl  || '',
-        trackDuration:  track.duration  || 180,
-        trackStartedAt: admin.firestore.FieldValue.serverTimestamp(),
-        artistUid:      track.authorId  || '',
-        songCount:      songCount,
-        playbackTime:   0,
-        playbackUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        startedAt:      wasActive ? (dj.startedAt || admin.firestore.FieldValue.serverTimestamp())
-                                  : admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    // Persist radio state
-    batch.set(radioRef, {
-        playedRecently: newPlayed.slice(-80),
-        songCount,
-        lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    await batch.commit();
-
-    // Announce in chat only when going live from inactive, or every 10 tracks
-    const shouldAnnounce = !wasActive || (songCount % 10 === 1);
-    if (shouldAnnounce) {
-        const msg = wasActive
-            ? `🦌 Nacho Radio: "${publicTitle}" by ${publicArtist} is up next 🎵 Tune in!`
-            : `🦌 **Nacho Radio** is live! Spinning beats from the Bitcoin Beats library. Now playing: "${publicTitle}" by ${publicArtist} 🎵 Tune in!`;
-        await db.collection('global_chat').add({
-            uid:          'nacho-dj',
-            name:         '🦌 Nacho',
-            text:         msg,
-            ts:           admin.firestore.FieldValue.serverTimestamp(),
-            isNachoAuto:  true,
-        }).catch(e => console.warn('[NachoRadio] chat post failed:', e.message));
-    }
-
-    console.log(`[NachoRadio] ▶ "${track.title}" by ${track.artist || track.authorName} (${track.duration}s) | song #${songCount}`);
+}, async () => {
+    await runNachoRadioTick({ db: db, admin: admin });
 });
 
 
@@ -8912,6 +9034,8 @@ const {
     decryptCipher,
     ackCipherShare,
     claimCipherWin,
+    claimCipherSats,
+    adminResolveCipherSatsClaim,
     listMyCipherWins,
     adminListCipherWins,
     adminMarkCipherWinPaid,
@@ -8922,6 +9046,8 @@ exports.sendKeys = sendKeys;
 exports.decryptCipher = decryptCipher;
 exports.ackCipherShare = ackCipherShare;
 exports.claimCipherWin = claimCipherWin;
+exports.claimCipherSats = claimCipherSats;
+exports.adminResolveCipherSatsClaim = adminResolveCipherSatsClaim;
 exports.listMyCipherWins = listMyCipherWins;
 exports.adminListCipherWins = adminListCipherWins;
 exports.adminMarkCipherWinPaid = adminMarkCipherWinPaid;

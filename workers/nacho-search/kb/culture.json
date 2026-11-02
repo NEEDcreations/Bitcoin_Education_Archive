@@ -558,7 +558,7 @@
       "Clarify this: where should a reader go after memes?",
       "Unpack this: where should a reader go after memes?"
     ],
-    "answer": "The whitepaper is short, and there is a shelf of later books on monetary history and on how the software works. Memes are the door. The books are the room.",
+    "answer": "The whitepaper is short, and there is a shelf of later books on monetary history and on how the software works. Memes are the door. The books are the room. Ask for a title, such as Mastering Bitcoin or The Bitcoin Standard, for a short summary and a legal place to read or buy it.",
     "topics": [
       "books",
       "whitepaper",
@@ -569,7 +569,7 @@
       "culture-citation",
       "culture-hal-legacy"
     ],
-    "sources": "Reading path."
+    "sources": "Reading path. Book entries live in the books category."
   },
   {
     "id": "culture-conference",

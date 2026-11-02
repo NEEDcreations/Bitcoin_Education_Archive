@@ -2,11 +2,14 @@
 
 const crypto = require('crypto');
 const quest = require('./onboardingQuest');
+const { planXpGrant } = require('./grantXp');
 const names = require('./usernamePolicy');
 const faucetGuard = require('./faucetGuard');
 const rateSalt = require('./rateLimitSalt');
 const { isSatsBanned } = require('./cipherClaim');
 const accountTombstone = require('./accountTombstone');
+const streakBoard = require('./streakBoard');
+const joinDate = require('./joinDate');
 
 const QUIZ_DOC = /_(quest|trivia|poll_vote)$/;
 const USERNAME_HOUR_MS = 60 * 60 * 1000;
@@ -198,6 +201,8 @@ function registerOnboarding(deps) {
                 pendingOverflow: user.pendingOverflow || 0,
                 lastOverflowDate: user.lastOverflowDate || '',
                 today: today,
+                user: user,
+                now: Date.now(),
             });
             grant.today = today;
             const prev = (user.onboardingQuest && user.onboardingQuest.steps) || {};
@@ -225,6 +230,7 @@ function registerOnboarding(deps) {
                 already: false,
                 mode: mode,
                 awarded: grant.pointsOut,
+                doubled: grant.doubled === true,
                 tickets: again.tickets,
                 complete: complete,
             };
@@ -239,6 +245,7 @@ function registerOnboarding(deps) {
             already: !!written.already,
             error: written.error || '',
             awarded: written.awarded || 0,
+            doubled: written.doubled === true,
             tickets: written.tickets || 0,
             complete: !!written.complete,
             totalPts: totals.pts,
@@ -279,10 +286,12 @@ function registerOnboarding(deps) {
         const user = userSnap.exists ? (userSnap.data() || {}) : {};
         const ledger = ledgerSnap.exists ? (ledgerSnap.data() || {}) : {};
         if (accountBlocked(user, ledger)) return { ok: false, error: 'unavailable' };
-        await db.collection('users').doc(uid).set({
+        const introPatch = {
             introSeen: true,
             introSeenAt: admin.firestore.FieldValue.serverTimestamp(),
-        }, { merge: true });
+        };
+        await joinDate.applyMissingJoin(admin, uid, introPatch, userSnap);
+        await db.collection('users').doc(uid).set(introPatch, { merge: true });
         return { ok: true, stored: 'server' };
     }
 
@@ -299,10 +308,14 @@ function registerOnboarding(deps) {
         if (accountBlocked(prev, ledger)) return { ok: false, error: 'unavailable' };
         if (prev.mergedInto) return { ok: false, error: 'already_linked' };
         const nonce = crypto.randomBytes(24).toString('hex');
-        await ref.set({
+        const guestPatch = {
             guestLinkNonce: nonce,
             guestLinkNonceAt: admin.firestore.FieldValue.serverTimestamp(),
-        }, { merge: true });
+        };
+        // Guest age is read from created. A doc born here without it fails
+        // the later merge as guest_too_old. Auth creationTime is that age.
+        await joinDate.applyMissingJoin(admin, uid, guestPatch, snap);
+        await ref.set(guestPatch, { merge: true });
         return { ok: true, nonce: nonce };
     }
 
@@ -326,6 +339,7 @@ function registerOnboarding(deps) {
         const anonRef = db.collection('users').doc(anonUid);
         const destRef = db.collection('users').doc(uid);
         const nowMs = Date.now();
+        const destJoinStamp = await joinDate.authJoinTimestamp(admin, uid, nowMs);
         let guestHadQuiz = false;
         try {
             const counts = await anonRef.collection('daily_action_counts').limit(30).get();
@@ -385,8 +399,15 @@ function registerOnboarding(deps) {
                 if (nonceMatches) clearGuestNonce(tx, admin, anonRef);
                 return { ok: true, already: true, points: 0, tickets: 0 };
             }
-            // Guest points were already earned. Moving them is not a new daily grant.
-            const movedPoints = Math.max(0, Math.floor(Number(again.points) || 0));
+            // Guest points were already earned. Moving them is not a new grant
+            // and is not doubled.
+            const movedGrant = planXpGrant({
+                base: Math.max(0, Math.floor(Number(again.points) || 0)),
+                boost: false,
+                capExempt: true,
+                now: nowMs,
+            });
+            const movedPoints = movedGrant.awarded;
             let movedName = '';
             if (nameRef) {
                 const reserved = nameSnap && nameSnap.exists ? reservationView(nameSnap.data()) : null;
@@ -395,17 +416,16 @@ function registerOnboarding(deps) {
                 if (free && names.assessUsername(guestName, { allowReserved: true }).ok) movedName = guestName;
             }
             if (!freshDest.exists) {
-                const created = {
+                const created = Object.assign({
                     points: movedPoints,
                     weeklyXP: movedPoints,
                     monthlyXP: movedPoints,
                     orangeTickets: again.tickets,
                     channelsVisited: again.channelsVisited,
                     totalVisits: 1,
-                    streak: 1,
                     mergedFromGuest: true,
-                    created: admin.firestore.FieldValue.serverTimestamp(),
-                };
+                    created: destJoinStamp || admin.firestore.FieldValue.serverTimestamp(),
+                }, streakBoard.applyStreakUpdate({}, 1, nowMs, null));
                 if (movedName) {
                     created.username = movedName;
                     created.username_lower = guestLower;
@@ -413,6 +433,7 @@ function registerOnboarding(deps) {
                 tx.set(destRef, created);
             } else {
                 const update = { mergedFromGuest: true };
+                if (!joinDate.hasJoin(dest, nowMs) && destJoinStamp) update.created = destJoinStamp;
                 if (movedPoints > 0) {
                     update.points = admin.firestore.FieldValue.increment(movedPoints);
                     update.weeklyXP = admin.firestore.FieldValue.increment(movedPoints);
@@ -461,6 +482,13 @@ function registerOnboarding(deps) {
             }
             return { ok: true, already: false, points: movedPoints, tickets: again.tickets };
         });
+        if (written && written.ok) {
+            try {
+                await require('./referralService').adoptGuestArrival(anonUid, uid);
+            } catch (arrivalErr) {
+                console.warn('[guest-link] arrival', arrivalErr && arrivalErr.message ? arrivalErr.message : arrivalErr);
+            }
+        }
         return {
             ok: !!written.ok,
             already: !!written.already,
@@ -593,10 +621,14 @@ function registerOnboarding(deps) {
                     points: 0,
                     channelsVisited: 0,
                     totalVisits: 1,
-                    streak: 1,
-                    created: admin.firestore.FieldValue.serverTimestamp(),
-                }, patch));
+                    created: joinDate.timestampFromUserRecord(admin, authUser, nowMs)
+                        || admin.firestore.FieldValue.serverTimestamp(),
+                }, streakBoard.applyStreakUpdate({}, 1, nowMs, null), patch));
             } else {
+                if (!joinDate.hasJoin(current, nowMs)) {
+                    const born = joinDate.timestampFromUserRecord(admin, authUser, nowMs);
+                    if (born) patch.created = born;
+                }
                 tx.update(userRef, patch);
             }
             if (profileSnap.exists) {

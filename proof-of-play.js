@@ -170,6 +170,7 @@ function _injectPOPStyles() {
         }
         .pop-header {
             display: flex; align-items: center; justify-content: space-between;
+            gap: 8px; flex-wrap: wrap;
             padding: 10px 16px;
             background: #030712;
             border-bottom: 1px solid rgba(247,147,26,0.2);
@@ -494,6 +495,8 @@ window.enterProofOfPlay = function(startTab) {
     if (_popActive) return;
     _popActive = true;
     startTab = startTab || 'pvp';
+    window._popShareTab = startTab;
+    window._popActive = true;
 
     _injectPOPStyles();
 
@@ -504,7 +507,8 @@ window.enterProofOfPlay = function(startTab) {
     var overlay = document.createElement('div');
     overlay.id = 'popOverlay';
 
-    history.pushState({ overlay: 'pop' }, '', '#proof-of-play');
+    var popHash = (startTab && startTab !== 'pvp') ? ('#proof-of-play/' + startTab) : '#proof-of-play';
+    history.pushState({ overlay: 'pop' }, '', popHash);
     window.addEventListener('popstate', _popHandlePop, { once: true });
 
     overlay.innerHTML =
@@ -514,6 +518,7 @@ window.enterProofOfPlay = function(startTab) {
                 '<span style="font-size:1.2rem;">🕹️</span>' +
                 '<span style="font-size:0.95rem;font-weight:800;color:var(--heading);">Proof of Play</span>' +
             '</div>' +
+            '<button type="button" id="popShareBtn" data-mini-share="pop" onclick="if(window.miniAppShare)miniAppShare(\'pop\')" style="min-width:44px;min-height:44px;margin-left:auto;padding:8px 12px;border-radius:10px;border:1px solid rgba(247,147,26,0.55);background:#1a120b;color:#fff;font-weight:700;cursor:pointer;font-family:inherit;">Share</button>' +
             '<div class="pop-tabs">' +
                 '<button id="popTabPVP" class="pop-tab ' + (startTab === 'pvp' ? 'active' : '') + '" onclick="window._popSwitchTab(\'pvp\')">⚔️ PVP</button>' +
                 '<button id="popTabArcade" class="pop-tab ' + (startTab === 'arcade' ? 'active' : '') + '" onclick="window._popSwitchTab(\'arcade\')">🎮 Arcade</button>' +
@@ -542,9 +547,10 @@ window.enterProofOfPlay = function(startTab) {
 
 window.exitProofOfPlay = function() {
     _popActive = false;
+    window._popActive = false;
     var overlay = document.getElementById('popOverlay');
     if (overlay) overlay.remove();
-    if (window.location.hash === '#proof-of-play') {
+    if (window.location.hash.indexOf('#proof-of-play') === 0) {
         history.pushState({ home: true }, '', window.location.pathname);
     }
 };
@@ -554,6 +560,7 @@ function _popHandlePop() {
 }
 
 window._popSwitchTab = function(tab) {
+    window._popShareTab = tab;
     var body = document.getElementById('popBody');
     if (!body) return;
     document.getElementById('popTabArcade').classList.toggle('active', tab === 'arcade');
@@ -685,16 +692,26 @@ window._popEnterPVP = function() {
 
 // Hash routing
 window._popHandleHash = function(hash) {
-    if (hash === 'proof-of-play') {
+    var h = String(hash || '').replace(/^#/, '');
+    if (h.indexOf('proof-of-play/') === 0) {
+        var tab = h.slice('proof-of-play/'.length).split('/')[0];
+        var allowed = { arcade: 1, sat_arcade: 1, galaxy: 1, ryracer: 1, pvp: 1 };
+        if (!allowed[tab]) tab = 'arcade';
+        if (!_popActive) window.enterProofOfPlay(tab);
+        else window._popSwitchTab(tab);
+        return;
+    }
+    if (h === 'proof-of-play') {
         if (!_popActive) window.enterProofOfPlay('arcade');
-    } else if (hash === 'proof-of-play-pvp') {
+    } else if (h === 'proof-of-play-pvp') {
         if (!_popActive) window.enterProofOfPlay('pvp');
     }
 };
 
 document.addEventListener('DOMContentLoaded', function() {
     var h = window.location.hash.replace('#', '');
-    if (h === 'proof-of-play') window.enterProofOfPlay('arcade');
+    if (h.indexOf('proof-of-play/') === 0) window._popHandleHash(h);
+    else if (h === 'proof-of-play') window.enterProofOfPlay('arcade');
     else if (h === 'proof-of-play-pvp') window.enterProofOfPlay('pvp');
 });
 

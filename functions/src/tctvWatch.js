@@ -12,7 +12,7 @@
 // least 10 real minutes. The prize is once per uid per 5 AM UTC day.
 
 const rewardNotify = require('./rewardNotify');
-const { planDailyXp } = require('./dailyXp');
+const { planXpGrant } = require('./grantXp');
 const { offsetDateKey } = require('./offsetDay');
 const ticketGrants = require('./ticketGrants');
 const tctvPresence = require('../tctv-presence-lib');
@@ -96,13 +96,24 @@ function buildWatchNotice(uid, day, xp, tickets) {
 }
 
 // Same shape as planSayHiXp. Tickets are not capped by the daily XP ledger.
-function planWatchXp(dailyUsed, pendingOverflow, lastOverflowDate, today) {
+function planWatchXp(dailyUsed, pendingOverflow, lastOverflowDate, today, ctx) {
     void pendingOverflow;
     void lastOverflowDate;
     void today;
-    const split = planDailyXp(Number(dailyUsed) || 0, REWARD_XP);
+    const extra = ctx || {};
+    const split = planXpGrant({
+        base: REWARD_XP,
+        user: extra.user,
+        now: extra.now,
+        dailyUsed: Number(dailyUsed) || 0,
+    });
     return {
         awarded: split.awarded,
+        base: split.base,
+        boosted: split.boosted,
+        doubled: split.doubled === true,
+        until: split.until || 0,
+        dailyXp: split.dailyXp,
         overflowAdded: 0,
         overflowRedeemed: 0,
         pendingOverflow: 0,

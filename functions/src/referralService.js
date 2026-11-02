@@ -6,6 +6,7 @@
 const functionsV1 = require('firebase-functions/v1');
 const admin = require('firebase-admin');
 const referrals = require('./referrals');
+const referralTiers = require('../referral-tiers');
 const rewardNotify = require('./rewardNotify');
 const faucetGuard = require('./faucetGuard');
 const ipHmac = require('./ipHmac');
@@ -144,18 +145,36 @@ async function lookupReferrerUid(code, selfUid) {
     return '';
 }
 
+async function chooseReferralCode(uid, data) {
+    const stored = referrals.normalizeCode(data && data.referralCode);
+    if (stored) return stored;
+    const prefix = referrals.referralCodeForUid(uid);
+    if (prefix) return prefix;
+    if (!referrals.needsMintedReferralCode(uid)) return '';
+    for (let salt = 0; salt < 8; salt++) {
+        const candidate = referrals.mintedReferralCode(uid, salt);
+        const taken = await db().collection('referralCodes').doc(candidate).get();
+        const owner = taken.exists ? String((taken.data() || {}).uid || '') : '';
+        if (!owner || owner === uid) return candidate;
+    }
+    return '';
+}
+
 async function ensureReferralCode(uid) {
-    const code = referrals.referralCodeForUid(uid);
-    if (!code) return '';
     const userRef = db().collection('users').doc(uid);
+    const pre = await userRef.get();
+    if (!pre.exists) return '';
+    const code = await chooseReferralCode(uid, pre.data() || {});
+    if (!code) return '';
     const codeRef = db().collection('referralCodes').doc(code);
     await db().runTransaction(async function(t) {
         const [userDoc, codeDoc] = await Promise.all([t.get(userRef), t.get(codeRef)]);
         if (!userDoc.exists) return;
+        const owner = codeDoc.exists ? String((codeDoc.data() || {}).uid || '') : '';
+        if (owner && owner !== uid) return;
         if (userDoc.data().referralCode !== code) {
             t.update(userRef, { referralCode: code });
         }
-        const owner = codeDoc.exists ? (codeDoc.data().uid || '') : '';
         if (!owner) {
             t.set(codeRef, {
                 uid: uid,
@@ -164,6 +183,101 @@ async function ensureReferralCode(uid) {
         }
     });
     return code;
+}
+
+function arrivalFromDoc(snap) {
+    if (!snap || !snap.exists) return null;
+    const data = snap.data() || {};
+    const ms = millisOf(data.arrivedAt);
+    if (!ms) return null;
+    return {
+        ms: ms,
+        anonymous: data.anonymous === true,
+    };
+}
+
+async function readArrival(uid) {
+    if (!uid) return null;
+    const snap = await db().collection('referral_arrivals').doc(uid).get();
+    return arrivalFromDoc(snap);
+}
+
+async function recordReferralArrival(uid, data) {
+    const id = String(uid || '');
+    if (!id) return;
+    const ref = db().collection('referral_arrivals').doc(id);
+    let anonymous = false;
+    // A new Lightning login has no provider rows. That is a full account,
+    // not a guest, so the 100-point signup cap still applies.
+    if (!referrals.needsMintedReferralCode(id)) {
+        try {
+            const record = await admin.auth().getUser(id);
+            const providers = ((record && record.providerData) || []).map(function (row) {
+                return row && row.providerId ? String(row.providerId) : '';
+            }).filter(Boolean);
+            anonymous = providers.length === 0 || providers.every(function (provider) {
+                return provider === 'anonymous';
+            });
+        } catch (e) {
+            anonymous = false;
+        }
+    }
+    const fromDoc = millisOf(data && data.created);
+    await db().runTransaction(async function (t) {
+        const existing = await t.get(ref);
+        if (arrivalFromDoc(existing)) return;
+        t.set(ref, {
+            arrivedAt: fromDoc ? admin.firestore.Timestamp.fromMillis(fromDoc) : admin.firestore.FieldValue.serverTimestamp(),
+            anonymous: anonymous === true,
+        }, { merge: true });
+    });
+}
+
+// The guest clock is server-written. Copy it onto the upgraded account when
+// it is earlier, then tighten a not-yet-paid referral that no longer sits
+// inside the new-account window. Never loosens a late or rejected doc.
+async function adoptGuestArrival(guestUid, destUid) {
+    const guestId = referrals.normalizeGuestUid(guestUid);
+    const destId = String(destUid || '');
+    if (!guestId || !destId || guestId === destId) return;
+    const guest = await readArrival(guestId);
+    if (!guest) return;
+    const destRef = db().collection('referral_arrivals').doc(destId);
+    await db().runTransaction(async function (t) {
+        const snap = await t.get(destRef);
+        const have = arrivalFromDoc(snap);
+        if (have && have.ms <= guest.ms) return;
+        t.set(destRef, {
+            arrivedAt: admin.firestore.Timestamp.fromMillis(guest.ms),
+            anonymous: guest.anonymous === true,
+        }, { merge: true });
+    });
+    const referralRef = db().collection('referrals').doc(destId);
+    const referralSnap = await referralRef.get();
+    if (!referralSnap.exists) return;
+    const status = String((referralSnap.data() || {}).status || '');
+    if (status !== 'pending' && status !== 'flagged') return;
+    const userSnap = await db().collection('users').doc(destId).get();
+    const adopted = await readArrival(destId);
+    const profile = await authProfile(destId);
+    const start = referrals.referralWindowStart({
+        authCreatedMs: profile.createdMs,
+        serverArrivalMs: adopted && adopted.ms,
+    });
+    const fair = referrals.fairUpgradeWindow({
+        nowMs: Date.now(),
+        ownArrivalMs: adopted && adopted.ms,
+        ownAnonymous: !!(adopted && adopted.anonymous),
+    });
+    const gate = referrals.registrationGate({
+        nowMs: Date.now(),
+        createdMs: start,
+        points: userSnap.exists ? (userSnap.data() || {}).points : 0,
+        fairWindow: fair,
+    });
+    if (gate.ok) return;
+    if (gate.status !== 'late' && gate.status !== 'rejected') return;
+    await referralRef.set({ status: gate.status }, { merge: true });
 }
 
 function referralPayload(referredUid, referrerUid, code, status, flags) {
@@ -226,6 +340,7 @@ async function registerReferral(data, context) {
     const code = referrals.normalizeCode(data && data.refCode);
     if (!code) throw httpsError('invalid-argument', 'Referral code is missing');
     if (referrals.isSelfReferral(uid, code)) return { success: false, reason: 'self' };
+    // Client clocks are ignored. guestUid only names a doc the server wrote.
 
     const existingRef = await db().collection('referrals').doc(uid).get();
     if (existingRef.exists) return { success: false, reason: 'exists' };
@@ -253,7 +368,41 @@ async function registerReferral(data, context) {
         Object.assign(referred, patch.user);
         if (patch.ledger.banned) referred.ledgerBanned = true;
     }
-    const createdMs = accountTombstone.pulledCreatedMs(profile.createdMs, tomb.summary, now);
+    const authCreatedMs = accountTombstone.pulledCreatedMs(profile.createdMs, tomb.summary, now);
+    const ownArrival = await readArrival(uid);
+    const guestUid = referrals.normalizeGuestUid(data && data.guestUid);
+    let guestArrival = null;
+    let guestMergedHere = false;
+    if (guestUid && guestUid !== uid) {
+        guestArrival = await readArrival(guestUid);
+        if (guestArrival) {
+            const guestUser = await db().collection('users').doc(guestUid).get();
+            guestMergedHere = guestUser.exists && String((guestUser.data() || {}).mergedInto || '') === uid;
+        }
+    }
+    // A named guest clock counts once the server has merged that guest here,
+    // or while that guest is still inside the window. A stale id left in the
+    // browser does not pull a different account backward.
+    let guestClockMs = null;
+    if (guestArrival && guestMergedHere) guestClockMs = guestArrival.ms;
+    else if (guestArrival && guestArrival.anonymous === true) {
+        const age = now - guestArrival.ms;
+        if (age <= referrals.SIGNUP_WINDOW_MS && age >= -5 * 60 * 1000) guestClockMs = guestArrival.ms;
+    }
+    const createdMs = referrals.referralWindowStart({
+        authCreatedMs: authCreatedMs,
+        serverArrivalMs: ownArrival && ownArrival.ms,
+        guestArrivalMs: guestClockMs,
+    });
+    const fairWindow = referrals.fairUpgradeWindow({
+        nowMs: now,
+        uid: uid,
+        ownArrivalMs: ownArrival && ownArrival.ms,
+        ownAnonymous: !!(ownArrival && ownArrival.anonymous),
+        guestArrivalMs: guestMergedHere ? guestArrival.ms : null,
+        guestAnonymous: guestMergedHere ? guestArrival.anonymous === true : false,
+        guestMergedHere: guestMergedHere,
+    });
     const rawIp = requestIp(context);
     const linked = await linkedAccount(uid, referred, rawIp, now);
     const gate = referrals.registrationGate({
@@ -262,6 +411,7 @@ async function registerReferral(data, context) {
         points: referred.points,
         self: false,
         linked: linked.length > 0,
+        fairWindow: fairWindow,
     });
     if (!gate.record) {
         if (gate.reason === 'age-unknown') {
@@ -270,6 +420,7 @@ async function registerReferral(data, context) {
         return { success: false, reason: gate.reason, status: gate.status };
     }
 
+    if (referrals.normalizeCode(referred.referralCode) === code) return { success: false, reason: 'self' };
     await ensureReferralCode(uid);
     const referrerUid = await lookupReferrerUid(code, uid);
     let referrer = null;
@@ -323,9 +474,10 @@ async function registerReferral(data, context) {
             flags: flags,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-        const userUpdate = { referredBy: code, referralVerified: false };
-        t.update(userRef, userUpdate);
-        if (referrerRef && (status === 'pending' || status === 'flagged')) {
+        if (referrals.writesReferredBy(status)) {
+            t.update(userRef, { referredBy: code, referralVerified: false });
+        }
+        if (referrerRef && referrals.writesReferredBy(status)) {
             t.update(referrerRef, {
                 referralInvited: admin.firestore.FieldValue.increment(1),
             });
@@ -506,22 +658,145 @@ async function payIfQualified(referredUid) {
         }));
         outcome = { paid: true, reason: 'paid', ticketsEach: tickets, referrerUid: referrerUid };
     });
-    if (outcome && outcome.paid && outcome.referrerUid) {
+    if (outcome.paid && outcome.referrerUid && outcome.referrerUid !== uid) {
         try {
-            const { grantFamily, familyFor } = require('./grantBadge');
-            await grantFamily(db(), admin, outcome.referrerUid, familyFor('referralCount'));
+            const { samePerson } = require('./badgeProgress');
+            const referrerSnap = await db().collection('users').doc(outcome.referrerUid).get();
+            const referredSnap = await db().collection('users').doc(uid).get();
+            const left = Object.assign({}, referrerSnap.exists ? (referrerSnap.data() || {}) : {}, { uid: outcome.referrerUid });
+            const right = Object.assign({}, referredSnap.exists ? (referredSnap.data() || {}) : {}, { uid: uid });
+            if (!samePerson(left, right)) {
+                await require('./raidBossEngine').noteTrusted(db(), admin, {
+                    metric: 'referralsPaid',
+                    uid: outcome.referrerUid,
+                    dedupeKey: 'ref-' + uid,
+                    amount: 1,
+                    now: new Date(),
+                });
+            }
         } catch (e) {
-            console.warn('[referral] badges', e && e.message ? e.message : e);
+            console.warn('[referral] raid', e && e.message ? e.message : e);
         }
     }
     return outcome;
 }
 
+async function grantReferralBadges(uid) {
+    try {
+        const { grantFamily, familyFor } = require('./grantBadge');
+        await grantFamily(db(), admin, uid, familyFor('referralMaxiCount'));
+    } catch (e) {
+        console.warn('[referral] badges', e && e.message ? e.message : e);
+    }
+}
+
+async function readAll(refs) {
+    if (!refs.length) return [];
+    const firestore = db();
+    if (typeof firestore.getAll === 'function') return firestore.getAll.apply(firestore, refs);
+    const out = [];
+    for (let i = 0; i < refs.length; i++) out.push(await refs[i].get());
+    return out;
+}
+
+// Full recount. Credited referrals are the paid/verified/tickets stamp from
+// payIfQualified. The live count drops a referee who no longer holds Maxi or
+// who is banned, sats-disabled, ledger-banned, or deleted.
+async function countReferralMaxiFor(referrerUid) {
+    const uid = String(referrerUid || '');
+    if (!uid) return 0;
+    const snap = await db().collection('referrals').where('referrerUid', '==', uid).get();
+    const credited = [];
+    snap.forEach(function (doc) {
+        const data = Object.assign({ id: doc.id }, doc.data() || {});
+        if (!referralTiers.creditedReferral(data)) return;
+        const referredUid = referralTiers.referredUidOf(data);
+        if (!referredUid || referredUid === uid) return;
+        credited.push({ referral: data, referredUid: referredUid });
+    });
+    const rows = [];
+    const chunk = 30;
+    for (let i = 0; i < credited.length; i += chunk) {
+        const slice = credited.slice(i, i + chunk);
+        const userSnaps = await readAll(slice.map(function (row) {
+            return db().collection('users').doc(row.referredUid);
+        }));
+        const ledgerSnaps = await readAll(slice.map(function (row) {
+            return db().collection('faucet_ledger').doc(row.referredUid);
+        }));
+        for (let j = 0; j < slice.length; j++) {
+            const userSnap = userSnaps[j];
+            const ledgerSnap = ledgerSnaps[j];
+            rows.push({
+                referral: slice[j].referral,
+                referee: userSnap && userSnap.exists ? userSnap.data() : null,
+                ledger: ledgerSnap && ledgerSnap.exists ? ledgerSnap.data() : null,
+            });
+        }
+    }
+    return referralTiers.countCreditedMaxi(rows);
+}
+
+async function persistReferralMaxiCount(referrerUid) {
+    const uid = String(referrerUid || '');
+    if (!uid) return;
+    const userRef = db().collection('users').doc(uid);
+    const seen = await userRef.get();
+    if (!seen.exists) return;
+    const seenReferralCount = Number(seen.data().referralCount) || 0;
+    const count = await countReferralMaxiFor(uid);
+    let raced = false;
+    await db().runTransaction(async function (t) {
+        const snap = await t.get(userRef);
+        if (!snap.exists) return;
+        const data = snap.data() || {};
+        // A payout landed while this recount was reading. That payout's trigger
+        // recounts. Do not overwrite it with this snapshot.
+        if ((Number(data.referralCount) || 0) !== seenReferralCount) {
+            raced = true;
+            return;
+        }
+        if (data.referralMaxiCount === count) return;
+        if ((data.referralMaxiCount === undefined || data.referralMaxiCount === null) && count === 0) return;
+        t.update(userRef, { referralMaxiCount: count });
+    });
+    if (raced) return;
+    return count;
+}
+
+// Called from onUserWritten, which is exports.onUserReferral on users/{uid}.
+// Reaching Maxi, a ban, sats-disabled, and account deletion are user-doc
+// writes. There is no referrals-collection trigger for this count.
+async function syncReferralMaxiCount(uid, before, after) {
+    const deleted = !after;
+    const prev = before || {};
+    if (!deleted && (Number(prev.referralCount) || 0) !== (Number(after.referralCount) || 0)) {
+        const counted = await persistReferralMaxiCount(uid);
+        if (typeof counted === 'number') await grantReferralBadges(uid);
+    }
+    if (referralTiers.recountReasons(prev, deleted ? null : after).length) {
+        const referral = await db().collection('referrals').doc(uid).get();
+        if (!referral.exists) return;
+        const referrerUid = String((referral.data() || {}).referrerUid || '');
+        if (referrerUid && referrerUid !== uid) {
+            const counted = await persistReferralMaxiCount(referrerUid);
+            if (typeof counted === 'number') await grantReferralBadges(referrerUid);
+        }
+    }
+}
+
 async function onUserWritten(event) {
     const afterSnap = event.data && event.data.after;
-    if (!afterSnap || !afterSnap.exists) return null;
-    const uid = event.params.uid;
     const beforeSnap = event.data && event.data.before;
+    const uid = event.params.uid;
+    if (!afterSnap || !afterSnap.exists) {
+        try {
+            await syncReferralMaxiCount(uid, beforeSnap && beforeSnap.exists ? (beforeSnap.data() || {}) : {}, null);
+        } catch (err) {
+            console.warn('[onUserReferral] maxi count', err && err.message ? err.message : err);
+        }
+        return null;
+    }
     const created = !beforeSnap || beforeSnap.exists !== true;
     if (created) {
         try {
@@ -539,14 +814,28 @@ async function onUserWritten(event) {
     }
     const before = beforeSnap && beforeSnap.exists ? (beforeSnap.data() || {}) : {};
     const after = afterSnap.data() || {};
+    if (created) {
+        try {
+            await recordReferralArrival(uid, after);
+        } catch (err) {
+            console.warn('[onUserReferral] arrival', err && err.message ? err.message : err);
+        }
+    }
     try {
-        if (!after.referralCode) await ensureReferralCode(uid);
-        const crossed = referrals.crossedMaxi(before.points, after.points);
+        if (!referrals.normalizeCode(after.referralCode)) await ensureReferralCode(uid);
+        const beforeActivity = referrals.activityPoints(before);
+        const afterActivity = referrals.activityPoints(after);
+        const crossed = referrals.crossedMaxi(beforeActivity, afterActivity);
         const referredByNew = !!after.referredBy && after.referredBy !== before.referredBy;
-        const atMaxi = (Number(after.points) || 0) >= referrals.MAXI_POINTS;
+        const atMaxi = afterActivity >= referrals.MAXI_POINTS;
         if (crossed || (referredByNew && atMaxi)) await payIfQualified(uid);
     } catch (e) {
         console.error('[onUserReferral]', e && e.message ? e.message : e);
+    }
+    try {
+        await syncReferralMaxiCount(uid, before, after);
+    } catch (err) {
+        console.warn('[onUserReferral] maxi count', err && err.message ? err.message : err);
     }
     return null;
 }
@@ -598,6 +887,10 @@ module.exports = {
     onUserWritten: onUserWritten,
     scanPending: scanPending,
     ensureReferralCode: ensureReferralCode,
+    recordReferralArrival: recordReferralArrival,
+    adoptGuestArrival: adoptGuestArrival,
     lookupReferrerUid: lookupReferrerUid,
     deleteMyReferralSignal: deleteMyReferralSignal,
+    countReferralMaxiFor: countReferralMaxiFor,
+    persistReferralMaxiCount: persistReferralMaxiCount,
 };

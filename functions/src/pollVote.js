@@ -1,7 +1,7 @@
 'use strict';
 
 const POLL_BANK = require('./pollBank.json');
-const { planDailyXp } = require('./dailyXp');
+const { planXpGrant } = require('./grantXp');
 const { rewardBlocked } = require('./cipherClaim');
 const { grantFamily, offsetDateKey } = require('./grantBadge');
 
@@ -39,13 +39,18 @@ function createPollVote(opts) {
         const voteRef = db.collection('polls').doc(day).collection('votes').doc(uid);
         const proofRef = userRef.collection('daily_action_counts').doc(day + '_poll_vote');
         const dailyRef = userRef.collection('daily_points').doc(day);
-        const tallyRef = db.collection('poll_votes').doc((today.poll.id || 'poll') + '_' + day);
+        const tallyId = (today.poll.id || 'poll') + '_' + day;
+        const tallyRef = db.collection('poll_votes').doc(tallyId);
+        const cumulativeRef = db.collection('poll_cumulative').doc(tallyId);
         const ledgerRef = db.collection('faucet_ledger').doc(uid);
 
         const result = await db.runTransaction(async function (t) {
-            const [userSnap, voteSnap, dailySnap, tallySnap, ledgerSnap] = await Promise.all([
-                t.get(userRef), t.get(voteRef), t.get(dailyRef), t.get(tallyRef), t.get(ledgerRef),
+            const [userSnap, voteSnap, dailySnap, tallySnap, cumulativeSnap, ledgerSnap] = await Promise.all([
+                t.get(userRef), t.get(voteRef), t.get(dailyRef), t.get(tallyRef), t.get(cumulativeRef), t.get(ledgerRef),
             ]);
+            // cumulativeSnap pins poll_cumulative in this transaction. The
+            // increment below is applied only if the vote doc is still absent.
+            void cumulativeSnap;
             if (!userSnap.exists) throw new HttpsError('not-found', 'Profile not found');
             const user = userSnap.data() || {};
             const ledger = ledgerSnap.exists ? (ledgerSnap.data() || {}) : null;
@@ -56,7 +61,7 @@ function createPollVote(opts) {
             while (prevVotes.length < 4) prevVotes.push(0);
             prevVotes[chosen] = Number(prevVotes[chosen] || 0) + 1;
             const dailyUsed = dailySnap.exists ? Number(dailySnap.data().total || 0) : 0;
-            const split = planDailyXp(dailyUsed, POLL_XP);
+            const split = planXpGrant({ base: POLL_XP, user: user, now: Date.now(), dailyUsed: dailyUsed });
             const update = { pollDays: admin.firestore.FieldValue.increment(1), lastPollDate: day };
             if (split.awarded > 0) {
                 update.points = admin.firestore.FieldValue.increment(split.awarded);
@@ -85,11 +90,18 @@ function createPollVote(opts) {
                 total: prevVotes[0] + prevVotes[1] + prevVotes[2] + prevVotes[3],
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
+            const cumulativePatch = {
+                total: admin.firestore.FieldValue.increment(1),
+                pollId: today.poll.id || '',
+                day: day,
+            };
+            cumulativePatch['option_' + chosen] = admin.firestore.FieldValue.increment(1);
+            t.set(cumulativeRef, cumulativePatch, { merge: true });
             t.update(userRef, update);
             if (split.awarded > 0) {
-                t.set(dailyRef, { total: dailyUsed + split.awarded }, { merge: true });
+                t.set(dailyRef, { total: split.dailyXp }, { merge: true });
             }
-            return { already: false, day: day, awarded: split.awarded, votes: prevVotes };
+            return { already: false, day: day, awarded: split.awarded, doubled: split.doubled === true, votes: prevVotes };
         });
 
         if (!result.already && typeof opts.afterVote === 'function') {
@@ -101,7 +113,7 @@ function createPollVote(opts) {
             try { await grantFamily(db, admin, uid, ['poll_first', 'poll_10', 'poll_50', 'poll_100', 'poll_days_7', 'poll_days_30', 'poll_days_100'], { day: day }); }
             catch (err) { console.warn('[pollVote] badge grant skipped', err && err.message); }
         }
-        return { success: true, already: result.already === true, day: day, awarded: result.awarded || 0, pollIndex: today.index };
+        return { success: true, already: result.already === true, day: day, awarded: result.awarded || 0, doubled: result.doubled === true, pollIndex: today.index };
     };
 }
 

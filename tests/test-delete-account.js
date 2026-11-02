@@ -133,6 +133,7 @@ function createFakeDb(initial) {
             },
             listCollections: async function() {
                 listCalls.push(docPath);
+                if (db.omitListed === true) return [];
                 const prefix = docPath + '/';
                 const names = new Set();
                 for (const key of docs.keys()) {
@@ -441,6 +442,10 @@ function world() {
         'raid_daily_caps/u2_2026-10-22_chat': { contributed: 1 },
         'raid_deck_completions/b1_u1_deck': { uid: 'u1', deck: 'deck' },
         'raid_deck_completions/b1_u2_deck': { uid: 'u2', deck: 'deck' },
+        'raid_damage_events/2026-11_u1_chat-1': { uid: 'u1', metric: 'chatMessages' },
+        'raid_damage_events/2026-11_u2_chat-1': { uid: 'u2', metric: 'chatMessages' },
+        'raid_forum_pending/forum-u1': { uid: 'u1', status: 'pending' },
+        'raid_forum_pending/forum-u2': { uid: 'u2', status: 'pending' },
         'action_cooldowns/u1_chat_message': { t: 1 },
         'action_cooldowns/u2_chat_message': { t: 1 },
         'rate_limits/bridge_u1': { n: 1 },
@@ -779,6 +784,10 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.get('raid_bosses/old/participants/u1').contributed, 1);
         assert.strictEqual(db.docs.has('raid_deck_completions/b1_u1_deck'), false);
         assert.ok(db.docs.has('raid_deck_completions/b1_u2_deck'));
+        assert.strictEqual(db.docs.has('raid_damage_events/2026-11_u1_chat-1'), false);
+        assert.ok(db.docs.has('raid_damage_events/2026-11_u2_chat-1'));
+        assert.strictEqual(db.docs.has('raid_forum_pending/forum-u1'), false);
+        assert.ok(db.docs.has('raid_forum_pending/forum-u2'));
         assert.strictEqual(db.docs.has('shoutout_claims/claim1'), false);
         assert.ok(db.docs.has('shoutout_claims/claim2'));
         assert.strictEqual(db.docs.has('shoutout_limits/forum_u1'), false);
@@ -919,7 +928,7 @@ function auth(uid, extras) {
     test('the client calls the server wipe and does not delete Firestore itself', function() {
         const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
         assert.ok(ranking.includes('z-index:450000'));
-        assert.ok(ranking.includes('z-index:490000'));
+        assert.ok(ranking.includes('z-index:2200010'));
         assert.ok(ranking.includes('html += accountEmailCardHtml(user)'));
         assert.ok(ranking.includes('html += accountDeleteRowHtml(user)'));
         assert.ok(ranking.includes('id="accountEmailCard"'));
@@ -956,7 +965,7 @@ function auth(uid, extras) {
         assert.ok(privacy.includes('50 Orange Tickets') === false || privacy.includes('referral') );
         // The reward sentence in the terms is unchanged. Privacy still describes the check.
         const terms = fs.readFileSync(path.join(root, 'terms.html'), 'utf8');
-        assert.ok(terms.includes('The referral reward at Maxi is 50 Orange Tickets for the person who shared the link and 50 Orange Tickets for the referred account.'));
+        assert.ok(terms.includes('The referral reward is 50 Orange Tickets for the person who shared the link and 50 Orange Tickets for the referred account.'));
         assert.ok(terms.includes('Settings includes a referral card with your personal link and a copy button.'));
         assert.strictEqual(terms.includes('You can mark a notice read or delete it'), false);
         assert.ok(terms.includes('You can mark a notice read.'));
@@ -1690,6 +1699,34 @@ function auth(uid, extras) {
         process.env.DELETION_HMAC_SECRET = prev;
     });
 
+    await testAsync('article XP markers stay without the account id, and daily article counters are deleted', async function() {
+        const db = createFakeDb(world());
+        db.docs.set('users/u1/article_publish_days/2026-10-26', { count: 2, uid: 'u1', day: '2026-10-26' });
+        db.docs.set('article_xp/a1', { uid: 'u1', awarded: 30, reason: 'paid', reversed: false });
+        db.docs.set('article_xp/other', { uid: 'u2', awarded: 30, reason: 'paid', reversed: false });
+        const handlers = del.createDeleteAccountHandlers({
+            db: db,
+            bucket: createBucket([]),
+            authApi: okAuth(db),
+            HttpsError: HttpsError,
+            nowSec: function() { return 1000 + del.REAUTH_MAX_AGE_SEC; },
+            nowMs: function() { return 5000; },
+            documentIdField: '__name__',
+            ipSecret: 'unit-secret-article-xp',
+        });
+        await handlers.deleteAccount({}, { auth: auth('u1'), rawRequest: { headers: {} } });
+        assert.strictEqual(db.docs.has('users/u1/article_publish_days/2026-10-26'), false);
+        const marker = db.docs.get('article_xp/a1');
+        assert.ok(marker);
+        assert.strictEqual(marker.uid, '');
+        assert.strictEqual(marker.awarded, 30);
+        assert.strictEqual(marker.reason, 'paid');
+        assert.strictEqual(db.docs.get('article_xp/other').uid, 'u2');
+        const src = fs.readFileSync(path.join(root, 'functions', 'src', 'deleteAccount.js'), 'utf8');
+        assert.ok(src.includes("'article_publish_days'"));
+        assert.ok(src.includes("collection('article_xp').where('uid', '==', uid)"));
+    });
+
     await testAsync('posts other people replied to are anonymized and the rest are deleted', async function() {
         const db = createFakeDb(world());
         db.docs.set('forum_replies/fromBob', { authorId: 'u2', postId: 'p1', body: 'still here', parentReplyId: '' });
@@ -1842,6 +1879,41 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.get('forum_posts/legacy').authorId, 'deleted');
         assert.ok(db.docs.has('forum_posts/nested/replies/r1'));
         assert.ok(db.docs.has('articles/nestedA/comments/c1'));
+    });
+
+    await testAsync('cert_bonuses and xp_ledger are deleted by name when listCollections is empty', async function() {
+        assert.ok(del.USER_SUBCOLLECTIONS.indexOf('cert_bonuses') !== -1);
+        assert.ok(del.USER_SUBCOLLECTIONS.indexOf('xp_ledger') !== -1);
+        assert.ok(del.CAP_SUBCOLLECTIONS.indexOf('cert_bonuses') === -1);
+        assert.ok(del.CAP_SUBCOLLECTIONS.indexOf('xp_ledger') === -1);
+        assert.ok(del.RETAINED_COLLECTIONS.indexOf('cert_bonuses') === -1);
+        assert.ok(del.RETAINED_COLLECTIONS.indexOf('xp_ledger') === -1);
+        const db = createFakeDb({
+            'users/u1': { username: 'Ada', points: 10 },
+            'users/u1/cert_bonuses/prop': { amount: 2100, source: 'cert_bonus' },
+            'users/u1/xp_ledger/cert_bonus_prop': { amount: 2100, source: 'cert_bonus' },
+            'users/u2': { username: 'Bea' },
+            'users/u2/cert_bonuses/prop': { amount: 2100 },
+            'users/u2/xp_ledger/cert_bonus_prop': { amount: 2100 },
+        });
+        db.omitListed = true;
+        const handlers = del.createDeleteAccountHandlers({
+            db: db,
+            bucket: createBucket([]),
+            authApi: okAuth(db),
+            HttpsError: HttpsError,
+            nowSec: function() { return 1000 + del.REAUTH_MAX_AGE_SEC; },
+            nowMs: function() { return 5000; },
+            documentIdField: '__name__',
+            ipSecret: 'unit-secret-cert-ledger',
+        });
+        await handlers.deleteAccount({}, { auth: auth('u1'), rawRequest: { headers: {} } });
+        assert.ok(db.listCalls.indexOf('users/u1') !== -1);
+        assert.strictEqual(db.docs.has('users/u1/cert_bonuses/prop'), false);
+        assert.strictEqual(db.docs.has('users/u1/xp_ledger/cert_bonus_prop'), false);
+        assert.strictEqual(db.docs.has('users/u1'), false);
+        assert.ok(db.docs.has('users/u2/cert_bonuses/prop'));
+        assert.ok(db.docs.has('users/u2/xp_ledger/cert_bonus_prop'));
     });
 
     await testAsync('the hash limit names the sign-in, and the delete overlay scrolls', async function() {

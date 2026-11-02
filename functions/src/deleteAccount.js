@@ -94,6 +94,11 @@ const USER_SUBCOLLECTIONS = [
     'proof_of_walk_stats',
     'shop_purchases',
     'notifications',
+    // Daily article counters live on the profile. They are not the anti-replay
+    // lock. article_xp stays, with the account id cleared.
+    'article_publish_days',
+    'cert_bonuses',
+    'xp_ledger',
 ];
 
 // Dedupe rows. Removed only after the Auth user is deleted, with the caps.
@@ -103,6 +108,7 @@ const DEFERRED_USER_SUBCOLLECTIONS = [
     'proof_of_walk_stats',
     'quest_completions',
     'quest_passes',
+    'quest_attempts',
     'lifetime_awards',
     'onboarding_evidence',
 ];
@@ -131,6 +137,8 @@ const RETAINED_COLLECTIONS = [
     'reports',
     'prediction_payouts',
     'prediction_records',
+    // Deleting the prize marker would let a later retry pay that period again.
+    'lb_prize_markers',
     'deleted_accounts',
 ];
 
@@ -173,6 +181,8 @@ const DELETION_QUERIES = [
     ['pvp_matches', 'player1.uid', '==', []],
     ['pvp_matches', 'player2.uid', '==', []],
     ['certs', 'uid', '==', []],
+    ['cert_owners', 'uid', '==', []],
+    ['cert_by_user', 'uid', '==', []],
     ['gifts', 'ownerId', '==', []],
     ['gift_secrets', 'ownerId', '==', []],
     ['usernames', 'uid', '==', []],
@@ -186,6 +196,8 @@ const DEFERRED_QUERIES = [
     ['scholar_exam_keys', 'uid', '==', []],
     ['shoutout_claims', 'authorUid', '==', []],
     ['raid_deck_completions', 'uid', '==', []],
+    ['raid_damage_events', 'uid', '==', []],
+    ['raid_forum_pending', 'uid', '==', []],
     ['reply_bonus_pairs', 'replierUid', '==', []],
     ['reply_bonus_pairs', 'targetUid', '==', []],
     ['reply_bonus_claims', 'uid', '==', []],
@@ -232,6 +244,7 @@ const CONTENT_LOOKUPS = [
     ['forum_replies', 'postId', '==', []],
     ['forum_replies', 'parentReplyId', '==', []],
     ['articles', 'authorId', '==', []],
+    ['article_xp', 'uid', '==', []],
     ['article_replies', 'authorId', '==', []],
     ['article_replies', 'articleId', '==', []],
     ['article_replies', 'parentReplyId', '==', []],
@@ -1013,6 +1026,18 @@ async function settleAuthoredDoc(db, batcher, doc, uid, replyDocs, documentIdFie
     return 'delete';
 }
 
+// The marker document stays so the same article id cannot pay again.
+// Only the account id is removed.
+async function clearArticleXpUid(db, batcher, uid, documentIdField) {
+    const docs = await collectDocs(
+        db.collection('article_xp').where('uid', '==', uid),
+        documentIdField
+    );
+    for (let i = 0; i < docs.length; i++) {
+        await batcher.update(docs[i].ref, { uid: '' });
+    }
+}
+
 async function anonymizeOrDeleteAuthored(db, batcher, uid, documentIdField) {
     const posts = await collectDocs(
         db.collection('forum_posts').where('authorId', '==', uid),
@@ -1242,6 +1267,7 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
     await removeBeatsLikes(db, batcher, uid, documentIdField);
     await deleteTopicPosts(db, batcher, uid, documentIdField);
     await anonymizeOrDeleteAuthored(db, batcher, uid, documentIdField);
+    await clearArticleXpUid(db, batcher, uid, documentIdField);
     await dropPendingCipherReveals(db, batcher, uid, documentIdField);
 
     let deletedDocs = 0;
@@ -1249,6 +1275,15 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         const q = DELETION_QUERIES[i];
         if (q[0] === 'gifts' || q[0] === 'gift_secrets' || q[0] === 'usernames') continue;
         const found = await deleteWhere(db, batcher, q[0], q[1], q[2], uid, q[3], documentIdField);
+        if (q[0] === 'cert_owners') {
+            for (let c = 0; c < found.length; c++) {
+                const row = found[c].data() || {};
+                const certId = String(row.certId || found[c].id || '');
+                if (certId && certId.indexOf('/') === -1) {
+                    await batcher.remove(db.collection('certs').doc(certId));
+                }
+            }
+        }
         deletedDocs += found.length;
     }
     await deleteOwnedGifts(db, batcher, uid, documentIdField);
@@ -1279,6 +1314,7 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         ['giveaway_entries', uid, []],
         ['active_predictions', uid, []],
         ['prediction_stats', uid, []],
+        ['quest_lb_stats', uid, []],
         ['tctv_presence', uid, []],
         ['buddy_pool', uid, []],
         ['pvp_lobby', uid, []],

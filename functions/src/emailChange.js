@@ -1,10 +1,12 @@
 'use strict';
 
 // Email change. prepareEmailChange records an HMAC of the new address after
-// a fresh sign-in and authenticator step-up. The client then calls
-// verifyBeforeUpdateEmail. reconcileEmail copies the verified Auth email onto
-// users/{uid}. Every real email or provider-set change holds sats for 72 hours.
-// Nothing here logs an email address.
+// a fresh sign-in and authenticator step-up, plus a claim so another uid cannot
+// take it. The client then calls verifyBeforeUpdateEmail, or links an email
+// sign-in link onto the signed-in Lightning account. reconcileEmail copies the
+// verified Auth email onto users/{uid} only when no other account already has it.
+// A Lightning account's first email must match that claim. Every real email or
+// provider-set change holds sats for 72 hours. Nothing here logs an email address.
 
 const accountTombstone = require('./accountTombstone');
 
@@ -184,6 +186,125 @@ async function appendHashes(db, collectionName, uid, hashes, nowMs) {
 // providersKnown is true only when authUser is the record getUser returned.
 // A missing or token-built user has no provider list, and an empty list then
 // is not a removal.
+function keepsSignInWithoutPassword(uid, providerData) {
+    // A Lightning custom token is a sign-in method even when providerData is
+    // only the email link. Any other account must keep a non-password provider.
+    if (String(uid || '').indexOf('ln:') === 0) return true;
+    const rows = Array.isArray(providerData) ? providerData : [];
+    for (let i = 0; i < rows.length; i++) {
+        const id = rows[i] && rows[i].providerId;
+        if (id && id !== 'password' && id !== 'anonymous') return true;
+    }
+    return false;
+}
+
+async function detachAuthEmail(authApi, uid) {
+    // Only a Lightning account can lose an email that was never claimed for it.
+    // Unlinking password on anyone else can delete their only sign-in.
+    if (String(uid || '').indexOf('ln:') !== 0) return;
+    if (!authApi || typeof authApi.updateUser !== 'function') return;
+    let providers = null;
+    if (typeof authApi.getUser === 'function') {
+        try {
+            const rec = await authApi.getUser(uid);
+            providers = rec && Array.isArray(rec.providerData) ? rec.providerData : [];
+        } catch (e) {
+            providers = null;
+        }
+    }
+    if (providers && !keepsSignInWithoutPassword(uid, providers)) return;
+    try {
+        await authApi.updateUser(uid, { providersToUnlink: ['password'] });
+        return;
+    } catch (e) { /* password provider may already be gone */ }
+    if (!keepsSignInWithoutPassword(uid, providers || [])) return;
+    try {
+        await authApi.updateUser(uid, { email: null, emailVerified: false });
+    } catch (e2) { /* the profile write is still refused */ }
+}
+
+async function otherProfileHasEmail(db, uid, hash) {
+    if (!hash || !db || typeof db.collection !== 'function') return false;
+    const users = db.collection('users');
+    if (!users || typeof users.where !== 'function') return false;
+    let query = users.where('emailHash', '==', hash);
+    if (query && typeof query.limit === 'function') query = query.limit(5);
+    const snap = await query.get();
+    let other = false;
+    if (snap && typeof snap.forEach === 'function') {
+        snap.forEach(function (doc) {
+            if (doc && doc.id && doc.id !== uid) other = true;
+        });
+    }
+    return other;
+}
+
+async function readActiveClaim(db, hash, nowMs) {
+    if (!hash || !db || typeof db.collection !== 'function') return null;
+    const ref = db.collection('email_link_claims').doc(hash);
+    if (!ref || typeof ref.get !== 'function') return null;
+    const snap = await ref.get();
+    if (!snap || !snap.exists) return null;
+    const claim = snap.data() || {};
+    if (!claim.uid || millisOf(claim.expireAt) <= nowMs) return null;
+    return { uid: claim.uid, hash: hash };
+}
+
+async function claimantOwnsEmail(authApi, claimUid, email) {
+    if (!authApi || typeof authApi.getUser !== 'function' || !claimUid) return false;
+    try {
+        const rec = await authApi.getUser(claimUid);
+        const theirs = accountTombstone.normalizeEmail(rec && rec.email);
+        return !!(rec && rec.emailVerified === true && theirs && theirs === accountTombstone.normalizeEmail(email));
+    } catch (e) {
+        return false;
+    }
+}
+
+async function claimsForUid(db, uid) {
+    const out = [];
+    if (!uid || !db || typeof db.collection !== 'function') return out;
+    const col = db.collection('email_link_claims');
+    if (!col || typeof col.where !== 'function') return out;
+    const snap = await col.where('uid', '==', uid).get();
+    if (snap && typeof snap.forEach === 'function') {
+        snap.forEach(function (doc) {
+            if (doc && doc.id) out.push(doc.id);
+        });
+    }
+    return out;
+}
+
+async function releasePreviousClaims(db, uid, keepHash) {
+    const pendingSnap = await db.collection('email_change_pending').doc(uid).get();
+    const pending = pendingSnap && pendingSnap.exists ? (pendingSnap.data() || {}) : null;
+    const prev = pending && pending.emailHmac;
+    if (prev && prev !== keepHash) await releaseEmailClaim(db, uid, prev);
+    const rows = await claimsForUid(db, uid);
+    for (let i = 0; i < rows.length; i++) {
+        if (rows[i] && rows[i] !== keepHash) await releaseEmailClaim(db, uid, rows[i]);
+    }
+}
+
+async function lightningFirstLinkOk(db, uid, hash, nowMs) {
+    const prepSnap = await db.collection('email_change_pending').doc(uid).get();
+    const prep = prepSnap && prepSnap.exists ? (prepSnap.data() || {}) : null;
+    if (prep && prep.emailHmac === hash && millisOf(prep.expireAt) > nowMs) return true;
+    const claimSnap = await db.collection('email_link_claims').doc(hash).get();
+    const claim = claimSnap && claimSnap.exists ? (claimSnap.data() || {}) : null;
+    return !!(claim && claim.uid === uid && millisOf(claim.expireAt) > nowMs);
+}
+
+async function releaseEmailClaim(db, uid, hash) {
+    if (!hash || !db || typeof db.collection !== 'function') return;
+    try {
+        const ref = db.collection('email_link_claims').doc(hash);
+        const snap = await ref.get();
+        const claim = snap && snap.exists ? (snap.data() || {}) : null;
+        if (claim && claim.uid === uid && typeof ref.delete === 'function') await ref.delete();
+    } catch (e) { /* expiry still bounds a leftover claim */ }
+}
+
 async function reconcileEmail(db, authApi, uid, authUser, nowMs, token, providersKnown) {
     const clock = Number(nowMs) || Date.now();
     if (!uid || !accountTombstone.secretReady()) return { ok: true, skipped: true, changed: false, hold: false, tomb: null };
@@ -221,6 +342,43 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs, token, provider
         await accountTombstone.applyIdentityFlags(db, uid, looked.summary);
     }
 
+    if (nextHash) {
+        let blocked = false;
+        let authOwner = '';
+        if (authApi && typeof authApi.getUserByEmail === 'function') {
+            try {
+                const existing = await authApi.getUserByEmail(verified);
+                authOwner = existing && existing.uid ? existing.uid : '';
+                if (authOwner && authOwner !== uid) blocked = true;
+            } catch (err) {
+                if (!userNotFound(err)) {
+                    return { ok: false, conflict: true, changed: false, hold: false, skipped: true, tomb: looked };
+                }
+            }
+        }
+        if (!blocked && await otherProfileHasEmail(db, uid, nextHash)) blocked = true;
+        if (!blocked) {
+            const reservation = await readActiveClaim(db, nextHash, clock);
+            if (reservation && reservation.uid !== uid) {
+                // prepareEmailChange only reserves an address. The Auth user who
+                // verified it, including an email-link signup, wins and the
+                // reservation is dropped. The claim blocks only when that other
+                // account already has the verified address.
+                const reserved = await claimantOwnsEmail(authApi, reservation.uid, verified);
+                if (authOwner === uid || !reserved) await releaseEmailClaim(db, reservation.uid, nextHash);
+                else blocked = true;
+            }
+        }
+        if (!blocked && !prevHash && String(uid).indexOf('ln:') === 0) {
+            const allowed = await lightningFirstLinkOk(db, uid, nextHash, clock);
+            if (!allowed) blocked = true;
+        }
+        if (blocked) {
+            await detachAuthEmail(authApi, uid);
+            return { ok: false, conflict: true, changed: false, hold: false, skipped: true, tomb: looked };
+        }
+    }
+
     if (!emailChanged && !seedMismatch && !providerChanged) {
         const seed = {};
         if (!prevHash && nextHash) {
@@ -232,6 +390,7 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs, token, provider
             seed.providerHashes = nextProviderIds;
         }
         if (Object.keys(seed).length) await userRef.set(seed, { merge: true });
+        if (seed.emailHash) await releaseEmailClaim(db, uid, nextHash);
         return {
             ok: true,
             changed: false,
@@ -254,6 +413,7 @@ async function reconcileEmail(db, authApi, uid, authUser, nowMs, token, provider
         patch.providerHashes = [NO_PROVIDERS];
     }
     await userRef.set(patch, { merge: true });
+    if (patch.emailHash) await releaseEmailClaim(db, uid, nextHash);
 
     // Only a previously verified hash is history. A legacy users.email was
     // never verified, so its hash is not stored and cannot become a tombstone.
@@ -318,6 +478,9 @@ async function beginPayout(db, authApi, uid, authUser, nowMs, token, providersKn
     }
     const clock = Number(nowMs) || Date.now();
     const reconciled = await reconcileEmail(db, authApi, uid, authUser, clock, token, providersKnown);
+    if (reconciled && reconciled.conflict) {
+        return { ok: false, conflict: true, error: CANT_USE, tomb: reconciled.tomb || null };
+    }
     const tomb = reconciled && reconciled.tomb;
     let holdUntil = Number(reconciled && reconciled.holdUntil) || 0;
     try {
@@ -401,6 +564,18 @@ function createEmailChangeHandlers(options) {
             }
             const emailHmac = accountTombstone.emailHmac(email);
             if (!emailHmac) throw httpsError(HttpsError, 'failed-precondition', TRY_LATER);
+            const claimRef = db.collection('email_link_claims').doc(emailHmac);
+            const claimSnap = await claimRef.get();
+            const claim = claimSnap && claimSnap.exists ? (claimSnap.data() || {}) : null;
+            if (claim && claim.uid && claim.uid !== uid && millisOf(claim.expireAt) > clock) {
+                throw httpsError(HttpsError, 'invalid-argument', CANT_USE);
+            }
+            await releasePreviousClaims(db, uid, emailHmac);
+            await claimRef.set({
+                uid: uid,
+                expireAt: new Date(clock + PREP_TTL_MS),
+                createdAt: clock,
+            });
             await db.collection('email_change_pending').doc(uid).set({
                 emailHmac: emailHmac,
                 expireAt: new Date(clock + PREP_TTL_MS),
@@ -492,15 +667,17 @@ function bindEmailChange(functionsV1, admin, db, deletionHmacSecret) {
         authApi: admin.auth(),
         HttpsError: functionsV1.https.HttpsError,
     });
-    function onCall(handler) {
-        return functionsV1.runWith({
+    function onCall(handler, warm) {
+        var opts = {
             enforceAppCheck: true,
             secrets: [secret],
-        }).https.onCall(handler);
+        };
+        if (warm === true) opts.minInstances = 1;
+        return functionsV1.runWith(opts).https.onCall(handler);
     }
     return {
         prepareEmailChange: onCall(handlers.prepareEmailChange),
-        syncEmailChange: onCall(handlers.syncEmailChange),
+        syncEmailChange: onCall(handlers.syncEmailChange, true),
         confirmAccountLink: onCall(handlers.confirmAccountLink),
     };
 }

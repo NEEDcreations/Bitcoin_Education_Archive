@@ -5,9 +5,13 @@
 # ranking.js and quests.js are loaded as separate async scripts (not bundled).
 # ranking.js: 524 KB — auth/leaderboard, priority async after bundle
 # quests.js: 881 KB — quest hub, lazy-loaded on first tap
-SOURCES="channel_index.js utils.js badges.catalog.js badge-search.js badges.js tickets.js engagement.js nacho-live.js nacho.js nacho-engage.js nacho-closet.js forum.js marketplace.js messaging.js features.js mobile-ux.js bitcoin-dashboard.js usermap.js app.js topic-discussions.js ux-patches.js"
+SOURCES="channel_index.js utils.js raid-hp.js badges.catalog.js badge-search.js badges.js tickets.js engagement.js nacho-live.js nacho.js nacho-engage.js nacho-closet.js forum.js marketplace.js messaging.js features.js mobile-ux.js bitcoin-dashboard.js usermap.js app.js topic-discussions.js ux-patches.js quest-defer.js"
 # Extracted from bundle (lazy-loaded separately): nacho-qa.js (524KB), scholar.js (298KB), beats.js (174KB), irl-sync.js (31KB)
 # PVP is lazy-loaded — not included in bundle, served as separate file
+
+# Browser copy of the invite-tier module. The source lives in functions/
+# so a Cloud Functions deploy, which uploads only that directory, can load it.
+cp functions/referral-tiers.js referral-tiers.js
 
 echo "📦 Building bundle from source files..."
 cat $SOURCES > bundle.src.js

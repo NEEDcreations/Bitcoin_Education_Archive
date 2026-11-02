@@ -23,7 +23,7 @@ const GUEST_CHANNEL_CAP = 200;
 const NONCE_MAX_AGE_MS = 30 * 60 * 1000;
 const GUEST_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-const { planDailyXp } = require('./dailyXp');
+const { planXpGrant } = require('./grantXp');
 
 function normalizeMode(mode) {
     if (mode === 'beginner' || mode === 'intermediate' || mode === 'advanced') return mode;
@@ -129,9 +129,19 @@ function planGuestMerge(input) {
 // A guest-point merge does not call this. Weekly and monthly use the awarded part.
 function planDailyGrant(input) {
     const src = input || {};
-    const split = planDailyXp(Number(src.dailyUsed) || 0, Number(src.amount) || 0);
+    const split = planXpGrant({
+        base: Number(src.amount) || 0,
+        user: src.user,
+        now: src.now,
+        dailyUsed: Number(src.dailyUsed) || 0,
+    });
     return {
         awarded: split.awarded,
+        base: split.base,
+        boosted: split.boosted,
+        doubled: split.doubled === true,
+        until: split.until || 0,
+        dailyXp: split.dailyXp,
         overflowAdded: 0,
         overflowRedeemed: 0,
         pendingOverflow: 0,

@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 'use strict';
 
-// Copies the client trivia, quiz, and learning-quest banks into
-// functions/reward-banks.json. Cloud Functions grade from that file.
+// Copies quiz and learning-quest banks into functions/reward-banks.json.
+// Trivia rows in that file are questions and options only. The answer key
+// is not written here. answerTrivia loads it from Firestore at runtime.
+// This script also writes data/trivia-bank.js with questions and options only.
 // build.sh runs this. tests/test-quest-reward.js fails if the committed
-// file drifts from the client sources.
+// file drifts from those sources.
 //
 // When the committed bank differs from the fresh build, the previous
 // committed bank is saved as functions/reward-banks.prev.json with
@@ -82,8 +84,23 @@ function questRows(list) {
     return rows;
 }
 
+function triviaPublic(list) {
+    if (!Array.isArray(list)) return [];
+    return list.map(function(item) {
+        return {
+            q: item && item.q,
+            options: item && Array.isArray(item.options) ? item.options.slice() : [],
+        };
+    });
+}
+
+function publicTriviaBody(trivia) {
+    return '// Questions and options only. answerTrivia grades the choice and then returns the explanation.\n'
+        + 'var TRIVIA_BANK=' + JSON.stringify(triviaPublic(trivia)) + ';\n';
+}
+
 function buildBanks() {
-    const triviaSrc = fs.readFileSync(path.join(ROOT, 'data', 'trivia-bank.js'), 'utf8');
+    const triviaSrc = fs.readFileSync(path.join(__dirname, 'src', 'trivia-bank.js'), 'utf8');
     const trivia = evalSource(triviaSrc, 'TRIVIA_BANK');
     if (!Array.isArray(trivia) || !trivia.length) throw new Error('TRIVIA_BANK missing');
 
@@ -103,10 +120,10 @@ function buildBanks() {
         if (!item || typeof item.q !== 'string' || !Array.isArray(item.options) || item.options.length !== 4) {
             throw new Error('Malformed trivia question at ' + i);
         }
-        if (!Number.isInteger(item.answer) || item.answer < 0 || item.answer > 3) {
-            throw new Error('Trivia answer out of range at ' + i);
-        }
-        return { q: item.q, options: item.options.slice(), answer: item.answer };
+        return {
+            q: item.q,
+            options: item.options.slice(),
+        };
     });
 
     const quests = {};
@@ -127,7 +144,7 @@ function buildBanks() {
 
 function bankBody(doc) {
     if (!doc || !Array.isArray(doc.trivia) || !doc.quests || !doc.learning) return null;
-    return { trivia: doc.trivia, quests: doc.quests, learning: doc.learning };
+    return { trivia: triviaPublic(doc.trivia), quests: doc.quests, learning: doc.learning };
 }
 
 // Previous committed banks, kept for GRACE_MS after a content change.
@@ -156,6 +173,7 @@ function main() {
     const committed = readJson(OUT);
     const existingPrev = readJson(PREV);
     const prev = snapshotPrevious(committed, banks, Date.now(), existingPrev);
+    fs.writeFileSync(path.join(ROOT, 'data', 'trivia-bank.js'), publicTriviaBody(banks.trivia));
     fs.writeFileSync(OUT, JSON.stringify(banks));
     if (prev && prev !== existingPrev) fs.writeFileSync(PREV, JSON.stringify(prev));
     const questCount = Object.keys(banks.quests).reduce(function(n, key) {
@@ -170,4 +188,10 @@ function main() {
 
 if (require.main === module) main();
 
-module.exports = { buildBanks: buildBanks, snapshotPrevious: snapshotPrevious, GRACE_MS: GRACE_MS };
+module.exports = {
+    buildBanks: buildBanks,
+    snapshotPrevious: snapshotPrevious,
+    publicTriviaBody: publicTriviaBody,
+    triviaPublic: triviaPublic,
+    GRACE_MS: GRACE_MS,
+};

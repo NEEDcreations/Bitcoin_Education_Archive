@@ -7,12 +7,18 @@
 // This module never writes pendingOverflow.
 //
 // applyDailyXp(uid, amount, tx, opts) is the hook other grants call inside
-// their transaction. Badge grants use the same hook. The taper itself is
-// dailyXp.planDailyXp.
-// { bypass: true } grants the full amount and does not read or write the
-// daily counter. One-time backfills, including the badge XP backfill, pass that.
+// their transaction. The amount is the base XP. planXpGrant doubles it once
+// while the server Double XP window is open, then the taper runs on the
+// doubled amount. That is the same order key sends and tips use.
+// Pass opts.user when the profile was already read. Otherwise the user doc
+// is read here, before any write this function performs (it does not write).
+// { bypass: true } is a historical backfill: the full base is granted, the
+// daily counter is not touched, and the window is not applied.
+// { boost: false } skips the window without skipping the taper.
+// kind other than 'xp' is not doubled and is not tapered.
 
 const { planDailyXp, DAILY_CAP, TAPER_FULL_UNTIL, TAPER_HALF_UNTIL } = require('./dailyXp');
+const { planXpGrant } = require('./grantXp');
 
 const DAILY_XP_CAP = DAILY_CAP;
 
@@ -29,21 +35,55 @@ function planBadgeDailyXp(dailyUsed, pts) {
     return planDailyXp(dailyUsed, pts);
 }
 
+function emptyBypass(want) {
+    return {
+        awarded: want,
+        base: want,
+        boosted: want,
+        doubled: false,
+        multiplier: 1,
+        until: 0,
+        overflowAdded: 0,
+        dropped: 0,
+        capped: false,
+        bypass: true,
+        capExempt: true,
+        dailyUsed: null,
+        dailyXp: null,
+        dailyRef: null,
+        replay: false,
+    };
+}
+
 async function applyDailyXp(uid, amount, tx, opts) {
     void uid;
     const options = opts || {};
     const want = Math.max(0, Number(amount) || 0);
-    if (options.bypass === true) {
+    if (options.kind && options.kind !== 'xp') {
+        const plain = planXpGrant({
+            kind: options.kind,
+            base: want,
+            now: options.now,
+        });
         return {
-            awarded: want,
+            awarded: plain.awarded,
+            base: plain.base,
+            boosted: plain.boosted,
+            doubled: false,
+            multiplier: 1,
+            until: 0,
             overflowAdded: 0,
             dropped: 0,
             capped: false,
-            bypass: true,
+            bypass: false,
             dailyUsed: null,
             dailyXp: null,
             dailyRef: null,
+            replay: false,
         };
+    }
+    if (options.bypass === true) {
+        return emptyBypass(want);
     }
     const day = options.day;
     const userRef = options.userRef;
@@ -52,17 +92,44 @@ async function applyDailyXp(uid, amount, tx, opts) {
     }
     const dailyRef = userRef.collection('daily_points').doc(day);
     const dailySnap = await tx.get(dailyRef);
+    let user = options.user || null;
+    if (!user && options.boost !== false) {
+        const userSnap = await tx.get(userRef);
+        if (userSnap && userSnap.exists && typeof userSnap.data === 'function') user = userSnap.data() || {};
+    }
     const dailyUsed = dailySnap && dailySnap.exists ? Number((dailySnap.data() || {}).total || 0) : 0;
-    const plan = planDailyXp(dailyUsed, want);
+    const plan = planXpGrant({
+        base: want,
+        user: user,
+        now: options.now,
+        dailyUsed: dailyUsed,
+        alreadyBoosted: options.alreadyBoosted === true,
+        boosted: options.boosted,
+        doubled: options.doubled,
+        until: options.until,
+        boost: options.boost !== false,
+        kind: 'xp',
+    });
     return {
         awarded: plan.awarded,
+        base: plan.base,
+        boosted: plan.boosted,
+        doubled: plan.doubled,
+        multiplier: plan.multiplier,
+        until: plan.until,
         overflowAdded: 0,
         dropped: plan.dropped,
         capped: !!plan.capped,
+        pastCap: plan.pastCap,
         bypass: false,
+        capExempt: false,
         dailyUsed: dailyUsed,
         dailyXp: plan.dailyXp,
+        dailyCap: plan.dailyCap,
+        fullUntil: plan.fullUntil,
+        halfUntil: plan.halfUntil,
         dailyRef: dailyRef,
+        replay: false,
     };
 }
 

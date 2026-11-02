@@ -831,7 +831,7 @@ const CASES = [
             if (/^What is .+ in Bitcoin Quest\?$/.test(phrase)) kbFail.push('generic what-is ' + phrase);
         });
     });
-    if ((byCat.app || 0) !== 186) kbFail.push('app count ' + byCat.app);
+    if ((byCat.app || 0) !== 190) kbFail.push('app count ' + byCat.app);
     if (logic.kbEntries().length < 1000) kbFail.push('count ' + logic.kbEntries().length);
     if ((byCat['crypto-steer'] || 0) < 50) kbFail.push('steer ' + byCat['crypto-steer']);
     if (kbFail.length) {

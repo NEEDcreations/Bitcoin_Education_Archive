@@ -201,7 +201,7 @@ var PREMIUM_CONFIG = {
 
 // ---- Education topic cache buster ----
 // Appended to channel JSON fetches so a data edit is not stuck in the SW cache.
-var DATA_CACHE_BUSTER = '20261022b';
+var DATA_CACHE_BUSTER = '20261027b';
 function withDataCacheBuster(url) {
     if (!url || typeof url !== 'string') return url;
     if (/[?&]v=/.test(url)) return url;
@@ -240,3 +240,25 @@ function censorText(text) {
         return urls[Number(i)];
     });
 }
+
+// Startup logs stay quiet on the live site. localhost, a dev.* host,
+// localStorage btc_debug=1, or ?btc_debug=1 turns them back on.
+(function() {
+    if (typeof window === 'undefined') return;
+    var _log = (typeof console !== 'undefined' && console.log) ? console.log.bind(console) : function() {};
+    window.btcDebugEnabled = function() {
+        try {
+            if (window.BTC_DEBUG) return true;
+            var host = String((window.location && window.location.hostname) || '').toLowerCase();
+            if (host === 'localhost' || host === '127.0.0.1' || host === '::1' || host.indexOf('dev.') === 0) return true;
+            if (window.localStorage && window.localStorage.getItem('btc_debug') === '1') return true;
+            var search = String((window.location && window.location.search) || '');
+            if (/(?:^|[?&])btc_debug=1(?:&|$)/.test(search)) return true;
+        } catch (e) {}
+        return false;
+    };
+    window.btcDebugLog = function() {
+        if (!window.btcDebugEnabled()) return;
+        try { _log.apply(console, arguments); } catch (e) {}
+    };
+})();

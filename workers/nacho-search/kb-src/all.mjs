@@ -5,5 +5,6 @@ import { PART_D } from "./part-d.mjs";
 import { PART_E } from "./part-e.mjs";
 import { PART_F } from "./part-f.mjs";
 import { PART_G } from "./part-g.mjs";
+import { PART_H } from "./part-h.mjs";
 
-export const FACTS = [].concat(PART_A, PART_B, PART_C, PART_D, PART_E, PART_F, PART_G);
+export const FACTS = [].concat(PART_A, PART_B, PART_C, PART_D, PART_E, PART_F, PART_G, PART_H);

@@ -169,7 +169,7 @@
         if (emoji) emoji.textContent = '📺';
         if (label) label.textContent = 'Watch TV';
         if (sub) sub.textContent = subText;
-        if (btn) btn.setAttribute('aria-label', done ? 'Watch Timechain TV, done for today' : ('Watch TV, ' + subText));
+        if (btn) btn.setAttribute('aria-label', done ? 'Watch Timechain TV, completed' : ('Watch TV, ' + subText));
         placeChip(seconds, done, subText);
     }
 

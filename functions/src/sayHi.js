@@ -4,7 +4,7 @@
 // message id. The day, the button press, the text, and the reward are all
 // decided here. One claim per uid per server day, inside one transaction.
 
-const { planDailyXp } = require('./dailyXp');
+const { planXpGrant } = require('./grantXp');
 const { rewardBlocked } = require('./cipherClaim');
 const { grantFamily } = require('./grantBadge');
 const dailyFive = require('./dailyFive');
@@ -87,13 +87,24 @@ function isSayHiBlocked(user, ledger) {
     return rewardBlocked(user, ledger);
 }
 
-function planSayHiXp(dailyUsed, pendingOverflow, lastOverflowDate, today) {
+function planSayHiXp(dailyUsed, pendingOverflow, lastOverflowDate, today, ctx) {
     void pendingOverflow;
     void lastOverflowDate;
     void today;
-    const split = planDailyXp(Number(dailyUsed) || 0, SAY_HI_XP);
+    const extra = ctx || {};
+    const split = planXpGrant({
+        base: SAY_HI_XP,
+        user: extra.user,
+        now: extra.now,
+        dailyUsed: Number(dailyUsed) || 0,
+    });
     return {
         awarded: split.awarded,
+        base: split.base,
+        boosted: split.boosted,
+        doubled: split.doubled === true,
+        until: split.until || 0,
+        dailyXp: split.dailyXp,
         overflowAdded: 0,
         overflowRedeemed: 0,
         pendingOverflow: 0,
@@ -156,7 +167,10 @@ function assessSayHiClaim(input) {
     if (messageMs + ARM_SKEW_MS < src.armedAtMs) return fail('before-press');
     if (nowMs && messageMs > nowMs + ARM_SKEW_MS) return fail('no-time');
 
-    const xp = planSayHiXp(src.dailyUsed, src.pendingOverflow, src.lastOverflowDate, src.today);
+    const xp = planSayHiXp(src.dailyUsed, src.pendingOverflow, src.lastOverflowDate, src.today, {
+        user: src.user,
+        now: src.nowMs,
+    });
     return {
         ok: true,
         code: 'ok',
@@ -350,6 +364,10 @@ function createSayHiHandlers(opts) {
                 textLength: decision.textLength,
                 day: bag.today,
                 at: admin.firestore.FieldValue.serverTimestamp(),
+                base: xp.base || 0,
+                boosted: xp.boosted || 0,
+                doubled: xp.doubled === true,
+                awarded: xp.awarded,
             });
             return {
                 ok: true,
@@ -357,6 +375,7 @@ function createSayHiHandlers(opts) {
                 showToast: decision.showToast === true,
                 day: bag.today,
                 xpAwarded: xp.awarded,
+                doubled: xp.doubled === true,
                 overflowRedeemed: xp.overflowRedeemed,
                 tickets: xp.tickets,
             };
@@ -373,6 +392,17 @@ function createSayHiHandlers(opts) {
             } catch (fiveErr) {
                 console.warn('[sayHi] daily five skipped', fiveErr && fiveErr.message);
             }
+            try {
+                await require('./raidBossEngine').noteTrusted(db, admin, {
+                    metric: 'sayHi',
+                    uid: uid,
+                    dedupeKey: 'sayhi-' + uid + '-' + (result.day || ''),
+                    amount: 1,
+                    now: new Date(nowMs),
+                });
+            } catch (raidErr) {
+                console.warn('[sayHi] raid', raidErr && raidErr.message);
+            }
         }
         if (result.code === 'signed-out') signedOut();
         return {
@@ -382,6 +412,7 @@ function createSayHiHandlers(opts) {
             showToast: result.showToast === true,
             day: result.day || offsetDateKey(nowMs),
             xpAwarded: result.xpAwarded || 0,
+            doubled: result.doubled === true,
             overflowRedeemed: result.overflowRedeemed || 0,
             tickets: result.code === 'ok' ? (result.tickets || 0) : 0,
         };

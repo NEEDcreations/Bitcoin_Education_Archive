@@ -1569,8 +1569,7 @@ window.articleSubmit = async function() {
         localStorage.removeItem('btc_article_draft');
         if (window._articleAutoSave) clearInterval(window._articleAutoSave);
         
-        // Awards
-        if (typeof awardPoints === 'function') awardPoints(30, '📝 Article published');
+        // XP is paid by the article trigger from the saved document. Tickets stay here.
         if (typeof awardTickets === 'function') awardTickets(20, '📝 Article published');
         var _ac = parseInt(localStorage.getItem('btc_articles_published') || '0'); localStorage.setItem('btc_articles_published', String(_ac + 1));
         

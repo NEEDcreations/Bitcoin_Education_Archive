@@ -609,6 +609,34 @@
           "order": "ASCENDING"
         },
         {
+          "fieldPath": "weekTotal",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthTotal",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "weekKey",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "qualifiesWeek",
           "order": "ASCENDING"
         },
@@ -740,6 +768,1906 @@
         },
         {
           "fieldPath": "sendingAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "streak",
+          "order": "DESCENDING"
+        },
+        {
+          "fieldPath": "lastVisit",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "weekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekPasses",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPasses",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "prevWeekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "prevWeekPasses",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "prevMonthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "prevMonthPasses",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "public_profiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "points",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "public_profiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "points",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "username_lower",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "public_profiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "points",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "username_lower",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "public_profiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weeklyXP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "public_profiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "weeklyXP",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "username_lower",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "public_profiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weeklyXP",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "username_lower",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "public_profiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthlyXP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "public_profiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "monthlyXP",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "username_lower",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "public_profiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthlyXP",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "username_lower",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "attempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "passes",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "attempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "passes",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "passes",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "attempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "passRate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "passes",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "attempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "passRate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "passes",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "passRate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "attempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "reachedSort",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "passes",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "passRate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "attempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "reachedSort",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "passes",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "passRate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "reachedSort",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "attempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "passes",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "passRate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "reachedSort",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "attempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "passes",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "passRate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "reachedSort",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "attempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "passes",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "passRate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "reachedSort",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "attempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "weekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekAttempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekPasses",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekAttempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekPasses",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "weekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekPasses",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekAttempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekPassRate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekPasses",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekAttempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekPassRate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "weekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekPasses",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekPassRate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekAttempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekReachedSort",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekPasses",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekPassRate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekAttempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekReachedSort",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "weekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekPasses",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekPassRate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekReachedSort",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekAttempts",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekPasses",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekPassRate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekReachedSort",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekAttempts",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthAttempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPasses",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthAttempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPasses",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPasses",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthAttempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPassRate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPasses",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthAttempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPassRate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPasses",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPassRate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthAttempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthReachedSort",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPasses",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPassRate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthAttempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthReachedSort",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPasses",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPassRate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthReachedSort",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthAttempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPasses",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPassRate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthReachedSort",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthAttempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPasses",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPassRate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthReachedSort",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthAttempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "quest_lb_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPasses",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthPassRate",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthReachedSort",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthAttempts",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "predAccuracy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "predTotal",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "predAccuracy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "predTotal",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "predAccuracy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "predCorrect",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "predTotal",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "predAccuracy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "predCorrect",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "predTotal",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "predAccuracy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "predCorrect",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "predTotal",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "reachedAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "predAccuracy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "predCorrect",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "predTotal",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "reachedAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "weekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekAccuracy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekTotal",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekAccuracy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekTotal",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "weekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekAccuracy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekCorrect",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekTotal",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekAccuracy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekCorrect",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekTotal",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "weekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekAccuracy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekCorrect",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekTotal",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekReachedAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekAccuracy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekCorrect",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekTotal",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "weekReachedAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthAccuracy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthTotal",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthAccuracy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthTotal",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthAccuracy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthCorrect",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthTotal",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthAccuracy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthCorrect",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthTotal",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthAccuracy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthCorrect",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthTotal",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthReachedAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "prediction_stats",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthAccuracy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthCorrect",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthTotal",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "monthReachedAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "lastVisit",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastVisit",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "lastVisit",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streakReachedAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastVisit",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streakReachedAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "lastVisit",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streakReachedAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastVisit",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streakReachedAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "lastVisit",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streakFreezes",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastVisit",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streakFreezes",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "lastVisit",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streakFreezes",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streakReachedAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastVisit",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streakFreezes",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streakReachedAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "lastVisit",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streakReachedAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streakFreezes",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastVisit",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streakReachedAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streakFreezes",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreak",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "bestStreak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreakAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreakAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreakAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreakAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "bestStreak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreakAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreakAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreakAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreakAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreakAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreakAt",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "nameKey",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "bestStreak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "ghostMode",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "bestStreak",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "streak",
           "order": "ASCENDING"
         }
       ]

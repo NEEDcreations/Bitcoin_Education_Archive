@@ -187,13 +187,9 @@ test('legit client phrases keep today amounts', function () {
         [{ action: '🗺️ 50% Explored', pts: 100 }, 100],
         [{ action: '🗺️ 75% Explored', pts: 200 }, 200],
         [{ action: '🗺️ 100% Explored', pts: 500 }, 500],
-        [{ action: 'Daily Spin', pts: 25 }, 25],
-        [{ action: 'Daily Spin', pts: 50 }, 50],
-        [{ action: 'Daily Spin', pts: 100 }, 50],
-        [{ action: 'Daily Spin', pts: 200 }, 50],
         [{ action: '💬 Global Chat', pts: 5 }, 5],
         [{ action: '🔥 3-day chat streak!', pts: 10 }, 10],
-        [{ action: '🔥 3-day chat streak!', pts: 20 }, 20],
+        [{ action: '🔥 3-day chat streak!', pts: 20 }, 10],
         [{ action: '🔥 7-day chat streak!', pts: 25 }, 25],
         [{ action: '💎 30-day chat streak!', pts: 100 }, 100],
         [{ action: '💎 30-day chat streak!', pts: 200 }, 100],
@@ -206,7 +202,7 @@ test('legit client phrases keep today amounts', function () {
         [{ action: 'Listened to a full track on Bitcoin Beats 🎵', pts: 10 }, 10],
         [{ action: 'Left a comment on Bitcoin Beats 💬', pts: 10 }, 10],
         [{ action: 'Uploaded 1 track to Bitcoin Beats!', pts: 25 }, 25],
-        [{ action: 'Uploaded 1 track to Bitcoin Beats!', pts: 50 }, 50],
+        [{ action: 'Uploaded 1 track to Bitcoin Beats!', pts: 50 }, 25],
         [{ action: 'Uploaded 3 tracks to Bitcoin Beats!', pts: 75 }, 50],
         [{ action: '📖 Learning Quest: What is Bitcoin? lesson', pts: 50, actionKey: 'lq_lesson' }, 50],
     ];
@@ -247,15 +243,24 @@ test('legit client phrases keep today amounts', function () {
     const hostileFlex = awardActions.resolveAction({ actionKey: 'flex_action', flexActionId: 'steak', pts: 15, action: 'flex' });
     assert.strictEqual(hostileFlex.ok, false);
     const doubleFlex = awardActions.resolveAction({ actionKey: 'flex_action', flexActionId: 'steak', pts: 10, action: 'flex' });
-    assert.strictEqual(doubleFlex.xp, 10);
+    assert.strictEqual(doubleFlex.xp, 5);
     const badQuest = awardActions.resolveAction({ action: '🦌 Nacho Quest: invented', pts: 100 });
     assert.strictEqual(badQuest.ok, false);
     ['🦌 Nacho Quest: pick_topic', '🦌 Nacho Quest: first_quiz', 'onboarding quest'].forEach(function (action) {
         const refused = awardActions.resolveAction({ action: action, pts: 50 });
         assert.strictEqual(refused.ok, false, action);
     });
-    const badSpin = awardActions.resolveAction({ action: 'Daily Spin', pts: 40 });
-    assert.strictEqual(badSpin.ok, false);
+    [0, 1, 25, 40, 50, 100, 200, 999].forEach(function (pts) {
+        const spin = awardActions.resolveAction({ action: 'Daily Spin', pts: pts });
+        assert.strictEqual(spin.ok, true, String(pts));
+        assert.strictEqual(spin.xp, 0, String(pts));
+        assert.strictEqual(spin.tickets, 0, String(pts));
+        assert.strictEqual(spin.requiresDoubleXp, false, String(pts));
+        assert.strictEqual(spin.id, 'daily_spin', String(pts));
+    });
+    const trimmedSpin = awardActions.resolveAction({ reason: '  Daily Spin  ', pts: 200 });
+    assert.strictEqual(trimmedSpin.ok, true);
+    assert.strictEqual(trimmedSpin.xp, 0);
     const tctv = awardActions.resolveAction({ action: 'tctv_watch_10m', pts: 10 });
     assert.strictEqual(tctv.ok, false);
     assert.strictEqual(tctv.awarded, 0);
@@ -279,7 +284,7 @@ test('server source no longer keyword-matches or banks overflow', function () {
     assert.ok(body.indexOf('if (awarded > 0 && badgeAwardRef)') === -1);
     assert.ok(body.indexOf('userUpdate.pendingOverflow') === -1);
     assert.ok(body.indexOf('resolveAction') > 0);
-    assert.ok(body.indexOf('planGrant') > 0);
+    assert.ok(body.indexOf('planXpGrant') > 0);
     assert.ok(body.indexOf('ban_reason') > 0);
     assert.ok(body.indexOf("error === 'BANNED'") > 0 || body.indexOf("=== 'BANNED'") > 0);
 

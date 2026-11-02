@@ -78,6 +78,13 @@
     }
 
     function toggleMenu() {
+        // Desktop sidebar is already on screen. Browse topics opens the full list instead.
+        if (!isMobile()) {
+            var existing = document.getElementById('topicsBrowser');
+            if (existing && !existing.hidden) closeTopicsBrowser();
+            else openTopicsBrowser();
+            return;
+        }
         var sidebar = document.getElementById('sidebar');
         if (sidebar) {
             sidebar.classList.toggle('open');
@@ -87,6 +94,514 @@
             }
         }
     }
+
+    // Full-screen topics browser. Categories, order, and per-topic state come from
+    // the sidebar DOM. Titles and descriptions come from that DOM plus CHANNELS.
+    var _topicsOpener = null;
+    var _topicsScrollLock = null;
+    var _topicsBrowserCache = null;
+    var _topicsInerted = [];
+    var _topicsPushed = false;
+    var _topicsSwallowPop = false;
+    var _topicsMuting = false;
+    var _topicsHomeWasHidden = false;
+    var _topicsSegmenter = null;
+    var _topicsSegmenterReady = false;
+
+    function topicsSegmenter() {
+        if (_topicsSegmenterReady) return _topicsSegmenter;
+        _topicsSegmenterReady = true;
+        try {
+            if (typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function') {
+                _topicsSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+            }
+        } catch (e) {}
+        return _topicsSegmenter;
+    }
+
+    // Keycap sequences in the sidebar sometimes omit U+FE0F. Insert it only
+    // for the glyph we draw so the title text stays unchanged.
+    function presentKeycap(emoji) {
+        if (!emoji || emoji.indexOf('\u20E3') === -1) return emoji;
+        return String(emoji).replace(/\uFE0F?\u20E3/g, '\uFE0F\u20E3');
+    }
+
+    function isEmojiGrapheme(g) {
+        if (!g || g === '#' || g === '✓' || g === '\u2713') return false;
+        if (g.indexOf('\u20E3') !== -1) return true;
+        try {
+            if (/^\p{Extended_Pictographic}/u.test(g)) return true;
+        } catch (e) {}
+        if (/[\u{1F1E6}-\u{1F1FF}]/u.test(g)) return true;
+        if (/^[\u2100-\u214F\u2190-\u21FF\u2300-\u23FF\u25A0-\u27BF\u2B00-\u2BFF\u2900-\u297F\uFE0F\u200D]/u.test(g)) return true;
+        return false;
+    }
+
+    function splitLeadEmoji(text) {
+        var s = String(text || '').replace(/\s+/g, ' ').trim();
+        if (!s) return { emoji: '', rest: '' };
+        var parts = [];
+        var seg = topicsSegmenter();
+        if (seg) {
+            var item;
+            for (item of seg.segment(s)) parts.push(item.segment);
+        } else {
+            parts = [s];
+        }
+        var i = 0;
+        while (i < parts.length && isEmojiGrapheme(parts[i])) i++;
+        if (i > 0) {
+            return { emoji: parts.slice(0, i).join(''), rest: parts.slice(i).join('').replace(/^\s+/, '') };
+        }
+        return { emoji: '', rest: s };
+    }
+
+    function cleanButtonLabel(btn) {
+        var clone = btn.cloneNode(true);
+        var junk = clone.querySelectorAll('.ch-done, .ch-progress, .trail-dot, .ch-lock, .lock-badge, .new-badge, .ch-new, .topic-new, .badge-new');
+        var i;
+        for (i = 0; i < junk.length; i++) junk[i].remove();
+        return (clone.textContent || '').replace(/[✓\u2713]/g, '').replace(/\s+/g, ' ').trim();
+    }
+
+    function readTopicState(btn) {
+        var visited = btn.classList.contains('visited') || !!btn.querySelector('.ch-done');
+        var locked = btn.classList.contains('tier-locked') || btn.classList.contains('locked') || btn.hasAttribute('data-locked') || btn.getAttribute('aria-disabled') === 'true' || !!btn.querySelector('.ch-lock, .lock-badge, [data-locked]');
+        var isNew = btn.classList.contains('is-new') || btn.classList.contains('ch-new') || btn.getAttribute('data-new') === '1' || btn.getAttribute('data-new') === 'true' || !!btn.querySelector('.new-badge, .ch-new, .topic-new, .badge-new');
+        if (!isNew) {
+            var nodes = btn.children;
+            var n;
+            for (n = 0; n < nodes.length; n++) {
+                if ((nodes[n].textContent || '').trim().toLowerCase() === 'new') { isNew = true; break; }
+            }
+        }
+        return { visited: visited, locked: locked, isNew: isNew };
+    }
+
+    function categoryName(label) {
+        var clone = label.cloneNode(true);
+        var arrow = clone.querySelector('.cat-arrow');
+        if (arrow) arrow.remove();
+        return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function readSidebarTopicGroups() {
+        var list = document.getElementById('channelList');
+        var groups = [];
+        if (!list) return groups;
+        var labels = list.querySelectorAll('.cat-label.cat-toggle');
+        var g;
+        for (g = 0; g < labels.length; g++) {
+            var label = labels[g];
+            var group = label.nextElementSibling;
+            if (!group || !group.classList.contains('cat-group')) continue;
+            var buttons = group.querySelectorAll('.ch-btn');
+            var topics = [];
+            var b;
+            for (b = 0; b < buttons.length; b++) {
+                var btn = buttons[b];
+                var match = (btn.getAttribute('onclick') || '').match(/go\(['"]([^'"]+)['"]/);
+                if (!match) continue;
+                var id = match[1];
+                var ch = (typeof CHANNELS !== 'undefined' && CHANNELS) ? CHANNELS[id] : null;
+                var labelText = cleanButtonLabel(btn);
+                var parts = splitLeadEmoji(labelText);
+                var emoji = parts.emoji;
+                var title = parts.rest || labelText;
+                if (!emoji && ch && ch.title) {
+                    var fromChannel = splitLeadEmoji(String(ch.title));
+                    if (fromChannel.emoji) emoji = fromChannel.emoji;
+                }
+                if (!title && ch && ch.title) title = splitLeadEmoji(String(ch.title)).rest;
+                if (!title) title = id;
+                var desc = (ch && ch.desc != null) ? String(ch.desc).trim() : '';
+                var state = readTopicState(btn);
+                topics.push({
+                    id: id,
+                    emoji: emoji,
+                    title: title,
+                    desc: desc,
+                    find: (title + '\n' + id + '\n' + desc).toLowerCase(),
+                    visited: state.visited,
+                    locked: state.locked,
+                    isNew: state.isNew
+                });
+            }
+            if (!topics.length) continue;
+            groups.push({ name: categoryName(label) || 'Topics', topics: topics });
+        }
+        return groups;
+    }
+
+    function topicCardStatus(topic) {
+        var node = document.createElement('span');
+        node.className = 'topic-card-status';
+        if (topic.visited) {
+            var check = document.createElement('span');
+            check.className = 'topic-card-check';
+            check.setAttribute('aria-hidden', 'true');
+            check.textContent = '✓';
+            node.appendChild(check);
+            var checkText = document.createElement('span');
+            checkText.className = 'topic-card-sr';
+            checkText.textContent = 'Completed';
+            node.appendChild(checkText);
+        }
+        if (topic.locked) {
+            var lock = document.createElement('span');
+            lock.className = 'topic-card-lock';
+            lock.setAttribute('aria-hidden', 'true');
+            lock.textContent = '🔒';
+            node.appendChild(lock);
+            var lockText = document.createElement('span');
+            lockText.className = 'topic-card-sr';
+            lockText.textContent = 'Locked';
+            node.appendChild(lockText);
+        }
+        if (topic.isNew) {
+            var badge = document.createElement('span');
+            badge.className = 'topic-card-new';
+            badge.textContent = 'new';
+            node.appendChild(badge);
+        }
+        return node;
+    }
+
+    function renderTopicsBrowser(filter) {
+        var body = document.getElementById('topicsBrowserBody');
+        var live = document.getElementById('topicsBrowserLive');
+        if (!body) return;
+        _topicsMuting = true;
+        var q = String(filter || '').trim().toLowerCase();
+        body.textContent = '';
+        if (!_topicsBrowserCache) _topicsBrowserCache = readSidebarTopicGroups();
+        var groups = _topicsBrowserCache;
+        var shown = 0;
+        var g;
+        for (g = 0; g < groups.length; g++) {
+            var group = groups[g];
+            var section = document.createElement('section');
+            section.className = 'topics-browser-section';
+            var heading = document.createElement('h3');
+            heading.textContent = group.name;
+            var grid = document.createElement('div');
+            grid.className = 'topics-browser-grid';
+            var t;
+            for (t = 0; t < group.topics.length; t++) {
+                var topic = group.topics[t];
+                if (q && topic.find.indexOf(q) === -1) continue;
+                shown++;
+                var card = document.createElement('button');
+                card.type = 'button';
+                card.className = 'topic-card';
+                if (topic.visited) card.classList.add('is-visited');
+                if (topic.locked) card.classList.add('is-locked');
+                if (topic.isNew) card.classList.add('is-new');
+                card.setAttribute('data-topic-id', topic.id);
+                var top = document.createElement('span');
+                top.className = 'topic-card-top';
+                if (topic.emoji) {
+                    var emoji = document.createElement('span');
+                    emoji.className = 'topic-card-emoji';
+                    emoji.setAttribute('aria-hidden', 'true');
+                    emoji.textContent = presentKeycap(topic.emoji);
+                    top.appendChild(emoji);
+                }
+                top.appendChild(topicCardStatus(topic));
+                card.appendChild(top);
+                var title = document.createElement('span');
+                title.className = 'topic-card-title';
+                title.textContent = topic.title;
+                card.appendChild(title);
+                if (topic.desc) {
+                    var desc = document.createElement('span');
+                    desc.className = 'topic-card-desc';
+                    desc.textContent = topic.desc;
+                    card.appendChild(desc);
+                }
+                card.addEventListener('click', (function(id) {
+                    return function() {
+                        closeTopicsBrowser({ fromHistory: true });
+                        if (typeof window.go === 'function') window.go(id);
+                    };
+                })(topic.id));
+                grid.appendChild(card);
+            }
+            if (!grid.childNodes.length) continue;
+            section.appendChild(heading);
+            section.appendChild(grid);
+            body.appendChild(section);
+        }
+        if (!shown) {
+            var empty = document.createElement('p');
+            empty.className = 'topics-browser-empty';
+            empty.textContent = 'No topics match that search.';
+            body.appendChild(empty);
+        }
+        if (live) {
+            live.textContent = shown ? (shown + (shown === 1 ? ' topic' : ' topics')) : 'No topics match that search.';
+        }
+        _topicsMuting = false;
+    }
+
+    function topicsBrowserFocusables(dlg) {
+        var nodes = dlg.querySelectorAll('button, input, a[href], select, textarea, [tabindex]:not([tabindex="-1"])');
+        var out = [];
+        var i;
+        for (i = 0; i < nodes.length; i++) {
+            var el = nodes[i];
+            if (el.disabled || el.getAttribute('aria-hidden') === 'true') continue;
+            if (el.closest('[hidden]')) continue;
+            if (!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)) continue;
+            out.push(el);
+        }
+        return out;
+    }
+
+    function onTopicsBrowserKeydown(e) {
+        var dlg = document.getElementById('topicsBrowser');
+        if (!dlg || dlg.hidden) return;
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            closeTopicsBrowser();
+            return;
+        }
+        if (e.key !== 'Tab') return;
+        var items = topicsBrowserFocusables(dlg);
+        if (!items.length) return;
+        var first = items[0];
+        var last = items[items.length - 1];
+        var active = document.activeElement;
+        if (items.indexOf(active) === -1) {
+            e.preventDefault();
+            (e.shiftKey ? last : first).focus();
+            return;
+        }
+        if (e.shiftKey && active === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && active === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    }
+
+    function setTopicsBackgroundInert(on) {
+        var i;
+        if (!on) {
+            for (i = 0; i < _topicsInerted.length; i++) {
+                if (_topicsInerted[i]) _topicsInerted[i].removeAttribute('inert');
+            }
+            _topicsInerted = [];
+            return;
+        }
+        var nodes = [document.getElementById('sidebar'), document.getElementById('main'), document.querySelector('.mobile-bar')];
+        _topicsInerted = [];
+        for (i = 0; i < nodes.length; i++) {
+            if (!nodes[i] || nodes[i].hasAttribute('inert')) continue;
+            nodes[i].setAttribute('inert', '');
+            _topicsInerted.push(nodes[i]);
+        }
+    }
+
+    function lockTopicsScroll() {
+        var main = document.getElementById('main');
+        var sidebar = document.getElementById('sidebar');
+        _topicsScrollLock = {
+            html: document.documentElement.style.overflow,
+            body: document.body.style.overflow,
+            main: main ? main.style.overflow : null,
+            sidebar: sidebar ? sidebar.style.overflow : null
+        };
+        document.documentElement.style.overflow = 'hidden';
+        document.body.style.overflow = 'hidden';
+        if (main) main.style.overflow = 'hidden';
+        if (sidebar) sidebar.style.overflow = 'hidden';
+    }
+
+    function unlockTopicsScroll() {
+        if (!_topicsScrollLock) return;
+        var main = document.getElementById('main');
+        var sidebar = document.getElementById('sidebar');
+        document.documentElement.style.overflow = _topicsScrollLock.html;
+        document.body.style.overflow = _topicsScrollLock.body;
+        if (main && _topicsScrollLock.main !== null) main.style.overflow = _topicsScrollLock.main;
+        if (sidebar && _topicsScrollLock.sidebar !== null) sidebar.style.overflow = _topicsScrollLock.sidebar;
+        _topicsScrollLock = null;
+    }
+
+    function ensureTopicsBrowser() {
+        var dlg = document.getElementById('topicsBrowser');
+        if (dlg) return dlg;
+        dlg = document.createElement('div');
+        dlg.id = 'topicsBrowser';
+        dlg.hidden = true;
+        dlg.setAttribute('role', 'dialog');
+        dlg.setAttribute('aria-modal', 'true');
+        dlg.setAttribute('aria-labelledby', 'topicsBrowserTitle');
+        var bar = document.createElement('div');
+        bar.className = 'topics-browser-bar';
+        var title = document.createElement('h2');
+        title.id = 'topicsBrowserTitle';
+        title.textContent = 'Browse topics';
+        var search = document.createElement('input');
+        search.type = 'search';
+        search.id = 'topicsBrowserSearch';
+        search.className = 'topics-browser-search';
+        search.placeholder = 'Filter topics';
+        search.setAttribute('aria-label', 'Filter topics by title, description, or id');
+        search.setAttribute('aria-controls', 'topicsBrowserBody');
+        search.autocomplete = 'off';
+        search.autocorrect = 'off';
+        search.spellcheck = false;
+        var closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.id = 'topicsBrowserClose';
+        closeBtn.className = 'topics-browser-close';
+        closeBtn.setAttribute('aria-label', 'Close topics');
+        closeBtn.textContent = 'Close';
+        var live = document.createElement('div');
+        live.id = 'topicsBrowserLive';
+        live.className = 'topic-card-sr';
+        live.setAttribute('aria-live', 'polite');
+        var body = document.createElement('div');
+        body.id = 'topicsBrowserBody';
+        body.className = 'topics-browser-body';
+        bar.appendChild(title);
+        bar.appendChild(search);
+        bar.appendChild(closeBtn);
+        dlg.appendChild(bar);
+        dlg.appendChild(live);
+        dlg.appendChild(body);
+        document.body.appendChild(dlg);
+        search.addEventListener('input', function() {
+            renderTopicsBrowser(search.value);
+        });
+        closeBtn.addEventListener('click', function() { closeTopicsBrowser(); });
+        dlg.addEventListener('keydown', onTopicsBrowserKeydown, true);
+        return dlg;
+    }
+
+    function topicsBrowserIsOpen() {
+        var dlg = document.getElementById('topicsBrowser');
+        return !!(dlg && !dlg.hidden);
+    }
+
+    function topicsElementShown(el) {
+        if (!el || el.hidden) return false;
+        return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+    }
+
+    function topicsForeignSurface() {
+        var home = document.getElementById('home');
+        if (home && home.classList.contains('hidden') && !_topicsHomeWasHidden) return true;
+        var search = document.getElementById('searchOverlay');
+        if (search && search.getAttribute('data-open') === '1' && topicsElementShown(search)) return true;
+        var ids = ['usernameModal', 'questModal', 'leaderboard', 'tosModal', 'questHubOverlay', 'guideOverlay', 'onboardingOverlay', 'pvpNameOverlay', 'pvpOverlay', 'tipOverlay', 'donateModal', 'lnAuthModal', 'nostrAuthOverlay', 'spinModal', 'nachoModeScreen', 'lb'];
+        var i;
+        for (i = 0; i < ids.length; i++) {
+            var el = document.getElementById(ids[i]);
+            if (!el || !topicsElementShown(el)) continue;
+            if (el.classList.contains('open') || el.getAttribute('data-open') === '1' || ids[i] === 'lb' || el.id.indexOf('Overlay') !== -1 || el.id.indexOf('Modal') !== -1 || el.id === 'nachoModeScreen' || el.id === 'spinModal') return true;
+        }
+        var dialogs = document.querySelectorAll('[role="dialog"]');
+        for (i = 0; i < dialogs.length; i++) {
+            var d = dialogs[i];
+            if (!d || d.id === 'topicsBrowser' || (d.closest && d.closest('#topicsBrowser'))) continue;
+            if (topicsElementShown(d)) return true;
+        }
+        return false;
+    }
+
+    function topicsYieldIfCovered() {
+        if (_topicsMuting || !topicsBrowserIsOpen()) return;
+        if (topicsForeignSurface()) closeTopicsBrowser({ fromHistory: true });
+    }
+
+    function ensureTopicsYieldWatch() {
+        if (window._topicsYieldWatch) return;
+        var queued = false;
+        window._topicsYieldWatch = new MutationObserver(function() {
+            if (queued || _topicsMuting || !topicsBrowserIsOpen()) return;
+            queued = true;
+            Promise.resolve().then(function() {
+                queued = false;
+                topicsYieldIfCovered();
+            });
+        });
+        window._topicsYieldWatch.observe(document.body, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            attributeFilter: ['class', 'style', 'hidden', 'data-open']
+        });
+    }
+
+    function openTopicsBrowser() {
+        if (isMobile()) return;
+        var home = document.getElementById('home');
+        _topicsHomeWasHidden = !!(home && home.classList.contains('hidden'));
+        var dlg = ensureTopicsBrowser();
+        ensureTopicsYieldWatch();
+        var opener = document.activeElement;
+        _topicsOpener = (opener && opener !== document.body && typeof opener.focus === 'function') ? opener : document.getElementById('homeLearnBrowse');
+        _topicsBrowserCache = null;
+        var search = document.getElementById('topicsBrowserSearch');
+        if (search) search.value = '';
+        renderTopicsBrowser('');
+        dlg.hidden = false;
+        setTopicsBackgroundInert(true);
+        lockTopicsScroll();
+        if (!_topicsPushed) {
+            try {
+                history.pushState({ topicsBrowser: true }, '', window.location.href);
+                _topicsPushed = true;
+            } catch (err) {}
+        }
+        var focusTarget = search || document.getElementById('topicsBrowserClose');
+        if (focusTarget) focusTarget.focus();
+    }
+
+    function closeTopicsBrowser(opts) {
+        opts = opts || {};
+        var dlg = document.getElementById('topicsBrowser');
+        if (!dlg || dlg.hidden) return;
+        dlg.hidden = true;
+        setTopicsBackgroundInert(false);
+        unlockTopicsScroll();
+        _topicsBrowserCache = null;
+        var back = _topicsOpener;
+        _topicsOpener = null;
+        var pushed = _topicsPushed;
+        _topicsPushed = false;
+        if (pushed && !opts.fromHistory) {
+            _topicsSwallowPop = true;
+            try { history.back(); } catch (err) { _topicsSwallowPop = false; }
+        }
+        var target = (back && document.contains(back)) ? back : document.getElementById('homeLearnBrowse');
+        if (target && typeof target.focus === 'function') {
+            try { target.focus(); } catch (err) {}
+        }
+    }
+
+    window.addEventListener('resize', function() {
+        if (!isMobile()) return;
+        if (topicsBrowserIsOpen()) closeTopicsBrowser();
+    });
+
+    window.addEventListener('hashchange', function() {
+        if (topicsBrowserIsOpen()) closeTopicsBrowser({ fromHistory: true });
+    });
+
+    window.addEventListener('popstate', function(e) {
+        if (!_topicsPushed && !_topicsSwallowPop) return;
+        var open = topicsBrowserIsOpen();
+        _topicsSwallowPop = false;
+        _topicsPushed = false;
+        if (open) closeTopicsBrowser({ fromHistory: true });
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    }, true);
 
     function toggleSidebarCollapse() {
         var sidebar = document.getElementById('sidebar');
@@ -596,8 +1111,14 @@
         }
     };
 
+    function shareNote(text, url) {
+        var note = String(text || '');
+        if (url && note.indexOf(url) === -1) note = note + '\n\n' + url;
+        return note;
+    }
+
     function shareNostr(text, url) {
-        const note = text + '\n\n' + url;
+        var note = shareNote(text, url);
         // Copy to clipboard first
         navigator.clipboard.writeText(note).then(() => {
             showToast('📋 Note copied! Paste it in Primal to post.');
@@ -605,6 +1126,169 @@
         // Open Primal home where they can paste
         window.open('https://primal.net/home', '_blank', 'noopener,noreferrer');
     }
+
+    // Daily spin clock. Phase 1 is a short free spin in parallel with dailySpin.
+    // After PHASE1_CAP_MS the wheel eases into a light settle until the server
+    // answers. Phase 2 is an 800ms landing on the server reward index only.
+    // The previous build spun phase 1 until the callable returned, then
+    // decelerated for 1500ms, so click-to-result was server RTT + 1500ms.
+    window._dailySpinClock = (function() {
+        var PHASE1_CAP_MS = 600;
+        var PHASE2_MS = 800;
+        var PHASE1_SPEED = 0.18;
+        var SETTLE_SPEED = 0.04;
+        var MIN_LAND_TURNS = 0.75;
+        var FRAME_MS = 1000 / 60;
+
+        function mod2pi(angle) {
+            var turn = Math.PI * 2;
+            return ((angle % turn) + turn) % turn;
+        }
+
+        function easeOutQuart(t) {
+            return 1 - Math.pow(1 - t, 4);
+        }
+
+        function segmentIndex(angle, count) {
+            var n = count || 10;
+            var seg = (Math.PI * 2) / n;
+            var verify = mod2pi((3 * Math.PI / 2) - angle);
+            var idx = Math.floor(verify / seg) % n;
+            if (idx < 0) idx += n;
+            return idx;
+        }
+
+        function landingRotation(angleNow, selIdx, count, randUnit) {
+            var n = count || 10;
+            var seg = (Math.PI * 2) / n;
+            var unit = (typeof randUnit === 'number' && isFinite(randUnit)) ? randUnit : 0.5;
+            if (unit < 0) unit = 0;
+            if (unit > 1) unit = 1;
+            var offset = (0.15 + unit * 0.7) * seg;
+            var target = mod2pi((3 * Math.PI / 2) - (selIdx * seg) - offset);
+            var deficit = target - mod2pi(angleNow);
+            if (deficit < 0) deficit += Math.PI * 2;
+            var minExtra = MIN_LAND_TURNS * Math.PI * 2;
+            var extra = Math.ceil((minExtra - deficit) / (Math.PI * 2));
+            if (extra < 0) extra = 0;
+            var total = extra * Math.PI * 2 + deficit;
+            var verify = mod2pi((3 * Math.PI / 2) - (angleNow + total));
+            var idx = Math.floor(verify / seg) % n;
+            if (idx < 0) idx += n;
+            if (idx !== selIdx) {
+                var want = mod2pi(selIdx * seg + offset);
+                var fix = mod2pi(verify - want);
+                if (fix === 0) fix = Math.PI * 2;
+                total += fix;
+            }
+            return total;
+        }
+
+        function createState() {
+            return {
+                phase: 'free',
+                angle: 0,
+                started: 0,
+                phase2Start: 0,
+                phase2From: 0,
+                totalRot: 0,
+                serverIndex: -1,
+                randUnit: 0.5,
+                error: null,
+                segments: 10
+            };
+        }
+
+        function step(state, now) {
+            if (!state || state.phase === 'done' || state.phase === 'error') return state;
+            if (state.phase === 'free' || state.phase === 'settle') {
+                state.angle += state.phase === 'free' ? PHASE1_SPEED : SETTLE_SPEED;
+                if (state.phase === 'free' && (now - state.started) >= PHASE1_CAP_MS) state.phase = 'settle';
+                if (state.error) {
+                    state.phase = 'error';
+                    return state;
+                }
+                if (typeof state.serverIndex === 'number' && state.serverIndex >= 0) {
+                    state.phase = 'land';
+                    state.phase2Start = now;
+                    state.phase2From = state.angle;
+                    state.totalRot = landingRotation(state.angle, state.serverIndex, state.segments, state.randUnit);
+                }
+                return state;
+            }
+            var elapsed = now - state.phase2Start;
+            var progress = elapsed / PHASE2_MS;
+            if (progress < 0) progress = 0;
+            if (progress > 1) progress = 1;
+            state.angle = state.phase2From + (state.totalRot * easeOutQuart(progress));
+            if (progress >= 1) state.phase = 'done';
+            return state;
+        }
+
+        function simulate(serverMs, opts) {
+            opts = opts || {};
+            var state = createState();
+            state.started = 0;
+            state.segments = opts.segments || 10;
+            state.randUnit = (typeof opts.rand === 'number') ? opts.rand : 0.42;
+            var index = (typeof opts.index === 'number') ? opts.index : 0;
+            var now = 0;
+            var sawSettle = false;
+            var guard = 0;
+            while (guard++ < 40000 && state.phase !== 'done' && state.phase !== 'error') {
+                if (state.serverIndex < 0 && now >= serverMs) state.serverIndex = index;
+                step(state, now);
+                if (state.phase === 'settle') sawSettle = true;
+                if (state.phase === 'done' || state.phase === 'error') break;
+                now += FRAME_MS;
+            }
+            return {
+                ms: now,
+                settled: sawSettle,
+                phase: state.phase,
+                landed: segmentIndex(state.angle, state.segments),
+                index: index
+            };
+        }
+
+        // Previous clock: free spin until the callable returns, then 1500ms.
+        function simulateLegacy(serverMs) {
+            var phase2 = 1500;
+            var now = 0;
+            var phase = 1;
+            var phase2Start = 0;
+            var guard = 0;
+            while (guard++ < 40000) {
+                if (phase === 1) {
+                    if (now >= serverMs) {
+                        phase = 2;
+                        phase2Start = now;
+                    }
+                } else if ((now - phase2Start) >= phase2) {
+                    return { ms: now, serverMs: serverMs };
+                }
+                now += FRAME_MS;
+            }
+            return { ms: now, serverMs: serverMs, timedOut: true };
+        }
+
+        return {
+            PHASE1_CAP_MS: PHASE1_CAP_MS,
+            PHASE2_MS: PHASE2_MS,
+            PHASE1_SPEED: PHASE1_SPEED,
+            SETTLE_SPEED: SETTLE_SPEED,
+            MIN_LAND_TURNS: MIN_LAND_TURNS,
+            FRAME_MS: FRAME_MS,
+            mod2pi: mod2pi,
+            easeOutQuart: easeOutQuart,
+            segmentIndex: segmentIndex,
+            landingRotation: landingRotation,
+            createState: createState,
+            step: step,
+            simulate: simulate,
+            simulateLegacy: simulateLegacy
+        };
+    })();
 
     window.showSpinWheel = function() {
         // Auth gate — must be signed in to spin
@@ -638,29 +1322,16 @@
         var segments = [
             { label: '🎫 1 Ticket', value: 'ticket_1', weight: 25, color: '#f7931a' },
             { label: '🎫 2 Tickets', value: 'ticket_2', weight: 22, color: '#ea580c' },
-            { label: '⭐ 25 XP', value: 'points_25', weight: 18, color: '#22c55e' },
+            { label: '⭐ 10 XP', value: 'points_10', weight: 18, color: '#22c55e' },
             { label: '🎫 3 Tickets', value: 'ticket_3', weight: 12, color: '#fbbf24' },
-            { label: '⭐ 50 XP', value: 'points_50', weight: 8, color: '#3b82f6' },
+            { label: '⭐ 25 XP', value: 'points_25', weight: 8, color: '#3b82f6' },
             { label: '👔 Closet!', value: 'closet_item', weight: 5, color: '#ec4899' },
             { label: '🧊 Freeze!', value: 'freeze', weight: 4, color: '#06b6d4' },
-            { label: '⭐ 100 XP', value: 'points_100', weight: 3, color: '#8b5cf6' },
+            { label: '⭐ 50 XP', value: 'points_50', weight: 3, color: '#8b5cf6' },
             { label: '🎫 5 Tickets', value: 'ticket_5', weight: 1.5, color: '#a855f7' },
             { label: '💎 RARE!', value: 'rare_drop', weight: 1.5, color: '#ef4444' }
         ];
 
-        // Hidden ultra-rare jackpots (resolved AFTER the wheel lands on 💎 RARE!)
-        var RARE_TABLE = [
-            { label: '🎫 10 Tickets', value: 'ticket_10', weight: 1000 },
-            { label: '🎫 25 Tickets', value: 'ticket_25', weight: 500 },
-            { label: '🎫 50 Tickets', value: 'ticket_50', weight: 100 },
-            { label: '🎫 100 Tickets!', value: 'ticket_100', weight: 50 },
-            { label: '🎫 500 Tickets!!', value: 'ticket_500', weight: 10 },
-            { label: '💎 1,000 Tickets!!!', value: 'ticket_1000', weight: 3 },
-            { label: '👑 10,000 TICKETS!!!!', value: 'ticket_10000', weight: 1 },
-            // 10,000 tickets: ~1.5% base × 1/1664 rare table = ~1 in 110,000 spins
-            // To hit 1 in 10 million, we add a second roll:
-        ];
-        
         modal.innerHTML =
             '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent,#f7931a);border-radius:20px;padding:28px 24px;max-width:360px;width:100%;text-align:center;position:relative;box-shadow:0 8px 40px rgba(0,0,0,0.5);margin:auto;">' +
                 '<button onclick="document.getElementById(\'spinModal\').remove()" style="position:absolute;top:10px;right:12px;background:none;border:1px solid var(--border,#333);color:var(--text-muted,#888);width:32px;height:32px;border-radius:8px;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;">✕</button>' +
@@ -716,22 +1387,16 @@
             spinBtn.style.opacity = '0.6';
             spinBtn.textContent = '🎰 Spinning...';
 
-            // Fire server call immediately in parallel — don't wait before animating
+            // Fire the callable on click. The wheel never picks a prize itself.
             var spinFn = (typeof firebase !== 'undefined' && firebase.functions) ? firebase.functions().httpsCallable('dailySpin') : null;
             var serverSpinPromise = spinFn ? spinFn({}) : Promise.resolve({ data: null });
-
-            // ---- Phase 1: Free spin ---- starts right now, no destination yet
-            var PHASE1_SPEED   = 0.18;   // radians per frame at 60fps (≈ 1.7 full rotations/sec)
-            var currentAngle   = 0;
-            var phase          = 1;      // 1 = free-spin, 2 = decelerate to target
-            var totalRotP2     = 0;      // phase-2 total rotation (set when server resolves)
-            var phase2Start    = 0;      // Date.now() when phase 2 begins
-            var phase2Duration = 1500;   // ms to decelerate once we have the result (half the old 3s)
-            var phase2AngleAt0 = 0;      // wheel angle at the moment phase 2 starts
-            var serverError    = null;   // set if server call failed
-            var serverData     = null;
-            var selectedFinal  = null;   // set when server resolves
-            var selectedIndexFinal = -1;
+            var clock = window._dailySpinClock;
+            var spinState = clock.createState();
+            spinState.started = Date.now();
+            spinState.segments = segments.length;
+            spinState.randUnit = Math.random();
+            var serverReward = null;
+            var lastTick = null;
 
             function drawWheel(angle) {
                 if (!canvas || !ctx) return;
@@ -761,277 +1426,184 @@
                 ctx.restore();
             }
 
-            function easeOutQuart(t) { return 1 - Math.pow(1 - t, 4); }
-
-            function animate() {
-                if (phase === 1) {
-                    // ---- Free spin: constant velocity ----
-                    currentAngle += PHASE1_SPEED;
-
-                    // Tick sound
-                    var _tickFrame = Math.floor(currentAngle / segmentAngle);
-                    if (typeof animate._lastTick === 'undefined') animate._lastTick = 0;
-                    if (_tickFrame !== animate._lastTick) {
-                        animate._lastTick = _tickFrame;
-                        if (typeof playSpinTick === 'function') playSpinTick();
-                    }
-
-                    drawWheel(currentAngle);
-
-                    if (serverError !== null) {
-                        // Server came back with an error — stop and display it
-                        isSpinning = false;
-                        spinBtn.disabled = false;
-                        spinBtn.style.opacity = '';
-                        spinBtn.textContent = 'SPIN! 🎰';
-                        var msg = (serverError && serverError.message) ? serverError.message : '';
-                        if (msg.indexOf('Already spun') !== -1 || msg.indexOf('already-exists') !== -1 || msg.indexOf('already spun') !== -1) {
-                            localStorage.setItem('btc_last_spin_date', new Date().toISOString().split('T')[0]);
-                            var modal = document.getElementById('spinModal');
-                            if (modal) modal.remove();
-                            if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
-                            if (typeof showToast === 'function') showToast('🎡 You already spun today! Come back tomorrow!');
-                        } else {
-                            if (typeof showToast === 'function') showToast('❌ Spin failed — try again.');
-                        }
-                        return;
-                    }
-
-                    if (selectedIndexFinal !== -1 && typeof totalRotP2 === 'number' && totalRotP2 > 0) {
-                        // Server has resolved — transition to phase 2
-                        phase = 2;
-                        phase2AngleAt0 = currentAngle;
-                        phase2Start    = Date.now();
-                        requestAnimationFrame(animate);
-                    } else {
-                        requestAnimationFrame(animate);
-                    }
-
-                } else {
-                    // ---- Phase 2: decelerate to target ----
-                    var elapsed  = Date.now() - phase2Start;
-                    var progress = Math.min(elapsed / phase2Duration, 1);
-                    var eased    = easeOutQuart(progress);
-                    currentAngle = phase2AngleAt0 + (totalRotP2 * eased);
-
-                    // Tick sounds, slowing down
-                    var _tickFrame2 = Math.floor(currentAngle / segmentAngle);
-                    if (typeof animate._lastTick === 'undefined') animate._lastTick = 0;
-                    if (_tickFrame2 !== animate._lastTick) {
-                        animate._lastTick = _tickFrame2;
-                        if (typeof playSpinTick === 'function') playSpinTick();
-                    }
-
-                    drawWheel(currentAngle);
-
-                    if (progress < 1) {
-                        requestAnimationFrame(animate);
-                    } else {
-                        // Win!
-                        if (typeof playSpinWin === 'function') playSpinWin();
-                        spinBtn.textContent = 'SPIN! 🎰';
-                        showSpinReward(selectedFinal, selectedIndexFinal, serverData);
-                    }
+            function failSpin(err) {
+                isSpinning = false;
+                spinBtn.disabled = false;
+                spinBtn.style.opacity = '';
+                spinBtn.textContent = 'SPIN! 🎰';
+                var msg = (err && err.message) ? err.message : '';
+                if (msg.indexOf('Already spun') !== -1 || msg.indexOf('already-exists') !== -1 || msg.indexOf('already spun') !== -1) {
+                    localStorage.setItem('btc_last_spin_date', new Date().toISOString().split('T')[0]);
+                    var openModal = document.getElementById('spinModal');
+                    if (openModal) openModal.remove();
+                    if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
+                    if (typeof showToast === 'function') showToast('🎡 You already spun today! Come back tomorrow!');
+                } else if (typeof showToast === 'function') {
+                    showToast('❌ Spin failed — try again.');
                 }
             }
 
-            // Kick off Phase 1 immediately
+            function animate() {
+                if (!document.getElementById('spinModal')) return;
+                var now = Date.now();
+                clock.step(spinState, now);
+                var tickFrame = Math.floor(spinState.angle / segmentAngle);
+                if (lastTick === null) lastTick = tickFrame;
+                if (tickFrame !== lastTick) {
+                    lastTick = tickFrame;
+                    if (typeof playSpinTick === 'function') playSpinTick();
+                }
+                drawWheel(spinState.angle);
+                if (spinState.phase === 'error') {
+                    failSpin(spinState.error);
+                    return;
+                }
+                if (spinState.phase === 'done') {
+                    if (typeof playSpinWin === 'function') playSpinWin();
+                    spinBtn.textContent = 'SPIN! 🎰';
+                    showSpinReward(serverReward, spinState.serverIndex);
+                    return;
+                }
+                requestAnimationFrame(animate);
+            }
+
             requestAnimationFrame(animate);
 
-            // Server resolves → compute Phase 2 destination
             serverSpinPromise.then(function(result) {
-                var sData = result && result.data;
-                serverData = sData;
-                var selIdx;
-                if (sData && typeof sData.rewardIndex === 'number') {
-                    selIdx = sData.rewardIndex % segments.length;
-                } else {
-                    // Anonymous / offline fallback
-                    var totalWeight = segments.reduce(function(sum, s) { return sum + s.weight; }, 0);
-                    var random = Math.random() * totalWeight;
-                    selIdx = 0;
-                    var cw = 0;
-                    for (var i = 0; i < segments.length; i++) {
-                        cw += segments[i].weight;
-                        if (random <= cw) { selIdx = i; break; }
-                    }
+                var data = result && result.data;
+                var reward = data && data.reward;
+                var idx = null;
+                if (reward && typeof reward.rewardIndex === 'number' && isFinite(reward.rewardIndex)) idx = reward.rewardIndex;
+                else if (data && typeof data.rewardIndex === 'number' && isFinite(data.rewardIndex)) idx = data.rewardIndex;
+                if (idx == null) {
+                    spinState.error = new Error('Spin failed');
+                    return;
                 }
-
-                // Calculate how far phase 2 must rotate from current angle to land on selIdx
-                // We pick the nearest whole-rotation multiple ≥ 1.5 full rotations for natural feel
-                var offsetInSeg = (0.15 + Math.random() * 0.7) * segmentAngle;
-                var targetR = (3 * Math.PI / 2) - (selIdx * segmentAngle) - offsetInSeg;
-                targetR = ((targetR % (Math.PI * 2)) + (Math.PI * 2)) % (Math.PI * 2);
-
-                // We want currentAngle (at transition moment, ≈ phase2AngleAt0 once set) + totalRotP2 = targetR + N*2π
-                // Compute using currentAngle as approximation (exact value set in phase2AngleAt0)
-                var baseAngle  = currentAngle;
-                var deficit    = targetR - (baseAngle % (Math.PI * 2));
-                if (deficit < 0) deficit += Math.PI * 2;
-                var minExtraRot = 1.5 * Math.PI * 2; // at least 1.5 more full spins in phase 2
-                var extraSpins  = Math.ceil((minExtraRot - deficit) / (Math.PI * 2));
-                if (extraSpins < 0) extraSpins = 0;
-                totalRotP2 = extraSpins * Math.PI * 2 + deficit;
-
-                // Verify
-                var verifyAngle = ((3 * Math.PI / 2) - (baseAngle + totalRotP2)) % (Math.PI * 2);
-                if (verifyAngle < 0) verifyAngle += Math.PI * 2;
-                var verifyIdx = Math.floor(verifyAngle / segmentAngle) % segments.length;
-                if (verifyIdx !== selIdx) {
-                    console.warn('[Spin] Mismatch — adjusting to visual result', verifyIdx);
-                    selIdx = verifyIdx;
-                }
-
-                selectedFinal      = segments[selIdx];
-                selectedIndexFinal = selIdx;
-
+                var n = segments.length;
+                idx = ((idx % n) + n) % n;
+                serverReward = reward || { rewardIndex: idx };
+                spinState.serverIndex = idx;
             }).catch(function(err) {
-                serverError = err || new Error('unknown');
+                spinState.error = err || new Error('unknown');
             });
 
-            function showSpinReward(selected, selectedIndex, serverData) {
-            // (reward logic extracted from old doSpin)
-            var rewardText = '';
-            var rewardType = selected.value.split('_')[0];
-            var rewardAmount = parseInt(selected.value.split('_')[1]) || 1;
-            var today = new Date().toISOString().split('T')[0];
+            function mirrorServerSpin(reward) {
+                if (!reward) return;
+                if (typeof currentUser !== 'undefined' && currentUser) {
+                    if (reward.pts > 0) currentUser.points = (currentUser.points || 0) + reward.pts;
+                    if (reward.tickets > 0) currentUser.orangeTickets = (currentUser.orangeTickets || 0) + reward.tickets;
+                    if (reward.freezes > 0) currentUser.streakFreezes = (currentUser.streakFreezes || 0) + reward.freezes;
+                    if (reward.doubleXpUntil) {
+                        currentUser.doubleXpUntil = reward.doubleXpUntil;
+                        currentUser.doubleXPExpiry = reward.doubleXpUntil;
+                    }
+                }
+                if (reward.freezes > 0) {
+                    var freezes = parseInt(localStorage.getItem('btc_streak_freezes') || '0', 10);
+                    if (isNaN(freezes)) freezes = 0;
+                    localStorage.setItem('btc_streak_freezes', String(freezes + reward.freezes));
+                }
+                if (typeof updateRankUI === 'function') updateRankUI();
+            }
 
-            if (selected.value === 'rare_drop') {
-                var rareTotalWeight = RARE_TABLE.reduce(function(s, r) { return s + r.weight; }, 0);
-                var rareRandom = Math.random() * rareTotalWeight;
-                var rareSelected = RARE_TABLE[0];
-                var rareCurrentWeight = 0;
-                for (var ri = 0; ri < RARE_TABLE.length; ri++) {
-                    rareCurrentWeight += RARE_TABLE[ri].weight;
-                    if (rareRandom <= rareCurrentWeight) { rareSelected = RARE_TABLE[ri]; break; }
+            function closetLine(reward) {
+                var ownedItems = (typeof safeJSON === 'function') ? safeJSON('btc_spin_closet_items', []) : [];
+                var allClosetItems = ['orange_scarf','sunglasses','bowtie','mining_helmet','lightning_chain','party_hat','hodl_hoodie','crown','steak','diamond_hooves'];
+                var available = allClosetItems.filter(function(id) { return ownedItems.indexOf(id) === -1; });
+                var itemNames = { orange_scarf:'Bitcoin Scarf 🧣', sunglasses:'Cool Shades 🕶️', bowtie:'Fancy Bowtie 🎀', mining_helmet:'Mining Helmet ⛑️', lightning_chain:'Lightning Chain ⚡', party_hat:'Party Hat 🎉', hodl_hoodie:'HODL Hoodie 🧥', crown:'Royal Crown 👑', steak:'Proof of Steak 🥩', diamond_hooves:'Diamond Hooves 💎' };
+                var ptsBit = (reward.pts > 0) ? (' +' + reward.pts + ' XP') : '';
+                if (!available.length) {
+                    return '👔 You already own the spin closet items.' + (ptsBit ? (' ' + ptsBit.trim() + ' from this spin.') : '');
                 }
-                var rareAmount = parseInt(rareSelected.value.split('_')[1]) || 10;
-                if (rareAmount === 10000 && Math.random() > 0.01) {
-                    rareAmount = 100;
-                    rareSelected = { label: '🎫 100 Tickets!', value: 'ticket_100' };
-                }
-                rewardText = '💎 RARE DROP! ' + rareSelected.label;
-                if (typeof awardOrangeTickets === 'function') {
-                    awardOrangeTickets(rareAmount, 'Rare Spin Drop');
+                var wonItem = available[Math.floor(spinState.randUnit * available.length) % available.length];
+                ownedItems.push(wonItem);
+                try { localStorage.setItem('btc_spin_closet_items', JSON.stringify(ownedItems)); } catch (e) {}
+                return '👔 Closet item: ' + (itemNames[wonItem] || wonItem) + '.' + ptsBit;
+            }
+
+            function showSpinReward(reward, selectedIndex) {
+                reward = reward || {};
+                var rewardText = '';
+                var emoji = '🎡';
+                if (reward.rare) {
+                    emoji = '💎';
+                    rewardText = '💎 RARE DROP! ' + (reward.rareLabel || 'Rare drop');
+                } else if (reward.closet) {
+                    emoji = '👔';
+                    rewardText = closetLine(reward);
+                } else if (reward.freezes > 0) {
+                    emoji = '🧊';
+                    rewardText = '🧊 STREAK FREEZE! Your streak is protected for ' + reward.freezes + ' missed day' + (reward.freezes > 1 ? 's' : '') + '.';
+                } else if (reward.tickets > 0 && !(reward.pts > 0)) {
+                    emoji = '🎫';
+                    rewardText = '🎫 You won ' + reward.tickets + ' Orange Ticket' + (reward.tickets > 1 ? 's' : '') + '!';
+                } else if (reward.pts > 0) {
+                    emoji = '⭐';
+                    rewardText = '⭐ You won ' + reward.pts + ' XP' + (reward.doubled ? ' (2×)' : '') + '!';
+                    if (reward.tickets > 0) rewardText += ' +' + reward.tickets + ' ticket' + (reward.tickets > 1 ? 's' : '');
                 } else {
-                    var rt = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
-                    localStorage.setItem('btc_orange_tickets', rt + rareAmount);
+                    var landed = segments[selectedIndex] || segments[0];
+                    emoji = (landed && landed.label) ? landed.label.split(' ')[0] : '🎡';
+                    rewardText = (reward.label || (landed && landed.label) || 'Spin complete');
                 }
-                if (rareAmount >= 100) {
+                mirrorServerSpin(reward);
+                if ((reward.tickets || 0) >= 100 || reward.rare) {
                     if (typeof launchConfetti === 'function') launchConfetti();
                     if (typeof playBadgeSound === 'function') playBadgeSound();
                 }
-            } else if (rewardType === 'closet') {
-                var ownedItems = safeJSON('btc_spin_closet_items', []);
-                var allClosetItems = ['orange_scarf','sunglasses','bowtie','mining_helmet','lightning_chain','party_hat','hodl_hoodie','crown','steak','diamond_hooves'];
-                var available = allClosetItems.filter(function(id) { return ownedItems.indexOf(id) === -1; });
-                if (available.length > 0) {
-                    var wonItem = available[Math.floor(Math.random() * available.length)];
-                    ownedItems.push(wonItem);
-                    localStorage.setItem('btc_spin_closet_items', JSON.stringify(ownedItems));
-                    if (typeof currentUser !== 'undefined' && currentUser && !currentUser._isLocal) {
-                        try { db.collection('users').doc(auth.currentUser.uid).update({ spinClosetItems: firebase.firestore.FieldValue.arrayUnion(wonItem) }).catch(function(){}); } catch(e) {}
-                    }
-                    var itemNames = { orange_scarf:'Bitcoin Scarf 🧣', sunglasses:'Cool Shades 🕶️', bowtie:'Fancy Bowtie 🎀', mining_helmet:'Mining Helmet ⛑️', lightning_chain:'Lightning Chain ⚡', party_hat:'Party Hat 🎉', hodl_hoodie:'HODL Hoodie 🧥', crown:'Royal Crown 👑', steak:'Proof of Steak 🥩', diamond_hooves:'Diamond Hooves 💎' };
-                    rewardText = '👔 CLOSET ITEM! You unlocked: ' + (itemNames[wonItem] || wonItem) + '! Equip it in Nacho\'s Closet!';
-                } else {
-                    var closetPts = (serverData && serverData.reward && typeof serverData.reward.pts === 'number') ? serverData.reward.pts : 25;
-                    rewardText = '👔 You already own all spin closet items! +' + closetPts + ' bonus XP instead!';
-                    if (!(serverData && serverData.reward && typeof serverData.reward.pts === 'number') && typeof awardPoints === 'function') awardPoints(25, 'Closet bonus');
-                }
-            } else if (rewardType === 'freeze') {
-                rewardText = '🧊 STREAK FREEZE TICKET! Your streak is protected for 1 missed day!';
-                var freezes = parseInt(localStorage.getItem('btc_streak_freezes') || '0');
-                localStorage.setItem('btc_streak_freezes', freezes + 1);
-                if (typeof awardPoints === 'function') awardPoints(0, '🧊 Streak Freeze', null, 0, 1);
-                if (typeof currentUser !== 'undefined' && currentUser) {
-                    currentUser.streakFreezes = (currentUser.streakFreezes || 0) + 1;
-                }
-            } else if (rewardType === 'ticket') {
-                rewardText = '🎫 You won ' + rewardAmount + ' Orange Ticket' + (rewardAmount > 1 ? 's' : '') + '!';
-                if (typeof awardOrangeTickets === 'function') {
-                    awardOrangeTickets(rewardAmount, 'Daily Spin');
-                } else {
-                    var tickets = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
-                    localStorage.setItem('btc_orange_tickets', tickets + rewardAmount);
-                }
-            } else if (rewardType === 'points') {
-                var wonPts = (serverData && serverData.reward && typeof serverData.reward.pts === 'number') ? serverData.reward.pts : rewardAmount;
-                rewardText = '⭐ You won ' + wonPts + ' XP!' + (serverData && serverData.reward && serverData.reward.doubled ? ' (2×)' : '');
-                if (serverData && serverData.reward && typeof serverData.reward.pts === 'number') {
-                    if (typeof currentUser !== 'undefined' && currentUser) {
-                        currentUser.points = (currentUser.points || 0) + wonPts;
-                        if (serverData.reward.doubleXpUntil) {
-                            currentUser.doubleXpUntil = serverData.reward.doubleXpUntil;
-                            currentUser.doubleXPExpiry = serverData.reward.doubleXpUntil;
+
+                resultDiv.innerHTML = '<div style="animation:fadeSlideIn 0.5s ease-out;">' +
+                    '<div style="font-size:3rem;margin-bottom:8px;">' + emoji + '</div>' +
+                    '<div style="color:var(--heading);font-weight:700;font-size:1.1rem;">' + rewardText + '</div>' +
+                    '<button onclick="document.getElementById(\'spinModal\').remove()" style="margin-top:12px;padding:10px 24px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Awesome! 🎉</button>' +
+                '</div>';
+
+                if (typeof notifySelfSpin === 'function') notifySelfSpin(rewardText);
+
+                if (!isBonusSpin) {
+                    setTimeout(function() {
+                        if (typeof window.awardDailyGifts === 'function') {
+                            window.awardDailyGifts();
+                        } else {
+                            var _giftRetries = 0;
+                            var _giftRetryTimer = setInterval(function() {
+                                if (typeof window.awardDailyGifts === 'function') {
+                                    clearInterval(_giftRetryTimer);
+                                    window.awardDailyGifts();
+                                } else if (++_giftRetries >= 20) {
+                                    clearInterval(_giftRetryTimer);
+                                    console.warn('[spin] gifting.js never loaded — gifts not awarded');
+                                }
+                            }, 500);
                         }
+                    }, 800);
+                }
+
+                var _sc = parseInt(localStorage.getItem('btc_spin_count') || '0') + 1; localStorage.setItem('btc_spin_count', String(_sc));
+                if (typeof firebase !== 'undefined' && firebase.firestore && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                    try { firebase.firestore().collection('users').doc(auth.currentUser.uid).update({ spinCount: _sc }).catch(function(){}); } catch(e) {}
+                }
+                var _lastSpinDay = localStorage.getItem('btc_spin_last_day') || '';
+                var _dk = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
+                var _yesterday = new Date(Date.now() - (5 + 24) * 3600000).toISOString().split('T')[0];
+                if (_lastSpinDay === _yesterday) {
+                    var _ss = parseInt(localStorage.getItem('btc_spin_streak') || '0'); localStorage.setItem('btc_spin_streak', String(_ss + 1));
+                } else if (_lastSpinDay !== _dk) {
+                    localStorage.setItem('btc_spin_streak', '1');
+                }
+                localStorage.setItem('btc_spin_last_day', _dk);
+                if (reward.rare) localStorage.setItem('btc_spin_hit_rare', 'true');
+
+                if (!isBonusSpin) {
+                    localStorage.setItem('btc_last_spin_date', _dk);
+                    if (typeof currentUser !== 'undefined' && currentUser) {
+                        currentUser.lastSpinDate = _dk;
                     }
-                    if (typeof updateRankUI === 'function') updateRankUI();
-                } else if (typeof awardPoints === 'function') {
-                    awardPoints(rewardAmount, 'Daily Spin');
-                } else {
-                    var pts = parseInt(localStorage.getItem('btc_points') || '0');
-                    localStorage.setItem('btc_points', pts + rewardAmount);
+                    if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
                 }
             }
-
-            resultDiv.innerHTML = '<div style="animation:fadeSlideIn 0.5s ease-out;">' +
-                '<div style="font-size:3rem;margin-bottom:8px;">' + selected.label.split(' ')[0] + '</div>' +
-                '<div style="color:var(--heading);font-weight:700;font-size:1.1rem;">' + rewardText + '</div>' +
-                '<button onclick="document.getElementById(\'spinModal\').remove()" style="margin-top:12px;padding:10px 24px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Awesome! 🎉</button>' +
-            '</div>';
-
-            if (typeof notifySelfSpin === 'function') notifySelfSpin(rewardText);
-
-            // Award daily gifts after successful spin
-            // gifting.js is lazy-loaded — retry until it's available (up to 10s)
-            if (!isBonusSpin) {
-                setTimeout(function() {
-                    if (typeof window.awardDailyGifts === 'function') {
-                        window.awardDailyGifts();
-                    } else {
-                        var _giftRetries = 0;
-                        var _giftRetryTimer = setInterval(function() {
-                            if (typeof window.awardDailyGifts === 'function') {
-                                clearInterval(_giftRetryTimer);
-                                window.awardDailyGifts();
-                            } else if (++_giftRetries >= 20) {
-                                clearInterval(_giftRetryTimer);
-                                console.warn('[spin] gifting.js never loaded — gifts not awarded');
-                            }
-                        }, 500);
-                    }
-                }, 800);
-            }
-
-            var _sc = parseInt(localStorage.getItem('btc_spin_count') || '0') + 1; localStorage.setItem('btc_spin_count', String(_sc));
-            // Persist spinCount to Firestore so badge dedup survives cache clears / new devices
-            if (typeof firebase !== 'undefined' && firebase.firestore && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-                try { firebase.firestore().collection('users').doc(auth.currentUser.uid).update({ spinCount: _sc }).catch(function(){}); } catch(e) {}
-            }
-            var _lastSpinDay = localStorage.getItem('btc_spin_last_day') || '';
-            var _dk = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
-            var _yesterday = new Date(Date.now() - (5 + 24) * 3600000).toISOString().split('T')[0]; // yesterday in offset-day space
-            if (_lastSpinDay === _yesterday) {
-                var _ss = parseInt(localStorage.getItem('btc_spin_streak') || '0'); localStorage.setItem('btc_spin_streak', String(_ss + 1));
-            } else if (_lastSpinDay !== _dk) {
-                localStorage.setItem('btc_spin_streak', '1');
-            }
-            localStorage.setItem('btc_spin_last_day', _dk);
-            if (selected.value === 'rare_drop') { localStorage.setItem('btc_spin_hit_rare', 'true'); }
-
-            // Only mark the daily spin as used for non-bonus spins.
-            // Bonus spins must not consume the user's regular daily spin slot.
-            if (!isBonusSpin) {
-                localStorage.setItem('btc_last_spin_date', _dk);
-                if (typeof currentUser !== 'undefined' && currentUser) {
-                    currentUser.lastSpinDate = _dk;
-                }
-                if (typeof window._dismissSpinReminder === 'function') window._dismissSpinReminder();
-            }
-            } // end doSpin
         });
-        
+
         modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
     };
 
@@ -1238,6 +1810,31 @@
         });
     }
 
+    function channelShareParts(id) {
+        var hero = document.getElementById('hero');
+        var h1 = hero ? hero.querySelector('h1') : null;
+        var title = (h1 && h1.textContent) ? h1.textContent : String(id || '');
+        var text = title + ' — Bitcoin Education Archive';
+        var base = 'https://bitcoineducation.quest/#' + id;
+        var url = (typeof shareDeepUrl === 'function') ? shareDeepUrl(base) : base;
+        return { text: text, url: url };
+    }
+
+    function shareChannel(kind, id, btn) {
+        if (!/^[a-z0-9_-]+$/.test(String(id || ''))) return;
+        var parts = channelShareParts(id);
+        if (kind === 'x') {
+            window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(parts.text) + '&url=' + encodeURIComponent(parts.url), '_blank', 'noopener,noreferrer');
+            return;
+        }
+        if (kind === 'nostr') {
+            shareNostr(parts.text, parts.url);
+            return;
+        }
+        if (kind === 'copy' && btn) copyLink(parts.url, btn);
+    }
+    window.shareChannel = shareChannel;
+
     // goRandom defined above with floating button support
 
     let supportRevealed = false;
@@ -1391,6 +1988,7 @@
                         '<button id="nachoEli5Btn" onclick="showEli5Prompt()" style="background:none;border:none;cursor:pointer;padding:2px;width:24px;height:24px;opacity:' + (window._nachoEli5 ? '1' : '0.5') + ';touch-action:manipulation;font-size:0.95rem;" title="ELI5 Mode">🧒</button>' +
                         '<button onclick="nachoChatExport()" style="background:none;border:none;cursor:pointer;padding:2px;width:24px;height:24px;touch-action:manipulation;font-size:0.95rem;" title="Save chat">💾</button>' +
                         '<button onclick="nachoChatClear()" style="background:none;border:none;cursor:pointer;padding:2px;width:24px;height:24px;touch-action:manipulation;font-size:0.95rem;" title="Clear chat">🗑️</button>' +
+                        '<button type="button" id="nachoShareBtn" data-mini-share="nacho" onclick="if(window.miniAppShare)miniAppShare(\'nacho\')" style="min-width:44px;min-height:44px;padding:6px 10px;border-radius:10px;border:1px solid rgba(247,147,26,0.55);background:#1a120b;color:#fff;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.75rem;">Share</button>' +
                         '<img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Home" style="width:24px;height:24px;border-radius:50%;cursor:pointer;box-shadow:0 0 6px rgba(247,147,26,0.3);object-fit:cover;" onclick="exitNachoMode()" title="Go to Home">' +
                     '</div>' +
                 '</div>' +
@@ -2104,11 +2702,22 @@
     // =============================================
     // 📤 Share Answer
     // =============================================
+    function nachoSharePayload(text, code) {
+        var clean = String(text || '').slice(0, 1000).replace(/<[^>]+>/g, '').replace(/🦌/g, '');
+        if (typeof stripShareLinks === 'function') clean = stripShareLinks(clean);
+        var c = code == null ? (typeof liveRefCode === 'function' ? liveRefCode() : '') : String(code || '');
+        var url = /^[A-Za-z0-9]{6,28}$/.test(c)
+            ? 'https://bitcoineducation.quest/?ref=' + encodeURIComponent(c)
+            : 'https://bitcoineducation.quest';
+        var body = '🦌 I learned this from Nacho on Bitcoin Quest:\n\n' + clean.substring(0, 280) + '\nLearn Bitcoin and earn sats on Bitcoin Quest 👇\n' + url;
+        return { title: 'Bitcoin Fact from Nacho 🦌', text: body };
+    }
+
     window.nachoShareAnswer = function(text) {
-        var clean = text.replace(/<[^>]+>/g, '').replace(/🦌\s*/g, '');
-        var shareText = '🦌 I learned this from Nacho at bitcoineducation.quest:\n\n' + clean.substring(0, 280);
+        var payload = nachoSharePayload(text);
+        var shareText = payload.text;
         if (navigator.share) {
-            navigator.share({ title: 'Bitcoin Fact from Nacho 🦌', text: shareText, url: 'https://bitcoineducation.quest' }).catch(function() {});
+            navigator.share(payload).catch(function() {});
         } else {
             // Fallback: copy to clipboard
             var ta = document.createElement('textarea');
@@ -2253,6 +2862,18 @@ const GENERIC_NACHO_QUIZ = [
   { q: "What is the primary function of the Lightning Network?", a: "To enable instant, near-free Bitcoin payments by moving them off-chain.", w: ["To increase the total number of Bitcoins that will ever exist to 42 million.", "To allow Bitcoin to be mined using only mobile phones and tablets.", "To encrypt the entire blockchain so it cannot be read by anyone.", "To create a secondary blockchain that is faster but less secure than Bitcoin."] }
 ];
 
+// Local shuffle. scholar.js no longer defines the shared fisherYates helper.
+function _nqShuffle(list) {
+    var copy = list.slice();
+    for (var i = copy.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = copy[i];
+        copy[i] = copy[j];
+        copy[j] = tmp;
+    }
+    return copy;
+}
+
 window.nachoQuizMe = function(topic) {
     // If not in Nacho Mode, enter it first then quiz
     if (!window._nachoMode) {
@@ -2272,7 +2893,7 @@ window.nachoQuizMe = function(topic) {
             catQuestions.forEach(q => {
                 pool.push({
                     question: q.q,
-                    options: fisherYates([q.a, ...(q.wrong || q.w || [])]),
+                    options: _nqShuffle([q.a, ...(q.wrong || q.w || [])]),
                     answer: q.a,
                     category: cat
                 });
@@ -2284,7 +2905,7 @@ window.nachoQuizMe = function(topic) {
     GENERIC_NACHO_QUIZ.forEach(q => {
         pool.push({
             question: q.q,
-            options: fisherYates([q.a, ...q.w]),
+            options: _nqShuffle([q.a, ...q.w]),
             answer: q.a,
             category: 'generic'
         });
@@ -3038,6 +3659,7 @@ window.nachoQuizAnswer = function(btn, correct) {
     };
 
     window.goHome = function goHome(fromPopState) {
+        if (topicsBrowserIsOpen()) closeTopicsBrowser({ fromHistory: true });
         window.currentPage = 'home';
         window.leaveTimechainTV('home');
         window._nachoMode = false; // back-button exits skip exitNachoMode and leaked this flag
@@ -3414,9 +4036,23 @@ window.nachoQuizAnswer = function(btn, correct) {
             // Close settings/username modal
             var um = document.getElementById('usernameModal');
             if (um && um.classList.contains('open')) { if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt(); return; }
-            // Close quest modal
+            // Close quest modal. A scholar exam keeps its own cancel path.
             var qm = document.getElementById('questModal');
-            if (qm && qm.classList.contains('open')) { qm.classList.remove('open'); return; }
+            if (qm && qm.classList.contains('open')) {
+                if (window._scholarExamActive) { qm.classList.remove('open'); return; }
+                if (typeof window.btcDismissQuest === 'function') { window.btcDismissQuest('esc'); return; }
+                qm.classList.remove('open');
+                return;
+            }
+            var triviaBubble = document.getElementById('nacho-bubble');
+            if (triviaBubble && triviaBubble.classList.contains('show') && triviaBubble.getAttribute('data-trivia') === '1') {
+                if (window._btcBubbleQuiz && typeof window.btcDismissBubbleQuiz === 'function') { window.btcDismissBubbleQuiz('esc'); return; }
+                if (typeof window.btcDismissNachoTrivia === 'function') { window.btcDismissNachoTrivia('esc'); return; }
+            }
+            if (typeof window.bqTopicConversationOpen === 'function' && window.bqTopicConversationOpen()) {
+                window.bqCloseTopicConversation('esc');
+                return;
+            }
             // Close search overlay
             var so = document.getElementById('searchOverlay');
             if (so && so.style.display !== 'none') { so.style.display = 'none'; so.removeAttribute('data-open'); return; }
@@ -3930,7 +4566,193 @@ window.nachoQuizAnswer = function(btn, correct) {
         go(prevId);
     };
 
+    var CERT_VERIFY_URL = 'https://us-central1-bitcoin-education-archive.cloudfunctions.net/verifyCertificate';
+    var CERT_ID_RE = /^(?:CERT-)?[A-Za-z0-9-]{8,80}$/;
+    var CERT_TIMEOUT_MS = 10000;
+
+    function _certEl(tag, css, text) {
+        var node = document.createElement(tag);
+        if (css) node.style.cssText = css;
+        if (text != null) node.textContent = text;
+        return node;
+    }
+    function _certClear(node) {
+        while (node && node.firstChild) node.removeChild(node.firstChild);
+    }
+    function _certOpenQuest() {
+        var home = document.getElementById('home');
+        if (home) {
+            home.classList.remove('hidden');
+            home.style.visibility = '';
+        }
+        var fc = document.getElementById('forumContainer');
+        if (fc) fc.style.display = 'none';
+        window._certPainted = '';
+        if (typeof window.goHome === 'function') {
+            try { window.goHome(); return; } catch (e) {}
+        }
+        try { history.pushState({ home: true }, '', window.location.pathname + window.location.search); } catch (e2) {}
+    }
+    function _certActions(parent, certId, withRetry) {
+        var row = _certEl('div', 'display:flex;flex-direction:column;gap:8px;align-items:center;margin-top:16px;');
+        if (withRetry) {
+            var retry = _certEl('button', 'width:100%;max-width:280px;padding:12px 22px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:12px;font-weight:800;cursor:pointer;font-family:inherit;font-size:0.95rem;', 'Retry');
+            retry.type = 'button';
+            retry.addEventListener('click', function () {
+                window._certPainted = '';
+                if (typeof window.renderCertVerification === 'function') window.renderCertVerification(certId, true);
+                else _paintBundleCert(certId, true);
+            });
+            row.appendChild(retry);
+        }
+        var open = _certEl('button', 'width:100%;max-width:280px;padding:12px 22px;background:transparent;color:var(--text,#e2e8f0);border:1px solid var(--border,#333);border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;', 'Open Bitcoin Quest');
+        open.type = 'button';
+        open.addEventListener('click', _certOpenQuest);
+        row.appendChild(open);
+        parent.appendChild(row);
+    }
+    function _certMount(fc) {
+        _certClear(fc);
+        var wrap = _certEl('div', 'max-width:500px;margin:0 auto;padding:30px 16px 120px;text-align:center;');
+        fc.appendChild(wrap);
+        return wrap;
+    }
+    function _certPlaceholder(fc) {
+        var wrap = _certMount(fc);
+        wrap.appendChild(_certEl('div', 'font-size:2rem;margin-bottom:12px;', '⏳'));
+        wrap.appendChild(_certEl('div', 'color:var(--text-muted,#94a3b8);font-size:0.95rem;', 'Verifying certificate…'));
+    }
+    function _certNotFound(fc) {
+        var wrap = _certMount(fc);
+        wrap.appendChild(_certEl('div', 'font-size:3rem;margin-bottom:12px;', '❌'));
+        wrap.appendChild(_certEl('h2', 'color:var(--heading,#e2e8f0);margin:0 0 8px;font-size:1.3rem;', 'Certificate Not Found'));
+        wrap.appendChild(_certEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.85rem;line-height:1.5;margin:0;', 'This certificate ID does not exist or has been revoked.'));
+        _certActions(wrap, '', false);
+    }
+    function _certFailed(fc, certId, message) {
+        var wrap = _certMount(fc);
+        wrap.appendChild(_certEl('div', 'font-size:2rem;margin-bottom:12px;', '⚠️'));
+        wrap.appendChild(_certEl('h2', 'color:var(--heading,#e2e8f0);margin:0 0 8px;font-size:1.2rem;', 'Could not verify this certificate'));
+        wrap.appendChild(_certEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.9rem;line-height:1.5;margin:0;', message));
+        _certActions(wrap, certId, true);
+    }
+    function _certTitle(quest) {
+        quest = String(quest || '');
+        if (quest === 'protocol-expert') return 'Bitcoin Protocol Expert';
+        if (quest.indexOf('trail_') === 0) return 'Nacho Trail Complete';
+        return 'Bitcoin Scholar';
+    }
+    function _certValid(fc, certId, payload) {
+        var quest = String(payload.quest || '');
+        var title = _certTitle(quest);
+        var technical = quest === 'protocol-expert';
+        var emoji = technical ? '🛠️' : (quest.indexOf('trail_') === 0 ? '🏔️' : '🎓');
+        var color = technical ? '#3b82f6' : '#f7931a';
+        var wrap = _certMount(fc);
+        wrap.appendChild(_certEl('div', 'display:inline-flex;align-items:center;gap:8px;padding:8px 20px;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:20px;color:#22c55e;font-size:0.8rem;font-weight:700;margin-bottom:16px;', '✅ VERIFIED CERTIFICATE'));
+        wrap.appendChild(_certEl('div', 'font-size:4rem;margin:8px 0 12px;', emoji));
+        wrap.appendChild(_certEl('h2', 'color:var(--heading,#e2e8f0);font-size:1.4rem;font-weight:900;margin:0 0 4px;', title));
+        wrap.appendChild(_certEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.85rem;margin:0 0 20px;', 'Bitcoin Education Archive Certification'));
+        var card = _certEl('div', 'background:var(--card-bg,#141425);border:2px solid ' + color + ';border-radius:20px;padding:24px;margin:0 auto 20px;text-align:center;max-width:440px;');
+        card.appendChild(_certEl('div', 'color:var(--text-faint,#64748b);font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin-bottom:8px;', 'AWARDED TO'));
+        card.appendChild(_certEl('div', 'color:var(--heading,#e2e8f0);font-size:1.5rem;font-weight:900;margin-bottom:16px;word-break:break-word;', String(payload.name || '')));
+        var line = _certEl('div', 'color:var(--text-muted,#94a3b8);font-size:0.85rem;line-height:1.6;margin-bottom:16px;');
+        line.appendChild(document.createTextNode('has successfully passed the'));
+        line.appendChild(_certEl('br'));
+        line.appendChild(_certEl('strong', 'color:' + color + ';', title));
+        line.appendChild(_certEl('br'));
+        line.appendChild(document.createTextNode('certification examination.'));
+        card.appendChild(line);
+        if (payload.score) card.appendChild(_certEl('div', 'color:var(--text-faint,#64748b);font-size:0.78rem;margin-bottom:12px;', 'Score: ' + String(payload.score)));
+        card.appendChild(_certEl('div', 'color:var(--text-faint,#64748b);font-size:0.78rem;', 'Date: ' + String(payload.date || '')));
+        var idRow = _certEl('div', 'margin-top:12px;padding-top:12px;border-top:1px solid var(--border,#333);');
+        idRow.appendChild(_certEl('div', 'color:var(--text-faint,#64748b);font-size:0.65rem;font-family:monospace;word-break:break-all;', 'Certificate ID: ' + String(certId)));
+        card.appendChild(idRow);
+        wrap.appendChild(card);
+        wrap.appendChild(_certEl('p', 'color:var(--text-muted,#94a3b8);font-size:0.82rem;margin:0 0 16px;', 'Want to earn your own Bitcoin certification?'));
+        var learn = _certEl('button', 'width:100%;max-width:320px;padding:14px 28px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;', 'Open Bitcoin Quest');
+        learn.type = 'button';
+        learn.addEventListener('click', _certOpenQuest);
+        wrap.appendChild(learn);
+        window._certPainted = certId;
+        try { fc.scrollTop = 0; } catch (e) {}
+    }
+    function _certTimedOut(err) {
+        if (!err) return false;
+        if (err.name === 'AbortError' || err.name === 'TimeoutError') return true;
+        var msg = String(err.message || '');
+        return msg.indexOf('abort') !== -1 || msg.indexOf('Abort') !== -1 || msg.indexOf('timed out') !== -1;
+    }
+    function _bundleBeginCertVerify(certId, force) {
+        if (!force && window._certVerify && window._certVerifyId === certId) return window._certVerify;
+        window._certVerifyId = certId;
+        window._certVerifyGen = (window._certVerifyGen || 0) + 1;
+        var gen = window._certVerifyGen;
+        var ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+        var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, CERT_TIMEOUT_MS);
+        var promise = fetch(CERT_VERIFY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: { certId: certId } }),
+            signal: ctrl ? ctrl.signal : undefined
+        }).then(function (res) {
+            return res.json().then(function (body) {
+                if (!res.ok || (body && body.error)) {
+                    var err = new Error((body && body.error && body.error.message) || 'Certificate check failed');
+                    throw err;
+                }
+                return (body && body.result) ? body.result : {};
+            });
+        });
+        var settled = promise.then(function (result) {
+            clearTimeout(timer);
+            return result;
+        }, function (err) {
+            clearTimeout(timer);
+            throw err;
+        });
+        settled._gen = gen;
+        window._certVerify = settled;
+        return settled;
+    }
+    function _paintBundleCert(certId, force) {
+        var fc = document.getElementById('forumContainer');
+        if (!fc) return;
+        if (!CERT_ID_RE.test(certId)) {
+            _certNotFound(fc);
+            return;
+        }
+        if (!force && window._certPainted === certId) return;
+        if (!force && window._bundleCertPainting === certId) return;
+        if (!force && window._certVerifyId === certId) {
+            var already = fc.textContent || '';
+            if (already.indexOf('Verifying certificate') !== -1 || already.indexOf('VERIFIED CERTIFICATE') !== -1 || already.indexOf('Could not verify') !== -1) return;
+        }
+        window._bundleCertPainting = certId;
+        window._certPainted = '';
+        fc.style.display = 'block';
+        _certPlaceholder(fc);
+        var promise = _bundleBeginCertVerify(certId, !!force);
+        var gen = promise._gen;
+        promise.then(function (payload) {
+            if (window._certVerifyGen !== gen) return;
+            window._bundleCertPainting = '';
+            if (!payload || payload.valid !== true) {
+                _certNotFound(fc);
+                return;
+            }
+            _certValid(fc, certId, payload);
+        }, function (err) {
+            if (window._certVerifyGen !== gen) return;
+            window._bundleCertPainting = '';
+            _certFailed(fc, certId, _certTimedOut(err)
+                ? 'Verification timed out. The certificate check took longer than 10 seconds.'
+                : 'Something went wrong verifying this certificate. Check your connection and try again.');
+        });
+    }
+
     window.go = async function go(id, btn, fromPopState) {
+        if (topicsBrowserIsOpen()) closeTopicsBrowser({ fromHistory: true });
         if (id === 'questhub' || id === 'raid' || id === 'raid-hub') {
             if (typeof window.openRaidHub === 'function') window.openRaidHub();
             else if (typeof showQuestHub === 'function') {
@@ -3958,6 +4780,67 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (window._nachoMode && !fromPopState) {
             if (typeof nachoChatSave === 'function') nachoChatSave();
             window._nachoReturnPending = true;
+        }
+
+        if (typeof id === 'string' && id.indexOf('cert/') === 0) {
+            var _certRaw = id.slice('cert/'.length).split(/[?#]/)[0];
+            var _certOk = CERT_ID_RE.test(_certRaw);
+            if (window._nachoMode && typeof exitNachoMode === 'function') exitNachoMode(true);
+            var _homeEl = document.getElementById('home');
+            if (_homeEl) _homeEl.classList.add('hidden');
+            var _heroEl = document.getElementById('hero');
+            if (_heroEl) { _heroEl.textContent = ''; _heroEl.style.display = 'none'; }
+            var _msgsEl = document.getElementById('msgs');
+            if (_msgsEl) { _msgsEl.textContent = ''; _msgsEl.style.display = 'none'; }
+            var _fc = document.getElementById('forumContainer');
+            if (_fc) _fc.style.display = 'block';
+            // Fragment-only push keeps ?ref= until captureReferralCode stores it.
+            try { history.pushState({ channel: id }, '', '#' + id); } catch (e) {}
+            if (!_certOk) {
+                if (_fc) _certNotFound(_fc);
+                return;
+            }
+            // Start the callable over fetch even when an earlier script already did.
+            // Reuses window._certVerify for this id, so App Check cannot block it.
+            _bundleBeginCertVerify(_certRaw, false);
+            // Paint immediately. The old 4s poll called a helper that returned
+            // without drawing anything when renderCertVerification was still missing.
+            function _showCertPage() {
+                if (typeof window.renderCertVerification === 'function') {
+                    window.renderCertVerification(_certRaw);
+                    return;
+                }
+                _paintBundleCert(_certRaw, false);
+            }
+            _showCertPage();
+            if (typeof window.renderCertVerification !== 'function') {
+                var _certSrc = 'shareable-certs.js?v=20261028_v2410';
+                var _existingCertScript = document.querySelector('script[src="' + _certSrc + '"]');
+                if (!_existingCertScript) {
+                    var _certScript = document.createElement('script');
+                    _certScript.src = _certSrc;
+                    _certScript.onload = function () {
+                        if (window._certPainted === _certRaw) return;
+                        _showCertPage();
+                    };
+                    document.head.appendChild(_certScript);
+                } else {
+                    var _certWait = 0;
+                    var _certTimer = setInterval(function () {
+                        _certWait += 50;
+                        if (typeof window.renderCertVerification === 'function') {
+                            clearInterval(_certTimer);
+                            if (window._certPainted !== _certRaw) window.renderCertVerification(_certRaw);
+                        } else if (_certWait > 4000) {
+                            clearInterval(_certTimer);
+                            if (window._certPainted !== _certRaw) _paintBundleCert(_certRaw, false);
+                        }
+                    }, 50);
+                }
+            }
+            var _mainEl = document.getElementById('main');
+            if (_mainEl) _mainEl.scrollTop = 0;
+            return;
         }
 
         // Show skeleton loader
@@ -4156,8 +5039,6 @@ window.nachoQuizAnswer = function(btn, correct) {
         const GALLERY_CHANNELS = ['graphics','memes-funny','art-inspiration','charts','swag-merch','fun-facts'];
         const isGallery = GALLERY_CHANNELS.includes(id);
 
-        const shareUrl = 'https://bitcoineducation.quest/#' + id;
-        const shareText = meta.title + ' — Bitcoin Education Archive';
         document.getElementById('hero').innerHTML =
             '<div class="channel-logos" style="display:flex;align-items:center;gap:12px;">' +
                 '<button onclick="history.back()" style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;padding:4px 8px;touch-action:manipulation;display:none;" class="mobile-back-btn" title="Back">←</button>' +
@@ -4167,9 +5048,9 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div class="cat">' + meta.cat + '</div>' +
             '<h1>' + meta.title + '</h1>' +
             '<div class="share-bar">' +
-                '<a class="share-btn" href="https://twitter.com/intent/tweet?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(shareUrl) + '" target="_blank">𝕏 Share</a>' +
-                '<button class="share-btn" onclick="shareNostr(\''+ shareText.replace(/[\\'"]/g, "") + '\', \''+ shareUrl + '\')">🟣 Nostr</button>' +
-                '<button class="share-btn" onclick="copyLink(\''+ shareUrl + '\', this)">🔗 Copy Link</button>' +
+                '<button class="share-btn" onclick="shareChannel(\'x\', \'' + id + '\')">𝕏 Share</button>' +
+                '<button class="share-btn" onclick="shareChannel(\'nostr\', \'' + id + '\')">🟣 Nostr</button>' +
+                '<button class="share-btn" onclick="shareChannel(\'copy\', \'' + id + '\', this)">🔗 Copy Link</button>' +
                 '<button class="share-btn" id="favBtn" onclick="toggleFav(\''+ id + '\', this)">' + (getFavs().includes(id) ? '⭐ Saved' : '☆ Save') + '</button>' +
             '</div>' +
             (isGallery ? '<button class="gallery-toggle" id="galleryBtn" style="display:inline-block;" onclick="toggleGallery(\''+ id + '\')">🖼️ Gallery View</button>' : '');
@@ -4449,7 +5330,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         { id: '_monthlylb', title: '📆 Monthly Leaderboard', desc: 'Monthly XP rankings — top players this month', keywords: 'monthly leaderboard rank compete xp monthly top players month mXP', action: 'toggleLeaderboard();setTimeout(function(){var btns=document.querySelectorAll(\'.lb-period-btn\');if(btns[1])btns[1].click();},300)' },
         { id: '_community', title: '🌍 Community Challenge', desc: 'Weekly community-wide challenge — complete goals together to unlock SF speed boost for everyone', keywords: 'community challenge weekly goal progress collective team together quiz completions unlock boost satoshi favor speed', action: 'showQuestHub();setTimeout(function(){window._questHubTab=\'community\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},100)' },
         { id: '_gifts', title: '🎁 Gifts', desc: 'Spin the daily wheel for gifts, then open them for keys, locked ciphers, tickets, or XP', keywords: 'gift gifts send receive earn inventory spin wheel peer partnership reward open gifting daily award gift bag give present surprise box orange tickets cipher ciphers key keys decrypt decryption label puzzle unlock', action: 'showSettings();setTimeout(function(){showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';},300)},100)' },
-        { id: '_ciphers', title: '🔒 Locked ciphers', desc: 'Open a locked cipher with a key that has the same label. If an accepted peer sent the key, you both get the same prize and they see a reveal of what you won.', keywords: 'cipher ciphers decrypt decryption key label unlock B2 3A 7F puzzle peer send receive daily locked open inventory animation signature hex', action: 'showQuestHub();setTimeout(function(){window._questHubTab=\'nook\';window._nookSubTab=\'inventory\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},150)' },
+        { id: '_ciphers', title: '🔒 Locked ciphers', desc: 'Open a locked cipher with a key that has the same label. If an accepted peer sent the key, you both get the same prize and they see a reveal of what you won. Smaller sats wins are added to your cipher sats balance. Claim that balance from Inventory or Settings.', keywords: 'cipher ciphers decrypt decryption key label unlock B2 3A 7F puzzle peer send receive daily locked open inventory animation signature hex sats balance claim', action: 'showQuestHub();setTimeout(function(){window._questHubTab=\'nook\';window._nookSubTab=\'inventory\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},150)' },
         { id: '_keys', title: '🔑 Keys', desc: 'Send up to 3 labeled keys a day to each accepted peer. If a peer opens a cipher with your key, you both win the same prize and you see a reveal of what you won.', keywords: 'key keys send peer label cipher unlock daily bundle inventory spin wheel gift B2 3A 7F matching label hex', action: 'showQuestHub();setTimeout(function(){window._questHubTab=\'nook\';window._nookSubTab=\'inventory\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},150)' },
         { id: '_peers', title: '🧡 Peers', desc: 'Connect with other Bitcoiners, send them keys, and grow a partnership', keywords: 'peers peer connect partner partnership add friend request accept decline remove network community relationship channel open wumbo liquidity routing gifting exchange', action: 'showSettings();setTimeout(function(){showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';},300)},100)' },
         { id: '_partnership', title: '⚡ Partnership Levels', desc: 'Partnerships grow when you open a cipher with a key a peer sent you, from Opening Channel to Wumbo Channel', keywords: 'partnership level channel opening routing wumbo balanced liquidity adjusted fees peer xp reward unlock progress tier gifts exchanged level up earn', action: 'showSettings();setTimeout(function(){showSettingsPage(\'account\');setTimeout(function(){var p=document.getElementById(\'peersSectionContent\');if(p)p.style.display=\'block\';},300)},100)' },
@@ -4559,6 +5440,25 @@ window.nachoQuizAnswer = function(btn, correct) {
         for (const page of APP_PAGES) {
             if (page.title.toLowerCase().includes(q) || page.keywords.includes(q) || page.desc.toLowerCase().includes(q)) {
                 appResults.push({ key: page.id, title: page.title, cat: '⚡ App', match: page.desc, action: page.action });
+            }
+        }
+        if (window.EARN_XP_SECTIONS && q.length >= 3) {
+            var earnHits = 0;
+            for (var ei = 0; ei < window.EARN_XP_SECTIONS.length && earnHits < 3; ei++) {
+                var earnSection = window.EARN_XP_SECTIONS[ei];
+                var earnTitle = String(earnSection.title || '').toLowerCase();
+                var earnBody = (earnSection.items || []).join('\n').replace(/<[^>]+>/g, '').toLowerCase();
+                var titleHit = earnTitle.indexOf(q) !== -1;
+                var bodyHit = q.length >= 4 && earnBody.indexOf(q) !== -1;
+                if (!titleHit && !bodyHit) continue;
+                earnHits++;
+                appResults.push({
+                    key: '_' + earnSection.id,
+                    title: earnSection.title + ' (' + earnSection.items.length + ')',
+                    cat: '⚡ How to Earn XP',
+                    match: 'Settings → Sats',
+                    action: "if(window.openEarnXpSection)window.openEarnXpSection('" + earnSection.id + "')"
+                });
             }
         }
 
@@ -5015,7 +5915,7 @@ if (locked) {
                     var _em = (typeof window.getExperienceMode === 'function' && window.getExperienceMode()) || 'advanced';
                     var _all = [
                         appBtn('🦌', 'Nacho Mode', 'enterNachoMode()', false),
-                        _em !== 'beginner' ? appBtn('🕹️', 'Proof of Play', "if(typeof enterProofOfPlay==='function'){enterProofOfPlay();}else{var _s=document.createElement('script');_s.src='proof-of-play.js?v=20260609_pop';_s.onload=function(){if(typeof enterProofOfPlay==='function')enterProofOfPlay();};document.head.appendChild(_s);}", false) : '',
+                        _em !== 'beginner' ? appBtn('🕹️', 'Proof of Play', "if(typeof enterProofOfPlay==='function'){enterProofOfPlay();}else{var _s=document.createElement('script');_s.src='proof-of-play.js?v=20261031_v2447';_s.onload=function(){if(typeof enterProofOfPlay==='function')enterProofOfPlay();};document.head.appendChild(_s);}", false) : '',
                         _em !== 'beginner' ? appBtn('🗣️', 'Pleb Talk', "go('forum')", forumLock, forumMsg) : '',
                         _em !== 'beginner' ? appBtn('⚡', 'Lightning Mart', "go('marketplace')", marketLock, marketMsg) : '',
                         _em !== 'beginner' ? appBtn('🤝', 'IRL Sync', "go('irl-sync')", irlLock, irlMsg) : '',
@@ -5103,16 +6003,8 @@ if (locked) {
             setTimeout(checkPredictionResult, 4000);
         }
 
-        // Pre-warm Pleb Shop iframe only — it's the marketplace landing tab.
-        // Other embeds load on demand. Delayed 5s to avoid competing with initial page load.
-        setTimeout(function() {
-            if (document.getElementById('plebshopIframeWrap')) return; // already loaded
-            var psWrap = document.createElement('div');
-            psWrap.id = 'plebshopIframeWrap';
-            psWrap.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden;pointer-events:none;';
-            psWrap.innerHTML = '<iframe id="plebshopIframe" src="https://603btc.com/pleb-shop" style="width:100%;height:100%;border:none;" allow="payment fullscreen" sandbox="allow-scripts allow-same-origin allow-forms allow-popups" referrerpolicy="strict-origin-when-cross-origin"></iframe>';
-            document.body.appendChild(psWrap);
-        }, 5000);
+        // Pleb Shop loads when the marketplace opens it. Do not preload that
+        // iframe on the homepage.
 
         // Handle browser back/forward buttons
         // Push TWO states on initial load — a "guard" base + the current page
@@ -5182,9 +6074,26 @@ if (locked) {
             if (_learnMenu) { _learnMenu.remove(); return; }
             var _appsMenu = document.getElementById('appsMenu');
             if (_appsMenu && _appsMenu.style.display === 'block') { _appsMenu.style.display = 'none'; return; }
-            // Close quest/scholar modal if open
+            // Close a quest before leaving the page. The button path sets the
+            // pending flag and lets this pop finish the dismiss.
             var _questModal = document.getElementById('questModal');
+            if (window._btcQuestBackPending || (_questModal && _questModal.classList.contains('open') && !window._scholarExamActive)) {
+                if (typeof window.btcDismissQuest === 'function') window.btcDismissQuest('back');
+                else if (_questModal) _questModal.classList.remove('open');
+                return;
+            }
             if (_questModal && _questModal.classList.contains('open')) { _questModal.classList.remove('open'); return; }
+            var _triviaBubble = document.getElementById('nacho-bubble');
+            if (window._btcBubbleBackPending || window._btcTriviaBackPending || (_triviaBubble && _triviaBubble.classList.contains('show') && _triviaBubble.getAttribute('data-trivia') === '1')) {
+                if (window._btcBubbleQuiz && typeof window.btcDismissBubbleQuiz === 'function') window.btcDismissBubbleQuiz('back');
+                else if (typeof window.btcDismissNachoTrivia === 'function') window.btcDismissNachoTrivia('back');
+                return;
+            }
+            if (window._tdConvoBackPending) { window._tdConvoBackPending = false; return; }
+            if (typeof window.bqTopicConversationOpen === 'function' && window.bqTopicConversationOpen()) {
+                window.bqCloseTopicConversation('back');
+                return;
+            }
 
             // Return to guide after exploring a feature
             if (state.returnToGuide) {
@@ -5440,7 +6349,7 @@ if (locked) {
         console.log('[ROUTE] Routing to:', hash);
         // If this is a deep link to a lazy-loaded feature, kick off deferred loading immediately
         // so the script is ready when _routeApp starts polling for it.
-        var _lazyRoutes = ['bitcoin-beats','beats','chat','dms','irl-sync','lightning','pvp','proof-of-play','trails','timechain-tv','learning-quests','questhub','app'];
+        var _lazyRoutes = ['bitcoin-beats','beats','chat','dms','irl-sync','lightning','pvp','proof-of-play','trails','timechain-tv','learning-quests','questhub','app','cert'];
         if (_lazyRoutes.indexOf(hash.split('/')[0]) !== -1 && typeof window._loadDeferred === 'function') {
             window._loadDeferred();
         }
@@ -5470,6 +6379,7 @@ if (locked) {
                 if (typeof window.bqOpenMarketListing === 'function' && window.bqOpenMarketListing(_mlId)) return;
                 return;
             }
+            if (typeof window.miniAppConsumeHash === 'function' && window.miniAppConsumeHash(hash)) return;
 
             var _topicDeep = hash.match(/^topic=([A-Za-z0-9_-]+)&post=([A-Za-z0-9_-]+)&i=(\d+)&h=([a-z0-9]{8})$/)
                 || hash.match(/^topic\/([A-Za-z0-9_-]+)\/([A-Za-z0-9_-]+)\/(\d+)\/([a-z0-9]{8})$/)
@@ -5536,7 +6446,7 @@ if (locked) {
                     if (!window._popScriptLoading) {
                         window._popScriptLoading = true;
                         var _popS = document.createElement('script');
-                        _popS.src = 'proof-of-play.js?v=20260609_pop';
+                        _popS.src = 'proof-of-play.js?v=20261031_v2447';
                         _popS.onload = function() { window._popScriptLoading = false; };
                         document.head.appendChild(_popS);
                     }
@@ -5675,11 +6585,14 @@ if (typeof doSearch !== 'undefined') window.doSearch = doSearch;
 if (typeof showTrendingTopics !== 'undefined') window.showTrendingTopics = showTrendingTopics;
 if (typeof selectResult !== 'undefined') window.selectResult = selectResult;
 if (typeof toggleMenu !== 'undefined') window.toggleMenu = toggleMenu;
+if (typeof openTopicsBrowser !== 'undefined') window.openTopicsBrowser = openTopicsBrowser;
+if (typeof closeTopicsBrowser !== 'undefined') window.closeTopicsBrowser = closeTopicsBrowser;
 if (typeof toggleSidebarCollapse !== 'undefined') window.toggleSidebarCollapse = toggleSidebarCollapse;
 if (typeof openImg !== 'undefined') window.openImg = openImg;
 if (typeof toggleFav !== 'undefined') window.toggleFav = toggleFav;
 if (typeof shareNostr !== 'undefined') window.shareNostr = shareNostr;
 if (typeof copyLink !== 'undefined') window.copyLink = copyLink;
+if (typeof shareChannel !== 'undefined') window.shareChannel = shareChannel;
 if (typeof toggleGallery !== 'undefined') window.toggleGallery = toggleGallery;
 if (typeof renderContent !== 'undefined') window.renderContent = renderContent;
 if (typeof showBeginnerGuide !== 'undefined') window.showBeginnerGuide = showBeginnerGuide;
@@ -5841,7 +6754,8 @@ window.toggleAITools = function() {
         panel.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:250000;background:var(--bg,#0a0a0f);border-top:2px solid var(--accent,#f7931a);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform 0.3s ease;box-shadow:0 -10px 40px rgba(0,0,0,0.6);';
         panel.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);">' +
             '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:1.2rem;">🤖</span><span style="color:var(--heading);font-weight:800;font-size:0.95rem;">AI Tools</span><span style="color:var(--text-faint);font-size:0.7rem;">powered by PPQ</span></div>' +
-            '<button onclick="toggleAITools()" style="padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">▼ Minimize</button>' +
+            '<button type="button" id="aiShareBtn" data-mini-share="ai" onclick="if(window.miniAppShare)miniAppShare(\'ai\')" style="min-width:44px;min-height:44px;padding:8px 12px;border-radius:10px;border:1px solid rgba(247,147,26,0.55);background:#1a120b;color:#fff;font-weight:700;cursor:pointer;font-family:inherit;">Share</button>' +
+            '<button onclick="toggleAITools()" style="min-width:44px;min-height:44px;padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:600;cursor:pointer;font-family:inherit;">▼ Minimize</button>' +
             '</div>' +
             '<iframe src="https://ppq.ai/invite/needcreations" style="width:100%;height:70vh;border:none;background:#000;"></iframe>';
         document.body.appendChild(panel);

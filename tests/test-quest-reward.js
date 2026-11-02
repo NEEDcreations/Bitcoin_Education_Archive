@@ -6,6 +6,7 @@ const reward = require('../functions/src/questReward');
 const dailyXp = require('../functions/src/dailyXp');
 const rewardNotify = require('../functions/src/rewardNotify');
 const { buildBanks, snapshotPrevious, GRACE_MS } = require('../functions/build-reward-banks');
+const FAKE_TRIVIA = require('./fake-trivia-key');
 
 const root = path.join(__dirname, '..');
 
@@ -42,6 +43,17 @@ function triviaPayload(chosen, extra) {
     return src;
 }
 
+function keyedTrivia(chosen, extra) {
+    const index = reward.triviaIndexForDay(DAY, FAKE_TRIVIA.length);
+    const question = FAKE_TRIVIA[index];
+    const src = triviaPayload(chosen, Object.assign({
+        questionIndex: index,
+        q: question.q,
+        trivia: FAKE_TRIVIA,
+    }, extra || {}));
+    return { src: src, question: question, index: index };
+}
+
 function answersFor(topicKey, questIndex, pick) {
     return reward.questionsFor(topicKey, questIndex).map(function(question) {
         const chosen = pick(question);
@@ -70,59 +82,84 @@ test('daily quiz and trivia use the shared 1000 cap', function() {
 });
 
 test('a wrong trivia answer gets no reward', function() {
-    const index = reward.triviaIndexForDay(DAY);
-    const question = reward.triviaQuestion(index);
-    assert.ok(question, 'today trivia question');
+    const packed = keyedTrivia('unused');
+    const index = packed.index;
+    const question = packed.question;
+    assert.ok(question, 'fake trivia question');
     const correctText = question.options[question.answer];
     const wrong = question.options.find(function(option) { return option !== correctText; });
-    const missed = reward.gradeTrivia(triviaPayload(wrong));
+    const missed = reward.gradeTrivia(keyedTrivia(wrong).src);
     assert.strictEqual(missed.ok, true);
     assert.strictEqual(missed.correct, false);
     assert.strictEqual(missed.awarded, 0);
     assert.strictEqual(missed.pts, 0);
     assert.strictEqual(missed.reason, 'incorrect');
 
-    const byIndex = reward.gradeTrivia(triviaPayload(question.answer));
+    const byIndex = reward.gradeTrivia(keyedTrivia(question.answer).src);
     assert.strictEqual(byIndex.correct, false);
     assert.strictEqual(byIndex.awarded, 0);
 
-    const forged = reward.gradeTrivia(triviaPayload({
+    const forged = reward.gradeTrivia(keyedTrivia({
         text: wrong,
         answer: question.answer,
         correct: true,
         index: question.answer,
-    }));
+    }).src);
     assert.strictEqual(forged.correct, false);
     assert.strictEqual(forged.awarded, 0);
 
-    const otherDay = reward.gradeTrivia(triviaPayload(correctText, { questionIndex: index + 1 }));
+    const otherDay = reward.gradeTrivia(keyedTrivia(correctText, { questionIndex: index + 1 }).src);
     assert.strictEqual(otherDay.ok, false);
     assert.strictEqual(otherDay.awarded, 0);
 
-    const right = reward.gradeTrivia(triviaPayload(correctText));
+    const right = reward.gradeTrivia(keyedTrivia(correctText).src);
     assert.strictEqual(right.correct, true);
     assert.strictEqual(right.awarded, 50);
     assert.strictEqual(right.pts, 50);
+    assert.strictEqual(right.optionIndex, question.options.indexOf(correctText));
+    assert.strictEqual(missed.optionIndex, question.options.indexOf(wrong));
+    assert.strictEqual(byIndex.optionIndex, -1);
+
+    const answerSlot = question.options.indexOf(correctText);
+    const idOnly = reward.gradeTrivia(keyedTrivia({ optionId: reward.optionId(correctText) }).src);
+    assert.strictEqual(idOnly.correct, true);
+    assert.strictEqual(idOnly.optionIndex, answerSlot);
+    const idString = reward.gradeTrivia(keyedTrivia(reward.optionId(correctText)).src);
+    assert.strictEqual(idString.correct, true);
+    assert.strictEqual(idString.optionIndex, answerSlot);
+    const mismatch = reward.gradeTrivia(keyedTrivia({
+        text: correctText,
+        optionId: reward.optionId(wrong),
+    }).src);
+    assert.strictEqual(mismatch.correct, false);
+    assert.strictEqual(mismatch.optionIndex, -1);
+    const splitFields = reward.gradeTrivia(keyedTrivia(correctText, { optionId: reward.optionId(wrong) }).src);
+    assert.strictEqual(splitFields.correct, false);
+    assert.strictEqual(splitFields.optionIndex, -1);
 });
 
 test('banned accounts and the daily cap hold for trivia', function() {
-    const question = reward.triviaQuestion(reward.triviaIndexForDay(DAY));
+    const question = keyedTrivia('unused').question;
     const correctText = question.options[question.answer];
-    const banned = reward.gradeTrivia(triviaPayload(correctText, { banned: true }));
+    const banned = reward.gradeTrivia(keyedTrivia(correctText, { banned: true }).src);
     assert.strictEqual(banned.correct, true);
     assert.strictEqual(banned.awarded, 0);
     assert.strictEqual(banned.reason, 'banned');
+    assert.strictEqual(banned.explanation, undefined);
+    assert.strictEqual(banned.answerIndex, undefined);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(banned, 'explanation'), false);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(banned, 'answerIndex'), false);
     assert.strictEqual(reward.isRewardBanned({ satsDisabled: true }, null), true);
     assert.strictEqual(reward.isRewardBanned({ ban_reason: 'spam' }, null), true);
     assert.strictEqual(reward.isRewardBanned({ banned: true }, null), true);
     assert.strictEqual(reward.isRewardBanned({}, { banned: true }), true);
     assert.strictEqual(reward.isRewardBanned({}, { banned: false }), false);
 
-    const capped = reward.gradeTrivia(triviaPayload(correctText, { dailyUsed: 1000 }));
+    const capped = reward.gradeTrivia(keyedTrivia(correctText, { dailyUsed: 1000 }).src);
     assert.strictEqual(capped.awarded, 0);
     assert.strictEqual(capped.overflowAdded, 0);
     assert.strictEqual(capped.capped, true);
-    const partial = reward.gradeTrivia(triviaPayload(correctText, { dailyUsed: 980 }));
+    const partial = reward.gradeTrivia(keyedTrivia(correctText, { dailyUsed: 980 }).src);
     assert.strictEqual(partial.awarded, 12);
     assert.strictEqual(partial.overflowAdded, 0);
 });
@@ -299,6 +336,13 @@ test('the functions bank matches the client trivia, quiz, and learning files', f
     const fresh = buildBanks();
     const committed = JSON.parse(read('functions/reward-banks.json'));
     assert.deepStrictEqual(fresh, committed);
+    fresh.trivia.forEach(function(row) {
+        assert.deepStrictEqual(Object.keys(row).sort(), ['options', 'q']);
+    });
+    const prevTrivia = JSON.parse(read('functions/reward-banks.prev.json')).trivia;
+    prevTrivia.forEach(function(row) {
+        assert.deepStrictEqual(Object.keys(row).sort(), ['options', 'q']);
+    });
     assert.ok(fresh.learning['what-is-bitcoin'].length >= 5);
     assert.ok(fresh.quests.whitepaper.length >= 10);
     assert.ok(fresh.trivia.length > 0);
@@ -308,6 +352,8 @@ test('callables enforce App Check, bans, and rate limits, and ignore client keys
     const callables = read('functions/src/questCallables.js');
     const index = read('functions/index.js');
     const quests = read('quests.js');
+    assert.ok(callables.includes('loadTriviaKey'));
+    assert.ok(callables.includes("reason: 'unavailable'"));
     assert.ok(callables.includes('enforceAppCheck: true'));
     assert.ok(callables.includes('faucet_ledger'));
     assert.ok(callables.includes('isRewardBanned'));
@@ -330,7 +376,7 @@ test('callables enforce App Check, bans, and rate limits, and ignore client keys
     assert.strictEqual(quests.includes('Trivia Quest correct'), false);
     assert.strictEqual(quests.includes("httpsCallable('startQuest')"), false);
     assert.ok(quests.includes('Trivia updated, please refresh'));
-    assert.ok(quests.includes('data/trivia-bank.js?v=20261022_v2270'));
+    assert.ok(quests.includes('data/trivia-bank.js?v=20261030_v2435'));
     assert.ok(read('patch-notes.html').includes('Quiz and trivia rewards are now checked by the server, and Part 2 quizzes pay out correctly again.'));
     assert.ok(read('firestore.rules').includes('quest_completions'));
 });
@@ -431,15 +477,46 @@ test('trivia stats record the bank index, not the shuffled display slot', functi
     assert.strictEqual(statIndex(null, 1), 1);
 
     const finishStart = src.indexOf('function _finishTrivia');
-    const finishEnd = src.indexOf('var signedIn', finishStart);
+    const finishEnd = src.indexOf('function _submitTrivia', finishStart);
     const finish = src.slice(finishStart, finishEnd);
-    assert.ok(finish.includes('var _bankIdx = _triviaStatIndex(t, chosenIdx)'));
-    assert.ok(finish.includes("statsUpdate['option_' + _bankIdx]"));
-    assert.ok(finish.includes("dayStatsUpdate['option_' + _bankIdx]"));
-    assert.strictEqual(finish.includes("option_' + chosenIdx"), false);
-    assert.ok(src.includes("_triviaOptimisticStats['option_' + _triviaStatIndex(t, optimisticVote.chosenIdx)]"));
-    assert.ok(src.includes("_ots['option_' + _triviaStatIndex(t, oi)]"));
-    assert.ok(src.includes("stats['option_' + _triviaStatIndex(t, j)]"));
+    assert.strictEqual(finish.includes("db.collection('trivia_stats')"), false);
+    assert.strictEqual(finish.includes("db.collection('trivia_cumulative')"), false);
+    assert.strictEqual(finish.includes('FieldValue.increment'), false);
+    assert.ok(finish.includes('statsRecorded === true'));
+    assert.strictEqual(src.includes('_triviaOptimisticStats'), false);
+    assert.ok(src.includes("var statKey = 'option_' + _triviaStatIndex(trivia, oi)"));
+    assert.ok(src.includes('_captureTriviaBaseline(todayKey, _triviaStatIndex(t, chosenIdx)'));
+
+    const rewardSrc = read('functions/src/questReward.js');
+    assert.ok(rewardSrc.includes('function triviaOptionIndex'));
+    const body = callableBody(read('functions/src/questCallables.js'), 'answerTrivia');
+    assert.ok(body.includes("db.collection('trivia_stats').doc(dayKey)"));
+    assert.ok(body.includes("db.collection('trivia_cumulative').doc('t_' + graded.questionIndex)"));
+    assert.ok(body.includes("statPatch[optionKey] = FieldValue.increment(1)"));
+    assert.ok(body.includes('statsRecorded'));
+    assert.ok(body.indexOf('if (alreadyClaimed)') < body.indexOf("collection('trivia_stats')"));
+    assert.ok(body.indexOf('if (!banned)') < body.indexOf("collection('trivia_stats')"));
+    const rules = read('firestore.rules');
+    function rulesBlock(marker) {
+        const at = rules.indexOf(marker);
+        assert.ok(at > 0, marker);
+        return rules.slice(at, rules.indexOf('match /', at + 10));
+    }
+    ['match /trivia_stats/{date}', 'match /trivia_cumulative/{triviaId}'].forEach(function(marker) {
+        const block = rulesBlock(marker);
+        assert.ok(block.includes('allow read: if true'), marker);
+        assert.ok(block.includes('allow create, update, delete: if false'), marker);
+        assert.strictEqual(block.includes('request.auth'), false, marker);
+    });
+    const polls = rulesBlock('match /poll_votes/{pollId}');
+    assert.ok(polls.includes('allow create, update, delete: if false'));
+    const pollTotals = rulesBlock('match /poll_cumulative/{pollId}');
+    assert.ok(pollTotals.includes('allow read: if true'));
+    assert.ok(pollTotals.includes('allow create, update, delete: if false'));
+    assert.strictEqual(pollTotals.includes('request.auth'), false);
+    assert.strictEqual(pollTotals.includes('allow create: if request.auth'), false);
+    assert.strictEqual(pollTotals.includes('allow update: if request.auth'), false);
+    assert.ok(rules.includes('match /satoshiFavor/announceDedup') || rules.includes('match /sf_live_announcements/{cycleId}'));
 });
 
 function cloneQuests(mutate) {
@@ -544,10 +621,13 @@ test('previous bank answers grade for 72 hours and cannot be claimed twice', fun
     assert.strictEqual(otherIndex.ok, false);
     assert.strictEqual(otherIndex.awarded, 0);
 
-    const current = reward.triviaQuestion(currentIndex);
-    const stillCurrent = reward.gradeTrivia(triviaPayload(current.options[current.answer], {
-        questionIndex: currentIndex,
-        q: current.q,
+    const fakeNow = FAKE_TRIVIA;
+    const fakeIndex = reward.triviaIndexForDay(DAY, fakeNow.length);
+    const fakeQuestion = fakeNow[fakeIndex];
+    const stillCurrent = reward.gradeTrivia(triviaPayload(fakeQuestion.options[fakeQuestion.answer], {
+        questionIndex: fakeIndex,
+        q: fakeQuestion.q,
+        trivia: fakeNow,
         prev: prev,
     }));
     assert.strictEqual(stillCurrent.correct, true);

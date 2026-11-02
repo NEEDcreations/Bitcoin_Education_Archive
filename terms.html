@@ -20,13 +20,14 @@
         .divider { border: none; border-top: 1px solid #222; margin: 32px 0; }
         .warn { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 16px; margin: 20px 0; }
         .warn strong { color: #ef4444; }
+        .odds-table td { padding:4px 16px 4px 0; }
     </style>
 </head>
 <body>
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Terms of Service</h1>
-    <p class="subtitle">Last updated: October 23, 2026</p>
+    <p class="subtitle">Last updated: November 1, 2026</p>
 
     <h2>1. Acceptance of Terms</h2>
     <p>By accessing or using the Bitcoin Education Archive website at <a href="https://bitcoineducation.quest">bitcoineducation.quest</a> ("the Site"), you agree to be bound by these Terms of Service. If you do not agree, please do not use the Site.</p>
@@ -108,7 +109,7 @@
         <li>Orange Tickets are earned through daily logins (+1 ticket), the daily spin, Say hi, the shop, and verified referrals</li>
         <li>Each Orange Ticket also awards 5 bonus points toward your rank</li>
         <li>Tickets increase your chances in periodic sats giveaways and can be spent in Nacho's Nook, but they do not guarantee any prize</li>
-        <li>When a friend signs up with your invite link and reaches Maxi rank (2,140 points), you and that friend each receive 50 Orange Tickets automatically, once. The award is written on the server. The invite link must be used within 72 hours of creating the account. The referral reward at Maxi is 50 Orange Tickets for the person who shared the link and 50 Orange Tickets for the referred account.</li>
+        <li>When a friend signs up with your invite link and earns 2,140 points outside the Scholar exam, you and that friend each receive 50 Orange Tickets automatically, once. Scholar exam points do not count toward that 2,140. The award is written on the server. The invite link must be used within 72 hours of the account's first arrival. The referral reward is 50 Orange Tickets for the person who shared the link and 50 Orange Tickets for the referred account.</li>
         <li>A referral is paid only after the referred account is at least 7 days old, has been active on at least 3 different days, and either has a verified email or signed up with a non-email provider. Each referrer can be paid for at most 5 referrals in any 30 days.</li>
         <li>Self-referrals are rejected. Banned accounts, accounts that already redeemed a referral, and accounts linked by the same fingerprint, IP address, email (including an email this account used before), or Lightning address, or by a referral circle, are not paid.</li>
         <li>Settings includes a referral card with your personal link and a copy button. The card shows the reward described above</li>
@@ -119,7 +120,7 @@
     <h2>4a. Nacho's Nook Shop</h2>
     <ul>
         <li>Nacho's Nook is an in-app shop inside Quest Hub where signed-in, non-anonymous users may spend Orange Tickets on virtual items</li>
-        <li>Consumable items include: Streak Freezes (protect daily login streak), Hint Tokens (eliminate a wrong answer in quizzes), Double XP (2× daily activity XP for 60 minutes from the moment you buy it; buying again adds another hour; one-time awards such as the scholar exam, badges, and onboarding are not doubled), Bonus Spins (extra daily wheel spin), and Raffle Entries</li>
+        <li>Consumable items include: Streak Freezes (protect daily login streak), Hint Tokens (eliminate a wrong answer in quizzes), Double XP (2× XP for 60 minutes from the moment you buy it; buying again adds another hour; it doubles every XP award, and it does not double sats, orange tickets, or other non-XP rewards), Bonus Spins (extra daily wheel spin), and Raffle Entries</li>
         <li>Cosmetic items include: Profile Frame (orange glow on rank card and profile), Chat Flair (emoji badge in Global Chat), Pinned Badge, Exclusive Nacho Skin, and Second Mining Rig</li>
         <li>All purchases are processed server-side via atomic Firebase transactions — ticket deductions and item grants happen in a single database operation</li>
         <li>XP points may be converted to Orange Tickets at a rate defined in-app (subject to a daily conversion limit)</li>
@@ -135,7 +136,7 @@
         <li>Ranks run from Normie (0 XP) through Maxi (2,140 XP) up to Satoshi (210,000 XP)</li>
         <li>Leaderboard rankings are public and display your chosen username and online status. Three leaderboard periods are available: All-Time, Weekly (resets every Monday), and Monthly (resets on the 1st of each month)</li>
         <li>Weekly and Monthly leaderboards track XP earned during that period only; all-time XP is never reduced</li>
-        <li>XP is awarded on the server. One daily counter, reset at 5:00 UTC, pays full XP until 500 XP that day, then half until 900 XP, then a quarter until 1,000 XP, then nothing more that day. Each tier rounds down on its own. An award that crosses a boundary is split across those rates, and a leftover fraction is not carried into the next tier. Extra XP is not saved for a later day. Quiz, trivia, chat, badges, a peer using your key, a first accepted peer request, and topic conversations share this counter. Topic-discussion messages and their Pleb Talk copies are not paid a second time by a separate per-comment grant. A change in the browser does not raise the cap</li>
+        <li>XP is awarded on the server. One daily counter, reset at 5:00 UTC, pays full XP until 500 XP that day, then half until 900 XP, then a quarter until 1,000 XP, then nothing more that day. Each tier rounds down on its own. An award that crosses a boundary is split across those rates, and a leftover fraction is not carried into the next tier. Extra XP is not saved for a later day. Quiz, trivia, chat, badges, a peer using your key, a first accepted peer request, and topic conversations share this counter. Topic-discussion messages and their Pleb Talk copies are not paid a second time by a separate per-comment grant. A change in the browser does not raise the cap. Passing the Bitcoin Scholar certification or the Bitcoin Protocol Expert certification pays +2,100 XP, not limited by the daily cap. The server credits that bonus once per certification after it grades the exam. It is not added to the day's capped total, and a second pass does not pay it again</li>
         <li>Topic conversations can earn XP, and that XP also counts toward the shared daily cap above. Starting a conversation earns 10 XP. A reply earns 5 XP, once, on the original post only: the Pleb Talk copy of that reply does not earn it again. When someone else replies, the person who started the conversation can earn 2 XP, up to 5 of those awards a day. Topic conversation XP is capped at 40 XP per person per day. Nacho's replies do not earn XP. Replying to your own conversation does not earn XP. A post needs at least 15 characters that are not spaces, and it cannot be a near-duplicate of your last 5 messages. A banned person does not earn it. Deleting a message doesn't refund XP, except that XP for a message deleted or removed by moderators within 10 minutes is taken back.</li>
         <li>Quiz quests are graded on the server. The browser sends your answers; we keep the answer key. Daily trivia can award XP through the same server award function. Trivia and quiz grading may run entirely on the server. We do not treat a score you type into the browser as final</li>
         <li>Engagement in Global Chat, including replies, may earn XP. There is no promise of XP for any particular message</li>
@@ -154,6 +155,14 @@
         <li>Factions compete on aggregate community leaderboards including the Charity donation totals</li>
         <li>Faction affiliation has no monetary value and confers no real-world benefit</li>
         <li>We reserve the right to modify or remove the faction system at any time</li>
+    </ul>
+
+    <h2>5b. Rewards are discretionary</h2>
+    <ul>
+        <li>XP, Orange Tickets, badges, ranks, referral awards, and sats are rewards we choose to offer. They are not wages. There are no guaranteed earnings.</li>
+        <li>We may change, pause, refuse, or revoke a reward, including when an account uses an exploit or more than one account to collect it.</li>
+        <li>You must not exploit bugs, race conditions, or mistakes in the Site. Using a bug to gain points, tickets, sats, badges, or any other reward violates these Terms.</li>
+        <li>To protect users from scams, phishing, impersonation, spam, and abuse, we may automatically scan chat, direct messages, and account activity, including with automated anti-abuse checks and bot detection. A moderator may review flagged content. We may temporarily restrict an account, or a feature such as direct messages, while that review is open. We may also suspend or delete an account that breaks these Terms.</li>
     </ul>
 
     <h2>6. Sats Rewards &amp; In-App Balances</h2>
@@ -465,6 +474,36 @@
         <li>New visitors may see a short onboarding guide from Nacho: pick a topic, open chat, try the daily spin, and similar steps. Finishing a step can award a small amount of XP. Your place in the guide is stored in this browser</li>
     </ul>
 
+    <h2 id="odds">13g. Odds</h2>
+    <p>These are the current odds. The server rolls every result. Your browser does not choose it.</p>
+    <h3>Satoshi's Favor</h3>
+    <ul>
+        <li>Each hash is a random number from 0 to 100,000,000. A hash below the current difficulty of 20,000 solves a block. That is about 1 in 5,000 per hash (about 0.02%)</li>
+    </ul>
+    <h3>Locked cipher sats</h3>
+    <p>Each time you open a locked cipher, the server makes one roll. These are the odds of each sats prize on a single open. If no sats prize is rolled, the open pays XP and may include Orange Tickets instead.</p>
+    <table class="odds-table" style="border-collapse:collapse;margin:8px 0 12px;">
+        <thead><tr><th style="text-align:left;padding:4px 16px 4px 0;">Prize</th><th style="text-align:left;padding:4px 0;">Odds per open</th></tr></thead>
+        <tbody>
+        <tr><td>100,000 sats</td><td>1 in 10,000,000</td></tr>
+        <tr><td>50,000 sats</td><td>1 in 1,000,000</td></tr>
+        <tr><td>10,000 sats</td><td>1 in 500,000</td></tr>
+        <tr><td>5,000 sats</td><td>1 in 100,000</td></tr>
+        <tr><td>1,000 sats</td><td>1 in 50,000</td></tr>
+        <tr><td>500 sats</td><td>1 in 10,000</td></tr>
+        <tr><td>250 sats</td><td>1 in 5,000</td></tr>
+        <tr><td>100 sats</td><td>1 in 1,000</td></tr>
+        <tr><td>50 sats</td><td>1 in 100</td></tr>
+        <tr><td>25 sats</td><td>1 in 50</td></tr>
+        <tr><td>10 sats</td><td>1 in 10</td></tr>
+        <tr><td>5 sats</td><td>1 in 5</td></tr>
+        </tbody>
+    </table>
+    <ul>
+        <li>Odds can change at any time. We update this section when they do</li>
+        <li>Winning a roll does not guarantee a payout. Payouts depend on the prize pool available at the time, and the sats rules in Section 6 and the eligibility rules in these Terms still apply</li>
+    </ul>
+
     <h2>14. User Profiles & Online Status</h2>
     <ul>
         <li>Signed-in users have a public profile visible to other signed-in users</li>
@@ -634,7 +673,7 @@
         <li>603BTC LLC makes no representations regarding the future value of Bitcoin or satoshis received through the faucet</li>
     </ul>
     <div class="warn">
-        <strong>⚠️ Anti-abuse:</strong> We may detect abuse of rewards, chat, referrals, or other features. If we do, we may refuse a reward, reverse XP, tickets, or sats, or suspend or ban an account. We do not publish how those checks work. Firebase App Check protects some server actions, including sats claims and Say hi. Other actions are rate-limited. Requests that fail a check are rejected.
+        <strong>⚠️ Anti-abuse:</strong> We may detect abuse of rewards, chat, referrals, or other features. If we do, we may refuse a reward, reverse XP, tickets, or sats, or suspend or ban an account. We do not publish how those checks work. We use App Check to help block automated abuse. Requests that fail a check are rejected.
     </div>
 
     <h2>29. Disclaimer</h2>

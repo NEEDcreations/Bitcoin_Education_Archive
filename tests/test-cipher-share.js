@@ -96,24 +96,45 @@ test('a sent key pays the sender the same prize once, and a retry does not pay a
     }));
     assert.strictEqual(sats.plan.pay, true);
     assert.strictEqual(sats.plan.credit.sats, 500);
-    assert.strictEqual(sats.plan.credit.satsStatus, 'claimable');
+    assert.strictEqual(sats.plan.credit.satsStatus, 'balance');
     assert.strictEqual(sats.plan.credit.xp, 0);
     assert.strictEqual(sats.plan.credit.tickets, 0);
-    assert.strictEqual(sats.books.wins.length, 1);
-    assert.strictEqual(sats.books.wins[0].amount, 500);
-    assert.strictEqual(sats.books.wins[0].roll, 10);
+    assert.strictEqual(sats.books.wins.length, 0);
+    assert.strictEqual(sats.books.users.sender.cipherSatsBalance, 500);
+    assert.ok(sats.books.notices[0].message.indexOf('+500 sats added to your cipher balance') !== -1);
     const satsAgain = share.applyCipherShare(sats.books, input({
         cipherId: 'cipherSats',
         reward: prizeSats(500),
         openerClaim: claimOk(),
     }));
     assert.strictEqual(satsAgain.plan.reason, 'already');
-    assert.strictEqual(satsAgain.books.wins.length, 1);
+    assert.strictEqual(satsAgain.books.wins.length, 0);
+    assert.strictEqual(satsAgain.books.users.sender.cipherSatsBalance, 500);
     assert.strictEqual(satsAgain.books.users.sender.points, 10);
+
+    [5, 10, 25, 50, 100].forEach(function(amount) {
+        const small = share.applyCipherShare(books(), input({
+            cipherId: 'cipher' + amount,
+            reward: prizeSats(amount),
+            openerClaim: claimOk(),
+        }));
+        assert.strictEqual(small.plan.credit.sats, amount);
+        assert.strictEqual(small.plan.credit.satsStatus, 'balance');
+        assert.strictEqual(small.books.users.sender.cipherSatsBalance, amount);
+        assert.strictEqual(small.books.wins.length, 0);
+    });
 
     const big = share.planCipherShare(input({ reward: prizeSats(1000), openerClaim: claimOk() }));
     assert.strictEqual(big.credit.sats, 1000);
     assert.strictEqual(big.credit.satsStatus, 'pending');
+    const bigApplied = share.applyCipherShare(books(), input({
+        cipherId: 'cipherBig',
+        reward: prizeSats(1000),
+        openerClaim: claimOk(),
+    }));
+    assert.strictEqual(bigApplied.books.wins.length, 1);
+    assert.strictEqual(bigApplied.books.wins[0].status, 'pending');
+    assert.strictEqual(bigApplied.books.users.sender.cipherSatsBalance || 0, 0);
 });
 
 test('an ineligible sender is skipped and the prize is not credited', function () {
@@ -292,6 +313,7 @@ test('a sats share is paid only when the opener passes the claim gates', functio
         assert.strictEqual(plan.credit.sats, 0);
         const applied = share.applyCipherShare(books(), input({ reward: prizeSats(500), openerClaim: claim }));
         assert.strictEqual(applied.books.wins.length, 0);
+        assert.strictEqual(applied.books.users.sender.cipherSatsBalance || 0, 0);
         assert.strictEqual(applied.books.notices.length, 0);
         assert.strictEqual(applied.books.users.sender.points, 10);
     }
@@ -307,8 +329,9 @@ test('a sats share is paid only when the opener passes the claim gates', functio
     }));
     assert.strictEqual(paid.plan.pay, true);
     assert.strictEqual(paid.plan.credit.sats, 500);
-    assert.strictEqual(paid.books.wins.length, 1);
-    assert.strictEqual(paid.books.wins[0].amount, 500);
+    assert.strictEqual(paid.plan.credit.satsStatus, 'balance');
+    assert.strictEqual(paid.books.wins.length, 0);
+    assert.strictEqual(paid.books.users.sender.cipherSatsBalance, 500);
     const xp = share.planCipherShare(input({
         reward: prizeXp(),
         openerClaim: claimOk({ emailVerified: false, ageDays: 1 }),
