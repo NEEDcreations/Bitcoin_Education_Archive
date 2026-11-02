@@ -7323,13 +7323,14 @@ exports.spendTicketsForFreeze = functionsV1.https.onCall(async (data, context) =
     }
 
     const uid = context.auth.uid;
-    const amount = parseInt(data.amount) || 1;
-    if (![1, 3].indexOf(amount) === -1 && amount !== 1 && amount !== 3) {
+    const amount = Number((data || {}).amount);
+    if (amount !== 1 && amount !== 3) {
         throw new functionsV1.https.HttpsError('invalid-argument', 'Amount must be 1 or 3');
     }
 
-    const FREEZE_COSTS = { 1: 5, 3: 12 }; // tickets per freeze bundle
-    const ticketCost = FREEZE_COSTS[amount] || 5;
+    // Same prices and hold cap as the Nook shop (single source of truth).
+    const freezeItem = require('./src/nookShop').ITEMS[amount === 3 ? 'streak_freeze_3' : 'streak_freeze'];
+    const ticketCost = freezeItem.cost;
 
     const userRef = db.collection('users').doc(uid);
     const result = await db.runTransaction(async (t) => {
@@ -7342,6 +7343,10 @@ exports.spendTicketsForFreeze = functionsV1.https.onCall(async (data, context) =
         if (currentTickets < ticketCost) {
             throw new functionsV1.https.HttpsError('resource-exhausted',
                 `Not enough tickets. You have ${currentTickets} but need ${ticketCost}.`);
+        }
+        if (Math.max(0, currentFreezes) + amount > freezeItem.holdCap) {
+            throw new functionsV1.https.HttpsError('resource-exhausted',
+                `You can hold up to ${freezeItem.holdCap} streak freezes.`);
         }
 
         const update = {
@@ -7507,24 +7512,13 @@ exports.incrementWeeklyChallenge = functionsV1.https.onCall(async (data, context
 // 🦌 NACHO'S NOOK — Shop Cloud Functions
 // ══════════════════════════════════════════════════════════════════════
 
-// Item catalog — server is the authority on all prices/types
-const NOOK_SHOP_ITEMS = {
-    'streak_freeze':    { cost: 5,   type: 'consumable', name: 'Streak Freeze',           gives: { streakFreezes: 1 } },
-    'hash_booster':     { cost: 10,  type: 'consumable', name: 'Hash Booster',            gives: { hashBoosters: 1 } },
-    'hint_token':       { cost: 3,   type: 'consumable', name: 'Hint Token',              gives: { hintTokens: 1 } },
-    'double_xp':        { cost: 15,  type: 'consumable', name: 'Double XP (60 min)',      gives: { doubleXP: 1 } },
-    'bonus_spin':       { cost: 5,   type: 'consumable', name: 'Bonus Spin',              gives: { bonusSpins: 1 } },
-    'profile_frame':    { cost: 50,  type: 'cosmetic',   name: 'Profile Frame',           gives: { cosmetics: 'profile_frame' } },
-    'chat_flair':       { cost: 40,  type: 'cosmetic',   name: 'Chat Flair',              gives: { cosmetics: 'chat_flair' } },
-    'pinned_badge':     { cost: 20,  type: 'cosmetic',   name: 'Pinned Badge',            gives: { cosmetics: 'pinned_badge' } },
-    'nacho_skin_nook':  { cost: 60,  type: 'cosmetic',   name: 'Exclusive Nacho Skin',    gives: { cosmetics: 'nacho_skin_nook' } },
-    'raffle_entry':     { cost: 10,  type: 'raffle',     name: 'Sats Raffle Entry',       gives: { raffleEntries: 1 } },
-    'streak_freeze_3':  { cost: 12,  type: 'consumable', name: '3× Streak Freezes',      gives: { streakFreezes: 3 } },
-    'hint_token_5':     { cost: 12,  type: 'consumable', name: '5× Hint Tokens',         gives: { hintTokens: 5 } },
-    'second_rig':       { cost: 25,  type: 'consumable', name: 'Second Mining Rig',       gives: { secondRigCharges: 1 } },
-    // Gift Bag — permanent upgrade, increases gift inventory cap from 50 → 75
-    'gift_bag':         { cost: 100, type: 'cosmetic',   name: 'Gift Bag',                gives: { cosmetics: 'gift_bag' } },
-};
+// Item catalog lives in ./src/nookShop.js (server is the only price authority).
+const nookShop = require('./src/nookShop');
+const NOOK_SHOP_ITEMS = nookShop.ITEMS;
+
+exports.getNookShopCatalog = functionsV1.https.onCall(async () => {
+    return { items: nookShop.publicCatalog() };
+});
 
 exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
@@ -7534,103 +7528,85 @@ exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
     }
 
     const uid = context.auth.uid;
-    const itemId = (data.itemId || '').replace(/[^a-z0-9_]/g, '').substring(0, 40);
-    const quantity = Math.max(1, Math.min(10, parseInt(data.quantity) || 1));
-
-    const item = NOOK_SHOP_ITEMS[itemId];
-    if (!item) throw new functionsV1.https.HttpsError('invalid-argument', 'Unknown item: ' + itemId);
-
-    // For bundles (streak_freeze_3, hint_token_5), quantity is always 1 (bundle is the unit)
-    const isBundle = ['streak_freeze_3', 'hint_token_5'].includes(itemId);
-    const qty = ((item.type === 'consumable' || item.type === 'raffle') && !isBundle) ? quantity : 1;
-    const totalCost = item.cost * qty;
+    const itemId = nookShop.cleanId((data || {}).itemId);
+    const item = nookShop.getItem(itemId);
+    if (!item || item.retired) throw new functionsV1.https.HttpsError('invalid-argument', 'Unknown item.');
 
     const userRef = db.collection('users').doc(uid);
+    const nowMs = Date.now();
+    const dayKey = nookShop.offsetDay(nowMs);
+    const monthKey = new Date(nowMs).toISOString().slice(0, 7);
+    const capDailyRef = item.group && item.dailyCap ? userRef.collection('daily_action_counts').doc(dayKey + '_shop_' + item.group) : null;
+    const capMonthRef = item.group && item.monthlyCap ? userRef.collection('daily_action_counts').doc(monthKey + '_shopm_' + item.group) : null;
 
     const shopResult = await db.runTransaction(async (tx) => {
-        const userDoc = await tx.get(userRef);
+        const reads = [tx.get(userRef)];
+        if (capDailyRef) reads.push(tx.get(capDailyRef));
+        if (capMonthRef) reads.push(tx.get(capMonthRef));
+        const snaps = await Promise.all(reads);
+        const userDoc = snaps[0];
         if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
-
         const userData = userDoc.data();
+        const dailySnap = capDailyRef ? snaps[1] : null;
+        const monthSnap = capMonthRef ? snaps[capDailyRef ? 2 : 1] : null;
+        const caps = {
+            daily: dailySnap && dailySnap.exists ? (dailySnap.data().count || 0) : 0,
+            monthly: monthSnap && monthSnap.exists ? (monthSnap.data().count || 0) : 0,
+        };
+
+        let p;
+        try {
+            p = nookShop.plan(itemId, (data || {}).quantity, userData, caps, nowMs);
+        } catch (e) {
+            if (e.shopCode) throw new functionsV1.https.HttpsError(e.shopCode, e.message);
+            throw e;
+        }
+        const qty = p.qty;
+        const totalCost = p.totalCost;
         const currentTickets = userData.orangeTickets || 0;
 
-        if (currentTickets < totalCost) {
-            throw new functionsV1.https.HttpsError('failed-precondition',
-                `Not enough tickets. Have ${currentTickets}, need ${totalCost}.`);
-        }
-
-        // Cosmetics: check not already owned (second_rig is renewable, skip check for it)
-        if (item.type === 'cosmetic' && item.gives.cosmetics) {
-            const owned = userData.ownedCosmetics || [];
-            if (owned.includes(item.gives.cosmetics)) {
-                throw new functionsV1.https.HttpsError('already-exists', 'You already own this item.');
-            }
-        }
-
-        // Build update
         const update = {
             orangeTickets: admin.firestore.FieldValue.increment(-totalCost),
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         };
 
-        // Apply gives
-        const g = item.gives;
-        if (g.streakFreezes)  update.streakFreezes  = admin.firestore.FieldValue.increment(g.streakFreezes);
-        if (g.hashBoosters)   update.hashBoosters   = admin.firestore.FieldValue.increment(g.hashBoosters * qty);
-        if (g.hintTokens)     update.hintTokens     = admin.firestore.FieldValue.increment(g.hintTokens);
         let doubleXpUntil = 0;
-        if (itemId === 'double_xp') {
-            // Buying starts or extends the window immediately. Leftover charges
-            // stay put so an older activateDoubleXP call can still spend them.
-            doubleXpUntil = doubleXp.extendUntil(
-                doubleXp.untilMillis(userData),
-                Date.now(),
-                doubleXp.DOUBLE_XP_MS * qty
-            );
+        if (item.type === 'doublexp') {
+            const addMs = doubleXp.DOUBLE_XP_MS * item.hours * qty;
+            doubleXpUntil = doubleXp.extendUntil(doubleXp.untilMillis(userData), nowMs, addMs);
+            if (doubleXpUntil - nowMs > item.maxAheadMs) {
+                throw new functionsV1.https.HttpsError('resource-exhausted',
+                    'Double XP can be stacked up to ' + Math.round(item.maxAheadMs / nookShop.HOUR) + ' hours ahead.');
+            }
             update.doubleXpUntil = doubleXpUntil;
             update.doubleXPExpiry = doubleXpUntil;
-        } else if (g.doubleXP) {
-            update.doubleXPCharges = admin.firestore.FieldValue.increment(g.doubleXP * qty);
         }
-        if (g.bonusSpins)        update.bonusSpins        = admin.firestore.FieldValue.increment(g.bonusSpins * qty);
-        if (g.raffleEntries)     update.raffleEntries     = admin.firestore.FieldValue.increment(g.raffleEntries * qty);
-        const shopPlan = require('./src/badgeProgress').planShopPurchase({ type: item.type, quantity: qty });
+        if (p.field && p.units > 0) update[p.field] = admin.firestore.FieldValue.increment(p.units);
+        if (p.cosmetic) update.ownedCosmetics = admin.firestore.FieldValue.arrayUnion(p.cosmetic);
+
+        const shopPlan = require('./src/badgeProgress').planShopPurchase({ type: item.type, quantity: item.type === 'raffle' ? p.units : qty });
         update.shopPurchases = admin.firestore.FieldValue.increment(shopPlan.shopPurchases);
-        if (shopPlan.raffleTickets > 0) {
-            update.raffleTicketsBought = admin.firestore.FieldValue.increment(shopPlan.raffleTickets);
-        }
-        if (g.secondRigCharges)  update.secondRigCharges  = admin.firestore.FieldValue.increment(g.secondRigCharges * qty);
-        if (g.cosmetics)         update.ownedCosmetics    = admin.firestore.FieldValue.arrayUnion(g.cosmetics);
+        if (shopPlan.raffleTickets > 0) update.raffleTicketsBought = admin.firestore.FieldValue.increment(shopPlan.raffleTickets);
 
         tx.update(userRef, update);
+        if (capDailyRef) tx.set(capDailyRef, { count: caps.daily + p.units, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        if (capMonthRef) tx.set(capMonthRef, { count: caps.monthly + p.units, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
 
-        // Community raffle counter (month-scoped)
-        if (g.raffleEntries) {
-            const monthKey = new Date().toISOString().slice(0,7); // YYYY-MM
-            const raffleStatRef = admin.firestore().collection('stats').doc('raffle_' + monthKey);
+        if (item.type === 'raffle') {
+            const raffleStatRef = db.collection('stats').doc('raffle_' + monthKey);
             tx.set(raffleStatRef, {
-                totalEntries: admin.firestore.FieldValue.increment(g.raffleEntries * qty),
+                totalEntries: admin.firestore.FieldValue.increment(p.units),
                 month: monthKey,
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
         }
 
-        // Purchase record (server-only subcollection)
-        const purchaseRef = userRef.collection('shop_purchases').doc();
-        tx.set(purchaseRef, {
-            itemId,
-            itemName: item.name,
-            quantity: qty,
-            cost: totalCost,
-            ticketsBefore: currentTickets,
-            ticketsAfter: currentTickets - totalCost,
-            type: item.type,
-            ts: admin.firestore.FieldValue.serverTimestamp(),
+        tx.set(userRef.collection('shop_purchases').doc(), {
+            itemId, itemName: item.name, quantity: qty, units: p.units, cost: totalCost,
+            ticketsBefore: currentTickets, ticketsAfter: currentTickets - totalCost,
+            type: item.type, ts: admin.firestore.FieldValue.serverTimestamp(),
         });
-
-        // In-app notification in user's notifications subcollection
-        const notifRef = userRef.collection('notifications').doc();
-        tx.set(notifRef, {
+        tx.set(userRef.collection('notifications').doc(), {
             type: 'shop_purchase',
             title: '🛒 Purchase Complete',
             body: `You spent ${totalCost} 🎫 on ${item.name}. Balance: ${currentTickets - totalCost} tickets.`,
@@ -7638,48 +7614,37 @@ exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
             ts: admin.firestore.FieldValue.serverTimestamp(),
         });
         try {
-            const got = [];
-            if (g.streakFreezes) got.push('+' + g.streakFreezes + ' 🧊');
-            if (g.hashBoosters) got.push('+' + (g.hashBoosters * qty) + ' hash booster' + (g.hashBoosters * qty === 1 ? '' : 's'));
-            if (g.hintTokens) got.push('+' + g.hintTokens + ' hint' + (g.hintTokens === 1 ? '' : 's'));
-            if (g.doubleXP) got.push('+' + (g.doubleXP * qty) + ' Double XP');
-            if (g.bonusSpins) got.push('+' + (g.bonusSpins * qty) + ' bonus spin' + (g.bonusSpins * qty === 1 ? '' : 's'));
-            if (g.raffleEntries) got.push('+' + (g.raffleEntries * qty) + ' raffle ticket' + (g.raffleEntries * qty === 1 ? '' : 's'));
-            if (g.secondRigCharges) got.push('+' + (g.secondRigCharges * qty) + ' second rig');
-            if (g.cosmetics) got.push('a closet item');
-            const gotText = got.length ? ' (' + got.join(', ') + ')' : '';
             rewardNotify.apply(tx, db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
                 uid: uid,
-                onceKey: 'shop_' + Date.now(),
+                onceKey: 'shop_' + nowMs,
                 tickets: -totalCost,
                 icon: '🛒',
-                message: '-' + totalCost + ' 🎟️: bought ' + item.name + gotText,
+                message: '-' + totalCost + ' 🎟️: bought ' + item.name,
             }));
         } catch (notifyErr) {
             console.warn('[SHOP] reward notify skipped:', notifyErr && notifyErr.message);
         }
 
-        // Compute new inventory counts to return to client
-        const newInventory = {
-            streakFreezes:  (userData.streakFreezes  || 0) + (g.streakFreezes  ? g.streakFreezes        : 0),
-            hashBoosters:   (userData.hashBoosters   || 0) + (g.hashBoosters   ? g.hashBoosters * qty   : 0),
-            hintTokens:     (userData.hintTokens     || 0) + (g.hintTokens     ? g.hintTokens           : 0),
-            doubleXPCharges:(userData.doubleXPCharges|| 0) + (itemId === 'double_xp' ? 0 : (g.doubleXP ? g.doubleXP * qty : 0)),
-            bonusSpins:       (userData.bonusSpins       || 0) + (g.bonusSpins       ? g.bonusSpins * qty       : 0),
-            raffleEntries:    (userData.raffleEntries    || 0) + (g.raffleEntries    ? g.raffleEntries * qty    : 0),
-            secondRigCharges: (userData.secondRigCharges || 0) + (g.secondRigCharges ? g.secondRigCharges * qty : 0),
-            ownedCosmetics:   g.cosmetics ? [...(userData.ownedCosmetics || []), g.cosmetics] : (userData.ownedCosmetics || []),
+        const inv = {
+            streakFreezes: userData.streakFreezes || 0,
+            hashBoosters: userData.hashBoosters || 0,
+            hintTokens: userData.hintTokens || 0,
+            doubleXPCharges: userData.doubleXPCharges || 0,
+            bonusSpins: userData.bonusSpins || 0,
+            raffleEntries: userData.raffleEntries || 0,
+            secondRigCharges: userData.secondRigCharges || 0,
+            ownedCosmetics: (userData.ownedCosmetics || []).slice(),
         };
+        if (p.field) inv[p.field] = (inv[p.field] || 0) + p.units;
+        if (p.cosmetic) inv.ownedCosmetics.push(p.cosmetic);
 
         return {
             success: true,
             newTickets: currentTickets - totalCost,
-            itemId,
-            quantity: qty,
-            itemName: item.name,
-            inventory: newInventory,
+            itemId, quantity: qty, itemName: item.name,
+            inventory: inv,
             doubleXpUntil: doubleXpUntil,
-            minutesLeft: doubleXp.minutesLeft(doubleXpUntil, Date.now()),
+            minutesLeft: doubleXp.minutesLeft(doubleXpUntil, nowMs),
         };
     });
     try {

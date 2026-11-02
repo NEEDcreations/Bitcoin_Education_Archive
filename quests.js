@@ -3882,7 +3882,25 @@ function _nookConvertXP(tickets, btnEl) {
     });
 }
 
+// Prices come from the server (getNookShopCatalog). Fallbacks match the server
+// constants so the shop still renders offline; the server always charges its own price.
+var _NOOK_FALLBACK = {streak_freeze:6,streak_freeze_3:15,hint_token:3,hint_token_5:12,hash_booster:10,hash_booster_3:27,bonus_spin:5,bonus_spin_3:14,double_xp:20,double_xp_3h:50,second_rig:25,second_rig_3:70,raffle_entry:10,raffle_entry_10:95,pinned_badge:30,chat_flair:60,profile_frame:75,nacho_skin_nook:100};
+function _nookPrice(id) {
+    var c = window._nookCatalog && window._nookCatalog[id];
+    return c && typeof c.cost === 'number' ? c.cost : _NOOK_FALLBACK[id];
+}
+function _nookLoadCatalog() {
+    if (window._nookCatalog || window._nookCatalogLoading || typeof firebase === 'undefined') return;
+    window._nookCatalogLoading = true;
+    try {
+        firebase.functions().httpsCallable('getNookShopCatalog')({}).then(function(r) {
+            if (r && r.data && r.data.items) { window._nookCatalog = r.data.items; _renderNookShop(); }
+        }).catch(function(){}).then(function(){ window._nookCatalogLoading = false; });
+    } catch (e) { window._nookCatalogLoading = false; }
+}
+
 function _renderNookShop() {
+    _nookLoadCatalog();
     var el = document.getElementById('nookTabContent');
     if (!el) return;
     var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
@@ -3925,16 +3943,19 @@ function _renderNookShop() {
     // ─── Consumables ───
     html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── Consumables ───</div>';
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';
-    html += itemRow('🧊','Streak Freeze','Auto-used to protect your streak',5,buyBtn('streak_freeze',5,1,'Buy'));
-    html += itemRow('🧊','3× Streak Freezes','Bundle — save 3 tickets',12,buyBtn('streak_freeze_3',12,1,'Bundle'));
-    html += itemRow('⚡','Hash Booster','+100 instant hashes — no cooldown. Activate from Inventory during an open SF window.',10,buyBtn('hash_booster',10,1,'Buy'));
-    html += itemRow('🧠','Hint Token','Eliminate a wrong answer in any quiz',3,buyBtn('hint_token',3,1,'Buy'));
-    html += itemRow('🧠','5× Hint Tokens','Bundle deal',12,buyBtn('hint_token_5',12,1,'Bundle'));
+    html += itemRow('🧊','Streak Freeze','Auto-used to protect your streak. Hold up to 10.',_nookPrice('streak_freeze'),buyBtn('streak_freeze',_nookPrice('streak_freeze'),1,'Buy'));
+    html += itemRow('🧊','3× Streak Freezes','Bundle deal. Hold up to 10.',_nookPrice('streak_freeze_3'),buyBtn('streak_freeze_3',_nookPrice('streak_freeze_3'),1,'Bundle'));
+    html += itemRow('⚡','Hash Booster','+100 instant hashes, no cooldown. Activate from Inventory during an open SF window. Up to 10 a day.',_nookPrice('hash_booster'),buyBtn('hash_booster',_nookPrice('hash_booster'),1,'Buy'))
+    html += itemRow('⚡','3× Hash Boosters','NEW · Bundle of 3. Counts toward the 10 a day limit.',_nookPrice('hash_booster_3'),buyBtn('hash_booster_3',_nookPrice('hash_booster_3'),1,'Bundle'));
+    html += itemRow('🧠','Hint Token','Eliminate a wrong answer in any quiz',_nookPrice('hint_token'),buyBtn('hint_token',_nookPrice('hint_token'),1,'Buy'));
+    html += itemRow('🧠','5× Hint Tokens','Bundle deal',_nookPrice('hint_token_5'),buyBtn('hint_token_5',_nookPrice('hint_token_5'),1,'Bundle'));
     var dxUntil = (typeof window._doubleXpUntilMs === 'function') ? window._doubleXpUntilMs(u) : 0;
     var dxLeft = dxUntil > Date.now() ? Math.ceil((dxUntil - Date.now()) / 60000) : 0;
     var dxLabel = dxLeft > 0 ? ('Extend +60 min (' + dxLeft + ' min left)') : 'Buy';
-    html += itemRow('🎯','Double XP (60 min)','2× XP for 1 hour. Buying again adds another hour.',15,buyBtn('double_xp',15,1,dxLabel));
-    html += itemRow('🎰','Bonus Spin','Extra spin on the daily wheel',5,buyBtn('bonus_spin',5,1,'Buy'));
+    html += itemRow('🎯','Double XP (60 min)','2× XP for 1 hour. Buying again adds another hour, up to 6 hours ahead.',_nookPrice('double_xp'),buyBtn('double_xp',_nookPrice('double_xp'),1,dxLabel))
+    html += itemRow('🎯','Double XP (3 hours)','NEW · 3 hours of 2× XP in one go. Stacks up to 6 hours ahead.',_nookPrice('double_xp_3h'),buyBtn('double_xp_3h',_nookPrice('double_xp_3h'),1,'Buy'));
+    html += itemRow('🎰','Bonus Spin','Extra spin on the daily wheel. Up to 5 a day.',_nookPrice('bonus_spin'),buyBtn('bonus_spin',_nookPrice('bonus_spin'),1,'Buy'))
+    html += itemRow('🎰','3× Bonus Spins','NEW · Bundle of 3. Counts toward the 5 a day limit.',_nookPrice('bonus_spin_3'),buyBtn('bonus_spin_3',_nookPrice('bonus_spin_3'),1,'Bundle'));
     html += '</div>';
 
     // ─── Mining Upgrades ───
@@ -3943,18 +3964,18 @@ function _renderNookShop() {
     var rigCharges = u.secondRigCharges || 0;
     var rigBtnHtml = (rigCharges > 0
         ? '<span style="font-size:0.72rem;color:#22c55e;font-weight:700;margin-right:6px;">' + rigCharges + ' charge' + (rigCharges !== 1 ? 's' : '') + ' left</span>'
-        : '') + buyBtn('second_rig', 25, 1, 'Buy');
-    html += itemRow('⚡', 'Second Mining Rig', 'Unlocks Hash #2 button for one SF window — buy more charges to keep it active.', 25, rigBtnHtml);
+        : '') + buyBtn('second_rig', _nookPrice('second_rig'), 1, 'Buy');
+    html += itemRow('⚡', 'Second Mining Rig', 'Unlocks Hash #2 button for one SF window. Hold up to 10 charges.', _nookPrice('second_rig'), rigBtnHtml);
+    html += itemRow('⚡', '3× Second Mining Rig', 'NEW · 3 charges for 3 SF windows.', _nookPrice('second_rig_3'), buyBtn('second_rig_3', _nookPrice('second_rig_3'), 1, 'Bundle'));
     html += '</div>';
 
     // ─── Gifts ───
     html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── 🎁 Gifting ───</div>';
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';
     var giftOwnsGiftBag = ownedCosmetics.indexOf('gift_bag') !== -1;
-    var giftBagBtn = giftOwnsGiftBag
-        ? '<div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;margin-top:4px;">Owned ✓</div>'
-        : buyBtn('gift_bag', 100, 1, 'Buy');
-    html += itemRow('🎒', 'Gift Bag', 'A keepsake from the shop. Gifts are opened right away now, so keys and ciphers live in Inventory.', 100, giftBagBtn).replace('<!--EXTRA_HTML-->', '');
+    if (giftOwnsGiftBag) {
+        html += itemRow('🎒', 'Gift Bag', 'A keepsake from the shop. No longer sold.', '✓', '<div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;margin-top:4px;">Owned ✓</div>').replace('<!--EXTRA_HTML-->', '');
+    }
     html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:12px;">' +
         '<div style="font-size:1.4rem;">🔑</div>' +
         '<div style="flex:1;min-width:0;"><div style="font-size:0.85rem;font-weight:700;color:var(--heading);">Keys &amp; locked ciphers</div>' +
@@ -3967,10 +3988,10 @@ function _renderNookShop() {
     html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── Cosmetics (Permanent) ───</div>';
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';
     var cosmetics = [
-        { id:'profile_frame', icon:'🪪', name:'Profile Frame', desc:'Exclusive border on your profile card', cost:50 },
-        { id:'chat_flair', icon:'💬', name:'Chat Flair', desc:'Special badge next to your name in chat', cost:40 },
-        { id:'pinned_badge', icon:'📌', name:'Pinned Badge', desc:'Showcase a permanent achievement badge', cost:20 },
-        { id:'nacho_skin_nook', icon:'🦌', name:'Exclusive Nacho Skin', desc:'Rare Nacho avatar — Nook exclusive!', cost:60 },
+        { id:'profile_frame', icon:'🪪', name:'Profile Frame', desc:'Exclusive border on your profile card', cost:_nookPrice('profile_frame') },
+        { id:'chat_flair', icon:'💬', name:'Chat Flair', desc:'Special badge next to your name in chat', cost:_nookPrice('chat_flair') },
+        { id:'pinned_badge', icon:'📌', name:'Pinned Badge', desc:'Showcase a permanent achievement badge', cost:_nookPrice('pinned_badge') },
+        { id:'nacho_skin_nook', icon:'🦌', name:'Exclusive Nacho Skin', desc:'Rare Nacho avatar — Nook exclusive!', cost:_nookPrice('nacho_skin_nook') },
     ];
     cosmetics.forEach(function(c) {
         var owned = ownedCosmetics.indexOf(c.id) !== -1;
@@ -4015,8 +4036,9 @@ function _renderNookShop() {
         '<div id="_raffleCommTotal" style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;"><span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span> Community entries this month: ...</div>' +
         '</div>' +
         '<div style="text-align:right;flex-shrink:0;">' +
-        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="number" id="raffleQtyInput" min="1" max="50" value="1" oninput="window._updateRaffleCost()" style="width:52px;padding:4px 6px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;font-weight:700;text-align:center;font-family:inherit;" /><span id="raffleCostLabel" style="font-size:0.75rem;color:#f7931a;font-weight:800;">10 <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span></span></div>' +
+        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="number" id="raffleQtyInput" min="1" max="10" value="1" oninput="window._updateRaffleCost()" style="width:52px;padding:4px 6px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;font-weight:700;text-align:center;font-family:inherit;" /><span id="raffleCostLabel" style="font-size:0.75rem;color:#f7931a;font-weight:800;">10 <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span></span></div>' +
         '<button id="raffleEnterBtn" onclick="window._buyRaffleQty(this)" style="padding:6px 14px;border-radius:8px;border:none;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#f7931a,#e8720c);color:#fff;transition:0.2s;">Enter</button>' +
+        '<button id="raffle10Btn" onclick="window._buyRaffle10(this)" style="margin-left:6px;padding:6px 10px;border-radius:8px;border:1px solid #f7931a;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;background:transparent;color:#f7931a;">NEW · 10-pack (' + _nookPrice('raffle_entry_10') + ')</button>' +
         '</div>' +
         '</div>' +
     '</div>';
@@ -4042,9 +4064,9 @@ window._updateRaffleCost = function() {
     var lbl = document.getElementById('raffleCostLabel');
     var btn = document.getElementById('raffleEnterBtn');
     if (!inp || !lbl) return;
-    var qty = Math.max(1, Math.min(50, parseInt(inp.value) || 1));
+    var qty = Math.max(1, Math.min(10, parseInt(inp.value) || 1));
     inp.value = qty;
-    var cost = qty * 10;
+    var cost = qty * _nookPrice('raffle_entry');
     var tickets = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.orangeTickets || 0) : 0;
     var canAfford = tickets >= cost;
     lbl.innerHTML = cost + ' <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span>';
@@ -4059,8 +4081,11 @@ window._updateRaffleCost = function() {
 
 window._buyRaffleQty = function(btnEl) {
     var inp = document.getElementById('raffleQtyInput');
-    var qty = Math.max(1, Math.min(50, parseInt((inp && inp.value) || '1') || 1));
+    var qty = Math.max(1, Math.min(10, parseInt((inp && inp.value) || '1') || 1));
     _nookBuyItem('raffle_entry', qty, btnEl);
+};
+window._buyRaffle10 = function(btnEl) {
+    _nookBuyItem('raffle_entry_10', 1, btnEl);
 };
 
 function _renderNookInventory() {
