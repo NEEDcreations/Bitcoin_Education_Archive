@@ -55,8 +55,8 @@ test('criteria come only from the user doc counter', () => {
     assert.ok(rules.meets(r, { tctvLifetimeSeconds: 300 * 60 }, {}));
     assert.ok(!rules.meets(r, { tctvWatchSeconds: 1e9, tctvWatchDays: 9999 }, {}), 'legacy fields ignored');
 });
-test('grantFamily maps the counter to the five ids', () => {
-    assert.deepStrictEqual(grant.familyFor('tctvLifetimeSeconds'), tiers.allIds());
+test('grantFamily maps the counter to the five ids, then the tier collections', () => {
+    assert.deepStrictEqual(grant.familyFor('tctvLifetimeSeconds'), tiers.allIds().concat(Object.keys(tiers.COLLECTIONS)));
 });
 test('rules: client cannot write tctvLifetimeSeconds; tctv_watch is server-only', () => {
     const r = read('firestore.rules');
@@ -174,6 +174,18 @@ test('grandfather writes the badge_awards doc with create(), never set()', () =>
 test('awardBadge refuses to pay when an award doc already exists', () => {
     const src = read('functions/src/awardBadge.js');
     assert.ok(/if \(awardSnap\.exists\) \{\s*return \{ granted: false, success: false, reason: 'already', awarded: 0, xp: 0/.test(src));
+});
+
+test('tier collections cover every ACTIVE family at Platinum / Diamond', () => {
+    assert.deepStrictEqual(tiers.collectionMembers('tier_all_platinum'), Object.keys(tiers.ACTIVE).map((f) => f + '_t4'));
+    assert.deepStrictEqual(tiers.collectionMembers('tier_all_diamond'), Object.keys(tiers.ACTIVE).map((f) => f + '_t5'));
+    ['tier_all_platinum', 'tier_all_diamond'].forEach((id) => {
+        const r = rules.ruleFor(id);
+        assert.ok(r && !r.cosmetic && r.source.type === 'tierSet', id);
+        assert.ok(r.xp > 0 && r.xp <= tiers.TIER_XP_MAX, id + ' xp');
+        assert.ok(!tiers.isTierId(id));
+    });
+    assert.ok(grant.familyFor('tctvLifetimeSeconds').indexOf('tier_all_diamond') > grant.familyFor('tctvLifetimeSeconds').indexOf('tctv_watch_t5'));
 });
 console.log(`\nbadge tiers: ${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

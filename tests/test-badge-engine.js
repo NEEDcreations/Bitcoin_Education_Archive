@@ -837,7 +837,7 @@ queue.push(test('badge ladders never pay a harder rung less, and the UI table ma
     // The sheet has two non-badges (`anon`, `flex_`). The catalog parser
     // used to invent those, plus `Raid`, from `uid: 'anon'` and `raid: 'Raid'`.
     const sheetOnly = tableIds.filter(function (id) { return catalogIds.indexOf(id) === -1; });
-    const catalogOnly = catalogIds.filter(function (id) { return tableIds.indexOf(id) === -1 && !require('../functions/src/badgeTiers').isTierId(id); });
+    const catalogOnly = catalogIds.filter(function (id) { return tableIds.indexOf(id) === -1 && !require('../functions/src/badgeTiers').isTierId(id) && !require('../functions/src/badgeTiers').isCollectionId(id); });
     assert.deepStrictEqual(sheetOnly, ['anon', 'flex_']);
     assert.deepStrictEqual(catalogOnly, []);
     assert.strictEqual(table.badges.flex_.xp, 0);
@@ -1255,6 +1255,55 @@ queue.push(test('non-tier badges and caller-verified awards still obey the daily
     const v = memoryDb({ 'users/u': { points: 0 }, 'users/u/daily_points/2026-11-02': { total: 1000 } });
     const rv = await awardBadge(v, admin, 'u', 'tctv_watch_t5', { day: '2026-11-02', nowMs: now, verified: true });
     assert.strictEqual(rv.xp, 0, 'verified flag never unlocks the bypass');
+}));
+
+
+queue.push(test('All Platinum / All Diamond pay once, ignore the daily cap, and need every member tier', async function () {
+    const now = Date.UTC(2026, 10, 2, 15);
+    const day = '2026-11-02';
+    const db = memoryDb({
+        'users/u': { tctvLifetimeSeconds: 126000 * 60, points: 0, orangeTickets: 0 },
+        'users/u/daily_points/2026-11-02': { total: 1000 },
+        'users/u/badge_awards/tctv_watch_t4': { badge: 'tctv_watch_t4', xp: 2500 },
+    });
+    const none = await awardBadge(db, admin, 'u', 'tier_all_diamond', { day: day, nowMs: now });
+    assert.strictEqual(none.reason, 'criteria', 'Diamond tier record missing');
+    const plat = await awardBadge(db, admin, 'u', 'tier_all_platinum', { day: day, nowMs: now });
+    assert.strictEqual(plat.xp, 2500);
+    assert.strictEqual(db.docs['users/u'].orangeTickets, 10);
+    assert.strictEqual(db.docs['users/u/badge_awards/tier_all_platinum'].dailyCapBypass, true);
+    assert.strictEqual(db.docs['users/u/daily_points/2026-11-02'].total, 1000);
+    const again = await awardBadge(db, admin, 'u', 'tier_all_platinum', { day: day, nowMs: now });
+    assert.strictEqual(again.reason, 'already');
+    assert.strictEqual(db.docs['users/u'].points, 2500, 'paid once');
+    const fresh = memoryDb({ 'users/w': { points: 0 } });
+    const forged = await awardBadge(fresh, admin, 'w', 'tier_all_diamond', { day: day, nowMs: now, verified: true });
+    assert.notStrictEqual(forged.granted, true, 'verified flag cannot skip the tier records');
+    assert.strictEqual(fresh.docs['users/w'].points, 0);
+}));
+
+queue.push(test('tier collection reached only through grandfathered tiers pays 0; a mix pays', async function () {
+    const now = Date.UTC(2026, 10, 2, 15);
+    const day = '2026-11-02';
+    const gfDb = memoryDb({
+        'users/g': { points: 0, orangeTickets: 0 },
+        'users/g/badge_awards/tctv_watch_t5': { badge: 'tctv_watch_t5', xp: 0, grandfathered: true },
+    });
+    const g = await awardBadge(gfDb, admin, 'g', 'tier_all_diamond', { day: day, nowMs: now });
+    assert.strictEqual(g.xp, 0);
+    assert.strictEqual(gfDb.docs['users/g'].points, 0);
+    assert.strictEqual(gfDb.docs['users/g'].orangeTickets, 0);
+    const rec = gfDb.docs['users/g/badge_awards/tier_all_diamond'];
+    assert.strictEqual(rec.grandfathered, true);
+    assert.strictEqual(rec.tickets, 0);
+    assert.ok(!gfDb.docs['satoshiFavor/current'], 'no Favor point for a grandfathered-only completion');
+    const later = await awardBadge(gfDb, admin, 'g', 'tier_all_diamond', { day: day, nowMs: now });
+    assert.strictEqual(later.reason, 'already', 'can never pay later');
+    const { grandfatheredOnlyFrom } = require('../functions/src/awardBadge');
+    const snap = (rows) => ({ forEach: (fn) => rows.forEach((r) => fn({ id: r[0], data: () => r[1] })) });
+    assert.strictEqual(grandfatheredOnlyFrom(snap([['a', { grandfathered: true }], ['b', {}]]), ['a', 'b']), false);
+    assert.strictEqual(grandfatheredOnlyFrom(snap([['a', { grandfathered: true }], ['b', { grandfathered: true }]]), ['a', 'b']), true);
+    assert.strictEqual(grandfatheredOnlyFrom(snap([]), []), false);
 }));
 
 Promise.all(queue).then(function () {

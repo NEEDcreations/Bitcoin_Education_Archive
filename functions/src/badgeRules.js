@@ -243,7 +243,7 @@ function isCosmeticId(id) {
         if (id.indexOf(COSMETIC_PREFIXES[i]) === 0) return true;
     }
     // Server-tracked 5-tier families (badgeTiers) always pay.
-    if (badgeTiers.isTierId(id)) return false;
+    if (badgeTiers.isTierId(id) || badgeTiers.isCollectionId(id)) return false;
     // Old Timechain TV minute badges are device-local. The new tctv_daily_* family is not.
     if (id.indexOf('tctv_') === 0 && id.indexOf('tctv_daily_') !== 0) return true;
     return false;
@@ -341,6 +341,7 @@ function lqSource(id) {
 function sourceFor(id) {
     const tier = badgeTiers.tierInfo(id);
     if (tier) return counter(tier.field, tier.gte);
+    if (badgeTiers.isCollectionId(id)) return { type: 'tierSet', members: badgeTiers.collectionMembers(id) };
     if (NEW_SOURCES[id]) return NEW_SOURCES[id];
     if (WAITING_COUNTERS[id]) return WAITING_COUNTERS[id];
     if (MILESTONES[id]) return { type: 'awards', gte: MILESTONES[id] };
@@ -476,7 +477,7 @@ function ruleFor(id) {
         category: row.category || '',
         hidden: row.hidden === true,
         xp: xp,
-        tickets: referralTier ? referralTier.tickets : (pays && badgeTiers.isTierId(id) ? badgeTiers.tierInfo(id).tickets : 0),
+        tickets: referralTier ? referralTier.tickets : (pays && badgeTiers.isTierId(id) ? badgeTiers.tierInfo(id).tickets : (pays && badgeTiers.isCollectionId(id) ? badgeTiers.collectionInfo(id).tickets : 0)),
         displayXp: badgeXp.has(id) ? badgeXp.xpOf(id) : (Number(row.displayXp != null ? row.displayXp : row.xp) || 0),
         cosmetic: !pays,
         source: source,
@@ -563,6 +564,11 @@ function meets(rule, user, ctx) {
         return src.ids.every(function (channel) { return list.indexOf(channel) !== -1; });
     }
     if (src.type === 'awards') return (bag.payingCount || 0) >= src.gte;
+    if (src.type === 'tierSet') {
+        const held = bag.awardSet;
+        if (!held || !src.members.length) return false;
+        return src.members.every(function (member) { return held.has(member); });
+    }
     if (src.type === 'set') {
         const held = bag.awardSet;
         if (!held) return false;

@@ -135,6 +135,31 @@ const PLANNED_XP = {
     shop: [10,  30,  150,  300,  1500],
 };
 
+// Tier collections (Phil, Nov 2 8:33 AM): hold the given tier in EVERY
+// switched-on (ACTIVE) family. Checked server-side from badge_awards tier
+// records, paid once per user. A completion made only of grandfathered tier
+// records pays 0. XP / OT below are SUGGESTED values pending Phil.
+const COLLECTIONS = {
+    tier_all_platinum: { n: 4, name: 'All Platinum', emoji: '🟪', xp: 2500, tickets: 10 },
+    tier_all_diamond: { n: 5, name: 'All Diamond', emoji: '💎', xp: 5000, tickets: 42 },
+};
+
+function isCollectionId(id) {
+    return Object.prototype.hasOwnProperty.call(COLLECTIONS, String(id || ''));
+}
+
+function collectionMembers(id) {
+    const c = COLLECTIONS[id];
+    if (!c) return [];
+    return Object.keys(ACTIVE).map(function (f) { return badgeId(f, c.n); });
+}
+
+function collectionInfo(id) {
+    const c = COLLECTIONS[id];
+    if (!c) return null;
+    return { id: id, n: c.n, name: c.name, xp: Math.min(c.xp, TIER_XP_MAX), tickets: c.tickets, members: collectionMembers(id) };
+}
+
 // Exempt in the plan (bounded / checklist): story, peer_level, every one-and-done.
 const EXEMPT = ['story', 'peer_level'];
 
@@ -216,6 +241,17 @@ function catalogExtras(xpCap) {
             };
         });
     });
+    Object.keys(COLLECTIONS).forEach(function (id) {
+        const c = COLLECTIONS[id];
+        const metal = TIERS[c.n - 1].name;
+        out[id] = {
+            name: c.name,
+            emoji: c.emoji,
+            desc: 'Reached ' + metal + ' in every tiered badge' + (c.tickets ? ' (+' + c.tickets + ' orange tickets)' : ''),
+            xp: xpCap ? Math.min(c.xp, xpCap) : c.xp,
+            category: 'Collections',
+        };
+    });
     return out;
 }
 
@@ -248,5 +284,9 @@ module.exports = {
     familyForField: familyForField,
     allIds: allIds,
     catalogExtras: catalogExtras,
+    COLLECTIONS: COLLECTIONS,
+    isCollectionId: isCollectionId,
+    collectionMembers: collectionMembers,
+    collectionInfo: collectionInfo,
     progress: progress,
 };
