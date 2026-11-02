@@ -523,7 +523,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2461');
+    assert.ok(swVersion && swVersion[1] === 'v2462');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
