@@ -121,5 +121,16 @@ test('client keeps heartbeating after the daily goal until the server caps', () 
     assert.ok(src.includes('lifeCapped = data.lifeCapped'));
     assert.ok(!/function sendHeartbeat\(\) \{\s*if \(inflight \|\| window\._tctvWatchDoneToday\)/.test(src));
 });
+test('tier XP rises by tier and tier V <= 5,000 in every family (Phil, Nov 2)', () => {
+    assert.deepStrictEqual(tiers.ACTIVE.tctv_watch.tiers.map((r) => r[1]), [10, 150, 1000, 2500, 5000]);
+    const fams = Object.assign({ tctv_watch: tiers.ACTIVE.tctv_watch.tiers.map((r) => r[1]) }, tiers.PLANNED_XP);
+    Object.keys(tiers.PLANNED).forEach((f) => assert.ok(tiers.PLANNED_XP[f], f + ' has XP'));
+    Object.keys(fams).forEach((f) => {
+        const x = fams[f];
+        assert.strictEqual(x.length, 5, f);
+        for (let i = 1; i < 5; i++) assert.ok(x[i] > x[i - 1], f + ' rises');
+        assert.ok(x[4] <= tiers.TIER_XP_MAX && x[0] >= 10, f + ' bounds');
+    });
+});
 console.log(`\nbadge tiers: ${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

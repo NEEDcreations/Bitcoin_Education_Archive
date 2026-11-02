@@ -8,6 +8,7 @@
 // Its Favor credit is the backfill's job. Already-owned badges do not read the pool.
 
 const { applyDailyXp } = require('./applyDailyXp');
+const badgeTiers = require('./badgeTiers');
 const badgeRules = require('./badgeRules');
 const { rewardBlocked } = require('./cipherClaim');
 const { planFavorPoint } = require('./favorPool');
@@ -144,7 +145,12 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         const totalsSnap = await t.get(totalsRef);
 
         const catalogXp = verified && rule.cosmetic ? (Number(rule.displayXp) || 0) : (Number(rule.xp) || 0);
-        const xpGrant = await applyDailyXp(uid, catalogXp, t, { day: day, userRef: userRef, user: user, now: nowMs });
+        // Phil (Nov 2): 5-tier badge XP ignores the daily XP caps. Only when this
+        // transaction proved the server counter itself (not a caller's
+        // verified flag). Once per user: awardSnap above stops repeats.
+        const tierBypass = !verified && badgeTiers.isTierId(badgeId) && !!rule.source && rule.source.type === 'counter';
+        const tierXp = tierBypass ? Math.min(catalogXp, badgeTiers.TIER_XP_MAX) : catalogXp;
+        const xpGrant = await applyDailyXp(uid, tierXp, t, { day: day, userRef: userRef, user: user, now: nowMs, bypass: tierBypass });
         const xp = xpGrant.awarded > 0 ? xpGrant.awarded : 0;
 
         const update = {
@@ -163,6 +169,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             badge: badgeId,
             xp: xp,
             requestedXp: catalogXp,
+            dailyCapBypass: tierBypass,
             base: xpGrant.base,
             boosted: xpGrant.boosted,
             doubled: xpGrant.doubled === true,

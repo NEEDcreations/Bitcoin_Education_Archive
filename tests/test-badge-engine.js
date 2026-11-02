@@ -837,7 +837,7 @@ queue.push(test('badge ladders never pay a harder rung less, and the UI table ma
     // The sheet has two non-badges (`anon`, `flex_`). The catalog parser
     // used to invent those, plus `Raid`, from `uid: 'anon'` and `raid: 'Raid'`.
     const sheetOnly = tableIds.filter(function (id) { return catalogIds.indexOf(id) === -1; });
-    const catalogOnly = catalogIds.filter(function (id) { return tableIds.indexOf(id) === -1; });
+    const catalogOnly = catalogIds.filter(function (id) { return tableIds.indexOf(id) === -1 && !require('../functions/src/badgeTiers').isTierId(id); });
     assert.deepStrictEqual(sheetOnly, ['anon', 'flex_']);
     assert.deepStrictEqual(catalogOnly, []);
     assert.strictEqual(table.badges.flex_.xp, 0);
@@ -1221,6 +1221,40 @@ queue.push(test('grantFamily tallies flex claims once, skips earned ids, and doe
     assert.strictEqual(hi.docs['satoshiFavor/current'].points, 1);
     assert.strictEqual(hiStats.awardTx, 1);
     assert.strictEqual(hiStats.outside, 0);
+}));
+
+queue.push(test('tier badge XP ignores the daily cap (Phil, Nov 2) and is paid once', async function () {
+    const now = Date.UTC(2026, 10, 2, 15);
+    const day = '2026-11-02';
+    const db = memoryDb({
+        'users/u': { tctvLifetimeSeconds: 126000 * 60, points: 0 },
+        'users/u/daily_points/2026-11-02': { total: 1000 },
+    });
+    const r5 = await awardBadge(db, admin, 'u', 'tctv_watch_t5', { day: day, nowMs: now });
+    assert.strictEqual(r5.xp, 5000, 'full 5,000 at the daily limit');
+    assert.strictEqual(db.docs['users/u'].points, 5000);
+    assert.strictEqual(db.docs['users/u/badge_awards/tctv_watch_t5'].dailyCapBypass, true);
+    assert.strictEqual(db.docs['users/u/daily_points/2026-11-02'].total, 1000, 'daily counter untouched');
+    const again = await awardBadge(db, admin, 'u', 'tctv_watch_t5', { day: day, nowMs: now + 1000 });
+    assert.strictEqual(again.reason, 'already');
+    assert.strictEqual(again.xp, 0);
+    assert.strictEqual(db.docs['users/u'].points, 5000, 'no second payout');
+    const r1 = await awardBadge(db, admin, 'u', 'tctv_watch_t1', { day: day, nowMs: now });
+    assert.strictEqual(r1.xp, 10);
+    const short = memoryDb({ 'users/v': { tctvLifetimeSeconds: 599, points: 0 } });
+    const no = await awardBadge(short, admin, 'v', 'tctv_watch_t1', { day: day, nowMs: now });
+    assert.strictEqual(no.reason, 'criteria');
+    assert.strictEqual(short.docs['users/v'].points, 0);
+}));
+
+queue.push(test('non-tier badges and caller-verified awards still obey the daily cap', async function () {
+    const now = Date.UTC(2026, 10, 2, 15);
+    const db = memoryDb({ 'users/u': { sayHiDays: 1, points: 0 }, 'users/u/daily_points/2026-11-02': { total: 1000 } });
+    const r = await awardBadge(db, admin, 'u', 'say_hi_1', { day: '2026-11-02', nowMs: now });
+    assert.strictEqual(r.xp, 0);
+    const v = memoryDb({ 'users/u': { points: 0 }, 'users/u/daily_points/2026-11-02': { total: 1000 } });
+    const rv = await awardBadge(v, admin, 'u', 'tctv_watch_t5', { day: '2026-11-02', nowMs: now, verified: true });
+    assert.strictEqual(rv.xp, 0, 'verified flag never unlocks the bypass');
 }));
 
 Promise.all(queue).then(function () {
