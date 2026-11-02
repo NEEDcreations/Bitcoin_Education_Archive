@@ -11,14 +11,13 @@
 // other family in the plan is listed in PLANNED for follow-up PRs and is not
 // awarded by this module.
 
-// Bitcoin-themed names for bronze / silver / gold / platinum / diamond.
-// The plan left names TBD; these are placeholders for Phil to approve.
+// Tier names: Bronze / Silver / Gold / Platinum / Diamond (Phil, Nov 2 2026).
 const TIERS = [
-    { n: 1, key: 'pleb', name: 'Pleb', metal: 'bronze', emoji: '🟫' },
-    { n: 2, key: 'stacker', name: 'Stacker', metal: 'silver', emoji: '⬜' },
-    { n: 3, key: 'hodler', name: 'HODLer', metal: 'gold', emoji: '🟨' },
-    { n: 4, key: 'whale', name: 'Whale', metal: 'platinum', emoji: '🟪' },
-    { n: 5, key: 'satoshi', name: 'Satoshi', metal: 'diamond', emoji: '💎' },
+    { n: 1, key: 'bronze', name: 'Bronze', metal: 'bronze', emoji: '🟫' },
+    { n: 2, key: 'silver', name: 'Silver', metal: 'silver', emoji: '⬜' },
+    { n: 3, key: 'gold', name: 'Gold', metal: 'gold', emoji: '🟨' },
+    { n: 4, key: 'platinum', name: 'Platinum', metal: 'platinum', emoji: '🟪' },
+    { n: 5, key: 'diamond', name: 'Diamond', metal: 'diamond', emoji: '💎' },
 ];
 
 // Phil: Platinum and Diamond also pay Orange Tickets. The amount is not in
