@@ -399,7 +399,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     const html404 = read('404.html');
     const sw = read('sw.js');
     assert.strictEqual(html, html404);
-    assert.ok(html.includes('ranking.js?v=20261102_v2461'));
+    assert.ok(html.includes('ranking.js?v=20261102_v2463'));
     assert.ok(!html.includes('ranking.js?v=20261029_v2431'));
     assert.ok(!html.includes('global-chat.js?v=20261029_v2431'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
@@ -424,7 +424,7 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     assert.strictEqual(html.includes('ranking.js?v=20261023_v2333'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_v2269'), false);
     assert.strictEqual(html.includes('ranking.js?v=20261022_lightfix'), false);
-    assert.ok(html.includes('gifting.js?v=20261031_v2450'));
+    assert.ok(html.includes('gifting.js?v=20261102_v2463'));
     assert.ok(!html.includes('gifting.js?v=20261029_v2429'));
     assert.ok(!html.includes('gifting.js?v=20261026_v2400'));
     assert.ok(!html.includes('gifting.js?v=20261026_v2399'));

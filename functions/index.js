@@ -1613,6 +1613,10 @@ exports.claimSats = functionsV1.runWith({
     const amountReq = faucetGuard.assessClaimAmount(data && data.amount);
     if (!amountReq.ok) return { success: false, error: amountReq.error };
     const lnAddrAmount = amountReq.amount;
+    // The player pays the flat Lightning fee out of the claim. Gross is debited, net is sent.
+    const lnFeeQuote = require('./src/lnFee').quote(lnAddrAmount);
+    if (!lnFeeQuote.ok) return { success: false, error: lnFeeQuote.error };
+    const netSendAmount = lnFeeQuote.net;
 
     let userRecord;
     try {
@@ -1668,10 +1672,10 @@ exports.claimSats = functionsV1.runWith({
         await assertPublicHost(_lnDomain);
         const resolved = await resolveLnurlInvoice({
             address: lnNorm,
-            msats: lnAddrAmount * 1000,
+            msats: netSendAmount * 1000,
         });
         invoice = resolved.pr;
-        console.log('[FAUCET] Resolved Lightning Address for ' + lnAddrAmount + ' sats domain=' + resolved.domain);
+        console.log('[FAUCET] Resolved Lightning Address for ' + netSendAmount + ' net sats domain=' + resolved.domain);
     } catch (e) {
         console.error('[FAUCET] Lightning Address resolution failed domain=' + (_lnDomain || ''));
         const clear = e && (e.code === 'lnurl_error' || e.code === 'below_min' || e.code === 'above_max' || e.code === 'amount_mismatch' || e.code === 'wrong_network');
@@ -1698,10 +1702,12 @@ exports.claimSats = functionsV1.runWith({
     if (!decoded.network || decoded.network.bech32 !== 'bc') {
         return { success: false, code: 'address_unresolved', error: 'Invoice must be a mainnet Lightning invoice.' };
     }
-    const amount = Math.floor((decoded.millisatoshis || 0) / 1000);
-    if (!amount || amount !== lnAddrAmount) {
+    const invoiceSats = Math.floor((decoded.millisatoshis || 0) / 1000);
+    if (!invoiceSats || invoiceSats !== netSendAmount || Number(decoded.millisatoshis) !== netSendAmount * 1000) {
         return { success: false, error: 'Lightning Address returned an unexpected amount.' };
     }
+    // Gross claim: what leaves the player's balance and counts toward every cap.
+    const amount = lnAddrAmount;
     if (amount > faucetGuard.MAX_PER_CLAIM_SATS) {
         return { success: false, error: 'Claim exceeds maximum. Contact support.' };
     }
@@ -1971,6 +1977,8 @@ exports.claimSats = functionsV1.runWith({
             t.set(invoiceRef, {
                 uid: uid,
                 amount: amount,
+                fee_charged: lnFeeQuote.fee,
+                net_sent: netSendAmount,
                 status: 'pending',
                 paymentHash: paymentHash,
                 ts: admin.firestore.Timestamp.now(),
@@ -2042,6 +2050,8 @@ exports.claimSats = functionsV1.runWith({
         address: lnNorm,
         paymentHash: paymentHash,
         displayName: displayName,
+        feeQuote: lnFeeQuote,
+        payResult: null,
     };
 
     let nwc;
@@ -2053,7 +2063,7 @@ exports.claimSats = functionsV1.runWith({
         const balanceResult = await _withTimeout(nwc.getBalance(), 20000, 'getBalance');
         const walletSats = Math.floor(balanceResult.balance / 1000);
         if (walletSats < FAUCET.WALLET_BALANCE_FLOOR_SATS) throw new Error('WALLET_LOW');
-        if (amount > faucetGuard.MAX_PER_CLAIM_SATS) throw new Error('HARD_CAP');
+        if (amount > faucetGuard.MAX_PER_CLAIM_SATS || netSendAmount >= amount) throw new Error('HARD_CAP');
         phase = 'pay';
         payResult = await _withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
@@ -2064,19 +2074,19 @@ exports.claimSats = functionsV1.runWith({
     const decision = faucetGuard.decideFaucetPayment({ phase: phase, error: payError, payResult: payResult });
     if (decision.action === 'record') {
         try {
-            await _recordFaucetPaid(Object.assign({}, payInfo, { preimage: decision.preimage }));
+            await _recordFaucetPaid(Object.assign({}, payInfo, { preimage: decision.preimage, payResult: payResult }));
         } catch (e) {
             console.error('[FAUCET] paid but record failed:', e.message);
-            await _notifyClaimedSats(uid, amount);
+            await _notifyClaimedSats(uid, netSendAmount);
         try { await grantFamily(db, admin, uid, familyFor('satsWithdrawn')); }
         catch (satsBadgeErr) { console.warn('[FAUCET] sats badges', satsBadgeErr && satsBadgeErr.message); }
-            return { success: true, amount: amount, preimage: decision.preimage, warning: faucetGuard.supportError('Paid, but the receipt did not save.') };
+            return { success: true, amount: amount, sent: netSendAmount, fee: lnFeeQuote.fee, preimage: decision.preimage, warning: faucetGuard.supportError('Paid, but the receipt did not save.') };
         }
         console.log('[FAUCET] Paid ' + amount + ' sats to ' + uid);
-        await _notifyClaimedSats(uid, amount);
+        await _notifyClaimedSats(uid, netSendAmount);
         try { await grantFamily(db, admin, uid, familyFor('satsWithdrawn')); }
         catch (satsBadgeErr) { console.warn('[FAUCET] sats badges', satsBadgeErr && satsBadgeErr.message); }
-        return { success: true, amount: amount, preimage: decision.preimage, message: '⚡ ' + amount + ' sats sent to your wallet!' };
+        return { success: true, amount: amount, sent: netSendAmount, fee: lnFeeQuote.fee, preimage: decision.preimage, message: '⚡ ' + netSendAmount + ' sats sent to your wallet!' };
     }
     if (decision.action === 'refund') {
         await _rollbackClaim(uid, amount, today, invoiceRef);
@@ -2116,16 +2126,16 @@ exports.claimSats = functionsV1.runWith({
             await _recordFaucetPaid(Object.assign({}, payInfo, { preimage: afterLookup.preimage, paymentHash: lookupReq.payment_hash }));
         } catch (e) {
             console.error('[FAUCET] settled but record failed:', e.message);
-            await _notifyClaimedSats(uid, amount);
+            await _notifyClaimedSats(uid, netSendAmount);
         try { await grantFamily(db, admin, uid, familyFor('satsWithdrawn')); }
         catch (satsBadgeErr) { console.warn('[FAUCET] sats badges', satsBadgeErr && satsBadgeErr.message); }
-            return { success: true, amount: amount, preimage: afterLookup.preimage, warning: faucetGuard.supportError('Paid, but the receipt did not save.') };
+            return { success: true, amount: amount, sent: netSendAmount, fee: lnFeeQuote.fee, preimage: afterLookup.preimage, warning: faucetGuard.supportError('Paid, but the receipt did not save.') };
         }
         console.log('[FAUCET] Lookup settled ' + amount + ' sats to ' + uid);
-        await _notifyClaimedSats(uid, amount);
+        await _notifyClaimedSats(uid, netSendAmount);
         try { await grantFamily(db, admin, uid, familyFor('satsWithdrawn')); }
         catch (satsBadgeErr) { console.warn('[FAUCET] sats badges', satsBadgeErr && satsBadgeErr.message); }
-        return { success: true, amount: amount, preimage: afterLookup.preimage, message: '⚡ ' + amount + ' sats sent to your wallet!' };
+        return { success: true, amount: amount, sent: netSendAmount, fee: lnFeeQuote.fee, preimage: afterLookup.preimage, message: '⚡ ' + netSendAmount + ' sats sent to your wallet!' };
     }
     if (afterLookup.action === 'refund') {
         await _rollbackClaim(uid, amount, today, invoiceRef);
@@ -2220,6 +2230,7 @@ async function _flagFaucetAdmin(flag) {
 
 async function _recordFaucetPaid(info) {
     const batch = db.batch();
+    const feeRec = info.feeQuote ? require('./src/lnFee').feeFields(info.feeQuote, info.payResult) : {};
     batch.update(info.userRef, {
         _pendingClaim: admin.firestore.FieldValue.delete(),
         _pendingClaimAt: admin.firestore.FieldValue.delete(),
@@ -2234,10 +2245,16 @@ async function _recordFaucetPaid(info) {
         status: 'paid',
         timestamp: admin.firestore.FieldValue.serverTimestamp(),
         uid: info.uid,
+        fee_charged: feeRec.fee_charged === undefined ? null : feeRec.fee_charged,
+        net_sent: feeRec.net_sent === undefined ? null : feeRec.net_sent,
+        fee_paid: feeRec.fee_paid === undefined ? null : feeRec.fee_paid,
     });
     batch.set(info.invoiceRef, {
         uid: info.uid,
         amount: info.amount,
+        fee_charged: feeRec.fee_charged === undefined ? null : feeRec.fee_charged,
+        net_sent: feeRec.net_sent === undefined ? null : feeRec.net_sent,
+        fee_paid: feeRec.fee_paid === undefined ? null : feeRec.fee_paid,
         status: 'used',
         paymentHash: info.paymentHash || '',
         ts: admin.firestore.FieldValue.serverTimestamp(),
