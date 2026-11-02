@@ -70,6 +70,7 @@ function grandfatherRecord(adminSdk, id, reason, day) {
         day: day,
         source: 'grandfather',
         grandfathered: true,
+        ggSkip: true, // no global-chat GG burst for grandfathered records (badgeGg.skipBadgeGg)
         grandfatherReason: reason,
     };
 }
