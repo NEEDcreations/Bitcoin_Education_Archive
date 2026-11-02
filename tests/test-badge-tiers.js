@@ -132,5 +132,48 @@ test('tier XP rises by tier and tier V <= 5,000 in every family (Phil, Nov 2)', 
         assert.ok(x[4] <= tiers.TIER_XP_MAX && x[0] >= 10, f + ' bounds');
     });
 });
+
+test('tier names are Bronze/Silver/Gold/Platinum/Diamond', () => {
+    assert.deepStrictEqual(tiers.TIERS.map((t) => t.name), ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond']);
+});
+test('orange tickets: Platinum 5, Diamond 21, others 0', () => {
+    assert.deepStrictEqual(tiers.TIER_TICKETS, { 1: 0, 2: 0, 3: 0, 4: 5, 5: 21 });
+});
+const gf = require('../functions/scripts/backfill_tier_grandfather');
+test('grandfather: counter tiers only up to the current tier', () => {
+    const ids = gf.qualifyingTiers({ tctvLifetimeSeconds: 300 * 60 }).map((t) => t.id);
+    assert.deepStrictEqual(ids, ['tctv_watch_t1', 'tctv_watch_t2']);
+    assert.deepStrictEqual(gf.qualifyingTiers({}), []);
+    assert.deepStrictEqual(gf.qualifyingTiers({ tctvLifetimeSeconds: 599 }), []);
+});
+test('grandfather: old badge ownership counts', () => {
+    const q = gf.qualifyingTiers({ badges: ['tctv_binge_watcher'] });
+    assert.deepStrictEqual(q.map((t) => t.id + ':' + t.reason), ['tctv_watch_t2:legacy_badge']);
+    const p = gf.qualifyingTiers({ visibleBadges: [{ id: 'tctv_watch_t4' }] });
+    assert.deepStrictEqual(p.map((t) => t.id + ':' + t.reason), ['tctv_watch_t4:profile']);
+});
+test('grandfather record pays nothing and is flagged', () => {
+    const fake = { firestore: { FieldValue: { serverTimestamp: () => 'ts' } } };
+    const r = gf.grandfatherRecord(fake, 'tctv_watch_t5', 'counter', '2026-11-02');
+    assert.strictEqual(r.xp, 0); assert.strictEqual(r.tickets, 0); assert.strictEqual(r.grandfathered, true);
+    assert.strictEqual(r.badge, 'tctv_watch_t5');
+});
+test('grandfather defaults to dry run; apply needs both flags', () => {
+    assert.strictEqual(gf.parseArgs([]).apply, false);
+    assert.strictEqual(gf.parseArgs(['--apply']).apply, false);
+    assert.strictEqual(gf.parseArgs(['--confirm=GRANDFATHER']).apply, false);
+    assert.strictEqual(gf.parseArgs(['--apply', '--confirm=GRANDFATHER']).apply, true);
+    assert.strictEqual(gf.shortUid('abcdefghijkl'), 'abcdef…');
+});
+test('grandfather writes the badge_awards doc with create(), never set()', () => {
+    const src = read('functions/scripts/backfill_tier_grandfather.js');
+    assert.ok(src.includes("collection('badge_awards').doc(t.id)"));
+    assert.ok(src.includes('ref.create(') && !/ref\.set\(/.test(src));
+    assert.ok(!/email/i.test(src.replace(/no emails/g, '')));
+});
+test('awardBadge refuses to pay when an award doc already exists', () => {
+    const src = read('functions/src/awardBadge.js');
+    assert.ok(/if \(awardSnap\.exists\) \{\s*return \{ granted: false, success: false, reason: 'already', awarded: 0, xp: 0/.test(src));
+});
 console.log(`\nbadge tiers: ${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);
