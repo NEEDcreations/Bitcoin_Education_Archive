@@ -1468,7 +1468,8 @@ function mountCipherSatsBalance(parent, opts) {
     btn.type = 'button';
     btn.className = 'cipher-sats-claim-btn';
     btn.textContent = 'Claim ' + Math.min(bal, 200).toLocaleString() + ' sats';
-    var ready = bal >= 100 && !options.disabled;
+    var _rules = window.CIPHER_SATS_RULES || { min: 100 };
+    var ready = bal >= _rules.min && !options.disabled;
     btn.disabled = !ready;
     btn.style.cssText = 'min-height:44px;padding:10px 14px;border:none;border-radius:10px;font-weight:800;font-family:inherit;width:100%;' + (ready ? 'background:#f7931a;color:#fff;cursor:pointer;' : 'background:var(--card-bg,#222);color:var(--text-muted);cursor:default;opacity:0.65;');
     btn.onclick = function() {
@@ -1479,6 +1480,14 @@ function mountCipherSatsBalance(parent, opts) {
     box.appendChild(num);
     box.appendChild(note);
     box.appendChild(btn);
+    if (typeof window.cipherSatsWithdrawHint === 'function') {
+        var hint = document.createElement('div');
+        hint.className = 'cipher-sats-hint';
+        hint.setAttribute('role', 'note');
+        hint.style.cssText = 'font-size:0.72rem;color:var(--text-muted);margin-top:8px;line-height:1.35;';
+        hint.textContent = '\u24d8 ' + window.cipherSatsWithdrawHint(bal);
+        box.appendChild(hint);
+    }
     parent.appendChild(box);
     return box;
 }
