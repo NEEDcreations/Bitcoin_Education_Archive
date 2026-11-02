@@ -6184,6 +6184,7 @@ function _lbRankBox(board) {
         '<input id="lbRankInput-' + board + '" class="lb-rank-input" type="text" maxlength="40" enterkeyhint="search" placeholder="Search username" value="' + escapeHtml(value) + '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" oninput="_lbRankType(\'' + board + '\', this.value)" onkeydown="_lbRankKey(event, \'' + board + '\')">' +
         '<button type="button" class="lb-rank-find" onclick="_lbRankFindMe(\'' + board + '\')">Find me</button>' +
         '</div>' +
+        _lbShareBtn(board) +
         '<div id="lbRankResult-' + board + '" class="lb-rank-result" hidden></div>' +
         '</div>';
 }
@@ -6289,6 +6290,114 @@ async function _lbRankRun(board) {
         _lbRankPaint(board, { status: 'not_found', message: text });
     }
 }
+
+
+// ── Share my rank (one card per board) ──
+// Reads the same leaderboardRank callable as "Find me". No writes.
+var LB_SHARE_NAMES = { xp: 'XP Leaderboard', quest: 'Quests', predict: 'Top Predictors', streak: 'Daily Streaks', pvp: 'PVP Leaderboard' };
+var LB_SHARE_PERIODS = { alltime: 'All Time', weekly: 'This Week', monthly: 'This Month', week: 'This Week', month: 'This Month', current: 'Current' };
+
+function _lbShareSignedIn() {
+    var u = _lbRankAuthUser();
+    return !!(u && !u.isAnonymous && typeof currentUser !== 'undefined' && currentUser);
+}
+
+function _lbShareBtn(board) {
+    if (!_lbShareSignedIn()) return '';
+    return '<button type="button" class="lb-share-btn" data-board="' + board + '" onclick="event.stopPropagation();_lbShareRank(\'' + board + '\')">📤 Share my rank</button>';
+}
+window._lbShareBtn = _lbShareBtn;
+
+function _lbShareLink() {
+    var code = (typeof getReferralCode === 'function') ? getReferralCode() : null;
+    if (!code || !/^[A-Za-z0-9]{6,28}$/.test(String(code))) return 'https://bitcoineducation.quest/';
+    return 'https://bitcoineducation.quest/?ref=' + encodeURIComponent(code) + '&src=lbshare';
+}
+
+async function _lbShareLookup(board) {
+    if (board === 'pvp') {
+        var doc = (typeof _lbSnapRead === 'function' && LB_BOARDS.pvp) ? _lbSnapRead(LB_BOARDS.pvp.docId) : null;
+        var me = _lbRankAuthUser();
+        var rows = (doc && doc.rows) || [];
+        for (var i = 0; i < rows.length; i++) {
+            if (me && rows[i] && rows[i].uid === me.uid && rows[i].rank) {
+                return { status: 'ok', rank: rows[i].rank, username: rows[i].username, scoreText: (rows[i].wins || 0) + 'W - ' + (rows[i].losses || 0) + 'L' };
+            }
+        }
+        return null;
+    }
+    var period = _lbRankPeriod(board);
+    var res = await firebase.functions().httpsCallable('leaderboardRank')({ board: board, period: period, me: true });
+    var d = res && res.data;
+    if (!d || d.status !== 'ok' || !(Number(d.rank) > 0)) return null;
+    d.scoreText = _lbRankScoreText(board, period, d);
+    d.periodName = LB_SHARE_PERIODS[period] || '';
+    return d;
+}
+
+function _lbShareFit(ctx, text, max, size, weight) {
+    var s = size;
+    do { ctx.font = weight + ' ' + s + 'px system-ui,-apple-system,Segoe UI,sans-serif'; s -= 2; } while (ctx.measureText(text).width > max && s > 18);
+}
+
+// Canvas text is drawn as text, never parsed as HTML.
+function _lbShareCanvas(board, d, link) {
+    var W = 1080, H = 1080;
+    var c = document.createElement('canvas'); c.width = W; c.height = H;
+    var ctx = c.getContext('2d');
+    var g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#0b1220'); g.addColorStop(1, '#1a1206');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#f7931a'; ctx.lineWidth = 12; ctx.strokeRect(30, 30, W - 60, H - 60);
+    ctx.textAlign = 'center'; ctx.fillStyle = '#f7931a';
+    ctx.font = '800 52px system-ui,-apple-system,Segoe UI,sans-serif';
+    ctx.fillText('₿ Bitcoin Quest™', W / 2, 140);
+    ctx.fillStyle = '#e2e8f0';
+    var board_ = (LB_SHARE_NAMES[board] || 'Leaderboard') + (d.periodName ? ' · ' + d.periodName : '');
+    _lbShareFit(ctx, board_, W - 160, 46, '700'); ctx.fillText(board_, W / 2, 230);
+    ctx.fillStyle = '#f7931a'; ctx.font = '900 260px system-ui,-apple-system,Segoe UI,sans-serif';
+    ctx.fillText('#' + Math.floor(Number(d.rank)), W / 2, 520);
+    var name = '@' + String(d.username || (currentUser && currentUser.username) || 'Anon').replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 40);
+    ctx.fillStyle = '#ffffff'; _lbShareFit(ctx, name, W - 160, 70, '800'); ctx.fillText(name, W / 2, 640);
+    if (d.scoreText) { ctx.fillStyle = '#cbd5e1'; _lbShareFit(ctx, String(d.scoreText), W - 160, 48, '600'); ctx.fillText(String(d.scoreText), W / 2, 720); }
+    ctx.fillStyle = '#e2e8f0'; ctx.font = '700 44px system-ui,-apple-system,Segoe UI,sans-serif';
+    ctx.fillText('Can you beat me? Learn Bitcoin and climb.', W / 2, 850);
+    ctx.fillStyle = '#f7931a'; _lbShareFit(ctx, link.replace(/^https:\/\//, ''), W - 140, 38, '700');
+    ctx.fillText(link.replace(/^https:\/\//, ''), W / 2, 950);
+    return c;
+}
+window._lbShareCanvas = _lbShareCanvas;
+
+window._lbShareRank = async function (board) {
+    if (!LB_SHARE_NAMES[board]) return;
+    if (!_lbShareSignedIn()) { if (typeof showToast === 'function') showToast('Sign in to share your rank'); return; }
+    if (window._lbSharing) return;
+    window._lbSharing = true;
+    try {
+        var d = await _lbShareLookup(board);
+        if (!d) { if (typeof showToast === 'function') showToast('You are not ranked on this board yet'); return; }
+        var link = _lbShareLink();
+        var canvas = _lbShareCanvas(board, d, link);
+        var blob = await new Promise(function (r) { canvas.toBlob(r, 'image/png'); });
+        var text = 'I\u2019m #' + Math.floor(Number(d.rank)) + ' on the Bitcoin Quest\u2122 ' + (LB_SHARE_NAMES[board] || 'leaderboard') + '. Can you beat me?';
+        var file = blob && typeof File === 'function' ? new File([blob], 'bitcoin-quest-rank.png', { type: 'image/png' }) : null;
+        if (file && navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+            try { await navigator.share({ files: [file], text: text + ' ' + link, url: link }); } catch (e) {}
+            return;
+        }
+        if (blob) {
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob); a.download = 'bitcoin-quest-rank-' + board + '.png';
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+        }
+        try { await navigator.clipboard.writeText(text + ' ' + link); if (typeof showToast === 'function') showToast('Card saved. Invite link copied!'); }
+        catch (e) { if (typeof showToast === 'function') showToast('Card saved. Your link: ' + escapeHtml(link)); }
+    } catch (e) {
+        if (typeof showToast === 'function') showToast('Could not load your rank. Try again.');
+    } finally {
+        window._lbSharing = false;
+    }
+};
 
 // Close leaderboard when clicking/tapping outside.
 // Uses capture phase + both mousedown and touchstart so it fires BEFORE
@@ -6969,9 +7078,10 @@ async function toggleLeaderboard() {
         // PVP LEADERBOARD
         html += '<div style="margin-top:24px;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
-            '<h4 style="margin:0;">⚔️ PVP Leaderboard</h4>' +
+            '<h4 style="margin:0;">⚔️ PVP Leaderboard</h4' +
             '<button onclick="event.stopPropagation();enterPVPMode();" style="padding:6px 14px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:8px;color:#fff;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:0.5px;transition:0.2s;">Enter PVP Lobby</button>' +
             '</div>' +
+            _lbShareBtn('pvp') +
             '<div id="pvpLeaderboardList"><div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:8px 0;">Loading PVP rankings...</div></div>' +
         '</div>';
 
@@ -8802,13 +8912,14 @@ function accountDeleteRowHtml(user) {
         html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;">Lifetime withdrawn: ' + satsWithdrawn.toLocaleString() + ' / 15,000 sats</div>';
         html += '</div>';
         var cipherBal = Math.max(0, Math.floor(Number(currentUser && currentUser.cipherSatsBalance) || 0));
-        var cipherReady = cipherBal >= 100 && !satsHeld;
+        var cipherReady = cipherBal >= window.CIPHER_SATS_RULES.min && !satsHeld;
         html += '<div id="cipherSatsBalanceSettings" data-surface="settings" style="background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.45);border-radius:16px;padding:16px;margin-bottom:16px;text-align:center;">';
         html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Cipher sats balance</div>';
         html += '<div id="cipherSatsBalanceSettingsAmount" class="cipher-sats-balance-amount" style="font-size:1.6rem;font-weight:900;color:#f7931a;margin:8px 0;">' + cipherBal.toLocaleString() + ' sats</div>';
         html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">Separate from your faucet balance</div>';
         html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;">Small sats wins from locked ciphers land here.</div>';
         html += '<button id="cipherSatsClaimSettings" type="button" class="cipher-sats-claim-btn" ' + (cipherReady ? '' : 'disabled ') + 'onclick="if(window.claimCipherSats)window.claimCipherSats()" style="width:100%;min-height:44px;padding:12px;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;font-family:inherit;' + (cipherReady ? 'background:#f7931a;color:#fff;cursor:pointer;' : 'background:var(--card-bg);color:var(--text-muted);cursor:default;opacity:0.65;') + '">Claim ' + Math.min(cipherBal, 200).toLocaleString() + ' sats</button>';
+        html += window.cipherSatsHintHtml(cipherBal);
         html += '</div>';
         // ── Overflow queue section ──
         var _pendingOf = currentUser ? parseInt(currentUser.pendingOverflow || 0, 10) : 0;
@@ -8846,12 +8957,20 @@ function accountDeleteRowHtml(user) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
         html += '<div style="font-weight:700;font-size:0.85rem;margin-bottom:12px;color:var(--text);">📋 Requirements</div>';
 
+        // Mirrors the claimSats gates in functions/index.js (FAUCET constants).
+        var _reqLn = currentUser ? (currentUser.lightning || currentUser.lightningAddress || '') : '';
+        var _reqLnOk = !!(_reqLn && typeof clientLnValid === 'function' && clientLnValid(normalizeClientLn(_reqLn)));
+        var _reqLifeLeft = Math.max(0, 15000 - (Number(satsWithdrawn) || 0));
         var checks = [
             { met: !isAnon, label: 'Signed in (not anonymous)', detail: isAnon ? 'Sign in with email, Google, etc.' : '✓ Signed in' },
-            { met: hasEmail, label: 'Email verified', detail: hasEmail ? '✓ ' + user.email : 'Link & verify your email in Account tab' },
+            { met: hasEmail, label: 'Email verified', detail: hasEmail ? '✓ Verified' : 'Link & verify your email in Account tab' },
             { met: acctAgeDays >= 7, label: 'Account age ≥ 7 days', detail: acctAgeDays >= 7 ? '✓ ' + acctAgeDays + ' days old' : acctAgeDays + '/7 days - ' + (7 - acctAgeDays) + ' more to go' },
             { met: channelsRead >= 10, label: 'Read ≥ 10 topics', detail: channelsRead >= 10 ? '✓ ' + channelsRead + ' topics read' : channelsRead + '/10 topics - read ' + (10 - channelsRead) + ' more' },
-            { met: meetsMin, label: 'Minimum 100 sats (1,000 pts)', detail: meetsMin ? '✓ ' + satsBalance + ' sats available' : satsBalance + '/100 sats - earn ' + ((100 - satsBalance) * 10) + ' more XP' }
+            { met: meetsMin, label: 'Minimum 100 sats (1,000 XP)', detail: meetsMin ? '✓ ' + satsBalance + ' sats available' : satsBalance + '/100 sats - earn ' + ((100 - satsBalance) * 10) + ' more XP' },
+            { met: _reqLnOk, label: 'Lightning Address saved', detail: _reqLnOk ? '✓ Saved (locked to your account)' : 'Add one below. It cannot be changed later.' },
+            { met: !onCooldown, label: '1 claim every 24 hours', detail: onCooldown ? 'Next claim in ' + cooldownStr : '✓ Ready' },
+            { met: _reqLifeLeft > 0, label: 'Lifetime limit 15,000 sats', detail: _reqLifeLeft > 0 ? '✓ ' + _reqLifeLeft.toLocaleString() + ' sats left' : 'Lifetime limit reached' },
+            { met: !satsHeld, label: 'Account in good standing', detail: satsHeld ? 'Withdrawals are paused on this account for now' : '✓ One account per person and device' }
         ];
         checks.forEach(function(c) {
             html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">';
@@ -8873,6 +8992,8 @@ function accountDeleteRowHtml(user) {
         html += '• <strong>Daily XP:</strong> full through 500, half through 900, then a quarter until 1,000<br>';
         html += '• Unclaimed sats roll over - no expiration<br>';
         html += '• Payouts via Lightning Network ⚡<br>';
+        html += '• <strong>One account per person.</strong> Shared devices, networks or Lightning Addresses can block a claim<br>';
+        html += '• If you turned on 2FA, you confirm it before claiming. A site-wide daily pool also applies<br>';
         html += '</div>';
         html += '<div style="margin-top:10px;padding:10px 12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;font-size:0.75rem;color:#22c55e;line-height:1.5;">';
         html += '⚡ <strong>Lightning fee:</strong> a flat ' + window.BQ_LN_FEE_SATS + ' sats comes out of each claim to cover routing. Example: claim 100, receive ' + (100 - window.BQ_LN_FEE_SATS) + '. You always see the fee and the amount you will receive before you confirm.';
@@ -12552,9 +12673,23 @@ window.saveSatsLnAddress = function() {
     openWithdrawalAddress({ mode: 'reset', address: addr, start: addr ? 'confirm' : 'input' });
 };
 
+// Cipher sats claim rules. Mirrors functions/src/cipherSatsClaim.js (CLAIM_MIN,
+// CLAIM_MAX, PLAYER_DAILY_CAP) and cipherClaim.js (MIN_ACCOUNT_AGE_DAYS).
+// The server config doc is admin-only and holds just an on/off flag.
+window.CIPHER_SATS_RULES = { min: 100, max: 200, perDay: 200, ageDays: 7 };
+window.cipherSatsWithdrawHint = function(bal) {
+    var r = window.CIPHER_SATS_RULES;
+    var b = Math.max(0, Math.floor(Number(bal) || 0));
+    var lead = b >= r.min ? 'Ready to withdraw.' : 'Withdraw at ' + r.min + ' sats (' + (r.min - b) + ' more to go).';
+    return lead + ' Up to ' + r.max + ' sats per claim and ' + r.perDay + ' per day. Needs a verified email, an account ' + r.ageDays + '+ days old, and a Lightning Address saved in Settings.';
+};
+window.cipherSatsHintHtml = function(bal) {
+    return '<div class="cipher-sats-hint" role="note" style="font-size:0.72rem;color:var(--text-muted);margin-top:8px;line-height:1.35;">ⓘ ' + escapeHtml(window.cipherSatsWithdrawHint(bal)) + '</div>';
+};
+
 window.claimCipherSats = async function() {
     var bal = Math.max(0, Math.floor(Number(currentUser && currentUser.cipherSatsBalance) || 0));
-    if (bal < 100) return { success: false };
+    if (bal < window.CIPHER_SATS_RULES.min) return { success: false };
     if (window._cipherSatsClaiming) return { success: false };
     if (typeof firebase === 'undefined' || !firebase.functions) {
         if (typeof showToast === 'function') showToast('Sign in to claim cipher sats');
