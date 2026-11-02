@@ -2749,8 +2749,12 @@ window.signInWithNostr = async function() {
                 '<button onclick="nostrSignInWithExtension()" style="width:100%;padding:14px;background:linear-gradient(135deg,rgba(123,45,228,0.2),rgba(123,45,228,0.05));border:2px solid rgba(123,45,228,0.4);border-radius:14px;color:var(--text);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;gap:12px;text-align:left;"><span style="font-size:1.5rem;">🔌</span><div><div style="color:#7B2DE4;">Use Browser Extension</div><div style="color:var(--text-faint);font-size:0.7rem;font-weight:400;margin-top:2px;">Alby, nos2x, or Nostr Connect detected</div></div></button>'
             : '<div style="padding:14px;background:rgba(255,255,255,0.03);border:1px dashed var(--border);border-radius:14px;margin-bottom:12px;display:flex;align-items:center;gap:12px;"><span style="font-size:1.5rem;opacity:0.4;">🔌</span><div><div style="color:var(--text-faint);">No Extension Detected</div><div style="color:var(--text-faint);font-size:0.7rem;margin-top:2px;">Install <a href="https://getalby.com" target="_blank" rel="noopener" style="color:#7B2DE4;">Alby</a> or <a href="https://github.com/nicholasmcconnell/nos2x" target="_blank" rel="noopener" style="color:#7B2DE4;">nos2x</a> for one-click login</div></div></div>') +
             '<div style="display:flex;align-items:center;gap:12px;margin:16px 0;"><div style="flex:1;height:1px;background:var(--border);"></div><span style="color:var(--text-faint);font-size:0.75rem;">or</span><div style="flex:1;height:1px;background:var(--border);"></div></div>' +
-            '<div style="margin-bottom:16px;"><label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:6px;">Paste your nsec (private key)</label><input type="password" id="nostrNsecInput" placeholder="nsec1..." style="width:100%;padding:12px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:monospace;outline:none;box-sizing:border-box;"><div style="color:var(--text-faint);font-size:0.65rem;margin-top:6px;line-height:1.4;">🔒 Your nsec is used <strong>only in your browser</strong> to sign a one-time login event. It is never sent to our servers or stored anywhere.</div></div>' +
+            '<details id="nostrNsecDetails" style="margin-bottom:8px;"><summary style="cursor:pointer;color:var(--text-faint);font-size:0.75rem;">Advanced: sign in with your nsec (not recommended)</summary>' +
+            '<div style="margin:10px 0;padding:10px 12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.4);border-radius:10px;color:#ef4444;font-size:0.75rem;line-height:1.45;">⚠️ <strong>Your nsec controls your whole Nostr identity.</strong> Never paste it into a website you don\'t fully trust. Use a browser extension (Alby, nos2x) or a signer app instead. If you continue, the key stays in this browser tab, is never sent to our servers or saved, and is cleared right after signing.</div>' +
+            '<label style="display:flex;gap:8px;align-items:flex-start;font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;"><input type="checkbox" id="nostrNsecAck"> I understand the risk and still want to use my nsec</label>' +
+            '<div style="margin-bottom:16px;"><label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:6px;">Paste your nsec (private key)</label><input type="password" id="nostrNsecInput" placeholder="nsec1..." autocomplete="off" autocapitalize="off" spellcheck="false" style="width:100%;padding:12px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:monospace;outline:none;box-sizing:border-box;"><div style="color:var(--text-faint);font-size:0.65rem;margin-top:6px;line-height:1.4;">🔒 Your nsec is used <strong>only in your browser</strong> to sign a one-time login event. It is never sent to our servers or stored anywhere.</div></div>' +
             '<button onclick="nostrSignInWithNsec()" id="nostrNsecBtn" style="width:100%;padding:14px;background:#7B2DE4;color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Sign In with nsec</button>' +
+            '</details>' +
             '<div id="nostrAuthStatus" style="margin-top:8px;font-size:0.8rem;text-align:center;min-height:20px;"></div>' +
             '<div style="display:flex;align-items:center;gap:12px;margin:16px 0;"><div style="flex:1;height:1px;background:var(--border);"></div><span style="color:var(--text-faint);font-size:0.75rem;">or</span><div style="flex:1;height:1px;background:var(--border);"></div></div>' +
             '<div><label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:6px;">Paste your npub (public key only)</label><input type="text" id="nostrNpubInput" placeholder="npub1..." style="width:100%;padding:12px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:monospace;outline:none;box-sizing:border-box;"></div>' +
@@ -2779,6 +2783,8 @@ window.nostrSignInWithNsec = async function() {
     var nsec = (document.getElementById('nostrNsecInput').value || '').trim();
     var statusEl = document.getElementById('nostrAuthStatus');
     var btn = document.getElementById('nostrNsecBtn');
+    var ack = document.getElementById('nostrNsecAck');
+    if (!ack || !ack.checked) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Please confirm you understand the risk first (or use an extension).</span>'; return; }
     if (!nsec) { showToast('Please paste your nsec'); return; }
     if (!nsec.startsWith('nsec1')) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Invalid nsec format. Must start with nsec1</span>'; return; }
     btn.disabled = true; btn.textContent = 'Loading crypto library...';
@@ -2807,11 +2813,15 @@ window.nostrSignInWithNsec = async function() {
         var event = { kind: 22242, created_at: Math.floor(Date.now() / 1000), tags: [['challenge', 'btc-edu-' + Date.now()]], content: 'Sign in to Bitcoin Education Archive', pubkey: pubkey };
         event.id = NT.getEventHash(event);
         event.sig = NT.signEvent(event, privkeyHex);
+        // Wipe the private key from memory/DOM before anything goes over the network.
         document.getElementById('nostrNsecInput').value = '';
+        nsec = ''; privkeyHex = ''; decoded = null;
         if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">Verifying signature...</span>';
         await nostrCompleteAuth(pubkey, event.sig, event);
     } catch(e) {
-        console.error('Nostr nsec error:', e);
+        try { document.getElementById('nostrNsecInput').value = ''; } catch(_) {}
+        nsec = '';
+        console.error('Nostr nsec error:', e && e.message ? e.message : 'unknown');
         if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Error: ' + (e.message || 'Failed to sign') + '</span>';
         btn.disabled = false; btn.textContent = 'Sign In with nsec';
     }
@@ -9406,13 +9416,7 @@ function accountDeleteRowHtml(user) {
             '<div style="display:flex;justify-content:space-between;padding:8px 0;"><span style="color:var(--text-muted);font-size:0.85rem;">Session timeout</span><span style="color:var(--text);font-size:0.85rem;">30 minutes inactive</span></div>' +
             '</div>';
 
-        // Password change (only for email/password users)
-        if (user.providerData && user.providerData.some(p => p.providerId === 'password')) {
-            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-                '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Change Password</div>' +
-                '<button onclick="sendPasswordReset()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;">Send Password Reset Email</button>' +
-                '<div id="pwResetStatus" style="margin-top:6px;font-size:0.8rem;"></div></div>';
-        }
+        // (Removed: password reset button. The site has no email+password sign-in, so a reset email was a dead end.)
 
         // Advanced Security (Blocked Users + Danger Zone)
         html += '<button onclick="var p=document.getElementById(\'advSecPanel\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">⚙️ Advanced Security <span>▼</span></button>';
