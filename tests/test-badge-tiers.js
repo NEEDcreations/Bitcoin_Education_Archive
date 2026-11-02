@@ -187,5 +187,15 @@ test('tier collections cover every ACTIVE family at Platinum / Diamond', () => {
     });
     assert.ok(grant.familyFor('tctvLifetimeSeconds').indexOf('tier_all_diamond') > grant.familyFor('tctvLifetimeSeconds').indexOf('tctv_watch_t5'));
 });
+
+test('tier collection rewards locked (Phil, Nov 2 8:42 AM): Platinum 2,500 XP + 21 OT, Diamond 5,000 XP + 46 OT', () => {
+    const p = tiers.collectionInfo('tier_all_platinum'), d = tiers.collectionInfo('tier_all_diamond');
+    assert.strictEqual(p.xp, 2500); assert.strictEqual(p.tickets, 21);
+    assert.strictEqual(d.xp, 5000); assert.strictEqual(d.tickets, 46);
+    assert.strictEqual(rules.ruleFor('tier_all_platinum').xp, 2500);
+    assert.strictEqual(rules.ruleFor('tier_all_platinum').tickets, 21);
+    assert.strictEqual(rules.ruleFor('tier_all_diamond').xp, 5000);
+    assert.strictEqual(rules.ruleFor('tier_all_diamond').tickets, 46);
+});
 console.log(`\nbadge tiers: ${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

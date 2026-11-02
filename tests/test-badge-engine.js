@@ -1270,7 +1270,7 @@ queue.push(test('All Platinum / All Diamond pay once, ignore the daily cap, and 
     assert.strictEqual(none.reason, 'criteria', 'Diamond tier record missing');
     const plat = await awardBadge(db, admin, 'u', 'tier_all_platinum', { day: day, nowMs: now });
     assert.strictEqual(plat.xp, 2500);
-    assert.strictEqual(db.docs['users/u'].orangeTickets, 10);
+    assert.strictEqual(db.docs['users/u'].orangeTickets, 21);
     assert.strictEqual(db.docs['users/u/badge_awards/tier_all_platinum'].dailyCapBypass, true);
     assert.strictEqual(db.docs['users/u/daily_points/2026-11-02'].total, 1000);
     const again = await awardBadge(db, admin, 'u', 'tier_all_platinum', { day: day, nowMs: now });

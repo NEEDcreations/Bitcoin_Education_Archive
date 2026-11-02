@@ -138,10 +138,10 @@ const PLANNED_XP = {
 // Tier collections (Phil, Nov 2 8:33 AM): hold the given tier in EVERY
 // switched-on (ACTIVE) family. Checked server-side from badge_awards tier
 // records, paid once per user. A completion made only of grandfathered tier
-// records pays 0. XP / OT below are SUGGESTED values pending Phil.
+// records pays 0. XP / OT approved by Phil (Nov 2, 8:42 AM ET).
 const COLLECTIONS = {
-    tier_all_platinum: { n: 4, name: 'All Platinum', emoji: '🟪', xp: 2500, tickets: 10 },
-    tier_all_diamond: { n: 5, name: 'All Diamond', emoji: '💎', xp: 5000, tickets: 42 },
+    tier_all_platinum: { n: 4, name: 'All Platinum', emoji: '🟪', xp: 2500, tickets: 21 },
+    tier_all_diamond: { n: 5, name: 'All Diamond', emoji: '💎', xp: 5000, tickets: 46 },
 };
 
 function isCollectionId(id) {
