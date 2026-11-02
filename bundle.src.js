@@ -13966,7 +13966,7 @@ window.showInbox = function() {
                 return;
             }
 
-            list.innerHTML = '';
+            var _rows = [];
             snap.forEach(function(doc) {
                 var c = doc.data();
                 var otherUid = c.participants.find(function(p) { return p !== myUid; });
@@ -13979,7 +13979,7 @@ window.showInbox = function() {
                 var isBuddy = c.isBuddyMatch === true;
                 var buddyStar = isBuddy ? '<span title="Buddy conversation" style="cursor:help;font-size:0.75rem;color:#22c55e;margin-left:4px;">⭐</span>' : '';
 
-                list.innerHTML += '<div data-uid="' + escapeHtml(otherUid) + '" data-name="' + escapeHtml(otherName) + '" onclick="var _u=this.dataset.uid,_n=this.dataset.name;document.getElementById(\'dmInbox\').remove();openDM(_u,_n)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';" onmouseover="this.style.background=\'var(--card-bg)\'" onmouseout="this.style.background=\'' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + '\'">' +
+                _rows.push('<div data-uid="' + escapeHtml(otherUid) + '" data-name="' + escapeHtml(otherName) + '" onclick="var _u=this.dataset.uid,_n=this.dataset.name;document.getElementById(\'dmInbox\').remove();openDM(_u,_n)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';" onmouseover="this.style.background=\'var(--card-bg)\'" onmouseout="this.style.background=\'' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + '\'">' +
                     '<div style="width:42px;height:42px;border-radius:50%;background:' + (isBuddy ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:1px solid ' + (isBuddy ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + (isBuddy ? '🦌' : (otherName.charAt(0).toUpperCase() || '?')) + '</div>' +
                     '<div style="flex:1;min-width:0;">' +
                         '<div style="display:flex;justify-content:space-between;align-items:center;">' +
@@ -13989,8 +13989,9 @@ window.showInbox = function() {
                         '<div style="font-size:0.8rem;color:' + (unread > 0 ? 'var(--text)' : 'var(--text-muted)') + ';font-weight:' + (unread > 0 ? '600' : '400') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (isFromMe ? 'You: ' : '') + escapeHtml(lastMsg) + '</div>' +
                     '</div>' +
                     (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:10px;flex-shrink:0;">' + unread + '</div>' : '') +
-                '</div>';
+                '</div>');
             });
+            list.innerHTML = _rows.join('');
         }).catch(function(err) {
             console.error('Inbox load error:', err);
             var list = document.getElementById('dmInboxList');
@@ -14052,8 +14053,11 @@ function checkUnreadCount() {
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous || !db) return;
     var myUid = auth.currentUser.uid;
 
+    if (typeof document !== 'undefined' && document.hidden) return;
     db.collection('dm_conversations')
         .where('participants', 'array-contains', myUid)
+        .orderBy('lastMessageTime', 'desc')
+        .limit(50)
         .get()
         .then(function(snap) {
             var total = 0;
