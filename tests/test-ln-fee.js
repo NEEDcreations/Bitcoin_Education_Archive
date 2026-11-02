@@ -9,15 +9,15 @@ let passed = 0, failed = 0;
 function test(name, fn) { try { fn(); console.log('✅ ' + name); passed++; } catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; } }
 const read = (f) => fs.readFileSync(path.join(root, f), 'utf8');
 
-test('one server fee value: 3 sats', () => { assert.strictEqual(lnFee.LN_FEE_SATS, 3); });
-test('100 gross -> 97 net, 3 fee', () => { const q = lnFee.quote(100); assert.deepStrictEqual([q.ok, q.gross, q.fee, q.net], [true, 100, 3, 97]); });
-test('200 and 500 nets', () => { assert.strictEqual(lnFee.quote(200).net, 197); assert.strictEqual(lnFee.quote(500).net, 497); });
+test('one server fee value: 10 sats', () => { assert.strictEqual(lnFee.LN_FEE_SATS, 10); });
+test('100 gross -> 90 net, 10 fee', () => { const q = lnFee.quote(100); assert.deepStrictEqual([q.ok, q.gross, q.fee, q.net], [true, 100, 10, 90]); });
+test('200 and 500 nets', () => { assert.strictEqual(lnFee.quote(200).net, 190); assert.strictEqual(lnFee.quote(500).net, 490); });
 test('net can never be 0 or below', () => {
-    for (const g of [0, 1, 2, 3, -5, NaN, 'x', null, undefined, Infinity]) assert.strictEqual(lnFee.quote(g).ok, false, String(g));
-    assert.strictEqual(lnFee.quote(4).net, 1);
+    for (const g of [0, 1, 5, 9, 10, -5, NaN, 'x', null, undefined, Infinity]) assert.strictEqual(lnFee.quote(g).ok, false, String(g));
+    assert.strictEqual(lnFee.quote(11).net, 1);
 });
-test('fractional gross floors', () => { assert.strictEqual(lnFee.quote(100.9).net, 97); });
-test('net + fee == gross whenever ok', () => { for (let g = 4; g <= 1000; g++) { const q = lnFee.quote(g); assert.ok(q.ok && q.net + q.fee === g && q.net >= 1); } });
+test('fractional gross floors', () => { assert.strictEqual(lnFee.quote(100.9).net, 90); });
+test('net + fee == gross whenever ok', () => { for (let g = 11; g <= 1000; g++) { const q = lnFee.quote(g); assert.ok(q.ok && q.net + q.fee === g && q.net >= 1); } });
 test('fee_paid msat rounds up and unknown is null', () => {
     assert.strictEqual(lnFee.feePaidSats({ fees_paid: 612 }), 1);
     assert.strictEqual(lnFee.feePaidSats({ fees_paid: 2786 }), 3);
@@ -28,7 +28,7 @@ test('fee_paid msat rounds up and unknown is null', () => {
 });
 test('ledger fields carry charged, net and paid', () => {
     const f = lnFee.feeFields(lnFee.quote(100), { fees_paid: 2301 });
-    assert.deepStrictEqual([f.fee_charged, f.net_sent, f.gross, f.fee_paid, f.fee_paid_msat], [3, 97, 100, 3, 2301]);
+    assert.deepStrictEqual([f.fee_charged, f.net_sent, f.gross, f.fee_paid, f.fee_paid_msat], [10, 90, 100, 3, 2301]);
 });
 test('CLAIM_MIN leaves a positive net', () => { assert.ok(lnFee.quote(cipher.CLAIM_MIN).net >= 1); });
 test('client display fee matches server', () => {

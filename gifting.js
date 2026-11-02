@@ -2094,7 +2094,7 @@ window.showCipherClaim = function(win) {
     title.textContent = 'Claim ' + (win.amount || 0).toLocaleString() + ' sats';
     var help = document.createElement('div');
     help.style.cssText = 'font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;text-align:center;';
-    var _feeQ = (typeof window.bqLnFeeQuote === 'function') ? window.bqLnFeeQuote(win.amount || 0) : { gross: win.amount || 0, fee: 3, net: Math.max(0, (win.amount || 0) - 3), ok: (win.amount || 0) > 3 };
+    var _feeQ = (typeof window.bqLnFeeQuote === 'function') ? window.bqLnFeeQuote(win.amount || 0) : { gross: win.amount || 0, fee: 10, net: Math.max(0, (win.amount || 0) - 10), ok: (win.amount || 0) > 3 };
     help.textContent = 'A flat ' + _feeQ.fee + ' sat Lightning fee comes out of this prize, so you receive ' + _feeQ.net.toLocaleString() + ' sats. Paste a Lightning invoice for exactly ' + _feeQ.net.toLocaleString() + ' sats, or type a Lightning Address (name@wallet).';
     var input = document.createElement('textarea');
     input.id = 'cipherClaimInput';

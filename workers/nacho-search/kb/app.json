@@ -198,7 +198,7 @@
       "Describe how Lightning withdrawals work here?",
       "In what way do Lightning withdrawals work here?"
     ],
-    "answer": "Lightning withdrawals pay a saved Lightning address that looks like an email, and the address is treated as permanent unless support changes it. The lifetime cap is 15,000 sats per user. The player pays the Lightning fee: a flat 3 sats comes out of every payout, so a 100 sat claim sends 97, and the claim screen shows the fee before you confirm. The Lightning page can also connect with WebLN or NWC. This describes an app rule, not income and not financial advice.",
+    "answer": "Lightning withdrawals pay a saved Lightning address that looks like an email, and the address is treated as permanent unless support changes it. The lifetime cap is 15,000 sats per user. The player pays the Lightning fee: a flat 10 sats comes out of every payout, so a 100 sat claim sends 90, and the claim screen shows the fee before you confirm. The Lightning page can also connect with WebLN or NWC. This describes an app rule, not income and not financial advice.",
     "topics": [
       "sats",
       "ln-address",

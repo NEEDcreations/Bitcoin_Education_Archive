@@ -12491,7 +12491,7 @@ function showSignInPrompt() {
 // ===== LIGHTNING FEE (display only) =====
 // The server decides and charges the fee (functions/src/lnFee.js LN_FEE_SATS).
 // This copy only shows the player what will happen before they confirm.
-window.BQ_LN_FEE_SATS = 3;
+window.BQ_LN_FEE_SATS = 10;
 window.bqLnFeeQuote = function(gross) {
     var g = Math.floor(Number(gross) || 0);
     var fee = window.BQ_LN_FEE_SATS;

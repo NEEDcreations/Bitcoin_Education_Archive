@@ -5,7 +5,7 @@
 // standard amount; whatever routing does not use stays in the wallet.
 // Measured on 73 real faucet payouts (Oct 22 to Nov 2 2026): median 0.61,
 // p90 2.30, p95 2.35, max 2.79 sats. This is the only place the server value lives.
-const LN_FEE_SATS = 3;
+const LN_FEE_SATS = 10;
 // The player must always receive at least this much after the fee.
 const MIN_NET_SATS = 1;
 
