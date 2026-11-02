@@ -6912,10 +6912,14 @@ async function toggleLeaderboard() {
     }
 
     try {
-        await _lbAuthReady(15000);
-        if (!((typeof auth !== 'undefined' && auth && auth.currentUser) || (window.auth && window.auth.currentUser))) {
-            lb.innerHTML = '<div style="padding:20px;text-align:center;color:#f97316;">Sign-in is still finishing. <button type="button" onclick="toggleLeaderboard()" style="margin-left:8px;padding:6px 12px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Try again</button></div>';
-            return;
+        // Cached top-25 snapshot (public data) renders immediately; sign-in is only awaited with no cache.
+        var _lbHasCache = !!_lbSnapRead(_lbBoardSpec(window._lbPeriod || 'alltime').docId);
+        if (!_lbHasCache) {
+            await _lbAuthReady(15000);
+            if (!((typeof auth !== 'undefined' && auth && auth.currentUser) || (window.auth && window.auth.currentUser))) {
+                lb.innerHTML = '<div style="padding:20px;text-align:center;color:#f97316;">Sign-in is still finishing. <button type="button" onclick="toggleLeaderboard()" style="margin-left:8px;padding:6px 12px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Try again</button></div>';
+                return;
+            }
         }
         // One snapshot doc. localStorage paints first; refetch when it is older than the board interval.
         var _lbPeriod = window._lbPeriod || 'alltime';
