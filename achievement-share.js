@@ -1036,6 +1036,21 @@
         paintSheet(cardModel(event, user));
     }
 
+    // Caller-drawn card (leaderboard rank). Same sheet and buttons as the others.
+    function openCanvasSheet(opts) {
+        opts = opts || {};
+        var url = String(opts.url || SITE);
+        if (url.indexOf(SITE) !== 0) url = SITE;
+        paintSheet({
+            type: SHARE_TYPES.indexOf(opts.type) >= 0 ? opts.type : 'rank',
+            title: escapeCardText(String(opts.title || 'Bitcoin Quest')),
+            name: escapeCardText(String(opts.name || '')),
+            cta: CTA,
+            url: url,
+            canvas: opts.canvas && opts.canvas.getContext ? opts.canvas : null
+        });
+    }
+
     function paintSheet(model) {
         var d = doc();
         if (!d || !d.body) return;
@@ -1069,17 +1084,23 @@
         var land = d.createElement('canvas');
         land.setAttribute('data-bq-card', 'landscape');
         land.style.cssText = 'width:100%;height:auto;border-radius:12px;background:#111;';
-        drawCard(land, model, 'landscape');
+        if (model.canvas) {
+            land = model.canvas;
+            land.setAttribute('data-bq-card', 'custom');
+            land.style.cssText = 'width:min(100%,360px);height:auto;border-radius:12px;background:#111;display:block;margin:0 auto;';
+        } else drawCard(land, model, 'landscape');
         panel.appendChild(land);
         var squareLabel = d.createElement('p');
         squareLabel.textContent = 'Square';
         squareLabel.style.cssText = 'margin:12px 0 6px;color:#9ca3af;font-size:0.8rem;';
-        panel.appendChild(squareLabel);
         var square = d.createElement('canvas');
         square.setAttribute('data-bq-card', 'square');
         square.style.cssText = 'width:min(100%,360px);height:auto;border-radius:12px;background:#111;';
-        drawCard(square, model, 'square');
-        panel.appendChild(square);
+        if (!model.canvas) {
+            panel.appendChild(squareLabel);
+            drawCard(square, model, 'square');
+            panel.appendChild(square);
+        }
         var link = d.createElement('p');
         link.textContent = model.url;
         link.style.cssText = 'word-break:break-all;font-size:0.8rem;color:#f7931a;margin:12px 0;';
@@ -1117,7 +1138,7 @@
             copyText(model.url).then(function () { btn.textContent = 'Copied'; });
         }));
         actions.appendChild(actionButton('Download', 'Download image', function () { downloadCanvas(land, 'bitcoin-quest-' + model.type + '.png'); }));
-        actions.appendChild(actionButton('Download square', 'Download square image', function () { downloadCanvas(square, 'bitcoin-quest-' + model.type + '-square.png'); }));
+        if (!model.canvas) actions.appendChild(actionButton('Download square', 'Download square image', function () { downloadCanvas(square, 'bitcoin-quest-' + model.type + '-square.png'); }));
         panel.appendChild(actions);
         overlay.appendChild(panel);
         overlay.addEventListener('click', function (e) { if (e.target === overlay) closeSheet(); });
@@ -1445,6 +1466,7 @@
         currentState: function () { return cloneState(state); },
         closeSheet: closeSheet,
         openLinkSheet: openLinkSheet,
+        openCanvasSheet: openCanvasSheet,
         serverStreak: serverStreak,
         drawCard: drawCard,
         install: install
