@@ -1880,7 +1880,10 @@ window.toggleChatOverlay = function() {
         btn.innerHTML = '💬';
         btn.style.background = 'var(--accent,#f7931a)';
         btn.style.color = '#fff';
-        btn.style.display = _overlayOpen ? 'none' : '';
+        // Root cause of the vanishing chat + ⋯ buttons: this used to hide the chat
+        // button whenever chat opened, and the ⋯ toggle hides whenever chat is
+        // hidden, so both disappeared until a 3s timer put the chat button back.
+        if (btn.style.display === 'none') btn.style.display = '';
     }
 
     // The old full-screen backdrop swallowed wheel and touch on the page.

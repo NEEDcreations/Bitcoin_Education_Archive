@@ -76,6 +76,8 @@ test('chat and ⋯ buttons are not hidden by fab-hold or the chat hub', () => {
     const chat = read('global-chat.js');
     const hub = sliceBetween(chat, 'window.renderChatHub = function(tab) {', 'return _origRenderChatHub(tab);');
     assert.ok(hub.indexOf("btn.style.display = 'none'") === -1);
+    const tog = sliceBetween(chat, 'window.toggleChatOverlay = function() {', 'tabHtml');
+    assert.ok(tog.indexOf("_overlayOpen ? 'none'") === -1);
 });
 
 test('share my rank waits for App Check once and retries', () => {
