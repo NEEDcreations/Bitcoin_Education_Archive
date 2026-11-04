@@ -303,28 +303,24 @@
         document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setFavorTip(false); });
     }
     // Keep the info button clear of the floating Nacho. Nacho is fixed and can be
-    // dragged anywhere, so on every scroll/resize we check for overlap. While Nacho
-    // (avatar or its minimize button) is over the button, the button is lifted above
-    // him, but only when it is not under the header, bottom nav or an open dialog.
+    // dragged anywhere, and the page content sits in its own stacking layer, so the
+    // button cannot be raised above him. Instead, on every scroll/resize/drag we check
+    // for overlap and, while any part of Nacho is over the button, that part steps
+    // aside (fades out and lets taps through) until the button has scrolled past.
     function favorInfoClear() {
         var btn = document.getElementById('todayFavorInfo');
-        if (!btn) return;
-        var r = btn.getBoundingClientRect();
-        function hit(id) {
+        var r = btn ? btn.getBoundingClientRect() : null;
+        var onScreen = !!(r && r.width && r.bottom > 0 && r.top < window.innerHeight);
+        ['nacho-container', 'nachoHideBtn', 'nacho-toggle'].forEach(function (id) {
             var e = document.getElementById(id);
-            if (!e) return false;
-            var cs = getComputedStyle(e);
-            if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) return false;
-            var q = e.getBoundingClientRect();
-            if (!q.width || !q.height) return false;
-            return r.left < q.right && r.right > q.left && r.top < q.bottom && r.bottom > q.top;
-        }
-        var underNacho = r.width > 0 && (hit('nacho-container') || hit('nachoHideBtn') || hit('nacho-toggle'));
-        var blocked = hit('bottomNav') || hit('chatOverlay') || hit('nacho-bubble') ||
-            [].some.call(document.querySelectorAll('.mobile-bar, header'), function (h) {
-                var q = h.getBoundingClientRect(); return q.height && r.top < q.bottom && r.bottom > q.top;
-            });
-        btn.classList.toggle('is-over-nacho', underNacho && !blocked);
+            if (!e) return;
+            var over = false;
+            if (onScreen && getComputedStyle(e).display !== 'none') {
+                var q = e.getBoundingClientRect();
+                over = !!(q.width && q.height && r.left < q.right + 4 && r.right > q.left - 4 && r.top < q.bottom + 4 && r.bottom > q.top - 4);
+            }
+            e.classList.toggle('nacho-yield-favor', over);
+        });
     }
     var _ficRaf = 0;
     function favorInfoClearSoon() { if (_ficRaf) return; _ficRaf = requestAnimationFrame(function () { _ficRaf = 0; favorInfoClear(); }); }
