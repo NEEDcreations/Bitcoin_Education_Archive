@@ -302,6 +302,37 @@
         });
         document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setFavorTip(false); });
     }
+    // Keep the info button clear of the floating Nacho. Nacho is fixed and can be
+    // dragged anywhere, so on every scroll/resize we check for overlap. While Nacho
+    // (avatar or its minimize button) is over the button, the button is lifted above
+    // him, but only when it is not under the header, bottom nav or an open dialog.
+    function favorInfoClear() {
+        var btn = document.getElementById('todayFavorInfo');
+        if (!btn) return;
+        var r = btn.getBoundingClientRect();
+        function hit(id) {
+            var e = document.getElementById(id);
+            if (!e || e.offsetParent === null && getComputedStyle(e).position !== 'fixed') return false;
+            var q = e.getBoundingClientRect();
+            if (!q.width || !q.height) return false;
+            return r.left < q.right && r.right > q.left && r.top < q.bottom && r.bottom > q.top;
+        }
+        var underNacho = r.width > 0 && (hit('nacho-container') || hit('nachoHideBtn') || hit('nacho-toggle'));
+        var blocked = hit('bottomNav') || hit('chatOverlay') || hit('nacho-bubble') ||
+            [].some.call(document.querySelectorAll('.mobile-bar, header'), function (h) {
+                var q = h.getBoundingClientRect(); return q.height && r.top < q.bottom && r.bottom > q.top;
+            });
+        btn.classList.toggle('is-over-nacho', underNacho && !blocked);
+    }
+    var _ficRaf = 0;
+    function favorInfoClearSoon() { if (_ficRaf) return; _ficRaf = requestAnimationFrame(function () { _ficRaf = 0; favorInfoClear(); }); }
+    window.addEventListener('scroll', favorInfoClearSoon, { passive: true, capture: true });
+    window.addEventListener('resize', favorInfoClearSoon);
+    document.addEventListener('pointerup', favorInfoClearSoon, true);
+    document.addEventListener('touchend', favorInfoClearSoon, { passive: true, capture: true });
+    setInterval(favorInfoClearSoon, 1500);
+    window._favorInfoClear = favorInfoClear;
+
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wireFavorTip);
     else wireFavorTip();
 
