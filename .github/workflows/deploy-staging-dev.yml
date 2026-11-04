@@ -15,6 +15,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build staging copy (staging Firebase config, noindex, badge; fails if any live key remains)
+        env:
+          STAGING_APPCHECK_DEBUG_TOKEN: ${{ secrets.STAGING_APPCHECK_DEBUG_TOKEN }}
         run: bash scripts/build-staging.sh
       - name: Deploy to Cloudflare Pages bq-staging
         env:

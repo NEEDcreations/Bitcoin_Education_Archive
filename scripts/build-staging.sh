@@ -32,6 +32,26 @@ open(idx,'w').write(s)
 PY
 grep -q 'projectId: "bitcoin-quest-staging"' $OUT/firebase-config.js
 ! grep -rlI 'AIzaSyDLwucmRxjoJp2KMBTi2ujf0mlVkgLHyKk\|1055248200518' $OUT
+# Staging-only App Check debug token. Read from the build env, never committed.
+if [ -n "${STAGING_APPCHECK_DEBUG_TOKEN:-}" ]; then
+  grep -q 'projectId: "bitcoin-quest-staging"' $OUT/firebase-config.js
+  python3 - "$OUT" <<'PY'
+import os,sys,json
+tok=os.environ['STAGING_APPCHECK_DEBUG_TOKEN']; tag='<script>self.FIREBASE_APPCHECK_DEBUG_TOKEN=%s;</script>'%json.dumps(tok)
+SHIM=('<script>(function(){try{Object.defineProperty(window,"_btcRecaptchaFailed",{get:function(){return false},set:function(){},configurable:false})}catch(e){}'
+ 'function f(){return function(){try{return firebase.appCheck().getToken(false).then(function(t){return (t&&t.token)||""},function(){return ""})}catch(e){return Promise.resolve("")}}}'
+ 'try{Object.defineProperty(window,"_btcAppCheckForClaim",{get:f,set:function(){},configurable:false})}catch(e){}})();</script>')
+n=0
+for root,_,fs in os.walk(sys.argv[1]):
+  for f in fs:
+    if f.endswith('.html'):
+      p=os.path.join(root,f); s=open(p,encoding='utf-8',errors='surrogateescape').read()
+      if '<head>' in s:
+        s=s.replace('<head>','<head>\n'+tag+SHIM,1)
+        open(p,'w',encoding='utf-8',errors='surrogateescape').write(s); n+=1
+print('appcheck debug token injected into',n,'pages')
+PY
+fi
 printf 'User-agent: *\nDisallow: /\n' > $OUT/robots.txt
 printf '/*\n  X-Robots-Tag: noindex, nofollow\n' > $OUT/_headers
 echo "built $(git -C $SRC rev-parse --short HEAD)" > $OUT/staging-build.txt
