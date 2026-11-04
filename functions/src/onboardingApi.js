@@ -617,13 +617,16 @@ function registerOnboarding(deps) {
                 patch.usernameMigratedAt = admin.firestore.FieldValue.delete();
             }
             if (!userSnap.exists) {
+                // A plain set() rejects FieldValue.delete(). A new doc has nothing to clear.
+                const createPatch = Object.assign({}, patch);
+                delete createPatch.usernameNeedsRepick;
                 tx.set(userRef, Object.assign({
                     points: 0,
                     channelsVisited: 0,
                     totalVisits: 1,
                     created: joinDate.timestampFromUserRecord(admin, authUser, nowMs)
                         || admin.firestore.FieldValue.serverTimestamp(),
-                }, streakBoard.applyStreakUpdate({}, 1, nowMs, null), patch));
+                }, streakBoard.applyStreakUpdate({}, 1, nowMs, null), createPatch));
             } else {
                 if (!joinDate.hasJoin(current, nowMs)) {
                     const born = joinDate.timestampFromUserRecord(admin, authUser, nowMs);

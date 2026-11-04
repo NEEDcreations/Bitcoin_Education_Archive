@@ -84,7 +84,13 @@ function memDb(initial) {
             runTransaction: async function (fn) {
                 const tx = {
                     get: function (target) { return target.get(); },
-                    set: function (ref, data, opts) { write(ref, data, opts && opts.merge ? 'merge' : 'set'); },
+                    set: function (ref, data, opts) {
+                        // Match Firestore: delete() is only valid in update() or set() with merge.
+                        if (!(opts && opts.merge) && Object.keys(data || {}).some(function (k) { return data[k] && data[k].__op === 'delete'; })) {
+                            throw new Error('FieldValue.delete() must appear at the top-level and can only be used in update() or set() with {merge:true}');
+                        }
+                        write(ref, data, opts && opts.merge ? 'merge' : 'set');
+                    },
                     update: function (ref, data) { write(ref, data, 'update'); },
                 };
                 return fn(tx);
@@ -168,6 +174,18 @@ queue.push(test('setUsername does not create a public profile just to clear the 
     assert.strictEqual(out.username, 'QuestFan');
     assert.strictEqual(mem.store['public_profiles/user2'], undefined);
     assert.strictEqual(Object.prototype.hasOwnProperty.call(mem.store['users/user2'], 'usernameNeedsRepick'), false);
+}));
+
+queue.push(test('setUsername creates the user doc when none exists yet', async function () {
+    const mem = memDb({ 'usernames_meta/backfill': { applied: true } });
+    const out = await handler(mem).setUsername({ name: 'BrandNew' }, contextFor('user9'));
+    assert.strictEqual(out.ok, true);
+    const user = mem.store['users/user9'];
+    assert.strictEqual(user.username, 'BrandNew');
+    assert.strictEqual(user.username_lower, 'brandnew');
+    assert.strictEqual(user.points, 0);
+    assert.strictEqual(Object.prototype.hasOwnProperty.call(user, 'usernameNeedsRepick'), false);
+    assert.strictEqual(mem.store['usernames/brandnew'].uid, 'user9');
 }));
 
 queue.push(test('a taken name leaves the repick flag in place', async function () {
