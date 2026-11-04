@@ -259,9 +259,51 @@
         delete cd.dataset.live;
         cd.hidden = true;
         cd.textContent = '';
-        if (info && signedIn()) title.textContent = "Satoshi's Favor · " + info.points + ' points';
-        else title.textContent = "Satoshi's Favor";
+        if (info && signedIn()) {
+            var target = info.target || 21;
+            var left = Math.max(0, target - info.points);
+            title.textContent = "Satoshi's Favor · " + info.points + ' points';
+            if (left > 0) {
+                var rem = document.createElement('span');
+                rem.id = 'todayFavorRemain';
+                rem.textContent = '(' + left + (left === 1 ? ' point' : ' points') + ' remaining to activate!)';
+                title.appendChild(rem);
+            }
+        } else title.textContent = "Satoshi's Favor";
     }
+
+    // Info tooltip: hover on pointer devices, tap/click/keyboard everywhere.
+    // Clicks on the button never reach the strip's own handler.
+    function setFavorTip(open) {
+        var tip = document.getElementById('todayFavorTip');
+        var btn = document.getElementById('todayFavorInfo');
+        if (!tip || !btn) return;
+        tip.hidden = !open;
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    function wireFavorTip() {
+        var btn = document.getElementById('todayFavorInfo');
+        if (!btn || btn._wired) return;
+        btn._wired = true;
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            e.preventDefault();
+            var tip = document.getElementById('todayFavorTip');
+            setFavorTip(!!(tip && tip.hidden));
+        });
+        btn.addEventListener('keydown', function (e) { e.stopPropagation(); });
+        var hover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
+        if (hover) {
+            btn.addEventListener('mouseenter', function () { setFavorTip(true); });
+            btn.addEventListener('mouseleave', function () { setFavorTip(false); });
+        }
+        document.addEventListener('click', function (e) {
+            if (e.target && e.target.closest && !e.target.closest('#todayFavorInfo, #todayFavorTip')) setFavorTip(false);
+        });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setFavorTip(false); });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wireFavorTip);
+    else wireFavorTip();
 
     window._paintTodayFavor = function (info) {
         info = info || {};

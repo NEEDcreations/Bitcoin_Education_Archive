@@ -6337,7 +6337,19 @@ async function _lbShareLookup(board) {
         return null;
     }
     var period = _lbRankPeriod(board);
-    var res = await firebase.functions().httpsCallable('leaderboardRank')({ board: board, period: period, me: true });
+    var res;
+    try {
+        res = await firebase.functions().httpsCallable('leaderboardRank')({ board: board, period: period, me: true });
+    } catch (e) {
+        // The share tap often lands before the App Check token is ready (the
+        // callable wrapper rejects with app-check-unavailable before any request
+        // is sent). Wait for a token once and retry instead of failing.
+        var appCheck = String((e && e.code) || '').indexOf('app-check') !== -1 || /App Check/i.test(String((e && e.message) || ''));
+        if (!appCheck || window._btcRecaptchaFailed || typeof window._btcAppCheckForClaim !== 'function') throw e;
+        var tok = await window._btcAppCheckForClaim(10000);
+        if (!tok) throw e;
+        res = await firebase.functions().httpsCallable('leaderboardRank')({ board: board, period: period, me: true });
+    }
     var d = res && res.data;
     if (!d || d.status !== 'ok' || !(Number(d.rank) > 0)) return null;
     d.scoreText = _lbRankScoreText(board, period, d);
@@ -6403,7 +6415,14 @@ window._lbShareRank = async function (board) {
         try { await navigator.clipboard.writeText(text + ' ' + link); if (typeof showToast === 'function') showToast('Card saved. Invite link copied!'); }
         catch (e) { if (typeof showToast === 'function') showToast('Card saved. Your link: ' + escapeHtml(link)); }
     } catch (e) {
-        if (typeof showToast === 'function') showToast('Could not load your rank. Try again.');
+        console.warn('[LB share]', (e && (e.code || e.name)) || '', (e && e.message) || e);
+        var code = String((e && e.code) || ''), msg = String((e && e.message) || '');
+        var text = 'Could not load your rank. Try again.';
+        if (code.indexOf('resource-exhausted') !== -1) text = 'Too many lookups. Try again in a minute.';
+        else if (code.indexOf('unauthenticated') !== -1 || code.indexOf('permission-denied') !== -1) text = 'Sign in to share your rank';
+        else if (code.indexOf('failed-precondition') !== -1) text = 'Rank lookup is still indexing. Try again shortly.';
+        else if (code.indexOf('app-check') !== -1 || msg.indexOf('App Check') !== -1) text = 'Security check is not ready. Refresh and try again.';
+        if (typeof showToast === 'function') showToast(text);
     } finally {
         window._lbSharing = false;
     }
