@@ -1,5 +1,7 @@
 // Cipher reward odds — disjoint crypto roll, exact stated probabilities.
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const { rollCipherReward, ROLL_SPACE, SATS_TIERS } = require('../functions/src/cipherReward');
 
 let passed = 0, failed = 0;
@@ -94,6 +96,36 @@ test('exhaustive slot counts match the stated odds and do not overlap', () => {
     assert.ok(cursor < ROLL_SPACE);
     assert.strictEqual(rollCipherReward(cursor).rewardType, 'xp_tickets');
     assert.strictEqual(rollCipherReward(ROLL_SPACE - 1).rewardType, 'xp_tickets');
+});
+
+test('published Terms odds match the cipher roll and Satoshi\'s Favor difficulty', () => {
+    const root = path.join(__dirname, '..');
+    const terms = fs.readFileSync(path.join(root, 'terms.html'), 'utf8');
+    const oddsAt = terms.indexOf('id="odds"');
+    const next = terms.indexOf('<h2>14.', oddsAt);
+    assert.ok(oddsAt !== -1 && next > oddsAt, 'odds section missing');
+    const section = terms.slice(oddsAt, next);
+    const rows = [];
+    const rowRe = /<tr>\s*<td>([\d,]+) sats<\/td>\s*<td>1 in ([\d,]+)<\/td>\s*<\/tr>/g;
+    let row;
+    while ((row = rowRe.exec(section))) rows.push(row);
+    assert.strictEqual(rows.length, SATS_TIERS.length);
+    SATS_TIERS.forEach(function (tier, i) {
+        assert.strictEqual(rows[i][1], tier.amount.toLocaleString('en-US'), 'prize row ' + i);
+        assert.strictEqual(rows[i][2], tier.odds.toLocaleString('en-US'), 'odds row ' + i);
+    });
+
+    const favor = fs.readFileSync(path.join(root, 'satoshi-favor.js'), 'utf8');
+    const target = Number(favor.match(/const DIFFICULTY_TARGET = (\d+);/)[1]);
+    const hashMax = Number(favor.match(/const HASH_MAX = (\d+);/)[1]);
+    assert.ok(target > 0 && hashMax > target);
+    assert.strictEqual(hashMax % target, 0);
+    const perHash = hashMax / target;
+    const pct = (target / hashMax) * 100;
+    assert.ok(section.includes('0 to ' + hashMax.toLocaleString('en-US')));
+    assert.ok(section.includes('difficulty of ' + target.toLocaleString('en-US')));
+    assert.ok(section.includes('1 in ' + perHash.toLocaleString('en-US')));
+    assert.ok(section.includes(pct + '%'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
