@@ -4422,36 +4422,21 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
     // client-supplied player1 object, preventing player impersonation + rigged matches.
     const callerUid = context.auth.uid;
 
-    const { lobbyDocId, player2, questions } = data || {};
-    if (!lobbyDocId || !player2 || !questions || !Array.isArray(questions)) {
+    // [SECURITY FIX] Questions and the answer key are chosen by the server from
+    // its own bank. Any client-supplied `questions` (and `correct` indexes) are
+    // ignored, so a match creator cannot plant questions or mark the key.
+    const { lobbyDocId, player2 } = data || {};
+    if (!lobbyDocId || !player2) {
         throw new functionsV1.https.HttpsError('invalid-argument', 'Missing required fields');
-    }
-    if (questions.length < 1 || questions.length > 5) {
-        throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid question count');
     }
     if (typeof lobbyDocId !== 'string' || lobbyDocId.length < 4 || lobbyDocId.length > 128) {
         throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid lobby');
     }
 
-    // Shuffle option order so the caller cannot keep the index they submitted.
-    // The key stays in pvp_answer_keys. The match doc never contains `correct`.
-    const shuffled = questions.map((q) => {
-        if (!q || typeof q.q !== 'string' || q.q.length < 1 || q.q.length > 300) {
-            throw new functionsV1.https.HttpsError('invalid-argument', 'Bad question');
-        }
-        if (!Array.isArray(q.options) || q.options.length < 2 || q.options.length > 6) {
-            throw new functionsV1.https.HttpsError('invalid-argument', 'Bad options');
-        }
-        if (typeof q.correct !== 'number' || !Number.isInteger(q.correct) || q.correct < 0 || q.correct >= q.options.length) {
-            throw new functionsV1.https.HttpsError('invalid-argument', 'Bad answer key');
-        }
-        for (const opt of q.options) {
-            if (typeof opt !== 'string' || opt.length < 1 || opt.length > 200) {
-                throw new functionsV1.https.HttpsError('invalid-argument', 'Bad option');
-            }
-        }
-        return pvpFlow.shuffleQuestion(q);
-    });
+    const shuffled = require('./src/pvpQuestions').pickQuestions(5);
+    if (!shuffled.length) {
+        throw new functionsV1.https.HttpsError('unavailable', 'No PvP questions available');
+    }
     const answerKeys = shuffled.map((q, i) => ({ questionIndex: i, correct: q.correct }));
     const clientQuestions = shuffled.map(q => ({ q: q.q, options: q.options }));
 
