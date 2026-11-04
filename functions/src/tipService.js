@@ -68,7 +68,7 @@ async function tryLud21(verifyUrl, expectedHash) {
     const safe = String(verifyUrl || '');
     if (safe.indexOf('https://') !== 0) return { verified: false, reason: 'no-verify-url' };
     try {
-        const res = await fetch(safe, { timeout: 4000, size: 65536, redirect: 'manual' });
+        const res = await fetch(safe, { timeout: 4000, size: 65536, redirect: 'manual', compress: false, headers: { 'Accept-Encoding': 'identity' } });
         if (res.status !== 200) return { verified: false, reason: 'lud21-unverified' };
         const body = await res.json();
         const prHash = hashFromInvoice(body && body.pr) || tipConfirm.normalizePaymentHash(body && (body.prHash || body.payment_hash || body.paymentHash || body.pr));
@@ -484,7 +484,7 @@ async function fetchAllowlisted(startUrl) {
         } catch (e) {
             throw httpsError('failed-precondition', 'That wallet is not on the tip list');
         }
-        const res = await fetch(parsed.toString(), { timeout: 8000, size: 65536, redirect: 'manual' });
+        const res = await fetch(parsed.toString(), { timeout: 8000, size: 65536, redirect: 'manual', compress: false, headers: { 'Accept-Encoding': 'identity' } });
         if (TIP_REDIRECTS[res.status]) {
             const location = res.headers.get('location');
             if (!location || hop === TIP_FETCH_HOPS - 1) throw httpsError('unavailable', 'Could not reach that wallet');

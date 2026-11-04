@@ -219,6 +219,42 @@ queue.push(test('the invoice must be mainnet and the requested amount', async fu
     });
 }));
 
+queue.push(test('every LNURL request asks for identity encoding with a timeout and size cap', async function () {
+    const meta = 'https://wallet.example/.well-known/lnurlp/alice';
+    const invoice = 'https://wallet.example/cb?amount=1000';
+    const seen = [];
+    const routes = {
+        [meta]: jsonRes({ callback: 'https://wallet.example/cb', minSendable: 1000, maxSendable: 100000000 }),
+        [invoice]: jsonRes({ pr: 'lnbc10n1example' }),
+    };
+    const resolve = lnurl.createLnurlResolver({
+        fetch: async function (url, opts) { seen.push(opts); return routes[String(url)]; },
+        bolt11: bolt11(1000, 'bc'),
+        assertPublicHost: publicHost(),
+        log: { log: function () {}, error: function () {} },
+    }).resolveLnurlInvoice;
+    const out = await resolve({ address: 'alice@wallet.example', msats: 1000 });
+    assert.strictEqual(out.pr, 'lnbc10n1example');
+    assert.strictEqual(seen.length, 2);
+    seen.forEach(function (o) {
+        assert.strictEqual(o.headers['Accept-Encoding'], 'identity');
+        assert.strictEqual(o.compress, false);
+        assert.strictEqual(o.redirect, 'manual');
+        assert.ok(o.timeout > 0 && o.timeout <= 8000);
+        assert.ok(o.size > 0 && o.size <= 65536);
+    });
+}));
+
+queue.push(test('tipService LNURL fetches ask for identity encoding with a timeout and size cap', function () {
+    const src = require('fs').readFileSync(require('path').join(__dirname, '../functions/src/tipService.js'), 'utf8');
+    const calls = src.match(/await fetch\([^;]*\);/g) || [];
+    assert.strictEqual(calls.length, 2);
+    calls.forEach(function (c) {
+        assert.ok(/'Accept-Encoding': 'identity'/.test(c), c);
+        assert.ok(/compress: false/.test(c) && /timeout: \d+/.test(c) && /size: 65536/.test(c), c);
+    });
+}));
+
 Promise.all(queue).then(function () {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);
