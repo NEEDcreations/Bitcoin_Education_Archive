@@ -312,7 +312,9 @@
         var r = btn.getBoundingClientRect();
         function hit(id) {
             var e = document.getElementById(id);
-            if (!e || e.offsetParent === null && getComputedStyle(e).position !== 'fixed') return false;
+            if (!e) return false;
+            var cs = getComputedStyle(e);
+            if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) return false;
             var q = e.getBoundingClientRect();
             if (!q.width || !q.height) return false;
             return r.left < q.right && r.right > q.left && r.top < q.bottom && r.bottom > q.top;
