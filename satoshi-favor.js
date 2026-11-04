@@ -206,6 +206,10 @@
 
             // Feature 4: community heat uses current-window hashes from the window doc (resets each window)
             _sfTotalHashes = (favorState.totalHashes || 0);
+            // Redraw the meter from the live doc. Before, the listener only stored the
+            // number and the meter was drawn once on page render, so other players'
+            // hashes never showed until the page was reopened.
+            _repaintHeatMeter();
 
             // Cache to localStorage
             try {
@@ -385,7 +389,7 @@
         } else {
             const pct = Math.min(100, (points / POINTS_TARGET) * 100);
             const remaining = POINTS_TARGET - points;
-            return `<div class="favor-banner-progress" style="${isCompact?'padding:6px 10px;':'padding:10px 14px;margin-bottom:16px;'}background:var(--card-bg);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:border-color 0.2s;" onclick="window.showQuestHub && window.showQuestHub(); window._questHubTab = 'favor'; setTimeout(function(){ if(window._renderQuestHubTab) window._renderQuestHubTab(); }, 50);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;"><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:${isCompact?'1rem':'1.2rem'};">✨⛏️</span><span style="font-size:${isCompact?'0.75rem':'0.85rem'};font-weight:700;color:var(--heading);">Satoshi's Favor</span></div><span style="font-size:${isCompact?'0.7rem':'0.75rem'};color:var(--text-muted);">${points}/${POINTS_TARGET} points · ${remaining} to go</span></div><div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;"><div style="height:100%;background:linear-gradient(90deg,var(--accent),#ffd700);width:${pct}%;transition:width 0.5s;border-radius:3px;"></div></div></div>`;
+            return `<div class="favor-banner-progress" style="${isCompact?'padding:6px 10px;':'padding:10px 14px;margin-bottom:16px;'}background:var(--card-bg);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:border-color 0.2s;" onclick="window.showQuestHub && window.showQuestHub(); window._questHubTab = 'favor'; setTimeout(function(){ if(window._renderQuestHubTab) window._renderQuestHubTab(); }, 50);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;"><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:${isCompact?'1rem':'1.2rem'};">✨⛏️</span><span style="font-size:${isCompact?'0.75rem':'0.85rem'};font-weight:700;color:var(--heading);">Satoshi's Favor</span></div><span style="font-size:${isCompact?'0.7rem':'0.75rem'};color:var(--text-muted);">${points}/${POINTS_TARGET} points <strong style="color:var(--accent);">(${remaining} ${remaining === 1 ? 'point' : 'points'} remaining to activate!)</strong></span><span class="sf-tip-wrap" tabindex="0" role="button" aria-label="How Satoshi's Favor points work" onclick="event.stopPropagation();this.classList.toggle('open')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();this.classList.toggle('open')}" onblur="this.classList.remove('open')"><span class="sf-tip-icon">i</span><span class="sf-tip-bubble" role="tooltip">How to earn points: finish all three daily quests (+1) or level up (+1, more on milestone levels). This is a community total: every player's points add up, and at ${POINTS_TARGET} Satoshi's Favor activates for everyone.</span></span></div><div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;"><div style="height:100%;background:linear-gradient(90deg,var(--accent),#ffd700);width:${pct}%;transition:width 0.5s;border-radius:3px;"></div></div></div><style>.sf-tip-wrap{position:relative;display:inline-flex;align-items:center;margin-left:6px;vertical-align:middle;cursor:help;outline:none}.sf-tip-icon{width:16px;height:16px;border-radius:50%;border:1px solid var(--accent);color:var(--accent);font-size:0.65rem;font-weight:800;font-style:italic;display:inline-flex;align-items:center;justify-content:center;font-family:Georgia,serif}.sf-tip-bubble{display:none;position:absolute;right:-8px;top:calc(100% + 8px);width:min(260px,80vw);background:var(--bg-side,#111);color:var(--text);border:1px solid var(--accent);border-radius:10px;padding:10px 12px;font-size:0.74rem;line-height:1.45;font-weight:500;text-align:left;z-index:50;box-shadow:0 6px 24px rgba(0,0,0,0.45);white-space:normal}.sf-tip-wrap:hover .sf-tip-bubble,.sf-tip-wrap:focus .sf-tip-bubble,.sf-tip-wrap.open .sf-tip-bubble{display:block}</style>`;
         }
     }
 
@@ -856,6 +860,14 @@
     }
 
     // ─── Feature 4: Heat meter updater (called after each hash) ───
+    function _repaintHeatMeter() {
+        var el = document.getElementById('sfHeatMeter');
+        if (!el) return;
+        el.outerHTML = _buildHeatMeterHTML();
+        var rateEl = document.getElementById('sfRateInfoNum');
+        if (rateEl) rateEl.textContent = _sfEffectiveRate();
+    }
+
     function _updateHeatMeterDisplay() {
         var el = document.getElementById('sfHeatMeter');
         if (!el) return;

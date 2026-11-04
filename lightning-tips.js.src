@@ -220,11 +220,14 @@ window.executeTip = async function() {
         // If no Lightning Address provided, try to look it up from Firestore
         if (!opts.lightningAddress && opts.recipientUid && typeof db !== 'undefined') {
             try {
-                var userDoc = await db.collection('users').doc(opts.recipientUid).get();
+                // Profiles show the address from public_profiles (the users doc is
+                // owner-only, so reading it for someone else always failed).
+                var userDoc = await db.collection('public_profiles').doc(opts.recipientUid).get();
                 if (userDoc.exists) {
                     var userData = userDoc.data();
-                    if ((userData.lightningAddress || userData.lightning) && (userData.lightningAddress || userData.lightning).includes('@')) {
-                        opts.lightningAddress = userData.lightningAddress || userData.lightning;
+                    var _addr = String(userData.lightningAddress || userData.lightning || userData.lnAddress || '').trim();
+                    if (_addr && _addr.length <= 320 && /^[^\s@<>"']+@[a-z0-9.-]+$/i.test(_addr)) {
+                        opts.lightningAddress = _addr;
                         // Also fix the recipient name if it's generic
                         if ((!opts.recipientName || opts.recipientName === 'this user') && userData.username) {
                             opts.recipientName = userData.username;

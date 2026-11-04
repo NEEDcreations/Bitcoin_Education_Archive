@@ -17,6 +17,7 @@ const TESTS = [
     { name: 'Syntax Validation', file: 'test-syntax.js' },
     { name: 'Lightning fee', file: 'test-ln-fee.js' },
     { name: '5-tier badges', file: 'test-badge-tiers.js' },
+    { name: 'Nov 4 batch', file: 'test-nov4-batch.js' },
     { name: 'HTML Integrity', file: 'test-html-integrity.js' },
     { name: 'Auth display snapshot', file: 'test-auth-display.js' },
     { name: 'Nook shop pricing + caps', file: 'test-nook-shop.js' },

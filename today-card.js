@@ -259,9 +259,80 @@
         delete cd.dataset.live;
         cd.hidden = true;
         cd.textContent = '';
-        if (info && signedIn()) title.textContent = "Satoshi's Favor · " + info.points + ' points';
-        else title.textContent = "Satoshi's Favor";
+        if (info && signedIn()) {
+            var target = info.target || 21;
+            var left = Math.max(0, target - info.points);
+            title.textContent = "Satoshi's Favor · " + info.points + ' points';
+            if (left > 0) {
+                var rem = document.createElement('span');
+                rem.id = 'todayFavorRemain';
+                rem.textContent = '(' + left + (left === 1 ? ' point' : ' points') + ' remaining to activate!)';
+                title.appendChild(rem);
+            }
+        } else title.textContent = "Satoshi's Favor";
     }
+
+    // Info tooltip: hover on pointer devices, tap/click/keyboard everywhere.
+    // Clicks on the button never reach the strip's own handler.
+    function setFavorTip(open) {
+        var tip = document.getElementById('todayFavorTip');
+        var btn = document.getElementById('todayFavorInfo');
+        if (!tip || !btn) return;
+        tip.hidden = !open;
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    function wireFavorTip() {
+        var btn = document.getElementById('todayFavorInfo');
+        if (!btn || btn._wired) return;
+        btn._wired = true;
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            e.preventDefault();
+            var tip = document.getElementById('todayFavorTip');
+            setFavorTip(!!(tip && tip.hidden));
+        });
+        btn.addEventListener('keydown', function (e) { e.stopPropagation(); });
+        var hover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
+        if (hover) {
+            btn.addEventListener('mouseenter', function () { setFavorTip(true); });
+            btn.addEventListener('mouseleave', function () { setFavorTip(false); });
+        }
+        document.addEventListener('click', function (e) {
+            if (e.target && e.target.closest && !e.target.closest('#todayFavorInfo, #todayFavorTip')) setFavorTip(false);
+        });
+        document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setFavorTip(false); });
+    }
+    // Keep the info button clear of the floating Nacho. Nacho is fixed and can be
+    // dragged anywhere, and the page content sits in its own stacking layer, so the
+    // button cannot be raised above him. Instead, on every scroll/resize/drag we check
+    // for overlap and, while any part of Nacho is over the button, that part steps
+    // aside (fades out and lets taps through) until the button has scrolled past.
+    function favorInfoClear() {
+        var btn = document.getElementById('todayFavorInfo');
+        var r = btn ? btn.getBoundingClientRect() : null;
+        var onScreen = !!(r && r.width && r.bottom > 0 && r.top < window.innerHeight);
+        ['nacho-container', 'nachoHideBtn', 'nacho-toggle'].forEach(function (id) {
+            var e = document.getElementById(id);
+            if (!e) return;
+            var over = false;
+            if (onScreen && getComputedStyle(e).display !== 'none') {
+                var q = e.getBoundingClientRect();
+                over = !!(q.width && q.height && r.left < q.right + 4 && r.right > q.left - 4 && r.top < q.bottom + 4 && r.bottom > q.top - 4);
+            }
+            e.classList.toggle('nacho-yield-favor', over);
+        });
+    }
+    var _ficRaf = 0;
+    function favorInfoClearSoon() { if (_ficRaf) return; _ficRaf = requestAnimationFrame(function () { _ficRaf = 0; favorInfoClear(); }); }
+    window.addEventListener('scroll', favorInfoClearSoon, { passive: true, capture: true });
+    window.addEventListener('resize', favorInfoClearSoon);
+    document.addEventListener('pointerup', favorInfoClearSoon, true);
+    document.addEventListener('touchend', favorInfoClearSoon, { passive: true, capture: true });
+    setInterval(favorInfoClearSoon, 1500);
+    window._favorInfoClear = favorInfoClear;
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wireFavorTip);
+    else wireFavorTip();
 
     window._paintTodayFavor = function (info) {
         info = info || {};

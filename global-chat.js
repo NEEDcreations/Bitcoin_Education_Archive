@@ -665,7 +665,7 @@ function renderChatMessages(msgs) {
         if (myUid) {
             html += '<button onclick="showReactPicker(\'' + m._id + '\',this)" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
             if (!isMe && !isNacho && !isDeleted && m.uid !== 'system') {
-                html += '<button onclick="event.stopPropagation();showTipOverlay({recipientName:\'' + esc(m.name || 'Anon').replace(/[\\'"]/g,'') + '\',recipientUid:\'' + (m.uid || '') + '\',context:\'Global Chat tip\',label:\'Tip Message\'})" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);color:#eab308;font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="Tip">⚡</button>';
+                html += '<button onclick="event.stopPropagation();showTipOverlay({recipientName:\'' + esc(m.name || 'Anon').replace(/[\\'"]/g,'') + '\',recipientUid:\'' + String(m.uid || '').replace(/[^A-Za-z0-9_-]/g,'') + '\',context:\'Global Chat tip\',label:\'Tip Message\'})" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);color:#eab308;font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="Tip">⚡</button>';
             }
         }
         html += '</div>';
@@ -839,6 +839,30 @@ function _chatMentionTargets(text) {
 }
 
 // Format chat text: links, #channels, @mentions, inline images/GIFs
+// ---- Custom emojis ----
+// Stored in messages as plain-text shortcodes (":btc:") so old clients just show
+// the text and nothing user-controlled ever becomes markup. Only ids in this
+// allowlist render, and the src is a fixed same-origin path. User-made emojis
+// can be added later by extending this registry from a server-approved list.
+var CUSTOM_EMOJIS = {
+    btc: { src: '/assets/emoji/btc.svg', alt: 'Bitcoin', keywords: 'bitcoin btc logo coin orange' }
+};
+function _customEmojiImg(id) {
+    var e = CUSTOM_EMOJIS[id];
+    if (!e) return '';
+    return '<img class="bq-cemoji" src="' + e.src + '" alt=":' + id + ':" title="' + e.alt + '" draggable="false" style="width:1.25em;height:1.25em;vertical-align:-0.25em;display:inline-block;margin:0 1px;">';
+}
+function renderCustomEmojis(html) {
+    if (!html || html.indexOf(':') === -1) return html;
+    // Only touch text between tags, never attributes.
+    return html.replace(/(<[^>]*>)|:([a-z0-9_]{2,20}):/g, function(m, tag, id) {
+        if (tag) return tag;
+        return Object.prototype.hasOwnProperty.call(CUSTOM_EMOJIS, id) ? _customEmojiImg(id) : m;
+    });
+}
+window.CUSTOM_EMOJIS = CUSTOM_EMOJIS;
+window.renderCustomEmojis = renderCustomEmojis;
+
 function formatChatText(text, mentionUid) {
     // Inline images/GIFs: render as image if it's a direct image URL
     text = text.replace(/(https?:\/\/[^\s<]+\.(?:gif|png|jpg|jpeg|webp)(?:\?[^\s<]*)?)/gi, function(url) {
@@ -989,7 +1013,7 @@ function formatChatText(text, mentionUid) {
     for (var _mi = 0; _mi < _safeMentions.length; _mi++) {
         text = text.replace('%%SAFEMENTION_' + _mi + '%%', _safeMentions[_mi]);
     }
-    return text;
+    return renderCustomEmojis(text);
 }
 
 // ---- Autocomplete Engine ----
@@ -1856,7 +1880,10 @@ window.toggleChatOverlay = function() {
         btn.innerHTML = '💬';
         btn.style.background = 'var(--accent,#f7931a)';
         btn.style.color = '#fff';
-        btn.style.display = _overlayOpen ? 'none' : '';
+        // Root cause of the vanishing chat + ⋯ buttons: this used to hide the chat
+        // button whenever chat opened, and the ⋯ toggle hides whenever chat is
+        // hidden, so both disappeared until a 3s timer put the chat button back.
+        if (btn.style.display === 'none') btn.style.display = '';
     }
 
     // The old full-screen backdrop swallowed wheel and touch on the page.
@@ -2084,7 +2111,9 @@ window._switchOverlayTab = function(tab) {
 var _origRenderChatHub = window.renderChatHub;
 window.renderChatHub = function(tab) {
     var btn = document.getElementById('chatOverlayBtn');
-    if (btn) btn.style.display = 'none';
+    // Keep the chat button visible while the hub is open. Hiding it here also
+    // hid the ⋯ tools toggle (it follows the chat button), so both vanished.
+    if (btn && btn.style.display === 'none') btn.style.display = '';
     // Shift leaderboard button up when chat hub is open
     var _lbFab2 = document.getElementById('lbFloatBtn');
     if (_lbFab2) _lbFab2.classList.add('chat-shifted');
@@ -2111,13 +2140,13 @@ window.renderChatHub = function(tab) {
 function showOverlayBtn() {
     var btn = document.getElementById('chatOverlayBtn');
     // Show on all screen sizes unless the full chat hub is open
-    if (btn && !document.getElementById('chatContent')) btn.style.display = 'block';
+    if (btn && btn.style.display === 'none') btn.style.display = '';
 }
 // Periodically check button visibility (catches app navigations that don't call go())
 setInterval(function() {
     var btn = document.getElementById('chatOverlayBtn');
-    if (btn && btn.style.display === 'none' && !document.getElementById('chatContent')) {
-        btn.style.display = 'block';
+    if (btn && btn.style.display === 'none' && !document.getElementById('nachoModeScreen')) {
+        btn.style.display = '';
     }
 }, 3000);
 
@@ -2523,6 +2552,9 @@ var EMOJI_CATEGORIES = {
     'Symbols': ['❓','❔','❕','❗','‼️','⁉️','💬','💭','🗨️','🗯️','💢','💥','💦','💨','🕳️','🔴','🟠','🟡','🟢','🔵','🟣','🟤','⚫','⚪','🔶','🔷','🔸','🔹','🔺','🔻','💠','🔘','🔲','🔳','▪️','▫️','◾','◽','◼️','◻️','⬛','⬜','🟥','🟧','🟨','🟩','🟦','🟪','🟫','⭕','✖️','➕','➖','➗','♾️','💲','💱','™️','©️','®️','〰️','➰','➿','🔅','🔆','📶','🔔','🔕','🔇','🔈','🔉','🔊','📢','📣','🔐','🔓','🔏','🚫','⛔','🚳','🚭','🚯','🚱','🚷','🔞','☢️','☣️','⚠️','🆘','🆗','🆙','🆒','🆕','🆓','🆚','✴️','🅰️','🅱️','🆑','🏁','🚩','🎌','🏴','🏳️','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','🩷','🩶','🩵','❤️‍🔥','❤️‍🩹','💕','💞','💓','💗','💖','💘','💝','🫀','♠️','♥️','♦️','♣️','♟️','🔱','⚜️','🔰','♻️','✅','❌','☑️','✔️','⬆️','⬇️','➡️','⬅️','↗️','↘️','↙️','↖️','↕️','↔️','🔄'],
     'Objects': ['🔥','💯','🎉','🎊','🎈','🎀','🏅','🥇','🥈','🥉','🎯','✨','🌟','⭐','💫','❌','✅','☑️','✔️','🔄','♾️','🎵','🎶','🎸','🎹','🥁','🎤','🎧','📱','💻','🖥️','⌨️','🖱️','🎮','🕹️','🎲','♟️','🎭','📚','📖','📝','✏️','🖊️','🖋️','📌','📎','🗺️','🍿','🌈','🚨','🌙','☀️','🌊','🔮','💊','🧲','🪄','🧿','🎪','🌧️','⛈️','❄️','☃️','⛄','🌛','🌜','🌚','🌝','🌞','☀️','🌤️','⛅','☁️','🏆','🥊','⚽','🏀','🏈','⚾','🎾','🏐','🏓','⛳','🏋️','🤼','⛷️','🏂','🎿','🛹','🎱','🏆','🎽','🪃','🎣','🤿','🪁','🎯','🎳','🏒','🥍','🏑','🏏','🪀','🥅','🎖️','🏵️','🎗️','🎫','🎫','🎪','🤹','🎠','🎡','🎢','🎭','🎨','🖼️','🎬','🎞️','📷','📸','📹','🎥','📽️','📺','📻','🎙️','🎚️','🎛️','🧸','🪆','🪅','🪩','🪬','🧩','🔑','🗝️','🔒','🔓','💡','🔦','🕯️','🪔','🧯','🛢️','💰','💳','💵','💴','💶','💷','💸','🏧','🧾','🪙','📦','🎁','🎀','🎊','🎉','🎈','🪁','🧨','🧧','🎐','🎑','🎋','🎍','🎎','🎏','🎁','🛍️','🛒','🎒','🧳','👜','👝','🎩','🧢','👒','🪖','⛑️','🥽','👓','🕶️','🧣','🧤','🧥','🥻','👔','👕','👖','👗','👘','👙','🩱','🩲','🩳','👚','👛','💄','💍','💎','👒','🎓','🏴']
 };
+// The message-input picker adds a final Custom tab. Reactions keep the
+// unicode-only set, since reaction keys are validated as plain emoji.
+var EMOJI_INPUT_CATEGORIES = Object.assign({}, EMOJI_CATEGORIES, { Custom: Object.keys(CUSTOM_EMOJIS).map(function(id) { return ":" + id + ":"; }) });
 
 // Flat emoji search index: [emoji, keywords]
 var EMOJI_SEARCH_INDEX = [
@@ -2552,7 +2584,7 @@ window.showEmojiPicker = function() {
     var _isDark = document.body.getAttribute('data-theme') !== 'light';
     picker.style.cssText = 'position:fixed;bottom:var(--above-fab, 120px);left:50%;transform:translateX(-50%);z-index:260000;background:' + (_isDark ? '#1a1a2e' : '#f0f0f5') + ';border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:340px;max-height:360px;display:flex;flex-direction:column;overflow:visible;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
 
-    var cats = Object.keys(EMOJI_CATEGORIES);
+    var cats = Object.keys(EMOJI_INPUT_CATEGORIES);
     // Search bar
     var searchHtml = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
         '<input id="emojiSearchInput" type="text" placeholder="🔍 Search emojis..." autocomplete="off" ' +
@@ -2563,7 +2595,7 @@ window.showEmojiPicker = function() {
     // Category tabs
     var tabHtml = '<div id="emojiTabBar" style="display:flex;gap:2px;margin-bottom:8px;overflow-x:auto;overflow-y:visible;padding:3px 0 3px 0;">';
     cats.forEach(function(cat, i) {
-        var label = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '🤝' : cat === 'Bitcoin' ? '<span style="background:#f7931a;color:#fff;border-radius:50%;width:1.3em;height:1.3em;display:inline-flex;align-items:center;justify-content:center;font-size:0.8em;font-weight:900;line-height:1;">₿</span>' : cat === 'Animals' ? '🐾' : cat === 'Food' ? '🍔' : cat === 'Travel' ? '🌍' : cat === 'Symbols' ? '💬' : cat === 'Objects' ? '🎁' : '✨';
+        var label = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '🤝' : cat === 'Bitcoin' ? '<span style="background:#f7931a;color:#fff;border-radius:50%;width:1.3em;height:1.3em;display:inline-flex;align-items:center;justify-content:center;font-size:0.8em;font-weight:900;line-height:1;">₿</span>' : cat === 'Animals' ? '🐾' : cat === 'Food' ? '🍔' : cat === 'Travel' ? '🌍' : cat === 'Symbols' ? '💬' : cat === 'Objects' ? '🎁' : cat === 'Custom' ? _customEmojiImg('btc') : '✨';
         tabHtml += '<button onclick="window._switchEmojiTab(\'' + cat + '\')" id="emojiTab_' + i + '" style="padding:6px 10px;font-size:1rem;cursor:pointer;background:' + (i === 0 ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (i === 0 ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;flex-shrink:0;touch-action:manipulation;" title="' + cat + '">' + label + '</button>';
     });
     tabHtml += '</div>';
@@ -2589,15 +2621,15 @@ window._switchEmojiTab = function(cat) {
     // Clear search input when switching tabs
     var si = document.getElementById('emojiSearchInput');
     if (si) si.value = '';
-    var emojis = EMOJI_CATEGORIES[cat] || [];
+    var emojis = EMOJI_INPUT_CATEGORIES[cat] || [];
     var html = '';
     emojis.forEach(function(e) {
-        html += '<button onclick="window._insertEmoji(\'' + e + '\')" style="padding:6px;font-size:1.3rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.1s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + e + '</button>';
+        html += '<button onclick="window._insertEmoji(\'' + e + '\')" style="padding:6px;font-size:1.3rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.1s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + renderCustomEmojis(e) + '</button>';
     });
     grid.innerHTML = html || '<div style="color:var(--text-faint);font-size:0.8rem;padding:20px;text-align:center;">No emojis here</div>';
 
     // Update tab styles
-    var cats = Object.keys(EMOJI_CATEGORIES);
+    var cats = Object.keys(EMOJI_INPUT_CATEGORIES);
     cats.forEach(function(c, i) {
         var tab = document.getElementById('emojiTab_' + i);
         if (tab) {
@@ -2613,7 +2645,7 @@ window._emojiSearch = function(query) {
     var q = (query || '').trim().toLowerCase();
     if (!q) {
         // Restore first tab on empty search
-        window._switchEmojiTab(Object.keys(EMOJI_CATEGORIES)[0]);
+        window._switchEmojiTab(Object.keys(EMOJI_INPUT_CATEGORIES)[0]);
         var si = document.getElementById('emojiSearchInput');
         if (si) si.value = '';
         return;
@@ -2630,9 +2662,13 @@ window._emojiSearch = function(query) {
         var e = entry[0], kw = entry[1];
         if (!seen[e] && kw.indexOf(q) !== -1) { results.push(e); seen[e] = true; }
     });
+    Object.keys(CUSTOM_EMOJIS).forEach(function(id) {
+        var sc = ':' + id + ':';
+        if (!seen[sc] && (id.indexOf(q) !== -1 || CUSTOM_EMOJIS[id].keywords.indexOf(q) !== -1)) { results.push(sc); seen[sc] = true; }
+    });
     // 2. Also scan all category emojis for the emoji char itself
-    Object.keys(EMOJI_CATEGORIES).forEach(function(cat) {
-        EMOJI_CATEGORIES[cat].forEach(function(e) {
+    Object.keys(EMOJI_INPUT_CATEGORIES).forEach(function(cat) {
+        EMOJI_INPUT_CATEGORIES[cat].forEach(function(e) {
             if (!seen[e] && e.toLowerCase().indexOf(q) !== -1) { results.push(e); seen[e] = true; }
         });
     });
@@ -2652,12 +2688,12 @@ window._emojiSearch = function(query) {
         html = '<div style="color:var(--text-faint);font-size:0.82rem;padding:24px;text-align:center;">No results for "' + q + '"</div>';
     } else {
         results.forEach(function(e) {
-            html += '<button onclick="window._insertEmoji(\'' + e + '\')" style="padding:6px;font-size:1.3rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.1s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + e + '</button>';
+            html += '<button onclick="window._insertEmoji(\'' + e + '\')" style="padding:6px;font-size:1.3rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.1s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + renderCustomEmojis(e) + '</button>';
         });
     }
     grid.innerHTML = html;
     // Dim all tabs to show search mode is active
-    var cats = Object.keys(EMOJI_CATEGORIES);
+    var cats = Object.keys(EMOJI_INPUT_CATEGORIES);
     cats.forEach(function(c, i) {
         var tab = document.getElementById('emojiTab_' + i);
         if (tab) { tab.style.background = 'none'; tab.style.borderColor = 'var(--border)'; tab.style.opacity = '0.5'; }
