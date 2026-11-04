@@ -78,6 +78,8 @@ function createLnurlResolver(deps) {
             timeout: TIMEOUT_MS,
             size: MAX_BYTES,
             redirect: 'manual',
+            compress: false,
+            headers: { 'Accept-Encoding': 'identity' },
         });
         const status = res && typeof res.status === 'number' ? res.status : 0;
         if (status >= 300 && status < 400) {
@@ -229,6 +231,8 @@ module.exports = {
     PROOF_MSATS: PROOF_MSATS,
     PROOF_MAX_MSATS: PROOF_MAX_MSATS,
     TIMEOUT_MS: TIMEOUT_MS,
+    MAX_BYTES: MAX_BYTES,
+    FETCH_HEADERS: { 'Accept-Encoding': 'identity' },
     MAX_REDIRECTS: MAX_REDIRECTS,
     RESOLVE_ERROR: RESOLVE_ERROR,
     normalizeLnAddress: normalizeLnAddress,
