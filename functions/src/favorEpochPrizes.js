@@ -477,6 +477,51 @@ function siteCapAllows(used, amount, cap) {
     return u + a <= c;
 }
 
+
+// Favor claim gates that must run before any wallet / NWC check.
+// Pure: Red Team can exercise manual / address / approval without a wallet.
+function favorClaimPrechecks(input) {
+    const src = input || {};
+    const win = src.win || {};
+    const limits = claimLimits(src.config);
+    const amount = Math.floor(Number(win.amount) || 0);
+    if (!(win.adminApproved === true)) {
+        return {
+            ok: false,
+            error: 'WAITING_APPROVAL',
+            message: 'This prize is waiting for Phil to approve it.',
+            limits: limits,
+        };
+    }
+    if (amount > limits.manualAboveSats) {
+        return {
+            ok: false,
+            error: 'manual',
+            message: 'This prize is paid manually.',
+            limits: limits,
+        };
+    }
+    const locked = normalizeLn(win.lockedLightningAddress);
+    const saved = normalizeLn(src.savedLightning);
+    if (!locked || !saved || locked !== saved) {
+        return {
+            ok: false,
+            error: 'ADDRESS_MISMATCH',
+            message: 'Claim with the Lightning address saved before this Favor pot closed.',
+            limits: limits,
+        };
+    }
+    if (String(win.status || '') === 'paid') {
+        return {
+            ok: false,
+            error: 'ALREADY_PAID',
+            message: 'Already paid',
+            limits: limits,
+        };
+    }
+    return { ok: true, limits: limits };
+}
+
 function planFavorClaimReserve(input) {
     const src = input || {};
     const limits = claimLimits(src.config);
@@ -539,5 +584,5 @@ module.exports = {
     applyPersonCap, clusterLightning,
     buildEpochBreakdown, buildWindowBreakdown, winId, confirmText,
     payoutStatusForAmount, walletAllowsPay, walletFloorOk, siteCapAllows, num,
-    planFavorClaimReserve, planFavorClaimRelease,
+    favorClaimPrechecks, planFavorClaimReserve, planFavorClaimRelease,
 };

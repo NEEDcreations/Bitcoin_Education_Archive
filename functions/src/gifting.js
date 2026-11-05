@@ -1128,7 +1128,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     const uid = requireUser(context);
     const winId = (data.winId || '').toString().trim();
     if (!winId || winId.length > 128) throw httpsError('invalid-argument', 'Invalid win');
-    if (!NWC_URL) throw httpsError('failed-precondition', 'Prize wallet is not configured yet. Phil can pay this from the admin list.');
+    // NWC / wallet check runs AFTER Favor gates + claimable→paying (see below).
     const accountTombstone = require('./accountTombstone');
     const emailChange = require('./emailChange');
     if (!accountTombstone.secretReady()) {
@@ -1187,24 +1187,19 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         const sfSource = win.source === 'sf_epoch' || win.source === 'sf_window';
         // Merge note for #243: faction_race + adminApproved should use the same
         // after-send floor + locked-address binding as Favor (see PR body).
-        if (sfSource) {
-            if (!(win.adminApproved === true)) throw httpsError('failed-precondition', 'This prize is waiting for Phil to approve it.');
-            const favorEpochPrizes = require('./favorEpochPrizes');
-            const cfgSnap = await t.get(db.collection('config').doc('satoshiFavorPayouts'));
-            sfClaimLimits = favorEpochPrizes.claimLimits(cfgSnap.exists ? cfgSnap.data() : {});
-            if (win.amount > sfClaimLimits.manualAboveSats) {
-                throw httpsError('failed-precondition', 'This prize is paid manually.');
-            }
-        } else if (win.amount >= 1000 || (win.amount !== 100 && win.amount !== 500)) {
-            throw httpsError('failed-precondition', 'This prize is paid manually.');
-        }
         const userRow = userDoc.exists ? (userDoc.data() || {}) : {};
         if (sfSource) {
-            const locked = String(win.lockedLightningAddress || '').trim().toLowerCase();
-            const saved = String(userRow.lightningAddress || userRow.lightning || userRow.lnAddress || '').trim().toLowerCase();
-            if (!locked || !saved || locked !== saved) {
-                throw httpsError('failed-precondition', 'Claim with the Lightning address saved before this Favor pot closed.');
-            }
+            const favorEpochPrizes = require('./favorEpochPrizes');
+            const cfgSnap = await t.get(db.collection('config').doc('satoshiFavorPayouts'));
+            const pre = favorEpochPrizes.favorClaimPrechecks({
+                win: win,
+                savedLightning: userRow.lightningAddress || userRow.lightning || userRow.lnAddress || '',
+                config: cfgSnap.exists ? cfgSnap.data() : {},
+            });
+            sfClaimLimits = pre.limits;
+            if (!pre.ok) throw httpsError('failed-precondition', pre.message);
+        } else if (win.amount >= 1000 || (win.amount !== 100 && win.amount !== 500)) {
+            throw httpsError('failed-precondition', 'This prize is paid manually.');
         }
         if (Number(userRow.satsHold) > Date.now()) {
             throw httpsError('failed-precondition', 'Sats withdrawals are paused on this account. Try again later.');
@@ -1277,6 +1272,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         if (w.source === 'sf_epoch' || w.source === 'sf_window') {
             sfLockedLn = String(w.lockedLightningAddress || '').trim().toLowerCase();
             // Balance first so the in-flight floor check is meaningful.
+            // Gates + paying already passed; wallet missing is an after-gate failure.
             if (!NWC_URL) throw new Error('NO_WALLET');
             const nwcPeek = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
             const balPeek = await withTimeout(nwcPeek.getBalance(), 20000, 'getBalance');
@@ -1320,6 +1316,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
             sfDidReserve = true;
         }
     } catch (e) {
+        await releaseFavorReserve(true);
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
         if (e && e.message === 'SITE_DAILY_CAP') {
             return { success: false, error: 'Daily Favor payout cap reached. Try again tomorrow or ask Phil.' };
@@ -1330,7 +1327,16 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         if (e && e.message === 'manual') {
             return { success: false, error: 'This prize is paid manually.' };
         }
+        if (e && e.message === 'NO_WALLET') {
+            return { success: false, error: 'Prize wallet is not configured yet. Phil can pay this from the admin list.' };
+        }
         return { success: false, error: e.message || 'Could not reserve this Favor payout.' };
+    }
+    // After Favor reserve (or for non-Favor wins): still need a wallet to pay.
+    if (!NWC_URL) {
+        await releaseFavorReserve(true);
+        await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
+        throw httpsError('failed-precondition', 'Prize wallet is not configured yet. Phil can pay this from the admin list.');
     }
     try {
         invoice = await _resolvePrizeInvoice(sfLockedLn ? '' : (data && data.invoice), sfLockedLn || (data && data.lightningAddress), netAmount);
@@ -1423,6 +1429,13 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         return { success: true, amount: amount, sent: netAmount, fee: winFee.fee };
     }
 
+    // Non-Favor and Favor pay paths: wallet required only after gates + paying.
+    if (!NWC_URL) {
+        await releaseFavorReserve(true);
+        await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
+        await invoiceRef.delete().catch(function() {});
+        throw httpsError('failed-precondition', 'Prize wallet is not configured yet. Phil can pay this from the admin list.');
+    }
     const nwc = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
     let phase = 'balance';
     let payResult = null;

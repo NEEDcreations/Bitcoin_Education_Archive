@@ -362,6 +362,66 @@ test('rebuild close LN: reuse saved map only; missing → empty (manual review)'
     }));
 });
 
+test('no NWC: 6000-sat Favor win refused as manual before wallet error', function () {
+    // Pure gate ordering: manual cutoff fires without any wallet / NWC.
+    const gate = P.favorClaimPrechecks({
+        win: {
+            adminApproved: true,
+            amount: 6000,
+            status: 'claimable',
+            lockedLightningAddress: 'player@w.com',
+            source: 'sf_epoch',
+        },
+        savedLightning: 'player@w.com',
+        config: {},
+    });
+    assert.strictEqual(gate.ok, false);
+    assert.strictEqual(gate.error, 'manual');
+    assert.ok(String(gate.message).toLowerCase().indexOf('manual') !== -1);
+
+    // Address mismatch also precedes wallet
+    const addr = P.favorClaimPrechecks({
+        win: {
+            adminApproved: true,
+            amount: 4200,
+            status: 'claimable',
+            lockedLightningAddress: 'locked@w.com',
+            source: 'sf_epoch',
+        },
+        savedLightning: 'other@w.com',
+        config: {},
+    });
+    assert.strictEqual(addr.ok, false);
+    assert.strictEqual(addr.error, 'ADDRESS_MISMATCH');
+
+    // Double-claim / already paid
+    const paid = P.favorClaimPrechecks({
+        win: {
+            adminApproved: true,
+            amount: 4200,
+            status: 'paid',
+            lockedLightningAddress: 'player@w.com',
+        },
+        savedLightning: 'player@w.com',
+        config: {},
+    });
+    assert.strictEqual(paid.ok, false);
+    assert.strictEqual(paid.error, 'ALREADY_PAID');
+
+    // Claimable under manual threshold still passes prechecks with no NWC involved
+    const ok = P.favorClaimPrechecks({
+        win: {
+            adminApproved: true,
+            amount: 4200,
+            status: 'claimable',
+            lockedLightningAddress: 'player@w.com',
+        },
+        savedLightning: 'player@w.com',
+        config: {},
+    });
+    assert.strictEqual(ok.ok, true);
+});
+
 test('confirm + win id', function () {
     assert.strictEqual(P.confirmText('epoch_4'), 'APPROVE epoch_4');
     assert.ok(P.winId('epoch_4', 'abc').indexOf('sfpay_epoch_4_abc') === 0);
