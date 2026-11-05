@@ -121,9 +121,9 @@ test('no 30% rule: large earner keeps full block share; no concentration flag', 
 
 test('M4/L5: claim reserve uses config caps and release clears reserved on no-send', function () {
     const limits = P.claimLimits({ manualAboveSats: 9000, siteDailyCapSats: 500000, walletFloorSats: 9000 });
-    assert.strictEqual(limits.manualAboveSats, 5000); // clamped
-    assert.strictEqual(limits.siteDailyCapSats, 100000);
-    assert.strictEqual(limits.walletFloorSats, 5000);
+    assert.strictEqual(limits.manualAboveSats, 5000); // still clamped (manual above)
+    assert.strictEqual(limits.siteDailyCapSats, 100000); // site cap still capped at default max
+    assert.strictEqual(limits.walletFloorSats, 9000); // floor may be raised above default
 
     const plan = P.planFavorClaimReserve({
         amount: 4200,
@@ -270,6 +270,31 @@ test('Red Team: reserved lock retry re-adds inFlight, floor-checks, no double ca
     assert.strictEqual(held.ok, true);
     assert.strictEqual(held.nextReservedSats, 4200);
     assert.strictEqual(held.nextInFlightSats, 4200); // no double add
+});
+
+test('walletFloorSats: missing/invalid → 5000; positive config used as-is including above 5000', function () {
+    assert.strictEqual(P.readConfig({}).walletFloorSats, 5000);
+    assert.strictEqual(P.readConfig({ walletFloorSats: 0 }).walletFloorSats, 5000);
+    assert.strictEqual(P.readConfig({ walletFloorSats: -1 }).walletFloorSats, 5000);
+    assert.strictEqual(P.readConfig({ walletFloorSats: 'x' }).walletFloorSats, 5000);
+    assert.strictEqual(P.readConfig({ walletFloorSats: 3000 }).walletFloorSats, 3000);
+    assert.strictEqual(P.readConfig({ walletFloorSats: 5000 }).walletFloorSats, 5000);
+    assert.strictEqual(P.readConfig({ walletFloorSats: 12000 }).walletFloorSats, 12000);
+    assert.strictEqual(P.claimLimits({ walletFloorSats: 12000 }).walletFloorSats, 12000);
+
+    // Raised floor must reject a pay that would have passed the default 5k floor
+    const raised = P.planFavorClaimReserve({
+        amount: 4200,
+        reservedSats: 0,
+        inFlightSats: 0,
+        walletSats: 10000, // 10000 - 4200 = 5800 >= 5000, but < 12000
+        lockReserved: false,
+        lockInFlight: false,
+        config: { walletFloorSats: 12000 },
+        day: '2026-11-05',
+    });
+    assert.strictEqual(raised.ok, false);
+    assert.strictEqual(raised.error, 'WALLET_LOW');
 });
 
 test('config: 0 siteDailyCap / walletFloor fall back to defaults; perPersonCap 0 stays off', function () {

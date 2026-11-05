@@ -46,7 +46,8 @@ function readConfig(data) {
         // Claim-critical caps never exceed the code defaults.
         manualAboveSats: Math.min(intIn(d.manualAboveSats, 1, MAX_POT, DEFAULTS.manualAboveSats), MANUAL_ABOVE),
         // 0 / missing → defaults. Never treat as unlimited.
-        walletFloorSats: Math.min(positiveIn(d.walletFloorSats, MAX_POT, DEFAULTS.walletFloorSats), DEFAULTS.walletFloorSats),
+        // 5000 = default/fallback when missing or invalid. Positive config used as-is (may be > 5000).
+        walletFloorSats: positiveIn(d.walletFloorSats, MAX_POT, DEFAULTS.walletFloorSats),
         siteDailyCapSats: Math.min(positiveIn(d.siteDailyCapSats, MAX_POT, DEFAULTS.siteDailyCapSats), DEFAULTS.siteDailyCapSats),
         // 0 still means off (no per-person cap). Left at 0 — no share limit.
         perPersonCapSats: intIn(d.perPersonCapSats, 0, MAX_POT, DEFAULTS.perPersonCapSats),
