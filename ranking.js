@@ -9039,7 +9039,6 @@ function accountDeleteRowHtml(user) {
             }
             html += '</div>';
         });
-        html += '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.45;margin-top:10px;">🔒 VPNs must be off to claim sats.</div>';
         html += '</div>';
         if (!window._claimReqPull && typeof db !== 'undefined' && db && user && user.uid) {
             window._claimReqPull = true;

@@ -1760,30 +1760,6 @@ exports.claimSats = functionsV1.runWith({
         return { success: false, error: faucetGuard.supportError('Could not verify request origin.') };
     }
 
-    // VPN, proxy, and datacenter blocking is assessReward in
-    // functions/src/ipReputation.js. One call so that merge stays here.
-    let rewardGate = null;
-    try {
-        const ipReputation = require('./src/ipReputation');
-        if (ipReputation && typeof ipReputation.assessReward === 'function') {
-            const rewardHeaders = context.rawRequest && context.rawRequest.headers ? context.rawRequest.headers : {};
-            rewardGate = await ipReputation.assessReward({
-                db: db,
-                ip: clientIP,
-                uid: uid,
-                userAgent: rewardHeaders['user-agent'] || '',
-                language: rewardHeaders['accept-language'] || '',
-                requestId: data && data.ipqsRequestId,
-                purpose: 'faucet',
-            });
-        }
-    } catch (rewardErr) {
-        if (!rewardErr || rewardErr.code !== 'MODULE_NOT_FOUND') throw rewardErr;
-    }
-    if (rewardGate && (rewardGate.action === 'deny' || rewardGate.action === 'hold')) {
-        return { success: false, error: rewardGate.message, code: rewardGate.reason };
-    }
-
     const fingerprint = (data.fingerprint || '').trim();
     const fpId = faucetGuard.fingerprintDocId(fingerprint);
     if (!fpId) {

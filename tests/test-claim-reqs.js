@@ -163,7 +163,7 @@ test('claimSats decides from Auth creation time and returns the missing list', (
     assert.ok(index.includes('claimChatStillLive(earlyUser, function (ref) { return ref.get(); }, uid)'));
     assert.ok(index.includes('claimChatStillLive(user, function (ref) { return t.get(ref); }, uid)'));
     assert.ok(index.includes('row.data.uid !== user.uid') || fs.readFileSync(path.join(root, 'functions', 'src', 'claimReqs.js'), 'utf8').includes('row.data.uid !== user.uid'));
-    assert.strictEqual((index.match(/assessReward\s*\(/g) || []).length, 1);
+    assert.ok(!index.includes('assessReward'));
     assert.ok(!index.includes('logReferralVisit'));
     assert.ok(!index.includes('claimReqVisit'));
     assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 8);
@@ -193,17 +193,11 @@ test('watch heartbeat stamps server-side only and no referral-visit pieces remai
     assert.ok(!fields.includes('claimReq'));
 });
 
-test('claimSats has one assessReward call for the connection check', () => {
+test('no #100 VPN hook or VPN copy ships with #126', () => {
     const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
-    assert.strictEqual((index.match(/assessReward\s*\(/g) || []).length, 1);
-    assert.ok(index.includes('functions/src/ipReputation.js'));
-    assert.ok(index.includes("require('./src/ipReputation')"));
-    assert.ok(index.includes("rewardErr.code !== 'MODULE_NOT_FOUND'"));
-    assert.ok(index.includes("rewardGate.action === 'deny' || rewardGate.action === 'hold'"));
-    assert.ok(index.includes('error: rewardGate.message'));
-    assert.ok(!index.includes('connectionClaimResult'));
-    assert.ok(!index.includes('blockedConnectionError'));
-    assert.ok(!fs.existsSync(path.join(root, 'functions', 'src', 'ipReputation.js')));
+    assert.ok(!index.includes('assessReward'));
+    assert.ok(!index.includes("require('./src/ipReputation')"));
+    assert.ok(!index.includes('rewardGate'));
 });
 
 test('the Requirements card shows the chat and TCTV rows with Go', () => {
@@ -229,10 +223,7 @@ test('the Requirements card shows the chat and TCTV rows with Go', () => {
     assert.ok(html.includes('.username-box button.claim-req-go { width: auto; min-width: 44px; max-width: 88px; white-space: nowrap;'));
     assert.strictEqual(html, fs.readFileSync(path.join(root, '404.html'), 'utf8'));
     assert.ok(ranking.includes('if (!claimExempt)'));
-    const note = '🔒 VPNs must be off to claim sats.';
-    const noteAt = ranking.indexOf(note);
-    assert.ok(noteAt > ranking.indexOf('checks.forEach(function(c)'));
-    assert.ok(noteAt < ranking.indexOf('How It Works'));
+    assert.ok(!ranking.includes('VPNs must be off'));
     assert.ok(ranking.includes('color:var(--text-muted)'));
     assert.ok(!ranking.includes('copyClaimReferralLink'));
     assert.ok(!ranking.includes('logReferralVisit'));
