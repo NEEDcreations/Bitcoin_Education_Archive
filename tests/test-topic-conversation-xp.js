@@ -192,7 +192,7 @@ test('rules, terms, and the client toast come from the server payload', () => {
     assert.ok(xpSection.includes('A reply earns 5 XP'));
     assert.ok(xpSection.includes('capped at 40 XP'));
     assert.ok(xpSection.includes('up to 5 of those awards'));
-    const topic = terms.split('11a. Topic discussions')[1].split('<h2>')[0];
+    const topic = terms.split('13a. Topic discussions')[1].split('<h2>')[0];
     assert.ok(!topic.includes('does not award XP, tickets, or sats'));
     assert.ok(topic.includes('Copies do not award XP or tickets'));
     const client = fs.readFileSync(path.join(root, 'topic-discussions.js'), 'utf8');
