@@ -389,6 +389,7 @@ var APP_CHECK_CALLABLES = {
     startScholarExam: 1,
     syncEmailChange: 1,
     syncUserFactionPoints: 1,
+    tctvDripCheckin: 1,
     tctvWatchHeartbeat: 1,
     toggleGgReaction: 1,
     totpListDevices: 1,
