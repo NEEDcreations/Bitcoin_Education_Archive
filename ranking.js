@@ -10133,6 +10133,43 @@ function accountDeleteRowHtml(user) {
                     var _errMsg = (typeof friendlyCallableError === 'function' ? friendlyCallableError(e, 'Donation failed. Try again.') : (e.message || 'Donation failed. Try again.'));
                     if (typeof showToast === 'function') showToast('❌ ' + _errMsg, 4000);
                 });
+        };
+    }
+
+    // Load referral stats if on data tab (tickets are now here)
+    if (settingsTab === 'data' && typeof loadReferralStatsUI === 'function' && user && !user.isAnonymous) {
+        setTimeout(loadReferralStatsUI, 100);
+    }
+
+    // Render Nacho's Closet if on Stats/Nacho tab
+    if (settingsTab === 'data' && typeof renderNachoClosetUI === 'function') {
+        var closetContainer = document.getElementById('nachoClosetContainer');
+        if (closetContainer) {
+            renderNachoClosetUI(closetContainer);
+            // If requested via closet shortcut, scroll to it
+            if (window._pendingClosetScroll) {
+                setTimeout(function() {
+                    closetContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    window._pendingClosetScroll = false;
+                }, 300);
+            }
+        }
+    }
+    // Load peers data (now in Account tab, triggered when account tab renders)
+    if (settingsTab === 'account' && auth && auth.currentUser && typeof db !== 'undefined') {
+        setTimeout(async function() {
+            var listEl = document.getElementById('peersList');
+            if (!listEl) return;
+            try {
+                var uid = auth.currentUser.uid;
+                var userDoc = await db.collection('users').doc(uid).get();
+                var userData = userDoc.exists ? userDoc.data() : {};
+                var peers = userData.peers || [];
+                window._myPeers = new Set(peers);
+
+                // Load inbound requests first
+                var reqSnap = await db.collection('peer_requests')
+                    .where('to', '==', uid).where('status', '==', 'pending').limit(20).get();
                 var reqHtml = '';
                 if (!reqSnap.empty) {
                     reqHtml += '<h4 style="font-size:0.85rem;margin:0 0 8px;color:var(--text);">Incoming Requests</h4>';
