@@ -1377,6 +1377,7 @@
                 if (chev) chev.textContent = '▾';
                 if (toggle.focus) toggle.focus();
             }
+            if (typeof window.bqWriteHomeModeCollapsedPref === 'function') window.bqWriteHomeModeCollapsedPref(true);
             return;
         }
         if (ev.key !== 'ArrowRight' && ev.key !== 'ArrowLeft' && ev.key !== 'ArrowDown' && ev.key !== 'ArrowUp') return;
@@ -1416,6 +1417,7 @@
                     var openChev = openToggle.querySelector('.bq-home-mode-chevron');
                     if (openChev) openChev.textContent = '▾';
                 }
+                if (typeof window.bqWriteHomeModeCollapsedPref === 'function') window.bqWriteHomeModeCollapsedPref(true);
             });
         }
         window.bqRefreshHomeModeBar();
@@ -1428,6 +1430,9 @@
         window.bqFillHomeModeBar(bar, {
             current: window.getExperienceMode(),
             onPick: function (id) {
+                if (typeof window.bqWriteHomeModeCollapsedPref === 'function') window.bqWriteHomeModeCollapsedPref(true);
+                var openBar = document.getElementById('bqHomeModeBar');
+                if (openBar) openBar.classList.remove('is-open');
                 window.setExperienceMode(id);
                 toastMode(id);
             }

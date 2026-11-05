@@ -2158,12 +2158,15 @@
         var style = document.createElement('style');
         style.id = 'bqHomeModeStyles';
         style.textContent = '#bqHomeModeBar{position:relative;z-index:2;box-sizing:border-box;width:100%;margin:0 0 12px;text-align:left;}'
-            + '.bq-home-mode-heading{margin:0 0 6px;font-size:12px;font-weight:800;letter-spacing:0.06em;text-transform:uppercase;color:#94a3b8;}'
-            + '#bqHomeModeToggle{display:none;box-sizing:border-box;width:100%;min-height:44px;padding:8px 12px;border-radius:12px;border:1px solid var(--border,#334155);background:var(--bg,#020617);color:var(--heading,#f8fafc);font-family:inherit;font-size:16px;font-weight:800;line-height:1.2;cursor:pointer;align-items:center;justify-content:space-between;gap:8px;text-align:left;}'
+            + '.bq-home-mode-heading{display:none;}'
+            + '#bqHomeModeToggle{display:flex;box-sizing:border-box;width:100%;min-height:44px;padding:8px 12px;border-radius:12px;border:1px solid var(--border,#334155);background:var(--bg,#020617);color:var(--heading,#f8fafc);font-family:inherit;font-size:16px;font-weight:800;line-height:1.2;cursor:pointer;align-items:center;justify-content:space-between;gap:8px;text-align:left;}'
             + '#bqHomeModeToggle[aria-expanded="true"]{border-color:var(--accent,#f7931a);}'
             + '.bq-home-mode-kicker{font-size:12px;font-weight:800;letter-spacing:0.04em;text-transform:uppercase;color:#94a3b8;}'
             + '.bq-home-mode-toggle-label{flex:1 1 auto;min-width:0;text-align:right;}'
-            + '#bqHomeModeSegments{display:flex;gap:6px;align-items:stretch;}'
+            + '#bqHomeModePanel{display:none;margin-top:8px;}'
+            + '#bqHomeModeBar.is-open #bqHomeModePanel{display:block;}'
+            + '#bqHomeModeSegments{display:flex;gap:6px;align-items:stretch;flex-direction:column;}'
+            + '@media (min-width:720px){#bqHomeModeBar.is-open #bqHomeModeSegments{flex-direction:row;}}'
             + '.bq-home-mode-opt{flex:1 1 0;min-width:0;display:flex;flex-direction:column;}'
             + '.bq-home-mode-opt>button{display:block;width:100%;min-height:44px;padding:8px;border-radius:12px;border:1px solid var(--border,#334155);background:var(--bg,#020617);color:var(--heading,#f8fafc);font-family:inherit;font-size:14px;font-weight:800;line-height:1.25;cursor:pointer;text-align:left;}'
             + '.bq-home-mode-opt>button[aria-pressed="true"]{border:2px solid var(--accent,#f7931a);background:rgba(247,147,26,0.12);}'
@@ -2178,16 +2181,31 @@
             + '.bq-home-mode-opt ul{margin:0 0 8px;padding:0 0 0 18px;}'
             + '.bq-home-mode-opt li{font-size:12px;line-height:1.4;margin:0 0 4px;color:var(--text,#e2e8f0);}'
             + '#bqHomeModeBar button:focus-visible,#bqHomeModeBar summary:focus-visible{outline:2px solid #f7931a;outline-offset:2px;}'
-            + '@media (max-width:719px){'
-            + '.bq-home-mode-heading{display:none;}'
-            + '#bqHomeModeToggle{display:flex;}'
-            + '#bqHomeModePanel{display:none;}'
-            + '#bqHomeModeBar.is-open #bqHomeModePanel{display:block;margin-top:8px;}'
-            + '#bqHomeModeBar.is-open #bqHomeModeSegments{flex-direction:column;}'
-            + '}'
-            + '@media (min-width:720px){#bqHomeModeToggle{display:none;}}'
+            + '@media (max-width:360px){.bq-home-seg-summary,.bq-home-mode-opt li{font-size:12px;}.bq-home-seg-name{font-size:13px;}}'
             + '[data-theme="light"] .bq-home-seg-summary{color:#475569;}';
         document.head.appendChild(style);
+    }
+    function bqHomeModeCollapsedKey() {
+        return 'btc_experience_section_collapsed';
+    }
+    function bqReadHomeModeCollapsedPref() {
+        try {
+            return (typeof localStorage !== 'undefined' && localStorage.getItem(bqHomeModeCollapsedKey())) || '';
+        } catch (e) { return ''; }
+    }
+    function bqWriteHomeModeCollapsedPref(collapsed) {
+        try {
+            if (typeof localStorage === 'undefined') return;
+            localStorage.setItem(bqHomeModeCollapsedKey(), collapsed ? '1' : '0');
+        } catch (e) {}
+    }
+    function bqHomeModeBarShouldOpen(container, hasChoice) {
+        if (!hasChoice) return true;
+        if (container && container.classList && container.classList.contains('is-open')) return true;
+        var pref = bqReadHomeModeCollapsedPref();
+        if (pref === '0') return true;
+        if (pref === '1') return false;
+        return false;
     }
     function bqFillHomeModeBar(container, opts) {
         if (!container || typeof document === 'undefined') return;
@@ -2197,7 +2215,8 @@
         var effective = options.current || bqNormalizeExperienceMode();
         var stored = (typeof options.stored === 'string') ? options.stored : bqStoredExperienceMode();
         if (stored !== 'lite' && stored !== 'beginner' && stored !== 'intermediate' && stored !== 'advanced') stored = '';
-        var open = !!(container.classList && container.classList.contains('is-open'));
+        var hasChoice = !!stored;
+        var open = bqHomeModeBarShouldOpen(container, hasChoice);
         container.textContent = '';
         container.setAttribute('aria-label', 'Experience Mode');
         var currentMeta = bqExperienceModeMeta(effective);
@@ -2210,13 +2229,13 @@
         toggle.id = 'bqHomeModeToggle';
         toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
         toggle.setAttribute('aria-controls', 'bqHomeModePanel');
-        toggle.setAttribute('aria-label', 'Experience Mode. ' + currentMeta.label + '. ' + currentBrief.summary);
+        toggle.setAttribute('aria-label', 'Experience. Current mode ' + currentMeta.label + '. ' + (open ? 'Expanded' : 'Collapsed') + '. ' + currentBrief.summary);
         var kicker = document.createElement('span');
         kicker.className = 'bq-home-mode-kicker';
         kicker.textContent = 'Experience';
         var toggleLabel = document.createElement('span');
         toggleLabel.className = 'bq-home-mode-toggle-label';
-        toggleLabel.textContent = currentMeta.label;
+        toggleLabel.textContent = hasChoice ? currentMeta.label : 'Choose a mode';
         var chev = document.createElement('span');
         chev.className = 'bq-home-mode-chevron';
         chev.setAttribute('aria-hidden', 'true');
@@ -2228,6 +2247,7 @@
             var on = container.classList.toggle('is-open');
             toggle.setAttribute('aria-expanded', on ? 'true' : 'false');
             chev.textContent = on ? '▴' : '▾';
+            if (hasChoice) bqWriteHomeModeCollapsedPref(!on);
         });
         var panel = document.createElement('div');
         panel.id = 'bqHomeModePanel';
@@ -2304,6 +2324,8 @@
     win.bqFillModePicker = bqFillModePicker;
     win.bqRecommendMode = bqRecommendMode;
     win.bqFillHomeModeBar = bqFillHomeModeBar;
+    win.bqWriteHomeModeCollapsedPref = bqWriteHomeModeCollapsedPref;
+    win.bqHomeModeCollapsedKey = bqHomeModeCollapsedKey;
     win.bqGuideCards = bqGuideCards;
     win.bqApplyExperienceSurfaces = bqApplyExperienceSurfaces;
     if (typeof win.renderDesktopHomeMenus === 'function') win.renderDesktopHomeMenus();
