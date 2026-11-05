@@ -1084,6 +1084,20 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
           console.warn('[FAVOR] epoch payout breakdown failed:', e.message);
           try {
             const epochId = 'epoch_' + epochNum;
+            const lnSnap = {};
+            const seenLn = {};
+            for (let li = 0; li < blocks.length; li++) {
+              const bu = blocks[li] && blocks[li].uid;
+              if (!bu || seenLn[bu]) continue;
+              seenLn[bu] = true;
+              try {
+                const us = await db.collection('users').doc(bu).get();
+                const ud = us.exists ? (us.data() || {}) : {};
+                lnSnap[bu] = String(ud.lightningAddress || ud.lightning || ud.lnAddress || '').trim().toLowerCase();
+              } catch (eLn) {
+                lnSnap[bu] = '';
+              }
+            }
             await db.collection('sf_payout_results').doc(epochId).set({
               kind: 'epoch',
               epochId: epochId,
@@ -1092,6 +1106,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
               breakdownDone: false,
               payoutStatus: 'awaiting_admin_approval',
               createdAtMs: Date.now(),
+              lightningAddressesAtClose: lnSnap,
             }, { merge: true });
           } catch (e2) { /* ignore */ }
         }

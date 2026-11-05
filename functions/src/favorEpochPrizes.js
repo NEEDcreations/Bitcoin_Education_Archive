@@ -31,6 +31,14 @@ function intIn(v, lo, hi, dflt) {
     return Number.isFinite(n) && n >= lo && n <= hi ? n : dflt;
 }
 
+// Positive ints only. 0 / NaN / negative / over hi → default.
+// Used for wallet floor + site daily cap so 0 never means "unlimited".
+function positiveIn(v, hi, dflt) {
+    const n = Math.floor(Number(v));
+    if (!Number.isFinite(n) || n <= 0 || n > hi) return dflt;
+    return n;
+}
+
 function readConfig(data) {
     const d = data || {};
     return {
@@ -39,11 +47,20 @@ function readConfig(data) {
         minAccountAgeDays: intIn(d.minAccountAgeDays, 0, 365, DEFAULTS.minAccountAgeDays),
         // Claim-critical caps never exceed the code defaults.
         manualAboveSats: Math.min(intIn(d.manualAboveSats, 1, MAX_POT, DEFAULTS.manualAboveSats), MANUAL_ABOVE),
-        walletFloorSats: Math.min(intIn(d.walletFloorSats, 0, MAX_POT, DEFAULTS.walletFloorSats), DEFAULTS.walletFloorSats),
-        siteDailyCapSats: Math.min(intIn(d.siteDailyCapSats, 0, MAX_POT, DEFAULTS.siteDailyCapSats), DEFAULTS.siteDailyCapSats),
+        // 0 / missing → defaults. Never treat as unlimited.
+        walletFloorSats: Math.min(positiveIn(d.walletFloorSats, MAX_POT, DEFAULTS.walletFloorSats), DEFAULTS.walletFloorSats),
+        siteDailyCapSats: Math.min(positiveIn(d.siteDailyCapSats, MAX_POT, DEFAULTS.siteDailyCapSats), DEFAULTS.siteDailyCapSats),
+        // 0 still means off (no per-person cap).
         perPersonCapSats: intIn(d.perPersonCapSats, 0, MAX_POT, DEFAULTS.perPersonCapSats),
         clusterFlagPct: intIn(d.clusterFlagPct, 1, 100, DEFAULTS.clusterFlagPct),
     };
+}
+
+// Close-time LN for rebuild: only the saved map. Missing uid → '' (manual review).
+function closeLightningFromSaved(savedMap, uid) {
+    const map = savedMap && typeof savedMap === 'object' ? savedMap : null;
+    if (!map || !Object.prototype.hasOwnProperty.call(map, String(uid || ''))) return '';
+    return normalizeLn(map[String(uid)]);
 }
 
 function claimLimits(data) {
@@ -529,7 +546,8 @@ function planFavorClaimRelease(input) {
 
 module.exports = {
     DEFAULTS, MAX_POT, MANUAL_ABOVE,
-    readConfig, claimLimits, epochIdOf, windowIdOf, truncateUid, publicName,
+    readConfig, claimLimits, positiveIn, closeLightningFromSaved,
+    epochIdOf, windowIdOf, truncateUid, publicName,
     normalizeLn, validLn, maskLn, exclusionReason, satsPerBlock, splitByBlocks,
     applyPersonCap, clusterLightning,
     buildEpochBreakdown, buildWindowBreakdown, winId, confirmText,

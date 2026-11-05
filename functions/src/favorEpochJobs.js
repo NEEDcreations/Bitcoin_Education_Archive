@@ -71,7 +71,10 @@ async function loadPlayer(db, admin, uid, nowMs, lnAtClose) {
         emailVerified = !!(auth.email && auth.emailVerified);
     } catch (e) { /* leave unknown */ }
     const currentLn = lnFromUser(user);
-    const closedLn = P.normalizeLn(lnAtClose || currentLn);
+    // Explicit close snapshot (including '') wins — never silently upgrade to current.
+    const closedLn = (lnAtClose !== undefined && lnAtClose !== null)
+        ? P.normalizeLn(lnAtClose)
+        : P.normalizeLn(currentLn);
     // Address is locked after first set; a one-time server reset is the only change.
     // Treat a current address that differs from the close snapshot as changed.
     const addressChangedAfterClose = !!(closedLn && currentLn && closedLn !== currentLn);
@@ -165,6 +168,8 @@ async function finalizeEpoch(db, admin, opts) {
             createdAt: stamp,
             createdAtMs: nowMs,
             blockCount: blocks.length,
+            // Frozen at close. Rebuild must reuse this map — never re-read users.
+            lightningAddressesAtClose: lnByUid,
         });
     } catch (e) {
         if (e && (e.code === 6 || /already exists/i.test(e.message || ''))) {
@@ -221,6 +226,8 @@ async function finalizeWindow(db, admin, opts) {
         config: cfg,
         nowMs: nowMs,
     });
+    const lnAtClose = {};
+    if (winnerUid && player) lnAtClose[winnerUid] = player.lightningAddressAtClose || '';
     if (!(bd.pot > 0)) {
         // Still record a zero-pot marker so retries stay quiet.
         try {
@@ -234,6 +241,7 @@ async function finalizeWindow(db, admin, opts) {
                 breakdownDone: true,
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 createdAtMs: nowMs,
+                lightningAddressesAtClose: lnAtClose,
             });
         } catch (e) {
             if (e && (e.code === 6 || /already exists/i.test(e.message || ''))) {
@@ -257,6 +265,7 @@ async function finalizeWindow(db, admin, opts) {
             createdAt: stamp,
             createdAtMs: nowMs,
             winnerUidShort: winnerUid ? P.truncateUid(winnerUid) : '',
+            lightningAddressesAtClose: lnAtClose,
         });
     } catch (e) {
         if (e && (e.code === 6 || /already exists/i.test(e.message || ''))) {
@@ -322,9 +331,11 @@ async function rebuildFavorBreakdown(db, admin, resultId, opts) {
         seen[b.uid] = true;
         uids.push(String(b.uid));
     });
-    const userSnaps = uids.length ? await getAllInChunks(db, uids.map(function (u) { return db.collection('users').doc(u); })) : [];
-    uids.forEach(function (uid, i) {
-        lnByUid[uid] = lnFromUser(userSnaps[i] && userSnaps[i].exists ? userSnaps[i].data() : null);
+    // Reuse close-time addresses saved on first finalize. Never re-read current LN.
+    // Missing uid → '' → manual review / excluded (no address at close).
+    const savedLn = r.lightningAddressesAtClose || {};
+    uids.forEach(function (uid) {
+        lnByUid[uid] = P.closeLightningFromSaved(savedLn, uid);
     });
     const players = await loadPlayersForUids(db, admin, uids, nowMs, lnByUid);
     const cfg = await readConfig(db);

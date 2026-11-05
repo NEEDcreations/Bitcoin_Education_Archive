@@ -267,6 +267,71 @@ test('Red Team: reserved lock retry re-adds inFlight, floor-checks, no double ca
     assert.strictEqual(held.nextInFlightSats, 4200); // no double add
 });
 
+test('config: 0 siteDailyCap / walletFloor fall back to defaults; perPersonCap 0 stays off', function () {
+    const zero = P.readConfig({ siteDailyCapSats: 0, walletFloorSats: 0, perPersonCapSats: 0 });
+    assert.strictEqual(zero.siteDailyCapSats, 100000);
+    assert.strictEqual(zero.walletFloorSats, 5000);
+    assert.strictEqual(zero.perPersonCapSats, 0);
+
+    const missing = P.readConfig({ siteDailyCapSats: null, walletFloorSats: 'nope' });
+    assert.strictEqual(missing.siteDailyCapSats, 100000);
+    assert.strictEqual(missing.walletFloorSats, 5000);
+
+    const neg = P.readConfig({ siteDailyCapSats: -1, walletFloorSats: -50 });
+    assert.strictEqual(neg.siteDailyCapSats, 100000);
+    assert.strictEqual(neg.walletFloorSats, 5000);
+
+    const limits = P.claimLimits({ siteDailyCapSats: 0, walletFloorSats: 0 });
+    assert.strictEqual(limits.siteDailyCapSats, 100000);
+    assert.strictEqual(limits.walletFloorSats, 5000);
+
+    // Cap still enforced (not unlimited) when config tried to zero it out
+    const plan = P.planFavorClaimReserve({
+        amount: 4200,
+        reservedSats: 98000,
+        inFlightSats: 0,
+        walletSats: 50000,
+        lockReserved: false,
+        lockInFlight: false,
+        config: { siteDailyCapSats: 0 },
+        day: '2026-11-05',
+    });
+    assert.strictEqual(plan.ok, false);
+    assert.strictEqual(plan.error, 'SITE_DAILY_CAP');
+});
+
+test('rebuild close LN: reuse saved map only; missing → empty (manual review)', function () {
+    const saved = { a1: 'alice@w.com', b2: '' };
+    assert.strictEqual(P.closeLightningFromSaved(saved, 'a1'), 'alice@w.com');
+    assert.strictEqual(P.closeLightningFromSaved(saved, 'b2'), '');
+    // uid never snapshotted → empty, not "look up current"
+    assert.strictEqual(P.closeLightningFromSaved(saved, 'c3'), '');
+    assert.strictEqual(P.closeLightningFromSaved(null, 'a1'), '');
+    assert.strictEqual(P.closeLightningFromSaved({}, 'a1'), '');
+
+    // Empty close LN excludes the player (manual review / no auto-approve)
+    const now = Date.now();
+    const created = now - 30 * 86400000;
+    const bd = P.buildEpochBreakdown({
+        epochNumber: 11,
+        nowMs: now,
+        blocks: [
+            { uid: 'a1', username: 'A', value: 1, foundAtMs: now },
+            { uid: 'c3', username: 'C', value: 2, foundAtMs: now },
+        ],
+        players: [
+            { uid: 'a1', user: { username: 'A' }, ledger: {}, authKnown: true, ageDays: 30, createdMs: created, emailVerified: true, lightningAddressAtClose: 'alice@w.com' },
+            { uid: 'c3', user: { username: 'C' }, ledger: {}, authKnown: true, ageDays: 30, createdMs: created, emailVerified: true, lightningAddressAtClose: '' },
+        ],
+        config: { epochPotSats: 21000 },
+    });
+    assert.strictEqual(bd.recipients.length, 1);
+    assert.strictEqual(bd.recipients[0].uid, 'a1');
+    assert.ok(bd.excluded.some(function (e) {
+        return e.uid === 'c3' && String(e.reason || '').indexOf('lightning') !== -1;
+    }));
+});
+
 test('confirm + win id', function () {
     assert.strictEqual(P.confirmText('epoch_4'), 'APPROVE epoch_4');
     assert.ok(P.winId('epoch_4', 'abc').indexOf('sfpay_epoch_4_abc') === 0);
