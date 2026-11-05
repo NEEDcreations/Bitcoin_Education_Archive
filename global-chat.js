@@ -628,7 +628,7 @@ function renderChatMessages(msgs) {
         html += '</div>';
         if (m.replyToName) {
             var _replyId = m.replyTo || '';
-            html += '<div data-msg-id="' + esc(_replyId) + '" onclick="window._scrollToChatMsg(this.dataset.msgId)" style="padding:5px 10px;margin-bottom:6px;border-left:3px solid #6366f1;font-size:0.72rem;color:var(--text);border-radius:4px;background:rgba(99,102,241,0.12);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(99,102,241,0.22)\'" onmouseout="this.style.background=\'rgba(99,102,241,0.12)\'">';
+            html += '<div data-reply-to="' + esc(_replyId) + '" onclick="window._scrollToChatMsg(this.dataset.replyTo)" style="padding:5px 10px;margin-bottom:6px;border-left:3px solid #6366f1;font-size:0.72rem;color:var(--text);border-radius:4px;background:rgba(99,102,241,0.12);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(99,102,241,0.22)\'" onmouseout="this.style.background=\'rgba(99,102,241,0.12)\'">';
             html += '<span style="font-weight:700;color:#818cf8;font-size:0.7rem;display:block;margin-bottom:1px;">' + esc(m.replyToName) + '</span>';
             html += '<span style="color:var(--text-muted);">' + esc((m.replyToText||'').substring(0,80)) + (m.replyToText && m.replyToText.length > 80 ? '…' : '') + '</span>';
             html += '</div>';
@@ -708,15 +708,15 @@ function renderChatMessages(msgs) {
 window.loadEarlierMessages = function() {
     var btn = document.getElementById('chatLoadMore');
     if (btn) btn.innerHTML = '⏳ Loading...';
-    if (!window._chatAllMsgs || window._chatAllMsgs.length === 0) return;
+    if (!window._chatAllMsgs || window._chatAllMsgs.length === 0) return Promise.resolve();
     var oldest = window._chatAllMsgs[0];
-    if (!oldest || !oldest.ts) return;
+    if (!oldest || !oldest.ts) return Promise.resolve();
     var el = document.getElementById('globalChatMessages');
     var oldHeight = el ? el.scrollHeight : 0;
 
     // With asc ordering + limitToLast, "earlier" messages are those BEFORE the oldest
     // we currently have. Use endBefore(oldest.ts) + limitToLast to page backward.
-    db.collection(CHAT_COLLECTION)
+    return db.collection(CHAT_COLLECTION)
         .orderBy('ts', 'asc')
         .endBefore(oldest.ts)
         .limitToLast(CHAT_LOAD_MORE_COUNT)
@@ -1113,24 +1113,35 @@ function hideAC() {
 }
 
 // ---- Scroll to original message ----
-window._scrollToChatMsg = function(msgId) {
+// Scroll to a chat message by id. Only real message rows carry data-msg-id
+// (reply quotes use data-reply-to), so a quote can't be picked by mistake.
+// If the message is older than what's loaded, page back a few times first.
+function _gcFindMsgRow(chatEl, msgId) {
+    var safe = String(msgId).replace(/[^A-Za-z0-9_-]/g, '');
+    if (!safe) return null;
+    return chatEl.querySelector('[data-msg-id="' + safe + '"]');
+}
+window._scrollToChatMsg = function(msgId, _tries) {
     if (!msgId) return;
-    // Try both possible container IDs
     var chatEl = document.getElementById('globalChatMessages') || document.getElementById('chatMessages');
     if (!chatEl) return;
-    var target = chatEl.querySelector('[data-msg-id="' + msgId + '"]');
+    var target = _gcFindMsgRow(chatEl, msgId);
     if (target) {
-        // Use live rects for pixel-accurate scroll within the chat container.
-        // getBoundingClientRect() is always correct regardless of DOM nesting depth.
         var containerRect = chatEl.getBoundingClientRect();
         var targetRect = target.getBoundingClientRect();
-        // target's top relative to the container's visible area
         var relativeTop = targetRect.top - containerRect.top;
-        // scroll so the message lands centered in the container
-        var scrollTarget = chatEl.scrollTop + relativeTop - (chatEl.clientHeight / 2) + (target.offsetHeight / 2);
+        // The sticky pinned banner covers the top of the list; keep the message below it.
+        var pinBanner = document.getElementById('chatPinnedBanner');
+        var pinH = (pinBanner && pinBanner.parentNode === chatEl) ? pinBanner.offsetHeight : 0;
+        var visibleH = chatEl.clientHeight - pinH;
+        var scrollTarget = chatEl.scrollTop + relativeTop - pinH - Math.max(0, (visibleH - target.offsetHeight) / 2);
+        if (scrollTarget < 0) scrollTarget = 0;
+        // Stop the near-top auto-loader from firing mid-jump and yanking the view.
+        chatEl._loadingMore = true;
+        chatEl._userScrolled = true;
         chatEl.scrollTo({ top: scrollTarget, behavior: 'smooth' });
-        // Flash highlight on the message bubble
-        var bubble = target.querySelector('[style*="border-radius"]') || target.querySelector('div') || target;
+        setTimeout(function() { chatEl._loadingMore = false; }, 1200);
+        var bubble = target.firstElementChild || target;
         var origBg = bubble.style.background || '';
         var origTransition = bubble.style.transition || '';
         bubble.style.transition = 'background 0.15s';
@@ -1142,10 +1153,17 @@ window._scrollToChatMsg = function(msgId) {
                 bubble.style.transition = origTransition;
             }, 400);
         }, 500);
-    } else {
-        // Message not in DOM — likely scrolled out of loaded range
-        if (typeof showToast === 'function') showToast('↑ Scroll up to find the original message', 2500);
+        return;
     }
+    var tries = _tries || 0;
+    if (tries < 5 && !window._chatReachedBeginning && typeof window.loadEarlierMessages === 'function') {
+        var p = window.loadEarlierMessages();
+        if (p && typeof p.then === 'function') {
+            p.then(function() { setTimeout(function() { window._scrollToChatMsg(msgId, tries + 1); }, 80); });
+            return;
+        }
+    }
+    if (typeof showToast === 'function') showToast('That message is too old to show here', 2500);
 };
 
 // ---- Reply Handling ----

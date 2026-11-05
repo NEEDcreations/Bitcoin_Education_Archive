@@ -29,6 +29,7 @@ const TESTS = [
     { name: 'App Check callable gate', file: 'test-app-check-callables.js' },
     { name: 'Sidebar topics', file: 'test-sidebar-topics.js' },
     { name: 'Cache Busters', file: 'busters.js' },
+    { name: 'Chat pinned scroll', file: 'test-chat-pinned-scroll.js' },
     { name: 'Google sign-in GIS', file: 'test-google-signin-gis.js' },
     { name: 'Beats moderation', file: 'test-beats-moderation.js' },
     { name: 'Nacho Radio shuffle', file: 'test-nacho-radio.js' },
