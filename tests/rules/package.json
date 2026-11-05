@@ -5,5 +5,9 @@
   "dependencies": {
     "@firebase/rules-unit-testing": "3.0.4",
     "firebase": "10.14.1"
+  },
+  "overrides": {
+    "@grpc/grpc-js": "1.14.7",
+    "undici": "6.29.1"
   }
 }
