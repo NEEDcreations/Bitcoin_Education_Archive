@@ -1929,6 +1929,7 @@
                 if (el.id === 'introVideoSection') el.removeAttribute('data-simplified-hidden');
             }
         });
+        if (typeof win._paintTodayCard === 'function') { try { win._paintTodayCard({ tilesOnly: true }); } catch (eTc) {} }
         return m;
     }
     function bqHiddenExploreAppCount(mode) {

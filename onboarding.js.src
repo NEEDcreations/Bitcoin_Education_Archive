@@ -78,6 +78,7 @@
         if (typeof window.bqRefreshModeChip === 'function') window.bqRefreshModeChip();
         if (typeof window.bqRefreshModeCard === 'function') window.bqRefreshModeCard();
         if (typeof window.bqRefreshHomeModeBar === 'function') window.bqRefreshHomeModeBar();
+        if (typeof window._paintTodayCard === 'function') { try { window._paintTodayCard({ tilesOnly: true }); } catch (eTc) {} }
     };
     window.syncExperienceModeFromFirestore = function () {
         try {
