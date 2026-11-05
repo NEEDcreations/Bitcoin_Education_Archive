@@ -21,6 +21,7 @@ const TESTS = [
     { name: 'Chat easter eggs', file: 'test-chat-easter-eggs.js' },
     { name: 'HTML Integrity', file: 'test-html-integrity.js' },
     { name: 'Auth display snapshot', file: 'test-auth-display.js' },
+    { name: 'XP line opens leaderboard', file: 'test-xp-leaderboard-link.js' },
     { name: 'Nook shop pricing + caps', file: 'test-nook-shop.js' },
     { name: 'Optimistic profile', file: 'test-optimistic-profile.js' },
     { name: '2FA hold release', file: 'test-totp-hold.js' },

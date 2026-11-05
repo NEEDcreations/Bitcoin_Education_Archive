@@ -75,7 +75,6 @@
         if (typeof window.applySimplifiedHome === 'function') window.applySimplifiedHome();
         if (typeof window.applyExperienceModeVisibility === 'function') window.applyExperienceModeVisibility();
         if (typeof window.applyDesktopMenuModes === 'function') window.applyDesktopMenuModes();
-        if (typeof window.bqRefreshModeChip === 'function') window.bqRefreshModeChip();
         if (typeof window.bqRefreshModeCard === 'function') window.bqRefreshModeCard();
         if (typeof window.bqRefreshHomeModeBar === 'function') window.bqRefreshHomeModeBar();
         if (typeof window._paintTodayCard === 'function') { try { window._paintTodayCard({ tilesOnly: true }); } catch (eTc) {} }
@@ -1175,23 +1174,11 @@
             + '.bq-mode-card-grid{display:block;}'
             + '.bq-mode-card-grid button{min-height:44px;padding:10px 12px;border-radius:12px;border:1px solid var(--border,#334155);background:var(--bg,#020617);color:var(--heading,#f8fafc);font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;text-align:left;}'
             + '.bq-mode-card-grid button[aria-pressed="true"]{border:2px solid var(--accent,#f7931a);color:var(--accent,#f7931a);}'
-            + '#bqModeMeterRow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 4px;}'
-            + '#bqModeMeterRow #dailyXpMeterText{margin:0;flex:1;min-width:0;}'
-            + '#bqModeChip{flex:0 0 auto;min-height:44px;padding:6px 10px;border-radius:999px;border:1px solid var(--border,#334155);background:var(--bg,#020617);color:var(--heading,#f8fafc);font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;}'
-            + '#bqModeChipPanel{display:flex;flex-direction:column;gap:6px;margin:0 0 8px;padding:8px;border:1px solid var(--border,#334155);border-radius:12px;background:var(--bg,#020617);text-align:left;}'
-            + '#bqModeChipPanel[hidden]{display:none;}'
-            + '#bqModeChipPanel button{min-height:44px;padding:8px 10px;border-radius:10px;border:1px solid var(--border,#334155);background:transparent;color:var(--heading,#f8fafc);font-size:16px;font-weight:700;font-family:inherit;cursor:pointer;text-align:left;}'
-            + '#bqModeChipPanel button[aria-pressed="true"]{border-color:var(--accent,#f7931a);color:var(--accent,#f7931a);}'
-            + '#bqModeChipPanel a{min-height:44px;display:flex;align-items:center;color:var(--accent,#f7931a);font-size:16px;font-weight:700;text-decoration:underline;}'
-            + '#bqModeChip:focus-visible,#bqModeHomeCard button:focus-visible,#bqModeChipPanel button:focus-visible,#bqModeChipPanel a:focus-visible,#btcIntroOverlay button:focus-visible{outline:2px solid #f7931a;outline-offset:2px;}'
+            + '#bqModeHomeCard button:focus-visible,#btcIntroOverlay button:focus-visible{outline:2px solid #f7931a;outline-offset:2px;}'
             + 'body.bq-mode-lite #rankBar,body.bq-mode-lite #lbFloatBtn,body.bq-mode-lite #aiToolsBtn,body.bq-mode-lite #dashboardFloatBtn,body.bq-mode-lite #dailySpinBanner,body.bq-mode-lite #raidBossHomeCard,body.bq-mode-lite #dailyChallengeCard,body.bq-mode-lite #quoteOfDay,body.bq-mode-lite #hotTopicsSectionWrapper,body.bq-mode-lite #donateSection,body.bq-mode-lite #todayFavorStrip,body.bq-mode-lite #badgeCelebration,body.bq-mode-lite #confettiCanvas,body.bq-mode-lite #chatTabAnnouncements,body.bq-mode-lite #progressRings,body.bq-mode-lite #leaderboard,body.bq-mode-lite #chatOverlayBtn{display:none !important;}';
         document.head.appendChild(style);
     }
     function openExperienceModeSettings() {
-        var panel = document.getElementById('bqModeChipPanel');
-        var chip = document.getElementById('bqModeChip');
-        if (panel) panel.hidden = true;
-        if (chip) chip.setAttribute('aria-expanded', 'false');
         if (typeof showSettings === 'function') showSettings();
         setTimeout(function () {
             if (typeof showSettingsPage === 'function') showSettingsPage('prefs');
@@ -1254,115 +1241,6 @@
             else inner.insertBefore(existing, inner.firstChild);
         }
         fillHomeCard(existing);
-    };
-    function fillChipPanel(panel) {
-        panel.textContent = '';
-        if (typeof window.bqFillModePicker === 'function') {
-            window.bqFillModePicker(panel, {
-                recommended: quizRecommended(),
-                onPick: function (id) {
-                    window.setExperienceMode(id);
-                    toastMode(id);
-                    panel.hidden = true;
-                    var chip = document.getElementById('bqModeChip');
-                    if (chip) {
-                        chip.setAttribute('aria-expanded', 'false');
-                        if (chip.focus) chip.focus();
-                    }
-                }
-            });
-        }
-        var link = document.createElement('a');
-        link.href = '#app/prefs';
-        link.textContent = "What's the difference?";
-        link.addEventListener('click', function (ev) {
-            ev.preventDefault();
-            openExperienceModeSettings();
-        });
-        panel.appendChild(link);
-    }
-    function onChipPanelKey(ev) {
-        var panel = document.getElementById('bqModeChipPanel');
-        if (!panel || panel.hidden) return;
-        var items = panel.querySelectorAll('button, a');
-        var list = Array.prototype.slice.call(items);
-        var index = list.indexOf(document.activeElement);
-        if (ev.key === 'Escape') {
-            ev.preventDefault();
-            panel.hidden = true;
-            var chip = document.getElementById('bqModeChip');
-            if (chip) {
-                chip.setAttribute('aria-expanded', 'false');
-                if (chip.focus) chip.focus();
-            }
-        } else if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
-            ev.preventDefault();
-            var step = ev.key === 'ArrowDown' ? 1 : -1;
-            var next = list[index + step] || list[step > 0 ? 0 : list.length - 1];
-            if (next && next.focus) next.focus();
-        }
-    }
-    function mountModeChip() {
-        var meter = document.getElementById('dailyXpMeter');
-        var text = document.getElementById('dailyXpMeterText');
-        if (!meter || !text) return;
-        var row = document.getElementById('bqModeMeterRow');
-        if (!row) {
-            row = document.createElement('div');
-            row.id = 'bqModeMeterRow';
-            text.parentNode.insertBefore(row, text);
-            row.appendChild(text);
-        }
-        var chip = document.getElementById('bqModeChip');
-        if (!chip) {
-            chip = document.createElement('button');
-            chip.type = 'button';
-            chip.id = 'bqModeChip';
-            chip.setAttribute('aria-haspopup', 'true');
-            chip.setAttribute('aria-expanded', 'false');
-            chip.setAttribute('aria-controls', 'bqModeChipPanel');
-            row.appendChild(chip);
-            chip.addEventListener('click', function () {
-                var panel = document.getElementById('bqModeChipPanel');
-                if (!panel) return;
-                var willOpen = panel.hidden;
-                panel.hidden = !willOpen;
-                chip.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
-                if (willOpen) {
-                    fillChipPanel(panel);
-                    var first = panel.querySelector('button, a');
-                    if (first && first.focus) first.focus();
-                }
-            });
-        }
-        var panel = document.getElementById('bqModeChipPanel');
-        if (!panel) {
-            panel = document.createElement('div');
-            panel.id = 'bqModeChipPanel';
-            panel.hidden = true;
-            panel.setAttribute('role', 'group');
-            panel.setAttribute('aria-label', 'Experience mode');
-            row.insertAdjacentElement('afterend', panel);
-            panel.addEventListener('keydown', onChipPanelKey);
-        }
-        if (!window._bqModeChipDoc) {
-            window._bqModeChipDoc = true;
-            document.addEventListener('click', function (ev) {
-                var openPanel = document.getElementById('bqModeChipPanel');
-                var openChip = document.getElementById('bqModeChip');
-                if (!openPanel || openPanel.hidden) return;
-                if (openPanel.contains(ev.target) || (openChip && openChip.contains(ev.target))) return;
-                openPanel.hidden = true;
-                if (openChip) openChip.setAttribute('aria-expanded', 'false');
-            });
-        }
-        window.bqRefreshModeChip();
-    }
-    window.bqRefreshModeChip = function () {
-        var chip = document.getElementById('bqModeChip');
-        if (!chip) return;
-        var meta = modeMeta(window.getExperienceMode());
-        chip.textContent = meta.label + ' ▾';
     };
     function onHomeModeKey(ev) {
         var bar = document.getElementById('bqHomeModeBar');
@@ -1441,7 +1319,6 @@
     window.mountExperienceModeHome = function () {
         ensureModeStyles();
         mountHomeModeBar();
-        mountModeChip();
         window.bqRefreshModeCard();
     };
 
