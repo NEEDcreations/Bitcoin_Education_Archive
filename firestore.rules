@@ -352,6 +352,15 @@ service cloud.firestore {
           && v.matches('^[a-z0-9_:,]*$');
       }
 
+      // Favorite mini apps. Owner may store up to 2 ids from the Explore Apps whitelist.
+      function favoriteAppsOk() {
+        let v = request.resource.data.favoriteApps;
+        return v is list
+          && v.size() <= 2
+          && v.hasOnly(['nacho', 'pop', 'forum', 'market', 'irl', 'beats', 'tv', 'pow', 'wallet'])
+          && (v.size() < 2 || v[0] != v[1]);
+      }
+
       function profileShapeOk() {
         let changed = request.resource.data.diff(resource.data).affectedKeys();
         return changed.hasOnly(profileClientFields())
@@ -394,6 +403,10 @@ service cloud.firestore {
             || request.resource.data.experienceMode == 'beginner'
             || request.resource.data.experienceMode == 'intermediate'
             || request.resource.data.experienceMode == 'advanced')
+          // Favorite apps. Owner may only store a list of up to 2 whitelisted Explore App ids.
+          && (!changed.hasAny(['favoriteApps'])
+            || !('favoriteApps' in request.resource.data)
+            || favoriteAppsOk())
           && (!changed.hasAny(['beatsShowUncensored'])
             || !('beatsShowUncensored' in request.resource.data)
             || request.resource.data.beatsShowUncensored == true

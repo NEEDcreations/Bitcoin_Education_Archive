@@ -1,7 +1,7 @@
 'use strict';
 
 const badgeRules = require('./badgeRules');
-const { serverHoldsBadge, countableAwardIds, legacyAwardCounts } = require('./badgeProfile');
+const { serverHoldsBadge, progressAwardIds } = require('./badgeProfile');
 
 function offsetDateKey(nowMs) {
     const shifted = new Date(Number(nowMs || Date.now()) - 5 * 3600 * 1000);
@@ -17,6 +17,22 @@ function idsFromSnap(snap) {
     }
     (snap.docs || []).forEach(function (doc) { if (doc && doc.id) ids.push(doc.id); });
     return ids;
+}
+
+function awardRowsFromSnap(snap) {
+    const rows = [];
+    const visit = function (doc) {
+        if (!doc || !doc.id) return;
+        const data = typeof doc.data === 'function' ? (doc.data() || {}) : {};
+        rows.push({ id: doc.id, source: data.source || '' });
+    };
+    if (!snap) return rows;
+    if (typeof snap.forEach === 'function') {
+        snap.forEach(visit);
+        return rows;
+    }
+    (snap.docs || []).forEach(visit);
+    return rows;
 }
 
 function denial(badgeId, reason, extra) {
@@ -64,14 +80,10 @@ async function grantFamily(db, adminSdk, uid, ids, opts) {
 
     const userRef = db.collection('users').doc(uid);
     const awardSnap = await userRef.collection('badge_awards').get();
-    const earned = new Set(idsFromSnap(awardSnap));
-    const awardRows = {};
-    if (awardSnap && typeof awardSnap.forEach === 'function') {
-        awardSnap.forEach(function (doc) {
-            if (!doc || !doc.id) return;
-            awardRows[doc.id] = typeof doc.data === 'function' ? (doc.data() || {}) : {};
-        });
-    }
+    const awardRows = awardRowsFromSnap(awardSnap);
+    // earned is every award id, including an unbacked legacy row.
+    const earned = new Set();
+    awardRows.forEach(function (row) { earned.add(row.id); });
     const out = new Array(list.length);
     const pending = [];
     for (let i = 0; i < list.length; i++) {
@@ -91,10 +103,6 @@ async function grantFamily(db, adminSdk, uid, ids, opts) {
     const userSnap = await userRef.get();
     const userExists = !!(userSnap && userSnap.exists);
     const user = userExists ? (userSnap.data() || {}) : {};
-    // Already-owned ids stay on `earned`. The milestone count drops a legacy
-    // row that no server-written field backs up.
-    const countable = new Set(countableAwardIds(user, awardRows));
-
     let needFlex = false;
     for (let i = 0; i < pending.length; i++) {
         const rule = badgeRules.ruleFor(pending[i].badgeId);
@@ -107,6 +115,12 @@ async function grantFamily(db, adminSdk, uid, ids, opts) {
         const countsSnap = await userRef.collection('daily_action_counts').get();
         options.flexClaims = badgeRules.tallyFlexClaims(idsFromSnap(countsSnap));
     }
+    const countable = progressAwardIds(user, awardRows.map(function (row) {
+        return { id: row.id, award: { source: row.source } };
+    }), {
+        signedIn: options.signedIn !== false,
+        flexClaims: options.flexClaims || null,
+    });
 
     for (let i = 0; i < pending.length; i++) {
         const badgeId = pending[i].badgeId;
@@ -125,7 +139,7 @@ async function grantFamily(db, adminSdk, uid, ids, opts) {
         }
         const held = serverHoldsBadge(user, badgeId);
         const ctx = {
-            awardSet: earned,
+            awardSet: countable,
             payingCount: badgeRules.countPaying(countable),
             signedIn: options.signedIn !== false,
             flexClaims: options.flexClaims || null,
@@ -139,9 +153,9 @@ async function grantFamily(db, adminSdk, uid, ids, opts) {
         out[pending[i].index] = result;
         if (result && (result.granted || result.reason === 'already' || result.reason === 'legacy')) {
             earned.add(badgeId);
-            if (result.granted || result.reason === 'already' || legacyAwardCounts(user, badgeId)) {
-                countable.add(badgeId);
-            }
+        }
+        if (result && (result.granted || (result.reason === 'legacy' && serverHoldsBadge(user, badgeId)))) {
+            countable.add(badgeId);
         }
     }
     return out;

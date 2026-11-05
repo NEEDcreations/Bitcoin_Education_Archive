@@ -2309,6 +2309,7 @@
     }
     win.BQ_LEARN_MENU = BQ_LEARN_MENU;
     win.BQ_EXPLORE_APPS = BQ_EXPLORE_APPS;
+    win.BQ_FAVORITE_APP_IDS = BQ_EXPLORE_APPS.map(function (a) { return a.id; });
     win.BQ_EXPERIENCE_MODES = BQ_EXPERIENCE_MODES;
     win.BQ_MODES = BQ_MODES;
     win.BQ_SURFACES = BQ_SURFACES;
@@ -2332,6 +2333,7 @@
         BY_ID: BY_ID,
         BQ_LEARN_MENU: BQ_LEARN_MENU,
         BQ_EXPLORE_APPS: BQ_EXPLORE_APPS,
+        BQ_FAVORITE_APP_IDS: BQ_EXPLORE_APPS.map(function (a) { return a.id; }),
         BQ_EXPERIENCE_MODES: BQ_EXPERIENCE_MODES,
         BQ_MODES: BQ_MODES,
         BQ_SURFACES: BQ_SURFACES,

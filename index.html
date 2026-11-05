@@ -1108,6 +1108,9 @@
         select option:checked { background: var(--accent-bg, #1a1a2e); color: var(--accent, #f7931a); }
 
     .no-desktop { display: none !important; } .mobile-back-btn { display: none !important; } @media (max-width: 900px) { .no-desktop { display: flex !important; } .mobile-back-btn { display: inline-flex !important; } }
+    /* Favorite apps home shortcuts */
+    #bqFavoriteApps { display:none; }
+    #bqFavoriteApps.is-on { display:flex; }
     /* Explore Apps grid — consistent card style */
     #homeAppsMenu .apps-grid-btn { padding:12px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:4px;transition:0.2s;width:100%; }
     #homeAppsMenu .apps-grid-btn .app-title { font-size:0.8rem;font-weight:700;color:var(--text);line-height:1.3;display:block; }
@@ -2234,9 +2237,10 @@
     <!-- Critical: needed for initial page render -->
     <script src="bundle.min.js?v=20261105_v2496" defer fetchpriority="high"></script>
     <script src="bundle-ready.js?v=20261027_v2394" defer></script>
-    <script src="features.registry.js?v=20261105_v2491" defer></script>
+    <script src="features.registry.js?v=20261105_v2494" defer></script>
+    <script src="favorites.js?v=20261105_v2494" defer></script>
     <script src="tctv-watch.js?v=20261102_v2464" defer></script>
-    <script src="tctv-drip.js?v=20261105_v2491" defer></script>
+    <script src="tctv-drip.js?v=20261105_v2495" defer></script>
     <script src="today-card.js?v=20261104_v2482" defer></script>
     <script src="achievement-share.js?v=20261104_v2476" defer></script>
     <script src="miniapp-share.js?v=20261031_v2447" defer></script>

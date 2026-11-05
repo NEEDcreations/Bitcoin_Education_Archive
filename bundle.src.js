@@ -16900,6 +16900,13 @@ function openWalletWhenReady() {
 }
 window.openWalletWhenReady = openWalletWhenReady;
 
+window.runSurfaceAction = runSurfaceAction;
+
+function decorateFavoriteStar(tile, id) {
+    if (typeof window.bqDecorateFavoriteTile === 'function') {
+        window.bqDecorateFavoriteTile(tile, id);
+    }
+}
 function runSurfaceAction(item) {
     if (!item) return;
     if (item.kind === 'go' && item.arg === 'wallet') openWalletWhenReady();
@@ -17114,6 +17121,7 @@ window.openMobileExploreApps = function() {
             runSurfaceAction(item);
         });
         grid.appendChild(btn);
+        decorateFavoriteStar(btn, item.id);
     });
     if (!apps.length) {
         var empty = document.createElement('p');
@@ -17244,6 +17252,7 @@ window.renderDesktopAppsMenu = function() {
             runSurfaceAction(item);
         });
         grid.appendChild(btn);
+        decorateFavoriteStar(btn, item.id);
     });
     appendHiddenAppsHint(grid, mobileExperienceMode());
 };
