@@ -2942,7 +2942,23 @@ exports.recordBeatsPlay = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     }
-    return beatsPlays.recordPlay(db, admin, context.auth.uid, data && data.trackId, Date.now());
+    const result = await beatsPlays.recordPlay(db, admin, context.auth.uid, data && data.trackId, Date.now());
+    if (result && result.counted && result.plays) {
+        try { await beatsPlays.grantPlayBadges(db, admin, context.auth.uid, result.plays); }
+        catch (e) { console.warn('[recordBeatsPlay] badges', e && e.message); }
+    }
+    return { counted: !!(result && result.counted), reason: result ? result.reason : '' };
+});
+
+// Titles and chat flair. Lists what the player has earned and equips one.
+// The only writer of activeTitle, chatFlairEmoji, earnedTitles and earnedFlair.
+const titleFlair = require('./src/titleFlair');
+exports.titleFlair = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
+    if (!context.auth) {
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    return titleFlair.handle(db, admin, context.auth.uid, data || {}, Date.now());
 });
 
 exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
@@ -6611,6 +6627,10 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
     });
 
     console.log('[POW] Done. synced:', syncedCount, 'pts:', totalPoints);
+    if (syncedCount > 0) {
+        try { await require('./src/powBadges').grantForUser(db, admin, uid, Date.now()); }
+        catch (e) { console.warn('[POW] badges', e && e.message); }
+    }
     if (totalPoints > 0) {
         await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
             uid: uid,

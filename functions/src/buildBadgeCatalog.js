@@ -195,6 +195,13 @@ collectionBonus.collections().forEach(function (col) {
         hidden: true,
     };
 });
+// Retired merged collections (split Nov 5, 2026). Kept so an old record still
+// renders. Nothing pays or grants them now.
+[['col_community', 'Community', '💬'], ['col_entertainment', 'Entertainment', '🎵']].forEach(function (row) {
+    const bonusId = row[0] + '_bonus';
+    if (extra[bonusId]) return;
+    extra[bonusId] = { name: row[1], emoji: row[2], desc: 'Completed the ' + row[1] + ' collection (retired)', xp: 0, category: 'Collections', hidden: true };
+});
 // 5-tier families (badgeTiers). Display XP is capped at the server's
 // per-badge XP_CAP so the card never promises more than awardBadge pays.
 Object.assign(extra, require('./badgeTiers').catalogExtras(5000));
@@ -271,7 +278,7 @@ Object.keys(badges).forEach(function (id) {
         xp: badges[id].xp,
         category: badges[id].category || '',
         hidden: badges[id].hidden === true,
-        serverAward: !!(rule && !rule.cosmetic),
+        serverAward: !!(rule && !rule.cosmetic) || collectionBonus.SERVER_VERIFIED.has(id),
     };
 });
 const collectionPay = {};
@@ -283,6 +290,19 @@ collectionBonus.collections().forEach(function (col) {
         }),
     };
 });
-const clientJs = 'window.BADGE_CATALOG=' + JSON.stringify(clientBadges) + ';\nwindow.BADGE_CATALOG_VERSION=1;\nwindow.BADGE_COLLECTION_PAY=' + JSON.stringify(collectionPay) + ';\n';
+// Collection layout, titles and flair for the client. Same source as the server.
+const collectionDefs = collectionBonus.collections().map(function (col) {
+    return {
+        id: col.id, name: col.name, emoji: col.emoji, color: col.color,
+        kind: col.kind, optional: !!col.optional, badgeIds: col.badgeIds.slice(),
+        bonusId: col.bonusId, title: col.title || null, flair: col.flair || '',
+    };
+});
+// Server copy of the badge titles in badges.js, so the equip callable can check them.
+const titleDefs = require('./titleDefsFromSource').extract(fs.readFileSync(path.join(root, 'badges.js'), 'utf8'));
+fs.writeFileSync(path.join(__dirname, 'title-defs.json'), JSON.stringify(titleDefs, null, 1) + '\n');
+const clientJs = 'window.BADGE_CATALOG=' + JSON.stringify(clientBadges) + ';\nwindow.BADGE_CATALOG_VERSION=1;\nwindow.BADGE_COLLECTION_PAY=' + JSON.stringify(collectionPay) + ';\n'
+    + 'window.BADGE_COLLECTION_DEFS=' + JSON.stringify(collectionDefs) + ';\n'
+    + 'window.BADGE_LEGEND_IDS=' + JSON.stringify(Array.from(collectionBonus.LEGEND_IDS)) + ';\n';
 fs.writeFileSync(path.join(root, 'badges.catalog.js'), clientJs);
 console.log('badges', Object.keys(badges).length, 'channels', channelCount);

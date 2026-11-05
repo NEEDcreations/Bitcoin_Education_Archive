@@ -8088,26 +8088,139 @@ window._selectCountry = function(name) {
     if (dropdown) dropdown.style.display = 'none';
 };
 
-// Title equip
-window._equipTitle = function(titleId) {
+// Title & Flair. The server (titleFlair callable) lists what this player has
+// earned and is the only writer of activeTitle and chatFlairEmoji.
+function _tfEsc(v) { return typeof escapeHtml === 'function' ? escapeHtml(String(v == null ? '' : v)) : String(v == null ? '' : v).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function _tfTitleDef(id) {
+    if (!id || typeof TITLE_DEFS === 'undefined') return null;
+    return TITLE_DEFS.find(function(t){ return t.id === id; }) || null;
+}
+function _tfCollections() {
+    return (typeof window !== 'undefined' && Array.isArray(window.BADGE_COLLECTION_DEFS)) ? window.BADGE_COLLECTION_DEFS : [];
+}
+window._tfPreview = { title: undefined, flair: undefined };
+window._renderTitleFlairSection = function() {
+    var u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+    var earnedT = Array.isArray(u.earnedTitles) ? u.earnedTitles : [];
+    var earnedF = Array.isArray(u.earnedFlair) ? u.earnedFlair : [];
+    var active = u.activeTitle || '';
+    var flair = u.chatFlairEmoji || '';
+    var pv = window._tfPreview || {};
+    var showTitle = pv.title !== undefined ? pv.title : active;
+    var showFlair = pv.flair !== undefined ? pv.flair : flair;
+    var tDef = _tfTitleDef(showTitle);
+    var name = _tfEsc(u.username || 'Bitcoiner');
+    var h = '<style>' +
+        '.tf-wrap{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;box-sizing:border-box;max-width:100%;}' +
+        '.tf-h{font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:0 0 10px;}' +
+        '.tf-sub{font-size:0.7rem;color:var(--text-muted);margin:14px 0 8px;font-weight:700;}' +
+        '.tf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;}' +
+        '.tf-card{position:relative;box-sizing:border-box;min-height:64px;padding:8px 6px;border-radius:10px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;min-width:0;}' +
+        '.tf-card .tf-e{font-size:1.25rem;line-height:1;}' +
+        '.tf-card .tf-n{font-size:0.66rem;font-weight:700;line-height:1.2;overflow-wrap:anywhere;}' +
+        '.tf-card.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:rgba(247,147,26,0.10);}' +
+        '.tf-card.on::after{content:"✓";position:absolute;top:3px;right:6px;font-size:0.7rem;font-weight:900;color:var(--accent);}' +
+        '.tf-card.lock{opacity:0.45;filter:grayscale(1);cursor:help;}' +
+        '.tf-prev{border:1px dashed var(--border);border-radius:10px;padding:10px;font-size:0.8rem;line-height:1.5;overflow-wrap:anywhere;}' +
+        '.tf-pill{display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:1px 8px;font-size:0.7rem;font-weight:700;color:#f97316;margin-left:6px;}' +
+        '@media (max-width:420px){.tf-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}.tf-card{min-height:58px;padding:6px 4px;}.tf-card .tf-n{font-size:0.6rem;}}' +
+        '</style>';
+    h += '<div class="tf-wrap" id="titleFlairSection">';
+    h += '<div class="tf-h">🎖️ Title &amp; Flair</div>';
+    h += '<div class="tf-prev" aria-live="polite"><div><strong>' + name + '</strong>' + (tDef ? '<span class="tf-pill">' + tDef.emoji + ' ' + _tfEsc(tDef.title) + '</span>' : '') + '</div>' +
+        '<div style="color:var(--text-muted);">' + (showFlair ? _tfEsc(showFlair) + ' ' : '') + '<strong style="color:var(--text);">' + name + '</strong>: gm, stacking sats 🧡</div></div>';
+    function card(kind, id, emoji, label, isOn, lockTip) {
+        var attrs = lockTip
+            ? ' class="tf-card lock" aria-disabled="true" title="' + _tfEsc(lockTip) + '" onclick="if(typeof showToast===\'function\')showToast(this.title)"'
+            : ' class="tf-card' + (isOn ? ' on' : '') + '" aria-pressed="' + (isOn ? 'true' : 'false') + '" onmouseenter="window._tfHover(\'' + kind + '\',this.dataset.v)" onmouseleave="window._tfHover(\'' + kind + '\')" onclick="window._tfPick(\'' + kind + '\',this.dataset.v)"';
+        return '<button type="button" data-v="' + _tfEsc(id) + '"' + attrs + '><span class="tf-e">' + emoji + '</span><span class="tf-n">' + _tfEsc(label) + '</span></button>';
+    }
+    // Titles: None, then collection titles (locked ones greyed), then earned badge titles.
+    h += '<div class="tf-sub">Title</div><div class="tf-grid">';
+    h += card('title', '', '🚫', 'No title', !active, '');
+    var shown = {};
+    _tfCollections().forEach(function(col) {
+        if (!col.title || !col.title.id) return;
+        shown[col.title.id] = true;
+        var have = earnedT.indexOf(col.title.id) !== -1;
+        h += card('title', col.title.id, col.title.emoji, col.title.title, active === col.title.id, have ? '' : '🔒 Complete the ' + col.name + ' collection');
+    });
+    earnedT.forEach(function(tid) {
+        if (shown[tid]) return;
+        var d = _tfTitleDef(tid);
+        if (d) h += card('title', tid, d.emoji, d.title, active === tid, '');
+    });
+    h += '</div>';
+    // Flair: None, Nook flair, then collection flair.
+    h += '<div class="tf-sub">Chat flair</div><div class="tf-grid">';
+    h += card('flair', '', '🚫', 'No flair', !flair, '');
+    var seenF = {};
+    var nookOwned = Array.isArray(u.ownedCosmetics) && u.ownedCosmetics.indexOf('chat_flair') !== -1;
+    (window.CHAT_FLAIR_NOOK || []).forEach(function(e) {
+        seenF[e] = true;
+        var have = earnedF.indexOf(e) !== -1 || nookOwned;
+        h += card('flair', e, e, 'Nook', flair === e, have ? '' : '🔒 Buy Chat Flair in the Nook');
+    });
+    _tfCollections().forEach(function(col) {
+        if (!col.flair || seenF[col.flair]) return;
+        seenF[col.flair] = true;
+        var have = earnedF.indexOf(col.flair) !== -1;
+        h += card('flair', col.flair, col.flair, col.name, flair === col.flair, have ? '' : '🔒 Complete the ' + col.name + ' collection');
+    });
+    h += '</div></div>';
+    return h;
+};
+window._tfRepaint = function() {
+    var el = document.getElementById('titleFlairSection');
+    if (!el) return;
+    var tmp = document.createElement('div');
+    tmp.innerHTML = window._renderTitleFlairSection();
+    var fresh = tmp.querySelector('#titleFlairSection');
+    var style = tmp.querySelector('style');
+    if (fresh) el.replaceWith(fresh);
+    if (style && !document.getElementById('tfStyle')) { style.id = 'tfStyle'; document.head.appendChild(style); }
+};
+window._tfHover = function(kind, v) {
+    window._tfPreview[kind] = v === undefined ? undefined : (v || '');
+    var el = document.querySelector('#titleFlairSection .tf-prev');
+    if (!el) return;
+    var tmp = document.createElement('div');
+    tmp.innerHTML = window._renderTitleFlairSection();
+    var p = tmp.querySelector('.tf-prev');
+    if (p) el.innerHTML = p.innerHTML;
+};
+window._tfRefresh = function() {
+    if (typeof window._titleFlairCall !== 'function') return;
+    window._titleFlairCall({ action: 'list' }).then(function() { window._tfRepaint(); }).catch(function() {});
+};
+window._tfPick = function(kind, value) {
     var user = auth ? auth.currentUser : null;
     if (!user) { if (typeof showToast === 'function') showToast('Sign in to equip a title'); return; }
     if (user.isAnonymous) { if (typeof showToast === 'function') showToast('Create an account to equip a title'); return; }
-    if (typeof currentUser !== 'undefined' && currentUser) currentUser.activeTitle = titleId || null;
-    if (typeof db !== 'undefined' && db) {
-        db.collection('users').doc(user.uid).update({ activeTitle: titleId || null }).catch(function(){});
-    }
-    var label = '';
-    if (titleId && typeof TITLE_DEFS !== 'undefined') {
-        var tDef = TITLE_DEFS.find(function(t){return t.id===titleId;});
-        if (tDef) label = tDef.emoji + ' ' + tDef.title;
-    }
-    if (typeof showToast === 'function') {
-        showToast(label ? '🎖️ Title equipped: ' + label : 'Title removed');
-    }
-    // Re-render settings to update the pill display
-    if (typeof showSettings === 'function') setTimeout(function(){ showSettings('account'); }, 300);
+    if (typeof window._titleFlairCall !== 'function') return;
+    var payload = { action: 'equip' };
+    payload[kind] = value || null;
+    window._tfPreview = { title: undefined, flair: undefined };
+    window._titleFlairCall(payload).then(function(d) {
+        if (!d || !d.ok) { if (typeof showToast === 'function') showToast('🔒 Not unlocked yet'); return; }
+        var label = '';
+        if (kind === 'title') {
+            var tDef = _tfTitleDef(d.activeTitle);
+            label = tDef ? '🎖️ Title equipped: ' + tDef.emoji + ' ' + tDef.title : 'Title removed';
+        } else {
+            label = d.chatFlairEmoji ? 'Chat flair equipped: ' + d.chatFlairEmoji : 'Chat flair removed';
+        }
+        if (typeof showToast === 'function') showToast(label);
+        window._tfRepaint();
+        var pill = document.getElementById('settingsTitlePill');
+        if (pill) {
+            var t = _tfTitleDef(d.activeTitle);
+            pill.innerHTML = t ? '<div style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;color:#f97316;margin-top:6px;">' + t.emoji + ' ' + _tfEsc(t.title) + '</div>' : '';
+        }
+    }).catch(function() { if (typeof showToast === 'function') showToast('Could not save. Try again.'); });
 };
+// Older callers (profile menus) still use this name.
+window._equipTitle = function(titleId) { window._tfPick('title', titleId || ''); };
 
 // Faction selection. The profile field is server-only. chooseFaction moves
 // this user's unclaimed Satoshi's Favor points in one transaction.
@@ -8267,29 +8380,21 @@ function showSettingsPage(tab) {
         var _titlePillHtml = _activeTitleDef
             ? '<div style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;color:#f97316;margin-top:6px;">' + _activeTitleDef.emoji + ' ' + escapeHtml(_activeTitleDef.title) + '</div><div style="color:var(--text-faint);font-size:0.7rem;margin-top:3px;font-style:italic;">' + escapeHtml(_activeTitleDef.flavor) + '</div>'
             : '';
-        // Build equip title button if user has earned titles
-        var _earnedTitles = currentUser ? currentUser.earnedTitles || [] : [];
         var _equipTitleHtml = '';
-        if (_earnedTitles.length > 0 && typeof TITLE_DEFS !== 'undefined') {
-            var _titleOptions = '<option value="">- No Title -</option>';
-            _earnedTitles.forEach(function(tid) {
-                var tDef = TITLE_DEFS.find(function(t){return t.id===tid;});
-                if (tDef) _titleOptions += '<option value="' + escapeHtml(tDef.id) + '"' + (tDef.id===_activeTitleId?' selected':'') + '>' + tDef.emoji + ' ' + escapeHtml(tDef.title) + '</option>';
-            });
-            _equipTitleHtml = '<div style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;">' +
-                '<span style="font-size:0.8rem;color:var(--text-muted);">🎖️ Equip Title:</span>' +
-                '<select onchange="window._equipTitle(this.value)" style="padding:5px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:inherit;cursor:pointer;">' + _titleOptions + '</select>' +
-                '</div>';
-        }
         html += '<div style="text-align:center;margin-bottom:20px;">' +
             '<div style="margin-bottom:8px;position:relative;display:inline-block;">' + _pfpHtml + '</div>' +
             '<div style="color:var(--heading);font-weight:700;font-size:1.2rem;">' + (currentUser ? currentUser.username || 'Bitcoiner' : 'Bitcoiner') + '</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' XP' + (currentUser && currentUser.faction ? ' · ' + (currentUser.faction === 'cyber_hornets' ? '🐝 Cyber Hornets' : '🦡 Honey Badgers') : '') + '</div>' +
-            _titlePillHtml +
+            '<div id="settingsTitlePill">' + _titlePillHtml + '</div>' +
             _equipTitleHtml +
             '<div style="margin-top:10px;"><a href="/patch-notes.html" id="settingsWhatsNew" onclick="if(window._markPatchSeen)window._markPatchSeen()" style="display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-weight:700;font-size:0.85rem;text-decoration:none;">What\'s new <span class="whats-new-dot" hidden></span></a></div>' +
             '</div>';
 
+        // Title & Flair picker (server-validated). Refreshes from the server once shown.
+        if (!isAnon && typeof window._renderTitleFlairSection === 'function') {
+            html += window._renderTitleFlairSection();
+            setTimeout(function(){ if (window._tfRefresh) window._tfRefresh(); }, 0);
+        }
         // Country selector (custom autocomplete - datalist broken on iOS Safari)
         var _userCountry = currentUser ? currentUser.country || '' : '';
         var _countryXpNudge = !_userCountry ? ' <span style="color:#22c55e;font-size:0.7rem;font-weight:700;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:2px 7px;margin-left:4px;">+100 XP + badge</span>' : '';

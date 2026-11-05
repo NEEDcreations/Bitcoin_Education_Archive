@@ -349,7 +349,7 @@ queue.push(test('the client prompt cannot be skipped and calls setUsername', fun
     assert.ok(ranking.includes('applyServerUsername(name)'));
     assert.ok(ranking.includes('maybeShowUsernameRepick();\n        updateAuthButton();'));
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-    assert.ok(html.indexOf('username-repick.js?v=20261104_v2476') < html.indexOf('ranking.js?v=20261105_v2492'));
+    assert.ok(html.indexOf('username-repick.js?v=20261104_v2476') < html.indexOf('ranking.js?v=20261105_v2500'));
     assert.ok(html.indexOf('ranking.js?v=20261029_v2431') === -1);
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
     const favor = fs.readFileSync(path.join(root, 'satoshi-favor.js'), 'utf8');

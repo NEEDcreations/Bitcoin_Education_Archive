@@ -161,6 +161,8 @@ const BADGE_DEFS = [
     { id: 'lightning_setup', name: 'Lightning Rod', emoji: '⚡', desc: 'Set up a Lightning wallet or added a Lightning address', check: () => localStorage.getItem('btc_lightning_setup') === 'true', pts: 100 },
     { id: 'global_citizen', name: 'Global Citizen', emoji: '🌍', desc: 'Added your country to your profile — representing Bitcoin worldwide', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.country), pts: 100 },
     { id: 'bio_author', name: 'Got Something to Say', emoji: '✍️', desc: 'Added a bio to your profile', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.bio && currentUser.bio.trim().length > 0), pts: 50 },
+    // Was never asked for (no client def), so nobody held it. The server checks the same rule.
+    { id: 'profile_complete', name: 'Filled In', emoji: '🪪', desc: 'Added a username, bio, and country', check: () => typeof currentUser !== 'undefined' && currentUser && typeof currentUser.username === 'string' && currentUser.username.length >= 3 && !!(currentUser.bio && currentUser.bio.trim().length > 0) && typeof currentUser.country === 'string' && currentUser.country.length >= 2, pts: 25 },
     { id: 'lightning_address_set', name: 'Zap Me', emoji: '⚡', desc: 'Added a Lightning Address to your profile', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.lightningAddress || currentUser.lightning), pts: 75 },
 
     // ---- Profile Explorer Badges (viewing other users' profiles) ----
@@ -694,6 +696,25 @@ const TITLE_DEFS = [
 
 let earnedBadges = new Set();
 let badgeCheckInterval = null;
+// Collection titles and the BIP Core Contributor title are listed after the
+// badge titles. The server (titleFlair callable) decides which ones a player holds.
+(function() {
+    var defs = (typeof window !== 'undefined' && Array.isArray(window.BADGE_COLLECTION_DEFS)) ? window.BADGE_COLLECTION_DEFS : [];
+    defs.forEach(function(col) {
+        if (!col || !col.title || !col.title.id) return;
+        if (TITLE_DEFS.some(function(t) { return t.id === col.title.id; })) return;
+        TITLE_DEFS.push({ id: col.title.id, title: col.title.title, emoji: col.title.emoji, requiredBadge: col.bonusId, flavor: col.title.flavor || '', collectionId: col.id, collectionName: col.name, flair: col.flair || '' });
+    });
+    if (!TITLE_DEFS.some(function(t) { return t.id === 'core_contributor'; })) {
+        TITLE_DEFS.push({ id: 'core_contributor', title: 'Core Contributor', emoji: '🔧', requiredBadge: null, flavor: 'Merged this week\'s BIP after 7 daily spins. Bit Devs energy.' });
+    }
+    if (typeof window !== 'undefined') window.TITLE_DEFS = TITLE_DEFS;
+})();
+
+// Nook Chat Flair options. Collection flair is listed on each collection.
+var CHAT_FLAIR_NOOK = ['🔥', '⚡', '🦌', '🧡', '💎', '👑', '🎯', '⛏️', '🟠'];
+if (typeof window !== 'undefined') window.CHAT_FLAIR_NOOK = CHAT_FLAIR_NOOK;
+
 // Session-scoped toast guard: prevents re-toasting badges whose CF award is rolled back.
 // earnedBadges rolls back on CF rejection so the badge can retry next session,
 // but the toast must NOT fire again every 30s while the local condition stays true.
@@ -899,31 +920,45 @@ function checkBadges() {
     }
 }
 
-// Award titles when max-tier badges are earned
-window._checkAndAwardTitles = function(earnedBadgeIds) {
+// Titles are decided and saved by the server (titleFlair callable). This asks
+// it to refresh the list at most once a minute and toasts any new title.
+window._titleFlairState = window._titleFlairState || { at: 0, busy: false };
+window._titleFlairCall = function(payload) {
+    if (typeof firebase === 'undefined' || !firebase.functions) return Promise.reject(new Error('offline'));
+    return firebase.functions().httpsCallable('titleFlair')(payload || {}).then(function(res) {
+        var d = (res && res.data) || {};
+        if (d.ok && typeof currentUser !== 'undefined' && currentUser) {
+            currentUser.earnedTitles = d.titles || [];
+            currentUser.earnedFlair = d.flair || [];
+            currentUser.activeTitle = d.activeTitle || null;
+            currentUser.chatFlairEmoji = d.chatFlairEmoji || null;
+        }
+        return d;
+    });
+};
+window._checkAndAwardTitles = function(earnedBadgeIds, force) {
     var u = typeof currentUser !== 'undefined' ? currentUser : null;
-    if (!u) return;
-    var currentTitles = u.earnedTitles || [];
-    var newTitles = [];
-    TITLE_DEFS.forEach(function(t) {
-        if (earnedBadgeIds.indexOf(t.requiredBadge) !== -1 && currentTitles.indexOf(t.id) === -1) {
-            newTitles.push(t.id);
-        }
-    });
-    if (newTitles.length === 0) return;
-    // Merge and save to Firestore
-    var merged = currentTitles.concat(newTitles);
-    if (typeof currentUser !== 'undefined' && currentUser) currentUser.earnedTitles = merged;
-    if (typeof db !== 'undefined' && db && typeof auth !== 'undefined' && auth && auth.currentUser) {
-        db.collection('users').doc(auth.currentUser.uid).update({ earnedTitles: merged });
+    if (!u || typeof auth === 'undefined' || !auth || !auth.currentUser) return;
+    var st = window._titleFlairState;
+    var now = Date.now();
+    if (st.busy || (!force && now - st.at < 60000)) return;
+    // Only call when a title-giving badge is held that the profile does not list yet.
+    var before = (u.earnedTitles || []).slice();
+    if (!force) {
+        var ids = earnedBadgeIds || [];
+        var missing = TITLE_DEFS.some(function(t) { return t.requiredBadge && ids.indexOf(t.requiredBadge) !== -1 && before.indexOf(t.id) === -1; });
+        if (!missing) return;
     }
-    // Toast/announce each new title
-    newTitles.forEach(function(tid) {
-        var tDef = TITLE_DEFS.find(function(x) { return x.id === tid; });
-        if (tDef && typeof showToast === 'function' && (typeof window.bqModeAllows !== 'function' || window.bqModeAllows('badges'))) {
-            showToast('🎖️ New Title Unlocked: ' + tDef.emoji + ' ' + tDef.title + '!');
-        }
-    });
+    st.busy = true; st.at = now;
+    window._titleFlairCall({ action: 'list' }).then(function(d) {
+        st.busy = false;
+        (d.titles || []).filter(function(tid) { return before.indexOf(tid) === -1; }).forEach(function(tid) {
+            var tDef = TITLE_DEFS.find(function(x) { return x.id === tid; });
+            if (tDef && typeof showToast === 'function' && (typeof window.bqModeAllows !== 'function' || window.bqModeAllows('badges'))) {
+                showToast('🎖️ New Title Unlocked: ' + tDef.emoji + ' ' + tDef.title + '!');
+            }
+        });
+    }).catch(function() { st.busy = false; });
 };
 
 // Major badges that deserve a share prompt
@@ -1437,59 +1472,35 @@ var BADGE_SETS = [
     { id:'set_raffle', name:'Raffle Regular', emoji:'🎟️', color:'#f7931a', badgeIds:['raffle_entered','raffle_10','raffle_50','raffle_250','raffle_1000','raffle_winner'], bonusId:'set_raffle', bonusPts:500, bonusEmoji:'🎟️', bonusName:'Raffle Regular Set', bonusDesc:'Completed the Raffle Regular collection' }
 ];
 
-// Eleven collections. collectionId is not parsed as a badge id.
-// serverBonusPts is the sum of server-paid XP for the old sets, not the
-// client display pts. Fun and Fitness paid 0, so its bonus stays 0.
-var BADGE_COLLECTION_GROUPS = [
-    { collectionId: 'col_learning', name: 'Learning', emoji: '📚', color: '#3b82f6', setIds: ['set_scholar', 'set_scholar_daily', 'set_explorer', 'set_trails'], serverBonusPts: 300 },
-    { collectionId: 'col_daily_habits', name: 'Daily Habits', emoji: '🎯', color: '#f7931a', setIds: ['set_daily', 'set_daily_five', 'set_trifecta', 'set_streak', 'set_spin'], serverBonusPts: 4150 },
-    { collectionId: 'col_mining', name: 'Mining', emoji: '⛏️', color: '#f7931a', setIds: ['set_miner', 'set_favor'], serverBonusPts: 500 },
-    { collectionId: 'col_foresight', name: 'Foresight and Luck', emoji: '🔮', color: '#a78bfa', setIds: ['set_oracle', 'set_raffle'], serverBonusPts: 1000 },
-    { collectionId: 'col_arena', name: 'Arena', emoji: '⚔️', color: '#ec4899', setIds: ['set_pvp', 'set_gladiator', 'set_codebreaker'], serverBonusPts: 1150 },
-    { collectionId: 'col_community', name: 'Community', emoji: '💬', color: '#8b5cf6', setIds: ['set_social', 'set_voice', 'set_network', 'set_irl'], serverBonusPts: 800 },
-    { collectionId: 'col_lightning', name: 'Lightning and Giving', emoji: '⚡', color: '#eab308', setIds: ['set_lightning', 'set_generous'], serverBonusPts: 150 },
-    { collectionId: 'col_builder', name: 'Builder and Market', emoji: '🏗️', color: '#22c55e', setIds: ['set_builder', 'set_trader'], serverBonusPts: 650 },
-    { collectionId: 'col_entertainment', name: 'Entertainment', emoji: '🎵', color: '#f472b6', setIds: ['set_beats', 'set_tctv', 'set_tv'], serverBonusPts: 150 },
-    { collectionId: 'col_profile', name: 'Profile and Setup', emoji: '👤', color: '#6366f1', setIds: ['set_profile', 'set_newcomer', 'set_sovereign'], serverBonusPts: 300 },
-    { collectionId: 'col_fitness', name: 'Fun and Fitness', emoji: '🚶', color: '#84cc16', setIds: ['set_fun', 'set_pow'], serverBonusPts: 0 }
-];
-
-function _shortCollectionSetName(name) {
-    return String(name || '').replace(/^The /, '').replace(/ Set$/, '');
-}
-
+// Collections, titles and flair come from functions/src/collection-groups.json
+// through badges.catalog.js (window.BADGE_COLLECTION_DEFS), the same file the
+// server grants from. Members are explicit badge ids. Long grinds and date-locked
+// badges are standalone Legend badges (window.BADGE_LEGEND_IDS).
 function _buildBadgeCollections() {
-    var byId = {};
-    (BADGE_SETS || []).forEach(function(set) { if (set && set.id) byId[set.id] = set; });
-    return BADGE_COLLECTION_GROUPS.map(function(group) {
-        var badgeIds = [];
-        var seen = {};
-        var bonusPts = Math.max(0, Math.floor(Number(group.serverBonusPts) || 0));
-        var includes = [];
-        (group.setIds || []).forEach(function(setId) {
-            var set = byId[setId];
-            if (!set) return;
-            includes.push(_shortCollectionSetName(set.name));
-            (set.badgeIds || []).forEach(function(badgeId) {
-                if (seen[badgeId]) return;
-                seen[badgeId] = true;
-                badgeIds.push(badgeId);
-            });
-        });
+    var defs = (typeof window !== 'undefined' && Array.isArray(window.BADGE_COLLECTION_DEFS)) ? window.BADGE_COLLECTION_DEFS : [];
+    var cat = (typeof window !== 'undefined' && window.BADGE_CATALOG) ? window.BADGE_CATALOG : {};
+    // A BIP season shows once its badges are in the catalog (BIP Breakthrough release).
+    return defs.filter(function(group) {
+        return group.kind !== 'bip' || (group.badgeIds || []).some(function(id) { return !!cat[id]; });
+    }).map(function(group) {
+        var title = group.title || null;
         return {
-            collectionId: group.collectionId,
-            id: group.collectionId,
+            collectionId: group.id,
+            id: group.id,
             name: group.name,
             emoji: group.emoji,
             color: group.color,
-            setIds: (group.setIds || []).slice(),
-            includes: includes,
-            badgeIds: badgeIds,
-            bonusId: group.collectionId + '_bonus',
-            bonusPts: bonusPts,
+            kind: group.kind || 'core',
+            optional: !!group.optional,
+            includes: title ? ['Title: ' + (title.emoji || '') + ' ' + title.title, 'Flair: ' + (group.flair || '')] : [],
+            badgeIds: (group.badgeIds || []).slice(),
+            bonusId: group.bonusId || (group.id + '_bonus'),
+            bonusPts: 0,
             bonusEmoji: group.emoji,
             bonusName: group.name,
-            bonusDesc: 'Completed the ' + group.name + ' collection'
+            bonusDesc: 'Completed the ' + group.name + ' collection',
+            title: title,
+            flair: group.flair || ''
         };
     });
 }
@@ -1631,7 +1642,7 @@ function _renderBadgeSets(earnedBadges) {
         html += '<div class="bc-card" style="border-color:' + (complete ? col.color + '55' : 'var(--border)') + ';' + (complete ? 'box-shadow:0 0 12px ' + col.color + '22;' : '') + '">';
         html += '<div class="bc-head">';
         html += '<span class="bc-emoji">' + col.emoji + '</span>';
-        html += '<div class="bc-copy"><div class="bc-title">' + escapeHtml(col.name) + '</div>';
+        html += '<div class="bc-copy"><div class="bc-title">' + escapeHtml(col.name) + (col.optional ? ' <span class="bc-flag">optional</span>' : '') + (col.kind === 'meta' ? ' <span class="bc-flag">every collection</span>' : '') + '</div>';
         html += '<div class="bc-sub">' + earnedReq.length + '/' + total;
         if (lists.optional.length) html += ' · ' + optionalHeld + '/' + lists.optional.length + ' optional';
         html += ' · ' + escapeHtml((col.includes || []).join(' · ')) + '</div></div>';

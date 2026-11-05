@@ -1,0 +1,618 @@
+[
+ {
+  "id": "the_completionist",
+  "title": "The Completionist",
+  "emoji": "🗺️",
+  "requiredBadge": "explorer_all",
+  "flavor": "Mapped every corner of the Archive"
+ },
+ {
+  "id": "quest_legend",
+  "title": "Quest Legend",
+  "emoji": "⚔️",
+  "requiredBadge": "quest_100",
+  "flavor": "A hundred quests. Countless battles won."
+ },
+ {
+  "id": "hash_lord",
+  "title": "Hash Lord",
+  "emoji": "☄️",
+  "requiredBadge": "sf_10000_hashes",
+  "flavor": "10,000 nonces ground into dust"
+ },
+ {
+  "id": "hash_god",
+  "title": "Hash God",
+  "emoji": "⚡",
+  "requiredBadge": "sf_100000_hashes",
+  "flavor": "100,000 hashes. You ARE the network."
+ },
+ {
+  "id": "satoshis_chosen",
+  "title": "Satoshi's Chosen",
+  "emoji": "💎",
+  "requiredBadge": "sf_lucky_1000",
+  "flavor": "Fortune favors the relentless"
+ },
+ {
+  "id": "block_solver",
+  "title": "Block Solver",
+  "emoji": "🌞",
+  "requiredBadge": "sf_block_solver",
+  "flavor": "Cracked the code. Won the sats."
+ },
+ {
+  "id": "hodler_supreme",
+  "title": "HODLer Supreme",
+  "emoji": "🪩",
+  "requiredBadge": "streak_365",
+  "flavor": "365 days. No days off."
+ },
+ {
+  "id": "sovereign_individual",
+  "title": "Sovereign Individual",
+  "emoji": "🗽",
+  "requiredBadge": "streak_200",
+  "flavor": "200 days of orange-pilled devotion"
+ },
+ {
+  "id": "the_satellite",
+  "title": "The Satellite",
+  "emoji": "🛰️",
+  "requiredBadge": "tctv_satellite",
+  "flavor": "100 hours deep in the Timechain"
+ },
+ {
+  "id": "timechain_surfer",
+  "title": "Timechain Surfer",
+  "emoji": "🏄",
+  "requiredBadge": "tctv_timechain_surfer",
+  "flavor": "Surfed 100 channels. Seen it all."
+ },
+ {
+  "id": "chat_legend",
+  "title": "Chat Legend",
+  "emoji": "📯",
+  "requiredBadge": "chat_500",
+  "flavor": "The voice of the Archive"
+ },
+ {
+  "id": "the_devoted",
+  "title": "The Devoted",
+  "emoji": "💠",
+  "requiredBadge": "chat_streak_30",
+  "flavor": "30 days of relentless conversation"
+ },
+ {
+  "id": "pvp_legend",
+  "title": "PVP Legend",
+  "emoji": "🥇",
+  "requiredBadge": "pvp_100",
+  "flavor": "100 wins. Undefeated in Bitcoin knowledge."
+ },
+ {
+  "id": "raid_warlord",
+  "title": "Raid Warlord",
+  "emoji": "🔱",
+  "requiredBadge": "raid_100",
+  "flavor": "100 damage dealt. Bosses tremble."
+ },
+ {
+  "id": "dragon_slayer",
+  "title": "Dragon Slayer",
+  "emoji": "🐲",
+  "requiredBadge": "raid_boss_slayer_10",
+  "flavor": "Ten bosses defeated. A true slayer."
+ },
+ {
+  "id": "the_viral_plebian",
+  "title": "The Viral Plebian",
+  "emoji": "👑",
+  "requiredBadge": "referral_100",
+  "flavor": "Orange-pilled 100 souls"
+ },
+ {
+  "id": "satoshis_disciple",
+  "title": "Satoshi's Disciple",
+  "emoji": "🟠",
+  "requiredBadge": "daily_triple_365",
+  "flavor": "365 Daily Trifectas. Absolute dedication."
+ },
+ {
+  "id": "trifecta_legend",
+  "title": "Trifecta Legend",
+  "emoji": "🏆",
+  "requiredBadge": "daily_triple_90",
+  "flavor": "90 consecutive days of learning, trivia, and polling"
+ },
+ {
+  "id": "double_scholar",
+  "title": "Double Scholar",
+  "emoji": "🏛️",
+  "requiredBadge": "cert_double",
+  "flavor": "Bitcoin Scholar AND Protocol Expert"
+ },
+ {
+  "id": "trivia_titan",
+  "title": "Trivia Titan",
+  "emoji": "🏅",
+  "requiredBadge": "trivia_correct_100",
+  "flavor": "100 correct answers. Living Bitcoin encyclopedia."
+ },
+ {
+  "id": "the_devotee",
+  "title": "The Devotee",
+  "emoji": "🔱",
+  "requiredBadge": "trivia_streak_30",
+  "flavor": "30-day trivia streak. No excuses."
+ },
+ {
+  "id": "vinyl_master",
+  "title": "Vinyl Master",
+  "emoji": "🎼",
+  "requiredBadge": "dj_songs_100",
+  "flavor": "100 songs broadcast to the Archive"
+ },
+ {
+  "id": "nachos_confidant",
+  "title": "Nacho's Confidant",
+  "emoji": "🤫",
+  "requiredBadge": "nacho_whisper",
+  "flavor": "500 conversations with the deer himself"
+ },
+ {
+  "id": "regional_leader",
+  "title": "Regional Leader",
+  "emoji": "🌆",
+  "requiredBadge": "irl_host_10",
+  "flavor": "10 Bitcoin events hosted. The community builder."
+ },
+ {
+  "id": "twenty_one_million",
+  "title": "21 Million Dreams",
+  "emoji": "₿",
+  "requiredBadge": "sats_21k",
+  "flavor": "Claimed 21,000 sats. Lived the number."
+ },
+ {
+  "id": "proof_of_pain",
+  "title": "Proof of Pain",
+  "emoji": "🕱️",
+  "requiredBadge": "sf_unlucky_1000",
+  "flavor": "1,000 terrible hashes. Respect."
+ },
+ {
+  "id": "trail_master",
+  "title": "Trail Master",
+  "emoji": "🏁",
+  "requiredBadge": "trail_all",
+  "flavor": "Completed every trail Nacho laid out"
+ },
+ {
+  "id": "to_the_moon",
+  "title": "To the Moon",
+  "emoji": "🌕",
+  "requiredBadge": "pow_km_5000",
+  "flavor": "Walked 5,000km. Unreal."
+ },
+ {
+  "id": "democracy_maxi",
+  "title": "Democracy Maxi",
+  "emoji": "⚖️",
+  "requiredBadge": "poll_100",
+  "flavor": "100 polls voted. The voice of reason."
+ },
+ {
+  "id": "sat_slinger",
+  "title": "Sat Slinger",
+  "emoji": "💰",
+  "requiredBadge": "tip_sats_10k",
+  "flavor": "10,000 sats tipped. Pure generosity."
+ },
+ {
+  "id": "community_darling",
+  "title": "Community Darling",
+  "emoji": "🌟",
+  "requiredBadge": "tip_received_50",
+  "flavor": "50 tips received from the Archive community"
+ },
+ {
+  "id": "time_traveler",
+  "title": "Time Traveler",
+  "emoji": "⏳",
+  "requiredBadge": "predict_correct_100",
+  "flavor": "100 correct predictions. Saw the future."
+ },
+ {
+  "id": "the_long_walker",
+  "title": "The Long Walker",
+  "emoji": "💎",
+  "requiredBadge": "pow_streak_30",
+  "flavor": "30-day Proof of Walk streak. Committed."
+ },
+ {
+  "id": "chancellor",
+  "title": "Chancellor on Brink",
+  "emoji": "📰",
+  "requiredBadge": "hall_of_fame",
+  "flavor": "50 badges. The banks are already nervous."
+ },
+ {
+  "id": "the_archivist_t",
+  "title": "The Archivist",
+  "emoji": "🏛️",
+  "requiredBadge": "the_archive",
+  "flavor": "100 badges. You don't use the Archive — you are it."
+ },
+ {
+  "id": "hall_of_fame_t",
+  "title": "Hall of Fame",
+  "emoji": "🏆",
+  "requiredBadge": "genesis_block",
+  "flavor": "150 badges. A true legend."
+ },
+ {
+  "id": "satoshis_revenge_t",
+  "title": "Satoshi's Revenge",
+  "emoji": "⚔️",
+  "requiredBadge": "satoshis_ghost",
+  "flavor": "200 badges. The network never forgets."
+ },
+ {
+  "id": "satoshis_vendetta_t",
+  "title": "Satoshi's Vendetta",
+  "emoji": "🗡️",
+  "requiredBadge": "block_250",
+  "flavor": "250 badges. Deeper than most will ever go."
+ },
+ {
+  "id": "satoshis_ghost_t",
+  "title": "Satoshi's Ghost",
+  "emoji": "👻",
+  "requiredBadge": "the_hodler",
+  "flavor": "300 badges. So rare nobody knows if it's been done."
+ },
+ {
+  "id": "satoshis_covenant_t",
+  "title": "Satoshi's Covenant",
+  "emoji": "📜",
+  "requiredBadge": "satoshis_covenant",
+  "flavor": "350 badges. Bound to the protocol, forever."
+ },
+ {
+  "id": "satoshis_cipher_t",
+  "title": "Satoshi's Cipher",
+  "emoji": "🔐",
+  "requiredBadge": "satoshis_cipher",
+  "flavor": "400 badges. You have cracked something most never will."
+ },
+ {
+  "id": "grand_scholar",
+  "title": "Grand Scholar",
+  "emoji": "🎓",
+  "requiredBadge": "all_certs",
+  "flavor": "All certifications and trails. The complete picture."
+ },
+ {
+  "id": "jack_of_all_t",
+  "title": "Jack of All Trades",
+  "emoji": "🃏",
+  "requiredBadge": "jack_of_all",
+  "flavor": "A badge in every category. Truly well-rounded."
+ },
+ {
+  "id": "master_miner_t",
+  "title": "Master Miner",
+  "emoji": "⛏️",
+  "requiredBadge": "set_miner_complete",
+  "flavor": "Every mining badge earned. The forge never cools."
+ },
+ {
+  "id": "satoshi_scholar_t",
+  "title": "Satoshi Scholar",
+  "emoji": "🎓",
+  "requiredBadge": "set_scholar_complete",
+  "flavor": "The Scholar Set complete. Knowledge is sovereignty."
+ },
+ {
+  "id": "community_pillar_t",
+  "title": "Community Pillar",
+  "emoji": "🌐",
+  "requiredBadge": "set_social_complete",
+  "flavor": "The Social Set done. The Archive runs on people like you."
+ },
+ {
+  "id": "diamond_hands_set_t",
+  "title": "Diamond Hands",
+  "emoji": "💎",
+  "requiredBadge": "set_streak_complete",
+  "flavor": "The Streak Set finished. Unbreakable."
+ },
+ {
+  "id": "arena_champion_t",
+  "title": "Arena Champion",
+  "emoji": "👑",
+  "requiredBadge": "set_pvp_complete",
+  "flavor": "The Fighter Set complete. Dominant."
+ },
+ {
+  "id": "archive_builder_t",
+  "title": "Archive Builder",
+  "emoji": "🔧",
+  "requiredBadge": "set_builder_complete",
+  "flavor": "The Builder Set done. You shaped this place."
+ },
+ {
+  "id": "world_traveler_t",
+  "title": "World Traveler",
+  "emoji": "🗺️",
+  "requiredBadge": "set_explorer_complete",
+  "flavor": "The Explorer Set complete. Every path walked."
+ },
+ {
+  "id": "bitcoin_cal_hero_t",
+  "title": "Bitcoin Calendar Hero",
+  "emoji": "🎊",
+  "requiredBadge": "set_fun_complete",
+  "flavor": "All calendar badges. You never miss a Bitcoin holiday."
+ },
+ {
+  "id": "challenge_master_t",
+  "title": "Challenge Master",
+  "emoji": "🏅",
+  "requiredBadge": "set_daily_complete",
+  "flavor": "The Daily Set complete. Every day, every challenge."
+ },
+ {
+  "id": "timechain_veteran_t",
+  "title": "Timechain Veteran",
+  "emoji": "🛸",
+  "requiredBadge": "set_tctv_complete",
+  "flavor": "The TCTV Set complete. You've seen everything."
+ },
+ {
+  "id": "lightning_lord_t",
+  "title": "Lightning Lord",
+  "emoji": "⚡",
+  "requiredBadge": "set_lightning_complete",
+  "flavor": "The Lightning Set complete. Pure Bitcoin velocity."
+ },
+ {
+  "id": "trail_blazer_t",
+  "title": "Trail Blazer",
+  "emoji": "🏔️",
+  "requiredBadge": "set_trails_complete",
+  "flavor": "The Trails Set blazed. Nacho is proud."
+ },
+ {
+  "id": "beats_maestro_t",
+  "title": "Beats Maestro",
+  "emoji": "🎤",
+  "requiredBadge": "set_beats_complete",
+  "flavor": "The Beats Set complete. Music and Bitcoin forever."
+ },
+ {
+  "id": "trifecta_god_t",
+  "title": "Trifecta God",
+  "emoji": "🌞",
+  "requiredBadge": "set_trifecta_complete",
+  "flavor": "The Trifecta Set complete. Daily discipline personified."
+ },
+ {
+  "id": "irl_set_t",
+  "title": "IRL Champion",
+  "emoji": "🏟️",
+  "requiredBadge": "set_irl_complete",
+  "flavor": "The IRL Set complete. Bitcoin isn't just on a screen."
+ },
+ {
+  "id": "spin_set_t",
+  "title": "Wheel of Fortune",
+  "emoji": "🎰",
+  "requiredBadge": "set_spin_complete",
+  "flavor": "The Spin Set complete. Fortune favored you enough."
+ },
+ {
+  "id": "pow_set_t",
+  "title": "Proof of Walker",
+  "emoji": "👟",
+  "requiredBadge": "set_pow_complete",
+  "flavor": "The Proof of Walk Set complete. Every step counted."
+ },
+ {
+  "id": "chat_immortal_t",
+  "title": "Chat Immortal",
+  "emoji": "♾️",
+  "requiredBadge": "chat_1000",
+  "flavor": "1,000 messages. You are the chat."
+ },
+ {
+  "id": "reaction_god_t",
+  "title": "Reaction God",
+  "emoji": "🔮",
+  "requiredBadge": "react_500",
+  "flavor": "500 reactions. You feel everything."
+ },
+ {
+  "id": "dj_legend_t",
+  "title": "DJ Legend",
+  "emoji": "🎛️",
+  "requiredBadge": "dj_50",
+  "flavor": "50 DJ sets. The decks are your home."
+ },
+ {
+  "id": "super_fan_t",
+  "title": "Super Fan",
+  "emoji": "🌟",
+  "requiredBadge": "dj_listener_100",
+  "flavor": "100 DJ sets listened to. Front row every time."
+ },
+ {
+  "id": "audiophile_t",
+  "title": "The Audiophile",
+  "emoji": "🎧",
+  "requiredBadge": "beats_500_plays",
+  "flavor": "500 tracks on Bitcoin Beats. Pure devotion."
+ },
+ {
+  "id": "forum_legend_t",
+  "title": "Forum Legend",
+  "emoji": "🏛️",
+  "requiredBadge": "forum_100",
+  "flavor": "100 forum posts. Your words shaped the debate."
+ },
+ {
+  "id": "staff_writer_t",
+  "title": "Staff Writer",
+  "emoji": "🗞️",
+  "requiredBadge": "article_10",
+  "flavor": "10 articles published. The pen is mightier."
+ },
+ {
+  "id": "unstoppable_pvp_t",
+  "title": "Unstoppable",
+  "emoji": "💥",
+  "requiredBadge": "pvp_win_streak_5",
+  "flavor": "5 PVP wins in a row. Nobody can touch you."
+ },
+ {
+  "id": "diamond_hands_100_t",
+  "title": "Diamond Hands",
+  "emoji": "💎",
+  "requiredBadge": "streak_100",
+  "flavor": "100-day streak. Most quit long ago."
+ },
+ {
+  "id": "wheel_addict_t",
+  "title": "Wheel Addict",
+  "emoji": "🎡",
+  "requiredBadge": "spin_streak_30",
+  "flavor": "30-day spin streak. Fortune favors the consistent."
+ },
+ {
+  "id": "century_spinner_t",
+  "title": "Century Spinner",
+  "emoji": "🏅",
+  "requiredBadge": "spin_100",
+  "flavor": "100 spins. No shame, only gains."
+ },
+ {
+  "id": "precision_forecaster_t",
+  "title": "Precision Forecaster",
+  "emoji": "🎯",
+  "requiredBadge": "predict_accuracy_70",
+  "flavor": "70%+ accuracy across 20+ predictions. You see the chart."
+ },
+ {
+  "id": "nostradamus_t",
+  "title": "Nostradamus",
+  "emoji": "🔮",
+  "requiredBadge": "predict_streak_10",
+  "flavor": "10 correct in a row. The oracle speaks."
+ },
+ {
+  "id": "flex_legend_t",
+  "title": "Flex Legend",
+  "emoji": "🦁",
+  "requiredBadge": "flex_legend",
+  "flavor": "1,000 Flex actions. Physical and financial sovereignty."
+ },
+ {
+  "id": "full_stack_human_t",
+  "title": "Full Stack Human",
+  "emoji": "🧬",
+  "requiredBadge": "flex_all_once",
+  "flavor": "Every Flex action done. The complete sovereign."
+ },
+ {
+  "id": "legend_mode_t",
+  "title": "Legend Mode",
+  "emoji": "🏆",
+  "requiredBadge": "combo_legend",
+  "flavor": "All 8 features in one session. A true Archive legend."
+ },
+ {
+  "id": "nachos_bestie_t",
+  "title": "Nacho's Bestie",
+  "emoji": "🧡",
+  "requiredBadge": "nacho_bestie",
+  "flavor": "250 Nacho interactions. He considers you a friend."
+ },
+ {
+  "id": "super_spreader_t",
+  "title": "Super Spreader",
+  "emoji": "📡",
+  "requiredBadge": "referral_50",
+  "flavor": "Referred 50 people. Orange pill machine."
+ },
+ {
+  "id": "sat_hoarder_t",
+  "title": "Sat Hoarder",
+  "emoji": "🏦",
+  "requiredBadge": "sats_10k",
+  "flavor": "10,000 sats claimed. The stack begins."
+ },
+ {
+  "id": "favor_champion_t",
+  "title": "Favor Champion",
+  "emoji": "🏅",
+  "requiredBadge": "sf_contributor_10",
+  "flavor": "10× Satoshi's Favor activated. The community owes you."
+ },
+ {
+  "id": "golden_nonce_t",
+  "title": "Golden Nonce",
+  "emoji": "✨",
+  "requiredBadge": "sf_ultra_low",
+  "flavor": "Hash under 100,000. Almost divine luck."
+ },
+ {
+  "id": "asic_mode_t",
+  "title": "ASIC Mode",
+  "emoji": "🖥️",
+  "requiredBadge": "sf_1000_hashes",
+  "flavor": "1,000 SF hashes. Dedicated."
+ },
+ {
+  "id": "summit_conqueror_t",
+  "title": "Summit Conqueror",
+  "emoji": "🏔️",
+  "requiredBadge": "trail_summit",
+  "flavor": "The hardest Nacho trail. The summit was yours."
+ },
+ {
+  "id": "pow_titan_t",
+  "title": "The Titan",
+  "emoji": "🌍",
+  "requiredBadge": "pow_km_1000",
+  "flavor": "1,000 km walked. A thousand kilometers of conviction."
+ },
+ {
+  "id": "story_master_t",
+  "title": "Story Master",
+  "emoji": "🦧",
+  "requiredBadge": "story_complete",
+  "flavor": "All 7 chapters of Nacho's Story. You know the whole tale."
+ },
+ {
+  "id": "scene_regular_t",
+  "title": "Scene Regular",
+  "emoji": "🗺️",
+  "requiredBadge": "irl_attend_5",
+  "flavor": "5 IRL events attended. You show up in person."
+ },
+ {
+  "id": "tip_magnet_t",
+  "title": "Tip Magnet",
+  "emoji": "🧲",
+  "requiredBadge": "tip_magnet",
+  "flavor": "10 tips received. The community loves what you bring."
+ },
+ {
+  "id": "community_hero_t",
+  "title": "Community Hero",
+  "emoji": "⚡",
+  "requiredBadge": "weekly_hero",
+  "flavor": "Participated in a weekly community challenge. Showed up."
+ }
+]
