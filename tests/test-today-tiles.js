@@ -195,9 +195,11 @@ test('the home card styles a check badge for dark, light, and oled', function ()
     assert.ok(html.includes('id="nqSpinSub"'));
     assert.strictEqual((html.match(/Latest:/g) || []).length, 0);
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
-    assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: After you pick a mode, the Experience section at the top of home folds down and opens again.'));
+    assert.strictEqual((notes.match(/Latest:/g) || []).length, 0);
+    assert.ok(notes.includes('Timechain TV Watch Party: every minute you watch adds sats to a shared pot of sats. When it fills, viewers who watched 30+ minutes split it. Tap "Still watching?" when it pops up so your time counts.'));
     assert.ok(!notes.includes('Latest: New players answer three quick questions'));
+    assert.ok(!notes.includes('Latest: After you pick a mode'));
+    assert.ok(notes.includes('After you pick a mode, the Experience section at the top of home folds down and opens again.'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

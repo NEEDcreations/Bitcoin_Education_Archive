@@ -896,9 +896,11 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const guest = 'Google sign-in now works when you already have an account and were browsing as a guest.';
     const timer = 'The TCTV 0/10 minute timer now counts up live while you watch, and shows Done ✓ at 10.';
     const taper = 'Daily XP is full through 500, half through 900, then a quarter until 1,000. Each tier rounds down. Extra XP is not saved.';
-    const latest = 'Latest: After you pick a mode, the Experience section at the top of home folds down and opens again.';
+    const latest = 'Timechain TV Watch Party: every minute you watch adds sats to a shared pot of sats. When it fills, viewers who watched 30+ minutes split it. Tap "Still watching?" when it pops up so your time counts.';
     assert.ok(notes.includes(latest));
     assert.ok(!notes.includes('Latest: New players answer three quick questions'));
+    assert.ok(!notes.includes('Latest: After you pick a mode'));
+    assert.ok(notes.includes('After you pick a mode, the Experience section at the top of home folds down and opens again.'));
     assert.ok(notes.includes('New players answer three quick questions and get a suggested mode. Switch anytime from the mode bar at the top of home. Your XP and badges count in every mode, Lite too.'));
     assert.ok(notes.includes("The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front."));
     assert.ok(!notes.includes('Latest: The daily wheel'));
@@ -911,7 +913,7 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const inviteFix = 'Fixed: the Invite button and Invites tile on the homepage open your invite card again.';
     const examNote = 'Scholar and Protocol Expert exams keep the answer key on the server, and a passing certificate shows a real verification link.';
     const missingXp = 'Missing XP has been awarded to affected users.';
-    assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
+    assert.strictEqual((notes.match(/Latest:/g) || []).length, 0);
     assert.ok(notes.includes(latest));
     assert.ok(notes.includes(streaksNote));
     assert.ok(!notes.includes('Latest: ' + streaksNote));
