@@ -622,10 +622,12 @@ queue.push(test('a profile badge is recorded with 0 XP and does not touch the po
     const fromMap = await awardBadge(mapDb, admin, 'u', 'say_hi_1', day);
     assert.strictEqual(fromMap.reason, 'legacy');
     assert.strictEqual(mapDb.docs['satoshiFavor/current'], undefined);
-    const fieldDb = memoryDb({ 'users/u': { peerCount: 1, displayBadge: 'peer_1' } });
+    const fieldDb = memoryDb({ 'users/u': { peerCount: 0, displayBadge: 'peer_1', equippedBadge: 'peer_1', earnedHidden: ['peer_1'] } });
     const fromField = await awardBadge(fieldDb, admin, 'u', 'peer_1', day);
-    assert.strictEqual(fromField.reason, 'legacy');
-    assert.strictEqual(fieldDb.docs['users/u/badge_awards/peer_1'].xp, 0);
+    assert.notStrictEqual(fromField.reason, 'legacy');
+    assert.strictEqual(fieldDb.docs['users/u/badge_awards/peer_1'], undefined);
+    assert.strictEqual(fieldDb.docs['users/u'].points || 0, 0);
+    assert.strictEqual(fieldDb.docs['satoshiFavor/current'], undefined);
     const owned = memoryDb({
         'users/u': { sayHiDays: 1, points: 15 },
         'users/u/badge_awards/say_hi_1': { xp: 15, source: 'awardBadge' },
@@ -839,7 +841,30 @@ queue.push(test('badge ladders never pay a harder rung less, and the UI table ma
     const sheetOnly = tableIds.filter(function (id) { return catalogIds.indexOf(id) === -1; });
     const catalogOnly = catalogIds.filter(function (id) { return tableIds.indexOf(id) === -1 && !require('../functions/src/badgeTiers').isTierId(id) && !require('../functions/src/badgeTiers').isCollectionId(id); });
     assert.deepStrictEqual(sheetOnly, ['anon', 'flex_']);
-    assert.deepStrictEqual(catalogOnly, []);
+    // Merged collection bonuses stay out of badge-xp.json so the sheet cannot
+    // replace the remainder amount. The server pays from collection-sets.json.
+    assert.deepStrictEqual(catalogOnly, [
+        'col_arena_bonus', 'col_builder_bonus', 'col_community_bonus', 'col_daily_habits_bonus',
+        'col_entertainment_bonus', 'col_fitness_bonus', 'col_foresight_bonus', 'col_learning_bonus',
+        'col_lightning_bonus', 'col_mining_bonus', 'col_profile_bonus',
+    ]);
+    const serverBonus = {
+        col_arena_bonus: 1150,
+        col_builder_bonus: 650,
+        col_community_bonus: 800,
+        col_daily_habits_bonus: 4150,
+        col_entertainment_bonus: 150,
+        col_fitness_bonus: 0,
+        col_foresight_bonus: 1000,
+        col_learning_bonus: 300,
+        col_lightning_bonus: 150,
+        col_mining_bonus: 500,
+        col_profile_bonus: 300,
+    };
+    catalogOnly.forEach(function (id) {
+        assert.strictEqual(catalog.badges[id].hidden, true, id);
+        assert.strictEqual(catalog.badges[id].xp, serverBonus[id], id);
+    });
     assert.strictEqual(table.badges.flex_.xp, 0);
     assert.strictEqual(table.badges.anon.xp, 0);
     tableIds.forEach(function (id) {
@@ -1221,6 +1246,72 @@ queue.push(test('grantFamily tallies flex claims once, skips earned ids, and doe
     assert.strictEqual(hi.docs['satoshiFavor/current'].points, 1);
     assert.strictEqual(hiStats.awardTx, 1);
     assert.strictEqual(hiStats.outside, 0);
+}));
+
+queue.push(test('60 unbacked legacy records must not unlock jack_of_all or hall_of_fame', async function () {
+    const ids = badgeRules.verifiedIds().filter(function (id) {
+        const rule = badgeRules.ruleFor(id);
+        return rule && rule.source && rule.source.type === 'counter' && rule.xp > 0 && rule.source.gte > 0;
+    }).slice(0, 60);
+    assert.strictEqual(ids.length, 60);
+    const user = {
+        points: 0,
+        displayBadge: ids[0],
+        equippedBadge: ids[1],
+        earnedHidden: ids.slice(0, 10),
+    };
+    const docs = { 'users/u': user };
+    const awardById = {};
+    ids.forEach(function (id) {
+        const row = { source: 'legacy', xp: 0, badge: id };
+        docs['users/u/badge_awards/' + id] = row;
+        awardById[id] = row;
+    });
+    const day = { day: '2026-10-26', nowMs: 1700000000000 };
+    const db = memoryDb(docs);
+    const jack = await awardBadge(db, admin, 'u', 'jack_of_all', day);
+    const hall = await awardBadge(db, admin, 'u', 'hall_of_fame', day);
+    assert.strictEqual(jack.granted, false);
+    assert.strictEqual(jack.reason, 'criteria');
+    assert.strictEqual(hall.granted, false);
+    assert.strictEqual(hall.reason, 'criteria');
+    assert.strictEqual(db.docs['users/u/badge_awards/jack_of_all'], undefined);
+    assert.strictEqual(db.docs['users/u/badge_awards/hall_of_fame'], undefined);
+    assert.strictEqual(db.docs['users/u'].points || 0, 0);
+    assert.strictEqual(db.docs['satoshiFavor/current'], undefined);
+
+    const family = await grantFamily(db, admin, 'u', ['jack_of_all', 'hall_of_fame', ids[0]], day);
+    assert.strictEqual(family[0].reason, 'criteria');
+    assert.strictEqual(family[0].granted, false);
+    assert.strictEqual(family[1].reason, 'criteria');
+    assert.strictEqual(family[1].granted, false);
+    assert.strictEqual(family[2].reason, 'already');
+    assert.strictEqual(db.docs['users/u/badge_awards/jack_of_all'], undefined);
+    assert.strictEqual(db.docs['users/u/badge_awards/hall_of_fame'], undefined);
+
+    const { planUserBadges } = require('../functions/src/badgeXpBackfill');
+    const plan = planUserBadges({
+        user: user,
+        awardIds: ids.concat(['jack_of_all', 'hall_of_fame']),
+        awardById: Object.assign({}, awardById, {
+            jack_of_all: { source: 'legacy', xp: 0 },
+            hall_of_fame: { source: 'legacy', xp: 0 },
+        }),
+    });
+    assert.strictEqual(plan.xp, 0);
+    assert.ok(!plan.topUps.some(function (row) {
+        return row.badgeId === 'jack_of_all' || row.badgeId === 'hall_of_fame';
+    }));
+
+    const backedIds = ids.slice(0, 25);
+    const backed = { 'users/w': { points: 0, visibleBadges: backedIds.slice() } };
+    backedIds.forEach(function (id) {
+        backed['users/w/badge_awards/' + id] = { source: 'legacy', xp: 0, badge: id };
+    });
+    const backedDb = memoryDb(backed);
+    const backedJack = await awardBadge(backedDb, admin, 'w', 'jack_of_all', day);
+    assert.strictEqual(backedJack.granted, true);
+    assert.ok(backedDb.docs['users/w/badge_awards/jack_of_all']);
 }));
 
 queue.push(test('tier badge XP ignores the daily cap (Phil, Nov 2) and is paid once', async function () {

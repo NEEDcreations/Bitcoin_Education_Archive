@@ -13,7 +13,7 @@ const badgeRules = require('./badgeRules');
 const { rewardBlocked } = require('./cipherClaim');
 const { planFavorPoint } = require('./favorPool');
 const { offsetDateKey } = require('./offsetDay');
-const { profileHoldsBadge } = require('./badgeProfile');
+const { serverHoldsBadge, countableAwardIds } = require('./badgeProfile');
 
 const ALIASES = { country_set: 'global_citizen' };
 
@@ -92,7 +92,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
     // tierSet always reads the award docs (even when verified) for the grandfather check.
     const needsAwards = isTierSet || (!verified && rule.source && (rule.source.type === 'awards' || rule.source.type === 'set'));
 
-    return db.runTransaction(async function (t) {
+    const result = await db.runTransaction(async function (t) {
         // Recomputed on every attempt. A retry must not reuse a clock from before the transaction.
         const nowMs = Number(options.nowMs) || Date.now();
         const day = options.day || offsetDateKey(nowMs);
@@ -109,7 +109,9 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         if (awardSnap.exists) {
             return { granted: false, success: false, reason: 'already', awarded: 0, xp: 0, favor: false, badgeId: badgeId };
         }
-        if (profileHoldsBadge(user, badgeId)) {
+        // Only a server-written badge field proves an old grant. displayBadge,
+        // equippedBadge, and earnedHidden are client fields, so they write nothing.
+        if (serverHoldsBadge(user, badgeId)) {
             t.set(awardRef, legacyAward(adminSdk, badgeId, day));
             return {
                 granted: false,
@@ -121,6 +123,11 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
                 favor: false,
                 badgeId: badgeId,
             };
+        }
+        // Old set bonuses stay on profiles that already have them. New grants
+        // are the merged collection bonus, which pays the remainder itself.
+        if (require('./collectionBonus').isRetiredSetBonus(badgeId)) {
+            return { granted: false, success: false, reason: 'retired', awarded: 0, xp: 0, favor: false, badgeId: badgeId };
         }
 
         // flexClaims is the server tally of daily_action_counts, computed
@@ -136,8 +143,13 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         let awardsSnap = null;
         if (needsAwards) awardsSnap = await t.get(userRef.collection('badge_awards'));
         const awardSet = new Set();
+        const awardRows = {};
         if (awardsSnap && typeof awardsSnap.forEach === 'function') {
-            awardsSnap.forEach(function (doc) { awardSet.add(doc.id); });
+            awardsSnap.forEach(function (doc) {
+                if (!doc || !doc.id) return;
+                awardSet.add(doc.id);
+                awardRows[doc.id] = typeof doc.data === 'function' ? (doc.data() || {}) : {};
+            });
         }
         // Tier collection completed only via grandfathered tier records pays 0.
         const grandfatheredOnly = isTierSet && grandfatheredOnlyFrom(awardsSnap, rule.source.members);
@@ -150,7 +162,9 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             const priorSnap = await t.get(db.collection('scholar_exam_keys').where('uid', '==', uid));
             scholarExamPassed = !!require('./scholarExam').passedExam(priorSnap, examType, null);
         }
-        const payingCount = badgeRules.countPaying(awardSet);
+        // Milestones use awards a server-written field backs. An unbacked
+        // legacy row stays in awardSet for set membership and does not count.
+        const payingCount = badgeRules.countPaying(new Set(countableAwardIds(user, awardRows)));
         const signedIn = options.signedIn !== false;
         if (!verified && !badgeRules.meets(rule, user, { awardSet: awardSet, payingCount: payingCount, signedIn: signedIn, flexClaims: flexClaims, scholarExamPassed: scholarExamPassed })) {
             return { granted: false, success: false, reason: 'criteria', awarded: 0, xp: 0, badgeId: badgeId };
@@ -294,8 +308,26 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             favorPoint: favorPoint,
             badgeId: badgeId,
             cosmetic: false,
+            nowMs: nowMs,
+            day: day,
         };
     });
+    if (result && result.granted && options.skipCollections !== true) {
+        const hook = function () {
+            return require('./collectionBonus').maybeGrantForBadge(db, adminSdk, uid, result.badgeId || badgeId, {
+                day: result.day,
+                nowMs: result.nowMs,
+            });
+        };
+        try {
+            await hook();
+        } catch (err) {
+            console.error('[collectionBonus]', err && err.message ? err.message : err);
+            try { await hook(); }
+            catch (err2) { console.error('[collectionBonus] retry', err2 && err2.message ? err2.message : err2); }
+        }
+    }
+    return result;
 }
 
 module.exports = {

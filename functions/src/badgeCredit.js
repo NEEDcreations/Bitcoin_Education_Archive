@@ -11,10 +11,6 @@ function grantApi() {
     return require('./grantBadge');
 }
 
-function rulesApi() {
-    return require('./badgeRules');
-}
-
 async function grantIds(db, adminSdk, uid, ids) {
     if (!uid || !ids || !ids.length) return [];
     const api = grantApi();
@@ -22,15 +18,10 @@ async function grantIds(db, adminSdk, uid, ids) {
     ids.forEach(function (id) {
         if (id && unique.indexOf(id) === -1) unique.push(id);
     });
-    const granted = await api.grantFamily(db, adminSdk, uid, unique);
-    const sets = [];
-    const table = rulesApi().SETS || {};
-    Object.keys(table).forEach(function (setId) {
-        const members = table[setId] || [];
-        if (unique.some(function (id) { return members.indexOf(id) !== -1; })) sets.push(setId);
-    });
-    if (sets.length) await api.grantFamily(db, adminSdk, uid, sets);
-    return granted;
+    // Old set bonuses are not granted here. awardBadge pays a merged
+    // collection bonus, minus bonuses the user already holds, when the
+    // last proven member lands.
+    return api.grantFamily(db, adminSdk, uid, unique);
 }
 
 function dailyTotal(grant, awarded) {
