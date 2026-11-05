@@ -8,6 +8,7 @@
 // Its Favor credit is the backfill's job. Already-owned badges do not read the pool.
 
 const { applyDailyXp } = require('./applyDailyXp');
+const badgeTiers = require('./badgeTiers');
 const badgeRules = require('./badgeRules');
 const { rewardBlocked } = require('./cipherClaim');
 const { planFavorPoint } = require('./favorPool');
@@ -51,6 +52,15 @@ function factionField(faction) {
     return 'unaffiliated';
 }
 
+function grandfatheredOnlyFrom(snap, members) {
+    const byId = {};
+    if (snap && typeof snap.forEach === 'function') {
+        snap.forEach(function (doc) { byId[doc.id] = typeof doc.data === 'function' ? (doc.data() || {}) : {}; });
+    }
+    if (!members || !members.length) return false;
+    return members.every(function (m) { return byId[m] && byId[m].grandfathered === true; });
+}
+
 function legacyAward(adminSdk, badgeId, day) {
     return {
         awardedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
@@ -78,7 +88,9 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
     const stateRef = db.collection('satoshiFavor').doc('current');
     const contributorRef = stateRef.collection('contributors').doc(uid + '_badge_' + badgeId);
     const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
-    const needsAwards = !verified && rule.source && (rule.source.type === 'awards' || rule.source.type === 'set');
+    const isTierSet = !!rule.source && rule.source.type === 'tierSet';
+    // tierSet always reads the award docs (even when verified) for the grandfather check.
+    const needsAwards = isTierSet || (!verified && rule.source && (rule.source.type === 'awards' || rule.source.type === 'set'));
 
     const result = await db.runTransaction(async function (t) {
         // Recomputed on every attempt. A retry must not reuse a clock from before the transaction.
@@ -139,6 +151,11 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
                 awardRows[doc.id] = typeof doc.data === 'function' ? (doc.data() || {}) : {};
             });
         }
+        // Tier collection completed only via grandfathered tier records pays 0.
+        const grandfatheredOnly = isTierSet && grandfatheredOnlyFrom(awardsSnap, rule.source.members);
+        if (isTierSet && !badgeRules.meets(rule, user, { awardSet: awardSet })) {
+            return { granted: false, success: false, reason: 'criteria', awarded: 0, xp: 0, badgeId: badgeId };
+        }
         let scholarExamPassed = false;
         if (!verified && rule.source && rule.source.type === 'scholarExam') {
             const examType = rule.source.examType || 'properties';
@@ -158,14 +175,22 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
         const totalsSnap = await t.get(totalsRef);
 
         const catalogXp = verified && rule.cosmetic ? (Number(rule.displayXp) || 0) : (Number(rule.xp) || 0);
-        const xpGrant = await applyDailyXp(uid, catalogXp, t, { day: day, userRef: userRef, user: user, now: nowMs });
+        // Phil (Nov 2): 5-tier badge XP ignores the daily XP caps. Only when this
+        // transaction proved the server counter itself (not a caller's
+        // verified flag). Once per user: awardSnap above stops repeats.
+        // Tier collections follow the same rule: bypass only when this
+        // transaction proved every member award record itself.
+        const tierBypass = !verified && ((badgeTiers.isTierId(badgeId) && !!rule.source && rule.source.type === 'counter')
+            || (badgeTiers.isCollectionId(badgeId) && isTierSet));
+        const tierXp = grandfatheredOnly ? 0 : (tierBypass ? Math.min(catalogXp, badgeTiers.TIER_XP_MAX) : catalogXp);
+        const xpGrant = await applyDailyXp(uid, tierXp, t, { day: day, userRef: userRef, user: user, now: nowMs, bypass: tierBypass });
         const xp = xpGrant.awarded > 0 ? xpGrant.awarded : 0;
 
         const update = {
             visibleBadges: adminSdk.firestore.FieldValue.arrayUnion(badgeId),
         };
-        if (!rule.cosmetic && rule.xp > 0) update.payingBadgeCount = adminSdk.firestore.FieldValue.increment(1);
-        const tickets = Number(rule.tickets) || 0;
+        if (!rule.cosmetic && rule.xp > 0 && !grandfatheredOnly) update.payingBadgeCount = adminSdk.firestore.FieldValue.increment(1);
+        const tickets = grandfatheredOnly ? 0 : (Number(rule.tickets) || 0);
         if (xp > 0) {
             update.points = adminSdk.firestore.FieldValue.increment(xp);
             update.weeklyXP = adminSdk.firestore.FieldValue.increment(xp);
@@ -177,6 +202,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             badge: badgeId,
             xp: xp,
             requestedXp: catalogXp,
+            dailyCapBypass: tierBypass,
             base: xpGrant.base,
             boosted: xpGrant.boosted,
             doubled: xpGrant.doubled === true,
@@ -186,6 +212,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             source: options.source || 'awardBadge',
             favorPoint: false,
         };
+        if (grandfatheredOnly) awardDoc.grandfathered = true;
         if (options.xpSource) awardDoc.xpSource = String(options.xpSource);
         if (options.backfill === true) awardDoc.backfill = true;
         if (options.ggSkip === true) awardDoc.ggSkip = true;
@@ -199,7 +226,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
 
         let favor = false;
         let favorPoint = false;
-        if (!contributorSnap.exists) {
+        if (!contributorSnap.exists && !grandfatheredOnly) {
             const stateData = stateSnap.exists ? (stateSnap.data() || {}) : {
                 points: 0, favorActive: false, bonusMinutes: 0, eraHashes: 0,
             };
@@ -306,4 +333,5 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
 module.exports = {
     awardBadge: awardBadge,
     cleanId: cleanId,
+    grandfatheredOnlyFrom: grandfatheredOnlyFrom,
 };

@@ -120,6 +120,18 @@ test('an address used by a banned account is rejected', function() {
         otherBanned: true,
     });
     assert.strictEqual(byProfile.code, 'address_banned');
+
+    const savedOnAnother = guard.assessAddressLock({
+        callerUid: 'bob',
+        requested: 'you@wallet.com',
+        saved: '',
+        lockOwner: '',
+        otherInUse: true,
+    });
+    assert.strictEqual(savedOnAnother.ok, false);
+    assert.strictEqual(savedOnAnother.code, 'address_conflict');
+    assert.strictEqual(savedOnAnother.flag, true);
+    assert.ok(savedOnAnother.error.indexOf(EMAIL) !== -1);
     assert.strictEqual(guard.assessBan({ satsDisabled: true }, {}).ok, false);
     assert.strictEqual(guard.assessBan({}, { banned: true }).ok, false);
     assert.strictEqual(guard.assessBan({ satsDisabled: false }, { banned: false }).ok, true);

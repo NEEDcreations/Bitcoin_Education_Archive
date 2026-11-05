@@ -2749,8 +2749,12 @@ window.signInWithNostr = async function() {
                 '<button onclick="nostrSignInWithExtension()" style="width:100%;padding:14px;background:linear-gradient(135deg,rgba(123,45,228,0.2),rgba(123,45,228,0.05));border:2px solid rgba(123,45,228,0.4);border-radius:14px;color:var(--text);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;gap:12px;text-align:left;"><span style="font-size:1.5rem;">🔌</span><div><div style="color:#7B2DE4;">Use Browser Extension</div><div style="color:var(--text-faint);font-size:0.7rem;font-weight:400;margin-top:2px;">Alby, nos2x, or Nostr Connect detected</div></div></button>'
             : '<div style="padding:14px;background:rgba(255,255,255,0.03);border:1px dashed var(--border);border-radius:14px;margin-bottom:12px;display:flex;align-items:center;gap:12px;"><span style="font-size:1.5rem;opacity:0.4;">🔌</span><div><div style="color:var(--text-faint);">No Extension Detected</div><div style="color:var(--text-faint);font-size:0.7rem;margin-top:2px;">Install <a href="https://getalby.com" target="_blank" rel="noopener" style="color:#7B2DE4;">Alby</a> or <a href="https://github.com/nicholasmcconnell/nos2x" target="_blank" rel="noopener" style="color:#7B2DE4;">nos2x</a> for one-click login</div></div></div>') +
             '<div style="display:flex;align-items:center;gap:12px;margin:16px 0;"><div style="flex:1;height:1px;background:var(--border);"></div><span style="color:var(--text-faint);font-size:0.75rem;">or</span><div style="flex:1;height:1px;background:var(--border);"></div></div>' +
-            '<div style="margin-bottom:16px;"><label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:6px;">Paste your nsec (private key)</label><input type="password" id="nostrNsecInput" placeholder="nsec1..." style="width:100%;padding:12px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:monospace;outline:none;box-sizing:border-box;"><div style="color:var(--text-faint);font-size:0.65rem;margin-top:6px;line-height:1.4;">🔒 Your nsec is used <strong>only in your browser</strong> to sign a one-time login event. It is never sent to our servers or stored anywhere.</div></div>' +
+            '<details id="nostrNsecDetails" style="margin-bottom:8px;"><summary style="cursor:pointer;color:var(--text-faint);font-size:0.75rem;">Advanced: sign in with your nsec (not recommended)</summary>' +
+            '<div style="margin:10px 0;padding:10px 12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.4);border-radius:10px;color:#ef4444;font-size:0.75rem;line-height:1.45;">⚠️ <strong>Your nsec controls your whole Nostr identity.</strong> Never paste it into a website you don\'t fully trust. Use a browser extension (Alby, nos2x) or a signer app instead. If you continue, the key stays in this browser tab, is never sent to our servers or saved, and is cleared right after signing.</div>' +
+            '<label style="display:flex;gap:8px;align-items:flex-start;font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;"><input type="checkbox" id="nostrNsecAck"> I understand the risk and still want to use my nsec</label>' +
+            '<div style="margin-bottom:16px;"><label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:6px;">Paste your nsec (private key)</label><input type="password" id="nostrNsecInput" placeholder="nsec1..." autocomplete="off" autocapitalize="off" spellcheck="false" style="width:100%;padding:12px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:monospace;outline:none;box-sizing:border-box;"><div style="color:var(--text-faint);font-size:0.65rem;margin-top:6px;line-height:1.4;">🔒 Your nsec is used <strong>only in your browser</strong> to sign a one-time login event. It is never sent to our servers or stored anywhere.</div></div>' +
             '<button onclick="nostrSignInWithNsec()" id="nostrNsecBtn" style="width:100%;padding:14px;background:#7B2DE4;color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Sign In with nsec</button>' +
+            '</details>' +
             '<div id="nostrAuthStatus" style="margin-top:8px;font-size:0.8rem;text-align:center;min-height:20px;"></div>' +
             '<div style="display:flex;align-items:center;gap:12px;margin:16px 0;"><div style="flex:1;height:1px;background:var(--border);"></div><span style="color:var(--text-faint);font-size:0.75rem;">or</span><div style="flex:1;height:1px;background:var(--border);"></div></div>' +
             '<div><label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:6px;">Paste your npub (public key only)</label><input type="text" id="nostrNpubInput" placeholder="npub1..." style="width:100%;padding:12px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:monospace;outline:none;box-sizing:border-box;"></div>' +
@@ -2779,6 +2783,8 @@ window.nostrSignInWithNsec = async function() {
     var nsec = (document.getElementById('nostrNsecInput').value || '').trim();
     var statusEl = document.getElementById('nostrAuthStatus');
     var btn = document.getElementById('nostrNsecBtn');
+    var ack = document.getElementById('nostrNsecAck');
+    if (!ack || !ack.checked) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Please confirm you understand the risk first (or use an extension).</span>'; return; }
     if (!nsec) { showToast('Please paste your nsec'); return; }
     if (!nsec.startsWith('nsec1')) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Invalid nsec format. Must start with nsec1</span>'; return; }
     btn.disabled = true; btn.textContent = 'Loading crypto library...';
@@ -2807,11 +2813,15 @@ window.nostrSignInWithNsec = async function() {
         var event = { kind: 22242, created_at: Math.floor(Date.now() / 1000), tags: [['challenge', 'btc-edu-' + Date.now()]], content: 'Sign in to Bitcoin Education Archive', pubkey: pubkey };
         event.id = NT.getEventHash(event);
         event.sig = NT.signEvent(event, privkeyHex);
+        // Wipe the private key from memory/DOM before anything goes over the network.
         document.getElementById('nostrNsecInput').value = '';
+        nsec = ''; privkeyHex = ''; decoded = null;
         if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">Verifying signature...</span>';
         await nostrCompleteAuth(pubkey, event.sig, event);
     } catch(e) {
-        console.error('Nostr nsec error:', e);
+        try { document.getElementById('nostrNsecInput').value = ''; } catch(_) {}
+        nsec = '';
+        console.error('Nostr nsec error:', e && e.message ? e.message : 'unknown');
         if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Error: ' + (e.message || 'Failed to sign') + '</span>';
         btn.disabled = false; btn.textContent = 'Sign In with nsec';
     }
@@ -4720,8 +4730,9 @@ function showUsernameRepickPrompt() {
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-labelledby', 'usernameRepickTitle');
+    var _neverNamed = typeof window.usernameNeverPicked === 'function' && typeof currentUser !== 'undefined' && window.usernameNeverPicked(currentUser);
     overlay.innerHTML = '<div class="username-box glass-dark">' +
-        '<h2 id="usernameRepickTitle">Your username needs updating. Please pick a new one</h2>' +
+        '<h2 id="usernameRepickTitle">' + (_neverNamed ? 'Pick a username so you show up on the leaderboard' : 'Your username needs updating. Please pick a new one') + '</h2>' +
         '<p>This stays open until the new name is saved.</p>' +
         '<input type="text" id="usernameRepickInput" placeholder="Enter a username..." maxlength="20" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="Choose a new username">' +
         '<div id="usernameRepickError" role="alert"></div>' +
@@ -6184,6 +6195,7 @@ function _lbRankBox(board) {
         '<input id="lbRankInput-' + board + '" class="lb-rank-input" type="text" maxlength="40" enterkeyhint="search" placeholder="Search username" value="' + escapeHtml(value) + '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" oninput="_lbRankType(\'' + board + '\', this.value)" onkeydown="_lbRankKey(event, \'' + board + '\')">' +
         '<button type="button" class="lb-rank-find" onclick="_lbRankFindMe(\'' + board + '\')">Find me</button>' +
         '</div>' +
+        _lbShareBtn(board) +
         '<div id="lbRankResult-' + board + '" class="lb-rank-result" hidden></div>' +
         '</div>';
 }
@@ -6289,6 +6301,138 @@ async function _lbRankRun(board) {
         _lbRankPaint(board, { status: 'not_found', message: text });
     }
 }
+
+
+// ── Share my rank (one card per board) ──
+// Reads the same leaderboardRank callable as "Find me". No writes.
+var LB_SHARE_NAMES = { xp: 'XP Leaderboard', quest: 'Quests', predict: 'Top Predictors', streak: 'Daily Streaks', pvp: 'PVP Leaderboard' };
+var LB_SHARE_PERIODS = { alltime: 'All Time', weekly: 'This Week', monthly: 'This Month', week: 'This Week', month: 'This Month', current: 'Current' };
+
+function _lbShareSignedIn() {
+    var u = _lbRankAuthUser();
+    return !!(u && !u.isAnonymous && typeof currentUser !== 'undefined' && currentUser);
+}
+
+function _lbShareBtn(board) {
+    if (!_lbShareSignedIn()) return '';
+    return '<button type="button" class="lb-share-btn" data-board="' + board + '" onclick="event.stopPropagation();_lbShareRank(\'' + board + '\')">📤 Share my rank</button>';
+}
+window._lbShareBtn = _lbShareBtn;
+
+function _lbShareLink() {
+    var code = (typeof getReferralCode === 'function') ? getReferralCode() : null;
+    if (!code || !/^[A-Za-z0-9]{6,28}$/.test(String(code))) return 'https://bitcoineducation.quest/';
+    return 'https://bitcoineducation.quest/?ref=' + encodeURIComponent(code) + '&src=lbshare';
+}
+
+// Rank from the public snapshot already on this device. No callable, so no
+// App Check wait. Sharing grants nothing, so a cached rank is fine here.
+function _lbShareSnapRow(docId) {
+    var doc = (typeof _lbSnapRead === 'function' && docId) ? _lbSnapRead(docId) : null;
+    var me = _lbRankAuthUser();
+    var rows = (doc && doc.rows) || [];
+    for (var i = 0; i < rows.length; i++) {
+        if (me && rows[i] && rows[i].uid === me.uid && Number(rows[i].rank) > 0) return rows[i];
+    }
+    return null;
+}
+
+async function _lbShareLookup(board) {
+    if (board === 'pvp') {
+        var pr = _lbShareSnapRow(LB_BOARDS.pvp && LB_BOARDS.pvp.docId);
+        return pr ? { status: 'ok', rank: pr.rank, username: pr.username, scoreText: (pr.wins || 0) + 'W - ' + (pr.losses || 0) + 'L' } : null;
+    }
+    var period = _lbRankPeriod(board);
+    if (board === 'xp') {
+        var xr = _lbShareSnapRow(_lbBoardSpec(period).docId);
+        if (xr) {
+            var xd = { status: 'ok', rank: xr.rank, username: xr.username, score: Number(xr.value) || 0 };
+            xd.scoreText = _lbRankScoreText(board, period, xd);
+            xd.periodName = LB_SHARE_PERIODS[period] || '';
+            return xd;
+        }
+    }
+    // One callable. Its wrapper already waits for App Check once; no second wait.
+    var res = await firebase.functions().httpsCallable('leaderboardRank')({ board: board, period: period, me: true });
+    var d = res && res.data;
+    if (!d || d.status !== 'ok' || !(Number(d.rank) > 0)) return null;
+    d.scoreText = _lbRankScoreText(board, period, d);
+    d.periodName = LB_SHARE_PERIODS[period] || '';
+    return d;
+}
+
+function _lbShareFit(ctx, text, max, size, weight) {
+    var s = size;
+    do { ctx.font = weight + ' ' + s + 'px system-ui,-apple-system,Segoe UI,sans-serif'; s -= 2; } while (ctx.measureText(text).width > max && s > 18);
+}
+
+// Canvas text is drawn as text, never parsed as HTML.
+function _lbShareCanvas(board, d, link) {
+    var W = 1080, H = 1080;
+    var c = document.createElement('canvas'); c.width = W; c.height = H;
+    var ctx = c.getContext('2d');
+    var g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#0b1220'); g.addColorStop(1, '#1a1206');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#f7931a'; ctx.lineWidth = 12; ctx.strokeRect(30, 30, W - 60, H - 60);
+    ctx.textAlign = 'center'; ctx.fillStyle = '#f7931a';
+    ctx.font = '800 52px system-ui,-apple-system,Segoe UI,sans-serif';
+    ctx.fillText('₿ Bitcoin Quest™', W / 2, 140);
+    ctx.fillStyle = '#e2e8f0';
+    var board_ = (LB_SHARE_NAMES[board] || 'Leaderboard') + (d.periodName ? ' · ' + d.periodName : '');
+    _lbShareFit(ctx, board_, W - 160, 46, '700'); ctx.fillText(board_, W / 2, 230);
+    ctx.fillStyle = '#f7931a'; ctx.font = '900 260px system-ui,-apple-system,Segoe UI,sans-serif';
+    ctx.fillText('#' + Math.floor(Number(d.rank)), W / 2, 520);
+    var name = '@' + String(d.username || (currentUser && currentUser.username) || 'Anon').replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 40);
+    ctx.fillStyle = '#ffffff'; _lbShareFit(ctx, name, W - 160, 70, '800'); ctx.fillText(name, W / 2, 640);
+    if (d.scoreText) { ctx.fillStyle = '#cbd5e1'; _lbShareFit(ctx, String(d.scoreText), W - 160, 48, '600'); ctx.fillText(String(d.scoreText), W / 2, 720); }
+    ctx.fillStyle = '#e2e8f0'; ctx.font = '700 44px system-ui,-apple-system,Segoe UI,sans-serif';
+    ctx.fillText('Can you beat me? Learn Bitcoin and climb.', W / 2, 850);
+    ctx.fillStyle = '#f7931a'; _lbShareFit(ctx, link.replace(/^https:\/\//, ''), W - 140, 38, '700');
+    ctx.fillText(link.replace(/^https:\/\//, ''), W / 2, 950);
+    return c;
+}
+window._lbShareCanvas = _lbShareCanvas;
+
+window._lbShareRank = async function (board) {
+    if (!LB_SHARE_NAMES[board]) return;
+    if (!_lbShareSignedIn()) { if (typeof showToast === 'function') showToast('Sign in to share your rank'); return; }
+    if (window._lbSharing) return;
+    window._lbSharing = true;
+    try {
+        var d = await _lbShareLookup(board);
+        if (!d) { if (typeof showToast === 'function') showToast('You are not ranked on this board yet'); return; }
+        var link = _lbShareLink();
+        var canvas = _lbShareCanvas(board, d, link);
+        var text = 'I\u2019m #' + Math.floor(Number(d.rank)) + ' on the Bitcoin Quest\u2122 ' + (LB_SHARE_NAMES[board] || 'leaderboard') + '. Can you beat me?';
+        // Same in-app share sheet as the other share cards (no auto native share).
+        var AS = window.AchievementShare;
+        if (AS && typeof AS.openCanvasSheet === 'function') {
+            AS.openCanvasSheet({ type: 'rank', title: text, name: '@' + String(d.username || (currentUser && currentUser.username) || 'Anon'), url: link, canvas: canvas });
+            return;
+        }
+        var blob = await new Promise(function (r) { canvas.toBlob(r, 'image/png'); });
+        if (blob) {
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob); a.download = 'bitcoin-quest-rank-' + board + '.png';
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+        }
+        try { await navigator.clipboard.writeText(text + ' ' + link); if (typeof showToast === 'function') showToast('Card saved. Invite link copied!'); }
+        catch (e) { if (typeof showToast === 'function') showToast('Card saved. Your link: ' + escapeHtml(link)); }
+    } catch (e) {
+        if (e && (e.name === 'AbortError' || String(e.code || '').indexOf('cancelled') !== -1)) return;
+        console.warn('[LB share]', (e && (e.code || e.name)) || '', (e && e.message) || e);
+        var code = String((e && e.code) || ''), msg = String((e && e.message) || '');
+        var text = 'Could not load your rank. Try again.';
+        if (code.indexOf('resource-exhausted') !== -1) text = 'Too many lookups. Try again in a minute.';
+        else if (code.indexOf('unauthenticated') !== -1 || code.indexOf('permission-denied') !== -1) text = 'Sign in to share your rank';
+        else if (code.indexOf('failed-precondition') !== -1) text = 'Rank lookup is still indexing. Try again shortly.';
+        else if (code.indexOf('app-check') !== -1 || msg.indexOf('App Check') !== -1) text = 'Security check is not ready. Refresh and try again.';
+        if (typeof showToast === 'function') showToast(text);
+    } finally {
+        window._lbSharing = false;
+    }
+};
 
 // Close leaderboard when clicking/tapping outside.
 // Uses capture phase + both mousedown and touchstart so it fires BEFORE
@@ -6912,10 +7056,14 @@ async function toggleLeaderboard() {
     }
 
     try {
-        await _lbAuthReady(15000);
-        if (!((typeof auth !== 'undefined' && auth && auth.currentUser) || (window.auth && window.auth.currentUser))) {
-            lb.innerHTML = '<div style="padding:20px;text-align:center;color:#f97316;">Sign-in is still finishing. <button type="button" onclick="toggleLeaderboard()" style="margin-left:8px;padding:6px 12px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Try again</button></div>';
-            return;
+        // Cached top-25 snapshot (public data) renders immediately; sign-in is only awaited with no cache.
+        var _lbHasCache = !!_lbSnapRead(_lbBoardSpec(window._lbPeriod || 'alltime').docId);
+        if (!_lbHasCache) {
+            await _lbAuthReady(15000);
+            if (!((typeof auth !== 'undefined' && auth && auth.currentUser) || (window.auth && window.auth.currentUser))) {
+                lb.innerHTML = '<div style="padding:20px;text-align:center;color:#f97316;">Sign-in is still finishing. <button type="button" onclick="toggleLeaderboard()" style="margin-left:8px;padding:6px 12px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Try again</button></div>';
+                return;
+            }
         }
         // One snapshot doc. localStorage paints first; refetch when it is older than the board interval.
         var _lbPeriod = window._lbPeriod || 'alltime';
@@ -6965,9 +7113,10 @@ async function toggleLeaderboard() {
         // PVP LEADERBOARD
         html += '<div style="margin-top:24px;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
-            '<h4 style="margin:0;">⚔️ PVP Leaderboard</h4>' +
+            '<h4 style="margin:0;">⚔️ PVP Leaderboard</h4' +
             '<button onclick="event.stopPropagation();enterPVPMode();" style="padding:6px 14px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:8px;color:#fff;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:0.5px;transition:0.2s;">Enter PVP Lobby</button>' +
             '</div>' +
+            _lbShareBtn('pvp') +
             '<div id="pvpLeaderboardList"><div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:8px 0;">Loading PVP rankings...</div></div>' +
         '</div>';
 
@@ -8798,13 +8947,14 @@ function accountDeleteRowHtml(user) {
         html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;">Lifetime withdrawn: ' + satsWithdrawn.toLocaleString() + ' / 15,000 sats</div>';
         html += '</div>';
         var cipherBal = Math.max(0, Math.floor(Number(currentUser && currentUser.cipherSatsBalance) || 0));
-        var cipherReady = cipherBal >= 100 && !satsHeld;
+        var cipherReady = cipherBal >= window.CIPHER_SATS_RULES.min && !satsHeld;
         html += '<div id="cipherSatsBalanceSettings" data-surface="settings" style="background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.45);border-radius:16px;padding:16px;margin-bottom:16px;text-align:center;">';
         html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Cipher sats balance</div>';
         html += '<div id="cipherSatsBalanceSettingsAmount" class="cipher-sats-balance-amount" style="font-size:1.6rem;font-weight:900;color:#f7931a;margin:8px 0;">' + cipherBal.toLocaleString() + ' sats</div>';
         html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">Separate from your faucet balance</div>';
         html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;">Small sats wins from locked ciphers land here.</div>';
         html += '<button id="cipherSatsClaimSettings" type="button" class="cipher-sats-claim-btn" ' + (cipherReady ? '' : 'disabled ') + 'onclick="if(window.claimCipherSats)window.claimCipherSats()" style="width:100%;min-height:44px;padding:12px;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;font-family:inherit;' + (cipherReady ? 'background:#f7931a;color:#fff;cursor:pointer;' : 'background:var(--card-bg);color:var(--text-muted);cursor:default;opacity:0.65;') + '">Claim ' + Math.min(cipherBal, 200).toLocaleString() + ' sats</button>';
+        html += window.cipherSatsHintHtml(cipherBal);
         html += '</div>';
         // ── Overflow queue section ──
         var _pendingOf = currentUser ? parseInt(currentUser.pendingOverflow || 0, 10) : 0;
@@ -8842,12 +8992,20 @@ function accountDeleteRowHtml(user) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
         html += '<div style="font-weight:700;font-size:0.85rem;margin-bottom:12px;color:var(--text);">📋 Requirements</div>';
 
+        // Mirrors the claimSats gates in functions/index.js (FAUCET constants).
+        var _reqLn = currentUser ? (currentUser.lightning || currentUser.lightningAddress || '') : '';
+        var _reqLnOk = !!(_reqLn && typeof clientLnValid === 'function' && clientLnValid(normalizeClientLn(_reqLn)));
+        var _reqLifeLeft = Math.max(0, 15000 - (Number(satsWithdrawn) || 0));
         var checks = [
             { met: !isAnon, label: 'Signed in (not anonymous)', detail: isAnon ? 'Sign in with email, Google, etc.' : '✓ Signed in' },
-            { met: hasEmail, label: 'Email verified', detail: hasEmail ? '✓ ' + user.email : 'Link & verify your email in Account tab' },
+            { met: hasEmail, label: 'Email verified', detail: hasEmail ? '✓ Verified' : 'Link & verify your email in Account tab' },
             { met: acctAgeDays >= 7, label: 'Account age ≥ 7 days', detail: acctAgeDays >= 7 ? '✓ ' + acctAgeDays + ' days old' : acctAgeDays + '/7 days - ' + (7 - acctAgeDays) + ' more to go' },
             { met: channelsRead >= 10, label: 'Read ≥ 10 topics', detail: channelsRead >= 10 ? '✓ ' + channelsRead + ' topics read' : channelsRead + '/10 topics - read ' + (10 - channelsRead) + ' more' },
-            { met: meetsMin, label: 'Minimum 100 sats (1,000 pts)', detail: meetsMin ? '✓ ' + satsBalance + ' sats available' : satsBalance + '/100 sats - earn ' + ((100 - satsBalance) * 10) + ' more XP' }
+            { met: meetsMin, label: 'Minimum 100 sats (1,000 XP)', detail: meetsMin ? '✓ ' + satsBalance + ' sats available' : satsBalance + '/100 sats - earn ' + ((100 - satsBalance) * 10) + ' more XP' },
+            { met: _reqLnOk, label: 'Lightning Address saved', detail: _reqLnOk ? '✓ Saved (locked to your account)' : 'Add one below. It cannot be changed later.' },
+            { met: !onCooldown, label: '1 claim every 24 hours', detail: onCooldown ? 'Next claim in ' + cooldownStr : '✓ Ready' },
+            { met: _reqLifeLeft > 0, label: 'Lifetime limit 15,000 sats', detail: _reqLifeLeft > 0 ? '✓ ' + _reqLifeLeft.toLocaleString() + ' sats left' : 'Lifetime limit reached' },
+            { met: !satsHeld, label: 'Account in good standing', detail: satsHeld ? 'Withdrawals are paused on this account for now' : '✓ One account per person and device' }
         ];
         checks.forEach(function(c) {
             html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">';
@@ -8869,9 +9027,11 @@ function accountDeleteRowHtml(user) {
         html += '• <strong>Daily XP:</strong> full through 500, half through 900, then a quarter until 1,000<br>';
         html += '• Unclaimed sats roll over - no expiration<br>';
         html += '• Payouts via Lightning Network ⚡<br>';
+        html += '• <strong>One account per person.</strong> Shared devices, networks or Lightning Addresses can block a claim<br>';
+        html += '• If you turned on 2FA, you confirm it before claiming. A site-wide daily pool also applies<br>';
         html += '</div>';
         html += '<div style="margin-top:10px;padding:10px 12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;font-size:0.75rem;color:#22c55e;line-height:1.5;">';
-        html += '💚 <strong>Zero fees for you!</strong> We pay all Lightning network fees so you receive the full amount you claim. You earned it!';
+        html += '⚡ <strong>Lightning fee:</strong> a flat ' + window.BQ_LN_FEE_SATS + ' sats comes out of each claim to cover routing. Example: claim 100, receive ' + (100 - window.BQ_LN_FEE_SATS) + '. You always see the fee and the amount you will receive before you confirm.';
         html += '</div></div>';
 
         // Earning guide (collapsible)
@@ -9281,13 +9441,7 @@ function accountDeleteRowHtml(user) {
             '<div style="display:flex;justify-content:space-between;padding:8px 0;"><span style="color:var(--text-muted);font-size:0.85rem;">Session timeout</span><span style="color:var(--text);font-size:0.85rem;">30 minutes inactive</span></div>' +
             '</div>';
 
-        // Password change (only for email/password users)
-        if (user.providerData && user.providerData.some(p => p.providerId === 'password')) {
-            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-                '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Change Password</div>' +
-                '<button onclick="sendPasswordReset()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;">Send Password Reset Email</button>' +
-                '<div id="pwResetStatus" style="margin-top:6px;font-size:0.8rem;"></div></div>';
-        }
+        // (Removed: password reset button. The site has no email+password sign-in, so a reset email was a dead end.)
 
         // Advanced Security (Blocked Users + Danger Zone)
         html += '<button onclick="var p=document.getElementById(\'advSecPanel\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">⚙️ Advanced Security <span>▼</span></button>';
@@ -9424,8 +9578,8 @@ function accountDeleteRowHtml(user) {
         html += '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🧊 Buy Streak Freezes</div>';
         html += '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;">Protect your streak - freezes auto-activate when you miss a day. You have <strong>' + _tcktCount + ' 🏟️ Orange Tickets</strong>.</div>';
         html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
-        html += '<button onclick="_buyStreakFreeze(1)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 1 Freeze<br><span style="font-size:0.7rem;font-weight:400;">5 🏟️ tickets</span></button>';
-        html += '<button onclick="_buyStreakFreeze(3)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 3 Freezes<br><span style="font-size:0.7rem;font-weight:400;">12 🏟️ tickets</span></button>';
+        html += '<button onclick="_buyStreakFreeze(1)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 1 Freeze<br><span style="font-size:0.7rem;font-weight:400;">' + (typeof _nookPrice === 'function' ? _nookPrice('streak_freeze') : 6) + ' 🏟️ tickets</span></button>';
+        html += '<button onclick="_buyStreakFreeze(3)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 3 Freezes<br><span style="font-size:0.7rem;font-weight:400;">' + (typeof _nookPrice === 'function' ? _nookPrice('streak_freeze_3') : 15) + ' 🏟️ tickets</span></button>';
         html += '</div></div>';
         html += statRow('Total Site Visits', totalVisits, '👁️');
         html += statRow('Topics Explored', Math.max(chVisited, localVisited) + ' / ' + Object.keys(CHANNELS).length, '🗺️');
@@ -12484,6 +12638,58 @@ function showSignInPrompt() {
     showUsernamePrompt();
 }
 
+// ===== LIGHTNING FEE (display only) =====
+// The server decides and charges the fee (functions/src/lnFee.js LN_FEE_SATS).
+// This copy only shows the player what will happen before they confirm.
+window.BQ_LN_FEE_SATS = 10;
+window.bqLnFeeQuote = function(gross) {
+    var g = Math.floor(Number(gross) || 0);
+    var fee = window.BQ_LN_FEE_SATS;
+    var net = g - fee;
+    return { gross: g, fee: fee, net: net > 0 ? net : 0, ok: net >= 1 };
+};
+// Resolves true only when the player taps Confirm.
+window.bqConfirmLnFee = function(gross, label) {
+    return new Promise(function(resolve) {
+        var q = window.bqLnFeeQuote(gross);
+        if (!q.ok) {
+            if (typeof showToast === 'function') showToast('This claim is too small to cover the Lightning fee.');
+            resolve(false);
+            return;
+        }
+        var old = document.getElementById('lnFeeConfirmOverlay');
+        if (old) old.remove();
+        var ov = document.createElement('div');
+        ov.id = 'lnFeeConfirmOverlay';
+        ov.setAttribute('role', 'dialog');
+        ov.setAttribute('aria-modal', 'true');
+        ov.setAttribute('aria-labelledby', 'lnFeeConfirmTitle');
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:600000;display:flex;align-items:center;justify-content:center;padding:16px;';
+        var row = 'display:flex;justify-content:space-between;gap:12px;padding:6px 0;font-size:0.88rem;';
+        ov.innerHTML = '<div style="background:var(--bg-side,#14151f);border:1px solid var(--border,#333);border-radius:16px;padding:20px;max-width:360px;width:100%;box-sizing:border-box;">' +
+            '<div id="lnFeeConfirmTitle" style="font-weight:800;font-size:1rem;color:var(--accent,#f7931a);text-align:center;margin-bottom:12px;">Confirm your claim</div>' +
+            '<div style="' + row + 'color:var(--text-muted,#aaa);"><span>' + (label || 'Claim amount') + '</span><span>' + q.gross.toLocaleString() + ' sats</span></div>' +
+            '<div style="' + row + 'color:var(--text-muted,#aaa);"><span>Lightning fee</span><span>−' + q.fee.toLocaleString() + ' sats</span></div>' +
+            '<div style="' + row + 'border-top:1px solid var(--border,#333);margin-top:4px;padding-top:10px;font-weight:800;color:var(--text,#fff);"><span>You will receive</span><span>' + q.net.toLocaleString() + ' sats</span></div>' +
+            '<div style="font-size:0.72rem;color:var(--text-faint,#888);line-height:1.45;margin:8px 0 14px;">Lightning payments cost a small routing fee. We take one flat fee from every claim so the math is simple.</div>' +
+            '<button type="button" id="lnFeeConfirmYes" style="width:100%;min-height:44px;padding:12px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:12px;font-weight:700;font-size:0.92rem;cursor:pointer;font-family:inherit;">Confirm and claim ' + q.net.toLocaleString() + ' sats</button>' +
+            '<button type="button" id="lnFeeConfirmNo" style="width:100%;min-height:44px;padding:10px;margin-top:8px;background:none;border:1px solid var(--border,#333);border-radius:12px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+            '</div>';
+        function done(v) {
+            document.removeEventListener('keydown', onKey, true);
+            ov.remove();
+            resolve(v);
+        }
+        function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); done(false); } }
+        document.addEventListener('keydown', onKey, true);
+        ov.addEventListener('click', function(e) { if (e.target === ov) done(false); });
+        document.body.appendChild(ov);
+        document.getElementById('lnFeeConfirmYes').onclick = function() { done(true); };
+        document.getElementById('lnFeeConfirmNo').onclick = function() { done(false); };
+        setTimeout(function() { var y = document.getElementById('lnFeeConfirmYes'); if (y) y.focus(); }, 30);
+    });
+};
+
 // ===== SATS CLAIM FLOW =====
 window.saveSatsLnAddress = function() {
     var input = document.getElementById('satsLnAddrInput');
@@ -12496,9 +12702,23 @@ window.saveSatsLnAddress = function() {
     openWithdrawalAddress({ mode: 'reset', address: addr, start: addr ? 'confirm' : 'input' });
 };
 
+// Cipher sats claim rules. Mirrors functions/src/cipherSatsClaim.js (CLAIM_MIN,
+// CLAIM_MAX, PLAYER_DAILY_CAP) and cipherClaim.js (MIN_ACCOUNT_AGE_DAYS).
+// The server config doc is admin-only and holds just an on/off flag.
+window.CIPHER_SATS_RULES = { min: 100, max: 200, perDay: 200, ageDays: 7 };
+window.cipherSatsWithdrawHint = function(bal) {
+    var r = window.CIPHER_SATS_RULES;
+    var b = Math.max(0, Math.floor(Number(bal) || 0));
+    var lead = b >= r.min ? 'Ready to withdraw.' : 'Withdraw at ' + r.min + ' sats (' + (r.min - b) + ' more to go).';
+    return lead + ' Up to ' + r.max + ' sats per claim and ' + r.perDay + ' per day. Needs a verified email, an account ' + r.ageDays + '+ days old, and a Lightning Address saved in Settings.';
+};
+window.cipherSatsHintHtml = function(bal) {
+    return '<div class="cipher-sats-hint" role="note" style="font-size:0.72rem;color:var(--text-muted);margin-top:8px;line-height:1.35;">ⓘ ' + escapeHtml(window.cipherSatsWithdrawHint(bal)) + '</div>';
+};
+
 window.claimCipherSats = async function() {
     var bal = Math.max(0, Math.floor(Number(currentUser && currentUser.cipherSatsBalance) || 0));
-    if (bal < 100) return { success: false };
+    if (bal < window.CIPHER_SATS_RULES.min) return { success: false };
     if (window._cipherSatsClaiming) return { success: false };
     if (typeof firebase === 'undefined' || !firebase.functions) {
         if (typeof showToast === 'function') showToast('Sign in to claim cipher sats');
@@ -12506,6 +12726,9 @@ window.claimCipherSats = async function() {
     }
     window._cipherSatsClaiming = true;
     try {
+        var _gross = Math.min(bal, 200);
+        var _ok = await window.bqConfirmLnFee(_gross, 'Cipher sats claim (up to)');
+        if (!_ok) return { success: false, cancelled: true };
         var res = await firebase.functions().httpsCallable('claimCipherSats')({});
         var d = (res && res.data) || {};
         if (!d.success) {
@@ -12515,7 +12738,7 @@ window.claimCipherSats = async function() {
         if (typeof currentUser !== 'undefined' && currentUser && typeof d.balance === 'number') {
             currentUser.cipherSatsBalance = Math.max(0, Math.floor(d.balance));
         }
-        if (typeof showToast === 'function') showToast('⚡ ' + (d.amount || 0) + ' sats sent');
+        if (typeof showToast === 'function') showToast('⚡ ' + (typeof d.sent === 'number' ? d.sent : (d.amount || 0)) + ' sats sent' + (d.fee ? ' (' + d.fee + ' sat Lightning fee)' : ''));
         var host = document.getElementById('nookKeysCiphers');
         if (host && typeof window.renderKeysAndCiphersPanel === 'function') window.renderKeysAndCiphersPanel(host);
         if (document.getElementById('cipherSatsBalanceSettings') && typeof showSettingsPage === 'function') showSettingsPage('sats');
@@ -12570,7 +12793,7 @@ window.initSatsClaim = function() {
     html += '<div style="background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.3);border-radius:10px;padding:12px;margin-bottom:16px;text-align:center;">';
     html += '<div style="font-size:0.75rem;color:var(--text-muted);">You can claim up to</div>';
     html += '<div style="font-size:1.5rem;font-weight:900;color:var(--accent);">⚡ ' + maxClaim + ' sats</div>';
-    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">Zero fees - we cover all routing costs</div>';
+    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">A flat ' + window.BQ_LN_FEE_SATS + ' sat Lightning fee comes out of each claim. You will see the exact amount before you confirm.</div>';
     html += '</div>';
 
     html += '<div id="satsLnPanel">';
@@ -12671,6 +12894,8 @@ window.submitSatsClaim = async function() {
         lnAddr = confirmedAddr;
     }
     claimPayload = { lightningAddress: lnAddr, amount: lnAmt };
+    var feeOk = await window.bqConfirmLnFee(lnAmt, 'Claim amount');
+    if (!feeOk) return;
 
     // Hide previous errors
     if (errorEl) errorEl.style.display = 'none';
@@ -12716,6 +12941,8 @@ window.submitSatsClaim = async function() {
         var result = await claimSats(Object.assign({}, claimPayload, { fingerprint: _fp, turnstileToken: _tsToken }));
         if (result.data && result.data.success) {
             var paidAmount = result.data.amount || 0;
+            var sentAmount = typeof result.data.sent === 'number' ? result.data.sent : paidAmount;
+            var feeAmount = typeof result.data.fee === 'number' ? result.data.fee : 0;
             currentUser.pointsClaimed = (currentUser.pointsClaimed || 0) + (paidAmount * 10);
             currentUser.satsWithdrawn = (currentUser.satsWithdrawn || 0) + paidAmount;
             currentUser.lastSatsClaim = new Date();
@@ -12749,8 +12976,8 @@ window.submitSatsClaim = async function() {
             _celebOverlay.innerHTML = '<div style="background:linear-gradient(135deg,#1a1b2e,#12131f);border:2px solid #f7931a;border-radius:24px;padding:32px;max-width:360px;width:100%;text-align:center;animation:nachoPop 0.4s cubic-bezier(0.175,0.885,0.32,1.275);">' +
                 '<div style="font-size:4rem;margin-bottom:12px;">⚡🎉</div>' +
                 '<h2 style="color:#f7931a;font-size:1.4rem;margin:0 0 8px;">Sats Claimed!</h2>' +
-                '<div style="font-size:2rem;font-weight:900;color:#fff;margin-bottom:8px;">' + paidAmount + ' sats</div>' +
-                '<div style="font-size:0.85rem;color:#94a3b8;line-height:1.5;margin-bottom:16px;">sent to your Lightning wallet ⚡<br>Check your wallet to confirm!</div>' +
+                '<div style="font-size:2rem;font-weight:900;color:#fff;margin-bottom:8px;">' + sentAmount + ' sats</div>' +
+                '<div style="font-size:0.85rem;color:#94a3b8;line-height:1.5;margin-bottom:16px;">sent to your Lightning wallet ⚡' + (feeAmount ? '<br>' + paidAmount + ' claimed − ' + feeAmount + ' sat Lightning fee' : '') + '<br>Check your wallet to confirm!</div>' +
                 '<div style="padding:10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;margin-bottom:12px;">' +
                     '<div style="font-size:0.85rem;color:#f7931a;font-weight:800;">⚡ ' + _remaining.toLocaleString() + ' sats remaining to claim!</div>' +
                     '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:3px;">' + _totalClaimed.toLocaleString() + ' / 15,000 lifetime total claimed</div>' +
@@ -13010,8 +13237,9 @@ window._buyStreakFreeze = async function(amount) {
         if (typeof showToast === 'function') showToast('Sign in to buy streak freezes!');
         return;
     }
-    var COSTS = { 1: 5, 3: 12 };
-    var cost = COSTS[amount] || 5;
+    var COSTS = { 1: 6, 3: 15 };
+    if (typeof _nookPrice === 'function') { COSTS[1] = _nookPrice('streak_freeze'); COSTS[3] = _nookPrice('streak_freeze_3'); }
+    var cost = COSTS[amount] || COSTS[1];
     var currentTickets = currentUser ? (currentUser.orangeTickets || 0) : 0;
     if (currentTickets < cost) {
         if (typeof showToast === 'function') showToast('\u274c Not enough tickets! Need ' + cost + ', have ' + currentTickets);

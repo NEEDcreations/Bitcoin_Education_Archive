@@ -2008,6 +2008,8 @@ window._hideBadgeSetTip = function() {
 // ---- Single floating tooltip for badge taps ----
 window._showBadgeTip = function(e, el) {
     e.stopPropagation();
+    var _tierFam = window._badgeTierFamilyOf && window._badgeTierFamilyOf(el && el.getAttribute('data-badge-id'));
+    if (_tierFam) { window.showBadgeTiers(_tierFam); return; }
     var tip = document.getElementById('badgeFloatTip');
     if (!tip) return;
 
@@ -2160,3 +2162,123 @@ if (window.BadgeSearch && window.BadgeSearch.install) window.BadgeSearch.install
 // Init
 setTimeout(initBadges, 2000);
 
+
+
+// ---- Five-tier badge ladder (Bronze → Diamond) ----
+// Display copy of functions/src/badgeTiers.js ACTIVE + TIER_TICKETS. The server
+// decides awards; this only shows thresholds, rewards and progress. Kept in sync
+// by tests/test-badge-tier-ladder.js.
+var BADGE_TIER_NAMES = [
+    { name: 'Bronze', color: '#cd7f32', glow: 'rgba(205,127,50,0.35)', icon: '🥉' },
+    { name: 'Silver', color: '#c0c7d1', glow: 'rgba(192,199,209,0.35)', icon: '🥈' },
+    { name: 'Gold', color: '#facc15', glow: 'rgba(250,204,21,0.35)', icon: '🥇' },
+    { name: 'Platinum', color: '#a78bfa', glow: 'rgba(167,139,250,0.4)', icon: '🟪' },
+    { name: 'Diamond', color: '#67e8f9', glow: 'rgba(103,232,249,0.45)', icon: '💎' }
+];
+var BADGE_TIER_TICKETS = { 1: 0, 2: 0, 3: 0, 4: 5, 5: 21 };
+var BADGE_TIER_FAMILIES = {
+    tctv_watch: {
+        label: 'Timechain TV Watcher', emoji: '📺', field: 'tctvLifetimeSeconds', unit: 60, unitLabel: 'min watched',
+        how: 'Watch Timechain TV while signed in. Watch time is verified by the server, up to 3 hours a day.',
+        tiers: [[10, 10], [300, 150], [6000, 1000], [30000, 2500], [126000, 5000]]
+    }
+};
+window.BADGE_TIER_FAMILIES = BADGE_TIER_FAMILIES;
+window.BADGE_TIER_TICKETS = BADGE_TIER_TICKETS;
+
+window._badgeTierFamilyOf = function(id) {
+    var m = /^([a-z_]+)_t([1-5])$/.exec(String(id || ''));
+    return (m && Object.prototype.hasOwnProperty.call(BADGE_TIER_FAMILIES, m[1])) ? m[1] : null;
+};
+
+function _tierFmt(n) {
+    n = Number(n) || 0;
+    if (n >= 1000) return n.toLocaleString();
+    return String(n);
+}
+
+window.showBadgeTiers = function(family) {
+    var fam = BADGE_TIER_FAMILIES[family];
+    if (!fam) return;
+    var old = document.getElementById('badgeTierModal');
+    if (old) old.remove();
+    var tip = document.getElementById('badgeFloatTip');
+    if (tip) tip.style.display = 'none';
+
+    var earnedSet;
+    try { earnedSet = window.getEarnedBadges ? window.getEarnedBadges() : earnedBadges; } catch (e) { earnedSet = new Set(); }
+    var cu = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
+    var raw = cu && typeof cu[fam.field] === 'number' && isFinite(cu[fam.field]) ? cu[fam.field] : null;
+    var have = raw === null ? null : Math.max(0, Math.floor(raw / (fam.unit || 1)));
+    var highest = 0;
+    for (var i = 1; i <= 5; i++) if (earnedSet && earnedSet.has && earnedSet.has(family + '_t' + i)) highest = i;
+    if (have !== null) {
+        for (var j = 0; j < 5; j++) if (have >= fam.tiers[j][0] && j + 1 > highest) highest = j + 1;
+    }
+    var next = highest < 5 ? fam.tiers[highest] : null;
+
+    var rows = '';
+    for (var k = 0; k < 5; k++) {
+        var t = BADGE_TIER_NAMES[k], need = fam.tiers[k][0], xp = fam.tiers[k][1], ot = BADGE_TIER_TICKETS[k + 1] || 0;
+        var done = k + 1 <= highest, isNext = k === highest;
+        var pct = done ? 100 : (have === null || !isNext) ? 0 : Math.min(100, Math.floor((have / need) * 100));
+        rows += '<li class="btm-row' + (done ? ' is-done' : '') + (isNext ? ' is-next' : '') + '" style="--tc:' + t.color + ';--tg:' + t.glow + ';">' +
+            '<div class="btm-medal" aria-hidden="true">' + t.icon + '</div>' +
+            '<div class="btm-main">' +
+                '<div class="btm-head"><span class="btm-name">' + t.name + '</span>' +
+                '<span class="btm-state">' + (done ? '✅ Earned' : isNext ? 'Next up' : '🔒 Locked') + '</span></div>' +
+                '<div class="btm-need">' + _tierFmt(need) + ' ' + escapeHtml(fam.unitLabel) + '</div>' +
+                ((isNext && have !== null) ? '<div class="btm-bar" role="progressbar" aria-valuemin="0" aria-valuemax="' + need + '" aria-valuenow="' + Math.min(have, need) + '"><span style="width:' + pct + '%"></span></div><div class="btm-prog">' + _tierFmt(Math.min(have, need)) + ' / ' + _tierFmt(need) + '</div>' : '') +
+                '<div class="btm-rewards"><span class="btm-chip">+' + _tierFmt(xp) + ' XP</span>' + (ot ? '<span class="btm-chip btm-ot">🎟️ ' + ot + ' Orange Tickets</span>' : '') + '</div>' +
+            '</div></li>';
+    }
+    var summary = highest === 5 ? '💎 Maxed out. You hold every tier.'
+        : (have !== null && next) ? (_tierFmt(Math.max(0, next[0] - have)) + ' more ' + escapeHtml(fam.unitLabel.replace(/ watched$/, '')) + ' to ' + BADGE_TIER_NAMES[highest].name)
+        : (highest ? 'You hold ' + BADGE_TIER_NAMES[highest - 1].name + '.' : 'Start earning to unlock Bronze.');
+
+    var ov = document.createElement('div');
+    ov.id = 'badgeTierModal';
+    ov.setAttribute('role', 'dialog');
+    ov.setAttribute('aria-modal', 'true');
+    ov.setAttribute('aria-labelledby', 'btmTitle');
+    ov.innerHTML = '<style>' +
+        '#badgeTierModal{position:fixed;inset:0;z-index:260001;background:rgba(0,0,0,0.78);display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;}' +
+        '#badgeTierModal .btm-card{background:var(--bg-side,#111);border:1px solid var(--border,#333);border-radius:18px;width:100%;max-width:420px;max-height:calc(100vh - 24px);overflow-y:auto;padding:16px 14px 14px;box-sizing:border-box;color:var(--text,#eee);}' +
+        '#badgeTierModal .btm-top{display:flex;align-items:center;gap:10px;margin-bottom:4px;}' +
+        '#badgeTierModal .btm-emoji{font-size:1.8rem;line-height:1;}' +
+        '#badgeTierModal h3{margin:0;font-size:1.05rem;font-weight:800;color:var(--heading,#fff);flex:1;min-width:0;}' +
+        '#badgeTierModal .btm-x{background:none;border:1px solid var(--border,#333);color:var(--text-muted,#aaa);width:36px;height:36px;border-radius:10px;font-size:1rem;cursor:pointer;flex-shrink:0;}' +
+        '#badgeTierModal .btm-how{font-size:0.78rem;color:var(--text-muted,#aaa);line-height:1.45;margin:6px 0 8px;}' +
+        '#badgeTierModal .btm-sum{font-size:0.8rem;font-weight:700;color:var(--accent,#f7931a);margin-bottom:10px;}' +
+        '#badgeTierModal ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;}' +
+        '#badgeTierModal .btm-row{display:flex;gap:10px;align-items:flex-start;padding:10px;border-radius:12px;border:1px solid var(--border,#333);background:var(--card-bg,#181818);opacity:0.7;}' +
+        '#badgeTierModal .btm-row.is-done{opacity:1;border-color:var(--tc);box-shadow:0 0 12px var(--tg);}' +
+        '#badgeTierModal .btm-row.is-next{opacity:1;border-color:var(--tc);border-style:dashed;}' +
+        '#badgeTierModal .btm-medal{font-size:1.5rem;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--tg);flex-shrink:0;}' +
+        '#badgeTierModal .btm-main{flex:1;min-width:0;}' +
+        '#badgeTierModal .btm-head{display:flex;justify-content:space-between;gap:6px;align-items:baseline;flex-wrap:wrap;}' +
+        '#badgeTierModal .btm-name{font-weight:800;color:var(--tc);font-size:0.92rem;}' +
+        '#badgeTierModal .btm-state{font-size:0.68rem;color:var(--text-muted,#aaa);font-weight:700;}' +
+        '#badgeTierModal .btm-need{font-size:0.78rem;color:var(--text,#eee);margin-top:2px;}' +
+        '#badgeTierModal .btm-bar{height:6px;background:var(--border,#333);border-radius:3px;overflow:hidden;margin-top:6px;}' +
+        '#badgeTierModal .btm-bar span{display:block;height:100%;background:var(--tc);border-radius:3px;}' +
+        '#badgeTierModal .btm-prog{font-size:0.66rem;color:var(--text-muted,#aaa);margin-top:2px;}' +
+        '#badgeTierModal .btm-rewards{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}' +
+        '#badgeTierModal .btm-chip{font-size:0.68rem;font-weight:800;padding:2px 8px;border-radius:10px;background:rgba(247,147,26,0.12);border:1px solid rgba(247,147,26,0.3);color:var(--accent,#f7931a);white-space:nowrap;}' +
+        '#badgeTierModal .btm-ot{background:rgba(234,88,12,0.15);border-color:rgba(234,88,12,0.45);color:#fb923c;}' +
+        '</style>' +
+        '<div class="btm-card">' +
+            '<div class="btm-top"><span class="btm-emoji" aria-hidden="true">' + fam.emoji + '</span><h3 id="btmTitle">' + escapeHtml(fam.label) + '</h3>' +
+            '<button type="button" class="btm-x" aria-label="Close">✕</button></div>' +
+            '<div class="btm-how">' + escapeHtml(fam.how) + '</div>' +
+            '<div class="btm-sum">' + summary + '</div>' +
+            '<ol>' + rows + '</ol>' +
+        '</div>';
+    function close() { ov.remove(); document.removeEventListener('keydown', onKey); }
+    function onKey(ev) { if (ev.key === 'Escape') close(); }
+    ov.addEventListener('click', function(ev) { if (ev.target === ov) close(); });
+    ov.querySelector('.btm-x').addEventListener('click', close);
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(ov);
+    try { ov.querySelector('.btm-x').focus(); } catch (e) {}
+};

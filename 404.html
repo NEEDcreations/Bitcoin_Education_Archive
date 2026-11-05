@@ -73,7 +73,7 @@
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" as="script" integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" as="script" integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" as="script" integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous">
-    <link rel="preload" href="bundle.min.js?v=20261101_v2459" as="script">
+    <link rel="preload" href="bundle.min.js?v=20261104_v2478" as="script">
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
@@ -860,6 +860,13 @@
         #todayFavorKicker { font-size: 0.68rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
         #todayFavorTitle { flex: 1 1 auto; min-width: 0; font-size: 0.95rem; font-weight: 900; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         #todayFavorPoints { display: none !important; }
+        #todayFavorRemain { display: block; font-size: 0.72rem; font-weight: 800; white-space: normal; line-height: 1.2; opacity: 0.92; }
+        #todayFavorInfo { flex: 0 0 auto; width: 26px; height: 26px; min-width: 26px; border-radius: 50%; border: 2px solid #1a1208; background: transparent; color: #1a1208; font: italic 800 0.8rem/1 Georgia, serif; cursor: help; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+        .nacho-yield-favor { opacity: 0 !important; transition: opacity 0.15s; }
+        .nacho-yield-favor, .nacho-yield-favor * { pointer-events: none !important; }
+        #todayFavorInfo:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+        #todayFavorTip { margin: 0; padding: 10px 14px; font-size: 0.78rem; line-height: 1.45; background: var(--card-bg, #161616); color: var(--text, #eee); border-bottom: 1px solid var(--accent, #f7931a); }
+        #todayFavorTip[hidden] { display: none !important; }
         #todayFavorCountdown { flex: 0 0 auto; font-variant-numeric: tabular-nums; font-weight: 800; font-size: 0.9rem; background: transparent; border-radius: 0; padding: 0; white-space: nowrap; }
         #todayFavorCountdown:not([hidden])::before { content: '⏱ '; }
         #todayFavorCountdown[hidden] { display: none !important; }
@@ -1247,6 +1254,15 @@
     body.chat-fab-hidden #aiToolsBtn,
     body.chat-fab-hidden #dashboardFloatBtn,
     body.chat-fab-hidden #lbFloatBtn { display:none !important; }
+    /* Chat and the ⋯ tools toggle stay put while chat, the chat hub, DMs or any
+       other panel is open. Only the on-screen keyboard (kb-open) may cover them. */
+    body.fab-hold:not(.kb-open) #chatOverlayBtn,
+    body.fab-hold:not(.kb-open) #fabExpandBtn { visibility: visible !important; }
+    body.chat-panel-open:not(.kb-open) #chatOverlayBtn,
+    body.chat-panel-open:not(.kb-open) #fabExpandBtn,
+    body.chat-panel-open.fab-tools-open:not(.kb-open) #aiToolsBtn,
+    body.chat-panel-open.fab-tools-open:not(.kb-open) #dashboardFloatBtn,
+    body.chat-panel-open.fab-tools-open:not(.kb-open) #lbFloatBtn { z-index: 250002 !important; }
     .whats-new-dot { width:8px; height:8px; border-radius:50%; background:#f7931a; display:inline-block; }
     .whats-new-dot[hidden] { display:none !important; }
     #bnavSettings .whats-new-dot { position:absolute; top:6px; right:18%; }
@@ -1778,9 +1794,11 @@
                         <div id="todayFavorTitle">Satoshi's Favor</div>
                         <div id="todayFavorPoints">Earn Favor daily, payouts every epoch</div>
                         <div id="todayFavorCountdown" aria-live="polite" hidden></div>
+                        <button type="button" id="todayFavorInfo" aria-label="How Satoshi's Favor points work" aria-expanded="false" aria-controls="todayFavorTip">i</button>
                         <span class="today-favor-go" aria-hidden="true">›</span>
                         <button type="button" id="todayEarnFavor" onclick="if(window.todayEarnFavor)window.todayEarnFavor()">Earn Favor</button>
                     </div>
+                    <div id="todayFavorTip" role="tooltip" hidden><strong>How to earn points:</strong> finish all three daily quests (+1) or level up (+1, more on milestone levels). This is a <strong>community total</strong>: every player's points add up, and at 21 points Satoshi's Favor activates for everyone.</div>
                     <div class="today-body">
                         <div class="today-check-head">
                             <h2 id="todayCardTitle">Today</h2>
@@ -2220,17 +2238,17 @@
     <!-- App Check loads in the head, before auth-boot. ranking.js activates it only if that boot did not. -->
     <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs, before bundle -->
     <script src="push-prefs.js?v=20261022_v2322" defer></script>
-    <script src="username-repick.js?v=20261024_v2352" defer></script>
+    <script src="username-repick.js?v=20261104_v2476" defer></script>
     <script src="earn-xp-guide.js?v=20261026_v2382" defer></script>
-    <script src="referral-tiers.js?v=20261101_v2459" defer></script>
-    <script src="ranking.js?v=20261101_v2459" defer></script>
+    <script src="referral-tiers.js?v=20261101_v2458" defer></script>
+    <script src="ranking.js?v=20261104_v2476" defer></script>
     <!-- Critical: needed for initial page render -->
-    <script src="bundle.min.js?v=20261101_v2459" defer fetchpriority="high"></script>
+    <script src="bundle.min.js?v=20261104_v2478" defer fetchpriority="high"></script>
     <script src="bundle-ready.js?v=20261027_v2394" defer></script>
     <script src="features.registry.js?v=20261031_v2452" defer></script>
-    <script src="tctv-watch.js?v=20261031_v2448" defer></script>
-    <script src="today-card.js?v=20261031_v2448" defer></script>
-    <script src="achievement-share.js?v=20261031_v2447" defer></script>
+    <script src="tctv-watch.js?v=20261102_v2464" defer></script>
+    <script src="today-card.js?v=20261104_v2472" defer></script>
+    <script src="achievement-share.js?v=20261104_v2476" defer></script>
     <script src="miniapp-share.js?v=20261031_v2447" defer></script>
     <script src="pvp-lobby-alert.js?v=20261031_v2447" defer></script>
     <script src="patches.js?v=20261026_v2385" defer></script>
@@ -2245,16 +2263,16 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261031_v2452',
-            'satoshi-favor.js?v=20261026_v2368'
+            'global-chat.js?v=20261104_v2477',
+            'satoshi-favor.js?v=20261104_v2472'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261031_v2452',
+            'quests.js?v=20261104_v2477',
             'hot-topics.js?v=20261022_hottopics',
-            'pvp.js?v=20261031_v2447','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261031_v2451',
+            'pvp.js?v=20261031_v2447','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261102_v2463',
             'scholar.js?v=20261026_v2386','beats.js?v=20261031_v2447',
-            'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261022_v2279',
-            'notifications.js?v=20261024_v2357','gifting.js?v=20261031_v2450','guide.js?v=20261026_v2382','modules.js?v=20261026_v2377',
+            'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261104_v2472',
+            'notifications.js?v=20261024_v2357','gifting.js?v=20261102_v2465','guide.js?v=20261026_v2382','modules.js?v=20261026_v2377',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20261028_v2410',
             'sats-vs-bits.js?v=20261030_v2440','tips-integrations.js?v=20260307','wallet-router.js?v=20260524',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
@@ -2514,20 +2532,20 @@
         }
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261031_v2447', 'global-chat.js?v=20261031_v2452'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261031_v2447', 'global-chat.js?v=20261031_v2452'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261031_v2452'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261031_v2452'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261031_v2447', 'global-chat.js?v=20261104_v2477'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261031_v2447', 'global-chat.js?v=20261104_v2477'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261104_v2477'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261104_v2477'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
-            'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261022_v2279'],
+            'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261104_v2472'],
             'pvp':           ['pvp.js?v=20261031_v2447'],
             'proof-of-play': ['pvp.js?v=20261031_v2447', 'proof-of-play.js?v=20261031_v2447'],
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
             'trails':        ['modules.js?v=20261026_v2377'],
             'learning-quests': ['learning-quests.js?v=20261026_v2377'],
-            'quests':        ['quests.js?v=20261031_v2452'],
-            'questhub':      ['quests.js?v=20261031_v2452'],
-            'app':           ['quests.js?v=20261031_v2452'],
+            'quests':        ['quests.js?v=20261104_v2477'],
+            'questhub':      ['quests.js?v=20261104_v2477'],
+            'app':           ['quests.js?v=20261104_v2477'],
             'timechain-tv':  ['timechain-tv.js?v=20261031_v2447'],
             'tv':            ['timechain-tv.js?v=20261031_v2447'],
             'cert':          ['shareable-certs.js?v=20261028_v2410']

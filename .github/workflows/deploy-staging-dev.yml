@@ -1,0 +1,25 @@
+name: Deploy staging (dev.bitcoineducation.quest)
+on:
+  push:
+    branches: [gh-pages]
+  workflow_dispatch:
+concurrency:
+  group: staging-dev
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build staging copy (staging Firebase config, noindex, badge; fails if any live key remains)
+        env:
+          STAGING_APPCHECK_DEBUG_TOKEN: ${{ secrets.STAGING_APPCHECK_DEBUG_TOKEN }}
+        run: bash scripts/build-staging.sh
+      - name: Deploy to Cloudflare Pages bq-staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_STAGING_PAGES_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: bc12a6ce8540408b7552f1d658c45bf7
+        run: npx --yes wrangler@3 pages deploy out --project-name bq-staging --branch main --commit-dirty=true

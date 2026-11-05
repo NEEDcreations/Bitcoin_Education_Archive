@@ -195,6 +195,9 @@ collectionBonus.collections().forEach(function (col) {
         hidden: true,
     };
 });
+// 5-tier families (badgeTiers). Display XP is capped at the server's
+// per-badge XP_CAP so the card never promises more than awardBadge pays.
+Object.assign(extra, require('./badgeTiers').catalogExtras(5000));
 
 const badges = {};
 Object.keys(serverXp).forEach(function (id) {

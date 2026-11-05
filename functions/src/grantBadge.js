@@ -45,7 +45,7 @@ function canPrecheck(rule) {
     const type = rule.source.type;
     return type === 'counter' || type === 'arrayLength' || type === 'flex' || type === 'flexSum'
         || type === 'flexAll' || type === 'truthy' || type === 'either' || type === 'text'
-        || type === 'includes' || type === 'awards' || type === 'set' || type === 'accuracy'
+        || type === 'includes' || type === 'awards' || type === 'set' || type === 'tierSet' || type === 'accuracy'
         || type === 'ghostReader' || type === 'silentDonor' || type === 'profile' || type === 'signed-in';
 }
 
@@ -207,6 +207,7 @@ const FAMILY = {
     predTopWeeks: ['predict_top_week', 'predict_top_week_5'],
     predTopMonths: ['predict_top_month'],
     questDays: ['quest_days_7', 'quest_days_30', 'quest_days_100'],
+    tctvLifetimeSeconds: require('./badgeTiers').familyForField('tctvLifetimeSeconds').concat(Object.keys(require('./badgeTiers').COLLECTIONS)),
     tctvWatchDays: ['tctv_daily_1', 'tctv_daily_7', 'tctv_daily_30', 'tctv_daily_100'],
     onboardingComplete: ['onboarding_complete'],
     pushEnabled: ['push_enabled'],

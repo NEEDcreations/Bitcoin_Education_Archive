@@ -1,3 +1,15 @@
+// Difficulty History compact formatters (mobile fit): 44486 -> "44.5k", "2026-06-02" -> "6/2/26"
+function _sfCompactNum(n) {
+    n = Number(n) || 0;
+    var a = Math.abs(n);
+    if (a >= 1e6) return (n / 1e6).toFixed(a >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M';
+    if (a >= 1e4) return (n / 1e3).toFixed(a >= 1e5 ? 0 : 1).replace(/\.0$/, '') + 'k';
+    return n.toLocaleString('en-US');
+}
+function _sfShortDate(d) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d || ''));
+    return m ? (parseInt(m[2], 10) + '/' + parseInt(m[3], 10) + '/' + m[1].slice(2)) : String(d || '');
+}
 const QUESTION_BANK = {
     "whitepaper": [
         { q: "When was the Bitcoin Whitepaper published?", a: "October 31, 2008", wrong: ["January 3, 2009", "March 15, 2007", "December 25, 2010"] },
@@ -2544,18 +2556,16 @@ function _renderFavorTab(body) {
             { date: '2026-06-21', target: 30000, label: '-96.67% drop' },
             { date: '2026-06-30', target: 15000, label: '+100% raise' },
         ];
-        var _dhHtml = '<div style="margin-top:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">' +
+        var _dhHtml = '<style>' +
+            '.sf-dh-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}' +
+            '.sf-dh{width:100%;border-collapse:collapse;font-size:0.68rem;font-variant-numeric:tabular-nums;}' +
+            '.sf-dh th,.sf-dh td{white-space:nowrap;}' +
+            '@media (max-width:480px){.sf-dh{font-size:0.6rem;}.sf-dh th,.sf-dh td{padding:3px 2px;}.sf-dh .sf-dh-mono{font-family:inherit;}}' +
+            '@media (max-width:340px){.sf-dh{font-size:0.54rem;}.sf-dh th,.sf-dh td{padding:3px 1px;}}' +
+            '</style>' +
+            '<div style="margin-top:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">' +
             '<div style="font-size:0.82rem;font-weight:800;color:var(--heading);margin-bottom:8px;">\uD83D\uDCCA Difficulty History</div>' +
-            '<table style="width:100%;border-collapse:collapse;font-size:0.68rem;table-layout:fixed;">' +
-            '<colgroup>' +
-                '<col style="width:22%">' +
-                '<col style="width:13%">' +
-                '<col style="width:14%">' +
-                '<col style="width:17%">' +
-                '<col style="width:8%">' +
-                '<col style="width:14%">' +
-                '<col style="width:12%">' +
-            '</colgroup>' +
+            '<div class="sf-dh-wrap"><table class="sf-dh">' +
             '<thead><tr style="color:var(--text-faint);">' +
                 '<th style="text-align:left;padding:3px 4px;border-bottom:1px solid var(--border);">Date</th>' +
                 '<th style="text-align:right;padding:3px 4px;border-bottom:1px solid var(--border);">Target</th>' +
@@ -2569,12 +2579,13 @@ function _renderFavorTab(body) {
         _dh.forEach(function(row, i) {
             var isCurrent = (i === _dh.length - 1);
             var prevTarget = i > 0 ? _dh[i - 1].target : null;
-            var odds = '1:' + Math.round(100000000 / row.target).toLocaleString();
+            var odds = '1:' + _sfCompactNum(Math.round(100000000 / row.target));
             var changeColor = !prevTarget ? 'var(--text-faint)' : (row.target < prevTarget ? '#22c55e' : '#ef4444');
             var changeTxt = row.label || (!prevTarget ? 'Genesis' : (((row.target - prevTarget) / prevTarget * 100).toFixed(2) + '%'));
+            changeTxt = String(changeTxt).replace(/(\d+\.\d{2,})%/, function(m, n) { return parseFloat(n).toFixed(1) + '%'; }); // -96.67% -> -96.7% (mobile fit)
             // Hashes: use static value from SF_DIFFICULTY_HISTORY for past periods; live cell for current
             var hashTxt = isCurrent ? '<span id="sfHashesRow' + i + '">\u2026</span>' :
-                (row.hashes != null ? row.hashes.toLocaleString() : '—');
+                (row.hashes != null ? _sfCompactNum(row.hashes) : '—');
             // Luck: null = current period (live) or genesis period (0 blocks)
             var luckTxt, luckColor;
             if (isCurrent) {
@@ -2592,16 +2603,16 @@ function _renderFavorTab(body) {
                 ? 'color:var(--heading);background:rgba(247,147,26,0.08);outline:2px solid #f7931a;outline-offset:-2px;'
                 : 'color:var(--text-muted);';
             var currentDateCell = isCurrent
-                ? '<span style="display:block;font-weight:700;">' + row.date + '</span><span style="display:inline-block;margin-top:2px;font-size:0.58rem;font-weight:800;background:#f7931a;color:#000;border-radius:3px;padding:0px 4px;letter-spacing:0.03em;">CURRENT</span>'
-                : row.date;
+                ? '<span style="display:block;font-weight:700;" title="' + row.date + '">' + _sfShortDate(row.date) + '</span><span style="display:inline-block;margin-top:2px;font-size:0.5rem;font-weight:800;background:#f7931a;color:#000;border-radius:3px;padding:0px 4px;letter-spacing:0.03em;">CURRENT</span>'
+                : '<span title="' + row.date + '">' + _sfShortDate(row.date) + '</span>';
             _dhHtml += '<tr style="' + currentRowStyle + '">' +
-                '<td style="padding:4px 4px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + currentDateCell + '</td>' +
-                '<td style="text-align:right;padding:4px 4px;font-family:monospace;' + (isCurrent ? 'font-weight:700;color:#22c55e;' : '') + '">' + row.target.toLocaleString() + '</td>' +
-                '<td style="text-align:right;padding:4px 4px;color:' + changeColor + ';' + (isCurrent ? 'font-weight:700;' : '') + 'white-space:nowrap;">' + changeTxt + '</td>' +
-                '<td style="text-align:right;padding:4px 4px;white-space:nowrap;">' + odds + '</td>' +
-                '<td id="sfBlocksRow' + i + '" style="text-align:right;padding:4px 4px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + (isCurrent ? '\u2026' : '0') + '</td>' +
-                '<td style="text-align:right;padding:4px 4px;font-family:monospace;">' + hashTxt + '</td>' +
-                '<td style="text-align:right;padding:4px 4px;font-weight:600;color:' + luckColor + ';white-space:nowrap;">' + luckTxt + '</td>' +
+                '<td style="' + (isCurrent ? 'font-weight:700;' : '') + '">' + currentDateCell + '</td>' +
+                '<td style="text-align:right;' + (isCurrent ? 'font-weight:700;color:#22c55e;' : '') + '">' + _sfCompactNum(row.target) + '</td>' +
+                '<td style="text-align:right;color:' + changeColor + ';' + (isCurrent ? 'font-weight:700;' : '') + 'white-space:nowrap;">' + changeTxt + '</td>' +
+                '<td style="text-align:right;white-space:nowrap;">' + odds + '</td>' +
+                '<td id="sfBlocksRow' + i + '" style="text-align:right;' + (isCurrent ? 'font-weight:700;' : '') + '">' + (isCurrent ? '\u2026' : '0') + '</td>' +
+                '<td style="text-align:right;">' + hashTxt + '</td>' +
+                '<td style="text-align:right;font-weight:600;color:' + luckColor + ';white-space:nowrap;">' + luckTxt + '</td>' +
             '</tr>';
         });
         // Totals row — static hashes for past periods; live cells for current-period contribution
@@ -2615,15 +2626,15 @@ function _renderFavorTab(body) {
         });
         _dhHtml +=
             '<tr id="sfDifficultyTotalsRow" style="color:var(--text-faint);border-top:1px solid var(--border);font-size:0.68rem;">' +
-                '<td style="padding:4px 4px;font-weight:700;color:var(--text-muted);">Total</td>' +
-                '<td style="padding:4px 4px;"></td>' +
-                '<td style="padding:4px 4px;"></td>' +
-                '<td style="padding:4px 4px;"></td>' +
-                '<td style="text-align:right;padding:4px 4px;font-weight:700;color:var(--text-muted);"><span id="sfTotalBlocks">…</span></td>' +
-                '<td style="text-align:right;padding:4px 4px;font-weight:700;color:var(--text-muted);font-family:monospace;"><span id="sfTotalHashes">…</span></td>' +
-                '<td style="padding:4px 4px;"></td>' +
+                '<td style="font-weight:700;color:var(--text-muted);">Total</td>' +
+                '<td style=""></td>' +
+                '<td style=""></td>' +
+                '<td style=""></td>' +
+                '<td style="text-align:right;font-weight:700;color:var(--text-muted);"><span id="sfTotalBlocks">…</span></td>' +
+                '<td style="text-align:right;font-weight:700;color:var(--text-muted);"><span id="sfTotalHashes">…</span></td>' +
+                '<td style=""></td>' +
             '</tr>';
-        _dhHtml += '</tbody></table></div>';
+        _dhHtml += '</tbody></table></div></div>';
         html += _dhHtml;
     })();
     '</div>';
@@ -3086,7 +3097,7 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
             var offset = (curRow.eraHashOffset != null) ? curRow.eraHashOffset : 0;
             var eraHashes = Math.max(0, rawEraHashes - offset);
             var hashEl = document.getElementById('sfHashesRow' + currentIdx);
-            if (hashEl) hashEl.textContent = eraHashes.toLocaleString();
+            if (hashEl) hashEl.textContent = _sfCompactNum(eraHashes);
 
             // Update total hashes = sum of all past static hashes + current difficulty era
             var pastHashSum = 0;
@@ -3094,7 +3105,7 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
                 if (_dh[_pi].hashes != null) pastHashSum += _dh[_pi].hashes;
             }
             var totalHashEl = document.getElementById('sfTotalHashes');
-            if (totalHashEl) totalHashEl.textContent = (pastHashSum + eraHashes).toLocaleString();
+            if (totalHashEl) totalHashEl.textContent = _sfCompactNum(pastHashSum + eraHashes);
 
             var luckEl = document.getElementById('sfLuckRow' + currentIdx);
             if (!luckEl) return;
@@ -3329,6 +3340,58 @@ function _loadPoolEpoch() {
         return rows;
     }
 
+    // ── Past epochs history (read-only, sfPoolHistory is public-read) ──
+    var _sfHist = { open: false, items: [], last: null, done: false, loading: false, error: false, anchor: null };
+    var _SF_HIST_PAGE = 10;
+    function _sfHistHtml() {
+        var h = '<button type="button" data-sf-hist="toggle" aria-expanded="' + (_sfHist.open ? 'true' : 'false') + '" style="width:100%;text-align:left;background:transparent;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:0.75rem;font-weight:700;color:var(--text-muted);cursor:pointer;min-height:36px;">' +
+            (_sfHist.open ? '\u25BE Hide past epochs' : '\u25B8 Show all past epochs') + '</button>';
+        if (!_sfHist.open) return h;
+        h += '<div style="margin-top:6px;">';
+        for (var i = 0; i < _sfHist.items.length; i++) {
+            var d = _sfHist.items[i];
+            var c = d.completedAt ? (d.completedAt.toDate ? d.completedAt.toDate() : new Date(d.completedAt.seconds * 1000)) : null;
+            var cs = c ? c.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+            h += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">' +
+                '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;">\u2705 Epoch #' + (parseInt(d.epochNumber, 10) || '\u2014') + '</div>' +
+                (cs ? '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + cs + ' \u00b7 21,000 sats distributed</div>' : '') +
+                _renderEpochBlocks(d.blocks || [], d.epochNumber, true) + '</div>';
+        }
+        if (_sfHist.loading) h += '<div style="font-size:0.75rem;color:var(--text-faint);padding:8px 0;">Loading past epochs\u2026</div>';
+        else if (_sfHist.error) h += '<div style="font-size:0.75rem;color:var(--text-faint);padding:8px 0;">Couldn\u2019t load past epochs. <button type="button" data-sf-hist="more" style="background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;font-size:0.75rem;padding:0;">Try again</button></div>';
+        else if (!_sfHist.done) h += '<button type="button" data-sf-hist="more" style="width:100%;margin-top:10px;background:transparent;border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.72rem;font-weight:700;color:var(--accent);cursor:pointer;min-height:36px;">Load more epochs</button>';
+        else if (!_sfHist.items.length) h += '<div style="font-size:0.75rem;color:var(--text-faint);font-style:italic;padding:8px 0;">No earlier epochs.</div>';
+        return h + '</div>';
+    }
+    function _sfHistPaint() {
+        var w = document.getElementById('sfEpochHistWrap');
+        if (!w) return;
+        w.innerHTML = _sfHistHtml();
+        if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(w);
+    }
+    function _sfHistLoad() {
+        if (_sfHist.loading || _sfHist.done) return;
+        var after = _sfHist.last || _sfHist.anchor;
+        if (!after) return;
+        _sfHist.loading = true; _sfHist.error = false; _sfHistPaint();
+        db.collection('sfPoolHistory').orderBy('completedAt', 'desc').startAfter(after).limit(_SF_HIST_PAGE).get().then(function(s) {
+            s.docs.forEach(function(d) { _sfHist.items.push(d.data()); });
+            if (s.docs.length) _sfHist.last = s.docs[s.docs.length - 1];
+            if (s.docs.length < _SF_HIST_PAGE) _sfHist.done = true;
+            _sfHist.loading = false; _sfHistPaint();
+        }).catch(function() { _sfHist.loading = false; _sfHist.error = true; _sfHistPaint(); });
+    }
+    function _sfHistClick(e) {
+        var b = e.target.closest && e.target.closest('[data-sf-hist]');
+        if (!b) return false;
+        if (b.dataset.sfHist === 'toggle') {
+            _sfHist.open = !_sfHist.open;
+            _sfHistPaint();
+            if (_sfHist.open && !_sfHist.items.length && !_sfHist.done) _sfHistLoad();
+        } else { _sfHistLoad(); }
+        return true;
+    }
+
     // Load current epoch (live) + most recent completed epoch in parallel
     _poolEpochUnsub = db.collection('satoshiFavor').doc('poolEpoch').onSnapshot(function(epochDoc) {
         var el = document.getElementById('sfPoolEpochInner');
@@ -3371,11 +3434,17 @@ function _loadPoolEpoch() {
                 var compStr = compAt ? compAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
                 if (compStr) prevHtml += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + compStr + ' \u00b7 21,000 sats distributed</div>';
                 prevHtml += _renderEpochBlocks(prevBlocks, ph.epochNumber, true);
+                // Older epoch history (lazy loaded on first expand)
+                if ((ph.epochNumber || 0) !== 1) {
+                    if (_sfHist.anchor && _sfHist.anchor.id !== snap.docs[0].id) { _sfHist.items = []; _sfHist.last = null; _sfHist.done = false; _sfHist.error = false; }
+                    _sfHist.anchor = snap.docs[0];
+                    prevHtml += '<div id="sfEpochHistWrap" style="margin-top:10px;">' + _sfHistHtml() + '</div>';
+                }
             }
             prevHtml += '</div>';
 
             var el2 = document.getElementById('sfPoolEpochInner');
-            if (el2) { el2.innerHTML = currentHtml + prevHtml; el2.onclick = function(e) { var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el2); }
+            if (el2) { el2.innerHTML = currentHtml + prevHtml; el2.onclick = function(e) { if (_sfHistClick(e)) return; var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el2); }
         }).catch(function() {
             var el2 = document.getElementById('sfPoolEpochInner');
             if (el2) { el2.innerHTML = currentHtml + '<div style="font-size:0.75rem;color:var(--text-faint);margin-top:8px;">Previous epoch unavailable.</div>'; el2.onclick = function(e) { var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el2); }
@@ -3882,7 +3951,25 @@ function _nookConvertXP(tickets, btnEl) {
     });
 }
 
+// Prices come from the server (getNookShopCatalog). Fallbacks match the server
+// constants so the shop still renders offline; the server always charges its own price.
+var _NOOK_FALLBACK = {streak_freeze:6,streak_freeze_3:15,hint_token:3,hint_token_5:12,hash_booster:10,hash_booster_3:27,bonus_spin:5,bonus_spin_3:14,double_xp:20,double_xp_3h:50,second_rig:25,second_rig_3:70,raffle_entry:10,raffle_entry_10:95,pinned_badge:30,chat_flair:60,profile_frame:75,nacho_skin_nook:100};
+function _nookPrice(id) {
+    var c = window._nookCatalog && window._nookCatalog[id];
+    return c && typeof c.cost === 'number' ? c.cost : _NOOK_FALLBACK[id];
+}
+function _nookLoadCatalog() {
+    if (window._nookCatalog || window._nookCatalogLoading || typeof firebase === 'undefined') return;
+    window._nookCatalogLoading = true;
+    try {
+        firebase.functions().httpsCallable('getNookShopCatalog')({}).then(function(r) {
+            if (r && r.data && r.data.items) { window._nookCatalog = r.data.items; _renderNookShop(); }
+        }).catch(function(){}).then(function(){ window._nookCatalogLoading = false; });
+    } catch (e) { window._nookCatalogLoading = false; }
+}
+
 function _renderNookShop() {
+    _nookLoadCatalog();
     var el = document.getElementById('nookTabContent');
     if (!el) return;
     var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
@@ -3925,16 +4012,19 @@ function _renderNookShop() {
     // ─── Consumables ───
     html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── Consumables ───</div>';
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';
-    html += itemRow('🧊','Streak Freeze','Auto-used to protect your streak',5,buyBtn('streak_freeze',5,1,'Buy'));
-    html += itemRow('🧊','3× Streak Freezes','Bundle — save 3 tickets',12,buyBtn('streak_freeze_3',12,1,'Bundle'));
-    html += itemRow('⚡','Hash Booster','+100 instant hashes — no cooldown. Activate from Inventory during an open SF window.',10,buyBtn('hash_booster',10,1,'Buy'));
-    html += itemRow('🧠','Hint Token','Eliminate a wrong answer in any quiz',3,buyBtn('hint_token',3,1,'Buy'));
-    html += itemRow('🧠','5× Hint Tokens','Bundle deal',12,buyBtn('hint_token_5',12,1,'Bundle'));
+    html += itemRow('🧊','Streak Freeze','Auto-used to protect your streak. Hold up to 10.',_nookPrice('streak_freeze'),buyBtn('streak_freeze',_nookPrice('streak_freeze'),1,'Buy'));
+    html += itemRow('🧊','3× Streak Freezes','Bundle deal. Hold up to 10.',_nookPrice('streak_freeze_3'),buyBtn('streak_freeze_3',_nookPrice('streak_freeze_3'),1,'Bundle'));
+    html += itemRow('⚡','Hash Booster','+100 instant hashes, no cooldown. Activate from Inventory during an open SF window. Up to 10 a day.',_nookPrice('hash_booster'),buyBtn('hash_booster',_nookPrice('hash_booster'),1,'Buy'))
+    html += itemRow('⚡','3× Hash Boosters','NEW · Bundle of 3. Counts toward the 10 a day limit.',_nookPrice('hash_booster_3'),buyBtn('hash_booster_3',_nookPrice('hash_booster_3'),1,'Bundle'));
+    html += itemRow('🧠','Hint Token','Eliminate a wrong answer in any quiz',_nookPrice('hint_token'),buyBtn('hint_token',_nookPrice('hint_token'),1,'Buy'));
+    html += itemRow('🧠','5× Hint Tokens','Bundle deal',_nookPrice('hint_token_5'),buyBtn('hint_token_5',_nookPrice('hint_token_5'),1,'Bundle'));
     var dxUntil = (typeof window._doubleXpUntilMs === 'function') ? window._doubleXpUntilMs(u) : 0;
     var dxLeft = dxUntil > Date.now() ? Math.ceil((dxUntil - Date.now()) / 60000) : 0;
     var dxLabel = dxLeft > 0 ? ('Extend +60 min (' + dxLeft + ' min left)') : 'Buy';
-    html += itemRow('🎯','Double XP (60 min)','2× XP for 1 hour. Buying again adds another hour.',15,buyBtn('double_xp',15,1,dxLabel));
-    html += itemRow('🎰','Bonus Spin','Extra spin on the daily wheel',5,buyBtn('bonus_spin',5,1,'Buy'));
+    html += itemRow('🎯','Double XP (60 min)','2× XP for 1 hour. Buying again adds another hour, up to 6 hours ahead.',_nookPrice('double_xp'),buyBtn('double_xp',_nookPrice('double_xp'),1,dxLabel))
+    html += itemRow('🎯','Double XP (3 hours)','NEW · 3 hours of 2× XP in one go. Stacks up to 6 hours ahead.',_nookPrice('double_xp_3h'),buyBtn('double_xp_3h',_nookPrice('double_xp_3h'),1,'Buy'));
+    html += itemRow('🎰','Bonus Spin','Extra spin on the daily wheel. Up to 5 a day.',_nookPrice('bonus_spin'),buyBtn('bonus_spin',_nookPrice('bonus_spin'),1,'Buy'))
+    html += itemRow('🎰','3× Bonus Spins','NEW · Bundle of 3. Counts toward the 5 a day limit.',_nookPrice('bonus_spin_3'),buyBtn('bonus_spin_3',_nookPrice('bonus_spin_3'),1,'Bundle'));
     html += '</div>';
 
     // ─── Mining Upgrades ───
@@ -3943,18 +4033,18 @@ function _renderNookShop() {
     var rigCharges = u.secondRigCharges || 0;
     var rigBtnHtml = (rigCharges > 0
         ? '<span style="font-size:0.72rem;color:#22c55e;font-weight:700;margin-right:6px;">' + rigCharges + ' charge' + (rigCharges !== 1 ? 's' : '') + ' left</span>'
-        : '') + buyBtn('second_rig', 25, 1, 'Buy');
-    html += itemRow('⚡', 'Second Mining Rig', 'Unlocks Hash #2 button for one SF window — buy more charges to keep it active.', 25, rigBtnHtml);
+        : '') + buyBtn('second_rig', _nookPrice('second_rig'), 1, 'Buy');
+    html += itemRow('⚡', 'Second Mining Rig', 'Unlocks Hash #2 button for one SF window. Hold up to 10 charges.', _nookPrice('second_rig'), rigBtnHtml);
+    html += itemRow('⚡', '3× Second Mining Rig', 'NEW · 3 charges for 3 SF windows.', _nookPrice('second_rig_3'), buyBtn('second_rig_3', _nookPrice('second_rig_3'), 1, 'Bundle'));
     html += '</div>';
 
     // ─── Gifts ───
     html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── 🎁 Gifting ───</div>';
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';
     var giftOwnsGiftBag = ownedCosmetics.indexOf('gift_bag') !== -1;
-    var giftBagBtn = giftOwnsGiftBag
-        ? '<div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;margin-top:4px;">Owned ✓</div>'
-        : buyBtn('gift_bag', 100, 1, 'Buy');
-    html += itemRow('🎒', 'Gift Bag', 'A keepsake from the shop. Gifts are opened right away now, so keys and ciphers live in Inventory.', 100, giftBagBtn).replace('<!--EXTRA_HTML-->', '');
+    if (giftOwnsGiftBag) {
+        html += itemRow('🎒', 'Gift Bag', 'A keepsake from the shop. No longer sold.', '✓', '<div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;margin-top:4px;">Owned ✓</div>').replace('<!--EXTRA_HTML-->', '');
+    }
     html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:12px;">' +
         '<div style="font-size:1.4rem;">🔑</div>' +
         '<div style="flex:1;min-width:0;"><div style="font-size:0.85rem;font-weight:700;color:var(--heading);">Keys &amp; locked ciphers</div>' +
@@ -3967,10 +4057,10 @@ function _renderNookShop() {
     html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── Cosmetics (Permanent) ───</div>';
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';
     var cosmetics = [
-        { id:'profile_frame', icon:'🪪', name:'Profile Frame', desc:'Exclusive border on your profile card', cost:50 },
-        { id:'chat_flair', icon:'💬', name:'Chat Flair', desc:'Special badge next to your name in chat', cost:40 },
-        { id:'pinned_badge', icon:'📌', name:'Pinned Badge', desc:'Showcase a permanent achievement badge', cost:20 },
-        { id:'nacho_skin_nook', icon:'🦌', name:'Exclusive Nacho Skin', desc:'Rare Nacho avatar — Nook exclusive!', cost:60 },
+        { id:'profile_frame', icon:'🪪', name:'Profile Frame', desc:'Exclusive border on your profile card', cost:_nookPrice('profile_frame') },
+        { id:'chat_flair', icon:'💬', name:'Chat Flair', desc:'Special badge next to your name in chat', cost:_nookPrice('chat_flair') },
+        { id:'pinned_badge', icon:'📌', name:'Pinned Badge', desc:'Showcase a permanent achievement badge', cost:_nookPrice('pinned_badge') },
+        { id:'nacho_skin_nook', icon:'🦌', name:'Exclusive Nacho Skin', desc:'Rare Nacho avatar — Nook exclusive!', cost:_nookPrice('nacho_skin_nook') },
     ];
     cosmetics.forEach(function(c) {
         var owned = ownedCosmetics.indexOf(c.id) !== -1;
@@ -4015,8 +4105,9 @@ function _renderNookShop() {
         '<div id="_raffleCommTotal" style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;"><span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span> Community entries this month: ...</div>' +
         '</div>' +
         '<div style="text-align:right;flex-shrink:0;">' +
-        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="number" id="raffleQtyInput" min="1" max="50" value="1" oninput="window._updateRaffleCost()" style="width:52px;padding:4px 6px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;font-weight:700;text-align:center;font-family:inherit;" /><span id="raffleCostLabel" style="font-size:0.75rem;color:#f7931a;font-weight:800;">10 <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span></span></div>' +
+        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="number" id="raffleQtyInput" min="1" max="10" value="1" oninput="window._updateRaffleCost()" style="width:52px;padding:4px 6px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;font-weight:700;text-align:center;font-family:inherit;" /><span id="raffleCostLabel" style="font-size:0.75rem;color:#f7931a;font-weight:800;">10 <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span></span></div>' +
         '<button id="raffleEnterBtn" onclick="window._buyRaffleQty(this)" style="padding:6px 14px;border-radius:8px;border:none;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#f7931a,#e8720c);color:#fff;transition:0.2s;">Enter</button>' +
+        '<button id="raffle10Btn" onclick="window._buyRaffle10(this)" style="margin-left:6px;padding:6px 10px;border-radius:8px;border:1px solid #f7931a;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;background:transparent;color:#f7931a;">NEW · 10-pack (' + _nookPrice('raffle_entry_10') + ')</button>' +
         '</div>' +
         '</div>' +
     '</div>';
@@ -4042,9 +4133,9 @@ window._updateRaffleCost = function() {
     var lbl = document.getElementById('raffleCostLabel');
     var btn = document.getElementById('raffleEnterBtn');
     if (!inp || !lbl) return;
-    var qty = Math.max(1, Math.min(50, parseInt(inp.value) || 1));
+    var qty = Math.max(1, Math.min(10, parseInt(inp.value) || 1));
     inp.value = qty;
-    var cost = qty * 10;
+    var cost = qty * _nookPrice('raffle_entry');
     var tickets = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.orangeTickets || 0) : 0;
     var canAfford = tickets >= cost;
     lbl.innerHTML = cost + ' <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span>';
@@ -4059,8 +4150,11 @@ window._updateRaffleCost = function() {
 
 window._buyRaffleQty = function(btnEl) {
     var inp = document.getElementById('raffleQtyInput');
-    var qty = Math.max(1, Math.min(50, parseInt((inp && inp.value) || '1') || 1));
+    var qty = Math.max(1, Math.min(10, parseInt((inp && inp.value) || '1') || 1));
     _nookBuyItem('raffle_entry', qty, btnEl);
+};
+window._buyRaffle10 = function(btnEl) {
+    _nookBuyItem('raffle_entry_10', 1, btnEl);
 };
 
 function _renderNookInventory() {
@@ -4136,12 +4230,13 @@ function _renderNookInventoryContent(el) {
 
     // Keys and ciphers sit directly under the cipher sats balance.
     var _cipherBal = Math.max(0, Math.floor(Number(u.cipherSatsBalance) || 0));
-    var _cipherReady = _cipherBal >= 100;
+    var _cipherReady = _cipherBal >= ((window.CIPHER_SATS_RULES && window.CIPHER_SATS_RULES.min) || 100);
     var html = '<div id="cipherSatsBalanceInventory" data-surface="inventory" style="margin:0 0 12px;padding:12px;border-radius:12px;border:1px solid rgba(247,147,26,0.45);background:rgba(247,147,26,0.08);text-align:center;">' +
         '<div style="font-size:0.68rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);font-weight:800;">Cipher sats balance</div>' +
         '<div class="cipher-sats-balance-amount" style="font-size:1.35rem;font-weight:900;color:#f7931a;margin:4px 0;">' + _cipherBal.toLocaleString() + ' sats</div>' +
         '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;">Small sats wins from locked ciphers land here.</div>' +
         '<button type="button" class="cipher-sats-claim-btn" ' + (_cipherReady ? '' : 'disabled ') + 'onclick="if(window.claimCipherSats)window.claimCipherSats()" style="min-height:44px;padding:10px 14px;border:none;border-radius:10px;font-weight:800;font-family:inherit;width:100%;' + (_cipherReady ? 'background:#f7931a;color:#fff;cursor:pointer;' : 'background:var(--card-bg,#222);color:var(--text-muted);cursor:default;opacity:0.65;') + '">Claim ' + Math.min(_cipherBal, 200).toLocaleString() + ' sats</button>' +
+        (typeof window.cipherSatsHintHtml === 'function' ? window.cipherSatsHintHtml(_cipherBal) : '') +
         '</div>';
     html += '<div id="nookKeysCiphers" style="margin:0 0 16px;"></div>';
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';

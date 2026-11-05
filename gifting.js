@@ -1468,7 +1468,8 @@ function mountCipherSatsBalance(parent, opts) {
     btn.type = 'button';
     btn.className = 'cipher-sats-claim-btn';
     btn.textContent = 'Claim ' + Math.min(bal, 200).toLocaleString() + ' sats';
-    var ready = bal >= 100 && !options.disabled;
+    var _rules = window.CIPHER_SATS_RULES || { min: 100 };
+    var ready = bal >= _rules.min && !options.disabled;
     btn.disabled = !ready;
     btn.style.cssText = 'min-height:44px;padding:10px 14px;border:none;border-radius:10px;font-weight:800;font-family:inherit;width:100%;' + (ready ? 'background:#f7931a;color:#fff;cursor:pointer;' : 'background:var(--card-bg,#222);color:var(--text-muted);cursor:default;opacity:0.65;');
     btn.onclick = function() {
@@ -1479,6 +1480,14 @@ function mountCipherSatsBalance(parent, opts) {
     box.appendChild(num);
     box.appendChild(note);
     box.appendChild(btn);
+    if (typeof window.cipherSatsWithdrawHint === 'function') {
+        var hint = document.createElement('div');
+        hint.className = 'cipher-sats-hint';
+        hint.setAttribute('role', 'note');
+        hint.style.cssText = 'font-size:0.72rem;color:var(--text-muted);margin-top:8px;line-height:1.35;';
+        hint.textContent = '\u24d8 ' + window.cipherSatsWithdrawHint(bal);
+        box.appendChild(hint);
+    }
     parent.appendChild(box);
     return box;
 }
@@ -2094,7 +2103,8 @@ window.showCipherClaim = function(win) {
     title.textContent = 'Claim ' + (win.amount || 0).toLocaleString() + ' sats';
     var help = document.createElement('div');
     help.style.cssText = 'font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;text-align:center;';
-    help.textContent = 'Paste a Lightning invoice for exactly this amount, or type a Lightning Address (name@wallet).';
+    var _feeQ = (typeof window.bqLnFeeQuote === 'function') ? window.bqLnFeeQuote(win.amount || 0) : { gross: win.amount || 0, fee: 10, net: Math.max(0, (win.amount || 0) - 10), ok: (win.amount || 0) > 3 };
+    help.textContent = 'A flat ' + _feeQ.fee + ' sat Lightning fee comes out of this prize, so you receive ' + _feeQ.net.toLocaleString() + ' sats. Paste a Lightning invoice for exactly ' + _feeQ.net.toLocaleString() + ' sats, or type a Lightning Address (name@wallet).';
     var input = document.createElement('textarea');
     input.id = 'cipherClaimInput';
     input.rows = 3;
@@ -2111,6 +2121,10 @@ window.showCipherClaim = function(win) {
     go.onclick = async function() {
         var raw = (input.value || '').trim();
         if (!raw) { _toast('Paste an invoice or Lightning Address'); return; }
+        var _confirmed = (typeof window.bqConfirmLnFee === 'function')
+            ? await window.bqConfirmLnFee(win.amount || 0, 'Cipher prize')
+            : window.confirm('Prize ' + _feeQ.gross + ' sats − ' + _feeQ.fee + ' sat Lightning fee = ' + _feeQ.net + ' sats to you. Confirm?');
+        if (!_confirmed) return;
         go.disabled = true;
         go.textContent = 'Paying…';
         var payload = { winId: win.id };
@@ -2126,7 +2140,7 @@ window.showCipherClaim = function(win) {
                 return;
             }
             _dismissGiftingChild(overlay);
-            _toast('⚡ ' + (d.amount || win.amount) + ' sats sent!');
+            _toast('⚡ ' + (typeof d.sent === 'number' ? d.sent : (d.amount || win.amount)) + ' sats sent!');
             var host = document.getElementById('nookKeysCiphers');
             if (host) window.renderKeysAndCiphersPanel(host);
         } catch (e) {

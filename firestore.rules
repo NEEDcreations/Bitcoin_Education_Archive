@@ -112,7 +112,7 @@ service cloud.firestore {
         'purpleTickets', 'blueTickets', 'pollDays',
         'chatCount', 'dmCount', 'beatsUploads', 'articlesPublished',
         'pvpPlayed', 'ciphersSolved', 'sfHashes', 'sfBlockSolver', 'sfContributions',
-        'questDays', 'plebTalkSessions', 'tctvWatchDays', 'giftsSent', 'onboardingComplete',
+        'questDays', 'plebTalkSessions', 'tctvWatchDays', 'tctvLifetimeSeconds', 'giftsSent', 'onboardingComplete',
         'lastShoutoutAt', 'predCorrect', 'predTotal', 'predLastResult',
         'flexTotals', 'flexAllDays', 'triviaCorrect', 'triviaStreakDay',
         'questsPassed', 'lqPassed', 'spinDays', 'spinStreak', 'spinHitRare',

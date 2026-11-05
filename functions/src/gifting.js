@@ -1209,9 +1209,16 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         });
     });
 
+    // The player pays the flat Lightning fee: the invoice is for the net amount.
+    const winFee = require('./lnFee').quote(amount);
+    if (!winFee.ok) {
+        await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
+        return { success: false, error: winFee.error };
+    }
+    const netAmount = winFee.net;
     let invoice;
     try {
-        invoice = await _resolvePrizeInvoice(data.invoice, data.lightningAddress, amount);
+        invoice = await _resolvePrizeInvoice(data.invoice, data.lightningAddress, netAmount);
     } catch (e) {
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
         return { success: false, error: e.message || 'Could not pay that invoice.' };
@@ -1223,7 +1230,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         await db.runTransaction(async (t) => {
             const existing = await t.get(invoiceRef);
             if (existing.exists) throw new Error('That invoice was already used. Make a new one.');
-            t.set(invoiceRef, { uid: uid, winId: winId, amount: amount, status: 'pending', ts: admin.firestore.FieldValue.serverTimestamp() });
+            t.set(invoiceRef, { uid: uid, winId: winId, amount: amount, fee_charged: winFee.fee, net_sent: netAmount, status: 'pending', ts: admin.firestore.FieldValue.serverTimestamp() });
         });
     } catch (e) {
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
@@ -1252,11 +1259,15 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         }, { merge: true });
     }
 
-    async function markPaid(preimage) {
+    async function markPaid(preimage, payRes) {
         // Payment already left the wallet. Never flip the win back to claimable after this.
+        const feeRec = require('./lnFee').feeFields(winFee, payRes);
         try {
             await winRef.update({
                 status: 'paid',
+                fee_charged: feeRec.fee_charged,
+                net_sent: feeRec.net_sent,
+                fee_paid: feeRec.fee_paid,
                 paidAt: admin.firestore.FieldValue.serverTimestamp(),
                 paidBy: 'faucet',
                 preimage: preimage || '',
@@ -1264,20 +1275,20 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
                 announced: false,
                 payingAt: admin.firestore.FieldValue.delete(),
             });
-            await invoiceRef.set({ uid: uid, winId: winId, amount: amount, status: 'used', ts: admin.firestore.FieldValue.serverTimestamp() });
+            await invoiceRef.set({ uid: uid, winId: winId, amount: amount, fee_charged: feeRec.fee_charged, net_sent: feeRec.net_sent, fee_paid: feeRec.fee_paid, status: 'used', ts: admin.firestore.FieldValue.serverTimestamp() });
         } catch (e) {
             console.error('[claimCipherWin] paid but record update failed:', e.message);
             await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan({
                 uid: uid,
-                sats: amount,
+                sats: netAmount,
                 sourceLabel: 'a cipher win',
                 icon: '⚡',
             }));
-            return { success: true, amount: amount, warning: 'Paid, but the receipt did not save. Phil can confirm it in the admin list.' };
+            return { success: true, amount: amount, sent: netAmount, fee: winFee.fee, warning: 'Paid, but the receipt did not save. Phil can confirm it in the admin list.' };
         }
         await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan({
             uid: uid,
-            sats: amount,
+            sats: netAmount,
             sourceLabel: 'a cipher win',
             icon: '⚡',
         }));
@@ -1290,7 +1301,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
             await winRef.update({ announced: true });
         } catch (e) { console.warn('[claimCipherWin] nacho failed:', e.message); }
 
-        return { success: true, amount: amount };
+        return { success: true, amount: amount, sent: netAmount, fee: winFee.fee };
     }
 
     const nwc = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
@@ -1308,7 +1319,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         payError = e;
     }
 
-    if (payResult && payResult.preimage) return markPaid(payResult.preimage);
+    if (payResult && payResult.preimage) return markPaid(payResult.preimage, payResult);
 
     // Balance-check failures never reached the wallet. Explicit refusals
     // (PAYMENT_FAILED, INSUFFICIENT_BALANCE, QUOTA_EXCEEDED, RATE_LIMITED)
@@ -1564,7 +1575,7 @@ async function payCipherBalanceInvoice(invoice) {
     } catch (e) {
         payError = e;
     }
-    if (payResult && payResult.preimage) return { action: 'paid' };
+    if (payResult && payResult.preimage) return { action: 'paid', payResult: payResult };
     if (!shouldLookupPay({ phase: phase, error: payError, payResult: payResult })) {
         return { action: 'release', low: !!(payError && payError.message === 'WALLET_LOW') };
     }
@@ -1585,7 +1596,7 @@ async function payCipherBalanceInvoice(invoice) {
     return { action: 'hold' };
 }
 
-async function finishCipherClaim(reserved, outcome) {
+async function finishCipherClaim(reserved, outcome, payResult) {
     const lockRef = db.collection('cipher_sats_locks').doc(reserved.lockId);
     const auditRef = db.collection('cipher_sats_payouts').doc(reserved.claimId);
     const userRef = db.collection('users').doc(reserved.uid);
@@ -1600,7 +1611,8 @@ async function finishCipherClaim(reserved, outcome) {
         const owns = lockOwnedByClaim(lock, reserved.claimId);
         const stamp = admin.firestore.FieldValue.serverTimestamp();
         if (outcome === 'paid') {
-            t.set(auditRef, { status: 'paid', paidAt: stamp }, { merge: true });
+            const feeRec = require('./lnFee').feeFields({ gross: reserved.amount, fee: reserved.fee, net: reserved.net }, payResult);
+            t.set(auditRef, { status: 'paid', paidAt: stamp, fee_charged: feeRec.fee_charged, net_sent: feeRec.net_sent, fee_paid: feeRec.fee_paid }, { merge: true });
             if (owns) t.delete(lockRef);
             return;
         }
@@ -1803,6 +1815,8 @@ const claimCipherSats = functionsV1.runWith({
         t.set(auditRef, {
             uid: uid,
             amount: plan.amount,
+            fee_charged: plan.fee,
+            net_sent: plan.net,
             status: 'reserved',
             day: day,
             claimId: claimId,
@@ -1813,6 +1827,8 @@ const claimCipherSats = functionsV1.runWith({
             lockId: lockId,
             claimId: claimId,
             amount: plan.amount,
+            fee: plan.fee,
+            net: plan.net,
             address: plan.address,
             day: day,
             playerDayId: playerDayId,
@@ -1824,7 +1840,9 @@ const claimCipherSats = functionsV1.runWith({
 
     let invoice = '';
     try {
-        invoice = await _resolvePrizeInvoice('', reserved.address, reserved.amount);
+        // The player pays the flat Lightning fee: the invoice is for the net amount.
+        if (!(reserved.net >= 1) || reserved.net + reserved.fee !== reserved.amount) throw new Error(require('./lnFee').FEE_TOO_BIG);
+        invoice = await _resolvePrizeInvoice('', reserved.address, reserved.net);
     } catch (e) {
         await finishCipherClaim(reserved, 'restore');
         console.error('[claimCipherSats] address did not resolve');
@@ -1854,6 +1872,8 @@ const claimCipherSats = functionsV1.runWith({
                 uid: uid,
                 claimId: reserved.claimId,
                 amount: reserved.amount,
+                fee_charged: reserved.fee,
+                net_sent: reserved.net,
                 invoiceHash: invoiceHash,
                 paymentHash: paymentHash,
                 status: 'pending',
@@ -1883,18 +1903,18 @@ const claimCipherSats = functionsV1.runWith({
     const paid = await payCipherBalanceInvoice(invoice);
     if (paid.action === 'paid') {
         try {
-            await finishCipherClaim(reserved, 'paid');
+            await finishCipherClaim(reserved, 'paid', paid.payResult);
             await invoiceRef.set({ status: 'used', ts: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
         } catch (e) {
             console.error('[claimCipherSats] paid but the receipt did not save claim=' + reserved.claimId);
         }
         await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan({
             uid: uid,
-            sats: reserved.amount,
+            sats: reserved.net,
             sourceLabel: 'cipher sats',
             icon: '⚡',
         }));
-        return { success: true, amount: reserved.amount, balance: reserved.balanceAfter };
+        return { success: true, amount: reserved.amount, sent: reserved.net, fee: reserved.fee, balance: reserved.balanceAfter };
     }
     if (paid.action === 'hold') {
         try { await finishCipherClaim(reserved, 'hold'); }
