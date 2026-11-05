@@ -36,9 +36,21 @@ function visit(over) {
     }, over || {}));
 }
 
+test('no account that exists before ship is affected', () => {
+    for (const t of ['2025-01-01T00:00:00Z', '2026-10-26T21:00:00Z', '2026-10-30T12:00:00Z', '2026-11-04T23:00:00Z']) {
+        assert.strictEqual(claimReqs.isExempt(Date.parse(t)), true, t);
+    }
+    if (claimReqs.CLAIM_REQS_START_ISO === claimReqs.CLAIM_REQS_START_UNSET_ISO) {
+        assert.strictEqual(claimReqs.isExempt(Date.now()), true);
+    }
+});
+
 test('start instant is the deploy constant', () => {
-    assert.strictEqual(claimReqs.CLAIM_REQS_START_ISO, '2026-10-26T21:00:00.000Z');
-    assert.strictEqual(START, Date.parse('2026-10-26T21:00:00.000Z'));
+    // Set at ship time; until then the far-future placeholder exempts everyone.
+    assert.ok(!Number.isNaN(START), 'cutoff must parse');
+    assert.ok(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.000Z$/.test(claimReqs.CLAIM_REQS_START_ISO));
+    assert.strictEqual(START, Date.parse(claimReqs.CLAIM_REQS_START_ISO));
+    assert.ok(START >= Date.parse('2026-11-04T00:00:00.000Z'), 'cutoff never before Phil\'s Nov 4 decision');
     assert.strictEqual(claimReqs.MIN_CHAT_CHARS, 3);
     const watchCredit = require(path.join(root, 'functions', 'src', 'tctvWatch'));
     assert.strictEqual(claimReqs.MIN_TCTV_SECONDS, watchCredit.CREDIT_SECONDS);

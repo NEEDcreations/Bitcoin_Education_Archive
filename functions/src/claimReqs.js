@@ -25,7 +25,14 @@ const {
     isSpamRepeat,
 } = require('./sayHi');
 
-const CLAIM_REQS_START_ISO = '2026-10-26T21:00:00.000Z';
+// Cutoff: only accounts created at or after this instant need the extra
+// steps. Phil's call (Nov 4): existing accounts are never affected, so the
+// cutoff is the moment #126 ships. SHIP STEP: replace the placeholder with
+// the deploy time (UTC ISO, e.g. `date -u +%Y-%m-%dT%H:%M:%S.000Z`) in the
+// same commit that is merged and deployed. Until then it stays far in the
+// future, which exempts every account (no requirements apply).
+const CLAIM_REQS_START_UNSET_ISO = '9999-12-31T23:59:59.000Z';
+const CLAIM_REQS_START_ISO = CLAIM_REQS_START_UNSET_ISO;
 const CLAIM_REQS_START = Date.parse(CLAIM_REQS_START_ISO);
 const MIN_CHAT_CHARS = 3;
 const MIN_TCTV_SECONDS = tctvWatch.CREDIT_SECONDS;
@@ -291,6 +298,7 @@ function visitRateDecision(prev, nowMs, maxPerHour) {
 module.exports = {
     CLAIM_REQS_START_ISO: CLAIM_REQS_START_ISO,
     CLAIM_REQS_START: CLAIM_REQS_START,
+    CLAIM_REQS_START_UNSET_ISO: CLAIM_REQS_START_UNSET_ISO,
     MIN_CHAT_CHARS: MIN_CHAT_CHARS,
     MIN_TCTV_SECONDS: MIN_TCTV_SECONDS,
     VISIT_TTL_MS: VISIT_TTL_MS,

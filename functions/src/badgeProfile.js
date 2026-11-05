@@ -46,6 +46,67 @@ function profileBadgeIds(user) {
     return collectIds(user, LIST_FIELDS, SINGLE_FIELDS);
 }
 
+// Collection completion. badge_awards is passed in as extraIds.
+// badges, visibleBadges, and donationBadges are server-written.
+// hiddenBadges counts only when that same id is already in one of those
+// sources. An id that appears only in hiddenBadges is not held.
+// earnedHidden, displayBadge, and equippedBadge are client-writable and never count.
+const TRUSTED_LIST_FIELDS = ['badges', 'visibleBadges', 'donationBadges'];
+const HIDDEN_LIST_FIELDS = ['hiddenBadges'];
+const SERVER_LIST_FIELDS = TRUSTED_LIST_FIELDS.concat(HIDDEN_LIST_FIELDS);
+
+function serverHeldBadgeIds(user, extraIds) {
+    const held = collectIds(user, TRUSTED_LIST_FIELDS, []);
+    (extraIds || []).forEach(function (raw) {
+        const id = cleanBadgeId(raw);
+        if (id) held.add(id);
+    });
+    return held;
+}
+
+// badges, visibleBadges, donationBadges, and hiddenBadges are server-written.
+// displayBadge, equippedBadge, and earnedHidden are not in this set.
+function serverShownBadgeIds(user) {
+    return collectIds(user, SERVER_LIST_FIELDS, []);
+}
+
+function serverHoldsBadge(user, badgeId) {
+    const id = cleanBadgeId(badgeId);
+    if (!id) return false;
+    return serverShownBadgeIds(user).has(id);
+}
+
+// Collection proof. hiddenBadges counts only when that id is already trusted.
+// A hidden-only id does not prove a collection.
+function collectionProofIds(user) {
+    return collectIds(user, TRUSTED_LIST_FIELDS, []);
+}
+
+function legacyAwardCounts(user, badgeId) {
+    const id = cleanBadgeId(badgeId);
+    if (!id) return false;
+    return collectionProofIds(user).has(id);
+}
+
+// Award docs are server proof, except a legacy row that no trusted field backs.
+function countableAwardIds(user, rows) {
+    const backed = collectionProofIds(user);
+    const ids = [];
+    const map = rows && typeof rows === 'object' ? rows : {};
+    Object.keys(map).forEach(function (raw) {
+        const id = cleanBadgeId(raw);
+        if (!id) return;
+        const row = map[raw] || {};
+        if (String(row.source || '') === 'legacy' && !backed.has(id)) return;
+        ids.push(id);
+    });
+    return ids;
+}
+
+function heldIdsForCollection(user, rows) {
+    return serverHeldBadgeIds(user, countableAwardIds(user, rows));
+}
+
 function profileHoldsBadge(user, badgeId) {
     const id = cleanBadgeId(badgeId);
     if (!id) return false;
@@ -57,6 +118,16 @@ module.exports = {
     SINGLE_FIELDS: SINGLE_FIELDS,
     cleanBadgeId: cleanBadgeId,
     collectIds: collectIds,
+    TRUSTED_LIST_FIELDS: TRUSTED_LIST_FIELDS,
+    HIDDEN_LIST_FIELDS: HIDDEN_LIST_FIELDS,
+    SERVER_LIST_FIELDS: SERVER_LIST_FIELDS,
     profileBadgeIds: profileBadgeIds,
     profileHoldsBadge: profileHoldsBadge,
+    serverShownBadgeIds: serverShownBadgeIds,
+    serverHoldsBadge: serverHoldsBadge,
+    collectionProofIds: collectionProofIds,
+    legacyAwardCounts: legacyAwardCounts,
+    countableAwardIds: countableAwardIds,
+    heldIdsForCollection: heldIdsForCollection,
+    serverHeldBadgeIds: serverHeldBadgeIds,
 };
