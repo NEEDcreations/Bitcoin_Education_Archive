@@ -1195,6 +1195,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
                 win: win,
                 savedLightning: userRow.lightningAddress || userRow.lightning || userRow.lnAddress || '',
                 config: cfgSnap.exists ? cfgSnap.data() : {},
+                nowMs: Date.now(),
             });
             sfClaimLimits = pre.limits;
             if (!pre.ok) throw httpsError('failed-precondition', pre.message);
@@ -1317,20 +1318,12 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         }
     } catch (e) {
         await releaseFavorReserve(true);
-        await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
-        if (e && e.message === 'SITE_DAILY_CAP') {
-            return { success: false, error: 'Daily Favor payout cap reached. Try again tomorrow or ask Phil.' };
-        }
-        if (e && e.message === 'WALLET_LOW') {
-            return { success: false, error: 'The prize wallet is being refilled. Try again later, or Phil can mark it paid.' };
-        }
-        if (e && e.message === 'manual') {
-            return { success: false, error: 'This prize is paid manually.' };
-        }
-        if (e && e.message === 'NO_WALLET') {
-            return { success: false, error: 'Prize wallet is not configured yet. Phil can pay this from the admin list.' };
-        }
-        return { success: false, error: e.message || 'Could not reserve this Favor payout.' };
+        const walletish = e && (e.message === 'WALLET_LOW' || e.message === 'NO_WALLET' || /Nip47|ws:\/\/|get_balance|ECONNREFUSED/i.test(String(e && e.message || '')));
+        const revert = { status: 'claimable', payingAt: admin.firestore.FieldValue.delete() };
+        if (walletish) revert.walletFailAt = Date.now();
+        await winRef.update(revert).catch(function() {});
+        console.error('[claimCipherWin] favor reserve/wallet failed:', e && e.message);
+        return { success: false, error: favorEpochPrizes.clientSafeClaimError(e, 'Could not reserve this Favor payout.') };
     }
     // After Favor reserve (or for non-Favor wins): still need a wallet to pay.
     if (!NWC_URL) {
@@ -1343,7 +1336,8 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     } catch (e) {
         await releaseFavorReserve(true);
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
-        return { success: false, error: e.message || 'Could not pay that invoice.' };
+        console.error('[claimCipherWin] invoice resolve failed:', e && e.message);
+        return { success: false, error: favorEpochPrizes.clientSafeClaimError(e, 'Could not pay that invoice.') };
     }
 
     const invoiceHash = crypto.createHash('sha256').update(invoice).digest('hex').slice(0, 32);
@@ -1357,7 +1351,8 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     } catch (e) {
         await releaseFavorReserve(true);
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
-        return { success: false, error: e.message || 'Could not reserve that invoice.' };
+        console.error('[claimCipherWin] invoice reserve failed:', e && e.message);
+        return { success: false, error: favorEpochPrizes.clientSafeClaimError(e, 'Could not reserve that invoice.') };
     }
 
     async function releaseUnpaid() {

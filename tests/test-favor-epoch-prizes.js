@@ -422,6 +422,38 @@ test('no NWC: 6000-sat Favor win refused as manual before wallet error', functio
     assert.strictEqual(ok.ok, true);
 });
 
+test('clientSafeClaimError: never returns ws:// or NWC guts to the player', function () {
+    const leak = 'Failed to request get_balance Nip47NetworkError: Failed to connect to ws://127.0.0.1:9';
+    const safe = P.clientSafeClaimError(new Error(leak));
+    assert.ok(safe.indexOf('ws://') === -1);
+    assert.ok(safe.indexOf('127.0.0.1') === -1);
+    assert.ok(safe.indexOf('Nip47') === -1);
+    assert.ok(safe.indexOf('Payment is temporarily unavailable') !== -1);
+
+    assert.strictEqual(P.clientSafeClaimError(new Error('NO_WALLET')), 'Prize wallet is not configured yet. Phil can pay this from the admin list.');
+    assert.strictEqual(P.clientSafeClaimError(new Error('manual')), 'This prize is paid manually.');
+    assert.ok(P.clientSafeClaimError(new Error('That invoice was already used. Make a new one.')).indexOf('invoice') !== -1);
+});
+
+test('walletFailAt cooldown blocks immediate Favor retry', function () {
+    const now = Date.now();
+    const cool = P.favorClaimPrechecks({
+        win: {
+            adminApproved: true,
+            amount: 4200,
+            status: 'claimable',
+            lockedLightningAddress: 'p@w.com',
+            walletFailAt: now - 1000,
+        },
+        savedLightning: 'p@w.com',
+        config: {},
+        nowMs: now,
+        walletFailCooldownMs: 30000,
+    });
+    assert.strictEqual(cool.ok, false);
+    assert.strictEqual(cool.error, 'COOLDOWN');
+});
+
 test('confirm + win id', function () {
     assert.strictEqual(P.confirmText('epoch_4'), 'APPROVE epoch_4');
     assert.ok(P.winId('epoch_4', 'abc').indexOf('sfpay_epoch_4_abc') === 0);

@@ -480,6 +480,33 @@ function siteCapAllows(used, amount, cap) {
 
 // Favor claim gates that must run before any wallet / NWC check.
 // Pure: Red Team can exercise manual / address / approval without a wallet.
+
+// Never send raw wallet/NWC/network errors to the client (no ws:// URLs, secrets, stacks).
+function clientSafeClaimError(err, fallback) {
+    const raw = String((err && err.message) || err || '').trim();
+    const known = {
+        SITE_DAILY_CAP: 'Daily Favor payout cap reached. Try again tomorrow or ask Phil.',
+        WALLET_LOW: 'The prize wallet is being refilled. Try again later, or Phil can mark it paid.',
+        manual: 'This prize is paid manually.',
+        NO_WALLET: 'Prize wallet is not configured yet. Phil can pay this from the admin list.',
+        COOLDOWN: 'Wait a moment before trying again.',
+    };
+    if (known[raw]) return known[raw];
+    // A few safe invoice strings we intentionally show.
+    if (/^That invoice was already used/i.test(raw)) return raw;
+    if (/^Could not pay that invoice\.?$/i.test(raw)) return raw;
+    if (/^Make a new one/i.test(raw)) return raw;
+    const unsafe = /ws:\/\/|wss:\/\/|https?:\/\/|nostr\+|Nip47|ECONNREFUSED|ETIMEDOUT|get_balance|payInvoice|secret=|relay=/i;
+    if (!raw || unsafe.test(raw) || raw.length > 180 || raw.indexOf('\n') !== -1) {
+        return fallback || 'Payment is temporarily unavailable. Try again later, or Phil can mark it paid.';
+    }
+    // Short, non-technical messages may pass; still block anything with @host:port noise.
+    if (/:\d{2,5}\b/.test(raw)) {
+        return fallback || 'Payment is temporarily unavailable. Try again later, or Phil can mark it paid.';
+    }
+    return raw;
+}
+
 function favorClaimPrechecks(input) {
     const src = input || {};
     const win = src.win || {};
@@ -516,6 +543,19 @@ function favorClaimPrechecks(input) {
             ok: false,
             error: 'ALREADY_PAID',
             message: 'Already paid',
+            limits: limits,
+        };
+    }
+    // Short per-win cooldown after a wallet/NWC failure (nice-to-have for Red Team retry storms).
+    const failAt = Number(win.walletFailAt) || 0;
+    const coolMs = Number(src.walletFailCooldownMs);
+    const windowMs = Number.isFinite(coolMs) && coolMs >= 0 ? coolMs : 30000;
+    const nowMs = Number(src.nowMs) || Date.now();
+    if (failAt && windowMs && nowMs - failAt < windowMs) {
+        return {
+            ok: false,
+            error: 'COOLDOWN',
+            message: 'Wait a moment before trying again.',
             limits: limits,
         };
     }
@@ -584,5 +624,5 @@ module.exports = {
     applyPersonCap, clusterLightning,
     buildEpochBreakdown, buildWindowBreakdown, winId, confirmText,
     payoutStatusForAmount, walletAllowsPay, walletFloorOk, siteCapAllows, num,
-    favorClaimPrechecks, planFavorClaimReserve, planFavorClaimRelease,
+    favorClaimPrechecks, clientSafeClaimError, planFavorClaimReserve, planFavorClaimRelease,
 };
