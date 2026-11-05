@@ -265,11 +265,19 @@
     function mountInApp(host, id) {
         var doc = root.document;
         if (!doc || !host || !isAllowed(id)) return;
-        if (host.querySelector('[data-fav-inapp="' + id + '"]')) return;
+        if (host.querySelector('[data-fav-inapp="' + id + '"], [data-fav-star="' + id + '"].bq-fav-star:not(.bq-fav-star-compact)')) return;
+        var star = makeStarButton(id, false);
+        star.setAttribute('data-fav-inapp', id);
+        // Prefer sitting next to the Share button when that chrome exists.
+        var share = host.querySelector('[data-mini-share="' + id + '"], [data-mini-share]');
+        if (share && share.parentNode) {
+            share.parentNode.insertBefore(star, share);
+            return;
+        }
         var bar = doc.createElement('div');
         bar.className = 'bq-fav-inapp-bar';
         bar.setAttribute('data-fav-inapp', id);
-        bar.appendChild(makeStarButton(id, false));
+        bar.appendChild(star);
         if (host.firstChild) host.insertBefore(bar, host.firstChild);
         else host.appendChild(bar);
     }
