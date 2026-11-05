@@ -24,3 +24,4 @@ username-spaces-private/
 *.bak*
 *.working-backup
 *.src.bak
+.env.*
