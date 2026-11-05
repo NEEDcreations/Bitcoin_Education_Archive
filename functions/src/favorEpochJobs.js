@@ -528,71 +528,25 @@ function factory(functionsV1, deps) {
     });
 
 
-    // Player: claim status for Favor epochs (and windows). Used by Epoch History UI.
+    // Player: real Favor wins for the epochs they asked about. Epoch History UI.
+    // Never scans RESULTS (that 500'd) and never invents a zero-amount row.
     const myFavorEpochClaims = functionsV1.https.onCall(async function (data, context) {
         const uid = requireUser(functionsV1, context);
         try {
             // {} or epochNumbers:[] → empty list (never 500). Client always sends explicit nums.
+            // Ignore any uid in the payload — only the signed-in player.
             const nums = P.parseFavorEpochNumbers(data);
             if (!nums.length) {
                 return { claims: [] };
             }
-            const out = [];
-            for (let i = 0; i < nums.length; i++) {
-                const epochNumber = nums[i];
-                const epochId = P.epochIdOf(epochNumber);
-                const resRef = db.collection(RESULTS).doc(epochId);
-                const res = await resRef.get();
-                if (!res.exists) {
-                    out.push({ epochId: epochId, epochNumber: epochNumber, status: 'waiting_approval', winId: '', amount: 0, why: '' });
-                    continue;
-                }
-                const r = res.data() || {};
-                const payoutStatus = String(r.payoutStatus || '');
-                const winDocId = P.winId(epochId, uid);
-                const winSnap = await db.collection('cipher_wins').doc(winDocId).get();
-                if (winSnap.exists) {
-                    // Only the caller's own win row is returned as claimable/claimed.
-                    out.push(P.claimRowForCaller({
-                        epochId: epochId,
-                        epochNumber: epochNumber,
-                        uid: uid,
-                        win: winSnap.data() || {},
-                        winDocId: winDocId,
-                    }));
-                    continue;
-                }
-                if (payoutStatus === 'awaiting_admin_approval' || !payoutStatus) {
-                    out.push({ epochId: epochId, epochNumber: epochNumber, status: 'waiting_approval', winId: '', amount: 0, why: '' });
-                    continue;
-                }
-                const bd = await resRef.collection('breakdown').doc('recipients').get();
-                const dataBd = bd.exists ? (bd.data() || {}) : {};
-                const rec = (dataBd.recipients || []).find(function (x) { return x && x.uid === uid; });
-                const excl = (dataBd.excluded || []).find(function (x) { return x && x.uid === uid; });
-                if (rec) {
-                    out.push({
-                        epochId: epochId,
-                        epochNumber: epochNumber,
-                        status: 'waiting_approval',
-                        winId: '',
-                        amount: Math.floor(Number(rec.sats) || 0),
-                        why: String(rec.why || ''),
-                    });
-                } else if (excl) {
-                    out.push({
-                        epochId: epochId,
-                        epochNumber: epochNumber,
-                        status: 'excluded',
-                        winId: '',
-                        amount: 0,
-                        why: String(excl.reason || ''),
-                    });
-                } else {
-                    out.push({ epochId: epochId, epochNumber: epochNumber, status: 'none', winId: '', amount: 0, why: '' });
-                }
-            }
-            return { claims: out };
+            // uid equality uses the automatic single-field index (no composite, no 500).
+            // Filter epoch in memory so _b / _manual siblings are not dropped by guessing one doc id.
+            const snap = await db.collection('cipher_wins').where('uid', '==', uid).get();
+            const wins = [];
+            snap.forEach(function (d) {
+                wins.push({ id: d.id, win: d.data() || {} });
+            });
+            return { claims: P.favorClaimsForCaller(wins, nums, uid) };
         } catch (e) {
             console.error('[myFavorEpochClaims]', e && e.message);
             throw httpsError(functionsV1, 'internal', 'Could not load Favor claims. Try again.');

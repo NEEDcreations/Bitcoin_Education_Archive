@@ -524,11 +524,79 @@ function claimRowForCaller(input) {
     return { epochId: epochId, epochNumber: epochNumber, status: 'none', winId: '', amount: 0, why: '' };
 }
 
+// A Favor win belongs to this epoch when its epoch/result field says so,
+// or (if that field was never written) its id is the canonical sfpay id
+// or a suffix sibling such as _b / _manual.
+function favorWinBelongsToEpoch(winDocId, win, epochId, uid) {
+    const id = String(winDocId || '');
+    const base = winId(epochId, uid);
+    const idMatch = !!(base && (id === base || id.indexOf(base + '_') === 0));
+    const field = String((win && (win.epochId || win.resultId)) || '');
+    const fieldMatch = !!(field && field === String(epochId || ''));
+    if (!idMatch && !fieldMatch) return false;
+    if (field && field !== String(epochId || '')) return false;
+    const source = String((win && win.source) || '');
+    // Game cipher wins are not Favor claims. Missing source is allowed:
+    // hand-built suffix ids are matched by epoch field or by the sfpay id.
+    if (source && source !== 'sf_epoch' && source !== 'sf_window') return false;
+    return true;
+}
+
+// Real claim rows only. No zero-amount waiting_approval placeholders.
+// epochNumbers empty → []. Foreign uids are dropped even if their id looks close.
+function favorClaimsForCaller(wins, epochNumbers, uid) {
+    const caller = String(uid || '');
+    const epochIdByNum = {};
+    const nums = [];
+    (Array.isArray(epochNumbers) ? epochNumbers : []).forEach(function (n) {
+        const v = Math.floor(Number(n));
+        if (!Number.isFinite(v) || v < 1 || epochIdByNum[v]) return;
+        const epochId = epochIdOf(v);
+        if (!epochId) return;
+        epochIdByNum[v] = epochId;
+        nums.push(v);
+    });
+    if (!caller || !nums.length) return [];
+    const rows = [];
+    const seenWin = {};
+    (Array.isArray(wins) ? wins : []).forEach(function (entry) {
+        const docId = String((entry && (entry.id || entry.winDocId)) || '');
+        const win = (entry && entry.win) ? entry.win : (entry || {});
+        if (!docId || String(win.uid || '') !== caller || seenWin[docId]) return;
+        let matchedNum = 0;
+        let matchedId = '';
+        for (let i = 0; i < nums.length; i++) {
+            const epochId = epochIdByNum[nums[i]];
+            if (!favorWinBelongsToEpoch(docId, win, epochId, caller)) continue;
+            matchedNum = nums[i];
+            matchedId = epochId;
+            break;
+        }
+        if (!matchedNum) return;
+        const row = claimRowForCaller({
+            epochId: matchedId,
+            epochNumber: matchedNum,
+            uid: caller,
+            win: win,
+            winDocId: docId,
+        });
+        if (!row || !row.winId) return;
+        seenWin[docId] = true;
+        rows.push(row);
+    });
+    rows.sort(function (a, b) {
+        if (a.epochNumber !== b.epochNumber) return a.epochNumber - b.epochNumber;
+        return String(a.winId).localeCompare(String(b.winId));
+    });
+    return rows;
+}
+
 function clientSafeClaimError(err, fallback) {
     const raw = String((err && err.message) || err || '').trim();
     const known = {
         SITE_DAILY_CAP: 'Daily Favor payout cap reached. Try again tomorrow or ask Phil.',
         WALLET_LOW: 'The prize wallet is being refilled. Try again later, or Phil can mark it paid.',
+        WALLET_UNAVAILABLE: 'The prize wallet could not be reached. Try again later, or Phil can mark it paid.',
         manual: 'This prize is paid manually.',
         NO_WALLET: 'Prize wallet is not configured yet. Phil can pay this from the admin list.',
         COOLDOWN: 'Wait a moment before trying again.',
@@ -547,6 +615,15 @@ function clientSafeClaimError(err, fallback) {
         return fallback || 'Payment is temporarily unavailable. Try again later, or Phil can mark it paid.';
     }
     return raw;
+}
+
+// Balance query failed (unreachable NWC, timeout, non-numeric balance).
+// Always a wallet sentence. Never the reserve fallback, and never the raw error.
+// Callers must not pay when this fires — the balance is unknown.
+function balanceCheckClaimError(err) {
+    const raw = String((err && err.message) || err || '').trim();
+    if (raw === 'NO_WALLET' || raw === 'WALLET_LOW') return clientSafeClaimError(new Error(raw));
+    return clientSafeClaimError(new Error('WALLET_UNAVAILABLE'));
 }
 
 function favorClaimPrechecks(input) {
@@ -666,5 +743,5 @@ module.exports = {
     applyPersonCap, clusterLightning,
     buildEpochBreakdown, buildWindowBreakdown, winId, confirmText,
     payoutStatusForAmount, walletAllowsPay, walletFloorOk, siteCapAllows, num,
-    favorClaimPrechecks, clientSafeClaimError, claimRowForCaller, parseFavorEpochNumbers, planFavorClaimReserve, planFavorClaimRelease,
+    favorClaimPrechecks, clientSafeClaimError, balanceCheckClaimError, claimRowForCaller, favorWinBelongsToEpoch, favorClaimsForCaller, parseFavorEpochNumbers, planFavorClaimReserve, planFavorClaimRelease,
 };

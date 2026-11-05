@@ -3344,7 +3344,7 @@ function _loadPoolEpoch() {
     // Favor claim status for the signed-in player lives on each past epoch row.
     var _sfHist = { open: false, items: [], last: null, done: false, loading: false, error: false, anchor: null };
     var _SF_HIST_PAGE = 10;
-    var _sfClaimByEpoch = {}; // epochNumber -> { status, winId, amount, why }
+    var _sfClaimByEpoch = {}; // epochNumber -> array of real claim rows (empty array = loaded, no win)
     var _sfClaimLoading = false;
 
     function _sfClaimLabel(st, amount) {
@@ -3358,26 +3358,35 @@ function _loadPoolEpoch() {
         return null;
     }
 
-    function _sfClaimRowHtml(epochNum) {
-        var n = parseInt(epochNum, 10) || 0;
-        if (!n) return '';
-        var info = _sfClaimByEpoch[n];
-        if (!info) {
-            if (typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
-                return '<div data-sf-claim-slot="' + n + '" style="margin-top:8px;font-size:0.72rem;color:var(--text-faint);">Checking your sats…</div>';
-            }
-            return '<div style="margin-top:8px;font-size:0.72rem;color:var(--text-faint);">Sign in to see your Favor claim.</div>';
-        }
+    function _sfOneClaimHtml(epochNum, info) {
+        if (!info || !info.winId) return '';
         var lab = _sfClaimLabel(info.status, info.amount);
         if (!lab) return '';
         if (lab.kind === 'claim') {
             return '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
-                '<button type="button" data-sf-claim-win="' + String(info.winId || '').replace(/"/g, '') + '" data-sf-claim-epoch="' + n + '" ' +
+                '<button type="button" data-sf-claim-win="' + String(info.winId || '').replace(/"/g, '') + '" data-sf-claim-epoch="' + epochNum + '" ' +
                 'style="padding:8px 14px;min-height:44px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:800;font-size:0.78rem;cursor:pointer;font-family:inherit;">⚡ ' + lab.text + '</button>' +
                 '<span style="font-size:0.68rem;color:var(--text-muted);">Pays your saved Lightning address</span></div>';
         }
         var color = lab.kind === 'done' ? '#22c55e' : (lab.kind === 'wait' ? '#eab308' : 'var(--text-faint)');
         return '<div style="margin-top:8px;font-size:0.75rem;font-weight:700;color:' + color + ';">' + lab.text + '</div>';
+    }
+
+    function _sfClaimRowHtml(epochNum) {
+        var n = parseInt(epochNum, 10) || 0;
+        if (!n) return '';
+        var info = _sfClaimByEpoch[n];
+        if (info == null) {
+            if (typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
+                return '<div data-sf-claim-slot="' + n + '" style="margin-top:8px;font-size:0.72rem;color:var(--text-faint);">Checking your sats…</div>';
+            }
+            return '<div style="margin-top:8px;font-size:0.72rem;color:var(--text-faint);">Sign in to see your Favor claim.</div>';
+        }
+        var list = Array.isArray(info) ? info : [info];
+        if (!list.length) return '';
+        var html = '';
+        for (var i = 0; i < list.length; i++) html += _sfOneClaimHtml(n, list[i]);
+        return html;
     }
 
     function _sfRefreshClaims(epochNums, paintFn) {
@@ -3398,9 +3407,14 @@ function _loadPoolEpoch() {
         _sfClaimLoading = true;
         firebase.functions().httpsCallable('myFavorEpochClaims')({ epochNumbers: nums }).then(function (res) {
             var claims = (res && res.data && res.data.claims) || [];
+            // Mark every asked epoch as loaded. No row means no win — not "waiting on approval".
+            nums.forEach(function (n) { _sfClaimByEpoch[n] = []; });
             claims.forEach(function (c) {
-                if (!c || !c.epochNumber) return;
-                _sfClaimByEpoch[c.epochNumber] = c;
+                if (!c || !c.epochNumber || !c.winId) return;
+                var list = _sfClaimByEpoch[c.epochNumber];
+                if (!Array.isArray(list)) list = [];
+                list.push(c);
+                _sfClaimByEpoch[c.epochNumber] = list;
             });
             _sfClaimLoading = false;
             if (paintFn) paintFn();
@@ -3464,7 +3478,17 @@ function _loadPoolEpoch() {
         firebase.functions().httpsCallable('claimCipherWin')({ winId: winId }).then(function (res) {
             var d = (res && res.data) || {};
             if (d.success) {
-                _sfClaimByEpoch[epochNum] = Object.assign({}, _sfClaimByEpoch[epochNum] || {}, { status: 'claimed', winId: winId, amount: d.amount || (_sfClaimByEpoch[epochNum] && _sfClaimByEpoch[epochNum].amount) || 0 });
+                var list = _sfClaimByEpoch[epochNum];
+                if (!Array.isArray(list)) list = [];
+                var hit = false;
+                for (var ci = 0; ci < list.length; ci++) {
+                    if (list[ci] && list[ci].winId === winId) {
+                        list[ci] = Object.assign({}, list[ci], { status: 'claimed', winId: winId, amount: d.amount || list[ci].amount || 0 });
+                        hit = true;
+                    }
+                }
+                if (!hit) list.push({ status: 'claimed', winId: winId, amount: d.amount || 0, epochNumber: epochNum });
+                _sfClaimByEpoch[epochNum] = list;
                 if (typeof showToast === 'function') showToast('⚡ Favor sats sent!');
             } else {
                 if (typeof showToast === 'function') showToast(d.error || 'Claim failed. Try again.');

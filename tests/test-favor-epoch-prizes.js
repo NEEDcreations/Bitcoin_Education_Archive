@@ -1,6 +1,8 @@
 'use strict';
 
 const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 const P = require('../functions/src/favorEpochPrizes');
 
 function test(name, fn) {
@@ -514,10 +516,122 @@ test('wallet fail before reserve: release clears site sats; cooldown expires', f
     });
     assert.strictEqual(ok.ok, true);
 
-    // Scrubbed wallet error stays generic
-    const msg = P.clientSafeClaimError(new Error('Failed to connect to ws://127.0.0.1:9'), 'Could not reserve this Favor payout.');
+    // Unreachable wallet is a wallet error, not the reserve fallback, and never leaks the URL.
+    const leak = 'Failed to connect to ws://127.0.0.1:9';
+    const msg = P.balanceCheckClaimError(new Error(leak));
     assert.ok(msg.indexOf('ws://') === -1);
-    assert.strictEqual(msg, 'Could not reserve this Favor payout.');
+    assert.ok(msg.indexOf('127.0.0.1') === -1);
+    assert.ok(msg.indexOf('Could not reserve') === -1);
+    assert.strictEqual(msg, 'The prize wallet could not be reached. Try again later, or Phil can mark it paid.');
+});
+
+test('balance check failure is wallet-unavailable, not a reserve error', function () {
+    const leak = 'Failed to request get_balance Nip47NetworkError: Failed to connect to ws://127.0.0.1:9';
+    const msg = P.balanceCheckClaimError(new Error(leak));
+    assert.ok(msg.indexOf('ws://') === -1);
+    assert.ok(msg.indexOf('Nip47') === -1);
+    assert.ok(msg.indexOf('get_balance') === -1);
+    assert.ok(msg.indexOf('Could not reserve') === -1);
+    assert.strictEqual(msg, 'The prize wallet could not be reached. Try again later, or Phil can mark it paid.');
+
+    const timeout = P.balanceCheckClaimError(new Error('[TIMEOUT] getBalance'));
+    assert.strictEqual(timeout, msg);
+    assert.ok(timeout.indexOf('[TIMEOUT]') === -1);
+    assert.ok(timeout.indexOf('getBalance') === -1);
+
+    const empty = P.balanceCheckClaimError(new Error('WALLET_UNAVAILABLE'));
+    assert.strictEqual(empty, msg);
+
+    assert.strictEqual(
+        P.balanceCheckClaimError(new Error('NO_WALLET')),
+        'Prize wallet is not configured yet. Phil can pay this from the admin list.'
+    );
+    assert.strictEqual(
+        P.balanceCheckClaimError(new Error('WALLET_LOW')),
+        'The prize wallet is being refilled. Try again later, or Phil can mark it paid.'
+    );
+    // A queried-but-low wallet stays WALLET_LOW even if the caller passed the reserve fallback.
+    assert.strictEqual(
+        P.clientSafeClaimError(new Error('WALLET_LOW'), 'Could not reserve this Favor payout.'),
+        'The prize wallet is being refilled. Try again later, or Phil can mark it paid.'
+    );
+    // A leaky reserve failure still uses the reserve sentence, not the wallet sentence.
+    const reserve = P.clientSafeClaimError(new Error('reserve failed at ws://127.0.0.1:9'), 'Could not reserve this Favor payout.');
+    assert.ok(reserve.indexOf('ws://') === -1);
+    assert.strictEqual(reserve, 'Could not reserve this Favor payout.');
+    assert.notStrictEqual(reserve, msg);
+
+    // claimCipherWin maps the balance-check catch to the wallet helper, and the reserve catch stays separate.
+    const gifting = fs.readFileSync(path.join(__dirname, '../functions/src/gifting.js'), 'utf8');
+    const peek = gifting.indexOf('const balPeek = await withTimeout');
+    assert.ok(peek > 0);
+    const reservedAt = gifting.indexOf('sfDidReserve = true;', peek);
+    assert.ok(reservedAt > peek);
+    const balanceRegion = gifting.slice(peek, reservedAt);
+    assert.ok(balanceRegion.indexOf('balanceCheckClaimError') !== -1);
+    assert.ok(balanceRegion.indexOf('Could not reserve this Favor payout.') === -1);
+    const reserveRegion = gifting.slice(reservedAt, reservedAt + 1200);
+    assert.ok(reserveRegion.indexOf('Could not reserve this Favor payout.') !== -1);
+    assert.ok(reserveRegion.indexOf('favor reserve failed') !== -1);
+});
+
+test('myFavor returns every real win for uid+epoch and no zero placeholders', function () {
+    const uid = 'uid_caller';
+    const epochId = P.epochIdOf(9001);
+    const plain = P.winId(epochId, uid);
+    const wins = [
+        { id: plain, win: { uid: uid, source: 'sf_epoch', epochId: epochId, status: 'claimable', amount: 1000, why: 'blocks' } },
+        { id: plain + '_b', win: { uid: uid, source: 'sf_epoch', epochId: epochId, status: 'claimable', amount: 500, why: 'bonus' } },
+        { id: plain + '_manual', win: { uid: uid, source: 'sf_epoch', epochId: epochId, status: 'pending', amount: 6000, why: 'manual' } },
+        // Random id still counts when uid + epoch match (do not guess document ids).
+        { id: 'hand_built', win: { uid: uid, source: 'sf_epoch', epochId: epochId, status: 'claimable', amount: 250 } },
+        // Someone else's win, even with a nearby id, stays hidden.
+        { id: P.winId(epochId, 'uid_other'), win: { uid: 'uid_other', source: 'sf_epoch', epochId: epochId, status: 'claimable', amount: 9999 } },
+        // Game cipher win is not a Favor claim.
+        { id: 'cipher_game', win: { uid: uid, source: 'cipher', status: 'claimable', amount: 100 } },
+        // Suffix id with no epoch field still belongs to this epoch.
+        { id: plain + '_extra', win: { uid: uid, status: 'paid', amount: 42 } },
+    ];
+    const rows = P.favorClaimsForCaller(wins, [9001, 1], uid);
+    const ids = rows.map(function (r) { return r.winId; });
+    assert.deepStrictEqual(ids, [plain, plain + '_b', plain + '_extra', 'hand_built', plain + '_manual'].sort());
+    const byId = {};
+    rows.forEach(function (r) { byId[r.winId] = r; });
+    assert.strictEqual(byId[plain].amount, 1000);
+    assert.strictEqual(byId[plain].status, 'claimable');
+    assert.strictEqual(byId[plain + '_b'].amount, 500);
+    assert.strictEqual(byId[plain + '_manual'].amount, 6000);
+    assert.strictEqual(byId[plain + '_manual'].status, 'pending_manual');
+    assert.strictEqual(byId[plain + '_extra'].status, 'claimed');
+    rows.forEach(function (r) {
+        assert.strictEqual(r.epochNumber, 9001);
+        assert.notStrictEqual(r.status, 'waiting_approval');
+        assert.notStrictEqual(r.winId, '');
+    });
+    // Epoch 1 has no win: no placeholder row at all.
+    assert.ok(!rows.some(function (r) { return r.epochNumber === 1; }));
+    assert.ok(!rows.some(function (r) { return r.amount === 0 && r.status === 'waiting_approval'; }));
+    assert.ok(!rows.some(function (r) { return r.winId.indexOf('uid_other') !== -1; }));
+
+    // Empty epoch list never invents rows, even when wins exist.
+    assert.deepStrictEqual(P.favorClaimsForCaller(wins, [], uid), []);
+    assert.deepStrictEqual(P.favorClaimsForCaller(wins, undefined, uid), []);
+    assert.deepStrictEqual(P.parseFavorEpochNumbers({}), []);
+    assert.deepStrictEqual(P.parseFavorEpochNumbers({ epochNumbers: [] }), []);
+
+    // Callable queries by the signed-in uid and does not scan RESULTS or invent placeholders.
+    const jobs = fs.readFileSync(path.join(__dirname, '../functions/src/favorEpochJobs.js'), 'utf8');
+    const fnStart = jobs.indexOf('const myFavorEpochClaims');
+    const fnEnd = jobs.indexOf('const adminRebuildFavorBreakdown');
+    assert.ok(fnStart > 0 && fnEnd > fnStart);
+    const fnBody = jobs.slice(fnStart, fnEnd);
+    assert.ok(fnBody.indexOf("where('uid', '==', uid)") !== -1);
+    assert.ok(fnBody.indexOf('favorClaimsForCaller') !== -1);
+    assert.ok(fnBody.indexOf('parseFavorEpochNumbers') !== -1);
+    assert.ok(fnBody.indexOf('waiting_approval') === -1);
+    assert.ok(fnBody.indexOf('P.winId(') === -1);
+    assert.ok(fnBody.indexOf('collection(RESULTS)') === -1);
+    assert.ok(fnBody.indexOf('orderBy(') === -1);
 });
 
 test('confirm + win id', function () {

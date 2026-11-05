@@ -1274,56 +1274,80 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
             sfLockedLn = String(w.lockedLightningAddress || '').trim().toLowerCase();
             // Balance first so the in-flight floor check is meaningful.
             // Gates + paying already passed; wallet missing is an after-gate failure.
-            if (!NWC_URL) throw new Error('NO_WALLET');
-            const nwcPeek = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
-            const balPeek = await withTimeout(nwcPeek.getBalance(), 20000, 'getBalance');
-            const walletSatsPeek = Math.floor((balPeek.balance || 0) / 1000);
+            // Unknown balance fails closed: do not reserve and do not pay.
+            // That failure is a wallet error, not a reserve error.
+            let walletSatsPeek = null;
+            try {
+                if (!NWC_URL) throw new Error('NO_WALLET');
+                const nwcPeek = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
+                const balPeek = await withTimeout(nwcPeek.getBalance(), 20000, 'getBalance');
+                const rawBal = balPeek && Number(balPeek.balance);
+                if (!Number.isFinite(rawBal)) throw new Error('WALLET_UNAVAILABLE');
+                walletSatsPeek = Math.floor(rawBal / 1000);
+            } catch (e) {
+                const revert = { status: 'claimable', payingAt: admin.firestore.FieldValue.delete() };
+                // Pre-reserve: clear any cooldown stamp so a dead wallet cannot lock the prize.
+                revert.walletFailAt = admin.firestore.FieldValue.delete();
+                await winRef.update(revert).catch(function() {});
+                console.error('[claimCipherWin] favor wallet unavailable:', e && e.message, 'didReserve=false');
+                return { success: false, error: favorEpochPrizes.balanceCheckClaimError(e) };
+            }
             const day = new Date().toISOString().slice(0, 10);
             sfReserveDay = day;
             const siteRef = db.collection('sf_payout_site_daily').doc(day);
             const lockRef = db.collection('sf_payout_locks').doc(winId);
             const cfgSnap = await db.collection('config').doc('satoshiFavorPayouts').get();
-            await db.runTransaction(async (t) => {
-                const siteSnap = await t.get(siteRef);
-                const lockSnap = await t.get(lockRef);
-                const site = siteSnap.exists ? (siteSnap.data() || {}) : {};
-                const lock = lockSnap.exists ? (lockSnap.data() || {}) : {};
-                const plan = favorEpochPrizes.planFavorClaimReserve({
-                    amount: amount,
-                    reservedSats: site.reservedSats,
-                    inFlightSats: site.inFlightSats,
-                    walletSats: walletSatsPeek,
-                    lockReserved: lock.reserved === true,
-                    lockInFlight: lock.inFlight === true,
-                    config: cfgSnap.exists ? cfgSnap.data() : {},
-                    day: day,
+            try {
+                await db.runTransaction(async (t) => {
+                    const siteSnap = await t.get(siteRef);
+                    const lockSnap = await t.get(lockRef);
+                    const site = siteSnap.exists ? (siteSnap.data() || {}) : {};
+                    const lock = lockSnap.exists ? (lockSnap.data() || {}) : {};
+                    const plan = favorEpochPrizes.planFavorClaimReserve({
+                        amount: amount,
+                        reservedSats: site.reservedSats,
+                        inFlightSats: site.inFlightSats,
+                        walletSats: walletSatsPeek,
+                        lockReserved: lock.reserved === true,
+                        lockInFlight: lock.inFlight === true,
+                        config: cfgSnap.exists ? cfgSnap.data() : {},
+                        day: day,
+                    });
+                    if (!plan.ok) throw new Error(plan.error);
+                    sfClaimLimits = plan.limits;
+                    t.set(siteRef, {
+                        reservedSats: plan.nextReservedSats,
+                        inFlightSats: plan.nextInFlightSats,
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    }, { merge: true });
+                    t.set(lockRef, {
+                        reserved: true,
+                        inFlight: true,
+                        amount: amount,
+                        day: day,
+                        uid: uid,
+                        at: Date.now(),
+                    }, { merge: true });
                 });
-                if (!plan.ok) throw new Error(plan.error);
-                sfClaimLimits = plan.limits;
-                t.set(siteRef, {
-                    reservedSats: plan.nextReservedSats,
-                    inFlightSats: plan.nextInFlightSats,
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                }, { merge: true });
-                t.set(lockRef, {
-                    reserved: true,
-                    inFlight: true,
-                    amount: amount,
-                    day: day,
-                    uid: uid,
-                    at: Date.now(),
-                }, { merge: true });
-            });
-            sfDidReserve = true;
+                sfDidReserve = true;
+            } catch (e) {
+                // Always release. Never leave reserved/inFlight stuck after a reserve failure.
+                await releaseFavorReserve(true);
+                const walletish = e && (e.message === 'WALLET_LOW' || e.message === 'NO_WALLET');
+                const revert = { status: 'claimable', payingAt: admin.firestore.FieldValue.delete() };
+                // Cooldown only if we had actually reserved funds.
+                if (walletish && sfDidReserve) revert.walletFailAt = Date.now();
+                else revert.walletFailAt = admin.firestore.FieldValue.delete();
+                await winRef.update(revert).catch(function() {});
+                console.error('[claimCipherWin] favor reserve failed:', e && e.message, 'didReserve=', !!sfDidReserve);
+                return { success: false, error: favorEpochPrizes.clientSafeClaimError(e, 'Could not reserve this Favor payout.') };
+            }
         }
     } catch (e) {
-        // Always release. Never leave reserved/inFlight stuck after a wallet failure.
+        // Non-Favor read failed, or a Favor path threw outside the handlers above.
         await releaseFavorReserve(true);
-        const walletish = e && (e.message === 'WALLET_LOW' || e.message === 'NO_WALLET' || /Nip47|ws:\/\/|get_balance|ECONNREFUSED/i.test(String(e && e.message || '')));
         const revert = { status: 'claimable', payingAt: admin.firestore.FieldValue.delete() };
-        // Cooldown only if we had actually reserved funds; pre-reserve NWC failures clear any stamp.
-        if (walletish && sfDidReserve) revert.walletFailAt = Date.now();
-        else revert.walletFailAt = admin.firestore.FieldValue.delete();
+        revert.walletFailAt = admin.firestore.FieldValue.delete();
         await winRef.update(revert).catch(function() {});
         console.error('[claimCipherWin] favor reserve/wallet failed:', e && e.message, 'didReserve=', !!sfDidReserve);
         return { success: false, error: favorEpochPrizes.clientSafeClaimError(e, 'Could not reserve this Favor payout.') };
