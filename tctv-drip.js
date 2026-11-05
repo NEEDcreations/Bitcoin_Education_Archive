@@ -47,9 +47,13 @@
             '@keyframes tdDrop{to{transform:translateY(120px);opacity:0}}' +
             '#tctv-drip .td-burst{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px;color:#ffcf6b;background:radial-gradient(circle,rgba(247,147,26,.55),transparent 70%);animation:tdBurst 1.8s ease-out forwards;pointer-events:none}' +
             '@keyframes tdBurst{0%{transform:scale(.4);opacity:0}25%{transform:scale(1.1);opacity:1}100%{transform:scale(1.4);opacity:0}}' +
-            '#tctv-drip .td-prompt{margin-top:8px;display:flex;gap:8px;align-items:center;font-size:13px}' +
+            '#tctv-drip .td-prompt{position:absolute;top:6px;right:6px;display:inline-flex;align-items:center;gap:2px;font-size:12px;z-index:2}' +
             '#tctv-drip .td-prompt[hidden]{display:none}' +
-            '#tctv-drip .td-prompt button{background:#f7931a;color:#000;border:0;border-radius:8px;padding:6px 12px;font-weight:700;cursor:pointer;min-height:32px}' +
+            '#tctv-drip .td-yes{background:rgba(247,147,26,.18);color:#ffcf6b;border:1px solid rgba(247,147,26,.5);border-radius:999px;padding:0 12px;font-size:12px;font-weight:600;cursor:pointer;min-height:44px;min-width:44px}' +
+            '#tctv-drip .td-pinfo{background:none;border:0;color:inherit;opacity:.7;font-size:14px;cursor:pointer;min-width:44px;min-height:44px;padding:0}' +
+            '#tctv-drip .td-ptip{display:none;position:absolute;top:46px;right:0;width:220px;font-size:12px;line-height:1.4;background:#111;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:8px 10px;box-shadow:0 4px 14px rgba(0,0,0,.4)}' +
+            '#tctv-drip .td-prompt.td-tipopen .td-ptip{display:block}' +
+            '@media (hover:hover){#tctv-drip .td-pinfo:hover+.td-ptip,#tctv-drip .td-pinfo:focus+.td-ptip{display:block}}' +
             '@media (prefers-reduced-motion:reduce){#tctv-drip .td-drop,#tctv-drip .td-burst{animation:none;display:none}}';
         document.head.appendChild(s);
     }
@@ -67,7 +71,9 @@
             '<div class="td-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><div class="td-fill"></div></div>' +
             '<div class="td-live" aria-live="polite"></div>' +
             '<div class="td-tip">The pot fills a little every minute while people watch Timechain TV together. More viewers, faster fill. When it\u2019s full, the sats are shared with the viewers who helped fill it, based on how long each person watched. Your share shows up in your sats balance to claim. Keep the video playing and this tab open to take part.</div>' +
-            '<div class="td-prompt" hidden><span>Still watching?</span><button type="button" class="td-yes">Yes, I\u2019m here</button></div>';
+            '<div class="td-prompt" hidden><button type="button" class="td-yes">Still watching? Tap</button>' +
+            '<button type="button" class="td-pinfo" aria-label="About this button" aria-expanded="false">\u24D8</button>' +
+            '<div class="td-ptip" role="tooltip">You can ignore this, but if you don\u2019t tap it, your watch time won\u2019t be added to the pot of sats.</div></div>';
         wrap.parentNode.insertBefore(el, wrap.nextSibling);
         var info = el.querySelector('.td-info');
         info.addEventListener('click', function () {
@@ -75,6 +81,11 @@
             info.setAttribute('aria-expanded', open ? 'true' : 'false');
         });
         el.querySelector('.td-yes').addEventListener('click', function () { el.querySelector('.td-prompt').hidden = true; checkin(true); });
+        var pinfo = el.querySelector('.td-pinfo');
+        pinfo.addEventListener('click', function () {
+            var o = el.querySelector('.td-prompt').classList.toggle('td-tipopen');
+            pinfo.setAttribute('aria-expanded', o ? 'true' : 'false');
+        });
         return el;
     }
 
@@ -122,6 +133,18 @@
     }
     window._tctvDripPaint = function (p) { pot = p; paint(); };
 
+    // Small, non-blocking button beside the pot. Shown for the 2-minute answer
+    // window; ignoring it only means that watch time isn't credited.
+    var promptHide = null;
+    function showPrompt(el) {
+        var pr = el.querySelector('.td-prompt');
+        if (!pr.hidden) return;
+        pr.hidden = false; pr.classList.remove('td-tipopen');
+        if (promptHide) clearTimeout(promptHide);
+        promptHide = setTimeout(function () { pr.hidden = true; }, 120000);
+    }
+    window._tctvDripShowPrompt = function () { var el = document.getElementById('tctv-drip'); if (el) showPrompt(el); };
+
     function checkin(answer) {
         if (inflight || !user() || !onTv()) return;
         var vis = document.visibilityState === 'visible', play = playing();
@@ -134,7 +157,7 @@
             }).then(function (res) {
                 var d = (res && res.data) || {};
                 var el = document.getElementById('tctv-drip');
-                if (d.prompt && el) { promptToken = d.promptToken || ''; el.querySelector('.td-prompt').hidden = false; }
+                if (d.prompt && el) { promptToken = d.promptToken || ''; showPrompt(el); }
             }).catch(function () {}).then(function () { inflight = false; });
         } catch (e) { inflight = false; }
     }

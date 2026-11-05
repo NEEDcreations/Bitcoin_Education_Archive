@@ -3,16 +3,21 @@ const assert = require('assert');
 const L = require('../functions/src/tctvDripLogic');
 // Share math below is checked on a 10,000 pot; the shipped default is 5,000.
 assert.strictEqual(L.readConfig({}).targetSats, 5000);
+assert.strictEqual(L.readConfig({}).satsPerViewerMinute, 1);
+assert.strictEqual(L.readConfig({}).dailyCapSats, 1000);
 const cfg = L.readConfig({ targetSats: 10000 });
 // accrual
-let a = L.planAccrual({ sats: 0 }, 10, cfg, 'd1'); assert.strictEqual(a.sats, 0.5);
-a = L.planAccrual({ sats: 0 }, 500, cfg, 'd1'); assert.strictEqual(a.viewers, 50); assert.strictEqual(a.sats, 2.5);
+let a = L.planAccrual({ sats: 0 }, 10, cfg, 'd1'); assert.strictEqual(a.sats, 10);
+a = L.planAccrual({ sats: 0 }, 500, cfg, 'd1'); assert.strictEqual(a.viewers, 50); assert.strictEqual(a.sats, 50);
 a = L.planAccrual({ sats: 5000, dayKey: 'd1', dayAccrued: 999 }, 50, cfg, 'd1'); assert.strictEqual(a.add, 1);
-a = L.planAccrual({ sats: 5000, dayKey: 'd0', dayAccrued: 1000 }, 50, cfg, 'd1'); assert.strictEqual(a.add, 2.5);
+a = L.planAccrual({ sats: 5000, dayKey: 'd0', dayAccrued: 1000 }, 50, cfg, 'd1'); assert.strictEqual(a.add, 50);
 a = L.planAccrual({ sats: 999.9 }, 10, cfg, 'd1'); assert.ok(a.burst);
-a = L.planAccrual({ sats: 9999.9 }, 50, cfg, 'd1'); assert.ok(a.full); assert.strictEqual(a.sats, 10000);
-// 10 viewers: 0.5/min = 720/day -> ~14 days
-assert.ok(Math.ceil(10000 / (10 * 0.05 * 1440)) === 14);
+a = L.planAccrual({ sats: 9990 }, 50, cfg, 'd1'); assert.ok(a.full); assert.strictEqual(a.sats, 10000);
+// 1 sat/min/viewer, 1,000/day cap: 1 viewer fills 5,000 in ~3.5 days; any audience needs >= 5 days
+assert.strictEqual(Math.ceil(5000 / Math.min(1000, 1 * 1 * 1440)), 5);
+// daily cap binds at 1,000/day even with many viewers
+let d = { sats: 0 }; for (let i = 0; i < 1440; i++) d = Object.assign({}, d, L.planAccrual(d, 50, L.readConfig({}), 'd1'));
+assert.strictEqual(d.dayAccrued, 1000); assert.strictEqual(d.sats, 1000);
 // check-ins
 const ctx = (o) => Object.assign({ uid: 'u', nowMs: 1e9, cfg, playing: true, presenceFresh: true, newToken: 't', rand: 0.5 }, o);
 let c = L.planCheckin({}, ctx()); assert.strictEqual(c.credit, 60);
@@ -84,3 +89,16 @@ assert.ok(L.planReserve(30000, 0, cfg).ok);
 assert.ok(!L.planReserve(40000, 15000, cfg).ok);
 assert.ok(L.isAgentOrBlocked({ isAgent: true }) && !L.isAgentOrBlocked({}));
 console.log('tctvDripLogic: all tests passed');
+// Client prompt: small side button, info tooltip, 2-minute window, "pot of sats" wording.
+{
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'tctv-drip.js'), 'utf8');
+    assert.ok(src.includes("you don\\u2019t tap it, your watch time won\\u2019t be added to the pot of sats."));
+    assert.ok(!/sats pot/i.test(src), 'say "pot of sats"');
+    assert.ok(/\.td-prompt\{position:absolute;top:6px;right:6px/.test(src), 'prompt sits off to the side');
+    assert.ok(/\.td-yes\{[^}]*min-height:44px;min-width:44px/.test(src) && /\.td-pinfo\{[^}]*min-width:44px;min-height:44px/.test(src), '44px targets');
+    assert.ok(src.includes('}, 120000);'), '2-minute answer window');
+    assert.ok(!/addDoc|\.set\(|\.update\(/.test(src.replace(/localStorage\.setItem/g, '')), 'client never writes pot data');
+    const D = L.readConfig({});
+    assert.strictEqual(D.promptMinMinutes, 15); assert.strictEqual(D.promptMaxMinutes, 40); assert.strictEqual(D.promptAnswerSeconds, 120);
+}
+console.log('tctv-drip client prompt: ok');

@@ -62,7 +62,7 @@ const HIDDEN_BADGES = [
         "⚡ A pleb just completed a Lightning Network quest — 50 XP earned!",
         "🗺️ Someone just finished all 10 steps of the Bitcoin Journey!",
         "🎮 A Bitcoiner just aced a quiz in Nacho Mode — 10/10!",
-        "📚 A new user just explored their first 3 topics — features unlocking!",
+        "📚 A new user just explored their first 3 topics!",
         "🧠 Someone just asked Nacho 100 questions — Bitcoin Scholar status!",
         "🎯 A pleb just scored 5/5 on a Conversation Quest!",
         "📖 Someone just read through the entire Timechain channel!",
@@ -1048,8 +1048,13 @@ window.checkHiddenBadges = function() {
             if (badge.check && badge.check()) {
                 earned.push(badge.id);
                 changed = true;
-                if (typeof showToast === 'function') showToast(badge.emoji + ' Secret Badge: ' + (badge.revealName || badge.name) + '! +' + badge.pts + ' XP');
-                if (typeof awardPoints === 'function') awardPoints(badge.pts, 'Badge: ' + (badge.revealName || badge.name), null, null, null, badge.id);
+                var secretName = badge.revealName || badge.name;
+                var badgesOn = typeof window.bqModeAllows !== 'function' || window.bqModeAllows('badges');
+                if (typeof showToast === 'function') {
+                    if (!badgesOn) showToast('+' + badge.pts + ' XP · ' + secretName);
+                    else showToast(badge.emoji + ' Secret Badge: ' + secretName + '! +' + badge.pts + ' XP');
+                }
+                if (typeof awardPoints === 'function') awardPoints(badge.pts, 'Badge: ' + secretName, null, null, null, badge.id);
             }
         } catch(e) {}
     });
@@ -1115,6 +1120,12 @@ window.setFloatingElementsVisible = function(visible) {
 // ========== CELEBRATION SYSTEM ==========
 // Reusable celebration overlay for big achievements
 window.showCelebration = function(opts) {
+    opts = opts || {};
+    if (typeof window.bqModeAllows === 'function' && !window.bqModeAllows('confetti')) {
+        var quietTitle = opts.title || opts.message || 'Achievement unlocked';
+        if (typeof showToast === 'function') showToast(quietTitle);
+        return;
+    }
     var emoji = opts.emoji || '🎉';
     var title = opts.title || 'Achievement Unlocked!';
     var message = opts.message || '';

@@ -5,7 +5,7 @@
 const DEFAULTS = Object.freeze({
     enabled: true,
     targetSats: 5000,
-    satsPerViewerMinute: 0.05,
+    satsPerViewerMinute: 1,
     maxCountedViewers: 50,
     dailyCapSats: 1000,
     userShareCapPct: 5,

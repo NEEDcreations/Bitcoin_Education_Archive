@@ -556,9 +556,28 @@
         setSub('sayHiBtnSub', saidHi ? 'Done' : 'to the community');
         if (sayHiBtn) sayHiBtn.setAttribute('aria-label', saidHi ? 'Say hi, completed' : 'Say hi!');
         var flex = paintFlex();
-        var done = (tri === 3 ? 1 : 0) + (spun ? 1 : 0) + (watched ? 1 : 0) + (predicted ? 1 : 0) + (saidHi ? 1 : 0) + (flex ? 1 : 0);
+        var tiles = [
+            { id: 'trifecta', el: document.getElementById('todayTrifectaBtn'), done: tri === 3 },
+            { id: 'spin', el: document.getElementById('nqSpinBtn'), done: !!spun },
+            { id: 'tctvWatch', el: document.getElementById('tctvWatchBtn'), done: !!watched },
+            { id: 'pricePrediction', el: predictBtn, done: !!predicted },
+            { id: 'sayHi', el: document.getElementById('sayHiBtn'), done: !!saidHi },
+            { id: 'flex', el: document.getElementById('todayFlexBtn'), done: !!flex }
+        ];
+        var visibleTiles = tiles.filter(function (tile) {
+            if (!tile.el) return false;
+            if (tile.el.getAttribute('data-em-hidden') || tile.el.getAttribute('data-simplified-hidden')) return false;
+            if (typeof window.bqModeAllows === 'function' && !window.bqModeAllows(tile.id)) return false;
+            try {
+                var cs = window.getComputedStyle(tile.el);
+                if (cs && (cs.display === 'none' || cs.visibility === 'hidden')) return false;
+            } catch (eVis) {}
+            return true;
+        });
+        var done = 0;
+        visibleTiles.forEach(function (tile) { if (tile.done) done++; });
         var counter = document.getElementById('todayDoneCount');
-        if (counter) counter.textContent = done + '/6 done today';
+        if (counter) counter.textContent = done + '/' + visibleTiles.length + ' done today';
     }
 
     window._paintTodayCard = function (opts) {
