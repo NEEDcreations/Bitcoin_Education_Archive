@@ -52,9 +52,7 @@
         // Experience mode — determines what sections/cards to show
         var expMode = 'advanced';
         try { expMode = localStorage.getItem('btc_experience_mode') || 'advanced'; } catch(e) {}
-        var isBeginner     = (expMode === 'beginner');
-        var isIntermediate = (expMode === 'intermediate');
-        var isAdvanced     = (expMode === 'advanced');
+        if (expMode !== 'lite' && expMode !== 'beginner' && expMode !== 'intermediate' && expMode !== 'advanced') expMode = 'advanced';
 
         var overlay = document.createElement('div');
         overlay.id = 'guideOverlay';
@@ -65,66 +63,20 @@
         sheet.id = 'guideSheet';
         sheet.style.cssText = 'background:linear-gradient(180deg,#1a1b2e 0%,#12131f 100%);border:1px solid rgba(99,102,241,0.3);border-bottom:none;border-radius:24px 24px 0 0;width:100%;max-width:500px;max-height:88vh;overflow-y:auto;padding:0 20px 120px;animation:guideSlideUp 0.4s ease-out;-webkit-overflow-scrolling:touch;';
 
-        // Hero subtitle changes by mode
-        var heroSubtitle = isAdvanced
-            ? 'How to earn, learn, and level up'
-            : isBeginner
-            ? 'Your guided introduction to Bitcoin'
-            : 'Your Bitcoin learning experience';
+        var heroMeta = (typeof window.bqExperienceModeMeta === 'function') ? window.bqExperienceModeMeta(expMode) : null;
+        var heroSubtitle = heroMeta ? heroMeta.desc : 'Every app, game and event.';
 
-        // -- Start Here cards (all modes get Nacho Trails + Read Channels + Ask Nacho) --
-        var startHereCards = [
-            guideCard('\uD83D\uDDFA\uFE0F', 'rgba(34,197,94,0.12)', "Nacho's Trails", 'Guided learning paths — Meadow, Mountain, and Summit.', 'tag-new', 'Recommended path', "minimizeGuide();setTimeout(function(){go('trails')},300)"),
-            guideCard('\uD83D\uDCD6', 'rgba(247,147,26,0.12)', 'Read Channels', 'Read curated Bitcoin content. Each channel earns XP.', 'tag-start', 'Your main activity', 'goHome()'),
-            guideCard('\uD83E\uDD8C', 'rgba(234,179,8,0.12)', 'Ask Nacho Anything', 'AI Bitcoin tutor — ask anything, get quizzed, track progress.', 'tag-start', 'Always available', "minimizeGuide();setTimeout(function(){if(typeof enterNachoMode==='function')enterNachoMode()},300)")
-        ];
-        // Beginner mode: also show wallet setup card
-        if (isBeginner) {
-            startHereCards.push(guideCard('\uD83D\uDC5B', 'rgba(247,147,26,0.08)', 'Set Up Your Wallet', 'Add a Lightning address to receive and send sats.', 'tag-earn', 'Receive sats', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showSettingsPage==='function')showSettingsPage('profile')},300)"));
+        function cardsFrom(list) {
+            return (list || []).map(function (g) {
+                return guideCard(g.icon, g.iconBg, g.title, g.desc, g.tagClass || null, g.tagText || null, g.action);
+            });
         }
-
-        // -- Daily Activities cards per mode --
-        // Beginner: quests only (no spin, no daily challenges, no price prediction)
-        // Intermediate: daily challenges + quests (no spin, no price prediction)
-        // Advanced: everything
-        var dailyCards = [];
-        if (!isBeginner) {
-            dailyCards.push(guideCard('\uD83C\uDFAF', 'rgba(139,92,246,0.12)', 'Daily Challenges', 'Complete tasks each day for bonus XP.', 'tag-earn', '+Bonus XP', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showQuestModal==='function')showQuestModal()},300)"));
-        }
-        dailyCards.push(guideCard('\u2694\uFE0F', 'rgba(234,179,8,0.12)', 'Quests', 'Quiz, Trivia, and Poll quests — test your knowledge and earn XP!', 'tag-earn', '+50 XP each', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showQuestHub==='function')showQuestHub()},300)"));
-        if (isAdvanced) {
-            dailyCards.push(guideCard('\uD83C\uDFA1', 'rgba(99,102,241,0.12)', 'Daily Spin', 'Spin once daily for tickets, XP, or rare prizes.', 'tag-earn', '+XP daily', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof showSpinWheel==='function'){minimizeGuide();showSpinWheel();}"));
-            dailyCards.push(guideCard('\uD83D\uDCC8', 'rgba(34,197,94,0.12)', 'Price Predictions', "Predict tomorrow's BTC price. Earn XP if right.", 'tag-earn', '+XP if right', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof showPricePrediction==='function'){minimizeGuide();showPricePrediction();}"));
-        }
-        dailyCards.push(guideCard('\uD83D\uDC5F', 'rgba(252,76,2,0.12)', 'Proof of Walk', 'Connect Strava to earn 50 pts per km walked, run, or hiked.', 'tag-earn', 'Max 2,100 pts/day', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();if(typeof showProofOfWalk==='function')showProofOfWalk()"));
-
-        // -- Apps to Explore per mode --
-        // Beginner: only Timechain TV + AI Nacho Mode
-        // Intermediate + Advanced: all apps
-        var appsCards = [
-            guideCard('\uD83D\uDCFA', 'rgba(99,102,241,0.12)', 'Timechain TV', '21 channels of curated Bitcoin video content.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('timechain-tv')}},300)"),
-            guideCard('\uD83E\uDD8C', 'rgba(247,147,26,0.12)', 'AI Nacho Mode', 'Your Bitcoin-savvy AI tutor powered by archive knowledge.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleNachoMode==='function')toggleNachoMode()},300)")
-        ];
-        if (!isBeginner) {
-            appsCards.push(guideCard('\u2694\uFE0F', 'rgba(239,68,68,0.12)', 'PVP Battles', 'Real-time 1v1 Bitcoin trivia battles against other players.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof enterPVPMode==='function')enterPVPMode()},300)"));
-            appsCards.push(guideCard('\uD83C\uDFB5', 'rgba(168,85,247,0.12)', 'Bitcoin Beats', 'Community music player with uploads, likes, and artist pages.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('bitcoin-beats')},300)"));
-            appsCards.push(guideCard('\uD83D\uDCAC', 'rgba(59,130,246,0.12)', 'Pleb Talk', 'Community discussion board for Bitcoin topics and debates.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('forum')},300)"));
-            appsCards.push(guideCard('\uD83E\uDD1D', 'rgba(34,197,94,0.12)', 'IRL Sync', 'Find and organize real-life Bitcoin meetups near you.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('irl-sync')},300)"));
-            appsCards.push(guideCard('\uD83D\uDED2', 'rgba(250,204,21,0.12)', 'Lightning Mart', 'Buy and sell goods using Lightning payments.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){go('marketplace')},300)"));
-        }
-
-        // -- More Features section: advanced only (chat, dashboard, leaderboard hidden in modes 1+2) --
-        var moreFeaturesHtml = '';
-        if (isAdvanced) {
-            moreFeaturesHtml = guideSection('\u2728 More Features', [
-                guideCard('\uD83C\uDF0D', 'rgba(236,72,153,0.12)', 'Global Chat', 'Live chat with the community — messages, DMs, GIFs, reactions.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();if(typeof toggleChatOverlay==='function'){minimizeGuide();toggleChatOverlay();}"),
-                guideCard('\uD83D\uDCCA', 'rgba(59,130,246,0.12)', 'Bitcoin Dashboard', 'Live price, top indicators, mempool, and cycle signals.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleDashboard==='function')toggleDashboard()},300)"),
-                guideCard('\uD83C\uDFC6', 'rgba(168,85,247,0.12)', 'Leaderboard', 'Compete with other learners. Rise from Normie to Whale.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof toggleLeaderboard==='function')toggleLeaderboard()},300)"),
-                guideCard('\u20BF', 'rgba(247,147,26,0.12)', 'Earn Real Bitcoin', 'Redeem points for sats via Lightning. Learn, earn, stack.', 'tag-earn', 'XP → Sats', "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof showSettingsPage==='function'){showSettingsPage('sats')}else if(typeof showSettings==='function'){showSettings()}},300)"),
-                guideCard('\u26A1', 'rgba(250,204,21,0.12)', 'Lightning Tipping', 'Set up your Lightning wallet to send and receive tips.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('lightning')}},300)"),
-                guideCard('\uD83C\uDF93', 'rgba(168,85,247,0.12)', 'Scholar Certification', 'Read all topics and pass the exam to earn your certification.', null, null, "sessionStorage.setItem('btc_return_guide','1');showGuideReturnBtn();minimizeGuide();setTimeout(function(){if(typeof go==='function'){go('scholar')}},300)")
-            ]);
-        }
+        var grouped = (typeof window.bqGuideCards === 'function') ? window.bqGuideCards(expMode) : { start: [], daily: [], apps: [], more: [] };
+        var startHereCards = cardsFrom(grouped.start);
+        var dailyCards = cardsFrom(grouped.daily);
+        var appsCards = cardsFrom(grouped.apps);
+        var moreCards = cardsFrom(grouped.more);
+        var moreFeaturesHtml = moreCards.length ? guideSection('\u2728 More Features', moreCards) : '';
 
         sheet.innerHTML =
             // -- HERO --
@@ -156,7 +108,7 @@
             guideSection('🎯 Daily Activities', dailyCards) +
 
             // -- APPS TO EXPLORE --
-            guideSection('🔓 Apps to Explore', appsCards) +
+            guideSection('Apps to Explore', appsCards) +
 
             // -- MORE FEATURES (advanced only) --
             moreFeaturesHtml +
@@ -191,17 +143,6 @@
             '<div style="width:42px;height:42px;border-radius:12px;background:' + iconBg + ';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + icon + '</div>' +
             '<div style="flex:1;min-width:0;"><div style="font-size:0.88rem;font-weight:700;color:#fff;margin:0 0 2px;display:block;">' + title + '</div><div style="font-size:0.75rem;color:#94a3b8;line-height:1.45;margin:0;display:block;">' + desc + '</div>' + tag + '</div>' +
             '<div style="color:#4b5563;font-size:0.8rem;margin-top:8px;flex-shrink:0;">›</div>' +
-        '</div>';
-    }
-
-    // ---- Helper: unlock tier row ----
-    function unlockTier(icon, name, req, locked, onclick) {
-        var clickAttr = onclick ? ' onclick="' + onclick + '" style="display:flex !important;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;margin-bottom:6px;cursor:pointer;"'
-            : ' style="display:flex !important;align-items:center;gap:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;margin-bottom:6px;"';
-        return '<div' + clickAttr + '>' +
-            '<div style="font-size:1.1rem;width:28px;text-align:center;flex-shrink:0;">' + icon + '</div>' +
-            '<div style="flex:1;min-width:0;"><div style="font-size:0.82rem;font-weight:700;color:#e2e8f0;">' + name + '</div><div style="font-size:0.68rem;color:#64748b;">' + req + '</div></div>' +
-            '<div style="font-size:0.8rem;color:' + (locked ? '#4b5563' : '#22c55e') + ';">' + (locked ? '🔒' : '✅') + '</div>' +
         '</div>';
     }
 
@@ -430,7 +371,7 @@
         if (existing) { existing.remove(); return; }
 
         var faqs = [
-            { q: 'What is this app for?', a: 'Bitcoin Education Archive is a free platform with 146+ organized channels of Bitcoin knowledge. Read content, earn XP, unlock mini-apps, and stack real sats (bitcoin) just by learning. Built for everyone — total beginners to hardcore Bitcoiners.' },
+            { q: 'What is this app for?', a: 'Bitcoin Education Archive is a free platform with 146+ organized channels of Bitcoin knowledge. Read content, earn XP, use the apps, and stack real sats (bitcoin) just by learning. Built for everyone — total beginners to hardcore Bitcoiners.' },
             { q: 'Do I need to sign up?', a: 'No! You can start reading and earning XP immediately without an account. Creating a free account lets you save your progress, appear on the leaderboard, receive Lightning tips from other users, and withdraw earned sats to your wallet.' },
             { q: 'Where do I start?', a: 'Tap any channel in the sidebar to start reading. Beginners: try "One-Stop Shop" or "Why Bitcoin?" first. You can also tap "Your Quest Begins" above for a full walkthrough, or let Nacho (the deer in the corner) guide you with a 5-step quest.' },
             { q: 'How do I earn XP and sats?', a: 'Open Settings → Sats and expand How to Earn XP. That list is shared with this answer. ' + ((typeof window.renderEarnXpGuide === 'function') ? window.renderEarnXpGuide('faq-') : ((typeof window.EARN_XP_CAP_LINE === 'string' && window.EARN_XP_CAP_LINE) ? window.EARN_XP_CAP_LINE : 'One daily cap, from 5:00 UTC: full XP through 500, half through 900, then a quarter until 1,000. Extra is not saved. Scholar and Protocol exams are not limited by this cap. Guest XP you already earned, up to 500, does not.')) + ' Each tier rounds down. XP converts to sats: 1,000 XP = 100 sats, redeemable to your Lightning wallet.' },
@@ -440,8 +381,13 @@
             { q: 'What is Satoshi\'s Favor all about?', a: 'Satoshi\'s Favor (SF) is our in-app hashing game. A window opens periodically and users compete to find the lowest hash. The player who mines the lowest hash value below the difficulty target wins 21,000 sats sent directly to their Lightning address. It teaches you how Bitcoin proof-of-work mining actually feels — while giving you a real shot at winning bitcoin.' },
             { q: 'What is PVP Battle?', a: 'PVP (Player vs Player) lets you challenge other users to live Bitcoin trivia duels. Both players answer the same questions simultaneously — fastest and most accurate wins. It\'s a real-time head-to-head match. A win pays 50 XP. A draw pays 5 XP. A loss pays 25 XP if you scored. Win badges pay extra.' },
             { q: 'What are Orange Tickets?', a: 'Orange Tickets are earned by completing special actions (hosting IRL events, winning PVP streaks, daily spins, etc). You can spend them in the Ticket Redemption store for XP boosts, hint tokens, streak freezes, and bonus spins.' },
-            { q: 'What are ranks and how do I level up?', a: 'Your rank is based on your total XP. Starting at Pleb, you progress through Hodler, Stacker, Satoshi\'s Student, Lightning Node, Full Node, and all the way up to Whale and Bitcoin Legend. Each rank unlocks new features and apps.' },
-            { q: 'What mini-apps are in the Archive?', a: 'The Archive has 7 built-in apps: Timechain TV (Bitcoin video streaming), Bitcoin Beats (music by Bitcoiners), PVP Battle (trivia duels), Proof of Play (Lightning-powered arcade games), Nacho Q&A (AI Bitcoin tutor), Quest Hub (quizzes, trails, Scholar certification), and IRL Sync (local Bitcoin meetups).' },
+            { q: 'What are ranks and how do I level up?', a: 'Your rank is a title based on your total XP. It starts at Normie and climbs through Curious, Pleb, Stacker, Maxi, Papa John, Full Node, Whale, Sovereign, and Cypherpunk up to Satoshi. The title and its emoji show on your profile and the leaderboard.' },
+            { q: 'What mini-apps are in the Archive?', a: (function() {
+                var apps = (typeof window.exploreAppsForMode === 'function') ? window.exploreAppsForMode() : [];
+                if (!apps.length) return 'Open Explore Apps for Nacho Mode, Timechain TV, and the rest.';
+                var names = apps.map(function(item) { return item.title; });
+                return 'Explore Apps lists ' + names.length + ' apps: ' + names.join(', ') + '.';
+            })() },
             { q: 'What is Nacho?', a: 'Nacho is your AI Bitcoin guide — a friendly deer who lives in the corner of the app. Tap Nacho to ask any Bitcoin question in plain English. Nacho has a database of 500+ curated Bitcoin answers and can explain anything from "What is a private key?" to "How does the Lightning Network work?"' },
             { q: 'What is the Scholar Certification?', a: 'Scholar Certification is a timed exam covering Bitcoin fundamentals — mining, wallets, Lightning, security, and more. Pass with 20 of 25 correct to earn your certificate and 2,100 XP, not limited by the daily cap. The Protocol exam pays the same 2,100 XP, once, not limited by the daily cap. Access it from Quest Hub once you\'ve reached a sufficient rank.' },
             { q: 'Is this app free?', a: 'Yes — 100% free, forever. No subscriptions, no ads, no paywalls. The sats you earn are real bitcoin. The app runs on community support.' },

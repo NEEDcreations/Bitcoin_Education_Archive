@@ -3565,7 +3565,7 @@ function matchSiteNavigation(input) {
           answer: "We've got lots of sign-in options! 🔐🦌\n\n🔵 Google, 𝕏 Twitter/X, 🐙 GitHub, 📘 Facebook\n🟣 Nostr (extension, nsec, or npub)\n⚡ Lightning (scan QR with your wallet)\n📧 Email/password\n\nYour progress, points, and badges sync across all devices when signed in!",
           action: "showUsernamePrompt()", label: "🔐 Sign In" },
         { patterns: /how.*(unlock|tier|gate|progress)|unlock.*app|tier.*system|why.*locked|locked.*feature|how.*get.*access|feature.*locked|can't.*access|cant.*access/,
-          answer: "Features unlock as you explore! 🦌\n\n🟢 **Always**: Nacho Mode, PVP Battle, Quests, 🎵 Bitcoin Beats — yours from the start\n🔵 **3 channels**: Unlocks 🗣️ Pleb Talk (community forum)\n🟣 **5 channels**: Unlocks 🤝 IRL Sync (local meetups)\n🟠 **10 channels or sign in**: Unlocks ⚡ Lightning Mart\n\nOr pick 'I'm experienced' during onboarding to unlock everything immediately! The channels themselves are never locked — only the apps unlock progressively.",
+          answer: "Pleb Talk, IRL Sync, and Lightning Mart are open from the start. Open Explore Apps and tap the one you want.",
           action: "goHome()", label: "🏠 Start Exploring" },
     ];
 
@@ -5837,7 +5837,7 @@ const TOP_NOTCH_ENTRIES = [
       channel: 'quest-hub', channelName: 'Quest Hub' },
 // === EXPERIENCE MODE (added 2026-07-21) ===
 { keys: ['experience mode', 'beginner mode', 'intermediate mode', 'advanced mode', 'skill level', 'change mode', 'experience level', 'mode setting', 'change my level', 'what mode am i in'],
-  answer: "You can set your experience level and I'll tune the whole app for you, {name}! 🎯🦌 Choose from:\n\n🟢 <strong>Beginner</strong> — shows the Learn tab + simplified menus, hides advanced features\n🟡 <strong>Intermediate</strong> — balanced view, all core features visible\n🔴 <strong>Advanced</strong> — full power mode, everything unlocked\n\nChange it anytime: Settings → Account → Experience Mode. Syncs across all your devices! 📱",
+  answer: "You can choose how much you see, {name}! 🎯🦌\n\n📖 Lite — Just the learning. Games, badges and leaderboards are hidden, but your XP and badges still count and show normally when you switch modes.\n🌱 Guided — A calm start with the essentials and a few extras.\n📘 Balanced — Most features, fewer popups.\n🔥 Everything — Every app, game and event.\n\nOpen What's included on each choice. Change it anytime: Settings → Prefs → Experience Mode, or the mode chip next to your XP meter. Your XP stays either way.",
   channel: 'learn', channelName: 'Learn' },
 
 // === SUPERCHARGED SF WINDOW (added 2026-07-21) ===

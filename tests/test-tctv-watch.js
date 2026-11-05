@@ -393,7 +393,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(html.includes('features.registry.js?v=20261031_v2452'));
+    assert.ok(html.includes('features.registry.js?v=20261104_v2482'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2361'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2357'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2355'));
@@ -846,6 +846,9 @@ test('patch notes keep one Latest line for shared cipher rewards', () => {
     const gifts = 'Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.';
     assert.ok(notes.includes(gifts));
     assert.ok(!notes.includes('Latest: Opening gifts'));
+    assert.ok(notes.includes('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.'));
+    assert.ok(!notes.includes('Latest: Sidebar'));
+    assert.ok(!notes.includes('Latest: The phone Learn'));
     const invite = 'The Invite button now stays on the home screen as a small pill, so you can always invite a friend.';
     assert.ok(notes.includes(invite));
     assert.ok(!notes.includes('Latest: The Invite button'));
