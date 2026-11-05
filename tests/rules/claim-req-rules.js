@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Clients cannot write claimReq or the referral visit log.
+// Clients cannot write claimReq.
 // Starts the Firestore emulator when FIRESTORE_EMULATOR_HOST is not set.
 'use strict';
 const { spawnSync } = require('child_process');
@@ -92,16 +92,6 @@ const parts = emu.split(':');
                 created: serverTimestamp(),
                 claimReq: { chatAt: 1 },
             });
-        }, false);
-        await expect('referral visit log is server-only', function () {
-            return setDoc(doc(user, 'referral_visits', 'abc'), {
-                code: 'abcdefgh',
-                deviceHmac: 'a'.repeat(64),
-                ipHmac: 'b'.repeat(64),
-            });
-        }, false);
-        await expect('visit rate limit docs are server-only', function () {
-            return setDoc(doc(user, 'rate_limits', 'refvisit_ip_abc'), { count: 1 });
         }, false);
         const admin = require(path.join(root, 'functions', 'node_modules', 'firebase-admin'));
         if (!admin.apps.length) admin.initializeApp({ projectId: 'demo-claimreq' });

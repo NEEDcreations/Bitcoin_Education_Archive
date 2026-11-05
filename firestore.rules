@@ -662,11 +662,6 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Referral-link visit log. HMAC only. Admin SDK only.
-    match /referral_visits/{docId} {
-      allow read, write: if false;
-    }
-
     // Hourly pending-referral cursor. Admin SDK only.
     match /referral_scan/{docId} {
       allow read, write: if false;

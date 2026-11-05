@@ -1431,15 +1431,6 @@ exports.registerReferral = functionsV1.runWith({ secrets: [referralIpSecret, del
     return referralService.registerReferral(data, context);
 });
 
-// Referral-link visits for the new-account claim requirement. App Check and
-// the IP HMAC secret live on the module so this file's App Check count stays put.
-const { bindLogReferralVisit } = require('./src/claimReqVisit');
-exports.logReferralVisit = bindLogReferralVisit(functionsV1, {
-    admin: admin,
-    db: db,
-    secrets: [referralIpSecret],
-});
-
 exports.deleteMyReferralSignal = functionsV1.https.onCall(async (data, context) => {
     return referralService.deleteMyReferralSignal(data, context);
 });

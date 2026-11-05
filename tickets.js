@@ -231,7 +231,6 @@ function captureReferralCode() {
         if (!storedReferralCode()) {
             try {
                 localStorage.setItem('btc_referral_code', ref);
-        logReferralVisit(ref);
                 localStorage.setItem('btc_referral_code_at', String(Date.now()));
             } catch (e) {}
         }
@@ -915,22 +914,7 @@ function toggleInviteHow() {
     btn.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
-function logReferralVisit(code) {
-    var ref = String(code || '').trim();
-    if (!/^[A-Za-z0-9]{6,28}$/.test(ref)) return;
-    if (typeof firebase === 'undefined' || !firebase.functions) return;
-    var fp = '';
-    try {
-        if (typeof _generateDeviceFingerprint === 'function') fp = _generateDeviceFingerprint();
-    } catch (e) {}
-    if (!fp || String(fp).length < 8) return;
-    try {
-        firebase.functions().httpsCallable('logReferralVisit')({ refCode: ref, fingerprint: fp }).catch(function() {});
-    } catch (e2) {}
-}
-
 function copyInviteLink() {
-    if (typeof getReferralCode === 'function') logReferralVisit(getReferralCode());
     var linkEl = document.getElementById('inviteLink');
     var btn = document.getElementById('inviteCopy');
     var text = (linkEl && linkEl.textContent) || getReferralLink();
@@ -955,7 +939,6 @@ function copyInviteLink() {
 }
 
 function shareInviteLink() {
-    if (typeof getReferralCode === 'function') logReferralVisit(getReferralCode());
     var linkEl = document.getElementById('inviteLink');
     var link = (linkEl && linkEl.textContent) || getReferralLink();
     if (!navigator.share) return;
@@ -977,7 +960,6 @@ if (typeof window !== 'undefined') {
     window.expandInviteCard = expandInviteCard;
     window.dismissInviteCard = dismissInviteCard;
     window.toggleInviteHow = toggleInviteHow;
-    window.logReferralVisit = logReferralVisit;
     window.copyInviteLink = copyInviteLink;
     window.shareInviteLink = shareInviteLink;
     window.inviteGuestSignup = inviteGuestSignup;
