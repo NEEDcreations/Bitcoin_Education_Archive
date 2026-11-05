@@ -224,9 +224,10 @@ queue.push(test('earning paths do not read experienceMode', function () {
     assert.ok(src.includes("setExperienceMode('advanced')"));
     assert.ok(!src.includes("setExperienceMode('intermediate')"));
     assert.ok(src.includes('New: choose how much you see'));
-    assert.ok(src.includes('bqModeChip'));
+    assert.ok(!src.includes('bqModeChip'), 'Today card mode dropdown removed');
+    assert.ok(!src.includes('bqModeMeterRow'));
+    assert.ok(src.includes("window._paintTodayCard({ tilesOnly: true })"), 'Today card repaints on mode change');
     assert.ok(src.includes('btc_mode_card_dismissed'));
-    assert.ok(src.includes("What's the difference?"));
     assert.ok(read('mobile-ux.js').includes('apps hidden in '));
     assert.ok(read('ranking.js').includes("showSettingsPage('prefs')"));
     assert.ok(read('badges.js').includes("'+' + plainPts + ' XP · ' + plainReason"));
@@ -284,7 +285,7 @@ queue.push(test('lite celebrations, spin, and picker follow the registry', funct
     assert.ok(read('features.registry.js').includes("else if (meta.id === 'beginner')"));
     var src = read('onboarding.js.src');
     assert.ok(!src.includes('firstMode.focus'));
-    assert.ok(src.includes('#bqModeChipPanel{') && src.includes('text-align:left;'));
+    assert.ok(!src.includes('#bqModeChipPanel{'));
     assert.ok(!read('nacho-live.js').includes('bqModeAllows(\'btcTicker\')'));
 }));
 

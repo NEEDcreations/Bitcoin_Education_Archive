@@ -301,7 +301,27 @@
             img.src = snap.avatar;
             chip.appendChild(img);
         }
-        chip.appendChild(doc.createTextNode(labelFor(snap)));
+        var btn = doc.createElement('button');
+        btn.type = 'button';
+        btn.className = 'bq-xp-lb-btn';
+        btn.setAttribute('aria-label', 'Open leaderboard');
+        btn.title = 'Open leaderboard';
+        btn.textContent = labelFor(snap);
+        btn.onclick = openLeaderboardFromHome;
+        chip.appendChild(btn);
+    }
+
+    // Same path as the app's other leaderboard entry points: open the
+    // existing #leaderboard panel via toggleLeaderboard (never close it).
+    function openLeaderboardFromHome(ev) {
+        if (ev && ev.preventDefault) ev.preventDefault();
+        var w = typeof window !== 'undefined' ? window : null;
+        if (!w) return;
+        var panel = w.document.getElementById('leaderboard');
+        var showing = panel && panel.classList.contains('open') && !panel.classList.contains('minimized');
+        if (showing) return;
+        if (typeof w.toggleLeaderboard === 'function') w.toggleLeaderboard();
+        else if (typeof w.showLeaderboardAuto === 'function') w.showLeaderboardAuto();
     }
 
     // Only the name/level/XP label. Never replace the rich mobile bar
