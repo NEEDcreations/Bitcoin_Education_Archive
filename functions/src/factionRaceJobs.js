@@ -98,8 +98,11 @@ async function decideRace(db, admin, nowMs) {
             decidedAt: stamp, decidedAtMs: nowMs,
             awardsDone: false, breakdownDone: false,
             payoutStatus: 'awaiting_admin_approval',
-            headStart: { faction: loser, pct: cfg.headStartPct },
+            headStart: { faction: loser, mult: cfg.headStartMult, points: cfg.headStartPoints },
         });
+        // Next-race head start for the loser. Applies only once totals move to a
+        // new raceId (see factionBalance.headStartActive).
+        t.set(totalsRef, { headStart: { faction: loser, afterRaceId: raceId, mult: cfg.headStartMult, points: cfg.headStartPoints } }, { merge: true });
         t.set(db.collection(PUBLIC_DOC[0]).doc(PUBLIC_DOC[1]), {
             raceId: raceId, winner: winner, loser: loser, finalTotals: finalTotals, decidedAtMs: nowMs, active: true,
         });

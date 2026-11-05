@@ -1730,7 +1730,7 @@ service cloud.firestore {
                     // Field allowlist: no arbitrary keys that could carry attacker payload
                     && request.resource.data.keys().hasOnly(['uid','name','text','ts','isNachoAuto','faction',
                         'replyTo','replyToName','replyToText',
-                        'hasChatFlair','chatFlairEmoji','hasNachoSkin','hasCoreContributor','hasFactionChampion',
+                        'hasChatFlair','chatFlairEmoji','hasNachoSkin','hasCoreContributor','hasFactionChampion','factionRaceFlair',
                         'isGif','caption','imageUrl','gifUrl'])
                     // F-004: imageUrl/gifUrl must come from Firebase Storage or Tenor CDN only
                     && (!('imageUrl' in request.resource.data) || request.resource.data.imageUrl.matches('^https://(firebasestorage[.]googleapis[.]com|[^/]+[.]firebasestorage[.]app|media[.]tenor[.]com|c[.]tenor[.]com)/.*'))
@@ -1745,6 +1745,10 @@ service cloud.firestore {
                         || (request.resource.data.hasFactionChampion == true
                             && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.factionChampionUntil is number
                             && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.factionChampionUntil > request.time.toMillis()))
+                    // Specific race flair must be exactly the server-set one, and only with the window open
+                    && (!('factionRaceFlair' in request.resource.data)
+                        || (request.resource.data.get('hasFactionChampion', false) == true
+                            && request.resource.data.factionRaceFlair == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.factionChampionFlair))
                     && request.resource.data.name is string
                     && request.resource.data.name.size() >= 2
                     && request.resource.data.name == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.username

@@ -25,7 +25,7 @@
         var w = NAMES[d.winner], l = NAMES[d.loser] || ['', '', ''];
         var html = '<span style="font-size:1.8rem">🏆</span><div class="frpT">' + w[0] + ' The ' + esc(w[1]) + ' won the race to 10,000!' +
             '<div class="frpS">Final score ' + fmt(d.finalTotals && d.finalTotals[d.winner]) + ' to ' + fmt(d.finalTotals && d.finalTotals[d.loser]) +
-            '. ' + esc(l[1]) + ' get a head start in the next race. ' + l[0] + '</div></div>';
+            '. ' + esc(l[1]) + ': first 1,000 points next race count 1.1x. ' + l[0] + '</div></div>';
         var host = document.getElementById('todayCard');
         if (!host || !host.parentNode) return;
         if (!old) { old = document.createElement('div'); old.id = 'frpBanner'; old.setAttribute('role', 'status'); host.parentNode.insertBefore(old, host); }

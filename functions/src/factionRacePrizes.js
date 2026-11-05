@@ -27,7 +27,8 @@ const DEFAULTS = {
     loserTopN: 10,
     minContribution: 3,
     minAccountAgeDays: 7,
-    headStartPct: 10,
+    headStartMult: 1.1,
+    headStartPoints: 1000,
 };
 const FLAIR_DAYS = 30;
 const FLAIR_MS = FLAIR_DAYS * 86400000;
@@ -37,13 +38,14 @@ const IDENTITY = {
     cyber_hornets: {
         name: 'Cyber Hornets', emoji: '🐝', badgeId: 'race_champion_hornets', titleId: 'hive_mind_champion',
         title: 'Hive Mind Champion', flair: '🐝👑',
+        loserBadgeId: 'race_still_buzzing', loserTitleId: 'still_buzzing', loserTitle: 'Still Buzzing', loserFlair: '🐝🛡️',
     },
     honey_badgers: {
         name: 'Honey Badgers', emoji: '🦡', badgeId: 'race_champion_badgers', titleId: 'honey_badger_champion',
         title: "Honey Badger Don't Care Champion", flair: '🦡👑',
+        loserBadgeId: 'race_badger_dont_quit', loserTitleId: 'badger_dont_quit', loserTitle: "Badger Don't Quit", loserFlair: '🦡🛡️',
     },
 };
-const COMEBACK_BADGE = 'race_comeback_kid';
 const FINISHER_BADGE = 'race_10k_finisher';
 
 function isFaction(f) { return FACTIONS.indexOf(f) !== -1; }
@@ -63,7 +65,6 @@ function readConfig(data) {
         loserTopN: intIn(d.loserTopN, 1, 100, DEFAULTS.loserTopN),
         minContribution: intIn(d.minContribution, 0, 10000, DEFAULTS.minContribution),
         minAccountAgeDays: intIn(d.minAccountAgeDays, 0, 365, DEFAULTS.minAccountAgeDays),
-        headStartPct: intIn(d.headStartPct, 0, 50, DEFAULTS.headStartPct),
     };
 }
 
@@ -194,7 +195,7 @@ function announcementText(winner, totals) {
     return '🏆🦌 THE RACE IS OVER! The ' + w.emoji + ' ' + w.name + ' hit 10,000 points first and WIN the faction race! (' +
         wPts + ' to ' + lPts + ') ' + quip + ' Every ' + w.name + ' contributor earns the ' + w.title +
         ' badge and title, champion chat flair for 30 days, and a share of the pot of sats. ' +
-        l.emoji + ' ' + l.name + ', you fought hard: every contributor gets the Comeback Kid badge, your top 10 split a pot of sats, and you start the next race with a head start. GG, plebs! 🧡';
+        l.emoji + ' ' + l.name + ', you fought hard: every contributor earns the ' + l.loserTitle + ' ' + l.loserFlair + ' badge, title and chat flair, your top 10 split a pot of sats, and your first 1,000 points next race count 1.1x. GG, plebs! 🧡';
 }
 
 // Grants for one contributor. Fixed values + arrayUnion: safe to repeat.
@@ -207,7 +208,12 @@ function grantPatch(side, faction, nowMs, FieldValue) {
         patch.factionChampionUntil = nowMs + FLAIR_MS;
         patch.factionChampionFlair = id.flair;
     } else {
-        patch.factionRaceBadges = FieldValue.arrayUnion(FINISHER_BADGE, COMEBACK_BADGE);
+        // Losers: faction-specific badge, title and 30-day flair.
+        const id = IDENTITY[faction];
+        patch.factionRaceBadges = FieldValue.arrayUnion(FINISHER_BADGE, id.loserBadgeId);
+        patch.earnedTitles = FieldValue.arrayUnion(id.loserTitleId);
+        patch.factionChampionUntil = nowMs + FLAIR_MS;
+        patch.factionChampionFlair = id.loserFlair;
     }
     return patch;
 }
@@ -217,7 +223,7 @@ function winId(raceId, side, uid) {
 }
 
 module.exports = {
-    FACTIONS, DEFAULTS, FLAIR_DAYS, FLAIR_MS, IDENTITY, COMEBACK_BADGE, FINISHER_BADGE, RACE_TARGET, MAX_POT,
+    FACTIONS, DEFAULTS, FLAIR_DAYS, FLAIR_MS, IDENTITY, FINISHER_BADGE, RACE_TARGET, MAX_POT,
     isFaction, other, readConfig, raceIdOf, decideWinner, truncateUid, publicName,
     tallyContributions, exclusionReason, splitPot, buildPot, buildBreakdown, announcementText, grantPatch, winId,
 };

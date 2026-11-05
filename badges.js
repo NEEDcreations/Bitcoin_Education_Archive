@@ -223,7 +223,8 @@ const BADGE_DEFS = [
     { id: 'race_10k_finisher', name: 'Ran the Race', emoji: '🏁', desc: 'Contributed to a faction in a race to 10,000', check: () => false, pts: 50, hidden: false, serverOnly: true },
     { id: 'race_champion_hornets', name: 'Hive Mind Champion', emoji: '🐝', desc: 'Cyber Hornets won the race to 10,000 and you helped', check: () => false, pts: 150, hidden: false, serverOnly: true },
     { id: 'race_champion_badgers', name: "Honey Badger Don't Care Champion", emoji: '🦡', desc: 'Honey Badgers won the race to 10,000 and you helped', check: () => false, pts: 150, hidden: false, serverOnly: true },
-    { id: 'race_comeback_kid', name: 'Comeback Kid', emoji: '🥊', desc: 'Fought to the finish in a race to 10,000. Next time.', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'race_still_buzzing', name: 'Still Buzzing', emoji: '🐝', desc: 'Cyber Hornets fought to the finish in a race to 10,000. Still buzzing.', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'race_badger_dont_quit', name: "Badger Don't Quit", emoji: '🦡', desc: "Honey Badgers fought to the finish in a race to 10,000. Badger don't quit.", check: () => false, pts: 75, hidden: false, serverOnly: true },
     { id: 'bip_86', name: 'BIP-86 P2TR Keys', emoji: '🪙', desc: 'Merged BIP-86: single-key P2TR derivation', check: () => false, pts: 75, hidden: false, serverOnly: true },
 
     { id: 'spin_streak_7', name: 'Spin Streak', emoji: '🎡', desc: 'Spun 7 days in a row', check: () => parseInt(localStorage.getItem('btc_spin_streak') || '0') >= 7, pts: 50 },
@@ -644,6 +645,8 @@ const TITLE_DEFS = [
     { id: 'spin_set_t',          title: 'Wheel of Fortune',       emoji: '🎰', requiredBadge: 'set_spin_complete',     flavor: 'The Spin Set complete. Fortune favored you enough.' },
     { id: 'hive_mind_champion', title: 'Hive Mind Champion', emoji: '🐝', requiredBadge: 'race_champion_hornets', flavor: 'The swarm reached 10,000 first. Bzzzt.' },
     { id: 'honey_badger_champion', title: "Honey Badger Don't Care Champion", emoji: '🦡', requiredBadge: 'race_champion_badgers', flavor: "Won the race to 10,000. Honey badger still don't care." },
+    { id: 'still_buzzing', title: 'Still Buzzing', emoji: '🐝', requiredBadge: 'race_still_buzzing', flavor: 'Lost the race. Still buzzing. Rematch.' },
+    { id: 'badger_dont_quit', title: "Badger Don't Quit", emoji: '🦡', requiredBadge: 'race_badger_dont_quit', flavor: "Lost the race. Badger don't quit." },
     { id: 'core_contributor', name: 'Core Contributor', title: 'Core Contributor', emoji: '🔧', requiredBadge: null, desc: 'Merged this week\'s BIP after 7 daily spins', flavor: 'Merged this week\'s BIP after 7 daily spins. Bit Devs energy.' },
     { id: 'pow_set_t',           title: 'Proof of Walker',        emoji: '👟', requiredBadge: 'set_pow_complete',      flavor: 'The Proof of Walk Set complete. Every step counted.' },
 

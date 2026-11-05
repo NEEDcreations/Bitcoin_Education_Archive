@@ -86,15 +86,29 @@ test('announcement copy rules', () => {
         assert.ok(t.indexOf('10,000') !== -1);
     });
 });
-test('grant patch: winners get champion badge, title, 30-day flair; losers get Comeback Kid', () => {
+test('grant patch: faction-specific winner and loser badges, titles, 30-day flair', () => {
     const FV = { arrayUnion: function () { return { u: Array.from(arguments) }; } };
     const w = P.grantPatch('winner', 'honey_badgers', NOW, FV);
     assert.deepStrictEqual(w.factionRaceBadges.u, ['race_10k_finisher', 'race_champion_badgers']);
     assert.deepStrictEqual(w.earnedTitles.u, ['honey_badger_champion']);
     assert.strictEqual(w.factionChampionUntil, NOW + 30 * 86400000);
+    assert.strictEqual(w.factionChampionFlair, '🦡👑');
+    assert.strictEqual(P.grantPatch('winner', 'cyber_hornets', NOW, FV).factionChampionFlair, '🐝👑');
     const l = P.grantPatch('loser', 'cyber_hornets', NOW, FV);
-    assert.deepStrictEqual(l.factionRaceBadges.u, ['race_10k_finisher', 'race_comeback_kid']);
-    assert.ok(!('factionChampionUntil' in l));
+    assert.deepStrictEqual(l.factionRaceBadges.u, ['race_10k_finisher', 'race_still_buzzing']);
+    assert.deepStrictEqual(l.earnedTitles.u, ['still_buzzing']);
+    assert.strictEqual(l.factionChampionFlair, '🐝🛡️');
+    assert.strictEqual(l.factionChampionUntil, NOW + 30 * 86400000);
+    const lb = P.grantPatch('loser', 'honey_badgers', NOW, FV);
+    assert.deepStrictEqual(lb.factionRaceBadges.u, ['race_10k_finisher', 'race_badger_dont_quit']);
+    assert.deepStrictEqual(lb.earnedTitles.u, ['badger_dont_quit']);
+    assert.strictEqual(lb.factionChampionFlair, '🦡🛡️');
+});
+test('no Comeback Kid left; chat flair must match server value', () => {
+    ['functions/src/factionRacePrizes.js', 'badges.js', 'bundle.min.js', 'functions/src/badges.catalog.json'].forEach(f =>
+        assert.ok(!/comeback/i.test(fs.readFileSync(path.join(root, f), 'utf8')), f));
+    const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
+    assert.ok(/factionRaceFlair == get\(\/databases\/\$\(database\)\/documents\/users\/\$\(request\.auth\.uid\)\)\.data\.factionChampionFlair/.test(rules));
 });
 test('rules: results server-only, public banner read-only, prize fields server-only, flair gated', () => {
     const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
