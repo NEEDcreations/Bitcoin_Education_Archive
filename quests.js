@@ -3890,6 +3890,7 @@ function _nookBuyItem(itemId, qty, btnEl) {
                     if (inv.bonusSpins      !== undefined) currentUser.bonusSpins      = inv.bonusSpins;
                     if (inv.raffleEntries      !== undefined) currentUser.raffleEntries      = inv.raffleEntries;
                     if (inv.secondRigCharges   !== undefined) currentUser.secondRigCharges   = inv.secondRigCharges;
+                    if (inv.spamHasherCharges  !== undefined) currentUser.spamHasherCharges  = inv.spamHasherCharges;
                     if (inv.ownedCosmetics     !== undefined) currentUser.ownedCosmetics     = inv.ownedCosmetics;
                 }
             }
@@ -3953,7 +3954,7 @@ function _nookConvertXP(tickets, btnEl) {
 
 // Prices come from the server (getNookShopCatalog). Fallbacks match the server
 // constants so the shop still renders offline; the server always charges its own price.
-var _NOOK_FALLBACK = {streak_freeze:6,streak_freeze_3:15,hint_token:3,hint_token_5:12,hash_booster:10,hash_booster_3:27,bonus_spin:5,bonus_spin_3:14,double_xp:20,double_xp_3h:50,second_rig:25,second_rig_3:70,raffle_entry:10,raffle_entry_10:95,pinned_badge:30,chat_flair:60,profile_frame:75,nacho_skin_nook:100};
+var _NOOK_FALLBACK = {streak_freeze:6,streak_freeze_3:15,hint_token:3,hint_token_5:10,hash_booster:10,hash_booster_3:27,bonus_spin:5,bonus_spin_3:12,double_xp:20,double_xp_3h:50,second_rig:25,second_rig_3:70,spam_hasher:300,raffle_entry:10,raffle_entry_10:95,pinned_badge:20,chat_flair:40,profile_frame:50,nacho_skin_nook:75};
 function _nookPrice(id) {
     var c = window._nookCatalog && window._nookCatalog[id];
     return c && typeof c.cost === 'number' ? c.cost : _NOOK_FALLBACK[id];
@@ -4036,6 +4037,9 @@ function _renderNookShop() {
         : '') + buyBtn('second_rig', _nookPrice('second_rig'), 1, 'Buy');
     html += itemRow('⚡', 'Second Mining Rig', 'Unlocks Hash #2 button for one SF window. Hold up to 10 charges.', _nookPrice('second_rig'), rigBtnHtml);
     html += itemRow('⚡', '3× Second Mining Rig', 'NEW · 3 charges for 3 SF windows.', _nookPrice('second_rig_3'), buyBtn('second_rig_3', _nookPrice('second_rig_3'), 1, 'Bundle'));
+    var spamHeld = u.spamHasherCharges || 0;
+    html += itemRow('🌪️', 'Spam Hasher', 'NEW · Lifts the per-minute hash limit for one whole SF window, up to 60 hashes a minute per rig. Activate from Inventory while a window is open. It ends when the window closes. Hold 1, up to 4 a month.', _nookPrice('spam_hasher'),
+        spamHeld > 0 ? '<div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;margin-top:4px;">In Inventory</div>' : buyBtn('spam_hasher', _nookPrice('spam_hasher'), 1, 'Buy'));
     html += '</div>';
 
     // ─── Gifts ───
@@ -4115,7 +4119,7 @@ function _renderNookShop() {
     (function() {
         if (typeof db === 'undefined') return;
         var now = new Date();
-        var monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+        var monthKey = now.getUTCFullYear() + '-' + String(now.getUTCMonth() + 1).padStart(2, '0');
         db.collection('stats').doc('raffle_' + monthKey).get().then(function(snap) {
             var el2 = document.getElementById('_raffleCommTotal');
             if (!el2) return;
@@ -4173,7 +4177,7 @@ function _renderNookInventory() {
                 var fresh = doc.data();
                 // Sync all inventory fields from server into currentUser
                 var invFields = ['streakFreezes','hintTokens','hashBoosters','doubleXPCharges','bonusSpins',
-                    'raffleEntries','secondRigCharges','ownedCosmetics','orangeTickets','doubleXPExpiry','doubleXpUntil',
+                    'raffleEntries','secondRigCharges','spamHasherCharges','ownedCosmetics','orangeTickets','doubleXPExpiry','doubleXpUntil',
                     'cipherSatsBalance'];
                 invFields.forEach(function(f) {
                     if (fresh[f] !== undefined) currentUser[f] = fresh[f];
@@ -4278,6 +4282,12 @@ function _renderNookInventoryContent(el) {
         secondRigCharges > 0 ? '<button onclick="window._qhReopenOnMinerClose=false;if(window.closeQuestHubForFavor)window.closeQuestHubForFavor();setTimeout(function(){if(window.openSatoshiFavorMiner)window.openSatoshiFavorMiner();},100);" style="margin-top:4px;padding:5px 12px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border:none;border-radius:8px;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">⛏️ Deploy Rig</button>' : '',
         secondRigCharges > 0 ? 'Tap Deploy Rig to open the miner — Hash #2 button will appear!' : 'Each charge unlocks Hash #2 for one SF mining window.');
 
+    // Spam Hasher
+    var spamCharges = u.spamHasherCharges || 0;
+    html += invRow('🌪️', 'Spam Hasher', spamCharges,
+        spamCharges > 0 ? '<button onclick="_nookActivateSpamHasher(this)" style="margin-top:4px;padding:5px 12px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:8px;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Activate</button>' : '',
+        'Tap Activate during an open SF window. Up to 60 hashes a minute per rig until the window closes.');
+
     html += '</div>';
 
     // Cosmetics
@@ -4308,7 +4318,7 @@ function _renderNookInventoryContent(el) {
         html += '</div>';
     }
 
-    if (freezes === 0 && hintTokens === 0 && hashBoosters === 0 && doubleXPCharges === 0 && !doubleXPActive && bonusSpins === 0 && raffleEntries === 0 && secondRigCharges === 0 && ownedCosmetics.length === 0) {
+    if (freezes === 0 && hintTokens === 0 && hashBoosters === 0 && doubleXPCharges === 0 && !doubleXPActive && bonusSpins === 0 && raffleEntries === 0 && secondRigCharges === 0 && !(u.spamHasherCharges > 0) && ownedCosmetics.length === 0) {
         html = '<div id="nookKeysCiphers" style="margin:0 0 16px;"></div>' +
             '<div style="text-align:center;padding:32px 20px;">' +
             '<div style="font-size:2.5rem;margin-bottom:12px;">📦</div>' +
@@ -4351,6 +4361,28 @@ window._nookActivateHashBooster = function(btnEl) {
                 currentUser.hashBoosterHashes = d.hashBoosterHashes;
             }
             if (typeof showToast === 'function') showToast('⚡ Hash Booster activated! 100 instant hashes ready — no cooldown until they\'re gone!');
+            _renderNookSubTabs();
+        }
+    }).catch(function(err) {
+        var msg = (err && err.message) ? err.message : 'Activation failed';
+        if (typeof showToast === 'function') showToast('❌ ' + msg);
+        btnEl.disabled = false;
+        btnEl.textContent = origText;
+    });
+};
+
+window._nookActivateSpamHasher = function(btnEl) {
+    if (!btnEl) return;
+    btnEl.disabled = true;
+    var origText = btnEl.textContent;
+    btnEl.textContent = '⏳';
+    var fn = typeof firebase !== 'undefined' ? firebase.functions().httpsCallable('activateSpamHasher') : null;
+    if (!fn) { btnEl.disabled = false; btnEl.textContent = origText; return; }
+    fn({}).then(function(r) {
+        var d = r.data;
+        if (d && d.success) {
+            if (typeof currentUser !== 'undefined' && currentUser) currentUser.spamHasherCharges = d.spamHasherCharges;
+            if (typeof showToast === 'function') showToast('🌪️ Spam Hasher on! Hash as fast as you can until this window closes.');
             _renderNookSubTabs();
         }
     }).catch(function(err) {

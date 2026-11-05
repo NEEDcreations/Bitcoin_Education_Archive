@@ -786,7 +786,7 @@ const CASES = [
     wording('app-ln-withdraw', /15,000/, /21,000|7 days|10 topics|1,000 unclaimed/);
     wording('app-audio-what', /random meme/i, /press M/);
     wording('app-double-xp-what', /60 minutes/, /after you use it/i);
-    wording('app-hash-booster-what', /separate rig/i, /bigger/);
+    wording('app-hash-booster-what', /100 instant hashes[\s\S]*not cosmetic[\s\S]*separate hash limit/i, /bigger/);
     wording('app-one-stop-shop-what', /One Stop Shop/, null);
     if (logic.getKbEntry('app-one-stop-shop-what').question !== 'What is the One Stop Shop?') kbFail.push('shop question');
     wording('layers-bolt12', /merged into the BOLT specification in 2024/, null);

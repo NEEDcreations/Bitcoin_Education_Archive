@@ -95,6 +95,9 @@ function difficultyAtTime(tsMs) {
 }
 const HASHES_PER_MINUTE = 10;
 const HASH_WINDOW_MS = 60000; // 60 seconds
+// Spam Hasher ceiling: fastest sustained human tapping (1 hash/sec per rig).
+// Anything faster is a bot, Spam Hasher or not.
+const SPAM_HASHER_PER_MINUTE = 60;
 const FAVOR_DURATION_MINUTES = 60;
 const BONUS_MINUTES_PER_POINT = 3;
 const POINTS_TO_ACTIVATE = 21;
@@ -831,13 +834,17 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
       });
     }
 
+    // Spam Hasher: active only for the cycle it was activated in (server-set).
+    const spamActive = !!userData.spamHasherCycleId && userData.spamHasherCycleId === currentCycleId;
+    const rateLimitNow = spamActive ? Math.max(effectiveRateLimit, SPAM_HASHER_PER_MINUTE) : effectiveRateLimit;
+
     // Only enforce rate limit when booster is NOT active
-    if (!usingBooster && timestamps.length >= effectiveRateLimit) {
+    if (!usingBooster && timestamps.length >= rateLimitNow) {
       const oldestMs = timestamps[0].toMillis ? timestamps[0].toMillis() : timestamps[0];
       const waitSec = Math.ceil((HASH_WINDOW_MS - (now - oldestMs)) / 1000);
       throw new HttpsError(
         'resource-exhausted',
-        `Rate limit: ${waitSec}s until next hash (${effectiveRateLimit}/min).`
+        `Rate limit: ${waitSec}s until next hash (${rateLimitNow}/min).`
       );
     }
 
@@ -861,7 +868,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
     // Always append timestamp (so cooldown tracks correctly after booster runs out)
     timestamps.push(admin.firestore.Timestamp.now());
     // Cap stored timestamps to avoid unbounded growth
-    if (timestamps.length > effectiveRateLimit + 10) timestamps = timestamps.slice(-effectiveRateLimit - 10);
+    if (timestamps.length > rateLimitNow + 10) timestamps = timestamps.slice(-rateLimitNow - 10);
     transaction.set(cooldownRef, { timestamps });
 
     return {
@@ -1499,3 +1506,5 @@ exports.getFactionTotals = functionsV1.https.onCall(async (data, context) => {
     unaffiliated: d.unaffiliated || 0,
   };
 });
+
+exports.SPAM_HASHER_PER_MINUTE = SPAM_HASHER_PER_MINUTE;

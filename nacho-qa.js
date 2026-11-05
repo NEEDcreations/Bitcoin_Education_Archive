@@ -5741,7 +5741,7 @@ const TOP_NOTCH_ENTRIES = [
       channel: 'quest-hub', channelName: 'Quest Hub' },
 
     { keys: ["nacho's nook", 'nook', 'shop', 'spend tickets', 'buy streak freeze', 'buy hint token', 'buy double xp', 'buy bonus spin', 'ticket shop', 'orange ticket shop', 'cosmetics shop', 'profile frame', 'chat flair', 'nacho skin', 'pinned badge', 'second rig', 'raffle entry', 'convert xp', 'exchange xp'],
-      answer: "Nacho's Nook is the shop inside Quest Hub, {name}! 🦌🛒 Spend your Orange Tickets on useful stuff: Streak Freezes (protect your login streak), Hint Tokens (eliminate a wrong answer mid-quiz), Double XP (2× XP for 60 min), Bonus Spins (extra wheel spin), or Raffle Entries. There are also cosmetics like Profile Frame (orange glow on your profile), Chat Flair (emoji next to your name in chat), Pinned Badge, Exclusive Nacho Skin, and a Second Mining Rig. You can also convert XP points into tickets! Open Quest Hub → Nook tab. 🎫",
+      answer: "Nacho's Nook is the shop inside Quest Hub, {name}! 🦌🛒 Spend your Orange Tickets on useful stuff: Streak Freezes (protect your login streak), Hint Tokens (eliminate a wrong answer mid-quiz), Double XP (2× XP for 60 min), Bonus Spins (extra wheel spin), or Raffle Entries. There are also cosmetics like Profile Frame (orange glow on your profile), Chat Flair (emoji next to your name in chat), Pinned Badge, and Exclusive Nacho Skin. For Satoshi's Favor mining there are Hash Boosters (100 instant hashes), the Second Mining Rig (a Hash #2 button with its own hash limit for one window) and the Spam Hasher (no per-minute limit for one window). You can also convert XP points into tickets! Open Quest Hub → Nook tab. 🎫",
       channel: 'quest-hub', channelName: 'Quest Hub' },
 
     { keys: ['weekly leaderboard', 'weekly xp', 'weekly rank', 'this week rank', 'wXP', 'week competition'],
@@ -5772,8 +5772,8 @@ const TOP_NOTCH_ENTRIES = [
       answer: "Bonus Spins let you spin the Daily Wheel an extra time beyond your daily free spin, {name}! 🎰🦌 Buy them from Nacho's Nook (5 tickets). Activate from Inventory → tap Use. The wheel opens immediately. Spin for more tickets, XP, or rare drops! 🎡",
       channel: 'quest-hub', channelName: 'Quest Hub' },
 
-    { keys: ['hash booster', 'second rig', 'satoshi favor boost', 'extra hashes', 'mining boost', 'more hashes'],
-      answer: "Hash Boosters give you +10 bonus hashes in the next Satoshi's Favor mining round, {name}! ⛏️🦌 A Second Mining Rig (cosmetic, 25 tickets) gives you an extra rig icon on the miner overlay. Buy Hash Boosters from Nacho's Nook (10 tickets each), activate from Inventory when a mining window opens. More hashes = better odds at the 21,000 sat prize! 💰",
+    { keys: ['hash booster', 'second rig', 'spam hasher', 'satoshi favor boost', 'extra hashes', 'mining boost', 'more hashes'],
+      answer: "Hash Boosters are Satoshi's Favor power-ups, {name}! ⛏️🦌 Each one gives you 100 instant hashes with NO cooldown. Buy them in Nacho's Nook for 10 tickets each (up to 10 a day), then tap Activate in Inventory while a mining window is open. A Second Mining Rig (25 tickets) is not cosmetic. Each charge unlocks a Hash #2 button for one whole SF window, with its own separate hash limit, so you can hash about twice as fast. Want even more? The Spam Hasher (300 tickets) lifts the per-minute limit for one whole window. More hashes = better odds at the sats prize! 💰",
       channel: 'quest-hub', channelName: 'Quest Hub' },
 
     { keys: ['raffle', 'sats raffle', 'raffle entry', 'raffle ticket', 'win sats raffle'],
