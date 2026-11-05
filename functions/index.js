@@ -8130,6 +8130,14 @@ exports.onGlobalChatTelegram = onDocumentCreated({ document: 'global_chat/{msgId
     if (!snap) return null;
     return mirrorChatCreate('global_chat', event.params.msgId, snap.data());
 });
+// Easter eggs: a chat message that is exactly a known code gets a Nacho reply
+// and a tiny one-time XP bonus. See src/chatEasterEggs.js.
+exports.onGlobalChatEasterEgg = onDocumentCreated({ document: 'global_chat/{msgId}', maxInstances: 5 }, async (event) => {
+    if (!event.data) return null;
+    try { await require('./src/chatEasterEggs').handle(db, admin, event.params.msgId, event.data.data()); }
+    catch (e) { console.warn('[easterEgg] failed'); }
+    return null;
+});
 exports.onAnnouncementsTelegram = onDocumentCreated({ document: 'announcements/{msgId}', retry: true }, async (event) => {
     const snap = event.data;
     if (!snap) return null;
