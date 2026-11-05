@@ -13,10 +13,8 @@ const DEFAULTS = {
     manualAboveSats: 5000,
     walletFloorSats: 5000,
     siteDailyCapSats: 100000,
-    // 0 = off. Caps one player's sats from one epoch.
+    // 0 = off. Caps one player's sats from one epoch. Left off — players get what they earned.
     perPersonCapSats: 0,
-    // Flag person or LN cluster holding more than this % of the pot.
-    clusterFlagPct: 30,
 };
 const MAX_POT = 1000000;
 const MANUAL_ABOVE = 5000;
@@ -50,9 +48,8 @@ function readConfig(data) {
         // 0 / missing → defaults. Never treat as unlimited.
         walletFloorSats: Math.min(positiveIn(d.walletFloorSats, MAX_POT, DEFAULTS.walletFloorSats), DEFAULTS.walletFloorSats),
         siteDailyCapSats: Math.min(positiveIn(d.siteDailyCapSats, MAX_POT, DEFAULTS.siteDailyCapSats), DEFAULTS.siteDailyCapSats),
-        // 0 still means off (no per-person cap).
+        // 0 still means off (no per-person cap). Left at 0 — no share limit.
         perPersonCapSats: intIn(d.perPersonCapSats, 0, MAX_POT, DEFAULTS.perPersonCapSats),
-        clusterFlagPct: intIn(d.clusterFlagPct, 1, 100, DEFAULTS.clusterFlagPct),
     };
 }
 
@@ -350,19 +347,10 @@ function buildEpochBreakdown(input) {
         return Object.assign({}, r, { sharePct: sharePct, mode: mode });
     });
 
-    // Flag person or cluster over clusterFlagPct of the pot.
-    const flags = [];
-    recipients.forEach(function (r) {
-        if (r.sharePct >= cfg.clusterFlagPct) {
-            flags.push({ kind: 'person', uidShort: r.uidShort, username: r.username, sharePct: r.sharePct, sats: r.sats });
-        }
-    });
+    // No concentration / over-X% flag. Players get what they earned (block share).
+    // Shared LN still goes to manual review above — abuse check, not a share limit.
     clusters.shared.forEach(function (c) {
-        const pct = pot ? Math.round(10000 * c.sats / pot) / 100 : 0;
-        c.sharePct = pct;
-        if (pct >= cfg.clusterFlagPct) {
-            flags.push({ kind: 'cluster', addressMasked: c.addressMasked, uidShorts: c.uidShorts, sharePct: pct, sats: c.sats });
-        }
+        c.sharePct = pot ? Math.round(10000 * c.sats / pot) / 100 : 0;
     });
 
     const satsTotal = recipients.reduce(function (s, r) { return s + r.sats; }, 0);
@@ -393,7 +381,6 @@ function buildEpochBreakdown(input) {
                 sharePct: c.sharePct || 0,
             };
         }),
-        flags: flags,
     };
 }
 
@@ -449,7 +436,6 @@ function buildWindowBreakdown(input) {
         excluded: excluded,
         contributionTotal: recipients.length,
         lightningClusters: [],
-        flags: [],
         notifyShare: satsTotal,
     };
 }

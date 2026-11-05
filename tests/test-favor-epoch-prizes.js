@@ -84,7 +84,7 @@ test('H2: shared lightning address sends whole group to manual review', function
             { uid: 'u2', user: { username: 'Two' }, ledger: {}, authKnown: true, ageDays: 30, createdMs: created, emailVerified: true, lightningAddressAtClose: 'shared@w.com' },
             { uid: 'u3', user: { username: 'Three' }, ledger: {}, authKnown: true, ageDays: 30, createdMs: created, emailVerified: true, lightningAddressAtClose: 'solo@w.com' },
         ],
-        config: { epochPotSats: 21000, clusterFlagPct: 30 },
+        config: { epochPotSats: 21000 },
     });
     assert.strictEqual(bd.recipients.length, 1);
     assert.strictEqual(bd.recipients[0].uid, 'u3');
@@ -92,7 +92,7 @@ test('H2: shared lightning address sends whole group to manual review', function
     assert.ok(bd.excluded.filter(function (e) { return e.reason.indexOf('shared lightning') !== -1; }).length >= 2);
 });
 
-test('H2: flag person or cluster over default 30%', function () {
+test('no 30% rule: large earner keeps full block share; no concentration flag', function () {
     const now = Date.now();
     const created = now - 30 * 86400000;
     const bd = P.buildEpochBreakdown({
@@ -108,10 +108,15 @@ test('H2: flag person or cluster over default 30%', function () {
         players: ['big', 's1', 's2', 's3'].map(function (uid) {
             return { uid: uid, user: { username: uid }, ledger: {}, authKnown: true, ageDays: 30, createdMs: created, emailVerified: true, lightningAddressAtClose: uid + '@w.com' };
         }),
-        config: { epochPotSats: 21000, clusterFlagPct: 30 },
+        config: { epochPotSats: 21000, perPersonCapSats: 0 },
     });
-    // big has 2/5 = 8400/21000 = 40%
-    assert.ok(bd.flags.some(function (f) { return f.kind === 'person' && f.sharePct >= 30; }));
+    // big has 2/5 = 8400 — full earned share, not held or reduced
+    const big = bd.recipients.find(function (r) { return r.uid === 'big'; });
+    assert.ok(big);
+    assert.strictEqual(big.sats, 8400);
+    assert.strictEqual(big.contribution, 2);
+    assert.ok(!bd.flags);
+    assert.ok(!Object.prototype.hasOwnProperty.call(P.readConfig({}), 'clusterFlagPct'));
 });
 
 test('M4/L5: claim reserve uses config caps and release clears reserved on no-send', function () {

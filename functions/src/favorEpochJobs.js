@@ -187,7 +187,6 @@ async function finalizeEpoch(db, admin, opts) {
         perBlockSats: bd.perBlockSats,
         notifyShare: bd.notifyShare,
         lightningClusters: bd.lightningClusters || [],
-        flags: bd.flags || [],
         unallocated: bd.unallocated,
         at: nowMs,
     });
@@ -363,7 +362,6 @@ async function rebuildFavorBreakdown(db, admin, resultId, opts) {
         perBlockSats: bd.perBlockSats,
         notifyShare: bd.notifyShare,
         lightningClusters: bd.lightningClusters || [],
-        flags: bd.flags || [],
         unallocated: bd.unallocated,
         at: nowMs,
         rebuilt: true,
@@ -426,7 +424,7 @@ function factory(functionsV1, deps) {
         wins.forEach(function (s) {
             if (s.exists) status[s.id].claimStatus = (s.data() || {}).status || '';
         });
-        const breakdown = bd.exists ? bd.data() : { recipients: [], excluded: [], lightningClusters: [], flags: [] };
+        const breakdown = bd.exists ? bd.data() : { recipients: [], excluded: [], lightningClusters: [] };
         return {
             resultId: resultId,
             kind: r.kind,
