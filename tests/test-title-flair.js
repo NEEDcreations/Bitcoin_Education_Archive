@@ -97,6 +97,23 @@ function fakeDb(docs) {
         assert.strictEqual(meta.bonusPts, 0);
     });
 
+    await test('Diamond Hands and Master Miner flairs are not Nook emojis; BIP Merger title is ready', function () {
+        const nook = new Set(titleFlair.NOOK_FLAIR);
+        const habits = collectionBonus.collectionById('col_daily_habits');
+        const mining = collectionBonus.collectionById('col_mining');
+        const bip = collectionBonus.collectionById('col_bip_s1');
+        assert.strictEqual(habits.flair, '🙌');
+        assert.strictEqual(habits.title.emoji, '🙌');
+        assert.strictEqual(mining.flair, '⚒️');
+        assert.strictEqual(mining.title.emoji, '⚒️');
+        assert.ok(!nook.has(habits.flair), 'Diamond Hands flair must not be a Nook emoji');
+        assert.ok(!nook.has(mining.flair), 'Master Miner flair must not be a Nook emoji');
+        assert.strictEqual(bip.title.title, 'BIP Merger');
+        assert.strictEqual(bip.title.emoji, '📜');
+        assert.strictEqual(bip.flair, '📜');
+        assert.ok(!nook.has(bip.flair));
+    });
+
     await test('BIP season 1 counts the server bipBadges field', function () {
         const col = collectionBonus.collectionById('col_bip_s1');
         assert.strictEqual(col.badgeIds.length, 12);

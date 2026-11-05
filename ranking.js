@@ -8091,12 +8091,22 @@ window._selectCountry = function(name) {
 // Title & Flair. The server (titleFlair callable) lists what this player has
 // earned and is the only writer of activeTitle and chatFlairEmoji.
 function _tfEsc(v) { return typeof escapeHtml === 'function' ? escapeHtml(String(v == null ? '' : v)) : String(v == null ? '' : v).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
-function _tfTitleDef(id) {
-    if (!id || typeof TITLE_DEFS === 'undefined') return null;
-    return TITLE_DEFS.find(function(t){ return t.id === id; }) || null;
-}
 function _tfCollections() {
     return (typeof window !== 'undefined' && Array.isArray(window.BADGE_COLLECTION_DEFS)) ? window.BADGE_COLLECTION_DEFS : [];
+}
+function _tfTitleDef(id) {
+    if (!id) return null;
+    if (typeof TITLE_DEFS !== 'undefined') {
+        var fromBadge = TITLE_DEFS.find(function(t){ return t.id === id; });
+        if (fromBadge) return fromBadge;
+    }
+    // Collection titles (BIP Merger, Unconfiscatable, etc.) live on BADGE_COLLECTION_DEFS.
+    var cols = _tfCollections();
+    for (var i = 0; i < cols.length; i++) {
+        if (cols[i].title && cols[i].title.id === id) return cols[i].title;
+    }
+    if (id === 'core_contributor') return { id: id, title: 'Core Contributor', emoji: '🔧' };
+    return null;
 }
 window._tfPreview = { title: undefined, flair: undefined };
 window._renderTitleFlairSection = function() {

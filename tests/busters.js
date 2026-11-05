@@ -1,4 +1,4 @@
-// Cache-buster pin. This ship is btc-archive-v2500 (collections rebalance + Title & Flair: bundle.min.js, ranking.js, global-chat.js, quests.js 20261105_v2500; v2500 is a placeholder, renumber at merge). Before: btc-archive-v2497 (homepage push bell).
+// Cache-buster pin. This ship is btc-archive-v2500 (collections rebalance + Title & Flair + BIP Season 1 hook after #238: bundle.min.js, ranking.js, global-chat.js, quests.js 20261105_v2500; keeps bip-breakthrough.js / achievement-share.js 20261105_v2499; v2500 is a placeholder, renumber at merge). Before: btc-archive-v2499 (BIP Breakthrough). Before: btc-archive-v2497 (homepage push bell).
 // Live gh-pages was v2446. quests.js stays v2443. bundle.min.js is v2447. global-chat.js is v2448.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
 // timechain-tv.js is 20261031_v2447. scholar.js is 20261105_v2490.
@@ -217,6 +217,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2266'));
     assert.ok(!html.includes('bundle.min.js?v=20261022_v2265'));
     assert.ok(html.includes('notifications.js?v=20261105_v2497'));
+    assert.ok(!html.includes('notifications.js?v=20261104_v2482'));
     assert.ok(!html.includes('notifications.js?v=20261024_v2355'));
     assert.ok(!html.includes('notifications.js?v=20261024_v2354'));
     assert.ok(!html.includes('notifications.js?v=20261024_v2352'));
@@ -406,7 +407,9 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('beats-censor.js?v=20261022_v2322'));
     assert.ok(html.includes('features.registry.js?v=20261105_v2494'));
     assert.ok(html.includes('favorites.js?v=20261105_v2494'));
-    assert.ok(html.includes('achievement-share.js?v=20261104_v2476'));
+    assert.ok(html.includes('achievement-share.js?v=20261105_v2499'));
+    assert.ok(html.includes('bip-breakthrough.js?v=20261105_v2499'));
+    assert.ok(!html.includes('achievement-share.js?v=20261104_v2476'));
     assert.ok(html.includes('miniapp-share.js?v=20261031_v2447'));
     assert.ok(!html.includes('achievement-share.js?v=20261026_v2391'));
     assert.ok(!html.includes('achievement-share.js?v=20261026_v2390'));

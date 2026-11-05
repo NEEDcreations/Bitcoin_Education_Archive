@@ -413,6 +413,13 @@
   "flavor": "The Spin Set complete. Fortune favored you enough."
  },
  {
+  "id": "core_contributor",
+  "title": "Core Contributor",
+  "emoji": "🔧",
+  "requiredBadge": null,
+  "flavor": "Merged this week's BIP after 7 daily spins. Bit Devs energy."
+ },
+ {
   "id": "pow_set_t",
   "title": "Proof of Walker",
   "emoji": "👟",

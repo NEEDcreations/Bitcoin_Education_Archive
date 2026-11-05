@@ -43,6 +43,7 @@ const { createPredictionJobs } = require('./src/predictionJobs');
 const predictionJobs = createPredictionJobs(db, admin, { sendPush: sendUserPush });
 const streakBoard = require('./src/streakBoard');
 const questBoard = require('./src/questBoard');
+const bipBreakthrough = require('./src/bipBreakthrough');
 const lbPrizes = require('./src/lbPrizes');
 const boardSnapshots = require('./src/boardSnapshots');
 const leaderboardIdentity = require('./src/leaderboardIdentity');
@@ -4436,8 +4437,20 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
             throw new functionsV1.https.HttpsError('already-exists', 'Already spun today');
         }
 
+        // BIP Breakthrough: only counted daily spins (not bonus) advance the NY-day streak.
+        const spinNow = Date.now();
+        let breakthroughPlan = null;
+        if (!isBonusSpin) {
+            breakthroughPlan = bipBreakthrough.planStreak(userData, spinNow);
+        }
+
         // Server determines reward
         let reward = weightedRandom(outcomes);
+        // Day-7 BIP Breakthrough: guaranteed top-tier (rare) prize on this spin.
+        if (breakthroughPlan && breakthroughPlan.completes) {
+            const rareOutcome = outcomes.find(function (o) { return o.rare; }) || outcomes[outcomes.length - 1];
+            reward = rareOutcome;
+        }
         let rewardIndex = outcomes.indexOf(reward);
         let totalPts = reward.pts;
         let totalTickets = reward.tickets;
@@ -4481,6 +4494,16 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
             update.spinStreak = userData.lastSpinDate === yesterday
                 ? admin.firestore.FieldValue.increment(1)
                 : 1;
+            if (breakthroughPlan && breakthroughPlan.update) {
+                Object.assign(update, breakthroughPlan.update);
+            }
+            if (breakthroughPlan && breakthroughPlan.completes && breakthroughPlan.bip) {
+                Object.assign(update, bipBreakthrough.claimFields(
+                    breakthroughPlan.bip,
+                    spinNow,
+                    admin.firestore.FieldValue
+                ));
+            }
         }
         // Clear the one-time bonus spin flag if it was set
         if (isBonusSpin) update.bonusSpinGranted = admin.firestore.FieldValue.delete();
@@ -4520,6 +4543,38 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
         const statsRef = db.collection('stats').doc('global');
         tx.set(statsRef, { spins: admin.firestore.FieldValue.increment(1) }, { merge: true });
 
+        const breakthroughPayload = (breakthroughPlan && breakthroughPlan.completes && breakthroughPlan.bip)
+            ? {
+                unlocked: true,
+                weekKey: breakthroughPlan.weekKey,
+                streak: breakthroughPlan.streak,
+                titleId: bipBreakthrough.TITLE_ID,
+                coreContributorUntil: spinNow + bipBreakthrough.TITLE_DAYS_MS,
+                badgeId: bipBreakthrough.badgeIdForBip(breakthroughPlan.bip),
+                bip: {
+                    id: breakthroughPlan.bip.id,
+                    number: breakthroughPlan.bip.number,
+                    short: breakthroughPlan.bip.short,
+                    title: breakthroughPlan.bip.title,
+                    plain: breakthroughPlan.bip.plain,
+                },
+                headline: 'You merged BIP-' + breakthroughPlan.bip.number + '!',
+                shareTitle: 'I merged BIP-' + breakthroughPlan.bip.number + ' (' + breakthroughPlan.bip.short + ') on Bitcoin Quest',
+            }
+            : (breakthroughPlan ? {
+                unlocked: false,
+                weekKey: breakthroughPlan.weekKey,
+                streak: breakthroughPlan.streak,
+                target: bipBreakthrough.STREAK_TARGET,
+                bip: breakthroughPlan.bip ? {
+                    id: breakthroughPlan.bip.id,
+                    number: breakthroughPlan.bip.number,
+                    short: breakthroughPlan.bip.short,
+                    title: breakthroughPlan.bip.title,
+                    plain: breakthroughPlan.bip.plain,
+                } : null,
+            } : null);
+
         return {
             rewardIndex,
             label: reward.label,
@@ -4532,6 +4587,8 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
             doubled: spinDoubled,
             doubleXpUntil: doubleXp.untilMillis(userData) || 0,
             countedDay: !isBonusSpin,
+            breakthrough: breakthroughPayload,
+            forcedTopTier: !!(breakthroughPlan && breakthroughPlan.completes),
         };
     });
 
@@ -4545,6 +4602,26 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
             await require('./src/comboActivity').noteComboZone(db, admin, uid, 'spin', getOffsetDateKey());
         }
     } catch (spinBadgeErr) { console.warn('[SPIN] badges', spinBadgeErr && spinBadgeErr.message); }
+
+    if (result && result.breakthrough && result.breakthrough.unlocked && result.breakthrough.badgeId) {
+        const bipBadgeId = result.breakthrough.badgeId;
+        try {
+            await awardBadge(db, admin, uid, bipBadgeId, {
+                verified: true,
+                source: 'bip_breakthrough',
+            });
+        } catch (bipBadgeErr) {
+            console.warn('[SPIN] bip badge', bipBadgeErr && bipBadgeErr.message);
+        }
+        // BIP badges live in users.bipBadges (claimFields). awardBadge also
+        // hooks maybeGrantForBadge, but call it here too so BIP Season 1
+        // still advances if the badge_awards write fails or skips collections.
+        try {
+            await require('./src/collectionBonus').maybeGrantForBadge(db, admin, uid, bipBadgeId);
+        } catch (bipColErr) {
+            console.warn('[SPIN] bip collection', bipColErr && bipColErr.message);
+        }
+    }
 
     return { success: true, reward: result };
 });

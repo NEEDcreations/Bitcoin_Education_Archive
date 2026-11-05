@@ -23,6 +23,10 @@ const FIELDS = [
     'xpBankPayoutApplied', 'xpBankPayoutAmount', 'xpBankPayoutBank', 'xpBankPayoutAt',
     'referralMaxiCount',
     'referralMaxiReachedCount',
+    'bipBreakthroughLastDay', 'bipBreakthroughWeekKey', 'bipBreakthroughStreak',
+    'bipBreakthroughBipId', 'bipBreakthroughClaimedWeek', 'bipBreakthroughClaimedAt',
+    'bipBreakthroughClaimedBipId', 'bipBadges',
+    'coreContributorUntil', 'coreContributorTitle',
 ];
 
 (async function main() {
