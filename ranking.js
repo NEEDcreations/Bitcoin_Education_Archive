@@ -10000,7 +10000,7 @@ function accountDeleteRowHtml(user) {
                 return;
             }
             var s = document.createElement('script');
-            s.src = 'notifications.js?v=20261104_v2482';
+            s.src = 'notifications.js?v=20261105_v2497';
             s.onload = fill;
             document.body.appendChild(s);
         }, 0);
@@ -11929,7 +11929,7 @@ window.togglePushNotifications = function() {
     };
     if (typeof window.enablePushFromTap === 'function') { run(); return; }
     var s = document.createElement('script');
-    s.src = 'notifications.js?v=20261104_v2482';
+    s.src = 'notifications.js?v=20261105_v2497';
     s.onload = run;
     document.body.appendChild(s);
 };

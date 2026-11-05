@@ -120,7 +120,7 @@ test('client and workers share the safe push path', function() {
     assert.ok(sw.includes('clients.matchAll'));
     assert.ok(sw.includes('navigate'));
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2455'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2497'"));
     assert.ok(!sw.includes('btc-archive-v2438'));
     assert.ok(!sw.includes('btc-archive-v2437'));
     assert.ok(!sw.includes('btc-archive-v2436'));
@@ -523,4 +523,24 @@ testAsync('pvpPushEnabled on with master off gets nothing', function() {
 }).catch(function(err) {
     console.error(err);
     process.exit(1);
+});
+
+test('homepage push bell: tooltips for every category, no token logging, prefs via whitelisted keys', function() {
+    const js = read('notifications.js');
+    assert.ok(js.includes('window.renderHomePush = function'));
+    assert.ok(js.includes("root.id = 'homePush'"));
+    assert.ok(js.includes("getElementById('homeHero')"));
+    assert.ok(js.includes("getElementById('homeWalletStrip')"));
+    prefs.CATEGORIES.forEach(function(cat) {
+        assert.ok(new RegExp('\\n\\s+' + cat + ": ['\"]").test(js.split('var TIPS = {')[1].split('};')[0]), 'tip ' + cat);
+    });
+    assert.ok(js.includes("console.warn('[push] register failed', (err && (err.code || err.name)) || 'error')"));
+    assert.ok(!/console\.\w+\([^)]*token\b[^)]*\)/.test(js.split('// ---- Homepage bell')[1] || ''));
+    assert.ok(js.includes('Add to Home Screen'));
+    assert.ok(js.includes('Notifications are blocked'));
+    assert.ok(js.includes("if (typeof window.renderHomePush === 'function') window.renderHomePush();"));
+    const rules = read('firestore.rules');
+    prefs.CATEGORIES.concat(['master']).forEach(function(cat) {
+        assert.ok(rules.includes("request.resource.data.notificationPrefs." + cat + " is bool"), 'rule ' + cat);
+    });
 });
