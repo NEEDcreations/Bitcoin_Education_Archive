@@ -282,6 +282,13 @@ function flexSource(id) {
     return { type: 'flex', action: one[1], gte: Number(one[2]) };
 }
 
+function bipSource(id) {
+    if (/^bip_\d+$/.test(id)) {
+        return { type: 'includes', field: 'bipBadges', ids: [id] };
+    }
+    return null;
+}
+
 function spinSource(id) {
     if (id === 'spin_jackpot') return { type: 'truthy', field: 'spinHitRare' };
     const streak = /^spin_streak_(\d+)$/.exec(id);
@@ -426,6 +433,8 @@ function sourceFor(id) {
     if (id === 'ghost_reader') return { type: 'ghostReader' };
     const flex = flexSource(id);
     if (flex) return flex;
+    const bip = bipSource(id);
+    if (bip) return bip;
     const spin = spinSource(id);
     if (spin) return spin;
     const raid = raidSource(id);

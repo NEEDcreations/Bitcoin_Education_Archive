@@ -18,7 +18,7 @@
     var CTA = 'Learn Bitcoin and earn sats at bitcoineducation.quest';
     var SHARE_LINE = 'Learn Bitcoin and earn sats on Bitcoin Quest 👇';
     var REF_RE = /^[A-Za-z0-9]{6,28}$/;
-    var SHARE_TYPES = ['sf_block', 'badge', 'cert_scholar', 'cert_protocol', 'rank', 'raid', 'streak', 'daily', 'xp'];
+    var SHARE_TYPES = ['sf_block', 'badge', 'cert_scholar', 'cert_protocol', 'rank', 'raid', 'streak', 'daily', 'xp', 'bip_breakthrough'];
     var LONG_STREAKS = [30, 60, 100, 200, 365];
     var NOTABLE_RANKS = [
         { min: 2140, name: 'Maxi', slug: 'maxi' },
@@ -344,6 +344,7 @@
         var title = event.title || 'Bitcoin Quest';
         if (type === 'streak') title = '🔥 ' + days + '-day streak on Bitcoin Quest';
         if (type === 'daily') title = 'Daily quests done 🔥 day ' + days + ' streak';
+        if (type === 'bip_breakthrough') title = event.title || ('I merged BIP-' + (event.bipNumber || '') + ' on Bitcoin Quest');
         var code = '';
         if (user && user.referralCode && REF_RE.test(String(user.referralCode))) code = String(user.referralCode);
         else if (event.code && REF_RE.test(String(event.code))) code = String(event.code);

@@ -110,6 +110,7 @@ const TESTS = [
     { name: 'Award evidence', file: 'test-award-evidence.js' },
     { name: 'Reply and play counts', file: 'test-reply-counts.js' },
     { name: 'Daily spin grant', file: 'test-daily-spin-grant.js' },
+    { name: 'BIP Breakthrough', file: 'test-bip-breakthrough.js' },
     { name: 'Shared daily XP cap', file: 'test-daily-xp-cap.js' },
     { name: 'Proof of Walk daily cap', file: 'test-proof-of-walk.js' },
     { name: 'XP bank payout dry run', file: 'test-xp-bank-payout.js' },

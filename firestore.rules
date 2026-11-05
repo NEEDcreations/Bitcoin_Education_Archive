@@ -164,7 +164,12 @@ service cloud.firestore {
         'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score',
         'email', 'emailHash', 'satsHold', 'emailHistory', 'emailHistoryHashes',
         'providersHash', 'providerHashes',
-        'claimReq'
+        'claimReq',
+        // BIP Breakthrough (server-only; dailySpin awards)
+        'bipBreakthroughLastDay', 'bipBreakthroughWeekKey', 'bipBreakthroughStreak',
+        'bipBreakthroughBipId', 'bipBreakthroughClaimedWeek', 'bipBreakthroughClaimedAt',
+        'bipBreakthroughClaimedBipId', 'bipBadges',
+        'coreContributorUntil', 'coreContributorTitle'
       ];
     }
 
@@ -1721,11 +1726,16 @@ service cloud.firestore {
                     // Field allowlist: no arbitrary keys that could carry attacker payload
                     && request.resource.data.keys().hasOnly(['uid','name','text','ts','isNachoAuto','faction',
                         'replyTo','replyToName','replyToText',
-                        'hasChatFlair','chatFlairEmoji','hasNachoSkin',
+                        'hasChatFlair','chatFlairEmoji','hasNachoSkin','hasCoreContributor',
                         'isGif','caption','imageUrl','gifUrl'])
                     // F-004: imageUrl/gifUrl must come from Firebase Storage or Tenor CDN only
                     && (!('imageUrl' in request.resource.data) || request.resource.data.imageUrl.matches('^https://(firebasestorage[.]googleapis[.]com|[^/]+[.]firebasestorage[.]app|media[.]tenor[.]com|c[.]tenor[.]com)/.*'))
                     && (!('gifUrl'   in request.resource.data) || request.resource.data.gifUrl.matches('^https://(firebasestorage[.]googleapis[.]com|[^/]+[.]firebasestorage[.]app|media[.]tenor[.]com|c[.]tenor[.]com)/.*'))
+                    // BIP Breakthrough title: only if server-set until is still active
+                    && (!('hasCoreContributor' in request.resource.data)
+                        || (request.resource.data.hasCoreContributor == true
+                            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.coreContributorUntil is number
+                            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.coreContributorUntil > request.time.toMillis()))
                     && request.resource.data.name is string
                     && request.resource.data.name.size() >= 2
                     && request.resource.data.name == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.username
