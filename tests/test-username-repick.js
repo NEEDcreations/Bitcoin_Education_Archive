@@ -332,7 +332,11 @@ queue.push(test('the client prompt cannot be skipped and calls setUsername', fun
     assert.ok(ranking.includes('applyServerUsername(name)'));
     assert.ok(ranking.includes('maybeShowUsernameRepick();\n        updateAuthButton();'));
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261102_v2465'));
+    // Don't pin ranking.js's buster here; it moves every release. Just check the order.
+    const rankingAt = html.search(/ranking\.js\?v=\d{8}_v\d+/);
+    assert.ok(rankingAt > -1, 'ranking.js is loaded with a versioned buster');
+    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') > -1);
+    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < rankingAt);
     assert.ok(html.indexOf('ranking.js?v=20261029_v2431') === -1);
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
     const favor = fs.readFileSync(path.join(root, 'satoshi-favor.js'), 'utf8');
