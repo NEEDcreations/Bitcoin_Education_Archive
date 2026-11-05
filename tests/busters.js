@@ -1,7 +1,7 @@
-// Cache-buster pin. This ship is btc-archive-v2501 (favorite home buttons open again + star spacing: favorites.js 20261105_v2501). Before: btc-archive-v2500 (Terms Accept fix: onboarding.js, ranking.js 20261105_v2500). Before: btc-archive-v2499 (BIP Breakthrough: bip-breakthrough.js, achievement-share.js, badges.js, global-chat.js, bundle/ranking/referral-tiers 20261105_v2499; keeps notifications.js 20261105_v2497 from #237). Before: btc-archive-v2497 (homepage push bell). Before: btc-archive-v2496 (#236 referral maxi). Before: btc-archive-v2495 (pot of sats overlay). Before: btc-archive-v2494 (favorite apps).
+// Cache-buster pin. This ship is btc-archive-v2502 (legal docs: timechain-tv.js disclaimer 20261105_v2502). Before: btc-archive-v2501 (favorite home buttons open again + star spacing: favorites.js 20261105_v2501). Before: btc-archive-v2500 (Terms Accept fix: onboarding.js, ranking.js 20261105_v2500). Before: btc-archive-v2499 (BIP Breakthrough: bip-breakthrough.js, achievement-share.js, badges.js, global-chat.js, bundle/ranking/referral-tiers 20261105_v2499; keeps notifications.js 20261105_v2497 from #237). Before: btc-archive-v2497 (homepage push bell). Before: btc-archive-v2496 (#236 referral maxi). Before: btc-archive-v2495 (pot of sats overlay). Before: btc-archive-v2494 (favorite apps).
 // Live gh-pages was v2446. quests.js stays v2443. bundle.min.js is v2447. global-chat.js is v2448.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
-// timechain-tv.js is 20261031_v2447. scholar.js is 20261105_v2490.
+// timechain-tv.js is 20261105_v2502. scholar.js is 20261105_v2490.
 // patches.js stays 20261026_v2385. bundle.min.js is 20261031_v2447.
 // earn-xp-guide.js and guide.js stay 20261026_v2382. ranking.js is 20261031_v2446.
 // modules.js and learning-quests.js stay 20261026_v2377.
@@ -36,9 +36,10 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2501', () => {
+test('service worker cache is v2502', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2501'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2502'"));
+    assert.ok(!sw.includes('btc-archive-v2501'));
     assert.ok(!sw.includes('btc-archive-v2498'));
     assert.ok(!sw.includes('btc-archive-v2497'));
     assert.ok(!sw.includes('btc-archive-v2496'));
@@ -558,12 +559,13 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('patches.js?v=20261023_v2349'));
     assert.ok(!html.includes('patches.js?v=20261022_v2263'));
     assert.ok(!html.includes('guide.js?v=20261022_v2322'));
-    assert.ok(html.includes('timechain-tv.js?v=20261031_v2447'));
+    assert.ok(html.includes('timechain-tv.js?v=20261105_v2502'));
+    assert.ok(!html.includes('timechain-tv.js?v=20261031_v2447'));
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2383'));
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2501');
+    assert.ok(swVersion && swVersion[1] === 'v2502');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
