@@ -283,6 +283,9 @@ function flexSource(id) {
 }
 
 function bipSource(id) {
+    if (id === 'race_10k_finisher' || id === 'race_comeback_kid' || id === 'race_champion_hornets' || id === 'race_champion_badgers') {
+        return { type: 'includes', field: 'factionRaceBadges', ids: [id] };
+    }
     if (/^bip_\d+$/.test(id)) {
         return { type: 'includes', field: 'bipBadges', ids: [id] };
     }

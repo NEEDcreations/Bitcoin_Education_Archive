@@ -9481,3 +9481,10 @@ exports.onTopicPostMirrorSync = onDocumentUpdated({
 const tctvDrip = require('./tctv-drip');
 exports.tctvDripCheckin = tctvDrip.tctvDripCheckin;
 exports.tctvDripTick = tctvDrip.tctvDripTick;
+
+// Faction race end prizes: winner detection (once), Nacho announcement,
+// badges/titles/flair, and the admin-approved pot of sats.
+const factionRace = require('./src/factionRaceJobs').factory({ functionsV1, admin, db, onDocumentWritten });
+exports.onFactionTotalsWritten = factionRace.onFactionTotalsWritten;
+exports.adminFactionRaceBreakdown = factionRace.adminFactionRaceBreakdown;
+exports.adminApproveFactionPayout = factionRace.adminApproveFactionPayout;

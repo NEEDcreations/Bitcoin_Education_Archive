@@ -169,7 +169,9 @@ service cloud.firestore {
         'bipBreakthroughLastDay', 'bipBreakthroughWeekKey', 'bipBreakthroughStreak',
         'bipBreakthroughBipId', 'bipBreakthroughClaimedWeek', 'bipBreakthroughClaimedAt',
         'bipBreakthroughClaimedBipId', 'bipBadges',
-        'coreContributorUntil', 'coreContributorTitle'
+        'coreContributorUntil', 'coreContributorTitle',
+        // Faction race end prizes (server-only; onFactionTotalsWritten awards)
+        'factionRaceBadges', 'factionChampionUntil', 'factionChampionFlair'
       ];
     }
 
@@ -1728,7 +1730,7 @@ service cloud.firestore {
                     // Field allowlist: no arbitrary keys that could carry attacker payload
                     && request.resource.data.keys().hasOnly(['uid','name','text','ts','isNachoAuto','faction',
                         'replyTo','replyToName','replyToText',
-                        'hasChatFlair','chatFlairEmoji','hasNachoSkin','hasCoreContributor',
+                        'hasChatFlair','chatFlairEmoji','hasNachoSkin','hasCoreContributor','hasFactionChampion',
                         'isGif','caption','imageUrl','gifUrl'])
                     // F-004: imageUrl/gifUrl must come from Firebase Storage or Tenor CDN only
                     && (!('imageUrl' in request.resource.data) || request.resource.data.imageUrl.matches('^https://(firebasestorage[.]googleapis[.]com|[^/]+[.]firebasestorage[.]app|media[.]tenor[.]com|c[.]tenor[.]com)/.*'))
@@ -1738,6 +1740,11 @@ service cloud.firestore {
                         || (request.resource.data.hasCoreContributor == true
                             && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.coreContributorUntil is number
                             && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.coreContributorUntil > request.time.toMillis()))
+                    // Faction race champion flair: only while the server-set window is open
+                    && (!('hasFactionChampion' in request.resource.data)
+                        || (request.resource.data.hasFactionChampion == true
+                            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.factionChampionUntil is number
+                            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.factionChampionUntil > request.time.toMillis()))
                     && request.resource.data.name is string
                     && request.resource.data.name.size() >= 2
                     && request.resource.data.name == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.username
@@ -2448,6 +2455,20 @@ service cloud.firestore {
 
     // Sats-win ledger. Server-only and append-only from the client's point of view.
     // Admins read it through adminListCipherWins; winners claim through claimCipherWin.
+    // Faction race results, breakdowns, and payout rows. Admin SDK only;
+    // admins read them through adminFactionRaceBreakdown.
+    match /faction_race_results/{raceId} {
+      allow read, write: if false;
+      match /{sub=**} {
+        allow read, write: if false;
+      }
+    }
+    // Public banner doc (winner + final totals, no uids). Read-only for clients.
+    match /faction_race_public/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     match /cipher_wins/{winId} {
       allow read, write: if false;
     }

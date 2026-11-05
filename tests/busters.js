@@ -1,4 +1,4 @@
-// Cache-buster pin. This ship is btc-archive-v2504 (faction race balance: ranking.js and quests.js 20261105_v2504). Before: btc-archive-v2502 (legal docs: timechain-tv.js disclaimer 20261105_v2502). Before: btc-archive-v2501 (favorite home buttons open again + star spacing: favorites.js 20261105_v2501). Before: btc-archive-v2500 (Terms Accept fix: onboarding.js, ranking.js 20261105_v2500). Before: btc-archive-v2499 (BIP Breakthrough: bip-breakthrough.js, achievement-share.js, badges.js, global-chat.js, bundle/ranking/referral-tiers 20261105_v2499; keeps notifications.js 20261105_v2497 from #237). Before: btc-archive-v2497 (homepage push bell). Before: btc-archive-v2496 (#236 referral maxi). Before: btc-archive-v2495 (pot of sats overlay). Before: btc-archive-v2494 (favorite apps).
+// Cache-buster pin. This ship is btc-archive-v2504 (faction race prizes on faction balance: faction-race-prizes.js, ranking.js, global-chat.js, bundle.min.js 20261105_v2504; quests.js stays 20261105_v2504). Before: btc-archive-v2502 (legal docs: timechain-tv.js disclaimer 20261105_v2502). Before: btc-archive-v2501 (favorite home buttons open again + star spacing: favorites.js 20261105_v2501). Before: btc-archive-v2500 (Terms Accept fix: onboarding.js, ranking.js 20261105_v2500). Before: btc-archive-v2499 (BIP Breakthrough: bip-breakthrough.js, achievement-share.js, badges.js, global-chat.js, bundle/ranking/referral-tiers 20261105_v2499; keeps notifications.js 20261105_v2497 from #237). Before: btc-archive-v2497 (homepage push bell). Before: btc-archive-v2496 (#236 referral maxi). Before: btc-archive-v2495 (pot of sats overlay). Before: btc-archive-v2494 (favorite apps).
 // Live gh-pages was v2446. quests.js stays v2443. bundle.min.js is v2447. global-chat.js is v2448.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
 // timechain-tv.js is 20261105_v2502. scholar.js is 20261105_v2490.
@@ -162,14 +162,14 @@ test('service worker cache is v2504', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261105_v2499/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261105_v2504/g) || []).length, 2);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261031_v2452/g) || []).length, 0);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261031_v2447/g) || []).length, 0);
     assert.ok(!html.includes('bundle.min.js?v=20261029_v2429'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2418'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2415'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2411'));
-    assert.ok(html.includes('bundle.min.js?v=20261105_v2499'));
+    assert.ok(html.includes('bundle.min.js?v=20261105_v2504'));
     assert.ok(!html.includes('bundle.min.js?v=20261101_v2458'));
     assert.ok(!html.includes('bundle.min.js?v=20261030_v2443'));
     assert.ok(!html.includes('bundle.min.js?v=20261027_v2395'));
@@ -273,7 +273,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('auth-boot.js?v=20261027_v2394'));
     assert.ok(html.includes('bundle-ready.js?v=20261027_v2394'));
     assert.ok(html.indexOf('firebase-config.js?v=20261027_v2394') < html.indexOf('auth-boot.js?v=20261027_v2394'));
-    assert.ok(html.indexOf('bundle.min.js?v=20261105_v2499') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
+    assert.ok(html.indexOf('bundle.min.js?v=20261105_v2504') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
     assert.ok(html.includes('fetchpriority="high"'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2382'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
@@ -359,7 +359,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('modules.js?v=20261024_v2370'));
     assert.ok(!html.includes('modules.js?v=20261023_v2324'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
-    assert.ok(html.includes('global-chat.js?v=20261105_v2492'));
+    assert.ok(html.includes('global-chat.js?v=20261105_v2504'));
+    assert.ok(!html.includes('global-chat.js?v=20261105_v2492'));
     assert.ok(!html.includes('global-chat.js?v=20261104_v2482'));
     assert.ok(!html.includes('global-chat.js?v=20261104_v2475'));
     assert.ok(!html.includes('global-chat.js?v=20261031_v2452'));
@@ -370,7 +371,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('global-chat.js?v=20261029_v2432'));
     assert.ok(!html.includes('global-chat.js?v=20261029_v2431'));
     assert.ok(!html.includes('global-chat.js?v=20261028_v2431'));
-    assert.strictEqual((html.match(/global-chat\.js\?v=20261105_v2492/g) || []).length, 5);
+    assert.strictEqual((html.match(/global-chat\.js\?v=20261105_v2504/g) || []).length, 5);
     assert.strictEqual((html.match(/global-chat\.js\?v=20261030_v2436/g) || []).length, 0);
     assert.strictEqual((html.match(/global-chat\.js\?v=20261030_v2435/g) || []).length, 0);
     assert.strictEqual((html.match(/global-chat\.js\?v=20261029_v2432/g) || []).length, 0);

@@ -8625,6 +8625,7 @@ function showSettingsPage(tab) {
         });
         html += '</div>';
         html += '<div id="cipherWinsAdmin" style="margin-top:12px;"></div>';
+        html += '<div id="factionPrizeAdmin" style="margin-top:12px;"></div>';
         html += '<div id="faucetAbuseAdmin" style="margin-top:12px;"></div>';
         html += '</div>';
 
@@ -10103,6 +10104,9 @@ function accountDeleteRowHtml(user) {
             }
             if (window._isAdminClaim === true && typeof window.renderCipherWinsAdmin === 'function') {
                 window.renderCipherWinsAdmin('cipherWinsAdmin');
+            }
+            if (window._isAdminClaim === true && typeof window.renderFactionPrizeAdmin === 'function') {
+                window.renderFactionPrizeAdmin('factionPrizeAdmin');
             }
             if (window._isAdminClaim === true && typeof window.renderFaucetAbuseAdmin === 'function') {
                 window.renderFaucetAbuseAdmin('faucetAbuseAdmin');
