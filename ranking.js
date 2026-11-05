@@ -1053,6 +1053,9 @@ function initRanking() {
                 if (typeof window.syncExperienceModeFromFirestore === 'function') {
                     window.syncExperienceModeFromFirestore();
                 }
+                if (typeof window.syncFavoriteAppsFromFirestore === 'function') {
+                    window.syncFavoriteAppsFromFirestore();
+                }
             }
             if (firstAuthEvent) {
                 firstAuthEvent = false;
