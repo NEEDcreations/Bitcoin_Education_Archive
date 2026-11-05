@@ -129,6 +129,7 @@ window.initNotifications = function() {
     }).catch(function() {});
     if (typeof window.syncPushRegistration === 'function') window.syncPushRegistration();
     if (typeof window.schedulePushPrompt === 'function') window.schedulePushPrompt();
+    if (typeof window.renderHomePush === 'function') window.renderHomePush();
     window._pushSnapReady = false;
 
     // Listen for unread notifications
@@ -1366,6 +1367,20 @@ setInterval(_installClientAwardNotices, 2000);
         ['news', 'News & Hot Topics', 'Hot Topics digests'],
         ['referrals', 'Referrals', 'When a referral pays off']
     ];
+    // What each category actually sends. Mirrors the senders in functions/.
+    var TIPS = {
+        rewards: 'Leaderboard prizes, raffle wins, and weekly challenge badges. Example: "You won this month\'s Orange Ticket raffle."',
+        gifts: 'Peer requests, accepted requests, keys a peer sent you, and friendship level-ups.',
+        favor: "One alert when a Satoshi's Favor mining window opens, so you can hash while it is live.",
+        pvp: 'When someone challenges you or is waiting in the PvP lobby.',
+        predictions: 'Whether your Bitcoin price prediction hit or missed when its window closes.',
+        mentions: 'When someone @mentions you in chat or in a gift note.',
+        dms: 'New direct messages, with a short preview.',
+        plebtalk: 'When a buyer messages you about one of your Marketplace listings. Off by default.',
+        reminders: 'At most a few a day: your streak is about to expire, your free spin is ready, or a nudge to start your Quest.',
+        news: 'A Hot Topics headline, at most once a week. Off by default.',
+        referrals: 'When someone you invited reaches 2,140 XP and your referral reward is added.'
+    };
     var CONTEXT_COPY = {
         win: 'You just won something. Want a heads-up next time? \uD83D\uDD14',
         gift: 'A peer just sent you something. Want to know next time? \uD83D\uDD14',
@@ -1655,8 +1670,10 @@ setInterval(_installClientAwardNotices, 2000);
             bindForeground();
             if (!silent) toast('Notifications on for this device');
             return true;
-        }).catch(function() {
-            if (!silent) toast('Could not register this device for notifications');
+        }).catch(function(err) {
+            // Code only: never log the token.
+            try { console.warn('[push] register failed', (err && (err.code || err.name)) || 'error'); } catch (e) {}
+            if (!silent) toast('Could not register this device for notifications. Try again, or reload the page.');
             return false;
         });
     }
@@ -1791,11 +1808,16 @@ setInterval(_installClientAwardNotices, 2000);
             var on = catChecked(map, key);
             var line = el('div', 'push-row');
             var copy = el('div');
-            copy.appendChild(el('b', '', row[1]));
+            var head = el('b', '', row[1]);
+            head.appendChild(tipButton(key, 'set'));
+            copy.appendChild(head);
             copy.appendChild(el('span', '', row[2]));
+            copy.appendChild(tipText(key, 'set'));
             var btn = el('button', 'push-switch' + (on ? ' on' : ''));
             btn.type = 'button';
             btn.setAttribute('data-push-cat', key);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            btn.setAttribute('aria-label', row[1] + ' notifications');
             btn.textContent = on ? 'On' : 'Off';
             btn.addEventListener('click', function() {
                 var turningOn = btn.textContent !== 'On';
@@ -1834,7 +1856,208 @@ setInterval(_installClientAwardNotices, 2000);
         root.appendChild(box);
     }
 
+    // ---- Homepage bell: one-tap on/off plus per-type choices ----
+    function tipButton(key, scope) {
+        var b = el('button', 'push-tip', '\u24D8');
+        b.type = 'button';
+        b.setAttribute('aria-label', 'What does this send?');
+        b.setAttribute('aria-expanded', 'false');
+        b.setAttribute('aria-controls', 'pushTip-' + scope + '-' + key);
+        b.addEventListener('click', function(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            var t = document.getElementById('pushTip-' + scope + '-' + key);
+            if (!t) return;
+            t.hidden = !t.hidden;
+            b.setAttribute('aria-expanded', t.hidden ? 'false' : 'true');
+        });
+        return b;
+    }
+
+    function tipText(key, scope) {
+        var t = el('small', 'push-tip-text', TIPS[key] || '');
+        t.id = 'pushTip-' + scope + '-' + key;
+        t.setAttribute('role', 'tooltip');
+        t.hidden = true;
+        return t;
+    }
+
+    function ensureHomeStyles() {
+        ensureStyles();
+        if (document.getElementById('homePushCss')) return;
+        var st = document.createElement('style');
+        st.id = 'homePushCss';
+        st.textContent = ''
+            + '#homePush{width:100%;max-width:560px;align-self:center;margin:10px auto 6px;text-align:left;}'
+            + '.home-push-bar{display:flex;gap:8px;align-items:stretch;width:100%;}'
+            + '.home-push-bar button{font-family:inherit;font-size:16px;min-height:44px;border-radius:12px;cursor:pointer;touch-action:manipulation;}'
+            + '#homePushToggle{flex:1 1 auto;min-width:0;width:100%;max-width:none;display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--card-bg);color:var(--text);border:1px solid var(--border);font-weight:700;text-align:left;}'
+            + '#homePushToggle.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;}'
+            + '#homePushToggle .hp-ico{font-size:1.3rem;}'
+            + '#homePushToggle .hp-sub{display:block;font-weight:500;font-size:0.82rem;color:var(--text-muted);}'
+            + '#homePushChoose{padding:8px 14px;background:transparent;color:var(--accent);border:1px solid var(--border);font-weight:700;}'
+            + '#homePushPanel{margin-top:8px;}'
+            + '#homePushPanel .push-settings{margin:0;}'
+            + '.push-tip{display:inline-flex;align-items:center;justify-content:center;min-width:28px;min-height:28px;margin-left:4px;padding:0;background:transparent;border:none;color:var(--accent);font-size:1rem;cursor:pointer;vertical-align:middle;}'
+            + '.push-settings .push-tip{min-height:28px;font-size:1rem;}'
+            + '.push-tip-text{display:block;margin-top:6px;padding:8px 10px;background:var(--bg,rgba(0,0,0,.2));border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;line-height:1.4;}'
+            + '.push-tip-text[hidden]{display:none;}'
+            + '#homePushHelp{margin:8px 0 0;font-size:0.88rem;line-height:1.4;color:var(--text-muted);}';
+        document.head.appendChild(st);
+    }
+
+    function homeState(map) {
+        if (!signedIn() && !window._pushPreview) return 'guest';
+        if (iosNeedsInstall()) return 'install';
+        return masterMode(map);
+    }
+
+    function homeCopy(state) {
+        if (state === 'on') return ['\uD83D\uDD14', 'Notifications are on', 'Tap to turn off on this device'];
+        if (state === 'blocked') return ['\uD83D\uDD15', 'Notifications are blocked', 'Tap for how to allow them'];
+        if (state === 'unsupported') return ['\uD83D\uDD15', 'Notifications unavailable', 'This browser cannot show them'];
+        if (state === 'install') return ['\uD83D\uDD15', 'Get notifications on iPhone', 'Add Bitcoin Quest to your Home Screen first'];
+        return ['\uD83D\uDD15', 'Notifications are off', 'Tap to turn on. You pick which ones below.'];
+    }
+
+    function renderHomeInto(root, map) {
+        ensureHomeStyles();
+        var state = homeState(map);
+        var panelOpen = !!(document.getElementById('homePushPanel') && !document.getElementById('homePushPanel').hidden);
+        root.textContent = '';
+        if (state === 'blocked' || state === 'unsupported' || state === 'install') panelOpen = false;
+        if (state === 'guest') { root.hidden = true; return; }
+        root.hidden = false;
+        var bar = el('div', 'home-push-bar');
+        var copy = homeCopy(state);
+        var tog = el('button', state === 'on' ? 'on' : '');
+        tog.type = 'button';
+        tog.id = 'homePushToggle';
+        tog.setAttribute('aria-pressed', state === 'on' ? 'true' : 'false');
+        tog.title = state === 'on'
+            ? 'You get alerts for the types you picked, even when Bitcoin Quest is closed.'
+            : 'Get alerts for wins, peer gifts, messages, and more, even when Bitcoin Quest is closed.';
+        tog.appendChild(el('span', 'hp-ico', copy[0]));
+        var words = el('span', '');
+        words.appendChild(el('span', '', copy[1]));
+        words.appendChild(el('span', 'hp-sub', copy[2]));
+        tog.appendChild(words);
+        var help = el('p', '');
+        help.id = 'homePushHelp';
+        help.hidden = true;
+        tog.addEventListener('click', function() {
+            if (state === 'blocked') {
+                help.textContent = 'Your browser is blocking notifications. In Chrome or Edge, tap the lock icon by the address, set Notifications to Allow, then reload. In Firefox, tap the lock and clear the block.';
+                help.hidden = false;
+                return;
+            }
+            if (state === 'unsupported') {
+                help.textContent = 'This browser cannot show notifications. Try Chrome, Edge, Firefox, or the installed app.';
+                help.hidden = false;
+                return;
+            }
+            if (state === 'install') {
+                help.textContent = 'On iPhone and iPad, notifications only work from the Home Screen app (iOS 16.4 or newer). In Safari tap Share, then Add to Home Screen, then open Bitcoin Quest from that icon and tap this button again.';
+                help.hidden = false;
+                return;
+            }
+            if (window._pushPreview) {
+                window._pushPreviewPrefs = window._pushPreviewPrefs || {};
+                window._pushPreviewPrefs.master = !(window._pushPreviewPrefs.master === true);
+                window.renderHomePush();
+                return;
+            }
+            tog.disabled = true;
+            var job = state === 'on' ? disableThisDevice() : window.enablePushFromTap();
+            Promise.resolve(job).catch(function() {}).then(function() {
+                if (state === 'on') toast('Notifications off for this device');
+                window.renderNotificationSettings();
+            });
+        });
+        var choose = el('button', '', panelOpen ? 'Done' : 'Choose');
+        choose.type = 'button';
+        choose.id = 'homePushChoose';
+        choose.setAttribute('aria-expanded', panelOpen ? 'true' : 'false');
+        choose.setAttribute('aria-controls', 'homePushPanel');
+        choose.title = 'Pick which notifications you get';
+        bar.appendChild(tog);
+        bar.appendChild(choose);
+        root.appendChild(bar);
+        root.appendChild(help);
+        var panel = el('div', '');
+        panel.id = 'homePushPanel';
+        panel.hidden = !panelOpen;
+        var box = el('div', 'push-settings');
+        box.appendChild(el('p', 'push-status', state === 'on'
+            ? 'Choose what this account sends. Tap \u24D8 to see exactly what each one is.'
+            : 'Turn notifications on above, then choose what you want. Tap \u24D8 to see exactly what each one is.'));
+        CATS.forEach(function(row) {
+            var key = row[0];
+            var on = catChecked(map, key);
+            var line = el('div', 'push-row');
+            var c = el('div');
+            var head = el('b', '', row[1]);
+            head.appendChild(tipButton(key, 'home'));
+            c.appendChild(head);
+            c.appendChild(el('span', '', row[2]));
+            c.appendChild(tipText(key, 'home'));
+            var btn = el('button', 'push-switch' + (on ? ' on' : ''));
+            btn.type = 'button';
+            btn.setAttribute('data-home-push-cat', key);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            btn.setAttribute('aria-label', row[1] + ' notifications');
+            btn.textContent = on ? 'On' : 'Off';
+            btn.addEventListener('click', function() {
+                btn.disabled = true;
+                savePref(key, !on).then(function() {
+                    if (!window._pushPreview && _cachedUser) {
+                        _cachedUser.notificationPrefs = _cachedUser.notificationPrefs || {};
+                        _cachedUser.notificationPrefs[key] = !on;
+                    }
+                    window.renderNotificationSettings();
+                });
+            });
+            line.appendChild(c);
+            line.appendChild(btn);
+            box.appendChild(line);
+        });
+        panel.appendChild(box);
+        root.appendChild(panel);
+        choose.addEventListener('click', function() {
+            panel.hidden = !panel.hidden;
+            choose.textContent = panel.hidden ? 'Choose' : 'Done';
+            choose.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+        });
+    }
+
+    function homeMount() {
+        var root = document.getElementById('homePush');
+        if (root) return root;
+        var anchor = document.getElementById('homeWalletStrip');
+        if (!anchor || !anchor.parentNode) return null;
+        root = document.createElement('div');
+        root.id = 'homePush';
+        root.hidden = true;
+        anchor.parentNode.insertBefore(root, anchor.nextSibling);
+        return root;
+    }
+
+    window.renderHomePush = function() {
+        var root = homeMount();
+        if (!root) return;
+        if (window._pushPreview) { renderHomeInto(root, window._pushPreviewPrefs || {}); return; }
+        renderHomeInto(root, (_cachedUser && _cachedUser.notificationPrefs) || {});
+        if (!signedIn()) return;
+        loadUser().then(function(user) {
+            var r = homeMount();
+            if (r) renderHomeInto(r, (user && user.notificationPrefs) || {});
+        });
+    };
+
     window.renderNotificationSettings = function() {
+        if (typeof window.renderHomePush === 'function') {
+            try { window.renderHomePush(); } catch (e) {}
+        }
         var root = document.getElementById('settings-notifications');
         if (!root) return;
         if (window._pushPreview) {
