@@ -18,7 +18,15 @@ function usernameRepickNeeded(user, authUser) {
     var name = user.username ? String(user.username).trim() : '';
     if (name) return false;
     if (authUser.isAnonymous === true) return false;
-    return user.onboardingComplete === true || user.introSeen === true;
+    if (user.onboardingComplete === true || user.introSeen === true) return true;
+    // A doc made by an XP grant (or before a name was picked) has progress but
+    // no name. Brand-new signups start at 0 points and get the signup prompt.
+    return Number(user.points) > 0 || Number(user.totalXP) > 0;
+}
+
+// True when the player never had a name (vs. lost one in a cleanup).
+function usernameNeverPicked(user) {
+    return !!user && user.usernameNeedsRepick !== true && missingPublicName(user.username);
 }
 
 // A stored leaderboard label of Anon or Anonymous loses to the live public
@@ -32,6 +40,7 @@ function leaderboardDisplayName(entryName, profileName) {
 var api = {
     missingPublicName: missingPublicName,
     usernameRepickNeeded: usernameRepickNeeded,
+    usernameNeverPicked: usernameNeverPicked,
     leaderboardDisplayName: leaderboardDisplayName,
 };
 
@@ -39,5 +48,6 @@ if (typeof module !== 'undefined' && module.exports) module.exports = api;
 if (typeof window !== 'undefined') {
     window.missingPublicName = missingPublicName;
     window.usernameRepickNeeded = usernameRepickNeeded;
+    window.usernameNeverPicked = usernameNeverPicked;
     window.leaderboardDisplayName = leaderboardDisplayName;
 }
