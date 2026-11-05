@@ -224,6 +224,7 @@ const ID_RANGE_QUERIES = [
     { collection: 'reply_bonus_pairs', prefix: 'p_{uid}__' },
     { collection: 'weekly_challenges/{week}/user_contribs', prefix: 'uid_' },
     { collection: 'stats', prefix: 'raffle_' },
+    { collection: 'beats_play_marks', prefix: '{uid}__' },
 ];
 
 // Reads that are not one account's rows. Each one is capped or is the
@@ -911,6 +912,24 @@ async function deleteIdPrefix(db, batcher, collectionName, uid, documentIdField)
     for (let i = 0; i < docs.length; i++) await batcher.remove(docs[i].ref);
 }
 
+async function deletePlayMarks(db, batcher, uid, documentIdField) {
+    const marks = await collectIdPrefix(db.collection('beats_play_marks'), uid + '__', documentIdField);
+    for (let i = 0; i < marks.length; i++) await batcher.remove(marks[i].ref);
+    await deleteExactIfPresent(db, batcher, 'beats_play_user', uid);
+}
+
+async function clearAwardClaimUids(db, batcher, uid, documentIdField) {
+    const docs = await collectDocs(
+        db.collection('award_doc_claims').where('uid', '==', uid),
+        documentIdField
+    );
+    for (let i = 0; i < docs.length; i++) {
+        const data = docs[i].data() || {};
+        if (data.uid === DELETED_UID) continue;
+        await batcher.update(docs[i].ref, { uid: DELETED_UID });
+    }
+}
+
 async function removeBeatsLikes(db, batcher, uid, documentIdField) {
     const docs = await collectDocs(
         db.collection('beats_tracks').where('likedBy', 'array-contains', uid),
@@ -1104,7 +1123,9 @@ function satsBalanceOf(user) {
     const claimed = Number(src.pointsClaimed) || 0;
     const donated = Number(src.pointsDonated) || 0;
     const exchanged = Number(src.pointsExchanged) || 0;
-    return Math.floor((points - claimed - donated - exchanged) / 10);
+    let unclaimable = Number(src.unclaimableXp) || 0;
+    if (unclaimable < 0) unclaimable = 0;
+    return Math.floor(Math.max(0, points - claimed - donated - exchanged - unclaimable) / 10);
 }
 
 function forfeitRequired(user, withdrawals) {
@@ -1265,6 +1286,8 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
     await anonymizeFavorNames(db, batcher, uid, documentIdField);
     await deleteUsernameReservations(db, batcher, uid, userData, documentIdField);
     await removeBeatsLikes(db, batcher, uid, documentIdField);
+    await deletePlayMarks(db, batcher, uid, documentIdField);
+    await clearAwardClaimUids(db, batcher, uid, documentIdField);
     await deleteTopicPosts(db, batcher, uid, documentIdField);
     await anonymizeOrDeleteAuthored(db, batcher, uid, documentIdField);
     await clearArticleXpUid(db, batcher, uid, documentIdField);

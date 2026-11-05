@@ -5,6 +5,7 @@
 // Tickets are never granted here. Every action shares the 500 / 900 / 1,000 taper.
 
 const { planDailyXp, DAILY_CAP, TAPER_FULL_UNTIL, TAPER_HALF_UNTIL } = require('./dailyXp');
+const awardEvidence = require('./awardEvidence');
 const { planXpGrant } = require('./grantXp');
 
 const ALLOWED_ACTION_KEYS = {
@@ -97,8 +98,8 @@ function payMapped(clientPts, amounts) {
     return amounts[clientPts];
 }
 
-// baseMap is the catalog base. doubleMap accepts the legacy doubled client
-// integer and returns that same base. planXpGrant applies 2× once.
+// baseMap is payable with no buff. doubleMap is the doubled client amount and
+// is payable only while the server Double XP timer is still running.
 function payChoice(clientPts, baseMap, doubleMap) {
     if (clientPts < 0) return null;
     if (baseMap && Object.prototype.hasOwnProperty.call(baseMap, clientPts)) {
@@ -159,7 +160,7 @@ function flexAllBadgeMet(badgeId, flexFullDays) {
 
 function resolveFlex(flexActionId, clientPts) {
     if (!flexActionId || !FLEX_ID_SET.has(flexActionId)) return unknown();
-    const choice = payChoice(clientPts, { 5: 5 }, { 10: 5 });
+    const choice = payChoice(clientPts, { 5: 5 }, { 10: 10 });
     if (!choice) return unknown();
     return done({
         id: 'flex_action',
@@ -169,6 +170,7 @@ function resolveFlex(flexActionId, clientPts) {
         dedupGroup: 'flex',
         target: flexActionId,
         flexId: flexActionId,
+        unverified: true,
     });
 }
 
@@ -180,6 +182,7 @@ function resolveFlexDay(clientPts) {
         dailyLimit: 1,
         dedupGroup: 'flex_day',
         target: 'day',
+        unverified: true,
     });
 }
 
@@ -232,39 +235,17 @@ function resolvePhrase(action, ctx) {
         });
     }
 
-    if (action === '🧠 Trivia Quest correct!') {
-        return done({
-            id: 'trivia_correct',
-            xp: 50,
-            dedupGroup: 'trivia',
-            target: 'trivia',
-            triviaQuiz: true,
-        });
-    }
-    if (action === '🧠 Trivia Quest attempt') {
-        return done({
-            id: 'trivia_attempt',
-            xp: 10,
-            dedupGroup: 'trivia',
-            target: 'trivia',
-            triviaQuiz: true,
-        });
-    }
-    if (action === '📊 Poll Quest vote') {
-        return done({ id: 'poll_vote', xp: 50, dedupGroup: 'poll_vote', target: 'poll' });
-    }
-
     if (action === '📝 Forum post') {
-        return done({ id: 'forum_post', xp: 10, repeatable: true, dailyLimit: 100, cooldownMs: 60000 });
+        return done({ id: 'forum_post', xp: 10, dailyLimit: 100, cooldownMs: 60000 });
     }
     if (action === '💬 Forum reply') {
-        return done({ id: 'forum_reply', xp: 5, repeatable: true, dailyLimit: 200, cooldownMs: 10000 });
+        return done({ id: 'forum_reply', xp: 5, dailyLimit: 200, cooldownMs: 10000 });
     }
     if (action === '💬 Article comment') {
-        return done({ id: 'article_comment', xp: 5, repeatable: true, dailyLimit: 200, cooldownMs: 10000 });
+        return done({ id: 'article_comment', xp: 5, dailyLimit: 200, cooldownMs: 10000 });
     }
     if (action === 'Feedback bonus') {
-        return done({ id: 'feedback', xp: 5, repeatable: true, dailyLimit: 200 });
+        return done({ id: 'feedback', xp: 5, dailyLimit: 200 });
     }
 
     const chapter = /^📖 Completed Chapter ([1-7])$/.exec(action);
@@ -283,7 +264,7 @@ function resolvePhrase(action, ctx) {
     }
 
     if (action === '📈 Price prediction made') {
-        return done({ id: 'prediction', xp: 5, repeatable: true, dailyLimit: 200 });
+        return done({ id: 'prediction', xp: 5, dailyLimit: 1, target: 'prediction' });
     }
 
     const explore = {
@@ -304,21 +285,8 @@ function resolvePhrase(action, ctx) {
         });
     }
 
-    // Wheel prizes are paid only by dailySpin. A cached client can still call
-    // awardPoints with this phrase and a chosen amount (25, 50, 100, or 200
-    // while Double XP). Ignore that amount. xp 0 stays ok so the callable
-    // returns a normal zero grant instead of throwing.
-    if (action === 'Daily Spin') {
-        return done({
-            id: 'daily_spin',
-            xp: 0,
-            dedupGroup: 'daily_spin',
-            target: 'spin',
-        });
-    }
-
     if (action === '💬 Global Chat') {
-        return done({ id: 'chat_message', xp: 5, repeatable: true, dailyLimit: 200, cooldownMs: 3000 });
+        return done({ id: 'chat_message', xp: 5, dailyLimit: 200, cooldownMs: 3000 });
     }
 
     const streaks = {
@@ -363,12 +331,9 @@ function resolvePhrase(action, ctx) {
         return done({ id: 'explore_10', xp: 50, scope: 'once', dailyLimit: 1, target: '10' });
     }
     if (action === '🔗 Anonymous progress merged') {
-        if (clientPts <= 0 || clientPts > 2200) return unknown();
         return done({
             id: 'anon_merge',
-            xp: Math.min(clientPts, 500),
-            requiresDoubleXp: clientPts > 500,
-            boost: false,
+            xp: 0,
             scope: 'once',
             dailyLimit: 1,
             target: 'merge',
@@ -376,13 +341,13 @@ function resolvePhrase(action, ctx) {
     }
 
     if (action === 'Listened to a full track on Bitcoin Beats 🎵') {
-        return done({ id: 'beats_listen', xp: 10, repeatable: true, dailyLimit: 100 });
+        return done({ id: 'beats_listen', xp: 10, repeatable: true, dailyLimit: 100, unverified: true });
     }
     if (action === 'Uploaded a track to Bitcoin Beats! 🎵') {
-        return done({ id: 'beats_upload', xp: 50, repeatable: true, dailyLimit: 20 });
+        return done({ id: 'beats_upload', xp: 50, dailyLimit: 20 });
     }
     if (action === 'Left a comment on Bitcoin Beats 💬') {
-        return done({ id: 'beats_comment', xp: 10, repeatable: true, dailyLimit: 100, cooldownMs: 10000 });
+        return done({ id: 'beats_comment', xp: 10, dailyLimit: 100, cooldownMs: 10000 });
     }
     const batch = /^Uploaded (\d+) tracks? to Bitcoin Beats!$/.exec(action);
     if (batch) {
@@ -404,7 +369,7 @@ function resolvePhrase(action, ctx) {
             requiresDoubleXp: doubledSend,
             repeatable: true,
             dailyLimit: 20,
-            dedupGroup: 'beats_upload_batch',
+            dedupGroup: 'beats_upload',
         });
     }
 
@@ -419,7 +384,6 @@ function resolveAction(input) {
     const badgeId = String(src.badgeId || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 60);
     const channelId = String(src.channelId || '').slice(0, 100);
     const flexActionId = String(src.flexActionId || '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 30);
-    if (ptsShapeRejected(src.pts)) return unknown();
     const clientPts = normalizePts(src.pts);
 
     if (actionKey === 'prediction_correct' || PREDICTION_RESULT.test(action)) {
@@ -468,7 +432,7 @@ function claimId(resolved, day, count) {
     const group = sanitizeId(resolved.dedupGroup || resolved.id, 40);
     const target = sanitizeId(resolved.target == null ? 'x' : resolved.target, 80);
     const dayKey = sanitizeId(day, 12);
-    if (resolved.scope === 'once') return ('once_' + group + '_' + target).slice(0, 140);
+    if (resolved.onceId || resolved.scope === 'once') return ('once_' + group + '_' + target).slice(0, 140);
     if (resolved.repeatable) return (dayKey + '_' + group + '_' + String(count || 0)).slice(0, 140);
     return (dayKey + '_' + group + '_' + target).slice(0, 140);
 }
@@ -485,6 +449,7 @@ function applyAward(mem, uid, data, opts) {
     store.claims = store.claims || {};
     store.counts = store.counts || {};
     store.daily = store.daily || {};
+    store.globalClaims = store.globalClaims || {};
     const user = store.users[uid] || { points: 0, orangeTickets: 0, pendingOverflow: 0, ban_reason: '' };
     store.users[uid] = user;
     const day = (opts && opts.day) || '2026-10-22';
@@ -535,6 +500,21 @@ function applyAward(mem, uid, data, opts) {
         }
         xp = catalog[badgeId];
     }
+    const pre = awardEvidence.precheck(resolved, data || {});
+    if (!pre.ok) {
+        return {
+            success: false,
+            error: pre.error || 'Evidence required',
+            awarded: 0,
+            tickets: 0,
+            overflowAdded: 0,
+            pendingOverflow: pendingOverflow,
+            orangeTickets: orangeTickets,
+        };
+    }
+    if (pre.target) resolved.target = pre.target;
+    if (pre.onceId) resolved.onceId = true;
+    if (!resolved.badge && pre.xp != null) xp = pre.xp;
 
     const daily = store.daily[uid] || { total: 0 };
     const countKey = uid + '/' + countDocId(resolved, day);
@@ -551,13 +531,43 @@ function applyAward(mem, uid, data, opts) {
             orangeTickets: orangeTickets,
         };
     }
-    const claimKey = uid + '/' + claimId(resolved, day, usedCount + 1);
+    const confirmed = awardEvidence.confirm(resolved, data || {}, {
+        uid: uid,
+        day: day,
+        user: user,
+        proof: opts && opts.proof,
+        claims: store.claims,
+        claimPrefix: uid + '/',
+        globalClaims: store.globalClaims,
+        now: opts && opts.now,
+    });
+    if (!confirmed.ok) {
+        return {
+            success: false,
+            error: confirmed.error || 'Evidence required',
+            awarded: 0,
+            tickets: 0,
+            overflowAdded: 0,
+            pendingOverflow: pendingOverflow,
+            orangeTickets: orangeTickets,
+        };
+    }
+    if (!resolved.badge && confirmed.xp != null) xp = confirmed.xp;
+    const claimTargets = confirmed.claimTargets && confirmed.claimTargets.length
+        ? confirmed.claimTargets
+        : [resolved.target];
+    const claimKeys = [];
+    for (let ci = 0; ci < claimTargets.length; ci++) {
+        const marked = Object.assign({}, resolved, { target: claimTargets[ci] });
+        claimKeys.push(uid + '/' + claimId(marked, day, usedCount + 1));
+    }
+    const claimKey = claimKeys[0];
     const badgeKey = uid + '/badge/' + String((data && data.badgeId) || '');
     if (resolved.badge) {
         if (store.claims[badgeKey]) {
             return { success: false, error: 'Badge already awarded', awarded: 0, tickets: 0, orangeTickets: orangeTickets };
         }
-    } else if (store.claims[claimKey]) {
+    } else if (claimKeys.some(function (key) { return store.claims[key]; })) {
         return {
             success: false,
             error: 'Already claimed',
@@ -570,25 +580,73 @@ function applyAward(mem, uid, data, opts) {
         };
     }
 
-    const nowMs = opts && opts.now != null ? opts.now : Date.now();
-    let windowUser = opts && opts.user;
-    if (!windowUser && opts && opts.doubleXpActive) {
-        windowUser = { doubleXpUntil: nowMs + 60 * 60 * 1000 };
+    const unverified = !!(confirmed.unverified || resolved.unverified);
+    let grant;
+    function rememberDocClaims() {
+        awardEvidence.markerIds(resolved.id, claimTargets, data).forEach(function (id) {
+            store.globalClaims[id] = true;
+        });
     }
-    const grant = planXpGrant({
-        base: xp,
-        user: windowUser,
-        now: nowMs,
-        dailyUsed: daily.total || 0,
-        boost: resolved.boost !== false,
-    });
+    if (unverified) {
+        const usedU = daily.unverified || 0;
+        const tapered = planGrant({ xp: xp, dailyUsed: daily.total || 0 });
+        const room = Math.max(0, awardEvidence.UNVERIFIED_DAILY_CAP - usedU);
+        const awardedU = Math.min(tapered.awarded, room);
+        grant = {
+            awarded: awardedU,
+            dropped: xp - awardedU,
+            capped: awardedU < xp,
+            pastCap: usedU >= awardEvidence.UNVERIFIED_DAILY_CAP || tapered.pastCap,
+            dailyXp: daily.total || 0,
+            dailyCap: DAILY_CAP,
+            fullUntil: TAPER_FULL_UNTIL,
+            halfUntil: TAPER_HALF_UNTIL,
+        };
+        if (awardedU > 0) {
+            user.points = (user.points || 0) + awardedU;
+            user.unclaimableXp = (user.unclaimableXp || 0) + awardedU;
+            user.weeklyXP = (user.weeklyXP || 0) + awardedU;
+            user.monthlyXP = (user.monthlyXP || 0) + awardedU;
+            daily.unverified = usedU + awardedU;
+            daily.total = (daily.total || 0) + awardedU;
+            store.daily[uid] = daily;
+            rememberDocClaims();
+        }
+        claimKeys.forEach(function (key) { store.claims[key] = true; });
+        store.counts[countKey] = usedCount + 1;
+    } else {
+        grant = planGrant({
+            xp: xp,
+            dailyUsed: daily.total || 0,
+        });
+    }
 
-    if (grant.awarded > 0) {
+    if (!unverified && grant.awarded > 0) {
         user.points = (user.points || 0) + grant.awarded;
         daily.total = (daily.total || 0) + grant.awarded;
         store.daily[uid] = daily;
         store.counts[countKey] = usedCount + 1;
-        if (!resolved.badge) store.claims[claimKey] = true;
+        if (!resolved.badge) {
+            claimKeys.forEach(function (key) { store.claims[key] = true; });
+            rememberDocClaims();
+        }
+    }
+    // A chapter finished at the daily cap is still consumed. Otherwise the
+    // finale can stay locked, and the same chapter can pay on a later day.
+    if (!unverified && grant.awarded === 0 && resolved.id === 'story_chapter') {
+        store.counts[countKey] = usedCount + 1;
+        claimKeys.forEach(function (key) { store.claims[key] = true; });
+    }
+    if (resolved.id === 'chat_message') {
+        const streakPlan = awardEvidence.nextChatStreak(user, day);
+        if (streakPlan.changed) {
+            user.chatXpStreak = streakPlan.streak;
+            user.chatXpDay = day;
+        }
+    }
+    if (!unverified && resolved.id === 'anon_merge') {
+        claimKeys.forEach(function (key) { store.claims[key] = true; });
+        store.counts[countKey] = usedCount + 1;
     }
     // A badge earned at the daily cap is still saved. The XP stays dropped.
     if (resolved.badge && grant.awarded === 0) {
@@ -616,9 +674,6 @@ function applyAward(mem, uid, data, opts) {
         id: resolved.id,
         orangeTickets: user.orangeTickets || 0,
         banned: false,
-        doubled: grant.doubled === true,
-        base: grant.base,
-        boosted: grant.boosted,
     };
 }
 
@@ -631,8 +686,6 @@ module.exports = {
     flexDayStatus: flexDayStatus,
     nextFlexFullDays: nextFlexFullDays,
     flexAllBadgeMet: flexAllBadgeMet,
-    normalizePts: normalizePts,
-    ptsShapeRejected: ptsShapeRejected,
     resolveAction: resolveAction,
     planGrant: planGrant,
     claimId: claimId,
