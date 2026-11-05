@@ -4730,8 +4730,9 @@ function showUsernameRepickPrompt() {
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-labelledby', 'usernameRepickTitle');
+    var _neverNamed = typeof window.usernameNeverPicked === 'function' && typeof currentUser !== 'undefined' && window.usernameNeverPicked(currentUser);
     overlay.innerHTML = '<div class="username-box glass-dark">' +
-        '<h2 id="usernameRepickTitle">Your username needs updating. Please pick a new one</h2>' +
+        '<h2 id="usernameRepickTitle">' + (_neverNamed ? 'Pick a username so you show up on the leaderboard' : 'Your username needs updating. Please pick a new one') + '</h2>' +
         '<p>This stays open until the new name is saved.</p>' +
         '<input type="text" id="usernameRepickInput" placeholder="Enter a username..." maxlength="20" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="Choose a new username">' +
         '<div id="usernameRepickError" role="alert"></div>' +

@@ -302,6 +302,7 @@ queue.push(test('the repick prompt is required only after a real name was lost',
     assert.strictEqual(repick.usernameRepickNeeded({ onboardingComplete: true }, person), true);
     assert.strictEqual(repick.usernameRepickNeeded({ introSeen: true }, person), true);
     assert.strictEqual(repick.usernameRepickNeeded({}, person), false);
+    assert.strictEqual(repick.usernameRepickNeeded({ points: 0 }, person), false);
     assert.strictEqual(repick.usernameRepickNeeded({ username: 'QuestFan' }, person), false);
     assert.strictEqual(repick.usernameRepickNeeded({ username: 'QuestFan', usernameNeedsRepick: true }, person), true);
     assert.strictEqual(repick.usernameRepickNeeded({ usernameNeedsRepick: true, _isLocal: true }, person), false);
@@ -311,6 +312,22 @@ queue.push(test('the repick prompt is required only after a real name was lost',
     assert.strictEqual(repick.leaderboardDisplayName('Anon', 'SatoshiFan'), 'SatoshiFan');
     assert.strictEqual(repick.leaderboardDisplayName('', ''), 'Anon');
     assert.strictEqual(repick.leaderboardDisplayName('  ', 'RealName'), 'RealName');
+}));
+
+queue.push(test('a named-less doc with progress is prompted; guests and new signups are not', function () {
+    const guest = { isAnonymous: true };
+    const person = { isAnonymous: false };
+    assert.strictEqual(repick.usernameRepickNeeded({ points: 50 }, person), true);
+    assert.strictEqual(repick.usernameRepickNeeded({ points: 50, username: '' }, person), true);
+    assert.strictEqual(repick.usernameRepickNeeded({ points: 50, username: '  ' }, person), true);
+    assert.strictEqual(repick.usernameRepickNeeded({ totalXP: 5 }, person), true);
+    assert.strictEqual(repick.usernameRepickNeeded({ points: 50, username: 'QuestFan' }, person), false);
+    assert.strictEqual(repick.usernameRepickNeeded({ points: 50 }, guest), false);
+    assert.strictEqual(repick.usernameRepickNeeded({ points: 0 }, person), false);
+    assert.strictEqual(repick.usernameNeverPicked({ points: 50 }), true);
+    assert.strictEqual(repick.usernameNeverPicked({ usernameNeedsRepick: true }), false);
+    const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
+    assert.ok(ranking.includes('Pick a username so you show up on the leaderboard'));
 }));
 
 queue.push(test('the client prompt cannot be skipped and calls setUsername', function () {
@@ -332,7 +349,7 @@ queue.push(test('the client prompt cannot be skipped and calls setUsername', fun
     assert.ok(ranking.includes('applyServerUsername(name)'));
     assert.ok(ranking.includes('maybeShowUsernameRepick();\n        updateAuthButton();'));
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-    assert.ok(html.indexOf('username-repick.js?v=20261024_v2352') < html.indexOf('ranking.js?v=20261102_v2465'));
+    assert.ok(html.indexOf('username-repick.js?v=20261104_v2476') < html.indexOf('ranking.js?v=20261104_v2476'));
     assert.ok(html.indexOf('ranking.js?v=20261029_v2431') === -1);
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
     const favor = fs.readFileSync(path.join(root, 'satoshi-favor.js'), 'utf8');
