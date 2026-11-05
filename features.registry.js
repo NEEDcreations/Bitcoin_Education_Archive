@@ -472,7 +472,7 @@
             how: 'Open Settings → Sats and claim when you are eligible. Those details stay vague on purpose.',
             follow: 'Want to open Settings → Sats?',
             hash: 'sats', aliases: ['sats', 'wallet', 'faucet'], kind: 'settings', arg: 'sats', settingsPages: ['sats'],
-            openFns: ['showSettings', 'showSettingsPage'] }),
+            openFns: ['showSettings', 'showSettingsPage', 'openClaimChat', 'openClaimTv'] }),
         R({ id: 'ln-address', title: 'Lightning address', group: 'Rewards', term: 'lightning address', priority: 75,
             kw: 'lightning address tips receive',
             desc: 'Your Lightning address is where tips are sent.',
