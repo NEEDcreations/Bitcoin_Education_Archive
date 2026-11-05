@@ -2671,6 +2671,20 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "tctv_drip_watch",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "potId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "activeMs",
+          "order": "ASCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [

@@ -9261,3 +9261,8 @@ exports.onTopicPostMirrorSync = onDocumentUpdated({
     }
     return null;
 });
+
+// Timechain TV drip pot (server-side accrual, reserve, idempotent payouts).
+const tctvDrip = require('./tctv-drip');
+exports.tctvDripCheckin = tctvDrip.tctvDripCheckin;
+exports.tctvDripTick = tctvDrip.tctvDripTick;
