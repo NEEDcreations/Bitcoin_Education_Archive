@@ -527,9 +527,9 @@ test('home invite card is top-right and reads counts the user may see', () => {
     const tickets = fs.readFileSync(path.join(__dirname, '..', 'tickets.js'), 'utf8');
     const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
     assert.ok(html.includes('id="inviteCard"'));
-    assert.ok(html.includes("When a friend you invite reaches 2,140 points (Scholar exam points don't count), you both get 50 orange tickets."));
-    assert.ok(html.includes("Share your link. Your friend signs up with it. When they reach 2,140 points (Scholar exam points don't count), you both get 50 orange tickets automatically."));
-    assert.ok(html.includes('earned 2,140'));
+    assert.ok(html.includes("When a friend you invite reaches 2,140 XP (Scholar exam points don't count), both of you see it right away. The 50 Orange Tickets unlock once their account is 7 days old and passes the usual checks."));
+    assert.ok(html.includes("Share your link. Your friend signs up with it. When they reach 2,140 XP (Scholar exam points don't count), the tracker updates for both of you. Tickets unlock after their account is 7 days old and passes the usual checks."));
+    assert.ok(html.includes('reached 2,140'));
     assert.ok(!html.includes('reaches Maxi rank, you both get 50 orange tickets.'));
     assert.ok(html.includes('How it works'));
     assert.ok(html.includes('id="inviteCopy"'));
@@ -1033,6 +1033,100 @@ test('a tap opens the invite card even when the session popup budget is taken', 
     invitePage.localStorage.removeItem('btc_invite_auto_' + invitePage._uid);
     invitePage.refreshInviteCard();
     assert.strictEqual(inviteState(invitePage), 'min');
+});
+
+
+
+test('assessMaxiMilestone marks when activity XP hits Maxi', () => {
+    const referred = user('pleb0001XXXX', { points: 2140, scholarPoints: 0, createdMs: NOW - 3 * 24 * 60 * 60 * 1000 });
+    const decision = referrals.assessMaxiMilestone({
+        hasSignal: true,
+        nowMs: NOW,
+        referral: { status: 'pending', referrerUid: 'refcode0REFR' },
+        referred: referred,
+    });
+    assert.strictEqual(decision.action, 'mark');
+    assert.strictEqual(decision.referrerUid, 'refcode0REFR');
+    assert.ok(decision.unlockAtMs > NOW);
+    assert.ok(decision.unlockAtMs - referred.createdMs === referrals.PAYOUT_MIN_AGE_MS);
+});
+
+test('assessMaxiMilestone skips flagged, late, and already-marked', () => {
+    const referred = user('pleb0001XXXX', { points: 3000, scholarPoints: 0, createdMs: NOW - 10 * 24 * 60 * 60 * 1000 });
+    assert.strictEqual(referrals.assessMaxiMilestone({
+        hasSignal: true, nowMs: NOW,
+        referral: { status: 'flagged', referrerUid: 'refcode0REFR' },
+        referred: referred,
+    }).action, 'skip');
+    assert.strictEqual(referrals.assessMaxiMilestone({
+        hasSignal: true, nowMs: NOW,
+        referral: { status: 'late', referrerUid: 'refcode0REFR' },
+        referred: referred,
+    }).reason, 'late');
+    assert.strictEqual(referrals.assessMaxiMilestone({
+        hasSignal: true, nowMs: NOW,
+        referral: { status: 'pending', referrerUid: 'refcode0REFR', maxiReachedAt: { seconds: 1 } },
+        referred: referred,
+    }).reason, 'already-reached');
+    assert.strictEqual(referrals.assessMaxiMilestone({
+        hasSignal: false, nowMs: NOW,
+        referral: { status: 'pending', referrerUid: 'refcode0REFR' },
+        referred: referred,
+    }).reason, 'legacy');
+});
+
+test('assessMaxiMilestone ignores scholar XP padding', () => {
+    const referred = user('pleb0001XXXX', { points: 2500, scholarPoints: 400, createdMs: NOW - 10 * 24 * 60 * 60 * 1000 });
+    // activity = 2100 < 2140
+    assert.strictEqual(referrals.assessMaxiMilestone({
+        hasSignal: true, nowMs: NOW,
+        referral: { status: 'pending', referrerUid: 'refcode0REFR' },
+        referred: referred,
+    }).reason, 'below-maxi');
+});
+
+test('milestoneCopy names the unlock date', () => {
+    const unlock = NOW + 4 * 24 * 60 * 60 * 1000;
+    const copy = referrals.milestoneCopy('referrer', unlock);
+    assert.ok(copy.title.indexOf('2,140') !== -1);
+    assert.ok(copy.body.indexOf('7 days') !== -1 || /[A-Z][a-z]{2} \d/.test(copy.body));
+    assert.ok(copy.message.indexOf('unlock') !== -1);
+    const refCopy = referrals.milestoneCopy('referee', unlock);
+    assert.ok(refCopy.title.indexOf('You reached') !== -1);
+});
+
+test('invite count line shows reached and rewarded', () => {
+    const tickets = fs.readFileSync(path.join(__dirname, '..', 'tickets.js'), 'utf8');
+    assert.ok(tickets.includes('reached 2,140 XP'));
+    assert.ok(tickets.includes('rewarded'));
+    assert.ok(tickets.includes('7 days'));
+    assert.ok(tickets.includes('maxiReachedAt'));
+});
+
+test('clientCreatePayload auto-fills signupSource and Nostr attaches referral', () => {
+    const ranking = fs.readFileSync(path.join(__dirname, '..', 'ranking.js'), 'utf8');
+    const create = ranking.slice(ranking.indexOf('function clientCreatePayload'), ranking.indexOf('function clientCreatePayload') + 900);
+    assert.ok(create.includes("localStorage.getItem('btc_signup_source')"));
+    const nostr = ranking.slice(ranking.indexOf('window.nostrCompleteAuth'), ranking.indexOf('window.nostrCompleteAuth') + 2200);
+    assert.ok(nostr.includes('attachReferral'));
+});
+
+test('markMaxiReached is wired before payIfQualified on Maxi cross', () => {
+    const service = fs.readFileSync(path.join(__dirname, '..', 'functions/src/referralService.js'), 'utf8');
+    assert.ok(service.includes('async function markMaxiReached'));
+    assert.ok(service.includes('referralMaxiReachedCount'));
+    assert.ok(service.includes('maxiReachedAt'));
+    const onUser = service.slice(service.indexOf('async function onUserWritten'), service.indexOf('async function scanPending'));
+    const markAt = onUser.indexOf('markMaxiReached');
+    const payAt = onUser.indexOf('payIfQualified');
+    assert.ok(markAt !== -1 && payAt !== -1 && markAt < payAt);
+});
+
+test('referralMaxiReachedCount is server-only in rules', () => {
+    const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+    assert.ok(rules.includes('referralMaxiReachedCount'));
+    const fields = fs.readFileSync(path.join(__dirname, '..', 'tests/rules/user-server-fields.js'), 'utf8');
+    assert.ok(fields.includes('referralMaxiReachedCount'));
 });
 
 Promise.all(pendingTests).then(function () {

@@ -269,6 +269,80 @@ function emailOk(user) {
     return !!(user && user.emailVerified === true);
 }
 
+
+// Milestone fires when activity XP first reaches Maxi. Payout still waits on
+// age / active days / email / anti-abuse. Flagged, rejected, late, untrusted,
+// and legacy referrals never get the milestone counter.
+function milestoneEligibleStatus(status) {
+    const s = String(status || '');
+    if (s === 'pending' || s === 'paid') return true;
+    return false;
+}
+
+function assessMaxiMilestone(input) {
+    const src = input || {};
+    const referral = src.referral;
+    const referred = src.referred;
+    if (!referral) return { action: 'skip', reason: 'no-referral' };
+    if (referral.maxiReachedAt) return { action: 'skip', reason: 'already-reached' };
+    const status = String(referral.status || '');
+    if (status === 'flagged' || status === 'rejected' || status === 'late' || status === 'untrusted' || status === 'legacy') {
+        return { action: 'skip', reason: status };
+    }
+    if (!milestoneEligibleStatus(status) && status !== '') {
+        return { action: 'skip', reason: status || 'bad-status' };
+    }
+    if (!src.hasSignal) return { action: 'skip', reason: 'legacy' };
+    if (!referred || !referred.uid) return { action: 'skip', reason: 'missing-user' };
+    if (activityPoints(referred) < MAXI_POINTS) return { action: 'skip', reason: 'below-maxi' };
+    const referrerUid = String(referral.referrerUid || src.referrerUid || '');
+    if (!referrerUid || referrerUid === referred.uid) return { action: 'skip', reason: 'missing-referrer' };
+    const now = Number(src.nowMs) || Date.now();
+    const created = referred.createdMs == null ? null : Number(referred.createdMs);
+    let unlockAtMs = null;
+    if (created != null && isFinite(created)) unlockAtMs = created + PAYOUT_MIN_AGE_MS;
+    return {
+        action: 'mark',
+        reason: 'maxi-reached',
+        referrerUid: referrerUid,
+        referredUid: referred.uid,
+        unlockAtMs: unlockAtMs,
+        nowMs: now,
+    };
+}
+
+function formatUnlockDate(ms) {
+    const n = Number(ms);
+    if (!n || !isFinite(n)) return '';
+    try {
+        return new Date(n).toLocaleDateString('en-US', {
+            timeZone: 'America/New_York',
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+        });
+    } catch (e) {
+        return new Date(n).toISOString().slice(0, 10);
+    }
+}
+
+function milestoneCopy(kind, unlockAtMs) {
+    const date = formatUnlockDate(unlockAtMs);
+    const when = date ? (' on ' + date) : ' once the account is 7 days old';
+    if (kind === 'referrer') {
+        return {
+            title: 'Friend reached 2,140 XP',
+            body: 'Someone you invited reached 2,140 XP (Scholar exam points do not count). Your 50 Orange Tickets unlock' + when + ' after the usual checks.',
+            message: 'A friend you invited reached 2,140 XP. Reward unlocks' + when + ' (account age + checks).',
+        };
+    }
+    return {
+        title: 'You reached 2,140 XP',
+        body: 'You hit 2,140 XP on a referral. Your 50 Orange Tickets unlock' + when + ' after the usual checks.',
+        message: 'You reached 2,140 XP. Referral reward unlocks' + when + ' (account age + checks).',
+    };
+}
+
 function assessReferralPayout(input) {
     const src = input || {};
     const referral = src.referral;
@@ -573,6 +647,10 @@ module.exports = {
     emailHashesOverlap: emailHashesOverlap,
     statusForFlags: statusForFlags,
     assessReferralPayout: assessReferralPayout,
+    assessMaxiMilestone: assessMaxiMilestone,
+    milestoneEligibleStatus: milestoneEligibleStatus,
+    milestoneCopy: milestoneCopy,
+    formatUnlockDate: formatUnlockDate,
     resolveReferrerUid: resolveReferrerUid,
     buildCodeIndex: buildCodeIndex,
     referredIdOf: referredIdOf,
