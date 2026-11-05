@@ -243,7 +243,7 @@ test('donationTicket is declared before the transaction and returned', async fun
     assert.strictEqual(/\b(?:let|const|var)\s+donationTicket\b/.test(tx.text), false);
     assert.ok(/donationTicket = 0/.test(tx.text));
     assert.ok(/donationTicket = 1/.test(tx.text));
-    assert.ok(/return \{ success: true, newBadges, bonusPts, donationTicket \}/.test(body));
+    assert.ok(/return \{ success: true, newBadges: safeBadges, bonusPts: safeBonus, donationTicket: safeTicket \}/.test(body));
     assert.ok(tx.text.indexOf("'_donate_ticket'") !== -1);
     assert.ok(tx.text.indexOf('getOffsetDateKey()') !== -1);
     assert.ok(tx.text.indexOf('amount >= 1000') !== -1);

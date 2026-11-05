@@ -614,29 +614,105 @@ async function showScholarCertificate(type) {
 }
 
 async function downloadCertificate(type) {
+    var wantType = type || scholarType;
     var record = window._scholarCertRecord;
-    try {
-        record = await requestScholarCertificate(type || scholarType);
-        window._scholarCertRecord = record;
-    } catch (e) {
-        if (typeof showToast === 'function') showToast((e && e.message) ? e.message : 'Certificate unavailable.');
-        return;
+    var needFetch = !record || !record.certId;
+    if (!needFetch && record) {
+        var recTech = record.type === 'technical' || record.quest === 'protocol-expert';
+        if ((wantType === 'technical') !== recTech) needFetch = true;
+    }
+    if (needFetch) {
+        try {
+            record = await requestScholarCertificate(wantType);
+            window._scholarCertRecord = record;
+        } catch (e) {
+            var msg = (typeof friendlyCallableError === 'function')
+                ? friendlyCallableError(e, 'Certificate unavailable.')
+                : ((e && e.message) ? e.message : 'Certificate unavailable.');
+            if (/^internal$/i.test(String(msg))) msg = 'Could not refresh the certificate. Try View Certificate again.';
+            if (typeof showToast === 'function') showToast(msg);
+            return;
+        }
     }
     var canvas = paintCertificateCanvas(record);
-    var technical = (type || scholarType) === 'technical';
+    var technical = wantType === 'technical';
+    var filename = 'Bitcoin-' + (technical ? 'Technical' : 'Scholar') + '-Certificate.png';
+
+    function blobFromCanvas() {
+        return new Promise(function (resolve, reject) {
+            if (canvas.toBlob) {
+                canvas.toBlob(function (blob) {
+                    if (blob) resolve(blob);
+                    else reject(new Error('Could not create image'));
+                }, 'image/png');
+            } else {
+                try {
+                    var dataUrl = canvas.toDataURL('image/png');
+                    var parts = dataUrl.split(',');
+                    var bin = atob(parts[1] || '');
+                    var arr = new Uint8Array(bin.length);
+                    for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+                    resolve(new Blob([arr], { type: 'image/png' }));
+                } catch (err) { reject(err); }
+            }
+        });
+    }
+
     try {
+        var blob = await blobFromCanvas();
+        var file = null;
+        try { file = new File([blob], filename, { type: 'image/png' }); } catch (_fileErr) { file = null; }
+
+        // iOS / Android: system share sheet is the reliable save path
+        if (file && navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+            try {
+                await navigator.share({ files: [file], title: filename, text: 'My Bitcoin Quest certificate' });
+                offerCertShare(record);
+                return;
+            } catch (shareErr) {
+                // User cancel is fine; fall through to other save paths
+                if (shareErr && (shareErr.name === 'AbortError' || /abort/i.test(String(shareErr.message || '')))) {
+                    return;
+                }
+            }
+        }
+
+        var url = URL.createObjectURL(blob);
         var link = document.createElement('a');
-        link.download = 'Bitcoin-' + (technical ? 'Technical' : 'Scholar') + '-Certificate.png';
-        link.href = canvas.toDataURL('image/png');
+        link.href = url;
+        link.download = filename;
+        link.rel = 'noopener';
         link.style.display = 'none';
         document.body.appendChild(link);
         link.click();
-        setTimeout(function () { document.body.removeChild(link); }, 100);
+        setTimeout(function () {
+            try { document.body.removeChild(link); } catch (_e) {}
+            try { URL.revokeObjectURL(url); } catch (_e2) {}
+        }, 1500);
+
+        // Phones that ignore <a download>: offer open-in-tab so the player can long-press Save Image
+        var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent || '');
+        if (isMobile) {
+            setTimeout(function () {
+                var opened = null;
+                try { opened = window.open(url, '_blank'); } catch (_o) {}
+                if (!opened && typeof showToast === 'function') {
+                    showToast('If the file did not save, long-press the certificate image and choose Save Image.');
+                } else if (typeof showToast === 'function') {
+                    showToast('If the download folder is empty, long-press the image and choose Save.');
+                }
+            }, 250);
+        } else if (typeof showToast === 'function') {
+            showToast('Certificate download started.');
+        }
     } catch (e) {
-        if (typeof showToast === 'function') showToast('Download blocked. Try again in a moment.');
+        if (typeof showToast === 'function') {
+            showToast('Download blocked on this device. Long-press the certificate image above and choose Save Image.');
+        }
     }
     offerCertShare(record);
 }
+
 
 // --- FLASHCARDS SYSTEM ---
 window.startFlashcards = function(topic) {

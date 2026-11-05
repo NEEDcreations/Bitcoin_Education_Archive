@@ -293,6 +293,21 @@ function mfaDeviceKey(uid) {
     return 'btc_mfa_device_' + uid;
 }
 
+
+function friendlyCallableError(err, fallback) {
+    var code = String((err && err.code) || '').toLowerCase();
+    var slash = code.lastIndexOf('/');
+    if (slash !== -1) code = code.slice(slash + 1);
+    var msg = String((err && err.message) || '').replace(/^\[\w+\/[\w-]+\]\s*/, '');
+    if (code === 'internal' || /^internal$/i.test(msg)) {
+        return 'Something went wrong on the server. If your balance already updated, you are fine — try a refresh.';
+    }
+    if (code === 'unavailable' || code === 'deadline-exceeded') {
+        return 'Network hiccup — please try again in a moment.';
+    }
+    return msg || fallback || 'Something went wrong. Try again.';
+}
+
 function mfaErrorCode(err) {
     var code = String((err && (err.code || err.status)) || '').toLowerCase();
     var slash = code.lastIndexOf('/');
@@ -9620,7 +9635,14 @@ function accountDeleteRowHtml(user) {
         html += statRow('Topics Explored', Math.max(chVisited, localVisited) + ' / ' + Object.keys(CHANNELS).length, '🗺️');
         html += statRow('Saved Favorites', localFavs, '⭐');
         html += statRow('Hidden Badges Found', hiddenBadges + ' / ' + (typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES.length : 8), '🏅');
-        html += statRow('Scholar Certified', localStorage.getItem('btc_scholar_passed') === 'true' ? '✅ Yes' : '❌ Not yet', '🎓');
+        var _scholarYes = !!(currentUser && (currentUser.certPassed_prop === true || currentUser.certPassed_tech === true));
+        if (!_scholarYes) {
+            try { _scholarYes = localStorage.getItem('btc_scholar_passed') === 'true'; } catch (_e) {}
+        }
+        var _scholarLabel = _scholarYes
+            ? ('✅ Yes' + (currentUser && currentUser.certPassed_prop && currentUser.certPassed_tech ? ' (Scholar + Protocol Expert)' : (currentUser && currentUser.certPassed_tech ? ' (Protocol Expert)' : (currentUser && currentUser.certPassed_prop ? ' (Bitcoin Scholar)' : ''))))
+            : '❌ Not yet';
+        html += statRow('Scholar Certified', _scholarLabel, '🎓');
         html += statRow('Orange Tickets', (currentUser ? currentUser.orangeTickets || 0 : 0), '<svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg>');
         // PVP Stats
         var _pvpW = currentUser ? (currentUser.pvpWins || 0) : 0;
@@ -10076,43 +10098,40 @@ function accountDeleteRowHtml(user) {
             if (btn) { btn.disabled = true; btn.textContent = 'Donating...'; }
             firebase.functions().httpsCallable('donatePoints')({ amount: amt, anonymous: anon })
                 .then(function(result) {
-                    if (typeof currentUser !== 'undefined' && currentUser) {
-                        currentUser.pointsDonated = (currentUser.pointsDonated || 0) + amt;
-                        if (result.data && result.data.bonusPts) currentUser.points = (currentUser.points || 0) + result.data.bonusPts;
+                    try {
+                        if (typeof currentUser !== 'undefined' && currentUser) {
+                            currentUser.pointsDonated = (currentUser.pointsDonated || 0) + amt;
+                            if (result.data && result.data.bonusPts) currentUser.points = (currentUser.points || 0) + result.data.bonusPts;
+                        }
+                        var badgeMsg = result.data && result.data.newBadges && result.data.newBadges.length > 0
+                            ? ' +' + result.data.newBadges.length + ' badge' + (result.data.newBadges.length > 1 ? 's' : '') + ' unlocked!' : '';
+                        var ticketMsg = result.data && result.data.donationTicket > 0 ? ' 🎫 +1 ticket!' : '';
+                        if (typeof showToast === 'function') showToast('❤️ Thank you! ' + amt.toLocaleString() + ' XP donated (' + amt.toLocaleString() + ' sats pledged to charity).' + badgeMsg + ticketMsg, 5000);
+                        if (result.data && result.data.donationTicket > 0 && typeof currentUser !== 'undefined' && currentUser) {
+                            currentUser.orangeTickets = (currentUser.orangeTickets || 0) + 1;
+                            if (typeof updateRankUI === 'function') updateRankUI();
+                        }
+                        if (typeof window._charityThankYou === 'function') window._charityThankYou(amt, result.data && result.data.newBadges || [], result.data && result.data.bonusPts || 0);
+                        if (typeof window._charityStatsLoaded !== 'undefined') window._charityStatsLoaded = false;
+                        var _avEl = document.querySelector('#settingsModal [data-sats-charity-avail]');
+                        if (_avEl) {
+                            var _newAvail = Math.max(0, (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0) - (currentUser.pointsExchanged||0));
+                            _avEl.textContent = '\u2764\ufe0f ' + _newAvail.toLocaleString() + ' XP';
+                        }
+                        var _donEl = document.querySelector('#settingsModal [data-sats-donated-total]');
+                        if (_donEl) _donEl.textContent = (currentUser.pointsDonated||0).toLocaleString() + ' XP already donated \u2014 thank you! \u2764\ufe0f';
+                        if (typeof _patchCharityRecent === 'function') _patchCharityRecent();
+                        var _inp3 = document.getElementById('satsCharityAmtInput');
+                        if (_inp3) _inp3.value = '';
+                    } catch (_uiErr) {
+                        if (typeof showToast === 'function') showToast('❤️ Donation saved. Refresh if the totals look stale.', 4000);
                     }
-                    var badgeMsg = result.data && result.data.newBadges && result.data.newBadges.length > 0
-                        ? ' +' + result.data.newBadges.length + ' badge' + (result.data.newBadges.length > 1 ? 's' : '') + ' unlocked!' : '';
-                    var ticketMsg = result.data && result.data.donationTicket > 0 ? ' 🎫 +1 ticket!' : '';
-                    if (typeof showToast === 'function') showToast('❤️ Thank you! ' + amt.toLocaleString() + ' XP donated (' + amt.toLocaleString() + ' sats pledged to charity).' + badgeMsg + ticketMsg, 5000);
-                    if (result.data && result.data.donationTicket > 0 && typeof currentUser !== 'undefined' && currentUser) {
-                        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + 1;
-                        if (typeof updateRankUI === 'function') updateRankUI();
-                    }
-                    if (typeof window._charityThankYou === 'function') window._charityThankYou(amt, result.data && result.data.newBadges || [], result.data && result.data.bonusPts || 0);
-                    // Reset charity stats cache so Quest Hub picks up fresh totals
-                    if (typeof window._charityStatsLoaded !== 'undefined') window._charityStatsLoaded = false;
-                    // Update available XP display in-place
-                    var _avEl = document.querySelector('#settingsModal [data-sats-charity-avail]');
-                    if (_avEl) {
-                        var _newAvail = Math.max(0, (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0) - (currentUser.pointsExchanged||0));
-                        _avEl.textContent = '\u2764\ufe0f ' + _newAvail.toLocaleString() + ' XP';
-                    }
-                    // Patch donated total line
-                    var _donEl = document.querySelector('#settingsModal [data-sats-donated-total]');
-                    if (_donEl) _donEl.textContent = (currentUser.pointsDonated||0).toLocaleString() + ' XP already donated \u2014 thank you! \u2764\ufe0f';
-                    // Refresh recent donations list
-                    if (typeof _patchCharityRecent === 'function') _patchCharityRecent();
-                    // Clear the input
-                    var _inp3 = document.getElementById('satsCharityAmtInput');
-                    if (_inp3) _inp3.value = '';
                     if (btn) { btn.disabled = false; btn.textContent = '\u2764\ufe0f Donate XP for Charity'; }
                 })
                 .catch(function(e) {
                     if (btn) { btn.disabled = false; btn.textContent = '\u2764\ufe0f Donate XP for Charity'; }
-                    var _errMsg = e.message || 'Donation failed. Try again.';
-                    // Strip Firebase internal error prefixes for clean display
-                    _errMsg = _errMsg.replace(/^\[\w+\/[\w-]+\]\s*/, '');
-                    if (typeof showToast === 'function') showToast('\u274c ' + _errMsg, 4000);
+                    var _errMsg = (typeof friendlyCallableError === 'function' ? friendlyCallableError(e, 'Donation failed. Try again.') : (e.message || 'Donation failed. Try again.'));
+                    if (typeof showToast === 'function') showToast('❌ ' + _errMsg, 4000);
                 });
         };
     }
