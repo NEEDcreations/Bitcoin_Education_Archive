@@ -186,6 +186,7 @@ const DELETION_QUERIES = [
     ['gifts', 'ownerId', '==', []],
     ['gift_secrets', 'ownerId', '==', []],
     ['usernames', 'uid', '==', []],
+    ['referral_visits', 'ownerUid', '==', []],
 ];
 
 // Deleted only after deleteUser succeeds. A timeout before that keeps them.

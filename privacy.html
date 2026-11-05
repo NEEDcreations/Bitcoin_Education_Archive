@@ -49,6 +49,7 @@
 
     <h3>Referral tracking</h3>
     <p>An invite link can attach a referral to a new account: the code, who shared it, and whether it is still pending. At signup we keep a one-way, non-reversible fingerprint of your network address, kept 90 days, in a server-only <code>referral_signals</code> record. Other users cannot read it. Deleting the account deletes that record. The raw address is not stored in that referral record. A referral is paid only after the checks in the Terms, including account age, active days, and a verified sign-in. Each verified referral adds one to <code>referralCount</code> for the person who shared the link.</p>
+    <p>When someone opens a referral link, we save a visit record for the person who owns that link. The record stores the referral code, a keyed hash of the device, and a keyed hash of the network. It does not store the IP address itself. Each visit record is kept for 30 days. Deleting the account deletes that person's visit records.</p>
 
     <h3>Referral tiers</h3>
     <p>Badge tiers count verified referrals: friends whose referral was paid after they earned 2,140 points outside the Scholar exam. The tiers are 1, 5, 10, 25, 50, and 100. The server grants those badges from <code>referralCount</code>. The invite card shows how many friends were invited and how many earned those points.</p>
