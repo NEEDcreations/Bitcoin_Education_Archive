@@ -38,7 +38,8 @@ function test(name, fn) {
 
 test('service worker cache is v2483', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2483'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2485'"));
+    assert.ok(!sw.includes('btc-archive-v2483'));
     assert.ok(!sw.includes('btc-archive-v2482'));
     assert.ok(!sw.includes('btc-archive-v2479'));
     assert.ok(!sw.includes('btc-archive-v2478'));
@@ -394,7 +395,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('beats.js?v=20261022_v2322'));
     assert.ok(!html.includes('beats.js?v=20261013_2307'));
     assert.ok(html.includes('beats-censor.js?v=20261022_v2322'));
-    assert.ok(html.includes('features.registry.js?v=20261104_v2482'));
+    assert.ok(html.includes('features.registry.js?v=20261104_v2485'));
     assert.ok(html.includes('achievement-share.js?v=20261104_v2476'));
     assert.ok(html.includes('miniapp-share.js?v=20261031_v2447'));
     assert.ok(!html.includes('achievement-share.js?v=20261026_v2391'));
@@ -440,7 +441,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('features.registry.js?v=20261022_v2322'));
     assert.ok(!html.includes('features.registry.js?v=20261022_v2266'));
     assert.ok(!html.includes('features.registry.js?v=20261022_v2265'));
-    assert.ok(html.includes('onboarding.js?v=20261104_v2482'));
+    assert.ok(html.includes('onboarding.js?v=20261104_v2485'));
     assert.ok(!html.includes('onboarding.js?v=20261026_v2373'));
     assert.ok(!html.includes('onboarding.js?v=20261024_v2358'));
     assert.ok(html.includes('gifting.js?v=20261102_v2465'));
@@ -540,7 +541,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2483');
+    assert.ok(swVersion && swVersion[1] === 'v2485');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
