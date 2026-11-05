@@ -207,6 +207,21 @@ const BADGE_DEFS = [
 
     // ---- Spin Wheel Badges ----
     { id: 'spin_30', name: 'Lucky Spinner', emoji: '🎰', desc: 'Spun the wheel 30 days total', check: () => parseInt(localStorage.getItem('btc_spin_count') || '0') >= 30, pts: 75 },
+
+    // BIP Breakthrough collectibles (server-awarded via dailySpin; one per BIP)
+    { id: 'bip_360', name: 'BIP-360 P2MR', emoji: '🛡️', desc: 'Merged BIP-360: Pay-to-Merkle-Root (quantum-resistant script path)', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_119', name: 'BIP-119 CTV', emoji: '📋', desc: 'Merged BIP-119: OP_CHECKTEMPLATEVERIFY covenants', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_347', name: 'BIP-347 OP_CAT', emoji: '🐱', desc: 'Merged BIP-347: OP_CAT for covenants and contracts', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_118', name: 'BIP-118 ANYPREVOUT', emoji: '🔗', desc: 'Merged BIP-118: SIGHASH_ANYPREVOUT for eltoo', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_352', name: 'BIP-352 Silent Payments', emoji: '🤫', desc: 'Merged BIP-352: Silent Payments', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_348', name: 'BIP-348 CSFS', emoji: '✍️', desc: 'Merged BIP-348: OP_CHECKSIGFROMSTACK', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_349', name: 'BIP-349 INTERNALKEY', emoji: '🔑', desc: 'Merged BIP-349: OP_INTERNALKEY', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_443', name: 'BIP-443 CCV', emoji: '📦', desc: 'Merged BIP-443: OP_CHECKCONTRACTVERIFY', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_353', name: 'BIP-353 DNS Payments', emoji: '🌐', desc: 'Merged BIP-353: DNS Payment Instructions', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_324', name: 'BIP-324 P2Pv2', emoji: '🔐', desc: 'Merged BIP-324: encrypted P2P transport', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_85', name: 'BIP-85 Entropy', emoji: '🌱', desc: 'Merged BIP-85: deterministic entropy from BIP32', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_86', name: 'BIP-86 P2TR Keys', emoji: '🪙', desc: 'Merged BIP-86: single-key P2TR derivation', check: () => false, pts: 75, hidden: false, serverOnly: true },
+
     { id: 'spin_streak_7', name: 'Spin Streak', emoji: '🎡', desc: 'Spun 7 days in a row', check: () => parseInt(localStorage.getItem('btc_spin_streak') || '0') >= 7, pts: 50 },
     { id: 'spin_jackpot', name: 'Jackpot Winner', emoji: '🌟', desc: 'Hit the RARE drop on the spin wheel', check: () => localStorage.getItem('btc_spin_hit_rare') === 'true', pts: 100 },
 
@@ -623,6 +638,7 @@ const TITLE_DEFS = [
     { id: 'trifecta_god_t',      title: 'Trifecta God',           emoji: '🌞', requiredBadge: 'set_trifecta_complete', flavor: 'The Trifecta Set complete. Daily discipline personified.' },
     { id: 'irl_set_t',           title: 'IRL Champion',           emoji: '🏟️', requiredBadge: 'set_irl_complete',     flavor: 'The IRL Set complete. Bitcoin isn\'t just on a screen.' },
     { id: 'spin_set_t',          title: 'Wheel of Fortune',       emoji: '🎰', requiredBadge: 'set_spin_complete',     flavor: 'The Spin Set complete. Fortune favored you enough.' },
+    { id: 'core_contributor', name: 'Core Contributor', title: 'Core Contributor', emoji: '🔧', requiredBadge: null, desc: 'Merged this week\'s BIP after 7 daily spins', flavor: 'Merged this week\'s BIP after 7 daily spins. Bit Devs energy.' },
     { id: 'pow_set_t',           title: 'Proof of Walker',        emoji: '👟', requiredBadge: 'set_pow_complete',      flavor: 'The Proof of Walk Set complete. Every step counted.' },
 
     // ── Chat ──
@@ -906,7 +922,7 @@ window._checkAndAwardTitles = function(earnedBadgeIds) {
     var currentTitles = u.earnedTitles || [];
     var newTitles = [];
     TITLE_DEFS.forEach(function(t) {
-        if (earnedBadgeIds.indexOf(t.requiredBadge) !== -1 && currentTitles.indexOf(t.id) === -1) {
+        if (t.requiredBadge && earnedBadgeIds.indexOf(t.requiredBadge) !== -1 && currentTitles.indexOf(t.id) === -1) {
             newTitles.push(t.id);
         }
     });

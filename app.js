@@ -1564,6 +1564,10 @@
 
                 if (typeof notifySelfSpin === 'function') notifySelfSpin(rewardText);
 
+                if (reward && reward.breakthrough && reward.breakthrough.unlocked && window.BipBreakthrough && typeof window.BipBreakthrough.handleSpinReward === 'function') {
+                    window.BipBreakthrough.handleSpinReward(reward);
+                }
+
                 if (!isBonusSpin) {
                     setTimeout(function() {
                         if (typeof window.awardDailyGifts === 'function') {
