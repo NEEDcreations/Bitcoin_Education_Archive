@@ -2512,7 +2512,7 @@ window._presentBubbleQuiz = function(q) {
     var opts = q.options || [];
     for (var qi = 0; qi < opts.length; qi++) {
         var isRight = qi === q.answer;
-        quizHtml += '<button onclick="event.stopPropagation();nachoBubbleQuizAnswer(this,' + isRight + ')" style="display:block;width:100%;padding:6px 10px;margin-bottom:3px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + opts[qi] + '</button>';
+        quizHtml += '<button data-q="' + encodeURIComponent(q.question) + '" data-a="' + encodeURIComponent(opts[qi]) + '" onclick="event.stopPropagation();nachoBubbleQuizAnswer(this,' + isRight + ')" style="display:block;width:100%;padding:6px 10px;margin-bottom:3px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + opts[qi] + '</button>';
     }
     quizHtml += '<button type="button" onclick="event.stopPropagation();if(window.btcDismissBubbleQuiz)window.btcDismissBubbleQuiz(\'button\')" style="display:block;width:100%;min-height:44px;margin-top:8px;padding:8px 10px;background:transparent;border:2px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Not now / Back</button>';
     window._btcBubbleQuiz = q;
@@ -2558,7 +2558,13 @@ window.nachoBubbleQuizAnswer = function(btn, correct) {
         result.textContent = '✅ Correct! +5 pts';
         container.appendChild(result);
         // awardPoints() fires its own toast on CF success — don't double-toast here.
-        if (typeof awardPoints === 'function') awardPoints(5, '🎮 Quiz correct!');
+        var _quizQ = '';
+        var _quizA = '';
+        try {
+            _quizQ = decodeURIComponent(btn.getAttribute('data-q') || '');
+            _quizA = decodeURIComponent(btn.getAttribute('data-a') || '');
+        } catch (e) {}
+        if (typeof awardPoints === 'function') awardPoints(5, '🎮 Quiz correct!', null, null, null, null, { quizQuestion: _quizQ, quizChoice: _quizA || btn.textContent });
         if (typeof haptic === 'function') haptic('success');
     } else {
         btn.style.background = '#ef4444';
