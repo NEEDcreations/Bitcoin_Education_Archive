@@ -482,6 +482,33 @@ function siteCapAllows(used, amount, cap) {
 // Pure: Red Team can exercise manual / address / approval without a wallet.
 
 // Never send raw wallet/NWC/network errors to the client (no ws:// URLs, secrets, stacks).
+
+// Build one Epoch History claim row. Only the caller's win counts as theirs.
+function claimRowForCaller(input) {
+    const src = input || {};
+    const epochId = String(src.epochId || '');
+    const epochNumber = Math.floor(Number(src.epochNumber) || 0);
+    const uid = String(src.uid || '');
+    const win = src.win || null;
+    const winDocId = String(src.winDocId || '');
+    if (win && String(win.uid || '') === uid) {
+        let status = 'none';
+        if (win.status === 'paid') status = 'claimed';
+        else if (win.status === 'claimable') status = 'claimable';
+        else if (win.status === 'pending' || win.status === 'paying' || win.status === 'unknown') status = 'pending_manual';
+        else status = String(win.status || 'none');
+        return {
+            epochId: epochId,
+            epochNumber: epochNumber,
+            status: status,
+            winId: winDocId,
+            amount: Math.floor(Number(win.amount) || 0),
+            why: String(win.why || ''),
+        };
+    }
+    return { epochId: epochId, epochNumber: epochNumber, status: 'none', winId: '', amount: 0, why: '' };
+}
+
 function clientSafeClaimError(err, fallback) {
     const raw = String((err && err.message) || err || '').trim();
     const known = {
@@ -624,5 +651,5 @@ module.exports = {
     applyPersonCap, clusterLightning,
     buildEpochBreakdown, buildWindowBreakdown, winId, confirmText,
     payoutStatusForAmount, walletAllowsPay, walletFloorOk, siteCapAllows, num,
-    favorClaimPrechecks, clientSafeClaimError, planFavorClaimReserve, planFavorClaimRelease,
+    favorClaimPrechecks, clientSafeClaimError, claimRowForCaller, planFavorClaimReserve, planFavorClaimRelease,
 };

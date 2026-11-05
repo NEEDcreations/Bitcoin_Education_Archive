@@ -454,6 +454,62 @@ test('walletFailAt cooldown blocks immediate Favor retry', function () {
     assert.strictEqual(cool.error, 'COOLDOWN');
 });
 
+test('myFavor claim rows: only the caller uid is returned', function () {
+    const mine = P.winId('epoch_9001', 'uid_caller');
+    const other = P.winId('epoch_9001', 'uid_other');
+    assert.notStrictEqual(mine, other);
+    const a = P.claimRowForCaller({
+        epochId: 'epoch_9001', epochNumber: 9001, uid: 'uid_caller',
+        win: { uid: 'uid_caller', status: 'claimable', amount: 1000 },
+        winDocId: mine,
+    });
+    assert.strictEqual(a.status, 'claimable');
+    assert.strictEqual(a.winId, mine);
+    assert.strictEqual(a.amount, 1000);
+    // Someone else's win must not surface as the caller's claim
+    const b = P.claimRowForCaller({
+        epochId: 'epoch_9001', epochNumber: 9001, uid: 'uid_caller',
+        win: { uid: 'uid_other', status: 'claimable', amount: 9999 },
+        winDocId: other,
+    });
+    assert.strictEqual(b.status, 'none');
+    assert.strictEqual(b.winId, '');
+    assert.strictEqual(b.amount, 0);
+});
+
+test('wallet fail before reserve: release clears site sats; cooldown expires', function () {
+    // Simulate leaked site counters from a crashed attempt, then release.
+    const leaked = P.planFavorClaimRelease({
+        amount: 1000,
+        reservedSats: 1000,
+        inFlightSats: 1000,
+        clearInFlight: true,
+        clearReserved: true,
+        day: '2026-11-05',
+    });
+    assert.strictEqual(leaked.reservedSats, 0);
+    assert.strictEqual(leaked.inFlightSats, 0);
+
+    const now = Date.now();
+    // Within cooldown → blocked
+    const cool = P.favorClaimPrechecks({
+        win: { adminApproved: true, amount: 1000, status: 'claimable', lockedLightningAddress: 'a@b.com', walletFailAt: now - 1000 },
+        savedLightning: 'a@b.com', config: {}, nowMs: now, walletFailCooldownMs: 30000,
+    });
+    assert.strictEqual(cool.error, 'COOLDOWN');
+    // After cooldown → allowed (prize not permanently locked)
+    const ok = P.favorClaimPrechecks({
+        win: { adminApproved: true, amount: 1000, status: 'claimable', lockedLightningAddress: 'a@b.com', walletFailAt: now - 60000 },
+        savedLightning: 'a@b.com', config: {}, nowMs: now, walletFailCooldownMs: 30000,
+    });
+    assert.strictEqual(ok.ok, true);
+
+    // Scrubbed wallet error stays generic
+    const msg = P.clientSafeClaimError(new Error('Failed to connect to ws://127.0.0.1:9'), 'Could not reserve this Favor payout.');
+    assert.ok(msg.indexOf('ws://') === -1);
+    assert.strictEqual(msg, 'Could not reserve this Favor payout.');
+});
+
 test('confirm + win id', function () {
     assert.strictEqual(P.confirmText('epoch_4'), 'APPROVE epoch_4');
     assert.ok(P.winId('epoch_4', 'abc').indexOf('sfpay_epoch_4_abc') === 0);

@@ -531,92 +531,90 @@ function factory(functionsV1, deps) {
     // Player: claim status for Favor epochs (and windows). Used by Epoch History UI.
     const myFavorEpochClaims = functionsV1.https.onCall(async function (data, context) {
         const uid = requireUser(functionsV1, context);
-        const raw = (data && Array.isArray(data.epochNumbers)) ? data.epochNumbers : [];
-        const nums = [];
-        const seen = {};
-        raw.forEach(function (n) {
-            const v = Math.floor(Number(n));
-            if (!Number.isFinite(v) || v < 1 || v > 100000000 || seen[v]) return;
-            seen[v] = true;
-            nums.push(v);
-        });
-        if (!nums.length) {
-            // Recent results for this player (by deterministic win id prefix scan is not indexed).
-            // Fall back to listing recent result docs and probing this uid's win.
-            const snap = await db.collection(RESULTS).where('kind', '==', 'epoch').orderBy('createdAtMs', 'desc').limit(25).get();
-            snap.forEach(function (d) {
-                const n = Math.floor(Number((d.data() || {}).epochNumber) || 0);
-                if (n >= 1 && !seen[n]) { seen[n] = true; nums.push(n); }
+        try {
+            const raw = (data && Array.isArray(data.epochNumbers)) ? data.epochNumbers : [];
+            const nums = [];
+            const seen = {};
+            raw.forEach(function (n) {
+                const v = Math.floor(Number(n));
+                if (!Number.isFinite(v) || v < 1 || v > 100000000 || seen[v]) return;
+                seen[v] = true;
+                nums.push(v);
             });
-        }
-        const out = [];
-        for (let i = 0; i < nums.length; i++) {
-            const epochNumber = nums[i];
-            const epochId = P.epochIdOf(epochNumber);
-            const resRef = db.collection(RESULTS).doc(epochId);
-            const res = await resRef.get();
-            if (!res.exists) {
-                out.push({ epochId: epochId, epochNumber: epochNumber, status: 'waiting_approval', winId: '', amount: 0, why: '' });
-                continue;
+            if (!nums.length) {
+                // Single-field orderBy only — no composite index. Filter kind in memory.
+                try {
+                    const snap = await db.collection(RESULTS).orderBy('createdAtMs', 'desc').limit(40).get();
+                    snap.forEach(function (d) {
+                        const row = d.data() || {};
+                        if (row.kind && row.kind !== 'epoch') return;
+                        const n = Math.floor(Number(row.epochNumber) || 0);
+                        if (n >= 1 && !seen[n]) { seen[n] = true; nums.push(n); }
+                    });
+                } catch (scanErr) {
+                    console.warn('[myFavorEpochClaims] recent scan skipped:', scanErr && scanErr.message);
+                }
             }
-            const r = res.data() || {};
-            const payoutStatus = String(r.payoutStatus || '');
-            const winDocId = P.winId(epochId, uid);
-            const winSnap = await db.collection('cipher_wins').doc(winDocId).get();
-            if (winSnap.exists) {
-                const w = winSnap.data() || {};
-                if (w.uid !== uid) {
-                    out.push({ epochId: epochId, epochNumber: epochNumber, status: 'none', winId: '', amount: 0, why: '' });
+            const out = [];
+            for (let i = 0; i < nums.length; i++) {
+                const epochNumber = nums[i];
+                const epochId = P.epochIdOf(epochNumber);
+                const resRef = db.collection(RESULTS).doc(epochId);
+                const res = await resRef.get();
+                if (!res.exists) {
+                    out.push({ epochId: epochId, epochNumber: epochNumber, status: 'waiting_approval', winId: '', amount: 0, why: '' });
                     continue;
                 }
-                let status = 'none';
-                if (w.status === 'paid') status = 'claimed';
-                else if (w.status === 'claimable') status = 'claimable';
-                else if (w.status === 'pending' || w.status === 'paying' || w.status === 'unknown') status = 'pending_manual';
-                else status = String(w.status || 'none');
-                out.push({
-                    epochId: epochId,
-                    epochNumber: epochNumber,
-                    status: status,
-                    winId: winDocId,
-                    amount: Math.floor(Number(w.amount) || 0),
-                    why: String(w.why || ''),
-                });
-                continue;
+                const r = res.data() || {};
+                const payoutStatus = String(r.payoutStatus || '');
+                const winDocId = P.winId(epochId, uid);
+                const winSnap = await db.collection('cipher_wins').doc(winDocId).get();
+                if (winSnap.exists) {
+                    // Only the caller's own win row is returned as claimable/claimed.
+                    out.push(P.claimRowForCaller({
+                        epochId: epochId,
+                        epochNumber: epochNumber,
+                        uid: uid,
+                        win: winSnap.data() || {},
+                        winDocId: winDocId,
+                    }));
+                    continue;
+                }
+                if (payoutStatus === 'awaiting_admin_approval' || !payoutStatus) {
+                    out.push({ epochId: epochId, epochNumber: epochNumber, status: 'waiting_approval', winId: '', amount: 0, why: '' });
+                    continue;
+                }
+                const bd = await resRef.collection('breakdown').doc('recipients').get();
+                const dataBd = bd.exists ? (bd.data() || {}) : {};
+                const rec = (dataBd.recipients || []).find(function (x) { return x && x.uid === uid; });
+                const excl = (dataBd.excluded || []).find(function (x) { return x && x.uid === uid; });
+                if (rec) {
+                    out.push({
+                        epochId: epochId,
+                        epochNumber: epochNumber,
+                        status: 'waiting_approval',
+                        winId: '',
+                        amount: Math.floor(Number(rec.sats) || 0),
+                        why: String(rec.why || ''),
+                    });
+                } else if (excl) {
+                    out.push({
+                        epochId: epochId,
+                        epochNumber: epochNumber,
+                        status: 'excluded',
+                        winId: '',
+                        amount: 0,
+                        why: String(excl.reason || ''),
+                    });
+                } else {
+                    out.push({ epochId: epochId, epochNumber: epochNumber, status: 'none', winId: '', amount: 0, why: '' });
+                }
             }
-            // No win row yet: still waiting on admin, or excluded after approve.
-            if (payoutStatus === 'awaiting_admin_approval' || !payoutStatus) {
-                out.push({ epochId: epochId, epochNumber: epochNumber, status: 'waiting_approval', winId: '', amount: 0, why: '' });
-                continue;
-            }
-            // Approved (or failed partial): check breakdown for this uid.
-            const bd = await resRef.collection('breakdown').doc('recipients').get();
-            const dataBd = bd.exists ? (bd.data() || {}) : {};
-            const rec = (dataBd.recipients || []).find(function (x) { return x && x.uid === uid; });
-            const excl = (dataBd.excluded || []).find(function (x) { return x && x.uid === uid; });
-            if (rec) {
-                out.push({
-                    epochId: epochId,
-                    epochNumber: epochNumber,
-                    status: payoutStatus === 'approved_with_failures' ? 'waiting_approval' : 'waiting_approval',
-                    winId: '',
-                    amount: Math.floor(Number(rec.sats) || 0),
-                    why: String(rec.why || ''),
-                });
-            } else if (excl) {
-                out.push({
-                    epochId: epochId,
-                    epochNumber: epochNumber,
-                    status: 'excluded',
-                    winId: '',
-                    amount: 0,
-                    why: String(excl.reason || ''),
-                });
-            } else {
-                out.push({ epochId: epochId, epochNumber: epochNumber, status: 'none', winId: '', amount: 0, why: '' });
-            }
+            return { claims: out };
+        } catch (e) {
+            console.error('[myFavorEpochClaims]', e && e.message);
+            throw httpsError(functionsV1, 'internal', 'Could not load Favor claims. Try again.');
         }
-        return { claims: out };
     });
 
     const adminRebuildFavorBreakdown = functionsV1.https.onCall(async function (data, context) {

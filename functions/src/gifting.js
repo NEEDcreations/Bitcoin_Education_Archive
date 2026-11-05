@@ -1317,12 +1317,15 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
             sfDidReserve = true;
         }
     } catch (e) {
+        // Always release. Never leave reserved/inFlight stuck after a wallet failure.
         await releaseFavorReserve(true);
         const walletish = e && (e.message === 'WALLET_LOW' || e.message === 'NO_WALLET' || /Nip47|ws:\/\/|get_balance|ECONNREFUSED/i.test(String(e && e.message || '')));
         const revert = { status: 'claimable', payingAt: admin.firestore.FieldValue.delete() };
-        if (walletish) revert.walletFailAt = Date.now();
+        // Cooldown only if we had actually reserved funds; pre-reserve NWC failures clear any stamp.
+        if (walletish && sfDidReserve) revert.walletFailAt = Date.now();
+        else revert.walletFailAt = admin.firestore.FieldValue.delete();
         await winRef.update(revert).catch(function() {});
-        console.error('[claimCipherWin] favor reserve/wallet failed:', e && e.message);
+        console.error('[claimCipherWin] favor reserve/wallet failed:', e && e.message, 'didReserve=', !!sfDidReserve);
         return { success: false, error: favorEpochPrizes.clientSafeClaimError(e, 'Could not reserve this Favor payout.') };
     }
     // After Favor reserve (or for non-Favor wins): still need a wallet to pay.
