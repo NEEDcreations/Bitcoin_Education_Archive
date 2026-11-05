@@ -94,7 +94,7 @@ console.log('tctvDripLogic: all tests passed');
     const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'tctv-drip.js'), 'utf8');
     assert.ok(src.includes("you don\\u2019t tap it, your watch time won\\u2019t be added to the pot of sats."));
     assert.ok(!/sats pot/i.test(src), 'say "pot of sats"');
-    assert.ok(/\.td-prompt\{position:absolute;top:6px;right:6px/.test(src), 'prompt sits off to the side');
+    assert.ok(/\.td-prompt\{position:relative;display:inline-flex/.test(src), 'prompt is a small inline pill');
     assert.ok(/\.td-yes\{[^}]*min-height:44px;min-width:44px/.test(src) && /\.td-pinfo\{[^}]*min-width:44px;min-height:44px/.test(src), '44px targets');
     assert.ok(src.includes('}, 120000);'), '2-minute answer window');
     assert.ok(!/addDoc|\.set\(|\.update\(/.test(src.replace(/localStorage\.setItem/g, '')), 'client never writes pot data');
