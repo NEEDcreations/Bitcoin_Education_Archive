@@ -1740,9 +1740,6 @@
         { id: 'beats', emoji: '🎵', title: 'Bitcoin Beats', desc: 'Community music player — Bitcoin-themed tracks & beats', modes: LEARN_LATER, kind: 'go', arg: 'bitcoin-beats' },
         { id: 'tv', emoji: '📺', title: 'Timechain TV', desc: '21 channels of Bitcoin video — free-to-air, always on', modes: LEARN_ALL, kind: 'go', arg: 'timechain-tv' },
         { id: 'pow', emoji: '👟', title: 'Proof of Walk', desc: 'Earn XP for real-world steps — connect Strava to stack sats', modes: LEARN_LATER, kind: 'fn', arg: 'showProofOfWalk' },
-        { id: 'ai', emoji: '🤖', title: 'AI Tools', desc: 'Bitcoin AI helpers and tools', modes: LEARN_MODES, kind: 'fn', arg: 'toggleAITools' },
-        { id: 'metrics', emoji: '📊', title: 'Metrics', desc: 'Live Bitcoin dashboard and stats', modes: LEARN_MODES, kind: 'fn', arg: 'toggleDashboard' },
-        { id: 'lb', emoji: '🏆', title: 'Leaderboard', desc: 'Top players, XP and rankings', modes: LEARN_MODES, kind: 'fn', arg: 'toggleLeaderboard' },
         { id: 'wallet', emoji: '⚡', title: 'Wallet', desc: 'Connect a Lightning wallet to send and receive sats', modes: LEARN_ALL, kind: 'go', arg: 'wallet', wide: true }
     ];
     // Display catalog only. Earning never reads this map.
