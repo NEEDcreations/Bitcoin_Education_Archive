@@ -120,7 +120,7 @@ test('client and workers share the safe push path', function() {
     assert.ok(sw.includes('clients.matchAll'));
     assert.ok(sw.includes('navigate'));
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2455'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2497'"));
     assert.ok(!sw.includes('btc-archive-v2438'));
     assert.ok(!sw.includes('btc-archive-v2437'));
     assert.ok(!sw.includes('btc-archive-v2436'));
@@ -529,6 +529,7 @@ test('homepage push bell: tooltips for every category, no token logging, prefs v
     const js = read('notifications.js');
     assert.ok(js.includes('window.renderHomePush = function'));
     assert.ok(js.includes("root.id = 'homePush'"));
+    assert.ok(js.includes("getElementById('homeHero')"));
     assert.ok(js.includes("getElementById('homeWalletStrip')"));
     prefs.CATEGORIES.forEach(function(cat) {
         assert.ok(new RegExp('\\n\\s+' + cat + ": ['\"]").test(js.split('var TIPS = {')[1].split('};')[0]), 'tip ' + cat);

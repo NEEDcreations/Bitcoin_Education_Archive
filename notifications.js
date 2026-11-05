@@ -1888,7 +1888,8 @@ setInterval(_installClientAwardNotices, 2000);
         var st = document.createElement('style');
         st.id = 'homePushCss';
         st.textContent = ''
-            + '#homePush{width:100%;max-width:560px;align-self:center;margin:10px auto 6px;text-align:left;}'
+            + '#homePush{width:100%;max-width:560px;align-self:center;margin:14px auto 8px;text-align:left;position:relative;z-index:1;}'
+            + '@media (max-width:900px){#homePush{margin-top:18px;padding:0 4px;}}'
             + '.home-push-bar{display:flex;gap:8px;align-items:stretch;width:100%;}'
             + '.home-push-bar button{font-family:inherit;font-size:16px;min-height:44px;border-radius:12px;cursor:pointer;touch-action:manipulation;}'
             + '#homePushToggle{flex:1 1 auto;min-width:0;width:100%;max-width:none;display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--card-bg);color:var(--text);border:1px solid var(--border);font-weight:700;text-align:left;}'
@@ -2033,7 +2034,11 @@ setInterval(_installClientAwardNotices, 2000);
     function homeMount() {
         var root = document.getElementById('homePush');
         if (root) return root;
-        var anchor = document.getElementById('homeWalletStrip');
+        // Sit below the hero so the floating Quest / Invite pills
+        // (fixed near ~186-220px on phones) do not cover the bell.
+        var anchor = document.getElementById('homeHero')
+            || document.getElementById('homeGuestActions')
+            || document.getElementById('homeWalletStrip');
         if (!anchor || !anchor.parentNode) return null;
         root = document.createElement('div');
         root.id = 'homePush';
