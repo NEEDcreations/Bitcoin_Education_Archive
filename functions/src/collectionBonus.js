@@ -315,8 +315,9 @@ function stageBadgeFavor(t, db, adminSdk, ctx) {
     t.set(src.contributorRef, contributorDoc);
     const field = factionField(faction);
     const totals = src.totalsSnap && src.totalsSnap.exists ? (src.totalsSnap.data() || {}) : {};
+    const race = require('./factionBalance').racePoints(pointsToAdd, faction, totals, src.user, nowMs);
     const totalsWrite = { lastUpdated: adminSdk.firestore.FieldValue.serverTimestamp() };
-    totalsWrite[field] = (Number(totals[field]) || 0) + pointsToAdd;
+    totalsWrite[field] = Math.round(((Number(totals[field]) || 0) + race.points) * 100) / 100;
     t.set(src.totalsRef, Object.assign({}, totals, totalsWrite));
     t.set(db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc(src.uid), {
         uid: src.uid,

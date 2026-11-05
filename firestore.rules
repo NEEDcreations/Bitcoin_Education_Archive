@@ -312,6 +312,8 @@ service cloud.firestore {
                         // Faction is chosen by chooseFaction. Clients cannot plant it
                         // or a sync marker on the profile.
                         'faction', 'factionSynced', 'pointsSynced',
+                        // Faction join time and underdog join bonus window. chooseFaction only.
+                        'factionJoinedAt', 'factionBonusUntil',
                         // Peer network (CF-only via managePeer)
                         'peers', 'peerCount',
                         // Peer partnership levels (CF-only via updatePeerLevelAfterGift)
