@@ -94,6 +94,7 @@ const TESTS = [
     { name: 'Nacho Quiz Me', file: 'test-nacho-quiz-me.js' },
     { name: 'Nacho quiet on certificate links', file: 'test-nacho-cert-quiet.js' },
     { name: 'Mobile Learn and Explore Apps', file: 'test-mobile-menus.js' },
+    { name: 'Favorite apps', file: 'test-favorites.js' },
     { name: 'Experience Mode', file: 'test-experience-mode.js' },
     { name: 'Wallet tap failure', file: 'test-wallet-tap.js' },
     { name: 'Say hi reward', file: 'test-say-hi.js' },
