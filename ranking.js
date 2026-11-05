@@ -8913,6 +8913,21 @@ function accountDeleteRowHtml(user) {
         var acctCreated = user.metadata && user.metadata.creationTime ? new Date(user.metadata.creationTime) : null;
         var acctAgeDays = acctCreated ? Math.floor((now - acctCreated.getTime()) / 86400000) : 0;
         var hasEmail = user.email && user.emailVerified;
+        // Auth creation time only. Same instant as functions/src/claimReqs.js
+        // CLAIM_REQS_START_ISO (set to the #126 ship time; far future = everyone exempt).
+        var CLAIM_REQS_START_ISO = '2026-11-05T03:52:31.000Z';
+        var claimExempt = !!(acctCreated && acctCreated.getTime() < Date.parse(CLAIM_REQS_START_ISO));
+        function claimStampMs(value) {
+            if (!value) return 0;
+            if (typeof value === 'number' && isFinite(value)) return value;
+            if (typeof value.seconds === 'number') return value.seconds * 1000;
+            if (typeof value.toMillis === 'function') return value.toMillis();
+            var parsed = Date.parse(value);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+        var claimReqMap = (currentUser && currentUser.claimReq && typeof currentUser.claimReq === 'object') ? currentUser.claimReq : {};
+        var chatReqMet = claimStampMs(claimReqMap.chatAt) > 0;
+        var tctvReqMet = claimStampMs(claimReqMap.tctvAt) > 0;
         var holdRaw = currentUser ? currentUser.satsHold : 0;
         var holdUntil = 0;
         if (holdRaw && typeof holdRaw.seconds === 'number') holdUntil = holdRaw.seconds * 1000;
@@ -8921,8 +8936,9 @@ function accountDeleteRowHtml(user) {
         if (window._satsHoldUntil && Number(window._satsHoldUntil) > holdUntil) holdUntil = Number(window._satsHoldUntil);
         var satsHeld = holdUntil > now;
 
-        // Eligibility checks
-        var eligible = !isAnon && hasEmail && acctAgeDays >= 7 && channelsRead >= 10;
+        // Eligibility checks. New accounts also need the chat and TCTV server stamps.
+        var newReqsMet = claimExempt || (chatReqMet && tctvReqMet);
+        var eligible = !isAnon && hasEmail && acctAgeDays >= 7 && channelsRead >= 10 && newReqsMet;
         var meetsMin = satsBalance >= 100;
 
         // Sub-tab switcher
@@ -9015,13 +9031,37 @@ function accountDeleteRowHtml(user) {
             { met: _reqLifeLeft > 0, label: 'Lifetime limit 15,000 sats', detail: _reqLifeLeft > 0 ? '✓ ' + _reqLifeLeft.toLocaleString() + ' sats left' : 'Lifetime limit reached' },
             { met: !satsHeld, label: 'Account in good standing', detail: satsHeld ? 'Withdrawals are paused on this account for now' : '✓ One account per person and device' }
         ];
+        if (!claimExempt) {
+            // Same length as functions/src/tctvWatch.js CREDIT_SECONDS.
+            var CLAIM_TCTV_SECONDS = 60;
+            checks.push({ met: chatReqMet, label: 'Send 1 message in Chat', detail: chatReqMet ? '✓ Message sent' : 'Send a short real message in Chat', go: 'openClaimChat()' });
+            checks.push({ met: tctvReqMet, label: 'Watch Timechain TV', detail: tctvReqMet ? ('✓ ' + CLAIM_TCTV_SECONDS + ' seconds watched') : ('Watch at least ' + CLAIM_TCTV_SECONDS + ' seconds of a video'), go: 'openClaimTv()' });
+        }
         checks.forEach(function(c) {
             html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">';
-            html += '<span style="font-size:1.1rem;">' + (c.met ? '✅' : '⬜') + '</span>';
-            html += '<div style="flex:1;"><div style="font-size:0.8rem;font-weight:600;color:' + (c.met ? 'var(--text)' : 'var(--text-muted)') + ';">' + c.label + '</div>';
-            html += '<div style="font-size:0.7rem;color:' + (c.met ? '#22c55e' : 'var(--text-faint)') + ';">' + c.detail + '</div></div></div>';
+            html += '<span style="font-size:1.1rem;flex:0 0 auto;">' + (c.met ? '✅' : '⬜') + '</span>';
+            html += '<div style="flex:1;min-width:0;"><div style="font-size:0.8rem;font-weight:600;color:' + (c.met ? 'var(--text)' : 'var(--text-muted)') + ';">' + c.label + '</div>';
+            html += '<div style="font-size:0.7rem;color:' + (c.met ? '#22c55e' : 'var(--text-faint)') + ';">' + c.detail + '</div></div>';
+            if (!c.met && c.go) {
+                html += '<button type="button" class="claim-req-go" onclick="event.stopPropagation();' + c.go + '" style="width:auto;min-width:44px;max-width:88px;white-space:nowrap;flex:0 0 auto;padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:inherit;touch-action:manipulation;">' + (c.goLabel || 'Go') + '</button>';
+            }
+            html += '</div>';
         });
         html += '</div>';
+        if (!window._claimReqPull && typeof db !== 'undefined' && db && user && user.uid) {
+            window._claimReqPull = true;
+            db.collection('users').doc(user.uid).get().then(function(snap) {
+                window._claimReqPull = false;
+                if (!snap.exists || typeof currentUser === 'undefined' || !currentUser) return;
+                var nextReq = snap.data().claimReq || null;
+                var prevKey = claimStampMs(claimReqMap.chatAt) + ':' + claimStampMs(claimReqMap.tctvAt);
+                var nextMap = (nextReq && typeof nextReq === 'object') ? nextReq : {};
+                var nextKey = claimStampMs(nextMap.chatAt) + ':' + claimStampMs(nextMap.tctvAt);
+                if (prevKey === nextKey) return;
+                currentUser.claimReq = nextReq;
+                if (settingsTab === 'sats' && window._satsSubTab !== 'donate') showSettingsPage('sats');
+            }).catch(function() { window._claimReqPull = false; });
+        }
 
         // Rules & Limits
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
@@ -12829,6 +12869,18 @@ window.initSatsClaim = function() {
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
     if (typeof window._ensureTurnstile === 'function') window._ensureTurnstile(document.getElementById('satsClaimTurnstile'));
+};
+
+
+window.openClaimChat = function() {
+    if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
+    if (window._chatOverlayOpen) return;
+    if (typeof toggleChatOverlay === 'function') toggleChatOverlay();
+};
+
+window.openClaimTv = function() {
+    if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
+    if (typeof go === 'function') go('timechain-tv');
 };
 
 // Device fingerprint for multi-account detection (Fix #3)

@@ -165,6 +165,7 @@ const doubleXp = require('./src/doubleXp');
 const { planXpGrant } = require('./src/grantXp');
 const referralService = require('./src/referralService');
 const referralDecisions = require('./src/referrals');
+const claimReqs = require('./src/claimReqs');
 const tipService = require('./src/tipService');
 // DNS check shared with confirmTipSent. String-only host checks are not enough.
 const { assertPublicHost } = require('./src/publicHost');
@@ -1552,6 +1553,24 @@ exports.bridgeToTelegram = functionsV1.https.onCall(async (data, context) => {
     return { ok: true, skipped: 'server_mirror' };
 });
 
+// A chat stamp counts only when one of the stored global_chat ids still
+// exists and still passes the server filter. reader is doc.get or t.get.
+async function claimChatStillLive(userData, reader, claimantUid) {
+    const user = Object.assign({}, userData || {}, { uid: String(claimantUid || '') });
+    const ids = claimReqs.chatMsgIdsOf(user.claimReq);
+    if (!ids.length) return false;
+    const rows = [];
+    for (let ci = 0; ci < ids.length; ci++) {
+        const msgSnap = await reader(db.collection('global_chat').doc(ids[ci]));
+        rows.push({
+            id: ids[ci],
+            exists: !!(msgSnap && msgSnap.exists),
+            data: msgSnap && msgSnap.exists ? msgSnap.data() : null,
+        });
+    }
+    return claimReqs.chatRequirementMet(user, rows);
+}
+
 // ===== SATS FAUCET - claimSats Cloud Function =====
 // Lookup retries can run about two minutes, so the timeout sits above that.
 exports.claimSats = functionsV1.runWith({
@@ -1638,6 +1657,16 @@ exports.claimSats = functionsV1.runWith({
         const ageDays = accountTombstone.effectiveAgeDays(authAgeDays, tombSummary);
         if (ageDays < FAUCET.MIN_ACCOUNT_AGE_DAYS) {
             return { success: false, error: 'Account must be at least ' + FAUCET.MIN_ACCOUNT_AGE_DAYS + ' days old. Yours is ' + ageDays + ' days.' };
+        }
+        const authCreatedMs = creationDate.getTime();
+        const earlyUser = userPreSnap.exists ? userPreSnap.data() : {};
+        const earlyMissing = claimReqs.missingItems(earlyUser, authCreatedMs);
+        if (!claimReqs.isExempt(authCreatedMs) && earlyMissing.indexOf('chat') === -1) {
+            const chatLive = await claimChatStillLive(earlyUser, function (ref) { return ref.get(); }, uid);
+            if (!chatLive) earlyMissing.push('chat');
+        }
+        if (earlyMissing.length) {
+            return { success: false, error: claimReqs.missingError(earlyMissing) };
         }
     } catch (e) {
         console.error('[FAUCET] Could not verify account age:', e.message);
@@ -1783,6 +1812,14 @@ exports.claimSats = functionsV1.runWith({
             if (!ban.ok) deny(ban.error);
             const holdInTx = Number(user.satsHold) || 0;
             if (holdInTx > Date.now()) deny('Sats withdrawals are paused on this account. Try again later.');
+
+            const claimCreatedMs = new Date(userRecord.metadata.creationTime).getTime();
+            const claimMissing = claimReqs.missingItems(user, claimCreatedMs);
+            if (!claimReqs.isExempt(claimCreatedMs) && claimMissing.indexOf('chat') === -1) {
+                const chatLive = await claimChatStillLive(user, function (ref) { return t.get(ref); }, uid);
+                if (!chatLive) claimMissing.push('chat');
+            }
+            if (claimMissing.length) deny(claimReqs.missingError(claimMissing));
 
             if (user._pendingClaim === true) {
                 const pendingAt = user._pendingClaimAt
@@ -5027,6 +5064,27 @@ exports.onChatMessageCreated = onDocumentCreated('global_chat/{msgId}', async (e
         const chatDay = require('./src/chatPostedDay').stampChatPostedDay(db, data).catch(function (e) {
             console.warn('[onChatMessageCreated] chat day skipped', e && e.message);
         });
+        if (claimReqs.chatQualifies(data) && claimReqs.normalizeChatMsgId(_context.params.msgId)) {
+            try {
+                const chatMsgId = claimReqs.normalizeChatMsgId(_context.params.msgId);
+                const chatUserRef = db.collection('users').doc(String(data.uid));
+                await db.runTransaction(async function (t) {
+                    const chatUser = await t.get(chatUserRef);
+                    if (!chatUser.exists) return;
+                    const req = chatUser.data().claimReq || {};
+                    const patch = {
+                        'claimReq.chatMsgId': chatMsgId,
+                        'claimReq.chatMsgIds': claimReqs.nextChatMsgIds(req, chatMsgId),
+                    };
+                    if (!claimReqs.stampMillis(req.chatAt)) {
+                        patch['claimReq.chatAt'] = admin.firestore.FieldValue.serverTimestamp();
+                    }
+                    t.update(chatUserRef, patch);
+                });
+            } catch (claimErr) {
+                console.warn('[onChatMessageCreated] claimReq', claimErr && claimErr.message);
+            }
+        }
         const chatStats = db.collection('stats').doc('global').set({
             chatMessages: admin.firestore.FieldValue.increment(1)
         }, { merge: true }).catch(function (e) {
