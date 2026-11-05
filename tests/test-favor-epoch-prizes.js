@@ -454,6 +454,16 @@ test('walletFailAt cooldown blocks immediate Favor retry', function () {
     assert.strictEqual(cool.error, 'COOLDOWN');
 });
 
+test('myFavor empty query: {} or [] → no epochs (caller gets empty claims)', function () {
+    assert.deepStrictEqual(P.parseFavorEpochNumbers(undefined), []);
+    assert.deepStrictEqual(P.parseFavorEpochNumbers(null), []);
+    assert.deepStrictEqual(P.parseFavorEpochNumbers({}), []);
+    assert.deepStrictEqual(P.parseFavorEpochNumbers({ epochNumbers: [] }), []);
+    assert.deepStrictEqual(P.parseFavorEpochNumbers({ epochNumbers: '9001' }), []);
+    assert.deepStrictEqual(P.parseFavorEpochNumbers({ epochNumbers: [9001] }), [9001]);
+    assert.deepStrictEqual(P.parseFavorEpochNumbers({ epochNumbers: [9001, 9001, 0, -1, 'x', 9002] }), [9001, 9002]);
+});
+
 test('myFavor claim rows: only the caller uid is returned', function () {
     const mine = P.winId('epoch_9001', 'uid_caller');
     const other = P.winId('epoch_9001', 'uid_other');

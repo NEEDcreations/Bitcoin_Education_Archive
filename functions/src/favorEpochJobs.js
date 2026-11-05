@@ -532,28 +532,10 @@ function factory(functionsV1, deps) {
     const myFavorEpochClaims = functionsV1.https.onCall(async function (data, context) {
         const uid = requireUser(functionsV1, context);
         try {
-            const raw = (data && Array.isArray(data.epochNumbers)) ? data.epochNumbers : [];
-            const nums = [];
-            const seen = {};
-            raw.forEach(function (n) {
-                const v = Math.floor(Number(n));
-                if (!Number.isFinite(v) || v < 1 || v > 100000000 || seen[v]) return;
-                seen[v] = true;
-                nums.push(v);
-            });
+            // {} or epochNumbers:[] → empty list (never 500). Client always sends explicit nums.
+            const nums = P.parseFavorEpochNumbers(data);
             if (!nums.length) {
-                // Single-field orderBy only — no composite index. Filter kind in memory.
-                try {
-                    const snap = await db.collection(RESULTS).orderBy('createdAtMs', 'desc').limit(40).get();
-                    snap.forEach(function (d) {
-                        const row = d.data() || {};
-                        if (row.kind && row.kind !== 'epoch') return;
-                        const n = Math.floor(Number(row.epochNumber) || 0);
-                        if (n >= 1 && !seen[n]) { seen[n] = true; nums.push(n); }
-                    });
-                } catch (scanErr) {
-                    console.warn('[myFavorEpochClaims] recent scan skipped:', scanErr && scanErr.message);
-                }
+                return { claims: [] };
             }
             const out = [];
             for (let i = 0; i < nums.length; i++) {

@@ -484,6 +484,21 @@ function siteCapAllows(used, amount, cap) {
 // Never send raw wallet/NWC/network errors to the client (no ws:// URLs, secrets, stacks).
 
 // Build one Epoch History claim row. Only the caller's win counts as theirs.
+
+/** Parse caller epochNumbers. Empty / missing → [] (no server-side recent scan). */
+function parseFavorEpochNumbers(data) {
+    const raw = (data && Array.isArray(data.epochNumbers)) ? data.epochNumbers : [];
+    const nums = [];
+    const seen = {};
+    raw.forEach(function (n) {
+        const v = Math.floor(Number(n));
+        if (!Number.isFinite(v) || v < 1 || v > 100000000 || seen[v]) return;
+        seen[v] = true;
+        nums.push(v);
+    });
+    return nums;
+}
+
 function claimRowForCaller(input) {
     const src = input || {};
     const epochId = String(src.epochId || '');
@@ -651,5 +666,5 @@ module.exports = {
     applyPersonCap, clusterLightning,
     buildEpochBreakdown, buildWindowBreakdown, winId, confirmText,
     payoutStatusForAmount, walletAllowsPay, walletFloorOk, siteCapAllows, num,
-    favorClaimPrechecks, clientSafeClaimError, claimRowForCaller, planFavorClaimReserve, planFavorClaimRelease,
+    favorClaimPrechecks, clientSafeClaimError, claimRowForCaller, parseFavorEpochNumbers, planFavorClaimReserve, planFavorClaimRelease,
 };
