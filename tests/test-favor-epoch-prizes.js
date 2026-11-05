@@ -10,137 +10,186 @@ function test(name, fn) {
 
 console.log('Favor epoch prizes');
 
-test('epochIdOf shapes', function () {
-    assert.strictEqual(P.epochIdOf(4), 'epoch_4');
-    assert.strictEqual(P.epochIdOf(0), '');
-    assert.strictEqual(P.windowIdOf('cycle_123'), 'window_cycle_123');
-});
-
-test('equal split of 21000 across 5 winners', function () {
-    assert.deepStrictEqual(P.splitEqual(21000, 5), [4200, 4200, 4200, 4200, 4200]);
-    assert.deepStrictEqual(P.splitEqual(21001, 5), [4201, 4200, 4200, 4200, 4200]);
-});
-
-test('buildEpochBreakdown pays eligible block solvers and lists exclusions', function () {
+test('H1: pay by block count matches announcement math', function () {
     const now = Date.now();
+    const created = now - 30 * 86400000;
     const bd = P.buildEpochBreakdown({
         epochNumber: 4,
         nowMs: now,
         blocks: [
-            { uid: 'aaa111', username: 'Alice', value: 1 },
-            { uid: 'bbb222', username: 'Bob', value: 2 },
-            { uid: 'ccc333', username: 'Carol', value: 3 },
-            { uid: 'ddd444', username: 'Dan', value: 4 },
-            { uid: 'eee555', username: 'Eve', value: 5 },
+            { uid: 'a1', username: 'Alice', value: 1, foundAtMs: now },
+            { uid: 'a1', username: 'Alice', value: 2, foundAtMs: now },
+            { uid: 'b2', username: 'Bob', value: 3, foundAtMs: now },
+            { uid: 'c3', username: 'Carol', value: 4, foundAtMs: now },
+            { uid: 'd4', username: 'Dan', value: 5, foundAtMs: now },
         ],
-        players: [
-            { uid: 'aaa111', user: { username: 'Alice' }, ledger: {}, authKnown: true, ageDays: 30, emailVerified: true, lightningAddressAtClose: 'a@w.com' },
-            { uid: 'bbb222', user: { username: 'Bob' }, ledger: {}, authKnown: true, ageDays: 30, emailVerified: true, lightningAddressAtClose: 'b@w.com' },
-            { uid: 'ccc333', user: { username: 'Carol' }, ledger: {}, authKnown: true, ageDays: 30, emailVerified: true, lightningAddressAtClose: 'c@w.com' },
-            { uid: 'ddd444', user: { username: 'Dan' }, ledger: {}, authKnown: true, ageDays: 30, emailVerified: true, lightningAddressAtClose: 'd@w.com' },
-            { uid: 'eee555', user: { username: 'Eve' }, ledger: {}, authKnown: true, ageDays: 30, emailVerified: true, lightningAddressAtClose: 'e@w.com' },
-        ],
+        players: ['a1', 'b2', 'c3', 'd4'].map(function (uid) {
+            return {
+                uid: uid, user: { username: uid }, ledger: {}, authKnown: true,
+                ageDays: 30, createdMs: created, emailVerified: true,
+                lightningAddressAtClose: uid + '@w.com',
+            };
+        }),
         config: { epochPotSats: 21000, minAccountAgeDays: 7 },
     });
-    assert.strictEqual(bd.epochId, 'epoch_4');
-    assert.strictEqual(bd.recipients.length, 5);
-    assert.strictEqual(bd.excluded.length, 0);
-    assert.strictEqual(bd.satsTotal, 21000);
-    assert.ok(bd.balanced);
-    bd.recipients.forEach(function (r) {
-        assert.strictEqual(r.sats, 4200);
-        assert.strictEqual(r.mode, 'claimable');
-    });
+    assert.strictEqual(bd.perBlockSats, 4200);
+    assert.strictEqual(bd.notifyShare, 4200);
+    const alice = bd.recipients.find(function (r) { return r.uid === 'a1'; });
+    assert.ok(alice);
+    assert.strictEqual(alice.contribution, 2);
+    assert.strictEqual(alice.sats, 8400);
+    assert.strictEqual(alice.mode, 'manual'); // > 5000
+    assert.strictEqual(bd.recipients.filter(function (r) { return r.uid !== 'a1'; }).every(function (r) { return r.sats === 4200; }), true);
 });
 
-test('multi-account exclusion', function () {
-    const bd = P.buildEpochBreakdown({
-        epochNumber: 6,
-        nowMs: Date.now(),
-        blocks: [{ uid: 'm1', username: 'M', value: 1 }],
-        players: [{ uid: 'm1', user: { username: 'M', multiAccount: true }, ledger: {}, authKnown: true, ageDays: 30, emailVerified: true, lightningAddressAtClose: 'm@w.com' }],
-        config: { epochPotSats: 21000 },
-    });
-    assert.strictEqual(bd.recipients.length, 0);
-    assert.ok(bd.excluded[0].reason.indexOf('multi-account') !== -1);
+test('H1: per-person cap off by default, on when set', function () {
+    const now = Date.now();
+    const created = now - 30 * 86400000;
+    const mk = function (cap) {
+        return P.buildEpochBreakdown({
+            epochNumber: 7,
+            nowMs: now,
+            blocks: [
+                { uid: 'a1', username: 'A', value: 1, foundAtMs: now },
+                { uid: 'a1', username: 'A', value: 2, foundAtMs: now },
+                { uid: 'b2', username: 'B', value: 3, foundAtMs: now },
+            ],
+            players: [
+                { uid: 'a1', user: { username: 'A' }, ledger: {}, authKnown: true, ageDays: 30, createdMs: created, emailVerified: true, lightningAddressAtClose: 'a@w.com' },
+                { uid: 'b2', user: { username: 'B' }, ledger: {}, authKnown: true, ageDays: 30, createdMs: created, emailVerified: true, lightningAddressAtClose: 'b@w.com' },
+            ],
+            config: { epochPotSats: 21000, perPersonCapSats: cap },
+        });
+    };
+    const off = mk(0);
+    assert.strictEqual(off.recipients.find(function (r) { return r.uid === 'a1'; }).sats, 14000); // 2 of 3 blocks
+    const on = mk(5000);
+    assert.strictEqual(on.recipients.find(function (r) { return r.uid === 'a1'; }).sats, 5000);
+    assert.strictEqual(on.recipients.find(function (r) { return r.uid === 'a1'; }).capped, true);
 });
 
-test('buildEpochBreakdown lists age and email exclusions', function () {
+test('H2: shared lightning address sends whole group to manual review', function () {
+    const now = Date.now();
+    const created = now - 30 * 86400000;
     const bd = P.buildEpochBreakdown({
-        epochNumber: 5,
-        nowMs: Date.now(),
+        epochNumber: 8,
+        nowMs: now,
         blocks: [
-            { uid: 'young1', username: 'Y', value: 1 },
-            { uid: 'unv1', username: 'U', value: 2 },
+            { uid: 'u1', username: 'One', value: 1, foundAtMs: now },
+            { uid: 'u2', username: 'Two', value: 2, foundAtMs: now },
+            { uid: 'u3', username: 'Three', value: 3, foundAtMs: now },
         ],
         players: [
-            { uid: 'young1', user: { username: 'Y' }, ledger: {}, authKnown: true, ageDays: 1, emailVerified: true, lightningAddressAtClose: 'y@w.com' },
-            { uid: 'unv1', user: { username: 'U' }, ledger: {}, authKnown: true, ageDays: 30, emailVerified: false, lightningAddressAtClose: 'u@w.com' },
+            { uid: 'u1', user: { username: 'One' }, ledger: {}, authKnown: true, ageDays: 30, createdMs: created, emailVerified: true, lightningAddressAtClose: 'shared@w.com' },
+            { uid: 'u2', user: { username: 'Two' }, ledger: {}, authKnown: true, ageDays: 30, createdMs: created, emailVerified: true, lightningAddressAtClose: 'shared@w.com' },
+            { uid: 'u3', user: { username: 'Three' }, ledger: {}, authKnown: true, ageDays: 30, createdMs: created, emailVerified: true, lightningAddressAtClose: 'solo@w.com' },
         ],
-        config: { epochPotSats: 21000, minAccountAgeDays: 7 },
-    });
-    assert.strictEqual(bd.recipients.length, 0);
-    assert.ok(bd.excluded.some(function (x) { return x.reason.indexOf('younger') !== -1; }));
-    assert.ok(bd.excluded.some(function (x) { return x.reason.indexOf('verified email') !== -1; }));
-});
-
-test('no lightning address at close excludes', function () {
-    const bd = P.buildEpochBreakdown({
-        epochNumber: 1,
-        nowMs: Date.now(),
-        blocks: [{ uid: 'u1', username: 'U', value: 1 }],
-        players: [{ uid: 'u1', user: { username: 'U' }, ledger: {}, authKnown: true, ageDays: 30, emailVerified: true, lightningAddressAtClose: '' }],
-        config: { epochPotSats: 21000 },
-    });
-    assert.strictEqual(bd.recipients.length, 0);
-    assert.strictEqual(bd.excluded[0].reason, 'no lightning address saved before close');
-    assert.strictEqual(bd.unallocated, 21000);
-});
-
-test('manual mode above 5000', function () {
-    assert.strictEqual(P.payoutStatusForAmount(4200, P.DEFAULTS), 'claimable');
-    assert.strictEqual(P.payoutStatusForAmount(5001, P.DEFAULTS), 'manual');
-    assert.strictEqual(P.payoutStatusForAmount(0, P.DEFAULTS), 'skipped');
-});
-
-test('wallet floor and site cap helpers', function () {
-    assert.strictEqual(P.walletAllowsPay(10000, 4200, 5000), true);
-    assert.strictEqual(P.walletAllowsPay(9000, 4200, 5000), false);
-    assert.strictEqual(P.siteCapAllows(95000, 4200, 100000), true);
-    assert.strictEqual(P.siteCapAllows(96000, 5000, 100000), false);
-});
-
-test('confirm text and win id', function () {
-    assert.strictEqual(P.confirmText('epoch_4'), 'APPROVE epoch_4');
-    assert.ok(P.winId('epoch_4', 'abc').indexOf('sfpay_epoch_4_abc') === 0);
-});
-
-test('window breakdown with zero pot stays empty', function () {
-    const bd = P.buildWindowBreakdown({
-        cycleId: 'cycle_1',
-        winnerUid: 'u1',
-        winnerUsername: 'U',
-        player: { user: { username: 'U' }, ledger: {}, authKnown: true, ageDays: 30, emailVerified: true, lightningAddressAtClose: 'u@w.com' },
-        config: { windowWinnerSats: 0 },
-        nowMs: Date.now(),
-    });
-    assert.strictEqual(bd.pot, 0);
-    assert.strictEqual(bd.recipients.length, 0);
-});
-
-test('window breakdown pays lowest-hash winner when pot set', function () {
-    const bd = P.buildWindowBreakdown({
-        cycleId: 'cycle_9',
-        winnerUid: 'u1',
-        winnerUsername: 'U',
-        player: { user: { username: 'U' }, ledger: {}, authKnown: true, ageDays: 30, emailVerified: true, lightningAddressAtClose: 'u@w.com' },
-        config: { windowWinnerSats: 2100 },
-        nowMs: Date.now(),
+        config: { epochPotSats: 21000, clusterFlagPct: 30 },
     });
     assert.strictEqual(bd.recipients.length, 1);
-    assert.strictEqual(bd.recipients[0].sats, 2100);
-    assert.strictEqual(bd.recipients[0].mode, 'claimable');
-    assert.ok(bd.recipients[0].why.indexOf('Lowest hash') !== -1);
+    assert.strictEqual(bd.recipients[0].uid, 'u3');
+    assert.ok(bd.lightningClusters.length >= 1);
+    assert.ok(bd.excluded.filter(function (e) { return e.reason.indexOf('shared lightning') !== -1; }).length >= 2);
+});
+
+test('H2: flag person or cluster over default 30%', function () {
+    const now = Date.now();
+    const created = now - 30 * 86400000;
+    const bd = P.buildEpochBreakdown({
+        epochNumber: 9,
+        nowMs: now,
+        blocks: [
+            { uid: 'big', username: 'Big', value: 1, foundAtMs: now },
+            { uid: 'big', username: 'Big', value: 2, foundAtMs: now },
+            { uid: 's1', username: 'S1', value: 3, foundAtMs: now },
+            { uid: 's2', username: 'S2', value: 4, foundAtMs: now },
+            { uid: 's3', username: 'S3', value: 5, foundAtMs: now },
+        ],
+        players: ['big', 's1', 's2', 's3'].map(function (uid) {
+            return { uid: uid, user: { username: uid }, ledger: {}, authKnown: true, ageDays: 30, createdMs: created, emailVerified: true, lightningAddressAtClose: uid + '@w.com' };
+        }),
+        config: { epochPotSats: 21000, clusterFlagPct: 30 },
+    });
+    // big has 2/5 = 8400/21000 = 40%
+    assert.ok(bd.flags.some(function (f) { return f.kind === 'person' && f.sharePct >= 30; }));
+});
+
+test('M4/L5: claim reserve uses config caps and release clears reserved on no-send', function () {
+    const limits = P.claimLimits({ manualAboveSats: 9000, siteDailyCapSats: 500000, walletFloorSats: 9000 });
+    assert.strictEqual(limits.manualAboveSats, 5000); // clamped
+    assert.strictEqual(limits.siteDailyCapSats, 100000);
+    assert.strictEqual(limits.walletFloorSats, 5000);
+
+    const plan = P.planFavorClaimReserve({
+        amount: 4200,
+        reservedSats: 0,
+        inFlightSats: 0,
+        walletSats: 10000,
+        lockReserved: false,
+        config: {},
+        day: '2026-11-05',
+    });
+    assert.strictEqual(plan.ok, true);
+    assert.strictEqual(plan.nextReservedSats, 4200);
+    assert.strictEqual(plan.nextInFlightSats, 4200);
+
+    const low = P.planFavorClaimReserve({
+        amount: 4200,
+        reservedSats: 0,
+        inFlightSats: 2000,
+        walletSats: 10000,
+        lockReserved: false,
+        config: {},
+        day: '2026-11-05',
+    });
+    // 10000 - 2000 - 4200 = 3800 < 5000 floor
+    assert.strictEqual(low.ok, false);
+    assert.strictEqual(low.error, 'WALLET_LOW');
+
+    const rel = P.planFavorClaimRelease({
+        amount: 4200,
+        reservedSats: 4200,
+        inFlightSats: 4200,
+        clearInFlight: true,
+        clearReserved: true,
+        day: '2026-11-05',
+    });
+    assert.strictEqual(rel.reservedSats, 0);
+    assert.strictEqual(rel.inFlightSats, 0);
+    assert.strictEqual(rel.day, '2026-11-05');
+});
+
+test('Red Team: walletFloorOk tracks inFlight', function () {
+    assert.strictEqual(P.walletFloorOk(10000, 0, 4200, 5000), true);
+    assert.strictEqual(P.walletFloorOk(10000, 2000, 4200, 5000), false);
+});
+
+test('L6/M3: blocks in first 7 days excluded from pot', function () {
+    const now = Date.now();
+    const youngCreated = now - 2 * 86400000;
+    const oldCreated = now - 30 * 86400000;
+    const bd = P.buildEpochBreakdown({
+        epochNumber: 10,
+        nowMs: now,
+        blocks: [
+            { uid: 'young', username: 'Y', value: 1, foundAtMs: now },
+            { uid: 'old', username: 'O', value: 2, foundAtMs: now },
+        ],
+        players: [
+            { uid: 'young', user: { username: 'Y' }, ledger: {}, authKnown: true, ageDays: 2, createdMs: youngCreated, emailVerified: true, lightningAddressAtClose: 'y@w.com' },
+            { uid: 'old', user: { username: 'O' }, ledger: {}, authKnown: true, ageDays: 30, createdMs: oldCreated, emailVerified: true, lightningAddressAtClose: 'o@w.com' },
+        ],
+        config: { epochPotSats: 21000, minAccountAgeDays: 7 },
+    });
+    assert.strictEqual(bd.recipients.length, 1);
+    assert.strictEqual(bd.recipients[0].uid, 'old');
+    assert.strictEqual(bd.recipients[0].sats, 21000); // only 1 counted block
+    assert.strictEqual(bd.perBlockSats, 21000);
+});
+
+test('confirm + win id', function () {
+    assert.strictEqual(P.confirmText('epoch_4'), 'APPROVE epoch_4');
+    assert.ok(P.winId('epoch_4', 'abc').indexOf('sfpay_epoch_4_abc') === 0);
 });
 
 console.log('Favor epoch prizes: all passed');

@@ -719,6 +719,7 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
  * hashForFavor (onCall)
  * The mining/hashing function. Auth required.
  */
+// App Check stays off for real miners (Phil follow-up). Per-uid cooldown below is the rate limit.
 exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
   const data = request.data;
   const context = request;
@@ -1070,27 +1071,50 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
         }).catch(e => console.warn('[FAVOR] Epoch announce announcements failed:', e.message));
         console.log(`[FAVOR] Epoch #${epochNum} completion announced to chat.`);
         // Admin-approve payout ledger. Does not send sats.
+        let notifyShare = Math.floor(21000 / Math.max(1, blocks.length));
         try {
           const favorEpochJobs = require('./favorEpochJobs');
-          await favorEpochJobs.finalizeEpoch(db, admin, {
+          const fin = await favorEpochJobs.finalizeEpoch(db, admin, {
             epochNumber: epochNum,
             blocks: blocks,
             nowMs: Date.now(),
           });
+          if (fin && Number(fin.notifyShare) > 0) notifyShare = Number(fin.notifyShare);
         } catch (e) {
           console.warn('[FAVOR] epoch payout breakdown failed:', e.message);
+          try {
+            const epochId = 'epoch_' + epochNum;
+            await db.collection('sf_payout_results').doc(epochId).set({
+              kind: 'epoch',
+              epochId: epochId,
+              epochNumber: epochNum,
+              breakdownFailed: true,
+              breakdownDone: false,
+              payoutStatus: 'awaiting_admin_approval',
+              createdAtMs: Date.now(),
+            }, { merge: true });
+          } catch (e2) { /* ignore */ }
         }
-        const share = Math.floor(21000 / Math.max(1, blocks.length));
+        const share = notifyShare;
         const seen = {};
+        const blockCountByUid = {};
+        for (let bi = 0; bi < blocks.length; bi++) {
+          const winnerUid = blocks[bi] && blocks[bi].uid;
+          if (!winnerUid) continue;
+          blockCountByUid[winnerUid] = (blockCountByUid[winnerUid] || 0) + 1;
+        }
         for (let bi = 0; bi < blocks.length; bi++) {
           const winnerUid = blocks[bi] && blocks[bi].uid;
           if (!winnerUid || seen[winnerUid]) continue;
           seen[winnerUid] = true;
+          const blocksFound = blockCountByUid[winnerUid] || 1;
+          const approx = share * blocksFound;
           await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
             uid: winnerUid,
             onceKey: 'sfepoch_' + epochNum,
             icon: '⛏️',
-            message: '⛏️ Epoch #' + epochNum + ' complete. Your block share is about ' + share.toLocaleString('en-US') + ' sats.',
+            message: '⛏️ Epoch #' + epochNum + ' complete. Your block share is about ' + approx.toLocaleString('en-US') + ' sats' +
+              (blocksFound > 1 ? ' (' + blocksFound + ' blocks)' : '') + '. Waiting on approval before you can claim.',
           }));
         }
       } catch (e) {

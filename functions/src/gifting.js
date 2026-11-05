@@ -1140,6 +1140,8 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
     let amount = 0;
     let username = 'a Bitcoiner';
+    let sfClaimLimits = null;
+    let sfReserveDay = '';
 
     // Auth lookup stays outside the transaction (retries would repeat it).
     // The decision itself runs inside the transaction, with the user and ledger docs.
@@ -1183,9 +1185,16 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         if (win.status === 'unknown') throw httpsError('failed-precondition', 'This payment needs Phil to confirm it before it can be claimed again.');
         if (win.status !== 'claimable') throw httpsError('failed-precondition', 'This prize is waiting for Phil to pay it.');
         const sfSource = win.source === 'sf_epoch' || win.source === 'sf_window';
+        // Merge note for #243: faction_race + adminApproved should use the same
+        // after-send floor + locked-address binding as Favor (see PR body).
         if (sfSource) {
             if (!(win.adminApproved === true)) throw httpsError('failed-precondition', 'This prize is waiting for Phil to approve it.');
-            if (win.amount > 5000) throw httpsError('failed-precondition', 'This prize is paid manually.');
+            const favorEpochPrizes = require('./favorEpochPrizes');
+            const cfgSnap = await t.get(db.collection('config').doc('satoshiFavorPayouts'));
+            sfClaimLimits = favorEpochPrizes.claimLimits(cfgSnap.exists ? cfgSnap.data() : {});
+            if (win.amount > sfClaimLimits.manualAboveSats) {
+                throw httpsError('failed-precondition', 'This prize is paid manually.');
+            }
         } else if (win.amount >= 1000 || (win.amount !== 100 && win.amount !== 500)) {
             throw httpsError('failed-precondition', 'This prize is paid manually.');
         }
@@ -1229,38 +1238,102 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     const netAmount = winFee.net;
     let invoice;
     let sfLockedLn = '';
+    let sfDidReserve = false;
+    const favorEpochPrizes = require('./favorEpochPrizes');
+    async function releaseFavorReserve(clearReserved) {
+        if (!sfDidReserve && !sfReserveDay) return;
+        const day = sfReserveDay || new Date().toISOString().slice(0, 10);
+        const siteRef = db.collection('sf_payout_site_daily').doc(day);
+        const lockRef = db.collection('sf_payout_locks').doc(winId);
+        try {
+            await db.runTransaction(async (t) => {
+                const siteSnap = await t.get(siteRef);
+                const lockSnap = await t.get(lockRef);
+                const site = siteSnap.exists ? (siteSnap.data() || {}) : {};
+                const lock = lockSnap.exists ? (lockSnap.data() || {}) : {};
+                const plan = favorEpochPrizes.planFavorClaimRelease({
+                    amount: amount,
+                    reservedSats: site.reservedSats,
+                    inFlightSats: site.inFlightSats,
+                    clearInFlight: true,
+                    clearReserved: clearReserved === true && lock.reserved === true,
+                    day: day,
+                });
+                t.set(siteRef, {
+                    reservedSats: plan.reservedSats,
+                    inFlightSats: plan.inFlightSats,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                }, { merge: true });
+                if (clearReserved) t.set(lockRef, { reserved: false, releasedAt: Date.now(), day: day }, { merge: true });
+                else t.set(lockRef, { inFlightClearedAt: Date.now(), day: day }, { merge: true });
+            });
+        } catch (e) {
+            console.warn('[claimCipherWin] favor reserve release failed');
+        }
+    }
     try {
         const winAfter = await winRef.get();
         const w = winAfter.exists ? (winAfter.data() || {}) : {};
         if (w.source === 'sf_epoch' || w.source === 'sf_window') {
             sfLockedLn = String(w.lockedLightningAddress || '').trim().toLowerCase();
-            // Reserve against the Favor site daily cap before resolving an invoice.
+            // Balance first so the in-flight floor check is meaningful.
+            if (!NWC_URL) throw new Error('NO_WALLET');
+            const nwcPeek = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
+            const balPeek = await withTimeout(nwcPeek.getBalance(), 20000, 'getBalance');
+            const walletSatsPeek = Math.floor((balPeek.balance || 0) / 1000);
             const day = new Date().toISOString().slice(0, 10);
+            sfReserveDay = day;
             const siteRef = db.collection('sf_payout_site_daily').doc(day);
             const lockRef = db.collection('sf_payout_locks').doc(winId);
+            const cfgSnap = await db.collection('config').doc('satoshiFavorPayouts').get();
             await db.runTransaction(async (t) => {
                 const siteSnap = await t.get(siteRef);
                 const lockSnap = await t.get(lockRef);
-                if (lockSnap.exists && (lockSnap.data() || {}).reserved === true) return;
-                const used = siteSnap.exists ? (Math.floor(Number((siteSnap.data() || {}).reservedSats) || 0)) : 0;
-                if (used + amount > 100000) throw new Error('SITE_DAILY_CAP');
+                const site = siteSnap.exists ? (siteSnap.data() || {}) : {};
+                const lock = lockSnap.exists ? (lockSnap.data() || {}) : {};
+                const plan = favorEpochPrizes.planFavorClaimReserve({
+                    amount: amount,
+                    reservedSats: site.reservedSats,
+                    inFlightSats: site.inFlightSats,
+                    walletSats: walletSatsPeek,
+                    lockReserved: lock.reserved === true,
+                    config: cfgSnap.exists ? cfgSnap.data() : {},
+                    day: day,
+                });
+                if (!plan.ok) throw new Error(plan.error);
+                sfClaimLimits = plan.limits;
                 t.set(siteRef, {
-                    reservedSats: used + amount,
+                    reservedSats: plan.nextReservedSats,
+                    inFlightSats: plan.nextInFlightSats,
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 }, { merge: true });
-                t.set(lockRef, { reserved: true, amount: amount, day: day, uid: uid, at: Date.now() }, { merge: true });
+                t.set(lockRef, {
+                    reserved: true,
+                    amount: amount,
+                    day: day,
+                    uid: uid,
+                    at: Date.now(),
+                }, { merge: true });
             });
+            sfDidReserve = true;
         }
     } catch (e) {
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
         if (e && e.message === 'SITE_DAILY_CAP') {
             return { success: false, error: 'Daily Favor payout cap reached. Try again tomorrow or ask Phil.' };
         }
+        if (e && e.message === 'WALLET_LOW') {
+            return { success: false, error: 'The prize wallet is being refilled. Try again later, or Phil can mark it paid.' };
+        }
+        if (e && e.message === 'manual') {
+            return { success: false, error: 'This prize is paid manually.' };
+        }
         return { success: false, error: e.message || 'Could not reserve this Favor payout.' };
     }
     try {
         invoice = await _resolvePrizeInvoice(sfLockedLn ? '' : (data && data.invoice), sfLockedLn || (data && data.lightningAddress), netAmount);
     } catch (e) {
+        await releaseFavorReserve(true);
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
         return { success: false, error: e.message || 'Could not pay that invoice.' };
     }
@@ -1274,11 +1347,13 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
             t.set(invoiceRef, { uid: uid, winId: winId, amount: amount, fee_charged: winFee.fee, net_sent: netAmount, status: 'pending', ts: admin.firestore.FieldValue.serverTimestamp() });
         });
     } catch (e) {
+        await releaseFavorReserve(true);
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
         return { success: false, error: e.message || 'Could not reserve that invoice.' };
     }
 
     async function releaseUnpaid() {
+        await releaseFavorReserve(true);
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
         await invoiceRef.delete().catch(function() {});
     }
@@ -1317,6 +1392,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
                 payingAt: admin.firestore.FieldValue.delete(),
             });
             await invoiceRef.set({ uid: uid, winId: winId, amount: amount, fee_charged: feeRec.fee_charged, net_sent: feeRec.net_sent, fee_paid: feeRec.fee_paid, status: 'used', ts: admin.firestore.FieldValue.serverTimestamp() });
+            await releaseFavorReserve(false); // clear inFlight; keep daily reserved accounting
         } catch (e) {
             console.error('[claimCipherWin] paid but record update failed:', e.message);
             await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan({
@@ -1352,9 +1428,10 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     try {
         const balanceResult = await withTimeout(nwc.getBalance(), 20000, 'getBalance');
         const walletSats = Math.floor((balanceResult.balance || 0) / 1000);
-        // Favor pots keep a floor after the send; other cipher wins keep the prior check.
+        // Favor: floor already enforced with inFlight at reserve time. Re-check raw floor.
         if (sfLockedLn) {
-            if (walletSats - amount < WALLET_FLOOR_SATS) throw new Error('WALLET_LOW');
+            const floor = (sfClaimLimits && sfClaimLimits.walletFloorSats) || WALLET_FLOOR_SATS;
+            if (walletSats - amount < floor) throw new Error('WALLET_LOW');
         } else if (walletSats < WALLET_FLOOR_SATS) {
             throw new Error('WALLET_LOW');
         }

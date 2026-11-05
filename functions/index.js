@@ -6811,6 +6811,8 @@ exports.getFactionTotals = getFactionTotals;
 const favorEpochJobs = require('./src/favorEpochJobs').factory(functionsV1, { db: db, admin: admin });
 exports.adminFavorPayoutBreakdown = favorEpochJobs.adminFavorPayoutBreakdown;
 exports.adminApproveFavorPayout = favorEpochJobs.adminApproveFavorPayout;
+exports.adminRebuildFavorBreakdown = favorEpochJobs.adminRebuildFavorBreakdown;
+exports.myFavorEpochClaims = favorEpochJobs.myFavorEpochClaims;
 
 // Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online).
 // The same private minute job posts the one ending heads-up. No public invoker.
@@ -6837,6 +6839,12 @@ exports.satoshiFavorAutoReset = onSchedule({ schedule: '* * * * *', timeZone: 'U
             } catch (e) {
                 console.warn('[SF-CRON] window payout breakdown failed:', e.message);
             }
+        }
+        try {
+            const favorEpochJobs = require('./src/favorEpochJobs');
+            await favorEpochJobs.retryFailedFavorBreakdowns(db, admin, Date.now());
+        } catch (e) {
+            console.warn('[SF-CRON] breakdown retry failed:', e.message);
         }
     } catch (e) {
         console.warn('[SF-CRON] reset failed:', e.message);

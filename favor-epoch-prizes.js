@@ -68,6 +68,25 @@
                     var anyFail = d.payoutStatus === 'approved_with_failures';
                     var html = '<div style="font-size:.78rem;margin:8px 0;">Status: <b>' + esc(d.payoutStatus || '') + '</b></div>';
                     html += potTable(d.breakdown, d.payouts, d.resultId);
+                    var clusters = (d.breakdown && d.breakdown.lightningClusters) || [];
+                    if (clusters.length) {
+                        html += '<details open style="margin-top:8px;font-size:.72rem"><summary>Shared Lightning clusters (' + clusters.length + ') — excluded from Approve</summary>';
+                        clusters.forEach(function (c) {
+                            html += '<div>' + esc(c.addressMasked) + ' · ' + (c.count || 0) + ' accounts · ' + fmt(c.sats) + ' sats';
+                            if (c.uidShorts && c.uidShorts.length) html += ' · ' + c.uidShorts.map(esc).join(', ');
+                            html += '</div>';
+                        });
+                        html += '</details>';
+                    }
+                    var flags = (d.breakdown && d.breakdown.flags) || [];
+                    if (flags.length) {
+                        html += '<div style="margin-top:6px;font-size:.72rem;color:#fbbf24;">Flags: ';
+                        flags.forEach(function (f, i) {
+                            html += (i ? '; ' : '') + esc(f.kind) + ' ' + esc(f.username || f.addressMasked || '') + ' ' + (f.sharePct || 0) + '%';
+                        });
+                        html += '</div>';
+                    }
+                    if (d.perBlockSats) html += '<div style="font-size:.72rem;color:var(--text-muted);margin-top:4px;">Per block: ' + fmt(d.perBlockSats) + ' sats</div>';
                     if (d.payoutStatus === 'awaiting_admin_approval' || anyFail) {
                         html += '<div style="margin-top:10px;font-size:.72rem;">Type <code>APPROVE ' + esc(d.resultId) + '</code> below, then confirm.</div>' +
                             '<input id="sfpConfirm" placeholder="APPROVE ' + esc(d.resultId) + '" style="width:100%;margin-top:6px;padding:8px;border-radius:8px;border:1px solid var(--border);font-family:monospace;font-size:.78rem;" />' +

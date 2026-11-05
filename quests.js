@@ -3341,8 +3341,75 @@ function _loadPoolEpoch() {
     }
 
     // ── Past epochs history (read-only, sfPoolHistory is public-read) ──
+    // Favor claim status for the signed-in player lives on each past epoch row.
     var _sfHist = { open: false, items: [], last: null, done: false, loading: false, error: false, anchor: null };
     var _SF_HIST_PAGE = 10;
+    var _sfClaimByEpoch = {}; // epochNumber -> { status, winId, amount, why }
+    var _sfClaimLoading = false;
+
+    function _sfClaimLabel(st, amount) {
+        var a = Math.floor(Number(amount) || 0);
+        var sats = a ? (a.toLocaleString('en-US') + ' sats') : '';
+        if (st === 'claimable') return { text: 'Claim ' + (sats || 'sats'), kind: 'claim' };
+        if (st === 'claimed') return { text: 'Claimed' + (sats ? ' · ' + sats : ''), kind: 'done' };
+        if (st === 'pending_manual') return { text: 'Waiting on Phil to pay' + (sats ? ' · ' + sats : ''), kind: 'wait' };
+        if (st === 'waiting_approval') return { text: 'Waiting on approval' + (sats ? ' · ' + sats : ''), kind: 'wait' };
+        if (st === 'excluded') return { text: 'Not eligible', kind: 'muted' };
+        return null;
+    }
+
+    function _sfClaimRowHtml(epochNum) {
+        var n = parseInt(epochNum, 10) || 0;
+        if (!n) return '';
+        var info = _sfClaimByEpoch[n];
+        if (!info) {
+            if (typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
+                return '<div data-sf-claim-slot="' + n + '" style="margin-top:8px;font-size:0.72rem;color:var(--text-faint);">Checking your sats…</div>';
+            }
+            return '<div style="margin-top:8px;font-size:0.72rem;color:var(--text-faint);">Sign in to see your Favor claim.</div>';
+        }
+        var lab = _sfClaimLabel(info.status, info.amount);
+        if (!lab) return '';
+        if (lab.kind === 'claim') {
+            return '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+                '<button type="button" data-sf-claim-win="' + String(info.winId || '').replace(/"/g, '') + '" data-sf-claim-epoch="' + n + '" ' +
+                'style="padding:8px 14px;min-height:44px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:800;font-size:0.78rem;cursor:pointer;font-family:inherit;">⚡ ' + lab.text + '</button>' +
+                '<span style="font-size:0.68rem;color:var(--text-muted);">Pays your saved Lightning address</span></div>';
+        }
+        var color = lab.kind === 'done' ? '#22c55e' : (lab.kind === 'wait' ? '#eab308' : 'var(--text-faint)');
+        return '<div style="margin-top:8px;font-size:0.75rem;font-weight:700;color:' + color + ';">' + lab.text + '</div>';
+    }
+
+    function _sfRefreshClaims(epochNums, paintFn) {
+        if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) {
+            if (paintFn) paintFn();
+            return;
+        }
+        if (typeof firebase === 'undefined' || !firebase.functions) return;
+        var nums = [];
+        var seen = {};
+        (epochNums || []).forEach(function (n) {
+            var v = parseInt(n, 10);
+            if (!v || seen[v]) return;
+            seen[v] = true;
+            nums.push(v);
+        });
+        if (!nums.length) return;
+        _sfClaimLoading = true;
+        firebase.functions().httpsCallable('myFavorEpochClaims')({ epochNumbers: nums }).then(function (res) {
+            var claims = (res && res.data && res.data.claims) || [];
+            claims.forEach(function (c) {
+                if (!c || !c.epochNumber) return;
+                _sfClaimByEpoch[c.epochNumber] = c;
+            });
+            _sfClaimLoading = false;
+            if (paintFn) paintFn();
+        }).catch(function () {
+            _sfClaimLoading = false;
+            if (paintFn) paintFn();
+        });
+    }
+
     function _sfHistHtml() {
         var h = '<button type="button" data-sf-hist="toggle" aria-expanded="' + (_sfHist.open ? 'true' : 'false') + '" style="width:100%;text-align:left;background:transparent;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:0.75rem;font-weight:700;color:var(--text-muted);cursor:pointer;min-height:36px;">' +
             (_sfHist.open ? '\u25BE Hide past epochs' : '\u25B8 Show all past epochs') + '</button>';
@@ -3352,10 +3419,13 @@ function _loadPoolEpoch() {
             var d = _sfHist.items[i];
             var c = d.completedAt ? (d.completedAt.toDate ? d.completedAt.toDate() : new Date(d.completedAt.seconds * 1000)) : null;
             var cs = c ? c.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+            var en = parseInt(d.epochNumber, 10) || 0;
             h += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">' +
-                '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;">\u2705 Epoch #' + (parseInt(d.epochNumber, 10) || '\u2014') + '</div>' +
-                (cs ? '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + cs + ' \u00b7 21,000 sats distributed</div>' : '') +
-                _renderEpochBlocks(d.blocks || [], d.epochNumber, true) + '</div>';
+                '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;">\u2705 Epoch #' + (en || '\u2014') + '</div>' +
+                (cs ? '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + cs + ' \u00b7 21,000 sats pot</div>' : '') +
+                _renderEpochBlocks(d.blocks || [], d.epochNumber, true) +
+                _sfClaimRowHtml(en) +
+                '</div>';
         }
         if (_sfHist.loading) h += '<div style="font-size:0.75rem;color:var(--text-faint);padding:8px 0;">Loading past epochs\u2026</div>';
         else if (_sfHist.error) h += '<div style="font-size:0.75rem;color:var(--text-faint);padding:8px 0;">Couldn\u2019t load past epochs. <button type="button" data-sf-hist="more" style="background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;font-size:0.75rem;padding:0;">Try again</button></div>';
@@ -3379,9 +3449,42 @@ function _loadPoolEpoch() {
             if (s.docs.length) _sfHist.last = s.docs[s.docs.length - 1];
             if (s.docs.length < _SF_HIST_PAGE) _sfHist.done = true;
             _sfHist.loading = false; _sfHistPaint();
+            var nums = _sfHist.items.map(function (x) { return x.epochNumber; });
+            _sfRefreshClaims(nums, function () {
+                // Repaint whole pool card so Previous Epoch + history stay in sync.
+                var inner = document.getElementById('sfPoolEpochInner');
+                if (inner && inner._sfRepaint) inner._sfRepaint();
+                else _sfHistPaint();
+            });
         }).catch(function() { _sfHist.loading = false; _sfHist.error = true; _sfHistPaint(); });
     }
+    function _sfDoClaim(winId, epochNum, btn) {
+        if (!winId || typeof firebase === 'undefined' || !firebase.functions) return;
+        if (btn) { btn.disabled = true; btn.textContent = 'Paying…'; }
+        firebase.functions().httpsCallable('claimCipherWin')({ winId: winId }).then(function (res) {
+            var d = (res && res.data) || {};
+            if (d.success) {
+                _sfClaimByEpoch[epochNum] = Object.assign({}, _sfClaimByEpoch[epochNum] || {}, { status: 'claimed', winId: winId, amount: d.amount || (_sfClaimByEpoch[epochNum] && _sfClaimByEpoch[epochNum].amount) || 0 });
+                if (typeof showToast === 'function') showToast('⚡ Favor sats sent!');
+            } else {
+                if (typeof showToast === 'function') showToast(d.error || 'Claim failed. Try again.');
+                if (btn) { btn.disabled = false; btn.textContent = '⚡ Claim'; }
+            }
+            var inner = document.getElementById('sfPoolEpochInner');
+            if (inner && inner._sfRepaint) inner._sfRepaint();
+            else _sfHistPaint();
+        }).catch(function (e) {
+            var msg = (e && e.message) ? e.message : 'Claim failed.';
+            if (typeof showToast === 'function') showToast(msg);
+            if (btn) { btn.disabled = false; btn.textContent = '⚡ Claim'; }
+        });
+    }
     function _sfHistClick(e) {
+        var claimBtn = e.target.closest && e.target.closest('[data-sf-claim-win]');
+        if (claimBtn) {
+            _sfDoClaim(claimBtn.getAttribute('data-sf-claim-win'), parseInt(claimBtn.getAttribute('data-sf-claim-epoch'), 10) || 0, claimBtn);
+            return true;
+        }
         var b = e.target.closest && e.target.closest('[data-sf-hist]');
         if (!b) return false;
         if (b.dataset.sfHist === 'toggle') {
@@ -3432,8 +3535,9 @@ function _loadPoolEpoch() {
                 var prevBlocks = ph.blocks || [];
                 var compAt = ph.completedAt ? (ph.completedAt.toDate ? ph.completedAt.toDate() : new Date(ph.completedAt.seconds * 1000)) : null;
                 var compStr = compAt ? compAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-                if (compStr) prevHtml += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + compStr + ' \u00b7 21,000 sats distributed</div>';
+                if (compStr) prevHtml += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + compStr + ' \u00b7 21,000 sats pot</div>';
                 prevHtml += _renderEpochBlocks(prevBlocks, ph.epochNumber, true);
+                prevHtml += _sfClaimRowHtml(ph.epochNumber);
                 // Older epoch history (lazy loaded on first expand)
                 if ((ph.epochNumber || 0) !== 1) {
                     if (_sfHist.anchor && _sfHist.anchor.id !== snap.docs[0].id) { _sfHist.items = []; _sfHist.last = null; _sfHist.done = false; _sfHist.error = false; }
@@ -3444,7 +3548,43 @@ function _loadPoolEpoch() {
             prevHtml += '</div>';
 
             var el2 = document.getElementById('sfPoolEpochInner');
-            if (el2) { el2.innerHTML = currentHtml + prevHtml; el2.onclick = function(e) { if (_sfHistClick(e)) return; var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el2); }
+            if (el2) {
+                function paintPool() {
+                    var el3 = document.getElementById('sfPoolEpochInner');
+                    if (!el3) return;
+                    // Rebuild previous claim slot from cached claim map + hist html.
+                    var rebuilt = currentHtml + prevHtml;
+                    // prevHtml already baked; refresh by re-calling snapshot path is heavy.
+                    // Instead swap claim slots in place after claims load.
+                    el3.innerHTML = currentHtml + (function () {
+                        var html = '<div>' +
+                            '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:6px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">\u2705 Previous Epoch' + (!snap.empty ? ' #' + (snap.docs[0].data().epochNumber || '\u2014') : '') + '</div>';
+                        if (snap.empty) {
+                            html += '<div style="font-size:0.75rem;color:var(--text-faint);font-style:italic;padding:4px 0;">No completed epochs yet.</div>';
+                        } else {
+                            var ph2 = snap.docs[0].data();
+                            var prevBlocks2 = ph2.blocks || [];
+                            var compAt2 = ph2.completedAt ? (ph2.completedAt.toDate ? ph2.completedAt.toDate() : new Date(ph2.completedAt.seconds * 1000)) : null;
+                            var compStr2 = compAt2 ? compAt2.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+                            if (compStr2) html += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + compStr2 + ' \u00b7 21,000 sats pot</div>';
+                            html += _renderEpochBlocks(prevBlocks2, ph2.epochNumber, true);
+                            html += _sfClaimRowHtml(ph2.epochNumber);
+                            if ((ph2.epochNumber || 0) !== 1) {
+                                html += '<div id="sfEpochHistWrap" style="margin-top:10px;">' + _sfHistHtml() + '</div>';
+                            }
+                        }
+                        return html + '</div>';
+                    })();
+                    el3.onclick = function(e) { if (_sfHistClick(e)) return; var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); };
+                    if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el3);
+                }
+                el2._sfRepaint = paintPool;
+                paintPool();
+                var nums = [];
+                if (!snap.empty) nums.push(snap.docs[0].data().epochNumber);
+                _sfHist.items.forEach(function (x) { nums.push(x.epochNumber); });
+                _sfRefreshClaims(nums, paintPool);
+            }
         }).catch(function() {
             var el2 = document.getElementById('sfPoolEpochInner');
             if (el2) { el2.innerHTML = currentHtml + '<div style="font-size:0.75rem;color:var(--text-faint);margin-top:8px;">Previous epoch unavailable.</div>'; el2.onclick = function(e) { var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el2); }
