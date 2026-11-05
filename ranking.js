@@ -2919,6 +2919,7 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
                 catch (nameErr) { if (typeof showUsernamePrompt === 'function') showUsernamePrompt(); }
             }
             loadUser(uid); hideUsernamePrompt();
+            if (typeof attachReferral === 'function') attachReferral(uid);
             var overlay = document.getElementById('nostrAuthOverlay'); if (overlay) overlay.remove();
             showToast('🟣 Signed in with Nostr!');
         } else { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Auth failed - no token received</span>'; }
@@ -4160,8 +4161,17 @@ function invitedReferralCount(user) {
 
 var _homeInvitedCount = 0;
 var _homeMaxiCount = 0;
+var _homeReachedCount = 0;
 
-function paintInviteTier(count, invited) {
+function serverReachedReferralCount(user) {
+    var raw = user && user.referralMaxiReachedCount;
+    var n = Math.floor(Number(raw));
+    if (!isFinite(n) || n < 0) return 0;
+    return n;
+}
+window.serverReachedReferralCount = serverReachedReferralCount;
+
+function paintInviteTier(count, invited, reached) {
     var api = referralTierApi();
     var n = (api && typeof api.normalizeCount === 'function') ? api.normalizeCount(count) : (Number(count) || 0);
     var progress = (api && typeof api.tierProgress === 'function') ? api.tierProgress(n) : {
@@ -4173,21 +4183,27 @@ function paintInviteTier(count, invited) {
     var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
     var inv = (typeof invited === 'number') ? Math.floor(invited) : invitedReferralCount(user);
     if (!isFinite(inv) || inv < 0) inv = 0;
+    var reachedN = (typeof reached === 'number') ? Math.floor(reached) : serverReachedReferralCount(user);
+    if (!isFinite(reachedN) || reachedN < 0) reachedN = n;
     _homeInvitedCount = inv;
     _homeMaxiCount = n;
+    _homeReachedCount = reachedN;
     var tierEl = document.getElementById('homeInvitesTier');
     var noteEl = document.getElementById('homeInvitesNote');
     var progEl = document.getElementById('homeInvitesProgress');
     var tile = document.getElementById('homeInvitesTile');
     var openBtn = document.getElementById('homeInvitesOpen') || tile;
     if (tierEl) tierEl.textContent = progress.tierLabel;
-    if (noteEl) noteEl.textContent = progress.countText;
+    var noteText = (api && typeof api.reachedRewardLabel === 'function')
+        ? api.reachedRewardLabel(reachedN, n)
+        : (String(reachedN) + ' reached · ' + String(n) + ' rewarded');
+    if (noteEl) noteEl.textContent = noteText;
     var helpEl = document.getElementById('homeInvitesInfoText');
-    if (helpEl && api && typeof api.maxiCountHelp === 'function') helpEl.textContent = api.maxiCountHelp(inv, n);
+    if (helpEl && api && typeof api.maxiCountHelp === 'function') helpEl.textContent = api.maxiCountHelp(inv, reachedN, n);
     if (progEl) progEl.textContent = progress.progressText;
     if (tile) tile.setAttribute('data-referral-tier', String(progress.level));
     if (openBtn) {
-        var label = progress.tierLabel + ', ' + progress.countText;
+        var label = progress.tierLabel + ', ' + noteText;
         if (progress.progressText) label += ', ' + progress.progressText;
         openBtn.setAttribute('aria-label', label);
     }
@@ -4253,7 +4269,8 @@ window.refreshHomeStrip = function() {
     if (typeof getReferralStats === 'function' && !optimisticProfilePending()) {
         getReferralStats().then(function (stats) {
             if (!stats || stats.failed || typeof stats.invited !== 'number') return;
-            paintInviteTier(serverMaxiReferralCount(user), stats.invited);
+            var reached = typeof stats.reached === 'number' ? stats.reached : 0;
+            paintInviteTier(serverMaxiReferralCount(user), stats.invited, reached);
         }).catch(function () {});
     }
     if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
@@ -4398,7 +4415,7 @@ function bindReferralTierLadder() {
         help.addEventListener('mouseleave', hoverClose);
     }
     var api = referralTierApi();
-    if (help && api && typeof api.maxiCountHelp === 'function') help.textContent = api.maxiCountHelp(_homeInvitedCount, _homeMaxiCount);
+    if (help && api && typeof api.maxiCountHelp === 'function') help.textContent = api.maxiCountHelp(_homeInvitedCount, _homeReachedCount, _homeMaxiCount);
 }
 bindReferralTierLadder();
 
@@ -4408,7 +4425,7 @@ function setMaxiInfoOpen(open) {
     if (!tip) return;
     if (tip.parentElement !== document.body) document.body.appendChild(tip);
     var api = referralTierApi();
-    if (api && typeof api.maxiCountHelp === 'function') tip.textContent = api.maxiCountHelp(_homeInvitedCount, _homeMaxiCount);
+    if (api && typeof api.maxiCountHelp === 'function') tip.textContent = api.maxiCountHelp(_homeInvitedCount, _homeReachedCount, _homeMaxiCount);
     tip.classList.toggle('is-open', !!open);
     if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
     if (!open) return;
@@ -4682,6 +4699,14 @@ function clientCreatePayload(extra) {
     Object.keys(src).forEach(function (k) {
         if (allow[k] && src[k] !== undefined && src[k] !== '') data[k] = src[k];
     });
+    // Campaign tags (&src=) must land on every create path: Lightning, Nostr,
+    // Google/provider, and OAuth redirect all go through this helper.
+    if (!data.signupSource) {
+        try {
+            var storedSrc = localStorage.getItem('btc_signup_source');
+            if (storedSrc) data.signupSource = storedSrc;
+        } catch (eSrc) {}
+    }
     return data;
 }
 

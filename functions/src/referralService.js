@@ -498,6 +498,115 @@ async function registerReferral(data, context) {
     };
 }
 
+
+async function markMaxiReached(referredUid) {
+    const uid = String(referredUid || '');
+    if (!uid) return { marked: false, reason: 'missing-user' };
+    const refRef = db().collection('referrals').doc(uid);
+    const referredRef = db().collection('users').doc(uid);
+    const signalRef = db().collection('referral_signals').doc(uid);
+    const pre = await refRef.get();
+    if (!pre.exists) return { marked: false, reason: 'no-referral' };
+    let referrerUid = String((pre.data() || {}).referrerUid || '');
+    if (!referrerUid) {
+        referrerUid = await lookupReferrerUid((pre.data() || {}).referrerCode, uid);
+    }
+    if (!referrerUid || referrerUid === uid) return { marked: false, reason: 'missing-referrer' };
+
+    const profile = await authProfile(uid);
+    const referrerRef = db().collection('users').doc(referrerUid);
+    let outcome = { marked: false, reason: 'skip' };
+
+    await db().runTransaction(async function (t) {
+        const [referralDoc, referredDoc, referrerDoc, signalDoc] = await Promise.all([
+            t.get(refRef),
+            t.get(referredRef),
+            t.get(referrerRef),
+            t.get(signalRef),
+        ]);
+        if (!referralDoc.exists || !referredDoc.exists || !referrerDoc.exists) {
+            outcome = { marked: false, reason: 'missing-user' };
+            return;
+        }
+        const referral = referralDoc.data() || {};
+        const referredView = userView(uid, referredDoc.data());
+        referredView.createdMs = profile.createdMs;
+        const decision = referrals.assessMaxiMilestone({
+            hasSignal: signalDoc.exists === true,
+            nowMs: Date.now(),
+            referral: referral,
+            referred: referredView,
+            referrerUid: referrerUid,
+        });
+        if (decision.action !== 'mark') {
+            outcome = { marked: false, reason: decision.reason };
+            return;
+        }
+        const unlockAtMs = decision.unlockAtMs;
+        t.update(refRef, {
+            maxiReachedAt: admin.firestore.FieldValue.serverTimestamp(),
+            maxiReachedUnlockAtMs: unlockAtMs || null,
+            referrerUid: referrerUid,
+            referredUserUid: uid,
+            referredUid: uid,
+        });
+        t.update(referrerRef, {
+            referralMaxiReachedCount: admin.firestore.FieldValue.increment(1),
+        });
+        const stamp = admin.firestore.FieldValue.serverTimestamp();
+        const referrerCopy = referrals.milestoneCopy('referrer', unlockAtMs);
+        const referredCopy = referrals.milestoneCopy('referee', unlockAtMs);
+        // Same rewardNotify path as the payout notices.
+        rewardNotify.apply(t, db(), stamp, rewardNotify.plan({
+            uid: referrerUid,
+            icon: '🔥',
+            gains: [referrerCopy.message],
+            onceKey: 'ref_maxi_out_' + uid,
+            type: 'referral_maxi_reached',
+            source: 'referral_milestone',
+        }));
+        rewardNotify.apply(t, db(), stamp, rewardNotify.plan({
+            uid: uid,
+            icon: '🔥',
+            gains: [referredCopy.message],
+            onceKey: 'ref_maxi_in_' + referrerUid,
+            type: 'referral_maxi_reached',
+            source: 'referral_milestone',
+        }));
+        outcome = {
+            marked: true,
+            reason: 'marked',
+            referrerUid: referrerUid,
+            referredUid: uid,
+            unlockAtMs: unlockAtMs || null,
+            referrerCopy: referrerCopy,
+            referredCopy: referredCopy,
+        };
+    });
+
+    if (outcome.marked) {
+        try {
+            const { sendUserPush } = require('./push');
+            const url = 'https://bitcoineducation.quest/';
+            await Promise.all([
+                sendUserPush(outcome.referrerUid, 'referrals', {
+                    title: outcome.referrerCopy.title,
+                    body: outcome.referrerCopy.body,
+                    url: url,
+                }),
+                sendUserPush(outcome.referredUid, 'referrals', {
+                    title: outcome.referredCopy.title,
+                    body: outcome.referredCopy.body,
+                    url: url,
+                }),
+            ]);
+        } catch (e) {
+            console.warn('[referral] milestone push', e && e.message ? e.message : e);
+        }
+    }
+    return outcome;
+}
+
 async function payIfQualified(referredUid) {
     const uid = String(referredUid || '');
     if (!uid) return { paid: false, reason: 'missing-user' };
@@ -828,7 +937,12 @@ async function onUserWritten(event) {
         const crossed = referrals.crossedMaxi(beforeActivity, afterActivity);
         const referredByNew = !!after.referredBy && after.referredBy !== before.referredBy;
         const atMaxi = afterActivity >= referrals.MAXI_POINTS;
-        if (crossed || (referredByNew && atMaxi)) await payIfQualified(uid);
+        if (crossed || (referredByNew && atMaxi)) {
+            try { await markMaxiReached(uid); } catch (markErr) {
+                console.warn('[onUserReferral] milestone', markErr && markErr.message ? markErr.message : markErr);
+            }
+            await payIfQualified(uid);
+        }
     } catch (e) {
         console.error('[onUserReferral]', e && e.message ? e.message : e);
     }
@@ -859,7 +973,14 @@ async function scanPending(limit) {
             .get();
     }
     let paid = 0;
+    let marked = 0;
     for (let i = 0; i < snap.docs.length; i++) {
+        try {
+            const milestone = await markMaxiReached(snap.docs[i].id);
+            if (milestone && milestone.marked) marked++;
+        } catch (e) {
+            console.warn('[payQualifiedReferrals] milestone', e && e.message ? e.message : e);
+        }
         try {
             const result = await payIfQualified(snap.docs[i].id);
             if (result && result.paid) paid++;
@@ -872,7 +993,7 @@ async function scanPending(limit) {
         cursor: next,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    return { scanned: snap.size, paid: paid, cursor: next };
+    return { scanned: snap.size, paid: paid, marked: marked, cursor: next };
 }
 
 async function deleteMyReferralSignal(data, context) {
@@ -884,6 +1005,7 @@ async function deleteMyReferralSignal(data, context) {
 module.exports = {
     registerReferral: registerReferral,
     payIfQualified: payIfQualified,
+    markMaxiReached: markMaxiReached,
     onUserWritten: onUserWritten,
     scanPending: scanPending,
     ensureReferralCode: ensureReferralCode,

@@ -22,6 +22,7 @@ const FIELDS = [
     'lastQuizDate', 'quizStreak', 'quizAnswered', 'quizCorrect',
     'xpBankPayoutApplied', 'xpBankPayoutAmount', 'xpBankPayoutBank', 'xpBankPayoutAt',
     'referralMaxiCount',
+    'referralMaxiReachedCount',
 ];
 
 (async function main() {
