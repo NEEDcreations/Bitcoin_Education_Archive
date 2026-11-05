@@ -6324,32 +6324,35 @@ function _lbShareLink() {
     return 'https://bitcoineducation.quest/?ref=' + encodeURIComponent(code) + '&src=lbshare';
 }
 
+// Rank from the public snapshot already on this device. No callable, so no
+// App Check wait. Sharing grants nothing, so a cached rank is fine here.
+function _lbShareSnapRow(docId) {
+    var doc = (typeof _lbSnapRead === 'function' && docId) ? _lbSnapRead(docId) : null;
+    var me = _lbRankAuthUser();
+    var rows = (doc && doc.rows) || [];
+    for (var i = 0; i < rows.length; i++) {
+        if (me && rows[i] && rows[i].uid === me.uid && Number(rows[i].rank) > 0) return rows[i];
+    }
+    return null;
+}
+
 async function _lbShareLookup(board) {
     if (board === 'pvp') {
-        var doc = (typeof _lbSnapRead === 'function' && LB_BOARDS.pvp) ? _lbSnapRead(LB_BOARDS.pvp.docId) : null;
-        var me = _lbRankAuthUser();
-        var rows = (doc && doc.rows) || [];
-        for (var i = 0; i < rows.length; i++) {
-            if (me && rows[i] && rows[i].uid === me.uid && rows[i].rank) {
-                return { status: 'ok', rank: rows[i].rank, username: rows[i].username, scoreText: (rows[i].wins || 0) + 'W - ' + (rows[i].losses || 0) + 'L' };
-            }
-        }
-        return null;
+        var pr = _lbShareSnapRow(LB_BOARDS.pvp && LB_BOARDS.pvp.docId);
+        return pr ? { status: 'ok', rank: pr.rank, username: pr.username, scoreText: (pr.wins || 0) + 'W - ' + (pr.losses || 0) + 'L' } : null;
     }
     var period = _lbRankPeriod(board);
-    var res;
-    try {
-        res = await firebase.functions().httpsCallable('leaderboardRank')({ board: board, period: period, me: true });
-    } catch (e) {
-        // The share tap often lands before the App Check token is ready (the
-        // callable wrapper rejects with app-check-unavailable before any request
-        // is sent). Wait for a token once and retry instead of failing.
-        var appCheck = String((e && e.code) || '').indexOf('app-check') !== -1 || /App Check/i.test(String((e && e.message) || ''));
-        if (!appCheck || window._btcRecaptchaFailed || typeof window._btcAppCheckForClaim !== 'function') throw e;
-        var tok = await window._btcAppCheckForClaim(10000);
-        if (!tok) throw e;
-        res = await firebase.functions().httpsCallable('leaderboardRank')({ board: board, period: period, me: true });
+    if (board === 'xp') {
+        var xr = _lbShareSnapRow(_lbBoardSpec(period).docId);
+        if (xr) {
+            var xd = { status: 'ok', rank: xr.rank, username: xr.username, score: Number(xr.value) || 0 };
+            xd.scoreText = _lbRankScoreText(board, period, xd);
+            xd.periodName = LB_SHARE_PERIODS[period] || '';
+            return xd;
+        }
     }
+    // One callable. Its wrapper already waits for App Check once; no second wait.
+    var res = await firebase.functions().httpsCallable('leaderboardRank')({ board: board, period: period, me: true });
     var d = res && res.data;
     if (!d || d.status !== 'ok' || !(Number(d.rank) > 0)) return null;
     d.scoreText = _lbRankScoreText(board, period, d);
@@ -6399,13 +6402,14 @@ window._lbShareRank = async function (board) {
         if (!d) { if (typeof showToast === 'function') showToast('You are not ranked on this board yet'); return; }
         var link = _lbShareLink();
         var canvas = _lbShareCanvas(board, d, link);
-        var blob = await new Promise(function (r) { canvas.toBlob(r, 'image/png'); });
         var text = 'I\u2019m #' + Math.floor(Number(d.rank)) + ' on the Bitcoin Quest\u2122 ' + (LB_SHARE_NAMES[board] || 'leaderboard') + '. Can you beat me?';
-        var file = blob && typeof File === 'function' ? new File([blob], 'bitcoin-quest-rank.png', { type: 'image/png' }) : null;
-        if (file && navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
-            try { await navigator.share({ files: [file], text: text + ' ' + link, url: link }); } catch (e) {}
+        // Same in-app share sheet as the other share cards (no auto native share).
+        var AS = window.AchievementShare;
+        if (AS && typeof AS.openCanvasSheet === 'function') {
+            AS.openCanvasSheet({ type: 'rank', title: text, name: '@' + String(d.username || (currentUser && currentUser.username) || 'Anon'), url: link, canvas: canvas });
             return;
         }
+        var blob = await new Promise(function (r) { canvas.toBlob(r, 'image/png'); });
         if (blob) {
             var a = document.createElement('a');
             a.href = URL.createObjectURL(blob); a.download = 'bitcoin-quest-rank-' + board + '.png';
@@ -6415,6 +6419,7 @@ window._lbShareRank = async function (board) {
         try { await navigator.clipboard.writeText(text + ' ' + link); if (typeof showToast === 'function') showToast('Card saved. Invite link copied!'); }
         catch (e) { if (typeof showToast === 'function') showToast('Card saved. Your link: ' + escapeHtml(link)); }
     } catch (e) {
+        if (e && (e.name === 'AbortError' || String(e.code || '').indexOf('cancelled') !== -1)) return;
         console.warn('[LB share]', (e && (e.code || e.name)) || '', (e && e.message) || e);
         var code = String((e && e.code) || ''), msg = String((e && e.message) || '');
         var text = 'Could not load your rank. Try again.';
