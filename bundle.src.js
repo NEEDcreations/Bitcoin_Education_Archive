@@ -16496,7 +16496,7 @@ window.dismissIOSA2HS = function() {
 // window.BQ_LEARN_MENU and window.BQ_EXPLORE_APPS from features.registry.js.
 // Wallet taps wait until wallet-router.js has patched go().
 var MOBILE_SHEET_Z = '2100020';
-window.SCHOLAR_SCRIPT = 'scholar.js?v=20261026_v2386';
+window.SCHOLAR_SCRIPT = 'scholar.js?v=20261105_v2490';
 
 function ensureMobileSheetStyle() {
     if (document.getElementById('mobileSheetStyle')) return;

@@ -6836,16 +6836,20 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
         const ts = admin.firestore.FieldValue.serverTimestamp();
         const donateRankPrev = await rewardNotify.readRankPrev(tx, db, uid, points, bonusPts);
 
-        // Update user doc
-        const today = new Date().toISOString().split('T')[0];
-
-        // Award 1 orange ticket if donation >= 1000 XP, once per day (5 AM UTC reset)
-        donationTicket = 0;
+        // All remaining reads BEFORE any writes (Firestore txn rule).
         const _donateOffsetToday = getOffsetDateKey();
         const donationTicketRef = userRef.collection('daily_action_counts').doc(_donateOffsetToday + '_donate_ticket');
         const donationTicketDoc = await tx.get(donationTicketRef);
+        const statsSnap = await tx.get(statsRef);
+
+        // Award 1 orange ticket if donation >= 1000 XP, once per day (5 AM UTC reset)
+        donationTicket = 0;
         if (amount >= 1000 && !donationTicketDoc.exists) {
             donationTicket = 1;
+        }
+
+        // --- writes below ---
+        if (donationTicket > 0) {
             tx.set(donationTicketRef, { awardedAt: admin.firestore.FieldValue.serverTimestamp(), amount });
         }
 
@@ -6858,6 +6862,8 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
         if (donationTicket > 0) {
             userUpdate.orangeTickets = admin.firestore.FieldValue.increment(donationTicket);
         }
+        // Note: DONATION_BADGES xp is applied via grantFamily AFTER the txn (idempotent).
+        // Do not also increment points here or players would be double-credited.
         tx.update(userRef, userUpdate);
         try {
             const donatePlans = rewardNotify.plan({
@@ -6894,6 +6900,13 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
         // MUST use update() so dot-notation keys are treated as nested field paths.
         // set+merge stores them as literal string keys like "factionTotals.cyber_hornets" instead
         // of merging into the nested factionTotals map — causing the UI to show wrong totals.
+        if (!statsSnap.exists) {
+            tx.set(statsRef, {
+                totalDonated: 0,
+                factionTotals: { cyber_hornets: 0, honey_badgers: 0, no_faction: 0 },
+                updatedAt: ts,
+            });
+        }
         const statsUpdate = {
             totalDonated: admin.firestore.FieldValue.increment(amount),
             updatedAt: ts,
@@ -6912,7 +6925,13 @@ exports.donatePoints = functionsV1.https.onCall(async (data, context) => {
         console.warn('[DONATE] badges', donateBadgeErr && donateBadgeErr.message);
     }
 
-    return { success: true, newBadges, bonusPts, donationTicket };
+    // Defensive return: never throw after the donation transaction commits.
+    // A ReferenceError here used to surface as Firebase "internal" while balances
+    // already updated (donationTicket historically declared only inside the tx).
+    const safeBadges = Array.isArray(newBadges) ? newBadges.filter(function (id) { return typeof id === 'string'; }) : [];
+    const safeBonus = Math.max(0, Math.floor(Number(bonusPts) || 0));
+    const safeTicket = (donationTicket === 1) ? 1 : 0;
+    return { success: true, newBadges: safeBadges, bonusPts: safeBonus, donationTicket: safeTicket };
 });
 
 // ===== LEADERBOARD USER SEARCH =====

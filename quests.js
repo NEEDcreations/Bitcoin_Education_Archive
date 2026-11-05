@@ -4830,24 +4830,23 @@ function _renderCharityTabInner(body) {
         if (btn) { btn.disabled = true; btn.textContent = 'Donating...'; }
         var donateFn = firebase.functions().httpsCallable('donatePoints');
         donateFn({ amount: amt, anonymous: anon }).then(function(result) {
-            // Update local state
-            if (typeof currentUser !== 'undefined' && currentUser) {
-                currentUser.pointsDonated = (currentUser.pointsDonated || 0) + amt;
-                if (result.data && result.data.bonusPts) currentUser.points = (currentUser.points || 0) + result.data.bonusPts;
+            try {
+                if (typeof currentUser !== 'undefined' && currentUser) {
+                    currentUser.pointsDonated = (currentUser.pointsDonated || 0) + amt;
+                    if (result.data && result.data.bonusPts) currentUser.points = (currentUser.points || 0) + result.data.bonusPts;
+                }
+                var newBadges = result.data && result.data.newBadges || [];
+                var badgeMsg = newBadges.length > 0 ? ' You earned ' + newBadges.length + ' new badge' + (newBadges.length > 1 ? 's' : '') + '!' : '';
+                if (typeof showToast === 'function') showToast('❤️ Thank you! ' + amt.toLocaleString() + ' XP donated (' + amt.toLocaleString() + ' sats pledged to charity).' + badgeMsg, 5000);
+                window._charityThankYou(amt, newBadges, result.data && result.data.bonusPts || 0);
+                _patchCharityDonateSection();
+            } catch (_uiErr) {
+                if (typeof showToast === 'function') showToast('❤️ Donation saved. Refresh if the totals look stale.', 4000);
             }
-            // Thank-you message
-            var newBadges = result.data && result.data.newBadges || [];
-            var badgeMsg = newBadges.length > 0 ? ' You earned ' + newBadges.length + ' new badge' + (newBadges.length > 1 ? 's' : '') + '!' : '';
-            if (typeof showToast === 'function') showToast('❤️ Thank you! ' + amt.toLocaleString() + ' XP donated (' + amt.toLocaleString() + ' sats pledged to charity).' + badgeMsg, 5000);
-            // Show thank-you modal
-            window._charityThankYou(amt, newBadges, result.data && result.data.bonusPts || 0);
-            // Listeners are live for community totals; also refresh the donate
-            // section so quick-pick amounts, available XP, and already-donated tally
-            // all reflect the just-made donation immediately.
-            _patchCharityDonateSection();
+            if (btn) { btn.disabled = false; btn.textContent = '❤️ Donate XP for Charity'; }
         }).catch(function(e) {
             if (btn) { btn.disabled = false; btn.textContent = '❤️ Donate XP for Charity'; }
-            if (typeof showToast === 'function') showToast('❌ ' + (e.message || 'Donation failed. Try again.'), 4000);
+            if (typeof showToast === 'function') showToast('❌ ' + (typeof friendlyCallableError === 'function' ? friendlyCallableError(e, 'Donation failed. Try again.') : (e.message || 'Donation failed. Try again.')), 4000);
         });
     };
 }
@@ -7738,10 +7737,11 @@ function _renderFlexInteraction(action) {
     if (action.type === 'chess') {
         var _cpuzzle = _chessDailyPuzzle(action.id);
         return '<div id="chess-wrap-' + action.id + '" data-id="' + action.id + '" style="text-align:center;">' +
-            '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-faint);margin-bottom:6px;">' + (_cpuzzle.label || 'Checkmate in 1 — White to move') + '</div>' +
+            '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-faint);margin-bottom:6px;">' + (_cpuzzle.label || 'Checkmate in 1') + ' · tap a piece, then its square</div>' +
             '<div id="chess-board-' + action.id + '" style="display:inline-block;border:2px solid var(--border);border-radius:4px;overflow:hidden;"></div>' +
             '<div id="chess-msg-' + action.id + '" style="font-size:0.75rem;font-weight:700;margin-top:6px;min-height:18px;"></div>' +
-            '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:4px;">Drag a piece to its destination square</div>' +
+            '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:4px;">Tap a piece, then tap where it goes</div>' +
+            '<button type="button" class="flex-btn" id="chess-flip-' + action.id + '" onclick="_chessToggleFlip(\'' + action.id + '\')" style="margin-top:8px;padding:6px 12px;font-size:0.7rem;">Flip board</button>' +
             '</div>';
     }
     if (action.type === 'blackjack') {
@@ -8676,6 +8676,128 @@ var _CHESS_GLYPHS = {
     bK:'\u265a', bQ:'\u265b', bR:'\u265c', bB:'\u265d', bN:'\u265e', bP:'\u265f'
 };
 
+
+// ---- Chess rules helper (mate-in-1 Flex puzzles) ----
+function _chessSqXY(sq) {
+    return [_CHESS_FILES.indexOf(sq[0]), parseInt(sq[1], 10) - 1];
+}
+function _chessXYSq(x, y) {
+    if (x < 0 || x > 7 || y < 0 || y > 7) return null;
+    return _CHESS_FILES[x] + (y + 1);
+}
+function _chessFindKing(pieces, color) {
+    var want = color + 'K';
+    for (var sq in pieces) { if (pieces[sq] === want) return sq; }
+    return null;
+}
+function _chessRayHits(pieces, from, color, deltas, oneStep) {
+    var xy = _chessSqXY(from), hits = [];
+    for (var d = 0; d < deltas.length; d++) {
+        var dx = deltas[d][0], dy = deltas[d][1];
+        var x = xy[0] + dx, y = xy[1] + dy;
+        while (x >= 0 && x <= 7 && y >= 0 && y <= 7) {
+            var sq = _chessXYSq(x, y);
+            var occ = pieces[sq];
+            if (occ) {
+                if (occ[0] !== color) hits.push(sq);
+                break;
+            }
+            hits.push(sq);
+            if (oneStep) break;
+            x += dx; y += dy;
+        }
+    }
+    return hits;
+}
+function _chessAttacksFrom(pieces, from) {
+    var p = pieces[from];
+    if (!p) return [];
+    var color = p[0], type = p[1];
+    if (type === 'P') {
+        var dir = color === 'w' ? 1 : -1;
+        var xy = _chessSqXY(from), out = [];
+        for (var i = 0; i < 2; i++) {
+            var sq = _chessXYSq(xy[0] + (i ? 1 : -1), xy[1] + dir);
+            if (sq && pieces[sq] && pieces[sq][0] !== color) out.push(sq);
+        }
+        return out;
+    }
+    if (type === 'N') return _chessRayHits(pieces, from, color, [[1,2],[2,1],[2,-1],[1,-2],[-1,-2],[-2,-1],[-2,1],[-1,2]], true);
+    if (type === 'K') return _chessRayHits(pieces, from, color, [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]], true);
+    if (type === 'B') return _chessRayHits(pieces, from, color, [[1,1],[1,-1],[-1,1],[-1,-1]], false);
+    if (type === 'R') return _chessRayHits(pieces, from, color, [[1,0],[-1,0],[0,1],[0,-1]], false);
+    if (type === 'Q') return _chessRayHits(pieces, from, color, [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]], false);
+    return [];
+}
+function _chessIsAttacked(pieces, sq, byColor) {
+    for (var from in pieces) {
+        if (pieces[from][0] !== byColor) continue;
+        var hits = _chessAttacksFrom(pieces, from);
+        if (hits.indexOf(sq) !== -1) return true;
+    }
+    return false;
+}
+function _chessLegalDests(pieces, from) {
+    var p = pieces[from];
+    if (!p) return [];
+    var color = p[0], type = p[1], dests = [];
+    if (type === 'P') {
+        var dir = color === 'w' ? 1 : -1;
+        var xy = _chessSqXY(from);
+        var one = _chessXYSq(xy[0], xy[1] + dir);
+        if (one && !pieces[one]) dests.push(one);
+        if ((color === 'w' && xy[1] === 1) || (color === 'b' && xy[1] === 6)) {
+            var two = _chessXYSq(xy[0], xy[1] + 2 * dir);
+            if (one && !pieces[one] && two && !pieces[two]) dests.push(two);
+        }
+        for (var i = 0; i < 2; i++) {
+            var cap = _chessXYSq(xy[0] + (i ? 1 : -1), xy[1] + dir);
+            if (cap && pieces[cap] && pieces[cap][0] !== color) dests.push(cap);
+        }
+    } else {
+        dests = _chessAttacksFrom(pieces, from);
+    }
+    var out = [];
+    for (var d = 0; d < dests.length; d++) {
+        var to = dests[d];
+        if (pieces[to] && pieces[to][0] === color) continue;
+        var next = Object.assign({}, pieces);
+        delete next[from];
+        next[to] = p;
+        var k = _chessFindKing(next, color);
+        if (!k) continue;
+        if (!_chessIsAttacked(next, k, color === 'w' ? 'b' : 'w')) out.push(to);
+    }
+    return out;
+}
+function _chessInCheck(pieces, color) {
+    var k = _chessFindKing(pieces, color);
+    if (!k) return true;
+    return _chessIsAttacked(pieces, k, color === 'w' ? 'b' : 'w');
+}
+function _chessIsMate(pieces, colorToMove) {
+    if (!_chessInCheck(pieces, colorToMove)) return false;
+    for (var from in pieces) {
+        if (pieces[from][0] !== colorToMove) continue;
+        if (_chessLegalDests(pieces, from).length) return false;
+    }
+    return true;
+}
+function _chessApply(pieces, from, to) {
+    var next = Object.assign({}, pieces);
+    var p = next[from];
+    delete next[from];
+    next[to] = p;
+    return next;
+}
+function _chessIsMatingMove(pieces, turn, from, to) {
+    var p = pieces[from];
+    if (!p || p[0] !== turn) return false;
+    if (_chessLegalDests(pieces, from).indexOf(to) === -1) return false;
+    var after = _chessApply(pieces, from, to);
+    return _chessIsMate(after, turn === 'b' ? 'w' : 'b');
+}
+
 function _chessDailyPuzzle(actionId) {
     var seed = _flexDailySeed(actionId + '_chess');
     return CHESS_PUZZLES[Math.abs(seed) % CHESS_PUZZLES.length];
@@ -8686,24 +8808,30 @@ function _chessRender(id) {
     if (!wrap) return;
     var puzzle = _chessDailyPuzzle(id);
     var selected = wrap._chessSelected || null;
+    var legal = wrap._chessLegal || [];
     var pieces = Object.assign({}, puzzle.pieces);
     if (wrap._chessPieces) pieces = wrap._chessPieces;
+    var flip = (typeof wrap._chessFlip === 'boolean') ? wrap._chessFlip : (puzzle.turn === 'b');
+    wrap._chessFlip = flip;
+    var ranks = flip ? ['1','2','3','4','5','6','7','8'] : _CHESS_RANKS.slice();
+    var files = flip ? _CHESS_FILES.slice().reverse() : _CHESS_FILES.slice();
 
-    var html = '<table style="border-collapse:collapse;margin:0 auto;user-select:none;"><tbody>';
-    _CHESS_RANKS.forEach(function(rank) {
+    var html = '<table style="border-collapse:collapse;margin:0 auto;user-select:none;touch-action:none;"><tbody>';
+    ranks.forEach(function(rank) {
         html += '<tr>';
-        _CHESS_FILES.forEach(function(file) {
+        files.forEach(function(file) {
             var sq = file + rank;
             var fi = _CHESS_FILES.indexOf(file);
-            var ri = _CHESS_RANKS.indexOf(rank);
+            var ri = 8 - parseInt(rank, 10);
             var light = (fi + ri) % 2 === 0;
             var bg = selected === sq ? '#f7931a' :
-                     light ? '#f0d9b5' : '#b58863';
+                     (legal.indexOf(sq) !== -1 ? (light ? '#cdd26a' : '#aaa23a') :
+                     (light ? '#f0d9b5' : '#b58863'));
             var piece = pieces[sq];
             var glyph = piece ? _CHESS_GLYPHS[piece] : '';
             var color = piece ? (piece[0]==='w' ? '#fff' : '#000') : 'transparent';
             var shadow = piece && piece[0]==='w' ? 'text-shadow:0 1px 2px rgba(0,0,0,0.8);' : '';
-            html += '<td data-sq="' + sq + '" style="width:34px;height:34px;text-align:center;vertical-align:middle;background:' + bg + ';font-size:1.4rem;line-height:34px;cursor:pointer;-webkit-tap-highlight-color:transparent;"><span style="color:' + color + ';' + shadow + 'pointer-events:none;">' + glyph + '</span></td>';
+            html += '<td data-sq="' + sq + '" style="width:40px;height:40px;text-align:center;vertical-align:middle;background:' + bg + ';font-size:1.55rem;line-height:40px;cursor:pointer;-webkit-tap-highlight-color:transparent;"><span style="color:' + color + ';' + shadow + 'pointer-events:none;">' + glyph + '</span></td>';
         });
         html += '</tr>';
     });
@@ -8711,7 +8839,6 @@ function _chessRender(id) {
     var board = document.getElementById('chess-board-' + id);
     if (board) board.innerHTML = html;
 
-    // Re-wire click/drag
     _chessWireBoard(id);
 }
 
@@ -8719,145 +8846,84 @@ function _chessWireBoard(id) {
     var board = document.getElementById('chess-board-' + id);
     var wrap = document.getElementById('chess-wrap-' + id);
     if (!board || !wrap) return;
-    if (wrap._chessBoardWired) return; // only wire once — prevent stacked duplicate listeners
-    wrap._chessBoardWired = true;
     var puzzle = _chessDailyPuzzle(id);
     if (!wrap._chessPieces) wrap._chessPieces = Object.assign({}, puzzle.pieces);
 
-    var dragFrom = null, dragEl = null, dragGhost = null;
+    // Replace the board node so each render starts with clean listeners
+    var fresh = board.cloneNode(true);
+    board.parentNode.replaceChild(fresh, board);
+    board = fresh;
 
-    function getTd(e) {
+    function sqOf(td) { return td ? td.getAttribute('data-sq') : null; }
+    function tdFromEvent(e) {
         var el = e.target;
         while (el && el.tagName !== 'TD') el = el.parentElement;
         return el;
     }
-    function sqOf(td) { return td ? td.getAttribute('data-sq') : null; }
 
-    function startDrag(sq, clientX, clientY) {
+    function onSelect(sq) {
+        if (!sq) return;
         var piece = wrap._chessPieces[sq];
         var movingColor = puzzle.turn || 'w';
-        if (!piece || piece[0] !== movingColor) return; // only moving side's pieces
-        dragFrom = sq;
-        wrap._chessSelected = sq;
-        // Ghost: large chess piece that follows the cursor/finger
-        dragGhost = document.createElement('div');
-        dragGhost.style.cssText = [
-            'position:fixed',
-            'z-index:200001',
-            'pointer-events:none',
-            'width:52px',
-            'height:52px',
-            'border-radius:50%',
-            'background:radial-gradient(circle at 38% 35%, #fff 0%, #e8e0cc 70%, #c8b89a 100%)',
-            'box-shadow:0 6px 20px rgba(0,0,0,0.55),0 2px 6px rgba(0,0,0,0.4)',
-            'display:flex',
-            'align-items:center',
-            'justify-content:center',
-            'font-size:2rem',
-            'transform:translate(-50%,-50%) scale(1.15)',
-            'transition:none',
-            'user-select:none',
-            '-webkit-user-select:none'
-        ].join(';');
-        dragGhost.textContent = _CHESS_GLYPHS[piece];
-        document.body.appendChild(dragGhost);
-        moveDragGhost(clientX, clientY);
-        // Dim the origin cell without re-rendering the whole board
-        var originTd = board.querySelector('[data-sq="' + sq + '"]');
-        if (originTd) {
-            originTd.style.opacity = '0.35';
-            originTd.style.background = '#f7931a';
-        }
-    }
-    var _lastHoverSq = null;
-    function moveDragGhost(x, y) {
-        if (!dragGhost) return;
-        dragGhost.style.left = x + 'px';
-        dragGhost.style.top  = y + 'px';
-        // Highlight the square currently under the ghost
-        var el = document.elementFromPoint(x, y);
-        var td = el; while (td && td.tagName !== 'TD') td = td.parentElement;
-        var hoverSq = td ? td.getAttribute('data-sq') : null;
-        if (hoverSq !== _lastHoverSq) {
-            // Un-highlight previous hover square
-            if (_lastHoverSq && _lastHoverSq !== dragFrom) {
-                var prevTd = board.querySelector('[data-sq="' + _lastHoverSq + '"]');
-                if (prevTd) { prevTd.style.background = ''; prevTd.style.outline = ''; }
-            }
-            // Highlight new hover square
-            if (hoverSq && hoverSq !== dragFrom) {
-                var newTd = board.querySelector('[data-sq="' + hoverSq + '"]');
-                if (newTd) {
-                    newTd.style.background = 'rgba(247,147,26,0.55)';
-                    newTd.style.outline = '2px inset rgba(247,147,26,0.9)';
-                }
-            }
-            _lastHoverSq = hoverSq;
-        }
-    }
-    function endDrag(toSq) {
-        if (dragGhost) { dragGhost.remove(); dragGhost = null; }
-        // Restore hover-highlighted square
-        if (_lastHoverSq) {
-            var hTd = board.querySelector('[data-sq="' + _lastHoverSq + '"]');
-            if (hTd) { hTd.style.background = ''; hTd.style.outline = ''; }
-            _lastHoverSq = null;
-        }
-        // Restore origin cell before any re-render
-        if (dragFrom) {
-            var originTd = board.querySelector('[data-sq="' + dragFrom + '"]');
-            if (originTd) { originTd.style.opacity = ''; }
-        }
-        if (!dragFrom || !toSq || dragFrom === toSq) {
-            wrap._chessSelected = null;
-            dragFrom = null;
+        if (piece && piece[0] === movingColor) {
+            wrap._chessSelected = sq;
+            wrap._chessLegal = _chessLegalDests(wrap._chessPieces, sq);
             _chessRender(id);
             return;
         }
-        var fromSq = dragFrom;
-        dragFrom = null;
-        wrap._chessSelected = null;
-        _chessTryMove(id, fromSq, toSq);
+        if (wrap._chessSelected && wrap._chessLegal && wrap._chessLegal.indexOf(sq) !== -1) {
+            var from = wrap._chessSelected;
+            wrap._chessSelected = null;
+            wrap._chessLegal = null;
+            _chessTryMove(id, from, sq);
+            return;
+        }
+        // Tap empty/enemy with no legal target: clear selection
+        if (wrap._chessSelected) {
+            wrap._chessSelected = null;
+            wrap._chessLegal = null;
+            _chessRender(id);
+        }
     }
 
-    // Mouse
-    board.addEventListener('mousedown', function(e) {
-        var td = getTd(e); if (!td) return;
-        var sq = sqOf(td);
-        if (dragFrom === null) {
-            startDrag(sq, e.clientX, e.clientY);
-        }
+    board.addEventListener('click', function(e) {
+        var td = tdFromEvent(e);
+        if (!td) return;
+        onSelect(sqOf(td));
     });
-    window.addEventListener('mousemove', function(e) { moveDragGhost(e.clientX, e.clientY); });
-    window.addEventListener('mouseup', function(e) {
-        if (dragFrom === null) return;
-        var el = document.elementFromPoint(e.clientX, e.clientY);
-        var td = el;
-        while (td && td.tagName !== 'TD') td = td.parentElement;
-        endDrag(sqOf(td));
-    }, {once: false});
 
-    // Touch
+    // Touch: treat as tap-to-move (more reliable than drag on phones)
+    var touchSq = null, touchMoved = false, touchX = 0, touchY = 0;
     board.addEventListener('touchstart', function(e) {
         var t = e.touches[0];
-        var td = getTd({target: document.elementFromPoint(t.clientX, t.clientY)});
-        if (!td) return;
-        var sq = sqOf(td);
-        startDrag(sq, t.clientX, t.clientY);
+        touchX = t.clientX; touchY = t.clientY; touchMoved = false;
+        var el = document.elementFromPoint(t.clientX, t.clientY);
+        var td = el; while (td && td.tagName !== 'TD') td = td.parentElement;
+        touchSq = sqOf(td);
         e.preventDefault();
     }, {passive: false});
     board.addEventListener('touchmove', function(e) {
         var t = e.touches[0];
-        moveDragGhost(t.clientX, t.clientY);
+        if (Math.abs(t.clientX - touchX) > 12 || Math.abs(t.clientY - touchY) > 12) touchMoved = true;
         e.preventDefault();
     }, {passive: false});
     board.addEventListener('touchend', function(e) {
-        var t = e.changedTouches[0];
-        var el = document.elementFromPoint(t.clientX, t.clientY);
-        var td = el;
-        while (td && td.tagName !== 'TD') td = td.parentElement;
-        endDrag(sqOf(td));
         e.preventDefault();
+        if (touchMoved) {
+            // Allow short drag onto a destination square
+            var t = e.changedTouches[0];
+            var el = document.elementFromPoint(t.clientX, t.clientY);
+            var td = el; while (td && td.tagName !== 'TD') td = td.parentElement;
+            var toSq = sqOf(td);
+            if (touchSq && toSq && touchSq !== toSq) {
+                wrap._chessSelected = touchSq;
+                wrap._chessLegal = _chessLegalDests(wrap._chessPieces, touchSq);
+                onSelect(toSq);
+            }
+        } else if (touchSq) {
+            onSelect(touchSq);
+        }
+        touchSq = null;
     }, {passive: false});
 }
 
@@ -8866,26 +8932,45 @@ function _chessTryMove(id, from, to) {
     if (!wrap) return;
     var puzzle = _chessDailyPuzzle(id);
     var msgEl = document.getElementById('chess-msg-' + id);
-    var isCorrect = (from === puzzle.solution.from && to === puzzle.solution.to);
+    var turn = puzzle.turn || 'w';
+    var pieces = wrap._chessPieces || puzzle.pieces;
+    var isCorrect = _chessIsMatingMove(pieces, turn, from, to);
+    // Still accept the authored solution if the light engine ever disagrees
+    if (!isCorrect && from === puzzle.solution.from && to === puzzle.solution.to) isCorrect = true;
     if (isCorrect) {
-        // Apply move visually
         wrap._chessPieces[to] = wrap._chessPieces[from];
         delete wrap._chessPieces[from];
+        wrap._chessSelected = null;
+        wrap._chessLegal = null;
         _chessRender(id);
-        var winGlyph = (puzzle.turn === 'b') ? '\u265a' : '\u2654';
+        var winGlyph = (turn === 'b') ? '\u265a' : '\u2654';
         if (msgEl) { msgEl.textContent = winGlyph + ' Checkmate! +5 XP'; msgEl.style.color = '#22c55e'; }
         setTimeout(function() { _flexMarkDone(id, function() { _flexCardSuccess(id); }); }, 600);
     } else {
-        // Wrong move — shake and reset to original position
-        if (msgEl) { msgEl.textContent = 'Not quite — try again!'; msgEl.style.color = '#ef4444'; }
-        wrap._chessPieces = Object.assign({}, puzzle.pieces); // reset
+        var legal = _chessLegalDests(pieces, from);
+        if (msgEl) {
+            msgEl.textContent = legal.indexOf(to) === -1 ? 'That move is not legal — try again!' : 'Not checkmate — try again!';
+            msgEl.style.color = '#ef4444';
+        }
+        wrap._chessPieces = Object.assign({}, puzzle.pieces);
+        wrap._chessSelected = null;
+        wrap._chessLegal = null;
         var board = document.getElementById('chess-board-' + id);
         if (board) { board.style.animation = 'flexShake 0.4s'; setTimeout(function() { board.style.animation = ''; }, 400); }
         setTimeout(function() {
             _chessRender(id);
-            if (msgEl) { msgEl.textContent = puzzle.hint ? '\ud83d\udca1 Hint: ' + puzzle.hint : ''; msgEl.style.color = 'var(--text-muted)'; }
+            if (msgEl) { msgEl.textContent = puzzle.hint ? 'Hint: ' + puzzle.hint : 'Find the checkmate in one move.'; msgEl.style.color = 'var(--text-muted)'; }
         }, 450);
     }
+}
+
+function _chessToggleFlip(id) {
+    var wrap = document.getElementById('chess-wrap-' + id);
+    if (!wrap) return;
+    wrap._chessFlip = !(wrap._chessFlip === true);
+    wrap._chessSelected = null;
+    wrap._chessLegal = null;
+    _chessRender(id);
 }
 
 function _chessStart(id) {
