@@ -3061,7 +3061,7 @@ function inviteSharePayload(link) {
     var url = String(link || '').trim() || shareHomeUrl();
     return {
         title: 'Bitcoin Quest',
-        text: "Learn Bitcoin with me. When you reach 2,140 points (Scholar exam points don't count), we both get 50 orange tickets.",
+        text: "Learn Bitcoin with me. When you reach 2,140 XP (Scholar exam points don't count), we both see it right away. 50 Orange Tickets unlock after your account is 7 days old and passes checks.",
         url: url
     };
 }
@@ -3229,22 +3229,44 @@ async function getReferralStats() {
         let total = snapshot.size;
         let verified = 0;
         let pending = 0;
+        let reachedXp = 0;
 
         snapshot.forEach(doc => {
             var data = doc.data() || {};
-            var reached = data.verified === true || data.status === 'paid' || data.ticketsAwarded === true;
-            if (reached) verified++;
+            var rewarded = data.verified === true || data.status === 'paid' || data.ticketsAwarded === true;
+            if (rewarded) verified++;
             else pending++;
+            if (data.maxiReachedAt || rewarded) reachedXp++;
         });
 
-        var stats = { total: total, verified: verified, pending: pending, invited: total, maxi: verified };
+        var stats = {
+            total: total,
+            verified: verified,
+            pending: pending,
+            invited: total,
+            maxi: verified,
+            reached: reachedXp,
+            maxiReached: reachedXp,
+            rewarded: verified
+        };
         _inviteStatsCache = { uid: uid, at: now, stats: stats };
         return stats;
     } catch (e) {
         var invited = parseInt(currentUser.referralInvited, 10);
         var maxi = parseInt(currentUser.referralCount, 10) || 0;
+        var reached = parseInt(currentUser.referralMaxiReachedCount, 10);
+        if (isNaN(reached)) reached = maxi;
         if (!isNaN(invited)) {
-            return { total: invited, verified: maxi, pending: Math.max(0, invited - maxi), invited: invited, maxi: maxi };
+            return {
+                total: invited,
+                verified: maxi,
+                pending: Math.max(0, invited - maxi),
+                invited: invited,
+                maxi: maxi,
+                reached: reached,
+                maxiReached: reached,
+                rewarded: maxi
+            };
         }
         return { total: 0, verified: 0, pending: 0, invited: 0, maxi: 0, failed: true };
     }
@@ -3284,7 +3306,7 @@ function renderReferralSection() {
 
     return '<div id="inviteSettingsBlock" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
         '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Invite friends</div>' +
-        '<p id="inviteSettingsEarn" style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin:0 0 12px;">When a friend you invite reaches 2,140 points (Scholar exam points don\'t count), you both get 50 orange tickets.</p>' +
+        '<p id="inviteSettingsEarn" style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin:0 0 12px;">When a friend you invite reaches 2,140 XP (Scholar exam points don\'t count), both of you see it right away. Tickets unlock after their account is 7 days old and passes the usual checks.</p>' +
         '<p id="inviteSettingsLink" style="margin:0 0 12px;padding:10px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:monospace;word-break:break-all;"></p>' +
         '<button type="button" onclick="openInviteFriends(true)" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Invite friends</button>' +
         '<div id="referralStats" style="color:var(--text-muted);font-size:0.8rem;margin-top:10px;"></div>' +
@@ -3503,11 +3525,15 @@ function _copyTextNow(text) {
 
 function _inviteCountLine(stats) {
     var invited = stats && typeof stats.invited === 'number' ? stats.invited : 0;
-    var maxi = stats && typeof stats.maxi === 'number' ? stats.maxi : 0;
-    if (!invited && !maxi) return 'No invites yet.';
+    var reached = stats && typeof stats.reached === 'number' ? stats.reached
+        : (stats && typeof stats.maxiReached === 'number' ? stats.maxiReached : 0);
+    var rewarded = stats && typeof stats.rewarded === 'number' ? stats.rewarded
+        : (stats && typeof stats.maxi === 'number' ? stats.maxi : 0);
+    if (!invited && !reached && !rewarded) return 'No invites yet.';
     var invitedLabel = invited === 1 ? '1 friend invited' : invited + ' friends invited';
-    var maxiLabel = maxi === 1 ? '1 earned 2,140' : maxi + ' earned 2,140';
-    return invitedLabel + ' · ' + maxiLabel;
+    var reachedLabel = (reached === 1 ? '1 reached 2,140 XP' : reached + ' reached 2,140 XP');
+    var rewardedLabel = (rewarded === 1 ? '1 rewarded' : rewarded + ' rewarded');
+    return invitedLabel + ' · ' + reachedLabel + ' · ' + rewardedLabel;
 }
 
 function _fillInviteCard() {
@@ -3535,7 +3561,12 @@ function _loadInviteCounts() {
         }
         var el = document.getElementById('inviteCounts');
         if (!el) return;
-        if (maxi) el.textContent = maxi + (maxi === 1 ? ' earned 2,140' : ' earned 2,140');
+        var reached = 0;
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            reached = parseInt(currentUser.referralMaxiReachedCount, 10);
+            if (isNaN(reached)) reached = maxi;
+        }
+        if (reached || maxi) el.textContent = (reached || 0) + ' reached 2,140 XP · ' + maxi + ' rewarded';
         else el.textContent = 'Invite counts load when you are online.';
     });
 }
@@ -16869,6 +16900,13 @@ function openWalletWhenReady() {
 }
 window.openWalletWhenReady = openWalletWhenReady;
 
+window.runSurfaceAction = runSurfaceAction;
+
+function decorateFavoriteStar(tile, id) {
+    if (typeof window.bqDecorateFavoriteTile === 'function') {
+        window.bqDecorateFavoriteTile(tile, id);
+    }
+}
 function runSurfaceAction(item) {
     if (!item) return;
     if (item.kind === 'go' && item.arg === 'wallet') openWalletWhenReady();
@@ -17083,6 +17121,7 @@ window.openMobileExploreApps = function() {
             runSurfaceAction(item);
         });
         grid.appendChild(btn);
+        decorateFavoriteStar(btn, item.id);
     });
     if (!apps.length) {
         var empty = document.createElement('p');
@@ -17213,6 +17252,7 @@ window.renderDesktopAppsMenu = function() {
             runSurfaceAction(item);
         });
         grid.appendChild(btn);
+        decorateFavoriteStar(btn, item.id);
     });
     appendHiddenAppsHint(grid, mobileExperienceMode());
 };

@@ -90,15 +90,26 @@
         return activityPoints(user) >= MAXI_RANK_POINTS;
     }
 
-    function maxiCountHelp(invited, reached) {
+    function maxiCountHelp(invited, reached, rewarded) {
         var points = String(MAXI_RANK_POINTS).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
         var inv = Math.floor(Number(invited));
         if (!isFinite(inv) || inv < 0) inv = 0;
         var got = Math.floor(Number(reached));
         if (!isFinite(got) || got < 0) got = 0;
+        var paid = Math.floor(Number(rewarded));
+        if (!isFinite(paid) || paid < 0) paid = got;
         var people = inv === 1 ? "You've invited 1 person." : "You've invited " + inv + " people.";
-        var rank = (got === 1 ? '1 reached' : got + ' reached') + ' ' + points + " points (Scholar exam points don't count).";
-        return people + ' ' + rank + ' Only those referrals count.';
+        var rank = (got === 1 ? '1 reached' : got + ' reached') + ' ' + points + " XP (Scholar exam points don't count).";
+        var reward = (paid === 1 ? '1 rewarded' : paid + ' rewarded') + '.';
+        return people + ' ' + rank + ' ' + reward + ' Tickets unlock after the account is 7 days old and passes checks. Tier badges use rewarded referrals.';
+    }
+
+    function reachedRewardLabel(reached, rewarded) {
+        var got = Math.floor(Number(reached));
+        if (!isFinite(got) || got < 0) got = 0;
+        var paid = Math.floor(Number(rewarded));
+        if (!isFinite(paid) || paid < 0) paid = 0;
+        return got + ' reached 2,140 XP · ' + paid + ' rewarded';
     }
 
     function badgeTiers() {
@@ -318,6 +329,7 @@
         activityPoints: activityPoints,
         holdsMaxiRank: holdsMaxiRank,
         maxiCountHelp: maxiCountHelp,
+        reachedRewardLabel: reachedRewardLabel,
         badgeTiers: badgeTiers,
         badgeIds: badgeIds,
         badgeById: badgeById,
