@@ -353,6 +353,13 @@ service cloud.firestore {
             || request.resource.data.inviteCard == 'open'
             || request.resource.data.inviteCard == 'min'
             || request.resource.data.inviteCard == 'off')
+          // Experience Mode. Owner may only store the four whitelisted mode ids.
+          && (!changed.hasAny(['experienceMode'])
+            || !('experienceMode' in request.resource.data)
+            || request.resource.data.experienceMode == 'lite'
+            || request.resource.data.experienceMode == 'beginner'
+            || request.resource.data.experienceMode == 'intermediate'
+            || request.resource.data.experienceMode == 'advanced')
           && (!changed.hasAny(['beatsShowUncensored'])
             || !('beatsShowUncensored' in request.resource.data)
             || request.resource.data.beatsShowUncensored == true

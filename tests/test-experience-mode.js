@@ -215,7 +215,10 @@ queue.push(test('earning paths do not read experienceMode', function () {
     });
     assert.ok(!read('badges.js').includes('experienceMode'));
     const rules = read('firestore.rules');
-    assert.ok(!rules.includes('experienceMode'));
+    assert.ok(rules.includes("experienceMode == 'lite'"));
+    assert.ok(rules.includes("experienceMode == 'beginner'"));
+    assert.ok(rules.includes("experienceMode == 'intermediate'"));
+    assert.ok(rules.includes("experienceMode == 'advanced'"));
     assert.ok(!rules.includes('modeCardDismissed'));
     const src = read('onboarding.js.src');
     assert.ok(src.includes("setExperienceMode('advanced')"));
@@ -382,8 +385,12 @@ queue.push(test('home mode bar is available in every mode', function () {
     assert.ok(!src.includes('bq-mode-lite #bqHomeModeBar'));
     assert.ok(src.includes("localStorage.setItem('btc_experience_mode', mode)"));
     assert.ok(read('features.registry.js').includes('#bqHomeModeBar'));
-    assert.ok(read('features.registry.js').includes('max-width:719px'));
+    assert.ok(read('features.registry.js').includes('btc_experience_section_collapsed'));
+    assert.ok(read('features.registry.js').includes('bqWriteHomeModeCollapsedPref'));
+    assert.ok(read('features.registry.js').includes('#bqHomeModeBar.is-open #bqHomeModePanel'));
     assert.ok(read('features.registry.js').includes("What's included"));
+    assert.ok(read('firestore.rules').includes("experienceMode == 'lite'"));
+    assert.ok(read('onboarding.js.src').includes('bqWriteHomeModeCollapsedPref(true)'));
     reg.BQ_MODES.forEach(function (id) {
         assert.ok(reg.bqModeBrief(id).notes.some(function (n) { return n.indexOf('top of home') !== -1; }), id);
     });
@@ -419,15 +426,37 @@ queue.push(test('home mode bar is available in every mode', function () {
     buttons[2].click();
     assert.strictEqual(picked, 'intermediate');
     const toggle = nodes.filter(function (n) { return n.id === 'bqHomeModeToggle'; })[0];
-    assert.strictEqual(toggle.attrs['aria-expanded'], 'false');
-    toggle.click();
-    assert.ok(bar.classList.contains('is-open'));
+    // No stored choice yet -> forced open so the user can pick.
     assert.strictEqual(toggle.attrs['aria-expanded'], 'true');
+    assert.ok(bar.classList.contains('is-open'));
+    toggle.click();
+    assert.ok(!bar.classList.contains('is-open'));
+    assert.strictEqual(toggle.attrs['aria-expanded'], 'false');
+    // With a stored choice and no localStorage pref, default collapsed.
+    const store = {};
+    global.localStorage = {
+        getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
+        setItem: function (k, v) { store[k] = String(v); },
+        removeItem: function (k) { delete store[k]; }
+    };
     reg.bqFillHomeModeBar(bar, { current: 'lite', stored: 'lite', onPick: function () {} });
     const again = dom.collect(bar, []);
     const liteBtn = again.filter(function (n) { return n.attrs && n.attrs['data-mode'] === 'lite'; })[0];
     assert.strictEqual(liteBtn.attrs['aria-pressed'], 'true');
     assert.ok(again.some(function (n) { return n.textContent === ' (current)'; }));
+    assert.ok(!bar.classList.contains('is-open'));
+    const toggle2 = again.filter(function (n) { return n.id === 'bqHomeModeToggle'; })[0];
+    assert.strictEqual(toggle2.attrs['aria-expanded'], 'false');
+    assert.ok(again.some(function (n) { return n.className === 'bq-home-mode-toggle-label' && /Lite/.test(n.textContent); }));
+    toggle2.click();
+    assert.ok(bar.classList.contains('is-open'));
+    assert.strictEqual(store.btc_experience_section_collapsed, '0');
+    toggle2.click();
+    assert.ok(!bar.classList.contains('is-open'));
+    assert.strictEqual(store.btc_experience_section_collapsed, '1');
+    // Pref open survives a rebuild.
+    store.btc_experience_section_collapsed = '0';
+    reg.bqFillHomeModeBar(bar, { current: 'lite', stored: 'lite', onPick: function () {} });
     assert.ok(bar.classList.contains('is-open'));
 }));
 
