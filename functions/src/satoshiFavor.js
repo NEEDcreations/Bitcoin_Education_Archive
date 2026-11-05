@@ -1069,6 +1069,17 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
           ts: epochTs,
         }).catch(e => console.warn('[FAVOR] Epoch announce announcements failed:', e.message));
         console.log(`[FAVOR] Epoch #${epochNum} completion announced to chat.`);
+        // Admin-approve payout ledger. Does not send sats.
+        try {
+          const favorEpochJobs = require('./favorEpochJobs');
+          await favorEpochJobs.finalizeEpoch(db, admin, {
+            epochNumber: epochNum,
+            blocks: blocks,
+            nowMs: Date.now(),
+          });
+        } catch (e) {
+          console.warn('[FAVOR] epoch payout breakdown failed:', e.message);
+        }
         const share = Math.floor(21000 / Math.max(1, blocks.length));
         const seen = {};
         for (let bi = 0; bi < blocks.length; bi++) {

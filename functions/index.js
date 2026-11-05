@@ -6807,14 +6807,36 @@ exports.syncCycleToTop10 = syncCycleToTop10;
 exports.backfillFactionTotals = backfillFactionTotals;
 exports.getFactionTotals = getFactionTotals;
 
+// Favor epoch / window sats: admin breakdown + typed APPROVE. No auto-pay.
+const favorEpochJobs = require('./src/favorEpochJobs').factory(functionsV1, { db: db, admin: admin });
+exports.adminFavorPayoutBreakdown = favorEpochJobs.adminFavorPayoutBreakdown;
+exports.adminApproveFavorPayout = favorEpochJobs.adminApproveFavorPayout;
+
 // Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online).
 // The same private minute job posts the one ending heads-up. No public invoker.
 const { announceFavorEnding } = require('./src/favorEndingAnnounce');
 exports.satoshiFavorAutoReset = onSchedule({ schedule: '* * * * *', timeZone: 'UTC' }, async (event) => {
     try {
+        // Snapshot the live window winner before reset clears it.
+        let windowSnap = null;
+        try {
+            const cur = await db.collection('satoshiFavor').doc('current').get();
+            if (cur.exists) windowSnap = cur.data() || null;
+        } catch (e) { /* ignore */ }
         const result = await resetExpiredFavor();
         if (result && result.reset) {
             console.log('[SF-CRON] Auto-reset expired favor at', new Date().toISOString());
+            try {
+                const favorEpochJobs = require('./src/favorEpochJobs');
+                await favorEpochJobs.finalizeWindow(db, admin, {
+                    cycleId: windowSnap && windowSnap.currentCycleId,
+                    winnerUid: windowSnap && windowSnap.lowestHashThisWindowUid,
+                    winnerUsername: windowSnap && windowSnap.lowestHashThisWindowUsername,
+                    nowMs: Date.now(),
+                });
+            } catch (e) {
+                console.warn('[SF-CRON] window payout breakdown failed:', e.message);
+            }
         }
     } catch (e) {
         console.warn('[SF-CRON] reset failed:', e.message);

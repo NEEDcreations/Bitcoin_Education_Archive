@@ -43,6 +43,7 @@ const TESTS = [
     { name: 'Badge engine', file: 'test-badge-engine.js' },
     { name: 'Badge distribution', file: 'test-badge-distribution.js' },
     { name: 'SF live announce', file: 'test-sf-announce.js' },
+    { name: 'Favor epoch admin payouts', file: 'test-favor-epoch-prizes.js' },
     { name: 'GGs badge tooltips', file: 'test-gg-badge-tags.js' },
     { name: 'GGs celebration', file: 'test-gg-reaction.js' },
     { name: 'New badge sources', file: 'test-new-badges.js' },

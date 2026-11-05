@@ -1182,10 +1182,21 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         if (win.status === 'paying') throw httpsError('failed-precondition', 'A payment is already in progress. Wait a minute and try again.');
         if (win.status === 'unknown') throw httpsError('failed-precondition', 'This payment needs Phil to confirm it before it can be claimed again.');
         if (win.status !== 'claimable') throw httpsError('failed-precondition', 'This prize is waiting for Phil to pay it.');
-        if (win.amount >= 1000 || (win.amount !== 100 && win.amount !== 500)) {
+        const sfSource = win.source === 'sf_epoch' || win.source === 'sf_window';
+        if (sfSource) {
+            if (!(win.adminApproved === true)) throw httpsError('failed-precondition', 'This prize is waiting for Phil to approve it.');
+            if (win.amount > 5000) throw httpsError('failed-precondition', 'This prize is paid manually.');
+        } else if (win.amount >= 1000 || (win.amount !== 100 && win.amount !== 500)) {
             throw httpsError('failed-precondition', 'This prize is paid manually.');
         }
         const userRow = userDoc.exists ? (userDoc.data() || {}) : {};
+        if (sfSource) {
+            const locked = String(win.lockedLightningAddress || '').trim().toLowerCase();
+            const saved = String(userRow.lightningAddress || userRow.lightning || userRow.lnAddress || '').trim().toLowerCase();
+            if (!locked || !saved || locked !== saved) {
+                throw httpsError('failed-precondition', 'Claim with the Lightning address saved before this Favor pot closed.');
+            }
+        }
         if (Number(userRow.satsHold) > Date.now()) {
             throw httpsError('failed-precondition', 'Sats withdrawals are paused on this account. Try again later.');
         }
@@ -1217,8 +1228,38 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     }
     const netAmount = winFee.net;
     let invoice;
+    let sfLockedLn = '';
     try {
-        invoice = await _resolvePrizeInvoice(data.invoice, data.lightningAddress, netAmount);
+        const winAfter = await winRef.get();
+        const w = winAfter.exists ? (winAfter.data() || {}) : {};
+        if (w.source === 'sf_epoch' || w.source === 'sf_window') {
+            sfLockedLn = String(w.lockedLightningAddress || '').trim().toLowerCase();
+            // Reserve against the Favor site daily cap before resolving an invoice.
+            const day = new Date().toISOString().slice(0, 10);
+            const siteRef = db.collection('sf_payout_site_daily').doc(day);
+            const lockRef = db.collection('sf_payout_locks').doc(winId);
+            await db.runTransaction(async (t) => {
+                const siteSnap = await t.get(siteRef);
+                const lockSnap = await t.get(lockRef);
+                if (lockSnap.exists && (lockSnap.data() || {}).reserved === true) return;
+                const used = siteSnap.exists ? (Math.floor(Number((siteSnap.data() || {}).reservedSats) || 0)) : 0;
+                if (used + amount > 100000) throw new Error('SITE_DAILY_CAP');
+                t.set(siteRef, {
+                    reservedSats: used + amount,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                }, { merge: true });
+                t.set(lockRef, { reserved: true, amount: amount, day: day, uid: uid, at: Date.now() }, { merge: true });
+            });
+        }
+    } catch (e) {
+        await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
+        if (e && e.message === 'SITE_DAILY_CAP') {
+            return { success: false, error: 'Daily Favor payout cap reached. Try again tomorrow or ask Phil.' };
+        }
+        return { success: false, error: e.message || 'Could not reserve this Favor payout.' };
+    }
+    try {
+        invoice = await _resolvePrizeInvoice(sfLockedLn ? '' : (data && data.invoice), sfLockedLn || (data && data.lightningAddress), netAmount);
     } catch (e) {
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
         return { success: false, error: e.message || 'Could not pay that invoice.' };
@@ -1311,7 +1352,12 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     try {
         const balanceResult = await withTimeout(nwc.getBalance(), 20000, 'getBalance');
         const walletSats = Math.floor((balanceResult.balance || 0) / 1000);
-        if (walletSats < WALLET_FLOOR_SATS) throw new Error('WALLET_LOW');
+        // Favor pots keep a floor after the send; other cipher wins keep the prior check.
+        if (sfLockedLn) {
+            if (walletSats - amount < WALLET_FLOOR_SATS) throw new Error('WALLET_LOW');
+        } else if (walletSats < WALLET_FLOOR_SATS) {
+            throw new Error('WALLET_LOW');
+        }
         phase = 'pay';
         payResult = await withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');

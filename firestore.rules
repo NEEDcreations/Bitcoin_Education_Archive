@@ -2334,7 +2334,27 @@ service cloud.firestore {
 
     // Personal bests — public read, server writes
     // Personal bests — legacy parent doc (read-only, server writes)
-    match /satoshiFavor/personalBests {
+        // Favor epoch / window payout results — admin reads via callables; clients cannot write.
+    match /sf_payout_results/{resultId} {
+      allow read: if isAdmin();
+      allow write: if false;
+      match /{sub}/{docId} {
+        allow read: if isAdmin();
+        allow write: if false;
+      }
+    }
+    match /sf_payout_site_daily/{day} {
+      allow read, write: if false;
+    }
+    match /sf_payout_locks/{id} {
+      allow read, write: if false;
+    }
+    match /config/satoshiFavorPayouts {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+match /satoshiFavor/personalBests {
       allow read: if true;
       allow write: if false;
 
