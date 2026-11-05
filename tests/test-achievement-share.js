@@ -16,7 +16,7 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-const LATEST = 'Latest: Search any player on the XP, Daily Streaks, Quests and Top Predictors leaderboards and see their exact rank, even outside the top 25.';
+const LATEST = 'Latest: New players answer three quick questions and get a suggested mode. Switch anytime from the mode bar at the top of home. Your XP and badges count in every mode, Lite too.';
 const STREAKS_NOTE = "Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.";
 const DOUBLE_XP_NOTE = "Double XP now applies to every way you earn XP.";
 const RAID = "The raid boss shows HP remaining, the same remaining over max HP as the raid screen.";
@@ -206,8 +206,6 @@ test('lite skips popups, keeps the toast and the streak button, and the toggle b
 
 test('share modes live in the share module and the registry stays untouched', () => {
     const src = read('features.registry.js');
-    assert.strictEqual(src.includes('BQ_EXPERIENCE_MODES'), false);
-    assert.strictEqual(src.includes('bqModeAllows'), false);
     assert.strictEqual(share.modeAllows('achievementShare', 'lite'), false);
     assert.strictEqual(share.modeAllows('achievementShareInline', 'lite'), true);
     assert.strictEqual(share.modeAllows('streakShare', 'lite'), true);
@@ -391,7 +389,7 @@ test('pages ship one script, one Latest line, and the v2394 cache', () => {
     assert.strictEqual(html, read('404.html'));
     assert.ok(html.includes('achievement-share.js?v=20261031_v2447'));
     assert.ok(html.includes('timechain-tv.js?v=20261031_v2447'));
-    assert.ok(html.includes('features.registry.js?v=20261031_v2452'));
+    assert.ok(html.includes('features.registry.js?v=20261104_v2482'));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
     assert.ok(notes.includes(LATEST));

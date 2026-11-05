@@ -167,6 +167,7 @@
     }
 
     function showSheet(entry, debug) {
+        if (typeof window.bqModeAllows === 'function' && !window.bqModeAllows('pvpLobby')) return;
         ensureStyle();
         var existing = document.getElementById('pvpLobbyAlert');
         if (existing) existing.remove();

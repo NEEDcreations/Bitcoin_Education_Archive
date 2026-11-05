@@ -29,7 +29,7 @@ const {
 // same commit that is merged and deployed. Until then it stays far in the
 // future, which exempts every account (no requirements apply).
 const CLAIM_REQS_START_UNSET_ISO = '9999-12-31T23:59:59.000Z';
-const CLAIM_REQS_START_ISO = CLAIM_REQS_START_UNSET_ISO;
+const CLAIM_REQS_START_ISO = '2026-11-05T03:52:31.000Z';
 const CLAIM_REQS_START = Date.parse(CLAIM_REQS_START_ISO);
 const MIN_CHAT_CHARS = 3;
 const MIN_TCTV_SECONDS = tctvWatch.CREDIT_SECONDS;

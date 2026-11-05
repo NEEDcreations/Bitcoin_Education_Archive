@@ -271,7 +271,7 @@ test('pages ship the helper, one Latest line, and the v2453 cache', () => {
     assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2455'"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: Search any player on the XP, Daily Streaks, Quests and Top Predictors leaderboards and see their exact rank, even outside the top 25.'));
+    assert.ok(notes.includes('Latest: New players answer three quick questions and get a suggested mode. Switch anytime from the mode bar at the top of home. Your XP and badges count in every mode, Lite too.'));
     assert.ok(notes.includes('A returning signed-in player sees their home as soon as the page paints.'));
     assert.strictEqual(notes.includes('Latest: A returning signed-in player'), false);
     assert.ok(read('app.js').includes('window.miniAppConsumeHash'));
