@@ -480,30 +480,36 @@
         .consent-hint[hidden] { display:none !important; }
         .consent-row.shake, .tos-check-row.shake { animation: consentShake 0.45s ease; }
         @keyframes consentShake { 0%,100% { transform:translateX(0); } 20% { transform:translateX(-6px); } 40% { transform:translateX(6px); } 60% { transform:translateX(-4px); } 80% { transform:translateX(4px); } }
-        #tosModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.72); z-index:2100010; }
-        #tosModal.open { display:flex; align-items:flex-end; justify-content:center; }
-        #tosModal .tos-box { display:flex; flex-direction:column; background:rgba(15,23,42,0.98); border:1px solid rgba(247,147,26,0.3); border-radius:20px 20px 16px 16px; padding:20px 16px 16px; width:min(440px, calc(100% - 32px)); max-height:calc(100vh - 24px); max-height:calc(100dvh - 24px); margin:12px auto max(12px, env(safe-area-inset-bottom, 0px)); box-shadow:0 20px 60px rgba(0,0,0,0.7); overflow:hidden; box-sizing:border-box; }
-        #tosModal .tos-scroll { overflow:auto; -webkit-overflow-scrolling:touch; flex:1 1 auto; min-height:0; }
-        #tosModal .tos-footer { flex:0 0 auto; padding-top:10px; padding-bottom:max(0px, env(safe-area-inset-bottom, 0px)); }
-        #tosModal h2 { color:#f7931a; font-size:1.3rem; margin-bottom:8px; text-align:center; }
-        #tosModal .tos-subtitle { color:#94a3b8; font-size:0.85rem; margin-bottom:16px; text-align:center; line-height:1.5; }
+        /* TOS modal: stay above every other overlay; sticky Accept footer; scroll body only.
+           Mode / onboarding chrome hides while Terms is open so players are not stuck. */
+        #tosModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.82); z-index:5000000; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
+        #tosModal.open { display:flex; align-items:center; justify-content:center; padding:16px; padding-bottom:max(16px, env(safe-area-inset-bottom, 0px)); box-sizing:border-box; }
+        #tosModal .tos-box { display:flex; flex-direction:column; background:rgba(15,23,42,0.98); border:1px solid rgba(247,147,26,0.3); border-radius:20px; padding:0; width:min(440px, 100%); max-height:min(calc(100vh - 32px), calc(100dvh - 32px)); margin:0 auto; box-shadow:0 20px 60px rgba(0,0,0,0.7); overflow:hidden; box-sizing:border-box; }
+        #tosModal .tos-scroll { overflow:auto; -webkit-overflow-scrolling:touch; flex:1 1 auto; min-height:0; padding:20px 16px 8px; }
+        #tosModal .tos-footer { flex:0 0 auto; flex-shrink:0; position:sticky; bottom:0; z-index:2; padding:12px 16px max(12px, env(safe-area-inset-bottom, 0px)); background:rgba(15,23,42,1); border-top:1px solid rgba(247,147,26,0.2); box-shadow:0 -8px 24px rgba(0,0,0,0.35); }
+        #tosModal h2 { color:#f7931a; font-size:1.3rem; margin:0 0 8px; text-align:center; }
+        #tosModal .tos-subtitle { color:#94a3b8; font-size:0.85rem; margin:0 0 16px; text-align:center; line-height:1.5; }
         #tosModal .tos-links { background:rgba(247,147,26,0.06); border:1px solid rgba(247,147,26,0.15); border-radius:10px; padding:14px 16px; margin-bottom:8px; }
         #tosModal .tos-links a { display:flex; align-items:center; gap:8px; color:#f7931a; font-size:0.9rem; font-weight:600; text-decoration:none; padding:6px 0; }
         #tosModal .tos-links a:hover { text-decoration:underline; }
         #tosModal .tos-links a + a { border-top:1px solid rgba(255,255,255,0.06); margin-top:4px; padding-top:10px; }
-        #tosModal .tos-accept-btn { width:100%; min-height:48px; padding:14px; background:#f7931a; border:none; border-radius:10px; color:#fff; font-size:1rem; font-weight:700; cursor:pointer; font-family:inherit; opacity:1; pointer-events:auto; }
+        #tosModal .tos-accept-btn { display:block; width:100%; min-height:52px; padding:14px; background:#f7931a; border:none; border-radius:10px; color:#fff; font-size:1rem; font-weight:700; cursor:pointer; font-family:inherit; opacity:1; pointer-events:auto; }
         #tosModal .tos-accept-btn:hover { background:#ea580c; }
+        #tosModal .tos-accept-btn:disabled { opacity:0.7; cursor:wait; }
         #tosModal .tos-signout { display:block; text-align:center; margin-top:12px; color:#475569; font-size:0.78rem; cursor:pointer; }
         #tosModal .tos-signout:hover { color:#94a3b8; }
-        @media (max-width: 480px) { #tosModal .tos-box { width:calc(100% - 32px); padding:20px 16px 16px; } }
+        @media (max-width: 480px) { #tosModal .tos-box { width:100%; } }
         body:has(#tosModal.open) .rank-toast,
         body:has(#tosModal.open) #nachoQuestPill,
         body:has(#tosModal.open) #btcIntroOverlay,
+        body:has(#tosModal.open) #bqModeHomeCard,
+        body:has(#tosModal.open) #nachoQuestOverlay,
         body:has(#tosModal.open) #guestPointsBanner,
         body:has(#tosModal.open) #nwcSecAlert,
         body:has(#tosModal.open) #usernameRepick,
         body:has(#tosModal.open) #totpSignInOverlay,
-        body:has(#tosModal.open) #mfaSignInOverlay { display:none !important; }
+        body:has(#tosModal.open) #mfaSignInOverlay,
+        body:has(#tosModal.open) #pushOptIn { display:none !important; }
         body:has(#usernameModal.open) .rank-toast { display:none !important; }
 
         /* FAB row: Chat | AI | Metrics | Leaderboard (L→R) */
@@ -2233,7 +2239,7 @@
     <script src="username-repick.js?v=20261104_v2476" defer></script>
     <script src="earn-xp-guide.js?v=20261026_v2382" defer></script>
     <script src="referral-tiers.js?v=20261105_v2499" defer></script>
-    <script src="ranking.js?v=20261105_v2499" defer></script>
+    <script src="ranking.js?v=20261105_v2500" defer></script>
     <!-- Critical: needed for initial page render -->
     <script src="bundle.min.js?v=20261105_v2499" defer fetchpriority="high"></script>
     <script src="bundle-ready.js?v=20261027_v2394" defer></script>
@@ -2248,7 +2254,7 @@
     <script src="miniapp-share.js?v=20261031_v2447" defer></script>
     <script src="pvp-lobby-alert.js?v=20261104_v2482" defer></script>
     <script src="patches.js?v=20261026_v2385" defer></script>
-    <script src="onboarding.js?v=20261105_v2487" defer></script>
+    <script src="onboarding.js?v=20261105_v2500" defer></script>
     <script src="learning-quests.js?v=20261026_v2377" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
