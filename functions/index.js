@@ -3,6 +3,7 @@ const functionsV1 = require('firebase-functions/v1');
 const { defineSecret } = require('firebase-functions/params');
 const referralIpSecret = defineSecret('REFERRAL_IP_HMAC_SECRET');
 const deletionHmacSecret = defineSecret('DELETION_HMAC_SECRET');
+const ipqsApiKey = defineSecret('IPQS_API_KEY');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onDocumentCreated, onDocumentUpdated, onDocumentWritten, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const admin = require('firebase-admin');
@@ -157,6 +158,7 @@ async function verifyTurnstile(token, remoteip) {
 const bolt11 = require('bolt11');
 const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
+const ipReputation = require('./src/ipReputation');
 const rewardNotify = require('./src/rewardNotify');
 const awardActions = require('./src/awardActions');
 const ticketGrants = require('./src/ticketGrants');
@@ -1404,7 +1406,7 @@ exports.nachoFeedbackReport = onSchedule({
 // Referral payouts are server-side. The old client path looked up `referredUid`
 // and paid 50 tickets from the referrer's browser; rules blocked that write, so
 // nobody was ever paid. This callable now only pays the signed-in referee, once.
-exports.verifyReferral = functionsV1.runWith({ secrets: [referralIpSecret, deletionHmacSecret] }).https.onCall(async (data, context) => {
+exports.verifyReferral = functionsV1.runWith({ enforceAppCheck: true, secrets: [referralIpSecret, deletionHmacSecret, ipqsApiKey] }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     const result = await referralService.payIfQualified(context.auth.uid);
     if (result && result.paid && result.referrerUid) {
@@ -1426,7 +1428,7 @@ exports.verifyReferral = functionsV1.runWith({ secrets: [referralIpSecret, delet
     };
 });
 
-exports.registerReferral = functionsV1.runWith({ secrets: [referralIpSecret, deletionHmacSecret] }).https.onCall(async (data, context) => {
+exports.registerReferral = functionsV1.runWith({ enforceAppCheck: true, secrets: [referralIpSecret, deletionHmacSecret, ipqsApiKey] }).https.onCall(async (data, context) => {
     return referralService.registerReferral(data, context);
 });
 
@@ -1557,7 +1559,7 @@ exports.bridgeToTelegram = functionsV1.https.onCall(async (data, context) => {
 exports.claimSats = functionsV1.runWith({
     timeoutSeconds: 300,
     enforceAppCheck: true,
-    secrets: [deletionHmacSecret],
+    secrets: [deletionHmacSecret, ipqsApiKey, referralIpSecret],
 }).https.onCall(async (data, context) => {
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
@@ -1729,6 +1731,23 @@ exports.claimSats = functionsV1.runWith({
     if (!net) {
         console.error('[FAUCET] Unparsed client IP for uid=' + uid);
         return { success: false, error: faucetGuard.supportError('Could not verify request origin.') };
+    }
+
+    // Reputation after cheap origin checks. Device lookups stay off unless
+    // IPQS_DEVICE_ENABLED is set. Vendor miss falls through except never-claimed.
+    const rewardHeaders = context.rawRequest && context.rawRequest.headers ? context.rawRequest.headers : {};
+    const rewardGate = await ipReputation.assessReward({
+        db: db,
+        ip: clientIP,
+        uid: uid,
+        userAgent: rewardHeaders['user-agent'] || '',
+        language: rewardHeaders['accept-language'] || '',
+        requestId: data && data.ipqsRequestId,
+        purpose: 'faucet',
+        apiKey: ipqsApiKey.value(),
+    });
+    if (rewardGate && (rewardGate.action === 'deny' || rewardGate.action === 'hold')) {
+        return { success: false, error: rewardGate.message, code: rewardGate.reason };
     }
 
     const fingerprint = (data.fingerprint || '').trim();
@@ -1999,7 +2018,6 @@ exports.claimSats = functionsV1.runWith({
             t.set(subnetRef, {
                 lastClaim: admin.firestore.FieldValue.serverTimestamp(),
                 lastUid: uid,
-                label: net.rangeLabel,
                 seen: subnetDecision.seen,
                 uids: admin.firestore.FieldValue.delete(),
                 claimCount: admin.firestore.FieldValue.increment(1),

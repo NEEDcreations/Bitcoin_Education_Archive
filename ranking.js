@@ -12817,6 +12817,7 @@ window.initSatsClaim = function() {
     html += '</div>';
 
     html += '<div id="satsClaimError" style="display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.78rem;color:#ef4444;text-align:center;"></div>';
+    html += '<p id="satsClaimHoldNote" hidden style="margin:0 0 12px;font-size:0.78rem;color:#94a3b8;line-height:1.35;text-align:center;"></p>';
 
     html += '<div id="satsClaimTurnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>';
 
@@ -12867,11 +12868,24 @@ function _generateDeviceFingerprint() {
 window._satsClaimInProgress = false;
 window._satsClaimTab = 'ln';
 
+function setSatsClaimHoldNote(code) {
+    var note = document.getElementById('satsClaimHoldNote');
+    if (!note) return;
+    if (code === 'vpn' || code === 'proxy' || code === 'tor') {
+        note.textContent = 'Turn off your VPN, proxy, or Tor and tap claim again. The rest of the app still works.';
+        note.hidden = false;
+        return;
+    }
+    note.textContent = '';
+    note.hidden = true;
+}
+
 window.submitSatsClaim = async function() {
     if (window._satsClaimInProgress) return;
     var btn = document.getElementById('satsClaimBtn');
     var errorEl = document.getElementById('satsClaimError');
     if (!btn) return;
+    setSatsClaimHoldNote('');
 
     var claimPayload;
     var lnAddrEl = document.getElementById('satsLnAddr');
@@ -12993,6 +13007,7 @@ window.submitSatsClaim = async function() {
         } else {
             var errMsg = (result.data && result.data.error) ? result.data.error : 'Claim failed - try again';
             if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
+            setSatsClaimHoldNote((result.data && (result.data.code || result.data.reason)) || '');
             if (result.data && (result.data.code === 'address_unresolved' || String(errMsg).indexOf('Could not resolve Lightning Address') !== -1)) {
                 try { sessionStorage.setItem('btc_ln_needs_reset', '1'); } catch (flagErr) {}
                 openWithdrawalAddress({ mode: 'reset', address: lnAddr });

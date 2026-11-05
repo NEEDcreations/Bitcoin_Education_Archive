@@ -10,6 +10,7 @@ const referralTiers = require('../referral-tiers');
 const rewardNotify = require('./rewardNotify');
 const faucetGuard = require('./faucetGuard');
 const ipHmac = require('./ipHmac');
+const ipReputation = require('./ipReputation');
 const accountTombstone = require('./accountTombstone');
 
 function db() {
@@ -420,6 +421,23 @@ async function registerReferral(data, context) {
         return { success: false, reason: gate.reason, status: gate.status };
     }
 
+    const rewardHeaders = context && context.rawRequest && context.rawRequest.headers ? context.rawRequest.headers : {};
+    let reward = { action: 'fallback', reason: 'lookup', message: '', ipVerdict: null, deviceHmac: '', deviceAction: 'fallback' };
+    try {
+        reward = await ipReputation.assessReward({
+            db: db(),
+            ip: rawIp,
+            uid: uid,
+            userAgent: rewardHeaders['user-agent'] || '',
+            language: rewardHeaders['accept-language'] || '',
+            requestId: data && data.ipqsRequestId,
+            purpose: 'referral',
+        });
+    } catch (e) {
+        console.error('[referral] reward gate fallback');
+    }
+
+
     if (referrals.normalizeCode(referred.referralCode) === code) return { success: false, reason: 'self' };
     await ensureReferralCode(uid);
     const referrerUid = await lookupReferrerUid(code, uid);
@@ -428,6 +446,14 @@ async function registerReferral(data, context) {
         const referrerSnap = await db().collection('users').doc(referrerUid).get();
         if (referrerSnap.exists) referrer = userView(referrerUid, referrerSnap.data());
     }
+    if (referrer && ipReputation.deviceEnabled()) {
+        const referrerDevice = await db().collection('user_devices').doc(referrer.uid).get();
+        referrer.deviceHmac = referrerDevice.exists ? String((referrerDevice.data() || {}).deviceHmac || '') : '';
+    }
+    referred.deviceHmac = reward.deviceHmac || '';
+    referred.ipqsAction = reward.ipVerdict ? reward.ipVerdict.action : '';
+    referred.ipqsReason = reward.ipVerdict ? String(reward.ipVerdict.reason || '') : '';
+    referred.deviceAction = reward.deviceAction === 'deny' || reward.deviceAction === 'hold' ? reward.deviceAction : '';
     let signupIpHmac = '';
     try {
         signupIpHmac = ipHmac.hmacIp(rawIp);
