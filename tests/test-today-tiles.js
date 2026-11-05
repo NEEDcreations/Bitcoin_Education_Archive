@@ -196,7 +196,8 @@ test('the home card styles a check badge for dark, light, and oled', function ()
     assert.strictEqual((html.match(/Latest:/g) || []).length, 0);
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: New players answer three quick questions and get a suggested mode. Switch anytime from the mode bar at the top of home. Your XP and badges count in every mode, Lite too.'));
+    assert.ok(notes.includes('Latest: After you pick a mode, the Experience section at the top of home folds down and opens again.'));
+    assert.ok(!notes.includes('Latest: New players answer three quick questions'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

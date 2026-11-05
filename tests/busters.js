@@ -628,7 +628,10 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(!notes.includes('October 27, 2026 · v2394'));
     assert.ok(!notes.includes('October 27, 2026 · v2393'));
     assert.ok(!notes.includes('October 26, 2026 · v2391'));
-    assert.ok(notes.includes('Latest: New players answer three quick questions and get a suggested mode. Switch anytime from the mode bar at the top of home. Your XP and badges count in every mode, Lite too.'));
+    assert.ok(notes.includes('Latest: After you pick a mode, the Experience section at the top of home folds down and opens again.'));
+    assert.ok(notes.includes('November 5, 2026 · v2486'));
+    assert.ok(notes.includes('November 2, 2026 · v2469'));
+    assert.ok(!notes.includes('Latest: New players answer three quick questions'));
     assert.ok(notes.includes('Boss History shows when each fight actually ended, and past bosses are listed by month.'));
     assert.ok(!notes.includes('Latest: Boss History shows'));
     assert.ok(notes.includes('Boss History sits at the bottom of the Raid screen. Open it to see past bosses, the month they showed up, and how the fight ended.'));
