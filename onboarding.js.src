@@ -819,7 +819,7 @@
     // device (btc_mode_quiz); the result only highlights a mode in the picker.
     var MODE_QUIZ_KEY = 'btc_mode_quiz';
     var MODE_QUIZ = [
-        { q: 'How much do you know about Bitcoin?', a: ['New to it', 'Some', 'A lot'] },
+        { q: 'How much do you know about Bitcoin?', a: ['New', 'Some', 'A lot'] },
         { q: 'How much time do you have?', a: ['A few minutes', 'About 15 min', 'Here to grind'] },
         { q: "What's your goal?", a: ['Just learn', 'Earn & compete', 'Everything'] }
     ];
