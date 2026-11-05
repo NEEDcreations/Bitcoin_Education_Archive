@@ -480,20 +480,33 @@ function planFavorClaimReserve(input) {
     if (!(amount > 0)) return { ok: false, error: 'zero', limits: limits };
     if (amount > limits.manualAboveSats) return { ok: false, error: 'manual', limits: limits };
     const used = Math.max(0, Math.floor(Number(src.reservedSats) || 0));
-    if (!siteCapAllows(used, amount, limits.siteDailyCapSats)) {
+    const alreadyReserved = src.lockReserved === true;
+    // Lock carries inFlight so a retry knows whether site.inFlightSats already
+    // includes this claim (crash after reserve) or needs a re-add.
+    const alreadyInFlight = src.lockInFlight === true;
+    // Cap: when the lock is already reserved, `used` already includes amount —
+    // do not count it a second time.
+    if (alreadyReserved) {
+        if (limits.siteDailyCapSats && used > limits.siteDailyCapSats) {
+            return { ok: false, error: 'SITE_DAILY_CAP', limits: limits };
+        }
+    } else if (!siteCapAllows(used, amount, limits.siteDailyCapSats)) {
         return { ok: false, error: 'SITE_DAILY_CAP', limits: limits };
     }
-    const already = src.lockReserved === true;
     const inflight = Math.max(0, Math.floor(Number(src.inFlightSats) || 0));
-    if (!already && !walletFloorOk(src.walletSats, inflight, amount, limits.walletFloorSats)) {
+    const needInFlight = !alreadyInFlight;
+    // Floor always runs. If this lock is already in-flight, amount sits inside
+    // inflight already — check with add=0. Otherwise add amount.
+    if (!walletFloorOk(src.walletSats, inflight, needInFlight ? amount : 0, limits.walletFloorSats)) {
         return { ok: false, error: 'WALLET_LOW', limits: limits };
     }
     return {
         ok: true,
         limits: limits,
-        already: already,
-        nextReservedSats: already ? used : used + amount,
-        nextInFlightSats: already ? inflight : inflight + amount,
+        already: alreadyReserved,
+        nextReservedSats: alreadyReserved ? used : used + amount,
+        nextInFlightSats: needInFlight ? inflight + amount : inflight,
+        setLockInFlight: true,
         day: String(src.day || ''),
     };
 }

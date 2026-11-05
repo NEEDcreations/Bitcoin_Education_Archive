@@ -187,6 +187,86 @@ test('L6/M3: blocks in first 7 days excluded from pot', function () {
     assert.strictEqual(bd.perBlockSats, 21000);
 });
 
+test('Red Team: reserved lock retry re-adds inFlight, floor-checks, no double cap', function () {
+    // Crash left reserved=true but inFlight was never recorded on the lock
+    // (or was cleared). Retry must: not double-count site cap, re-add inFlight,
+    // and still enforce the wallet floor.
+    const nearCap = P.planFavorClaimReserve({
+        amount: 4200,
+        reservedSats: 4200, // already includes this claim
+        inFlightSats: 0,    // not currently in-flight on site
+        walletSats: 10000,
+        lockReserved: true,
+        lockInFlight: false,
+        config: {},
+        day: '2026-11-05',
+    });
+    assert.strictEqual(nearCap.ok, true);
+    assert.strictEqual(nearCap.nextReservedSats, 4200); // no double add
+    assert.strictEqual(nearCap.nextInFlightSats, 4200); // re-add
+    assert.strictEqual(nearCap.setLockInFlight, true);
+
+    // Cap would fail if we double-counted (4200+4200 > ... use a tight cap via raw)
+    // With site at 98000 reserved and amount 4200 already in it, cap 100000:
+    // double-count would be 98000+4200=102200 > 100000. Correct path: used=98000 <= 100000.
+    const capOk = P.planFavorClaimReserve({
+        amount: 4200,
+        reservedSats: 98000,
+        inFlightSats: 0,
+        walletSats: 50000,
+        lockReserved: true,
+        lockInFlight: false,
+        config: { siteDailyCapSats: 100000 },
+        day: '2026-11-05',
+    });
+    assert.strictEqual(capOk.ok, true);
+    assert.strictEqual(capOk.nextReservedSats, 98000);
+
+    // Fresh claim at same numbers would exceed cap
+    const freshCap = P.planFavorClaimReserve({
+        amount: 4200,
+        reservedSats: 98000,
+        inFlightSats: 0,
+        walletSats: 50000,
+        lockReserved: false,
+        lockInFlight: false,
+        config: { siteDailyCapSats: 100000 },
+        day: '2026-11-05',
+    });
+    assert.strictEqual(freshCap.ok, false);
+    assert.strictEqual(freshCap.error, 'SITE_DAILY_CAP');
+
+    // Floor still enforced on retry when re-adding inFlight
+    const low = P.planFavorClaimReserve({
+        amount: 4200,
+        reservedSats: 4200,
+        inFlightSats: 2000,
+        walletSats: 10000,
+        lockReserved: true,
+        lockInFlight: false,
+        config: {},
+        day: '2026-11-05',
+    });
+    // 10000 - 2000 - 4200 = 3800 < 5000
+    assert.strictEqual(low.ok, false);
+    assert.strictEqual(low.error, 'WALLET_LOW');
+
+    // Already in-flight: do not re-add; floor uses amount-inside-inflight
+    const held = P.planFavorClaimReserve({
+        amount: 4200,
+        reservedSats: 4200,
+        inFlightSats: 4200,
+        walletSats: 10000,
+        lockReserved: true,
+        lockInFlight: true,
+        config: {},
+        day: '2026-11-05',
+    });
+    assert.strictEqual(held.ok, true);
+    assert.strictEqual(held.nextReservedSats, 4200);
+    assert.strictEqual(held.nextInFlightSats, 4200); // no double add
+});
+
 test('confirm + win id', function () {
     assert.strictEqual(P.confirmText('epoch_4'), 'APPROVE epoch_4');
     assert.ok(P.winId('epoch_4', 'abc').indexOf('sfpay_epoch_4_abc') === 0);

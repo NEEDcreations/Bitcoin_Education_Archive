@@ -1264,8 +1264,8 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
                     inFlightSats: plan.inFlightSats,
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 }, { merge: true });
-                if (clearReserved) t.set(lockRef, { reserved: false, releasedAt: Date.now(), day: day }, { merge: true });
-                else t.set(lockRef, { inFlightClearedAt: Date.now(), day: day }, { merge: true });
+                if (clearReserved) t.set(lockRef, { reserved: false, inFlight: false, releasedAt: Date.now(), day: day }, { merge: true });
+                else t.set(lockRef, { inFlight: false, inFlightClearedAt: Date.now(), day: day }, { merge: true });
             });
         } catch (e) {
             console.warn('[claimCipherWin] favor reserve release failed');
@@ -1297,6 +1297,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
                     inFlightSats: site.inFlightSats,
                     walletSats: walletSatsPeek,
                     lockReserved: lock.reserved === true,
+                    lockInFlight: lock.inFlight === true,
                     config: cfgSnap.exists ? cfgSnap.data() : {},
                     day: day,
                 });
@@ -1309,6 +1310,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
                 }, { merge: true });
                 t.set(lockRef, {
                     reserved: true,
+                    inFlight: true,
                     amount: amount,
                     day: day,
                     uid: uid,
