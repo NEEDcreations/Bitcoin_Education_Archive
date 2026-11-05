@@ -11,7 +11,7 @@
     function user() {
         try { var u = firebase.auth().currentUser; return u && !u.isAnonymous ? u : null; } catch (e) { return null; }
     }
-    function onTv() { return window._tctvActive === true && !!document.getElementById('tctv-video-wrap'); }
+    function onTv() { return window._tctvActive === true && !!document.querySelector('.tctv-video-wrap'); }
     function playing() {
         var p = window._tctvYtPlayer;
         if (!p || typeof p.getPlayerState !== 'function') return false;
@@ -62,7 +62,7 @@
     }
 
     function mount() {
-        var wrap = document.getElementById('tctv-video-wrap');
+        var wrap = document.querySelector('.tctv-video-wrap');
         if (!wrap) return null;
         var el = document.getElementById('tctv-drip');
         if (el && el.isConnected) return el;
