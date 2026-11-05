@@ -47,16 +47,17 @@ test('Quests hub holds lessons, trails, daily quests, and both certifications', 
     assert.strictEqual(reg.BQ_LEARN_MENU.quests[4].arg, 'technical');
 });
 
-test('beginner mode shows daily quests and hides meetup, spend, and the same six apps', function () {
+test('beginner mode shows daily quests and hides meetup, spend, and later-mode explore apps', function () {
     assert.deepStrictEqual(ids(reg.BQ_LEARN_MENU.root, 'beginner'), ['brand-new', 'quests', 'first-purchase']);
     assert.deepStrictEqual(ids(reg.BQ_LEARN_MENU.quests, 'beginner'), ['learning-quests', 'trails', 'daily-quests', 'scholar', 'protocol']);
-    const hidden = ids(reg.BQ_EXPLORE_APPS, 'beginner');
+    const visible = ids(reg.BQ_EXPLORE_APPS, 'beginner');
     ['pop', 'forum', 'market', 'irl', 'beats', 'pow'].forEach(function (id) {
-        assert.ok(hidden.indexOf(id) === -1, id);
+        assert.ok(visible.indexOf(id) === -1, id);
     });
-    ['nacho', 'tv', 'ai', 'metrics', 'lb', 'wallet'].forEach(function (id) {
-        assert.ok(hidden.indexOf(id) !== -1, id);
+    ['nacho', 'tv', 'wallet'].forEach(function (id) {
+        assert.ok(visible.indexOf(id) !== -1, id);
     });
+    assert.deepStrictEqual(visible, ['nacho', 'tv', 'wallet']);
 });
 
 test('phone and desktop menus both render the same registry lists', function () {
@@ -118,7 +119,7 @@ test('phone and desktop menus both render the same registry lists', function () 
     assert.deepStrictEqual(questIds, ['learning-quests', 'trails', 'daily-quests', 'scholar', 'protocol']);
     assert.deepStrictEqual(reg.BQ_EXPLORE_APPS.map(function (item) { return item.title; }), [
         'Nacho Mode', 'Proof of Play', 'Pleb Talk', 'Lightning Mart', 'IRL Sync', 'Bitcoin Beats',
-        'Timechain TV', 'Proof of Walk', 'AI Tools', 'Metrics', 'Leaderboard', 'Wallet'
+        'Timechain TV', 'Proof of Walk', 'Wallet'
     ]);
     assert.strictEqual(html, read('404.html'));
 });
