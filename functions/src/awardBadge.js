@@ -272,6 +272,9 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             };
             const plan = planFavorPoint(stateData, nowMs);
             const faction = user.faction || null;
+            const field = factionField(faction);
+            const totals = totalsSnap.exists ? (totalsSnap.data() || {}) : {};
+            const race = require('./factionBalance').racePoints(1, faction, totals, user, nowMs);
             t.set(contributorRef, {
                 uid: uid,
                 source: 'badge_earned',
@@ -281,12 +284,15 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
                 timestamp: adminSdk.firestore.FieldValue.serverTimestamp(),
                 faction: faction,
                 pointsAdded: 1,
+                factionPoints: race.points,
             });
-            const field = factionField(faction);
-            const totals = totalsSnap.exists ? (totalsSnap.data() || {}) : {};
-            const race = require('./factionBalance').racePoints(1, faction, totals, user, nowMs);
             const totalsWrite = { lastUpdated: adminSdk.firestore.FieldValue.serverTimestamp() };
             totalsWrite[field] = Math.round(((Number(totals[field]) || 0) + race.points) * 100) / 100;
+            // Same head-start budget contributeFavor increments. This write already
+            // replaces the totals snapshot read above, so the used field is the sum.
+            if (race.headStartField) {
+                totalsWrite[race.headStartField] = Math.round(((Number(totals[race.headStartField]) || 0) + race.headStartBase) * 100) / 100;
+            }
             t.set(totalsRef, Object.assign({}, totals, totalsWrite));
             const next = Object.assign({}, stateData, {
                 points: plan.points,

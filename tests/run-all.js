@@ -110,6 +110,7 @@ const TESTS = [
     { name: 'Lightning address reset', file: 'test-reset-lightning.js' },
     { name: 'Choose faction', file: 'test-choose-faction.js' },
     { name: 'User SF points', file: 'test-user-sf-points.js' },
+    { name: 'Satoshi Favor counters', file: 'test-favor-counters.js' },
     { name: 'Award allowlist attacks', file: 'test-award-attacks.js' },
     { name: 'Award evidence', file: 'test-award-evidence.js' },
     { name: 'Reply and play counts', file: 'test-reply-counts.js' },
