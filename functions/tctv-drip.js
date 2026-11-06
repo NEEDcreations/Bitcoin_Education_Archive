@@ -5,6 +5,8 @@
 
 const functionsV1 = require('firebase-functions/v1');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
+// Wallet balance reads use the NWC_URL secret, bound to tctvDripTick only.
+const { nwcUrlSecret, nwcUrl } = require('./src/nwcSecret');
 const admin = require('./src/firebaseAdmin.js');
 const crypto = require('crypto');
 const logic = require('./src/tctvDripLogic');
@@ -96,7 +98,7 @@ async function readWalletSats(raw) {
         // Staging has no wallet secret. A fake balance can be set in config for tests.
         return typeof raw.stagingWalletSats === 'number' ? raw.stagingWalletSats : -1;
     }
-    const url = process.env.NWC_URL || '';
+    const url = nwcUrl();
     if (!url) return -1;
     try {
         const { NWCClient } = require('@getalby/sdk');
@@ -292,7 +294,7 @@ async function runTick() {
     }
 }
 
-const tctvDripTick = onSchedule({ schedule: 'every 1 minutes', timeZone: 'UTC', retryCount: 0 }, async () => {
+const tctvDripTick = onSchedule({ schedule: 'every 1 minutes', timeZone: 'UTC', retryCount: 0, secrets: [nwcUrlSecret] }, async () => {
     try { await runTick(); } catch (e) { console.error('[tctvDrip] tick', e && e.message); }
 });
 

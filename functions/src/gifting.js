@@ -60,7 +60,8 @@ const CIPHER_OPENS_PER_DAY = 21;
 const KEYS_PER_SEND = 3;
 const WALLET_FLOOR_SATS = 5000; // matches FAUCET.WALLET_BALANCE_FLOOR_SATS
 const KEY_SEND_XP = 25;
-const NWC_URL = process.env.NWC_URL || '';
+// Payout wallet comes from the NWC_URL secret (bound below), read per call.
+const { nwcUrlSecret, nwcUrl } = require('./nwcSecret');
 
 const GIFT_CLOSET_ITEMS = [
     { id: 'orange_scarf',    name: 'Bitcoin Scarf',    emoji: '🧣' },
@@ -1122,13 +1123,13 @@ async function _resolvePrizeInvoice(invoice, lightningAddress, amount) {
     return bolt;
 }
 
-const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [deletionHmacSecret] }).https.onCall(async (data, context) => {
+const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [deletionHmacSecret, nwcUrlSecret] }).https.onCall(async (data, context) => {
     const secondFactor = require('./secondFactor');
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     const winId = (data.winId || '').toString().trim();
     if (!winId || winId.length > 128) throw httpsError('invalid-argument', 'Invalid win');
-    if (!NWC_URL) throw httpsError('failed-precondition', 'Prize wallet is not configured yet. Phil can pay this from the admin list.');
+    if (!nwcUrl()) throw httpsError('failed-precondition', 'Prize wallet is not configured yet. Phil can pay this from the admin list.');
     const accountTombstone = require('./accountTombstone');
     const emailChange = require('./emailChange');
     if (!accountTombstone.secretReady()) {
@@ -1312,7 +1313,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         return { success: true, amount: amount, sent: netAmount, fee: winFee.fee };
     }
 
-    const nwc = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
+    const nwc = new NWCClient({ nostrWalletConnectUrl: nwcUrl() });
     let phase = 'balance';
     let payResult = null;
     let payError = null;
@@ -1569,7 +1570,7 @@ function dayAmount(snap) {
 }
 
 async function payCipherBalanceInvoice(invoice) {
-    const nwc = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
+    const nwc = new NWCClient({ nostrWalletConnectUrl: nwcUrl() });
     let phase = 'balance';
     let payResult = null;
     let payError = null;
@@ -1670,12 +1671,12 @@ async function beginCipherPay(reserved) {
 const claimCipherSats = functionsV1.runWith({
     timeoutSeconds: 180,
     enforceAppCheck: true,
-    secrets: [deletionHmacSecret],
+    secrets: [deletionHmacSecret, nwcUrlSecret],
 }).https.onCall(async (data, context) => {
     const secondFactor = require('./secondFactor');
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
-    if (!NWC_URL) throw httpsError('failed-precondition', 'Prize wallet is not configured yet.');
+    if (!nwcUrl()) throw httpsError('failed-precondition', 'Prize wallet is not configured yet.');
     const accountTombstone = require('./accountTombstone');
     const emailChange = require('./emailChange');
     if (!accountTombstone.secretReady()) throw httpsError('failed-precondition', UNAVAILABLE);
@@ -1942,6 +1943,7 @@ const claimCipherSats = functionsV1.runWith({
 const adminResolveCipherSatsClaim = functionsV1.runWith({
     enforceAppCheck: true,
     timeoutSeconds: 60,
+    secrets: [nwcUrlSecret],
 }).https.onCall(async (data, context) => {
     requireAdmin(context);
     const claimId = (data && data.claimId || '').toString().trim();
@@ -1967,12 +1969,12 @@ const adminResolveCipherSatsClaim = functionsV1.runWith({
     let resolution = action;
     if (action === 'release') {
         const paymentHash = String(preview.paymentHash || '');
-        if (!paymentHash || !NWC_URL) {
+        if (!paymentHash || !nwcUrl()) {
             throw httpsError('failed-precondition', 'This claim cannot be released yet.');
         }
         let kind = 'unknown';
         try {
-            const nwc = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
+            const nwc = new NWCClient({ nostrWalletConnectUrl: nwcUrl() });
             const raw = await withTimeout(nwc.lookupInvoice({ payment_hash: paymentHash }), 15000, 'lookupInvoice');
             kind = classifyLookup(raw).kind;
         } catch (e) {

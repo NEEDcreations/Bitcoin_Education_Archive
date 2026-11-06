@@ -276,7 +276,7 @@ test('legit client phrases keep today amounts', function () {
 test('server source no longer keyword-matches or banks overflow', function () {
     const src = fs.readFileSync(path.join(__dirname, '..', 'functions/index.js'), 'utf8');
     const start = src.indexOf('exports.awardPoints = functionsV1.https.onCall');
-    const end = src.indexOf('exports.getFaucetStats = functionsV1.https.onCall');
+    const end = src.indexOf('exports.getFaucetStats = ');
     assert.ok(start > 0 && end > start);
     const body = src.slice(start, end);
     assert.ok(body.indexOf('ACTION_KEYWORDS') === -1);
