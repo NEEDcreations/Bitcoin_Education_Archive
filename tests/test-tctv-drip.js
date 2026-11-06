@@ -4,17 +4,29 @@ const L = require('../functions/src/tctvDripLogic');
 // Share math below is checked on a 10,000 pot; the shipped default is 5,000.
 assert.strictEqual(L.readConfig({}).targetSats, 5000);
 assert.strictEqual(L.readConfig({}).satsPerViewerMinute, 1);
+assert.strictEqual(L.readConfig({}).satsPerFiveViewers, 5);
 assert.strictEqual(L.readConfig({}).dailyCapSats, 1000);
+assert.strictEqual(L.readConfig({ satsPerFiveViewers: 7 }).satsPerFiveViewers, 7);
 const cfg = L.readConfig({ targetSats: 10000 });
-// accrual
-let a = L.planAccrual({ sats: 0 }, 10, cfg, 'd1'); assert.strictEqual(a.sats, 10);
-a = L.planAccrual({ sats: 0 }, 500, cfg, 'd1'); assert.strictEqual(a.viewers, 50); assert.strictEqual(a.sats, 50);
-a = L.planAccrual({ sats: 5000, dayKey: 'd1', dayAccrued: 999 }, 50, cfg, 'd1'); assert.strictEqual(a.add, 1);
+// stepped rate: 0; 1-4 -> 1; >=5 -> floor(N/5)*satsPerFiveViewers (cap viewers at 50)
+const stepCases = [
+    [0, 0], [1, 1], [4, 1], [5, 5], [9, 5], [10, 10], [49, 45], [50, 50], [60, 50],
+];
+for (const [n, want] of stepCases) {
+    assert.strictEqual(L.rateFromViewers(n, cfg), want, 'rateFromViewers(' + n + ')');
+    const a0 = L.planAccrual({ sats: 0 }, n, cfg, 'd1');
+    assert.strictEqual(a0.ratePerMin, want, 'ratePerMin viewers=' + n);
+    assert.strictEqual(a0.add, want, 'add viewers=' + n);
+}
+// accrual (stepped: 10 viewers -> 10 sats/min; 50 -> 50)
+let a = L.planAccrual({ sats: 0 }, 10, cfg, 'd1'); assert.strictEqual(a.sats, 10); assert.strictEqual(a.ratePerMin, 10);
+a = L.planAccrual({ sats: 0 }, 500, cfg, 'd1'); assert.strictEqual(a.viewers, 50); assert.strictEqual(a.sats, 50); assert.strictEqual(a.ratePerMin, 50);
+a = L.planAccrual({ sats: 5000, dayKey: 'd1', dayAccrued: 999 }, 50, cfg, 'd1'); assert.strictEqual(a.add, 1); assert.strictEqual(a.ratePerMin, 50);
 a = L.planAccrual({ sats: 5000, dayKey: 'd0', dayAccrued: 1000 }, 50, cfg, 'd1'); assert.strictEqual(a.add, 50);
 a = L.planAccrual({ sats: 999.9 }, 10, cfg, 'd1'); assert.ok(a.burst);
 a = L.planAccrual({ sats: 9990 }, 50, cfg, 'd1'); assert.ok(a.full); assert.strictEqual(a.sats, 10000);
-// 1 sat/min/viewer, 1,000/day cap: 1 viewer fills 5,000 in ~3.5 days; any audience needs >= 5 days
-assert.strictEqual(Math.ceil(5000 / Math.min(1000, 1 * 1 * 1440)), 5);
+// 1-4 band is 1 sat/min: 1 viewer fills 5,000 in ~3.5 days; any audience needs >= 5 days under the 1,000/day cap
+assert.strictEqual(Math.ceil(5000 / Math.min(1000, 1 * 1440)), 5);
 // daily cap binds at 1,000/day even with many viewers
 let d = { sats: 0 }; for (let i = 0; i < 1440; i++) d = Object.assign({}, d, L.planAccrual(d, 50, L.readConfig({}), 'd1'));
 assert.strictEqual(d.dayAccrued, 1000); assert.strictEqual(d.sats, 1000);
@@ -119,6 +131,8 @@ console.log('tctvDripLogic: all tests passed');
     assert.ok(!/Watch Party/i.test(src), 'no old name');
     assert.ok(/\.td-pill\{[^}]*min-height:44px;min-width:44px/.test(src) && /\.td-pinfo\{[^}]*min-width:44px;min-height:44px/.test(src), '44px targets');
     assert.ok(src.includes('}, 120000);'), '2-minute answer window');
+    assert.ok(src.includes('sats/min') && src.includes('ratePerMin'), 'shows pot fill rate when ratePerMin present');
+    assert.ok(src.includes('watching right now'), 'falls back to watching line without ratePerMin');
     assert.ok(src.includes('Your Share:') && src.includes('td-share') && src.includes('projectedShareSats'), 'live Your Share line');
     assert.ok(src.includes('Sign in to see your share'), 'signed-out hint');
     assert.ok(src.includes('tctv_drip_watch') && src.includes('paintShare'), 'own watch doc listener');
