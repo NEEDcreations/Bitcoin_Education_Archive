@@ -395,11 +395,7 @@ queue.push(test('server and chat announcements are always censored', function() 
     const searchAt = beats.indexOf('if (_beatsIsHidden(t)) return;');
     const titleAt = beats.indexOf("var title  = (t.title      || '').toLowerCase().indexOf(query) !== -1;");
     assert.ok(searchAt !== -1 && titleAt > searchAt);
-    assert.ok(notes.includes('Beats now hides strong language in titles by default, with a switch to show it.'));
-    assert.ok(notes.includes('Moderated Beats tracks are now hidden everywhere.'));
-    assert.ok(notes.includes('Importing a Beats track can never un-hide a moderated one.'));
-    assert.ok(notes.indexOf('Beats now hides strong language in titles by default, with a switch to show it.') < notes.indexOf('Moderated Beats tracks are now hidden everywhere.'));
-    assert.ok(notes.indexOf('Moderated Beats tracks are now hidden everywhere.') < notes.indexOf('Updated education topics with current facts and fixed broken links and images.'));
+    assert.ok(notes.includes('Beats hides strong language unless you choose to show it, and a track that\'s been taken down stays hidden.'));
     assert.ok(read('privacy.html').includes('beatsShowUncensored'));
     const rules = read('firestore.rules');
     assert.ok(rules.includes('beatsShowUncensored'));
