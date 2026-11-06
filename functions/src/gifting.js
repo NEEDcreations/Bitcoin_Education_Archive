@@ -30,7 +30,7 @@ const {
     UNAVAILABLE,
 } = require('./cipherSatsClaim');
 const { planCipherShare, senderFromKey, clonePrize } = require('./cipherShare');
-const { rollGiftReward: rollGiftRewardImpl, rollGiftCount } = require('./giftRoll');
+const { rollGiftReward: rollGiftRewardImpl, rollGiftCount, unmatchedLabels } = require('./giftRoll');
 const { applyDailyXp } = require('./applyDailyXp');
 const rewardNotify = require('./rewardNotify');
 const { planXpGrant } = require('./grantXp');
@@ -114,8 +114,31 @@ function withTimeout(promise, ms, label) {
     ]);
 }
 
-function rollGiftReward() {
-    return rollGiftRewardImpl({ labels: CIPHER_LABELS, closet: GIFT_CLOSET_ITEMS });
+function rollGiftReward(bias) {
+    const opts = { labels: CIPHER_LABELS, closet: GIFT_CLOSET_ITEMS };
+    if (bias) {
+        if (Array.isArray(bias.preferredKeyLabels)) opts.preferredKeyLabels = bias.preferredKeyLabels;
+        if (Array.isArray(bias.preferredCipherLabels)) opts.preferredCipherLabels = bias.preferredCipherLabels;
+    }
+    return rollGiftRewardImpl(opts);
+}
+
+function labelsFromSnap(snap) {
+    const out = [];
+    if (!snap || !snap.docs) return out;
+    snap.docs.forEach(function(doc) {
+        const label = doc.data() && doc.data().label;
+        if (label) out.push(label);
+    });
+    return out;
+}
+
+function biasFromHoldings(keyLabels, cipherLabels) {
+    const u = unmatchedLabels(keyLabels, cipherLabels);
+    return {
+        preferredKeyLabels: u.forKeys,
+        preferredCipherLabels: u.forCiphers,
+    };
 }
 
 function publicReward(reward) {
@@ -244,11 +267,27 @@ const awardDailyGifts = functionsV1.https.onCall(async (data, context) => {
         if (!userDoc.exists) throw httpsError('not-found', 'User not found');
         if (userDoc.data().lastGiftSpinDate === today) return { alreadyAwarded: true };
 
+        // All reads before writes. Bias new key/cipher labels toward the
+        // player's unmatched inventory so gifts are more often usable.
+        const keysInvSnap = await t.get(
+            db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'inventory').limit(100)
+        );
+        const keysPeerSnap = await t.get(
+            db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'sent').limit(100)
+        );
+        const ciphersSnap = await t.get(
+            db.collection('locked_ciphers').where('ownerId', '==', uid).where('status', '==', 'inventory').limit(200)
+        );
+        const bias = biasFromHoldings(
+            labelsFromSnap(keysInvSnap).concat(labelsFromSnap(keysPeerSnap)),
+            labelsFromSnap(ciphersSnap)
+        );
+
         const giftsToAdd = rollGiftCount();
         const gifts = [];
 
         for (let i = 0; i < giftsToAdd; i++) {
-            const reward = rollGiftReward();
+            const reward = rollGiftReward(bias);
             const giftRef = db.collection('gifts').doc();
             const secretRef = db.collection('gift_secrets').doc(giftRef.id);
             t.set(giftRef, {
@@ -333,7 +372,19 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
         else if (gift.rewardData && gift.rewardData.rewardType) reward = gift.rewardData;
         else {
             console.warn('[openGift] missing secret, rolling fresh reward for ' + giftId);
-            reward = rollGiftReward();
+            const keysInvSnap = await t.get(
+                db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'inventory').limit(100)
+            );
+            const keysPeerSnap = await t.get(
+                db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'sent').limit(100)
+            );
+            const ciphersSnap = await t.get(
+                db.collection('locked_ciphers').where('ownerId', '==', uid).where('status', '==', 'inventory').limit(200)
+            );
+            reward = rollGiftReward(biasFromHoldings(
+                labelsFromSnap(keysInvSnap).concat(labelsFromSnap(keysPeerSnap)),
+                labelsFromSnap(ciphersSnap)
+            ));
         }
 
         const userUpdate = {};

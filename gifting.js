@@ -1512,8 +1512,8 @@ function _lockedCipherNote(parent, label) {
     note.style.cssText = 'margin:0 0 10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(124,58,237,0.45);background:var(--bg-side);';
     var text = document.createElement('div');
     text.style.cssText = 'font-size:0.8rem;color:var(--text);line-height:1.45;';
-    var which = label ? ('a ' + label + ' key') : 'a key with the same label, such as 3A';
-    text.textContent = '🔒 Locked cipher: you need ' + which + ' to open it. Keys come from daily wheel gifts. Ask a peer to send you a matching key. Ask in Chat whether anyone has the key.';
+    var which = label ? (label + ' key') : 'matching key';
+    text.textContent = 'Need a ' + which + ' · ask in Chat';
     var chat = document.createElement('button');
     chat.type = 'button';
     chat.textContent = 'Open Global Chat';
@@ -1770,7 +1770,7 @@ window.renderKeysAndCiphersPanel = async function(container) {
         } else {
             _copy(card,
                 '🔒 Locked cipher ' + label,
-                'You need a ' + label + ' key to open it. Keys come from daily wheel gifts. Ask a peer to send you that key. Ask in Chat whether anyone has the key.' + countBit);
+                'Need a ' + label + ' key · ask in Chat' + countBit);
             var chat = document.createElement('button');
             chat.type = 'button';
             chat.className = 'cipher-open-btn';
