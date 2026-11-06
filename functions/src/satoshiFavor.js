@@ -24,6 +24,7 @@ const db = new Proxy({}, {
 });
 const { isSatsBanned, SATS_BANNED_ERROR } = require('./cipherClaim');
 const rewardNotify = require('./rewardNotify');
+const factionBalance = require('./factionBalance');
 // One-way hash of uid for public dedup (prevents uid exposure in readable docs)
 function uidHash(uid) {
   return crypto.createHash('sha256').update('sf_dedup_' + uid).digest('hex').substring(0, 16);
@@ -344,13 +345,14 @@ async function creditDailyAllThree(uid, day) {
   const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
 
   const result = await db.runTransaction(async function (transaction) {
-    const [triviaDoc, questDoc, pollDoc, contributorDoc, stateDoc, userDoc] = await Promise.all([
+    const [triviaDoc, questDoc, pollDoc, contributorDoc, stateDoc, userDoc, totalsDoc] = await Promise.all([
       transaction.get(triviaRef),
       transaction.get(questRef),
       transaction.get(pollRef),
       transaction.get(contributorRef),
       transaction.get(stateRef),
       transaction.get(userRef),
+      transaction.get(totalsRef),
     ]);
     if (!userDoc.exists) return { ok: false, reason: 'no_user' };
     const userData = userDoc.data() || {};
@@ -374,6 +376,7 @@ async function creditDailyAllThree(uid, day) {
     };
     stateData = checkAndResetFavor(stateData, transaction, stateRef);
     const faction = userData.faction || null;
+    const race = factionBalance.racePoints(1, faction, totalsDoc && totalsDoc.exists ? totalsDoc.data() : {}, userData, Date.now());
     transaction.set(contributorRef, {
       uid: uid,
       source: 'daily_all_three',
@@ -382,11 +385,13 @@ async function creditDailyAllThree(uid, day) {
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
       faction: faction,
       pointsAdded: 1,
+      factionPoints: race.points,
     });
     const factionField = faction === 'cyber_hornets' ? 'cyber_hornets' : faction === 'honey_badgers' ? 'honey_badgers' : 'unaffiliated';
     transaction.set(totalsRef, {
-      [factionField]: admin.firestore.FieldValue.increment(1),
+      [factionField]: admin.firestore.FieldValue.increment(race.points),
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      ...(race.headStartField ? { [race.headStartField]: admin.firestore.FieldValue.increment(race.headStartBase) } : {}),
     }, { merge: true });
     transaction.update(userRef, {
       trifectaDays: admin.firestore.FieldValue.increment(1),
@@ -611,9 +616,11 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
   // Run in a transaction for atomicity
   const result = await db.runTransaction(async (transaction) => {
     // Batch all reads before any writes (Firestore best practice for transactions)
-    const [contributorDoc, stateDoc] = await Promise.all([
+    const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
+    const [contributorDoc, stateDoc, totalsDoc] = await Promise.all([
       transaction.get(contributorRef),
       transaction.get(stateRef),
+      transaction.get(totalsRef),
     ]);
 
     // Check dedup
@@ -639,6 +646,8 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
 
     // Record contributor — stamp faction at time of contribution
     const faction = userData.faction || null; // cyber_hornets | honey_badgers | null
+    // Race points use server totals from this transaction (underdog + join bonus).
+    const race = factionBalance.racePoints(pointsToAdd, faction, totalsDoc.exists ? totalsDoc.data() : {}, userData, Date.now());
     transaction.set(contributorRef, {
       uid,
       source,
@@ -646,16 +655,17 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
       faction,
       pointsAdded: pointsToAdd,
+      factionPoints: race.points,
     });
 
     // Update faction totals doc atomically
-    const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
     const factionField = faction === 'cyber_hornets' ? 'cyber_hornets'
                        : faction === 'honey_badgers' ? 'honey_badgers'
                        : 'unaffiliated';
     transaction.set(totalsRef, {
-      [factionField]: admin.firestore.FieldValue.increment(pointsToAdd),
+      [factionField]: admin.firestore.FieldValue.increment(race.points),
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      ...(race.headStartField ? { [race.headStartField]: admin.firestore.FieldValue.increment(race.headStartBase) } : {}),
     }, { merge: true });
 
     // Same transaction as the contributor doc. Owner-readable counter only.
@@ -1465,7 +1475,9 @@ exports.backfillFactionTotals = functionsV1.https.onCall(async (data, context) =
     const fKey = faction === 'cyber_hornets' ? 'cyber_hornets'
                 : faction === 'honey_badgers' ? 'honey_badgers'
                 : 'unaffiliated';
-    totals[fKey] += pts;
+    // Keep earned race boosts when the doc was scored for this same faction.
+    const racePts = (d.faction && d.faction === faction && Number(d.factionPoints) > 0) ? Number(d.factionPoints) : pts;
+    totals[fKey] += racePts;
 
     // Stamp faction if missing
     if (!d.faction && faction) {
@@ -1480,13 +1492,14 @@ exports.backfillFactionTotals = functionsV1.https.onCall(async (data, context) =
   await writeBatch.commit();
 
   // Overwrite factionTotals
+  // merge keeps the member counts.
   await totalsRef.set({
     cyber_hornets: totals.cyber_hornets,
     honey_badgers: totals.honey_badgers,
     unaffiliated: totals.unaffiliated,
     lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
     lastBackfill: admin.firestore.FieldValue.serverTimestamp(),
-  });
+  }, { merge: true });
 
   console.log(`[BACKFILL] Done. Totals:`, totals, `Stamped: ${stamped}`);
   return { success: true, totals, contributorDocs: snap.size, uniqueUsers: uids.length, stamped };
@@ -1504,6 +1517,12 @@ exports.getFactionTotals = functionsV1.https.onCall(async (data, context) => {
     cyber_hornets: d.cyber_hornets || 0,
     honey_badgers: d.honey_badgers || 0,
     unaffiliated: d.unaffiliated || 0,
+    members_cyber_hornets: d.members_cyber_hornets || 0,
+    members_honey_badgers: d.members_honey_badgers || 0,
+    avg_cyber_hornets: factionBalance.perMember(d, 'cyber_hornets'),
+    avg_honey_badgers: factionBalance.perMember(d, 'honey_badgers'),
+    underdog: factionBalance.underdogActive(d, 'cyber_hornets') ? 'cyber_hornets'
+      : factionBalance.underdogActive(d, 'honey_badgers') ? 'honey_badgers' : null,
   };
 });
 

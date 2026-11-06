@@ -2943,7 +2943,23 @@ exports.recordBeatsPlay = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     }
-    return beatsPlays.recordPlay(db, admin, context.auth.uid, data && data.trackId, Date.now());
+    const result = await beatsPlays.recordPlay(db, admin, context.auth.uid, data && data.trackId, Date.now());
+    if (result && result.counted && result.plays) {
+        try { await beatsPlays.grantPlayBadges(db, admin, context.auth.uid, result.plays); }
+        catch (e) { console.warn('[recordBeatsPlay] badges', e && e.message); }
+    }
+    return { counted: !!(result && result.counted), reason: result ? result.reason : '' };
+});
+
+// Titles and chat flair. Lists what the player has earned and equips one.
+// The only writer of activeTitle, chatFlairEmoji, earnedTitles and earnedFlair.
+const titleFlair = require('./src/titleFlair');
+exports.titleFlair = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
+    if (!context.auth) {
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    return titleFlair.handle(db, admin, context.auth.uid, data || {}, Date.now());
 });
 
 exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
@@ -4588,13 +4604,22 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
     } catch (spinBadgeErr) { console.warn('[SPIN] badges', spinBadgeErr && spinBadgeErr.message); }
 
     if (result && result.breakthrough && result.breakthrough.unlocked && result.breakthrough.badgeId) {
+        const bipBadgeId = result.breakthrough.badgeId;
         try {
-            await awardBadge(db, admin, uid, result.breakthrough.badgeId, {
+            await awardBadge(db, admin, uid, bipBadgeId, {
                 verified: true,
                 source: 'bip_breakthrough',
             });
         } catch (bipBadgeErr) {
             console.warn('[SPIN] bip badge', bipBadgeErr && bipBadgeErr.message);
+        }
+        // BIP badges live in users.bipBadges (claimFields). awardBadge also
+        // hooks maybeGrantForBadge, but call it here too so BIP Season 1
+        // still advances if the badge_awards write fails or skips collections.
+        try {
+            await require('./src/collectionBonus').maybeGrantForBadge(db, admin, uid, bipBadgeId);
+        } catch (bipColErr) {
+            console.warn('[SPIN] bip collection', bipColErr && bipColErr.message);
         }
     }
 
@@ -6699,6 +6724,10 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
     });
 
     console.log('[POW] Done. synced:', syncedCount, 'pts:', totalPoints);
+    if (syncedCount > 0) {
+        try { await require('./src/powBadges').grantForUser(db, admin, uid, Date.now()); }
+        catch (e) { console.warn('[POW] badges', e && e.message); }
+    }
     if (totalPoints > 0) {
         await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
             uid: uid,
@@ -9552,3 +9581,10 @@ exports.onTopicPostMirrorSync = onDocumentUpdated({
 const tctvDrip = require('./tctv-drip');
 exports.tctvDripCheckin = tctvDrip.tctvDripCheckin;
 exports.tctvDripTick = tctvDrip.tctvDripTick;
+
+// Faction race end prizes: winner detection (once), Nacho announcement,
+// badges/titles/flair, and the admin-approved pot of sats.
+const factionRace = require('./src/factionRaceJobs').factory({ functionsV1, admin, db, onDocumentWritten });
+exports.onFactionTotalsWritten = factionRace.onFactionTotalsWritten;
+exports.adminFactionRaceBreakdown = factionRace.adminFactionRaceBreakdown;
+exports.adminApproveFactionPayout = factionRace.adminApproveFactionPayout;

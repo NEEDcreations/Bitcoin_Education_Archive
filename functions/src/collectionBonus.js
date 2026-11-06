@@ -22,19 +22,34 @@ const SETS_FILE = path.join(__dirname, 'collection-sets.json');
 const COLLECTION_FAVOR_POINTS = 10;
 const NEUTRAL_NAME = 'A Bitcoiner';
 
-const GROUPS = [
-    { id: 'col_learning', name: 'Learning', emoji: '📚', color: '#3b82f6', setIds: ['set_scholar', 'set_scholar_daily', 'set_explorer', 'set_trails'] },
-    { id: 'col_daily_habits', name: 'Daily Habits', emoji: '🎯', color: '#f7931a', setIds: ['set_daily', 'set_daily_five', 'set_trifecta', 'set_streak', 'set_spin'] },
-    { id: 'col_mining', name: 'Mining', emoji: '⛏️', color: '#f7931a', setIds: ['set_miner', 'set_favor'] },
-    { id: 'col_foresight', name: 'Foresight and Luck', emoji: '🔮', color: '#a78bfa', setIds: ['set_oracle', 'set_raffle'] },
-    { id: 'col_arena', name: 'Arena', emoji: '⚔️', color: '#ec4899', setIds: ['set_pvp', 'set_gladiator', 'set_codebreaker'] },
-    { id: 'col_community', name: 'Community', emoji: '💬', color: '#8b5cf6', setIds: ['set_social', 'set_voice', 'set_network', 'set_irl'] },
-    { id: 'col_lightning', name: 'Lightning and Giving', emoji: '⚡', color: '#eab308', setIds: ['set_lightning', 'set_generous'] },
-    { id: 'col_builder', name: 'Builder and Market', emoji: '🏗️', color: '#22c55e', setIds: ['set_builder', 'set_trader'] },
-    { id: 'col_entertainment', name: 'Entertainment', emoji: '🎵', color: '#f472b6', setIds: ['set_beats', 'set_tctv', 'set_tv'] },
-    { id: 'col_profile', name: 'Profile and Setup', emoji: '👤', color: '#6366f1', setIds: ['set_profile', 'set_newcomer', 'set_sovereign'] },
-    { id: 'col_fitness', name: 'Fun and Fitness', emoji: '🚶', color: '#84cc16', setIds: ['set_fun', 'set_pow'] },
-];
+// Rebalanced collections (Nov 5, 2026): ~90 days for a daily player, 8-15
+// badges each. collection-groups.json is the single source of truth; the
+// client copy in badges.js is checked against it by tests. setIds only map
+// the old per-set bonuses (legacy remainder math); membership is badgeIds.
+const GROUP_DOC = require('./collection-groups.json');
+const GROUPS = GROUP_DOC.groups.map(function (g) {
+    return Object.assign({}, g, { collectionId: g.id, kind: 'core' });
+});
+const BIP_SEASONS = (GROUP_DOC.bipSeasons || []).map(function (g) {
+    return Object.assign({}, g, { collectionId: g.id, setIds: [], kind: 'bip', optional: true });
+});
+const META = Object.assign({}, GROUP_DOC.meta, { collectionId: GROUP_DOC.meta.id, setIds: [], kind: 'meta' });
+const SERVER_VERIFIED = new Set(GROUP_DOC.serverVerified || []);
+const LEGEND_IDS = new Set(GROUP_DOC.legend || []);
+const RETIRED_COLLECTION_IDS = new Set(((GROUP_DOC.retired || {}).collectionIds) || []);
+
+// Collections the meta collection requires: every core, non-optional one.
+// Computed from the list, so resizing or adding a collection follows along.
+function metaMemberGroups() {
+    return GROUPS.filter(function (g) { return !g.optional; });
+}
+
+function allGroupDefs() {
+    const meta = Object.assign({}, META, {
+        badgeIds: metaMemberGroups().map(function (g) { return g.id + '_bonus'; }),
+    });
+    return GROUPS.concat(BIP_SEASONS, [meta]);
+}
 
 let cachedSets = null;
 
@@ -120,19 +135,19 @@ function remainderXp(bonusPts, heldLegacy) {
 function buildCollections(sets) {
     const byId = {};
     (sets || []).forEach(function (set) { byId[set.id] = set; });
-    return GROUPS.map(function (group) {
+    return allGroupDefs().map(function (group) {
         const badgeIds = [];
         const seen = {};
+        (group.badgeIds || []).forEach(function (badgeId) {
+            if (seen[badgeId]) return;
+            seen[badgeId] = true;
+            badgeIds.push(badgeId);
+        });
         const legacyBonuses = [];
         let bonusPts = 0;
-        group.setIds.forEach(function (setId) {
+        (group.setIds || []).forEach(function (setId) {
             const set = byId[setId];
             if (!set) throw new Error('missing set ' + setId);
-            (set.badgeIds || []).forEach(function (badgeId) {
-                if (seen[badgeId]) return;
-                seen[badgeId] = true;
-                badgeIds.push(badgeId);
-            });
             const pts = serverPaidXp(set.bonusId);
             bonusPts += pts;
             legacyBonuses.push({ id: set.bonusId, pts: pts, setId: set.id });
@@ -142,7 +157,9 @@ function buildCollections(sets) {
             name: group.name,
             emoji: group.emoji,
             color: group.color,
-            setIds: group.setIds.slice(),
+            kind: group.kind,
+            optional: group.optional === true,
+            setIds: (group.setIds || []).slice(),
             badgeIds: badgeIds,
             bonusId: group.id + '_bonus',
             bonusPts: bonusPts,
@@ -150,8 +167,19 @@ function buildCollections(sets) {
             bonusName: group.name,
             bonusDesc: 'Completed the ' + group.name + ' collection',
             legacyBonuses: legacyBonuses,
+            title: group.title || null,
+            flair: group.flair || '',
         };
     });
+}
+
+// Held ids for collection math. BIP Breakthrough badges (PR #238) are kept
+// in the server-only bipBadges list, so they are added here.
+function collectionHeldIds(user, rows) {
+    const held = heldIdsForCollection(user, rows);
+    const bip = user && Array.isArray(user.bipBadges) ? user.bipBadges : [];
+    bip.forEach(function (id) { if (typeof id === 'string' && /^bip_[0-9]{1,4}$/.test(id)) held.add(id); });
+    return held;
 }
 
 function collections() {
@@ -189,6 +217,7 @@ function serverPaidXp(bonusId) {
 function proofMemberIds(col) {
     const rules = require('./badgeRules');
     return (col && col.badgeIds || []).filter(function (id) {
+        if (SERVER_VERIFIED.has(id)) return true;
         const rule = rules.ruleFor(id);
         return !!(rule && !rule.cosmetic);
     });
@@ -315,8 +344,9 @@ function stageBadgeFavor(t, db, adminSdk, ctx) {
     t.set(src.contributorRef, contributorDoc);
     const field = factionField(faction);
     const totals = src.totalsSnap && src.totalsSnap.exists ? (src.totalsSnap.data() || {}) : {};
+    const race = require('./factionBalance').racePoints(pointsToAdd, faction, totals, src.user, nowMs);
     const totalsWrite = { lastUpdated: adminSdk.firestore.FieldValue.serverTimestamp() };
-    totalsWrite[field] = (Number(totals[field]) || 0) + pointsToAdd;
+    totalsWrite[field] = Math.round(((Number(totals[field]) || 0) + race.points) * 100) / 100;
     t.set(src.totalsRef, Object.assign({}, totals, totalsWrite));
     t.set(db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc(src.uid), {
         uid: src.uid,
@@ -471,7 +501,7 @@ async function awardAlreadySettled(db, uid, badgeId, awardData) {
         const awardsSnap = await userRef.collection('badge_awards').get();
         const user = userSnap && userSnap.exists ? (userSnap.data() || {}) : {};
         const rows = awardRowsFromSnap(awardsSnap);
-        const held = heldIdsForCollection(user, rows);
+        const held = collectionHeldIds(user, rows);
         for (let i = 0; i < hits.length; i++) {
             const col = hits[i];
             const plan = planGrant(col, held);
@@ -542,7 +572,7 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
         if (rewardBlocked(user, ledger)) {
             return { granted: false, success: true, reason: 'banned', awarded: 0, xp: 0, badgeId: col.bonusId };
         }
-        const held = heldIdsForCollection(user, awardRowsFromSnap(awardsSnap));
+        const held = collectionHeldIds(user, awardRowsFromSnap(awardsSnap));
         const award = awardSnap && awardSnap.exists ? (awardSnap.data() || {}) : {};
         if (xpSnap.exists || awardSnap.exists || held.has(col.bonusId)) {
             return {
@@ -671,7 +701,7 @@ async function maybeGrantForBadge(db, adminSdk, uid, badgeId, opts) {
         const userSnap = await userRef.get();
         const awardsSnap = await userRef.collection('badge_awards').get();
         const user = userSnap && userSnap.exists ? (userSnap.data() || {}) : {};
-        held = heldIdsForCollection(user, awardRowsFromSnap(awardsSnap));
+        held = collectionHeldIds(user, awardRowsFromSnap(awardsSnap));
     } catch (err) {
         held = null;
     }
@@ -737,6 +767,13 @@ async function maybeGrantForBadge(db, adminSdk, uid, badgeId, opts) {
 
 module.exports = {
     GROUPS: GROUPS,
+    BIP_SEASONS: BIP_SEASONS,
+    META: META,
+    SERVER_VERIFIED: SERVER_VERIFIED,
+    LEGEND_IDS: LEGEND_IDS,
+    RETIRED_COLLECTION_IDS: RETIRED_COLLECTION_IDS,
+    metaMemberGroups: metaMemberGroups,
+    collectionHeldIds: collectionHeldIds,
     parseSets: parseSets,
     parseHiddenPts: parseHiddenPts,
     legacyBonusPts: legacyBonusPts,

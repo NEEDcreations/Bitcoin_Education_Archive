@@ -130,12 +130,17 @@ const SERVER_BONUS = {
     col_mining: 500,
     col_foresight: 1000,
     col_arena: 1150,
-    col_community: 800,
+    col_chat_forum: 300,
+    col_peers: 500,
+    col_irl: 0,
     col_lightning: 150,
     col_builder: 650,
-    col_entertainment: 150,
+    col_tctv: 150,
+    col_beats: 0,
     col_profile: 300,
     col_fitness: 0,
+    col_bip_s1: 0,
+    col_proof_of_everything: 0,
 };
 
 const APPROVED = {
@@ -144,10 +149,13 @@ const APPROVED = {
     col_mining: ['set_miner', 'set_favor'],
     col_foresight: ['set_oracle', 'set_raffle'],
     col_arena: ['set_pvp', 'set_gladiator', 'set_codebreaker'],
-    col_community: ['set_social', 'set_voice', 'set_network', 'set_irl'],
+    col_chat_forum: ['set_social', 'set_voice'],
+    col_peers: ['set_network'],
+    col_irl: ['set_irl'],
     col_lightning: ['set_lightning', 'set_generous'],
     col_builder: ['set_builder', 'set_trader'],
-    col_entertainment: ['set_beats', 'set_tctv', 'set_tv'],
+    col_tctv: ['set_tctv', 'set_tv'],
+    col_beats: ['set_beats'],
     col_profile: ['set_profile', 'set_newcomer', 'set_sovereign'],
     col_fitness: ['set_fun', 'set_pow'],
 };
@@ -194,7 +202,7 @@ queue.push(test('remainder floors at 0 for none, some, and all of the old bonuse
     assert.strictEqual(collectionBonus.remainderXp(100, [40]), 60);
     assert.strictEqual(collectionBonus.remainderXp(100, [{ pts: 40 }, { pts: 60 }]), 0);
     assert.strictEqual(collectionBonus.remainderXp(100, [{ pts: 40 }, { pts: 80 }]), 0);
-    const col = collectionBonus.collectionById('col_entertainment');
+    const col = collectionBonus.collectionById('col_tctv');
     assert.strictEqual(col.bonusPts, 150);
     assert.strictEqual(col.bonusPts, col.legacyBonuses.reduce(function (sum, row) { return sum + row.pts; }, 0));
     assert.strictEqual(collectionBonus.remainderXp(col.bonusPts, []), col.bonusPts);
@@ -202,7 +210,7 @@ queue.push(test('remainder floors at 0 for none, some, and all of the old bonuse
     assert.strictEqual(collectionBonus.remainderXp(col.bonusPts, col.legacyBonuses), 0);
 }));
 
-queue.push(test('the 32 sets map onto the 11 approved collections once each', function () {
+queue.push(test('the 32 sets map onto the approved collections once each', function () {
     const badges = fs.readFileSync(path.join(root, 'badges.js'), 'utf8');
     const sets = collectionBonus.parseSets(badges);
     assert.strictEqual(sets.length, 32);
@@ -222,11 +230,10 @@ queue.push(test('the 32 sets map onto the 11 approved collections once each', fu
     const saved = JSON.parse(fs.readFileSync(path.join(root, 'functions/src/collection-sets.json'), 'utf8'));
     assert.strictEqual(saved.length, 32);
     assert.deepStrictEqual(saved.map(function (row) { return row.id; }), sets.map(function (row) { return row.id; }));
-    const groups = badges.slice(badges.indexOf('var BADGE_COLLECTION_GROUPS'), badges.indexOf('function _shortCollectionSetName'));
-    collectionBonus.GROUPS.forEach(function (group) {
-        assert.ok(groups.includes("collectionId: '" + group.collectionId + "'") || groups.includes("collectionId: '" + group.id + "'"), group.id);
-        group.setIds.forEach(function (id) { assert.ok(groups.includes("'" + id + "'"), id); });
-    });
+    const catalogJs = fs.readFileSync(path.join(root, 'badges.catalog.js'), 'utf8');
+    const defsLine = catalogJs.split('\n').filter(function (l) { return l.indexOf('window.BADGE_COLLECTION_DEFS=') === 0; })[0];
+    const clientDefs = JSON.parse(defsLine.slice('window.BADGE_COLLECTION_DEFS='.length).replace(/;$/, ''));
+    assert.deepStrictEqual(clientDefs.map(function (c) { return c.id; }), collectionBonus.collections().map(function (c) { return c.id; }));
     assert.ok(!/id:\s*'col_/.test(badges));
     const claim = badges.slice(badges.indexOf('window._claimSetBonus'), badges.indexOf('window._checkBadgeSets'));
     assert.ok(!claim.includes('awardPoints'));
@@ -242,8 +249,6 @@ queue.push(test('the 32 sets map onto the 11 approved collections once each', fu
         assert.ok(required.length <= col.badgeIds.length, col.id);
         required.forEach(function (id) { assert.ok(col.badgeIds.indexOf(id) !== -1, id); });
         bonusSum += col.bonusPts;
-        const groupLine = groups.slice(groups.indexOf(col.id), groups.indexOf(col.id) + 700);
-        assert.ok(groupLine.includes('serverBonusPts: ' + col.bonusPts), col.id);
     });
     assert.strictEqual(bonusSum, 9150);
 }));
@@ -263,7 +268,7 @@ queue.push(test('a retired set bonus is not paid even when its members are held'
 }));
 
 async function grantEntertainment(extraIds, dailyTotal) {
-    const col = collectionBonus.collectionById('col_entertainment');
+    const col = collectionBonus.collectionById('col_tctv');
     const ids = collectionBonus.requiredMembers(col).concat(extraIds || []);
     const seed = seedAwards(ids);
     if (dailyTotal != null) seed['users/u/daily_points/2026-10-24'] = { total: dailyTotal };
@@ -287,7 +292,7 @@ queue.push(test('a finished collection pays the full bonus when no old bonus is 
 }));
 
 queue.push(test('a finished collection subtracts the old bonuses already held', async function () {
-    const col = collectionBonus.collectionById('col_entertainment');
+    const col = collectionBonus.collectionById('col_tctv');
     const held = col.legacyBonuses.filter(function (row) { return row.id === 'set_tv'; })[0];
     assert.strictEqual(held.pts, 150);
     const { db, result } = await grantEntertainment([held.id], 0);
@@ -301,7 +306,7 @@ queue.push(test('a finished collection subtracts the old bonuses already held', 
 }));
 
 queue.push(test('holding every old bonus pays nothing more and still records the badge once', async function () {
-    const col = collectionBonus.collectionById('col_entertainment');
+    const col = collectionBonus.collectionById('col_tctv');
     const { db, result } = await grantEntertainment(col.legacyBonuses.map(function (row) { return row.id; }), 0);
     assert.strictEqual(result.granted, true);
     assert.strictEqual(result.requested, 0);
@@ -573,7 +578,7 @@ queue.push(test('Nacho tags a public username once and skips Anonymous', async f
 
 queue.push(test('earnedHidden plus one cheap award does not complete a collection', async function () {
     const { serverHeldBadgeIds } = require('../functions/src/badgeProfile');
-    const col = collectionBonus.collectionById('col_entertainment');
+    const col = collectionBonus.collectionById('col_tctv');
     const cheap = 'tctv_daily_1';
     assert.ok(col.badgeIds.indexOf(cheap) !== -1);
     const stuffed = {
@@ -683,9 +688,9 @@ queue.push(test('client profile fields cannot mint an award or complete a collec
     assert.ok(real.xp > 0);
 }));
 
-queue.push(test('Entertainment pays 150 when its three server-proof badges are held', async function () {
-    const col = collectionBonus.collectionById('col_entertainment');
-    assert.strictEqual(col.badgeIds.length, 28);
+queue.push(test('Timechain TV pays 150 when its three server-proof badges are held', async function () {
+    const col = collectionBonus.collectionById('col_tctv');
+    assert.strictEqual(col.badgeIds.length, 13);
     assert.strictEqual(collectionBonus.requiredMembers(col).length, 3);
     assert.strictEqual(col.bonusPts, 150);
     const three = ['tctv_daily_1', 'tctv_daily_7', 'tctv_daily_30'];
@@ -734,7 +739,9 @@ queue.push(test('Daily Habits deducts the 2000 the server paid for Trifecta and 
 queue.push(test('Fun and Fitness pays no XP and still records Favor and the congrats', async function () {
     const col = collectionBonus.collectionById('col_fitness');
     assert.strictEqual(col.bonusPts, 0);
-    assert.strictEqual(collectionBonus.requiredMembers(col).length, 19);
+    // Proof of Walk tiers are server-verified now (syncStrava), so they are the required set.
+    assert.strictEqual(collectionBonus.requiredMembers(col).length, 8);
+    collectionBonus.requiredMembers(col).forEach(function (id) { assert.ok(/^pow_/.test(id), id); });
     const ids = collectionBonus.requiredMembers(col);
     const docs = seedAwards(ids, {
         'users/fit_user': { points: 0, visibleBadges: ids.slice() },
@@ -805,18 +812,23 @@ queue.push(test('the award trigger skips unrelated badges and retries a pending 
     assert.strictEqual(collectionBonus.collectionsTouching('not_a_member').length, 0);
     assert.strictEqual(collectionBonus.collectionsTouching('set_tv').length, 0);
     const overlap = collectionBonus.collectionsTouching('tctv_daily_1').map(function (col) { return col.id; }).sort();
-    assert.deepStrictEqual(overlap, ['col_daily_habits', 'col_entertainment']);
+    // Each badge sits in one collection now.
+    assert.deepStrictEqual(overlap, ['col_tctv']);
     const sayHi = memoryDb(seedAwards(['say_hi_1']));
     assert.strictEqual(await collectionBonus.awardAlreadySettled(sayHi, 'u', 'say_hi_1', {}), true);
-    const col = collectionBonus.collectionById('col_entertainment');
+    const col = collectionBonus.collectionById('col_tctv');
     const pendingDocs = seedAwards(collectionBonus.requiredMembers(col));
     pendingDocs['users/u'].visibleBadges.push(col.bonusId);
     pendingDocs['users/u/badge_awards/' + col.bonusId] = { badge: col.bonusId, source: 'collection_bonus', congratsPending: true, xp: 150 };
     pendingDocs['users/u/xp_ledger/' + col.bonusId] = { source: 'collection_bonus', awarded: 150 };
     const pendingDb = memoryDb(pendingDocs);
     assert.strictEqual(await collectionBonus.awardAlreadySettled(pendingDb, 'u', col.bonusId, { congratsPending: true }), false);
-    const posted = await collectionBonus.maybeGrantForBadge(pendingDb, admin, 'u', col.bonusId, { day: '2026-10-24', nowMs: 1700000000000 });
-    assert.strictEqual(posted.length, 1);
+    const postedAll = await collectionBonus.maybeGrantForBadge(pendingDb, admin, 'u', col.bonusId, { day: '2026-10-24', nowMs: 1700000000000 });
+    // A collection bonus is also a member of Proof of Everything, which is not complete here.
+    assert.strictEqual(postedAll.length, 2);
+    const meta = postedAll.filter(function (row) { return row.reason === 'incomplete'; });
+    assert.strictEqual(meta.length, 1);
+    const posted = postedAll.filter(function (row) { return row.reason !== 'incomplete'; });
     assert.strictEqual(posted[0].reason, 'already');
     assert.strictEqual(posted[0].chatPosted, true);
     assert.strictEqual(pendingDb.docs['users/u/badge_awards/' + col.bonusId].congratsPending, false);
@@ -876,7 +888,8 @@ queue.push(test('the collection card remainder matches the server subtraction', 
     const clientSrc = fs.readFileSync(path.join(root, 'badges.catalog.js'), 'utf8');
     const payStart = clientSrc.indexOf('window.BADGE_COLLECTION_PAY=');
     assert.ok(payStart > 0);
-    const pay = JSON.parse(clientSrc.slice(payStart + 'window.BADGE_COLLECTION_PAY='.length).replace(/;\s*$/, ''));
+    const payLine = clientSrc.slice(payStart).split('\n')[0];
+    const pay = JSON.parse(payLine.slice('window.BADGE_COLLECTION_PAY='.length).replace(/;\s*$/, ''));
     const remainder = vm.runInNewContext(badges.slice(start, end) + '\n_collectionRemainder(col, earned);', {
         window: { BADGE_COLLECTION_PAY: pay },
         col: { id: 'col_daily_habits' },
@@ -1004,7 +1017,7 @@ queue.push(test('a quiet collection award skips GGs and an expired window stamps
 }));
 
 queue.push(test('a failed congrats retry is logged granted false and stays pending', async function () {
-    const col = collectionBonus.collectionById('col_entertainment');
+    const col = collectionBonus.collectionById('col_tctv');
     const pendingDocs = seedAwards(collectionBonus.requiredMembers(col));
     pendingDocs['users/u'].visibleBadges.push(col.bonusId);
     pendingDocs['users/u/badge_awards/' + col.bonusId] = { badge: col.bonusId, source: 'collection_bonus', congratsPending: true, xp: 150 };

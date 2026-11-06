@@ -2458,6 +2458,9 @@ function _renderFavorTab(body) {
                 '<div style="font-size:0.78rem;font-weight:800;color:#f7931a;margin-bottom:6px;">Cyber Hornets</div>' +
                 '<div id="sfScoreHornets" style="font-size:1.6rem;font-weight:900;color:var(--heading);font-family:monospace;">0</div>' +
                 '<div style="font-size:0.62rem;color:var(--text-faint);margin-top:2px;">SF points</div>' +
+                '<div id="sfAvgHornets" style="font-size:0.68rem;color:var(--text-muted);margin-top:6px;">— per member</div>' +
+                '<div id="sfBoostHornets" style="display:none;font-size:0.62rem;font-weight:800;color:#22c55e;margin-top:4px;">🔥 Underdog boost 1.2×</div>' +
+                '<div style="font-size:0.6rem;font-style:italic;color:var(--text-faint);margin-top:6px;line-height:1.35;">"' + _sfQuip('cyber_hornets') + '"</div>' +
             '</div>' +
             '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex-shrink:0;">' +
                 '<div style="font-size:0.9rem;font-weight:900;color:var(--text-faint);">VS</div>' +
@@ -2468,8 +2471,19 @@ function _renderFavorTab(body) {
                 '<div style="font-size:0.78rem;font-weight:800;color:#a855f7;margin-bottom:6px;">Honey Badgers</div>' +
                 '<div id="sfScoreBadgers" style="font-size:1.6rem;font-weight:900;color:var(--heading);font-family:monospace;">0</div>' +
                 '<div style="font-size:0.62rem;color:var(--text-faint);margin-top:2px;">SF points</div>' +
+                '<div id="sfAvgBadgers" style="font-size:0.68rem;color:var(--text-muted);margin-top:6px;">— per member</div>' +
+                '<div id="sfBoostBadgers" style="display:none;font-size:0.62rem;font-weight:800;color:#22c55e;margin-top:4px;">🔥 Underdog boost 1.2×</div>' +
+                '<div style="font-size:0.6rem;font-style:italic;color:var(--text-faint);margin-top:6px;line-height:1.35;">"' + _sfQuip('honey_badgers') + '"</div>' +
             '</div>' +
         '</div>' +
+        '<details id="sfRaceRules" style="margin-top:10px;font-size:0.72rem;color:var(--text-muted);line-height:1.5;">' +
+            '<summary style="cursor:pointer;font-weight:700;color:var(--text);">How the race stays fair</summary>' +
+            '<div style="margin-top:6px;">🏁 First faction to 10,000 race points wins.</div>' +
+            '<div>🔥 <b>Underdog boost:</b> while a faction trails by 1,000 or more, its new points count 1.2×. It switches off once the race is close.</div>' +
+            '<div>🆕 <b>Underdog join bonus:</b> new players who join the smaller faction earn +25% faction points for their first 7 days.</div>' +
+            '<div>⚖️ <b>Pound for pound:</b> the per-member average shows which team is pulling its weight, not just which is bigger.</div>' +
+            '<div>🔒 Faction choice is permanent, and all scoring happens on our servers.</div>' +
+        '</details>' +
         '<div id="sfScoreBar" style="margin-top:10px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;display:none;">' +
             '<div id="sfScoreBarFill" style="height:100%;background:linear-gradient(90deg,#f7931a,#f7931a 50%,#a855f7 50%,#a855f7);width:100%;border-radius:3px;transition:background 0.5s;"></div>' +
         '</div>' +
@@ -2709,6 +2723,12 @@ window._runFactionBackfill = function() {
     });
 };
 
+function _sfQuip(f) {
+    var q = (typeof window.bqFactionQuip === 'function') ? window.bqFactionQuip(f) : '';
+    if (!q) q = f === 'cyber_hornets' ? 'The swarm protects the network.' : "Honey badger don't care.";
+    return typeof escapeHtml === 'function' ? escapeHtml(q) : q;
+}
+
 // -- Faction scoreboard live listener --
 function _startFactionScoreboardListener() {
     // Detach any previous listener
@@ -2731,8 +2751,17 @@ function _startFactionScoreboardListener() {
         var elNote = document.getElementById('sfNoFactionNote');
         var unaffiliated = data.unaffiliated || 0;
 
-        if (elH) elH.textContent = hornets.toLocaleString();
-        if (elB) elB.textContent = badgers.toLocaleString();
+        if (elH) elH.textContent = Math.floor(hornets).toLocaleString();
+        if (elB) elB.textContent = Math.floor(badgers).toLocaleString();
+        ['cyber_hornets', 'honey_badgers'].forEach(function(f) {
+            var key = f === 'cyber_hornets' ? 'Hornets' : 'Badgers';
+            var m = Number(data['members_' + f]) || 0;
+            var avgEl = document.getElementById('sfAvg' + key);
+            if (avgEl) avgEl.textContent = m > 0 ? ((Number(data[f]) || 0) / m).toFixed(1) + ' per member · ' + m.toLocaleString() + ' members' : '— per member';
+            var mine = Number(data[f]) || 0, theirs = Number(data[f === 'cyber_hornets' ? 'honey_badgers' : 'cyber_hornets']) || 0;
+            var boostEl = document.getElementById('sfBoost' + key);
+            if (boostEl) boostEl.style.display = (theirs - mine >= 1000) ? 'block' : 'none';
+        });
         if (elU) elU.textContent = unaffiliated.toLocaleString() + ' pts unclaimed';
         var elExplain = document.getElementById('sfUnclaimedExplain');
         if (elExplain) elExplain.textContent = "These come from players who haven't picked a faction yet.";
@@ -9711,15 +9740,16 @@ window._showChatFlairPicker = function() {
 
 window._selectChatFlair = function(emoji) {
     if (typeof currentUser === 'undefined' || !currentUser) return;
-    currentUser.chatFlairEmoji = emoji;
-    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
-        db.collection('users').doc(auth.currentUser.uid).update({ chatFlairEmoji: emoji }).catch(function(e) {
-            console.warn('[chatFlair] Firestore write failed:', e);
-        });
-    }
     var overlay = document.getElementById('chatFlairPickerOverlay');
     if (overlay) overlay.remove();
-    if (typeof showToast === 'function') showToast('\uD83D\uDD25 Chat flair set to ' + emoji + '!');
+    if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    // The server checks the flair is unlocked and saves it (titleFlair callable).
+    if (typeof window._titleFlairCall !== 'function') return;
+    window._titleFlairCall({ action: 'equip', flair: emoji || null }).then(function(d) {
+        if (typeof showToast !== 'function') return;
+        if (d && d.ok) showToast('\uD83D\uDD25 Chat flair set to ' + (d.chatFlairEmoji || 'none') + '!');
+        else showToast('\uD83D\uDD12 That flair is not unlocked yet');
+    }).catch(function(e) { console.warn('[chatFlair] save failed:', e && e.message); });
 };
 
 // ─── Post-Purchase Cosmetic Tooltips ─────────────────────────────────────────

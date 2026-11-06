@@ -15,6 +15,8 @@ execSync('npm ci', { cwd: rulesDir, stdio: 'inherit' });
 
 const TESTS = [
     { name: 'Syntax Validation', file: 'test-syntax.js' },
+    { name: 'Faction race balance', file: 'test-faction-balance.js' },
+    { name: 'Faction race prizes', file: 'test-faction-race-prizes.js' },
     { name: 'Lightning fee', file: 'test-ln-fee.js' },
     { name: '5-tier badges', file: 'test-badge-tiers.js' },
     { name: 'Nov 4 batch', file: 'test-nov4-batch.js' },
@@ -48,6 +50,7 @@ const TESTS = [
     { name: 'New badge sources', file: 'test-new-badges.js' },
     { name: 'Badge search', file: 'test-badge-search.js' },
     { name: 'Collection bonus remainder', file: 'test-collection-bonus.js' },
+    { name: 'Title & Flair server checks', file: 'test-title-flair.js' },
     { name: 'Variable Scope Safety', file: 'test-variable-scope.js' },
     { name: 'OnClick Function Existence', file: 'test-onclick-functions.js' },
     { name: 'Gift open popup', file: 'test-gift-open.js' },
@@ -153,6 +156,7 @@ const TESTS = [
     { name: 'Remembered device retry', file: 'test-mfa-device.js' },
     { name: 'Two-factor emulator', file: 'test-totp-emulator.js' },
     { name: 'Badge rules attack', file: 'rules/badge-attack.js' },
+    { name: 'Title & Flair rules', file: 'rules/title-flair-rules.js' },
     { name: 'Profile field allowlist', file: 'rules/profile-allowlist.js' },
     { name: 'Evidence author freeze', file: 'rules/evidence-author.js' },
     { name: 'GGs celebration rules', file: 'rules/gg-reaction-rules.js' },

@@ -8009,6 +8009,7 @@ window._restoreSignUpForm = function() {
     if (lnSection) lnSection.style.display = '';
     var factionPicker = document.getElementById('factionPickerSignup');
     if (factionPicker) factionPicker.style.display = '';
+    if (window._paintFactionHints) window._paintFactionHints();
 
     if (h2) h2.style.display = '';
     if (firstP) firstP.style.display = '';
@@ -8088,25 +8089,211 @@ window._selectCountry = function(name) {
     if (dropdown) dropdown.style.display = 'none';
 };
 
-// Title equip
-window._equipTitle = function(titleId) {
+// Title & Flair. The server (titleFlair callable) lists what this player has
+// earned and is the only writer of activeTitle and chatFlairEmoji.
+function _tfEsc(v) { return typeof escapeHtml === 'function' ? escapeHtml(String(v == null ? '' : v)) : String(v == null ? '' : v).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function _tfCollections() {
+    return (typeof window !== 'undefined' && Array.isArray(window.BADGE_COLLECTION_DEFS)) ? window.BADGE_COLLECTION_DEFS : [];
+}
+function _tfTitleDef(id) {
+    if (!id) return null;
+    if (typeof TITLE_DEFS !== 'undefined') {
+        var fromBadge = TITLE_DEFS.find(function(t){ return t.id === id; });
+        if (fromBadge) return fromBadge;
+    }
+    // Collection titles (BIP Merger, Unconfiscatable, etc.) live on BADGE_COLLECTION_DEFS.
+    var cols = _tfCollections();
+    for (var i = 0; i < cols.length; i++) {
+        if (cols[i].title && cols[i].title.id === id) return cols[i].title;
+    }
+    if (id === 'core_contributor') return { id: id, title: 'Core Contributor', emoji: '🔧' };
+    return null;
+}
+window._tfPreview = { title: undefined, flair: undefined };
+window._renderTitleFlairSection = function() {
+    var u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+    var earnedT = Array.isArray(u.earnedTitles) ? u.earnedTitles : [];
+    var earnedF = Array.isArray(u.earnedFlair) ? u.earnedFlair : [];
+    var active = u.activeTitle || '';
+    var flair = u.chatFlairEmoji || '';
+    var pv = window._tfPreview || {};
+    var showTitle = pv.title !== undefined ? pv.title : active;
+    var showFlair = pv.flair !== undefined ? pv.flair : flair;
+    var tDef = _tfTitleDef(showTitle);
+    var name = _tfEsc(u.username || 'Bitcoiner');
+    var h = '<style>' +
+        '.tf-wrap{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;box-sizing:border-box;max-width:100%;}' +
+        '.tf-h{font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:0 0 10px;}' +
+        '.tf-sub{font-size:0.7rem;color:var(--text-muted);margin:14px 0 8px;font-weight:700;}' +
+        '.tf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;}' +
+        '.tf-card{position:relative;box-sizing:border-box;min-height:64px;padding:8px 6px;border-radius:10px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;min-width:0;}' +
+        '.tf-card .tf-e{font-size:1.25rem;line-height:1;}' +
+        '.tf-card .tf-n{font-size:0.66rem;font-weight:700;line-height:1.2;overflow-wrap:anywhere;}' +
+        '.tf-card.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:rgba(247,147,26,0.10);}' +
+        '.tf-card.on::after{content:"✓";position:absolute;top:3px;right:6px;font-size:0.7rem;font-weight:900;color:var(--accent);}' +
+        '.tf-card.lock{opacity:0.45;filter:grayscale(1);cursor:help;}' +
+        '.tf-prev{border:1px dashed var(--border);border-radius:10px;padding:10px;font-size:0.8rem;line-height:1.5;overflow-wrap:anywhere;}' +
+        '.tf-pill{display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:1px 8px;font-size:0.7rem;font-weight:700;color:#f97316;margin-left:6px;}' +
+        '@media (max-width:420px){.tf-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}.tf-card{min-height:58px;padding:6px 4px;}.tf-card .tf-n{font-size:0.6rem;}}' +
+        '</style>';
+    h += '<div class="tf-wrap" id="titleFlairSection">';
+    h += '<div class="tf-h">🎖️ Title &amp; Flair</div>';
+    h += '<div class="tf-prev" aria-live="polite"><div><strong>' + name + '</strong>' + (tDef ? '<span class="tf-pill">' + tDef.emoji + ' ' + _tfEsc(tDef.title) + '</span>' : '') + '</div>' +
+        '<div style="color:var(--text-muted);">' + (showFlair ? _tfEsc(showFlair) + ' ' : '') + '<strong style="color:var(--text);">' + name + '</strong>: gm, stacking sats 🧡</div></div>';
+    function card(kind, id, emoji, label, isOn, lockTip) {
+        var attrs = lockTip
+            ? ' class="tf-card lock" aria-disabled="true" title="' + _tfEsc(lockTip) + '" onclick="if(typeof showToast===\'function\')showToast(this.title)"'
+            : ' class="tf-card' + (isOn ? ' on' : '') + '" aria-pressed="' + (isOn ? 'true' : 'false') + '" onmouseenter="window._tfHover(\'' + kind + '\',this.dataset.v)" onmouseleave="window._tfHover(\'' + kind + '\')" onclick="window._tfPick(\'' + kind + '\',this.dataset.v)"';
+        return '<button type="button" data-v="' + _tfEsc(id) + '"' + attrs + '><span class="tf-e">' + emoji + '</span><span class="tf-n">' + _tfEsc(label) + '</span></button>';
+    }
+    // Titles: None, then collection titles (locked ones greyed), then earned badge titles.
+    h += '<div class="tf-sub">Title</div><div class="tf-grid">';
+    h += card('title', '', '🚫', 'No title', !active, '');
+    var shown = {};
+    _tfCollections().forEach(function(col) {
+        if (!col.title || !col.title.id) return;
+        shown[col.title.id] = true;
+        var have = earnedT.indexOf(col.title.id) !== -1;
+        h += card('title', col.title.id, col.title.emoji, col.title.title, active === col.title.id, have ? '' : '🔒 Complete the ' + col.name + ' collection');
+    });
+    earnedT.forEach(function(tid) {
+        if (shown[tid]) return;
+        var d = _tfTitleDef(tid);
+        if (d) h += card('title', tid, d.emoji, d.title, active === tid, '');
+    });
+    h += '</div>';
+    // Flair: None, Nook flair, then collection flair.
+    h += '<div class="tf-sub">Chat flair</div><div class="tf-grid">';
+    h += card('flair', '', '🚫', 'No flair', !flair, '');
+    var seenF = {};
+    var nookOwned = Array.isArray(u.ownedCosmetics) && u.ownedCosmetics.indexOf('chat_flair') !== -1;
+    (window.CHAT_FLAIR_NOOK || []).forEach(function(e) {
+        seenF[e] = true;
+        var have = earnedF.indexOf(e) !== -1 || nookOwned;
+        h += card('flair', e, e, 'Nook', flair === e, have ? '' : '🔒 Buy Chat Flair in the Nook');
+    });
+    _tfCollections().forEach(function(col) {
+        if (!col.flair || seenF[col.flair]) return;
+        seenF[col.flair] = true;
+        var have = earnedF.indexOf(col.flair) !== -1;
+        h += card('flair', col.flair, col.flair, col.name, flair === col.flair, have ? '' : '🔒 Complete the ' + col.name + ' collection');
+    });
+    h += '</div></div>';
+    return h;
+};
+window._tfRepaint = function() {
+    var el = document.getElementById('titleFlairSection');
+    if (!el) return;
+    var tmp = document.createElement('div');
+    tmp.innerHTML = window._renderTitleFlairSection();
+    var fresh = tmp.querySelector('#titleFlairSection');
+    var style = tmp.querySelector('style');
+    if (fresh) el.replaceWith(fresh);
+    if (style && !document.getElementById('tfStyle')) { style.id = 'tfStyle'; document.head.appendChild(style); }
+};
+window._tfHover = function(kind, v) {
+    window._tfPreview[kind] = v === undefined ? undefined : (v || '');
+    var el = document.querySelector('#titleFlairSection .tf-prev');
+    if (!el) return;
+    var tmp = document.createElement('div');
+    tmp.innerHTML = window._renderTitleFlairSection();
+    var p = tmp.querySelector('.tf-prev');
+    if (p) el.innerHTML = p.innerHTML;
+};
+window._tfRefresh = function() {
+    if (typeof window._titleFlairCall !== 'function') return;
+    window._titleFlairCall({ action: 'list' }).then(function() { window._tfRepaint(); }).catch(function() {});
+};
+window._tfPick = function(kind, value) {
     var user = auth ? auth.currentUser : null;
     if (!user) { if (typeof showToast === 'function') showToast('Sign in to equip a title'); return; }
     if (user.isAnonymous) { if (typeof showToast === 'function') showToast('Create an account to equip a title'); return; }
-    if (typeof currentUser !== 'undefined' && currentUser) currentUser.activeTitle = titleId || null;
-    if (typeof db !== 'undefined' && db) {
-        db.collection('users').doc(user.uid).update({ activeTitle: titleId || null }).catch(function(){});
+    if (typeof window._titleFlairCall !== 'function') return;
+    var payload = { action: 'equip' };
+    payload[kind] = value || null;
+    window._tfPreview = { title: undefined, flair: undefined };
+    window._titleFlairCall(payload).then(function(d) {
+        if (!d || !d.ok) { if (typeof showToast === 'function') showToast('🔒 Not unlocked yet'); return; }
+        var label = '';
+        if (kind === 'title') {
+            var tDef = _tfTitleDef(d.activeTitle);
+            label = tDef ? '🎖️ Title equipped: ' + tDef.emoji + ' ' + tDef.title : 'Title removed';
+        } else {
+            label = d.chatFlairEmoji ? 'Chat flair equipped: ' + d.chatFlairEmoji : 'Chat flair removed';
+        }
+        if (typeof showToast === 'function') showToast(label);
+        window._tfRepaint();
+        var pill = document.getElementById('settingsTitlePill');
+        if (pill) {
+            var t = _tfTitleDef(d.activeTitle);
+            pill.innerHTML = t ? '<div style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;color:#f97316;margin-top:6px;">' + t.emoji + ' ' + _tfEsc(t.title) + '</div>' : '';
+        }
+    }).catch(function() { if (typeof showToast === 'function') showToast('Could not save. Try again.'); });
+};
+// Older callers (profile menus) still use this name.
+window._equipTitle = function(titleId) { window._tfPick('title', titleId || ''); };
+
+// Faction identities. Display only. The race math lives in Cloud Functions.
+window.BQ_FACTIONS = window.BQ_FACTIONS || {
+    cyber_hornets: {
+        name: 'Cyber Hornets', emoji: '🐝', flair: '🐝⚡', color: '#f7931a',
+        tagline: 'The swarm protects the network',
+        quips: [
+            'Ten thousand stingers. One chain.',
+            'Bzzz. Your FUD has been swarmed.',
+            "Don't trust. Verify. Then sting.",
+            'Hive mind, cold wallet.',
+            'We run nodes in swarms.'
+        ]
+    },
+    honey_badgers: {
+        name: 'Honey Badgers', emoji: '🦡', flair: '🦡🍯', color: '#a855f7',
+        tagline: "Honey badger don't care",
+        quips: [
+            "Honey badger don't care about your FUD.",
+            'Bitten by a cobra. Still hodling.',
+            'Down 80%? Nap. Wake up. Stack.',
+            'Unkillable. Unbothered. Unshaken.',
+            'Declared dead 400 times. Still here.'
+        ]
     }
-    var label = '';
-    if (titleId && typeof TITLE_DEFS !== 'undefined') {
-        var tDef = TITLE_DEFS.find(function(t){return t.id===titleId;});
-        if (tDef) label = tDef.emoji + ' ' + tDef.title;
-    }
-    if (typeof showToast === 'function') {
-        showToast(label ? '🎖️ Title equipped: ' + label : 'Title removed');
-    }
-    // Re-render settings to update the pill display
-    if (typeof showSettings === 'function') setTimeout(function(){ showSettings('account'); }, 300);
+};
+window.bqFactionQuip = function(f) {
+    var d = window.BQ_FACTIONS[f];
+    if (!d) return '';
+    var day = Math.floor(Date.now() / 86400000);
+    return d.quips[day % d.quips.length];
+};
+// Reads the public totals doc to mark the smaller faction. The server decides
+// the bonus on its own; this only shows it.
+window._factionSmaller = function(t) {
+    t = t || {};
+    var mh = Number(t.members_cyber_hornets) || 0, mb = Number(t.members_honey_badgers) || 0;
+    if (mh !== mb) return mh < mb ? 'cyber_hornets' : 'honey_badgers';
+    var sh = Number(t.cyber_hornets) || 0, sb = Number(t.honey_badgers) || 0;
+    if (sh !== sb) return sh < sb ? 'cyber_hornets' : 'honey_badgers';
+    return null;
+};
+window._paintFactionHints = function() {
+    if (typeof db === 'undefined' || !db || !db.collection) return;
+    db.collection('satoshiFavor').doc('factionTotals').get().then(function(doc) {
+        var small = window._factionSmaller(doc.exists ? doc.data() : {});
+        window._factionUnderdogPick = small;
+        ['cyber_hornets', 'honey_badgers'].forEach(function(f) {
+            var tag = document.getElementById('factionUnderdogTag_' + f);
+            if (tag) tag.style.display = small === f ? 'block' : 'none';
+        });
+        // Suggest the smaller side when nothing is picked yet.
+        if (small && !window._signupFaction) {
+            var btn = document.getElementById(small === 'cyber_hornets' ? 'factionBtnHornets' : 'factionBtnBadgers');
+            if (btn && btn.offsetParent !== null && typeof btn.onclick === 'function') btn.onclick();
+        }
+        var sp = document.getElementById('settingsFactionPicker');
+        if (sp && !(currentUser && currentUser.faction) && typeof showSettingsPage === 'function' && !window._factionHintsPainted) {
+            window._factionHintsPainted = true;
+            showSettingsPage('account');
+        }
+    }).catch(function(e) { console.warn('[FACTION] hints', e && e.message); });
 };
 
 // Faction selection. The profile field is server-only. chooseFaction moves
@@ -8116,6 +8303,7 @@ async function commitFactionChoice(faction) {
     if (typeof firebase === 'undefined' || !firebase.functions) throw new Error('Faction save is unavailable.');
     var res = await firebase.functions().httpsCallable('chooseFaction')({ faction: faction });
     var data = res && res.data ? res.data : {};
+    window._lastFactionUnderdogJoin = data.underdogJoin === true;
     var moved = Number(data.moved);
     if (!isFinite(moved)) moved = Number(data.pointsSynced);
     if (!isFinite(moved) || moved < 0) moved = 0;
@@ -8149,7 +8337,8 @@ window._selectFaction = async function(faction) {
         }
 
         var moved = await commitFactionChoice(faction);
-        if (typeof showToast === 'function') showToast(faction === 'cyber_hornets' ? '🐝 Welcome to the Cyber Hornets!' : '🦡 Welcome to the Honey Badgers!');
+        if (typeof showToast === 'function') showToast((faction === 'cyber_hornets' ? '🐝 Welcome to the Cyber Hornets! ' : '🦡 Welcome to the Honey Badgers! ') + window.bqFactionQuip(faction));
+        if (window._lastFactionUnderdogJoin && typeof showToast === 'function') showToast('🔥 Underdog bonus: +25% faction points for 7 days.');
         if (typeof showToast === 'function') showToast(moved + ' unclaimed point' + (moved === 1 ? '' : 's') + ' moved to your faction.');
         showSettingsPage('account');
 
@@ -8267,29 +8456,21 @@ function showSettingsPage(tab) {
         var _titlePillHtml = _activeTitleDef
             ? '<div style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;color:#f97316;margin-top:6px;">' + _activeTitleDef.emoji + ' ' + escapeHtml(_activeTitleDef.title) + '</div><div style="color:var(--text-faint);font-size:0.7rem;margin-top:3px;font-style:italic;">' + escapeHtml(_activeTitleDef.flavor) + '</div>'
             : '';
-        // Build equip title button if user has earned titles
-        var _earnedTitles = currentUser ? currentUser.earnedTitles || [] : [];
         var _equipTitleHtml = '';
-        if (_earnedTitles.length > 0 && typeof TITLE_DEFS !== 'undefined') {
-            var _titleOptions = '<option value="">- No Title -</option>';
-            _earnedTitles.forEach(function(tid) {
-                var tDef = TITLE_DEFS.find(function(t){return t.id===tid;});
-                if (tDef) _titleOptions += '<option value="' + escapeHtml(tDef.id) + '"' + (tDef.id===_activeTitleId?' selected':'') + '>' + tDef.emoji + ' ' + escapeHtml(tDef.title) + '</option>';
-            });
-            _equipTitleHtml = '<div style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;">' +
-                '<span style="font-size:0.8rem;color:var(--text-muted);">🎖️ Equip Title:</span>' +
-                '<select onchange="window._equipTitle(this.value)" style="padding:5px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:inherit;cursor:pointer;">' + _titleOptions + '</select>' +
-                '</div>';
-        }
         html += '<div style="text-align:center;margin-bottom:20px;">' +
             '<div style="margin-bottom:8px;position:relative;display:inline-block;">' + _pfpHtml + '</div>' +
             '<div style="color:var(--heading);font-weight:700;font-size:1.2rem;">' + (currentUser ? currentUser.username || 'Bitcoiner' : 'Bitcoiner') + '</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' XP' + (currentUser && currentUser.faction ? ' · ' + (currentUser.faction === 'cyber_hornets' ? '🐝 Cyber Hornets' : '🦡 Honey Badgers') : '') + '</div>' +
-            _titlePillHtml +
+            '<div id="settingsTitlePill">' + _titlePillHtml + '</div>' +
             _equipTitleHtml +
             '<div style="margin-top:10px;"><a href="/patch-notes.html" id="settingsWhatsNew" onclick="if(window._markPatchSeen)window._markPatchSeen()" style="display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-weight:700;font-size:0.85rem;text-decoration:none;">What\'s new <span class="whats-new-dot" hidden></span></a></div>' +
             '</div>';
 
+        // Title & Flair picker (server-validated). Refreshes from the server once shown.
+        if (!isAnon && typeof window._renderTitleFlairSection === 'function') {
+            html += window._renderTitleFlairSection();
+            setTimeout(function(){ if (window._tfRefresh) window._tfRefresh(); }, 0);
+        }
         // Country selector (custom autocomplete - datalist broken on iOS Safari)
         var _userCountry = currentUser ? currentUser.country || '' : '';
         var _countryXpNudge = !_userCountry ? ' <span style="color:#22c55e;font-size:0.7rem;font-weight:700;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:2px 7px;margin-left:4px;">+100 XP + badge</span>' : '';
@@ -8304,7 +8485,11 @@ function showSettingsPage(tab) {
 
         // Faction selector
         var _userFaction = currentUser ? currentUser.faction || '' : '';
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+        var _fSmall = _userFaction ? null : (window._factionUnderdogPick || null);
+        var _fTag = function(f) { return _fSmall === f ? '<div style="color:#22c55e;font-size:0.65rem;font-weight:800;margin-top:6px;">🔥 Underdog bonus: +25% for 7 days</div>' : ''; };
+        var _fQuip = function(f) { return '<div style="color:var(--text-faint);font-size:0.62rem;font-style:italic;margin-top:4px;">"' + escapeHtml(window.bqFactionQuip(f)) + '"</div>'; };
+        if (!_userFaction && !window._factionHintsPainted) setTimeout(function() { window._paintFactionHints && window._paintFactionHints(); }, 0);
+        html += '<div id="settingsFactionPicker" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">⚔️ Faction</div>' +
             (_userFaction
                 ? '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:12px;">Your faction choice is permanent.</div>'
@@ -8314,12 +8499,14 @@ function showSettingsPage(tab) {
                 '<div style="font-size:2rem;margin-bottom:6px;">🐝</div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;">Cyber Hornets</div>' +
                 '<div style="color:var(--text-muted);font-size:0.65rem;margin-top:4px;">The swarm protects the network</div>' +
+                _fQuip('cyber_hornets') + _fTag('cyber_hornets') +
                 (_userFaction === 'cyber_hornets' ? '<div style="color:#f7931a;font-size:0.75rem;font-weight:700;margin-top:6px;">✓ Joined</div>' : '') +
             '</div>' +
             '<div onclick="window._selectFaction(\'honey_badgers\')" style="flex:1;padding:14px 10px;border-radius:12px;border:2px solid ' + (_userFaction === 'honey_badgers' ? '#a855f7' : 'var(--border)') + ';background:' + (_userFaction === 'honey_badgers' ? 'rgba(168,85,247,0.1)' : 'var(--card-bg)') + ';cursor:' + (_userFaction && _userFaction !== 'honey_badgers' ? 'default' : 'pointer') + ';text-align:center;transition:all 0.2s;opacity:' + (_userFaction && _userFaction !== 'honey_badgers' ? '0.5' : '1') + ';">' +
                 '<div style="font-size:2rem;margin-bottom:6px;">🦡</div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;">Honey Badgers</div>' +
                 '<div style="color:var(--text-muted);font-size:0.65rem;margin-top:4px;">Honey badger don\'t care</div>' +
+                _fQuip('honey_badgers') + _fTag('honey_badgers') +
                 (_userFaction === 'honey_badgers' ? '<div style="color:#a855f7;font-size:0.75rem;font-weight:700;margin-top:6px;">✓ Joined</div>' : '') +
             '</div>' +
             '</div>' +
@@ -8553,6 +8740,7 @@ function showSettingsPage(tab) {
         });
         html += '</div>';
         html += '<div id="cipherWinsAdmin" style="margin-top:12px;"></div>';
+        html += '<div id="factionPrizeAdmin" style="margin-top:12px;"></div>';
         html += '<div id="faucetAbuseAdmin" style="margin-top:12px;"></div>';
         html += '</div>';
 
@@ -10031,6 +10219,9 @@ function accountDeleteRowHtml(user) {
             }
             if (window._isAdminClaim === true && typeof window.renderCipherWinsAdmin === 'function') {
                 window.renderCipherWinsAdmin('cipherWinsAdmin');
+            }
+            if (window._isAdminClaim === true && typeof window.renderFactionPrizeAdmin === 'function') {
+                window.renderFactionPrizeAdmin('factionPrizeAdmin');
             }
             if (window._isAdminClaim === true && typeof window.renderFaucetAbuseAdmin === 'function') {
                 window.renderFaucetAbuseAdmin('faucetAbuseAdmin');
