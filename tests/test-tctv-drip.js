@@ -74,6 +74,21 @@ for (let t = 0; t < 300; t++) {
     s = L.planShares(W(n, () => 1800 + Math.floor(Math.random() * 27000)), cfg);
     assert.ok(s.shares.every(x => x.sats <= s.cap)); assert.strictEqual(sum(s) + s.rollover, 10000); assert.strictEqual(s.rollover, 0);
 }
+// projectShares: same math as planShares, but still projects while waiting on min watchers
+assert.ok(typeof L.projectShares === 'function');
+let p = L.projectShares(W(3), cfg);
+assert.ok(p.waiting); assert.strictEqual(p.eligible, 3);
+assert.ok(p.shares.every(x => x.sats > 0)); assert.strictEqual(p.shares.reduce((t, x) => t + x.sats, 0) + p.rollover, 10000);
+// short watcher stays at 0; five long watchers match planShares
+p = L.projectShares(W(5).concat([{ uid: 'short', seconds: 100 }]), cfg);
+assert.ok(!p.waiting); assert.strictEqual(p.shares.find(x => x.uid === 'short').sats, 0);
+assert.ok(p.shares.filter(x => x.uid !== 'short').every(x => x.sats === 2000));
+s = L.planShares(W(5), cfg);
+p = L.projectShares(W(5), cfg);
+assert.deepStrictEqual(p.shares.filter(x => x.sats > 0).map(x => x.sats).sort(), s.shares.map(x => x.sats).sort());
+// under-qualify alone: all zeros, waiting
+p = L.projectShares([{ uid: 'a', seconds: 60 }], cfg);
+assert.ok(p.waiting); assert.strictEqual(p.eligible, 0); assert.strictEqual(p.shares[0].sats, 0);
 // cipher balance is never truncated by claim limits: a claim takes at most 200, rest stays
 const C = require('../functions/src/cipherSatsClaim');
 const claimIn = (bal, used) => ({ authed: true, uid: 'u1', email: 'x@example.com', emailVerified: true, ageKnown: true, ageDays: 30,
@@ -104,6 +119,10 @@ console.log('tctvDripLogic: all tests passed');
     assert.ok(!/Watch Party/i.test(src), 'no old name');
     assert.ok(/\.td-pill\{[^}]*min-height:44px;min-width:44px/.test(src) && /\.td-pinfo\{[^}]*min-width:44px;min-height:44px/.test(src), '44px targets');
     assert.ok(src.includes('}, 120000);'), '2-minute answer window');
+    assert.ok(src.includes('Your Share:') && src.includes('td-share') && src.includes('projectedShareSats'), 'live Your Share line');
+    assert.ok(src.includes('Sign in to see your share'), 'signed-out hint');
+    assert.ok(src.includes('tctv_drip_watch') && src.includes('paintShare'), 'own watch doc listener');
+    assert.ok(src.includes('td-bubble-share'), 'share visible when minimized');
     assert.ok(!/addDoc|\.set\(|\.update\(/.test(src.replace(/localStorage\.setItem/g, '')), 'client never writes pot data');
     const D = L.readConfig({});
     assert.strictEqual(D.promptMinMinutes, 15); assert.strictEqual(D.promptMaxMinutes, 40); assert.strictEqual(D.promptAnswerSeconds, 120);
