@@ -45,6 +45,7 @@ const TESTS = [
     { name: 'Earn XP guide', file: 'test-earn-xp-guide.js' },
     { name: 'Badge engine', file: 'test-badge-engine.js' },
     { name: 'Badge distribution', file: 'test-badge-distribution.js' },
+    { name: 'Badge cohort and collection order', file: 'test-badge-cohort.js' },
     { name: 'SF live announce', file: 'test-sf-announce.js' },
     { name: 'GGs badge tooltips', file: 'test-gg-badge-tags.js' },
     { name: 'GGs celebration', file: 'test-gg-reaction.js' },

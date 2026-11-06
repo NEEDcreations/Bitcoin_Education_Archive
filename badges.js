@@ -1501,11 +1501,42 @@ var BADGE_SETS = [
 // through badges.catalog.js (window.BADGE_COLLECTION_DEFS), the same file the
 // server grants from. Members are explicit badge ids. Long grinds and date-locked
 // badges are standalone Legend badges (window.BADGE_LEGEND_IDS).
+// Display order is chosen when sections render: A–Z by name, case-insensitive,
+// with Proof of Everything last. BADGE_COLLECTION_DEFS keeps catalog order.
+var PROOF_COLLECTION_ID = 'col_proof_of_everything';
+
+function _isProofCollection(col) {
+    if (!col) return false;
+    if (col.id === PROOF_COLLECTION_ID || col.collectionId === PROOF_COLLECTION_ID) return true;
+    return String(col.name || '').replace(/^\s+|\s+$/g, '').toLowerCase() === 'proof of everything';
+}
+
+function _collectionSortName(col) {
+    return String((col && (col.name || col.id)) || '').toLowerCase();
+}
+
+function _sortBadgeCollections(list) {
+    return (list || []).slice().sort(function(a, b) {
+        var ap = _isProofCollection(a);
+        var bp = _isProofCollection(b);
+        if (ap !== bp) return ap ? 1 : -1;
+        var an = _collectionSortName(a);
+        var bn = _collectionSortName(b);
+        if (an < bn) return -1;
+        if (an > bn) return 1;
+        var ai = String((a && (a.id || a.collectionId)) || '');
+        var bi = String((b && (b.id || b.collectionId)) || '');
+        if (ai < bi) return -1;
+        if (ai > bi) return 1;
+        return 0;
+    });
+}
+
 function _buildBadgeCollections() {
     var defs = (typeof window !== 'undefined' && Array.isArray(window.BADGE_COLLECTION_DEFS)) ? window.BADGE_COLLECTION_DEFS : [];
     var cat = (typeof window !== 'undefined' && window.BADGE_CATALOG) ? window.BADGE_CATALOG : {};
     // A BIP season shows once its badges are in the catalog (BIP Breakthrough release).
-    return defs.filter(function(group) {
+    var built = defs.filter(function(group) {
         return group.kind !== 'bip' || (group.badgeIds || []).some(function(id) { return !!cat[id]; });
     }).map(function(group) {
         var title = group.title || null;
@@ -1528,6 +1559,7 @@ function _buildBadgeCollections() {
             flair: group.flair || ''
         };
     });
+    return _sortBadgeCollections(built);
 }
 
 var BADGE_COLLECTIONS = _buildBadgeCollections();
@@ -1593,7 +1625,7 @@ window._badgeCollectionProgress = function(earned) {
         held = new Set();
         try { JSON.parse(localStorage.getItem('btc_badges') || '[]').forEach(function(id) { held.add(id); }); } catch (e2) {}
     }
-    return (BADGE_COLLECTIONS || []).map(function(col) {
+    return _sortBadgeCollections(BADGE_COLLECTIONS || []).map(function(col) {
         var lists = _collectionMemberLists(col);
         var count = 0;
         lists.required.forEach(function(id) { if (held.has(id)) count += 1; });
@@ -1615,7 +1647,7 @@ window._badgeCollectionProgress = function(earned) {
 };
 
 function _renderBadgeSets(earnedBadges) {
-    var cols = (BADGE_COLLECTIONS || []).filter(Boolean);
+    var cols = _sortBadgeCollections((BADGE_COLLECTIONS || []).filter(Boolean));
     if (!cols.length) return '';
     var completed = cols.filter(function(col) {
         var lists = _collectionMemberLists(col);
@@ -1749,17 +1781,68 @@ window._toggleBadgeDist = function(btn) {
 var _BADGE_DIST_TTL = 6 * 60 * 60 * 1000; // 6 hours
 var _BADGE_DIST_LS_KEY = 'btc_badge_dist_cache';
 
+// Percentages use the Maxi cohort when the stats doc has it. Older snapshots
+// that only have totalUsers keep holders / totalUsers.
+function _badgeDistCohort(totalUsers, cohort) {
+    var qualifiedUsers = null;
+    var qualifiedCounts = null;
+    if (cohort && typeof cohort.qualifiedUsers === 'number' && isFinite(cohort.qualifiedUsers)
+        && cohort.qualifiedCounts && typeof cohort.qualifiedCounts === 'object'
+        && !Array.isArray(cohort.qualifiedCounts)) {
+        qualifiedUsers = cohort.qualifiedUsers;
+        qualifiedCounts = cohort.qualifiedCounts;
+    }
+    var useQualified = qualifiedUsers != null;
+    var denom = useQualified ? qualifiedUsers : (Number(totalUsers) || 0);
+    if (!isFinite(denom) || denom < 0) denom = 0;
+    return {
+        useQualified: useQualified,
+        qualifiedUsers: qualifiedUsers,
+        qualifiedCounts: qualifiedCounts,
+        denom: denom
+    };
+}
+
+function _badgeDistCohortArg(source) {
+    if (!source || typeof source.qualifiedUsers !== 'number' || !isFinite(source.qualifiedUsers)) return null;
+    if (!source.qualifiedCounts || typeof source.qualifiedCounts !== 'object' || Array.isArray(source.qualifiedCounts)) return null;
+    return { qualifiedUsers: source.qualifiedUsers, qualifiedCounts: source.qualifiedCounts };
+}
+
+function _badgeDistPercent(holders, denom) {
+    var n = Number(holders);
+    var d = Number(denom);
+    if (!isFinite(n) || n <= 0) return 0;
+    if (!isFinite(d) || d <= 0) return 0;
+    var pct = (n / d) * 100;
+    if (pct > 100) return 100;
+    return pct;
+}
+
+function _badgeDistFootnote(totalUsers, updatedAt, activeUsers, cohort) {
+    var info = _badgeDistCohort(totalUsers, cohort);
+    var updated = updatedAt ? ' · Updated ' + updatedAt.toLocaleDateString() : '';
+    if (info.useQualified) {
+        var players = (Number(info.qualifiedUsers) || 0).toLocaleString();
+        return 'Percentages are among players with 2,140+ XP · ' + players + ' players' + updated;
+    }
+    var accounts = (Number(totalUsers) || 0).toLocaleString();
+    var active = activeUsers ? ' · ' + Number(activeUsers).toLocaleString() + ' active in 30 days' : '';
+    return accounts + ' real accounts' + active + updated;
+}
+
 window._loadBadgeDist = function() {
     var container = document.getElementById('badgeDistContent');
     if (!container) return;
 
-    // Check localStorage cache first (TTL: 48h)
+    // Check localStorage cache first (TTL: 6h). A cache written before the
+    // qualified cohort existed is missing qualifiedUsers, so it is not used.
     try {
         var cached = JSON.parse(localStorage.getItem(_BADGE_DIST_LS_KEY) || 'null');
-        if (cached && cached.ts && (Date.now() - cached.ts) < _BADGE_DIST_TTL) {
+        if (cached && cached.ts && (Date.now() - cached.ts) < _BADGE_DIST_TTL && Object.prototype.hasOwnProperty.call(cached, 'qualifiedUsers')) {
             var updatedAt = cached.updatedAt ? new Date(cached.updatedAt) : null;
             window._badgeDistActive = cached.activeUsers30d || 0;
-            window._renderBadgeDist(cached.counts, cached.totalUsers, updatedAt, container);
+            window._renderBadgeDist(cached.counts, cached.totalUsers, updatedAt, container, _badgeDistCohortArg(cached));
             return; // served from cache, 0 Firestore reads
         }
     } catch(e) { /* bad cache, fall through */ }
@@ -1776,6 +1859,7 @@ window._loadBadgeDist = function() {
         var data = doc.data();
         var totalUsers = data.totalUsers || 1;
         var counts = data.counts || {};
+        var cohort = _badgeDistCohortArg(data);
         window._badgeDistActive = data.activeUsers30d || 0;
         var _uTs = data.updatedAt;
         var updatedAt = _uTs ? (_uTs._seconds ? new Date(_uTs._seconds * 1000) : (_uTs.toDate ? _uTs.toDate() : new Date(_uTs))) : null;
@@ -1784,12 +1868,14 @@ window._loadBadgeDist = function() {
             localStorage.setItem(_BADGE_DIST_LS_KEY, JSON.stringify({
                 ts: Date.now(),
                 totalUsers: totalUsers,
+                qualifiedUsers: typeof data.qualifiedUsers === 'number' ? data.qualifiedUsers : null,
+                qualifiedCounts: (data.qualifiedCounts && typeof data.qualifiedCounts === 'object' && !Array.isArray(data.qualifiedCounts)) ? data.qualifiedCounts : null,
                 activeUsers30d: window._badgeDistActive || 0,
                 counts: counts,
                 updatedAt: updatedAt ? updatedAt.getTime() : null
             }));
         } catch(e) { /* storage full, skip cache */ }
-        window._renderBadgeDist(counts, totalUsers, updatedAt, container);
+        window._renderBadgeDist(counts, totalUsers, updatedAt, container, cohort);
     }).catch(function() {
         container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;text-align:center;padding:12px;">Could not load distribution.</div>';
     });
@@ -1802,7 +1888,8 @@ window._getBadgeRarity = function(pct) {
     return { label: 'Common', color: '#4ade80', glow: 'none', icon: '●', border: '#16a34a' };
 };
 
-window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
+window._renderBadgeDist = function(counts, totalUsers, updatedAt, container, cohort) {
+    var share = _badgeDistCohort(totalUsers, cohort);
     // Build a lookup from all badge/title/set sources
     var badgeMeta = {};
     if (typeof BADGE_DEFS !== 'undefined') {
@@ -1864,15 +1951,16 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
     // Sort all entries by count desc, build rarity groups
     var entries = Object.entries(counts)
         .map(function(e) {
-            var pct = totalUsers ? (e[1] / totalUsers) * 100 : 0;
+            var holders = share.useQualified ? (Number(share.qualifiedCounts[e[0]]) || 0) : e[1];
+            var pct = _badgeDistPercent(holders, share.denom);
             var meta = getBadgeDisplay(e[0]);
             if (meta.hidden && !(earnedNow && earnedNow.has && earnedNow.has(e[0]))) {
                 meta = { emoji: '🔒', name: 'Secret badge', desc: 'Hidden until you earn it' };
             }
-            var rarity = e[1] === 0
+            var rarity = holders === 0
                 ? { label: 'Unclaimed', color: '#94a3b8', glow: 'none', icon: '○', border: '#475569' }
                 : window._getBadgeRarity(pct);
-            return { id: e[0], count: e[1], pct: pct, rarity: rarity, emoji: meta.emoji, name: meta.name, desc: meta.desc || '' };
+            return { id: e[0], count: holders, pct: pct, rarity: rarity, emoji: meta.emoji, name: meta.name, desc: meta.desc || '' };
         })
         .sort(function(a, b) { return a.pct - b.pct; }); // rarest first
 
@@ -1914,7 +2002,7 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
         html += '</div>';
     });
     html += '</div>';
-    html += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:12px;">' + totalUsers.toLocaleString() + ' real accounts' + (window._badgeDistActive ? ' · ' + Number(window._badgeDistActive).toLocaleString() + ' active in 30 days' : '') + (updatedAt ? ' · Updated ' + updatedAt.toLocaleDateString() : '') + '</div>';
+    html += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:12px;">' + _badgeDistFootnote(totalUsers, updatedAt, window._badgeDistActive, cohort) + '</div>';
 
     // Filter buttons
     html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">';
