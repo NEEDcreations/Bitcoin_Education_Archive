@@ -8264,20 +8264,13 @@ window.bqFactionQuip = function(f) {
     var day = Math.floor(Date.now() / 86400000);
     return d.quips[day % d.quips.length];
 };
-// Reads the public totals doc to mark the smaller faction. The server decides
-// the bonus on its own; this only shows it.
-window._factionSmaller = function(t) {
-    t = t || {};
-    var mh = Number(t.members_cyber_hornets) || 0, mb = Number(t.members_honey_badgers) || 0;
-    if (mh !== mb) return mh < mb ? 'cyber_hornets' : 'honey_badgers';
-    var sh = Number(t.cyber_hornets) || 0, sb = Number(t.honey_badgers) || 0;
-    if (sh !== sb) return sh < sb ? 'cyber_hornets' : 'honey_badgers';
-    return null;
-};
+// The server names the smaller faction. This only shows the join hint.
+// Member counts stay on the server, so this call returns no numbers.
 window._paintFactionHints = function() {
-    if (typeof db === 'undefined' || !db || !db.collection) return;
-    db.collection('satoshiFavor').doc('factionTotals').get().then(function(doc) {
-        var small = window._factionSmaller(doc.exists ? doc.data() : {});
+    if (typeof firebase === 'undefined' || !firebase.functions) return;
+    firebase.functions().httpsCallable('getSmallerFaction')({}).then(function(res) {
+        var data = res && res.data ? res.data : {};
+        var small = data.smaller === 'cyber_hornets' || data.smaller === 'honey_badgers' ? data.smaller : null;
         window._factionUnderdogPick = small;
         ['cyber_hornets', 'honey_badgers'].forEach(function(f) {
             var tag = document.getElementById('factionUnderdogTag_' + f);

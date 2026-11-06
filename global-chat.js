@@ -800,7 +800,7 @@ window.openRaidHub = function() {
     var existing = document.querySelector('script[src*="quests.js"]');
     if (!existing) {
         var s = document.createElement('script');
-        s.src = 'quests.js?v=20261105_v2506';
+        s.src = 'quests.js?v=20261106_v2509';
         s.onload = function() { setTimeout(openNow, 0); };
         document.body.appendChild(s);
         return;

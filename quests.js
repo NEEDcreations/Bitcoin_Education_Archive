@@ -2458,7 +2458,6 @@ function _renderFavorTab(body) {
                 '<div style="font-size:0.78rem;font-weight:800;color:#f7931a;margin-bottom:6px;">Cyber Hornets</div>' +
                 '<div id="sfScoreHornets" style="font-size:1.6rem;font-weight:900;color:var(--heading);font-family:monospace;">0</div>' +
                 '<div style="font-size:0.62rem;color:var(--text-faint);margin-top:2px;">SF points</div>' +
-                '<div id="sfAvgHornets" style="font-size:0.68rem;color:var(--text-muted);margin-top:6px;">— per member</div>' +
                 '<div id="sfBoostHornets" style="display:none;font-size:0.62rem;font-weight:800;color:#22c55e;margin-top:4px;">🔥 Underdog boost 1.2×</div>' +
                 '<div style="font-size:0.6rem;font-style:italic;color:var(--text-faint);margin-top:6px;line-height:1.35;">"' + _sfQuip('cyber_hornets') + '"</div>' +
             '</div>' +
@@ -2471,7 +2470,6 @@ function _renderFavorTab(body) {
                 '<div style="font-size:0.78rem;font-weight:800;color:#a855f7;margin-bottom:6px;">Honey Badgers</div>' +
                 '<div id="sfScoreBadgers" style="font-size:1.6rem;font-weight:900;color:var(--heading);font-family:monospace;">0</div>' +
                 '<div style="font-size:0.62rem;color:var(--text-faint);margin-top:2px;">SF points</div>' +
-                '<div id="sfAvgBadgers" style="font-size:0.68rem;color:var(--text-muted);margin-top:6px;">— per member</div>' +
                 '<div id="sfBoostBadgers" style="display:none;font-size:0.62rem;font-weight:800;color:#22c55e;margin-top:4px;">🔥 Underdog boost 1.2×</div>' +
                 '<div style="font-size:0.6rem;font-style:italic;color:var(--text-faint);margin-top:6px;line-height:1.35;">"' + _sfQuip('honey_badgers') + '"</div>' +
             '</div>' +
@@ -2481,7 +2479,6 @@ function _renderFavorTab(body) {
             '<div style="margin-top:6px;">🏁 First faction to 10,000 race points wins.</div>' +
             '<div>🔥 <b>Underdog boost:</b> while a faction trails by 1,000 or more, its new points count 1.2×. It switches off once the race is close.</div>' +
             '<div>🆕 <b>Underdog join bonus:</b> new players who join the smaller faction earn +25% faction points for their first 7 days.</div>' +
-            '<div>⚖️ <b>Pound for pound:</b> the per-member average shows which team is pulling its weight, not just which is bigger.</div>' +
             '<div>🔒 Faction choice is permanent, and all scoring happens on our servers.</div>' +
         '</details>' +
         '<div id="sfScoreBar" style="margin-top:10px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;display:none;">' +
@@ -2755,9 +2752,6 @@ function _startFactionScoreboardListener() {
         if (elB) elB.textContent = Math.floor(badgers).toLocaleString();
         ['cyber_hornets', 'honey_badgers'].forEach(function(f) {
             var key = f === 'cyber_hornets' ? 'Hornets' : 'Badgers';
-            var m = Number(data['members_' + f]) || 0;
-            var avgEl = document.getElementById('sfAvg' + key);
-            if (avgEl) avgEl.textContent = m > 0 ? ((Number(data[f]) || 0) / m).toFixed(1) + ' per member · ' + m.toLocaleString() + ' members' : '— per member';
             var mine = Number(data[f]) || 0, theirs = Number(data[f === 'cyber_hornets' ? 'honey_badgers' : 'cyber_hornets']) || 0;
             var boostEl = document.getElementById('sfBoost' + key);
             if (boostEl) boostEl.style.display = (theirs - mine >= 1000) ? 'block' : 'none';

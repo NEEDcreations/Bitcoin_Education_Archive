@@ -311,6 +311,61 @@ queue.push(test('anonymous and unknown factions are rejected', async function ()
     assert.strictEqual(mem.store['satoshiFavor/factionTotals'].unaffiliated, 604);
 }));
 
+queue.push(test('member counts move on the private doc', async function () {
+    const mem = memDb(base({
+        'satoshiFavor/factionTotals': {
+            cyber_hornets: 100, honey_badgers: 40, unaffiliated: 20,
+            members_cyber_hornets: 80, members_honey_badgers: 3,
+        },
+        'satoshiFavor/factionMembers': { members_cyber_hornets: 4, members_honey_badgers: 9 },
+    }));
+    const out = await api(mem)({ faction: 'cyber_hornets' }, signedIn('user1'));
+    assert.strictEqual(out.underdogJoin, true);
+    assert.strictEqual(mem.store['satoshiFavor/factionMembers'].members_cyber_hornets, 5);
+    assert.strictEqual(mem.store['satoshiFavor/factionMembers'].members_honey_badgers, 9);
+    assert.ok(mem.store['satoshiFavor/factionMembers'].updatedAt);
+    assert.strictEqual(mem.store['satoshiFavor/factionTotals'].members_cyber_hornets, 80);
+    assert.strictEqual(mem.store['satoshiFavor/factionTotals'].members_honey_badgers, 3);
+    assert.strictEqual(mem.store['satoshiFavor/factionTotals'].cyber_hornets, 114);
+    assert.strictEqual(mem.store['users/user1'].faction, 'cyber_hornets');
+    assert.ok(mem.store['users/user1'].factionBonusUntil);
+
+    const seeded = memDb(base({
+        'users/user2': { username: 'Bea' },
+        'satoshiFavor/factionTotals': {
+            cyber_hornets: 100, honey_badgers: 40, unaffiliated: 30,
+            members_cyber_hornets: 2, members_honey_badgers: 50,
+        },
+    }));
+    const seededOut = await api(seeded)({ faction: 'honey_badgers' }, signedIn('user2'));
+    assert.strictEqual(seededOut.underdogJoin, false);
+    assert.strictEqual(seeded.store['satoshiFavor/factionMembers'].members_cyber_hornets, 2);
+    assert.strictEqual(seeded.store['satoshiFavor/factionMembers'].members_honey_badgers, 51);
+    assert.strictEqual(seeded.store['satoshiFavor/factionTotals'].members_cyber_hornets, 2);
+    assert.strictEqual(seeded.store['satoshiFavor/factionTotals'].members_honey_badgers, 50);
+    assert.strictEqual(seeded.store['satoshiFavor/factionTotals'].honey_badgers, 55);
+
+    const tied = memDb(base({
+        'satoshiFavor/factionTotals': { cyber_hornets: 9, honey_badgers: 4, unaffiliated: 20 },
+        'satoshiFavor/factionMembers': { members_cyber_hornets: 6, members_honey_badgers: 6 },
+    }));
+    const tieJoin = await api(tied)({ faction: 'honey_badgers' }, signedIn('user1'));
+    assert.strictEqual(tieJoin.underdogJoin, true);
+    assert.strictEqual(tied.store['satoshiFavor/factionMembers'].members_honey_badgers, 7);
+    assert.strictEqual(tied.store['satoshiFavor/factionMembers'].members_cyber_hornets, 6);
+    assert.strictEqual(tied.store['satoshiFavor/factionTotals'].members_honey_badgers, undefined);
+
+    const fresh = memDb(base({
+        'satoshiFavor/factionTotals': { cyber_hornets: 5, honey_badgers: 9, unaffiliated: 20 },
+    }));
+    const freshOut = await api(fresh)({ faction: 'cyber_hornets' }, signedIn('user1'));
+    assert.strictEqual(freshOut.underdogJoin, true);
+    assert.strictEqual(fresh.store['satoshiFavor/factionMembers'].members_cyber_hornets, 1);
+    assert.strictEqual(fresh.store['satoshiFavor/factionMembers'].members_honey_badgers, 0);
+    assert.strictEqual(fresh.store['satoshiFavor/factionTotals'].members_cyber_hornets, undefined);
+    assert.strictEqual(fresh.store['satoshiFavor/factionTotals'].members_honey_badgers, undefined);
+}));
+
 queue.push(test('rules deny a client faction write and the panel keeps the labels apart', function () {
     const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
     const index = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
