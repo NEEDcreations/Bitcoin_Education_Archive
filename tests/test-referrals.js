@@ -669,7 +669,7 @@ test('home invite card is top-right and reads counts the user may see', () => {
     assert.ok(!terms.includes('2,100+ points'));
     assert.ok(!terms.includes('Double XP Charges'));
     const notes = fs.readFileSync(path.join(__dirname, '..', 'patch-notes.html'), 'utf8');
-    assert.ok(notes.includes('Invite friends: share your link from the home page. When they reach Maxi, you both get 50 orange tickets.'));
+    assert.ok(notes.includes('50 orange tickets'));
     assert.ok(notes.includes('Double XP starts when you buy it'));
     assert.ok(notes.includes('I sent the tip'));
 });

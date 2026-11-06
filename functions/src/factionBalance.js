@@ -14,8 +14,8 @@
 //    totals doc per race (headStartUsed_<raceId>), set by the race-end job.
 //    Stacking with the underdog boost: we take the MAX of the two (1.2x vs
 //    1.1x), never multiply them. The personal join bonus still multiplies.
-// 4. Members are counted on the totals doc so the board can show a fair
-//    average per member next to the race total.
+// 4. Member counts live on satoshiFavor/factionMembers. Clients cannot read
+//    that doc. The join bonus uses those counts. Race scores stay public.
 
 const FACTIONS = ['cyber_hornets', 'honey_badgers'];
 const UNDERDOG_GAP = 1000;
@@ -66,6 +66,47 @@ function smallerFaction(totals) {
     return null;
 }
 
+// Counts from the private doc. If that doc does not exist yet, the only
+// seed is the members_* fields still sitting on factionTotals.
+function memberCounts(privateDoc, privateExists, totals) {
+    const src = privateExists ? (privateDoc || {}) : (totals || {});
+    return {
+        members_cyber_hornets: num(src.members_cyber_hornets),
+        members_honey_badgers: num(src.members_honey_badgers),
+    };
+}
+
+function smallerFrom(privateDoc, privateExists, totals) {
+    const counts = memberCounts(privateDoc, privateExists, totals);
+    const t = totals || {};
+    return smallerFaction({
+        members_cyber_hornets: counts.members_cyber_hornets,
+        members_honey_badgers: counts.members_honey_badgers,
+        cyber_hornets: t.cyber_hornets,
+        honey_badgers: t.honey_badgers,
+    });
+}
+
+// Public callable payload. Scores and the score-based underdog only.
+function publicFactionTotals(totals) {
+    const t = totals || {};
+    let underdog = null;
+    if (underdogActive(t, 'cyber_hornets')) underdog = 'cyber_hornets';
+    else if (underdogActive(t, 'honey_badgers')) underdog = 'honey_badgers';
+    return {
+        cyber_hornets: t.cyber_hornets || 0,
+        honey_badgers: t.honey_badgers || 0,
+        unaffiliated: t.unaffiliated || 0,
+        underdog: underdog,
+    };
+}
+
+function smallerFactionReply(privateDoc, privateExists, totals) {
+    const smaller = smallerFrom(privateDoc, privateExists, totals);
+    if (smaller !== 'cyber_hornets' && smaller !== 'honey_badgers') return { smaller: null };
+    return { smaller: smaller };
+}
+
 // True while this faction trails the other by UNDERDOG_GAP or more.
 function underdogActive(totals, faction) {
     if (!isFaction(faction)) return false;
@@ -101,6 +142,7 @@ function racePoints(base, faction, totals, user, nowMs) {
 }
 
 // Average race points per member, rounded to one decimal.
+// Not part of any public response.
 function perMember(totals, faction) {
     const t = totals || {};
     const m = num(t[memberField(faction)]);
@@ -109,5 +151,5 @@ function perMember(totals, faction) {
 
 module.exports = {
     FACTIONS, UNDERDOG_GAP, UNDERDOG_MULT, JOIN_BONUS_MULT, JOIN_BONUS_DAYS, JOIN_BONUS_MS, RACE_TARGET, HEAD_START_MULT, HEAD_START_POINTS,
-    isFaction, headStartRemaining, headStartUsedField, memberField, smallerFaction, underdogActive, joinBonusActive, racePoints, perMember, toMs,
+    isFaction, headStartRemaining, headStartUsedField, memberField, memberCounts, smallerFaction, smallerFrom, smallerFactionReply, publicFactionTotals, underdogActive, joinBonusActive, racePoints, perMember, toMs,
 };

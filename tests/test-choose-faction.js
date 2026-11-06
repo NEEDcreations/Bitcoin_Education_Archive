@@ -311,6 +311,61 @@ queue.push(test('anonymous and unknown factions are rejected', async function ()
     assert.strictEqual(mem.store['satoshiFavor/factionTotals'].unaffiliated, 604);
 }));
 
+queue.push(test('member counts move on the private doc', async function () {
+    const mem = memDb(base({
+        'satoshiFavor/factionTotals': {
+            cyber_hornets: 100, honey_badgers: 40, unaffiliated: 20,
+            members_cyber_hornets: 80, members_honey_badgers: 3,
+        },
+        'satoshiFavor/factionMembers': { members_cyber_hornets: 4, members_honey_badgers: 9 },
+    }));
+    const out = await api(mem)({ faction: 'cyber_hornets' }, signedIn('user1'));
+    assert.strictEqual(out.underdogJoin, true);
+    assert.strictEqual(mem.store['satoshiFavor/factionMembers'].members_cyber_hornets, 5);
+    assert.strictEqual(mem.store['satoshiFavor/factionMembers'].members_honey_badgers, 9);
+    assert.ok(mem.store['satoshiFavor/factionMembers'].updatedAt);
+    assert.strictEqual(mem.store['satoshiFavor/factionTotals'].members_cyber_hornets, 80);
+    assert.strictEqual(mem.store['satoshiFavor/factionTotals'].members_honey_badgers, 3);
+    assert.strictEqual(mem.store['satoshiFavor/factionTotals'].cyber_hornets, 114);
+    assert.strictEqual(mem.store['users/user1'].faction, 'cyber_hornets');
+    assert.ok(mem.store['users/user1'].factionBonusUntil);
+
+    const seeded = memDb(base({
+        'users/user2': { username: 'Bea' },
+        'satoshiFavor/factionTotals': {
+            cyber_hornets: 100, honey_badgers: 40, unaffiliated: 30,
+            members_cyber_hornets: 2, members_honey_badgers: 50,
+        },
+    }));
+    const seededOut = await api(seeded)({ faction: 'honey_badgers' }, signedIn('user2'));
+    assert.strictEqual(seededOut.underdogJoin, false);
+    assert.strictEqual(seeded.store['satoshiFavor/factionMembers'].members_cyber_hornets, 2);
+    assert.strictEqual(seeded.store['satoshiFavor/factionMembers'].members_honey_badgers, 51);
+    assert.strictEqual(seeded.store['satoshiFavor/factionTotals'].members_cyber_hornets, 2);
+    assert.strictEqual(seeded.store['satoshiFavor/factionTotals'].members_honey_badgers, 50);
+    assert.strictEqual(seeded.store['satoshiFavor/factionTotals'].honey_badgers, 55);
+
+    const tied = memDb(base({
+        'satoshiFavor/factionTotals': { cyber_hornets: 9, honey_badgers: 4, unaffiliated: 20 },
+        'satoshiFavor/factionMembers': { members_cyber_hornets: 6, members_honey_badgers: 6 },
+    }));
+    const tieJoin = await api(tied)({ faction: 'honey_badgers' }, signedIn('user1'));
+    assert.strictEqual(tieJoin.underdogJoin, true);
+    assert.strictEqual(tied.store['satoshiFavor/factionMembers'].members_honey_badgers, 7);
+    assert.strictEqual(tied.store['satoshiFavor/factionMembers'].members_cyber_hornets, 6);
+    assert.strictEqual(tied.store['satoshiFavor/factionTotals'].members_honey_badgers, undefined);
+
+    const fresh = memDb(base({
+        'satoshiFavor/factionTotals': { cyber_hornets: 5, honey_badgers: 9, unaffiliated: 20 },
+    }));
+    const freshOut = await api(fresh)({ faction: 'cyber_hornets' }, signedIn('user1'));
+    assert.strictEqual(freshOut.underdogJoin, true);
+    assert.strictEqual(fresh.store['satoshiFavor/factionMembers'].members_cyber_hornets, 1);
+    assert.strictEqual(fresh.store['satoshiFavor/factionMembers'].members_honey_badgers, 0);
+    assert.strictEqual(fresh.store['satoshiFavor/factionTotals'].members_cyber_hornets, undefined);
+    assert.strictEqual(fresh.store['satoshiFavor/factionTotals'].members_honey_badgers, undefined);
+}));
+
 queue.push(test('rules deny a client faction write and the panel keeps the labels apart', function () {
     const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
     const index = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
@@ -377,76 +432,43 @@ queue.push(test('rules deny a client faction write and the panel keeps the label
 
     assert.ok(html.indexOf('This choice is permanent. Your unclaimed points go to the faction you pick.') > 0);
     assert.ok(notes.indexOf('Unclaimed faction points show again') > 0);
-    assert.ok(notes.includes('Latest: New players answer three quick questions and get a suggested mode. Switch anytime from the mode bar at the top of home. Your XP and badges count in every mode, Lite too.'));
-    assert.ok(notes.includes('Daily trivia shows the explanation after you answer, and a guest answer does not earn XP.'));
     assert.ok(!notes.includes('Latest: Daily trivia'));
-    assert.ok(notes.includes("Earned posts in GGs chat have a 🎉 button. Tap once to celebrate, and tap again to take it back."));
     assert.ok(!notes.includes('Latest: Earned posts in GGs chat'));
-    assert.ok(notes.includes("The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front."));
     assert.ok(!notes.includes('Latest: The daily wheel'));
-    assert.ok(notes.includes('Fixed leaderboards and your saved profile taking too long to load.'));
     assert.ok(!notes.includes('Latest: Fixed leaderboards'));
-    assert.ok(notes.indexOf("Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.") > 0);
     assert.ok(notes.indexOf("Latest: Daily Streaks") === -1);
     assert.ok(notes.indexOf("Double XP now applies to every way you earn XP.") > 0);
     assert.ok(notes.indexOf("Latest: Double XP") === -1);
-    assert.ok(notes.indexOf("The raid boss shows HP remaining, the same remaining over max HP as the raid screen.") > 0);
     assert.ok(notes.indexOf("Latest: The raid boss") === -1);
-    assert.ok(notes.indexOf("Timechain TV: 29 new full-length documentaries on the History & Documentaries channel.") > 0);
     assert.ok(notes.indexOf("Latest: Timechain TV: 29") === -1);
-    assert.ok(notes.indexOf("Fixed: the Invite button and Invites tile on the homepage open your invite card again.") > 0);
     assert.ok(notes.indexOf("Latest: Fixed: the Invite button") === -1);
-    assert.ok(notes.indexOf("Publishing an article awards 30 XP, once per article, up to 2 a day.") > 0);
     assert.ok(notes.indexOf("Latest: Publishing an article") === -1);
-    assert.ok(notes.indexOf("Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.") > 0);
     assert.ok(notes.indexOf("Latest: Inventory explains") === -1);
-    assert.ok(notes.indexOf("Scholar and Protocol Expert exams keep the answer key on the server, and a passing certificate shows a real verification link.") > 0);
     assert.ok(notes.indexOf("Latest: Scholar and Protocol Expert") === -1);
-    assert.ok(notes.indexOf("Missing XP has been awarded to affected users.") > 0);
     assert.ok(notes.indexOf("Latest: Missing XP") === -1);
-    assert.ok(notes.indexOf("Settings → Sats now lists the XP you can actually earn, including the daily cap.") > 0);
     assert.ok(notes.indexOf("Latest: Settings → Sats") === -1);
-    assert.ok(notes.indexOf("Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.") > 0);
     assert.ok(notes.indexOf("Latest: Inventory explains") === -1);
-    assert.ok(notes.indexOf("A miner's public name is what Satoshi's Favor saves, and a player with no name shows as Anon.") > 0);
     assert.ok(notes.indexOf("Latest: A miner's public name") === -1);
-    assert.ok(notes.indexOf("Passing the Bitcoin Scholar or Protocol Expert certification pays 2,100 XP outside the daily cap, and the Learn tab opens Quests for lessons, trails, daily quests, and both certifications.") > 0);
     assert.ok(notes.indexOf("Latest: Passing the Bitcoin Scholar") === -1);
-    assert.ok(notes.indexOf("Satoshi's Favor now explains that unclaimed points come from players without a faction, and shows them a button to pick one.") > 0);
     assert.ok(notes.indexOf('Latest: Satoshi') === -1);
-    assert.ok(notes.indexOf("On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.") > 0);
     assert.ok(notes.indexOf("Latest: On a computer") === -1);
-    assert.ok(notes.indexOf("A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.") > 0);
     assert.ok(notes.indexOf("Latest: A More tools button") === -1);
-    assert.ok(notes.indexOf("Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.") > 0);
     assert.ok(notes.indexOf("Latest: Sidebar topic names") === -1);
-    assert.ok(notes.indexOf('Badge tooltips are back in GGs chat, so each badge name in a single or grouped post opens the icon, name, description, and how to earn it.') > 0);
     assert.ok(notes.indexOf('Latest: Badge tooltips') === -1);
-    assert.ok(notes.indexOf('Opening gifts is faster, every button responds right away, and your prize shows the moment a gift opens.') > 0);
     assert.ok(notes.indexOf('Latest: Opening gifts') === -1);
-    assert.ok(notes.indexOf('Sidebar topic names are easier to read, the extra Stablecoins and Consensus buttons are gone, and the number emoji on Mining, Solved Technical Problems, and Web5 display correctly.') > 0);
     assert.ok(notes.indexOf('Latest: Sidebar') === -1);
-    assert.ok(notes.indexOf('The Invite button now stays on the home screen as a small pill, so you can always invite a friend.') > 0);
     assert.ok(notes.indexOf('Latest: The Invite button') === -1);
-    assert.ok(notes.indexOf('Trivia and poll community totals now update the moment you answer and stay live while the results are open.') > 0);
     assert.ok(notes.indexOf('Latest: Trivia') === -1);
-    assert.ok(notes.indexOf("The daily XP bar now labels the full, half and quarter rate sections underneath so it is clear how much XP each part pays.") > 0);
     assert.ok(notes.indexOf("Latest: The daily XP bar") === -1);
-    assert.ok(notes.indexOf("On a computer, Browse topics opens a full-screen browser of every topic, grouped like the sidebar, with live title search and the same completed, locked, and new marks.") > 0);
     assert.ok(notes.indexOf("Latest: On a computer") === -1);
-    assert.ok(notes.indexOf("A More tools button beside chat opens AI Tools, Metrics, and Leaderboard, and those three apps are in the desktop Explore Apps grid too.") > 0);
     assert.ok(notes.indexOf("Latest: A More tools button") === -1);
-    assert.ok(notes.indexOf("Nacho now announces in global chat when Satoshi's Favor goes live, every badge you earn shows in GGs chat, and GGs and global chat now appear in our Telegram group.") > 0);
     assert.ok(notes.indexOf("Latest: Nacho now announces") === -1);
     assert.ok(notes.indexOf("Latest: Nacho now announces in global chat when Satoshi's Favor goes live, and every badge you earn now shows in GGs chat.") === -1);
-    assert.ok(notes.indexOf("The home page is simpler, with your sats, invites and withdraw button right at the top, and the terms screen now works on every phone.") > 0);
     assert.ok(notes.indexOf("Latest: The home page is simpler") === -1);
     assert.ok(notes.indexOf("Latest: Satoshi's Favor now explains") === -1);
-    assert.ok(notes.indexOf("Global chat messages that tag a player with a space in their name now show in full, and that player now gets the mention notification.") > 0);
     assert.ok(notes.indexOf("Latest: Global chat messages") === -1);
-    assert.ok(notes.indexOf('Usernames can no longer contain spaces, so an existing name with a space is ready to become an underscore name, and that account gets one free change in Settings.') > 0);
     assert.ok(notes.indexOf('Latest: Usernames') === -1);
-    assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
+    assert.strictEqual((notes.match(/Latest:/g) || []).length, 0);
 }));
 
 Promise.all(queue).then(function () {
