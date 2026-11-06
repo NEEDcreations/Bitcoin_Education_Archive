@@ -190,6 +190,13 @@ async function mirrorShoutoutOnce(options) {
     const docId = opts.docId || '';
     const collection = opts.collection || 'global_chat';
     const log = opts.log || console;
+    // onCreate mirrors every global_chat and announcements doc. Callers
+    // that already have the chat doc defer so the shoutout is posted once.
+    // Pass force only for a backfill of a doc that will not fire onCreate.
+    // Return before reading BRIDGE_SECRET so those functions do not need it.
+    if (opts.db && opts.force !== true) {
+        return { mirrored: false, reason: 'server_mirror' };
+    }
     const env = opts.env || process.env;
     const secret = opts.secret !== undefined ? opts.secret : env.BRIDGE_SECRET;
 
@@ -224,12 +231,6 @@ async function mirrorShoutoutOnce(options) {
 
     try {
         if (!docId) return { mirrored: false, reason: 'no_doc' };
-        // onCreate mirrors every global_chat and announcements doc. Callers
-        // that already have the chat doc defer so the shoutout is posted once.
-        // Pass force only for a backfill of a doc that will not fire onCreate.
-        if (opts.db && opts.force !== true) {
-            return { mirrored: false, reason: 'server_mirror' };
-        }
         const data = await getDoc(docId);
         if (!data) return { mirrored: false, reason: 'missing' };
         if (!shouldMirrorShoutout(data)) return { mirrored: false, reason: 'already_mirrored' };

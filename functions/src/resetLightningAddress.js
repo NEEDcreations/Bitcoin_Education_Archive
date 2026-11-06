@@ -219,7 +219,8 @@ function bindResetLightningAddress(functionsV1, deps) {
     const handlers = createResetHandlers(Object.assign({
         HttpsError: functionsV1.https.HttpsError,
     }, deps || {}));
-    const opts = { enforceAppCheck: true, timeoutSeconds: 60 };
+    const { turnstileSecret } = require('./sensitiveSecrets');
+    const opts = { enforceAppCheck: true, timeoutSeconds: 60, secrets: [turnstileSecret] };
     return {
         resetLightningAddressOnce: functionsV1.runWith(opts).https.onCall(handlers.resetLightningAddressOnce),
     };
