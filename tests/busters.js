@@ -1,4 +1,4 @@
-// Cache-buster pin. This ship is btc-archive-v2513 (Satoshi Favor counter fixes). Before: btc-archive-v2512 (popup/sheet UX #252). Before: btc-archive-v2510 (weekly patch notes). Before: btc-archive-v2509 (ranking.js, quests.js, and global-chat.js 20261106_v2509). Before: btc-archive-v2508 (pot of sats overlay: tctv-drip.js 20261106_v2508). Before: btc-archive-v2507 (collection completion recognition). Before: btc-archive-v2506 (Nook rebalance: quests.js, nacho-qa.js, features.registry.js, global-chat.js 20261105_v2506). Before: btc-archive-v2505 (faction race prizes: faction-race-prizes.js, ranking.js, global-chat.js, bundle.min.js 20261105_v2505). Before: btc-archive-v2504 (faction race balance: ranking.js, quests.js and global-chat.js 20261105_v2504). Before: btc-archive-v2503 (collections rebalance + Title & Flair: bundle.min.js, ranking.js, global-chat.js, quests.js 20261105_v2503). Before: btc-archive-v2502 (legal docs: timechain-tv.js disclaimer 20261105_v2502). Before: btc-archive-v2501 (favorite home buttons open again + star spacing: favorites.js 20261105_v2501). Before: btc-archive-v2500 (Terms Accept fix: onboarding.js, ranking.js 20261105_v2500). Before: btc-archive-v2499 (BIP Breakthrough: bip-breakthrough.js, achievement-share.js, badges.js, global-chat.js, bundle/ranking/referral-tiers 20261105_v2499; keeps notifications.js 20261105_v2497 from #237). Before: btc-archive-v2497 (homepage push bell). Before: btc-archive-v2496 (#236 referral maxi). Before: btc-archive-v2495 (pot of sats overlay). Before: btc-archive-v2494 (favorite apps).
+// Cache-buster pin. This ship is btc-archive-v2514 (qualified badge percentages and collection order). Before: btc-archive-v2513 (Satoshi Favor counter fixes). Before: btc-archive-v2512 (popup/sheet UX #252). Before: btc-archive-v2510 (weekly patch notes). Before: btc-archive-v2509 (ranking.js, quests.js, and global-chat.js 20261106_v2509). Before: btc-archive-v2508 (pot of sats overlay: tctv-drip.js 20261106_v2508). Before: btc-archive-v2507 (collection completion recognition). Before: btc-archive-v2506 (Nook rebalance: quests.js, nacho-qa.js, features.registry.js, global-chat.js 20261105_v2506). Before: btc-archive-v2505 (faction race prizes: faction-race-prizes.js, ranking.js, global-chat.js, bundle.min.js 20261105_v2505). Before: btc-archive-v2504 (faction race balance: ranking.js, quests.js and global-chat.js 20261105_v2504). Before: btc-archive-v2503 (collections rebalance + Title & Flair: bundle.min.js, ranking.js, global-chat.js, quests.js 20261105_v2503). Before: btc-archive-v2502 (legal docs: timechain-tv.js disclaimer 20261105_v2502). Before: btc-archive-v2501 (favorite home buttons open again + star spacing: favorites.js 20261105_v2501). Before: btc-archive-v2500 (Terms Accept fix: onboarding.js, ranking.js 20261105_v2500). Before: btc-archive-v2499 (BIP Breakthrough: bip-breakthrough.js, achievement-share.js, badges.js, global-chat.js, bundle/ranking/referral-tiers 20261105_v2499; keeps notifications.js 20261105_v2497 from #237). Before: btc-archive-v2497 (homepage push bell). Before: btc-archive-v2496 (#236 referral maxi). Before: btc-archive-v2495 (pot of sats overlay). Before: btc-archive-v2494 (favorite apps).
 // Live gh-pages was v2446. quests.js stays v2443. bundle.min.js is v2447. global-chat.js is v2448.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
 // timechain-tv.js is 20261105_v2502. scholar.js is 20261105_v2490.
@@ -36,9 +36,10 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2513', () => {
+test('service worker cache is v2514', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2513'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2514'"));
+    assert.ok(!sw.includes('btc-archive-v2513'));
     assert.ok(!sw.includes('btc-archive-v2512'));
     assert.ok(!sw.includes('btc-archive-v2511'));
     assert.ok(!sw.includes('btc-archive-v2510'));
@@ -169,14 +170,16 @@ test('service worker cache is v2513', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261105_v2505/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261106_v2514/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261105_v2505/g) || []).length, 0);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261031_v2452/g) || []).length, 0);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261031_v2447/g) || []).length, 0);
     assert.ok(!html.includes('bundle.min.js?v=20261029_v2429'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2418'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2415'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2411'));
-    assert.ok(html.includes('bundle.min.js?v=20261106_v2512'));
+    assert.ok(html.includes('bundle.min.js?v=20261106_v2514'));
+    assert.ok(!html.includes('bundle.min.js?v=20261106_v2512'));
     assert.ok(!html.includes('bundle.min.js?v=20261101_v2458'));
     assert.ok(!html.includes('bundle.min.js?v=20261030_v2443'));
     assert.ok(!html.includes('bundle.min.js?v=20261027_v2395'));
@@ -281,7 +284,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('auth-boot.js?v=20261027_v2394'));
     assert.ok(html.includes('bundle-ready.js?v=20261027_v2394'));
     assert.ok(html.indexOf('firebase-config.js?v=20261027_v2394') < html.indexOf('auth-boot.js?v=20261027_v2394'));
-    assert.ok(html.indexOf('bundle.min.js?v=20261106_v2512') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
+    assert.ok(html.indexOf('bundle.min.js?v=20261106_v2514') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
     assert.ok(html.includes('fetchpriority="high"'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2382'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
@@ -576,14 +579,14 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2513');
+    assert.ok(swVersion && swVersion[1] === 'v2514');
     assert.ok(html.includes('faction-race-prizes.js?v=20261105_v2505'));
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
     const bundle = read('bundle.min.js');
     const src = read('bundle.src.js');
-    assert.ok(read('global-chat.js').includes('quests.js?v=20261106_v2512'));
+    assert.ok(read('global-chat.js').includes('quests.js?v=20261106_v2509'));
     assert.ok(!read('global-chat.js').includes('quests.js?v=20261030_v2436'));
     assert.ok(!read('global-chat.js').includes('quests.js?v=20261030_v2435'));
     assert.ok(!read('global-chat.js').includes('quests.js?v=20261028_v2415'));
@@ -698,7 +701,8 @@ test('PR #252 asset busters are v2512', () => {
     const html = read('index.html');
     assert.ok(html.includes('popup-stack.js?v=20261106_v2512'));
     assert.ok(html.includes('ranking.js?v=20261106_v2512'));
-    assert.ok(html.includes('bundle.min.js?v=20261106_v2512'));
+    assert.ok(html.includes('bundle.min.js?v=20261106_v2514'));
+    assert.ok(!html.includes('bundle.min.js?v=20261106_v2512'));
     assert.ok(html.includes('features.registry.js?v=20261106_v2512'));
     assert.ok(html.includes('onboarding.js?v=20261106_v2512'));
     assert.ok(html.includes('quests.js?v=20261106_v2512'));
