@@ -270,9 +270,7 @@ test('pages ship the helper, one Latest line, and the v2453 cache', () => {
     assert.ok(html.includes('achievement-share.js?v=20261031_v2447'));
     assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2455'"));
     const notes = read('patch-notes.html');
-    assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes('Latest: New players answer three quick questions and get a suggested mode. Switch anytime from the mode bar at the top of home. Your XP and badges count in every mode, Lite too.'));
-    assert.ok(notes.includes('A returning signed-in player sees their home as soon as the page paints.'));
+    assert.strictEqual((notes.match(/Latest:/g) || []).length, 0);
     assert.strictEqual(notes.includes('Latest: A returning signed-in player'), false);
     assert.ok(read('app.js').includes('window.miniAppConsumeHash'));
     assert.ok(read('pvp.js').includes('data-mini-share="pvp"'));

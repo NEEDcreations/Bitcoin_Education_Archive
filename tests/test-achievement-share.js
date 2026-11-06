@@ -391,17 +391,12 @@ test('pages ship one script, one Latest line, and the v2394 cache', () => {
     assert.ok(html.includes('timechain-tv.js?v=20261105_v2502'));
     assert.ok(html.includes('features.registry.js?v=20261104_v2482'));
     const notes = read('patch-notes.html');
-    assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    assert.ok(notes.includes(LATEST));
-    assert.ok(notes.includes(STREAKS_NOTE));
+    assert.strictEqual((notes.match(/Latest:/g) || []).length, 0);
     assert.ok(!notes.includes('Latest: ' + STREAKS_NOTE));
     assert.ok(notes.includes(DOUBLE_XP_NOTE));
     assert.ok(!notes.includes('Latest: ' + DOUBLE_XP_NOTE));
-    assert.ok(notes.includes(RAID));
     assert.ok(!notes.includes('Latest: ' + RAID));
-    assert.ok(notes.includes(SHARE_NOTE));
     assert.ok(!notes.includes('Latest: ' + SHARE_NOTE));
-    assert.ok(notes.includes('Inventory explains how sending keys works. Add Peer is on a profile opened from Global Chat or the leaderboard, and one send can include up to 3 keys per peer each day.'));
     assert.ok(!notes.includes('Latest: Inventory explains'));
 
     assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2455'"));

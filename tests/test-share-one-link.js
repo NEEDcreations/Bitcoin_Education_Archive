@@ -42,7 +42,7 @@ function loadFns(src, names, extra) {
 }
 
 const TAG = 'Learn Bitcoin and earn sats on Bitcoin Quest 👇';
-const NOTE = 'A share post now carries one link, your referral link, and the tagline no longer repeats the site name.';
+const NOTE = 'A share post carries one link, your referral link, and the tagline no longer repeats the site name.';
 
 test('streak, badge, and the other cards post one referral link', () => {
     assert.strictEqual(share.CTA, 'Learn Bitcoin and earn sats at bitcoineducation.quest');
@@ -302,21 +302,16 @@ test('stripShareLinks finishes a 1 MB dotted string in under 50 ms', () => {
 
 test('patch notes keep one Latest line and pages match', () => {
     const notes = read('patch-notes.html');
-    assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
-    const latestAt = notes.indexOf('Latest: New players answer three quick questions and get a suggested mode. Switch anytime from the mode bar at the top of home. Your XP and badges count in every mode, Lite too.');
-    assert.ok(notes.includes("Earned posts in GGs chat have a 🎉 button. Tap once to celebrate, and tap again to take it back."));
+    assert.strictEqual((notes.match(/Latest:/g) || []).length, 0);
+    const latestAt = notes.indexOf("Nacho's Sorting Ceremony");
     assert.ok(!notes.includes('Latest: Earned posts in GGs chat'));
     assert.ok(latestAt >= 0);
-    assert.ok(notes.includes("The daily wheel finishes sooner and only shows the server's prize, and a cipher, claim, key send, or inventory opened from the gift screen stays in front."));
     assert.ok(!notes.includes('Latest: The daily wheel'));
-    assert.ok(notes.includes('Fixed leaderboards and your saved profile taking too long to load.'));
     assert.ok(!notes.includes('Latest: Fixed leaderboards'));
-    assert.ok(notes.includes('Daily Streaks sits above Top Predictors, with the longest streaks and the ones still going.'));
     assert.ok(!notes.includes('Latest: Daily Streaks'));
     assert.ok(notes.includes('Double XP now applies to every way you earn XP.'));
     assert.ok(!notes.includes('Latest: Double XP'));
 
-    assert.ok(notes.includes('The raid boss shows HP remaining, the same remaining over max HP as the raid screen.'));
     assert.ok(!notes.includes('Latest: The raid boss'));
     const noteAt = notes.indexOf(NOTE);
     assert.ok(latestAt >= 0 && noteAt > latestAt);

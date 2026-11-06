@@ -728,7 +728,8 @@ queue.push(test('the three username screens block spaces and the public pages dr
     assert.ok(privacy.includes('usernameFreeRename'));
     assert.ok(privacy.includes('until the account is deleted'));
     const notes = fs.readFileSync(path.join(root, 'patch-notes.html'), 'utf8');
-    assert.strictEqual((notes.match(/Latest:/g) || []).length, 1);
+    assert.strictEqual((notes.match(/Latest:/g) || []).length, 0);
+    assert.ok(notes.includes('usernames use an underscore instead of a space'));
     const index = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
     assert.ok(index.includes("'usernameMigratedFrom'"));
 }));
