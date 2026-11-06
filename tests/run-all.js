@@ -56,6 +56,7 @@ const TESTS = [
     { name: 'Variable Scope Safety', file: 'test-variable-scope.js' },
     { name: 'OnClick Function Existence', file: 'test-onclick-functions.js' },
     { name: 'Gift open popup', file: 'test-gift-open.js' },
+    { name: 'Gift drop hint', file: 'test-gift-drop-hint.js' },
     { name: 'Daily spin timing', file: 'test-spin-timing.js' },
     { name: 'Gift modal stacking', file: 'test-modal-stack.js' },
     { name: 'Cipher Reward Odds', file: 'test-cipher-reward.js' },
