@@ -2184,6 +2184,46 @@
             + '[data-theme="light"] .bq-home-seg-summary{color:#475569;}';
         document.head.appendChild(style);
     }
+    // Keep #main clear of the fixed .mobile-bar. Signed-in bars grow (username +
+    // price + block + XP above Topics), so a fixed 76px pad left Experience clipped.
+    function bqSyncMobileBarPad() {
+        if (typeof document === 'undefined' || typeof window === 'undefined') return;
+        var root = document.documentElement;
+        if (!root || !root.style || !root.style.setProperty) return;
+        if (window.innerWidth > 900) {
+            root.style.removeProperty('--bq-mobile-bar-h');
+            return;
+        }
+        var bar = document.querySelector('.mobile-bar');
+        if (!bar) return;
+        var cs = window.getComputedStyle ? window.getComputedStyle(bar) : null;
+        if (cs && cs.display === 'none') {
+            root.style.removeProperty('--bq-mobile-bar-h');
+            return;
+        }
+        var h = Math.ceil(bar.getBoundingClientRect().height || bar.offsetHeight || 0);
+        if (h < 40) return;
+        // A few px of breathing room so Experience never kisses the header.
+        root.style.setProperty('--bq-mobile-bar-h', (h + 8) + 'px');
+    }
+    function bqWatchMobileBarPad() {
+        if (typeof document === 'undefined' || typeof window === 'undefined') return;
+        if (window._bqMobileBarPadWatch) return;
+        window._bqMobileBarPadWatch = true;
+        bqSyncMobileBarPad();
+        window.addEventListener('resize', bqSyncMobileBarPad);
+        if (typeof MutationObserver === 'function') {
+            var bar = document.querySelector('.mobile-bar');
+            if (bar) {
+                new MutationObserver(function () { bqSyncMobileBarPad(); }).observe(bar, {
+                    childList: true, subtree: true, attributes: true, characterData: true
+                });
+            }
+        }
+        // Ranking paints the rich mobile user row a bit later.
+        setTimeout(bqSyncMobileBarPad, 800);
+        setTimeout(bqSyncMobileBarPad, 2500);
+    }
     function bqHomeModeCollapsedKey() {
         return 'btc_experience_section_collapsed';
     }
@@ -2210,6 +2250,8 @@
         if (!container || typeof document === 'undefined') return;
         bqEnsurePickerStyles();
         bqEnsureHomeModeStyles();
+        bqWatchMobileBarPad();
+        bqSyncMobileBarPad();
         var options = opts || {};
         var effective = options.current || bqNormalizeExperienceMode();
         var stored = (typeof options.stored === 'string') ? options.stored : bqStoredExperienceMode();
@@ -2324,6 +2366,7 @@
     win.bqFillModePicker = bqFillModePicker;
     win.bqRecommendMode = bqRecommendMode;
     win.bqFillHomeModeBar = bqFillHomeModeBar;
+    win.bqSyncMobileBarPad = bqSyncMobileBarPad;
     win.bqWriteHomeModeCollapsedPref = bqWriteHomeModeCollapsedPref;
     win.bqHomeModeCollapsedKey = bqHomeModeCollapsedKey;
     win.bqGuideCards = bqGuideCards;
