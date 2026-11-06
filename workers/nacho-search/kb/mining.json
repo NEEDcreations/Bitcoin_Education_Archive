@@ -1,0 +1,1379 @@
+[
+  {
+    "id": "mining-proof-of-work",
+    "category": "mining",
+    "question": "What is proof of work?",
+    "alts": [
+      "Define proof of work?",
+      "Explain proof of work?",
+      "Describe proof of work?"
+    ],
+    "answer": "Proof of work makes miners burn electricity searching for a block header hash below a target. The search is brute force with SHA-256, not a math puzzle with a known shortcut. The work is what makes rewriting history expensive.",
+    "topics": [
+      "mining",
+      "0_mining__hashing",
+      "difficulty-adjustment"
+    ],
+    "followUps": [
+      "mining-how-it-works",
+      "mining-not-math-problems",
+      "mining-nonce"
+    ],
+    "sources": "Whitepaper and double SHA-256 mining."
+  },
+  {
+    "id": "mining-how-it-works",
+    "category": "mining",
+    "question": "How does Bitcoin mining work?",
+    "alts": [
+      "Explain how Bitcoin mining work?",
+      "Describe how Bitcoin mining work?",
+      "How can Bitcoin mining work?"
+    ],
+    "answer": "Miners assemble a block of transactions and change a number in the header until the hash is low enough. The first valid block they publish can claim the subsidy and the fees. Other nodes check the proof and the transactions before accepting it.",
+    "topics": [
+      "mining",
+      "0_mining__hashing",
+      "difficulty-adjustment"
+    ],
+    "followUps": [
+      "mining-not-math-problems",
+      "mining-nonce",
+      "mining-target"
+    ],
+    "sources": "Mining loop in the protocol."
+  },
+  {
+    "id": "mining-not-math-problems",
+    "category": "mining",
+    "question": "Do miners solve complex math problems?",
+    "alts": [
+      "Explain whether do miners solve complex math problems?",
+      "Clarify whether do miners solve complex math problems?",
+      "Is this the case: do miners solve complex math problems?"
+    ],
+    "answer": "No. Miners run SHA-256 on a block header over and over, changing a nonce. There is no equation to solve. It is a lottery weighted by how many hashes you can try.",
+    "topics": [
+      "0_mining__hashing",
+      "mining",
+      "math"
+    ],
+    "followUps": [
+      "mining-nonce",
+      "mining-target",
+      "mining-difficulty"
+    ],
+    "sources": "Hash lottery, not a clever puzzle."
+  },
+  {
+    "id": "mining-nonce",
+    "category": "mining",
+    "question": "What is a nonce?",
+    "alts": [
+      "Define a nonce?",
+      "Explain a nonce?",
+      "Describe a nonce?"
+    ],
+    "answer": "A nonce is a number in the block header that miners change to get a new hash. Extra space in the coinbase can extend the search when the nonce field rolls over. The point is only to try a new candidate.",
+    "topics": [
+      "0_mining__hashing",
+      "mining",
+      "math"
+    ],
+    "followUps": [
+      "mining-target",
+      "mining-difficulty",
+      "mining-retarget"
+    ],
+    "sources": "Header nonce and extra nonce."
+  },
+  {
+    "id": "mining-target",
+    "category": "mining",
+    "question": "What is the mining target?",
+    "alts": [
+      "Define the mining target?",
+      "Explain the mining target?",
+      "Describe the mining target?"
+    ],
+    "answer": "The target is the maximum hash value that counts as a valid block. A lower target is harder. The network adjusts the target so blocks stay near ten minutes.",
+    "topics": [
+      "difficulty-adjustment",
+      "mining",
+      "math"
+    ],
+    "followUps": [
+      "mining-difficulty",
+      "mining-retarget",
+      "mining-ten-minutes"
+    ],
+    "sources": "Difficulty target."
+  },
+  {
+    "id": "mining-difficulty",
+    "category": "mining",
+    "question": "What is mining difficulty?",
+    "alts": [
+      "How does difficulty work?",
+      "Explain mining difficulty?",
+      "How does the difficulty adjustment work?",
+      "Define mining difficulty?",
+      "Describe mining difficulty?"
+    ],
+    "answer": "Difficulty is a way to write how hard the target is, compared with the easiest possible target. When more hash power shows up, difficulty rises. When hash power leaves, difficulty falls.",
+    "topics": [
+      "difficulty-adjustment",
+      "mining",
+      "0_mining__hashing"
+    ],
+    "followUps": [
+      "mining-retarget",
+      "mining-ten-minutes",
+      "mining-more-hash-no-more-coins"
+    ],
+    "sources": "Difficulty adjustment."
+  },
+  {
+    "id": "mining-retarget",
+    "category": "mining",
+    "question": "How often does difficulty change?",
+    "alts": [
+      "Explain this: how often does difficulty change?",
+      "Clarify this: how often does difficulty change?",
+      "Unpack this: how often does difficulty change?"
+    ],
+    "answer": "Difficulty is recalculated every 2,016 blocks, which is about two weeks at ten minutes each. The code compares the actual time with the two-week goal. The change is capped so it cannot jump without bound.",
+    "topics": [
+      "difficulty-adjustment",
+      "time",
+      "block_time-block-size"
+    ],
+    "followUps": [
+      "mining-ten-minutes",
+      "mining-more-hash-no-more-coins",
+      "mining-asic"
+    ],
+    "sources": "2016-block retarget, factor-of-four cap."
+  },
+  {
+    "id": "mining-ten-minutes",
+    "category": "mining",
+    "question": "Why are blocks about ten minutes apart?",
+    "alts": [
+      "Explain why are blocks about ten minutes apart?",
+      "For what reason are blocks about ten minutes apart?",
+      "What is the reason are blocks about ten minutes apart?"
+    ],
+    "answer": "The ten minute target leaves time for a new block to reach nodes around the world before the next one. It was a design choice, not a measurement of how long a hash takes. Real intervals vary around that average.",
+    "topics": [
+      "block_time-block-size",
+      "time",
+      "mining"
+    ],
+    "followUps": [
+      "mining-more-hash-no-more-coins",
+      "mining-asic",
+      "mining-pool"
+    ],
+    "sources": "Target spacing in the protocol."
+  },
+  {
+    "id": "mining-more-hash-no-more-coins",
+    "category": "mining",
+    "question": "Does more mining create more bitcoin?",
+    "alts": [
+      "Explain whether does more mining create more bitcoin?",
+      "Clarify whether does more mining create more bitcoin?",
+      "Is this the case: does more mining create more bitcoin?"
+    ],
+    "answer": "No. Extra machines raise the difficulty so the subsidy schedule stays the same. More hash power changes who finds the blocks, not how many coins exist. Issuance follows height, not hash rate.",
+    "topics": [
+      "mining",
+      "scarce",
+      "difficulty-adjustment"
+    ],
+    "followUps": [
+      "mining-asic",
+      "mining-pool",
+      "mining-stratum"
+    ],
+    "sources": "Difficulty absorbs hash rate."
+  },
+  {
+    "id": "mining-asic",
+    "category": "mining",
+    "question": "What is an ASIC miner?",
+    "alts": [
+      "Define an ASIC miner?",
+      "Explain an ASIC miner?",
+      "Describe an ASIC miner?"
+    ],
+    "answer": "An ASIC is a machine built to do one job, and bitcoin miners use ASICs built for SHA-256. Ordinary computers and graphics cards cannot compete on the main network. The machines wear out and are a business cost for miners.",
+    "topics": [
+      "hardware",
+      "mining",
+      "0_mining__hashing"
+    ],
+    "followUps": [
+      "mining-pool",
+      "mining-stratum",
+      "mining-51"
+    ],
+    "sources": "SHA-256 ASICs."
+  },
+  {
+    "id": "mining-pool",
+    "category": "mining",
+    "question": "What is a mining pool?",
+    "alts": [
+      "Define a mining pool?",
+      "Explain a mining pool?",
+      "Describe a mining pool?"
+    ],
+    "answer": "A pool lets many miners share rewards so income is smoother than solo mining. The pool often builds the block template, unless miners use a setup that lets them choose transactions. Miners can leave a pool.",
+    "topics": [
+      "mining",
+      "governance",
+      "stratum_v2"
+    ],
+    "followUps": [
+      "mining-stratum",
+      "mining-51",
+      "mining-selfish"
+    ],
+    "sources": "Pool payouts versus protocol rules."
+  },
+  {
+    "id": "mining-stratum",
+    "category": "mining",
+    "question": "What is Stratum?",
+    "alts": [
+      "Define Stratum?",
+      "Explain Stratum?",
+      "Describe Stratum?"
+    ],
+    "answer": "Stratum is the common protocol a miner uses to talk to a pool. The older form mostly has the pool pick the block's transactions. Stratum V2 can let the individual miner choose transactions instead.",
+    "topics": [
+      "stratum_v2",
+      "mining",
+      "governance"
+    ],
+    "followUps": [
+      "mining-51",
+      "mining-selfish",
+      "mining-energy"
+    ],
+    "sources": "Stratum and Stratum V2."
+  },
+  {
+    "id": "mining-51",
+    "category": "mining",
+    "question": "What is a 51 percent attack?",
+    "alts": [
+      "Define a 51 percent attack?",
+      "Explain a 51 percent attack?",
+      "Describe a 51 percent attack?"
+    ],
+    "answer": "If one miner or pool has most of the hash power, they can try to replace recent blocks or ignore some transactions. They still cannot create coins outside the schedule, because nodes reject those blocks. Rewriting deep history is expensive.",
+    "topics": [
+      "risks__threats__attack_vectors__weaknes",
+      "mining",
+      "secure"
+    ],
+    "followUps": [
+      "mining-selfish",
+      "mining-energy",
+      "mining-energy-number"
+    ],
+    "sources": "Majority hash power limits."
+  },
+  {
+    "id": "mining-selfish",
+    "category": "mining",
+    "question": "What is selfish mining?",
+    "alts": [
+      "Define selfish mining?",
+      "Explain selfish mining?",
+      "Describe selfish mining?"
+    ],
+    "answer": "Selfish mining is a strategy of hiding a block for a while to waste rivals' work. Research shows it can help a miner who is already large. It is a game-theory concern, not the ordinary way most blocks are found.",
+    "topics": [
+      "game_theory",
+      "mining",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
+      "mining-energy",
+      "mining-energy-number",
+      "mining-curtail"
+    ],
+    "sources": "Selfish mining literature."
+  },
+  {
+    "id": "mining-energy",
+    "category": "mining",
+    "question": "Why does Bitcoin use energy?",
+    "alts": [
+      "Explain why does Bitcoin use energy?",
+      "For what reason does Bitcoin use energy?",
+      "What is the reason does Bitcoin use energy?"
+    ],
+    "answer": "The energy is the cost that makes a fake history expensive to produce. Miners buy electricity and compete. The protocol does not set a quota for how much power the world should use.",
+    "topics": [
+      "energy",
+      "environment___energy",
+      "mining"
+    ],
+    "followUps": [
+      "mining-energy-number",
+      "mining-curtail",
+      "mining-stranded"
+    ],
+    "sources": "Proof of work as a cost."
+  },
+  {
+    "id": "mining-energy-number",
+    "category": "mining",
+    "question": "How much electricity does Bitcoin use?",
+    "alts": [
+      "Explain this: how much electricity does Bitcoin use?",
+      "Clarify this: how much electricity does Bitcoin use?",
+      "Unpack this: how much electricity does Bitcoin use?"
+    ],
+    "answer": "Estimates change with the hash rate, the machines, and the energy mix, so a single number goes stale. The protocol does not target an energy total. More efficient machines change the picture without changing the coin supply.",
+    "topics": [
+      "environment___energy",
+      "energy",
+      "laws_of_thermodynamics"
+    ],
+    "followUps": [
+      "mining-curtail",
+      "mining-stranded",
+      "mining-green"
+    ],
+    "sources": "No stable official energy figure."
+  },
+  {
+    "id": "mining-curtail",
+    "category": "mining",
+    "question": "Why do miners shut off sometimes?",
+    "alts": [
+      "Explain why do miners shut off sometimes?",
+      "For what reason do miners shut off sometimes?",
+      "What is the reason do miners shut off sometimes?"
+    ],
+    "answer": "Miners run when the reward covers the power and the machines. If power is expensive or scarce, they can curtail and the difficulty later adjusts. That flexibility is a business choice, not a protocol switch.",
+    "topics": [
+      "energy",
+      "mining",
+      "difficulty-adjustment"
+    ],
+    "followUps": [
+      "mining-stranded",
+      "mining-green",
+      "mining-heat"
+    ],
+    "sources": "Economic curtailment."
+  },
+  {
+    "id": "mining-stranded",
+    "category": "mining",
+    "question": "What is stranded energy in mining debates?",
+    "alts": [
+      "Define stranded energy in mining debates?",
+      "Explain stranded energy in mining debates?",
+      "Describe stranded energy in mining debates?"
+    ],
+    "answer": "Stranded energy is power that is hard to sell because it is far from a city or it is wasted, such as flared gas. Some miners locate near that power. Whether a given site is useful is a local fact, not a rule of Bitcoin.",
+    "topics": [
+      "energy",
+      "environment___energy",
+      "mining"
+    ],
+    "followUps": [
+      "mining-green",
+      "mining-heat",
+      "mining-reward-parts"
+    ],
+    "sources": "Siting choice, not a consensus rule."
+  },
+  {
+    "id": "mining-green",
+    "category": "mining",
+    "question": "Does Bitcoin require renewable power?",
+    "alts": [
+      "Explain whether does Bitcoin require renewable power?",
+      "Clarify whether does Bitcoin require renewable power?",
+      "Is this the case: does Bitcoin require renewable power?"
+    ],
+    "answer": "No. Miners buy whatever power is cheapest and available where they operate. The mix changes by region and by year. The protocol only checks hashes, not the fuel.",
+    "topics": [
+      "environment___energy",
+      "energy",
+      "mining"
+    ],
+    "followUps": [
+      "mining-heat",
+      "mining-reward-parts",
+      "mining-empty-block"
+    ],
+    "sources": "Fuel is outside the protocol."
+  },
+  {
+    "id": "mining-heat",
+    "category": "mining",
+    "question": "Can mining heat be reused?",
+    "alts": [
+      "Explain whether can mining heat be reused?",
+      "Clarify whether can mining heat be reused?",
+      "Is this the case: can mining heat be reused?"
+    ],
+    "answer": "The machines produce heat, and some people use that heat for buildings or other work. That is an engineering choice at the site. It is not required for a block to be valid.",
+    "topics": [
+      "energy",
+      "environment___energy",
+      "projects-diy"
+    ],
+    "followUps": [
+      "mining-reward-parts",
+      "mining-empty-block",
+      "mining-template"
+    ],
+    "sources": "Heat reuse is optional engineering."
+  },
+  {
+    "id": "mining-reward-parts",
+    "category": "mining",
+    "question": "What does a miner earn?",
+    "alts": [
+      "Explain what a miner earn?",
+      "Clarify what a miner earn?",
+      "Describe what a miner earn?"
+    ],
+    "answer": "A miner who finds a valid block may claim the subsidy plus the fees of the transactions they included. Both sit in the coinbase transaction. They cannot spend that coinbase for 100 blocks.",
+    "topics": [
+      "mining",
+      "transaction_fees",
+      "scarce"
+    ],
+    "followUps": [
+      "mining-empty-block",
+      "mining-template",
+      "mining-hashrate-meaning"
+    ],
+    "sources": "Subsidy plus fees, 100-block maturity."
+  },
+  {
+    "id": "mining-empty-block",
+    "category": "mining",
+    "question": "Why do some blocks have few transactions?",
+    "alts": [
+      "Explain why do some blocks have few transactions?",
+      "For what reason do some blocks have few transactions?",
+      "What is the reason do some blocks have few transactions?"
+    ],
+    "answer": "A miner might publish a block before they have assembled a full template, especially right after another block. The block can still be valid. Fee income pushes miners to include paying transactions once they have them.",
+    "topics": [
+      "mining",
+      "transaction_fees",
+      "block_time-block-size"
+    ],
+    "followUps": [
+      "mining-template",
+      "mining-hashrate-meaning",
+      "mining-variance"
+    ],
+    "sources": "Empty or sparse blocks are valid."
+  },
+  {
+    "id": "mining-template",
+    "category": "mining",
+    "question": "What is a block template?",
+    "alts": [
+      "Define a block template?",
+      "Explain a block template?",
+      "Describe a block template?"
+    ],
+    "answer": "A template is the miner's draft of the next block: the transactions they chose and the header they are hashing. Pools often send the template to the machines. Who picks the transactions is a mining-policy question.",
+    "topics": [
+      "mining",
+      "governance",
+      "stratum_v2"
+    ],
+    "followUps": [
+      "mining-hashrate-meaning",
+      "mining-variance",
+      "mining-solo"
+    ],
+    "sources": "Block templates."
+  },
+  {
+    "id": "mining-hashrate-meaning",
+    "category": "mining",
+    "question": "What is hash rate?",
+    "alts": [
+      "Define hash rate?",
+      "Explain hash rate?",
+      "Describe hash rate?"
+    ],
+    "answer": "Hash rate is how many header hashes miners are trying per second, as estimated from the difficulty and the blocks that appear. It is an estimate, not a sensor inside the protocol. A live number belongs to a data feed, not to a fixed lesson.",
+    "topics": [
+      "0_mining__hashing",
+      "mining",
+      "math"
+    ],
+    "followUps": [
+      "mining-variance",
+      "mining-solo",
+      "mining-lottery"
+    ],
+    "sources": "Hash rate is inferred."
+  },
+  {
+    "id": "mining-variance",
+    "category": "mining",
+    "question": "Why are some blocks two minutes apart and some an hour?",
+    "alts": [
+      "Explain why are some blocks two minutes apart and some an hour?",
+      "For what reason are some blocks two minutes apart and some an hour?",
+      "What is the reason are some blocks two minutes apart and some an hour?"
+    ],
+    "answer": "Finding a block is random even when the average is ten minutes. A short gap or a long gap is normal. Difficulty looks at 2,016 blocks, not at one unlucky hour.",
+    "topics": [
+      "block_time-block-size",
+      "time",
+      "difficulty-adjustment"
+    ],
+    "followUps": [
+      "mining-solo",
+      "mining-lottery",
+      "mining-centralization"
+    ],
+    "sources": "Poisson block arrivals."
+  },
+  {
+    "id": "mining-solo",
+    "category": "mining",
+    "question": "What is solo mining?",
+    "alts": [
+      "Define solo mining?",
+      "Explain solo mining?",
+      "Describe solo mining?"
+    ],
+    "answer": "Solo mining means you take the full reward if you find a block, and nothing if you do not. With industrial hash power, a small miner almost never finds one. Pools exist to smooth that variance.",
+    "topics": [
+      "mining",
+      "game_theory",
+      "hardware"
+    ],
+    "followUps": [
+      "mining-lottery",
+      "mining-centralization",
+      "mining-geopolitics"
+    ],
+    "sources": "Variance of solo mining."
+  },
+  {
+    "id": "mining-lottery",
+    "category": "mining",
+    "question": "Is mining a lottery?",
+    "alts": [
+      "Explain whether is mining a lottery?",
+      "Clarify whether is mining a lottery?",
+      "Is this the case: is mining a lottery?"
+    ],
+    "answer": "It is similar to a lottery where more machines mean more tickets. The prize is the block reward, and the tickets are hashes. There is no skill in picking the winning nonce.",
+    "topics": [
+      "0_mining__hashing",
+      "mining",
+      "game_theory"
+    ],
+    "followUps": [
+      "mining-centralization",
+      "mining-geopolitics",
+      "mining-china-2021"
+    ],
+    "sources": "Hash lottery."
+  },
+  {
+    "id": "mining-centralization",
+    "category": "mining",
+    "question": "Are mining pools the same as one miner?",
+    "alts": [
+      "Explain whether are mining pools the same as one miner?",
+      "Clarify whether are mining pools the same as one miner?",
+      "Is this the case: are mining pools the same as one miner?"
+    ],
+    "answer": "A large pool coordinates many machines that other people own. The pool operator has influence over the template, and the owners can point the machines elsewhere. Pool share changes and should not be quoted as a permanent percent.",
+    "topics": [
+      "mining",
+      "governance",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
+      "mining-geopolitics",
+      "mining-china-2021",
+      "mining-fee-pressure"
+    ],
+    "sources": "Pools versus machine owners."
+  },
+  {
+    "id": "mining-geopolitics",
+    "category": "mining",
+    "question": "Can one country control mining forever?",
+    "alts": [
+      "Explain whether can one country control mining forever?",
+      "Clarify whether can one country control mining forever?",
+      "Is this the case: can one country control mining forever?"
+    ],
+    "answer": "Miners move when power, law, or profit changes. A country can restrict mining inside its borders. The difficulty adjustment lets the remaining miners keep producing blocks.",
+    "topics": [
+      "geopolitics___macroeconomics",
+      "mining",
+      "difficulty-adjustment"
+    ],
+    "followUps": [
+      "mining-china-2021",
+      "mining-fee-pressure",
+      "mining-out-of-band"
+    ],
+    "sources": "Hash rate mobility and retargeting."
+  },
+  {
+    "id": "mining-china-2021",
+    "category": "mining",
+    "question": "What happened to mining in China in 2021?",
+    "alts": [
+      "Explain this: what happened to mining in China in 2021?",
+      "Clarify this: what happened to mining in China in 2021?",
+      "Unpack this: what happened to mining in China in 2021?"
+    ],
+    "answer": "China tightened rules on mining and exchanges in 2021. Measured hash rate fell and later recovered in other places. The ledger did not stop, and the difficulty adjusted.",
+    "topics": [
+      "history",
+      "mining",
+      "geopolitics___macroeconomics"
+    ],
+    "followUps": [
+      "mining-fee-pressure",
+      "mining-out-of-band",
+      "mining-timestamp"
+    ],
+    "sources": "2021 mining restrictions and hash rate recovery."
+  },
+  {
+    "id": "mining-fee-pressure",
+    "category": "mining",
+    "question": "Do miners prefer high fees?",
+    "alts": [
+      "Explain whether do miners prefer high fees?",
+      "Clarify whether do miners prefer high fees?",
+      "Is this the case: do miners prefer high fees?"
+    ],
+    "answer": "Yes. Given a full mempool, a miner earns more by including the transactions that pay the most per unit of block space. That is why fee rates rise when many people want the next block. Policy can still drop some kinds of transactions.",
+    "topics": [
+      "transaction_fees",
+      "mining",
+      "vbyte"
+    ],
+    "followUps": [
+      "mining-out-of-band",
+      "mining-timestamp",
+      "mining-work"
+    ],
+    "sources": "Fee-maximizing templates."
+  },
+  {
+    "id": "mining-out-of-band",
+    "category": "mining",
+    "question": "What is an out-of-band mining payment?",
+    "alts": [
+      "Define an out-of-band mining payment?",
+      "Explain an out-of-band mining payment?",
+      "Describe an out-of-band mining payment?"
+    ],
+    "answer": "Sometimes a sender pays a miner directly, outside the transaction fee, to include a transaction. The chain may not show that side deal. It is a real practice and it is harder for outsiders to audit.",
+    "topics": [
+      "mining",
+      "transaction_fees",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
+      "mining-timestamp",
+      "mining-work",
+      "mining-pos-contrast"
+    ],
+    "sources": "Off-band accelerator deals."
+  },
+  {
+    "id": "mining-timestamp",
+    "category": "mining",
+    "question": "How accurate is a block's timestamp?",
+    "alts": [
+      "Explain this: how accurate is a block's timestamp?",
+      "Clarify this: how accurate is a block's timestamp?",
+      "Unpack this: how accurate is a block's timestamp?"
+    ],
+    "answer": "A miner writes a time in the header, and nodes reject times that are too far off. It is not a laboratory clock. Median time of past blocks is used for some lock rules so one miner cannot set the future alone.",
+    "topics": [
+      "time",
+      "mining",
+      "blockchain-timechain"
+    ],
+    "followUps": [
+      "mining-work",
+      "mining-pos-contrast",
+      "mining-nothing-at-stake"
+    ],
+    "sources": "Timestamp validity rules."
+  },
+  {
+    "id": "mining-work",
+    "category": "mining",
+    "question": "What is chainwork?",
+    "alts": [
+      "Define chainwork?",
+      "Explain chainwork?",
+      "Describe chainwork?"
+    ],
+    "answer": "Chainwork is the total proof of work in a chain. Nodes prefer the valid chain with the most work, not simply the one with the most blocks. A hard chain of fewer blocks can beat an easy chain of more blocks.",
+    "topics": [
+      "consensus",
+      "mining",
+      "math"
+    ],
+    "followUps": [
+      "mining-pos-contrast",
+      "mining-nothing-at-stake",
+      "mining-security-budget"
+    ],
+    "sources": "Most-work chain selection."
+  },
+  {
+    "id": "mining-pos-contrast",
+    "category": "mining",
+    "question": "How is proof of work different from proof of stake?",
+    "alts": [
+      "Explain this: how is proof of work different from proof of stake?",
+      "Clarify this: how is proof of work different from proof of stake?",
+      "Unpack this: how is proof of work different from proof of stake?"
+    ],
+    "answer": "Proof of work spends energy outside the system to propose a block. Proof of stake picks block producers from people who lock the coin itself. Bitcoin stays on proof of work so the right to propose is not the same thing as a large balance.",
+    "topics": [
+      "pow-vs-pos",
+      "mining",
+      "consensus"
+    ],
+    "followUps": [
+      "mining-nothing-at-stake",
+      "mining-security-budget",
+      "mining-attacker-cost"
+    ],
+    "sources": "PoW versus PoS."
+  },
+  {
+    "id": "mining-nothing-at-stake",
+    "category": "mining",
+    "question": "What is the nothing-at-stake critique?",
+    "alts": [
+      "Define the nothing-at-stake critique?",
+      "Explain the nothing-at-stake critique?",
+      "Describe the nothing-at-stake critique?"
+    ],
+    "answer": "In some proof-of-stake designs, a validator can try several competing histories cheaply because signing is nearly free. Proof of work makes each attempt cost energy. Bitcoin's designers kept that cost on purpose.",
+    "topics": [
+      "pow-vs-pos",
+      "game_theory",
+      "mining"
+    ],
+    "followUps": [
+      "mining-security-budget",
+      "mining-attacker-cost",
+      "mining-progress"
+    ],
+    "sources": "Nothing-at-stake contrast."
+  },
+  {
+    "id": "mining-security-budget",
+    "category": "mining",
+    "question": "What is the security budget?",
+    "alts": [
+      "Define the security budget?",
+      "Explain the security budget?",
+      "Describe the security budget?"
+    ],
+    "answer": "The security budget is what miners are paid, subsidy plus fees, which is what an attacker must outspend to dominate new blocks. It falls in coin terms at each halving and depends on the market value of those coins. The future fee portion is not guaranteed.",
+    "topics": [
+      "mining",
+      "transaction_fees",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
+      "mining-attacker-cost",
+      "mining-progress",
+      "mining-halving-miner"
+    ],
+    "sources": "Security budget definition. No future guarantee."
+  },
+  {
+    "id": "mining-attacker-cost",
+    "category": "mining",
+    "question": "What does an attacker have to pay?",
+    "alts": [
+      "Explain what an attacker have to pay?",
+      "Clarify what an attacker have to pay?",
+      "Describe what an attacker have to pay?"
+    ],
+    "answer": "To keep replacing the chain tip, an attacker needs a large share of hash power and the power to run it, for as long as the attack lasts. Honest miners are a cost the attacker must beat. Nodes still drop invalid blocks for free.",
+    "topics": [
+      "mining",
+      "secure",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
+      "mining-progress",
+      "mining-halving-miner",
+      "mining-depreciation"
+    ],
+    "sources": "Cost of a sustained reorg."
+  },
+  {
+    "id": "mining-progress",
+    "category": "mining",
+    "question": "Does mining difficulty make old blocks unsafe?",
+    "alts": [
+      "Explain whether does mining difficulty make old blocks unsafe?",
+      "Clarify whether does mining difficulty make old blocks unsafe?",
+      "Is this the case: does mining difficulty make old blocks unsafe?"
+    ],
+    "answer": "Old blocks are buried under later work. An attacker must redo all of that work to replace them. Deeper history is safer, which is why people wait for confirmations.",
+    "topics": [
+      "secure",
+      "mining",
+      "blockchain-timechain"
+    ],
+    "followUps": [
+      "mining-halving-miner",
+      "mining-depreciation",
+      "mining-firmware"
+    ],
+    "sources": "Buried proof of work."
+  },
+  {
+    "id": "mining-halving-miner",
+    "category": "mining",
+    "question": "How does a halving affect miners?",
+    "alts": [
+      "Explain how a halving affect miners?",
+      "Describe how a halving affect miners?",
+      "How can a halving affect miners?"
+    ],
+    "answer": "The new coins in each block drop by half, so revenue in coin terms drops unless fees or the exchange price offset it. Some miners shut off if they are unprofitable, and difficulty can fall afterward. That is a business cycle around a fixed rule.",
+    "topics": [
+      "mining",
+      "scarce",
+      "difficulty-adjustment"
+    ],
+    "followUps": [
+      "mining-depreciation",
+      "mining-firmware",
+      "mining-home"
+    ],
+    "sources": "Halving and miner revenue. Not a price call."
+  },
+  {
+    "id": "mining-depreciation",
+    "category": "mining",
+    "question": "Do mining machines last forever?",
+    "alts": [
+      "Explain whether do mining machines last forever?",
+      "Clarify whether do mining machines last forever?",
+      "Is this the case: do mining machines last forever?"
+    ],
+    "answer": "No. ASICs become less competitive as newer chips hash more per watt. Miners account for that wear as a cost. The network does not set the price of hardware.",
+    "topics": [
+      "hardware",
+      "mining",
+      "energy"
+    ],
+    "followUps": [
+      "mining-firmware",
+      "mining-home",
+      "mining-merged"
+    ],
+    "sources": "ASIC obsolescence."
+  },
+  {
+    "id": "mining-firmware",
+    "category": "mining",
+    "question": "What is mining firmware?",
+    "alts": [
+      "Define mining firmware?",
+      "Explain mining firmware?",
+      "Describe mining firmware?"
+    ],
+    "answer": "Firmware is the software on the mining machine that talks to the pool and runs the chips. A malicious firmware could skim hash power. Operators treat it as part of their security, separate from bitcoin keys.",
+    "topics": [
+      "hardware",
+      "mining",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
+      "mining-home",
+      "mining-merged",
+      "mining-orphan-rate"
+    ],
+    "sources": "Device firmware risk."
+  },
+  {
+    "id": "mining-home",
+    "category": "mining",
+    "question": "Can a person still mine at home?",
+    "alts": [
+      "Explain whether can a person still mine at home?",
+      "Clarify whether can a person still mine at home?",
+      "Is this the case: can a person still mine at home?"
+    ],
+    "answer": "You can run the software, and you will almost certainly not find a block against industrial farms. Some people mine on a pool with a small machine for learning or for heat. It is not a plan to get rich.",
+    "topics": [
+      "mining",
+      "hardware",
+      "projects-diy"
+    ],
+    "followUps": [
+      "mining-merged",
+      "mining-orphan-rate",
+      "mining-compact"
+    ],
+    "sources": "Home mining versus industrial hash rate. Not a profit plan."
+  },
+  {
+    "id": "mining-merged",
+    "category": "mining",
+    "question": "What is merged mining?",
+    "alts": [
+      "Define merged mining?",
+      "Explain merged mining?",
+      "Describe merged mining?"
+    ],
+    "answer": "Merged mining lets a miner try to secure an auxiliary chain while mining Bitcoin, by reusing the same work. Bitcoin nodes do not care about the other chain. It is optional and it does not create extra bitcoin.",
+    "topics": [
+      "mining",
+      "sidechains",
+      "layer-3-sidechains"
+    ],
+    "followUps": [
+      "mining-orphan-rate",
+      "mining-compact",
+      "mining-spy"
+    ],
+    "sources": "Merged mining as an optional extra."
+  },
+  {
+    "id": "mining-orphan-rate",
+    "category": "mining",
+    "question": "Why do miners care about block propagation?",
+    "alts": [
+      "Explain why do miners care about block propagation?",
+      "For what reason do miners care about block propagation?",
+      "What is the reason do miners care about block propagation?"
+    ],
+    "answer": "A block that spreads slowly is more likely to lose a race to another block. Miners use compact relay and good connections to reduce that. It is an engineering race, not a change to the supply.",
+    "topics": [
+      "mining",
+      "nodes",
+      "scalability"
+    ],
+    "followUps": [
+      "mining-compact",
+      "mining-spy",
+      "mining-incentive"
+    ],
+    "sources": "Stale-block risk and relay."
+  },
+  {
+    "id": "mining-compact",
+    "category": "mining",
+    "question": "What is compact block relay?",
+    "alts": [
+      "Define compact block relay?",
+      "Explain compact block relay?",
+      "Describe compact block relay?"
+    ],
+    "answer": "Compact blocks let a node send a sketch of a block, because peers already have most of the transactions. That speeds propagation. It is a network optimization, not a new coin.",
+    "topics": [
+      "nodes",
+      "mining",
+      "scalability"
+    ],
+    "followUps": [
+      "mining-spy",
+      "mining-incentive",
+      "mining-user-check"
+    ],
+    "sources": "Compact block relay."
+  },
+  {
+    "id": "mining-spy",
+    "category": "mining",
+    "question": "Can a pool pretend to have hash power it does not?",
+    "alts": [
+      "Explain whether can a pool pretend to have hash power it does not?",
+      "Clarify whether can a pool pretend to have hash power it does not?",
+      "Is this the case: can a pool pretend to have hash power it does not?"
+    ],
+    "answer": "A pool's advertised hash rate can be marketing. The blocks it actually finds are the public evidence. Short samples are noisy, so one day's blocks are a poor census.",
+    "topics": [
+      "mining",
+      "math",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
+      "mining-incentive",
+      "mining-user-check",
+      "mining-greenwashing"
+    ],
+    "sources": "Found blocks versus claims."
+  },
+  {
+    "id": "mining-incentive",
+    "category": "mining",
+    "question": "Why would miners include honest blocks?",
+    "alts": [
+      "Explain why would miners include honest blocks?",
+      "For what reason would miners include honest blocks?",
+      "What is the reason would miners include honest blocks?"
+    ],
+    "answer": "An invalid block is rejected, so the miner wastes the electricity and earns nothing. A valid block can earn the reward if it becomes part of the most-work chain. The incentive is the reward, not a contract with a foundation.",
+    "topics": [
+      "game_theory",
+      "mining",
+      "improved_incentive_structure"
+    ],
+    "followUps": [
+      "mining-user-check",
+      "mining-greenwashing",
+      "mining-double-sha"
+    ],
+    "sources": "Incentive compatibility of valid blocks."
+  },
+  {
+    "id": "mining-user-check",
+    "category": "mining",
+    "question": "Do users need to mine?",
+    "alts": [
+      "Explain whether do users need to mine?",
+      "Clarify whether do users need to mine?",
+      "Is this the case: do users need to mine?"
+    ],
+    "answer": "No. Holding coins and running a node do not require mining. Mining is the service of proposing blocks. Users check those proposals.",
+    "topics": [
+      "nodes",
+      "mining",
+      "use-cases"
+    ],
+    "followUps": [
+      "mining-greenwashing",
+      "mining-double-sha",
+      "mining-extranonce"
+    ],
+    "sources": "Users versus miners."
+  },
+  {
+    "id": "mining-greenwashing",
+    "category": "mining",
+    "question": "How should energy claims be read?",
+    "alts": [
+      "Explain this: how should energy claims be read?",
+      "Clarify this: how should energy claims be read?",
+      "Unpack this: how should energy claims be read?"
+    ],
+    "answer": "A miner may buy certificates or locate near a particular plant, and those details are outside the block. The chain does not record the fuel. Treat a live energy badge as a claim to verify, not as a protocol fact.",
+    "topics": [
+      "environment___energy",
+      "energy",
+      "mining"
+    ],
+    "followUps": [
+      "mining-double-sha",
+      "mining-extranonce",
+      "mining-header-fields"
+    ],
+    "sources": "Energy claims are off-chain."
+  },
+  {
+    "id": "mining-double-sha",
+    "category": "mining",
+    "question": "Why does mining hash the header twice?",
+    "alts": [
+      "Explain why does mining hash the header twice?",
+      "For what reason does mining hash the header twice?",
+      "What is the reason does mining hash the header twice?"
+    ],
+    "answer": "Mining hashes the block header with SHA-256 and then SHA-256 again. That double hash is the proof-of-work input. A valid header has to land under the target.",
+    "topics": [
+      "mining",
+      "0_mining__hashing"
+    ],
+    "followUps": [
+      "mining-extranonce",
+      "mining-header-fields",
+      "mining-header-size"
+    ],
+    "sources": "SHA-256d of the header."
+  },
+  {
+    "id": "mining-extranonce",
+    "category": "mining",
+    "question": "What is the extra nonce?",
+    "alts": [
+      "Define the extra nonce?",
+      "Explain the extra nonce?",
+      "Describe the extra nonce?"
+    ],
+    "answer": "The 4-byte nonce can run out, so miners also change an extra nonce in the coinbase, which changes the Merkle root and the header. That extends the search. It is still brute-force hashing, not a puzzle with a known shortcut.",
+    "topics": [
+      "mining",
+      "0_mining__hashing"
+    ],
+    "followUps": [
+      "mining-header-fields",
+      "mining-header-size",
+      "mining-nbits"
+    ],
+    "sources": "Coinbase extra nonce."
+  },
+  {
+    "id": "mining-header-fields",
+    "category": "mining",
+    "question": "What fields sit in a block header?",
+    "alts": [
+      "Explain this: what fields sit in a block header?",
+      "Clarify this: what fields sit in a block header?",
+      "Unpack this: what fields sit in a block header?"
+    ],
+    "answer": "A block header holds a version, the previous block hash, a Merkle root, a time, the compact target, and a nonce. Those fields are what gets hashed. The transactions sit under the Merkle root.",
+    "topics": [
+      "mining",
+      "blockchain-timechain"
+    ],
+    "followUps": [
+      "mining-header-size",
+      "mining-nbits",
+      "mining-2016"
+    ],
+    "sources": "Six header fields."
+  },
+  {
+    "id": "mining-header-size",
+    "category": "mining",
+    "question": "How big is a Bitcoin block header?",
+    "alts": [
+      "Explain this: how big is a Bitcoin block header?",
+      "Clarify this: how big is a Bitcoin block header?",
+      "Unpack this: how big is a Bitcoin block header?"
+    ],
+    "answer": "A Bitcoin block header is 80 bytes. Mining searches for a header whose hash is low enough. The header stays small even when the block of transactions is large.",
+    "topics": [
+      "mining",
+      "block_time-block-size"
+    ],
+    "followUps": [
+      "mining-nbits",
+      "mining-2016",
+      "mining-two-weeks"
+    ],
+    "sources": "80-byte header."
+  },
+  {
+    "id": "mining-nbits",
+    "category": "mining",
+    "question": "What is nBits?",
+    "alts": [
+      "Define nBits?",
+      "Explain nBits?",
+      "Describe nBits?"
+    ],
+    "answer": "nBits is the compact form of the mining target stored in the header. It encodes how small the hash must be. Difficulty is a human way to talk about that same target.",
+    "topics": [
+      "difficulty-adjustment",
+      "mining"
+    ],
+    "followUps": [
+      "mining-2016",
+      "mining-two-weeks",
+      "mining-time-rules"
+    ],
+    "sources": "Compact target."
+  },
+  {
+    "id": "mining-2016",
+    "category": "mining",
+    "question": "Why retarget every 2016 blocks?",
+    "alts": [
+      "Explain why retarget every 2016 blocks?",
+      "For what reason retarget every 2016 blocks?",
+      "What is the reason retarget every 2016 blocks?"
+    ],
+    "answer": "Difficulty retargets every 2,016 blocks so the average stays near ten minutes. If the last span was fast, the target gets harder, and if it was slow, easier. One span cannot multiply or divide the difficulty by more than four.",
+    "topics": [
+      "difficulty-adjustment",
+      "mining"
+    ],
+    "followUps": [
+      "mining-two-weeks",
+      "mining-time-rules",
+      "mining-maturity"
+    ],
+    "sources": "2,016-block retarget, factor-of-four cap."
+  },
+  {
+    "id": "mining-two-weeks",
+    "category": "mining",
+    "question": "Why aim for two weeks between retargets?",
+    "alts": [
+      "Explain why aim for two weeks between retargets?",
+      "For what reason aim for two weeks between retargets?",
+      "What is the reason aim for two weeks between retargets?"
+    ],
+    "answer": "Two weeks is the design goal because 2,016 blocks at ten minutes is about that long. It is long enough to measure hashrate and short enough to react. It is not a promise that every span lasts exactly fourteen days.",
+    "topics": [
+      "difficulty-adjustment",
+      "block_time-block-size"
+    ],
+    "followUps": [
+      "mining-time-rules",
+      "mining-maturity",
+      "mining-empty"
+    ],
+    "sources": "Design interval."
+  },
+  {
+    "id": "mining-time-rules",
+    "category": "mining",
+    "question": "What limits a block timestamp?",
+    "alts": [
+      "Explain this: what limits a block timestamp?",
+      "Clarify this: what limits a block timestamp?",
+      "Unpack this: what limits a block timestamp?"
+    ],
+    "answer": "A block time has to be later than the median of the previous eleven blocks. Nodes also reject a timestamp more than about two hours ahead of their own clock. Those rules stop a miner from dating blocks wildly.",
+    "topics": [
+      "time",
+      "consensus",
+      "mining"
+    ],
+    "followUps": [
+      "mining-maturity",
+      "mining-empty",
+      "mining-asicboost"
+    ],
+    "sources": "Median-time-past and future limit."
+  },
+  {
+    "id": "mining-maturity",
+    "category": "mining",
+    "question": "Why is coinbase maturity 100 blocks?",
+    "alts": [
+      "Explain why is coinbase maturity 100 blocks?",
+      "For what reason is coinbase maturity 100 blocks?",
+      "What is the reason is coinbase maturity 100 blocks?"
+    ],
+    "answer": "The subsidy and fees in a coinbase cannot be spent until 100 blocks later. That delay gives a short reorg time to fall away. It is a consensus rule, not a pool policy.",
+    "topics": [
+      "mining",
+      "consensus"
+    ],
+    "followUps": [
+      "mining-empty",
+      "mining-asicboost",
+      "mining-payout"
+    ],
+    "sources": "100-block maturity."
+  },
+  {
+    "id": "mining-empty",
+    "category": "mining",
+    "question": "Can a block contain no user payments?",
+    "alts": [
+      "Explain whether can a block contain no user payments?",
+      "Clarify whether can a block contain no user payments?",
+      "Is this the case: can a block contain no user payments?"
+    ],
+    "answer": "A block can contain only the coinbase and still be valid if the header meets the target. Miners sometimes publish those while transactions are still arriving. User payments then wait for a later block.",
+    "topics": [
+      "mining",
+      "transaction_fees"
+    ],
+    "followUps": [
+      "mining-asicboost",
+      "mining-payout",
+      "mining-bitaxe"
+    ],
+    "sources": "Empty blocks are valid."
+  },
+  {
+    "id": "mining-asicboost",
+    "category": "mining",
+    "question": "What is ASICBoost?",
+    "alts": [
+      "Define ASICBoost?",
+      "Explain ASICBoost?",
+      "Describe ASICBoost?"
+    ],
+    "answer": "ASICBoost is a way some mining hardware can try more header candidates with less work by using details of the header. It does not change the proof-of-work check nodes perform. Whether a miner uses it is a hardware and policy choice.",
+    "topics": [
+      "mining",
+      "hardware"
+    ],
+    "followUps": [
+      "mining-payout",
+      "mining-bitaxe",
+      "mining-proof-of-work"
+    ],
+    "sources": "Header-grinding optimization. Not a rule change."
+  },
+  {
+    "id": "mining-payout",
+    "category": "mining",
+    "question": "What is a pool payout method?",
+    "alts": [
+      "Define a pool payout method?",
+      "Explain a pool payout method?",
+      "Describe a pool payout method?"
+    ],
+    "answer": "Methods such as pay per share or pay per last N shares are contracts with a pool, not consensus rules. The chain only sees the coinbase the pool broadcasts. Read the pool's own terms before joining.",
+    "topics": [
+      "mining",
+      "governance"
+    ],
+    "followUps": [
+      "mining-bitaxe",
+      "mining-proof-of-work",
+      "mining-how-it-works"
+    ],
+    "sources": "Pool contracts, not consensus."
+  },
+  {
+    "id": "mining-bitaxe",
+    "category": "mining",
+    "question": "What is a Bitaxe?",
+    "alts": [
+      "Define a Bitaxe?",
+      "Explain a Bitaxe?",
+      "Describe a Bitaxe?"
+    ],
+    "answer": "A Bitaxe is a small open-source miner that hobbyists use to learn solo mining. It does not meaningfully change the odds against large machines. It is hardware, not a protocol role.",
+    "topics": [
+      "hardware",
+      "mining",
+      "projects-diy"
+    ],
+    "followUps": [
+      "mining-proof-of-work",
+      "mining-how-it-works",
+      "mining-not-math-problems"
+    ],
+    "sources": "Open-source hobby miner."
+  }
+]

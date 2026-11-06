@@ -9,24 +9,7 @@ var ANNOUNCEMENTS_COLLECTION = 'announcements';
 var MAX_MSG_LENGTH = 300;
 var RATE_LIMIT_MS = 3000; // 3 seconds between messages
 var MAX_MSGS_DISPLAY = 100; // Fetch from Firestore
-// Bridge: forward message to Telegram via Cloud Function (secret is server-side only)
-function bridgeToTelegram(data) {
-    try {
-        if (typeof firebase !== 'undefined' && firebase.functions) {
-            var bridgeMsg = firebase.functions().httpsCallable('bridgeToTelegram');
-            bridgeMsg({
-                user: data.user || data.name || 'Anon',
-                text: data.text || '',
-                gifUrl: data.gifUrl || '',
-                imageUrl: data.imageUrl || '',
-                imageBase64: data.imageBase64 || '',
-                replyToName: data.replyToName || '',
-                replyToText: data.replyToText || '',
-                source: 'web'
-            }).catch(function(e) { console.warn('[BRIDGE] Cloud Function call failed:', e.message); });
-        }
-    } catch(e) {}
-}
+// Telegram forwarding is the server onCreate mirror. The client does not post.
 var CHAT_INITIAL_SHOW = 20; // Render initially (reduced to save Firestore reads)
 var CHAT_LOAD_MORE_COUNT = 20; // Per "load more" batch
 var _chatUnsub = null;
@@ -156,6 +139,8 @@ window._showReactTipFromBtn = function(btn) {
 window._showReactTipForUids = function(btn, uids) {
     clearTimeout(_reactTipTimer);
     if (!uids || !uids.length) return;
+    uids = uids.filter(function(uid) { return uid && uid !== 'deleted'; });
+    if (!uids.length) return;
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
     var names = uids.slice(0, 12).map(function(uid) {
         if (uid === myUid) return 'You';
@@ -246,6 +231,13 @@ var HASH_TARGETS = [
 // Add channels dynamically from CHANNELS if available
 function getHashTargets() {
     var targets = HASH_TARGETS.slice();
+    if (typeof window.bqHashTargets === 'function') {
+        try {
+            window.bqHashTargets().forEach(function (t) {
+                if (t && t.tag && !targets.some(function (x) { return x.tag === t.tag; })) targets.push(t);
+            });
+        } catch (e) {}
+    }
     if (typeof CHANNELS === 'object' && CHANNELS) {
         for (var k in CHANNELS) {
             if (CHANNELS[k] && CHANNELS[k].title) {
@@ -337,6 +329,34 @@ function timeAgo(ts) {
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+function bqChatFeature(id) {
+    if (typeof window.bqModeAllows !== 'function') return true;
+    return window.bqModeAllows(id);
+}
+function bqIsServerShoutout(m) {
+    if (!m || bqChatFeature('chatShoutouts')) return false;
+    if (m.topicChannel || m.topicPost) return false;
+    var uid = m.uid || m.authorUid || '';
+    var serverShaped = uid === 'nacho-bot' || m.isSystemPost === true || m.pvpShout === true;
+    if (!serverShaped) return false;
+    if (m.activityRef || m.activityKind || m.cycleId || m.pvpShout === true || m.isSystemPost === true) return true;
+    var docId = String(m._id || m.id || '');
+    if (/^(shoutout_|sf_live_|pvp_lobby_|pvp_result_|lobby_)/.test(docId)) return true;
+    if (m.mentionUid && m.isNachoAuto === false) return true;
+    // Block-found and epoch posts have no shoutout field.
+    if (uid === 'nacho-bot') {
+        var text = String(m.text || '');
+        if (text.indexOf('⛏️ BLOCK FOUND!') === 0) return true;
+        if (/^⛏️ EPOCH #\d+/.test(text)) return true;
+    }
+    return false;
+}
+function bqSkipAnnouncement(m) {
+    if (!m) return false;
+    if (m.postedByUid === 'badge-gg' && !bqChatFeature('ggPosts')) return true;
+    return bqIsServerShoutout(m);
+}
+
 // ---- Render Chat Hub (tabbed: Global Chat | DMs) ----
 window.renderChatHub = function(initialTab) {
     _chatTab = initialTab || 'global';
@@ -357,7 +377,11 @@ window.renderChatHub = function(initialTab) {
     var _tB = function(t) { return t === _chatTab ? 'var(--accent)' : 'transparent'; };
     html += '<div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg-side);">';
     html += '<button id="chatTabGlobal" onclick="switchChatTab(\'global\')" style="flex:1;padding:12px 0;background:none;border:none;border-bottom:2px solid ' + _tB('global') + ';color:' + _tA('global') + ';font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🌍 Global</button>';
-    html += '<button id="chatTabAnnouncements" onclick="switchChatTab(\'announcements\')" style="flex:1;padding:12px 0;background:none;border:none;border-bottom:2px solid ' + _tB('announcements') + ';color:' + _tA('announcements') + ';font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🎉 GGs</button>';
+    if (bqChatFeature('ggPosts')) {
+        html += '<button id="chatTabAnnouncements" onclick="switchChatTab(\'announcements\')" style="flex:1;padding:12px 0;background:none;border:none;border-bottom:2px solid ' + _tB('announcements') + ';color:' + _tA('announcements') + ';font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🎉 GGs</button>';
+    } else if (_chatTab === 'announcements') {
+        _chatTab = 'global';
+    }
     html += '<button id="chatTabDMs" onclick="switchChatTab(\'dms\')" style="flex:1;padding:12px 0;background:none;border:none;border-bottom:2px solid ' + _tB('dms') + ';color:' + _tA('dms') + ';font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">✉️ DMs</button>';
     html += '<button onclick="showChatRules()" style="padding:12px 8px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-faint);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;white-space:nowrap;">📋 Rules</button>';
     html += '</div>';
@@ -574,7 +598,7 @@ function renderChatMessages(msgs) {
 
     // Cache usernames for @mention autocomplete
     for (var u = 0; u < visibleMsgs.length; u++) {
-        if (visibleMsgs[u].uid && visibleMsgs[u].name && visibleMsgs[u].uid !== 'nacho-bot') {
+        if (visibleMsgs[u].uid && visibleMsgs[u].name && visibleMsgs[u].uid !== 'nacho-bot' && visibleMsgs[u].uid !== 'deleted' && visibleMsgs[u].deleted !== true) {
             _chatUsers[visibleMsgs[u].uid] = visibleMsgs[u].name;
         }
     }
@@ -590,6 +614,7 @@ function renderChatMessages(msgs) {
     for (var i = 0; i < visibleMsgs.length; i++) {
         var m = visibleMsgs[i];
         var isMe = m.uid === myUid;
+        var isDeleted = m.deleted === true || m.uid === 'deleted';
         var dateStr = m.ts ? (m.ts.toDate ? m.ts.toDate() : new Date(m.ts)).toLocaleDateString() : '';
 
         if (dateStr !== lastDate) {
@@ -597,6 +622,7 @@ function renderChatMessages(msgs) {
             lastDate = dateStr;
         }
 
+        if (bqSkipAnnouncement(m)) continue;
         var isNacho = m.uid === 'nacho-bot' || m.isNachoAuto === true;
         var _factionStyle = !isNacho && m.faction ? window._factionNameStyle(m.faction) : '';
         var nameColor = isNacho ? '#22c55e' : isMe ? 'var(--accent)' : '#6366f1';
@@ -611,10 +637,17 @@ function renderChatMessages(msgs) {
         html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">';
         // Cosmetics: chat flair prefix & nacho skin avatar
         var _chatFlairPrefix = (!isNacho && m.hasChatFlair) ? '<span style="font-size:0.85rem;margin-right:2px;">' + esc(m.chatFlairEmoji || '🔥') + '</span>' : '';
-        var _nachoSkinAvatar = (!isNacho && m.hasNachoSkin) ? '<img src="nacho-deer.svg" style="width:16px;height:16px;border-radius:50%;border:1px solid #f7931a;vertical-align:-3px;margin-right:2px;filter:drop-shadow(0 0 3px rgba(247,147,26,0.5));" onerror="this.style.display=\'none\'" />' : '';
-        html += '<span style="font-weight:700;font-size:0.75rem;' + (_factionStyle || ('color:' + nameColor)) + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')">' + _nachoSkinAvatar + _chatFlairPrefix + (m.source === 'telegram' ? '📱 ' : '') + esc(m.name || 'Anon') + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
+        var _nachoSkinAvatar = (!isNacho && m.hasNachoSkin) ? '<img src="/nacho-deer.svg" style="width:16px;height:16px;border-radius:50%;border:1px solid #f7931a;vertical-align:-3px;margin-right:2px;filter:drop-shadow(0 0 3px rgba(247,147,26,0.5));" onerror="this.replaceWith(document.createTextNode(String.fromCodePoint(129420)))" />' : '';
+        var nameStyle = 'font-weight:700;font-size:0.75rem;' + (_factionStyle || ('color:' + nameColor)) + ';';
+        var nameClick = '';
+        if (!isDeleted) {
+            nameStyle += 'cursor:pointer;';
+            nameClick = ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')"';
+        }
+        var _coreTitle = (!isNacho && m.hasCoreContributor) ? ' <span title="Core Contributor — BIP Breakthrough" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:rgba(247,147,26,0.18);border:1px solid rgba(247,147,26,0.35);color:#f97316;vertical-align:middle;">🔧 Core Contributor</span>' : '';
+        html += '<span style="' + nameStyle + '"' + nameClick + '>' + _nachoSkinAvatar + _chatFlairPrefix + (m.source === 'telegram' ? '📱 ' : '') + esc(m.name || 'Anon') + _coreTitle + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
         html += '<span style="font-size:0.6rem;color:var(--text-faint);">' + timeAgo(m.ts) + '</span>';
-        if (myUid) {
+        if (myUid && !isDeleted) {
             html += '<span data-reply-id="' + esc(m._id) + '" data-reply-name="' + esc(m.name || 'Anon') + '" data-reply-text="' + esc((m.text||'').substring(0,50)) + '" onclick="setChatReply(this.dataset.replyId,this.dataset.replyName,this.dataset.replyText)" style="cursor:pointer;font-size:0.6rem;color:var(--text-faint);margin-left:auto;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Reply">↩️</span>';
         }
         if (isMe || isAdmin) {
@@ -629,7 +662,7 @@ function renderChatMessages(msgs) {
         html += '</div>';
         if (m.replyToName) {
             var _replyId = m.replyTo || '';
-            html += '<div data-msg-id="' + esc(_replyId) + '" onclick="window._scrollToChatMsg(this.dataset.msgId)" style="padding:5px 10px;margin-bottom:6px;border-left:3px solid #6366f1;font-size:0.72rem;color:var(--text);border-radius:4px;background:rgba(99,102,241,0.12);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(99,102,241,0.22)\'" onmouseout="this.style.background=\'rgba(99,102,241,0.12)\'">';
+            html += '<div data-reply-to="' + esc(_replyId) + '" onclick="window._scrollToChatMsg(this.dataset.replyTo)" style="padding:5px 10px;margin-bottom:6px;border-left:3px solid #6366f1;font-size:0.72rem;color:var(--text);border-radius:4px;background:rgba(99,102,241,0.12);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(99,102,241,0.22)\'" onmouseout="this.style.background=\'rgba(99,102,241,0.12)\'">';
             html += '<span style="font-weight:700;color:#818cf8;font-size:0.7rem;display:block;margin-bottom:1px;">' + esc(m.replyToName) + '</span>';
             html += '<span style="color:var(--text-muted);">' + esc((m.replyToText||'').substring(0,80)) + (m.replyToText && m.replyToText.length > 80 ? '…' : '') + '</span>';
             html += '</div>';
@@ -655,7 +688,7 @@ function renderChatMessages(msgs) {
         for (var emoji in reactions) {
             // Validate: reaction keys must be 1-4 char emoji only (no HTML/scripts)
             if (!emoji || emoji.length > 10 || /[<>"'\\&;(){}]/.test(emoji)) continue;
-            var users = reactions[emoji] || [];
+            var users = (reactions[emoji] || []).filter(function(id) { return id && id !== 'deleted'; });
             var count = users.length;
             if (count === 0) continue;
             var iReacted = myUid && users.indexOf(myUid) !== -1;
@@ -665,8 +698,8 @@ function renderChatMessages(msgs) {
         }
         if (myUid) {
             html += '<button onclick="showReactPicker(\'' + m._id + '\',this)" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
-            if (!isMe && !isNacho && m.uid !== 'system') {
-                html += '<button onclick="event.stopPropagation();showTipOverlay({recipientName:\'' + esc(m.name || 'Anon').replace(/[\\'"]/g,'') + '\',recipientUid:\'' + (m.uid || '') + '\',context:\'Global Chat tip\',label:\'Tip Message\'})" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);color:#eab308;font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="Tip">⚡</button>';
+            if (!isMe && !isNacho && !isDeleted && m.uid !== 'system') {
+                html += '<button onclick="event.stopPropagation();showTipOverlay({recipientName:\'' + esc(m.name || 'Anon').replace(/[\\'"]/g,'') + '\',recipientUid:\'' + String(m.uid || '').replace(/[^A-Za-z0-9_-]/g,'') + '\',context:\'Global Chat tip\',label:\'Tip Message\'})" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);color:#eab308;font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="Tip">⚡</button>';
             }
         }
         html += '</div>';
@@ -709,15 +742,15 @@ function renderChatMessages(msgs) {
 window.loadEarlierMessages = function() {
     var btn = document.getElementById('chatLoadMore');
     if (btn) btn.innerHTML = '⏳ Loading...';
-    if (!window._chatAllMsgs || window._chatAllMsgs.length === 0) return;
+    if (!window._chatAllMsgs || window._chatAllMsgs.length === 0) return Promise.resolve();
     var oldest = window._chatAllMsgs[0];
-    if (!oldest || !oldest.ts) return;
+    if (!oldest || !oldest.ts) return Promise.resolve();
     var el = document.getElementById('globalChatMessages');
     var oldHeight = el ? el.scrollHeight : 0;
 
     // With asc ordering + limitToLast, "earlier" messages are those BEFORE the oldest
     // we currently have. Use endBefore(oldest.ts) + limitToLast to page backward.
-    db.collection(CHAT_COLLECTION)
+    return db.collection(CHAT_COLLECTION)
         .orderBy('ts', 'asc')
         .endBefore(oldest.ts)
         .limitToLast(CHAT_LOAD_MORE_COUNT)
@@ -748,7 +781,122 @@ window.loadEarlierMessages = function() {
         });
 };
 
+// Open Quest Hub on the Raid tab. quests.js is lazy-loaded, so wait for it.
+window.openRaidHub = function() {
+    var lock = window._bqHubLock;
+    if (lock && lock.tab && lock.tab !== 'raid' && Date.now() < lock.until) return;
+    window._questHubTab = 'raid';
+    function openNow() {
+        if (typeof window.showQuestHub !== 'function') return false;
+        window._questHubTab = 'raid';
+        window.showQuestHub();
+        window._questHubTab = 'raid';
+        if (typeof window._renderQuestHubTab === 'function') window._renderQuestHubTab();
+        return true;
+    }
+    if (openNow()) return;
+    if (typeof window._loadDeferred === 'function') window._loadDeferred();
+    var existing = document.querySelector('script[src*="quests.js"]');
+    if (!existing) {
+        var s = document.createElement('script');
+        s.src = 'quests.js?v=20261105_v2492';
+        s.onload = function() { setTimeout(openNow, 0); };
+        document.body.appendChild(s);
+        return;
+    }
+    var tries = 0;
+    var timer = setInterval(function() {
+        tries++;
+        if (openNow() || tries > 50) clearInterval(timer);
+    }, 100);
+};
+
+// Letters and numbers from any language, plus the characters usernames already allow.
+var _MENTION_STOP = 'just|posted|listed|earned|aced|leveled|completed|SOLVED|crushed';
+function _mentionRe(flags) {
+    return new RegExp(
+        '@([\\p{L}\\p{N}_\\-\\u2026.]+(?: (?!(?:' + _MENTION_STOP + ')(?:[ !?\'\\n]|$))[\\p{L}\\p{N}_\\-\\u2026.]+)*)(?= (?:' + _MENTION_STOP + ')(?:[ !?]|$)| |\u2019s |\'s |[!?\u27A1]|$)',
+        flags || 'u'
+    );
+}
+function _mentionWordRe(flags) {
+    return new RegExp('@([\\p{L}\\p{N}_\\-\\u2026.]+)', flags || 'gu');
+}
+// Letters, numbers, and the extra characters usernames already use.
+// Space separates words; it is not part of a single token.
+function _mentionChar(ch) {
+    return /[\p{L}\p{N}_\-\u2026.]/u.test(ch);
+}
+// Longest username in _chatUsers that is a prefix of text and ends on a word
+// boundary: end, space, ".", "…", or any character the mention regex would
+// not consume (so "!" and "?" match the same way they do in the renderer,
+// where the capture stops before them). multiWordOnly is the renderer path;
+// single-word chips stay with _mentionWordRe. The uid is the first cache
+// entry with that name. Text is never treated as a uid.
+function _longestKnownUsername(text, multiWordOnly) {
+    var knownName = null;
+    var knownUid = null;
+    if (!text || typeof text !== 'string') return null;
+    for (var uid in _chatUsers) {
+        if (!Object.prototype.hasOwnProperty.call(_chatUsers, uid)) continue;
+        var cand = _chatUsers[uid];
+        if (typeof cand !== 'string' || !cand) continue;
+        if (!/[\p{L}\p{N}_\-\u2026.]/u.test(cand)) continue;
+        if (multiWordOnly && cand.indexOf(' ') === -1) continue;
+        if (knownName && cand.length <= knownName.length) continue;
+        if (text.lastIndexOf(cand, 0) !== 0) continue;
+        var nextCh = text.charAt(cand.length);
+        if (nextCh && nextCh !== ' ' && nextCh !== '.' && nextCh !== '\u2026' && _mentionChar(nextCh)) continue;
+        knownName = cand;
+        knownUid = uid;
+    }
+    if (!knownName) return null;
+    return { uid: knownUid, name: knownName };
+}
+// Same shape as firestore notifIdOk. A cache key that rules would reject
+// is not a recipient.
+function _mentionRecipientOk(uid) {
+    return typeof uid === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(uid);
+}
+function _chatMentionTargets(text) {
+    var out = [];
+    var seen = Object.create(null);
+    var src = String(text || '');
+    for (var i = 0; i < src.length; i++) {
+        if (src.charAt(i) !== '@') continue;
+        var hit = _longestKnownUsername(src.slice(i + 1), false);
+        if (!hit || seen[hit.uid] || !_mentionRecipientOk(hit.uid)) continue;
+        seen[hit.uid] = true;
+        out.push({ uid: hit.uid, name: hit.name });
+    }
+    return out;
+}
+
 // Format chat text: links, #channels, @mentions, inline images/GIFs
+// ---- Custom emojis ----
+// Stored in messages as plain-text shortcodes (":btc:") so old clients just show
+// the text and nothing user-controlled ever becomes markup. Only ids in this
+// allowlist render, and the src is a fixed same-origin path. User-made emojis
+// can be added later by extending this registry from a server-approved list.
+var CUSTOM_EMOJIS = {
+    btc: { src: '/assets/emoji/btc.svg', alt: 'Bitcoin', keywords: 'bitcoin btc logo coin orange' }
+};
+function _customEmojiImg(id) {
+    var e = CUSTOM_EMOJIS[id];
+    if (!e) return '';
+    return '<img class="bq-cemoji" src="' + e.src + '" alt=":' + id + ':" title="' + e.alt + '" draggable="false" style="width:1.25em;height:1.25em;vertical-align:-0.25em;display:inline-block;margin:0 1px;">';
+}
+function renderCustomEmojis(html) {
+    if (!html || html.indexOf(':') === -1) return html;
+    // Only touch text between tags, never attributes.
+    return html.replace(/(<[^>]*>)|:([a-z0-9_]{2,20}):/g, function(m, tag, id) {
+        if (tag) return tag;
+        return Object.prototype.hasOwnProperty.call(CUSTOM_EMOJIS, id) ? _customEmojiImg(id) : m;
+    });
+}
+window.CUSTOM_EMOJIS = CUSTOM_EMOJIS;
+window.renderCustomEmojis = renderCustomEmojis;
+
 function formatChatText(text, mentionUid) {
     // Inline images/GIFs: render as image if it's a direct image URL
     text = text.replace(/(https?:\/\/[^\s<]+\.(?:gif|png|jpg|jpeg|webp)(?:\?[^\s<]*)?)/gi, function(url) {
@@ -760,14 +908,39 @@ function formatChatText(text, mentionUid) {
     // Store placeholders to survive the on* sanitizer, then restore after
     var _inAppLinks = [];
     var _safeMentions = [];
-    text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_-]+)\)/g, function(match, label, route) {
-        var _action = route === 'pvp' ? "event.preventDefault();if(window._chatOverlayOpen&&typeof toggleChatOverlay==='function')toggleChatOverlay();if(typeof enterPVPMode==='function')enterPVPMode();"
-                     : route === 'nacho' ? "event.preventDefault();if(typeof enterNachoMode==='function')enterNachoMode();"
-                     : route === 'quests' ? "event.preventDefault();if(typeof showQuestHub==='function')showQuestHub();"
-                     : route === 'favor' ? "event.preventDefault();if(typeof showQuestHub==='function')showQuestHub();window._questHubTab='favor';setTimeout(function(){if(typeof _renderQuestHubTab==='function')_renderQuestHubTab();},100);"
-                     : "event.preventDefault();if(typeof go==='function')go('" + route + "');";
+    text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_\/-]+)\)/g, function(match, label, route) {
+        if (!/^(?:[A-Za-z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,128}|marketplace\/listing\/[A-Za-z0-9_-]{1,128}|topic\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+(?:\/\d+\/[a-z0-9]{8})?)$/.test(route)) return label;
+        var _deepId = '';
+        var _action;
+        if (route.indexOf('forum/post/') === 0) {
+            _deepId = route.slice('forum/post/'.length);
+            _action = "event.preventDefault();if(window._chatOverlayOpen&&typeof toggleChatOverlay==='function')toggleChatOverlay();if(typeof window.bqOpenForumPost==='function')window.bqOpenForumPost('" + _deepId + "');";
+        } else if (route.indexOf('marketplace/listing/') === 0) {
+            _deepId = route.slice('marketplace/listing/'.length);
+            _action = "event.preventDefault();if(window._chatOverlayOpen&&typeof toggleChatOverlay==='function')toggleChatOverlay();if(typeof window.bqOpenMarketListing==='function')window.bqOpenMarketListing('" + _deepId + "');";
+        } else if (route.indexOf('topic/') === 0) {
+            var _tp = route.split('/');
+            var _ch = _tp[1] || '';
+            var _pid = _tp[2] || '';
+            var _ai = _tp[3] || '';
+            var _ah = _tp[4] || '';
+            var _anchorArgs = (/^\d+$/.test(_ai) && /^[a-z0-9]{8}$/.test(_ah)) ? (",'" + _ai + "','" + _ah + "'") : '';
+            _action = "event.preventDefault();if(window._chatOverlayOpen&&typeof toggleChatOverlay==='function')toggleChatOverlay();if(typeof window.bqOpenTopicPost==='function')window.bqOpenTopicPost('" + _ch + "','" + _pid + "'" + _anchorArgs + ");";
+        } else if (route === 'pvp') {
+            _action = "event.preventDefault();if(window._chatOverlayOpen&&typeof toggleChatOverlay==='function')toggleChatOverlay();if(typeof enterPVPMode==='function')enterPVPMode();";
+        } else if (route === 'nacho') {
+            _action = "event.preventDefault();if(typeof enterNachoMode==='function')enterNachoMode();";
+        } else if (route === 'quests') {
+            _action = "event.preventDefault();if(typeof showQuestHub==='function')showQuestHub();";
+        } else if (route === 'favor') {
+            _action = "event.preventDefault();if(typeof showQuestHub==='function')showQuestHub();window._questHubTab='favor';setTimeout(function(){if(typeof _renderQuestHubTab==='function')_renderQuestHubTab();},100);";
+        } else if (route === 'questhub' || route === 'raid' || route === 'raid-hub') {
+            _action = "event.preventDefault();if(typeof openRaidHub==='function')openRaidHub();";
+        } else {
+            _action = "event.preventDefault();if(typeof go==='function')go('" + route + "');";
+        }
         var placeholder = '%%INAPPLINK_' + _inAppLinks.length + '%%';
-        _inAppLinks.push('<a href="#' + route + '" onclick="' + _action + '" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;">' + label + '</a>');
+        _inAppLinks.push('<a href="#' + route + '" onclick="' + _action + '" style="color:#6366f1;font-weight:700;text-decoration:none;cursor:pointer;white-space:nowrap;">' + label + '</a>');
         return placeholder;
     });
     // #channel tags — skip matches inside HTML attributes (href, onclick, style, etc.)
@@ -791,8 +964,10 @@ function formatChatText(text, mentionUid) {
             onclick = "event.preventDefault();if(typeof enterNachoMode==='function')enterNachoMode();";
         } else if (tag === 'quests') {
             onclick = "event.preventDefault();if(typeof showQuestHub==='function')showQuestHub();";
+        } else if (tag === 'questhub' || tag === 'raid' || tag === 'raid-hub') {
+            onclick = "event.preventDefault();if(typeof openRaidHub==='function')openRaidHub();";
         } else {
-            onclick = "event.preventDefault();if(typeof go==='function')go('" + tag + "');";
+            onclick = "event.preventDefault();if(typeof window.bqRouteHash==='function'&&window.bqRouteHash('" + tag + "')){}else if(typeof go==='function')go('" + tag + "');";
         }
         // Look up friendly label from HASH_TARGETS
         var friendly = null;
@@ -803,48 +978,50 @@ function formatChatText(text, mentionUid) {
         _hashLinks.push('<a href="#' + tag + '" onclick="' + onclick + '" title="' + (friendly ? friendly.replace(/"/g, '&quot;') : tag) + '" style="color:#f59e0b;font-weight:700;text-decoration:none;cursor:pointer;border-bottom:1px dotted rgba(245,158,11,0.4);">#' + tag + '</a>');
         return placeholder;
     });
-    // @mentions — clickable to open user profile
+    // @mentions — clickable to open user profile.
+    // _mentionRe is Unicode-aware (\p{L}\p{N}, u flag) so "José" is one chip.
+    // Stop at the verb ("just", "posted", "listed", …), a possessive, or ! ?.
     var _mentionHandled = false;
+    var _taggedName = '';
     if (mentionUid) {
-        // If we have a direct uid (from level-up announcements etc), use it for the first @mention
-        // Greedy multi-word match; terminators are keyword verbs or '!?' only — NOT bare punctuation
-        // (bare : or . appear mid-sentence in "earned a badge:" and must NOT be swallowed into the link)
-        text = text.replace(/@([A-Za-z0-9_\\-\\u2026\\.]+(?:(?: )(?!(?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?'\\n]|$))[A-Za-z0-9_\\-\\u2026\\.]+)*)(?= (?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?]|$)| |’s |'s |[!?]|$)/, function(match, name) {
+        // Known uid (shoutouts, level-ups): the first @name is the profile tag.
+        text = text.replace(_mentionRe('u'), function(match, name) {
             _mentionHandled = true;
             var safeName = name.trim();
+            _taggedName = safeName;
             var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
             _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" data-profile-uid="' + esc(mentionUid) + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.profileUid)" title="View profile — tap to tip!">@' + safeName + '</span>');
             return placeholder;
         });
+        // Old shoutouts repeated @name. The second copy stays plain text
+        // (no chip, and not just the first word). The name is already escaped.
+        if (_taggedName) {
+            var _repeatRe = new RegExp('@' + _taggedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\p{L}\\p{N}_\\-\\u2026.])', 'gu');
+            text = text.replace(_repeatRe, function() { return _taggedName; });
+        }
     }
     // Handle remaining @mentions without uid — try multi-word first (handles display names with spaces)
-    text = text.replace(/@([A-Za-z0-9_\\-\\u2026\\.]+(?:(?: )(?!(?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?'\\n]|$))[A-Za-z0-9_\\-\\u2026\\.]+)*)(?= (?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?]|$)| |’s |'s |[!?]|$)/g, function(match, name) {
+    text = text.replace(_mentionRe('gu'), function(match, name) {
         if (_mentionHandled) return match; // already handled by uid branch above
         var safeName = name.trim().replace(/['"]/g, '');
         if (!safeName) return match;
-        // If regex captured multiple words, verify the name actually exists as a known user.
-        // Prevents greedy matching: "@Username extra words" would consume extra words as part of the name.
+        // The regex is greedy: "@chill guy2 hi there" captures "chill guy2 hi there".
+        // Chip only the longest known multi-word username at the start of the capture,
+        // and give back the rest of the capture as plain text (it used to be dropped).
+        var rest = '';
         if (safeName.indexOf(' ') !== -1) {
-            var knownName = null;
-            var parts = safeName.split(' ');
-            while (parts.length > 1) {
-                var cand = parts.join(' ');
-                for (var _uid in _chatUsers) {
-                    if (_chatUsers[_uid] === cand) { knownName = cand; break; }
-                }
-                if (knownName) break;
-                parts.pop();
-            }
+            var known = _longestKnownUsername(safeName, true);
             // Multi-word name not found in known users — return unchanged, let single-word fallback handle
-            if (!knownName) return match;
-            safeName = knownName;
+            if (!known) return match;
+            rest = safeName.slice(known.name.length);
+            safeName = known.name;
         }
         var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
         _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof lookupUserByName===\'function\')lookupUserByName(\'' + safeName + '\')" title="View profile">@' + safeName + '</span>');
-        return placeholder;
+        return placeholder + rest;
     });
     // Fallback: single-word @mentions (user-typed, no space in name)
-    text = text.replace(/@([A-Za-z0-9_\-\u2026\.]+)/g, function(match, name) {
+    text = text.replace(_mentionWordRe('gu'), function(match, name) {
         var safeName = name.replace(/['"]/g, '').trim();
         if (!safeName) return match;
         var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
@@ -870,7 +1047,7 @@ function formatChatText(text, mentionUid) {
     for (var _mi = 0; _mi < _safeMentions.length; _mi++) {
         text = text.replace('%%SAFEMENTION_' + _mi + '%%', _safeMentions[_mi]);
     }
-    return text;
+    return renderCustomEmojis(text);
 }
 
 // ---- Autocomplete Engine ----
@@ -970,24 +1147,35 @@ function hideAC() {
 }
 
 // ---- Scroll to original message ----
-window._scrollToChatMsg = function(msgId) {
+// Scroll to a chat message by id. Only real message rows carry data-msg-id
+// (reply quotes use data-reply-to), so a quote can't be picked by mistake.
+// If the message is older than what's loaded, page back a few times first.
+function _gcFindMsgRow(chatEl, msgId) {
+    var safe = String(msgId).replace(/[^A-Za-z0-9_-]/g, '');
+    if (!safe) return null;
+    return chatEl.querySelector('[data-msg-id="' + safe + '"]');
+}
+window._scrollToChatMsg = function(msgId, _tries) {
     if (!msgId) return;
-    // Try both possible container IDs
     var chatEl = document.getElementById('globalChatMessages') || document.getElementById('chatMessages');
     if (!chatEl) return;
-    var target = chatEl.querySelector('[data-msg-id="' + msgId + '"]');
+    var target = _gcFindMsgRow(chatEl, msgId);
     if (target) {
-        // Use live rects for pixel-accurate scroll within the chat container.
-        // getBoundingClientRect() is always correct regardless of DOM nesting depth.
         var containerRect = chatEl.getBoundingClientRect();
         var targetRect = target.getBoundingClientRect();
-        // target's top relative to the container's visible area
         var relativeTop = targetRect.top - containerRect.top;
-        // scroll so the message lands centered in the container
-        var scrollTarget = chatEl.scrollTop + relativeTop - (chatEl.clientHeight / 2) + (target.offsetHeight / 2);
+        // The sticky pinned banner covers the top of the list; keep the message below it.
+        var pinBanner = document.getElementById('chatPinnedBanner');
+        var pinH = (pinBanner && pinBanner.parentNode === chatEl) ? pinBanner.offsetHeight : 0;
+        var visibleH = chatEl.clientHeight - pinH;
+        var scrollTarget = chatEl.scrollTop + relativeTop - pinH - Math.max(0, (visibleH - target.offsetHeight) / 2);
+        if (scrollTarget < 0) scrollTarget = 0;
+        // Stop the near-top auto-loader from firing mid-jump and yanking the view.
+        chatEl._loadingMore = true;
+        chatEl._userScrolled = true;
         chatEl.scrollTo({ top: scrollTarget, behavior: 'smooth' });
-        // Flash highlight on the message bubble
-        var bubble = target.querySelector('[style*="border-radius"]') || target.querySelector('div') || target;
+        setTimeout(function() { chatEl._loadingMore = false; }, 1200);
+        var bubble = target.firstElementChild || target;
         var origBg = bubble.style.background || '';
         var origTransition = bubble.style.transition || '';
         bubble.style.transition = 'background 0.15s';
@@ -999,10 +1187,17 @@ window._scrollToChatMsg = function(msgId) {
                 bubble.style.transition = origTransition;
             }, 400);
         }, 500);
-    } else {
-        // Message not in DOM — likely scrolled out of loaded range
-        if (typeof showToast === 'function') showToast('↑ Scroll up to find the original message', 2500);
+        return;
     }
+    var tries = _tries || 0;
+    if (tries < 5 && !window._chatReachedBeginning && typeof window.loadEarlierMessages === 'function') {
+        var p = window.loadEarlierMessages();
+        if (p && typeof p.then === 'function') {
+            p.then(function() { setTimeout(function() { window._scrollToChatMsg(msgId, tries + 1); }, 80); });
+            return;
+        }
+    }
+    if (typeof showToast === 'function') showToast('That message is too old to show here', 2500);
 };
 
 // ---- Reply Handling ----
@@ -1048,6 +1243,63 @@ function handlePaste(e) {
         }
     }
 }
+
+/* stale-username-retry */
+function isStaleUsernameDenial(err) {
+    var code = String((err && err.code) || '');
+    return code === 'permission-denied' || code.indexOf('permission-denied') !== -1;
+}
+function readServerUsername() {
+    if (typeof db === 'undefined' || !db || typeof auth === 'undefined' || !auth || !auth.currentUser) {
+        return Promise.reject(new Error('no profile'));
+    }
+    return Promise.resolve().then(function() {
+        return db.collection('users').doc(auth.currentUser.uid).get({ source: 'server' });
+    }).then(function(doc) {
+        var data = doc && doc.exists ? (doc.data() || {}) : {};
+        return typeof data.username === 'string' ? data.username : '';
+    });
+}
+function rememberServerUsername(name) {
+    if (!name) return;
+    if (typeof currentUser !== 'undefined' && currentUser) currentUser.username = name;
+    try { localStorage.setItem('btc_username', name); } catch (e) {}
+    try {
+        var cached = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
+        if (cached && cached.data) {
+            cached.data.username = name;
+            localStorage.setItem('btc_profile_cache', JSON.stringify(cached));
+        }
+    } catch (e2) {}
+}
+function sendWithFreshUsername(write, sentName, onSuccess, onFail) {
+    function attempt(name, retried) {
+        return Promise.resolve().then(function() {
+            return write(name);
+        }).then(function(result) {
+            if (onSuccess) onSuccess(result);
+            return result;
+        }).catch(function(err) {
+            if (retried || !isStaleUsernameDenial(err)) {
+                if (onFail) onFail(err);
+                return Promise.reject(err);
+            }
+            return readServerUsername().then(function(fresh) {
+                if (!fresh || fresh === name) {
+                    if (onFail) onFail(err);
+                    return Promise.reject(err);
+                }
+                rememberServerUsername(fresh);
+                return attempt(fresh, true);
+            }, function() {
+                if (onFail) onFail(err);
+                return Promise.reject(err);
+            });
+        });
+    }
+    return attempt(sentName, false);
+}
+/* /stale-username-retry */
 
 // Returns the currently visible/active chat input (hub or overlay — avoids duplicate-ID confusion)
 function _gcActiveInput() {
@@ -1168,17 +1420,15 @@ window.sendGlobalChat = function() {
     var _sendBtn = document.getElementById('gcSendBtn');
     if (_sendBtn) { _sendBtn.disabled = true; _sendBtn.textContent = '…'; }
 
-    // Notify @mentioned users
-    var mentionRegex = /@([a-zA-Z0-9_-]+)/g;
-    var mention;
-    while ((mention = mentionRegex.exec(text)) !== null) {
-        var mentionedName = mention[1];
-        // Find uid from cached users
-        for (var muid in _chatUsers) {
-            if (_chatUsers[muid] === mentionedName && typeof notifyChatMention === 'function') {
-                notifyChatMention(muid, username, text.substring(0, 60));
-                break;
-            }
+    // Notify @mentioned users. Same longest-known-username match as the
+    // renderer, so a name with a space or a non-English letter resolves.
+    // Uids come only from the loaded chat cache and must pass notifIdOk.
+    // User messages do not store a tagged profile id. Chat create rules
+    // reject unknown keys, and the server push keeps its own check.
+    var _mentionTargets = _chatMentionTargets(text);
+    for (var _mti = 0; _mti < _mentionTargets.length; _mti++) {
+        if (typeof notifyChatMention === 'function') {
+            notifyChatMention(_mentionTargets[_mti].uid, username, text.substring(0, 60));
         }
     }
 
@@ -1206,7 +1456,14 @@ window.sendGlobalChat = function() {
     if (_oc.indexOf('nacho_skin_nook') !== -1) {
         msgData.hasNachoSkin = true;
     }
-    db.collection(CHAT_COLLECTION).add(msgData).then(function(docRef) {
+    if (typeof currentUser !== 'undefined' && currentUser && Number(currentUser.coreContributorUntil) > Date.now()) {
+        msgData.hasCoreContributor = true;
+    }
+    sendWithFreshUsername(function(name) {
+        msgData.name = name;
+        username = name;
+        return db.collection(CHAT_COLLECTION).add(msgData);
+    }, username, function(docRef) {
         // Restore send button on success
         var _sb = document.getElementById('gcSendBtn');
         if (_sb) { _sb.disabled = false; _sb.textContent = 'Send'; }
@@ -1216,11 +1473,13 @@ window.sendGlobalChat = function() {
         db.collection('stats').doc('global').set({ chatMessages: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {});
         // Raid Boss: chat message
         if (typeof window._raidOnChatMessage === 'function') window._raidOnChatMessage();
-        // Bridge to Telegram with messageId for reaction sync
         if (docRef && docRef.id) {
-            bridgeToTelegram({ user: username, text: text, replyToName: replyData.replyToName || '', replyToText: replyData.replyToText || '', messageId: docRef.id });
+            if (typeof window._noteTodayChatPosted === 'function') window._noteTodayChatPosted();
+            if (typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
+            if (replyData.replyTo) _maybeClaimReplyBonus(docRef.id);
+            _awardChatMessageXp(docRef.id);
         }
-    }).catch(function(err) {
+    }, function(err) {
         console.error('[CHAT] Send error:', err);
         // Restore button and return text to input so user can retry
         var _sb = document.getElementById('gcSendBtn');
@@ -1239,36 +1498,44 @@ window.sendGlobalChat = function() {
     // Combo tracking
     if (typeof window._trackCombo === 'function') window._trackCombo('chat');
 
-    // Award points for first chat message of the day + streak tracking
-    var today = new Date().toISOString().split('T')[0];
-    var chatDay = 'btc_chat_day_' + new Date().toDateString();
-    if (!localStorage.getItem(chatDay)) {
+    // Chat XP waits until the message doc exists. The server checks that doc.
+    function _awardChatMessageXp(messageId) {
+        var today = new Date().toISOString().split('T')[0];
+        var chatDay = 'btc_chat_day_' + new Date().toDateString();
+        if (localStorage.getItem(chatDay)) return;
         localStorage.setItem(chatDay, '1');
-        if (typeof awardPoints === 'function') awardPoints(5, '💬 Global Chat');
+        var pending = null;
+        if (typeof awardPoints === 'function') {
+            pending = awardPoints(5, '💬 Global Chat', null, null, null, null, { messageId: messageId });
+        }
         if (typeof awardTickets === 'function') awardTickets(2, 'Daily chat');
-
-        // Update chat streak
         var lastChatDate = localStorage.getItem('btc_chat_last_date') || '';
-        var streak = parseInt(localStorage.getItem('btc_chat_streak') || '0');
+        var streak = parseInt(localStorage.getItem('btc_chat_streak') || '0', 10);
+        if (isNaN(streak)) streak = 0;
         if (lastChatDate) {
             var lastD = new Date(lastChatDate);
             var todayD = new Date(today);
             var diff = Math.round((todayD - lastD) / 86400000);
-            if (diff === 1) {
-                streak++;
-            } else if (diff > 1) {
-                streak = 1;
-            }
+            if (diff === 1) streak++;
+            else if (diff > 1) streak = 1;
         } else {
             streak = 1;
         }
         localStorage.setItem('btc_chat_streak', streak);
         localStorage.setItem('btc_chat_last_date', today);
-
-        // Bonus points for streaks
-        if (streak === 3 && typeof awardPoints === 'function') awardPoints(10, '🔥 3-day chat streak!');
-        if (streak === 7 && typeof awardPoints === 'function') awardPoints(25, '🔥 7-day chat streak!');
-        if (streak === 30 && typeof awardPoints === 'function') awardPoints(100, '💎 30-day chat streak!');
+        function payStreak(n) {
+            if (n === 3 && typeof awardPoints === 'function') awardPoints(10, '🔥 3-day chat streak!');
+            if (n === 7 && typeof awardPoints === 'function') awardPoints(25, '🔥 7-day chat streak!');
+            if (n === 30 && typeof awardPoints === 'function') awardPoints(100, '💎 30-day chat streak!');
+        }
+        if (pending && pending.then) {
+            pending.then(function(result) {
+                var serverStreak = result && result.data ? result.data.chatStreak : 0;
+                if (serverStreak) payStreak(serverStreak);
+            }).catch(function() {});
+        } else if (typeof currentUser !== 'undefined' && currentUser && currentUser._isLocal) {
+            payStreak(streak);
+        }
     }
 
     // Milestone rewards for total messages
@@ -1312,15 +1579,15 @@ window.sendGlobalChat = function() {
             // Skip web search and deep search answers (contain HTML, not suitable for chat)
             // Note: allow 'fallback' answers through — better to give a deflection than silence
             if (result.type === 'websearch' || result.type === 'deepsearch') return;
-            var answer = result.answer.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').trim();
+            var answer = String(result.plainAnswer || result.answer).replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').trim();
             if (!answer || answer.length < 10) return;
-            // Append channel link if Nacho's answer references a channel
-            if (result.channel && typeof CHANNELS !== 'undefined' && CHANNELS[result.channel]) {
+            // plainAnswer already carries the feature hash. Don't append a second link.
+            if (!result.plainAnswer && result.channel && typeof CHANNELS !== 'undefined' && CHANNELS[result.channel]) {
                 answer += ' 👉 #' + result.channel;
             }
             // Add links for common app/navigation references
             var lowerAnswer = answer.toLowerCase();
-            if (!result.channel) {
+            if (!result.plainAnswer && !result.channel) {
                 if (/withdraw|redeem|cash.?out|send.*sats|get.*sats|lightning.?address/.test(lowerAnswer) && !/#sats/.test(answer)) answer += ' 👉 #sats';
                 else if (/faq|frequently asked|common question|how do i|where do i|what is this app/.test(lowerAnswer) && !/#faq/.test(answer)) answer += ' 👉 #faq';
                 else if (/satoshi.?s favor|sf.*window|hashing.?game|hash.*compete|miner.*window|proof.?of.?work.*game/.test(lowerAnswer) && !/#sf/.test(answer)) answer += ' 👉 #sf';
@@ -1349,9 +1616,6 @@ window.sendGlobalChat = function() {
                     text: answer,
                     isNachoAuto: true,
                     ts: firebase.firestore.FieldValue.serverTimestamp()
-                }).then(function() {
-                    console.log('[BRIDGE] Sending Nacho answer to Telegram, length:', answer.length);
-                    bridgeToTelegram({ user: '🦌 Nacho', text: answer });
                 }).catch(function(e) { console.error('[CHAT] Nacho reply failed:', e); });
             }, 2000 + Math.random() * 2000);
         });
@@ -1411,6 +1675,7 @@ function renderAnnouncementsTab() {
         .orderBy('ts', 'asc')
         .limitToLast(50)
         .onSnapshot(function(snapshot) {
+            ggCloseBadgeTip();
             var el = document.getElementById('announcementsMessages');
             if (!el) return;
             if (snapshot.empty) {
@@ -1422,13 +1687,16 @@ function renderAnnouncementsTab() {
                 _firstLoad = false;
                 return;
             }
-            var html = '<div style="text-align:center;padding:8px 0 16px;">' +
-                '<div style="font-size:0.7rem;color:var(--text-faint);">Nacho\'s updates · badges, scores, events &amp; more</div>' +
-            '</div>';
+            el.textContent = '';
+            var intro = document.createElement('div');
+            intro.style.cssText = 'text-align:center;padding:8px 0 16px;font-size:0.7rem;color:var(--text-faint);';
+            intro.textContent = 'Nacho\'s updates · badges, scores, events & more';
+            el.appendChild(intro);
             snapshot.forEach(function(doc) {
-                html += _renderAnnouncementItem(doc, 'panel');
+                el.appendChild(_renderAnnouncementItem(doc, 'panel'));
             });
-            el.innerHTML = html;
+            ggBindBadgeList(el);
+            ggHydratePartyMine(snapshot);
             // Scroll to bottom on first load; on subsequent updates only scroll if already near bottom
             if (_firstLoad) {
                 setTimeout(function() { el.scrollTop = el.scrollHeight; }, 50);
@@ -1455,16 +1723,10 @@ function renderDMsTab() {
     // Use existing inbox renderer if available
     if (typeof window._renderInboxInto === 'function') {
         window._renderInboxInto(document.getElementById('dmTabContainer'));
-    } else if (typeof showInbox === 'function') {
-        // Fallback: render the existing inbox into forumContainer, then move it
-        var fc = document.getElementById('forumContainer');
-        var savedHtml = fc.innerHTML;
-        showInbox();
-        var inboxContent = fc.innerHTML;
-        fc.innerHTML = savedHtml;
-        // Re-render the chat hub with DM content injected
-        var dmContainer = document.getElementById('dmTabContainer');
-        if (dmContainer) dmContainer.innerHTML = inboxContent;
+    } else if (typeof window._showInboxOriginal === 'function') {
+        // The DM inbox renderer opens its own panel. Call the original directly:
+        // window.showInbox routes back here, so calling it recursed until the stack overflowed.
+        window._showInboxOriginal();
     } else {
         content.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);font-size:0.85rem;">DMs not available yet. Sign in to enable messaging.</div>';
     }
@@ -1556,10 +1818,88 @@ function createChatOverlay() {
     btn.style.position = 'fixed'; // ensure btn is positioned
     btn.appendChild(badge);
 
-    // Chat panel desktop sizing
+    // Chat panel desktop sizing. Contain overscroll so a flick inside the
+    // thread does not chain into the page behind the panel.
     var style = document.createElement('style');
-    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}}@keyframes djPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.5)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}';
+    style.textContent = '@media(min-width:901px){#chatOverlay{max-width:400px;right:16px;left:auto;border-radius:16px 16px 0 0;}}' +
+        '#chatOverlay,#chatOverlayBody,#globalChatMessages,#overlayAnnouncementsBody,#overlayDMsBody,#chatAutocomplete,#gifResults,#emojiGrid{overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}' +
+        '@keyframes djPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.5)}50%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}';
     document.head.appendChild(style);
+    bindChatScrollContain(panel);
+    bindChatOutsideClose();
+}
+
+// Portaled chat controls sit outside #chatOverlay. A tap on them is still "inside" chat.
+var CHAT_SURFACE = '#chatOverlay, #chatOverlayBtn, #gifPicker, #gcEmojiPicker, #reactPicker, #djTrackPicker, #annReactPicker, #chatImageLightbox, #chatImagePreview, #_gcBadgeTip';
+var CHAT_SCROLLER = '#globalChatMessages, #overlayAnnouncementsBody, #overlayDMsBody, #chatAutocomplete, #gifResults, #emojiGrid';
+
+function chatSurfaceHit(node) {
+    if (!node) return false;
+    if (node.nodeType !== 1) node = node.parentElement;
+    if (!node || !node.closest) return false;
+    return !!node.closest(CHAT_SURFACE);
+}
+
+function chatScroller(node) {
+    if (!node || !node.closest) return null;
+    return node.closest(CHAT_SCROLLER);
+}
+
+function bindChatScrollContain(panel) {
+    if (!panel || panel._chatScrollBound) return;
+    panel._chatScrollBound = true;
+    var lastY = 0;
+    panel.addEventListener('touchstart', function (e) {
+        if (e.touches && e.touches[0]) lastY = e.touches[0].clientY;
+    }, { passive: true });
+    panel.addEventListener('touchmove', function (e) {
+        if (!_overlayOpen) return;
+        var scroller = chatScroller(e.target);
+        var y = e.touches && e.touches[0] ? e.touches[0].clientY : lastY;
+        var dy = lastY - y;
+        lastY = y;
+        if (!scroller) {
+            if (e.cancelable) e.preventDefault();
+            return;
+        }
+        var max = scroller.scrollHeight - scroller.clientHeight;
+        var atEdge = max <= 1 || (scroller.scrollTop <= 0 && dy < 0) || (scroller.scrollTop >= max - 1 && dy > 0);
+        if (atEdge && e.cancelable) e.preventDefault();
+    }, { passive: false });
+    panel.addEventListener('wheel', function (e) {
+        if (!_overlayOpen) return;
+        var scroller = chatScroller(e.target);
+        if (!scroller) {
+            e.preventDefault();
+            return;
+        }
+        var max = scroller.scrollHeight - scroller.clientHeight;
+        var atEdge = max <= 1 || (scroller.scrollTop <= 0 && e.deltaY < 0) || (scroller.scrollTop >= max - 1 && e.deltaY > 0);
+        if (atEdge) e.preventDefault();
+    }, { passive: false });
+}
+
+// pointerdown arms an outside tap. A drag (page scroll) does not close the panel.
+var _chatOutside = null;
+function bindChatOutsideClose() {
+    if (window._chatOutsideCloseBound) return;
+    window._chatOutsideCloseBound = true;
+    document.addEventListener('pointerdown', function (e) {
+        _chatOutside = null;
+        if (!_overlayOpen) return;
+        if (chatSurfaceHit(e.target)) return;
+        _chatOutside = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    }, true);
+    document.addEventListener('pointerup', function (e) {
+        var start = _chatOutside;
+        _chatOutside = null;
+        if (!start || !_overlayOpen) return;
+        if (start.id != null && e.pointerId != null && e.pointerId !== start.id) return;
+        if (chatSurfaceHit(e.target)) return;
+        if (Math.abs(e.clientX - start.x) > 10 || Math.abs(e.clientY - start.y) > 10) return;
+        if (typeof window.toggleChatOverlay === 'function') window.toggleChatOverlay();
+    }, true);
+    document.addEventListener('pointercancel', function () { _chatOutside = null; }, true);
 }
 
 window.toggleChatOverlay = function() {
@@ -1571,7 +1911,11 @@ window.toggleChatOverlay = function() {
 
     _overlayOpen = !_overlayOpen;
     window._chatOverlayOpen = _overlayOpen;
+    document.body.classList.toggle('chat-panel-open', _overlayOpen);
+    panel.classList.toggle('chat-panel-open', _overlayOpen);
     panel.style.transform = _overlayOpen ? 'translateY(0)' : 'translateY(100%)';
+    if (!_overlayOpen) panel.style.zIndex = '250000';
+    if (typeof window.syncFabHold === 'function') window.syncFabHold();
     // Shift leaderboard button up when chat is open so it doesn't cover input buttons
     var _lbFab = document.getElementById('lbFloatBtn');
     if (_lbFab) { if (_overlayOpen) _lbFab.classList.add('chat-shifted'); else _lbFab.classList.remove('chat-shifted'); }
@@ -1600,22 +1944,16 @@ window.toggleChatOverlay = function() {
         btn.innerHTML = '💬';
         btn.style.background = 'var(--accent,#f7931a)';
         btn.style.color = '#fff';
-        btn.style.display = _overlayOpen ? 'none' : (localStorage.getItem('fabMinimized') === '1' ? 'none' : '');
+        // Root cause of the vanishing chat + ⋯ buttons: this used to hide the chat
+        // button whenever chat opened, and the ⋯ toggle hides whenever chat is
+        // hidden, so both disappeared until a 3s timer put the chat button back.
+        if (btn.style.display === 'none') btn.style.display = '';
     }
 
-    // Click-outside backdrop
+    // The old full-screen backdrop swallowed wheel and touch on the page.
     var backdrop = document.getElementById('chatOverlayBackdrop');
-    if (_overlayOpen) {
-        if (!backdrop) {
-            backdrop = document.createElement('div');
-            backdrop.id = 'chatOverlayBackdrop';
-            backdrop.style.cssText = 'position:fixed;inset:0;z-index:298;background:transparent;';
-            backdrop.onclick = function() { toggleChatOverlay(); };
-            document.body.appendChild(backdrop);
-        }
-    } else {
-        if (backdrop) backdrop.remove();
-    }
+    if (backdrop) backdrop.remove();
+    bindChatOutsideClose();
 
     // Clear badge
     var badge = document.getElementById('chatOverlayBadge');
@@ -1637,6 +1975,7 @@ function renderOverlayChat() {
     if (!body) return;
 
     _overlayTab = _overlayTab || 'global';
+    if (_overlayTab === 'announcements' && !bqChatFeature('ggPosts')) _overlayTab = 'global';
 
     var isSignedIn = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
     var hasUsername = typeof currentUser !== 'undefined' && currentUser && currentUser.username;
@@ -1646,7 +1985,7 @@ function renderOverlayChat() {
     var _oB = function(t) { return t === _overlayTab ? 'var(--accent)' : 'transparent'; };
     var tabHtml = '<div style="display:flex;border-bottom:1px solid var(--border);flex-shrink:0;">' +
         '<button onclick="window._switchOverlayTab(\'global\')" style="flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid ' + _oB('global') + ';color:' + _oA('global') + ';font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">🌍 Global</button>' +
-        '<button onclick="window._switchOverlayTab(\'announcements\')" style="flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid ' + _oB('announcements') + ';color:' + _oA('announcements') + ';font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">🎉 GGs</button>' +
+        (bqChatFeature('ggPosts') ? '<button id="chatOverlayGgs" onclick="window._switchOverlayTab(\'announcements\')" style="flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid ' + _oB('announcements') + ';color:' + _oA('announcements') + ';font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">🎉 GGs</button>' : '') +
         '<button onclick="window._switchOverlayTab(\'dms\')" style="flex:1;padding:10px 0;background:none;border:none;border-bottom:2px solid ' + _oB('dms') + ';color:' + _oA('dms') + ';font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;">✉️ DMs</button>' +
         '<button onclick="if(typeof showChatRules===\'function\')showChatRules()" style="padding:10px 7px;background:none;border:none;border-bottom:2px solid transparent;color:var(--text-faint);font-size:0.65rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">📋 Rules</button>' +
     '</div>';
@@ -1664,6 +2003,7 @@ function renderOverlayChat() {
                 .orderBy('ts', 'asc')
                 .limitToLast(40)
                 .onSnapshot(function(snapshot) {
+                    ggCloseBadgeTip();
                     var el = document.getElementById('overlayAnnouncementsBody');
                     if (!el) { if (_annUnsub) { _annUnsub(); _annUnsub = null; } return; }
                     if (snapshot.empty) {
@@ -1671,11 +2011,12 @@ function renderOverlayChat() {
                         _overlayFirstLoad = false;
                         return;
                     }
-                    var html = '';
+                    el.textContent = '';
                     snapshot.forEach(function(doc) {
-                        html += _renderAnnouncementItem(doc, 'overlay');
+                        el.appendChild(_renderAnnouncementItem(doc, 'overlay'));
                     });
-                    el.innerHTML = html;
+                    ggBindBadgeList(el);
+                    ggHydratePartyMine(snapshot);
                     if (_overlayFirstLoad) {
                         setTimeout(function() { el.scrollTop = el.scrollHeight; }, 50);
                         _overlayFirstLoad = false;
@@ -1835,18 +2176,27 @@ window._switchOverlayTab = function(tab) {
 var _origRenderChatHub = window.renderChatHub;
 window.renderChatHub = function(tab) {
     var btn = document.getElementById('chatOverlayBtn');
-    if (btn) btn.style.display = 'none';
+    // Keep the chat button visible while the hub is open. Hiding it here also
+    // hid the ⋯ tools toggle (it follows the chat button), so both vanished.
+    if (btn && btn.style.display === 'none') btn.style.display = '';
     // Shift leaderboard button up when chat hub is open
     var _lbFab2 = document.getElementById('lbFloatBtn');
     if (_lbFab2) _lbFab2.classList.add('chat-shifted');
     if (_overlayOpen) {
         _overlayOpen = false;
         window._chatOverlayOpen = false;
+        document.body.classList.remove('chat-panel-open');
         var panel = document.getElementById('chatOverlay');
-        if (panel) panel.style.transform = 'translateY(100%)';
+        if (panel) {
+            panel.classList.remove('chat-panel-open');
+            panel.style.transform = 'translateY(100%)';
+            panel.style.zIndex = '250000';
+        }
+        if (typeof window.syncFabHold === 'function') window.syncFabHold();
         if (btn) { btn.innerHTML = '💬'; btn.style.background = 'var(--accent,#f7931a)'; btn.style.color = '#fff'; }
         var bd = document.getElementById('chatOverlayBackdrop');
         if (bd) bd.remove();
+        _chatOutside = null;
     }
     return _origRenderChatHub(tab);
 };
@@ -1854,14 +2204,14 @@ window.renderChatHub = function(tab) {
 // Re-show overlay button on ANY navigation (go, goHome, popstate)
 function showOverlayBtn() {
     var btn = document.getElementById('chatOverlayBtn');
-    // Show on all screen sizes (unless full chat hub is open or FAB is minimized)
-    if (btn && !document.getElementById('chatContent') && localStorage.getItem('fabMinimized') !== '1') btn.style.display = 'block';
+    // Show on all screen sizes unless the full chat hub is open
+    if (btn && btn.style.display === 'none') btn.style.display = '';
 }
 // Periodically check button visibility (catches app navigations that don't call go())
 setInterval(function() {
     var btn = document.getElementById('chatOverlayBtn');
-    if (btn && btn.style.display === 'none' && !document.getElementById('chatContent') && localStorage.getItem('fabMinimized') !== '1') {
-        btn.style.display = 'block';
+    if (btn && btn.style.display === 'none' && !document.getElementById('nachoModeScreen')) {
+        btn.style.display = '';
     }
 }, 3000);
 
@@ -2069,7 +2419,7 @@ window.showGifPicker = function() {
     var picker = document.createElement('div');
     picker.id = 'gifPicker';
     var _isDark = document.body.getAttribute('data-theme') !== 'light';
-    picker.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:260000;background:' + (_isDark ? '#1a1a2e' : '#f0f0f5') + ';border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:360px;max-height:350px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
+    picker.style.cssText = 'position:fixed;bottom:var(--above-fab, 120px);left:50%;transform:translateX(-50%);z-index:260000;background:' + (_isDark ? '#1a1a2e' : '#f0f0f5') + ';border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:360px;max-height:350px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
 
     picker.innerHTML =
         '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
@@ -2210,8 +2560,11 @@ window.sendGifMessage = function(url, caption) {
         ts: firebase.firestore.FieldValue.serverTimestamp()
     };
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.faction) msgData.faction = currentUser.faction;
+    var _gifCaption = caption ? String(caption).trim().slice(0, 300) : '';
+    if (_gifCaption) msgData.caption = _gifCaption;
 
     // Include reply if active
+    var replyToId = _replyTo && _replyTo._id ? String(_replyTo._id) : '';
     if (_replyTo) {
         msgData.replyTo = _replyTo._id;
         msgData.replyToName = _replyTo.name;
@@ -2221,9 +2574,15 @@ window.sendGifMessage = function(url, caption) {
         if (banner) banner.style.display = 'none';
     }
 
-    db.collection(CHAT_COLLECTION).add(msgData).then(function() {
-        bridgeToTelegram({ user: username, text: '', gifUrl: url });
-    }).catch(function(e) {
+    sendWithFreshUsername(function(name) {
+        msgData.name = name;
+        username = name;
+        return db.collection(CHAT_COLLECTION).add(msgData);
+    }, username, function(docRef) {
+        if (docRef && docRef.id && typeof window._noteTodayChatPosted === 'function') window._noteTodayChatPosted();
+        if (docRef && docRef.id && typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
+        if (replyToId && docRef && docRef.id) _maybeClaimReplyBonus(docRef.id);
+    }, function(e) {
         if (typeof showToast === 'function') showToast('Failed to send GIF');
     });
 
@@ -2258,6 +2617,9 @@ var EMOJI_CATEGORIES = {
     'Symbols': ['❓','❔','❕','❗','‼️','⁉️','💬','💭','🗨️','🗯️','💢','💥','💦','💨','🕳️','🔴','🟠','🟡','🟢','🔵','🟣','🟤','⚫','⚪','🔶','🔷','🔸','🔹','🔺','🔻','💠','🔘','🔲','🔳','▪️','▫️','◾','◽','◼️','◻️','⬛','⬜','🟥','🟧','🟨','🟩','🟦','🟪','🟫','⭕','✖️','➕','➖','➗','♾️','💲','💱','™️','©️','®️','〰️','➰','➿','🔅','🔆','📶','🔔','🔕','🔇','🔈','🔉','🔊','📢','📣','🔐','🔓','🔏','🚫','⛔','🚳','🚭','🚯','🚱','🚷','🔞','☢️','☣️','⚠️','🆘','🆗','🆙','🆒','🆕','🆓','🆚','✴️','🅰️','🅱️','🆑','🏁','🚩','🎌','🏴','🏳️','❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','🩷','🩶','🩵','❤️‍🔥','❤️‍🩹','💕','💞','💓','💗','💖','💘','💝','🫀','♠️','♥️','♦️','♣️','♟️','🔱','⚜️','🔰','♻️','✅','❌','☑️','✔️','⬆️','⬇️','➡️','⬅️','↗️','↘️','↙️','↖️','↕️','↔️','🔄'],
     'Objects': ['🔥','💯','🎉','🎊','🎈','🎀','🏅','🥇','🥈','🥉','🎯','✨','🌟','⭐','💫','❌','✅','☑️','✔️','🔄','♾️','🎵','🎶','🎸','🎹','🥁','🎤','🎧','📱','💻','🖥️','⌨️','🖱️','🎮','🕹️','🎲','♟️','🎭','📚','📖','📝','✏️','🖊️','🖋️','📌','📎','🗺️','🍿','🌈','🚨','🌙','☀️','🌊','🔮','💊','🧲','🪄','🧿','🎪','🌧️','⛈️','❄️','☃️','⛄','🌛','🌜','🌚','🌝','🌞','☀️','🌤️','⛅','☁️','🏆','🥊','⚽','🏀','🏈','⚾','🎾','🏐','🏓','⛳','🏋️','🤼','⛷️','🏂','🎿','🛹','🎱','🏆','🎽','🪃','🎣','🤿','🪁','🎯','🎳','🏒','🥍','🏑','🏏','🪀','🥅','🎖️','🏵️','🎗️','🎫','🎫','🎪','🤹','🎠','🎡','🎢','🎭','🎨','🖼️','🎬','🎞️','📷','📸','📹','🎥','📽️','📺','📻','🎙️','🎚️','🎛️','🧸','🪆','🪅','🪩','🪬','🧩','🔑','🗝️','🔒','🔓','💡','🔦','🕯️','🪔','🧯','🛢️','💰','💳','💵','💴','💶','💷','💸','🏧','🧾','🪙','📦','🎁','🎀','🎊','🎉','🎈','🪁','🧨','🧧','🎐','🎑','🎋','🎍','🎎','🎏','🎁','🛍️','🛒','🎒','🧳','👜','👝','🎩','🧢','👒','🪖','⛑️','🥽','👓','🕶️','🧣','🧤','🧥','🥻','👔','👕','👖','👗','👘','👙','🩱','🩲','🩳','👚','👛','💄','💍','💎','👒','🎓','🏴']
 };
+// The message-input picker adds a final Custom tab. Reactions keep the
+// unicode-only set, since reaction keys are validated as plain emoji.
+var EMOJI_INPUT_CATEGORIES = Object.assign({}, EMOJI_CATEGORIES, { Custom: Object.keys(CUSTOM_EMOJIS).map(function(id) { return ":" + id + ":"; }) });
 
 // Flat emoji search index: [emoji, keywords]
 var EMOJI_SEARCH_INDEX = [
@@ -2269,7 +2631,7 @@ var EMOJI_SEARCH_INDEX = [
     ['😋','yum delicious eating'],['😏','smirk'],['🥹','holding back tears emotional'],['🤫','shush quiet secret'],['🤭','hand over mouth giggle'],['🙃','upside down sarcasm'],['😑','expressionless'],['😶','no mouth silent'],['😮','open mouth surprise'],['🤐','zipper mouth secret'],['🧐','monocle detective curious'],['🤓','nerd glasses smart'],['😪','sleepy'],['😵','dizzy spiral'],
     ['🐶','dog puppy'],['🐱','cat kitten'],['🐭','mouse'],['🐰','rabbit bunny'],['🦊','fox'],['🐻','bear'],['🐼','panda'],['🐨','koala'],['🐯','tiger'],['🦁','lion king'],['🐮','cow'],['🐷','pig'],['🐸','frog'],['🐙','octopus'],['🦑','squid'],['🐬','dolphin'],['🐳','whale spout'],['🐋','whale'],['🦈','shark'],['🐊','crocodile'],['🐅','tiger leopard'],['🦓','zebra'],['🦍','gorilla'],['🐘','elephant'],['🦒','giraffe'],['🐎','horse'],['🐕','dog'],['🐩','poodle dog'],['🐈','cat'],['🦋','butterfly'],['🐝','bee honey'],['🐞','ladybug'],['🦗','cricket bug'],['🌸','cherry blossom'],['🌺','hibiscus'],['🌻','sunflower'],['🌹','rose'],['🌷','tulip'],['🍀','four leaf clover luck'],['🌿','herb plant'],['🌱','seedling sprout'],['🌲','tree'],['🌴','palm tree'],['🍁','maple leaf autumn'],['🐾','paw prints animal'],
     ['🍕','pizza'],['🍔','burger hamburger'],['🍟','fries'],['🌮','taco'],['🌯','burrito wrap'],['🍣','sushi'],['🍜','noodles ramen'],['🍝','pasta spaghetti'],['🍛','curry rice'],['🍱','bento box'],['🍰','cake slice'],['🎂','birthday cake'],['🧁','cupcake'],['🍩','donut'],['🍪','cookie'],['🍫','chocolate'],['🍦','ice cream'],['🍕','pizza'],['🥗','salad'],['🥘','paella stew'],['🍳','egg frying pan'],['🥞','pancakes'],['🧇','waffle'],['🥓','bacon'],['🍗','chicken drumstick'],['🍖','meat bone'],['🧀','cheese'],['🥑','avocado'],['🍎','apple'],['🍊','orange'],['🍋','lemon'],['🍇','grapes'],['🍓','strawberry'],['🍒','cherry'],['🍑','peach'],['🍍','pineapple'],['🥭','mango'],['🍌','banana'],['🥝','kiwi'],['☕','coffee'],['🍵','tea'],['🍺','beer'],['🍻','beers cheers'],['🥂','champagne toast'],['🍷','wine'],['🧃','juice box'],['🧋','boba bubble tea'],['🥤','drink soda'],['🍼','baby bottle milk'],
-    ['✈️','airplane flight travel'],['🚀','rocket launch'],['🚗','car drive'],['🚕','taxi cab'],['🚌','bus'],['🚂','train'],['🚇','subway metro'],['🚢','ship cruise'],['⛵','sailboat'],['🚁','helicopter'],['🏖️','beach summer vacation'],['🏕️','camping tent'],['🏝️','island tropical'],['🏔️','mountain snow'],['⛰️','mountain hiking'],['🗺️','map travel'],['🧭','compass direction'],['🗼','eiffel tower paris'],['🗽','statue of liberty new york'],['🏰','castle'],['🏯','japanese castle'],['🌉','bridge night city'],['🌃','night city stars'],['🌆','city sunset'],['🌇','sunset city'],['🌌','galaxy milky way'],['🌄','sunrise mountain'],['🌅','sunrise beach'],['🌠','shooting star'],['🎆','fireworks'],['🎇','sparkler'],['🧳','suitcase luggage travel'],['🎒','backpack'],['🗾','japan map'],['🌐','globe world'],['🛤️','railway track'],['🛣️','highway road'],['🏞️','national park'],['🏜️','desert'],['🌋','volcano'],['⛱️','beach umbrella']
+    ['✈️','airplane flight travel'],['🚀','rocket launch'],['🚗','car drive'],['🚕','taxi cab'],['🚌','bus'],['🚂','train'],['🚇','subway metro'],['🚢','ship cruise'],['⛵','sailboat'],['🚁','helicopter'],['🏖️','beach summer vacation'],['🏕️','camping tent'],['🏝️','island tropical'],['🏔️','mountain snow'],['⛰️','mountain hiking'],['🗺️','map travel'],['🧭','compass direction'],['🗼','eiffel tower paris'],['🗽','statue of liberty new york'],['🏰','castle'],['🏯','japanese castle'],['🌉','bridge night city'],['🌃','night city stars'],['🌆','city sunset'],['🌇','sunset city'],['🌌','galaxy milky way'],['🌄','sunrise mountain'],['🌅','sunrise beach'],['🌠','shooting star'],['🎆','fireworks'],['🎇','sparkler'],['🧳','suitcase luggage travel'],['🎒','backpack'],['🗾','japan map'],['🌐','globe world'],['🛤️','railway track'],['🛣️','highway road'],['🏞️','national park'],['🏜️','desert'],['🌋','volcano'],['⛱️','beach umbrella'],
     // Gestures & people
     ['👶','baby infant'],['👦','boy child'],['👧','girl child'],['👩','woman female'],['👨','man male'],['🧑','person'],['🧓','older adult'],['👴','old man grandpa'],['👵','old woman grandma'],['🧙','wizard mage'],['🧛','vampire'],['🧟','zombie'],['🧜','mermaid'],['🧝','elf'],['🧞','genie'],['🧚','fairy'],['💆','face massage relax'],['💇','haircut'],['🚶','walking'],['🧍','standing person'],['🧎','kneeling'],['🏃','running'],['🤸','cartwheel gymnastics'],['🏋','weightlifting gym'],['🤾','handball'],['🧘','yoga meditation calm'],
     // Symbols
@@ -2285,9 +2647,9 @@ window.showEmojiPicker = function() {
     var picker = document.createElement('div');
     picker.id = 'gcEmojiPicker';
     var _isDark = document.body.getAttribute('data-theme') !== 'light';
-    picker.style.cssText = 'position:fixed;bottom:120px;left:50%;transform:translateX(-50%);z-index:260000;background:' + (_isDark ? '#1a1a2e' : '#f0f0f5') + ';border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:340px;max-height:360px;display:flex;flex-direction:column;overflow:visible;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
+    picker.style.cssText = 'position:fixed;bottom:var(--above-fab, 120px);left:50%;transform:translateX(-50%);z-index:260000;background:' + (_isDark ? '#1a1a2e' : '#f0f0f5') + ';border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:340px;max-height:360px;display:flex;flex-direction:column;overflow:visible;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
 
-    var cats = Object.keys(EMOJI_CATEGORIES);
+    var cats = Object.keys(EMOJI_INPUT_CATEGORIES);
     // Search bar
     var searchHtml = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
         '<input id="emojiSearchInput" type="text" placeholder="🔍 Search emojis..." autocomplete="off" ' +
@@ -2298,7 +2660,7 @@ window.showEmojiPicker = function() {
     // Category tabs
     var tabHtml = '<div id="emojiTabBar" style="display:flex;gap:2px;margin-bottom:8px;overflow-x:auto;overflow-y:visible;padding:3px 0 3px 0;">';
     cats.forEach(function(cat, i) {
-        var label = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '🤝' : cat === 'Bitcoin' ? '<span style="background:#f7931a;color:#fff;border-radius:50%;width:1.3em;height:1.3em;display:inline-flex;align-items:center;justify-content:center;font-size:0.8em;font-weight:900;line-height:1;">₿</span>' : cat === 'Animals' ? '🐾' : cat === 'Food' ? '🍔' : cat === 'Travel' ? '🌍' : cat === 'Symbols' ? '💬' : cat === 'Objects' ? '🎁' : '✨';
+        var label = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '🤝' : cat === 'Bitcoin' ? '<span style="background:#f7931a;color:#fff;border-radius:50%;width:1.3em;height:1.3em;display:inline-flex;align-items:center;justify-content:center;font-size:0.8em;font-weight:900;line-height:1;">₿</span>' : cat === 'Animals' ? '🐾' : cat === 'Food' ? '🍔' : cat === 'Travel' ? '🌍' : cat === 'Symbols' ? '💬' : cat === 'Objects' ? '🎁' : cat === 'Custom' ? _customEmojiImg('btc') : '✨';
         tabHtml += '<button onclick="window._switchEmojiTab(\'' + cat + '\')" id="emojiTab_' + i + '" style="padding:6px 10px;font-size:1rem;cursor:pointer;background:' + (i === 0 ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (i === 0 ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;flex-shrink:0;touch-action:manipulation;" title="' + cat + '">' + label + '</button>';
     });
     tabHtml += '</div>';
@@ -2324,15 +2686,15 @@ window._switchEmojiTab = function(cat) {
     // Clear search input when switching tabs
     var si = document.getElementById('emojiSearchInput');
     if (si) si.value = '';
-    var emojis = EMOJI_CATEGORIES[cat] || [];
+    var emojis = EMOJI_INPUT_CATEGORIES[cat] || [];
     var html = '';
     emojis.forEach(function(e) {
-        html += '<button onclick="window._insertEmoji(\'' + e + '\')" style="padding:6px;font-size:1.3rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.1s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + e + '</button>';
+        html += '<button onclick="window._insertEmoji(\'' + e + '\')" style="padding:6px;font-size:1.3rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.1s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + renderCustomEmojis(e) + '</button>';
     });
     grid.innerHTML = html || '<div style="color:var(--text-faint);font-size:0.8rem;padding:20px;text-align:center;">No emojis here</div>';
 
     // Update tab styles
-    var cats = Object.keys(EMOJI_CATEGORIES);
+    var cats = Object.keys(EMOJI_INPUT_CATEGORIES);
     cats.forEach(function(c, i) {
         var tab = document.getElementById('emojiTab_' + i);
         if (tab) {
@@ -2348,7 +2710,7 @@ window._emojiSearch = function(query) {
     var q = (query || '').trim().toLowerCase();
     if (!q) {
         // Restore first tab on empty search
-        window._switchEmojiTab(Object.keys(EMOJI_CATEGORIES)[0]);
+        window._switchEmojiTab(Object.keys(EMOJI_INPUT_CATEGORIES)[0]);
         var si = document.getElementById('emojiSearchInput');
         if (si) si.value = '';
         return;
@@ -2356,19 +2718,28 @@ window._emojiSearch = function(query) {
     // Search across EMOJI_SEARCH_INDEX (keyword match) + category arrays (direct char match)
     var results = [];
     var seen = {};
-    // 1. Keyword index search
+    function _emojiEntryOk(entry) {
+        return !!(entry && typeof entry[0] === 'string' && typeof entry[1] === 'string');
+    }
+    // 1. Keyword index search — names and keywords both live in the keyword string
     EMOJI_SEARCH_INDEX.forEach(function(entry) {
+        if (!_emojiEntryOk(entry)) return;
         var e = entry[0], kw = entry[1];
         if (!seen[e] && kw.indexOf(q) !== -1) { results.push(e); seen[e] = true; }
     });
+    Object.keys(CUSTOM_EMOJIS).forEach(function(id) {
+        var sc = ':' + id + ':';
+        if (!seen[sc] && (id.indexOf(q) !== -1 || CUSTOM_EMOJIS[id].keywords.indexOf(q) !== -1)) { results.push(sc); seen[sc] = true; }
+    });
     // 2. Also scan all category emojis for the emoji char itself
-    Object.keys(EMOJI_CATEGORIES).forEach(function(cat) {
-        EMOJI_CATEGORIES[cat].forEach(function(e) {
+    Object.keys(EMOJI_INPUT_CATEGORIES).forEach(function(cat) {
+        EMOJI_INPUT_CATEGORIES[cat].forEach(function(e) {
             if (!seen[e] && e.toLowerCase().indexOf(q) !== -1) { results.push(e); seen[e] = true; }
         });
     });
-    // 3. Partial keyword match for first word
+    // 3. Name/keyword word prefix (fire → fire, firework, …)
     EMOJI_SEARCH_INDEX.forEach(function(entry) {
+        if (!_emojiEntryOk(entry)) return;
         var e = entry[0], kw = entry[1];
         if (!seen[e]) {
             var words = kw.split(' ');
@@ -2382,12 +2753,12 @@ window._emojiSearch = function(query) {
         html = '<div style="color:var(--text-faint);font-size:0.82rem;padding:24px;text-align:center;">No results for "' + q + '"</div>';
     } else {
         results.forEach(function(e) {
-            html += '<button onclick="window._insertEmoji(\'' + e + '\')" style="padding:6px;font-size:1.3rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.1s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + e + '</button>';
+            html += '<button onclick="window._insertEmoji(\'' + e + '\')" style="padding:6px;font-size:1.3rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.1s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + renderCustomEmojis(e) + '</button>';
         });
     }
     grid.innerHTML = html;
     // Dim all tabs to show search mode is active
-    var cats = Object.keys(EMOJI_CATEGORIES);
+    var cats = Object.keys(EMOJI_INPUT_CATEGORIES);
     cats.forEach(function(c, i) {
         var tab = document.getElementById('emojiTab_' + i);
         if (tab) { tab.style.background = 'none'; tab.style.borderColor = 'var(--border)'; tab.style.opacity = '0.5'; }
@@ -2585,10 +2956,17 @@ function sendImageMessage(dataUrl, caption, imgBlob, imgType) {
                 msgData.replyToText = replyCopy.text;
             }
 
-            return db.collection(CHAT_COLLECTION).add(msgData).then(function() {
+            return sendWithFreshUsername(function(name) {
+                msgData.name = name;
+                username = name;
+                return db.collection(CHAT_COLLECTION).add(msgData);
+            }, username, function(docRef) {
                 if (typeof showToast === 'function') showToast('📷 Image sent!');
-                // Bridge https URL to Telegram
-                bridgeToTelegram({ user: username, text: caption || '', imageUrl: url });
+                if (docRef && docRef.id && typeof window._noteTodayChatPosted === 'function') window._noteTodayChatPosted();
+                if (docRef && docRef.id && typeof window._maybeClaimSayHi === 'function') window._maybeClaimSayHi(docRef.id);
+                if (replyCopy && replyCopy.id && docRef && docRef.id) _maybeClaimReplyBonus(docRef.id);
+            }, function(e) {
+                console.error('[Chat Image] Send failed:', e);
             });
         })
        .catch(function(e) {
@@ -2614,6 +2992,16 @@ var _djSongCount = 0; // tracks how many songs the current DJ has played
 var _djIsMe = false;
 var _djQueuePosition = -1; // -1 = not in queue
 
+// Public DJ strings ignore the listener's uncensored switch.
+function djShown(str, fallback) {
+    var raw = (str == null || str === '') ? (fallback || '') : String(str);
+    return (typeof beatsCensor === 'function') ? beatsCensor(raw) : raw;
+}
+function djPublic(str, fallback) {
+    var raw = (str == null || str === '') ? (fallback || '') : String(str);
+    return (typeof beatsCensor === 'function') ? beatsCensor(raw, true) : raw;
+}
+
 // DJ broadcasts: go live or join queue
 window.djBroadcast = function() {
     if (!window._beatsNowPlaying || !window._beatsAudio) {
@@ -2628,7 +3016,10 @@ window.djBroadcast = function() {
     if (!username) { if (typeof showToast === 'function') showToast('Set a username first!'); return; }
 
     var track = window._beatsQueue[window._beatsQueueIdx];
-    if (!track) return;
+    if (!track || (typeof _beatsIsHidden === 'function' && _beatsIsHidden(track))) {
+        if (typeof showToast === 'function') showToast('This track is unavailable');
+        return;
+    }
     var uid = auth.currentUser.uid;
 
     // Check if someone is already DJing
@@ -2654,7 +3045,7 @@ window.showDJControlPanel = function() {
 
     var panel = document.createElement('div');
     panel.id = 'djControlPanel';
-    panel.style.cssText = 'position:fixed;bottom:80px;right:16px;z-index:310;width:280px;background:var(--bg-side,#1a1a2e);border:2px solid #6366f1;border-radius:16px;box-shadow:0 8px 32px rgba(99,102,241,0.3);display:flex;flex-direction:column;transition:0.3s;overflow:hidden;';
+    panel.style.cssText = 'position:fixed;bottom:var(--above-fab, 80px);right:max(16px, calc(12px + env(safe-area-inset-right, 0px)));z-index:310;width:280px;background:var(--bg-side,#1a1a2e);border:2px solid #6366f1;border-radius:16px;box-shadow:0 8px 32px rgba(99,102,241,0.3);display:flex;flex-direction:column;transition:0.3s;overflow:hidden;';
 
     panel.innerHTML =
         '<div onclick="var body=document.getElementById(\'djControlBody\');var arrow=document.getElementById(\'djControlArrow\');if(body.style.display===\'none\'){body.style.display=\'block\';arrow.textContent=\'▼\'}else{body.style.display=\'none\';arrow.textContent=\'▶\'}" style="padding:10px 14px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;border-bottom:1px solid var(--border);">' +
@@ -2707,7 +3098,7 @@ window.showDJControlPanel = function() {
         var np = document.getElementById('djControlNowPlaying');
         if (!np) return;
         var track = window._beatsQueue && window._beatsQueue[window._beatsQueueIdx];
-        if (track) np.textContent = '♫ ' + (track.title || 'Untitled') + ' — ' + (track.artist || track.authorName || 'Unknown');
+        if (track) np.textContent = '♫ ' + djShown(track.title, 'Untitled') + ' — ' + djShown(track.artist || track.authorName, 'Unknown');
     }
     updateDJPanel();
     window._djPanelInterval = setInterval(updateDJPanel, 3000);
@@ -2729,8 +3120,8 @@ function djRenderUpNext() {
         html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--card-bg,#111);border:1px solid var(--border);border-radius:8px;">' +
             '<span style="color:var(--accent);font-weight:700;font-size:0.7rem;">' + (i + 1) + '</span>' +
             '<div style="flex:1;min-width:0;overflow:hidden;">' +
-                '<div style="font-size:0.75rem;color:var(--heading);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (typeof escapeHtml === 'function' ? escapeHtml(t.title || 'Untitled') : (t.title || 'Untitled')) + '</div>' +
-                '<div style="font-size:0.65rem;color:var(--text-faint);">' + (typeof escapeHtml === 'function' ? escapeHtml(t.artist || t.authorName || '') : (t.artist || t.authorName || '')) + '</div>' +
+                '<div style="font-size:0.75rem;color:var(--heading);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (typeof escapeHtml === 'function' ? escapeHtml(djShown(t.title, 'Untitled')) : djShown(t.title, 'Untitled')) + '</div>' +
+                '<div style="font-size:0.65rem;color:var(--text-faint);">' + (typeof escapeHtml === 'function' ? escapeHtml(djShown(t.artist || t.authorName, '')) : djShown(t.artist || t.authorName, '')) + '</div>' +
             '</div>' +
             '<span onclick="window._djUpNext.splice(' + i + ',1);djRenderUpNext()" style="cursor:pointer;font-size:0.7rem;color:#ef4444;padding:2px 4px;" title="Remove">✕</span>' +
         '</div>';
@@ -2754,7 +3145,7 @@ window.djShowTrackPicker = function() {
 
     var picker = document.createElement('div');
     picker.id = 'djTrackPicker';
-    picker.style.cssText = 'position:fixed;bottom:80px;right:16px;z-index:320;width:280px;max-height:300px;background:var(--bg-side,#1a1a2e);border:2px solid var(--accent);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.5);display:flex;flex-direction:column;overflow:hidden;';
+    picker.style.cssText = 'position:fixed;bottom:var(--above-fab, 80px);right:max(16px, calc(12px + env(safe-area-inset-right, 0px)));z-index:320;width:280px;max-height:300px;background:var(--bg-side,#1a1a2e);border:2px solid var(--accent);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.5);display:flex;flex-direction:column;overflow:hidden;';
 
     var searchHtml = '<div style="padding:8px;border-bottom:1px solid var(--border);">' +
         '<input id="djTrackSearch" type="text" placeholder="Search tracks..." style="width:100%;padding:8px 10px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:inherit;outline:none;box-sizing:border-box;" oninput="djFilterTracks(this.value)">' +
@@ -2765,8 +3156,8 @@ window.djShowTrackPicker = function() {
         var t = tracks[i];
         var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s; };
         listHtml += '<div class="djPickerItem" data-search="' + esc((t.title || '') + ' ' + (t.artist || t.authorName || '')).toLowerCase() + '" onclick="djAddToQueue(' + i + ')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);transition:0.15s;" onmouseover="this.style.background=\'rgba(99,102,241,0.1)\'" onmouseout="this.style.background=\'none\'">' +
-            '<div style="font-size:0.8rem;color:var(--heading);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(t.title || 'Untitled') + '</div>' +
-            '<div style="font-size:0.65rem;color:var(--text-faint);">' + esc(t.artist || t.authorName || 'Unknown') + '</div>' +
+            '<div style="font-size:0.8rem;color:var(--heading);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(djShown(t.title, 'Untitled')) + '</div>' +
+            '<div style="font-size:0.65rem;color:var(--text-faint);">' + esc(djShown(t.artist || t.authorName, 'Unknown')) + '</div>' +
         '</div>';
     }
     listHtml += '</div>';
@@ -2791,7 +3182,7 @@ window.djAddToQueue = function(idx) {
     }
     var tracks = window._beatsQueue || [];
     var t = tracks[idx];
-    if (!t) return;
+    if (!t || (typeof _beatsIsHidden === 'function' && _beatsIsHidden(t))) return;
     // Don't add duplicates
     for (var i = 0; i < window._djUpNext.length; i++) {
         if (window._djUpNext[i].id === t.id) {
@@ -2801,7 +3192,7 @@ window.djAddToQueue = function(idx) {
     }
     window._djUpNext.push(t);
     djRenderUpNext();
-    if (typeof showToast === 'function') showToast('🎵 Added: ' + (t.title || 'Untitled'));
+    if (typeof showToast === 'function') showToast('🎵 Added: ' + djShown(t.title, 'Untitled'));
     var picker = document.getElementById('djTrackPicker');
     if (picker) picker.remove();
 };
@@ -2844,8 +3235,8 @@ function djGoLive(uid, username, track) {
     var djData = {
         djUid: uid,
         djName: username,
-        trackTitle: track.title || 'Untitled',
-        trackArtist: track.artist || track.authorName || 'Unknown',
+        trackTitle: djPublic(track.title, 'Untitled'),
+        trackArtist: djPublic(track.artist || track.authorName, 'Unknown'),
         trackCoverArt: track.coverArt || '',
         trackAudioUrl: track.audioUrl || '',
         trackId: track.id || '',
@@ -2876,7 +3267,7 @@ function djGoLive(uid, username, track) {
         if (djSets === 25 && typeof awardPoints === 'function') awardPoints(75, '🏆 Club Legend — 25 sets!');
         db.collection(CHAT_COLLECTION).add({
             uid: 'system', name: '🎧 DJ Mode',
-            text: '🎶 @' + username + ' is now DJing! Playing: "' + (track.title || 'Untitled') + '" by ' + (track.artist || track.authorName || 'Unknown') + '. Tune in! 🔊',
+            text: '🎶 @' + username + ' is now DJing! Playing: "' + djPublic(track.title, 'Untitled') + '" by ' + djPublic(track.artist || track.authorName, 'Unknown') + '. Tune in! 🔊',
             ts: firebase.firestore.FieldValue.serverTimestamp()
         }).catch(function() {});
         // Remove self from queue if was there
@@ -2904,8 +3295,8 @@ function djGoLive(uid, username, track) {
             _djSongCount++;
             var t = window._beatsQueue[lastTrackIdx];
             if (t) {
-                updateData.trackTitle = t.title || 'Untitled';
-                updateData.trackArtist = t.artist || t.authorName || 'Unknown';
+                updateData.trackTitle = djPublic(t.title, 'Untitled');
+                updateData.trackArtist = djPublic(t.artist || t.authorName, 'Unknown');
                 updateData.trackCoverArt = t.coverArt || '';
                 updateData.trackAudioUrl = t.audioUrl || '';
                 updateData.trackId = t.id || '';
@@ -3252,7 +3643,7 @@ function initOverlay() {
     // if (oldBtn) oldBtn.style.display = 'none';
     // Keep chat button visible on all screen sizes — it's the only chat entry point
     var chatBtn = document.getElementById('chatOverlayBtn');
-    if (chatBtn) chatBtn.style.display = localStorage.getItem('fabMinimized') === '1' ? 'none' : '';
+    if (chatBtn) chatBtn.style.display = '';
     // Safety net: strip chat-shifted from lbFloatBtn if chat panel is not open on init
     if (!_overlayOpen && !document.getElementById('chatContent')) {
         var _lbInit = document.getElementById('lbFloatBtn');
@@ -3267,6 +3658,12 @@ function _initOverlayAndOpenIfPending() {
         setTimeout(function() {
             if (typeof toggleChatOverlay === 'function') toggleChatOverlay();
         }, 100);
+    }
+    if (window._pendingSayHi) {
+        window._pendingSayHi = false;
+        setTimeout(function() {
+            if (typeof window.openSayHi === 'function') window.openSayHi();
+        }, 150);
     }
 }
 if (document.readyState === 'loading') {
@@ -3533,17 +3930,30 @@ window.lookupUserByName = function(username) {
                             });
                             if (typeof showUserProfile === 'function') showUserProfile(best2.id);
                         } else {
-                            // Try displayName for multi-word names (e.g. 'Sipho Ashley')
-                            db.collection('public_profiles').where('displayName', '==', username).limit(10).get()
-                                .then(function(snap3) {
-                                    if (!snap3.empty) {
-                                        var best3 = snap3.docs.reduce(function(a, b) {
+                            // Previous public name, written only by the username migration.
+                            db.collection('public_profiles').where('usernameMigratedFrom', '==', username).limit(10).get()
+                                .then(function(snapMig) {
+                                    if (!snapMig.empty) {
+                                        var bestMig = snapMig.docs.reduce(function(a, b) {
                                             return ((b.data().totalVisits || 0) > (a.data().totalVisits || 0)) ? b : a;
                                         });
-                                        if (typeof showUserProfile === 'function') showUserProfile(best3.id);
-                                    } else {
-                                        if (typeof showToast === 'function') showToast('User @' + username + ' not found');
+                                        if (typeof showUserProfile === 'function') showUserProfile(bestMig.id);
+                                        return;
                                     }
+                                    // Try displayName for multi-word names (e.g. 'Sipho Ashley')
+                                    db.collection('public_profiles').where('displayName', '==', username).limit(10).get()
+                                        .then(function(snap3) {
+                                            if (!snap3.empty) {
+                                                var best3 = snap3.docs.reduce(function(a, b) {
+                                                    return ((b.data().totalVisits || 0) > (a.data().totalVisits || 0)) ? b : a;
+                                                });
+                                                if (typeof showUserProfile === 'function') showUserProfile(best3.id);
+                                            } else {
+                                                if (typeof showToast === 'function') showToast('User @' + username + ' not found');
+                                            }
+                                        }).catch(function() {
+                                            if (typeof showToast === 'function') showToast('User @' + username + ' not found');
+                                        });
                                 }).catch(function() {
                                     if (typeof showToast === 'function') showToast('User @' + username + ' not found');
                                 });
@@ -3559,42 +3969,693 @@ window.lookupUserByName = function(username) {
 
 // ---- Announcement link navigation helper ----
 // Closes whichever chat surface is open, then routes to the hash.
-// Badge tooltip popup for GGs announcement badge tags
-window._showBadgeTooltip = function(el, name, desc) {
-    // Remove any existing tooltip
-    var existing = document.getElementById('_gcBadgeTip');
-    if (existing) {
-        existing.remove();
-        if (existing._el === el) return; // toggle off if same badge
+// Badge tags for GGs. Grouped posts ("earned 3 badges: A, B, C") and single
+// posts ("earned First Steps" / "just earned the Pathfinder badge") both
+// chip each badge name. The old matcher only understood "earned a badge: …!".
+// Names resolve from server badgeIds, or from the client registry for older
+// badge-gg posts. Message text is never parsed as HTML.
+/* GG_BADGE_TAGS_START */
+var GG_NAME_OVERRIDE = {
+    daily_triple_30: 'Trifecta Engine',
+    first_post: 'PlebTalk Voice',
+    market_seller: 'Shopkeeper',
+    market_listed_5: 'Merchant'
+};
+
+function ggTitleWord(word) {
+    var s = String(word || '');
+    if (!s) return '';
+    return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function ggStripPrefixes(id) {
+    var s = String(id || '');
+    var prev = '';
+    while (s && s !== prev) {
+        prev = s;
+        s = s.replace(/^(?:flex_|badge_|bc_)/, '');
     }
-    var tip = document.createElement('div');
-    tip.id = '_gcBadgeTip';
-    tip._el = el;
-    var _isDark = document.body.getAttribute('data-theme') !== 'light';
-    tip.style.cssText = 'position:fixed;z-index:999999;background:' + (_isDark ? '#1a1a2e' : '#fff') + ';border:1px solid var(--accent);border-radius:12px;padding:12px 14px;max-width:260px;box-shadow:0 8px 24px rgba(0,0,0,0.4);pointer-events:none;';
-    tip.innerHTML = '<div style="font-size:0.95rem;font-weight:700;color:var(--accent);margin-bottom:4px;">' + name + '</div>' +
-        '<div style="font-size:0.8rem;color:var(--text,#eee);line-height:1.4;">' + desc + '</div>';
-    document.body.appendChild(tip);
-    // Position above the element
+    return s;
+}
+
+function ggFlexName(id) {
+    if (String(id || '').indexOf('flex_') !== 0) return '';
+    var parts = id.slice(5).split('_').filter(Boolean);
+    if (!parts.length) return '';
+    var last = parts[parts.length - 1];
+    if (/^\d+$/.test(last) && parts.length >= 2) {
+        var action = parts.slice(0, -1).map(ggTitleWord).join(' ');
+        return action ? (action + ' \u00d7' + last) : '';
+    }
+    return parts.map(ggTitleWord).join(' ');
+}
+
+function ggPuzzleName(id) {
+    var match = /^p(0[1-9]|[1-7]\d|80)$/.exec(String(id || ''));
+    if (!match) return '';
+    return 'Checkmate Puzzle ' + Number(match[1]);
+}
+
+function ggCleanLabel(raw) {
+    var s = String(raw == null ? '' : raw);
+    s = s.replace(/[\u200B-\u200D\uFEFF]/g, '');
+    s = s.replace(/https?:\/\/\S+/gi, ' ');
+    s = s.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, ' ');
+    s = s.replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, ' ');
+    s = s.replace(/[\r\n<>@`]/g, ' ');
+    s = s.replace(/\s+/g, ' ').trim().slice(0, 60);
+    return s;
+}
+
+function ggDisplayName(id, catalogName) {
+    var safe = String(id || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60);
+    if (!safe) return '';
+    if (GG_NAME_OVERRIDE[safe]) return GG_NAME_OVERRIDE[safe];
+    var catalog = catalogName ? String(catalogName) : '';
+    if (catalog && catalog !== safe) {
+        var cleaned = ggCleanLabel(catalog);
+        if (cleaned && cleaned !== safe) return cleaned;
+    }
+    var fallback = ggStripPrefixes(safe).split('_').filter(Boolean).map(ggTitleWord).join(' ');
+    var candidate = ggFlexName(safe) || ggPuzzleName(safe) || fallback;
+    var cleanedCandidate = ggCleanLabel(candidate);
+    if (!cleanedCandidate || cleanedCandidate === safe) return '';
+    return cleanedCandidate;
+}
+
+function ggTrustedBadgeIds(message) {
+    if (!message || message.postedByUid !== 'badge-gg' || message.uid !== 'nacho-bot') return null;
+    if (!Array.isArray(message.badgeIds)) return [];
+    var ids = [];
+    for (var i = 0; i < message.badgeIds.length && ids.length < 80; i++) {
+        var id = message.badgeIds[i];
+        if (typeof id !== 'string' || !/^[A-Za-z0-9_-]{1,60}$/.test(id)) continue;
+        if (ids.indexOf(id) === -1) ids.push(id);
+    }
+    return ids;
+}
+
+function ggSuffixEnd(text, from) {
+    var end = text.length;
+    var tail = text.slice(from);
+    var suffix = tail.match(/\s*\(\+\d+ SF points?\)\s*$/);
+    if (suffix) end -= suffix[0].length;
+    var region = text.slice(from, end);
+    var more = region.match(/\s+and \d+ more\s*$/);
+    if (more) end = from + region.length - more[0].length;
+    return end;
+}
+
+function ggNameRegions(text) {
+    var regions = [];
+    var major = /just earned the ([\s\S]+?) badge!/.exec(text);
+    if (major) {
+        var leadStart = major.index + 'just earned the '.length;
+        regions.push([leadStart, leadStart + major[1].length]);
+        var alsoAt = text.indexOf(' Also: ');
+        if (alsoAt !== -1) {
+            var alsoStart = alsoAt + ' Also: '.length;
+            regions.push([alsoStart, ggSuffixEnd(text, alsoStart)]);
+        }
+        return regions;
+    }
+    var grouped = /earned \d+ badges: /.exec(text);
+    if (grouped) {
+        var groupedStart = grouped.index + grouped[0].length;
+        regions.push([groupedStart, ggSuffixEnd(text, groupedStart)]);
+        return regions;
+    }
+    if (/earned \d+ flex badges\b/.test(text)) return regions;
+    var single = / earned (?!a badge\b)(?!\d+ badges\b)(?!\d+ flex badges\b)/.exec(text);
+    if (single) {
+        var singleStart = single.index + single[0].length;
+        regions.push([singleStart, ggSuffixEnd(text, singleStart)]);
+    }
+    var legacy = /earned a badge: ([\s\S]+?)!/.exec(text);
+    if (legacy && !regions.length) {
+        var legacyStart = legacy.index + 'earned a badge: '.length;
+        regions.push([legacyStart, legacyStart + legacy[1].length]);
+    }
+    return regions;
+}
+
+function ggBoundary(ch) {
+    if (!ch) return true;
+    var code = ch.charCodeAt(0);
+    if (code < 128) {
+        return !((code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122));
+    }
+    return !/[\p{L}\p{N}]/u.test(ch);
+}
+
+function ggNameAt(slice, i, name) {
+    var n = name.length;
+    if (i + n > slice.length) return false;
+    for (var c = 0; c < n; c++) {
+        if (slice.charCodeAt(i + c) !== name.charCodeAt(c)) return false;
+    }
+    return true;
+}
+
+// The catalog stores some ids as their own name (titles such as irl_set_t).
+// The server then posts the title-cased id ("Irl Set T") while the client
+// shows the title ("IRL Champion"). That auto-title is the alias.
+function ggCatalogOwnsName(id) {
+    var cat = (typeof window !== 'undefined' && window && window.BADGE_CATALOG) ? window.BADGE_CATALOG : null;
+    var row = cat && cat[id];
+    if (!row) return false;
+    var raw = GG_NAME_OVERRIDE[id] || row.name || '';
+    var cleaned = ggCleanLabel(raw);
+    return !!(cleaned && cleaned !== id);
+}
+
+function ggServerAutoTitle(id) {
+    var safe = String(id || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60);
+    if (!safe) return '';
+    var candidate = ggFlexName(safe) || ggPuzzleName(safe) || ggStripPrefixes(safe).split('_').filter(Boolean).map(ggTitleWord).join(' ');
+    var cleaned = ggCleanLabel(candidate);
+    if (!cleaned || cleaned === safe) return '';
+    return cleaned;
+}
+
+function ggServerMatchName(id, displayName) {
+    if (ggCatalogOwnsName(id)) return String(displayName || '');
+    return ggServerAutoTitle(id) || String(displayName || '');
+}
+
+function ggCompareMatchers(order) {
+    return function(a, b) {
+        return b.match.length - a.match.length || (a.alias - b.alias) || String(a.match).localeCompare(String(b.match)) || ((order[a.badge.id] || 0) - (order[b.badge.id] || 0));
+    };
+}
+
+function ggBucketMatchers(matchers) {
+    var byChar = {};
+    for (var i = 0; i < matchers.length; i++) {
+        var ch = String(matchers[i].match).charAt(0).toLowerCase();
+        var bucket = byChar[ch];
+        if (!bucket) byChar[ch] = bucket = [];
+        bucket.push(matchers[i]);
+    }
+    return byChar;
+}
+
+// Sorted once, then grouped by the lowercased first character, so a scan
+// tries only the names that can start at this character. A server auto-title
+// is indexed beside the display name, and it wins when both strings match.
+function ggBuildNameIndex(list) {
+    var byId = {};
+    var order = {};
+    var serverOf = {};
+    var matchers = [];
+    var i, badge, name, server;
+    for (i = 0; i < list.length; i++) {
+        badge = list[i];
+        if (!badge || !badge.id) continue;
+        byId[badge.id] = badge;
+        order[badge.id] = i;
+        name = badge.name ? String(badge.name) : '';
+        server = ggServerMatchName(badge.id, name);
+        serverOf[badge.id] = server;
+        if (server && server.length >= 2) matchers.push({ badge: badge, match: server, alias: 0 });
+    }
+    var serverNames = {};
+    for (i = 0; i < matchers.length; i++) serverNames[matchers[i].match] = true;
+    for (i = 0; i < list.length; i++) {
+        badge = list[i];
+        if (!badge || !badge.id) continue;
+        name = badge.name ? String(badge.name) : '';
+        server = serverOf[badge.id] || '';
+        if (!name || name.length < 2 || name === server || serverNames[name]) continue;
+        matchers.push({ badge: badge, match: name, alias: 1 });
+    }
+    matchers.sort(ggCompareMatchers(order));
+    return { byId: byId, byChar: ggBucketMatchers(matchers), order: order, serverOf: serverOf };
+}
+
+function ggBucketsForIds(index, ids) {
+    var matchers = [];
+    var n, badge, name, server;
+    for (n = 0; n < ids.length; n++) {
+        badge = index.byId[ids[n]];
+        if (!badge) continue;
+        name = badge.name ? String(badge.name) : '';
+        server = (index.serverOf && index.serverOf[badge.id]) || ggServerMatchName(badge.id, name);
+        if (server && server.length >= 2) matchers.push({ badge: badge, match: server, alias: 0 });
+    }
+    for (n = 0; n < ids.length; n++) {
+        badge = index.byId[ids[n]];
+        if (!badge) continue;
+        name = badge.name ? String(badge.name) : '';
+        server = (index.serverOf && index.serverOf[badge.id]) || ggServerMatchName(badge.id, name);
+        if (!name || name.length < 2 || name === server) continue;
+        matchers.push({ badge: badge, match: name, alias: 1 });
+    }
+    if (matchers.length > 1) matchers.sort(ggCompareMatchers(index.order || {}));
+    return ggBucketMatchers(matchers);
+}
+
+function ggLegacyRegions(text) {
+    var legacy = /earned a badge: ([\s\S]+?)!/.exec(text);
+    if (!legacy) return [];
+    var legacyStart = legacy.index + 'earned a badge: '.length;
+    return [[legacyStart, legacyStart + legacy[1].length]];
+}
+
+function ggBadgeSegments(text, message, registry) {
+    var raw = String(text || '');
+    var ids = ggTrustedBadgeIds(message);
+    // Old Nacho announcements used "earned a badge: …!". Those are isNachoAuto
+    // and have no badge ids. Only that phrase is tagged, never a grouped line.
+    var legacyOnly = ids === null && !!(message && message.isNachoAuto === true);
+    if (ids === null && !legacyOnly) return [{ type: 'text', text: raw }];
+    var regions = legacyOnly ? ggLegacyRegions(raw) : ggNameRegions(raw);
+    if (!regions.length) return [{ type: 'text', text: raw }];
+    var index = (registry && registry.byChar && registry.byId) ? registry : ggBuildNameIndex(registry || []);
+    var buckets;
+    // A present badgeIds list, even empty, is the allow-list. Only a missing
+    // field falls back to the prebuilt name index, for badge-gg posts written before ids.
+    if (!legacyOnly && message && Array.isArray(message.badgeIds)) {
+        if (!ids.length) return [{ type: 'text', text: raw }];
+        buckets = ggBucketsForIds(index, ids);
+    } else {
+        buckets = index.byChar;
+    }
+    var hits = [];
+    regions.forEach(function(region) {
+        var start = region[0];
+        var end = region[1];
+        if (!(end > start)) return;
+        var slice = raw.slice(start, end);
+        var i = 0;
+        while (i < slice.length) {
+            var found = null;
+            var bucket = buckets[slice.charAt(i).toLowerCase()];
+            if (bucket) {
+                for (var k = 0; k < bucket.length; k++) {
+                    var matched = bucket[k].match;
+                    if (!ggNameAt(slice, i, matched)) continue;
+                    var before = i === 0 ? raw.charAt(start - 1) : slice.charAt(i - 1);
+                    var after = slice.charAt(i + matched.length);
+                    if (ggBoundary(before) && ggBoundary(after)) { found = bucket[k]; break; }
+                }
+            }
+            if (found) {
+                hits.push({ at: start + i, len: found.match.length, badge: found.badge });
+                i += found.match.length;
+            } else {
+                i += 1;
+            }
+        }
+    });
+    if (!hits.length) return [{ type: 'text', text: raw }];
+    hits.sort(function(a, b) { return a.at - b.at; });
+    var out = [];
+    var cursor = 0;
+    hits.forEach(function(hit) {
+        if (hit.at < cursor) return;
+        if (hit.at > cursor) out.push({ type: 'text', text: raw.slice(cursor, hit.at) });
+        out.push({
+            type: 'badge',
+            id: hit.badge.id,
+            name: hit.badge.name,
+            emoji: hit.badge.emoji || '\uD83C\uDFC5',
+            desc: hit.badge.desc || '',
+            how: hit.badge.how || hit.badge.desc || '',
+            pts: hit.badge.pts || 0
+        });
+        cursor = hit.at + hit.len;
+    });
+    if (cursor < raw.length) out.push({ type: 'text', text: raw.slice(cursor) });
+    return out;
+}
+/* GG_BADGE_TAGS_END */
+
+function ggCollectRegistry() {
+    var rows = {};
+    function put(id, row) {
+        var safe = String(id || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60);
+        if (!safe || !row) return;
+        if (!rows[safe]) rows[safe] = { emoji: '', desc: '', pts: 0, catalogName: '' };
+        var cur = rows[safe];
+        if (row.name && String(row.name) !== safe && !cur.catalogName) cur.catalogName = String(row.name);
+        if (row.emoji && !cur.emoji) cur.emoji = row.emoji;
+        if (row.desc && !cur.desc) cur.desc = String(row.desc);
+        if (!cur.pts && row.pts) cur.pts = Number(row.pts) || 0;
+    }
+    var cat = (typeof window !== 'undefined' && window.BADGE_CATALOG) ? window.BADGE_CATALOG : null;
+    if (cat) {
+        Object.keys(cat).forEach(function(id) {
+            var entry = cat[id];
+            if (!entry || typeof entry !== 'object') return;
+            put(id, { name: entry.name, emoji: entry.emoji, desc: entry.desc, pts: entry.xp });
+        });
+    }
+    if (typeof BADGE_DEFS !== 'undefined') {
+        BADGE_DEFS.forEach(function(badge) {
+            if (!badge) return;
+            put(badge.id, { name: badge.name, emoji: badge.emoji, desc: badge.desc || badge.description, pts: badge.pts || badge.xp });
+        });
+    }
+    if (typeof HIDDEN_BADGES !== 'undefined') {
+        HIDDEN_BADGES.forEach(function(badge) {
+            if (!badge) return;
+            put(badge.id, { name: badge.name, emoji: badge.emoji, desc: badge.desc || badge.description, pts: badge.pts || badge.xp });
+        });
+    }
+    if (typeof TITLE_DEFS !== 'undefined') {
+        TITLE_DEFS.forEach(function(title) {
+            if (!title) return;
+            put(title.id, { name: title.title || title.name, emoji: title.emoji, desc: title.flavor || title.desc, pts: 0 });
+        });
+    }
+    if (typeof BADGE_SETS !== 'undefined') {
+        BADGE_SETS.forEach(function(set) {
+            if (!set || !set.bonusId) return;
+            put(set.bonusId, { name: set.bonusName || set.name, emoji: set.bonusEmoji, desc: set.bonusDesc || ('Completed ' + (set.name || '')), pts: set.bonusPts || 0 });
+        });
+    }
+    if (typeof FLEX_ACTIONS !== 'undefined' && typeof FLEX_BADGE_MILESTONES !== 'undefined') {
+        FLEX_ACTIONS.forEach(function(action) {
+            FLEX_BADGE_MILESTONES.forEach(function(milestone) {
+                put('flex_' + action.id + '_' + milestone, {
+                    emoji: action.emoji,
+                    desc: 'Completed \u201c' + action.name + '\u201d ' + milestone + ' time' + (milestone === 1 ? '' : 's'),
+                    pts: Math.round(milestone * 2)
+                });
+            });
+        });
+    }
+    var list = [];
+    Object.keys(rows).forEach(function(id) {
+        var row = rows[id];
+        var name = ggDisplayName(id, row.catalogName);
+        if (!name) return;
+        list.push({
+            id: id,
+            name: name,
+            emoji: row.emoji || '\uD83C\uDFC5',
+            desc: row.desc || '',
+            how: row.desc || '',
+            pts: row.pts || 0
+        });
+    });
+    return list;
+}
+
+// The registry is about 940 ids plus flex combos. Build it once per catalog
+// shape, not once per GGs post. Catalog key recounts follow the object
+// reference, so a render does not walk every catalog key again.
+var _ggRegistryCache = null;
+var _ggRegistryById = null;
+var _ggNameIndex = null;
+var _ggRegistryKey = '';
+var _ggCatalogRef = null;
+var _ggCatalogCount = 0;
+var _ggCatalogReady = false;
+
+function ggCatalogCount() {
+    var cat = (typeof window !== 'undefined' && window && window.BADGE_CATALOG) ? window.BADGE_CATALOG : null;
+    if (_ggCatalogReady && cat === _ggCatalogRef) return _ggCatalogCount;
+    _ggCatalogReady = true;
+    _ggCatalogRef = cat;
+    var count = 0;
+    if (cat) {
+        try { count = Object.keys(cat).length; } catch (err) { count = 0; }
+    }
+    _ggCatalogCount = count;
+    return count;
+}
+
+function ggRegistryKey() {
+    function n(list) { return (list && list.length) || 0; }
+    return [
+        n(typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS : null),
+        n(typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES : null),
+        n(typeof TITLE_DEFS !== 'undefined' ? TITLE_DEFS : null),
+        n(typeof BADGE_SETS !== 'undefined' ? BADGE_SETS : null),
+        n(typeof FLEX_ACTIONS !== 'undefined' ? FLEX_ACTIONS : null),
+        n(typeof FLEX_BADGE_MILESTONES !== 'undefined' ? FLEX_BADGE_MILESTONES : null),
+        ggCatalogCount()
+    ].join(':');
+}
+
+function ggRegistry() {
+    var key = ggRegistryKey();
+    if (_ggRegistryCache && _ggRegistryKey === key) return _ggRegistryCache;
+    _ggRegistryKey = key;
+    _ggRegistryCache = ggCollectRegistry();
+    _ggNameIndex = ggBuildNameIndex(_ggRegistryCache);
+    _ggRegistryById = _ggNameIndex.byId;
+    return _ggRegistryCache;
+}
+
+function ggRegistryById() {
+    ggRegistry();
+    return _ggRegistryById || {};
+}
+
+function ggRegistryIndex() {
+    ggRegistry();
+    return _ggNameIndex || ggBuildNameIndex([]);
+}
+
+function ggAppendMentionText(parent, text, mentionUid) {
+    if (!text) return;
+    if (!mentionUid) {
+        parent.appendChild(document.createTextNode(text));
+        return;
+    }
+    var re = _mentionRe('gu');
+    var last = 0;
+    var match;
+    while ((match = re.exec(text))) {
+        if (match.index > last) parent.appendChild(document.createTextNode(text.slice(last, match.index)));
+        var anchor = document.createElement('a');
+        anchor.href = '#';
+        anchor.textContent = '@' + String(match[1] || '').trim();
+        anchor.style.cssText = 'color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;';
+        anchor.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof showUserProfile === 'function') showUserProfile(mentionUid);
+        });
+        parent.appendChild(anchor);
+        last = match.index + match[0].length;
+    }
+    if (re.lastIndex) re.lastIndex = 0;
+    if (last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
+}
+
+var _ggTipLeaveTimer = 0;
+
+function ggCancelTipClose() {
+    if (_ggTipLeaveTimer) {
+        clearTimeout(_ggTipLeaveTimer);
+        _ggTipLeaveTimer = 0;
+    }
+}
+
+function ggScheduleTipClose(btn) {
+    ggCancelTipClose();
+    _ggTipLeaveTimer = setTimeout(function() {
+        _ggTipLeaveTimer = 0;
+        var tip = document.getElementById('_gcBadgeTip');
+        if (tip && tip._el === btn && !tip._pinned) ggCloseBadgeTip();
+    }, 120);
+}
+
+function ggCloseBadgeTip() {
+    ggCancelTipClose();
+    var tip = document.getElementById('_gcBadgeTip');
+    if (!tip) return;
+    if (tip._el && tip._el.setAttribute) {
+        tip._el.setAttribute('aria-expanded', 'false');
+        if (tip._el.removeAttribute) tip._el.removeAttribute('aria-describedby');
+    }
+    tip.remove();
+}
+
+function ggBindBadgeTipDismiss() {
+    if (window._ggBadgeTipBound) return;
+    window._ggBadgeTipBound = true;
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape' && e.key !== 'Esc') return;
+        var tip = document.getElementById('_gcBadgeTip');
+        if (!tip) return;
+        e.preventDefault();
+        e.stopPropagation();
+        ggCloseBadgeTip();
+    }, true);
+    document.addEventListener('pointerdown', function(e) {
+        var tip = document.getElementById('_gcBadgeTip');
+        if (!tip) return;
+        var target = e.target;
+        if (!target) return;
+        if (target === tip || (tip.contains && tip.contains(target))) return;
+        if (target.closest && target.closest('.gg-badge-tag')) return;
+        ggCloseBadgeTip();
+    }, true);
+    document.addEventListener('scroll', function() {
+        ggCloseBadgeTip();
+    }, true);
+}
+
+function ggFinePointer() {
+    try { return !!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches); }
+    catch (err) { return false; }
+}
+
+function ggOnBadgeListEvent(e) {
+    var parent = this;
+    var node = e.target;
+    if (node && node.nodeType !== 1 && node.parentElement) node = node.parentElement;
+    var btn = node && node.closest ? node.closest('.gg-badge-tag') : null;
+    if (!btn || (parent.contains && !parent.contains(btn))) return;
+    var badge = ggRegistryById()[btn.getAttribute('data-badge-id')];
+    if (!badge) return;
+    if (e.type === 'click') {
+        e.preventDefault();
+        e.stopPropagation();
+        window._showBadgeTooltip(btn, badge, { toggle: true });
+        return;
+    }
+    if (e.type === 'focusin') {
+        window._showBadgeTooltip(btn, badge, {});
+        return;
+    }
+    if (e.type === 'focusout') {
+        var open = document.getElementById('_gcBadgeTip');
+        if (open && open._el === btn && !open._pinned) ggCloseBadgeTip();
+        return;
+    }
+    if (!ggFinePointer()) return;
+    if (e.type === 'mouseover') {
+        var from = e.relatedTarget;
+        if (from && btn.contains(from)) return;
+        ggCancelTipClose();
+        window._showBadgeTooltip(btn, badge, {});
+        return;
+    }
+    if (e.type === 'mouseout') {
+        var next = e.relatedTarget;
+        if (next && btn.contains(next)) return;
+        var tip = document.getElementById('_gcBadgeTip');
+        if (next && tip && (next === tip || (tip.contains && tip.contains(next)))) return;
+        if (tip && tip._el === btn && !tip._pinned) ggScheduleTipClose(btn);
+    }
+}
+
+function ggBindBadgeList(parent) {
+    if (!parent || parent._ggBadgeBound) return;
+    parent._ggBadgeBound = true;
+    ['click', 'focusin', 'focusout', 'mouseover', 'mouseout'].forEach(function(type) {
+        parent.addEventListener(type, ggOnBadgeListEvent);
+    });
+}
+
+function ggAppendBadgeBody(parent, message) {
+    var index = ggRegistryIndex();
+    var byId = index.byId;
+    var mentionUid = message && typeof message.mentionUid === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(message.mentionUid) ? message.mentionUid : '';
+    var segments = ggBadgeSegments(String(message && message.text || ''), message, index);
+    segments.forEach(function(seg) {
+        if (seg.type !== 'badge') {
+            ggAppendMentionText(parent, seg.text, mentionUid);
+            return;
+        }
+        var badge = byId[seg.id];
+        if (!badge) {
+            parent.appendChild(document.createTextNode(seg.name || ''));
+            return;
+        }
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'gg-badge-tag';
+        btn.setAttribute('data-badge-id', badge.id);
+        btn.setAttribute('aria-expanded', 'false');
+        btn.setAttribute('aria-label', badge.name + '. Show badge details');
+        btn.textContent = badge.name;
+        btn.style.cssText = 'background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.3);border-radius:8px;padding:1px 8px;margin:0 1px;cursor:pointer;font-weight:700;color:var(--accent,#f7931a);white-space:nowrap;display:inline;font-family:inherit;font-size:inherit;line-height:inherit;vertical-align:baseline;touch-action:manipulation;-webkit-tap-highlight-color:transparent;';
+        parent.appendChild(btn);
+    });
+    ggBindBadgeTipDismiss();
+}
+
+function ggPlaceBadgeTip(tip, el) {
     var rect = el.getBoundingClientRect();
-    var tw = Math.min(260, window.innerWidth - 16);
-    tip.style.width = tw + 'px';
-    var left = Math.max(8, Math.min(rect.left, window.innerWidth - tw - 8));
-    var top = rect.top - tip.offsetHeight - 8;
-    if (top < 8) top = rect.bottom + 8;
+    var width = Math.min(280, Math.max(160, window.innerWidth - 16));
+    tip.style.width = width + 'px';
+    tip.style.left = '8px';
+    tip.style.top = '8px';
+    var height = tip.offsetHeight || 80;
+    var gap = 8;
+    var left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+    var top = rect.top - height - gap;
+    if (top < 8) top = rect.bottom + gap;
+    if (top + height > window.innerHeight - 8) top = Math.max(8, window.innerHeight - height - 8);
     tip.style.left = left + 'px';
     tip.style.top = top + 'px';
-    // Dismiss on next tap/click anywhere
-    setTimeout(function() {
-        function dismiss(e) {
-            var t = document.getElementById('_gcBadgeTip');
-            if (t) t.remove();
-            document.removeEventListener('click', dismiss, true);
-            document.removeEventListener('touchstart', dismiss, true);
+}
+
+window._showBadgeTooltip = function(el, badge, opts) {
+    opts = opts || {};
+    if (!el || !badge || !badge.name) return;
+    var existing = document.getElementById('_gcBadgeTip');
+    if (existing && existing._el === el) {
+        if (opts.toggle) {
+            if (existing._pinned) { ggCloseBadgeTip(); return; }
+            existing._pinned = true;
+            return;
         }
-        document.addEventListener('click', dismiss, true);
-        document.addEventListener('touchstart', dismiss, true);
-    }, 50);
+        if (opts.pinned) existing._pinned = true;
+        return;
+    }
+    if (existing) ggCloseBadgeTip();
+    var tip = document.createElement('div');
+    tip.id = '_gcBadgeTip';
+    tip.setAttribute('role', 'tooltip');
+    tip._el = el;
+    tip._pinned = !!(opts.pinned || opts.toggle);
+    var dark = !document.body || document.body.getAttribute('data-theme') !== 'light';
+    tip.style.cssText = 'position:fixed;z-index:2147483646;background:' + (dark ? '#1a1a2e' : '#fff') + ';color:' + (dark ? '#e8eef7' : '#1a1a2e') + ';border:1px solid #f7931a;border-radius:12px;padding:12px 14px;max-width:280px;box-shadow:0 8px 24px rgba(0,0,0,0.45);pointer-events:auto;text-align:left;line-height:1.4;font-family:inherit;';
+    var head = document.createElement('div');
+    head.style.cssText = 'display:flex;align-items:center;gap:8px;font-weight:800;color:#f7931a;font-size:0.95rem;margin-bottom:6px;';
+    var icon = document.createElement('span');
+    icon.textContent = badge.emoji || '\uD83C\uDFC5';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.style.fontSize = '1.25rem';
+    var name = document.createElement('span');
+    name.textContent = badge.name;
+    head.appendChild(icon);
+    head.appendChild(name);
+    var desc = document.createElement('div');
+    desc.style.cssText = 'font-size:0.8rem;margin-bottom:6px;';
+    desc.textContent = badge.desc || badge.name;
+    var how = document.createElement('div');
+    how.style.cssText = 'font-size:0.78rem;font-weight:700;color:#f7931a;border-top:1px solid rgba(247,147,26,0.25);padding-top:6px;';
+    how.textContent = 'How to earn: ' + (badge.how || badge.desc || badge.name);
+    tip.appendChild(head);
+    tip.appendChild(desc);
+    tip.appendChild(how);
+    if (badge.pts) {
+        var xp = document.createElement('div');
+        xp.style.cssText = 'font-size:0.72rem;margin-top:4px;color:' + (dark ? '#cbd5e1' : '#475569') + ';';
+        xp.textContent = '+' + badge.pts + ' XP';
+        tip.appendChild(xp);
+    }
+    tip.addEventListener('mouseenter', function() { ggCancelTipClose(); });
+    tip.addEventListener('mouseleave', function(e) {
+        if (tip._pinned) return;
+        var next = e.relatedTarget;
+        if (next && tip._el && (next === tip._el || (tip._el.contains && tip._el.contains(next)))) return;
+        ggScheduleTipClose(tip._el);
+    });
+    document.body.appendChild(tip);
+    el.setAttribute('aria-expanded', 'true');
+    el.setAttribute('aria-describedby', '_gcBadgeTip');
+    ggPlaceBadgeTip(tip, el);
+    ggBindBadgeTipDismiss();
 };
 
 // Safe hash navigation — never put untrusted strings into onclick handlers.
@@ -3607,24 +4668,32 @@ if (!window._annHashClickBound) {
         e.preventDefault();
         e.stopPropagation();
         var hash = a.getAttribute('data-ann-hash') || '';
-        if (!/^[a-zA-Z0-9_-]+$/.test(hash)) return;
+        if (!/^(?:[a-zA-Z0-9_-]+|(?:forum\/post|marketplace\/listing)\/[A-Za-z0-9_-]{1,128})$/.test(hash)) return;
         if (typeof window._annNavToHash === 'function') window._annNavToHash(hash);
     }, true);
 }
 
 window._annNavToHash = function(hash) {
-    if (!hash || !/^[a-zA-Z0-9_-]+$/.test(hash)) return;
+    if (!hash || !/^(?:[a-zA-Z0-9_-]+|(?:forum\/post|marketplace\/listing)\/[A-Za-z0-9_-]{1,128})$/.test(hash)) return;
     var wasOverlayOpen = !!window._chatOverlayOpen;
     // Close overlay if open
     if (wasOverlayOpen && typeof toggleChatOverlay === 'function') toggleChatOverlay();
     var delay = wasOverlayOpen ? 320 : 0;
     setTimeout(function() {
+        if (hash.indexOf('forum/post/') === 0 && typeof window.bqOpenForumPost === 'function') {
+            window.bqOpenForumPost(hash.slice('forum/post/'.length));
+            return;
+        }
+        if (hash.indexOf('marketplace/listing/') === 0 && typeof window.bqOpenMarketListing === 'function') {
+            window.bqOpenMarketListing(hash.slice('marketplace/listing/'.length));
+            return;
+        }
         // Map hash → proper navigation action
         // showQuestHub / showUserProfile etc. are overlays that work on top of any view
         // but channel routes (forum, marketplace, beats…) need go() so forumContainer is hidden first
         var overlayRoutes = { 'quests':1, 'favor':1, 'sf':1, 'satoshi-favor':1, 'pvp':1, 'nacho':1,
                              'dashboard':1, 'bitcoin-dashboard':1, 'metrics':1, 'network':1,
-                             'pow-support':1, 'leaderboard':1 };
+                             'pow-support':1, 'leaderboard':1, 'questhub':1, 'raid':1, 'raid-hub':1 };
         if (overlayRoutes[hash]) {
             // These open on top of whatever view is current — fine for both surfaces
             if (hash === 'leaderboard' && typeof toggleLeaderboard === 'function') { toggleLeaderboard(); return; }
@@ -3632,6 +4701,10 @@ window._annNavToHash = function(hash) {
             if ((hash === 'favor' || hash === 'sf' || hash === 'satoshi-favor') && typeof showQuestHub === 'function') {
                 showQuestHub(); window._questHubTab = 'favor';
                 setTimeout(function() { if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab(); }, 50);
+                return;
+            }
+            if ((hash === 'questhub' || hash === 'raid' || hash === 'raid-hub') && typeof openRaidHub === 'function') {
+                openRaidHub();
                 return;
             }
         }
@@ -3647,6 +4720,159 @@ window._annNavToHash = function(hash) {
             window.location.hash = hash;
         }
     }, delay);
+};
+
+// 🎉 on earned GGs posts. The count lives on the post. The tap calls
+// toggleGgReaction. One player, one celebration. No other emoji.
+function ggPartyMaps() {
+    if (!window._ggPartyMine) window._ggPartyMine = {};
+    if (!window._ggPartyOpt) window._ggPartyOpt = {};
+    if (!window._ggPartyServer) window._ggPartyServer = {};
+    if (!window._ggPartyBusy) window._ggPartyBusy = {};
+}
+
+function ggIsEarnedPost(data) {
+    if (!data || typeof data !== 'object') return false;
+    if (data.deleted === true || data.hidden === true || data.uid === 'deleted') return false;
+    var kind = String(data.ggKind || data.earnedKind || '').toLowerCase();
+    if (kind === 'badge' || kind === 'achievement' || kind === 'levelup' || kind === 'level-up' || kind === 'level_up' || kind === 'earned') return true;
+    if (data.postedByUid === 'badge-gg' && data.uid === 'nacho-bot') return true;
+    if (data.uid === 'nacho-bot' && Array.isArray(data.badgeIds) && data.badgeIds.length > 0) return true;
+    var auto = data.isNachoAuto === true || data.uid === 'nacho-bot' || data.uid === 'system';
+    if (!auto) return false;
+    var text = String(data.text || '');
+    if (/\bearned\b/i.test(text)) return true;
+    if (/\blevel(?:ed)?[\s-]?up\b/i.test(text)) return true;
+    if (/\bachievement\b/i.test(text)) return true;
+    if (/\bbadges?\b/i.test(text)) return true;
+    if (/\baced\b/i.test(text)) return true;
+    if (/\btrifecta\b/i.test(text)) return true;
+    return false;
+}
+
+function ggSignedInUser() {
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser) return null;
+    if (auth.currentUser.isAnonymous) return null;
+    return auth.currentUser;
+}
+
+function ggPartyBlocked() {
+    return typeof currentUser !== 'undefined' && currentUser && (currentUser.banned === true || !!currentUser.ban_reason);
+}
+
+function ggAnnSelector(docId) {
+    var safe = String(docId || '');
+    if (typeof CSS !== 'undefined' && CSS.escape) return '[data-ann-id="' + CSS.escape(safe) + '"]';
+    return '[data-ann-id="' + safe.replace(/"/g, '') + '"]';
+}
+
+function ggPartyView(docId, message) {
+    ggPartyMaps();
+    var server = Math.max(0, Math.floor(Number(message && message.partyCount) || 0));
+    window._ggPartyServer[docId] = server;
+    var opt = window._ggPartyOpt[docId];
+    if (opt && opt.count === server) {
+        window._ggPartyMine[docId] = !!opt.reacted;
+        delete window._ggPartyOpt[docId];
+        opt = null;
+    }
+    return {
+        count: opt ? opt.count : server,
+        reacted: opt ? !!opt.reacted : !!window._ggPartyMine[docId]
+    };
+}
+
+function _buildGgPartyBar(docId, count, reacted) {
+    var n = Math.max(0, Math.floor(Number(count) || 0));
+    var on = !!reacted;
+    var border = on ? 'var(--accent)' : 'var(--border)';
+    var bg = on ? 'rgba(247,147,26,0.22)' : 'var(--card-bg)';
+    var label = (on ? 'Remove celebration, ' : 'Celebrate, ') + n;
+    var id = esc(docId);
+    return '<div data-react-bar data-gg-party="1" data-party-count="' + n + '" data-party-on="' + (on ? '1' : '0') + '" style="display:flex;margin-top:8px;">' +
+        '<button type="button" data-gg-party-btn="1" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + '" onclick="event.stopPropagation();window._toggleGgParty(\'' + id + '\')" style="min-width:44px;min-height:44px;padding:6px 12px;border-radius:999px;border:2px solid ' + border + ';background:' + bg + ';font-size:1rem;cursor:pointer;color:var(--text);display:inline-flex;align-items:center;justify-content:center;gap:6px;touch-action:manipulation;">' +
+        '<span aria-hidden="true">🎉</span><span data-gg-party-count style="font-size:0.78rem;font-weight:800;color:var(--text);">' + n + '</span></button></div>';
+}
+
+function ggApplyPartyBar(docId) {
+    ggPartyMaps();
+    var opt = window._ggPartyOpt[docId];
+    var reacted = opt ? !!opt.reacted : !!window._ggPartyMine[docId];
+    var count = opt ? opt.count : Math.max(0, Math.floor(Number(window._ggPartyServer[docId]) || 0));
+    var html = _buildGgPartyBar(docId, count, reacted);
+    var nodes = document.querySelectorAll(ggAnnSelector(docId));
+    for (var i = 0; i < nodes.length; i++) {
+        var bar = nodes[i].querySelector('[data-gg-party]');
+        if (!bar) continue;
+        var tmp = document.createElement('div');
+        tmp.innerHTML = html;
+        if (tmp.firstChild) bar.replaceWith(tmp.firstChild);
+    }
+}
+
+function ggHydratePartyMine(snapshot) {
+    var user = ggSignedInUser();
+    if (!user || typeof db === 'undefined' || !db || !snapshot || typeof snapshot.forEach !== 'function') return;
+    ggPartyMaps();
+    snapshot.forEach(function (docSnap) {
+        var data = docSnap.data ? docSnap.data() : null;
+        if (!docSnap.id || !ggIsEarnedPost(data)) return;
+        if (Object.prototype.hasOwnProperty.call(window._ggPartyMine, docSnap.id)) return;
+        if (window._ggPartyOpt[docSnap.id]) return;
+        db.collection(ANNOUNCEMENTS_COLLECTION).doc(docSnap.id).collection('reactions').doc(user.uid).get().then(function (snap) {
+            if (window._ggPartyOpt[docSnap.id]) return;
+            window._ggPartyMine[docSnap.id] = !!(snap && snap.exists);
+            ggApplyPartyBar(docSnap.id);
+        }).catch(function () {});
+    });
+}
+
+window._toggleGgParty = function (docId) {
+    if (!/^[A-Za-z0-9_-]{1,200}$/.test(String(docId || ''))) return;
+    ggPartyMaps();
+    var user = ggSignedInUser();
+    if (!user) {
+        if (typeof showToast === 'function') showToast('Sign in to react');
+        return;
+    }
+    if (ggPartyBlocked()) {
+        if (typeof showToast === 'function') showToast('Reactions are unavailable');
+        return;
+    }
+    if (window._ggPartyBusy[docId]) return;
+    window._ggPartyBusy[docId] = true;
+    var prevOn = !!(window._ggPartyOpt[docId] ? window._ggPartyOpt[docId].reacted : window._ggPartyMine[docId]);
+    var server = Math.max(0, Math.floor(Number(window._ggPartyServer[docId]) || 0));
+    var prevCount = window._ggPartyOpt[docId] ? window._ggPartyOpt[docId].count : server;
+    var nextOn = !prevOn;
+    var nextCount = Math.max(0, prevCount + (nextOn ? 1 : -1));
+    window._ggPartyOpt[docId] = { count: nextCount, reacted: nextOn };
+    window._ggPartyMine[docId] = nextOn;
+    ggApplyPartyBar(docId);
+    var pending;
+    try {
+        pending = firebase.functions().httpsCallable('toggleGgReaction')({ postId: docId });
+    } catch (err) {
+        pending = Promise.reject(err);
+    }
+    pending = pending.then(function (res) {
+        var data = (res && res.data) || {};
+        var count = Math.max(0, Math.floor(Number(data.count) || 0));
+        var reacted = data.reacted === true;
+        window._ggPartyMine[docId] = reacted;
+        window._ggPartyOpt[docId] = { count: count, reacted: reacted };
+        if (window._ggPartyServer[docId] === count) delete window._ggPartyOpt[docId];
+        ggApplyPartyBar(docId);
+    }).catch(function () {
+        window._ggPartyMine[docId] = prevOn;
+        delete window._ggPartyOpt[docId];
+        ggApplyPartyBar(docId);
+        if (typeof showToast === 'function') showToast('Could not update the reaction');
+    }).then(function () {
+        delete window._ggPartyBusy[docId];
+    });
+    window._ggPartyPending = pending;
+    return pending;
 };
 
 // ---- Shared reaction-bar builder — used by renderer + optimistic updater ----
@@ -3669,6 +4895,7 @@ function _buildAnnReactBar(docId, reactions, myUid, esc) {
 // context: 'panel' = full chat hub, 'overlay' = floating overlay
 function _renderAnnouncementItem(doc, context) {
     var m = doc.data ? doc.data() : doc;
+    if (bqSkipAnnouncement(m)) return '';
     var docId = doc.id || '';
     var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return String(s).replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
     var timeStr = '';
@@ -3692,9 +4919,10 @@ function _renderAnnouncementItem(doc, context) {
         }
     });
 
-    // 1b. [text](#hash) — ONLY allow [a-zA-Z0-9_-] hashes; never interpolate into onclick
-    // (HTML-escaped quotes decode inside attributes and enable stored XSS).
-    text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_-]+)\)/g, function(_, label, hash) {
+    // 1b. [text](#hash) — single-segment hashes, plus forum/post and marketplace/listing ids.
+    // Never interpolate into onclick (HTML-escaped quotes decode inside attributes).
+    text = text.replace(/\[([^\]]+)\]\(#([a-zA-Z0-9_\/-]+)\)/g, function(_, label, hash) {
+        if (!/^(?:[A-Za-z0-9_-]+|forum\/post\/[A-Za-z0-9_-]{1,128}|marketplace\/listing\/[A-Za-z0-9_-]{1,128})$/.test(hash)) return label;
         return '<a href="#' + hash + '" data-ann-hash="' + hash + '" class="ann-hash-link" style="color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer;">'+label+'</a>';
     });
 
@@ -3702,7 +4930,7 @@ function _renderAnnouncementItem(doc, context) {
     var mentionUid = m.mentionUid || '';
     if (mentionUid) {
         // Announcement with known uid: match multi-word display names via keyword/possessive terminators only
-        text = text.replace(/@([A-Za-z0-9_\-\u2026\.]+(?:(?: )(?!(?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?'\n]|$))[A-Za-z0-9_\-\u2026\.]+)*)(?= (?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?]|$)| |’s |'s |[!?\u27A1]|$)/, function(_, rawName) {
+        text = text.replace(_mentionRe('u'), function(_, rawName) {
             var uname = rawName.trim();
             return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
         });
@@ -3710,94 +4938,86 @@ function _renderAnnouncementItem(doc, context) {
         // No uid — try multi-word first (for system announcements missing uid), then single-word for user-typed
         // No uid — try multi-word first (for system announcements missing uid)
         var _annMentionFound = false;
-        text = text.replace(/@([A-Za-z0-9_\-\u2026\.]+(?:(?: )(?!(?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?'\n]|$))[A-Za-z0-9_\-\u2026\.]+)*)(?= (?:just|earned|aced|leveled|completed|SOLVED|crushed)(?:[ !?]|$)| |’s |'s |[!?\u27A1]|$)/, function(_, rawName) {
+        text = text.replace(_mentionRe('u'), function(_, rawName) {
             _annMentionFound = true;
             var uname = rawName.trim();
             return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
         });
         // Also handle any remaining single-word @mentions (user-typed in normal chat)
         if (!_annMentionFound) {
-            text = text.replace(/@([A-Za-z0-9_\-\u2026\.]+)/g, function(_, uname) {
+            text = text.replace(_mentionWordRe('gu'), function(_, uname) {
                 return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
             });
         }
     }
 
 
-    // Badge tooltip — "earned a badge: EMOJI NAME!" → clickable with tooltip showing description
-    text = text.replace(/earned a badge: ([^!]+?)!/g, function(match, badgeRef) {
-        var _allBadgeDefs = [].concat(
-            (typeof BADGE_DEFS !== 'undefined' ? BADGE_DEFS : []),
-            (typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES : [])
-        );
-        // TITLE_DEFS — user titles awarded as badges; use title+flavor
-        if (typeof TITLE_DEFS !== 'undefined') {
-            TITLE_DEFS.forEach(function(t) {
-                _allBadgeDefs.push({ id: t.id, name: t.title || t.name || t.id, emoji: t.emoji || '🏅', desc: t.flavor || '', pts: 0 });
-            });
-        }
-        // BADGE_SETS bonus completion badges
-        if (typeof BADGE_SETS !== 'undefined') {
-            BADGE_SETS.forEach(function(s) {
-                if (!s || !s.bonusId) return;
-                _allBadgeDefs.push({ id: s.bonusId, name: s.bonusName || s.name, emoji: s.bonusEmoji || '🏅', desc: s.bonusDesc || ('Completed ' + s.name), pts: s.bonusPts || 0 });
-            });
-        }
-        // Also include dynamically generated Flex per-action badges
-        if (typeof FLEX_ACTIONS !== 'undefined' && typeof FLEX_BADGE_MILESTONES !== 'undefined') {
-            FLEX_ACTIONS.forEach(function(a) {
-                FLEX_BADGE_MILESTONES.forEach(function(m) {
-                    _allBadgeDefs.push({
-                        id: 'flex_' + a.id + '_' + m,
-                        name: a.name + ' \u00d7' + m,
-                        emoji: a.emoji,
-                        desc: 'Completed \u201c' + a.name + '\u201d ' + m + ' time' + (m === 1 ? '' : 's'),
-                        pts: Math.round(m * 2)
-                    });
-                });
-            });
-        }
-        // Find badge by matching emoji+name (decoded — text was already HTML-escaped so compare decoded)
-        var decoded = badgeRef.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#39;/g,"'");
-        var foundBadge = null;
-        for (var _bi = 0; _bi < _allBadgeDefs.length; _bi++) {
-            var _bd = _allBadgeDefs[_bi];
-            var _bdLabel = (_bd.emoji || '') + ' ' + (_bd.name || '');
-            if (decoded.trim() === _bdLabel.trim() || decoded.trim().replace(/^[sS]*? /,'') === (_bd.name || '').trim()) {
-                foundBadge = _bd; break;
-            }
-        }
-        if (!foundBadge) return match; // no match — leave as-is
-        var safeDesc = esc(foundBadge.desc || foundBadge.description || foundBadge.name || '');
-        var safeName = esc(foundBadge.emoji + ' ' + foundBadge.name);
-        var safePts = foundBadge.pts ? '+' + foundBadge.pts + ' XP' : '';
-        var tooltipHtml = safeDesc + (safePts ? ' · ' + safePts : '');
-        return 'earned a badge: <span data-badge-name="' + safeName.replace(/"/g,'&quot;') + '" data-badge-desc="' + tooltipHtml.replace(/"/g,'&quot;') + '" onclick="event.stopPropagation();window._showBadgeTooltip(this,this.getAttribute(\'data-badge-name\'),this.getAttribute(\'data-badge-desc\'))" style="background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.3);border-radius:8px;padding:2px 8px;cursor:pointer;font-weight:700;color:var(--accent);white-space:nowrap;display:inline-block;">' + badgeRef + '</span>!';
-    });
-
     var isOverlay = context === 'overlay';
     var pad = isOverlay ? '10px 12px' : '12px 14px';
     var fontSize = isOverlay ? '0.78rem' : '0.82rem';
-    var avatarSize = isOverlay ? '1.2rem' : '1.6rem';
+    var avatarPx = isOverlay ? 28 : 32;
     var borderR = isOverlay ? '12px' : '14px';
-
-    // Emoji reactions — show existing counts + a ➕ button to open the full picker
-    var reactions = m.reactions || {};
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-    var reactHtml = _buildAnnReactBar(docId, m.reactions || {}, myUid, esc);
+    var earnedPost = ggIsEarnedPost(m);
+    var reactHtml = earnedPost ? (function () {
+        var view = ggPartyView(docId, m);
+        return _buildGgPartyBar(docId, view.count, view.reacted);
+    })() : _buildAnnReactBar(docId, m.reactions || {}, myUid, esc);
+    var badgePost = ggTrustedBadgeIds(m) !== null || (m && m.isNachoAuto === true && /earned a badge: /.test(String(m.text || '')));
 
-    return '<div data-ann-id="'+esc(docId)+'" style="display:flex;gap:10px;align-items:flex-start;padding:'+pad+';background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.15);border-radius:'+borderR+';">' +
-        '<div style="font-size:'+avatarSize+';flex-shrink:0;line-height:1;padding-top:2px;">🦌</div>' +
-        '<div style="flex:1;min-width:0;">' +
-            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
-                '<span style="font-size:0.75rem;font-weight:700;color:#22c55e;">🦌 Nacho</span>' +
-                (timeStr ? '<span style="font-size:0.65rem;color:var(--text-faint);">'+esc(timeStr)+'</span>' : '') +
-            '</div>' +
-            '<div style="font-size:'+fontSize+';color:var(--text);line-height:1.5;word-break:break-word;">'+text+'</div>' +
-            reactHtml +
-        '</div>' +
-    '</div>';
+    var root = document.createElement('div');
+    root.setAttribute('data-ann-id', docId);
+    if (earnedPost) root.setAttribute('data-gg-earned', '1');
+    root.style.cssText = 'display:flex;gap:10px;align-items:flex-start;padding:' + pad + ';background:rgba(34,197,94,0.04);border:1px solid rgba(34,197,94,0.15);border-radius:' + borderR + ';';
+
+    var avatar = document.createElement('img');
+    avatar.src = '/nacho-deer.svg';
+    avatar.alt = '';
+    avatar.width = avatarPx;
+    avatar.height = avatarPx;
+    avatar.draggable = false;
+    avatar.style.cssText = 'width:' + avatarPx + 'px;height:' + avatarPx + 'px;flex-shrink:0;object-fit:contain;';
+    avatar.addEventListener('error', function() {
+        if (avatar.dataset.fb) return;
+        avatar.dataset.fb = '1';
+        var fallback = document.createElement('span');
+        fallback.textContent = '\uD83E\uDD8C';
+        fallback.style.fontSize = avatarPx + 'px';
+        fallback.style.lineHeight = '1';
+        if (avatar.parentNode) avatar.parentNode.replaceChild(fallback, avatar);
+    });
+
+    var body = document.createElement('div');
+    body.style.cssText = 'flex:1;min-width:0;';
+    var head = document.createElement('div');
+    head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px;';
+    var nameEl = document.createElement('span');
+    nameEl.style.cssText = 'font-size:0.75rem;font-weight:700;color:#22c55e;';
+    nameEl.textContent = 'Nacho';
+    head.appendChild(nameEl);
+    if (timeStr) {
+        var timeEl = document.createElement('span');
+        timeEl.style.cssText = 'font-size:0.65rem;color:var(--text-faint);';
+        timeEl.textContent = timeStr;
+        head.appendChild(timeEl);
+    }
+    var textEl = document.createElement('div');
+    textEl.style.cssText = 'font-size:' + fontSize + ';color:var(--text);line-height:1.5;word-break:break-word;';
+    if (badgePost) {
+        ggAppendBadgeBody(textEl, m);
+    } else {
+        textEl.innerHTML = text;
+    }
+    body.appendChild(head);
+    body.appendChild(textEl);
+    var reactHost = document.createElement('div');
+    reactHost.innerHTML = reactHtml;
+    if (reactHost.firstChild) body.appendChild(reactHost.firstChild);
+    root.appendChild(avatar);
+    root.appendChild(body);
+    return root;
 }
+window._renderAnnouncementItem = _renderAnnouncementItem;
 
 // Toggle emoji reaction on an announcement doc
 window._toggleAnnouncementReaction = function(docId, emoji) {
@@ -3920,8 +5140,6 @@ window.nachoPostToGlobalChat = function(text, mentionUid) {
     db.collection(CHAT_COLLECTION).add(msgData).catch(function(e) {
         console.error('[CHAT] Nacho global post failed:', e);
     });
-    // Bridge to Telegram for visibility
-    if (typeof bridgeToTelegram === 'function') bridgeToTelegram({ user: '\uD83E\uDD8C Nacho', text: text });
 };
 
 // Announcements go to the ANNOUNCEMENTS_COLLECTION (separate from global chat)
@@ -3944,9 +5162,6 @@ window.nachoGlobalAnnounce = function(text, mentionUid) {
     firebase.functions().httpsCallable('nachoAnnounce')({
         text: text,
         mentionUid: effectiveMentionUid
-    }).then(function() {
-        // Still bridge to Telegram for visibility
-        bridgeToTelegram({ user: '\uD83E\uDD8C Nacho', text: text });
     }).catch(function(e) {
         console.error('[CHAT] Nacho announce failed:', e);
     });
@@ -3967,6 +5182,231 @@ function _startPinListener() {
         }, function() {});
 }
 
+// SAY-HI START
+// Daily "Say hi". The client only opens chat and names the message id.
+// XP, tickets, the day, and the first-toast flag are written by claimSayHi.
+var SAY_HI_TOAST = '+50 XP and +1 \uD83C\uDF9F\uFE0F orange ticket for saying hi!';
+
+function _sayHiDay() {
+    if (typeof getDailyKey === 'function') return getDailyKey();
+    var shifted = new Date(Date.now() - 5 * 3600000);
+    return shifted.toISOString().slice(0, 10);
+}
+
+function _sayHiSignedIn() {
+    return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
+}
+
+function _paintSayHiButton() {
+    if (typeof window._paintTodayCard === 'function') {
+        try { window._paintTodayCard({ tilesOnly: true }); } catch (e) {}
+        return;
+    }
+    var btn = document.getElementById('sayHiBtn');
+    if (!btn) return;
+    var emoji = document.getElementById('sayHiBtnEmoji');
+    var label = document.getElementById('sayHiBtnLabel');
+    var sub = document.getElementById('sayHiBtnSub');
+    var claimed = typeof currentUser !== 'undefined' && currentUser && currentUser.sayHiClaimedDay === _sayHiDay();
+    if (emoji) emoji.textContent = '\uD83D\uDC4B';
+    if (label) label.textContent = 'Say hi!';
+    if (sub) sub.textContent = claimed ? 'Done' : 'to the community';
+    btn.style.color = 'var(--text)';
+    btn.style.background = 'var(--card-bg)';
+    btn.style.borderColor = 'var(--border)';
+    btn.style.opacity = '1';
+    btn.setAttribute('aria-label', claimed ? 'Say hi, completed' : 'Say hi!');
+}
+window._paintSayHiButton = _paintSayHiButton;
+
+function _sayHiFocusInput() {
+    var input = _gcActiveInput();
+    if (!input) return;
+    try { input.focus(); } catch (e) {}
+}
+
+function _openSayHiChat() {
+    if (!document.getElementById('chatOverlay') && typeof createChatOverlay === 'function') createChatOverlay();
+    if (!window._chatOverlayOpen) {
+        if (typeof toggleChatOverlay === 'function') toggleChatOverlay();
+    } else if (typeof window._switchOverlayTab === 'function') {
+        window._switchOverlayTab('global');
+    }
+    setTimeout(_sayHiFocusInput, 60);
+    setTimeout(_sayHiFocusInput, 350);
+}
+
+function _sayHiAppCheck() {
+    if (typeof firebase === 'undefined' || !firebase.appCheck) return Promise.reject(new Error('appcheck'));
+    var wait = (typeof window._btcAppCheckForClaim === 'function')
+        ? window._btcAppCheckForClaim(8000)
+        : Promise.resolve('skip');
+    return wait.then(function (token) {
+        if (!token) return Promise.reject(new Error('appcheck'));
+        return firebase.appCheck().getToken(false).then(function (res) {
+            if (!res || !res.token) return Promise.reject(new Error('appcheck'));
+            return res;
+        });
+    });
+}
+
+function _sayHiCallable(name) {
+    return firebase.functions().httpsCallable(name);
+}
+
+function _sayHiToast(text) {
+    if (typeof showToast === 'function') showToast(text);
+}
+
+window.openSayHi = function() {
+    _paintSayHiButton();
+    if (!_sayHiSignedIn()) {
+        _sayHiToast('Sign in to say hi.');
+        if (typeof showSignInPrompt === 'function') showSignInPrompt();
+        else if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+        return;
+    }
+    var today = _sayHiDay();
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.sayHiClaimedDay === today) {
+        _paintSayHiButton();
+        _sayHiToast('You already said hi today.');
+        _openSayHiChat();
+        return;
+    }
+    window._sayHiAwaitingSend = true;
+    _openSayHiChat();
+    if (typeof firebase === 'undefined' || !firebase.functions) return;
+    // Kept so a message sent before this returns still claims after the arm.
+    window._sayHiArmPromise = _sayHiAppCheck().then(function() {
+        return _sayHiCallable('armSayHi')({});
+    }).then(function(res) {
+        var data = (res && res.data) || {};
+        if (data.alreadyClaimed) {
+            window._sayHiAwaitingSend = false;
+            if (typeof currentUser !== 'undefined' && currentUser && data.day) currentUser.sayHiClaimedDay = data.day;
+            _paintSayHiButton();
+            _sayHiToast('You already said hi today.');
+            return data;
+        }
+        if (data.success && typeof currentUser !== 'undefined' && currentUser && data.day) {
+            currentUser.sayHiArmedDay = data.day;
+        } else if (data.code === 'unavailable') {
+            window._sayHiAwaitingSend = false;
+            _sayHiToast('Say hi is unavailable on this account.');
+        } else if (data.code === 'rate') {
+            // Double-tap while the send is still coming. The first arm stands.
+        } else if (!data.success) {
+            window._sayHiAwaitingSend = false;
+            _sayHiToast('Could not start Say hi. Try again.');
+        }
+        return data;
+    }).catch(function() {
+        _sayHiToast('Security check failed. Refresh the page and try again.');
+    });
+};
+
+window._maybeClaimSayHi = function(messageId) {
+    if (!messageId || typeof messageId !== 'string') return;
+    var today = _sayHiDay();
+    var awaiting = window._sayHiAwaitingSend === true;
+    var armedToday = typeof currentUser !== 'undefined' && currentUser && currentUser.sayHiArmedDay === today;
+    var claimedToday = typeof currentUser !== 'undefined' && currentUser && currentUser.sayHiClaimedDay === today;
+    if (claimedToday) return;
+    if (!awaiting && !armedToday) return;
+    if (typeof firebase === 'undefined' || !firebase.functions) return;
+    if (window._sayHiClaiming) return;
+    window._sayHiClaiming = true;
+    (window._sayHiArmPromise || Promise.resolve()).then(function() {
+        return _sayHiAppCheck();
+    }).then(function() {
+        return _sayHiCallable('claimSayHi')({ messageId: messageId });
+    }).then(function(res) {
+        window._sayHiClaiming = false;
+        var data = (res && res.data) || {};
+        if (data.code === 'ok') {
+            window._sayHiAwaitingSend = false;
+            if (typeof currentUser !== 'undefined' && currentUser) {
+                var gained = (Number(data.xpAwarded) || 0) + (Number(data.overflowRedeemed) || 0);
+                if (gained > 0) currentUser.points = (Number(currentUser.points) || 0) + gained;
+                if (data.tickets) currentUser.orangeTickets = (Number(currentUser.orangeTickets) || 0) + Number(data.tickets);
+                if (data.day) currentUser.sayHiClaimedDay = data.day;
+                currentUser.sayHiToastSeen = true;
+            }
+            if (typeof updateRankUI === 'function') updateRankUI();
+            _paintSayHiButton();
+            if (data.showToast === true) _sayHiToast(SAY_HI_TOAST);
+        } else if (data.alreadyClaimed) {
+            window._sayHiAwaitingSend = false;
+            if (typeof currentUser !== 'undefined' && currentUser && data.day) currentUser.sayHiClaimedDay = data.day;
+            _paintSayHiButton();
+        } else if (data.code === 'short' || data.code === 'empty') {
+            _sayHiToast('Send a short hello to earn today\u2019s Say hi.');
+        } else if (data.code === 'before-press' || data.code === 'no-arm') {
+            _sayHiToast('Press Say hi, then send a new message.');
+        } else if (data.code === 'unavailable') {
+            window._sayHiAwaitingSend = false;
+            _sayHiToast('Say hi is unavailable on this account.');
+        } else if (data.code === 'rate') {
+            _sayHiToast('Slow down a moment, then send your hello.');
+        }
+    }).catch(function() {
+        window._sayHiClaiming = false;
+        if (!window._sayHiClaimRetried) {
+            window._sayHiClaimRetried = true;
+            setTimeout(function() { window._maybeClaimSayHi(messageId); }, 1500);
+            return;
+        }
+        if (typeof showToast === 'function') showToast('Say hi did not go through. Send your hello once more.');
+    });
+};
+
+var _sayHiPaintTries = 0;
+var _sayHiPaintTimer = setInterval(function() {
+    _sayHiPaintTries++;
+    if (typeof window._paintTodayCard === 'function' || _sayHiPaintTries > 20) {
+        clearInterval(_sayHiPaintTimer);
+        return;
+    }
+    _paintSayHiButton();
+}, 1000);
+if (typeof auth !== 'undefined' && auth && typeof auth.onAuthStateChanged === 'function') {
+    try { auth.onAuthStateChanged(function() { setTimeout(_paintSayHiButton, 600); }); } catch (e) {}
+}
+// SAY-HI END
+// REPLY-BONUS START
+// Hidden. Nothing in the chat UI mentions this. The server decides the XP.
+function _maybeClaimReplyBonus(messageId) {
+    if (!messageId || typeof messageId !== 'string') return;
+    if (!/^[A-Za-z0-9_-]{8,128}$/.test(messageId)) return;
+    if (typeof firebase === 'undefined' || !firebase.functions || !firebase.appCheck) return;
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    var wait = (typeof window._btcAppCheckForClaim === 'function')
+        ? window._btcAppCheckForClaim(8000)
+        : Promise.resolve('skip');
+    wait.then(function (token) {
+        if (!token) return null;
+        return firebase.appCheck().getToken(false);
+    }).then(function (ready) {
+        if (!ready || !ready.token) return null;
+        return firebase.functions().httpsCallable('claimReplyBonus')({ messageId: messageId });
+    }).then(function(res) {
+        var data = (res && res.data) || {};
+        if (data.showToast !== true) return;
+        var n = Math.round(Number(data.xp));
+        if (!isFinite(n) || n <= 0 || n > 50) return;
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            currentUser.points = (Number(currentUser.points) || 0) + n;
+        }
+        if (typeof updateRankUI === 'function') updateRankUI();
+        var text = data.first === true
+            ? '\uD83D\uDCAC +' + n + ' XP for joining the conversation!'
+            : '+' + n + ' XP';
+        if (typeof showToast === 'function') showToast(text);
+    }).catch(function() {});
+}
+// REPLY-BONUS END
+window.formatChatText = formatChatText;
+window._chatMentionTargets = _chatMentionTargets;
 console.log('[CHAT] Global chat module loaded');
 }();
 

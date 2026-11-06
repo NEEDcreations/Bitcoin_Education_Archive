@@ -1,0 +1,1708 @@
+[
+  {
+    "id": "crypto-utxo",
+    "category": "cryptography",
+    "question": "What is a UTXO?",
+    "alts": [
+      "Define a UTXO?",
+      "Explain a UTXO?",
+      "Describe a UTXO?"
+    ],
+    "answer": "A UTXO is an unspent transaction output, a coin that has not been spent yet. Bitcoin tracks those coins, not accounts with a running balance. Your wallet sums the outputs its keys can unlock.",
+    "topics": [
+      "cryptography",
+      "taproot",
+      "utxos"
+    ],
+    "followUps": [
+      "crypto-taproot",
+      "crypto-addresses",
+      "crypto-curve"
+    ],
+    "sources": "UTXO model."
+  },
+  {
+    "id": "crypto-taproot",
+    "category": "cryptography",
+    "question": "What is Taproot?",
+    "alts": [
+      "Define Taproot?",
+      "Explain Taproot?",
+      "Describe Taproot?"
+    ],
+    "answer": "Taproot is a soft fork that activated in November 2021. Cooperative spends can look like one signature, and a script is revealed only if the simpler path is not used. It uses Schnorr signatures.",
+    "topics": [
+      "taproot",
+      "cryptography",
+      "soft_vs_hard_forks"
+    ],
+    "followUps": [
+      "crypto-addresses",
+      "crypto-curve",
+      "crypto-ecdsa"
+    ],
+    "sources": "BIP340, BIP341, BIP342. Activation November 2021."
+  },
+  {
+    "id": "crypto-addresses",
+    "category": "cryptography",
+    "question": "How do Bitcoin addresses work?",
+    "alts": [
+      "Explain how Bitcoin addresses work?",
+      "Describe how Bitcoin addresses work?",
+      "In what way do Bitcoin addresses work?"
+    ],
+    "answer": "An address is a shareable encoding of a locking script. The sender's wallet pays that script, and the receiver later unlocks it with a signature or another condition. A fresh address for each payment avoids tying receipts together.",
+    "topics": [
+      "cryptography",
+      "utxos",
+      "privacy-nonkyc"
+    ],
+    "followUps": [
+      "crypto-curve",
+      "crypto-ecdsa",
+      "crypto-schnorr"
+    ],
+    "sources": "Address encodings."
+  },
+  {
+    "id": "crypto-curve",
+    "category": "cryptography",
+    "question": "What curve does Bitcoin use?",
+    "alts": [
+      "Explain this: what curve does Bitcoin use?",
+      "Clarify this: what curve does Bitcoin use?",
+      "Unpack this: what curve does Bitcoin use?"
+    ],
+    "answer": "Bitcoin keys sit on the secp256k1 elliptic curve. The same curve is used for the older ECDSA signatures and for Schnorr signatures in Taproot. The curve is a public parameter, not a secret.",
+    "topics": [
+      "cryptography",
+      "math",
+      "public_key_vs_private_key"
+    ],
+    "followUps": [
+      "crypto-ecdsa",
+      "crypto-schnorr",
+      "crypto-pubkey"
+    ],
+    "sources": "secp256k1."
+  },
+  {
+    "id": "crypto-ecdsa",
+    "category": "cryptography",
+    "question": "What is ECDSA in Bitcoin?",
+    "alts": [
+      "Define ECDSA in Bitcoin?",
+      "Explain ECDSA in Bitcoin?",
+      "Describe ECDSA in Bitcoin?"
+    ],
+    "answer": "ECDSA is the signature algorithm Bitcoin used from the start. A signature shows the private key's owner approved a specific transaction, without revealing the key. Taproot key-path spends use Schnorr instead.",
+    "topics": [
+      "cryptography",
+      "public_key_vs_private_key",
+      "math"
+    ],
+    "followUps": [
+      "crypto-schnorr",
+      "crypto-pubkey",
+      "crypto-hash160"
+    ],
+    "sources": "ECDSA signatures."
+  },
+  {
+    "id": "crypto-schnorr",
+    "category": "cryptography",
+    "question": "What is a Schnorr signature?",
+    "alts": [
+      "Define a Schnorr signature?",
+      "Explain a Schnorr signature?",
+      "Describe a Schnorr signature?"
+    ],
+    "answer": "Schnorr signatures are an alternative signature math that combines cleanly when several people sign. Taproot uses them. Several signers can produce one signature that looks like a single key signed.",
+    "topics": [
+      "cryptography",
+      "taproot",
+      "math"
+    ],
+    "followUps": [
+      "crypto-pubkey",
+      "crypto-hash160",
+      "crypto-p2pkh"
+    ],
+    "sources": "BIP340 Schnorr."
+  },
+  {
+    "id": "crypto-pubkey",
+    "category": "cryptography",
+    "question": "What is a public key?",
+    "alts": [
+      "Define a public key?",
+      "Explain a public key?",
+      "Describe a public key?"
+    ],
+    "answer": "A public key is the shareable half of a key pair, derived from the private key. Addresses and scripts are built from it. Revealing a public key is normal when you spend, and it does not reveal the private key.",
+    "topics": [
+      "public_key_vs_private_key",
+      "cryptography",
+      "math"
+    ],
+    "followUps": [
+      "crypto-hash160",
+      "crypto-p2pkh",
+      "crypto-p2sh"
+    ],
+    "sources": "Public keys."
+  },
+  {
+    "id": "crypto-hash160",
+    "category": "cryptography",
+    "question": "Why are addresses hashes?",
+    "alts": [
+      "Explain why are addresses hashes?",
+      "For what reason are addresses hashes?",
+      "What is the reason are addresses hashes?"
+    ],
+    "answer": "Hashing a public key makes a shorter commitment and, for older address types, hides the public key until you spend. The address commits to the key or the script. You still need the secret to spend.",
+    "topics": [
+      "cryptography",
+      "math",
+      "utxos"
+    ],
+    "followUps": [
+      "crypto-p2pkh",
+      "crypto-p2sh",
+      "crypto-bech32"
+    ],
+    "sources": "HASH160 in classic addresses."
+  },
+  {
+    "id": "crypto-p2pkh",
+    "category": "cryptography",
+    "question": "What is P2PKH?",
+    "alts": [
+      "Define P2PKH?",
+      "Explain P2PKH?",
+      "Describe P2PKH?"
+    ],
+    "answer": "P2PKH means pay to a public key hash. Those addresses often start with 1. Spending reveals the public key and a signature. It is the classic address type.",
+    "topics": [
+      "cryptography",
+      "utxos",
+      "history"
+    ],
+    "followUps": [
+      "crypto-p2sh",
+      "crypto-bech32",
+      "crypto-bech32m"
+    ],
+    "sources": "Pay to public key hash."
+  },
+  {
+    "id": "crypto-p2sh",
+    "category": "cryptography",
+    "question": "What is P2SH?",
+    "alts": [
+      "Define P2SH?",
+      "Explain P2SH?",
+      "Describe P2SH?"
+    ],
+    "answer": "P2SH means pay to a script hash. Addresses often start with 3. The spender reveals the script that matches the hash and then satisfies it, which is how many older multisig wallets worked.",
+    "topics": [
+      "cryptography",
+      "utxos",
+      "smart-contracts"
+    ],
+    "followUps": [
+      "crypto-bech32",
+      "crypto-bech32m",
+      "crypto-segwit-script"
+    ],
+    "sources": "BIP16."
+  },
+  {
+    "id": "crypto-bech32",
+    "category": "cryptography",
+    "question": "What is bech32?",
+    "alts": [
+      "Define bech32?",
+      "Explain bech32?",
+      "Describe bech32?"
+    ],
+    "answer": "Bech32 is an address encoding that uses a human-readable prefix and a checksum. Native SegWit addresses start with bc1q. It is easier to type safely than older formats and it belongs to SegWit outputs.",
+    "topics": [
+      "cryptography",
+      "utxos",
+      "math"
+    ],
+    "followUps": [
+      "crypto-bech32m",
+      "crypto-segwit-script",
+      "crypto-p2tr"
+    ],
+    "sources": "BIP173."
+  },
+  {
+    "id": "crypto-bech32m",
+    "category": "cryptography",
+    "question": "What is bech32m?",
+    "alts": [
+      "Define bech32m?",
+      "Explain bech32m?",
+      "Describe bech32m?"
+    ],
+    "answer": "Bech32m is a small revision of the bech32 checksum used for Taproot addresses. Those addresses start with bc1p. A wallet should not mix the two checksums.",
+    "topics": [
+      "taproot",
+      "cryptography",
+      "math"
+    ],
+    "followUps": [
+      "crypto-segwit-script",
+      "crypto-p2tr",
+      "crypto-witness"
+    ],
+    "sources": "BIP350."
+  },
+  {
+    "id": "crypto-segwit-script",
+    "category": "cryptography",
+    "question": "What is P2WPKH?",
+    "alts": [
+      "Define P2WPKH?",
+      "Explain P2WPKH?",
+      "Describe P2WPKH?"
+    ],
+    "answer": "P2WPKH is a native SegWit pay-to-public-key-hash. The signature sits in the witness, which is why those spends use block weight more efficiently. Addresses start with bc1q.",
+    "topics": [
+      "cryptography",
+      "utxos",
+      "block_time-block-size"
+    ],
+    "followUps": [
+      "crypto-p2tr",
+      "crypto-witness",
+      "crypto-malleability"
+    ],
+    "sources": "Native SegWit v0."
+  },
+  {
+    "id": "crypto-p2tr",
+    "category": "cryptography",
+    "question": "What is P2TR?",
+    "alts": [
+      "Define P2TR?",
+      "Explain P2TR?",
+      "Describe P2TR?"
+    ],
+    "answer": "P2TR is pay to Taproot, a SegWit v1 output. The common path is a Schnorr signature from a tweaked key. A script path exists for more complex conditions and is revealed only when used.",
+    "topics": [
+      "taproot",
+      "cryptography",
+      "smart-contracts"
+    ],
+    "followUps": [
+      "crypto-witness",
+      "crypto-malleability",
+      "crypto-txid"
+    ],
+    "sources": "BIP341."
+  },
+  {
+    "id": "crypto-witness",
+    "category": "cryptography",
+    "question": "What is the witness?",
+    "alts": [
+      "Define the witness?",
+      "Explain the witness?",
+      "Describe the witness?"
+    ],
+    "answer": "The witness is the data that unlocks a SegWit output, kept in a separate part of the transaction. It is why SegWit fixed a kind of malleability and discounted signature bytes. Nodes still check it.",
+    "topics": [
+      "cryptography",
+      "blockchain-timechain",
+      "block_time-block-size"
+    ],
+    "followUps": [
+      "crypto-malleability",
+      "crypto-txid",
+      "crypto-script"
+    ],
+    "sources": "SegWit witness."
+  },
+  {
+    "id": "crypto-malleability",
+    "category": "cryptography",
+    "question": "What was transaction malleability?",
+    "alts": [
+      "Explain this: what was transaction malleability?",
+      "Clarify this: what was transaction malleability?",
+      "Unpack this: what was transaction malleability?"
+    ],
+    "answer": "Before SegWit, a signature could sometimes be tweaked so the transaction id changed before confirmation, without changing who got paid. That broke some designs that relied on a fixed id. SegWit puts the signature outside the id calculation for those spends.",
+    "topics": [
+      "cryptography",
+      "history",
+      "blockchain-timechain"
+    ],
+    "followUps": [
+      "crypto-txid",
+      "crypto-script",
+      "crypto-opcode"
+    ],
+    "sources": "Third-party malleability and SegWit."
+  },
+  {
+    "id": "crypto-txid",
+    "category": "cryptography",
+    "question": "What is a txid?",
+    "alts": [
+      "Define a txid?",
+      "Explain a txid?",
+      "Describe a txid?"
+    ],
+    "answer": "A txid is the hash that names a transaction. For SegWit transactions the txid excludes the witness, and a wtxid includes it. A txid is not a private key, even though it is a long hex string.",
+    "topics": [
+      "cryptography",
+      "blockchain-timechain",
+      "faq-glossary"
+    ],
+    "followUps": [
+      "crypto-script",
+      "crypto-opcode",
+      "crypto-timelock"
+    ],
+    "sources": "Transaction identifiers."
+  },
+  {
+    "id": "crypto-script",
+    "category": "cryptography",
+    "question": "What is Bitcoin Script?",
+    "alts": [
+      "Define Bitcoin Script?",
+      "Explain Bitcoin Script?",
+      "Describe Bitcoin Script?"
+    ],
+    "answer": "Script is the small language that sets spending conditions. It is a stack machine, deliberately not a general programming language. The limits keep validation predictable.",
+    "topics": [
+      "op-codes",
+      "smart-contracts",
+      "cryptography"
+    ],
+    "followUps": [
+      "crypto-opcode",
+      "crypto-timelock",
+      "crypto-nlocktime"
+    ],
+    "sources": "Bitcoin Script."
+  },
+  {
+    "id": "crypto-opcode",
+    "category": "cryptography",
+    "question": "What is an opcode?",
+    "alts": [
+      "Define an opcode?",
+      "Explain an opcode?",
+      "Describe an opcode?"
+    ],
+    "answer": "An opcode is one instruction in Script, such as check-signature or check-locktime. Nodes agree on what each opcode does. Disabled or limited opcodes are part of keeping scripts safe to validate.",
+    "topics": [
+      "op-codes",
+      "smart-contracts",
+      "consensus"
+    ],
+    "followUps": [
+      "crypto-timelock",
+      "crypto-nlocktime",
+      "crypto-rbf-script"
+    ],
+    "sources": "Script opcodes."
+  },
+  {
+    "id": "crypto-timelock",
+    "category": "cryptography",
+    "question": "What is a timelock?",
+    "alts": [
+      "Define a timelock?",
+      "Explain a timelock?",
+      "Describe a timelock?"
+    ],
+    "answer": "A timelock stops an output or a transaction from being valid until a height or a time has passed. CLTV locks an output, and CSV locks it relative to when it was confirmed. They are tools for channels, vaults, and inheritance plans.",
+    "topics": [
+      "op-codes",
+      "time",
+      "smart-contracts"
+    ],
+    "followUps": [
+      "crypto-nlocktime",
+      "crypto-rbf-script",
+      "crypto-cpfp"
+    ],
+    "sources": "BIP65 and BIP68 or BIP112."
+  },
+  {
+    "id": "crypto-nlocktime",
+    "category": "cryptography",
+    "question": "What is nLockTime?",
+    "alts": [
+      "Define nLockTime?",
+      "Explain nLockTime?",
+      "Describe nLockTime?"
+    ],
+    "answer": "nLockTime is a field on a transaction that makes it invalid until a height or time. It can be used so a backup spend becomes valid only later. It is not a way to reverse a payment that already confirmed.",
+    "topics": [
+      "time",
+      "op-codes",
+      "blockchain-timechain"
+    ],
+    "followUps": [
+      "crypto-rbf-script",
+      "crypto-cpfp",
+      "crypto-multisig"
+    ],
+    "sources": "nLockTime."
+  },
+  {
+    "id": "crypto-rbf-script",
+    "category": "cryptography",
+    "question": "What is replace-by-fee?",
+    "alts": [
+      "Define replace-by-fee?",
+      "Explain replace-by-fee?",
+      "Describe replace-by-fee?"
+    ],
+    "answer": "Replace-by-fee lets a sender publish a new version of an unconfirmed transaction that pays a higher fee. BIP125 describes one signaling method. Nodes and miners choose whether to relay replacements.",
+    "topics": [
+      "rbf",
+      "transaction_fees",
+      "consensus"
+    ],
+    "followUps": [
+      "crypto-cpfp",
+      "crypto-multisig",
+      "crypto-threshold"
+    ],
+    "sources": "BIP125."
+  },
+  {
+    "id": "crypto-cpfp",
+    "category": "cryptography",
+    "question": "What is child pays for parent?",
+    "alts": [
+      "Define child pays for parent?",
+      "Explain child pays for parent?",
+      "Describe child pays for parent?"
+    ],
+    "answer": "If a stuck transaction pays you, you can spend its output with a high fee so a miner wants both transactions. The child pulls the parent into the block. It is a fee technique, not a new asset.",
+    "topics": [
+      "transaction_fees",
+      "rbf",
+      "utxos"
+    ],
+    "followUps": [
+      "crypto-multisig",
+      "crypto-threshold",
+      "crypto-psbt"
+    ],
+    "sources": "CPFP."
+  },
+  {
+    "id": "crypto-multisig",
+    "category": "cryptography",
+    "question": "What is multisig?",
+    "alts": [
+      "Define multisig?",
+      "Explain multisig?",
+      "Describe multisig?"
+    ],
+    "answer": "Multisig means more than one key must approve a spend, such as two of three. It reduces the chance that one lost device takes the coins. Taproot can hide the policy until a script path is used.",
+    "topics": [
+      "smart-contracts",
+      "self-custody",
+      "cryptography"
+    ],
+    "followUps": [
+      "crypto-threshold",
+      "crypto-psbt",
+      "crypto-descriptor"
+    ],
+    "sources": "M-of-n policies."
+  },
+  {
+    "id": "crypto-threshold",
+    "category": "cryptography",
+    "question": "What is a threshold signature?",
+    "alts": [
+      "Define a threshold signature?",
+      "Explain a threshold signature?",
+      "Describe a threshold signature?"
+    ],
+    "answer": "A threshold signature lets several parties produce one ordinary-looking signature, so the chain may not show that a group signed. It is different from old on-chain multisig that reveals every key. Setups differ by wallet, and the backup plan still matters.",
+    "topics": [
+      "taproot",
+      "cryptography",
+      "self-custody"
+    ],
+    "followUps": [
+      "crypto-psbt",
+      "crypto-descriptor",
+      "crypto-miniscript"
+    ],
+    "sources": "Threshold signatures."
+  },
+  {
+    "id": "crypto-psbt",
+    "category": "cryptography",
+    "question": "What is a PSBT?",
+    "alts": [
+      "Define a PSBT?",
+      "Explain a PSBT?",
+      "Describe a PSBT?"
+    ],
+    "answer": "A PSBT is a partially signed bitcoin transaction, a file wallets pass around while a transfer is being approved. One device can build it and another can sign without typing a seed. It is a coordination format, not a second network.",
+    "topics": [
+      "cryptography",
+      "self-custody",
+      "apps-tools"
+    ],
+    "followUps": [
+      "crypto-descriptor",
+      "crypto-miniscript",
+      "crypto-bip32"
+    ],
+    "sources": "BIP174."
+  },
+  {
+    "id": "crypto-descriptor",
+    "category": "cryptography",
+    "question": "What is an output descriptor?",
+    "alts": [
+      "Define an output descriptor?",
+      "Explain an output descriptor?",
+      "Describe an output descriptor?"
+    ],
+    "answer": "A descriptor is a string that describes exactly which outputs a wallet can spend. It makes backups more precise than a pile of loose keys. Wallets that support descriptors can import the same backup and agree.",
+    "topics": [
+      "derivation_path",
+      "self-custody",
+      "cryptography"
+    ],
+    "followUps": [
+      "crypto-miniscript",
+      "crypto-bip32",
+      "crypto-bip39"
+    ],
+    "sources": "Output descriptors."
+  },
+  {
+    "id": "crypto-miniscript",
+    "category": "cryptography",
+    "question": "What is miniscript?",
+    "alts": [
+      "Define miniscript?",
+      "Explain miniscript?",
+      "Describe miniscript?"
+    ],
+    "answer": "Miniscript is a structured way to write Bitcoin spending policies so wallets can analyze them safely. It compiles to Script. It is a tool for policy, not a new coin.",
+    "topics": [
+      "smart-contracts",
+      "op-codes",
+      "cryptography"
+    ],
+    "followUps": [
+      "crypto-bip32",
+      "crypto-bip39",
+      "crypto-bip44"
+    ],
+    "sources": "Miniscript."
+  },
+  {
+    "id": "crypto-bip32",
+    "category": "cryptography",
+    "question": "What is BIP32?",
+    "alts": [
+      "Define BIP32?",
+      "Explain BIP32?",
+      "Describe BIP32?"
+    ],
+    "answer": "BIP32 describes hierarchical deterministic wallets, where many keys come from one seed. A parent key derives child keys along a path. That is why one backup can cover many addresses.",
+    "topics": [
+      "derivation_path",
+      "cryptography",
+      "self-custody"
+    ],
+    "followUps": [
+      "crypto-bip39",
+      "crypto-bip44",
+      "crypto-passphrase"
+    ],
+    "sources": "BIP32."
+  },
+  {
+    "id": "crypto-bip39",
+    "category": "cryptography",
+    "question": "What is BIP39?",
+    "alts": [
+      "How many words is a seed?",
+      "How many words are in a seed phrase?",
+      "What is the length of a seed?",
+      "Define BIP39?",
+      "Explain BIP39?",
+      "Describe BIP39?"
+    ],
+    "answer": "BIP39 maps a random number to a list of words so people can write a backup. Common lengths are 12 or 24 words from a list of 2,048 English words. The words are the backup of the wallet, and anyone who sees them can take the coins.",
+    "topics": [
+      "self-custody",
+      "derivation_path",
+      "cryptography"
+    ],
+    "followUps": [
+      "crypto-bip44",
+      "crypto-passphrase",
+      "crypto-change"
+    ],
+    "sources": "BIP39."
+  },
+  {
+    "id": "crypto-bip44",
+    "category": "cryptography",
+    "question": "What is a derivation path?",
+    "alts": [
+      "Define a derivation path?",
+      "Explain a derivation path?",
+      "Describe a derivation path?"
+    ],
+    "answer": "A derivation path is the sequence of indexes that walks from a seed to a specific key. BIP44 and later BIPs suggest standard paths so wallets can find the same coins. A wrong path looks like an empty wallet even when the seed is right.",
+    "topics": [
+      "derivation_path",
+      "self-custody",
+      "cryptography"
+    ],
+    "followUps": [
+      "crypto-passphrase",
+      "crypto-change",
+      "crypto-coin-control"
+    ],
+    "sources": "BIP44 and related path BIPs."
+  },
+  {
+    "id": "crypto-passphrase",
+    "category": "cryptography",
+    "question": "What is a BIP39 passphrase?",
+    "alts": [
+      "What is a passphrase on top of a seed?",
+      "What is an extra passphrase on a seed?",
+      "How does a passphrase sit on a seed?",
+      "Define a BIP39 passphrase?",
+      "Explain a BIP39 passphrase?",
+      "Describe a BIP39 passphrase?"
+    ],
+    "answer": "A passphrase is an extra secret that, together with the word list, derives a different wallet. There is no company that can reset it. If you forget it, the coins on that hidden wallet stay locked.",
+    "topics": [
+      "self-custody",
+      "derivation_path",
+      "cryptography"
+    ],
+    "followUps": [
+      "crypto-change",
+      "crypto-coin-control",
+      "crypto-dust"
+    ],
+    "sources": "BIP39 passphrase."
+  },
+  {
+    "id": "crypto-change",
+    "category": "cryptography",
+    "question": "What is change in a transaction?",
+    "alts": [
+      "Define change in a transaction?",
+      "Explain change in a transaction?",
+      "Describe change in a transaction?"
+    ],
+    "answer": "Spending an output uses it up completely. The wallet sends what you owe to the recipient and the remainder to a change address you control. That change is a new UTXO.",
+    "topics": [
+      "utxos",
+      "cryptography",
+      "privacy-nonkyc"
+    ],
+    "followUps": [
+      "crypto-coin-control",
+      "crypto-dust",
+      "crypto-sighash"
+    ],
+    "sources": "Change outputs."
+  },
+  {
+    "id": "crypto-coin-control",
+    "category": "cryptography",
+    "question": "What is coin control?",
+    "alts": [
+      "Define coin control?",
+      "Explain coin control?",
+      "Describe coin control?"
+    ],
+    "answer": "Coin control means choosing which UTXOs to spend. It affects fees and which parts of your history get linked in one transaction. Wallets that hide this choice are making it for you.",
+    "topics": [
+      "coin_mixing_coinjoin_coin_control_utxo",
+      "utxos",
+      "privacy-nonkyc"
+    ],
+    "followUps": [
+      "crypto-dust",
+      "crypto-sighash",
+      "crypto-lock-script"
+    ],
+    "sources": "Manual UTXO selection."
+  },
+  {
+    "id": "crypto-dust",
+    "category": "cryptography",
+    "question": "What is dust?",
+    "alts": [
+      "Define dust?",
+      "Explain dust?",
+      "Describe dust?"
+    ],
+    "answer": "Dust is an output so small that spending it may cost more in fees than it is worth. The cutoff depends on the fee rate and the output type. Wallets try not to create dust, and nodes may refuse to relay it.",
+    "topics": [
+      "dust",
+      "transaction_fees",
+      "utxos"
+    ],
+    "followUps": [
+      "crypto-sighash",
+      "crypto-lock-script",
+      "crypto-bip21"
+    ],
+    "sources": "Dust depends on fees."
+  },
+  {
+    "id": "crypto-sighash",
+    "category": "cryptography",
+    "question": "What is a sighash flag?",
+    "alts": [
+      "Define a sighash flag?",
+      "Explain a sighash flag?",
+      "Describe a sighash flag?"
+    ],
+    "answer": "A sighash flag tells a signature which parts of a transaction it commits to. The usual flag covers the whole transaction. Unusual flags exist for special protocols and are a reason to read what your wallet is signing.",
+    "topics": [
+      "cryptography",
+      "smart-contracts",
+      "op-codes"
+    ],
+    "followUps": [
+      "crypto-lock-script",
+      "crypto-bip21",
+      "crypto-xpub"
+    ],
+    "sources": "Signature hash types."
+  },
+  {
+    "id": "crypto-lock-script",
+    "category": "cryptography",
+    "question": "What is a locking script?",
+    "alts": [
+      "Define a locking script?",
+      "Explain a locking script?",
+      "Describe a locking script?"
+    ],
+    "answer": "The locking script is the condition on an output, also called the scriptPubKey. The unlocking data in the spend must satisfy it. Together they are how Bitcoin expresses who may move the coins.",
+    "topics": [
+      "op-codes",
+      "utxos",
+      "cryptography"
+    ],
+    "followUps": [
+      "crypto-bip21",
+      "crypto-xpub",
+      "crypto-xprv"
+    ],
+    "sources": "scriptPubKey."
+  },
+  {
+    "id": "crypto-bip21",
+    "category": "cryptography",
+    "question": "What is a Bitcoin URI?",
+    "alts": [
+      "Define a Bitcoin URI?",
+      "Explain a Bitcoin URI?",
+      "Describe a Bitcoin URI?"
+    ],
+    "answer": "BIP21 describes a bitcoin: link that can carry an address and an amount. Wallets use it in QR codes. You should still confirm the address on a screen you trust before sending.",
+    "topics": [
+      "apps-tools",
+      "cryptography",
+      "self-custody"
+    ],
+    "followUps": [
+      "crypto-xpub",
+      "crypto-xprv",
+      "crypto-wif"
+    ],
+    "sources": "BIP21."
+  },
+  {
+    "id": "crypto-xpub",
+    "category": "cryptography",
+    "question": "What is an xpub?",
+    "alts": [
+      "Define an xpub?",
+      "Explain an xpub?",
+      "Describe an xpub?"
+    ],
+    "answer": "An xpub is an extended public key that can derive many receive addresses without the private key. It is useful for a watch-only wallet. Anyone with the xpub can see the whole branch of addresses, so it is a privacy leak if it spreads.",
+    "topics": [
+      "derivation_path",
+      "privacy-nonkyc",
+      "self-custody"
+    ],
+    "followUps": [
+      "crypto-xprv",
+      "crypto-wif",
+      "crypto-mnemonic-not-password"
+    ],
+    "sources": "Extended public keys."
+  },
+  {
+    "id": "crypto-xprv",
+    "category": "cryptography",
+    "question": "What is an xprv?",
+    "alts": [
+      "Define an xprv?",
+      "Explain an xprv?",
+      "Describe an xprv?"
+    ],
+    "answer": "An xprv is an extended private key that can derive child private keys. It is as sensitive as a seed. It should not be typed into a website or a chat.",
+    "topics": [
+      "derivation_path",
+      "self-custody",
+      "public_key_vs_private_key"
+    ],
+    "followUps": [
+      "crypto-wif",
+      "crypto-mnemonic-not-password",
+      "crypto-entropy"
+    ],
+    "sources": "Extended private keys."
+  },
+  {
+    "id": "crypto-wif",
+    "category": "cryptography",
+    "question": "What is WIF?",
+    "alts": [
+      "Define WIF?",
+      "Explain WIF?",
+      "Describe WIF?"
+    ],
+    "answer": "WIF is a wallet import format, a way to write a single private key as text. It is a secret. Importing one key is not the same as restoring a whole modern seed wallet.",
+    "topics": [
+      "self-custody",
+      "public_key_vs_private_key",
+      "faq-glossary"
+    ],
+    "followUps": [
+      "crypto-mnemonic-not-password",
+      "crypto-entropy",
+      "crypto-brainwallet"
+    ],
+    "sources": "Wallet import format."
+  },
+  {
+    "id": "crypto-mnemonic-not-password",
+    "category": "cryptography",
+    "question": "Is a seed phrase a password?",
+    "alts": [
+      "Explain whether is a seed phrase a password?",
+      "Clarify whether is a seed phrase a password?",
+      "Is this the case: is a seed phrase a password?"
+    ],
+    "answer": "A password can often be reset by a company. A seed phrase is the backup of the keys, and nobody else has a copy unless you made one. Treating it like a website password is how people lose coins.",
+    "topics": [
+      "self-custody",
+      "public_key_vs_private_key",
+      "risks__threats__attack_vectors__weaknes"
+    ],
+    "followUps": [
+      "crypto-entropy",
+      "crypto-brainwallet",
+      "crypto-vanity"
+    ],
+    "sources": "Seed versus account password."
+  },
+  {
+    "id": "crypto-entropy",
+    "category": "cryptography",
+    "question": "What is entropy in a wallet?",
+    "alts": [
+      "Define entropy in a wallet?",
+      "Explain entropy in a wallet?",
+      "Describe entropy in a wallet?"
+    ],
+    "answer": "Entropy is the randomness that picks your keys. Good wallets use a proper random source. A brain wallet made from a proverb is usually weak because humans pick guessable phrases.",
+    "topics": [
+      "cryptography",
+      "self-custody",
+      "math"
+    ],
+    "followUps": [
+      "crypto-brainwallet",
+      "crypto-vanity",
+      "crypto-message-sign"
+    ],
+    "sources": "Key generation."
+  },
+  {
+    "id": "crypto-brainwallet",
+    "category": "cryptography",
+    "question": "What is a brain wallet?",
+    "alts": [
+      "Define a brain wallet?",
+      "Explain a brain wallet?",
+      "Describe a brain wallet?"
+    ],
+    "answer": "A brain wallet derives keys from a passphrase a person memorizes. If the phrase is not truly random, attackers can guess it. Modern word-list seeds from a wallet's random number are a different and safer pattern.",
+    "topics": [
+      "self-custody",
+      "risks__threats__attack_vectors__weaknes",
+      "cryptography"
+    ],
+    "followUps": [
+      "crypto-vanity",
+      "crypto-message-sign",
+      "crypto-commitment"
+    ],
+    "sources": "Brain wallets are usually weak."
+  },
+  {
+    "id": "crypto-vanity",
+    "category": "cryptography",
+    "question": "What is a vanity address?",
+    "alts": [
+      "Define a vanity address?",
+      "Explain a vanity address?",
+      "Describe a vanity address?"
+    ],
+    "answer": "A vanity address is one that starts with characters you chose, found by grinding many keys. The prefix does not make it safer. Generating it on a website means that website may know the key.",
+    "topics": [
+      "cryptography",
+      "risks__threats__attack_vectors__weaknes",
+      "self-custody"
+    ],
+    "followUps": [
+      "crypto-message-sign",
+      "crypto-commitment",
+      "crypto-preimage"
+    ],
+    "sources": "Vanity generation."
+  },
+  {
+    "id": "crypto-message-sign",
+    "category": "cryptography",
+    "question": "Can you sign a message with a Bitcoin key?",
+    "alts": [
+      "Explain whether can you sign a message with a Bitcoin key?",
+      "Clarify whether can you sign a message with a Bitcoin key?",
+      "Is this the case: can you sign a message with a Bitcoin key?"
+    ],
+    "answer": "Yes. A wallet can sign a short message to prove it controls an address, without moving coins. The proof is only as good as the device that signed. Do not sign a message you do not understand.",
+    "topics": [
+      "cryptography",
+      "self-custody",
+      "apps-tools"
+    ],
+    "followUps": [
+      "crypto-commitment",
+      "crypto-preimage",
+      "crypto-htlc"
+    ],
+    "sources": "Message signatures."
+  },
+  {
+    "id": "crypto-commitment",
+    "category": "cryptography",
+    "question": "What is a commitment in Bitcoin?",
+    "alts": [
+      "Define a commitment in Bitcoin?",
+      "Explain a commitment in Bitcoin?",
+      "Describe a commitment in Bitcoin?"
+    ],
+    "answer": "A commitment is a hash that pins down some data without revealing it yet. Block headers commit to transactions this way. Protocols also commit to balances or scripts so they can be revealed later.",
+    "topics": [
+      "cryptography",
+      "math",
+      "blockchain-timechain"
+    ],
+    "followUps": [
+      "crypto-preimage",
+      "crypto-htlc",
+      "crypto-adaptor"
+    ],
+    "sources": "Hash commitments."
+  },
+  {
+    "id": "crypto-preimage",
+    "category": "cryptography",
+    "question": "What is a hash preimage?",
+    "alts": [
+      "Define a hash preimage?",
+      "Explain a hash preimage?",
+      "Describe a hash preimage?"
+    ],
+    "answer": "A preimage is the data that hashes to a given value. In some contracts, revealing the preimage is the way you claim coins. Hashes are built so you cannot reverse them by eye.",
+    "topics": [
+      "cryptography",
+      "math",
+      "smart-contracts"
+    ],
+    "followUps": [
+      "crypto-htlc",
+      "crypto-adaptor",
+      "crypto-musig"
+    ],
+    "sources": "Preimages in hash locks."
+  },
+  {
+    "id": "crypto-htlc",
+    "category": "cryptography",
+    "question": "What is an HTLC?",
+    "alts": [
+      "Define an HTLC?",
+      "Explain an HTLC?",
+      "Describe an HTLC?"
+    ],
+    "answer": "An HTLC is a hashed time locked contract. Someone can claim coins by revealing a secret before a deadline, and otherwise the coins can return. Lightning uses this pattern so payments can hop without trusting every hop forever.",
+    "topics": [
+      "layer-2-lightning",
+      "smart-contracts",
+      "cryptography"
+    ],
+    "followUps": [
+      "crypto-adaptor",
+      "crypto-musig",
+      "crypto-vault"
+    ],
+    "sources": "HTLCs."
+  },
+  {
+    "id": "crypto-adaptor",
+    "category": "cryptography",
+    "question": "What is an adaptor signature?",
+    "alts": [
+      "Define an adaptor signature?",
+      "Explain an adaptor signature?",
+      "Describe an adaptor signature?"
+    ],
+    "answer": "An adaptor signature hides a secret inside a signature so that publishing the signature reveals the secret. It is a building block for some atomic swaps and newer Lightning ideas. It is advanced cryptography, not a second coin.",
+    "topics": [
+      "cryptography",
+      "layer-2-lightning",
+      "math"
+    ],
+    "followUps": [
+      "crypto-musig",
+      "crypto-vault",
+      "crypto-covenant"
+    ],
+    "sources": "Adaptor signatures."
+  },
+  {
+    "id": "crypto-musig",
+    "category": "cryptography",
+    "question": "What is MuSig?",
+    "alts": [
+      "Define MuSig?",
+      "Explain MuSig?",
+      "Describe MuSig?"
+    ],
+    "answer": "MuSig is a way for several keys to create one Schnorr signature together. The chain can see a single signer. It depends on the wallet implementing the protocol carefully, including protection against certain nonce attacks.",
+    "topics": [
+      "taproot",
+      "cryptography",
+      "smart-contracts"
+    ],
+    "followUps": [
+      "crypto-vault",
+      "crypto-covenant",
+      "crypto-ctv"
+    ],
+    "sources": "MuSig family."
+  },
+  {
+    "id": "crypto-vault",
+    "category": "cryptography",
+    "question": "What is a bitcoin vault?",
+    "alts": [
+      "Define a bitcoin vault?",
+      "Explain a bitcoin vault?",
+      "Describe a bitcoin vault?"
+    ],
+    "answer": "A vault is a spending policy that delays a withdrawal or lets a recovery key cancel it. The goal is time to react if a key is stolen. Designs differ, and some need covenants that are not all consensus yet.",
+    "topics": [
+      "self-custody",
+      "smart-contracts",
+      "ctv-covenants"
+    ],
+    "followUps": [
+      "crypto-covenant",
+      "crypto-ctv",
+      "crypto-ordinal"
+    ],
+    "sources": "Vault patterns."
+  },
+  {
+    "id": "crypto-covenant",
+    "category": "cryptography",
+    "question": "What is a covenant?",
+    "alts": [
+      "Define a covenant?",
+      "Explain a covenant?",
+      "Describe a covenant?"
+    ],
+    "answer": "A covenant is a rule that restricts how coins may be spent next, not only who may spend them. Bitcoin today has limited ways to express that. Proposals such as CTV exist and are not the same as an active rule.",
+    "topics": [
+      "ctv-covenants",
+      "bip119",
+      "smart-contracts"
+    ],
+    "followUps": [
+      "crypto-ctv",
+      "crypto-ordinal",
+      "crypto-inscription"
+    ],
+    "sources": "Covenants. CTV is a proposal."
+  },
+  {
+    "id": "crypto-ctv",
+    "category": "cryptography",
+    "question": "What is CTV?",
+    "alts": [
+      "Define CTV?",
+      "Explain CTV?",
+      "Describe CTV?"
+    ],
+    "answer": "CTV is a proposal, BIP119, that would let an output commit to a particular next transaction. It is discussed for vaults and congestion control. It is not an active consensus rule just because a BIP number exists.",
+    "topics": [
+      "bip119",
+      "ctv-covenants",
+      "governance"
+    ],
+    "followUps": [
+      "crypto-ordinal",
+      "crypto-inscription",
+      "crypto-runes-careful"
+    ],
+    "sources": "BIP119 status: proposal."
+  },
+  {
+    "id": "crypto-ordinal",
+    "category": "cryptography",
+    "question": "What is an ordinal on Bitcoin?",
+    "alts": [
+      "Define an ordinal on Bitcoin?",
+      "Explain an ordinal on Bitcoin?",
+      "Describe an ordinal on Bitcoin?"
+    ],
+    "answer": "Ordinal theory numbers individual sats and lets people inscribe data that follows a sat. The data rides in a bitcoin transaction. It is a convention on top of bitcoin, and it competes for block space like any other data.",
+    "topics": [
+      "ordinals",
+      "ordinals__nfts_on_bitcoin__and_block_spa",
+      "blockchain-timechain"
+    ],
+    "followUps": [
+      "crypto-inscription",
+      "crypto-runes-careful",
+      "crypto-dlc"
+    ],
+    "sources": "Ordinals as a convention."
+  },
+  {
+    "id": "crypto-inscription",
+    "category": "cryptography",
+    "question": "What is an inscription?",
+    "alts": [
+      "Define an inscription?",
+      "Explain an inscription?",
+      "Describe an inscription?"
+    ],
+    "answer": "An inscription stores data, such as text or an image, inside a bitcoin transaction's witness. Nodes still have to download valid blocks that contain it. Whether that use is welcome is a policy debate, not a separate chain.",
+    "topics": [
+      "ordinals",
+      "block_time-block-size",
+      "op-codes"
+    ],
+    "followUps": [
+      "crypto-runes-careful",
+      "crypto-dlc",
+      "crypto-oracle"
+    ],
+    "sources": "Inscriptions in witness data."
+  },
+  {
+    "id": "crypto-runes-careful",
+    "category": "cryptography",
+    "question": "Are fungible tokens on Bitcoin the same as bitcoin?",
+    "alts": [
+      "Explain whether are fungible tokens on Bitcoin the same as bitcoin?",
+      "Clarify whether are fungible tokens on Bitcoin the same as bitcoin?",
+      "Is this the case: are fungible tokens on Bitcoin the same as bitcoin?"
+    ],
+    "answer": "People have built conventions for extra tokens that ride along in bitcoin transactions. Those tokens are not the native coin your node counts as bitcoin. Confusing the two is how look-alike assets spread.",
+    "topics": [
+      "ordinals",
+      "money",
+      "evidence-against-alts"
+    ],
+    "followUps": [
+      "crypto-dlc",
+      "crypto-oracle",
+      "crypto-sidechain-peg"
+    ],
+    "sources": "Native bitcoin versus overlaid assets."
+  },
+  {
+    "id": "crypto-dlc",
+    "category": "cryptography",
+    "question": "What is a DLC?",
+    "alts": [
+      "Define a DLC?",
+      "Explain a DLC?",
+      "Describe a DLC?"
+    ],
+    "answer": "A discrete log contract pays out based on an oracle's signature, so a bet can settle on chain without the oracle holding the funds. You still trust the oracle to sign the right outcome. It is a Bitcoin contract pattern.",
+    "topics": [
+      "discrete_log_contracts__dlcs",
+      "oracle",
+      "smart-contracts"
+    ],
+    "followUps": [
+      "crypto-oracle",
+      "crypto-sidechain-peg",
+      "crypto-bitvm"
+    ],
+    "sources": "DLCs."
+  },
+  {
+    "id": "crypto-oracle",
+    "category": "cryptography",
+    "question": "What is an oracle in Bitcoin contracts?",
+    "alts": [
+      "Define an oracle in Bitcoin contracts?",
+      "Explain an oracle in Bitcoin contracts?",
+      "Describe an oracle in Bitcoin contracts?"
+    ],
+    "answer": "An oracle is someone who publishes a signed fact, such as a price or a sports result, that a contract can use. The chain does not know the outside world by itself. Choosing an oracle is a trust choice.",
+    "topics": [
+      "oracle",
+      "smart-contracts",
+      "discrete_log_contracts__dlcs"
+    ],
+    "followUps": [
+      "crypto-sidechain-peg",
+      "crypto-bitvm",
+      "crypto-quantum"
+    ],
+    "sources": "Oracles."
+  },
+  {
+    "id": "crypto-sidechain-peg",
+    "category": "cryptography",
+    "question": "What is a two-way peg?",
+    "alts": [
+      "Define a two-way peg?",
+      "Explain a two-way peg?",
+      "Describe a two-way peg?"
+    ],
+    "answer": "A two-way peg is a way to lock coins on one chain and represent them on another, then come back. The return path is only as strong as the people or the software that hold the lock. It is not the same as an ordinary bitcoin payment.",
+    "topics": [
+      "sidechains",
+      "layer-3-sidechains",
+      "self-custody"
+    ],
+    "followUps": [
+      "crypto-bitvm",
+      "crypto-quantum",
+      "crypto-checksig"
+    ],
+    "sources": "Pegs."
+  },
+  {
+    "id": "crypto-bitvm",
+    "category": "cryptography",
+    "question": "What is BitVM?",
+    "alts": [
+      "Define BitVM?",
+      "Explain BitVM?",
+      "Describe BitVM?"
+    ],
+    "answer": "BitVM is a research design for checking heavier computation with Bitcoin's existing rules, using challenges between parties. It is not a change that turns Bitcoin into a general world computer by default. It was still an active research area as of 2026.",
+    "topics": [
+      "bitvm",
+      "smart-contracts",
+      "developers"
+    ],
+    "followUps": [
+      "crypto-quantum",
+      "crypto-checksig",
+      "crypto-cltv"
+    ],
+    "sources": "BitVM research. Not a new base-layer language."
+  },
+  {
+    "id": "crypto-quantum",
+    "category": "cryptography",
+    "question": "Will quantum computers break Bitcoin?",
+    "alts": [
+      "Explain this: will quantum computers break Bitcoin?",
+      "Clarify this: will quantum computers break Bitcoin?",
+      "Unpack this: will quantum computers break Bitcoin?"
+    ],
+    "answer": "A large quantum computer could threaten today's signatures, and hashes are a harder target. Bitcoin can add a new signature type by soft fork if that risk becomes concrete. Nobody has a reliable date, and coins are not suddenly unowned.",
+    "topics": [
+      "cryptography",
+      "risks__threats__attack_vectors__weaknes",
+      "the_future"
+    ],
+    "followUps": [
+      "crypto-checksig",
+      "crypto-cltv",
+      "crypto-csv-op"
+    ],
+    "sources": "Post-quantum migration is possible. No date is known."
+  },
+  {
+    "id": "crypto-checksig",
+    "category": "cryptography",
+    "question": "What does OP_CHECKSIG do?",
+    "alts": [
+      "Explain what OP_CHECKSIG do?",
+      "Clarify what OP_CHECKSIG do?",
+      "Describe what OP_CHECKSIG do?"
+    ],
+    "answer": "OP_CHECKSIG checks that a signature matches a public key and the transaction under the chosen sighash. It is how a standard single-key output is spent. A failed check makes the script fail.",
+    "topics": [
+      "op-codes",
+      "cryptography"
+    ],
+    "followUps": [
+      "crypto-cltv",
+      "crypto-csv-op",
+      "crypto-return"
+    ],
+    "sources": "Opcode OP_CHECKSIG."
+  },
+  {
+    "id": "crypto-cltv",
+    "category": "cryptography",
+    "question": "What does OP_CHECKLOCKTIMEVERIFY do?",
+    "alts": [
+      "Explain what OP_CHECKLOCKTIMEVERIFY do?",
+      "Clarify what OP_CHECKLOCKTIMEVERIFY do?",
+      "Describe what OP_CHECKLOCKTIMEVERIFY do?"
+    ],
+    "answer": "OP_CHECKLOCKTIMEVERIFY fails the script if the transaction lock time has not reached the required height or time. It was added by BIP65. It cannot move coins by itself.",
+    "topics": [
+      "op-codes",
+      "smart-contracts"
+    ],
+    "followUps": [
+      "crypto-csv-op",
+      "crypto-return",
+      "crypto-dup"
+    ],
+    "sources": "BIP65 opcode."
+  },
+  {
+    "id": "crypto-csv-op",
+    "category": "cryptography",
+    "question": "What does OP_CHECKSEQUENCEVERIFY do?",
+    "alts": [
+      "Explain what OP_CHECKSEQUENCEVERIFY do?",
+      "Clarify what OP_CHECKSEQUENCEVERIFY do?",
+      "Describe what OP_CHECKSEQUENCEVERIFY do?"
+    ],
+    "answer": "OP_CHECKSEQUENCEVERIFY fails the script unless the input is old enough under BIP68. It was added by BIP112. Lightning-style penalty transactions rely on this kind of delay.",
+    "topics": [
+      "op-codes",
+      "layer-2-lightning"
+    ],
+    "followUps": [
+      "crypto-return",
+      "crypto-dup",
+      "crypto-op-hash160"
+    ],
+    "sources": "BIP112 opcode."
+  },
+  {
+    "id": "crypto-return",
+    "category": "cryptography",
+    "question": "What does OP_RETURN do?",
+    "alts": [
+      "Explain what OP_RETURN do?",
+      "Clarify what OP_RETURN do?",
+      "Describe what OP_RETURN do?"
+    ],
+    "answer": "OP_RETURN marks an output as unspendable and can carry a small data payload. How much data nodes will relay is a policy choice and has changed, so a byte cap is not frozen here. It does not create a spendable coin.",
+    "topics": [
+      "op-codes",
+      "utxos"
+    ],
+    "followUps": [
+      "crypto-dup",
+      "crypto-op-hash160",
+      "crypto-cat"
+    ],
+    "sources": "Unspendable data output. Policy size omitted."
+  },
+  {
+    "id": "crypto-dup",
+    "category": "cryptography",
+    "question": "What does OP_DUP do?",
+    "alts": [
+      "Explain what OP_DUP do?",
+      "Clarify what OP_DUP do?",
+      "Describe what OP_DUP do?"
+    ],
+    "answer": "OP_DUP copies the top stack item. Older address scripts use it so a public key can be checked and then hashed. It is a stack operation, not a signature.",
+    "topics": [
+      "op-codes",
+      "cryptography"
+    ],
+    "followUps": [
+      "crypto-op-hash160",
+      "crypto-cat",
+      "crypto-loops"
+    ],
+    "sources": "Stack duplicate."
+  },
+  {
+    "id": "crypto-op-hash160",
+    "category": "cryptography",
+    "question": "What does OP_HASH160 do?",
+    "alts": [
+      "Explain what OP_HASH160 do?",
+      "Clarify what OP_HASH160 do?",
+      "Describe what OP_HASH160 do?"
+    ],
+    "answer": "OP_HASH160 hashes the top stack item with SHA-256 and then RIPEMD-160. Pay-to-public-key-hash scripts compare that 20-byte result. The hash is not the private key.",
+    "topics": [
+      "op-codes",
+      "cryptography"
+    ],
+    "followUps": [
+      "crypto-cat",
+      "crypto-loops",
+      "crypto-520"
+    ],
+    "sources": "SHA-256 then RIPEMD-160."
+  },
+  {
+    "id": "crypto-cat",
+    "category": "cryptography",
+    "question": "Why is OP_CAT disabled?",
+    "alts": [
+      "Explain why is OP_CAT disabled?",
+      "For what reason is OP_CAT disabled?",
+      "What is the reason is OP_CAT disabled?"
+    ],
+    "answer": "OP_CAT would concatenate two stack items. It was disabled early because of script-risk concerns, and turning it back on is a soft-fork debate, not an active rule as of 2026. Do not assume a wallet can use it today.",
+    "topics": [
+      "op-codes",
+      "consensus"
+    ],
+    "followUps": [
+      "crypto-loops",
+      "crypto-520",
+      "crypto-sighash-all"
+    ],
+    "sources": "Disabled. Not active as of 2026."
+  },
+  {
+    "id": "crypto-loops",
+    "category": "cryptography",
+    "question": "Why does Bitcoin Script avoid loops?",
+    "alts": [
+      "Explain why does Bitcoin Script avoid loops?",
+      "For what reason does Bitcoin Script avoid loops?",
+      "What is the reason does Bitcoin Script avoid loops?"
+    ],
+    "answer": "Bitcoin Script has no loops, so a node can always finish checking a script. The limit keeps validation cheap and predictable. General programs are not an unbounded script on the base chain.",
+    "topics": [
+      "op-codes",
+      "smart-contracts"
+    ],
+    "followUps": [
+      "crypto-520",
+      "crypto-sighash-all",
+      "crypto-anyonecanpay"
+    ],
+    "sources": "No loops by design."
+  },
+  {
+    "id": "crypto-520",
+    "category": "cryptography",
+    "question": "What is the script stack element limit?",
+    "alts": [
+      "Define the script stack element limit?",
+      "Explain the script stack element limit?",
+      "Describe the script stack element limit?"
+    ],
+    "answer": "A single stack element in a Bitcoin script cannot be larger than 520 bytes under consensus. That bound keeps validation finite. A script that breaks it is invalid.",
+    "topics": [
+      "op-codes",
+      "consensus"
+    ],
+    "followUps": [
+      "crypto-sighash-all",
+      "crypto-anyonecanpay",
+      "crypto-keypath"
+    ],
+    "sources": "520-byte stack element."
+  },
+  {
+    "id": "crypto-sighash-all",
+    "category": "cryptography",
+    "question": "What is SIGHASH_ALL?",
+    "alts": [
+      "Define SIGHASH_ALL?",
+      "Explain SIGHASH_ALL?",
+      "Describe SIGHASH_ALL?"
+    ],
+    "answer": "SIGHASH_ALL commits a signature to every input and every output of the transaction. Changing an output afterward invalidates that signature. It is the usual choice for a normal payment.",
+    "topics": [
+      "cryptography",
+      "utxos"
+    ],
+    "followUps": [
+      "crypto-anyonecanpay",
+      "crypto-keypath",
+      "crypto-scriptpath"
+    ],
+    "sources": "Default sighash."
+  },
+  {
+    "id": "crypto-anyonecanpay",
+    "category": "cryptography",
+    "question": "What is SIGHASH_ANYONECANPAY?",
+    "alts": [
+      "Define SIGHASH_ANYONECANPAY?",
+      "Explain SIGHASH_ANYONECANPAY?",
+      "Describe SIGHASH_ANYONECANPAY?"
+    ],
+    "answer": "SIGHASH_ANYONECANPAY lets a signature cover its own input so other inputs can be added later. It shows up in some coinjoin and crowdfunding constructions. Which outputs it commits to still depends on the other sighash flags.",
+    "topics": [
+      "cryptography",
+      "coin_mixing_coinjoin_coin_control_utxo"
+    ],
+    "followUps": [
+      "crypto-keypath",
+      "crypto-scriptpath",
+      "crypto-xonly"
+    ],
+    "sources": "Input-only commitment flag."
+  },
+  {
+    "id": "crypto-keypath",
+    "category": "cryptography",
+    "question": "What is a Taproot key-path spend?",
+    "alts": [
+      "Define a Taproot key-path spend?",
+      "Explain a Taproot key-path spend?",
+      "Describe a Taproot key-path spend?"
+    ],
+    "answer": "A key-path Taproot spend looks like a single signature on the output key. The script tree is not revealed. It is usually smaller when the signers agree.",
+    "topics": [
+      "taproot",
+      "cryptography"
+    ],
+    "followUps": [
+      "crypto-scriptpath",
+      "crypto-xonly",
+      "crypto-tagged"
+    ],
+    "sources": "BIP341 key path."
+  },
+  {
+    "id": "crypto-scriptpath",
+    "category": "cryptography",
+    "question": "What is a Taproot script-path spend?",
+    "alts": [
+      "Define a Taproot script-path spend?",
+      "Explain a Taproot script-path spend?",
+      "Describe a Taproot script-path spend?"
+    ],
+    "answer": "A script-path spend reveals the script being used and a proof that it was in the committed tree. Other hidden scripts stay unrevealed. It enforces more complex rules when the key path is not used.",
+    "topics": [
+      "taproot",
+      "smart-contracts"
+    ],
+    "followUps": [
+      "crypto-xonly",
+      "crypto-tagged",
+      "crypto-older-hash"
+    ],
+    "sources": "BIP341 script path."
+  },
+  {
+    "id": "crypto-xonly",
+    "category": "cryptography",
+    "question": "What is an x-only public key?",
+    "alts": [
+      "Define an x-only public key?",
+      "Explain an x-only public key?",
+      "Describe an x-only public key?"
+    ],
+    "answer": "Schnorr public keys in Taproot store the 32-byte x coordinate, and the even y is implied. That is shorter than an older compressed key. It is still a public key, not a private key.",
+    "topics": [
+      "taproot",
+      "public_key_vs_private_key"
+    ],
+    "followUps": [
+      "crypto-tagged",
+      "crypto-older-hash",
+      "crypto-utxo"
+    ],
+    "sources": "BIP340 x-only keys."
+  },
+  {
+    "id": "crypto-tagged",
+    "category": "cryptography",
+    "question": "What is a tagged hash?",
+    "alts": [
+      "Define a tagged hash?",
+      "Explain a tagged hash?",
+      "Describe a tagged hash?"
+    ],
+    "answer": "BIP340 uses tagged hashes so a hash for signatures is not confused with a hash for another job. The tag is part of the hash input. It separates domains, and it is not a new coin.",
+    "topics": [
+      "cryptography",
+      "taproot"
+    ],
+    "followUps": [
+      "crypto-older-hash",
+      "crypto-utxo",
+      "crypto-taproot"
+    ],
+    "sources": "BIP340 tagged hashes."
+  },
+  {
+    "id": "crypto-older-hash",
+    "category": "cryptography",
+    "question": "Why do older addresses use a shorter hash?",
+    "alts": [
+      "Explain why do older addresses use a shorter hash?",
+      "For what reason do older addresses use a shorter hash?",
+      "What is the reason do older addresses use a shorter hash?"
+    ],
+    "answer": "Older addresses commit to SHA-256 followed by RIPEMD-160, which is 20 bytes. The shorter hash made early addresses smaller. Taproot outputs commit to a 32-byte key instead.",
+    "topics": [
+      "cryptography",
+      "blockchain-timechain"
+    ],
+    "followUps": [
+      "crypto-utxo",
+      "crypto-taproot",
+      "crypto-addresses"
+    ],
+    "sources": "HASH160 versus 32-byte keys."
+  }
+]

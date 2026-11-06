@@ -430,6 +430,108 @@ window.onlineStatusDot = function(lastSeen) {
 };
 
 // ---- USER PROFILE MODAL ----
+// PROFILE_JOIN_START
+// Join date for the profile card. `created`, then legacy `createdAt`.
+// Other field names are client-writable, so they are not a join date.
+var PROFILE_JOIN_KEYS = ['created', 'createdAt'];
+var PROFILE_JOIN_MIN_MS = Date.UTC(2020, 0, 1);
+var PROFILE_JOIN_MAX_FUTURE_MS = 48 * 60 * 60 * 1000;
+
+function profileJoinNumberMillis(n) {
+    // A bare number is milliseconds. Unix seconds belong on .seconds.
+    // Guessing would turn a 1970 millisecond value into a modern date.
+    if (typeof n !== 'number' || !isFinite(n) || n <= 0) return null;
+    if (n >= 1e12 && n < 1e14) return Math.round(n);
+    return null;
+}
+
+function profileJoinSecondsMillis(sec, nano) {
+    var s = Number(sec);
+    if (!isFinite(s) || s <= 0) return null;
+    var n = Number(nano);
+    if (!isFinite(n)) n = 0;
+    if (s >= 1e12 && s < 1e14) return Math.round(s);
+    if (s >= 1e9 && s < 1e12) return Math.round(s * 1000 + n / 1e6);
+    return null;
+}
+
+function profileJoinRawMillis(value) {
+    if (value == null || value === false) return null;
+    if (typeof value === 'number') return profileJoinNumberMillis(value);
+    if (typeof value === 'string') {
+        var trimmed = value.trim();
+        if (!trimmed) return null;
+        if (/^\d+(\.\d+)?$/.test(trimmed)) return profileJoinNumberMillis(Number(trimmed));
+        var parsed = Date.parse(trimmed);
+        return isFinite(parsed) ? parsed : null;
+    }
+    if (typeof value === 'object') {
+        if (typeof value.toDate === 'function') {
+            try {
+                var dated = value.toDate();
+                if (dated && typeof dated.getTime === 'function') {
+                    var fromDate = dated.getTime();
+                    if (isFinite(fromDate)) return fromDate;
+                }
+            } catch (e) {}
+        }
+        if (typeof value.toMillis === 'function') {
+            try {
+                var fromMillis = Number(value.toMillis());
+                if (isFinite(fromMillis)) return fromMillis;
+            } catch (e2) {}
+        }
+        if (typeof value.getTime === 'function' && typeof value.toDate !== 'function') {
+            try {
+                var fromGetTime = value.getTime();
+                if (isFinite(fromGetTime)) return fromGetTime;
+            } catch (e3) {}
+        }
+        var seconds = value.seconds != null ? value.seconds : value._seconds;
+        if (seconds != null && seconds !== '') {
+            var nano = value.nanoseconds != null ? value.nanoseconds : value._nanoseconds;
+            return profileJoinSecondsMillis(seconds, nano);
+        }
+    }
+    return null;
+}
+
+function profileJoinMillis(value, nowMs) {
+    var now = typeof nowMs === 'number' && isFinite(nowMs) ? nowMs : Date.now();
+    var ms = profileJoinRawMillis(value);
+    if (ms == null) return null;
+    if (ms < PROFILE_JOIN_MIN_MS || ms > now + PROFILE_JOIN_MAX_FUTURE_MS) return null;
+    return ms;
+}
+
+function profileJoinMillisFromSources(sources, nowMs) {
+    var now = typeof nowMs === 'number' && isFinite(nowMs) ? nowMs : Date.now();
+    var list = sources || [];
+    var s, k, row, key, ms;
+    for (s = 0; s < list.length; s++) {
+        row = list[s];
+        if (!row) continue;
+        for (k = 0; k < PROFILE_JOIN_KEYS.length; k++) {
+            key = PROFILE_JOIN_KEYS[k];
+            if (!Object.prototype.hasOwnProperty.call(row, key)) continue;
+            ms = profileJoinMillis(row[key], now);
+            if (ms != null) return ms;
+        }
+    }
+    return null;
+}
+
+function profileJoinLabel(sources, nowMs) {
+    var ms = profileJoinMillisFromSources(sources, nowMs);
+    if (ms == null) return '';
+    try {
+        return new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch (e) {
+        return '';
+    }
+}
+// PROFILE_JOIN_END
+
 window.showUserProfile = function(uid) {
     if (!uid || !db) return;
 
@@ -553,24 +655,18 @@ window.showUserProfile = function(uid) {
 
         var status = getOnlineStatus(u.lastSeen);
         var lvl = typeof getLevel === 'function' ? getLevel(u.points || 0) : { name: 'Newbie', emoji: '🌱' };
-        var joinDate = ''; // will be set below; empty means unknown join date
-        try {
-            // Field is 'created' in Firestore (ranking.js writes it as 'created')
-            // Also check 'createdAt' for any accounts written via other paths
-            var _rawCreated = u.created || u.createdAt || null;
-            if (_rawCreated) {
-                var jd = _rawCreated.toDate ? _rawCreated.toDate() : (_rawCreated.seconds ? new Date(_rawCreated.seconds * 1000) : new Date(_rawCreated));
-                if (!isNaN(jd.getTime())) joinDate = jd.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+        var joinSources = [u];
+        // Auth creationTime is only known for the signed-in viewer. It is a
+        // real account birth, used when the public profile has no join field.
+        if (auth && auth.currentUser && String(auth.currentUser.uid) === String(uid)) {
+            if (typeof currentUser !== 'undefined' && currentUser && (!currentUser.uid || String(currentUser.uid) === String(uid))) {
+                joinSources.push(currentUser);
             }
-            // If still empty after parsing, fall back to lastLogin or lastVisit as best estimate
-            if (!joinDate) {
-                var _fallback = u.lastLogin || null;
-                if (_fallback) {
-                    var _fd = _fallback.toDate ? _fallback.toDate() : (_fallback.seconds ? new Date(_fallback.seconds * 1000) : new Date(_fallback));
-                    if (!isNaN(_fd.getTime())) joinDate = _fd.toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
-                }
-            }
-        } catch(e) {}
+            var _joinMeta = auth.currentUser.metadata;
+            if (_joinMeta && _joinMeta.creationTime) joinSources.push({ created: _joinMeta.creationTime });
+        }
+        var joinDate = '';
+        try { joinDate = profileJoinLabel(joinSources); } catch (e) { joinDate = ''; }
         
         // 🏅 DISPLAY BADGE: Check for user-selected badge, fallback to rank emoji
         var displayBadge = (typeof escapeHtml === 'function' ? escapeHtml(u.displayBadge || u.equippedBadge || '') : (u.displayBadge || u.equippedBadge || '').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'));
@@ -693,16 +789,8 @@ window.showUserProfile = function(uid) {
                 profileStat('💀', (u.pvpLosses || 0) + 'L', 'PVP Losses') +
                 profileStat('📊', ((u.pvpWins || 0) + (u.pvpLosses || 0) > 0 ? Math.round(((u.pvpWins || 0) / ((u.pvpWins || 0) + (u.pvpLosses || 0))) * 100) : 0) + '%', 'Win Rate') +
             '</div>' : '') +
-            // Prediction Stats (only show if they've made predictions)
-            (u.predictions && u.predictions.total > 0 ? (function() {
-                var ps = u.predictions;
-                var pPct = ps.total > 0 ? Math.round((ps.correct / ps.total) * 100) : 0;
-                return '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
-                    profileStat('📈', ps.total, 'Predictions') +
-                    profileStat('🎯', pPct + '%', 'Accuracy') +
-                    profileStat('🔥', ps.bestStreak || ps.streak || 0, 'Best Streak') +
-                '</div>';
-            })() : '') +
+            // Own prediction stats are filled from prediction_stats after render.
+            '<div id="profilePredStats"></div>' +
             // Lightning Address & Tip button — always show for other signed-in users
             ((!_isOwnProfile && auth && auth.currentUser && !auth.currentUser.isAnonymous) ? (function() {
                 // Stash tip data on window to avoid inline-onclick escaping issues
@@ -747,6 +835,22 @@ window.showUserProfile = function(uid) {
         var div = document.createElement('div');
         div.innerHTML = html;
         document.body.appendChild(div.firstChild);
+        if (auth && auth.currentUser && auth.currentUser.uid === uid && typeof window._loadMyPredictionStats === 'function') {
+            window._loadMyPredictionStats(function(stats) {
+                var node = document.getElementById('profilePredStats');
+                if (!node) return;
+                var total = stats ? (Number(stats.predTotal) || 0) : 0;
+                if (!total) { node.innerHTML = ''; return; }
+                var correct = Number(stats.predCorrect) || 0;
+                var pPct = Math.round((correct / total) * 100);
+                var best = Number(stats.predBestStreak) || Number(stats.predStreak) || 0;
+                node.innerHTML = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">' +
+                    profileStat('📈', total, 'Predictions') +
+                    profileStat('🎯', pPct + '%', 'Accuracy') +
+                    profileStat('🔥', best, 'Best Streak') +
+                '</div>';
+            });
+        }
     }).catch(function(err) {
         console.error('Profile load error:', err);
         var modal = document.getElementById('userProfileModal');
@@ -783,30 +887,34 @@ window._tipFromProfile = function() {
 };
 
 window._sendPeerRequest = async function(btnEl, targetUid) {
-    if (!btnEl) return;
+    if (!btnEl || btnEl.disabled || btnEl.getAttribute('data-peer-busy') === '1') return;
+    var prev = {
+        text: btnEl.textContent,
+        opacity: btnEl.style.opacity,
+        cursor: btnEl.style.cursor,
+        background: btnEl.style.background
+    };
+    btnEl.setAttribute('data-peer-busy', '1');
     btnEl.disabled = true;
-    btnEl.textContent = 'Sending...';
-    btnEl.style.opacity = '0.6';
+    btnEl.textContent = '🧡 Sent!';
+    btnEl.style.background = 'rgba(249,115,22,0.2)';
+    btnEl.style.opacity = '1';
+    btnEl.style.cursor = 'default';
+    if (typeof showToast === 'function') showToast('Peer request sent! 🧡');
     try {
         var fn = firebase.functions().httpsCallable('managePeer');
         await fn({ action: 'send', targetUid: targetUid });
-        btnEl.textContent = '🧡 Sent!';
-        btnEl.style.background = 'rgba(249,115,22,0.2)';
-        btnEl.style.opacity = '1';
-        btnEl.style.cursor = 'default';
-        if (typeof showToast === 'function') showToast('Peer request sent! 🧡');
     } catch(e) {
-        var msg = (e && e.message) || 'Error';
-        if (msg.includes('already-exists')) {
-            btnEl.textContent = '🧡 Sent!';
-            btnEl.style.opacity = '0.8';
-            btnEl.style.cursor = 'default';
-        } else {
-            btnEl.disabled = false;
-            btnEl.textContent = '🧡 Add Peer';
-            btnEl.style.opacity = '1';
-            if (typeof showToast === 'function') showToast(msg);
-        }
+        var code = (e && e.code) ? String(e.code) : '';
+        var msg = (e && e.message) ? String(e.message) : 'Error';
+        if (code.indexOf('already-exists') !== -1 || msg.indexOf('already-exists') !== -1) return;
+        btnEl.disabled = false;
+        btnEl.removeAttribute('data-peer-busy');
+        btnEl.textContent = prev.text || '🧡 Add Peer';
+        btnEl.style.opacity = prev.opacity || '1';
+        btnEl.style.cursor = prev.cursor || 'pointer';
+        btnEl.style.background = prev.background || '';
+        if (typeof showToast === 'function') showToast(msg);
     }
 };
 
@@ -1216,7 +1324,7 @@ window.showDMGifPicker = function(convoId, recipientUid, recipientName) {
 
     var picker = document.createElement('div');
     picker.id = 'dmGifPicker';
-    picker.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:600000;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:360px;max-height:350px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
+    picker.style.cssText = 'position:fixed;bottom:var(--above-fab, 80px);left:50%;transform:translateX(-50%);z-index:600000;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:12px;width:90%;max-width:360px;max-height:350px;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,0.5);';
 
     // Store convo info for the send function
     window._dmGifConvo = { convoId: convoId, recipientUid: recipientUid, recipientName: recipientName };
@@ -1576,7 +1684,7 @@ window.showInbox = function() {
                 return;
             }
 
-            list.innerHTML = '';
+            var _rows = [];
             snap.forEach(function(doc) {
                 var c = doc.data();
                 var otherUid = c.participants.find(function(p) { return p !== myUid; });
@@ -1589,7 +1697,7 @@ window.showInbox = function() {
                 var isBuddy = c.isBuddyMatch === true;
                 var buddyStar = isBuddy ? '<span title="Buddy conversation" style="cursor:help;font-size:0.75rem;color:#22c55e;margin-left:4px;">⭐</span>' : '';
 
-                list.innerHTML += '<div data-uid="' + escapeHtml(otherUid) + '" data-name="' + escapeHtml(otherName) + '" onclick="var _u=this.dataset.uid,_n=this.dataset.name;document.getElementById(\'dmInbox\').remove();openDM(_u,_n)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';" onmouseover="this.style.background=\'var(--card-bg)\'" onmouseout="this.style.background=\'' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + '\'">' +
+                _rows.push('<div data-uid="' + escapeHtml(otherUid) + '" data-name="' + escapeHtml(otherName) + '" onclick="var _u=this.dataset.uid,_n=this.dataset.name;document.getElementById(\'dmInbox\').remove();openDM(_u,_n)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';" onmouseover="this.style.background=\'var(--card-bg)\'" onmouseout="this.style.background=\'' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + '\'">' +
                     '<div style="width:42px;height:42px;border-radius:50%;background:' + (isBuddy ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:1px solid ' + (isBuddy ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + (isBuddy ? '🦌' : (otherName.charAt(0).toUpperCase() || '?')) + '</div>' +
                     '<div style="flex:1;min-width:0;">' +
                         '<div style="display:flex;justify-content:space-between;align-items:center;">' +
@@ -1599,8 +1707,9 @@ window.showInbox = function() {
                         '<div style="font-size:0.8rem;color:' + (unread > 0 ? 'var(--text)' : 'var(--text-muted)') + ';font-weight:' + (unread > 0 ? '600' : '400') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (isFromMe ? 'You: ' : '') + escapeHtml(lastMsg) + '</div>' +
                     '</div>' +
                     (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.65rem;font-weight:800;padding:2px 7px;border-radius:10px;flex-shrink:0;">' + unread + '</div>' : '') +
-                '</div>';
+                '</div>');
             });
+            list.innerHTML = _rows.join('');
         }).catch(function(err) {
             console.error('Inbox load error:', err);
             var list = document.getElementById('dmInboxList');
@@ -1662,8 +1771,11 @@ function checkUnreadCount() {
     if (!auth || !auth.currentUser || auth.currentUser.isAnonymous || !db) return;
     var myUid = auth.currentUser.uid;
 
+    if (typeof document !== 'undefined' && document.hidden) return;
     db.collection('dm_conversations')
         .where('participants', 'array-contains', myUid)
+        .orderBy('lastMessageTime', 'desc')
+        .limit(50)
         .get()
         .then(function(snap) {
             var total = 0;

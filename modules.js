@@ -268,8 +268,8 @@ window.renderModules = function(container) {
     html += '<div style="margin-bottom:16px;">' +
         '<div style="font-size:0.8rem;font-weight:800;color:var(--heading);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">🎓 Certifications</div>' +
         '<div style="display:flex;flex-direction:column;gap:8px;">' +
-            '<button onclick="if(typeof startScholarQuest===\'function\'){startScholarQuest(\'properties\')}else if(typeof showToast===\'function\')showToast(\'⏳ Loading... try again in a second!\')" style="padding:14px 16px;background:var(--card-bg);border:1px solid #f7931a;border-radius:14px;color:var(--text);font-weight:700;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:center;gap:10px;transition:0.2s;"><span style="font-size:1.3rem;">🎓</span><div><div style="font-weight:800;">Properties Certification</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">25 questions on Bitcoin\'s core properties — 2,100 XP reward</div></div></button>' +
-            '<button onclick="if(typeof startScholarQuest===\'function\'){startScholarQuest(\'technical\')}else if(typeof showToast===\'function\')showToast(\'⏳ Loading... try again in a second!\')" style="padding:14px 16px;background:var(--card-bg);border:1px solid #3b82f6;border-radius:14px;color:var(--text);font-weight:700;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:center;gap:10px;transition:0.2s;"><span style="font-size:1.3rem;">🛠️</span><div><div style="font-weight:800;">Technical Certification</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">25 questions on Bitcoin\'s technical side — 2,100 XP reward</div></div></button>' +
+            '<button onclick="if(window.openCertification){openCertification(\'properties\')}else if(typeof startScholarQuest===\'function\'){startScholarQuest(\'properties\')}else if(typeof showToast===\'function\')showToast(\'⏳ Loading... try again in a second!\')" style="padding:14px 16px;background:var(--card-bg);border:1px solid #f7931a;border-radius:14px;color:var(--text);font-weight:700;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:center;gap:10px;transition:0.2s;"><span style="font-size:1.3rem;">🎓</span><div><div style="font-weight:800;">Properties Certification</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">25 questions on Bitcoin\'s core properties. +2,100 XP, not limited by the daily cap</div></div></button>' +
+            '<button onclick="if(window.openCertification){openCertification(\'technical\')}else if(typeof startScholarQuest===\'function\'){startScholarQuest(\'technical\')}else if(typeof showToast===\'function\')showToast(\'⏳ Loading... try again in a second!\')" style="padding:14px 16px;background:var(--card-bg);border:1px solid #3b82f6;border-radius:14px;color:var(--text);font-weight:700;cursor:pointer;font-size:0.85rem;text-align:left;font-family:inherit;display:flex;align-items:center;gap:10px;transition:0.2s;"><span style="font-size:1.3rem;">🛠️</span><div><div style="font-weight:800;">Technical Certification</div><div style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;">25 questions on Bitcoin\'s technical side. +2,100 XP, not limited by the daily cap</div></div></button>' +
         '</div>' +
         '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:8px;text-align:center;">Take certifications anytime — no trail completion required!</div>' +
     '</div>';
@@ -541,22 +541,17 @@ function renderTrailExamResults() {
                 var _modBadgeId = mod.badgeId;
                 awardPoints(mod.pointsReward, 'Badge: ' + _modBadgeId, null, null, null, _modBadgeId)
                     .then(function(r) {
-                        var dup = r && r.data && r.data.badgeDuplicate;
-                        if (!dup && typeof window.contributeSatoshiFavor === 'function')
-                            window.contributeSatoshiFavor('badge_earned', _modBadgeId).catch(function(){});
                     }).catch(function(){});
             }
-            if (typeof awardOrangeTickets === 'function') awardOrangeTickets(mod.ticketReward, mod.emoji + ' ' + mod.name + ' Trail');
-
             // Award badge
             if (typeof awardHiddenBadge === 'function') awardHiddenBadge(mod.badgeId, mod.badgeName + ' — Completed ' + mod.name + '!');
 
             // Confetti!
             if (typeof launchConfetti === 'function') launchConfetti();
-            if (typeof showToast === 'function') showToast(mod.emoji + ' ' + mod.name + ' COMPLETE! +' + mod.pointsReward + ' pts + 🎫' + mod.ticketReward + ' tickets!');
+            if (typeof showToast === 'function') showToast(mod.emoji + ' ' + mod.name + ' COMPLETE! +' + mod.pointsReward + ' pts');
             // Notify trail completion
             if (typeof sendNotification === 'function' && typeof auth !== 'undefined' && auth && auth.currentUser) {
-                var _trailNotifData = { recipientId: auth.currentUser.uid, senderId: 'system', senderName: 'System', type: 'quest', message: mod.emoji + ' Trail Complete: ' + mod.name + '! +' + mod.pointsReward + ' pts + 🎫' + mod.ticketReward + ' tickets!', targetType: null, targetId: null, read: false, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+                var _trailNotifData = { recipientId: auth.currentUser.uid, senderId: 'system', senderName: 'System', type: 'quest', message: mod.emoji + ' Trail Complete: ' + mod.name + '! +' + mod.pointsReward + ' pts', targetType: null, targetId: null, read: false, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
                 db.collection('notifications').add(_trailNotifData).catch(function() {});
             }
         }
@@ -652,7 +647,7 @@ window.reviewTrailWithNacho = function() {
                 if (typeof nachoUnifiedAnswer === 'function') {
                     nachoUnifiedAnswer('Explain in simple terms why this Bitcoin question has this answer. Question: ' + q.q + ' Correct answer: ' + q.a, function(result) {
                         if (result && result.answer) {
-                            var clean = result.answer.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim().substring(0, 500);
+                            var clean = String(result.plainAnswer || result.answer).replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '').trim().substring(0, 500);
                             _append('nacho', '', '<div style="color:var(--text-muted);font-size:0.82rem;line-height:1.6;padding:10px 12px;background:rgba(247,147,26,0.05);border-left:3px solid var(--accent);border-radius:0 8px 8px 0;margin-bottom:4px;">💡 ' + esc(clean) + '</div>');
                         }
                     });

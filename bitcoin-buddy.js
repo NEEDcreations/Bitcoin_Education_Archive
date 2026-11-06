@@ -624,7 +624,7 @@ function _checkBuddyNachoReply(convoId, recipientUid, recipientName) {
                     if (!result || !result.answer) return;
                     if (result.type === 'fallback') return; // Don't send generic fallbacks
 
-                    var answer = '🦌 ' + result.answer;
+                    var answer = '🦌 ' + String(result.plainAnswer || result.answer).replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').trim();
 
                     // Trim to reasonable length for DM
                     if (answer.length > 800) answer = answer.substring(0, 797) + '...';

@@ -262,7 +262,7 @@ function loadLiveVotes() {
             }
         }
     }, function() {
-        // Fallback: one-time read
+        // Fallback: one-time read. The tally is created by pollVote, not here.
         db.doc(FIRESTORE_DOC).get().then(function(doc) {
             if (doc.exists) {
                 localSats = doc.data().sats || 0;
@@ -271,13 +271,6 @@ function loadLiveVotes() {
             }
         }).catch(function() {});
     });
-
-    // Initialize Firestore doc if it doesn't exist
-    db.doc(FIRESTORE_DOC).get().then(function(doc) {
-        if (!doc.exists) {
-            db.doc(FIRESTORE_DOC).set({ sats: 0, bits: 0, devices: {} });
-        }
-    }).catch(function() {});
 }
 
 // Global vote function

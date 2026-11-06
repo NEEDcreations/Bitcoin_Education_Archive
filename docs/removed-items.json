@@ -1,0 +1,414 @@
+{
+  "generated": "2026-10-22",
+  "note": "Ids and reasons only. Restore the original message from git history. This file has no message text and no personal information.",
+  "removed": [
+    {
+      "id": "curriculum#11",
+      "channel": "curriculum",
+      "file": "data/R_curriculum.json",
+      "index": 11,
+      "reason": "personal information"
+    },
+    {
+      "id": "referral-links#11",
+      "channel": "referral-links",
+      "file": "data/H_referral-links.json",
+      "index": 11,
+      "reason": "casino or gambling link"
+    },
+    {
+      "id": "games#6",
+      "channel": "games",
+      "file": "data/R_games.json",
+      "index": 6,
+      "reason": "casino or gambling link"
+    },
+    {
+      "id": "games#8",
+      "channel": "games",
+      "file": "data/R_games.json",
+      "index": 8,
+      "reason": "casino or gambling link"
+    },
+    {
+      "id": "games#12",
+      "channel": "games",
+      "file": "data/R_games.json",
+      "index": 12,
+      "reason": "casino or gambling link"
+    },
+    {
+      "id": "games#13",
+      "channel": "games",
+      "file": "data/R_games.json",
+      "index": 13,
+      "reason": "casino or gambling link"
+    },
+    {
+      "id": "games#21",
+      "channel": "games",
+      "file": "data/R_games.json",
+      "index": 21,
+      "reason": "discord server invite"
+    },
+    {
+      "id": "games#44",
+      "channel": "games",
+      "file": "data/R_games.json",
+      "index": 44,
+      "reason": "casino or gambling link"
+    },
+    {
+      "id": "games#45",
+      "channel": "games",
+      "file": "data/R_games.json",
+      "index": 45,
+      "reason": "casino or gambling link"
+    },
+    {
+      "id": "games#50",
+      "channel": "games",
+      "file": "data/R_games.json",
+      "index": 50,
+      "reason": "casino or gambling link"
+    },
+    {
+      "id": "fun-facts#55",
+      "channel": "fun-facts",
+      "file": "data/R_fun-facts.json",
+      "index": 55,
+      "reason": "casino or gambling link"
+    },
+    {
+      "id": "fun-facts#173",
+      "channel": "fun-facts",
+      "file": "data/R_fun-facts.json",
+      "index": 173,
+      "reason": "casino or gambling link"
+    },
+    {
+      "id": "swag-merch#60",
+      "channel": "swag-merch",
+      "file": "data/R_swag-merch.json",
+      "index": 60,
+      "reason": "drug marketplace"
+    },
+    {
+      "id": "health#22",
+      "channel": "health",
+      "file": "data/R_health.json",
+      "index": 22,
+      "reason": "drug reference"
+    },
+    {
+      "id": "memes-funny#2112",
+      "channel": "memes-funny",
+      "file": "data/R_memes-funny.json",
+      "index": 2112,
+      "reason": "drug reference"
+    },
+    {
+      "id": "art-inspiration#331",
+      "channel": "art-inspiration",
+      "file": "data/R_art-inspiration.json",
+      "index": 331,
+      "reason": "suggestive image"
+    },
+    {
+      "id": "memes-funny#1661",
+      "channel": "memes-funny",
+      "file": "data/R_memes-funny.json",
+      "index": 1661,
+      "reason": "suggestive image"
+    },
+    {
+      "id": "articles-threads#155",
+      "channel": "articles-threads",
+      "file": "data/R_articles-threads.json",
+      "index": 155,
+      "reason": "adult topic"
+    },
+    {
+      "id": "memes-funny#1081",
+      "channel": "memes-funny",
+      "file": "data/R_memes-funny.json",
+      "index": 1081,
+      "reason": "crude sexual slang"
+    },
+    {
+      "id": "memes-funny#930",
+      "channel": "memes-funny",
+      "file": "data/R_memes-funny.json",
+      "index": 930,
+      "reason": "insult aimed at a nationality"
+    },
+    {
+      "id": "memes-funny#1407",
+      "channel": "memes-funny",
+      "file": "data/R_memes-funny.json",
+      "index": 1407,
+      "reason": "personal off-topic argument"
+    },
+    {
+      "id": "memes-funny#1412",
+      "channel": "memes-funny",
+      "file": "data/R_memes-funny.json",
+      "index": 1412,
+      "reason": "personal off-topic argument"
+    },
+    {
+      "id": "memes-funny#2084",
+      "channel": "memes-funny",
+      "file": "data/R_memes-funny.json",
+      "index": 2084,
+      "reason": "personal off-topic argument"
+    },
+    {
+      "id": "news-adoption#209",
+      "channel": "news-adoption",
+      "file": "data/R_news-adoption.json",
+      "index": 209,
+      "reason": "personal argument between members"
+    },
+    {
+      "id": "news-adoption#212",
+      "channel": "news-adoption",
+      "file": "data/R_news-adoption.json",
+      "index": 212,
+      "reason": "personal argument between members"
+    },
+    {
+      "id": "news-adoption#267",
+      "channel": "news-adoption",
+      "file": "data/R_news-adoption.json",
+      "index": 267,
+      "reason": "personal argument between members"
+    },
+    {
+      "id": "memes-funny#1796",
+      "channel": "memes-funny",
+      "file": "data/R_memes-funny.json",
+      "index": 1796,
+      "reason": "altcoin promotion"
+    },
+    {
+      "id": "art-inspiration#213",
+      "channel": "art-inspiration",
+      "file": "data/R_art-inspiration.json",
+      "index": 213,
+      "reason": "profanity is part of the image"
+    },
+    {
+      "id": "art-inspiration#292",
+      "channel": "art-inspiration",
+      "file": "data/R_art-inspiration.json",
+      "index": 292,
+      "reason": "profanity is part of the image"
+    },
+    {
+      "id": "art-inspiration#411",
+      "channel": "art-inspiration",
+      "file": "data/R_art-inspiration.json",
+      "index": 411,
+      "reason": "profanity is part of the image"
+    },
+    {
+      "id": "art-inspiration#466",
+      "channel": "art-inspiration",
+      "file": "data/R_art-inspiration.json",
+      "index": 466,
+      "reason": "profanity is part of the image"
+    },
+    {
+      "id": "art-inspiration#597",
+      "channel": "art-inspiration",
+      "file": "data/R_art-inspiration.json",
+      "index": 597,
+      "reason": "profanity is part of the image"
+    },
+    {
+      "id": "memes-funny#162",
+      "channel": "memes-funny",
+      "file": "data/R_memes-funny.json",
+      "index": 162,
+      "reason": "profanity is part of the image"
+    },
+    {
+      "id": "memes-funny#510",
+      "channel": "memes-funny",
+      "file": "data/R_memes-funny.json",
+      "index": 510,
+      "reason": "profanity is part of the image"
+    },
+    {
+      "id": "memes-funny#653",
+      "channel": "memes-funny",
+      "file": "data/R_memes-funny.json",
+      "index": 653,
+      "reason": "profanity is part of the image"
+    },
+    {
+      "id": "memes-funny#755",
+      "channel": "memes-funny",
+      "file": "data/R_memes-funny.json",
+      "index": 755,
+      "reason": "profanity is part of the image"
+    },
+    {
+      "id": "memes-funny#983",
+      "channel": "memes-funny",
+      "file": "data/R_memes-funny.json",
+      "index": 983,
+      "reason": "profanity is part of the image"
+    },
+    {
+      "id": "memes-funny#1158",
+      "channel": "memes-funny",
+      "file": "data/R_memes-funny.json",
+      "index": 1158,
+      "reason": "profanity is part of the image"
+    },
+    {
+      "id": "memes-funny#1947",
+      "channel": "memes-funny",
+      "file": "data/R_memes-funny.json",
+      "index": 1947,
+      "reason": "profanity is part of the image"
+    },
+    {
+      "id": "unpopular_opinions#1",
+      "channel": "unpopular_opinions",
+      "file": "data/H_unpopular_opinions.json",
+      "index": 1,
+      "reason": "profanity is part of the image"
+    }
+  ],
+  "redacted": [
+    {
+      "id": "fun-facts#141",
+      "channel": "fun-facts",
+      "file": "data/R_fun-facts.json",
+      "index": 141,
+      "reason": "email-like string redacted"
+    },
+    {
+      "id": "music#72",
+      "channel": "music",
+      "file": "data/R_music.json",
+      "index": 72,
+      "reason": "email-like string redacted"
+    },
+    {
+      "id": "social-media#6",
+      "channel": "social-media",
+      "file": "data/R_social-media.json",
+      "index": 6,
+      "reason": "email-like string redacted"
+    }
+  ],
+  "predictionMarketsKept": [
+    {
+      "id": "referral-links#22",
+      "channel": "referral-links",
+      "file": "data/H_referral-links.json",
+      "index": 22,
+      "reason": "prediction market kept with 18+ note"
+    },
+    {
+      "id": "informational-sites#58",
+      "channel": "informational-sites",
+      "file": "data/R_informational-sites.json",
+      "index": 58,
+      "reason": "prediction market kept with 18+ note"
+    },
+    {
+      "id": "swag-merch#62",
+      "channel": "swag-merch",
+      "file": "data/R_swag-merch.json",
+      "index": 62,
+      "reason": "prediction market kept with 18+ note"
+    },
+    {
+      "id": "swag-merch#63",
+      "channel": "swag-merch",
+      "file": "data/R_swag-merch.json",
+      "index": 63,
+      "reason": "prediction market kept with 18+ note"
+    }
+  ],
+  "maskedAtDisplay": [
+    {
+      "id": "evidence-against-alts#40",
+      "reason": "strong language masked at display time"
+    },
+    {
+      "id": "elevator_pitches#20",
+      "reason": "strong language masked at display time"
+    },
+    {
+      "id": "lightning_node#28",
+      "reason": "strong language masked at display time"
+    },
+    {
+      "id": "articles-threads#220",
+      "reason": "strong language masked at display time"
+    },
+    {
+      "id": "informational-sites#35",
+      "reason": "strong language masked at display time"
+    },
+    {
+      "id": "informational-sites#64",
+      "reason": "strong language masked at display time"
+    },
+    {
+      "id": "memes-funny#197",
+      "reason": "strong language masked at display time"
+    },
+    {
+      "id": "memes-funny#370",
+      "reason": "strong language masked at display time"
+    },
+    {
+      "id": "memes-funny#774",
+      "reason": "strong language masked at display time"
+    },
+    {
+      "id": "memes-funny#1357",
+      "reason": "strong language masked at display time"
+    },
+    {
+      "id": "memes-funny#1371",
+      "reason": "strong language masked at display time"
+    },
+    {
+      "id": "memes-funny#1402",
+      "reason": "strong language masked at display time"
+    },
+    {
+      "id": "memes-funny#1787",
+      "reason": "strong language masked at display time"
+    },
+    {
+      "id": "music#78",
+      "reason": "strong language masked at display time"
+    },
+    {
+      "id": "news-adoption#324",
+      "reason": "strong language masked at display time"
+    },
+    {
+      "id": "news-adoption#334",
+      "reason": "strong language masked at display time"
+    },
+    {
+      "id": "news-adoption#752",
+      "reason": "strong language masked at display time"
+    },
+    {
+      "id": "news-adoption#855",
+      "reason": "strong language masked at display time"
+    }
+  ],
+  "imagesLeftBroken": "Broken discord-may2026 image refs were not dropped. No alternate file was found in the repo."
+}

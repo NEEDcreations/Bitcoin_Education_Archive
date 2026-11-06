@@ -9,14 +9,28 @@
 (function() {
 
 // ---- Nacho is a cartoon deer with antlers ----
-const NACHO_SVG = '<img src="nacho-deer.svg" alt="Nacho" style="width:100%;height:100%;pointer-events:none;" onerror="this.style.display=\'none\';this.parentElement.insertAdjacentHTML(\'afterbegin\',\'<div style=\\\'font-size:60px;text-align:center;line-height:1;\\\'>🦌</div>\');">';
+const NACHO_SVG = '<img src="/nacho-deer.svg" alt="Nacho" style="width:100%;height:100%;pointer-events:none;" onerror="this.style.display=\'none\';this.parentElement.insertAdjacentHTML(\'afterbegin\',\'<div style=\\\'font-size:60px;text-align:center;line-height:1;\\\'>🦌</div>\');">';
 
 // Couch Nacho variant for Timechain TV (same functionality, different visual)
-const COUCH_NACHO_HTML = '<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;"><span style="font-size:5rem;position:absolute;bottom:-10px;filter:drop-shadow(0 8px 15px rgba(0,0,0,0.4));z-index:1;">🛋️</span><div style="position:absolute;bottom:25px;left:50%;transform:translateX(-50%);z-index:2;animation:nachoSway 4s ease-in-out infinite;"><img src="nacho-deer.svg" style="width:55px;height:55px;display:block;"><span style="position:absolute;bottom:-5px;right:-15px;font-size:2rem;filter:drop-shadow(0 4px 6px rgba(0,0,0,0.3));">🍿</span></div></div>';
+const COUCH_NACHO_HTML = '<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;"><span style="font-size:5rem;position:absolute;bottom:-10px;filter:drop-shadow(0 8px 15px rgba(0,0,0,0.4));z-index:1;">🛋️</span><div style="position:absolute;bottom:25px;left:50%;transform:translateX(-50%);z-index:2;animation:nachoSway 4s ease-in-out infinite;"><img src="/nacho-deer.svg" style="width:55px;height:55px;display:block;" onerror="this.style.display=\'none\';if(!this.dataset.fb){this.dataset.fb=1;this.insertAdjacentText(\'afterend\',\'🦌\');}"><span style="position:absolute;bottom:-5px;right:-15px;font-size:2rem;filter:drop-shadow(0 4px 6px rgba(0,0,0,0.3));">🍿</span></div></div>';
 
 // Check if we're on Timechain TV page
 function isTimechainTVPage() {
-    return window.currentPage === 'timechain-tv' || window.location.hash === '#timechain-tv';
+    if (window.currentPage) return window.currentPage === 'timechain-tv' || window.currentPage === 'tv';
+    var hash = window.location.hash || '';
+    var path = window.location.pathname || '';
+    return hash === '#timechain-tv' || hash === '#tv' || path === '/timechain-tv' || path === '/tv';
+}
+
+// Shared chrome so the live avatar and the Timechain TV swap stay identical.
+function nachoControlsHtml() {
+    return '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">Ask me anything about Bitcoin or this app!</span></span>' +
+        '<button type="button" id="nachoHideBtn" aria-label="Minimize Nacho" title="Minimize Nacho" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();event.preventDefault();if(typeof hideNacho===\'function\')hideNacho();">–</button>' +
+        '<div class="nacho-btn-stack">' +
+            '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔<span id="nachoClosetNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
+            '<span class="nacho-story-btn" id="nachoStoryBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoStory===\'function\'){showNachoStory();nachoStoryNotifClear();}" title="Nacho\'s Story — one chapter per day!">📖<span id="nachoStoryNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
+        '</div>' +
+        '<div id="nachoDragHandle" style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:32px;height:14px;background:var(--bg-side,#fff);border:1.5px solid var(--accent,#f7931a);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:grab;z-index:12;touch-action:none;-webkit-touch-callout:none;box-shadow:0 1px 4px rgba(0,0,0,0.3);" title="Drag to move Nacho"><span style="font-size:0.5rem;color:var(--text-muted,#888);pointer-events:none;">⠿</span></div>';
 }
 
 // Poses are now expressed through the speech bubble label
@@ -107,9 +121,9 @@ const TIPS = [
     { pose: 'point', text: "💡 Tip: Your Exploration Map on the homepage shows every channel you've visited. Try to light them all up! 🗺️" },
     { pose: 'point', text: "💡 Tip: Channels you've already read get a ✓ checkmark in the sidebar. Track your progress!" },
     // Points & Ranking
-    { pose: 'brain', text: "💡 Tip: You earn XP by visiting daily (+5), opening new topics (+10), and reading (+15 per 30 sec)!" },
+    { pose: 'brain', text: "💡 Tip: You earn XP by visiting daily (+5) and opening a new topic (+10). The full list is in Settings → Sats." },
     { pose: 'point', text: "💡 Tip: Check the leaderboard to see how you rank against other Bitcoiners! Click your rank bar at the bottom." },
-    { pose: 'fire', text: "💡 Tip: Keep a daily streak going! Every 5 days in a row = bonus 100 points! 🔥" },
+    { pose: 'fire', text: "💡 Tip: Keep a daily streak going. Streak badges pay the XP. The list is in Settings → Sats." },
     { pose: 'point', text: "💡 Tip: There are 9 rank levels from Normie to Satoshi. What level are you? Check Settings → Data!" },
     // Tickets & Rewards
     { pose: 'cheese', text: "💡 Tip: Earn Orange Tickets daily just by logging in and exploring! 🎫" },
@@ -169,7 +183,7 @@ const TIPS = [
     { pose: 'point', text: "💡 Tip: Set up your profile in Settings → Account! Add a bio, website, Twitter, Nostr, and Lightning address! 📝" },
     { pose: 'eyes', text: "💡 Tip: Click any user on the leaderboard to see their profile — including their bio and social links! 👀" },
     // Scholar
-    { pose: 'fire', text: "💡 Tip: The Scholar Certification awards 2,100 points — that's 21 million in sats! The magic number! 🎓" },
+    { pose: 'fire', text: "💡 Tip: The Scholar Certification awards +2,100 XP, not limited by the daily cap. That's the 21 million number. 🎓" },
     // Nacho Closet
     { pose: 'cheese', text: "💡 Tip: Dress me up! Check out Nacho's Closet in Settings → Stats/Nacho. Unlock items as our friendship grows! 👔🦌" },
     { pose: 'cool', text: "💡 Tip: I wear my closet items in Nacho Mode too! Equip something and check out my hero section! 🦸" },
@@ -442,6 +456,7 @@ function createNacho() {
     if (_nachoHiddenVal === 'true' || _nachoHiddenVal === 'user') {
         nachoVisible = false;
     }
+    syncNachoDock();
 
     const style = document.createElement('style');
     style.textContent = `
@@ -449,14 +464,45 @@ function createNacho() {
             position: fixed;
             bottom: 80px;
             left: 330px;
-            z-index: 250;
+            /* Above page content and the mobile bar (100). Below badge toasts (300),
+               search (20000), and modals (9999+). */
+            z-index: 260;
             display: flex;
             align-items: flex-end;
             gap: 0;
             pointer-events: none;
-            transition: opacity 0.3s, transform 0.3s;
+            transition: opacity 0.3s;
         }
-        #nacho-container.hidden { opacity: 0; transform: translateY(30px); pointer-events: none; }
+        #nacho-container.hidden { opacity: 0; pointer-events: none; }
+        /* A minimized deer must not catch taps. Children set pointer-events:auto,
+           so the hidden rule has to win on every descendant. The 🦌 pill is outside. */
+        #nacho-container.hidden,
+        #nacho-container.hidden * {
+            pointer-events: none !important;
+            visibility: hidden !important;
+        }
+        #nacho-container.nacho-dragging,
+        #nacho-avatar.nacho-dragging,
+        #nacho-toggle.nacho-dragging {
+            animation: none !important;
+            transform: none !important;
+            transition: none !important;
+            cursor: grabbing;
+        }
+        #nacho-container.nacho-dragging #nacho-avatar {
+            animation: none !important;
+            transform: none !important;
+        }
+        #nacho-container.nacho-suspended,
+        #nacho-toggle.nacho-suspended { display: none !important; }
+        /* Fullscreen overlays that sit under Nacho and would swallow taps. */
+        body:has(aside.open) #nacho-container,
+        body:has(aside.open) #nacho-toggle,
+        body:has(.lightbox.open) #nacho-container,
+        body:has(.lightbox.open) #nacho-toggle {
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
 
         #nacho-avatar {
             width: 110px;
@@ -468,6 +514,7 @@ function createNacho() {
             justify-content: center;
             cursor: pointer;
             pointer-events: auto;
+            touch-action: none;
             filter: drop-shadow(0 6px 16px rgba(0,0,0,0.5));
             transition: transform 0.15s;
             user-select: none;
@@ -523,14 +570,16 @@ function createNacho() {
         }
         #nacho-avatar .nacho-name {
             position: absolute;
-            bottom: -46px;
-            left: 50%;
-            transform: translateX(-50%);
+            top: calc(100% + 6px);
+            left: 0;
+            transform: none;
             font-size: 0.66rem;
             color: var(--text-dim, #64748b);
             font-weight: 600;
             letter-spacing: 0.4px;
-            white-space: nowrap;
+            white-space: normal;
+            width: max-content;
+            max-width: min(240px, 78vw);
             background: var(--bg-side);
             border: 1px solid var(--border);
             border-radius: 9px;
@@ -547,15 +596,18 @@ function createNacho() {
             background: rgba(247,147,26,0.15);
         }
 
-        /* Nacho speech bubble — high contrast, always readable */
+        /* Nacho speech bubble — follows the active theme */
         #nacho-bubble {
-            background: #111827;
-            border: 2px solid #f7931a;
+            background: var(--bg-side, #111827);
+            border: 2px solid var(--accent, #f7931a);
             border-radius: 16px;
             padding: 16px 20px 16px 18px;
             max-width: 300px;
-            min-width: 200px;
-            color: #f8f8f8;
+            min-width: 160px;
+            max-height: 45vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            color: var(--text, #f8f8f8);
             font-size: 0.9rem;
             line-height: 1.55;
             pointer-events: none;
@@ -577,7 +629,7 @@ function createNacho() {
             width: 0; height: 0;
             border-top: 10px solid transparent;
             border-bottom: 10px solid transparent;
-            border-right: 10px solid #f7931a;
+            border-right: 10px solid var(--accent, #f7931a);
         }
         #nacho-bubble::after {
             content: '';
@@ -587,9 +639,36 @@ function createNacho() {
             width: 0; height: 0;
             border-top: 8px solid transparent;
             border-bottom: 8px solid transparent;
-            border-right: 8px solid #111827;
+            border-right: 8px solid var(--bg-side, #111827);
         }
-        #nacho-bubble.show { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+        #nacho-container.nacho-bubble-left { flex-direction: row-reverse; }
+        #nacho-container.nacho-bubble-left #nacho-bubble { margin-left: 0; margin-right: -6px; }
+        #nacho-container.nacho-bubble-left #nacho-bubble::before {
+            left: auto; right: -10px;
+            border-right: none;
+            border-left: 10px solid var(--accent, #f7931a);
+        }
+        #nacho-container.nacho-bubble-left #nacho-bubble::after {
+            left: auto; right: -7px;
+            border-right: none;
+            border-left: 8px solid var(--bg-side, #111827);
+        }
+        #nacho-container.nacho-bubble-below { flex-direction: column; align-items: flex-start; }
+        #nacho-container.nacho-bubble-below.nacho-bubble-left { align-items: flex-end; }
+        #nacho-container.nacho-bubble-below #nacho-bubble { margin: 8px 0 0 0; }
+        #nacho-container.nacho-bubble-below #nacho-bubble::before,
+        #nacho-container.nacho-bubble-below #nacho-bubble::after { display: none; }
+        /* The bubble's empty padding stays click-through so it cannot steal a tap
+           from the Invite pill. Header, text, and controls still receive events. */
+        #nacho-bubble.show { opacity: 1; transform: translateY(0) scale(1); }
+        #nacho-bubble.show .nacho-header,
+        #nacho-bubble.show #nacho-text,
+        #nacho-bubble.show button,
+        #nacho-bubble.show a,
+        #nacho-bubble.show input,
+        #nacho-bubble.show textarea,
+        #nacho-bubble.show select,
+        #nacho-bubble.show label { pointer-events: auto; }
 
         .nacho-header {
             display: flex;
@@ -613,7 +692,7 @@ function createNacho() {
             padding: 2px 4px;
         }
         .nacho-x:hover { opacity: 1; }
-        #nacho-text { word-wrap: break-word; max-height: 60vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 4px; }
+        #nacho-text { word-wrap: break-word; max-height: none; overflow: visible; padding-right: 4px; }
 
         /* Clippy-style idle animations — mimic the paper clip's fidgeting */
 
@@ -759,15 +838,100 @@ function createNacho() {
         #nacho-avatar.anim-wave { animation: nachoWave 1.5s ease-in-out infinite; }
         #nacho-avatar.anim-sleepy { animation: nachoSleepy 4s ease-in-out infinite; }
 
-        /* Quiet mode: only the avatar shows until Nacho is hovered or speaking */
-        #nacho-avatar .nacho-name, #nachoHideBtn, #nachoDragHandle, .nacho-btn-stack {
+        /* Quiet mode: name, closet, and the drag handle wait for hover. The minimize
+           button is separate so phones can always see it. */
+        #nacho-avatar .nacho-name, #nachoDragHandle, .nacho-btn-stack {
             opacity: 0; pointer-events: none; transition: opacity 0.25s;
         }
-        #nacho-container:hover .nacho-name, #nacho-container:hover #nachoHideBtn,
-        #nacho-container:hover #nachoDragHandle, #nacho-container:hover .nacho-btn-stack,
-        #nacho-container.nacho-engaged .nacho-name, #nacho-container.nacho-engaged #nachoHideBtn,
-        #nacho-container.nacho-engaged #nachoDragHandle, #nacho-container.nacho-engaged .nacho-btn-stack {
+        #nacho-container:hover .nacho-name, #nacho-container:hover #nachoDragHandle,
+        #nacho-container:hover .nacho-btn-stack,
+        #nacho-container.nacho-engaged .nacho-name, #nacho-container.nacho-engaged #nachoDragHandle,
+        #nacho-container.nacho-engaged .nacho-btn-stack,
+        #nacho-container:focus-within .nacho-name, #nacho-container:focus-within #nachoDragHandle,
+        #nacho-container:focus-within .nacho-btn-stack {
             opacity: 1; pointer-events: auto;
+        }
+        #nachoHideBtn {
+            position: absolute;
+            top: -6px;
+            left: -6px;
+            width: 22px;
+            height: 22px;
+            padding: 0;
+            margin: 0;
+            appearance: none;
+            -webkit-appearance: none;
+            border-radius: 50%;
+            border: 1.5px solid var(--border, #334155);
+            background: var(--bg-side, #0f172a);
+            color: var(--text, #e2e8f0);
+            font-size: 18px;
+            font-weight: 800;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 14;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+            touch-action: manipulation;
+            font-family: inherit;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s, transform 0.15s, border-color 0.15s, color 0.15s;
+        }
+        #nacho-container:hover #nachoHideBtn,
+        #nacho-container:focus-within #nachoHideBtn,
+        #nachoHideBtn:focus {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        /* Freeze the idle bob while the minimize control is the target, and on
+           touch where that control is always showing. */
+        #nacho-container:hover #nacho-avatar,
+        #nacho-container:focus-within #nacho-avatar {
+            animation: none !important;
+        }
+        #nachoHideBtn:hover, #nachoHideBtn:focus {
+            border-color: var(--accent, #f7931a);
+            color: var(--accent, #f7931a);
+        }
+        @media (hover: none) and (pointer: coarse) {
+            #nachoHideBtn { opacity: 1; pointer-events: auto; }
+            #nacho-avatar { animation: none !important; }
+        }
+        #nacho-avatar:focus-visible {
+            outline: 2px solid #f7931a;
+            outline-offset: 3px;
+        }
+        @media (max-width: 900px) {
+            /* Sit above the sprite, with a gap, so the 44px target is not the deer's tap. */
+            #nachoHideBtn {
+                opacity: 1;
+                pointer-events: auto;
+                top: auto;
+                right: auto;
+                bottom: calc(100% + 8px);
+                left: 50%;
+                width: 44px;
+                height: 44px;
+                min-width: 44px;
+                min-height: 44px;
+                font-size: 22px;
+                transform: translateX(-50%);
+            }
+            #nacho-avatar { animation: none !important; }
+            /* Story, closet, name, and the drag pill stay off the phone tap target.
+               The round buttons set pointer-events:auto, which would beat the stack's none. */
+            #nacho-avatar .nacho-name,
+            #nacho-avatar .nacho-btn-stack,
+            #nacho-avatar .nacho-closet-btn,
+            #nacho-avatar .nacho-story-btn,
+            #nachoDragHandle {
+                opacity: 0 !important;
+                pointer-events: none !important;
+                display: none !important;
+            }
         }
 
         /* Tablet — sidebar is 280px */
@@ -775,60 +939,137 @@ function createNacho() {
             #nacho-container { left: 290px; }
             #nacho-avatar { width: 95px; height: 95px; }
         }
-        /* Mobile — sidebar hidden, Nacho goes bottom-left, above clutter */
+        /* Mobile — sidebar hidden, Nacho goes bottom-left, above the nav.
+           Same clearance as the FAB row: measured nav height plus the safe-area inset. */
         @media (max-width: 900px) {
-            #nacho-container { bottom: 76px; left: 10px; }
-            #nacho-avatar { width: 56px; height: 56px; }
+            #nacho-container { bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-gap, 12px)); left: 18px; }
+            #nacho-avatar { width: 48px; height: 48px; min-width: 48px; min-height: 48px; z-index: 200060; }
+            #nachoDragHandle { bottom: 2px !important; }
+            #nacho-avatar .nacho-name { top: auto; bottom: calc(100% + 4px); }
+            /* Speech bubble shares the FAB baseline: nav + safe area + gap,
+               then the button height, then the same gap again (--above-fab). */
             #nacho-bubble {
-                position: fixed;
-                bottom: 148px;
-                left: 12px;
-                right: 12px;
-                max-width: calc(100vw - 24px);
-                max-height: 40vh;
-                overflow-y: auto;
-                -webkit-overflow-scrolling: touch;
-                min-width: unset;
-                width: auto;
-                font-size: 0.9rem;
-                padding: 16px 18px;
-                margin-left: 0;
-                border-radius: 14px;
-            }
-            #nacho-bubble::before, #nacho-bubble::after { display: none; }
-            #nacho-avatar .nacho-name { font-size: 0.7rem; bottom: -44px; padding: 5px 14px; }
-        }
-        @media (max-width: 480px) {
-            #nacho-container { bottom: 76px; left: 8px; }
-            #nacho-avatar { width: 52px; height: 52px; }
-            #nacho-bubble {
-                bottom: 140px;
-                left: 10px;
-                right: 10px;
-                max-width: calc(100vw - 20px);
-                max-height: 38vh;
+                position: fixed !important;
+                left: 12px !important;
+                right: calc(12px + env(safe-area-inset-right, 0px)) !important;
+                bottom: var(--above-fab, calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + var(--fab-size, 48px) + var(--fab-gap, 12px))) !important;
+                margin: 0 !important;
+                max-width: none !important;
+                width: auto !important;
+                min-width: 0 !important;
+                max-height: 45vh;
                 overflow-y: auto;
                 -webkit-overflow-scrolling: touch;
                 font-size: 0.85rem;
-                padding: 14px 16px;
+                padding: 12px 14px;
+                border-radius: 14px;
+                z-index: 200050;
             }
-            #nacho-avatar .nacho-name { font-size: 0.65rem; bottom: -40px; padding: 5px 12px; }
+            #nacho-bubble::before,
+            #nacho-bubble::after { display: none !important; }
+            #nacho-avatar .nacho-name { font-size: 0.7rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(230px, 76vw); white-space: normal; padding: 5px 10px; }
+        }
+        @media (max-width: 480px) {
+            #nacho-container { bottom: calc(var(--bnav-h, 72px) + env(safe-area-inset-bottom, 0px) + var(--fab-gap, 12px)); left: 18px; }
+            #nacho-avatar { width: 48px; height: 48px; min-width: 48px; min-height: 48px; }
+            #nacho-bubble {
+                max-height: 45vh;
+                font-size: 0.82rem;
+                padding: 12px 14px;
+            }
+            #nacho-avatar .nacho-name { font-size: 0.65rem; top: calc(100% + 4px); bottom: auto; left: 0; transform: none; width: max-content; max-width: min(220px, 74vw); white-space: normal; padding: 5px 8px; }
         }
 
         /* Bring-back toggle */
         #nacho-toggle {
-            position: fixed; bottom: 80px; left: 330px; z-index: 250;
+            position: fixed; bottom: 80px; left: 330px; z-index: 260;
             width: 52px; height: 52px;
-            background: radial-gradient(circle, #fff 60%, rgba(255,255,255,0.85) 100%);
-            border: 2px solid rgba(247,147,26,0.5);
+            background: var(--bg-side, #fff);
+            border: 2px solid var(--accent, #f7931a);
+            color: var(--text, #1e293b);
             border-radius: 50%; display: none; align-items: center; justify-content: center;
-            font-size: 1.6rem; cursor: pointer; opacity: 0.9; transition: all 0.3s;
+            font-size: 1.6rem; cursor: grab; opacity: 0.95; transition: opacity 0.3s, box-shadow 0.3s;
             box-shadow: 0 2px 12px rgba(0,0,0,0.3), 0 0 0 3px rgba(247,147,26,0.15);
+            touch-action: none;
+            user-select: none;
         }
         #nacho-toggle:hover { opacity: 1; transform: scale(1.1); box-shadow: 0 4px 20px rgba(247,147,26,0.4), 0 0 0 4px rgba(247,147,26,0.25); }
+        #nachoActionSheet {
+            position: fixed;
+            z-index: 200120;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: min(260px, calc(100vw - 84px));
+            padding: 10px;
+            border-radius: 16px;
+            background: var(--bg-side, #0f172a);
+            border: 1px solid var(--border, #334155);
+            box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+            box-sizing: border-box;
+        }
+        #nachoActionSheet[hidden] { display: none !important; }
+        #nachoActionSheet button {
+            min-height: 48px;
+            width: 100%;
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            touch-action: manipulation;
+            padding: 10px 12px;
+        }
+        #nachoActionSheet button:focus-visible {
+            outline: 2px solid #f7931a;
+            outline-offset: 2px;
+        }
+        #nachoSheetAsk {
+            background: #f7931a;
+            color: #1a1208;
+            border: none;
+        }
+        #nachoSheetStory, #nachoSheetCloset, #nachoSheetClose {
+            background: transparent;
+            color: var(--text, #e2e8f0);
+            border: 1px solid var(--border, #334155);
+        }
+        #nachoSheetStory { position: relative; }
+        #nachoSheetStoryDot {
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+        }
+        #nachoSheetStoryDot[hidden] { display: none !important; }
+        #nachoAskHint {
+            position: fixed;
+            z-index: 261;
+            margin: 0;
+            max-width: min(220px, calc(100vw - 16px));
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: var(--bg-side, #0f172a);
+            color: var(--text, #f8fafc);
+            border: 1px solid #f7931a;
+            font-family: inherit;
+            font-size: 0.78rem;
+            font-weight: 700;
+            line-height: 1.2;
+            white-space: nowrap;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        #nachoAskHint[hidden] { display: none !important; }
+        #nachoAskHint:focus-visible { outline: 2px solid #f7931a; outline-offset: 2px; }
+
         @media (max-width: 1100px) { #nacho-toggle { left: 290px; } }
-        @media (max-width: 900px) { #nacho-toggle { bottom: calc(50vh - 30px); left: 12px; width: 46px; height: 46px; font-size: 1.3rem; } }
-        @media (max-width: 480px) { #nacho-toggle { bottom: calc(50vh - 40px); left: 10px; width: 44px; height: 44px; font-size: 1.2rem; } }
+        @media (max-width: 900px) { #nacho-toggle { bottom: var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)); left: auto; right: var(--fab-edge, 12px); width: var(--fab-size, 48px); height: var(--fab-size, 48px); font-size: 1.3rem; } }
+        @media (max-width: 480px) { #nacho-toggle { bottom: var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)); left: auto; right: var(--fab-edge, 12px); width: 44px; height: 44px; font-size: 1.2rem; } }
     `;
     document.head.appendChild(style);
 
@@ -841,22 +1082,32 @@ function createNacho() {
     container.innerHTML =
         '<div id="nacho-avatar" class="anim-tap" onclick="nachoClick()" title="Nacho the Deer — Click me!" style="' + avatarStyle + '" data-tctv="' + (isTimechainTVPage() ? '1' : '0') + '">' +
             avatarContent +
-            '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
-            '<span id="nachoHideBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof hideNacho===\'function\')hideNacho();if(typeof showToast===\'function\')showToast(\'🦌 Nacho hidden — tap the 🦌 button to bring him back!\');" style="position:absolute;top:-4px;right:-34px;width:20px;height:20px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.6rem;color:#999;z-index:10;transition:0.2s;touch-action:manipulation;" title="Hide Nacho">✕</span>' +
-            '<div class="nacho-btn-stack">' +
-                '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔<span id="nachoClosetNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
-                '<span class="nacho-story-btn" id="nachoStoryBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoStory===\'function\'){showNachoStory();nachoStoryNotifClear();}" title="Nacho\'s Story — one chapter per day!">📖<span id="nachoStoryNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
-            '</div>' +
-            '<div id="nachoDragHandle" style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:32px;height:14px;background:rgba(255,255,255,0.9);border:1.5px solid rgba(247,147,26,0.5);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:grab;z-index:12;touch-action:none;-webkit-touch-callout:none;box-shadow:0 1px 4px rgba(0,0,0,0.3);" title="Drag to move Nacho"><span style="font-size:0.5rem;color:#888;pointer-events:none;">⠿</span></div>' +
+            nachoControlsHtml() +
         '</div>' +
-        '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\')&&this.getAttribute(\'data-interactive\')!==\'true\')hideBubble(true)">' +
+        '<div id="nacho-bubble" onclick="if(!document.getElementById(\'nachoInput\')&&this.getAttribute(\'data-interactive\')!==\'true\'&&this.getAttribute(\'data-trivia\')!==\'1\')hideBubble(true)">' +
             '<div class="nacho-header">' +
                 '<span class="nacho-label"><span id="nacho-pose-emoji">🦌</span> <span id="nacho-bubble-name">' + ((typeof nachoNickname === 'function') ? nachoNickname() : 'Nacho') + '</span> says</span>' +
-                '<span class="nacho-x" onclick="event.stopPropagation();hideBubble(true)">✕</span>' +
+                '<span class="nacho-x" onclick="event.stopPropagation();window._nachoTriviaXClose=true;hideBubble(true)">✕</span>' +
             '</div>' +
             '<div id="nacho-text"></div>' +
         '</div>';
     document.body.appendChild(container);
+    syncNachoDock();
+    mountNachoActionSheet();
+    var avatarEl = document.getElementById('nacho-avatar');
+    if (avatarEl) {
+        avatarEl.setAttribute('role', 'button');
+        avatarEl.tabIndex = 0;
+        avatarEl.setAttribute('aria-label', 'Ask Nacho or read his story');
+        avatarEl.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            if (typeof window.nachoClick === 'function') window.nachoClick();
+        });
+    }
+    syncNachoAria();
+    bindNachoHideTouch();
+    placeNachoHideBtn();
 
     // Closet button — use addEventListener to fully control event propagation
     // Inline handlers fail on mobile because touchend propagates to avatar → nachoClick()
@@ -865,26 +1116,7 @@ function createNacho() {
         var closetTouched = false;
         closetBtn.addEventListener('mousedown', function(e) { e.stopPropagation(); e.stopImmediatePropagation(); }, false);
         closetBtn.addEventListener('touchstart', function(e) { e.stopPropagation(); e.stopImmediatePropagation(); closetTouched = true; }, { passive: false });
-        function openNachoCloset() {
-            window._expanded_closet = true;
-            window._pendingClosetScroll = true;
-            try {
-                if (typeof showSettings === 'function') showSettings();
-                // Wait for the settings modal to actually appear, then switch to data/closet tab
-                var attempts = 0;
-                function tryShowCloset() {
-                    attempts++;
-                    var modal = document.getElementById('usernameModal');
-                    if (modal && modal.classList.contains('open') && typeof showSettingsPage === 'function') {
-                        showSettingsPage('data');
-                    } else if (attempts < 10) {
-                        setTimeout(tryShowCloset, 150);
-                    }
-                }
-                setTimeout(tryShowCloset, 200);
-            } catch(err) {}
-            if (typeof nachoClosetNotifClear === 'function') nachoClosetNotifClear();
-        }
+        function openNachoCloset() { nachoOpenCloset(); }
         closetBtn.addEventListener('touchend', function(e) {
             e.stopPropagation(); e.stopImmediatePropagation(); e.preventDefault();
             if (closetTouched) {
@@ -939,6 +1171,8 @@ function createNacho() {
             var neverOpened = chaptersUnlocked === 0;
             var storyDismissed = localStorage.getItem('btc_nacho_story_notif_dismissed') === today;
             storyDot.style.display = (!storyDismissed && (hasNewChapter || neverOpened)) ? 'block' : 'none';
+            var sheetDot = document.getElementById('nachoSheetStoryDot');
+            if (sheetDot) sheetDot.hidden = storyDot.style.display === 'none';
         }
         // Closet notification: show if there are unviewed closet items
         var closetDot = document.getElementById('nachoClosetNotif');
@@ -967,9 +1201,18 @@ function createNacho() {
 
     const toggle = document.createElement('div');
     toggle.id = 'nacho-toggle';
-    toggle.innerHTML = '🦌';
+    toggle.innerHTML = '<img src="/nacho-deer.svg" alt="" width="32" height="32" style="width:70%;height:70%;object-fit:contain;pointer-events:none;">';
     toggle.title = 'Bring back Nacho';
-    toggle.onclick = function() { showNacho(); };
+    toggle.setAttribute('role', 'button');
+    toggle.setAttribute('aria-label', 'Bring Nacho back');
+    toggle.tabIndex = 0;
+    toggle.onclick = function() {
+        if (toggle._nachoSuppressClick) { toggle._nachoSuppressClick = false; return; }
+        showNacho();
+    };
+    toggle.onkeydown = function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); showNacho(); }
+    };
     if (!nachoVisible) toggle.style.display = 'flex';
     document.body.appendChild(toggle);
 
@@ -979,12 +1222,17 @@ function createNacho() {
         if (!avatar) return;
         var lpTimer = null;
         var lpFired = false;
+        window._nachoCancelLongPress = function() {
+            clearTimeout(lpTimer);
+            lpTimer = null;
+            lpFired = false;
+        };
         avatar.addEventListener('touchstart', function(e) {
             lpFired = false;
             lpTimer = setTimeout(function() {
+                if (window._nachoDragging) return;
                 lpFired = true;
                 if (typeof hideNacho === 'function') hideNacho();
-                if (typeof showToast === 'function') showToast('🦌 Nacho hidden! Tap the 🦌 icon to bring him back.');
             }, 800);
         }, { passive: true });
         avatar.addEventListener('touchend', function() { clearTimeout(lpTimer); if (lpFired) { lpFired = false; } });
@@ -992,14 +1240,14 @@ function createNacho() {
         // Desktop: right-click also hides
         avatar.addEventListener('contextmenu', function(e) {
             e.preventDefault();
+            if (window._nachoDragging) return;
             if (typeof hideNacho === 'function') hideNacho();
-            if (typeof showToast === 'function') showToast('🦌 Nacho hidden! Tap the 🦌 icon to bring him back.');
         });
     })();
 
     // Welcome after delay — use time-of-day greeting or regular welcome
     setTimeout(function() {
-        if (!nachoVisible) return;
+        if (!nachoVisible || nachoHoldFirstVisit()) return;
         
         // PROGRESSIVE ONBOARDING FOR NEW USERS
         var visits = (typeof currentUser !== 'undefined' && currentUser) ? currentUser.totalVisits || 0 : 0;
@@ -1011,13 +1259,24 @@ function createNacho() {
             setPose('wave');
             
             if (tourStep === 1) {
-                forceShowBubble('<div style="line-height:1.6;">Hey there! I\'m <strong style="color:#f7931a;">Nacho</strong>, your Bitcoin education buddy! 🦌🧡<br><br>' +
-                    'Here\'s what you can do here:<br>' +
-                    '📚 <strong>Read 145+ Bitcoin topics</strong> — tap any in the sidebar<br>' +
-                    '🎡 <strong>Spin daily</strong> for free tickets & rewards<br>' +
-                    '⚡ <strong>Take quests</strong> to test your knowledge<br><br>' +
-                    '<button onclick="hideBubble(true);showSpinWheel()" style="width:100%;padding:10px;background:#f7931a;color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem;">🎡 Try the Daily Spin!</button>' +
-                    '<button onclick="hideBubble(true)" style="width:100%;padding:8px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;cursor:pointer;font-size:0.8rem;margin-top:6px;">I\'ll explore on my own</button></div>');
+                var spinWelcome = typeof window.bqModeAllows !== 'function' || window.bqModeAllows('spin');
+                if (spinWelcome) {
+                    forceShowBubble('<div style="line-height:1.6;">Hey there! I\'m <strong style="color:#f7931a;">Nacho</strong>, your Bitcoin education buddy! 🦌🧡<br><br>' +
+                        'Here\'s what you can do here:<br>' +
+                        '📚 <strong>Read 145+ Bitcoin topics</strong> — tap any in the sidebar<br>' +
+                        '🎡 <strong>Spin daily</strong> for free tickets & rewards<br>' +
+                        '⚡ <strong>Take quests</strong> to test your knowledge<br><br>' +
+                        '<button onclick="hideBubble(true);showSpinWheel()" style="width:100%;padding:10px;background:#f7931a;color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem;">🎡 Try the Daily Spin!</button>' +
+                        '<button onclick="hideBubble(true)" style="width:100%;padding:8px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;cursor:pointer;font-size:0.8rem;margin-top:6px;">I\'ll explore on my own</button></div>');
+                } else {
+                    forceShowBubble('<div style="line-height:1.6;">Hey there! I\'m <strong style="color:#f7931a;">Nacho</strong>, your Bitcoin education buddy! 🦌🧡<br><br>' +
+                        'Here\'s what you can do here:<br>' +
+                        '📚 <strong>Pick a topic</strong> — tap any in the sidebar<br>' +
+                        '🦌 <strong>Ask Nacho</strong> anything about Bitcoin<br>' +
+                        '⚡ <strong>Take quests</strong> to test your knowledge<br><br>' +
+                        '<button onclick="hideBubble(true);go(\'whitepaper\')" style="width:100%;padding:10px;background:#f7931a;color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-size:0.9rem;">Pick a topic</button>' +
+                        '<button onclick="hideBubble(true);if(typeof enterNachoMode===\'function\')enterNachoMode()" style="width:100%;padding:8px;background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;cursor:pointer;font-size:0.8rem;margin-top:6px;">Ask Nacho</button></div>');
+                }
                 localStorage.setItem('btc_nacho_onboarding', '2');
             } else if (tourStep === 2 && exploredCount >= 1) {
                 forceShowBubble('<div style="line-height:1.6;">Nice, you explored your first channel! 🎉<br><br>' +
@@ -1193,7 +1452,7 @@ function createNacho() {
 function setPose(pose) {
     currentPose = pose || 'default';
     const emoji = document.getElementById('nacho-pose-emoji');
-    if (emoji) emoji.textContent = POSES[currentPose] || POSES.default;
+    if (emoji) emoji.textContent = '🦌';
 }
 
 function resetPose() {
@@ -1243,16 +1502,9 @@ window._nachoDispatch = function(key) {
             if (typeof toggleLeaderboard === 'function') toggleLeaderboard();
             break;
         case 'scholar':
-            if (typeof startScholarQuest === 'function') {
-                startScholarQuest();
-            } else {
-                // scholar.js not yet loaded — inject it then call
-                if (typeof showToast === 'function') showToast('⏳ Loading exam\u2026 one moment!');
-                var _s = document.createElement('script');
-                _s.src = 'scholar.js?v=20260809_1846';
-                _s.onload = function() { if (typeof startScholarQuest === 'function') startScholarQuest(); };
-                document.body.appendChild(_s);
-            }
+            if (typeof window.openCertification === 'function') window.openCertification('properties');
+            else if (typeof startScholarQuest === 'function') startScholarQuest('properties');
+            else if (typeof showToast === 'function') showToast('⏳ Loading exam… one moment!');
             break;
         case 'flashcards':
             // Open the Learning Quests hub which contains the flashcard launcher
@@ -1297,6 +1549,18 @@ window._nachoDispatch = function(key) {
             if (typeof showToast === 'function') showToast('⚠️ Action not found: ' + key);
     }
 };
+
+// Keep the deer on his saved spot when the bubble grows or shrinks.
+function pinNachoAvatar() {
+    requestAnimationFrame(function() {
+        requestAnimationFrame(function() {
+            if (window._nachoDragging) return;
+            var c = document.getElementById('nacho-container');
+            if (!c || c.classList.contains('nacho-dragging') || c.classList.contains('hidden') || c.classList.contains('nacho-suspended')) return;
+            if (typeof window._nachoRestorePosition === 'function') window._nachoRestorePosition();
+        });
+    });
+}
 
 // ---- Show/Hide Bubble ----
 function showBubble(text, pose) {
@@ -1396,6 +1660,8 @@ function _showBubble(text, pose) {
         textEl.textContent = personalize(text);
     }
     bubble.classList.add('show');
+    if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
+    pinNachoAvatar();
 
     clearTimeout(bubbleTimeout);
     bubble.setAttribute('data-interactive', isInteractive ? 'true' : 'false');
@@ -1414,6 +1680,7 @@ function _showBubble(text, pose) {
         var b = document.getElementById('nacho-bubble');
         var c = document.getElementById('nacho-container');
         if (!b || !b.classList.contains('show')) return;
+        if (b.getAttribute('data-trivia') === '1') return;
         if (b.contains(e.target)) return;
         if (c && c.contains(e.target)) return;
         var modal = document.getElementById('usernameModal');
@@ -1421,7 +1688,14 @@ function _showBubble(text, pose) {
         hideBubble(true);
     };
     window._nachoEscHandler = function(e) {
-        if (e.key === 'Escape') hideBubble(true);
+        if (e.key !== 'Escape') return;
+        var b = document.getElementById('nacho-bubble');
+        if (b && b.getAttribute('data-trivia') === '1') {
+            if (window._btcBubbleQuiz && typeof window.btcDismissBubbleQuiz === 'function') window.btcDismissBubbleQuiz('esc');
+            else if (typeof window.btcDismissNachoTrivia === 'function') window.btcDismissNachoTrivia('esc');
+            return;
+        }
+        hideBubble(true);
     };
     setTimeout(function() {
         document.addEventListener('mousedown', window._nachoDismissHandler);
@@ -1445,241 +1719,20 @@ function _showBubble(text, pose) {
         if (!b || !b.classList.contains('show') || !e.changedTouches[0]) return;
         var dx = e.changedTouches[0].clientX - _swipeStartX;
         var dy = e.changedTouches[0].clientY - _swipeStartY;
+        if (b.getAttribute('data-trivia') === '1') return;
         if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 2) {
             hideBubble(true);
         }
     }, { passive: true });
 })();
 
-// Drag-to-reposition Nacho (mobile + desktop)
-(function() {
-    var dragging = false, dragStartX = 0, dragStartY = 0;
-    var containerStartLeft = 0, containerStartTop = 0;
-    var dragThreshold = 8; // px — must move this far before it counts as drag (not tap)
-    var hasMoved = false;
-    var dragTarget = null;
-
-    function getContainer() { return document.getElementById('nacho-container'); }
-
-    function restoreSavedPosition() {
-        var saved = localStorage.getItem('btc_nacho_position');
-        if (!saved) return;
-        try {
-            var pos = JSON.parse(saved);
-            var c = getContainer();
-            if (!c) return;
-            // Validate position is on screen
-            var maxX = window.innerWidth - 40;
-            var maxY = window.innerHeight - 40;
-            if (pos.left >= 0 && pos.left <= maxX && pos.top >= 0 && pos.top <= maxY) {
-                c.style.left = pos.left + 'px';
-                c.style.bottom = 'auto';
-                c.style.top = pos.top + 'px';
-                c.style.right = 'auto';
-            }
-        } catch(e) {}
-    }
-
-    // Restore position on load and on resize (validate bounds)
-    setTimeout(restoreSavedPosition, 500);
-    window.addEventListener('resize', function() {
-        var saved = localStorage.getItem('btc_nacho_position');
-        if (!saved) return;
-        try {
-            var pos = JSON.parse(saved);
-            var c = getContainer();
-            if (!c) return;
-            // Clamp to viewport
-            pos.left = Math.max(0, Math.min(pos.left, window.innerWidth - 60));
-            pos.top = Math.max(0, Math.min(pos.top, window.innerHeight - 60));
-            c.style.left = pos.left + 'px';
-            c.style.top = pos.top + 'px';
-            localStorage.setItem('btc_nacho_position', JSON.stringify(pos));
-        } catch(e) {}
-    });
-
-    // Touch events (mobile) — drag ONLY from the drag handle
-    document.addEventListener('touchstart', function(e) {
-        var handle = document.getElementById('nachoDragHandle');
-        if (!handle || !handle.contains(e.target)) return;
-        e.preventDefault(); // Prevent any other touch behavior
-        var c = getContainer();
-        if (!c) return;
-        hasMoved = false;
-        dragTarget = c;
-        dragStartX = e.touches[0].clientX;
-        dragStartY = e.touches[0].clientY;
-        var rect = c.getBoundingClientRect();
-        containerStartLeft = rect.left;
-        containerStartTop = rect.top;
-        dragging = true;
-        c.style.transition = 'none';
-        c.style.opacity = '0.85';
-        handle.style.background = 'rgba(247,147,26,0.9)';
-        handle.querySelector('span').style.color = '#fff';
-    }, { passive: false });
-
-    document.addEventListener('touchmove', function(e) {
-        if (!dragging || !dragTarget) return;
-        var dx = e.touches[0].clientX - dragStartX;
-        var dy = e.touches[0].clientY - dragStartY;
-        if (!hasMoved && Math.abs(dx) < dragThreshold && Math.abs(dy) < dragThreshold) return;
-        hasMoved = true;
-        e.preventDefault(); // Stop scrolling while dragging Nacho
-        e.stopPropagation();
-        var newLeft = Math.max(0, Math.min(containerStartLeft + dx, window.innerWidth - 60));
-        var newTop = Math.max(0, Math.min(containerStartTop + dy, window.innerHeight - 60));
-        dragTarget.style.left = newLeft + 'px';
-        dragTarget.style.top = newTop + 'px';
-        dragTarget.style.bottom = 'auto';
-        dragTarget.style.right = 'auto';
-    }, { passive: false });
-
-    document.addEventListener('touchend', function(e) {
-        if (!dragging) return;
-        dragging = false;
-        if (dragTarget) {
-            dragTarget.style.transition = '';
-            dragTarget.style.opacity = '';
-        }
-        // Reset drag handle appearance
-        var handle = document.getElementById('nachoDragHandle');
-        if (handle) { handle.style.background = 'rgba(255,255,255,0.9)'; var hs = handle.querySelector('span'); if (hs) hs.style.color = '#888'; }
-        if (hasMoved && dragTarget) {
-            var rect = dragTarget.getBoundingClientRect();
-            // Clamp to viewport edges (don't let it go off-screen)
-            var clampedLeft = Math.max(0, Math.min(Math.round(rect.left), window.innerWidth - 60));
-            var clampedTop = Math.max(0, Math.min(Math.round(rect.top), window.innerHeight - 60));
-            dragTarget.style.left = clampedLeft + 'px';
-            dragTarget.style.top = clampedTop + 'px';
-            localStorage.setItem('btc_nacho_position', JSON.stringify({ left: clampedLeft, top: clampedTop }));
-            setTimeout(adjustBubbleForPosition, 50);
-            e.preventDefault();
-        }
-        dragTarget = null;
-    }, { passive: false });
-
-    // Mouse events (desktop) — drag ONLY from handle
-    document.addEventListener('mousedown', function(e) {
-        var handle = document.getElementById('nachoDragHandle');
-        if (!handle || !handle.contains(e.target)) return;
-        var c = getContainer();
-        if (!c) return;
-        dragging = true;
-        hasMoved = false;
-        dragTarget = c;
-        dragStartX = e.clientX;
-        dragStartY = e.clientY;
-        var rect = c.getBoundingClientRect();
-        containerStartLeft = rect.left;
-        containerStartTop = rect.top;
-        c.style.transition = 'none';
-        e.preventDefault();
-    });
-
-    document.addEventListener('mousemove', function(e) {
-        if (!dragging || !dragTarget) return;
-        var dx = e.clientX - dragStartX;
-        var dy = e.clientY - dragStartY;
-        if (!hasMoved && Math.abs(dx) < dragThreshold && Math.abs(dy) < dragThreshold) return;
-        hasMoved = true;
-        var newLeft = Math.max(0, Math.min(containerStartLeft + dx, window.innerWidth - 60));
-        var newTop = Math.max(0, Math.min(containerStartTop + dy, window.innerHeight - 60));
-        dragTarget.style.left = newLeft + 'px';
-        dragTarget.style.top = newTop + 'px';
-        dragTarget.style.bottom = 'auto';
-        dragTarget.style.right = 'auto';
-    });
-
-    document.addEventListener('mouseup', function(e) {
-        if (!dragging) return;
-        dragging = false;
-        if (dragTarget) dragTarget.style.transition = '';
-        if (hasMoved && dragTarget) {
-            var rect = dragTarget.getBoundingClientRect();
-            // Clamp to viewport edges (don't let it go off-screen)
-            var clampedLeft = Math.max(0, Math.min(Math.round(rect.left), window.innerWidth - 60));
-            var clampedTop = Math.max(0, Math.min(Math.round(rect.top), window.innerHeight - 60));
-            dragTarget.style.left = clampedLeft + 'px';
-            dragTarget.style.top = clampedTop + 'px';
-            localStorage.setItem('btc_nacho_position', JSON.stringify({ left: clampedLeft, top: clampedTop }));
-            setTimeout(adjustBubbleForPosition, 50);
-        }
-        dragTarget = null;
-    });
-
-    // After repositioning, adjust bubble alignment so it stays on screen
-    function adjustBubbleForPosition() {
-        var c = getContainer();
-        if (!c) return;
-        var bubble = document.getElementById('nacho-bubble');
-        if (!bubble) return;
-        var rect = c.getBoundingClientRect();
-        var viewW = window.innerWidth;
-        var viewH = window.innerHeight;
-        // If Nacho is on the right half, flip bubble to the left
-        if (rect.left > viewW / 2) {
-            bubble.style.marginLeft = '';
-            bubble.style.marginRight = '-6px';
-            bubble.style.alignSelf = 'flex-end';
-            // Flip arrow pointers
-            var before = bubble.querySelector(':scope')
-            bubble.style.setProperty('--bubble-side', 'right');
-        } else {
-            bubble.style.marginLeft = '-6px';
-            bubble.style.marginRight = '';
-            bubble.style.alignSelf = '';
-        }
-        // If near the top of screen, ensure bubble doesn't go above viewport
-        if (rect.top < 200) {
-            bubble.style.order = '2'; // render bubble below avatar
-            bubble.style.marginBottom = '0';
-            bubble.style.marginTop = '8px';
-        } else {
-            bubble.style.order = '';
-            bubble.style.marginBottom = '16px';
-            bubble.style.marginTop = '';
-        }
-    }
-
-    // Call after any position save
-    var _origSavePos = function(rect) {
-        localStorage.setItem('btc_nacho_position', JSON.stringify({ left: Math.round(rect.left), top: Math.round(rect.top) }));
-        setTimeout(adjustBubbleForPosition, 50);
-    };
-
-    // Reset position when Nacho is shown again (after being hidden)
-    var _origShowNacho = window.showNacho;
-    window.showNacho = function() {
-        _origShowNacho.apply(this, arguments);
-        restoreSavedPosition();
-        setTimeout(adjustBubbleForPosition, 200);
-    };
-
-    // Also adjust on load
-    setTimeout(adjustBubbleForPosition, 1000);
-
-    // Double-tap to reset position
-    var lastResetTap = 0;
-    document.addEventListener('dblclick', function(e) {
-        var avatar = document.getElementById('nacho-avatar');
-        if (!avatar || !avatar.contains(e.target)) return;
-        localStorage.removeItem('btc_nacho_position');
-        var c = getContainer();
-        if (c) {
-            c.style.left = '';
-            c.style.top = '';
-            c.style.bottom = '';
-            c.style.right = '';
-        }
-        if (typeof showToast === 'function') showToast('🦌 Nacho reset to default position!');
-        setTimeout(adjustBubbleForPosition, 100);
-    });
-})();
-
 window.hideBubble = function(force) {
         var bubble = document.getElementById('nacho-bubble');
-    // Don't auto-hide interactive content (Q&A, trivia) — only manual close or force
+    // Trivia stays until the X (or the in-bubble Dismiss button) sets this flag.
+    if (bubble && bubble.getAttribute('data-trivia') === '1' && !window._nachoTriviaXClose) return;
+    window._nachoTriviaXClose = false;
+    if (bubble) bubble.removeAttribute('data-trivia');
+    // Don't auto-hide interactive content (Q&A) — only manual close or force
     if (!force && bubble && bubble.getAttribute('data-interactive') === 'true') return;
 
     // Clear busy state — allow queued popups to show
@@ -1694,6 +1747,7 @@ window.hideBubble = function(force) {
     if (_nc2) _nc2.classList.remove('nacho-engaged');
     var avatar = document.getElementById('nacho-avatar');
     if (bubble) bubble.classList.remove('show');
+    pinNachoAvatar();
     clearTimeout(bubbleTimeout);
     // Resume idle after a beat
     setTimeout(function() {
@@ -1702,6 +1756,471 @@ window.hideBubble = function(force) {
     }, 500);
 };
 
+// ---- Mobile action sheet (ask or story) ----
+var NACHO_HINT_KEY = 'btc_nacho_ask_hint';
+window._nachoSheetOpen = false;
+
+function isNachoMobile() {
+    try {
+        return window.matchMedia('(max-width: 900px)').matches;
+    } catch (e) {
+        return (window.innerWidth || 1200) <= 900;
+    }
+}
+function syncNachoDock() {
+    if (!document.body) return;
+    document.body.classList.toggle('nacho-dock', isNachoMobile() && !!nachoVisible);
+}
+function syncNachoAria() {
+    var avatar = document.getElementById('nacho-avatar');
+    if (!avatar) return;
+    if (isNachoMobile()) {
+        avatar.setAttribute('aria-haspopup', 'dialog');
+        avatar.setAttribute('aria-controls', 'nachoActionSheet');
+    } else {
+        avatar.removeAttribute('aria-haspopup');
+        avatar.removeAttribute('aria-controls');
+    }
+    avatar.setAttribute('aria-expanded', window._nachoSheetOpen ? 'true' : 'false');
+}
+function nachoBoxesOverlap(a, b, gap) {
+    gap = gap || 0;
+    return !(a.right <= b.left - gap || a.left >= b.right + gap || a.bottom <= b.top - gap || a.top >= b.bottom + gap);
+}
+function nachoBlockerBoxes() {
+    var ids = ['todayFavorStrip', 'chatOverlayBtn', 'fabExpandBtn', 'bottomNav'];
+    var out = [];
+    for (var i = 0; i < ids.length; i++) {
+        var el = document.getElementById(ids[i]);
+        if (!el) continue;
+        var cs;
+        try { cs = getComputedStyle(el); } catch (e) { continue; }
+        if (!cs || cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) continue;
+        var b = el.getBoundingClientRect();
+        if (b.width > 8 && b.height > 8) out.push(b);
+    }
+    return out;
+}
+function placeNachoActionSheet() {
+    var sheet = document.getElementById('nachoActionSheet');
+    var avatar = document.getElementById('nacho-avatar');
+    if (!sheet || sheet.hidden || !avatar) return;
+    var r = avatar.getBoundingClientRect();
+    var w = sheet.offsetWidth || 240;
+    var h = sheet.offsetHeight || 180;
+    var blockers = nachoBlockerBoxes();
+    function fits(left, top) {
+        if (top < 8 || left < 8) return false;
+        if (left + w > window.innerWidth - 8 || top + h > window.innerHeight - 8) return false;
+        var box = { left: left, top: top, right: left + w, bottom: top + h };
+        for (var i = 0; i < blockers.length; i++) {
+            if (nachoBoxesOverlap(box, blockers[i], 8)) return false;
+        }
+        return true;
+    }
+    function nudge(left, top) {
+        var guard = 0;
+        while (guard++ < 8) {
+            if (left + w > window.innerWidth - 8) left = window.innerWidth - 8 - w;
+            if (left < 8) left = 8;
+            if (top + h > window.innerHeight - 8) top = window.innerHeight - 8 - h;
+            if (top < 8) top = 8;
+            var box = { left: left, top: top, right: left + w, bottom: top + h };
+            var hit = null;
+            for (var i = 0; i < blockers.length; i++) {
+                if (nachoBoxesOverlap(box, blockers[i], 8)) { hit = blockers[i]; break; }
+            }
+            if (!hit) return { left: left, top: top };
+            var above = hit.top - 8 - h;
+            if (above >= 8 && above < top) { top = above; continue; }
+            return null;
+        }
+        return null;
+    }
+    var mini = document.getElementById('nachoHideBtn');
+    var miniRight = mini ? mini.getBoundingClientRect().right : r.left;
+    var anchorLeft = Math.max(r.right + 10, miniRight + 10);
+    var tries = [
+        { left: anchorLeft, top: r.bottom - h },
+        { left: anchorLeft, top: r.top },
+        { left: anchorLeft, top: r.top - 8 - h }
+    ];
+    var placed = null;
+    for (var t = 0; t < tries.length; t++) {
+        placed = nudge(tries[t].left, tries[t].top);
+        if (placed && fits(placed.left, placed.top)) break;
+        placed = null;
+    }
+    if (!placed) placed = nudge(8, r.top - 8 - h) || { left: 8, top: Math.max(8, r.top - 8 - h) };
+    sheet.style.left = Math.round(placed.left) + 'px';
+    sheet.style.top = Math.round(placed.top) + 'px';
+}
+function closeNachoActionSheet(restoreFocus) {
+    var sheet = document.getElementById('nachoActionSheet');
+    window._nachoSheetOpen = false;
+    if (sheet) sheet.hidden = true;
+    syncNachoAria();
+    if (restoreFocus) {
+        var avatar = document.getElementById('nacho-avatar');
+        if (avatar && typeof avatar.focus === 'function') avatar.focus();
+    }
+}
+function nachoPresentActionSheet() {
+    if (!isNachoMobile()) return;
+    var sheet = document.getElementById('nachoActionSheet');
+    if (!sheet) return;
+    dismissNachoAskHint();
+    sheet.hidden = false;
+    window._nachoSheetOpen = true;
+    syncNachoAria();
+    placeNachoActionSheet();
+    var ask = document.getElementById('nachoSheetAsk');
+    if (ask && typeof ask.focus === 'function') ask.focus();
+}
+function nachoAskFromSheet() {
+    closeNachoActionSheet(false);
+    function focusAsk() {
+        if (typeof showNachoInput !== 'function') return false;
+        showNachoInput();
+        return true;
+    }
+    if (focusAsk()) return;
+    if (typeof window._loadDeferred === 'function') window._loadDeferred();
+    var tries = 0;
+    var timer = setInterval(function() {
+        tries++;
+        if (focusAsk() || tries > 20) clearInterval(timer);
+    }, 150);
+}
+function nachoStoryFromSheet() {
+    closeNachoActionSheet(false);
+    if (typeof showNachoStory === 'function') showNachoStory();
+    if (typeof nachoStoryNotifClear === 'function') nachoStoryNotifClear();
+}
+function nachoHoldFirstVisit() {
+    var hash = '';
+    try { hash = String((window.location && window.location.hash) || ''); } catch (e) { return false; }
+    return /^#cert(?:\/|$)/i.test(hash);
+}
+function dismissNachoAskHint() {
+    var hint = document.getElementById('nachoAskHint');
+    if (hint) hint.hidden = true;
+    if (window._nachoHintTimer) {
+        clearTimeout(window._nachoHintTimer);
+        window._nachoHintTimer = null;
+    }
+    try { localStorage.setItem(NACHO_HINT_KEY, '1'); } catch (e) {}
+}
+function nachoHintBlocked(el) {
+    var node = el;
+    while (node && node !== document.documentElement) {
+        if (node.hidden) return true;
+        var cs;
+        try { cs = getComputedStyle(node); } catch (e) { return true; }
+        if (!cs || cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) return true;
+        node = node.parentElement;
+    }
+    return false;
+}
+function nachoHintBlockers() {
+    var sel = 'button, a, input, textarea, select, [role="button"], [role="link"], [onclick], img, svg, video, .today-tile, .today-more-item, .home-subtitle, .home-title, .home-logos, .mobile-bar, #todayFavorStrip, #dailyXpMeter, #todayCard, #homeHero, #bottomNav, #featuredOnSection, #introVideoSection, #questGuideBanner';
+    var nodes = document.querySelectorAll(sel);
+    var out = [];
+    for (var i = 0; i < nodes.length; i++) {
+        var el = nodes[i];
+        if (!el || el.id === 'nachoAskHint') continue;
+        if (el.closest && el.closest('#nachoAskHint')) continue;
+        if (nachoHintBlocked(el)) continue;
+        var b = el.getBoundingClientRect();
+        if (b.width < 2 || b.height < 2) continue;
+        if (b.bottom <= 0 || b.right <= 0 || b.top >= window.innerHeight || b.left >= window.innerWidth) continue;
+        out.push(b);
+    }
+    return out;
+}
+function nachoHintFits(left, top, w, h, blockers) {
+    if (left < 4 || top < 4) return false;
+    if (left + w > window.innerWidth - 4 || top + h > window.innerHeight - 4) return false;
+    var box = { left: left, top: top, right: left + w, bottom: top + h };
+    for (var i = 0; i < blockers.length; i++) {
+        if (nachoBoxesOverlap(box, blockers[i], 3)) return false;
+    }
+    return true;
+}
+function nachoHintSeek(w, h, blockers, anchor) {
+    var best = null;
+    var bestD = Infinity;
+    var step = 12;
+    var maxX = window.innerWidth - w - 4;
+    var maxY = window.innerHeight - h - 4;
+    for (var y = 4; y <= maxY; y += step) {
+        for (var x = 4; x <= maxX; x += step) {
+            if (!nachoHintFits(x, y, w, h, blockers)) continue;
+            var dx = (x + w / 2) - anchor.x;
+            var dy = (y + h / 2) - anchor.y;
+            var d = dx * dx + dy * dy;
+            if (d < bestD) {
+                bestD = d;
+                best = { left: Math.round(x), top: Math.round(y) };
+            }
+        }
+    }
+    return best;
+}
+function placeNachoAskHint() {
+    var hint = document.getElementById('nachoAskHint');
+    var avatar = document.getElementById('nacho-avatar');
+    if (!hint || hint.hidden || !avatar) return;
+    var r = avatar.getBoundingClientRect();
+    hint.textContent = 'Tap me to ask a question';
+    hint.style.whiteSpace = 'nowrap';
+    hint.style.maxWidth = 'none';
+    hint.style.fontSize = '';
+    hint.style.padding = '';
+    hint.style.width = 'auto';
+    hint.style.lineHeight = '';
+    hint.style.boxShadow = '';
+    var blockers = nachoHintBlockers();
+    var anchor = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    var widths = [0, 220, 168, 132];
+    var spot = null;
+    for (var i = 0; i < widths.length && !spot; i++) {
+        if (!widths[i]) {
+            hint.style.whiteSpace = 'nowrap';
+            hint.style.maxWidth = 'none';
+        } else {
+            hint.style.whiteSpace = 'normal';
+            hint.style.maxWidth = widths[i] + 'px';
+        }
+        var w = hint.offsetWidth;
+        var h = hint.offsetHeight;
+        if (w < 8 || h < 8 || w > window.innerWidth - 8) continue;
+        spot = nachoHintSeek(w, h, blockers, anchor);
+    }
+    if (spot) {
+        hint.dataset.place = 'float';
+        hint.style.left = spot.left + 'px';
+        hint.style.top = spot.top + 'px';
+        return;
+    }
+    hint.textContent = 'Tap me';
+    hint.dataset.place = 'deer';
+    hint.style.whiteSpace = 'nowrap';
+    hint.style.lineHeight = '1';
+    hint.style.boxShadow = '0 1px 2px rgba(0,0,0,0.45)';
+    var size = 11;
+    var hw = 0;
+    var hh = 0;
+    while (size >= 8) {
+        hint.style.fontSize = size + 'px';
+        hint.style.padding = '0 2px';
+        hint.style.maxWidth = Math.max(32, Math.floor(r.width - 2)) + 'px';
+        hw = hint.offsetWidth;
+        hh = hint.offsetHeight;
+        if (hw <= r.width - 2 && hh <= r.height - 2) break;
+        size -= 1;
+    }
+    var left = Math.round(r.left + (r.width - hw) / 2);
+    var top = Math.round(r.bottom - hh - 3);
+    if (top < r.top + 1) top = Math.round(r.top + 1);
+    if (left < r.left + 1) left = Math.round(r.left + 1);
+    if (left + hw > r.right - 1) left = Math.round(r.right - hw - 1);
+    hint.style.left = left + 'px';
+    hint.style.top = top + 'px';
+}
+function placeNachoHideBtn() {
+    var btn = document.getElementById('nachoHideBtn');
+    var avatar = document.getElementById('nacho-avatar');
+    var container = document.getElementById('nacho-container');
+    if (!btn) return;
+    if (btn.parentElement !== document.body) document.body.appendChild(btn);
+    if (!isNachoMobile()) {
+        btn.style.display = '';
+        btn.style.position = '';
+        btn.style.left = '';
+        btn.style.top = '';
+        btn.style.width = '';
+        btn.style.height = '';
+        btn.style.transform = '';
+        btn.style.zIndex = '';
+        if (avatar && btn.parentElement !== avatar) avatar.insertBefore(btn, avatar.firstChild);
+        return;
+    }
+    var hidden = !nachoVisible || (container && (container.classList.contains('hidden') || container.classList.contains('nacho-suspended')));
+    if (hidden || !avatar) {
+        btn.style.display = 'none';
+        return;
+    }
+    var r = avatar.getBoundingClientRect();
+    if (r.width < 8 || r.height < 8) return;
+    var size = 44;
+    btn.style.display = 'flex';
+    btn.style.position = 'fixed';
+    btn.style.width = size + 'px';
+    btn.style.height = size + 'px';
+    btn.style.minWidth = size + 'px';
+    btn.style.minHeight = size + 'px';
+    btn.style.left = Math.round(r.left + (r.width - size) / 2) + 'px';
+    btn.style.top = Math.round(r.top - 8 - size) + 'px';
+    btn.style.right = 'auto';
+    btn.style.bottom = 'auto';
+    btn.style.transform = 'none';
+    btn.style.margin = '0';
+    btn.style.zIndex = '200130';
+    btn.style.pointerEvents = 'auto';
+    btn.style.opacity = '1';
+}
+function bindNachoHideTouch() {
+    var btn = document.getElementById('nachoHideBtn');
+    if (!btn || btn._nachoHideTouch) return;
+    btn._nachoHideTouch = true;
+    var armed = false;
+    var startX = 0;
+    var startY = 0;
+    btn.addEventListener('pointerdown', function(e) {
+        if (!isNachoMobile() || e.pointerType !== 'touch') { armed = false; return; }
+        armed = true;
+        startX = e.clientX;
+        startY = e.clientY;
+    });
+    btn.addEventListener('pointercancel', function() { armed = false; });
+    btn.addEventListener('pointerup', function(e) {
+        if (!isNachoMobile() || e.pointerType !== 'touch') return;
+        var dx = e.clientX - startX;
+        var dy = e.clientY - startY;
+        var moved = Math.abs(dx) > 10 || Math.abs(dy) > 10;
+        var startedHere = armed;
+        armed = false;
+        if (!startedHere || moved) return;
+        e.preventDefault();
+        e.stopPropagation();
+        btn._skipHideClick = true;
+        if (typeof hideNacho === 'function') hideNacho();
+    });
+    btn.addEventListener('click', function(e) {
+        if (!btn._skipHideClick) return;
+        btn._skipHideClick = false;
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+    }, true);
+}
+function nachoOpenCloset() {
+    window._expanded_closet = true;
+    window._pendingClosetScroll = true;
+    try {
+        if (typeof showSettings === 'function') showSettings();
+        var attempts = 0;
+        function tryShowCloset() {
+            attempts++;
+            var modal = document.getElementById('usernameModal');
+            if (modal && modal.classList.contains('open') && typeof showSettingsPage === 'function') {
+                showSettingsPage('data');
+            } else if (attempts < 10) {
+                setTimeout(tryShowCloset, 150);
+            }
+        }
+        setTimeout(tryShowCloset, 200);
+    } catch (err) {}
+    if (typeof nachoClosetNotifClear === 'function') nachoClosetNotifClear();
+}
+window._nachoPlaceHideBtn = placeNachoHideBtn;
+function maybeShowNachoAskHint() {
+    if (nachoHoldFirstVisit()) return;
+    if (!nachoVisible) return;
+    var seen = '';
+    try { seen = localStorage.getItem(NACHO_HINT_KEY) || ''; } catch (e) { return; }
+    if (seen === '1') return;
+    var hint = document.getElementById('nachoAskHint');
+    if (!hint) return;
+    hint.hidden = false;
+    placeNachoAskHint();
+    if (window._nachoHintTimer) clearTimeout(window._nachoHintTimer);
+    window._nachoHintTimer = setTimeout(dismissNachoAskHint, 4500);
+}
+function mountNachoActionSheet() {
+    if (document.getElementById('nachoActionSheet')) return;
+    var sheet = document.createElement('div');
+    sheet.id = 'nachoActionSheet';
+    sheet.setAttribute('role', 'dialog');
+    sheet.setAttribute('aria-label', 'Nacho');
+    sheet.hidden = true;
+    sheet.innerHTML =
+        '<button type="button" id="nachoSheetAsk">Ask Nacho a question</button>' +
+        '<button type="button" id="nachoSheetStory">Nacho\'s story<span id="nachoSheetStoryDot" hidden></span></button>' +
+        '<button type="button" id="nachoSheetCloset">Closet</button>' +
+        '<button type="button" id="nachoSheetClose">Close</button>';
+    document.body.appendChild(sheet);
+    document.getElementById('nachoSheetAsk').addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        nachoAskFromSheet();
+    });
+    document.getElementById('nachoSheetStory').addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        nachoStoryFromSheet();
+    });
+    document.getElementById('nachoSheetCloset').addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeNachoActionSheet(false);
+        nachoOpenCloset();
+    });
+    document.getElementById('nachoSheetClose').addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeNachoActionSheet(true);
+    });
+    var hint = document.createElement('button');
+    hint.type = 'button';
+    hint.id = 'nachoAskHint';
+    hint.hidden = true;
+    hint.textContent = 'Tap me to ask a question';
+    hint.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dismissNachoAskHint();
+    });
+    document.body.appendChild(hint);
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Escape' || !window._nachoSheetOpen) return;
+        e.preventDefault();
+        e.stopPropagation();
+        closeNachoActionSheet(true);
+    }, true);
+    var swallow = false;
+    document.addEventListener('pointerdown', function(e) {
+        if (!window._nachoSheetOpen) return;
+        var openSheet = document.getElementById('nachoActionSheet');
+        if (!openSheet || openSheet.contains(e.target)) return;
+        if (e.target.closest && e.target.closest('#nacho-avatar')) return;
+        closeNachoActionSheet(false);
+        swallow = true;
+        setTimeout(function() { swallow = false; }, 400);
+    }, true);
+    document.addEventListener('click', function(e) {
+        if (!swallow) return;
+        e.preventDefault();
+        e.stopPropagation();
+    }, true);
+    setTimeout(maybeShowNachoAskHint, 700);
+}
+function nachoMobileTap() {
+    if (window._nachoSheetOpen) {
+        closeNachoActionSheet(true);
+        return;
+    }
+    var bubble = document.getElementById('nacho-bubble');
+    if (bubble && bubble.classList.contains('show')) hideBubble(true);
+    dismissNachoAskHint();
+    localStorage.setItem('btc_nacho_clicked', 'true');
+    if (typeof checkHiddenBadges === 'function') checkHiddenBadges();
+    if (typeof trackNachoInteraction === 'function') trackNachoInteraction();
+    if (typeof nachoPlaySound === 'function') nachoPlaySound('click');
+    nachoPresentActionSheet();
+}
+
 // ---- Click for random message ----
 let nachoClickCount = 0;
 let nachoTapTimes = [];
@@ -1709,6 +2228,12 @@ let nachoFlyCooldown = 0;
 window.nachoClick = function() {
     // Guard: if an action button was just clicked, don't interfere
     if (window._nachoActionClicked) { window._nachoActionClicked = false; return; }
+    var _avatar = document.getElementById('nacho-avatar');
+    if (_avatar && _avatar._nachoSuppressClick) { _avatar._nachoSuppressClick = false; return; }
+    if (isNachoMobile()) {
+        nachoMobileTap();
+        return;
+    }
     const now = Date.now();
 
     // Multi-tap detection
@@ -1730,7 +2255,6 @@ window.nachoClick = function() {
         nachoTapTimes = [];
         lastClickTime = now;
         if (typeof hideNacho === 'function') hideNacho();
-        if (typeof showToast === 'function') showToast('🦌 Nacho hidden — tap the 🦌 button to bring him back!');
         return;
     }
 
@@ -1782,9 +2306,14 @@ window.nachoClick = function() {
 // ---- Show/Hide Nacho ----
 window.showNacho = function() {
     nachoVisible = true;
+    syncNachoDock();
     localStorage.removeItem('btc_nacho_hidden');
-    document.getElementById('nacho-container').classList.remove('hidden');
-    document.getElementById('nacho-toggle').style.display = 'none';
+    var nc = document.getElementById('nacho-container');
+    var nt = document.getElementById('nacho-toggle');
+    if (nc) nc.classList.remove('hidden');
+    if (nt) nt.style.display = 'none';
+    if (typeof window._nachoRestorePosition === 'function') window._nachoRestorePosition();
+    placeNachoHideBtn();
     lastBubbleTime = 0;
     
     // Smart Greeting selection
@@ -1854,10 +2383,40 @@ window.showNacho = function() {
 
 window.hideNacho = function() {
     nachoVisible = false;
-    // 'user' = manually hidden (won't auto-restore); 'true' kept for back-compat reads
+    closeNachoActionSheet(false);
+    syncNachoDock();
+    // 'user' = manually minimized (won't auto-restore); 'true' kept for back-compat reads
     localStorage.setItem('btc_nacho_hidden', 'user');
-    document.getElementById('nacho-container').classList.add('hidden');
-    document.getElementById('nacho-toggle').style.display = 'flex';
+    var nc = document.getElementById('nacho-container');
+    var nt = document.getElementById('nacho-toggle');
+    if (nc) nc.classList.add('hidden');
+    if (nt) nt.style.display = 'flex';
+    placeNachoHideBtn();
+    if (typeof hideBubble === 'function') hideBubble(true);
+    if (typeof window._nachoRestorePosition === 'function') window._nachoRestorePosition();
+    try {
+        if (!localStorage.getItem('btc_nacho_min_toast_shown') && typeof window._showToastNow === 'function') {
+            window._showToastNow('Nacho minimized. Tap 🦌 to bring him back', 4000);
+            localStorage.setItem('btc_nacho_min_toast_shown', '1');
+        }
+    } catch (e) {}
+};
+
+// Temporary hide for fullscreen surfaces that would cover Nacho's controls.
+// Does not write btc_nacho_hidden, so a reload or resume puts him back.
+window.suspendNacho = function() {
+    var nc = document.getElementById('nacho-container');
+    var nt = document.getElementById('nacho-toggle');
+    if (nc) nc.classList.add('nacho-suspended');
+    if (nt) nt.classList.add('nacho-suspended');
+    placeNachoHideBtn();
+};
+window.resumeNacho = function() {
+    var nc = document.getElementById('nacho-container');
+    var nt = document.getElementById('nacho-toggle');
+    if (nc) nc.classList.remove('nacho-suspended');
+    if (nt) nt.classList.remove('nacho-suspended');
+    if (typeof window._nachoRestorePosition === 'function') window._nachoRestorePosition();
 };
 
 // ---- Context-Aware: Page Navigation (Forum/Marketplace) ----
@@ -1930,17 +2489,7 @@ window.nachoOnChannel = function(channelId) {
         });
         if (qs.length === 0) qs = QUEST_QUESTIONS;
         var q = qs[Math.floor(Math.random() * qs.length)];
-
-        var quizHtml = '<div style="font-weight:700;color:var(--heading);font-size:0.85rem;margin-bottom:6px;">🎮 Quick Quiz!</div>' +
-            '<div style="color:var(--text);font-size:0.8rem;margin-bottom:8px;">' + q.question + '</div>';
-        var opts = q.options || [];
-        for (var qi = 0; qi < opts.length; qi++) {
-            var isRight = qi === q.answer;
-            quizHtml += '<button onclick="nachoBubbleQuizAnswer(this,' + isRight + ')" style="display:block;width:100%;padding:6px 10px;margin-bottom:3px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + opts[qi] + '</button>';
-        }
-        forceShowBubble(quizHtml, 'brain');
-        sessionStorage.setItem('btc_channel_read_seconds', '0');
-        return;
+        if (window._presentBubbleQuiz(q)) return;
     }
 
     // General channel reaction (25% chance)
@@ -1951,7 +2500,41 @@ window.nachoOnChannel = function(channelId) {
 };
 
 // ---- Bubble Quiz Answer Handler ----
+window._presentBubbleQuiz = function(q) {
+    if (!q) return false;
+    var key = String(q.question || '');
+    if (key && window._btcBubbleQuizAwarded === key) return false;
+    if (!window._btcQuestBypassBusy && typeof window.btcDeferQuestIfBusy === 'function') {
+        if (window.btcDeferQuestIfBusy(function() { window._presentBubbleQuiz(q); }, 'bubble-quiz')) return 'deferred';
+    }
+    var quizHtml = '<div style="font-weight:700;color:var(--heading);font-size:0.85rem;margin-bottom:6px;">🎮 Quick Quiz!</div>' +
+        '<div style="color:var(--text);font-size:0.8rem;margin-bottom:8px;">' + q.question + '</div>';
+    var opts = q.options || [];
+    for (var qi = 0; qi < opts.length; qi++) {
+        var isRight = qi === q.answer;
+        quizHtml += '<button data-q="' + encodeURIComponent(q.question) + '" data-a="' + encodeURIComponent(opts[qi]) + '" onclick="event.stopPropagation();nachoBubbleQuizAnswer(this,' + isRight + ')" style="display:block;width:100%;padding:6px 10px;margin-bottom:3px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + opts[qi] + '</button>';
+    }
+    quizHtml += '<button type="button" onclick="event.stopPropagation();if(window.btcDismissBubbleQuiz)window.btcDismissBubbleQuiz(\'button\')" style="display:block;width:100%;min-height:44px;margin-top:8px;padding:8px 10px;background:transparent;border:2px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Not now / Back</button>';
+    window._btcBubbleQuiz = q;
+    forceShowBubble(quizHtml, 'brain');
+    var quizBubble = document.getElementById('nacho-bubble');
+    if (quizBubble && quizBubble.classList.contains('show')) {
+        quizBubble.setAttribute('data-interactive', 'true');
+        quizBubble.setAttribute('data-trivia', '1');
+        try { sessionStorage.setItem('btc_channel_read_seconds', '0'); } catch (e) {}
+        if (!window._btcBubbleHistory && typeof history !== 'undefined' && history && typeof history.pushState === 'function') {
+            try {
+                history.pushState({ overlay: 'bubble-quiz' }, '', window.location ? window.location.href : '');
+                window._btcBubbleHistory = true;
+            } catch (e2) {}
+        }
+        return 'shown';
+    }
+    return false;
+};
+
 window.nachoBubbleQuizAnswer = function(btn, correct) {
+    if (correct && window._btcBubbleQuiz) window._btcBubbleQuizAwarded = String(window._btcBubbleQuiz.question || '');
     // Track for daily challenge
     try { var _t = new Date().toISOString().split('T')[0]; localStorage.setItem('btc_quiz_done_' + _t, 'true'); } catch(e) {}
 
@@ -1975,7 +2558,13 @@ window.nachoBubbleQuizAnswer = function(btn, correct) {
         result.textContent = '✅ Correct! +5 pts';
         container.appendChild(result);
         // awardPoints() fires its own toast on CF success — don't double-toast here.
-        if (typeof awardPoints === 'function') awardPoints(5, '🎮 Quiz correct!');
+        var _quizQ = '';
+        var _quizA = '';
+        try {
+            _quizQ = decodeURIComponent(btn.getAttribute('data-q') || '');
+            _quizA = decodeURIComponent(btn.getAttribute('data-a') || '');
+        } catch (e) {}
+        if (typeof awardPoints === 'function') awardPoints(5, '🎮 Quiz correct!', null, null, null, null, { quizQuestion: _quizQ, quizChoice: _quizA || btn.textContent });
         if (typeof haptic === 'function') haptic('success');
     } else {
         btn.style.background = '#ef4444';
@@ -2000,7 +2589,10 @@ window.nachoBubbleQuizAnswer = function(btn, correct) {
     // Don't auto-hide quiz results — let the user dismiss manually
     clearTimeout(bubbleTimeout);
     var bubble = document.getElementById('nacho-bubble');
-    if (bubble) bubble.setAttribute('data-interactive', 'true');
+    if (bubble) {
+        bubble.setAttribute('data-interactive', 'true');
+        bubble.setAttribute('data-trivia', '1');
+    }
 };
 
 // ---- Context-Aware: Points Earned ----
@@ -2252,13 +2844,16 @@ if (window.DeviceMotionEvent) {
 
 // Inject username into message text — replaces {name} placeholder
 window.personalize = function(text) {
-    var name = nachoUserName();
-    
-    // Replace {name}
+    var name = (nachoUserName() || '').trim();
+
+    // Empty name must not eat the space in "Hey {name}, I'm" or leave "You matter ."
     if (!name) {
-        text = text.replace(/,?\s*\{name\}\s*,?\s*/g, function(match) {
-            if (match.indexOf(',') === 0 && match.lastIndexOf(',') > 0) return ', ';
-            return match.charAt(0) === ',' ? ' ' : '';
+        text = text.replace(/[ \t]*,?[ \t]*\{name\}[ \t]*,?[ \t]*/g, function(match, offset, str) {
+            var after = str.slice(offset + match.length);
+            if (/^[.,!?;:]/.test(after)) return '';
+            var before = str.slice(0, offset);
+            if (before && !/\s$/.test(before) && after && !/^\s/.test(after)) return ' ';
+            return '';
         });
     } else {
         text = text.replace(/\{name\}/g, name);
@@ -2299,9 +2894,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Prevent scrolling when long-pressing Nacho
                 e.preventDefault();
             }
-            lp = setTimeout(function() { 
-                hideNacho(); 
-                if (typeof showToast === 'function') showToast('🦌 Nacho is hiding. Click the small 🦌 to bring him back!'); 
+            lp = setTimeout(function() {
+                if (window._nachoDragging) return;
+                hideNacho();
             }, 800); 
         }
         function stopLP() { clearTimeout(lp); }
@@ -2315,10 +2910,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 1000);
 });
 
-// ---- Click outside bubble to close (only when Q&A input is showing) ----
+// ---- Click outside bubble to close (trivia stays until the X) ----
 document.addEventListener('click', function(e) {
     var bubble = document.getElementById('nacho-bubble');
     if (!bubble || !bubble.classList.contains('show')) return;
+    if (bubble.getAttribute('data-trivia') === '1') return;
     var container = document.getElementById('nacho-container');
     if (container && container.contains(e.target)) return; // Click inside Nacho area
     hideBubble(true);
@@ -2333,217 +2929,606 @@ if (document.readyState === 'loading') {
 
 // =============================================
 // 🦌 NACHO DRAG TO REPOSITION
-// Click+drag or press+hold+drag to move the deer
-// Position saved to localStorage
+// Drag the handle or the avatar (movement threshold keeps taps as taps).
+// Deer position: btc_nacho_position. Pill position: btc_nacho_toggle_position.
 // =============================================
 (function initNachoDrag() {
-    var STORAGE_KEY = 'btc_nacho_position';
-    var container = null;
-    var handle = null;
-    var isDragging = false;
-    var startX = 0, startY = 0;
-    var startLeft = 0, startBottom = 0;
-    var dragMoved = false;
-    var dragThreshold = 8; // px before counting as drag
+    var POS_KEY = 'btc_nacho_position';
+    var PILL_KEY = 'btc_nacho_toggle_position';
+    var THRESHOLD = 8;
 
-    function getContainer() {
-        if (!container) container = document.getElementById('nacho-container');
-        return container;
+    function clamp(n, min, max) {
+        return Math.max(min, Math.min(n, max));
     }
-    function getHandle() {
-        if (!handle) handle = document.getElementById('nachoDragHandle');
-        return handle;
-    }
+    function getContainer() { return document.getElementById('nacho-container'); }
+    function getAvatar() { return document.getElementById('nacho-avatar'); }
+    function getToggle() { return document.getElementById('nacho-toggle'); }
 
-    // Restore saved position
-    function restorePosition() {
+    function finiteNum(n) { return typeof n === 'number' && isFinite(n); }
+    function readPos(key) {
         try {
-            var saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-            if (saved && typeof saved.left === 'number' && typeof saved.bottom === 'number') {
-                var c = getContainer();
-                if (c) {
-                    // Clamp to viewport
-                    var maxLeft = window.innerWidth - 80;
-                    var maxBottom = window.innerHeight - 80;
-                    var left = Math.max(0, Math.min(saved.left, maxLeft));
-                    var bottom = Math.max(0, Math.min(saved.bottom, maxBottom));
-                    c.style.left = left + 'px';
-                    c.style.bottom = bottom + 'px';
-                    c.style.right = 'auto';
-                    c.style.top = 'auto';
-                    c.style.position = 'fixed';
+            var saved = JSON.parse(localStorage.getItem(key) || 'null');
+            if (!saved || !finiteNum(saved.left)) return null;
+            if (!finiteNum(saved.top) && !finiteNum(saved.bottom)) return null;
+            return saved;
+        } catch (e) { return null; }
+    }
+    function writePos(key, left, top) {
+        try {
+            localStorage.setItem(key, JSON.stringify({ v: 2, left: Math.round(left), top: Math.round(top) }));
+        } catch (e) {}
+    }
+    function applyPos(el, left, top) {
+        el.style.position = 'fixed';
+        el.style.left = Math.round(left) + 'px';
+        el.style.top = Math.round(top) + 'px';
+        el.style.right = 'auto';
+        el.style.bottom = 'auto';
+    }
+    function topInset() {
+        if (window.innerWidth > 900) return 8;
+        // Room for the mobile bar plus the 44px minimize control above the sprite.
+        var barBottom = 72;
+        var bar = document.querySelector('.mobile-bar');
+        if (bar) {
+            var cs = window.getComputedStyle(bar);
+            if (cs.display !== 'none' && cs.visibility !== 'hidden') {
+                barBottom = bar.getBoundingClientRect().bottom || 72;
+            }
+        }
+        return Math.max(72, Math.round(barBottom + 8 + 44 + 8));
+    }
+    function sideMargin() {
+        // Phones: keep the minimize control out of the back-swipe edge.
+        // The 44px control sits above the 48px sprite, so 18px still clears the edge.
+        return window.innerWidth <= 900 ? 18 : 8;
+    }
+    // Distance from the viewport bottom that stays clear of the bottom nav.
+    // The nav's box already includes its safe-area padding.
+    function bottomClearance() {
+        if (window.innerWidth > 900) return 8;
+        var nav = document.getElementById('bottomNav');
+        var navH = 0;
+        if (nav) {
+            var cs = window.getComputedStyle(nav);
+            if (cs.display !== 'none' && cs.visibility !== 'hidden') navH = nav.getBoundingClientRect().height || 0;
+        }
+        if (navH < 40) navH = 72;
+        return navH + 12;
+    }
+    // While the pet shares the FAB band, keep it left of that row.
+    function rightClearance(top, height) {
+        var margin = sideMargin();
+        if (window.innerWidth > 900) return margin;
+        var floor = bottomClearance();
+        var petBottom = window.innerHeight - (top + height);
+        var fabSize = window.innerWidth <= 380 ? 44 : 48;
+        if (petBottom < floor + fabSize + 8 && petBottom + height > floor - 8) {
+            var edge = 12;
+            var space = window.innerWidth <= 380 ? 6 : 8;
+            return Math.max(margin, edge + (fabSize + space) * 4 + 36);
+        }
+        return margin;
+    }
+    function clampBox(left, top, width, height) {
+        var w = width || 52;
+        var h = height || 52;
+        var leftMin = sideMargin();
+        var rightMin = rightClearance(top, h);
+        var floor = bottomClearance();
+        var maxL = Math.max(leftMin, window.innerWidth - w - rightMin);
+        var maxT = Math.max(topInset(), window.innerHeight - h - floor);
+        var minT = Math.min(topInset(), maxT);
+        var box = {
+            left: clamp(left, leftMin, maxL),
+            top: clamp(top, minT, maxT)
+        };
+        return avoidMobileOverlaps(box.left, box.top, w, h);
+    }
+    function mascotUnion(left, top, w, h) {
+        if (window.innerWidth > 900) {
+            return { left: left, top: top, right: left + w, bottom: top + h };
+        }
+        var mini = 44;
+        var miniLeft = left + (w - mini) / 2;
+        return {
+            left: Math.min(left, miniLeft),
+            top: top - 8 - mini,
+            right: Math.max(left + w, miniLeft + mini),
+            bottom: top + h
+        };
+    }
+    function mobileObstacleBoxes() {
+        if (window.innerWidth > 900) return [];
+        var ids = ['todayCard', 'chatOverlayBtn', 'fabExpandBtn', 'scrollToBottom', 'backToTop'];
+        var out = [];
+        for (var i = 0; i < ids.length; i++) {
+            var el = document.getElementById(ids[i]);
+            if (!el) continue;
+            var cs;
+            try { cs = window.getComputedStyle(el); } catch (e) { continue; }
+            if (!cs || cs.display === 'none' || cs.visibility === 'hidden') continue;
+            var r = el.getBoundingClientRect();
+            if (r.width < 8 || r.height < 8) continue;
+            if (r.bottom <= 0 || r.top >= window.innerHeight || r.right <= 0 || r.left >= window.innerWidth) continue;
+            out.push(r);
+        }
+        return out;
+    }
+    function avoidMobileOverlaps(left, top, w, h) {
+        if (window.innerWidth > 900) return { left: left, top: top };
+        var obstacles = mobileObstacleBoxes();
+        var guard = 0;
+        while (guard++ < 8) {
+            var union = mascotUnion(left, top, w, h);
+            var hit = null;
+            for (var i = 0; i < obstacles.length; i++) {
+                if (nachoBoxesOverlap(union, obstacles[i], 8)) { hit = obstacles[i]; break; }
+            }
+            if (!hit) break;
+            var shiftLeft = hit.left - 8 - w;
+            if (shiftLeft >= sideMargin()) {
+                left = shiftLeft;
+                continue;
+            }
+            var above = hit.top - 8 - h;
+            if (above >= topInset()) {
+                top = above;
+                continue;
+            }
+            top = hit.bottom + 8 + 52;
+        }
+        var leftMin = sideMargin();
+        var maxL = Math.max(leftMin, window.innerWidth - w - 8);
+        var minT = topInset();
+        var maxT = Math.max(minT, window.innerHeight - h - bottomClearance());
+        return {
+            left: clamp(left, leftMin, maxL),
+            top: clamp(top, minT, maxT)
+        };
+    }
+
+    function invitePillBox() {
+        var card = document.getElementById('inviteCard');
+        if (!card || card.getAttribute('data-show') !== '1') return null;
+        var state = card.getAttribute('data-state');
+        if (state !== 'min' && state !== 'guest') return null;
+        var cs;
+        try { cs = window.getComputedStyle(card); } catch (e) { return null; }
+        if (!cs || cs.display === 'none' || cs.visibility === 'hidden') return null;
+        var box = card.getBoundingClientRect();
+        if (box.width < 8 || box.height < 8) return null;
+        if (box.bottom <= 0 || box.top >= window.innerHeight) return null;
+        return box;
+    }
+    function boxesOverlap(a, b, gap) {
+        return !(a.right <= b.left - gap || a.left >= b.right + gap || a.bottom <= b.top - gap || a.top >= b.bottom + gap);
+    }
+    // The mobile welcome bubble is a full-width sheet. Keep it off #invitePill
+    // so the pill stays visible and receives the tap.
+    function keepBubbleOffInvitePill(bubble) {
+        var pill = invitePillBox();
+        if (!pill) return;
+        var gap = 10;
+        var box = bubble.getBoundingClientRect();
+        if (box.width < 8 || box.height < 8) return;
+        if (!boxesOverlap(box, pill, gap)) return;
+        if (pill.bottom + gap < box.bottom - 40) {
+            var maxH = Math.floor(box.bottom - (pill.bottom + gap));
+            if (maxH >= 64) {
+                bubble.style.setProperty('max-height', maxH + 'px', 'important');
+                box = bubble.getBoundingClientRect();
+                if (!boxesOverlap(box, pill, gap)) return;
+            }
+        }
+        var rightInset = Math.ceil((window.innerWidth - pill.left) + gap);
+        if (window.innerWidth - 12 - rightInset >= 120) {
+            bubble.style.setProperty('right', rightInset + 'px', 'important');
+            box = bubble.getBoundingClientRect();
+            if (!boxesOverlap(box, pill, gap)) return;
+        }
+        var under = Math.floor(box.bottom - pill.bottom - gap);
+        if (under >= 48) bubble.style.setProperty('max-height', under + 'px', 'important');
+    }
+
+    // Put the speech bubble on whichever side (or below) actually fits.
+    window._nachoPlaceBubble = function() {
+        var c = getContainer();
+        var bubble = document.getElementById('nacho-bubble');
+        var avatar = getAvatar();
+        if (!c || !bubble || !avatar) return;
+        if ((window.innerWidth || 0) <= 900) {
+            c.classList.remove('nacho-bubble-left');
+            c.classList.remove('nacho-bubble-below');
+            bubble.style.maxWidth = '';
+            bubble.style.marginLeft = '';
+            bubble.style.width = '';
+            bubble.style.removeProperty('right');
+            bubble.style.removeProperty('max-height');
+            if (bubble.classList.contains('show')) keepBubbleOffInvitePill(bubble);
+            return;
+        }
+        var rect = avatar.getBoundingClientRect();
+        var vw = window.innerWidth || 360;
+        var gap = 16;
+        var want = Math.min(300, Math.max(140, vw - 72));
+        var spaceRight = vw - rect.right - gap;
+        var spaceLeft = rect.left - gap;
+        var placeLeft = spaceRight < Math.min(want, 180) && spaceLeft > spaceRight;
+        var room = placeLeft ? spaceLeft : spaceRight;
+        var placeBelow = room < 150 || rect.top < 120;
+        c.classList.toggle('nacho-bubble-left', placeLeft && !placeBelow);
+        c.classList.toggle('nacho-bubble-below', placeBelow);
+        bubble.style.marginLeft = '';
+        if (placeBelow) {
+            var maxW = Math.max(140, Math.min(want, vw - 24));
+            bubble.style.maxWidth = maxW + 'px';
+            var overflowRight = (rect.left + maxW) - (vw - 8);
+            if (overflowRight > 0) bubble.style.marginLeft = (-Math.ceil(overflowRight)) + 'px';
+        } else {
+            bubble.style.maxWidth = Math.max(140, Math.min(want, Math.max(room, 140))) + 'px';
+        }
+    };
+
+    // Measure layout boxes with the bobbing animation turned off, so a
+    // transform is never written back as the saved position.
+    function measureAvatar() {
+        var c = getContainer();
+        var a = getAvatar();
+        if (!c || !a) return null;
+        var prevAnim = a.style.animation;
+        var prevTf = a.style.transform;
+        a.style.animation = 'none';
+        a.style.transform = 'none';
+        var cr = c.getBoundingClientRect();
+        var ar = a.getBoundingClientRect();
+        a.style.animation = prevAnim;
+        a.style.transform = prevTf;
+        if (ar.width < 8 || ar.height < 8) return null;
+        return { cr: cr, ar: ar, x: ar.left - cr.left, y: ar.top - cr.top, w: ar.width, h: ar.height };
+    }
+    function avatarOffset() {
+        var m = measureAvatar();
+        if (!m) return { x: 0, y: 0, w: 80, h: 80 };
+        return m;
+    }
+
+    // left/top are the avatar's viewport position (v:2). Legacy saves stored the container.
+    // Move by the avatar's delta so a wide bubble cannot shove him off-screen and
+    // then get saved as his new position.
+    function placeAvatar(saved) {
+        var c = getContainer();
+        var a = getAvatar();
+        if (!c || !a || !saved || c.classList.contains('nacho-suspended') || c.classList.contains('nacho-dragging')) return;
+        var legacyContainer = saved.v !== 2;
+        var top = saved.top;
+        if (typeof top !== 'number' && typeof saved.bottom === 'number') {
+            top = window.innerHeight - saved.bottom - (a.offsetHeight || 80);
+            legacyContainer = true;
+        }
+        if (typeof top !== 'number') return;
+        var off = measureAvatar();
+        if (!off) return;
+        var avatarLeft = legacyContainer ? (saved.left + off.x) : saved.left;
+        var avatarTop = legacyContainer ? (top + off.y) : top;
+        var box = clampBox(avatarLeft, avatarTop, off.w, off.h);
+
+        function shiftTo(targetLeft, targetTop) {
+            var m = measureAvatar();
+            if (!m) return null;
+            var dl = targetLeft - m.ar.left;
+            var dt = targetTop - m.ar.top;
+            if (Math.abs(dl) < 0.5 && Math.abs(dt) < 0.5) return m;
+            applyPos(c, m.cr.left + dl, m.cr.top + dt);
+            return measureAvatar();
+        }
+
+        shiftTo(box.left, box.top);
+        if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
+        var m = shiftTo(box.left, box.top);
+        if (!m) return;
+        if (Math.abs(m.ar.left - box.left) > 1 || Math.abs(m.ar.top - box.top) > 1) {
+            if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
+            shiftTo(box.left, box.top);
+        }
+        // A resize or rotation only clamps what is on screen. The saved spot
+        // stays put so turning the phone back restores it.
+        if (legacyContainer || saved.v !== 2) writePos(POS_KEY, box.left, box.top);
+    }
+
+    function placePill(saved) {
+        var t = getToggle();
+        if (!t || !saved || t.classList.contains('nacho-suspended')) return;
+        if (t.style.display === 'none') return;
+        var top = saved.top;
+        var prevTf = t.style.transform;
+        t.style.transform = 'none';
+        var rect = t.getBoundingClientRect();
+        t.style.transform = prevTf;
+        if (rect.width < 8 || rect.height < 8) return;
+        if (typeof top !== 'number' && typeof saved.bottom === 'number') {
+            top = window.innerHeight - saved.bottom - rect.height;
+        }
+        if (typeof top !== 'number') return;
+        var box = clampBox(saved.left, top, rect.width, rect.height);
+        applyPos(t, box.left, box.top);
+        if (saved.v !== 2) writePos(PILL_KEY, box.left, box.top);
+    }
+
+    function onTv() {
+        // currentPage wins. A leftover tctv-active class must not keep the TV corner
+        // after go() / goHome() / back have already moved on.
+        if (window.currentPage) return window.currentPage === 'timechain-tv' || window.currentPage === 'tv';
+        if (document.body && document.body.classList.contains('tctv-active')) return true;
+        var hash = window.location.hash || '';
+        var path = window.location.pathname || '';
+        return hash === '#timechain-tv' || hash === '#tv' || path === '/timechain-tv' || path === '/tv';
+    }
+    function clearFixed(el) {
+        if (!el) return;
+        el.style.left = '';
+        el.style.top = '';
+        el.style.right = '';
+        el.style.bottom = '';
+    }
+    // No saved spot on Timechain TV: sit upper-right, clear of the EPG channel column.
+    function placeTvDefault() {
+        var c = getContainer();
+        var a = getAvatar();
+        if (!c || !a || c.classList.contains('nacho-suspended') || c.classList.contains('nacho-dragging')) return;
+        var m = measureAvatar();
+        if (!m) return;
+        var margin = sideMargin();
+        var top = window.innerWidth <= 900 ? 76 : 96;
+        var left = window.innerWidth - m.w - margin;
+        var box = clampBox(left, top, m.w, m.h);
+        applyPos(c, m.cr.left + (box.left - m.ar.left), m.cr.top + (box.top - m.ar.top));
+        if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
+        m = measureAvatar();
+        if (!m) return;
+        if (Math.abs(m.ar.left - box.left) > 1 || Math.abs(m.ar.top - box.top) > 1) {
+            applyPos(c, m.cr.left + (box.left - m.ar.left), m.cr.top + (box.top - m.ar.top));
+        }
+    }
+
+    window._nachoRestorePosition = function() {
+        var c = getContainer();
+        if (c && c.classList.contains('nacho-dragging')) return;
+        var deer = readPos(POS_KEY);
+        if (deer) placeAvatar(deer);
+        else if (onTv()) placeTvDefault();
+        else if (c) {
+            clearFixed(c);
+            if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
+        }
+        var pill = readPos(PILL_KEY);
+        if (pill) placePill(pill);
+        if (typeof window._nachoPlaceHideBtn === 'function') window._nachoPlaceHideBtn();
+        if (typeof placeNachoAskHint === 'function') placeNachoAskHint();
+    };
+
+    function isChromeTarget(target) {
+        if (!target || !target.closest) return false;
+        return !!target.closest('#nachoHideBtn, .nacho-btn-stack, .nacho-name, #nacho-bubble, #nachoActionSheet, #nachoAskHint, button, a, input, textarea');
+    }
+
+    function bindPointerDrag(hitEl, opts) {
+        if (!hitEl || hitEl._nachoDragBound) return;
+        hitEl._nachoDragBound = true;
+        var active = false, moved = false, pid = null;
+        var sx = 0, sy = 0, originLeft = 0, originTop = 0;
+
+        function onMove(e) {
+            if (!active || e.pointerId !== pid) return;
+            var dx = e.clientX - sx;
+            var dy = e.clientY - sy;
+            if (!moved && Math.abs(dx) < THRESHOLD && Math.abs(dy) < THRESHOLD) return;
+            var mover = opts.mover();
+            if (!mover) return;
+            if (!moved) {
+                moved = true;
+                window._nachoDragging = true;
+                if (typeof window._nachoCancelLongPress === 'function') window._nachoCancelLongPress();
+                var av = getAvatar();
+                if (av) {
+                    ['anim-tap','anim-lean','anim-wiggle','anim-bounce','anim-stretch','anim-look','anim-wave','anim-sleepy'].forEach(function(cls) {
+                        av.classList.remove(cls);
+                    });
                 }
             }
-        } catch(e) {}
-    }
-
-    function savePosition(left, bottom) {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify({ left: left, bottom: bottom }));
-        } catch(e) {}
-    }
-
-    function onDragStart(clientX, clientY) {
-        var c = getContainer();
-        if (!c) return;
-        isDragging = true;
-        dragMoved = false;
-        startX = clientX;
-        startY = clientY;
-        var rect = c.getBoundingClientRect();
-        startLeft = rect.left;
-        startBottom = window.innerHeight - rect.bottom;
-        c.style.transition = 'none';
-        c.style.cursor = 'grabbing';
-        var h = getHandle();
-        if (h) h.style.cursor = 'grabbing';
-    }
-
-    function onDragMove(clientX, clientY) {
-        if (!isDragging) return;
-        var dx = clientX - startX;
-        var dy = clientY - startY;
-        if (!dragMoved && Math.abs(dx) + Math.abs(dy) < dragThreshold) return;
-        dragMoved = true;
-        var c = getContainer();
-        if (!c) return;
-        var newLeft = startLeft + dx;
-        var newBottom = startBottom - dy;
-        // Clamp
-        newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - 80));
-        newBottom = Math.max(0, Math.min(newBottom, window.innerHeight - 80));
-        c.style.left = newLeft + 'px';
-        c.style.bottom = newBottom + 'px';
-        c.style.right = 'auto';
-        c.style.top = 'auto';
-        c.style.position = 'fixed';
-    }
-
-    function onDragEnd() {
-        if (!isDragging) return;
-        isDragging = false;
-        var c = getContainer();
-        if (c) {
-            c.style.transition = '';
-            c.style.cursor = '';
-            if (dragMoved) {
-                var rect = c.getBoundingClientRect();
-                var left = rect.left;
-                var bottom = window.innerHeight - rect.bottom;
-                savePosition(left, bottom);
+            if (e.cancelable) e.preventDefault();
+            if (opts.move) opts.move(mover, originLeft, originTop, dx, dy);
+            if (typeof window._nachoPlaceHideBtn === 'function') window._nachoPlaceHideBtn();
+        }
+        function detach() {
+            document.removeEventListener('pointermove', onMove, true);
+            document.removeEventListener('pointerup', finish, true);
+            document.removeEventListener('pointercancel', finish, true);
+        }
+        function finish(e) {
+            if (!active || (e && e.pointerId != null && e.pointerId !== pid)) return;
+            active = false;
+            detach();
+            var mover = opts.mover();
+            if (moved && mover && opts.commit) opts.commit(mover);
+            if (mover) mover.classList.remove('nacho-dragging');
+            if (moved) {
+                hitEl._nachoSuppressClick = true;
+                if (opts.suppressEl) {
+                    var extra = opts.suppressEl();
+                    if (extra) extra._nachoSuppressClick = true;
+                }
+                setTimeout(function() {
+                    hitEl._nachoSuppressClick = false;
+                    window._nachoDragging = false;
+                    if (opts.suppressEl) {
+                        var extra = opts.suppressEl();
+                        if (extra) extra._nachoSuppressClick = false;
+                    }
+                }, 400);
+            } else {
+                window._nachoDragging = false;
+                // touchstart preventDefault in the long-press handler cancels the click.
+                // A touch tap that did not drag still has to open the sheet.
+                var touchTap = e && e.pointerType === 'touch' && opts.fromAvatar;
+                var held = Date.now() - (hitEl._nachoDownAt || 0);
+                var onChrome = e && e.target && e.target.closest && e.target.closest('#nachoHideBtn, .nacho-btn-stack, #nacho-bubble, #nachoActionSheet, #nachoAskHint');
+                if (touchTap && held < 700 && !onChrome && typeof window.nachoClick === 'function') {
+                    window.nachoClick();
+                    // Swallow only the click the browser may synthesize from this touch.
+                    hitEl._nachoSwallowClick = true;
+                    setTimeout(function() { hitEl._nachoSwallowClick = false; }, 500);
+                }
             }
+            if (typeof window._nachoPlaceHideBtn === 'function') window._nachoPlaceHideBtn();
+            try { if (pid != null) hitEl.releasePointerCapture(pid); } catch (err) {}
+            pid = null;
         }
-        var h = getHandle();
-        if (h) h.style.cursor = 'grab';
-    }
-
-    // Also allow dragging from the nacho-toggle button
-    function initToggleDrag() {
-        var toggle = document.getElementById('nacho-toggle');
-        if (!toggle || toggle._dragInit) return;
-        toggle._dragInit = true;
-        var tDragging = false, tStartX = 0, tStartY = 0, tStartLeft = 0, tStartBottom = 0, tMoved = false;
-
-        toggle.addEventListener('mousedown', function(e) {
-            tDragging = true; tMoved = false;
-            tStartX = e.clientX; tStartY = e.clientY;
-            var rect = toggle.getBoundingClientRect();
-            tStartLeft = rect.left; tStartBottom = window.innerHeight - rect.bottom;
-            toggle.style.transition = 'none';
-        });
-        toggle.addEventListener('touchstart', function(e) {
-            if (e.touches.length !== 1) return;
-            tDragging = true; tMoved = false;
-            tStartX = e.touches[0].clientX; tStartY = e.touches[0].clientY;
-            var rect = toggle.getBoundingClientRect();
-            tStartLeft = rect.left; tStartBottom = window.innerHeight - rect.bottom;
-            toggle.style.transition = 'none';
-        }, { passive: true });
-
-        function tMove(cx, cy) {
-            if (!tDragging) return;
-            var dx = cx - tStartX, dy = cy - tStartY;
-            if (!tMoved && Math.abs(dx) + Math.abs(dy) < dragThreshold) return;
-            tMoved = true;
-            var nl = Math.max(0, Math.min(tStartLeft + dx, window.innerWidth - 50));
-            var nb = Math.max(0, Math.min(tStartBottom - dy, window.innerHeight - 50));
-            toggle.style.left = nl + 'px';
-            toggle.style.bottom = nb + 'px';
-            toggle.style.right = 'auto';
-            toggle.style.top = 'auto';
+        function onDown(e) {
+            if (e.button != null && e.button !== 0) return;
+            if (opts.ignore && opts.ignore(e.target)) return;
+            var mover = opts.mover();
+            if (!mover) return;
+            active = true;
+            moved = false;
+            pid = e.pointerId;
+            sx = e.clientX;
+            sy = e.clientY;
+            hitEl._nachoDownAt = Date.now();
+            // Freeze the bob so the origin box is the layout position, not a mid-animation frame.
+            mover.classList.add('nacho-dragging');
+            var r = mover.getBoundingClientRect();
+            originLeft = r.left;
+            originTop = r.top;
+            if (opts.snap) dragSnap = opts.snap();
+            try { hitEl.setPointerCapture(e.pointerId); } catch (err) {}
+            document.addEventListener('pointermove', onMove, true);
+            document.addEventListener('pointerup', finish, true);
+            document.addEventListener('pointercancel', finish, true);
         }
-        document.addEventListener('mousemove', function(e) { tMove(e.clientX, e.clientY); });
-        document.addEventListener('touchmove', function(e) { if (tDragging && e.touches.length === 1) tMove(e.touches[0].clientX, e.touches[0].clientY); }, { passive: true });
-
-        function tEnd() {
-            if (!tDragging) return;
-            tDragging = false;
-            toggle.style.transition = '';
-            if (tMoved) {
-                var rect = toggle.getBoundingClientRect();
-                savePosition(rect.left, window.innerHeight - rect.bottom);
-            }
-        }
-        document.addEventListener('mouseup', tEnd);
-        document.addEventListener('touchend', tEnd);
-
-        // Suppress click on toggle when drag happened (prevents reopening Nacho)
-        toggle.addEventListener('click', function(e) {
-            if (tMoved) { e.stopPropagation(); e.preventDefault(); tMoved = false; }
+        hitEl.addEventListener('pointerdown', onDown);
+        hitEl.addEventListener('click', function(e) {
+            if (!hitEl._nachoSuppressClick && !hitEl._nachoSwallowClick) return;
+            hitEl._nachoSwallowClick = false;
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
         }, true);
     }
 
-    // Wait for DOM then init
+    var dragSnap = null;
+    function moveContainer(mover, originLeft, originTop, dx, dy) {
+        var off = dragSnap || { x: 0, y: 0, w: 80, h: 80 };
+        var avatarLeft = originLeft + off.x + dx;
+        var avatarTop = originTop + off.y + dy;
+        var box = clampBox(avatarLeft, avatarTop, off.w, off.h);
+        applyPos(mover, box.left - off.x, box.top - off.y);
+    }
+
     function init() {
-        var h = getHandle();
-        if (!h) { setTimeout(init, 1000); return; }
-        if (h._dragInit) return;
-        h._dragInit = true;
+        var avatar = getAvatar();
+        var toggle = getToggle();
+        if (!avatar) { setTimeout(init, 400); return; }
+        if (avatar._nachoDragBound && (!toggle || toggle._nachoDragBound)) return;
 
-        // Mouse events on handle
-        h.addEventListener('mousedown', function(e) {
-            e.preventDefault(); e.stopPropagation();
-            onDragStart(e.clientX, e.clientY);
-        });
-        document.addEventListener('mousemove', function(e) {
-            if (isDragging) { e.preventDefault(); onDragMove(e.clientX, e.clientY); }
-        });
-        document.addEventListener('mouseup', onDragEnd);
-
-        // Touch events on handle
-        h.addEventListener('touchstart', function(e) {
-            if (e.touches.length !== 1) return;
-            e.stopPropagation();
-            onDragStart(e.touches[0].clientX, e.touches[0].clientY);
-        }, { passive: true });
-        document.addEventListener('touchmove', function(e) {
-            if (isDragging && e.touches.length === 1) {
-                onDragMove(e.touches[0].clientX, e.touches[0].clientY);
+        bindPointerDrag(avatar, {
+            fromAvatar: true,
+            ignore: function(target) {
+                if (target && target.closest && target.closest('#nachoDragHandle')) return false;
+                return isChromeTarget(target);
+            },
+            mover: getContainer,
+            snap: function() {
+                var m = measureAvatar();
+                return m || { x: 0, y: 0, w: 80, h: 80 };
+            },
+            suppressEl: getAvatar,
+            move: moveContainer,
+            commit: function() {
+                var c = getContainer();
+                if (!c) return;
+                if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
+                var off = measureAvatar();
+                if (!off) return;
+                var box = clampBox(off.ar.left, off.ar.top, off.w, off.h);
+                if (Math.abs(box.left - off.ar.left) > 1 || Math.abs(box.top - off.ar.top) > 1) {
+                    applyPos(c, off.cr.left + (box.left - off.ar.left), off.cr.top + (box.top - off.ar.top));
+                    if (typeof window._nachoPlaceBubble === 'function') window._nachoPlaceBubble();
+                    off = measureAvatar();
+                    if (!off) return;
+                }
+                writePos(POS_KEY, off.ar.left, off.ar.top);
             }
-        }, { passive: true });
-        document.addEventListener('touchend', function() { if (isDragging) onDragEnd(); });
+        });
 
-        // Suppress click on avatar when drag happened
-        var avatar = document.getElementById('nacho-avatar');
-        if (avatar) {
-            avatar.addEventListener('click', function(e) {
-                if (dragMoved) { e.stopPropagation(); e.preventDefault(); dragMoved = false; }
-            }, true);
+        if (toggle) {
+            bindPointerDrag(toggle, {
+                mover: getToggle,
+                move: function(mover, originLeft, originTop, dx, dy) {
+                    var rect = mover.getBoundingClientRect();
+                    var box = clampBox(originLeft + dx, originTop + dy, rect.width, rect.height);
+                    applyPos(mover, box.left, box.top);
+                },
+                commit: function(mover) {
+                    var rect = mover.getBoundingClientRect();
+                    var box = clampBox(rect.left, rect.top, rect.width, rect.height);
+                    applyPos(mover, box.left, box.top);
+                    writePos(PILL_KEY, box.left, box.top);
+                }
+            });
         }
 
-        restorePosition();
-        initToggleDrag();
+        window._nachoRestorePosition();
 
-        // Re-restore on resize (clamp to new viewport)
-        window.addEventListener('resize', function() {
-            restorePosition();
+        if (window.MutationObserver && document.body && !window._nachoTvWatch) {
+            window._nachoTvWatch = true;
+            var tvOn = document.body.classList.contains('tctv-active');
+            new MutationObserver(function() {
+                var now = document.body.classList.contains('tctv-active');
+                if (now === tvOn || window._nachoDragging) return;
+                tvOn = now;
+                window._nachoRestorePosition();
+            }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+        }
+
+        var resizeTimer = null;
+        function onViewportChange() {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(function() {
+                syncNachoDock();
+                syncNachoAria();
+                window._nachoRestorePosition();
+                if (window._nachoSheetOpen) placeNachoActionSheet();
+                placeNachoHideBtn();
+                placeNachoAskHint();
+            }, 80);
+        }
+        window.addEventListener('resize', onViewportChange);
+        window.addEventListener('orientationchange', onViewportChange);
+
+        document.addEventListener('dblclick', function(e) {
+            var av = getAvatar();
+            if (!av || !av.contains(e.target)) return;
+            if (isChromeTarget(e.target)) return;
+            try { localStorage.removeItem(POS_KEY); } catch (err) {}
+            var c = getContainer();
+            if (c) {
+                c.style.left = '';
+                c.style.top = '';
+                c.style.bottom = '';
+                c.style.right = '';
+                c.classList.remove('nacho-bubble-left');
+                c.classList.remove('nacho-bubble-below');
+            }
+            if (typeof showToast === 'function') showToast('🦌 Nacho reset to default position!');
+            setTimeout(function() { if (window._nachoPlaceBubble) window._nachoPlaceBubble(); }, 50);
         });
     }
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 500); });
+        document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 400); });
     } else {
-        setTimeout(init, 500);
+        setTimeout(init, 400);
     }
 })();
 
@@ -2567,25 +3552,11 @@ window.updateNachoAvatarForPage = function() {
     if (isTCTV) {
         avatar.style.width = '120px';
         avatar.style.height = '100px';
-        avatar.innerHTML = COUCH_NACHO_HTML +
-            '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
-            '<span id="nachoHideBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof hideNacho===\'function\')hideNacho();if(typeof showToast===\'function\')showToast(\'🦌 Nacho hidden — tap the 🦌 button to bring him back!\');" style="position:absolute;top:-4px;right:-34px;width:20px;height:20px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.6rem;color:#999;z-index:10;transition:0.2s;touch-action:manipulation;" title="Hide Nacho">✕</span>' +
-            '<div class="nacho-btn-stack">' +
-                '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔<span id="nachoClosetNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
-                '<span class="nacho-story-btn" id="nachoStoryBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoStory===\'function\'){showNachoStory();nachoStoryNotifClear();}" title="Nacho\'s Story — one chapter per day!">📖<span id="nachoStoryNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
-            '</div>' +
-            '<div id="nachoDragHandle" style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:32px;height:14px;background:rgba(255,255,255,0.9);border:1.5px solid rgba(247,147,26,0.5);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:grab;z-index:12;touch-action:none;-webkit-touch-callout:none;box-shadow:0 1px 4px rgba(0,0,0,0.3);" title="Drag to move Nacho"><span style="font-size:0.5rem;color:#888;pointer-events:none;">⠿</span></div>';
+        avatar.innerHTML = COUCH_NACHO_HTML + nachoControlsHtml();
     } else {
         avatar.style.width = '';
         avatar.style.height = '';
-        avatar.innerHTML = NACHO_SVG +
-            '<span class="nacho-name" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoInput===\'function\')showNachoInput();">Nacho<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span></span>' +
-            '<span id="nachoHideBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof hideNacho===\'function\')hideNacho();if(typeof showToast===\'function\')showToast(\'🦌 Nacho hidden — tap the 🦌 button to bring him back!\');" style="position:absolute;top:-4px;right:-34px;width:20px;height:20px;background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.6rem;color:#999;z-index:10;transition:0.2s;touch-action:manipulation;" title="Hide Nacho">✕</span>' +
-            '<div class="nacho-btn-stack">' +
-                '<span class="nacho-closet-btn" id="nachoClosetBtn" title="Nacho\'s Closet — dress me up!">👔<span id="nachoClosetNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
-                '<span class="nacho-story-btn" id="nachoStoryBtn" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(typeof showNachoStory===\'function\'){showNachoStory();nachoStoryNotifClear();}" title="Nacho\'s Story — one chapter per day!">📖<span id="nachoStoryNotif" class="nacho-notif-dot" style="display:none;"></span></span>' +
-            '</div>' +
-            '<div id="nachoDragHandle" style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:32px;height:14px;background:rgba(255,255,255,0.9);border:1.5px solid rgba(247,147,26,0.5);border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:grab;z-index:12;touch-action:none;-webkit-touch-callout:none;box-shadow:0 1px 4px rgba(0,0,0,0.3);" title="Drag to move Nacho"><span style="font-size:0.5rem;color:#888;pointer-events:none;">⠿</span></div>';
+        avatar.innerHTML = NACHO_SVG + nachoControlsHtml();
     }
     // Re-attach closet button listeners
     var closetBtn = document.getElementById('nachoClosetBtn');
@@ -2609,6 +3580,7 @@ window.updateNachoAvatarForPage = function() {
     }
     // Re-attach story button listeners after avatar rebuild
     if (typeof attachNachoStoryBtn === 'function') attachNachoStoryBtn();
+    if (typeof window._nachoRestorePosition === 'function') window._nachoRestorePosition();
 };
 
 // Hook into navigation to update avatar when page changes

@@ -196,22 +196,17 @@ window.nachoTrivia = function() {
     return { trivia: t, index: trackKey };
 };
 
-window.showNachoTrivia = function() {
-    // ---- ANTI-INTERRUPTION SHIELD ----
-    if (window._nachoBusy) return false;
-
-    var result = nachoTrivia();
-    if (!result) return false;
-
-    var t = result.trivia;
+function renderNachoTrivia(t) {
     var bubble = document.getElementById('nacho-bubble');
     var textEl = document.getElementById('nacho-text');
-    if (!bubble || !textEl) return false;
+    if (!bubble || !textEl || !t) return false;
 
     if (typeof setPose === 'function') setPose('think');
 
-    // Mark as interactive — prevents auto-hide
     bubble.setAttribute('data-interactive', 'true');
+    bubble.setAttribute('data-trivia', '1');
+    window._nachoTriviaXClose = false;
+    window._btcNachoTriviaAnswered = false;
     if(typeof clearNachoBubbleTimeout==="function")clearNachoBubbleTimeout();
 
     var html = '<div style="margin-bottom:8px;font-weight:700;color:var(--heading,#fff);font-size:0.9rem;">🧠 Quick Trivia! (+' + t.pts + ' pts)</div>' +
@@ -220,14 +215,44 @@ window.showNachoTrivia = function() {
     for (var i = 0; i < t.options.length; i++) {
         html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();nachoTriviaAnswer(' + i + ',' + t.correct + ',' + t.pts + ',this)" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#eee);font-size:0.8rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.15s;">' + String.fromCharCode(65 + i) + '. ' + t.options[i] + '</button>';
     }
+    html += '<button type="button" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(window.btcDismissNachoTrivia)window.btcDismissNachoTrivia(\'button\')" style="display:block;width:100%;min-height:44px;margin-top:8px;padding:8px 12px;background:transparent;border:2px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Not now / Back</button>';
 
     textEl.innerHTML = html;
     bubble.classList.add('show');
     if(typeof clearNachoBubbleTimeout==="function")clearNachoBubbleTimeout();
+    if (!window._btcTriviaHistory && typeof history !== 'undefined' && history && typeof history.pushState === 'function') {
+        try {
+            history.pushState({ overlay: 'nacho-trivia' }, '', window.location ? window.location.href : '');
+            window._btcTriviaHistory = true;
+        } catch (e) {}
+    }
     return true;
+}
+
+window.showNachoTrivia = function() {
+    // ---- ANTI-INTERRUPTION SHIELD ----
+    if (window._nachoBusy) return false;
+    if (!window._btcQuestBypassBusy && typeof window.btcDeferQuestIfBusy === 'function') {
+        if (window.btcDeferQuestIfBusy(function() { window.showNachoTrivia(); }, 'nacho-trivia')) return false;
+    }
+
+    var result = nachoTrivia();
+    if (!result) return false;
+    window._btcNachoTriviaPending = result;
+    return renderNachoTrivia(result.trivia);
+};
+
+window._replayNachoTrivia = function(pending) {
+    if (!pending || !pending.trivia || window._btcNachoTriviaAnswered) return false;
+    if (!window._btcQuestBypassBusy && typeof window.btcDeferQuestIfBusy === 'function') {
+        if (window.btcDeferQuestIfBusy(function() { window._replayNachoTrivia(pending); }, 'nacho-trivia')) return false;
+    }
+    window._btcNachoTriviaPending = pending;
+    return renderNachoTrivia(pending.trivia);
 };
 
 window.nachoTriviaAnswer = function(selected, correct, pts, btn) {
+    window._btcNachoTriviaAnswered = true;
     var buttons = btn.parentElement.querySelectorAll('button');
     for (var i = 0; i < buttons.length; i++) {
         buttons[i].disabled = true;
@@ -244,9 +269,13 @@ window.nachoTriviaAnswer = function(selected, correct, pts, btn) {
         }
     }
 
-    // Keep bubble open — prevent click-outside and auto-hide from dismissing
+    // Keep bubble open — outside clicks and timers must not dismiss the result
     var bubble = document.getElementById('nacho-bubble');
-    if (bubble) bubble.setAttribute('data-interactive', 'true');
+    if (bubble) {
+        bubble.setAttribute('data-interactive', 'true');
+        bubble.setAttribute('data-trivia', '1');
+    }
+    window._nachoTriviaXClose = false;
     if(typeof clearNachoBubbleTimeout==="function")clearNachoBubbleTimeout();
 
     // Temporarily remove click-outside handlers so user can read the result
@@ -270,7 +299,7 @@ window.nachoTriviaAnswer = function(selected, correct, pts, btn) {
     }
 
     textEl.innerHTML += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput()" style="width:100%;margin-top:8px;padding:6px;background:var(--accent-bg,rgba(247,147,26,0.1));border:1px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">Ask Nacho a question 🦌</button>';
-    textEl.innerHTML += '<button onclick="hideBubble(true)" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Dismiss</button>';
+    textEl.innerHTML += '<button onclick="event.stopPropagation();window._nachoTriviaXClose=true;hideBubble(true)" style="width:100%;margin-top:4px;padding:6px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#888);font-size:0.8rem;cursor:pointer;font-family:inherit;">Dismiss</button>';
 };
 
 // ---- Nacho Friendship Level ----
@@ -335,6 +364,10 @@ var _shownFollowUps = [];
 
 window.nachoFollowUps = function(answer) {
     if (!answer) return [];
+    if (/call or text 988|crisis text line|findahelpline\.com|i care about you/i.test(String(answer)) || window._bqSuppressFollowUps) {
+        window._bqLastFollowUp = '';
+        return [];
+    }
     var lower = answer.toLowerCase();
     var candidates = [];
     for (var topic in FOLLOW_UPS) {

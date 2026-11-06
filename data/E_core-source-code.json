@@ -4,7 +4,10 @@
   "desc": "Bitcoin Core's source code, forks, testnet, and the open-source development process.",
   "msgs": [
     {
-      "text": "<i>(under construction)</i>"
+      "text": "<b>BITCOIN CORE</b>\nBitcoin Core is the open-source software that implements the Bitcoin protocol. The code is published for anyone to read, and people run it to validate the chain themselves. Consensus rules, including the 21 million cap and the halving of the block subsidy, are enforced by the software nodes choose to run.\nhttps://github.com/bitcoin/bitcoin",
+      "updatedNote": "Updated Oct 2026",
+      "source": "https://github.com/bitcoin/bitcoin",
+      "sourceLabel": "Bitcoin Core"
     },
     {
       "text": "Videos that dive into the Bitcoin core source code:\nhttps://www.youtube.com/watch?v=duAcEElZpNk\nhttps://www.youtube.com/watch?v=VyixWPMbRXI\nhttps://www.youtube.com/watch?v=O7bJ5eoI98w\nhttps://www.youtube.com/watch?v=X6jtpe2_kUc",
@@ -19,8 +22,11 @@
       "link": "https://www.amazon.com/Mastering-Bitcoin-Programming-Open-Blockchain-ebook/dp/B071K7FCD4/ref=sr_1_3?dchild=1&keywords=mastering+bitcoin&qid=1628547078&s=digital-text&sr=1-3"
     },
     {
-      "text": "Bitcoin GitHub for coding and development on the Bitcoin network. There are over 4300 GitHub repositories as of 2014. \nhttps://github.com/bitcoin/bitcoin",
-      "link": "https://github.com/bitcoin/bitcoin"
+      "text": "Bitcoin Core's source code, for development of the Bitcoin protocol, is published on GitHub.\nA 2014 description said there were over 4,300 GitHub repositories related to Bitcoin. That count is historical (as of 2014), not a current census.\nhttps://github.com/bitcoin/bitcoin",
+      "link": "https://github.com/bitcoin/bitcoin",
+      "updatedNote": "Updated Oct 2026",
+      "source": "https://github.com/bitcoin/bitcoin",
+      "sourceLabel": "Bitcoin Core"
     },
     {
       "text": "More on how the Bitcoin core code is governed:",
@@ -72,7 +78,10 @@
       ]
     },
     {
-      "text": "As of 2021, Bitcoin Core has contributions from over 870 developers around the world."
+      "text": "As of 2021, Bitcoin Core was described as having contributions from over 870 developers. That count is historical (as of 2021).\nOn 22 October 2026, GitHub's contributor list for bitcoin/bitcoin had 1,370 entries, including anonymous contributions.\nhttps://github.com/bitcoin/bitcoin/graphs/contributors",
+      "updatedNote": "Updated Oct 2026",
+      "source": "https://github.com/bitcoin/bitcoin/graphs/contributors",
+      "sourceLabel": "GitHub contributors"
     },
     {
       "text": "Thread on the computer science behind:\nHash functions \nMining and difficulty adjustments\nTransactions and fees\nAnd more \n\nhttps://twitter.com/dannydiekroeger/status/1282000262782042117?t=TFzQgs8v6HdJJVE7yYi6rA&s=19",
@@ -187,8 +196,8 @@
       "text": "ZK Rollups, see"
     },
     {
-      "text": "What Do Bitcoin Core Maintainers Do?\nhttps://stephanlivera.com/episode/404/amp/",
-      "link": "https://stephanlivera.com/episode/404/amp/",
+      "text": "What Do Bitcoin Core Maintainers Do?\nhttps://web.archive.org/web/20260223145911/https://stephanlivera.com/episode/404/amp/",
+      "link": "https://web.archive.org/web/20260223145911/https://stephanlivera.com/episode/404/amp/",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/experienced/core-source-code_023_PXL_20241109_185319380.jpg"
       ]

@@ -34,6 +34,7 @@ window._checkNWCSecurityAlert = function() {
     }
     // 60-second sticky dismissible banner
     if (document.getElementById('nwcSecAlert')) return;
+    if (typeof window.claimSessionPopup === 'function') window.claimSessionPopup('nwc');
     var timeLeft = 60;
     var banner = document.createElement('div');
     banner.id = 'nwcSecAlert';
@@ -76,6 +77,43 @@ window._checkNWCSecurityAlert = function() {
     }, 1000);
 };
 
+// One combined unlock toast for badges the counter backfill already granted.
+// The flag is server-written. The client only asks the callable to clear it.
+window.presentBadgeBackfillToast = function(user) {
+    var toast = user && user.badgeBackfillToast;
+    if (!toast || toast.v !== 1 || !toast.message) return;
+    if (window._badgeBackfillToastShown) return;
+    // A deep link hides toasts. Leave the server flag so the next
+    // ordinary home load can show this once.
+    if (window._directLinkMode) return;
+    if (typeof showToast !== 'function') return;
+    window._badgeBackfillToastShown = true;
+    showToast(toast.message, 6500);
+    try {
+        var ack = firebase.functions().httpsCallable('ackBadgeBackfillToast');
+        ack({}).catch(function() {});
+    } catch (e) {}
+};
+
+function presentBadgeCollection() {
+    var lb = document.getElementById('leaderboard');
+    var open = lb && lb.classList.contains('open') && !lb.classList.contains('minimized');
+    if (!open && typeof toggleLeaderboard === 'function') toggleLeaderboard();
+    var tries = 0;
+    var timer = setInterval(function() {
+        tries += 1;
+        var headers = document.querySelectorAll('#leaderboard h4');
+        for (var i = 0; i < headers.length; i++) {
+            if (headers[i].textContent === 'Your Badges') {
+                headers[i].scrollIntoView({ block: 'start' });
+                clearInterval(timer);
+                return;
+            }
+        }
+        if (tries > 20) clearInterval(timer);
+    }, 300);
+}
+
 // Start listening for notifications
 window.initNotifications = function() {
     if (!auth || !auth.currentUser || typeof db === 'undefined') return;
@@ -86,6 +124,13 @@ window.initNotifications = function() {
 
     // NWC security alert — fires once per device if NWC wallet is connected
     setTimeout(window._checkNWCSecurityAlert, 3000);
+    db.collection('users').doc(uid).get().then(function(snap) {
+        if (snap.exists) window.presentBadgeBackfillToast(snap.data());
+    }).catch(function() {});
+    if (typeof window.syncPushRegistration === 'function') window.syncPushRegistration();
+    if (typeof window.schedulePushPrompt === 'function') window.schedulePushPrompt();
+    if (typeof window.renderHomePush === 'function') window.renderHomePush();
+    window._pushSnapReady = false;
 
     // Listen for unread notifications
     window._notifUnsub = db.collection('notifications')
@@ -94,7 +139,11 @@ window.initNotifications = function() {
         .orderBy('createdAt', 'desc')
         .limit(20)
         .onSnapshot(function(snap) {
-            window._notifCount = snap.size;
+            var listed = 0;
+            snap.forEach(function(doc) {
+                if (notifListedInMode(doc.data())) listed++;
+            });
+            window._notifCount = listed;
             updateNotifBadge();
             // Track received tips for badge counter
             snap.docChanges().forEach(function(change) {
@@ -109,7 +158,31 @@ window.initNotifications = function() {
                 if (nd.type === 'peer_level_up') {
                     showPartnershipLevelUpPopup(nd);
                 }
+                // A shared cipher prize. No push. The reveal runs once, then
+                // ackCipherShare sets the server flag so the next visit skips it.
+                if (nd.type === 'cipher_share' && nd.revealed !== true) {
+                    var sharePayload = {};
+                    var shareKey;
+                    for (shareKey in nd) if (Object.prototype.hasOwnProperty.call(nd, shareKey)) sharePayload[shareKey] = nd[shareKey];
+                    sharePayload.id = change.doc.id;
+                    (function(payload) {
+                        var tries = 0;
+                        var timer = setInterval(function() {
+                            if (typeof window.showCipherShareReveal === 'function') {
+                                clearInterval(timer);
+                                window.showCipherShareReveal(payload);
+                            } else if (++tries > 40) clearInterval(timer);
+                        }, 250);
+                    })(sharePayload);
+                }
+                // Skip the initial unread backlog. Later arrivals are high-value moments.
+                if (window._pushSnapReady && typeof window.notePushMoment === 'function') {
+                    var pt = nd.type;
+                    if (pt === 'leaderboard_reward' || pt === 'tip' || pt === 'sats') window.notePushMoment('win');
+                    if (pt === 'keys_received' || pt === 'peer_request' || pt === 'peer_accepted' || pt === 'peer_level_up' || pt === 'gift_received') window.notePushMoment('gift');
+                }
             });
+            window._pushSnapReady = true;
         }, function(err) { console.warn('[notif] Listener error:', err); });
 
     // Listen for unread DMs via onSnapshot (replaces 30s polling — saves ~2800 reads/user/day)
@@ -204,6 +277,243 @@ function updateDMBadge() {
     }
 }
 
+function notifIcon(n) {
+    if (n && n.icon && String(n.icon).length <= 8 && String(n.icon).indexOf('<') === -1) return n.icon;
+    var icons = {
+        upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔',
+        level_up: '🎉', badge: '🏅', quest: '🏆', spin: '🎡', prediction: '📊',
+        welcome: '👋', chat_mention: '💬', dj: '🎧', referral: '👥', closet: '👔',
+        sats: '⚡', dm: '💬', streak: '🔥', milestone: '🗺️', buddy: '🤝',
+        leaderboard_reward: '🏆', security: '🔐', reward: '✨', inventory: '🎒'
+    };
+    var icon = (n && icons[n.type]) || '🔔';
+    if (n && n.type === 'peer_request') icon = '🧡';
+    if (n && n.type === 'peer_accepted') icon = '🧡';
+    if (n && n.type === 'gift_received') icon = '🎁';
+    if (n && n.type === 'keys_received') icon = '🔑';
+    if (n && n.type === 'cipher_share') icon = '🔓';
+    if (n && n.type === 'peer_level_up') icon = '⚡';
+    return icon;
+}
+
+var NOTIF_TARGET_TYPES = {
+    forum_post: 1, article: 1, dm: 1, peer_request: 1,
+    beats_track: 1, marketplace: 1, song: 1, chat: 1, pvp: 1, buddy: 1,
+    topic_post: 1, badges: 1
+};
+
+function notifSafeId(value, max) {
+    max = max || 64;
+    return typeof value === 'string' && value.length >= 1 && value.length <= max && /^[A-Za-z0-9_-]+$/.test(value);
+}
+
+function notifSafeTarget(targetType, targetId) {
+    if (!targetType || !NOTIF_TARGET_TYPES[targetType]) return { type: '', id: '' };
+    if (targetType === 'peer_request' || targetType === 'chat') {
+        return { type: targetType, id: notifSafeId(targetId, 64) ? targetId : '' };
+    }
+    if (!notifSafeId(targetId, 64)) return { type: '', id: '' };
+    return { type: targetType, id: targetId };
+}
+
+function notifEscape(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function notifListedInMode(n) {
+    var notifMode = 'advanced';
+    try { notifMode = localStorage.getItem('btc_experience_mode') || 'advanced'; } catch (eMode) {}
+    if (notifMode !== 'lite' && notifMode !== 'beginner' && notifMode !== 'intermediate' && notifMode !== 'advanced') notifMode = 'advanced';
+    if (notifMode !== 'lite' && notifMode !== 'beginner') return true;
+    var notifType = String((n && n.type) || '');
+    return notifType === 'reward' || notifType === 'reply' || notifType === 'sats' || notifType.indexOf('reply') !== -1;
+}
+
+function notifCardHtml(docId, n, variant) {
+    n = n || {};
+    var safeDoc = notifSafeId(docId, 128) ? docId : '';
+    var target = notifSafeTarget(n.targetType, n.targetId);
+    var giftId = (n.type === 'gift_received' && notifSafeId(n.giftId, 64)) ? n.giftId : '';
+    var fromUid = (n.type === 'peer_request' && notifSafeId(n.fromUid, 64)) ? n.fromUid : '';
+    var isUnread = !n.read;
+    var sheet = variant === 'sheet';
+    var timeStr = '';
+    if (n.createdAt && n.createdAt.toDate) {
+        var ts = n.createdAt.toDate();
+        timeStr = sheet
+            ? formatNotifTime(ts)
+            : (typeof timeAgo === 'function' ? timeAgo(ts) : ts.toLocaleDateString());
+    }
+    var completed = n.status === 'completed';
+    var extra = '';
+    if (!completed && fromUid && safeDoc) {
+        extra = '<div style="display:flex;gap:6px;margin-top:6px;">' +
+            '<button type="button" class="notif-peer-btn" data-peer-action="accept" data-from-uid="' + notifEscape(fromUid) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="flex:1;padding:5px 8px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;">Accept</button>' +
+            '<button type="button" class="notif-peer-btn" data-peer-action="decline" data-from-uid="' + notifEscape(fromUid) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="flex:1;padding:5px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.78rem;cursor:pointer;font-family:inherit;">Decline</button>' +
+            '</div>';
+    }
+    if (!completed && n.type === 'keys_received') {
+        extra = '<div style="margin-top:6px;"><button type="button" class="notif-keys-btn" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🔑 See keys</button></div>';
+    }
+    if (!completed && giftId && safeDoc) {
+        extra = '<div style="margin-top:6px;">' +
+            '<button type="button" class="notif-open-gift" data-gift-id="' + notifEscape(giftId) + '" data-notif-id="' + notifEscape(safeDoc) + '" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🎁 Open Gift</button>' +
+            '</div>';
+    }
+    if (completed) {
+        extra = '<div class="notif-status" style="margin-top:6px;font-size:0.72rem;font-weight:800;color:var(--text-muted);">Completed</div>';
+    }
+    var message = n.message || '';
+    if (!notifListedInMode(n)) return '';
+    if ((target.type === 'beats_track' || n.targetType === 'beats_track') && typeof beatsCensor === 'function') {
+        message = beatsCensor(message);
+    }
+    var icon = notifIcon(n);
+    var iconHtml = '';
+    if (!icon || message.indexOf(icon) !== 0) {
+        iconHtml = '<span style="font-size:' + (sheet ? '1.2rem' : '1.1rem') + ';flex-shrink:0;">' + notifEscape(icon) + '</span>';
+    }
+    var statusAttr = (n.status === 'completed') ? ' data-status="completed"' : '';
+    return '<div class="notif-card"' + statusAttr + ' data-notif-id="' + notifEscape(safeDoc) + '" data-target-type="' + notifEscape(target.type) + '" data-target-id="' + notifEscape(target.id) + '" data-unread="' + (isUnread ? '1' : '0') + '" style="padding:' + (sheet ? '12px 16px' : '10px') + ';border-bottom:1px solid var(--border);background:' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + ';cursor:pointer;">' +
+        '<div style="display:flex;gap:' + (sheet ? '10px' : '8px') + ';align-items:flex-start;">' +
+            iconHtml +
+            '<div style="flex:1;min-width:0;">' +
+                '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;' + (isUnread ? 'font-weight:600;' : '') + '">' + notifEscape(message) + '</div>' +
+                notifAmountChips(n, message) +
+                '<div style="font-size:' + (sheet ? '0.65rem' : '0.7rem') + ';color:var(--text-faint);margin-top:' + (sheet ? '3px' : '2px') + ';">' + notifEscape(timeStr) + '</div>' +
+            '</div>' +
+            (isUnread ? '<div style="width:8px;height:8px;border-radius:50%;background:#f7931a;flex-shrink:0;margin-top:6px;"></div>' : '') +
+        '</div>' + extra +
+    '</div>';
+}
+
+function bindNotifCards(root, closeAfter) {
+    if (!root || !root.querySelectorAll) return;
+    root.querySelectorAll('.notif-card').forEach(function(row) {
+        row.addEventListener('click', function() {
+            var id = row.getAttribute('data-notif-id') || '';
+            var safe = notifSafeTarget(row.getAttribute('data-target-type') || '', row.getAttribute('data-target-id') || '');
+            if (!notifSafeId(id, 128)) return;
+            handleNotifClick(id, safe.type, safe.id);
+            if (closeAfter && typeof toggleNotifOverlay === 'function') toggleNotifOverlay();
+        });
+        row.addEventListener('mouseover', function() { row.style.background = 'rgba(255,255,255,0.03)'; });
+        row.addEventListener('mouseout', function() {
+            row.style.background = row.getAttribute('data-unread') === '1' ? 'rgba(247,147,26,0.04)' : 'none';
+        });
+    });
+    root.querySelectorAll('.notif-open-gift').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var giftId = btn.getAttribute('data-gift-id') || '';
+            var id = btn.getAttribute('data-notif-id') || '';
+            if (!notifSafeId(giftId, 64) || !notifSafeId(id, 128)) return;
+            if (typeof window.openGiftModal === 'function') {
+                window.openGiftModal(giftId);
+                try { db.collection('notifications').doc(id).update({ read: true }); } catch (err) {}
+            } else if (typeof showToast === 'function') showToast('Loading gifts...');
+        });
+    });
+    root.querySelectorAll('.notif-peer-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            var action = btn.getAttribute('data-peer-action') || '';
+            var fromUid = btn.getAttribute('data-from-uid') || '';
+            var id = btn.getAttribute('data-notif-id') || '';
+            if ((action !== 'accept' && action !== 'decline') || !notifSafeId(fromUid, 64) || !notifSafeId(id, 128)) return;
+            handlePeerNotifAction(action, fromUid, id, btn);
+        });
+    });
+    root.querySelectorAll('.notif-keys-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (typeof window.openNookInventory === 'function') window.openNookInventory();
+        });
+    });
+}
+
+function notifAmountChips(n, message) {
+    if (!n) return '';
+    var chips = [];
+    function chip(v, label, bg) {
+        var num = Number(v);
+        if (!num) return;
+        var sign = num > 0 ? '+' : '';
+        chips.push('<span style="display:inline-block;margin:4px 6px 0 0;padding:2px 8px;border-radius:999px;background:' + bg + ';color:var(--text);font-size:0.68rem;font-weight:800;line-height:1.4;">' + sign + num.toLocaleString() + ' ' + label + '</span>');
+    }
+    var xpNum = Number(n.xp) || 0;
+    if (!message || String(message).indexOf('(+' + xpNum + ' XP)') === -1) chip(n.xp, 'XP', 'rgba(247,147,26,0.18)');
+    chip(n.tickets, '🎟️', 'rgba(249,115,22,0.18)');
+    chip(n.sats, 'sats', 'rgba(234,179,8,0.2)');
+    chip(n.freezes, '🧊', 'rgba(56,189,248,0.18)');
+    if (!chips.length) return '';
+    return '<div style="display:flex;flex-wrap:wrap;margin-top:2px;">' + chips.join('') + '</div>';
+}
+
+function _localRewardList() {
+    try { return JSON.parse(localStorage.getItem('btc_local_reward_notices') || '[]'); }
+    catch (e) { return []; }
+}
+
+function _stashLocalReward(id, message, icon, kind) {
+    if (!id || !message) return;
+    try {
+        var list = _localRewardList();
+        if (list.some(function(x) { return x.id === id; })) return;
+        list.push({ id: String(id).slice(0, 120), message: String(message).slice(0, 180), icon: icon || '🔔', kind: kind || '', ts: Date.now(), read: false });
+        if (list.length > 80) list = list.slice(list.length - 80);
+        localStorage.setItem('btc_local_reward_notices', JSON.stringify(list));
+    } catch (e) {}
+    if (typeof _updatePointsBadge === 'function') _updatePointsBadge();
+}
+
+function _isSignedInAccount() {
+    return !!(auth && auth.currentUser && !auth.currentUser.isAnonymous);
+}
+
+// Signed-in badge/rank notices come from Cloud Functions. Titles, hidden
+// badges, and closet drops are still awarded in the browser, so those stay
+// on this device for every user. Anonymous progress is entirely local.
+function _visibleLocalRewards() {
+    var list = _localRewardList();
+    if (!_isSignedInAccount()) return list;
+    return list.filter(function(n) {
+        return n.kind === 'title' || n.kind === 'hidden' || n.kind === 'closet';
+    });
+}
+
+function _localRewardHtml() {
+    var visible = _visibleLocalRewards();
+    if (!visible.length) return '';
+    var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s || ''; };
+    var html = '';
+    for (var i = visible.length - 1; i >= 0; i--) {
+        var n = visible[i];
+        html += '<div style="padding:12px 16px;border-bottom:1px solid var(--border);background:' + (n.read ? 'none' : 'rgba(247,147,26,0.04)') + ';">' +
+            '<div style="display:flex;gap:10px;align-items:flex-start;">' +
+                '<span style="font-size:1.2rem;flex-shrink:0;">' + notifIcon(n) + '</span>' +
+                '<div style="flex:1;min-width:0;">' +
+                    '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;">' + esc(n.message || '') + '</div>' +
+                    '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:3px;">On this device</div>' +
+                '</div>' +
+            '</div></div>';
+    }
+    try {
+        var seen = {};
+        visible.forEach(function(n) { seen[n.id] = true; });
+        var list = _localRewardList();
+        list.forEach(function(n) { if (seen[n.id]) n.read = true; });
+        localStorage.setItem('btc_local_reward_notices', JSON.stringify(list));
+    } catch (e) {}
+    if (typeof _updatePointsBadge === 'function') _updatePointsBadge();
+    return html;
+}
+
 // Show notifications panel
 window.showNotifications = async function() {
     if (!auth || !auth.currentUser || typeof db === 'undefined') return;
@@ -237,52 +547,18 @@ window.showNotifications = async function() {
 
         var list = document.getElementById('notifList');
         if (!list) return;
-        if (snap.empty) { list.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-faint);">No notifications yet! 🦌</div>'; return; }
+        if (snap.empty) {
+            var onlyLocal = _localRewardHtml();
+            list.innerHTML = onlyLocal || '<div style="text-align:center;padding:30px;color:var(--text-faint);">No notifications yet! 🦌</div>';
+            return;
+        }
 
-        var html = '';
+        var html = _localRewardHtml();
         snap.forEach(function(doc) {
-            var n = doc.data();
-            var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s; };
-            var timeStr = n.createdAt && n.createdAt.toDate ? (typeof timeAgo === 'function' ? timeAgo(n.createdAt.toDate()) : n.createdAt.toDate().toLocaleDateString()) : '';
-            var isUnread = !n.read;
-            var icons = { upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔', level_up: '🎉', badge: '🏅', quest: '🏆', spin: '🎡', sats: '⚡', dm: '💬', streak: '🔥', milestone: '🗺️', security: '🔐' };
-            var icon = icons[n.type] || '🔔';
-            if (n.type === 'peer_request') icon = '🧡';
-            if (n.type === 'peer_accepted') icon = '🧡';
-            if (n.type === 'gift_received') icon = '🎁';
-            if (n.type === 'keys_received') icon = '🔑';
-            if (n.type === 'peer_level_up') icon = '⚡';
-
-            var extraHtml = '';
-            if (n.type === 'peer_request' && n.fromUid) {
-                extraHtml = '<div style="display:flex;gap:6px;margin-top:6px;">' +
-                    '<button onclick="event.stopPropagation();handlePeerNotifAction(\'accept\',\'' + (n.fromUid||'') + '\',\'' + (doc.id||'') + '\',this)" style="flex:1;padding:5px 8px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;">Accept</button>' +
-                    '<button onclick="event.stopPropagation();handlePeerNotifAction(\'decline\',\'' + (n.fromUid||'') + '\',\'' + (doc.id||'') + '\',this)" style="flex:1;padding:5px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.78rem;cursor:pointer;font-family:inherit;">Decline</button>' +
-                    '</div>';
-            }
-            if (n.type === 'keys_received') {
-                extraHtml = '<div style="margin-top:6px;"><button type="button" onclick="event.stopPropagation();if(typeof window.openNookInventory===\'function\')window.openNookInventory();" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🔑 See keys</button></div>';
-            }
-            if (n.type === 'gift_received' && n.giftId) {
-                var _gGiftId = n.giftId || '';
-                var _gNotifId = doc.id || '';
-                extraHtml = '<div style="margin-top:6px;">' +
-                    '<button onclick="event.stopPropagation();if(typeof window.openGiftModal===\'function\'){window.openGiftModal(\'' + _gGiftId + '\');try{db.collection(\'notifications\').doc(\'' + _gNotifId + '\').update({read:true})}catch(_e){}}else{if(typeof showToast===\'function\')showToast(\'Loading gifts...\');}" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🎁 Open Gift</button>' +
-                    '</div>';
-            }
-
-            html += '<div data-notif-id="' + doc.id + '" style="padding:10px;border-bottom:1px solid var(--border);background:' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + ';cursor:pointer;" onclick="handleNotifClick(\'' + doc.id + '\',\'' + (n.targetType || '') + '\',\'' + (n.targetId || '') + '\')">' +
-                '<div style="display:flex;gap:8px;align-items:flex-start;">' +
-                    '<span style="font-size:1.1rem;flex-shrink:0;">' + icon + '</span>' +
-                    '<div style="flex:1;min-width:0;">' +
-                        '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;' + (isUnread ? 'font-weight:600;' : '') + '">' + esc(n.message || '') + '</div>' +
-                        '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">' + timeStr + '</div>' +
-                    '</div>' +
-                    (isUnread ? '<div style="width:8px;height:8px;border-radius:50%;background:#f7931a;flex-shrink:0;margin-top:6px;"></div>' : '') +
-                '</div>' + extraHtml +
-            '</div>';
+            html += notifCardHtml(doc.id, doc.data(), 'panel');
         });
         list.innerHTML = html;
+        bindNotifCards(list, false);
     } catch(e) {
         var list = document.getElementById('notifList');
         if (list) list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.82rem;">Could not load notifications</div>';
@@ -320,15 +596,14 @@ window.handlePeerNotifAction = async function(action, fromUid, notifId, btnEl) {
 
 // Handle notification click — navigate to content
 window.handleNotifClick = async function(notifId, targetType, targetId) {
-    // Mark as read
+    if (!notifSafeId(notifId, 128)) return;
+    var safe = notifSafeTarget(targetType, targetId);
     try { await db.collection('notifications').doc(notifId).update({ read: true }); } catch(e) {}
-    // Close overlay
     var ov = document.getElementById('notifOverlay');
     if (ov) ov.remove();
-    // Navigate
-    if (targetType === 'forum_post' && targetId) { if (typeof forumViewPost === 'function') forumViewPost(targetId); }
-    else if (targetType === 'article' && targetId) { if (typeof articleView === 'function') articleView(targetId); }
-    else if (targetType === 'dm' && targetId) {
+    if (safe.type === 'forum_post' && safe.id) { if (typeof forumViewPost === 'function') forumViewPost(safe.id); }
+    else if (safe.type === 'article' && safe.id) { if (typeof articleView === 'function') articleView(safe.id); }
+    else if (safe.type === 'dm' && safe.id) {
         // targetId is convoId (uid1_uid2). Extract the other user's UID and open their DM directly.
         try {
             var notifDoc = await db.collection('notifications').doc(notifId).get();
@@ -342,9 +617,21 @@ window.handleNotifClick = async function(notifId, targetType, targetId) {
             if (typeof showInbox === 'function') showInbox();
         }
     }
-    else if (targetType === 'peer_request') {
+    else if (safe.type === 'peer_request') {
         if (typeof showSettingsPage === 'function') showSettingsPage('peers');
         return;
+    }
+    else if (safe.type === 'badges') {
+        presentBadgeCollection();
+        return;
+    }
+    else if (safe.type === 'topic_post' && safe.id) {
+        try {
+            var topicNotice = await db.collection('notifications').doc(notifId).get();
+            var topicData = topicNotice.exists ? topicNotice.data() : null;
+            var topicChannel = topicData && topicData.topicChannel;
+            if (topicChannel && typeof window.bqOpenTopicPost === 'function') window.bqOpenTopicPost(topicChannel, safe.id);
+        } catch (e) {}
     }
 };
 
@@ -371,14 +658,15 @@ window.sendNotification = async function(recipientId, type, message, targetType,
     if (!recipientId || !auth || !auth.currentUser) return;
     if (recipientId === auth.currentUser.uid) return; // don't notify yourself
     try {
+        var safeTarget = notifSafeTarget(targetType, targetId);
         await db.collection('notifications').add({
             recipientId: recipientId,
             senderId: auth.currentUser.uid,
             senderName: (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone',
             type: type,
             message: message,
-            targetType: targetType || null,
-            targetId: targetId || null,
+            targetType: safeTarget.type || null,
+            targetId: safeTarget.id || null,
             read: false,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
@@ -390,6 +678,10 @@ var _notifOverlayOpen = false;
 
 function createNotifOverlay() {
     if (document.getElementById('notifOverlayBtn')) return;
+    try {
+        var _ph = location.hostname;
+        if ((_ph === 'localhost' || _ph === '127.0.0.1') && /previewPush=/.test(location.search || '')) return;
+    } catch (e) {}
 
     var btn = document.createElement('button');
     btn.id = 'notifOverlayBtn';
@@ -518,55 +810,17 @@ window.renderNotifList = async function() {
             .get();
 
         if (snap.empty) {
-            body.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">🔔</div><div style="color:var(--text-muted);font-size:0.85rem;">No notifications yet!</div></div>';
+            var onlyLocal = _localRewardHtml();
+            body.innerHTML = onlyLocal || '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">🔔</div><div style="color:var(--text-muted);font-size:0.85rem;">No notifications yet!</div></div>';
             return;
         }
 
-        var html = '';
-        var icons = { upvote: '👍', reply: '💬', tip: '⚡', comment: '💬', like: '❤️', mention: '🔔', level_up: '🎉', badge: '🏅', quest: '🏆', spin: '🎡', prediction: '📊', welcome: '👋', chat_mention: '💬', dj: '🎧', referral: '👥', closet: '👔', sats: '⚡', dm: '💬', streak: '🔥', milestone: '🗺️', buddy: '🤝', leaderboard_reward: '🏆', security: '🔐' };
+        var html = _localRewardHtml();
         snap.forEach(function(doc) {
-            var n = doc.data();
-            var e = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s || ''; };
-            var ts = n.createdAt && n.createdAt.toDate ? n.createdAt.toDate() : null;
-            var timeStr = ts ? formatNotifTime(ts) : '';
-            var isUnread = !n.read;
-            var icon = icons[n.type] || '🔔';
-            if (n.type === 'peer_request') icon = '🧡';
-            if (n.type === 'peer_accepted') icon = '🧡';
-            if (n.type === 'gift_received') icon = '🎁';
-            if (n.type === 'keys_received') icon = '🔑';
-            if (n.type === 'peer_level_up') icon = '⚡';
-
-            var extraHtml = '';
-            if (n.type === 'peer_request' && n.fromUid) {
-                extraHtml = '<div style="display:flex;gap:6px;margin-top:6px;">' +
-                    '<button onclick="event.stopPropagation();handlePeerNotifAction(\'accept\',\'' + (n.fromUid||'') + '\',\'' + (doc.id||'') + '\',this)" style="flex:1;padding:5px 8px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;">Accept</button>' +
-                    '<button onclick="event.stopPropagation();handlePeerNotifAction(\'decline\',\'' + (n.fromUid||'') + '\',\'' + (doc.id||'') + '\',this)" style="flex:1;padding:5px 8px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.78rem;cursor:pointer;font-family:inherit;">Decline</button>' +
-                    '</div>';
-            }
-            if (n.type === 'keys_received') {
-                extraHtml = '<div style="margin-top:6px;"><button type="button" onclick="event.stopPropagation();if(typeof window.openNookInventory===\'function\')window.openNookInventory();" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🔑 See keys</button></div>';
-            }
-            if (n.type === 'gift_received' && n.giftId) {
-                var _gGiftId = n.giftId || '';
-                var _gNotifId = doc.id || '';
-                extraHtml = '<div style="margin-top:6px;">' +
-                    '<button onclick="event.stopPropagation();if(typeof window.openGiftModal===\'function\'){window.openGiftModal(\'' + _gGiftId + '\');try{db.collection(\'notifications\').doc(\'' + _gNotifId + '\').update({read:true})}catch(_e){}}else{if(typeof showToast===\'function\')showToast(\'Loading gifts...\');}" style="width:100%;padding:7px 8px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:6px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🎁 Open Gift</button>' +
-                    '</div>';
-            }
-
-            html += '<div data-notif-id="' + doc.id + '" onclick="handleNotifClick(\'' + doc.id + '\',\'' + (n.targetType || '') + '\',\'' + (n.targetId || '') + '\');toggleNotifOverlay()" style="padding:12px 16px;border-bottom:1px solid var(--border);background:' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + ';cursor:pointer;transition:0.15s;" onmouseover="this.style.background=\'rgba(255,255,255,0.03)\'" onmouseout="this.style.background=\'' + (isUnread ? 'rgba(247,147,26,0.04)' : 'none') + '\'">' +
-                '<div style="display:flex;gap:10px;align-items:flex-start;">' +
-                    '<span style="font-size:1.2rem;flex-shrink:0;">' + icon + '</span>' +
-                    '<div style="flex:1;min-width:0;">' +
-                        '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;' + (isUnread ? 'font-weight:600;' : '') + '">' + e(n.message || '') + '</div>' +
-                        '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:3px;">' + timeStr + '</div>' +
-                    '</div>' +
-                    (isUnread ? '<div style="width:8px;height:8px;border-radius:50%;background:#f7931a;flex-shrink:0;margin-top:6px;"></div>' : '') +
-                '</div>' + extraHtml +
-            '</div>';
+            html += notifCardHtml(doc.id, doc.data(), 'sheet');
         });
         body.innerHTML = html;
+        bindNotifCards(body, true);
     } catch(e) {
         console.warn('[notif] renderNotifList error:', e);
         body.innerHTML = '<div style="text-align:center;padding:30px;"><div style="font-size:1.5rem;margin-bottom:8px;">🔔</div><div style="color:var(--text-muted);font-size:0.82rem;">No notifications yet</div></div>';
@@ -594,45 +848,23 @@ updateNotifBadge = function() {
 // ---- Self-Notifications (local events → Firestore) ----
 // Notify on level up (leaderboard rank)
 window.notifySelfLevelUp = function(minPts, levelName, emoji) {
-    if (!auth || !auth.currentUser) return;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system',
-        senderName: 'System',
-        type: 'level_up',
-        message: (emoji || '🎉') + ' You ranked up to ' + (levelName || 'a new level') + '! (' + (minPts || 0) + '+ pts)',
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // Signed-in rank-ups are written once by the Cloud Function that grants the XP
+    // (doc id rank_<uid>_<slug>). Anonymous and logged-out progress never reaches it.
+    if (_isSignedInAccount()) return;
+    _stashLocalReward('rank_' + (levelName || minPts), (emoji || '🎉') + ' Rank up: ' + (levelName || 'a new level') + '!', emoji || '🎉', 'rank');
 };
 
 // Notify on badge unlock
 window.notifySelfBadge = function(badgeName, badgeEmoji) {
-    if (!auth || !auth.currentUser) return;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system', senderName: 'System',
-        type: 'badge',
-        message: (badgeEmoji || '🏅') + ' Badge unlocked: ' + (badgeName || 'New Badge') + '!',
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // Signed-in catalog badges are notified once by awardPoints (badge_<uid>_<id>).
+    // Anonymous earns stay on this device: rules block anonymous notification writes.
+    if (_isSignedInAccount()) return;
+    _stashLocalReward('badge_' + (badgeName || 'badge'), (badgeEmoji || '🏅') + ' New badge: ' + (badgeName || 'New badge') + '!', badgeEmoji || '🏅', 'badge');
 };
 
 // Notify on quest complete
 window.notifySelfQuest = function(questName) {
-    if (!auth || !auth.currentUser) return;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system', senderName: 'System',
-        type: 'quest',
-        message: '🏆 Quest complete: ' + (questName || 'Quest') + '! Check your rewards.',
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // gradeQuest writes the feed entry. Client creates of type quest are rejected.
 };
 
 // Notify on tip received (includes sender name)
@@ -671,58 +903,24 @@ window.notifySpinAvailable = function() {
 
 // Notify price prediction result
 window.notifyPredictionResult = function(correct, direction) {
-    if (!auth || !auth.currentUser) return;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system', senderName: 'System',
-        type: 'prediction',
-        message: correct ? '📊 ✅ Your price prediction was correct! Bitcoin went ' + (direction || 'up') + '.' : '📊 ❌ Your price prediction was wrong. Better luck tomorrow!',
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // resolvePredictions writes the result. XP still arrives through awardPoints.
 };
 
 // Notify spin wheel result
 window.notifySelfSpin = function(rewardText) {
-    if (!auth || !auth.currentUser) return;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system', senderName: 'System',
-        type: 'spin',
-        message: '🎡 Daily Spin: ' + (rewardText || 'You won a prize!'),
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // dailySpin writes the feed entry inside the same transaction as the grant.
 };
 
 // Notify referral reward
 window.notifySelfReferral = function(ticketsEarned) {
-    if (!auth || !auth.currentUser) return;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system', senderName: 'System',
-        type: 'referral',
-        message: '👥 Referral verified! You earned ' + ticketsEarned + ' Orange Ticket' + (ticketsEarned > 1 ? 's' : '') + '!',
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // verifyReferral writes both ticket notices. Client creates are rejected.
 };
 
 // Notify Nacho closet item unlock
 window.notifySelfClosetItem = function(itemName, itemEmoji) {
-    if (!auth || !auth.currentUser) return;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system', senderName: 'System',
-        type: 'closet',
-        message: (itemEmoji || '👔') + ' New Nacho closet item: ' + (itemName || 'Unknown') + '! Equip it in Settings.',
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // The spin function records a generic closet drop. The specific item is
+    // chosen in the browser, so the named unlock stays on this device, once.
+    _stashLocalReward('closet_' + (itemName || 'item'), (itemEmoji || '👔') + ' New closet item: ' + (itemName || 'Unknown') + '!', itemEmoji || '👔', 'closet');
 };
 
 // Notify @mention in global chat
@@ -782,10 +980,14 @@ if (typeof auth !== 'undefined' && auth) {
 
 // Count unread points notifications
 function _getUnreadPointsCount() {
+    var local = 0;
+    try {
+        local = _visibleLocalRewards().filter(function(e) { return !e.read; }).length;
+    } catch (e) {}
     try {
         var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
-        return log.filter(function(e) { return !e.read; }).length;
-    } catch(e) { return 0; }
+        return log.filter(function(e) { return !e.read; }).length + local;
+    } catch(e) { return local; }
 }
 
 // Update badge to include points count
@@ -847,11 +1049,18 @@ function _renderPointsTab() {
     for (var i = log.length - 1; i >= 0; i--) {
         var e = log[i];
         var ts = e.ts ? formatNotifTime(new Date(e.ts)) : '';
+        var reason = e.reason || '';
+        var xpMode = 'advanced';
+        try { xpMode = localStorage.getItem('btc_experience_mode') || 'advanced'; } catch (eLiteXp) {}
+        if (xpMode === 'lite' && /badge/i.test(reason)) {
+            reason = String(reason).replace(/^badge:\s*/i, '').replace(/[\u2600-\u27BF\uD800-\uDBFF][\uDC00-\uDFFF]?/g, '').trim() || 'learning';
+        }
+        var xpLine = '+' + e.pts + ' XP · ' + reason;
         html += '<div style="padding:10px 16px;border-bottom:1px solid var(--border);">' +
             '<div style="display:flex;gap:10px;align-items:flex-start;">' +
                 '<span style="font-size:1.2rem;flex-shrink:0;">⭐</span>' +
                 '<div style="flex:1;min-width:0;">' +
-                    '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;">+' + e.pts + ' XP — ' + (typeof escapeHtml === 'function' ? escapeHtml(e.reason) : e.reason) + '</div>' +
+                    '<div style="font-size:0.82rem;color:var(--text);line-height:1.4;">' + (typeof escapeHtml === 'function' ? escapeHtml(xpLine) : xpLine) + '</div>' +
                     '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:3px;">' + ts + '</div>' +
                 '</div>' +
             '</div>' +
@@ -863,16 +1072,7 @@ function _renderPointsTab() {
 
 // Notify on sats claim
 window.notifySelfSatsClaim = function(amount) {
-    if (!auth || !auth.currentUser) return;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system', senderName: 'System',
-        type: 'sats',
-        message: '⚡ You claimed ' + amount + ' sats! Check your Lightning wallet.',
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // claimSats writes the notice only after the wallet payment succeeds.
 };
 
 // Notify on forum reply to your post
@@ -952,16 +1152,7 @@ window.notifyDMReceived = function(recipientId, senderName) {
 
 // Notify on daily streak milestone
 window.notifySelfStreak = function(streakDays) {
-    if (!auth || !auth.currentUser) return;
-    db.collection('notifications').add({
-        recipientId: auth.currentUser.uid,
-        senderId: 'system', senderName: 'System',
-        type: 'streak',
-        message: '🔥 ' + streakDays + '-day streak! Keep it going!',
-        targetType: null, targetId: null,
-        read: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function() {});
+    // recordDailyVisit writes the streak ticket / freeze notice.
 };
 
 // Notify on exploration milestone
@@ -993,6 +1184,7 @@ window.showPartnershipLevelUpPopup = function(notifData) {
     var guardKey = peerId + '_lvl' + levelNum;
     if (_shownPartnershipPopups.has(guardKey)) return;
     _shownPartnershipPopups.add(guardKey);
+    if (typeof window.claimSessionPopup === 'function') window.claimSessionPopup('levelup');
 
     var LEVEL_META = {
         2: { emoji: '🟨', color: '#eab308', glow: 'rgba(234,179,8,0.35)',  xp: '3,000',   subtitle: 'First exchange. The channel is opening.' },
@@ -1077,3 +1269,1058 @@ window.showPartnershipLevelUpPopup = function(notifData) {
         }, 12000);
     });
 };
+
+
+// Client-awarded titles, hidden badges, and module badges. The live copies
+// live in the bundle, so this wraps them after they exist. Each id is written
+// once (localStorage). Signed-in catalog badges stay on the server.
+var CLIENT_AWARD_COPY = {"hidden":{"genesis":{"e":"📜","n":"Genesis Reader","d":"Read the whitepaper channel"},"nacho_curious":{"e":"❓","n":"Curious Deer","d":"Ask Nacho your first question"},"ticket_bronze":{"e":"🐟","n":"Ticket Fish","d":"Earn 25 Orange Tickets"},"ticket_silver":{"e":"🦈","n":"Ticket Shark","d":"Earn 50 Orange Tickets"},"ticket_gold":{"e":"🐋","n":"Ticket Whale","d":"Earn 100 Orange Tickets"},"nacho_10q":{"e":"🔍","n":"Inquisitive Buck","d":"Ask Nacho 10 questions"},"collector":{"e":"💎","n":"Collector","d":"Save 10+ topics to favorites"},"first_post":{"e":"📣","n":"Town Crier","d":"Make your first Pleb Talk post"},"first_reply":{"e":"💬","n":"Conversationalist","d":"Reply to a forum post"},"market_seller":{"e":"🏪","n":"Merchant","d":"List an item on Lightning Mart"},"market_buyer":{"e":"🛍️","n":"Shopper","d":"Contact a seller on the marketplace"},"donor_100":{"e":"🫷","n":"Giving Pleb","d":"Donate 100 XP for charity"},"donor_500":{"e":"💛","n":"Stack Sharer","d":"Donate 500 XP for charity"},"donor_1000":{"e":"🧡","n":"Community Builder","d":"Donate 1,000 XP for charity"},"donor_5000":{"e":"❤️","n":"Archive Patron","d":"Donate 5,000 XP for charity"},"donor_10000":{"e":"🔥","n":"Sats Saint","d":"Donate 10,000 XP for charity"},"donor_25000":{"e":"⚡","n":"Lightning Philanthropist","d":"Donate 25,000 XP for charity"},"donor_100000":{"e":"👑","n":"Legend of the Archive","d":"Donate 100,000 XP for charity"},"night_owl":{"e":"🦉","n":"Night Owl","d":"Visit the archive after midnight"},"speed_runner":{"e":"⚡","n":"Speed Runner","d":"Visit 15+ channels in one session"},"scholar":{"e":"🎓","n":"Bitcoin Scholar","d":"Pass the Scholar Certification"},"nacho_20q":{"e":"🏅","n":"20 Questions","d":"Ask Nacho 20 questions"},"explorer_10":{"e":"🗺️","n":"Curious Pleb","d":"Explore 10 topics"},"explorer_25":{"e":"🐇","n":"Rabbit Holer","d":"Explore 25 topics"},"explorer_50":{"e":"📚","n":"Half Stack","d":"Explore 50 topics"},"explorer_100":{"e":"💯","n":"Century Club","d":"Explore 100 topics"},"explorer_all":{"e":"👑","n":"Archive Master","d":"Explore every single topic"},"marathon":{"e":"🏃","n":"Marathon Reader","d":"Spent 30+ minutes reading in one session"},"early_adopter":{"e":"🌅","n":"Early Adopter","d":"Browsing between 5am and 7am"},"weekend_warrior":{"e":"🎉","n":"Weekend Warrior","d":"Learning Bitcoin on a weekend"},"triple_threat":{"e":"🎯","n":"Triple Threat","d":"Completed a quest, sent a chat message, and read a channel in one session"},"nacho_50q":{"e":"🧙","n":"Nacho Sage","d":"Ask Nacho 50 questions"},"bookmark_collector":{"e":"📚","n":"Bookmark Hoarder","d":"Bookmarked 20+ messages"},"pvp_streak":{"e":"🔱","n":"Undefeated","d":"Won 5 PVP battles in a row"},"sats_maxed":{"e":"👑","n":"Faucet King","d":"Claimed all 15,000 sats from the faucet"},"streak_freeze":{"e":"🧊","n":"Ice Shield","d":"Used a streak freeze to save your streak"},"nacho_closet_full":{"e":"👗","n":"Fashionista","d":"Unlocked all Nacho closet items from the spin wheel"},"ghost_reader":{"e":"👻","n":"Ghost Reader","d":"Visited the archive every day for a week without earning any points"},"whitepaper_pilgrim":{"e":"📜","n":"Whitepaper Pilgrim","d":"Read the whitepaper channel 10 times in separate sessions"},"insomniac":{"e":"🌑","n":"Insomniac","d":"Visited the archive between 2am and 4am on 3 separate occasions"},"contrarian":{"e":"🙃","n":"The Contrarian","d":"Voted against the majority in 10 daily polls"},"block_42":{"e":"🎱","n":"Block 42","d":"Discovered something hidden in the archive"},"rabbit_hole":{"e":"🕳️","n":"Rabbit Hole","d":"Spent 3 hours straight learning in one session"},"the_plebeian":{"e":"🫡","n":"The Plebeian","d":"Reached the leaderboard top 100 without a single referral"},"silent_donor":{"e":"🤫","n":"Silent Donor","d":"Donated XP to charity without ever sharing your referral link"},"dust_collector":{"e":"🧹","n":"Dust Collector","d":"Claimed sats from the faucet 21 days in a row"},"hash_obsessed":{"e":"⛏️","n":"Hash Obsessed","d":"Contributed 25,000 hashes to Satoshi\\"},"search_sleuth":{"e":"🔎","n":"Search Sleuth","d":"Used every search in the archive — topics, users, badges, forum, marketplace, beats, and GIFs"},"nacho_friend":{"e":"🦌","n":"Nacho's Friend","d":"Interact with Nacho"},"donor_50000":{"e":"🏆","n":"Satoshi's Steward","d":"Donate 50,000 XP for charity"}},"titles":{"the_completionist":{"e":"🗺️","n":"The Completionist","d":"Mapped every corner of the Archive"},"quest_legend":{"e":"⚔️","n":"Quest Legend","d":"A hundred quests. Countless battles won."},"hash_lord":{"e":"☄️","n":"Hash Lord","d":"10,000 nonces ground into dust"},"hash_god":{"e":"⚡","n":"Hash God","d":"100,000 hashes. You ARE the network."},"satoshis_chosen":{"e":"💎","n":"Satoshi's Chosen","d":"Fortune favors the relentless"},"block_solver":{"e":"🌞","n":"Block Solver","d":"Cracked the code. Won the sats."},"hodler_supreme":{"e":"🪩","n":"HODLer Supreme","d":"365 days. No days off."},"the_satellite":{"e":"🛰️","n":"The Satellite","d":"100 hours deep in the Timechain"},"timechain_surfer":{"e":"🏄","n":"Timechain Surfer","d":"Surfed 100 channels. Seen it all."},"chat_legend":{"e":"📯","n":"Chat Legend","d":"The voice of the Archive"},"the_devoted":{"e":"💠","n":"The Devoted","d":"30 days of relentless conversation"},"pvp_legend":{"e":"🥇","n":"PVP Legend","d":"100 wins. Undefeated in Bitcoin knowledge."},"raid_warlord":{"e":"🔱","n":"Raid Warlord","d":"100 damage dealt. Bosses tremble."},"dragon_slayer":{"e":"🐲","n":"Dragon Slayer","d":"Ten bosses defeated. A true slayer."},"the_viral_plebian":{"e":"👑","n":"The Viral Plebian","d":"Orange-pilled 100 souls"},"satoshis_disciple":{"e":"🟠","n":"Satoshi's Disciple","d":"365 Daily Trifectas. Absolute dedication."},"trifecta_legend":{"e":"🏆","n":"Trifecta Legend","d":"90 consecutive days of learning, trivia, and polling"},"double_scholar":{"e":"🏛️","n":"Double Scholar","d":"Bitcoin Scholar AND Protocol Expert"},"trivia_titan":{"e":"🏅","n":"Trivia Titan","d":"100 correct answers. Living Bitcoin encyclopedia."},"the_devotee":{"e":"🔱","n":"The Devotee","d":"30-day trivia streak. No excuses."},"vinyl_master":{"e":"🎼","n":"Vinyl Master","d":"100 songs broadcast to the Archive"},"nachos_confidant":{"e":"🤫","n":"Nacho's Confidant","d":"500 conversations with the deer himself"},"regional_leader":{"e":"🌆","n":"Regional Leader","d":"10 Bitcoin events hosted. The community builder."},"twenty_one_million":{"e":"₿","n":"21 Million Dreams","d":"Claimed 21,000 sats. Lived the number."},"proof_of_pain":{"e":"🕱️","n":"Proof of Pain","d":"1,000 terrible hashes. Respect."},"trail_master":{"e":"🏁","n":"Trail Master","d":"Completed every trail Nacho laid out"},"to_the_moon":{"e":"🌕","n":"To the Moon","d":"Walked 5,000km. Unreal."},"democracy_maxi":{"e":"⚖️","n":"Democracy Maxi","d":"100 polls voted. The voice of reason."},"sat_slinger":{"e":"💰","n":"Sat Slinger","d":"10,000 sats tipped. Pure generosity."},"community_darling":{"e":"🌟","n":"Community Darling","d":"50 tips received from the Archive community"},"time_traveler":{"e":"⏳","n":"Time Traveler","d":"100 correct predictions. Saw the future."},"the_long_walker":{"e":"💎","n":"The Long Walker","d":"30-day Proof of Walk streak. Committed."},"chancellor":{"e":"📰","n":"Chancellor on Brink","d":"50 badges. The banks are already nervous."},"the_archivist_t":{"e":"🏛️","n":"The Archivist","d":"100 badges. You don't use the Archive — you are it."},"hall_of_fame_t":{"e":"🏆","n":"Hall of Fame","d":"150 badges. A true legend."},"satoshis_revenge_t":{"e":"⚔️","n":"Satoshi's Revenge","d":"200 badges. The network never forgets."},"satoshis_vendetta_t":{"e":"🗡️","n":"Satoshi's Vendetta","d":"250 badges. Deeper than most will ever go."},"satoshis_ghost_t":{"e":"👻","n":"Satoshi's Ghost","d":"300 badges. So rare nobody knows if it's been done."},"satoshis_covenant_t":{"e":"📜","n":"Satoshi's Covenant","d":"350 badges. Bound to the protocol, forever."},"satoshis_cipher_t":{"e":"🔐","n":"Satoshi's Cipher","d":"400 badges. You have cracked something most never will."},"grand_scholar":{"e":"🎓","n":"Grand Scholar","d":"All certifications and trails. The complete picture."},"jack_of_all_t":{"e":"🃏","n":"Jack of All Trades","d":"A badge in every category. Truly well-rounded."},"master_miner_t":{"e":"⛏️","n":"Master Miner","d":"Every mining badge earned. The forge never cools."},"satoshi_scholar_t":{"e":"🎓","n":"Satoshi Scholar","d":"The Scholar Set complete. Knowledge is sovereignty."},"community_pillar_t":{"e":"🌐","n":"Community Pillar","d":"The Social Set done. The Archive runs on people like you."},"diamond_hands_set_t":{"e":"💎","n":"Diamond Hands","d":"The Streak Set finished. Unbreakable."},"arena_champion_t":{"e":"👑","n":"Arena Champion","d":"The Fighter Set complete. Dominant."},"archive_builder_t":{"e":"🔧","n":"Archive Builder","d":"The Builder Set done. You shaped this place."},"world_traveler_t":{"e":"🗺️","n":"World Traveler","d":"The Explorer Set complete. Every path walked."},"bitcoin_cal_hero_t":{"e":"🎊","n":"Bitcoin Calendar Hero","d":"All calendar badges. You never miss a Bitcoin holiday."},"challenge_master_t":{"e":"🏅","n":"Challenge Master","d":"The Daily Set complete. Every day, every challenge."},"timechain_veteran_t":{"e":"🛸","n":"Timechain Veteran","d":"The TCTV Set complete. You've seen everything."},"lightning_lord_t":{"e":"⚡","n":"Lightning Lord","d":"The Lightning Set complete. Pure Bitcoin velocity."},"trail_blazer_t":{"e":"🏔️","n":"Trail Blazer","d":"The Trails Set blazed. Nacho is proud."},"beats_maestro_t":{"e":"🎤","n":"Beats Maestro","d":"The Beats Set complete. Music and Bitcoin forever."},"trifecta_god_t":{"e":"🌞","n":"Trifecta God","d":"The Trifecta Set complete. Daily discipline personified."},"irl_set_t":{"e":"🏟️","n":"IRL Champion","d":"The IRL Set complete. Bitcoin isn't just on a screen."},"spin_set_t":{"e":"🎰","n":"Wheel of Fortune","d":"The Spin Set complete. Fortune favored you enough."},"pow_set_t":{"e":"👟","n":"Proof of Walker","d":"The Proof of Walk Set complete. Every step counted."},"chat_immortal_t":{"e":"♾️","n":"Chat Immortal","d":"1,000 messages. You are the chat."},"reaction_god_t":{"e":"🔮","n":"Reaction God","d":"500 reactions. You feel everything."},"dj_legend_t":{"e":"🎛️","n":"DJ Legend","d":"50 DJ sets. The decks are your home."},"super_fan_t":{"e":"🌟","n":"Super Fan","d":"100 DJ sets listened to. Front row every time."},"audiophile_t":{"e":"🎧","n":"The Audiophile","d":"500 tracks on Bitcoin Beats. Pure devotion."},"forum_legend_t":{"e":"🏛️","n":"Forum Legend","d":"100 forum posts. Your words shaped the debate."},"staff_writer_t":{"e":"🗞️","n":"Staff Writer","d":"10 articles published. The pen is mightier."},"unstoppable_pvp_t":{"e":"💥","n":"Unstoppable","d":"5 PVP wins in a row. Nobody can touch you."},"diamond_hands_100_t":{"e":"💎","n":"Diamond Hands","d":"100-day streak. Most quit long ago."},"wheel_addict_t":{"e":"🎡","n":"Wheel Addict","d":"30-day spin streak. Fortune favors the consistent."},"century_spinner_t":{"e":"🏅","n":"Century Spinner","d":"100 spins. No shame, only gains."},"precision_forecaster_t":{"e":"🎯","n":"Precision Forecaster","d":"70%+ accuracy across 20+ predictions. You see the chart."},"nostradamus_t":{"e":"🔮","n":"Nostradamus","d":"10 correct in a row. The oracle speaks."},"flex_legend_t":{"e":"🦁","n":"Flex Legend","d":"1,000 Flex actions. Physical and financial sovereignty."},"full_stack_human_t":{"e":"🧬","n":"Full Stack Human","d":"Every Flex action done. The complete sovereign."},"legend_mode_t":{"e":"🏆","n":"Legend Mode","d":"All 8 features in one session. A true Archive legend."},"nachos_bestie_t":{"e":"🧡","n":"Nacho's Bestie","d":"250 Nacho interactions. He considers you a friend."},"super_spreader_t":{"e":"📡","n":"Super Spreader","d":"Referred 50 people. Orange pill machine."},"sat_hoarder_t":{"e":"🏦","n":"Sat Hoarder","d":"10,000 sats claimed. The stack begins."},"favor_champion_t":{"e":"🏅","n":"Favor Champion","d":"10× Satoshi's Favor activated. The community owes you."},"golden_nonce_t":{"e":"✨","n":"Golden Nonce","d":"Hash under 100,000. Almost divine luck."},"asic_mode_t":{"e":"🖥️","n":"ASIC Mode","d":"1,000 SF hashes. Dedicated."},"summit_conqueror_t":{"e":"🏔️","n":"Summit Conqueror","d":"The hardest Nacho trail. The summit was yours."},"pow_titan_t":{"e":"🌍","n":"The Titan","d":"1,000 km walked. A thousand kilometers of conviction."},"story_master_t":{"e":"🦧","n":"Story Master","d":"All 7 chapters of Nacho's Story. You know the whole tale."},"scene_regular_t":{"e":"🗺️","n":"Scene Regular","d":"5 IRL events attended. You show up in person."},"tip_magnet_t":{"e":"🧲","n":"Tip Magnet","d":"10 tips received. The community loves what you bring."},"community_hero_t":{"e":"⚡","n":"Community Hero","d":"Participated in a weekly community challenge. Showed up."},"sovereign_individual":{"e":"🗽","n":"Sovereign Individual","d":"200 days of orange-pilled devotion"}}};
+
+function _clientAwardMessage(meta, fallbackName, label) {
+    var emoji = (meta && meta.e) || '🏅';
+    var name = (meta && meta.n) || fallbackName || 'New badge';
+    var desc = meta && meta.d ? ' ' + meta.d : '';
+    return { icon: emoji, message: (emoji + ' ' + label + ': ' + name + '!' + desc).slice(0, 180) };
+}
+
+function _installClientAwardNotices() {
+    if (typeof window.checkHiddenBadges === 'function' && !window.checkHiddenBadges._rn) {
+        var origHidden = window.checkHiddenBadges;
+        var wrappedHidden = function() {
+            var before = [];
+            try { before = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]'); } catch (e) {}
+            var ret = origHidden.apply(this, arguments);
+            var after = [];
+            try { after = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]'); } catch (e2) {}
+            after.forEach(function(id) {
+                if (before.indexOf(id) !== -1) return;
+                var built = _clientAwardMessage((CLIENT_AWARD_COPY.hidden || {})[id], id, 'New badge');
+                _stashLocalReward('hbadge_' + id, built.message, built.icon, 'hidden');
+            });
+            return ret;
+        };
+        wrappedHidden._rn = true;
+        window.checkHiddenBadges = wrappedHidden;
+    }
+    if (typeof window.awardHiddenBadge === 'function' && !window.awardHiddenBadge._rn) {
+        var origAward = window.awardHiddenBadge;
+        var wrappedAward = function(badgeId, toastMsg, pts) {
+            var before = [];
+            try { before = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]'); } catch (e) {}
+            var ret = origAward.apply(this, arguments);
+            if (before.indexOf(badgeId) !== -1) return ret;
+            if (!_isSignedInAccount()) return ret;
+            var meta = (CLIENT_AWARD_COPY.hidden || {})[badgeId];
+            var built = meta
+                ? _clientAwardMessage(meta, badgeId, 'New badge')
+                : { icon: '🏅', message: ('🏅 New badge: ' + (toastMsg || badgeId || 'New badge') + '!').slice(0, 180) };
+            _stashLocalReward('hbadge_' + (badgeId || toastMsg || 'badge'), built.message, built.icon, 'hidden');
+            return ret;
+        };
+        wrappedAward._rn = true;
+        window.awardHiddenBadge = wrappedAward;
+    }
+    if (typeof window._checkAndAwardTitles === 'function' && !window._checkAndAwardTitles._rn) {
+        var origTitles = window._checkAndAwardTitles;
+        var wrappedTitles = function() {
+            var before = [];
+            try {
+                before = ((typeof currentUser !== 'undefined' && currentUser && currentUser.earnedTitles) || []).slice();
+            } catch (e) {}
+            var ret = origTitles.apply(this, arguments);
+            var after = [];
+            try {
+                after = (typeof currentUser !== 'undefined' && currentUser && currentUser.earnedTitles) || [];
+            } catch (e2) {}
+            after.forEach(function(id) {
+                if (before.indexOf(id) !== -1) return;
+                var built = _clientAwardMessage((CLIENT_AWARD_COPY.titles || {})[id], id, 'New title');
+                _stashLocalReward('title_' + id, built.message, built.icon, 'title');
+            });
+            return ret;
+        };
+        wrappedTitles._rn = true;
+        window._checkAndAwardTitles = wrappedTitles;
+    }
+}
+_installClientAwardNotices();
+setInterval(_installClientAwardNotices, 2000);
+// ---- Web push: token, settings, soft opt-in ----
+// The browser permission prompt runs only from a button tap.
+// Public VAPID key only. Senders and prefs checks live on the server.
+(function() {
+    var VAPID = 'BF_YipiWF9DWsA4HA44xJwYOZkHuLZ1lE9nBxiF96Ba7mgGgWA3IsG4aUjEnc_PoLuYpsxRLsmjsHSjEvL_Xt-E';
+    var FALLBACK_DEFAULTS = {
+        rewards: true, gifts: true, favor: true, pvp: true, predictions: true,
+        mentions: true, dms: true, plebtalk: false, reminders: true, news: false, referrals: true
+    };
+    var CATS = [
+        ['rewards', 'Rewards & wins', 'Sats, tickets, raffles, and weekly wins'],
+        ['gifts', 'Peer keys & gifts', 'Keys, gifts, and friendship level-ups'],
+        ['favor', "Satoshi's Favor", 'When a Favor window opens'],
+        ['pvp', 'PvP lobby', 'Challenges and open lobbies'],
+        ['predictions', 'Prediction results', 'Hits, misses, and ticket payouts'],
+        ['mentions', 'Chat mentions', 'When someone @mentions you'],
+        ['dms', 'Direct messages', 'New direct messages'],
+        ['plebtalk', 'PlebTalk & Marketplace', 'Marketplace messages'],
+        ['reminders', 'Daily reminders', 'Streak, spin, and quest reminders'],
+        ['news', 'News & Hot Topics', 'Hot Topics digests'],
+        ['referrals', 'Referrals', 'When a referral pays off']
+    ];
+    // What each category actually sends. Mirrors the senders in functions/.
+    var TIPS = {
+        rewards: 'Leaderboard prizes, raffle wins, and weekly challenge badges. Example: "You won this month\'s Orange Ticket raffle."',
+        gifts: 'Peer requests, accepted requests, keys a peer sent you, and friendship level-ups.',
+        favor: "One alert when a Satoshi's Favor mining window opens, so you can hash while it is live.",
+        pvp: 'When someone challenges you or is waiting in the PvP lobby.',
+        predictions: 'Whether your Bitcoin price prediction hit or missed when its window closes.',
+        mentions: 'When someone @mentions you in chat or in a gift note.',
+        dms: 'New direct messages, with a short preview.',
+        plebtalk: 'When a buyer messages you about one of your Marketplace listings. Off by default.',
+        reminders: 'At most a few a day: your streak is about to expire, your free spin is ready, or a nudge to start your Quest.',
+        news: 'A Hot Topics headline, at most once a week. Off by default.',
+        referrals: 'When someone you invited reaches 2,140 XP and your referral reward is added.'
+    };
+    var CONTEXT_COPY = {
+        win: 'You just won something. Want a heads-up next time? \uD83D\uDD14',
+        gift: 'A peer just sent you something. Want to know next time? \uD83D\uDD14',
+        favor: "Satoshi's Favor is open. Want a heads-up for the next window? \uD83D\uDD14",
+        pvp: 'A PvP lobby is live. Want a challenge notice next time? \uD83D\uDD14'
+    };
+    var _promptStarted = false;
+    var _considering = false;
+    var _cachedUser = null;
+
+    function prefsApi() { return window.PushPrefs || null; }
+
+    function defaults() {
+        var api = prefsApi();
+        return (api && api.DEFAULTS) || FALLBACK_DEFAULTS;
+    }
+
+    function num(v) {
+        var n = typeof v === 'number' ? v : parseInt(v, 10);
+        return isFinite(n) ? n : 0;
+    }
+
+    function signedIn() {
+        return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
+    }
+
+    function uid() {
+        return signedIn() ? auth.currentUser.uid : '';
+    }
+
+    function isIos() {
+        var ua = navigator.userAgent || '';
+        if (/iPad|iPhone|iPod/.test(ua)) return true;
+        return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+    }
+
+    function isStandalone() {
+        try {
+            if (window.navigator.standalone === true) return true;
+            return !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+        } catch (e) { return false; }
+    }
+
+    function iosNeedsInstall() {
+        return isIos() && !isStandalone();
+    }
+
+    function permissionState() {
+        if (typeof Notification === 'undefined' || !('serviceWorker' in navigator)) return 'unsupported';
+        return Notification.permission || 'default';
+    }
+
+    function uiBusy() {
+        var quest = document.getElementById('questModal');
+        if (quest && (quest.classList.contains('open') || (quest.style.display && quest.style.display !== 'none' && quest.offsetParent !== null))) return true;
+        var userModal = document.getElementById('usernameModal');
+        if (userModal && userModal.classList.contains('open')) return true;
+        var tos = document.getElementById('tosModal');
+        if (tos && (tos.classList.contains('open') || tos.style.display === 'flex' || tos.style.display === 'block')) return true;
+        if (window._giftOpening || window._pvpActive || window._examActive) return true;
+        try { if (localStorage.getItem('btc_onboarding_active') === '1') return true; } catch (e) {}
+        return false;
+    }
+
+    function popupTaken() {
+        try { return !!sessionStorage.getItem('btc_session_popup'); } catch (e) { return false; }
+    }
+
+    window.claimSessionPopup = function(name) {
+        try {
+            if (sessionStorage.getItem('btc_session_popup')) return false;
+            sessionStorage.setItem('btc_session_popup', String(name || '1').slice(0, 24));
+            return true;
+        } catch (e) { return false; }
+    };
+
+    function deviceId() {
+        var existing = '';
+        try { existing = localStorage.getItem('btc_push_device') || ''; } catch (e) {}
+        if (/^[A-Za-z0-9_-]{8,64}$/.test(existing)) return existing;
+        var id = '';
+        try {
+            var bytes = new Uint8Array(12);
+            crypto.getRandomValues(bytes);
+            id = Array.prototype.map.call(bytes, function(b) { return ('0' + b.toString(16)).slice(-2); }).join('');
+        } catch (e2) {
+            id = 'd' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+        }
+        id = String(id).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32);
+        if (id.length < 8) id = ('device' + Date.now().toString(36)).slice(0, 16);
+        try { localStorage.setItem('btc_push_device', id); } catch (e3) {}
+        return id;
+    }
+
+    function platformLabel() {
+        var label = 'web';
+        if (isIos()) label = 'ios';
+        else if (/Android/i.test(navigator.userAgent || '')) label = 'android';
+        if (isStandalone()) label += '-pwa';
+        return label.slice(0, 40);
+    }
+
+    function readLocalPrompt() {
+        try { return JSON.parse(localStorage.getItem('btc_notif_prompt') || '{}') || {}; }
+        catch (e) { return {}; }
+    }
+
+    function mergePrompt(server) {
+        var local = readLocalPrompt();
+        var remote = server || {};
+        return {
+            count: Math.max(num(local.count), num(remote.count)),
+            lastAsked: Math.max(num(local.lastAsked), num(remote.lastAsked)),
+            stopped: local.stopped === true || remote.stopped === true,
+            dontAsk: local.dontAsk === true || remote.dontAsk === true
+        };
+    }
+
+    function persistPrompt(next) {
+        var prev = mergePrompt(_cachedUser && _cachedUser.notifPrompt);
+        var stored = {
+            count: Math.max(prev.count, Math.max(0, Math.min(3, num(next.count)))),
+            lastAsked: Math.max(prev.lastAsked, num(next.lastAsked)),
+            stopped: prev.stopped === true || next.stopped === true,
+            dontAsk: prev.dontAsk === true || next.dontAsk === true
+        };
+        try { localStorage.setItem('btc_notif_prompt', JSON.stringify(stored)); } catch (e) {}
+        if (!signedIn() || typeof db === 'undefined' || !firebase || !firebase.firestore) return;
+        db.collection('users').doc(uid()).set({ notifPrompt: stored }, { merge: true }).catch(function() {});
+    }
+
+    function bumpSession() {
+        try {
+            if (sessionStorage.getItem('btc_push_session_marked') === '1') {
+                return Math.max(1, num(localStorage.getItem('btc_push_sessions')) || 1);
+            }
+            sessionStorage.setItem('btc_push_session_marked', '1');
+            var n = num(localStorage.getItem('btc_push_sessions')) + 1;
+            localStorage.setItem('btc_push_sessions', String(n));
+            return n;
+        } catch (e) { return 1; }
+    }
+
+    function daysSinceVisit(user) {
+        var raw = '';
+        try { raw = sessionStorage.getItem('btc_push_prev_visit') || ''; } catch (e) {}
+        if (!raw && user && user.lastVisit) raw = String(user.lastVisit);
+        var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw || '');
+        if (!m) return 0;
+        var then = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+        var shifted = new Date(Date.now() - 5 * 3600000);
+        var today = Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate());
+        var diff = Math.floor((today - then) / 86400000);
+        return diff > 0 ? diff : 0;
+    }
+
+    function loadUser() {
+        if (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) {
+            _cachedUser = currentUser;
+        }
+        if (!signedIn() || typeof db === 'undefined') return Promise.resolve(_cachedUser || {});
+        return db.collection('users').doc(uid()).get().then(function(snap) {
+            _cachedUser = snap.exists ? (snap.data() || {}) : {};
+            return _cachedUser;
+        }).catch(function() { return _cachedUser || {}; });
+    }
+
+    function ensureStyles() {
+        if (document.getElementById('pushSettingsCss')) return;
+        var st = document.createElement('style');
+        st.id = 'pushSettingsCss';
+        st.textContent = ''
+            + '#settings-notifications{scroll-margin-top:72px;text-align:left;}'
+            + '#settings-notifications.notif-flash{outline:2px solid var(--accent);outline-offset:4px;border-radius:14px;}'
+            + '.push-settings{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin:0 0 16px;color:var(--text);}'
+            + '.push-kicker{font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}'
+            + '.push-status{color:var(--text-muted);font-size:0.95rem;line-height:1.45;margin:0 0 12px;}'
+            + '.push-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid var(--border);}'
+            + '.push-row b{display:block;color:var(--text);font-size:1rem;font-weight:700;}'
+            + '.push-row span{display:block;color:var(--text-muted);font-size:0.85rem;line-height:1.35;margin-top:2px;}'
+            + '.push-settings button,.push-opt-card button{font-family:inherit;font-size:16px;min-height:44px;border-radius:10px;cursor:pointer;touch-action:manipulation;}'
+            + '.push-switch{padding:8px 16px;border:1px solid var(--border);background:var(--bg-side);color:var(--text-muted);font-weight:700;}'
+            + '.push-switch.on{background:#22c55e;color:#fff;border-color:#22c55e;}'
+            + '.push-switch.blocked{background:var(--bg-side);color:#ef4444;border-color:#ef4444;}'
+            + '.push-help{background:var(--bg-side);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text-muted);font-size:0.9rem;line-height:1.45;margin-top:8px;}'
+            + '.push-test{width:100%;margin-top:12px;background:var(--accent);color:#fff;border:none;font-weight:800;}'
+            + '#pushOptIn{position:fixed;inset:0;z-index:480000;background:var(--overlay);display:flex;align-items:flex-end;justify-content:center;padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom));}'
+            + '@media(min-width:720px){#pushOptIn{align-items:center;}}'
+            + '.push-opt-card{width:100%;max-width:420px;background:var(--bg-side);color:var(--text);border:1px solid var(--border);border-radius:18px;padding:22px 18px 16px;box-shadow:0 20px 50px rgba(0,0,0,0.35);position:relative;}'
+            + '.push-opt-card h2{font-size:1.25rem;line-height:1.3;margin:0 28px 10px 0;color:var(--heading,#fff);}'
+            + '.push-opt-card ul,.push-opt-card ol{margin:0 0 14px 1.1rem;padding:0;color:var(--text);font-size:1rem;line-height:1.45;}'
+            + '.push-opt-card li{margin:4px 0;}'
+            + '.push-opt-card .push-primary,.push-opt-card .push-secondary,.push-opt-card .push-quiet{display:block;width:100%;margin-top:8px;}'
+            + '.push-primary{background:var(--accent);color:#fff;border:none;font-weight:800;}'
+            + '.push-secondary{background:var(--card-bg);color:var(--text);border:1px solid var(--border);font-weight:700;}'
+            + '.push-quiet{background:transparent;color:var(--text-muted);border:none;font-weight:600;}'
+            + '.push-x{position:absolute;top:8px;right:8px;width:44px;min-height:44px;background:transparent;color:var(--text-muted);border:none;font-size:1.2rem;}';
+        document.head.appendChild(st);
+    }
+
+    function catChecked(map, key) {
+        if (map && Object.prototype.hasOwnProperty.call(map, key)) return map[key] === true;
+        return defaults()[key] === true;
+    }
+
+    function masterMode(map) {
+        var perm = permissionState();
+        if (perm === 'unsupported') return 'unsupported';
+        if (perm === 'denied') return 'blocked';
+        if (perm === 'granted' && map && map.master === true) return 'on';
+        return 'off';
+    }
+
+    function toast(msg) {
+        if (typeof showToast === 'function') showToast(msg);
+    }
+
+    function plain(s) {
+        return String(s || '').replace(/[<>&]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180);
+    }
+
+    function savePref(key, value) {
+        if (window._pushPreview) {
+            window._pushPreviewPrefs = window._pushPreviewPrefs || {};
+            window._pushPreviewPrefs[key] = value === true;
+            return Promise.resolve();
+        }
+        if (!signedIn() || typeof db === 'undefined') {
+            toast('Sign in to save notification settings');
+            return Promise.resolve();
+        }
+        var nest = {};
+        nest[key] = value === true;
+        var patch = {};
+        patch['notificationPrefs.' + key] = value === true;
+        return db.collection('users').doc(uid()).update(patch).catch(function() {
+            return db.collection('users').doc(uid()).set({ notificationPrefs: nest }, { merge: true }).catch(function() {
+                toast('Could not save that setting');
+            });
+        });
+    }
+
+    function unregisterMessagingWorkers() {
+        if (!navigator.serviceWorker || !navigator.serviceWorker.getRegistrations) return Promise.resolve();
+        return navigator.serviceWorker.getRegistrations().then(function(list) {
+            var jobs = [];
+            list.forEach(function(reg) {
+                var worker = reg.active || reg.installing || reg.waiting;
+                var url = worker && worker.scriptURL ? worker.scriptURL : '';
+                if (url.indexOf('firebase-messaging-sw.js') !== -1) jobs.push(reg.unregister());
+            });
+            return Promise.all(jobs);
+        }).catch(function() {});
+    }
+
+    function swRegistration() {
+        return unregisterMessagingWorkers().then(function() {
+            return navigator.serviceWorker.register('/sw.js');
+        });
+    }
+
+    function registerPushToken(opts) {
+        var silent = opts && opts.silent;
+        if (!signedIn() || typeof db === 'undefined' || typeof firebase === 'undefined' || !firebase.messaging) {
+            if (!silent) toast('Sign in on this device to turn notifications on');
+            return Promise.resolve(false);
+        }
+        return swRegistration().then(function(reg) {
+            return firebase.messaging().getToken({ vapidKey: VAPID, serviceWorkerRegistration: reg });
+        }).then(function(token) {
+            if (!token || token.length < 20) throw new Error('no-token');
+            var parent = db.collection('push_tokens').doc(uid());
+            var ref = parent.collection('devices').doc(deviceId());
+            return parent.set({
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            }, { merge: true }).then(function() {
+                return ref.set({
+                    token: token,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    platform: platformLabel(),
+                    ua: String(navigator.userAgent || '').slice(0, 160)
+                });
+            });
+        }).then(function() {
+            return savePref('master', true);
+        }).then(function() {
+            bindForeground();
+            if (!silent) toast('Notifications on for this device');
+            return true;
+        }).catch(function(err) {
+            // Code only: never log the token.
+            try { console.warn('[push] register failed', (err && (err.code || err.name)) || 'error'); } catch (e) {}
+            if (!silent) toast('Could not register this device for notifications. Try again, or reload the page.');
+            return false;
+        });
+    }
+
+    function disableThisDevice() {
+        var jobs = [savePref('master', false)];
+        if (signedIn() && typeof db !== 'undefined') {
+            jobs.push(db.collection('push_tokens').doc(uid()).collection('devices').doc(deviceId()).delete().catch(function() {}));
+        }
+        if (typeof firebase !== 'undefined' && firebase.messaging) {
+            try { jobs.push(firebase.messaging().deleteToken().catch(function() {})); } catch (e) {}
+        }
+        return Promise.all(jobs);
+    }
+
+    window.enablePushFromTap = function() {
+        if (window._pushPreview) return Promise.resolve(false);
+        if (iosNeedsInstall()) {
+            showOptInCard({ show: true, kind: 'install', askIndex: 1, showDontAsk: false, reason: 'settings' }, true);
+            return Promise.resolve(false);
+        }
+        if (permissionState() === 'unsupported') {
+            toast('This browser cannot show notifications');
+            return Promise.resolve(false);
+        }
+        if (permissionState() === 'denied') {
+            toast('Notifications are blocked in the browser settings');
+            return Promise.resolve(false);
+        }
+        var ask = permissionState() === 'granted'
+            ? Promise.resolve('granted')
+            : Notification.requestPermission();
+        return Promise.resolve(ask).then(function(result) {
+            if (result === 'granted') return registerPushToken();
+            persistPrompt({ count: mergePrompt(_cachedUser && _cachedUser.notifPrompt).count, lastAsked: Date.now(), stopped: true, dontAsk: false });
+            toast('Notifications stay off');
+            return false;
+        });
+    };
+
+    function bindForeground() {
+        if (window._pushFgBound || typeof firebase === 'undefined' || !firebase.messaging) return;
+        try {
+            firebase.messaging().onMessage(function(payload) {
+                var n = (payload && payload.notification) || {};
+                var d = (payload && payload.data) || {};
+                var title = plain(n.title || d.title || 'Bitcoin Quest');
+                var body = plain(n.body || d.body || '');
+                toast(body ? (title + ': ' + body) : title);
+            });
+            window._pushFgBound = true;
+        } catch (e) {}
+    }
+
+    function bindNav() {
+        if (window._pushNavBound || !navigator.serviceWorker) return;
+        window._pushNavBound = true;
+        navigator.serviceWorker.addEventListener('message', function(ev) {
+            var data = ev.data || {};
+            if (data.type !== 'PUSH_NAV' || !data.url) return;
+            try {
+                var u = new URL(data.url, location.origin);
+                if (u.origin !== location.origin) return;
+                location.href = u.pathname + u.search + u.hash;
+            } catch (e) {}
+        });
+    }
+    bindNav();
+
+    function el(tag, cls, text) {
+        var node = document.createElement(tag);
+        if (cls) node.className = cls;
+        if (text != null) node.textContent = text;
+        return node;
+    }
+
+    function renderInto(root, map) {
+        ensureStyles();
+        root.textContent = '';
+        var box = el('div', 'push-settings');
+        box.appendChild(el('div', 'push-kicker', 'Notifications'));
+        if (!signedIn() && !window._pushPreview) {
+            box.appendChild(el('p', 'push-status', 'Sign in to choose what this device can tell you about.'));
+            root.appendChild(box);
+            return;
+        }
+        var mode = masterMode(map);
+        var perm = permissionState();
+        var permWord = perm === 'granted' ? 'allowed' : (perm === 'denied' ? 'blocked' : (perm === 'unsupported' ? 'unavailable' : 'not asked yet'));
+        var paused = false;
+        if (prefsApi() && prefsApi().categoryAllowed && map && map.master === false) {
+            paused = prefsApi().categoryAllowed({ notificationPrefs: map }, 'rewards') === false;
+        }
+        box.appendChild(el('p', 'push-status', 'Browser permission: ' + permWord + (paused ? '. The master switch is pausing every category.' : '.')));
+        var masterRow = el('div', 'push-row');
+        var masterCopy = el('div');
+        masterCopy.appendChild(el('b', '', 'All notifications'));
+        masterCopy.appendChild(el('span', '', mode === 'blocked' ? 'Blocked in this browser' : 'Master switch for this account'));
+        var masterBtn = el('button', 'push-switch' + (mode === 'on' ? ' on' : '') + (mode === 'blocked' ? ' blocked' : ''));
+        masterBtn.type = 'button';
+        masterBtn.id = 'pushMasterBtn';
+        masterBtn.textContent = mode === 'on' ? 'On' : (mode === 'blocked' ? 'Blocked' : (mode === 'unsupported' ? 'Unavailable' : 'Off'));
+        masterBtn.addEventListener('click', function() {
+            if (mode === 'blocked' || mode === 'unsupported' || iosNeedsInstall()) {
+                var help = document.getElementById('pushBlockedHelp');
+                if (help) help.hidden = false;
+                if (iosNeedsInstall()) {
+                    showOptInCard({ show: true, kind: 'install', askIndex: 1, showDontAsk: false, reason: 'settings' }, true);
+                }
+                return;
+            }
+            var next = mode !== 'on';
+            var job = next ? window.enablePushFromTap() : disableThisDevice();
+            Promise.resolve(job).then(function() { window.renderNotificationSettings(); });
+        });
+        masterRow.appendChild(masterCopy);
+        masterRow.appendChild(masterBtn);
+        box.appendChild(masterRow);
+
+        var help = el('div', 'push-help');
+        help.id = 'pushBlockedHelp';
+        help.hidden = mode !== 'blocked' && !iosNeedsInstall();
+        if (iosNeedsInstall()) {
+            help.textContent = 'Add to Home Screen to get notifications. In Safari, tap Share, then Add to Home Screen, then open Bitcoin Quest from that icon. Push works for installed apps on iOS 16.4 or newer.';
+        } else {
+            help.textContent = 'Notifications are blocked. In Chrome or Edge, click the lock icon, set Notifications to Allow, and reload. In Firefox, click the lock and clear the block. On iPhone, install the Home Screen app and turn notifications on in Settings, then Notifications.';
+        }
+        box.appendChild(help);
+
+        CATS.forEach(function(row) {
+            var key = row[0];
+            var on = catChecked(map, key);
+            var line = el('div', 'push-row');
+            var copy = el('div');
+            var head = el('b', '', row[1]);
+            head.appendChild(tipButton(key, 'set'));
+            copy.appendChild(head);
+            copy.appendChild(el('span', '', row[2]));
+            copy.appendChild(tipText(key, 'set'));
+            var btn = el('button', 'push-switch' + (on ? ' on' : ''));
+            btn.type = 'button';
+            btn.setAttribute('data-push-cat', key);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            btn.setAttribute('aria-label', row[1] + ' notifications');
+            btn.textContent = on ? 'On' : 'Off';
+            btn.addEventListener('click', function() {
+                var turningOn = btn.textContent !== 'On';
+                savePref(key, turningOn).then(function() { window.renderNotificationSettings(); });
+            });
+            line.appendChild(copy);
+            line.appendChild(btn);
+            box.appendChild(line);
+        });
+
+        var testBtn = el('button', 'push-test', 'Send me a test notification');
+        testBtn.type = 'button';
+        testBtn.id = 'pushTestBtn';
+        testBtn.addEventListener('click', function() {
+            if (window._pushPreview) { toast('Preview only'); return; }
+            if (!signedIn() || typeof firebase === 'undefined' || !firebase.functions) {
+                toast('Sign in to send a test');
+                return;
+            }
+            if (permissionState() !== 'granted') {
+                toast('Turn notifications on first');
+                return;
+            }
+            testBtn.disabled = true;
+            firebase.functions().httpsCallable('sendTestPush')({ uid: uid() }).then(function(res) {
+                var data = (res && res.data) || {};
+                if (data.ok) toast('Test sent. Check your notifications.');
+                else if (data.reason === 'rate') toast('Test limit reached. Try again later.');
+                else if (data.reason === 'no-token') toast('This device is not registered yet.');
+                else toast('Test did not send.');
+            }).catch(function() {
+                toast('Test did not send.');
+            }).then(function() { testBtn.disabled = false; });
+        });
+        box.appendChild(testBtn);
+        root.appendChild(box);
+    }
+
+    // ---- Homepage bell: one-tap on/off plus per-type choices ----
+    function tipButton(key, scope) {
+        var b = el('button', 'push-tip', '\u24D8');
+        b.type = 'button';
+        b.setAttribute('aria-label', 'What does this send?');
+        b.setAttribute('aria-expanded', 'false');
+        b.setAttribute('aria-controls', 'pushTip-' + scope + '-' + key);
+        b.addEventListener('click', function(ev) {
+            ev.preventDefault();
+            ev.stopPropagation();
+            var t = document.getElementById('pushTip-' + scope + '-' + key);
+            if (!t) return;
+            t.hidden = !t.hidden;
+            b.setAttribute('aria-expanded', t.hidden ? 'false' : 'true');
+        });
+        return b;
+    }
+
+    function tipText(key, scope) {
+        var t = el('small', 'push-tip-text', TIPS[key] || '');
+        t.id = 'pushTip-' + scope + '-' + key;
+        t.setAttribute('role', 'tooltip');
+        t.hidden = true;
+        return t;
+    }
+
+    function ensureHomeStyles() {
+        ensureStyles();
+        if (document.getElementById('homePushCss')) return;
+        var st = document.createElement('style');
+        st.id = 'homePushCss';
+        st.textContent = ''
+            + '#homePush{width:100%;max-width:560px;align-self:center;margin:14px auto 8px;text-align:left;position:relative;z-index:1;}'
+            + '@media (max-width:900px){#homePush{margin-top:18px;padding:0 4px;}}'
+            + '.home-push-bar{display:flex;gap:8px;align-items:stretch;width:100%;}'
+            + '.home-push-bar button{font-family:inherit;font-size:16px;min-height:44px;border-radius:12px;cursor:pointer;touch-action:manipulation;}'
+            + '#homePushToggle{flex:1 1 auto;min-width:0;width:100%;max-width:none;display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--card-bg);color:var(--text);border:1px solid var(--border);font-weight:700;text-align:left;}'
+            + '#homePushToggle.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;}'
+            + '#homePushToggle .hp-ico{font-size:1.3rem;}'
+            + '#homePushToggle .hp-sub{display:block;font-weight:500;font-size:0.82rem;color:var(--text-muted);}'
+            + '#homePushChoose{padding:8px 14px;background:transparent;color:var(--accent);border:1px solid var(--border);font-weight:700;}'
+            + '#homePushPanel{margin-top:8px;}'
+            + '#homePushPanel .push-settings{margin:0;}'
+            + '.push-tip{display:inline-flex;align-items:center;justify-content:center;min-width:28px;min-height:28px;margin-left:4px;padding:0;background:transparent;border:none;color:var(--accent);font-size:1rem;cursor:pointer;vertical-align:middle;}'
+            + '.push-settings .push-tip{min-height:28px;font-size:1rem;}'
+            + '.push-tip-text{display:block;margin-top:6px;padding:8px 10px;background:var(--bg,rgba(0,0,0,.2));border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;line-height:1.4;}'
+            + '.push-tip-text[hidden]{display:none;}'
+            + '#homePushHelp{margin:8px 0 0;font-size:0.88rem;line-height:1.4;color:var(--text-muted);}';
+        document.head.appendChild(st);
+    }
+
+    function homeState(map) {
+        if (!signedIn() && !window._pushPreview) return 'guest';
+        if (iosNeedsInstall()) return 'install';
+        return masterMode(map);
+    }
+
+    function homeCopy(state) {
+        if (state === 'on') return ['\uD83D\uDD14', 'Notifications are on', 'Tap to turn off on this device'];
+        if (state === 'blocked') return ['\uD83D\uDD15', 'Notifications are blocked', 'Tap for how to allow them'];
+        if (state === 'unsupported') return ['\uD83D\uDD15', 'Notifications unavailable', 'This browser cannot show them'];
+        if (state === 'install') return ['\uD83D\uDD15', 'Get notifications on iPhone', 'Add Bitcoin Quest to your Home Screen first'];
+        return ['\uD83D\uDD15', 'Notifications are off', 'Tap to turn on. You pick which ones below.'];
+    }
+
+    function renderHomeInto(root, map) {
+        ensureHomeStyles();
+        var state = homeState(map);
+        var panelOpen = !!(document.getElementById('homePushPanel') && !document.getElementById('homePushPanel').hidden);
+        root.textContent = '';
+        if (state === 'blocked' || state === 'unsupported' || state === 'install') panelOpen = false;
+        if (state === 'guest') { root.hidden = true; return; }
+        root.hidden = false;
+        var bar = el('div', 'home-push-bar');
+        var copy = homeCopy(state);
+        var tog = el('button', state === 'on' ? 'on' : '');
+        tog.type = 'button';
+        tog.id = 'homePushToggle';
+        tog.setAttribute('aria-pressed', state === 'on' ? 'true' : 'false');
+        tog.title = state === 'on'
+            ? 'You get alerts for the types you picked, even when Bitcoin Quest is closed.'
+            : 'Get alerts for wins, peer gifts, messages, and more, even when Bitcoin Quest is closed.';
+        tog.appendChild(el('span', 'hp-ico', copy[0]));
+        var words = el('span', '');
+        words.appendChild(el('span', '', copy[1]));
+        words.appendChild(el('span', 'hp-sub', copy[2]));
+        tog.appendChild(words);
+        var help = el('p', '');
+        help.id = 'homePushHelp';
+        help.hidden = true;
+        tog.addEventListener('click', function() {
+            if (state === 'blocked') {
+                help.textContent = 'Your browser is blocking notifications. In Chrome or Edge, tap the lock icon by the address, set Notifications to Allow, then reload. In Firefox, tap the lock and clear the block.';
+                help.hidden = false;
+                return;
+            }
+            if (state === 'unsupported') {
+                help.textContent = 'This browser cannot show notifications. Try Chrome, Edge, Firefox, or the installed app.';
+                help.hidden = false;
+                return;
+            }
+            if (state === 'install') {
+                help.textContent = 'On iPhone and iPad, notifications only work from the Home Screen app (iOS 16.4 or newer). In Safari tap Share, then Add to Home Screen, then open Bitcoin Quest from that icon and tap this button again.';
+                help.hidden = false;
+                return;
+            }
+            if (window._pushPreview) {
+                window._pushPreviewPrefs = window._pushPreviewPrefs || {};
+                window._pushPreviewPrefs.master = !(window._pushPreviewPrefs.master === true);
+                window.renderHomePush();
+                return;
+            }
+            tog.disabled = true;
+            var job = state === 'on' ? disableThisDevice() : window.enablePushFromTap();
+            Promise.resolve(job).catch(function() {}).then(function() {
+                if (state === 'on') toast('Notifications off for this device');
+                window.renderNotificationSettings();
+            });
+        });
+        var choose = el('button', '', panelOpen ? 'Done' : 'Choose');
+        choose.type = 'button';
+        choose.id = 'homePushChoose';
+        choose.setAttribute('aria-expanded', panelOpen ? 'true' : 'false');
+        choose.setAttribute('aria-controls', 'homePushPanel');
+        choose.title = 'Pick which notifications you get';
+        bar.appendChild(tog);
+        bar.appendChild(choose);
+        root.appendChild(bar);
+        root.appendChild(help);
+        var panel = el('div', '');
+        panel.id = 'homePushPanel';
+        panel.hidden = !panelOpen;
+        var box = el('div', 'push-settings');
+        box.appendChild(el('p', 'push-status', state === 'on'
+            ? 'Choose what this account sends. Tap \u24D8 to see exactly what each one is.'
+            : 'Turn notifications on above, then choose what you want. Tap \u24D8 to see exactly what each one is.'));
+        CATS.forEach(function(row) {
+            var key = row[0];
+            var on = catChecked(map, key);
+            var line = el('div', 'push-row');
+            var c = el('div');
+            var head = el('b', '', row[1]);
+            head.appendChild(tipButton(key, 'home'));
+            c.appendChild(head);
+            c.appendChild(el('span', '', row[2]));
+            c.appendChild(tipText(key, 'home'));
+            var btn = el('button', 'push-switch' + (on ? ' on' : ''));
+            btn.type = 'button';
+            btn.setAttribute('data-home-push-cat', key);
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+            btn.setAttribute('aria-label', row[1] + ' notifications');
+            btn.textContent = on ? 'On' : 'Off';
+            btn.addEventListener('click', function() {
+                btn.disabled = true;
+                savePref(key, !on).then(function() {
+                    if (!window._pushPreview && _cachedUser) {
+                        _cachedUser.notificationPrefs = _cachedUser.notificationPrefs || {};
+                        _cachedUser.notificationPrefs[key] = !on;
+                    }
+                    window.renderNotificationSettings();
+                });
+            });
+            line.appendChild(c);
+            line.appendChild(btn);
+            box.appendChild(line);
+        });
+        panel.appendChild(box);
+        root.appendChild(panel);
+        choose.addEventListener('click', function() {
+            panel.hidden = !panel.hidden;
+            choose.textContent = panel.hidden ? 'Choose' : 'Done';
+            choose.setAttribute('aria-expanded', panel.hidden ? 'false' : 'true');
+        });
+    }
+
+    function homeMount() {
+        var root = document.getElementById('homePush');
+        if (root) return root;
+        // Sit below the hero so the floating Quest / Invite pills
+        // (fixed near ~186-220px on phones) do not cover the bell.
+        var anchor = document.getElementById('homeHero')
+            || document.getElementById('homeGuestActions')
+            || document.getElementById('homeWalletStrip');
+        if (!anchor || !anchor.parentNode) return null;
+        root = document.createElement('div');
+        root.id = 'homePush';
+        root.hidden = true;
+        anchor.parentNode.insertBefore(root, anchor.nextSibling);
+        return root;
+    }
+
+    window.renderHomePush = function() {
+        var root = homeMount();
+        if (!root) return;
+        if (window._pushPreview) { renderHomeInto(root, window._pushPreviewPrefs || {}); return; }
+        renderHomeInto(root, (_cachedUser && _cachedUser.notificationPrefs) || {});
+        if (!signedIn()) return;
+        loadUser().then(function(user) {
+            var r = homeMount();
+            if (r) renderHomeInto(r, (user && user.notificationPrefs) || {});
+        });
+    };
+
+    window.renderNotificationSettings = function() {
+        if (typeof window.renderHomePush === 'function') {
+            try { window.renderHomePush(); } catch (e) {}
+        }
+        var root = document.getElementById('settings-notifications');
+        if (!root) return;
+        if (window._pushPreview) {
+            renderInto(root, window._pushPreviewPrefs || {});
+            return;
+        }
+        renderInto(root, (_cachedUser && _cachedUser.notificationPrefs) || {});
+        loadUser().then(function(user) {
+            if (!document.getElementById('settings-notifications')) return;
+            renderInto(document.getElementById('settings-notifications'), (user && user.notificationPrefs) || {});
+        });
+    };
+
+    function closeOptIn() {
+        var node = document.getElementById('pushOptIn');
+        if (node) node.remove();
+        document.removeEventListener('keydown', onOptInKey);
+    }
+
+    function onOptInKey(ev) {
+        if (ev.key === 'Escape') closeOptIn();
+    }
+
+    function showOptInCard(decision, preview) {
+        if (!decision || !decision.show) return;
+        if (document.getElementById('pushOptIn')) return;
+        ensureStyles();
+        var install = decision.kind === 'install';
+        var overlay = el('div');
+        overlay.id = 'pushOptIn';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-labelledby', 'pushOptInTitle');
+        var card = el('div', 'push-opt-card');
+        var closer = el('button', 'push-x', '\u2715');
+        closer.type = 'button';
+        closer.setAttribute('aria-label', 'Close');
+        closer.addEventListener('click', closeOptIn);
+        card.appendChild(closer);
+        var title = (decision.kind === 'context' && CONTEXT_COPY[decision.context])
+            || 'Want a heads-up when something good happens? \uD83D\uDD14';
+        if (install) title = 'Add to Home Screen to get notifications';
+        var h = el('h2');
+        h.id = 'pushOptInTitle';
+        h.textContent = title;
+        card.appendChild(h);
+        if (install) {
+            var steps = document.createElement('ol');
+            ['Tap the Share button in Safari.', 'Tap Add to Home Screen.', 'Open Bitcoin Quest from the new icon. Push works on iOS 16.4 or newer.'].forEach(function(step) {
+                steps.appendChild(el('li', '', step));
+            });
+            card.appendChild(steps);
+        } else {
+            var list = document.createElement('ul');
+            ['Sats wins and reward drops', 'Peer keys and gifts', "Satoshi's Favor windows and PvP challenges"].forEach(function(item) {
+                list.appendChild(el('li', '', item));
+            });
+            card.appendChild(list);
+        }
+        function finish(extra) {
+            closeOptIn();
+            if (preview) return;
+            if (extra) persistPrompt(extra);
+        }
+        if (install) {
+            var got = el('button', 'push-primary', 'Got it');
+            got.type = 'button';
+            got.addEventListener('click', function() { finish(null); });
+            card.appendChild(got);
+        } else {
+            var turn = el('button', 'push-primary', 'Turn on');
+            turn.type = 'button';
+            turn.addEventListener('click', function() {
+                closeOptIn();
+                if (preview) return;
+                window.enablePushFromTap();
+            });
+            card.appendChild(turn);
+        }
+        var choose = el('button', 'push-secondary', 'Choose what I get');
+        choose.type = 'button';
+        choose.addEventListener('click', function() {
+            closeOptIn();
+            if (!preview) window.openNotificationSettings();
+        });
+        card.appendChild(choose);
+        var later = el('button', 'push-quiet', 'Not now');
+        later.type = 'button';
+        later.addEventListener('click', function() { finish(null); });
+        card.appendChild(later);
+        if (decision.showDontAsk) {
+            var never = el('button', 'push-quiet', "Don't ask again");
+            never.type = 'button';
+            never.addEventListener('click', function() {
+                finish({ stopped: true, dontAsk: true, count: decision.askIndex || 2, lastAsked: Date.now() });
+            });
+            card.appendChild(never);
+        }
+        overlay.addEventListener('click', function(ev) { if (ev.target === overlay) finish(null); });
+        card.addEventListener('click', function(ev) { ev.stopPropagation(); });
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+        document.addEventListener('keydown', onOptInKey);
+    }
+
+    function probeContext(stored) {
+        if (window._pushMoment) return Promise.resolve(window._pushMoment);
+        if (!stored || num(stored.count) < 1 || stored.stopped || stored.dontAsk) return Promise.resolve(null);
+        var api = prefsApi();
+        var gap = api ? api.REASK_MS : (30 * 86400000);
+        if (!stored.lastAsked || (Date.now() - stored.lastAsked) < gap) return Promise.resolve(null);
+        if (!signedIn() || typeof db === 'undefined') return Promise.resolve(null);
+        return db.collection('satoshiFavor').doc('current').get().then(function(snap) {
+            if (snap.exists && snap.data() && snap.data().favorActive === true) return 'favor';
+            return null;
+        }).catch(function() { return null; }).then(function(found) {
+            if (found) return found;
+            return db.collection('pvp_lobby').where('status', '==', 'waiting').limit(1).get().then(function(lobby) {
+                return lobby.empty ? null : 'pvp';
+            }).catch(function() { return null; });
+        });
+    }
+
+    function considerPrompt() {
+        if (window._pushPreview || _considering) return;
+        if (!prefsApi() || !signedIn()) return;
+        try { if (sessionStorage.getItem('btc_push_prompt_shown') === '1') return; } catch (e) {}
+        _considering = true;
+        var sessionCount = bumpSession();
+        loadUser().then(function(user) {
+            var stored = mergePrompt(user && user.notifPrompt);
+            if (permissionState() === 'denied' && stored.stopped !== true) {
+                persistPrompt({ count: stored.count, lastAsked: stored.lastAsked, stopped: true, dontAsk: stored.dontAsk });
+            }
+            return probeContext(stored).then(function(context) {
+                var decision = prefsApi().decidePrompt({
+                    now: Date.now(),
+                    permission: permissionState(),
+                    prompt: stored,
+                    sessionCount: sessionCount,
+                    totalVisits: num(user && (user.totalVisits || (typeof currentUser !== 'undefined' && currentUser && currentUser.totalVisits))),
+                    daysSinceVisit: daysSinceVisit(user || (typeof currentUser !== 'undefined' ? currentUser : null)),
+                    context: context,
+                    iosNeedsInstall: iosNeedsInstall(),
+                    busy: uiBusy(),
+                    popupTaken: popupTaken()
+                });
+                if (!decision.show) return;
+                if (uiBusy() || popupTaken()) return;
+                if (!window.claimSessionPopup('push')) return;
+                try { sessionStorage.setItem('btc_push_prompt_shown', '1'); } catch (e2) {}
+                persistPrompt({
+                    count: stored.count + 1,
+                    lastAsked: Date.now(),
+                    stopped: stored.stopped,
+                    dontAsk: stored.dontAsk
+                });
+                showOptInCard(decision, false);
+            });
+        }).catch(function() {}).then(function() { _considering = false; });
+    }
+
+    window.notePushMoment = function(kind) {
+        if (kind !== 'win' && kind !== 'gift' && kind !== 'favor' && kind !== 'pvp') return;
+        window._pushMoment = kind;
+        considerPrompt();
+    };
+
+    window.openNotificationSettings = function() {
+        window._highlightNotifSettings = true;
+        var modal = document.getElementById('usernameModal');
+        if (modal) modal.style.zIndex = '700000';
+        if (typeof window.showSettings === 'function') window.showSettings();
+        if (typeof showSettingsPage === 'function' && signedIn()) {
+            showSettingsPage('prefs');
+            return;
+        }
+        setTimeout(function() {
+            if (typeof showSettingsPage === 'function') showSettingsPage('prefs');
+        }, 700);
+    };
+
+    window.syncPushRegistration = function() {
+        if (!signedIn() || permissionState() !== 'granted') return;
+        loadUser().then(function(user) {
+            var map = user && user.notificationPrefs;
+            if (!map || map.master !== true) return;
+            registerPushToken({ silent: true });
+        });
+    };
+
+    window.schedulePushPrompt = function() {
+        try {
+            if (sessionStorage.getItem('btc_open_notif_settings') === '1') {
+                sessionStorage.removeItem('btc_open_notif_settings');
+                setTimeout(window.openNotificationSettings, 500);
+            }
+        } catch (e) {}
+        if (_promptStarted) return;
+        _promptStarted = true;
+        setTimeout(considerPrompt, 4000);
+        setTimeout(considerPrompt, 20000);
+        setTimeout(considerPrompt, 60000);
+    };
+
+    function mountSettingsPreview() {
+        ensureStyles();
+        window._pushPreview = true;
+        window._pushPreviewPrefs = { rewards: true, gifts: true, dms: true };
+        var modal = document.getElementById('usernameModal');
+        var box = modal && modal.querySelector('.username-box');
+        if (!modal || !box) {
+            modal = document.createElement('div');
+            modal.id = 'pushPreviewSettings';
+            modal.style.cssText = 'position:fixed;inset:0;z-index:800000;background:var(--overlay);overflow:auto;padding:16px;';
+            box = document.createElement('div');
+            box.style.cssText = 'background:var(--bg-side);color:var(--text);border:1px solid var(--border);border-radius:24px;padding:20px 16px;max-width:440px;width:100%;margin:10px auto;';
+            modal.appendChild(box);
+            document.body.appendChild(modal);
+        } else {
+            modal.classList.add('open');
+            modal.style.display = 'block';
+            modal.style.zIndex = '800000';
+            box.style.textAlign = 'left';
+            box.style.maxWidth = '440px';
+        }
+        box.textContent = '';
+        var kicker = el('div', 'push-kicker', 'Preferences');
+        box.appendChild(kicker);
+        var host = el('div');
+        host.id = 'settings-notifications';
+        box.appendChild(host);
+        window.renderNotificationSettings();
+    }
+
+    function bootPreview() {
+        var host = location.hostname;
+        if (host !== 'localhost' && host !== '127.0.0.1') return;
+        var params;
+        try { params = new URLSearchParams(location.search); } catch (e) { return; }
+        var mode = params.get('previewPush');
+        if (!mode) return;
+        if (params.get('theme') === 'light') document.body.setAttribute('data-theme', 'light');
+        document.body.style.opacity = '1';
+        window._pushPreview = true;
+        if (mode === 'settings') mountSettingsPreview();
+        else {
+            showOptInCard({
+                show: true,
+                kind: mode === 'install' ? 'install' : (mode === 'reask' ? 'context' : 'standard'),
+                context: mode === 'reask' ? 'win' : null,
+                askIndex: mode === 'reask' ? 2 : 1,
+                showDontAsk: mode === 'reask',
+                reason: 'preview'
+            }, true);
+        }
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootPreview);
+    else bootPreview();
+})();

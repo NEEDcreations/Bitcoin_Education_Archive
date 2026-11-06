@@ -57,7 +57,7 @@
 
   <!-- Sub copy -->
   <text x="54" y="406" font-family="Arial" font-size="19" fill="#FFF5E1" fill-opacity="0.5">Watch · Quiz · Battle · Mine for sats</text>
-  <text x="54" y="432" font-family="Arial" font-weight="700" font-size="19" fill="#FFF5E1" fill-opacity="0.8">Earn 200 sats every day.</text>
+  <text x="54" y="432" font-family="Arial" font-weight="700" font-size="19" fill="#FFF5E1" fill-opacity="0.8">Earn 200 sats per user, every single day.</text>
 
   <!-- Stat pills -->
   <rect x="52" y="458" width="140" height="68" rx="12" fill="#F7931A" fill-opacity="0.1" stroke="#F7931A" stroke-opacity="0.25" stroke-width="1"/>

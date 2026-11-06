@@ -152,15 +152,6 @@
                             if (typeof startNewDM === 'function') startNewDM(sellerUid, data.sellerName || 'Seller');
                         }, 500);
                     }
-                    // Track for badge
-                    if (typeof db !== 'undefined' && auth.currentUser) {
-                        db.collection('users').doc(auth.currentUser.uid).update({
-                            marketMessages: firebase.firestore.FieldValue.increment(1)
-                        }).catch(function() {});
-                    }
-                    if (typeof currentUser !== 'undefined' && currentUser) {
-                        currentUser.marketMessages = (currentUser.marketMessages || 0) + 1;
-                    }
                     if (typeof showToast === 'function') showToast('💬 Opening chat with ' + (data.sellerName || 'seller') + '...');
                 });
             }
@@ -585,7 +576,7 @@
         if (document.getElementById('miniPlayer')) return;
         var mp = document.createElement('div');
         mp.id = 'miniPlayer';
-        mp.style.cssText = 'position:fixed;bottom:60px;left:0;right:0;z-index:180;background:rgba(10,10,10,0.95);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(247,147,26,0.3);padding:8px 16px;display:none;align-items:center;gap:12px;';
+        mp.style.cssText = 'position:fixed;bottom:var(--above-fab, 60px);left:0;right:0;z-index:180;background:rgba(10,10,10,0.95);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(247,147,26,0.3);padding:8px 16px;display:none;align-items:center;gap:12px;';
         mp.innerHTML =
             '<button id="mpPlayPause" onclick="toggleMiniPlayer()" style="background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;padding:4px;">▶</button>' +
             '<div style="flex:1;min-width:0;">' +
@@ -1084,7 +1075,7 @@
 // =============================================
 // DONE — All 24 tasks implemented!
 // =============================================
-console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
+if (window.btcDebugLog) window.btcDebugLog('✅ UX Patches loaded — 24 tasks from the UX Review Report');
 
 // =============================================
 // CHANNEL CONTENT TEXT REPLACEMENT (Discord → App)
@@ -1280,7 +1271,7 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
                 // Store channel JSON URL for SW to cache
                 if ('caches' in window) {
                     caches.open('btc-offline-channels').then(function(cache) {
-                        cache.add(ch.file).catch(function() {});
+                        cache.add(typeof withDataCacheBuster === 'function' ? withDataCacheBuster(ch.file) : ch.file).catch(function() {});
                     });
                 }
                 cached[window.currentChannelId] = { ts: Date.now() };
@@ -1292,7 +1283,7 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
                         delete cached[keys[i]];
                         if ('caches' in window) {
                             var file = CHANNELS[keys[i]] && CHANNELS[keys[i]].file;
-                            if (file) caches.open('btc-offline-channels').then(function(c) { c.delete(file).catch(function() {}); });
+                            if (file) caches.open('btc-offline-channels').then(function(c) { c.delete(typeof withDataCacheBuster === 'function' ? withDataCacheBuster(file) : file).catch(function() {}); });
                         }
                     }
                 }
@@ -1475,33 +1466,7 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
     }
 })();
 
-// ---- PVP Lobby Announce — Global Chat notification on entry ----
-// Note: pvpAnswer is NOT patched here; pvp.js handles answer submission directly.
-(function() {
-    'use strict';
-    var _origEnterPVP = null;
-    var _pvpPatchAttempts = 0;
-    function _tryPatchEnterPVP() {
-        if (window._pvpEnterPatched) return;
-        if (typeof window.enterPVPMode === 'function') {
-            window._pvpEnterPatched = true;
-            _origEnterPVP = window.enterPVPMode;
-            window.enterPVPMode = function() {
-                _origEnterPVP.apply(this, arguments);
-                // Announce PVP lobby entry — post to Global Chat (visible, not hidden in News)
-                var _pvpName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
-                if (_pvpName && (typeof window.nachoPostToGlobalChat === 'function' || typeof window.nachoGlobalAnnounce === 'function')) {
-                    var _fn = typeof window.nachoPostToGlobalChat === 'function' ? window.nachoPostToGlobalChat : window.nachoGlobalAnnounce;
-                    _fn('⚔️ @' + _pvpName + ' just entered the PVP arena! Think you can beat them? ➡️ [Enter PVP Lobby](#pvp)');
-                }
-            };
-        } else if (_pvpPatchAttempts < 20) {
-            _pvpPatchAttempts++;
-            setTimeout(_tryPatchEnterPVP, 2000);
-        }
-    }
-    setTimeout(_tryPatchEnterPVP, 3000);
-})();
+// PvP lobby shoutouts are written by onPvpLobbyLive. The client must not post as Nacho.
 
 // ---- Sidebar Reading Progress Indicators ----
 (function() {
@@ -1579,65 +1544,24 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
 // =====================================================================
 (function() {
 
-    // IDs to hide per mode
-    var HIDE_IDS = {
-        beginner: [
-            'chatOverlayBtn', 'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
-            'dailySpinBanner', 'em-quick-actions',
-            'dailyChallengeCard', 'raidBossHomeCard',
-            'donateSection', 'quoteOfDay', 'dailyChannel',
-            'hotTopicsSectionWrapper'
-        ],
-        intermediate: [
-            'chatOverlayBtn', 'aiToolsBtn', 'dashboardFloatBtn', 'lbFloatBtn',
-            'dailyChallengeCard', 'raidBossHomeCard',
-            'donateSection', 'quoteOfDay', 'dailyChannel',
-            'hotTopicsSectionWrapper'
-        ],
-        advanced: []
-    };
-
     function _getMode() {
         try { return localStorage.getItem('btc_experience_mode') || null; } catch(e) { return null; }
     }
 
-    function _hideEl(el, mode) {
-        if (!el) return;
-        el.setAttribute('data-em-hidden', mode);
-        el.style.setProperty('display', 'none', 'important');
-    }
-
-    function _restoreAll() {
-        document.querySelectorAll('[data-em-hidden]').forEach(function(el) {
-            el.style.removeProperty('display');
-            el.removeAttribute('data-em-hidden');
-        });
-    }
-
-    // Hide dynamic elements that may not exist yet at page load
     function applyDynamic(mode) {
-        if (!mode || mode === 'advanced') return;
-        var ids = HIDE_IDS[mode] || [];
-        ids.forEach(function(id) { _hideEl(document.getElementById(id), mode); });
-        // intermediate: also hide Nacho story button (beginner keeps it per spec)
-        if (mode === 'intermediate') {
-            _hideEl(document.getElementById('nachoStoryBtn'), mode);
-        }
+        if (typeof window.bqApplyExperienceSurfaces === 'function') window.bqApplyExperienceSurfaces(mode || 'advanced');
     }
 
     function applyMode(mode) {
-        _restoreAll();
-        if (!mode || mode === 'advanced') return;
-        applyDynamic(mode);
+        applyDynamic(mode || 'advanced');
+        if (typeof window.syncFabToolsToggle === 'function') window.syncFabToolsToggle();
     }
 
     function run() {
         var mode = _getMode();
         if (!mode) {
-            var done = false;
-            try { done = localStorage.getItem('btc_onboarding_done') === 'true'; } catch(e) {}
-            if (done) { mode = 'advanced'; try { localStorage.setItem('btc_experience_mode','advanced'); } catch(e) {} }
-            else return;
+            applyMode('advanced');
+            return;
         }
         applyMode(mode);
     }
@@ -1655,7 +1579,7 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
             window[fn] = function() {
                 var r = orig.apply(this, arguments);
                 var m = _getMode();
-                if (m && m !== 'advanced') setTimeout(function(){ applyDynamic(m); }, 50);
+                setTimeout(function(){ applyDynamic(m || 'advanced'); }, 50);
                 return r;
             };
         });
@@ -1696,12 +1620,11 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
     function startObserver() {
         if (_obs) return;
         var mode = _getMode();
-        if (!mode || mode === 'advanced') return;
+        if (!mode) return;
         _obs = new MutationObserver(function() {
             clearTimeout(_obsTimer);
             _obsTimer = setTimeout(function() {
-                var m = _getMode();
-                if (m && m !== 'advanced') applyDynamic(m);
+                applyDynamic(_getMode() || 'advanced');
             }, 200);
         });
         _obs.observe(document.body, { childList: true, subtree: true });
@@ -1711,139 +1634,34 @@ console.log('✅ UX Patches loaded — 24 tasks from the UX Review Report');
 })();
 
 // =====================================================================
-// XP & BADGE TOAST SUPPRESSION — Phase 3
-// In beginner/intermediate modes: suppress XP gain and badge toasts.
-// XP and badges are still SILENTLY collected (awardPoints/checkBadges run normally).
-// Only the visible toast/celebration is suppressed.
+// XP TOAST DEDUPE
+// Every mode shows '+N XP · reason'. Identical toasts inside a short
+// window are dropped. Awards are never skipped.
 // =====================================================================
 (function() {
-    // Patterns that identify XP/badge toasts to suppress
-    var XP_PATTERNS = [
-        /^\+\d+ XP/i,           // "+25 XP - Reading: ..."
-        /streak.*XP/i,          // "Day 7 streak! +X XP"
-        /2X XP/i,               // "2X XP! Daily boost..."
-        /overflow pts/i,        // "overflow pts redeemed"
-        /daily cap/i,           // "Daily cap reached"
-        /XP will sync/i,        // offline sync
-        /XP - /i,               // generic "+N XP - reason"
-        /badge earned/i,        // badge earned toast (non-modal)
-        /🏅.*earned/i,
-        /earned.*🏅/i,
-        /\+\d+ pts.*badge/i,
-        /Nacho Quest.*pts/i,    // Nacho Quest XP toasts
-        /WAGMI.*topic/i,        // Nacho Quest step toasts
-        /First message sent/i,
-        /Spin complete/i,
-        /Smart question.*already/i,
-    ];
-
-    function shouldSuppress(msg) {
-        if (typeof msg !== 'string') return false;
-        for (var i = 0; i < XP_PATTERNS.length; i++) {
-            if (XP_PATTERNS[i].test(msg)) return true;
-        }
-        return false;
-    }
-
-    function isQuietMode() {
-        var m = null;
-        try { m = localStorage.getItem('btc_experience_mode'); } catch(e) {}
-        return (m === 'beginner' || m === 'intermediate');
-    }
-
     setTimeout(function() {
         var _origToast = window.showToast;
         if (!_origToast || window._emToastHooked) return;
         window._emToastHooked = true;
+        var last = { msg: '', at: 0 };
         window.showToast = function(msg) {
-            if (isQuietMode() && shouldSuppress(msg)) {
-                // Silently drop — XP has already been awarded to Firestore/localStorage
-                return;
-            }
+            var key = typeof msg === 'string' ? msg : '';
+            var now = Date.now();
+            if (key && key === last.msg && (now - last.at) < 2500) return;
+            last.msg = key;
+            last.at = now;
             return _origToast.apply(this, arguments);
         };
     }, 1500);
-
-    // Suppress badge celebration MODAL in quiet modes 
-    // (checkBadges still runs, badge is still stored — just no confetti/modal)
-    setTimeout(function() {
-        var _origCheck = window.checkBadges;
-        if (!_origCheck || window._emBadgeHooked) return;
-        window._emBadgeHooked = true;
-        window.checkBadges = function(data, silent) {
-            if (isQuietMode()) {
-                // Force silent=true so checkBadges records the badge but skips celebration
-                return _origCheck.call(this, data, true);
-            }
-            return _origCheck.apply(this, arguments);
-        };
-    }, 2000);
 })();
 
 // =====================================================================
-// DESKTOP SIDEBAR LEARN + APPS — mode filtering
-// Hides specific desktop buttons based on experience mode
+// DESKTOP SIDEBAR LEARN + APPS — registry renders the menus
 // =====================================================================
 (function() {
     function applyDesktopMenuModes() {
-        var mode = null;
-        try { mode = localStorage.getItem('btc_experience_mode'); } catch(e) {}
-        if (!mode || mode === 'advanced') {
-            // Show everything — remove any previous hiding
-            document.querySelectorAll('[data-em-desk-hidden]').forEach(function(el) {
-                el.style.display = '';
-                el.removeAttribute('data-em-desk-hidden');
-            });
-            return;
-        }
-
-        // Desktop Learn menu: which buttons to HIDE per mode
-        // Beginner: hide Daily Quests, Meetup Builder, Spend Bitcoin
-        // Intermediate: nothing extra to hide in learn (has all)
-        var LEARN_HIDE_ONCLICK = {
-            beginner: ['showQuestHub', 'irl-sync', "section:'merchants'"],
-            intermediate: []
-        };
-
-        // Desktop Explore Apps: beginner sees only Nacho Mode and Timechain TV
-        var APPS_HIDE_ONCLICK = {
-            beginner: ['enterProofOfPlay', "go('forum')", "go('marketplace')", "go('irl-sync')", "go('bitcoin-beats')", 'showProofOfWalk'],
-            intermediate: []
-        };
-
-        var learnHide = LEARN_HIDE_ONCLICK[mode] || [];
-        var appsHide = APPS_HIDE_ONCLICK[mode] || [];
-
-        // Apply to homeLearnMenu buttons
-        var learnMenu = document.getElementById('homeLearnMenu');
-        if (learnMenu) {
-            learnMenu.querySelectorAll('button').forEach(function(btn) {
-                var oc = btn.getAttribute('onclick') || '';
-                var shouldHide = learnHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
-                if (shouldHide) {
-                    btn.setAttribute('data-em-desk-hidden', mode);
-                    btn.style.display = 'none';
-                } else {
-                    btn.removeAttribute('data-em-desk-hidden');
-                    btn.style.display = '';
-                }
-            });
-        }
-
-        // Apply to homeAppsMenu buttons
-        var appsMenu = document.getElementById('homeAppsMenu');
-        if (appsMenu) {
-            appsMenu.querySelectorAll('button,[onclick]').forEach(function(btn) {
-                var oc = btn.getAttribute('onclick') || '';
-                var shouldHide = appsHide.some(function(pat) { return oc.indexOf(pat) !== -1; });
-                if (shouldHide) {
-                    btn.setAttribute('data-em-desk-hidden', mode);
-                    btn.style.display = 'none';
-                } else {
-                    btn.removeAttribute('data-em-desk-hidden');
-                    btn.style.display = '';
-                }
-            });
+        if (typeof window.renderDesktopHomeMenus === 'function') {
+            window.renderDesktopHomeMenus();
         }
     }
 
