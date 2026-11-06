@@ -1,10 +1,13 @@
 {
   "cat": "Experienced Topics",
   "title": "💻nodes",
-  "desc": "Run your own Bitcoin node. Don't trust, verify. How 14,000+ nodes keep the network decentralized.",
+  "desc": "Run your own Bitcoin node. Don't trust, verify. Full nodes keep the network decentralized.",
   "msgs": [
     {
-      "text": "<b>NODES</b>\n\n<i>(under construction)</i>\n\nThe Bitcoin nodes are simply computers that contain the Bitcoin Core code and the complete Bitcoin Blockchain (the transactional ledger/records history of transactions). There are currently about 14,000 Bitcoin nodes worldwide which speaks to the real decentralization and security of the Bitcoin network. There is no single point of failure to shut down Bitcoin. Nuclear war could (God forbid) wipe out 3/4 of the planet, but as long as one Bitcoin node is still functional, Bitcoin will continue to run uninterrupted. You could even find the first computer that ever downloaded the Bitcoin code (if it still exists) and destroy it; that wont matter. Bitcoin can not be stopped or deleted.\n\n<b>WHAT NODES DO</b>\nNodes validate and process transactions on the Bitcoin network. When a bitcoin transactions happens, every node gets a veto to decide if this transaction was valid. They need to come to a full consensus on this vote- if any node decides a transaction is invalid, then the transaction doesn't actually occur. The role of a node is to communicate with the other nodes in the network directly, verifying that their history of transactions is aligned with the next node. As they verify new transactions, they check to see that the bitcoin being transacted has not been double-spent and that no bitcoin is being created out of thin air. If a node does see malicious transaction attempts, it along with the other nodes in the network will reject the transactions. Users (nodes), not miners or developers, decide which blocks are valid and which software to run."
+      "text": "<b>NODES</b>\n\nThe Bitcoin nodes are simply computers that contain the Bitcoin Core code and the complete Bitcoin Blockchain (the transactional ledger/records history of transactions). An undated earlier count put the network at about 14,000 nodes (historical, not a current measurement). There is no single point of failure to shut down Bitcoin. Nuclear war could (God forbid) wipe out 3/4 of the planet, but as long as one Bitcoin node is still functional, Bitcoin will continue to run uninterrupted. You could even find the first computer that ever downloaded the Bitcoin code (if it still exists) and destroy it; that wont matter. Bitcoin can not be stopped or deleted.\n\n<b>WHAT NODES DO</b>\nNodes validate and process transactions on the Bitcoin network. When a bitcoin transactions happens, every node gets a veto to decide if this transaction was valid. They need to come to a full consensus on this vote- if any node decides a transaction is invalid, then the transaction doesn't actually occur. The role of a node is to communicate with the other nodes in the network directly, verifying that their history of transactions is aligned with the next node. As they verify new transactions, they check to see that the bitcoin being transacted has not been double-spent and that no bitcoin is being created out of thin air. If a node does see malicious transaction attempts, it along with the other nodes in the network will reject the transactions. Users (nodes), not miners or developers, decide which blocks are valid and which software to run.",
+      "updatedNote": "Updated Oct 2026",
+      "source": "https://bitcoin.org/en/full-node",
+      "sourceLabel": "Bitcoin.org full node"
     },
     {
       "text": "Software: \nhttps://btcdir.org/links/nodessoftware/",
@@ -22,8 +25,8 @@
       "link": "https://btcdir.org/links/nodesother/"
     },
     {
-      "text": "Node community (Plebnet):\nhttps://plebnet.wiki/wiki/Main_Page",
-      "link": "https://plebnet.wiki/wiki/Main_Page"
+      "text": "Node community (Plebnet):\nhttps://web.archive.org/web/20251008000144/https://plebnet.wiki/wiki/Main_Page",
+      "link": "https://web.archive.org/web/20251008000144/https://plebnet.wiki/wiki/Main_Page"
     },
     {
       "text": "",

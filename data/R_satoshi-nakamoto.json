@@ -4,15 +4,18 @@
   "desc": "The mystery of Bitcoin's creator: who was Satoshi Nakamoto? The evidence, theories, and legacy.",
   "msgs": [
     {
-      "text": "<i>(under construction)</i>\n\n<b>SATOSHI NAKAMOTO</b>\nSatoshi Nakamoto is the pseudonymous creator(s) of Bitcoin. His/their final public correspondence was a post on the bitcointalk.org forum on 12/12/2010: https://bitcointalk.org/index.php?topic=2228.msg29479#msg29479\nSatoshi’s final known private correspondence was from an April 26, 2011 email to Gavin Andresen. He wrote: \"I wish you wouldn't keep talking about me as a mysterious shadowy figure, the press just turns that into a pirate currency angle. Maybe instead make it about the open source project and give more credit to your dev contributors; it helps motivate them.\"\n\nTheories as to why Satoshi disappeared:\nhttps://news.bitcoin.com/satoshis-final-messages-leave-tantalizing-clues-to-his-disappearance/\n\nWhat we do know is that if Satoshi did reveal himself, he would have to sign the Genesis Block and create a verifiable PGP message to prove his/her identity.",
-      "link": "https://bitcointalk.org/index.php?topic=2228.msg29479#msg29479"
+      "text": "<b>SATOSHI NAKAMOTO</b>\nSatoshi Nakamoto is the pseudonymous creator(s) of Bitcoin. His/their final public correspondence was a post on the bitcointalk.org forum on 12/12/2010: https://bitcointalk.org/index.php?topic=2228.msg29479#msg29479\nSatoshi’s final known private correspondence was from an April 26, 2011 email to Gavin Andresen. He wrote: \"I wish you wouldn't keep talking about me as a mysterious shadowy figure, the press just turns that into a pirate currency angle. Maybe instead make it about the open source project and give more credit to your dev contributors; it helps motivate them.\"\n\nTheories as to why Satoshi disappeared:\nhttps://news.bitcoin.com/satoshis-final-messages-leave-tantalizing-clues-to-his-disappearance/\n\nWhat we do know is that if Satoshi did reveal himself, he would have to sign the Genesis Block and create a verifiable PGP message to prove his/her identity.",
+      "link": "https://bitcointalk.org/index.php?topic=2228.msg29479#msg29479",
+      "updatedNote": "Updated Oct 2026",
+      "source": "https://bitcointalk.org/index.php?topic=2228.msg29479#msg29479",
+      "sourceLabel": "Satoshi's forum post"
     },
     {
       "text": "-\n<i>Persons proposed to be the real individual Satoshi or part of the group Satoshi (partial list to be updated):</i>\n\nLen Sassaman - technologist and information privacy advocate. Len died on 07/03/2011\nhttps://evanhatch.medium.com/len-sassaman-and-satoshi-e483c85c2b10\n\nHal Finney - cypherpunk developer and early Bitcoin contributor. Here is a tweet from Hal from 01/10/2009 that says he is \"Running Bitcoin\" https://twitter.com/halfin/status/1110302988. Hal died on 08/28/2014\n\nJohn Forbes Nash Jr. was an American mathematician who made fundamental contributions to game theory\nThis simple handwritten letter with mathematical proof, predates modern cryptography and computational complexity theory by decades\nhttps://twitter.com/elinor_c_ostrom/status/1547818169758232580?t=DAHTjTj2lwVI-RFJZfYV1A&s=19\nHe also predicted the internet and decentralized protocols in 1954:\nhttps://twitter.com/markgoodw_in/status/1583268325412380672?s=20&t=HyT_lwqBENtrzZF0NuB43Q\nJohn died on 05/23/2015.\nBig thread with support for Nash being Satoshi \nhttps://twitter.com/markgoodw_in/status/1584011996936097792?t=bdH8nW1iNvFeuLkVoE_Naw&s=19\n\nAlan Greenspan - American economist who served five terms as the 13th chair of the Federal Reserve in the United States from 1987 to 2006. He sounds like a Bitcoiner here in his paper: https://www.constitution.org/1-Activism/mon/greenspan_gold.htm. Alan is still alive.\n\nCraig Wright (FRAUD) - Australian computer scientist and businessman. He actually claims he is Satoshi but can't prove it. Lost lawsuit against hodlonaut in 2022.\nDebunking thread: https://twitter.com/jimmy007forsure/status/1572754750877011968?s=20&t=q_tW6mmwyQfQADJmkhBlSQ\nDebunking podcast: https://anchor.fm/dr-bitcoin",
       "link": "https://evanhatch.medium.com/len-sassaman-and-satoshi-e483c85c2b10"
     },
     {
-      "text": "Aliens (advanced civilization) or time-traveler . You think I'm kidding? Read this and be sure to read the article presented at the end of it as a follow up (your mind is about to be blown): https://tomerstrolight.medium.com/why-people-wonder-if-bitcoin-is-alien-technology-f9fda5b018b\n\nNational Security Agency (NSA): \nSince they are well versed in cryptography and created SHA-256\n\nPete Rizzo proposed that Julian Assange (WikiLeaks) is Satoshi. Julian is still alive but held in captivity.\n\nOther possible identities - https://en.wikipedia.org/wiki/Satoshi_Nakamoto\n\n- 17 brilliant quotes by Satoshi Nakamoto, the creator of Bitcoin: https://coindiligent.com/interesting-quotes-satoshi-nakamoto\n\nSatoshi's quotes organized by topic by \nhttps://www.satoshivibes.com\n\nSatoshi's emails, forum posts, code and quotes all in one place \nhttps://satoshi.nakamotoinstitute.org/",
+      "text": "Aliens (advanced civilization) or time-traveler . You think I'm kidding? Read this and be sure to read the article presented at the end of it as a follow up (your mind is about to be blown): https://tomerstrolight.medium.com/why-people-wonder-if-bitcoin-is-alien-technology-f9fda5b018b\n\nNational Security Agency (NSA): \nSince they are well versed in cryptography and created SHA-256\n\nPete Rizzo proposed that Julian Assange (WikiLeaks) is Satoshi. Julian is still alive but held in captivity.\n\nOther possible identities - https://en.wikipedia.org/wiki/Satoshi_Nakamoto\n\n- 17 brilliant quotes by Satoshi Nakamoto, the creator of Bitcoin: https://web.archive.org/web/20220127023650/https://coindiligent.com/interesting-quotes-satoshi-nakamoto\n\nSatoshi's quotes organized by topic by \nhttps://www.satoshivibes.com\n\nSatoshi's emails, forum posts, code and quotes all in one place \nhttps://satoshi.nakamotoinstitute.org/",
       "link": "https://tomerstrolight.medium.com/why-people-wonder-if-bitcoin-is-alien-technology-f9fda5b018b",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/satoshi-nakamoto_0780_satoshi-nakamoto_preview.png"
@@ -27,10 +30,10 @@
       "link": "https://www.amazon.com/dp/B00M6KGJ2K/ref=cm_sw_r_apan_glt_JR8KYF51Q0VHN4GWMQH6"
     },
     {
-      "text": "",
       "imgs": [
         "https://assets.bitcoineducation.quest/images/resources/satoshi-nakamoto_0777_Screenshot_20211014-205919.png"
-      ]
+      ],
+      "text": ""
     },
     {
       "text": "https://twitter.com/BitcoinResh/status/1451346714254794759?s=20",
@@ -177,12 +180,12 @@
     },
     {
       "text": "Nakamoto's Neighbor: My Hunt For Bitcoin's Creator Led To A Paralyzed Crypto Genius (2014) interview with Hal Finney",
-      "link": "https://www.forbes.com/sites/andygreenberg/2014/03/25/satoshi-nakamotos-neighbor-the-bitcoin-ghostwriter-who-wasnt/"
+      "link": "https://web.archive.org/web/20260831145317/https://www.forbes.com/sites/andygreenberg/2014/03/25/satoshi-nakamotos-neighbor-the-bitcoin-ghostwriter-who-wasnt/"
     },
     {
       "text": "Satoshi, Hal, Len",
       "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-may2026/discord_035_0.png"
+        "images/discord-may2026/discord_035_0.jpg"
       ]
     },
     {
@@ -192,7 +195,7 @@
     {
       "text": "Satoshi, Hal, Len",
       "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-may2026/discord_043_0.png"
+        "images/discord-may2026/discord_043_0.jpg"
       ]
     },
     {

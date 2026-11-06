@@ -18,8 +18,8 @@
       "link": "https://en.wikipedia.org/wiki/Mt._Gox"
     },
     {
-      "text": "More on Silk Road: https://en.wikipedia.org/wiki/Silk_Road_(marketplace))\n\nPost about Bitcoin hitting $1 for the first time (February 12, 2011)\nhttps://m.slashdot.org/story/147526\n\nBitcoin's price jumped from $1 in to a peak of $32 in June, a 3,100% gain (April-June 2011)\n\nThe Winklevoss twins announce large Bitcoin purchase (2012)\nWith settlement money from their Facebook lawsuit, the Winklevoss twins purchased $11 million of Bitcoin, some for as little as $10 a coin.\n\nPay to Script Hash soft fork activated (April 1, 2012)\nActivated on Block #173805. Using P2SH, you can send bitcoins to an address that is secured in various unusual ways without knowing anything about the details of how the security is set up.\n\nFormation of the Bitcoin Foundation (Late 2012)\nhttps://en.wikipedia.org/wiki/Bitcoin_Foundation\n\nMarket cap reaches $1 billion (March 2013)\nThe price of Bitcoin moved from about $40 to $90 by the end of 03/2013.\n\nPrice of 1 bitcoin = 1 oz of gold (December 2013)\nPrice of both was a little over $1000\n\nOrigin of \"HODL\" meme (December 18, 2013)\nThis meme came from a drunken rant posted to the Bitcointalk forums by user GameKyuubi: \nhttps://bitcointalk.org/index.php?topic=375643.0\n\nSome of the first companies to accept Bitcoin payments were Expedia, Overstock, TigerDirect, Newegg, Dell, Rakuten, Microsoft and Steam. (2015-2016)\n\nBlock Size Wars (2015 - 2017)\nThere is a debate about Bitcoin's block size. Some say the block size limit is too small to be scalable (which is now a myth, see ). This eventually led to a hard fork which created the alt coin Bitcoin Cash. This showed the resiliency of Bitcoin itself, as people who want to change it (no matter how rich they are) have no power over the majority consensus.",
-      "link": "https://en.wikipedia.org/wiki/Silk_Road_(marketplace)"
+      "text": "More on Silk Road: https://en.wikipedia.org/wiki/Silk_Road_(marketplace)))\n\nPost about Bitcoin hitting $1 for the first time (February 12, 2011)\nhttps://m.slashdot.org/story/147526\n\nBitcoin's price jumped from $1 in to a peak of $32 in June, a 3,100% gain (April-June 2011)\n\nThe Winklevoss twins announce large Bitcoin purchase (2012)\nWith settlement money from their Facebook lawsuit, the Winklevoss twins purchased $11 million of Bitcoin, some for as little as $10 a coin.\n\nPay to Script Hash soft fork activated (April 1, 2012)\nActivated on Block #173805. Using P2SH, you can send bitcoins to an address that is secured in various unusual ways without knowing anything about the details of how the security is set up.\n\nFormation of the Bitcoin Foundation (Late 2012)\nhttps://en.wikipedia.org/wiki/Bitcoin_Foundation\n\nMarket cap reaches $1 billion (March 2013)\nThe price of Bitcoin moved from about $40 to $90 by the end of 03/2013.\n\nPrice of 1 bitcoin = 1 oz of gold (December 2013)\nPrice of both was a little over $1000\n\nOrigin of \"HODL\" meme (December 18, 2013)\nThis meme came from a drunken rant posted to the Bitcointalk forums by user GameKyuubi: \nhttps://bitcointalk.org/index.php?topic=375643.0\n\nSome of the first companies to accept Bitcoin payments were Expedia, Overstock, TigerDirect, Newegg, Dell, Rakuten, Microsoft and Steam. (2015-2016)\n\nBlock Size Wars (2015 - 2017)\nThere is a debate about Bitcoin's block size. Some say the block size limit is too small to be scalable (which is now a myth, see ). This eventually led to a hard fork which created the alt coin Bitcoin Cash. This showed the resiliency of Bitcoin itself, as people who want to change it (no matter how rich they are) have no power over the majority consensus.",
+      "link": "https://en.wikipedia.org/wiki/Silk_Road_(marketplace))"
     },
     {
       "text": "Bitcoin reaches an all time high (December 18, 2017)\nPrice: $20,089\n\nSegWit Upgrade (2017)\nSegWit is the process by which the block size limit on a blockchain is increased by removing signature data from bitcoin transactions.\n\nMarket cap reaches $100 billion (October 2017)\nThe price of bitcoin moved from about $4000 to $6000 by the end of 10/2013.\n\nMarket cap reaches $1 trillion (February 2021)\nThe price of bitcoin reached an all time high $64,805 on 04/14/21."
@@ -29,8 +29,8 @@
       "link": "https://en.wikipedia.org/wiki/History_of_bitcoin"
     },
     {
-      "text": "Posted by Satoshi Nakamoto on February 11, 2009:\n\nhttp://web.archive.org/web/20240829161924/http://p2pfoundation.ning.com/m/discussion?id=2003008%3ATopic%3A9402",
-      "link": "http://web.archive.org/web/20240829161924/http://p2pfoundation.ning.com/m/discussion?id=2003008%3ATopic%3A9402"
+      "text": "Posted by Satoshi Nakamoto on February 11, 2009:\n\nhttps://web.archive.org/web/20240829161924/http://p2pfoundation.ning.com/m/discussion?id=2003008%3ATopic%3A9402",
+      "link": "https://web.archive.org/web/20240829161924/http://p2pfoundation.ning.com/m/discussion?id=2003008%3ATopic%3A9402"
     },
     {
       "text": "✨ Satoshi explaining the 21 million #Bitcoin supply limit exactly 12 years ago",
@@ -449,10 +449,7 @@
       "link": "https://twitter.com/pete_rizzo_/status/1720046867025973397?s=20"
     },
     {
-      "text": "Today in Bitcoin history X account (history)",
-      "imgs": [
-        "https://assets.bitcoineducation.quest/images/discord-aug2026/discord_001_0.png"
-      ]
+      "text": "Today in Bitcoin history X account (history)"
     }
   ]
 }

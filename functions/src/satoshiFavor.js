@@ -11,12 +11,67 @@ const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
 
-const db = admin.firestore();
+// Resolved on first use so unit tests can import helpers before initializeApp().
+function firestoreDb() {
+  return admin.firestore();
+}
+const db = new Proxy({}, {
+  get: function (_target, prop) {
+    const real = firestoreDb();
+    const value = real[prop];
+    return typeof value === 'function' ? value.bind(real) : value;
+  },
+});
 const { isSatsBanned, SATS_BANNED_ERROR } = require('./cipherClaim');
-
+const rewardNotify = require('./rewardNotify');
 // One-way hash of uid for public dedup (prevents uid exposure in readable docs)
 function uidHash(uid) {
   return crypto.createHash('sha256').update('sf_dedup_' + uid).digest('hex').substring(0, 16);
+}
+
+// Same allowlist as a username: letters, digits, underscore, hyphen, or dot, 3–20.
+// Newlines and other control characters fail the check. Placeholder labels are not names.
+const SOLVER_NAME_RE = /^[A-Za-z0-9_\-.]{3,20}$/;
+
+function cleanSolverName(value) {
+  const raw = String(value == null ? '' : value);
+  if (/[\u0000-\u001F\u007F]/.test(raw)) return '';
+  const name = raw.trim();
+  if (!SOLVER_NAME_RE.test(name)) return '';
+  const lower = name.toLowerCase();
+  if (lower === 'anonymous' || lower === 'anon') return '';
+  return name;
+}
+
+// The callable payload is not a name. Public profile first, then the users-doc
+// username. A missing name stays null so Favor docs never store a placeholder.
+function resolveSolverName(userName, profileName) {
+  return cleanSolverName(profileName) || cleanSolverName(userName) || null;
+}
+
+function favorChatHandle(name, maxLen) {
+  const clean = cleanSolverName(name);
+  if (!clean) return 'a miner';
+  return '@' + clean.substring(0, maxLen || 20);
+}
+
+// World-readable top-hashes row. Never copy uid or any other id onto it.
+function shapeTopHashEntry(entry) {
+  const row = entry || {};
+  const shaped = {
+    username: cleanSolverName(row.username) || null,
+    value: row.value,
+  };
+  if (row.timestamp != null) shaped.timestamp = row.timestamp;
+  if (row.difficultyTarget != null) shaped.difficultyTarget = row.difficultyTarget;
+  return shaped;
+}
+
+function rememberOwnTopHash(uid, value) {
+  if (!uid || value == null) return Promise.resolve();
+  return db.collection('satoshiFavor').doc('personalBests').collection('users').doc(uid).set({
+    topHashValues: admin.firestore.FieldValue.arrayUnion(value),
+  }, { merge: true });
 }
 
 // Difficulty history (ordered oldest first):
@@ -167,8 +222,11 @@ const POINT_VALUES = {
   'level_up': 1,
   'level_up_5': 5,
   'level_up_10': 10,
-  'badge_earned': 1,
 };
+
+function favorSourceAllowed(source) {
+  return !!(source && Object.prototype.hasOwnProperty.call(POINT_VALUES, source));
+}
 
 /**
  * Helper: Get today's date string in YYYY-MM-DD format
@@ -186,24 +244,26 @@ function getTodayString() {
  * Must be called inside a transaction with the current state doc ref.
  * Returns the (possibly reset) state data.
  */
-function checkAndResetFavor(stateData, transaction, stateRef) {
+function checkAndResetFavor(stateData, transaction, stateRef, store) {
   if (!stateData.favorActive) return stateData;
+  const database = store || db;
 
   const now = Date.now();
-  const favorEndBase = stateData.favorEndBase ? stateData.favorEndBase.toMillis() : 0;
+  const favorEndBase = stateData.favorEndBase && typeof stateData.favorEndBase.toMillis === 'function'
+    ? stateData.favorEndBase.toMillis() : 0;
   const bonusMs = (stateData.bonusMinutes || 0) * 60 * 1000;
   const effectiveEnd = favorEndBase + bonusMs;
 
   if (now > effectiveEnd) {
     // Archive last window stats before resetting
     try {
-      const lastWindowRef = db.collection('satoshiFavor').doc('lastWindow');
+      const lastWindowRef = database.collection('satoshiFavor').doc('lastWindow');
       transaction.set(lastWindowRef, {
         cycleId: stateData.currentCycleId || null,
         startedAt: stateData.favorStart || null,
         endedAt: admin.firestore.Timestamp.now(),
         durationMinutes: (function() {
-          if (!stateData.favorStart || !effectiveEnd) return 0;
+          if (!stateData.favorStart || typeof stateData.favorStart.toMillis !== 'function' || !effectiveEnd) return 0;
           const startMs = stateData.favorStart.toMillis();
           const durMs = effectiveEnd - startMs;
           return durMs > 0 ? Math.round(durMs / 60000) : 0;
@@ -242,6 +302,135 @@ function checkAndResetFavor(stateData, transaction, stateRef) {
   return stateData;
 }
 
+// Transactional expiry reset. The cron and checkFavorState both use this so
+// eraHashes, and the rest of the archived window, cannot be dropped by a
+// bare set() outside the transaction.
+async function resetExpiredFavor(nowMs) {
+  return resetExpiredFavorWith(db, nowMs);
+}
+
+async function resetExpiredFavorWith(store, nowMs) {
+  const stateRef = store.collection('satoshiFavor').doc('current');
+  const clock = Number(nowMs) || Date.now();
+  return store.runTransaction(async function (transaction) {
+    const snap = await transaction.get(stateRef);
+    if (!snap.exists) return { reset: false, reason: 'missing' };
+    const before = snap.data() || {};
+    const eraHashes = before.eraHashes || 0;
+    if (!before.favorActive) return { reset: false, reason: 'inactive', eraHashes: eraHashes };
+    const favorEndBase = before.favorEndBase && typeof before.favorEndBase.toMillis === 'function'
+      ? before.favorEndBase.toMillis() : 0;
+    const bonusMs = (before.bonusMinutes || 0) * 60 * 1000;
+    if (clock <= favorEndBase + bonusMs) return { reset: false, reason: 'open', eraHashes: eraHashes };
+    const next = checkAndResetFavor(before, transaction, stateRef, store);
+    return { reset: next.favorActive !== true, eraHashes: next.eraHashes || 0, state: next };
+  });
+}
+
+// One Satoshi's Favor point for a proven daily trifecta.
+// Poll proof is the server vote doc, not a client awardPoints stamp.
+async function creditDailyAllThree(uid, day) {
+  if (!uid || !day) return { ok: false, reason: 'missing' };
+  const userRef = db.collection('users').doc(uid);
+  const base = userRef.collection('daily_action_counts');
+  const triviaRef = base.doc(day + '_trivia');
+  const questRef = base.doc(day + '_quest');
+  const pollRef = db.collection('polls').doc(day).collection('votes').doc(uid);
+  const stateRef = db.collection('satoshiFavor').doc('current');
+  const contributorRef = stateRef.collection('contributors').doc(uid + '_' + day + '_allthree');
+  const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
+
+  const result = await db.runTransaction(async function (transaction) {
+    const [triviaDoc, questDoc, pollDoc, contributorDoc, stateDoc, userDoc] = await Promise.all([
+      transaction.get(triviaRef),
+      transaction.get(questRef),
+      transaction.get(pollRef),
+      transaction.get(contributorRef),
+      transaction.get(stateRef),
+      transaction.get(userRef),
+    ]);
+    if (!userDoc.exists) return { ok: false, reason: 'no_user' };
+    const userData = userDoc.data() || {};
+    const ledgerRef = db.collection('faucet_ledger').doc(uid);
+    const ledgerDoc = await transaction.get(ledgerRef);
+    const ledger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : {};
+    if (require('./cipherClaim').rewardBlocked(userData, ledger)) return { ok: false, reason: 'banned' };
+    const triviaOk = triviaDoc.exists;
+    const questOk = questDoc.exists && Number((questDoc.data() || {}).count || 0) >= 1;
+    const pollOk = pollDoc.exists;
+    if (!triviaOk || !questOk || !pollOk) {
+      return { ok: false, reason: 'incomplete', trivia: triviaOk, quest: questOk, poll: pollOk };
+    }
+    if (contributorDoc.exists) {
+      const stateData = stateDoc.exists ? stateDoc.data() : {};
+      return { ok: true, already: true, created: false, points: stateData.points || 0, favorActive: !!stateData.favorActive, bonusMinutes: stateData.bonusMinutes || 0, currentCycleId: stateData.currentCycleId || null };
+    }
+    let stateData = stateDoc.exists ? stateDoc.data() : {
+      points: 0, favorActive: false, favorStart: null, favorEndBase: null, bonusMinutes: 0,
+      lastReset: admin.firestore.Timestamp.now(), currentCycleId: null,
+    };
+    stateData = checkAndResetFavor(stateData, transaction, stateRef);
+    const faction = userData.faction || null;
+    transaction.set(contributorRef, {
+      uid: uid,
+      source: 'daily_all_three',
+      detail: null,
+      day: day,
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      faction: faction,
+      pointsAdded: 1,
+    });
+    const factionField = faction === 'cyber_hornets' ? 'cyber_hornets' : faction === 'honey_badgers' ? 'honey_badgers' : 'unaffiliated';
+    transaction.set(totalsRef, {
+      [factionField]: admin.firestore.FieldValue.increment(1),
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    transaction.update(userRef, {
+      trifectaDays: admin.firestore.FieldValue.increment(1),
+      sfContributions: admin.firestore.FieldValue.increment(1),
+    });
+    if (stateData.favorActive) {
+      const newBonus = Math.min((stateData.bonusMinutes || 0) + BONUS_MINUTES_PER_POINT, MAX_BONUS_MINUTES);
+      const updated = Object.assign({}, stateData, { bonusMinutes: newBonus });
+      transaction.set(stateRef, updated);
+      return { ok: true, created: true, points: updated.points, favorActive: true, bonusMinutes: newBonus, currentCycleId: updated.currentCycleId || null };
+    }
+    const newPoints = Math.min((stateData.points || 0) + 1, MAX_POINTS);
+    if (newPoints >= POINTS_TO_ACTIVATE) {
+      const overflowPoints = newPoints - POINTS_TO_ACTIVATE;
+      const now = admin.firestore.Timestamp.now();
+      const endBase = admin.firestore.Timestamp.fromMillis(now.toMillis() + FAVOR_DURATION_MINUTES * 60 * 1000);
+      const activated = {
+        points: newPoints,
+        favorActive: true,
+        favorStart: now,
+        favorEndBase: endBase,
+        bonusMinutes: overflowPoints * BONUS_MINUTES_PER_POINT,
+        totalHashes: 0,
+        lastReset: stateData.lastReset || null,
+        currentCycleId: 'cycle_' + Date.now(),
+        eraHashes: stateData.eraHashes || 0,
+      };
+      transaction.set(stateRef, activated);
+      return { ok: true, created: true, points: newPoints, favorActive: true, bonusMinutes: activated.bonusMinutes, currentCycleId: activated.currentCycleId };
+    }
+    const updated = Object.assign({}, stateData, { points: newPoints });
+    transaction.set(stateRef, updated);
+    return { ok: true, created: true, points: newPoints, favorActive: false, bonusMinutes: updated.bonusMinutes || 0, currentCycleId: updated.currentCycleId || null };
+  });
+  return result;
+}
+
+exports.creditDailyAllThree = creditDailyAllThree;
+exports.resetExpiredFavor = resetExpiredFavor;
+exports.resetExpiredFavorWith = resetExpiredFavorWith;
+exports.favorSourceAllowed = favorSourceAllowed;
+exports.resolveSolverName = resolveSolverName;
+exports.cleanSolverName = cleanSolverName;
+exports.favorChatHandle = favorChatHandle;
+exports.shapeTopHashEntry = shapeTopHashEntry;
+exports.SOLVER_NAME_RE = SOLVER_NAME_RE;
+
 // Valid level names per source tier (server-side whitelist)
 const LEVEL_TIERS = {
   'level_up': ['Normie','Curious','Pleb','Pleb II','Pleb III','Stacker','Stacker II','Stacker III'],
@@ -259,6 +448,51 @@ const LEVEL_MIN_POINTS = {
   'Sovereign': 100000, 'Cypherpunk': 133337, 'Satoshi': 210000,
 };
 
+// Normie and Curious are on the level list, and the client does not award
+// Favor for them. How it works: Pleb/Stacker 1, Maxi 5, Papa John or higher 10.
+function levelFavorRows() {
+  const rows = [];
+  Object.keys(LEVEL_TIERS).forEach(function (source) {
+    LEVEL_TIERS[source].forEach(function (name) {
+      if (name === 'Normie' || name === 'Curious') return;
+      if (LEVEL_MIN_POINTS[name] == null || !POINT_VALUES[source]) return;
+      rows.push({
+        name: name,
+        min: LEVEL_MIN_POINTS[name],
+        source: source,
+        points: POINT_VALUES[source],
+      });
+    });
+  });
+  rows.sort(function (a, b) { return a.min - b.min; });
+  return rows;
+}
+
+function planLevelFavor(pointsBefore, pointsAfter) {
+  const before = Number(pointsBefore) || 0;
+  const after = Number(pointsAfter) || 0;
+  if (after <= before) return [];
+  return levelFavorRows().filter(function (row) {
+    return before < row.min && after >= row.min;
+  });
+}
+
+function levelNameForPoints(points) {
+  const n = Number(points) || 0;
+  const ranks = Object.keys(LEVEL_MIN_POINTS).map(function (name) {
+    return { name: name, min: LEVEL_MIN_POINTS[name] };
+  }).sort(function (a, b) { return a.min - b.min; });
+  let name = 'Normie';
+  ranks.forEach(function (row) {
+    if (n >= row.min) name = row.name;
+  });
+  return name;
+}
+
+exports.planLevelFavor = planLevelFavor;
+exports.levelNameForPoints = levelNameForPoints;
+exports.levelFavorRows = levelFavorRows;
+
 // Max bonus minutes cap (prevent infinite favor window)
 const MAX_BONUS_MINUTES = 180; // 3 hours max extension
 const MAX_POINTS = 42; // 2x activation threshold — prevents unbounded accumulation
@@ -268,6 +502,8 @@ const MAX_POINTS = 42; // 2x activation threshold — prevents unbounded accumul
  * Called when community earns a Satoshi's Favor point.
  */
 exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
+    const secondFactor = require('./secondFactor');
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
   if (!context.auth) {
     throw new HttpsError('unauthenticated', 'Must be signed in.');
   }
@@ -299,38 +535,35 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
   }
   const userData = userDoc.data();
 
-  // Server-side validation for daily_all_three
-  // [AUDIT FIX C-1] Validate against CF-written daily_action_counts records,
-  // NOT client-writable user doc fields (dailyAllThreeDate etc are now blocked in rules).
+  // The trifecta point is credited here, from server proof. The poll proof is
+  // polls/{day}/votes/{uid} written by pollVote. A client awardPoints stamp is not enough.
   if (source === 'daily_all_three') {
-    const dailyPtsBase = db.collection('users').doc(uid).collection('daily_action_counts');
-    let triviaDoc, pollDoc, questDoc;
+    let credited;
     try {
-      const results = await Promise.all([
-        dailyPtsBase.doc(today + '_trivia').get(),
-        dailyPtsBase.doc(today + '_poll_vote').get(),
-        dailyPtsBase.doc(today + '_quest').get(),
-      ]);
-      triviaDoc = results[0];
-      pollDoc   = results[1];
-      questDoc  = results[2];
+      credited = await creditDailyAllThree(uid, today);
     } catch (readErr) {
-      console.error('[SF] daily_all_three validation read failed:', readErr);
+      console.error('[SF] daily_all_three credit failed:', readErr);
       throw new HttpsError('internal', 'Could not verify completion — please try again.');
     }
-
-    const triviaComplete = triviaDoc && triviaDoc.exists;
-    const pollComplete   = pollDoc   && pollDoc.exists;
-    const questComplete  = questDoc  && questDoc.exists && (questDoc.data().count || 0) >= 1;
-
-    console.log(`[SF] daily_all_three check uid=${uid} today=${today} trivia=${triviaComplete} poll=${pollComplete} quest=${questComplete}`);
-
-    if (!triviaComplete || !pollComplete || !questComplete) {
+    if (!credited || credited.reason === 'incomplete') {
       throw new HttpsError(
         'failed-precondition',
-        `Must complete all three today: quiz=${questComplete}, trivia=${triviaComplete}, poll=${pollComplete}.`
+        'Must complete quiz, trivia, and a server-recorded poll vote today.'
       );
     }
+    if (credited.already) {
+      throw new HttpsError('already-exists', 'You have already contributed for this action.');
+    }
+    if (!credited.ok) {
+      throw new HttpsError('failed-precondition', 'Could not credit the daily trifecta.');
+    }
+    return {
+      success: true,
+      points: credited.points,
+      favorActive: credited.favorActive,
+      bonusMinutes: credited.bonusMinutes || 0,
+      currentCycleId: credited.currentCycleId || null,
+    };
   }
 
   // Server-side validation for level-ups
@@ -355,28 +588,7 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
     }
   }
 
-  // Server-side validation for badge_earned
-  // [SECURITY] sanitizedBadge hoisted so it's accessible after the block for proof-of-earning check
-  let sanitizedBadge = null;
-  if (source === 'badge_earned') {
-    if (!detail || typeof detail !== 'string') {
-      throw new HttpsError('invalid-argument', 'Invalid badge detail.');
-    }
-    sanitizedBadge = detail.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 50);
-    if (!VALID_BADGE_IDS.has(sanitizedBadge)) {
-      throw new HttpsError(
-        'invalid-argument',
-        `Unknown badge id: ${sanitizedBadge}`
-      );
-    }
-  }
-
-  // [SECURITY FIX] Proof-of-earning ref.
-  // badge_awards is written atomically by awardPoints CF when a badge is legitimately earned.
-  // We read this inside the transaction to block SF contributions for unearned badges.
-  const badgeProofRef = sanitizedBadge
-    ? db.collection('users').doc(uid).collection('badge_awards').doc(sanitizedBadge)
-    : null;
+  // badge_earned is not a client source. awardBadge writes the Favor point.
 
   // Build contributor key for dedup — server-controlled, NOT from client detail
   // Level-up and badge keys use today's date so they reset daily (not permanently blocked)
@@ -387,11 +599,6 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
     // Dedup by uid + level name only — NO date, each rank is reached exactly once
     const validatedLevel = detail; // already validated above against whitelist
     contributorKey = `${uid}_level_${validatedLevel}`;
-  } else if (source === 'badge_earned') {
-    // [SECURITY FIX] Dedup by uid + badge id only — no date reset.
-    // Each badge can contribute to SF at most once per user ever.
-    // Combined with the badge_awards proof check below, this closes the activation exploit.
-    contributorKey = `${uid}_badge_${sanitizedBadge}`;
   } else {
     contributorKey = `${uid}_${source}_${today}`;
   }
@@ -401,10 +608,9 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
   // Run in a transaction for atomicity
   const result = await db.runTransaction(async (transaction) => {
     // Batch all reads before any writes (Firestore best practice for transactions)
-    const [contributorDoc, stateDoc, badgeProofDoc] = await Promise.all([
+    const [contributorDoc, stateDoc] = await Promise.all([
       transaction.get(contributorRef),
       transaction.get(stateRef),
-      badgeProofRef ? transaction.get(badgeProofRef) : Promise.resolve(null),
     ]);
 
     // Check dedup
@@ -413,19 +619,6 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
         'already-exists',
         'You have already contributed for this action.'
       );
-    }
-
-    // [SECURITY FIX] Verify badge ownership: badge_awards record must exist.
-    // This was written atomically by awardPoints when the badge was legitimately earned.
-    // Blocks activating SF mining windows with catalog badges the user never actually earned.
-    if (badgeProofRef) {
-      if (!badgeProofDoc || !badgeProofDoc.exists) {
-        console.warn(`[SF] badge_earned rejected — no badge_awards proof uid=${uid} badge=${sanitizedBadge}`);
-        throw new HttpsError(
-          'failed-precondition',
-          'Badge has not been earned. Complete the badge challenge first.'
-        );
-      }
     }
 
     let stateData = stateDoc.exists ? stateDoc.data() : {
@@ -460,6 +653,14 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
     transaction.set(totalsRef, {
       [factionField]: admin.firestore.FieldValue.increment(pointsToAdd),
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+
+    // Same transaction as the contributor doc. Owner-readable counter only.
+    const userSfRef = db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc(uid);
+    transaction.set(userSfRef, {
+      uid: uid,
+      points: admin.firestore.FieldValue.increment(pointsToAdd),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
 
     if (stateData.favorActive) {
@@ -556,16 +757,22 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
     throw new HttpsError('failed-precondition', 'Satoshi\'s Favor has expired.');
   }
 
-  // Get username (outside transaction — read-only, not security-critical)
-  let username = 'Anonymous';
+  // Get username at write time (read-only, not security-critical).
+  // public_profiles username first, then the users-doc username.
+  // data.username from the client is ignored.
+  // A missing, placeholder, or hash-like name is stored as null.
+  let username = null;
   try {
-    const userDoc = await db.collection('users').doc(uid).get();
-    if (userDoc.exists) {
-      const userData = userDoc.data();
-      username = userData.username || userData.displayName || 'Anonymous';
+    const pub = await db.collection('public_profiles').doc(uid).get();
+    const profileName = pub.exists ? (pub.data() || {}).username : '';
+    let userName = '';
+    if (!cleanSolverName(profileName)) {
+      const userDoc = await db.collection('users').doc(uid).get();
+      userName = userDoc.exists ? (userDoc.data() || {}).username : '';
     }
+    username = resolveSolverName(userName, profileName);
   } catch (e) {
-    console.warn(`Could not fetch username for ${uid}:`, e.message);
+    console.warn('Could not fetch username for ' + uid);
   }
 
   // Feature 5: Dual rig support — each rig has its own cooldown bucket so they don't share the limit
@@ -592,7 +799,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
   const ledgerRef = db.collection('faucet_ledger').doc(uid);
   const currentCycleId = stateData.currentCycleId || 'unknown';
 
-  const { value, isWinner } = await db.runTransaction(async (transaction) => {
+  const { value, isWinner, usedBooster, spentRig } = await db.runTransaction(async (transaction) => {
     const cooldownDoc = await transaction.get(cooldownRef);
     const userDoc = await transaction.get(userRef2);
     const ledgerDoc = await transaction.get(ledgerRef);
@@ -657,7 +864,12 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
     if (timestamps.length > effectiveRateLimit + 10) timestamps = timestamps.slice(-effectiveRateLimit - 10);
     transaction.set(cooldownRef, { timestamps });
 
-    return { value: val, isWinner: winner };
+    return {
+      value: val,
+      isWinner: winner,
+      usedBooster: usingBooster,
+      spentRig: rigNum === 2 && !rig2AlreadyUnlocked,
+    };
   });
 
   // Write hash doc outside transaction (not security-critical, just record-keeping)
@@ -671,6 +883,18 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
     cycleId: stateData.currentCycleId || null,
     difficultyTarget: DIFFICULTY_TARGET,
   });
+
+  try {
+    await require('./raidBossEngine').noteTrusted(db, admin, {
+      metric: 'favorHashes',
+      uid: uid,
+      dedupeKey: 'hash-' + hashDoc.id,
+      amount: 1,
+      now: new Date(),
+    });
+  } catch (raidErr) {
+    console.warn('[FAVOR] raid', raidErr && raidErr.message);
+  }
 
   // Feature 2A: Write session hash count for live leaderboard (per-cycle, resets on new window)
   try {
@@ -729,14 +953,26 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
   try {
     const userRef = db.collection('users').doc(uid);
     const userSnap = await userRef.get();
-    const updatePayloadUser = { sfTotalHashes: admin.firestore.FieldValue.increment(1) };
+    const updatePayloadUser = {
+      sfTotalHashes: admin.firestore.FieldValue.increment(1),
+      sfHashes: admin.firestore.FieldValue.increment(1),
+    };
     if (userSnap.exists && !userSnap.data().firstHashAt) {
       updatePayloadUser.firstHashAt = admin.firestore.FieldValue.serverTimestamp();
     }
     if (isWinner) {
       updatePayloadUser.sfBlocksFound = admin.firestore.FieldValue.increment(1);
+      updatePayloadUser.sfBlockSolver = true;
     }
     await userRef.update(updatePayloadUser);
+    try {
+      const { grantFamily } = require('./grantBadge');
+      await grantFamily(db, admin, uid, require('./grantBadge').familyFor('sfHashes'));
+      if (isWinner) await grantFamily(db, admin, uid, ['sf_block_solver']);
+      await require('./comboActivity').noteComboZone(db, admin, uid, 'sf', require('./offsetDay').offsetDateKey(Date.now()));
+    } catch (grantErr) {
+      console.warn('[FAVOR] hash badges', grantErr && grantErr.message);
+    }
   } catch (e) {
     console.warn('[FAVOR] sfTotalHashes/firstHashAt/sfBlocksFound update failed:', e.message);
   }
@@ -764,7 +1000,10 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
       await db.runTransaction(async (tx) => {
         const epochDoc = await tx.get(epochRef);
         const epochData = epochDoc.exists ? epochDoc.data() : {};
-        const blocks = epochData.blocks || [];
+        const blocks = (epochData.blocks || []).map((b) => {
+          if (!b || typeof b !== 'object') return b;
+          return Object.assign({}, b, { username: cleanSolverName(b.username) || null });
+        });
         const epochNum = epochData.epochNumber || 1;
 
         const newBlock = {
@@ -810,7 +1049,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
       try {
         const { epochNum, blocks } = epochComplete;
         const winnerList = blocks
-          .map((b, i) => `${i + 1}. @${(b.username || 'Anonymous').replace(/[<>"'&]/g, '').substring(0, 30)} (${(b.value || 0).toLocaleString()})`)
+          .map((b, i) => `${i + 1}. ${favorChatHandle(b && b.username, 30)} (${(b.value || 0).toLocaleString()})`)
           .join('\n');
         const epochMsg = `⛏️ EPOCH #${epochNum} COMPLETE! 🎉\n\n5 blocks have been mined — 21,000 sats will be split among the winners:\n\n${winnerList}\n\n💰 Each winner receives ~${Math.floor(21000 / 5).toLocaleString()} sats. Congrats to all 5 miners! Keep hashing for the next epoch! ⚡`;
         const nachoUid = 'nacho-bot';
@@ -830,6 +1069,19 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
           ts: epochTs,
         }).catch(e => console.warn('[FAVOR] Epoch announce announcements failed:', e.message));
         console.log(`[FAVOR] Epoch #${epochNum} completion announced to chat.`);
+        const share = Math.floor(21000 / Math.max(1, blocks.length));
+        const seen = {};
+        for (let bi = 0; bi < blocks.length; bi++) {
+          const winnerUid = blocks[bi] && blocks[bi].uid;
+          if (!winnerUid || seen[winnerUid]) continue;
+          seen[winnerUid] = true;
+          await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+            uid: winnerUid,
+            onceKey: 'sfepoch_' + epochNum,
+            icon: '⛏️',
+            message: '⛏️ Epoch #' + epochNum + ' complete. Your block share is about ' + share.toLocaleString('en-US') + ' sats.',
+          }));
+        }
       } catch (e) {
         console.warn('[FAVOR] Epoch completion announcement failed:', e.message);
       }
@@ -850,7 +1102,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
       }
     }
     if (!prev || value < prev.value) {
-      await pbRef.set({ value, username, timestamp: admin.firestore.FieldValue.serverTimestamp() });
+      await pbRef.set({ uid, value, username: username || null, timestamp: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
       // Also denormalize onto user doc so the hasher leaderboard can show it without extra fetches
       try {
         await db.collection('users').doc(uid).update({ sfBestHash: value });
@@ -862,29 +1114,45 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
     console.warn('[FAVOR] Personal best update failed:', e.message);
   }
 
-  // Update community top 25 lowest hashes (all-time leaderboard)
-  // Uses _uid internally for dedup but does NOT expose it in the public doc
+  // Public top-hashes doc. Rows stay free of uid. The miner's own values
+  // are recorded on the personal-best doc only that miner can read.
   const lbRef = db.collection('satoshiFavor').doc('topHashes');
   try {
     const lbDoc = await lbRef.get();
     const lbData = lbDoc.exists ? lbDoc.data() : {};
     let entries = lbData.entries || [];
-    
+
     // Allow multiple entries per user — top 50 hashes all-time regardless of who mined them
     const qualifies = entries.length < 50 || value < entries[entries.length - 1].value;
+    const hadIdentity = entries.some((e) => e && (e.uid != null || e.uidHash != null));
 
-    if (qualifies) {
-      const nowTs = admin.firestore.Timestamp.now();
-      entries.push({ username, value, timestamp: nowTs, difficultyTarget: DIFFICULTY_TARGET });
-      entries.sort((a, b) => a.value - b.value);
-      entries = entries.slice(0, 50);
-      // Normalise entries: backfill difficultyTarget for legacy entries that lack it
+    if (qualifies || hadIdentity) {
+      if (qualifies) {
+        const nowTs = admin.firestore.Timestamp.now();
+        entries.push(shapeTopHashEntry({
+          username,
+          value,
+          timestamp: nowTs,
+          difficultyTarget: DIFFICULTY_TARGET,
+        }));
+        entries.sort((a, b) => a.value - b.value);
+        entries = entries.slice(0, 50);
+      }
+      // Backfill difficultyTarget. Drop placeholder names and any legacy uid.
       entries = entries.map(e => {
         const ts = (e.timestamp && typeof e.timestamp.toMillis === 'function') ? e.timestamp : admin.firestore.Timestamp.now();
         const target = e.difficultyTarget != null ? e.difficultyTarget : difficultyAtTime(ts.toMillis());
-        return { username: e.username || 'Anon', value: e.value, timestamp: ts, difficultyTarget: target };
+        return shapeTopHashEntry({
+          username: e.username,
+          value: e.value,
+          timestamp: ts,
+          difficultyTarget: target,
+        });
       });
       await lbRef.set({ entries });
+      if (qualifies && entries.some((e) => e && e.value === value)) {
+        await rememberOwnTopHash(uid, value);
+      }
     }
   } catch (e) {
     console.error('[FAVOR] Top hashes update failed:', e.message, e.stack);
@@ -892,8 +1160,8 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
 
   // Feature 7B/C: Win announcement — post to Global Chat and GGs/Announcements
   if (isWinner) {
-    const safeUsername = (username || 'Anonymous').replace(/[<>"'&]/g, '').substring(0, 50);
-    const winMsg = `⛏️ BLOCK FOUND! ⚡\n\n@${safeUsername} solved a block with hash ${value.toLocaleString()} (target: < ${DIFFICULTY_TARGET.toLocaleString()}) 🎉\n\n👑 Congratulations! Will you be next? ⛏️`;
+    const handle = favorChatHandle(username, 50);
+    const winMsg = `⛏️ BLOCK FOUND! ⚡\n\n${handle} solved a block with hash ${value.toLocaleString()} (target: < ${DIFFICULTY_TARGET.toLocaleString()}) 🎉\n\n👑 Congratulations! Will you be next? ⛏️`;
     const nachoUid = 'nacho-bot';
     const winTs = admin.firestore.FieldValue.serverTimestamp();
 
@@ -915,7 +1183,34 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
       ts: winTs,
     }).catch(e => console.warn('[FAVOR] Win announcements post failed:', e.message));
 
-    console.log(`[FAVOR] WIN posted to chat for ${safeUsername}, hash=${value}`);
+    console.log(`[FAVOR] WIN posted to chat for ${handle}, hash=${value}`);
+    await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
+      uid,
+      onceKey: 'sfblock_' + (stateData.currentCycleId || 'cycle') + '_' + value,
+      icon: '⛏️',
+      message: '⛏️ You solved a block in Satoshi\'s Favor (hash ' + Number(value).toLocaleString('en-US') + ').',
+    }));
+  }
+
+  const hashPlans = [];
+  if (usedBooster) {
+    hashPlans.push.apply(hashPlans, rewardNotify.plan({
+      uid: uid,
+      action: 'sf_booster_hash',
+      boosterHashes: -1,
+      day: new Date().toISOString().slice(0, 10),
+      icon: '⚡',
+    }));
+  }
+  if (spentRig) {
+    hashPlans.push.apply(hashPlans, rewardNotify.plan({
+      uid: uid,
+      icon: '⚡',
+      message: '-1 second rig charge: rig 2 unlocked for this window',
+    }));
+  }
+  if (hashPlans.length) {
+    await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), hashPlans);
   }
 
   return {
@@ -947,56 +1242,15 @@ exports.checkFavorState = functionsV1.https.onCall(async (data, context) => {
 
   let stateData = stateDoc.data();
 
-  // Check if expired and reset
+  // Expired windows reset inside a transaction so eraHashes survive.
   if (stateData.favorActive) {
     const now = Date.now();
-    const favorEndBase = stateData.favorEndBase ? stateData.favorEndBase.toMillis() : 0;
+    const favorEndBase = stateData.favorEndBase && typeof stateData.favorEndBase.toMillis === 'function'
+      ? stateData.favorEndBase.toMillis() : 0;
     const bonusMs = (stateData.bonusMinutes || 0) * 60 * 1000;
-    const effectiveEnd = favorEndBase + bonusMs;
-
-    if (now > effectiveEnd) {
-      // Archive last window stats before resetting
-      try {
-        const lastWindowRef = db.collection('satoshiFavor').doc('lastWindow');
-        await lastWindowRef.set({
-          cycleId: stateData.currentCycleId || null,
-          startedAt: stateData.favorStart || null,
-          endedAt: admin.firestore.Timestamp.now(),
-          durationMinutes: (function() {
-            if (!stateData.favorStart || !effectiveEnd) return 0;
-            const startMs = stateData.favorStart.toMillis();
-            const durMs = effectiveEnd - startMs;
-            return durMs > 0 ? Math.round(durMs / 60000) : 0;
-          })(),
-          totalHashes: stateData.totalHashes || 0,
-          lowestHash: stateData.lowestHashThisWindow || null,
-          difficultyTarget: DIFFICULTY_TARGET,
-          winner: stateData.lowestHashThisWindowUid ? {
-            uid: stateData.lowestHashThisWindowUid,
-            username: stateData.lowestHashThisWindowUsername || null,
-          } : null,
-          winners: stateData.winnersThisWindow || [],
-          archivedAt: admin.firestore.Timestamp.now(),
-        }, { merge: false });
-      } catch (e) {
-        console.warn('[FAVOR] checkFavorState lastWindow archive failed:', e.message);
-      }
-      // Reset (preserve eraHashes — never wipe it)
-      const resetData = {
-        points: 0,
-        favorActive: false,
-        favorStart: null,
-        favorEndBase: null,
-        bonusMinutes: 0,
-        totalHashes: 0,
-        lowestHashThisWindow: null,
-        winnersThisWindow: [],
-        lastReset: admin.firestore.Timestamp.now(),
-        currentCycleId: stateData.currentCycleId || null,
-        eraHashes: stateData.eraHashes || 0,
-      };
-      await stateRef.set(resetData);
-      stateData = resetData;
+    if (now > favorEndBase + bonusMs) {
+      const reset = await resetExpiredFavor(now);
+      if (reset && reset.state) stateData = reset.state;
     }
   }
 
@@ -1095,6 +1349,7 @@ exports.syncCycleToTop10 = functionsV1.https.onCall(async (data, context) => {
   // Process each hash
   let added = 0;
   let skipped = 0;
+  const owned = [];
   // Allow multiple entries per user — top 50 hashes all-time
   for (const hash of hashes) {
     const { username, value } = hash;
@@ -1105,21 +1360,37 @@ exports.syncCycleToTop10 = functionsV1.https.onCall(async (data, context) => {
       continue;
     }
 
-    entries.push({ username, value, timestamp: admin.firestore.Timestamp.now() });
+    entries.push(shapeTopHashEntry({
+      username,
+      value,
+      timestamp: admin.firestore.Timestamp.now(),
+      difficultyTarget: hash.difficultyTarget,
+    }));
     added++;
+    owned.push({ uid: hash.uid, value });
   }
 
-  // Strip serverTimestamp sentinels from any legacy entries
-  entries = entries.map(e => ({
-    username: e.username || 'Anon',
+  // Strip serverTimestamp sentinels and any legacy uid from the public doc.
+  entries = entries.map(e => shapeTopHashEntry({
+    username: e.username,
     value: e.value,
-    timestamp: (e.timestamp && typeof e.timestamp.toMillis === 'function') ? e.timestamp : admin.firestore.Timestamp.now()
+    timestamp: (e.timestamp && typeof e.timestamp.toMillis === 'function') ? e.timestamp : admin.firestore.Timestamp.now(),
+    difficultyTarget: e.difficultyTarget,
   }));
 
   // Sort and trim
   entries.sort((a, b) => a.value - b.value);
   entries = entries.slice(0, 50);
   await lbRef.set({ entries });
+  const kept = new Set(entries.map((e) => e.value));
+  for (let i = 0; i < owned.length; i++) {
+    if (!kept.has(owned[i].value)) continue;
+    try {
+      await rememberOwnTopHash(owned[i].uid, owned[i].value);
+    } catch (e) {
+      console.warn('[FAVOR-SYNC] private top hash note failed:', e.message);
+    }
+  }
 
   console.log(`[FAVOR-SYNC] Added ${added}, skipped ${skipped}. Total entries now: ${entries.length}`);
 
@@ -1212,86 +1483,6 @@ exports.backfillFactionTotals = functionsV1.https.onCall(async (data, context) =
 
   console.log(`[BACKFILL] Done. Totals:`, totals, `Stamped: ${stamped}`);
   return { success: true, totals, contributorDocs: snap.size, uniqueUsers: uids.length, stamped };
-});
-
-/**
- * syncUserFactionPoints (onCall)
- * Called when a user chooses (or first sets) their faction.
- * Sums all their existing contributor docs and adds those points to the new faction total.
- * Does NOT retroactively change old contributor docs (only future contributions get new faction).
- * Safe to call multiple times — uses a per-user sync record to prevent double-counting.
- */
-exports.syncUserFactionPoints = functionsV1.https.onCall(async (data, context) => {
-  if (!context.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
-  if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
-    throw new HttpsError('permission-denied', 'Anonymous users cannot sync faction points.');
-  }
-
-  const uid = context.auth.uid;
-  const { newFaction, previousFaction } = data;
-
-  if (!['cyber_hornets', 'honey_badgers'].includes(newFaction)) {
-    throw new HttpsError('invalid-argument', 'Invalid faction.');
-  }
-
-  const contributorsRef = db.collection('satoshiFavor').doc('current').collection('contributors');
-  const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
-  const syncRef = db.collection('satoshiFavor').doc('factionSyncs').collection('users').doc(uid);
-
-  // Fetch all contributor docs for this user
-  const snap = await contributorsRef.where('uid', '==', uid).get();
-  if (snap.empty) return { success: true, pointsSynced: 0 };
-
-  // Sum points that are currently unaffiliated (no faction was stamped)
-  // or were already on this user's old unaffiliated pool
-  const syncDoc = await syncRef.get();
-  const prevSyncedFaction = syncDoc.exists ? syncDoc.data().faction : null;
-  const prevSyncedPoints = syncDoc.exists ? syncDoc.data().pointsSynced : 0;
-
-  let unaffiliatedPoints = 0;
-  const unstampedDocs = [];
-  snap.forEach(doc => {
-    const d = doc.data();
-    // Count docs that have no faction stamp (unaffiliated pool)
-    if (!d.faction) {
-      unaffiliatedPoints += d.pointsAdded || POINT_VALUES[d.source] || 1;
-      unstampedDocs.push(doc.ref);
-    }
-  });
-
-  if (unaffiliatedPoints === 0) return { success: true, pointsSynced: 0 };
-
-  // Atomically move points from unaffiliated → newFaction
-  await db.runTransaction(async (transaction) => {
-    const totalsDoc = await transaction.get(totalsRef);
-    const current = totalsDoc.exists ? totalsDoc.data() : {};
-    const unaffil = current.unaffiliated || 0;
-
-    // Don't subtract more than what's in unaffiliated (safety)
-    const toMove = Math.min(unaffiliatedPoints, unaffil);
-    if (toMove <= 0) return;
-
-    transaction.set(totalsRef, {
-      unaffiliated: Math.max(0, unaffil - toMove),
-      [newFaction]: admin.firestore.FieldValue.increment(toMove),
-      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-    }, { merge: true });
-
-    // Stamp faction on all previously-unaffiliated contributor docs for this user
-    for (const ref of unstampedDocs) {
-      transaction.update(ref, { faction: newFaction });
-    }
-
-    // Record this sync so we don't double-count
-    transaction.set(syncRef, {
-      uid,
-      faction: newFaction,
-      pointsSynced: toMove,
-      syncedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-  });
-
-  return { success: true, pointsSynced: unaffiliatedPoints };
 });
 
 /**

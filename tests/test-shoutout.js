@@ -39,8 +39,15 @@ test('a shoutout plans one visible Nacho message that tags the winner', function
     assert.strictEqual(plan.isNachoAuto, false);
     assert.strictEqual(plan.docId, 'shoutout_gift_abc');
     assert.strictEqual(plan.text, shoutoutText('phil'));
+    assert.strictEqual(plan.text, '🎉 Shoutout to @phil! They just unlocked a rare Nacho Shoutout. Go send phil a peer request! 🤝');
+    assert.strictEqual((plan.text.match(/@/g) || []).length, 1);
     assert.ok(plan.text.indexOf('@phil') !== -1);
-    assert.ok(plan.text.indexOf('peer request') !== -1);
+    assert.ok(plan.text.indexOf('Go send phil a peer request') !== -1);
+    assert.strictEqual(plan.text.indexOf('Go send @'), -1);
+    assert.strictEqual(
+        shoutoutText('Dihn Aviney'),
+        '🎉 Shoutout to @Dihn Aviney! They just unlocked a rare Nacho Shoutout. Go send Dihn Aviney a peer request! 🤝'
+    );
     const again = planShoutout({
         rewardType: 'nacho_shoutout',
         username: 'phil',
@@ -170,7 +177,9 @@ test('openGift caps a stored shoutout and awardDailyGifts only rolls it', functi
     assert.ok(capAt !== -1 && announceAt > capAt);
     assert.ok(open.indexOf("rewardResult.rewardType === 'nacho_shoutout'") !== -1);
     const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
-    assert.ok(rules.indexOf("'lastShoutoutAt'") !== -1);
+    const keysFn = rules.slice(rules.indexOf('function userProfileServerOnlyKeys()'), rules.indexOf('match /users/{userId}'));
+    assert.ok(keysFn.indexOf("'lastShoutoutAt'") !== -1);
+    assert.ok(rules.indexOf('userProfileServerOnlyKeys()') !== -1);
     const client = fs.readFileSync(path.join(__dirname, '..', 'gifting.js'), 'utf8');
     assert.ok(client.indexOf('shoutoutConverted') !== -1);
     assert.ok(client.indexOf(SHOUTOUT_CONVERTED_MESSAGE) !== -1);

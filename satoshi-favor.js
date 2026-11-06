@@ -101,6 +101,8 @@
     // ─── SF CHAT + NEWS ANNOUNCEMENTS ───
     var SF_ANNOUNCE_DEDUP_MS = 4 * 60 * 60 * 1000; // 4 hours — fallback dedup
     function _nachoSFAnnounce(type) {
+        // The window-open post is written by the server into global chat.
+        if (type === 'start') return;
         if (typeof db === 'undefined' || !db) return;
         if (typeof auth === 'undefined' || !auth || !auth.currentUser) return;
         var uid = auth.currentUser.uid;
@@ -144,8 +146,6 @@
             // Direct global_chat writes as "🦌 Nacho" also fail the username==profile rule.
             if (typeof window.nachoGlobalAnnounce === 'function') {
                 window.nachoGlobalAnnounce(msg, uid);
-            } else if (typeof bridgeToTelegram === 'function') {
-                bridgeToTelegram({ user: '🦌 Nacho', text: msg });
             }
         }).catch(function(err) {
             if (!err._dedupSkip) console.warn('[SF] announce txn failed:', err);
@@ -175,6 +175,7 @@
             if (snap.empty) return;
             var data = snap.docs[0].data();
             if (!data.sfBoostActive) return;
+            if (!sfUiAllows('favorBanner')) return;
             var today = new Date().toISOString().split('T')[0];
             if (data.startDate && data.endDate && today >= data.startDate && today <= data.endDate) {
                 window._sfBoostActive = true;
@@ -206,6 +207,10 @@
 
             // Feature 4: community heat uses current-window hashes from the window doc (resets each window)
             _sfTotalHashes = (favorState.totalHashes || 0);
+            // Redraw the meter from the live doc. Before, the listener only stored the
+            // number and the meter was drawn once on page render, so other players'
+            // hashes never showed until the page was reopened.
+            _repaintHeatMeter();
 
             // Cache to localStorage
             try {
@@ -242,9 +247,8 @@
                 sfState.currentWindowId = favorState.currentCycleId || null;
 
                 if (typeof window.forceShowBubble === 'function') {
-                    window.forceShowBubble("⛏️ SATOSHI'S FAVOR IS ACTIVE! The community hit 21 points — time to mine! Click below to start hashing! ⛏️🦌", 'fire');
+                    window.forceShowBubble("⛏️ SATOSHI'S FAVOR IS ACTIVE! The community hit 21 points — time to hash! Click below to start hashing! ⛏️🦌", 'fire');
                 }
-                _nachoSFAnnounce('start');
             } else if (!nowActive && _prevFavorActive) {
                 // Feature 1: Window closed — update streak based on participation
                 if (sfState.myHashCount > 0) {
@@ -331,11 +335,36 @@
         updateQuestHubTab();
     }
 
+    function sfUiAllows(id) {
+        if (typeof window.bqModeAllows !== 'function') return true;
+        return window.bqModeAllows(id);
+    }
+
     function renderHomeBanner() {
+        var strip = document.getElementById('todayFavorStrip');
+        if (strip && typeof window._paintTodayFavor === 'function') {
+            // Active window: favorActive and the countdown end is still ahead.
+            var active = isFavorEffectivelyActive();
+            strip.dataset.favorLive = active ? '1' : '0';
+            window._paintTodayFavor({
+                points: (favorState && favorState.points) || 0,
+                active: active,
+                target: POINTS_TARGET
+            });
+            if (active) startCountdown('todayFavorCountdown');
+            var old = document.getElementById('satoshiFavorHomeBanner');
+            if (old) old.remove();
+            return;
+        }
+
         const homeInner = document.querySelector('#home .home-inner');
         if (!homeInner) return;
 
         let banner = document.getElementById('satoshiFavorHomeBanner');
+        if (!sfUiAllows('favorBanner')) {
+            if (banner) banner.remove();
+            return;
+        }
         if (!banner) {
             banner = document.createElement('div');
             banner.id = 'satoshiFavorHomeBanner';
@@ -351,6 +380,10 @@
     function renderChatBanner() {
         const existing = document.getElementById('satoshiFavorChatBanner');
         if (!existing) return;
+        if (!sfUiAllows('favorBanner')) {
+            existing.innerHTML = '';
+            return;
+        }
         try {
             existing.innerHTML = buildBannerHTML('chat');
             if (favorState.favorActive) startCountdown('chatCountdown');
@@ -365,12 +398,12 @@
         const isCompact = context === 'chat';
 
         if (isActive) {
-            var hashLine = _satsDisabledNow() ? 'Sats are disabled on this account.' : 'Mine now! Click to hash →';
+            var hashLine = _satsDisabledNow() ? 'Sats are disabled on this account.' : 'Hash now! Click to hash →';
             return `<div class="favor-banner-active" style="${isCompact?'padding:8px 12px;':'padding:12px 16px;margin-bottom:16px;'}background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(247,147,26,0.05));border:2px solid var(--accent);border-radius:12px;text-align:center;animation:favorPulse 2s ease-in-out infinite;cursor:pointer;" onclick="window.showQuestHub && window.showQuestHub(); window._questHubTab = 'favor'; setTimeout(function(){ if(window._renderQuestHubTab) window._renderQuestHubTab(); }, 50);"><div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;"><span style="font-size:${isCompact?'1.2rem':'1.5rem'};">✨⛏️</span><span style="font-size:${isCompact?'0.85rem':'1rem'};font-weight:800;color:var(--accent);">SATOSHI'S FAVOR</span><span style="font-size:${isCompact?'0.7rem':'0.8rem'};color:var(--text-muted);background:rgba(0,0,0,0.3);padding:2px 8px;border-radius:6px;" id="${context}Countdown">--:--:--</span></div><div style="font-size:${isCompact?'0.65rem':'0.75rem'};color:var(--text-muted);margin-top:4px;">${hashLine}</div></div><style>@keyframes favorPulse{0%,100%{box-shadow:0 0 0 0 rgba(247,147,26,0.4)}50%{box-shadow:0 0 0 10px rgba(247,147,26,0)}}</style>`;
         } else {
             const pct = Math.min(100, (points / POINTS_TARGET) * 100);
             const remaining = POINTS_TARGET - points;
-            return `<div class="favor-banner-progress" style="${isCompact?'padding:6px 10px;':'padding:10px 14px;margin-bottom:16px;'}background:var(--card-bg);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:border-color 0.2s;" onclick="window.showQuestHub && window.showQuestHub(); window._questHubTab = 'favor'; setTimeout(function(){ if(window._renderQuestHubTab) window._renderQuestHubTab(); }, 50);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;"><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:${isCompact?'1rem':'1.2rem'};">✨⛏️</span><span style="font-size:${isCompact?'0.75rem':'0.85rem'};font-weight:700;color:var(--heading);">Satoshi's Favor</span></div><span style="font-size:${isCompact?'0.7rem':'0.75rem'};color:var(--text-muted);">${points}/${POINTS_TARGET} points · ${remaining} to go</span></div><div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;"><div style="height:100%;background:linear-gradient(90deg,var(--accent),#ffd700);width:${pct}%;transition:width 0.5s;border-radius:3px;"></div></div></div>`;
+            return `<div class="favor-banner-progress" style="${isCompact?'padding:6px 10px;':'padding:10px 14px;margin-bottom:16px;'}background:var(--card-bg);border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:border-color 0.2s;" onclick="window.showQuestHub && window.showQuestHub(); window._questHubTab = 'favor'; setTimeout(function(){ if(window._renderQuestHubTab) window._renderQuestHubTab(); }, 50);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;"><div style="display:flex;align-items:center;gap:6px;"><span style="font-size:${isCompact?'1rem':'1.2rem'};">✨⛏️</span><span style="font-size:${isCompact?'0.75rem':'0.85rem'};font-weight:700;color:var(--heading);">Satoshi's Favor</span></div><span style="font-size:${isCompact?'0.7rem':'0.75rem'};color:var(--text-muted);">${points}/${POINTS_TARGET} points <strong style="color:var(--accent);">(${remaining} ${remaining === 1 ? 'point' : 'points'} remaining to activate!)</strong></span><span class="sf-tip-wrap" tabindex="0" role="button" aria-label="How Satoshi's Favor points work" onclick="event.stopPropagation();this.classList.toggle('open')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();event.stopPropagation();this.classList.toggle('open')}" onblur="this.classList.remove('open')"><span class="sf-tip-icon">i</span><span class="sf-tip-bubble" role="tooltip">How to earn points: finish all three daily quests (+1) or level up (+1, more on milestone levels). This is a community total: every player's points add up, and at ${POINTS_TARGET} Satoshi's Favor activates for everyone.</span></span></div><div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;"><div style="height:100%;background:linear-gradient(90deg,var(--accent),#ffd700);width:${pct}%;transition:width 0.5s;border-radius:3px;"></div></div></div><style>.sf-tip-wrap{position:relative;display:inline-flex;align-items:center;margin-left:6px;vertical-align:middle;cursor:help;outline:none}.sf-tip-icon{width:16px;height:16px;border-radius:50%;border:1px solid var(--accent);color:var(--accent);font-size:0.65rem;font-weight:800;font-style:italic;display:inline-flex;align-items:center;justify-content:center;font-family:Georgia,serif}.sf-tip-bubble{display:none;position:absolute;right:-8px;top:calc(100% + 8px);width:min(260px,80vw);background:var(--bg-side,#111);color:var(--text);border:1px solid var(--accent);border-radius:10px;padding:10px 12px;font-size:0.74rem;line-height:1.45;font-weight:500;text-align:left;z-index:50;box-shadow:0 6px 24px rgba(0,0,0,0.45);white-space:normal}.sf-tip-wrap:hover .sf-tip-bubble,.sf-tip-wrap:focus .sf-tip-bubble,.sf-tip-wrap.open .sf-tip-bubble{display:block}</style>`;
         }
     }
 
@@ -441,6 +474,8 @@
                     window._satsDisabled = fresh.satsDisabled === true;
                     if (typeof currentUser !== 'undefined' && currentUser) {
                         currentUser.secondRigCharges = fresh.secondRigCharges || 0;
+                        // Server-side record of the window rig 2 was unlocked for (survives reload/crash)
+                        currentUser.lastSecondRigCycleId = fresh.lastSecondRigCycleId || null;
                         currentUser.hashBoosterHashes = fresh.hashBoosterHashes || 0;
                         currentUser.satsDisabled = fresh.satsDisabled === true;
                     }
@@ -497,7 +532,7 @@
         if (inProgressThisWindow && displayStreak < 3) displayStreak = streak + 1;
 
         if (displayStreak === 0) {
-            return '<div style="text-align:center;padding:6px;font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">⛏️ Mine 3 windows in a row to earn a Supercharged Window!</div>';
+            return '<div style="text-align:center;padding:6px;font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;">⛏️ Hash 3 windows in a row to earn a Supercharged Window!</div>';
         }
         var dots = '';
         for (var i = 0; i < 3; i++) {
@@ -566,6 +601,7 @@
 
     // ─── Feature 6: Hash booster UI ───
     function _buildBoosterBannerHTML() {
+        if (!sfUiAllows('favorBanner')) return '';
         var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
         var boosterHashes = u.hashBoosterHashes || 0;
         if (boosterHashes <= 0) return '';
@@ -580,7 +616,8 @@
         var _cycleNow = (favorState && favorState.currentCycleId) || 'unknown';
         // Show Rig 2 button if user has charges unused, OR if they already consumed a charge this cycle
         // (charge unlocks the rig for the entire SF window, not just one hash)
-        var hasSecondRig = (u.secondRigCharges || 0) > 0 || window._sfSecondRigConsumedCycle === _cycleNow;
+        var hasSecondRig = (u.secondRigCharges || 0) > 0 || window._sfSecondRigConsumedCycle === _cycleNow
+            || (_cycleNow !== 'unknown' && u.lastSecondRigCycleId === _cycleNow);
         var boosterHashes = u.hashBoosterHashes || 0;
 
         const overlay = document.createElement('div');
@@ -615,8 +652,8 @@
             '<div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">' +
             '<div style="display:flex;align-items:center;gap:10px;">' +
             '<span style="font-size:1.5rem;">✨⛏️</span>' +
-            '<div><div style="font-weight:800;color:var(--heading);">Satoshi\'s Favor Mining</div>' +
-            '<div style="font-size:0.75rem;color:var(--text-muted);">Target: &lt; ' + DIFFICULTY_TARGET + ' · Solve a block!</div></div>' +
+            '<div><div style="font-weight:800;color:var(--heading);">Satoshi\'s Favor Hashing</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-muted);">Target: &lt; ' + DIFFICULTY_TARGET.toLocaleString() + ' (the current difficulty) · Solve a block!</div></div>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:8px;"><button onclick="window.closeSatoshiFavorMiner()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">← Back</button><button onclick="window._qhReopenOnMinerClose=false;window.closeSatoshiFavorMiner()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;">✕</button></div>' +
             '</div>' +
@@ -628,7 +665,7 @@
             // Feature 4: Heat meter
             _buildHeatMeterHTML() +
             '<div id="sfRateInfoBox" style="background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;padding:12px;margin-bottom:16px;font-size:0.8rem;color:var(--text-muted);">' +
-            'Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">' + DIFFICULTY_TARGET.toLocaleString() + '</strong> (the difficulty target), you solve a block and win a share of 21,000 sats! That\'s a 1 in 5,000 chance per hash (~0.02%). You get <strong style="color:var(--accent);" id="sfRateInfoNum">' + effectiveRateDisplay + '</strong> hashes per minute.' +
+            'Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">' + DIFFICULTY_TARGET.toLocaleString() + '</strong> (the current difficulty), you solve a block and win a share of 21,000 sats! That\'s a 1 in 5,000 chance per hash (~0.02%). You get <strong style="color:var(--accent);" id="sfRateInfoNum">' + effectiveRateDisplay + '</strong> hashes per minute.' +
             '</div>' +
             '<div style="text-align:center;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-muted);">Time Remaining</div>' +
@@ -636,13 +673,13 @@
             '</div>' +
             '<div style="text-align:center;margin-bottom:16px;min-height:148px;display:flex;flex-direction:column;align-items:center;justify-content:center;">' +
             '<div id="minerVisual" style="font-size:4rem;line-height:1;transition:transform 0.1s;">⛏️</div>' +
-            '<div id="hashOutput" style="font-size:1.3rem;font-weight:800;margin-top:8px;font-family:monospace;color:var(--heading);">Ready to mine</div>' +
+            '<div id="hashOutput" style="font-size:1.3rem;font-weight:800;margin-top:8px;font-family:monospace;color:var(--heading);">Ready to hash</div>' +
             '<div id="hashMessage" style="font-size:0.85rem;color:var(--text-muted);margin-top:4px;min-height:2.4em;line-height:1.2;"></div>' +
             // Feature 3: Near-miss toast container — visibility toggle keeps layout stable
             '<div id="sfNearMissToast" style="visibility:hidden;margin-top:8px;padding:8px 12px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.4);border-radius:10px;font-size:0.8rem;font-weight:700;color:#f7931a;"></div>' +
             '</div>' +
             '<div style="display:flex;justify-content:center;gap:20px;margin-bottom:16px;font-size:0.8rem;">' +
-            '<div style="text-align:center;"><div style="color:var(--text-muted);">Target</div><div style="font-weight:800;color:#22c55e;">&lt; ' + DIFFICULTY_TARGET + '</div></div>' +
+            '<div style="text-align:center;"><div style="color:var(--text-muted);">Target</div><div style="font-weight:800;color:#22c55e;">&lt; ' + DIFFICULTY_TARGET.toLocaleString() + ' (the current difficulty)</div></div>' +
             '<div style="text-align:center;"><div style="color:var(--text-muted);">Odds</div><div style="font-weight:800;">1:5,000</div></div>' +
             '<div style="text-align:center;"><div style="color:var(--text-muted);">Rig 1</div><div id="hashCooldown" style="font-weight:800;color:var(--accent);">Ready</div></div>' +
             (hasSecondRig ? '<div style="text-align:center;"><div style="color:var(--text-muted);">Rig 2</div><div id="hashCooldown2" style="font-weight:800;color:#8b5cf6;">Ready</div></div>' : '') +
@@ -720,14 +757,22 @@
                     var bgStyle = isMe ? 'background:rgba(247,147,26,0.12);border:1px solid rgba(247,147,26,0.4);' : 'background:var(--card-bg);border:1px solid var(--border);';
                     var nameColor = isMe ? '#f7931a' : 'var(--text-muted)';
                     var medalEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
+                    var rawSessionName = d.username || '';
+                    var sessionBlank = typeof window.missingPublicName === 'function'
+                        ? window.missingPublicName(rawSessionName)
+                        : (!String(rawSessionName).trim() || /^(anon|anonymous)$/i.test(String(rawSessionName).trim()));
+                    var sessionShown = sessionBlank ? 'Anon' : rawSessionName;
+                    var safeSessionUid = String(d.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
+                    var sessionLookup = safeSessionUid ? ' data-profile-uid="' + safeSessionUid + '"' + (sessionBlank ? ' data-blank-name="1"' : '') : '';
                     html += '<div style="display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:8px;margin-bottom:3px;' + bgStyle + '">' +
                         '<span style="font-size:0.78rem;min-width:22px;text-align:center;">' + medalEmoji + '</span>' +
-                        '<span ' + (d.uid ? 'onclick="if(typeof showUserProfile===\'function\')showUserProfile(\''+d.uid+'\')" style="flex:1;font-size:0.78rem;font-weight:700;color:' + nameColor + ';cursor:pointer;text-decoration:none;" title="View @'+escapeHtml(d.username||'Anon')+'\"s profile"' : 'style="flex:1;font-size:0.78rem;font-weight:700;color:' + nameColor + ';"') + '>@' + escapeHtml(d.username || 'Anon') + '</span>' +
+                        '<span ' + (safeSessionUid ? 'onclick="if(typeof showUserProfile===\'function\')showUserProfile(\''+safeSessionUid+'\')" style="flex:1;font-size:0.78rem;font-weight:700;color:' + nameColor + ';cursor:pointer;text-decoration:none;" title="View @'+escapeHtml(sessionShown)+'\'s profile"' : 'style="flex:1;font-size:0.78rem;font-weight:700;color:' + nameColor + ';"') + sessionLookup + '>@' + escapeHtml(sessionShown) + '</span>' +
                         '<span style="font-size:0.78rem;font-family:monospace;color:' + (isMe ? '#f7931a' : 'var(--text)') + ';font-weight:700;">' + (d.count || 0) + ' hashes</span>' +
                         '</div>';
                     rank++;
                 });
                 el.innerHTML = html;
+                if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el);
             }, function(err) {
                 console.error('[FAVOR] Session LB error:', err);
                 var el = document.getElementById('sfSessionLBList');
@@ -801,6 +846,7 @@
     }
 
     function _showNearMissToast(msg) {
+        if (!sfUiAllows('favorOverlay')) return;
         var el = document.getElementById('sfNearMissToast');
         if (!el) return;
         el.textContent = msg;
@@ -830,6 +876,14 @@
     }
 
     // ─── Feature 4: Heat meter updater (called after each hash) ───
+    function _repaintHeatMeter() {
+        var el = document.getElementById('sfHeatMeter');
+        if (!el) return;
+        el.outerHTML = _buildHeatMeterHTML();
+        var rateEl = document.getElementById('sfRateInfoNum');
+        if (rateEl) rateEl.textContent = _sfEffectiveRate();
+    }
+
     function _updateHeatMeterDisplay() {
         var el = document.getElementById('sfHeatMeter');
         if (!el) return;
@@ -842,6 +896,7 @@
 
     // ─── Feature 7A: Winner overlay ───
     function _showWinnerCelebration(value) {
+        if (!sfUiAllows('favorOverlay')) return;
         // Remove existing if any
         var existing = document.getElementById('sfWinnerOverlay');
         if (existing) existing.remove();
@@ -985,7 +1040,8 @@
         var boosterHashes = u.hashBoosterHashes || 0;
         var _cycleForHash = (favorState && favorState.currentCycleId) || 'unknown';
         // Rig 2 is active for this window if: charges remain, OR the charge was already consumed this cycle
-        var hasSecondRig = (u.secondRigCharges || 0) > 0 || window._sfSecondRigConsumedCycle === _cycleForHash;
+        var hasSecondRig = (u.secondRigCharges || 0) > 0 || window._sfSecondRigConsumedCycle === _cycleForHash
+            || (_cycleForHash !== 'unknown' && u.lastSecondRigCycleId === _cycleForHash);
 
         // Supercharged Window: 1 click = 10 hashes (only Rig 1, rate-limited naturally)
         if (window._sfEasyWindowActive && rig === 1) {
@@ -1087,6 +1143,7 @@
             var _cycleId = (favorState && favorState.currentCycleId) || 'unknown';
             if (rig === 2 && window._sfSecondRigConsumedCycle !== _cycleId) {
                 window._sfSecondRigConsumedCycle = _cycleId;
+                if (typeof currentUser !== 'undefined' && currentUser) currentUser.lastSecondRigCycleId = _cycleId;
                 // Reflect decrement in local currentUser so UI updates immediately
                 if (typeof currentUser !== 'undefined' && currentUser && (currentUser.secondRigCharges || 0) > 0) {
                     currentUser.secondRigCharges = currentUser.secondRigCharges - 1;
@@ -1237,8 +1294,14 @@
                 const isWin = h.isWinner;
                 const val = h.value.toLocaleString();
                 const time = h.timestamp ? new Date(h.timestamp.toMillis()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : '--:--';
-                const name = escapeHtml(h.username || 'Anon');
-                const profileClick = h.uid ? `onclick="if(typeof showUserProfile==='function')showUserProfile('${h.uid}')" title="View @${name}'s profile" style="cursor:pointer;text-decoration:none;"` : '';
+                const rawHashName = h.username || '';
+                const hashBlank = (typeof window.missingPublicName === 'function')
+                    ? window.missingPublicName(rawHashName)
+                    : (!String(rawHashName).trim() || /^(anon|anonymous)$/i.test(String(rawHashName).trim()));
+                const name = escapeHtml(hashBlank ? 'Anon' : rawHashName);
+                const safeHashUid = String(h.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
+                const hashLookup = safeHashUid ? ` data-profile-uid="${safeHashUid}"${hashBlank ? ' data-blank-name="1"' : ''}` : '';
+                const profileClick = safeHashUid ? `onclick="if(typeof showUserProfile==='function')showUserProfile('${safeHashUid}')" title="View @${name}'s profile" style="cursor:pointer;text-decoration:none;"${hashLookup}` : '';
 
                 if (isWin) {
                     html += `<div style="padding:12px 14px;margin-bottom:6px;background:linear-gradient(135deg,rgba(34,197,94,0.2),rgba(34,197,94,0.08));border:2px solid #22c55e;border-radius:10px;animation:favorPulse 2s ease-in-out infinite;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><span ${profileClick} style="font-weight:900;font-size:0.95rem;color:#22c55e;">🏆 WINNER — @${name}</span><span style="color:var(--text-faint);font-size:0.68rem;">${time}</span></div><div style="font-family:monospace;font-size:1.1rem;font-weight:900;color:#22c55e;text-align:center;">${val}</div></div>`;
@@ -1250,6 +1313,7 @@
             });
 
             list.innerHTML = html;
+            if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(list);
         }, (err) => {
             console.error('[FAVOR] Hash log error:', err);
             list.innerHTML = '<div style="color:var(--text-muted);text-align:center;padding:12px;">Failed to load hashes</div>';
@@ -1336,10 +1400,6 @@
             if (data.favorActive && !wasFavorActive) {
                 var _sfAct = parseInt(localStorage.getItem('btc_sf_activations') || '0') + 1;
                 localStorage.setItem('btc_sf_activations', _sfAct.toString());
-                var activateMsg = '⛏️ SATOSHI\'S FAVOR IS NOW ACTIVE!';
-                if (howEarned) activateMsg += ' ' + howEarned;
-                activateMsg += ' Mine now for 60 minutes! ➡️ [Satoshi\'s Favor](#favor)';
-                window.nachoGlobalAnnounce && window.nachoGlobalAnnounce(activateMsg, (auth && auth.currentUser) ? auth.currentUser.uid : '');
             } else if (data.favorActive && wasFavorActive) {
                 if (typeof window.nachoGlobalAnnounce === 'function') {
                     var extMsg;
@@ -1430,6 +1490,13 @@
     var _sfFloatTCTVNudgeDone = false;
 
     function _sfUpdateFloat() {
+        if (!sfUiAllows('favorFloat')) {
+            var blocked = document.getElementById('sfFloatWidget');
+            if (blocked && blocked.parentNode) blocked.parentNode.removeChild(blocked);
+            if (_sfFloatCooldownTimer) { clearInterval(_sfFloatCooldownTimer); _sfFloatCooldownTimer = null; }
+            _sfFloatShown = false;
+            return;
+        }
         var isActive = !!(favorState && favorState.favorActive && isFavorEffectivelyActive());
         var isLoggedIn = !!(typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous);
 
@@ -1505,6 +1572,8 @@
             if (!_sfFloatTCTVNudgeDone) {
                 _sfFloatTCTVNudgeDone = true;
                 setTimeout(function() {
+                    if (typeof window.btcPopupBlocked === 'function' && window.btcPopupBlocked('favor')) return;
+                    if (typeof window.btcClaimSessionPopup === 'function' && !window.btcClaimSessionPopup('favor')) return;
                     if (typeof showToast === 'function') {
                         showToast('⛏️ Satoshi\'s Favor is live! Tap the orange button to hash from anywhere — <a href="#timechain-tv" onclick="if(typeof go===\'function\'){go(\'timechain-tv\');}" style="color:#f7931a;font-weight:700;">even while watching Timechain TV</a>! 📺', 6000);
                     }

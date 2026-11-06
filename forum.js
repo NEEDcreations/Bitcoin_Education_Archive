@@ -359,6 +359,45 @@ function forumRenderPosts(posts, container) {
 window.forumSetSort = function(s) { forumSort = s; renderForum(); };
 window.forumSetCategory = function(c) { forumCategory = c; sessionStorage.setItem('btc_forum_category', c); renderForum(); };
 
+function forumContinueLabel(name) {
+    var title = String(name || 'this topic').replace(/\s+/g, ' ').trim() || 'this topic';
+    if (title.length > 80) title = title.slice(0, 77).trim() + '…';
+    // Quote the title so "the" + "The problems…" does not read "the The".
+    return 'Continue in “' + title + '” →';
+}
+
+function forumTopicAnchorSuffix(p) {
+    if (!p) return '';
+    var index = p.anchorIndex;
+    var hash = String(p.anchorHash || '');
+    if (typeof index === 'string' && !/^(0|[1-9]\d*)$/.test(index)) return '';
+    var n = typeof index === 'number' ? index : (index == null || index === '' ? NaN : Number(index));
+    if (!isFinite(n) || Math.floor(n) !== n || n < 0 || n > 8000) return '';
+    if (!/^[a-z0-9]{8}$/.test(hash)) return '';
+    return '/' + String(n) + '/' + hash;
+}
+
+function forumTopicContinueLink(p) {
+    if (!p || p.origin !== 'topic') return '';
+    var channel = String(p.topicChannel || '').replace(/[^A-Za-z0-9_-]/g, '');
+    var post = String(p.topicPost || '').replace(/[^A-Za-z0-9_-]/g, '');
+    var stored = String(p.topicLink || '');
+    var storedOk = /^#topic\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+(?:\/\d+\/[a-z0-9]{8})?$/.test(stored) ? stored : '';
+    var href = (channel && post) ? ('#topic/' + channel + '/' + post) : storedOk;
+    if (!href) return '';
+    var suffix = forumTopicAnchorSuffix(p);
+    if (channel && post && suffix) href = '#topic/' + channel + '/' + post + suffix;
+    var name = '';
+    var title = String(p.title || '').replace(/[\u0000-\u001F]/g, '').trim();
+    if (title.indexOf('Discussion: ') === 0) name = title.slice('Discussion: '.length).trim();
+    if (!name) {
+        var slug = channel || href.split('/')[1] || '';
+        name = slug ? (slug.charAt(0).toUpperCase() + slug.slice(1)) : 'this topic';
+    }
+    name = name.replace(/\s+/g, ' ').trim();
+    return '<a href="' + fEsc(href) + '" style="display:block;margin:0 0 12px;max-width:100%;color:var(--accent);font-size:0.9rem;font-weight:800;line-height:1.35;text-decoration:none;white-space:normal;overflow-wrap:anywhere;">' + fEsc(forumContinueLabel(name)) + '</a>';
+}
+
 // ---- View Post ----
 window.forumViewPost = async function(postId, fromPopState) {
     var fc = document.getElementById('forumContainer');
@@ -392,7 +431,7 @@ window.forumViewPost = async function(postId, fromPopState) {
             '<h2 style="color:var(--heading);font-size:1.15rem;font-weight:800;margin:0 0 8px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</h2>' +
             '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">' +
                 '<span style="font-size:0.8rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
-                '<span style="font-size:0.75rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
+                '<span style="font-size:0.75rem;color:var(--text-faint);">' + forumWhen(p.createdAt) + '</span>' +
             '</div>';
 
         if (p.body) {
@@ -404,7 +443,10 @@ window.forumViewPost = async function(postId, fromPopState) {
             html += '<div style="color:var(--text);font-size:0.9rem;line-height:1.6;margin-bottom:12px;word-wrap:break-word;overflow-wrap:break-word;overflow-x:hidden;">' + bodyHtml + '</div>';
         }
 
-        if (p.link) {
+        var topicContinue = forumTopicContinueLink(p);
+        if (topicContinue) {
+            html += topicContinue;
+        } else if (p.link) {
             // [VULN-5 FIX] sanitizeUrl blocks javascript:/data:/vbscript: before writing into href
             var safeLink = typeof sanitizeUrl === 'function' ? sanitizeUrl(p.link) : '';
             if (safeLink) {
@@ -455,6 +497,25 @@ window.forumViewPost = async function(postId, fromPopState) {
     }
 };
 
+function forumExactTime(ts) {
+    var ms = 0;
+    if (!ts) return '';
+    if (typeof ts.toMillis === 'function') ms = ts.toMillis();
+    else if (typeof ts.toDate === 'function') ms = ts.toDate().getTime();
+    else if (typeof ts.seconds === 'number') ms = ts.seconds * 1000 + Math.floor((ts.nanoseconds || 0) / 1e6);
+    else if (typeof ts === 'number') ms = ts;
+    if (!ms) return '';
+    var date = new Date(ms);
+    if (isNaN(date.getTime())) return '';
+    var datePart = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date);
+    var timePart = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(date);
+    var text = datePart + ' · ' + timePart;
+    return '<time datetime="' + date.toISOString() + '" title="' + text + '">' + text + '</time>';
+}
+function forumWhen(ts) {
+    return forumExactTime(ts) || (typeof timeAgo === 'function' ? timeAgo(ts) : '');
+}
+
 // ---- Load Replies ----
 async function forumLoadReplies(postId) {
     var container = document.getElementById('forumReplies');
@@ -464,6 +525,7 @@ async function forumLoadReplies(postId) {
         var snap = await db.collection('forum_replies').where('postId', '==', postId).orderBy('createdAt', 'asc').limit(100).get();
         var replies = [];
         snap.forEach(function(doc) { replies.push({ id: doc.id, ...doc.data() }); });
+        replies = replies.filter(function(r) { return r.deleted !== true && r.hidden !== true; });
 
         if (replies.length === 0) {
             container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.85rem;">No replies yet. Be the first!</div>';
@@ -498,7 +560,7 @@ async function forumLoadReplies(postId) {
                 replyToLabel +
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
                     '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
-                    '<span style="font-size:0.7rem;color:var(--text-faint);">' + timeAgo(r.createdAt) + '</span>' +
+                    '<span style="font-size:0.7rem;color:var(--text-faint);">' + forumWhen(r.createdAt) + '</span>' +
                 '</div>' +
                 '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;margin-bottom:8px;">' + bodyHtml + '</div>' +
                 '<div style="display:flex;gap:8px;align-items:center;">' +
@@ -694,9 +756,8 @@ window.forumSubmitPost = async function() {
         localStorage.setItem('btc_forum_post_count', (postCount + 1).toString());
         localStorage.setItem('btc_forum_post_date', today);
 
-        if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post');
-        if (typeof awardTickets === 'function') awardTickets(1, 'Forum post');  // matches forum_post_ticket
-        if (typeof showToast === 'function') setTimeout(function() { showToast('🎫 +1 Orange Ticket for posting in PlebTalk!'); }, 800);
+        if (typeof awardPoints === 'function') awardPoints(10, '📝 Forum post', null, null, null, null, { postId: postRef.id });
+        if (typeof awardTickets === 'function') awardTickets(1, 'Forum post');
         // Combo tracking
         if (typeof window._trackCombo === 'function') window._trackCombo('forum');
         // Notify @mentioned users
@@ -708,12 +769,8 @@ window.forumSubmitPost = async function() {
         if (typeof currentUser !== 'undefined' && currentUser) currentUser.forumPosts = (currentUser.forumPosts || 0) + 1;
         // Raid Boss: forum post
         if (typeof window._raidOnForumPost === 'function') window._raidOnForumPost();
-        // Announce to Global Chat via Nacho
-        if (typeof window.nachoGlobalAnnounce === 'function') {
-            var _shortTitle = fEsc(title).substring(0, 80);
-            var _shortBody = fEsc(body).substring(0, 120);
-            window.nachoGlobalAnnounce('\uD83D\uDDE3\uFE0F New Forum Post: ' + _shortTitle + ' by ' + fEsc(userName) + ': ' + _shortBody + (body.length > 120 ? '...' : '') + ' \u27A1\uFE0F [Open PlebTalk](#forum)');
-        }
+        // Global Chat is announced server-side (onForumShoutout). A client
+        // write could forge Nacho or skip the rate limit.
         forumBack();
     } catch(e) {
         if (status) status.innerHTML = '<span style="color:#ef4444;">Error posting. Try again.</span>';
@@ -743,6 +800,15 @@ window.forumCancelReplyTo = function() {
 };
 
 // ---- Submit Reply ----
+function forumPostIsTopicMirror(post) {
+    if (!post) return false;
+    if (post.origin === 'topic' || post.origin === 'forum') return true;
+    if (post.noAward === true) return true;
+    if (post.mirrorOf) return true;
+    if (post.topicChannel || post.topicPost) return true;
+    return false;
+}
+
 window.forumSubmitReply = async function(postId) {
     // [AUDIT FIX] Double-submit protection
     if (window._forumReplySubmitting) return;
@@ -786,18 +852,23 @@ window.forumSubmitReply = async function(postId) {
             replyData.parentAuthorName = replyingTo.authorName || '';
         }
 
-        await db.collection('forum_replies').add(replyData);
+        var replyRef = await db.collection('forum_replies').add(replyData);
 
-        // Increment reply count
-        await db.collection('forum_posts').doc(postId).update({
-            replyCount: firebase.firestore.FieldValue.increment(1)
-        });
-
-        if (typeof awardPoints === 'function') awardPoints(5, '💬 Forum reply');
-        // Combo tracking
-        if (typeof window._trackCombo === 'function') window._trackCombo('forum');
-try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc.toString()); } catch(e) {}
-        try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc.toString()); } catch(e) {}
+        // replyCount is maintained by onForumReplyCount. A non-author cannot
+        // write that field, and that denial must not skip the reply XP.
+        var skipForumReplyAward = forumPostIsTopicMirror(forumCurrentPost);
+        if (!skipForumReplyAward && typeof awardPoints === 'function') {
+            try {
+                var replyAward = awardPoints(5, '💬 Forum reply', null, null, null, null, { replyId: replyRef && replyRef.id });
+                if (replyAward && typeof replyAward.catch === 'function') replyAward.catch(function () {});
+            } catch (awardErr) { /* the reply is already saved */ }
+        }
+        // Combo tracking. A mirrored topic reply already earns conversation XP.
+        if (!skipForumReplyAward && typeof window._trackCombo === 'function') window._trackCombo('forum');
+        if (!skipForumReplyAward) {
+            try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc.toString()); } catch(e) {}
+            try { var _frc2 = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') + 1; localStorage.setItem('btc_forum_reply_count', _frc2.toString()); } catch(e2) {}
+        }
         // Notify post author (for top-level replies) or parent reply author (for nested)
         var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';
         if (replyingTo && replyingTo.replyId) {
@@ -817,11 +888,13 @@ try { var _frc = parseInt(localStorage.getItem('btc_forum_reply_count') || '0') 
         }
         // Notify @mentioned users
         forumNotifyMentions(body, 'forum_post', postId, forumCurrentPost ? forumCurrentPost.title : '');
-        // Track for badge
-        db.collection('users').doc(auth.currentUser.uid).update({
-            forumReplies: firebase.firestore.FieldValue.increment(1)
-        }).catch(function(e) { console.error('[forum] Error:', e); });
-        if (typeof currentUser !== 'undefined' && currentUser) currentUser.forumReplies = (currentUser.forumReplies || 0) + 1;
+        // Track for badge. Skip when this reply is on a mirrored topic thread.
+        if (!skipForumReplyAward) {
+            db.collection('users').doc(auth.currentUser.uid).update({
+                forumReplies: firebase.firestore.FieldValue.increment(1)
+            }).catch(function(e) { console.error('[forum] Error:', e); });
+            if (typeof currentUser !== 'undefined' && currentUser) currentUser.forumReplies = (currentUser.forumReplies || 0) + 1;
+        }
         input.value = '';
         // Clear reply-to state
         window.forumCancelReplyTo();
@@ -955,10 +1028,7 @@ window.forumDeleteReply = async function(replyId, postId) {
 
     try {
         await db.collection('forum_replies').doc(replyId).delete();
-        // Decrement reply count
-        await db.collection('forum_posts').doc(postId).update({
-            replyCount: firebase.firestore.FieldValue.increment(-1)
-        });
+        // onForumReplyCountDeleted adjusts replyCount. The client cannot.
 
         if (typeof showToast === 'function') showToast('🗑️ Reply deleted');
         if (forumCurrentPost) forumLoadReplies(postId);
@@ -1498,8 +1568,7 @@ window.articleSubmit = async function() {
         localStorage.removeItem('btc_article_draft');
         if (window._articleAutoSave) clearInterval(window._articleAutoSave);
         
-        // Awards
-        if (typeof awardPoints === 'function') awardPoints(30, '📝 Article published');
+        // XP is paid by the article trigger from the saved document. Tickets stay here.
         if (typeof awardTickets === 'function') awardTickets(20, '📝 Article published');
         var _ac = parseInt(localStorage.getItem('btc_articles_published') || '0'); localStorage.setItem('btc_articles_published', String(_ac + 1));
         
@@ -1756,9 +1825,15 @@ window.articleSubmitReply = async function(articleId) {
             replyData.parentReplyId = window._articleReplyingTo.replyId;
             replyData.parentAuthorName = window._articleReplyingTo.authorName;
         }
-        await db.collection('article_replies').add(replyData);
-        await db.collection('articles').doc(articleId).update({ replyCount: firebase.firestore.FieldValue.increment(1) });
-        if (typeof awardPoints === 'function') awardPoints(5, '💬 Article comment');
+        var articleReplyRef = await db.collection('article_replies').add(replyData);
+        // replyCount is maintained by onArticleReplyCount. The article author
+        // is the only client who could write it, so this must not gate the XP.
+        if (typeof awardPoints === 'function') {
+            try {
+                var articleAward = awardPoints(5, '💬 Article comment', null, null, null, null, { commentId: articleReplyRef && articleReplyRef.id });
+                if (articleAward && typeof articleAward.catch === 'function') articleAward.catch(function () {});
+            } catch (awardErr) { /* the comment is already saved */ }
+        }
         try {
             var _aDoc = await db.collection('articles').doc(articleId).get();
             var _un = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : 'Someone';

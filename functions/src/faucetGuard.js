@@ -78,6 +78,9 @@ function assessBan(user, ledger) {
 // saved: address already on the account (any of the legacy field names), normalized by caller.
 // lockOwner: uid on lightning_addresses/{address}, or ''.
 // otherBanned: some other account already uses this address and is banned.
+// otherInUse: some other account already has this address saved. A reset must not
+// create the lock out from under them. A normal claim leaves this false so the
+// first real withdrawal can still take an unlocked address.
 function assessAddressLock(info) {
     const src = info || {};
     const callerUid = String(src.callerUid || '');
@@ -108,6 +111,14 @@ function assessAddressLock(info) {
             code: 'address_banned',
             flag: true,
             error: supportError('This Lightning Address is linked to a disabled account.'),
+        };
+    }
+    if (src.otherInUse === true) {
+        return {
+            ok: false,
+            code: 'address_conflict',
+            flag: true,
+            error: supportError('This Lightning Address is already on another account.'),
         };
     }
     return { ok: true, address: requested, createLock: !lockOwner };

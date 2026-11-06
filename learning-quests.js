@@ -907,9 +907,6 @@ function _lqShowScore() {
             var _lqBadgeId = topic.badgeId;
             awardPoints(100, 'Badge: ' + _lqBadgeId, null, null, null, _lqBadgeId)
                 .then(function(r) {
-                    var dup = r && r.data && r.data.badgeDuplicate;
-                    if (!dup && typeof window.contributeSatoshiFavor === 'function')
-                        window.contributeSatoshiFavor('badge_earned', _lqBadgeId).catch(function(){});
                 }).catch(function(){});
         }
         if (typeof awardHiddenBadge === 'function') awardHiddenBadge(topic.badgeId, topic.badgeName);
@@ -971,9 +968,7 @@ function _lqShowGraduate() {
     if (typeof awardPoints === 'function') {
         awardPoints(250, 'Badge: lq_graduate', null, null, null, 'lq_graduate')
             .then(function(r) {
-                var dup = r && r.data && r.data.badgeDuplicate;
-                if (!dup && typeof window.contributeSatoshiFavor === 'function')
-                    window.contributeSatoshiFavor('badge_earned', 'lq_graduate').catch(function(){});
+                var data = r && r.data;
             }).catch(function(){});
     }
     if (typeof awardOrangeTickets === 'function') awardOrangeTickets(10, '📖 Graduate');
@@ -1067,7 +1062,7 @@ window._lqLaunchFlashcards = function(topicName) {
             window.startFlashcards(topicName);
         } else {
             var s = document.createElement('script');
-            s.src = 'scholar.js?v=20260724_2136';
+            s.src = window.SCHOLAR_SCRIPT || 'scholar.js';
             s.onload = function() { if (typeof window.startFlashcards === 'function') window.startFlashcards(topicName); };
             document.head.appendChild(s);
         }

@@ -5,27 +5,55 @@
 // Admin SDK writes bypass Firestore rules; rules still deny client writes.
 
 const functionsV1 = require('firebase-functions/v1');
+const { defineSecret } = require('firebase-functions/params');
+const deletionHmacSecret = defineSecret('DELETION_HMAC_SECRET');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
 const dns = require('dns').promises;
 const bolt11 = require('bolt11');
+const { resolveLnurlInvoice } = require('./lnurlResolve');
 const { NWCClient } = require('@getalby/sdk');
 const { updatePeerLevelAfterGift } = require('./peerLevel');
-const { rollCipherReward } = require('./cipherReward');
+const faucetGuard = require('./faucetGuard');
+const { rollCipherReward, satsDisposition, ALLOWED_SATS_AMOUNTS } = require('./cipherReward');
+const {
+    creditDocId,
+    planCipherSatsClaim,
+    cipherClaimUserPatch,
+    assessAttemptRate,
+    claimsDisabledFromConfig,
+    claimReadyToPay,
+    lockOwnedByClaim,
+    adminMayResolveClaim,
+    adminReleaseFromLookup,
+    RATE_ERROR,
+    UNAVAILABLE,
+} = require('./cipherSatsClaim');
+const { planCipherShare, senderFromKey, clonePrize } = require('./cipherShare');
 const { rollGiftReward: rollGiftRewardImpl, rollGiftCount } = require('./giftRoll');
-const { splitDailyXp, DAILY_POINTS_CAP } = require('./dailyXp');
+const { applyDailyXp } = require('./applyDailyXp');
+const rewardNotify = require('./rewardNotify');
+const { planXpGrant } = require('./grantXp');
 const {
     assessCipherClaim,
     isSatsBanned,
+    rewardBlocked,
     SATS_BANNED_ERROR,
     lookupRequestFromDecoded,
     shouldLookupPay,
     lookupSettlement,
+    classifyLookup,
     adminClaimFlag,
 } = require('./cipherClaim');
-const { planShoutout, applyShoutoutCap } = require('./shoutout');
+const { planShoutout, applyShoutoutCap, shoutoutDocId } = require('./shoutout');
+const { publishShoutoutOnce } = require('./shoutoutPublish');
+const { mirrorShoutoutOnce } = require('./telegramBridge');
 
 const db = admin.firestore();
+
+function rewardStamp() {
+    return admin.firestore.FieldValue.serverTimestamp();
+}
 
 const CIPHER_LABELS = ['3A', '7F', 'B2', 'D9', '1C', '8E', 'A4', 'F6'];
 const CIPHER_OPENS_PER_DAY = 21;
@@ -104,6 +132,7 @@ function publicReward(reward) {
     if (reward.satsAmount) out.satsAmount = reward.satsAmount;
     if (reward.winId) out.winId = reward.winId;
     if (reward.satsStatus) out.satsStatus = reward.satsStatus;
+    if (reward.cipherSatsBalance != null) out.cipherSatsBalance = reward.cipherSatsBalance;
     if (reward.shoutoutConverted) out.shoutoutConverted = true;
     if (reward.conversionMessage) out.conversionMessage = reward.conversionMessage;
     return out;
@@ -124,44 +153,28 @@ async function postNacho(text, mentionUid) {
     await db.collection('global_chat').add(msg);
 }
 
-// One chat message per prize. The doc id is the prize id, and the gift or
-// cipher is marked in the same transaction, so a retry cannot double-post.
+// One chat message per prize. publishShoutoutOnce writes the chat doc and
+// returns whether this call actually posted it. The mention push runs only
+// then, so a retry does not notify twice. PlebTalk and Marketplace shoutouts
+// go through announceActivity and do not push.
 async function publishShoutout(markerRef, plan) {
-    const chatRef = db.collection(plan.collection).doc(plan.docId);
-    const notifRef = db.collection('notifications').doc(plan.docId);
-    await db.runTransaction(async (t) => {
-        const marker = await t.get(markerRef);
-        const existing = await t.get(chatRef);
-        const posted = marker.exists && marker.data().shoutoutPosted === true;
-        if (posted || existing.exists) {
-            if (!posted && marker.exists) t.update(markerRef, { shoutoutPosted: true });
-            return;
-        }
-        t.update(markerRef, {
-            shoutoutPosted: true,
-            shoutoutAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        t.set(chatRef, {
-            uid: plan.authorUid,
-            name: plan.authorName,
-            text: plan.text,
-            isNachoAuto: plan.isNachoAuto,
-            mentionUid: plan.mentionUid,
-            ts: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        const preview = String(plan.text || '').slice(0, 50);
-        t.set(notifRef, {
-            recipientId: plan.mentionUid,
-            senderId: 'nacho-bot',
-            senderName: 'Nacho 🦌',
-            type: 'chat_mention',
-            message: '💬 @Nacho mentioned you in Global Chat: "' + preview + '"',
-            targetType: 'chat',
-            targetId: plan.docId,
-            read: false,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+    const published = await publishShoutoutOnce({
+        db: db,
+        admin: admin,
+        markerRef: markerRef,
+        plan: plan,
     });
+    if (published && published.wrote && plan.mentionUid && !plan.activityRef) {
+        try {
+            const { sendUserPush } = require('./push');
+            await sendUserPush(plan.mentionUid, 'mentions', {
+                title: 'Nacho mentioned you',
+                body: 'Your shoutout is in global chat.',
+                url: 'https://bitcoineducation.quest/#chat'
+            });
+        } catch (e) { console.warn('[shoutout] push failed:', e.message); }
+    }
+    return published;
 }
 
 async function maybeAnnounceShoutout(opts) {
@@ -186,11 +199,31 @@ async function maybeAnnounceShoutout(opts) {
     if (!plan.post) {
         if (plan.reason === 'banned' && marker.shoutoutPosted !== true) {
             await opts.markerRef.set({ shoutoutSkipped: 'banned' }, { merge: true }).catch(function() {});
+        } else if (plan.reason === 'already_posted') {
+            // openGift retries this function after the chat doc exists. Mirror
+            // is skipped when telegramMsgId or telegramMirrored is already set.
+            await mirrorShoutoutQuiet(shoutoutDocId(opts.prizeId), 'global_chat');
         }
         return plan;
     }
     await publishShoutout(opts.markerRef, plan);
+    await mirrorShoutoutQuiet(plan.docId, plan.collection, plan.text);
     return plan;
+}
+
+// Best-effort. mirrorShoutoutOnce already swallows bridge errors; this guard
+// keeps a surprise throw from failing the gift open or posting twice on retry.
+async function mirrorShoutoutQuiet(docId, collection, text) {
+    try {
+        await mirrorShoutoutOnce({
+            db: db,
+            docId: docId,
+            collection: collection || 'global_chat',
+            text: text,
+        });
+    } catch (err) {
+        console.warn('[shoutout] telegram mirror failed');
+    }
 }
 
 function nachoSatsText(username, amount) {
@@ -232,6 +265,21 @@ const awardDailyGifts = functionsV1.https.onCall(async (data, context) => {
         }
 
         t.update(userRef, { lastGiftSpinDate: today });
+        if (giftsToAdd > 0) {
+            try {
+                rewardNotify.apply(t, db, rewardStamp(), rewardNotify.plan({
+                    uid: uid,
+                    onceKey: 'gifts_' + today,
+                    type: 'gift_received',
+                    icon: '🎁',
+                    targetType: 'gift',
+                    targetId: gifts[0] ? gifts[0].id : null,
+                    message: '🎁 You received ' + giftsToAdd + ' gift' + (giftsToAdd === 1 ? '' : 's') + '. Open them to see what is inside.',
+                }));
+            } catch (notifyErr) {
+                console.warn('[awardDailyGifts] reward notify skipped:', notifyErr && notifyErr.message);
+            }
+        }
         return { success: true, giftsAdded: giftsToAdd, gifts: gifts };
     });
 
@@ -243,6 +291,8 @@ const awardDailyGifts = functionsV1.https.onCall(async (data, context) => {
 const OPEN_STATUSES = { unopened: true, inventory: true, sent: true };
 
 const openGift = functionsV1.https.onCall(async (data, context) => {
+    const secondFactor = require('./secondFactor');
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     const giftId = (data.giftId || '').toString().trim();
     if (!giftId || giftId.length > 128) throw httpsError('invalid-argument', 'Invalid giftId');
@@ -252,11 +302,18 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
     const userRef = db.collection('users').doc(uid);
     let rewardResult = null;
     let peerSender = null;
+    let giftPointsBefore = 0;
+    let shoutoutWon = false;
 
     await db.runTransaction(async (t) => {
+        const giftDay = getOffsetDateKey();
+        const dailyRef = userRef.collection('daily_points').doc(giftDay);
+        const ledgerRef = db.collection('faucet_ledger').doc(uid);
         const giftDoc = await t.get(giftRef);
         const secretDoc = await t.get(secretRef);
         const userDoc = await t.get(userRef);
+        const dailyDoc = await t.get(dailyRef);
+        const ledgerDoc = await t.get(ledgerRef);
 
         if (!giftDoc.exists) throw httpsError('not-found', 'Gift not found');
         if (!userDoc.exists) throw httpsError('not-found', 'User not found');
@@ -294,16 +351,39 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
                 nowMs: Date.now(),
             });
             reward = cap.reward;
-            if (cap.awarded) userUpdate.lastShoutoutAt = now;
+            if (cap.awarded) {
+                userUpdate.lastShoutoutAt = now;
+                userUpdate.giftShoutoutWon = true;
+                shoutoutWon = true;
+            }
         }
+        userUpdate.giftsOpened = admin.firestore.FieldValue.increment(1);
 
         if (reward.rewardType === 'tickets') {
             userUpdate.orangeTickets = admin.firestore.FieldValue.increment(reward.ticketCount || 1);
         } else if (reward.rewardType === 'xp_bonus') {
-            const xp = reward.xpAmount || 50;
-            userUpdate.points = admin.firestore.FieldValue.increment(xp);
-            userUpdate.weeklyXP = admin.firestore.FieldValue.increment(xp);
-            userUpdate.monthlyXP = admin.firestore.FieldValue.increment(xp);
+            const ledger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : null;
+            let xp = reward.xpAmount || 50;
+            let giftDoubled = false;
+            if (rewardBlocked(user, ledger)) xp = 0;
+            else {
+                const used = dailyDoc.exists ? (Number(dailyDoc.data().total) || 0) : 0;
+                const giftPlan = planXpGrant({ base: xp, user: user, now: Date.now(), dailyUsed: used });
+                xp = giftPlan.awarded;
+                giftDoubled = giftPlan.doubled === true;
+                if (xp > 0) {
+                    t.set(dailyRef, {
+                        total: giftPlan.dailyXp,
+                        lastUpdated: now,
+                    }, { merge: true });
+                }
+            }
+            reward = Object.assign({}, reward, { xpAmount: xp, doubled: giftDoubled });
+            if (xp > 0) {
+                userUpdate.points = admin.firestore.FieldValue.increment(xp);
+                userUpdate.weeklyXP = admin.firestore.FieldValue.increment(xp);
+                userUpdate.monthlyXP = admin.firestore.FieldValue.increment(xp);
+            }
         } else if (reward.rewardType === 'streak_shield') {
             userUpdate.streakFreezes = admin.firestore.FieldValue.increment(1);
         } else if (reward.rewardType === 'closet_item') {
@@ -319,6 +399,7 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
                 if (CIPHER_LABELS.indexOf(label) === -1) return;
                 const keyRef = db.collection('keys').doc();
                 keyIds.push(keyRef.id);
+                // A key the user earns has no sender. sendKeys writes that field.
                 t.set(keyRef, {
                     ownerId: uid,
                     label: label,
@@ -363,11 +444,49 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
         }
 
         rewardResult = reward;
+        giftPointsBefore = user.points || 0;
     });
 
     if (peerSender) {
-        try { await updatePeerLevelAfterGift(peerSender, uid); }
-        catch (e) { console.warn('[openGift] peerLevel failed:', e.message); }
+        try {
+            const level = await updatePeerLevelAfterGift(peerSender, uid);
+            await require('./badgeCredit').creditPeerLevel(db, admin, peerSender, uid, level);
+        } catch (e) { console.warn('[openGift] peerLevel failed:', e.message); }
+    }
+    try {
+        const ids = require('./grantBadge').familyFor('giftsOpened');
+        if (shoutoutWon) ids.push('gift_lucky_shoutout');
+        await require('./badgeCredit').grantIds(db, admin, uid, ids);
+    } catch (e) { console.warn('[openGift] badges', e.message); }
+
+    if (rewardResult) {
+        const spec = { uid: uid, sourceLabel: 'opening a gift', icon: '🎁', pointsBefore: giftPointsBefore, pointsDelta: 0 };
+        if (rewardResult.rewardType === 'tickets') {
+            spec.tickets = rewardResult.ticketCount || 1;
+            if (rewardResult.closetDupe) spec.sourceLabel = 'opening a gift (closet item already owned)';
+        } else if (rewardResult.rewardType === 'xp_bonus') {
+            spec.xp = rewardResult.xpAmount || 50;
+            spec.pointsDelta = spec.xp;
+        } else if (rewardResult.rewardType === 'streak_shield') {
+            spec.freezes = 1;
+            spec.icon = '🧊';
+        } else if (rewardResult.rewardType === 'closet_item') {
+            spec.gains = ['👔 a closet item'];
+            spec.icon = '👔';
+        } else if (rewardResult.rewardType === 'keys') {
+            const labels = (rewardResult.keyLabels || []).filter(Boolean).join(', ');
+            spec.message = '🔑 You received ' + (labels || 'a key') + ' from opening a gift';
+            spec.icon = '🔑';
+        } else if (rewardResult.rewardType === 'locked_ciphers') {
+            const labels = (rewardResult.cipherLabels || []).filter(Boolean).join(', ');
+            spec.message = '🔒 You received locked cipher ' + (labels || '') + ' from opening a gift';
+            spec.icon = '🔒';
+        } else if (rewardResult.rewardType === 'nacho_shoutout') {
+            spec.message = '🎁 Nacho shoutout from opening a gift';
+        }
+        if (spec.tickets || spec.xp || spec.freezes || spec.gains || spec.message) {
+            await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan(spec));
+        }
     }
 
     if (rewardResult && rewardResult.rewardType === 'nacho_shoutout') {
@@ -388,6 +507,8 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
 // ─── Send keys (no client bypass; 1 send of up to 3 per recipient per UTC day)
 
 const sendKeys = functionsV1.https.onCall(async (data, context) => {
+    const secondFactor = require('./secondFactor');
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     const recipientUid = (data.recipientUid || '').toString().trim();
     const keyIds = Array.isArray(data.keyIds) ? data.keyIds.map(function(k) { return String(k).trim(); }).filter(Boolean) : [];
@@ -407,22 +528,25 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
     const canonicalRef = pairRefs[0];
     const senderRef = db.collection('users').doc(uid);
     const recipRef = db.collection('users').doc(recipientUid);
-    const dailyPtsRef = senderRef.collection('daily_points').doc(todayOffset);
+    // Same ban doc openGift reads. There is no sats_ledger collection.
+    const ledgerRef = db.collection('faucet_ledger').doc(uid);
     const keyRefs = keyIds.map(function(id) { return db.collection('keys').doc(id); });
 
     let senderName = 'Someone';
     let xpAwarded = 0;
+    let sentLabels = [];
+    let senderPointsBefore = 0;
 
     await db.runTransaction(async (t) => {
         const docs = await Promise.all([
             t.get(senderRef),
             t.get(recipRef),
-            t.get(dailyPtsRef),
+            t.get(ledgerRef),
         ].concat(pairRefs.map(function(r) { return t.get(r); }), keyRefs.map(function(r) { return t.get(r); })));
 
         const senderDoc = docs[0];
         const recipDoc = docs[1];
-        const dailyDoc = docs[2];
+        const ledgerDoc = docs[2];
         const pairDocs = docs.slice(3, 3 + pairRefs.length);
         const keyDocs = docs.slice(3 + pairRefs.length);
 
@@ -430,7 +554,13 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
         if (!recipDoc.exists) throw httpsError('not-found', 'Recipient not found');
 
         const sender = senderDoc.data();
+        const ledger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : null;
+        if (rewardBlocked(sender, ledger)) {
+            throw httpsError('permission-denied', 'Key sends are disabled on this account.');
+        }
         senderName = safeName(sender.username || 'Someone');
+        senderPointsBefore = sender.points || 0;
+        sentLabels = [];
         const peers = sender.peers || [];
         if (peers.indexOf(recipientUid) === -1) throw httpsError('failed-precondition', 'You must be peers to send keys');
 
@@ -446,7 +576,16 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
             if (key.ownerId !== uid) throw httpsError('permission-denied', 'Not your key');
             if (key.status !== 'inventory') throw httpsError('failed-precondition', 'Key already sent or used');
             if (CIPHER_LABELS.indexOf(key.label) === -1) throw httpsError('invalid-argument', 'Invalid key label');
+            sentLabels.push(key.label);
         });
+
+        const xpGrant = await applyDailyXp(uid, KEY_SEND_XP, t, {
+            day: todayOffset,
+            userRef: senderRef,
+            user: sender,
+            now: Date.now(),
+        });
+        xpAwarded = xpGrant.awarded;
 
         const now = admin.firestore.FieldValue.serverTimestamp();
         for (let i = 0; i < keyDocs.length; i++) {
@@ -457,6 +596,10 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
                 sentByName: senderName,
                 sentAt: now,
                 ownerId: recipientUid,
+                sendPairId: canonicalRef.id,
+                // Server-only provenance. Clients cannot write keys, and this
+                // call ignores any sender the client put on the request.
+                sender: uid,
             });
         }
 
@@ -472,54 +615,49 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
         const prevDate = sender.keysSentDate || '';
         const already = prevDate === todayUtc && Array.isArray(sender.keysSentTo) ? sender.keysSentTo.slice() : [];
         if (already.indexOf(recipientUid) === -1) already.push(recipientUid);
-        const dailyUsed = dailyDoc.exists ? (dailyDoc.data().total || 0) : 0;
-        const xpSplit = splitDailyXp(dailyUsed, KEY_SEND_XP, DAILY_POINTS_CAP);
-        xpAwarded = xpSplit.awarded;
         const senderUpdate = {
             keysSentDate: todayUtc,
             keysSentTo: already,
         };
-        if (xpSplit.awarded > 0) {
-            senderUpdate.points = admin.firestore.FieldValue.increment(xpSplit.awarded);
-            senderUpdate.weeklyXP = admin.firestore.FieldValue.increment(xpSplit.awarded);
-            senderUpdate.monthlyXP = admin.firestore.FieldValue.increment(xpSplit.awarded);
-            t.set(dailyPtsRef, {
-                total: dailyUsed + xpSplit.awarded,
+        if (xpGrant.awarded > 0) {
+            senderUpdate.points = admin.firestore.FieldValue.increment(xpGrant.awarded);
+            senderUpdate.weeklyXP = admin.firestore.FieldValue.increment(xpGrant.awarded);
+            senderUpdate.monthlyXP = admin.firestore.FieldValue.increment(xpGrant.awarded);
+            t.set(xpGrant.dailyRef, {
+                total: xpGrant.dailyXp,
                 lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
             }, { merge: true });
-        }
-        if (xpSplit.overflowAdded > 0) {
-            senderUpdate.pendingOverflow = admin.firestore.FieldValue.increment(xpSplit.overflowAdded);
-            senderUpdate.lastOverflowDate = todayOffset;
         }
         t.update(senderRef, senderUpdate);
     });
 
     try {
-        const rSnap = await recipRef.get();
-        const rFcm = rSnap.exists ? (rSnap.data().fcmToken || null) : null;
-        if (rFcm) {
-            try {
-                await admin.messaging().send({
-                    token: rFcm,
-                    notification: {
-                        title: '🔑 Keys received!',
-                        body: senderName + ' sent you ' + keyIds.length + ' key' + (keyIds.length > 1 ? 's' : '') + '!',
-                    },
-                    data: { type: 'keys_received', senderUid: uid },
-                });
-            } catch (pushErr) { console.warn('[sendKeys] push failed:', pushErr.message); }
-        }
-        await db.collection('notifications').add({
-            recipientId: recipientUid,
-            senderId: uid,
-            senderName: senderName,
+        try {
+            const { sendUserPush } = require('./push');
+            await sendUserPush(recipientUid, 'gifts', {
+                title: 'Keys received',
+                body: senderName + ' sent you ' + keyIds.length + ' key' + (keyIds.length > 1 ? 's' : '') + '.',
+                url: 'https://bitcoineducation.quest/#questhub'
+            });
+        } catch (pushErr) { console.warn('[sendKeys] push failed:', pushErr.message); }
+        const labelText = sentLabels.filter(Boolean).join(', ');
+        const keyWord = sentLabels.length === 1 ? 'an ' + (labelText || 'key') : (labelText || (keyIds.length + ' keys'));
+        await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan({
+            uid: recipientUid,
             type: 'keys_received',
-            message: senderName + ' sent you ' + keyIds.length + ' key' + (keyIds.length > 1 ? 's' : '') + '! 🔑',
+            icon: '🔑',
             targetType: 'keys',
-            read: false,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+            message: '🔑 You received ' + keyWord + ' from @' + senderName,
+            onceKey: 'keys_' + uid + '_' + todayUtc,
+        }).concat(xpAwarded > 0 ? rewardNotify.plan({
+            uid: uid,
+            xp: xpAwarded,
+            sourceLabel: 'sending keys',
+            icon: '🔑',
+            pointsBefore: senderPointsBefore,
+            pointsDelta: xpAwarded,
+            onceKey: 'keysend_' + recipientUid + '_' + todayUtc,
+        }) : []));
     } catch (e) { console.warn('[sendKeys] notification failed:', e.message); }
 
     return { success: true, keysSent: keyIds.length, xpAwarded: xpAwarded };
@@ -528,6 +666,8 @@ const sendKeys = functionsV1.https.onCall(async (data, context) => {
 // ─── Open a cipher with a matching key (own or peer-sent) ────────────────────
 
 const decryptCipher = functionsV1.https.onCall(async (data, context) => {
+    const secondFactor = require('./secondFactor');
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     const cipherId = (data.cipherId || '').toString().trim();
     const keyId = (data.keyId || '').toString().trim();
@@ -540,17 +680,48 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
     const userRef = db.collection('users').doc(uid);
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
     const reward = rollCipherReward();
-    if (reward.rewardType === 'sats' && [100, 500, 1000, 5000, 10000, 50000, 100000].indexOf(reward.satsAmount) === -1) {
+    // Allowed sats amounts: 100000, 50000, 10000, 5000, 1000, 500, 100, 50, 25, 10, 5.
+    if (reward.rewardType === 'sats' && ALLOWED_SATS_AMOUNTS.indexOf(reward.satsAmount) === -1) {
         throw httpsError('internal', 'Bad reward roll');
+    }
+    const satsMode = reward.rewardType === 'sats' ? satsDisposition(reward.satsAmount) : '';
+    // One roll. The opener's daily XP taper must not change the prize the sender is offered.
+    const sharedPrize = clonePrize(reward);
+    // Sats shares use the same claim gates as claimCipherWin. Age comes from
+    // Auth, outside the transaction, the same way a claim does.
+    let openerAgeKnown = false;
+    let openerAgeDays = 0;
+    if (reward.rewardType === 'sats') {
+        try {
+            const userRecord = await admin.auth().getUser(uid);
+            const created = new Date(userRecord.metadata.creationTime).getTime();
+            if (Number.isFinite(created)) {
+                openerAgeDays = Math.floor((Date.now() - created) / 86400000);
+                openerAgeKnown = true;
+            }
+        } catch (e) {
+            console.error('[decryptCipher] Could not verify opener account age:', e.message);
+        }
     }
 
     let applied = null;
+    let cipherPointsBefore = 0;
 
     await db.runTransaction(async (t) => {
+        const cipherDay = getOffsetDateKey();
+        const dailyRef = userRef.collection('daily_points').doc(cipherDay);
         const cipherDoc = await t.get(cipherRef);
         const keyDoc = await t.get(keyRef);
         const userDoc = await t.get(userRef);
         const ledgerDoc = await t.get(ledgerRef);
+        const dailyDoc = await t.get(dailyRef);
+        let openerCreditRef = null;
+        let openerCreditSnap = null;
+        const openerCreditId = satsMode === 'balance' ? creditDocId(cipherId, 'opener') : '';
+        if (openerCreditId) {
+            openerCreditRef = db.collection('cipher_sats_credits').doc(openerCreditId);
+            openerCreditSnap = await t.get(openerCreditRef);
+        }
         if (!cipherDoc.exists) throw httpsError('not-found', 'Cipher not found');
         if (!keyDoc.exists) throw httpsError('not-found', 'Key not found');
         if (!userDoc.exists) throw httpsError('not-found', 'User not found');
@@ -583,16 +754,107 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         const userUpdate = {
             ciphersDecryptedToday: decToday + 1,
             ciphersDecryptedDate: today,
+            ciphersSolved: admin.firestore.FieldValue.increment(1),
         };
+        if (decToday + 1 >= CIPHER_OPENS_PER_DAY) userUpdate.cipherFullRing = true;
         const now = admin.firestore.FieldValue.serverTimestamp();
         let winId = null;
         let satsStatus = null;
+        let openerDailyTotal = null;
+        const ledger = ledgerDoc.exists ? (ledgerDoc.data() || {}) : null;
 
+        // Decide the opener's prize before any write so the sender reads
+        // still happen first. The roll above is the only roll.
+        let openerBalance = null;
         if (reward.rewardType === 'sats') {
-            satsStatus = reward.satsAmount >= 1000 ? 'pending' : 'claimable'; // under 1,000 auto-pay; 1,000+ manual
-            const winRef = db.collection('cipher_wins').doc();
-            winId = winRef.id;
-            t.set(winRef, {
+            // Under 1,000 credits the server balance once per open. 1,000+ stay manual.
+            satsStatus = satsMode === 'balance' ? 'balance' : 'pending';
+            if (satsMode === 'manual') winId = db.collection('cipher_wins').doc().id;
+            const priorBalance = Math.max(0, Math.floor(Number(user.cipherSatsBalance) || 0));
+            const alreadyCredited = !!(openerCreditSnap && openerCreditSnap.exists);
+            if (satsMode === 'balance' && openerCreditRef && !alreadyCredited) {
+                userUpdate.cipherSatsBalance = admin.firestore.FieldValue.increment(reward.satsAmount);
+                openerBalance = priorBalance + reward.satsAmount;
+            } else {
+                openerBalance = priorBalance;
+            }
+        } else {
+            let xp = reward.xpAmount || 50;
+            if (rewardBlocked(user, ledger)) xp = 0;
+            else {
+                const used = dailyDoc.exists ? (Number(dailyDoc.data().total) || 0) : 0;
+                const tapered = planXpGrant({ base: xp, user: user, now: Date.now(), dailyUsed: used });
+                xp = tapered.awarded;
+                reward.doubled = tapered.doubled === true;
+                reward.base = tapered.base;
+                reward.boosted = tapered.boosted;
+                if (xp > 0) openerDailyTotal = tapered.dailyXp;
+            }
+            reward.xpAmount = xp;
+            if (xp > 0) {
+                userUpdate.points = admin.firestore.FieldValue.increment(xp);
+                userUpdate.weeklyXP = admin.firestore.FieldValue.increment(xp);
+                userUpdate.monthlyXP = admin.firestore.FieldValue.increment(xp);
+            }
+            if ((reward.ticketCount || 0) > 0 && !rewardBlocked(user, ledger)) {
+                userUpdate.orangeTickets = admin.firestore.FieldValue.increment(reward.ticketCount);
+            }
+        }
+
+        // Sender reads stay before every write in this transaction.
+        let sharePlan = null;
+        let senderRef = null;
+        let senderDailyRef = null;
+        let senderCreditRef = null;
+        let senderCreditSnap = null;
+        let shareSenderName = 'a Bitcoiner';
+        const shareSender = senderFromKey(key);
+        const shareRef = db.collection('cipher_shares').doc(cipherId);
+        if (shareSender) {
+            senderRef = db.collection('users').doc(shareSender);
+            const senderLedgerRef = db.collection('faucet_ledger').doc(shareSender);
+            senderDailyRef = senderRef.collection('daily_points').doc(cipherDay);
+            const shareSnap = await t.get(shareRef);
+            const senderSnap = await t.get(senderRef);
+            const senderCreditId = satsMode === 'balance' ? creditDocId(cipherId, 'sender') : '';
+            if (senderCreditId) {
+                senderCreditRef = db.collection('cipher_sats_credits').doc(senderCreditId);
+                senderCreditSnap = await t.get(senderCreditRef);
+            }
+            shareSenderName = safeName(senderSnap.exists ? (senderSnap.data() || {}).username : '');
+            const senderLedgerSnap = await t.get(senderLedgerRef);
+            const senderDailySnap = await t.get(senderDailyRef);
+            sharePlan = planCipherShare({
+                cipherId: cipherId,
+                cipherLabel: cipher.label,
+                openerUid: uid,
+                openerUsername: safeName(user.username),
+                opener: Object.assign({ uid: uid }, user),
+                openerLedger: ledger,
+                sender: senderSnap.exists ? senderSnap.data() : null,
+                senderLedger: senderLedgerSnap.exists ? senderLedgerSnap.data() : null,
+                key: key,
+                reward: sharedPrize,
+                openerClaim: reward.rewardType === 'sats' ? {
+                    email: (context.auth.token && context.auth.token.email) || '',
+                    emailVerified: !!(context.auth.token && context.auth.token.email_verified === true),
+                    ageKnown: openerAgeKnown,
+                    ageDays: openerAgeDays,
+                    satsDisabled: user.satsDisabled === true,
+                    ledgerBanned: !!(ledger && ledger.banned === true),
+                } : null,
+                marker: shareSnap.exists ? (shareSnap.data() || null) : null,
+                nowMs: Date.now(),
+                today: today,
+                senderDailyXpUsed: senderDailySnap.exists ? (Number((senderDailySnap.data() || {}).total) || 0) : 0,
+            });
+            if (!sharePlan.pay) {
+                console.warn('[decryptCipher] cipher share skipped ' + sharePlan.reason + ' cipher=' + cipherId);
+            }
+        }
+
+        if (reward.rewardType === 'sats' && satsMode === 'manual' && winId) {
+            t.set(db.collection('cipher_wins').doc(winId), {
                 uid: uid,
                 username: safeName(user.username),
                 amount: reward.satsAmount,
@@ -609,13 +871,95 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
                 paidAt: null,
                 paidBy: null,
             });
-        } else {
-            const xp = reward.xpAmount || 50;
-            userUpdate.points = admin.firestore.FieldValue.increment(xp);
-            userUpdate.weeklyXP = admin.firestore.FieldValue.increment(xp);
-            userUpdate.monthlyXP = admin.firestore.FieldValue.increment(xp);
-            if ((reward.ticketCount || 0) > 0) {
-                userUpdate.orangeTickets = admin.firestore.FieldValue.increment(reward.ticketCount);
+        } else if (reward.rewardType === 'sats' && satsMode === 'balance' && openerCreditRef && openerCreditSnap && !openerCreditSnap.exists) {
+            t.set(openerCreditRef, {
+                uid: uid,
+                cipherId: cipherId,
+                amount: reward.satsAmount,
+                role: 'opener',
+                createdAt: now,
+            });
+        } else if (openerDailyTotal != null) {
+            t.set(dailyRef, {
+                total: openerDailyTotal,
+                lastUpdated: now,
+            }, { merge: true });
+        }
+
+        if (sharePlan && sharePlan.pay && senderRef) {
+            const credit = sharePlan.credit;
+            const senderUpdate = {
+                ciphersDecryptedToday: credit.opensToday,
+                ciphersDecryptedDate: today,
+            };
+            if (credit.fullRing) senderUpdate.cipherFullRing = true;
+            if (credit.xp > 0) {
+                senderUpdate.points = admin.firestore.FieldValue.increment(credit.xp);
+                senderUpdate.weeklyXP = admin.firestore.FieldValue.increment(credit.xp);
+                senderUpdate.monthlyXP = admin.firestore.FieldValue.increment(credit.xp);
+                t.set(senderDailyRef, {
+                    total: credit.dailyXp,
+                    lastUpdated: now,
+                }, { merge: true });
+            }
+            if (credit.tickets > 0) {
+                senderUpdate.orangeTickets = admin.firestore.FieldValue.increment(credit.tickets);
+            }
+            if (credit.sats > 0 && credit.satsStatus === 'balance' && senderCreditRef && senderCreditSnap && !senderCreditSnap.exists) {
+                senderUpdate.cipherSatsBalance = admin.firestore.FieldValue.increment(credit.sats);
+            }
+            t.update(senderRef, senderUpdate);
+            if (credit.sats > 0 && credit.satsStatus === 'balance' && senderCreditRef && senderCreditSnap && !senderCreditSnap.exists) {
+                t.set(senderCreditRef, {
+                    uid: shareSender,
+                    cipherId: cipherId,
+                    amount: credit.sats,
+                    role: 'sender',
+                    createdAt: now,
+                });
+            } else if (credit.sats > 0) {
+                const shareWinRef = db.collection('cipher_wins').doc();
+                t.set(shareWinRef, {
+                    uid: shareSender,
+                    username: shareSenderName,
+                    amount: credit.sats,
+                    cipherId: cipherId,
+                    cipherLabel: cipher.label,
+                    keyId: keyId,
+                    keySentBy: shareSender,
+                    keySentByName: null,
+                    keyOrigin: 'share',
+                    openerName: safeName(user.username),
+                    shareId: cipherId,
+                    roll: reward.roll,
+                    status: credit.satsStatus,
+                    announced: false,
+                    createdAt: now,
+                    paidAt: null,
+                    paidBy: null,
+                });
+            }
+            t.set(shareRef, {
+                paid: true,
+                senderUid: shareSender,
+                openerName: safeName(user.username),
+                cipherId: cipherId,
+                cipherLabel: cipher.label || '',
+                prizeRewardType: sharePlan.prize.rewardType,
+                prizeXp: sharePlan.prize.xpAmount,
+                prizeTickets: sharePlan.prize.ticketCount,
+                prizeSats: sharePlan.prize.satsAmount,
+                xp: credit.xp,
+                tickets: credit.tickets,
+                sats: credit.sats,
+                roll: reward.roll,
+                revealed: false,
+                createdAt: now,
+            });
+            if (sharePlan.notice && sharePlan.noticeId) {
+                t.set(db.collection('notifications').doc(sharePlan.noticeId), Object.assign({}, sharePlan.notice, {
+                    createdAt: now,
+                }));
             }
         }
 
@@ -623,27 +967,94 @@ const decryptCipher = functionsV1.https.onCall(async (data, context) => {
         t.update(keyRef, { status: 'consumed', consumedAt: now });
         t.update(userRef, userUpdate);
 
+        cipherPointsBefore = user.points || 0;
         applied = {
-            reward: Object.assign({}, reward, { winId: winId, satsStatus: satsStatus }),
+            reward: Object.assign({}, reward, {
+                winId: winId,
+                satsStatus: satsStatus,
+                cipherSatsBalance: openerBalance,
+            }),
             keySentBy: peerKey ? (key.sentBy || null) : null,
+            sendPairId: peerKey ? (key.sendPairId || '') : '',
             opensToday: decToday + 1,
+            fullRing: decToday + 1 >= CIPHER_OPENS_PER_DAY,
             username: safeName(user.username),
+            share: sharePlan && sharePlan.pay ? {
+                senderUid: shareSender,
+                fullRing: sharePlan.credit.fullRing,
+            } : null,
         };
     });
 
     if (applied && applied.keySentBy && applied.keySentBy !== uid) {
-        try { await updatePeerLevelAfterGift(applied.keySentBy, uid); }
-        catch (e) { console.warn('[decryptCipher] peerLevel failed:', e.message); }
-    }
-
-    // Cipher odds do not roll a shoutout today (sats, or XP and tickets).
-    // If a cipher prize is ever a shoutout, it posts the same way a gift does.
-    if (applied && applied.reward && applied.reward.rewardType === 'nacho_shoutout') {
         try {
-            await maybeAnnounceShoutout({ uid: uid, prizeId: 'cipher_' + cipherId, markerRef: cipherRef });
-        } catch (e) { console.warn('[decryptCipher] nacho shoutout failed:', e.message); }
+            await require('./badgeCredit').creditPeerKeyUse(db, admin, {
+                openerUid: uid,
+                senderUid: applied.keySentBy,
+                pairId: applied.sendPairId,
+                keyId: keyId,
+                opensToday: applied.opensToday,
+            });
+        } catch (e) { console.warn('[decryptCipher] peer key credit', e.message); }
+        try {
+            const level = await updatePeerLevelAfterGift(applied.keySentBy, uid);
+            await require('./badgeCredit').creditPeerLevel(db, admin, applied.keySentBy, uid, level);
+        } catch (e) { console.warn('[decryptCipher] peerLevel failed:', e.message); }
     }
 
+    if (applied && applied.reward) {
+        const r = applied.reward;
+        const spec = {
+            uid: uid,
+            sourceLabel: 'opening a cipher',
+            icon: '🔓',
+            pointsBefore: cipherPointsBefore,
+            pointsDelta: 0,
+        };
+        if (r.rewardType === 'sats') {
+            spec.icon = '⚡';
+            spec.message = r.satsStatus === 'balance'
+                ? ('+' + Number(r.satsAmount || 0).toLocaleString('en-US') + ' sats added to your cipher balance')
+                : ('+' + Number(r.satsAmount || 0).toLocaleString('en-US') + ' sats from a cipher (pending review)');
+        } else if (r.rewardType === 'nacho_shoutout') {
+            spec.message = '🎁 Nacho shoutout from opening a cipher';
+            spec.icon = '🎁';
+        } else {
+            spec.xp = r.xpAmount || 50;
+            spec.pointsDelta = spec.xp;
+            spec.tickets = r.ticketCount || 0;
+        }
+        await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan(spec));
+        // Cipher odds do not roll a shoutout today (sats, or XP and tickets).
+        // If a cipher prize is ever a shoutout, it posts the same way a gift does.
+        if (r.rewardType === 'nacho_shoutout') {
+            try {
+                await maybeAnnounceShoutout({ uid: uid, prizeId: 'cipher_' + cipherId, markerRef: cipherRef });
+            } catch (e) { console.warn('[decryptCipher] nacho shoutout failed:', e.message); }
+        }
+    }
+
+    try {
+        const { grantFamily, familyFor } = require('./grantBadge');
+        await grantFamily(db, admin, uid, familyFor('ciphersSolved'));
+        if (applied && applied.fullRing) await grantFamily(db, admin, uid, ['cipher_full_ring']);
+        if (applied && applied.share && applied.share.fullRing && applied.share.senderUid) {
+            await grantFamily(db, admin, applied.share.senderUid, ['cipher_full_ring']);
+        }
+    } catch (cipherBadgeErr) {
+        console.warn('[decryptCipher] badges', cipherBadgeErr && cipherBadgeErr.message);
+    }
+    if (applied && applied.share && applied.share.senderUid && applied.share.senderUid !== uid) {
+        try {
+            await require('./raidBossEngine').noteTrusted(db, admin, {
+                metric: 'cipherPeerKey',
+                uid: uid,
+                dedupeKey: 'cipher-' + uid + '-' + cipherId,
+                amount: 1,
+                now: new Date(),
+            });
+        } catch (cipherRaidErr) { console.warn('[decryptCipher] raid', cipherRaidErr && cipherRaidErr.message); }
+    }
     const pub = publicReward(applied.reward);
     pub.opensToday = applied.opensToday;
     pub.opensMax = CIPHER_OPENS_PER_DAY;
@@ -688,28 +1099,15 @@ async function _resolvePrizeInvoice(invoice, lightningAddress, amount) {
             throw new Error('Invalid Lightning Address.');
         }
         const parts = lnAddr.split('@');
-        const localPart = parts[0];
         const domain = (parts[1] || '').split(':')[0];
-        await _assertPublicHost(domain);
-        const nodeFetch = require('node-fetch');
-        const metaRes = await nodeFetch('https://' + domain + '/.well-known/lnurlp/' + encodeURIComponent(localPart), { timeout: 8000, size: 65536 });
-        if (!metaRes.ok) throw new Error('Could not look up that Lightning Address.');
-        const meta = await metaRes.json();
-        if (!meta.callback) throw new Error('Lightning Address did not return a callback.');
-        let cbUrl;
-        try { cbUrl = new URL(meta.callback); } catch (_) { throw new Error('Bad callback URL.'); }
-        if (cbUrl.protocol !== 'https:' || cbUrl.hostname.toLowerCase() !== domain.toLowerCase()) {
-            throw new Error('Lightning Address callback was rejected.');
+        try {
+            const resolved = await resolveLnurlInvoice({ address: lnAddr, msats: amount * 1000, bolt11: bolt11 });
+            bolt = resolved.pr;
+        } catch (e) {
+            console.error('[GIFT] Lightning Address resolution failed domain=' + domain);
+            const clear = e && (e.code === 'lnurl_error' || e.code === 'below_min' || e.code === 'above_max' || e.code === 'amount_mismatch' || e.code === 'wrong_network');
+            throw new Error(clear && e.message ? e.message : 'Could not look up that Lightning Address.');
         }
-        const msats = amount * 1000;
-        if (meta.minSendable && msats < meta.minSendable) throw new Error('Amount is below that wallet minimum.');
-        if (meta.maxSendable && msats > meta.maxSendable) throw new Error('Amount is above that wallet maximum.');
-        const sep = meta.callback.indexOf('?') === -1 ? '?' : '&';
-        const invRes = await nodeFetch(meta.callback + sep + 'amount=' + msats, { timeout: 8000, size: 65536 });
-        if (!invRes.ok) throw new Error('Could not create an invoice for that address.');
-        const invData = await invRes.json();
-        if (!invData.pr) throw new Error('No invoice returned.');
-        bolt = invData.pr;
     }
     if (!bolt || bolt.toLowerCase().indexOf('lnbc') !== 0 || bolt.length < 50 || bolt.length > 2000) {
         throw new Error('Paste a Lightning invoice that starts with lnbc, or a Lightning Address.');
@@ -724,11 +1122,18 @@ async function _resolvePrizeInvoice(invoice, lightningAddress, amount) {
     return bolt;
 }
 
-const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall(async (data, context) => {
+const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [deletionHmacSecret] }).https.onCall(async (data, context) => {
+    const secondFactor = require('./secondFactor');
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     const winId = (data.winId || '').toString().trim();
     if (!winId || winId.length > 128) throw httpsError('invalid-argument', 'Invalid win');
     if (!NWC_URL) throw httpsError('failed-precondition', 'Prize wallet is not configured yet. Phil can pay this from the admin list.');
+    const accountTombstone = require('./accountTombstone');
+    const emailChange = require('./emailChange');
+    if (!accountTombstone.secretReady()) {
+        throw httpsError('failed-precondition', 'Sats claims are paused. Try again later.');
+    }
 
     const winRef = db.collection('cipher_wins').doc(winId);
     const userRef = db.collection('users').doc(uid);
@@ -740,16 +1145,31 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall
     // The decision itself runs inside the transaction, with the user and ledger docs.
     let ageDays = 0;
     let ageKnown = false;
+    let authUser = null;
+    let tombSatsDisabled = false;
+    let tombLedgerBanned = false;
     try {
-        const userRecord = await admin.auth().getUser(uid);
-        const created = new Date(userRecord.metadata.creationTime).getTime();
+        authUser = await admin.auth().getUser(uid);
+        const created = new Date(authUser.metadata.creationTime).getTime();
         if (Number.isFinite(created)) {
             ageDays = Math.floor((Date.now() - created) / 86400000);
             ageKnown = true;
         }
     } catch (e) {
         console.error('[claimCipherWin] Could not verify account age:', e.message);
+        throw httpsError('failed-precondition', 'Try again later.');
     }
+    if (!authUser || !Array.isArray(authUser.providerData)) {
+        throw httpsError('failed-precondition', 'Try again later.');
+    }
+    const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, authUser, Date.now(), (context.auth && context.auth.token) || {}, true);
+    if (!payoutGate.ok) throw httpsError('failed-precondition', payoutGate.error);
+    const looked = payoutGate.tomb || { configured: false, summary: accountTombstone.emptySummary() };
+    if (looked.configured && looked.summary && (looked.summary.banned || looked.summary.satsDisabled || looked.summary.ledgerBanned)) {
+        await accountTombstone.applyIdentityFlags(db, uid, looked.summary);
+    }
+    tombSatsDisabled = !!(looked.summary && looked.summary.satsDisabled);
+    tombLedgerBanned = !!(looked.summary && looked.summary.ledgerBanned);
 
     await db.runTransaction(async (t) => {
         const winDoc = await t.get(winRef);
@@ -765,13 +1185,20 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall
         if (win.amount >= 1000 || (win.amount !== 100 && win.amount !== 500)) {
             throw httpsError('failed-precondition', 'This prize is paid manually.');
         }
+        const userRow = userDoc.exists ? (userDoc.data() || {}) : {};
+        if (Number(userRow.satsHold) > Date.now()) {
+            throw httpsError('failed-precondition', 'Sats withdrawals are paused on this account. Try again later.');
+        }
+        const token = (context.auth && context.auth.token) || {};
+        const verifiedAuthEmail = authUser && authUser.email && authUser.emailVerified === true;
+        const verifiedTokenEmail = token.email && token.email_verified === true;
         const gate = assessCipherClaim({
-            email: context.auth.token.email || '',
-            emailVerified: context.auth.token.email_verified === true,
+            email: verifiedAuthEmail ? authUser.email : (verifiedTokenEmail ? token.email : ''),
+            emailVerified: verifiedAuthEmail || verifiedTokenEmail === true,
             ageKnown: ageKnown,
             ageDays: ageDays,
-            satsDisabled: userDoc.exists && userDoc.data().satsDisabled === true,
-            ledgerBanned: ledgerDoc.exists && ledgerDoc.data().banned === true,
+            satsDisabled: userRow.satsDisabled === true || tombSatsDisabled,
+            ledgerBanned: (ledgerDoc.exists && ledgerDoc.data().banned === true) || tombLedgerBanned,
         });
         if (!gate.ok) throw httpsError('failed-precondition', gate.error);
         amount = win.amount;
@@ -782,9 +1209,16 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall
         });
     });
 
+    // The player pays the flat Lightning fee: the invoice is for the net amount.
+    const winFee = require('./lnFee').quote(amount);
+    if (!winFee.ok) {
+        await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
+        return { success: false, error: winFee.error };
+    }
+    const netAmount = winFee.net;
     let invoice;
     try {
-        invoice = await _resolvePrizeInvoice(data.invoice, data.lightningAddress, amount);
+        invoice = await _resolvePrizeInvoice(data.invoice, data.lightningAddress, netAmount);
     } catch (e) {
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
         return { success: false, error: e.message || 'Could not pay that invoice.' };
@@ -796,7 +1230,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall
         await db.runTransaction(async (t) => {
             const existing = await t.get(invoiceRef);
             if (existing.exists) throw new Error('That invoice was already used. Make a new one.');
-            t.set(invoiceRef, { uid: uid, winId: winId, amount: amount, status: 'pending', ts: admin.firestore.FieldValue.serverTimestamp() });
+            t.set(invoiceRef, { uid: uid, winId: winId, amount: amount, fee_charged: winFee.fee, net_sent: netAmount, status: 'pending', ts: admin.firestore.FieldValue.serverTimestamp() });
         });
     } catch (e) {
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
@@ -825,11 +1259,15 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall
         }, { merge: true });
     }
 
-    async function markPaid(preimage) {
+    async function markPaid(preimage, payRes) {
         // Payment already left the wallet. Never flip the win back to claimable after this.
+        const feeRec = require('./lnFee').feeFields(winFee, payRes);
         try {
             await winRef.update({
                 status: 'paid',
+                fee_charged: feeRec.fee_charged,
+                net_sent: feeRec.net_sent,
+                fee_paid: feeRec.fee_paid,
                 paidAt: admin.firestore.FieldValue.serverTimestamp(),
                 paidBy: 'faucet',
                 preimage: preimage || '',
@@ -837,18 +1275,33 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall
                 announced: false,
                 payingAt: admin.firestore.FieldValue.delete(),
             });
-            await invoiceRef.set({ uid: uid, winId: winId, amount: amount, status: 'used', ts: admin.firestore.FieldValue.serverTimestamp() });
+            await invoiceRef.set({ uid: uid, winId: winId, amount: amount, fee_charged: feeRec.fee_charged, net_sent: feeRec.net_sent, fee_paid: feeRec.fee_paid, status: 'used', ts: admin.firestore.FieldValue.serverTimestamp() });
         } catch (e) {
             console.error('[claimCipherWin] paid but record update failed:', e.message);
-            return { success: true, amount: amount, warning: 'Paid, but the receipt did not save. Phil can confirm it in the admin list.' };
+            await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan({
+                uid: uid,
+                sats: netAmount,
+                sourceLabel: 'a cipher win',
+                icon: '⚡',
+            }));
+            return { success: true, amount: amount, sent: netAmount, fee: winFee.fee, warning: 'Paid, but the receipt did not save. Phil can confirm it in the admin list.' };
         }
+        await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan({
+            uid: uid,
+            sats: netAmount,
+            sourceLabel: 'a cipher win',
+            icon: '⚡',
+        }));
+        try {
+            await require('./badgeCredit').creditCipherPaid(db, admin, uid, amount, winRef);
+        } catch (e) { console.warn('[claimCipherWin] badge', e.message); }
 
         try {
             await postNacho(nachoSatsText(username, amount), uid);
             await winRef.update({ announced: true });
         } catch (e) { console.warn('[claimCipherWin] nacho failed:', e.message); }
 
-        return { success: true, amount: amount };
+        return { success: true, amount: amount, sent: netAmount, fee: winFee.fee };
     }
 
     const nwc = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
@@ -866,7 +1319,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180 }).https.onCall
         payError = e;
     }
 
-    if (payResult && payResult.preimage) return markPaid(payResult.preimage);
+    if (payResult && payResult.preimage) return markPaid(payResult.preimage, payResult);
 
     // Balance-check failures never reached the wallet. Explicit refusals
     // (PAYMENT_FAILED, INSUFFICIENT_BALANCE, QUOTA_EXCEEDED, RATE_LIMITED)
@@ -1007,6 +1460,7 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
     let winnerUid = '';
     let amount = 0;
     let shouldAnnounce = false;
+    let newlyPaid = false;
 
     await db.runTransaction(async (t) => {
         const winDoc = await t.get(winRef);
@@ -1027,6 +1481,7 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
             throw httpsError('failed-precondition', 'This win cannot be marked paid');
         }
         shouldAnnounce = true;
+        newlyPaid = true;
         t.update(winRef, {
             status: 'paid',
             paidAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1036,6 +1491,10 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
         });
     });
 
+    if (newlyPaid && winnerUid) {
+        try { await require('./badgeCredit').creditCipherPaid(db, admin, winnerUid, amount, winRef); }
+        catch (e) { console.warn('[adminMarkCipherWinPaid] badge', e.message); }
+    }
     if (shouldAnnounce) {
         try { await postNacho(nachoSatsText(username, amount), winnerUid); }
         catch (e) {
@@ -1047,12 +1506,548 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
     return { success: true, announced: true };
 });
 
+// The sender marks a cipher-share reveal as seen. The flag is server-written,
+// so the popup shows at most once per share. This does not pay anything.
+// Every failure looks the same, so a caller cannot tell a bad id from
+// someone else's share. App Check rejects a call with no valid token.
+const ACK_SHARE_ERROR = 'Could not update that.';
+const ackCipherShare = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+    try {
+        const uid = requireUser(context);
+        const shareId = (data && data.shareId || '').toString().trim();
+        if (!shareId || shareId.length > 128 || !/^[A-Za-z0-9_-]+$/.test(shareId)) {
+            throw httpsError('failed-precondition', ACK_SHARE_ERROR);
+        }
+        const shareRef = db.collection('cipher_shares').doc(shareId);
+        const noteRef = db.collection('notifications').doc('cshare_' + shareId);
+        await db.runTransaction(async (t) => {
+            const shareSnap = await t.get(shareRef);
+            const noteSnap = await t.get(noteRef);
+            if (!shareSnap.exists) throw httpsError('failed-precondition', ACK_SHARE_ERROR);
+            const row = shareSnap.data() || {};
+            if (row.senderUid !== uid) throw httpsError('failed-precondition', ACK_SHARE_ERROR);
+            if (row.revealed === true) return;
+            const stamp = admin.firestore.FieldValue.serverTimestamp();
+            t.set(shareRef, { revealed: true, revealedAt: stamp }, { merge: true });
+            if (noteSnap.exists && (noteSnap.data() || {}).recipientId === uid) {
+                t.set(noteRef, { revealed: true }, { merge: true });
+            }
+        });
+        return { ok: true };
+    } catch (err) {
+        if (!err || err.message !== ACK_SHARE_ERROR) {
+            console.warn('[ackCipherShare]', err && err.message);
+        }
+        throw httpsError('failed-precondition', ACK_SHARE_ERROR);
+    }
+});
+
+function cipherPlayerDayId(uid, day) {
+    return String(uid || '').replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120) + '_' + day;
+}
+
+function holdMillis(value) {
+    if (!value) return 0;
+    if (typeof value.toMillis === 'function') return value.toMillis();
+    if (typeof value.seconds === 'number') return value.seconds * 1000;
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function dayAmount(snap) {
+    if (!snap || !snap.exists) return 0;
+    const data = snap.data() || {};
+    return Math.max(0, Math.floor(Number(data.amount) || 0));
+}
+
+async function payCipherBalanceInvoice(invoice) {
+    const nwc = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
+    let phase = 'balance';
+    let payResult = null;
+    let payError = null;
+    try {
+        const balanceResult = await withTimeout(nwc.getBalance(), 20000, 'getBalance');
+        const walletSats = Math.floor((balanceResult.balance || 0) / 1000);
+        if (walletSats < WALLET_FLOOR_SATS) throw new Error('WALLET_LOW');
+        phase = 'pay';
+        payResult = await withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
+        if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
+    } catch (e) {
+        payError = e;
+    }
+    if (payResult && payResult.preimage) return { action: 'paid', payResult: payResult };
+    if (!shouldLookupPay({ phase: phase, error: payError, payResult: payResult })) {
+        return { action: 'release', low: !!(payError && payError.message === 'WALLET_LOW') };
+    }
+    let lookupReq = null;
+    try { lookupReq = lookupRequestFromDecoded(bolt11.decode(invoice)); }
+    catch (e) { lookupReq = null; }
+    if (!lookupReq) return { action: 'hold' };
+    const settlement = await lookupSettlement({
+        lookup: function() {
+            return withTimeout(nwc.lookupInvoice(lookupReq), 10000, 'lookupInvoice');
+        },
+        sleep: function(ms) {
+            return new Promise(function(resolve) { setTimeout(resolve, ms); });
+        },
+    });
+    if (settlement.action === 'paid') return { action: 'paid' };
+    if (settlement.action === 'release') return { action: 'release', low: false };
+    return { action: 'hold' };
+}
+
+async function finishCipherClaim(reserved, outcome, payResult) {
+    const lockRef = db.collection('cipher_sats_locks').doc(reserved.lockId);
+    const auditRef = db.collection('cipher_sats_payouts').doc(reserved.claimId);
+    const userRef = db.collection('users').doc(reserved.uid);
+    const playerRef = db.collection('cipher_sats_player_daily').doc(reserved.playerDayId);
+    const siteRef = db.collection('cipher_sats_site_daily').doc(reserved.day);
+    await db.runTransaction(async (t) => {
+        const auditSnap = await t.get(auditRef);
+        const lockSnap = await t.get(lockRef);
+        const status = auditSnap.exists ? String((auditSnap.data() || {}).status || '') : '';
+        if (status === 'paid' || status === 'restored' || status === 'unknown') return;
+        const lock = lockSnap.exists ? (lockSnap.data() || {}) : null;
+        const owns = lockOwnedByClaim(lock, reserved.claimId);
+        const stamp = admin.firestore.FieldValue.serverTimestamp();
+        if (outcome === 'paid') {
+            const feeRec = require('./lnFee').feeFields({ gross: reserved.amount, fee: reserved.fee, net: reserved.net }, payResult);
+            t.set(auditRef, { status: 'paid', paidAt: stamp, fee_charged: feeRec.fee_charged, net_sent: feeRec.net_sent, fee_paid: feeRec.fee_paid }, { merge: true });
+            if (owns) t.delete(lockRef);
+            return;
+        }
+        if (outcome === 'hold') {
+            t.set(auditRef, { status: 'unknown', heldAt: stamp }, { merge: true });
+            if (owns) t.set(lockRef, { phase: 'unknown', claimId: reserved.claimId }, { merge: true });
+            return;
+        }
+        t.update(userRef, {
+            cipherSatsBalance: admin.firestore.FieldValue.increment(reserved.amount),
+        });
+        t.set(playerRef, { amount: admin.firestore.FieldValue.increment(-reserved.amount) }, { merge: true });
+        t.set(siteRef, { amount: admin.firestore.FieldValue.increment(-reserved.amount) }, { merge: true });
+        t.set(auditRef, { status: 'restored', restoredAt: stamp }, { merge: true });
+        if (owns) t.delete(lockRef);
+    });
+}
+
+// Flip reserved -> paying only if this claim still owns both records.
+// Any miss or error means the caller must not pay.
+async function beginCipherPay(reserved) {
+    const lockRef = db.collection('cipher_sats_locks').doc(reserved.lockId);
+    const auditRef = db.collection('cipher_sats_payouts').doc(reserved.claimId);
+    let ready = false;
+    await db.runTransaction(async (t) => {
+        const lockSnap = await t.get(lockRef);
+        const auditSnap = await t.get(auditRef);
+        const lock = lockSnap.exists ? (lockSnap.data() || {}) : null;
+        const audit = auditSnap.exists ? (auditSnap.data() || {}) : null;
+        if (!claimReadyToPay({
+            lock: lock,
+            audit: audit,
+            claimId: reserved.claimId,
+            uid: reserved.uid,
+        })) return;
+        const stamp = admin.firestore.FieldValue.serverTimestamp();
+        t.set(lockRef, { phase: 'paying' }, { merge: true });
+        t.set(auditRef, { status: 'paying', payingAt: stamp, payingAtMs: Date.now() }, { merge: true });
+        ready = true;
+    });
+    return ready;
+}
+
+// Pays min(balance, 200) from cipherSatsBalance. Independent of the faucet
+// withdrawal clock and of faucet daily caps. Cipher caps and the config flag
+// are the only payout limits here.
+const claimCipherSats = functionsV1.runWith({
+    timeoutSeconds: 180,
+    enforceAppCheck: true,
+    secrets: [deletionHmacSecret],
+}).https.onCall(async (data, context) => {
+    const secondFactor = require('./secondFactor');
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
+    const uid = requireUser(context);
+    if (!NWC_URL) throw httpsError('failed-precondition', 'Prize wallet is not configured yet.');
+    const accountTombstone = require('./accountTombstone');
+    const emailChange = require('./emailChange');
+    if (!accountTombstone.secretReady()) throw httpsError('failed-precondition', UNAVAILABLE);
+
+    let ageDays = 0;
+    let ageKnown = false;
+    let authUser = null;
+    let tombSatsDisabled = false;
+    let tombLedgerBanned = false;
+    try {
+        authUser = await admin.auth().getUser(uid);
+        const created = new Date(authUser.metadata.creationTime).getTime();
+        if (Number.isFinite(created)) {
+            ageDays = accountTombstone.effectiveAgeDays(Math.floor((Date.now() - created) / 86400000), null);
+            ageKnown = true;
+        }
+    } catch (e) {
+        console.error('[claimCipherSats] Could not verify account age');
+        throw httpsError('failed-precondition', 'Try again later.');
+    }
+    if (!authUser || !Array.isArray(authUser.providerData)) {
+        throw httpsError('failed-precondition', 'Try again later.');
+    }
+    const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, authUser, Date.now(), (context.auth && context.auth.token) || {}, true);
+    if (!payoutGate.ok) throw httpsError('failed-precondition', payoutGate.error);
+    const looked = payoutGate.tomb || { configured: false, summary: accountTombstone.emptySummary() };
+    if (looked.configured && looked.summary && (looked.summary.banned || looked.summary.satsDisabled || looked.summary.ledgerBanned)) {
+        await accountTombstone.applyIdentityFlags(db, uid, looked.summary);
+    }
+    if (looked.summary && Number.isFinite(Number(looked.summary.ageDays))) {
+        ageDays = accountTombstone.effectiveAgeDays(ageDays, looked.summary);
+    }
+    tombSatsDisabled = !!(looked.summary && looked.summary.satsDisabled);
+    tombLedgerBanned = !!(looked.summary && looked.summary.ledgerBanned);
+
+    const day = utcDateKey();
+    const nowMs = Date.now();
+    const lockId = String(uid).replace(/\//g, '_').slice(0, 200);
+    const claimId = db.collection('cipher_sats_payouts').doc().id;
+    const userRef = db.collection('users').doc(uid);
+    const ledgerRef = db.collection('faucet_ledger').doc(uid);
+    const lockRef = db.collection('cipher_sats_locks').doc(lockId);
+    const playerDayId = cipherPlayerDayId(uid, day);
+    const playerRef = db.collection('cipher_sats_player_daily').doc(playerDayId);
+    const siteRef = db.collection('cipher_sats_site_daily').doc(day);
+    const rateRef = db.collection('rate_limits').doc('cipher_sats_' + lockId);
+    const configRef = db.collection('cipher_sats_config').doc('settings');
+    const auditRef = db.collection('cipher_sats_payouts').doc(claimId);
+
+    let reserved = null;
+    let denial = '';
+    await db.runTransaction(async (t) => {
+        const userSnap = await t.get(userRef);
+        const ledgerSnap = await t.get(ledgerRef);
+        const lockSnap = await t.get(lockRef);
+        const playerSnap = await t.get(playerRef);
+        const siteSnap = await t.get(siteRef);
+        const rateSnap = await t.get(rateRef);
+        const configSnap = await t.get(configRef);
+        if (!userSnap.exists) throw httpsError('not-found', 'User not found');
+        const user = userSnap.data() || {};
+        const saved = faucetGuard.normalizeLightningAddress(user.lightningAddress || user.lightning || user.lnAddress || '');
+        let addrSnap = null;
+        if (saved && saved.indexOf('/') === -1 && saved.length <= 300) {
+            addrSnap = await t.get(db.collection('lightning_addresses').doc(saved));
+        }
+        const flight = lockSnap.exists ? (lockSnap.data() || {}) : null;
+        const attempt = assessAttemptRate(rateSnap.exists ? (rateSnap.data() || {}) : null, nowMs);
+        if (!attempt.ok) {
+            denial = RATE_ERROR;
+            return;
+        }
+        t.set(rateRef, {
+            count: attempt.count,
+            windowStartMs: attempt.windowStartMs,
+            uid: uid,
+        }, { merge: true });
+        const token = (context.auth && context.auth.token) || {};
+        const verifiedAuthEmail = authUser && authUser.email && authUser.emailVerified === true;
+        const verifiedTokenEmail = token.email && token.email_verified === true;
+        const plan = planCipherSatsClaim({
+            authed: true,
+            anonymous: false,
+            uid: uid,
+            email: verifiedAuthEmail ? authUser.email : (verifiedTokenEmail ? token.email : ''),
+            emailVerified: verifiedAuthEmail || verifiedTokenEmail === true,
+            ageKnown: ageKnown,
+            ageDays: ageDays,
+            satsDisabled: user.satsDisabled === true || tombSatsDisabled,
+            ledgerBanned: (ledgerSnap.exists && ledgerSnap.data().banned === true) || tombLedgerBanned,
+            profileBanned: user.banned === true || !!user.ban_reason,
+            satsHeld: holdMillis(user.satsHold) > nowMs,
+            claimsDisabled: claimsDisabledFromConfig(configSnap.exists, configSnap.exists ? (configSnap.data() || {}) : null),
+            balance: user.cipherSatsBalance,
+            playerDayUsed: dayAmount(playerSnap),
+            siteDayUsed: dayAmount(siteSnap),
+            day: day,
+            nowMs: nowMs,
+            saved: saved,
+            lockExists: !!(addrSnap && addrSnap.exists),
+            lockOwner: addrSnap && addrSnap.exists ? String((addrSnap.data() || {}).uid || '') : '',
+            lock: flight,
+            rate: { count: Math.max(0, attempt.count - 1), windowStartMs: attempt.windowStartMs },
+        });
+        const userPatch = cipherClaimUserPatch(plan);
+        if (!plan.ok) {
+            denial = plan.error || UNAVAILABLE;
+            return;
+        }
+        if (userPatch.cipherSatsBalanceDelta) {
+            t.update(userRef, {
+                cipherSatsBalance: admin.firestore.FieldValue.increment(userPatch.cipherSatsBalanceDelta),
+            });
+        }
+        if (plan.playerDelta) {
+            t.set(playerRef, { amount: admin.firestore.FieldValue.increment(plan.playerDelta), day: day }, { merge: true });
+        }
+        if (plan.siteDelta) {
+            t.set(siteRef, { amount: admin.firestore.FieldValue.increment(plan.siteDelta), day: day }, { merge: true });
+        }
+        if (plan.otherDay && plan.otherDayDelta) {
+            t.set(db.collection('cipher_sats_player_daily').doc(cipherPlayerDayId(uid, plan.otherDay)), {
+                amount: admin.firestore.FieldValue.increment(plan.otherDayDelta),
+                day: plan.otherDay,
+            }, { merge: true });
+            t.set(db.collection('cipher_sats_site_daily').doc(plan.otherDay), {
+                amount: admin.firestore.FieldValue.increment(plan.otherDayDelta),
+                day: plan.otherDay,
+            }, { merge: true });
+        }
+        if (plan.abandon && plan.abandon.claimId) {
+            t.set(db.collection('cipher_sats_payouts').doc(plan.abandon.claimId), {
+                status: 'restored',
+                restoredAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+        }
+        t.set(lockRef, {
+            uid: uid,
+            phase: 'reserved',
+            amount: plan.amount,
+            claimId: claimId,
+            day: day,
+            startedAtMs: nowMs,
+        });
+        t.set(auditRef, {
+            uid: uid,
+            amount: plan.amount,
+            fee_charged: plan.fee,
+            net_sent: plan.net,
+            status: 'reserved',
+            day: day,
+            claimId: claimId,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        reserved = {
+            uid: uid,
+            lockId: lockId,
+            claimId: claimId,
+            amount: plan.amount,
+            fee: plan.fee,
+            net: plan.net,
+            address: plan.address,
+            day: day,
+            playerDayId: playerDayId,
+            balanceAfter: plan.balanceAfter,
+        };
+    });
+
+    if (!reserved) return { success: false, error: denial || UNAVAILABLE };
+
+    let invoice = '';
+    try {
+        // The player pays the flat Lightning fee: the invoice is for the net amount.
+        if (!(reserved.net >= 1) || reserved.net + reserved.fee !== reserved.amount) throw new Error(require('./lnFee').FEE_TOO_BIG);
+        invoice = await _resolvePrizeInvoice('', reserved.address, reserved.net);
+    } catch (e) {
+        await finishCipherClaim(reserved, 'restore');
+        console.error('[claimCipherSats] address did not resolve');
+        return { success: false, error: (e && e.message) ? e.message : 'Could not pay that Lightning Address.' };
+    }
+
+    const invoiceHash = crypto.createHash('sha256').update(invoice).digest('hex').slice(0, 32);
+    let paymentHash = '';
+    try {
+        const decodedInvoice = bolt11.decode(invoice);
+        const lookupReq = lookupRequestFromDecoded(decodedInvoice);
+        if (lookupReq && lookupReq.payment_hash) paymentHash = String(lookupReq.payment_hash);
+    } catch (e) { paymentHash = ''; }
+    const invoiceRef = db.collection('cipher_sats_invoices').doc(invoiceHash);
+    const payoutRef = db.collection('cipher_sats_payouts').doc(reserved.claimId);
+    try {
+        await db.runTransaction(async (t) => {
+            const existing = await t.get(invoiceRef);
+            const payoutSnap = await t.get(payoutRef);
+            if (existing.exists) throw new Error('used');
+            const payout = payoutSnap.exists ? (payoutSnap.data() || {}) : null;
+            if (!payout || payout.status !== 'reserved' || String(payout.claimId || '') !== reserved.claimId) {
+                throw new Error('moved');
+            }
+            const stamp = admin.firestore.FieldValue.serverTimestamp();
+            t.set(invoiceRef, {
+                uid: uid,
+                claimId: reserved.claimId,
+                amount: reserved.amount,
+                fee_charged: reserved.fee,
+                net_sent: reserved.net,
+                invoiceHash: invoiceHash,
+                paymentHash: paymentHash,
+                status: 'pending',
+                ts: stamp,
+            });
+            t.set(payoutRef, {
+                invoiceHash: invoiceHash,
+                paymentHash: paymentHash,
+            }, { merge: true });
+        });
+    } catch (e) {
+        await finishCipherClaim(reserved, 'restore');
+        return { success: false, error: 'That payout was already used. Wait a moment and try again.' };
+    }
+
+    let readyToPay = false;
+    try {
+        readyToPay = await beginCipherPay(reserved);
+    } catch (e) {
+        readyToPay = false;
+        console.error('[claimCipherSats] could not mark claim paying claim=' + reserved.claimId);
+    }
+    if (!readyToPay) {
+        await invoiceRef.delete().catch(function() {});
+        return { success: false, error: 'A claim is already in progress.' };
+    }
+    const paid = await payCipherBalanceInvoice(invoice);
+    if (paid.action === 'paid') {
+        try {
+            await finishCipherClaim(reserved, 'paid', paid.payResult);
+            await invoiceRef.set({ status: 'used', ts: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        } catch (e) {
+            console.error('[claimCipherSats] paid but the receipt did not save claim=' + reserved.claimId);
+        }
+        await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan({
+            uid: uid,
+            sats: reserved.net,
+            sourceLabel: 'cipher sats',
+            icon: '⚡',
+        }));
+        return { success: true, amount: reserved.amount, sent: reserved.net, fee: reserved.fee, balance: reserved.balanceAfter };
+    }
+    if (paid.action === 'hold') {
+        try { await finishCipherClaim(reserved, 'hold'); }
+        catch (e) { console.error('[claimCipherSats] could not hold the claim'); }
+        await invoiceRef.set({ status: 'unknown', ts: admin.firestore.FieldValue.serverTimestamp() }, { merge: true }).catch(function() {});
+        return { success: false, error: 'The payment is not confirmed yet. This claim is on hold so it cannot be paid twice.' };
+    }
+    await finishCipherClaim(reserved, 'restore');
+    await invoiceRef.delete().catch(function() {});
+    if (paid.low) return { success: false, error: 'The prize wallet is being refilled. Try again later.' };
+    return { success: false, error: 'Payment failed. Your cipher sats balance was restored.' };
+});
+
+// Admin-only resolution of a held cipher-sats claim. Does not send a payment.
+// unknown/hold can be resolved any time. paying can be resolved only after
+// 10 minutes. release refunds only when the wallet says the payment failed.
+const adminResolveCipherSatsClaim = functionsV1.runWith({
+    enforceAppCheck: true,
+    timeoutSeconds: 60,
+}).https.onCall(async (data, context) => {
+    requireAdmin(context);
+    const claimId = (data && data.claimId || '').toString().trim();
+    const action = (data && data.action || '').toString().trim();
+    if (!claimId || claimId.length > 128 || !/^[A-Za-z0-9_-]+$/.test(claimId)) {
+        throw httpsError('invalid-argument', 'Invalid claim');
+    }
+    if (action !== 'paid' && action !== 'release') {
+        throw httpsError('invalid-argument', 'Invalid resolution');
+    }
+    const auditRef = db.collection('cipher_sats_payouts').doc(claimId);
+    const pre = await auditRef.get();
+    if (!pre.exists) throw httpsError('not-found', 'Claim not found');
+    const preview = pre.data() || {};
+    const nowMs = Date.now();
+    const gate = adminMayResolveClaim({
+        status: preview.status,
+        payingAtMs: preview.payingAtMs,
+        nowMs: nowMs,
+    });
+    if (!gate.ok) throw httpsError('failed-precondition', 'This claim cannot be resolved.');
+
+    let resolution = action;
+    if (action === 'release') {
+        const paymentHash = String(preview.paymentHash || '');
+        if (!paymentHash || !NWC_URL) {
+            throw httpsError('failed-precondition', 'This claim cannot be released yet.');
+        }
+        let kind = 'unknown';
+        try {
+            const nwc = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
+            const raw = await withTimeout(nwc.lookupInvoice({ payment_hash: paymentHash }), 15000, 'lookupInvoice');
+            kind = classifyLookup(raw).kind;
+        } catch (e) {
+            kind = 'error';
+            console.error('[adminResolveCipherSatsClaim] lookup failed claim=' + claimId);
+        }
+        resolution = adminReleaseFromLookup(kind);
+        if (resolution === 'refuse') {
+            throw httpsError('failed-precondition', 'This claim cannot be released yet.');
+        }
+    }
+
+    const adminUid = context.auth.uid;
+    await db.runTransaction(async (t) => {
+        const auditSnap = await t.get(auditRef);
+        if (!auditSnap.exists) throw httpsError('not-found', 'Claim not found');
+        const row = auditSnap.data() || {};
+        const still = adminMayResolveClaim({
+            status: row.status,
+            payingAtMs: row.payingAtMs,
+            nowMs: Date.now(),
+        });
+        if (!still.ok) throw httpsError('failed-precondition', 'This claim cannot be resolved.');
+        const winnerUid = String(row.uid || '');
+        const amount = Math.max(0, Math.floor(Number(row.amount) || 0));
+        const day = String(row.day || '');
+        const lockId = winnerUid.replace(/\//g, '_').slice(0, 200);
+        const lockRef = lockId ? db.collection('cipher_sats_locks').doc(lockId) : null;
+        const lockSnap = lockRef ? await t.get(lockRef) : null;
+        const lock = lockSnap && lockSnap.exists ? (lockSnap.data() || {}) : null;
+        const owns = lockOwnedByClaim(lock, claimId);
+        const stamp = admin.firestore.FieldValue.serverTimestamp();
+        if (resolution === 'paid') {
+            t.set(auditRef, {
+                status: 'paid',
+                paidAt: stamp,
+                resolvedBy: adminUid,
+                resolution: action === 'release' ? 'lookup_paid' : 'admin_paid',
+            }, { merge: true });
+        } else {
+            if (winnerUid && amount) {
+                t.update(db.collection('users').doc(winnerUid), {
+                    cipherSatsBalance: admin.firestore.FieldValue.increment(amount),
+                });
+            }
+            if (winnerUid && day && amount) {
+                t.set(db.collection('cipher_sats_player_daily').doc(cipherPlayerDayId(winnerUid, day)), {
+                    amount: admin.firestore.FieldValue.increment(-amount),
+                    day: day,
+                }, { merge: true });
+                t.set(db.collection('cipher_sats_site_daily').doc(day), {
+                    amount: admin.firestore.FieldValue.increment(-amount),
+                    day: day,
+                }, { merge: true });
+            }
+            t.set(auditRef, {
+                status: 'restored',
+                restoredAt: stamp,
+                resolvedBy: adminUid,
+                resolution: 'admin_release',
+            }, { merge: true });
+        }
+        if (owns && lockRef) t.delete(lockRef);
+        t.set(db.collection('admin_audit_log').doc('cipher_sats_' + claimId), {
+            action: 'resolveCipherSatsClaim',
+            claimId: claimId,
+            adminUid: adminUid,
+            resolution: resolution,
+            ts: stamp,
+        });
+    });
+    return { success: true, resolution: resolution };
+});
+
 module.exports = {
     awardDailyGifts: awardDailyGifts,
     openGift: openGift,
     sendKeys: sendKeys,
     decryptCipher: decryptCipher,
+    ackCipherShare: ackCipherShare,
     claimCipherWin: claimCipherWin,
+    claimCipherSats: claimCipherSats,
+    adminResolveCipherSatsClaim: adminResolveCipherSatsClaim,
     listMyCipherWins: listMyCipherWins,
     adminListCipherWins: adminListCipherWins,
     adminMarkCipherWinPaid: adminMarkCipherWinPaid,

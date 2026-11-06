@@ -7,13 +7,19 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.get('admin', false) == true;
     }
 
+    // Client-created notification ids. Server Admin SDK writes are not checked here.
+    function notifIdOk(v) {
+      return v is string && v.matches('^[A-Za-z0-9_-]{1,64}$');
+    }
+
     function lnShape(v) {
       return v is string && v.size() >= 5 && v.size() <= 320
         && v.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
     }
 
-    // The first Lightning address saved on a profile stays. The client cannot
-    // change it or clear it. The server still writes the normalized lock.
+    // The first Lightning address saved on a profile stays. Once any address
+    // value exists, the client cannot write the address fields or the marker.
+    // The server still writes the normalized lock and the one-time reset doc.
     function lightningLockOk() {
       let oldL = 'lightning' in resource.data && resource.data.lightning is string ? resource.data.lightning : '';
       let oldA = 'lightningAddress' in resource.data && resource.data.lightningAddress is string ? resource.data.lightningAddress : '';
@@ -21,28 +27,152 @@ service cloud.firestore {
       let newL = 'lightning' in request.resource.data && request.resource.data.lightning is string ? request.resource.data.lightning : '';
       let newA = 'lightningAddress' in request.resource.data && request.resource.data.lightningAddress is string ? request.resource.data.lightningAddress : '';
       let newN = 'lnAddress' in request.resource.data && request.resource.data.lnAddress is string ? request.resource.data.lnAddress : '';
-      let locked = oldL.size() > 0 ? oldL : (oldA.size() > 0 ? oldA : oldN);
       let fresh = newL.size() > 0 ? newL : (newA.size() > 0 ? newA : newN);
-      let untouched = !request.resource.data.diff(resource.data).affectedKeys().hasAny(['lightning', 'lightningAddress', 'lnAddress']);
-      let firstSet = oldL.size() == 0 && oldA.size() == 0 && oldN.size() == 0
+      let hasAny = oldL.size() > 0 || oldA.size() > 0 || oldN.size() > 0;
+      let touched = request.resource.data.diff(resource.data).affectedKeys().hasAny(['lightning', 'lightningAddress', 'lnAddress', 'ln_reset_used']);
+      let firstSet = !hasAny
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ln_reset_used'])
         && (fresh.size() == 0 || lnShape(fresh))
         && (newL.size() == 0 || newL == fresh)
         && (newA.size() == 0 || newA == fresh)
         && (newN.size() == 0 || newN == fresh);
-      let keepLocked = locked.size() > 0
-        && (newL.size() == 0 || newL == locked)
-        && (newA.size() == 0 || newA == locked)
-        && (newN.size() == 0 || newN == locked)
-        && (oldL.size() == 0 || newL == oldL)
-        && (oldA.size() == 0 || newA == oldA)
-        && (oldN.size() == 0 || newN == oldN);
-      return untouched || firstSet || keepLocked;
+      return (!touched) || (!hasAny && firstSet);
+    }
+
+    // notificationPrefs: owner booleans only, fixed keys. Missing keys use server defaults.
+    function notificationPrefsOk() {
+      return !('notificationPrefs' in request.resource.data) || (
+        request.resource.data.notificationPrefs is map
+        && request.resource.data.notificationPrefs.keys().hasOnly([
+          'master', 'rewards', 'gifts', 'favor', 'pvp', 'predictions',
+          'mentions', 'dms', 'plebtalk', 'reminders', 'news', 'referrals'
+        ])
+        && (!('master' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.master is bool)
+        && (!('rewards' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.rewards is bool)
+        && (!('gifts' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.gifts is bool)
+        && (!('favor' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.favor is bool)
+        && (!('pvp' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.pvp is bool)
+        && (!('predictions' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.predictions is bool)
+        && (!('mentions' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.mentions is bool)
+        && (!('dms' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.dms is bool)
+        && (!('plebtalk' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.plebtalk is bool)
+        && (!('reminders' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.reminders is bool)
+        && (!('news' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.news is bool)
+        && (!('referrals' in request.resource.data.notificationPrefs) || request.resource.data.notificationPrefs.referrals is bool)
+      );
+    }
+
+    // Prompt state can only move forward. stopped and dontAsk latch on.
+    function notifPromptOk() {
+      return !('notifPrompt' in request.resource.data) || (
+        request.resource.data.notifPrompt is map
+        && request.resource.data.notifPrompt.keys().hasOnly(['count', 'lastAsked', 'stopped', 'dontAsk'])
+        && (!('count' in request.resource.data.notifPrompt) || (
+          request.resource.data.notifPrompt.count is int
+          && request.resource.data.notifPrompt.count >= 0
+          && request.resource.data.notifPrompt.count <= 3
+        ))
+        && (!('lastAsked' in request.resource.data.notifPrompt) || (
+          request.resource.data.notifPrompt.lastAsked is int
+          && request.resource.data.notifPrompt.lastAsked >= 0
+        ))
+        && (!('stopped' in request.resource.data.notifPrompt) || request.resource.data.notifPrompt.stopped is bool)
+        && (!('dontAsk' in request.resource.data.notifPrompt) || request.resource.data.notifPrompt.dontAsk is bool)
+        && (
+          !('notifPrompt' in resource.data)
+          || !(resource.data.notifPrompt is map)
+          || (
+            (!('count' in request.resource.data.notifPrompt) || !('count' in resource.data.notifPrompt) || !(resource.data.notifPrompt.count is int) || request.resource.data.notifPrompt.count >= resource.data.notifPrompt.count)
+            && (!('lastAsked' in request.resource.data.notifPrompt) || !('lastAsked' in resource.data.notifPrompt) || !(resource.data.notifPrompt.lastAsked is int) || request.resource.data.notifPrompt.lastAsked >= resource.data.notifPrompt.lastAsked)
+            && (!(resource.data.notifPrompt.stopped == true) || request.resource.data.notifPrompt.stopped == true)
+            && (!(resource.data.notifPrompt.dontAsk == true) || request.resource.data.notifPrompt.dontAsk == true)
+          )
+        )
+      );
     }
 
     // =============================================
     // USERS COLLECTION
     // [AUDIT FIX M-NEW-23] Prevent full profile enumeration and PII exposure
     // =============================================
+
+    // Badge-engine fields denied on users/{uid} updates. The longer economy
+    // denylist lives in profileUpdateBlocked(), inside that match. referredBy
+    // stays out of this function: registerReferral owns it, and folding the
+    // deny into one long && chain re-checks every helper and hits the
+    // 1000-expression limit.
+    // Client updates may only touch these keys. Anything else, including a
+    // new reward field, is denied. pendingLeaderboardReward is listed so the
+    // owner can delete a server-written reward; profileUpdateBlocked still
+    // rejects setting one.
+    function profileClientFields() {
+      return [
+        'profilePic', 'displayName', 'country', 'bio',
+        'website', 'twitter', 'nostr', 'instagram', 'tiktok', 'github', 'contactEmail',
+        'lightning', 'lightningAddress', 'lnAddress',
+        'nachoNickname', 'ghostMode', 'artistProfile',
+        'lastLogin', 'lastActive', 'lastSeen', 'isOnline',
+        'newsletterOptIn', 'newsletterOptInDate', 'celebratedState',
+        'tosVersion', 'tosAcceptedAt', 'signupSource',
+        'inviteCard', 'notificationPrefs', 'notifPrompt', 'beatsShowUncensored',
+        'blockedUsers', 'favorites', 'bookmarks',
+        'displayBadge', 'equippedBadge', 'pinnedBadgeId', 'chatFlairEmoji',
+        'activeTitle', 'earnedTitles',
+        'lqProgress', 'trailProgress', 'trailsPassed',
+        'nachoStoryProgress', 'nachoStoryDate', 'nachoStoryDays',
+        'nachoStoryComplete', 'nachoStoryCompletedAt',
+        'spinCount', 'completedQuests', 'questsCompletedToday',
+        'marketSaved', 'nachoMilestones', 'nachoInteractions', 'nachoQuestions',
+        'sfWindowStreak',
+        'explorationMilestone_25', 'explorationMilestone_50',
+        'explorationMilestone_75', 'explorationMilestone_100',
+        'pendingLeaderboardReward',
+        'experienceMode', 'pvpAlertsMuted', 'pvpPushEnabled', 'pvpPushShard',
+        'shareCardsShown'
+      ];
+    }
+
+    function userProfileServerOnlyKeys() {
+      return [
+        'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
+        'unclaimableXp', 'chatXpStreak', 'chatXpDay',
+        'visibleBadges', 'hiddenBadges', 'badges', 'payingBadgeCount', 'badgeCounters',
+        'marketListings', 'marketMessages', 'marketSold',
+        'dailyTripleCount', 'trifectaDays', 'dailyFiveDays', 'dailyFiveStreak',
+        'sayHiArmedDay', 'sayHiDays', 'replyBonusCount', 'chatPostedDay',
+        'lastTriviaDate', 'lastPollDate', 'lastQuestDate', 'triviaStreak',
+        'purpleTickets', 'blueTickets', 'pollDays',
+        'chatCount', 'dmCount', 'beatsUploads', 'articlesPublished',
+        'pvpPlayed', 'ciphersSolved', 'sfHashes', 'sfBlockSolver', 'sfContributions',
+        'questDays', 'plebTalkSessions', 'tctvWatchDays', 'tctvLifetimeSeconds', 'giftsSent', 'onboardingComplete',
+        'lastShoutoutAt', 'predCorrect', 'predTotal', 'predLastResult',
+        'flexTotals', 'flexAllDays', 'triviaCorrect', 'triviaStreakDay',
+        'questsPassed', 'lqPassed', 'spinDays', 'spinStreak', 'spinHitRare',
+        'spinClosetAwards', 'tipsVerified', 'tipsSentSats', 'tipsReceived',
+        'raidDamageAllTime', 'raidBossesDefeated', 'raidWins', 'streakFreezesUsed',
+        'giftsOpened', 'giftShoutoutWon', 'keyPeersDistinct', 'peerKeyCiphers',
+        'cipherFullRing', 'cipherSatsPaid', 'cipherBiggestWin', 'cipherSatsBalance', 'peerBestLevel', 'peersAtL3',
+        'topicComments', 'topicChannelsCommented', 'topicChannelCounts',
+        'shopPurchases', 'raffleTicketsBought', 'raffleEntered', 'raffleWins',
+        'predTopWeeks', 'predTopMonths', 'pushEnabled',
+        'peerXpDay', 'peerXpCount', 'keyGiftXpDay', 'keyGiftXpCount',
+        'topicCountDay', 'topicCountToday', 'topicXpDay', 'topicXpCount',
+        'badgeBackfillToast',
+        'certPassed_prop', 'certPassed_tech', 'certPassedAt_prop', 'certPassedAt_tech',
+        'lastExamAttempt_prop', 'lastExamAttempt_tech',
+        'examSlotId_prop', 'examSlotId_tech', 'certId_prop', 'certId_tech',
+        'scholar_exam_passed', 'scholar_tech_passed', 'scholar_tech_score',
+        'email', 'emailHash', 'satsHold', 'emailHistory', 'emailHistoryHashes',
+        'providersHash', 'providerHashes',
+        'claimReq',
+        // BIP Breakthrough (server-only; dailySpin awards)
+        'bipBreakthroughLastDay', 'bipBreakthroughWeekKey', 'bipBreakthroughStreak',
+        'bipBreakthroughBipId', 'bipBreakthroughClaimedWeek', 'bipBreakthroughClaimedAt',
+        'bipBreakthroughClaimedBipId', 'bipBadges',
+        'coreContributorUntil', 'coreContributorTitle'
+      ];
+    }
+
     match /users/{userId} {
       // Reads:
       //   - Own profile: always allowed for the authenticated owner (get or list)
@@ -63,8 +193,8 @@ service cloud.firestore {
                     && request.auth.uid == userId
                     && request.resource.data.keys().hasOnly([
                         // Identity / profile
-                        'username', 'username_lower', 'email', 'profilePic',
-                        'displayName', 'faction', 'country', 'lightning', 'lightningAddress',
+                        'profilePic',
+                        'displayName', 'country', 'lightning', 'lightningAddress',
                         'nostr', 'lastLogin', 'lastVisit', 'lastActive', 'isOnline',
                         // Safe zero-value seeds written by ranking.js on signup
                         // (we accept them only at their zero/empty initial values)
@@ -86,44 +216,83 @@ service cloud.firestore {
                     && (!('lightningAddress' in request.resource.data) || request.resource.data.lightningAddress == '' || lnShape(request.resource.data.lightningAddress))
                     && (!('lightning' in request.resource.data) || !('lightningAddress' in request.resource.data)
                         || request.resource.data.lightning == '' || request.resource.data.lightningAddress == ''
-                        || request.resource.data.lightning == request.resource.data.lightningAddress);
+                        || request.resource.data.lightning == request.resource.data.lightningAddress)
+                    // created is optional on this create: Nostr link and TOS acceptance can
+                    // open a partial doc without it. onUserDocCreated then stamps created
+                    // from Auth metadata.creationTime. When the client sends created, it
+                    // must be the server clock. Signup, provider, Lightning, and Nostr
+                    // profile creates send serverTimestamp() when they are the first write.
+                    && (!('created' in request.resource.data) || request.resource.data.created == request.time);
 
+      // A denied field used to keep evaluating the lock helpers (&& does not
+      // stop a long rule), which passes 1000 expressions. The ternary evaluates
+      // only the taken branch: a server field is a plain false, and a normal
+      // save validates just the keys in this write.
       allow update: if request.auth != null
                     && request.auth.uid == userId
-                    // [VULN-2 FIX 2026-06-26] Expanded denylist — all economy, rank, admin,
-                    // anti-fraud, and leaderboard fields must be server-only.
-                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                    && (profileUpdateBlocked() ? false : profileShapeOk());
+
+      function profileUpdateBlocked() {
+        let changed = request.resource.data.diff(resource.data).affectedKeys();
+        return changed.hasAny([
+            'referredBy', 'nachoQuestDone', 'introSeen', 'totpEnabled', 'introSeenAt', 'mergedAnon'
+          ])
+          || changed.hasAny(userProfileServerOnlyKeys())
+          || changed.hasAny([
                         // Core economy
                         'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
-                        'sats', 'satsEarned', 'satsWithdrawn', 'satsDisabled',
+                        'unclaimableXp', 'chatXpStreak', 'chatXpDay',
+                        'sats', 'satsEarned', 'satsWithdrawn', 'satsDisabled', 'cipherSatsBalance',
                         'orangeTickets', 'tickets',
-                        // Streak / activity (CF-managed)
-                        'streak', 'bestStreak', 'totalVisits', 'channelsVisited',
+                        // Timechain TV daily watch (tctvWatchHeartbeat only)
+                        'tctvWatchSeconds', 'tctvWatchDay', 'tctvWatchLastCredit',
+                        'tctvWatchAwardedDay', 'tctvWatchToastSeen',
+                        // Streak / activity (CF-managed). lastVisit is set on create
+                        // and after that only by recordDailyVisit, so a client cannot
+                        // keep a lapsed streak looking current. nameKey is the
+                        // leaderboard sort key; only syncPublicProfile writes it.
+                        'streak', 'bestStreak', 'streakReachedAt', 'bestStreakAt', 'lastVisit',
+                        'nameKey',
+                        'totalVisits', 'channelsVisited',
                         'readChannels', 'visitedChannelsList',
                         // Claim / withdrawal state
                         'pointsClaimed', 'pointsExchanged',
                         'lastSatsClaim', 'lastAwards', '_pendingClaim',
+                        // New-account claim proofs. Cloud Functions only.
+                        'claimReq',
                         'withdrawals_disabled', 'pendingOverflow', 'lastOverflowDate',
+                        'lastQuizDate', 'quizStreak', 'quizAnswered', 'quizCorrect',
+                        'xpBankPayoutApplied', 'xpBankPayoutAmount', 'xpBankPayoutBank', 'xpBankPayoutAt',
                         // Shop inventory (spendTickets CF manages these)
                         'streakFreezes', 'hashBoosters', 'hashBoosterHashes',
-                        'hintTokens', 'doubleXPCharges', 'doubleXPExpiry',
+                        'hintTokens', 'doubleXPCharges', 'doubleXPExpiry', 'doubleXpUntil',
                         'bonusSpins', 'raffleEntries', 'secondRigCharges',
                         // Bonus spin server flag (CF-only, one-time use)
                         'bonusSpinGranted',
                         'ownedCosmetics', 'spinClosetItems',
                         // Badges (awardPoints CF)
-                        'badges', 'visibleBadges',
-                        // NOTE: 'hiddenBadges' intentionally omitted — client writes it
-                        // to toggle badge visibility preference (cosmetic, not gated).
+                        'badges', 'visibleBadges', 'hiddenBadges',
                         // Social / gamification counters (CF)
                         'forumPosts', 'forumReplies', 'lastSpinDate',
+                        // Say-hi reward (armSayHi / claimSayHi). Server only.
+                        'sayHiArmedDay', 'sayHiArmedAt',
+                        'sayHiClaimedDay', 'sayHiClaimedMessageId', 'sayHiToastSeen',
+                        // Reply bonus (claimReplyBonus). Server only. The first-reward
+                        // flag lives in reply_bonus_state, never on this doc. These
+                        // names are denied so a client cannot plant them.
+                        'replyBonusClaimed', 'replyBonusFirstClaimed', 'replyBonusLastAt', 'replyBonusCount',
                         // Gifting system (CF-only)
                         'lastGiftSpinDate', 'giftsOpenedToday', 'giftsOpenedDate',
                         'lastShoutoutAt',
                         'ciphersDecryptedToday', 'ciphersDecryptedDate',
                         'keysSentDate', 'keysSentTo',
+                        // Key provenance. sendKeys writes this on the key doc.
+                        // A client cannot plant it on the profile either.
+                        'sender',
                         'marketListings', 'marketMessages',
-                        'referralTicketsEarned', 'referralCode',
+                        'referralTicketsEarned', 'referralCode', 'referralCount', 'referralInvited', 'referralMaxiCount', 'referralMaxiReachedCount',
+                        'referredBy', 'referralVerified', 'scholarPoints', 'activeDayKeys',
+                        'tipChallengeDate', 'tipConfirmedDate',
                         'pointsDonated', 'donationBadges',
                         // Anonymous badge merge (CF-only, one-time guard)
                         'anonBadgesMerged',
@@ -136,36 +305,122 @@ service cloud.firestore {
                         'banned', 'ban_reason', 'flagged', 'flag_reason',
                         'withdrawals_disabled', 'satsDisabled',
                         'known_ips', 'fingerprint', 'fraudScore',
+                        // One-time Lightning address reset marker. Server only.
+                        'ln_reset_used',
+                        // Flex full-day counter (awardPoints only). Five Flex actions make a day.
+                        'flexFullDays', 'flexFullDay',
+                        // Faction is chosen by chooseFaction. Clients cannot plant it
+                        // or a sync marker on the profile.
+                        'faction', 'factionSynced', 'pointsSynced',
                         // Peer network (CF-only via managePeer)
                         'peers', 'peerCount',
                         // Peer partnership levels (CF-only via updatePeerLevelAfterGift)
                         'peerData',
                         // Immutable identity
-                        'created', 'createdAt', 'uid'
-                    ]))
-                    && (!('username' in request.resource.data)
-                        || (request.resource.data.username is string
-                            && request.resource.data.username.size() >= 3
-                            && request.resource.data.username.size() <= 20
-                            && request.resource.data.username.matches('^[a-zA-Z0-9_\\-\\.\\s]+$')))
-                    && (!('displayBadge' in request.resource.data)
-                        || request.resource.data.displayBadge == ''
-                        || (request.resource.data.displayBadge is string
-                            && request.resource.data.displayBadge.size() <= 50
-                            && request.resource.data.displayBadge.matches('^[a-zA-Z0-9_\\-]+$')))
-                    && (!('equippedBadge' in request.resource.data)
-                        || request.resource.data.equippedBadge == ''
-                        || (request.resource.data.equippedBadge is string
-                            && request.resource.data.equippedBadge.size() <= 50
-                            && request.resource.data.equippedBadge.matches('^[a-zA-Z0-9_\\-]+$')))
-                    // XSS prevention: country must be valid country-name chars
-                    && (!('country' in request.resource.data)
-                        || request.resource.data.country == ''
-                        || (request.resource.data.country is string
-                            && request.resource.data.country.size() >= 2
-                            && request.resource.data.country.size() <= 60
-                            && request.resource.data.country.matches("^[-a-zA-Z ,.()']+$")))
-                    && lightningLockOk();
+                        'created', 'createdAt', 'uid',
+                        // Price-prediction stats are server-only (resolvePredictions).
+                        // The nested `predictions` map used to be client-incremented.
+                        'predictions',
+                        'pvpWins', 'pvpLosses',
+                        'predCorrect', 'predTotal', 'predLastResult', 'predAccuracy',
+                        'predPending', 'predStreak', 'predBestStreak', 'reachedAt', 'reachedSort',
+                        'weekKey', 'weekCorrect', 'weekTotal', 'weekAccuracy', 'weekReachedAt', 'weekReachedSort',
+                        'monthKey', 'monthCorrect', 'monthTotal', 'monthAccuracy', 'monthReachedAt', 'monthReachedSort',
+                        'qualifiesAllTime', 'qualifiesWeek', 'qualifiesMonth',
+                        // Identity is reserved by setUsername. Clients cannot claim a name
+                        // or set or clear the repick flag.
+                        'username', 'username_lower', 'usernameNeedsRepick',
+                        // Onboarding completion and rewards are Cloud Function fields.
+                        'onboardingQuest', 'nachoQuestDone', 'nachoQuestActive', 'nachoQuestStep',
+                        'introSeen', 'introSeenAt',
+                        // Guest-link nonce and the one-time merge marker.
+                        'guestLinkNonce', 'guestLinkNonceAt', 'mergedInto', 'mergedFromGuest',
+                        'usernameChangedAt',
+                        // Username-spaces migration: free-rename grant and audit fields.
+                        'usernameFreeRename', 'usernameMigratedFrom', 'usernameMigratedAt',
+                        'totpEnabled', 'phoneVerified',
+                        // Push tokens stay in push_tokens/{uid}/devices, never on the profile
+                        'fcmToken', 'pushToken', 'pushEnabled'
+          ])
+          // The client may clear a server-written leaderboard reward. It cannot set one.
+          || (changed.hasAny(['pendingLeaderboardReward'])
+              && 'pendingLeaderboardReward' in request.resource.data);
+      }
+
+      // Owner-only record of which share cards were already shown. Not a reward.
+      // A string, not a map: rules cannot loop map entries. The owner update below
+      // already requires request.auth.uid == userId, and this shape check is the allowlist.
+      function shareCardsShownOk() {
+        let v = request.resource.data.shareCardsShown;
+        return v is string
+          && v.size() <= 1500
+          && v.matches('^[a-z0-9_:,]*$');
+      }
+
+      // Favorite mini apps. Owner may store up to 2 ids from the Explore Apps whitelist.
+      function favoriteAppsOk() {
+        let v = request.resource.data.favoriteApps;
+        return v is list
+          && v.size() <= 2
+          && v.hasOnly(['nacho', 'pop', 'forum', 'market', 'irl', 'beats', 'tv', 'pow', 'wallet'])
+          && (v.size() < 2 || v[0] != v[1]);
+      }
+
+      function profileShapeOk() {
+        let changed = request.resource.data.diff(resource.data).affectedKeys();
+        return changed.hasOnly(profileClientFields())
+          && (!changed.hasAny(['username'])
+            || !('username' in request.resource.data)
+            || (request.resource.data.username is string
+                && request.resource.data.username.size() >= 3
+                && request.resource.data.username.size() <= 20
+                && request.resource.data.username.matches('^[a-zA-Z0-9_\\-\\.]+$')))
+          && (!changed.hasAny(['displayBadge'])
+            || !('displayBadge' in request.resource.data)
+            || request.resource.data.displayBadge == ''
+            || (request.resource.data.displayBadge is string
+                && request.resource.data.displayBadge.size() <= 50
+                && request.resource.data.displayBadge.matches('^[a-zA-Z0-9_\\-]+$')))
+          && (!changed.hasAny(['equippedBadge'])
+            || !('equippedBadge' in request.resource.data)
+            || request.resource.data.equippedBadge == ''
+            || (request.resource.data.equippedBadge is string
+                && request.resource.data.equippedBadge.size() <= 50
+                && request.resource.data.equippedBadge.matches('^[a-zA-Z0-9_\\-]+$')))
+          // XSS prevention: country must be valid country-name chars
+          && (!changed.hasAny(['country'])
+            || !('country' in request.resource.data)
+            || request.resource.data.country == ''
+            || (request.resource.data.country is string
+                && request.resource.data.country.size() >= 2
+                && request.resource.data.country.size() <= 60
+                && request.resource.data.country.matches("^[-a-zA-Z ,.()']+$")))
+          // Home invite card. Owner may only store open, minimized, or dismissed.
+          && (!changed.hasAny(['inviteCard'])
+            || !('inviteCard' in request.resource.data)
+            || request.resource.data.inviteCard == 'open'
+            || request.resource.data.inviteCard == 'min'
+            || request.resource.data.inviteCard == 'off')
+          // Experience Mode. Owner may only store the four whitelisted mode ids.
+          && (!changed.hasAny(['experienceMode'])
+            || !('experienceMode' in request.resource.data)
+            || request.resource.data.experienceMode == 'lite'
+            || request.resource.data.experienceMode == 'beginner'
+            || request.resource.data.experienceMode == 'intermediate'
+            || request.resource.data.experienceMode == 'advanced')
+          // Favorite apps. Owner may only store a list of up to 2 whitelisted Explore App ids.
+          && (!changed.hasAny(['favoriteApps'])
+            || !('favoriteApps' in request.resource.data)
+            || favoriteAppsOk())
+          && (!changed.hasAny(['beatsShowUncensored'])
+            || !('beatsShowUncensored' in request.resource.data)
+            || request.resource.data.beatsShowUncensored == true
+            || request.resource.data.beatsShowUncensored == false)
+          && (!changed.hasAny(['lightning', 'lightningAddress', 'lnAddress']) || (true && lightningLockOk()))
+          && (!changed.hasAny(['shareCardsShown']) || shareCardsShownOk())
+          && (!changed.hasAny(['notificationPrefs']) || notificationPrefsOk())
+          && (!changed.hasAny(['notifPrompt']) || notifPromptOk());
+      }
       // Delete disabled: a client deleting then re-creating their doc would bypass all
       // field restrictions (the create allowlist only enforces zero-values but a second
       // create after delete could re-seed with anything). Server (Admin SDK) can still delete.
@@ -218,6 +473,11 @@ service cloud.firestore {
         allow write: if false; // Cloud Function (Admin SDK) only
       }
 
+      // Tip confirmations — one doc per UTC day. Cloud Function writes only.
+      match /tip_confirmations/{dateId} {
+        allow read, write: if false;
+      }
+
       // Per-user in-app notifications (shop, exchange, etc.) — owner read/update, CF creates
       match /notifications/{notifId} {
         allow read: if request.auth != null && request.auth.uid == userId;
@@ -235,7 +495,8 @@ service cloud.firestore {
     // =============================================
     match /public_profiles/{uid} {
       // Any authenticated user (incl. anonymous) can read any public profile.
-      // Writes are admin-SDK only (syncPublicProfile trigger).
+      // Writes are admin-SDK only (syncPublicProfile trigger). usernameNeedsRepick
+      // cannot be set or cleared here either, because no client write is allowed.
       allow read: if request.auth != null;
       allow write: if false;
     }
@@ -270,62 +531,50 @@ service cloud.firestore {
 
     // =============================================
     // STATS COLLECTION
-    // [AUDIT FIX S6] nacho-analytics now requires auth
+    // stats/nacho-analytics is server-written. Clients may read it.
     // =============================================
     match /stats/{statId} {
-      allow read: if true;
+      // Leaderboard snapshots (stats/lb_*) match the old profile boards:
+      // any signed-in user, including anonymous, may read them. A signed-out
+      // read is denied. Every other stats doc stays public.
+      allow read: if !statId.matches('lb_.*') || request.auth != null;
       allow update: if request.auth != null
                     && statId == 'visits'
                     && request.resource.data.total == resource.data.total + 1;
       allow create: if request.auth != null
                     && statId == 'visits';
-      // [AUDIT FIX S6 + LOW-4] nacho-analytics: non-anon auth + field allowlist to prevent junk data
-      // Only whitelisted increment fields accepted; no arbitrary keys.
-      allow create, update: if statId == 'nacho-analytics'
-                            && request.auth != null
-                            && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                            && request.resource.data.keys().hasOnly([
-                                'totalQuestions', 'upvotes', 'downvotes', 'lastUpdated',
-                                'topics', 'sources'
-                            ]);
-      // Global prediction stats — per-key +1 only, auth'd non-anon.
-      // Mirrors stats/global pattern. Accepts either:
-      //   • 1-key write: total += 1 (wrong prediction)
-      //   • 2-key write: total += 1 AND correct += 1 (correct prediction)
-      allow create: if statId == 'predictions'
-                    && request.auth != null
-                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                    && request.resource.data.total is int
-                    && request.resource.data.correct is int
-                    && request.resource.data.total <= 1
-                    && request.resource.data.correct <= 1
-                    && request.resource.data.total >= 0
-                    && request.resource.data.correct >= 0;
-      allow update: if statId == 'predictions'
-                    && request.auth != null
-                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                    && (
-                      // Wrong prediction: only total changes, +1
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total'])
-                        && request.resource.data.total == resource.data.get('total', 0) + 1)
-                      ||
-                      // Correct prediction: total and correct both change, each +1
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['total', 'correct'])
-                        && request.resource.data.total == resource.data.get('total', 0) + 1
-                        && request.resource.data.correct == resource.data.get('correct', 0) + 1)
-                    );
+      // stats/nacho-analytics is written only by recordNachoAnalytics.
+      // A signed-in client used to create and set these counters to any value.
+      // No write rule matches statId == 'nacho-analytics'. Clients can still read it.
+      // Community prediction totals (stats/predictions) are written only by
+      // resolvePredictions via the Admin SDK. The old client +1 rules are
+      // closed so a hostile client cannot inflate community accuracy.
+      // No allow matches statId == 'predictions', so client writes are denied.
+      // stats/streak_leaderboard is the same: refreshStreakLeaderboard writes
+      // it with the Admin SDK. No write rule matches that id. Read stays open.
+      // stats/quest_leaderboard_alltime, stats/quest_leaderboard_week, and
+      // stats/quest_leaderboard_month are written by refreshQuestLeaderboard.
+      // No write rule matches those ids. Clients only read them.
+      // Read for these ids stays open: they do not match lb_*.
+      // stats/lb_xp_alltime, stats/lb_xp_week, stats/lb_xp_month, stats/lb_pvp,
+      // stats/lb_favor_hashers, stats/lb_raid_alltime, and stats/lb_dirty are
+      // leaderboard snapshots and the dirty marker. The scheduled refreshes
+      // and syncPublicProfile write them with the Admin SDK.
+      // No write rule matches those ids, so client create/update/delete is
+      // false. Signed-in clients may read them. Signed-out clients may not.
       // ─── Global community stats ───
       // Authenticated (non-anonymous) users may increment whitelisted counters
       // by exactly +1 per write (watchTimeMinutes allows +1..+5 for batched TCTV pings).
       // Admin emails have unrestricted write (for resets and maintenance).
       //
       // Whitelisted fields: channelVisits, questsCompleted, chatMessages, spins,
-      //                     pvpMatches, userCount, watchTimeMinutes
+      //                     userCount, watchTimeMinutes
+      // pvpMatches is incremented only by onPvpMatchFinished.
       //
       // Risk: a determined attacker with a console can inflate counters, but these
       // are cosmetic engagement metrics only — no points, sats, or access granted.
       // Worst case: admin calls resetCommunityStats() to reset.
-      // Mirrors the stats/predictions pattern above.
+      // Cosmetic engagement counters only — no points, sats, or access.
       allow update, create: if statId == 'global'
                              && request.auth != null
                              && isAdmin();
@@ -349,9 +598,6 @@ service cloud.firestore {
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['spins'])
                         && request.resource.data.spins == resource.data.get('spins', 0) + 1)
                       ||
-                      (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pvpMatches'])
-                        && request.resource.data.pvpMatches == resource.data.get('pvpMatches', 0) + 1)
-                      ||
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userCount'])
                         && request.resource.data.userCount == resource.data.get('userCount', 0) + 1)
                       ||
@@ -364,21 +610,30 @@ service cloud.firestore {
                     && request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.keys()
-                       .hasOnly(['channelVisits','questsCompleted','chatMessages','spins','pvpMatches','userCount','watchTimeMinutes'])
+                       .hasOnly(['channelVisits','questsCompleted','chatMessages','spins','userCount','watchTimeMinutes'])
                     && request.resource.data.keys().size() == 1
                     && request.resource.data.values()[0] is int
                     && request.resource.data.values()[0] >= 1
                     && request.resource.data.values()[0] <= 5;
     }
 
+    // Nacho miss and feedback counters. The client used to increment these.
+    // recordNachoAnalytics writes them. Clients cannot read or write them.
+    match /analytics/{docId} {
+      allow read, write: if false;
+    }
+
     // Active predictions (for server-side resolution)
-    // [AUDIT FIX L-NEW-11] Prevent backdating predictions
+    // [AUDIT FIX L-NEW-11] Prevent backdating predictions.
+    // hasOnly rejects a client-supplied serverStartPrice, void, or any other key.
+    // resolved must be false so the open prediction is eligible for scoring.
     match /active_predictions/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow create: if request.auth != null
                     && request.auth.uid == uid
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                    && request.resource.data.keys().hasAll(['direction', 'price', 'uid', 'time'])
+                    && request.resource.data.keys().hasOnly(['uid', 'direction', 'price', 'time', 'resolved'])
+                    && request.resource.data.resolved == false
                     && request.resource.data.direction is string
                     && (request.resource.data.direction == 'up' || request.resource.data.direction == 'down')
                     && request.resource.data.uid == request.auth.uid
@@ -386,7 +641,45 @@ service cloud.firestore {
                     && request.resource.data.time == request.time;
       // No updates allowed — predictions are immutable once placed
       allow update: if false;
-      allow delete: if request.auth != null && request.auth.uid == uid;
+      // Clients must not delete a prediction to dodge server scoring.
+      allow delete: if false;
+    }
+
+    // Per-user prediction stats. Owner can read their own doc (the price card
+    // and the qualification line). Clients cannot write any field.
+    match /prediction_stats/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+
+    // Quest leaderboard totals. gradeQuest and the backfill write these.
+    // Clients read the public stats/quest_leaderboard_* docs, not this.
+    match /quest_lb_stats/{uid} {
+      allow read, write: if false;
+    }
+
+    // Immutable resolved predictions. Owner may read their own history.
+    match /prediction_records/{recordId} {
+      allow get: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow list: if request.auth != null
+                  && resource.data.uid == request.auth.uid;
+      allow create, update, delete: if false;
+    }
+
+    // Weekly/monthly Top Predictors payout lock. Server only.
+    match /prediction_payouts/{periodId} {
+      allow read, write: if false;
+      match /winners/{winnerId} {
+        allow read, write: if false;
+      }
+    }
+
+    // Server-fetched start price for one prediction. Document id is {uid}_{time}.
+    // Clients cannot read or write it. The resolver scores only a doc that has
+    // serverPriceSetAt, which only the Admin SDK sets.
+    match /prediction_server/{docId} {
+      allow read, write: if false;
     }
 
     // =============================================
@@ -413,22 +706,58 @@ service cloud.firestore {
     // Format: docId is the UID of the new user being referred
     // =============================================
     match /referrals/{referralId} {
-      allow read: if request.auth != null;
-      // Only the referred user can create their own referral record
-      allow create: if request.auth != null
-                    && referralId == request.auth.uid
-                    && request.resource.data.referredUserUid == request.auth.uid;
-      // Client can update their own doc BUT cannot self-verify or self-award tickets.
-      // Those fields are Cloud-Function-only (verifyReferral admin path).
-      allow update: if request.auth != null
-                    && referralId == request.auth.uid
-                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny([
-                        'verified', 'verifiedAt', 'ticketsAwarded', 'rejectedAt',
-                        'rejectionFlags', 'referrerUid', 'referredUid', 'referrerCode'
-                    ]));
-      // Admin override (your personal email + ops email)
-      allow update: if request.auth != null
-                    && isAdmin();
+      // The two parties only. A referrerCode query cannot be proven by this
+      // rule, so the client filters on referrerUid.
+      allow read: if request.auth != null
+                  && (resource.data.referrerUid == request.auth.uid
+                      || resource.data.referredUserUid == request.auth.uid);
+      // Created and paid only by Cloud Functions. Clients cannot write a
+      // referral, verify it, or award tickets.
+      allow create, update, delete: if false;
+    }
+
+    // Signup IP and other fraud signals. Admin SDK only.
+    match /referral_signals/{signalId} {
+      allow read, write: if false;
+    }
+
+    // Hourly pending-referral cursor. Admin SDK only.
+    match /referral_scan/{docId} {
+      allow read, write: if false;
+    }
+
+    // Referral code index. Server writes one doc per user. Clients cannot
+    // mint or overwrite a code.
+    match /referralCodes/{code} {
+      allow read, write: if false;
+    }
+
+    // First arrival of a guest or account. Admin SDK only. The client cannot
+    // write the timestamp or the anonymous flag.
+    match /referral_arrivals/{uid} {
+      allow read, write: if false;
+    }
+
+    match /tip_confirmations/{docId} {
+      allow read, write: if false;
+    }
+
+    // Payment hashes that already earned tip XP. Admin SDK only.
+    match /tip_hashes/{hashId} {
+      allow read, write: if false;
+    }
+
+    // Server-fetched tip invoices and the per-pair daily badge cap. Admin SDK only.
+    match /tip_invoices/{hashId} {
+      allow read, write: if false;
+    }
+    match /tip_pair_days/{docId} {
+      allow read, write: if false;
+    }
+
+    // Paid-referral timestamps used for the per-referrer cap. Admin SDK only.
+    match /referral_pay_limits/{uid} {
+      allow read, write: if false;
     }
 
     // =============================================
@@ -448,10 +777,36 @@ service cloud.firestore {
     // =============================================
     // PUSH TOKENS
     // =============================================
-    match /push_tokens/{tokenId} {
-      allow read: if false;
-      allow create, update: if request.auth != null
-                            && request.auth.uid == tokenId;
+    // Per-user token index. The parent doc is server-managed.
+    // Devices are owner-only: another user cannot read or write the token.
+    match /push_tokens/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      // The parent doc must exist so broadcasts can list devices.
+      // Clients may only touch updatedAt. Tokens live on devices/{deviceId}.
+      allow create: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.keys().hasOnly(['updatedAt'])
+                    && request.resource.data.updatedAt == request.time;
+      allow update: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt'])
+                    && request.resource.data.updatedAt == request.time;
+
+      match /devices/{deviceId} {
+        allow read, delete: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if request.auth != null
+                              && request.auth.uid == uid
+                              && deviceId.matches('^[A-Za-z0-9_\\-]{8,64}$')
+                              && request.resource.data.keys().hasOnly(['token', 'updatedAt', 'platform', 'ua'])
+                              && request.resource.data.token is string
+                              && request.resource.data.token.size() >= 20
+                              && request.resource.data.token.size() <= 512
+                              && request.resource.data.updatedAt == request.time
+                              && request.resource.data.platform is string
+                              && request.resource.data.platform.size() <= 40
+                              && request.resource.data.ua is string
+                              && request.resource.data.ua.size() <= 160;
+      }
     }
 
     // =============================================
@@ -466,11 +821,93 @@ service cloud.firestore {
     match /totp_rate_limits/{userId} {
       allow read, write: if false; // Cloud Function only
     }
+    match /totp_sessions/{docId} {
+      allow read, write: if false;
+    }
+    match /trusted_devices/{docId} {
+      allow read, write: if false;
+    }
+    match /totp_fresh_proofs/{docId} {
+      allow read, write: if false;
+    }
+    match /recovery_codes/{docId} {
+      allow read, write: if false;
+    }
+    match /mfa_admin_log/{docId} {
+      allow read, write: if false;
+    }
 
     // =============================================
     // FORUM POSTS
     // [AUDIT FIX S5] Upvote tracking with voter deduplication
     // =============================================
+    // Topic cross-posts are Admin SDK writes. Clients cannot set the mirror
+    // fields, the paragraph anchor, authorId, hidden, or deleted on a mirrored
+    // doc. The author of a mirrored doc may change only body, and only while
+    // it is still visible. Ordinary Pleb Talk posts are not paced by
+    // topic_discussion_limits. anchorIndex and anchorHash are server-written
+    // scroll hints; clients cannot create or change them.
+    function forumMirrorFieldsAbsent() {
+      return !request.resource.data.keys().hasAny(['origin', 'mirrorOf', 'mirrorSync', 'topicChannel', 'topicPost', 'topicLink', 'anchorIndex', 'anchorHash', 'noAward', 'mirrored']);
+    }
+    function forumMirrorFieldsFrozen() {
+      return request.resource.data.get('origin', null) == resource.data.get('origin', null)
+        && request.resource.data.get('mirrorOf', null) == resource.data.get('mirrorOf', null)
+        && request.resource.data.get('mirrorSync', null) == resource.data.get('mirrorSync', null)
+        && request.resource.data.get('topicChannel', null) == resource.data.get('topicChannel', null)
+        && request.resource.data.get('topicPost', null) == resource.data.get('topicPost', null)
+        && request.resource.data.get('topicLink', null) == resource.data.get('topicLink', null)
+        && request.resource.data.get('anchorIndex', null) == resource.data.get('anchorIndex', null)
+        && request.resource.data.get('anchorHash', null) == resource.data.get('anchorHash', null)
+        && request.resource.data.get('noAward', null) == resource.data.get('noAward', null)
+        && request.resource.data.get('mirrored', null) == resource.data.get('mirrored', null)
+        && request.resource.data.authorId == resource.data.authorId;
+    }
+    function forumMirroredDoc() {
+      return resource.data.get('origin', '') == 'topic'
+        || resource.data.get('origin', '') == 'forum'
+        || resource.data.get('noAward', false) == true
+        || resource.data.get('mirrorOf', '') != ''
+        || resource.data.get('mirrored', false) == true
+        || ('mirrorSync' in resource.data)
+        || ('topicChannel' in resource.data)
+        || ('topicPost' in resource.data)
+        || ('topicLink' in resource.data);
+    }
+    // Author identity and the creation time stay put. A client cannot hand a
+    // paid document to another account or refresh it back inside the 24h window.
+    function evidenceAuthorFrozen() {
+      return request.resource.data.get('authorId', null) == resource.data.get('authorId', null)
+        && request.resource.data.get('authorUid', null) == resource.data.get('authorUid', null)
+        && request.resource.data.get('author', null) == resource.data.get('author', null)
+        && request.resource.data.get('authorName', null) == resource.data.get('authorName', null)
+        && request.resource.data.get('uid', null) == resource.data.get('uid', null)
+        && request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null)
+        && request.resource.data.get('ts', null) == resource.data.get('ts', null);
+    }
+    // Play counts and reply counts are server-owned. An author edit may change
+    // the post, and it may not change either counter.
+    function serverCountersUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['plays', 'replyCount']);
+    }
+    function forumAuthorMayUpdate(maxBody) {
+      return resource.data.authorId == request.auth.uid
+        && serverCountersUnchanged()
+        && (
+          !forumMirroredDoc()
+          || (
+            resource.data.get('hidden', false) != true
+            && resource.data.get('deleted', false) != true
+            && request.resource.data.get('hidden', false) == resource.data.get('hidden', false)
+            && request.resource.data.get('deleted', false) == resource.data.get('deleted', false)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['body'])
+            && request.resource.data.body is string
+            && request.resource.data.body.size() >= 2
+            && request.resource.data.body.size() <= maxBody
+          )
+        );
+    }
+
     match /forum_posts/{postId} {
       allow read: if true;
       allow create: if request.auth != null
@@ -478,9 +915,16 @@ service cloud.firestore {
                     && request.resource.data.title is string
                     && request.resource.data.title.size() >= 5
                     && request.resource.data.title.size() <= 120
-                    && request.resource.data.authorId == request.auth.uid;
+                    && request.resource.data.authorId == request.auth.uid
+                    && forumMirrorFieldsAbsent()
+                    && (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0);
       allow update: if request.auth != null
+                    && evidenceAuthorFrozen()
                     && (
+                      isAdmin()
+                      || (
+                        forumMirrorFieldsFrozen()
+                        && (
                       // Upvote: only if user hasn't voted yet, increment by exactly 1, append only own UID
                       // Upvote: +1, no replyCount manipulation
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
@@ -496,8 +940,9 @@ service cloud.firestore {
                        && request.resource.data.voters.size() == resource.data.get('voters', []).size() - 1
                        && !(request.auth.uid in request.resource.data.voters)
                       )
-                      || resource.data.authorId == request.auth.uid
-                      || isAdmin()
+                      || forumAuthorMayUpdate(2000)
+                        )
+                      )
                     );
       allow delete: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
@@ -514,20 +959,155 @@ service cloud.firestore {
                     && request.resource.data.body is string
                     && request.resource.data.body.size() >= 2
                     && request.resource.data.body.size() <= 1000
-                    && request.resource.data.authorId == request.auth.uid;
+                    && request.resource.data.authorId == request.auth.uid
+                    && forumMirrorFieldsAbsent();
       allow update: if request.auth != null
+                    && evidenceAuthorFrozen()
                     && (
+                      isAdmin()
+                      || (
+                        forumMirrorFieldsFrozen()
+                        && (
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
                        && (!(request.auth.uid in resource.data.get('voters', [])))
                        && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
                        && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
                        && request.auth.uid in request.resource.data.voters)
-                      || resource.data.authorId == request.auth.uid
-                      || isAdmin()
+                      || forumAuthorMayUpdate(1000)
+                        )
+                      )
                     );
       allow delete: if request.auth != null
                     && (resource.data.authorId == request.auth.uid
                         || isAdmin());
+    }
+
+    // Listing photo: https URL, or a jpeg/png/webp data URL. Blocks javascript: and other schemes.
+    function marketImageValueOk(url) {
+      return url == null
+        || (url is string
+            && url.size() <= 700000
+            && (url.matches('^https://[^\\s"<>]+$')
+                || url.matches('^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$')));
+    }
+
+    function marketCategoryOk(v) {
+      return v in ['books','courses','hardware_edu','nodes','kids','tools','edu_other','mining','merch','art','stickers','services','electronics','other'];
+    }
+
+    function marketConditionOk(v) {
+      return v in ['new','like_new','good','fair','for_parts'];
+    }
+
+    // sellerName must be the profile username. A missing user doc, a missing
+    // username, or an empty username may only publish an empty sellerName.
+    function marketUsernameOk(username, name) {
+      return (username is string && username.size() > 0 && name == username)
+        || ((!(username is string) || username.size() == 0) && name == '');
+    }
+
+    function marketSellerNameMatches() {
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      let name = request.resource.data.get('sellerName', '');
+      return (!exists(userPath) && name == '')
+        || (exists(userPath) && marketUsernameOk(get(userPath).data.get('username', ''), name));
+    }
+
+    // Owner edit. sellerUid, views, saves, and createdAt stay put.
+    // Status may move active → sold, active → deleted, or sold → deleted.
+    // Deleted is final for the owner (an admin restores through isAdmin()).
+    // Price, title, and other content change only while the listing stays active.
+    // Content edits stamp updatedAt with request.time. Soft-delete stamps
+    // deletedAt with request.time. deletedBy is the caller's uid. The live
+    // client still sends the literals 'owner' and 'admin' until that build
+    // ships, so those two strings are accepted from the owner as well.
+    // A sale is status 'sold' only: deletedAt stays unset, so a Nacho
+    // listing shoutout remains. Status 'deleted' is what retracts it.
+    function marketDeletedByOk(by) {
+      return by == request.auth.uid || by == 'owner' || by == 'admin';
+    }
+
+    function marketOwnerEdit() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let d = request.resource.data;
+      let oldStatus = resource.data.get('status', 'active');
+      let newStatus = d.get('status', oldStatus);
+      return resource.data.sellerUid == request.auth.uid
+        && oldStatus != 'deleted'
+        && changed.hasOnly(['title','description','priceSats','category','condition','imageUrl','lightningAddress','shipping','local','localPickup','status','updatedAt','deletedBy','deletedAt'])
+        && d.get('sellerUid', '') == resource.data.get('sellerUid', '')
+        && d.get('views', 0) == resource.data.get('views', 0)
+        && d.get('saves', 0) == resource.data.get('saves', 0)
+        && d.get('createdAt', null) == resource.data.get('createdAt', null)
+        && (!changed.hasAny(['title']) || (d.title is string && d.title.size() >= 3 && d.title.size() <= 80))
+        && (!changed.hasAny(['description']) || (d.description is string && d.description.size() <= 1000))
+        && (!changed.hasAny(['priceSats']) || (d.priceSats is int && d.priceSats >= 1 && d.priceSats <= 100000000000))
+        && (!changed.hasAny(['category']) || marketCategoryOk(d.category))
+        && (!changed.hasAny(['condition']) || marketConditionOk(d.condition))
+        && (!changed.hasAny(['imageUrl']) || marketImageValueOk(d.imageUrl))
+        && (!changed.hasAny(['lightningAddress']) || d.lightningAddress == null || (d.lightningAddress is string && d.lightningAddress.size() <= 120))
+        && (!changed.hasAny(['shipping']) || d.shipping is bool)
+        && (!changed.hasAny(['local']) || d.local is bool)
+        && (!changed.hasAny(['localPickup']) || d.localPickup is bool)
+        // Deleting status must not look like "status unchanged": get() would
+        // fall back to the old value, so the field has to stay a string.
+        && (!changed.hasAny(['status']) || d.status is string)
+        && (newStatus == oldStatus
+            || (oldStatus == 'active' && (newStatus == 'sold' || newStatus == 'deleted'))
+            || (oldStatus == 'sold' && newStatus == 'deleted'))
+        && (!changed.hasAny(['title','description','priceSats','category','condition','imageUrl','lightningAddress','shipping','local','localPickup','updatedAt'])
+            || (oldStatus == 'active' && newStatus == 'active' && d.updatedAt == request.time))
+        && (!changed.hasAny(['deletedBy','deletedAt']) || newStatus == 'deleted')
+        && (newStatus != 'deleted'
+            || (marketDeletedByOk(d.deletedBy) && d.deletedAt == request.time));
+    }
+
+    // An owner may hard-delete an active, sold, or self-removed listing.
+    // A listing an admin removed stays in place so the moderation record
+    // survives. deletedBy 'admin', 'admin-mod', or another uid blocks the
+    // owner. moderated, moderationHidden, and hidden do too. The admin
+    // custom claim can still hard-delete it.
+    function marketOwnerHardDelete() {
+      return resource.data.sellerUid == request.auth.uid
+        && resource.data.get('moderated', false) != true
+        && resource.data.get('moderationHidden', false) != true
+        && resource.data.get('hidden', false) != true
+        && (resource.data.get('status', 'active') != 'deleted'
+            || resource.data.get('deletedBy', '') == request.auth.uid
+            || resource.data.get('deletedBy', '') == 'owner');
+    }
+
+    // Detail view: any signed-in user may add exactly 1 to views.
+    function marketViewBump() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views'])
+        && request.resource.data.views is int
+        && request.resource.data.views == resource.data.get('views', 0) + 1;
+    }
+
+    // Save or unsave. saves moves by exactly 1, and savedBy gains or loses
+    // only the caller's uid. A uid already in savedBy cannot save again.
+    function marketSaveToggle() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      let oldSaved = resource.data.get('savedBy', []);
+      let newSaved = request.resource.data.savedBy;
+      let uid = request.auth.uid;
+      return changed.hasOnly(['saves', 'savedBy'])
+        && oldSaved is list
+        && newSaved is list
+        && request.resource.data.saves is int
+        && (
+          (!(uid in oldSaved)
+            && (uid in newSaved)
+            && newSaved.hasAll(oldSaved)
+            && newSaved.size() == oldSaved.size() + 1
+            && request.resource.data.saves == resource.data.get('saves', 0) + 1)
+          || ((uid in oldSaved)
+            && !(uid in newSaved)
+            && oldSaved.hasAll(newSaved)
+            && newSaved.size() == oldSaved.size() - 1
+            && request.resource.data.saves == resource.data.get('saves', 0) - 1
+            && request.resource.data.saves >= 0)
+        );
     }
 
     // =============================================
@@ -535,38 +1115,44 @@ service cloud.firestore {
     // =============================================
     match /marketplace/{listingId} {
       allow read: if true;
+      // Client payload from marketplace.js submitListing(). sellerName is the
+      // profile username (or empty when that username is missing).
       allow create: if request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                    && listingId.matches('^[A-Za-z0-9]{20}$')
+                    && request.resource.data.keys().hasOnly(['title','description','priceSats','category','condition','imageUrl','lightningAddress','shipping','localPickup','sellerUid','sellerName','sellerRank','status','views','saves','createdAt'])
+                    && request.resource.data.keys().hasAll(['title','priceSats','category','sellerUid','status','views','saves','createdAt'])
                     && request.resource.data.sellerUid == request.auth.uid
-                    // F-003: field allowlist prevents inflating views/saves at creation time
-                    && request.resource.data.keys().hasOnly(['sellerUid','title','price','description','imageUrl','createdAt','category'])
-                    && (!('imageUrl' in request.resource.data)
-                        || request.resource.data.imageUrl == ''
-                        || request.resource.data.imageUrl == null
-                        || request.resource.data.imageUrl.matches('^https://.*')
-                        || request.resource.data.imageUrl.matches('^data:image/.*'));
+                    && request.resource.data.status == 'active'
+                    && request.resource.data.views == 0
+                    && request.resource.data.saves == 0
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.title is string
+                    && request.resource.data.title.size() >= 3 && request.resource.data.title.size() <= 80
+                    && request.resource.data.get('description', '') is string
+                    && request.resource.data.get('description', '').size() <= 1000
+                    && request.resource.data.priceSats is int
+                    && request.resource.data.priceSats >= 1 && request.resource.data.priceSats <= 100000000000
+                    && marketCategoryOk(request.resource.data.category)
+                    && marketConditionOk(request.resource.data.get('condition', 'good'))
+                    && marketImageValueOk(request.resource.data.get('imageUrl', null))
+                    && (request.resource.data.get('lightningAddress', null) == null
+                        || (request.resource.data.lightningAddress is string
+                            && request.resource.data.lightningAddress.size() <= 120))
+                    && request.resource.data.get('shipping', false) is bool
+                    && request.resource.data.get('localPickup', false) is bool
+                    && request.resource.data.get('sellerName', '') is string
+                    && request.resource.data.get('sellerName', '').size() <= 40
+                    && marketSellerNameMatches()
+                    && request.resource.data.get('sellerRank', '') is string
+                    && request.resource.data.get('sellerRank', '').size() <= 40;
       allow update: if request.auth != null
-                    && (// LOW-8 FIX: seller updates — field allowlist prevents adding arbitrary fields
-                        (resource.data.sellerUid == request.auth.uid
-                        && request.resource.data.diff(resource.data).affectedKeys()
-                           .hasOnly(['title','price','description','imageUrl','category','lightningAddress','status']))
+                    && (marketOwnerEdit()
                         || isAdmin()
-                        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'saves', 'savedBy'])
-                            && request.resource.data.views == resource.data.get('views', 0) + 1
-                            && (
-                                // No change to saves
-                                request.resource.data.saves == resource.data.get('saves', 0) 
-                                || 
-                                // New save: must append UID to savedBy, increment saves by 1
-                                (
-                                  !(request.auth.uid in resource.data.get('savedBy', []))
-                                  && request.resource.data.saves == resource.data.get('saves', 0) + 1
-                                  && request.resource.data.savedBy.size() == resource.data.get('savedBy', []).size() + 1
-                                  && request.auth.uid in request.resource.data.savedBy
-                                )
-                            )
-                        ));
+                        || marketViewBump()
+                        || marketSaveToggle());
       allow delete: if request.auth != null
-                    && (resource.data.sellerUid == request.auth.uid
+                    && (marketOwnerHardDelete()
                         || isAdmin());
     }
 
@@ -675,20 +1261,58 @@ service cloud.firestore {
     // PVP LOBBY
     // [AUDIT FIX L-NEW-7] Enforce 1 entry per user via document ID
     // =============================================
+    function pvpPicOk(url) {
+      return url is string
+             && url.size() <= 400
+             && (url == ''
+                 || url.matches('https://firebasestorage\\.googleapis\\.com/.*')
+                 || url.matches('https://[a-z0-9-]+\\.firebasestorage\\.app/.*')
+                 || url.matches('https://assets\\.bitcoineducation\\.quest/.*')
+                 || url.matches('https://lh3\\.googleusercontent\\.com/.*'));
+    }
+
     match /pvp_lobby/{docId} {
       allow read: if request.auth != null;
+      // Signed-in, non-anonymous, own uid, strict field list. No extra payload.
       allow create: if request.auth != null
+                    && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && docId == request.auth.uid
-                    && request.resource.data.uid == request.auth.uid;
-      // Owner can update anything; opponent can only claim the match with their own UID
+                    && request.resource.data.keys().hasOnly(['uid', 'name', 'profilePic', 'status', 'createdAt', 'lastSeen'])
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.status == 'waiting'
+                    && request.resource.data.name is string
+                    && request.resource.data.name.size() >= 2
+                    && request.resource.data.name.size() <= 30
+                    && request.resource.data.name.matches('[^\\[\\]()@#*`_]+')
+                    && pvpPicOk(request.resource.data.profilePic)
+                    && request.resource.data.createdAt == request.time
+                    && request.resource.data.lastSeen is number
+                    && request.resource.data.lastSeen <= request.time.toMillis() + 5000
+                    && request.resource.data.lastSeen >= request.time.toMillis() - 120000;
+      // Heartbeat only, and not faster than once every 4 seconds.
       allow update: if request.auth != null
-                    && (docId == request.auth.uid
-                        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['opponentUid', 'opponentName', 'opponentProfilePic', 'matchId', 'status'])
-                            && request.resource.data.opponentUid == request.auth.uid
-                            && request.resource.data.status == 'matched'));
-      // [AUDIT FIX] Only lobby owner can delete their entry
+                    && docId == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeen'])
+                    && request.resource.data.lastSeen is number
+                    && request.resource.data.lastSeen >= resource.data.lastSeen + 4000
+                    && request.resource.data.lastSeen <= request.time.toMillis() + 5000;
       allow delete: if request.auth != null
                     && docId == request.auth.uid;
+    }
+
+    // One summary of who is waiting. Clients listen to this doc only.
+    // onPvpLobbyLive maintains it. Clients cannot write it.
+    match /pvp_lobby_live/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    match /pvp_rewards/{matchId} {
+      allow read, write: if false;
+    }
+
+    match /pvp_rate/{uid} {
+      allow read, write: if false;
     }
 
     // =============================================
@@ -714,44 +1338,47 @@ service cloud.firestore {
       allow read: if request.auth != null
                   && (resource.data.player1.uid == request.auth.uid
                       || resource.data.player2.uid == request.auth.uid);
-      // Match creation still client-side (lobby system), but answers go through Cloud Function
-      allow create: if request.auth != null
-                    && (request.resource.data.player1.uid == request.auth.uid
-                        || request.resource.data.player2.uid == request.auth.uid)
-                    && request.resource.data.player1.uid != request.resource.data.player2.uid;
-      // Clients may only write: own answers, flow fields (advance), heartbeats, self-forfeit.
-      // Clients may NOT set status=finished/question_result, touch opponent answers,
-      // or modify questions[]. The questions array is immutable after match creation —
-      // only the pvpResolveRound CF (admin SDK) may write it (e.g. reroll new questions).
-      // [SECURITY FIX] Removed 'questions' from hasOnly — clients could swap in
-      // questions they knew the answers to, rigging pvpResolveRound grading.
+      // Matches are created by pvpCreateMatch (admin SDK). Clients cannot
+      // plant a questions array or an answer key.
+      allow create: if false;
+      // No client writes once the match is finished or forfeited.
+      // player1 and player2 are server-owned (uids live in pvp_answer_keys).
+      // A client may forfeit only as itself, and only with manual_leave.
+      // questionWinner may be cleared to null. The timer moves only when a round starts.
       allow update: if request.auth != null
                     && (resource.data.player1.uid == request.auth.uid
                         || resource.data.player2.uid == request.auth.uid)
-                    // Field set is still bounded — 'questions' intentionally excluded
+                    && resource.data.status in ['countdown', 'active', 'question_result']
                     && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['player1', 'player2',
-                                 'status', 'currentQ', 'questionWinner', 'questionStartedAt',
+                       .hasOnly(['status', 'currentQ', 'questionWinner', 'questionStartedAt',
                                  'player1LastSeen', 'player2LastSeen',
-                                 'forfeitedBy', 'forfeitReason'])
-                    // Scores/correct are immutable from clients — CF (admin) owns them
-                    && request.resource.data.player1.score   == resource.data.player1.score
-                    && request.resource.data.player1.correct == resource.data.player1.correct
-                    && request.resource.data.player2.score   == resource.data.player2.score
-                    && request.resource.data.player2.correct == resource.data.player2.correct
-                    // Clients can only set status to 'active' or 'forfeit'
-                    // 'finished' and 'question_result' are written exclusively by CF
+                                 'forfeitedBy', 'forfeitReason', 'lastTaunt'])
                     && (request.resource.data.status == resource.data.status
-                        || request.resource.data.status == 'active'
-                        || request.resource.data.status == 'forfeit')
-                    // Forfeit: forfeitedBy must be the requesting player
-                    && (!request.resource.data.keys().hasAny(['forfeitedBy'])
-                        || request.resource.data.forfeitedBy == request.auth.uid)
-                    // Each player can only write their own answers array
-                    && (resource.data.player1.uid == request.auth.uid
-                        || request.resource.data.player1.answers == resource.data.player1.answers)
-                    && (resource.data.player2.uid == request.auth.uid
-                        || request.resource.data.player2.answers == resource.data.player2.answers);
+                        || (request.resource.data.status == 'active'
+                            && resource.data.status in ['countdown', 'question_result'])
+                        || (request.resource.data.status == 'forfeit'
+                            && request.resource.data.forfeitedBy == request.auth.uid
+                            && request.resource.data.forfeitReason == 'manual_leave'))
+                    && (request.resource.data.currentQ == resource.data.currentQ
+                        || (resource.data.status == 'question_result'
+                            && request.resource.data.status == 'active'
+                            && request.resource.data.currentQ == resource.data.currentQ + 1))
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['questionWinner'])
+                        || request.resource.data.questionWinner == null)
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['questionStartedAt'])
+                        || (request.resource.data.status == 'active'
+                            && request.resource.data.status != resource.data.status
+                            && request.resource.data.questionStartedAt == request.time))
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['forfeitedBy', 'forfeitReason'])
+                        || (request.resource.data.status == 'forfeit'
+                            && request.resource.data.forfeitedBy == request.auth.uid
+                            && request.resource.data.forfeitReason == 'manual_leave'))
+                    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastTaunt'])
+                        || (request.resource.data.lastTaunt.uid == request.auth.uid
+                            && request.resource.data.lastTaunt.emoji is string
+                            && request.resource.data.lastTaunt.emoji.size() > 0
+                            && request.resource.data.lastTaunt.emoji.size() <= 8
+                            && request.resource.data.lastTaunt.ts is number));
     }
 
     // =============================================
@@ -784,11 +1411,15 @@ service cloud.firestore {
                     && (!('releaseDate' in request.resource.data)
                         || request.resource.data.releaseDate == ''
                         || (request.resource.data.releaseDate is string
-                            && request.resource.data.releaseDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')));
+                            && request.resource.data.releaseDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
+                    && (!('plays' in request.resource.data) || request.resource.data.plays == 0)
+                    && (!('likes' in request.resource.data) || request.resource.data.likes == 0);
       allow update: if request.auth != null
+                    && evidenceAuthorFrozen()
                     && (
                       // Author can update their own track (with coverUrl + XSS validation)
                       (resource.data.authorId == request.auth.uid
+                        && serverCountersUnchanged()
                         && (!('coverUrl' in request.resource.data)
                             || request.resource.data.coverUrl == ''
                             || request.resource.data.coverUrl == null
@@ -804,8 +1435,7 @@ service cloud.firestore {
                             || (request.resource.data.releaseDate is string
                                 && request.resource.data.releaseDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$'))))
                       // Social interactions: plays/likes only
-                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plays', 'likes', 'likedBy'])
-                          && request.resource.data.plays <= resource.data.get('plays', 0) + 1
+                      || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes', 'likedBy'])
                           && request.resource.data.likes <= resource.data.get('likes', 0) + 1
                           && (!request.resource.data.keys().hasAny(['likedBy']) || (
                               request.resource.data.likedBy is list
@@ -813,10 +1443,19 @@ service cloud.firestore {
                               && request.resource.data.likedBy.hasAll(resource.data.get('likedBy', []))
                               && !(resource.data.get('likedBy', []).hasAny([request.auth.uid]))
                           )))
-                    );
+                    )
+                    // Moderated tracks stay hidden. A partial update (plays, likes,
+                    // title) still sees the existing flag. A rewrite that drops it,
+                    // or sets hidden to anything other than true, is rejected, so an
+                    // import cannot un-hide the doc.
+                    && (resource.data.get('hidden', false) != true
+                        || request.resource.data.hidden == true);
       allow delete: if request.auth != null
-                    && (resource.data.authorId == request.auth.uid
-                        || isAdmin());
+                    && (
+                      isAdmin()
+                      || (resource.data.authorId == request.auth.uid
+                          && resource.data.get('hidden', false) != true)
+                    );
 
       match /comments/{commentId} {
         allow read: if true;
@@ -876,11 +1515,21 @@ service cloud.firestore {
                     && request.resource.data.title.size() >= 10
                     && request.resource.data.title.size() <= 120
                     && request.resource.data.body is string
-                    && request.resource.data.agreedToTerms == true;
+                    && request.resource.data.body.size() <= 50000
+                    && request.resource.data.agreedToTerms == true
+                    && (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0);
       allow update: if request.auth != null
+                    && evidenceAuthorFrozen()
                     && (
-                      // Author can edit their own article
-                      resource.data.authorId == request.auth.uid
+                      // Author can edit their own article. replyCount stays server-owned.
+                      (resource.data.authorId == request.auth.uid
+                        && request.resource.data.authorId == resource.data.authorId
+                        && request.resource.data.body is string
+                        && request.resource.data.body.size() <= 50000
+                        && request.resource.data.title is string
+                        && request.resource.data.title.size() >= 10
+                        && request.resource.data.title.size() <= 120
+                        && serverCountersUnchanged())
                       // Upvotes/tips/saves: anyone authenticated
                       // [SECURITY FIX] Each branch now freezes the fields it does NOT own.
                       // Previously the OR logic let any branch pass while the caller freely
@@ -927,6 +1576,7 @@ service cloud.firestore {
                     && request.resource.data.body.size() >= 2
                     && request.resource.data.body.size() <= 2000;
       allow update: if request.auth != null
+                    && evidenceAuthorFrozen()
                     && (resource.data.authorId == request.auth.uid
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
                             && (!(request.auth.uid in resource.data.get('voters', [])))
@@ -1036,19 +1686,32 @@ service cloud.firestore {
     // =============================================
     match /announcements/{msgId} {
       allow read: if true;
+      // badgeIds is server-only (badge GGs Admin SDK). Clients cannot create
+      // announcements, and an update may change reactions only.
       // [BUG-6 FIX] Client writes to announcements are permanently disabled.
       // Any authenticated user (including anonymous) could set isNachoAuto=true
       // and inject fake "official Nacho" announcements with arbitrary markdown links.
       // All announcements must now go through the nachoAnnounce Cloud Function
       // (Admin SDK write, non-anonymous auth required, link allowlist enforced).
       allow create: if false;
-      // Any signed-in user can toggle their own emoji reaction (only their own uid key within reactions)
+      // Any signed-in user can toggle their own emoji reaction (only their own uid key within reactions).
+      // partyCount is the server 🎉 total. Clients cannot write it. Per-player
+      // markers live in the reactions subcollection and are Admin SDK only.
       allow update: if request.auth != null
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['partyCount'])
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
                     && request.resource.data.reactions.diff(resource.data.get('reactions', {})).affectedKeys().hasOnly([request.auth.uid]);
       // Admin-only delete and full update
       allow delete: if request.auth != null
                     && isAdmin();
+
+      match /reactions/{uid} {
+        allow get: if request.auth != null
+                   && request.auth.uid == uid
+                   && !request.auth.token.firebase.sign_in_provider.matches('anonymous');
+        allow list: if false;
+        allow create, update, delete: if false;
+      }
     }
 
     // =============================================
@@ -1063,11 +1726,16 @@ service cloud.firestore {
                     // Field allowlist: no arbitrary keys that could carry attacker payload
                     && request.resource.data.keys().hasOnly(['uid','name','text','ts','isNachoAuto','faction',
                         'replyTo','replyToName','replyToText',
-                        'hasChatFlair','chatFlairEmoji','hasNachoSkin',
+                        'hasChatFlair','chatFlairEmoji','hasNachoSkin','hasCoreContributor',
                         'isGif','caption','imageUrl','gifUrl'])
                     // F-004: imageUrl/gifUrl must come from Firebase Storage or Tenor CDN only
                     && (!('imageUrl' in request.resource.data) || request.resource.data.imageUrl.matches('^https://(firebasestorage[.]googleapis[.]com|[^/]+[.]firebasestorage[.]app|media[.]tenor[.]com|c[.]tenor[.]com)/.*'))
                     && (!('gifUrl'   in request.resource.data) || request.resource.data.gifUrl.matches('^https://(firebasestorage[.]googleapis[.]com|[^/]+[.]firebasestorage[.]app|media[.]tenor[.]com|c[.]tenor[.]com)/.*'))
+                    // BIP Breakthrough title: only if server-set until is still active
+                    && (!('hasCoreContributor' in request.resource.data)
+                        || (request.resource.data.hasCoreContributor == true
+                            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.coreContributorUntil is number
+                            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.coreContributorUntil > request.time.toMillis()))
                     && request.resource.data.name is string
                     && request.resource.data.name.size() >= 2
                     && request.resource.data.name == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.username
@@ -1086,7 +1754,13 @@ service cloud.firestore {
                     // Reply fields: length-cap so they can't carry large payloads
                     && (!('replyToName' in request.resource.data) || (request.resource.data.replyToName is string && request.resource.data.replyToName.size() <= 60))
                     && (!('replyToText' in request.resource.data) || (request.resource.data.replyToText is string && request.resource.data.replyToText.size() <= 300))
-                    && (!('replyTo'     in request.resource.data) || request.resource.data.replyTo is string)
+                    && (!('replyTo' in request.resource.data) || (
+                        request.resource.data.replyTo is string
+                        && request.resource.data.replyTo.size() >= 8
+                        && request.resource.data.replyTo.size() <= 128
+                        && request.resource.data.replyTo.matches('^[A-Za-z0-9_-]+$')
+                        && request.resource.data.replyTo != msgId
+                    ))
                     && (request.resource.data.uid == request.auth.uid
                         || ((request.resource.data.uid == 'nacho-bot' || request.resource.data.uid == 'system')
                             && isAdmin()))
@@ -1134,35 +1808,66 @@ service cloud.firestore {
     match /notifications/{notifId} {
       allow read: if request.auth != null
                   && request.auth.uid == resource.data.recipientId;
-      // [AUDIT FIX] Validate sender, type whitelist, message length, require recipientId
+      // Display-only. Clients may create social notices (mention, tip, DM).
+      // Reward, badge, rank, quest, and streak notices are Cloud Function writes
+      // and never pass through this create rule.
+      // targetType is a fixed list. targetId, giftId, fromUid, and the doc id
+      // must match ^[A-Za-z0-9_-]{1,64}$. senderId must be the signed-in user.
       allow create: if request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
-                    && request.resource.data.recipientId is string
-                    && request.resource.data.recipientId.size() > 0
+                    && notifIdOk(notifId)
+                    && request.resource.data.keys().hasOnly(['recipientId', 'senderId', 'senderName', 'type', 'message', 'targetType', 'targetId', 'giftId', 'fromUid', 'read', 'createdAt'])
+                    && notifIdOk(request.resource.data.recipientId)
+                    && request.resource.data.senderId == request.auth.uid
+                    && request.resource.data.senderName is string
+                    && request.resource.data.senderName.size() > 0
+                    && request.resource.data.senderName.size() <= 40
                     && request.resource.data.message is string
+                    && request.resource.data.message.size() > 0
                     && request.resource.data.message.size() <= 200
-                    && request.resource.data.type in ['dm', 'like', 'tip', 'mention', 'reply', 'forum', 'beats_track', 'pvp', 'buddy', 'comment', 'upvote', 'security', 'badge', 'quest', 'streak', 'level_up', 'chat_mention', 'leaderboard_reward', 'article', 'forum_post']
-                    && (request.resource.data.senderId == request.auth.uid
-                        || (request.resource.data.senderId == 'system'
-                            && isAdmin()));
+                    && request.resource.data.type in ['dm', 'like', 'tip', 'mention', 'reply', 'forum', 'beats_track', 'pvp', 'buddy', 'comment', 'upvote', 'security', 'chat_mention', 'article', 'forum_post']
+                    && (request.resource.data.targetType == null
+                        || request.resource.data.targetType in ['dm', 'forum_post', 'article', 'beats_track', 'marketplace', 'song', 'chat', 'pvp', 'buddy'])
+                    && (request.resource.data.targetId == null
+                        || notifIdOk(request.resource.data.targetId))
+                    && (!('giftId' in request.resource.data)
+                        || request.resource.data.giftId == null
+                        || notifIdOk(request.resource.data.giftId))
+                    && (!('fromUid' in request.resource.data)
+                        || notifIdOk(request.resource.data.fromUid))
+                    && request.resource.data.read == false
+                    && (!('createdAt' in request.resource.data)
+                        || request.resource.data.createdAt == request.time)
+                    && !request.resource.data.keys().hasAny(['xp', 'tickets', 'sats', 'points', 'orangeTickets', 'badgeId', 'freezes']);
       allow update: if request.auth != null
-                    && request.auth.uid == resource.data.recipientId;
+                    && request.auth.uid == resource.data.recipientId
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+                    && request.resource.data.read is bool;
       allow delete: if request.auth != null
                     && request.auth.uid == resource.data.recipientId;
     }
 
     // =============================================
-    // Polls (Sats vs Bits — anonymous voting allowed)
+    // Sats vs Bits tally. Clients may read the totals. They cannot create the
+    // document. pollVote creates it and increments sats/bits in one transaction.
     match /polls/{pollId} {
       allow read: if true;
-      // Writes handled server-side via pollVote Cloud Function
-      allow write: if false;
+      allow create, update, delete: if false;
     }
 
-    // Certificates (public read, Cloud Function writes only via Admin SDK)
+    // Certificates are not readable by the client. verifyCertificate returns
+    // the public fields. Owner ids live in cert_owners.
     match /certs/{certId} {
-      allow read: if true;
-      allow write: if false;
+      allow read: if false;
+      allow create, update, delete: if false;
+    }
+
+    match /cert_owners/{certId} {
+      allow read, write: if false;
+    }
+
+    match /cert_by_user/{docId} {
+      allow read, write: if false;
     }
 
     // Buddy matching pool
@@ -1208,6 +1913,23 @@ service cloud.firestore {
     // Faucet lifetime ledger — server-only, immune to client account deletion.
     // Tracks satsWithdrawn + lastSatsClaim keyed by UID. Even if the user deletes
     // their /users/{uid} doc, this ledger persists (Fix C-NEW-6).
+    
+    // One award per source doc, across every account. Clients cannot write.
+    match /award_doc_claims/{claimId} {
+      allow read: if false;
+      allow create, update, delete: if false;
+    }
+
+    // Per-listener play marks for Bitcoin Beats. Clients cannot write.
+    match /beats_play_marks/{markId} {
+      allow read: if false;
+      allow create, update, delete: if false;
+    }
+    match /beats_play_user/{uid} {
+      allow read: if false;
+      allow create, update, delete: if false;
+    }
+
     match /faucet_ledger/{docId} {
       allow read, write: if false; // Cloud Function admin SDK only
     }
@@ -1217,17 +1939,57 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Paying article publishes per offset day. Cloud Function only.
+    match /users/{userId}/article_publish_days/{docId} {
+      allow read, write: if false;
+    }
+
+    // Onboarding evidence (Nacho asked, copied quiz proof). Cloud Function only.
+    match /users/{userId}/onboarding_evidence/{docId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
     // Server-side per-day action count tracking (Cloud Function only)
     // Used to enforce hard daily limits on spam-prone actions (e.g. beats_upload=5/day)
     match /users/{userId}/daily_action_counts/{docId} {
       // Owner can read their own flex/action records (needed for client-side FLEX restore)
+      // Say-hi claims live here as {serverDay}_say_hi. Clients cannot write them.
       allow read: if request.auth != null && request.auth.uid == userId;
       // Writes only from Cloud Functions (server-side enforcement)
       allow write: if false;
     }
 
+    // Quiz part completions. Cloud Functions only — not the client-editable
+    // completedQuests array on the user doc.
+    match /users/{userId}/quest_completions/{docId} {
+      allow read, write: if false;
+    }
+
+    // One pass per quiz part. gradeQuest writes this so questsPassed cannot be farmed.
+    match /users/{userId}/quest_passes/{docId} {
+      allow read, write: if false;
+    }
+
+    // Every server-graded quest attempt. gradeQuest writes this. Clients cannot.
+    match /users/{userId}/quest_attempts/{docId} {
+      allow read, write: if false;
+    }
+
     // Server-side badge award deduplication (Cloud Function only)
     match /users/{userId}/badge_awards/{docId} {
+      allow read, write: if false;
+    }
+
+    // Topic conversation XP ledger. Written only by the server function that
+    // accepts the post. source is topic_conversation. Clients cannot write it.
+    match /users/{userId}/xp_ledger/{docId} {
+      allow read, write: if false;
+    }
+
+    // One certification completion bonus per cert type. gradeScholarExam
+    // writes prop or tech. Clients cannot create or edit the marker.
+    match /users/{userId}/cert_bonuses/{docId} {
       allow read, write: if false;
     }
 
@@ -1365,109 +2127,59 @@ service cloud.firestore {
       allow read, update, delete: if false;
     }
 
-    // Poll Quest votes — anyone can read, signed-in users can write
+    // Poll Quest tally. dailyPollVote creates and updates it in the vote
+    // transaction. Clients may read the results. They cannot create the doc.
     match /poll_votes/{pollId} {
       allow read: if true;
-      // pollId must be alphanumeric/safe; field schema locked; voters[0] must be self
-      allow create: if request.auth != null
-                    && pollId.matches('^[a-zA-Z0-9_-]{1,80}$')
-                    && request.resource.data.keys().hasOnly(['pollId', 'question', 'options', 'votes', 'voters', 'lastUpdated'])
-                    && request.resource.data.votes is list
-                    && request.resource.data.votes.size() == 4
-                    && request.resource.data.voters is list
-                    && request.resource.data.voters.size() == 1
-                    && request.resource.data.voters[0] == request.auth.uid;
-      // [SECURITY FIX] votes: each slot can only increase by at most 1; total must increase
-      // by exactly 1 (one vote per update). Previously >= allowed unbounded inflation.
-      allow update: if request.auth != null
-                    && request.resource.data.keys().hasOnly(['pollId', 'question', 'options', 'votes', 'voters', 'lastUpdated'])
-                    && request.resource.data.votes is list
-                    && request.resource.data.votes.size() == 4
-                    // each slot: non-decreasing AND at most +1
-                    && request.resource.data.votes[0] >= resource.data.votes[0]
-                    && request.resource.data.votes[0] <= resource.data.votes[0] + 1
-                    && request.resource.data.votes[1] >= resource.data.votes[1]
-                    && request.resource.data.votes[1] <= resource.data.votes[1] + 1
-                    && request.resource.data.votes[2] >= resource.data.votes[2]
-                    && request.resource.data.votes[2] <= resource.data.votes[2] + 1
-                    && request.resource.data.votes[3] >= resource.data.votes[3]
-                    && request.resource.data.votes[3] <= resource.data.votes[3] + 1
-                    // total must increase by exactly 1 (exactly one option chosen)
-                    && (request.resource.data.votes[0] + request.resource.data.votes[1]
-                        + request.resource.data.votes[2] + request.resource.data.votes[3])
-                       == (resource.data.votes[0] + resource.data.votes[1]
-                           + resource.data.votes[2] + resource.data.votes[3]) + 1
-                    && request.resource.data.voters is list
-                    && request.resource.data.voters.size() == resource.data.voters.size() + 1
-                    && request.resource.data.voters.hasAll([request.auth.uid])
-                    && request.resource.data.question == resource.data.question
-                    && request.resource.data.pollId   == resource.data.pollId;
+      allow create, update, delete: if false;
     }
 
-    // Poll cumulative stats (all-time per question) — read public, increment only
+    // Cumulative poll totals. Clients may read the community number.
+    // Creates and edits are denied. dailyPollVote increments the tally.
     match /poll_cumulative/{pollId} {
       allow read: if true;
-      allow create: if request.auth != null
-                    && pollId.matches('^[a-zA-Z0-9_-]{1,80}$')
-                    && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question']);
-      // [SECURITY FIX] create: values must be 0 or 1; total must equal 1 (first vote).
-      // Previously unconstrained — any value could be set on create.
-      allow create: if request.auth != null
-                    && pollId.matches('^[a-zA-Z0-9_-]{1,80}$')
-                    && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question'])
-                    && request.resource.data.total == 1
-                    && request.resource.data.get('option_0', 0) >= 0 && request.resource.data.get('option_0', 0) <= 1
-                    && request.resource.data.get('option_1', 0) >= 0 && request.resource.data.get('option_1', 0) <= 1
-                    && request.resource.data.get('option_2', 0) >= 0 && request.resource.data.get('option_2', 0) <= 1
-                    && request.resource.data.get('option_3', 0) >= 0 && request.resource.data.get('option_3', 0) <= 1;
-      // All numeric fields are monotonically increasing AND bounded to +1 per update.
-      allow update: if request.auth != null
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'pollId', 'question'])
-                    // total: monotone increasing, at most +1
-                    && request.resource.data.total >= resource.data.get('total', 0)
-                    && request.resource.data.total <= resource.data.get('total', 0) + 1
-                    // each option: monotone increasing, at most +1
-                    && request.resource.data.get('option_0', 0) >= resource.data.get('option_0', 0)
-                    && request.resource.data.get('option_0', 0) <= resource.data.get('option_0', 0) + 1
-                    && request.resource.data.get('option_1', 0) >= resource.data.get('option_1', 0)
-                    && request.resource.data.get('option_1', 0) <= resource.data.get('option_1', 0) + 1
-                    && request.resource.data.get('option_2', 0) >= resource.data.get('option_2', 0)
-                    && request.resource.data.get('option_2', 0) <= resource.data.get('option_2', 0) + 1
-                    && request.resource.data.get('option_3', 0) >= resource.data.get('option_3', 0)
-                    && request.resource.data.get('option_3', 0) <= resource.data.get('option_3', 0) + 1;
+      allow create, update, delete: if false;
     }
 
-    // Trivia cumulative stats (all-time per question) — read public, increment only
+    // Trivia answer key. Admin SDK only. Clients cannot read or write it.
+    match /private_banks/{docId} {
+      allow read, write: if false;
+    }
+
+    // Trivia cumulative stats. The tally is written by answerTrivia. Clients can read it.
     match /trivia_cumulative/{triviaId} {
       allow read: if true;
-      // [SECURITY FIX] create: schema locked + values bounded (was completely unconstrained)
-      allow create: if request.auth != null
-                    && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'triviaIndex'])
-                    && request.resource.data.total == 1
-                    && request.resource.data.get('option_0', 0) >= 0 && request.resource.data.get('option_0', 0) <= 1
-                    && request.resource.data.get('option_1', 0) >= 0 && request.resource.data.get('option_1', 0) <= 1
-                    && request.resource.data.get('option_2', 0) >= 0 && request.resource.data.get('option_2', 0) <= 1
-                    && request.resource.data.get('option_3', 0) >= 0 && request.resource.data.get('option_3', 0) <= 1;
-      // [SECURITY FIX] update: monotone increasing AND at most +1 per field per update
-      allow update: if request.auth != null
-                    && request.resource.data.diff(resource.data).affectedKeys()
-                       .hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3', 'triviaIndex'])
-                    && request.resource.data.total >= resource.data.get('total', 0)
-                    && request.resource.data.total <= resource.data.get('total', 0) + 1
-                    && request.resource.data.get('option_0', 0) >= resource.data.get('option_0', 0)
-                    && request.resource.data.get('option_0', 0) <= resource.data.get('option_0', 0) + 1
-                    && request.resource.data.get('option_1', 0) >= resource.data.get('option_1', 0)
-                    && request.resource.data.get('option_1', 0) <= resource.data.get('option_1', 0) + 1
-                    && request.resource.data.get('option_2', 0) >= resource.data.get('option_2', 0)
-                    && request.resource.data.get('option_2', 0) <= resource.data.get('option_2', 0) + 1
-                    && request.resource.data.get('option_3', 0) >= resource.data.get('option_3', 0)
-                    && request.resource.data.get('option_3', 0) <= resource.data.get('option_3', 0) + 1;
+      allow create, update, delete: if false;
     }
 
     // ===== RAID BOSS =====
+    // Chat-Charger and every other scheduled boss take damage only from
+    // trusted Cloud Functions (Admin SDK). Clients cannot write boss HP,
+    // participants, winners, daily caps, or damage events.
     // Per-user daily contribution caps — Cloud Function writes only
     match /raid_daily_caps/{docId} {
+      allow read, write: if false; // Admin SDK bypasses rules
+    }
+
+    match /raid_damage_events/{docId} {
+      allow read, write: if false; // Admin SDK bypasses rules
+    }
+
+    match /raid_boss_posts/{docId} {
+      allow read, write: if false; // Admin SDK bypasses rules
+    }
+
+    match /raid_boss_alerts/{docId} {
+      allow read, write: if false; // Admin SDK bypasses rules
+    }
+
+    // Forum and article damage waits here for 24 hours. Clients cannot queue it.
+    match /raid_forum_pending/{docId} {
+      allow read, write: if false; // Admin SDK bypasses rules
+    }
+
+    // Goal inputs and formula. Not a public boss field.
+    match /raid_boss_meta/{docId} {
       allow read, write: if false; // Admin SDK bypasses rules
     }
 
@@ -1489,15 +2201,24 @@ service cloud.firestore {
       }
     }
 
+    // Past boss snapshots. The server writes them when a fight ends.
+    // Clients may read the cards. They cannot create, edit, or delete them.
+    match /raid_history/{bossId} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
     // ===== SATOSHI'S FAVOR =====
     // Main state document — public read, server writes
     match /satoshiFavor/current {
       allow read: if true;
       allow write: if false; // Cloud Functions only
 
-      // Contributors subcollection — server writes only
+      // Contributors — owner may read their own docs. No client writes.
+      // A list of someone else's docs fails because the query cannot match uid.
       match /contributors/{docId} {
-        allow read: if true;
+        allow read: if request.auth != null
+          && resource.data.uid == request.auth.uid;
         allow write: if false;
       }
 
@@ -1520,17 +2241,55 @@ service cloud.firestore {
       }
     }
 
-    // Faction totals — public read, server writes only
-    // Announce dedup doc — clients race to claim start/end announce slots (prevents spam)
+    // Announce dedup — server only. Clients may still read it. The live
+    // window post is written by the Admin SDK, not by this doc.
     match /satoshiFavor/announceDedup {
       allow read: if true;
-      allow create, update: if request.auth != null
-        && request.resource.data.keys().hasOnly(['startAnnouncedAt', 'endAnnouncedAt']);
+      allow write: if false;
+    }
+
+    // One live-window announcement per cycle. Admin SDK only.
+    match /sf_live_announcements/{cycleId} {
+      allow read, write: if false;
+    }
+
+    // One ending heads-up per Favor window. Admin SDK only.
+    match /sf_ending_announcements/{cycleId} {
+      allow read, write: if false;
+    }
+
+    // Badge GGs burst queue and per-award claims. Admin SDK only.
+    match /badge_gg_bursts/{uid} {
+      allow read, write: if false;
+    }
+    match /badge_gg_claims/{claimId} {
+      allow read, write: if false;
+    }
+
+    // Telegram mirror queue. One claim per chat doc. Admin SDK only.
+    match /telegram_mirror_claims/{claimId} {
+      allow read, write: if false;
+    }
+    match /telegram_mirror_queue/{itemId} {
+      allow read, write: if false;
+    }
+    match /telegram_mirror_state/{docId} {
+      allow read, write: if false;
     }
 
     match /satoshiFavor/factionTotals {
       allow read: if true;
       allow write: if false;
+    }
+
+    // Per-user all-time Satoshi's Favor contribution. Server writes only.
+    // The owner can read their own total. Other clients cannot.
+    match /satoshiFavor/userSfPoints {
+      allow read, write: if false;
+      match /users/{uid} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
     }
 
     // Faction sync records — server writes only
@@ -1586,26 +2345,10 @@ service cloud.firestore {
       }
     }
 
-    // Trivia answer stats — public read, authenticated users can merge-increment
+    // Trivia answer stats. The tally is written by answerTrivia. Clients can read it.
     match /trivia_stats/{date} {
       allow read: if true;
-      allow create: if request.auth != null
-                   && request.resource.data.keys().hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3'])
-                   && request.resource.data.total == 1;
-      // [SECURITY FIX] update: monotone increasing AND at most +1 per field per update
-      allow update: if request.auth != null
-                   && request.resource.data.diff(resource.data).affectedKeys()
-                      .hasOnly(['total', 'option_0', 'option_1', 'option_2', 'option_3'])
-                   && request.resource.data.total >= resource.data.get('total', 0)
-                   && request.resource.data.total <= resource.data.get('total', 0) + 1
-                   && request.resource.data.get('option_0', 0) >= resource.data.get('option_0', 0)
-                   && request.resource.data.get('option_0', 0) <= resource.data.get('option_0', 0) + 1
-                   && request.resource.data.get('option_1', 0) >= resource.data.get('option_1', 0)
-                   && request.resource.data.get('option_1', 0) <= resource.data.get('option_1', 0) + 1
-                   && request.resource.data.get('option_2', 0) >= resource.data.get('option_2', 0)
-                   && request.resource.data.get('option_2', 0) <= resource.data.get('option_2', 0) + 1
-                   && request.resource.data.get('option_3', 0) >= resource.data.get('option_3', 0)
-                   && request.resource.data.get('option_3', 0) <= resource.data.get('option_3', 0) + 1;
+      allow create, update, delete: if false;
     }
 
     // Charity donations — public read (for leaderboard/feed), CF-only write
@@ -1630,6 +2373,15 @@ service cloud.firestore {
     match /leaderboard_winners/{period} {
       allow read: if true;
       allow write: if false;
+    }
+
+    // Paid-once marker for weekly/monthly Orange Ticket board prizes.
+    // Clients cannot read or write the lock or the per-winner docs.
+    match /lb_prize_markers/{markerId} {
+      allow read, write: if false;
+      match /winners/{winnerId} {
+        allow read, write: if false;
+      }
     }
 
     // Hot Topics — public read, Cloud Function write only
@@ -1667,10 +2419,14 @@ service cloud.firestore {
     }
 
     // Keys — owner (and the person who sent it) may read. Writes are Cloud Functions only.
+    // Inventory keys and sent keys are the same collection. `sender` is set
+    // only by sendKeys. A key the user earns has no sender. Clients cannot
+    // create or update that field, because every write is denied.
     match /keys/{keyId} {
       allow read: if request.auth != null
                   && (resource.data.ownerId == request.auth.uid
-                      || resource.data.sentBy == request.auth.uid);
+                      || resource.data.sentBy == request.auth.uid
+                      || resource.data.sender == request.auth.uid);
       allow write: if false;
     }
 
@@ -1692,6 +2448,38 @@ service cloud.firestore {
     // Admins read it through adminListCipherWins; winners claim through claimCipherWin.
     match /cipher_wins/{winId} {
       allow read, write: if false;
+    }
+
+    // One shared-prize marker per cipher open. Admin SDK only, so a client
+    // cannot mark a share paid or revealed, and cannot invent a sender.
+    match /cipher_shares/{shareId} {
+      allow read, write: if false;
+    }
+
+    // Cipher sats balance credits, claims, and payout audit. Admin SDK only.
+    // The balance itself lives on users/{uid}.cipherSatsBalance and is in the
+    // server-only denylist above. Clients cannot write any of these.
+    match /cipher_sats_credits/{docId} {
+      allow read, write: if false;
+    }
+    match /cipher_sats_locks/{docId} {
+      allow read, write: if false;
+    }
+    match /cipher_sats_player_daily/{docId} {
+      allow read, write: if false;
+    }
+    match /cipher_sats_site_daily/{docId} {
+      allow read, write: if false;
+    }
+    match /cipher_sats_payouts/{docId} {
+      allow read, write: if false;
+    }
+    match /cipher_sats_invoices/{docId} {
+      allow read, write: if false;
+    }
+    match /cipher_sats_config/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // =============================================
@@ -1727,6 +2515,11 @@ service cloud.firestore {
       allow read, write: if false; // Cloud Function (Admin SDK) only
     }
 
+    // One-time withdrawal-address reset. Server only, including the marker.
+    match /ln_resets/{uid} {
+      allow read, write: if false;
+    }
+
     // One Lightning address, owned by one uid. Clients may read their own lock.
     match /lightning_addresses/{addrId} {
       allow get: if request.auth != null
@@ -1754,6 +2547,153 @@ service cloud.firestore {
     match /faucet_abuse_reports/{docId} {
       allow read: if isAdmin();
       allow write: if false;
+    }
+
+    // Reply-bonus callable state. Admin SDK only. Clients cannot read or
+    // write the first-reward flag, the per-message claim, or the pair window.
+    match /reply_bonus_state/{docId} {
+      allow read, write: if false;
+    }
+    match /reply_bonus_claims/{docId} {
+      allow read, write: if false;
+    }
+    match /reply_bonus_pairs/{docId} {
+      allow read, write: if false;
+    }
+
+    // Callable rate limits (say-hi and reply_{uid}). Admin SDK only.
+    match /rate_limits/{docId} {
+      allow read, write: if false;
+    }
+
+    // Daily HMAC salt for network rate limits. Admin SDK only.
+    match /rate_limit_salts/{docId} {
+      allow read, write: if false;
+    }
+
+    // Nacho activity shoutouts. Claims and rate limits are server-only so a
+    // client cannot forge a Nacho post or reset the cap.
+    // One marker per listing so onMarketplaceListingCount cannot double-count.
+    match /market_listing_counts/{listingId} {
+      allow read, write: if false;
+    }
+
+    // One article-publish XP marker per article id. Cloud Function only.
+    match /article_xp/{articleId} {
+      allow read, write: if false;
+    }
+
+    match /market_listing_daily/{docId} {
+      allow read, write: if false;
+    }
+    match /market_message_counts/{docId} {
+      allow read, write: if false;
+    }
+    match /market_sale_counts/{docId} {
+      allow read, write: if false;
+    }
+    match /polls/{dayId}/votes/{voteUid} {
+      allow read, write: if false;
+    }
+
+    match /shoutout_claims/{claimId} {
+      allow read, write: if false;
+    }
+    match /shoutout_limits/{limitId} {
+      allow read, write: if false;
+    }
+
+
+    // Timechain TV drip pot. Pot doc is public read. Each viewer may read
+    // their own watch doc and payout receipt. Every write is server-only.
+    match /tctv_drip_pot/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /tctv_drip_watch/{docId} {
+      allow get: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow list, create, update, delete: if false;
+    }
+    match /tctv_drip_payouts/{docId} {
+      allow get: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow list, create, update, delete: if false;
+    }
+    match /tctv_drip_config/{docId} {
+      allow read, write: if false;
+    }
+    match /tctv_drip_devices/{docId} {
+      allow read, write: if false;
+    }
+    match /tctv_drip_history/{docId} {
+      allow read, write: if false;
+    }
+
+    // Daily Timechain TV watch ledger. The owner may read progress for the
+    // home button. Watch time, the daily claim, XP, and orange tickets are
+    // written only by tctvWatchHeartbeat (Admin SDK). Clients cannot write.
+    match /tctv_watch/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list: if false;
+      allow create, update, delete: if false;
+    }
+
+    // Live topic comments. Public read so guests can follow a thread.
+    // Every create, hide, delete, and report goes through a callable.
+    match /topic_discussions/{channelId} {
+      allow read: if true;
+      allow write: if false;
+      match /posts/{postId} {
+        allow read: if true;
+        allow write: if false;
+        match /reports/{reportId} {
+          allow read, write: if false;
+        }
+      }
+    }
+    match /topic_discussion_limits/{docId} {
+      allow read, write: if false;
+    }
+    match /topic_discussion_caps/{docId} {
+      allow read, write: if false;
+    }
+    match /topic_discussion_private/{docId} {
+      allow read, write: if false;
+    }
+    match /key_gift_credits/{docId} {
+      allow read, write: if false;
+    }
+    match /peer_key_days/{docId} {
+      allow read, write: if false;
+    }
+    match /key_use_credits/{docId} {
+      allow read, write: if false;
+    }
+    match /peer_xp_credits/{docId} {
+      allow read, write: if false;
+    }
+    match /topic_comment_pending/{docId} {
+      allow read, write: if false;
+    }
+    match /deleted_accounts/{docId} {
+      allow read, write: if false;
+    }
+    match /email_history/{docId} {
+      allow read, write: if false;
+    }
+    match /email_change_pending/{docId} {
+      allow read, write: if false;
+    }
+    match /email_link_claims/{docId} {
+      allow read, write: if false;
+    }
+    match /identity_history/{docId} {
+      allow read, write: if false;
+    }
+
+    // Nacho Radio shuffle bag (nacho_radio/queue). The scheduled tick is the
+    // only reader and writer. Clients must not see or edit the upcoming order.
+    match /nacho_radio/{docId} {
+      allow read, write: if false;
     }
 
     match /{document=**} {

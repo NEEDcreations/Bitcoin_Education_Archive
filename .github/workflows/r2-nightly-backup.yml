@@ -1,0 +1,94 @@
+name: Nightly Firestore backup copy to Cloudflare R2
+
+# Copies the nightly Firestore export (written ~9:03 PM ET by dailyFirestoreBackup)
+# from GCS to the private R2 bucket bq-user-backups as an AES-256 encrypted zip.
+# Read-only on GCP. Never echoes secrets. A failed run fails the job (GitHub emails the owner).
+
+on:
+  schedule:
+    - cron: "30 2 * * *"   # 02:30 UTC = 9:30 PM EST / 10:30 PM EDT
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Export folder date (YYYY-MM-DD, UTC). Blank = today UTC."
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: r2-nightly-backup
+  cancel-in-progress: false
+
+jobs:
+  copy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BUCKET: bitcoin-education-archive-backups
+      R2_BUCKET: bq-user-backups
+    steps:
+      - name: Pick export date
+        id: d
+        env:
+          IN_DATE: ${{ github.event.inputs.date }}
+        run: |
+          D="${IN_DATE:-$(date -u +%F)}"
+          [[ "$D" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "::error::bad date"; exit 1; }
+          echo "date=$D" >> "$GITHUB_OUTPUT"
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_BACKUP_READER_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Download export
+        run: |
+          D="${{ steps.d.outputs.date }}"
+          mkdir -p work && cd work
+          gcloud storage ls "gs://$BUCKET/$D/$D.overall_export_metadata" >/dev/null \
+            || { echo "::error::No completed export for $D"; exit 1; }
+          gcloud storage cp -r "gs://$BUCKET/$D" . --quiet
+          N=$(find "$D" -type f | wc -l)
+          echo "files=$N bytes=$(du -sb "$D" | cut -f1)"
+          [ "$N" -gt 10 ] || { echo "::error::Export looks incomplete ($N files)"; exit 1; }
+
+      - name: Tar and encrypt (AES-256 zip)
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set +x
+          D="${{ steps.d.outputs.date }}"
+          cd work
+          tar -czf "bq-firestore-$D.tar.gz" "$D"
+          pip install -q pyzipper
+          python3 - "$D" <<'PY'
+          import os, sys, pyzipper
+          d = sys.argv[1]
+          pw = os.environ["BACKUP_PASSPHRASE"].strip().encode()
+          assert len(pw) >= 20, "passphrase missing"
+          out = f"bq-user-backup-{d}.zip"
+          with pyzipper.AESZipFile(out, "w", compression=pyzipper.ZIP_STORED, encryption=pyzipper.WZ_AES) as z:
+              z.setpassword(pw); z.write(f"bq-firestore-{d}.tar.gz")
+          with pyzipper.AESZipFile(out) as z:
+              z.setpassword(pw); assert z.testzip() is None
+          print("encrypted", out, os.path.getsize(out))
+          PY
+          rm -rf "$D" "bq-firestore-$D.tar.gz"
+
+      - name: Upload to R2
+        env:
+          CF_TOKEN: ${{ secrets.CF_R2_BACKUP_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          D="${{ steps.d.outputs.date }}"
+          F="work/bq-user-backup-$D.zip"
+          KEY="firestore%2F$D%2Fbq-user-backup-$D.zip"
+          URL="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/r2/buckets/$R2_BUCKET/objects/$KEY"
+          RES=$(curl -sS --retry 3 -X PUT "$URL" -H "Authorization: Bearer $CF_TOKEN" \
+                -H "Content-Type: application/zip" --data-binary @"$F")
+          echo "$RES" | jq -e '.success == true' >/dev/null || { echo "::error::R2 upload failed: $(echo "$RES" | jq -c .errors)"; exit 1; }
+          SIZE=$(echo "$RES" | jq -r .result.size)
+          [ "$SIZE" = "$(stat -c%s "$F")" ] || { echo "::error::size mismatch"; exit 1; }
+          echo "uploaded firestore/$D/bq-user-backup-$D.zip size=$SIZE"

@@ -16,6 +16,15 @@ function isSatsBanned(user, ledger) {
     return !!(user && user.satsDisabled === true) || !!(ledger && ledger.banned === true);
 }
 
+// Same flags the sats payouts use, plus a profile ban_reason or banned flag.
+function rewardBlocked(user, ledger) {
+    const u = user || {};
+    const l = ledger || {};
+    if (u.ban_reason) return true;
+    if (u.banned === true) return true;
+    return isSatsBanned(u, l);
+}
+
 function assessCipherClaim(input) {
     const src = input || {};
     if (!src.email || src.emailVerified !== true) {
@@ -168,6 +177,7 @@ module.exports = {
     SATS_DISABLED_ERROR: SATS_DISABLED_ERROR,
     SATS_BANNED_ERROR: SATS_BANNED_ERROR,
     isSatsBanned: isSatsBanned,
+    rewardBlocked: rewardBlocked,
     assessCipherClaim: assessCipherClaim,
     paymentHashFromDecoded: paymentHashFromDecoded,
     lookupRequestFromDecoded: lookupRequestFromDecoded,

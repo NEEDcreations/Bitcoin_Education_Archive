@@ -1,0 +1,4138 @@
+[
+  {
+    "text": "Since its start, Bitcoin has been called \"dead\" many times by doubters each time leading to predictions of its demise.",
+    "author": "99Bitcoins",
+    "year": 2026,
+    "source": "Bitcoin Obituaries",
+    "url": "https://99bitcoins.com/bitcoin-obituaries/",
+    "channel": "misconceptions-fud"
+  },
+  {
+    "text": "A trapdoor-free cost-function is one where the server has no advantage in minting tokens.",
+    "author": "Adam Back",
+    "year": 2002,
+    "source": "Hashcash - A Denial of Service Counter-Measure",
+    "url": "https://cdn.nakamotoinstitute.org/docs/hashcash.pdf",
+    "channel": "cryptography"
+  },
+  {
+    "text": "The hashcash CPU cost-function computes a token which can be used as a proof-of-work.",
+    "author": "Adam Back",
+    "year": 2002,
+    "source": "Hashcash - A Denial of Service Counter-Measure",
+    "url": "https://cdn.nakamotoinstitute.org/docs/hashcash.pdf",
+    "channel": "cryptography"
+  },
+  {
+    "text": "As a developer, I see Bitcoin as akin to the internet of money, a network for propagating value and securing the ownership of digital assets via distributed computation.",
+    "author": "Andreas M. Antonopoulos",
+    "year": 2014,
+    "source": "Mastering Bitcoin, chapter 1",
+    "url": "https://raw.githubusercontent.com/bitcoinbook/bitcoinbook/develop/ch01_intro.adoc",
+    "channel": "money"
+  },
+  {
+    "text": "Nature demonstrates that decentralized systems can be resilient and can produce emergent complexity and incredible sophistication without the need for a central authority, hierarchy, or complex parts.",
+    "author": "Andreas M. Antonopoulos",
+    "year": 2014,
+    "source": "Mastering Bitcoin, preface",
+    "url": "https://raw.githubusercontent.com/bitcoinbook/bitcoinbook/develop/preface.adoc",
+    "channel": "decentralized"
+  },
+  {
+    "text": "The protocol also periodically decreases the number of new bitcoins that are created, limiting the total number of bitcoins that will ever be created to a fixed total just below 21 million coins.",
+    "author": "Andreas M. Antonopoulos",
+    "year": 2014,
+    "source": "Mastering Bitcoin, chapter 1",
+    "url": "https://raw.githubusercontent.com/bitcoinbook/bitcoinbook/develop/ch01_intro.adoc",
+    "channel": "scarce"
+  },
+  {
+    "text": "Are we to refer its commercial currency and its value in trade to the same causes conditioning those of other goods, or are they the distinct product of convention and authority?",
+    "author": "Carl Menger",
+    "year": 1892,
+    "source": "On the Origins of Money",
+    "url": "https://cdn.nakamotoinstitute.org/docs/on-the-origins-of-money.pdf",
+    "channel": "money"
+  },
+  {
+    "text": "The difference existing in this respect between articles of commerce is of the highest degree of significance for the theory of money, and of the market in general.",
+    "author": "Carl Menger",
+    "year": 1892,
+    "source": "On the Origins of Money",
+    "url": "https://cdn.nakamotoinstitute.org/docs/on-the-origins-of-money.pdf",
+    "channel": "money"
+  },
+  {
+    "text": "The most cursory observation of market phenomena teaches us that it does not lie within our power, when we have bought an article for a certain price, to sell it again forthwith at the same price.",
+    "author": "Carl Menger",
+    "year": 1892,
+    "source": "On the Origins of Money",
+    "url": "https://cdn.nakamotoinstitute.org/docs/on-the-origins-of-money.pdf",
+    "channel": "money"
+  },
+  {
+    "text": "The price at which any one can at pleasure buy a commodity at a given market and a given point of time, and the price at which he can dispose of the same at pleasure, are two essentially different magnitudes.",
+    "author": "Carl Menger",
+    "year": 1892,
+    "source": "On the Origins of Money",
+    "url": "https://cdn.nakamotoinstitute.org/docs/on-the-origins-of-money.pdf",
+    "channel": "money"
+  },
+  {
+    "text": "To gain the same command over what the market affords, he must first convert his exchangeable goods into money.",
+    "author": "Carl Menger",
+    "year": 1892,
+    "source": "On the Origins of Money",
+    "url": "https://cdn.nakamotoinstitute.org/docs/on-the-origins-of-money.pdf",
+    "channel": "money"
+  },
+  {
+    "text": "Now, when the price of oil drops, again we risk problems, this time because American oil companies and Third World basket-case nations who sell oil may not be able to ever pay their debts to our grossly over-extended banks.",
+    "author": "Chuck Hammill",
+    "year": 1987,
+    "source": "From Crossbows To Cryptography: Techno-Thwarting The State",
+    "url": "https://nakamotoinstitute.org/library/from-crossbows-to-cryptography/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Once freedom contracts beyond a certain minimum extent, the state warps the fabric of the political continuum about itself to the degree that subsequent re-emergence of freedom becomes all but impossible.",
+    "author": "Chuck Hammill",
+    "year": 1987,
+    "source": "From Crossbows To Cryptography: Techno-Thwarting The State",
+    "url": "https://nakamotoinstitute.org/library/from-crossbows-to-cryptography/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "The suggested panacea is that government should now re-raise the oil prices that OPEC has lowered, via a new oil tax.",
+    "author": "Chuck Hammill",
+    "year": 1987,
+    "source": "From Crossbows To Cryptography: Techno-Thwarting The State",
+    "url": "https://nakamotoinstitute.org/library/from-crossbows-to-cryptography/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "When the liberals and other collectivists began to attack freedom, they possessed a reasonably stable, healthy, functioning economy, and almost unlimited time to proceed to hamstring and dismantle it.",
+    "author": "Chuck Hammill",
+    "year": 1987,
+    "source": "From Crossbows To Cryptography: Techno-Thwarting The State",
+    "url": "https://nakamotoinstitute.org/library/from-crossbows-to-cryptography/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Before making payment sometime later, the individual removes the envelope and carbon, leaving only the signed slip of paper.",
+    "author": "David Chaum",
+    "year": 1985,
+    "source": "Security Without Identification: Card Computers to Make Big Brother Obsolete",
+    "url": "https://nakamotoinstitute.org/library/security-without-identification/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "In short, no proofs of security are known for these cryptographic codes. but nor are any feasible attacks.",
+    "author": "David Chaum",
+    "year": 1985,
+    "source": "Security Without Identification: Card Computers to Make Big Brother Obsolete",
+    "url": "https://nakamotoinstitute.org/library/security-without-identification/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "In the long run, it holds promise for enhancing economic freedom, the democratic process, and informational rights.",
+    "author": "David Chaum",
+    "year": 1985,
+    "source": "Security Without Identification: Card Computers to Make Big Brother Obsolete",
+    "url": "https://nakamotoinstitute.org/library/security-without-identification/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "The systems presented here for the new approach depend on currently used codes to secure organizations against abuses by individuals.",
+    "author": "David Chaum",
+    "year": 1985,
+    "source": "Security Without Identification: Card Computers to Make Big Brother Obsolete",
+    "url": "https://nakamotoinstitute.org/library/security-without-identification/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "The way these techniques work is illustrated by applying the envelope analogy to buying goods on credit.",
+    "author": "David Chaum",
+    "year": 1985,
+    "source": "Security Without Identification: Card Computers to Make Big Brother Obsolete",
+    "url": "https://nakamotoinstitute.org/library/security-without-identification/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "As the example of credit bureaus suggests, there are practical difficulties with protecting privacy by letting other people have information and then controlling what they do with it.",
+    "author": "David D. Friedman",
+    "year": 2005,
+    "source": "The Case for Privacy",
+    "url": "https://nakamotoinstitute.org/library/the-case-for-privacy/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "Freedom of speech will no longer depend on how the Supreme Court interprets the First Amendment.",
+    "author": "David D. Friedman",
+    "year": 2005,
+    "source": "The Case for Privacy",
+    "url": "https://nakamotoinstitute.org/library/the-case-for-privacy/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "The answer to \"what faction can be trusted with a monopoly over the shield\" is \"no.\" The right question is how the shield will affect the world—how it will alter the balance between freedom and oppression, individual and state, small and big.",
+    "author": "David D. Friedman",
+    "year": 2005,
+    "source": "The Case for Privacy",
+    "url": "https://nakamotoinstitute.org/library/the-case-for-privacy/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "The first was that I did, and he did not, define privacy in the context of freedom of association.",
+    "author": "David D. Friedman",
+    "year": 2005,
+    "source": "The Case for Privacy",
+    "url": "https://nakamotoinstitute.org/library/the-case-for-privacy/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "An anonymous system empowers individuals to reveal their identity when desired and only when desired; this is the essence of privacy.",
+    "author": "Eric Hughes",
+    "year": 1993,
+    "source": "A Cypherpunk's Manifesto",
+    "url": "https://nakamotoinstitute.org/library/cypherpunk-manifesto/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "Cypherpunks write code.",
+    "author": "Eric Hughes",
+    "year": 1993,
+    "source": "A Cypherpunk's Manifesto",
+    "url": "https://nakamotoinstitute.org/library/cypherpunk-manifesto/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Even laws against cryptography reach only so far as a nation's border and the arm of its violence.",
+    "author": "Eric Hughes",
+    "year": 1993,
+    "source": "A Cypherpunk's Manifesto",
+    "url": "https://nakamotoinstitute.org/library/cypherpunk-manifesto/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "One could pass laws against it, but the freedom of speech, even more than privacy, is fundamental to an open society; we seek not to restrict any speech at all.",
+    "author": "Eric Hughes",
+    "year": 1993,
+    "source": "A Cypherpunk's Manifesto",
+    "url": "https://nakamotoinstitute.org/library/cypherpunk-manifesto/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "People have been defending their own privacy for centuries with whispers, darkness, envelopes, closed doors, secret handshakes, and couriers.",
+    "author": "Eric Hughes",
+    "year": 1993,
+    "source": "A Cypherpunk's Manifesto",
+    "url": "https://nakamotoinstitute.org/library/cypherpunk-manifesto/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "Privacy is necessary for an open society in the electronic age.",
+    "author": "Eric Hughes",
+    "year": 1993,
+    "source": "A Cypherpunk's Manifesto",
+    "url": "https://nakamotoinstitute.org/library/cypherpunk-manifesto/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "The power of electronic communications has enabled such group speech, and it will not go away merely because we might want it to.",
+    "author": "Eric Hughes",
+    "year": 1993,
+    "source": "A Cypherpunk's Manifesto",
+    "url": "https://nakamotoinstitute.org/library/cypherpunk-manifesto/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "The technologies of the past did not allow for strong privacy, but electronic technologies do.",
+    "author": "Eric Hughes",
+    "year": 1993,
+    "source": "A Cypherpunk's Manifesto",
+    "url": "https://nakamotoinstitute.org/library/cypherpunk-manifesto/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "We are defending our privacy with cryptography, with anonymous mail forwarding systems, with digital signatures, and with electronic money.",
+    "author": "Eric Hughes",
+    "year": 1993,
+    "source": "A Cypherpunk's Manifesto",
+    "url": "https://nakamotoinstitute.org/library/cypherpunk-manifesto/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "We cannot expect governments, corporations, or other large, faceless organizations to grant us privacy out of their beneficence.",
+    "author": "Eric Hughes",
+    "year": 1993,
+    "source": "A Cypherpunk's Manifesto",
+    "url": "https://nakamotoinstitute.org/library/cypherpunk-manifesto/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "We must come together and create systems which allow anonymous transactions to take place.",
+    "author": "Eric Hughes",
+    "year": 1993,
+    "source": "A Cypherpunk's Manifesto",
+    "url": "https://nakamotoinstitute.org/library/cypherpunk-manifesto/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "We must defend our own privacy if we expect to have any.",
+    "author": "Eric Hughes",
+    "year": 1993,
+    "source": "A Cypherpunk's Manifesto",
+    "url": "https://nakamotoinstitute.org/library/cypherpunk-manifesto/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "We publish our code so that our fellow Cypherpunks may practice and play with it.",
+    "author": "Eric Hughes",
+    "year": 1993,
+    "source": "A Cypherpunk's Manifesto",
+    "url": "https://nakamotoinstitute.org/library/cypherpunk-manifesto/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "For more than 2,000 years the government prerogative or exclusive right of supplying money amounted in practice merely to the monopoly of minting coins of gold, silver or copper.",
+    "author": "Friedrich A. Hayek",
+    "year": 1978,
+    "source": "Denationalisation of Money",
+    "url": "https://cdn.nakamotoinstitute.org/docs/denationalisation.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "Governments have at all times had a strong interest in persuading the public that the right to issue money belongs exclusively to them.",
+    "author": "Friedrich A. Hayek",
+    "year": 1978,
+    "source": "Denationalisation of Money",
+    "url": "https://cdn.nakamotoinstitute.org/docs/denationalisation.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "In so far as government possesses the monopoly of issuing money and uses it to establish one kind of money, it must probably also have power to say by what kind of objects debts expressed in its currency can be discharged.",
+    "author": "Friedrich A. Hayek",
+    "year": 1978,
+    "source": "Denationalisation of Money",
+    "url": "https://cdn.nakamotoinstitute.org/docs/denationalisation.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "In this condition the value of the currency issued by one bank would not necessarily be affected by the supplies of other currencies by different institutions (private or governmental).",
+    "author": "Friedrich A. Hayek",
+    "year": 1978,
+    "source": "Denationalisation of Money",
+    "url": "https://cdn.nakamotoinstitute.org/docs/denationalisation.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "One might hope to prevent the violent fluctuations in the value of money in recent years by returning to the gold standard or some regime of fixed exchanges.",
+    "author": "Friedrich A. Hayek",
+    "year": 1978,
+    "source": "Denationalisation of Money",
+    "url": "https://cdn.nakamotoinstitute.org/docs/denationalisation.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "Only because people could freely choose which currency to use for their different purposes would the process of selection lead to the good money prevailing.",
+    "author": "Friedrich A. Hayek",
+    "year": 1978,
+    "source": "Denationalisation of Money",
+    "url": "https://cdn.nakamotoinstitute.org/docs/denationalisation.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "Only because there was active trading on the currency exchange would the issuing banks be warned to take the required action in time.",
+    "author": "Friedrich A. Hayek",
+    "year": 1978,
+    "source": "Denationalisation of Money",
+    "url": "https://cdn.nakamotoinstitute.org/docs/denationalisation.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "People would learn to trust the new money only if they were confident it was completely exempt from any government control.",
+    "author": "Friedrich A. Hayek",
+    "year": 1978,
+    "source": "Denationalisation of Money",
+    "url": "https://cdn.nakamotoinstitute.org/docs/denationalisation.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "The kind of trust on which private money would rest would not be very different from the trust on which today all private banking rests (or in the United States rested before the governmental deposit insurance scheme!).",
+    "author": "Friedrich A. Hayek",
+    "year": 1978,
+    "source": "Denationalisation of Money",
+    "url": "https://cdn.nakamotoinstitute.org/docs/denationalisation.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "The system was for that reason more correctly described as an alternative standard, the value of a currency depending on the metal which for the time being was over-valued.",
+    "author": "Friedrich A. Hayek",
+    "year": 1978,
+    "source": "Denationalisation of Money",
+    "url": "https://cdn.nakamotoinstitute.org/docs/denationalisation.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "What then do we call, in a world of constantly changing individual prices, a stable value of money?",
+    "author": "Friedrich A. Hayek",
+    "year": 1978,
+    "source": "Denationalisation of Money",
+    "url": "https://cdn.nakamotoinstitute.org/docs/denationalisation.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "When one studies the history of money one cannot help wondering why people should have put up for so long with governments exercising an exclusive power over 2,000 years that was regularly used to exploit and defraud them.",
+    "author": "Friedrich A. Hayek",
+    "year": 1978,
+    "source": "Denationalisation of Money",
+    "url": "https://cdn.nakamotoinstitute.org/docs/denationalisation.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "All three phenomena — electricity, the internet, Bitcoin — are enabling technologies, networks which enable other things.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Metaphors for Bitcoin's future",
+    "url": "https://21lessons.com/21/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Another consequence of hyperinflation is that all the money which people have saved over the course of their life will effectively vanish.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Inflation",
+    "url": "https://21lessons.com/9/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "As bitcoin approaches infinite stock to flow ratio it will be the soundest money in existence.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Sound money",
+    "url": "https://21lessons.com/14/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "As more time passes, more and more people will recognize Bitcoin as something which simply is.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Metaphors for Bitcoin's future",
+    "url": "https://21lessons.com/21/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "As the inflating currency falls apart, it will fail to store value over time and people will rush to get their hands on any goods which might do.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Inflation",
+    "url": "https://21lessons.com/9/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Bitcoin aims to replace, or at least provide an alternative to, conventional currency.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Reflections on \"Don't Trust, Verify\"",
+    "url": "https://21lessons.com/16/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Bitcoin is an inexhaustible teacher, which is why I do not claim that these lessons are all-encompassing or complete.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Preface",
+    "url": "https://21lessons.com/preface",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Bitcoin is not only borderless in regards to its inner workings but also boundaryless in respect to academic disciplines.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Conclusion",
+    "url": "https://21lessons.com/conclusion",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Bitcoin is probably the one system which comes closest to this utopia, but still, it is trust-minimized — aiming to remove trust wherever possible.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Reflections on \"Don't Trust, Verify\"",
+    "url": "https://21lessons.com/16/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Bitcoin solves the problem of trust by being completely decentralized, with no central server or trusted parties.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Reflections on \"Don't Trust, Verify\"",
+    "url": "https://21lessons.com/16/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Bitcoin taught me about the hidden tax of inflation and the catastrophe of hyperinflation.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Inflation",
+    "url": "https://21lessons.com/9/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Bitcoin taught me that telling the time is tricky, especially if you are decentralized.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Telling time takes work",
+    "url": "https://21lessons.com/17/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Bitcoin taught me that understanding the past is essential to understanding its future.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Metaphors for Bitcoin's future",
+    "url": "https://21lessons.com/21/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Bitcoin, an advanced technology in itself, breaks this trend and creates a new commodity which is truly scarce.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: The scarcity of scarcity",
+    "url": "https://21lessons.com/2/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Code which took an abstract idea and proved to the world that it actually worked.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Cypherpunks write code",
+    "url": "https://21lessons.com/20/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Even without understanding it fully, and even with all its quirks and seeming shortcomings, Bitcoin undoubtedly works.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Conclusion",
+    "url": "https://21lessons.com/conclusion",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Further, Bitcoin is evolving and it's almost impossible to stay up-to-date with the accelerating rate of innovation.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: The limits of knowledge",
+    "url": "https://21lessons.com/7/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Heck, Bitcoin even copies itself onto as many computers as it can, by incentivizing individual people to run full nodes and mine new blocks.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: The scarcity of scarcity",
+    "url": "https://21lessons.com/2/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "I wonder if people would still be willing to accrue as much debt as they currently do if everyone would be educated in personal finance and the workings of money and debt.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Financial ignorance",
+    "url": "https://21lessons.com/8/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "In a time of abundance, Bitcoin taught me what real scarcity is.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: The scarcity of scarcity",
+    "url": "https://21lessons.com/2/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "It seems that proof-of-work is still widely misunderstood today, in the year 13 AB (after Bitcoin).",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Telling time takes work",
+    "url": "https://21lessons.com/17/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "It speaks of many things which Bitcoin enables and utilizes, such as direct and private transactions, electronic money and cash, anonymous systems, and defending privacy with cryptography and digital signatures.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Cypherpunks write code",
+    "url": "https://21lessons.com/20/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Learning all the fundamentals which make Bitcoin work is hard.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: The limits of knowledge",
+    "url": "https://21lessons.com/7/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Lessons about financial ignorance, inflation, value, money and the history of money, fractional reserve banking, and how Bitcoin is re-introducing sound money in a sly, roundabout way.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Introduction",
+    "url": "https://21lessons.com/intro",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Like a five-year-old, I began to ask myself a lot of questions: How does the banking system work?",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Financial ignorance",
+    "url": "https://21lessons.com/8/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Since Bitcoin is just software and all of it is open-source, you can simply change things at will, right?",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Immutability and change",
+    "url": "https://21lessons.com/1/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Thanks to this code, everyone can verify that this novel system actually works, and every 10 minutes or so Bitcoin proofs to the world that it is still living.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Cypherpunks write code",
+    "url": "https://21lessons.com/20/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "The abolishment of the gold standard gave way to a new reality: adding new money requires just a drop of ink.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Sound money",
+    "url": "https://21lessons.com/14/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "The dust of the first layer hasn't even settled yet, and people have already built the second layer and are working on the third.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: The limits of knowledge",
+    "url": "https://21lessons.com/7/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "The interplay of immutability and change, the concept of true scarcity, Bitcoin's immaculate conception, the problem of identity, the contradiction of replication and locality, the power of free speech, and the limits of knowledge.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Introduction",
+    "url": "https://21lessons.com/intro",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "The longer Bitcoin continues to work, the more people will opt-in to use it.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Conclusion",
+    "url": "https://21lessons.com/conclusion",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "The software is just one piece of the puzzle, and hoping to change Bitcoin by changing the software is an exercise in futility.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Immutability and change",
+    "url": "https://21lessons.com/1/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "The things I've learned are, obviously, about Bitcoin - or at least related to it.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Introduction",
+    "url": "https://21lessons.com/intro",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "There are many more lessons to be learned, and every person will learn something different from entering the world of Bitcoin.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Preface",
+    "url": "https://21lessons.com/preface",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "To paraphrase a little guy with hairy feet: \"It's a dangerous business, Frodo, stepping into Bitcoin.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Financial ignorance",
+    "url": "https://21lessons.com/8/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Unlike Bitcoin, future versions of this project do not have to be backward compatible.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Preface",
+    "url": "https://21lessons.com/preface",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "What is true for Picasso's paintings, Elvis Presley's guitars, and Stradivarius violins is also true for fiat currency, gold, and bitcoins.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Sound money",
+    "url": "https://21lessons.com/14/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Whatever your favorite analogy might be, two aspects of Bitcoin are absolutely essential: decentralization and immutability.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Immutability and change",
+    "url": "https://21lessons.com/1/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "When I first learned how Bitcoin works I also thought that proof-of-work is inefficient and wasteful.",
+    "author": "Gigi",
+    "year": 2019,
+    "source": "21 Lessons: Telling time takes work",
+    "url": "https://21lessons.com/17/",
+    "channel": "articles-threads"
+  },
+  {
+    "text": "Bitcoin assumes that the majority of nodes in its network are honest, and resorts to a majority vote mechanism for double spending avoidance, and dispute resolution.",
+    "author": "Gwern Branwen",
+    "year": 2011,
+    "source": "Bitcoin Is Worse Is Better",
+    "url": "https://nakamotoinstitute.org/library/bitcoin-is-worse-is-better/",
+    "channel": "history"
+  },
+  {
+    "text": "Due to the cryptographic nature of transactions, it's simply not possible to have realtime transactions with bitcoin as the network scales (it already take 5--10 mins on average for the network to see a single transaction).",
+    "author": "Gwern Branwen",
+    "year": 2011,
+    "source": "Bitcoin Is Worse Is Better",
+    "url": "https://nakamotoinstitute.org/library/bitcoin-is-worse-is-better/",
+    "channel": "history"
+  },
+  {
+    "text": "Since Bitcoin- or bit gold- denominated contracts generally exist outside the system, one would have to, at the very least, publicly register those contracts signed by the parties' keys for creditor or debtor status to be provable.",
+    "author": "Gwern Branwen",
+    "year": 2011,
+    "source": "Bitcoin Is Worse Is Better",
+    "url": "https://nakamotoinstitute.org/library/bitcoin-is-worse-is-better/",
+    "channel": "history"
+  },
+  {
+    "text": "All the bank knows is how much I have withdrawn each month; I may or may not have spent it at that time.",
+    "author": "Hal Finney",
+    "year": 1993,
+    "source": "Digital Cash & Privacy",
+    "url": "https://nakamotoinstitute.org/library/digital-cash-and-privacy/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "Every month I send a check to the bank to cover my account just as I do with my credit cards.",
+    "author": "Hal Finney",
+    "year": 1993,
+    "source": "Digital Cash & Privacy",
+    "url": "https://nakamotoinstitute.org/library/digital-cash-and-privacy/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "I think that the convenience of credit and debit cards will overcome most people's privacy concerns and that we will find ourselves in a situation where great volumes of information exist about people's private lives.",
+    "author": "Hal Finney",
+    "year": 1993,
+    "source": "Digital Cash & Privacy",
+    "url": "https://nakamotoinstitute.org/library/digital-cash-and-privacy/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "In this model, imagine that the bank is granting me credit similar to a credit card.",
+    "author": "Hal Finney",
+    "year": 1993,
+    "source": "Digital Cash & Privacy",
+    "url": "https://nakamotoinstitute.org/library/digital-cash-and-privacy/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "Again, we need to win political, not technological, victories in order to protect our privacy.",
+    "author": "Hal Finney",
+    "year": 1994,
+    "source": "Politics vs Technology",
+    "url": "https://nakamotoinstitute.org/library/politics-vs-technology/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Fundamentally, I believe we will have the kind of society that most people want.",
+    "author": "Hal Finney",
+    "year": 1994,
+    "source": "Politics vs Technology",
+    "url": "https://nakamotoinstitute.org/library/politics-vs-technology/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Have people forgotten the Clipper proposal, with the possible follow-on to make non-Clipper encryption illegal?",
+    "author": "Hal Finney",
+    "year": 1994,
+    "source": "Politics vs Technology",
+    "url": "https://nakamotoinstitute.org/library/politics-vs-technology/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "If anyone has any suggestions for how to escape from jail into cyberspace I'd like to hear about them.",
+    "author": "Hal Finney",
+    "year": 1994,
+    "source": "Politics vs Technology",
+    "url": "https://nakamotoinstitute.org/library/politics-vs-technology/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "If we want freedom and privacy, we must persuade others that these are worth having.",
+    "author": "Hal Finney",
+    "year": 1994,
+    "source": "Politics vs Technology",
+    "url": "https://nakamotoinstitute.org/library/politics-vs-technology/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "In those days, paper money was issued by private banks (usually with state charters).",
+    "author": "Hal Finney",
+    "year": 1994,
+    "source": "The Beauty of ECash",
+    "url": "https://nakamotoinstitute.org/library/the-beauty-of-ecash/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "One might even have an early banknote notarized (digitally timestamped) so that one could prove its value in later years.",
+    "author": "Hal Finney",
+    "year": 1994,
+    "source": "The Beauty of ECash",
+    "url": "https://nakamotoinstitute.org/library/the-beauty-of-ecash/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "The Magic Money system has a provision for the bank to periodically move to another set of exponents to represent the same denominations (in order to keep the size of the note database from growing too large).",
+    "author": "Hal Finney",
+    "year": 1994,
+    "source": "The Beauty of ECash",
+    "url": "https://nakamotoinstitute.org/library/the-beauty-of-ecash/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "Please keep in mind that if there are problems I may need to reload the server code, which will invalidate any RPOW tokens which people have previously created.",
+    "author": "Hal Finney",
+    "year": 2004,
+    "source": "RPOW - Reusable Proofs of Work",
+    "url": "https://nakamotoinstitute.org/library/rpow/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "RPOWs can then be transferred from person to person and exchanged for new RPOWs at each step.",
+    "author": "Hal Finney",
+    "year": 2004,
+    "source": "RPOW - Reusable Proofs of Work",
+    "url": "https://nakamotoinstitute.org/library/rpow/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "There is also a crude web interface which lets you exchange POWs for RPOWs without downloading the client.",
+    "author": "Hal Finney",
+    "year": 2004,
+    "source": "RPOW - Reusable Proofs of Work",
+    "url": "https://nakamotoinstitute.org/library/rpow/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Running bitcoin",
+    "author": "Hal Finney",
+    "year": 2009,
+    "source": "Twitter @halfin, 10 Jan 2009",
+    "url": "https://web.archive.org/web/20170328054440/https://twitter.com/halfin/status/1110302988",
+    "channel": "history"
+  },
+  {
+    "text": "As the price climbed up to real money, I transferred the coins into an offline wallet, where hopefully they'll be worth something to my heirs.",
+    "author": "Hal Finney",
+    "year": 2013,
+    "source": "Bitcoin and Me",
+    "url": "https://nakamotoinstitute.org/library/bitcoin-and-me/",
+    "channel": "history"
+  },
+  {
+    "text": "Currently I'm working on something Mike Hearn suggested, using the security features of modern processors, designed to support \"Trusted Computing\", to harden Bitcoin wallets.",
+    "author": "Hal Finney",
+    "year": 2013,
+    "source": "Bitcoin and Me",
+    "url": "https://nakamotoinstitute.org/library/bitcoin-and-me/",
+    "channel": "history"
+  },
+  {
+    "text": "I had made an attempt to create my own proof of work based currency, called RPOW.",
+    "author": "Hal Finney",
+    "year": 2013,
+    "source": "Bitcoin and Me",
+    "url": "https://nakamotoinstitute.org/library/bitcoin-and-me/",
+    "channel": "history"
+  },
+  {
+    "text": "I ran the first cryptographically based anonymous remailer, among other activities.",
+    "author": "Hal Finney",
+    "year": 2013,
+    "source": "Bitcoin and Me",
+    "url": "https://nakamotoinstitute.org/library/bitcoin-and-me/",
+    "channel": "history"
+  },
+  {
+    "text": "I thought I'd write about the last four years, an eventful time for Bitcoin and me.",
+    "author": "Hal Finney",
+    "year": 2013,
+    "source": "Bitcoin and Me",
+    "url": "https://nakamotoinstitute.org/library/bitcoin-and-me/",
+    "channel": "history"
+  },
+  {
+    "text": "I've noticed that cryptographic graybeards (I was in my mid 50's) tend to get cynical.",
+    "author": "Hal Finney",
+    "year": 2013,
+    "source": "Bitcoin and Me",
+    "url": "https://nakamotoinstitute.org/library/bitcoin-and-me/",
+    "channel": "history"
+  },
+  {
+    "text": "The next I heard of Bitcoin was late 2010, when I was surprised to find that it was not only still going, bitcoins actually had monetary value.",
+    "author": "Hal Finney",
+    "year": 2013,
+    "source": "Bitcoin and Me",
+    "url": "https://nakamotoinstitute.org/library/bitcoin-and-me/",
+    "channel": "history"
+  },
+  {
+    "text": "Those discussions about inheriting your bitcoins are of more than academic interest.",
+    "author": "Hal Finney",
+    "year": 2013,
+    "source": "Bitcoin and Me",
+    "url": "https://nakamotoinstitute.org/library/bitcoin-and-me/",
+    "channel": "history"
+  },
+  {
+    "text": "When Satoshi announced Bitcoin on the cryptography mailing list, he got a skeptical reception at best.",
+    "author": "Hal Finney",
+    "year": 2013,
+    "source": "Bitcoin and Me",
+    "url": "https://nakamotoinstitute.org/library/bitcoin-and-me/",
+    "channel": "history"
+  },
+  {
+    "text": "When Satoshi announced the first release of the software, I grabbed it right away.",
+    "author": "Hal Finney",
+    "year": 2013,
+    "source": "Bitcoin and Me",
+    "url": "https://nakamotoinstitute.org/library/bitcoin-and-me/",
+    "channel": "history"
+  },
+  {
+    "text": "Formerly, with commodity money every person was permitted to enter the gold mining and coining business freely—in accordance with the assumption of self-interested, wealth-maximizing actors.",
+    "author": "Hans-Hermann Hoppe",
+    "year": 1994,
+    "source": "How is Fiat Money Possible?—or, The Devolution of Money and Credit",
+    "url": "https://nakamotoinstitute.org/library/how-is-fiat-money-possible/",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "Freedom of contract means instead that A and B should be allowed to make any contract whatsoever regarding their own properties, yet fractional reserve banking involves the making of contracts regarding the property of third parties.",
+    "author": "Hans-Hermann Hoppe",
+    "year": 1994,
+    "source": "How is Fiat Money Possible?—or, The Devolution of Money and Credit",
+    "url": "https://nakamotoinstitute.org/library/how-is-fiat-money-possible/",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "Only money proper (gold coins) is permanently suited to perform the function as a medium of exchange.",
+    "author": "Hans-Hermann Hoppe",
+    "year": 1994,
+    "source": "How is Fiat Money Possible?—or, The Devolution of Money and Credit",
+    "url": "https://nakamotoinstitute.org/library/how-is-fiat-money-possible/",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "Savers loan money to the bank for a specified—shorter or longer—period of time in exchange for the banks' contractual obligation of future repayment plus some additional interest return.",
+    "author": "Hans-Hermann Hoppe",
+    "year": 1994,
+    "source": "How is Fiat Money Possible?—or, The Devolution of Money and Credit",
+    "url": "https://nakamotoinstitute.org/library/how-is-fiat-money-possible/",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "The purchasing power of money will increase, the real value of individual cash balances will be raised, and at a higher purchasing power per unit money, the demand for and the supply of money will once again be equilibrated.",
+    "author": "Hans-Hermann Hoppe",
+    "year": 1994,
+    "source": "How is Fiat Money Possible?—or, The Devolution of Money and Credit",
+    "url": "https://nakamotoinstitute.org/library/how-is-fiat-money-possible/",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "The real wealth of the non-bank public will be reduced—they own less goods and more money of lower purchasing power.",
+    "author": "Hans-Hermann Hoppe",
+    "year": 1994,
+    "source": "How is Fiat Money Possible?—or, The Devolution of Money and Credit",
+    "url": "https://nakamotoinstitute.org/library/how-is-fiat-money-possible/",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "I went to the woods because I wished to live deliberately, to front only the essential facts of life, and see if I could not learn what it had to teach, and not, when I came to die, discover that I had not lived.",
+    "author": "Henry David Thoreau",
+    "year": 1854,
+    "source": "Walden",
+    "url": "https://www.gutenberg.org/files/205/205-0.txt",
+    "channel": "organic"
+  },
+  {
+    "text": "Simplify, simplify. Instead of three meals a day, if it be necessary eat but one; instead of a hundred dishes, five; and reduce other things in proportion.",
+    "author": "Henry David Thoreau",
+    "year": 1854,
+    "source": "Walden",
+    "url": "https://www.gutenberg.org/files/205/205-0.txt",
+    "channel": "health"
+  },
+  {
+    "text": "The mass of men lead lives of quiet desperation.",
+    "author": "Henry David Thoreau",
+    "year": 1854,
+    "source": "Walden",
+    "url": "https://www.gutenberg.org/files/205/205-0.txt",
+    "channel": "philosophy"
+  },
+  {
+    "text": "A gradual change in contract by the stronger party over time is known as frog-boiling.",
+    "author": "Ian Grigg",
+    "year": 2004,
+    "source": "The Ricardian Contract",
+    "url": "https://nakamotoinstitute.org/library/the-ricardian-contract/",
+    "channel": "smart-contracts"
+  },
+  {
+    "text": "The first valuable currency, issued by Mark Twain Bank of the USA, was identified with the number 4.",
+    "author": "Ian Grigg",
+    "year": 2004,
+    "source": "The Ricardian Contract",
+    "url": "https://nakamotoinstitute.org/library/the-ricardian-contract/",
+    "channel": "smart-contracts"
+  },
+  {
+    "text": "The result is a reasonable analogue of the paper and ink contracts that most people and businesses are familiar with, bolstered with cryptographic integrity.",
+    "author": "Ian Grigg",
+    "year": 2004,
+    "source": "The Ricardian Contract",
+    "url": "https://nakamotoinstitute.org/library/the-ricardian-contract/",
+    "channel": "smart-contracts"
+  },
+  {
+    "text": "As this was more than the contractual issue of value to date, it caused dramatic contortions to the balance sheet, including putting it in breach of its user contract and at dire risk of a 'bank run'.",
+    "author": "Ian Grigg",
+    "year": 2005,
+    "source": "Triple Entry Accounting",
+    "url": "https://nakamotoinstitute.org/library/triple-entry-accounting/",
+    "channel": "money"
+  },
+  {
+    "text": "Paperwork reduces dramatically, as the records of the money system are reliable enough to quickly resolve questions even years after the event.",
+    "author": "Ian Grigg",
+    "year": 2005,
+    "source": "Triple Entry Accounting",
+    "url": "https://nakamotoinstitute.org/library/triple-entry-accounting/",
+    "channel": "money"
+  },
+  {
+    "text": "The cryptographic invention of the digital signature gives powerful evidentiary force to the receipt, and in practice reduces the accounting problem to one of the receipt's presence or its absence.",
+    "author": "Ian Grigg",
+    "year": 2005,
+    "source": "Triple Entry Accounting",
+    "url": "https://nakamotoinstitute.org/library/triple-entry-accounting/",
+    "channel": "money"
+  },
+  {
+    "text": "When a cracker managed to find a flaw in the system, an overnight attack allowed the creation of many millions of dollars worth of value.",
+    "author": "Ian Grigg",
+    "year": 2005,
+    "source": "Triple Entry Accounting",
+    "url": "https://nakamotoinstitute.org/library/triple-entry-accounting/",
+    "channel": "money"
+  },
+  {
+    "text": "is a fraud",
+    "author": "Jamie Dimon",
+    "year": 2017,
+    "source": "CNBC: Jamie Dimon says bitcoin is a fraud",
+    "url": "https://www.cnbc.com/2017/09/12/jpmorgan-ceo-jamie-dimon-raises-flag-on-trading-revenue-sees-20-percent-fall-for-the-third-quarter.html",
+    "channel": "misconceptions-fud"
+  },
+  {
+    "text": "It's just not a real thing, eventually it will be closed,",
+    "author": "Jamie Dimon",
+    "year": 2017,
+    "source": "CNBC: Jamie Dimon says bitcoin is a fraud",
+    "url": "https://www.cnbc.com/2017/09/12/jpmorgan-ceo-jamie-dimon-raises-flag-on-trading-revenue-sees-20-percent-fall-for-the-third-quarter.html",
+    "channel": "misconceptions-fud"
+  },
+  {
+    "text": "It's worse than tulip bulbs. It won't end well. Someone is going to get killed,",
+    "author": "Jamie Dimon",
+    "year": 2017,
+    "source": "CNBC: Jamie Dimon says bitcoin is a fraud",
+    "url": "https://www.cnbc.com/2017/09/12/jpmorgan-ceo-jamie-dimon-raises-flag-on-trading-revenue-sees-20-percent-fall-for-the-third-quarter.html",
+    "channel": "misconceptions-fud"
+  },
+  {
+    "text": "Governments of the Industrial World, you weary giants of flesh and steel, I come from Cyberspace, the new home of Mind.",
+    "author": "John Perry Barlow",
+    "year": 1996,
+    "source": "A Declaration of the Independence of Cyberspace",
+    "url": "https://nakamotoinstitute.org/library/cyberspace-independence/",
+    "channel": "human_rights__social_justice_and_freedo"
+  },
+  {
+    "text": "The only law that all our constituent cultures would generally recognize is the Golden Rule.",
+    "author": "John Perry Barlow",
+    "year": 1996,
+    "source": "A Declaration of the Independence of Cyberspace",
+    "url": "https://nakamotoinstitute.org/library/cyberspace-independence/",
+    "channel": "human_rights__social_justice_and_freedo"
+  },
+  {
+    "text": "We have no elected government, nor are we likely to have one, so I address you with no greater authority than that with which liberty itself always speaks.",
+    "author": "John Perry Barlow",
+    "year": 1996,
+    "source": "A Declaration of the Independence of Cyberspace",
+    "url": "https://nakamotoinstitute.org/library/cyberspace-independence/",
+    "channel": "human_rights__social_justice_and_freedo"
+  },
+  {
+    "text": "You do not know our culture, our ethics, or the unwritten codes that already provide our society more order than could be obtained by any of your impositions.",
+    "author": "John Perry Barlow",
+    "year": 1996,
+    "source": "A Declaration of the Independence of Cyberspace",
+    "url": "https://nakamotoinstitute.org/library/cyberspace-independence/",
+    "channel": "human_rights__social_justice_and_freedo"
+  },
+  {
+    "text": "You have no moral right to rule us nor do you possess any methods of enforcement we have true reason to fear.",
+    "author": "John Perry Barlow",
+    "year": 1996,
+    "source": "A Declaration of the Independence of Cyberspace",
+    "url": "https://nakamotoinstitute.org/library/cyberspace-independence/",
+    "channel": "human_rights__social_justice_and_freedo"
+  },
+  {
+    "text": "You have not engaged in our great and gathering conversation, nor did you create the wealth of our marketplaces.",
+    "author": "John Perry Barlow",
+    "year": 1996,
+    "source": "A Declaration of the Independence of Cyberspace",
+    "url": "https://nakamotoinstitute.org/library/cyberspace-independence/",
+    "channel": "human_rights__social_justice_and_freedo"
+  },
+  {
+    "text": "In practice the redistribution always works out in favor of the fiat-money producers themselves (whom we misleadingly call \"central banks\") and of their partners in the banking sector and at the stock exchange.",
+    "author": "Jörg Guido Hülsmann",
+    "year": 2008,
+    "source": "Deflation and Liberty",
+    "url": "https://cdn.nakamotoinstitute.org/docs/deflation-and-liberty.pdf",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "Paper money has caused an unprecedented increase of debt on all levels: government, corporate, and individual.",
+    "author": "Jörg Guido Hülsmann",
+    "year": 2008,
+    "source": "Deflation and Liberty",
+    "url": "https://cdn.nakamotoinstitute.org/docs/deflation-and-liberty.pdf",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "The point is that other people will run the firms and own the houses—people who at the time the deflation set in were out of debt and had cash in their hands to buy firms and real estate.",
+    "author": "Jörg Guido Hülsmann",
+    "year": 2008,
+    "source": "Deflation and Liberty",
+    "url": "https://cdn.nakamotoinstitute.org/docs/deflation-and-liberty.pdf",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "The production of any quantity of paper money is therefore excessive by the standards of a free society.",
+    "author": "Jörg Guido Hülsmann",
+    "year": 2008,
+    "source": "Deflation and Liberty",
+    "url": "https://cdn.nakamotoinstitute.org/docs/deflation-and-liberty.pdf",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "They can support a policy designed to perpetuate our current fiat money system and the sorry state of banking and of financial markets that it logically entails.",
+    "author": "Jörg Guido Hülsmann",
+    "year": 2008,
+    "source": "Deflation and Liberty",
+    "url": "https://cdn.nakamotoinstitute.org/docs/deflation-and-liberty.pdf",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "They enable the producers of paper money and of money titles to expand their production through the violation of other people's property rights.",
+    "author": "Jörg Guido Hülsmann",
+    "year": 2008,
+    "source": "Deflation and Liberty",
+    "url": "https://cdn.nakamotoinstitute.org/docs/deflation-and-liberty.pdf",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "Authoritarian regimes create forces which oppose them by pushing against a people's will to truth, love and self-realization.",
+    "author": "Julian Assange",
+    "year": 2006,
+    "source": "State and Terrorist Conspiracies",
+    "url": "https://cdn.nakamotoinstitute.org/docs/julian-assange-conspiracies.pdf",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Authoritarian regimes give rise to forces which oppose them by pushing against the individual and collective will to freedom, truth and self realization.",
+    "author": "Julian Assange",
+    "year": 2006,
+    "source": "State and Terrorist Conspiracies",
+    "url": "https://cdn.nakamotoinstitute.org/docs/julian-assange-conspiracies.pdf",
+    "channel": "cryptography"
+  },
+  {
+    "text": "You can't trust code that you did not totally create yourself. (Especially code from companies that employ people like me.) No amount of source-level verification or scrutiny will protect you from using untrusted code.",
+    "author": "Ken Thompson",
+    "year": 1984,
+    "source": "Reflections on Trusting Trust",
+    "url": "https://cdn.nakamotoinstitute.org/docs/reflections-on-trusting-trust.pdf",
+    "channel": "secure"
+  },
+  {
+    "text": "The alternative is only whether the crisis should come sooner as the result of a voluntary abandonment of further credit expansion, or later as a final and total catastrophe of the currency system involved.",
+    "author": "Ludwig von Mises",
+    "year": 1949,
+    "source": "Human Action",
+    "url": "https://cdn.mises.org/Human%20Action_3.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "Bitcoin is a tool that tech-savvy people often use as defense against either double digit currency inflation or authoritarian financial system control.",
+    "author": "Lyn Alden",
+    "year": 2022,
+    "source": "What is Money?",
+    "url": "https://www.lynalden.com/what-is-money/",
+    "channel": "money"
+  },
+  {
+    "text": "In other words, like gold, they are money rather than currency, as long as other people recognize them as having value.",
+    "author": "Lyn Alden",
+    "year": 2022,
+    "source": "What is Money?",
+    "url": "https://www.lynalden.com/what-is-money/",
+    "channel": "money"
+  },
+  {
+    "text": "In that sense, bitcoins began as digital commodities that had utility value as an internet-native and censorship-resistant medium of exchange for people that need that capability.",
+    "author": "Lyn Alden",
+    "year": 2022,
+    "source": "What is Money?",
+    "url": "https://www.lynalden.com/what-is-money/",
+    "channel": "money"
+  },
+  {
+    "text": "The base layer of the bitcoin network is not competing with things like Visa; it is competing with central bank settlements; the root of the global financial system.",
+    "author": "Lyn Alden",
+    "year": 2022,
+    "source": "What is Money?",
+    "url": "https://www.lynalden.com/what-is-money/",
+    "channel": "money"
+  },
+  {
+    "text": "The bitcoin network consists of people using free open source software to update a public ledger between themselves.",
+    "author": "Lyn Alden",
+    "year": 2022,
+    "source": "What is Money?",
+    "url": "https://www.lynalden.com/what-is-money/",
+    "channel": "money"
+  },
+  {
+    "text": "The fiat/petrodollar standard is only four times older than bitcoin, and only two times older than the first internet browser.",
+    "author": "Lyn Alden",
+    "year": 2022,
+    "source": "What is Money?",
+    "url": "https://www.lynalden.com/what-is-money/",
+    "channel": "money"
+  },
+  {
+    "text": "The Guardian has documented Nigerians using bitcoins as they protested their government against police violence and had their bank accounts frozen.",
+    "author": "Lyn Alden",
+    "year": 2022,
+    "source": "What is Money?",
+    "url": "https://www.lynalden.com/what-is-money/",
+    "channel": "money"
+  },
+  {
+    "text": "There are decentralized bearer assets like bitcoins, and there are digital representations of fiat currency like corporate stablecoins and central bank digital currencies.",
+    "author": "Lyn Alden",
+    "year": 2022,
+    "source": "What is Money?",
+    "url": "https://www.lynalden.com/what-is-money/",
+    "channel": "money"
+  },
+  {
+    "text": "Bitcoin is an empowering tool that gives each of us a voice and a path to opt in to a more stable economic system.",
+    "author": "Marty Bent",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Foreword",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/foreword/",
+    "channel": "history"
+  },
+  {
+    "text": "Everyone who adopts bitcoin---whether to save wealth or conduct commerce---is at the same time expressing both a vote of confidence in its monetary principles and a vote of no confidence in the fiat monetary system.",
+    "author": "Marty Bent",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Foreword",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/foreword/",
+    "channel": "history"
+  },
+  {
+    "text": "There was always a new, \"shinier\" object that had improved (supposedly) on bitcoin's original design to bring the market what it actually needed.",
+    "author": "Marty Bent",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Foreword",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/foreword/",
+    "channel": "history"
+  },
+  {
+    "text": "There were people saying that bitcoin would not work because the government would never allow it.",
+    "author": "Marty Bent",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Foreword",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/foreword/",
+    "channel": "history"
+  },
+  {
+    "text": "It's easier to confiscate things in the real world than things in cyberspace, much easier.",
+    "author": "Michael Saylor",
+    "year": 2022,
+    "source": "Lex Fridman Podcast #276 transcript",
+    "url": "https://lexfridman.com/michael-saylor-transcript/",
+    "channel": "self-custody"
+  },
+  {
+    "text": "The most famous manifestation of digital energy is Bitcoin.",
+    "author": "Michael Saylor",
+    "year": 2022,
+    "source": "Lex Fridman Podcast #276 transcript",
+    "url": "https://lexfridman.com/michael-saylor-transcript/",
+    "channel": "energy"
+  },
+  {
+    "text": "Yeah, I think it keeps going up forever.",
+    "author": "Michael Saylor",
+    "year": 2022,
+    "source": "Lex Fridman Podcast #276 transcript",
+    "url": "https://lexfridman.com/michael-saylor-transcript/",
+    "channel": "investment-strategy"
+  },
+  {
+    "text": "Government could never cement its power over a nation's currency, if the people, when in need, could repudiate the fiat paper and turn to gold for their money.",
+    "author": "Murray N. Rothbard",
+    "year": 1963,
+    "source": "What Has Government Done to Our Money?",
+    "url": "https://cdn.nakamotoinstitute.org/docs/what-has-government-done-to-our-money.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "Government imposes price controls largely in order to divert public attention from governmental inflation to the alleged evils of the free market.",
+    "author": "Murray N. Rothbard",
+    "year": 1963,
+    "source": "What Has Government Done to Our Money?",
+    "url": "https://cdn.nakamotoinstitute.org/docs/what-has-government-done-to-our-money.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "If there are 3,000 tons of gold in the society, all 3,000 tons must be owned and held, at any one time, in the cash balances of individual people.",
+    "author": "Murray N. Rothbard",
+    "year": 1963,
+    "source": "What Has Government Done to Our Money?",
+    "url": "https://cdn.nakamotoinstitute.org/docs/what-has-government-done-to-our-money.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "The international gold standard provided an automatic market mechanism for checking the inflationary potential of government.",
+    "author": "Murray N. Rothbard",
+    "year": 1963,
+    "source": "What Has Government Done to Our Money?",
+    "url": "https://cdn.nakamotoinstitute.org/docs/what-has-government-done-to-our-money.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "The law really says that \"money overvalued artificially by government will drive out of circulation artificially undervalued money.\" Suppose, for example, there are one-ounce gold coins in circulation.",
+    "author": "Murray N. Rothbard",
+    "year": 1963,
+    "source": "What Has Government Done to Our Money?",
+    "url": "https://cdn.nakamotoinstitute.org/docs/what-has-government-done-to-our-money.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "The more people use actual gold instead of bank money, the less room there is for bank inflation.",
+    "author": "Murray N. Rothbard",
+    "year": 1963,
+    "source": "What Has Government Done to Our Money?",
+    "url": "https://cdn.nakamotoinstitute.org/docs/what-has-government-done-to-our-money.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "The United States would no longer try to keep the free-market gold price at $35; it would ignore the free gold market, and it and all the other governments agreed to keep the value of the dollar at $35 an ounce forevermore.",
+    "author": "Murray N. Rothbard",
+    "year": 1963,
+    "source": "What Has Government Done to Our Money?",
+    "url": "https://cdn.nakamotoinstitute.org/docs/what-has-government-done-to-our-money.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "True to the virtual law that all innovations come from free individuals and not the state, the first coins were minted by private individuals and goldsmiths.",
+    "author": "Murray N. Rothbard",
+    "year": 1963,
+    "source": "What Has Government Done to Our Money?",
+    "url": "https://cdn.nakamotoinstitute.org/docs/what-has-government-done-to-our-money.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "We have seen that, by setting up a Central Bank, governments have greatly widened, if not removed, two of the three main checks on bank credit inflation.",
+    "author": "Murray N. Rothbard",
+    "year": 1963,
+    "source": "What Has Government Done to Our Money?",
+    "url": "https://cdn.nakamotoinstitute.org/docs/what-has-government-done-to-our-money.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "When legal tender laws enshrine an overvalued money, they have another effect; they favor debtors at the expense of creditors.",
+    "author": "Murray N. Rothbard",
+    "year": 1963,
+    "source": "What Has Government Done to Our Money?",
+    "url": "https://cdn.nakamotoinstitute.org/docs/what-has-government-done-to-our-money.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "When the Central Bank sells assets to the banks or the public, it lowers bank reserves, and causes pressure for credit contraction and deflation—lowering—of the money supply.",
+    "author": "Murray N. Rothbard",
+    "year": 1963,
+    "source": "What Has Government Done to Our Money?",
+    "url": "https://cdn.nakamotoinstitute.org/docs/what-has-government-done-to-our-money.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "With fiat money established and gold outlawed, the way is clear for full-scale, government-run inflation.",
+    "author": "Murray N. Rothbard",
+    "year": 1963,
+    "source": "What Has Government Done to Our Money?",
+    "url": "https://cdn.nakamotoinstitute.org/docs/what-has-government-done-to-our-money.pdf",
+    "channel": "austrian_school_of_economics"
+  },
+  {
+    "text": "A rash of bank runs will bring the insolvency of many banks and deflationary contraction of credit and the money supply.",
+    "author": "Murray N. Rothbard",
+    "year": 1983,
+    "source": "The Mystery of Banking",
+    "url": "https://cdn.nakamotoinstitute.org/docs/the-mystery-of-banking.pdf",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "After that point, each bank will have 100 percent reserve of gold, so that a law holding fractional reserve banking as fraud and enforcing 100 percent reserve would not entail any deflation or contraction of the money supply.",
+    "author": "Murray N. Rothbard",
+    "year": 1983,
+    "source": "The Mystery of Banking",
+    "url": "https://cdn.nakamotoinstitute.org/docs/the-mystery-of-banking.pdf",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "Government fiat paper has replaced commodity money, and central banking has taken the place of free banking.",
+    "author": "Murray N. Rothbard",
+    "year": 1983,
+    "source": "The Mystery of Banking",
+    "url": "https://cdn.nakamotoinstitute.org/docs/the-mystery-of-banking.pdf",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "If people in general have the wise and prudent attitudes of many \"primitive\" tribesmen and refuse to accept anything but hard gold coin in exchange, bank money will not get under way or wreak inflationary havoc on the economy.",
+    "author": "Murray N. Rothbard",
+    "year": 1983,
+    "source": "The Mystery of Banking",
+    "url": "https://cdn.nakamotoinstitute.org/docs/the-mystery-of-banking.pdf",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "In a free market, gold and silver each would be free to become money and would float freely in relation to each other (\"parallel standards\").",
+    "author": "Murray N. Rothbard",
+    "year": 1983,
+    "source": "The Mystery of Banking",
+    "url": "https://cdn.nakamotoinstitute.org/docs/the-mystery-of-banking.pdf",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "In contrast, the essential purpose of central banking is to use government privilege to remove the limitations placed by free banking on monetary and bank credit inflation.",
+    "author": "Murray N. Rothbard",
+    "year": 1983,
+    "source": "The Mystery of Banking",
+    "url": "https://cdn.nakamotoinstitute.org/docs/the-mystery-of-banking.pdf",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "The dollar remained on the gold standard internationally, with dollars redeemable to foreign governments and central banks at the newly debased weight.",
+    "author": "Murray N. Rothbard",
+    "year": 1983,
+    "source": "The Mystery of Banking",
+    "url": "https://cdn.nakamotoinstitute.org/docs/the-mystery-of-banking.pdf",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "Then, if A has contracted with B for a debt of $10,000 in money, B has to accept payment in Central Bank notes; he cannot insist, for example, on gold.",
+    "author": "Murray N. Rothbard",
+    "year": 1983,
+    "source": "The Mystery of Banking",
+    "url": "https://cdn.nakamotoinstitute.org/docs/the-mystery-of-banking.pdf",
+    "channel": "problems-of-money"
+  },
+  {
+    "text": "A smart contract is a computerized transaction protocol that executes the terms of a contract.",
+    "author": "Nick Szabo",
+    "year": 1994,
+    "source": "Smart Contracts",
+    "url": "https://nakamotoinstitute.org/library/smart-contracts/",
+    "channel": "smart-contracts"
+  },
+  {
+    "text": "If a loan was taken out to buy that car, and the owner failed to make payments, the smart contract could automatically invoke a lien, which returns control of the car keys to the bank.",
+    "author": "Nick Szabo",
+    "year": 1994,
+    "source": "Smart Contracts",
+    "url": "https://nakamotoinstitute.org/library/smart-contracts/",
+    "channel": "smart-contracts"
+  },
+  {
+    "text": "It might be possible to add smart contract protocols to transfer voting rights to the synthetic.",
+    "author": "Nick Szabo",
+    "year": 1994,
+    "source": "Smart Contracts",
+    "url": "https://nakamotoinstitute.org/library/smart-contracts/",
+    "channel": "smart-contracts"
+  },
+  {
+    "text": "Smart property might be created by embedding smart contracts in physical objects.",
+    "author": "Nick Szabo",
+    "year": 1994,
+    "source": "Smart Contracts",
+    "url": "https://nakamotoinstitute.org/library/smart-contracts/",
+    "channel": "smart-contracts"
+  },
+  {
+    "text": "The consequences of smart contract design on contract law and economics, and on strategic contract drafting, (and vice versa), have been little explored.",
+    "author": "Nick Szabo",
+    "year": 1994,
+    "source": "Smart Contracts",
+    "url": "https://nakamotoinstitute.org/library/smart-contracts/",
+    "channel": "smart-contracts"
+  },
+  {
+    "text": "A mediator must be trusted with some of the contents and/or performance of the contract.",
+    "author": "Nick Szabo",
+    "year": 1996,
+    "source": "Smart Contracts: Building Blocks for Digital Markets",
+    "url": "https://nakamotoinstitute.org/library/smart-contracts-building-blocks-for-digital-markets/",
+    "channel": "smart-contracts"
+  },
+  {
+    "text": "If we started from scratch, using reason and experience, it could take many centuries to redevelop sophisticated ideas like property rights that make the modern free market work (see Hayek).",
+    "author": "Nick Szabo",
+    "year": 1996,
+    "source": "Smart Contracts: Building Blocks for Digital Markets",
+    "url": "https://nakamotoinstitute.org/library/smart-contracts-building-blocks-for-digital-markets/",
+    "channel": "smart-contracts"
+  },
+  {
+    "text": "On the other hand, credit transactions typically demand identifying information, because the contractual exposure typically outweighs benefits of privity.",
+    "author": "Nick Szabo",
+    "year": 1996,
+    "source": "Negative Reputations",
+    "url": "https://nakamotoinstitute.org/library/negative-reputations/",
+    "channel": "game_theory"
+  },
+  {
+    "text": "The current universal (non-cryptographic) key in the U.S., the SSN, is very difficult to revoke.",
+    "author": "Nick Szabo",
+    "year": 1996,
+    "source": "Negative Reputations",
+    "url": "https://nakamotoinstitute.org/library/negative-reputations/",
+    "channel": "game_theory"
+  },
+  {
+    "text": "The public key cryptography software package \"Pretty Good Privacy\" (PGP) uses a model called \"the web of trust.\" Alice chooses introducers whom she trusts to properly identify the map between other people and their public keys.",
+    "author": "Nick Szabo",
+    "year": 1996,
+    "source": "Smart Contracts: Building Blocks for Digital Markets",
+    "url": "https://nakamotoinstitute.org/library/smart-contracts-building-blocks-for-digital-markets/",
+    "channel": "smart-contracts"
+  },
+  {
+    "text": "The tag might be used for negative information shared publically (eg, credit ratings) or kept private (eg, kill files).",
+    "author": "Nick Szabo",
+    "year": 1996,
+    "source": "Negative Reputations",
+    "url": "https://nakamotoinstitute.org/library/negative-reputations/",
+    "channel": "game_theory"
+  },
+  {
+    "text": "Whether enforced by a government, or otherwise, the contract is the basic building block of a free market economy.",
+    "author": "Nick Szabo",
+    "year": 1996,
+    "source": "Smart Contracts: Building Blocks for Digital Markets",
+    "url": "https://nakamotoinstitute.org/library/smart-contracts-building-blocks-for-digital-markets/",
+    "channel": "smart-contracts"
+  },
+  {
+    "text": "A security system, by successive redesign, increasingly approaches the logic of the contract which governs the rights and obligations covering the object, information, or computation being secured.",
+    "author": "Nick Szabo",
+    "year": 1997,
+    "source": "The Idea of Smart Contracts",
+    "url": "https://nakamotoinstitute.org/library/the-idea-of-smart-contracts/",
+    "channel": "smart-contracts"
+  },
+  {
+    "text": "Alice wants a New York City cab ride for which she's willing to pay 100, but she doesn't trust Bob the taxi driver to get her there on time if she pays up front.",
+    "author": "Nick Szabo",
+    "year": 1997,
+    "source": "Formalizing and Securing Relationships on Public Networks",
+    "url": "https://nakamotoinstitute.org/library/formalizing-securing-relationships/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "If we started from scratch, using reason and experience, it could take many centuries to redevelop sophisticated ideas like contract law and property rights that make the modern market work.",
+    "author": "Nick Szabo",
+    "year": 1997,
+    "source": "Formalizing and Securing Relationships on Public Networks",
+    "url": "https://nakamotoinstitute.org/library/formalizing-securing-relationships/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Many kinds of contractual clauses (such as collateral, bonding, delineation of property rights, etc.) can be embedded in the hardware and software we deal with, in such a way as to make breach of contract expensive (if desired, sometimes prohibitively so) for the breacher.",
+    "author": "Nick Szabo",
+    "year": 1997,
+    "source": "The Idea of Smart Contracts",
+    "url": "https://nakamotoinstitute.org/library/the-idea-of-smart-contracts/",
+    "channel": "smart-contracts"
+  },
+  {
+    "text": "The fixed price at the supermarket (instead of haggling), the prewritten contract the appliance salesman presents you, etc. are examples of hard focal points.",
+    "author": "Nick Szabo",
+    "year": 1997,
+    "source": "Formalizing and Securing Relationships on Public Networks",
+    "url": "https://nakamotoinstitute.org/library/formalizing-securing-relationships/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "The radical SPU projects demonstrate both the high value of content contracts to publishers and the high price we have to pay to maintain the paper-era intellectual property model online.",
+    "author": "Nick Szabo",
+    "year": 1997,
+    "source": "Formalizing and Securing Relationships on Public Networks",
+    "url": "https://nakamotoinstitute.org/library/formalizing-securing-relationships/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "The smart contract design strategy suggests that we successively refine security protocols to more fully embed in a property the contractual terms which deal with it.",
+    "author": "Nick Szabo",
+    "year": 1997,
+    "source": "The Idea of Smart Contracts",
+    "url": "https://nakamotoinstitute.org/library/the-idea-of-smart-contracts/",
+    "channel": "smart-contracts"
+  },
+  {
+    "text": "The vending machine is a contract with bearer: anybody with coins can participate in an exchange with the vendor.",
+    "author": "Nick Szabo",
+    "year": 1997,
+    "source": "Formalizing and Securing Relationships on Public Networks",
+    "url": "https://nakamotoinstitute.org/library/formalizing-securing-relationships/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Under this model privacy and confidentiality, or protecting the value of information about a contract, its parties, and its performance from Eve, is subsumed under privity, as are property rights.",
+    "author": "Nick Szabo",
+    "year": 1997,
+    "source": "Formalizing and Securing Relationships on Public Networks",
+    "url": "https://nakamotoinstitute.org/library/formalizing-securing-relationships/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Actually getting end users to respect the property rights agreed upon by this system will be dependent on the specific nature of the property, and is beyond the scope of the current inquiry.",
+    "author": "Nick Szabo",
+    "year": 1998,
+    "source": "Secure Property Titles with Owner Authority",
+    "url": "https://nakamotoinstitute.org/library/secure-property-titles/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Eventually, the thugs, mechanisms, or informal agreements which enforce property rights converge on a particular tree as the standard, proper allocation.",
+    "author": "Nick Szabo",
+    "year": 1998,
+    "source": "Secure Property Titles with Owner Authority",
+    "url": "https://nakamotoinstitute.org/library/secure-property-titles/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "In all cases of property rights there is a defined space, whether a namespace or physical space, and the task is to agree on simple attributes of or rights to control subdivisions of that space.",
+    "author": "Nick Szabo",
+    "year": 1998,
+    "source": "Secure Property Titles with Owner Authority",
+    "url": "https://nakamotoinstitute.org/library/secure-property-titles/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "The advent of writing greatly improved the tracking of property rights, and indeed gave rise to our modern systems of property rights and law.",
+    "author": "Nick Szabo",
+    "year": 1998,
+    "source": "Secure Property Titles with Owner Authority",
+    "url": "https://nakamotoinstitute.org/library/secure-property-titles/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "The property club can be thought of as a \"microgovernment\", an entity that performs globally and independently one narrow function normally associated with government.",
+    "author": "Nick Szabo",
+    "year": 1998,
+    "source": "Secure Property Titles with Owner Authority",
+    "url": "https://nakamotoinstitute.org/library/secure-property-titles/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "A basic requirement for market pricing to work is that both sides to a transaction be able to map charges to value obtained or rendered, so that they can adjust their buying or selling behavior accordingly.",
+    "author": "Nick Szabo",
+    "year": 1999,
+    "source": "Micropayments and Mental Transaction Costs",
+    "url": "https://nakamotoinstitute.org/library/micropayments-and-mental-transaction-costs/",
+    "channel": "money"
+  },
+  {
+    "text": "A big task is to use the power of graphical user interface to come up with new metaphors to make this easier.",
+    "author": "Nick Szabo",
+    "year": 1999,
+    "source": "Micropayments and Mental Transaction Costs",
+    "url": "https://nakamotoinstitute.org/library/micropayments-and-mental-transaction-costs/",
+    "channel": "money"
+  },
+  {
+    "text": "A framework of mental transaction costs and price granularity is then presented, and arguments ab out micropayments recast in its light.",
+    "author": "Nick Szabo",
+    "year": 1999,
+    "source": "Micropayments and Mental Transaction Costs",
+    "url": "https://nakamotoinstitute.org/library/micropayments-and-mental-transaction-costs/",
+    "channel": "money"
+  },
+  {
+    "text": "Another intriguing possibility is that the virtual computer can keep state over long periods of time, allowing sophisticated forms of privy and self-enforcing secured credit.",
+    "author": "Nick Szabo",
+    "year": 1999,
+    "source": "The God Protocols",
+    "url": "https://nakamotoinstitute.org/library/the-god-protocols/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Applying this kind of analysis to the performance phase of contracts is less straightforward.",
+    "author": "Nick Szabo",
+    "year": 1999,
+    "source": "The God Protocols",
+    "url": "https://nakamotoinstitute.org/library/the-god-protocols/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Enough instances of a standardized contract are issued over a period of time to create a mix.",
+    "author": "Nick Szabo",
+    "year": 1999,
+    "source": "Contracts with Bearer",
+    "url": "https://nakamotoinstitute.org/library/contracts-with-bearer/",
+    "channel": "smart-contracts"
+  },
+  {
+    "text": "Here is another example of a generic right, or class of fungible objects: \"A queriable SQL database with up to 10 MB of storage, and certain standard response time guarantees\".",
+    "author": "Nick Szabo",
+    "year": 1999,
+    "source": "Contracts with Bearer",
+    "url": "https://nakamotoinstitute.org/library/contracts-with-bearer/",
+    "channel": "smart-contracts"
+  },
+  {
+    "text": "In traditional results, fairness and privacy could not both be achieved with a faulty majority.",
+    "author": "Nick Szabo",
+    "year": 1999,
+    "source": "The God Protocols",
+    "url": "https://nakamotoinstitute.org/library/the-god-protocols/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "People tend to think in terms of standard or sterotyped conditions: payment in dollars, investing in stocks, etc. when there exist a far wider variety of alternative contractial structures that, combined properly, could better meet the parties' needs.",
+    "author": "Nick Szabo",
+    "year": 1999,
+    "source": "Micropayments and Mental Transaction Costs",
+    "url": "https://nakamotoinstitute.org/library/micropayments-and-mental-transaction-costs/",
+    "channel": "money"
+  },
+  {
+    "text": "The second is that there is a tradeoff between privacy, fairness, and fault tolerance.",
+    "author": "Nick Szabo",
+    "year": 1999,
+    "source": "The God Protocols",
+    "url": "https://nakamotoinstitute.org/library/the-god-protocols/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "The two main goals here are to assure that users can verify their rights (including exclusivity from transferors where promised) and retain full privacy from TAs and Providers.",
+    "author": "Nick Szabo",
+    "year": 1999,
+    "source": "Contracts with Bearer",
+    "url": "https://nakamotoinstitute.org/library/contracts-with-bearer/",
+    "channel": "smart-contracts"
+  },
+  {
+    "text": "They trade robustness for privacy and fairness against any proportion of faulty parties.",
+    "author": "Nick Szabo",
+    "year": 1999,
+    "source": "The God Protocols",
+    "url": "https://nakamotoinstitute.org/library/the-god-protocols/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "When technologists talk about transaction costs, they are usually talking about computation and network costs.",
+    "author": "Nick Szabo",
+    "year": 1999,
+    "source": "Micropayments and Mental Transaction Costs",
+    "url": "https://nakamotoinstitute.org/library/micropayments-and-mental-transaction-costs/",
+    "channel": "money"
+  },
+  {
+    "text": "A corollary of \"trusted third parties are security holes\" is \"all security protocols have security holes\", since no protocol is fully free of such assumptions.",
+    "author": "Nick Szabo",
+    "year": 2001,
+    "source": "Trusted Third Parties are Security Holes",
+    "url": "https://nakamotoinstitute.org/library/trusted-third-parties/",
+    "channel": "secure"
+  },
+  {
+    "text": "Another protocol family in which trust can be distributed to preserve privacy is the multiparty private computations.",
+    "author": "Nick Szabo",
+    "year": 2001,
+    "source": "Trusted Third Parties are Security Holes",
+    "url": "https://nakamotoinstitute.org/library/trusted-third-parties/",
+    "channel": "secure"
+  },
+  {
+    "text": "Applications include secure name registries and property titles as well as securely published content in Mojo Nation and Freenet.",
+    "author": "Nick Szabo",
+    "year": 2001,
+    "source": "Trusted Third Parties are Security Holes",
+    "url": "https://nakamotoinstitute.org/library/trusted-third-parties/",
+    "channel": "secure"
+  },
+  {
+    "text": "Commercial security is a matter of solving the practical problems of business relationships such as privacy, integrity, protecting property, or detecting breach of contract.",
+    "author": "Nick Szabo",
+    "year": 2001,
+    "source": "Trusted Third Parties are Security Holes",
+    "url": "https://nakamotoinstitute.org/library/trusted-third-parties/",
+    "channel": "secure"
+  },
+  {
+    "text": "Only any one out of N proxies in a proxy chain need be trustworthy for the privacy to be preserved.",
+    "author": "Nick Szabo",
+    "year": 2001,
+    "source": "Trusted Third Parties are Security Holes",
+    "url": "https://nakamotoinstitute.org/library/trusted-third-parties/",
+    "channel": "secure"
+  },
+  {
+    "text": "The first protocol family in which trust can be distributed to preserve privacy is the Chaum mixes.",
+    "author": "Nick Szabo",
+    "year": 2001,
+    "source": "Trusted Third Parties are Security Holes",
+    "url": "https://nakamotoinstitute.org/library/trusted-third-parties/",
+    "channel": "secure"
+  },
+  {
+    "text": "The functionality of personal property has not under normal conditions ever depended on trusted third parties.",
+    "author": "Nick Szabo",
+    "year": 2001,
+    "source": "Trusted Third Parties are Security Holes",
+    "url": "https://nakamotoinstitute.org/library/trusted-third-parties/",
+    "channel": "secure"
+  },
+  {
+    "text": "The substitution of \"vulnerable to\" for \"trusted\" works well in protocol design, and in communicating honestly about the security of a protocol.",
+    "author": "Nick Szabo",
+    "year": 2001,
+    "source": "Trusted Third Parties are Security Holes",
+    "url": "https://nakamotoinstitute.org/library/trusted-third-parties/",
+    "channel": "secure"
+  },
+  {
+    "text": "A novelty of the 20th century was the issue of fiat currencies by governments. (\"Fiat\" means not backed by any reserve commodity, as the gold- and silver-based currencies of previous centuries were).",
+    "author": "Nick Szabo",
+    "year": 2002,
+    "source": "Shelling Out: The Origins of Money",
+    "url": "https://nakamotoinstitute.org/library/shelling-out/",
+    "channel": "money"
+  },
+  {
+    "text": "As we shall see, clans, and individuals greatly benefited from a timely transfer of wealth during these events.",
+    "author": "Nick Szabo",
+    "year": 2002,
+    "source": "Shelling Out: The Origins of Money",
+    "url": "https://nakamotoinstitute.org/library/shelling-out/",
+    "channel": "money"
+  },
+  {
+    "text": "For humans it comes into play in any system of exchange – reciprocation of favors, barter, money, credit, employment, or purchase in a market.",
+    "author": "Nick Szabo",
+    "year": 2002,
+    "source": "Shelling Out: The Origins of Money",
+    "url": "https://nakamotoinstitute.org/library/shelling-out/",
+    "channel": "money"
+  },
+  {
+    "text": "If clams can be money, furs can be money, gold can be money, and so on – if money is not just coins or notes issued by a government under legal tender laws, but rather can be a wide variety of objects – then just what is money anyway?",
+    "author": "Nick Szabo",
+    "year": 2002,
+    "source": "Shelling Out: The Origins of Money",
+    "url": "https://nakamotoinstitute.org/library/shelling-out/",
+    "channel": "money"
+  },
+  {
+    "text": "If there had existed a high degree of sustained interaction and trust between tribes, or individuals of different tribes, so that they gave each other unsecured credit, this would have stimulated time-lagged barter trade.",
+    "author": "Nick Szabo",
+    "year": 2002,
+    "source": "Shelling Out: The Origins of Money",
+    "url": "https://nakamotoinstitute.org/library/shelling-out/",
+    "channel": "money"
+  },
+  {
+    "text": "In order for this market to work – in order for prices to accurately communicate value – first the participants must be able to measure the value of the two commodities traded.",
+    "author": "Nick Szabo",
+    "year": 2002,
+    "source": "Measuring Value",
+    "url": "https://nakamotoinstitute.org/library/measuring-value/",
+    "channel": "money"
+  },
+  {
+    "text": "Money greatly improved the workings of even small barter networks by greatly reducing the need for credit.",
+    "author": "Nick Szabo",
+    "year": 2002,
+    "source": "Shelling Out: The Origins of Money",
+    "url": "https://nakamotoinstitute.org/library/shelling-out/",
+    "channel": "money"
+  },
+  {
+    "text": "Non-fiat money and collectibles obtain their value primarily from their scarcity, i.e. their cost of replacement.",
+    "author": "Nick Szabo",
+    "year": 2002,
+    "source": "Measuring Value",
+    "url": "https://nakamotoinstitute.org/library/measuring-value/",
+    "channel": "money"
+  },
+  {
+    "text": "The greater wealth flowing through markets, now available to be taxed, boosted the king's revenues even beyond the normal Laffer curve effect of reducing mismeasurement between given tax sources.",
+    "author": "Nick Szabo",
+    "year": 2002,
+    "source": "Shelling Out: The Origins of Money",
+    "url": "https://nakamotoinstitute.org/library/shelling-out/",
+    "channel": "money"
+  },
+  {
+    "text": "The king, deriving his revenue from tax collection, had a strong incentive to measure to value of wealth held and exchanged by his subjects more accurately.",
+    "author": "Nick Szabo",
+    "year": 2002,
+    "source": "Shelling Out: The Origins of Money",
+    "url": "https://nakamotoinstitute.org/library/shelling-out/",
+    "channel": "money"
+  },
+  {
+    "text": "The predominant relationship between tribes was one of distrust on good days and outright violence on bad days.",
+    "author": "Nick Szabo",
+    "year": 2002,
+    "source": "Shelling Out: The Origins of Money",
+    "url": "https://nakamotoinstitute.org/library/shelling-out/",
+    "channel": "money"
+  },
+  {
+    "text": "The unforgeable costliness of standard weights of precious metals could now be \"assayed\" in a marketplace, by wage earners, or by tax collectors via trademark, i.e. trust in the mint's brand, instead of chopping coiled wire at a randomly selected spot.",
+    "author": "Nick Szabo",
+    "year": 2002,
+    "source": "Shelling Out: The Origins of Money",
+    "url": "https://nakamotoinstitute.org/library/shelling-out/",
+    "channel": "money"
+  },
+  {
+    "text": "They are working backwards from a very clear theory of competitive markets to explain the wide variety of other kinds of economic relationships, usually formalized by property rights and contracts, that we enter into.",
+    "author": "Nick Szabo",
+    "year": 2002,
+    "source": "Measuring Value",
+    "url": "https://nakamotoinstitute.org/library/measuring-value/",
+    "channel": "money"
+  },
+  {
+    "text": "Automatic currency conversion, as done today by some credit cards and ATM machines, is a useful primitive kind of market translation.",
+    "author": "Nick Szabo",
+    "year": 2004,
+    "source": "Scarce Objects",
+    "url": "https://nakamotoinstitute.org/library/scarce-objects/",
+    "channel": "scarce"
+  },
+  {
+    "text": "In turn, the market translator, to enable automated (low mental transaction cost) bartering operations, depends on the existence of reasonably liquid online exchanges of generic scarce object rights.",
+    "author": "Nick Szabo",
+    "year": 2004,
+    "source": "Scarce Objects",
+    "url": "https://nakamotoinstitute.org/library/scarce-objects/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Property rights and contracts are highly evolved methodologies for dealing with economic objects and each other across trust boundaries.",
+    "author": "Nick Szabo",
+    "year": 2004,
+    "source": "Scarce Objects",
+    "url": "https://nakamotoinstitute.org/library/scarce-objects/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The MT is only a \"shopping bot\" in the restricted but important area of contracts composed of atomic bearer contracts – rights to scarce objects – to the extent that the price relationships between these bearer contracts are available from quoted markets.",
+    "author": "Nick Szabo",
+    "year": 2004,
+    "source": "Scarce Objects",
+    "url": "https://nakamotoinstitute.org/library/scarce-objects/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Alice adds the challenge string and the timestamped proof of work string to a distributed property title registry for bit gold.",
+    "author": "Nick Szabo",
+    "year": 2005,
+    "source": "Bit Gold",
+    "url": "https://nakamotoinstitute.org/library/bit-gold/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Alice on her computer generates the proof of work string from the challenge bits using a benchmark function.",
+    "author": "Nick Szabo",
+    "year": 2005,
+    "source": "Bit Gold",
+    "url": "https://nakamotoinstitute.org/library/bit-gold/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Bit gold may provide us with a money of unprecedented security from these dangers.",
+    "author": "Nick Szabo",
+    "year": 2005,
+    "source": "Bit Gold",
+    "url": "https://nakamotoinstitute.org/library/bit-gold/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "The potential for initially hidden supply gluts due to hidden innovations in machine architecture is a potential flaw in bit gold, or at least an imperfection which the initial auctions and ex post exchanges of bit gold will have to address.",
+    "author": "Nick Szabo",
+    "year": 2005,
+    "source": "Bit Gold",
+    "url": "https://nakamotoinstitute.org/library/bit-gold/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "The problem, in a nutshell, is that our money currently depends on trust in a third party for its value.",
+    "author": "Nick Szabo",
+    "year": 2005,
+    "source": "Bit Gold",
+    "url": "https://nakamotoinstitute.org/library/bit-gold/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "To assay the value of a string of bit gold, Bob checks and verifies the challenge bits, the proof of work string, and the timestamp.",
+    "author": "Nick Szabo",
+    "year": 2005,
+    "source": "Bit Gold",
+    "url": "https://nakamotoinstitute.org/library/bit-gold/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Transporting large values of metal can be a rather insecure affair, as the British found when transporting gold across a U-boat infested Atlantic to Canada during World War I to support their gold standard.",
+    "author": "Nick Szabo",
+    "year": 2005,
+    "source": "Bit Gold",
+    "url": "https://nakamotoinstitute.org/library/bit-gold/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Unlike fungible atoms of gold, but as with collector's items, a large supply during a given time period will drive down the value of those particular items.",
+    "author": "Nick Szabo",
+    "year": 2005,
+    "source": "Bit Gold",
+    "url": "https://nakamotoinstitute.org/library/bit-gold/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "As computers become \"smarter\" dry code is (very slowly) coming to do more that was formerly only done by wet code.",
+    "author": "Nick Szabo",
+    "year": 2006,
+    "source": "Wet Code and Dry",
+    "url": "https://nakamotoinstitute.org/library/wet-code-and-dry/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Once it successfully emulates wet code it soon surpasses it in many respects; for example by now dry code can do simple arithmetic billions of times faster than the typical human.",
+    "author": "Nick Szabo",
+    "year": 2006,
+    "source": "Wet Code and Dry",
+    "url": "https://nakamotoinstitute.org/library/wet-code-and-dry/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "The syntactic properties of wet and dry code are often very similar -- for example, both human and computer language can usually be parsed by pushdown automata into context-free grammars.",
+    "author": "Nick Szabo",
+    "year": 2006,
+    "source": "Wet Code and Dry",
+    "url": "https://nakamotoinstitute.org/library/wet-code-and-dry/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "As a result, pooling and tranching will work far better for bit gold than it does for actual rare postage stamps.",
+    "author": "Nick Szabo",
+    "year": 2008,
+    "source": "Bit Gold Markets",
+    "url": "https://nakamotoinstitute.org/library/bit-gold-markets/",
+    "channel": "money"
+  },
+  {
+    "text": "The value of gold today is almost entirely based on its monetary value rather than mere aesthetic value.",
+    "author": "Nick Szabo",
+    "year": 2008,
+    "source": "Bit Gold Markets",
+    "url": "https://nakamotoinstitute.org/library/bit-gold-markets/",
+    "channel": "money"
+  },
+  {
+    "text": "Then divide each pool into tranches to create your standard currency denominations.",
+    "author": "Nick Szabo",
+    "year": 2008,
+    "source": "Bit Gold Markets",
+    "url": "https://nakamotoinstitute.org/library/bit-gold-markets/",
+    "channel": "money"
+  },
+  {
+    "text": "There are plenty of metals that are as shiny and smooth as gold, but people don't demand them as a store of value or medium of exchange because they are common.",
+    "author": "Nick Szabo",
+    "year": 2008,
+    "source": "Bit Gold Markets",
+    "url": "https://nakamotoinstitute.org/library/bit-gold-markets/",
+    "channel": "money"
+  },
+  {
+    "text": "Value comes to attach to the unique aesthetic features of gold or diamonds because these features signal scarcity.",
+    "author": "Nick Szabo",
+    "year": 2008,
+    "source": "Bit Gold Markets",
+    "url": "https://nakamotoinstitute.org/library/bit-gold-markets/",
+    "channel": "money"
+  },
+  {
+    "text": "Bitcoin is not a list of cryptographic features, it's a very complex system of interacting mathematics and protocols in pursuit of what was a very unpopular goal.",
+    "author": "Nick Szabo",
+    "year": 2011,
+    "source": "Bitcoin, what took ye so long?",
+    "url": "https://nakamotoinstitute.org/library/bitcoin-what-took-ye-so-long/",
+    "channel": "history"
+  },
+  {
+    "text": "Even though I had rebutted these arguments in my study of the origins of money, which I humbly suggest should be should be required reading for anybody debating the economics of Bitcoin.",
+    "author": "Nick Szabo",
+    "year": 2011,
+    "source": "Bitcoin, what took ye so long?",
+    "url": "https://nakamotoinstitute.org/library/bitcoin-what-took-ye-so-long/",
+    "channel": "history"
+  },
+  {
+    "text": "The \"why\" requires coming to an accurate understanding of the nature of two difficult and almost always misunderstood topics, namely trust and the nature of money.",
+    "author": "Nick Szabo",
+    "year": 2011,
+    "source": "Bitcoin, what took ye so long?",
+    "url": "https://nakamotoinstitute.org/library/bitcoin-what-took-ye-so-long/",
+    "channel": "history"
+  },
+  {
+    "text": "The short answer about why it took so long is that the bit gold/Bitcoin ideas were nowhere remotely close to being as obvious gwern suggests.",
+    "author": "Nick Szabo",
+    "year": 2011,
+    "source": "Bitcoin, what took ye so long?",
+    "url": "https://nakamotoinstitute.org/library/bitcoin-what-took-ye-so-long/",
+    "channel": "history"
+  },
+  {
+    "text": "An individual or group communicating under the name \"Satoshi Nakamoto\" brought Bitcoin to the Internet in 2009.",
+    "author": "Nick Szabo",
+    "year": 2017,
+    "source": "Money, Blockchains, and Social Scalability",
+    "url": "https://nakamotoinstitute.org/library/money-blockchains-and-social-scalability/",
+    "channel": "decentralized"
+  },
+  {
+    "text": "Bitcoin's socially scalable security, based on computer science rather than on police and lawyers, allows, for example, customers in Africa to pay suppliers in China seamlessly across borders.",
+    "author": "Nick Szabo",
+    "year": 2017,
+    "source": "Money, Blockchains, and Social Scalability",
+    "url": "https://nakamotoinstitute.org/library/money-blockchains-and-social-scalability/",
+    "channel": "decentralized"
+  },
+  {
+    "text": "Gold can have value anywhere in the world and is immune from hyperinflation because its value doesn't depend on a central authority.",
+    "author": "Nick Szabo",
+    "year": 2017,
+    "source": "Money, Blockchains, and Social Scalability",
+    "url": "https://nakamotoinstitute.org/library/money-blockchains-and-social-scalability/",
+    "channel": "decentralized"
+  },
+  {
+    "text": "In most cases an often trusted and sufficiently trustworthy institution (such as a market) depends on its participants trusting, usually implicitly, another sufficiently trustworthy institution (such as contract law).",
+    "author": "Nick Szabo",
+    "year": 2017,
+    "source": "Money, Blockchains, and Social Scalability",
+    "url": "https://nakamotoinstitute.org/library/money-blockchains-and-social-scalability/",
+    "channel": "decentralized"
+  },
+  {
+    "text": "Lower value transactions with lower fees will need to be implemented on peripheral bitcoin networks.",
+    "author": "Nick Szabo",
+    "year": 2017,
+    "source": "Money, Blockchains, and Social Scalability",
+    "url": "https://nakamotoinstitute.org/library/money-blockchains-and-social-scalability/",
+    "channel": "decentralized"
+  },
+  {
+    "text": "Money and markets also incentivize creation of more accurate price signals that reduce negotiation costs and errors for participants in other similar exchanges.",
+    "author": "Nick Szabo",
+    "year": 2017,
+    "source": "Money, Blockchains, and Social Scalability",
+    "url": "https://nakamotoinstitute.org/library/money-blockchains-and-social-scalability/",
+    "channel": "decentralized"
+  },
+  {
+    "text": "Money and markets directly benefit the participants in each particular trade by the market matching a buyer with a mutually beneficial seller and by a widely acceptable and standardized counter-performance (money).",
+    "author": "Nick Szabo",
+    "year": 2017,
+    "source": "Money, Blockchains, and Social Scalability",
+    "url": "https://nakamotoinstitute.org/library/money-blockchains-and-social-scalability/",
+    "channel": "decentralized"
+  },
+  {
+    "text": "Scalable money requires scalable security, so that a greater number and variety of people can use the currency without losing its integrity against forgery, inflation, and theft.",
+    "author": "Nick Szabo",
+    "year": 2017,
+    "source": "Money, Blockchains, and Social Scalability",
+    "url": "https://nakamotoinstitute.org/library/money-blockchains-and-social-scalability/",
+    "channel": "decentralized"
+  },
+  {
+    "text": "A common refrain among skeptics, especially central bankers, is that bitcoin is too volatile to be a store of value, medium of exchange, or unit of account.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Too Volatile",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-too-volatile/",
+    "channel": "scarce"
+  },
+  {
+    "text": "A network of banks could be set up on top of the bitcoin network, and the payments system could function as it does today.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Too Slow",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-too-slow/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Among its perceived flaws as a currency, critics view bitcoin as being too complicated to ever achieve widespread adoption.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Common Sense",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-common-sense/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Anyone that produces value and exchanges it for bitcoin is assured that their output will not be devalued in the future merely as a function of someone creating new units of money.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is One for All",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-one-for-all/",
+    "channel": "scarce"
+  },
+  {
+    "text": "As a fundamentally better form of money, bitcoin will gain purchasing power relative to inferior monetary assets (and money substitutes), despite being less functional as a transactional currency today in direct trade.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Too Volatile",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-too-volatile/",
+    "channel": "scarce"
+  },
+  {
+    "text": "As a result, the credit system became the marginal price-setting mechanism rather than the base money.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Fixes This",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-fixes-this/",
+    "channel": "scarce"
+  },
+  {
+    "text": "As adoption increases, each individual (on average) controls an ever-diminishing share of the network's fixed supply, and it is the scarcity of the currency which primarily drives adoption.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not for Criminals",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-for-criminals/",
+    "channel": "scarce"
+  },
+  {
+    "text": "As each individual within the network holds a smaller and smaller share of the currency (on average) over time, it results in a dynamic where price is decreasingly dependent on the preferences of a few large holders.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Antifragile",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-antifragile/",
+    "channel": "scarce"
+  },
+  {
+    "text": "As individuals get closer to the precipice of understanding bitcoin as money, there is commonly an instinctive and reactionary thought that the government will never allow it.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Cannot Be Banned",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-cannot-be-banned/",
+    "channel": "scarce"
+  },
+  {
+    "text": "As individuals opt in to bitcoin, they are simultaneously opting out of inferior monetary networks.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin, Not Blockchain",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-not-blockchain/",
+    "channel": "scarce"
+  },
+  {
+    "text": "As more and more individuals collectively identify that bitcoin is the monetary good with the greatest relative scarcity, stability in its price will become an emergent property.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Obsoletes All Other Money",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-obsoletes-all-other-money/",
+    "channel": "scarce"
+  },
+  {
+    "text": "As more individuals value bitcoin, the network not only becomes a greater utility, but it also becomes more secure.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Obsoletes All Other Money",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-obsoletes-all-other-money/",
+    "channel": "scarce"
+  },
+  {
+    "text": "As more people adopt bitcoin and as the network becomes more decentralized, the outcome becomes more probable.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Conclusion",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/conclusion/",
+    "channel": "scarce"
+  },
+  {
+    "text": "As more people adopt bitcoin, the currency is transferred from the haves to have-nots.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is One for All",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-one-for-all/",
+    "channel": "scarce"
+  },
+  {
+    "text": "As part of this process, the financial system will shrink in size relative to the purchasing power of the bitcoin network.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is the Great Definancialization",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-the-great-definancialization/",
+    "channel": "scarce"
+  },
+  {
+    "text": "As the value of bitcoin rises, it is an indication that market participants increasingly prefer holding bitcoin over dollars.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Backed by Nothing",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-backed-by-nothing/",
+    "channel": "scarce"
+  },
+  {
+    "text": "As they do in India, people continue to use bitcoin in China with no disruption to the network.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Antifragile",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-antifragile/",
+    "channel": "scarce"
+  },
+  {
+    "text": "As with every technology, value will accrue to those who utilize bitcoin in its highest and best use, a function that only the market can determine.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not for Criminals",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-for-criminals/",
+    "channel": "scarce"
+  },
+  {
+    "text": "At its most fundamental core, bitcoin is money, and it is the greatest instrument of freedom ever invented by man.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Conclusion",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/conclusion/",
+    "channel": "scarce"
+  },
+  {
+    "text": "At the end of the day, bitcoin is a currency whose supply (and derivatively its price system) cannot be manipulated.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Common Sense",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-common-sense/",
+    "channel": "scarce"
+  },
+  {
+    "text": "At the end of the day, the value of bitcoin is not dependent on any single individual figuring it out and buying in.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not a Pyramid Scheme",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-a-pyramid-scheme/",
+    "channel": "scarce"
+  },
+  {
+    "text": "At the same time, bitcoin has been around for twelve years---as of the time of writing---and has a total purchasing power (or value) of $180 billion.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Antifragile",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-antifragile/",
+    "channel": "scarce"
+  },
+  {
+    "text": "At the same time, bitcoin was created as a solution to the problem of printing money.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Conclusion",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/conclusion/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Before bitcoin, the privilege of creating new money out of thin air was reserved to global central banks, including the Federal Reserve.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Cannot Be Copied",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-cannot-be-copied/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin becomes increasingly decentralized and increasingly censorship-resistant as its value increases and as it scales at all levels of the network.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Cannot Be Copied",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-cannot-be-copied/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin becomes more resistant to censorship as it scales because the network becomes more decentralized over time.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not for Criminals",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-for-criminals/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin consumes only the energy that the free market will bear at a free-market rate.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Does Not Waste Energy",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-does-not-waste-energy/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin has become money over time only as the bitcoin network has developed emergent properties that did not exist at inception and that are next to impossible to replicate now that bitcoin exists.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Cannot Be Copied",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-cannot-be-copied/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin is a long-term savings mechanism, and stability in the value of bitcoin will emerge over time as a function of mass adoption.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Too Volatile",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-too-volatile/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin is only valuable as a form of money and holds value because it has credible monetary properties.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin, Not Blockchain",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-not-blockchain/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin is the superior successor to gold and the fiat money systems that leveraged gold's monetary properties.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Backed by Nothing",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-backed-by-nothing/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin is valuable not because of a particular feature but because it has achieved finite, digital scarcity, through which it derives its store-of-value property.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Cannot Be Copied",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-cannot-be-copied/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin may not be synonymous with the right to life, liberty, and the pursuit of happiness, but it is a fundamental and inalienable right for those who choose to rely upon it as a better path forward.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is a Rally Cry",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-a-rally-cry/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin might technically exist because some highly intelligent individuals identified a problem and set the wheels in motion to create a solution, but it functionally exists because it fixes the problem of printing money.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Fixes This",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-fixes-this/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin represents a solution to the systemic issues within our legacy monetary framework, and it relies on energy consumption to function.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Does Not Waste Energy",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-does-not-waste-energy/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin represents the conversion of subjective value, created and exchanged in the real world, for information controlled by digital keys.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Cannot Be Banned",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-cannot-be-banned/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin ultimately represents the contrast between monetary policy by consensus and monetary policy by central bank.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not a Pyramid Scheme",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-a-pyramid-scheme/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin will consume any and all energy resources necessary to secure its monetary network, which is inherently driven by the base demand to hold it as a currency.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Does Not Waste Energy",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-does-not-waste-energy/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin will continue to steal market share in the global store of value competition because of its superior monetary properties.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Too Volatile",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-too-volatile/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin will transition to a transactional currency only as more people first understand why it will store value.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Too Volatile",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-too-volatile/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin, as with any money, is functional for one purpose, to store value between a series of exchanges.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Obsoletes All Other Money",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-obsoletes-all-other-money/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin, on the other hand, entrusts its monetary policy to a consensus mechanism of those that hold bitcoin as a currency.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not a Pyramid Scheme",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-a-pyramid-scheme/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Bitcoin's innovation is that it represents a superior form of money, which is finitely scarce.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not a Pyramid Scheme",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-a-pyramid-scheme/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Central banks create more and more money, which causes savings to be perpetually devalued.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is the Great Definancialization",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-the-great-definancialization/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Every fiat currency, commodity money (e.g., gold), and cryptocurrency is competing for the exact same use case as bitcoin, whether it is consciously understood by market participants or not.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin, Not Blockchain",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-not-blockchain/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Every other cryptocurrency is competing for the identical use case as bitcoin, that of money.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin, Not Blockchain",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-not-blockchain/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Every other fiat currency, commodity money, or cryptocurrency is competing for the exact same use case as bitcoin, whether it is understood or not.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Cannot Be Copied",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-cannot-be-copied/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Every time the Fed, or any central bank, announces subsequent rounds of QE, it reinforces to the market why bitcoin exists.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Fixes This",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-fixes-this/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Everyone will be able to rely on bitcoin's fixed supply and trust that changes throughout bitcoin's price system will always be true, free from unpredictable changes in the money supply.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is One for All",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-one-for-all/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Everything comes with trade-offs, but there are two holy grails in bitcoin: enforcing a fixed supply and preventing individual units of the currency from being spent multiple times (the double-spending problem).",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Too Slow",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-too-slow/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Everything of value comes with a cost, and there is no more important use for energy than securing the bitcoin network because it provides a sound form of money for the entire world to use, which will ultimately ensure all other demand for energy can be fulfilled via trade.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Introduction",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/introduction/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Future economic stability is why there can be no fundamentally more important source of energy demand than the security of bitcoin's monetary system, especially as central banks print more and more money.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Does Not Waste Energy",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-does-not-waste-energy/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Gold alone has a purchasing power of $8 trillion (50 times the size of bitcoin).",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Obsoletes All Other Money",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-obsoletes-all-other-money/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Gold, on the other hand, has a purchasing power of approximately $8 trillion (40x the size of bitcoin), and the broad money supply of dollars (M2) is approximately $15 trillion (75x the size of bitcoin).",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Cannot Be Banned",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-cannot-be-banned/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Governments will need bitcoin to fund their operations, but to do so, any government would have to tax its citizens to get bitcoin rather than rely on a central bank to print money.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Conclusion",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/conclusion/",
+    "channel": "scarce"
+  },
+  {
+    "text": "If anyone could prevent anyone else from utilizing the network (whether it be an individual, an organization, or a nation-state), bitcoin would be at risk of failure.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not for Criminals",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-for-criminals/",
+    "channel": "scarce"
+  },
+  {
+    "text": "If bitcoin could work for a criminal, it could work for anyone, and for bitcoin to be viable as a currency, it has to work for everyone, including criminals.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not for Criminals",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-for-criminals/",
+    "channel": "scarce"
+  },
+  {
+    "text": "If bitcoin were not functional and could not be expected to hold a certain threshold of value over a particular time horizon, it would not have been used as a medium of exchange.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not for Criminals",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-for-criminals/",
+    "channel": "scarce"
+  },
+  {
+    "text": "If bitcoin were not valued as money, there would be no miners, and without miners, there would be no chain worth protecting.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin, Not Blockchain",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-not-blockchain/",
+    "channel": "scarce"
+  },
+  {
+    "text": "If it were not for the scarcity of capacity in each bitcoin block, there would not be a mechanism to create a transaction-fee market.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Too Slow",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-too-slow/",
+    "channel": "scarce"
+  },
+  {
+    "text": "If money converges to one and bitcoin is finitely scarce, practically everyone in the world will adopt it as money.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Introduction",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/introduction/",
+    "channel": "scarce"
+  },
+  {
+    "text": "If quantitative easing can be simplified down to a debasement of monetary savings, bitcoin can be simplified down to the freedom to convert value into a form of currency that cannot be printed.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is a Rally Cry",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-a-rally-cry/",
+    "channel": "scarce"
+  },
+  {
+    "text": "If the conclusion becomes that bitcoin is not functional as money, the implications of government intervention are irrelevant.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Cannot Be Banned",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-cannot-be-banned/",
+    "channel": "scarce"
+  },
+  {
+    "text": "If the supply of bitcoin remains fixed at 21 million, more people will demand it, and its purchasing power will increase.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Common Sense",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-common-sense/",
+    "channel": "scarce"
+  },
+  {
+    "text": "If there were more people wanting to sell their bitcoin than people needing to adopt bitcoin as money, then its price and value would decline over time.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not a Pyramid Scheme",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-a-pyramid-scheme/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Imagine you concluded that bitcoin is a superior form of money and that there is a fundamental and acute problem with central banks creating money arbitrarily out of thin air.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not a Pyramid Scheme",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-a-pyramid-scheme/",
+    "channel": "scarce"
+  },
+  {
+    "text": "In \"Bitcoin Does Not Waste Energy,\" I lay out a framework to think about the energy resources that bitcoin demands and why this is not only sustainable but also critical to society beyond bitcoin as an application.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Introduction",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/introduction/",
+    "channel": "scarce"
+  },
+  {
+    "text": "In a free market, money might increase or decrease in value over a particular time horizon.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is the Great Definancialization",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-the-great-definancialization/",
+    "channel": "scarce"
+  },
+  {
+    "text": "In aggregate, this drives incremental adoption and liquidity, which reinforces and strengthens the value of the bitcoin network.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Cannot Be Copied",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-cannot-be-copied/",
+    "channel": "scarce"
+  },
+  {
+    "text": "In bitcoin's free market, the highest-value and most profitable transactions are prioritized.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Too Slow",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-too-slow/",
+    "channel": "scarce"
+  },
+  {
+    "text": "In contrast, bitcoin are issued through a mining process that helps secure the network, and the network adjusts to ensure that bitcoin are issued on consistent time intervals.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not a Pyramid Scheme",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-a-pyramid-scheme/",
+    "channel": "scarce"
+  },
+  {
+    "text": "In doing so, bitcoin will preserve and help rebuild the vestiges of freedom that remain.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Conclusion",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/conclusion/",
+    "channel": "scarce"
+  },
+  {
+    "text": "In fact, bitcoin payments en masse will invariably have to wait until the market demands that solutions be created, which itself is logically dependent on more people using bitcoin as a savings mechanism.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Too Slow",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-too-slow/",
+    "channel": "scarce"
+  },
+  {
+    "text": "In most cases, an individual or business would reasonably need to first understand why bitcoin will store value into the future as a savings mechanism before accepting bitcoin as a form of payment in direct commerce or trade.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Too Slow",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-too-slow/",
+    "channel": "scarce"
+  },
+  {
+    "text": "In order to acquire any, bitcoin must be earned by delivering value to those that hold the currency.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is One for All",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-one-for-all/",
+    "channel": "scarce"
+  },
+  {
+    "text": "In the global competition for money, bitcoin has inherent monetary properties that the fiat monetary system lacks.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Backed by Nothing",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-backed-by-nothing/",
+    "channel": "scarce"
+  },
+  {
+    "text": "In their current forms, gold as well as all fiat monetary systems depend on trust, whereas bitcoin is trustless.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Obsoletes All Other Money",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-obsoletes-all-other-money/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Is scarcity a sufficiently powerful property to allow bitcoin to emerge as money, regardless of whether the form of that scarcity is digital?",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Backed by Nothing",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-backed-by-nothing/",
+    "channel": "scarce"
+  },
+  {
+    "text": "It is nothing more than the individual freedom to convert real-world value into a form of money that cannot be manipulated.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is a Rally Cry",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-a-rally-cry/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Logically, that individual or business would first need to have determined that bitcoin would hold its value over a particular time horizon.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Too Volatile",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-too-volatile/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Many people experience this critical mental block when thinking about bitcoin as a currency, and it is largely a function of time horizon.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Too Volatile",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-too-volatile/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Market participants are presented with the choice between holding a form of money that is continually and systematically debased by central banks or a form of money with a fixed supply that cannot be printed.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Fixes This",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-fixes-this/",
+    "channel": "scarce"
+  },
+  {
+    "text": "No one has to trust or question whether bitcoin's price signals are true because its fixed supply guarantees it.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is One for All",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-one-for-all/",
+    "channel": "scarce"
+  },
+  {
+    "text": "No other currency in the world can ever be more scarce than bitcoin, and scarcity will act as a gravitational force, driving adoption and the communication of value.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Obsoletes All Other Money",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-obsoletes-all-other-money/",
+    "channel": "scarce"
+  },
+  {
+    "text": "People produce those things, and money coordinates the preferences of all individuals within an economy, compensating value to varying degrees for time spent.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Common Sense",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-common-sense/",
+    "channel": "scarce"
+  },
+  {
+    "text": "People who do not understand why bitcoin has fundamental value are functionally incapable of doing a cost-benefit analysis.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Does Not Waste Energy",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-does-not-waste-energy/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The avenue may be different for each individual, but at the end of the day, bitcoin is a means to preserve some form of freedom that is otherwise being impaired or infringed.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is a Rally Cry",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-a-rally-cry/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The better question is \"why does volatility not prevent adoption of bitcoin as money?\" Bitcoin has proven to be an exceptional store of value over time, which is fundamental to the function of money.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Introduction",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/introduction/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The bitcoin network represents a total purchasing power of less than $200 billion at present.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Cannot Be Banned",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-cannot-be-banned/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The concept of time preference is described at length in The Bitcoin Standard by Saifedean Ammous (2018).",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is the Great Definancialization",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-the-great-definancialization/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The dollar's supply is governed by a central bank, whereas bitcoin's supply is governed by a consensus of market participants.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Backed by Nothing",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-backed-by-nothing/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The empirical evidence (price and purchasing power) demonstrates that the market continues to determine that bitcoin is different, despite a significant amount of noise.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Cannot Be Copied",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-cannot-be-copied/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The fact that bitcoin is volatile should prevent it from being money for the very reason that it is volatile, right?",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Introduction",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/introduction/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The foundation of bitcoin's value proposition as money does not happen by magic either.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Introduction",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/introduction/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The government will have to directly seek the transfer of bitcoin from citizens via taxes, which are perennially unpopular, and banks will not be able to be bailed out by politicians with money that does not exist.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Conclusion",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/conclusion/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The greater the inclination to store wealth in bitcoin, the lesser the demand to store wealth in the dollar or assets that support the existing dollar credit system.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Fixes This",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-fixes-this/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The integrity of bitcoin's scarcity and the immutability of its blockchain are ultimately dependent on the value of the currency itself.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin, Not Blockchain",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-not-blockchain/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The market is converging on bitcoin over time, and its value continues to increase because it provides a constant---a fixed supply not susceptible to change---that is superior to all other forms of money.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Obsoletes All Other Money",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-obsoletes-all-other-money/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The market test teaches people that bitcoin cannot be copied better than any amount of reason and logic can.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Antifragile",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-antifragile/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The more people that value the long-term stability bitcoin provides, the more energy the network will consume in total.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Does Not Waste Energy",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-does-not-waste-energy/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The most powerful players in bitcoin colluded, yet failed to co-opt the network because of decentralization.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Antifragile",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-antifragile/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The network's demonstration of resilience and immunity reinforces trust in the network, which drives incremental adoption and makes bitcoin more resistant to future attacks or individual errors.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Antifragile",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-antifragile/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The only value bitcoin can ultimately provide is through present or future exchange.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin, Not Blockchain",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-not-blockchain/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The playbook is as follows: increase the money supply, reduce interest rates, manufacture price inflation, and reflate asset values such that existing debt levels can be sustained and more debt can be created.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Fixes This",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-fixes-this/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The process of definancialization will occur as wealth stored in financial assets is converted to bitcoin, specifically as each market participant increasingly chooses to hold a more reliable form of money over risk assets.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is the Great Definancialization",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-the-great-definancialization/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The risk inherent in even the possibility of hyperinflation is so negatively asymmetric that the price of bitcoin's energy consumption is of small relative cost.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Does Not Waste Energy",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-does-not-waste-energy/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The skeptic's logic is as follows: bitcoin does not work, and if it does, the government will ban it.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Cannot Be Banned",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-cannot-be-banned/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The stock market and national average home values are back at all-time highs while tens of millions of Americans are filing for unemployment and half of society has practically no savings.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is One for All",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-one-for-all/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The unhealthy part is specifically when individuals are forced (consciously or not) into taking risk as a byproduct of central banks manufacturing money to lose value.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is the Great Definancialization",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-the-great-definancialization/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The value of bitcoin is derived from its ability to secure each of these functions on a decentralized, trustless basis, and both are inextricably linked to the bitcoin network's limited transaction capacity.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Too Slow",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-too-slow/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The very idea of freedom may be the single most important tenet underpinning the monetary revolution to which bitcoin is giving rise.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is a Rally Cry",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-a-rally-cry/",
+    "channel": "scarce"
+  },
+  {
+    "text": "The world is converging on bitcoin because it is finitely scarce and capable of facilitating direct commerce by and between the largest number of people relative to any other currency system given its permissionless nature.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Conclusion",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/conclusion/",
+    "channel": "scarce"
+  },
+  {
+    "text": "There is no central bank to arbitrarily increase the supply of the currency and debase savings.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is the Great Definancialization",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-the-great-definancialization/",
+    "channel": "scarce"
+  },
+  {
+    "text": "There is no comparison between such a world and one where individuals can earn money honestly by producing value for others and are free to determine how best to allocate it for value in the future.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is One for All",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-one-for-all/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Through this consensus mechanism, bitcoin dispenses with the need for the conscious control of central bankers, relying instead on the distributed knowledge of all market participants.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Fixes This",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-fixes-this/",
+    "channel": "scarce"
+  },
+  {
+    "text": "What they seemingly understood was that there was sufficient market demand for bitcoin to make it viable as a medium of exchange.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not for Criminals",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-for-criminals/",
+    "channel": "scarce"
+  },
+  {
+    "text": "When governments and central banks can no longer create money out of thin air, it will become crystal clear that backdoor monetary inflation was always just a ruse to allocate resources for which no one was actually willing to be taxed.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Common Sense",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-common-sense/",
+    "channel": "scarce"
+  },
+  {
+    "text": "When the credit system attempts to contract, it represents the market and the individuals within an economy working to eliminate imbalances that exist.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Common Sense",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-common-sense/",
+    "channel": "scarce"
+  },
+  {
+    "text": "When the war is won, bitcoin will likely find its way into a constitutional amendment even though the first amendment already covers it---the right of the people to keep and bear bitcoin.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is a Rally Cry",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-a-rally-cry/",
+    "channel": "scarce"
+  },
+  {
+    "text": "While bitcoin is valued for different reasons, it consistently appeals to those that have identified the inherent level of freedom afforded by such a powerful tool, particularly in a world full of never-ending economic calamities.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is a Rally Cry",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-a-rally-cry/",
+    "channel": "scarce"
+  },
+  {
+    "text": "While many people choose to trust a bank-like entity, the security model of bitcoin is unique.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Backed by Nothing",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-backed-by-nothing/",
+    "channel": "scarce"
+  },
+  {
+    "text": "While the supply of bitcoin remains fixed and finitely scarce, central banks will be forced to create more money in order to sustain the legacy credit system.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Not Backed by Nothing",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-not-backed-by-nothing/",
+    "channel": "scarce"
+  },
+  {
+    "text": "With bitcoin as a backdrop, it becomes self-evident that there is no advantage in ceding the power to print money or allowing a central bank to allocate resources within an economy in place of the individuals who comprise it.",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Is Common Sense",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-is-common-sense/",
+    "channel": "scarce"
+  },
+  {
+    "text": "Would bitcoin be functional as money on a standalone basis if left to the free market?",
+    "author": "Parker Lewis",
+    "year": 2023,
+    "source": "Gradually, Then Suddenly: Bitcoin Cannot Be Banned",
+    "url": "https://nakamotoinstitute.org/library/gradually-then-suddenly/bitcoin-cannot-be-banned/",
+    "channel": "scarce"
+  },
+  {
+    "text": "To be successful, money must be both a medium of exchange and a reasonably stable store of value. And it remains completely unclear why BitCoin should be a stable store of value.",
+    "author": "Paul Krugman",
+    "year": 2013,
+    "source": "Bitcoin Is Evil (New York Times)",
+    "url": "https://archive.nytimes.com/krugman.blogs.nytimes.com/2013/12/28/bitcoin-is-evil/",
+    "channel": "misconceptions-fud"
+  },
+  {
+    "text": "At no time in the past century has public distrust of the government been so broadly distributed across the political spectrum, as it is today.",
+    "author": "Philip R. Zimmermann",
+    "year": 1991,
+    "source": "Why I Wrote PGP",
+    "url": "https://nakamotoinstitute.org/library/why-i-wrote-pgp/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "The catch: At the time of manufacture, each Clipper chip is loaded with its own unique key, and the government gets to keep a copy, placed in escrow.",
+    "author": "Philip R. Zimmermann",
+    "year": 1991,
+    "source": "Why I Wrote PGP",
+    "url": "https://nakamotoinstitute.org/library/why-i-wrote-pgp/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "The government initially claimed that using Clipper would be voluntary, that no one would be forced to use it instead of other types of cryptography.",
+    "author": "Philip R. Zimmermann",
+    "year": 1991,
+    "source": "Why I Wrote PGP",
+    "url": "https://nakamotoinstitute.org/library/why-i-wrote-pgp/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "The government knows what a pivotal role cryptography is destined to play in the power relationship with its people.",
+    "author": "Philip R. Zimmermann",
+    "year": 1991,
+    "source": "Why I Wrote PGP",
+    "url": "https://nakamotoinstitute.org/library/why-i-wrote-pgp/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "The only way to hold the line on privacy in the information age is strong cryptography.",
+    "author": "Philip R. Zimmermann",
+    "year": 1991,
+    "source": "Why I Wrote PGP",
+    "url": "https://nakamotoinstitute.org/library/why-i-wrote-pgp/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "The right to a private conversation was a natural right, not just in a philosophical sense, but in a law-of-physics sense, given the technology of the time.",
+    "author": "Philip R. Zimmermann",
+    "year": 1991,
+    "source": "Why I Wrote PGP",
+    "url": "https://nakamotoinstitute.org/library/why-i-wrote-pgp/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "Throughout the 1990s, I figured that if we want to resist this unsettling trend in the government to outlaw cryptography, one measure we can apply is to use cryptography as much as we can now while it's still legal.",
+    "author": "Philip R. Zimmermann",
+    "year": 1991,
+    "source": "Why I Wrote PGP",
+    "url": "https://nakamotoinstitute.org/library/why-i-wrote-pgp/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "When use of strong cryptography becomes popular, it's harder for the government to criminalize it.",
+    "author": "Philip R. Zimmermann",
+    "year": 1991,
+    "source": "Why I Wrote PGP",
+    "url": "https://nakamotoinstitute.org/library/why-i-wrote-pgp/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "In a fiat paper standard the bankruptcy or the end of the government likely means the end of the currency and renders it worthless.",
+    "author": "Philipp Bagus",
+    "year": 2009,
+    "source": "The Quality of Money",
+    "url": "https://nakamotoinstitute.org/library/the-quality-of-money/",
+    "channel": "money"
+  },
+  {
+    "text": "The assets of a central bank can be used to defend the value of a currency internally and externally.",
+    "author": "Philipp Bagus",
+    "year": 2009,
+    "source": "The Quality of Money",
+    "url": "https://nakamotoinstitute.org/library/the-quality-of-money/",
+    "channel": "money"
+  },
+  {
+    "text": "The taxation capacity is crucial, because a fiat paper money is backed by the reserves of the banking system and central bank, which are largely government debts.",
+    "author": "Philipp Bagus",
+    "year": 2009,
+    "source": "The Quality of Money",
+    "url": "https://nakamotoinstitute.org/library/the-quality-of-money/",
+    "channel": "money"
+  },
+  {
+    "text": "When government debts become worthless because of an end of government due to war or revolution, the fiat money will also lose in value and may cease to exist.",
+    "author": "Philipp Bagus",
+    "year": 2009,
+    "source": "The Quality of Money",
+    "url": "https://nakamotoinstitute.org/library/the-quality-of-money/",
+    "channel": "money"
+  },
+  {
+    "text": "When people start to value money higher, the purchasing power of money will be higher.",
+    "author": "Philipp Bagus",
+    "year": 2009,
+    "source": "The Quality of Money",
+    "url": "https://nakamotoinstitute.org/library/the-quality-of-money/",
+    "channel": "money"
+  },
+  {
+    "text": "Bitcoins will have to reach certain threshold of liquidity, indicated by a solid exchange in every financial center and a real money supply – i.e. market cap – of at least $50 billion, before they can be used as an instrument in a speculative attack.",
+    "author": "Pierre Rochard",
+    "year": 2014,
+    "source": "Speculative Attack",
+    "url": "https://nakamotoinstitute.org/mempool/speculative-attack/",
+    "channel": "investment-strategy"
+  },
+  {
+    "text": "People will be forced to pay with bitcoins, not because of 'the technology', but because no one will accept their worthless fiat for payments.",
+    "author": "Pierre Rochard",
+    "year": 2014,
+    "source": "Speculative Attack",
+    "url": "https://nakamotoinstitute.org/mempool/speculative-attack/",
+    "channel": "investment-strategy"
+  },
+  {
+    "text": "Slow bleed leads to currency crisis as the expected value of bitcoins solidifies in people's minds.",
+    "author": "Pierre Rochard",
+    "year": 2014,
+    "source": "Speculative Attack",
+    "url": "https://nakamotoinstitute.org/mempool/speculative-attack/",
+    "channel": "investment-strategy"
+  },
+  {
+    "text": "The effect of people, businesses, or financial institutions borrowing their local currency to buy bitcoins is that the bitcoin price in that currency would go up relative to other currencies.",
+    "author": "Pierre Rochard",
+    "year": 2014,
+    "source": "Speculative Attack",
+    "url": "https://nakamotoinstitute.org/mempool/speculative-attack/",
+    "channel": "investment-strategy"
+  },
+  {
+    "text": "The price of bitcoins in Indian Rupees goes up, a premium develops relative to other currency pairs.",
+    "author": "Pierre Rochard",
+    "year": 2014,
+    "source": "Speculative Attack",
+    "url": "https://nakamotoinstitute.org/mempool/speculative-attack/",
+    "channel": "investment-strategy"
+  },
+  {
+    "text": "There's a huge problem with the Indian central bank raising interest rates: bitcoin's historical return is ~500% per year.",
+    "author": "Pierre Rochard",
+    "year": 2014,
+    "source": "Speculative Attack",
+    "url": "https://nakamotoinstitute.org/mempool/speculative-attack/",
+    "channel": "investment-strategy"
+  },
+  {
+    "text": "In the long run, making programs free is a step toward the postscarcity world, where nobody will have to work very hard just to make a living.",
+    "author": "Richard M. Stallman",
+    "year": 1985,
+    "source": "The GNU Manifesto",
+    "url": "https://nakamotoinstitute.org/library/the-gnu-manifesto/",
+    "channel": "organic"
+  },
+  {
+    "text": "The expression \"give away\" is another indication that I had not yet clearly separated the issue of price from that of freedom.",
+    "author": "Richard M. Stallman",
+    "year": 1985,
+    "source": "The GNU Manifesto",
+    "url": "https://nakamotoinstitute.org/library/the-gnu-manifesto/",
+    "channel": "organic"
+  },
+  {
+    "text": "The salary won't be high by programmers' standards, but I'm looking for people for whom building community spirit is as important as making money.",
+    "author": "Richard M. Stallman",
+    "year": 1985,
+    "source": "The GNU Manifesto",
+    "url": "https://nakamotoinstitute.org/library/the-gnu-manifesto/",
+    "channel": "organic"
+  },
+  {
+    "text": "In France, under the DADVSI law adopted in 2006, mere possession of a copy of DeCSS, the free program to decrypt video on a DVD, is a crime.",
+    "author": "Richard M. Stallman",
+    "year": 1997,
+    "source": "The Right to Read: A Dystopian Short Story",
+    "url": "https://nakamotoinstitute.org/library/right-to-read/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "The FTAA is one of the so-called free trade treaties, which are actually designed to give business increased power over democratic governments; imposing laws like the DMCA is typical of this spirit.",
+    "author": "Richard M. Stallman",
+    "year": 1997,
+    "source": "The Right to Read: A Dystopian Short Story",
+    "url": "https://nakamotoinstitute.org/library/right-to-read/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "Their mission is to preserve, protect and promote the freedom to use, study, copy, modify, and redistribute computer software, and to defend the rights of Free Software users.",
+    "author": "Richard M. Stallman",
+    "year": 1997,
+    "source": "The Right to Read: A Dystopian Short Story",
+    "url": "https://nakamotoinstitute.org/library/right-to-read/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "There were even free debugging tools available on CD or downloadable over the net.",
+    "author": "Richard M. Stallman",
+    "year": 1997,
+    "source": "The Right to Read: A Dystopian Short Story",
+    "url": "https://nakamotoinstitute.org/library/right-to-read/",
+    "channel": "privacy-nonkyc"
+  },
+  {
+    "text": "As computers get faster and the total computing power applied to creating bitcoins increases, the difficulty increases proportionally to keep the total new production constant.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin P2P e-cash paper",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/5/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "As such, the verification is reliable as long as honest nodes control the network, but is more vulnerable if the network is overpowered by an attacker.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin: A Peer-to-Peer Electronic Cash System",
+    "url": "https://nakamotoinstitute.org/library/bitcoin/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "Every general, just by verifying the difficulty of the proof-of-work chain, can estimate how much parallel CPU power per hour was expended on it and see that it must have required the majority of the computers to produce that much proof-of-work in the allotted time.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin P2P e-cash paper",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/11/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "For our timestamp network, we implement the proof-of-work by incrementing a nonce in the block until a value is found that gives the block's hash the required zero bits.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin: A Peer-to-Peer Electronic Cash System",
+    "url": "https://nakamotoinstitute.org/library/bitcoin/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "Governments are good at cutting off the heads of a centrally controlled networks like Napster, but pure P2P networks like Gnutella and Tor seem to be holding their own.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin P2P e-cash paper",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/4/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "I don't think he could make as much money trying to pull a carding scheme like that as he could by generating bitcoins.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin P2P e-cash paper",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/3/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "I've been working on a new electronic cash system that's fully peer-to-peer, with no trusted third party.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin P2P e-cash paper",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/1/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "If a greedy attacker is able to assemble more CPU power than all the honest nodes, he would have to choose between using it to defraud people by stealing back his payments, or using it to generate new coins.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin: A Peer-to-Peer Electronic Cash System",
+    "url": "https://nakamotoinstitute.org/library/bitcoin/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "If anyone was working on a different attack time, they switch to this one, because its proof-of-work chain is now longer.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin P2P e-cash paper",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/11/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "If it does not increase as fast as demand, there will be deflation and early holders of money will see its value increase.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin P2P e-cash paper",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/5/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "If the CPU power exhibited by the proof-of-work chain is sufficient to crack the password, they can safely attack at the agreed time.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin P2P e-cash paper",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/11/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "If the supply of money increases at the same rate that the number of people using it increases, prices remain stable.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin P2P e-cash paper",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/5/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "If the timespan over the last 6*24*30 blocks is less than 15 days, blocks are being generated too fast and the proof-of-work difficulty doubles.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin P2P e-cash paper",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/10/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "Once a predetermined number of coins have entered circulation, the incentive can transition entirely to transaction fees and be completely inflation free.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin: A Peer-to-Peer Electronic Cash System",
+    "url": "https://nakamotoinstitute.org/library/bitcoin/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "Once each general receives whatever attack time he hears first, he sets his computer to solve an extremely difficult proof-of-work problem that includes the attack time in its hash.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin P2P e-cash paper",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/11/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "The Bitcoin network might actually reduce spam by diverting zombie farms to generating bitcoins instead.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin P2P e-cash paper",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/3/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "The fact that new coins are produced means the money supply increases by a planned amount, but this does not necessarily result in inflation.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin P2P e-cash paper",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/5/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "The incentive value when a node finds a proof-of-work for a block could be the total of the fees in the block.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin P2P e-cash paper",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/9/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "The network timestamps transactions by hashing them into an ongoing chain of hash-based proof-of-work, forming a record that cannot be changed without redoing the proof-of-work.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin: A Peer-to-Peer Electronic Cash System",
+    "url": "https://nakamotoinstitute.org/library/bitcoin/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "The proof-of-work also solves the problem of determining representation in majority decision making.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin: A Peer-to-Peer Electronic Cash System",
+    "url": "https://nakamotoinstitute.org/library/bitcoin/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "The proof-of-work for new coin generation also powers the network to prevent double-spending.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin P2P e-cash paper",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/1/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "The proof-of-work involves scanning for a value that when hashed, such as with SHA-256, the hash begins with a number of zero bits.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin: A Peer-to-Peer Electronic Cash System",
+    "url": "https://nakamotoinstitute.org/library/bitcoin/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "The traditional banking model achieves a level of privacy by limiting access to information to the parties involved and the trusted third party.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin: A Peer-to-Peer Electronic Cash System",
+    "url": "https://nakamotoinstitute.org/library/bitcoin/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "There would be many smaller zombie farms that are not big enough to overpower the network, and they could still make money by generating bitcoins.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin P2P e-cash paper",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/3/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "To exploit it, he would have to buy something from a merchant, wait till it ships, then overpower the network and try to take his money back.",
+    "author": "Satoshi Nakamoto",
+    "year": 2008,
+    "source": "Bitcoin P2P e-cash paper",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/3/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "A lot of people automatically dismiss e-currency as a lost cause because of all the companies that failed since the 1990's.",
+    "author": "Satoshi Nakamoto",
+    "year": 2009,
+    "source": "Bitcoin open source implementation of P2P currency",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/p2pfoundation/2/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "Announcing the first release of Bitcoin, a new electronic cash system that uses a peer-to-peer network to prevent double-spending.",
+    "author": "Satoshi Nakamoto",
+    "year": 2009,
+    "source": "Bitcoin v0.1 released",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/16/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "Banks must be trusted to hold our money and transfer it electronically, but they lend it out in waves of credit bubbles with barely a fraction in reserve.",
+    "author": "Satoshi Nakamoto",
+    "year": 2009,
+    "source": "Bitcoin open source implementation of P2P currency",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/p2pfoundation/1/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "Bitcoin's solution is to use a peer-to-peer network to check for double-spending.",
+    "author": "Satoshi Nakamoto",
+    "year": 2009,
+    "source": "Bitcoin open source implementation of P2P currency",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/p2pfoundation/1/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "I think this is the first time we're trying a decentralized, non-trust-based system.",
+    "author": "Satoshi Nakamoto",
+    "year": 2009,
+    "source": "Bitcoin open source implementation of P2P currency",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/p2pfoundation/2/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "If someone famous is getting more e-mail than they can read, but would still like to have a way for fans to contact them, they could set up Bitcoin and give out the IP address on their website.",
+    "author": "Satoshi Nakamoto",
+    "year": 2009,
+    "source": "Bitcoin v0.1 released",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/17/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "In a nutshell, the network works like a distributed timestamp server, stamping the first transaction to spend a coin.",
+    "author": "Satoshi Nakamoto",
+    "year": 2009,
+    "source": "Bitcoin open source implementation of P2P currency",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/p2pfoundation/1/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "It might make sense just to get some in case it catches on.",
+    "author": "Satoshi Nakamoto",
+    "year": 2009,
+    "source": "Cryptography mailing list: Bitcoin v0.1 released",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/17/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "It's the opposite of when a government prints money and the value of existing money goes down.",
+    "author": "Satoshi Nakamoto",
+    "year": 2009,
+    "source": "Re: Questions about Bitcoin",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/17/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "Subscription sites that need some extra proof-of-work for their free trial so it doesn't cannibalize subscriptions could charge bitcoins for the trial.",
+    "author": "Satoshi Nakamoto",
+    "year": 2009,
+    "source": "Bitcoin v0.1 released",
+    "url": "https://satoshi.nakamotoinstitute.org/emails/cryptography/17/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "The central bank must be trusted not to debase the currency, but the history of fiat currencies is full of breaches of that trust.",
+    "author": "Satoshi Nakamoto",
+    "year": 2009,
+    "source": "Bitcoin open source implementation of P2P currency",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/p2pfoundation/1/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "The root problem with conventional currency is all the trust that's required to make it work.",
+    "author": "Satoshi Nakamoto",
+    "year": 2009,
+    "source": "Bitcoin open source implementation of P2P currency",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/p2pfoundation/1/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks",
+    "author": "Satoshi Nakamoto",
+    "year": 2009,
+    "source": "Bitcoin source: genesis block timestamp",
+    "url": "https://github.com/bitcoin/bitcoin/blob/v28.0/src/kernel/chainparams.cpp#L73",
+    "channel": "history"
+  },
+  {
+    "text": "To Sepp's question, indeed there is nobody to act as central bank or federal reserve to adjust the money supply as the population of users grows.",
+    "author": "Satoshi Nakamoto",
+    "year": 2009,
+    "source": "Bitcoin open source implementation of P2P currency",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/p2pfoundation/3/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "We have to trust them with our privacy, trust them not to let identity thieves drain our accounts.",
+    "author": "Satoshi Nakamoto",
+    "year": 2009,
+    "source": "Bitcoin open source implementation of P2P currency",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/p2pfoundation/1/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "With e-currency based on cryptographic proof, without the need to trust a third party middleman, money can be secure and transactions effortless.",
+    "author": "Satoshi Nakamoto",
+    "year": 2009,
+    "source": "Bitcoin open source implementation of P2P currency",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/p2pfoundation/1/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "A rational market price for something that is expected to increase in value will already reflect the present value of the expected future increases.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: Current Bitcoin economic model is unsustainable",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/65/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "As the price keeps going up and up, some people keep holding out for yet higher prices and refuse to sell.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: BTC Vulnerability? (Massive Attack against BTC system. Is it really?)",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/174/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "At the moment, generation effort is rapidly increasing, suggesting people are estimating the present value to be higher than the current cost of production.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: Current Bitcoin economic model is unsustainable",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/65/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "At the same time, the increased production would increase the difficulty, pushing the cost of generating towards the price.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: Current Bitcoin economic model is unsustainable",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/65/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "Bitcoin is a digital currency using cryptography and a distributed network to replace the need for a trusted central server.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Bitcoin 0.3 released!",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/168/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "Bitcoin is practical for smaller transactions than are practical with existing payment methods.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: Flood attack 0.00000001 BC",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/317/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "Bitcoin would be convenient for people who don't have a credit card or don't want to use the cards they have, either don't want the spouse to see it on the bill or don't trust giving their number to \"porn guys\", or afraid of recurring billing.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: Porn",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/460/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "Bitcoins have no dividend or potential future dividend, therefore not like a stock.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: Bitcoins are most like shares of common stock",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/427/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "Gold mining is a waste, but that waste is far less than the utility of having gold available as a medium of exchange.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: Bitcoin minting is thermodynamically perverse",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/327/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "If you don't believe me or don't get it, I don't have time to try to convince you, sorry.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "BitcoinTalk: Scalability",
+    "url": "https://bitcointalk.org/index.php?topic=532.msg6306#msg6306",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "If you were able to delete a bitcoin address and someone sent to it, the money would be lost.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: removing bitcoin addresses",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/102/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "Maybe it could get an initial value circularly as you've suggested, by people foreseeing its potential usefulness for exchange. (I would definitely want some) Maybe collectors, any random reason could spark it.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: Bitcoin does NOT violate Mises' Regression Theorem",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/428/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "Proof-of-work has the nice property that it can be relayed through untrusted middlemen.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: Bitcoin minting is thermodynamically perverse",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/327/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "The cash register displays a QR-code encoding a bitcoin address and amount on a screen and you photo it with your mobile.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: URI-scheme for bitcoin",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/73/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "The coins are gradually released to the network's nodes based on the CPU power they contribute, so you can get a share of them by contributing your idle CPU time.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Bitcoin 0.3 released!",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/168/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "The nature of Bitcoin is such that once version 0.1 was released, the core design was set in stone for the rest of its lifetime.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: Transactions and Scripts: DUP HASH160 ... EQUALVERIFY CHECKSIG",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/126/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "The problem was, each thing required special support code and data fields whether it was used or not, and only covered one special case at a time.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: Transactions and Scripts: DUP HASH160 ... EQUALVERIFY CHECKSIG",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/126/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "The utility of the exchanges made possible by Bitcoin will far exceed the cost of electricity used.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: Bitcoin minting is thermodynamically perverse",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/327/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "When someone tries to buy all the world's supply of a scarce asset, the more they buy the higher the price goes.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: BTC Vulnerability? (Massive Attack against BTC system. Is it really?)",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/174/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "When you generate a new bitcoin address, it only takes disk space on your own computer (like 500 bytes).",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: Could the bitcoin network be destroyed by someone generating endless bitcoin add",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/98/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "While I don't think Bitcoin is practical for smaller micropayments right now, it will eventually be as storage and bandwidth costs continue to fall.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: Flood attack 0.00000001 BC",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/318/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "You should put a donation bitcoin address on the page for those who want to add funds to it, which ideally should update to a new address whenever it receives something.",
+    "author": "Satoshi Nakamoto",
+    "year": 2010,
+    "source": "Re: Get 5 free bitcoins from freebitcoins.appspot.com",
+    "url": "https://satoshi.nakamotoinstitute.org/posts/bitcointalk/129/",
+    "channel": "satoshi-nakamoto"
+  },
+  {
+    "text": "An anonymous computerized market will even make possible abhorrent markets for assassinations and extortion.",
+    "author": "Timothy C. May",
+    "year": 1988,
+    "source": "The Crypto Anarchist Manifesto",
+    "url": "https://nakamotoinstitute.org/library/crypto-anarchist-manifesto/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Computer technology is on the verge of providing the ability for individuals and groups to communicate and interact with each other in a totally anonymous manner.",
+    "author": "Timothy C. May",
+    "year": 1988,
+    "source": "The Crypto Anarchist Manifesto",
+    "url": "https://nakamotoinstitute.org/library/crypto-anarchist-manifesto/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Interactions over networks will be untraceable, via extensive re-routing of encrypted packets and tamper-proof boxes which implement cryptographic protocols with nearly perfect assurance against any tampering.",
+    "author": "Timothy C. May",
+    "year": 1988,
+    "source": "The Crypto Anarchist Manifesto",
+    "url": "https://nakamotoinstitute.org/library/crypto-anarchist-manifesto/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Reputations will be of central importance, far more important in dealings than even the credit ratings of today.",
+    "author": "Timothy C. May",
+    "year": 1988,
+    "source": "The Crypto Anarchist Manifesto",
+    "url": "https://nakamotoinstitute.org/library/crypto-anarchist-manifesto/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "The focus has until now been on academic conferences in Europe and the U.S., conferences monitored closely by the National Security Agency.",
+    "author": "Timothy C. May",
+    "year": 1988,
+    "source": "The Crypto Anarchist Manifesto",
+    "url": "https://nakamotoinstitute.org/library/crypto-anarchist-manifesto/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "The State will of course try to slow or halt the spread of this technology, citing national security concerns, use of the technology by drug dealers and tax evaders, and fears of societal disintegration.",
+    "author": "Timothy C. May",
+    "year": 1988,
+    "source": "The Crypto Anarchist Manifesto",
+    "url": "https://nakamotoinstitute.org/library/crypto-anarchist-manifesto/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "The technology for this revolution—and it surely will be both a social and economic revolution—has existed in theory for the past decade.",
+    "author": "Timothy C. May",
+    "year": 1988,
+    "source": "The Crypto Anarchist Manifesto",
+    "url": "https://nakamotoinstitute.org/library/crypto-anarchist-manifesto/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Two persons may exchange messages, conduct business, and negotiate electronic contracts without ever knowing the True Name, or legal identity, of the other.",
+    "author": "Timothy C. May",
+    "year": 1988,
+    "source": "The Crypto Anarchist Manifesto",
+    "url": "https://nakamotoinstitute.org/library/crypto-anarchist-manifesto/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Alice and Bob, our favorite cryptographic stand-ins, can communicate and transact business without ever meeting or even knowing who the other is.",
+    "author": "Timothy C. May",
+    "year": 1992,
+    "source": "Libertaria in Cyberspace",
+    "url": "https://nakamotoinstitute.org/library/libertaria-in-cyberspace/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "I've spent several years thinking about this, but I've surely missed some good ideas.",
+    "author": "Timothy C. May",
+    "year": 1992,
+    "source": "Libertaria in Cyberspace",
+    "url": "https://nakamotoinstitute.org/library/libertaria-in-cyberspace/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "The basic problem is that physical space is too small, too exposed to the view of others.",
+    "author": "Timothy C. May",
+    "year": 1992,
+    "source": "Libertaria in Cyberspace",
+    "url": "https://nakamotoinstitute.org/library/libertaria-in-cyberspace/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "The cryptographic aspects mean their membership in some community is unknown to others (vis-a-vis the physical or outside world, i.e., their \"true names\") and physical coercion is reduced.",
+    "author": "Timothy C. May",
+    "year": 1992,
+    "source": "Libertaria in Cyberspace",
+    "url": "https://nakamotoinstitute.org/library/libertaria-in-cyberspace/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "We are not discussing anything that is actually illegal, even under the broad powers of RICO (Racketeer-Influenced and Corrupt Organizations Act, used to go after \"conspiracies\" of porn dealers and gun dealers, amongst others).",
+    "author": "Timothy C. May",
+    "year": 1992,
+    "source": "Libertaria in Cyberspace",
+    "url": "https://nakamotoinstitute.org/library/libertaria-in-cyberspace/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "A huge demand (life and death), but various laws tightly controlling such markets.",
+    "author": "Timothy C. May",
+    "year": 1994,
+    "source": "Crypto Anarchy and Virtual Communities",
+    "url": "https://nakamotoinstitute.org/library/virtual-communities/",
+    "channel": "organic"
+  },
+  {
+    "text": "The basic right of free speech is the right to speak in a language one's neighbors or governing leaders may not find comprehensible: encrypted speech.",
+    "author": "Timothy C. May",
+    "year": 1994,
+    "source": "Crypto Anarchy and Virtual Communities",
+    "url": "https://nakamotoinstitute.org/library/virtual-communities/",
+    "channel": "organic"
+  },
+  {
+    "text": "The past two decades have produced a revolution in cryptography (crypto, for short) the science of the making of ciphers and codes.",
+    "author": "Timothy C. May",
+    "year": 1994,
+    "source": "Crypto Anarchy and Virtual Communities",
+    "url": "https://nakamotoinstitute.org/library/virtual-communities/",
+    "channel": "organic"
+  },
+  {
+    "text": "Whether through banking regulation or tax laws, it is not likely that digital money will be deployed easily.",
+    "author": "Timothy C. May",
+    "year": 1994,
+    "source": "Crypto Anarchy and Virtual Communities",
+    "url": "https://nakamotoinstitute.org/library/virtual-communities/",
+    "channel": "organic"
+  },
+  {
+    "text": "probably rat poison squared",
+    "author": "Warren Buffett",
+    "year": 2018,
+    "source": "CNBC: Warren Buffett says bitcoin is 'probably rat poison squared'",
+    "url": "https://www.cnbc.com/2018/05/05/warren-buffett-says-bitcoin-is-probably-rat-poison-squared.html",
+    "channel": "misconceptions-fud"
+  },
+  {
+    "text": "A community is defined by the cooperation of its participants, and efficient cooperation requires a medium of exchange (money) and a way to enforce contracts.",
+    "author": "Wei Dai",
+    "year": 1998,
+    "source": "b-money",
+    "url": "https://nakamotoinstitute.org/library/b-money/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "A valid contract must include a maximum reparation in case of default for each participant party to it.",
+    "author": "Wei Dai",
+    "year": 1998,
+    "source": "b-money",
+    "url": "https://nakamotoinstitute.org/library/b-money/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Also, each server must periodically publish and commit to its current money creation and money ownership databases.",
+    "author": "Wei Dai",
+    "year": 1998,
+    "source": "b-money",
+    "url": "https://nakamotoinstitute.org/library/b-money/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Anyone can create money by broadcasting the solution to a previously unsolved computational problem.",
+    "author": "Wei Dai",
+    "year": 1998,
+    "source": "b-money",
+    "url": "https://nakamotoinstitute.org/library/b-money/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "Since the servers must be trusted to a degree, some mechanism is needed to keep them honest.",
+    "author": "Wei Dai",
+    "year": 1998,
+    "source": "b-money",
+    "url": "https://nakamotoinstitute.org/library/b-money/",
+    "channel": "cryptography"
+  },
+  {
+    "text": "The protocol proposed in this article allows untraceable pseudonymous entities to cooperate with each other more efficiently, by providing them with a medium of exchange and a method of enforcing contracts.",
+    "author": "Wei Dai",
+    "year": 1998,
+    "source": "b-money",
+    "url": "https://nakamotoinstitute.org/library/b-money/",
+    "channel": "cryptography"
+  }
+]

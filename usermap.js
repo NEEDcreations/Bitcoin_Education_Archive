@@ -138,6 +138,8 @@ var _NEW_COUNTRY_MS = 10 * 24 * 60 * 60 * 1000; // 10 days
 
 /* ───────────────── Public entry point ───────────────── */
 window.renderUserWorldMap = function() {
+    var more = document.getElementById('homeMore');
+    if (more && more.hidden) return;
     var el = document.getElementById('communityWorldMap');
     if (!el) return;
 

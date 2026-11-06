@@ -7,11 +7,14 @@ const fs = require('fs');
 const path = require('path');
 
 const JS_FILES = [
-    'ranking.js', 'app.js', 'nacho-qa.js', 'nacho.js', 'nacho-engage.js',
+    'ranking.js', 'app.js', 'nacho-qa.js', 'features.registry.js', 'nacho.js', 'nacho-engage.js',
     'nacho-closet.js', 'nacho-live.js', 'bitcoin-dashboard.js', 'mobile-ux.js', 'forum.js',
     'marketplace.js', 'messaging.js', 'engagement.js', 'badges.js',
     'tickets.js', 'features.js', 'quests.js', 'scholar.js', 'sw.js',
-    'channel_index.js'
+    'pvp.js', 'pvp-enhance.js', 'pvp-lobby-alert.js',
+    'channel_index.js', 'topic-discussions.js', 'quest-defer.js', 'global-chat.js', 'notifications.js', 'gifting.js',
+    'achievement-share.js', 'bip-breakthrough.js', 'auth-display.js', 'auth-boot.js', 'app-check-boot.js', 'firebase-config.js', 'bundle-ready.js',
+    'referral-tiers.js'
 ];
 
 let passed = 0, failed = 0;

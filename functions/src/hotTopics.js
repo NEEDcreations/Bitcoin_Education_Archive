@@ -42,6 +42,13 @@ const STACKER_QUERY = 'query HotBitcoin { items(sub: "bitcoin", sort: "hot") { i
 const SOURCE_UA = 'BitcoinQuestHotTopics/1.0 (+https://bitcoineducation.quest)';
 const WEB_SEARCH_ORIGIN = 'https://jolly-surf-219enacho-search.needcreations.workers.dev/search';
 const CF_MODEL = '@cf/meta/llama-4-scout-17b-16e-instruct';
+// Three attempts at 45s, plus 400ms and 800ms backoff, is about 136s.
+// Source fetches run in parallel (the slowest is the sequential web search,
+// about 120s) and the follow-up search is one more 20s call. That stays
+// inside the 540s function timeout, so the scheduler timeout is unchanged.
+// The gen1 HTTP triggers default to 60s, which cannot finish this budget;
+// those two functions set timeoutSeconds to 540.
+const CF_CALL_TIMEOUT_MS = 45000;
 
 const SLOP_PHRASES = [
     'the bitcoin community is actively discussing',
@@ -360,6 +367,52 @@ function schemaUnsupportedMessage(status, body) {
     return /response_format|json_schema|guided_json|json mode|unrecognized|unknown field|additional properties/i.test(body || '');
 }
 
+function cfTransportKind(err) {
+    if (!err || typeof err !== 'object') return '';
+    const name = String(err.name || '');
+    const type = String(err.type || '');
+    const code = String(err.code || err.errno || '');
+    const message = String(err.message || '');
+    if (
+        type === 'request-timeout' ||
+        code === 'ETIMEDOUT' ||
+        code === 'ESOCKETTIMEDOUT' ||
+        code === 'UND_ERR_CONNECT_TIMEOUT' ||
+        code === 'UND_ERR_HEADERS_TIMEOUT' ||
+        code === 'UND_ERR_BODY_TIMEOUT' ||
+        /timeout|timed out/i.test(message)
+    ) return 'timeout';
+    if (name === 'AbortError' || type === 'aborted' || code === 'ABORT_ERR') return 'AbortError';
+    return '';
+}
+
+function aiErrorText(err) {
+    const text = (err && (err.publicMessage || err.message)) || (err && err.name) || 'error';
+    return String(text)
+        .replace(/https?:\/\/\S+/gi, '[url]')
+        .replace(/accounts\/[A-Za-z0-9_-]+/g, 'accounts/[id]');
+}
+
+function cfHttpError(status) {
+    const err = new Error('CF Workers AI HTTP ' + status);
+    err.publicMessage = err.message;
+    err.status = status;
+    return err;
+}
+
+function cfTransportError(err) {
+    const kind = cfTransportKind(err);
+    if (kind) {
+        const wrapped = new Error('CF Workers AI ' + kind);
+        wrapped.publicMessage = wrapped.message;
+        wrapped.transient = true;
+        return wrapped;
+    }
+    const wrapped = new Error('CF Workers AI network');
+    wrapped.publicMessage = wrapped.message;
+    return wrapped;
+}
+
 async function callCloudflareLlama(prompt, fetchImpl, env, useSchema) {
     const accountId = env.CF_ACCOUNT_ID;
     const apiToken = env.CF_AI_TOKEN;
@@ -369,17 +422,23 @@ async function callCloudflareLlama(prompt, fetchImpl, env, useSchema) {
         throw err;
     }
     const url = 'https://api.cloudflare.com/client/v4/accounts/' + accountId + '/ai/run/' + CF_MODEL;
-    const resp = await fetchImpl(url, fetchInit({
-        method: 'POST',
-        headers: {
-            Authorization: 'Bearer ' + apiToken,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(buildCloudflareBody(prompt, useSchema)),
-    }));
+    let resp;
+    try {
+        resp = await fetchImpl(url, fetchInit({
+            method: 'POST',
+            headers: {
+                Authorization: 'Bearer ' + apiToken,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(buildCloudflareBody(prompt, useSchema)),
+            timeout: CF_CALL_TIMEOUT_MS,
+        }));
+    } catch (e) {
+        throw cfTransportError(e);
+    }
     const text = await readBody(resp);
     if (!httpOk(resp)) {
-        const err = new Error('CF Workers AI HTTP ' + resp.status + ': ' + String(text).substring(0, 200));
+        const err = cfHttpError(resp.status);
         if (schemaUnsupportedMessage(resp.status, text)) err.schemaUnsupported = true;
         else if (resp.status === 429 || resp.status >= 500) err.transient = true;
         else err.permanent = true;
@@ -469,6 +528,7 @@ async function dispatchModel(prompt, env, fetchImpl, useSchema) {
 async function callAiForTopics(prompt, deps) {
     const env = envFrom(deps);
     const sleep = (deps && deps.sleep) || delay;
+    const warn = (deps && deps.warn) || console.warn;
     const fetchImpl = getFetch(deps);
     let useSchema = true;
     let parseAttempts = 0;
@@ -498,11 +558,11 @@ async function callAiForTopics(prompt, deps) {
             if (err.schemaUnsupported && useSchema && !schemaDropped) {
                 useSchema = false;
                 schemaDropped = true;
-                console.warn('[HotTopics] JSON mode unsupported, retrying without response_format:', err.message);
+                warn('[HotTopics] JSON mode unsupported, retrying without response_format:', aiErrorText(err));
                 continue;
             }
             parseAttempts++;
-            console.warn('[HotTopics] AI attempt ' + parseAttempts + ' failed:', err.message);
+            warn('[HotTopics] AI attempt ' + parseAttempts + ' failed:', aiErrorText(err));
             if (parseAttempts < 3 && (err.parseFailure || err.transient || err.schemaUnsupported)) {
                 await sleep(400 * Math.pow(2, parseAttempts - 1));
                 continue;
@@ -1104,12 +1164,13 @@ function emptyWeekTopic() {
 async function clusterAndSummarize(signals, deps) {
     if (!signals || !signals.length) return emptyWeekTopic();
     const now = nowFrom(deps);
+    const warn = (deps && deps.warn) || console.warn;
     const built = buildPrompt(signals, now);
     let aiTopics = null;
     try {
         aiTopics = await callAiForTopics(built.prompt, deps);
     } catch (aiErr) {
-        console.warn('[HotTopics] AI call failed, using keyword fallback:', aiErr.message);
+        warn('[HotTopics] AI call failed, using keyword fallback:', aiErrorText(aiErr));
         aiTopics = null;
     }
     if (!aiTopics || !Array.isArray(aiTopics.topics)) return fallbackCluster(signals);
@@ -1274,6 +1335,7 @@ async function runHotTopicsJob(options) {
 
 module.exports = {
     CURATED_X_ACCOUNTS,
+    CF_CALL_TIMEOUT_MS,
     HOT_TOPICS_SCHEMA,
     X_SEARCH_CALL_BUDGET,
     X_MAX_RESULTS,

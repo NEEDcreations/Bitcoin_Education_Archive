@@ -4,14 +4,142 @@
 // Bitcoin Education Archive - Ranking System
 // =============================================
 
-const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyDLwucmRxjoJp2KMBTi2ujf0mlVkgLHyKk",
-    authDomain: "bitcoineducation.quest", // Must match app origin — auth iframe proxied via seo-router worker (/__/auth/*) so Safari ITP allows postMessage
-    projectId: "bitcoin-education-archive",
-    storageBucket: "bitcoin-education-archive.firebasestorage.app",
-    messagingSenderId: "1055248200518",
-    appId: "1:1055248200518:web:6c6d64a5ee78e19bfbeb47"
-};
+// The main bundle replaces these once it parses. Auth now resolves before that
+// bundle, and the rank bar renders usernames with escapeHtml until then.
+// safeJSON is the same guard utils.js ships inside the bundle. A bare call
+// threw ReferenceError and aborted the rest of loadUser().
+// XP a person can still spend on sats, donations, or tickets.
+// Unverified Listen and Flex XP stays on the point total and is left out here.
+function spendableXp(user) {
+    var u = user || {};
+    var unclaimable = Number(u.unclaimableXp) || 0;
+    if (unclaimable < 0) unclaimable = 0;
+    return (Number(u.points) || 0) - (Number(u.pointsClaimed) || 0) - (Number(u.pointsDonated) || 0) - (Number(u.pointsExchanged) || 0) - unclaimable;
+}
+
+function escapeHtml(str) {
+    return String(str == null ? '' : str).replace(/[&<>"']/g, function (ch) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+    });
+}
+
+function safeJSON(key, fallback) {
+    try {
+        var raw = localStorage.getItem(key);
+        if (raw === null) return fallback;
+        return JSON.parse(raw);
+    } catch (e) {
+        console.warn('safeJSON: corrupted data for key "' + key + '", resetting.', e);
+        try { localStorage.removeItem(key); } catch (e2) {}
+        return fallback;
+    }
+}
+
+function mergeStoredStoryDays(serverDays) {
+    try {
+        var localDays = [];
+        if (typeof safeJSON === 'function') localDays = safeJSON('btc_nacho_story_days', []);
+        else {
+            try { localDays = JSON.parse(localStorage.getItem('btc_nacho_story_days') || '[]'); }
+            catch (e) { localDays = []; }
+        }
+        if (!Array.isArray(localDays)) localDays = [];
+        if (Array.isArray(serverDays) && serverDays.length > localDays.length) {
+            localStorage.setItem('btc_nacho_story_days', JSON.stringify(serverDays));
+        }
+    } catch (e) {}
+}
+
+function whenBundleReady(fn) {
+    if (typeof fn !== 'function') return;
+    var target = (typeof window !== 'undefined') ? window : globalThis;
+    if (target._btcBundleReady) {
+        try { fn(); } catch (e) { console.warn('[bundle]', e); }
+        return;
+    }
+    target._btcBundleQueue = target._btcBundleQueue || [];
+    target._btcBundleQueue.push(fn);
+    if (!target._btcBundleWaiter) {
+        target._btcBundleWaiter = function () {
+            if (target._btcBundleDrained) return;
+            target._btcBundleDrained = true;
+            target._btcBundleReady = true;
+            var q = target._btcBundleQueue || [];
+            target._btcBundleQueue = [];
+            for (var i = 0; i < q.length; i++) {
+                try { q[i](); } catch (e) { console.warn('[bundle]', e); }
+            }
+        };
+        if (typeof target.addEventListener === 'function') {
+            target.addEventListener('btc-bundle-ready', target._btcBundleWaiter);
+            // bundle-ready.js is a separate defer script. If it never signals,
+            // window load still drains the queue once. A second signal no-ops.
+            target.addEventListener('load', target._btcBundleWaiter);
+        }
+        if (target.document && target.document.readyState === 'complete') {
+            target._btcBundleWaiter();
+        }
+    }
+}
+window.whenBundleReady = whenBundleReady;
+
+// Authenticator success is per uid. A previous account's pass must not
+// unlock Settings for the next uid, and sign-out drops it.
+function totpVerifiedFor(uid) {
+    return !!(uid && window._btcTotpVerifiedUid && window._btcTotpVerifiedUid === uid);
+}
+function noteTotpVerified(uid) {
+    if (!uid) return;
+    window._btcTotpVerifiedUid = uid;
+}
+function clearTotpVerified() {
+    window._btcTotpVerifiedUid = '';
+}
+function noteTotpHold(uid) {
+    window._btcTotpHold = true;
+    if (uid) window._btcTotpHoldUid = uid;
+    // A cached fast path can leave Settings open before the server says 2FA
+    // is required. Close it so the code prompt is the only dialog.
+    try {
+        var modal = document.getElementById('usernameModal');
+        if (modal && modal.classList && modal.classList.contains('open')) {
+            modal.classList.remove('open');
+            if (modal.style) modal.style.zIndex = '';
+        }
+    } catch (e) {}
+}
+function clearTotpHold() {
+    window._btcTotpHold = false;
+    window._btcTotpHoldUid = '';
+}
+function syncTotpVerified(user) {
+    var uid = (user && !user.isAnonymous && user.uid) ? user.uid : '';
+    if (!totpVerifiedFor(uid)) clearTotpVerified();
+    // The hold belongs to one signed-in uid. Sign-out, anonymous, and a
+    // different account must drop it, or the guest button keeps reopening
+    // the authenticator challenge and Settings stays closed.
+    if (!uid || (window._btcTotpHoldUid && window._btcTotpHoldUid !== uid)) clearTotpHold();
+}
+
+// Guest auth button. The 2FA hold path must put this back in full, including
+// the click handler, so a live Settings button cannot survive the hold.
+function applyGuestAuthButton(btn) {
+    if (!btn) return;
+    btn.removeAttribute('data-auth-live');
+    btn.removeAttribute('data-auth-display');
+    btn.textContent = 'Create Free Account / Sign In';
+    btn.onclick = function () { showUsernamePrompt(); };
+    btn.style.display = 'block';
+    btn.style.background = 'var(--accent)';
+    btn.style.border = 'none';
+    btn.style.color = '#000';
+    btn.onmouseover = function () { this.style.transform = 'scale(1.02)'; };
+    btn.onmouseout = function () { this.style.transform = 'scale(1)'; };
+}
+window.mergeStoredStoryDays = mergeStoredStoryDays;
+
+// Config literal lives in firebase-config.js. No second copy here.
+var FIREBASE_CONFIG = (typeof window !== 'undefined' && window.FIREBASE_CONFIG) || {};
 
 // Public reCAPTCHA v3 site key. The matching secret stays in the Firebase console.
 var APP_CHECK_RECAPTCHA_SITE_KEY = '6Le37votAAAAAD3n0_u1uPxgcvm4XtmOEeK1Ti9j';
@@ -19,7 +147,10 @@ var LN_ADDRESS_LOCK_NOTICE = "You can only add one lightning address to your acc
 var LN_ADDRESS_LOCKED_NOTICE = "You can only add one lightning address to your account, and it can't be changed later. If you ever need to change it, email support at info.603btc@gmail.com.";
 
 function normalizeClientLn(addr) {
-    return String(addr || '').trim().toLowerCase();
+    var s = String(addr || '').trim().toLowerCase();
+    if (s.indexOf('lightning:') === 0) s = s.slice('lightning:'.length).trim();
+    if (s.indexOf('mailto:') === 0) s = s.slice('mailto:'.length).trim();
+    return s;
 }
 function clientLnValid(addr) {
     return addr.length >= 5 && addr.length <= 320 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(addr);
@@ -105,8 +236,46 @@ const POINTS = {
 
 // TOS version — bump this string whenever Terms or Privacy Policy update significantly.
 // Existing users who haven't accepted this version will see the acceptance modal on next load.
-const TOS_CURRENT_VERSION = '2026-10-06';
+const TOS_CURRENT_VERSION = '2026-10-23';
 window.TOS_CURRENT_VERSION = TOS_CURRENT_VERSION;
+
+// One lifetime cap. The shared helper is 15,000 for every account.
+// The old fallback of 10000 hid claimable sats for anyone past 10k withdrawn.
+function lifetimeSatCap() {
+    if (typeof getSatCap === 'function') return getSatCap();
+    if (typeof window.SAT_LIFETIME_CAP === 'number') return window.SAT_LIFETIME_CAP;
+    return 15000;
+}
+window.lifetimeSatCap = lifetimeSatCap;
+
+function tosBlocking() {
+    var m = document.getElementById('tosModal');
+    return !!(m && m.classList.contains('open'));
+}
+window.tosBlocking = tosBlocking;
+
+function chromeBlocksToasts() {
+    if (tosBlocking()) return true;
+    var signup = document.getElementById('usernameModal');
+    if (signup && signup.classList.contains('open')) return true;
+    return false;
+}
+
+window._deferUntilTos = window._deferUntilTos || [];
+window.runAfterTos = function(fn) {
+    if (typeof fn !== 'function') return;
+    if (!tosBlocking()) { fn(); return; }
+    window._deferUntilTos.push(fn);
+};
+function flushAfterTos() {
+    var queued = window._deferUntilTos || [];
+    window._deferUntilTos = [];
+    queued.forEach(function(fn) { try { fn(); } catch (e) {} });
+    if (!chromeBlocksToasts() && typeof _toastQueue !== 'undefined' && _toastQueue.length && typeof window._showToastNow === 'function') {
+        window._showToastNow(_toastQueue.shift());
+    }
+}
+window.flushAfterTos = flushAfterTos;
 
 let db, auth, currentUser = null;
 let signInAttempts = 0;
@@ -125,16 +294,586 @@ let lastLevelMin = 0;
 let levelUpReady = false; // Don't celebrate until initial load completes
 
 // Initialize Firebase
+function mfaSessionKey(uid) {
+    return 'btc_mfa_session_' + uid;
+}
+
+function mfaDeviceKey(uid) {
+    return 'btc_mfa_device_' + uid;
+}
+
+
+function friendlyCallableError(err, fallback) {
+    var code = String((err && err.code) || '').toLowerCase();
+    var slash = code.lastIndexOf('/');
+    if (slash !== -1) code = code.slice(slash + 1);
+    var msg = String((err && err.message) || '').replace(/^\[\w+\/[\w-]+\]\s*/, '');
+    if (code === 'internal' || /^internal$/i.test(msg)) {
+        return 'Something went wrong on the server. If your balance already updated, you are fine — try a refresh.';
+    }
+    if (code === 'unavailable' || code === 'deadline-exceeded') {
+        return 'Network hiccup — please try again in a moment.';
+    }
+    return msg || fallback || 'Something went wrong. Try again.';
+}
+
+function mfaErrorCode(err) {
+    var code = String((err && (err.code || err.status)) || '').toLowerCase();
+    var slash = code.lastIndexOf('/');
+    if (slash !== -1) code = code.slice(slash + 1);
+    return code;
+}
+
+function mfaIsTransientError(err) {
+    var code = mfaErrorCode(err);
+    return code === 'unavailable' || code === 'deadline-exceeded' || code === 'internal' || code === 'aborted' || code === 'cancelled';
+}
+
+function mfaIsAppCheckError(err) {
+    var code = mfaErrorCode(err);
+    var msg = String((err && err.message) || '').toLowerCase();
+    if (code.indexOf('app-check') !== -1 || code.indexOf('appcheck') !== -1) return true;
+    if (msg.indexOf('app check') !== -1 || msg.indexOf('appcheck') !== -1 || msg.indexOf('recaptcha') !== -1) return true;
+    return false;
+}
+
+function mfaAllowsAfterStatusError(totpEnabled) {
+    return !totpEnabled;
+}
+
+function mfaRetryOnce(run, sleep) {
+    var pause = typeof sleep === 'function' ? sleep : function () {
+        return new Promise(function (resolve) { setTimeout(resolve, 700); });
+    };
+    return Promise.resolve().then(run).catch(function (err) {
+        if (!mfaIsTransientError(err)) throw err;
+        return Promise.resolve(pause(700)).then(run);
+    });
+}
+
+window._mfaSessionId = function () {
+    try {
+        if (typeof auth === 'undefined' || !auth || !auth.currentUser) return '';
+        return localStorage.getItem(mfaSessionKey(auth.currentUser.uid)) || '';
+    } catch (e) { return ''; }
+};
+
+window._rememberMfaSession = function (uid, sessionId) {
+    try {
+        if (uid && sessionId) localStorage.setItem(mfaSessionKey(uid), sessionId);
+        if (uid) localStorage.removeItem('btc_totp_verified_' + uid);
+    } catch (e) {}
+};
+
+window._rememberMfaDevice = function (uid, token) {
+    try {
+        if (uid && /^[0-9a-f]{64}$/.test(token || '')) localStorage.setItem(mfaDeviceKey(uid), token);
+    } catch (e) {}
+};
+
+function mfaClearDevice(uid) {
+    try {
+        if (uid) localStorage.removeItem(mfaDeviceKey(uid));
+    } catch (e) {}
+}
+
+// Names of https callables whose server options set enforceAppCheck: true.
+// Everything else is sent immediately. A ready App Check token is still
+// attached by the SDK; a missing one must not block sign-in or these calls.
+var APP_CHECK_CALLABLES = {
+    ackBadgeBackfillToast: 1,
+    ackCipherShare: 1,
+    adminResolveCipherSatsClaim: 1,
+    answerTrivia: 1,
+    armSayHi: 1,
+    chooseFaction: 1,
+    claimCipherSats: 1,
+    claimOnboardingQuestStep: 1,
+    claimReplyBonus: 1,
+    claimSats: 1,
+    claimSayHi: 1,
+    confirmAccountLink: 1,
+    deleteAccount: 1,
+    gradeQuest: 1,
+    gradeScholarExam: 1,
+    issueCertificate: 1,
+    leaderboardRank: 1,
+    linkGuestAccount: 1,
+    markIntroSeen: 1,
+    noteNachoQuestion: 1,
+    prepareEmailChange: 1,
+    prepareGuestLink: 1,
+    pvpCreateMatch: 1,
+    pvpStoreAnswerKey: 1,
+    pvpSubmitAnswer: 1,
+    pvpTimeoutOpponent: 1,
+    recordNachoAnalytics: 1,
+    resetLightningAddressOnce: 1,
+    startQuest: 1,
+    startScholarExam: 1,
+    syncEmailChange: 1,
+    syncUserFactionPoints: 1,
+    tctvDripCheckin: 1,
+    tctvWatchHeartbeat: 1,
+    toggleGgReaction: 1,
+    totpListDevices: 1,
+    totpResumeDevice: 1,
+    totpRevokeAllTrust: 1,
+    totpRevokeDevice: 1,
+    totpSignOutOtherDevices: 1,
+    totpStepUp: 1,
+    triviaXpStatus: 1
+};
+
+function installMfaCallablePatch() {
+    if (typeof firebase === 'undefined' || !firebase.functions || window._mfaCallablePatched) return;
+    var probe;
+    try { probe = firebase.functions(); } catch (e) { return; }
+    var proto = Object.getPrototypeOf(probe);
+    if (!proto || typeof proto.httpsCallable !== 'function' || proto.httpsCallable._mfaPatched) return;
+    var orig = proto.httpsCallable;
+    function wrapped(name, options) {
+        var callable = orig.call(this, name, options);
+        return function (data) {
+            var payload = data;
+            if (payload == null) payload = {};
+            if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+                var sid = window._mfaSessionId ? window._mfaSessionId() : '';
+                if (sid && payload.mfaSessionId == null) payload.mfaSessionId = sid;
+            }
+            if (!APP_CHECK_CALLABLES[name]) return callable(payload);
+            if (window._btcRecaptchaFailed) {
+                var fast = new Error('Security check did not load. Refresh the page and try again.');
+                fast.code = 'app-check-unavailable';
+                return Promise.reject(fast);
+            }
+            var ready = (typeof window._btcAppCheckForClaim === 'function')
+                ? window._btcAppCheckForClaim(8000)
+                : Promise.resolve('skip');
+            return ready.then(function (token) {
+                if (token === '') {
+                    var missing = new Error(window._btcRecaptchaFailed
+                        ? 'Security check did not load. Refresh the page and try again.'
+                        : 'App Check token is not ready');
+                    missing.code = 'app-check-unavailable';
+                    throw missing;
+                }
+                return callable(payload);
+            });
+        };
+    }
+    wrapped._mfaPatched = true;
+    proto.httpsCallable = wrapped;
+    window._mfaCallablePatched = true;
+}
+
+function _mfaFailure(e) {
+    var code = (e && e.code) || '';
+    var msg = (e && e.message) || '';
+    if (code.indexOf('resource-exhausted') !== -1 || msg.indexOf('Too many attempts') !== -1) {
+        if (msg.indexOf('tomorrow') !== -1) return 'Too many attempts. Try again tomorrow.';
+        return 'Too many attempts. Wait 2 minutes.';
+    }
+    if (msg.indexOf('already used') !== -1) return 'That code was already used. Wait for the next one.';
+    if (msg.indexOf('Authenticator session required') !== -1) return 'Enter your authenticator code first.';
+    if (msg.indexOf('phone verification') !== -1) return 'Sign out and sign back in so your phone verification applies.';
+    if (msg.indexOf('Invalid recovery code') !== -1) return 'That recovery code is not valid.';
+    if (msg.indexOf('fresh authenticator') !== -1) return 'Enter a fresh authenticator code. A remembered device is not enough.';
+    if (msg.indexOf('Device is not trusted') !== -1) return 'This device is not remembered. Enter your authenticator code.';
+    if (msg.indexOf('Invalid code') !== -1) return 'That code is not valid.';
+    if (msg.indexOf('unavailable') !== -1) return 'Authenticator setup is unavailable right now.';
+    return msg || 'Something went wrong.';
+}
+
+function _isMfaBlock(e) {
+    var msg = (e && e.message) || '';
+    return msg.indexOf('Authenticator session required') !== -1 || msg.indexOf('phone verification') !== -1;
+}
+
+window._serverTotpAllows = async function (uid) {
+    if (!uid || typeof firebase === 'undefined' || !firebase.functions) return true;
+    var sessionId = '';
+    try { sessionId = localStorage.getItem(mfaSessionKey(uid)) || ''; } catch (e1) {}
+    var statusFn = firebase.functions().httpsCallable('totpStatus');
+    var data;
+    try {
+        var result = await mfaRetryOnce(function () { return statusFn({ sessionId: sessionId }); });
+        data = (result && result.data) || {};
+    } catch (e) {
+        var totpOn = typeof currentUser !== 'undefined' && currentUser && currentUser.totpEnabled;
+        return mfaAllowsAfterStatusError(totpOn);
+    }
+    window._mfaStatus = data;
+    if (!data.enabled || data.sessionVerified) {
+        if (data.needsRecoveryCodes) window._maybeOfferRecoveryCodes();
+        return true;
+    }
+    var deviceToken = '';
+    try { deviceToken = localStorage.getItem(mfaDeviceKey(uid)) || ''; } catch (e2) {}
+    if (!/^[0-9a-f]{64}$/.test(deviceToken)) return false;
+    var resumeFn = firebase.functions().httpsCallable('totpResumeDevice');
+    try {
+        var resumed = await mfaRetryOnce(function () { return resumeFn({ deviceToken: deviceToken }); });
+        var body = (resumed && resumed.data) || {};
+        if (body.sessionId) {
+            window._rememberMfaSession(uid, body.sessionId);
+            window._mfaStatus.sessionVerified = true;
+            if (data.needsRecoveryCodes) window._maybeOfferRecoveryCodes();
+            return true;
+        }
+        return false;
+    } catch (e3) {
+        // Only the server's exact "Device is not trusted." answer forgets
+        // this browser. App Check, network, and rate-limit errors do not.
+        var resumeMsg = String((e3 && e3.message) || '');
+        if (!mfaIsAppCheckError(e3) && resumeMsg.indexOf('Device is not trusted') !== -1) mfaClearDevice(uid);
+        return false;
+    }
+};
+
+window._maybeOfferRecoveryCodes = async function () {
+    if (window._recoveryOfferStarted) return;
+    var status = window._mfaStatus || {};
+    if (!status.needsRecoveryCodes) return;
+    if (!status.sessionVerified && !status.phoneEnabled) return;
+    window._recoveryOfferStarted = true;
+    try {
+        var fn = firebase.functions().httpsCallable('issueRecoveryCodes');
+        var res = await fn({});
+        if (res && res.data && res.data.recoveryCodes) window._showRecoveryCodes(res.data.recoveryCodes);
+        else window._recoveryOfferStarted = false;
+    } catch (e) {
+        window._recoveryOfferStarted = false;
+    }
+};
+
+function _resumeAfterSecondFactor() {
+    if (window._pendingGuestLink && typeof tryLinkGuest === 'function') {
+        window._pendingGuestLink = false;
+        tryLinkGuest();
+    }
+    if (window._pendingAnonBadges && window._pendingAnonBadges.length && typeof firebase !== 'undefined') {
+        var badges = window._pendingAnonBadges;
+        window._pendingAnonBadges = null;
+        try {
+            firebase.functions().httpsCallable('mergeAnonBadges')({ anonBadges: badges }).catch(function () {});
+        } catch (e) {}
+    }
+}
+
+// Display-only profile paint. Reads the persisted Firebase uid from IndexedDB
+// (no network) and, when it matches btc_profile_cache, runs the same cache
+// render the auth callback uses. Age is ignored: stale XP is fine to show.
+// Rewards, claims, writes, and callables stay off until auth confirms this uid.
+// needs2fa / unknown 2FA still hide the name.
+var _optimisticProfileUid = '';
+var _profileShownUid = '';
+var _optimisticGen = 0;
+var _optimisticPaintStarted = false;
+
+function displayClaimableMath(user) {
+    var u = user || {};
+    var points = Number(u.points) || 0;
+    var claimed = Number(u.pointsClaimed) || 0;
+    var donated = Number(u.pointsDonated) || 0;
+    var exchanged = Number(u.pointsExchanged) || 0;
+    var withdrawn = Number(u.satsWithdrawn) || 0;
+    if (withdrawn < 0) withdrawn = 0;
+    var balance = Math.floor(Math.max(0, points - claimed - donated - exchanged) / 10);
+    var left = Math.max(0, lifetimeSatCap() - withdrawn);
+    return {
+        balance: balance,
+        lifetimeLeft: left,
+        claimable: Math.min(balance, left),
+        cap: lifetimeSatCap(),
+        withdrawn: withdrawn
+    };
+}
+
+function optimisticProfilePending() {
+    if (!_optimisticProfileUid) return false;
+    var user = null;
+    try { user = auth && auth.currentUser; } catch (e) { user = null; }
+    if (user && !user.isAnonymous && user.uid === _optimisticProfileUid) return false;
+    return true;
+}
+
+function readProfileCacheRecord() {
+    try {
+        var cp = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
+        if (!cp || !cp.uid || !cp.data) return null;
+        return cp;
+    } catch (e) { return null; }
+}
+
+// Any age. twoFa must be known off. A needs2fa or unknown flag does not paint.
+function profileCacheReadyForDisplay(uid) {
+    var cp = readProfileCacheRecord();
+    if (!cp || !uid || String(cp.uid) !== String(uid)) return null;
+    var needs2fa = cp.twoFa === true || !!(cp.data && cp.data.totpEnabled);
+    if (needs2fa) return null;
+    var knownOff = cp.twoFa === false || (cp.data && cp.data.totpEnabled === false);
+    if (!knownOff) return null;
+    return cp;
+}
+
+function readPersistedAuthUid() {
+    return new Promise(function (resolve) {
+        var cfg = (typeof FIREBASE_CONFIG !== 'undefined' && FIREBASE_CONFIG) || (typeof window !== 'undefined' && window.FIREBASE_CONFIG) || null;
+        var apiKey = cfg && cfg.apiKey;
+        var idb = null;
+        try { if (typeof indexedDB !== 'undefined') idb = indexedDB; } catch (e) { idb = null; }
+        if (!idb && typeof window !== 'undefined') idb = window.indexedDB;
+        if (!apiKey || !idb || typeof idb.open !== 'function') { resolve(''); return; }
+        var settled = false;
+        function finish(uid) {
+            if (settled) return;
+            settled = true;
+            var id = String(uid || '');
+            resolve(/^[A-Za-z0-9:_\-]{6,128}$/.test(id) ? id : '');
+        }
+        var timer = setTimeout(function () { finish(''); }, 800);
+        function done(uid) { clearTimeout(timer); finish(uid); }
+        function uidFromRow(row) {
+            if (!row) return '';
+            var value = (row.value && typeof row.value === 'object') ? row.value : row;
+            // Anonymous persistence is not a signed-in profile.
+            if (value && value.isAnonymous === true) return '';
+            return (value && value.uid) || row.uid || '';
+        }
+        function readDb(dbh) {
+            if (!dbh) { done(''); return; }
+            try {
+                if (!dbh.objectStoreNames || !dbh.objectStoreNames.contains('firebaseLocalStorage')) {
+                    try { dbh.close(); } catch (e) {}
+                    done('');
+                    return;
+                }
+                var tx = dbh.transaction('firebaseLocalStorage', 'readonly');
+                var req = tx.objectStore('firebaseLocalStorage').get('firebase:authUser:' + apiKey + ':[DEFAULT]');
+                req.onsuccess = function () {
+                    var uid = uidFromRow(req.result);
+                    try { dbh.close(); } catch (e) {}
+                    done(uid);
+                };
+                req.onerror = function () { try { dbh.close(); } catch (e) {} done(''); };
+            } catch (e) {
+                try { dbh.close(); } catch (e2) {}
+                done('');
+            }
+        }
+        // Never create or upgrade Firebase's database. A first visit has no row.
+        function readExistingAuthDb() {
+            var openReq;
+            try { openReq = idb.open('firebaseLocalStorageDb'); }
+            catch (e) { done(''); return; }
+            var stopped = false;
+            function stop(uid) {
+                if (stopped) return;
+                stopped = true;
+                done(uid);
+            }
+            openReq.onupgradeneeded = function (ev) {
+                try {
+                    var tx = (ev && ev.target && ev.target.transaction) || openReq.transaction;
+                    if (tx && typeof tx.abort === 'function') tx.abort();
+                } catch (e) {}
+                try { if (openReq.result && openReq.result.close) openReq.result.close(); } catch (e2) {}
+                stop('');
+            };
+            openReq.onerror = function () { stop(''); };
+            openReq.onsuccess = function () {
+                if (stopped) {
+                    try { if (openReq.result && openReq.result.close) openReq.result.close(); } catch (e) {}
+                    return;
+                }
+                readDb(openReq.result);
+            };
+        }
+        if (typeof idb.databases === 'function') {
+            var listed;
+            try { listed = idb.databases(); } catch (e) { listed = null; }
+            if (listed && typeof listed.then === 'function') {
+                listed.then(function (rows) {
+                    var found = false;
+                    var i;
+                    rows = rows || [];
+                    for (i = 0; i < rows.length; i++) {
+                        if (rows[i] && rows[i].name === 'firebaseLocalStorageDb') found = true;
+                    }
+                    if (!found) { done(''); return; }
+                    readExistingAuthDb();
+                }).catch(function () { readExistingAuthDb(); });
+                return;
+            }
+        }
+        readExistingAuthDb();
+    });
+}
+
+function paintCachedSats(user, optimistic) {
+    var satsEl = document.getElementById('homeSatsValue');
+    if (!satsEl) return;
+    var math = (typeof window.claimableSats === 'function') ? window.claimableSats(user || {}) : displayClaimableMath(user || {});
+    satsEl.textContent = Number((math && math.claimable) || 0).toLocaleString();
+    if (optimistic) {
+        satsEl.setAttribute('data-profile-cache', '1');
+        satsEl.removeAttribute('data-auth-live');
+    } else {
+        satsEl.setAttribute('data-auth-live', '1');
+        satsEl.removeAttribute('data-profile-cache');
+    }
+}
+
+function applyCachedProfileRender(uid, cache, confirmed) {
+    var data = profileCacheData(cache.data);
+    currentUser = { uid: uid };
+    var key;
+    for (key in data) {
+        if (Object.prototype.hasOwnProperty.call(data, key)) currentUser[key] = data[key];
+    }
+    if (confirmed) {
+        _optimisticProfileUid = '';
+        window._optimisticProfileUid = '';
+        _profileShownUid = uid;
+        window._profileAuthConfirmedUid = uid;
+        publishAuthDisplay(uid, cache.data);
+        window._myPeers = new Set(currentUser.peers || []);
+        rankingReady = true;
+        window._badgesReady = true;
+        if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady();
+        window._hiddenBadgesReady = true;
+    } else {
+        _optimisticProfileUid = uid;
+        window._optimisticProfileUid = uid;
+        _profileShownUid = uid;
+        // rankingReady stays false. Nothing here may grant, claim, or call.
+    }
+    try { restoreVisitedUI(); } catch (e) { console.warn('[Auth] early restore', e); }
+    try { updateRankUI(); } catch (e) { console.warn('[Auth] early rank', e); }
+    try { updateAuthButton(); } catch (e) { console.warn('[Auth] early button', e); }
+    try { paintCachedSats(currentUser, !confirmed); } catch (e) {}
+    try {
+        var liveBar = document.getElementById('rankBar');
+        if (liveBar) {
+            if (confirmed) {
+                liveBar.setAttribute('data-auth-live', '1');
+                liveBar.removeAttribute('data-profile-cache');
+            } else {
+                liveBar.setAttribute('data-profile-cache', '1');
+                liveBar.removeAttribute('data-auth-live');
+            }
+        }
+    } catch (e) {}
+    if (confirmed && typeof renderProgressRings === 'function') {
+        try { renderProgressRings(); } catch (e) {}
+    }
+    try {
+        if (window.performance && performance.mark) performance.mark(confirmed ? 'btc-profile-cache-live' : 'btc-profile-full');
+    } catch (e) {}
+}
+
+function clearOptimisticProfile(dropCache) {
+    _optimisticGen++;
+    _optimisticProfileUid = '';
+    window._optimisticProfileUid = '';
+    _profileShownUid = '';
+    window._profileAuthConfirmedUid = '';
+    currentUser = null;
+    rankingReady = false;
+    _authBtnSignedIn = false;
+    if (dropCache) {
+        try { localStorage.removeItem('btc_profile_cache'); } catch (e) {}
+    }
+    try { clearAuthDisplay(); } catch (e) {}
+    if (window.btcAuthDisplay && typeof window.btcAuthDisplay.forceClearProfile === 'function') {
+        try { window.btcAuthDisplay.forceClearProfile(); } catch (e) {}
+    }
+    try { resetOptimisticHomeChrome(); } catch (e) {}
+    // The next updateAuthButton must stay on the guest home while currentUser is null.
+    window._btcHoldGuestUntilProfile = true;
+    try { if (typeof updateAuthButton === 'function') updateAuthButton(); } catch (e) {}
+}
+
+// Match keeps the paint and lets the auth path continue. A different uid,
+// null, or signed-out drops the optimistic UI and the cache immediately.
+// A redirect that has not settled yet hides the UI but keeps the cache.
+function reconcileOptimisticAuth(user, pendingRedirect) {
+    var real = (user && !user.isAnonymous && user.uid) ? String(user.uid) : '';
+    var shown = _optimisticProfileUid || _profileShownUid;
+    if (real && shown && real === shown) {
+        window._profileAuthConfirmedUid = real;
+        _optimisticProfileUid = '';
+        window._optimisticProfileUid = '';
+        _profileShownUid = real;
+        return { action: 'match' };
+    }
+    var cached = readProfileCacheRecord();
+    if (real && ((shown && shown !== real) || (cached && String(cached.uid) !== real))) {
+        clearOptimisticProfile(true);
+        return { action: 'mismatch' };
+    }
+    if (!real && shown) {
+        clearOptimisticProfile(!pendingRedirect);
+        return { action: pendingRedirect ? 'wait' : 'signed-out' };
+    }
+    return { action: real ? 'none' : 'signed-out-idle' };
+}
+
+function considerOptimisticProfile(uid) {
+    if (!uid) return false;
+    if (window._profileAuthConfirmedUid && window._profileAuthConfirmedUid === uid) return false;
+    var early = window._btcEarlyAuthUser;
+    if (typeof early !== 'undefined') {
+        if (!early || early.isAnonymous || String(early.uid) !== String(uid)) return false;
+    }
+    var cache = profileCacheReadyForDisplay(uid);
+    if (!cache) return false;
+    applyCachedProfileRender(uid, cache, false);
+    return true;
+}
+
+function startOptimisticProfilePaint() {
+    if (_optimisticPaintStarted) return;
+    _optimisticPaintStarted = true;
+    var gen = _optimisticGen;
+    readPersistedAuthUid().then(function (uid) {
+        if (gen !== _optimisticGen || !uid) return;
+        function paint() {
+            if (gen !== _optimisticGen) return;
+            considerOptimisticProfile(uid);
+        }
+        // Defer scripts run after the document is parsed. A test harness that
+        // evaluates this file early waits until the document is ready.
+        if (document.readyState === 'interactive' || document.readyState === 'complete') {
+            paint();
+            return;
+        }
+        document.addEventListener('DOMContentLoaded', paint);
+    }).catch(function () {});
+}
+
+window.considerOptimisticProfile = considerOptimisticProfile;
+window.reconcileOptimisticAuth = reconcileOptimisticAuth;
+window.clearOptimisticProfile = clearOptimisticProfile;
+window.profileCacheReadyForDisplay = profileCacheReadyForDisplay;
+window.readPersistedAuthUid = readPersistedAuthUid;
+window.startOptimisticProfilePaint = startOptimisticProfilePaint;
+
 function initRanking() {
     try {
-        firebase.initializeApp(FIREBASE_CONFIG);
+        // Start the IndexedDB uid read before App Check, Firestore, or the auth
+        // listener. The paint must not wait on the first onAuthStateChanged.
+        startOptimisticProfilePaint();
+        if (!firebase.apps || !firebase.apps.length) firebase.initializeApp(FIREBASE_CONFIG);
 
         // App Check for claimSats. One activation per page, before any claim.
         // Storage stays unenforced. SMS 2FA on Safari still uses TOTP.
         // reCAPTCHA v3. Token TTL is 1 hour in the Firebase console.
         if (!window._btcAppCheckReady) {
             try {
-                firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
+                if (typeof window._btcActivateAppCheck === 'function') window._btcActivateAppCheck();
+                else firebase.appCheck().activate(APP_CHECK_RECAPTCHA_SITE_KEY, true);
                 window._btcAppCheckReady = true;
             } catch (appCheckErr) {
                 console.warn('App Check init failed', appCheckErr);
@@ -142,11 +881,13 @@ function initRanking() {
         }
 
         db = firebase.firestore();
-        // Enable offline persistence - data survives connection loss
-        // Offline persistence disabled — IndexedDB multi-tab lock was stalling all Firestore reads
-        auth = firebase.auth();
-        // Ensure auth persists across refreshes, tab closes, and app restarts
-        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function() {});
+        // Firestore offline persistence stays off — an IndexedDB lock was stalling reads.
+        // Auth LOCAL persistence (IndexedDB) is the SDK default. setPersistence() on every
+        // load queues the first auth event behind a second IndexedDB open and was stalling
+        // onAuthStateChanged, so the signed-in home waited on it.
+        auth = window.auth || firebase.auth();
+        window.auth = auth;
+        installMfaCallablePatch();
 
         // Check if returning from email magic link
         if (auth.isSignInWithEmailLink(window.location.href)) {
@@ -159,7 +900,16 @@ function initRanking() {
         // IMPORTANT: must resolve before we allow anonymous sign-in to avoid
         // clobbering the redirect auth state on mobile.
         // No timeout — auth iframe is same-origin via CF Worker proxy so Safari ITP no longer blocks it.
-        redirectResultPromise = auth.getRedirectResult().then(async function(result) {
+        // The listener must be attached before getRedirectResult(). That call waits on
+        // the auth iframe and, when invoked inline, never returned to register
+        // onAuthStateChanged. Arm it only after the first auth event yields.
+        var _redirectWatchStarted = false;
+        var _resolveRedirectGate;
+        redirectResultPromise = new Promise(function (resolve) { _resolveRedirectGate = resolve; });
+        function startRedirectWatch() {
+            if (_redirectWatchStarted) return;
+            _redirectWatchStarted = true;
+            auth.getRedirectResult().then(async function(result) {
             redirectResultResolved = true;
             console.log('[Auth] getRedirectResult:', result ? (result.user ? result.user.uid : 'no user') : 'null');
             if (!result || !result.user) return null;
@@ -175,19 +925,16 @@ function initRanking() {
             localStorage.removeItem('btc_anon_uid');
             localStorage.removeItem('btc_anon_data');
 
+            var guestHold = false;
             if (!existingDoc.exists) {
-                if (anonData) {
-                    anonData.email = user.email || '';
-                    if (!anonData.username) anonData.username = user.displayName || 'Bitcoiner';
-                    await db.collection('users').doc(user.uid).set(anonData);
-                } else {
-                    await db.collection('users').doc(user.uid).set({
-                        username: user.displayName || 'Bitcoiner',
-                        email: user.email || '',
-                        points: 0, channelsVisited: 0, totalVisits: 1, streak: 1,
-                        lastVisit: new Date().toISOString().split('T')[0],
-                        created: firebase.firestore.FieldValue.serverTimestamp()
-                    });
+                var _redirExtra = {};
+                await db.collection('users').doc(user.uid).set(clientCreatePayload(_redirExtra));
+                var _redirName = localStorage.getItem('btc_pending_username') || '';
+                if (_redirName) {
+                    try { await applyServerUsername(_redirName); }
+                    catch (nameErr) { if (typeof showUsernamePrompt === 'function') setTimeout(showUsernamePrompt, 400); }
+                } else if (typeof showUsernamePrompt === 'function') {
+                    setTimeout(showUsernamePrompt, 400);
                 }
                 try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
                 if (typeof attachReferral === 'function') attachReferral(user.uid);
@@ -195,49 +942,48 @@ function initRanking() {
                 const existData = existingDoc.data();
                 // Anti-abuse: only merge anonymous data once per account
                 // Anonymous data merge now handled minimally (points/visits are server-managed)
-                if (!existData.mergedAnon) {
-                    await existingDoc.ref.update({
-                        mergedAnon: true,
-                    });
-                    // Award any anonymous points through the server-side Cloud Function
-                    var _mergedPts = Math.min(anonData.points || 0, 500);
-                    if (_mergedPts > 0 && typeof awardPoints === 'function') {
-                        await awardPoints(_mergedPts, '\uD83D\uDD17 Anonymous progress merged');
+                if (!existData.mergedAnon && !existData.anonBadgesMerged) {
+                    if (typeof tryLinkGuest === 'function') {
+                        try { if (await tryLinkGuest() === 'mfa') guestHold = true; } catch (e) {}
                     }
-                    // Merge anonymous badges into existing account's visibleBadges.
-                    // Anonymous users can't write to Firestore, so their badges are
-                    // localStorage-only. mergeAnonBadges CF validates + unions them
-                    // into the real account's visibleBadges, deduplicated server-side.
-                    // One-time only: CF sets anonBadgesMerged flag to prevent replay.
+                    // Anonymous badges live in localStorage. mergeAnonBadges
+                    // recomputes from server counters and sets mergedAnon.
+                    // The client cannot write that flag.
                     var _anonBadges = [];
                     try { _anonBadges = JSON.parse(localStorage.getItem('btc_badges') || '[]'); } catch(e) {}
-                    if (_anonBadges.length > 0) {
-                        try {
-                            var _mergeAnonBadgesFn = firebase.functions().httpsCallable('mergeAnonBadges');
-                            await _mergeAnonBadgesFn({ anonBadges: _anonBadges });
-                            console.log('[Auth] Merged', _anonBadges.length, 'anon badges into account');
-                        } catch(e) {
-                            console.warn('[Auth] mergeAnonBadges failed (non-fatal):', e.message);
-                        }
+                    try {
+                        var _mergeAnonBadgesFn = firebase.functions().httpsCallable('mergeAnonBadges');
+                        await _mergeAnonBadgesFn({ anonBadges: _anonBadges, anonUid: anonUid || '' });
+                        console.log('[Auth] Merged anon progress into account');
+                    } catch(e) {
+                        if (_isMfaBlock(e)) window._pendingAnonBadges = _anonBadges;
+                        else console.warn('[Auth] mergeAnonBadges failed (non-fatal):', e.message);
                     }
                 }
             }
 
-            // Clean up old anonymous doc
-            if (anonUid && anonUid !== user.uid) {
+            if (!guestHold && typeof tryLinkGuest === 'function') {
+                try { if (await tryLinkGuest() === 'mfa') guestHold = true; } catch (e) {}
+            }
+            // Clean up old anonymous doc once the merge is not waiting on 2FA.
+            if (anonUid && anonUid !== user.uid && !guestHold) {
                 try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
             }
 
             loadUser(user.uid);
-            updateAuthButton();
+            var _redirCache = null;
+            try { _redirCache = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null'); } catch (e) { _redirCache = null; }
+            if (_redirCache && _redirCache.uid === user.uid && _redirCache.data && (_redirCache.data.totpEnabled || _redirCache.twoFa === true) && !totpVerifiedFor(user.uid)) {
+                window._btcTotpHold = true;
+                holdAuthDisplayForTotp(user.uid);
+            } else if (!window._btcTotpHold) {
+                updateAuthButton();
+            }
             if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
-            showToast('\u2705 Signed in as ' + escapeHtml(user.displayName || user.email || 'Bitcoiner'));
-            // first_save badge: was anonymous, now signed in with real account
+            showToast('You are signed in.');
             if (anonUid && anonUid !== user.uid) {
                 setTimeout(function() {
                     if (typeof awardPoints === 'function') awardPoints(50, '\u2705 Saved your progress!', null, null, null, 'first_save');
-                    // Also show the pleb moment
-                    if (typeof window._showPlebMoment === 'function') setTimeout(window._showPlebMoment, 2000);
                 }, 1500);
             }
             return user;
@@ -248,11 +994,28 @@ function initRanking() {
                 console.log('[Auth] MFA required after redirect (race catch — skipping, direct catch handles it)');
                 return null; // do NOT call _showMFASignInChallenge again
             }
+            if ((e.code === 'auth/credential-already-in-use' || e.code === 'auth/email-already-in-use') && e.credential) {
+                var fallbackAnon = localStorage.getItem('btc_anon_uid');
+                auth.signInWithCredential(e.credential).then(function(signed) {
+                    return _handleSignInResultGlobal(signed.user, fallbackAnon, null);
+                }).catch(function(err) {
+                    if (surfaceMfaRequired(err)) return;
+                    console.log('Redirect link fallback failed:', err && err.code);
+                });
+                return null;
+            }
             if (e.code !== 'auth/popup-closed-by-user') {
                 console.log('Redirect result error:', e);
             }
             return null;
+        }).then(function (redirectUser) {
+            redirectResultResolved = true;
+            _resolveRedirectGate(redirectUser || null);
+        }, function () {
+            redirectResultResolved = true;
+            _resolveRedirectGate(null);
         });
+        }
 
         // Wait for auth to fully resolve before doing anything
         // This prevents the race condition where anonymous user loads before Google auth restores
@@ -265,18 +1028,42 @@ function initRanking() {
         if (_pendingRedirect) console.log('[Auth] Detected pending redirect return');
 
         auth.onAuthStateChanged(user => {
+            // A verified pass belongs to one uid. Sign-out, anonymous, and a
+            // different account all drop it before any profile work.
+            syncTotpVerified(user);
+            // Optimistic paint is display-only. A different uid, null, or
+            // signed-out clears that UI and the cache before any other work.
+            reconcileOptimisticAuth(user, _pendingRedirect);
+            // getRedirectResult() waits on the auth iframe. Calling it before this
+            // listener, or on every reload, stalled the signed-in home for seconds.
+            // A returning real user has nothing to consume. Only a redirect return
+            // (no user yet, anonymous, or the redirect flags) needs that call.
+            if (!_redirectWatchStarted) {
+                var _mayBeRedirect = _pendingRedirect || !user || user.isAnonymous;
+                if (_mayBeRedirect) setTimeout(startRedirectWatch, 0);
+                else {
+                    _redirectWatchStarted = true;
+                    redirectResultResolved = true;
+                    _resolveRedirectGate(null);
+                }
+            }
+            try { if (window.performance && performance.mark) performance.mark('btc-auth-ranking'); } catch (e) {}
             console.log('[Auth] onAuthStateChanged:', user ? (user.isAnonymous ? 'anon:' + user.uid : 'real:' + user.uid) : 'null', 'firstEvent:', firstAuthEvent, 'pendingRedirect:', _pendingRedirect);
             // Detect account switch: if a real user signs in and it's a different UID, clear old data
             if (user && !user.isAnonymous) {
                 var prevUid = localStorage.getItem('btc_last_auth_uid');
                 if (prevUid && prevUid !== user.uid) {
                     console.log('[Auth] Account switch detected:', prevUid, '->', user.uid, '- clearing localStorage');
-                    clearUserLocalStorage();
+                    clearAuthDisplay();
+                    clearUserLocalStorage({ keepGuest: !!localStorage.getItem('btc_guest_link') });
                 }
                 localStorage.setItem('btc_last_auth_uid', user.uid);
                 // Sync experienceMode from Firestore (cross-device continuity)
                 if (typeof window.syncExperienceModeFromFirestore === 'function') {
                     window.syncExperienceModeFromFirestore();
+                }
+                if (typeof window.syncFavoriteAppsFromFirestore === 'function') {
+                    window.syncFavoriteAppsFromFirestore();
                 }
             }
             if (firstAuthEvent) {
@@ -291,26 +1078,28 @@ function initRanking() {
                     var _cachedProfile = null;
                     try {
                         var _cp = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
-                        if (_cp && _cp.uid === user.uid && (Date.now() - _cp.ts) < 86400000) _cachedProfile = _cp;
+                        // Any age. The next Firestore read refreshes it. A 24h cutoff
+                        // used to block the signed-in home on a full user read.
+                        if (_cp && _cp.uid === user.uid && _cp.data) _cachedProfile = _cp;
                     } catch(e) {}
-                    if (_cachedProfile) {
-                        // Instant render from cache
-                        currentUser = { uid: user.uid, ..._cachedProfile.data };
-                        window._myPeers = new Set(currentUser.peers || []);
-                        rankingReady = true;
-                        window._badgesReady = true;
-                        if (typeof markVisibleBadgesReady === 'function') markVisibleBadgesReady();
-                        window._hiddenBadgesReady = true;
-                        restoreVisitedUI();
-                        updateRankUI();
-                        updateAuthButton();
-                        if (typeof renderProgressRings === 'function') renderProgressRings();
-                        // Refresh from Firestore in background (non-blocking)
+                    var _cacheNeeds2fa = _cachedProfile && (_cachedProfile.twoFa === true || (_cachedProfile.data && _cachedProfile.data.totpEnabled));
+                    if (_cacheNeeds2fa && !totpVerifiedFor(user.uid)) {
+                        window._btcTotpHold = true;
+                        holdAuthDisplayForTotp(user.uid);
+                        loadUser(user.uid).catch(function(){});
+                    } else if (_cachedProfile && !_cacheNeeds2fa && (_cachedProfile.twoFa === false || (_cachedProfile.data && _cachedProfile.data.totpEnabled === false))) {
+                        // Auth confirmed this uid. Same cache render as the optimistic
+                        // paint, now allowed to mark the profile live. rankingReady
+                        // here is the existing profile cache, after auth matched this uid.
+                        applyCachedProfileRender(user.uid, _cachedProfile, true);
+                        // Stale-while-revalidate: Firestore refreshes the cache and does not block the paint above.
                         setTimeout(function() { loadUser(user.uid).catch(function(){}); }, 500);
                     } else {
                         loadUser(user.uid).catch(function(){});
                     }
                 } else if (user && user.isAnonymous) {
+                    if (!_pendingRedirect) clearAuthDisplay();
+                    if (typeof stashGuestLink === 'function') stashGuestLink();
                     // If we're pending a redirect, DON'T load anon yet - wait longer for auth to resolve
                     if (_pendingRedirect) {
                         console.log('[Auth] Anon user but pending redirect - waiting 8s for real auth...');
@@ -323,6 +1112,8 @@ function initRanking() {
                                 loadUser(auth.currentUser.uid);
                             } else {
                                 console.log('[Auth] No real user after 8s - loading anon');
+                                _pendingRedirect = false;
+                                clearAuthDisplay();
                                 loadUserLocal(user.uid);
                             }
                             localStorage.removeItem('btc_anon_uid');
@@ -339,10 +1130,12 @@ function initRanking() {
                     }
                 } else {
                     // null user - WAIT for getRedirectResult before signing in anonymously
-                    // Otherwise we clobber the redirect auth state on mobile
+                    // Otherwise we clobber the redirect auth state on mobile.
+                    // A settled signed-out state drops the display snapshot immediately.
+                    if (!_pendingRedirect) clearAuthDisplay();
                     if (redirectResultResolved && !_pendingRedirect) {
                         // Redirect already resolved (no redirect happened) - safe to go anonymous
-                        auth.signInAnonymously().then(() => {});
+                        startAnonymousSession();
                     } else {
                         // Wait for redirect result to resolve first, with extra timeout for mobile
                         var _nullUserTimeout = setTimeout(function() {
@@ -350,14 +1143,21 @@ function initRanking() {
                             if (!auth.currentUser) {
                                 console.log('[Auth] 10s timeout with no user - going anonymous');
                                 localStorage.removeItem('btc_pwa_auth_pending');
-                                auth.signInAnonymously().then(() => {});
+                                localStorage.removeItem('btc_anon_uid');
+                                localStorage.removeItem('btc_anon_data');
+                                sessionStorage.removeItem('btc_redirect_pending');
+                                _pendingRedirect = false;
+                                clearAuthDisplay();
+                                startAnonymousSession();
                             }
                         }, 10000);
                         redirectResultPromise.then(function(redirectUser) {
                             clearTimeout(_nullUserTimeout);
                             // If redirect gave us a real user, onAuthStateChanged already fired for them
                             if (!redirectUser && !auth.currentUser) {
-                                auth.signInAnonymously().then(() => {});
+                                _pendingRedirect = false;
+                                clearAuthDisplay();
+                                startAnonymousSession();
                             }
                         });
                     }
@@ -371,19 +1171,24 @@ function initRanking() {
                     return;
                 }
                 if (user.isAnonymous) {
+                    clearAuthDisplay();
+                    if (typeof stashGuestLink === 'function') stashGuestLink();
                     loadUserLocal(user.uid);
                 } else {
                     loadUser(user.uid);
                 }
             } else {
                 currentUser = null;
+                if (!_pendingRedirect) clearAuthDisplay();
                 // Only sign in anonymously if redirect has already resolved
                 if (redirectResultResolved) {
-                    auth.signInAnonymously().then(() => {});
+                    startAnonymousSession();
                 } else {
                     redirectResultPromise.then(function(redirectUser) {
                         if (!redirectUser && !auth.currentUser) {
-                            auth.signInAnonymously().then(() => {});
+                            _pendingRedirect = false;
+                            clearAuthDisplay();
+                            startAnonymousSession();
                         }
                     });
                 }
@@ -400,24 +1205,28 @@ function initRanking() {
 async function handleEmailSignIn() {
     // Save the full URL before any modifications - needed for signInWithEmailLink
     var _signInUrl = window.location.href;
+    if (isAccountLinkHref(_signInUrl)) window._accountLinkHold = true;
 
     // Try to get email from: 1) URL param (works cross-device), 2) localStorage (same device), 3) prompt (last resort)
-    let email = null;
+    let email = emailFromHref(_signInUrl) || null;
     // Check URL parameter first - this is embedded in the magic link
-    var urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('signin_email')) {
-        email = decodeURIComponent(urlParams.get('signin_email'));
-    }
-    // Fallback to localStorage (same device/browser)
     if (!email) {
-        email = localStorage.getItem('btc_signin_email');
+        var urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('signin_email')) {
+            email = decodeURIComponent(urlParams.get('signin_email'));
+        }
+    }
+    // Fallback to localStorage (same device/browser). emailForSignIn is the
+    // key Firebase's own samples use; this app also stores btc_signin_email.
+    if (!email) {
+        email = localStorage.getItem('btc_signin_email') || localStorage.getItem('emailForSignIn');
     }
     // Last resort: show a friendly inline prompt (cross-device scenario)
     if (!email) {
         return new Promise(function(resolve) {
             var ov = document.createElement('div');
             ov.id = 'emailConfirmOverlay';
-            ov.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
+            ov.style.cssText = 'position:fixed;inset:0;z-index:2200010;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
             ov.innerHTML = '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:28px;max-width:380px;width:100%;text-align:center;">' +
                 '<div style="font-size:2rem;margin-bottom:12px;">📧</div>' +
                 '<div style="font-size:1.1rem;font-weight:800;color:var(--heading,#fff);margin-bottom:8px;">Confirm Your Email</div>' +
@@ -444,11 +1253,947 @@ async function handleEmailSignIn() {
     return finishEmailSignIn(email, _signInUrl);
 }
 
+function planEmailLinkFailure(code, hasCredential) {
+    if (code === 'auth/multi-factor-auth-required') return 'mfa';
+    if ((code === 'auth/credential-already-in-use' || code === 'auth/email-already-in-use') && hasCredential) return 'credential';
+    if (code === 'auth/email-already-in-use' || code === 'auth/credential-already-in-use' || code === 'auth/provider-already-linked') return 'email-link';
+    return 'throw';
+}
+
+function planEmailSignInFailure(code) {
+    if (code === 'auth/multi-factor-auth-required') return 'mfa';
+    if (code === 'auth/invalid-action-code' || code === 'auth/expired-action-code') return 'resend';
+    return 'toast';
+}
+
+function guestLinkShouldDrop(error) {
+    return error === 'expired' || error === 'one_guest' || error === 'guest_too_old' || error === 'already_linked' || error === 'bad_nonce';
+}
+
+function shouldSkipInPlaceLink(flagEmail, email) {
+    var flag = String(flagEmail || '').trim().toLowerCase();
+    var current = String(email || '').trim().toLowerCase();
+    return flag.length > 0 && flag === current;
+}
+
+function guestLinkIsMfaHold(message) {
+    var msg = String(message || '');
+    return msg.indexOf('Authenticator session required') !== -1 || msg.indexOf('phone verification') !== -1;
+}
+
+function queryValue(query, key) {
+    var match = String(query || '').match(new RegExp('(?:^|[?&])' + key + '=([^&#]+)'));
+    if (!match) return '';
+    try { return decodeURIComponent(match[1]); } catch (e) { return match[1]; }
+}
+
+function isAccountLinkHref(href) {
+    var text = String(href || '');
+    if (queryValue(text, 'account_link') === '1') return true;
+    var cont = queryValue(text, 'continueUrl');
+    return !!cont && queryValue(cont, 'account_link') === '1';
+}
+
+function emailFromHref(href) {
+    var text = String(href || '');
+    var direct = queryValue(text, 'signin_email').trim().toLowerCase();
+    if (direct) return direct;
+    var cont = queryValue(text, 'continueUrl');
+    if (!cont) return '';
+    return queryValue(cont, 'signin_email').trim().toLowerCase();
+}
+
+function anonymousSignInBlocked(href, hold) {
+    if (hold === true) return true;
+    var text = String(href || '');
+    if (isAccountLinkHref(text)) return true;
+    if (queryValue(text, 'mode') === 'signIn' && queryValue(text, 'oobCode')) return true;
+    var cont = queryValue(text, 'continueUrl');
+    if (cont && queryValue(cont, 'mode') === 'signIn' && queryValue(cont, 'oobCode')) return true;
+    return false;
+}
+
+function accountLinkCompletion(spec) {
+    var src = spec || {};
+    var intent = src.intent || null;
+    var accountLink = src.accountLink === true;
+    var user = src.user || null;
+    var email = String(src.email || '').trim().toLowerCase();
+    if (!intent && !accountLink) return 'ignore';
+    if (intent && email && String(intent.email || '').trim().toLowerCase() !== email) {
+        return accountLink ? 'mismatch' : 'stale';
+    }
+    if (!user) return 'need-session';
+    if (user.isAnonymous) {
+        if (intent && intent.uid && user.uid === intent.uid) return 'link';
+        return 'need-session';
+    }
+    if (intent && intent.uid && user.uid !== intent.uid) return 'wrong-account';
+    if (!intent && String(user.uid || '').indexOf('ln:') !== 0) return 'need-lightning';
+    return 'link';
+}
+
+function accountLinkHoldMessage(decision) {
+    if (decision === 'wrong-account') return 'This link adds an email to the account that asked for it. Sign in with Lightning on that account, then open the link again. We did not switch accounts.';
+    if (decision === 'need-lightning') return 'Sign in with Lightning on this device, then open the link again. We did not add the email to a different account.';
+    if (decision === 'mismatch') return 'That link does not match the email you asked to add. Send a new link from this account. We did not create a new account.';
+    return "Open this link on the device where you're signed in, or sign in with Lightning first and then open the link again. We did not create a new account.";
+}
+
+function anonymousSignInBlockedNow() {
+    var href = '';
+    try { href = window.location.href; } catch (e) {}
+    var hold = false;
+    try { hold = window._accountLinkHold === true; } catch (e2) { hold = false; }
+    if (anonymousSignInBlocked(href, hold)) return true;
+    try {
+        if (typeof auth !== 'undefined' && auth && typeof auth.isSignInWithEmailLink === 'function' && auth.isSignInWithEmailLink(href)) return true;
+    } catch (e3) {}
+    return false;
+}
+
+function startAnonymousSession() {
+    if (anonymousSignInBlockedNow()) return;
+    if (typeof auth === 'undefined' || !auth || auth.currentUser) return;
+    auth.signInAnonymously().then(function () {});
+}
+
+// ACCOUNT_LINK_PLAN_START
+function listSignInMethodLabels(user, profile) {
+    var labels = [];
+    var seen = {};
+    function add(label) {
+        if (!label || seen[label]) return;
+        seen[label] = true;
+        labels.push(label);
+    }
+    var map = {
+        'password': 'Email',
+        'google.com': 'Google',
+        'twitter.com': 'Twitter/X',
+        'github.com': 'GitHub',
+        'facebook.com': 'Facebook',
+        'phone': 'Phone'
+    };
+    var providers = (user && user.providerData) || [];
+    var i;
+    for (i = 0; i < providers.length; i++) {
+        var pid = providers[i] && providers[i].providerId;
+        if (!pid || pid === 'anonymous' || pid === 'custom') continue;
+        add(map[pid] || pid);
+    }
+    var uid = String((user && user.uid) || '');
+    var authMethod = profile && profile.authMethod;
+    if (uid.indexOf('ln:') === 0 || authMethod === 'lightning') add('Lightning');
+    if (user && user.isAnonymous && labels.length === 0) add('Guest');
+    if (!labels.length) add('Guest');
+    return labels;
+}
+
+function hasLinkedProvider(user) {
+    var providers = (user && user.providerData) || [];
+    var i;
+    for (i = 0; i < providers.length; i++) {
+        var pid = providers[i] && providers[i].providerId;
+        if (pid && pid !== 'anonymous' && pid !== 'custom') return true;
+    }
+    return false;
+}
+
+function isLightningOnlyAccount(user, profile) {
+    if (!user || user.isAnonymous) return false;
+    var uid = String(user.uid || '');
+    var authMethod = profile && profile.authMethod;
+    if (uid.indexOf('ln:') !== 0 || authMethod !== 'lightning') return false;
+    return !hasLinkedProvider(user);
+}
+
+function accountCanLinkSignIn(user, profile) {
+    if (!user) return false;
+    if (user.isAnonymous) return !hasLinkedProvider(user);
+    return isLightningOnlyAccount(user, profile);
+}
+
+function linkedProviderIds(user) {
+    var ids = [];
+    var providers = (user && user.providerData) || [];
+    var i;
+    for (i = 0; i < providers.length; i++) {
+        var pid = providers[i] && providers[i].providerId;
+        if (pid && pid !== 'anonymous' && pid !== 'custom' && pid !== 'phone') ids.push(pid);
+    }
+    return ids;
+}
+
+function signOutWarningForAccount(user, profile) {
+    if (!user) return null;
+    if (user.isAnonymous) {
+        if (hasLinkedProvider(user)) return null;
+        return { kind: 'guest', message: "You'll lose this account unless you link a sign-in first." };
+    }
+    if (isLightningOnlyAccount(user, profile)) {
+        return { kind: 'lightning', message: "To sign back in you'll need the same Lightning wallet. Link an email or Google first to make it easier." };
+    }
+    return null;
+}
+
+function accountLinkConflictMessage(code) {
+    if (code === 'auth/provider-already-linked') return 'That sign-in is already on this account.';
+    if (code === 'auth/credential-already-in-use' || code === 'auth/email-already-in-use' || code === 'auth/account-exists-with-different-credential') {
+        return 'That sign-in already belongs to another account. Sign in there instead. We did not combine the two accounts. That sign-in belongs to another account; delete that account first if it\'s yours.';
+    }
+    return '';
+}
+
+function accountLinkEscape(value) {
+    var text = String(value == null ? '' : value);
+    if (typeof escapeHtml === 'function') return escapeHtml(text);
+    return text.replace(/[&<>"']/g, function(ch) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+    });
+}
+
+var ACCOUNT_LINK_MAX_AGE_MS = 60 * 60 * 1000;
+
+function accountLinkIntentFresh(intent, now) {
+    if (!intent || intent.kind !== 'email' || !intent.uid || !intent.email) return false;
+    var at = Number(intent.at);
+    var clock = Number(now);
+    if (!isFinite(at) || !isFinite(clock)) return false;
+    return clock >= at && (clock - at) <= ACCOUNT_LINK_MAX_AGE_MS;
+}
+
+function accountLinkTotpPending() {
+    try {
+        return !!(document.getElementById('totpSignInOverlay'));
+    } catch (e) {
+        return false;
+    }
+}
+
+function accountLinkTotpHoldMessage() {
+    return 'Finish the authenticator check before linking a sign-in.';
+}
+
+function renderSignInMethodsCard(user, profile) {
+    var methods = listSignInMethodLabels(user, profile);
+    var canLink = accountCanLinkSignIn(user, profile);
+    var totpHold = accountLinkTotpPending();
+    var html = '<div id="signInMethodsCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left;">';
+    html += '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Sign-in methods</div>';
+    html += '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;line-height:1.45;">';
+    if (canLink && user && user.isAnonymous) {
+        html += 'This is a guest account on this browser. Link an email or Google so you can get back in.';
+    } else if (canLink) {
+        html += 'This account signs in with Lightning only. Link an email or Google so you can get back in without that wallet.';
+    } else {
+        html += 'Ways you can sign back in to this account.';
+    }
+    html += '</div>';
+    html += '<div id="signInMethodList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">';
+    methods.forEach(function(label) {
+        html += '<span style="padding:4px 10px;border-radius:999px;border:1px solid var(--border);color:var(--text);font-size:0.8rem;font-weight:700;">' + accountLinkEscape(label) + '</span>';
+    });
+    html += '</div>';
+    if (canLink && totpHold) {
+        html += '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.45;">' + accountLinkEscape(accountLinkTotpHoldMessage()) + '</div>';
+    } else if (canLink) {
+        if (methods.indexOf('Email') === -1) {
+            html += '<div style="margin-bottom:10px;">' +
+                '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:6px;">Link email</div>' +
+                '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">' +
+                '<input id="accountLinkEmail" type="email" autocomplete="email" placeholder="you@example.com" maxlength="100" style="flex:1;min-width:140px;padding:10px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;margin:0;text-align:left;">' +
+                '<button type="button" onclick="sendAccountLinkEmail()" style="width:auto;padding:10px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">Link email</button>' +
+                '</div>' +
+                '<div id="accountLinkEmailStatus" style="font-size:0.75rem;color:var(--text-muted);margin-top:6px;"></div>' +
+                '</div>';
+        }
+        if (methods.indexOf('Google') === -1) {
+            html += '<div id="accountLinkGoogleWrap">' +
+                '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:6px;">Link Google</div>' +
+                '<div id="accountGsiButtonHost" style="min-height:40px;"></div>' +
+                '<button type="button" id="accountGoogleLinkFallback" onclick="linkGoogleFromAccount()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Link Google</button>' +
+                '</div>';
+        }
+    } else if (user && !user.isAnonymous) {
+        if (totpHold) {
+            html += '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.45;">' + accountLinkEscape(accountLinkTotpHoldMessage()) + '</div>';
+        } else {
+            var linkedIds = linkedProviderIds(user);
+            var addable = [
+                { id: 'password', label: 'Email' },
+                { id: 'google.com', label: 'Google' },
+                { id: 'twitter.com', label: 'X' },
+                { id: 'github.com', label: 'GitHub' }
+            ];
+            html += '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+            addable.forEach(function(item) {
+                if (linkedIds.indexOf(item.id) !== -1) return;
+                html += '<button type="button" onclick="linkFullAccountProvider(\'' + item.id + '\')" style="padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">Add ' + accountLinkEscape(item.label) + '</button>';
+            });
+            if (linkedIds.length > 1) {
+                linkedIds.forEach(function(pid) {
+                    if (pid === 'phone') return;
+                    var label = ({ 'password': 'Email', 'google.com': 'Google', 'twitter.com': 'X', 'github.com': 'GitHub', 'facebook.com': 'Facebook' })[pid] || pid;
+                    html += '<button type="button" onclick="unlinkFullAccountProvider(\'' + pid + '\')" style="padding:8px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">Remove ' + accountLinkEscape(label) + '</button>';
+                });
+            }
+            html += '</div>';
+        }
+    }
+    html += '</div>';
+    return html;
+}
+// ACCOUNT_LINK_PLAN_END
+
+function maskEmailAddress(email) {
+    var value = String(email || '').trim();
+    var at = value.indexOf('@');
+    if (at < 1) return '';
+    var local = value.slice(0, at);
+    var domain = value.slice(at);
+    var head = local.charAt(0);
+    return head + '***' + domain;
+}
+
+function oauthOwnsEmail(user) {
+    var ids = linkedProviderIds(user);
+    var oauth = ids.indexOf('google.com') !== -1 || ids.indexOf('twitter.com') !== -1 || ids.indexOf('github.com') !== -1 || ids.indexOf('facebook.com') !== -1;
+    return oauth && ids.indexOf('password') === -1;
+}
+
+function accountEmailAction(user) {
+    if (!user || user.isAnonymous) return 'none';
+    if (oauthOwnsEmail(user)) return 'provider';
+    if (!user.email) return 'add';
+    return 'change';
+}
+
+async function syncAccountEmailFromAuth() {
+    var user = auth && auth.currentUser;
+    if (!user || user.isAnonymous || typeof firebase === 'undefined' || !firebase.functions) return null;
+    var res = await firebase.functions().httpsCallable('syncEmailChange')({});
+    var data = res && res.data ? res.data : {};
+    if (data.hold === true) {
+        var until = Number(data.holdUntil) || 0;
+        if (until > Date.now()) window._satsHoldUntil = until;
+    }
+    if (data.notice && typeof showToast === 'function') showToast(data.notice, 8000);
+    return data;
+}
+
+// Profile paint must not wait on this. The server still applies email-change holds.
+function scheduleAccountEmailSync(uid) {
+    if (!uid || !auth || !auth.currentUser || auth.currentUser.isAnonymous || auth.currentUser.uid !== uid) return;
+    if (window._emailSyncUid === uid) return;
+    window._emailSyncUid = uid;
+    syncAccountEmailFromAuth().catch(function () {
+        if (window._emailSyncUid === uid) window._emailSyncUid = null;
+    });
+}
+
+var _profileTotpGen = 0;
+
+// Starts totpStatus immediately. Callers paint first, then await the promise.
+function watchProfileTotp(uid) {
+    var gen = ++_profileTotpGen;
+    var pending;
+    try {
+        pending = window._serverTotpAllows(uid);
+    } catch (e) {
+        pending = Promise.resolve(true);
+    }
+    var promise = Promise.resolve(pending).then(function (open) {
+        return open !== false;
+    }, function () {
+        return true;
+    });
+    return {
+        promise: promise,
+        live: function () {
+            if (gen !== _profileTotpGen) return false;
+            var user = auth && auth.currentUser;
+            return !!(user && !user.isAnonymous && user.uid === uid);
+        }
+    };
+}
+
+window.reauthForSensitiveAction = async function(purpose) {
+    var user = auth && auth.currentUser;
+    if (!user) {
+        if (typeof showToast === 'function') showToast('Sign in again, then try this.');
+        return false;
+    }
+    try {
+        var token = await user.getIdTokenResult();
+        var authTime = token && token.claims ? Number(token.claims.auth_time) : NaN;
+        var age = Math.floor(Date.now() / 1000) - authTime;
+        if (isFinite(age) && age >= 0 && age <= 300) return true;
+    } catch (e) {}
+    return window.showReauthStep(user, purpose);
+};
+
+window.showReauthStep = function(user, purpose) {
+    return new Promise(function(resolve) {
+        var existing = document.getElementById('reauthOverlay');
+        if (existing) existing.remove();
+        var overlay = document.createElement('div');
+        overlay.id = 'reauthOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:2200010;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
+        var ids = linkedProviderIds(user);
+        var uid = String((user && user.uid) || '');
+        var buttons = '';
+        if (ids.indexOf('google.com') !== -1) buttons += '<button type="button" id="reauthGoogle" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Continue with Google</button>';
+        if (ids.indexOf('twitter.com') !== -1) buttons += '<button type="button" id="reauthX" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Continue with X</button>';
+        if (ids.indexOf('github.com') !== -1) buttons += '<button type="button" id="reauthGitHub" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Continue with GitHub</button>';
+        if (ids.indexOf('facebook.com') !== -1) buttons += '<button type="button" id="reauthFacebook" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Continue with Facebook</button>';
+        if (ids.indexOf('password') !== -1) {
+            buttons += '<label for="reauthPassword" style="display:block;font-size:0.75rem;color:var(--text-faint);margin:8px 0 6px;">Password</label>';
+            buttons += '<input id="reauthPassword" type="password" autocomplete="current-password" style="width:100%;padding:12px;margin-bottom:8px;box-sizing:border-box;border-radius:10px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-family:inherit;">';
+            buttons += '<button type="button" id="reauthPasswordBtn" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:800;cursor:pointer;font-family:inherit;">Confirm password</button>';
+        }
+        if (!ids.length && user && user.email) {
+            buttons += '<button type="button" id="reauthEmailLink" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Email me a sign-in link</button>';
+        }
+        if (uid.indexOf('nostr:') === 0) buttons += '<button type="button" id="reauthNostr" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Sign in with Nostr again</button>';
+        if (uid.indexOf('ln:') === 0) buttons += '<button type="button" id="reauthLn" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--card-bg);color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Sign in with Lightning again</button>';
+        overlay.innerHTML = '<div id="reauthCard" style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:420px;width:100%;">' +
+            '<h2 style="margin:0 0 8px;color:var(--heading);font-size:1.1rem;">Confirm it is you</h2>' +
+            '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0 0 16px;">Sign in again before ' + accountLinkEscape(purpose || 'this change') + '.</p>' +
+            buttons +
+            '<button type="button" id="reauthCancel" style="width:100%;padding:12px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>' +
+            '</div>';
+        document.body.appendChild(overlay);
+        function finish(ok) {
+            var node = document.getElementById('reauthOverlay');
+            if (node) node.remove();
+            resolve(!!ok);
+        }
+        document.getElementById('reauthCancel').onclick = function() { finish(false); };
+        overlay.onclick = function(e) { if (e.target === overlay) finish(false); };
+        async function popup(provider) {
+            try {
+                await user.reauthenticateWithPopup(provider);
+                finish(true);
+            } catch (err) {
+                if (typeof showToast === 'function') showToast('Sign in again, then try this.');
+                finish(false);
+            }
+        }
+        var googleBtn = document.getElementById('reauthGoogle');
+        if (googleBtn) googleBtn.onclick = function() { popup(new firebase.auth.GoogleAuthProvider()); };
+        var xBtn = document.getElementById('reauthX');
+        if (xBtn) xBtn.onclick = function() { popup(new firebase.auth.TwitterAuthProvider()); };
+        var ghBtn = document.getElementById('reauthGitHub');
+        if (ghBtn) ghBtn.onclick = function() { popup(new firebase.auth.GithubAuthProvider()); };
+        var fbBtn = document.getElementById('reauthFacebook');
+        if (fbBtn) fbBtn.onclick = function() { popup(new firebase.auth.FacebookAuthProvider()); };
+        var pwBtn = document.getElementById('reauthPasswordBtn');
+        if (pwBtn) pwBtn.onclick = async function() {
+            var password = (document.getElementById('reauthPassword').value || '');
+            try {
+                var cred = firebase.auth.EmailAuthProvider.credential(user.email, password);
+                await user.reauthenticateWithCredential(cred);
+                finish(true);
+            } catch (err) {
+                if (typeof showToast === 'function') showToast('Sign in again, then try this.');
+            }
+        };
+        var linkBtn = document.getElementById('reauthEmailLink');
+        if (linkBtn) linkBtn.onclick = async function() {
+            try {
+                sessionStorage.setItem('btc_reauth_email', user.email || '');
+                await auth.sendSignInLinkToEmail(user.email, {
+                    url: window.location.origin + window.location.pathname + '?reauth=1',
+                    handleCodeInApp: true
+                });
+                if (typeof showToast === 'function') showToast('Check your email, then come back to finish.');
+            } catch (err) {
+                if (typeof showToast === 'function') showToast('Sign in again, then try this.');
+            }
+        };
+        var nostrBtn = document.getElementById('reauthNostr');
+        if (nostrBtn) nostrBtn.onclick = async function() {
+            try {
+                if (typeof nostrSignInWithExtension === 'function') await nostrSignInWithExtension();
+                finish(true);
+            } catch (err) { finish(false); }
+        };
+        var lnBtn = document.getElementById('reauthLn');
+        if (lnBtn) lnBtn.onclick = async function() {
+            try {
+                var startLightning = window['signInWithLightning'];
+                var ok = false;
+                if (typeof startLightning === 'function') ok = await startLightning();
+                finish(!!ok);
+            } catch (err) { finish(false); }
+        };
+    });
+};
+
+async function freshProviderStep(action) {
+    var payload = { action: action };
+    if (typeof mfaNeedsFreshCode === 'function' && mfaNeedsFreshCode() && typeof window._showFreshStepUp === 'function') {
+        var proof = await window._showFreshStepUp(action);
+        if (!proof) return null;
+        payload.freshProofId = proof;
+    }
+    await firebase.functions().httpsCallable('confirmAccountLink')(payload);
+    return true;
+}
+
+function providerForId(pid) {
+    if (pid === 'google.com') return new firebase.auth.GoogleAuthProvider();
+    if (pid === 'twitter.com') return new firebase.auth.TwitterAuthProvider();
+    if (pid === 'github.com') return new firebase.auth.GithubAuthProvider();
+    if (pid === 'facebook.com') return new firebase.auth.FacebookAuthProvider();
+    return null;
+}
+
+window.linkFullAccountProvider = async function(pid) {
+    if (accountLinkTotpPending()) {
+        if (typeof showToast === 'function') showToast(accountLinkTotpHoldMessage());
+        return;
+    }
+    var user = auth && auth.currentUser;
+    if (!user || user.isAnonymous) return;
+    if (pid === 'password') {
+        var email = window.prompt('Email to link');
+        if (!email) return;
+        var ready = await window.reauthForSensitiveAction('linking email');
+        if (!ready) return;
+        var proof = await freshProviderStep('linkProvider');
+        if (!proof) return;
+        try {
+            var preparePayload = {};
+            preparePayload.email = String(email).trim();
+            await firebase.functions().httpsCallable('prepareEmailChange')(preparePayload);
+            writeAccountLinkIntent(user, email);
+            var sentLink = await sendMagicLink(String(email).trim(), { accountLink: true });
+            if (!sentLink) throw new Error('send');
+            if (typeof showToast === 'function') showToast('Check that email for a link to add it to this account.');
+        } catch (err) {
+            var conflict = accountLinkConflictMessage(err && err.code);
+            if (typeof showToast === 'function') showToast(conflict || 'Could not link that email.');
+        }
+        return;
+    }
+    var provider = providerForId(pid);
+    if (!provider) return;
+    var readyPop = await window.reauthForSensitiveAction('linking a sign-in');
+    if (!readyPop) return;
+    var proofPop = await freshProviderStep('linkProvider');
+    if (!proofPop) return;
+    try {
+        await user.linkWithPopup(provider);
+        try { await syncAccountEmailFromAuth(); } catch (e) {}
+        if (typeof showToast === 'function') showToast('Sign-in linked.');
+        if (typeof refreshAccountSignInCard === 'function') refreshAccountSignInCard();
+    } catch (err) {
+        var msg = accountLinkConflictMessage(err && err.code);
+        if (typeof showToast === 'function') showToast(msg || 'Could not link that sign-in.');
+    }
+};
+
+window.unlinkFullAccountProvider = async function(pid) {
+    if (accountLinkTotpPending()) {
+        if (typeof showToast === 'function') showToast(accountLinkTotpHoldMessage());
+        return;
+    }
+    var user = auth && auth.currentUser;
+    if (!user) return;
+    var ids = linkedProviderIds(user);
+    if (ids.length < 2) {
+        if (typeof showToast === 'function') showToast('Keep at least one sign-in on this account.');
+        return;
+    }
+    var ready = await window.reauthForSensitiveAction('removing a sign-in');
+    if (!ready) return;
+    var proof = await freshProviderStep('unlinkProvider');
+    if (!proof) return;
+    try {
+        await user.unlink(pid);
+        try { await syncAccountEmailFromAuth(); } catch (e) {}
+        if (typeof showToast === 'function') showToast('Sign-in removed.');
+        if (typeof refreshAccountSignInCard === 'function') refreshAccountSignInCard();
+    } catch (err) {
+        if (typeof showToast === 'function') showToast('Could not remove that sign-in.');
+    }
+};
+
+window.showChangeEmailModal = function() {
+    var user = auth && auth.currentUser;
+    if (!user || user.isAnonymous) return;
+    var mode = accountEmailAction(user);
+    if (mode === 'provider') {
+        if (typeof showToast === 'function') showToast('That email belongs to your linked sign-in. Use Sign-in methods.');
+        return;
+    }
+    var existing = document.getElementById('changeEmailModal');
+    if (existing) existing.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'changeEmailModal';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:2200010;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
+    var title = mode === 'add' ? 'Add email' : 'Change email';
+    var blurb = mode === 'add'
+        ? 'We email you a link. Open it while this account is signed in. The email is added to this account and does not open a new one.'
+        : 'We email the new address to confirm it, and the previous address gets a link to revert the change.';
+    overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:420px;width:100%;">' +
+        '<h2 style="margin:0 0 8px;color:var(--heading);font-size:1.1rem;">' + title + '</h2>' +
+        '<p style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0 0 12px;">' + blurb + '</p>' +
+        '<input id="changeEmailInput" type="email" autocomplete="email" placeholder="name@example.com" style="width:100%;padding:12px;box-sizing:border-box;border-radius:10px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-family:inherit;margin-bottom:12px;">' +
+        '<div id="changeEmailStatus" style="color:var(--text-muted);font-size:0.8rem;line-height:1.4;margin:-4px 0 12px;"></div>' +
+        '<div style="display:flex;gap:8px;">' +
+        '<button type="button" onclick="document.getElementById(\'changeEmailModal\').remove()" style="flex:1;padding:12px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>' +
+        '<button type="button" id="changeEmailSubmit" onclick="submitEmailChange()" style="flex:1;padding:12px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:800;cursor:pointer;font-family:inherit;">Send link</button>' +
+        '</div></div>';
+    document.body.appendChild(overlay);
+};
+
+window.submitEmailChange = async function() {
+    var input = document.getElementById('changeEmailInput');
+    var email = input ? String(input.value || '').trim() : '';
+    if (!email) return;
+    var btn = document.getElementById('changeEmailSubmit');
+    var status = document.getElementById('changeEmailStatus');
+    if (btn) btn.disabled = true;
+    var user = auth && auth.currentUser;
+    if (user && accountEmailAction(user) === 'add') {
+        var added = await requestAccountEmailLink(email, status);
+        if (!added && btn) btn.disabled = false;
+        if (added) {
+            var modal = document.getElementById('changeEmailModal');
+            if (modal) modal.remove();
+        }
+        return;
+    }
+    try {
+        var ready = await window.reauthForSensitiveAction('changing your email');
+        if (!ready) { if (btn) btn.disabled = false; return; }
+        var payload = { email: email };
+        if (typeof mfaNeedsFreshCode === 'function' && mfaNeedsFreshCode()) {
+            var proof = await window._showFreshStepUp('changeEmail');
+            if (!proof) { if (btn) btn.disabled = false; return; }
+            payload.freshProofId = proof;
+        }
+        await firebase.functions().httpsCallable('prepareEmailChange')(payload);
+        await auth.currentUser.verifyBeforeUpdateEmail(email, {
+            url: window.location.origin + window.location.pathname + '?emailChange=1',
+            handleCodeInApp: true
+        });
+        var changed = document.getElementById('changeEmailModal');
+        if (changed) changed.remove();
+        if (typeof showToast === 'function') showToast('Check both email addresses. The new one gets a confirm link, and the old one gets a revert link.');
+    } catch (err) {
+        var code = err && err.code;
+        var friendly = "That email can't be used.";
+        if (code === 'auth/email-already-in-use' || code === 'functions/already-exists') {
+            if (typeof showToast === 'function') showToast(friendly);
+        } else if (code === 'functions/resource-exhausted' || code === 'resource-exhausted') {
+            if (typeof showToast === 'function') showToast('Too many attempts. Try again later.');
+        } else if (code === 'functions/invalid-argument' || code === 'invalid-argument') {
+            if (typeof showToast === 'function') showToast(friendly);
+        } else if (typeof showToast === 'function') {
+            showToast((err && err.message) || friendly);
+        }
+        if (btn) btn.disabled = false;
+    }
+};
+
+var ACCOUNT_LINK_STORAGE_KEY = 'btc_account_link';
+
+function readAccountLinkIntent() {
+    try {
+        var raw = localStorage.getItem(ACCOUNT_LINK_STORAGE_KEY);
+        if (!raw) return null;
+        var parsed = JSON.parse(raw);
+        if (!accountLinkIntentFresh(parsed, Date.now())) {
+            clearAccountLinkIntent();
+            return null;
+        }
+        return parsed;
+    } catch (e) {
+        clearAccountLinkIntent();
+        return null;
+    }
+}
+
+function writeAccountLinkIntent(user, email) {
+    localStorage.setItem(ACCOUNT_LINK_STORAGE_KEY, JSON.stringify({
+        kind: 'email',
+        uid: user.uid,
+        email: String(email || '').trim().toLowerCase(),
+        at: Date.now()
+    }));
+}
+
+function clearAccountLinkIntent() {
+    try { localStorage.removeItem(ACCOUNT_LINK_STORAGE_KEY); } catch (e) {}
+}
+
+function refreshAccountSignInCard() {
+    if (typeof updateAuthButton === 'function') updateAuthButton();
+    if (typeof updateGuestPointsBanner === 'function') updateGuestPointsBanner();
+    var open = document.getElementById('signInMethodsCard') || (document.getElementById('usernameModal') && document.getElementById('usernameModal').classList.contains('open'));
+    if (open && typeof showSettingsPage === 'function') {
+        try { showSettingsPage('account'); } catch (e) {}
+    }
+    setTimeout(function() {
+        var card = document.getElementById('signInMethodsCard');
+        if (card && card.scrollIntoView) {
+            try { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (err) { card.scrollIntoView(true); }
+        }
+    }, 120);
+}
+
+async function waitForAccountLinkUser(uid) {
+    if (auth && auth.currentUser && auth.currentUser.uid === uid) return auth.currentUser;
+    await new Promise(function(resolve) {
+        var done = false;
+        var unsub = function() {};
+        try {
+            unsub = auth.onAuthStateChanged(function(user) {
+                if (done) return;
+                if (user && user.uid === uid) {
+                    done = true;
+                    try { unsub(); } catch (e) {}
+                    resolve();
+                }
+            });
+        } catch (e) {}
+        setTimeout(function() {
+            if (done) return;
+            done = true;
+            try { unsub(); } catch (e2) {}
+            resolve();
+        }, 8000);
+    });
+    return (auth && auth.currentUser && auth.currentUser.uid === uid) ? auth.currentUser : null;
+}
+
+function presentAccountLinkHold(decision) {
+    window._accountLinkHold = true;
+    window._accountLinkHoldDecision = decision || 'need-session';
+    var existing = document.getElementById('accountLinkHold');
+    if (existing) existing.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'accountLinkHold';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:2200010;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
+    var message = accountLinkHoldMessage(decision);
+    overlay.innerHTML = '<div role="dialog" aria-modal="true" style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:420px;width:100%;text-align:center;">' +
+        '<div style="font-size:2rem;margin-bottom:8px;">📧</div>' +
+        '<div style="color:var(--heading,#fff);font-weight:800;font-size:1.05rem;margin-bottom:8px;">Finish adding your email</div>' +
+        '<div style="color:var(--text,#fff);font-size:0.9rem;line-height:1.5;margin-bottom:16px;">' + accountLinkEscape(message) + '</div>' +
+        '<button type="button" onclick="signInWithLightningThenEmailLink()" style="width:100%;padding:12px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">Sign in with Lightning</button>' +
+        '<button type="button" onclick="document.getElementById(\'accountLinkHold\').remove()" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-weight:700;cursor:pointer;font-family:inherit;">Close</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+}
+
+async function maybeCompleteAccountEmailLink() {
+    var href = '';
+    try { href = window.location.href; } catch (e) { return; }
+    var accountLink = isAccountLinkHref(href);
+    var signInLink = false;
+    try { signInLink = !!(auth && auth.isSignInWithEmailLink && auth.isSignInWithEmailLink(href)); } catch (e2) { signInLink = false; }
+    if (!accountLink && !signInLink) return;
+    var email = emailFromHref(href);
+    if (!email) {
+        try { email = localStorage.getItem('btc_signin_email') || localStorage.getItem('emailForSignIn') || ''; } catch (e3) { email = ''; }
+    }
+    if (!email) {
+        if (accountLink) presentAccountLinkHold('need-session');
+        return;
+    }
+    await finishAccountEmailLink(email, href);
+}
+
+window.signInWithLightningThenEmailLink = async function() {
+    var hold = document.getElementById('accountLinkHold');
+    if (hold) hold.remove();
+    var ok = false;
+    try {
+        if (typeof window.signInWithLightning === 'function') ok = await window.signInWithLightning();
+    } catch (e) { ok = false; }
+    if (ok) return;
+    if (window._accountLinkHold === true && isAccountLinkHref(window.location.href)) presentAccountLinkHold(window._accountLinkHoldDecision || 'need-session');
+};
+
+async function finishAccountEmailLink(email, signInUrl) {
+    var intent = readAccountLinkIntent();
+    var accountLink = isAccountLinkHref(signInUrl);
+    if (accountLink) window._accountLinkHold = true;
+    var userNow = (auth && auth.currentUser) ? auth.currentUser : null;
+    if (intent && intent.uid && (!userNow || userNow.uid !== intent.uid)) {
+        userNow = await waitForAccountLinkUser(intent.uid);
+    }
+    var linkSpec = { intent: intent, accountLink: accountLink };
+    linkSpec.user = userNow ? { uid: userNow.uid, isAnonymous: !!userNow.isAnonymous } : null;
+    linkSpec.email = email;
+    var decision = accountLinkCompletion(linkSpec);
+    if (decision === 'ignore') return false;
+    if (decision === 'stale') {
+        clearAccountLinkIntent();
+        return false;
+    }
+    if (decision !== 'link') {
+        if (decision === 'mismatch') clearAccountLinkIntent();
+        presentAccountLinkHold(decision);
+        if (userNow && !userNow.isAnonymous && typeof loadUser === 'function') loadUser(userNow.uid);
+        return true;
+    }
+    if (accountLinkTotpPending()) {
+        if (typeof showToast === 'function') showToast(accountLinkTotpHoldMessage());
+        return true;
+    }
+    var user = userNow;
+    if (!user) {
+        presentAccountLinkHold('need-session');
+        return true;
+    }
+    var linkedUid = user.uid;
+    var wasGuest = !!user.isAnonymous;
+    if (!wasGuest && !(intent && intent.uid === user.uid)) {
+        var preparePayload = {};
+        preparePayload.email = email;
+        if (typeof mfaNeedsFreshCode === 'function' && mfaNeedsFreshCode() && typeof window._showFreshStepUp === 'function') {
+            var prepareProof = await window._showFreshStepUp('changeEmail');
+            if (!prepareProof) {
+                presentAccountLinkHold('need-session');
+                return true;
+            }
+            preparePayload.freshProofId = prepareProof;
+        }
+        try {
+            await firebase.functions().httpsCallable('prepareEmailChange')(preparePayload);
+        } catch (prepErr) {
+            var prepCode = prepErr && prepErr.code;
+            if (prepCode === 'functions/failed-precondition' || prepCode === 'failed-precondition') {
+                presentAccountLinkHold('need-session');
+            } else if (typeof showToast === 'function') {
+                showToast(prepCode === 'functions/resource-exhausted' ? 'Too many attempts. Try again later.' : "That email can't be used.");
+            }
+            return true;
+        }
+    }
+    try {
+        var emailCred = firebase.auth.EmailAuthProvider.credentialWithLink(email, signInUrl);
+        await user.linkWithCredential(emailCred);
+    } catch (linkErr) {
+        var code = linkErr && linkErr.code;
+        if (code === 'auth/multi-factor-auth-required') {
+            surfaceMfaRequired(linkErr);
+            return true;
+        }
+        var conflict = accountLinkConflictMessage(code);
+        if (conflict) {
+            clearAccountLinkIntent();
+            window._accountLinkHold = false;
+            if (typeof showToast === 'function') showToast(conflict);
+            window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+            return true;
+        }
+        if (typeof showToast === 'function') {
+            if (code === 'auth/invalid-action-code' || code === 'auth/expired-action-code') {
+                showToast('That link expired. Send a new one from the Sign-in methods card.');
+            } else {
+                showToast('Could not link that email. You are still on this account.');
+            }
+        }
+        return true;
+    }
+    if (!auth.currentUser || auth.currentUser.uid !== linkedUid) {
+        if (typeof showToast === 'function') showToast(accountLinkConflictMessage('auth/credential-already-in-use'));
+        window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+        return true;
+    }
+    clearAccountLinkIntent();
+    window._accountLinkHold = false;
+    try { localStorage.removeItem('btc_signin_email'); } catch (e1) {}
+    try { localStorage.removeItem('emailForSignIn'); } catch (eFor) {}
+    try { localStorage.removeItem('btc_guest_link'); } catch (e2) {}
+    window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+    var holdEl = document.getElementById('accountLinkHold');
+    if (holdEl) holdEl.remove();
+    if (wasGuest && typeof _handleSignInResultGlobal === 'function') {
+        await _handleSignInResultGlobal(auth.currentUser, null, null);
+    }
+    var synced = null;
+    try { synced = await syncAccountEmailFromAuth(); } catch (syncErr) { synced = null; }
+    if (synced && synced.conflict) {
+        if (typeof showToast === 'function') showToast(accountLinkConflictMessage('auth/email-already-in-use'));
+        try { if (auth.currentUser && auth.currentUser.reload) await auth.currentUser.reload(); } catch (reloadErr) {}
+        if (typeof loadUser === 'function') loadUser(linkedUid);
+        refreshAccountSignInCard();
+        return true;
+    }
+    if (!wasGuest && typeof loadUser === 'function') loadUser(linkedUid);
+    if (typeof showToast === 'function') showToast('Email linked. You can use it to sign in next time.');
+    refreshAccountSignInCard();
+    return true;
+}
+
+async function linkGoogleOntoCurrentAccount(idToken) {
+    if (accountLinkTotpPending()) {
+        if (typeof showToast === 'function') showToast(accountLinkTotpHoldMessage());
+        return;
+    }
+    var user = auth && auth.currentUser;
+    var profile = (typeof currentUser !== 'undefined') ? currentUser : null;
+    if (!user || !accountCanLinkSignIn(user, profile)) {
+        if (typeof showToast === 'function') showToast('This account already has a sign-in method.');
+        return;
+    }
+    var credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+    var linkedUid = user.uid;
+    var wasGuest = !!user.isAnonymous;
+    try {
+        await user.linkWithCredential(credential);
+    } catch (linkErr) {
+        var code = linkErr && linkErr.code;
+        if (code === 'auth/multi-factor-auth-required') throw linkErr;
+        var conflict = accountLinkConflictMessage(code);
+        if (conflict) {
+            if (typeof showToast === 'function') showToast(conflict);
+            return;
+        }
+        if (typeof showToast === 'function') showToast('Could not link Google. You are still on this account.');
+        return;
+    }
+    if (!auth.currentUser || auth.currentUser.uid !== linkedUid) {
+        if (typeof showToast === 'function') showToast(accountLinkConflictMessage('auth/credential-already-in-use'));
+        return;
+    }
+    try { localStorage.removeItem('btc_guest_link'); } catch (e1) {}
+    if (typeof clearGoogleOneTapChrome === 'function') clearGoogleOneTapChrome();
+    if (wasGuest && typeof _handleSignInResultGlobal === 'function') {
+        await _handleSignInResultGlobal(auth.currentUser, null, null);
+    }
+    if (typeof showToast === 'function') showToast('Google linked. You can use it to sign in next time.');
+    refreshAccountSignInCard();
+}
+
+function surfaceMfaRequired(err) {
+    if (!err || err.code !== 'auth/multi-factor-auth-required') return false;
+    try {
+        var em = document.getElementById('emailInput');
+        if (em && em.value) window._mfaRecoveryEmail = em.value.trim();
+    } catch (e) {}
+    if (typeof window._showMFASignInChallenge === 'function') {
+        window._showMFASignInChallenge(err.resolver);
+    } else if (typeof showToast === 'function') {
+        showToast('Two-factor authentication required. Please refresh and try again.');
+    }
+    return true;
+}
+
 async function finishEmailSignIn(email, _signInUrl) {
+    if (email) window._mfaRecoveryEmail = email;
     if (!email) {
         showToast('⚠️ Could not determine your email. Please sign in again from the app.');
         return;
     }
+    if (await finishAccountEmailLink(email, _signInUrl)) return;
 
     try {
         // Save anonymous user info BEFORE sign-in changes auth state
@@ -467,14 +2212,61 @@ async function finishEmailSignIn(email, _signInUrl) {
             }
         }
 
-        // Sign in with email link (use saved URL that still has Firebase params)
-        console.log('[Email Sign-In] Starting signInWithEmailLink for:', email);
-        const result = await auth.signInWithEmailLink(email, _signInUrl);
-        console.log('[Email Sign-In] Sign-in result:', result.user ? result.user.uid : 'no user');
+        // Upgrade the guest in place when this email is new. Merge is the fallback.
+        // A previous resend means this code must not be spent on linkWithCredential.
+        console.log('[Email Sign-In] Starting sign-in');
+        var resultUser = null;
+        var skipInPlaceLink = false;
+        try {
+            skipInPlaceLink = shouldSkipInPlaceLink(localStorage.getItem('btc_skip_email_link'), email);
+        } catch (flagRead) {}
+        if (!skipInPlaceLink && anonUser && anonUser.isAnonymous && firebase.auth.EmailAuthProvider && typeof anonUser.linkWithCredential === 'function') {
+            try {
+                var emailCred = firebase.auth.EmailAuthProvider.credentialWithLink(email, _signInUrl);
+                var linkedEmail = await anonUser.linkWithCredential(emailCred);
+                try { localStorage.removeItem('btc_guest_link'); } catch (e1) {}
+                resultUser = linkedEmail.user;
+            } catch (linkErr) {
+                var linkCode = linkErr && linkErr.code;
+                var linkPlan = planEmailLinkFailure(linkCode, !!(linkErr && linkErr.credential));
+                if (linkPlan === 'mfa') throw linkErr;
+                if (linkPlan === 'credential') {
+                    var signedEmail = await auth.signInWithCredential(linkErr.credential);
+                    resultUser = signedEmail.user;
+                } else if (linkPlan === 'throw') {
+                    throw linkErr;
+                }
+            }
+        }
+        if (!resultUser) {
+            try {
+                const result = await auth.signInWithEmailLink(email, _signInUrl);
+                resultUser = result.user;
+                try { localStorage.removeItem('btc_skip_email_link'); } catch (clearFlag) {}
+            } catch (signErr) {
+                var signPlan = planEmailSignInFailure(signErr && signErr.code);
+                if (signPlan === 'mfa') throw signErr;
+                if (signPlan === 'resend') {
+                    try { localStorage.setItem('btc_skip_email_link', String(email || '').trim().toLowerCase()); } catch (flagErr) {}
+                    var resent = false;
+                    try { resent = await sendMagicLink(email); } catch (sendErr) { resent = false; }
+                    var consumed = new Error(resent
+                        ? 'That sign-in link was already used. We emailed you a fresh link.'
+                        : 'That sign-in link was already used. Request a new one from the sign-in screen.');
+                    consumed.code = 'auth/link-consumed';
+                    throw consumed;
+                }
+                throw signErr;
+            }
+        }
+        if (resultUser) {
+            try { localStorage.removeItem('btc_skip_email_link'); } catch (clearFlag) {}
+        }
+        console.log('[Email Sign-In] Sign-in result:', resultUser ? resultUser.uid : 'no user');
         localStorage.removeItem('btc_signin_email');
 
         // Check if this email user already has data
-        const emailUid = result.user.uid;
+        const emailUid = resultUser.uid;
 
         // Wait for auth state to fully stabilize and db to get fresh token
         console.log('[Email Sign-In] Waiting for auth token propagation...');
@@ -496,65 +2288,46 @@ async function finishEmailSignIn(email, _signInUrl) {
         const existingDoc = await db.collection('users').doc(emailUid).get();
         console.log('[Email Sign-In] Existing doc exists:', existingDoc.exists);
 
-        if (!existingDoc.exists && anonData) {
-            // Migrate anonymous data to email account
-            anonData.email = email;
-            await db.collection('users').doc(emailUid).set(anonData);
-        } else if (existingDoc.exists && anonData) {
-            // Existing email user - merge points if anon had more (one-time only)
-            const existData = existingDoc.data();
-            var _mergedPts = Math.min(anonData.points || 0, 500);
-                if (!existData.mergedAnon && _mergedPts > (existData.points || 0)) {
-                await existingDoc.ref.update({
-                    points: Math.max(_mergedPts, existData.points || 0),
-                    channelsVisited: Math.max(anonData.channelsVisited || 0, existData.channelsVisited || 0),
-                    totalVisits: (existData.totalVisits || 0) + (anonData.totalVisits || 0),
-                    mergedAnon: true,
-                });
+        const pendingUsername = localStorage.getItem('btc_pending_username');
+        const pendingLnAddress = localStorage.getItem('btc_pending_ln_address') || '';
+        const pendingFaction  = localStorage.getItem('btc_pending_faction')    || '';
+        const pendingCountry  = localStorage.getItem('btc_pending_country')    || '';
+        if (!existingDoc.exists) {
+            var extra = {
+                tosVersion: TOS_CURRENT_VERSION,
+                tosAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            var _emailLn = normalizeClientLn(pendingLnAddress);
+            if (clientLnValid(_emailLn)) { extra.lightning = _emailLn; extra.lightningAddress = _emailLn; }
+            if (pendingCountry) extra.country = pendingCountry;
+            var _emailSrc = localStorage.getItem('btc_signup_source');
+            if (_emailSrc) extra.signupSource = _emailSrc;
+            await db.collection('users').doc(emailUid).set(clientCreatePayload(extra));
+            if (pendingFaction) {
+                try { await flushSignupFaction(pendingFaction); } catch (e) {}
+            }
+            try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
+            if (typeof attachReferral === 'function') attachReferral(emailUid);
+            if (pendingUsername) {
+                try { await applyServerUsername(pendingUsername); }
+                catch (nameErr) {
+                    showToast(nameErr.message || 'Pick a different username.');
+                    if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+                }
             }
         }
+        var guestHold = false;
+        if (typeof tryLinkGuest === 'function') {
+            try { if (await tryLinkGuest() === 'mfa') guestHold = true; } catch (e) {}
+        }
 
-        // Delete the old anonymous user document to prevent duplicates on leaderboard
-        if (anonUid && anonUid !== emailUid) {
+        // Keep the guest profile when the merge is waiting on the 2FA gate.
+        if (anonUid && anonUid !== emailUid && !guestHold) {
             try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
         }
 
         // Clean URL
         window.history.replaceState(null, '', window.location.pathname + window.location.hash);
-
-        // Check if this was a new registration (pending username from signup form)
-        const pendingUsername = localStorage.getItem('btc_pending_username');
-        const pendingEmail = localStorage.getItem('btc_pending_email');
-        const pendingLnAddress = localStorage.getItem('btc_pending_ln_address') || '';
-        const pendingFaction  = localStorage.getItem('btc_pending_faction')    || '';
-        const pendingCountry  = localStorage.getItem('btc_pending_country')    || '';
-        if (pendingUsername && !existingDoc.exists) {
-            // New user verifying their email - create their full account now
-            const userData = {
-                username: pendingUsername,
-                email: email,
-                points: 0,
-                channelsVisited: 0,
-                totalVisits: 1,
-                streak: 1,
-                lastVisit: new Date().toISOString().split('T')[0],
-                created: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            var _emailLn = normalizeClientLn(pendingLnAddress);
-            if (clientLnValid(_emailLn)) { userData.lightning = _emailLn; userData.lightningAddress = _emailLn; }
-            if (pendingFaction)   { userData.faction = pendingFaction; }
-            if (pendingCountry)   { userData.country = pendingCountry; }
-            var _emailSrc = localStorage.getItem('btc_signup_source');
-            if (_emailSrc) { userData.signupSource = _emailSrc; }
-            // TOS acceptance recorded at signup (email verification path)
-            userData.tosVersion = TOS_CURRENT_VERSION;
-            userData.tosAcceptedAt = firebase.firestore.FieldValue.serverTimestamp();
-            await db.collection('users').doc(emailUid).set(userData);
-            try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
-
-            // Attach referral if they came via referral link
-            if (typeof attachReferral === 'function') attachReferral(emailUid);
-        }
 
         // Clean up pending data
         localStorage.removeItem('btc_pending_username');
@@ -567,16 +2340,14 @@ async function finishEmailSignIn(email, _signInUrl) {
         localStorage.removeItem('btc_wallet_addrs');
 
         loadUser(emailUid);
-        showToast('✅ Email verified! Signed in as ' + escapeHtml(pendingUsername || email));
+        showToast('Email verified. You\'re signed in.');
     } catch(e) {
         console.error('[Email Sign-In] Full error:', e.code, e.message, e.stack);
-        // MFA required
-        if (e.code === 'auth/multi-factor-auth-required') {
-            if (typeof window._showMFASignInChallenge === 'function') {
-                window._showMFASignInChallenge(e.resolver);
-            } else {
-                showToast('Two-factor authentication required. Please refresh and try again.');
-            }
+        // MFA required. Do not start a new guest session over the challenge.
+        if (surfaceMfaRequired(e)) return;
+        if (e.code === 'auth/link-consumed') {
+            showToast(e.message || 'That sign-in link was already used. Request a new one.');
+            window.history.replaceState(null, '', window.location.pathname + window.location.hash);
             return;
         }
         // Check if this is a Firestore permission error
@@ -590,91 +2361,276 @@ async function finishEmailSignIn(email, _signInUrl) {
         } else {
             showToast('Sign-in error (' + (e.code || 'unknown') + '). Please try again.');
         }
-        // Clean URL so the broken link doesn't keep retrying
+        // A failed account link must not mint a guest. A normal sign-in
+        // failure can, once the one-time code is gone from the address bar.
+        if (window._accountLinkHold === true || anonymousSignInBlockedNow()) {
+            presentAccountLinkHold(window._accountLinkHoldDecision || 'need-session');
+            return;
+        }
         window.history.replaceState(null, '', window.location.pathname + window.location.hash);
-        auth.signInAnonymously();
+        startAnonymousSession();
     }
 }
 
-// Google Sign-In - uses Google Identity Services (GIS) for PWA compatibility
+// Google Sign-In. The rendered Google button returns an ID token in this page.
+// Firebase accepts it with signInWithCredential / linkWithCredential, so Google
+// never redirects to /__/auth/handler. Popup and redirect stay as the fallback
+// when the Google script cannot load. The ID token is not logged.
 var GOOGLE_CLIENT_ID = '1055248200518-jcn5efjp7vhk0vm8cbmj4mfsgc0edkga.apps.googleusercontent.com';
+
+function gisApiReady() {
+    return typeof google !== 'undefined' && google.accounts && google.accounts.id &&
+        typeof google.accounts.id.renderButton === 'function';
+}
+
+function loadGoogleIdentityScript() {
+    if (gisApiReady()) return Promise.resolve();
+    if (window._gsiLoadPromise) return window._gsiLoadPromise;
+    window._gsiLoadPromise = new Promise(function(resolve, reject) {
+        if (typeof window._loadGSI === 'function') window._loadGSI();
+        var script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+        if (!script) {
+            reject(new Error('gsi-unavailable'));
+            return;
+        }
+        var settled = false;
+        var giveUpAt = Date.now() + 8000;
+        var timer = setInterval(function() {
+            if (settled) return;
+            if (gisApiReady()) finish(true);
+            else if (Date.now() >= giveUpAt) finish(false);
+        }, 50);
+        function finish(ok) {
+            if (settled) return;
+            settled = true;
+            clearInterval(timer);
+            if (ok && gisApiReady()) resolve();
+            else reject(new Error('gsi-unavailable'));
+        }
+        script.addEventListener('load', function() { if (gisApiReady()) finish(true); });
+        script.addEventListener('error', function() { finish(false); });
+    });
+    return window._gsiLoadPromise;
+}
+
+function googleSignInErrorMessage(e) {
+    var code = (e && e.code) || '';
+    if (code === 'auth/unauthorized-domain') return 'This domain is not authorized for sign-in. Please contact support.';
+    if (code === 'auth/operation-not-allowed') return 'This sign-in method is not enabled. Try a different option.';
+    if (code === 'auth/account-exists-with-different-credential') return 'This email already has an account with another sign-in method. Sign in that way, then link Google in settings.';
+    if (code === 'auth/network-request-failed') return 'Network error. Check your connection and try again.';
+    if (code === 'auth/popup-blocked') return 'The sign-in window was blocked. Allow popups and try again.';
+    if (code === 'auth/user-disabled') return 'This account is disabled. Please contact support.';
+    if (code === 'auth/too-many-requests') return 'Too many attempts. Wait a moment and try again.';
+    if (code === 'auth/web-storage-unsupported') return 'This browser is blocking sign-in storage. Try another browser.';
+    if (code === 'auth/invalid-credential' || code === 'auth/invalid-id-token' || code === 'auth/user-token-expired') return 'That sign-in was rejected. Please try again.';
+    if (code === 'auth/credential-already-in-use' || code === 'auth/email-already-in-use') return 'This account already exists. Please try signing in again.';
+    if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request' || code === 'auth/user-cancelled') return '';
+    return 'Sign-in did not work. Please try again.';
+}
+
+function rememberGoogleMfaEmail(idToken) {
+    try {
+        var part = String(idToken).split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+        while (part.length % 4) part += '=';
+        var payload = JSON.parse(atob(part));
+        if (payload && payload.email) window._mfaRecoveryEmail = String(payload.email).trim();
+    } catch (ignore) {}
+}
+
+function clearGoogleOneTapChrome() {
+    try { if (gisApiReady()) google.accounts.id.cancel(); } catch (e) {}
+    document.querySelectorAll('[id*="credential_picker"]').forEach(function(el) { el.remove(); });
+}
+
+var _googleCredentialBusy = false;
+
+async function applyGoogleIdToken(idToken) {
+    if (!idToken || typeof idToken !== 'string') throw new Error('No credential received');
+    if (_googleCredentialBusy) return null;
+    _googleCredentialBusy = true;
+    var linkOnly = window._accountLinkGoogle === true;
+    window._accountLinkGoogle = false;
+    try {
+        if (linkOnly) {
+            await linkGoogleOntoCurrentAccount(idToken);
+            return auth.currentUser;
+        }
+        var credential = firebase.auth.GoogleAuthProvider.credential(idToken);
+        var guest = auth.currentUser;
+        var anonUid = (guest && guest.isAnonymous) ? guest.uid : null;
+        var resultUser = null;
+        if (guest && guest.isAnonymous && typeof guest.linkWithCredential === 'function') {
+            try {
+                var linked = await guest.linkWithCredential(credential);
+                try { localStorage.removeItem('btc_guest_link'); } catch (e1) {}
+                resultUser = linked.user;
+                anonUid = null;
+            } catch (linkErr) {
+                var linkCode = linkErr && linkErr.code;
+                if (linkCode === 'auth/credential-already-in-use' || linkCode === 'auth/email-already-in-use') {
+                    // GIS ID-token credentials do not get .credential on this error.
+                    // Rebuild from the same token. Do not reuse the object the link call consumed.
+                    // anonUid stays set so the guest merge still runs.
+                    var signed = await auth.signInWithCredential(linkErr.credential || firebase.auth.GoogleAuthProvider.credential(idToken));
+                    resultUser = signed.user;
+                } else if (linkCode === 'auth/account-exists-with-different-credential') {
+                    var differentMethod = new Error(googleSignInErrorMessage(linkErr));
+                    differentMethod.code = linkCode;
+                    throw differentMethod;
+                } else {
+                    throw linkErr;
+                }
+            }
+        }
+        if (!resultUser) {
+            var result = await auth.signInWithCredential(credential);
+            resultUser = result.user;
+        }
+        clearGoogleOneTapChrome();
+        await _handleSignInResultGlobal(resultUser, anonUid, null);
+        return resultUser;
+    } finally {
+        _googleCredentialBusy = false;
+    }
+}
+
+function onGoogleIdentityCredential(response) {
+    var idToken = response && response.credential;
+    if (!idToken) return;
+    applyGoogleIdToken(idToken).catch(function(e) {
+        if (e && e.code === 'auth/multi-factor-auth-required') rememberGoogleMfaEmail(idToken);
+        if (surfaceMfaRequired(e)) return;
+        console.warn('[Auth] Google sign-in failed:', (e && e.code) || 'unknown');
+        var msg = googleSignInErrorMessage(e);
+        if (msg && typeof showToast === 'function') showToast(msg);
+    });
+}
+
+function ensureGoogleIdentityInit() {
+    if (window._gsiInitialized || !gisApiReady()) return;
+    google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: onGoogleIdentityCredential,
+        auto_select: false,
+        cancel_on_tap_outside: false,
+        context: 'signin',
+        ux_mode: 'popup',
+        itp_support: true
+    });
+    window._gsiInitialized = true;
+}
+
+function googleButtonWidth(fallback) {
+    var width = fallback && fallback.offsetWidth ? fallback.offsetWidth : 0;
+    if (width < 200) {
+        var box = document.querySelector('#usernameModal .username-box');
+        width = box && box.clientWidth ? box.clientWidth - 32 : 320;
+    }
+    if (width < 200) width = 280;
+    if (width > 400) width = 400;
+    return Math.floor(width);
+}
+
+function renderGoogleSignInButton() {
+    if (isInAppBrowser()) return;
+    var host = document.getElementById('gsiButtonHost');
+    var fallback = document.getElementById('googleSignInFallback');
+    if (!host || !gisApiReady()) return;
+    ensureGoogleIdentityInit();
+    if (host.getAttribute('data-gsi-rendered') === '1' && host.childNodes.length) {
+        host.style.display = 'block';
+        if (fallback) fallback.style.display = 'none';
+        return;
+    }
+    host.setAttribute('data-gsi-rendered', '1');
+    host.innerHTML = '';
+    host.style.display = 'block';
+    try {
+        google.accounts.id.renderButton(host, {
+            type: 'standard',
+            theme: 'filled_black',
+            size: 'large',
+            text: 'signin_with',
+            shape: 'rectangular',
+            logo_alignment: 'left',
+            width: googleButtonWidth(fallback),
+            click_listener: function() {
+                window._accountLinkGoogle = false;
+                if (typeof window._captureSignupFormState === 'function') window._captureSignupFormState();
+            }
+        });
+    } catch (e) {
+        host.removeAttribute('data-gsi-rendered');
+        host.style.display = 'none';
+        window._gsiFailed = true;
+        if (fallback) fallback.style.display = 'flex';
+        return;
+    }
+    if (!host.childNodes.length) {
+        host.removeAttribute('data-gsi-rendered');
+        host.style.display = 'none';
+        if (fallback) fallback.style.display = 'flex';
+        return;
+    }
+    if (fallback) fallback.style.display = 'none';
+}
+
+function mountGoogleSignInButton() {
+    if (isInAppBrowser()) return;
+    var host = document.getElementById('gsiButtonHost');
+    if (!host || window._gsiFailed) return;
+    if (gisApiReady()) {
+        renderGoogleSignInButton();
+        return;
+    }
+    if (window._gsiMounting) return;
+    window._gsiMounting = true;
+    loadGoogleIdentityScript().then(function() {
+        window._gsiMounting = false;
+        renderGoogleSignInButton();
+    }).catch(function() {
+        window._gsiMounting = false;
+        window._gsiFailed = true;
+        host.style.display = 'none';
+        var fallback = document.getElementById('googleSignInFallback');
+        if (fallback) fallback.style.display = 'flex';
+    });
+}
+
+function installGoogleSignInButton() {
+    if (isInAppBrowser()) return;
+    var modal = document.getElementById('usernameModal');
+    if (!modal || modal._gsiWatch) return;
+    modal._gsiWatch = true;
+    var obs = new MutationObserver(function() {
+        if (modal.classList.contains('open') && document.getElementById('gsiButtonHost')) mountGoogleSignInButton();
+    });
+    obs.observe(modal, { attributes: true, attributeFilter: ['class'] });
+    if (modal.classList.contains('open') && document.getElementById('gsiButtonHost')) mountGoogleSignInButton();
+}
 
 window.signInWithGoogle = async function() {
     window._captureSignupFormState();
-    var isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
-    // On desktop, try GIS One Tap (fast if available)
-    // On mobile, skip GIS entirely - go straight to Firebase popup (faster, more reliable)
-    if (!isMobile) {
-        // Lazy-load the GSI script if not already loaded
-        if (typeof window._loadGSI === 'function') window._loadGSI();
-        // Wait up to 3s for google.accounts to become available
-        if (typeof google === 'undefined' || !google.accounts) {
-            await new Promise(function(resolve) {
-                var waited = 0;
-                var t = setInterval(function() {
-                    waited += 100;
-                    if ((typeof google !== 'undefined' && google.accounts) || waited >= 3000) { clearInterval(t); resolve(); }
-                }, 100);
-            });
-        }
-        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
-            try {
-                await signInWithGIS();
-                return;
-            } catch(gisErr) {
-                console.warn('[Auth] GIS failed, falling back to Firebase popup:', gisErr);
-                try { google.accounts.id.cancel(); } catch(e) {}
-                document.querySelectorAll('[id*="credential_picker"], [id*="g_id_"], iframe[src*="accounts.google.com"]').forEach(function(el) { el.remove(); });
-            }
-        }
+    if (isInAppBrowser()) {
+        await signInWithProvider(new firebase.auth.GoogleAuthProvider());
+        return;
     }
-    // Firebase popup/redirect
-    await signInWithProvider(new firebase.auth.GoogleAuthProvider());
+    if (!window._gsiFailed) {
+        mountGoogleSignInButton();
+        return;
+    }
+    var btn = document.getElementById('googleSignInFallback');
+    if (btn) btn.style.opacity = '0.6';
+    try {
+        await signInWithProvider(new firebase.auth.GoogleAuthProvider());
+    } catch (e) {
+        if (surfaceMfaRequired(e)) return;
+    }
 };
 
-async function signInWithGIS() {
-    var saved = await _saveAnonDataGlobal();
-    return new Promise(function(resolve, reject) {
-        var anonUid = saved.anonUid;
-        var anonData = saved.anonData;
-
-        google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: async function(response) {
-                if (!response || !response.credential) {
-                    reject(new Error('No credential received'));
-                    return;
-                }
-                try {
-                    var credential = firebase.auth.GoogleAuthProvider.credential(response.credential);
-                    var result = await auth.signInWithCredential(credential);
-                    // Clean up ALL GIS UI elements
-                    try { google.accounts.id.cancel(); } catch(e) {}
-                    var _gsiBtn = document.getElementById('gsi-temp-btn');
-                    if (_gsiBtn) { var _bd = _gsiBtn.closest('div[style*="position:fixed"]'); if (_bd) _bd.remove(); else _gsiBtn.remove(); }
-                    document.querySelectorAll('[id*="credential_picker"], [id*="g_id_"], iframe[src*="accounts.google.com"]').forEach(function(el) { el.remove(); });
-                    await _handleSignInResultGlobal(result.user, anonUid, anonData);
-                    resolve(result.user);
-                } catch(e) {
-                    reject(e);
-                }
-            },
-            auto_select: false,
-            cancel_on_tap_outside: true,
-            context: 'signin',
-            ux_mode: 'popup'
-        });
-
-        // Try One Tap first
-        google.accounts.id.prompt(function(notification) {
-            if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-                // One Tap not available - fall back to Firebase popup immediately (no second button)
-                console.log('[Auth] One Tap not shown, falling back to Firebase popup');
-                reject(new Error('One Tap unavailable'));
-            }
-        });
-    });
-}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', installGoogleSignInButton);
+else installGoogleSignInButton();
 
 // Twitter/X Sign-In - no client SDK, must use Firebase popup/redirect
 window.signInWithTwitter = async function() {
@@ -682,12 +2638,11 @@ window.signInWithTwitter = async function() {
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     if (isStandalone) {
         try {
-            var _ad = await _saveAnonDataGlobal();
-            var result = await auth.signInWithPopup(new firebase.auth.TwitterAuthProvider());
-            await _handleSignInResultGlobal(result.user, _ad.anonUid, _ad.anonData);
+            await linkOrSignInPopup(new firebase.auth.TwitterAuthProvider());
             return;
         } catch(e) {
-            if (e.code === 'auth/popup-closed-by-user') return;
+            if (e && e.code === 'auth/popup-closed-by-user') return;
+            if (surfaceMfaRequired(e)) return;
             showPWAAuthFallback('Twitter');
             return;
         }
@@ -701,12 +2656,11 @@ window.signInWithGithub = async function() {
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     if (isStandalone) {
         try {
-            var _ad = await _saveAnonDataGlobal();
-            var result = await auth.signInWithPopup(new firebase.auth.GithubAuthProvider());
-            await _handleSignInResultGlobal(result.user, _ad.anonUid, _ad.anonData);
+            await linkOrSignInPopup(new firebase.auth.GithubAuthProvider());
             return;
         } catch(e) {
-            if (e.code === 'auth/popup-closed-by-user') return;
+            if (e && e.code === 'auth/popup-closed-by-user') return;
+            if (surfaceMfaRequired(e)) return;
             showPWAAuthFallback('GitHub');
             return;
         }
@@ -760,7 +2714,8 @@ window.signInWithFacebook = async function() {
             await signInWithFBSDK();
             return;
         } catch(fbErr) {
-            if (fbErr.message === 'Facebook login cancelled') return;
+            if (fbErr && fbErr.message === 'Facebook login cancelled') return;
+            if (surfaceMfaRequired(fbErr)) return;
             console.warn('[Auth] FB SDK failed:', fbErr);
         }
     }
@@ -768,15 +2723,33 @@ window.signInWithFacebook = async function() {
 }
 
 async function signInWithFBSDK() {
-    var saved = await _saveAnonDataGlobal();
+    var anonUid = (auth.currentUser && auth.currentUser.isAnonymous) ? auth.currentUser.uid : null;
     return new Promise(function(resolve, reject) {
         FB.login(function(response) {
             if (!response.authResponse) { reject(new Error('Facebook login cancelled')); return; }
             var credential = firebase.auth.FacebookAuthProvider.credential(response.authResponse.accessToken);
-            auth.signInWithCredential(credential).then(async function(result) {
-                await _handleSignInResultGlobal(result.user, saved.anonUid, saved.anonData);
-                resolve(result.user);
-            }).catch(reject);
+            var guest = auth.currentUser;
+            var chain;
+            if (guest && guest.isAnonymous && typeof guest.linkWithCredential === 'function') {
+                chain = guest.linkWithCredential(credential).then(function(linked) {
+                    try { localStorage.removeItem('btc_guest_link'); } catch (e1) {}
+                    return _handleSignInResultGlobal(linked.user, null, null).then(function() { return linked.user; });
+                }).catch(function(linkErr) {
+                    var linkCode = linkErr && linkErr.code;
+                    if (linkCode === 'auth/credential-already-in-use' || linkCode === 'auth/email-already-in-use') {
+                        var fbCred = linkErr.credential || firebase.auth.FacebookAuthProvider.credential(response.authResponse.accessToken);
+                        return auth.signInWithCredential(fbCred).then(function(signed) {
+                            return _handleSignInResultGlobal(signed.user, anonUid, null).then(function() { return signed.user; });
+                        });
+                    }
+                    throw linkErr;
+                });
+            } else {
+                chain = auth.signInWithCredential(credential).then(function(result) {
+                    return _handleSignInResultGlobal(result.user, anonUid, null).then(function() { return result.user; });
+                });
+            }
+            chain.then(resolve).catch(reject);
         }, { scope: 'email,public_profile' });
     });
 }
@@ -804,8 +2777,12 @@ window.signInWithNostr = async function() {
                 '<button onclick="nostrSignInWithExtension()" style="width:100%;padding:14px;background:linear-gradient(135deg,rgba(123,45,228,0.2),rgba(123,45,228,0.05));border:2px solid rgba(123,45,228,0.4);border-radius:14px;color:var(--text);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;gap:12px;text-align:left;"><span style="font-size:1.5rem;">🔌</span><div><div style="color:#7B2DE4;">Use Browser Extension</div><div style="color:var(--text-faint);font-size:0.7rem;font-weight:400;margin-top:2px;">Alby, nos2x, or Nostr Connect detected</div></div></button>'
             : '<div style="padding:14px;background:rgba(255,255,255,0.03);border:1px dashed var(--border);border-radius:14px;margin-bottom:12px;display:flex;align-items:center;gap:12px;"><span style="font-size:1.5rem;opacity:0.4;">🔌</span><div><div style="color:var(--text-faint);">No Extension Detected</div><div style="color:var(--text-faint);font-size:0.7rem;margin-top:2px;">Install <a href="https://getalby.com" target="_blank" rel="noopener" style="color:#7B2DE4;">Alby</a> or <a href="https://github.com/nicholasmcconnell/nos2x" target="_blank" rel="noopener" style="color:#7B2DE4;">nos2x</a> for one-click login</div></div></div>') +
             '<div style="display:flex;align-items:center;gap:12px;margin:16px 0;"><div style="flex:1;height:1px;background:var(--border);"></div><span style="color:var(--text-faint);font-size:0.75rem;">or</span><div style="flex:1;height:1px;background:var(--border);"></div></div>' +
-            '<div style="margin-bottom:16px;"><label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:6px;">Paste your nsec (private key)</label><input type="password" id="nostrNsecInput" placeholder="nsec1..." style="width:100%;padding:12px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:monospace;outline:none;box-sizing:border-box;"><div style="color:var(--text-faint);font-size:0.65rem;margin-top:6px;line-height:1.4;">🔒 Your nsec is used <strong>only in your browser</strong> to sign a one-time login event. It is never sent to our servers or stored anywhere.</div></div>' +
+            '<details id="nostrNsecDetails" style="margin-bottom:8px;"><summary style="cursor:pointer;color:var(--text-faint);font-size:0.75rem;">Advanced: sign in with your nsec (not recommended)</summary>' +
+            '<div style="margin:10px 0;padding:10px 12px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.4);border-radius:10px;color:#ef4444;font-size:0.75rem;line-height:1.45;">⚠️ <strong>Your nsec controls your whole Nostr identity.</strong> Never paste it into a website you don\'t fully trust. Use a browser extension (Alby, nos2x) or a signer app instead. If you continue, the key stays in this browser tab, is never sent to our servers or saved, and is cleared right after signing.</div>' +
+            '<label style="display:flex;gap:8px;align-items:flex-start;font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;"><input type="checkbox" id="nostrNsecAck"> I understand the risk and still want to use my nsec</label>' +
+            '<div style="margin-bottom:16px;"><label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:6px;">Paste your nsec (private key)</label><input type="password" id="nostrNsecInput" placeholder="nsec1..." autocomplete="off" autocapitalize="off" spellcheck="false" style="width:100%;padding:12px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:monospace;outline:none;box-sizing:border-box;"><div style="color:var(--text-faint);font-size:0.65rem;margin-top:6px;line-height:1.4;">🔒 Your nsec is used <strong>only in your browser</strong> to sign a one-time login event. It is never sent to our servers or stored anywhere.</div></div>' +
             '<button onclick="nostrSignInWithNsec()" id="nostrNsecBtn" style="width:100%;padding:14px;background:#7B2DE4;color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Sign In with nsec</button>' +
+            '</details>' +
             '<div id="nostrAuthStatus" style="margin-top:8px;font-size:0.8rem;text-align:center;min-height:20px;"></div>' +
             '<div style="display:flex;align-items:center;gap:12px;margin:16px 0;"><div style="flex:1;height:1px;background:var(--border);"></div><span style="color:var(--text-faint);font-size:0.75rem;">or</span><div style="flex:1;height:1px;background:var(--border);"></div></div>' +
             '<div><label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:6px;">Paste your npub (public key only)</label><input type="text" id="nostrNpubInput" placeholder="npub1..." style="width:100%;padding:12px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-family:monospace;outline:none;box-sizing:border-box;"></div>' +
@@ -834,6 +2811,8 @@ window.nostrSignInWithNsec = async function() {
     var nsec = (document.getElementById('nostrNsecInput').value || '').trim();
     var statusEl = document.getElementById('nostrAuthStatus');
     var btn = document.getElementById('nostrNsecBtn');
+    var ack = document.getElementById('nostrNsecAck');
+    if (!ack || !ack.checked) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Please confirm you understand the risk first (or use an extension).</span>'; return; }
     if (!nsec) { showToast('Please paste your nsec'); return; }
     if (!nsec.startsWith('nsec1')) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Invalid nsec format. Must start with nsec1</span>'; return; }
     btn.disabled = true; btn.textContent = 'Loading crypto library...';
@@ -862,11 +2841,15 @@ window.nostrSignInWithNsec = async function() {
         var event = { kind: 22242, created_at: Math.floor(Date.now() / 1000), tags: [['challenge', 'btc-edu-' + Date.now()]], content: 'Sign in to Bitcoin Education Archive', pubkey: pubkey };
         event.id = NT.getEventHash(event);
         event.sig = NT.signEvent(event, privkeyHex);
+        // Wipe the private key from memory/DOM before anything goes over the network.
         document.getElementById('nostrNsecInput').value = '';
+        nsec = ''; privkeyHex = ''; decoded = null;
         if (statusEl) statusEl.innerHTML = '<span style="color:var(--accent);">Verifying signature...</span>';
         await nostrCompleteAuth(pubkey, event.sig, event);
     } catch(e) {
-        console.error('Nostr nsec error:', e);
+        try { document.getElementById('nostrNsecInput').value = ''; } catch(_) {}
+        nsec = '';
+        console.error('Nostr nsec error:', e && e.message ? e.message : 'unknown');
         if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Error: ' + (e.message || 'Failed to sign') + '</span>';
         btn.disabled = false; btn.textContent = 'Sign In with nsec';
     }
@@ -903,7 +2886,11 @@ window.nostrSignInWithNpub = async function() {
     try {
         if (!auth.currentUser) await auth.signInAnonymously();
         var uid = auth.currentUser.uid;
-        await db.collection('users').doc(uid).set({ nostr: pubkey, lastLogin: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        var nostrPatch = { nostr: pubkey, lastLogin: firebase.firestore.FieldValue.serverTimestamp() };
+        var nostrDoc = await db.collection('users').doc(uid).get();
+        // created can only be set on create. An update that adds it is rejected.
+        if (!nostrDoc.exists) nostrPatch.created = firebase.firestore.FieldValue.serverTimestamp();
+        await db.collection('users').doc(uid).set(nostrPatch, { merge: true });
         if (currentUser) currentUser.nostr = pubkey;
         var overlay = document.getElementById('nostrAuthOverlay'); if (overlay) overlay.remove();
         showToast('🟣 Nostr identity linked! (npub)');
@@ -920,30 +2907,48 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
             await auth.signInWithCustomToken(result.data.token);
             var uid = result.data.uid;
             var userDoc = await db.collection('users').doc(uid).get();
-            // Always patch 'created' if missing — even for returning users who already have a username
-            // Fixes Nostr users who logged in before this field was written
-            if (!userDoc.exists || !userDoc.data().created) {
-                await db.collection('users').doc(uid).set({ created: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
-            }
-            if (!userDoc.exists || !userDoc.data().username) {
-                var npubShort = 'npub...' + pubkey.substring(0, 8);
-                var _nostrUserData = { username: npubShort, nostr: pubkey, totalVisits: 1, streak: 1, lastVisit: new Date().toISOString().split('T')[0] };
-                if (!userDoc.exists) { _nostrUserData.points = 0; _nostrUserData.channelsVisited = 0; }
-                await db.collection('users').doc(uid).set(_nostrUserData, { merge: true });
+            // nostrAuth writes created from Auth creationTime before this read.
+            // A later client update of created is rejected by the rules, so do
+            // not try to patch it here.
+            if (!userDoc.exists) {
+                await db.collection('users').doc(uid).set(clientCreatePayload({ nostr: pubkey }), { merge: true });
                 try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
+            } else if (pubkey) {
+                try { await db.collection('users').doc(uid).set({ nostr: pubkey }, { merge: true }); } catch (e) {}
+            }
+            if (!userDoc.exists || !userDoc.data() || !userDoc.data().username) {
+                var npubShort = 'npub' + String(pubkey || '').replace(/[^a-f0-9]/gi, '').substring(0, 8);
+                try { await applyServerUsername(npubShort); }
+                catch (nameErr) { if (typeof showUsernamePrompt === 'function') showUsernamePrompt(); }
             }
             loadUser(uid); hideUsernamePrompt();
+            if (typeof attachReferral === 'function') attachReferral(uid);
             var overlay = document.getElementById('nostrAuthOverlay'); if (overlay) overlay.remove();
             showToast('🟣 Signed in with Nostr!');
         } else { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Auth failed - no token received</span>'; }
-    } catch(e) { console.error('Nostr auth error:', e); if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Verification failed: ' + (e.message || 'Unknown') + '</span>'; }
+    } catch(e) {
+        if (surfaceMfaRequired(e)) {
+            var overlay = document.getElementById('nostrAuthOverlay');
+            if (overlay) overlay.remove();
+            return;
+        }
+        console.error('Nostr auth error:', e);
+        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Verification failed: ' + (e.message || 'Unknown') + '</span>';
+    }
 };
 
 // Apple Sign-In removed
 
 // Lightning (LNURL-auth) Sign-In
 window.signInWithLightning = async function() {
-    if (!checkRateLimit()) return;
+    if (!checkRateLimit()) return false;
+    var lnSettled = false;
+    function settleLn(value) {
+        if (lnSettled) return;
+        lnSettled = true;
+        if (typeof window._settleLightning === 'function') window._settleLightning(!!value);
+    }
+    window._lightningSignIn = new Promise(function(resolve) { window._settleLightning = resolve; });
     window._captureSignupFormState();
     // Close the sign-in modal so the LN overlay isn't buried under it
     var _um = document.getElementById('usernameModal');
@@ -952,8 +2957,8 @@ window.signInWithLightning = async function() {
     // Show modal immediately with loading skeleton (Cloud Function can be slow on cold start)
     var qrModal = document.createElement('div');
     qrModal.id = 'lnAuthModal';
-    qrModal.style.cssText = 'position:fixed;inset:0;z-index:500000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);';
-    qrModal.onclick = function(e) { if (e.target === qrModal) qrModal.remove(); };
+    qrModal.style.cssText = 'position:fixed;inset:0;z-index:2200020;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.8);';
+    qrModal.onclick = function(e) { if (e.target === qrModal) { qrModal.remove(); settleLn(false); } };
     qrModal.innerHTML =
         '<div style="background:var(--bg-side,#1a1a2e);border:2px solid var(--accent);border-radius:20px;padding:28px;max-width:380px;width:90%;text-align:center;">' +
             '<div style="font-size:2rem;margin-bottom:10px;">⚡</div>' +
@@ -964,9 +2969,11 @@ window.signInWithLightning = async function() {
             '</div>' +
             '<div id="lnAuthCopyWrap" style="margin-bottom:12px;display:none;"></div>' +
             '<p id="lnAuthStatus" style="color:var(--text-muted);font-size:0.85rem;font-weight:600;">Connecting to server...</p>' +
-            '<button onclick="document.getElementById(\'lnAuthModal\').remove()" style="margin-top:10px;padding:8px 20px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+            '<button type="button" id="lnAuthCancel" style="margin-top:10px;padding:8px 20px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
         '</div>';
     document.body.appendChild(qrModal);
+    var lnCancel = document.getElementById('lnAuthCancel');
+    if (lnCancel) lnCancel.onclick = function() { qrModal.remove(); settleLn(false); };
 
     try {
         // Request challenge from Cloud Function
@@ -974,12 +2981,13 @@ window.signInWithLightning = async function() {
         var challengeResult = await lnAuthChallenge();
 
         // Check modal still exists (user might have cancelled)
-        if (!document.getElementById('lnAuthModal')) return;
+        if (!document.getElementById('lnAuthModal')) { settleLn(false); return window._lightningSignIn; }
 
         if (!challengeResult.data || !challengeResult.data.k1 || !challengeResult.data.lnurl) {
             if (typeof showToast === 'function') showToast('Failed to generate login challenge');
             qrModal.remove();
-            return;
+            settleLn(false);
+            return window._lightningSignIn;
         }
 
         var k1 = challengeResult.data.k1;
@@ -1002,7 +3010,18 @@ window.signInWithLightning = async function() {
         var copyWrap = document.getElementById('lnAuthCopyWrap');
         if (copyWrap) {
             copyWrap.style.display = 'block';
-            copyWrap.innerHTML = '<button onclick="navigator.clipboard.writeText(\'' + lnurlEncoded + '\').then(function(){showToast(\'Copied!\');})" style="padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;">📋 Copy LNURL</button>';
+            copyWrap.textContent = '';
+            var copyBtn = document.createElement('button');
+            copyBtn.type = 'button';
+            copyBtn.textContent = 'Copy LNURL';
+            copyBtn.style.cssText = 'padding:8px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:16px;cursor:pointer;font-family:inherit;';
+            copyBtn.addEventListener('click', function () {
+                var text = String(lnurlEncoded || '');
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(text).then(function () { if (typeof showToast === 'function') showToast('Copied'); }).catch(function () {});
+                }
+            });
+            copyWrap.appendChild(copyBtn);
         }
 
         // Update status
@@ -1017,6 +3036,7 @@ window.signInWithLightning = async function() {
             pollCount++;
             if (pollCount > maxPolls || !document.getElementById('lnAuthModal')) {
                 clearInterval(pollInterval);
+                settleLn(false);
                 return;
             }
             try {
@@ -1031,23 +3051,35 @@ window.signInWithLightning = async function() {
                     // Set up user doc if needed
                     var uid = verifyResult.data.uid;
                     var userDoc = await db.collection('users').doc(uid).get();
-                    if (!userDoc.exists || !userDoc.data().username) {
-                        var lnName = '⚡anon-' + k1.substring(0, 8);
-                        var _lnUserData = { username: lnName, authMethod: 'lightning', totalVisits: 1, streak: 1, lastVisit: new Date().toISOString().split('T')[0] };
-                        if (!userDoc.exists) { _lnUserData.points = 0; _lnUserData.channelsVisited = 0; _lnUserData.created = firebase.firestore.FieldValue.serverTimestamp(); }
-                        await db.collection('users').doc(uid).set(_lnUserData, { merge: true });
+                    if (!userDoc.exists) {
+                        await db.collection('users').doc(uid).set(clientCreatePayload({}));
                         try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
+                    }
+                    if (!userDoc.exists || !userDoc.data() || !userDoc.data().username) {
+                        var lnName = 'ln' + String(k1 || '').replace(/[^a-f0-9]/gi, '').substring(0, 8);
+                        try { await applyServerUsername(lnName); }
+                        catch (nameErr) { if (typeof showUsernamePrompt === 'function') showUsernamePrompt(); }
                     }
 
                     loadUser(uid);
+                    if (typeof attachReferral === 'function') attachReferral(uid);
                     hideUsernamePrompt();
+                    try { await maybeCompleteAccountEmailLink(); } catch (linkAfterLn) {}
                     setTimeout(function() {
                         var modal = document.getElementById('lnAuthModal');
                         if (modal) modal.remove();
                     }, 1000);
                     if (typeof showToast === 'function') showToast('⚡ Signed in with Lightning!');
+                    settleLn(true);
                 }
             } catch(e) {
+                if (surfaceMfaRequired(e)) {
+                    clearInterval(pollInterval);
+                    var mfaModal = document.getElementById('lnAuthModal');
+                    if (mfaModal) mfaModal.remove();
+                    settleLn(false);
+                    return;
+                }
                 // Not ready yet, keep polling
                 if (e.code !== 'not-found') console.log('LN auth poll:', e.message);
             }
@@ -1058,7 +3090,9 @@ window.signInWithLightning = async function() {
         if (typeof showToast === 'function') showToast('Lightning sign-in failed. Try again.');
         var modal = document.getElementById('lnAuthModal');
         if (modal) modal.remove();
+        settleLn(false);
     }
+    return window._lightningSignIn;
 };
 
 // Rate limiting check
@@ -1116,29 +3150,23 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
 
     var existingDoc = await db.collection('users').doc(user.uid).get();
     if (!existingDoc.exists) {
-        if (anonData) {
-            anonData.email = user.email || '';
-            if (!anonData.username) anonData.username = _pendingUN || user.displayName || 'Bitcoiner';
-            var _anonLn = normalizeClientLn(_pendingLn);
-            if (clientLnValid(_anonLn)) { anonData.lightning = _anonLn; anonData.lightningAddress = _anonLn; }
-            if (_pendingFaction) { anonData.faction = _pendingFaction; }
-            if (_pendingCountry) { anonData.country = _pendingCountry; }
-            await db.collection('users').doc(user.uid).set(anonData);
-        } else {
-            var _newUN = _pendingUN || user.displayName || 'Bitcoiner';
-            var _newProviderDoc = {
-                username: _newUN,
-                username_lower: _newUN.toLowerCase(),
-                email: user.email || '',
-                points: 0, channelsVisited: 0, totalVisits: 1, streak: 1,
-                lastVisit: new Date().toISOString().split('T')[0],
-                created: firebase.firestore.FieldValue.serverTimestamp()
-            };
-            var _provLn = normalizeClientLn(_pendingLn);
-            if (clientLnValid(_provLn)) { _newProviderDoc.lightning = _provLn; _newProviderDoc.lightningAddress = _provLn; }
-            if (_pendingFaction) { _newProviderDoc.faction = _pendingFaction; }
-            if (_pendingCountry) { _newProviderDoc.country = _pendingCountry; }
-            await db.collection('users').doc(user.uid).set(_newProviderDoc);
+        var _provExtra = {};
+        var _provLn = normalizeClientLn(_pendingLn);
+        if (clientLnValid(_provLn)) { _provExtra.lightning = _provLn; _provExtra.lightningAddress = _provLn; }
+        if (_pendingCountry) _provExtra.country = _pendingCountry;
+        await db.collection('users').doc(user.uid).set(clientCreatePayload(_provExtra));
+        if (_pendingFaction) {
+            try { await flushSignupFaction(_pendingFaction); } catch (e) {}
+        }
+        var _nameTry = _pendingUN || '';
+        if (_nameTry) {
+            try { await applyServerUsername(_nameTry); }
+            catch (nameErr) {
+                showToast(nameErr.message || 'Pick a different username.');
+                if (typeof showUsernamePrompt === 'function') showUsernamePrompt();
+            }
+        } else if (typeof showUsernamePrompt === 'function') {
+            showUsernamePrompt();
         }
     } else {
         // Returning user - apply fields they typed only if not already set
@@ -1148,47 +3176,30 @@ async function _handleSignInResultGlobal(user, anonUid, anonData) {
             _returnUpdates.lightning = _returnLn;
             _returnUpdates.lightningAddress = _returnLn;
         }
-        if (_pendingFaction && !existingDoc.data().faction) {
-            _returnUpdates.faction = _pendingFaction;
-        }
         if (_pendingCountry && !existingDoc.data().country) {
             _returnUpdates.country = _pendingCountry;
         }
         if (Object.keys(_returnUpdates).length) {
             try { await existingDoc.ref.update(_returnUpdates); } catch(e) {}
         }
-        if (anonData) {
-            var existData = existingDoc.data();
-            var _mergedPts = Math.min(anonData.points || 0, 500);
-            // NOTE: points/channelsVisited/totalVisits are server-only fields (Firestore rules denylist).
-            // Client cannot update them — skip silently. mergedAnon flag is allowed.
-            if (!existData.mergedAnon) {
-                try { await existingDoc.ref.update({ mergedAnon: true }); } catch(e) {}
-            }
-        }
-        if (!existingDoc.data().email && user.email) {
-            try { await existingDoc.ref.update({ email: user.email }); } catch(e) {}
+        if (_pendingFaction && !existingDoc.data().faction) {
+            try { await flushSignupFaction(_pendingFaction); } catch (e) {}
         }
     }
-    if (anonUid && anonUid !== user.uid) {
+    var guestHold = false;
+    if (typeof tryLinkGuest === 'function') {
+        try { if (await tryLinkGuest() === 'mfa') guestHold = true; } catch (e) {}
+    }
+    if (anonUid && anonUid !== user.uid && !guestHold) {
         try { await db.collection('users').doc(anonUid).delete(); } catch(e) {}
     }
     loadUser(user.uid);
     if (!existingDoc.exists) {
         if (typeof attachReferral === 'function') attachReferral(user.uid);
-        hideUsernamePrompt();
-        showToast('✅ Welcome, ' + escapeHtml(user.displayName || user.email || 'Bitcoiner') + '!');
-        // Show Quest Guide for brand new provider sign-ups
-        try {
-            localStorage.removeItem('guide_dismissed');
-            localStorage.removeItem('guide_seen');
-            if (typeof showGuide === 'function') {
-                setTimeout(function() { showGuide(); }, 1500);
-            }
-        } catch(e) {}
+        showToast('Welcome. You are signed in.');
     } else {
         hideUsernamePrompt();
-        showToast('✅ Signed in as ' + escapeHtml(user.displayName || user.email || 'Bitcoiner'));
+        showToast('You are signed in.');
     }
 }
 
@@ -1279,6 +3290,48 @@ window._iabSendMagicLink = async function() {
     }
 };
 
+function rememberAnonForRedirect(anonUser) {
+    if (!anonUser || !anonUser.isAnonymous) return;
+    localStorage.setItem('btc_anon_uid', anonUser.uid);
+    db.collection('users').doc(anonUser.uid).get().then(function(doc) {
+        if (doc.exists) localStorage.setItem('btc_anon_data', JSON.stringify(doc.data()));
+    }).catch(function() {});
+}
+
+async function linkOrSignInPopup(provider) {
+    var guest = auth.currentUser;
+    if (guest && guest.isAnonymous && typeof guest.linkWithPopup === 'function') {
+        try {
+            var linked = await guest.linkWithPopup(provider);
+            try { localStorage.removeItem('btc_guest_link'); } catch (e0) {}
+            await _handleSignInResultGlobal(linked.user, null, null);
+            return linked.user;
+        } catch (linkErr) {
+            if ((linkErr.code === 'auth/credential-already-in-use' || linkErr.code === 'auth/email-already-in-use') && linkErr.credential) {
+                var signed = await auth.signInWithCredential(linkErr.credential);
+                await _handleSignInResultGlobal(signed.user, guest.uid, null);
+                return signed.user;
+            }
+            throw linkErr;
+        }
+    }
+    var result = await auth.signInWithPopup(provider);
+    await _handleSignInResultGlobal(result.user, null, null);
+    return result.user;
+}
+
+async function redirectForProvider(provider) {
+    var anonUser = auth.currentUser;
+    rememberAnonForRedirect(anonUser);
+    sessionStorage.setItem('btc_redirect_pending', '1');
+    localStorage.setItem('btc_pwa_auth_pending', '1');
+    if (anonUser && anonUser.isAnonymous && typeof anonUser.linkWithRedirect === 'function') {
+        await anonUser.linkWithRedirect(provider);
+        return;
+    }
+    await auth.signInWithRedirect(provider);
+}
+
 async function signInWithProvider(provider) {
     if (!checkRateLimit()) return;
 
@@ -1288,18 +3341,9 @@ async function signInWithProvider(provider) {
         return;
     }
 
-    // Delegate to module-scope helper
-    async function handleSignInResult(user, anonUid, anonData) {
-        return _handleSignInResultGlobal(user, anonUid, anonData);
-    }
-    async function saveAnonData() {
-        return _saveAnonDataGlobal();
-    }
-
     // Strategy: Use popup on desktop (reliable), redirect on mobile/PWA.
     // Redirect loses session cross-domain but at least shows the Google sign-in page.
     // Popup on Android PWA causes redirect_uri_mismatch errors.
-    var isMobileDevice = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
     var isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
     // Safari on desktop blocks popup postMessage via ITP — must use redirect
     var isSafariBrowser = /^((?!chrome|android).)*safari/i.test(navigator.userAgent || '');
@@ -1310,17 +3354,7 @@ async function signInWithProvider(provider) {
         // Safari/iOS blocks popup postMessage via ITP - skip popup entirely and go straight to redirect.
         try {
             showToast('⏳ Opening sign-in...');
-            // Save anon data BEFORE redirect (page will reload on return)
-            const anonUser = auth.currentUser;
-            if (anonUser && anonUser.isAnonymous) {
-                localStorage.setItem('btc_anon_uid', anonUser.uid);
-                db.collection('users').doc(anonUser.uid).get().then(function(doc) {
-                    if (doc.exists) localStorage.setItem('btc_anon_data', JSON.stringify(doc.data()));
-                }).catch(function() {});
-            }
-            sessionStorage.setItem('btc_redirect_pending', '1');
-            localStorage.setItem('btc_pwa_auth_pending', '1');
-            await auth.signInWithRedirect(provider);
+            await redirectForProvider(provider);
             return;
         } catch(e) {
             console.error('Mobile/Safari sign-in error:', e);
@@ -1329,24 +3363,15 @@ async function signInWithProvider(provider) {
         }
     }
 
-    // Desktop: try popup first
+    // Desktop: link the guest in place, then fall back to a popup sign-in.
+    // Nothing is awaited before the popup, so the browser still allows it.
     try {
-        const { anonUid, anonData } = await saveAnonData();
-
-        const result = await auth.signInWithPopup(provider);
-        await handleSignInResult(result.user, anonUid, anonData);
+        await linkOrSignInPopup(provider);
     } catch(e) {
         console.error('Provider sign-in error:', e.code, e.message, e);
 
-        // MFA required - user has phone 2FA enabled
-        if (e.code === 'auth/multi-factor-auth-required') {
-            if (typeof window._showMFASignInChallenge === 'function') {
-                window._showMFASignInChallenge(e.resolver);
-            } else {
-                showToast('Two-factor authentication required. Please refresh and try again.');
-            }
-            return;
-        }
+        // MFA required - user has phone 2FA enabled. Do not fall through to redirect.
+        if (surfaceMfaRequired(e)) return;
 
         // Popup blocked, closed, or failed - fallback to redirect
         if (e.code === 'auth/popup-blocked' ||
@@ -1355,19 +3380,7 @@ async function signInWithProvider(provider) {
             e.code === 'auth/internal-error') {
             try {
                 showToast('⏳ Opening sign-in page...');
-                // Save anon data to localStorage so redirect return can recover it
-                const anonUser = auth.currentUser;
-                if (anonUser && anonUser.isAnonymous) {
-                    localStorage.setItem('btc_anon_uid', anonUser.uid);
-                    try {
-                        const anonDoc = await db.collection('users').doc(anonUser.uid).get();
-                        if (anonDoc.exists) {
-                            localStorage.setItem('btc_anon_data', JSON.stringify(anonDoc.data()));
-                        }
-                    } catch(e2) {}
-                }
-                localStorage.setItem('btc_pwa_auth_pending', '1');
-                await auth.signInWithRedirect(provider);
+                await redirectForProvider(provider);
                 return;
             } catch(redirectErr) {
                 console.error('Redirect fallback also failed:', redirectErr);
@@ -1379,18 +3392,8 @@ async function signInWithProvider(provider) {
         // User intentionally closed popup - do nothing
         if (e.code === 'auth/popup-closed-by-user') return;
 
-        // Actionable error messages
-        if (e.code === 'auth/unauthorized-domain') {
-            showToast('⚠️ This domain is not authorized for sign-in. Please contact support.');
-        } else if (e.code === 'auth/operation-not-allowed') {
-            showToast('⚠️ This sign-in method is not enabled. Try a different option.');
-        } else if (e.code === 'auth/account-exists-with-different-credential') {
-            showToast('⚠️ An account with this email exists using a different sign-in method. Try another option.');
-        } else if (e.code === 'auth/network-request-failed') {
-            showToast('⚠️ Network error. Check your connection and try again.');
-        } else {
-            showToast('Sign-in error (' + (e.code || 'unknown') + '). Please try again.');
-        }
+        var providerMsg = googleSignInErrorMessage(e);
+        if (providerMsg) showToast(providerMsg);
     }
 }
 
@@ -1484,15 +3487,20 @@ window.sendReturningMagicLink = async function() {
 };
 
 // Send magic link email
-async function sendMagicLink(email) {
+async function sendMagicLink(email, opts) {
+    var accountLink = !!(opts && opts.accountLink);
+    var continueUrl = window.location.origin + window.location.pathname + '?signin_email=' + encodeURIComponent(email);
+    if (accountLink) continueUrl += '&account_link=1';
     const actionCodeSettings = {
-        // Embed email in URL so it works even when opened on a different device/browser
-        url: window.location.origin + window.location.pathname + '?signin_email=' + encodeURIComponent(email),
+        // Embed email in URL so it works even when opened on a different device/browser.
+        // account_link marks a link that must attach to the signed-in account.
+        url: continueUrl,
         handleCodeInApp: true,
     };
     try {
         await auth.sendSignInLinkToEmail(email, actionCodeSettings);
         localStorage.setItem('btc_signin_email', email);
+        try { localStorage.setItem('emailForSignIn', email); } catch (storeErr) {}
         return true;
     } catch(e) {
         console.log('Magic link error:', e);
@@ -1527,41 +3535,112 @@ function loadUserLocal(uid) {
     startReadTimer();
 }
 
+function settleAdminClaim() {
+    var user = auth && auth.currentUser;
+    if (!user || user.isAnonymous || typeof user.getIdTokenResult !== 'function') {
+        window._isAdminClaim = false;
+        return;
+    }
+    var forcedLanded = false;
+    function applyClaim(tokenResult) {
+        window._isAdminClaim = !!(tokenResult && tokenResult.claims && tokenResult.claims.admin === true);
+        // Firestore's onSnapshot often fires from cache before the claim lands,
+        // so own messages render with isAdmin=false and miss the pin button.
+        if (window._isAdminClaim && window._chatAllMsgs && typeof renderChatMessages === 'function') {
+            renderChatMessages(window._chatAllMsgs);
+        }
+    }
+    // Non-forced: uses the cached token when it is still valid.
+    user.getIdTokenResult().then(function (tokenResult) {
+        if (forcedLanded) return;
+        applyClaim(tokenResult);
+    }).catch(function () {
+        if (!forcedLanded) window._isAdminClaim = false;
+    });
+    // Forced refresh stays off the UI path. It only corrects a stale admin claim.
+    user.getIdTokenResult(true).then(function (tokenResult) {
+        forcedLanded = true;
+        applyClaim(tokenResult);
+    }).catch(function () {});
+}
+
 async function loadUser(uid, prefetchedDoc) {
     const doc = prefetchedDoc || await db.collection('users').doc(uid).get();
-    // Resolve admin status from custom claim (not email allowlist)
-    try {
-        if (auth.currentUser && !auth.currentUser.isAnonymous) {
-            const tokenResult = await auth.currentUser.getIdTokenResult(true); // forceRefresh — stale token won't carry admin claim
-            window._isAdminClaim = tokenResult.claims.admin === true;
-        } else {
-            window._isAdminClaim = false;
-        }
-    } catch(e) { window._isAdminClaim = false; }
-    // Re-render chat messages now that admin claim is resolved.
-    // Firestore's onSnapshot often fires from cache before loadUser() finishes,
-    // so own messages render with isAdmin=false and miss the pin button.
-    if (window._isAdminClaim && window._chatAllMsgs && typeof renderChatMessages === 'function') {
-        renderChatMessages(window._chatAllMsgs);
-    }
+    var docSaysTotp = false;
     if (doc.exists) {
         currentUser = { uid, ...doc.data() };
-        // Cache profile for instant next-load
-        try { localStorage.setItem('btc_profile_cache', JSON.stringify({ uid, ts: Date.now(), data: doc.data() })); } catch(e) {}
+        docSaysTotp = !!(currentUser && currentUser.totpEnabled);
+        // Cache profile for instant next-load. The display snapshot is a separate,
+        // non-sensitive projection and is not allowed to grant anything.
+        // twoFa is explicit: true, false, or left unknown when the doc has no flag.
+        saveProfileCache(uid, doc.data());
+        // Authenticator accounts do not get a display snapshot or a live
+        // Settings button until _serverTotpAllows returns true below.
+        if (auth.currentUser && !auth.currentUser.isAnonymous && currentUser.totpEnabled && !totpVerifiedFor(uid)) {
+            window._btcTotpHold = true;
+            holdAuthDisplayForTotp(uid);
+        } else {
+            // Recovery and a stale "2FA on" cache both land here once the
+            // profile no longer has totpEnabled. Drop the hold before the
+            // button paint, or Settings stays blocked for this page load.
+            if (!currentUser.totpEnabled) clearTotpHold();
+            publishAuthDisplay(uid, doc.data());
+            updateAuthButton();
+        }
+    }
+    // Admin chrome reads the cached token. A forced refresh always waits on
+    // the network and used to sit in front of this profile UI. Server-side
+    // checks still verify the live token on each callable.
+    settleAdminClaim();
+    if (doc.exists) {
         // TOS check — show acceptance modal if user hasn't accepted current version
-        if (!auth.currentUser.isAnonymous && currentUser.tosVersion !== TOS_CURRENT_VERSION) {
+        if (currentUser && !auth.currentUser.isAnonymous && currentUser.tosVersion !== TOS_CURRENT_VERSION) {
             _showTosModal();
         }
 
-        // TOTP challenge gate — custom server-side TOTP, not Firebase native MFA.
-        // Firebase never throws auth/multi-factor-auth-required for this, so we gate manually.
-        // localStorage flag keyed by UID persists across app reopens while user stays logged in.
-        // clearUserLocalStorage() on sign-out removes it so re-login requires re-verify.
-        if (!auth.currentUser.isAnonymous && currentUser.totpEnabled) {
-            if (localStorage.getItem('btc_totp_verified_' + auth.currentUser.uid) !== '1') {
-                _showTotpSignInChallenge();
-                return; // Block loadUser from completing until TOTP verified
+        // Authenticator gate. The server, not a localStorage flag, decides.
+        // Phone sign-in is enforced by Firebase before we get here.
+        // 2FA accounts still wait here. Everyone else paints, then the same
+        // check finishes in parallel and hides the profile if it is blocked.
+        var fastTotp = null;
+        if (!auth.currentUser.isAnonymous) {
+            if (docSaysTotp) {
+                var gateOpen = await window._serverTotpAllows(auth.currentUser.uid);
+                if (!gateOpen) {
+                    window._btcTotpHold = true;
+                    clearTotpVerified();
+                    holdAuthDisplayForTotp(auth.currentUser.uid);
+                    _showTotpSignInChallenge();
+                    return;
+                }
+                // A passing server check means this session may use the account.
+                // That includes a recovery code that just turned 2FA off, so the
+                // hold clears even when totpEnabled is already false.
+                clearTotpHold();
+                if (!currentUser && doc && doc.exists) currentUser = { uid: uid, ...doc.data() };
+                if (currentUser && currentUser.totpEnabled) noteTotpVerified(auth.currentUser.uid);
+                publishAuthDisplay(uid, currentUser);
+                updateAuthButton();
+            } else {
+                fastTotp = watchProfileTotp(auth.currentUser.uid);
+                rankingReady = true;
+                updateRankUI();
+                scheduleAccountEmailSync(uid);
             }
+        }
+        if (fastTotp) {
+            var fastOpen = true;
+            try { fastOpen = await fastTotp.promise; }
+            catch (fastErr) { fastOpen = true; }
+            if (!fastTotp.live()) return;
+            if (!fastOpen) {
+                window._btcTotpHold = true;
+                clearTotpVerified();
+                holdAuthDisplayForTotp(uid);
+                _showTotpSignInChallenge();
+                return;
+            }
+            clearTotpHold();
         }
         window._myPeers = new Set(currentUser.peers || []);
         // Restore visited channels so we don't re-award
@@ -1649,6 +3728,7 @@ async function loadUser(uid, prefetchedDoc) {
 
         rankingReady = true;
         updateRankUI();
+        scheduleAccountEmailSync(uid);
         if (typeof renderProgressRings === 'function') renderProgressRings();
         awardVisitPoints();
         startReadTimer();
@@ -1688,15 +3768,20 @@ async function loadUser(uid, prefetchedDoc) {
             // Mark onboarding complete for existing users on new devices.
             // An existing user has a username in Firestore - they clearly already onboarded.
             // This prevents the onboarding wizard from firing on every new device login.
-            if (currentUser.username) {
-                try { localStorage.setItem('btc_onboarding_done', 'true'); } catch(e) {}
+            if (currentUser.username || currentUser.introSeen) {
+                try {
+                    localStorage.setItem('btc_onboarding_done', 'true');
+                    localStorage.setItem('btc_intro_seen', '1');
+                } catch(e) {}
             }
+            if (typeof tryLinkGuest === 'function') { tryLinkGuest().catch(function () {}); }
+            if (typeof window.flushOnboardingClaims === 'function') window.flushOnboardingClaims();
             // Restore SF window streak from Firestore so speed boost survives new-device login
             if (typeof currentUser.sfWindowStreak === 'number') {
                 try { localStorage.setItem('btc_sf_window_streak', String(currentUser.sfWindowStreak)); } catch(e) {}
             }
             // Restore Nacho Quest state from Firestore so mid-quest progress survives new-device login
-            if (currentUser.nachoQuestDone) {
+            if (currentUser.nachoQuestDone || (currentUser.onboardingQuest && currentUser.onboardingQuest.complete)) {
                 try {
                     localStorage.setItem('btc_onboarding_quest_done', '1');
                     localStorage.removeItem('btc_onboarding_active');
@@ -1722,9 +3807,7 @@ async function loadUser(uid, prefetchedDoc) {
                 var mergedItems = [...new Set([...existingItems, ...currentUser.spinClosetItems])];
                 localStorage.setItem('btc_spin_closet_items', JSON.stringify(mergedItems));
             }
-            if (currentUser.scholarPassed) {
-                localStorage.setItem('btc_scholar_passed', 'true');
-            }
+            if (typeof window.refreshScholarFromProfile === 'function') window.refreshScholarFromProfile(currentUser);
             // Restore milestone/celebration state from Firestore (prevents re-triggering)
             if (currentUser.nachoMilestones) {
                 localStorage.setItem('btc_nacho_q_milestones', JSON.stringify(currentUser.nachoMilestones));
@@ -1814,7 +3897,6 @@ async function loadUser(uid, prefetchedDoc) {
                 _syncFlag('btc_spin_hit_rare',        'spinHitRare',        'true');
                 _syncFlag('btc_lightning_setup',      'lightningSetup',     'true');
                 _syncFlag('btc_fp_completed',         'fpCompleted',        'true');
-                _syncFlag('btc_scholar_tech_passed',  'scholarTechPassed',  'true');
                 _syncFlag('btc_nacho_eli5',           'nachoEli5',          'true');
                 _syncFlag('btc_nacho_story_awarded',  'nachoStoryAwarded',  'true');
 
@@ -1862,9 +3944,7 @@ async function loadUser(uid, prefetchedDoc) {
 
                 // Push any counters where local > server (fire-and-forget, non-fatal)
                 if (Object.keys(_bcPatch).length > 0) {
-                    db.collection('users').doc(uid).update(_bcPatch).catch(function(e) {
-                        console.warn('[loadUser] badgeCounters sync failed:', e.message);
-                    });
+                    /* badgeCounters is server-owned */
                 }
             })();
         }
@@ -1931,12 +4011,10 @@ async function loadUser(uid, prefetchedDoc) {
                 }
             }
             if (currentUser.nachoStoryDays && Array.isArray(currentUser.nachoStoryDays)) {
-                // Restore the days array (source of truth for chapter unlocks)
-                var localDays = safeJSON('btc_nacho_story_days', []);
-                // Merge: take the longer array (more days = more chapters unlocked)
-                if (currentUser.nachoStoryDays.length > localDays.length) {
-                    localStorage.setItem('btc_nacho_story_days', JSON.stringify(currentUser.nachoStoryDays));
-                }
+                // Bundle-only work stays off this stack. A throw here used to
+                // skip updateAuthButton() when auth resolved before the bundle.
+                var _storyDays = currentUser.nachoStoryDays;
+                whenBundleReady(function () { mergeStoredStoryDays(_storyDays); });
             }
             if (currentUser.nachoStoryProgress) {
                 var localStory = parseInt(localStorage.getItem('btc_nacho_story_highest') || '0');
@@ -1972,7 +4050,8 @@ async function loadUser(uid, prefetchedDoc) {
         if (typeof renderUserWorldMap === 'function') renderUserWorldMap();
         if (typeof showContinueReading === 'function') showContinueReading();
 
-        // Update auth button text if signed in with a provider
+        // Clear a stale local name before the auth button reads it.
+        maybeShowUsernameRepick();
         updateAuthButton();
 
         // Initialize Orange Tickets system
@@ -1984,17 +4063,9 @@ async function loadUser(uid, prefetchedDoc) {
         // User exists in auth but not in Firestore - recreate their doc
         const user = auth.currentUser;
         if (user && !user.isAnonymous) {
-            const newData = {
-                username: user.displayName || 'Bitcoiner',
-                email: user.email || '',
-                points: 0,
-                channelsVisited: 0,
-                totalVisits: 1,
-                streak: 1,
-                lastVisit: new Date().toISOString().split('T')[0],
-                created: firebase.firestore.FieldValue.serverTimestamp()
-            };
+            const newData = clientCreatePayload({});
             await db.collection('users').doc(uid).set(newData);
+            if (typeof showUsernamePrompt === 'function') setTimeout(showUsernamePrompt, 400);
             currentUser = { uid, ...newData };
             rankingReady = true;
             window._badgesReady = true;
@@ -2008,9 +4079,489 @@ async function loadUser(uid, prefetchedDoc) {
 // Track if button was ever set to "signed in" state - never downgrade once set
 var _authBtnSignedIn = false;
 
+function homeSignedInNow() {
+    return !!_authBtnSignedIn;
+}
+
+// Strip numbers come only from server-maintained counters.
+function satsHomeSnapshot(user) {
+    var u = user || {};
+    var math = (typeof window.claimableSats === 'function')
+        ? window.claimableSats(u)
+        : displayClaimableMath(u);
+    var address = String(u.lightning || u.lightningAddress || '').trim();
+    var anon = true;
+    var emailOk = false;
+    var ageDays = 0;
+    var channels = 0;
+    if (Array.isArray(u.visitedChannelsList)) channels = u.visitedChannelsList.length;
+    else if (Array.isArray(u.readChannels)) channels = u.readChannels.length;
+    else if (u.readChannels && typeof u.readChannels === 'object') channels = Object.keys(u.readChannels).length;
+    if (typeof auth !== 'undefined' && auth && auth.currentUser) {
+        var fu = auth.currentUser;
+        anon = !!fu.isAnonymous;
+        emailOk = !!(fu.email && fu.emailVerified);
+        var created = fu.metadata && fu.metadata.creationTime ? new Date(fu.metadata.creationTime) : null;
+        ageDays = created ? Math.floor((Date.now() - created.getTime()) / 86400000) : 0;
+    }
+    if (channels === 0) {
+        try {
+            var localList = JSON.parse(localStorage.getItem('btc_visited_channels') || '[]');
+            if (Array.isArray(localList) && localList.length > channels) channels = localList.length;
+        } catch (e) {}
+    }
+    var lastClaim = u.lastSatsClaim || null;
+    var onCooldown = false;
+    if (lastClaim) {
+        var claimMs = lastClaim.seconds ? lastClaim.seconds * 1000 : new Date(lastClaim).getTime();
+        if (claimMs && Date.now() < claimMs + 24 * 60 * 60 * 1000) onCooldown = true;
+    }
+    var checks = [!anon, emailOk, ageDays >= 7, channels >= 10, math.claimable >= 100];
+    var met = 0;
+    for (var i = 0; i < checks.length; i++) if (checks[i]) met++;
+    return {
+        claimable: math.claimable,
+        balance: math.balance,
+        lifetimeLeft: math.lifetimeLeft,
+        cap: math.cap,
+        address: address,
+        canClaim: met === checks.length && !onCooldown && !!address,
+        onCooldown: onCooldown,
+        checksMet: met,
+        checksTotal: checks.length
+    };
+}
+window.satsHomeSnapshot = satsHomeSnapshot;
+
+function referralTierApi() {
+    if (typeof referralTiers !== 'undefined' && referralTiers) return referralTiers;
+    if (typeof window !== 'undefined' && window.referralTiers) return window.referralTiers;
+    return null;
+}
+
+function referralPointsLabel() {
+    var api = referralTierApi();
+    var n = api && api.MAXI_RANK_POINTS ? api.MAXI_RANK_POINTS : 2140;
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+// Display count is the server field only. A missing field paints as 0.
+function serverMaxiReferralCount(user) {
+    var api = referralTierApi();
+    var raw = user && user.referralMaxiCount;
+    if (api && typeof api.normalizeCount === 'function') return api.normalizeCount(raw);
+    var n = Math.floor(Number(raw));
+    if (!isFinite(n) || n < 0) return 0;
+    return n;
+}
+window.serverMaxiReferralCount = serverMaxiReferralCount;
+
+function invitedReferralCount(user) {
+    var n = Math.floor(Number(user && user.referralInvited));
+    if (!isFinite(n) || n < 0) return 0;
+    return n;
+}
+
+var _homeInvitedCount = 0;
+var _homeMaxiCount = 0;
+var _homeReachedCount = 0;
+
+function serverReachedReferralCount(user) {
+    var raw = user && user.referralMaxiReachedCount;
+    var n = Math.floor(Number(raw));
+    if (!isFinite(n) || n < 0) return 0;
+    return n;
+}
+window.serverReachedReferralCount = serverReachedReferralCount;
+
+function paintInviteTier(count, invited, reached) {
+    var api = referralTierApi();
+    var n = (api && typeof api.normalizeCount === 'function') ? api.normalizeCount(count) : (Number(count) || 0);
+    var progress = (api && typeof api.tierProgress === 'function') ? api.tierProgress(n) : {
+        tierLabel: '—',
+        countText: (n === 1 ? '1 earned ' : n + ' earned ') + referralPointsLabel() + ' XP',
+        progressText: '',
+        level: 0
+    };
+    var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+    var inv = (typeof invited === 'number') ? Math.floor(invited) : invitedReferralCount(user);
+    if (!isFinite(inv) || inv < 0) inv = 0;
+    var reachedN = (typeof reached === 'number') ? Math.floor(reached) : serverReachedReferralCount(user);
+    if (!isFinite(reachedN) || reachedN < 0) reachedN = n;
+    _homeInvitedCount = inv;
+    _homeMaxiCount = n;
+    _homeReachedCount = reachedN;
+    var tierEl = document.getElementById('homeInvitesTier');
+    var noteEl = document.getElementById('homeInvitesNote');
+    var progEl = document.getElementById('homeInvitesProgress');
+    var tile = document.getElementById('homeInvitesTile');
+    var openBtn = document.getElementById('homeInvitesOpen') || tile;
+    if (tierEl) tierEl.textContent = progress.tierLabel;
+    var noteText = (api && typeof api.reachedRewardLabel === 'function')
+        ? api.reachedRewardLabel(reachedN, n)
+        : (String(reachedN) + ' reached · ' + String(n) + ' rewarded');
+    if (noteEl) noteEl.textContent = noteText;
+    var helpEl = document.getElementById('homeInvitesInfoText');
+    if (helpEl && api && typeof api.maxiCountHelp === 'function') helpEl.textContent = api.maxiCountHelp(inv, reachedN, n);
+    if (progEl) progEl.textContent = progress.progressText;
+    if (tile) tile.setAttribute('data-referral-tier', String(progress.level));
+    if (openBtn) {
+        var label = progress.tierLabel + ', ' + noteText;
+        if (progress.progressText) label += ', ' + progress.progressText;
+        openBtn.setAttribute('aria-label', label);
+    }
+    var ladder = document.getElementById('referralTierLadder');
+    if (ladder && !ladder.hidden) renderReferralTierLadder(progress);
+}
+window.paintInviteTier = paintInviteTier;
+
+function paintHomeStrip(snap) {
+    var satsEl = document.getElementById('homeSatsValue');
+    var claimNow = Math.min(Number(snap.claimable) || 0, 200, Number(snap.lifetimeLeft) || 0);
+    if (satsEl) satsEl.textContent = Number(snap.claimable || 0).toLocaleString();
+    var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+    // The profile cache has no referral count. Leave the Invites tile on its
+    // placeholder until referral stats arrive.
+    if (!optimisticProfilePending()) paintInviteTier(serverMaxiReferralCount(user));
+    var kicker = document.getElementById('homeWithdrawKicker');
+    var value = document.getElementById('homeWithdrawValue');
+    var note = document.getElementById('homeWithdrawNote');
+    if (!value) return;
+    if (!snap.address) {
+        if (kicker) kicker.textContent = 'WITHDRAW';
+        value.textContent = 'Withdraw ›';
+        if (note) note.textContent = 'Set Lightning address';
+    } else if (snap.canClaim) {
+        if (kicker) kicker.textContent = 'WITHDRAW';
+        value.textContent = 'Claim ' + claimNow.toLocaleString() + ' ›';
+        var shortAddr = snap.address.length > 16 ? snap.address.slice(0, 10) + '…' : snap.address;
+        if (note) note.textContent = 'to ⚡ ' + shortAddr;
+    } else if (snap.onCooldown && snap.checksMet === snap.checksTotal) {
+        if (kicker) kicker.textContent = 'WITHDRAW';
+        value.textContent = 'Withdraw ›';
+        if (note) note.textContent = 'Next claim soon';
+    } else {
+        if (kicker) kicker.textContent = 'WITHDRAW';
+        value.textContent = 'Withdraw ›';
+        if (note) note.textContent = snap.checksMet + '/' + snap.checksTotal + ' ready';
+    }
+}
+
+window.refreshHomeStrip = function() {
+    var signed = homeSignedInNow();
+    // Display-only paint is on screen and Auth has not settled. Do not flip the
+    // home back to the guest layout, and do not fill sats from the snapshot.
+    var liveAuth = window.auth && window.auth.currentUser;
+    if (!signed && document.documentElement.getAttribute('data-auth-display') === '1' && typeof window._btcEarlyAuthUser === 'undefined' && !liveAuth) {
+        return;
+    }
+    document.documentElement.classList.toggle('home-signed-in', signed);
+    if (document.body) document.body.classList.toggle('home-signed-in', signed);
+    if (!signed) {
+        closeReferralTierLadder();
+        setMaxiInfoOpen(false);
+        if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
+        if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
+        return;
+    }
+    var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+    var snap = satsHomeSnapshot(user);
+    paintHomeStrip(snap);
+    // Optimistic profile paint is display-only. Referral stats are a callable
+    // and wait until auth confirms this uid.
+    if (typeof getReferralStats === 'function' && !optimisticProfilePending()) {
+        getReferralStats().then(function (stats) {
+            if (!stats || stats.failed || typeof stats.invited !== 'number') return;
+            var reached = typeof stats.reached === 'number' ? stats.reached : 0;
+            paintInviteTier(serverMaxiReferralCount(user), stats.invited, reached);
+        }).catch(function () {});
+    }
+    if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
+    if (typeof window.paintHomeLearnCard === 'function') window.paintHomeLearnCard();
+};
+
+function openHomeSats() {
+    if (typeof showSettingsPage === 'function') showSettingsPage('sats');
+    else if (typeof showSettings === 'function') showSettings();
+}
+window.openHomeSats = openHomeSats;
+
+function invitesSurfaceHidden() {
+    var tile = document.getElementById('homeInvitesTile');
+    if (!tile) return true;
+    var node = tile;
+    while (node && node.nodeType === 1) {
+        if (node.getAttribute && node.hasAttribute('data-em-hidden')) return true;
+        if (typeof window.getComputedStyle === 'function') {
+            var cs = window.getComputedStyle(node);
+            if (cs && cs.display === 'none') return true;
+        }
+        node = node.parentElement;
+    }
+    if (tile.offsetWidth === 0 && tile.offsetHeight === 0) return true;
+    return false;
+}
+
+function renderReferralTierLadder(progress) {
+    var list = document.getElementById('referralTierLadderList');
+    var api = referralTierApi();
+    if (!list || !api || !api.TIERS) return;
+    var current = progress;
+    if (!current || typeof current.level !== 'number') {
+        var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+        current = api.tierProgress(serverMaxiReferralCount(user));
+    }
+    list.textContent = '';
+    var i;
+    for (i = 0; i < api.TIERS.length; i++) {
+        var tier = api.TIERS[i];
+        var row = document.createElement('div');
+        row.className = 'referral-tier-row' + (tier.level === current.level ? ' is-current' : '');
+        var label = document.createElement('span');
+        label.textContent = tier.emoji + ' ' + tier.name;
+        var need = document.createElement('span');
+        need.textContent = tier.min === 0 ? '0' : (tier.min + '+');
+        row.appendChild(label);
+        row.appendChild(need);
+        list.appendChild(row);
+    }
+}
+
+function closeReferralTierLadder() {
+    var dialog = document.getElementById('referralTierLadder');
+    if (!dialog || dialog.hidden) return;
+    dialog.hidden = true;
+}
+
+function toggleReferralTierLadder() {
+    var dialog = document.getElementById('referralTierLadder');
+    if (!dialog) return;
+    if (invitesSurfaceHidden()) {
+        closeReferralTierLadder();
+        return;
+    }
+    if (!dialog.hidden) {
+        closeReferralTierLadder();
+        return;
+    }
+    renderReferralTierLadder();
+    dialog.hidden = false;
+    var closeBtn = document.getElementById('referralTierLadderClose');
+    if (closeBtn && closeBtn.focus) closeBtn.focus();
+}
+
+var _tierLadderBound = false;
+function bindReferralTierLadder() {
+    if (_tierLadderBound) return;
+    var dialog = document.getElementById('referralTierLadder');
+    if (!dialog) return;
+    _tierLadderBound = true;
+    // main uses contain:content and #home animates opacity and transform.
+    // A fixed dialog inside either one stays clipped. Park it on the body.
+    if (dialog.parentElement !== document.body) document.body.appendChild(dialog);
+    dialog.addEventListener('click', function (ev) {
+        if (ev.target === dialog) closeReferralTierLadder();
+    });
+    var closeBtn = document.getElementById('referralTierLadderClose');
+    if (closeBtn) closeBtn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        closeReferralTierLadder();
+    });
+    var inviteBtn = document.getElementById('referralTierLadderInvite');
+    if (inviteBtn) inviteBtn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        closeReferralTierLadder();
+        if (typeof openInviteFriends === 'function') openInviteFriends(true);
+    });
+    document.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Escape') {
+            closeReferralTierLadder();
+            setMaxiInfoOpen(false);
+        }
+    });
+    document.addEventListener('click', function (ev) {
+        var tip = document.getElementById('homeInvitesInfoText');
+        if (!tip || !tip.classList.contains('is-open')) return;
+        var t = ev.target;
+        if (t && t.closest && (t.closest('#homeInvitesInfo') || t.closest('#homeInvitesInfoText'))) return;
+        setMaxiInfoOpen(false);
+    });
+    var info = document.getElementById('homeInvitesInfo');
+    var fineHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    var hoverTimer = 0;
+    function hoverClose() {
+        clearTimeout(hoverTimer);
+        hoverTimer = setTimeout(function () {
+            var tip = document.getElementById('homeInvitesInfoText');
+            var btn = document.getElementById('homeInvitesInfo');
+            if (tip && tip.matches(':hover')) return;
+            if (btn && btn.matches(':hover')) return;
+            setMaxiInfoOpen(false);
+        }, 120);
+    }
+    if (info) info.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (fineHover && ev.detail !== 0) return;
+        toggleMaxiInfo();
+    });
+    if (info && fineHover) {
+        info.addEventListener('mouseenter', function () {
+            clearTimeout(hoverTimer);
+            setMaxiInfoOpen(true);
+        });
+        info.addEventListener('mouseleave', hoverClose);
+    }
+    var help = document.getElementById('homeInvitesInfoText');
+    if (help && fineHover) {
+        help.addEventListener('mouseenter', function () { clearTimeout(hoverTimer); });
+        help.addEventListener('mouseleave', hoverClose);
+    }
+    var api = referralTierApi();
+    if (help && api && typeof api.maxiCountHelp === 'function') help.textContent = api.maxiCountHelp(_homeInvitedCount, _homeReachedCount, _homeMaxiCount);
+}
+bindReferralTierLadder();
+
+function setMaxiInfoOpen(open) {
+    var tip = document.getElementById('homeInvitesInfoText');
+    var btn = document.getElementById('homeInvitesInfo');
+    if (!tip) return;
+    if (tip.parentElement !== document.body) document.body.appendChild(tip);
+    var api = referralTierApi();
+    if (api && typeof api.maxiCountHelp === 'function') tip.textContent = api.maxiCountHelp(_homeInvitedCount, _homeReachedCount, _homeMaxiCount);
+    tip.classList.toggle('is-open', !!open);
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (!open) return;
+    var anchor = btn || document.getElementById('homeInvitesNote');
+    if (!anchor) return;
+    var rect = anchor.getBoundingClientRect();
+    var width = Math.min(240, window.innerWidth - 24);
+    var left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+    tip.style.width = width + 'px';
+    tip.style.left = left + 'px';
+    var top = rect.bottom + 6;
+    tip.style.top = top + 'px';
+    if (top + tip.offsetHeight > window.innerHeight - 8) {
+        tip.style.top = Math.max(8, rect.top - tip.offsetHeight - 6) + 'px';
+    }
+}
+
+function toggleMaxiInfo() {
+    var tip = document.getElementById('homeInvitesInfoText');
+    if (!tip) return;
+    if (invitesSurfaceHidden()) {
+        setMaxiInfoOpen(false);
+        return;
+    }
+    setMaxiInfoOpen(!tip.classList.contains('is-open'));
+}
+
+function openHomeInvites(ev) {
+    var target = ev && ev.target;
+    if (target && target.closest && target.closest('[data-maxi-info]')) {
+        if (ev.preventDefault) ev.preventDefault();
+        if (ev.stopPropagation) ev.stopPropagation();
+        toggleMaxiInfo();
+        return;
+    }
+    if (target && target.closest && target.closest('[data-tier-ladder]')) {
+        if (ev.preventDefault) ev.preventDefault();
+        if (ev.stopPropagation) ev.stopPropagation();
+        toggleReferralTierLadder();
+        return;
+    }
+    if (invitesSurfaceHidden()) return;
+    if (typeof openInviteFriends === 'function') openInviteFriends(true);
+}
+window.openHomeInvites = openHomeInvites;
+
+function openHomeWithdraw() {
+    var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+    var snap = satsHomeSnapshot(user);
+    if (!snap.address) {
+        if (typeof openWithdrawalAddress === 'function') openWithdrawalAddress({ mode: 'reset' });
+        return;
+    }
+    if (typeof showSettingsPage === 'function') showSettingsPage('sats');
+}
+window.openHomeWithdraw = openHomeWithdraw;
+
+function removePaintedNode(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (el.parentNode && el.parentNode.removeChild) el.parentNode.removeChild(el);
+    else if (typeof el.remove === 'function') el.remove();
+}
+
+function resetOptimisticHomeChrome() {
+    removePaintedNode('bqMobileStreak');
+    removePaintedNode('bqDailyStreak');
+    removePaintedNode('bqDailyStreakText');
+    var sats = document.getElementById('homeSatsValue');
+    if (sats) {
+        sats.textContent = '\u2014';
+        sats.removeAttribute('data-profile-cache');
+        sats.removeAttribute('data-auth-live');
+    }
+    var withdraw = document.getElementById('homeWithdrawValue');
+    if (withdraw) withdraw.textContent = '\u2014';
+    var withdrawNote = document.getElementById('homeWithdrawNote');
+    if (withdrawNote) withdrawNote.textContent = '\u2014';
+    var tier = document.getElementById('homeInvitesTier');
+    if (tier) tier.textContent = '\u2014';
+    var note = document.getElementById('homeInvitesNote');
+    if (note) note.textContent = 'earned ' + referralPointsLabel() + ' XP';
+    var prog = document.getElementById('homeInvitesProgress');
+    if (prog) prog.textContent = '';
+    var openBtn = document.getElementById('homeInvitesOpen');
+    if (openBtn) openBtn.setAttribute('aria-label', 'Invites');
+    var tile = document.getElementById('homeInvitesTile');
+    if (tile) tile.removeAttribute('data-referral-tier');
+    var bar = document.getElementById('rankBar');
+    if (bar) {
+        bar.textContent = '';
+        if ('innerHTML' in bar) bar.innerHTML = '';
+        bar.style.display = 'none';
+        bar.removeAttribute('data-profile-cache');
+        bar.removeAttribute('data-auth-live');
+    }
+    var shown = document.getElementById('userDisplay');
+    if (shown) {
+        shown.textContent = '';
+        if ('innerHTML' in shown) shown.innerHTML = '';
+        shown.style.display = 'none';
+    }
+    try {
+        document.documentElement.classList.remove('home-signed-in');
+        document.documentElement.removeAttribute('data-auth-display');
+        if (document.body) document.body.classList.remove('home-signed-in');
+    } catch (e) {}
+}
+
 function updateAuthButton() {
     const btn = document.getElementById('authBtn');
     if (!btn) return;
+    if (currentUser) window._btcHoldGuestUntilProfile = false;
+    // Account A was cleared and B's profile is not in yet. Do not keep A's
+    // signed-in chrome, and do not invent "My Account" from the new auth user.
+    if (!currentUser && window._btcHoldGuestUntilProfile) {
+        _authBtnSignedIn = false;
+        applyGuestAuthButton(btn);
+        document.documentElement.classList.remove('home-signed-in');
+        document.documentElement.removeAttribute('data-auth-display');
+        if (document.body) document.body.classList.remove('home-signed-in');
+        if (typeof window.refreshHomeStrip === 'function') window.refreshHomeStrip();
+        if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
+        return;
+    }
+    // The authenticator check has not passed. Do not turn this into Settings.
+    if (window._btcTotpHold) {
+        _authBtnSignedIn = false;
+        applyGuestAuthButton(btn);
+        document.documentElement.classList.remove('home-signed-in');
+        if (document.body) document.body.classList.remove('home-signed-in');
+        return;
+    }
     // Check all possible ways a user can be "signed in":
     var firebaseUser = auth && auth.currentUser;
     var isRealAuth = firebaseUser && !firebaseUser.isAnonymous;
@@ -2020,6 +4571,10 @@ function updateAuthButton() {
     var isNostrOrLn = firebaseUser && firebaseUser.uid && (firebaseUser.uid.startsWith('nostr:') || firebaseUser.uid.startsWith('ln:'));
 
     var shouldShowSignedIn = isRealAuth || isNostrOrLn || displayName;
+    // The display snapshot may already have painted. Auth has not settled yet,
+    // so this call must not swap that paint back to the guest button.
+    var authSettled = typeof window._btcEarlyAuthUser !== 'undefined' || !!firebaseUser;
+    var keepOptimistic = !authSettled && !_authBtnSignedIn && document.documentElement.getAttribute('data-auth-display') === '1';
 
     // Once signed in, NEVER go back to "Create Account" unless explicitly signed out (firebaseUser is null)
     if (shouldShowSignedIn) {
@@ -2027,13 +4582,14 @@ function updateAuthButton() {
     } else if (_authBtnSignedIn && firebaseUser) {
         // Auth still exists but Firestore temporarily lost - don't downgrade
         return;
-    } else if (!firebaseUser) {
+    } else if (!firebaseUser && !keepOptimistic) {
         // Actually signed out
         _authBtnSignedIn = false;
     }
 
     if (_authBtnSignedIn) {
         var name = displayName || 'My Account';
+        btn.setAttribute('data-auth-live', '1');
         btn.innerHTML = '⚙️ <strong>' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</strong> - Settings';
         btn.onclick = function() { showSettings(); };
         // Hide on mobile - mobile top bar already shows username + Topics
@@ -2043,7 +4599,7 @@ function updateAuthButton() {
         btn.style.color = '#3b82f6';
         btn.onmouseover = function() { this.style.background='#3b82f6'; this.style.color='#fff'; };
         btn.onmouseout = function() { this.style.background='none'; this.style.color='#3b82f6'; };
-    } else if (!firebaseUser || (firebaseUser && firebaseUser.isAnonymous)) {
+    } else if (!keepOptimistic && (!firebaseUser || (firebaseUser && firebaseUser.isAnonymous))) {
         // Only show "Create Account" for truly anonymous/no-auth users
         btn.textContent = 'Create Free Account / Sign In';
         btn.style.display = 'block';
@@ -2060,8 +4616,12 @@ function updateAuthButton() {
     if (guestBanner && _authBtnSignedIn) {
         guestBanner.style.display = 'none';
     }
-
-
+    if (!(keepOptimistic && !_authBtnSignedIn)) {
+        document.documentElement.classList.toggle('home-signed-in', !!_authBtnSignedIn);
+        if (document.body) document.body.classList.toggle('home-signed-in', !!_authBtnSignedIn);
+        if (typeof window.refreshHomeStrip === 'function') window.refreshHomeStrip();
+    }
+    if (typeof window.placeInvitePill === 'function') window.placeInvitePill();
 }
 
 // Sanitize user input - strip HTML tags and dangerous chars
@@ -2073,11 +4633,18 @@ window.sanitizeInput = sanitizeInput;
 // Sync all celebration/milestone state to Firestore (prevents re-triggering on re-login)
 window.syncCelebratedState = function() {
     if (typeof db === 'undefined' || !auth || !auth.currentUser) return;
+    function readList(key) {
+        if (typeof safeJSON !== 'function') return [];
+        try {
+            var parsed = safeJSON(key, []);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (e) { return []; }
+    }
     var state = {
-        nachoMilestones: safeJSON('btc_nacho_milestones', []),
-        nachoCatComplete: safeJSON('btc_nacho_cat_complete', []),
-        nachoLevelCelebrated: safeJSON('btc_nacho_level_celebrated', []),
-        nachoItemsNotified: safeJSON('btc_nacho_items_notified', [])
+        nachoMilestones: readList('btc_nacho_milestones'),
+        nachoCatComplete: readList('btc_nacho_cat_complete'),
+        nachoLevelCelebrated: readList('btc_nacho_level_celebrated'),
+        nachoItemsNotified: readList('btc_nacho_items_notified')
     };
     db.collection('users').doc(auth.currentUser.uid).update({ celebratedState: state }).catch(function() {});
 };
@@ -2121,6 +4688,289 @@ function containsProfanity(str) {
     return false;
 }
 
+function clientCreatePayload(extra) {
+    var data = {
+        points: 0,
+        channelsVisited: 0,
+        totalVisits: 1,
+        streak: 1,
+        lastVisit: new Date().toISOString().split('T')[0],
+        created: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    var allow = { profilePic: 1, displayName: 1, country: 1, lightning: 1, lightningAddress: 1, nostr: 1, lastLogin: 1, signupSource: 1, tosVersion: 1, tosAcceptedAt: 1 };
+    var src = extra || {};
+    Object.keys(src).forEach(function (k) {
+        if (allow[k] && src[k] !== undefined && src[k] !== '') data[k] = src[k];
+    });
+    // Campaign tags (&src=) must land on every create path: Lightning, Nostr,
+    // Google/provider, and OAuth redirect all go through this helper.
+    if (!data.signupSource) {
+        try {
+            var storedSrc = localStorage.getItem('btc_signup_source');
+            if (storedSrc) data.signupSource = storedSrc;
+        } catch (eSrc) {}
+    }
+    return data;
+}
+
+async function applyServerUsername(name) {
+    var fn = firebase.functions().httpsCallable('setUsername');
+    var res = await fn({ name: name });
+    var data = res && res.data ? res.data : {};
+    if (!data.ok || !data.username) throw new Error('Could not save that username.');
+    var previousName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : '';
+    if (typeof currentUser !== 'undefined' && currentUser) {
+        currentUser.username = data.username;
+        if (previousName && previousName !== data.username) currentUser.usernameFreeRename = false;
+    }
+    try { localStorage.setItem('btc_username', data.username); } catch (e) {}
+    return data.username;
+}
+window.applyServerUsername = applyServerUsername;
+
+function ensureUsernameRepickStyle() {
+    if (document.getElementById('usernameRepickStyle')) return;
+    var style = document.createElement('style');
+    style.id = 'usernameRepickStyle';
+    style.textContent = '#usernameRepick{position:fixed;inset:0;z-index:600000;background:var(--overlay,rgba(0,0,0,.72));overflow-y:auto;-webkit-overflow-scrolling:touch;padding:max(12px,env(safe-area-inset-top)) 12px max(16px,env(safe-area-inset-bottom));box-sizing:border-box;}' +
+        '#usernameRepick .username-box{width:min(400px,100%);max-width:400px;margin:24px auto;box-sizing:border-box;}' +
+        '#usernameRepick h2{font-size:1.2rem;line-height:1.35;overflow-wrap:anywhere;}' +
+        '#usernameRepick input{font-size:16px;box-sizing:border-box;}' +
+        '#usernameRepickError{color:#ef4444;font-size:.85rem;min-height:1.2em;margin:-8px 0 12px;text-align:center;overflow-wrap:anywhere;}' +
+        '#usernameRepickSignOut{margin-top:10px;background:none;color:var(--text-muted,#94a3b8);border:1px solid var(--border,#334155);font-weight:600;}' +
+        '#usernameRepickSignOut:hover{background:none;color:var(--text,#e2e8f0);}' +
+        '@media (max-width:420px){#usernameRepick .username-box{padding:20px 16px;margin:12px auto;}}';
+    document.head.appendChild(style);
+}
+
+function usernameRepickFailure(e) {
+    var code = String((e && e.code) || '');
+    var msg = String((e && e.message) || '').replace(/^FirebaseError:\s*/i, '');
+    if (code.indexOf('resource-exhausted') !== -1 || /too many username attempts/i.test(msg)) {
+        return 'Too many username attempts. Try again in an hour, or sign out.';
+    }
+    if (/authenticator session required/i.test(msg) || /phone verification applies/i.test(msg) || /sign in again/i.test(msg) || code === 'auth/requires-recent-login') {
+        return 'Two-factor sign-in is required before this name can be saved. Sign out and sign back in.';
+    }
+    if (code.indexOf('unauthenticated') !== -1) {
+        return 'Your session expired. Sign out and sign back in.';
+    }
+    if (!msg || msg === 'internal') return 'Could not save that username. Try again, or sign out.';
+    return msg;
+}
+
+function showUsernameRepickPrompt() {
+    if (tosBlocking()) {
+        window.runAfterTos(function() { showUsernameRepickPrompt(); });
+        return;
+    }
+    if (document.getElementById('usernameRepick')) return;
+    ensureUsernameRepickStyle();
+    var signup = document.getElementById('usernameModal');
+    if (signup) signup.classList.remove('open');
+    if (!window._usernameRepickKeys) {
+        window._usernameRepickKeys = true;
+        document.addEventListener('keydown', function (e) {
+            if (!document.getElementById('usernameRepick')) return;
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }, true);
+    }
+    var overlay = document.createElement('div');
+    overlay.id = 'usernameRepick';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'usernameRepickTitle');
+    var _neverNamed = typeof window.usernameNeverPicked === 'function' && typeof currentUser !== 'undefined' && window.usernameNeverPicked(currentUser);
+    overlay.innerHTML = '<div class="username-box glass-dark">' +
+        '<h2 id="usernameRepickTitle">' + (_neverNamed ? 'Pick a username so you show up on the leaderboard' : 'Your username needs updating. Please pick a new one') + '</h2>' +
+        '<p>This stays open until the new name is saved.</p>' +
+        '<input type="text" id="usernameRepickInput" placeholder="Enter a username..." maxlength="20" autocomplete="username" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="Choose a new username">' +
+        '<div id="usernameRepickError" role="alert"></div>' +
+        '<button type="button" id="usernameRepickSave">Save username</button>' +
+        '<button type="button" id="usernameRepickSignOut">Sign out</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    var input = document.getElementById('usernameRepickInput');
+    var save = document.getElementById('usernameRepickSave');
+    var signOut = document.getElementById('usernameRepickSignOut');
+    if (save) save.addEventListener('click', function () { submitUsernameRepick(); });
+    if (signOut) signOut.addEventListener('click', function () {
+        signOut.disabled = true;
+        var done;
+        try {
+            if (typeof signOutUser === 'function') done = signOutUser();
+            else if (typeof auth !== 'undefined' && auth && auth.signOut) done = auth.signOut();
+            else done = Promise.reject(new Error('sign out unavailable'));
+        } catch (e) {
+            done = Promise.reject(e);
+        }
+        Promise.resolve(done).catch(function () {
+            signOut.disabled = false;
+            var err = document.getElementById('usernameRepickError');
+            if (err) err.textContent = 'Could not sign out. Try again.';
+        });
+    });
+    if (input) {
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                submitUsernameRepick();
+            }
+        });
+        setTimeout(function () { try { input.focus(); } catch (e) {} }, 50);
+    }
+}
+window.showUsernameRepickPrompt = showUsernameRepickPrompt;
+
+function maybeShowUsernameRepick() {
+    var needed = window.usernameRepickNeeded;
+    if (typeof needed !== 'function') return;
+    var authUser = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
+    var user = (typeof currentUser !== 'undefined') ? currentUser : null;
+    if (!needed(user, authUser)) return;
+    if (user && !user.username) {
+        try { localStorage.removeItem('btc_username'); } catch (e) {}
+    }
+    showUsernameRepickPrompt();
+}
+window.maybeShowUsernameRepick = maybeShowUsernameRepick;
+
+window.submitUsernameRepick = async function () {
+    var input = document.getElementById('usernameRepickInput');
+    var err = document.getElementById('usernameRepickError');
+    var btn = document.getElementById('usernameRepickSave');
+    function fail(msg) { if (err) err.textContent = msg || ''; }
+    var name = input ? input.value.trim() : '';
+    if (!name) { fail('Please enter a username.'); return; }
+    if (name.length < 3) { fail('Username must be at least 3 characters.'); return; }
+    if (name.length > 20) { fail('Username must be 20 characters or less.'); return; }
+    if (/[\s\u180E\u200B-\u200D\u2060\uFEFF]/.test(name)) { fail('No spaces, please. Try an underscore instead, like ' + name.replace(/[\s\u180E\u200B-\u200D\u2060\uFEFF]+/g, '_') + '.'); return; }
+    if (/[^A-Za-z0-9_\-.]/.test(name)) { fail('Use letters, numbers, underscores, hyphens, or dots.'); return; }
+    if (typeof containsProfanity === 'function' && containsProfanity(name)) { fail('That username is not allowed.'); return; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+    fail('');
+    try {
+        var saved = await applyServerUsername(name);
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            currentUser.username = saved;
+            currentUser.usernameNeedsRepick = false;
+        }
+        var overlay = document.getElementById('usernameRepick');
+        if (overlay) overlay.remove();
+        if (typeof updateAuthButton === 'function') updateAuthButton();
+        if (typeof updateRankUI === 'function') updateRankUI();
+        if (typeof showToast === 'function') showToast('Username updated');
+    } catch (e) {
+        fail(usernameRepickFailure(e));
+        if (btn) { btn.disabled = false; btn.textContent = 'Save username'; }
+    }
+};
+
+window.patchBlankProfileNames = function (root) {
+    if (!root || typeof db === 'undefined' || !db || typeof window.missingPublicName !== 'function' || typeof window.leaderboardDisplayName !== 'function') return;
+    var nodes = root.querySelectorAll('[data-profile-uid]');
+    window._pubNameCache = window._pubNameCache || {};
+    var jobs = [];
+    for (var i = 0; i < nodes.length && jobs.length < 25; i++) {
+        var node = nodes[i];
+        var raw = (node.textContent || '').replace(/^@/, '').trim();
+        var blank = node.getAttribute('data-blank-name') === '1' || !raw || raw === '\u2014' || raw === '-' || window.missingPublicName(raw);
+        if (!blank) continue;
+        var uid = node.getAttribute('data-profile-uid');
+        if (!uid) continue;
+        jobs.push({ node: node, uid: uid, at: /^\s*@/.test(node.textContent || '') });
+    }
+    jobs.forEach(function (job) {
+        function paint(name) {
+            if (!job.node || window.missingPublicName(name)) return;
+            job.node.textContent = (job.at ? '@' : '') + name;
+            job.node.removeAttribute('data-blank-name');
+        }
+        if (window._pubNameCache[job.uid]) {
+            paint(window._pubNameCache[job.uid]);
+            return;
+        }
+        if (window._pubNameCache[job.uid] === '') return;
+        window._pubNamePending = window._pubNamePending || {};
+        if (window._pubNamePending[job.uid]) {
+            window._pubNamePending[job.uid].push(paint);
+            return;
+        }
+        window._pubNamePending[job.uid] = [paint];
+        db.collection('public_profiles').doc(job.uid).get().then(function (snap) {
+            var name = snap && snap.exists && snap.data() ? snap.data().username : '';
+            var shown = window.leaderboardDisplayName('', name);
+            window._pubNameCache[job.uid] = shown === 'Anon' ? '' : shown;
+            var waiters = window._pubNamePending[job.uid] || [];
+            delete window._pubNamePending[job.uid];
+            waiters.forEach(function (fn) { fn(window._pubNameCache[job.uid]); });
+        }).catch(function () {
+            delete window._pubNamePending[job.uid];
+        });
+    });
+};
+
+async function stashGuestLink() {
+    if (!auth || !auth.currentUser || !auth.currentUser.isAnonymous) return;
+    var uid = auth.currentUser.uid;
+    try {
+        var raw = localStorage.getItem('btc_guest_link');
+        if (raw) {
+            var parsed = JSON.parse(raw);
+            if (parsed && parsed.anonUid === uid && parsed.nonce && parsed.at && (Date.now() - Number(parsed.at)) < 20 * 60 * 1000) return;
+        }
+    } catch (e) {}
+    var attempt;
+    for (attempt = 0; attempt < 2; attempt++) {
+        try {
+            var fn = firebase.functions().httpsCallable('prepareGuestLink');
+            var res = await fn({});
+            if (res && res.data && res.data.nonce) {
+                localStorage.setItem('btc_guest_link', JSON.stringify({ anonUid: uid, nonce: res.data.nonce, at: Date.now() }));
+                return;
+            }
+        } catch (err) {}
+    }
+    if (typeof showToast === 'function') showToast('Could not save this guest session. Try again before you sign in.');
+}
+window.stashGuestLink = stashGuestLink;
+
+async function tryLinkGuest() {
+    var raw = localStorage.getItem('btc_guest_link');
+    if (!raw || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return '';
+    var parsed = null;
+    try { parsed = JSON.parse(raw); } catch (e) { return ''; }
+    if (!parsed || !parsed.anonUid || parsed.anonUid === auth.currentUser.uid) return '';
+    var fn = firebase.functions().httpsCallable('linkGuestAccount');
+    var res = null;
+    try {
+        res = await fn({ anonUid: parsed.anonUid, nonce: parsed.nonce });
+    } catch (e) {
+        var code = e && e.code;
+        // #59's linkGuestAccount calls requireSecondFactor before it writes.
+        // Hold the token so that gate can merge after the session exists.
+        if (guestLinkIsMfaHold(e && e.message)) {
+            window._pendingGuestLink = true;
+            return 'mfa';
+        }
+        if (code === 'functions/invalid-argument' || code === 'functions/permission-denied' || code === 'functions/not-found' || code === 'functions/failed-precondition' || code === 'functions/unauthenticated') {
+            try { localStorage.removeItem('btc_guest_link'); } catch (dropErr) {}
+        }
+        return '';
+    }
+    var data = res && res.data ? res.data : {};
+    if ((data.error && guestLinkShouldDrop(data.error)) || data.ok) {
+        try { localStorage.removeItem('btc_guest_link'); } catch (dropOk) {}
+    }
+    if (data.ok && typeof window.flushOnboardingClaims === 'function') window.flushOnboardingClaims();
+    window._pendingGuestLink = false;
+    return data.ok ? 'ok' : '';
+}
+window.tryLinkGuest = tryLinkGuest;
+
 async function createUser(username, email, enteredGiveaway, giveawayLnAddress, country) { // giveaway params kept for call-site compat; giveawayLnAddress now used as lightningAddress
     // Wait for auth to be ready if not yet
     if (typeof auth === 'undefined' || !auth) {
@@ -2130,6 +4980,10 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
         return;
     }
     if (!auth.currentUser) {
+        if (anonymousSignInBlockedNow()) {
+            showToast('Finish the email link on this page before starting a guest session.');
+            return;
+        }
         try {
             const cred = await auth.signInAnonymously();
             // Wait a moment for auth.currentUser to update
@@ -2152,18 +5006,22 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
         return;
     }
     const uid = auth.currentUser.uid;
-    // Clear any leftover data from previous users on this browser
-    clearUserData();
     username = sanitizeInput(username);
-    // Strip non-ASCII characters (prevents Unicode/homoglyph bypass)
-    username = username.replace(/[^\x20-\x7E]/g, '').replace(/[\\'"<>]/g, '').trim();
-    if (!username || username.length < 2) {
-        showToast('⚠️ Username must be at least 2 characters (letters, numbers, basic symbols only).');
+    // Spaces, NBSP, and zero-width characters are rejected before the ASCII strip,
+    // so they are not silently deleted into a different name.
+    if (/[\s\u180E\u200B-\u200D\u2060\uFEFF]/.test(username)) {
+        showToast('⚠️ Usernames cannot contain spaces. Try ' + username.replace(/[\s\u180E\u200B-\u200D\u2060\uFEFF]+/g, '_') + ' instead.');
         return;
     }
-    // Only allow English letters, digits, spaces, underscores, hyphens, and dots
-    if (/[^A-Za-z0-9 _\-.]/g.test(username)) {
-        showToast('⚠️ Username can only contain English letters, numbers, spaces, underscores, hyphens, and dots.');
+    // Strip non-ASCII characters (prevents Unicode/homoglyph bypass)
+    username = username.replace(/[^\x20-\x7E]/g, '').replace(/[\\'"<>]/g, '').trim();
+    if (!username || username.length < 3) {
+        showToast('Username must be at least 3 characters.');
+        return;
+    }
+    // Only allow English letters, digits, underscores, hyphens, and dots. No spaces.
+    if (/[^A-Za-z0-9_\-.]/g.test(username)) {
+        showToast('⚠️ Username can only contain English letters, numbers, underscores, hyphens, and dots.');
         return;
     }
     if (containsProfanity(username)) {
@@ -2176,18 +5034,7 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
         showToast('⚠️ That username is already taken. Please choose another.');
         return;
     }
-    if (email) email = sanitizeInput(email);
-    const userData = {
-        username: username,
-        username_lower: username.toLowerCase(),
-        points: 0,
-        channelsVisited: 0,
-        totalVisits: 1,
-        streak: 1,
-        lastVisit: new Date().toISOString().split('T')[0],
-        created: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    if (email) userData.email = email;
+    const userData = clientCreatePayload({});
     if (country) userData.country = country;
     // Lightning address from signup field
     var _signupLn = giveawayLnAddress || '';
@@ -2203,8 +5050,10 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     } else {
         _signupLn = '';
     }
-    // Faction choice from signup
-    if (window._signupFaction) { userData.faction = window._signupFaction; window._signupFaction = null; }
+    // Faction is saved by chooseFaction after the profile exists.
+    var _pickedFaction = window._signupFaction || '';
+    try { if (!_pickedFaction) _pickedFaction = localStorage.getItem('btc_pending_faction') || ''; } catch (e) {}
+    window._signupFaction = null;
     // Campaign source tracking - written once at signup, never overwritten
     var _signupSrc = localStorage.getItem('btc_signup_source');
     if (_signupSrc) { userData.signupSource = _signupSrc; }
@@ -2212,7 +5061,17 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     userData.tosVersion = TOS_CURRENT_VERSION;
     userData.tosAcceptedAt = firebase.firestore.FieldValue.serverTimestamp();
 
-    await db.collection('users').doc(uid).set(userData);
+    var _existingAccount = await db.collection('users').doc(uid).get();
+    if (!_existingAccount.exists) await db.collection('users').doc(uid).set(userData);
+    if (_pickedFaction && (!_existingAccount.exists || !(_existingAccount.data() && _existingAccount.data().faction))) {
+        try { await flushSignupFaction(_pickedFaction); } catch (e) {}
+    }
+    try { await applyServerUsername(username); }
+    catch (nameErr) {
+        showToast(nameErr.message || 'Pick a different username.');
+        return;
+    }
+    userData.username = username;
     // Increment global registered user count
     try { db.collection('stats').doc('global').set({ userCount: firebase.firestore.FieldValue.increment(1) }, { merge: true }).catch(function() {}); } catch(e) {}
     currentUser = { uid, ...userData };
@@ -2224,17 +5083,8 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
     awardPoints(POINTS.visit, 'Welcome bonus!');
     startReadTimer();
     hideUsernamePrompt();
-    // Confirm LN address was saved
-    if (_signupLn) setTimeout(function() { showToast('⚡ Lightning address saved to your profile!'); }, 1200);
-    // Show Quest Guide for new accounts (reset dismiss so they see it fresh)
-    try {
-        localStorage.removeItem('guide_dismissed');
-        localStorage.removeItem('guide_seen');
-        if (typeof showGuide === 'function') {
-            setTimeout(function() { showGuide(); }, 800);
-        }
-    } catch(e) {}
-
+    if (_signupLn) setTimeout(function() { showToast('Lightning address saved to your profile.'); }, 1200);
+    if (typeof window.flushOnboardingClaims === 'function') window.flushOnboardingClaims();
 
     // Attach referral if user came via referral link
     if (typeof attachReferral === 'function') attachReferral(uid);
@@ -2255,7 +5105,14 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
 }
 
 async function awardVisitPoints() {
-    if (!currentUser) return;
+    if (!currentUser || optimisticProfilePending()) return;
+    // Snapshot the previous visit before recordDailyVisit overwrites it,
+    // so the push prompt can tell a 7-day return from a same-day reload.
+    try {
+        if (!sessionStorage.getItem('btc_push_prev_visit') && currentUser.lastVisit) {
+            sessionStorage.setItem('btc_push_prev_visit', String(currentUser.lastVisit));
+        }
+    } catch (e) {}
     // Use 5 AM UTC offset key - matches getDailyKey() and server getOffsetDateKey()
     const RESET_HOUR_UTC = 5;
     const today = new Date(Date.now() - RESET_HOUR_UTC * 3600000).toISOString().split('T')[0];
@@ -2346,8 +5203,36 @@ async function awardVisitPoints() {
     refreshLeaderboardIfOpen();
 }
 
+function inferAwardActionKey(reason, badgeId, extra) {
+    if (badgeId) return '';
+    var text = String(reason || '');
+    if (text.indexOf('🎫') !== -1 || text.indexOf('\uD83C\uDFAB') !== -1) return '';
+    var more = extra && typeof extra === 'object' ? extra : {};
+    if ((/flex:/i.test(text) || /daily challenge:/i.test(text)) && more.flexActionId) return 'flex_action';
+    if (/trio combo|mega combo|legendary combo|daily 3 complete/i.test(text) && more.comboTier) return 'combo_bonus';
+    if (/^📖 Learning Quest: .+ lesson$/.test(text.trim())) return 'lq_lesson';
+    return '';
+}
+
+window._doubleXpUntilMs = function(u) {
+    if (!u) return 0;
+    var raw = u.doubleXpUntil != null && u.doubleXpUntil !== '' ? u.doubleXpUntil : u.doubleXPExpiry;
+    if (raw == null || raw === '') return 0;
+    if (typeof raw === 'number' && isFinite(raw)) return raw;
+    if (typeof raw === 'string' && /^\d+$/.test(raw)) return Number(raw);
+    if (typeof raw.toMillis === 'function') {
+        var ms = raw.toMillis();
+        return typeof ms === 'number' && isFinite(ms) ? ms : 0;
+    }
+    if (typeof raw === 'object') {
+        if (typeof raw.seconds === 'number') return raw.seconds * 1000;
+        if (typeof raw._seconds === 'number') return raw._seconds * 1000;
+    }
+    return 0;
+};
+
 async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badgeId, extra) {
-    if (!currentUser || !rankingReady) return;
+    if (!currentUser || !rankingReady || optimisticProfilePending()) return;
 
     // Anti-abuse: validate pts is a reasonable number.
     // badge_earned uses a higher ceiling because the CF catalog contains milestones
@@ -2379,10 +5264,17 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             // Track pts for ghost banner re-show
             if (typeof window._ghostTrackPts === 'function') window._ghostTrackPts(pts);
         }
-        // Track points in localStorage. Daily cap 500. Server-side validation happens
-        // later if they ever sign in (via anon_merge), so this is purely UX reward.
+        // Local preview only. Same tiers as functions/src/dailyXp.js:
+        // full through 500, half through 900, quarter until 1,000.
+        // Floor per tier. A boundary split does not carry a fractional point.
+        // Guest points are not banked, and a later sign-in does not redeem them as overflow.
         var DAILY_CAP = 1000;
-        var _today = new Date().toISOString().split('T')[0];
+        var TAPER_TIERS = [
+            { end: 500, divisor: 1 },
+            { end: 900, divisor: 2 },
+            { end: 1000, divisor: 4 }
+        ];
+        var _today = new Date(Date.now() - 5 * 3600000).toISOString().split('T')[0];
         var _capKey = 'btc_daily_pts_' + _today;
         var _dailyUsed = parseInt(localStorage.getItem(_capKey) || '0', 10);
         if (isNaN(_dailyUsed)) _dailyUsed = 0;
@@ -2405,63 +5297,46 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             try { localStorage.setItem(cdKey, String(Date.now())); } catch(e) {}
         }
 
-        // Anon overflow mirror: redeem yesterday's overflow first, then award today's pts.
-        var _overflowKey = 'btc_pts_overflow';
-        var _overflowDateKey = 'btc_pts_overflow_date';
-        var _overflow = parseInt(localStorage.getItem(_overflowKey) || '0', 10) || 0;
-        var _overflowDate = localStorage.getItem(_overflowDateKey) || '';
-        var overflowRedeemed = 0;
-        if (_overflow > 0 && _overflowDate && _overflowDate !== _today) {
-            overflowRedeemed = Math.min(_overflow, DAILY_CAP);
-            _overflow -= overflowRedeemed;
-            try { localStorage.setItem(_overflowKey, String(_overflow)); } catch(e) {}
+        var awarded = 0;
+        var cursor = _dailyUsed;
+        var left = pts;
+        if (cursor < DAILY_CAP && left > 0) {
+            for (var ti = 0; ti < TAPER_TIERS.length; ti++) {
+                if (left <= 0 || cursor >= DAILY_CAP) break;
+                var tier = TAPER_TIERS[ti];
+                if (cursor >= tier.end) continue;
+                var room = tier.end - cursor;
+                var rawNeeded = room * tier.divisor;
+                if (left >= rawNeeded) {
+                    awarded += room;
+                    cursor += room;
+                    left -= rawNeeded;
+                } else {
+                    var credit = Math.floor(left / tier.divisor);
+                    awarded += credit;
+                    cursor += credit;
+                    left = 0;
+                }
+            }
         }
 
-        var awarded = pts;
-        var overflowAdded = 0;
-        if (_dailyUsed >= DAILY_CAP) {
-            awarded = 0;
-            overflowAdded = pts;
-        } else if (_dailyUsed + pts > DAILY_CAP) {
-            awarded = DAILY_CAP - _dailyUsed;
-            overflowAdded = pts - awarded;
-        }
-
-        var totalAdded = awarded + overflowRedeemed;
-        if (totalAdded > 0) {
-            var newPoints = (parseInt(localStorage.getItem('btc_points') || '0', 10) || 0) + totalAdded;
+        if (awarded > 0) {
+            var newPoints = (parseInt(localStorage.getItem('btc_points') || '0', 10) || 0) + awarded;
             try {
                 localStorage.setItem('btc_points', String(newPoints));
-                if (awarded > 0) localStorage.setItem(_capKey, String(_dailyUsed + awarded));
+                localStorage.setItem(_capKey, String(_dailyUsed + awarded));
             } catch(e) {}
             currentUser.points = newPoints;
             _showPointsToast(awarded, reason);
             if (typeof notifySelfPoints === 'function') notifySelfPoints(awarded, reason);
-            if (overflowRedeemed > 0 && typeof showToast === 'function') {
-                setTimeout(function() {
-                    showToast('♻️ +' + overflowRedeemed + ' overflow pts redeemed from prior day!', 4000);
-                }, 1200);
-            }
         }
 
-        if (overflowAdded > 0) {
-            _overflow += overflowAdded;
-            try {
-                localStorage.setItem(_overflowKey, String(_overflow));
-                localStorage.setItem(_overflowDateKey, _today);
-            } catch(e) {}
-            var _overflowNotifKey = 'btc_overflow_notified_' + _today;
-            if (!localStorage.getItem(_overflowNotifKey)) {
-                try { localStorage.setItem(_overflowNotifKey, '1'); } catch(e) {}
-                if (typeof showToast === 'function') showToast('🎯 Daily cap reached (1,000)! +' + overflowAdded + ' XP banked as overflow - they roll over tomorrow. Sign in to convert to sats.', 8000);
-                if (typeof _updateCapIndicator === 'function') _updateCapIndicator(true);
-            }
-        } else if (_dailyUsed + awarded >= DAILY_CAP) {
+        if (_dailyUsed + awarded >= DAILY_CAP) {
             // Daily cap notification (once per day)
             var _capNotifKey = 'btc_daily_cap_notified_' + _today;
             if (!localStorage.getItem(_capNotifKey)) {
                 try { localStorage.setItem(_capNotifKey, '1'); } catch(e) {}
-                if (typeof showToast === 'function') showToast('🎯 Daily cap hit (1,000)! Further XP today rolls over to tomorrow. Sign in to convert to sats.', 8000);
+                if (typeof showToast === 'function') showToast('Daily cap hit (1,000). Full through 500, half through 900, then a quarter. More XP today is not awarded.', 8000);
                 if (typeof _updateCapIndicator === 'function') _updateCapIndicator(true);
             }
         }
@@ -2487,13 +5362,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
     var _isBadgeEarned = !!(badgeId);
     var _eagerNotifyTs = null; // timestamp of eager log entry — used to correct it post-CF if capped
     try {
-        // 🎯 Double XP: check if active before sending points (client-side boost signal)
-        var doubleXPExpiry = typeof currentUser !== 'undefined' && currentUser ? (currentUser.doubleXPExpiry || 0) : 0;
-        var doubleXPActive = doubleXPExpiry > Date.now();
-        if (doubleXPActive && pts > 0) {
-            pts = Math.min(2200, pts * 2); // double, respect anti-abuse cap
-        }
-        // Eager notify AFTER double-XP so the logged amount matches what we sent to CF
+        // The server applies 2× from doubleXpUntil. The client must not multiply.
         if (pts > 0 && reason && !_isBadgeEarned && typeof notifySelfPoints === 'function') {
             _eagerNotifyTs = notifySelfPoints(pts, reason);
         }
@@ -2504,8 +5373,11 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         if (tickets) payload.tickets = tickets;
         if (streakFreezes) payload.streakFreezes = streakFreezes;
         if (badgeId) payload.badgeId = badgeId;
-        if (doubleXPActive) payload.doubleXP = true; // inform CF for logging
         if (extra && typeof extra === 'object') Object.assign(payload, extra);
+        if (!payload.actionKey) {
+            var inferredKey = inferAwardActionKey(reason, badgeId, extra);
+            if (inferredKey) payload.actionKey = inferredKey;
+        }
         var result = await awardPointsFn(payload);
         if (result.data && result.data.dailyActionCapped) {
             if (typeof showToast === 'function') showToast('⏳ ' + (result.data.error || 'Daily limit reached for this action.'), 6000);
@@ -2515,11 +5387,11 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         }
         if (result.data && result.data.success) {
             var awarded = result.data.awarded || 0;
-            var overflowRedeemed = result.data.overflowRedeemed || 0;
-            var overflowAdded = result.data.overflowAdded || 0;
-            if (typeof result.data.pendingOverflow !== 'undefined' && typeof currentUser !== 'undefined' && currentUser) currentUser.pendingOverflow = result.data.pendingOverflow;
-            var pendingOverflow = result.data.pendingOverflow || 0;
-            var totalAdded = awarded + overflowRedeemed;
+            if (result.data.doubleXpUntil && typeof currentUser !== 'undefined' && currentUser) {
+                currentUser.doubleXpUntil = result.data.doubleXpUntil;
+                currentUser.doubleXPExpiry = result.data.doubleXpUntil;
+            }
+            var totalAdded = awarded;
             // For badge_earned: notify here (deferred from eager path above) - server confirmed it's real
             if (_isBadgeEarned && awarded > 0 && typeof notifySelfPoints === 'function') {
                 notifySelfPoints(awarded, reason);
@@ -2530,28 +5402,28 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             }
             if (totalAdded > 0) {
                 currentUser.points = (currentUser.points || 0) + totalAdded;
-                _showPointsToast(awarded, reason);
-                // Notification already logged eagerly before CF call (or above for badges)
-                if (overflowRedeemed > 0) {
-                    setTimeout(function() {
-                        showToast('♻️ +' + overflowRedeemed + ' overflow pts redeemed from prior day!', 4000);
-                    }, 1200);
-                }
+                _showPointsToast(awarded, reason, result.data.doubled === true);
             }
-            if (overflowAdded > 0) {
-                var _overflowKey = 'btc_overflow_notified_' + new Date().toISOString().split('T')[0];
-                if (!localStorage.getItem(_overflowKey)) {
-                    localStorage.setItem(_overflowKey, '1');
-                    showToast('🎯 Daily cap reached (1,000)! +' + overflowAdded + ' XP banked as overflow - they roll over tomorrow.', 8000);
-                    _updateCapIndicator(true);
-                }
-                // Cache pendingOverflow locally for the CAP indicator tooltip
-                try { localStorage.setItem('btc_pts_overflow', String(pendingOverflow)); } catch(e) {}
-            } else if (result.data.capped) {
-                var _capNotifKey = 'btc_daily_cap_notified_' + new Date().toISOString().split('T')[0];
+            if (result.data.dailyXp != null && typeof window._paintDailyXpMeter === 'function') {
+                window._serverDailyXp = {
+                    signedIn: true,
+                    dailyXp: result.data.dailyXp,
+                    dailyCap: result.data.dailyCap || 1000,
+                    fullUntil: result.data.fullUntil || 500,
+                    halfUntil: result.data.halfUntil || 900,
+                    pastCap: result.data.pastCap === true,
+                    _xpNotedAt: Date.now()
+                };
+                // Keep the Today card's status cache on this total. A later
+                // paint must not put the older triviaXpStatus result back.
+                if (typeof window._noteServerDailyXp === 'function') window._noteServerDailyXp(window._serverDailyXp);
+                else window._paintDailyXpMeter(window._serverDailyXp);
+            }
+            if (result.data.capped || result.data.pastCap) {
+                var _capNotifKey = 'btc_daily_cap_notified_' + new Date(Date.now() - 5 * 3600000).toISOString().split('T')[0];
                 if (!localStorage.getItem(_capNotifKey)) {
                     localStorage.setItem(_capNotifKey, '1');
-                    showToast('🎯 Daily cap hit (1,000)! Further XP today rolls over to tomorrow.', 8000);
+                    showToast('Daily cap hit (1,000). Full through 500, half through 900, then a quarter. More XP today is not awarded.', 8000);
                     _updateCapIndicator(true);
                 }
             }
@@ -2571,7 +5443,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
 }
 
 // Helper: smart toast throttling for point awards
-function _showPointsToast(pts, reason) {
+function _showPointsToast(pts, reason, doubled) {
     var _show = false;
     if (pts >= 25) {
         _show = true;
@@ -2581,7 +5453,8 @@ function _showPointsToast(pts, reason) {
     }
     if (_show && reason) {
         window._lastPtsToast = Date.now();
-        showToast('+' + pts + ' XP - ' + reason, 2500);
+        var mark = doubled === true ? ' 2x' : '';
+        showToast('+' + pts + ' XP' + mark + ' - ' + reason, 2500);
     }
 }
 
@@ -2626,35 +5499,18 @@ window._correctLastPointsNotif = function(ts, actualPts) {
 };
 
 // Auto-refresh leaderboard if it's currently open
-// Switch leaderboard period WITHOUT closing - used by the tab buttons
+// Switch leaderboard period WITHOUT closing - used by the tab buttons.
+// The snapshot for the new tab is painted from localStorage inside toggleLeaderboard.
 function _lbSwitchPeriod(period) {
     window._lbPeriod = period;
-    window._lbCache = null;
-    window._lbWeekCache = null;
-    window._lbMonthCache = null;
-    window._lbCacheTime = null;
-    // Force re-render: temporarily remove 'open' class flag check by calling internal render
     var lb = document.getElementById('leaderboard');
     if (!lb) return;
     lb.classList.add('open');
     lb.classList.remove('minimized');
-    toggleLeaderboard._renderOnly = true;
-    // Re-invoke render path directly - set lb to loading state, then reload
-    lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading...</div>';
-    // Call the actual data+render logic by temporarily forcing open state
     var fab = document.getElementById('lbFloatBtn');
     if (fab) fab.style.display = 'none';
-    // Directly invoke the async render (same as toggleLeaderboard but skip the close check)
-    (async function() {
-        try {
-            // Reuse toggleLeaderboard's render but the lb is already open so it won't close
-            // Trick: remove open class briefly so toggleLeaderboard won't see it as open
-            lb.classList.remove('open');
-            await toggleLeaderboard();
-        } catch(e) {
-            lb.innerHTML = '<div style="padding:20px;text-align:center;color:#ef4444;">Failed to load</div>';
-        }
-    })();
+    lb.classList.remove('open');
+    toggleLeaderboard();
 }
 window._lbSwitchPeriod = _lbSwitchPeriod;
 
@@ -2683,11 +5539,6 @@ async function onChannelOpen(channelId) {
         sessionChannels.add(channelId);
 
         let ptsAwarded = POINTS.openChannel;
-        // Apply daily 2X boost
-        if (window._dailyBoosts && window._dailyBoosts.includes(channelId)) {
-            ptsAwarded *= 2;
-            setTimeout(() => { showToast('⚡ 2X XP! Daily boost applied! +' + ptsAwarded + ' XP'); }, 2000);
-        }
 
         // Update local tracking
         if (currentUser._isLocal) {
@@ -2923,11 +5774,10 @@ function _updateCapIndicator(atCap) {
     var _today = new Date().toISOString().split('T')[0];
     var _dailyKey = 'btc_daily_pts_' + _today;
     var _dailyPts = parseInt(localStorage.getItem(_dailyKey) || '0');
-    var _overflow = parseInt(localStorage.getItem('btc_pts_overflow') || '0');
     if (atCap || _dailyPts >= 1000) {
         el.style.borderColor = '#ef4444';
         el.style.boxShadow = '0 0 12px rgba(239,68,68,0.3)';
-        el.title = '🎯 Daily XP cap reached (1,000/1,000)' + (_overflow > 0 ? '\n💫 Overflow: ' + _overflow + ' pts (rolls over tomorrow)' : '');
+        el.title = 'Daily XP cap reached (1,000). Full through 500, half through 900, then a quarter.';
         // Add cap badge if not present
         if (!document.getElementById('dailyCapBadge')) {
             var badge = document.createElement('span');
@@ -3041,7 +5891,7 @@ function updateRankUI() {
     // Cosmetics: Nacho skin - show deer avatar next to username
     var _hasNachoSkin = _ownedCosmetics.indexOf('nacho_skin_nook') !== -1;
     var _nachoAvatarHtml = _hasNachoSkin
-        ? '<img src="nacho-deer.svg" style="width:18px;height:18px;border-radius:50%;border:1px solid #f7931a;vertical-align:-4px;margin-right:2px;filter:drop-shadow(0 0 4px rgba(247,147,26,0.6));" onerror="this.textContent=\'🦌\';this.style.fontSize=\'0.9rem\'" />'
+        ? '<img src="/nacho-deer.svg" style="width:18px;height:18px;border-radius:50%;border:1px solid #f7931a;vertical-align:-4px;margin-right:2px;filter:drop-shadow(0 0 4px rgba(247,147,26,0.6));" onerror="this.replaceWith(document.createTextNode(String.fromCodePoint(129420)))" />'
         : '';
 
     // Cosmetics: pinned badge
@@ -3151,7 +6001,7 @@ function updateUserDisplay(lv) {
             // Add horizontal row for Dashboard + Notifications
             el.style.cssText = 'position:relative;top:auto;right:auto;z-index:10;display:flex;flex-direction:row;align-items:center;gap:10px;padding:12px;background:rgba(247,147,26,0.05);border:1px solid rgba(247,147,26,0.2);border-radius:12px;cursor:default;transition:0.3s;width:100%;';
         } else {
-            el.style.cssText = 'position:fixed;bottom:70px;left:12px;right:12px;z-index:200;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#2d1f4e);border:2px solid #f7931a;border-radius:14px;box-shadow:0 4px 20px rgba(247,147,26,0.3);font-size:0.85rem;cursor:pointer;';
+            el.style.cssText = 'position:fixed;bottom:var(--above-fab, calc(72px + env(safe-area-inset-bottom, 0px) + 12px + 48px + 10px));left:12px;right:12px;z-index:200;display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#2d1f4e);border:2px solid #f7931a;border-radius:14px;box-shadow:0 4px 20px rgba(247,147,26,0.3);font-size:0.85rem;cursor:pointer;';
         }
 
         el.onclick = function(e) { if(!_isMob && e.target.closest('button')) return; showSettingsPage('account'); };
@@ -3291,6 +6141,7 @@ function updateUserDisplay(lv) {
         var _mobOf = (typeof currentUser !== 'undefined' && currentUser) ? parseInt(currentUser.pendingOverflow || 0, 10) : 0;
         if (_mobOf > 0) s += ' <span onclick="event.stopPropagation();if(typeof showSettingsPage===\'function\')showSettingsPage(\'sats\')" style="display:inline-flex;align-items:center;gap:2px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.35);border-radius:4px;padding:1px 5px;cursor:pointer;" title="Queued overflow XP"><span style="font-size:0.55rem;">⏳</span><span style="font-size:0.58rem;font-weight:800;font-family:monospace;color:#a5b4fc;">+' + _mobOf.toLocaleString() + '</span></span>';
         mobileInfo.innerHTML = s;
+        mobileInfo.setAttribute('data-auth-live', '1');
         mobileInfo.style.display = 'inline';
         mobileInfo.style.maxWidth = 'none';
     }
@@ -3330,11 +6181,16 @@ function expandLeaderboard(e) {
     if (btn) btn.remove();
 }
 
+function _resetLeaderboardZ(lb) {
+    if (lb && lb.style) lb.style.zIndex = '';
+}
+
 function minimizeLeaderboard() {
     const lb = document.getElementById('leaderboard');
     const fab = document.getElementById('lbFloatBtn');
     lb.classList.remove('open');
     lb.classList.remove('minimized');
+    _resetLeaderboardZ(lb);
     if (fab) fab.style.display = 'flex';
 }
 
@@ -3343,162 +6199,292 @@ function hideLeaderboard() {
     const fab = document.getElementById('lbFloatBtn');
     lb.classList.remove('open');
     lb.classList.remove('minimized');
+    _resetLeaderboardZ(lb);
     if (fab) fab.style.display = 'flex';
 }
 
-// Leaderboard username search
-var _lbSearchTimer = null;
-var _lbSearchQuery = '';
-var _lbSearchLastRank = 0;
-var _lbSearchHasMore = false;
-var _lbSearchLoading = false;
-var _lbSearchGeneration = 0; // incremented on every new query; stale in-flight results self-discard
+// Exact rank on one board. One callable, never a full board read.
+// The fourth board in this panel is Daily Streaks (All-Time / Current).
+window._lbRankState = window._lbRankState || {};
+var _lbRankGen = { xp: 0, quest: 0, predict: 0, streak: 0 };
+var _lbRankTimer = {};
 
-function _lbBuildResultRow(u) {
-    var pts = (u.points || 0).toLocaleString();
-    var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '' };
-    var factionStyle = u.faction && typeof window._factionNameStyle === 'function' ? ' style="' + window._factionNameStyle(u.faction) + '"' : '';
-    var peerTag = (window._myPeers && window._myPeers.has(u.uid || u.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
-    return '<div class="lb-search-result">' +
-        '<span>' + lv.emoji + '</span>' +
-        '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.uid) + '\')">' + peerTag + escapeHtml(u.username || 'Anon') + '</a>' +
-        '<span class="lb-sr-pts">' + pts + ' XP · <strong>' + (u.rank ? '#' + u.rank : '—') + '</strong></span>' +
-    '</div>';
+function _lbRankPeriod(board) {
+    if (board === 'quest') return (typeof _questLbPeriod === 'function') ? _questLbPeriod() : 'alltime';
+    if (board === 'predict') return window._predLbPeriod || 'alltime';
+    if (board === 'streak') return window._streakLbPeriod === 'current' ? 'current' : 'alltime';
+    return window._lbPeriod || 'alltime';
 }
 
-async function _lbSearchLoad(query, afterRank, append) {
-    // Stamp this call; any older in-flight request will discard its results when it lands
-    var myGen = ++_lbSearchGeneration;
-    // For fresh searches, always proceed (cancel previous); for load-more, gate on flag
-    if (!append) {
-        _lbSearchLoading = false; // release any stuck lock from previous query
-    } else if (_lbSearchLoading) {
+function _lbRankScoreText(board, period, data) {
+    var n = Number(data && data.score) || 0;
+    var text = n.toLocaleString();
+    if (board === 'xp') {
+        if (period === 'weekly') return text + ' wXP';
+        if (period === 'monthly') return text + ' mXP';
+        return text + ' XP';
+    }
+    if (board === 'quest') return text + ' \u00b7 ' + (Number(data.pct) || 0) + '%';
+    if (board === 'predict') return (Number(data.pct) || n) + '%';
+    return text + ' days';
+}
+
+function _lbRankLine(board, period, data) {
+    if (!data || data.status !== 'ok') return (data && data.message) || 'No player found';
+    return '#' + data.rank + ' @' + (data.username || 'Anon') + ' ' + _lbRankScoreText(board, period, data);
+}
+
+function _lbRankAuthUser() {
+    if (typeof auth !== 'undefined' && auth && auth.currentUser) return auth.currentUser;
+    if (window.auth && window.auth.currentUser) return window.auth.currentUser;
+    return null;
+}
+
+function _lbRankBox(board) {
+    var state = window._lbRankState[board] || {};
+    var value = state.text || '';
+    return '<div class="lb-rank-search" data-board="' + board + '">' +
+        '<div class="lb-rank-search-row">' +
+        '<input id="lbRankInput-' + board + '" class="lb-rank-input" type="text" maxlength="40" enterkeyhint="search" placeholder="Search username" value="' + escapeHtml(value) + '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" oninput="_lbRankType(\'' + board + '\', this.value)" onkeydown="_lbRankKey(event, \'' + board + '\')">' +
+        '<button type="button" class="lb-rank-find" onclick="_lbRankFindMe(\'' + board + '\')">Find me</button>' +
+        '</div>' +
+        _lbShareBtn(board) +
+        '<div id="lbRankResult-' + board + '" class="lb-rank-result" hidden></div>' +
+        '</div>';
+}
+
+function _lbRankPaint(board, data, period) {
+    var el = document.getElementById('lbRankResult-' + board);
+    if (!el) return;
+    if (!data) {
+        el.hidden = true;
+        el.innerHTML = '';
         return;
     }
-    _lbSearchLoading = true;
-    var resultEl = document.getElementById('lbSearchResult');
-    if (!resultEl) { _lbSearchLoading = false; return; }
-
-    // Remove old load-more button if present
-    var oldBtn = document.getElementById('lbSearchMoreBtn');
-    if (oldBtn) oldBtn.remove();
-
-    if (!append) {
-        // Keep any local hits visible; show a subtle spinner below them
-        var _existingHits = resultEl.querySelectorAll('.lb-search-result');
-        if (!_existingHits.length) {
-            resultEl.innerHTML = '<div class="lb-search-none">Searching...</div>';
-        } else {
-            var spinDiv = document.createElement('div');
-            spinDiv.id = 'lbSearchSpinner';
-            spinDiv.className = 'lb-search-none';
-            spinDiv.style.cssText = 'font-size:0.75rem;opacity:0.5;padding:4px 0;';
-            spinDiv.textContent = '\u29d7 Searching all users...';
-            resultEl.appendChild(spinDiv);
-        }
-    } else {
-        var loadingRow = document.createElement('div');
-        loadingRow.id = 'lbSearchLoadingRow';
-        loadingRow.className = 'lb-search-none';
-        loadingRow.textContent = 'Loading more...';
-        resultEl.appendChild(loadingRow);
+    el.hidden = false;
+    var line = _lbRankLine(board, period || _lbRankPeriod(board), data);
+    var html = '<div class="lb-rank-hit">' + escapeHtml(line) + '</div>';
+    var suggestions = data.suggestions || [];
+    if (suggestions.length) {
+        html += '<div class="lb-rank-suggest">';
+        suggestions.slice(0, 8).forEach(function (row) {
+            var name = row && row.username;
+            if (!name) return;
+            html += '<button type="button" class="lb-rank-suggest-item" data-name="' + escapeHtml(name) + '" onclick="_lbRankPick(\'' + board + '\', this.getAttribute(\'data-name\'))">@' + escapeHtml(name) + '</button>';
+        });
+        html += '</div>';
     }
-
-    try {
-        var searchFn = firebase.functions().httpsCallable('searchUsers');
-        var res = await searchFn({ query: query, pageSize: 10, afterRank: afterRank });
-
-        // Stale response - a newer query already took over; silently discard
-        if (myGen !== _lbSearchGeneration) { _lbSearchLoading = false; return; }
-
-        var users = (res.data && res.data.users) || [];
-        var hasMore = !!(res.data && res.data.hasMore);
-
-        // Remove loading indicators
-        var lr = document.getElementById('lbSearchLoadingRow');
-        if (lr) lr.remove();
-        var sp = document.getElementById('lbSearchSpinner');
-        if (sp) sp.remove();
-
-        if (!append && !users.length) {
-            // If local hits are already shown, don't wipe them - just remove spinner
-            if (!resultEl.querySelector('.lb-search-result')) {
-                resultEl.innerHTML = '<div class="lb-search-none">No users found matching \u201c' + escapeHtml(query) + '\u201d</div>';
-            }
-            _lbSearchLoading = false;
-            return;
-        }
-
-        if (!append) resultEl.innerHTML = '';
-        users.forEach(function(u) { resultEl.insertAdjacentHTML('beforeend', _lbBuildResultRow(u)); });
-
-        _lbSearchLastRank = users.length ? users[users.length - 1].rank : afterRank;
-        _lbSearchHasMore = hasMore;
-
-        if (hasMore) {
-            var btn = document.createElement('button');
-            btn.id = 'lbSearchMoreBtn';
-            btn.style.cssText = 'width:100%;padding:8px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;margin:4px 0 2px;';
-            btn.textContent = 'Show more results \u25bc';
-            btn.onclick = function() { _lbSearchLoad(_lbSearchQuery, _lbSearchLastRank, true); };
-            resultEl.appendChild(btn);
-        }
-    } catch(e) {
-        if (myGen !== _lbSearchGeneration) { _lbSearchLoading = false; return; }
-        console.warn('[lbSearch]', e);
-        var lr2 = document.getElementById('lbSearchLoadingRow');
-        if (lr2) lr2.remove();
-        var sp2 = document.getElementById('lbSearchSpinner');
-        if (sp2) sp2.remove();
-        if (!append && !resultEl.querySelector('.lb-search-result')) {
-            resultEl.innerHTML = '<div class="lb-search-none">Search error \u2014 try again</div>';
-        }
-    }
-    _lbSearchLoading = false;
+    el.innerHTML = html;
 }
 
-window.lbSearchUser = function(val) {
-    var resultEl = document.getElementById('lbSearchResult');
-    if (!resultEl) return;
-    val = (val || '').trim();
-    // Clear on empty; allow single-char (catches short usernames)
-    if (!val) { resultEl.innerHTML = ''; _lbSearchQuery = ''; _lbSearchGeneration++; clearTimeout(_lbSearchTimer); return; }
-
-    // Track search use for Search Sleuth badge
-    try { var _ss = typeof safeJSON === 'function' ? safeJSON('btc_searches_used', []) : JSON.parse(localStorage.getItem('btc_searches_used') || '[]'); if (_ss.indexOf('user') === -1) { _ss.push('user'); localStorage.setItem('btc_searches_used', JSON.stringify(_ss)); } } catch(e) {}
-
-    // Instant local search against already-loaded leaderboard cache (zero latency for top 150)
-    var q = val.toLowerCase();
-    var localHits = window._lbCache ? window._lbCache.filter(function(u) {
-        return (u.username || '').toLowerCase().includes(q);
-    }) : [];
-    if (localHits.length) {
-        resultEl.innerHTML = localHits.slice(0, 10).map(function(u, i) {
-            var rank = (window._lbCache ? window._lbCache.indexOf(u) : i) + 1;
-            var pts = (u.points || 0).toLocaleString();
-            var lv = typeof getLevel === 'function' ? getLevel(u.points || 0) : { emoji: '' };
-            var factionStyle = u.faction && typeof window._factionNameStyle === 'function' ? ' style="' + window._factionNameStyle(u.faction) + '"' : '';
-            var peerTag = (window._myPeers && window._myPeers.has(u.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
-            return '<div class="lb-search-result">' +
-                '<span>' + (lv.emoji || '') + '</span>' +
-                '<a' + factionStyle + ' onclick="showUserProfile(\'' + escapeHtml(u.id) + '\')">' + peerTag
-                    + escapeHtml(u.username || 'Anon') + '</a>' +
-                '<span class="lb-sr-pts">' + pts + ' XP · <strong>#' + rank + '</strong></span>' +
-                '</div>';
-        }).join('');
-        // Still fire cloud search in background to catch users not in top 150
+window._lbRankType = function (board, val) {
+    window._lbRankState[board] = { text: val || '', me: false };
+    clearTimeout(_lbRankTimer[board]);
+    if (!String(val || '').trim()) {
+        _lbRankGen[board] = (_lbRankGen[board] || 0) + 1;
+        _lbRankPaint(board, null);
+        return;
     }
+    _lbRankTimer[board] = setTimeout(function () { _lbRankRun(board); }, 450);
+};
 
-    // Always update query immediately so any in-flight call resolves to latest
-    _lbSearchQuery = val;
-    clearTimeout(_lbSearchTimer);
-    // Shorter debounce for very short queries (mostly resolved from local cache anyway)
-    var _debounceMs = val.length <= 2 ? 160 : 260;
-    _lbSearchTimer = setTimeout(function() {
-        _lbSearchLastRank = 0;
-        _lbSearchHasMore = false;
-        _lbSearchLoad(val, 0, false);
-    }, _debounceMs);
+window._lbRankKey = function (event, board) {
+    if (!event || event.key !== 'Enter') return;
+    event.preventDefault();
+    clearTimeout(_lbRankTimer[board]);
+    _lbRankRun(board);
+};
+
+window._lbRankPick = function (board, name) {
+    window._lbRankState[board] = { text: name, me: false };
+    var input = document.getElementById('lbRankInput-' + board);
+    if (input) input.value = name;
+    _lbRankRun(board);
+};
+
+window._lbRankFindMe = function (board) {
+    var name = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username) : '';
+    window._lbRankState[board] = { text: name, me: true };
+    var input = document.getElementById('lbRankInput-' + board);
+    if (input) input.value = name;
+    _lbRankRun(board);
+};
+
+function _lbRankReplay(board) {
+    var state = window._lbRankState && window._lbRankState[board];
+    if (!state) return;
+    if (state.me || String(state.text || '').trim()) _lbRankRun(board);
+}
+
+function _lbRankReplayAll() {
+    ['xp', 'quest', 'predict', 'streak'].forEach(_lbRankReplay);
+}
+window._lbRankReplayAll = _lbRankReplayAll;
+
+async function _lbRankRun(board) {
+    var state = window._lbRankState[board] || {};
+    var resultEl = document.getElementById('lbRankResult-' + board);
+    if (!resultEl) return;
+    var gen = (_lbRankGen[board] = (_lbRankGen[board] || 0) + 1);
+    var user = _lbRankAuthUser();
+    if (!user) {
+        _lbRankPaint(board, { status: 'not_found', message: 'Sign in to search the leaderboard.' });
+        return;
+    }
+    var period = _lbRankPeriod(board);
+    resultEl.hidden = false;
+    resultEl.innerHTML = '<div class="lb-rank-hit">Searching\u2026</div>';
+    try {
+        var fn = firebase.functions().httpsCallable('leaderboardRank');
+        var payload = { board: board, period: period };
+        if (state.me) payload.me = true;
+        else payload.username = state.text || '';
+        var res = await fn(payload);
+        if (gen !== _lbRankGen[board]) return;
+        _lbRankPaint(board, (res && res.data) || { status: 'not_found', message: 'No player found' }, period);
+    } catch (e) {
+        if (gen !== _lbRankGen[board]) return;
+        var code = (e && e.code) || '';
+        var msg = (e && e.message) || '';
+        var text = 'Search failed. Try again.';
+        if (code.indexOf('resource-exhausted') !== -1 || msg.indexOf('Too many lookups') !== -1) text = 'Too many lookups. Try again in a minute.';
+        else if (code.indexOf('unauthenticated') !== -1 || code.indexOf('permission-denied') !== -1) text = 'Sign in to search the leaderboard.';
+        else if (code.indexOf('failed-precondition') !== -1) text = 'Rank lookup is still indexing. Try again shortly.';
+        else if (code.indexOf('app-check') !== -1 || msg.indexOf('App Check') !== -1) text = 'Security check is not ready. Refresh and try again.';
+        _lbRankPaint(board, { status: 'not_found', message: text });
+    }
+}
+
+
+// ── Share my rank (one card per board) ──
+// Reads the same leaderboardRank callable as "Find me". No writes.
+var LB_SHARE_NAMES = { xp: 'XP Leaderboard', quest: 'Quests', predict: 'Top Predictors', streak: 'Daily Streaks', pvp: 'PVP Leaderboard' };
+var LB_SHARE_PERIODS = { alltime: 'All Time', weekly: 'This Week', monthly: 'This Month', week: 'This Week', month: 'This Month', current: 'Current' };
+
+function _lbShareSignedIn() {
+    var u = _lbRankAuthUser();
+    return !!(u && !u.isAnonymous && typeof currentUser !== 'undefined' && currentUser);
+}
+
+function _lbShareBtn(board) {
+    if (!_lbShareSignedIn()) return '';
+    return '<button type="button" class="lb-share-btn" data-board="' + board + '" onclick="event.stopPropagation();_lbShareRank(\'' + board + '\')">📤 Share my rank</button>';
+}
+window._lbShareBtn = _lbShareBtn;
+
+function _lbShareLink() {
+    var code = (typeof getReferralCode === 'function') ? getReferralCode() : null;
+    if (!code || !/^[A-Za-z0-9]{6,28}$/.test(String(code))) return 'https://bitcoineducation.quest/';
+    return 'https://bitcoineducation.quest/?ref=' + encodeURIComponent(code) + '&src=lbshare';
+}
+
+// Rank from the public snapshot already on this device. No callable, so no
+// App Check wait. Sharing grants nothing, so a cached rank is fine here.
+function _lbShareSnapRow(docId) {
+    var doc = (typeof _lbSnapRead === 'function' && docId) ? _lbSnapRead(docId) : null;
+    var me = _lbRankAuthUser();
+    var rows = (doc && doc.rows) || [];
+    for (var i = 0; i < rows.length; i++) {
+        if (me && rows[i] && rows[i].uid === me.uid && Number(rows[i].rank) > 0) return rows[i];
+    }
+    return null;
+}
+
+async function _lbShareLookup(board) {
+    if (board === 'pvp') {
+        var pr = _lbShareSnapRow(LB_BOARDS.pvp && LB_BOARDS.pvp.docId);
+        return pr ? { status: 'ok', rank: pr.rank, username: pr.username, scoreText: (pr.wins || 0) + 'W - ' + (pr.losses || 0) + 'L' } : null;
+    }
+    var period = _lbRankPeriod(board);
+    if (board === 'xp') {
+        var xr = _lbShareSnapRow(_lbBoardSpec(period).docId);
+        if (xr) {
+            var xd = { status: 'ok', rank: xr.rank, username: xr.username, score: Number(xr.value) || 0 };
+            xd.scoreText = _lbRankScoreText(board, period, xd);
+            xd.periodName = LB_SHARE_PERIODS[period] || '';
+            return xd;
+        }
+    }
+    // One callable. Its wrapper already waits for App Check once; no second wait.
+    var res = await firebase.functions().httpsCallable('leaderboardRank')({ board: board, period: period, me: true });
+    var d = res && res.data;
+    if (!d || d.status !== 'ok' || !(Number(d.rank) > 0)) return null;
+    d.scoreText = _lbRankScoreText(board, period, d);
+    d.periodName = LB_SHARE_PERIODS[period] || '';
+    return d;
+}
+
+function _lbShareFit(ctx, text, max, size, weight) {
+    var s = size;
+    do { ctx.font = weight + ' ' + s + 'px system-ui,-apple-system,Segoe UI,sans-serif'; s -= 2; } while (ctx.measureText(text).width > max && s > 18);
+}
+
+// Canvas text is drawn as text, never parsed as HTML.
+function _lbShareCanvas(board, d, link) {
+    var W = 1080, H = 1080;
+    var c = document.createElement('canvas'); c.width = W; c.height = H;
+    var ctx = c.getContext('2d');
+    var g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, '#0b1220'); g.addColorStop(1, '#1a1206');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#f7931a'; ctx.lineWidth = 12; ctx.strokeRect(30, 30, W - 60, H - 60);
+    ctx.textAlign = 'center'; ctx.fillStyle = '#f7931a';
+    ctx.font = '800 52px system-ui,-apple-system,Segoe UI,sans-serif';
+    ctx.fillText('₿ Bitcoin Quest™', W / 2, 140);
+    ctx.fillStyle = '#e2e8f0';
+    var board_ = (LB_SHARE_NAMES[board] || 'Leaderboard') + (d.periodName ? ' · ' + d.periodName : '');
+    _lbShareFit(ctx, board_, W - 160, 46, '700'); ctx.fillText(board_, W / 2, 230);
+    ctx.fillStyle = '#f7931a'; ctx.font = '900 260px system-ui,-apple-system,Segoe UI,sans-serif';
+    ctx.fillText('#' + Math.floor(Number(d.rank)), W / 2, 520);
+    var name = '@' + String(d.username || (currentUser && currentUser.username) || 'Anon').replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 40);
+    ctx.fillStyle = '#ffffff'; _lbShareFit(ctx, name, W - 160, 70, '800'); ctx.fillText(name, W / 2, 640);
+    if (d.scoreText) { ctx.fillStyle = '#cbd5e1'; _lbShareFit(ctx, String(d.scoreText), W - 160, 48, '600'); ctx.fillText(String(d.scoreText), W / 2, 720); }
+    ctx.fillStyle = '#e2e8f0'; ctx.font = '700 44px system-ui,-apple-system,Segoe UI,sans-serif';
+    ctx.fillText('Can you beat me? Learn Bitcoin and climb.', W / 2, 850);
+    ctx.fillStyle = '#f7931a'; _lbShareFit(ctx, link.replace(/^https:\/\//, ''), W - 140, 38, '700');
+    ctx.fillText(link.replace(/^https:\/\//, ''), W / 2, 950);
+    return c;
+}
+window._lbShareCanvas = _lbShareCanvas;
+
+window._lbShareRank = async function (board) {
+    if (!LB_SHARE_NAMES[board]) return;
+    if (!_lbShareSignedIn()) { if (typeof showToast === 'function') showToast('Sign in to share your rank'); return; }
+    if (window._lbSharing) return;
+    window._lbSharing = true;
+    try {
+        var d = await _lbShareLookup(board);
+        if (!d) { if (typeof showToast === 'function') showToast('You are not ranked on this board yet'); return; }
+        var link = _lbShareLink();
+        var canvas = _lbShareCanvas(board, d, link);
+        var text = 'I\u2019m #' + Math.floor(Number(d.rank)) + ' on the Bitcoin Quest\u2122 ' + (LB_SHARE_NAMES[board] || 'leaderboard') + '. Can you beat me?';
+        // Same in-app share sheet as the other share cards (no auto native share).
+        var AS = window.AchievementShare;
+        if (AS && typeof AS.openCanvasSheet === 'function') {
+            AS.openCanvasSheet({ type: 'rank', title: text, name: '@' + String(d.username || (currentUser && currentUser.username) || 'Anon'), url: link, canvas: canvas });
+            return;
+        }
+        var blob = await new Promise(function (r) { canvas.toBlob(r, 'image/png'); });
+        if (blob) {
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob); a.download = 'bitcoin-quest-rank-' + board + '.png';
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+        }
+        try { await navigator.clipboard.writeText(text + ' ' + link); if (typeof showToast === 'function') showToast('Card saved. Invite link copied!'); }
+        catch (e) { if (typeof showToast === 'function') showToast('Card saved. Your link: ' + escapeHtml(link)); }
+    } catch (e) {
+        if (e && (e.name === 'AbortError' || String(e.code || '').indexOf('cancelled') !== -1)) return;
+        console.warn('[LB share]', (e && (e.code || e.name)) || '', (e && e.message) || e);
+        var code = String((e && e.code) || ''), msg = String((e && e.message) || '');
+        var text = 'Could not load your rank. Try again.';
+        if (code.indexOf('resource-exhausted') !== -1) text = 'Too many lookups. Try again in a minute.';
+        else if (code.indexOf('unauthenticated') !== -1 || code.indexOf('permission-denied') !== -1) text = 'Sign in to share your rank';
+        else if (code.indexOf('failed-precondition') !== -1) text = 'Rank lookup is still indexing. Try again shortly.';
+        else if (code.indexOf('app-check') !== -1 || msg.indexOf('App Check') !== -1) text = 'Security check is not ready. Refresh and try again.';
+        if (typeof showToast === 'function') showToast(text);
+    } finally {
+        window._lbSharing = false;
+    }
 };
 
 // Close leaderboard when clicking/tapping outside.
@@ -3516,9 +6502,10 @@ function _lbOutsideClose(e) {
     // Don't close if a profile modal is open (clicking in the modal shouldn't close the LB behind it)
     var profileModal = document.getElementById('userProfileModal');
     if (profileModal) return;
-    // Close it
+    // Close it and drop any z-index raised so a profile can sit above the panel.
     lb.classList.remove('open');
     lb.classList.remove('minimized');
+    _resetLeaderboardZ(lb);
     if (fab) fab.style.display = 'flex';
 }
 document.addEventListener('mousedown', _lbOutsideClose, true);
@@ -3552,13 +6539,24 @@ window._changeExperienceMode = function(mode) {
         return;
     }
     window.setExperienceMode(mode);
-    if (typeof showToast === 'function') {
-        var labels = {beginner:'🌱 Guided Intro activated', intermediate:'📘 Quieter Experience activated', advanced:'🔥 Maximalist Mode activated'};
-        showToast(labels[mode] || 'Mode updated', 3000);
+    if (window.btcAuthDisplay && typeof window.btcAuthDisplay.syncMode === 'function') {
+        window.btcAuthDisplay.syncMode(mode);
     }
-    // Re-render settings to show new selection
+    if (typeof showToast === 'function') {
+        var meta = (typeof window.bqExperienceModeMeta === 'function') ? window.bqExperienceModeMeta(mode) : null;
+        var labels = {lite:'📖 Lite activated', beginner:'🌱 Guided activated', intermediate:'📘 Balanced activated', advanced:'🔥 Everything activated'};
+        showToast((meta && meta.toast) || labels[mode] || 'Mode updated', 3000);
+    }
+    // Stay on Prefs so the current check moves with the choice.
     setTimeout(function() {
-        if (typeof showSettingsPage === 'function') showSettingsPage('account');
+        if (typeof showSettingsPage === 'function') showSettingsPage('prefs');
+        setTimeout(function() {
+            var card = document.getElementById('experienceModeCard');
+            if (!card) return;
+            if (card.scrollIntoView) card.scrollIntoView({ block: 'center' });
+            var picked = card.querySelector('[data-mode="' + mode + '"]');
+            if (picked && picked.focus) picked.focus();
+        }, 40);
     }, 300);
     // Apply visibility changes immediately on home
     setTimeout(function() {
@@ -3571,36 +6569,51 @@ window._changeExperienceMode = function(mode) {
 window.showDeleteAccountConfirm = function() {
     var overlay = document.createElement('div');
     overlay.id = 'deleteAccountOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:100010;background:rgba(0,0,0,0.92);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:450000;background:rgba(0,0,0,0.92);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
-    var username = (currentUser && currentUser.username) ? currentUser.username : 'your account';
+    var username = (currentUser && currentUser.username) ? currentUser.username : '';
+    var shownName = username || 'your account';
+    var confirmWord = username || 'DELETE';
     var pts = currentUser ? (currentUser.points || 0) : 0;
     var streak = currentUser ? (currentUser.streak || 0) : 0;
+    var directSats = currentUser ? Number(currentUser.sats) : 0;
+    var availablePts = currentUser ? spendableXp(currentUser) : 0;
+    var satsN = directSats > 0 ? directSats : Math.floor(Math.max(0, availablePts) / 10);
+    var forfeitHtml = '';
+    if (satsN > 0) {
+        forfeitHtml = '<div id="deleteForfeitWarning" style="background:rgba(239,68,68,0.12);border:1px solid #ef4444;border-radius:12px;padding:12px;margin-bottom:12px;color:#ef4444;font-size:0.85rem;line-height:1.5;font-weight:700;">Your ' + satsN.toLocaleString() + ' sats balance and any pending sats/withdrawals are forfeited.</div>' +
+            '<label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:16px;color:var(--text);font-size:0.85rem;line-height:1.4;"><input id="deleteForfeitCheck" type="checkbox" onclick="window._deleteConfirmReady()" style="margin-top:3px;"> I understand this balance is forfeited.</label>';
+    }
 
     overlay.innerHTML =
-        '<div style="background:var(--bg-side,#1a1a2e);border:2px solid #ef4444;border-radius:20px;padding:28px;max-width:420px;width:100%;animation:fadeSlideIn 0.3s;">' +
+        '<div style="background:var(--bg-side,#1a1a2e);border:2px solid #ef4444;border-radius:20px;padding:28px;max-width:420px;width:100%;margin:auto 0;">' +
             '<div style="text-align:center;margin-bottom:16px;"><span style="font-size:3rem;">⚠️</span></div>' +
             '<h2 style="color:#ef4444;text-align:center;margin:0 0 12px;font-size:1.2rem;">Delete Your Account?</h2>' +
             '<div style="color:var(--text);font-size:0.9rem;line-height:1.6;margin-bottom:16px;text-align:center;">' +
-                'This will <strong style="color:#ef4444;">permanently delete</strong> everything associated with <strong>' + escapeHtml(username) + '</strong>:' +
+                'This will <strong style="color:#ef4444;">permanently delete</strong> everything associated with <strong>' + escapeHtml(shownName) + '</strong>:' +
             '</div>' +
             '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:14px;margin-bottom:16px;">' +
                 '<div style="display:flex;flex-direction:column;gap:6px;font-size:0.85rem;color:var(--text-muted);">' +
                     '<div>❌ <strong>' + pts.toLocaleString() + ' XP</strong> and all badges</div>' +
                     (streak > 0 ? '<div>❌ <strong>' + streak + '-day streak</strong></div>' : '') +
-                    '<div>❌ All forum posts and replies</div>' +
+                    '<div>❌ Posts nobody replied to. Posts other people replied to stay up as [deleted]</div>' +
                     '<div>❌ Marketplace listings</div>' +
-                    '<div>❌ DM conversations</div>' +
+                    '<div>❌ DM conversations (deleted for both people)</div>' +
+                    '<div>❌ Global Chat messages (shown as [deleted])</div>' +
+                    '<div>❌ Uploaded music, images, and avatar</div>' +
+                    '<div>❌ Notifications and push tokens</div>' +
                     '<div>❌ Nacho chat history</div>' +
                     '<div>❌ Leaderboard ranking</div>' +
                     '<div>❌ Orange Tickets and quest progress</div>' +
+                    '<div>❌ Referral signup record</div>' +
                 '</div>' +
             '</div>' +
+            forfeitHtml +
             '<div style="color:#ef4444;font-weight:700;font-size:0.85rem;text-align:center;margin-bottom:16px;">⚠️ This action is IRREVERSIBLE. There is no undo.</div>' +
             '<div style="margin-bottom:16px;">' +
-                '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:6px;">Type <strong style="color:#ef4444;">DELETE</strong> to confirm:</label>' +
-                '<input type="text" id="deleteConfirmInput" placeholder="Type DELETE here" autocomplete="off" style="width:100%;padding:12px;background:var(--card-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:monospace;text-align:center;outline:none;box-sizing:border-box;" oninput="var btn=document.getElementById(\'deleteConfirmBtn\');if(btn){if(this.value===\'DELETE\'){btn.disabled=false;btn.style.opacity=1;}else{btn.disabled=true;btn.style.opacity=0.4;}}">' +
+                '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:6px;">Type <strong style="color:#ef4444;">' + escapeHtml(confirmWord) + '</strong> to confirm:</label>' +
+                '<input type="text" id="deleteConfirmInput" data-confirm="' + escapeHtml(confirmWord) + '" placeholder="Type ' + escapeHtml(confirmWord) + '" autocomplete="off" style="width:100%;padding:12px;background:var(--card-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:monospace;text-align:center;outline:none;box-sizing:border-box;" oninput="window._deleteConfirmReady()">' +
             '</div>' +
             '<div style="display:flex;gap:10px;">' +
                 '<button onclick="document.getElementById(\'deleteAccountOverlay\').remove()" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">Cancel</button>' +
@@ -3611,9 +6624,27 @@ window.showDeleteAccountConfirm = function() {
     document.body.appendChild(overlay);
 };
 
+window._deleteConfirmReady = function() {
+    var input = document.getElementById('deleteConfirmInput');
+    var btn = document.getElementById('deleteConfirmBtn');
+    var expected = input ? String(input.getAttribute('data-confirm') || '') : '';
+    var typed = input ? String(input.value || '').trim() : '';
+    var nameOk = expected ? typed.toLowerCase() === expected.toLowerCase() : false;
+    var box = document.getElementById('deleteForfeitCheck');
+    var forfeitOk = !box || box.checked;
+    if (btn) {
+        btn.disabled = !(nameOk && forfeitOk);
+        btn.style.opacity = btn.disabled ? '0.4' : '1';
+    }
+};
+
 window.confirmDeleteAccount = async function() {
     var input = document.getElementById('deleteConfirmInput');
-    if (!input || input.value !== 'DELETE') return;
+    var expected = input ? String(input.getAttribute('data-confirm') || '') : '';
+    var typed = input ? String(input.value || '').trim() : '';
+    if (!input || !expected || typed.toLowerCase() !== expected.toLowerCase()) return;
+    var forfeitBox = document.getElementById('deleteForfeitCheck');
+    if (forfeitBox && !forfeitBox.checked) return;
 
     var btn = document.getElementById('deleteConfirmBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Deleting...'; }
@@ -3621,52 +6652,31 @@ window.confirmDeleteAccount = async function() {
     try {
         var user = auth.currentUser;
         if (!user) throw new Error('Not signed in');
-        var uid = user.uid;
+        if (typeof firebase === 'undefined' || !firebase.functions) {
+            throw new Error('Account deletion is unavailable. Reload and try again.');
+        }
 
-        // 1. Delete Firestore user document
-        try { await db.collection('users').doc(uid).delete(); } catch(e) { console.warn('User doc delete failed:', e); }
+        var reauthed = await window.reauthForSensitiveAction('deleting your account');
+        if (!reauthed) {
+            if (btn) { btn.disabled = false; btn.textContent = '🗑️ Delete Forever'; btn.style.opacity = '1'; }
+            return;
+        }
 
-        // 2. Delete forum posts by this user
-        try {
-            var posts = await db.collection('forum_posts').where('authorId', '==', uid).get();
-            var batch1 = db.batch();
-            posts.forEach(function(doc) { batch1.delete(doc.ref); });
-            if (!posts.empty) await batch1.commit();
-        } catch(e) { console.warn('Forum posts delete failed:', e); }
+        // Server wipe. The owner must have signed in recently. A remembered
+        // device is not enough: deletion needs a fresh authenticator proof.
+        var deletePayload = { confirmUsername: typed };
+        if (forfeitBox && forfeitBox.checked) deletePayload.acknowledgeForfeit = true;
+        if (mfaNeedsFreshCode()) {
+            var deleteProof = await window._showFreshStepUp('deleteAccount');
+            if (!deleteProof) {
+                if (btn) { btn.disabled = false; btn.textContent = '🗑️ Delete Forever'; btn.style.opacity = '1'; }
+                return;
+            }
+            deletePayload.freshProofId = deleteProof;
+        }
+        await firebase.functions().httpsCallable('deleteAccount', { timeout: 540000 })(deletePayload);
 
-        // 3. Delete forum replies by this user
-        try {
-            var replies = await db.collection('forum_replies').where('authorId', '==', uid).get();
-            var batch2 = db.batch();
-            replies.forEach(function(doc) { batch2.delete(doc.ref); });
-            if (!replies.empty) await batch2.commit();
-        } catch(e) { console.warn('Forum replies delete failed:', e); }
-
-        // 4. Delete marketplace listings
-        try {
-            var listings = await db.collection('marketplace').where('sellerUid', '==', uid).get();
-            var batch3 = db.batch();
-            listings.forEach(function(doc) { batch3.delete(doc.ref); });
-            if (!listings.empty) await batch3.commit();
-        } catch(e) { console.warn('Marketplace delete failed:', e); }
-
-        // 5. Delete DM conversations
-        try {
-            var convos = await db.collection('conversations').where('participants', 'array-contains', uid).get();
-            var batch4 = db.batch();
-            convos.forEach(function(doc) { batch4.delete(doc.ref); });
-            if (!convos.empty) await batch4.commit();
-        } catch(e) { console.warn('DM delete failed:', e); }
-
-        // 6. Delete suggestions
-        try {
-            var suggestions = await db.collection('suggestions').where('uid', '==', uid).get();
-            var batch5 = db.batch();
-            suggestions.forEach(function(doc) { batch5.delete(doc.ref); });
-            if (!suggestions.empty) await batch5.commit();
-        } catch(e) { console.warn('Suggestions delete failed:', e); }
-
-        // 7. Clear all localStorage
+        clearAuthDisplay();
         var keysToRemove = [];
         for (var i = 0; i < localStorage.length; i++) {
             var key = localStorage.key(i);
@@ -3677,8 +6687,15 @@ window.confirmDeleteAccount = async function() {
         // [AUDIT FIX M5] Clear SW caches on account deletion
         if ('caches' in window) { try { var _ck = await caches.keys(); _ck.forEach(function(k) { caches.delete(k); }); } catch(e) {} }
 
-        // 8. Delete Firebase Auth account
-        await user.delete();
+        // The server deletes the referral signup record with the account, then
+        // finishes any Auth session still cached in the browser. The server wipe
+        // already deletes the Firebase user, so user-not-found means that step is done.
+        try {
+            await user.delete();
+        } catch (authErr) {
+            var authCode = authErr && authErr.code;
+            if (authCode !== 'auth/user-not-found' && authCode !== 'auth/user-token-expired') throw authErr;
+        }
 
         // 9. Close overlay and show confirmation
         var overlay = document.getElementById('deleteAccountOverlay');
@@ -3695,7 +6712,26 @@ window.confirmDeleteAccount = async function() {
 
     } catch(e) {
         console.error('Account deletion error:', e);
-        if (e.code === 'auth/requires-recent-login') {
+        var code = (e && e.code) || '';
+        var msg = (e && e.message) || '';
+        if (msg.indexOf('fresh authenticator') !== -1) {
+            showToast(_mfaFailure(e));
+            if (btn) { btn.disabled = false; btn.textContent = '🗑️ Delete Forever'; btn.style.opacity = '1'; }
+            return;
+        }
+        if (typeof _isMfaBlock === 'function' && _isMfaBlock(e)) {
+            showToast(_mfaFailure(e));
+            if (typeof _showTotpSignInChallenge === 'function') _showTotpSignInChallenge();
+            if (btn) { btn.disabled = false; btn.textContent = '🗑️ Delete Forever'; btn.style.opacity = '1'; }
+            return;
+        }
+        if (/2FA code/i.test(msg)) {
+            showToast('Enter your authenticator code first.');
+            if (typeof _showTotpSignInChallenge === 'function') _showTotpSignInChallenge();
+            if (btn) { btn.disabled = false; btn.textContent = '🗑️ Delete Forever'; btn.style.opacity = '1'; }
+            return;
+        }
+        if (code === 'auth/requires-recent-login' || code === 'functions/failed-precondition' || code === 'failed-precondition' || /sign in again/i.test(msg) || /recent login/i.test(msg)) {
             showToast('🔒 For security, please sign out and sign back in, then try again.');
         } else {
             showToast('Error deleting account: ' + (e.message || 'Unknown error'));
@@ -3764,7 +6800,7 @@ window.updateNachoNameUI = function(name) {
     // Nacho avatar name label
     var avatarName = document.querySelector('.nacho-name');
     if (avatarName) {
-        avatarName.innerHTML = name.toUpperCase() + '<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">click to ask!</span>';
+        avatarName.innerHTML = name.toUpperCase() + '<br><span style="font-size:0.6rem;opacity:0.8;letter-spacing:0.5px;">Ask me anything about Bitcoin or this app!</span>';
     }
     // Closet header
     var closetHeaders = document.querySelectorAll('[id*="nachoCloset"]');
@@ -3804,6 +6840,208 @@ function _lbBadgeEmoji(emoji) {
         chars.map(function(c) { return '<span>' + c + '</span>'; }).join('') + '</span>';
 }
 
+// public_profiles allows any signed-in user, including anonymous, and rejects
+// a signed-out read. Anonymous sign-in can land after the first paint.
+function _lbAuthReady(timeoutMs) {
+    var limit = typeof timeoutMs === 'number' ? timeoutMs : 15000;
+    function currentAuth() {
+        if (typeof auth !== 'undefined' && auth) return auth;
+        if (typeof window !== 'undefined' && window.auth) return window.auth;
+        return null;
+    }
+    var ready = currentAuth();
+    if (ready && ready.currentUser) return Promise.resolve(ready.currentUser);
+    return new Promise(function (resolve) {
+        var settled = false;
+        var unsub = null;
+        function finish(user) {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            if (typeof unsub === 'function') {
+                try { unsub(); } catch (e) {}
+            }
+            resolve(user || null);
+        }
+        var timer = setTimeout(function () {
+            var live = currentAuth();
+            finish(live && live.currentUser);
+        }, limit);
+        var live = ready || currentAuth();
+        if (!live || typeof live.onAuthStateChanged !== 'function') return;
+        unsub = live.onAuthStateChanged(function (user) {
+            if (user) finish(user);
+        });
+        if (settled && typeof unsub === 'function') {
+            try { unsub(); } catch (e) {}
+        }
+    });
+}
+
+// One public snapshot doc per board. Intervals match the scheduled writers.
+// localStorage paints immediately. A board refetches when that copy is older
+// than its interval. Rank past 25 is the profile score with the label 25+.
+var LB_BOARDS = {
+    xpAll: { key: 'xpAll', docId: 'lb_xp_alltime', intervalMs: 15 * 60 * 1000 },
+    xpWeek: { key: 'xpWeek', docId: 'lb_xp_week', intervalMs: 10 * 60 * 1000 },
+    xpMonth: { key: 'xpMonth', docId: 'lb_xp_month', intervalMs: 10 * 60 * 1000 },
+    pvp: { key: 'pvp', docId: 'lb_pvp', intervalMs: 15 * 60 * 1000 },
+    favor: { key: 'favor', docId: 'lb_favor_hashers', intervalMs: 5 * 60 * 1000 },
+    raid: { key: 'raid', docId: 'lb_raid_alltime', intervalMs: 15 * 60 * 1000 }
+};
+window.LB_BOARDS = LB_BOARDS;
+
+function _lbBoardSpec(period) {
+    if (period === 'weekly') return LB_BOARDS.xpWeek;
+    if (period === 'monthly') return LB_BOARDS.xpMonth;
+    return LB_BOARDS.xpAll;
+}
+
+function _lbSnapStorageKey(docId) {
+    return 'btc_lb_snap_' + docId;
+}
+
+function _lbSnapRead(docId) {
+    try {
+        var raw = localStorage.getItem(_lbSnapStorageKey(docId));
+        if (!raw) return null;
+        var doc = JSON.parse(raw);
+        if (!doc || typeof doc !== 'object') return null;
+        return doc;
+    } catch (e) { return null; }
+}
+
+function _lbSnapWrite(docId, doc) {
+    try { localStorage.setItem(_lbSnapStorageKey(docId), JSON.stringify(doc)); } catch (e) {}
+}
+
+function _lbSnapFresh(doc, intervalMs) {
+    var updated = Number(doc && doc.updatedAt) || 0;
+    if (!updated) return false;
+    var interval = Number(doc.intervalMs) || intervalMs;
+    if (!(interval > 0)) interval = intervalMs;
+    // Favor's idle snapshot says 30 minutes. Revalidate on the 5 minute
+    // active cadence so a cycle that just started is not stuck behind that.
+    if (doc && doc.favorActive === false && intervalMs && interval > intervalMs) interval = intervalMs;
+    return (Date.now() - updated) < interval;
+}
+
+function _lbFeedTicker(rows) {
+    if (typeof window._lbFeedTicker === 'function') {
+        try { window._lbFeedTicker(rows || []); } catch (e) {}
+    }
+}
+
+async function _lbSnapFetch(boardKey) {
+    var spec = LB_BOARDS[boardKey];
+    if (!spec || typeof db === 'undefined' || !db) return null;
+    var snap = await db.collection('stats').doc(spec.docId).get();
+    if (!snap.exists) return _lbSnapRead(spec.docId);
+    var data = snap.data() || {};
+    if (!data.updatedAt) data.updatedAt = Date.now();
+    if (!data.intervalMs) data.intervalMs = spec.intervalMs;
+    _lbSnapWrite(spec.docId, data);
+    if (boardKey === 'xpAll') _lbFeedTicker(data.rows);
+    return data;
+}
+window._lbSnapRead = _lbSnapRead;
+window._lbSnapFetch = _lbSnapFetch;
+window._lbSnapFresh = _lbSnapFresh;
+window._lbSnapWrite = _lbSnapWrite;
+
+function _lbUsersFromSnap(doc, period) {
+    var rows = (doc && doc.rows) || [];
+    return rows.map(function (r) {
+        var certs = [];
+        if (r.certScholar) certs.push('cert_scholar');
+        if (r.certTech) certs.push('cert_tech');
+        var points = Number(r.points);
+        if (!(points > 0)) points = period === 'weekly' || period === 'monthly' ? 0 : (Number(r.value) || 0);
+        return {
+            id: r.uid,
+            username: r.username || 'Anon',
+            points: points,
+            weeklyXP: period === 'weekly' ? (Number(r.value) || 0) : 0,
+            monthlyXP: period === 'monthly' ? (Number(r.value) || 0) : 0,
+            faction: r.faction || '',
+            earnedHidden: certs,
+            lastSeen: r.lastSeen || null,
+            lightningAddress: r.lightningAddress || '',
+            _rank: r.rank || 0
+        };
+    });
+}
+
+function _lbYouOutside(users, period) {
+    var me = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser : null;
+    if (!me || me.isAnonymous || typeof currentUser === 'undefined' || !currentUser) return null;
+    var uid = me.uid;
+    for (var i = 0; i < users.length; i++) {
+        if (users[i] && users[i].id === uid) return null;
+    }
+    var value = period === 'weekly' ? (currentUser.weeklyXP || 0) : period === 'monthly' ? (currentUser.monthlyXP || 0) : (currentUser.points || 0);
+    if (!(value > 0)) return null;
+    return {
+        id: uid,
+        username: currentUser.username || 'Anon',
+        points: currentUser.points || 0,
+        weeklyXP: currentUser.weeklyXP || 0,
+        monthlyXP: currentUser.monthlyXP || 0,
+        faction: currentUser.faction || '',
+        earnedHidden: currentUser.earnedHidden || [],
+        lastSeen: currentUser.lastSeen || null,
+        lightningAddress: currentUser.lightningAddress || currentUser.lightning || '',
+        _rankLabel: '25+',
+        _you: true
+    };
+}
+
+function _lbXpRowHtml(d, period, index) {
+    var rank = d._rank || (index + 1);
+    var lv = getLevel(d.points || 0);
+    var isMe = (auth.currentUser && d.id === auth.currentUser.uid) || d._you;
+    if (isMe && !d._you && currentUser && (d.points || 0) > (currentUser.points || 0)) {
+        currentUser.points = d.points;
+        if (typeof updateRankUI === 'function') updateRankUI();
+    }
+    var medal = d._rankLabel ? d._rankLabel : (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank);
+    var hidden = (!d._you && rank > 10)
+        ? ' style="display:none;" class="lb-row lb-extra' + (isMe ? ' lb-me' : '') + '"'
+        : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+    var statusDot = typeof onlineStatusDot === 'function' ? onlineStatusDot(d.lastSeen) : '';
+    var certIcons = '';
+    if (d.earnedHidden && d.earnedHidden.indexOf('cert_scholar') !== -1) certIcons += ' 🎓';
+    if (d.earnedHidden && d.earnedHidden.indexOf('cert_tech') !== -1) certIcons += ' 🛠️';
+    var safeId = String(d.id || '').replace(/[^A-Za-z0-9_-]/g, '');
+    var _lbTipData = JSON.stringify({ recipientName: d.username || 'Anon', recipientUid: safeId, lightningAddress: d.lightningAddress || d.lightning || '', context: 'leaderboard', label: 'Tip ' + (d.username || 'Anon') }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+    var _lbNameStyle = d.faction && typeof window._factionNameStyle === 'function' ? window._factionNameStyle(d.faction) : '';
+    var peerTag = (window._myPeers && window._myPeers.has(d.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
+    var score = period === 'weekly' ? (d.weeklyXP || 0).toLocaleString() + ' wXP' : period === 'monthly' ? (d.monthlyXP || 0).toLocaleString() + ' mXP' : (d.points || 0).toLocaleString() + ' XP';
+    return '<div' + hidden + ' onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
+        '<span class="lb-rank">' + medal + '</span>' +
+        '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
+        '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + peerTag + escapeHtml(d.username || 'Anon') + (d._you ? ' (you)' : '') + statusDot + certIcons + '</span>' +
+        '<span class="lb-score">' + score + '</span>' +
+        '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
+        '</div>';
+}
+
+function _lbXpRowsHtml(allUsers, period) {
+    var html = '';
+    var ranked = [];
+    (allUsers || []).forEach(function (d) { if (d && !d._you) ranked.push(d); });
+    ranked.forEach(function (d, i) { html += _lbXpRowHtml(d, period, i); });
+    if (ranked.length > 10) {
+        html += '<button id="lbShowMore" onclick="expandLeaderboard(event)" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;transition:0.2s;">Show Top ' + ranked.length + ' Users ▼</button>';
+    }
+    var you = _lbYouOutside(ranked, period);
+    if (you) html += _lbXpRowHtml(you, period, ranked.length);
+    if (!ranked.length && !you) {
+        html += '<div style="padding:12px;text-align:center;color:var(--text-faint);font-size:0.85rem;">No rankings yet.</div>';
+    }
+    return html;
+}
+
 async function toggleLeaderboard() {
     const lb = document.getElementById('leaderboard');
     if (!lb) return;
@@ -3811,6 +7049,7 @@ async function toggleLeaderboard() {
     if (lb.classList.contains('open') && !lb.classList.contains('minimized')) {
         lb.classList.remove('open');
         lb.classList.remove('minimized');
+        _resetLeaderboardZ(lb);
         if (fab) fab.style.display = 'flex';
         return;
     }
@@ -3835,7 +7074,13 @@ async function toggleLeaderboard() {
     })();
 
     lb.classList.remove('minimized');
-    lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading leaderboard...</div>';
+    var _lbEarlyPeriod = window._lbPeriod || 'alltime';
+    var _lbEarlyDoc = _lbSnapRead(_lbBoardSpec(_lbEarlyPeriod).docId);
+    if (_lbEarlyDoc) {
+        lb.innerHTML = '<div class="lb-header"><h3>🏆 Leaderboard</h3></div><div class="lb-list" id="lbXpList">' + _lbXpRowsHtml(_lbUsersFromSnap(_lbEarlyDoc, _lbEarlyPeriod), _lbEarlyPeriod) + '</div>';
+    } else {
+        lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading leaderboard...</div>';
+    }
     lb.classList.add('open');
     if (fab) fab.style.display = 'none';
 
@@ -3872,60 +7117,23 @@ async function toggleLeaderboard() {
     }
 
     try {
-        // Cache leaderboard data for 10 minutes to reduce Firestore reads
-        var now = Date.now();
-        var _lbPeriod = window._lbPeriod || 'alltime';
-        let allUsers = [];
-
-        if (_lbPeriod === 'weekly') {
-            var useWeekCache = window._lbWeekCache && window._lbWeekCacheTime && (now - window._lbWeekCacheTime < 600000);
-            if (useWeekCache) {
-                allUsers = window._lbWeekCache;
-            } else {
-                const snap = await db.collection('public_profiles').orderBy('weeklyXP', 'desc').limit(150).get();
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
-                    if ((d.weeklyXP || 0) > 0 && (!d.ghostMode || isMe)) {
-                        allUsers.push({ id: doc.id, ...d, _sortXP: d.weeklyXP || 0 });
-                    }
-                });
-                window._lbWeekCache = allUsers;
-                window._lbWeekCacheTime = now;
-            }
-        } else if (_lbPeriod === 'monthly') {
-            var useMonthCache = window._lbMonthCache && window._lbMonthCacheTime && (now - window._lbMonthCacheTime < 600000);
-            if (useMonthCache) {
-                allUsers = window._lbMonthCache;
-            } else {
-                const snap = await db.collection('public_profiles').orderBy('monthlyXP', 'desc').limit(150).get();
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
-                    if ((d.monthlyXP || 0) > 0 && (!d.ghostMode || isMe)) {
-                        allUsers.push({ id: doc.id, ...d, _sortXP: d.monthlyXP || 0 });
-                    }
-                });
-                window._lbMonthCache = allUsers;
-                window._lbMonthCacheTime = now;
-            }
-        } else {
-            var useCache = window._lbCache && window._lbCacheTime && (now - window._lbCacheTime < 600000);
-            if (useCache) {
-                allUsers = window._lbCache;
-            } else {
-                const snap = await db.collection('public_profiles').orderBy('points', 'desc').limit(150).get();
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    const isMe = auth.currentUser && doc.id === auth.currentUser.uid;
-                    if (d.points > 0 && (!d.ghostMode || isMe)) {
-                        allUsers.push({ id: doc.id, ...d });
-                    }
-                });
-                window._lbCache = allUsers;
-                window._lbCacheTime = now;
+        // Cached top-25 snapshot (public data) renders immediately; sign-in is only awaited with no cache.
+        var _lbHasCache = !!_lbSnapRead(_lbBoardSpec(window._lbPeriod || 'alltime').docId);
+        if (!_lbHasCache) {
+            await _lbAuthReady(15000);
+            if (!((typeof auth !== 'undefined' && auth && auth.currentUser) || (window.auth && window.auth.currentUser))) {
+                lb.innerHTML = '<div style="padding:20px;text-align:center;color:#f97316;">Sign-in is still finishing. <button type="button" onclick="toggleLeaderboard()" style="margin-left:8px;padding:6px 12px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Try again</button></div>';
+                return;
             }
         }
+        // One snapshot doc. localStorage paints first; refetch when it is older than the board interval.
+        var _lbPeriod = window._lbPeriod || 'alltime';
+        var _lbSpec = _lbBoardSpec(_lbPeriod);
+        var _lbCachedDoc = _lbSnapRead(_lbSpec.docId);
+        var _lbFresh = !!(_lbCachedDoc && _lbSnapFresh(_lbCachedDoc, _lbSpec.intervalMs));
+        var _lbSnapDoc = _lbCachedDoc;
+        if (!_lbSnapDoc) _lbSnapDoc = await _lbSnapFetch(_lbSpec.key);
+        let allUsers = _lbUsersFromSnap(_lbSnapDoc, _lbPeriod);
 
         // Period (all-time, weekly, monthly)
         var _lbPeriod = window._lbPeriod || 'alltime';
@@ -3942,44 +7150,9 @@ async function toggleLeaderboard() {
         // Prize banners for weekly/monthly
         if (_lbPeriod === 'weekly') html += '<div style="text-align:center;padding:8px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;margin:0 12px 10px;font-size:0.72rem;color:var(--accent);font-weight:700;">🏆 Top 10 this week win 25 🎫 Orange Tickets!</div>';
         if (_lbPeriod === 'monthly') html += '<div style="text-align:center;padding:8px 12px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;margin:0 12px 10px;font-size:0.72rem;color:var(--accent);font-weight:700;">🏆 Top 10 this month win 100 🏟️ Orange Tickets!</div>';
-        html += '<div class="lb-search-wrap"><input id="lbSearchInput" type="text" placeholder="🔍 Search username..." oninput="lbSearchUser(this.value)" autocomplete="off" autocorrect="off" spellcheck="false"></div>';
-        html += '<div id="lbSearchResult"></div>';
-        html += '<div class="lb-list">';
-
-        const showInitial = Math.min(10, allUsers.length);
-        allUsers.forEach((d, i) => {
-            const rank = i + 1;
-            const lv = getLevel(d.points || 0);
-            const isMe = auth.currentUser && d.id === auth.currentUser.uid;
-            // Sync local points with Firestore if leaderboard has newer data
-            if (isMe && currentUser && (d.points || 0) > (currentUser.points || 0)) {
-                currentUser.points = d.points;
-                updateRankUI();
-            }
-            const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
-            const hidden = rank > 10 ? ' style="display:none;" class="lb-row lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
-            var statusDot = typeof onlineStatusDot === 'function' ? onlineStatusDot(d.lastSeen) : '';
-
-            // Certifications display
-            let certIcons = '';
-            if (d.earnedHidden && d.earnedHidden.includes('cert_scholar')) certIcons += ' 🎓';
-            if (d.earnedHidden && d.earnedHidden.includes('cert_tech')) certIcons += ' 🛠️';
-
-            var _lbTipData = JSON.stringify({recipientName: d.username || 'Anon', recipientUid: d.id, lightningAddress: d.lightningAddress || d.lightning || '', context: 'leaderboard', label: 'Tip ' + (d.username || 'Anon')}).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-            var _lbNameStyle = d.faction ? window._factionNameStyle(d.faction) : '';
-            var peerTag = (window._myPeers && window._myPeers.has(d.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
-            html += '<div' + hidden + ' onclick="showUserProfile(\'' + d.id + '\')" style="cursor:pointer;" title="View profile">' +
-                '<span class="lb-rank">' + medal + '</span>' +
-                '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
-                '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + peerTag + escapeHtml(d.username || 'Anon') + statusDot + certIcons + '</span>' +
-                '<span class="lb-score">' + (_lbPeriod === 'weekly' ? (d.weeklyXP || 0).toLocaleString() + ' wXP' : _lbPeriod === 'monthly' ? (d.monthlyXP || 0).toLocaleString() + ' mXP' : (d.points || 0).toLocaleString() + ' XP') + '</span>' +
-                '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
-            '</div>';
-        });
-
-        if (allUsers.length > 10) {
-            html += '<button id="lbShowMore" onclick="expandLeaderboard(event)" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;transition:0.2s;">Show Top ' + Math.min(allUsers.length, 150) + ' Users ▼</button>';
-        }
+        html += _lbRankBox('xp');
+        html += '<div class="lb-list" id="lbXpList">';
+        html += _lbXpRowsHtml(allUsers, _lbPeriod);
         html += '</div>';
 
         // Badges section
@@ -3987,13 +7160,24 @@ async function toggleLeaderboard() {
             html += '<div class="lb-levels"><h4>Your Badges</h4>' + getBadgeHTML() + '</div>';
         }
 
+        // Daily Streaks — directly above the Quest list. One cached stats doc.
+        html += '<div id="streakBoard" class="streak-board"><div class="streak-lb-loading">Loading Daily Streaks...</div></div>';
+
+        // Quests — between Daily Streaks and Top Predictors. One stats doc per tab.
+        html += '<div id="questBoard" class="quest-board"><div class="quest-lb-loading">Loading Quests...</div></div>';
+
+        // Top Predictors — above PVP. One stats doc holds all three periods.
+        html += '<div id="predictorBoard" style="margin-top:24px;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
+            '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:8px 0;">Loading Top Predictors...</div></div>';
+
         // Level guide
         // PVP LEADERBOARD
         html += '<div style="margin-top:24px;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">' +
-            '<h4 style="margin:0;">⚔️ PVP Leaderboard</h4>' +
+            '<h4 style="margin:0;">⚔️ PVP Leaderboard</h4' +
             '<button onclick="event.stopPropagation();enterPVPMode();" style="padding:6px 14px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:8px;color:#fff;font-size:0.7rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:0.5px;transition:0.2s;">Enter PVP Lobby</button>' +
             '</div>' +
+            _lbShareBtn('pvp') +
             '<div id="pvpLeaderboardList"><div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:8px 0;">Loading PVP rankings...</div></div>' +
         '</div>';
 
@@ -4006,77 +7190,544 @@ async function toggleLeaderboard() {
         lb.innerHTML = html;
 
         // Load PVP leaderboard data asynchronously (must be after innerHTML so DOM element exists)
+        _loadStreakLeaderboard();
+        _loadQuestLeaderboard();
+        _loadPredictorLeaderboard();
         _loadPVPLeaderboard();
+        _lbRankReplayAll();
+        if (_lbCachedDoc && !_lbFresh) {
+            var _lbPaintPeriod = _lbPeriod;
+            _lbSnapFetch(_lbSpec.key).then(function (next) {
+                var open = document.getElementById('leaderboard');
+                var list = document.getElementById('lbXpList');
+                if (!next || !open || !list || !open.classList.contains('open')) return;
+                if ((window._lbPeriod || 'alltime') !== _lbPaintPeriod) return;
+                if (Number(next.updatedAt) === Number(_lbCachedDoc.updatedAt)) return;
+                list.innerHTML = _lbXpRowsHtml(_lbUsersFromSnap(next, _lbPaintPeriod), _lbPaintPeriod);
+            }).catch(function () {});
+        }
     } catch(e) {
         console.error('[Leaderboard] Error:', e);
         lb.innerHTML = '<div style="padding:20px;color:#f97316;">Error loading leaderboard: ' + (e.message || 'Unknown error') + '</div>';
     }
 }
 
-// PVP Leaderboard - loaded after main leaderboard renders, sorted by win %
+// Top Predictors — All Time / This Week / This Month, same tab chrome as XP.
+var PRED_LB_COPY = {
+    weekly: 'This Week: make at least 5 predictions to qualify. Top 10 each win 25 orange tickets.',
+    monthly: 'This Month: at least 15 predictions. Top 10 each win 100 orange tickets.',
+    alltime: 'All Time: at least 10 predictions.'
+};
+var PRED_LB_MIN = { weekly: 5, monthly: 15, alltime: 10 };
+
+function _predLbInfoText(period) {
+    return PRED_LB_COPY[period] || PRED_LB_COPY.alltime;
+}
+
+function _predSafePic(src) {
+    if (!src || typeof src !== 'string') return '';
+    if (/^data:image\/(jpeg|jpg|png|webp);base64,[a-z0-9+/=]+$/i.test(src)) return src;
+    if (/^https:\/\/[^\s"'<>]+$/i.test(src) && src.length < 500) return src;
+    return '';
+}
+
+function _predAvatarHtml(entry) {
+    var pic = _predSafePic(entry.profilePic);
+    if (pic) {
+        return '<img alt="" width="24" height="24" src="' + pic.replace(/"/g, '') + '" style="width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0;">';
+    }
+    var raw = (entry.username || 'A').trim().charAt(0).toUpperCase() || 'A';
+    var ch = typeof escapeHtml === 'function' ? escapeHtml(raw) : raw;
+    return '<span class="lb-badge" aria-hidden="true" style="border-radius:50%;background:rgba(247,147,26,0.18);color:#f7931a;font-size:0.72rem;font-weight:800;">' + ch + '</span>';
+}
+
+function _predLbTipEl() {
+    var tip = document.getElementById('predLbTip');
+    if (!tip) {
+        tip = document.createElement('div');
+        tip.id = 'predLbTip';
+        tip.className = 'pred-lb-tip';
+        tip.setAttribute('role', 'tooltip');
+        tip.hidden = true;
+        document.body.appendChild(tip);
+    }
+    return tip;
+}
+
+var _predLbInfoBound = false;
+function _predLbEnsureGlobalHandlers() {
+    if (_predLbInfoBound) return;
+    _predLbInfoBound = true;
+    document.addEventListener('pointerdown', function(e) {
+        var tip = document.getElementById('predLbTip');
+        var btn = document.getElementById('predLbInfo');
+        if (!tip || tip.hidden) return;
+        if (btn && (e.target === btn || btn.contains(e.target))) return;
+        if (tip.contains(e.target)) return;
+        _predLbHideTip();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') _predLbHideTip();
+    });
+}
+
+function _predLbPlaceTip() {
+    var btn = document.getElementById('predLbInfo');
+    var tip = _predLbTipEl();
+    if (!btn) return;
+    var r = btn.getBoundingClientRect();
+    var width = Math.min(280, window.innerWidth - 24);
+    var left = Math.max(12, Math.min(r.left, window.innerWidth - width - 12));
+    var top = r.bottom + 6;
+    if (top + 96 > window.innerHeight) top = Math.max(8, r.top - 96);
+    tip.style.position = 'fixed';
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+    tip.style.width = width + 'px';
+    tip.style.zIndex = '400000';
+}
+
+function _predLbShowTip() {
+    var btn = document.getElementById('predLbInfo');
+    var tip = _predLbTipEl();
+    tip.textContent = _predLbInfoText(window._predLbPeriod || 'alltime');
+    tip.hidden = false;
+    _predLbPlaceTip();
+    if (btn) {
+        btn.setAttribute('aria-expanded', 'true');
+        btn.setAttribute('aria-describedby', 'predLbTip');
+    }
+}
+
+function _predLbHideTip() {
+    var tip = document.getElementById('predLbTip');
+    var btn = document.getElementById('predLbInfo');
+    if (tip) tip.hidden = true;
+    if (btn) {
+        btn.setAttribute('aria-expanded', 'false');
+        btn.removeAttribute('aria-describedby');
+        btn.removeAttribute('data-pinned');
+    }
+}
+
+function _predLbToggleInfo(btn) {
+    _predLbEnsureGlobalHandlers();
+    var tip = _predLbTipEl();
+    if (btn && !tip.hidden && btn.getAttribute('data-pinned') === '1') {
+        _predLbHideTip();
+        return;
+    }
+    if (btn) btn.setAttribute('data-pinned', '1');
+    _predLbShowTip();
+}
+window._predLbToggleInfo = _predLbToggleInfo;
+
+function _predLbBindInfo() {
+    var btn = document.getElementById('predLbInfo');
+    if (!btn || btn._predBound) return;
+    btn._predBound = true;
+    _predLbEnsureGlobalHandlers();
+    var hover = window.matchMedia && window.matchMedia('(hover: hover)').matches;
+    if (hover) {
+        btn.addEventListener('mouseenter', function() { _predLbShowTip(); });
+        btn.addEventListener('mouseleave', function() {
+            if (btn.getAttribute('data-pinned') !== '1') _predLbHideTip();
+        });
+    }
+    btn.addEventListener('focus', function() { _predLbShowTip(); });
+    btn.addEventListener('blur', function() {
+        if (btn.getAttribute('data-pinned') !== '1') _predLbHideTip();
+    });
+}
+
+function _predLbProgressText(period, made) {
+    var min = PRED_LB_MIN[period] || PRED_LB_MIN.alltime;
+    var n = Math.max(0, Number(made) || 0);
+    if (n >= min) return '';
+    if (period === 'weekly') return "You've made " + n + " of " + min + " predictions this week.";
+    if (period === 'monthly') return "You've made " + n + " of " + min + " predictions this month.";
+    return "You've made " + n + " of " + min + " predictions.";
+}
+
+function _predLbFillProgress(period, data) {
+    var el = document.getElementById('predLbProgress');
+    if (!el) return;
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        el.textContent = '';
+        return;
+    }
+    var apply = function(stats) {
+        var node = document.getElementById('predLbProgress');
+        if (!node) return;
+        var made = 0;
+        if (stats) {
+            if (period === 'weekly') made = stats.weekKey === data.weekKey ? (stats.weekTotal || 0) : 0;
+            else if (period === 'monthly') made = stats.monthKey === data.monthKey ? (stats.monthTotal || 0) : 0;
+            else made = stats.predTotal || 0;
+        }
+        node.textContent = _predLbProgressText(period, made);
+    };
+    if (typeof window._loadMyPredictionStats === 'function') window._loadMyPredictionStats(apply);
+    else el.textContent = '';
+}
+
+function _renderPredictorBoard() {
+    var root = document.getElementById('predictorBoard');
+    if (!root) return;
+    var period = window._predLbPeriod || 'alltime';
+    var data = (window._predLbCache && window._predLbCache.data) || {};
+    var rows = data[period] || [];
+    var tabs = [['alltime', 'All Time'], ['weekly', 'This Week'], ['monthly', 'This Month']];
+    var html = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
+        '<h4 style="margin:0;">📈 Top Predictors</h4>' +
+        '<button type="button" id="predLbInfo" class="pred-lb-info" aria-label="How Top Predictors works" aria-expanded="false" aria-controls="predLbTip" onclick="event.stopPropagation();_predLbToggleInfo(this)">ⓘ</button>' +
+        '</div>';
+    html += '<div style="display:flex;gap:4px;padding:0 0 10px;">';
+    tabs.forEach(function(p) {
+        var active = period === p[0];
+        html += '<button type="button" onclick="_predLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
+    });
+    html += '</div>' + _lbRankBox('predict') + '<div id="predictorLeaderboardList">';
+    if (!rows.length) {
+        html += '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No Questers have qualified yet.</div>';
+    } else {
+        var myUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : '';
+        rows.forEach(function(entry) {
+            var rank = entry.rank || 0;
+            var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
+            var correctN = Number(entry.correct) || 0;
+            var totalN = Number(entry.total) || 0;
+            var pctN = Number(entry.pct);
+            if (!isFinite(pctN) || pctN < 0) pctN = 0;
+            if (totalN > 0 && correctN > 0 && pctN === 0) pctN = Math.round((correctN / totalN) * 100);
+            var uid = String(entry.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
+            var isMe = myUid && uid === myUid;
+            var rawPredName = entry.username || '';
+            var predBlank = typeof window.missingPublicName === 'function'
+                ? window.missingPublicName(rawPredName)
+                : (!String(rawPredName).trim() || /^(anon|anonymous)$/i.test(String(rawPredName).trim()));
+            var predShown = predBlank ? 'Anon' : rawPredName;
+            var name = typeof escapeHtml === 'function' ? escapeHtml(predShown) : String(predShown);
+            var peerTag = (window._myPeers && window._myPeers.has(uid)) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
+            var predNameAttrs = uid ? ' data-profile-uid="' + uid + '"' + (predBlank ? ' data-blank-name="1"' : '') : '';
+            var hidden = rank > 10 ? ' style="display:none;" class="lb-row pred-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+            html += '<div' + hidden + ' onclick="showUserProfile(\'' + uid + '\')" style="cursor:pointer;" title="View profile">' +
+                '<span class="lb-rank">' + medal + '</span>' +
+                _predAvatarHtml(entry) +
+                '<span class="lb-name">' + peerTag + '<span' + predNameAttrs + '>' + name + '</span></span>' +
+                '<span class="lb-score pred-score">' + pctN + '%<span class="pred-score-frac">' + correctN + '/' + totalN + '</span></span>' +
+            '</div>';
+        });
+        if (rows.length > 10) {
+            html += '<button type="button" onclick="event.stopPropagation();document.querySelectorAll(\'.pred-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + rows.length + ' predictors ▼</button>';
+        }
+    }
+    html += '</div><p id="predLbProgress" style="margin:8px 0 0;font-size:0.75rem;line-height:1.4;color:var(--text-muted);"></p>';
+    root.innerHTML = html;
+    if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(root);
+    if (typeof _lbRankReplay === 'function') _lbRankReplay('predict');
+    _predLbBindInfo();
+    var tip = document.getElementById('predLbTip');
+    if (tip && !tip.hidden) tip.textContent = _predLbInfoText(period);
+    _predLbFillProgress(period, data);
+}
+
+function _predLbSwitchPeriod(period) {
+    window._predLbPeriod = period;
+    _renderPredictorBoard();
+}
+window._predLbSwitchPeriod = _predLbSwitchPeriod;
+
+async function _loadPredictorLeaderboard() {
+    var root = document.getElementById('predictorBoard');
+    if (!root) return;
+    var now = Date.now();
+    var fresh = window._predLbCache && window._predLbCacheTime && (now - window._predLbCacheTime < 600000);
+    if (!fresh) {
+        try {
+            if (typeof db === 'undefined') {
+                window._predLbCache = { data: {} };
+            } else {
+                var doc = await db.collection('stats').doc('predictor_leaderboard').get();
+                window._predLbCache = { data: doc.exists ? (doc.data() || {}) : {} };
+            }
+            window._predLbCacheTime = now;
+        } catch (e) {
+            window._predLbCache = window._predLbCache || { data: {} };
+            window._predLbCacheTime = now;
+        }
+    }
+    _renderPredictorBoard();
+}
+
+// Daily Streaks — All-Time / Current, same tab chrome as Top Predictors.
+// The list is the server doc stats/streak_leaderboard. No per-user reads.
+function _streakAttr(value) {
+    return String(value || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/'/g, '&#39;');
+}
+
+function _streakOpenProfile(el) {
+    if (!el || typeof db === 'undefined' || !db) return;
+    var name = el.getAttribute('data-streak-name') || '';
+    if (!name || name === 'Anon') return;
+    db.collection('public_profiles').where('username_lower', '==', name.toLowerCase()).limit(1).get().then(function(snap) {
+        if (!snap || snap.empty || typeof showUserProfile !== 'function') return;
+        showUserProfile(snap.docs[0].id);
+    }).catch(function() {});
+}
+window._streakOpenProfile = _streakOpenProfile;
+
+function _renderStreakBoard() {
+    var root = document.getElementById('streakBoard');
+    if (!root) return;
+    var period = window._streakLbPeriod === 'current' ? 'current' : 'alltime';
+    var data = (window._streakLbCache && window._streakLbCache.data) || {};
+    var rows = data[period] || [];
+    var tabs = [['alltime', 'All-Time'], ['current', 'Current']];
+    var note = period === 'current'
+        ? 'Still going. Older than the daily window drops off.'
+        : 'Longest daily streak each player has reached.';
+    var html = '<div class="streak-lb-head"><h4>🔥 Daily Streaks</h4></div>';
+    html += '<p class="streak-lb-note">' + note + '</p>';
+    html += '<div class="streak-lb-tabs">';
+    tabs.forEach(function(p) {
+        var active = period === p[0];
+        html += '<button type="button" onclick="_streakLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;min-width:0;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
+    });
+    html += '</div>' + _lbRankBox('streak') + '<div id="streakLeaderboardList">';
+    if (!rows.length) {
+        html += '<div class="streak-lb-empty">' + (period === 'current' ? 'No streaks still going.' : 'No streaks yet.') + '</div>';
+    } else {
+        var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username).trim().toLowerCase() : '';
+        rows.forEach(function(entry) {
+            var rank = entry.rank || 0;
+            var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
+            var rawName = entry.username || '';
+            var blank = typeof window.missingPublicName === 'function'
+                ? window.missingPublicName(rawName)
+                : (!String(rawName).trim() || /^(anon|anonymous)$/i.test(String(rawName).trim()));
+            var shown = blank ? 'Anon' : rawName;
+            var name = typeof escapeHtml === 'function' ? escapeHtml(shown) : String(shown);
+            var isMe = !blank && myName && myName === String(shown).trim().toLowerCase();
+            var hidden = rank > 10 ? ' style="display:none;" class="lb-row streak-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+            var open = blank ? '' : ' onclick="_streakOpenProfile(this)"';
+            html += '<div' + hidden + open + ' data-streak-name="' + _streakAttr(shown) + '" style="cursor:' + (blank ? 'default' : 'pointer') + ';" title="' + (blank ? '' : 'View profile') + '">' +
+                '<span class="lb-rank">' + medal + '</span>' +
+                (typeof _predAvatarHtml === 'function' ? _predAvatarHtml(entry) : '') +
+                '<span class="lb-name">' + name + '</span>' +
+                '<span class="lb-score">🔥 ' + (Number(entry.streak) || 0) + '</span>' +
+            '</div>';
+        });
+        if (rows.length > 10) {
+            html += '<button type="button" onclick="event.stopPropagation();document.querySelectorAll(\'.streak-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + rows.length + ' streaks ▼</button>';
+        }
+    }
+    html += '</div>';
+    root.innerHTML = html;
+    if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(root);
+    if (typeof _lbRankReplay === 'function') _lbRankReplay('streak');
+}
+
+function _streakLbSwitchPeriod(period) {
+    window._streakLbPeriod = period === 'current' ? 'current' : 'alltime';
+    _renderStreakBoard();
+}
+window._streakLbSwitchPeriod = _streakLbSwitchPeriod;
+
+async function _loadStreakLeaderboard() {
+    var root = document.getElementById('streakBoard');
+    if (!root) return;
+    var now = Date.now();
+    var fresh = window._streakLbCache && window._streakLbCacheTime && (now - window._streakLbCacheTime < 600000);
+    if (!fresh) {
+        try {
+            if (typeof db === 'undefined') {
+                window._streakLbCache = { data: {} };
+            } else {
+                var doc = await db.collection('stats').doc('streak_leaderboard').get();
+                window._streakLbCache = { data: doc.exists ? (doc.data() || {}) : {} };
+            }
+            window._streakLbCacheTime = now;
+        } catch (e) {
+            window._streakLbCache = window._streakLbCache || { data: {} };
+            window._streakLbCacheTime = now;
+        }
+    }
+    _renderStreakBoard();
+}
+
+// Quests — All Time / This Week / This Month. Each tab is one server doc.
+var QUEST_LB_DOC = {
+    alltime: 'quest_leaderboard_alltime',
+    week: 'quest_leaderboard_week',
+    month: 'quest_leaderboard_month'
+};
+var QUEST_LB_NOTE = {
+    alltime: 'Different quests passed, all time. At least 5 attempts. The percent is passed attempts out of every attempt.',
+    week: 'This week starts Monday at midnight Eastern. At least 3 attempts. Top 10 win 25 Orange Tickets.',
+    month: 'This month is Eastern time. At least 3 attempts. Top 10 win 100 Orange Tickets.'
+};
+
+function _questLbPeriod() {
+    var period = window._questLbTab;
+    if (period === 'week' || period === 'month') return period;
+    return 'alltime';
+}
+
+function _questOpenProfile(el) {
+    if (!el || typeof db === 'undefined' || !db) return;
+    var name = el.getAttribute('data-quest-name') || '';
+    if (!name || name === 'Anon') return;
+    db.collection('public_profiles').where('username_lower', '==', name.toLowerCase()).limit(1).get().then(function(snap) {
+        if (!snap || snap.empty || typeof showUserProfile !== 'function') return;
+        showUserProfile(snap.docs[0].id);
+    }).catch(function() {});
+}
+window._questOpenProfile = _questOpenProfile;
+
+function _renderQuestBoard() {
+    var root = document.getElementById('questBoard');
+    if (!root) return;
+    var period = _questLbPeriod();
+    var slot = window._questLbCache && window._questLbCache[period];
+    var data = (slot && slot.data) || {};
+    var rows = data.rows || [];
+    var tabs = [['alltime', 'All Time'], ['week', 'This Week'], ['month', 'This Month']];
+    var html = '<div class="quest-lb-head"><h4>🏆 Quests</h4></div>';
+    html += '<p class="quest-lb-note">' + QUEST_LB_NOTE[period] + '</p>';
+    html += '<div class="quest-lb-tabs">';
+    tabs.forEach(function(p) {
+        var active = period === p[0];
+        html += '<button type="button" onclick="_questLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;min-width:0;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
+    });
+    html += '</div>' + _lbRankBox('quest') + '<div id="questLeaderboardList">';
+    if (!rows.length) {
+        html += '<div class="quest-lb-empty">Nobody has qualified yet.</div>';
+    } else {
+        var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username).trim().toLowerCase() : '';
+        rows.forEach(function(entry) {
+            var rank = entry.rank || 0;
+            var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
+            var rawName = entry.username || '';
+            var blank = typeof window.missingPublicName === 'function'
+                ? window.missingPublicName(rawName)
+                : (!String(rawName).trim() || /^(anon|anonymous)$/i.test(String(rawName).trim()));
+            var shown = blank ? 'Anon' : rawName;
+            if (String(shown).indexOf('@') !== -1) {
+                shown = 'Anon';
+                blank = true;
+            }
+            var name = typeof escapeHtml === 'function' ? escapeHtml(shown) : String(shown);
+            var isMe = !blank && myName && myName === String(shown).trim().toLowerCase();
+            var passes = Number(entry.passes) || 0;
+            var pct = Number(entry.pct) || 0;
+            var open = blank ? '' : ' onclick="_questOpenProfile(this)"';
+            html += '<div class="lb-row' + (isMe ? ' lb-me' : '') + '"' + open + ' data-quest-name="' + _streakAttr(shown) + '" style="cursor:' + (blank ? 'default' : 'pointer') + ';" title="' + (blank ? '' : 'View profile') + '">' +
+                '<span class="lb-rank">' + medal + '</span>' +
+                (typeof _predAvatarHtml === 'function' ? _predAvatarHtml(entry) : '') +
+                '<span class="lb-name">' + name + '</span>' +
+                '<span class="lb-score" title="Pass rate">' + passes + ' · ' + pct + '%</span>' +
+            '</div>';
+        });
+    }
+    html += '</div>';
+    root.innerHTML = html;
+    if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(root);
+    if (typeof _lbRankReplay === 'function') _lbRankReplay('quest');
+}
+
+function _questLbSwitchPeriod(period) {
+    window._questLbTab = period === 'week' || period === 'month' ? period : 'alltime';
+    _loadQuestLeaderboard();
+}
+window._questLbSwitchPeriod = _questLbSwitchPeriod;
+
+async function _loadQuestLeaderboard() {
+    var root = document.getElementById('questBoard');
+    if (!root) return;
+    var period = _questLbPeriod();
+    window._questLbCache = window._questLbCache || {};
+    var slot = window._questLbCache[period];
+    var now = Date.now();
+    var fresh = slot && slot.time && (now - slot.time < 600000);
+    if (!fresh) {
+        try {
+            if (typeof db === 'undefined' || !db) {
+                window._questLbCache[period] = { data: {}, time: now };
+            } else {
+                var doc = await db.collection('stats').doc(QUEST_LB_DOC[period]).get();
+                window._questLbCache[period] = { data: doc.exists ? (doc.data() || {}) : {}, time: now };
+            }
+        } catch (e) {
+            window._questLbCache[period] = window._questLbCache[period] || { data: {}, time: now };
+            window._questLbCache[period].time = now;
+        }
+    }
+    _renderQuestBoard();
+}
+
+// PVP leaderboard. One snapshot doc, already ordered by win rate. Wins and losses are on each row.
+function _renderPvpSnapshot(container, doc) {
+    if (!container) return;
+    var rows = (doc && doc.rows) || [];
+    var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
+    if (!rows.length && !(currentUser && ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0)) > 0)) {
+        container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet - be the first to compete!</div>';
+        return;
+    }
+    var seenMe = false;
+    var pvpHtml = '';
+    rows.forEach(function (p) {
+        var rank = p.rank || 0;
+        var wins = p.wins || 0;
+        var losses = p.losses || 0;
+        var safeId = String(p.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
+        var isMe = !!(myUid && safeId === myUid);
+        if (isMe) seenMe = true;
+        var name = escapeHtml(p.username || 'Anon');
+        var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
+        var pvpIcon = wins >= 100 ? '👑' : wins >= 50 ? '🏆' : wins >= 25 ? '🏟️' : wins >= 5 ? '🥊' : '⚔️';
+        var hidden = rank > 10 ? ' style="display:none;" class="lb-row pvp-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+        var _pvpTipData = JSON.stringify({ recipientName: p.username || 'Anon', recipientUid: safeId, lightningAddress: p.lightningAddress || '', context: 'pvp', label: 'Tip ' + (p.username || 'Anon') }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+        var peerTag = (window._myPeers && window._myPeers.has(safeId)) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
+        var rate = Number(p.value) || 0;
+        pvpHtml += '<div' + hidden + ' onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
+            '<span class="lb-rank">' + medal + '</span>' +
+            '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + pvpIcon + '</span>' +
+            '<span class="lb-name">' + peerTag + name + '</span>' +
+            '<span class="lb-score" title="' + Math.round(rate) + '% win rate" style="cursor:help;">' + wins + 'W - ' + losses + 'L</span>' +
+            '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + name + '">⚡</span>' +
+            '</div>';
+    });
+    if (rows.length > 10) {
+        pvpHtml += '<button onclick="event.stopPropagation();document.querySelectorAll(\'.pvp-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + rows.length + ' PVP players ▼</button>';
+    }
+    if (!seenMe && currentUser && ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0)) > 0) {
+        var mine = (currentUser.pvpWins || 0) + 'W - ' + (currentUser.pvpLosses || 0) + 'L';
+        pvpHtml += '<div class="lb-row lb-me" style="cursor:default;">' +
+            '<span class="lb-rank">25+</span>' +
+            '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">⚔️</span>' +
+            '<span class="lb-name">' + escapeHtml(currentUser.username || 'Anon') + ' (you)</span>' +
+            '<span class="lb-score">' + mine + '</span>' +
+            '</div>';
+    }
+    container.innerHTML = pvpHtml || '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet!</div>';
+}
+
 async function _loadPVPLeaderboard() {
     var container = document.getElementById('pvpLeaderboardList');
     if (!container) return;
+    var spec = LB_BOARDS.pvp;
+    var cached = _lbSnapRead(spec.docId);
+    if (cached) _renderPvpSnapshot(container, cached);
+    if (cached && _lbSnapFresh(cached, spec.intervalMs)) return;
     try {
-        // Cache PVP leaderboard for 5 minutes
-        var _pvpNow = Date.now();
-        var _pvpCached = window._pvpLbCache && window._pvpLbCacheTime && (_pvpNow - window._pvpLbCacheTime < 300000);
-        var winsSnap, lossSnap;
-        if (_pvpCached) {
-            winsSnap = window._pvpLbCache.wins;
-            lossSnap = window._pvpLbCache.losses;
-        } else {
-            [winsSnap, lossSnap] = await Promise.all([
-                db.collection('public_profiles').where('pvpWins', '>', 0).orderBy('pvpWins', 'desc').limit(50).get(),
-                db.collection('public_profiles').where('pvpLosses', '>', 0).orderBy('pvpLosses', 'desc').limit(50).get()
-            ]);
-            window._pvpLbCache = { wins: winsSnap, losses: lossSnap };
-            window._pvpLbCacheTime = _pvpNow;
-        }
-        var playerMap = {};
-        var myUid = auth.currentUser ? auth.currentUser.uid : null;
-        function addPlayer(doc) {
-            if (playerMap[doc.id]) return;
-            var d = doc.data();
-            if (d.ghostMode && doc.id !== myUid) return;
-            var wins = d.pvpWins || 0;
-            var losses = d.pvpLosses || 0;
-            var total = wins + losses;
-            if (total === 0) return;
-            var winRate = total > 0 ? (wins / total) * 100 : 0;
-            playerMap[doc.id] = { id: doc.id, username: escapeHtml(d.username || 'Anon'), wins: wins, losses: losses, total: total, winRate: winRate, isMe: doc.id === myUid, lightningAddress: d.lightningAddress || d.lightning || '' };
-        }
-        winsSnap.forEach(addPlayer);
-        lossSnap.forEach(addPlayer);
-        var players = Object.values(playerMap);
-        if (players.length === 0) {
-            container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet - be the first to compete!</div>';
-            return;
-        }
-        players.sort(function(a, b) { return b.winRate - a.winRate || b.wins - a.wins; });
-
-        var pvpHtml = '';
-        players.forEach(function(p, idx) {
-            var rank = idx + 1;
-            var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
-            var pvpIcon = p.wins >= 100 ? '👑' : p.wins >= 50 ? '🏆' : p.wins >= 25 ? '🏟️' : p.wins >= 5 ? '🥊' : '⚔️';
-            var hidden = rank > 10 ? ' style="display:none;" class="lb-row pvp-lb-extra' + (p.isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (p.isMe ? ' lb-me' : '') + '"';
-            var _pvpTipData = JSON.stringify({recipientName: p.username, recipientUid: p.id, lightningAddress: p.lightningAddress, context: 'pvp', label: 'Tip ' + p.username}).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
-            var peerTag = (window._myPeers && window._myPeers.has(p.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
-            pvpHtml += '<div' + hidden + ' onclick="showUserProfile(\'' + p.id + '\')" style="cursor:pointer;" title="View profile">' +
-                '<span class="lb-rank">' + medal + '</span>' +
-                '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + pvpIcon + '</span>' +
-                '<span class="lb-name">' + peerTag + p.username + '</span>' +
-                '<span class="lb-score" title="' + Math.round(p.winRate) + '% win rate" style="cursor:help;">' + p.wins + 'W - ' + p.losses + 'L</span>' +
-                '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + p.username + '">⚡</span>' +
-            '</div>';
-        });
-        if (players.length > 10) {
-            pvpHtml += '<button onclick="event.stopPropagation();document.querySelectorAll(\'.pvp-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + players.length + ' PVP players ▼</button>';
-        }
-        container.innerHTML = pvpHtml || '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet!</div>';
-    } catch(e) {
-        container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet - be the first to compete!</div>';
+        var next = await _lbSnapFetch(spec.key);
+        var el = document.getElementById('pvpLeaderboardList');
+        if (next && el) _renderPvpSnapshot(el, next);
+        else if (!cached && el) _renderPvpSnapshot(el, { rows: [] });
+    } catch (e) {
+        if (!cached) container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet - be the first to compete!</div>';
     }
 }
 
@@ -4085,8 +7736,8 @@ var _toastQueue = [];
 function showToast(msg, duration) {
     // Suppress toasts during direct link cooldown
     if (window._directLinkMode) return;
-    // If Nacho is busy (Q&A, voice, reading answer), queue the toast
-    if (window._nachoBusy) {
+    // Queue while Nacho is busy, or while Terms / sign-up is blocking the screen.
+    if (window._nachoBusy || chromeBlocksToasts()) {
         _toastQueue.push({ msg: msg, duration: duration });
         return;
     }
@@ -4100,13 +7751,15 @@ window._showToastNow = function _showToastNow(msg, duration) {
     // Strip dangerous tags but allow emoji and simple formatting
     t.innerHTML = _raw.replace(/<(script|svg|img|iframe|object|embed|form|input|link|style|meta|base)[^>]*>/gi, '').replace(/on\w+\s*=/gi, 'data-blocked=');
     if (typeof msg === 'object' && msg.duration) ms = msg.duration;
+    // Above Settings (400000) and the peer/gift dialogs (480000–540000).
+    t.style.zIndex = '620000';
     document.body.appendChild(t);
     requestAnimationFrame(() => t.classList.add('show'));
     setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, ms);
 }
 // Flush queued toasts when Nacho is no longer busy
 setInterval(function() {
-    if (!window._nachoBusy && _toastQueue.length > 0) {
+    if (!window._nachoBusy && !chromeBlocksToasts() && _toastQueue.length > 0) {
         _showToastNow(_toastQueue.shift());
     }
 }, 2000);
@@ -4151,8 +7804,67 @@ window._signupGoGetLnAddress = function() {
     setTimeout(function() { if (typeof go === 'function') go('lightning'); }, 200);
 };
 
+// Turnstile's flexible widget used to boot with the page. Its iframe fights
+// Edge Tracking Prevention and is only needed when a person submits a check.
+window._ensureTurnstile = function (el) {
+    function render() {
+        if (!el || !window.turnstile) return;
+        if (el.getAttribute('data-rendered') === '1') return;
+        var sitekey = el.getAttribute('data-sitekey');
+        if (!sitekey) return;
+        try {
+            window.turnstile.render(el, {
+                sitekey: sitekey,
+                theme: el.getAttribute('data-theme') || 'dark',
+                size: el.getAttribute('data-size') || 'flexible'
+            });
+            el.setAttribute('data-rendered', '1');
+        } catch (e) {}
+    }
+    render._el = el;
+    if (window.turnstile) { render(); return; }
+    window._turnstileWaiters = window._turnstileWaiters || [];
+    window._turnstileWaiters.push(render);
+    if (window._turnstileLoading) return;
+    window._turnstileLoading = true;
+    var s = document.createElement('script');
+    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    s.async = true;
+    s.onload = function () {
+        window._turnstileLoading = false;
+        var waiters = window._turnstileWaiters || [];
+        window._turnstileWaiters = [];
+        waiters.forEach(function (fn) { try { fn(); } catch (e) {} });
+    };
+    s.onerror = function () {
+        window._turnstileLoading = false;
+        var waiters = window._turnstileWaiters || [];
+        window._turnstileWaiters = [];
+        var retryEl = null;
+        if (!window._lnTurnstileRetried) {
+            for (var i = 0; i < waiters.length; i++) {
+                var waiterEl = waiters[i] && waiters[i]._el;
+                if (waiterEl && waiterEl.id === 'lnAddrTurnstile') retryEl = waiterEl;
+            }
+        }
+        if (retryEl) {
+            window._lnTurnstileRetried = true;
+            window._ensureTurnstile(retryEl);
+            return;
+        }
+    };
+    document.head.appendChild(s);
+};
+
 function showUsernamePrompt() {
     try {
+        // Hold keeps the guest button. A real session still exists, so the
+        // usual "open Settings" shortcut must wait until the code is verified.
+        if (window._btcTotpHold) {
+            var totpOverlay = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('totpSignInOverlay') : null;
+            if (!totpOverlay && typeof window._showTotpSignInChallenge === 'function') window._showTotpSignInChallenge();
+            return;
+        }
         // If user has an account (real or anonymous with username), show settings
         if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
             showAccountInfo();
@@ -4179,12 +7891,14 @@ function showUsernamePrompt() {
                     showAccountInfo();
                 } else {
                     document.getElementById('usernameModal').classList.add('open');
+                    if (typeof window._ensureTurnstile === 'function') window._ensureTurnstile(document.getElementById('turnstileWidget'));
                     history.pushState({ modal: 'signin' }, '', window.location.pathname + window.location.hash);
                 }
             });
             return;
         }
         document.getElementById('usernameModal').classList.add('open');
+        if (typeof window._ensureTurnstile === 'function') window._ensureTurnstile(document.getElementById('turnstileWidget'));
         // Push history state so back button closes modal instead of exiting app
         history.pushState({ modal: 'signin' }, '', window.location.pathname + window.location.hash);
     } catch(e) {
@@ -4395,7 +8109,33 @@ window._equipTitle = function(titleId) {
     if (typeof showSettings === 'function') setTimeout(function(){ showSettings('account'); }, 300);
 };
 
-// Faction selection
+// Faction selection. The profile field is server-only. chooseFaction moves
+// this user's unclaimed Satoshi's Favor points in one transaction.
+async function commitFactionChoice(faction) {
+    if (faction !== 'cyber_hornets' && faction !== 'honey_badgers') throw new Error('Invalid faction.');
+    if (typeof firebase === 'undefined' || !firebase.functions) throw new Error('Faction save is unavailable.');
+    var res = await firebase.functions().httpsCallable('chooseFaction')({ faction: faction });
+    var data = res && res.data ? res.data : {};
+    var moved = Number(data.moved);
+    if (!isFinite(moved)) moved = Number(data.pointsSynced);
+    if (!isFinite(moved) || moved < 0) moved = 0;
+    if (typeof currentUser !== 'undefined' && currentUser) currentUser.faction = faction;
+    return moved;
+}
+
+async function flushSignupFaction(faction) {
+    try { localStorage.removeItem('btc_pending_faction'); } catch (e) {}
+    window._signupFaction = null;
+    if (!faction) return;
+    try {
+        var moved = await commitFactionChoice(faction);
+        if (typeof showToast === 'function') showToast(moved + ' unclaimed point' + (moved === 1 ? '' : 's') + ' moved to your faction.');
+    } catch (e) {
+        console.warn('[FACTION] chooseFaction failed:', e);
+        if (typeof showToast === 'function') showToast('Faction was not saved. You can choose one from the Satoshi\'s Favor panel.');
+    }
+}
+
 window._selectFaction = async function(faction) {
     try {
         var user = auth ? auth.currentUser : null;
@@ -4403,35 +8143,17 @@ window._selectFaction = async function(faction) {
         if (user.isAnonymous) { if (typeof showToast === 'function') showToast('Create an account to choose a faction'); return; }
 
         var previousFaction = currentUser ? (currentUser.faction || null) : null;
-        var isFirstChoice = !previousFaction;
-
-        // Factions are now locked - users can only pick once (switching enabled again later)
-        if (!isFirstChoice) {
-            if (typeof showToast === 'function') showToast('🔒 Factions are locked. You can switch once every 3 months.');
+        if (previousFaction) {
+            if (typeof showToast === 'function') showToast('Your faction choice is permanent.');
             return;
         }
 
-        // Save to Firestore
-        await db.collection('users').doc(user.uid).update({ faction: faction });
-        if (currentUser) currentUser.faction = faction;
+        var moved = await commitFactionChoice(faction);
         if (typeof showToast === 'function') showToast(faction === 'cyber_hornets' ? '🐝 Welcome to the Cyber Hornets!' : '🦡 Welcome to the Honey Badgers!');
+        if (typeof showToast === 'function') showToast(moved + ' unclaimed point' + (moved === 1 ? '' : 's') + ' moved to your faction.');
         showSettingsPage('account');
 
-        // If this is first time picking a faction (or switching from no faction),
-        // sync their historical unaffiliated SF points to the new faction
-        if (isFirstChoice && typeof firebase !== 'undefined' && firebase.functions) {
-            firebase.functions().httpsCallable('syncUserFactionPoints')({
-                newFaction: faction,
-                previousFaction: previousFaction
-            }).then(function(res) {
-                if (res.data && res.data.pointsSynced > 0) {
-                    if (typeof showToast === 'function') showToast('⚡ ' + res.data.pointsSynced + ' past SF point' + (res.data.pointsSynced !== 1 ? 's' : '') + ' credited to your faction!');
-                }
-            }).catch(function(err) {
-                console.warn('[FACTION] syncUserFactionPoints failed:', err);
-            });
-
-            // Also backfill any charity donations made before faction was chosen
+        if (typeof firebase !== 'undefined' && firebase.functions) {
             firebase.functions().httpsCallable('backfillDonationFaction')({
                 newFaction: faction
             }).then(function(res) {
@@ -4442,9 +8164,15 @@ window._selectFaction = async function(faction) {
                 console.warn('[FACTION] backfillDonationFaction failed:', err);
             });
         }
-        // Note: if switching factions, future contributions go to new faction automatically.
-        // Historical points stay with original faction (Option A).
-    } catch(e) { console.error('Faction select error:', e); if (typeof showToast === 'function') showToast('Error saving faction'); }
+    } catch(e) {
+        console.error('Faction select error:', e);
+        var msg = e && e.message ? String(e.message) : '';
+        if (typeof showToast === 'function') {
+            if (msg.indexOf('already') !== -1) showToast('Your faction choice is permanent.');
+            else if (msg.indexOf('disabled') !== -1) showToast('Rewards are disabled on this account.');
+            else showToast('Error saving faction');
+        }
+    }
 };
 
 // Signup country autocomplete (reuses _countryList)
@@ -4490,6 +8218,7 @@ document.addEventListener('click', function(e) {
 
 function showSettingsPage(tab) {
     try {
+    if (window._btcTotpHold) return;
     settingsTab = tab || 'account';
     // Set page title to app name when on security tab — Authy/browser extensions
     // read document.title (not the otpauth issuer) when auto-detecting QR codes.
@@ -4504,6 +8233,7 @@ function showSettingsPage(tab) {
     if (!modal) { if (typeof showToast === 'function') showToast('Error: modal not found'); return; }
     if (!box) { if (typeof showToast === 'function') showToast('Error: username-box not found'); return; }
     const user = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
+    var fillSettingsPred = null;
     // If no auth user resolved yet, show sign-up form instead of crashing
     if (!user) {
         modal.classList.add('open');
@@ -4557,6 +8287,7 @@ function showSettingsPage(tab) {
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' XP' + (currentUser && currentUser.faction ? ' · ' + (currentUser.faction === 'cyber_hornets' ? '🐝 Cyber Hornets' : '🦡 Honey Badgers') : '') + '</div>' +
             _titlePillHtml +
             _equipTitleHtml +
+            '<div style="margin-top:10px;"><a href="/patch-notes.html" id="settingsWhatsNew" onclick="if(window._markPatchSeen)window._markPatchSeen()" style="display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-weight:700;font-size:0.85rem;text-decoration:none;">What\'s new <span class="whats-new-dot" hidden></span></a></div>' +
             '</div>';
 
         // Country selector (custom autocomplete - datalist broken on iOS Safari)
@@ -4576,8 +8307,8 @@ function showSettingsPage(tab) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">⚔️ Faction</div>' +
             (_userFaction
-                ? '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:12px;">🔒 Factions are locked. You can switch factions once every 3 months (feature coming soon).</div>'
-                : '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:12px;">Choose your allegiance! ⚠️ Factions will be locked - you can change your faction once every 3 months (starting at a later date).</div>') +
+                ? '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:12px;">Your faction choice is permanent.</div>'
+                : '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:12px;">This choice is permanent. Your unclaimed points go to the faction you pick.</div>') +
             '<div style="display:flex;gap:10px;">' +
             '<div onclick="window._selectFaction(\'cyber_hornets\')" style="flex:1;padding:14px 10px;border-radius:12px;border:2px solid ' + (_userFaction === 'cyber_hornets' ? '#f7931a' : 'var(--border)') + ';background:' + (_userFaction === 'cyber_hornets' ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:' + (_userFaction && _userFaction !== 'cyber_hornets' ? 'default' : 'pointer') + ';text-align:center;transition:all 0.2s;opacity:' + (_userFaction && _userFaction !== 'cyber_hornets' ? '0.5' : '1') + ';">' +
                 '<div style="font-size:2rem;margin-bottom:6px;">🐝</div>' +
@@ -4644,7 +8375,7 @@ function showSettingsPage(tab) {
 
         _advHtml += _acctDetailsHtml;
         // Display Badge chooser (collapsible)
-        if (!isAnon) {
+        if (!isAnon && (typeof window.bqModeAllows !== 'function' || window.bqModeAllows('badges'))) {
             var chosenBadge = (currentUser && currentUser.displayBadge) || '';
             var allEarned = [];
             if (typeof earnedBadges !== 'undefined') {
@@ -4685,6 +8416,7 @@ function showSettingsPage(tab) {
         _advHtml += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">✏️ Change Username</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:10px;">Current username: <span style="color:var(--accent);font-weight:700;">' + currentName + '</span></div>' +
+            ((currentUser && currentUser.usernameFreeRename === true) ? '<div style="color:var(--accent);font-size:0.8rem;margin-bottom:10px;">You have one free username change. It skips the 24 hour wait once.</div>' : '') +
             '<input type="text" id="newUsername" value="" placeholder="Type your new username here..." maxlength="20" style="width:100%;padding:12px 14px;background:var(--input-bg);border:2px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'var(--border)\'">' +
             '<button onclick="changeUsername()" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">Save New Username</button>' +
             '<div id="usernameStatus" style="margin-top:8px;font-size:0.85rem;"></div></div>';
@@ -4730,9 +8462,10 @@ function showSettingsPage(tab) {
                 html += '<div class="pf-link-row" data-key="lightning" style="margin-bottom:12px;background:rgba(255,255,255,0.02);padding:10px;border-radius:12px;border:1px solid var(--border);">' +
                     '<div style="display:flex;align-items:center;gap:12px;">' +
                     '<span style="font-size:1.2rem;width:28px;text-align:center;flex-shrink:0;">' + s.e + '</span>' +
-                    '<span style="flex:1;color:var(--text);font-size:0.85rem;word-break:break-all;">' + escapeHtml(val) + '</span>' +
+                    '<span id="profileLnReadonly" style="flex:1;color:var(--text);font-size:0.85rem;word-break:break-all;"></span>' +
                     '</div>' +
                     '<p style="margin:8px 0 0;font-size:0.75rem;color:var(--text-muted);line-height:1.45;">' + LN_ADDRESS_LOCKED_NOTICE + '</p>' +
+                    '<p style="margin:8px 0 0;font-size:0.75rem;color:var(--text-muted);line-height:1.45;">This is your permanent Lightning Address for withdrawals. If you ever need to change it, contact support at info.603btc@gmail.com.</p>' +
                     '</div>';
                 return;
             }
@@ -4761,6 +8494,9 @@ function showSettingsPage(tab) {
 
                 // Lightning wallet prompt (only if no Lightning Address set)
         var _hasLn = currentUser && (currentUser.lightning || currentUser.lightningAddress);
+        if (!_hasLn || (typeof _withdrawalLnEligible === 'function' && _withdrawalLnEligible())) {
+            html += '<button type="button" onclick="openWithdrawalAddress({mode:\'reset\'})" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:12px;">Set your withdrawal Lightning Address</button>';
+        }
         if (!_hasLn) {
             html += '<div onclick="hideUsernamePrompt();setTimeout(function(){go(\'lightning\')},300)" style="width:100%;padding:16px;background:linear-gradient(135deg,rgba(234,179,8,0.08),rgba(247,147,26,0.04));border:2px solid rgba(247,147,26,0.25);border-radius:14px;cursor:pointer;margin-bottom:12px;display:flex;align-items:center;gap:12px;transition:0.2s;" onmouseover="this.style.borderColor=\'#f7931a\'" onmouseout="this.style.borderColor=\'rgba(247,147,26,0.25)\'">' +
                 '<span style="font-size:1.8rem;">⚡</span>' +
@@ -4772,19 +8508,31 @@ function showSettingsPage(tab) {
         // Peers / Gifts section - collapsible, above Advanced Account
         html += '<button onclick="var p=document.getElementById(\'peersSectionContent\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';var _arrows=this.querySelectorAll(\'span\');if(_arrows.length)_arrows[_arrows.length-1].textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">🧡 Peers / Gifts <span id="peersGiftsBadge"></span> <span>▼</span></button>';
         html += '<div id="peersSectionContent" style="display:none;margin-bottom:12px;">';
-        html += '<div id="peersList" style="font-size:0.85rem;color:var(--text-muted);text-align:center;padding:20px 0;">Loading...</div>';
+        html += '<style>@media(max-width:420px){.peer-action-row .peer-primary,.peer-action-row .peer-more{flex-basis:100%!important;}}'
+            + '#peersSectionContent .peer-sent{color:#f97316;}#peersSectionContent .peer-hold{color:#c4b5fd;}#peersSectionContent .peer-remove{color:#fca5a5;}'
+            + '[data-theme="light"] #peersSectionContent .peer-sent{color:#c2410c;}'
+            + '[data-theme="light"] #peersSectionContent .peer-hold{color:#6d28d9;}'
+            + '[data-theme="light"] #peersSectionContent .peer-remove{color:#b91c1c;}</style>';
+        html += '<div style="padding:12px 14px;margin-bottom:10px;background:var(--bg-side);border:1px solid rgba(247,147,26,0.45);border-radius:12px;text-align:left;">';
+        html += '<div style="font-size:0.84rem;color:var(--text);line-height:1.45;">Peers are people you can send keys to. A key opens a locked cipher with the same label. You can send up to 3 keys to each peer, once a day. If an accepted peer opens a matching cipher with a key you sent, you both get the same prize and you see a reveal of what you won. That counts as one of your 21 cipher opens that day, pays once per cipher, and includes sats only when both accounts are eligible.</div>';
+        html += '</div>';
+        html += '<div style="padding:12px 14px;margin-bottom:12px;background:var(--bg-side);border:1px solid rgba(124,58,237,0.45);border-radius:12px;text-align:left;">';
+        html += '<div style="font-size:0.84rem;color:var(--text);line-height:1.45;">🔒 Locked cipher: you need a key with the same label, such as 3A, to open it. Keys come from daily wheel gifts. Ask a peer to send you a matching key. Ask in Chat whether anyone has the key.</div>';
+        html += '<button type="button" onclick="if(typeof window.openGlobalChatForCipher===\'function\')window.openGlobalChatForCipher()" style="margin-top:8px;min-height:40px;padding:8px 12px;background:transparent;border:1px solid var(--link);border-radius:8px;color:var(--link);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">Open Global Chat</button>';
+        html += '</div>';
+        html += '<div id="peersList" style="font-size:0.85rem;color:var(--text-muted);text-align:left;padding:4px 0 8px;">Loading...</div>';
         html += '<div style="margin-top:14px;padding:14px 16px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;">';
         html += '<div style="font-size:0.7rem;font-weight:800;color:#f7931a;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">🎡 Daily wheel and gifts</div>';
         html += '<div style="font-size:0.8rem;color:var(--text-muted);line-height:1.55;margin-bottom:8px;">Spin the daily wheel once a day. You earn 2 to 5 gifts. Open each gift right away — gifts are not stored. A gift can hold keys, locked ciphers, orange tickets, XP, a streak shield, a closet item, or a rare Nacho shoutout.</div>';
-        html += '<div style="font-size:0.8rem;color:var(--text-muted);line-height:1.55;margin-bottom:8px;">Keys and locked ciphers carry labels such as 3A. A key opens the cipher with the same label. If you get a matching pair, open it right away. Otherwise send keys to peers: up to 3 keys per peer each day, and as many peers as you want.</div>';
+        html += '<div style="font-size:0.8rem;color:var(--text-muted);line-height:1.55;margin-bottom:8px;">Keys and locked ciphers carry labels such as 3A. A key opens the cipher with the same label. If you get a matching pair, open it right away. You can send up to 3 keys per peer each day, and as many peers as you want.</div>';
         html += '<div style="font-size:0.8rem;color:var(--text-muted);line-height:1.55;margin-bottom:10px;">You can open up to 21 ciphers per day. Most opens pay 50 to 250 XP and 0 to 10 orange tickets. Rare opens pay sats. Wins under 1,000 sats can be claimed with a Lightning invoice or address. Wins of 1,000 sats or more are paid by Phil.</div>';
         html += '<div id="giftsTabContent"></div>';
-        html += '<button type="button" onclick="if(typeof window.openNookInventory===\'function\'){window.openNookInventory();}else if(typeof showQuestHub===\'function\'){showQuestHub();setTimeout(function(){window._questHubTab=\'nook\';window._nookSubTab=\'inventory\';if(typeof _renderQuestHubTab===\'function\')_renderQuestHubTab();},200);}" style="margin-top:8px;width:100%;padding:10px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:10px;color:#fff;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Open keys and ciphers</button>';
+        html += '<button type="button" onclick="if(typeof window.openKeysAndCiphers===\'function\')window.openKeysAndCiphers()" style="margin-top:8px;width:100%;padding:10px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:10px;color:#fff;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Open keys and ciphers</button>';
         html += '</div>';
         // Partnership levels info
         html += '<div style="margin-top:14px;padding:14px 16px;background:rgba(247,147,26,0.06);border:1px solid rgba(247,147,26,0.2);border-radius:12px;">';
         html += '<div style="font-size:0.7rem;font-weight:800;color:#f7931a;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">⚡ Partnership Levels</div>';
-        html += '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">When you open a cipher with a key a peer sent you, or you open a gift they sent under the old system, the partnership grows. Both of you earn XP at each level.</div>';
+        html += '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">When you open a cipher with a key a peer sent you, the partnership grows. Both of you earn XP at each level.</div>';
         var _pLevels = [
             { emoji: '⬜', name: 'Unconfirmed',        gifts: '0 exchanges',   xp: '—',           desc: 'Just connected.' },
             { emoji: '🟨', name: 'Opening Channel',    gifts: '1 exchange',    xp: '+3,000 XP',   desc: 'First exchange. The channel is opening.' },
@@ -4813,6 +8561,48 @@ function showSettingsPage(tab) {
 
         // Advanced Account content (hidden, appears at bottom when toggled)
         html += '<div id="advAcctContent" style="display:none;">' + _advHtml + '</div>';
+
+function accountEmailCardHtml(user) {
+    if (!user || user.isAnonymous) return '';
+    var action = accountEmailAction(user);
+    var masked = maskEmailAddress(user.email || '');
+    var verified = user.emailVerified ? 'Verified' : 'Not verified';
+    var provider = oauthOwnsEmail(user) ? 'Linked sign-in' : (user.email ? 'Email sign-in' : 'No email yet');
+    var html = '<div id="accountEmailCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left;">';
+    html += '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Email</div>';
+    html += '<div style="color:var(--heading);font-weight:700;font-size:0.95rem;">' + (masked ? accountLinkEscape(masked) : 'No email on this account') + '</div>';
+    html += '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">' + accountLinkEscape(provider) + (user.email ? ' · ' + verified : '') + '</div>';
+    if (action === 'provider') {
+        html += '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;line-height:1.45;">That email belongs to your linked sign-in. Manage it under Sign-in methods.</div>';
+    } else if (action === 'add') {
+        html += '<button type="button" onclick="showChangeEmailModal()" style="margin-top:10px;padding:10px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Add email</button>';
+    } else if (action === 'change') {
+        html += '<button type="button" onclick="showChangeEmailModal()" style="margin-top:10px;padding:10px 14px;background:var(--card-bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Change email</button>';
+    }
+    html += '</div>';
+    return html;
+}
+
+function accountDeleteRowHtml(user) {
+    var html = '<div id="deleteAccountRow" style="background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.35);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left;">';
+    if (!user || user.isAnonymous) {
+        html += '<div style="font-size:0.75rem;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:800;">Guest data</div>';
+        html += '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;line-height:1.5;">Clear this guest session and the progress stored on it.</div>';
+        html += '<button type="button" onclick="showDeleteAccountConfirm()" style="width:100%;padding:12px;background:none;border:2px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Clear guest data</button>';
+    } else {
+        html += '<div style="font-size:0.75rem;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:800;">Delete account</div>';
+        html += '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;line-height:1.5;">Delete this account after you confirm your username. Sats still on the account are forfeited. There is no waiting period.</div>';
+        html += '<button type="button" id="accountDeleteButton" onclick="showDeleteAccountConfirm()" style="width:100%;padding:12px;background:none;border:2px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Delete account</button>';
+    }
+    html += '</div>';
+    return html;
+}
+
+        html += accountEmailCardHtml(user);
+
+        html += renderSignInMethodsCard(user, (typeof currentUser !== 'undefined') ? currentUser : null);
+
+        html += accountDeleteRowHtml(user);
 
         html += '<button onclick="signOutUser()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:#ef4444;font-size:0.9rem;cursor:pointer;font-family:inherit;font-weight:600;">Sign Out</button>';
 
@@ -4901,22 +8691,24 @@ function showSettingsPage(tab) {
             '<button onclick="hideUsernamePrompt(); startQuestManual();" style="width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;">⚡ Start a Quest</button>' +
             '</div>';
 
-        // Scholar Certification - Properties
-        var propPassed = localStorage.getItem('btc_scholar_prop_passed') === 'true';
+        // Scholar Certification - Properties. Pass flags are server-owned.
+        var propPassed = !!(currentUser && currentUser.certPassed_prop === true);
         html += '<div style="background:linear-gradient(135deg, rgba(247,147,26,0.1), rgba(247,147,26,0.02));border:1px solid '+(propPassed ? '#22c55e' : 'var(--accent)')+';border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">' +
             '<div style="font-size:1.8rem;margin-bottom:8px;">'+(propPassed ? '✅' : '📜')+'</div>' +
             '<div style="color:var(--heading);font-weight:800;font-size:1.1rem;margin-bottom:8px;">Bitcoin Scholar Certification</div>' +
-            '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:15px;line-height:1.4;">25 questions on the <strong>economic properties</strong> and scarcity of Bitcoin. 80% to pass. One attempt per day.</p>' +
-            '<button onclick="hideUsernamePrompt(); startScholarQuest(\'properties\');" style="width:100%;padding:12px;background:'+(propPassed ? '#22c55e' : 'var(--accent)')+';color:#ffffff;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;">'+(propPassed ? '✅ View Certificate' : '🎓 Start Scholar Exam')+'</button>' +
+            '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;line-height:1.4;">25 questions on the <strong>economic properties</strong> and scarcity of Bitcoin. 80% to pass. One attempt per day.</p>' +
+            '<p style="color:#22c55e;font-size:0.8rem;font-weight:800;margin-bottom:15px;">+2,100 XP, not limited by the daily cap</p>' +
+            '<button onclick="hideUsernamePrompt(); if(window.openCertification){openCertification(\'properties\');}else if(typeof startScholarQuest===\'function\'){startScholarQuest(\'properties\');}" style="width:100%;padding:12px;background:'+(propPassed ? '#22c55e' : 'var(--accent)')+';color:#ffffff;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;">'+(propPassed ? '✅ View Certificate' : '🎓 Start Scholar Exam')+'</button>' +
             '</div>';
 
         // Scholar Certification - Technical
-        var techPassed = localStorage.getItem('btc_scholar_tech_passed') === 'true';
+        var techPassed = !!(currentUser && currentUser.certPassed_tech === true);
         html += '<div style="background:linear-gradient(135deg, rgba(59,130,246,0.15), rgba(59,130,246,0.02));border:1px solid '+(techPassed ? '#22c55e' : '#3b82f6')+';border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">' +
             '<div style="font-size:1.8rem;margin-bottom:8px;">'+(techPassed ? '✅' : '🛠️')+'</div>' +
             '<div style="color:var(--heading);font-weight:800;font-size:1.1rem;margin-bottom:8px;">Bitcoin Protocol Expert</div>' +
-            '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:15px;line-height:1.4;">25 questions on <strong>highly technical</strong> topics: BIPs, Script, SegWit, Taproot, and Networking.</p>' +
-            '<button onclick="hideUsernamePrompt(); startScholarQuest(\'technical\');" style="width:100%;padding:12px;background:'+(techPassed ? '#22c55e' : '#3b82f6')+';color:#ffffff;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;">'+(techPassed ? '✅ View Certificate' : '🛠️ Start Technical Exam')+'</button>' +
+            '<p style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;line-height:1.4;">25 questions on <strong>highly technical</strong> topics: BIPs, Script, SegWit, Taproot, and Networking.</p>' +
+            '<p style="color:#22c55e;font-size:0.8rem;font-weight:800;margin-bottom:15px;">+2,100 XP, not limited by the daily cap</p>' +
+            '<button onclick="hideUsernamePrompt(); if(window.openCertification){openCertification(\'technical\');}else if(typeof startScholarQuest===\'function\'){startScholarQuest(\'technical\');}" style="width:100%;padding:12px;background:'+(techPassed ? '#22c55e' : '#3b82f6')+';color:#ffffff;border:none;border-radius:10px;font-weight:800;font-size:0.9rem;cursor:pointer;">'+(techPassed ? '✅ View Certificate' : '🛠️ Start Technical Exam')+'</button>' +
             '</div>';
 
         // Flashcards (collapsible)
@@ -5116,7 +8908,7 @@ function showSettingsPage(tab) {
                 '<strong style="color:var(--text);">🎧 DJ Set:</strong> Start a DJ set = +5 tickets/set.<br>' +
                 '<strong style="color:var(--text);">📚 Scholar:</strong> Complete a flashcard deck = +5 tickets.<br>' +
                 '<strong style="color:var(--text);">❤️ Donate XP:</strong> Donate 1,000+ XP = +1 ticket/day.<br>' +
-                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who reaches Maxi rank.<br>' +
+                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who reaches ' + referralPointsLabel() + ' points (Scholar exam points don\'t count).<br>' +
                 '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket also earns +5 XP.<br>' +
                 '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats!' +
                 '</div></div>';
@@ -5135,12 +8927,14 @@ function showSettingsPage(tab) {
         var pointsClaimed = currentUser ? currentUser.pointsClaimed || 0 : 0;
         var pointsDonated = currentUser ? currentUser.pointsDonated || 0 : 0;
         var pointsExchanged = currentUser ? currentUser.pointsExchanged || 0 : 0;
-        // All three offset counters reduce the redeemable pool
-        var availableForClaim = userPts - pointsClaimed - pointsDonated - pointsExchanged;
-        var satsWithdrawn = currentUser ? currentUser.satsWithdrawn || 0 : 0;
-        var satsBalance = Math.floor(Math.max(0, availableForClaim) / 10); // 10 pts = 1 sat
-        var _satCap = typeof getSatCap === 'function' ? getSatCap() : 10000;
-        var lifetimeLeft = Math.max(0, _satCap - satsWithdrawn);
+        var unclaimableXp = currentUser ? Math.max(0, Number(currentUser.unclaimableXp) || 0) : 0;
+        // Claimed, donated, exchanged, and unverified XP all reduce the redeemable pool
+        var availableForClaim = userPts - pointsClaimed - pointsDonated - pointsExchanged - unclaimableXp;
+        var _claimMath = (typeof window.claimableSats === 'function') ? window.claimableSats(currentUser || {}) : null;
+        var satsWithdrawn = _claimMath ? _claimMath.withdrawn : (currentUser ? currentUser.satsWithdrawn || 0 : 0);
+        var satsBalance = _claimMath ? _claimMath.balance : Math.floor(Math.max(0, availableForClaim) / 10); // 10 pts = 1 sat
+        var _satCap = _claimMath ? _claimMath.cap : lifetimeSatCap();
+        var lifetimeLeft = _claimMath ? _claimMath.lifetimeLeft : Math.max(0, _satCap - satsWithdrawn);
         var claimable = Math.min(satsBalance, 200, lifetimeLeft);
         var lastClaim = currentUser ? currentUser.lastSatsClaim || null : null;
         var canClaimTime = lastClaim ? new Date(lastClaim.seconds ? lastClaim.seconds * 1000 : lastClaim).getTime() + (24 * 60 * 60 * 1000) : 0;
@@ -5173,9 +8967,32 @@ function showSettingsPage(tab) {
         var acctCreated = user.metadata && user.metadata.creationTime ? new Date(user.metadata.creationTime) : null;
         var acctAgeDays = acctCreated ? Math.floor((now - acctCreated.getTime()) / 86400000) : 0;
         var hasEmail = user.email && user.emailVerified;
+        // Auth creation time only. Same instant as functions/src/claimReqs.js
+        // CLAIM_REQS_START_ISO (set to the #126 ship time; far future = everyone exempt).
+        var CLAIM_REQS_START_ISO = '2026-11-05T03:52:31.000Z';
+        var claimExempt = !!(acctCreated && acctCreated.getTime() < Date.parse(CLAIM_REQS_START_ISO));
+        function claimStampMs(value) {
+            if (!value) return 0;
+            if (typeof value === 'number' && isFinite(value)) return value;
+            if (typeof value.seconds === 'number') return value.seconds * 1000;
+            if (typeof value.toMillis === 'function') return value.toMillis();
+            var parsed = Date.parse(value);
+            return isNaN(parsed) ? 0 : parsed;
+        }
+        var claimReqMap = (currentUser && currentUser.claimReq && typeof currentUser.claimReq === 'object') ? currentUser.claimReq : {};
+        var chatReqMet = claimStampMs(claimReqMap.chatAt) > 0;
+        var tctvReqMet = claimStampMs(claimReqMap.tctvAt) > 0;
+        var holdRaw = currentUser ? currentUser.satsHold : 0;
+        var holdUntil = 0;
+        if (holdRaw && typeof holdRaw.seconds === 'number') holdUntil = holdRaw.seconds * 1000;
+        else if (holdRaw && typeof holdRaw.toMillis === 'function') holdUntil = holdRaw.toMillis();
+        else holdUntil = Number(holdRaw) || 0;
+        if (window._satsHoldUntil && Number(window._satsHoldUntil) > holdUntil) holdUntil = Number(window._satsHoldUntil);
+        var satsHeld = holdUntil > now;
 
-        // Eligibility checks
-        var eligible = !isAnon && hasEmail && acctAgeDays >= 7 && channelsRead >= 10;
+        // Eligibility checks. New accounts also need the chat and TCTV server stamps.
+        var newReqsMet = claimExempt || (chatReqMet && tctvReqMet);
+        var eligible = !isAnon && hasEmail && acctAgeDays >= 7 && channelsRead >= 10 && newReqsMet;
         var meetsMin = satsBalance >= 100;
 
         // Sub-tab switcher
@@ -5183,6 +9000,11 @@ function showSettingsPage(tab) {
         html += '<button id="satsSubClaim" onclick="window._satsSubTab=\'claim\';showSettingsPage(\'sats\')" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid ' + (_satsSubTab==='claim'?'var(--accent)':'var(--border)') + ';background:' + (_satsSubTab==='claim'?'var(--accent)':'none') + ';color:' + (_satsSubTab==='claim'?'#fff':'var(--text-muted)') + ';font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚡ Claim Sats</button>';
         html += '<button id="satsSubDonate" onclick="window._satsSubTab=\'donate\';showSettingsPage(\'sats\')" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid ' + (_satsSubTab==='donate'?'#ef4444':'var(--border)') + ';background:' + (_satsSubTab==='donate'?'linear-gradient(135deg,#ef4444,#dc2626)':'none') + ';color:' + (_satsSubTab==='donate'?'#fff':'var(--text-muted)') + ';font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">❤️ Donate XP</button>';
         html += '</div>';
+
+        if (satsHeld) {
+            var holdWhen = new Date(holdUntil).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+            html += '<div id="satsHoldNotice" style="background:rgba(239,68,68,0.12);border:1px solid #ef4444;border-radius:12px;padding:12px;margin-bottom:16px;color:#ef4444;font-size:0.9rem;font-weight:700;line-height:1.45;">Sats withdrawals are paused until ' + holdWhen + '</div>';
+        }
 
         if (_satsSubTab !== 'donate') {
         html += '<div style="text-align:center;margin-bottom:20px;">';
@@ -5198,9 +9020,19 @@ function showSettingsPage(tab) {
         var _displayAvail = Math.max(0, availableForClaim);
         var _availLabel = availableForClaim < 0
             ? '<span style="color:#ef4444;">' + _displayAvail.toLocaleString() + ' available XP</span> <span style="font-size:0.65rem;color:#ef4444;">(claims + donations exceed current total - keep earning!)</span>'
-            : _displayAvail.toLocaleString() + ' available XP (' + userPts.toLocaleString() + ' total - ' + pointsClaimed.toLocaleString() + ' claimed - ' + pointsDonated.toLocaleString() + ' donated - ' + pointsExchanged.toLocaleString() + ' exchanged)';
+            : _displayAvail.toLocaleString() + ' available XP (' + userPts.toLocaleString() + ' total - ' + pointsClaimed.toLocaleString() + ' claimed - ' + pointsDonated.toLocaleString() + ' donated - ' + pointsExchanged.toLocaleString() + ' exchanged - ' + unclaimableXp.toLocaleString() + ' unclaimable)';
         html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + _availLabel + '</div>';
         html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;">Lifetime withdrawn: ' + satsWithdrawn.toLocaleString() + ' / 15,000 sats</div>';
+        html += '</div>';
+        var cipherBal = Math.max(0, Math.floor(Number(currentUser && currentUser.cipherSatsBalance) || 0));
+        var cipherReady = cipherBal >= window.CIPHER_SATS_RULES.min && !satsHeld;
+        html += '<div id="cipherSatsBalanceSettings" data-surface="settings" style="background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.45);border-radius:16px;padding:16px;margin-bottom:16px;text-align:center;">';
+        html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Cipher sats balance</div>';
+        html += '<div id="cipherSatsBalanceSettingsAmount" class="cipher-sats-balance-amount" style="font-size:1.6rem;font-weight:900;color:#f7931a;margin:8px 0;">' + cipherBal.toLocaleString() + ' sats</div>';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">Separate from your faucet balance</div>';
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;">Small sats wins from locked ciphers land here.</div>';
+        html += '<button id="cipherSatsClaimSettings" type="button" class="cipher-sats-claim-btn" ' + (cipherReady ? '' : 'disabled ') + 'onclick="if(window.claimCipherSats)window.claimCipherSats()" style="width:100%;min-height:44px;padding:12px;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;font-family:inherit;' + (cipherReady ? 'background:#f7931a;color:#fff;cursor:pointer;' : 'background:var(--card-bg);color:var(--text-muted);cursor:default;opacity:0.65;') + '">Claim ' + Math.min(cipherBal, 200).toLocaleString() + ' sats</button>';
+        html += window.cipherSatsHintHtml(cipherBal);
         html += '</div>';
         // ── Overflow queue section ──
         var _pendingOf = currentUser ? parseInt(currentUser.pendingOverflow || 0, 10) : 0;
@@ -5209,7 +9041,7 @@ function showSettingsPage(tab) {
             html += '<div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:14px;padding:16px;margin-bottom:16px;">';
             html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><div style="font-weight:700;font-size:0.85rem;color:#a5b4fc;">⏳ Queued Overflow XP</div><div style="font-size:0.6rem;font-weight:800;background:rgba(99,102,241,0.2);color:#a5b4fc;padding:2px 8px;border-radius:20px;">~' + _ofDL + ' day' + (_ofDL !== 1 ? 's' : '') + '</div></div>';
             html += '<div style="font-size:1.3rem;font-weight:900;font-family:monospace;color:#c7d2fe;margin-bottom:8px;">+' + _pendingOf.toLocaleString() + ' XP</div>';
-            html += '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;">You hit the daily cap before all XP could be awarded. This queued XP drips <strong style="color:#a5b4fc;">1,000 XP per day</strong> automatically on future visits — counts toward your sats balance once redeemed.</div>';
+            html += '<div style="font-size:0.72rem;color:var(--text-muted);line-height:1.6;">This is leftover XP from before the shared daily cap. New XP is not added here. A day pays full XP through 500, half through 900, then a quarter until 1,000.</div>';
             html += '<div style="display:flex;gap:3px;flex-wrap:wrap;margin-top:10px;">';
             var _tileCap = Math.min(_ofDL, 10);
             for (var _td = 0; _td < _tileCap; _td++) {
@@ -5238,20 +9070,52 @@ function showSettingsPage(tab) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
         html += '<div style="font-weight:700;font-size:0.85rem;margin-bottom:12px;color:var(--text);">📋 Requirements</div>';
 
+        // Mirrors the claimSats gates in functions/index.js (FAUCET constants).
+        var _reqLn = currentUser ? (currentUser.lightning || currentUser.lightningAddress || '') : '';
+        var _reqLnOk = !!(_reqLn && typeof clientLnValid === 'function' && clientLnValid(normalizeClientLn(_reqLn)));
+        var _reqLifeLeft = Math.max(0, 15000 - (Number(satsWithdrawn) || 0));
         var checks = [
             { met: !isAnon, label: 'Signed in (not anonymous)', detail: isAnon ? 'Sign in with email, Google, etc.' : '✓ Signed in' },
-            { met: hasEmail, label: 'Email verified', detail: hasEmail ? '✓ ' + user.email : 'Link & verify your email in Account tab' },
+            { met: hasEmail, label: 'Email verified', detail: hasEmail ? '✓ Verified' : 'Link & verify your email in Account tab' },
             { met: acctAgeDays >= 7, label: 'Account age ≥ 7 days', detail: acctAgeDays >= 7 ? '✓ ' + acctAgeDays + ' days old' : acctAgeDays + '/7 days - ' + (7 - acctAgeDays) + ' more to go' },
             { met: channelsRead >= 10, label: 'Read ≥ 10 topics', detail: channelsRead >= 10 ? '✓ ' + channelsRead + ' topics read' : channelsRead + '/10 topics - read ' + (10 - channelsRead) + ' more' },
-            { met: meetsMin, label: 'Minimum 100 sats (1,000 pts)', detail: meetsMin ? '✓ ' + satsBalance + ' sats available' : satsBalance + '/100 sats - earn ' + ((100 - satsBalance) * 10) + ' more XP' }
+            { met: meetsMin, label: 'Minimum 100 sats (1,000 XP)', detail: meetsMin ? '✓ ' + satsBalance + ' sats available' : satsBalance + '/100 sats - earn ' + ((100 - satsBalance) * 10) + ' more XP' },
+            { met: _reqLnOk, label: 'Lightning Address saved', detail: _reqLnOk ? '✓ Saved (locked to your account)' : 'Add one below. It cannot be changed later.' },
+            { met: !onCooldown, label: '1 claim every 24 hours', detail: onCooldown ? 'Next claim in ' + cooldownStr : '✓ Ready' },
+            { met: _reqLifeLeft > 0, label: 'Lifetime limit 15,000 sats', detail: _reqLifeLeft > 0 ? '✓ ' + _reqLifeLeft.toLocaleString() + ' sats left' : 'Lifetime limit reached' },
+            { met: !satsHeld, label: 'Account in good standing', detail: satsHeld ? 'Withdrawals are paused on this account for now' : '✓ One account per person and device' }
         ];
+        if (!claimExempt) {
+            // Same length as functions/src/tctvWatch.js CREDIT_SECONDS.
+            var CLAIM_TCTV_SECONDS = 60;
+            checks.push({ met: chatReqMet, label: 'Send 1 message in Chat', detail: chatReqMet ? '✓ Message sent' : 'Send a short real message in Chat', go: 'openClaimChat()' });
+            checks.push({ met: tctvReqMet, label: 'Watch Timechain TV', detail: tctvReqMet ? ('✓ ' + CLAIM_TCTV_SECONDS + ' seconds watched') : ('Watch at least ' + CLAIM_TCTV_SECONDS + ' seconds of a video'), go: 'openClaimTv()' });
+        }
         checks.forEach(function(c) {
             html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">';
-            html += '<span style="font-size:1.1rem;">' + (c.met ? '✅' : '⬜') + '</span>';
-            html += '<div style="flex:1;"><div style="font-size:0.8rem;font-weight:600;color:' + (c.met ? 'var(--text)' : 'var(--text-muted)') + ';">' + c.label + '</div>';
-            html += '<div style="font-size:0.7rem;color:' + (c.met ? '#22c55e' : 'var(--text-faint)') + ';">' + c.detail + '</div></div></div>';
+            html += '<span style="font-size:1.1rem;flex:0 0 auto;">' + (c.met ? '✅' : '⬜') + '</span>';
+            html += '<div style="flex:1;min-width:0;"><div style="font-size:0.8rem;font-weight:600;color:' + (c.met ? 'var(--text)' : 'var(--text-muted)') + ';">' + c.label + '</div>';
+            html += '<div style="font-size:0.7rem;color:' + (c.met ? '#22c55e' : 'var(--text-faint)') + ';">' + c.detail + '</div></div>';
+            if (!c.met && c.go) {
+                html += '<button type="button" class="claim-req-go" onclick="event.stopPropagation();' + c.go + '" style="width:auto;min-width:44px;max-width:88px;white-space:nowrap;flex:0 0 auto;padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:inherit;touch-action:manipulation;">' + (c.goLabel || 'Go') + '</button>';
+            }
+            html += '</div>';
         });
         html += '</div>';
+        if (!window._claimReqPull && typeof db !== 'undefined' && db && user && user.uid) {
+            window._claimReqPull = true;
+            db.collection('users').doc(user.uid).get().then(function(snap) {
+                window._claimReqPull = false;
+                if (!snap.exists || typeof currentUser === 'undefined' || !currentUser) return;
+                var nextReq = snap.data().claimReq || null;
+                var prevKey = claimStampMs(claimReqMap.chatAt) + ':' + claimStampMs(claimReqMap.tctvAt);
+                var nextMap = (nextReq && typeof nextReq === 'object') ? nextReq : {};
+                var nextKey = claimStampMs(nextMap.chatAt) + ':' + claimStampMs(nextMap.tctvAt);
+                if (prevKey === nextKey) return;
+                currentUser.claimReq = nextReq;
+                if (settingsTab === 'sats' && window._satsSubTab !== 'donate') showSettingsPage('sats');
+            }).catch(function() { window._claimReqPull = false; });
+        }
 
         // Rules & Limits
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
@@ -5262,99 +9126,24 @@ function showSettingsPage(tab) {
         html += '• <strong>Max claim: 200 sats/day</strong><br>';
         html += '• <strong>1 claim per 24 hours</strong><br>';
         html += '• <strong>Lifetime max: 15,000 sats</strong> per account<br>';
-        html += '• <strong>Daily XP cap: 1,000 XP</strong> (100 sats worth) to prevent abuse<br>';
+        html += '• <strong>Daily XP:</strong> full through 500, half through 900, then a quarter until 1,000<br>';
         html += '• Unclaimed sats roll over - no expiration<br>';
         html += '• Payouts via Lightning Network ⚡<br>';
+        html += '• <strong>One account per person.</strong> Shared devices, networks or Lightning Addresses can block a claim<br>';
+        html += '• If you turned on 2FA, you confirm it before claiming. A site-wide daily pool also applies<br>';
         html += '</div>';
         html += '<div style="margin-top:10px;padding:10px 12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;font-size:0.75rem;color:#22c55e;line-height:1.5;">';
-        html += '💚 <strong>Zero fees for you!</strong> We pay all Lightning network fees so you receive the full amount you claim. You earned it!';
+        html += '⚡ <strong>Lightning fee:</strong> a flat ' + window.BQ_LN_FEE_SATS + ' sats comes out of each claim to cover routing. Example: claim 100, receive ' + (100 - window.BQ_LN_FEE_SATS) + '. You always see the fee and the amount you will receive before you confirm.';
         html += '</div></div>';
 
         // Earning guide (collapsible)
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;margin-bottom:16px;">';
-        html += '<button onclick="event.stopPropagation();var c=document.getElementById(\'earnXPContent\');var a=this.querySelector(\'.earn-arrow\');if(c.style.display===\'none\'){c.style.display=\'block\';a.textContent=\'▲\'}else{c.style.display=\'none\';a.textContent=\'▼\'}" style="width:100%;padding:16px;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-family:inherit;touch-action:manipulation;">';
-        html += '<span style="font-weight:700;font-size:0.85rem;color:var(--text);">🎯 How to Earn XP</span>';
-        html += '<span class="earn-arrow" style="color:var(--text-faint);font-size:0.8rem;">▼</span>';
+        html += '<button type="button" id="earnXPToggle" aria-expanded="false" aria-controls="earnXPContent" onclick="event.stopPropagation();toggleEarnXpPanel(this)" style="width:100%;min-height:44px;padding:0 16px;box-sizing:border-box;background:none;border:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:inherit;touch-action:manipulation;">';
+        html += '<span style="font-weight:700;font-size:0.85rem;color:var(--text);text-align:left;">🎯 How to Earn XP</span>';
+        html += '<span class="earn-xp-chevron" aria-hidden="true"></span>';
         html += '</button>';
-        html += '<div id="earnXPContent" onclick="event.stopPropagation()" style="display:none;padding:0 16px 16px;font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
-        var _es = function(id, title, items) {
-            return '<div style="margin-bottom:6px;border:1px solid var(--border);border-radius:10px;overflow:hidden;">' +
-                '<button onclick="event.stopPropagation();var c=document.getElementById(\'' + id + '\');c.style.display=c.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'.ea\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.03);border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">' +
-                '<span class="ea" style="color:var(--text-faint);font-size:0.7rem;">▶</span>' +
-                '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">' + title + '</span></button>' +
-                '<div id="' + id + '" style="display:none;padding:8px 12px 10px;font-size:0.76rem;color:var(--text-muted);line-height:1.7;">' + items.join('<br>') + '</div></div>';
-        };
-        html += _es('ep_read', '📚 Reading & Exploring', [
-            '📖 Open a channel: <strong>10 XP</strong>',
-            '⏱️ Read for 30 sec: <strong>15 XP</strong>',
-            '🧭 Explore 10+ topics/session: <strong>50 XP</strong>',
-            '🗺️ Exploration milestones: <strong>50-2,000 XP</strong> (10 / 25 / 50 / 100 / all topics)',
-            '🔖 Bookmark a message: <strong>5 XP</strong>'
-        ]);
-        html += _es('ep_daily', '✅ Daily Activities', [
-            '✅ Daily visit: <strong>5 XP</strong>',
-            '🔥 Streak bonus: <strong>100 XP/day</strong>',
-            '🎰 Daily spin: <strong>25-100 XP</strong> (XP reward spins)',
-            '📈 Price prediction: <strong>5 XP</strong> (25 if correct!)',
-            '📺 Watch Timechain TV: <strong>10 XP</strong> per 10 min watched',
-            '⚡ Visit Lightning Wallet: <strong>5 XP</strong>',
-            '🎯 Quest Hub - Daily Quiz: <strong>25-100 XP</strong>',
-            '🧠 Quest Hub - Daily Trivia: <strong>10-15 XP</strong>',
-            '📊 Quest Hub - Daily Poll: <strong>5 XP</strong>',
-            '🏆 Complete all three in one day: <strong>bonus Satoshi\'s Favor point!</strong>'
-        ]);
-        html += _es('ep_quiz', '🧠 Quizzes & Learning', [
-            '🎯 Daily quests (perfect): <strong>100 XP</strong> (50 for 3+, 25 retry)',
-            '🧠 Nacho trivia pop-ups: <strong>10-15 XP</strong>',
-            '🎮 Channel quizzes: <strong>10 XP</strong>',
-            '🎯 Conversation quests: <strong>5 XP/correct</strong>',
-            '📖 Nacho\'s Trails chapters: <strong>25-50 XP</strong> (100 for completing all)',
-            '📖 Nacho\'s Story chapters: <strong>15 XP</strong> (50 final, 100 all + badges)',
-            '🎓 Scholar Certification (Bitcoin): <strong>2,100 XP</strong>',
-            '🎓 Scholar Certification (Protocol): <strong>2,100 XP</strong>'
-        ]);
-        html += _es('ep_social', '💬 Community & Social', [
-            '📝 Forum post: <strong>10 XP</strong>',
-            '💬 Forum reply: <strong>5 XP</strong>',
-            '📝 Publish article: <strong>30 XP</strong>',
-            '📖 Read an article: <strong>5 XP</strong>',
-            '💬 Article comment: <strong>5 XP</strong>',
-            '🌍 Global Chat message: <strong>5 XP</strong>',
-            '🔥 Chat streaks: <strong>10-25 XP</strong> (3-day / 7-day)',
-            '🤝 Host IRL event: <strong>15 XP</strong>',
-            '🤝 Refer a friend: <strong>bonus XP per referral</strong>',
-            '💬 Feedback bonus: <strong>5 XP</strong>'
-        ]);
-        html += _es('ep_lightning', '⚡ Lightning & Marketplace', [
-            '⚡ Send a Lightning tip: <strong>10 XP</strong>',
-            '⚡ Lightning wallet setup: <strong>100 XP</strong>',
-            '🛍️ Contact a seller: <strong>5 XP</strong>',
-            '🏪 List an item for sale: <strong>10 XP</strong>'
-        ]);
-        html += _es('ep_music', '🎵 Music & Content', [
-            '🎵 Upload a song to Beats: <strong>50 XP</strong>',
-            '🎧 Listen to a full track: <strong>10 XP</strong>',
-            '💬 Comment on a Beats track: <strong>10 XP</strong>'
-        ]);
-        html += _es('ep_pvp', '⚔️ PVP & Competitions', [
-            '⚔️ PVP match victory: <strong>score-based XP</strong>',
-            '🧠 PVP practice question: <strong>10 XP/correct</strong>',
-            '🏅 PVP badges: <strong>25-500 XP</strong>'
-        ]);
-        html += _es('ep_badges', '🏅 Badges', [
-            '📚 Standard badges: <strong>20-2,000 XP each</strong>',
-            '🔑 Hidden / secret badges: <strong>50-2,100 XP each</strong>',
-            '🎯 Goal badges (Tickets, Exploration, Charity): <strong>200-15,000 XP</strong>',
-            '🛒 First Purchase guide: <strong>100 XP</strong>',
-            '🏆 Milestone badges (50 / 100 / 150 / 200 badges): <strong>5,000-21,000 XP</strong>',
-            '💡 Tip: secret badges are discovered, not unlocked - explore everything!'
-        ]);
-        html += _es('ep_big', '🏆 Big Achievements', [
-            '🌍 Set your country: <strong>100 XP</strong>',
-            '🎓 Reach <em>Maxi</em> rank or higher: <strong>bonus SF points for the community</strong>',
-            '🥇 Level-up milestones (Pleb → Satoshi): <strong>community Satoshi\'s Favor points</strong>',
-            '🧩 Anonymous progress merged on sign-in: <strong>all XP preserved</strong>'
-        ]);
+        html += '<div id="earnXPContent" role="region" aria-labelledby="earnXPToggle" hidden onclick="event.stopPropagation()" style="display:none;padding:0 16px 16px;font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
+        html += (typeof window.renderEarnXpGuide === 'function') ? window.renderEarnXpGuide() : '';
         html += '</div></div>';
 
         // Withdrawal history placeholder
@@ -5367,12 +9156,19 @@ function showSettingsPage(tab) {
         var _satsLnAddr = currentUser ? (currentUser.lightning || currentUser.lightningAddress || '') : '';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:16px;">';
         html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;"><div style="width:36px;height:36px;background:linear-gradient(135deg,#eab308,#f97316);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;">⚡</div><div><div style="font-weight:700;font-size:0.85rem;color:var(--text);">Lightning Address</div><div style="font-size:0.72rem;color:var(--text-muted);">For receiving tips from other users</div></div></div>';
+        var _satsLnEligible = !_satsLnAddr || !clientLnValid(normalizeClientLn(_satsLnAddr));
+        try { if (sessionStorage.getItem('btc_ln_needs_reset') === '1') _satsLnEligible = true; } catch (eLnFlag) {}
         if (_satsLnAddr) {
-            html += '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;margin-bottom:8px;"><span style="color:#22c55e;font-size:0.9rem;">✅</span><span style="color:var(--text);font-size:0.82rem;font-weight:600;word-break:break-all;">' + escapeHtml(_satsLnAddr) + '</span></div>';
+            html += '<div style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:10px;margin-bottom:8px;"><span style="color:#22c55e;font-size:0.9rem;">✅</span><span id="satsLnReadonly" style="color:var(--text);font-size:0.82rem;font-weight:600;word-break:break-all;"></span></div>';
             html += '<p style="margin:0 0 8px;font-size:0.75rem;color:var(--text-muted);line-height:1.45;">' + LN_ADDRESS_LOCKED_NOTICE + '</p>';
+            html += '<p style="margin:0 0 8px;font-size:0.75rem;color:var(--text-muted);line-height:1.45;">This is your permanent Lightning Address for withdrawals. If you ever need to change it, contact support at info.603btc@gmail.com.</p>';
+            html += '<button type="button" onclick="showWithdrawalAddressReadonly()" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">View withdrawal address</button>';
         } else {
             html += '<p style="margin:0 0 8px;font-size:0.75rem;color:var(--text-muted);line-height:1.45;">' + LN_ADDRESS_LOCK_NOTICE + '</p>';
             html += '<div style="display:flex;gap:8px;align-items:center;"><input type="text" id="satsLnAddrInput" placeholder="you@walletofsatoshi.com" value="" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="flex:1;padding:10px 12px;background:var(--input-bg,rgba(255,255,255,0.07));border:1px solid var(--border,#444);border-radius:10px;color:var(--text,#e2e8f0);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;-webkit-appearance:none;-webkit-text-fill-color:var(--text,#e2e8f0);" onkeydown="if(event.key===\'Enter\')saveSatsLnAddress()"><button onclick="saveSatsLnAddress()" style="padding:10px 16px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;touch-action:manipulation;">Save</button></div>';
+        }
+        if (_satsLnEligible) {
+            html += '<button type="button" onclick="openWithdrawalAddress({mode:\'reset\'})" style="margin-top:8px;width:100%;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Set your withdrawal Lightning Address</button>';
         }
         html += '<div id="satsLnAddrStatus" style="margin-top:6px;font-size:0.75rem;text-align:center;"></div>';
         if (!_satsLnAddr) {
@@ -5390,7 +9186,7 @@ function showSettingsPage(tab) {
 
         } else {
         // ===== DONATE XP SUB-TAB =====
-        var _donateAvail = Math.max(0, userPts - pointsClaimed - pointsDonated - pointsExchanged);
+        var _donateAvail = Math.max(0, userPts - pointsClaimed - pointsDonated - pointsExchanged - unclaimableXp);
         var _userFaction = currentUser ? (currentUser.faction || '') : '';
 
         html += '<div style="text-align:center;margin-bottom:20px;">';
@@ -5403,8 +9199,8 @@ function showSettingsPage(tab) {
         html += '<div style="background:linear-gradient(135deg,rgba(239,68,68,0.1),rgba(220,38,38,0.05));border:1px solid rgba(239,68,68,0.3);border-radius:16px;padding:20px;margin-bottom:16px;text-align:center;">';
         html += '<div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;">Available to Donate</div>';
         html += '<div data-sats-charity-avail style="font-size:2rem;font-weight:900;color:#ef4444;margin:8px 0;">❤️ ' + _donateAvail.toLocaleString() + ' XP</div>';
-        var _rawAvailForDonate = userPts - pointsClaimed - pointsDonated - pointsExchanged;
-        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + userPts.toLocaleString() + ' total - ' + pointsClaimed.toLocaleString() + ' claimed - ' + pointsDonated.toLocaleString() + ' donated - ' + pointsExchanged.toLocaleString() + ' exchanged</div>';
+        var _rawAvailForDonate = userPts - pointsClaimed - pointsDonated - pointsExchanged - unclaimableXp;
+        html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + userPts.toLocaleString() + ' total - ' + pointsClaimed.toLocaleString() + ' claimed - ' + pointsDonated.toLocaleString() + ' donated - ' + pointsExchanged.toLocaleString() + ' exchanged - ' + unclaimableXp.toLocaleString() + ' unclaimable</div>';
         if (_rawAvailForDonate < 0) {
             html += '<div style="margin-top:8px;font-size:0.75rem;color:#ef4444;font-weight:600;">⚠️ XP fully used - earn more to donate again</div>';
         }
@@ -5467,6 +9263,13 @@ function showSettingsPage(tab) {
         } // end donate sub-tab
 
     } else if (settingsTab === 'prefs') {
+        html += '<div id="experienceModeCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:800;">🎛️ Experience Mode</div>' +
+            '<div style="color:var(--text-muted);font-size:14px;margin-bottom:12px;line-height:1.5;">Choose how much you see. Open What\'s included before you pick. Your XP stays either way.</div>' +
+            '<div id="experienceModePicker"></div>' +
+            '<button type="button" onclick="if(window.showOnboardingIntro)window.showOnboardingIntro({force:true})" style="width:100%;margin-top:8px;padding:12px;min-height:44px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--heading);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;">Replay welcome tour</button>' +
+            '</div>';
+
         // Appearance (Theme + Font Size combined)
         const isDark = document.body.getAttribute('data-theme') !== 'light';
         const isOLED = localStorage.getItem('btc_theme_oled') === 'true';
@@ -5546,13 +9349,14 @@ function showSettingsPage(tab) {
         html += '<div id="advPrefsPanel" style="display:none;">';
 
         // Nacho mascot toggle
-        const nachoOn = localStorage.getItem('btc_nacho_hidden') !== 'true';
+        const _nachoHiddenPref = localStorage.getItem('btc_nacho_hidden');
+        const nachoOn = _nachoHiddenPref !== 'true' && _nachoHiddenPref !== 'user';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🦌 Nacho (Mascot)</div>' +
             '<div style="display:flex;align-items:center;justify-content:space-between;">' +
             '<span style="color:var(--text);font-size:0.85rem;">Show Nacho</span>' +
             '<button onclick="if(typeof ' + (nachoOn ? 'hideNacho' : 'showNacho') + '===\'function\'){' + (nachoOn ? 'hideNacho()' : 'showNacho()') + '}showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (nachoOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (nachoOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (nachoOn ? 'ON' : 'OFF') + '</button></div>' +
-            '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:6px;">Your friendly Bitcoin deer guide. Long-press him to hide.</div>';
+            '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:6px;">Your friendly Bitcoin deer guide. Tap – on him to minimize, then tap 🦌 to bring him back.</div>';
 
         // Nacho sound toggle
         const nachoSoundOn = localStorage.getItem('btc_nacho_sound') !== 'false';
@@ -5592,24 +9396,21 @@ function showSettingsPage(tab) {
             '<div><span style="color:var(--text);font-size:0.85rem;">Show online status</span><div style="color:var(--text-faint);font-size:0.7rem;">Other users can see when you\'re active</div></div>' +
             '<button onclick="localStorage.setItem(\'btc_online_status\',localStorage.getItem(\'btc_online_status\')===\'false\'?\'true\':\'false\');if(typeof toggleOnlineStatus===\'function\')toggleOnlineStatus();showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (onlineStatusOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (onlineStatusOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (onlineStatusOn ? 'ON' : 'OFF') + '</button></div></div>';
 
-        // Push Notifications
-        const pushEnabled = localStorage.getItem('btc_push_enabled') === 'true';
+        // Push notification prefs are filled by notifications.js (server-backed).
+        html += '<div id="settings-notifications"></div>';
+
+        var pvpPushOn = localStorage.getItem('btc_pvp_push') === '1';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🔔 Push Notifications</div>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:10px;">Off by default. We respect your attention.</div>' +
-            '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">' +
-            '<span style="color:var(--text);font-size:0.85rem;">Notifications</span>' +
-            '<button id="pushToggleBtn" onclick="togglePushNotifications()" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (pushEnabled ? '#22c55e' : 'var(--bg-side)') + ';color:' + (pushEnabled ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (pushEnabled ? 'ON' : 'OFF') + '</button></div>' +
-            '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:0.75rem;color:var(--text-muted);line-height:1.5;">' +
-                '<strong style="color:var(--text);">What you\'ll get:</strong><br>' +
-                '🎡 <strong>Spin reminders</strong> - a couple times a week, never daily<br>' +
-                '🔥 <strong>Streak alerts</strong> - don\'t lose your streak!<br>' +
-                '📰 <strong>New content</strong> - when we add major new topics<br>' +
-                 +
-                '<span style="color:var(--text-faint);">We send 2-3 notifications per week max. No spam. Ever.</span>' +
-            '</div>' +
-            '<div id="pushStatus" style="margin-top:8px;font-size:0.75rem;color:var(--text-faint);"></div>' +
-            '</div>';
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚔️ PvP lobby push</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<div><span style="color:var(--text);font-size:0.85rem;">Lobby push</span><div style="color:var(--text-faint);font-size:0.7rem;">Off unless you turn this on. When on, at most 3 a week.</div></div>' +
+            '<button onclick="localStorage.setItem(\'btc_pvp_push\',localStorage.getItem(\'btc_pvp_push\')===\'1\'?\'0\':\'1\');if(window._pvpSyncPushOptIn)window._pvpSyncPushOptIn(localStorage.getItem(\'btc_pvp_push\')===\'1\');showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (pvpPushOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (pvpPushOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (pvpPushOn ? 'ON' : 'OFF') + '</button></div></div>';
+        var pvpAlertsMuted = localStorage.getItem('btc_pvp_alerts_muted') === '1';
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">⚔️ PvP alerts</div>' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+            '<div><span style="color:var(--text);font-size:0.85rem;">Mute PvP alerts</span><div style="color:var(--text-faint);font-size:0.7rem;">Hide the in-app lobby popup when someone is waiting</div></div>' +
+            '<button onclick="localStorage.setItem(\'btc_pvp_alerts_muted\',localStorage.getItem(\'btc_pvp_alerts_muted\')===\'1\'?\'0\':\'1\');if(window._pvpSyncAlertMute)window._pvpSyncAlertMute(localStorage.getItem(\'btc_pvp_alerts_muted\')===\'1\');showSettingsPage(\'prefs\')" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (pvpAlertsMuted ? '#22c55e' : 'var(--bg-side)') + ';color:' + (pvpAlertsMuted ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (pvpAlertsMuted ? 'ON' : 'OFF') + '</button></div></div>';
 
         // Signal Ticker
         var _tickerPref = localStorage.getItem('btc_ticker_enabled'); const tickerOn = _tickerPref === null ? (typeof isMobile === 'function' ? !isMobile() : window.innerWidth > 900) : _tickerPref === 'true';
@@ -5710,7 +9511,7 @@ function showSettingsPage(tab) {
             html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="color:#22c55e;font-size:1.2rem;">✅</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">2FA is enabled</div><div style="color:var(--text-muted);font-size:0.8rem;">Your account is protected with phone verification</div></div></div>' +
                 '<button onclick="disable2FA()" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">Disable 2FA</button>';
         } else if (!hasEmail) {
-            html += '<div style="display:flex;align-items:center;gap:10px;"><span style="color:var(--text-faint);font-size:1.2rem;">🔒</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">2FA available with email sign-in</div><div style="color:var(--text-muted);font-size:0.8rem;">Link an email to your account first (in Account tab), then you can enable 2FA.</div></div></div>';
+            html += '<div style="display:flex;align-items:center;gap:10px;"><span style="color:var(--text-faint);font-size:1.2rem;">🔒</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">2FA available with email sign-in</div><div style="color:var(--text-muted);font-size:0.8rem;">Link an email from the Sign-in methods card on the Account tab, then you can enable 2FA.</div><button type="button" onclick="goToSignInMethods()" style="margin-top:8px;padding:8px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--accent);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">Open Sign-in methods</button></div></div>';
         } else if (!emailVerified) {
             html += '<div style="display:flex;align-items:center;gap:10px;"><span style="color:#f59e0b;font-size:1.2rem;">⚠️</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Verify your email first</div><div style="color:var(--text-muted);font-size:0.8rem;">You must verify your email address before you can enable 2FA.</div></div></div>';
         } else {
@@ -5749,13 +9550,7 @@ function showSettingsPage(tab) {
             '<div style="display:flex;justify-content:space-between;padding:8px 0;"><span style="color:var(--text-muted);font-size:0.85rem;">Session timeout</span><span style="color:var(--text);font-size:0.85rem;">30 minutes inactive</span></div>' +
             '</div>';
 
-        // Password change (only for email/password users)
-        if (user.providerData && user.providerData.some(p => p.providerId === 'password')) {
-            html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
-                '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Change Password</div>' +
-                '<button onclick="sendPasswordReset()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;">Send Password Reset Email</button>' +
-                '<div id="pwResetStatus" style="margin-top:6px;font-size:0.8rem;"></div></div>';
-        }
+        // (Removed: password reset button. The site has no email+password sign-in, so a reset email was a dead end.)
 
         // Advanced Security (Blocked Users + Danger Zone)
         html += '<button onclick="var p=document.getElementById(\'advSecPanel\');p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=p.style.display===\'none\'?\'▼\':\'▲\'" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px;">⚙️ Advanced Security <span>▼</span></button>';
@@ -5806,32 +9601,12 @@ function showSettingsPage(tab) {
             });
         }, 100);
 
-        // Experience Mode Selector
-        var _expMode = (typeof window.getExperienceMode === 'function' && window.getExperienceMode()) || 'advanced';
-        var _expModes = [
-            {v:'beginner', e:'🌱', l:'Guided Intro', d:'Nacho Mode + Timechain TV. Core learning tools only. Clean and focused.'},
-            {v:'intermediate', e:'📘', l:'Quieter Experience', d:'All apps + all learning tools. Noisy widgets hidden.'},
-            {v:'advanced', e:'🔥', l:'Maximalist Mode', d:'Every feature, widget, and tool. Nothing hidden.'}
-        ];
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:20px;">' +
-            '<div style="font-size:0.75rem;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:800;">🎛️ Experience Mode</div>' +
-            '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:12px;line-height:1.5;">Control how much of the app you see. You can change this anytime — your XP and badges are always saved regardless of mode.</div>';
-        _expModes.forEach(function(m) {
-            var sel = _expMode === m.v;
-            html += '<button onclick="window._changeExperienceMode(\''+m.v+'\')" style="display:flex;align-items:flex-start;gap:12px;padding:12px 14px;width:100%;text-align:left;background:'+(sel?'rgba(249,115,22,0.1)':'rgba(255,255,255,0.03)')+';border:2px solid '+(sel?'var(--accent)':'var(--border)')+';border-radius:10px;cursor:pointer;font-family:inherit;color:var(--text);margin-bottom:8px;transition:0.2s;">' +
-                '<span style="font-size:1.2rem;flex-shrink:0;margin-top:1px;">'+m.e+'</span>' +
-                '<div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:0.88rem;color:'+(sel?'var(--accent)':'var(--heading)')+';">'+m.l+(sel?' <span style="font-size:0.68rem;opacity:0.7;">(current)</span>':'')+'</div><div style="color:var(--text-muted);font-size:0.75rem;margin-top:3px;line-height:1.4;">'+m.d+'</div></div>' +
-                (sel?'<span style="color:var(--accent);font-size:1rem;flex-shrink:0;margin-top:2px;">✓</span>':'') +
-            '</button>';
-        });
-        html += '</div>';
-
         // Delete Account - Danger Zone
         if (!user.isAnonymous) {
             html += '<div style="background:rgba(239,68,68,0.05);border:2px solid rgba(239,68,68,0.3);border-radius:12px;padding:16px;margin-top:24px;">' +
                 '<div style="font-size:0.75rem;color:#ef4444;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:800;">⚠️ Danger Zone</div>' +
-                '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;line-height:1.5;">Permanently delete your account, all your data, XP, badges, and progress. This action cannot be undone.</div>' +
-                '<button onclick="showDeleteAccountConfirm()" style="width:100%;padding:12px;background:none;border:2px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(239,68,68,0.1)\'" onmouseout="this.style.background=\'none\'">🗑️ Delete My Account</button>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;line-height:1.5;">Account deletion is on the Account tab. You confirm your username there. Sats still on the account are forfeited.</div>' +
+                '<button onclick="showSettingsPage(\'account\')" style="width:100%;padding:12px;background:none;border:2px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(239,68,68,0.1)\'" onmouseout="this.style.background=\'none\'">Delete account</button>' +
                 '</div>';
         }
         html += '</div>'; // close advSecPanel
@@ -5891,14 +9666,21 @@ function showSettingsPage(tab) {
         html += '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🧊 Buy Streak Freezes</div>';
         html += '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;">Protect your streak - freezes auto-activate when you miss a day. You have <strong>' + _tcktCount + ' 🏟️ Orange Tickets</strong>.</div>';
         html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
-        html += '<button onclick="_buyStreakFreeze(1)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 1 Freeze<br><span style="font-size:0.7rem;font-weight:400;">5 🏟️ tickets</span></button>';
-        html += '<button onclick="_buyStreakFreeze(3)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 3 Freezes<br><span style="font-size:0.7rem;font-weight:400;">12 🏟️ tickets</span></button>';
+        html += '<button onclick="_buyStreakFreeze(1)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 1 Freeze<br><span style="font-size:0.7rem;font-weight:400;">' + (typeof _nookPrice === 'function' ? _nookPrice('streak_freeze') : 6) + ' 🏟️ tickets</span></button>';
+        html += '<button onclick="_buyStreakFreeze(3)" style="flex:1;min-width:120px;padding:10px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;font-family:inherit;">Buy 3 Freezes<br><span style="font-size:0.7rem;font-weight:400;">' + (typeof _nookPrice === 'function' ? _nookPrice('streak_freeze_3') : 15) + ' 🏟️ tickets</span></button>';
         html += '</div></div>';
         html += statRow('Total Site Visits', totalVisits, '👁️');
         html += statRow('Topics Explored', Math.max(chVisited, localVisited) + ' / ' + Object.keys(CHANNELS).length, '🗺️');
         html += statRow('Saved Favorites', localFavs, '⭐');
         html += statRow('Hidden Badges Found', hiddenBadges + ' / ' + (typeof HIDDEN_BADGES !== 'undefined' ? HIDDEN_BADGES.length : 8), '🏅');
-        html += statRow('Scholar Certified', localStorage.getItem('btc_scholar_passed') === 'true' ? '✅ Yes' : '❌ Not yet', '🎓');
+        var _scholarYes = !!(currentUser && (currentUser.certPassed_prop === true || currentUser.certPassed_tech === true));
+        if (!_scholarYes) {
+            try { _scholarYes = localStorage.getItem('btc_scholar_passed') === 'true'; } catch (_e) {}
+        }
+        var _scholarLabel = _scholarYes
+            ? ('✅ Yes' + (currentUser && currentUser.certPassed_prop && currentUser.certPassed_tech ? ' (Scholar + Protocol Expert)' : (currentUser && currentUser.certPassed_tech ? ' (Protocol Expert)' : (currentUser && currentUser.certPassed_prop ? ' (Bitcoin Scholar)' : ''))))
+            : '❌ Not yet';
+        html += statRow('Scholar Certified', _scholarLabel, '🎓');
         html += statRow('Orange Tickets', (currentUser ? currentUser.orangeTickets || 0 : 0), '<svg viewBox="0 0 24 24" style="width:1em;height:1em;vertical-align:-0.15em;display:inline-block"><path fill="#f7931a" d="M22 10V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2z"/></svg>');
         // PVP Stats
         var _pvpW = currentUser ? (currentUser.pvpWins || 0) : 0;
@@ -5911,17 +9693,28 @@ function showSettingsPage(tab) {
         } else {
             html += statRow('PVP Record', 'No battles yet - <a href="#" onclick="event.preventDefault();hideUsernamePrompt();enterPVPMode();" style="color:var(--accent);">Enter PVP Lobby</a>', '⚔️');
         }
-        // Prediction Stats
-        if (typeof getPredictionStats === 'function') {
-            var predStats = getPredictionStats(currentUser);
-            if (predStats) {
-                html += statRow('Predictions', predStats.total + ' total · ' + predStats.correct + ' correct', '📈');
-                html += statRow('Prediction Accuracy', predStats.percentage + '%', '🎯');
-                if (predStats.bestStreak > 0) html += statRow('Best Prediction Streak', predStats.bestStreak + ' in a row', '🔥');
-            } else {
-                html += statRow('Predictions', '<a href="#" onclick="event.preventDefault();hideUsernamePrompt();showPricePrediction();" style="color:var(--accent);">Make your first prediction →</a>', '📈');
-            }
-        }
+        // Prediction stats come from prediction_stats/{uid}, not users['predictions.total'].
+        html += '<div id="settingsPredStats"></div>';
+        fillSettingsPred = function() {
+            var paint = function(stats) {
+                var node = document.getElementById('settingsPredStats');
+                if (!node) return;
+                var total = stats ? (Number(stats.predTotal) || 0) : 0;
+                var correct = stats ? (Number(stats.predCorrect) || 0) : 0;
+                var best = stats ? (Number(stats.predBestStreak) || 0) : 0;
+                if (!total) {
+                    node.innerHTML = statRow('Predictions', '<a href="#" onclick="event.preventDefault();hideUsernamePrompt();showPricePrediction();" style="color:var(--accent);">Make your first prediction →</a>', '📈');
+                    return;
+                }
+                var pct = Math.round((correct / total) * 100);
+                var rows = statRow('Predictions', total + ' total · ' + correct + ' correct', '📈');
+                rows += statRow('Prediction Accuracy', pct + '%', '🎯');
+                if (best > 0) rows += statRow('Best Prediction Streak', best + ' in a row', '🔥');
+                node.innerHTML = rows;
+            };
+            if (typeof window._loadMyPredictionStats === 'function') window._loadMyPredictionStats(paint);
+            else paint(null);
+        };
         // ---- Enhanced Stats ----
         // Time on site (approximate from session starts)
         var _totalSessions = currentUser ? (currentUser.totalVisits || 0) : 0;
@@ -6148,7 +9941,7 @@ function showSettingsPage(tab) {
                 '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.8;">' +
                 '<strong style="color:var(--text);">📅 Daily Login:</strong> +1 ticket just for visiting.<br>' +
                 '<strong style="color:var(--text);">🎡 Spin the Wheel:</strong> Spin daily for bonus tickets!<br>' +
-                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches Maxi rank.<br>' +
+                '<strong style="color:var(--text);">👥 Referrals:</strong> Earn <strong style="color:var(--accent);">50 tickets</strong> per friend who signs up and reaches ' + referralPointsLabel() + ' points (Scholar exam points don\'t count).<br>' +
                 '<strong style="color:var(--text);">🏅 Badges:</strong> Unlock at 25 🐟, 50 🦈, and 100 🐋 tickets.<br>' +
                 '<strong style="color:var(--text);">⭐ Bonus:</strong> Each ticket = +5 XP towards your rank.<br>' +
                 '<strong style="color:#eab308;">🏆 Giveaways:</strong> More tickets = higher chance of winning sats!' +
@@ -6164,14 +9957,55 @@ function showSettingsPage(tab) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Your Data</div>' +
             '<button onclick="exportUserData()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">📥 Export My Data</button>' +
-            '<button onclick="confirmDeleteAccount()" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">🗑️ Delete My Account</button>' +
+            '<button onclick="showDeleteAccountConfirm()" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">🗑️ Delete My Account</button>' +
             '</div>';
         html += '</div>'; // close advStatsPanel
     }
 
     html += '<span class="skip" onclick="hideUsernamePrompt()" style="color:var(--text-faint);font-size:0.85rem;margin-top:12px;cursor:pointer;display:block;text-align:center;">Close</span>';
     box.innerHTML = html;
+    if (settingsTab === 'sats' && typeof window.syncEarnXpDisclosures === 'function') window.syncEarnXpDisclosures();
+    if (settingsTab === 'prefs') {
+        var modePicker = document.getElementById('experienceModePicker');
+        if (modePicker && typeof window.bqFillModePicker === 'function') {
+            window.bqFillModePicker(modePicker, {
+                onPick: function (id) { if (typeof window._changeExperienceMode === 'function') window._changeExperienceMode(id); }
+            });
+        }
+    }
+    if (typeof window._applyWhatsNew === 'function') window._applyWhatsNew();
+    if (settingsTab === 'account') mountAccountGoogleLinkButton();
+    var shownLn = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightningAddress || currentUser.lightning || currentUser.lnAddress || '') : '';
+    var profileLn = document.getElementById('profileLnReadonly');
+    var satsLn = document.getElementById('satsLnReadonly');
+    if (profileLn) profileLn.textContent = shownLn;
+    if (satsLn) satsLn.textContent = shownLn;
     modal.classList.add('open');
+    if (settingsTab === 'prefs') {
+        setTimeout(function() {
+            var fill = function() {
+                if (typeof window.renderNotificationSettings !== 'function') return;
+                window.renderNotificationSettings();
+                if (window._highlightNotifSettings) {
+                    window._highlightNotifSettings = false;
+                    var sec = document.getElementById('settings-notifications');
+                    if (sec) {
+                        sec.classList.add('notif-flash');
+                        try { sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { sec.scrollIntoView(true); }
+                    }
+                }
+            };
+            if (typeof window.renderNotificationSettings === 'function') {
+                fill();
+                return;
+            }
+            var s = document.createElement('script');
+            s.src = 'notifications.js?v=20261105_v2497';
+            s.onload = fill;
+            document.body.appendChild(s);
+        }, 0);
+    }
+    if (fillSettingsPred) fillSettingsPred();
 
     // Auto-focus key inputs after render
     setTimeout(function() {
@@ -6285,7 +10119,7 @@ function showSettingsPage(tab) {
             var inp = document.getElementById('satsCharityAmtInput');
             var amt = parseInt(inp ? inp.value : '') || 0;
             var avail = typeof currentUser !== 'undefined' && currentUser
-                ? Math.max(0, (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0) - (currentUser.pointsExchanged||0)) : 0;
+                ? Math.max(0, spendableXp(currentUser)) : 0;
             if (!amt || amt < 1) { if (typeof showToast === 'function') showToast('Enter a valid amount'); return; }
             if (avail <= 0) {
                 if (typeof showToast === 'function') showToast('\u26a0\ufe0f No XP available to donate. Keep earning!', 5000);
@@ -6302,49 +10136,40 @@ function showSettingsPage(tab) {
             if (btn) { btn.disabled = true; btn.textContent = 'Donating...'; }
             firebase.functions().httpsCallable('donatePoints')({ amount: amt, anonymous: anon })
                 .then(function(result) {
-                    if (typeof currentUser !== 'undefined' && currentUser) {
-                        currentUser.pointsDonated = (currentUser.pointsDonated || 0) + amt;
-                        if (result.data && result.data.bonusPts) currentUser.points = (currentUser.points || 0) + result.data.bonusPts;
+                    try {
+                        if (typeof currentUser !== 'undefined' && currentUser) {
+                            currentUser.pointsDonated = (currentUser.pointsDonated || 0) + amt;
+                            if (result.data && result.data.bonusPts) currentUser.points = (currentUser.points || 0) + result.data.bonusPts;
+                        }
+                        var badgeMsg = result.data && result.data.newBadges && result.data.newBadges.length > 0
+                            ? ' +' + result.data.newBadges.length + ' badge' + (result.data.newBadges.length > 1 ? 's' : '') + ' unlocked!' : '';
+                        var ticketMsg = result.data && result.data.donationTicket > 0 ? ' 🎫 +1 ticket!' : '';
+                        if (typeof showToast === 'function') showToast('❤️ Thank you! ' + amt.toLocaleString() + ' XP donated (' + amt.toLocaleString() + ' sats pledged to charity).' + badgeMsg + ticketMsg, 5000);
+                        if (result.data && result.data.donationTicket > 0 && typeof currentUser !== 'undefined' && currentUser) {
+                            currentUser.orangeTickets = (currentUser.orangeTickets || 0) + 1;
+                            if (typeof updateRankUI === 'function') updateRankUI();
+                        }
+                        if (typeof window._charityThankYou === 'function') window._charityThankYou(amt, result.data && result.data.newBadges || [], result.data && result.data.bonusPts || 0);
+                        if (typeof window._charityStatsLoaded !== 'undefined') window._charityStatsLoaded = false;
+                        var _avEl = document.querySelector('#settingsModal [data-sats-charity-avail]');
+                        if (_avEl) {
+                            var _newAvail = Math.max(0, spendableXp(currentUser));
+                            _avEl.textContent = '\u2764\ufe0f ' + _newAvail.toLocaleString() + ' XP';
+                        }
+                        var _donEl = document.querySelector('#settingsModal [data-sats-donated-total]');
+                        if (_donEl) _donEl.textContent = (currentUser.pointsDonated||0).toLocaleString() + ' XP already donated \u2014 thank you! \u2764\ufe0f';
+                        if (typeof _patchCharityRecent === 'function') _patchCharityRecent();
+                        var _inp3 = document.getElementById('satsCharityAmtInput');
+                        if (_inp3) _inp3.value = '';
+                    } catch (_uiErr) {
+                        if (typeof showToast === 'function') showToast('❤️ Donation saved. Refresh if the totals look stale.', 4000);
                     }
-                    var badgeMsg = result.data && result.data.newBadges && result.data.newBadges.length > 0
-                        ? ' +' + result.data.newBadges.length + ' badge' + (result.data.newBadges.length > 1 ? 's' : '') + ' unlocked!' : '';
-                    var ticketMsg = result.data && result.data.donationTicket > 0 ? ' 🎫 +1 ticket!' : '';
-                    if (typeof showToast === 'function') showToast('❤️ Thank you! ' + amt.toLocaleString() + ' XP donated (' + amt.toLocaleString() + ' sats pledged to charity).' + badgeMsg + ticketMsg, 5000);
-                    if (result.data && result.data.donationTicket > 0 && typeof currentUser !== 'undefined' && currentUser) {
-                        currentUser.orangeTickets = (currentUser.orangeTickets || 0) + 1;
-                        if (typeof updateRankUI === 'function') updateRankUI();
-                    }
-                    if (typeof window._charityThankYou === 'function') window._charityThankYou(amt, result.data && result.data.newBadges || [], result.data && result.data.bonusPts || 0);
-                    // Announce earned badges to Global Chat via Satoshi's Favor
-                    var _satsBadges = result.data && result.data.newBadges || [];
-                    if (_satsBadges.length > 0 && typeof window.contributeSatoshiFavor === 'function') {
-                        var _satsDonorMap = { donor_100:1, donor_500:1, donor_1000:1, donor_5000:1, donor_10000:1, donor_25000:1, donor_50000:1, donor_100000:1 };
-                        _satsBadges.forEach(function(bid) { if (_satsDonorMap[bid]) window.contributeSatoshiFavor('badge_earned', bid).catch(function(){}); });
-                    }
-                    // Reset charity stats cache so Quest Hub picks up fresh totals
-                    if (typeof window._charityStatsLoaded !== 'undefined') window._charityStatsLoaded = false;
-                    // Update available XP display in-place
-                    var _avEl = document.querySelector('#settingsModal [data-sats-charity-avail]');
-                    if (_avEl) {
-                        var _newAvail = Math.max(0, (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0) - (currentUser.pointsExchanged||0));
-                        _avEl.textContent = '\u2764\ufe0f ' + _newAvail.toLocaleString() + ' XP';
-                    }
-                    // Patch donated total line
-                    var _donEl = document.querySelector('#settingsModal [data-sats-donated-total]');
-                    if (_donEl) _donEl.textContent = (currentUser.pointsDonated||0).toLocaleString() + ' XP already donated \u2014 thank you! \u2764\ufe0f';
-                    // Refresh recent donations list
-                    if (typeof _patchCharityRecent === 'function') _patchCharityRecent();
-                    // Clear the input
-                    var _inp3 = document.getElementById('satsCharityAmtInput');
-                    if (_inp3) _inp3.value = '';
                     if (btn) { btn.disabled = false; btn.textContent = '\u2764\ufe0f Donate XP for Charity'; }
                 })
                 .catch(function(e) {
                     if (btn) { btn.disabled = false; btn.textContent = '\u2764\ufe0f Donate XP for Charity'; }
-                    var _errMsg = e.message || 'Donation failed. Try again.';
-                    // Strip Firebase internal error prefixes for clean display
-                    _errMsg = _errMsg.replace(/^\[\w+\/[\w-]+\]\s*/, '');
-                    if (typeof showToast === 'function') showToast('\u274c ' + _errMsg, 4000);
+                    var _errMsg = (typeof friendlyCallableError === 'function' ? friendlyCallableError(e, 'Donation failed. Try again.') : (e.message || 'Donation failed. Try again.'));
+                    if (typeof showToast === 'function') showToast('❌ ' + _errMsg, 4000);
                 });
         };
     }
@@ -6391,8 +10216,8 @@ function showSettingsPage(tab) {
                         reqHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">' +
                             '<span style="font-size:0.85rem;">🧡 ' + (d.fromUsername || 'Bitcoiner') + '</span>' +
                             '<div style="display:flex;gap:6px;">' +
-                            '<button onclick="window.managePeer(\'accept\',\'' + d.from + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.75rem;cursor:pointer;font-family:inherit;">Accept</button>' +
-                            '<button onclick="window.managePeer(\'decline\',\'' + d.from + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">Decline</button>' +
+                            '<button onclick="window.managePeer(\'accept\',\'' + d.from + '\',this).then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.75rem;cursor:pointer;font-family:inherit;">Accept</button>' +
+                            '<button onclick="window.managePeer(\'decline\',\'' + d.from + '\',this).then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">Decline</button>' +
                             '</div></div>';
                     });
                 }
@@ -6435,9 +10260,13 @@ function showSettingsPage(tab) {
                         var puid = peers[i];
                         var _keysSentToday = !!_peerKeysSentToday[puid];
                         var _holdingKey = !!_peerKeysHeld[puid];
+                        window._peerNames = window._peerNames || {};
+                        window._peerNames[puid] = name;
+                        var _safeName = (typeof escapeHtml === 'function' ? escapeHtml(name) : name);
+                        var _safeUid = (typeof escapeHtml === 'function' ? escapeHtml(puid) : puid);
                         var _peerMarks = '';
-                        if (_keysSentToday) _peerMarks += '<span title="Keys already sent today" aria-label="Keys already sent today" style="font-size:1rem;color:#f7931a;flex-shrink:0;font-weight:900;line-height:1;">&#10140;</span>';
-                        if (_holdingKey) _peerMarks += '<span title="You are holding a key from this peer" aria-label="You are holding a key from this peer" style="font-size:0.95rem;flex-shrink:0;line-height:1;">&#128273;</span>';
+                        if (_keysSentToday) _peerMarks += '<span class="peer-sent" style="display:inline-block;padding:3px 8px;border-radius:999px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.35);font-size:0.72rem;font-weight:800;">Sent today</span>';
+                        if (_holdingKey) _peerMarks += '<span class="peer-hold" style="display:inline-block;padding:3px 8px;border-radius:999px;background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.45);font-size:0.72rem;font-weight:800;">Holding their key</span>';
                         var pLvl = typeof getLevel === 'function' ? getLevel(d.points || 0) : { name: 'Pleb', emoji: '🌱' };
                         var pStreak = d.streak || 0;
                         var pPosts = d.forumPosts || 0;
@@ -6461,28 +10290,34 @@ function showSettingsPage(tab) {
                         summaryParts.push(pLvl.emoji + ' ' + pLvl.name);
                         if (pStreak > 0) summaryParts.push('🔥 ' + pStreak + 'd');
                         var summaryText = summaryParts.join(' · ');
-                        peerHtml += '<div style="border-bottom:1px solid var(--border);padding:8px 0;">' +
-                            // Header row: name + expand arrow + remove
-                            '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
-                                '<span style="flex:1;font-size:0.9rem;cursor:pointer;color:var(--text);min-width:0;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + puid + '\')">🧡 ' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</span>' +
-                                _peerMarks +
-                                '<span style="font-size:0.7rem;color:var(--text-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;">' + summaryText + '</span>' +
-                                '<button onclick="var el=document.getElementById(\'' + pDetailId + '\');var arr=this.querySelector(\'span\');if(el.style.display===\'none\'){el.style.display=\'block\';arr.textContent=\'▲\';}else{el.style.display=\'none\';arr.textContent=\'▼\';}" style="background:none;border:1px solid var(--border);border-radius:6px;padding:2px 6px;color:var(--text-faint);font-size:0.65rem;cursor:pointer;"><span>▼</span></button>' +
-                                '<button onclick="window.managePeer(\'remove\',\'' + puid + '\').then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;white-space:nowrap;">Remove</button>' +
+                        var _sendLabel = _keysSentToday ? '🔑 Sent today' : '🔑 Send keys';
+                        var _sendStyle = _keysSentToday
+                            ? 'background:rgba(255,255,255,0.04);border:1px solid var(--border);color:var(--text);'
+                            : 'background:linear-gradient(135deg,#f7931a,#ea580c);border:none;color:#fff;';
+                        var _limitLine = _keysSentToday
+                            ? 'Sent today. The limit is 3 keys per peer, once a day. You can send again tomorrow. If a peer opens a cipher with your key, you both win the same prize.'
+                            : 'Up to 3 keys per peer per day. If a peer opens a cipher with your key, you both win the same prize.';
+                        peerHtml += '<div style="border:1px solid var(--border);border-radius:14px;padding:12px;margin:0 0 10px;background:var(--bg-side);">' +
+                            '<div style="font-size:1rem;font-weight:800;color:var(--heading);word-break:break-word;line-height:1.3;">🧡 ' + _safeName + '</div>' +
+                            '<div style="margin-top:4px;font-size:0.75rem;color:var(--text-dim);line-height:1.4;">' + summaryText + '</div>' +
+                            (_peerMarks ? '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">' + _peerMarks + '</div>' : '') +
+                            '<div class="peer-action-row" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">' +
+                                '<button type="button" class="peer-primary" data-peer-action="send-keys" data-peer-uid="' + _safeUid + '" style="flex:1 1 160px;min-height:44px;padding:10px 12px;border-radius:10px;font-size:0.92rem;font-weight:800;cursor:pointer;font-family:inherit;' + _sendStyle + '">' + _sendLabel + '</button>' +
+                                '<button type="button" class="peer-more" data-peer-action="more" data-peer-panel="' + pDetailId + '" aria-expanded="false" style="flex:1 1 140px;min-height:44px;padding:10px 12px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">More options ▾</button>' +
                             '</div>' +
-                            // Expandable detail panel
-                            '<div id="' + pDetailId + '" style="display:none;margin-top:8px;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;">' +
+                            '<div style="margin-top:6px;font-size:0.75rem;color:var(--text-dim);line-height:1.4;">' + _limitLine + '</div>' +
+                            '<div style="display:flex;justify-content:flex-end;margin-top:4px;">' +
+                                '<button type="button" class="peer-remove" data-peer-action="remove" data-peer-uid="' + _safeUid + '" style="padding:6px 10px;background:transparent;border:1px solid rgba(220,38,38,0.45);border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Remove</button>' +
+                            '</div>' +
+                            '<div id="' + pDetailId + '" style="display:none;margin-top:10px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:10px;">' +
                                 '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.78rem;">' +
                                     '<div style="color:var(--text-muted);">⭐ <b style="color:var(--text);">' + pXP + '</b> XP</div>' +
                                     '<div style="color:var(--text-muted);">🔥 <b style="color:var(--text);">' + pStreak + 'd</b> streak</div>' +
                                     '<div style="color:var(--text-muted);">🗣️ <b style="color:var(--text);">' + pPosts + '</b> posts</div>' +
                                     '<div style="color:var(--text-muted);">📅 <b style="color:var(--text);">' + (pWeekly > 0 ? '+' + pWeekly.toLocaleString() + ' XP this week' : 'No XP this week') + '</b></div>' +
                                 '</div>' +
-                                (pLastStr ? '<div style="margin-top:6px;font-size:0.72rem;color:var(--text-faint);">' + pLastStr + '</div>' : '') +
-                                '<button onclick="document.getElementById(\'' + pDetailId + '\').previousElementSibling.querySelector(\'button\').click()" style="margin-top:8px;width:100%;padding:5px;background:var(--card-bg);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.72rem;cursor:pointer;">View Full Profile →</button>' +
-                                (_keysSentToday
-                                    ? '<div style="margin-top:6px;width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;color:var(--text-faint);font-size:0.78rem;font-weight:700;text-align:center;">&#10140; Keys already sent today</div>'
-                                    : '<button onclick="if(typeof window.showKeyPickerForPeer===\'function\'){window.showKeyPickerForPeer(\'' + puid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '\');}else{var _kpR=0;var _kpT=setInterval(function(){if(typeof window.showKeyPickerForPeer===\'function\'){clearInterval(_kpT);window.showKeyPickerForPeer(\'' + puid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '\');}else if(++_kpR>=20)clearInterval(_kpT);},500);}" style="margin-top:6px;width:100%;padding:8px;background:linear-gradient(135deg,rgba(247,147,26,0.12),rgba(247,147,26,0.06));border:1px solid rgba(247,147,26,0.35);border-radius:8px;color:#f7931a;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">🔑 Send Keys to ' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</button>') +
+                                (pLastStr ? '<div style="margin-top:6px;font-size:0.72rem;color:var(--text-dim);">' + pLastStr + '</div>' : '') +
+                                '<button type="button" data-peer-action="profile" data-peer-uid="' + _safeUid + '" style="margin-top:8px;width:100%;min-height:40px;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">View profile</button>' +
                             '</div>' +
                         '</div>';
                     });
@@ -6491,6 +10326,19 @@ function showSettingsPage(tab) {
                 var finalHtml = '';
                 if (reqHtml) finalHtml += reqHtml + '<h4 style="font-size:0.85rem;margin:16px 0 8px;color:var(--text);">Your Peers (' + peers.length + ')</h4>';
                 finalHtml += peerHtml;
+                if (!window._peerRowClicksBound) {
+                    window._peerRowClicksBound = true;
+                    document.addEventListener('click', function(ev) {
+                        var btn = ev.target && ev.target.closest ? ev.target.closest('[data-peer-action]') : null;
+                        if (!btn) return;
+                        var action = btn.getAttribute('data-peer-action');
+                        var uid = btn.getAttribute('data-peer-uid');
+                        if (action === 'send-keys') window._sendKeysToPeer(uid);
+                        else if (action === 'more') window._togglePeerMore(btn);
+                        else if (action === 'remove') window.confirmRemovePeer(uid, btn);
+                        else if (action === 'profile') window._viewPeerProfile(uid);
+                    });
+                }
                 var listEl2 = document.getElementById('peersList');
                 if (listEl2) listEl2.innerHTML = finalHtml || '<p style="text-align:center;color:var(--text-muted);">No peers yet</p>';
             } catch(e) {
@@ -6714,6 +10562,7 @@ async function saveProfile() {
     }
     var updateData = { bio: bio, country: country };
     var _lnProfileError = '';
+    var _profileFreshLn = '';
 
     // Social links mapping
     var links = ['website', 'twitter', 'nostr', 'instagram', 'tiktok', 'github', 'contactEmail', 'lightning'];
@@ -6741,10 +10590,7 @@ async function saveProfile() {
                     _lnProfileError = 'Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)';
                     return;
                 }
-                if (freshLn) {
-                    updateData.lightning = freshLn;
-                    updateData.lightningAddress = freshLn;
-                }
+                if (freshLn) _profileFreshLn = freshLn;
             }
             return;
         }
@@ -6797,6 +10643,7 @@ async function saveProfile() {
 
         if (status) status.innerHTML = '<span style="color:#22c55e;">✅ Profile saved!</span>';
         if (typeof showToast === 'function') showToast('✅ Profile saved successfully!');
+        if (_profileFreshLn) openWithdrawalAddress({ mode: 'reset', address: _profileFreshLn, start: 'confirm' });
 
         // Small delay then close or refresh settings view
         setTimeout(function() {
@@ -6987,7 +10834,7 @@ window.minimizeSignUpBanner = function() {
             pill.id = 'mobileSignUpPill';
             document.body.appendChild(pill);
         }
-        pill.style.cssText = 'position:fixed;bottom:70px;left:12px;z-index:200;display:flex;align-items:center;gap:6px;padding:8px 12px 8px 16px;background:var(--bg-side,#1a1a2e);border:2px solid #f7931a;border-radius:10px;box-shadow:0 2px 10px rgba(247,147,26,0.2);cursor:pointer;transition:0.3s;';
+        pill.style.cssText = 'position:fixed;bottom:calc(var(--fab-bottom, calc(72px + env(safe-area-inset-bottom, 0px) + 12px)) + 64px);left:12px;z-index:200;display:flex;align-items:center;gap:6px;padding:8px 12px 8px 16px;background:var(--bg-side,#1a1a2e);border:2px solid #f7931a;border-radius:10px;box-shadow:0 2px 10px rgba(247,147,26,0.2);cursor:pointer;transition:0.3s;';
         pill.innerHTML = '<span style="font-size:0.8rem;font-weight:700;color:#f7931a;">🔐 Sign Up</span>' +
             '<span style="color:var(--text-faint,#888);font-size:0.7rem;margin-left:4px;" title="Expand banner">▲</span>';
         pill.onclick = function() { window.expandSignUpBanner(); };
@@ -7001,14 +10848,139 @@ window.minimizeSignUpBanner = function() {
     }
 };
 
-function clearUserLocalStorage() {
-    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_pending_email', 'btc_pending_username', 'btc_pending_ln_address', 'btc_pending_faction', 'btc_pending_country',
+// Display snapshot only. Never copies email, tokens, or private profile fields.
+// totpEnabled accounts keep a needs2fa marker instead of a name until this
+// session's authenticator check succeeds. The stored marker has no username,
+// so the next boot cannot paint one before the check.
+// Display fields only. Email, lightning, tokens, and other profile fields stay out.
+var PROFILE_CACHE_FIELDS = [
+    'username', 'points', 'pointsClaimed', 'pointsDonated', 'pointsExchanged',
+    'satsWithdrawn', 'totpEnabled', 'profilePic', 'streak', 'bestStreak',
+    'orangeTickets', 'displayBadge'
+];
+function profileCacheData(data) {
+    var src = data || {};
+    var out = {};
+    var i;
+    for (i = 0; i < PROFILE_CACHE_FIELDS.length; i++) {
+        var key = PROFILE_CACHE_FIELDS[i];
+        if (src[key] != null) out[key] = src[key];
+    }
+    return out;
+}
+function saveProfileCache(uid, data) {
+    try {
+        var prev = null;
+        try { prev = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null'); } catch (e) { prev = null; }
+        var view = profileCacheData(data);
+        var rec = { uid: uid, ts: Date.now(), data: view };
+        if (data && data.totpEnabled === true) rec.twoFa = true;
+        else if (data && data.totpEnabled === false) rec.twoFa = false;
+        else if (prev && prev.uid === uid && (prev.twoFa === true || prev.twoFa === false)) rec.twoFa = prev.twoFa;
+        localStorage.setItem('btc_profile_cache', JSON.stringify(rec));
+    } catch (e) {}
+}
+function stampProfileTwoFa(uid, on) {
+    try {
+        var raw = JSON.parse(localStorage.getItem('btc_profile_cache') || 'null');
+        if (!raw || raw.uid !== uid) return;
+        raw.twoFa = on === true;
+        if (raw.data) raw.data = profileCacheData(raw.data);
+        localStorage.setItem('btc_profile_cache', JSON.stringify(raw));
+    } catch (e) {}
+}
+function holdAuthDisplayForTotp(uid) {
+    noteTotpHold(uid);
+    stampProfileTwoFa(uid, true);
+    currentUser = null;
+    rankingReady = false;
+    try {
+        var bar = document.getElementById('rankBar');
+        if (bar) {
+            bar.textContent = '';
+            bar.innerHTML = '';
+            bar.style.display = 'none';
+            bar.removeAttribute('data-auth-live');
+            bar.removeAttribute('data-profile-cache');
+        }
+        var sats = document.getElementById('homeSatsValue');
+        if (sats) {
+            sats.textContent = '\u2014';
+            sats.removeAttribute('data-auth-live');
+            sats.removeAttribute('data-profile-cache');
+        }
+        var shown = document.getElementById('userDisplay');
+        if (shown) {
+            shown.textContent = '';
+            shown.innerHTML = '';
+            shown.style.display = 'none';
+        }
+        var welcome = document.getElementById('welcomeBanner');
+        if (welcome) {
+            welcome.textContent = '';
+            welcome.innerHTML = '';
+            welcome.style.display = 'none';
+        }
+    } catch (e) {}
+    if (window.btcAuthDisplay && uid) {
+        try {
+            if (window.btcAuthDisplay.markNeeds2fa) window.btcAuthDisplay.markNeeds2fa(uid);
+            if (window.btcAuthDisplay.forceClearProfile) window.btcAuthDisplay.forceClearProfile();
+            else if (window.btcAuthDisplay.paint) window.btcAuthDisplay.paint(null);
+        } catch (e) {}
+    }
+    try { if (typeof updateAuthButton === 'function') updateAuthButton(); } catch (e) {}
+}
+function publishAuthDisplay(uid, data) {
+    if (!window.btcAuthDisplay || !uid || !data) return;
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous || auth.currentUser.uid !== uid) return;
+    if (data.totpEnabled && !totpVerifiedFor(uid)) {
+        holdAuthDisplayForTotp(uid);
+        return;
+    }
+    if (data.totpEnabled) {
+        stampProfileTwoFa(uid, true);
+        try {
+            if (window.btcAuthDisplay.markNeeds2fa) window.btcAuthDisplay.markNeeds2fa(uid);
+            var mem = window.btcAuthDisplay.sanitize({ uid: uid, username: data.username, avatar: data.profilePic || '', xp: data.points || 0 });
+            if (mem && window.btcAuthDisplay.paint) window.btcAuthDisplay.paint(mem);
+        } catch (e) {}
+        return;
+    }
+    if (!data.username) return;
+    stampProfileTwoFa(uid, false);
+    try {
+        var snap = window.btcAuthDisplay.write({
+            uid: uid,
+            username: data.username,
+            avatar: data.profilePic || '',
+            xp: data.points || 0
+        });
+        if (snap && window.btcAuthDisplay.paint) window.btcAuthDisplay.paint(snap);
+    } catch (e) {}
+}
+function clearAuthDisplay() {
+    try {
+        if (window.btcAuthDisplay) {
+            window.btcAuthDisplay.clear();
+            if (window.btcAuthDisplay.paint) window.btcAuthDisplay.paint(null);
+        }
+    } catch (e) {}
+}
+window.publishAuthDisplay = publishAuthDisplay;
+window.clearAuthDisplay = clearAuthDisplay;
+
+function clearUserLocalStorage(opts) {
+    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_skip_email_link', 'btc_pending_email', 'btc_pending_username', 'btc_pending_ln_address', 'btc_pending_faction', 'btc_pending_country', 'btc_mode_card_dismissed',
         // Badge cache — preserve on sign-out so the next sign-in doesn't trigger
         // a cold-start race where checkBadges() fires before Firestore restores
         // visibleBadges, causing duplicate toast/celebration modals.
         // These are always safely overwritten by markVisibleBadgesReady() on sign-in.
         'btc_badges', 'btc_hidden_badges'
     ];
+    if (opts && opts.keepGuest) {
+        preserve = preserve.concat(['btc_visited_channels', 'btc_experience_mode', 'btc_intro_seen', 'btc_onboarding_done', 'btc_onboarding_active', 'btc_onboarding_step', 'btc_onboarding_quest_done', 'btc_quest_pending', 'btc_guest_link', 'btc_nacho_quest_channel', 'btc_nacho_quest_nacho', 'btc_nacho_quest_quiz']);
+    }
     var toRemove = [];
     for (var i = 0; i < localStorage.length; i++) {
         var key = localStorage.key(i);
@@ -7030,13 +11002,40 @@ window.clearUserLocalStorage = clearUserLocalStorage;
 function _showTosModal() {
     var m = document.getElementById('tosModal');
     if (m) m.classList.add('open');
+    document.querySelectorAll('.rank-toast').forEach(function(el) { el.remove(); });
+    var pill = document.getElementById('nachoQuestPill');
+    if (pill) pill.style.display = 'none';
+    // Mode / onboarding wait until Terms are accepted.
+    var modeCard = document.getElementById('bqModeHomeCard');
+    if (modeCard) modeCard.style.display = 'none';
+    var intro = document.getElementById('btcIntroOverlay');
+    if (intro) intro.style.display = 'none';
+    var questOverlay = document.getElementById('nachoQuestOverlay');
+    if (questOverlay) questOverlay.remove();
+    try {
+        var footer = m && m.querySelector('.tos-footer');
+        if (footer && footer.scrollIntoView) footer.scrollIntoView({ block: 'nearest' });
+        var btn = document.getElementById('tosAcceptBtn');
+        if (btn && btn.focus) setTimeout(function() { try { btn.focus(); } catch (e) {} }, 50);
+    } catch (e) {}
+}
+
+function _tosNeedsTick() {
+    var row = document.getElementById('tosConsentRow');
+    if (row) {
+        row.classList.remove('shake');
+        void row.offsetWidth;
+        row.classList.add('shake');
+    }
+    var hint = document.getElementById('tosNeedTick');
+    if (hint) hint.hidden = false;
 }
 
 window._acceptTos = async function() {
     var check = document.getElementById('tosModalCheck');
-    if (!check || !check.checked) return;
+    if (!check || !check.checked) { _tosNeedsTick(); return; }
     var btn = document.getElementById('tosAcceptBtn');
-    if (btn) { btn.textContent = 'Saving...'; btn.classList.remove('ready'); }
+    if (btn) { btn.textContent = 'Saving...'; btn.disabled = true; }
     try {
         if (currentUser && auth.currentUser && !auth.currentUser.isAnonymous) {
             await db.collection('users').doc(auth.currentUser.uid).set({
@@ -7052,20 +11051,286 @@ window._acceptTos = async function() {
         }
         var m = document.getElementById('tosModal');
         if (m) m.classList.remove('open');
+        var modeCard = document.getElementById('bqModeHomeCard');
+        if (modeCard) modeCard.style.display = '';
+        flushAfterTos();
+        if (typeof window.bqRefreshModeCard === 'function') {
+            try { window.bqRefreshModeCard(); } catch (e) {}
+        }
         if (typeof showToast === 'function') showToast('✅ Terms accepted. Welcome back!');
     } catch(e) {
-        if (btn) { btn.textContent = 'Accept & Continue →'; btn.classList.add('ready'); }
+        if (btn) { btn.textContent = 'Accept & Continue →'; btn.disabled = false; }
         if (typeof showToast === 'function') showToast('Error saving. Please try again.');
         console.error('[TOS] Accept error:', e);
     }
 };
 
-async function signOutUser() {
+function renderAccountGoogleLinkButton() {
+    var host = document.getElementById('accountGsiButtonHost');
+    var fallback = document.getElementById('accountGoogleLinkFallback');
+    if (!host || !gisApiReady()) return;
+    ensureGoogleIdentityInit();
+    host.innerHTML = '';
+    host.style.display = 'block';
+    try {
+        google.accounts.id.renderButton(host, {
+            type: 'standard',
+            theme: 'filled_black',
+            size: 'large',
+            text: 'continue_with',
+            shape: 'rectangular',
+            logo_alignment: 'left',
+            width: googleButtonWidth(host),
+            click_listener: function() { window._accountLinkGoogle = true; }
+        });
+    } catch (e) {
+        host.style.display = 'none';
+        if (fallback) fallback.style.display = 'block';
+        return;
+    }
+    if (!host.childNodes.length) {
+        host.style.display = 'none';
+        if (fallback) fallback.style.display = 'block';
+        return;
+    }
+    if (fallback) fallback.style.display = 'none';
+}
+
+function mountAccountGoogleLinkButton() {
+    var host = document.getElementById('accountGsiButtonHost');
+    var fallback = document.getElementById('accountGoogleLinkFallback');
+    if (!host) return;
+    if (typeof isInAppBrowser === 'function' && isInAppBrowser()) {
+        host.style.display = 'none';
+        if (fallback) fallback.style.display = 'block';
+        return;
+    }
+    if (!gisApiReady()) {
+        if (fallback) fallback.style.display = 'block';
+        loadGoogleIdentityScript().then(function() {
+            renderAccountGoogleLinkButton();
+        }).catch(function() {
+            host.style.display = 'none';
+            if (fallback) fallback.style.display = 'block';
+        });
+        return;
+    }
+    renderAccountGoogleLinkButton();
+}
+
+window.sendAccountLinkEmail = async function() {
+    if (accountLinkTotpPending()) {
+        if (typeof showToast === 'function') showToast(accountLinkTotpHoldMessage());
+        return;
+    }
+    var input = document.getElementById('accountLinkEmail');
+    var status = document.getElementById('accountLinkEmailStatus');
+    var user = auth && auth.currentUser;
+    var profile = (typeof currentUser !== 'undefined') ? currentUser : null;
+    if (!user || !accountCanLinkSignIn(user, profile)) {
+        if (typeof showToast === 'function') showToast('This account already has a sign-in method.');
+        return;
+    }
+    var email = input ? String(input.value || '').trim() : '';
+    if (!email || email.indexOf('@') < 1 || email.indexOf('.') < 0 || email.length > 100) {
+        if (status) status.textContent = 'Enter the email you want to link.';
+        if (typeof showToast === 'function') showToast('Enter the email you want to link.');
+        return;
+    }
+    if (input) input.disabled = true;
+    var sent = await requestAccountEmailLink(email, status);
+    if (!sent && input) input.disabled = false;
+};
+
+async function requestAccountEmailLink(email, status) {
+    if (accountLinkTotpPending()) {
+        if (typeof showToast === 'function') showToast(accountLinkTotpHoldMessage());
+        return false;
+    }
+    var user = auth && auth.currentUser;
+    var profile = (typeof currentUser !== 'undefined') ? currentUser : null;
+    if (!user) {
+        if (status) status.textContent = 'Sign in, then try this.';
+        return false;
+    }
+    if (user.isAnonymous && !accountCanLinkSignIn(user, profile)) {
+        if (typeof showToast === 'function') showToast('This account already has a sign-in method.');
+        return false;
+    }
+    var clean = String(email || '').trim();
+    if (!clean || clean.indexOf('@') < 1 || clean.indexOf('.') < 0 || clean.length > 100) {
+        if (status) status.textContent = 'Enter the email you want to link.';
+        return false;
+    }
+    if (!user.isAnonymous) {
+        var ready = await window.reauthForSensitiveAction('linking email');
+        if (!ready) {
+            if (status) status.textContent = 'Sign in again, then try this.';
+            return false;
+        }
+        var payload = {};
+        payload.email = clean;
+        if (typeof mfaNeedsFreshCode === 'function' && mfaNeedsFreshCode() && typeof window._showFreshStepUp === 'function') {
+            var proof = await window._showFreshStepUp('changeEmail');
+            if (!proof) {
+                if (status) status.textContent = 'Finish the authenticator check, then try again.';
+                return false;
+            }
+            payload.freshProofId = proof;
+        }
+        try {
+            await firebase.functions().httpsCallable('prepareEmailChange')(payload);
+        } catch (err) {
+            var code = err && err.code;
+            var friendly = "That email can't be used.";
+            if (code === 'functions/resource-exhausted' || code === 'resource-exhausted') friendly = 'Too many attempts. Try again later.';
+            else if (code === 'functions/failed-precondition' || code === 'failed-precondition') friendly = 'Sign in again, then try this.';
+            if (status) status.textContent = friendly;
+            if (typeof showToast === 'function') showToast(friendly);
+            return false;
+        }
+    }
+    if (status) status.textContent = 'Sending a link…';
+    writeAccountLinkIntent(user, clean);
+    var sent = false;
+    try { sent = await sendMagicLink(clean, { accountLink: true }); } catch (e) { sent = false; }
+    if (!sent) {
+        clearAccountLinkIntent();
+        if (status) status.textContent = 'Could not send the link. Try again.';
+        if (typeof showToast === 'function') showToast('Could not send the link. Try again.');
+        return false;
+    }
+    if (status) status.textContent = 'Check your email. Open the link while this account is signed in. It does not create a new account.';
+    if (typeof showToast === 'function') showToast('Check your email and open the link while you are signed in.');
+    return true;
+}
+
+window.linkGoogleFromAccount = async function() {
+    if (accountLinkTotpPending()) {
+        if (typeof showToast === 'function') showToast(accountLinkTotpHoldMessage());
+        return;
+    }
+    var user = auth && auth.currentUser;
+    var profile = (typeof currentUser !== 'undefined') ? currentUser : null;
+    if (!user || !accountCanLinkSignIn(user, profile)) {
+        if (typeof showToast === 'function') showToast('This account already has a sign-in method.');
+        return;
+    }
+    if (typeof isInAppBrowser === 'function' && isInAppBrowser()) {
+        if (typeof showToast === 'function') showToast('Open this page in your browser to link Google.');
+        return;
+    }
+    var host = document.getElementById('accountGsiButtonHost');
+    if (host && host.childNodes.length && host.style.display !== 'none') {
+        if (typeof showToast === 'function') showToast('Use the Google button above.');
+        return;
+    }
+    var linkedUid = user.uid;
+    var wasGuest = !!user.isAnonymous;
+    try {
+        var provider = new firebase.auth.GoogleAuthProvider();
+        await user.linkWithPopup(provider);
+    } catch (e) {
+        var code = e && e.code;
+        if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request' || code === 'auth/user-cancelled') return;
+        if (code === 'auth/multi-factor-auth-required') {
+            if (surfaceMfaRequired(e)) return;
+        }
+        var conflict = accountLinkConflictMessage(code);
+        if (conflict) {
+            if (typeof showToast === 'function') showToast(conflict);
+            return;
+        }
+        if (typeof showToast === 'function') showToast('Could not link Google. You are still on this account.');
+        return;
+    }
+    if (!auth.currentUser || auth.currentUser.uid !== linkedUid) {
+        if (typeof showToast === 'function') showToast(accountLinkConflictMessage('auth/credential-already-in-use'));
+        return;
+    }
+    try { localStorage.removeItem('btc_guest_link'); } catch (e1) {}
+    if (wasGuest && typeof _handleSignInResultGlobal === 'function') {
+        await _handleSignInResultGlobal(auth.currentUser, null, null);
+    }
+    if (typeof showToast === 'function') showToast('Google linked. You can use it to sign in next time.');
+    refreshAccountSignInCard();
+};
+
+function presentSignOutLinkWarning(warning) {
+    if (!warning || !warning.message) return;
+    var existing = document.getElementById('signOutLinkWarning');
+    if (existing) existing.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'signOutLinkWarning';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:800000;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML = '<div role="dialog" aria-modal="true" aria-labelledby="signOutLinkWarningTitle" style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:380px;width:100%;text-align:center;box-shadow:0 16px 40px rgba(0,0,0,0.35);">' +
+        '<div style="font-size:2rem;margin-bottom:8px;">⚠️</div>' +
+        '<div id="signOutLinkWarningTitle" style="color:var(--heading,#fff);font-weight:800;font-size:1.05rem;margin-bottom:8px;">Sign out?</div>' +
+        '<div style="color:var(--text,#fff);font-size:0.9rem;line-height:1.5;margin-bottom:16px;">' + accountLinkEscape(warning.message) + '</div>' +
+        '<button type="button" onclick="goToSignInMethods()" style="width:100%;padding:12px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Link a sign-in</button>' +
+        '<button type="button" onclick="signOutUser(true)" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Sign out anyway</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+}
+
+function goToSignInMethods() {
+    var warn = document.getElementById('signOutLinkWarning');
+    if (warn) warn.remove();
+    if (typeof showSettingsPage === 'function') showSettingsPage('account');
+    setTimeout(function() {
+        var card = document.getElementById('signInMethodsCard');
+        if (card && card.scrollIntoView) {
+            try { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) { card.scrollIntoView(true); }
+        }
+    }, 80);
+}
+window.goToSignInMethods = goToSignInMethods;
+
+async function signOutUser(force) {
+    if (force !== true) {
+        var warning = signOutWarningForAccount(
+            (typeof auth !== 'undefined' && auth) ? auth.currentUser : null,
+            (typeof currentUser !== 'undefined') ? currentUser : null
+        );
+        if (warning) {
+            presentSignOutLinkWarning(warning);
+            return;
+        }
+    }
+    var warnEl = document.getElementById('signOutLinkWarning');
+    if (warnEl) warnEl.remove();
+    // Drop this device's push token before the session ends. Otherwise the
+    // next person on a shared phone keeps receiving the previous account's
+    // notifications, including DM previews.
+    var pushUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : '';
+    var pushDevice = '';
+    try { pushDevice = localStorage.getItem('btc_push_device') || ''; } catch (e) {}
+    try {
+        if (pushUid && /^[A-Za-z0-9_-]{8,64}$/.test(pushDevice) && typeof db !== 'undefined') {
+            await db.collection('push_tokens').doc(pushUid).collection('devices').doc(pushDevice).delete();
+        }
+    } catch (e) {}
+    try {
+        if (typeof firebase !== 'undefined' && firebase.messaging) {
+            await firebase.messaging().deleteToken();
+        }
+    } catch (e) {}
+    var mfaDeviceToken = '';
+    try { if (pushUid) mfaDeviceToken = localStorage.getItem('btc_mfa_device_' + pushUid) || ''; } catch (e) {}
+    if (mfaDeviceToken && typeof firebase !== 'undefined' && firebase.functions) {
+        try {
+            await firebase.functions().httpsCallable('totpRevokeDevice')({ deviceToken: mfaDeviceToken });
+        } catch (e) {}
+    }
     // [AUDIT FIX M5] Clear caches on sign-out for shared device security
     if ('caches' in window) {
         try { var keys = await caches.keys(); keys.forEach(function(k) { caches.delete(k); }); } catch(e) {}
     }
+    clearTotpHold();
+    clearTotpVerified();
+    clearAuthDisplay();
     clearUserLocalStorage();
+    if (typeof window.bqClearTopicDrafts === 'function') window.bqClearTopicDrafts();
     await auth.signOut();
     location.reload();
 }
@@ -7073,7 +11338,15 @@ async function signOutUser() {
 // --- RESTORING DELETED GLOBAL HANDLERS ---
 window.hideUsernamePrompt = function() {
     const modal = document.getElementById('usernameModal');
-    if (modal) modal.classList.remove('open');
+    if (modal) {
+        modal.classList.remove('open');
+        modal.style.zIndex = '';
+    }
+    if (typeof flushAfterTos === 'function' && !tosBlocking()) {
+        if (!chromeBlocksToasts() && typeof _toastQueue !== 'undefined' && _toastQueue.length && typeof window._showToastNow === 'function') {
+            window._showToastNow(_toastQueue.shift());
+        }
+    }
     // Show guide return button if user navigated from the guide
     if (sessionStorage.getItem('btc_return_guide') === '1' && typeof showGuideReturnBtn === 'function') {
         showGuideReturnBtn();
@@ -7126,16 +11399,47 @@ async function isUsernameTaken(username, excludeUid) {
     }
 }
 
+document.addEventListener('click', function(ev) {
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    if (!t.closest('#signupStartBtn')) return;
+    var check = document.getElementById('signupTosCheck');
+    if (!document.getElementById('usernameInput') || !check || check.checked) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    var row = document.getElementById('signupConsentRow');
+    if (row) {
+        row.classList.remove('shake');
+        void row.offsetWidth;
+        row.classList.add('shake');
+    }
+    var hint = document.getElementById('signupNeedTick');
+    if (hint) hint.hidden = false;
+}, true);
+
 window.submitUsername = async function() {
     try {
+    var signupCheck = document.getElementById('signupTosCheck');
+    var signupRow = document.getElementById('signupConsentRow');
+    if (document.getElementById('usernameInput') && signupCheck && !signupCheck.checked) {
+        if (signupRow) {
+            signupRow.classList.remove('shake');
+            void signupRow.offsetWidth;
+            signupRow.classList.add('shake');
+        }
+        var signupHint = document.getElementById('signupNeedTick');
+        if (signupHint) signupHint.hidden = false;
+        return;
+    }
     // Check if this is the INITIAL SIGNUP modal or the settings username change
     var input = document.getElementById('usernameInput') || document.getElementById('newUsername');
     if (!input) { console.error('[submitUsername] No input found'); return; }
     var name = input.value.trim();
     if (!name) { showToast('Please enter a username!'); return; }
-    if (name.length < 2) { showToast('Username must be at least 2 characters'); return; }
+    if (name.length < 3) { showToast('Username must be at least 3 characters'); return; }
     if (name.length > 20) { showToast('Username must be 20 characters or less'); return; }
-    if (/[^A-Za-z0-9 _\-.]/g.test(name)) { showToast('⚠️ Username can only contain English letters, numbers, spaces, underscores, hyphens, and dots.'); return; }
+    if (/[\s\u180E\u200B-\u200D\u2060\uFEFF]/.test(name)) { showToast('⚠️ Usernames cannot contain spaces. Try ' + name.replace(/[\s\u180E\u200B-\u200D\u2060\uFEFF]+/g, '_') + ' instead.'); return; }
+    if (/[^A-Za-z0-9_\-.]/g.test(name)) { showToast('⚠️ Username can only contain English letters, numbers, underscores, hyphens, and dots.'); return; }
     if (containsProfanity(name)) { showToast('⚠️ That username is not allowed.'); return; }
 
     // INITIAL SIGNUP (usernameInput exists = signup modal)
@@ -7145,9 +11449,13 @@ window.submitUsername = async function() {
         var tsEl = document.querySelector('#turnstileWidget [name="cf-turnstile-response"]');
         if (tsEl) tsToken = tsEl.value || '';
         if (!tsToken) {
-            // Widget may not have rendered yet (slow connection) - check window.turnstile
             showToast('⏳ Security check pending, please try again in a moment.');
-            if (window.turnstile) window.turnstile.reset('#turnstileWidget');
+            var signupWidget = document.getElementById('turnstileWidget');
+            if (signupWidget && signupWidget.getAttribute('data-rendered') !== '1' && typeof window._ensureTurnstile === 'function') {
+                window._ensureTurnstile(signupWidget);
+            } else if (window.turnstile) {
+                window.turnstile.reset('#turnstileWidget');
+            }
             return;
         }
         window._signupTurnstileToken = tsToken;
@@ -7171,7 +11479,12 @@ window.submitUsername = async function() {
             showToast('⚡ Please enter a valid Lightning address (e.g. you@wallet.com) or leave it blank.');
             return;
         }
-        if (lnAddress) localStorage.setItem('btc_pending_ln_address', lnAddress);
+        if (lnAddress) {
+            var confirmedSignup = await openWithdrawalAddress({ mode: 'signup', address: lnAddress, start: 'confirm' });
+            if (!confirmedSignup) return;
+            lnAddress = confirmedSignup;
+            localStorage.setItem('btc_pending_ln_address', lnAddress);
+        }
 
         if (email) {
             // Email provided - send magic link for verification
@@ -7204,12 +11517,11 @@ window.submitUsername = async function() {
     }
     if (status) status.innerHTML = 'Saving...';
     try {
-        await db.collection('users').doc(currentUser.uid).update({ username: name, username_lower: name.toLowerCase() });
-        currentUser.username = name;
+        await applyServerUsername(name);
         updateAuthButton();
         updateRankUI();
-        if (status) status.innerHTML = '✅ Username updated!';
-        showToast('✅ Username changed to ' + name);
+        if (status) status.textContent = 'Username updated';
+        showToast('Username updated');
     } catch(e) {
         if (status) status.innerHTML = '❌ Error saving';
         showToast('Error updating username. Try again.');
@@ -7244,39 +11556,312 @@ if (!localStorage.getItem('btc_last_height') || Date.now() - parseInt(localStora
     }).catch(function(){});
 }
 
+var LN_PERMANENT_WARNING = 'This will be your permanent Lightning Address for withdrawals. If you ever need to change it, contact support at info.603btc@gmail.com.';
+var LN_READONLY_NOTE = 'This is your permanent Lightning Address for withdrawals. If you ever need to change it, contact support at info.603btc@gmail.com.';
+var LN_DOUBLE_CHECK = 'Please double-check this is written exactly right';
+var LN_SET_TITLE = 'Set your withdrawal Lightning Address';
+var LN_TURNSTILE_SITEKEY = '0x4AAAAAAD-ivgpRkbXpgz86';
+
+function _savedWithdrawalLn() {
+    var u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : null;
+    if (!u) return '';
+    return normalizeClientLn(u.lightningAddress || u.lightning || u.lnAddress || '');
+}
+
+function _withdrawalLnEligible() {
+    var saved = _savedWithdrawalLn();
+    if (!saved || !clientLnValid(saved)) return true;
+    try { if (sessionStorage.getItem('btc_ln_needs_reset') === '1') return true; } catch (e) {}
+    return false;
+}
+
+function _lnBtn(label, primary) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = label;
+    btn.style.cssText = primary
+        ? 'flex:1;padding:12px;background:#f97316;color:#fff;border:none;border-radius:12px;font-size:0.92rem;font-weight:800;cursor:pointer;font-family:inherit;'
+        : 'flex:1;padding:12px;background:transparent;color:#e2e8f0;border:1px solid #1e293b;border-radius:12px;font-size:0.92rem;font-weight:700;cursor:pointer;font-family:inherit;';
+    return btn;
+}
+
+function openWithdrawalAddress(opts) {
+    opts = opts || {};
+    var mode = opts.mode || 'reset';
+    var start = opts.start || (mode === 'readonly' ? 'readonly' : 'input');
+    return new Promise(function (resolve) {
+        var old = document.getElementById('lnAddrModal');
+        if (old) old.remove();
+        var settled = false;
+        function finish(value) {
+            if (settled) return;
+            settled = true;
+            var el = document.getElementById('lnAddrModal');
+            if (el) el.remove();
+            resolve(value || null);
+        }
+
+        var overlay = document.createElement('div');
+        overlay.id = 'lnAddrModal';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,0.78);z-index:620000;display:flex;align-items:center;justify-content:center;padding:16px;';
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) finish(null); });
+
+        var panel = document.createElement('div');
+        panel.style.cssText = 'background:#0f172a;border:1px solid #1e293b;border-radius:16px;padding:22px;max-width:420px;width:100%;color:#e2e8f0;box-sizing:border-box;';
+
+        var title = document.createElement('div');
+        title.id = 'lnAddrTitle';
+        title.textContent = mode === 'readonly' ? 'Withdrawal Lightning Address' : LN_SET_TITLE;
+        title.style.cssText = 'font-size:1.05rem;font-weight:800;color:#fff;margin-bottom:12px;text-align:center;';
+        panel.appendChild(title);
+
+        var errorEl = document.createElement('div');
+        errorEl.id = 'lnAddrError';
+        errorEl.style.cssText = 'display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.35);border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.78rem;color:#fca5a5;text-align:center;';
+        function paintLnError(msg) {
+            errorEl.textContent = msg || '';
+            errorEl.style.display = msg ? 'block' : 'none';
+        }
+        panel.appendChild(errorEl);
+
+        var stepInput = document.createElement('div');
+        stepInput.id = 'lnAddrStepInput';
+        var inputLabel = document.createElement('label');
+        inputLabel.textContent = 'Lightning Address';
+        inputLabel.style.cssText = 'display:block;font-size:0.78rem;color:#94a3b8;margin-bottom:6px;';
+        var input = document.createElement('input');
+        input.id = 'lnAddrInput';
+        input.type = 'text';
+        input.setAttribute('autocomplete', 'off');
+        input.setAttribute('autocapitalize', 'off');
+        input.setAttribute('spellcheck', 'false');
+        input.placeholder = 'you@walletofsatoshi.com';
+        input.value = opts.address ? String(opts.address) : '';
+        input.style.cssText = 'width:100%;padding:12px;background:#020617;border:1px solid #1e293b;border-radius:10px;color:#e2e8f0;font-size:1rem;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;outline:none;box-sizing:border-box;';
+        var nextRow = document.createElement('div');
+        nextRow.style.cssText = 'display:flex;gap:8px;margin-top:14px;';
+        var cancelBtn = _lnBtn('Cancel', false);
+        var nextBtn = _lnBtn('Continue', true);
+        nextRow.appendChild(cancelBtn);
+        nextRow.appendChild(nextBtn);
+        stepInput.appendChild(inputLabel);
+        stepInput.appendChild(input);
+        stepInput.appendChild(nextRow);
+
+        var stepConfirm = document.createElement('div');
+        stepConfirm.id = 'lnAddrStepConfirm';
+        var addrEl = document.createElement('div');
+        addrEl.id = 'lnAddrConfirmText';
+        addrEl.style.cssText = 'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:1.35rem;font-weight:700;color:#fff;text-align:center;word-break:break-all;line-height:1.35;margin:8px 0 12px;';
+        var check = document.createElement('p');
+        check.textContent = LN_DOUBLE_CHECK;
+        check.style.cssText = 'margin:0 0 8px;font-size:0.95rem;font-weight:700;text-align:center;color:#fff;';
+        var warn = document.createElement('p');
+        warn.textContent = LN_PERMANENT_WARNING;
+        warn.style.cssText = 'margin:0 0 14px;font-size:0.8rem;line-height:1.45;color:#cbd5e1;text-align:center;';
+        var checkRow = document.createElement('label');
+        checkRow.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:0.85rem;margin-bottom:12px;cursor:pointer;';
+        var box = document.createElement('input');
+        box.type = 'checkbox';
+        box.id = 'lnAddrUnderstand';
+        var boxText = document.createElement('span');
+        boxText.textContent = 'I understand';
+        checkRow.appendChild(box);
+        checkRow.appendChild(boxText);
+        var ts = document.createElement('div');
+        ts.id = 'lnAddrTurnstile';
+        ts.style.cssText = 'margin-bottom:12px;';
+        var confirmRow = document.createElement('div');
+        confirmRow.style.cssText = 'display:flex;gap:8px;';
+        var backBtn = _lnBtn('Back / Edit', false);
+        var confirmBtn = _lnBtn('Confirm', true);
+        confirmBtn.id = 'lnAddrConfirmBtn';
+        confirmBtn.disabled = true;
+        confirmBtn.style.opacity = '0.55';
+        confirmRow.appendChild(backBtn);
+        confirmRow.appendChild(confirmBtn);
+        stepConfirm.appendChild(addrEl);
+        stepConfirm.appendChild(check);
+        stepConfirm.appendChild(warn);
+        stepConfirm.appendChild(checkRow);
+        stepConfirm.appendChild(ts);
+        stepConfirm.appendChild(confirmRow);
+
+        var stepRead = document.createElement('div');
+        stepRead.id = 'lnAddrStepReadonly';
+        var readAddr = document.createElement('div');
+        readAddr.id = 'lnAddrReadonlyText';
+        readAddr.style.cssText = addrEl.style.cssText;
+        var readNote = document.createElement('p');
+        readNote.textContent = LN_READONLY_NOTE;
+        readNote.style.cssText = 'margin:0 0 14px;font-size:0.8rem;line-height:1.45;color:#cbd5e1;text-align:center;';
+        var closeBtn = _lnBtn('Close', true);
+        stepRead.appendChild(readAddr);
+        stepRead.appendChild(readNote);
+        stepRead.appendChild(closeBtn);
+
+        panel.appendChild(stepInput);
+        panel.appendChild(stepConfirm);
+        panel.appendChild(stepRead);
+        overlay.appendChild(panel);
+
+        var chosen = normalizeClientLn(opts.address || '');
+        var widgetRendered = false;
+
+        function paintLnStep(name) {
+            stepInput.style.display = name === 'input' ? 'block' : 'none';
+            stepConfirm.style.display = name === 'confirm' ? 'block' : 'none';
+            stepRead.style.display = name === 'readonly' ? 'block' : 'none';
+            title.textContent = name === 'readonly' ? 'Withdrawal Lightning Address' : LN_SET_TITLE;
+            if (name === 'confirm' && mode === 'reset' && !widgetRendered) {
+                widgetRendered = true;
+                var lnWidget = document.getElementById('lnAddrTurnstile');
+                if (lnWidget && !lnWidget.getAttribute('data-sitekey')) lnWidget.setAttribute('data-sitekey', LN_TURNSTILE_SITEKEY);
+                if (typeof window._ensureTurnstile === 'function') window._ensureTurnstile(lnWidget);
+            }
+            if (name === 'confirm' && mode !== 'reset') ts.style.display = 'none';
+        }
+
+        function goConfirm(addr) {
+            chosen = addr;
+            addrEl.textContent = addr;
+            box.checked = false;
+            confirmBtn.disabled = true;
+            confirmBtn.style.opacity = '0.55';
+            paintLnError('');
+            paintLnStep('confirm');
+        }
+
+        cancelBtn.addEventListener('click', function () { finish(null); });
+        closeBtn.addEventListener('click', function () { finish(null); });
+        nextBtn.addEventListener('click', function () {
+            var addr = normalizeClientLn(input.value);
+            if (!clientLnValid(addr)) {
+                paintLnError('Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)');
+                return;
+            }
+            paintLnError('');
+            goConfirm(addr);
+        });
+        backBtn.addEventListener('click', function () {
+            input.value = chosen || input.value;
+            paintLnStep('input');
+        });
+        box.addEventListener('change', function () {
+            confirmBtn.disabled = !box.checked;
+            confirmBtn.style.opacity = box.checked ? '1' : '0.55';
+        });
+        confirmBtn.addEventListener('click', function () {
+            if (!box.checked || !chosen) return;
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Saving…';
+            var pending = Promise.resolve({ ok: true, address: chosen });
+            if (typeof opts.onConfirm === 'function') pending = Promise.resolve(opts.onConfirm(chosen));
+            else if (mode === 'reset') pending = _callResetLightning(chosen);
+            pending.then(function (result) {
+                result = result || { ok: true, address: chosen };
+                if (result.ok === false) {
+                    paintLnError(result.error || 'Could not resolve Lightning Address. Check the address and try again.');
+                    confirmBtn.textContent = 'Confirm';
+                    confirmBtn.disabled = !box.checked;
+                    confirmBtn.style.opacity = box.checked ? '1' : '0.55';
+                    input.value = chosen;
+                    paintLnStep('input');
+                    return;
+                }
+                finish(result.address || chosen);
+            }).catch(function (e) {
+                paintLnError((e && e.message) ? e.message : 'Could not resolve Lightning Address. Check the address and try again.');
+                confirmBtn.textContent = 'Confirm';
+                confirmBtn.disabled = !box.checked;
+                input.value = chosen;
+                paintLnStep('input');
+            });
+        });
+
+        if (mode === 'readonly' || start === 'readonly') {
+            readAddr.textContent = normalizeClientLn(opts.address || _savedWithdrawalLn());
+            paintLnStep('readonly');
+        } else if (start === 'confirm' && clientLnValid(normalizeClientLn(opts.address || ''))) {
+            goConfirm(normalizeClientLn(opts.address));
+        } else {
+            paintLnStep('input');
+        }
+
+        document.body.appendChild(overlay);
+        if (stepInput.style.display !== 'none') {
+            setTimeout(function () { try { input.focus(); } catch (e) {} }, 30);
+        }
+    });
+}
+
+function _callResetLightning(addr, proofId) {
+    var token = '';
+    var tsEl = document.querySelector('#lnAddrTurnstile [name="cf-turnstile-response"]');
+    if (tsEl) token = tsEl.value || '';
+    if (!token) return Promise.resolve({ ok: false, error: 'Security check pending — please wait a moment and try again.', code: 'turnstile' });
+    var appCheckReady;
+    try {
+        appCheckReady = (typeof window._btcAppCheckForClaim === 'function')
+            ? window._btcAppCheckForClaim(8000).then(function (token) {
+                if (!token) throw new Error('app-check');
+            })
+            : firebase.appCheck().getToken(false);
+    } catch (e) {
+        return Promise.resolve({ ok: false, error: 'Security check failed. Refresh the page and try again.' });
+    }
+    var proofReady = Promise.resolve(proofId || '');
+    if (!proofId && mfaNeedsFreshCode()) proofReady = window._showFreshStepUp('resetLightningAddress');
+    return proofReady.then(function (proof) {
+        if (proof === null) return { ok: false, error: 'Enter a fresh authenticator code to change your Lightning Address.', code: 'fresh' };
+        return appCheckReady.then(function () {
+            var fn = firebase.functions().httpsCallable('resetLightningAddressOnce');
+            var body = { lightningAddress: addr, turnstileToken: token };
+            if (proof) body.freshProofId = proof;
+            return fn(body);
+        });
+    }).then(function (res) {
+        if (res && res.ok === false && res.code === 'fresh') return res;
+        var data = res && res.data ? res.data : {};
+        if (!data.ok) return { ok: false, error: data.error || 'Could not resolve Lightning Address. Check the address and try again.', code: data.code || 'address_unresolved' };
+        if (typeof currentUser !== 'undefined' && currentUser) {
+            currentUser.lightning = data.address || addr;
+            currentUser.lightningAddress = data.address || addr;
+        }
+        try { sessionStorage.removeItem('btc_ln_needs_reset'); } catch (e) {}
+        if (typeof showToast === 'function') showToast('Lightning Address saved.');
+        return { ok: true, address: data.address || addr };
+    }).catch(function (e) {
+        var msg = (e && e.message) ? e.message : 'Could not resolve Lightning Address. Check the address and try again.';
+        if (!proofId && msg.indexOf('fresh authenticator') !== -1 && typeof window._showFreshStepUp === 'function') {
+            return window._showFreshStepUp('resetLightningAddress').then(function (proof) {
+                if (!proof) return { ok: false, error: msg, code: 'fresh' };
+                return _callResetLightning(addr, proof);
+            });
+        }
+        return { ok: false, error: msg, code: 'address_unresolved' };
+    });
+}
+
+function showWithdrawalAddressReadonly(addr) {
+    return openWithdrawalAddress({ mode: 'readonly', address: addr || _savedWithdrawalLn(), start: 'readonly' });
+}
+
+window.openWithdrawalAddress = openWithdrawalAddress;
+window.showWithdrawalAddressReadonly = showWithdrawalAddressReadonly;
+window._withdrawalLnEligible = _withdrawalLnEligible;
+
+
 // ---- Init Firebase & Auth ----
+// IndexedDB uid read starts as soon as this file runs, not inside auth.
+startOptimisticProfilePaint();
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initRanking);
 } else {
     initRanking();
 }
 
-// ---- Leaderboard pre-fetch: warm cache ~5s after page load so open is instant ----
-(function() {
-    var _prefetched = false;
-    function _prefetchLeaderboard() {
-        if (_prefetched) return;
-        if (!db) return;
-        var now = Date.now();
-        var useCache = window._lbCache && window._lbCacheTime && (now - window._lbCacheTime < 600000);
-        if (useCache) { _prefetched = true; return; }
-        _prefetched = true;
-        db.collection('public_profiles').orderBy('points', 'desc').limit(150).get().then(function(snap) {
-            var users = [];
-            snap.forEach(function(doc) {
-                var d = doc.data();
-                if ((d.points || 0) > 0 && !d.ghostMode) {
-                    users.push(Object.assign({ id: doc.id }, d));
-                }
-            });
-            window._lbCache = users;
-            window._lbCacheTime = Date.now();
-        }).catch(function() { _prefetched = false; });
-    }
-    // Fire after 5s — well after Firebase init, without blocking critical path
-    setTimeout(_prefetchLeaderboard, 5000);
-    window._prefetchLeaderboard = _prefetchLeaderboard;
-})();
+// Leaderboard snapshots load when a board opens. Nothing is prefetched at boot.
 
 // ---- OPENCLAW EXPORTS ----
 if (typeof toggleLeaderboard !== "undefined") window.toggleLeaderboard = toggleLeaderboard;
@@ -7321,21 +11906,22 @@ window.setDisplayBadge = function(badgeId) {
 if (typeof changeUsername === 'undefined') window.changeUsername = async function(name) {
     // Read from input if no name passed
     if (!name) { var inp = document.getElementById('newUsername'); if (inp) name = inp.value.trim(); }
+    if (name && /[\s\u180E\u200B-\u200D\u2060\uFEFF]/.test(name)) { showToast('⚠️ Usernames cannot contain spaces. Try ' + name.replace(/[\s\u180E\u200B-\u200D\u2060\uFEFF]+/g, '_') + ' instead.'); return; }
     // Strip non-ASCII (prevent Unicode/homoglyph bypass)
     if (name) name = name.replace(/[^\x20-\x7E]/g, '').replace(/[\\'"<>]/g, '').trim();
-    if (!name || name.length < 2) { showToast('Username must be at least 2 characters (ASCII only)'); return; }
+    if (!name || name.length < 3) { showToast('Username must be at least 3 characters'); return; }
     if (name.length > 20) { showToast('Username max 20 characters'); return; }
     if (containsProfanity(name)) { showToast('⚠️ That username is not allowed.'); return; }
     if (typeof isCleanText === 'function' && !isCleanText(name)) { showToast('Username contains inappropriate language'); return; }
-    // Save locally always (works for anon too)
-    localStorage.setItem('btc_username', name);
-    if (currentUser) { currentUser.username = name; }
-    updateAuthButton(); updateRankUI();
-    // Save to Firestore if signed in
     if (auth && auth.currentUser && db) {
-        try { await db.collection('users').doc(auth.currentUser.uid).update({ username: name, username_lower: name.toLowerCase() }); } catch(e) { console.warn('Username Firestore save failed:', e); }
+        try { await applyServerUsername(name); }
+        catch (e) { showToast(e.message || 'Could not save that username.'); return; }
+    } else {
+        showToast('Sign in before choosing a username.');
+        return;
     }
-    showToast('✅ Username updated to ' + name);
+    updateAuthButton(); updateRankUI();
+    showToast('Username updated');
     // Update the "Current username" label and button to confirm
     var curLabel = document.querySelector('[id="currentUsernameLabel"]');
     if (!curLabel) {
@@ -7352,7 +11938,19 @@ if (typeof changeUsername === 'undefined') window.changeUsername = async functio
         setTimeout(function() { btn.textContent = 'Save New Username'; btn.style.background = 'var(--accent)'; }, 2000);
     }
 };
-window.togglePushNotifications = async function() { try { if (!('Notification' in window)) { showToast('Notifications not supported in this browser'); return; } var permission = await Notification.requestPermission(); if (permission === 'granted') { localStorage.setItem('btc_push_enabled', 'true'); showToast('🔔 Notifications Enabled!'); } else { localStorage.setItem('btc_push_enabled', 'false'); showToast('❌ Notification permission denied'); } showSettingsPage('prefs'); } catch(e) { console.error(e); } };
+window.togglePushNotifications = function() {
+    var run = function() {
+        if (typeof window.enablePushFromTap !== 'function') return;
+        window.enablePushFromTap().then(function() {
+            if (typeof window.renderNotificationSettings === 'function') window.renderNotificationSettings();
+        });
+    };
+    if (typeof window.enablePushFromTap === 'function') { run(); return; }
+    var s = document.createElement('script');
+    s.src = 'notifications.js?v=20261105_v2497';
+    s.onload = run;
+    document.body.appendChild(s);
+};
 if (typeof sendEmailVerification === 'undefined') window.sendEmailVerification = function() { if (auth && auth.currentUser && auth.currentUser.sendEmailVerification) { auth.currentUser.sendEmailVerification().then(function() { showToast('📧 Verification email sent!'); }).catch(function() { showToast('Could not send verification email'); }); } };
 // ===== PHONE 2FA ENROLLMENT =====
 // Uses Firebase Phone MFA (compat SDK v9)
@@ -7369,7 +11967,8 @@ window.disable2FA = async function() {
             await auth.currentUser.multiFactor.unenroll(f);
         }
         await db.collection('users').doc(auth.currentUser.uid).update({ phoneVerified: false }).catch(function() {});
-        showToast('✅ 2FA disabled');
+        try { await firebase.functions().httpsCallable('phoneFactorRemoved')({}); } catch (e) {}
+        showToast('Phone verification is off');
         showSettingsPage('security');
     } catch(e) {
         if (e.code === 'auth/requires-recent-login') {
@@ -7450,9 +12049,12 @@ window.verifyMFACode = async function() {
         var cred = firebase.auth.PhoneAuthProvider.credential(window._mfaVerificationId, code);
         var multiFactorAssertion = firebase.auth.PhoneMultiFactorGenerator.assertion(cred);
         await auth.currentUser.multiFactor.enroll(multiFactorAssertion, 'Phone Number');
-        await db.collection('users').doc(auth.currentUser.uid).update({ phoneVerified: true }).catch(function() {});
         window._mfaVerificationId = null;
-        showToast('✅ 2FA enabled! Your account is now protected.');
+        try {
+            var issued = await firebase.functions().httpsCallable('issueRecoveryCodes')({});
+            if (issued && issued.data && issued.data.recoveryCodes) window._showRecoveryCodes(issued.data.recoveryCodes);
+        } catch (codeErr) {}
+        showToast('Phone verification is on. Sign out and back in once so it covers withdrawals and gifts.');
         showSettingsPage('security');
     } catch(e) {
         console.error('[MFA Verify]', e.code, e.message);
@@ -7471,6 +12073,13 @@ window.verifyMFACode = async function() {
 // TOTP sign-in challenge — shown when totpEnabled===true and session not yet verified.
 // Uses existing totpCheck Cloud Function. Calls loadUser again on success.
 window._showTotpSignInChallenge = function() {
+    noteTotpHold(auth && auth.currentUser && auth.currentUser.uid);
+    clearTotpVerified();
+    if (auth && auth.currentUser) holdAuthDisplayForTotp(auth.currentUser.uid);
+    if (tosBlocking()) {
+        window.runAfterTos(function() { window._showTotpSignInChallenge(); });
+        return;
+    }
     if (document.getElementById('totpSignInOverlay')) return;
     var overlay = document.createElement('div');
     overlay.id = 'totpSignInOverlay';
@@ -7481,9 +12090,18 @@ window._showTotpSignInChallenge = function() {
             '<div style="font-weight:800;font-size:1.1rem;color:var(--heading,#fff);margin-bottom:6px;">Authenticator Code</div>' +
             '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:16px;">Open your authenticator app and enter the 6-digit code</div>' +
             '<input id="totpSignInInput" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="width:100%;padding:14px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1.6rem;text-align:center;letter-spacing:6px;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;">' +
+            '<label style="display:flex;align-items:flex-start;gap:8px;text-align:left;font-size:0.82rem;color:var(--text,#fff);margin:0 0 12px;cursor:pointer;line-height:1.35;">' +
+            '<input id="totpRememberDevice" type="checkbox" checked style="margin-top:2px;">' +
+            '<span>Remember this device for 30 days</span></label>' +
             '<div id="totpSignInStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);min-height:18px;margin-bottom:12px;"></div>' +
             '<button id="totpSignInBtn" onclick="window._submitTotpSignIn()" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Verify</button>' +
-            '<button onclick="signOutUser()" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel (Sign out)</button>' +
+            '<button onclick="window._toggleRecoveryEntry()" style="width:100%;padding:10px;background:none;border:none;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Use a recovery code</button>' +
+            '<div id="totpRecoveryBox" style="display:none;margin-bottom:8px;">' +
+            '<input id="totpRecoveryInput" type="text" autocomplete="one-time-code" placeholder="XXXX-XXXX" style="width:100%;padding:12px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1rem;text-align:center;letter-spacing:2px;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box;">' +
+            '<button onclick="window._submitRecoveryCode(\'totp\')" style="width:100%;padding:10px;background:none;border:1px solid var(--accent,#f97316);border-radius:10px;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;">Turn off 2FA with this code</button>' +
+            '</div>' +
+            '<button onclick="window._showLostAccess()" style="width:100%;padding:8px;background:none;border:none;color:var(--text-muted,#aaa);font-size:0.8rem;cursor:pointer;font-family:inherit;margin-bottom:4px;">Lost your device?</button>' +
+            '<button onclick="signOutUser(true)" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel (Sign out)</button>' +
         '</div>';
     document.body.appendChild(overlay);
     // Focus input and allow Enter key
@@ -7509,22 +12127,42 @@ window._submitTotpSignIn = async function() {
     if (btn) { btn.disabled = true; btn.textContent = 'Verifying...'; }
     if (statusEl) statusEl.textContent = '';
     try {
+        var rememberEl = document.getElementById('totpRememberDevice');
+        var remember = !rememberEl || rememberEl.checked;
+        var payload = { code: code, rememberDevice: remember === true };
+        if (remember && auth && auth.currentUser) {
+            try {
+                var previous = localStorage.getItem(mfaDeviceKey(auth.currentUser.uid)) || '';
+                if (/^[0-9a-f]{64}$/.test(previous)) payload.previousDeviceToken = previous;
+            } catch (e0) {}
+        }
         var checkFn = firebase.functions().httpsCallable('totpCheck');
-        await checkFn({ code: code });
-        // Mark as verified — persists across app reopens; cleared by clearUserLocalStorage() on sign-out
-        if (auth && auth.currentUser) localStorage.setItem('btc_totp_verified_' + auth.currentUser.uid, '1');
-        // Remove overlay and complete loadUser
+        var checked = await checkFn(payload);
+        var checkedData = (checked && checked.data) || {};
+        if (auth && auth.currentUser && checkedData.sessionId) window._rememberMfaSession(auth.currentUser.uid, checkedData.sessionId);
+        if (auth && auth.currentUser) {
+            if (checkedData.deviceToken) window._rememberMfaDevice(auth.currentUser.uid, checkedData.deviceToken);
+            else if (!remember) mfaClearDevice(auth.currentUser.uid);
+        }
         var ov = document.getElementById('totpSignInOverlay');
         if (ov) ov.remove();
-        // Resume — call loadUser again now that TOTP is verified
+        if (checkedData.recoveryCodes) window._showRecoveryCodes(checkedData.recoveryCodes);
+        if (auth && auth.currentUser) noteTotpVerified(auth.currentUser.uid);
+        clearTotpHold();
+        _resumeAfterSecondFactor();
         if (typeof loadUser === 'function' && auth && auth.currentUser) {
             loadUser(auth.currentUser.uid).catch(function(e) { console.error('[TOTP] loadUser after verify failed:', e); });
         }
     } catch(e) {
+        noteTotpHold(auth && auth.currentUser && auth.currentUser.uid);
+        clearTotpVerified();
+        clearAuthDisplay();
+        if (auth && auth.currentUser && window.btcAuthDisplay && window.btcAuthDisplay.markNeeds2fa) {
+            window.btcAuthDisplay.markNeeds2fa(auth.currentUser.uid);
+        }
+        if (typeof updateAuthButton === 'function') updateAuthButton();
         if (btn) { btn.disabled = false; btn.textContent = 'Verify'; }
-        var msg = (e.code === 'functions/invalid-argument') ? '❌ Wrong code — try again'
-                : (e.code === 'functions/resource-exhausted') ? '⏳ Too many attempts. Wait 2 minutes.'
-                : '❌ ' + (e.message || 'Verification failed');
+        var msg = _mfaFailure(e);
         if (statusEl) statusEl.textContent = msg;
         if (inp) { inp.value = ''; inp.focus(); }
     }
@@ -7532,6 +12170,10 @@ window._submitTotpSignIn = async function() {
 
 // Show MFA sign-in challenge when user with phone 2FA tries to sign in
 window._showMFASignInChallenge = async function(resolver) {
+    if (tosBlocking()) {
+        window.runAfterTos(function() { window._showMFASignInChallenge(resolver); });
+        return;
+    }
     // Guard against double-fire (direct catch + race catch both triggering)
     if (document.getElementById('mfaSignInOverlay')) return;
     window._mfaResolver = resolver;
@@ -7545,13 +12187,20 @@ window._showMFASignInChallenge = async function(resolver) {
         overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:340px;width:100%;text-align:center;">' +
             '<div style="font-size:2.5rem;margin-bottom:10px;">⚠️</div>' +
             '<div style="font-weight:800;font-size:1.1rem;color:var(--heading,#fff);margin-bottom:8px;">SMS 2FA unavailable on Safari</div>' +
-            '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:16px;line-height:1.5;">Safari blocks the verification step required for SMS codes. To sign in, either:<br><br>' +
-            '① Use <strong style="color:#fff;">Chrome, Firefox, or another browser</strong><br><br>' +
-            '② Or sign in on another browser, go to <strong style="color:#fff;">Settings → Security</strong>, disable SMS 2FA, and switch to the authenticator app.</div>' +
-            '<button onclick="window._cancelMFASignIn()" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;">OK</button>' +
+            '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:16px;line-height:1.5;">Safari blocks the text-message step. Use Chrome or Firefox to enter the phone code, or use a recovery code below. That turns two-factor authentication off so you can sign in and switch to an authenticator app.</div>' +
+            '<button onclick="window._toggleRecoveryEntry()" style="width:100%;padding:10px;background:none;border:none;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Use a recovery code</button>' +
+            '<div id="totpRecoveryBox" style="display:none;text-align:left;margin-bottom:8px;">' +
+            '<input id="mfaRecoveryEmail" type="email" placeholder="Email on the account" style="width:100%;padding:10px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:0.9rem;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box;">' +
+            '<input id="totpRecoveryInput" type="text" autocomplete="one-time-code" placeholder="XXXX-XXXX" style="width:100%;padding:10px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1rem;text-align:center;letter-spacing:2px;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box;">' +
+            '<button onclick="window._submitRecoveryCode(\'phone\')" style="width:100%;padding:10px;background:none;border:1px solid var(--accent,#f97316);border-radius:10px;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;">Turn off 2FA with this code</button>' +
+            '</div>' +
+            '<div id="mfaSignInStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);min-height:18px;margin-bottom:8px;"></div>' +
+            '<button onclick="window._showLostAccess()" style="width:100%;padding:8px;background:none;border:none;color:var(--text-muted,#aaa);font-size:0.8rem;cursor:pointer;font-family:inherit;margin-bottom:4px;">Lost your device?</button>' +
+            '<button onclick="window._cancelMFASignIn()" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
             '</div>';
         document.body.appendChild(overlay);
-        overlay.addEventListener('click', function(e) { if (e.target === overlay) window._cancelMFASignIn(); });
+        var safariEmail = document.getElementById('mfaRecoveryEmail');
+        if (safariEmail && window._mfaRecoveryEmail) safariEmail.value = window._mfaRecoveryEmail;
         return;
     }
 
@@ -7564,9 +12213,18 @@ window._showMFASignInChallenge = async function(resolver) {
         '<button onclick="window._sendMFACode()" id="mfaSendCodeBtn" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Send Code</button>' +
         '<button onclick="window._submitMFASignIn()" style="width:100%;padding:10px;background:none;border:1px solid var(--accent,#f97316);border-radius:10px;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Verify</button>' +
         '<button onclick="window._sendMFACode()" style="display:none" id="mfaResendBtn">Resend Code</button>' +
+        '<button onclick="window._toggleRecoveryEntry()" style="width:100%;padding:8px;background:none;border:none;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Use a recovery code</button>' +
+        '<div id="totpRecoveryBox" style="display:none;text-align:left;margin-bottom:8px;">' +
+        '<input id="mfaRecoveryEmail" type="email" placeholder="Email on the account" style="width:100%;padding:10px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:0.9rem;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box;">' +
+        '<input id="totpRecoveryInput" type="text" autocomplete="one-time-code" placeholder="XXXX-XXXX" style="width:100%;padding:10px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1rem;text-align:center;letter-spacing:2px;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box;">' +
+        '<button onclick="window._submitRecoveryCode(\'phone\')" style="width:100%;padding:10px;background:none;border:1px solid var(--accent,#f97316);border-radius:10px;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;">Turn off 2FA with this code</button>' +
+        '</div>' +
+        '<button onclick="window._showLostAccess()" style="width:100%;padding:8px;background:none;border:none;color:var(--text-muted,#aaa);font-size:0.8rem;cursor:pointer;font-family:inherit;margin-bottom:4px;">Lost your device?</button>' +
         '<button onclick="window._cancelMFASignIn()" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
         '</div>';
     document.body.appendChild(overlay);
+    var recoveryEmail = document.getElementById('mfaRecoveryEmail');
+    if (recoveryEmail && window._mfaRecoveryEmail) recoveryEmail.value = window._mfaRecoveryEmail;
     // Send the code automatically
     window._sendMFACode = async function() {
         var statusEl = document.getElementById('mfaSignInStatus');
@@ -7689,31 +12347,330 @@ window._submitMFASignIn = async function() {
         }
     }
 };
-if (typeof sendPasswordReset === 'undefined') window.sendPasswordReset = function() { if (auth && auth.currentUser && auth.currentUser.email) { auth.sendPasswordResetEmail(auth.currentUser.email).then(function() { showToast('📧 Password reset email sent!'); }).catch(function() { showToast('Could not send reset email'); }); } };
-if (typeof confirmDeleteAccount === 'undefined') window.confirmDeleteAccount = function() { if (!confirm('Are you sure you want to delete your account? This cannot be undone.')) return; if (auth && auth.currentUser) { var uid = auth.currentUser.uid; db.collection('users').doc(uid).delete().then(function() { return auth.currentUser.delete(); }).then(function() { localStorage.clear(); location.reload(); }).catch(function(e) { showToast('Error: ' + e.message); }); } };
-async function loadTotpStatus() {
-    var section = document.getElementById('totpSection');
-    if (!section) return;
-    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
-        section.innerHTML = '<div style="color:var(--text-faint);font-size:0.85rem;">Sign in to enable authenticator app.</div>';
+if (typeof sendPasswordReset === 'undefined') window.sendPasswordReset = function() {
+    if (!(auth && auth.currentUser && auth.currentUser.email)) return;
+    var uid = auth.currentUser.uid;
+    auth.sendPasswordResetEmail(auth.currentUser.email).then(function() {
+        var drop = Promise.resolve();
+        if (typeof firebase !== 'undefined' && firebase.functions) {
+            drop = firebase.functions().httpsCallable('totpRevokeAllTrust')({}).catch(function() {});
+        }
+        return drop.then(function() {
+            try {
+                localStorage.removeItem('btc_mfa_device_' + uid);
+                localStorage.removeItem('btc_mfa_session_' + uid);
+            } catch (e) {}
+            showToast('Password reset email sent. Remembered devices were signed out.');
+        });
+    }).catch(function() { showToast('Could not send reset email'); });
+};
+if (typeof confirmDeleteAccount === 'undefined') window.confirmDeleteAccount = function () { if (typeof showToast === 'function') showToast('Open Settings and confirm deletion there.'); };
+window._toggleRecoveryEntry = function () {
+    var box = document.getElementById('totpRecoveryBox');
+    if (box) box.style.display = box.style.display === 'none' ? 'block' : 'none';
+};
+
+window._showLostAccess = function () {
+    if (document.getElementById('lostAccessOverlay')) return;
+    var overlay = document.createElement('div');
+    overlay.id = 'lostAccessOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:700001;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:420px;width:100%;">' +
+        '<div style="font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:8px;">Lost your device?</div>' +
+        '<div style="color:var(--text-muted,#aaa);font-size:0.88rem;line-height:1.55;margin-bottom:14px;">Enter one of the recovery codes you saved when you turned on two-factor authentication. That code works once and turns two-factor authentication off, so you can sign in and set it up again. If you lost those codes too, contact support. After they confirm it is you, they can turn it off.</div>' +
+        '<button onclick="document.getElementById(\'lostAccessOverlay\').remove()" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">OK</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+};
+
+window._showRecoveryCodes = function (codes) {
+    window._recoveryCodesPlain = (codes || []).slice();
+    var old = document.getElementById('recoveryCodesOverlay');
+    if (old) old.remove();
+    var lines = window._recoveryCodesPlain.map(function (c) {
+        return '<div style="font-family:ui-monospace,monospace;font-size:1rem;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--border,#333);">' + c + '</div>';
+    }).join('');
+    var overlay = document.createElement('div');
+    overlay.id = 'recoveryCodesOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:700002;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:22px;max-width:420px;width:100%;max-height:90vh;overflow:auto;">' +
+        '<div style="font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:6px;">Save your recovery codes</div>' +
+        '<div style="color:var(--text-muted,#aaa);font-size:0.82rem;line-height:1.5;margin-bottom:12px;">These are shown once. Each code works one time and turns two-factor authentication off. Store them somewhere safe.</div>' +
+        '<div style="background:rgba(0,0,0,0.25);border-radius:10px;padding:8px 12px;margin-bottom:12px;">' + lines + '</div>' +
+        '<div style="display:flex;gap:8px;margin-bottom:8px;">' +
+        '<button onclick="window._copyRecoveryCodes()" style="flex:1;padding:10px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Copy</button>' +
+        '<button onclick="window._downloadRecoveryCodes()" style="flex:1;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-weight:700;cursor:pointer;font-family:inherit;">Download</button>' +
+        '</div>' +
+        '<button onclick="document.getElementById(\'recoveryCodesOverlay\').remove()" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:8px;color:var(--text-muted,#aaa);cursor:pointer;font-family:inherit;">I saved these codes</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+};
+
+window._copyRecoveryCodes = function () {
+    var text = (window._recoveryCodesPlain || []).join('\n');
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { if (typeof showToast === 'function') showToast('Recovery codes copied'); });
+    }
+};
+
+window._downloadRecoveryCodes = function () {
+    var text = (window._recoveryCodesPlain || []).join('\n');
+    if (!text) return;
+    var blob = new Blob([text + '\n'], { type: 'text/plain' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'bitcoin-quest-recovery-codes.txt';
+    a.click();
+};
+
+window._submitRecoveryCode = async function (kind) {
+    var codeEl = document.getElementById('totpRecoveryInput');
+    var emailEl = document.getElementById('mfaRecoveryEmail');
+    var statusEl = document.getElementById(kind === 'phone' ? 'mfaSignInStatus' : 'totpSignInStatus');
+    var code = codeEl ? codeEl.value.trim() : '';
+    if (!code) { if (statusEl) statusEl.textContent = 'Enter a recovery code'; return; }
+    try {
+        var payload = { code: code };
+        if (kind === 'phone') {
+            payload.email = (emailEl && emailEl.value.trim()) || window._mfaRecoveryEmail || '';
+            if (!payload.email) { if (statusEl) statusEl.textContent = 'Enter the email on the account'; return; }
+        }
+        await firebase.functions().httpsCallable('useRecoveryCode')(payload);
+        var ov1 = document.getElementById('totpSignInOverlay'); if (ov1) ov1.remove();
+        var ov2 = document.getElementById('mfaSignInOverlay'); if (ov2) ov2.remove();
+        if (kind === 'phone') {
+            if (typeof showToast === 'function') showToast('Two-factor authentication is off. Sign in again.');
+            if (typeof auth !== 'undefined') auth.signOut().catch(function () {});
+            return;
+        }
+        if (auth && auth.currentUser) {
+            try {
+                localStorage.removeItem('btc_mfa_session_' + auth.currentUser.uid);
+                localStorage.removeItem('btc_mfa_device_' + auth.currentUser.uid);
+            } catch (e) {}
+        }
+        if (typeof showToast === 'function') showToast('Two-factor authentication is off. You can turn it on again in Settings.');
+        if (typeof loadUser === 'function' && auth && auth.currentUser) loadUser(auth.currentUser.uid);
+    } catch (e) {
+        if (statusEl) statusEl.textContent = _mfaFailure(e);
+    }
+};
+
+window._regenerateRecoveryCodes = async function () {
+    var codeEl = document.getElementById('totpRegenCode');
+    var code = codeEl ? codeEl.value.trim() : '';
+    try {
+        var res = await firebase.functions().httpsCallable('regenerateRecoveryCodes')({ code: code });
+        if (res && res.data && res.data.recoveryCodes) window._showRecoveryCodes(res.data.recoveryCodes);
+        else if (typeof showToast === 'function') showToast('Could not create new codes');
+    } catch (e) {
+        if (typeof showToast === 'function') showToast(_mfaFailure(e));
+    }
+};
+
+function mfaEscapeText(value) {
+    return String(value || '').replace(/[&<>"']/g, function (c) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+    });
+}
+
+function mfaWhen(ms) {
+    var n = Number(ms);
+    if (!n) return 'Unknown';
+    try { return new Date(n).toLocaleString(); } catch (e) { return 'Unknown'; }
+}
+
+window._renderTrustedDevices = function (devices) {
+    var list = document.getElementById('trustedDeviceList');
+    if (!list) return;
+    var rows = devices || [];
+    if (!rows.length) {
+        list.innerHTML = '<div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:8px;">No remembered devices.</div>';
         return;
     }
+    list.innerHTML = rows.map(function (device) {
+        var id = String(device.id || '');
+        if (!/^[a-f0-9]{32}$/.test(id)) return '';
+        var label = mfaEscapeText(device.label || 'Browser');
+        var mine = device.current ? ' · This device' : '';
+        return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">' +
+            '<div style="text-align:left;"><div style="color:var(--heading);font-size:0.82rem;font-weight:700;">' + label + mine + '</div>' +
+            '<div style="color:var(--text-muted);font-size:0.72rem;">Added ' + mfaEscapeText(mfaWhen(device.createdAtMs)) + ' · Last used ' + mfaEscapeText(mfaWhen(device.lastUsedAtMs)) + '</div></div>' +
+            '<button type="button" onclick="window._removeTrustedDevice(\'' + id + '\',' + (device.current ? 'true' : 'false') + ')" style="padding:6px 10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;cursor:pointer;font-family:inherit;font-size:0.75rem;">Remove</button></div>';
+    }).join('');
+};
+
+window._loadTrustedDevices = async function () {
+    var list = document.getElementById('trustedDeviceList');
+    if (!list || !auth || !auth.currentUser || typeof firebase === 'undefined' || !firebase.functions) return;
     try {
-        var totpStatusFn = firebase.functions().httpsCallable('totpStatus');
-        var result = await totpStatusFn();
-        if (result.data.enabled) {
-            section.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="color:#22c55e;font-size:1.2rem;">✅</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Authenticator app enabled</div><div style="color:var(--text-muted);font-size:0.8rem;">Google Authenticator, Authy, etc.</div></div></div>' +
-                '<div style="display:flex;gap:8px;"><input type="text" id="totpDisableCode" placeholder="Enter code to disable" maxlength="6" style="flex:1;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;text-align:center;">' +
-                '<button onclick="disableTotp()" style="padding:10px 16px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;cursor:pointer;font-family:inherit;">Disable</button></div>';
-        } else {
-            section.innerHTML = '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;"><span style="color:var(--text-faint);font-size:1.2rem;">📱</span><div><div style="color:var(--heading);font-weight:600;font-size:0.9rem;">Not configured</div><div style="color:var(--text-muted);font-size:0.8rem;">Use Google Authenticator, Authy, or any TOTP app</div></div></div>' +
-                '<button onclick="startTotpSetup()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">Set Up Authenticator App</button>';
+        var token = '';
+        try { token = localStorage.getItem(mfaDeviceKey(auth.currentUser.uid)) || ''; } catch (e) {}
+        var res = await firebase.functions().httpsCallable('totpListDevices')({ deviceToken: token });
+        window._renderTrustedDevices((res && res.data && res.data.devices) || []);
+    } catch (e) {
+        list.innerHTML = '<div style="color:var(--text-faint);font-size:0.78rem;">Could not load devices. ' + mfaEscapeText(_mfaFailure(e)) + '</div>';
+    }
+};
+
+window._removeTrustedDevice = async function (deviceId, isCurrent) {
+    if (!/^[a-f0-9]{32}$/.test(deviceId || '')) return;
+    try {
+        await firebase.functions().httpsCallable('totpRevokeDevice')({ deviceId: deviceId });
+        if (isCurrent && auth && auth.currentUser) mfaClearDevice(auth.currentUser.uid);
+        if (typeof showToast === 'function') showToast('Device removed');
+        window._loadTrustedDevices();
+    } catch (e) {
+        if (typeof showToast === 'function') showToast(_mfaFailure(e));
+    }
+};
+
+window._signOutOtherDevices = async function () {
+    try {
+        var token = '';
+        if (auth && auth.currentUser) {
+            try { token = localStorage.getItem(mfaDeviceKey(auth.currentUser.uid)) || ''; } catch (e) {}
         }
-    } catch(e) {
-        console.error('[TOTP Status] error:', e.code, e.message, e);
-        var errMsg = (e.code || e.message || 'unknown error');
-        section.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;padding:8px;background:var(--bg-side);border-radius:6px;margin-bottom:8px;">⚠️ Could not load authenticator status (' + errMsg + ')</div>' +
-            '<button onclick="loadTotpStatus()" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🔄 Try Again</button>';
+        await firebase.functions().httpsCallable('totpSignOutOtherDevices')({ deviceToken: token });
+        if (typeof showToast === 'function') showToast('Other devices were signed out');
+        window._loadTrustedDevices();
+    } catch (e) {
+        if (typeof showToast === 'function') showToast(_mfaFailure(e));
+    }
+};
+
+window._showFreshStepUp = function (action) {
+    var copy = {
+        resetLightningAddress: 'Enter a fresh authenticator code to change your Lightning Address. Remembering this device is not enough.',
+        deleteAccount: 'Enter a fresh authenticator code to delete this account. Remembering this device is not enough.',
+        disableTotp: 'Enter a fresh authenticator code to turn off two-factor authentication. A saved session is not enough.',
+        regenerateRecoveryCodes: 'Enter a fresh authenticator code to create new recovery codes. A saved session is not enough.',
+        changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.'
+    };
+    return new Promise(function (resolve) {
+        var old = document.getElementById('freshStepUpOverlay');
+        if (old) old.remove();
+        var settled = false;
+        function finish(value) {
+            if (settled) return;
+            settled = true;
+            var el = document.getElementById('freshStepUpOverlay');
+            if (el) el.remove();
+            resolve(value);
+        }
+        var overlay = document.createElement('div');
+        overlay.id = 'freshStepUpOverlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:2200030;display:flex;align-items:center;justify-content:center;padding:16px;';
+        overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:380px;width:100%;text-align:center;">' +
+            '<div style="font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:8px;">Fresh authenticator code</div>' +
+            '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;line-height:1.45;margin-bottom:14px;">' + mfaEscapeText(copy[action] || 'Enter a fresh authenticator code. A remembered device is not enough.') + '</div>' +
+            '<input id="freshStepUpInput" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="width:100%;padding:14px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1.4rem;text-align:center;letter-spacing:6px;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box;">' +
+            '<div id="freshStepUpStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);min-height:18px;margin-bottom:10px;"></div>' +
+            '<button id="freshStepUpBtn" type="button" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">Continue</button>' +
+            '<button id="freshStepUpCancel" type="button" style="width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);cursor:pointer;font-family:inherit;">Cancel</button>' +
+            '</div>';
+        document.body.appendChild(overlay);
+        overlay.querySelector('#freshStepUpCancel').addEventListener('click', function () { finish(null); });
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) finish(null); });
+        var input = overlay.querySelector('#freshStepUpInput');
+        var status = overlay.querySelector('#freshStepUpStatus');
+        var button = overlay.querySelector('#freshStepUpBtn');
+        async function submit() {
+            var code = input ? input.value.trim() : '';
+            if (code.length < 6) { if (status) status.textContent = 'Enter the full 6-digit code'; return; }
+            if (button) { button.disabled = true; button.textContent = 'Checking...'; }
+            try {
+                var res = await firebase.functions().httpsCallable('totpStepUp')({ code: code, action: action });
+                var proof = res && res.data && res.data.freshProofId;
+                if (!proof) throw new Error('Enter a fresh authenticator code for this action.');
+                finish(proof);
+            } catch (e) {
+                if (button) { button.disabled = false; button.textContent = 'Continue'; }
+                if (status) status.textContent = _mfaFailure(e);
+                if (input) { input.value = ''; input.focus(); }
+            }
+        }
+        button.addEventListener('click', function () { submit(); });
+        input.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
+        setTimeout(function () { try { input.focus(); } catch (e) {} }, 30);
+    });
+};
+
+function mfaNeedsFreshCode() {
+    return !!((window._mfaStatus && window._mfaStatus.enabled) || (typeof currentUser !== 'undefined' && currentUser && currentUser.totpEnabled));
+}
+
+async function loadTotpStatus() {
+    var section = document.getElementById('twoFactorPanel') || document.getElementById('totpSection');
+    if (!section) return;
+    if (!auth || !auth.currentUser || auth.currentUser.isAnonymous) {
+        section.innerHTML = '<div style="color:var(--text-faint);font-size:0.85rem;">Sign in to turn on two-factor authentication.</div>';
+        return;
+    }
+    var user = auth.currentUser;
+    var phoneEnrolled = user.multiFactor && user.multiFactor.enrolledFactors && user.multiFactor.enrolledFactors.length > 0;
+    var hasEmail = !!(user.email);
+    var emailVerified = !!user.emailVerified;
+    var safari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent || '');
+    try {
+        var sessionId = '';
+        try { sessionId = localStorage.getItem('btc_mfa_session_' + user.uid) || ''; } catch (e) {}
+        var result = await firebase.functions().httpsCallable('totpStatus')({ sessionId: sessionId });
+        var data = (result && result.data) || {};
+        var totpOn = !!data.enabled;
+        var phoneOn = phoneEnrolled || !!data.phoneEnabled;
+        var status = totpOn && phoneOn ? 'Authenticator and phone are on' : (totpOn ? 'Authenticator app is on' : (phoneOn ? 'Phone verification is on' : 'Two-factor authentication is off'));
+        var html = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Two-factor authentication</div>' +
+            '<div style="font-weight:800;color:var(--heading);font-size:1rem;margin-bottom:6px;">' + status + '</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.5;margin-bottom:12px;">Works with email, Google, Facebook, Twitter, GitHub, Nostr, Lightning, and a guest who signs in. Phone texts need email, Google, Facebook, Twitter, or GitHub. Nostr and Lightning use an authenticator app.</div>';
+        if (totpOn) {
+            html += '<div style="display:flex;gap:8px;margin-bottom:8px;"><input id="totpDisableCode" inputmode="numeric" maxlength="6" placeholder="Code to turn off" style="flex:1;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;text-align:center;">' +
+                '<button onclick="disableTotp()" style="padding:10px 14px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;cursor:pointer;font-family:inherit;">Turn off</button></div>';
+        } else {
+            html += '<div id="totpSection"><button onclick="startTotpSetup()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">Set up authenticator app</button></div>';
+        }
+        if (phoneOn) {
+            html += '<button onclick="disable2FA()" style="width:100%;padding:10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;cursor:pointer;font-family:inherit;margin-bottom:8px;">Turn off phone verification</button>';
+        } else if (!hasEmail || !emailVerified) {
+            html += '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;">Verify an email to turn on phone texts. You can still use an authenticator app.</div>';
+        } else if (safari) {
+            html += '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:8px;">Safari blocks phone texts. Use an authenticator app on this browser.</div>';
+        } else {
+            html += '<div id="mfaSetup" style="margin-bottom:8px;">' +
+                '<input type="tel" id="mfaPhone" placeholder="Phone number" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;margin-bottom:8px;box-sizing:border-box;">' +
+                '<button onclick="startMFAEnroll()" style="width:100%;padding:10px;background:none;border:1px solid var(--accent);border-radius:8px;color:var(--accent);font-weight:700;cursor:pointer;font-family:inherit;">Send phone code</button>' +
+                '<div id="mfaVerify" style="display:none;margin-top:8px;"><input id="mfaCode" maxlength="6" placeholder="6-digit code" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);text-align:center;margin-bottom:8px;box-sizing:border-box;">' +
+                '<button onclick="verifyMFACode()" style="width:100%;padding:10px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;">Verify phone</button></div>' +
+                '<div id="mfaStatus" style="margin-top:6px;font-size:0.8rem;"></div></div>';
+        }
+        if (totpOn || phoneOn) {
+            html += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">' +
+                '<div style="font-weight:700;color:var(--heading);font-size:0.85rem;margin-bottom:6px;">Recovery codes</div>' +
+                '<div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:8px;">Create a new set if you lost the ones you saved. This asks for a fresh authenticator code. A remembered device is not enough.</div>' +
+                '<input id="totpRegenCode" maxlength="6" placeholder="Current authenticator code" style="width:100%;padding:10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);text-align:center;margin-bottom:8px;box-sizing:border-box;font-family:inherit;">' +
+                '<button onclick="window._regenerateRecoveryCodes()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;font-family:inherit;margin-bottom:8px;">Create new recovery codes</button>' +
+                '<button onclick="window._showLostAccess()" style="width:100%;padding:8px;background:none;border:none;color:var(--accent);cursor:pointer;font-family:inherit;">Lost your device?</button>' +
+                '</div>';
+        }
+        if (totpOn) {
+            html += '<div id="trustedDevicesBlock" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">' +
+                '<div style="font-weight:700;color:var(--heading);font-size:0.85rem;margin-bottom:6px;">Remembered devices</div>' +
+                '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.4;margin-bottom:8px;">A checked code prompt remembers this browser for 30 days. The server stores a short browser and system label, not your IP address.</div>' +
+                '<div id="trustedDeviceList" style="color:var(--text-muted);font-size:0.78rem;">Loading devices…</div>' +
+                '<button type="button" onclick="window._signOutOtherDevices()" style="width:100%;padding:10px;margin-top:8px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;font-family:inherit;">Sign out other devices</button>' +
+                '</div>';
+        } else if (!phoneOn) {
+            html += '<button onclick="window._showLostAccess()" style="width:100%;padding:8px;background:none;border:none;color:var(--text-muted);cursor:pointer;font-family:inherit;">Lost your device?</button>';
+        }
+        html += '</div>';
+        section.innerHTML = html;
+        if (totpOn) window._loadTrustedDevices();
+        if (data.needsRecoveryCodes && (data.sessionVerified || data.phoneEnabled)) window._maybeOfferRecoveryCodes();
+    } catch (e) {
+        section.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;padding:8px;">Could not load two-factor settings (' + _mfaFailure(e) + ')</div>' +
+            '<button onclick="loadTotpStatus()" style="width:100%;padding:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Try again</button>';
     }
 }
 
@@ -7723,7 +12680,7 @@ async function startTotpSetup() {
         var result = await totpSetupFn();
         var qrDataUrl = result.data && (result.data.qr || result.data.qrUrl || result.data.qrDataUrl);
         if (qrDataUrl) {
-            var area = document.getElementById('totpSetupArea') || document.getElementById('totpSection');
+            var area = document.getElementById('totpSetupArea') || document.getElementById('totpSection') || document.getElementById('twoFactorPanel');
             if (area) {
                 area.style.display = 'block';
                 area.innerHTML = '<div style="text-align:center;margin:12px 0;">' +
@@ -7747,11 +12704,14 @@ async function verifyTotpSetup() {
     if (!code || code.value.trim().length !== 6) { showToast('Enter a 6-digit code'); return; }
     try {
         var verifyFn = firebase.functions().httpsCallable('totpVerify');
-        await verifyFn({ code: code.value.trim() });
-        showToast('✅ Authenticator app enabled!');
+        var verified = await verifyFn({ code: code.value.trim() });
+        var verifiedData = (verified && verified.data) || {};
+        if (auth && auth.currentUser && verifiedData.sessionId) window._rememberMfaSession(auth.currentUser.uid, verifiedData.sessionId);
+        if (verifiedData.recoveryCodes) window._showRecoveryCodes(verifiedData.recoveryCodes);
+        showToast('Authenticator app is on');
         showSettingsPage('security');
     } catch(e) {
-        showToast('Invalid code. Try again.');
+        showToast(_mfaFailure(e));
     }
 }
 
@@ -7761,14 +12721,20 @@ async function disableTotp() {
     try {
         var disableFn = firebase.functions().httpsCallable('totpDisable');
         await disableFn({ code: code.value.trim() });
-        showToast('Authenticator app disabled');
+        if (auth && auth.currentUser) {
+            try {
+                localStorage.removeItem('btc_mfa_session_' + auth.currentUser.uid);
+                localStorage.removeItem('btc_mfa_device_' + auth.currentUser.uid);
+            } catch (err) {}
+        }
+        showToast('Authenticator app is off');
         showSettingsPage('security');
     } catch(e) {
-        showToast('Invalid code');
+        showToast(_mfaFailure(e));
     }
 }
 
-// ---- RESTORED: clearUserData ----
+
 function clearUserData() {
     var userKeys = [
         'btc_visited_channels', 'btc_favs', 'btc_hidden_badges',
@@ -7790,40 +12756,117 @@ function showSignInPrompt() {
     showUsernamePrompt();
 }
 
+// ===== LIGHTNING FEE (display only) =====
+// The server decides and charges the fee (functions/src/lnFee.js LN_FEE_SATS).
+// This copy only shows the player what will happen before they confirm.
+window.BQ_LN_FEE_SATS = 10;
+window.bqLnFeeQuote = function(gross) {
+    var g = Math.floor(Number(gross) || 0);
+    var fee = window.BQ_LN_FEE_SATS;
+    var net = g - fee;
+    return { gross: g, fee: fee, net: net > 0 ? net : 0, ok: net >= 1 };
+};
+// Resolves true only when the player taps Confirm.
+window.bqConfirmLnFee = function(gross, label) {
+    return new Promise(function(resolve) {
+        var q = window.bqLnFeeQuote(gross);
+        if (!q.ok) {
+            if (typeof showToast === 'function') showToast('This claim is too small to cover the Lightning fee.');
+            resolve(false);
+            return;
+        }
+        var old = document.getElementById('lnFeeConfirmOverlay');
+        if (old) old.remove();
+        var ov = document.createElement('div');
+        ov.id = 'lnFeeConfirmOverlay';
+        ov.setAttribute('role', 'dialog');
+        ov.setAttribute('aria-modal', 'true');
+        ov.setAttribute('aria-labelledby', 'lnFeeConfirmTitle');
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:600000;display:flex;align-items:center;justify-content:center;padding:16px;';
+        var row = 'display:flex;justify-content:space-between;gap:12px;padding:6px 0;font-size:0.88rem;';
+        ov.innerHTML = '<div style="background:var(--bg-side,#14151f);border:1px solid var(--border,#333);border-radius:16px;padding:20px;max-width:360px;width:100%;box-sizing:border-box;">' +
+            '<div id="lnFeeConfirmTitle" style="font-weight:800;font-size:1rem;color:var(--accent,#f7931a);text-align:center;margin-bottom:12px;">Confirm your claim</div>' +
+            '<div style="' + row + 'color:var(--text-muted,#aaa);"><span>' + (label || 'Claim amount') + '</span><span>' + q.gross.toLocaleString() + ' sats</span></div>' +
+            '<div style="' + row + 'color:var(--text-muted,#aaa);"><span>Lightning fee</span><span>−' + q.fee.toLocaleString() + ' sats</span></div>' +
+            '<div style="' + row + 'border-top:1px solid var(--border,#333);margin-top:4px;padding-top:10px;font-weight:800;color:var(--text,#fff);"><span>You will receive</span><span>' + q.net.toLocaleString() + ' sats</span></div>' +
+            '<div style="font-size:0.72rem;color:var(--text-faint,#888);line-height:1.45;margin:8px 0 14px;">Lightning payments cost a small routing fee. We take one flat fee from every claim so the math is simple.</div>' +
+            '<button type="button" id="lnFeeConfirmYes" style="width:100%;min-height:44px;padding:12px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:12px;font-weight:700;font-size:0.92rem;cursor:pointer;font-family:inherit;">Confirm and claim ' + q.net.toLocaleString() + ' sats</button>' +
+            '<button type="button" id="lnFeeConfirmNo" style="width:100%;min-height:44px;padding:10px;margin-top:8px;background:none;border:1px solid var(--border,#333);border-radius:12px;color:var(--text-muted,#aaa);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+            '</div>';
+        function done(v) {
+            document.removeEventListener('keydown', onKey, true);
+            ov.remove();
+            resolve(v);
+        }
+        function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); done(false); } }
+        document.addEventListener('keydown', onKey, true);
+        ov.addEventListener('click', function(e) { if (e.target === ov) done(false); });
+        document.body.appendChild(ov);
+        document.getElementById('lnFeeConfirmYes').onclick = function() { done(true); };
+        document.getElementById('lnFeeConfirmNo').onclick = function() { done(false); };
+        setTimeout(function() { var y = document.getElementById('lnFeeConfirmYes'); if (y) y.focus(); }, 30);
+    });
+};
+
 // ===== SATS CLAIM FLOW =====
-window.saveSatsLnAddress = async function() {
-    var status = document.getElementById('satsLnAddrStatus');
-    var locked = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightning || currentUser.lightningAddress || '') : '';
-    if (locked) {
-        if (status) status.textContent = LN_ADDRESS_LOCKED_NOTICE;
-        return;
-    }
+window.saveSatsLnAddress = function() {
     var input = document.getElementById('satsLnAddrInput');
-    if (!input) return;
-    var addr = normalizeClientLn(input.value);
-    if (!clientLnValid(addr)) {
+    var addr = input ? normalizeClientLn(input.value) : '';
+    if (addr && !clientLnValid(addr)) {
+        var status = document.getElementById('satsLnAddrStatus');
         if (status) status.textContent = 'Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)';
         return;
     }
-    if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) {
-        if (status) status.textContent = 'Sign in to save your Lightning Address';
-        return;
+    openWithdrawalAddress({ mode: 'reset', address: addr, start: addr ? 'confirm' : 'input' });
+};
+
+// Cipher sats claim rules. Mirrors functions/src/cipherSatsClaim.js (CLAIM_MIN,
+// CLAIM_MAX, PLAYER_DAILY_CAP) and cipherClaim.js (MIN_ACCOUNT_AGE_DAYS).
+// The server config doc is admin-only and holds just an on/off flag.
+window.CIPHER_SATS_RULES = { min: 100, max: 200, perDay: 200, ageDays: 7 };
+window.cipherSatsWithdrawHint = function(bal) {
+    var r = window.CIPHER_SATS_RULES;
+    var b = Math.max(0, Math.floor(Number(bal) || 0));
+    var lead = b >= r.min ? 'Ready to withdraw.' : 'Withdraw at ' + r.min + ' sats (' + (r.min - b) + ' more to go).';
+    return lead + ' Up to ' + r.max + ' sats per claim and ' + r.perDay + ' per day. Needs a verified email, an account ' + r.ageDays + '+ days old, and a Lightning Address saved in Settings.';
+};
+window.cipherSatsHintHtml = function(bal) {
+    return '<div class="cipher-sats-hint" role="note" style="font-size:0.72rem;color:var(--text-muted);margin-top:8px;line-height:1.35;">ⓘ ' + escapeHtml(window.cipherSatsWithdrawHint(bal)) + '</div>';
+};
+
+window.claimCipherSats = async function() {
+    var bal = Math.max(0, Math.floor(Number(currentUser && currentUser.cipherSatsBalance) || 0));
+    if (bal < window.CIPHER_SATS_RULES.min) return { success: false };
+    if (window._cipherSatsClaiming) return { success: false };
+    if (typeof firebase === 'undefined' || !firebase.functions) {
+        if (typeof showToast === 'function') showToast('Sign in to claim cipher sats');
+        return { success: false };
     }
+    window._cipherSatsClaiming = true;
     try {
-        if (status) status.textContent = 'Saving...';
-        await db.collection('users').doc(auth.currentUser.uid).update({ lightning: addr, lightningAddress: addr });
-        if (typeof currentUser !== 'undefined' && currentUser) { currentUser.lightning = addr; currentUser.lightningAddress = addr; }
-        if (status) status.textContent = 'Lightning Address saved.';
-        if (typeof showToast === 'function') showToast('⚡ Lightning Address saved!');
-        if (localStorage.getItem('btc_lightning_setup') !== 'true') {
-            localStorage.setItem('btc_lightning_setup', 'true');
-            if (typeof awardPoints === 'function') awardPoints(100, '⚡ Lightning wallet setup!');
-            if (typeof showToast === 'function') setTimeout(function() { showToast('⚡🏅 Lightning Rod badge earned! +100 pts'); }, 1500);
-            if (typeof initBadges === 'function') setTimeout(initBadges, 2000);
+        var _gross = Math.min(bal, 200);
+        var _ok = await window.bqConfirmLnFee(_gross, 'Cipher sats claim (up to)');
+        if (!_ok) return { success: false, cancelled: true };
+        var res = await firebase.functions().httpsCallable('claimCipherSats')({});
+        var d = (res && res.data) || {};
+        if (!d.success) {
+            if (typeof showToast === 'function') showToast(d.error || 'Could not claim cipher sats');
+            return d;
         }
-        setTimeout(function(){ if (typeof showSettingsPage === 'function') showSettingsPage('sats'); }, 400);
-    } catch(e) {
-        if (status) status.textContent = LN_ADDRESS_LOCKED_NOTICE;
+        if (typeof currentUser !== 'undefined' && currentUser && typeof d.balance === 'number') {
+            currentUser.cipherSatsBalance = Math.max(0, Math.floor(d.balance));
+        }
+        if (typeof showToast === 'function') showToast('⚡ ' + (typeof d.sent === 'number' ? d.sent : (d.amount || 0)) + ' sats sent' + (d.fee ? ' (' + d.fee + ' sat Lightning fee)' : ''));
+        var host = document.getElementById('nookKeysCiphers');
+        if (host && typeof window.renderKeysAndCiphersPanel === 'function') window.renderKeysAndCiphersPanel(host);
+        if (document.getElementById('cipherSatsBalanceSettings') && typeof showSettingsPage === 'function') showSettingsPage('sats');
+        if (document.getElementById('nookTabContent') && typeof window._renderNookSubTabs === 'function') window._renderNookSubTabs();
+        return d;
+    } catch (e) {
+        if (typeof showToast === 'function') showToast((e && e.message) || 'Could not claim cipher sats');
+        return { success: false };
+    } finally {
+        window._cipherSatsClaiming = false;
     }
 };
 
@@ -7835,11 +12878,12 @@ window.initSatsClaim = function() {
         return;
     }
     // All three offset counters (claimed, donated, exchanged) reduce the redeemable pool
-    var availPts = (currentUser.points || 0) - (currentUser.pointsClaimed || 0) - (currentUser.pointsDonated || 0) - (currentUser.pointsExchanged || 0);
-    var satsBalance = Math.floor(Math.max(0, availPts) / 10);
-    var satsWithdrawn = currentUser.satsWithdrawn || 0;
-    var _satCap = typeof getSatCap === 'function' ? getSatCap() : 10000;
-    var lifetimeLeft = Math.max(0, _satCap - satsWithdrawn);
+    var availPts = spendableXp(currentUser);
+    var _claimMath = (typeof window.claimableSats === 'function') ? window.claimableSats(currentUser) : null;
+    var satsBalance = _claimMath ? _claimMath.balance : Math.floor(Math.max(0, availPts) / 10);
+    var satsWithdrawn = _claimMath ? _claimMath.withdrawn : (currentUser.satsWithdrawn || 0);
+    var _satCap = _claimMath ? _claimMath.cap : lifetimeSatCap();
+    var lifetimeLeft = _claimMath ? _claimMath.lifetimeLeft : Math.max(0, _satCap - satsWithdrawn);
     var maxClaim = Math.min(satsBalance, 200, lifetimeLeft);
     console.log('[SATS] maxClaim:', maxClaim, '| satsBalance:', satsBalance, '| lifetimeLeft:', lifetimeLeft, '| satsWithdrawn:', satsWithdrawn);
     if (maxClaim < 100) {
@@ -7867,7 +12911,7 @@ window.initSatsClaim = function() {
     html += '<div style="background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.3);border-radius:10px;padding:12px;margin-bottom:16px;text-align:center;">';
     html += '<div style="font-size:0.75rem;color:var(--text-muted);">You can claim up to</div>';
     html += '<div style="font-size:1.5rem;font-weight:900;color:var(--accent);">⚡ ' + maxClaim + ' sats</div>';
-    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">Zero fees - we cover all routing costs</div>';
+    html += '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:2px;">A flat ' + window.BQ_LN_FEE_SATS + ' sat Lightning fee comes out of each claim. You will see the exact amount before you confirm.</div>';
     html += '</div>';
 
     html += '<div id="satsLnPanel">';
@@ -7892,7 +12936,7 @@ window.initSatsClaim = function() {
 
     html += '<div id="satsClaimError" style="display:none;background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.78rem;color:#ef4444;text-align:center;"></div>';
 
-    html += '<div id="satsClaimTurnstile" class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>';
+    html += '<div id="satsClaimTurnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-theme="dark" data-size="flexible" style="margin-bottom:12px;"></div>';
 
     html += '<button id="satsClaimBtn" onclick="submitSatsClaim()" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;">⚡ Send Sats to My Wallet</button>';
     html += '<button onclick="document.getElementById(\'satsClaimOverlay\').remove()" style="width:100%;padding:12px;background:none;border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-top:8px;">Cancel</button>';
@@ -7900,14 +12944,19 @@ window.initSatsClaim = function() {
 
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
-    // Re-render Turnstile widget now that the element is in the DOM
-    if (window.turnstile) {
-        window.turnstile.render('#satsClaimTurnstile', {
-            sitekey: '0x4AAAAAAD-ivgpRkbXpgz86',
-            theme: 'dark',
-            size: 'flexible',
-        });
-    }
+    if (typeof window._ensureTurnstile === 'function') window._ensureTurnstile(document.getElementById('satsClaimTurnstile'));
+};
+
+
+window.openClaimChat = function() {
+    if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
+    if (window._chatOverlayOpen) return;
+    if (typeof toggleChatOverlay === 'function') toggleChatOverlay();
+};
+
+window.openClaimTv = function() {
+    if (typeof hideUsernamePrompt === 'function') hideUsernamePrompt();
+    if (typeof go === 'function') go('timechain-tv');
 };
 
 // Device fingerprint for multi-account detection (Fix #3)
@@ -7968,7 +13017,15 @@ window.submitSatsClaim = async function() {
         if (errorEl) { errorEl.textContent = 'Amount must be between 100 and ' + _maxCl + ' sats'; errorEl.style.display = 'block'; }
         return;
     }
+    var savedNow = normalizeClientLn((typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightning || currentUser.lightningAddress || currentUser.lnAddress || '') : '');
+    if (!savedNow || savedNow !== lnAddr) {
+        var confirmedAddr = await openWithdrawalAddress({ mode: 'claim', address: lnAddr, start: 'confirm' });
+        if (!confirmedAddr) return;
+        lnAddr = confirmedAddr;
+    }
     claimPayload = { lightningAddress: lnAddr, amount: lnAmt };
+    var feeOk = await window.bqConfirmLnFee(lnAmt, 'Claim amount');
+    if (!feeOk) return;
 
     // Hide previous errors
     if (errorEl) errorEl.style.display = 'none';
@@ -7980,9 +13037,16 @@ window.submitSatsClaim = async function() {
 
     try {
         try {
-            // Mint or reuse the cached token (1h TTL). httpsCallable attaches it
-            // as X-Firebase-AppCheck on the claimSats request.
-            await firebase.appCheck().getToken(false);
+            // Enforced on the server. Wait here, not during sign-in or Firestore.
+            // httpsCallable attaches the token as X-Firebase-AppCheck.
+            var _appTok = '';
+            if (typeof window._btcAppCheckForClaim === 'function') {
+                _appTok = await window._btcAppCheckForClaim(8000);
+            } else {
+                var _got = await firebase.appCheck().getToken(false);
+                _appTok = _got && _got.token;
+            }
+            if (!_appTok) throw new Error('app-check');
         } catch (appCheckErr) {
             if (errorEl) { errorEl.textContent = 'Security check failed. Refresh the page and try again.'; errorEl.style.display = 'block'; }
             btn.disabled = false;
@@ -8007,6 +13071,8 @@ window.submitSatsClaim = async function() {
         var result = await claimSats(Object.assign({}, claimPayload, { fingerprint: _fp, turnstileToken: _tsToken }));
         if (result.data && result.data.success) {
             var paidAmount = result.data.amount || 0;
+            var sentAmount = typeof result.data.sent === 'number' ? result.data.sent : paidAmount;
+            var feeAmount = typeof result.data.fee === 'number' ? result.data.fee : 0;
             currentUser.pointsClaimed = (currentUser.pointsClaimed || 0) + (paidAmount * 10);
             currentUser.satsWithdrawn = (currentUser.satsWithdrawn || 0) + paidAmount;
             currentUser.lastSatsClaim = new Date();
@@ -8028,10 +13094,15 @@ window.submitSatsClaim = async function() {
             } catch(e) {}
 
             if (typeof notifySelfSatsClaim === 'function') notifySelfSatsClaim(paidAmount);
-            // Fun celebration popup + confetti
+            // Celebration is Everything only. The claim itself already landed.
+            if (typeof window.bqModeAllows === 'function' && !window.bqModeAllows('confetti')) {
+                if (typeof showToast === 'function') showToast('Claimed ' + paidAmount + ' sats');
+                setTimeout(function() { showSettingsPage('sats'); }, 500);
+                return;
+            }
             if (typeof launchConfetti === 'function') launchConfetti();
             var _totalClaimed = currentUser.satsWithdrawn || paidAmount;
-            var _claimCap = typeof getSatCap === 'function' ? getSatCap() : 10000;
+            var _claimCap = lifetimeSatCap();
             var _remaining = Math.max(0, _claimCap - _totalClaimed);
             var _celebOverlay = document.createElement('div');
             _celebOverlay.id = 'satsCelebration';
@@ -8040,8 +13111,8 @@ window.submitSatsClaim = async function() {
             _celebOverlay.innerHTML = '<div style="background:linear-gradient(135deg,#1a1b2e,#12131f);border:2px solid #f7931a;border-radius:24px;padding:32px;max-width:360px;width:100%;text-align:center;animation:nachoPop 0.4s cubic-bezier(0.175,0.885,0.32,1.275);">' +
                 '<div style="font-size:4rem;margin-bottom:12px;">⚡🎉</div>' +
                 '<h2 style="color:#f7931a;font-size:1.4rem;margin:0 0 8px;">Sats Claimed!</h2>' +
-                '<div style="font-size:2rem;font-weight:900;color:#fff;margin-bottom:8px;">' + paidAmount + ' sats</div>' +
-                '<div style="font-size:0.85rem;color:#94a3b8;line-height:1.5;margin-bottom:16px;">sent to your Lightning wallet ⚡<br>Check your wallet to confirm!</div>' +
+                '<div style="font-size:2rem;font-weight:900;color:#fff;margin-bottom:8px;">' + sentAmount + ' sats</div>' +
+                '<div style="font-size:0.85rem;color:#94a3b8;line-height:1.5;margin-bottom:16px;">sent to your Lightning wallet ⚡' + (feeAmount ? '<br>' + paidAmount + ' claimed − ' + feeAmount + ' sat Lightning fee' : '') + '<br>Check your wallet to confirm!</div>' +
                 '<div style="padding:10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;margin-bottom:12px;">' +
                     '<div style="font-size:0.85rem;color:#f7931a;font-weight:800;">⚡ ' + _remaining.toLocaleString() + ' sats remaining to claim!</div>' +
                     '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:3px;">' + _totalClaimed.toLocaleString() + ' / 15,000 lifetime total claimed</div>' +
@@ -8057,6 +13128,10 @@ window.submitSatsClaim = async function() {
         } else {
             var errMsg = (result.data && result.data.error) ? result.data.error : 'Claim failed - try again';
             if (errorEl) { errorEl.textContent = errMsg; errorEl.style.display = 'block'; }
+            if (result.data && (result.data.code === 'address_unresolved' || String(errMsg).indexOf('Could not resolve Lightning Address') !== -1)) {
+                try { sessionStorage.setItem('btc_ln_needs_reset', '1'); } catch (flagErr) {}
+                openWithdrawalAddress({ mode: 'reset', address: lnAddr });
+            }
             window._satsClaimInProgress = false;
             btn.disabled = false;
             btn.textContent = '⚡ Send Sats to My Wallet';
@@ -8189,7 +13264,7 @@ window.loadSatsHistory = function() {
     db.collection('users').doc(currentUser.uid).collection('sats_withdrawals').orderBy('timestamp', 'desc').get().then(function(snap) {
         if (snap.empty) { el.textContent = 'No withdrawals yet'; return; }
         var totalWithdrawn = 0;
-        var LIFETIME_MAX = typeof getSatCap === 'function' ? getSatCap() : 10000;
+        var LIFETIME_MAX = lifetimeSatCap();
         var rows = '';
         snap.forEach(function(doc) {
             var d = doc.data();
@@ -8222,6 +13297,14 @@ function showLevelUpCelebration(lv) {
     // Suppress during Nacho Mode - track for exit summary instead
     if (window._nachoBusy || window._nachoMode) {
         if (window._nachoModeEarnings) window._nachoModeEarnings.badges.push('🎉 Level up: ' + lv.emoji + ' ' + lv.name);
+        return;
+    }
+    var levelMode = 'advanced';
+    try {
+        levelMode = (typeof window.getExperienceMode === 'function' && window.getExperienceMode()) || localStorage.getItem('btc_experience_mode') || 'advanced';
+    } catch (eLv) {}
+    if (levelMode === 'lite') {
+        if (typeof showToast === 'function') showToast('Level up: ' + ((lv && lv.name) ? lv.name : 'new rank'));
         return;
     }
     // Play triumphant sound
@@ -8297,8 +13380,9 @@ window._buyStreakFreeze = async function(amount) {
         if (typeof showToast === 'function') showToast('Sign in to buy streak freezes!');
         return;
     }
-    var COSTS = { 1: 5, 3: 12 };
-    var cost = COSTS[amount] || 5;
+    var COSTS = { 1: 6, 3: 15 };
+    if (typeof _nookPrice === 'function') { COSTS[1] = _nookPrice('streak_freeze'); COSTS[3] = _nookPrice('streak_freeze_3'); }
+    var cost = COSTS[amount] || COSTS[1];
     var currentTickets = currentUser ? (currentUser.orangeTickets || 0) : 0;
     if (currentTickets < cost) {
         if (typeof showToast === 'function') showToast('\u274c Not enough tickets! Need ' + cost + ', have ' + currentTickets);
@@ -8327,6 +13411,121 @@ window._buyStreakFreeze = async function(amount) {
     }
 };
 
+// Opens Global Chat above Settings (z-index 400000) and the quest hub.
+window.openGlobalChatForCipher = function() {
+    function lift() {
+        var panel = document.getElementById('chatOverlay');
+        if (panel) panel.style.zIndex = '460000';
+    }
+    function open() {
+        if (!window._chatOverlayOpen && typeof toggleChatOverlay === 'function') toggleChatOverlay();
+        lift();
+    }
+    if (typeof toggleChatOverlay === 'function') { open(); return; }
+    if (typeof window._loadDeferred === 'function') window._loadDeferred();
+    if (typeof showToast === 'function') showToast('Opening Global Chat…');
+    var tries = 0;
+    var timer = setInterval(function() {
+        tries++;
+        if (typeof toggleChatOverlay === 'function') { clearInterval(timer); open(); }
+        else if (tries > 20) clearInterval(timer);
+    }, 300);
+};
+
+// Quest hub is z-index 100000, under Settings at 400000. Lift it when opened from here.
+window.openKeysAndCiphers = function() {
+    function raise() {
+        var hub = document.getElementById('questHubOverlay');
+        var settings = document.getElementById('usernameModal');
+        if (hub && settings && settings.classList.contains('open')) hub.style.zIndex = '450000';
+    }
+    if (typeof window.openNookInventory === 'function') window.openNookInventory();
+    else if (typeof showQuestHub === 'function') {
+        showQuestHub();
+        setTimeout(function() {
+            window._questHubTab = 'nook';
+            window._nookSubTab = 'inventory';
+            if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
+            raise();
+        }, 200);
+    }
+    setTimeout(raise, 300);
+};
+
+window._togglePeerMore = function(btn) {
+    if (!btn) return;
+    var el = document.getElementById(btn.getAttribute('data-peer-panel'));
+    if (!el) return;
+    var willOpen = el.style.display === 'none';
+    el.style.display = willOpen ? 'block' : 'none';
+    btn.textContent = willOpen ? 'More options ▴' : 'More options ▾';
+    btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+};
+
+window._sendKeysToPeer = function(uid) {
+    var name = (window._peerNames && window._peerNames[uid]) || 'peer';
+    function go() {
+        if (typeof window.showKeyPickerForPeer !== 'function') return false;
+        window.showKeyPickerForPeer(uid, name);
+        return true;
+    }
+    if (go()) return;
+    if (typeof showToast === 'function') showToast('Loading keys…');
+    var tries = 0;
+    var timer = setInterval(function() {
+        if (go() || ++tries >= 20) clearInterval(timer);
+    }, 500);
+};
+
+window._viewPeerProfile = function(uid) {
+    if (typeof showUserProfile === 'function') showUserProfile(uid);
+    function lift() {
+        var modal = document.getElementById('userProfileModal');
+        if (modal) modal.style.zIndex = '530000';
+    }
+    setTimeout(lift, 40);
+    setTimeout(lift, 400);
+};
+
+window.confirmRemovePeer = function(uid, btnEl) {
+    var name = (window._peerNames && window._peerNames[uid]) || 'this peer';
+    var old = document.getElementById('peerRemoveConfirm');
+    if (old) old.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'peerRemoveConfirm';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:540000;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;padding:16px;';
+    var card = document.createElement('div');
+    card.style.cssText = 'background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:18px;width:100%;max-width:400px;box-shadow:0 12px 40px rgba(0,0,0,0.45);';
+    var title = document.createElement('div');
+    title.style.cssText = 'font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:6px;';
+    title.textContent = 'Remove ' + name + '?';
+    var body = document.createElement('div');
+    body.style.cssText = 'font-size:0.85rem;color:var(--text-muted);line-height:1.45;margin-bottom:14px;';
+    body.textContent = 'They will no longer be a peer. You cannot send them keys until you connect again.';
+    var yes = document.createElement('button');
+    yes.type = 'button';
+    yes.textContent = 'Remove peer';
+    yes.style.cssText = 'width:100%;min-height:44px;padding:10px;border:none;border-radius:10px;background:#b91c1c;color:#fff;font-weight:800;cursor:pointer;font-family:inherit;';
+    yes.onclick = function() {
+        overlay.remove();
+        window.managePeer('remove', uid, btnEl).then(function() {
+            if (typeof showSettingsPage === 'function') showSettingsPage('account');
+        });
+    };
+    var no = document.createElement('button');
+    no.type = 'button';
+    no.textContent = 'Cancel';
+    no.style.cssText = 'width:100%;min-height:40px;margin-top:8px;padding:10px;border:1px solid var(--border);border-radius:10px;background:transparent;color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;';
+    no.onclick = function() { overlay.remove(); };
+    card.appendChild(title);
+    card.appendChild(body);
+    card.appendChild(yes);
+    card.appendChild(no);
+    overlay.appendChild(card);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+};
+
 // Old gift-send entry point. Gifts are opened, not forwarded; this sends keys.
 window._sendGiftToPeerFromDetail = function(peerUid, peerName) {
     if (typeof window.showKeyPickerForPeer === 'function') {
@@ -8339,25 +13538,97 @@ window._sendGiftToPeerFromDetail = function(peerUid, peerName) {
     }, 1500);
 };
 
-window.managePeer = async function(action, targetUid) {
+window.managePeer = async function(action, targetUid, btnEl) {
     if (!auth || !auth.currentUser) { if (typeof showToast === 'function') showToast('Sign in first'); return; }
-    try {
-        var fn = firebase.functions().httpsCallable('managePeer');
-        var result = await fn({ action: action, targetUid: targetUid });
-        if (result && result.data && result.data.success) {
-            if (action === 'send')   { if (typeof showToast === 'function') showToast('Peer request sent! 🧡'); }
-            if (action === 'remove') { window._myPeers && window._myPeers.delete(targetUid); if (typeof showToast === 'function') showToast('Peer removed'); }
-            if (action === 'accept') {
-                window._myPeers = window._myPeers || new Set();
-                window._myPeers.add(targetUid);
-                if (typeof showToast === 'function') showToast('Peer accepted! 🧡');
-                if (typeof checkBadges === 'function') setTimeout(checkBadges, 1500);
-            }
-        }
-    } catch(e) {
-        var msg = (e && e.message) || 'Error';
-        if (msg.includes('already-exists')) msg = 'Already sent or already peers';
-        if (typeof showToast === 'function') showToast(msg);
-        console.error('[managePeer]', e);
+    var key = String(action) + '\0' + String(targetUid);
+    window._peerInflight = window._peerInflight || {};
+    if (window._peerInflight[key]) return window._peerInflight[key];
+
+    var gate;
+    var job = new Promise(function(resolve) { gate = resolve; });
+    window._peerInflight[key] = job;
+
+    var labels = {
+        send: '🧡 Sent!',
+        accept: '🧡 Accepted!',
+        decline: 'Declined',
+        remove: 'Removed'
+    };
+    var toasts = {
+        send: 'Peer request sent! 🧡',
+        accept: 'Peer accepted! 🧡',
+        decline: 'Request declined',
+        remove: 'Peer removed'
+    };
+    var row = [];
+    if (btnEl && btnEl.parentElement && btnEl.parentElement.querySelectorAll) {
+        row = Array.prototype.slice.call(btnEl.parentElement.querySelectorAll('button'));
+    } else if (btnEl) {
+        row = [btnEl];
     }
+    var snap = row.map(function(b) {
+        return {
+            el: b,
+            text: b.textContent,
+            disabled: b.disabled,
+            opacity: b.style.opacity,
+            cursor: b.style.cursor,
+            background: b.style.background
+        };
+    });
+    row.forEach(function(b) { b.disabled = true; });
+    if (btnEl && labels[action]) {
+        btnEl.textContent = labels[action];
+        btnEl.style.cursor = 'default';
+        btnEl.style.opacity = '1';
+    }
+    if (toasts[action] && typeof showToast === 'function') showToast(toasts[action]);
+
+    var hadPeers = window._myPeers && typeof window._myPeers.has === 'function';
+    var wasPeer = !!(hadPeers && window._myPeers.has(targetUid));
+    if (action === 'accept') {
+        window._myPeers = window._myPeers || new Set();
+        window._myPeers.add(targetUid);
+    } else if (action === 'remove' && window._myPeers && typeof window._myPeers.delete === 'function') {
+        window._myPeers.delete(targetUid);
+    }
+
+    (async function() {
+        try {
+            var fn = firebase.functions().httpsCallable('managePeer');
+            var result = await fn({ action: action, targetUid: targetUid });
+            if (!(result && result.data && result.data.success)) {
+                var failed = new Error('Could not update peer');
+                failed.code = 'internal';
+                throw failed;
+            }
+            if (action === 'accept' && typeof checkBadges === 'function') setTimeout(checkBadges, 1500);
+        } catch(e) {
+            var code = (e && e.code) ? String(e.code) : '';
+            var msg = (e && e.message) ? String(e.message) : 'Error';
+            if (code.indexOf('already-exists') !== -1 || msg.indexOf('already-exists') !== -1) {
+                if (action === 'accept' && typeof checkBadges === 'function') setTimeout(checkBadges, 1500);
+                return;
+            }
+            snap.forEach(function(s) {
+                s.el.disabled = s.disabled;
+                s.el.textContent = s.text;
+                s.el.style.opacity = s.opacity;
+                s.el.style.cursor = s.cursor;
+                s.el.style.background = s.background;
+            });
+            if (action === 'accept' && window._myPeers && !wasPeer && typeof window._myPeers.delete === 'function') {
+                window._myPeers.delete(targetUid);
+            }
+            if (action === 'remove' && wasPeer && window._myPeers && typeof window._myPeers.add === 'function') {
+                window._myPeers.add(targetUid);
+            }
+            if (typeof showToast === 'function') showToast(msg);
+            console.error('[managePeer]', e);
+        } finally {
+            if (window._peerInflight && window._peerInflight[key] === job) delete window._peerInflight[key];
+            gate();
+        }
+    })();
+    return job;
 };

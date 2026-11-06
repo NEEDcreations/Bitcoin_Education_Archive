@@ -1,0 +1,381 @@
+'use strict';
+
+// One transaction per badge: prove it, write the award, and add one
+// Satoshi's Favor point. A second award of the same id does not add a second point.
+// Badge XP goes through applyDailyXp: full until 500, half until 900, quarter until 1,000, then 0.
+// The remainder is dropped. Nothing is saved for a later day.
+// A badge already stored in badges, visibleBadges, or donationBadges gets an
+// award row with 0 XP and no pool point. displayBadge, equippedBadge,
+// earnedHidden, and hiddenBadges are not proof. Favor for a real legacy row
+// is the backfill's job. Already-owned badges do not read the pool.
+// Hidden-only badges use HIDDEN_ONLY_GRANT_MODE='delta' and Favor on (Phil 2026-10-26).
+
+const { applyDailyXp } = require('./applyDailyXp');
+const badgeTiers = require('./badgeTiers');
+const badgeRules = require('./badgeRules');
+const badgeXp = require('./badgeXpTable');
+const { rewardBlocked } = require('./cipherClaim');
+const { planFavorPoint } = require('./favorPool');
+const { offsetDateKey } = require('./offsetDay');
+const { serverHoldsBadge, hiddenOnlyBadge, progressAwardIds } = require('./badgeProfile');
+
+const ALIASES = { country_set: 'global_citizen' };
+
+// Phil confirmed 2026-10-26: mode 'delta', Favor on.
+const HIDDEN_ONLY_GRANT_MODE = 'delta';
+const HIDDEN_ONLY_GRANT_FAVOR = true;
+
+function hiddenOnlyGrantPlan(badgeId, catalogXp, mode, favor) {
+    const selected = mode || HIDDEN_ONLY_GRANT_MODE;
+    const catalog = Math.max(0, Number(catalogXp) || 0);
+    const old = badgeXp.oldXpOf(badgeId);
+    const recorded = old == null ? 0 : old;
+    const grantFavor = favor === undefined ? HIDDEN_ONLY_GRANT_FAVOR === true : favor === true;
+    if (selected === 'zero') {
+        return { xp: 0, favor: grantFavor, priorXp: catalog, mode: 'zero' };
+    }
+    if (selected === 'full') {
+        return { xp: catalog, favor: grantFavor, priorXp: 0, mode: 'full' };
+    }
+    return {
+        xp: Math.max(0, catalog - recorded),
+        favor: grantFavor,
+        priorXp: recorded,
+        mode: 'delta',
+    };
+}
+
+function needsFlexClaims(rule) {
+    if (!rule || !rule.source) return false;
+    const kind = rule.source.type;
+    return kind === 'flex' || kind === 'flexSum' || kind === 'flexAll';
+}
+
+function claimIdsFromSnap(snap) {
+    const ids = [];
+    if (!snap) return ids;
+    if (typeof snap.forEach === 'function') {
+        snap.forEach(function (doc) { ids.push(doc.id); });
+        return ids;
+    }
+    (snap.docs || []).forEach(function (doc) { ids.push(doc.id); });
+    return ids;
+}
+
+function cleanId(raw) {
+    const trimmed = String(raw || '').replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 60);
+    return ALIASES[trimmed] || trimmed;
+}
+
+function stamp(adminSdk, ms) {
+    if (adminSdk && adminSdk.firestore && adminSdk.firestore.Timestamp && typeof adminSdk.firestore.Timestamp.fromMillis === 'function') {
+        return adminSdk.firestore.Timestamp.fromMillis(ms);
+    }
+    return { toMillis: function () { return ms; }, _ms: ms };
+}
+
+function factionField(faction) {
+    if (faction === 'cyber_hornets') return 'cyber_hornets';
+    if (faction === 'honey_badgers') return 'honey_badgers';
+    return 'unaffiliated';
+}
+
+function grandfatheredOnlyFrom(snap, members) {
+    const byId = {};
+    if (snap && typeof snap.forEach === 'function') {
+        snap.forEach(function (doc) { byId[doc.id] = typeof doc.data === 'function' ? (doc.data() || {}) : {}; });
+    }
+    if (!members || !members.length) return false;
+    return members.every(function (m) { return byId[m] && byId[m].grandfathered === true; });
+}
+
+function legacyAward(adminSdk, badgeId, day) {
+    return {
+        awardedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
+        badge: badgeId,
+        xp: 0,
+        requestedXp: 0,
+        day: day,
+        source: 'legacy',
+    };
+}
+
+async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
+    const options = opts || {};
+    const badgeId = cleanId(rawBadgeId);
+    const rule = badgeRules.ruleFor(badgeId);
+    if (!rule) return { granted: false, success: false, reason: 'unknown', awarded: 0, xp: 0 };
+    const verified = options.verified === true;
+    if (rule.cosmetic && !verified) {
+        return { granted: false, success: true, cosmetic: true, reason: 'cosmetic', awarded: 0, xp: 0, badgeId: badgeId };
+    }
+
+    const userRef = db.collection('users').doc(uid);
+    const awardRef = userRef.collection('badge_awards').doc(badgeId);
+    const ledgerRef = db.collection('faucet_ledger').doc(uid);
+    const stateRef = db.collection('satoshiFavor').doc('current');
+    const contributorRef = stateRef.collection('contributors').doc(uid + '_badge_' + badgeId);
+    const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
+    const isTierSet = !!rule.source && rule.source.type === 'tierSet';
+    // tierSet always reads the award docs (even when verified) for the grandfather check.
+    const needsAwards = isTierSet || (!verified && rule.source && (rule.source.type === 'awards' || rule.source.type === 'set'));
+
+    const result = await db.runTransaction(async function (t) {
+        // Recomputed on every attempt. A retry must not reuse a clock from before the transaction.
+        const nowMs = Number(options.nowMs) || Date.now();
+        const day = options.day || offsetDateKey(nowMs);
+        const userSnap = await t.get(userRef);
+        const awardSnap = await t.get(awardRef);
+        const ledgerSnap = await t.get(ledgerRef);
+
+        if (!userSnap.exists) return { granted: false, success: false, reason: 'no_user', awarded: 0, xp: 0, badgeId: badgeId };
+        const user = userSnap.data() || {};
+        const ledger = ledgerSnap && ledgerSnap.exists ? (ledgerSnap.data() || {}) : {};
+        if (rewardBlocked(user, ledger)) {
+            return { granted: false, success: true, reason: 'banned', awarded: 0, xp: 0, badgeId: badgeId };
+        }
+        if (awardSnap.exists) {
+            return { granted: false, success: false, reason: 'already', awarded: 0, xp: 0, favor: false, badgeId: badgeId };
+        }
+        // Only a server-written badge field proves an old grant. displayBadge,
+        // equippedBadge, and earnedHidden are client fields, so they write nothing.
+        if (serverHoldsBadge(user, badgeId)) {
+            t.set(awardRef, legacyAward(adminSdk, badgeId, day));
+            return {
+                granted: false,
+                success: true,
+                legacy: true,
+                reason: 'legacy',
+                awarded: 0,
+                xp: 0,
+                favor: false,
+                badgeId: badgeId,
+            };
+        }
+        // Old set bonuses stay on profiles that already have them. New grants
+        // are the merged collection bonus, which pays the remainder itself.
+        if (require('./collectionBonus').isRetiredSetBonus(badgeId)) {
+            return { granted: false, success: false, reason: 'retired', awarded: 0, xp: 0, favor: false, badgeId: badgeId };
+        }
+
+        // flexClaims is the server tally of daily_action_counts, computed
+        // outside this transaction. The award doc and the user doc are read
+        // again here, and meets() still has to pass before any write. A
+        // passed tally skips the full subcollection scan. Nothing here is
+        // taken from the client.
+        let flexClaims = options.flexClaims || null;
+        if (!flexClaims && needsFlexClaims(rule)) {
+            const countsSnap = await t.get(userRef.collection('daily_action_counts'));
+            flexClaims = badgeRules.tallyFlexClaims(claimIdsFromSnap(countsSnap));
+        }
+        let awardsSnap = null;
+        if (needsAwards) awardsSnap = await t.get(userRef.collection('badge_awards'));
+        const awardRowsList = [];
+        const allAwardIds = new Set();
+        if (awardsSnap && typeof awardsSnap.forEach === 'function') {
+            awardsSnap.forEach(function (doc) {
+                if (!doc || !doc.id) return;
+                allAwardIds.add(doc.id);
+                awardRowsList.push({ id: doc.id, award: typeof doc.data === 'function' ? (doc.data() || {}) : {} });
+            });
+        }
+        // Tier collection completed only via grandfathered tier records pays 0.
+        const grandfatheredOnly = isTierSet && grandfatheredOnlyFrom(awardsSnap, rule.source.members);
+        if (isTierSet && !badgeRules.meets(rule, user, { awardSet: allAwardIds })) {
+            return { granted: false, success: false, reason: 'criteria', awarded: 0, xp: 0, badgeId: badgeId };
+        }
+        let scholarExamPassed = false;
+        if (!verified && rule.source && rule.source.type === 'scholarExam') {
+            const examType = rule.source.examType || 'properties';
+            const priorSnap = await t.get(db.collection('scholar_exam_keys').where('uid', '==', uid));
+            scholarExamPassed = !!require('./scholarExam').passedExam(priorSnap, examType, null);
+        }
+        const signedIn = options.signedIn !== false;
+        // Unbacked legacy rows count toward milestones only while criteria pass.
+        const awardSet = progressAwardIds(user, awardRowsList, {
+            signedIn: signedIn,
+            flexClaims: flexClaims,
+            scholarExamPassed: scholarExamPassed,
+        });
+        const payingCount = badgeRules.countPaying(awardSet);
+        if (!verified && !badgeRules.meets(rule, user, { awardSet: awardSet, payingCount: payingCount, signedIn: signedIn, flexClaims: flexClaims, scholarExamPassed: scholarExamPassed })) {
+            return { granted: false, success: false, reason: 'criteria', awarded: 0, xp: 0, badgeId: badgeId };
+        }
+
+        const stateSnap = await t.get(stateRef);
+        const contributorSnap = await t.get(contributorRef);
+        const totalsSnap = await t.get(totalsRef);
+
+        let catalogXp = verified && rule.cosmetic ? (Number(rule.displayXp) || 0) : (Number(rule.xp) || 0);
+        const hiddenOnly = hiddenOnlyBadge(user, badgeId);
+        const hiddenPlan = hiddenOnly ? hiddenOnlyGrantPlan(badgeId, catalogXp) : null;
+        if (hiddenPlan) catalogXp = hiddenPlan.xp;
+        // Phil (Nov 2): 5-tier badge XP ignores the daily XP caps. Only when this
+        // transaction proved the server counter itself (not a caller's
+        // verified flag). Once per user: awardSnap above stops repeats.
+        // Tier collections follow the same rule: bypass only when this
+        // transaction proved every member award record itself.
+        const tierBypass = !hiddenPlan && !verified && ((badgeTiers.isTierId(badgeId) && !!rule.source && rule.source.type === 'counter')
+            || (badgeTiers.isCollectionId(badgeId) && isTierSet));
+        const tierXp = grandfatheredOnly ? 0 : (tierBypass ? Math.min(catalogXp, badgeTiers.TIER_XP_MAX) : catalogXp);
+        const xpGrant = await applyDailyXp(uid, tierXp, t, { day: day, userRef: userRef, user: user, now: nowMs, bypass: tierBypass });
+        const xp = xpGrant.awarded > 0 ? xpGrant.awarded : 0;
+
+        const update = {
+            visibleBadges: adminSdk.firestore.FieldValue.arrayUnion(badgeId),
+        };
+        if (!rule.cosmetic && rule.xp > 0 && !grandfatheredOnly) update.payingBadgeCount = adminSdk.firestore.FieldValue.increment(1);
+        const tickets = grandfatheredOnly ? 0 : (Number(rule.tickets) || 0);
+        if (xp > 0) {
+            update.points = adminSdk.firestore.FieldValue.increment(xp);
+            update.weeklyXP = adminSdk.firestore.FieldValue.increment(xp);
+            update.monthlyXP = adminSdk.firestore.FieldValue.increment(xp);
+        }
+        if (tickets > 0) update.orangeTickets = adminSdk.firestore.FieldValue.increment(tickets);
+        const awardDoc = {
+            awardedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
+            badge: badgeId,
+            xp: xp,
+            requestedXp: catalogXp,
+            dailyCapBypass: tierBypass,
+            base: xpGrant.base,
+            boosted: xpGrant.boosted,
+            doubled: xpGrant.doubled === true,
+            dropped: xpGrant.dropped,
+            tickets: tickets,
+            day: day,
+            source: options.source || 'awardBadge',
+            favorPoint: false,
+        };
+        if (grandfatheredOnly) awardDoc.grandfathered = true;
+        if (hiddenPlan) {
+            awardDoc.hiddenOnlyGrant = hiddenPlan.mode;
+            awardDoc.priorXp = hiddenPlan.priorXp;
+        }
+        if (options.xpSource) awardDoc.xpSource = String(options.xpSource);
+        if (options.backfill === true) awardDoc.backfill = true;
+        if (options.ggSkip === true) awardDoc.ggSkip = true;
+        t.update(userRef, update);
+        if (xp > 0 && xpGrant.dailyRef) {
+            t.set(xpGrant.dailyRef, {
+                total: xpGrant.dailyXp,
+                lastUpdated: adminSdk.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+        }
+
+        let favor = false;
+        let favorPoint = false;
+        const grantFavor = hiddenPlan ? HIDDEN_ONLY_GRANT_FAVOR === true : true;
+        if (grantFavor && !contributorSnap.exists && !grandfatheredOnly) {
+            const stateData = stateSnap.exists ? (stateSnap.data() || {}) : {
+                points: 0, favorActive: false, bonusMinutes: 0, eraHashes: 0,
+            };
+            const plan = planFavorPoint(stateData, nowMs);
+            const faction = user.faction || null;
+            t.set(contributorRef, {
+                uid: uid,
+                source: 'badge_earned',
+                detail: badgeId,
+                badgeId: badgeId,
+                day: day,
+                timestamp: adminSdk.firestore.FieldValue.serverTimestamp(),
+                faction: faction,
+                pointsAdded: 1,
+            });
+            const field = factionField(faction);
+            const totals = totalsSnap.exists ? (totalsSnap.data() || {}) : {};
+            const totalsWrite = { lastUpdated: adminSdk.firestore.FieldValue.serverTimestamp() };
+            totalsWrite[field] = (Number(totals[field]) || 0) + 1;
+            t.set(totalsRef, Object.assign({}, totals, totalsWrite));
+            const next = Object.assign({}, stateData, {
+                points: plan.points,
+                favorActive: plan.favorActive,
+                bonusMinutes: plan.bonusMinutes,
+                eraHashes: plan.eraHashes != null ? plan.eraHashes : (stateData.eraHashes || 0),
+                currentCycleId: plan.currentCycleId || stateData.currentCycleId || null,
+            });
+            if (plan.activated) {
+                next.favorStart = stamp(adminSdk, plan.favorStartMs);
+                next.favorEndBase = stamp(adminSdk, plan.favorEndBaseMs);
+                next.totalHashes = 0;
+                next.lowestHashThisWindow = null;
+                next.winnersThisWindow = [];
+            } else if (plan.expired) {
+                next.favorStart = null;
+                next.favorEndBase = null;
+                next.totalHashes = 0;
+                next.lowestHashThisWindow = null;
+                next.winnersThisWindow = [];
+                // A badge that lands in the minute before the cron must start a
+                // new contributor window, or the next LIVE post counts the last one.
+                next.lastReset = stamp(adminSdk, nowMs);
+            }
+            if (plan.expired) {
+                t.set(db.collection('satoshiFavor').doc('lastWindow'), {
+                    cycleId: stateData.currentCycleId || null,
+                    endedAt: stamp(adminSdk, nowMs),
+                    archivedAt: stamp(adminSdk, nowMs),
+                });
+            }
+            t.set(stateRef, next);
+            const userSfRef = db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc(uid);
+            t.set(userSfRef, {
+                uid: uid,
+                points: adminSdk.firestore.FieldValue.increment(1),
+                updatedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+            favor = true;
+            // Pool points only. An open window adds bonus minutes and does not increment the pool.
+            favorPoint = plan.extended !== true;
+            awardDoc.favorPoint = favorPoint;
+        }
+        t.set(awardRef, awardDoc);
+
+        return {
+            granted: true,
+            success: true,
+            xp: xp,
+            awarded: xp,
+            base: xpGrant.base,
+            boosted: xpGrant.boosted,
+            doubled: xpGrant.doubled === true,
+            until: xpGrant.until || 0,
+            overflowAdded: 0,
+            dropped: xpGrant.dropped,
+            capped: xpGrant.capped,
+            capBypass: false,
+            favor: favor,
+            favorPoint: favorPoint,
+            badgeId: badgeId,
+            cosmetic: false,
+            nowMs: nowMs,
+            day: day,
+        };
+    });
+    if (result && result.granted && options.skipCollections !== true) {
+        const hook = function () {
+            return require('./collectionBonus').maybeGrantForBadge(db, adminSdk, uid, result.badgeId || badgeId, {
+                day: result.day,
+                nowMs: result.nowMs,
+            });
+        };
+        try {
+            await hook();
+        } catch (err) {
+            console.error('[collectionBonus]', err && err.message ? err.message : err);
+            try { await hook(); }
+            catch (err2) { console.error('[collectionBonus] retry', err2 && err2.message ? err2.message : err2); }
+        }
+    }
+    return result;
+}
+
+module.exports = {
+    awardBadge: awardBadge,
+    legacyAward: legacyAward,
+    cleanId: cleanId,
+    grandfatheredOnlyFrom: grandfatheredOnlyFrom,
+    hiddenOnlyGrantPlan: hiddenOnlyGrantPlan,
+    HIDDEN_ONLY_GRANT_MODE: HIDDEN_ONLY_GRANT_MODE,
+    HIDDEN_ONLY_GRANT_FAVOR: HIDDEN_ONLY_GRANT_FAVOR,
+};

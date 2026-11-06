@@ -1,3 +1,15 @@
+// Difficulty History compact formatters (mobile fit): 44486 -> "44.5k", "2026-06-02" -> "6/2/26"
+function _sfCompactNum(n) {
+    n = Number(n) || 0;
+    var a = Math.abs(n);
+    if (a >= 1e6) return (n / 1e6).toFixed(a >= 1e7 ? 0 : 1).replace(/\.0$/, '') + 'M';
+    if (a >= 1e4) return (n / 1e3).toFixed(a >= 1e5 ? 0 : 1).replace(/\.0$/, '') + 'k';
+    return n.toLocaleString('en-US');
+}
+function _sfShortDate(d) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d || ''));
+    return m ? (parseInt(m[2], 10) + '/' + parseInt(m[3], 10) + '/' + m[1].slice(2)) : String(d || '');
+}
 const QUESTION_BANK = {
     "whitepaper": [
         { q: "When was the Bitcoin Whitepaper published?", a: "October 31, 2008", wrong: ["January 3, 2009", "March 15, 2007", "December 25, 2010"] },
@@ -1349,49 +1361,52 @@ function _markDailyActivity(type) {
     localStorage.setItem('btc_daily_activities', JSON.stringify(state));
 }
 
+function _trifectaTail(info) {
+    info = info || {};
+    if (info.wasActive) return '+3 min';
+    if (info.opened) return 'window open';
+    var points = typeof info.points === 'number' ? info.points : null;
+    if (points == null && typeof window._resolveFavorState === 'function') {
+        var live = window._resolveFavorState();
+        if (live && live.favorActive) return 'window open';
+        if (live && typeof live.points === 'number') points = live.points;
+    }
+    if (typeof points === 'number') {
+        var rem = 21 - points;
+        if (rem <= 0) return 'window open';
+        return rem + ' more to go';
+    }
+    return 'window open';
+}
+
+function _announceDailyTrifecta(info) {
+    var state = _getDailyActivities();
+    if (state.announced) return;
+    state.announced = true;
+    localStorage.setItem('btc_daily_activities', JSON.stringify(state));
+    var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username)
+        ? currentUser.username : null;
+    if (username && typeof window.nachoGlobalAnnounce === 'function') {
+        window.nachoGlobalAnnounce(
+            '\uD83E\uDD8C @' + username + ' crushed the daily trifecta \u2014 quiz, trivia & poll! ' + _trifectaTail(info) + ' \uD83C\uDFC6 \u27A1\uFE0F [Quest Hub](#quests)',
+            (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : ''
+        );
+    }
+}
+
 function _checkDailyAllThree() {
     var state = _getDailyActivities();
     if (!(state.quiz && state.trivia && state.poll)) return;
-    if (state.sfAwarded) return; // already triggered this session
+    if (state.sfAwarded) return;
 
     state.sfAwarded = true;
     localStorage.setItem('btc_daily_activities', JSON.stringify(state));
 
-    // ── Immediate announcement in the News tab ──
-    // Fires right away, independent of the SF CF call.
-    // Uses a short delay (1s) so local state settles and global-chat is ready.
     setTimeout(function() {
-        var username = (typeof currentUser !== 'undefined' && currentUser && currentUser.username)
-            ? currentUser.username : null;
-        if (username && typeof window.nachoGlobalAnnounce === 'function') {
-            window.nachoGlobalAnnounce(
-                '\uD83E\uDD8C @' + username + ' crushed the daily trifecta \u2014 quiz, trivia & poll! +1 SF point \uD83C\uDFC6 \u27A1\uFE0F [Quest Hub](#quests)',
-                (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : ''
-            );
-        }
-    }, 1000);
-
-    // Award 1 orange ticket for completing the Daily Trifecta
-    setTimeout(function() {
-        if (typeof awardTickets === 'function') {
-            awardTickets(1, '🎯 Daily Trifecta');
-        }
+        if (typeof awardTickets === 'function') awardTickets(1, '🎯 Daily Trifecta');
     }, 500);
 
-    // Track cumulative daily triple completions
-    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-        db.collection('users').doc(auth.currentUser.uid).update({
-            dailyTripleCount: firebase.firestore.FieldValue.increment(1)
-        }).catch(function() {});
-    }
-
-    // ── SF point contribution (background, retried) ──
-    // Wait for gradeQuest + awardPoints CF writes to fully commit before
-    // contributeFavor reads daily_action_counts to validate all three docs exist.
-    // 8s gives CF writes more breathing room; retries handle remaining lag.
-    setTimeout(function() {
-        _triggerDailyAllThreeSF(0);
-    }, 8000);
+    setTimeout(function() { _triggerDailyAllThreeSF(0); }, 8000);
 }
 
 function _triggerDailyAllThreeSF(attempt) {
@@ -1400,14 +1415,25 @@ function _triggerDailyAllThreeSF(attempt) {
         if (attempt < 5) setTimeout(function() { _triggerDailyAllThreeSF(attempt + 1); }, 2000);
         return;
     }
+    var wasActive = false;
+    if (typeof window._resolveFavorState === 'function') {
+        var before = window._resolveFavorState();
+        wasActive = !!(before && before.favorActive);
+    }
     window.contributeSatoshiFavor('daily_all_three').then(function(data) {
         if (data) console.log('[DAILY] SF point awarded:', data);
+        var opened = !!(data && data.favorActive && !wasActive);
+        _announceDailyTrifecta({
+            wasActive: wasActive,
+            opened: opened,
+            points: data && typeof data.points === 'number' ? data.points : null
+        });
     }).catch(function(err) {
         var code = err && err.code;
         var msg  = err && (err.message || String(err));
         console.warn('[DAILY] contributeSatoshiFavor failed (attempt ' + attempt + '):', msg);
         // already-exists = dedup already recorded, silent success
-        if (code === 'already-exists') return;
+        if (code === 'already-exists') { _announceDailyTrifecta({ wasActive: wasActive }); return; }
         // Retry on: docs not written yet (failed-precondition) or transient read error (internal)
         var shouldRetry = (code === 'failed-precondition' || code === 'internal') && attempt < 8;
         if (shouldRetry) {
@@ -1486,16 +1512,12 @@ function generateAndShowQuest(manual, targetChannelId, isRetake) {
                 if (manual && typeof showToast === 'function') showToast('✅ You already aced ' + _actualTopicKey.replace(/[-_]+/g, ' ') + ' Part ' + _parts[1] + ' with a perfect score!');
                 return;
             }
+            var _staticPartIndex = parseInt(_parts[1], 10) - 1;
             var _staticSelected = _staticQuest.questions.map(function(q) {
                 var opts = [q.a, ...q.wrong].sort(() => Math.random() - 0.5);
-                return { q: q.q, options: opts, answer: opts.indexOf(q.a) };
+                return { q: q.q, options: opts, answer: opts.indexOf(q.a), topicKey: _actualTopicKey, questIndex: _staticPartIndex };
             });
-            currentQuest = { id: _staticQuestId, topicKey: _actualTopicKey, partNum: parseInt(_parts[1]), totalParts: _staticQuest.totalParts, title: _getStaticQuestTitle(_actualTopicKey, parseInt(_parts[1]), _staticQuest.totalParts), questions: _staticSelected };
-            window._currentQuestServerId = null;
-            window._currentQuestServerIdPromise = null;
-            if (typeof firebase !== 'undefined' && firebase.functions) {
-                window._currentQuestServerIdPromise = firebase.functions().httpsCallable('startQuest')({ questions: _staticSelected.map(function(q) { return { answer: q.answer }; }), topicKey: _actualTopicKey }).then(function(res) { window._currentQuestServerId = res.data.questId; return res.data.questId; }).catch(function(e) { console.warn('Quest registration failed:', e); return null; });
-            }
+            currentQuest = { id: _staticQuestId, topicKey: _actualTopicKey, questIndex: _staticPartIndex, partNum: parseInt(_parts[1]), totalParts: _staticQuest.totalParts, title: _getStaticQuestTitle(_actualTopicKey, parseInt(_parts[1]), _staticQuest.totalParts), questions: _staticSelected };
             showQuest(currentQuest, false);
             return;
         }
@@ -1608,28 +1630,22 @@ function generateAndShowQuest(manual, targetChannelId, isRetake) {
     const newAsked = [...askedQuestions, ...selected.map(q => q.q)];
     localStorage.setItem('btc_asked_questions', JSON.stringify(newAsked));
 
-    // Build multiple choice format
+    // Build multiple choice format. The server grades the chosen answer text.
     const questions = selected.map(q => {
         const options = [q.a, ...q.wrong].sort(() => Math.random() - 0.5);
         const correctIdx = options.indexOf(q.a);
-        return { q: q.q, options, answer: correctIdx };
+        var topicKey = q.source || _actualTopicKey || '';
+        var questIndex = 0;
+        if (topicKey && QUESTION_BANK[topicKey]) {
+            var bank = QUESTION_BANK[topicKey];
+            for (var qi = 0; qi < bank.length; qi++) {
+                if (bank[qi].q === q.q) { questIndex = Math.floor(qi / 5); break; }
+            }
+        }
+        return { q: q.q, options: options, answer: correctIdx, topicKey: topicKey, questIndex: questIndex };
     });
 
-    currentQuest = { id: questId, topicKey: _actualTopicKey || null, title: getQuestTitle(questCount, _actualTopicKey), questions };
-
-    // Register quest server-side for secure grading
-    // Store the promise so submitQuest can await it if the user finishes quickly
-    window._currentQuestServerId = null;
-    window._currentQuestServerIdPromise = null;
-    if (typeof firebase !== 'undefined' && firebase.functions) {
-        window._currentQuestServerIdPromise = firebase.functions().httpsCallable('startQuest')({
-            questions: questions.map(function(q) { return { answer: q.answer }; }),
-            topicKey: targetChannelId || null
-        }).then(function(res) {
-            window._currentQuestServerId = res.data.questId;
-            return res.data.questId;
-        }).catch(function(e) { console.warn('Quest registration failed:', e); return null; });
-    }
+    currentQuest = { id: questId, topicKey: _actualTopicKey || null, questIndex: questions.length ? questions[0].questIndex : 0, title: getQuestTitle(questCount, _actualTopicKey), questions };
 
     showQuest(currentQuest, false);
 }
@@ -1861,6 +1877,29 @@ window._useQuestHint = function(qIdx) {
     }
 };
 
+async function _gradeQuestOnServer(quest, answerIndexes, retry) {
+    if (!quest || typeof firebase === 'undefined' || !firebase.functions) return null;
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return null;
+    var payloadAnswers = (quest.questions || []).map(function(q, i) {
+        var idx = answerIndexes[i];
+        var chosen = (q.options && idx >= 0) ? q.options[idx] : '';
+        return {
+            q: q.q,
+            topicKey: q.topicKey || quest.topicKey || '',
+            questIndex: (typeof q.questIndex === 'number') ? q.questIndex : (quest.questIndex || 0),
+            chosen: chosen
+        };
+    });
+    var first = payloadAnswers[0] || {};
+    var gradeResult = await firebase.functions().httpsCallable('gradeQuest')({
+        topicKey: quest.topicKey || first.topicKey || '',
+        questIndex: (typeof quest.questIndex === 'number') ? quest.questIndex : (first.questIndex || 0),
+        isRetry: !!retry,
+        answers: payloadAnswers
+    });
+    return gradeResult && gradeResult.data ? gradeResult.data : null;
+}
+
 async function submitQuest() {
     // Prevent double-submit
     if (window._questSubmitted) return;
@@ -1871,40 +1910,8 @@ async function submitQuest() {
     const answers = window._questAnswers;
     const correct = window._questCorrect;
 
-    // --- INSTANT LOCAL GRADE (no network wait) ---
     let score = 0;
     answers.forEach((a, i) => { if (a === correct[i]) score++; });
-    const isPerfectLocal = score === 5;
-    const isTopicQuestLocal = !!(currentQuest && currentQuest.topicKey);
-    let pts = 0;
-    if (isRetry) {
-        if (score >= 3) pts = 25;
-    } else {
-        if (isPerfectLocal) pts = 100;
-        else if (score >= 3) pts = 50;
-    }
-
-    // Fire server grading in background — does not block UI
-    // Store the promise so we can update the local XP log with the actual server-awarded amount
-    window._lastQuestGradingPromise = null;
-    if (window._currentQuestServerIdPromise || window._currentQuestServerId) {
-        window._lastQuestGradingPromise = (async function() {
-            try {
-                if (!window._currentQuestServerId && window._currentQuestServerIdPromise) {
-                    await window._currentQuestServerIdPromise;
-                }
-                if (window._currentQuestServerId && typeof firebase !== 'undefined' && firebase.functions) {
-                    var gradeResult = await firebase.functions().httpsCallable('gradeQuest')({
-                        questId: window._currentQuestServerId,
-                        answers: answers,
-                        isRetry: !!isRetry
-                    });
-                    return gradeResult && gradeResult.data ? gradeResult.data : null;
-                }
-            } catch(e) { console.warn('Background quest grading failed:', e); }
-            return null;
-        })();
-    }
 
     // Highlight correct/wrong
     const questions = document.querySelectorAll('.quest-q');
@@ -1917,13 +1924,24 @@ async function submitQuest() {
         });
     });
 
+    var serverData = null;
+    try {
+        serverData = await _gradeQuestOnServer(currentQuest, answers, !!isRetry);
+    } catch (e) {
+        console.warn('Quest grading failed:', e);
+    }
+    // XP on screen is only what gradeQuest actually paid.
+    var awarded = serverData && typeof serverData.awarded === 'number' ? serverData.awarded : 0;
+    var pts = awarded;
+    var xpMark = serverData && serverData.doubled === true ? ' 2x' : '';
+    var xpSuffix = awarded > 0 ? ' +' + awarded + ' XP' + xpMark + '!' : '';
+
     let msg = '';
     var isPerfect = score === 5;
     var isTopicQuest = !!(currentQuest.topicKey);
     if (isRetry) {
         if (score >= 3) {
-            if (!pts) pts = 25;
-            msg = '🎉 ' + score + '/5 correct on retry! +' + pts + ' XP!';
+            msg = '🎉 ' + score + '/5 correct on retry!' + xpSuffix;
             // Only permanently lock on perfect 5/5 for topic quests
             if (isPerfect || !isTopicQuest) {
                 completedQuests.add(currentQuest.id);
@@ -1934,8 +1952,7 @@ async function submitQuest() {
         }
     } else {
         if (isPerfect) {
-            if (!pts) pts = 100;
-            msg = '🏆 PERFECT! 5/5! +' + pts + ' XP!';
+            msg = '🏆 PERFECT! 5/5!' + xpSuffix;
             completedQuests.add(currentQuest.id);
             questCount++;
             // Nacho celebrates perfect scores in global chat
@@ -1945,8 +1962,7 @@ async function submitQuest() {
                 window.nachoGlobalAnnounce('🏆 @' + _pqName + ' just aced ' + _pqTopic + ' with a PERFECT 5/5! Think you can do the same? ➡️ [Quest Hub](#quests)', auth.currentUser.uid);
             }
         } else if (score >= 3) {
-            if (!pts) pts = 50;
-            msg = '🎉 ' + score + '/5 correct! +' + pts + ' XP!';
+            msg = '🎉 ' + score + '/5 correct!' + xpSuffix;
             // Non-perfect: award XP but DON'T lock topic quest (allow retake for 5/5)
             if (!isTopicQuest) {
                 completedQuests.add(currentQuest.id);
@@ -1967,40 +1983,14 @@ async function submitQuest() {
     qLog.lastTitle = currentQuest.title || null;
     localStorage.setItem('btc_quest_daily', JSON.stringify(qLog));
 
-    if (pts > 0) {
-        // Points already awarded server-side by gradeQuest.
-        // Log optimistically now; correct the entry once the server responds.
+    var serverQualified = !!(serverData && serverData.graded && (serverData.pts || 0) > 0 && !serverData.banned);
+    if (awarded > 0) {
         if (typeof notifySelfQuest === 'function') notifySelfQuest(currentQuest.title);
-        if (typeof notifySelfPoints === 'function') notifySelfPoints(pts, '🏆 Quest: ' + (currentQuest.title || 'Quest'));
-        // Correct local log entry if server actually awarded fewer (e.g. daily cap hit)
-        if (window._lastQuestGradingPromise) {
-            var _logReason = '🏆 Quest: ' + (currentQuest.title || 'Quest');
-            var _optimisticPts = pts;
-            window._lastQuestGradingPromise.then(function(serverData) {
-                if (!serverData) return;
-                var actualAwarded = typeof serverData.awarded === 'number' ? serverData.awarded : _optimisticPts;
-                if (actualAwarded !== _optimisticPts && typeof notifySelfPoints === 'function') {
-                    // Patch the most recent matching log entry to reflect actual award
-                    try {
-                        var log = JSON.parse(localStorage.getItem('btc_points_log') || '[]');
-                        for (var _i = log.length - 1; _i >= 0; _i--) {
-                            if (log[_i].reason === _logReason && log[_i].pts === _optimisticPts) {
-                                log[_i].pts = actualAwarded;
-                                log[_i].serverConfirmed = true;
-                                if (actualAwarded === 0) log.splice(_i, 1); // remove if 0 awarded
-                                localStorage.setItem('btc_points_log', JSON.stringify(log));
-                                if (typeof _updatePointsBadge === 'function') _updatePointsBadge();
-                                break;
-                            }
-                        }
-                    } catch(e) {}
-                }
-            }).catch(function() {});
-        }
-        // Raid Boss: quiz completion
+        if (typeof notifySelfPoints === 'function') notifySelfPoints(awarded, '🏆 Quest: ' + (currentQuest.title || 'Quest'));
+        if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(awarded);
+    }
+    if (serverQualified) {
         if (typeof window._raidOnQuizComplete === 'function') window._raidOnQuizComplete();
-        if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(pts);
-
         // Mark quiz done for the day and check if all 3 daily activities complete
         _markDailyActivity('quiz');
         _checkDailyAllThree();
@@ -2016,8 +2006,7 @@ async function submitQuest() {
 
         if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
             db.collection('users').doc(auth.currentUser.uid).update({
-                questsCompletedToday: (qLog.count || 0),
-                lastQuestDate: todayQ
+                questsCompletedToday: (qLog.count || 0)
             }).catch(function(e) { console.error('Quest sync failed:', e); });
         }
     }
@@ -2437,14 +2426,14 @@ function _renderFavorTab(body) {
         html += '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(247,147,26,0.05));border:2px solid var(--accent);border-radius:12px;padding:16px;margin-bottom:16px;animation:favorPulse 2s ease-in-out infinite;">' +
             '<div style="font-size:1.2rem;font-weight:800;color:var(--accent);margin-bottom:8px;">🎉 SATOSHI\'S FAVOR IS ACTIVE!</div>' +
             '<div style="font-size:2rem;font-weight:900;color:#fff;font-family:monospace;" id="favorTabTimer">' + remainingMin + 'm ' + remainingSec + 's</div>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;">Mine below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' to solve a block and earn a share of the reward!</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;">Hash below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' (the current difficulty) to solve a block and earn a share of the reward!</div>' +
             '</div>' +
             '<style>@keyframes favorPulse{0%,100%{box-shadow:0 0 0 0 rgba(247,147,26,0.4)}50%{box-shadow:0 0 0 10px rgba(247,147,26,0)}}</style>';
 
         var satsOff = (typeof currentUser !== 'undefined' && currentUser && currentUser.satsDisabled === true) || window._satsDisabled === true;
         html += satsOff
             ? '<div style="padding:12px;border-radius:12px;background:rgba(239,68,68,0.08);color:#ef4444;font-weight:700;font-size:0.85rem;margin-bottom:12px;">Sats are disabled on this account.</div>'
-            : '<button onclick="window.closeQuestHubForFavor && window.closeQuestHubForFavor();window.openSatoshiFavorMiner && window.openSatoshiFavorMiner()" style="padding:14px 32px;background:linear-gradient(135deg,var(--accent),#e8720c);border:none;border-radius:14px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:12px;">✨⛏️ Start Mining</button>';
+            : '<button onclick="window.closeQuestHubForFavor && window.closeQuestHubForFavor();window.openSatoshiFavorMiner && window.openSatoshiFavorMiner()" style="padding:14px 32px;background:linear-gradient(135deg,var(--accent),#e8720c);border:none;border-radius:14px;color:#fff;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:12px;">✨⛏️ Start Hashing</button>';
     } else {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">' +
@@ -2458,7 +2447,8 @@ function _renderFavorTab(body) {
     }
 
     // ── Faction Scoreboard (below progress bar) ──
-    html += '<div id="factionScoreboard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:18px;">' +
+    html += '<style>#sfNoFactionChooseBtn{display:inline-block;padding:12px 18px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;min-width:220px;}@media (max-width:640px){#sfNoFactionChooseBtn{display:block;width:100%;box-sizing:border-box;min-width:0;}}</style>' +
+        '<div id="factionScoreboard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:18px;">' +
         '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1.2px;font-weight:800;margin-bottom:4px;">⚔️ Faction SF Competition</div>' +
         '<div style="font-size:0.72rem;color:var(--accent);font-weight:700;margin-bottom:2px;">Race to 10,000 points</div>' +
         '<div style="font-size:0.68rem;color:var(--text-muted);margin-bottom:12px;">🏆 Winning Faction receives a special prize!</div>' +
@@ -2483,17 +2473,28 @@ function _renderFavorTab(body) {
         '<div id="sfScoreBar" style="margin-top:10px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;display:none;">' +
             '<div id="sfScoreBarFill" style="height:100%;background:linear-gradient(90deg,#f7931a,#f7931a 50%,#a855f7 50%,#a855f7);width:100%;border-radius:3px;transition:background 0.5s;"></div>' +
         '</div>' +
-        '<div id="sfUserFactionRow" style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding:8px 10px;background:rgba(255,255,255,0.03);border-radius:8px;">' +
-            '<div style="display:flex;align-items:center;gap:6px;">' +
-                '<span id="sfUserFactionIcon" style="font-size:0.82rem;">👤</span>' +
-                '<span id="sfUserFactionLabel" style="font-size:0.72rem;color:var(--text-muted);">Loading...</span>' +
-            '</div>' +
-            '<div style="display:flex;align-items:center;gap:8px;">' +
-                '<span id="sfScoreUnaffiliated" style="font-size:0.88rem;font-weight:800;color:var(--text-muted);font-family:monospace;">0</span>' +
-                '<span style="font-size:0.62rem;color:var(--text-faint);">pts</span>' +
+        '<div id="sfUserFactionRow" style="margin-top:10px;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">' +
+                '<div style="display:flex;align-items:center;gap:6px;min-width:0;">' +
+                    '<span id="sfUserFactionIcon" style="font-size:0.95rem;">👤</span>' +
+                    '<span id="sfUserFactionLabel" style="font-size:0.78rem;color:var(--text);font-weight:700;">Loading...</span>' +
+                '</div>' +
+                '<button type="button" id="sfChooseFactionBtn" onclick="window._openFactionPicker()" style="display:none;padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.78rem;font-weight:800;cursor:pointer;font-family:inherit;">Choose a faction</button>' +
             '</div>' +
         '</div>' +
-        '<div id="sfNoFactionNote" style="display:none;"></div>' +
+        '<div id="sfMyContribution" style="display:none;margin-top:8px;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:8px;text-align:center;">' +
+            '<span id="sfMyContributionText" style="font-size:0.78rem;font-weight:700;color:var(--text);"></span>' +
+        '</div>' +
+        '<div id="sfUnclaimedPool" style="display:none;margin-top:8px;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:8px;text-align:center;line-height:1.45;">' +
+            '<div id="sfScoreUnaffiliated" style="font-size:0.85rem;font-weight:800;color:var(--heading);">0 pts unclaimed</div>' +
+            '<div id="sfUnclaimedExplain" style="display:block;margin-top:4px;font-size:0.75rem;font-weight:500;color:var(--text-muted);">' + "These come from players who haven't picked a faction yet." + '</div>' +
+        '</div>' +
+        '<div id="sfNoFactionNote" style="display:none;">' +
+            '<div id="sfNoFactionNoteBody" style="display:none;margin-top:8px;padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;text-align:center;">' +
+                '<div id="sfNoFactionNoteText" style="font-size:0.8rem;color:var(--text);line-height:1.45;margin-bottom:12px;">' + "You haven't picked a faction yet, so your points count as unclaimed. Pick a side to help a team win." + '</div>' +
+                '<button type="button" id="sfNoFactionChooseBtn" onclick="window._openFactionPicker()">Choose a faction</button>' +
+            '</div>' +
+        '</div>' +
         '<div id="sfAdminBackfill" style="display:none;margin-top:8px;text-align:center;">' +
             '<button onclick="window._runFactionBackfill()" style="padding:5px 12px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.4);border-radius:7px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Backfill historical data (admin)</button>' +
         '</div>' +
@@ -2508,10 +2509,10 @@ function _renderFavorTab(body) {
         '• Level up to Pleb/Stacker ranks = 1 point each<br>' +
         '• Level up to Maxi ranks = 5 points each<br>' +
         '• Level up to Papa John or higher = 10 points<br>' +
-        '• At 21 points, a mining (simulation) competition opens for 60 minutes<br>' +
+        '• At 21 points, a hashing (simulation) competition opens for 60 minutes<br>' +
         '• Extra points beyond 21 add +3 min each (even while active!)<br>' +
         '• 10 hashes max per minute per user (60 second cooldown)<br>' +
-        '• Generate a random hash. Below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' = you solved a block!<br><br>' +
+        '• Generate a random hash. Below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' (the current difficulty) = you solved a block!<br><br>' +
         '<strong style="color:var(--accent);">Pool mining rewards:</strong><br>' +
         '• Every 5 blocks found triggers a <strong>21,000 sat distribution</strong><br>' +
         '• If 5 different people each find a block — each earns <strong>4,200 sats</strong><br>' +
@@ -2545,7 +2546,7 @@ function _renderFavorTab(body) {
 
     // Top 50 hashers by total hashes mined
     html += '<div style="margin-top:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">' +
-        '<div style="font-size:0.82rem;font-weight:800;color:var(--heading);margin-bottom:10px;">\u26CF\uFE0F Top 50 Hashers \u2014 All Time</div>' +
+        '<div style="font-size:0.82rem;font-weight:800;color:var(--heading);margin-bottom:10px;">\u26CF\uFE0F Top 25 Hashers \u2014 All Time</div>' +
         '<div id="favorHasherRanks" style="font-size:0.8rem;color:var(--text-muted);">Loading...</div>' +
     '</div>';
     // Difficulty History — rendered dynamically from window.SF_DIFFICULTY_HISTORY
@@ -2555,18 +2556,16 @@ function _renderFavorTab(body) {
             { date: '2026-06-21', target: 30000, label: '-96.67% drop' },
             { date: '2026-06-30', target: 15000, label: '+100% raise' },
         ];
-        var _dhHtml = '<div style="margin-top:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">' +
+        var _dhHtml = '<style>' +
+            '.sf-dh-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}' +
+            '.sf-dh{width:100%;border-collapse:collapse;font-size:0.68rem;font-variant-numeric:tabular-nums;}' +
+            '.sf-dh th,.sf-dh td{white-space:nowrap;}' +
+            '@media (max-width:480px){.sf-dh{font-size:0.6rem;}.sf-dh th,.sf-dh td{padding:3px 2px;}.sf-dh .sf-dh-mono{font-family:inherit;}}' +
+            '@media (max-width:340px){.sf-dh{font-size:0.54rem;}.sf-dh th,.sf-dh td{padding:3px 1px;}}' +
+            '</style>' +
+            '<div style="margin-top:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;">' +
             '<div style="font-size:0.82rem;font-weight:800;color:var(--heading);margin-bottom:8px;">\uD83D\uDCCA Difficulty History</div>' +
-            '<table style="width:100%;border-collapse:collapse;font-size:0.68rem;table-layout:fixed;">' +
-            '<colgroup>' +
-                '<col style="width:22%">' +
-                '<col style="width:13%">' +
-                '<col style="width:14%">' +
-                '<col style="width:17%">' +
-                '<col style="width:8%">' +
-                '<col style="width:14%">' +
-                '<col style="width:12%">' +
-            '</colgroup>' +
+            '<div class="sf-dh-wrap"><table class="sf-dh">' +
             '<thead><tr style="color:var(--text-faint);">' +
                 '<th style="text-align:left;padding:3px 4px;border-bottom:1px solid var(--border);">Date</th>' +
                 '<th style="text-align:right;padding:3px 4px;border-bottom:1px solid var(--border);">Target</th>' +
@@ -2580,12 +2579,13 @@ function _renderFavorTab(body) {
         _dh.forEach(function(row, i) {
             var isCurrent = (i === _dh.length - 1);
             var prevTarget = i > 0 ? _dh[i - 1].target : null;
-            var odds = '1:' + Math.round(100000000 / row.target).toLocaleString();
+            var odds = '1:' + _sfCompactNum(Math.round(100000000 / row.target));
             var changeColor = !prevTarget ? 'var(--text-faint)' : (row.target < prevTarget ? '#22c55e' : '#ef4444');
             var changeTxt = row.label || (!prevTarget ? 'Genesis' : (((row.target - prevTarget) / prevTarget * 100).toFixed(2) + '%'));
+            changeTxt = String(changeTxt).replace(/(\d+\.\d{2,})%/, function(m, n) { return parseFloat(n).toFixed(1) + '%'; }); // -96.67% -> -96.7% (mobile fit)
             // Hashes: use static value from SF_DIFFICULTY_HISTORY for past periods; live cell for current
             var hashTxt = isCurrent ? '<span id="sfHashesRow' + i + '">\u2026</span>' :
-                (row.hashes != null ? row.hashes.toLocaleString() : '—');
+                (row.hashes != null ? _sfCompactNum(row.hashes) : '—');
             // Luck: null = current period (live) or genesis period (0 blocks)
             var luckTxt, luckColor;
             if (isCurrent) {
@@ -2603,16 +2603,16 @@ function _renderFavorTab(body) {
                 ? 'color:var(--heading);background:rgba(247,147,26,0.08);outline:2px solid #f7931a;outline-offset:-2px;'
                 : 'color:var(--text-muted);';
             var currentDateCell = isCurrent
-                ? '<span style="display:block;font-weight:700;">' + row.date + '</span><span style="display:inline-block;margin-top:2px;font-size:0.58rem;font-weight:800;background:#f7931a;color:#000;border-radius:3px;padding:0px 4px;letter-spacing:0.03em;">CURRENT</span>'
-                : row.date;
+                ? '<span style="display:block;font-weight:700;" title="' + row.date + '">' + _sfShortDate(row.date) + '</span><span style="display:inline-block;margin-top:2px;font-size:0.5rem;font-weight:800;background:#f7931a;color:#000;border-radius:3px;padding:0px 4px;letter-spacing:0.03em;">CURRENT</span>'
+                : '<span title="' + row.date + '">' + _sfShortDate(row.date) + '</span>';
             _dhHtml += '<tr style="' + currentRowStyle + '">' +
-                '<td style="padding:4px 4px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + currentDateCell + '</td>' +
-                '<td style="text-align:right;padding:4px 4px;font-family:monospace;' + (isCurrent ? 'font-weight:700;color:#22c55e;' : '') + '">' + row.target.toLocaleString() + '</td>' +
-                '<td style="text-align:right;padding:4px 4px;color:' + changeColor + ';' + (isCurrent ? 'font-weight:700;' : '') + 'white-space:nowrap;">' + changeTxt + '</td>' +
-                '<td style="text-align:right;padding:4px 4px;white-space:nowrap;">' + odds + '</td>' +
-                '<td id="sfBlocksRow' + i + '" style="text-align:right;padding:4px 4px;' + (isCurrent ? 'font-weight:700;' : '') + '">' + (isCurrent ? '\u2026' : '0') + '</td>' +
-                '<td style="text-align:right;padding:4px 4px;font-family:monospace;">' + hashTxt + '</td>' +
-                '<td style="text-align:right;padding:4px 4px;font-weight:600;color:' + luckColor + ';white-space:nowrap;">' + luckTxt + '</td>' +
+                '<td style="' + (isCurrent ? 'font-weight:700;' : '') + '">' + currentDateCell + '</td>' +
+                '<td style="text-align:right;' + (isCurrent ? 'font-weight:700;color:#22c55e;' : '') + '">' + _sfCompactNum(row.target) + '</td>' +
+                '<td style="text-align:right;color:' + changeColor + ';' + (isCurrent ? 'font-weight:700;' : '') + 'white-space:nowrap;">' + changeTxt + '</td>' +
+                '<td style="text-align:right;white-space:nowrap;">' + odds + '</td>' +
+                '<td id="sfBlocksRow' + i + '" style="text-align:right;' + (isCurrent ? 'font-weight:700;' : '') + '">' + (isCurrent ? '\u2026' : '0') + '</td>' +
+                '<td style="text-align:right;">' + hashTxt + '</td>' +
+                '<td style="text-align:right;font-weight:600;color:' + luckColor + ';white-space:nowrap;">' + luckTxt + '</td>' +
             '</tr>';
         });
         // Totals row — static hashes for past periods; live cells for current-period contribution
@@ -2626,15 +2626,15 @@ function _renderFavorTab(body) {
         });
         _dhHtml +=
             '<tr id="sfDifficultyTotalsRow" style="color:var(--text-faint);border-top:1px solid var(--border);font-size:0.68rem;">' +
-                '<td style="padding:4px 4px;font-weight:700;color:var(--text-muted);">Total</td>' +
-                '<td style="padding:4px 4px;"></td>' +
-                '<td style="padding:4px 4px;"></td>' +
-                '<td style="padding:4px 4px;"></td>' +
-                '<td style="text-align:right;padding:4px 4px;font-weight:700;color:var(--text-muted);"><span id="sfTotalBlocks">…</span></td>' +
-                '<td style="text-align:right;padding:4px 4px;font-weight:700;color:var(--text-muted);font-family:monospace;"><span id="sfTotalHashes">…</span></td>' +
-                '<td style="padding:4px 4px;"></td>' +
+                '<td style="font-weight:700;color:var(--text-muted);">Total</td>' +
+                '<td style=""></td>' +
+                '<td style=""></td>' +
+                '<td style=""></td>' +
+                '<td style="text-align:right;font-weight:700;color:var(--text-muted);"><span id="sfTotalBlocks">…</span></td>' +
+                '<td style="text-align:right;font-weight:700;color:var(--text-muted);"><span id="sfTotalHashes">…</span></td>' +
+                '<td style=""></td>' +
             '</tr>';
-        _dhHtml += '</tbody></table></div>';
+        _dhHtml += '</tbody></table></div></div>';
         html += _dhHtml;
     })();
     '</div>';
@@ -2670,6 +2670,16 @@ function _renderFavorTab(body) {
     }
 }
 
+window._openFactionPicker = function() {
+    var overlay = document.getElementById('questHubOverlay');
+    if (overlay) overlay.remove();
+    if (window._factionScoreUnsub) { window._factionScoreUnsub(); window._factionScoreUnsub = null; }
+    _stopMySfListener();
+    setTimeout(function() {
+        if (typeof showSettingsPage === 'function') showSettingsPage('account');
+    }, 50);
+};
+
 window.closeQuestHubForFavor = function() {
     var overlay = document.getElementById('questHubOverlay');
     if (overlay) overlay.remove();
@@ -2678,6 +2688,7 @@ window.closeQuestHubForFavor = function() {
     _cleanupLastWindowListener && _cleanupLastWindowListener();
     // Clean up faction listener
     if (window._factionScoreUnsub) { window._factionScoreUnsub(); window._factionScoreUnsub = null; }
+    if (typeof _stopMySfListener === 'function') _stopMySfListener();
     // Store that we should reopen Quest Hub on miner close
     window._qhReopenOnMinerClose = true;
 };
@@ -2722,7 +2733,10 @@ function _startFactionScoreboardListener() {
 
         if (elH) elH.textContent = hornets.toLocaleString();
         if (elB) elB.textContent = badgers.toLocaleString();
-        if (elU) elU.textContent = unaffiliated.toLocaleString();
+        if (elU) elU.textContent = unaffiliated.toLocaleString() + ' pts unclaimed';
+        var elExplain = document.getElementById('sfUnclaimedExplain');
+        if (elExplain) elExplain.textContent = "These come from players who haven't picked a faction yet.";
+        var poolRow = document.getElementById('sfUnclaimedPool');
 
         // Leader label
         if (elLeader) {
@@ -2740,23 +2754,40 @@ function _startFactionScoreboardListener() {
 
         // Show user's faction status dynamically
         var userFaction = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.faction || '') : '';
+        // Guests and signed-out users keep the small button. A signed-in player
+        // with no faction gets the note button instead, so only one is visible.
+        var sfCanChoose = (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous);
         if (elNote) {
             elNote.style.display = userFaction ? 'none' : 'block';
         }
+        var noteBody = document.getElementById('sfNoFactionNoteBody');
+        var noteText = document.getElementById('sfNoFactionNoteText');
+        if (noteText) noteText.textContent = "You haven't picked a faction yet, so your points count as unclaimed. Pick a side to help a team win.";
+        if (noteBody) noteBody.style.display = (!userFaction && sfCanChoose) ? 'block' : 'none';
         var sfLabel = document.getElementById('sfUserFactionLabel');
         var sfIcon = document.getElementById('sfUserFactionIcon');
+        var sfChoose = document.getElementById('sfChooseFactionBtn');
+        _paintMySfContribution();
+
         if (sfLabel && sfIcon) {
             if (userFaction === 'cyber_hornets') {
                 sfIcon.textContent = '🐝';
-                sfLabel.innerHTML = '<span style="color:#f7931a;font-weight:700;">Cyber Hornets</span>';
+                sfLabel.textContent = 'Your faction: Cyber Hornets';
+                sfLabel.style.color = '#f7931a';
+                if (sfChoose) sfChoose.style.display = 'none';
             } else if (userFaction === 'honey_badgers') {
                 sfIcon.textContent = '🦡';
-                sfLabel.innerHTML = '<span style="color:#a855f7;font-weight:700;">Honey Badgers</span>';
+                sfLabel.textContent = 'Your faction: Honey Badgers';
+                sfLabel.style.color = '#a855f7';
+                if (sfChoose) sfChoose.style.display = 'none';
             } else {
                 sfIcon.textContent = '👤';
-                sfLabel.innerHTML = 'Unaffiliated - <span onclick="document.getElementById(\'questHubOverlay\').remove();setTimeout(function(){showSettingsPage(\'account\')},50)" style="color:var(--accent);cursor:pointer;font-weight:700;text-decoration:underline;">Choose a Faction!</span>';
+                sfLabel.textContent = 'Unclaimed faction points: ' + unaffiliated.toLocaleString();
+                sfLabel.style.color = 'var(--text)';
+                if (sfChoose) sfChoose.style.display = sfCanChoose ? 'none' : 'inline-block';
             }
         }
+        if (poolRow) poolRow.style.display = (userFaction === 'cyber_hornets' || userFaction === 'honey_badgers') ? 'block' : 'none';
 
         // Show backfill button for admin
         var elAdmin = document.getElementById('sfAdminBackfill');
@@ -2776,6 +2807,46 @@ function _startFactionScoreboardListener() {
     }, function(err) {
         console.warn('[FACTION-SCORE] Listener error:', err);
     });
+
+    _stopMySfListener();
+    var me = (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) ? auth.currentUser : null;
+    if (!me) {
+        window._mySfPoints = null;
+        _paintMySfContribution();
+        return;
+    }
+    window._mySfUnsub = db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc(me.uid).onSnapshot(function(doc) {
+        var raw = doc.exists && doc.data() ? Number(doc.data().points) : 0;
+        window._mySfPoints = Number.isFinite(raw) && raw > 0 ? raw : 0;
+        _paintMySfContribution();
+    }, function(err) {
+        console.warn('[SF-MINE] Listener error:', err);
+        window._mySfPoints = null;
+        _paintMySfContribution();
+    });
+}
+
+function _stopMySfListener() {
+    if (window._mySfUnsub) { window._mySfUnsub(); window._mySfUnsub = null; }
+}
+
+function _paintMySfContribution() {
+    var row = document.getElementById('sfMyContribution');
+    var el = document.getElementById('sfMyContributionText');
+    if (!row || !el) return;
+    var me = (typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) ? auth.currentUser : null;
+    if (!me || window._mySfPoints == null) {
+        row.style.display = 'none';
+        el.textContent = '';
+        return;
+    }
+    var n = window._mySfPoints;
+    var faction = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.faction || '') : '';
+    var where = faction === 'honey_badgers' ? ' to Honey Badgers'
+        : faction === 'cyber_hornets' ? ' to Cyber Hornets'
+        : ', unclaimed';
+    el.textContent = "You've contributed " + n.toLocaleString() + ' SF points' + where + ' (all time).';
+    row.style.display = 'block';
 }
 
 // Detach handles for real-time SF listeners
@@ -2783,13 +2854,13 @@ var _favorTopHashesUnsub = null;
 var _favorPBUnsub = null;
 var _favorHasherRanksUnsub = null;
 
-// Render Top 50 Hashers leaderboard
+// Render Top 25 Hashers leaderboard
 function _renderHasherRanksHTML(users) {
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
     var html = '';
     for (var i = 0; i < users.length; i++) {
         var u = users[i];
-        var rank = i + 1;
+        var rank = u.rank || (i + 1);
         var rankIcon = rank === 1 ? '\uD83E\uDD47' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
         var isMe = myUid && u.id === myUid;
         var name = typeof escapeHtml === 'function' ? escapeHtml(u.username || 'Anon') : (u.username || 'Anon');
@@ -2844,7 +2915,20 @@ function _renderHasherRanksHTML(users) {
         html += '</div>'; // close hasherRanksMore
         html += '<button onclick="(function(){var m=document.getElementById(\'hasherRanksMore\');var b=document.getElementById(\'hasherRanksMoreBtn\');if(!m||!b)return;var open=m.style.display!==\'none\';m.style.display=open?\'none\':\'block\';b.textContent=open?\'Show more \u25bc\':\'Show less \u25b2\';})()" id="hasherRanksMoreBtn" style="width:100%;margin-top:6px;padding:6px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Show more \u25bc</button>';
     }
-    return html || '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Be the first to mine!</div>';
+    var seenMe = false;
+    for (var s = 0; s < users.length; s++) {
+        if (myUid && users[s] && users[s].id === myUid) seenMe = true;
+    }
+    if (!seenMe && typeof currentUser !== 'undefined' && currentUser && (currentUser.sfTotalHashes || 0) > 0) {
+        var myName = typeof escapeHtml === 'function' ? escapeHtml(currentUser.username || 'Anon') : (currentUser.username || 'Anon');
+        html += '<div style="padding:6px 10px;margin-top:6px;background:rgba(247,147,26,0.1);border:1px solid var(--accent);border-radius:8px;">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
+            '<span style="font-size:0.78rem;font-weight:800;color:var(--accent);">25+</span>' +
+            '<span style="font-size:0.8rem;font-weight:800;color:var(--accent);flex:1;">' + myName + ' (you)</span>' +
+            '<span style="font-family:monospace;font-size:0.82rem;font-weight:800;color:var(--heading);">\u26CF\uFE0F ' + (currentUser.sfTotalHashes || 0).toLocaleString() + '</span>' +
+            '</div></div>';
+    }
+    return html || '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Be the first to hash!</div>';
 }
 // Tap handler for hash difficulty tooltip — works on both mobile (tap) and desktop (click)
 window._sfHashTap = function(rowId, diffTarget) {
@@ -2858,17 +2942,53 @@ window._sfHashTap = function(rowId, diffTarget) {
     }
 };
 
-function _renderTopHashesHTML(entries) {
-    var myUsername = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
-    var now = Date.now();
-    var SEVENTY_TWO_HOURS = 72 * 60 * 60 * 1000;
-    var html = '';
+function _sfStoredNameMissing(name) {
+    var raw = String(name == null ? '' : name);
+    if (/[\u0000-\u001F\u007F]/.test(raw)) return true;
+    var text = raw.trim();
+    if (!/^[A-Za-z0-9_\-.]{3,20}$/.test(text)) return true;
+    if (/^(anon|anonymous)$/i.test(text)) return true;
+    if (typeof window.missingPublicName === 'function' && window.missingPublicName(text)) return true;
+    return false;
+}
 
-    function renderEntry(e, i) {
-        var isMe = myUsername && e.username === myUsername;
+function _sfRowIsMine(value, username, nameMissing) {
+    var mine = (typeof window !== 'undefined' && window._sfMyTopHashValues) || null;
+    if (mine && mine[value] === true) return true;
+    try {
+        var stored = localStorage.getItem('btc_sf_best_hash');
+        if (stored != null && stored !== '' && Number(stored) === Number(value)) return true;
+    } catch (e) {}
+    var myUsername = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? currentUser.username : null;
+    return !nameMissing && !!myUsername && username === myUsername;
+}
+
+function _sfNoteOwnHashes(data) {
+    var mine = {};
+    var list = data && Array.isArray(data.topHashValues) ? data.topHashValues : [];
+    for (var i = 0; i < list.length; i++) {
+        if (list[i] != null) mine[list[i]] = true;
+    }
+    if (data && data.value != null) mine[data.value] = true;
+    window._sfMyTopHashValues = mine;
+    var el = document.getElementById('favorTopHashes');
+    if (el && window._sfTopHashEntries && window._sfTopHashEntries.length) {
+        el.innerHTML = _renderTopHashesHTML(window._sfTopHashEntries);
+    }
+}
+
+function _renderTopHashesHTML(entries) {
+        var now = Date.now();
+        var SEVENTY_TWO_HOURS = 72 * 60 * 60 * 1000;
+        var html = '';
+
+        function renderEntry(e, i) {
+        var nameMissing = _sfStoredNameMissing(e.username);
+        var isMe = _sfRowIsMine(e.value, e.username, nameMissing);
         var rank = i + 1;
         var rankIcon = rank === 1 ? '\uD83E\uDD47' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
-        var name = typeof escapeHtml === 'function' ? escapeHtml(e.username || 'Anon') : (e.username || 'Anon');
+        var shownName = nameMissing ? 'Anon' : ('@' + e.username);
+        var name = typeof escapeHtml === 'function' ? escapeHtml(shownName) : shownName;
            // Winner = hash beat the difficulty target that was ACTIVE when it was mined.
         // e.difficultyTarget is stored by the cloud function (backfilled for legacy entries).
         // Fall back to inferring from timestamp using the known history if missing.
@@ -2903,9 +3023,12 @@ function _renderTopHashesHTML(entries) {
             '<div style="display:flex;align-items:center;justify-content:space-between;">' +
                 '<div style="display:flex;align-items:center;gap:6px;">' +
                     '<span style="font-size:0.78rem;min-width:22px;">' + rankIcon + '</span>' +
-                    (function(){ var _safeU = (e.username||'').replace(/\\/g,'').replace(/['"<>]/g,'');
-
-                    return '<span onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\''+_safeU+'\')" style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" title="View @'+name+'\'s profile">' + name + (isMe ? ' (you)' : '') + badges + '</span>'; })() +
+                    (function(){
+                    var _safeU = (nameMissing ? '' : (e.username || '')).replace(/\\/g,'').replace(/['"<>]/g,'');
+                    var click = nameMissing
+                        ? ''
+                        : 'onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\'' + _safeU + '\')"';
+                    return '<span ' + click + ' style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" title="View ' + name + '\'s profile">' + name + '</span>' + (isMe ? ' (you)' : '') + badges; })() +
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">' +
                     '<div style="display:flex;align-items:center;gap:6px;">' +
@@ -2974,7 +3097,7 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
             var offset = (curRow.eraHashOffset != null) ? curRow.eraHashOffset : 0;
             var eraHashes = Math.max(0, rawEraHashes - offset);
             var hashEl = document.getElementById('sfHashesRow' + currentIdx);
-            if (hashEl) hashEl.textContent = eraHashes.toLocaleString();
+            if (hashEl) hashEl.textContent = _sfCompactNum(eraHashes);
 
             // Update total hashes = sum of all past static hashes + current difficulty era
             var pastHashSum = 0;
@@ -2982,7 +3105,7 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
                 if (_dh[_pi].hashes != null) pastHashSum += _dh[_pi].hashes;
             }
             var totalHashEl = document.getElementById('sfTotalHashes');
-            if (totalHashEl) totalHashEl.textContent = (pastHashSum + eraHashes).toLocaleString();
+            if (totalHashEl) totalHashEl.textContent = _sfCompactNum(pastHashSum + eraHashes);
 
             var luckEl = document.getElementById('sfLuckRow' + currentIdx);
             if (!luckEl) return;
@@ -3104,9 +3227,14 @@ function _loadLastSFWindow() {
         allWinners = allWinners.slice().sort(function(a, b) { return (a.value || 0) - (b.value || 0); });
         var lowestColor = hadWinner ? '#f7931a' : '#22c55e';
         function _renderWinnerRow(w) {
-            var display = w.username ? '@' + escapeHtml(w.username) : '🏆 Winner';
+            var nameMissing = _sfStoredNameMissing(w.username);
+            var display = !nameMissing ? '@' + escapeHtml(w.username) : 'Anon';
             var baseStyle = 'font-size:0.75rem;font-weight:700;color:#f7931a;';
             var clickHandler = '';
+            var lookupAttr = '';
+            if (w.uid && nameMissing) {
+                lookupAttr = ' data-profile-uid="' + escapeHtml(w.uid) + '" data-blank-name="1"';
+            }
             if (w.uid) {
                 clickHandler = 'onclick="if(typeof showUserProfile===\'function\')showUserProfile(\''+escapeHtml(w.uid)+'\')"';
                 baseStyle += 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;';
@@ -3116,7 +3244,7 @@ function _loadLastSFWindow() {
                 clickHandler = 'onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\''+_safeName+'\')"';
                 baseStyle += 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;';
             }
-            return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(247,147,26,0.1);"><span style="font-size:0.95rem">🏆</span><span ' + clickHandler + ' style="' + baseStyle + '">' + display + '</span><span style="margin-left:auto;font-size:0.72rem;font-weight:700;color:#f7931a;font-family:monospace;">' + (w.value || 0).toLocaleString() + '</span></div>';
+            return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(247,147,26,0.1);"><span style="font-size:0.95rem">🏆</span><span ' + clickHandler + lookupAttr + ' style="' + baseStyle + '">' + display + '</span><span style="margin-left:auto;font-size:0.72rem;font-weight:700;color:#f7931a;font-family:monospace;">' + (w.value || 0).toLocaleString() + '</span></div>';
         }
         var winnerBanner;
         if (allWinners.length > 0) {
@@ -3143,6 +3271,7 @@ function _loadLastSFWindow() {
             '<div style="margin-top:8px;font-size:0.7rem;color:var(--text-faint);">' +
                 '\u23F1\uFE0F ' + durMin + ' min window \u00b7 ended ' + dateStr + ' ' + timeStr +
             '</div>';
+        if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el);
         // Legacy: if any winner has no username, try topHashes lookup
         if (hadWinner && allWinners.some(function(w) { return !w.username; }) && typeof db !== 'undefined') {
             db.collection('satoshiFavor').doc('topHashes').get().then(function(thDoc) {
@@ -3158,6 +3287,7 @@ function _loadLastSFWindow() {
                     if (bannerEl) {
                         var newRows = patched.map(_renderWinnerRow).join('');
                         bannerEl.innerHTML = '<div style="font-size:0.65rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">🥇 Winner' + (patched.length > 1 ? 's (' + patched.length + ')' : '') + '</div>' + newRows;
+                        if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(bannerEl);
                     }
                 }
             }).catch(function(){});
@@ -3185,13 +3315,14 @@ function _loadPoolEpoch() {
         for (var i = 0; i < slots; i++) {
             var b = blocks[i];
             if (b) {
-                var uname = b.username ? '@' + (typeof escapeHtml === 'function' ? escapeHtml(b.username) : b.username) : '\u2014';
+                var _epochNameMissing = _sfStoredNameMissing(b.username);
+                var uname = !_epochNameMissing ? '@' + (typeof escapeHtml === 'function' ? escapeHtml(b.username) : b.username) : '@\u2014';
                 var ts = b.foundAt ? (b.foundAt.toDate ? b.foundAt.toDate() : new Date(b.foundAt.seconds * 1000)) : null;
                 var tsStr = ts ? ts.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + ts.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : '';
                 var _rawUid = b.uid || '';
                 var _attrUid = _rawUid.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
                 var unameEl = _rawUid
-                    ? '<span data-profile-uid="' + _attrUid + '" style="font-size:0.8rem;font-weight:700;color:#22c55e;flex:1;cursor:pointer;text-decoration:underline;text-underline-offset:2px;text-decoration-color:rgba(34,197,94,0.4);" title="View profile">' + uname + '</span>'
+                    ? '<span data-profile-uid="' + _attrUid + '"' + (_epochNameMissing ? ' data-blank-name="1"' : '') + ' style="font-size:0.8rem;font-weight:700;color:#22c55e;flex:1;cursor:pointer;text-decoration:underline;text-underline-offset:2px;text-decoration-color:rgba(34,197,94,0.4);" title="View profile">' + uname + '</span>'
                     : '<span style="font-size:0.8rem;font-weight:700;color:#22c55e;flex:1;">' + uname + '</span>';
                 rows += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(247,147,26,0.08);">' +
                     '<span style="font-size:0.72rem;font-weight:800;color:var(--accent);width:18px;flex-shrink:0;">' + (i + 1) + '.</span>' +
@@ -3207,6 +3338,58 @@ function _loadPoolEpoch() {
             }
         }
         return rows;
+    }
+
+    // ── Past epochs history (read-only, sfPoolHistory is public-read) ──
+    var _sfHist = { open: false, items: [], last: null, done: false, loading: false, error: false, anchor: null };
+    var _SF_HIST_PAGE = 10;
+    function _sfHistHtml() {
+        var h = '<button type="button" data-sf-hist="toggle" aria-expanded="' + (_sfHist.open ? 'true' : 'false') + '" style="width:100%;text-align:left;background:transparent;border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:0.75rem;font-weight:700;color:var(--text-muted);cursor:pointer;min-height:36px;">' +
+            (_sfHist.open ? '\u25BE Hide past epochs' : '\u25B8 Show all past epochs') + '</button>';
+        if (!_sfHist.open) return h;
+        h += '<div style="margin-top:6px;">';
+        for (var i = 0; i < _sfHist.items.length; i++) {
+            var d = _sfHist.items[i];
+            var c = d.completedAt ? (d.completedAt.toDate ? d.completedAt.toDate() : new Date(d.completedAt.seconds * 1000)) : null;
+            var cs = c ? c.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+            h += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">' +
+                '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:4px;">\u2705 Epoch #' + (parseInt(d.epochNumber, 10) || '\u2014') + '</div>' +
+                (cs ? '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + cs + ' \u00b7 21,000 sats distributed</div>' : '') +
+                _renderEpochBlocks(d.blocks || [], d.epochNumber, true) + '</div>';
+        }
+        if (_sfHist.loading) h += '<div style="font-size:0.75rem;color:var(--text-faint);padding:8px 0;">Loading past epochs\u2026</div>';
+        else if (_sfHist.error) h += '<div style="font-size:0.75rem;color:var(--text-faint);padding:8px 0;">Couldn\u2019t load past epochs. <button type="button" data-sf-hist="more" style="background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;font-size:0.75rem;padding:0;">Try again</button></div>';
+        else if (!_sfHist.done) h += '<button type="button" data-sf-hist="more" style="width:100%;margin-top:10px;background:transparent;border:1px solid var(--border);border-radius:8px;padding:8px;font-size:0.72rem;font-weight:700;color:var(--accent);cursor:pointer;min-height:36px;">Load more epochs</button>';
+        else if (!_sfHist.items.length) h += '<div style="font-size:0.75rem;color:var(--text-faint);font-style:italic;padding:8px 0;">No earlier epochs.</div>';
+        return h + '</div>';
+    }
+    function _sfHistPaint() {
+        var w = document.getElementById('sfEpochHistWrap');
+        if (!w) return;
+        w.innerHTML = _sfHistHtml();
+        if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(w);
+    }
+    function _sfHistLoad() {
+        if (_sfHist.loading || _sfHist.done) return;
+        var after = _sfHist.last || _sfHist.anchor;
+        if (!after) return;
+        _sfHist.loading = true; _sfHist.error = false; _sfHistPaint();
+        db.collection('sfPoolHistory').orderBy('completedAt', 'desc').startAfter(after).limit(_SF_HIST_PAGE).get().then(function(s) {
+            s.docs.forEach(function(d) { _sfHist.items.push(d.data()); });
+            if (s.docs.length) _sfHist.last = s.docs[s.docs.length - 1];
+            if (s.docs.length < _SF_HIST_PAGE) _sfHist.done = true;
+            _sfHist.loading = false; _sfHistPaint();
+        }).catch(function() { _sfHist.loading = false; _sfHist.error = true; _sfHistPaint(); });
+    }
+    function _sfHistClick(e) {
+        var b = e.target.closest && e.target.closest('[data-sf-hist]');
+        if (!b) return false;
+        if (b.dataset.sfHist === 'toggle') {
+            _sfHist.open = !_sfHist.open;
+            _sfHistPaint();
+            if (_sfHist.open && !_sfHist.items.length && !_sfHist.done) _sfHistLoad();
+        } else { _sfHistLoad(); }
+        return true;
     }
 
     // Load current epoch (live) + most recent completed epoch in parallel
@@ -3251,14 +3434,20 @@ function _loadPoolEpoch() {
                 var compStr = compAt ? compAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
                 if (compStr) prevHtml += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">Completed ' + compStr + ' \u00b7 21,000 sats distributed</div>';
                 prevHtml += _renderEpochBlocks(prevBlocks, ph.epochNumber, true);
+                // Older epoch history (lazy loaded on first expand)
+                if ((ph.epochNumber || 0) !== 1) {
+                    if (_sfHist.anchor && _sfHist.anchor.id !== snap.docs[0].id) { _sfHist.items = []; _sfHist.last = null; _sfHist.done = false; _sfHist.error = false; }
+                    _sfHist.anchor = snap.docs[0];
+                    prevHtml += '<div id="sfEpochHistWrap" style="margin-top:10px;">' + _sfHistHtml() + '</div>';
+                }
             }
             prevHtml += '</div>';
 
             var el2 = document.getElementById('sfPoolEpochInner');
-            if (el2) { el2.innerHTML = currentHtml + prevHtml; el2.onclick = function(e) { var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; }
+            if (el2) { el2.innerHTML = currentHtml + prevHtml; el2.onclick = function(e) { if (_sfHistClick(e)) return; var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el2); }
         }).catch(function() {
             var el2 = document.getElementById('sfPoolEpochInner');
-            if (el2) { el2.innerHTML = currentHtml + '<div style="font-size:0.75rem;color:var(--text-faint);margin-top:8px;">Previous epoch unavailable.</div>'; el2.onclick = function(e) { var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; }
+            if (el2) { el2.innerHTML = currentHtml + '<div style="font-size:0.75rem;color:var(--text-faint);margin-top:8px;">Previous epoch unavailable.</div>'; el2.onclick = function(e) { var t = e.target.closest('[data-profile-uid]'); if (t && typeof showUserProfile === 'function') showUserProfile(t.dataset.profileUid); }; if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(el2); }
         });
     }, function() {
         var el2 = document.getElementById('sfPoolEpochInner');
@@ -3279,10 +3468,11 @@ function _loadFavorLeaderboards() {
         var el = document.getElementById('favorTopHashes');
         if (!el) return;
         if (!doc.exists || !doc.data().entries || doc.data().entries.length === 0) {
-            el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Be the first to mine!</div>';
+            el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Be the first to hash!</div>';
             return;
         }
-        el.innerHTML = _renderTopHashesHTML(doc.data().entries);
+        window._sfTopHashEntries = doc.data().entries;
+        el.innerHTML = _renderTopHashesHTML(window._sfTopHashEntries);
     }, function() {
         var el = document.getElementById('favorTopHashes');
         if (el) el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">Could not load leaderboard</div>';
@@ -3297,6 +3487,7 @@ function _loadFavorLeaderboards() {
     }
     var _legacyChecked = false;
     _favorPBUnsub = db.collection('satoshiFavor').doc('personalBests').collection('users').doc(myUid).onSnapshot(function(doc) {
+        _sfNoteOwnHashes(doc && doc.exists ? doc.data() : null);
         var pbEl = document.getElementById('favorPersonalBest');
         if (!pbEl) return;
         if (doc.exists) {
@@ -3320,36 +3511,60 @@ function _loadFavorLeaderboards() {
         if (pbEl) pbEl.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">Could not load personal best</div>';
     });
 
-    // Top 50 hashers by total hashes - REAL-TIME listener
-    _favorHasherRanksUnsub = db.collection('public_profiles')
-        .where('sfTotalHashes', '>', 0)
-        .orderBy('sfTotalHashes', 'desc')
-        .limit(50)
-        .onSnapshot(function(snap) {
-            var el = document.getElementById('favorHasherRanks');
-            if (!el) return;
-            if (snap.empty) {
-                el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Be the first to mine!</div>';
-                return;
-            }
-            var users = [];
-            snap.forEach(function(doc) {
-                var d = doc.data();
-                users.push({
-                    id: doc.id,
-                    username: d.username || d.displayName || 'Anon',
-                    sfTotalHashes: d.sfTotalHashes || 0,
-                    sfBlocksFound: d.sfBlocksFound || 0,
-                    sfBestHash: d.sfBestHash != null ? d.sfBestHash : null,
-                    firstHashAt: d.firstHashAt || null,
-                });
-            });
-            el.innerHTML = _renderHasherRanksHTML(users);
-        }, function(err) {
-            var el = document.getElementById('favorHasherRanks');
-            if (el) el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">Could not load hasher ranks</div>';
-            console.warn('[SF] favorHasherRanks error:', err);
-        });
+    // Top hashers. One snapshot doc. The live listeners above stay on the small
+    // topHashes doc and the signed-in player's personal-best doc.
+    _favorHasherRanksUnsub = null;
+    _loadFavorHasherSnapshot();
+}
+
+function _favorUsersFromSnap(doc) {
+    var rows = (doc && doc.rows) || [];
+    return rows.map(function (r) {
+        var first = null;
+        if (r.firstHashAt) first = { seconds: Math.floor(Number(r.firstHashAt) / 1000) };
+        return {
+            id: r.uid,
+            username: r.username || 'Anon',
+            sfTotalHashes: r.value || 0,
+            sfBlocksFound: r.blocks || 0,
+            sfBestHash: r.bestHash != null ? r.bestHash : null,
+            firstHashAt: first,
+            rank: r.rank || 0
+        };
+    });
+}
+
+function _paintFavorHashers(doc) {
+    var el = document.getElementById('favorHasherRanks');
+    if (!el) return;
+    var users = _favorUsersFromSnap(doc);
+    if (!users.length) {
+        var mine = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.sfTotalHashes || 0) : 0;
+        if (!(mine > 0)) {
+            el.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">No hashes yet. Be the first to hash!</div>';
+            return;
+        }
+    }
+    el.innerHTML = _renderHasherRanksHTML(users);
+}
+
+async function _loadFavorHasherSnapshot() {
+    var el = document.getElementById('favorHasherRanks');
+    if (!el) return;
+    var spec = (window.LB_BOARDS && window.LB_BOARDS.favor) || { key: 'favor', docId: 'lb_favor_hashers', intervalMs: 5 * 60 * 1000 };
+    var cached = typeof window._lbSnapRead === 'function' ? window._lbSnapRead(spec.docId) : null;
+    if (cached) _paintFavorHashers(cached);
+    var fresh = cached && typeof window._lbSnapFresh === 'function' && window._lbSnapFresh(cached, spec.intervalMs);
+    if (fresh) return;
+    try {
+        var next = typeof window._lbSnapFetch === 'function' ? await window._lbSnapFetch(spec.key) : null;
+        if (next) _paintFavorHashers(next);
+        else if (!cached) _paintFavorHashers({ rows: [] });
+    } catch (err) {
+        var box = document.getElementById('favorHasherRanks');
+        if (box && !cached) box.innerHTML = '<div style="text-align:center;color:var(--text-faint);padding:8px;">Could not load hasher ranks</div>';
+        console.warn('[SF] favorHasherRanks error:', err);
+    }
 }
 // ---- OPENCLAW EXPORTS ----
 if (typeof startQuestManual !== "undefined") window.startQuestManual = startQuestManual;
@@ -3369,110 +3584,52 @@ if (typeof _renderQuestHubTab !== "undefined") window._renderQuestHubTab = _rend
 
 window._questHubTab = 'quiz';
 
-// Show quiz topic picker inside Quest Hub with back button
-window._questHubShowQuizPicker = function() {
-    var body = document.getElementById('questHubBody');
-    var tabs = document.getElementById('questHubTabs');
-    if (!body) { // fallback: open old modal flow
-        document.getElementById('questHubOverlay').remove();
-        setTimeout(function() { if (typeof _showQuestTopicPicker === 'function') _showQuestTopicPicker(); }, 200);
-        return;
-    }
-    // Swap header: hide tabs, show back button
-    if (tabs) tabs.style.display = 'none';
-    var header = tabs && tabs.parentElement;
-    var backBar = document.getElementById('qhBackBar');
-    if (!backBar && header) {
-        backBar = document.createElement('div');
-        backBar.id = 'qhBackBar';
-        backBar.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:12px;';
-        backBar.innerHTML = '<button onclick="window._questHubBackToTabs()" style="background:none;border:1px solid var(--border);border-radius:10px;padding:6px 14px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;">← Back</button>' +
-            '<span style="color:var(--heading);font-size:0.95rem;font-weight:800;">Choose a Quiz Topic</span>';
-        tabs.parentNode.insertBefore(backBar, tabs);
-    }
-    if (backBar) backBar.style.display = 'flex';
-    // Render topic picker inline
-    if (typeof _renderQuestHubQuizPicker === 'function') _renderQuestHubQuizPicker(body);
-    else {
-        // Fallback: open old modal
-        document.getElementById('questHubOverlay').remove();
-        setTimeout(function() { if (typeof _showQuestTopicPicker === 'function') _showQuestTopicPicker(); }, 200);
-    }
-};
+function _questScreenTitle(tab) {
+    var names = { quiz: 'Daily Quiz', trivia: 'Trivia', poll: 'Poll', flex: 'Flex', favor: "Satoshi's Favor", raid: 'Raid', citadel: 'Citadel', charity: 'Charity', community: 'Community', nook: 'Nook / Inventory' };
+    return names[tab] || 'Today';
+}
 
-window._questHubBackToTabs = function() {
-    var tabs = document.getElementById('questHubTabs');
-    var backBar = document.getElementById('qhBackBar');
-    if (tabs) tabs.style.display = 'grid'; // must be grid, not '' (which resets to block)
-    if (backBar) backBar.style.display = 'none';
-    window._questHubTab = 'quiz';
-    if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
-};
-
-window.showQuestHub = function() {
-    // Minimize global chat if open (so Quest Hub is visible on mobile)
-    if (window._chatOverlayOpen && typeof toggleChatOverlay === 'function') {
-        toggleChatOverlay();
+function _closeQuestScreen() {
+    if (typeof _detachCommunityResultListeners === 'function') _detachCommunityResultListeners();
+    if (typeof window._cleanupRaidBoss === 'function') window._cleanupRaidBoss();
+    if (typeof window._cleanupCharityListeners === 'function') window._cleanupCharityListeners();
+    if (typeof _cleanupLastWindowListener === 'function') _cleanupLastWindowListener();
+    var ov = document.getElementById('questHubOverlay');
+    if (ov) ov.remove();
+    if (window._qhPopHandler) {
+        window.removeEventListener('popstate', window._qhPopHandler);
+        window._qhPopHandler = null;
     }
+    if (window.location.hash === '#questhub') {
+        try { history.replaceState({ home: true }, '', (window._qhReturnPath || '/')); } catch (e) {}
+        if (typeof goHome === 'function') goHome(true);
+    }
+}
 
-    // Remove existing
-    var existing = document.getElementById('questHubOverlay');
-    if (existing) existing.remove();
+function _ensureQuestScreen() {
+    if (document.getElementById('questHubBody')) return;
+    var stale = document.getElementById('questHubOverlay');
+    if (stale) stale.remove();
 
     var overlay = document.createElement('div');
     overlay.id = 'questHubOverlay';
-    var _qhAlign = window.innerWidth <= 900 ? 'flex-start' : 'center';
-    var _qhPad = window.innerWidth <= 900 ? '12px 12px 140px' : '20px'; // bottom padding clears nav+FABs on mobile
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:100000;display:flex;align-items:' + _qhAlign + ';justify-content:center;backdrop-filter:blur(5px);padding:' + _qhPad + ';animation:nachoPop 0.25s ease;overflow-y:auto;-webkit-overflow-scrolling:touch;';
-    overlay.onclick = function(e) { if (e.target === overlay && !window._flexJustCompleted) { window._cleanupRaidBoss(); window._cleanupCharityListeners && window._cleanupCharityListeners(); _cleanupLastWindowListener && _cleanupLastWindowListener(); overlay.remove(); if (window._qhPopHandler) { window.removeEventListener('popstate', window._qhPopHandler); window._qhPopHandler = null; } if (window.location.hash === '#questhub') { history.replaceState({ home: true }, '', '/'); if (typeof goHome === 'function') goHome(true); } } };
+    var align = window.innerWidth <= 900 ? 'flex-start' : 'center';
+    var pad = window.innerWidth <= 900 ? '12px 12px 140px' : '20px';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:100000;display:flex;align-items:' + align + ';justify-content:center;backdrop-filter:blur(5px);padding:' + pad + ';animation:nachoPop 0.25s ease;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    overlay.onclick = function(e) {
+        if (e.target === overlay && !window._flexJustCompleted) _closeQuestScreen();
+    };
 
     var modal = document.createElement('div');
-    var _qhMaxH = window.innerWidth <= 900
-        ? 'calc(100vh - 140px)' // mobile: subtract bottom nav (60px) + floating btns (50px) + safe area
-        : '85vh';
-    modal.style.cssText = 'background:var(--bg-side,#141425);border:1px solid var(--border);width:100%;max-width:520px;max-height:' + _qhMaxH + ';border-radius:24px;overflow:hidden;display:flex;flex-direction:column;position:relative;';
+    var maxH = window.innerWidth <= 900 ? 'calc(100vh - 140px)' : '85vh';
+    modal.style.cssText = 'background:var(--bg-side,#141425);border:1px solid var(--border);width:100%;max-width:520px;max-height:' + maxH + ';border-radius:24px;overflow:hidden;display:flex;flex-direction:column;position:relative;';
 
-    // Desktop font-size boost - everything in the modal reads larger on wide screens
-    var qhStyle = document.createElement('style');
-    qhStyle.textContent = '@media(min-width:600px){' +
-        '#questHubOverlay [style*="font-size:0.6"]{font-size:0.82rem!important}' +
-        '#questHubOverlay [style*="font-size:0.7"]{font-size:0.88rem!important}' +
-        '#questHubOverlay [style*="font-size:0.75"]{font-size:0.9rem!important}' +
-        '#questHubOverlay [style*="font-size:0.78"]{font-size:0.92rem!important}' +
-        '#questHubOverlay [style*="font-size:0.8"]{font-size:0.95rem!important}' +
-        '#questHubOverlay [style*="font-size:0.82"]{font-size:0.97rem!important}' +
-        '#questHubOverlay [style*="font-size:0.85"]{font-size:1rem!important}' +
-        '#questHubOverlay [style*="font-size:0.9"]{font-size:1.05rem!important}' +
-        '#questHubOverlay [style*="font-size:0.95"]{font-size:1.08rem!important}' +
-        '#questHubOverlay p,[id="questHubBody"] div{font-size:inherit}' +
-        '#questHubBody{font-size:1rem}' +
-        '#questHubTabs button{font-size:0.88rem!important;padding:12px 0!important}' +
-        '#questHubTabs #qhTabNook{font-size:0.62rem!important;line-height:1.15!important;white-space:normal!important;padding:6px 3px!important}' +
-        '#questHubTabs{grid-template-columns:repeat(5,1fr)!important}' +
-    '}';
-    modal.appendChild(qhStyle);
-
-    // Header
     var header = document.createElement('div');
+    header.id = 'questHubHeader';
     header.style.cssText = 'padding:20px 24px 0;flex-shrink:0;';
-    header.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
-        '<div><h2 style="margin:0;color:var(--heading);font-size:1.3rem;">⚔️ Quest Hub</h2>' +
-        '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:4px;">Earn XP by testing your Bitcoin knowledge</div>' +
-        '<div style="margin-top:6px;padding:6px 10px;background:linear-gradient(135deg,rgba(247,147,26,0.12),rgba(247,147,26,0.05));border:1px solid rgba(247,147,26,0.3);border-radius:8px;font-size:0.75rem;color:#f7931a;font-weight:600;">🎯 Daily Trifecta: Complete the daily quiz, trivia and poll to earn the Daily Trifecta!</div></div>' +
-        '<button onclick="window._cleanupRaidBoss();window._cleanupCharityListeners&&window._cleanupCharityListeners();_cleanupLastWindowListener&&_cleanupLastWindowListener();document.getElementById(\'questHubOverlay\').remove();if(window._qhPopHandler){window.removeEventListener(\'popstate\',window._qhPopHandler);window._qhPopHandler=null;}if(window.location.hash===\'#questhub\'){history.replaceState({home:true},\'\',(window._qhReturnPath||\'/\'));if(typeof goHome===\'function\')goHome(true);}" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button></div>' +
-        // Tabs
-        '<div id="questHubTabs" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:16px;">' +
-        '<button id="qhTabQuiz" onclick="window._questHubTab=\'quiz\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📝 Quiz</button>' +
-        '<button id="qhTabTrivia" onclick="window._questHubTab=\'trivia\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🧠 Trivia</button>' +
-        '<button id="qhTabPoll" onclick="window._questHubTab=\'poll\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">📊 Poll</button>' +
-        '<button id="qhTabFlex" onclick="window._questHubTab=\'flex\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🏆 Flex</button>' +
-        '<button id="qhTabFavor" onclick="window._questHubTab=\'favor\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">✨⛏️ Favor</button>' +
-        '<button id="qhTabRaid" onclick="window._questHubTab=\'raid\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">⚔️ Raid</button>' +
-        '<button id="qhTabCitadel" onclick="window._questHubTab=\'citadel\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">🏰 Citadel</button>' +
-        '<button id="qhTabCharity" onclick="window._questHubTab=\'charity\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">❤️ Charity</button>' +
-        '<button id="qhTabCommunity" onclick="window._questHubTab=\'community\';_renderQuestHubTab()" style="width:100%;padding:10px 0;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.72rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;white-space:nowrap;">🤝 Community</button>' +
-        '<button id="qhTabNook" onclick="window._questHubTab=\'nook\';_renderQuestHubTab()" style="width:100%;padding:6px 3px;border-radius:12px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.62rem;line-height:1.15;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;white-space:normal;">🦌 Nook/Inventory</button>' +
-                '</div>';
+    header.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;">' +
+        '<h2 id="questHubTitle" style="margin:0;color:var(--heading);font-size:1.3rem;">' + _questScreenTitle(window._questHubTab) + '</h2>' +
+        '<button type="button" aria-label="Close" onclick="if(window._closeQuestScreen)window._closeQuestScreen()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button></div>';
 
     var body = document.createElement('div');
     body.id = 'questHubBody';
@@ -3483,28 +3640,119 @@ window.showQuestHub = function() {
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
-    _renderQuestHubTab();
-
-    // History: push state so browser/swipe back closes/reopens Quest Hub
-    // Save the current path so close buttons can restore it without history.back()
     window._qhReturnPath = window.location.pathname + (window.location.hash !== '#questhub' ? window.location.hash : '');
     if (window.location.hash !== '#questhub') {
         history.pushState({ overlay: 'questhub' }, '', '#questhub');
     }
-    // Popstate: back gesture/button returns to Quest Hub
-    function _qhPopHandler(e) {
+    function _qhPopHandler() {
         var ov = document.getElementById('questHubOverlay');
-        if (!ov) return; // already closed
-        // If user navigated back, close gracefully (don't re-push)
-        window._cleanupRaidBoss && window._cleanupRaidBoss();
+        if (!ov) return;
+        if (typeof window._cleanupRaidBoss === 'function') window._cleanupRaidBoss();
+        if (typeof _detachCommunityResultListeners === 'function') _detachCommunityResultListeners();
         ov.remove();
+        window._qhPopHandler = null;
     }
     window._qhPopHandler = _qhPopHandler;
     window.addEventListener('popstate', _qhPopHandler, { once: true });
+}
+window._closeQuestScreen = _closeQuestScreen;
+
+// Show quiz topic picker inside the open quest screen, with a back button.
+window._questHubShowQuizPicker = function() {
+    var body = document.getElementById('questHubBody');
+    var tabs = document.getElementById('questHubTabs');
+    if (!body) {
+        var ov = document.getElementById('questHubOverlay');
+        if (ov) ov.remove();
+        setTimeout(function() { if (typeof _showQuestTopicPicker === 'function') _showQuestTopicPicker(); }, 200);
+        return;
+    }
+    if (tabs) tabs.style.display = 'none';
+    var header = document.getElementById('questHubHeader') || (tabs && tabs.parentElement);
+    var backBar = document.getElementById('qhBackBar');
+    if (!backBar && header) {
+        backBar = document.createElement('div');
+        backBar.id = 'qhBackBar';
+        backBar.style.cssText = 'display:flex;align-items:center;gap:10px;margin-bottom:12px;';
+        backBar.innerHTML = '<button type="button" onclick="window._questHubBackToTabs()" style="background:none;border:1px solid var(--border);border-radius:10px;padding:6px 14px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px;">← Back</button>' +
+            '<span style="color:var(--heading);font-size:0.95rem;font-weight:800;">Choose a Quiz Topic</span>';
+        if (tabs && tabs.parentNode) tabs.parentNode.insertBefore(backBar, tabs);
+        else header.appendChild(backBar);
+    }
+    if (backBar) backBar.style.display = 'flex';
+    if (typeof _renderQuestHubQuizPicker === 'function') _renderQuestHubQuizPicker(body);
+    else {
+        var ov2 = document.getElementById('questHubOverlay');
+        if (ov2) ov2.remove();
+        setTimeout(function() { if (typeof _showQuestTopicPicker === 'function') _showQuestTopicPicker(); }, 200);
+    }
 };
+
+window._questHubBackToTabs = function() {
+    var tabs = document.getElementById('questHubTabs');
+    var backBar = document.getElementById('qhBackBar');
+    if (tabs) tabs.style.display = 'grid';
+    if (backBar) backBar.style.display = 'none';
+    window._questHubTab = 'quiz';
+    if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
+};
+
+// No tab argument scrolls to the Today card. A tab name, or a follow-up
+// _renderQuestHubTab within 420ms, opens that one screen. Callers that set
+// _questHubTab after showQuestHub() keep working.
+window.showQuestHub = function(tabArg) {
+    window.showQuestHub._todayReal = true;
+    if (window._chatOverlayOpen && typeof toggleChatOverlay === 'function') {
+        try { toggleChatOverlay(); } catch (e) {}
+    }
+    if (typeof tabArg === 'string' && tabArg) {
+        window._questHubTab = tabArg;
+        if (window._qhAwaitToken) window._qhClaimedOpen = window._qhAwaitToken;
+        _ensureQuestScreen();
+        if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
+        return;
+    }
+    var token = (window._qhOpenToken || 0) + 1;
+    window._qhOpenToken = token;
+    window._qhAwaitToken = token;
+    setTimeout(function() {
+        if (window._qhOpenToken !== token) return;
+        if (window._qhClaimedOpen === token) return;
+        var lock = window._bqHubLock;
+        if (lock && lock.tab && Date.now() < lock.until) {
+            window._questHubTab = lock.tab;
+            if (lock.sub) window._nookSubTab = lock.sub;
+            window._qhClaimedOpen = token;
+            _ensureQuestScreen();
+            if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab();
+            return;
+        }
+        _closeQuestScreen();
+        if (typeof window._focusTodayCard === 'function') window._focusTodayCard();
+    }, 420);
+};
+window.showQuestHub._todayReal = true;
+if (window._pendingQuestTab) {
+    var _pendingQuestTabNow = window._pendingQuestTab;
+    window._pendingQuestTab = '';
+    setTimeout(function() { window.showQuestHub(_pendingQuestTabNow); }, 0);
+} else if (window._bqHubLock && window._bqHubLock.tab && Date.now() < window._bqHubLock.until && !document.getElementById('questHubBody')) {
+    var _hubLockNow = window._bqHubLock;
+    window._questHubTab = _hubLockNow.tab;
+    if (_hubLockNow.sub) window._nookSubTab = _hubLockNow.sub;
+    setTimeout(function() { window.showQuestHub(_hubLockNow.tab); }, 0);
+}
 
 function _renderQuestHubTab() {
     var tab = window._questHubTab || 'quiz';
+    if (tab === 'flashcards') {
+        if (window._qhAwaitToken) window._qhClaimedOpen = window._qhAwaitToken;
+        if (typeof go === 'function') go('learning-quests');
+        return;
+    }
+    var knownTab = { quiz: 1, trivia: 1, poll: 1, raid: 1, favor: 1, charity: 1, flex: 1, citadel: 1, community: 1, nook: 1 };
+    if (!knownTab[tab]) return;
+    if (window._qhAwaitToken) window._qhClaimedOpen = window._qhAwaitToken;
     // Update active tab styles
     ['Quiz', 'Trivia', 'Poll', 'Flex', 'Favor', 'Raid', 'Citadel', 'Charity', 'Community', 'Nook'].forEach(function(t) {
         var btn = document.getElementById('qhTab' + t);
@@ -3522,12 +3770,23 @@ function _renderQuestHubTab() {
     });
 
     var body = document.getElementById('questHubBody');
-    if (!body) return;
+    if (!body) {
+        if (window._qhEnsuring) return;
+        window._qhEnsuring = true;
+        try { _ensureQuestScreen(); } catch (e) {}
+        window._qhEnsuring = false;
+        body = document.getElementById('questHubBody');
+        if (!body) return;
+    }
+    var titleEl = document.getElementById('questHubTitle');
+    if (titleEl) titleEl.textContent = _questScreenTitle(tab);
 
     // Cleanup listeners when switching away
     if (tab !== 'raid') window._cleanupRaidBoss();
     if (tab !== 'charity') window._cleanupCharityListeners && window._cleanupCharityListeners();
     if (tab !== 'favor') _cleanupLastWindowListener && _cleanupLastWindowListener();
+    if (tab !== 'trivia' && typeof _detachTriviaStatsListener === 'function') _detachTriviaStatsListener();
+    if (tab !== 'poll' && typeof _detachPollStatsListener === 'function') _detachPollStatsListener();
 
     if (tab === 'quiz') _renderQuizTab(body);
     else if (tab === 'trivia') _renderTriviaTab(body);
@@ -3624,6 +3883,10 @@ function _nookBuyItem(itemId, qty, btnEl) {
                     if (inv.hashBoosters    !== undefined) currentUser.hashBoosters    = inv.hashBoosters;
                     if (inv.hintTokens      !== undefined) currentUser.hintTokens      = inv.hintTokens;
                     if (inv.doubleXPCharges !== undefined) currentUser.doubleXPCharges = inv.doubleXPCharges;
+                    if (d.doubleXpUntil) {
+                        currentUser.doubleXpUntil = d.doubleXpUntil;
+                        currentUser.doubleXPExpiry = d.doubleXpUntil;
+                    }
                     if (inv.bonusSpins      !== undefined) currentUser.bonusSpins      = inv.bonusSpins;
                     if (inv.raffleEntries      !== undefined) currentUser.raffleEntries      = inv.raffleEntries;
                     if (inv.secondRigCharges   !== undefined) currentUser.secondRigCharges   = inv.secondRigCharges;
@@ -3631,7 +3894,11 @@ function _nookBuyItem(itemId, qty, btnEl) {
                 }
             }
             if (typeof updateRankUI === 'function') updateRankUI();
-            if (typeof showToast === 'function') showToast('✅ Purchased! Balance: ' + d.newTickets + ' <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span>');
+            if (itemId === 'double_xp' && typeof window._startDoubleXPWidget === 'function') window._startDoubleXPWidget();
+            var boughtMsg = itemId === 'double_xp' && d.minutesLeft
+                ? ('✅ Double XP extended — ' + d.minutesLeft + ' min left. Balance: ' + d.newTickets + ' tickets')
+                : ('✅ Purchased! Balance: ' + d.newTickets + ' <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span>');
+            if (typeof showToast === 'function') showToast(boughtMsg);
             // Cosmetic post-purchase effects
             // second_rig is consumable (not cosmetic) but still gets a purchase tip toast
             var _postPurchaseTipIds = ['profile_frame','chat_flair','pinned_badge','nacho_skin_nook','second_rig'];
@@ -3684,12 +3951,30 @@ function _nookConvertXP(tickets, btnEl) {
     });
 }
 
+// Prices come from the server (getNookShopCatalog). Fallbacks match the server
+// constants so the shop still renders offline; the server always charges its own price.
+var _NOOK_FALLBACK = {streak_freeze:6,streak_freeze_3:15,hint_token:3,hint_token_5:12,hash_booster:10,hash_booster_3:27,bonus_spin:5,bonus_spin_3:14,double_xp:20,double_xp_3h:50,second_rig:25,second_rig_3:70,raffle_entry:10,raffle_entry_10:95,pinned_badge:30,chat_flair:60,profile_frame:75,nacho_skin_nook:100};
+function _nookPrice(id) {
+    var c = window._nookCatalog && window._nookCatalog[id];
+    return c && typeof c.cost === 'number' ? c.cost : _NOOK_FALLBACK[id];
+}
+function _nookLoadCatalog() {
+    if (window._nookCatalog || window._nookCatalogLoading || typeof firebase === 'undefined') return;
+    window._nookCatalogLoading = true;
+    try {
+        firebase.functions().httpsCallable('getNookShopCatalog')({}).then(function(r) {
+            if (r && r.data && r.data.items) { window._nookCatalog = r.data.items; _renderNookShop(); }
+        }).catch(function(){}).then(function(){ window._nookCatalogLoading = false; });
+    } catch (e) { window._nookCatalogLoading = false; }
+}
+
 function _renderNookShop() {
+    _nookLoadCatalog();
     var el = document.getElementById('nookTabContent');
     if (!el) return;
     var u = typeof currentUser !== 'undefined' && currentUser ? currentUser : {};
     var tickets = u.orangeTickets || 0;
-    var pts = u.points || 0;
+    var pts = Math.max(0, _spendableXp(u));
     var ownedCosmetics = u.ownedCosmetics || [];
 
     function buyBtn(itemId, cost, qty, label, extraStyle) {
@@ -3727,13 +4012,19 @@ function _renderNookShop() {
     // ─── Consumables ───
     html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── Consumables ───</div>';
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';
-    html += itemRow('🧊','Streak Freeze','Auto-used to protect your streak',5,buyBtn('streak_freeze',5,1,'Buy'));
-    html += itemRow('🧊','3× Streak Freezes','Bundle — save 3 tickets',12,buyBtn('streak_freeze_3',12,1,'Bundle'));
-    html += itemRow('⚡','Hash Booster','+100 instant hashes — no cooldown. Activate from Inventory during an open SF window.',10,buyBtn('hash_booster',10,1,'Buy'));
-    html += itemRow('🧠','Hint Token','Eliminate a wrong answer in any quiz',3,buyBtn('hint_token',3,1,'Buy'));
-    html += itemRow('🧠','5× Hint Tokens','Bundle deal',12,buyBtn('hint_token_5',12,1,'Bundle'));
-    html += itemRow('🎯','Double XP (60 min)','2× XP multiplier for 1 hour',15,buyBtn('double_xp',15,1,'Buy'));
-    html += itemRow('🎰','Bonus Spin','Extra spin on the daily wheel',5,buyBtn('bonus_spin',5,1,'Buy'));
+    html += itemRow('🧊','Streak Freeze','Auto-used to protect your streak. Hold up to 10.',_nookPrice('streak_freeze'),buyBtn('streak_freeze',_nookPrice('streak_freeze'),1,'Buy'));
+    html += itemRow('🧊','3× Streak Freezes','Bundle deal. Hold up to 10.',_nookPrice('streak_freeze_3'),buyBtn('streak_freeze_3',_nookPrice('streak_freeze_3'),1,'Bundle'));
+    html += itemRow('⚡','Hash Booster','+100 instant hashes, no cooldown. Activate from Inventory during an open SF window. Up to 10 a day.',_nookPrice('hash_booster'),buyBtn('hash_booster',_nookPrice('hash_booster'),1,'Buy'))
+    html += itemRow('⚡','3× Hash Boosters','NEW · Bundle of 3. Counts toward the 10 a day limit.',_nookPrice('hash_booster_3'),buyBtn('hash_booster_3',_nookPrice('hash_booster_3'),1,'Bundle'));
+    html += itemRow('🧠','Hint Token','Eliminate a wrong answer in any quiz',_nookPrice('hint_token'),buyBtn('hint_token',_nookPrice('hint_token'),1,'Buy'));
+    html += itemRow('🧠','5× Hint Tokens','Bundle deal',_nookPrice('hint_token_5'),buyBtn('hint_token_5',_nookPrice('hint_token_5'),1,'Bundle'));
+    var dxUntil = (typeof window._doubleXpUntilMs === 'function') ? window._doubleXpUntilMs(u) : 0;
+    var dxLeft = dxUntil > Date.now() ? Math.ceil((dxUntil - Date.now()) / 60000) : 0;
+    var dxLabel = dxLeft > 0 ? ('Extend +60 min (' + dxLeft + ' min left)') : 'Buy';
+    html += itemRow('🎯','Double XP (60 min)','2× XP for 1 hour. Buying again adds another hour, up to 6 hours ahead.',_nookPrice('double_xp'),buyBtn('double_xp',_nookPrice('double_xp'),1,dxLabel))
+    html += itemRow('🎯','Double XP (3 hours)','NEW · 3 hours of 2× XP in one go. Stacks up to 6 hours ahead.',_nookPrice('double_xp_3h'),buyBtn('double_xp_3h',_nookPrice('double_xp_3h'),1,'Buy'));
+    html += itemRow('🎰','Bonus Spin','Extra spin on the daily wheel. Up to 5 a day.',_nookPrice('bonus_spin'),buyBtn('bonus_spin',_nookPrice('bonus_spin'),1,'Buy'))
+    html += itemRow('🎰','3× Bonus Spins','NEW · Bundle of 3. Counts toward the 5 a day limit.',_nookPrice('bonus_spin_3'),buyBtn('bonus_spin_3',_nookPrice('bonus_spin_3'),1,'Bundle'));
     html += '</div>';
 
     // ─── Mining Upgrades ───
@@ -3742,22 +4033,22 @@ function _renderNookShop() {
     var rigCharges = u.secondRigCharges || 0;
     var rigBtnHtml = (rigCharges > 0
         ? '<span style="font-size:0.72rem;color:#22c55e;font-weight:700;margin-right:6px;">' + rigCharges + ' charge' + (rigCharges !== 1 ? 's' : '') + ' left</span>'
-        : '') + buyBtn('second_rig', 25, 1, 'Buy');
-    html += itemRow('⚡', 'Second Mining Rig', 'Unlocks Hash #2 button for one SF window — buy more charges to keep it active.', 25, rigBtnHtml);
+        : '') + buyBtn('second_rig', _nookPrice('second_rig'), 1, 'Buy');
+    html += itemRow('⚡', 'Second Mining Rig', 'Unlocks Hash #2 button for one SF window. Hold up to 10 charges.', _nookPrice('second_rig'), rigBtnHtml);
+    html += itemRow('⚡', '3× Second Mining Rig', 'NEW · 3 charges for 3 SF windows.', _nookPrice('second_rig_3'), buyBtn('second_rig_3', _nookPrice('second_rig_3'), 1, 'Bundle'));
     html += '</div>';
 
     // ─── Gifts ───
     html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── 🎁 Gifting ───</div>';
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';
     var giftOwnsGiftBag = ownedCosmetics.indexOf('gift_bag') !== -1;
-    var giftBagBtn = giftOwnsGiftBag
-        ? '<div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;margin-top:4px;">Owned ✓</div>'
-        : buyBtn('gift_bag', 100, 1, 'Buy');
-    html += itemRow('🎒', 'Gift Bag', 'A keepsake from the shop. Gifts are opened right away now, so keys and ciphers live in Inventory.', 100, giftBagBtn).replace('<!--EXTRA_HTML-->', '');
+    if (giftOwnsGiftBag) {
+        html += itemRow('🎒', 'Gift Bag', 'A keepsake from the shop. No longer sold.', '✓', '<div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;margin-top:4px;">Owned ✓</div>').replace('<!--EXTRA_HTML-->', '');
+    }
     html += '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:12px;">' +
         '<div style="font-size:1.4rem;">🔑</div>' +
         '<div style="flex:1;min-width:0;"><div style="font-size:0.85rem;font-weight:700;color:var(--heading);">Keys &amp; locked ciphers</div>' +
-        '<div style="font-size:0.72rem;color:var(--text-muted);">Open gifts as the wheel gives them. Matching keys and ciphers are in Inventory.</div></div>' +
+        '<div style="font-size:0.72rem;color:var(--text-muted);">Open gifts as the wheel gives them. Matching keys and ciphers are in Inventory. If a peer opens a cipher with your key, you both win the same prize.</div></div>' +
         '<button onclick="window._nookSubTab=\'inventory\';if(typeof _renderNookSubTabs===\'function\')_renderNookSubTabs();" style="padding:7px 14px;border-radius:8px;border:1px solid #f7931a;background:rgba(247,147,26,0.1);color:#f7931a;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;">Open Inventory</button>' +
     '</div>';
     html += '</div>';
@@ -3766,10 +4057,10 @@ function _renderNookShop() {
     html += '<div style="font-size:0.72rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:14px 0 8px;">─── Cosmetics (Permanent) ───</div>';
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';
     var cosmetics = [
-        { id:'profile_frame', icon:'🪪', name:'Profile Frame', desc:'Exclusive border on your profile card', cost:50 },
-        { id:'chat_flair', icon:'💬', name:'Chat Flair', desc:'Special badge next to your name in chat', cost:40 },
-        { id:'pinned_badge', icon:'📌', name:'Pinned Badge', desc:'Showcase a permanent achievement badge', cost:20 },
-        { id:'nacho_skin_nook', icon:'🦌', name:'Exclusive Nacho Skin', desc:'Rare Nacho avatar — Nook exclusive!', cost:60 },
+        { id:'profile_frame', icon:'🪪', name:'Profile Frame', desc:'Exclusive border on your profile card', cost:_nookPrice('profile_frame') },
+        { id:'chat_flair', icon:'💬', name:'Chat Flair', desc:'Special badge next to your name in chat', cost:_nookPrice('chat_flair') },
+        { id:'pinned_badge', icon:'📌', name:'Pinned Badge', desc:'Showcase a permanent achievement badge', cost:_nookPrice('pinned_badge') },
+        { id:'nacho_skin_nook', icon:'🦌', name:'Exclusive Nacho Skin', desc:'Rare Nacho avatar — Nook exclusive!', cost:_nookPrice('nacho_skin_nook') },
     ];
     cosmetics.forEach(function(c) {
         var owned = ownedCosmetics.indexOf(c.id) !== -1;
@@ -3780,7 +4071,7 @@ function _renderNookShop() {
         var extraHtml = '';
         if (c.id === 'nacho_skin_nook') {
             extraHtml = '<div style="display:flex;align-items:center;gap:8px;margin-top:6px;padding:6px 8px;background:rgba(247,147,26,0.08);border-radius:8px;">' +
-                '<img src="nacho-deer.svg" style="width:36px;height:36px;border-radius:50%;border:2px solid #f7931a;filter:drop-shadow(0 0 6px rgba(247,147,26,0.6));" onerror="this.style.display=\'none\'">' +
+                '<img src="/nacho-deer.svg" style="width:36px;height:36px;border-radius:50%;border:2px solid #f7931a;filter:drop-shadow(0 0 6px rgba(247,147,26,0.6));" onerror="this.replaceWith(document.createTextNode(String.fromCodePoint(129420)))">' +
                 '<span style="font-size:0.72rem;color:var(--text-muted);">Your avatar gets a golden Nacho glow in chat and on your profile!</span>' +
             '</div>';
         }
@@ -3814,8 +4105,9 @@ function _renderNookShop() {
         '<div id="_raffleCommTotal" style="font-size:0.72rem;color:var(--text-muted);margin-top:2px;"><span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span> Community entries this month: ...</div>' +
         '</div>' +
         '<div style="text-align:right;flex-shrink:0;">' +
-        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="number" id="raffleQtyInput" min="1" max="50" value="1" oninput="window._updateRaffleCost()" style="width:52px;padding:4px 6px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;font-weight:700;text-align:center;font-family:inherit;" /><span id="raffleCostLabel" style="font-size:0.75rem;color:#f7931a;font-weight:800;">10 <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span></span></div>' +
+        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><input type="number" id="raffleQtyInput" min="1" max="10" value="1" oninput="window._updateRaffleCost()" style="width:52px;padding:4px 6px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;font-weight:700;text-align:center;font-family:inherit;" /><span id="raffleCostLabel" style="font-size:0.75rem;color:#f7931a;font-weight:800;">10 <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span></span></div>' +
         '<button id="raffleEnterBtn" onclick="window._buyRaffleQty(this)" style="padding:6px 14px;border-radius:8px;border:none;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;background:linear-gradient(135deg,#f7931a,#e8720c);color:#fff;transition:0.2s;">Enter</button>' +
+        '<button id="raffle10Btn" onclick="window._buyRaffle10(this)" style="margin-left:6px;padding:6px 10px;border-radius:8px;border:1px solid #f7931a;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;background:transparent;color:#f7931a;">NEW · 10-pack (' + _nookPrice('raffle_entry_10') + ')</button>' +
         '</div>' +
         '</div>' +
     '</div>';
@@ -3841,9 +4133,9 @@ window._updateRaffleCost = function() {
     var lbl = document.getElementById('raffleCostLabel');
     var btn = document.getElementById('raffleEnterBtn');
     if (!inp || !lbl) return;
-    var qty = Math.max(1, Math.min(50, parseInt(inp.value) || 1));
+    var qty = Math.max(1, Math.min(10, parseInt(inp.value) || 1));
     inp.value = qty;
-    var cost = qty * 10;
+    var cost = qty * _nookPrice('raffle_entry');
     var tickets = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.orangeTickets || 0) : 0;
     var canAfford = tickets >= cost;
     lbl.innerHTML = cost + ' <span style="display:inline-block;background:#f7931a;color:#fff;border-radius:4px;padding:1px 5px;font-size:0.7em;font-weight:900;letter-spacing:0.03em;vertical-align:middle;line-height:1.5;">TKT</span>';
@@ -3858,8 +4150,11 @@ window._updateRaffleCost = function() {
 
 window._buyRaffleQty = function(btnEl) {
     var inp = document.getElementById('raffleQtyInput');
-    var qty = Math.max(1, Math.min(50, parseInt((inp && inp.value) || '1') || 1));
+    var qty = Math.max(1, Math.min(10, parseInt((inp && inp.value) || '1') || 1));
     _nookBuyItem('raffle_entry', qty, btnEl);
+};
+window._buyRaffle10 = function(btnEl) {
+    _nookBuyItem('raffle_entry_10', 1, btnEl);
 };
 
 function _renderNookInventory() {
@@ -3878,7 +4173,8 @@ function _renderNookInventory() {
                 var fresh = doc.data();
                 // Sync all inventory fields from server into currentUser
                 var invFields = ['streakFreezes','hintTokens','hashBoosters','doubleXPCharges','bonusSpins',
-                    'raffleEntries','secondRigCharges','ownedCosmetics','orangeTickets','doubleXPExpiry'];
+                    'raffleEntries','secondRigCharges','ownedCosmetics','orangeTickets','doubleXPExpiry','doubleXpUntil',
+                    'cipherSatsBalance'];
                 invFields.forEach(function(f) {
                     if (fresh[f] !== undefined) currentUser[f] = fresh[f];
                     else if (currentUser[f] === undefined) currentUser[f] = null;
@@ -3909,9 +4205,9 @@ function _renderNookInventoryContent(el) {
     var secondRigCharges = u.secondRigCharges || 0;
     var ownedCosmetics = u.ownedCosmetics || [];
 
-    // Double XP active countdown
-    var doubleXPExpiry = u.doubleXPExpiry;
-    var doubleXPActive = doubleXPExpiry && (doubleXPExpiry > Date.now());
+    // Double XP active countdown. Prefer the server epoch field; fall back to a number expiry.
+    var doubleXPExpiry = (typeof window._doubleXpUntilMs === 'function') ? window._doubleXpUntilMs(u) : (typeof u.doubleXpUntil === 'number' ? u.doubleXpUntil : (typeof u.doubleXPExpiry === 'number' ? u.doubleXPExpiry : 0));
+    var doubleXPActive = doubleXPExpiry > Date.now();
     var doubleXPMin = doubleXPActive ? Math.ceil((doubleXPExpiry - Date.now()) / 60000) : 0;
 
      function invRow(icon, name, qty, actionHtml, noteHtml) {
@@ -3932,8 +4228,17 @@ function _renderNookInventoryContent(el) {
         '</div>';
     }
 
-    // Keys and ciphers sit directly under the orange ticket balance.
-    var html = '<div id="nookKeysCiphers" style="margin:0 0 16px;"></div>';
+    // Keys and ciphers sit directly under the cipher sats balance.
+    var _cipherBal = Math.max(0, Math.floor(Number(u.cipherSatsBalance) || 0));
+    var _cipherReady = _cipherBal >= ((window.CIPHER_SATS_RULES && window.CIPHER_SATS_RULES.min) || 100);
+    var html = '<div id="cipherSatsBalanceInventory" data-surface="inventory" style="margin:0 0 12px;padding:12px;border-radius:12px;border:1px solid rgba(247,147,26,0.45);background:rgba(247,147,26,0.08);text-align:center;">' +
+        '<div style="font-size:0.68rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--text-muted);font-weight:800;">Cipher sats balance</div>' +
+        '<div class="cipher-sats-balance-amount" style="font-size:1.35rem;font-weight:900;color:#f7931a;margin:4px 0;">' + _cipherBal.toLocaleString() + ' sats</div>' +
+        '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;">Small sats wins from locked ciphers land here.</div>' +
+        '<button type="button" class="cipher-sats-claim-btn" ' + (_cipherReady ? '' : 'disabled ') + 'onclick="if(window.claimCipherSats)window.claimCipherSats()" style="min-height:44px;padding:10px 14px;border:none;border-radius:10px;font-weight:800;font-family:inherit;width:100%;' + (_cipherReady ? 'background:#f7931a;color:#fff;cursor:pointer;' : 'background:var(--card-bg,#222);color:var(--text-muted);cursor:default;opacity:0.65;') + '">Claim ' + Math.min(_cipherBal, 200).toLocaleString() + ' sats</button>' +
+        (typeof window.cipherSatsHintHtml === 'function' ? window.cipherSatsHintHtml(_cipherBal) : '') +
+        '</div>';
+    html += '<div id="nookKeysCiphers" style="margin:0 0 16px;"></div>';
     html += '<div style="display:flex;flex-direction:column;gap:6px;">';
 
     // Streak Freezes
@@ -3952,7 +4257,7 @@ function _renderNookInventoryContent(el) {
         'Used automatically from quiz screen — shows 💡 button');
 
     // Double XP
-    html += invRow('🎯', 'Double XP Charges', doubleXPCharges,
+    html += invRow('🎯', 'Double XP', Math.max(doubleXPCharges, doubleXPActive ? 1 : 0),
         doubleXPActive
             ? '<div style="margin-top:4px;padding:4px 10px;background:rgba(34,197,94,0.15);border:1px solid #22c55e;border-radius:8px;font-size:0.72rem;color:#22c55e;font-weight:700;">✅ Active — '+doubleXPMin+' min left</div>'
             : '<button onclick="_nookActivateDoubleXP(this)" style="margin-top:4px;padding:5px 12px;background:linear-gradient(135deg,#3b82f6,#1d4ed8);border:none;border-radius:8px;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Activate</button>',
@@ -4003,7 +4308,7 @@ function _renderNookInventoryContent(el) {
         html += '</div>';
     }
 
-    if (freezes === 0 && hintTokens === 0 && hashBoosters === 0 && doubleXPCharges === 0 && bonusSpins === 0 && raffleEntries === 0 && secondRigCharges === 0 && ownedCosmetics.length === 0) {
+    if (freezes === 0 && hintTokens === 0 && hashBoosters === 0 && doubleXPCharges === 0 && !doubleXPActive && bonusSpins === 0 && raffleEntries === 0 && secondRigCharges === 0 && ownedCosmetics.length === 0) {
         html = '<div id="nookKeysCiphers" style="margin:0 0 16px;"></div>' +
             '<div style="text-align:center;padding:32px 20px;">' +
             '<div style="font-size:2.5rem;margin-bottom:12px;">📦</div>' +
@@ -4068,7 +4373,8 @@ window._nookActivateDoubleXP = function(btnEl) {
         if (d && d.success) {
             if (typeof currentUser !== 'undefined' && currentUser) {
                 currentUser.doubleXPCharges = d.charges;
-                currentUser.doubleXPExpiry = d.doubleXPExpiry;
+                currentUser.doubleXpUntil = d.doubleXpUntil || d.doubleXPExpiry;
+                currentUser.doubleXPExpiry = currentUser.doubleXpUntil;
             }
             var msg = d.extended ? '🎯 Double XP extended! Active for another hour.' : '🎯 Double XP activated! 2× XP for the next 60 minutes!';
             if (typeof showToast === 'function') showToast(msg);
@@ -4318,6 +4624,13 @@ function _renderCharityTab(body) {
     }, function() { _recentReady = true; _maybeRender(); });
 }
 
+function _spendableXp(user) {
+    var u = user || {};
+    var unclaimable = Number(u.unclaimableXp) || 0;
+    if (unclaimable < 0) unclaimable = 0;
+    return (Number(u.points) || 0) - (Number(u.pointsClaimed) || 0) - (Number(u.pointsDonated) || 0) - (Number(u.pointsExchanged) || 0) - unclaimable;
+}
+
 function _renderCharityTabInner(body) {
     var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return String(s || '').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
     var isSignedIn = typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
@@ -4326,7 +4639,8 @@ function _renderCharityTabInner(body) {
     var claimed = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsClaimed || 0) : 0;
     var donated = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsDonated || 0) : 0;
     var exchanged = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsExchanged || 0) : 0;
-    var available = Math.max(0, pts - claimed - donated - exchanged);
+    var unclaimable = typeof currentUser !== 'undefined' && currentUser ? Math.max(0, Number(currentUser.unclaimableXp) || 0) : 0;
+    var available = Math.max(0, pts - claimed - donated - exchanged - unclaimable);
 
     var stats = _charityStats || { totalDonated: 0, factionTotals: {} };
     var totalDonated = stats.totalDonated || 0;
@@ -4444,23 +4758,25 @@ function _renderCharityTabInner(body) {
         '<div style="font-size:0.75rem;font-weight:700;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;">🏅 Donation Badges</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
     var donorBadges = [
-        { id:'donor_100',    emoji:'🫷', name:'Giving Pleb',           thresh:'100 XP',    reward:'50 XP' },
-        { id:'donor_500',    emoji:'💛', name:'Stack Sharer',          thresh:'500 XP',    reward:'150 XP' },
-        { id:'donor_1000',   emoji:'🧡', name:'Community Builder',     thresh:'1,000 XP',  reward:'300 XP' },
-        { id:'donor_5000',   emoji:'❤️', name:'Archive Patron',        thresh:'5,000 XP',  reward:'1,000 XP' },
-        { id:'donor_10000',  emoji:'🔥', name:'Sats Saint',            thresh:'10,000 XP', reward:'2,000 XP' },
-        { id:'donor_25000',  emoji:'⚡', name:'Lightning Philanthropist', thresh:'25,000 XP', reward:'4,000 XP' },
-        { id:'donor_50000',  emoji:'🏆', name:"Satoshi's Steward",    thresh:'50,000 XP', reward:'7,500 XP' },
-        { id:'donor_100000', emoji:'👑', name:'Legend of the Archive', thresh:'100,000 XP',reward:'15,000 XP' },
+        { id:'donor_100',    emoji:'🫷', name:'Giving Pleb',           thresh:'100 XP' },
+        { id:'donor_500',    emoji:'💛', name:'Stack Sharer',          thresh:'500 XP' },
+        { id:'donor_1000',   emoji:'🧡', name:'Community Builder',     thresh:'1,000 XP' },
+        { id:'donor_5000',   emoji:'❤️', name:'Archive Patron',        thresh:'5,000 XP' },
+        { id:'donor_10000',  emoji:'🔥', name:'Sats Saint',            thresh:'10,000 XP' },
+        { id:'donor_25000',  emoji:'⚡', name:'Lightning Philanthropist', thresh:'25,000 XP' },
+        { id:'donor_50000',  emoji:'🏆', name:"Satoshi's Steward",    thresh:'50,000 XP' },
+        { id:'donor_100000', emoji:'👑', name:'Legend of the Archive', thresh:'100,000 XP' },
     ];
     var earnedBadges = typeof safeJSON === 'function' ? safeJSON('btc_hidden_badges', []) : [];
     donorBadges.forEach(function(b) {
         var earned = earnedBadges.includes(b.id) || (typeof currentUser !== 'undefined' && currentUser && Array.isArray(currentUser.donationBadges) && currentUser.donationBadges.includes(b.id));
+        var cat = (window.BADGE_CATALOG && window.BADGE_CATALOG[b.id]) || {};
+        var rewardXp = typeof cat.xp === 'number' ? cat.xp : 0;
         html += '<div style="padding:10px;border-radius:10px;border:1px solid ' + (earned ? 'rgba(239,68,68,0.4)' : 'var(--border)') + ';background:' + (earned ? 'rgba(239,68,68,0.06)' : 'none') + ';text-align:center;">' +
             '<div style="font-size:1.4rem;margin-bottom:2px;' + (earned ? '' : 'filter:grayscale(1);opacity:0.4;') + '">' + b.emoji + '</div>' +
             '<div style="font-size:0.72rem;font-weight:700;color:' + (earned ? 'var(--heading)' : 'var(--text-faint)') + ';">' + b.name + '</div>' +
             '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:2px;">' + b.thresh + ' donated</div>' +
-            '<div style="font-size:0.65rem;color:#ef4444;margin-top:1px;">+' + b.reward + ' reward</div>' +
+            '<div style="font-size:0.65rem;color:#ef4444;margin-top:1px;">+' + rewardXp.toLocaleString() + ' XP reward</div>' +
         '</div>';
     });
     html += '</div></div>';
@@ -4474,11 +4790,8 @@ function _renderCharityTabInner(body) {
     function _patchCharityDonateSection() {
         var donateSection = document.getElementById('charityDonateSection');
         if (!donateSection) return;
-        var pts = typeof currentUser !== 'undefined' && currentUser ? (currentUser.points || 0) : 0;
-        var claimed = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsClaimed || 0) : 0;
+        var available = Math.max(0, _spendableXp(typeof currentUser !== 'undefined' ? currentUser : null));
         var donated = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsDonated || 0) : 0;
-        var exchanged = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pointsExchanged || 0) : 0;
-        var available = Math.max(0, pts - claimed - donated - exchanged);
         // Available XP line
         var avEl = donateSection.querySelector('[data-charity-avail]');
         if (avEl) avEl.textContent = available.toLocaleString() + ' XP';
@@ -4510,49 +4823,30 @@ function _renderCharityTabInner(body) {
         var inp = document.getElementById('charityAmtInput');
         var amt = parseInt(inp ? inp.value : '') || 0;
         if (!amt || amt < 1) { if (typeof showToast === 'function') showToast('Enter a valid amount'); return; }
-        var avail = Math.max(0, (typeof currentUser !== 'undefined' && currentUser ? (currentUser.points||0) - (currentUser.pointsClaimed||0) - (currentUser.pointsDonated||0) - (currentUser.pointsExchanged||0) : 0));
+        var avail = Math.max(0, _spendableXp(typeof currentUser !== 'undefined' ? currentUser : null));
         if (amt > avail) { if (typeof showToast === 'function') showToast('Not enough available XP. You have ' + avail.toLocaleString() + ' pts available.'); return; }
         var anon = document.getElementById('charityAnonToggle') ? document.getElementById('charityAnonToggle').checked : false;
         var btn = document.querySelector('[onclick="window._submitCharityDonation()"]');
         if (btn) { btn.disabled = true; btn.textContent = 'Donating...'; }
         var donateFn = firebase.functions().httpsCallable('donatePoints');
         donateFn({ amount: amt, anonymous: anon }).then(function(result) {
-            // Update local state
-            if (typeof currentUser !== 'undefined' && currentUser) {
-                currentUser.pointsDonated = (currentUser.pointsDonated || 0) + amt;
-                if (result.data && result.data.bonusPts) currentUser.points = (currentUser.points || 0) + result.data.bonusPts;
+            try {
+                if (typeof currentUser !== 'undefined' && currentUser) {
+                    currentUser.pointsDonated = (currentUser.pointsDonated || 0) + amt;
+                    if (result.data && result.data.bonusPts) currentUser.points = (currentUser.points || 0) + result.data.bonusPts;
+                }
+                var newBadges = result.data && result.data.newBadges || [];
+                var badgeMsg = newBadges.length > 0 ? ' You earned ' + newBadges.length + ' new badge' + (newBadges.length > 1 ? 's' : '') + '!' : '';
+                if (typeof showToast === 'function') showToast('❤️ Thank you! ' + amt.toLocaleString() + ' XP donated (' + amt.toLocaleString() + ' sats pledged to charity).' + badgeMsg, 5000);
+                window._charityThankYou(amt, newBadges, result.data && result.data.bonusPts || 0);
+                _patchCharityDonateSection();
+            } catch (_uiErr) {
+                if (typeof showToast === 'function') showToast('❤️ Donation saved. Refresh if the totals look stale.', 4000);
             }
-            // Thank-you message
-            var newBadges = result.data && result.data.newBadges || [];
-            var badgeMsg = newBadges.length > 0 ? ' You earned ' + newBadges.length + ' new badge' + (newBadges.length > 1 ? 's' : '') + '!' : '';
-            if (typeof showToast === 'function') showToast('❤️ Thank you! ' + amt.toLocaleString() + ' XP donated (' + amt.toLocaleString() + ' sats pledged to charity).' + badgeMsg, 5000);
-            // Show thank-you modal
-            window._charityThankYou(amt, newBadges, result.data && result.data.bonusPts || 0);
-            // Announce earned badges to Global Chat via Satoshi's Favor
-            if (newBadges.length > 0 && typeof window.contributeSatoshiFavor === 'function') {
-                var _donorBadgeMap = {
-                    donor_100:    { emoji: '🫷', name: 'Giving Pleb' },
-                    donor_500:    { emoji: '💛', name: 'Stack Sharer' },
-                    donor_1000:   { emoji: '🧡', name: 'Community Builder' },
-                    donor_5000:   { emoji: '❤️', name: 'Archive Patron' },
-                    donor_10000:  { emoji: '🔥', name: 'Sats Saint' },
-                    donor_25000:  { emoji: '⚡', name: 'Lightning Philanthropist' },
-                    donor_50000:  { emoji: '🏆', name: "Satoshi's Steward" },
-                    donor_100000: { emoji: '👑', name: 'Legend of the Archive' },
-                };
-                newBadges.forEach(function(badgeId) {
-                    if (_donorBadgeMap[badgeId]) {
-                        window.contributeSatoshiFavor('badge_earned', badgeId).catch(function() {});
-                    }
-                });
-            }
-            // Listeners are live for community totals; also refresh the donate
-            // section so quick-pick amounts, available XP, and already-donated tally
-            // all reflect the just-made donation immediately.
-            _patchCharityDonateSection();
+            if (btn) { btn.disabled = false; btn.textContent = '❤️ Donate XP for Charity'; }
         }).catch(function(e) {
             if (btn) { btn.disabled = false; btn.textContent = '❤️ Donate XP for Charity'; }
-            if (typeof showToast === 'function') showToast('❌ ' + (e.message || 'Donation failed. Try again.'), 4000);
+            if (typeof showToast === 'function') showToast('❌ ' + (typeof friendlyCallableError === 'function' ? friendlyCallableError(e, 'Donation failed. Try again.') : (e.message || 'Donation failed. Try again.')), 4000);
         });
     };
 }
@@ -4725,6 +5019,14 @@ function _renderQuizTab(body) {
 // TRIVIA QUEST SYSTEM - 1 per day, standalone question
 // ============================================================
 
+// Firestore option_<idx> is the published bank slot. Display order may
+// be shuffled (bankIndexOfDisplay); without that map the indexes match.
+function _triviaStatIndex(trivia, displayIdx) {
+    var map = trivia && trivia.bankIndexOfDisplay;
+    if (map && map[displayIdx] != null) return map[displayIdx];
+    return displayIdx;
+}
+
 function _getTriviaToday() {
     if (typeof TRIVIA_BANK === 'undefined' || !TRIVIA_BANK || !TRIVIA_BANK.length) return null;
     // Deterministic daily rotation keyed by getDailyKey (resets at 5 AM UTC)
@@ -4744,7 +5046,216 @@ function _setTriviaState(state) {
     try { localStorage.setItem('btc_trivia_state', JSON.stringify(state)); } catch(e) {}
 }
 
+function _numStat(value) {
+    var n = Number(value);
+    if (!isFinite(n) || n <= 0) return 0;
+    return Math.floor(n);
+}
+
+function _detachTriviaStatsListener() {
+    window._triviaStatsGen = (window._triviaStatsGen || 0) + 1;
+    if (typeof window._triviaStatsUnsub === 'function') {
+        var unsub = window._triviaStatsUnsub;
+        window._triviaStatsUnsub = null;
+        try { unsub(); } catch (e) {}
+    }
+}
+
+function _detachPollStatsListener() {
+    window._pollStatsGen = (window._pollStatsGen || 0) + 1;
+    if (typeof window._pollStatsUnsub === 'function') {
+        var unsub = window._pollStatsUnsub;
+        window._pollStatsUnsub = null;
+        try { unsub(); } catch (e) {}
+    }
+}
+
+function _detachCommunityResultListeners() {
+    _detachTriviaStatsListener();
+    _detachPollStatsListener();
+}
+
+function _triviaCountsFromDoc(data) {
+    var counts = {};
+    for (var i = 0; i < 4; i++) counts['option_' + i] = _numStat(data && data['option_' + i]);
+    return { total: _numStat(data && data.total), counts: counts };
+}
+
+function _triviaStatKeys(trivia) {
+    var keys = [];
+    var n = trivia && trivia.options ? trivia.options.length : 0;
+    for (var i = 0; i < n; i++) keys.push('option_' + _triviaStatIndex(trivia, i));
+    return keys;
+}
+
+// Pre-answer snapshot plus the in-flight vote until the live doc includes it.
+// After that, the server numbers are used exactly.
+function _mergeLiveCounts(serverCounts, serverTotal, preCounts, preTotal, chosenKey, keys) {
+    var haveServer = !!serverCounts;
+    var havePre = !!preCounts;
+    if (!haveServer && !havePre) return null;
+    var sTotal = haveServer ? _numStat(serverTotal) : 0;
+    var pTotal = havePre ? _numStat(preTotal) : 0;
+    var chosenServer = haveServer && chosenKey != null ? _numStat(serverCounts[chosenKey]) : 0;
+    var chosenPre = havePre && chosenKey != null ? _numStat(preCounts[chosenKey]) : 0;
+    var reflected = !!(haveServer && havePre && chosenKey != null
+        && sTotal >= pTotal + 1
+        && chosenServer >= chosenPre + 1);
+    if (!havePre || reflected) {
+        var pure = {};
+        for (var i = 0; i < keys.length; i++) pure[keys[i]] = haveServer ? _numStat(serverCounts[keys[i]]) : 0;
+        return { total: sTotal, counts: pure, reflected: true };
+    }
+    var counts = {};
+    var sum = 0;
+    for (var j = 0; j < keys.length; j++) {
+        var key = keys[j];
+        var serverVal = haveServer ? _numStat(serverCounts[key]) : _numStat(preCounts[key]);
+        var preVal = _numStat(preCounts[key]);
+        var shown = Math.max(serverVal, preVal + (key === chosenKey ? 1 : 0));
+        counts[key] = shown;
+        sum += shown;
+    }
+    return { total: Math.max(sTotal, pTotal + 1, sum), counts: counts, reflected: false };
+}
+
+function _applyTriviaCommunity(trivia, display) {
+    var totalEl = document.getElementById('triviaTotalVotes');
+    if (!display || !display.total) {
+        if (totalEl) totalEl.textContent = 'Loading community results...';
+        return;
+    }
+    var total = display.total;
+    for (var oi = 0; oi < trivia.options.length; oi++) {
+        var statKey = 'option_' + _triviaStatIndex(trivia, oi);
+        var count = display.counts[statKey] || 0;
+        var pct = Math.round((count / total) * 100);
+        var barEl = document.getElementById('triviaBar_' + oi);
+        var pctEl = document.getElementById('triviaPct_' + oi);
+        if (barEl) barEl.style.width = pct + '%';
+        if (pctEl) pctEl.textContent = pct + '% (' + count + ')';
+    }
+    if (totalEl) totalEl.textContent = total.toLocaleString() + ' answer' + (total === 1 ? '' : 's') + ' today';
+}
+
+function _paintTriviaCommunity(trivia, todayKey) {
+    var keys = _triviaStatKeys(trivia);
+    var base = window._triviaBaseline;
+    var pending = !!(window._triviaAwaitingWrite && base && base.key === todayKey && base.known && base.counts);
+    var serverDoc = window._triviaLiveKey === todayKey ? window._triviaLiveDoc : null;
+    var server = serverDoc ? _triviaCountsFromDoc(serverDoc) : null;
+    var chosenKey = pending ? ('option_' + base.bankIdx) : null;
+    var merged = _mergeLiveCounts(
+        server ? server.counts : null,
+        server ? server.total : 0,
+        pending ? base.counts : null,
+        pending ? base.total : 0,
+        chosenKey,
+        keys
+    );
+    if (pending && merged && merged.reflected) window._triviaAwaitingWrite = false;
+    _applyTriviaCommunity(trivia, merged && merged.total > 0 ? merged : null);
+}
+
+function _markCommunityResultsUnavailable(totalId) {
+    var el = document.getElementById(totalId);
+    if (!el) return;
+    var text = String(el.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!text || text === 'Loading community results...') {
+        el.textContent = 'Community results are unavailable right now.';
+    }
+}
+
+function _listenTriviaStats(todayKey, onSnap) {
+    _detachTriviaStatsListener();
+    var gen = window._triviaStatsGen;
+    if (typeof db === 'undefined' || !db || typeof db.collection !== 'function') return;
+    try {
+        window._triviaStatsUnsub = db.collection('trivia_stats').doc(todayKey).onSnapshot(function(doc) {
+            if (gen !== window._triviaStatsGen) return;
+            window._triviaLiveKey = todayKey;
+            window._triviaLiveDoc = (doc && doc.exists) ? (doc.data() || {}) : {};
+            if (onSnap) onSnap(window._triviaLiveDoc);
+        }, function() {
+            if (gen !== window._triviaStatsGen) return;
+            _markCommunityResultsUnavailable('triviaTotalVotes');
+        });
+    } catch (e) {}
+}
+
+function _captureTriviaBaseline(todayKey, bankIdx, done) {
+    function store(data, known) {
+        if (known) {
+            var parsed = _triviaCountsFromDoc(data || {});
+            window._triviaLiveKey = todayKey;
+            window._triviaLiveDoc = data || {};
+            window._triviaBaseline = {
+                key: todayKey,
+                bankIdx: bankIdx,
+                known: true,
+                total: parsed.total,
+                counts: parsed.counts
+            };
+        } else {
+            window._triviaBaseline = { key: todayKey, bankIdx: bankIdx, known: false, total: 0, counts: null };
+        }
+        done();
+    }
+    if (window._triviaLiveKey === todayKey && window._triviaLiveDoc) {
+        store(window._triviaLiveDoc, true);
+        return;
+    }
+    if (typeof db === 'undefined' || !db || typeof db.collection !== 'function') {
+        store(null, false);
+        return;
+    }
+    try {
+        db.collection('trivia_stats').doc(todayKey).get().then(function(doc) {
+            store((doc && doc.exists) ? (doc.data() || {}) : {}, true);
+        }).catch(function() { store(null, false); });
+    } catch (e) {
+        store(null, false);
+    }
+}
+
+function _triviaCanGrade() {
+    return typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous
+        && typeof firebase !== 'undefined' && firebase.functions;
+}
+
+// Checking paints in the same turn as the tap. Correctness and the
+// explanation stay hidden until answerTrivia returns them.
+function _markTriviaChecking(chosenIdx, todayKey) {
+    window._triviaChecking = { idx: chosenIdx, todayKey: todayKey, at: Date.now() };
+    var pill = document.getElementById('triviaXpPill');
+    if (pill) {
+        pill.textContent = 'XP pending';
+        if (pill.setAttribute) pill.setAttribute('data-xp', 'pending');
+    }
+    var buttons = [];
+    if (document.querySelectorAll) {
+        try { buttons = document.querySelectorAll('#triviaOptions button'); } catch (e) { buttons = []; }
+    }
+    for (var i = 0; i < buttons.length; i++) {
+        var b = buttons[i];
+        b.disabled = true;
+        if (b.style) b.style.cursor = 'default';
+        if (i === chosenIdx) {
+            if (b.setAttribute) b.setAttribute('data-trivia-checking', '1');
+            if (b.style) b.style.borderColor = '#f7931a';
+            var note = document.createElement('span');
+            note.id = 'triviaChecking';
+            note.textContent = 'checking\u2026';
+            if (note.style) note.style.cssText = 'margin-left:auto;font-size:0.75rem;font-weight:800;color:var(--text);white-space:nowrap;';
+            if (b.appendChild) b.appendChild(note);
+        } else if (b.style) {
+            b.style.opacity = '0.55';
+        }
+    }
+}
+
 function _renderTriviaTab(body, optimisticVote) {
+    _detachTriviaStatsListener();
     var today = _getTriviaToday();
     if (!today || !today.trivia) {
         body.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Trivia questions loading...</div>';
@@ -4755,12 +5266,15 @@ function _renderTriviaTab(body, optimisticVote) {
     var todayKey = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
     var answered = state.date === todayKey;
     var t = today.trivia;
+    var checking = !!(window._triviaChecking && window._triviaChecking.todayKey === todayKey && !answered);
+    var pillText = checking ? 'XP pending' : (answered ? '' : '+50 XP for a correct answer');
+    if (answered && typeof state.awarded === 'number' && state.awarded > 0) pillText = '+' + state.awarded + ' XP';
 
     var html = '<div style="text-align:center;padding:8px 0 16px;">' +
         '<div style="font-size:2.5rem;margin-bottom:8px;">🧠</div>' +
         '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Trivia Quest</div>' +
         '<div style="color:var(--text-muted);font-size:0.82rem;margin-bottom:4px;">1 new question every day</div>' +
-        '<div style="padding:4px 12px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.72rem;color:#f7931a;font-weight:700;display:inline-block;margin-bottom:16px;">+50 XP correct · +10 XP for trying</div>' +
+        (pillText ? '<div id="triviaXpPill" data-xp="' + (checking ? 'pending' : (answered ? 'answered' : 'offer')) + '" style="padding:4px 12px;background:rgba(247,147,26,0.1);border-radius:8px;font-size:0.72rem;color:#f7931a;font-weight:700;display:inline-block;margin-bottom:16px;">' + pillText + '</div>' : '') +
     '</div>';
 
     // Question card
@@ -4773,7 +5287,8 @@ function _renderTriviaTab(body, optimisticVote) {
     for (var i = 0; i < t.options.length; i++) {
         var optText = typeof escapeHtml === 'function' ? escapeHtml(t.options[i]) : t.options[i];
         if (answered) {
-            var isCorrect = i === t.answer;
+            var answerIndex = (typeof state.answerIndex === 'number') ? state.answerIndex : -1;
+            var isCorrect = answerIndex >= 0 && i === answerIndex;
             var wasChosen = i === state.chosen;
             var bg = isCorrect ? 'rgba(34,197,94,0.15)' : (wasChosen && !isCorrect ? 'rgba(239,68,68,0.15)' : 'var(--card-bg,#1a1a2e)');
             var border = isCorrect ? '#22c55e' : (wasChosen && !isCorrect ? '#ef4444' : 'var(--border)');
@@ -4786,9 +5301,12 @@ function _renderTriviaTab(body, optimisticVote) {
                 (icon ? '<span style="position:relative;z-index:1;">' + icon + '</span>' : '') +
             '</div>';
         } else {
-            html += '<button onclick="triviaAnswer(' + i + ')" style="padding:12px 16px;background:var(--card-bg,#1a1a2e);border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;">' +
+            var isChecking = checking && window._triviaChecking && window._triviaChecking.idx === i;
+            var dimOther = checking && !isChecking;
+            html += '<button onclick="triviaAnswer(' + i + ')"' + (checking ? ' disabled' : '') + ' style="padding:12px 16px;background:var(--card-bg,#1a1a2e);border:2px solid ' + (isChecking ? '#f7931a' : 'var(--border)') + ';border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:' + (checking ? 'default' : 'pointer') + ';font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;opacity:' + (dimOther ? '0.55' : '1') + ';">' +
                 '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);">' + String.fromCharCode(65 + i) + '</span>' +
                 optText +
+                (isChecking ? '<span id="triviaChecking" style="margin-left:auto;font-size:0.75rem;font-weight:800;color:var(--text);white-space:nowrap;">checking\u2026</span>' : '') +
             '</button>';
         }
     }
@@ -4799,78 +5317,34 @@ function _renderTriviaTab(body, optimisticVote) {
         html += '<div style="margin-top:14px;margin-bottom:6px;font-size:0.7rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;text-align:center;">👥 Community Answers</div>';
     }
 
-    // Community stats section — baked directly into HTML (no DOM patching race condition).
-    // When optimisticVote is present we already know the count locally, so we skip the
-    // Firestore read and render immediately.  On subsequent opens (no optimisticVote) we
-    // fire an async read and patch only the per-option bars + the total line.
-    var _triviaOptimisticStats = null; // set below when we can render without a round-trip
-
-    if (answered && optimisticVote && typeof optimisticVote.chosenIdx === 'number') {
-        // User just answered — we don't need Firestore; synthesise stats from scratch.
-        // The Firestore write is in-flight; the only guaranteed fact is that THIS user
-        // chose chosenIdx.  Build a minimal stats object with just that one vote so the
-        // bars render correctly right away.  Once Firestore settles the onSnapshot /
-        // next tab-open will show the real community totals.
-        _triviaOptimisticStats = { total: 1 };
-        _triviaOptimisticStats['option_' + optimisticVote.chosenIdx] = 1;
-    } else if (answered && typeof db !== 'undefined') {
-        // Normal re-open path: read real community stats from Firestore and patch DOM
-        // after body.innerHTML is set (deferred below).
-    }
-
-    // Show explanation if answered
+    // Explanation arrives with the grade. Counts stay empty until the live tally is known.
     if (answered) {
-        // Bake the total count into the HTML directly so it is correct even before
-        // any Firestore read completes.  _triviaOptimisticStats is non-null only on
-        // the immediate post-answer render.
-        var _initialTotalText = _triviaOptimisticStats
-            ? (_triviaOptimisticStats.total.toLocaleString() + ' answer' + (_triviaOptimisticStats.total !== 1 ? 's' : '') + ' today')
-            : 'Loading community results...';
-        html += '<div id="triviaTotalVotes" style="text-align:center;margin-top:4px;margin-bottom:14px;color:var(--text-faint);font-size:0.72rem;">' + _initialTotalText + '</div>';
-        html += '<div style="margin-top:4px;padding:16px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;">' +
-            '<div style="font-size:0.75rem;font-weight:800;color:#22c55e;margin-bottom:6px;text-transform:uppercase;">💡 Explanation</div>' +
-            '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;">' + (typeof escapeHtml === 'function' ? escapeHtml(t.explanation) : t.explanation) + '</div>' +
-        '</div>';
+        html += '<div id="triviaTotalVotes" style="text-align:center;margin-top:4px;margin-bottom:14px;color:var(--text-faint);font-size:0.72rem;">Loading community results...</div>';
+        if (state.explanation) {
+            var explanationText = typeof escapeHtml === 'function' ? escapeHtml(state.explanation) : state.explanation;
+            html += '<div style="margin-top:4px;padding:16px;background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.2);border-radius:12px;">' +
+                '<div style="font-size:0.75rem;font-weight:800;color:#22c55e;margin-bottom:6px;text-transform:uppercase;">💡 Explanation</div>' +
+                '<div style="color:var(--text);font-size:0.82rem;line-height:1.6;">' + explanationText + '</div>' +
+            '</div>';
+        }
         html += '<div style="text-align:center;margin-top:16px;color:var(--text-faint);font-size:0.75rem;">Come back tomorrow for a new trivia question! 🧠</div>';
     }
 
     body.innerHTML = html;
 
-    // After DOM is set: apply stats to bars + total line.
-    if (answered) {
-        if (_triviaOptimisticStats) {
-            // Optimistic path — no Firestore needed; bake in the single known vote.
-            var _ots = _triviaOptimisticStats;
-            var _otTotal = _ots.total || 1;
-            for (var oi = 0; oi < t.options.length; oi++) {
-                var _oCount = _ots['option_' + oi] || 0;
-                var _oPct = Math.round((_oCount / _otTotal) * 100);
-                var _oBar = document.getElementById('triviaBar_' + oi);
-                var _oPctEl = document.getElementById('triviaPct_' + oi);
-                if (_oBar) _oBar.style.width = _oPct + '%';
-                if (_oPctEl) _oPctEl.textContent = _oPct + '% (' + _oCount + ')';
-            }
-            // Total line already baked into HTML; nothing more to do.
-        } else if (typeof db !== 'undefined') {
-            // Normal re-open: fetch real community totals from Firestore and patch DOM.
-            var _capturedTodayKey = todayKey;
-            var _capturedOptions = t.options.length;
-            db.collection('trivia_stats').doc(_capturedTodayKey).get().then(function(doc) {
-                var stats = doc.exists ? doc.data() : {};
-                var total = stats.total || 0;
-                if (total < 1) return; // nothing to show yet
-                for (var j = 0; j < _capturedOptions; j++) {
-                    var count = stats['option_' + j] || 0;
-                    var pct = Math.round((count / total) * 100);
-                    var barEl = document.getElementById('triviaBar_' + j);
-                    var pctEl = document.getElementById('triviaPct_' + j);
-                    if (barEl) barEl.style.width = pct + '%';
-                    if (pctEl) pctEl.textContent = pct + '% (' + count + ')';
-                }
-                var totEl = document.getElementById('triviaTotalVotes');
-                if (totEl) totEl.textContent = total.toLocaleString() + ' answer' + (total !== 1 ? 's' : '') + ' today';
-            }).catch(function() {});
+    if (answered && optimisticVote && typeof optimisticVote.chosenIdx === 'number') {
+        var ownIdx = _triviaStatIndex(t, optimisticVote.chosenIdx);
+        if (!window._triviaBaseline || window._triviaBaseline.key !== todayKey) {
+            window._triviaBaseline = { key: todayKey, bankIdx: ownIdx, known: false, total: 0, counts: null };
         }
+        window._triviaAwaitingWrite = true;
+    }
+
+    if (answered) {
+        _paintTriviaCommunity(t, todayKey);
+        _listenTriviaStats(todayKey, function() { _paintTriviaCommunity(t, todayKey); });
+    } else {
+        _listenTriviaStats(todayKey, null);
     }
 }
 
@@ -4881,92 +5355,111 @@ window.triviaAnswer = function(chosenIdx) {
     var todayKey = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
     var state = _getTriviaState();
     if (state.date === todayKey) return; // Already answered
+    if (window._triviaSubmitting) return;
+    if (typeof chosenIdx !== 'number' || chosenIdx < 0 || !t.options || chosenIdx >= t.options.length) return;
 
-    var isCorrect = chosenIdx === t.answer;
-    var xp = isCorrect ? 50 : 10;
-
-    // Save state
-    state = { date: todayKey, index: today.index, chosen: chosenIdx, correct: isCorrect };
-    _setTriviaState(state);
-
-    // Award XP
-    if (typeof awardPoints === 'function') awardPoints(xp, isCorrect ? '🧠 Trivia Quest correct!' : '🧠 Trivia Quest attempt');
-    // Raid Boss: trivia + XP
-    if (isCorrect && typeof window._raidOnTriviaCorrect === 'function') window._raidOnTriviaCorrect();
-    // Weekly community challenge: increment trivia_answers if correct
-    if (isCorrect && typeof firebase !== 'undefined' && firebase.functions && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-        try {
-            firebase.functions().httpsCallable('incrementWeeklyChallenge')({ goalType: 'trivia_answers' }).catch(function() {});
-        } catch(e) {}
+    var chosenText = t.options[chosenIdx];
+    // Guest and offline play cannot see the key and must not be graded locally.
+    if (!_triviaCanGrade()) {
+        if (typeof showToast === 'function') showToast('Sign in to answer trivia. Guest and offline answers are not graded and do not earn XP.', 3000);
+        return;
     }
-    if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(xp);
 
-    // Mark trivia done for daily all-three check
-    _markDailyActivity('trivia');
-    _checkDailyAllThree();
+    window._triviaSubmitting = true;
+    _markTriviaChecking(chosenIdx, todayKey);
 
-    // Also sync to Firestore for signed-in users
-    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-        // Calculate trivia streak server-side-friendly: read lastTriviaDate, check if yesterday
-        var _yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-        db.collection('users').doc(auth.currentUser.uid).get().then(function(doc) {
-            var data = doc.exists ? doc.data() : {};
-            var lastDate = data.lastTriviaDate || '';
-            var currentStreak = data.triviaStreak || 0;
-            var newStreak = (lastDate === _yesterday) ? currentStreak + 1 : (lastDate === todayKey ? currentStreak : 1);
-            return db.collection('users').doc(auth.currentUser.uid).update({
-                lastTriviaDate: todayKey,
-                triviaAnswered: firebase.firestore.FieldValue.increment(1),
-                triviaCorrect: firebase.firestore.FieldValue.increment(isCorrect ? 1 : 0),
-                triviaStreak: newStreak
+    function _abortTrivia(message) {
+        window._triviaSubmitting = false;
+        window._triviaChecking = null;
+        if (typeof showToast === 'function' && message) showToast(message, 3000);
+        var body = document.getElementById('questHubBody');
+        if (body) _renderTriviaTab(body, null);
+    }
+
+    function _finishTrivia(isCorrect, awarded, banned, statsRecorded, reveal) {
+        window._triviaChecking = null;
+        reveal = reveal || {};
+        var paid = (typeof awarded === 'number' && awarded > 0) ? awarded : 0;
+        var answerIndex = (typeof reveal.answerIndex === 'number') ? reveal.answerIndex : -1;
+        state = {
+            date: todayKey,
+            index: today.index,
+            chosen: chosenIdx,
+            correct: !!isCorrect,
+            awarded: paid,
+            answerIndex: answerIndex,
+            explanation: typeof reveal.explanation === 'string' ? reveal.explanation : ''
+        };
+        _setTriviaState(state);
+        if (isCorrect && !banned && typeof window._raidOnTriviaCorrect === 'function') window._raidOnTriviaCorrect();
+        if (paid > 0 && typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(paid);
+        if (isCorrect && !banned && _triviaCanGrade()) {
+            try {
+                firebase.functions().httpsCallable('incrementWeeklyChallenge')({ goalType: 'trivia_answers' }).catch(function() {});
+            } catch(e) {}
+        }
+        if (!banned) {
+            _markDailyActivity('trivia');
+            _checkDailyAllThree();
+        }
+        window._triviaAwaitingWrite = statsRecorded === true;
+        var body = document.getElementById('questHubBody');
+        if (body) _renderTriviaTab(body, statsRecorded === true ? { chosenIdx: chosenIdx } : null);
+        if (typeof showToast === 'function') {
+            var toast = isCorrect
+                ? (paid > 0 ? '✅ Correct! +' + paid + ' XP 🧠' : '✅ Correct!')
+                : '❌ Not quite';
+            showToast(toast, 3000);
+        }
+        window._triviaSubmitting = false;
+    }
+
+    function _submitTrivia() {
+        if (!_triviaCanGrade()) {
+            _abortTrivia('Sign in to answer trivia. Guest and offline answers are not graded and do not earn XP.');
+            return;
+        }
+
+        firebase.functions().httpsCallable('answerTrivia')({
+            dayKey: todayKey,
+            questionIndex: today.index,
+            q: t.q,
+            chosen: chosenText
+        }).then(function(res) {
+            var d = (res && res.data) || {};
+            if (d.reason === 'unavailable') {
+                _abortTrivia('Try again later.');
+                return;
+            }
+            if (d.banned === true || d.reason === 'banned') {
+                _abortTrivia('Trivia is unavailable on this account.');
+                return;
+            }
+            if (d.success === false && d.reason && d.reason !== 'incorrect') {
+                _abortTrivia(d.reason === 'wrong-question'
+                    ? 'Trivia updated, please refresh'
+                    : '❌ Could not grade trivia. Try again.');
+                return;
+            }
+            var awarded = typeof d.awarded === 'number' ? d.awarded : 0;
+            _finishTrivia(d.correct === true, awarded, d.banned === true, d.statsRecorded === true, {
+                answerIndex: d.answerIndex,
+                explanation: d.explanation
             });
         }).catch(function() {
-            // Fallback: update without streak calc
-            db.collection('users').doc(auth.currentUser.uid).update({
-                lastTriviaDate: todayKey,
-                triviaAnswered: firebase.firestore.FieldValue.increment(1),
-                triviaCorrect: firebase.firestore.FieldValue.increment(isCorrect ? 1 : 0)
-            }).catch(function() {});
+            _abortTrivia('❌ Could not grade trivia. Try again.');
         });
     }
 
-    // Track answer distribution — cumulative doc (permanent, keyed by trivia index)
-    if (typeof db !== 'undefined') {
-        var _triviaIdx = today.index;
-        var statsUpdate = { total: firebase.firestore.FieldValue.increment(1), triviaIndex: _triviaIdx };
-        statsUpdate['option_' + chosenIdx] = firebase.firestore.FieldValue.increment(1);
-        // Write to cumulative doc (all-time totals for this question) — no re-render needed here
-        // because we already rendered optimistically below
-        db.collection('trivia_cumulative').doc('t_' + _triviaIdx).set(statsUpdate, { merge: true }).catch(function() {});
-        // Also write per-day doc
-        var dayStatsUpdate = { total: firebase.firestore.FieldValue.increment(1) };
-        dayStatsUpdate['option_' + chosenIdx] = firebase.firestore.FieldValue.increment(1);
-        db.collection('trivia_stats').doc(todayKey).set(dayStatsUpdate, { merge: true })
-            .then(function() { return db.collection('trivia_stats').doc(todayKey).get(); })
-            .then(function(doc) {
-                if (!doc.exists) return;
-                var stats = doc.data();
-                var total = stats.total || 1;
-                for (var _j = 0; _j < t.options.length; _j++) {
-                    var _count = stats['option_' + _j] || 0;
-                    var _pct = Math.round((_count / total) * 100);
-                    var _bar = document.getElementById('triviaBar_' + _j);
-                    var _pct2 = document.getElementById('triviaPct_' + _j);
-                    if (_bar) _bar.style.width = _pct + '%';
-                    if (_pct2) _pct2.textContent = _pct + '% (' + _count + ')';
-                }
-                var _totEl = document.getElementById('triviaTotalVotes');
-                if (_totEl) _totEl.textContent = total.toLocaleString() + ' answer' + (total !== 1 ? 's' : '') + ' today';
-            }).catch(function() {});
+    // A cached live doc is a real before-snapshot. Without one, a get can
+    // land after the grade write and a local +1 would count that vote twice.
+    // The grade request starts in this turn. Checking is already on screen.
+    if (window._triviaLiveKey === todayKey && window._triviaLiveDoc) {
+        _captureTriviaBaseline(todayKey, _triviaStatIndex(t, chosenIdx), function() {});
+    } else {
+        window._triviaBaseline = { key: todayKey, bankIdx: _triviaStatIndex(t, chosenIdx), known: false, total: 0, counts: null };
     }
-
-    // Re-render immediately with optimistic +1 so count is correct before Firestore write settles
-    var body = document.getElementById('questHubBody');
-    if (body) _renderTriviaTab(body, { chosenIdx: chosenIdx });
-
-    if (typeof showToast === 'function') {
-        showToast(isCorrect ? '✅ Correct! +50 XP 🧠' : '❌ Wrong - +10 XP for trying!', 3000);
-    }
+    _submitTrivia();
 };
 
 // ============================================================
@@ -4993,6 +5486,7 @@ function _setPollState(state) {
 }
 
 function _renderPollTab(body) {
+    _detachPollStatsListener();
     var today = _getPollToday();
     if (!today || !today.poll) {
         body.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">⏳ Loading poll...</div>';
@@ -5081,28 +5575,144 @@ function _showPollVoteButtons(body, html, p) {
     body.innerHTML = html;
     clearTimeout(window._pollVoteReadyTimer);
     window._pollVoteReadyTimer = setTimeout(function() { window._pollVoteReady = true; }, 400);
+    var todayKey = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
+    if ((window._questHubTab || 'quiz') === 'poll') _listenPollStats(_pollDocId(p, todayKey), null);
+}
+
+function _pollDocId(poll, todayKey) {
+    return (poll && poll.id ? poll.id + '_' + todayKey : 'poll_day_' + todayKey);
+}
+
+function _pollVectors(data, optionCount) {
+    var votes = [];
+    var raw = data && Array.isArray(data.votes) ? data.votes : null;
+    var summed = 0;
+    for (var i = 0; i < optionCount; i++) {
+        var n = raw ? _numStat(raw[i]) : 0;
+        votes.push(n);
+        summed += n;
+    }
+    var total = data && data.total != null ? _numStat(data.total) : summed;
+    if (total < summed) total = summed;
+    return { votes: votes, total: total };
+}
+
+function _mergePollCounts(serverVotes, serverTotal, preVotes, preTotal, chosenIdx, optionCount, pending) {
+    var keys = [];
+    var serverCounts = null;
+    var preCounts = null;
+    for (var i = 0; i < optionCount; i++) keys.push(String(i));
+    if (serverVotes) {
+        serverCounts = {};
+        for (var s = 0; s < optionCount; s++) serverCounts[String(s)] = _numStat(serverVotes[s]);
+    }
+    if (pending && preVotes) {
+        preCounts = {};
+        for (var p = 0; p < optionCount; p++) preCounts[String(p)] = _numStat(preVotes[p]);
+    }
+    var chosenKey = pending && typeof chosenIdx === 'number' && chosenIdx >= 0 ? String(chosenIdx) : null;
+    var merged = _mergeLiveCounts(
+        serverCounts,
+        serverVotes ? serverTotal : 0,
+        preCounts,
+        pending && preVotes ? preTotal : 0,
+        chosenKey,
+        keys
+    );
+    if (!merged) return null;
+    var votes = [];
+    for (var j = 0; j < optionCount; j++) votes.push(merged.counts[String(j)] || 0);
+    return { votes: votes, total: merged.total, reflected: merged.reflected };
+}
+
+function _capturePollBaseline(pollId, optionCount, done) {
+    function store(data, known) {
+        if (known) {
+            var parsed = _pollVectors(data || {}, optionCount);
+            window._pollLiveKey = pollId;
+            window._pollLiveDoc = data || {};
+            window._pollBaseline = {
+                key: pollId,
+                known: true,
+                votes: parsed.votes,
+                total: parsed.total,
+                chosenIdx: -1
+            };
+        } else {
+            window._pollBaseline = { key: pollId, known: false, votes: null, total: 0, chosenIdx: -1 };
+        }
+        done();
+    }
+    if (window._pollLiveKey === pollId && window._pollLiveDoc) {
+        store(window._pollLiveDoc, true);
+        return;
+    }
+    if (typeof db === 'undefined' || !db || typeof db.collection !== 'function') {
+        store(null, false);
+        return;
+    }
+    try {
+        db.collection('poll_votes').doc(pollId).get().then(function(doc) {
+            store((doc && doc.exists) ? (doc.data() || {}) : {}, true);
+        }).catch(function() { store(null, false); });
+    } catch (e) {
+        store(null, false);
+    }
+}
+
+function _listenPollStats(pollId, onSnap) {
+    _detachPollStatsListener();
+    var gen = window._pollStatsGen;
+    if (typeof db === 'undefined' || !db || typeof db.collection !== 'function') return;
+    try {
+        window._pollStatsUnsub = db.collection('poll_votes').doc(pollId).onSnapshot(function(doc) {
+            if (gen !== window._pollStatsGen) return;
+            window._pollLiveKey = pollId;
+            window._pollLiveDoc = (doc && doc.exists) ? (doc.data() || {}) : {};
+            if (onSnap) onSnap(window._pollLiveDoc);
+        }, function() {
+            if (gen !== window._pollStatsGen) return;
+            _markCommunityResultsUnavailable('pollTotalVotes');
+        });
+    } catch (e) {}
+}
+
+function _showPollLoading(body, htmlPrefix) {
+    body.innerHTML = htmlPrefix;
+    var el = document.createElement('div');
+    el.id = 'pollTotalVotes';
+    el.style.cssText = 'text-align:center;margin-top:12px;color:var(--text-faint);font-size:0.72rem;';
+    el.textContent = 'Loading community results...';
+    body.appendChild(el);
 }
 
 function _renderPollResults(body, htmlPrefix, poll, state, todayKey) {
-    // Read from today's day-scoped doc (resets each day — shows today's votes only)
-    if (typeof db !== 'undefined' && poll.id) {
-        var pollId = poll.id + '_' + todayKey;
-        // Force server read so vote totals are always fresh (cache only has local writes)
-        db.collection('poll_votes').doc(pollId).get().then(function(doc) {
-            if (doc.exists) {
-                var d = doc.data();
-                var votes = d.votes || poll.options.map(function() { return 0; });
-                var total = votes.reduce(function(a, b) { return a + b; }, 0) || 1;
-                _drawPollResults(body, htmlPrefix, poll, votes, total, state.chosen);
-            } else {
-                _drawPollResults(body, htmlPrefix, poll, [], 1, state.chosen);
-            }
-        }).catch(function() {
-            _drawPollResults(body, htmlPrefix, poll, [], 1, state.chosen);
-        });
-    } else {
-        _drawPollResults(body, htmlPrefix, poll, [], 1, state.chosen);
+    var optionCount = poll && poll.options ? poll.options.length : 0;
+    var pollId = _pollDocId(poll, todayKey);
+    var chosen = state && typeof state.chosen === 'number' ? state.chosen : -1;
+    function paint() {
+        var base = window._pollBaseline;
+        var pending = !!(window._pollAwaitingWrite && base && base.key === pollId && base.known && base.votes);
+        var server = window._pollLiveKey === pollId && window._pollLiveDoc
+            ? _pollVectors(window._pollLiveDoc, optionCount) : null;
+        var merged = _mergePollCounts(
+            server ? server.votes : null,
+            server ? server.total : 0,
+            pending ? base.votes : null,
+            pending ? base.total : 0,
+            pending ? base.chosenIdx : chosen,
+            optionCount,
+            pending
+        );
+        if (pending && merged && merged.reflected) window._pollAwaitingWrite = false;
+        if (!merged || merged.total < 1) {
+            _showPollLoading(body, htmlPrefix);
+            return;
+        }
+        _drawPollResults(body, htmlPrefix, poll, merged.votes, merged.total, chosen);
     }
+    paint();
+    _listenPollStats(pollId, paint);
 }
 
 function _drawPollResults(body, htmlPrefix, poll, votes, total, chosen) {
@@ -5121,30 +5731,58 @@ function _drawPollResults(body, htmlPrefix, poll, votes, total, chosen) {
             }
         }
     } catch(e) {}
-    var html = htmlPrefix;
+    body.innerHTML = htmlPrefix;
+    var wrap = document.createElement('div');
+    wrap.id = 'pollResults';
+    wrap.style.cssText = 'display:flex;flex-direction:column;gap:10px;';
     var colors = ['#f7931a', '#3b82f6', '#22c55e', '#8b5cf6'];
-    html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+    var safeTotal = total > 0 ? total : 1;
     for (var i = 0; i < poll.options.length; i++) {
-        var optText = typeof escapeHtml === 'function' ? escapeHtml(poll.options[i]) : poll.options[i];
-        var pct = Math.round((votes[i] / total) * 100);
+        var count = votes[i] || 0;
+        var pct = Math.round((count / safeTotal) * 100);
         var isChosen = i === chosen;
-        html += '<div style="position:relative;padding:14px 16px;background:var(--card-bg,#1a1a2e);border:2px solid ' + (isChosen ? colors[i] : 'var(--border)') + ';border-radius:12px;overflow:hidden;">' +
-            '<div style="position:absolute;top:0;left:0;height:100%;width:' + pct + '%;background:' + colors[i] + ';opacity:0.12;transition:width 0.8s ease;border-radius:10px;"></div>' +
-            '<div style="position:relative;display:flex;justify-content:space-between;align-items:center;">' +
-                '<div style="display:flex;align-items:center;gap:10px;">' +
-                    '<span style="min-width:22px;height:22px;border-radius:50%;background:' + (isChosen ? colors[i] : 'transparent') + ';border:2px solid ' + (isChosen ? colors[i] : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:' + (isChosen ? '#fff' : 'var(--text-faint)') + ';">' + (isChosen ? '✓' : String.fromCharCode(65 + i)) + '</span>' +
-                    '<span style="color:var(--text);font-size:0.85rem;font-weight:' + (isChosen ? '700' : '600') + ';">' + optText + '</span>' +
-                '</div>' +
-                '<div style="text-align:right;">' +
-                    '<span style="font-size:0.85rem;font-weight:800;color:' + colors[i] + ';">' + pct + '%</span>' +
-                    '<div style="font-size:0.68rem;color:var(--text-faint);">' + votes[i] + ' vote' + (votes[i] !== 1 ? 's' : '') + '</div>' +
-                '</div>' +
-            '</div>' +
-        '</div>';
+        var color = colors[i % colors.length];
+        var row = document.createElement('div');
+        row.style.cssText = 'position:relative;padding:14px 16px;background:var(--card-bg,#1a1a2e);border:2px solid ' + (isChosen ? color : 'var(--border)') + ';border-radius:12px;overflow:hidden;';
+        var bar = document.createElement('div');
+        bar.id = 'pollBar_' + i;
+        bar.style.cssText = 'position:absolute;top:0;left:0;height:100%;width:' + pct + '%;background:' + color + ';opacity:0.12;transition:width 0.8s ease;border-radius:10px;';
+        var line = document.createElement('div');
+        line.style.cssText = 'position:relative;display:flex;justify-content:space-between;align-items:center;gap:10px;';
+        var left = document.createElement('div');
+        left.style.cssText = 'display:flex;align-items:center;gap:10px;';
+        var badge = document.createElement('span');
+        badge.style.cssText = 'min-width:22px;height:22px;border-radius:50%;background:' + (isChosen ? color : 'transparent') + ';border:2px solid ' + (isChosen ? color : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:' + (isChosen ? '#fff' : 'var(--text-faint)') + ';';
+        badge.textContent = isChosen ? '✓' : String.fromCharCode(65 + i);
+        var label = document.createElement('span');
+        label.style.cssText = 'color:var(--text);font-size:0.85rem;font-weight:' + (isChosen ? '700' : '600') + ';';
+        label.textContent = String(poll.options[i] == null ? '' : poll.options[i]);
+        left.appendChild(badge);
+        left.appendChild(label);
+        var right = document.createElement('div');
+        right.style.cssText = 'text-align:right;';
+        var pctEl = document.createElement('span');
+        pctEl.id = 'pollPct_' + i;
+        pctEl.style.cssText = 'font-size:0.85rem;font-weight:800;color:' + color + ';';
+        pctEl.textContent = pct + '%';
+        var countEl = document.createElement('div');
+        countEl.id = 'pollCount_' + i;
+        countEl.style.cssText = 'font-size:0.68rem;color:var(--text-faint);';
+        countEl.textContent = count + ' vote' + (count === 1 ? '' : 's');
+        right.appendChild(pctEl);
+        right.appendChild(countEl);
+        line.appendChild(left);
+        line.appendChild(right);
+        row.appendChild(bar);
+        row.appendChild(line);
+        wrap.appendChild(row);
     }
-    html += '</div>';
-    html += '<div style="text-align:center;margin-top:12px;color:var(--text-faint);font-size:0.72rem;">' + total.toLocaleString() + ' total vote' + (total !== 1 ? 's' : '') + ' today · Come back tomorrow for a new poll!</div>';
-    body.innerHTML = html;
+    body.appendChild(wrap);
+    var totalEl = document.createElement('div');
+    totalEl.id = 'pollTotalVotes';
+    totalEl.style.cssText = 'text-align:center;margin-top:12px;color:var(--text-faint);font-size:0.72rem;';
+    totalEl.textContent = total.toLocaleString() + ' total vote' + (total === 1 ? '' : 's') + ' today · Come back tomorrow for a new poll!';
+    body.appendChild(totalEl);
 }
 
 // Guard against ghost taps being processed before the 350ms delay expires
@@ -5153,13 +5791,16 @@ window._pollVoteReadyTimer = null;
 
 window.pollVote = function(chosenIdx) {
     // Reject calls that arrive before the delayed button render has settled
-    if (!window._pollVoteReady) return;
+    if (!window._pollVoteReady || window._pollSubmitting) return;
     var today = _getPollToday();
     if (!today || !today.poll) return;
     var p = today.poll;
     var todayKey = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
     var state = _getPollState();
     if (state.date === todayKey && typeof state.chosen === 'number' && state.chosen >= 0) return; // Already voted (local)
+
+    window._pollSubmitting = true;
+    window._pollVoteReady = false;
 
     // Disable buttons immediately to prevent double-tap
     var pollBtns = document.querySelectorAll('#pollOptions button');
@@ -5168,81 +5809,57 @@ window.pollVote = function(chosenIdx) {
     var pollId = (p.id ? p.id + '_' + todayKey : 'poll_day_' + todayKey);
     var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
 
-    // Server-side duplicate check + atomic vote via transaction
-    if (typeof db !== 'undefined' && uid) {
-        var pollRef = db.collection('poll_votes').doc(pollId);
-        db.runTransaction(function(tx) {
-            return tx.get(pollRef).then(function(doc) {
-                var data = doc.exists ? doc.data() : {};
-                var voters = data.voters || [];
-                // Server-side: reject if this user already voted on this poll
-                if (voters.indexOf(uid) !== -1) {
-                    return Promise.reject({ code: 'already-voted' });
-                }
-                var votes = data.votes || [0, 0, 0, 0];
-                votes[chosenIdx] = (votes[chosenIdx] || 0) + 1;
-                voters.push(uid);
-                tx.set(pollRef, {
-                    pollId: pollId,
-                    question: p.q,
-                    options: p.options,
-                    votes: votes,
-                    voters: voters,
-                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
-            });
-        }).then(function() {
-            // Vote succeeded - save local state + award XP
-            state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
-            _setPollState(state);
-            if (typeof awardPoints === 'function') awardPoints(50, '📊 Poll Quest vote');
-            if (typeof window._raidOnPollVote === 'function') window._raidOnPollVote();
-            if (typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(50);
-            if (typeof showToast === 'function') showToast('📊 Vote recorded! +50 XP', 3000);
-
-            // Mark poll done for daily all-three check
-            _markDailyActivity('poll');
-            _checkDailyAllThree();
-
-            // Track on user doc
-            if (!auth.currentUser.isAnonymous) {
-                db.collection('users').doc(uid).update({
-                    lastPollDate: todayKey,
-                    pollsVoted: firebase.firestore.FieldValue.increment(1)
-                }).catch(function() {});
-            }
-
-            // Write cumulative poll stats (all-time totals for this question)
-            var _cumUpdate = { total: firebase.firestore.FieldValue.increment(1), pollId: p.id, question: p.q };
-            _cumUpdate['option_' + chosenIdx] = firebase.firestore.FieldValue.increment(1);
-            db.collection('poll_cumulative').doc(p.id).set(_cumUpdate, { merge: true }).catch(function() {});
-
-            var body = document.getElementById('questHubBody');
-            if (body) _renderPollTab(body);
-        }).catch(function(e) {
-            if (e && e.code === 'already-voted') {
-                // Already voted server-side - sync local state
-                state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
-                _setPollState(state);
-                if (typeof showToast === 'function') showToast('You already voted on this poll today!', 3000);
-            } else {
-                console.error('[POLL] Vote failed:', e);
-                if (typeof showToast === 'function') showToast('⚠️ Vote failed - try again', 3000);
-                // Re-enable buttons on error
-                pollBtns.forEach(function(b) { b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer'; });
-                return;
-            }
-            var body = document.getElementById('questHubBody');
-            if (body) _renderPollTab(body);
-        });
-    } else {
-        // No auth or offline - local-only vote (no XP, no server record)
-        state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
-        _setPollState(state);
-        if (typeof showToast === 'function') showToast('📊 Vote recorded locally', 3000);
+    function _showPollBody(countServerVote) {
+        if (window._pollBaseline && window._pollBaseline.key === pollId) window._pollBaseline.chosenIdx = chosenIdx;
+        window._pollAwaitingWrite = !!countServerVote;
+        window._pollSubmitting = false;
         var body = document.getElementById('questHubBody');
         if (body) _renderPollTab(body);
     }
+
+    _capturePollBaseline(pollId, p.options.length, function() {
+        // The server records the vote, the XP, and the trifecta proof.
+        if (typeof firebase !== 'undefined' && firebase.functions && uid && auth.currentUser && !auth.currentUser.isAnonymous) {
+            firebase.functions().httpsCallable('dailyPollVote')({ chosenIdx: chosenIdx }).then(function(res) {
+                var data = (res && res.data) || {};
+                state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
+                _setPollState(state);
+                if (data.already) {
+                    if (typeof showToast === 'function') showToast('You already voted on this poll today!', 3000);
+                    _showPollBody(false);
+                } else {
+                    var awarded = Number(data.awarded) || 0;
+                    if (typeof window._raidOnPollVote === 'function') window._raidOnPollVote();
+                    if (awarded > 0 && typeof window._raidOnXPEarned === 'function') window._raidOnXPEarned(awarded);
+                    if (typeof showToast === 'function') showToast(awarded > 0 ? ('📊 Vote recorded! +' + awarded + ' XP' + (data.doubled === true ? ' 2x' : '')) : '📊 Vote recorded!', 3000);
+                    _markDailyActivity('poll');
+                    _checkDailyAllThree();
+                    _showPollBody(true);
+                }
+            }).catch(function(e) {
+                var code = String((e && (e.code || e.message)) || '');
+                if (code.indexOf('already-exists') !== -1 || code.indexOf('already-voted') !== -1) {
+                    state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
+                    _setPollState(state);
+                    if (typeof showToast === 'function') showToast('You already voted on this poll today!', 3000);
+                    _showPollBody(false);
+                    return;
+                }
+                window._pollSubmitting = false;
+                window._pollAwaitingWrite = false;
+                console.error('[POLL] Vote failed:', e);
+                if (typeof showToast === 'function') showToast('⚠️ Vote failed - try again', 3000);
+                pollBtns.forEach(function(b) { b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer'; });
+                window._pollVoteReady = true;
+            });
+        } else {
+            // No auth or offline - local-only vote (no XP, no server record)
+            state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
+            _setPollState(state);
+            if (typeof showToast === 'function') showToast('📊 Vote recorded locally', 3000);
+            _showPollBody(false);
+        }
+    });
 };
 
 // ============================================================
@@ -5261,6 +5878,9 @@ window._cleanupRaidBoss = function() {
     if (window._raidDamageDealersUnsub) { window._raidDamageDealersUnsub(); window._raidDamageDealersUnsub = null; }
     if (window._raidTimerInterval) { clearInterval(window._raidTimerInterval); window._raidTimerInterval = null; }
     window._raidDamageDealersOpen = false;
+    window._raidHistoryCache = null;
+    window._raidHistoryOpen = false;
+    window._raidHistoryLoading = false;
 };
 
 function _renderRaidTab(body) {
@@ -5292,6 +5912,7 @@ window._loadRaidBoss = function() {
         .onSnapshot(function(snapshot) {
             if (snapshot.empty) {
                 container.innerHTML = _raidEmptyState();
+                _mountRaidHistory(container);
                 return;
             }
             var now = Date.now();
@@ -5335,6 +5956,7 @@ window._loadRaidBoss = function() {
             var boss = activeBoss || upcomingBoss || defeatedBoss;
             if (!boss) {
                 container.innerHTML = _raidEmptyState();
+                _mountRaidHistory(container);
                 return;
             }
             window._currentRaidBoss = boss;
@@ -5342,6 +5964,7 @@ window._loadRaidBoss = function() {
         }, function(err) {
             console.error('[RAID] Boss listener error:', err);
             container.innerHTML = '<div style="padding:40px 0;color:var(--text-muted);">⚠️ Failed to load raid boss</div>';
+            _mountRaidHistory(container);
         });
 };
 
@@ -5367,7 +5990,7 @@ function _raidVictoryBanner(boss) {
             '<div style="color:var(--text-muted);font-size:0.82rem;line-height:1.5;margin-bottom:10px;">The community worked together and took it down! Great job everyone!</div>' +
             '<div style="padding:10px 14px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:10px;">' +
                 '<div style="font-size:0.78rem;font-weight:800;color:var(--accent);">\uD83C\uDFC6 Community reward unlocked!</div>' +
-                '<div style="font-size:0.82rem;color:var(--text);margin-top:4px;">Extra orange ticket drawing for <strong style=\"color:var(--accent);\">21,000 sats</strong> - <strong>this Friday night!</strong></div>' +
+                '<div style="font-size:0.82rem;color:var(--text);margin-top:4px;">An extra Orange Ticket giveaway winner will be announced by the end of the week.</div>' +
             '</div>' +
             '<button id="raidDamageDealersBtn" onclick="window._toggleRaidDamageDealers()" style="width:100%;margin-top:12px;padding:10px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:10px;color:#8b5cf6;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">\u2694\uFE0F Top Damage Dealers</button>' +
             '<div id="raidDamageDealers" style="display:none;margin-top:8px;"></div>' +
@@ -5395,7 +6018,256 @@ var RAID_BOSS_IMAGES = {
 };
 
 function _getRaidBossImage(boss) {
-    return boss.image || RAID_BOSS_IMAGES[boss.name] || '';
+    return (boss && (boss.image || RAID_BOSS_IMAGES[boss.name])) || '';
+}
+
+function _raidEsc(value) {
+    var text = String(value == null ? '' : value);
+    if (typeof escapeHtml === 'function') return escapeHtml(text);
+    return text.replace(/[&<>"']/g, function (ch) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+    });
+}
+
+function _raidAttr(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function _raidUserLink(username) {
+    var raw = String(username || '');
+    if (!/^[A-Za-z0-9_.-]{1,40}$/.test(raw)) return _raidEsc(raw);
+    var mine = (typeof currentUser !== 'undefined' && currentUser && currentUser.username === raw) ? ' (you)' : '';
+    return '<span class="raid-user-link" data-u="' + _raidAttr(raw) + '" style="font-weight:700;color:#6366f1;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">@' + _raidEsc(raw) + '</span>' + mine;
+}
+
+function _bindRaidHistoryLinks(root) {
+    if (!root || !root.querySelectorAll) return;
+    var nodes = root.querySelectorAll('.raid-user-link');
+    for (var i = 0; i < nodes.length; i++) {
+        nodes[i].addEventListener('click', function (event) {
+            var name = event.currentTarget.getAttribute('data-u') || '';
+            if (name && typeof showUserProfileByUsername === 'function') showUserProfileByUsername(name);
+        });
+    }
+}
+
+function _raidHistoryDate(ms) {
+    var n = Number(ms);
+    if (!n) return '';
+    try {
+        return new Date(n).toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', year: 'numeric' });
+    } catch (e) {
+        return '';
+    }
+}
+
+function _raidHistoryImageHtml(row) {
+    var name = _raidEsc(row.name || 'Boss');
+    var emoji = (row.emoji && String(row.emoji).length <= 8 && !/[<>&]/.test(row.emoji)) ? row.emoji : '👾';
+    var url = (row.image && /^https:\/\//.test(row.image)) ? row.image : (RAID_BOSS_IMAGES[row.name] || '');
+    var frame = '<div style="width:72px;height:72px;border-radius:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:rgba(139,92,246,0.12);border:2px solid rgba(139,92,246,0.35);font-size:1.8rem;position:relative;overflow:hidden;">' + emoji;
+    if (url) {
+        frame += '<img src="' + _raidEsc(url) + '" alt="' + name + '" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\'">';
+    }
+    return frame + '</div>';
+}
+
+function _raidHistoryBar(row) {
+    var pct = Number(row.damagePct);
+    if (!isFinite(pct) || pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+    var hp = Number(row.hpPct);
+    if (!isFinite(hp)) hp = Math.max(0, 100 - pct);
+    var color = hp <= 25 ? '#ef4444' : hp <= 50 ? '#f59e0b' : '#22c55e';
+    var fill = hp <= 25 ? 'linear-gradient(90deg,#ef4444,#f87171)' : hp <= 50 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#22c55e,#4ade80)';
+    var edge = hp <= 25 ? 'rgba(239,68,68,0.3)' : hp <= 50 ? 'rgba(245,158,11,0.3)' : 'rgba(34,197,94,0.3)';
+    var target = Number(row.target) || 0;
+    var current = Number(row.current) || 0;
+    var readout = '';
+    if (target > 0 && window.raidHpReadout && window.raidHpRemaining) {
+        readout = window.raidHpReadout(window.raidHpRemaining(target, current), target);
+    }
+    return '<div style="margin:10px 0;">' +
+        '<div style="display:flex;justify-content:space-between;margin-bottom:4px;gap:8px;">' +
+            '<span style="font-size:0.68rem;font-weight:800;color:' + color + ';text-transform:uppercase;">Final HP</span>' +
+            (readout ? '<span style="font-size:0.68rem;font-weight:800;color:var(--heading);font-variant-numeric:tabular-nums;">' + _raidEsc(readout) + '</span>' : '') +
+        '</div>' +
+        '<div style="height:14px;background:rgba(100,100,100,0.12);border-radius:8px;overflow:hidden;border:1px solid ' + edge + ';">' +
+            '<div style="height:100%;width:' + hp + '%;background:' + fill + ';border-radius:8px;"></div>' +
+        '</div>' +
+        '<div style="text-align:center;margin-top:4px;font-size:0.75rem;font-weight:800;color:#8b5cf6;">' + pct + '% damage dealt</div>' +
+    '</div>';
+}
+
+function _raidHistorySort(a, b) {
+    var am = String(a && a.monthKey || '');
+    var bm = String(b && b.monthKey || '');
+    if (am !== bm) {
+        if (!am) return 1;
+        if (!bm) return -1;
+        return am < bm ? 1 : -1;
+    }
+    return (Number(b && b.endedAtMs) || 0) - (Number(a && a.endedAtMs) || 0);
+}
+
+window._renderRaidHistoryCards = function (docs) {
+    var rows = (docs || []).filter(function (row) {
+        var name = String(row && row.name || '').trim().toLowerCase();
+        return name !== 'no boss spawned' && !(row && row.placeholder);
+    }).slice().sort(_raidHistorySort);
+    if (!rows.length) {
+        return '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">No past bosses yet.</div>';
+    }
+    var html = '';
+    for (var i = 0; i < rows.length; i++) {
+        var row = rows[i] || {};
+        var defeated = row.result === 'defeated' || row.prizeWon === true;
+        var badge = defeated
+            ? '<span style="display:inline-block;padding:3px 8px;border-radius:999px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4);color:#22c55e;font-size:0.68rem;font-weight:800;">🏆 Defeated</span>'
+            : '<span style="display:inline-block;padding:3px 8px;border-radius:999px;background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.35);color:#93c5fd;font-size:0.68rem;font-weight:800;">🛡️ Survived</span>';
+        var start = _raidHistoryDate(row.startMs);
+        var end = _raidHistoryDate(row.endedAtMs || row.endMs);
+        var when = (start || end) ? (start + (end ? ' – ' + end : '')) : '';
+        var dealers = row.topDealers || [];
+        var dealerHtml = '';
+        if (!dealers.length) {
+            dealerHtml = '<div style="color:var(--text-faint);font-size:0.75rem;">No damage recorded.</div>';
+        } else {
+            for (var d = 0; d < Math.min(dealers.length, 3); d++) {
+                var person = dealers[d] || {};
+                var icon = d === 0 ? '👑' : (d === 1 ? '🥈' : '🥉');
+                dealerHtml += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;margin-top:4px;background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.18);border-radius:8px;">' +
+                    '<div style="display:flex;align-items:center;gap:6px;min-width:0;">' +
+                        '<span style="font-size:0.75rem;">' + icon + '</span>' +
+                        _raidUserLink(person.username || 'Raider') +
+                    '</div>' +
+                    '<span style="font-size:0.72rem;font-weight:800;color:#8b5cf6;font-variant-numeric:tabular-nums;flex-shrink:0;">' + (Number(person.damage) || 0).toLocaleString() + ' dmg</span>' +
+                '</div>';
+            }
+        }
+        var prize = defeated
+            ? '<div style="font-size:0.78rem;font-weight:800;color:#22c55e;">Community prize won</div>'
+            : '<div style="font-size:0.78rem;font-weight:800;color:var(--text-muted);">Community prize not won</div>';
+        var winnerLine = '';
+        if (defeated) {
+            if (row.prizeWinner) {
+                winnerLine = '<div style="margin-top:6px;font-size:0.82rem;color:var(--text);">🎟️ Giveaway winner ' + _raidUserLink(row.prizeWinner) + '</div>';
+            } else {
+                winnerLine = '<div style="margin-top:6px;font-size:0.82rem;font-weight:700;color:var(--text-muted);">Winner announced soon</div>';
+            }
+        }
+        var month = _raidEsc(row.monthLabel || 'Past raid');
+        html += '<div style="padding:12px;margin-bottom:10px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:14px;">' +
+            '<div style="display:flex;gap:12px;align-items:center;">' +
+                _raidHistoryImageHtml(row) +
+                '<div style="min-width:0;flex:1;">' +
+                    '<div style="font-size:1rem;font-weight:900;color:var(--heading);line-height:1.2;">' + month + ' <span style="font-size:0.68rem;font-weight:800;color:var(--text-faint);letter-spacing:0.4px;">ET</span></div>' +
+                    '<div style="font-size:0.9rem;font-weight:800;color:var(--heading);margin-top:2px;">' + _raidEsc(row.name || 'Raid Boss') + '</div>' +
+                    '<div style="margin-top:6px;">' + badge + '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div style="margin-top:10px;font-size:0.8rem;color:var(--text);line-height:1.45;">' + _raidEsc(row.goalText || '') + '</div>' +
+            _raidHistoryBar(row) +
+            (when ? '<div style="font-size:0.72rem;color:var(--text-faint);margin-bottom:6px;">' + _raidEsc(when) + '</div>' : '') +
+            '<div style="font-size:0.78rem;font-weight:700;color:var(--text);margin-bottom:4px;">' + (Number(row.playerCount) || 0).toLocaleString() + ' players dealt damage</div>' +
+            '<div style="font-size:0.68rem;font-weight:800;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.4px;margin-top:6px;">Top damage</div>' +
+            dealerHtml +
+            '<div style="margin-top:10px;">' + prize + winnerLine + '</div>' +
+            '<div style="margin-top:8px;font-size:0.78rem;color:var(--text-muted);line-height:1.45;">' + _raidEsc(row.recap || '') + '</div>' +
+        '</div>';
+    }
+    return html;
+};
+
+function _raidHistoryShell() {
+    return '<div id="raidBossHistory" style="margin-top:16px;text-align:left;">' +
+        '<button type="button" id="raidBossHistoryBtn" onclick="window._toggleRaidHistory()" style="width:100%;padding:12px;background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.25);border-radius:12px;color:#8b5cf6;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;touch-action:manipulation;">📜 Boss History</button>' +
+        '<div id="raidBossHistoryBody" style="display:none;margin-top:10px;"></div>' +
+    '</div>';
+}
+
+function _paintRaidHistory(body) {
+    if (!body || !window._raidHistoryCache) return;
+    body.innerHTML = window._renderRaidHistoryCards(window._raidHistoryCache);
+    _bindRaidHistoryLinks(body);
+}
+
+function _fetchRaidHistory() {
+    if (window._raidHistoryCache || window._raidHistoryLoading) return;
+    var body = document.getElementById('raidBossHistoryBody');
+    if (typeof db === 'undefined' || !db) {
+        if (body) body.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Boss history is not available right now.</div>';
+        return;
+    }
+    window._raidHistoryLoading = true;
+    db.collection('raid_history').orderBy('monthKey', 'desc').limit(12).get().then(function (snap) {
+        window._raidHistoryLoading = false;
+        var docs = [];
+        if (snap && snap.docs) {
+            snap.docs.forEach(function (doc) { docs.push(doc.data() || {}); });
+        }
+        window._raidHistoryCache = docs;
+        if (!window._raidHistoryOpen) return;
+        _paintRaidHistory(document.getElementById('raidBossHistoryBody'));
+    }).catch(function (err) {
+        window._raidHistoryLoading = false;
+        console.error('[RAID] History load error:', err);
+        var el = document.getElementById('raidBossHistoryBody');
+        if (el && window._raidHistoryOpen) el.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Could not load boss history.</div>';
+    });
+}
+
+function _restoreRaidHistory(root) {
+    if (!window._raidHistoryOpen || !root) return;
+    var body = root.querySelector('#raidBossHistoryBody');
+    var btn = root.querySelector('#raidBossHistoryBtn');
+    if (!body) return;
+    body.style.display = 'block';
+    if (btn) btn.textContent = '▲ Hide Boss History';
+    if (window._raidHistoryCache) {
+        _paintRaidHistory(body);
+        return;
+    }
+    body.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Loading...</div>';
+    _fetchRaidHistory();
+}
+
+function _mountRaidHistory(container) {
+    if (!container || (container.querySelector && container.querySelector('#raidBossHistory'))) return;
+    var holder = document.createElement('div');
+    holder.innerHTML = _raidHistoryShell();
+    var node = holder.firstChild;
+    if (!node) return;
+    container.appendChild(node);
+    _restoreRaidHistory(node);
+}
+
+window._raidHistoryOpen = false;
+window._raidHistoryCache = null;
+window._raidHistoryLoading = false;
+window._toggleRaidHistory = function () {
+    var body = document.getElementById('raidBossHistoryBody');
+    var btn = document.getElementById('raidBossHistoryBtn');
+    if (!body) return;
+    if (body.style.display !== 'none') {
+        body.style.display = 'none';
+        window._raidHistoryOpen = false;
+        if (btn) btn.textContent = '📜 Boss History';
+        return;
+    }
+    window._raidHistoryOpen = true;
+    _restoreRaidHistory(document.getElementById('raidBossHistory') || body.parentNode);
+};
+
+function _raidSafeEmoji(boss) {
+    var raw = boss && typeof boss.emoji === 'string' ? boss.emoji : '';
+    if (!raw || raw.length > 8 || /[<>&]/.test(raw)) return '\uD83D\uDC79';
+    return raw;
 }
 
 function _renderRaidBossCard(container, boss) {
@@ -5408,7 +6280,7 @@ function _renderRaidBossCard(container, boss) {
     if (boss.placeholder) {
         var startDate = startMs ? new Date(startMs) : null;
         var dateStr = startDate ? startDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Soon';
-        var upcomingImgHtml = bossImage ? '<img src="' + bossImage + '" alt="' + (boss.name || 'Boss') + '" style="width:120px;height:120px;border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.3);margin-bottom:12px;">' : '<div style="font-size:3rem;margin-bottom:12px;">\u2694\uFE0F</div>';
+        var upcomingImgHtml = bossImage ? '<img src="' + bossImage + '" alt="' + (boss.name || 'Boss') + '" style="width:120px;height:120px;border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.3);margin-bottom:12px;">' : '<div style="font-size:3rem;margin-bottom:12px;">' + _raidSafeEmoji(boss) + '</div>';
         container.innerHTML = '<div style="padding:20px 0;">' +
             upcomingImgHtml +
             '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">' + (typeof escapeHtml === 'function' ? escapeHtml(boss.name || 'Raid Boss') : (boss.name || 'Raid Boss')) + '</div>' +
@@ -5418,10 +6290,11 @@ function _renderRaidBossCard(container, boss) {
             '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:12px;">Get ready to team up and take it down!</div>' +
             '<div style="margin-top:14px;padding:10px 14px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:10px;">' +
                 '<div style="font-size:0.72rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">\uD83C\uDFC6 Community Prize</div>' +
-                '<div style="font-size:0.78rem;color:var(--text);line-height:1.4;">Defeat the boss = extra orange ticket giveaway for <strong style="color:var(--accent);">21,000 sats!</strong></div>' +
+                '<div style="font-size:0.78rem;color:var(--text);line-height:1.4;">On a win, an extra Orange Ticket giveaway winner will be announced by the end of the week.</div>' +
             '</div>' +
         '</div>';
         _startRaidCountdown('raidCountdownPlaceholder', startMs);
+        _mountRaidHistory(container);
         return;
     }
 
@@ -5454,25 +6327,39 @@ function _renderRaidBossCard(container, boss) {
             '<div style="color:var(--text-muted);font-size:0.82rem;">' + (typeof escapeHtml === 'function' ? escapeHtml(boss.description || '') : (boss.description || '')) + '</div>' +
             '<div style="margin-top:14px;padding:10px 14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:10px;text-align:center;">' +
                 '<div style="font-size:0.85rem;font-weight:800;color:#22c55e;">\uD83C\uDF89 Community reward unlocked!</div>' +
-                '<div style="font-size:0.78rem;color:var(--text);margin-top:2px;">Extra orange ticket giveaway for <strong style="color:var(--accent);">21,000 sats!</strong></div>' +
+                '<div style="font-size:0.78rem;color:var(--text);margin-top:2px;">An extra Orange Ticket giveaway winner will be announced by the end of the week.</div>' +
             '</div>' +
             '<button id="raidDamageDealersBtn" onclick="window._toggleRaidDamageDealers()" style="width:100%;margin-top:16px;padding:12px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(139,92,246,0.05));border:1px solid rgba(139,92,246,0.3);border-radius:12px;color:#8b5cf6;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;transition:all 0.2s;touch-action:manipulation;">\u2694\uFE0F Top Damage Dealers</button>' +
             '<div id="raidDamageDealers" style="display:none;margin-top:12px;"></div>' +
         '</div>';
         // Store boss ID for lazy-loading damage dealers
         window._defeatedBossId = boss._id;
+        _mountRaidHistory(container);
         return;
     }
 
-    // Case 3: Active boss
-    var current = boss.current !== undefined ? boss.current : (boss.currentHP !== undefined ? boss.currentHP : 0);
-    var target = boss.target || boss.targetHP || 1;
-    var pct = Math.min(100, Math.round((current / target) * 100));
-    var remainingHP = Math.max(0, target - current);
-    var hpPct = Math.max(0, 100 - pct);
+    // Case 3: Active boss. Health numbers come from raid-hp.js so the
+    // pill, the home card, and this modal cannot drift apart.
+    var stats = window.raidBossStats(boss);
+    var pct = stats.damagePct;
+    var remainingHP = stats.remaining;
+    var hpPct = stats.hpPct;
+    var target = stats.maxHp;
     var bossName = typeof escapeHtml === 'function' ? escapeHtml(boss.name || 'Raid Boss') : (boss.name || 'Raid Boss');
     var bossDesc = typeof escapeHtml === 'function' ? escapeHtml(boss.description || '') : (boss.description || '');
-    var activeImgHtml = bossImage ? '<img src="' + bossImage + '" alt="' + bossName + '" style="width:140px;height:140px;border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.4);margin-bottom:12px;box-shadow:0 0 20px rgba(139,92,246,0.3);">' : '<div style="font-size:2.5rem;margin-bottom:8px;">\uD83D\uDC79</div>';
+    var activeImgHtml = bossImage ? '<img src="' + bossImage + '" alt="' + bossName + '" style="width:140px;height:140px;border-radius:16px;object-fit:cover;border:2px solid rgba(139,92,246,0.4);margin-bottom:12px;box-shadow:0 0 20px rgba(139,92,246,0.3);">' : '<div style="font-size:2.5rem;margin-bottom:8px;">' + _raidSafeEmoji(boss) + '</div>';
+    var hpMeter = '';
+    if (stats.hasMax) {
+        hpMeter = '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
+                '<span style="font-size:0.72rem;font-weight:800;color:' + (hpPct <= 25 ? '#ef4444' : hpPct <= 50 ? '#f59e0b' : '#22c55e') + ';text-transform:uppercase;">\u2764\uFE0F Boss Health</span>' +
+                '<span style="font-size:0.72rem;font-weight:800;color:var(--heading);font-variant-numeric:tabular-nums;">' + window.raidHpReadout(remainingHP, target) + '</span>' +
+            '</div>' +
+            '<div style="height:20px;background:rgba(100,100,100,0.1);border-radius:10px;overflow:hidden;border:1px solid ' + (hpPct <= 25 ? 'rgba(239,68,68,0.3)' : hpPct <= 50 ? 'rgba(245,158,11,0.3)' : 'rgba(34,197,94,0.3)') + ';">' +
+                '<div id="raidProgressBar" style="height:100%;width:' + hpPct + '%;background:' + (hpPct <= 25 ? 'linear-gradient(90deg,#ef4444,#f87171)' : hpPct <= 50 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#22c55e,#4ade80)') + ';border-radius:10px;transition:width 0.8s ease;position:relative;overflow:hidden;">' +
+                    '<div style="position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);animation:raidShimmer 2s infinite;"></div>' +
+                '</div>' +
+            '</div>';
+    }
 
     container.innerHTML = '<div style="padding:12px 0;">' +
         // Boss header
@@ -5481,17 +6368,9 @@ function _renderRaidBossCard(container, boss) {
             '<div style="font-size:1.15rem;font-weight:900;color:var(--heading);margin-bottom:4px;">' + bossName + '</div>' +
             '<div style="color:var(--text-muted);font-size:0.82rem;line-height:1.5;">' + bossDesc + '</div>' +
         '</div>' +
-        // Boss Health bar (depletes as damage is dealt)
+        // Boss Health bar (depletes as damage is dealt). Hidden when max HP is unknown.
         '<div style="margin-bottom:16px;">' +
-            '<div style="display:flex;justify-content:space-between;margin-bottom:6px;">' +
-                '<span style="font-size:0.72rem;font-weight:800;color:' + (hpPct <= 25 ? '#ef4444' : hpPct <= 50 ? '#f59e0b' : '#22c55e') + ';text-transform:uppercase;">\u2764\uFE0F Boss Health</span>' +
-                '<span style="font-size:0.72rem;font-weight:800;color:var(--heading);font-variant-numeric:tabular-nums;">' + remainingHP.toLocaleString() + ' / ' + target.toLocaleString() + ' HP</span>' +
-            '</div>' +
-            '<div style="height:20px;background:rgba(100,100,100,0.1);border-radius:10px;overflow:hidden;border:1px solid ' + (hpPct <= 25 ? 'rgba(239,68,68,0.3)' : hpPct <= 50 ? 'rgba(245,158,11,0.3)' : 'rgba(34,197,94,0.3)') + ';">' +
-                '<div id="raidProgressBar" style="height:100%;width:' + hpPct + '%;background:' + (hpPct <= 25 ? 'linear-gradient(90deg,#ef4444,#f87171)' : hpPct <= 50 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#22c55e,#4ade80)') + ';border-radius:10px;transition:width 0.8s ease;position:relative;overflow:hidden;">' +
-                    '<div style="position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);animation:raidShimmer 2s infinite;"></div>' +
-                '</div>' +
-            '</div>' +
+            hpMeter +
             '<div style="text-align:center;margin-top:4px;font-size:0.75rem;font-weight:800;color:#8b5cf6;">' + pct + '% damage dealt</div>' +
         '</div>' +
         // Timer
@@ -5505,7 +6384,7 @@ function _renderRaidBossCard(container, boss) {
         // Prize note
         '<div style="padding:10px 14px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:10px;margin-bottom:16px;text-align:center;">' +
             '<div style="font-size:0.72rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">🏆 Community Prize</div>' +
-            '<div style="font-size:0.8rem;color:var(--text);line-height:1.4;">Defeat the boss and the community earns an <strong style="color:var(--accent);">extra orange ticket giveaway for 21,000 sats!</strong></div>' +
+            '<div style="font-size:0.8rem;color:var(--text);line-height:1.4;">On a win, an extra Orange Ticket giveaway winner will be announced by the end of the week.</div>' +
         '</div>' +
         // Participants list with tabs
         '<div>' +
@@ -5532,6 +6411,7 @@ function _renderRaidBossCard(container, boss) {
     window._raidActiveTab = 'current';
     if (window._raidAllTimeUnsub) { window._raidAllTimeUnsub(); window._raidAllTimeUnsub = null; }
     _listenRaidParticipants(boss._id);
+    _mountRaidHistory(container);
 }
 
 function _startRaidCountdown(elementId, targetMs) {
@@ -5577,7 +6457,7 @@ function _listenRaidParticipants(bossId) {
             snapshot.docs.forEach(function(doc) {
                 rank++;
                 var p = doc.data();
-                var displayName = typeof escapeHtml === 'function' ? escapeHtml(p.displayName || p.username || 'Anonymous') : (p.displayName || p.username || 'Anonymous');
+                var displayName = typeof escapeHtml === 'function' ? escapeHtml(p.username || 'Anonymous') : (p.username || 'Anonymous');
                 var contributed = p.contributed || 0;
                 var rankIcon = rank === 1 ? '👑' : (rank === 2 ? '🥈' : (rank === 3 ? '🥉' : rank + '.'));
                 var isMe = typeof auth !== 'undefined' && auth && auth.currentUser && doc.id === auth.currentUser.uid;
@@ -5642,7 +6522,7 @@ window._toggleRaidDamageDealers = function() {
             snapshot.docs.forEach(function(doc) {
                 rank++;
                 var p = doc.data();
-                var displayName = typeof escapeHtml === 'function' ? escapeHtml(p.displayName || p.username || 'Anonymous') : (p.displayName || p.username || 'Anonymous');
+                var displayName = typeof escapeHtml === 'function' ? escapeHtml(p.username || 'Anonymous') : (p.username || 'Anonymous');
                 var contributed = p.contributed || 0;
                 var rankIcon = rank === 1 ? '\uD83D\uDC51' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
                 var isMe = typeof auth !== 'undefined' && auth && auth.currentUser && doc.id === auth.currentUser.uid;
@@ -5696,47 +6576,69 @@ window._switchRaidTab = function(tab) {
     }
 };
 
+function _raidAllTimeHtml(doc) {
+    var rows = (doc && doc.rows) || [];
+    if (!rows.length) {
+        var mine = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.raidDamageAllTime || 0) : 0;
+        if (!(mine > 0)) return '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">No all-time damage recorded yet.</div>';
+    }
+    var html = '';
+    var seenMe = false;
+    var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '';
+    rows.forEach(function (u) {
+        var rank = u.rank || 0;
+        var displayName = typeof escapeHtml === 'function' ? escapeHtml(u.username || 'Anonymous') : (u.username || 'Anonymous');
+        var dmg = u.value || 0;
+        var rankIcon = rank === 1 ? '\uD83D\uDC51' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
+        var safeId = String(u.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
+        var isMe = !!(myUid && safeId === myUid);
+        if (isMe) seenMe = true;
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;">' +
+            '<div style="display:flex;align-items:center;gap:8px;">' +
+                '<span style="font-size:0.8rem;min-width:24px;">' + rankIcon + '</span>' +
+                '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + safeId + '\')" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
+            '</div>' +
+            '<span style="font-size:0.78rem;font-weight:800;color:#f7931a;font-variant-numeric:tabular-nums;">' + dmg.toLocaleString() + ' dmg</span>' +
+        '</div>';
+    });
+    if (!seenMe && typeof currentUser !== 'undefined' && currentUser && (currentUser.raidDamageAllTime || 0) > 0) {
+        var myName = typeof escapeHtml === 'function' ? escapeHtml(currentUser.username || 'Anonymous') : (currentUser.username || 'Anonymous');
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);border-radius:10px;">' +
+            '<div style="display:flex;align-items:center;gap:8px;">' +
+                '<span style="font-size:0.8rem;min-width:24px;">25+</span>' +
+                '<span style="font-size:0.82rem;font-weight:800;color:#8b5cf6;">' + myName + ' (you)</span>' +
+            '</div>' +
+            '<span style="font-size:0.78rem;font-weight:800;color:#f7931a;">' + (currentUser.raidDamageAllTime || 0).toLocaleString() + ' dmg</span>' +
+        '</div>';
+    }
+    return html;
+}
+
 function _listenAllTimeRaiders() {
     if (window._raidAllTimeUnsub) { window._raidAllTimeUnsub(); window._raidAllTimeUnsub = null; }
-    if (typeof db === 'undefined') return;
-
-    window._raidAllTimeUnsub = db.collection('public_profiles')
-        .where('raidDamageAllTime', '>', 0)
-        .orderBy('raidDamageAllTime', 'desc')
-        .limit(25)
-        .onSnapshot(function(snapshot) {
-            var el = document.getElementById('raidParticipants');
-            if (!el || window._raidActiveTab !== 'alltime') return;
-            if (snapshot.empty) {
-                el.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">No all-time damage recorded yet.</div>';
-                return;
-            }
-            var html = '';
-            var rank = 0;
-            snapshot.docs.forEach(function(doc) {
-                rank++;
-                var u = doc.data();
-                var displayName = typeof escapeHtml === 'function' ? escapeHtml(u.displayName || u.username || 'Anonymous') : (u.displayName || u.username || 'Anonymous');
-                var dmg = u.raidDamageAllTime || 0;
-                var rankIcon = rank === 1 ? '\uD83D\uDC51' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
-                var isMe = typeof auth !== 'undefined' && auth && auth.currentUser && doc.id === auth.currentUser.uid;
-                var _uUid = doc.id;
-                html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;">' +
-                    '<div style="display:flex;align-items:center;gap:8px;">' +
-                        '<span style="font-size:0.8rem;min-width:24px;">' + rankIcon + '</span>' +
-                        '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + _uUid + '\')" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
-                    '</div>' +
-                    '<span style="font-size:0.78rem;font-weight:800;color:#f7931a;font-variant-numeric:tabular-nums;">' + dmg.toLocaleString() + ' dmg</span>' +
-                '</div>';
-            });
-            el.innerHTML = html;
-        }, function(err) {
-            console.error('[RAID] All-time raiders listener error:', err);
-            var el = document.getElementById('raidParticipants');
-            if (el && window._raidActiveTab === 'alltime') {
-                el.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Could not load all-time data.</div>';
-            }
-        });
+    var el = document.getElementById('raidParticipants');
+    if (!el) return;
+    var spec = (window.LB_BOARDS && window.LB_BOARDS.raid) || { key: 'raid', docId: 'lb_raid_alltime', intervalMs: 15 * 60 * 1000 };
+    var cached = typeof window._lbSnapRead === 'function' ? window._lbSnapRead(spec.docId) : null;
+    if (cached && window._raidActiveTab === 'alltime') el.innerHTML = _raidAllTimeHtml(cached);
+    var fresh = cached && typeof window._lbSnapFresh === 'function' && window._lbSnapFresh(cached, spec.intervalMs);
+    if (fresh) return;
+    var token = {};
+    window._raidAllTimeUnsub = function () { token.cancelled = true; };
+    var load = (typeof window._lbSnapFetch === 'function') ? window._lbSnapFetch(spec.key) : Promise.resolve(null);
+    load.then(function (doc) {
+        if (token.cancelled) return;
+        var box = document.getElementById('raidParticipants');
+        if (!box || window._raidActiveTab !== 'alltime') return;
+        box.innerHTML = _raidAllTimeHtml(doc || cached || { rows: [] });
+        window._raidAllTimeUnsub = null;
+    }).catch(function (err) {
+        console.error('[RAID] All-time raiders snapshot error:', err);
+        var box = document.getElementById('raidParticipants');
+        if (box && window._raidActiveTab === 'alltime' && !cached) {
+            box.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">Could not load all-time data.</div>';
+        }
+    });
 }
 
 // Metric → user guidance: how to deal damage to this boss
@@ -5750,12 +6652,20 @@ var RAID_GUIDANCE = {
     'flashcardCompletions':{ action: 'Complete flashcard sets to deal damage!',               nav: 'learning-quests', unitLabel: 'flashcard set completed',    unitAmt: 1   },
     'totalXP':            { action: 'Earn XP from any activity to deal damage!',              nav: 'home',            unitLabel: '100 XP earned',              unitAmt: 100 },
     'pollVotes':          { action: 'Vote in the daily Quest Hub poll to deal damage!',       nav: 'quests',          unitLabel: 'poll vote',                  unitAmt: 1   },
-    'chatMessages':       { action: 'Send messages in Global Chat (up to 3/day count)!',      nav: 'chat',            unitLabel: 'chat message (max 3/day)',    unitAmt: 1   },
+    'chatMessages':       { action: 'Send a real Global Chat message. The server counts it, up to 10 a day, and it needs at least 8 characters.', nav: 'chat', unitLabel: 'chat message (max 10/day)', unitAmt: 1 },
+    'cipherPeerKey':      { action: 'Accept a peer request or open someone else\'s cipher share. Linked accounts do not count. Up to 2 a day.', nav: 'home', unitLabel: 'peer accept or cipher open (max 2/day)', unitAmt: 1 },
+    'favorHashes':        { action: 'Hash for Satoshi\'s Favor. Each real hash counts, up to 15 a day.', nav: 'quests', unitLabel: 'Satoshi\'s Favor hash (max 15/day)', unitAmt: 1 },
+    'sayHi':              { action: 'Say hi in Global Chat. The server counts one hello a day.', nav: 'chat', unitLabel: 'Say hi (1/day)', unitAmt: 1 },
+    'trifecta':           { action: 'Finish trivia, a quest, and the daily poll on the same day.', nav: 'quests', unitLabel: 'daily trifecta (1/day)', unitAmt: 1 },
+    'certPasses':         { action: 'Pass the Scholar or Protocol Expert certification.', nav: 'learning-quests', unitLabel: 'certification passed', unitAmt: 1 },
+    'tctvWatchDays':      { action: 'Finish the daily Timechain TV watch.', nav: 'tctv', unitLabel: 'Timechain TV watch day (1/day)', unitAmt: 1 },
+    'referralsPaid':      { action: 'Invite a friend who earns 2,140 points outside the Scholar exam. Self-invites do not count.', nav: 'home', unitLabel: 'qualified referral', unitAmt: 1 },
+    'articlesPublished':  { action: 'Publish a substantial, original article. The server counts it after 24 hours if it is still up. Posts and articles share a cap of 2 a day.', nav: 'forum', unitLabel: 'article published (max 2/day)', unitAmt: 1 },
     'badgesEarned':       { action: 'Earn badges to deal damage! Find them in the Leaderboard 🏆', nav: 'badges', unitLabel: 'badge earned',          unitAmt: 1   },
     'streakUsers':        { action: 'Hit a 7-day daily visit streak to deal damage!',         nav: 'home',            unitLabel: '7-day streak milestone',     unitAmt: 1   },
     'uniqueTopicsVisited':{ action: "Visit learning topics you haven't read yet (up to 3/day count)!", nav: 'home',  unitLabel: 'new topic visited (max 3/day)', unitAmt: 1 },
     'tipsSent':           { action: 'Send Lightning tips to deal damage!',                    nav: 'home',            unitLabel: 'Lightning tip sent',         unitAmt: 1   },
-    'forumPosts':         { action: 'Create forum posts to deal damage!',                     nav: 'forum',           unitLabel: 'forum post created',         unitAmt: 1   },
+    'forumPosts':         { action: 'Publish a substantial, original forum post or article. The server counts it after 24 hours if it is still up. 2 a day.', nav: 'forum', unitLabel: 'forum post or article (max 2/day)', unitAmt: 1 },
     'triviaCorrect':      { action: 'Answer trivia correctly in Quest Hub to deal damage!',   nav: 'quests',          unitLabel: 'correct trivia answer',      unitAmt: 1   },
     'totalTopicReads':    { action: 'Read learning topics to deal damage (up to 3/day count)!', nav: 'home',          unitLabel: 'topic read (max 3/day)',      unitAmt: 1   }
 };
@@ -5884,7 +6794,7 @@ window._contributeRaidNav = function() {
     // Load trivia bank
     if (typeof TRIVIA_BANK === 'undefined') {
         var ts = document.createElement('script');
-        ts.src = 'data/trivia-bank.js?v=20260528';
+        ts.src = 'data/trivia-bank.js?v=20261030_v2435';
         ts.onerror = function() { console.warn('[QUEST] Trivia bank failed to load'); };
         document.head.appendChild(ts);
     }
@@ -5909,6 +6819,11 @@ if (typeof window._questHubRouteAdded === 'undefined') {
                 window._questHubTab = 'favor';
                 setTimeout(function() { if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab(); }, 300);
             }, 100);
+        } else if (location.hash === '#questhub' || location.hash === '#raid' || location.hash === '#raid-hub') {
+            setTimeout(function() {
+                if (window._bqDeepLinkHandled) return;
+                if (typeof openRaidHub === 'function') openRaidHub();
+            }, 100);
         }
     });
     if (location.hash === '#quests') {
@@ -5918,6 +6833,11 @@ if (typeof window._questHubRouteAdded === 'undefined') {
             if (typeof showQuestHub === 'function') showQuestHub();
             window._questHubTab = 'favor';
             setTimeout(function() { if (typeof _renderQuestHubTab === 'function') _renderQuestHubTab(); }, 300);
+        }, 500);
+    } else if (location.hash === '#questhub' || location.hash === '#raid' || location.hash === '#raid-hub') {
+        setTimeout(function() {
+            if (window._bqDeepLinkHandled) return;
+            if (typeof openRaidHub === 'function') openRaidHub();
         }, 500);
     }
 }
@@ -5989,31 +6909,36 @@ window._raidContribute = function(metric, amount, detail) {
                 // Patch HP bar in real-time from response — works from any tab
                 if (r.data.success && r.data.damage > 0) {
                     var _cur = r.data.current || 0;
-                    var _tgt = r.data.target || (window._currentRaidBoss && window._currentRaidBoss.target) || 1;
-                    var _pct = Math.min(100, Math.round((_cur / _tgt) * 100));
-                    var _hpPct = Math.max(0, 100 - _pct);
-                    var _remaining = Math.max(0, _tgt - _cur);
+                    var _tgt = r.data.target || (window._currentRaidBoss && (window._currentRaidBoss.target || window._currentRaidBoss.targetHP)) || 0;
+                    var _stats = window.raidBossStats({ current: _cur, target: _tgt });
                     var _bar = document.getElementById('raidProgressBar');
-                    var _hpLabel = _bar && _bar.closest && _bar.closest('div[style]') ? _bar.parentElement : null;
-                    if (_bar) {
-                        _bar.style.width = _hpPct + '%';
-                        _bar.style.background = _hpPct <= 25 ? 'linear-gradient(90deg,#ef4444,#f87171)' : _hpPct <= 50 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#22c55e,#4ade80)';
+                    if (_bar && !_stats.hasMax && _bar.parentElement) {
+                        var _hideRow = _bar.parentElement.previousElementSibling;
+                        _bar.parentElement.style.display = 'none';
+                        if (_hideRow) _hideRow.style.display = 'none';
+                    } else if (_bar && _stats.hasMax) {
+                        _bar.style.width = _stats.hpPct + '%';
+                        _bar.style.background = _stats.hpPct <= 25 ? 'linear-gradient(90deg,#ef4444,#f87171)' : _stats.hpPct <= 50 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#22c55e,#4ade80)';
                     }
                     // Update HP number label
                     var _hpNum = document.querySelector('#raidProgressBar');
-                    if (_hpNum) {
+                    if (_hpNum && _stats.hasMax) {
                         var _hpRow = _hpNum.closest && _hpNum.closest('[style]') ? _hpNum.parentElement && _hpNum.parentElement.previousElementSibling : null;
                         if (_hpRow) {
                             var _spans = _hpRow.querySelectorAll('span');
-                            if (_spans[1]) _spans[1].textContent = _remaining.toLocaleString() + ' / ' + _tgt.toLocaleString() + ' HP';
+                            if (_spans[1]) _spans[1].textContent = window.raidHpReadout(_stats.remaining, _stats.maxHp);
                         }
                         var _pctLabel = _hpNum.parentElement && _hpNum.parentElement.nextElementSibling;
-                        if (_pctLabel) _pctLabel.textContent = _pct + '% damage dealt';
+                        if (_pctLabel) _pctLabel.textContent = _stats.damagePct + '% damage dealt';
+                    } else if (_hpNum) {
+                        var _pctOnly = _hpNum.parentElement && _hpNum.parentElement.nextElementSibling;
+                        if (_pctOnly) _pctOnly.textContent = _stats.damagePct + '% damage dealt';
                     }
                     // Update _currentRaidBoss so next contribute call has fresh values
                     if (window._currentRaidBoss) window._currentRaidBoss.current = _cur;
                     // Toast feedback
-                    if (typeof showToast === 'function') showToast('⚔️ ' + Math.round(r.data.damage) + ' dmg dealt to ' + (window._currentRaidBoss && window._currentRaidBoss.name ? window._currentRaidBoss.name : 'Raid Boss') + '! (' + _remaining.toLocaleString() + ' HP remaining)');
+                    var _hpLeft = _stats.hasMax ? ' (' + window.raidHpCount(_stats.remaining) + ' HP remaining)' : '';
+                    if (typeof showToast === 'function') showToast('⚔️ ' + Math.round(r.data.damage) + ' dmg dealt to ' + (window._currentRaidBoss && window._currentRaidBoss.name ? window._currentRaidBoss.name : 'Raid Boss') + '!' + _hpLeft);
                 }
             }
         }).catch(function(e) { console.error('[RAID] Error:', e.message); });
@@ -6025,17 +6950,17 @@ window._raidContribute = function(metric, amount, detail) {
 
 // Hook: quiz quest completion
 window._raidOnQuizComplete = function() {
-    window._raidContribute('quizCompletions', 1);
+    // Quiz-Crusader damage is counted on the server when a quest is passed.
 };
 
 // Hook: trivia correct answer
 window._raidOnTriviaCorrect = function() {
-    window._raidContribute('triviaCorrect', 1);
+    // Trivia-Tactician damage is counted on the server from the graded answer.
 };
 
 // Hook: poll vote
 window._raidOnPollVote = function() {
-    window._raidContribute('pollVotes', 1);
+    // Poll-Patroller damage is counted on the server from the recorded vote.
 };
 
 // Hook: flashcard set completion
@@ -6058,7 +6983,7 @@ window._raidOnXPEarned = function(amount) {
 
 // Hook: chat message sent
 window._raidOnChatMessage = function() {
-    window._raidContribute('chatMessages', 1);
+    // Chat-Charger damage is counted on the server from the chat message.
 };
 
 // Hook: badge earned
@@ -6079,7 +7004,7 @@ window._raidOnStreakMilestone = function() {
 
 // Hook: forum post created
 window._raidOnForumPost = function() {
-    window._raidContribute('forumPosts', 1);
+    // Forum-Forge damage is counted on the server when the post is accepted.
 };
 
 // Hook: channel/topic visit (contributes to multiple boss metrics)
@@ -6144,7 +7069,14 @@ var FLEX_ACTIONS = [
 var FLEX_BADGE_MILESTONES = [1, 5, 50, 500];
 
 function _flexTodayKey() {
-    return new Date().toISOString().slice(0,10); // YYYY-MM-DD
+    try {
+        if (typeof getDailyKey === 'function') return getDailyKey();
+    } catch (e) {}
+    return new Date(Date.now() - 5 * 3600000).toISOString().slice(0, 10);
+}
+
+function _flexDayGoal() {
+    return Math.min(5, FLEX_ACTIONS.length);
 }
 
 function _flexGetState() {
@@ -6173,7 +7105,22 @@ function _flexMarkDone(actionId, onDone) {
     s[actionId].total = (s[actionId].total || 0) + 1;
     _flexSaveState(s);
     var action = FLEX_ACTIONS.find(function(a) { return a.id === actionId; });
-    if (action && typeof awardPoints === 'function') awardPoints(action.pts, '💪 FLEX: ' + action.name, null, null, null, null, { actionKey: 'flex_action', flexActionId: actionId });
+    var award = null;
+    if (action && typeof awardPoints === 'function') {
+        award = awardPoints(action.pts, '💪 FLEX: ' + action.name, null, null, null, null, { actionKey: 'flex_action', flexActionId: actionId });
+    }
+    if (award && typeof award.then === 'function') {
+        award.then(function (result) {
+            var data = result && result.data ? result.data : null;
+            if (!data || data.success === false) return;
+            if (typeof data.flexCount === 'number' && typeof window._noteTodayFlexCount === 'function') {
+                window._noteTodayFlexCount(data.flexCount);
+            }
+            if (typeof data.flexFullDays === 'number') window._flexFullDays = data.flexFullDays;
+            if (data.flexDayComplete) _flexClaimDayRewards(data);
+            if (typeof window._paintFlexHubGoal === 'function') window._paintFlexHubGoal();
+        }).catch(function () {});
+    }
     // Persist lifetime total to Firestore so it survives localStorage wipes
     if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
         var _flexTotalsRef = db.collection('users').doc(auth.currentUser.uid);
@@ -6183,17 +7130,15 @@ function _flexMarkDone(actionId, onDone) {
     }
     // Check per-action badges
     _flexCheckBadges(actionId, s[actionId].total);
-    // Check all-daily-flex-complete badge
-    _flexCheckAllDoneBadge(s);
     if (onDone) onDone(s[actionId].total);
 }
 
 var FLEX_ALL_MILESTONES = [1, 5, 50, 500];
 var FLEX_ALL_BADGE_DEFS = [
-    { m:1,   id:'flex_all_1',   emoji:'💪', name:'Full Stack Bitcoiner',    desc:'Completed every daily Flex action in one day',            pts:25   },
-    { m:5,   id:'flex_all_5',   emoji:'🔥', name:'Consistent Stacker',      desc:'Completed all daily Flex actions 5 times',                pts:100  },
-    { m:50,  id:'flex_all_50',  emoji:'🔑', name:'Sovereign Individual',     desc:'Completed all daily Flex actions 50 times',               pts:500  },
-    { m:500, id:'flex_all_500', emoji:'🏆', name:'Proof of Discipline',       desc:'Completed all daily Flex actions 500 times',              pts:5000 },
+    { m:1,   id:'flex_all_1',   emoji:'💪', name:'Full Stack Bitcoiner',    desc:'Completed 5 Flex actions in one day',                     pts:25   },
+    { m:5,   id:'flex_all_5',   emoji:'🔥', name:'Consistent Stacker',      desc:'Hit the daily Flex goal 5 days',                           pts:100  },
+    { m:50,  id:'flex_all_50',  emoji:'🔑', name:'Sovereign Individual',     desc:'Hit the daily Flex goal 50 days',                          pts:500  },
+    { m:500, id:'flex_all_500', emoji:'🏆', name:'Proof of Discipline',       desc:'Hit the daily Flex goal 500 days',                         pts:5000 },
 ];
 
 // Restore today's flex completions from server daily_action_counts
@@ -6207,10 +7152,18 @@ window._flexRestoreFromServer = function(uid) {
             .where(firebase.firestore.FieldPath.documentId(), '>=', today + '_flex_')
             .where(firebase.firestore.FieldPath.documentId(), '<=', today + '_flex_\uf8ff')
             .get({ source: 'server' }),
-        db.collection('users').doc(uid).get({ source: 'server' })
+        db.collection('users').doc(uid).get({ source: 'server' }),
+        db.collection('users').doc(uid).collection('daily_action_counts').doc(today + '_flex').get({ source: 'server' })
     ]).then(function(results) {
         var snap = results[0];
         var userDoc = results[1];
+        var countDoc = results[2];
+        var serverCount = countDoc && countDoc.exists ? (parseInt(countDoc.data().count, 10) || 0) : 0;
+        if (serverCount < 0) serverCount = 0;
+        window._flexFullDays = (userDoc.exists && userDoc.data().flexFullDays) || 0;
+        if (typeof window._noteTodayFlexCount === 'function') window._noteTodayFlexCount(serverCount);
+        else window._todayFlexCount = serverCount;
+        if (serverCount >= _flexDayGoal()) _flexClaimDayRewards({ flexDayComplete: true, flexFullDays: window._flexFullDays });
         var flexTotals = (userDoc.exists && userDoc.data().flexTotals) ? userDoc.data().flexTotals : {};
         var s = _flexGetState();
         var restored = 0;
@@ -6245,27 +7198,37 @@ window._flexRestoreFromServer = function(uid) {
     }).catch(function(e) { console.warn('[FLEX] Server restore failed:', e.message); });
 };
 
-function _flexCheckAllDoneBadge(s) {
-    // All actions completed today?
-    var allDone = FLEX_ACTIONS.every(function(a) {
-        return s[a.id] && s[a.id].lastDate === _flexTodayKey();
-    });
-    if (!allDone) return;
-    // Increment all-done streak counter (once per day)
-    var allKey = '__flex_all_done__';
-    if (!s[allKey]) s[allKey] = { total: 0, lastDate: '' };
-    if (s[allKey].lastDate === _flexTodayKey()) return; // already counted today
-    s[allKey].lastDate = _flexTodayKey();
-    s[allKey].total = (s[allKey].total || 0) + 1;
-    _flexSaveState(s);
-    var total = s[allKey].total;
-    // Award bonus XP
-    if (typeof awardPoints === 'function') awardPoints(50, '💪 FLEX: All Daily Actions Complete! Day #' + total);
-    // Toast
-    if (typeof showToast === 'function') showToast('💪 Full Stack! All Flex done today! +50 XP');
-    // Check milestones
+function _flexClaimDayRewards(data) {
+    if (!data || !data.flexDayComplete) return;
+    var fullDays = parseInt(data.flexFullDays, 10);
+    if (isNaN(fullDays) || fullDays < 0) fullDays = 0;
+    var day = _flexTodayKey();
+    var flag = 'btc_flex_day_bonus_' + day;
+    var booked = false;
+    try { booked = localStorage.getItem(flag) === '1'; } catch (e) {}
+    if (!booked && typeof awardPoints === 'function') {
+        try { localStorage.setItem(flag, '1'); } catch (e2) {}
+        var pending = awardPoints(50, '💪 FLEX: All Daily Actions Complete! Day #' + Math.max(fullDays, 1), null, null, null, null, { actionKey: 'flex_day_complete' });
+        if (pending && typeof pending.then === 'function') {
+            pending.then(function (result) {
+                var info = result && result.data ? result.data : null;
+                if (info && info.success === false && !info.dailyActionCapped) {
+                    try { localStorage.removeItem(flag); } catch (e3) {}
+                    return;
+                }
+                if (info && info.success && typeof showToast === 'function') {
+                    var paid = Number(info.awarded) || 0;
+                    var mark = info.doubled === true ? ' 2x' : '';
+                    showToast('💪 Full Stack! Flex done today!' + (paid > 0 ? (' +' + paid + ' XP' + mark) : ''));
+                }
+            }).catch(function () {
+                try { localStorage.removeItem(flag); } catch (e4) {}
+            });
+        }
+    }
+    if (fullDays < 1) return;
     FLEX_ALL_BADGE_DEFS.forEach(function(def) {
-        if (total >= def.m) {
+        if (fullDays >= def.m) {
             var allCur = JSON.parse(localStorage.getItem('btc_badges') || '[]');
             var allAlreadyEarned = allCur.indexOf(def.id) !== -1;
             if (typeof earnedBadges !== 'undefined' && !allAlreadyEarned && !earnedBadges.has(def.id)) {
@@ -6277,10 +7240,6 @@ function _flexCheckAllDoneBadge(s) {
                     .then(function(result) {
                         var _alreadyAwarded = result && result.data &&
                             (result.data.badgeDuplicate === true || result.data.error === 'Badge already awarded');
-                        var serverRejected = result && result.data && result.data.success === false && !_alreadyAwarded;
-                        if (!serverRejected && total === def.m && typeof window.contributeSatoshiFavor === 'function') {
-                            window.contributeSatoshiFavor('badge_earned', def.id).catch(function(){});
-                        }
                     }).catch(function() {});
             } else if (allAlreadyEarned && typeof earnedBadges !== 'undefined') {
                 earnedBadges.add(def.id);
@@ -6316,10 +7275,6 @@ function _flexCheckBadges(actionId, total) {
                     .then(function(result) {
                         var _alreadyAwarded = result && result.data &&
                             (result.data.badgeDuplicate === true || result.data.error === 'Badge already awarded');
-                        var serverRejected = result && result.data && result.data.success === false && !_alreadyAwarded;
-                        if (!serverRejected && total === m && typeof window.contributeSatoshiFavor === 'function') {
-                            window.contributeSatoshiFavor('badge_earned', badgeId).catch(function(){});
-                        }
                     }).catch(function() {});
             } else if (alreadyEarned && typeof earnedBadges !== 'undefined') {
                 // Sync localStorage badges into earnedBadges so future checks are fast
@@ -6328,6 +7283,20 @@ function _flexCheckBadges(actionId, total) {
         }
     });
 }
+
+window._paintFlexHubGoal = function () {
+    var goal = _flexDayGoal();
+    var raw = (typeof window._todayFlexCount === 'number') ? window._todayFlexCount : 0;
+    if (raw < 0) raw = 0;
+    var shown = Math.min(raw, goal);
+    var met = goal > 0 && raw >= goal;
+    var bar = document.getElementById('flexDayProgressBar');
+    var label = document.getElementById('flexDayProgressLabel');
+    var mark = document.getElementById('flexDayStackMark');
+    if (bar) bar.style.width = Math.round((goal ? shown / goal : 0) * 100) + '%';
+    if (label) label.textContent = shown + '/' + goal + ' today' + (met ? ' — Full Stack!' : '');
+    if (mark) mark.textContent = met ? '🏆' : '🎯';
+};
 
 function _renderFlexTab(body) {
     var today = _flexTodayKey();
@@ -6355,20 +7324,23 @@ function _renderFlexTab(body) {
         '.flex-streak{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:rgba(247,147,26,0.12);border:1px solid rgba(247,147,26,0.3);border-radius:10px;font-size:0.65rem;font-weight:700;color:var(--accent);}' +
     '</style>';
 
-    // Header
-    var _flexAllState = _flexGetState()['__flex_all_done__'] || { total: 0 };
-    var _flexAllTotal = _flexAllState.total || 0;
-    var _flexNextBadge = FLEX_ALL_BADGE_DEFS.find(function(d){ return _flexAllTotal < d.m; });
-    var _flexAllDoneToday = FLEX_ACTIONS.every(function(a){ return _flexDoneToday(a.id); });
+    // Header. The daily goal is 5 (or the catalog size when that is smaller).
+    var goal = _flexDayGoal();
+    var raw = (typeof window._todayFlexCount === 'number') ? window._todayFlexCount : doneCount;
+    if (raw < 0) raw = 0;
+    var shown = Math.min(raw, goal);
+    var goalMet = goal > 0 && raw >= goal;
+    var fullDays = parseInt(window._flexFullDays, 10) || 0;
+    var _flexNextBadge = FLEX_ALL_BADGE_DEFS.find(function(d){ return fullDays < d.m; });
     html += '<div style="text-align:center;margin-bottom:16px;">' +
-        '<div style="font-size:1.8rem;margin-bottom:4px;">' + (_flexAllDoneToday ? '🏆' : '🎯') + '</div>' +
+        '<div id="flexDayStackMark" style="font-size:1.8rem;margin-bottom:4px;">' + (goalMet ? '🏆' : '🎯') + '</div>' +
         '<div style="font-size:1.1rem;font-weight:900;color:var(--heading);">Daily Flex</div>' +
         '<div style="font-size:0.8rem;color:var(--text-muted);margin-top:2px;">Healthy Bitcoiner habits. 5 XP each. Resets daily.</div>' +
         '<div style="margin-top:8px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;height:8px;overflow:hidden;">' +
-        '<div style="background:linear-gradient(90deg,#f7931a,#22c55e);height:100%;width:' + Math.round(doneCount/FLEX_ACTIONS.length*100) + '%;border-radius:10px;transition:width 0.4s;"></div></div>' +
-        '<div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">' + doneCount + '/' + FLEX_ACTIONS.length + ' done today' + (_flexAllDoneToday ? ' — <span style="color:#22c55e;font-weight:700;">✅ Full Stack!</span>' : '') + '</div>' +
-        (_flexAllTotal > 0 || _flexAllDoneToday ? '<div style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:10px;padding:4px 10px;font-size:0.68rem;font-weight:700;color:var(--accent);">'
-            + '🏆 Full Stack ×' + _flexAllTotal
+        '<div id="flexDayProgressBar" style="background:linear-gradient(90deg,#f7931a,#22c55e);height:100%;width:' + Math.round((goal ? shown / goal : 0) * 100) + '%;border-radius:10px;transition:width 0.4s;"></div></div>' +
+        '<div id="flexDayProgressLabel" style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">' + shown + '/' + goal + ' today' + (goalMet ? ' — <span style="color:#22c55e;font-weight:700;">✅ Full Stack!</span>' : '') + '</div>' +
+        (fullDays > 0 || goalMet ? '<div style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:10px;padding:4px 10px;font-size:0.68rem;font-weight:700;color:var(--accent);">'
+            + '🏆 Full Stack ×' + fullDays
             + (_flexNextBadge ? ' — next badge at ' + _flexNextBadge.m : ' — 🏆 Max badges!')
             + '</div>' : '') +
     '</div>';
@@ -6765,10 +7737,11 @@ function _renderFlexInteraction(action) {
     if (action.type === 'chess') {
         var _cpuzzle = _chessDailyPuzzle(action.id);
         return '<div id="chess-wrap-' + action.id + '" data-id="' + action.id + '" style="text-align:center;">' +
-            '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-faint);margin-bottom:6px;">' + (_cpuzzle.label || 'Checkmate in 1 — White to move') + '</div>' +
+            '<div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-faint);margin-bottom:6px;">' + (_cpuzzle.label || 'Checkmate in 1') + ' · tap a piece, then its square</div>' +
             '<div id="chess-board-' + action.id + '" style="display:inline-block;border:2px solid var(--border);border-radius:4px;overflow:hidden;"></div>' +
             '<div id="chess-msg-' + action.id + '" style="font-size:0.75rem;font-weight:700;margin-top:6px;min-height:18px;"></div>' +
-            '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:4px;">Drag a piece to its destination square</div>' +
+            '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:4px;">Tap a piece, then tap where it goes</div>' +
+            '<button type="button" class="flex-btn" id="chess-flip-' + action.id + '" onclick="_chessToggleFlip(\'' + action.id + '\')" style="margin-top:8px;padding:6px 12px;font-size:0.7rem;">Flip board</button>' +
             '</div>';
     }
     if (action.type === 'blackjack') {
@@ -7703,6 +8676,128 @@ var _CHESS_GLYPHS = {
     bK:'\u265a', bQ:'\u265b', bR:'\u265c', bB:'\u265d', bN:'\u265e', bP:'\u265f'
 };
 
+
+// ---- Chess rules helper (mate-in-1 Flex puzzles) ----
+function _chessSqXY(sq) {
+    return [_CHESS_FILES.indexOf(sq[0]), parseInt(sq[1], 10) - 1];
+}
+function _chessXYSq(x, y) {
+    if (x < 0 || x > 7 || y < 0 || y > 7) return null;
+    return _CHESS_FILES[x] + (y + 1);
+}
+function _chessFindKing(pieces, color) {
+    var want = color + 'K';
+    for (var sq in pieces) { if (pieces[sq] === want) return sq; }
+    return null;
+}
+function _chessRayHits(pieces, from, color, deltas, oneStep) {
+    var xy = _chessSqXY(from), hits = [];
+    for (var d = 0; d < deltas.length; d++) {
+        var dx = deltas[d][0], dy = deltas[d][1];
+        var x = xy[0] + dx, y = xy[1] + dy;
+        while (x >= 0 && x <= 7 && y >= 0 && y <= 7) {
+            var sq = _chessXYSq(x, y);
+            var occ = pieces[sq];
+            if (occ) {
+                if (occ[0] !== color) hits.push(sq);
+                break;
+            }
+            hits.push(sq);
+            if (oneStep) break;
+            x += dx; y += dy;
+        }
+    }
+    return hits;
+}
+function _chessAttacksFrom(pieces, from) {
+    var p = pieces[from];
+    if (!p) return [];
+    var color = p[0], type = p[1];
+    if (type === 'P') {
+        var dir = color === 'w' ? 1 : -1;
+        var xy = _chessSqXY(from), out = [];
+        for (var i = 0; i < 2; i++) {
+            var sq = _chessXYSq(xy[0] + (i ? 1 : -1), xy[1] + dir);
+            if (sq && pieces[sq] && pieces[sq][0] !== color) out.push(sq);
+        }
+        return out;
+    }
+    if (type === 'N') return _chessRayHits(pieces, from, color, [[1,2],[2,1],[2,-1],[1,-2],[-1,-2],[-2,-1],[-2,1],[-1,2]], true);
+    if (type === 'K') return _chessRayHits(pieces, from, color, [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]], true);
+    if (type === 'B') return _chessRayHits(pieces, from, color, [[1,1],[1,-1],[-1,1],[-1,-1]], false);
+    if (type === 'R') return _chessRayHits(pieces, from, color, [[1,0],[-1,0],[0,1],[0,-1]], false);
+    if (type === 'Q') return _chessRayHits(pieces, from, color, [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]], false);
+    return [];
+}
+function _chessIsAttacked(pieces, sq, byColor) {
+    for (var from in pieces) {
+        if (pieces[from][0] !== byColor) continue;
+        var hits = _chessAttacksFrom(pieces, from);
+        if (hits.indexOf(sq) !== -1) return true;
+    }
+    return false;
+}
+function _chessLegalDests(pieces, from) {
+    var p = pieces[from];
+    if (!p) return [];
+    var color = p[0], type = p[1], dests = [];
+    if (type === 'P') {
+        var dir = color === 'w' ? 1 : -1;
+        var xy = _chessSqXY(from);
+        var one = _chessXYSq(xy[0], xy[1] + dir);
+        if (one && !pieces[one]) dests.push(one);
+        if ((color === 'w' && xy[1] === 1) || (color === 'b' && xy[1] === 6)) {
+            var two = _chessXYSq(xy[0], xy[1] + 2 * dir);
+            if (one && !pieces[one] && two && !pieces[two]) dests.push(two);
+        }
+        for (var i = 0; i < 2; i++) {
+            var cap = _chessXYSq(xy[0] + (i ? 1 : -1), xy[1] + dir);
+            if (cap && pieces[cap] && pieces[cap][0] !== color) dests.push(cap);
+        }
+    } else {
+        dests = _chessAttacksFrom(pieces, from);
+    }
+    var out = [];
+    for (var d = 0; d < dests.length; d++) {
+        var to = dests[d];
+        if (pieces[to] && pieces[to][0] === color) continue;
+        var next = Object.assign({}, pieces);
+        delete next[from];
+        next[to] = p;
+        var k = _chessFindKing(next, color);
+        if (!k) continue;
+        if (!_chessIsAttacked(next, k, color === 'w' ? 'b' : 'w')) out.push(to);
+    }
+    return out;
+}
+function _chessInCheck(pieces, color) {
+    var k = _chessFindKing(pieces, color);
+    if (!k) return true;
+    return _chessIsAttacked(pieces, k, color === 'w' ? 'b' : 'w');
+}
+function _chessIsMate(pieces, colorToMove) {
+    if (!_chessInCheck(pieces, colorToMove)) return false;
+    for (var from in pieces) {
+        if (pieces[from][0] !== colorToMove) continue;
+        if (_chessLegalDests(pieces, from).length) return false;
+    }
+    return true;
+}
+function _chessApply(pieces, from, to) {
+    var next = Object.assign({}, pieces);
+    var p = next[from];
+    delete next[from];
+    next[to] = p;
+    return next;
+}
+function _chessIsMatingMove(pieces, turn, from, to) {
+    var p = pieces[from];
+    if (!p || p[0] !== turn) return false;
+    if (_chessLegalDests(pieces, from).indexOf(to) === -1) return false;
+    var after = _chessApply(pieces, from, to);
+    return _chessIsMate(after, turn === 'b' ? 'w' : 'b');
+}
+
 function _chessDailyPuzzle(actionId) {
     var seed = _flexDailySeed(actionId + '_chess');
     return CHESS_PUZZLES[Math.abs(seed) % CHESS_PUZZLES.length];
@@ -7713,24 +8808,30 @@ function _chessRender(id) {
     if (!wrap) return;
     var puzzle = _chessDailyPuzzle(id);
     var selected = wrap._chessSelected || null;
+    var legal = wrap._chessLegal || [];
     var pieces = Object.assign({}, puzzle.pieces);
     if (wrap._chessPieces) pieces = wrap._chessPieces;
+    var flip = (typeof wrap._chessFlip === 'boolean') ? wrap._chessFlip : (puzzle.turn === 'b');
+    wrap._chessFlip = flip;
+    var ranks = flip ? ['1','2','3','4','5','6','7','8'] : _CHESS_RANKS.slice();
+    var files = flip ? _CHESS_FILES.slice().reverse() : _CHESS_FILES.slice();
 
-    var html = '<table style="border-collapse:collapse;margin:0 auto;user-select:none;"><tbody>';
-    _CHESS_RANKS.forEach(function(rank) {
+    var html = '<table style="border-collapse:collapse;margin:0 auto;user-select:none;touch-action:none;"><tbody>';
+    ranks.forEach(function(rank) {
         html += '<tr>';
-        _CHESS_FILES.forEach(function(file) {
+        files.forEach(function(file) {
             var sq = file + rank;
             var fi = _CHESS_FILES.indexOf(file);
-            var ri = _CHESS_RANKS.indexOf(rank);
+            var ri = 8 - parseInt(rank, 10);
             var light = (fi + ri) % 2 === 0;
             var bg = selected === sq ? '#f7931a' :
-                     light ? '#f0d9b5' : '#b58863';
+                     (legal.indexOf(sq) !== -1 ? (light ? '#cdd26a' : '#aaa23a') :
+                     (light ? '#f0d9b5' : '#b58863'));
             var piece = pieces[sq];
             var glyph = piece ? _CHESS_GLYPHS[piece] : '';
             var color = piece ? (piece[0]==='w' ? '#fff' : '#000') : 'transparent';
             var shadow = piece && piece[0]==='w' ? 'text-shadow:0 1px 2px rgba(0,0,0,0.8);' : '';
-            html += '<td data-sq="' + sq + '" style="width:34px;height:34px;text-align:center;vertical-align:middle;background:' + bg + ';font-size:1.4rem;line-height:34px;cursor:pointer;-webkit-tap-highlight-color:transparent;"><span style="color:' + color + ';' + shadow + 'pointer-events:none;">' + glyph + '</span></td>';
+            html += '<td data-sq="' + sq + '" style="width:40px;height:40px;text-align:center;vertical-align:middle;background:' + bg + ';font-size:1.55rem;line-height:40px;cursor:pointer;-webkit-tap-highlight-color:transparent;"><span style="color:' + color + ';' + shadow + 'pointer-events:none;">' + glyph + '</span></td>';
         });
         html += '</tr>';
     });
@@ -7738,7 +8839,6 @@ function _chessRender(id) {
     var board = document.getElementById('chess-board-' + id);
     if (board) board.innerHTML = html;
 
-    // Re-wire click/drag
     _chessWireBoard(id);
 }
 
@@ -7746,145 +8846,84 @@ function _chessWireBoard(id) {
     var board = document.getElementById('chess-board-' + id);
     var wrap = document.getElementById('chess-wrap-' + id);
     if (!board || !wrap) return;
-    if (wrap._chessBoardWired) return; // only wire once — prevent stacked duplicate listeners
-    wrap._chessBoardWired = true;
     var puzzle = _chessDailyPuzzle(id);
     if (!wrap._chessPieces) wrap._chessPieces = Object.assign({}, puzzle.pieces);
 
-    var dragFrom = null, dragEl = null, dragGhost = null;
+    // Replace the board node so each render starts with clean listeners
+    var fresh = board.cloneNode(true);
+    board.parentNode.replaceChild(fresh, board);
+    board = fresh;
 
-    function getTd(e) {
+    function sqOf(td) { return td ? td.getAttribute('data-sq') : null; }
+    function tdFromEvent(e) {
         var el = e.target;
         while (el && el.tagName !== 'TD') el = el.parentElement;
         return el;
     }
-    function sqOf(td) { return td ? td.getAttribute('data-sq') : null; }
 
-    function startDrag(sq, clientX, clientY) {
+    function onSelect(sq) {
+        if (!sq) return;
         var piece = wrap._chessPieces[sq];
         var movingColor = puzzle.turn || 'w';
-        if (!piece || piece[0] !== movingColor) return; // only moving side's pieces
-        dragFrom = sq;
-        wrap._chessSelected = sq;
-        // Ghost: large chess piece that follows the cursor/finger
-        dragGhost = document.createElement('div');
-        dragGhost.style.cssText = [
-            'position:fixed',
-            'z-index:200001',
-            'pointer-events:none',
-            'width:52px',
-            'height:52px',
-            'border-radius:50%',
-            'background:radial-gradient(circle at 38% 35%, #fff 0%, #e8e0cc 70%, #c8b89a 100%)',
-            'box-shadow:0 6px 20px rgba(0,0,0,0.55),0 2px 6px rgba(0,0,0,0.4)',
-            'display:flex',
-            'align-items:center',
-            'justify-content:center',
-            'font-size:2rem',
-            'transform:translate(-50%,-50%) scale(1.15)',
-            'transition:none',
-            'user-select:none',
-            '-webkit-user-select:none'
-        ].join(';');
-        dragGhost.textContent = _CHESS_GLYPHS[piece];
-        document.body.appendChild(dragGhost);
-        moveDragGhost(clientX, clientY);
-        // Dim the origin cell without re-rendering the whole board
-        var originTd = board.querySelector('[data-sq="' + sq + '"]');
-        if (originTd) {
-            originTd.style.opacity = '0.35';
-            originTd.style.background = '#f7931a';
-        }
-    }
-    var _lastHoverSq = null;
-    function moveDragGhost(x, y) {
-        if (!dragGhost) return;
-        dragGhost.style.left = x + 'px';
-        dragGhost.style.top  = y + 'px';
-        // Highlight the square currently under the ghost
-        var el = document.elementFromPoint(x, y);
-        var td = el; while (td && td.tagName !== 'TD') td = td.parentElement;
-        var hoverSq = td ? td.getAttribute('data-sq') : null;
-        if (hoverSq !== _lastHoverSq) {
-            // Un-highlight previous hover square
-            if (_lastHoverSq && _lastHoverSq !== dragFrom) {
-                var prevTd = board.querySelector('[data-sq="' + _lastHoverSq + '"]');
-                if (prevTd) { prevTd.style.background = ''; prevTd.style.outline = ''; }
-            }
-            // Highlight new hover square
-            if (hoverSq && hoverSq !== dragFrom) {
-                var newTd = board.querySelector('[data-sq="' + hoverSq + '"]');
-                if (newTd) {
-                    newTd.style.background = 'rgba(247,147,26,0.55)';
-                    newTd.style.outline = '2px inset rgba(247,147,26,0.9)';
-                }
-            }
-            _lastHoverSq = hoverSq;
-        }
-    }
-    function endDrag(toSq) {
-        if (dragGhost) { dragGhost.remove(); dragGhost = null; }
-        // Restore hover-highlighted square
-        if (_lastHoverSq) {
-            var hTd = board.querySelector('[data-sq="' + _lastHoverSq + '"]');
-            if (hTd) { hTd.style.background = ''; hTd.style.outline = ''; }
-            _lastHoverSq = null;
-        }
-        // Restore origin cell before any re-render
-        if (dragFrom) {
-            var originTd = board.querySelector('[data-sq="' + dragFrom + '"]');
-            if (originTd) { originTd.style.opacity = ''; }
-        }
-        if (!dragFrom || !toSq || dragFrom === toSq) {
-            wrap._chessSelected = null;
-            dragFrom = null;
+        if (piece && piece[0] === movingColor) {
+            wrap._chessSelected = sq;
+            wrap._chessLegal = _chessLegalDests(wrap._chessPieces, sq);
             _chessRender(id);
             return;
         }
-        var fromSq = dragFrom;
-        dragFrom = null;
-        wrap._chessSelected = null;
-        _chessTryMove(id, fromSq, toSq);
+        if (wrap._chessSelected && wrap._chessLegal && wrap._chessLegal.indexOf(sq) !== -1) {
+            var from = wrap._chessSelected;
+            wrap._chessSelected = null;
+            wrap._chessLegal = null;
+            _chessTryMove(id, from, sq);
+            return;
+        }
+        // Tap empty/enemy with no legal target: clear selection
+        if (wrap._chessSelected) {
+            wrap._chessSelected = null;
+            wrap._chessLegal = null;
+            _chessRender(id);
+        }
     }
 
-    // Mouse
-    board.addEventListener('mousedown', function(e) {
-        var td = getTd(e); if (!td) return;
-        var sq = sqOf(td);
-        if (dragFrom === null) {
-            startDrag(sq, e.clientX, e.clientY);
-        }
+    board.addEventListener('click', function(e) {
+        var td = tdFromEvent(e);
+        if (!td) return;
+        onSelect(sqOf(td));
     });
-    window.addEventListener('mousemove', function(e) { moveDragGhost(e.clientX, e.clientY); });
-    window.addEventListener('mouseup', function(e) {
-        if (dragFrom === null) return;
-        var el = document.elementFromPoint(e.clientX, e.clientY);
-        var td = el;
-        while (td && td.tagName !== 'TD') td = td.parentElement;
-        endDrag(sqOf(td));
-    }, {once: false});
 
-    // Touch
+    // Touch: treat as tap-to-move (more reliable than drag on phones)
+    var touchSq = null, touchMoved = false, touchX = 0, touchY = 0;
     board.addEventListener('touchstart', function(e) {
         var t = e.touches[0];
-        var td = getTd({target: document.elementFromPoint(t.clientX, t.clientY)});
-        if (!td) return;
-        var sq = sqOf(td);
-        startDrag(sq, t.clientX, t.clientY);
+        touchX = t.clientX; touchY = t.clientY; touchMoved = false;
+        var el = document.elementFromPoint(t.clientX, t.clientY);
+        var td = el; while (td && td.tagName !== 'TD') td = td.parentElement;
+        touchSq = sqOf(td);
         e.preventDefault();
     }, {passive: false});
     board.addEventListener('touchmove', function(e) {
         var t = e.touches[0];
-        moveDragGhost(t.clientX, t.clientY);
+        if (Math.abs(t.clientX - touchX) > 12 || Math.abs(t.clientY - touchY) > 12) touchMoved = true;
         e.preventDefault();
     }, {passive: false});
     board.addEventListener('touchend', function(e) {
-        var t = e.changedTouches[0];
-        var el = document.elementFromPoint(t.clientX, t.clientY);
-        var td = el;
-        while (td && td.tagName !== 'TD') td = td.parentElement;
-        endDrag(sqOf(td));
         e.preventDefault();
+        if (touchMoved) {
+            // Allow short drag onto a destination square
+            var t = e.changedTouches[0];
+            var el = document.elementFromPoint(t.clientX, t.clientY);
+            var td = el; while (td && td.tagName !== 'TD') td = td.parentElement;
+            var toSq = sqOf(td);
+            if (touchSq && toSq && touchSq !== toSq) {
+                wrap._chessSelected = touchSq;
+                wrap._chessLegal = _chessLegalDests(wrap._chessPieces, touchSq);
+                onSelect(toSq);
+            }
+        } else if (touchSq) {
+            onSelect(touchSq);
+        }
+        touchSq = null;
     }, {passive: false});
 }
 
@@ -7893,26 +8932,45 @@ function _chessTryMove(id, from, to) {
     if (!wrap) return;
     var puzzle = _chessDailyPuzzle(id);
     var msgEl = document.getElementById('chess-msg-' + id);
-    var isCorrect = (from === puzzle.solution.from && to === puzzle.solution.to);
+    var turn = puzzle.turn || 'w';
+    var pieces = wrap._chessPieces || puzzle.pieces;
+    var isCorrect = _chessIsMatingMove(pieces, turn, from, to);
+    // Still accept the authored solution if the light engine ever disagrees
+    if (!isCorrect && from === puzzle.solution.from && to === puzzle.solution.to) isCorrect = true;
     if (isCorrect) {
-        // Apply move visually
         wrap._chessPieces[to] = wrap._chessPieces[from];
         delete wrap._chessPieces[from];
+        wrap._chessSelected = null;
+        wrap._chessLegal = null;
         _chessRender(id);
-        var winGlyph = (puzzle.turn === 'b') ? '\u265a' : '\u2654';
+        var winGlyph = (turn === 'b') ? '\u265a' : '\u2654';
         if (msgEl) { msgEl.textContent = winGlyph + ' Checkmate! +5 XP'; msgEl.style.color = '#22c55e'; }
         setTimeout(function() { _flexMarkDone(id, function() { _flexCardSuccess(id); }); }, 600);
     } else {
-        // Wrong move — shake and reset to original position
-        if (msgEl) { msgEl.textContent = 'Not quite — try again!'; msgEl.style.color = '#ef4444'; }
-        wrap._chessPieces = Object.assign({}, puzzle.pieces); // reset
+        var legal = _chessLegalDests(pieces, from);
+        if (msgEl) {
+            msgEl.textContent = legal.indexOf(to) === -1 ? 'That move is not legal — try again!' : 'Not checkmate — try again!';
+            msgEl.style.color = '#ef4444';
+        }
+        wrap._chessPieces = Object.assign({}, puzzle.pieces);
+        wrap._chessSelected = null;
+        wrap._chessLegal = null;
         var board = document.getElementById('chess-board-' + id);
         if (board) { board.style.animation = 'flexShake 0.4s'; setTimeout(function() { board.style.animation = ''; }, 400); }
         setTimeout(function() {
             _chessRender(id);
-            if (msgEl) { msgEl.textContent = puzzle.hint ? '\ud83d\udca1 Hint: ' + puzzle.hint : ''; msgEl.style.color = 'var(--text-muted)'; }
+            if (msgEl) { msgEl.textContent = puzzle.hint ? 'Hint: ' + puzzle.hint : 'Find the checkmate in one move.'; msgEl.style.color = 'var(--text-muted)'; }
         }, 450);
     }
+}
+
+function _chessToggleFlip(id) {
+    var wrap = document.getElementById('chess-wrap-' + id);
+    if (!wrap) return;
+    wrap._chessFlip = !(wrap._chessFlip === true);
+    wrap._chessSelected = null;
+    wrap._chessLegal = null;
+    _chessRender(id);
 }
 
 function _chessStart(id) {
@@ -8470,7 +9528,8 @@ window._startDoubleXPWidget = function() {
     if (window._doubleXPWidgetTimer) clearInterval(window._doubleXPWidgetTimer);
 
     function getExpiry() {
-        return typeof currentUser !== 'undefined' && currentUser ? (currentUser.doubleXPExpiry || 0) : 0;
+        if (typeof window._doubleXpUntilMs === 'function') return window._doubleXpUntilMs(typeof currentUser !== 'undefined' ? currentUser : null);
+        return typeof currentUser !== 'undefined' && currentUser ? (currentUser.doubleXpUntil || currentUser.doubleXPExpiry || 0) : 0;
     }
 
     function render() {
@@ -8508,7 +9567,9 @@ window._startDoubleXPWidget = function() {
 };
 
 window._checkDoubleXPWidget = function() {
-    var expiry = typeof currentUser !== 'undefined' && currentUser ? (currentUser.doubleXPExpiry || 0) : 0;
+    var expiry = (typeof window._doubleXpUntilMs === 'function')
+        ? window._doubleXpUntilMs(typeof currentUser !== 'undefined' ? currentUser : null)
+        : (typeof currentUser !== 'undefined' && currentUser ? (currentUser.doubleXpUntil || 0) : 0);
     if (expiry > Date.now()) window._startDoubleXPWidget();
 };
 
@@ -8536,7 +9597,7 @@ window._showPinnedBadgeSelector = function() {
 
     var overlay = document.createElement('div');
     overlay.id = 'pinnedBadgeSelectorOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:10010;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:490000;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     var currentPinned = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pinnedBadgeId || '') : '';
@@ -8593,7 +9654,7 @@ window._showChatFlairPicker = function() {
 
     var overlay = document.createElement('div');
     overlay.id = 'chatFlairPickerOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:10010;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:490000;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     var gridHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:16px 0;">';
