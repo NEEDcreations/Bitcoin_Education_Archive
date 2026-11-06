@@ -1,4 +1,4 @@
-// Cache-buster pin. This ship is btc-archive-v2514 (qualified badge percentages and collection order). Before: btc-archive-v2513 (Satoshi Favor counter fixes). Before: btc-archive-v2512 (popup/sheet UX #252). Before: btc-archive-v2510 (weekly patch notes). Before: btc-archive-v2509 (ranking.js, quests.js, and global-chat.js 20261106_v2509). Before: btc-archive-v2508 (pot of sats overlay: tctv-drip.js 20261106_v2508). Before: btc-archive-v2507 (collection completion recognition). Before: btc-archive-v2506 (Nook rebalance: quests.js, nacho-qa.js, features.registry.js, global-chat.js 20261105_v2506). Before: btc-archive-v2505 (faction race prizes: faction-race-prizes.js, ranking.js, global-chat.js, bundle.min.js 20261105_v2505). Before: btc-archive-v2504 (faction race balance: ranking.js, quests.js and global-chat.js 20261105_v2504). Before: btc-archive-v2503 (collections rebalance + Title & Flair: bundle.min.js, ranking.js, global-chat.js, quests.js 20261105_v2503). Before: btc-archive-v2502 (legal docs: timechain-tv.js disclaimer 20261105_v2502). Before: btc-archive-v2501 (favorite home buttons open again + star spacing: favorites.js 20261105_v2501). Before: btc-archive-v2500 (Terms Accept fix: onboarding.js, ranking.js 20261105_v2500). Before: btc-archive-v2499 (BIP Breakthrough: bip-breakthrough.js, achievement-share.js, badges.js, global-chat.js, bundle/ranking/referral-tiers 20261105_v2499; keeps notifications.js 20261105_v2497 from #237). Before: btc-archive-v2497 (homepage push bell). Before: btc-archive-v2496 (#236 referral maxi). Before: btc-archive-v2495 (pot of sats overlay). Before: btc-archive-v2494 (favorite apps).
+// Cache-buster pin. This ship is btc-archive-v2515 (Terms .tos-box no longer sticky-hides the pot of sats). Before: btc-archive-v2514 (qualified badge percentages and collection order). Before: btc-archive-v2513 (Satoshi Favor counter fixes). Before: btc-archive-v2512 (popup/sheet UX #252). Before: btc-archive-v2510 (weekly patch notes). Before: btc-archive-v2509 (ranking.js, quests.js, and global-chat.js 20261106_v2509). Before: btc-archive-v2508 (pot of sats overlay: tctv-drip.js 20261106_v2508). Before: btc-archive-v2507 (collection completion recognition). Before: btc-archive-v2506 (Nook rebalance: quests.js, nacho-qa.js, features.registry.js, global-chat.js 20261105_v2506). Before: btc-archive-v2505 (faction race prizes: faction-race-prizes.js, ranking.js, global-chat.js, bundle.min.js 20261105_v2505). Before: btc-archive-v2504 (faction race balance: ranking.js, quests.js and global-chat.js 20261105_v2504). Before: btc-archive-v2503 (collections rebalance + Title & Flair: bundle.min.js, ranking.js, global-chat.js, quests.js 20261105_v2503). Before: btc-archive-v2502 (legal docs: timechain-tv.js disclaimer 20261105_v2502). Before: btc-archive-v2501 (favorite home buttons open again + star spacing: favorites.js 20261105_v2501). Before: btc-archive-v2500 (Terms Accept fix: onboarding.js, ranking.js 20261105_v2500). Before: btc-archive-v2499 (BIP Breakthrough: bip-breakthrough.js, achievement-share.js, badges.js, global-chat.js, bundle/ranking/referral-tiers 20261105_v2499; keeps notifications.js 20261105_v2497 from #237). Before: btc-archive-v2497 (homepage push bell). Before: btc-archive-v2496 (#236 referral maxi). Before: btc-archive-v2495 (pot of sats overlay). Before: btc-archive-v2494 (favorite apps).
 // Live gh-pages was v2446. quests.js stays v2443. bundle.min.js is v2447. global-chat.js is v2448.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
 // timechain-tv.js is 20261105_v2502. scholar.js is 20261105_v2490.
@@ -36,9 +36,10 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2514', () => {
+test('service worker cache is v2515', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2514'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2515'"));
+    assert.ok(!sw.includes('btc-archive-v2514'));
     assert.ok(!sw.includes('btc-archive-v2513'));
     assert.ok(!sw.includes('btc-archive-v2512'));
     assert.ok(!sw.includes('btc-archive-v2511'));
@@ -246,7 +247,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('referral-tiers.js?v=20261105_v2499'));
     assert.ok(html.includes('ranking.js?v=20261106_v2512'));
     assert.ok(!html.includes('ranking.js?v=20261104_v2483'));
-    assert.ok(html.includes('tctv-drip.js?v=20261106_v2508'));
+    assert.ok(html.includes('/tctv-drip.js?v=20261106_v2508'));
+    assert.ok(!html.includes('src="tctv-drip.js'));
     assert.ok(!html.includes('tctv-drip.js?v=20261105_v2495'));
     assert.ok(!html.includes('ranking.js?v=20261104_v2476'));
     assert.ok(!html.includes('ranking.js?v=20261104_v2482'));
@@ -579,7 +581,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2514');
+    assert.ok(swVersion && swVersion[1] === 'v2515');
     assert.ok(html.includes('faction-race-prizes.js?v=20261105_v2505'));
 });
 
@@ -697,9 +699,10 @@ test('terms publish Satoshi\'s Favor and cipher sats odds', () => {
 });
 
 
-test('PR #252 asset busters are v2512', () => {
+test('PR #252 asset busters are v2512 (popup-stack bumped to v2515)', () => {
     const html = read('index.html');
-    assert.ok(html.includes('popup-stack.js?v=20261106_v2512'));
+    assert.ok(html.includes('popup-stack.js?v=20261106_v2515'));
+    assert.ok(!html.includes('popup-stack.js?v=20261106_v2512'));
     assert.ok(html.includes('ranking.js?v=20261106_v2512'));
     assert.ok(html.includes('bundle.min.js?v=20261106_v2514'));
     assert.ok(!html.includes('bundle.min.js?v=20261106_v2512'));

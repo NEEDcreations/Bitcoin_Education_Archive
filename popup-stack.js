@@ -63,6 +63,10 @@
                 if (cs.display === 'none' || cs.visibility === 'hidden') return false;
             }
         } catch (e2) {}
+        // Chrome still reports display:flex on #tosModal .tos-box while Terms is closed.
+        try {
+            if (typeof el.getClientRects === 'function' && el.getClientRects().length === 0) return false;
+        } catch (e3) {}
         return true;
     }
 
@@ -81,8 +85,14 @@
             var el = nodes[i];
             if (seen.indexOf(el) !== -1) continue;
             var host = el;
-            if (el.getAttribute && el.getAttribute('role') === 'dialog' && el.parentNode && el.parentNode.id && shown(el.parentNode) && (el.parentNode.id === 'tosModal' || el.parentNode.classList && el.parentNode.classList.contains('gifting-overlay'))) {
-                host = el.parentNode;
+            // Always use the outer host for Terms / gifting. The inner [role=dialog]
+            // keeps computed display:flex even when the parent is display:none, which
+            // used to leave body.btc-sheet-open stuck on and hide #tctv-drip.
+            if (el.getAttribute && el.getAttribute('role') === 'dialog' && el.parentNode) {
+                var parent = el.parentNode;
+                if (parent.id === 'tosModal' || (parent.classList && parent.classList.contains('gifting-overlay'))) {
+                    host = parent;
+                }
             }
             if (seen.indexOf(host) !== -1) continue;
             if (!shown(host)) continue;

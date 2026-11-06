@@ -136,7 +136,7 @@ test('signing shell copy and the boost badge keep a gap', function () {
     assert.ok(html.includes('html.btc-signing-in #homeGuestActions'));
     assert.ok(read('engagement.js').includes('margin-left:6px'));
     assert.ok(read('bundle.min.js').includes('margin-left:6px'));
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2514'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2515'"));
 });
 
 test('sheet helper closes the top layer on Escape and Back', function () {
@@ -162,6 +162,82 @@ test('sheet helper closes the top layer on Escape and Back', function () {
     env.sandbox.btcSheet.closeTop();
     assert.deepStrictEqual(closed, ['tos']);
     assert.strictEqual(env.sandbox.btcSheet.top(), null);
+});
+
+
+test('closed Terms .tos-box does not count as an open sheet', function () {
+    const env = bootQueue();
+    const bodyClasses = {};
+    env.sandbox.document.body.classList.toggle = function (name, on) {
+        if (on) bodyClasses[name] = true;
+        else delete bodyClasses[name];
+    };
+    const tosBox = {
+        nodeType: 1,
+        id: '',
+        className: 'tos-box',
+        classList: { contains: function () { return false; } },
+        hidden: false,
+        style: { display: '', zIndex: '' },
+        parentNode: {
+            nodeType: 1,
+            id: 'tosModal',
+            classList: { contains: function (c) { return c === 'open' ? false : false; } },
+            hidden: false,
+            style: { display: 'none', zIndex: '' },
+            getAttribute: function () { return null; },
+            getClientRects: function () { return []; }
+        },
+        getAttribute: function (name) { return name === 'role' ? 'dialog' : null; },
+        getClientRects: function () { return []; },
+        querySelector: function () { return null; },
+        querySelectorAll: function () { return []; }
+    };
+    env.sandbox.getComputedStyle = function (el) {
+        if (el === tosBox) return { display: 'flex', visibility: 'visible', zIndex: 'auto' };
+        if (el && el.id === 'tosModal') return { display: 'none', visibility: 'visible', zIndex: 'auto' };
+        return { display: 'block', visibility: 'visible', zIndex: 'auto' };
+    };
+    env.sandbox.document.querySelectorAll = function () { return [tosBox]; };
+    env.sandbox.btcSheet.sync();
+    assert.strictEqual(env.sandbox.btcSheet.top(), null);
+    assert.ok(!bodyClasses['btc-sheet-open'], 'btc-sheet-open must stay off while Terms is closed');
+});
+
+test('open Terms counts the tosModal host, not the inner box', function () {
+    const env = bootQueue();
+    const tosModal = {
+        nodeType: 1,
+        id: 'tosModal',
+        classList: { contains: function (c) { return c === 'open'; } },
+        hidden: false,
+        style: { display: '', zIndex: '5000000' },
+        getAttribute: function () { return null; },
+        getClientRects: function () { return [{ bottom: 1, height: 1, left: 0, right: 1, top: 0, width: 1, x: 0, y: 0 }]; },
+        querySelector: function () { return tosBox; },
+        querySelectorAll: function () { return []; }
+    };
+    const tosBox = {
+        nodeType: 1,
+        id: '',
+        className: 'tos-box',
+        classList: { contains: function () { return false; } },
+        hidden: false,
+        style: { display: '', zIndex: '' },
+        parentNode: tosModal,
+        getAttribute: function (name) { return name === 'role' ? 'dialog' : null; },
+        getClientRects: function () { return [{ bottom: 1, height: 1, left: 0, right: 1, top: 0, width: 1, x: 0, y: 0 }]; },
+        querySelector: function () { return null; },
+        querySelectorAll: function () { return []; }
+    };
+    env.sandbox.getComputedStyle = function (el) {
+        if (el === tosBox) return { display: 'flex', visibility: 'visible', zIndex: 'auto' };
+        if (el === tosModal) return { display: 'flex', visibility: 'visible', zIndex: '5000000' };
+        return { display: 'block', visibility: 'visible', zIndex: 'auto' };
+    };
+    env.sandbox.document.querySelectorAll = function () { return [tosBox]; };
+    env.sandbox.btcSheet.sync();
+    assert.strictEqual(env.sandbox.btcSheet.top(), tosModal);
 });
 
 if (failed) {
