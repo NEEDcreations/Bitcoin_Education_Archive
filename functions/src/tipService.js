@@ -16,7 +16,8 @@ const { applyDailyXp } = require('./applyDailyXp');
 const { paymentHashFromDecoded, rewardBlocked } = require('./cipherClaim');
 const tipBadge = require('./tipBadge');
 
-const NWC_URL = process.env.NWC_URL || '';
+// Wallet comes from the NWC_URL secret (bound on confirmTipSent in index.js).
+const { nwcUrl } = require('./nwcSecret');
 
 function db() {
     return admin.firestore();
@@ -80,10 +81,10 @@ async function tryLud21(verifyUrl, expectedHash) {
 
 async function tryNwc(paymentHash) {
     const hash = tipConfirm.normalizePaymentHash(paymentHash);
-    if (!hash || !NWC_URL) return { verified: false, reason: NWC_URL ? 'no-payment-hash' : 'nwc-not-configured' };
+    if (!hash || !nwcUrl()) return { verified: false, reason: nwcUrl() ? 'no-payment-hash' : 'nwc-not-configured' };
     try {
         const { NWCClient } = require('@getalby/sdk');
-        const nwc = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
+        const nwc = new NWCClient({ nostrWalletConnectUrl: nwcUrl() });
         const lookup = nwc.lookupInvoice({ payment_hash: hash });
         const invoice = await Promise.race([
             lookup,

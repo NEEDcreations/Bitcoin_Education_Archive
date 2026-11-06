@@ -3,6 +3,8 @@ const functionsV1 = require('firebase-functions/v1');
 const { defineSecret } = require('firebase-functions/params');
 const referralIpSecret = defineSecret('REFERRAL_IP_HMAC_SECRET');
 const deletionHmacSecret = defineSecret('DELETION_HMAC_SECRET');
+// Payout wallet: Secret Manager, bound only to the functions that use it.
+const { nwcUrlSecret, nwcUrl } = require('./src/nwcSecret');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onDocumentCreated, onDocumentUpdated, onDocumentWritten, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const admin = require('./src/firebaseAdmin.js');
@@ -204,7 +206,8 @@ const FAUCET = {
     MIN_ACCOUNT_AGE_DAYS: 7,
     MIN_CHANNELS_READ: 10,
     WALLET_BALANCE_FLOOR_SATS: 5000,
-    NWC_URL: process.env.NWC_URL || ''
+    // Getter: the value comes from the NWC_URL secret on bound functions only.
+    get NWC_URL() { return nwcUrl(); }
 };
 
 // Authenticator sessions are totp_sessions/{uid}_{sessionId}.
@@ -1469,7 +1472,7 @@ exports.deleteMyReferralSignal = functionsV1.https.onCall(async (data, context) 
     return referralService.deleteMyReferralSignal(data, context);
 });
 
-exports.confirmTipSent = functionsV1.https.onCall(async (data, context) => {
+exports.confirmTipSent = functionsV1.runWith({ secrets: [nwcUrlSecret] }).https.onCall(async (data, context) => {
     return tipService.confirmTipSent(data, context);
 });
 
@@ -1610,7 +1613,7 @@ async function claimChatStillLive(userData, reader, claimantUid) {
 exports.claimSats = functionsV1.runWith({
     timeoutSeconds: 300,
     enforceAppCheck: true,
-    secrets: [deletionHmacSecret],
+    secrets: [deletionHmacSecret, nwcUrlSecret],
 }).https.onCall(async (data, context) => {
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
@@ -3836,7 +3839,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
 });
 
 // ===== FAUCET ADMIN - getFaucetStats =====
-exports.getFaucetStats = functionsV1.https.onCall(async (data, context) => {
+exports.getFaucetStats = functionsV1.runWith({ secrets: [nwcUrlSecret] }).https.onCall(async (data, context) => {
     if (!context.auth || !context.auth.token.admin) {
         throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
     }
