@@ -8,7 +8,7 @@
 const functions = require('firebase-functions');
 const functionsV1 = require('firebase-functions/v1');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
-const admin = require('firebase-admin');
+const admin = require('./firebaseAdmin.js');
 const crypto = require('crypto');
 
 // Resolved on first use so unit tests can import helpers before initializeApp().

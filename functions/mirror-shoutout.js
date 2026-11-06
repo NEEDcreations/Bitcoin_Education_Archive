@@ -46,7 +46,7 @@ function isShoutoutDoc(id, data) {
 function loadAdmin() {
     const local = path.join(__dirname, 'node_modules', 'firebase-admin');
     try {
-        return require('firebase-admin');
+        return require('./src/firebaseAdmin.js');
     } catch (err) {
         try {
             return require(local);

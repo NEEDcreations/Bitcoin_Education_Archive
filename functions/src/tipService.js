@@ -6,7 +6,7 @@
 // not queried until that guard passes. XP is awarded only after verification.
 
 const functionsV1 = require('firebase-functions/v1');
-const admin = require('firebase-admin');
+const admin = require('./firebaseAdmin.js');
 const fetch = require('node-fetch');
 const bolt11 = require('bolt11');
 const tipConfirm = require('./tipConfirm');

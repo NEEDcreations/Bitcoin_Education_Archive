@@ -32,7 +32,7 @@ const { createPredictionJobs } = require('./src/predictionJobs');
 
 let admin = null;
 function loadAdmin() {
-    admin = require('firebase-admin');
+    admin = require('./src/firebaseAdmin.js');
     return admin;
 }
 

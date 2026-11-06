@@ -3,7 +3,7 @@
 // Server-only FCM send path. Tokens are read with the Admin SDK.
 // Every user-facing send goes through categoryAllowed before delivery.
 
-const admin = require('firebase-admin');
+const admin = require('./firebaseAdmin.js');
 const prefs = require('./pushPrefs');
 
 const INVALID_TOKEN = {

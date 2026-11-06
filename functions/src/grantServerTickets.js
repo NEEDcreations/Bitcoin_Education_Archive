@@ -1,6 +1,6 @@
 'use strict';
 
-const admin = require('firebase-admin');
+const admin = require('./firebaseAdmin.js');
 const ticketGrants = require('./ticketGrants');
 const rewardNotify = require('./rewardNotify');
 

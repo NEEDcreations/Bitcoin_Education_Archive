@@ -16,7 +16,7 @@
  * DO NOT call admin.initializeApp() here — it is called in index.js.
  */
 
-const admin = require('firebase-admin');
+const admin = require('./firebaseAdmin.js');
 const rewardNotify = require('./rewardNotify');
 const { planXpGrant } = require('./grantXp');
 const { offsetDateKey } = require('./offsetDay');

@@ -21,7 +21,7 @@
 // before this function. A missing index returns failed-precondition.
 
 const functionsV1 = require('firebase-functions/v1');
-const admin = require('firebase-admin');
+const admin = require('./firebaseAdmin.js');
 const questBoard = require('./questBoard');
 const predictionStats = require('./predictionStats');
 const streakBoard = require('./streakBoard');

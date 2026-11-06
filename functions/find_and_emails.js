@@ -1,4 +1,4 @@
-const admin = require('firebase-admin');
+const admin = require('./src/firebaseAdmin.js');
 admin.initializeApp({ projectId: 'bitcoin-education-archive' });
 const db = admin.firestore();
 

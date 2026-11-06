@@ -33,14 +33,14 @@ async function main() {
     }
     if (args.repair) {
         const history = loadHistory();
-        const admin = require('firebase-admin');
+        const admin = require('../src/firebaseAdmin.js');
         if (!admin.apps.length) admin.initializeApp();
         const result = await history.repairRaidHistory(admin.firestore(), admin, new Date(), { apply: args.apply });
         const count = args.apply ? result.repaired : result.wouldRepair;
         console.log((args.apply ? 'repaired ' : 'would repair ') + count + ' history docs');
         return;
     }
-    const admin = require('firebase-admin');
+    const admin = require('../src/firebaseAdmin.js');
     if (!admin.apps.length) admin.initializeApp();
     const db = admin.firestore();
     const history = loadHistory();

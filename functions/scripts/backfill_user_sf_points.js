@@ -12,7 +12,7 @@
 //
 // Uses Application Default Credentials. Does not take a key path on argv.
 
-const admin = require('firebase-admin');
+const admin = require('../src/firebaseAdmin.js');
 const { tallyUserSfPoints, contributionPoints } = require('../src/userSfPoints');
 
 const PAGE = 400;
