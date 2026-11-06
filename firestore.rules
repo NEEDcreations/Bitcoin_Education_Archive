@@ -116,8 +116,8 @@ service cloud.firestore {
         'tosVersion', 'tosAcceptedAt', 'signupSource',
         'inviteCard', 'notificationPrefs', 'notifPrompt', 'beatsShowUncensored',
         'blockedUsers', 'favorites', 'bookmarks',
-        'displayBadge', 'equippedBadge', 'pinnedBadgeId', 'chatFlairEmoji',
-        'activeTitle', 'earnedTitles',
+        'displayBadge', 'equippedBadge', 'pinnedBadgeId',
+        // Titles and chat flair are set by the titleFlair callable only.
         'lqProgress', 'trailProgress', 'trailsPassed',
         'nachoStoryProgress', 'nachoStoryDate', 'nachoStoryDays',
         'nachoStoryComplete', 'nachoStoryCompletedAt',
@@ -270,6 +270,9 @@ service cloud.firestore {
                         // Bonus spin server flag (CF-only, one-time use)
                         'bonusSpinGranted',
                         'ownedCosmetics', 'spinClosetItems',
+                        // Titles and chat flair (titleFlair callable only)
+                        'activeTitle', 'earnedTitles', 'chatFlairEmoji', 'earnedFlair',
+                        'grandfatheredTitles', 'grandfatheredFlair',
                         // Badges (awardPoints CF)
                         'badges', 'visibleBadges', 'hiddenBadges',
                         // Social / gamification counters (CF)
@@ -1718,6 +1721,18 @@ service cloud.firestore {
     // GLOBAL CHAT
     // =============================================
     match /global_chat/{msgId} {
+      // Flair on a message must be the flair the server equipped on the sender's
+      // profile, or the plain Nook flame for a chat_flair owner.
+      function chatFlairOk(u) {
+        let d = request.resource.data;
+        let nook = u.get('ownedCosmetics', []) is list && u.get('ownedCosmetics', []).hasAny(['chat_flair']);
+        return (!('chatFlairEmoji' in d)
+                || (d.chatFlairEmoji is string
+                    && ((d.chatFlairEmoji.size() > 0 && d.chatFlairEmoji == u.get('chatFlairEmoji', ''))
+                        || (nook && d.chatFlairEmoji == '🔥'))))
+          && (!('hasChatFlair' in d) || d.hasChatFlair == false
+              || (d.hasChatFlair == true && ('chatFlairEmoji' in d || nook)));
+      }
       allow read: if true;
       allow create: if (
                     // Authenticated non-anonymous user messages only
@@ -1764,6 +1779,7 @@ service cloud.firestore {
                     && (request.resource.data.uid == request.auth.uid
                         || ((request.resource.data.uid == 'nacho-bot' || request.resource.data.uid == 'system')
                             && isAdmin()))
+                    && chatFlairOk(get(/databases/$(database)/documents/users/$(request.auth.uid)).data)
                     ) || (
                     // Telegram bridge messages — admin/service account only
                     request.auth != null
