@@ -284,8 +284,9 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
             });
             const field = factionField(faction);
             const totals = totalsSnap.exists ? (totalsSnap.data() || {}) : {};
+            const race = require('./factionBalance').racePoints(1, faction, totals, user, nowMs);
             const totalsWrite = { lastUpdated: adminSdk.firestore.FieldValue.serverTimestamp() };
-            totalsWrite[field] = (Number(totals[field]) || 0) + 1;
+            totalsWrite[field] = Math.round(((Number(totals[field]) || 0) + race.points) * 100) / 100;
             t.set(totalsRef, Object.assign({}, totals, totalsWrite));
             const next = Object.assign({}, stateData, {
                 points: plan.points,

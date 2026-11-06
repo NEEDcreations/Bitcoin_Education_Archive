@@ -8009,6 +8009,7 @@ window._restoreSignUpForm = function() {
     if (lnSection) lnSection.style.display = '';
     var factionPicker = document.getElementById('factionPickerSignup');
     if (factionPicker) factionPicker.style.display = '';
+    if (window._paintFactionHints) window._paintFactionHints();
 
     if (h2) h2.style.display = '';
     if (firstP) firstP.style.display = '';
@@ -8232,6 +8233,69 @@ window._tfPick = function(kind, value) {
 // Older callers (profile menus) still use this name.
 window._equipTitle = function(titleId) { window._tfPick('title', titleId || ''); };
 
+// Faction identities. Display only. The race math lives in Cloud Functions.
+window.BQ_FACTIONS = window.BQ_FACTIONS || {
+    cyber_hornets: {
+        name: 'Cyber Hornets', emoji: '🐝', flair: '🐝⚡', color: '#f7931a',
+        tagline: 'The swarm protects the network',
+        quips: [
+            'Ten thousand stingers. One chain.',
+            'Bzzz. Your FUD has been swarmed.',
+            "Don't trust. Verify. Then sting.",
+            'Hive mind, cold wallet.',
+            'We run nodes in swarms.'
+        ]
+    },
+    honey_badgers: {
+        name: 'Honey Badgers', emoji: '🦡', flair: '🦡🍯', color: '#a855f7',
+        tagline: "Honey badger don't care",
+        quips: [
+            "Honey badger don't care about your FUD.",
+            'Bitten by a cobra. Still hodling.',
+            'Down 80%? Nap. Wake up. Stack.',
+            'Unkillable. Unbothered. Unshaken.',
+            'Declared dead 400 times. Still here.'
+        ]
+    }
+};
+window.bqFactionQuip = function(f) {
+    var d = window.BQ_FACTIONS[f];
+    if (!d) return '';
+    var day = Math.floor(Date.now() / 86400000);
+    return d.quips[day % d.quips.length];
+};
+// Reads the public totals doc to mark the smaller faction. The server decides
+// the bonus on its own; this only shows it.
+window._factionSmaller = function(t) {
+    t = t || {};
+    var mh = Number(t.members_cyber_hornets) || 0, mb = Number(t.members_honey_badgers) || 0;
+    if (mh !== mb) return mh < mb ? 'cyber_hornets' : 'honey_badgers';
+    var sh = Number(t.cyber_hornets) || 0, sb = Number(t.honey_badgers) || 0;
+    if (sh !== sb) return sh < sb ? 'cyber_hornets' : 'honey_badgers';
+    return null;
+};
+window._paintFactionHints = function() {
+    if (typeof db === 'undefined' || !db || !db.collection) return;
+    db.collection('satoshiFavor').doc('factionTotals').get().then(function(doc) {
+        var small = window._factionSmaller(doc.exists ? doc.data() : {});
+        window._factionUnderdogPick = small;
+        ['cyber_hornets', 'honey_badgers'].forEach(function(f) {
+            var tag = document.getElementById('factionUnderdogTag_' + f);
+            if (tag) tag.style.display = small === f ? 'block' : 'none';
+        });
+        // Suggest the smaller side when nothing is picked yet.
+        if (small && !window._signupFaction) {
+            var btn = document.getElementById(small === 'cyber_hornets' ? 'factionBtnHornets' : 'factionBtnBadgers');
+            if (btn && btn.offsetParent !== null && typeof btn.onclick === 'function') btn.onclick();
+        }
+        var sp = document.getElementById('settingsFactionPicker');
+        if (sp && !(currentUser && currentUser.faction) && typeof showSettingsPage === 'function' && !window._factionHintsPainted) {
+            window._factionHintsPainted = true;
+            showSettingsPage('account');
+        }
+    }).catch(function(e) { console.warn('[FACTION] hints', e && e.message); });
+};
+
 // Faction selection. The profile field is server-only. chooseFaction moves
 // this user's unclaimed Satoshi's Favor points in one transaction.
 async function commitFactionChoice(faction) {
@@ -8239,6 +8303,7 @@ async function commitFactionChoice(faction) {
     if (typeof firebase === 'undefined' || !firebase.functions) throw new Error('Faction save is unavailable.');
     var res = await firebase.functions().httpsCallable('chooseFaction')({ faction: faction });
     var data = res && res.data ? res.data : {};
+    window._lastFactionUnderdogJoin = data.underdogJoin === true;
     var moved = Number(data.moved);
     if (!isFinite(moved)) moved = Number(data.pointsSynced);
     if (!isFinite(moved) || moved < 0) moved = 0;
@@ -8272,7 +8337,8 @@ window._selectFaction = async function(faction) {
         }
 
         var moved = await commitFactionChoice(faction);
-        if (typeof showToast === 'function') showToast(faction === 'cyber_hornets' ? '🐝 Welcome to the Cyber Hornets!' : '🦡 Welcome to the Honey Badgers!');
+        if (typeof showToast === 'function') showToast((faction === 'cyber_hornets' ? '🐝 Welcome to the Cyber Hornets! ' : '🦡 Welcome to the Honey Badgers! ') + window.bqFactionQuip(faction));
+        if (window._lastFactionUnderdogJoin && typeof showToast === 'function') showToast('🔥 Underdog bonus: +25% faction points for 7 days.');
         if (typeof showToast === 'function') showToast(moved + ' unclaimed point' + (moved === 1 ? '' : 's') + ' moved to your faction.');
         showSettingsPage('account');
 
@@ -8419,7 +8485,11 @@ function showSettingsPage(tab) {
 
         // Faction selector
         var _userFaction = currentUser ? currentUser.faction || '' : '';
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+        var _fSmall = _userFaction ? null : (window._factionUnderdogPick || null);
+        var _fTag = function(f) { return _fSmall === f ? '<div style="color:#22c55e;font-size:0.65rem;font-weight:800;margin-top:6px;">🔥 Underdog bonus: +25% for 7 days</div>' : ''; };
+        var _fQuip = function(f) { return '<div style="color:var(--text-faint);font-size:0.62rem;font-style:italic;margin-top:4px;">"' + escapeHtml(window.bqFactionQuip(f)) + '"</div>'; };
+        if (!_userFaction && !window._factionHintsPainted) setTimeout(function() { window._paintFactionHints && window._paintFactionHints(); }, 0);
+        html += '<div id="settingsFactionPicker" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">⚔️ Faction</div>' +
             (_userFaction
                 ? '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:12px;">Your faction choice is permanent.</div>'
@@ -8429,12 +8499,14 @@ function showSettingsPage(tab) {
                 '<div style="font-size:2rem;margin-bottom:6px;">🐝</div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;">Cyber Hornets</div>' +
                 '<div style="color:var(--text-muted);font-size:0.65rem;margin-top:4px;">The swarm protects the network</div>' +
+                _fQuip('cyber_hornets') + _fTag('cyber_hornets') +
                 (_userFaction === 'cyber_hornets' ? '<div style="color:#f7931a;font-size:0.75rem;font-weight:700;margin-top:6px;">✓ Joined</div>' : '') +
             '</div>' +
             '<div onclick="window._selectFaction(\'honey_badgers\')" style="flex:1;padding:14px 10px;border-radius:12px;border:2px solid ' + (_userFaction === 'honey_badgers' ? '#a855f7' : 'var(--border)') + ';background:' + (_userFaction === 'honey_badgers' ? 'rgba(168,85,247,0.1)' : 'var(--card-bg)') + ';cursor:' + (_userFaction && _userFaction !== 'honey_badgers' ? 'default' : 'pointer') + ';text-align:center;transition:all 0.2s;opacity:' + (_userFaction && _userFaction !== 'honey_badgers' ? '0.5' : '1') + ';">' +
                 '<div style="font-size:2rem;margin-bottom:6px;">🦡</div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;">Honey Badgers</div>' +
                 '<div style="color:var(--text-muted);font-size:0.65rem;margin-top:4px;">Honey badger don\'t care</div>' +
+                _fQuip('honey_badgers') + _fTag('honey_badgers') +
                 (_userFaction === 'honey_badgers' ? '<div style="color:#a855f7;font-size:0.75rem;font-weight:700;margin-top:6px;">✓ Joined</div>' : '') +
             '</div>' +
             '</div>' +
