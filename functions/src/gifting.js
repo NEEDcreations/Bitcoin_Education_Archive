@@ -7,7 +7,7 @@
 const functionsV1 = require('firebase-functions/v1');
 const { defineSecret } = require('firebase-functions/params');
 const deletionHmacSecret = defineSecret('DELETION_HMAC_SECRET');
-const admin = require('firebase-admin');
+const admin = require('./firebaseAdmin.js');
 const crypto = require('crypto');
 const dns = require('dns').promises;
 const bolt11 = require('bolt11');

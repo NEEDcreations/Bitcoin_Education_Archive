@@ -4,7 +4,7 @@
 // post, and the Phil DM live in raidBossEngine.js. No next-month placeholder.
 
 const { onSchedule } = require('firebase-functions/v2/scheduler');
-const admin = require('firebase-admin');
+const admin = require('./firebaseAdmin.js');
 const engine = require('./raidBossEngine');
 
 function db() {

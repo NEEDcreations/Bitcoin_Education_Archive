@@ -203,7 +203,7 @@ async function settledNote(db, collection, id) {
 
 async function main() {
     assertReadOnlySource();
-    const admin = require('firebase-admin');
+    const admin = require('../src/firebaseAdmin.js');
     if (!admin.apps.length) admin.initializeApp({ credential: admin.credential.applicationDefault() });
     const db = admin.firestore();
     const now = new Date();

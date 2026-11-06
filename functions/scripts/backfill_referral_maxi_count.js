@@ -40,7 +40,7 @@ function helpText() {
 
 function loadAdmin() {
     try {
-        return require('firebase-admin');
+        return require('../src/firebaseAdmin.js');
     } catch (err) {
         try {
             return require(path.join(__dirname, '..', 'node_modules', 'firebase-admin'));

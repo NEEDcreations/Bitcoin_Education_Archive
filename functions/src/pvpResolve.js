@@ -5,7 +5,7 @@
  * Rewards are settled separately when status becomes finished or forfeit.
  */
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
-const admin = require('firebase-admin');
+const admin = require('./firebaseAdmin.js');
 const pvpFlow = require('./pvpFlow');
 const db = admin.firestore();
 

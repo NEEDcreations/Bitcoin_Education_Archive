@@ -9,7 +9,7 @@
  */
 
 const functionsV1 = require('firebase-functions/v1');
-const admin = require('firebase-admin');
+const admin = require('./firebaseAdmin.js');
 const ticketGrants = require('./ticketGrants');
 const { grantServerTickets } = require('./grantServerTickets');
 

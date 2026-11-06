@@ -5,7 +5,7 @@
 
 const functionsV1 = require('firebase-functions/v1');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
-const admin = require('firebase-admin');
+const admin = require('./src/firebaseAdmin.js');
 const crypto = require('crypto');
 const logic = require('./src/tctvDripLogic');
 const tctvPresence = require('./tctv-presence-lib');

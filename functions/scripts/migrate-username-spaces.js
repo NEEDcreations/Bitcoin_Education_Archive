@@ -36,7 +36,7 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
-const admin = require('firebase-admin');
+const admin = require('../src/firebaseAdmin.js');
 const names = require('../src/usernamePolicy');
 
 const PAGE = 400;
