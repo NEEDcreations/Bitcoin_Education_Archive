@@ -151,7 +151,7 @@ function valueFor(field) {
         await expect('delete pvp shard', function () {
             return updateDoc(ref, { pvpPushShard: deleteField() });
         }, true);
-        const denied = ['points', 'orangeTickets', 'tickets', 'favor', 'badges', 'scholarPoints', 'pointsClaimed', 'visibleBadges', 'weeklyXP', 'unclaimableXp', 'chatXpStreak', 'chatXpDay', 'brandNewReward',
+        const denied = ['points', 'orangeTickets', 'tickets', 'favor', 'badges', 'scholarPoints', 'pointsClaimed', 'visibleBadges', 'weeklyXP', 'unclaimableXp', 'chatXpStreak', 'chatXpDay', 'rankReachedAt', 'brandNewReward',
             'activeTitle', 'earnedTitles', 'chatFlairEmoji', 'earnedFlair', 'grandfatheredTitles', 'grandfatheredFlair'];
         for (let d = 0; d < denied.length; d++) {
             const field = denied[d];
