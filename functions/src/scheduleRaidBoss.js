@@ -6,6 +6,7 @@
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const admin = require('./firebaseAdmin.js');
 const engine = require('./raidBossEngine');
+const { tgBotTokenSecret } = require('./sensitiveSecrets');
 
 function db() {
     return admin.firestore();
@@ -15,6 +16,7 @@ exports.scheduleRaidBoss = onSchedule({
     schedule: '0 13 1 * *',
     timeZone: 'America/New_York',
     region: 'us-central1',
+    secrets: [tgBotTokenSecret],
 }, async () => {
     await engine.spawnOrAlert(db(), admin, new Date());
     return null;
@@ -25,6 +27,7 @@ exports.scheduleRaidBossCatchup = onSchedule({
     schedule: '0 * 1,2 * *',
     timeZone: 'America/New_York',
     region: 'us-central1',
+    secrets: [tgBotTokenSecret],
 }, async () => {
     await engine.spawnOrAlert(db(), admin, new Date());
     return null;

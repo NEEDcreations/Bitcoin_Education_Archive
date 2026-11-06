@@ -7,18 +7,15 @@ const functions = require('firebase-functions');
 const functionsV1 = require('firebase-functions/v1');
 const admin = require('./firebaseAdmin.js');
 const crypto = require('crypto');
+const { adminToken, adminTokenSecret, tgBotToken, tgBotTokenSecret } = require('./sensitiveSecrets');
 
 const db = admin.firestore();
 const CHAT_COLLECTION = 'global_chat';
 
-// Telegram bot token + webhook secret from Cloud Secrets / env
-const TG_BOT_TOKEN = process.env.TG_BOT_TOKEN || '';
-// [VULN-6 FIX] Webhook secret — must match what was registered with setTelegramWebhook.
-// Set via: firebase functions:secrets:set TG_WEBHOOK_SECRET
-const TG_WEBHOOK_SECRET = process.env.TG_WEBHOOK_SECRET || '';
-
-// Admin token for protecting setTelegramWebhook (reuse the existing ADMIN_TOKEN pattern)
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
+// Read at call time. Bound secrets are process.env only on functions that list them.
+function webhookSecret() {
+    return process.env.TG_WEBHOOK_SECRET || '';
+}
 
 /**
  * [VULN-6 FIX] Verify the X-Telegram-Bot-Api-Secret-Token header.
@@ -32,7 +29,8 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
  *     open rather than fail-open
  */
 function verifyWebhookSecret(req) {
-    if (!TG_WEBHOOK_SECRET) {
+    const expected = webhookSecret();
+    if (!expected) {
         // Secret not configured — reject all requests rather than silently accept
         console.error('[TG_WEBHOOK] TG_WEBHOOK_SECRET not set — rejecting all incoming requests');
         return false;
@@ -42,7 +40,7 @@ function verifyWebhookSecret(req) {
     try {
         // timingSafeEqual requires equal-length buffers
         const a = Buffer.from(header);
-        const b = Buffer.from(TG_WEBHOOK_SECRET);
+        const b = Buffer.from(expected);
         if (a.length !== b.length) return false;
         return crypto.timingSafeEqual(a, b);
     } catch (e) {
@@ -53,8 +51,8 @@ function verifyWebhookSecret(req) {
 /**
  * Main webhook handler (HTTP)
  */
-// TG_BOT_TOKEN and ADMIN_TOKEN are plain .env vars; TG_WEBHOOK_SECRET is a Cloud Secret
-exports.handleTelegramReaction = functionsV1.https.onRequest({ secrets: ['TG_WEBHOOK_SECRET'] }, async (req, res) => {
+// TG_WEBHOOK_SECRET is the existing Cloud Secret. This handler does not read the bot token.
+exports.handleTelegramReaction = functionsV1.runWith({ secrets: ['TG_WEBHOOK_SECRET'] }).https.onRequest(async (req, res) => {
     // Only accept POST
     if (req.method !== 'POST') {
         res.status(405).send('Method not allowed');
@@ -193,21 +191,26 @@ function reactionToEmoji(reaction) {
  *   2. Passes secret_token in the setWebhook call so Telegram signs all
  *      future updates with X-Telegram-Bot-Api-Secret-Token
  */
-exports.setTelegramWebhook = functionsV1.https.onRequest({ secrets: ['TG_WEBHOOK_SECRET'] }, async (req, res) => {
+exports.setTelegramWebhook = functionsV1.runWith({
+    secrets: ['TG_WEBHOOK_SECRET', tgBotTokenSecret, adminTokenSecret],
+}).https.onRequest(async (req, res) => {
     // [VULN-6 FIX] Require admin token to prevent anyone from re-pointing the webhook
-    const adminToken = req.headers['x-admin-token'] || req.query.token || '';
+    const provided = req.headers['x-admin-token'] || req.query.token || '';
+    const expectedAdmin = adminToken();
     // [SECURITY FIX] Timing-safe comparison — prevents timing oracle on admin token
     const _tse = (a, b) => { const ea = Buffer.from(String(a)); const eb = Buffer.from(String(b)); if (ea.length !== eb.length) return false; return require('crypto').timingSafeEqual(ea, eb); };
-    if (!ADMIN_TOKEN || !_tse(adminToken, ADMIN_TOKEN)) {
+    if (!expectedAdmin || !_tse(provided, expectedAdmin)) {
         res.status(403).json({ error: 'Forbidden' });
         return;
     }
 
-    if (!TG_BOT_TOKEN) {
+    const botToken = tgBotToken();
+    if (!botToken) {
         res.status(500).send('TG_BOT_TOKEN not configured');
         return;
     }
-    if (!TG_WEBHOOK_SECRET) {
+    const hookSecret = webhookSecret();
+    if (!hookSecret) {
         res.status(500).send('TG_WEBHOOK_SECRET not configured — run: firebase functions:secrets:set TG_WEBHOOK_SECRET');
         return;
     }
@@ -220,13 +223,13 @@ exports.setTelegramWebhook = functionsV1.https.onRequest({ secrets: ['TG_WEBHOOK
         const fetch = require('node-fetch');
 
         // [VULN-6 FIX] Include secret_token so Telegram signs every update
-        const tgRes = await fetch(`https://api.telegram.org/bot${TG_BOT_TOKEN}/setWebhook`, {
+        const tgRes = await fetch('https://api.telegram.org/bot' + botToken + '/setWebhook', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 url: functionUrl,
                 allowed_updates: ['message_reaction', 'message_reaction_count'],
-                secret_token: TG_WEBHOOK_SECRET
+                secret_token: hookSecret
             })
         });
 
@@ -235,6 +238,7 @@ exports.setTelegramWebhook = functionsV1.https.onRequest({ secrets: ['TG_WEBHOOK
         console.log('[setTelegramWebhook] Result:', result.ok, result.description);
         res.json({ success: result.ok, result, webhookUrl: functionUrl });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        console.error('[setTelegramWebhook] request failed');
+        res.status(500).json({ error: 'Webhook registration failed' });
     }
 });
