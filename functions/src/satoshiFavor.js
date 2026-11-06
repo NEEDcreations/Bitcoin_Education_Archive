@@ -388,6 +388,7 @@ async function creditDailyAllThree(uid, day) {
     transaction.set(totalsRef, {
       [factionField]: admin.firestore.FieldValue.increment(race.points),
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      ...(race.headStartField ? { [race.headStartField]: admin.firestore.FieldValue.increment(race.headStartBase) } : {}),
     }, { merge: true });
     transaction.update(userRef, {
       trifectaDays: admin.firestore.FieldValue.increment(1),
@@ -661,6 +662,7 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
     transaction.set(totalsRef, {
       [factionField]: admin.firestore.FieldValue.increment(race.points),
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      ...(race.headStartField ? { [race.headStartField]: admin.firestore.FieldValue.increment(race.headStartBase) } : {}),
     }, { merge: true });
 
     // Same transaction as the contributor doc. Owner-readable counter only.

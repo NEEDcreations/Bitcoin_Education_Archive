@@ -9,7 +9,12 @@
 //    chooseFaction, because the faction choice itself is permanent.
 // 2. Underdog multiplier: while a faction trails by 1,000 or more race points,
 //    its new points count 1.2x. It turns off by itself once the gap closes.
-// 3. Members are counted on the totals doc so the board can show a fair
+// 3. Loser head start: the faction that lost the previous race earns 1.1x on
+//    its FIRST 1,000 base points of the next race, then normal. Tracked on the
+//    totals doc per race (headStartUsed_<raceId>), set by the race-end job.
+//    Stacking with the underdog boost: we take the MAX of the two (1.2x vs
+//    1.1x), never multiply them. The personal join bonus still multiplies.
+// 4. Members are counted on the totals doc so the board can show a fair
 //    average per member next to the race total.
 
 const FACTIONS = ['cyber_hornets', 'honey_badgers'];
@@ -19,6 +24,20 @@ const JOIN_BONUS_MULT = 1.25;
 const JOIN_BONUS_DAYS = 7;
 const JOIN_BONUS_MS = JOIN_BONUS_DAYS * 24 * 60 * 60 * 1000;
 const RACE_TARGET = 10000;
+const HEAD_START_MULT = 1.1;
+const HEAD_START_POINTS = 1000;
+
+function raceIdOf(totals) { return String((totals && totals.raceId) || 'race1'); }
+function headStartUsedField(totals) { return 'headStartUsed_' + raceIdOf(totals).replace(/[^A-Za-z0-9_-]/g, '_'); }
+// Base points still eligible for the head start (0 when none).
+function headStartRemaining(totals, faction) {
+    const t = totals || {};
+    const hs = t.headStart;
+    if (!hs || hs.faction !== faction || !isFaction(faction)) return 0;
+    if (String(hs.afterRaceId || '') === raceIdOf(t)) return 0; // previous race still current
+    const cap = Math.min(num(hs.points) || HEAD_START_POINTS, HEAD_START_POINTS);
+    return Math.max(0, cap - num(t[headStartUsedField(t)]));
+}
 
 function isFaction(f) { return f === 'cyber_hornets' || f === 'honey_badgers'; }
 function other(f) { return f === 'cyber_hornets' ? 'honey_badgers' : 'cyber_hornets'; }
@@ -69,10 +88,16 @@ function racePoints(base, faction, totals, user, nowMs) {
     if (!b || !isFaction(faction)) return { points: b, mult: 1, underdog: false, joinBonus: false };
     const underdog = underdogActive(totals, faction);
     const joinBonus = !!(user && user.faction === faction) && joinBonusActive(user, nowMs);
-    let mult = 1;
-    if (underdog) mult *= UNDERDOG_MULT;
-    if (joinBonus) mult *= JOIN_BONUS_MULT;
-    return { points: round2(b * mult), mult: round2(mult), underdog: underdog, joinBonus: joinBonus };
+    const hsLeft = headStartRemaining(totals, faction);
+    const hsBase = Math.min(b, hsLeft); // only the part inside the first 1,000
+    const factionMult = underdog ? UNDERDOG_MULT : 1;
+    // Head-start slice: max(underdog, 1.1). Rest: underdog only.
+    const hsMult = Math.max(factionMult, hsBase > 0 ? HEAD_START_MULT : 1);
+    let pts = hsBase * hsMult + (b - hsBase) * factionMult;
+    if (joinBonus) pts *= JOIN_BONUS_MULT;
+    const mult = round2(pts / b);
+    return { points: round2(pts), mult: mult, underdog: underdog, joinBonus: joinBonus,
+        headStart: hsBase > 0, headStartBase: hsBase, headStartField: hsBase > 0 ? headStartUsedField(totals) : null };
 }
 
 // Average race points per member, rounded to one decimal.
@@ -83,6 +108,6 @@ function perMember(totals, faction) {
 }
 
 module.exports = {
-    FACTIONS, UNDERDOG_GAP, UNDERDOG_MULT, JOIN_BONUS_MULT, JOIN_BONUS_DAYS, JOIN_BONUS_MS, RACE_TARGET,
-    isFaction, memberField, smallerFaction, underdogActive, joinBonusActive, racePoints, perMember, toMs,
+    FACTIONS, UNDERDOG_GAP, UNDERDOG_MULT, JOIN_BONUS_MULT, JOIN_BONUS_DAYS, JOIN_BONUS_MS, RACE_TARGET, HEAD_START_MULT, HEAD_START_POINTS,
+    isFaction, headStartRemaining, headStartUsedField, memberField, smallerFaction, underdogActive, joinBonusActive, racePoints, perMember, toMs,
 };

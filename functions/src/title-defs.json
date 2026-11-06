@@ -413,6 +413,34 @@
   "flavor": "The Spin Set complete. Fortune favored you enough."
  },
  {
+  "id": "hive_mind_champion",
+  "title": "Hive Mind Champion",
+  "emoji": "🐝",
+  "requiredBadge": "race_champion_hornets",
+  "flavor": "The swarm reached 10,000 first. Bzzzt."
+ },
+ {
+  "id": "honey_badger_champion",
+  "title": "Honey Badger Don't Care Champion",
+  "emoji": "🦡",
+  "requiredBadge": "race_champion_badgers",
+  "flavor": "Won the race to 10,000. Honey badger still don't care."
+ },
+ {
+  "id": "still_buzzing",
+  "title": "Still Buzzing",
+  "emoji": "🐝",
+  "requiredBadge": "race_still_buzzing",
+  "flavor": "Lost the race. Still buzzing. Rematch."
+ },
+ {
+  "id": "badger_dont_quit",
+  "title": "Badger Don't Quit",
+  "emoji": "🦡",
+  "requiredBadge": "race_badger_dont_quit",
+  "flavor": "Lost the race. Badger don't quit."
+ },
+ {
   "id": "core_contributor",
   "title": "Core Contributor",
   "emoji": "🔧",

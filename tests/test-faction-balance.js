@@ -57,5 +57,29 @@ test('every server Favor write uses race points', () => {
         assert.ok(src.includes('racePoints('), f);
     });
 });
+// Loser head start: 1.1x on the first 1,000 base points of the NEXT race.
+const hs = (extra) => Object.assign({ raceId: 'race2', cyber_hornets: 0, honey_badgers: 0,
+    headStart: { faction: 'honey_badgers', afterRaceId: 'race1', mult: 1.1, points: 1000 } }, extra || {});
+test('head start: 1.1x for the loser in the next race', () => {
+    const r = b.racePoints(10, 'honey_badgers', hs(), {}, NOW);
+    assert.strictEqual(r.points, 11); assert.ok(r.headStart);
+    assert.strictEqual(r.headStartField, 'headStartUsed_race2'); assert.strictEqual(r.headStartBase, 10);
+});
+test('head start: not for the winner, not during the race that set it', () => {
+    assert.strictEqual(b.racePoints(10, 'cyber_hornets', hs(), {}, NOW).points, 10);
+    assert.strictEqual(b.racePoints(10, 'honey_badgers', hs({ raceId: 'race1' }), {}, NOW).points, 10);
+});
+test('head start: ends after the first 1,000 base points (partial slice)', () => {
+    assert.strictEqual(b.racePoints(10, 'honey_badgers', hs({ headStartUsed_race2: 995 }), {}, NOW).points, 10.5);
+    assert.strictEqual(b.racePoints(10, 'honey_badgers', hs({ headStartUsed_race2: 1000 }), {}, NOW).points, 10);
+});
+test('head start + underdog: max (1.2x), never multiplied', () => {
+    const r = b.racePoints(10, 'honey_badgers', hs({ cyber_hornets: 1500 }), {}, NOW);
+    assert.strictEqual(r.points, 12);
+});
+test('head start + join bonus: join bonus still applies on top', () => {
+    const u = { faction: 'honey_badgers', factionBonusUntil: NOW + 1000 };
+    assert.strictEqual(b.racePoints(10, 'honey_badgers', hs(), u, NOW).points, 13.75);
+});
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

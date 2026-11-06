@@ -1140,6 +1140,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
     let amount = 0;
     let username = 'a Bitcoiner';
+    let isFactionPrize = false;
 
     // Auth lookup stays outside the transaction (retries would repeat it).
     // The decision itself runs inside the transaction, with the user and ledger docs.
@@ -1182,9 +1183,13 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         if (win.status === 'paying') throw httpsError('failed-precondition', 'A payment is already in progress. Wait a minute and try again.');
         if (win.status === 'unknown') throw httpsError('failed-precondition', 'This payment needs Phil to confirm it before it can be claimed again.');
         if (win.status !== 'claimable') throw httpsError('failed-precondition', 'This prize is waiting for Phil to pay it.');
-        if (win.amount >= 1000 || (win.amount !== 100 && win.amount !== 500)) {
+        // Faction race pot of sats: any whole amount, but only after an admin approved it server-side.
+        const factionPrize = win.source === 'faction_race' && win.adminApproved === true &&
+            Number.isInteger(win.amount) && win.amount > 0 && win.amount <= 1000000;
+        if (!factionPrize && (win.amount >= 1000 || (win.amount !== 100 && win.amount !== 500))) {
             throw httpsError('failed-precondition', 'This prize is paid manually.');
         }
+        isFactionPrize = factionPrize;
         const userRow = userDoc.exists ? (userDoc.data() || {}) : {};
         if (Number(userRow.satsHold) > Date.now()) {
             throw httpsError('failed-precondition', 'Sats withdrawals are paused on this account. Try again later.');
@@ -1281,7 +1286,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
             await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan({
                 uid: uid,
                 sats: netAmount,
-                sourceLabel: 'a cipher win',
+                sourceLabel: isFactionPrize ? 'the faction race pot of sats' : 'a cipher win',
                 icon: '⚡',
             }));
             return { success: true, amount: amount, sent: netAmount, fee: winFee.fee, warning: 'Paid, but the receipt did not save. Phil can confirm it in the admin list.' };
@@ -1289,9 +1294,12 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan({
             uid: uid,
             sats: netAmount,
-            sourceLabel: 'a cipher win',
+            sourceLabel: isFactionPrize ? 'the faction race pot of sats' : 'a cipher win',
             icon: '⚡',
         }));
+        // Faction race prizes: no cipher badge credit and no cipher chat line
+        // (the race already had its one big Nacho announcement).
+        if (isFactionPrize) return { success: true, amount: amount, sent: netAmount, fee: winFee.fee };
         try {
             await require('./badgeCredit').creditCipherPaid(db, admin, uid, amount, winRef);
         } catch (e) { console.warn('[claimCipherWin] badge', e.message); }
