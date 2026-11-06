@@ -2296,6 +2296,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Collection-completion recognition queue. Admin SDK only.
+    match /collection_recog_bursts/{uid} {
+      allow read, write: if false;
+    }
+    match /collection_recog_claims/{claimId} {
+      allow read, write: if false;
+    }
+
     // Telegram mirror queue. One claim per chat doc. Admin SDK only.
     match /telegram_mirror_claims/{claimId} {
       allow read, write: if false;
@@ -2310,6 +2318,11 @@ service cloud.firestore {
     match /satoshiFavor/factionTotals {
       allow read: if true;
       allow write: if false;
+    }
+
+    // Faction member counts. Server only. Race scores stay on factionTotals.
+    match /satoshiFavor/factionMembers {
+      allow read, write: if false;
     }
 
     // Per-user all-time Satoshi's Favor contribution. Server writes only.

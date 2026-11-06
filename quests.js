@@ -23,6 +23,13 @@ const QUESTION_BANK = {
         { q: "The Bitcoin whitepaper solved what previously unsolvable problem?", a: "Digital scarcity without a trusted third party", wrong: ["Instant payments without any processing delays", "Quantum-proof encryption for all financial data", "Free global transfers without any intermediary"] },
         { q: "What did Satoshi embed in the Genesis Block's coinbase transaction?", a: "A newspaper headline about bank bailouts", wrong: ["A cryptographic puzzle for early miners", "A private note to the early Bitcoin team", "A list of early Bitcoin wallet addresses"] }
     ],
+    "one-stop-shop": [
+        { q: "What is the One-Stop Shop channel for?", a: "A short starter set of the best resources for understanding Bitcoin", wrong: ["A live price ticker for every altcoin", "A custodial exchange for buying bitcoin", "A mining pool signup form"] },
+        { q: "Who should start with the One-Stop Shop?", a: "Someone new who wants the core ideas in one place", wrong: ["Only miners who already run a pool", "Only developers submitting a BIP", "Only people who already memorized the whitepaper"] },
+        { q: "How long does the channel say it takes to work through its starter material?", a: "About 3 to 5 hours", wrong: ["About 5 minutes", "About 3 to 5 weeks of full-time study", "A four-year university course"] },
+        { q: "What does the channel say you will know after 15 minutes there?", a: "More about Bitcoin than 99% of the population", wrong: ["How to mine a block on a laptop", "The private key of the genesis coins", "Every proposed soft fork in detail"] },
+        { q: "What kind of material does the One-Stop Shop point you to first?", a: "Short videos and the best introductory explanations of Bitcoin", wrong: ["A hardware wallet's recovery seed", "A leveraged trading terminal", "A list of altcoin presales"] }
+    ],
     "decentralized": [
         { q: "How many people are \"in charge\" of Bitcoin?", a: "No one", wrong: ["Satoshi Nakamoto", "A board of directors", "The Bitcoin Foundation"] },
         { q: "What is needed for code updates to Bitcoin?", a: "Deep consensus from the network", wrong: ["Miner approval alone suffices", "Developer committee approval", "Permission from founding nodes"] },
@@ -1554,9 +1561,16 @@ function generateAndShowQuest(manual, targetChannelId, isRetake) {
         }
     }
 
-    // For topic-specific quests, allow fewer than 5 if the topic has fewer questions
-    var minQuestions = targetChannelId ? Math.min(3, pool.length) : 5;
-    if (pool.length < minQuestions) return;
+    // An empty topic used to pass this check (min became 0) and open a quiz
+    // with no questions. That must never count as a finished quest.
+    var minQuestions = targetChannelId ? 1 : 5;
+    if (pool.length < minQuestions) {
+        if (targetChannelId && typeof window.btcRevertEmptyTrailStop === 'function') {
+            window.btcRevertEmptyTrailStop(String(targetChannelId).split('||')[0]);
+        }
+        if (manual && typeof showToast === 'function') showToast('This quest has no questions yet.');
+        return;
+    }
 
     // Filter out already-asked questions first
     let freshPool = pool.filter(q => !askedQuestions.includes(q.q));
@@ -1761,6 +1775,12 @@ function playWarriorDrum() {
 }
 
 function showQuest(quest, retry) {
+    if (!quest || !quest.questions || !quest.questions.length) {
+        if (quest && quest.topicKey && typeof window.btcRevertEmptyTrailStop === 'function') {
+            window.btcRevertEmptyTrailStop(quest.topicKey);
+        }
+        return;
+    }
     currentQuest = quest;
     isRetry = retry;
     window._questSubmitted = false;
@@ -1903,6 +1923,14 @@ async function _gradeQuestOnServer(quest, answerIndexes, retry) {
 async function submitQuest() {
     // Prevent double-submit
     if (window._questSubmitted) return;
+    if (!currentQuest || !currentQuest.questions || !currentQuest.questions.length) {
+        window._questSubmitted = false;
+        if (typeof window.btcRevertEmptyTrailStop === 'function' && currentQuest && currentQuest.topicKey) {
+            window.btcRevertEmptyTrailStop(currentQuest.topicKey);
+        }
+        if (typeof closeQuest === 'function') closeQuest();
+        return;
+    }
     window._questSubmitted = true;
     var btn = document.getElementById('questSubmitBtn');
     if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = 'Grading...'; }
@@ -2458,7 +2486,6 @@ function _renderFavorTab(body) {
                 '<div style="font-size:0.78rem;font-weight:800;color:#f7931a;margin-bottom:6px;">Cyber Hornets</div>' +
                 '<div id="sfScoreHornets" style="font-size:1.6rem;font-weight:900;color:var(--heading);font-family:monospace;">0</div>' +
                 '<div style="font-size:0.62rem;color:var(--text-faint);margin-top:2px;">SF points</div>' +
-                '<div id="sfAvgHornets" style="font-size:0.68rem;color:var(--text-muted);margin-top:6px;">— per member</div>' +
                 '<div id="sfBoostHornets" style="display:none;font-size:0.62rem;font-weight:800;color:#22c55e;margin-top:4px;">🔥 Underdog boost 1.2×</div>' +
                 '<div style="font-size:0.6rem;font-style:italic;color:var(--text-faint);margin-top:6px;line-height:1.35;">"' + _sfQuip('cyber_hornets') + '"</div>' +
             '</div>' +
@@ -2471,7 +2498,6 @@ function _renderFavorTab(body) {
                 '<div style="font-size:0.78rem;font-weight:800;color:#a855f7;margin-bottom:6px;">Honey Badgers</div>' +
                 '<div id="sfScoreBadgers" style="font-size:1.6rem;font-weight:900;color:var(--heading);font-family:monospace;">0</div>' +
                 '<div style="font-size:0.62rem;color:var(--text-faint);margin-top:2px;">SF points</div>' +
-                '<div id="sfAvgBadgers" style="font-size:0.68rem;color:var(--text-muted);margin-top:6px;">— per member</div>' +
                 '<div id="sfBoostBadgers" style="display:none;font-size:0.62rem;font-weight:800;color:#22c55e;margin-top:4px;">🔥 Underdog boost 1.2×</div>' +
                 '<div style="font-size:0.6rem;font-style:italic;color:var(--text-faint);margin-top:6px;line-height:1.35;">"' + _sfQuip('honey_badgers') + '"</div>' +
             '</div>' +
@@ -2481,7 +2507,6 @@ function _renderFavorTab(body) {
             '<div style="margin-top:6px;">🏁 First faction to 10,000 race points wins.</div>' +
             '<div>🔥 <b>Underdog boost:</b> while a faction trails by 1,000 or more, its new points count 1.2×. It switches off once the race is close.</div>' +
             '<div>🆕 <b>Underdog join bonus:</b> new players who join the smaller faction earn +25% faction points for their first 7 days.</div>' +
-            '<div>⚖️ <b>Pound for pound:</b> the per-member average shows which team is pulling its weight, not just which is bigger.</div>' +
             '<div>🔒 Faction choice is permanent, and all scoring happens on our servers.</div>' +
         '</details>' +
         '<div id="sfScoreBar" style="margin-top:10px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;display:none;">' +
@@ -2755,9 +2780,6 @@ function _startFactionScoreboardListener() {
         if (elB) elB.textContent = Math.floor(badgers).toLocaleString();
         ['cyber_hornets', 'honey_badgers'].forEach(function(f) {
             var key = f === 'cyber_hornets' ? 'Hornets' : 'Badgers';
-            var m = Number(data['members_' + f]) || 0;
-            var avgEl = document.getElementById('sfAvg' + key);
-            if (avgEl) avgEl.textContent = m > 0 ? ((Number(data[f]) || 0) / m).toFixed(1) + ' per member · ' + m.toLocaleString() + ' members' : '— per member';
             var mine = Number(data[f]) || 0, theirs = Number(data[f === 'cyber_hornets' ? 'honey_badgers' : 'cyber_hornets']) || 0;
             var boostEl = document.getElementById('sfBoost' + key);
             if (boostEl) boostEl.style.display = (theirs - mine >= 1000) ? 'block' : 'none';

@@ -6847,7 +6847,7 @@ exports.scheduleRaidForumCredit = scheduleRaidForumCredit;
 exports.contributeRaid = contributeRaid;
 
 // ===== SATOSHI'S FAVOR =====
-const { contributeFavor, hashForFavor, checkFavorState, getFavorHashes, syncCycleToTop10, backfillFactionTotals, getFactionTotals, resetExpiredFavor } = require('./src/satoshiFavor');
+const { contributeFavor, hashForFavor, checkFavorState, getFavorHashes, syncCycleToTop10, backfillFactionTotals, getFactionTotals, getSmallerFaction, resetExpiredFavor } = require('./src/satoshiFavor');
 exports.contributeFavor = contributeFavor;
 exports.hashForFavor = hashForFavor;
 exports.checkFavorState = checkFavorState;
@@ -6855,6 +6855,7 @@ exports.getFavorHashes = getFavorHashes;
 exports.syncCycleToTop10 = syncCycleToTop10;
 exports.backfillFactionTotals = backfillFactionTotals;
 exports.getFactionTotals = getFactionTotals;
+exports.getSmallerFaction = getSmallerFaction;
 
 // Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online).
 // The same private minute job posts the one ending heads-up. No public invoker.
@@ -8449,12 +8450,14 @@ exports.onSatoshiFavorLive = onDocumentWritten({ document: 'satoshiFavor/current
 });
 
 const { queueBadgeGg, flushDueBursts } = require('./src/badgeGg');
+const { flushDueRecognitions } = require('./src/collectionRecognition');
 // One create handler. GGs claims the award first, then a collection that this
 // badge finishes can grant. Existing award docs do not fire this, so a deploy
 // does not pay historical completions. A badge outside every collection returns
 // before the collection read. A settled collection, with no congrats pending,
-// does too. Either failure throws so the platform retries; the GGs claim doc
-// keeps a retry from posting the same badge twice.
+// does too. A GGs queue failure throws so the platform retries; the claim doc
+// keeps a retry from posting the same badge twice. A recognition post failure
+// does not throw: the bonus is already committed and the burst stays open.
 exports.onBadgeAwardCreated = onDocumentCreated({ document: 'users/{uid}/badge_awards/{badgeId}', retry: true }, async (event) => {
     const snap = event.data;
     if (!snap) return null;
@@ -8483,10 +8486,17 @@ exports.onBadgeAwardCreated = onDocumentCreated({ document: 'users/{uid}/badge_a
     return null;
 });
 exports.flushBadgeGgBursts = onSchedule({ schedule: '* * * * *', timeZone: 'UTC' }, async () => {
+    const nowMs = Date.now();
     try {
-        await flushDueBursts(db, admin, Date.now());
+        await flushDueBursts(db, admin, nowMs);
     } catch (e) {
         console.error('[BADGE GG] flush failed:', e && e.message ? e.message : e);
+        throw e;
+    }
+    try {
+        await flushDueRecognitions(db, admin, nowMs);
+    } catch (e) {
+        console.error('[COLLECTION GG] flush failed:', e && e.message ? e.message : e);
         throw e;
     }
 });

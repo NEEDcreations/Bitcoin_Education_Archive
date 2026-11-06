@@ -16,6 +16,7 @@ execSync('npm ci', { cwd: rulesDir, stdio: 'inherit' });
 const TESTS = [
     { name: 'Syntax Validation', file: 'test-syntax.js' },
     { name: 'Faction race balance', file: 'test-faction-balance.js' },
+    { name: 'Private faction member counts', file: 'test-faction-members-private.js' },
     { name: 'Faction race prizes', file: 'test-faction-race-prizes.js' },
     { name: 'Lightning fee', file: 'test-ln-fee.js' },
     { name: '5-tier badges', file: 'test-badge-tiers.js' },
@@ -148,6 +149,7 @@ const TESTS = [
     { name: 'Tip Confirmation', file: 'test-tip-confirm.js' },
     { name: 'Spin Reminder', file: 'test-spin-reminder.js' },
     { name: 'Onboarding Quest Grant', file: 'test-onboarding-quest.js' },
+    { name: 'Popup queue', file: 'test-popup-queue.js' },
     { name: 'Username repick', file: 'test-username-repick.js' },
     { name: 'Favor display name', file: 'test-favor-display-name.js' },
     { name: 'Username spaces', file: 'test-username-spaces.js' },

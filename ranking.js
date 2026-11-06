@@ -1011,6 +1011,14 @@ function initRanking() {
         }).then(function (redirectUser) {
             redirectResultResolved = true;
             _resolveRedirectGate(redirectUser || null);
+            var stillReal = redirectUser || (auth.currentUser && !auth.currentUser.isAnonymous);
+            if (!stillReal) {
+                try { localStorage.setItem('btc_last_signed_in', '0'); } catch (eGone) {}
+                if (window.btcAuthDisplay && window.btcAuthDisplay.hideSigningShell) {
+                    try { window.btcAuthDisplay.hideSigningShell(); } catch (eHide) {}
+                }
+                try { updateAuthButton(); } catch (eBtn) {}
+            }
         }, function () {
             redirectResultResolved = true;
             _resolveRedirectGate(null);
@@ -1058,6 +1066,13 @@ function initRanking() {
                     clearUserLocalStorage({ keepGuest: !!localStorage.getItem('btc_guest_link') });
                 }
                 localStorage.setItem('btc_last_auth_uid', user.uid);
+                try { localStorage.setItem('btc_last_signed_in', '1'); } catch (eSign) {}
+                if (window.btcAuthDisplay && window.btcAuthDisplay.hideSigningShell) {
+                    try { window.btcAuthDisplay.hideSigningShell(); } catch (eShell) {}
+                }
+                if (window.btcOnboardingQueue) {
+                    try { window.btcOnboardingQueue.onSignedIn(); } catch (eQueue) {}
+                }
                 // Sync experienceMode from Firestore (cross-device continuity)
                 if (typeof window.syncExperienceModeFromFirestore === 'function') {
                     window.syncExperienceModeFromFirestore();
@@ -3596,6 +3611,8 @@ async function loadUser(uid, prefetchedDoc) {
         // TOS check — show acceptance modal if user hasn't accepted current version
         if (currentUser && !auth.currentUser.isAnonymous && currentUser.tosVersion !== TOS_CURRENT_VERSION) {
             _showTosModal();
+        } else if (window.btcOnboardingQueue) {
+            window.btcOnboardingQueue.skip('terms');
         }
 
         // Authenticator gate. The server, not a localStorage flag, decides.
@@ -4574,6 +4591,12 @@ function updateAuthButton() {
     // The display snapshot may already have painted. Auth has not settled yet,
     // so this call must not swap that paint back to the guest button.
     var authSettled = typeof window._btcEarlyAuthUser !== 'undefined' || !!firebaseUser;
+    var signingHold = false;
+    try { signingHold = localStorage.getItem('btc_last_signed_in') === '1'; } catch (eHold) {}
+    if (!authSettled && signingHold && !shouldShowSignedIn) {
+        if (window.btcAuthDisplay && window.btcAuthDisplay.showSigningShell) window.btcAuthDisplay.showSigningShell();
+        return;
+    }
     var keepOptimistic = !authSettled && !_authBtnSignedIn && document.documentElement.getAttribute('data-auth-display') === '1';
 
     // Once signed in, NEVER go back to "Create Account" unless explicitly signed out (firebaseUser is null)
@@ -8264,20 +8287,13 @@ window.bqFactionQuip = function(f) {
     var day = Math.floor(Date.now() / 86400000);
     return d.quips[day % d.quips.length];
 };
-// Reads the public totals doc to mark the smaller faction. The server decides
-// the bonus on its own; this only shows it.
-window._factionSmaller = function(t) {
-    t = t || {};
-    var mh = Number(t.members_cyber_hornets) || 0, mb = Number(t.members_honey_badgers) || 0;
-    if (mh !== mb) return mh < mb ? 'cyber_hornets' : 'honey_badgers';
-    var sh = Number(t.cyber_hornets) || 0, sb = Number(t.honey_badgers) || 0;
-    if (sh !== sb) return sh < sb ? 'cyber_hornets' : 'honey_badgers';
-    return null;
-};
+// The server names the smaller faction. This only shows the join hint.
+// Member counts stay on the server, so this call returns no numbers.
 window._paintFactionHints = function() {
-    if (typeof db === 'undefined' || !db || !db.collection) return;
-    db.collection('satoshiFavor').doc('factionTotals').get().then(function(doc) {
-        var small = window._factionSmaller(doc.exists ? doc.data() : {});
+    if (typeof firebase === 'undefined' || !firebase.functions) return;
+    firebase.functions().httpsCallable('getSmallerFaction')({}).then(function(res) {
+        var data = res && res.data ? res.data : {};
+        var small = data.smaller === 'cyber_hornets' || data.smaller === 'honey_badgers' ? data.smaller : null;
         window._factionUnderdogPick = small;
         ['cyber_hornets', 'honey_badgers'].forEach(function(f) {
             var tag = document.getElementById('factionUnderdogTag_' + f);
@@ -11190,25 +11206,36 @@ function clearUserLocalStorage(opts) {
 window.clearUserLocalStorage = clearUserLocalStorage;
 
 // ---- TOS Acceptance Modal (existing users) ----
-function _showTosModal() {
+function _openTosModalNow() {
     var m = document.getElementById('tosModal');
     if (m) m.classList.add('open');
     document.querySelectorAll('.rank-toast').forEach(function(el) { el.remove(); });
     var pill = document.getElementById('nachoQuestPill');
     if (pill) pill.style.display = 'none';
-    // Mode / onboarding wait until Terms are accepted.
+    // Mode / onboarding wait until Terms are accepted or dismissed.
     var modeCard = document.getElementById('bqModeHomeCard');
     if (modeCard) modeCard.style.display = 'none';
     var intro = document.getElementById('btcIntroOverlay');
     if (intro) intro.style.display = 'none';
     var questOverlay = document.getElementById('nachoQuestOverlay');
     if (questOverlay) questOverlay.remove();
+    if (window.btcSheet && window.btcSheet.setCloser) {
+        window.btcSheet.setCloser(m, function () { window._dismissTos(); });
+    }
+    if (window.btcSheet && window.btcSheet.sync) window.btcSheet.sync();
     try {
         var footer = m && m.querySelector('.tos-footer');
         if (footer && footer.scrollIntoView) footer.scrollIntoView({ block: 'nearest' });
-        var btn = document.getElementById('tosAcceptBtn');
-        if (btn && btn.focus) setTimeout(function() { try { btn.focus(); } catch (e) {} }, 50);
+        var closeBtn = document.getElementById('tosCloseBtn');
+        if (closeBtn && closeBtn.focus) setTimeout(function() { try { closeBtn.focus(); } catch (e) {} }, 50);
     } catch (e) {}
+}
+function _showTosModal() {
+    if (window.btcOnboardingQueue) {
+        window.btcOnboardingQueue.ready('terms', _openTosModalNow);
+        return;
+    }
+    _openTosModalNow();
 }
 
 function _tosNeedsTick() {
@@ -11222,6 +11249,18 @@ function _tosNeedsTick() {
     if (hint) hint.hidden = false;
 }
 
+window._dismissTos = function () {
+    var m = document.getElementById('tosModal');
+    var wasOpen = !!(m && m.classList.contains('open'));
+    if (m) m.classList.remove('open');
+    var check = document.getElementById('tosModalCheck');
+    if (check) check.checked = false;
+    var hint = document.getElementById('tosNeedTick');
+    if (hint) hint.hidden = true;
+    try { sessionStorage.setItem('btc_tos_dismissed', '1'); } catch (e) {}
+    if (wasOpen && window.btcOnboardingQueue) window.btcOnboardingQueue.done('terms');
+    if (window.btcSheet && window.btcSheet.sync) window.btcSheet.sync();
+};
 window._acceptTos = async function() {
     var check = document.getElementById('tosModalCheck');
     if (!check || !check.checked) { _tosNeedsTick(); return; }
@@ -11242,6 +11281,7 @@ window._acceptTos = async function() {
         }
         var m = document.getElementById('tosModal');
         if (m) m.classList.remove('open');
+        if (window.btcOnboardingQueue) window.btcOnboardingQueue.done('terms');
         var modeCard = document.getElementById('bqModeHomeCard');
         if (modeCard) modeCard.style.display = '';
         flushAfterTos();
@@ -11521,6 +11561,10 @@ async function signOutUser(force) {
     clearTotpVerified();
     clearAuthDisplay();
     clearUserLocalStorage();
+    try { localStorage.setItem('btc_last_signed_in', '0'); } catch (eSignOut) {}
+    if (window.btcAuthDisplay && window.btcAuthDisplay.hideSigningShell) {
+        try { window.btcAuthDisplay.hideSigningShell(); } catch (eShellOut) {}
+    }
     if (typeof window.bqClearTopicDrafts === 'function') window.bqClearTopicDrafts();
     await auth.signOut();
     location.reload();

@@ -7,8 +7,12 @@
 // remainder is credited outside the shared daily cap and is not written to
 // that day's daily_points total. The ledger source is collection_bonus.
 // Ten Satoshi's Favor points are added with the first record. That record
-// also posts one Nacho message in Global Chat. A failed post stays pending
-// and is retried. A client claim cannot choose the amount or the post.
+// queues one recognition. Completions for the same player inside one minute
+// share one Nacho line in Global Chat and one GGs announcement. A failed
+// post stays pending and is retried. It does not roll back the bonus. A
+// client claim cannot choose the amount or the post.
+
+const recognition = require('./collectionRecognition');
 
 const fs = require('fs');
 const path = require('path');
@@ -407,74 +411,12 @@ function mentionUsername(profile) {
     return name;
 }
 
-function collectionChatDocId(bonusId, uid) {
-    const clean = String(bonusId || '') + '_' + String(uid || '');
-    const safe = clean.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 120);
-    return safe ? ('colbonus_' + safe) : '';
-}
-
 function collectionCongratsText(username, collectionName) {
     const collection = String(collectionName || 'collection').replace(/[\r\n<>@]/g, ' ').trim() || 'collection';
     const who = username ? ('@' + username) : NEUTRAL_NAME;
     return '🎉 ' + who + ' completed the ' + collection + ' collection! The whole set is yours. Congratulations!';
 }
 
-async function postCollectionCongrats(db, adminSdk, uid, col) {
-    const docId = collectionChatDocId(col && col.bonusId, uid);
-    if (!db || !adminSdk || !docId || !col) return { wrote: false, reason: 'bad_plan' };
-    let username = '';
-    try {
-        const profileSnap = await db.collection('public_profiles').doc(uid).get();
-        const profile = profileSnap && profileSnap.exists ? (profileSnap.data() || {}) : null;
-        username = mentionUsername(profile);
-    } catch (err) {
-        username = '';
-    }
-    const text = collectionCongratsText(username, col.name).slice(0, 500);
-    const chatRef = db.collection('global_chat').doc(docId);
-    const notifRef = db.collection('notifications').doc(docId);
-    const serverTimestamp = function () { return adminSdk.firestore.FieldValue.serverTimestamp(); };
-    const outcome = await db.runTransaction(async function (t) {
-        const chatSnap = await t.get(chatRef);
-        if (chatSnap.exists) return { wrote: false, reason: 'already_posted' };
-        const msg = {
-            uid: 'nacho-bot',
-            name: '🦌 Nacho',
-            text: text,
-            isNachoAuto: false,
-            ts: serverTimestamp(),
-        };
-        if (username) msg.mentionUid = uid;
-        t.set(chatRef, msg);
-        if (username) {
-            t.set(notifRef, {
-                recipientId: uid,
-                senderId: 'nacho-bot',
-                senderName: 'Nacho 🦌',
-                type: 'chat_mention',
-                message: '💬 @Nacho mentioned you in Global Chat: "' + text.slice(0, 50) + '"',
-                targetType: 'chat',
-                targetId: docId,
-                read: false,
-                createdAt: serverTimestamp(),
-            });
-        }
-        return { wrote: true, reason: 'ok', mentionUid: username ? uid : '' };
-    });
-    if (outcome && outcome.wrote && outcome.mentionUid) {
-        try {
-            const push = require('./push');
-            await push.sendUserPush(outcome.mentionUid, 'mentions', {
-                title: 'You were mentioned',
-                body: '🦌 Nacho mentioned you in chat.',
-                url: 'https://bitcoineducation.quest/#chat',
-            });
-        } catch (err) {
-            console.warn('[collectionBonus] mention push failed', err && err.message ? err.message : err);
-        }
-    }
-    return outcome || { wrote: false, reason: 'empty' };
-}
 
 function collectionsTouching(badgeId) {
     if (!badgeId || isRetiredSetBonus(badgeId)) return [];
@@ -532,24 +474,20 @@ async function congratsPendingFor(db, uid, bonusId) {
     }
 }
 
-async function clearCongratsPending(db, awardRef) {
-    await db.runTransaction(async function (t) {
-        const snap = await t.get(awardRef);
-        if (!snap || !snap.exists) return;
-        const data = typeof snap.data === 'function' ? (snap.data() || {}) : {};
-        if (data.congratsPending !== true) return;
-        t.set(awardRef, { congratsPending: false }, { merge: true });
-    });
-}
-
-async function finishCongrats(db, adminSdk, uid, col, awardRef) {
-    const posted = await module.exports.postCollectionCongrats(db, adminSdk, uid, col);
-    const settled = !!(posted && (posted.wrote || posted.reason === 'already_posted'));
-    if (settled) await clearCongratsPending(db, awardRef);
-    return {
-        chatPosted: !!(posted && posted.wrote),
-        congratsPending: !settled,
-    };
+async function finishCongrats(db, adminSdk, uid, col, nowMs) {
+    try {
+        const queued = await recognition.enqueueRecognition(db, adminSdk, uid, col, nowMs);
+        const settled = !!(queued && queued.settled);
+        const flushed = queued && queued.flushed;
+        return {
+            chatPosted: !!(flushed && flushed.posted),
+            congratsPending: !settled,
+            recognitionQueued: !!(queued && queued.queued),
+        };
+    } catch (err) {
+        console.error('[collectionBonus] chat', err && err.message ? err.message : err);
+        return { chatPosted: false, congratsPending: true };
+    }
 }
 
 async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
@@ -649,9 +587,9 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
             congratsPending: options.postChat === false ? false : true,
             favorPoint: favorCtx.favorPoint === true,
             // This create re-enters onBadgeAwardCreated. ggSkip keeps the bonus
-            // out of the GGs burst, so it neither joins an open burst nor flushes
-            // one. Nacho posts the collection line in Global Chat when postChat is on.
-            // Backfill and any postChat:false grant also stay quiet in GGs.
+            // out of the badge GGs burst. The recognition flush writes the
+            // collection line in Global Chat and in GGs when postChat is on.
+            // Backfill and any postChat:false grant stay quiet.
             ggSkip: true,
         };
         t.set(awardRef, awardDoc);
@@ -675,20 +613,10 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
         result.granted === true || (result.reason === 'already' && result.congratsPending === true)
     );
     if (shouldPost) {
-        try {
-            const posted = await finishCongrats(db, adminSdk, uid, col, awardRef);
-            result.chatPosted = posted.chatPosted;
-            result.congratsPending = posted.congratsPending;
-        } catch (err) {
-            console.error('[collectionBonus] chat', err && err.message ? err.message : err);
-            result.chatPosted = false;
-            result.congratsPending = true;
-            if (err && typeof err === 'object') {
-                err.collectionChat = true;
-                err.grantResult = result;
-            }
-            throw err;
-        }
+        const posted = await finishCongrats(db, adminSdk, uid, col, nowMs);
+        result.chatPosted = posted.chatPosted;
+        result.congratsPending = posted.congratsPending;
+        if (posted.recognitionQueued) result.recognitionQueued = true;
     }
     return result;
 }
@@ -711,7 +639,6 @@ async function maybeGrantForBadge(db, adminSdk, uid, badgeId, opts) {
     } catch (err) {
         held = null;
     }
-    let chatErr = null;
     for (let i = 0; i < hits.length; i++) {
         if (held) {
             const plan = planGrant(hits[i], held);
@@ -743,31 +670,8 @@ async function maybeGrantForBadge(db, adminSdk, uid, badgeId, opts) {
                 }
             }
         }
-        try {
-            out.push(await grantCollectionBonus(db, adminSdk, uid, hits[i].id, opts));
-        } catch (err) {
-            if (!err || !err.collectionChat) throw err;
-            const prior = err.grantResult || {};
-            const report = {
-                granted: prior.reason === 'already' ? false : prior.granted === true,
-                success: true,
-                reason: 'chat',
-                chatPosted: false,
-                congratsPending: true,
-                awarded: 0,
-                xp: 0,
-                badgeId: hits[i].bonusId,
-                collectionId: hits[i].id,
-            };
-            console.error('[collectionBonus] pending', report.granted, report.congratsPending, report.reason);
-            if (!chatErr) {
-                err.chatReport = report;
-                chatErr = err;
-            }
-            out.push(report);
-        }
+        out.push(await grantCollectionBonus(db, adminSdk, uid, hits[i].id, opts));
     }
-    if (chatErr) throw chatErr;
     return out;
 }
 
@@ -799,9 +703,9 @@ module.exports = {
     addUser: addUser,
     COLLECTION_FAVOR_POINTS: COLLECTION_FAVOR_POINTS,
     mentionUsername: mentionUsername,
-    collectionChatDocId: collectionChatDocId,
     collectionCongratsText: collectionCongratsText,
-    postCollectionCongrats: postCollectionCongrats,
+    postRecognitionBurst: recognition.postRecognitionBurst,
+    flushDueRecognitions: recognition.flushDueRecognitions,
     stageBadgeFavor: stageBadgeFavor,
     grantCollectionBonus: grantCollectionBonus,
     maybeGrantForBadge: maybeGrantForBadge,

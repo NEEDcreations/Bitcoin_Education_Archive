@@ -1002,8 +1002,140 @@
         window.startNachoQuest({ pillOnly: true });
     }
 
+    function paceAllowed(mode) {
+        return mode === 'lite' || mode === 'beginner' || mode === 'intermediate' || mode === 'advanced';
+    }
+    function readPace() {
+        var stored = '';
+        try { stored = localStorage.getItem('btc_experience_mode') || ''; } catch (e) {}
+        return paceAllowed(stored) ? stored : '';
+    }
+    function introShell() {
+        var overlay = document.createElement('div');
+        overlay.id = 'btcIntroOverlay';
+        overlay.setAttribute('data-btc-sheet', '1');
+        overlay.setAttribute('role', 'presentation');
+        var wide = window.innerWidth > 800;
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:2100003;background:rgba(2,6,23,0.72);display:flex;align-items:' + (wide ? 'center' : 'flex-end') + ';justify-content:center;padding:' + (wide ? '24px' : '0') + ';box-sizing:border-box;';
+        var card = document.createElement('div');
+        card.setAttribute('data-intro-card', '1');
+        card.setAttribute('role', 'dialog');
+        card.setAttribute('aria-modal', 'true');
+        card.setAttribute('aria-labelledby', 'bqIntroTitle');
+        card.tabIndex = -1;
+        card.style.cssText = 'background:var(--bg-side,#0f172a);color:var(--text,#e2e8f0);width:100%;max-width:520px;max-height:min(100dvh,100vh);overflow:auto;border-radius:' + (wide ? '20px' : '20px 20px 0 0') + ';padding:18px 18px 28px;border:1px solid var(--border);box-sizing:border-box;';
+        overlay.appendChild(card);
+        return overlay;
+    }
+    window.btcShowPaceStep = function (done) {
+        var finish = function () {
+            var overlay = document.getElementById('btcIntroOverlay');
+            if (overlay) overlay.remove();
+            if (typeof done === 'function') done();
+        };
+        var picked = readPace() || 'beginner';
+        window.setExperienceMode(picked);
+        var overlay = introShell();
+        document.body.appendChild(overlay);
+        if (window.btcSheet && window.btcSheet.setCloser) {
+            window.btcSheet.setCloser(overlay, function () {
+                window.setExperienceMode(picked);
+                finish();
+            });
+        }
+        var card = overlay.querySelector('[data-intro-card]');
+        var title = document.createElement('h2');
+        title.id = 'bqIntroTitle';
+        title.textContent = 'How much do you want to see?';
+        title.style.cssText = 'color:var(--heading);font-size:1.35rem;line-height:1.25;margin:0 0 8px;padding-right:48px;';
+        var body = document.createElement('p');
+        body.textContent = 'Pick a pace. You can change it anytime in Settings. Your XP stays either way.';
+        body.style.cssText = 'color:var(--text);font-size:1rem;line-height:1.45;margin:0 0 14px;';
+        card.appendChild(title);
+        card.appendChild(body);
+        var picker = document.createElement('div');
+        picker.id = 'bqIntroModePicker';
+        card.appendChild(picker);
+        if (typeof window.bqFillModePicker === 'function') {
+            window.bqFillModePicker(picker, {
+                recommended: quizRecommended(),
+                preselect: picked,
+                onPick: function (id) {
+                    picked = id;
+                    window.setExperienceMode(id);
+                }
+            });
+        }
+        var next = document.createElement('button');
+        next.type = 'button';
+        next.textContent = 'Continue';
+        next.style.cssText = 'width:100%;margin-top:14px;padding:14px;min-height:44px;border:none;border-radius:12px;background:var(--accent,#f97316);color:#fff;font-size:16px;font-weight:800;font-family:inherit;cursor:pointer;';
+        next.addEventListener('click', function () {
+            window.setExperienceMode(picked);
+            finish();
+        });
+        card.appendChild(next);
+        if (window.btcSheet && window.btcSheet.sync) window.btcSheet.sync();
+    };
+    window.btcShowQuizStep = function (done) {
+        var hasQuiz = false;
+        try { hasQuiz = !!localStorage.getItem(MODE_QUIZ_KEY); } catch (eQk) {}
+        if (hasQuiz) { if (typeof done === 'function') done(); return; }
+        var overlay = introShell();
+        document.body.appendChild(overlay);
+        var finish = function () {
+            if (overlay.parentNode) overlay.remove();
+            if (typeof done === 'function') done();
+        };
+        if (window.btcSheet && window.btcSheet.setCloser) window.btcSheet.setCloser(overlay, finish);
+        renderModeQuiz(0, [], finish);
+        if (window.btcSheet && window.btcSheet.sync) window.btcSheet.sync();
+    };
+    window.btcBeginSignedInOnboarding = function () {
+        if (window._bqOnboardingStarted) return;
+        if (!signedInReal()) return;
+        window._bqOnboardingStarted = true;
+        hookNav();
+        if (typeof window.mountExperienceModeHome === 'function') window.mountExperienceModeHome();
+        var q = window.btcOnboardingQueue;
+        if (!q) {
+            if (!alreadyOnboarded()) window.showOnboardingIntro({ force: true });
+            return;
+        }
+        if (alreadyOnboarded()) {
+            q.skip('pace');
+            q.skip('quiz');
+            q.skip('quest');
+            window.applySimplifiedHome();
+            if (window.isNachoQuestActive() && !window.isNachoQuestDone()) {
+                window._showNachoQuestPill();
+                window.startNachoQuestDetection();
+            }
+        } else {
+            window.btcClaimSessionPopup('onboarding');
+            q.ready('pace', function () { window.btcShowPaceStep(function () { q.done('pace'); }); });
+            q.ready('quiz', function () { window.btcShowQuizStep(function () { q.done('quiz'); }); });
+            q.ready('quest', function () {
+                markIntroSeen();
+                window.applySimplifiedHome();
+                window.startNachoQuest({ pillOnly: true });
+                window._showNachoQuestOverlay();
+                var questOverlay = document.getElementById('nachoQuestOverlay');
+                if (questOverlay && window.btcSheet && window.btcSheet.setCloser) {
+                    window.btcSheet.setCloser(questOverlay, function () {
+                        if (questOverlay.parentNode) questOverlay.remove();
+                        q.done('quest');
+                    });
+                } else q.done('quest');
+                if (window.btcSheet && window.btcSheet.sync) window.btcSheet.sync();
+            });
+        }
+        q.pump();
+    };
+
     window.showOnboardingIntro = function (opts) {
         var force = opts && opts.force;
+        if (!force && !signedInReal()) return false;
         if (!force && alreadyOnboarded()) return false;
         // Terms first: do not stack the welcome tour over the Accept dialog.
         if (!force && typeof window.tosBlocking === 'function' && window.tosBlocking()) {
@@ -1344,23 +1476,20 @@
     function boot() {
         hookNav();
         setTimeout(hookNav, 1500);
-        if (!alreadyOnboarded()) window.btcClaimSessionPopup('onboarding');
         if (typeof window.mountExperienceModeHome === 'function') window.mountExperienceModeHome();
-        var hashed = false;
-        try { hashed = !!(location.hash && location.hash.length > 1); } catch (e) {}
-        if (!alreadyOnboarded() && !hashed) window.showOnboardingIntro();
-        else {
+        if (!signedInReal()) {
+            if (window.btcOnboardingQueue) window.btcOnboardingQueue.holdUntilSignedIn();
             window.applySimplifiedHome();
-            if (typeof window.mountExperienceModeHome === 'function') window.mountExperienceModeHome();
-            if (window.isNachoQuestActive() && !window.isNachoQuestDone()) {
-                window._showNachoQuestPill();
-                window.startNachoQuestDetection();
-            }
+            return;
         }
+        window.btcBeginSignedInOnboarding();
         window.addEventListener('hashchange', function () {
+            if (!signedInReal() || alreadyOnboarded()) return;
             var still = false;
             try { still = !!(location.hash && location.hash.length > 1); } catch (e) {}
-            if (!still && !alreadyOnboarded() && !document.getElementById('btcIntroOverlay')) window.showOnboardingIntro();
+            if (!still && !document.getElementById('btcIntroOverlay') && window.btcOnboardingQueue && window.btcOnboardingQueue.isTurn('pace')) {
+                window.btcShowPaceStep(function () { window.btcOnboardingQueue.done('pace'); });
+            }
         });
     }
 

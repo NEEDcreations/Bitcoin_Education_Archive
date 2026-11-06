@@ -22,14 +22,29 @@ function nachoChatMessage(plan, serverTimestamp) {
         name: plan.authorName,
         text: plan.text,
         isNachoAuto: plan.isNachoAuto,
-        mentionUid: plan.mentionUid,
         ts: serverTimestamp(),
     };
+    // mentionUid is what turns the first @name into a profile chip.
+    // An empty id is omitted so the line is not a mention.
+    if (plan.mentionUid) msg.mentionUid = plan.mentionUid;
     if (plan.activityRef) {
         msg.activityRef = plan.activityRef;
         msg.activityKind = plan.activityKind || '';
     }
     return msg;
+}
+
+// The chat write shared by gift shoutouts, activity shoutouts, and
+// collection recognition. The caller owns the transaction and the idempotency
+// read. A mention also writes the in-app notification.
+function writeNachoGlobalPost(t, db, plan, serverTimestamp) {
+    const chatRef = db.collection(plan.collection).doc(plan.docId);
+    t.set(chatRef, nachoChatMessage(plan, serverTimestamp));
+    if (plan.mentionUid) {
+        const notifRef = db.collection('notifications').doc(plan.docId);
+        t.set(notifRef, mentionNotification(plan, serverTimestamp));
+    }
+    return { chatRef: chatRef };
 }
 
 function mentionNotification(plan, serverTimestamp) {
@@ -65,7 +80,6 @@ async function publishShoutoutOnce(opts) {
     }
     const serverTimestamp = function() { return admin.firestore.FieldValue.serverTimestamp(); };
     const chatRef = db.collection(plan.collection).doc(plan.docId);
-    const notifRef = db.collection('notifications').doc(plan.docId);
 
     return db.runTransaction(async function(t) {
         const chatSnap = await t.get(chatRef);
@@ -151,8 +165,7 @@ async function publishShoutoutOnce(opts) {
             });
         }
 
-        t.set(chatRef, nachoChatMessage(plan, serverTimestamp));
-        t.set(notifRef, mentionNotification(plan, serverTimestamp));
+        writeNachoGlobalPost(t, db, plan, serverTimestamp);
         return { wrote: true, reason: 'ok' };
     });
 }
@@ -160,4 +173,5 @@ async function publishShoutoutOnce(opts) {
 module.exports = {
     publishShoutoutOnce: publishShoutoutOnce,
     nachoChatMessage: nachoChatMessage,
+    writeNachoGlobalPost: writeNachoGlobalPost,
 };

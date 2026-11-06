@@ -28,7 +28,7 @@
             const btn = document.querySelector('[onclick*="go(\'' + id + '\'"]');
             if (btn) {
                 const badge = document.createElement('span');
-                badge.style.cssText = 'position:absolute;top:4px;right:4px;background:#f7931a;color:#fff;font-size:0.55rem;font-weight:900;padding:2px 5px;border-radius:4px;box-shadow:0 0 10px rgba(247,147,26,0.4);';
+                badge.style.cssText = 'display:inline-block;margin-left:6px;vertical-align:middle;background:#f7931a;color:#fff;font-size:0.55rem;font-weight:900;padding:2px 5px;border-radius:4px;box-shadow:0 0 10px rgba(247,147,26,0.4);';
                 badge.textContent = '2X PTS';
                 btn.style.position = 'relative';
                 btn.appendChild(badge);

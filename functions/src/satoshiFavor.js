@@ -1501,8 +1501,8 @@ exports.backfillFactionTotals = functionsV1.https.onCall(async (data, context) =
   // Commit contributor doc stamps in batches of 500
   await writeBatch.commit();
 
-  // Overwrite factionTotals
-  // merge keeps the member counts.
+  // Overwrite the race scores. merge keeps race fields this job does not
+  // own (head start, race id). Member counts live on factionMembers.
   await totalsRef.set({
     cyber_hornets: totals.cyber_hornets,
     honey_badgers: totals.honey_badgers,
@@ -1517,23 +1517,27 @@ exports.backfillFactionTotals = functionsV1.https.onCall(async (data, context) =
 
 /**
  * getFactionTotals (onCall)
- * Public read of factionTotals doc. Real-time updates handled client-side via Firestore listener.
+ * Public race scores. Member counts and per-member averages stay off this response.
+ * Real-time score updates are handled client-side via the factionTotals listener.
  */
-exports.getFactionTotals = functionsV1.https.onCall(async (data, context) => {
+exports.getFactionTotals = functionsV1.https.onCall(async () => {
   const doc = await db.collection('satoshiFavor').doc('factionTotals').get();
-  if (!doc.exists) return { cyber_hornets: 0, honey_badgers: 0, unaffiliated: 0 };
-  const d = doc.data();
-  return {
-    cyber_hornets: d.cyber_hornets || 0,
-    honey_badgers: d.honey_badgers || 0,
-    unaffiliated: d.unaffiliated || 0,
-    members_cyber_hornets: d.members_cyber_hornets || 0,
-    members_honey_badgers: d.members_honey_badgers || 0,
-    avg_cyber_hornets: factionBalance.perMember(d, 'cyber_hornets'),
-    avg_honey_badgers: factionBalance.perMember(d, 'honey_badgers'),
-    underdog: factionBalance.underdogActive(d, 'cyber_hornets') ? 'cyber_hornets'
-      : factionBalance.underdogActive(d, 'honey_badgers') ? 'honey_badgers' : null,
-  };
+  return factionBalance.publicFactionTotals(doc.exists ? doc.data() : null);
+});
+
+/**
+ * getSmallerFaction (onCall)
+ * Which side is smaller for the join hint. No counts, no scores.
+ */
+exports.getSmallerFaction = functionsV1.https.onCall(async () => {
+  const membersSnap = await db.collection('satoshiFavor').doc('factionMembers').get();
+  const totalsSnap = await db.collection('satoshiFavor').doc('factionTotals').get();
+  const totals = totalsSnap.exists ? (totalsSnap.data() || {}) : {};
+  return factionBalance.smallerFactionReply(
+    membersSnap.exists ? (membersSnap.data() || {}) : null,
+    !!membersSnap.exists,
+    totals
+  );
 });
 
 exports.SPAM_HASHER_PER_MINUTE = SPAM_HASHER_PER_MINUTE;
