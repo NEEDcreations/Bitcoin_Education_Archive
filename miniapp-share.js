@@ -215,23 +215,50 @@
         return '';
     }
 
-    function buildUrl(hashPath, code) {
+    function srcQuery(src) {
+        var s = String(src == null ? '' : src);
+        if (!/^[A-Za-z0-9_.-]{1,64}$/.test(s)) return '';
+        return 'src=' + encodeURIComponent(s);
+    }
+
+    function readPageSrc() {
+        try {
+            var search = root.location && root.location.search ? String(root.location.search) : '';
+            var parts = search.replace(/^\?/, '').split('&');
+            for (var i = 0; i < parts.length; i++) {
+                var kv = parts[i].split('=');
+                if (kv[0] === 'src') return decodeURIComponent(kv.slice(1).join('='));
+            }
+        } catch (e) {}
+        return '';
+    }
+
+    function buildUrl(hashPath, code, src) {
         var path = String(hashPath || '').replace(/^#/, '').replace(/^\/+/, '');
         if (!path || path.indexOf('http') === 0 || path.indexOf('//') === 0) path = 'bitcoin-beats';
-        var base = SITE + '/#' + path;
-        if (code == null) {
-            if (root && typeof root.shareDeepUrl === 'function') return root.shareDeepUrl(base);
-            code = liveCode();
+        var srcPart = srcQuery(src);
+        if (code == null && !srcPart && root && typeof root.shareDeepUrl === 'function') {
+            return root.shareDeepUrl(SITE + '/#' + path);
         }
+        if (code == null) code = liveCode();
         var c = String(code || '');
-        if (!REF_RE.test(c)) return base;
-        return SITE + '/?ref=' + encodeURIComponent(c) + '#' + path;
+        var query = srcPart;
+        if (REF_RE.test(c)) query = 'ref=' + encodeURIComponent(c) + (srcPart ? ('&' + srcPart) : '');
+        return SITE + '/' + (query ? ('?' + query) : '') + '#' + path;
     }
 
     function shareModel(appId, ctx) {
         ctx = ctx || {};
         var spec = specById(appId);
         if (!spec) return null;
+        // The PvP tab is inside the hub. Sharing it must stay on #proof-of-play.
+        // A lobby or match link is the separate pvp share, not this one.
+        if (appId === 'pop' && ctx.tab === 'pvp') {
+            var hubCtx = {};
+            Object.keys(ctx).forEach(function (key) { hubCtx[key] = ctx[key]; });
+            hubCtx.tab = 'hub';
+            ctx = hubCtx;
+        }
         if (appId === 'pop' && ctx.tab && ctx.tab !== 'hub' && specById(ctx.tab)) return shareModel(ctx.tab, ctx);
         if (appId === 'quests' && ctx.tab === 'favor') return shareModel('favor', ctx);
         var sentence = spec.sentence;
@@ -259,7 +286,7 @@
             }
             name = 'Bitcoin Beats';
         }
-        var url = buildUrl(hash, ctx.code);
+        var url = buildUrl(hash, ctx.code, ctx.src);
         return { id: appId, name: name, sentence: sentence, hash: hash, url: url };
     }
 
@@ -300,7 +327,9 @@
             ctx.artist = np.artist || '';
             ctx.trackId = np.trackId || '';
         } else if (appId === 'pop') {
-            ctx.tab = root._popShareTab || 'hub';
+            var tab = root._popShareTab || 'hub';
+            ctx.tab = tab === 'pvp' ? 'hub' : tab;
+            if (!ctx.src) ctx.src = readPageSrc();
         } else if (appId === 'quests') {
             ctx.tab = root._questHubTab || '';
         }
@@ -355,7 +384,9 @@
         var hash = String(raw == null ? '' : raw).replace(/^#/, '');
         if (!hash) return false;
         var hiddenId = linkedApp(hash);
-        if (hiddenId && appHidden(hiddenId)) {
+        // An explicit hub invite still opens Proof of Play for a logged-out
+        // or new player, even when Guided or Lite hides the menu entry.
+        if (hiddenId && appHidden(hiddenId) && hash !== 'proof-of-play') {
             leaveToHome();
             return true;
         }

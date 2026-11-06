@@ -175,6 +175,70 @@ test('Bitcoin Beats strips links, caps fields, and drops an unknown track', () =
     global.stripShareLinks = savedStrip;
 });
 
+test('Proof of Play share opens the hub and keeps ref and src', () => {
+    const hubSentence = "I'm in the Proof of Play hub on Bitcoin Quest! Check it out!";
+    const fromPvpTab = api.shareModel('pop', { tab: 'pvp', code: CODE, src: 'popshare' });
+    assert.strictEqual(fromPvpTab.hash, 'proof-of-play');
+    assert.strictEqual(fromPvpTab.sentence, hubSentence);
+    assert.strictEqual(fromPvpTab.url, 'https://bitcoineducation.quest/?ref=' + CODE + '&src=popshare#proof-of-play');
+    assert.strictEqual(fromPvpTab.url.includes('#pvp'), false);
+    const plain = api.shareModel('pop', { tab: 'pvp', code: CODE });
+    assert.strictEqual(plain.url, 'https://bitcoineducation.quest/?ref=' + CODE + '#proof-of-play');
+    const guest = api.shareModel('pop', { tab: 'hub', code: '' });
+    assert.strictEqual(guest.url, 'https://bitcoineducation.quest/#proof-of-play');
+    const landing = api.splitLanding(fromPvpTab.url);
+    assert.strictEqual(landing.ref, CODE);
+    assert.strictEqual(landing.hash, 'proof-of-play');
+    const lobby = api.shareModel('pvp', { code: CODE, src: 'lobby' });
+    assert.strictEqual(lobby.hash, 'pvp');
+    assert.strictEqual(lobby.url, 'https://bitcoineducation.quest/?ref=' + CODE + '&src=lobby#pvp');
+    const prevTab = global._popShareTab;
+    const prevCode = global.liveRefCode;
+    const prevLoc = global.location;
+    global._popShareTab = 'pvp';
+    global.liveRefCode = function () { return CODE; };
+    global.location = { search: '?src=campaign', hash: '#proof-of-play' };
+    const opened = api.open('pop');
+    assert.strictEqual(opened.hash, 'proof-of-play');
+    assert.strictEqual(opened.url, 'https://bitcoineducation.quest/?ref=' + CODE + '&src=campaign#proof-of-play');
+    global._popShareTab = prevTab;
+    global.liveRefCode = prevCode;
+    global.location = prevLoc;
+    const prevStore = global.localStorage;
+    const prevHome = global.goHome;
+    const prevEnter = global.enterProofOfPlay;
+    let homes = 0;
+    let tab = '';
+    global.goHome = function () { homes++; };
+    global.enterProofOfPlay = function (name) { tab = name == null ? 'default' : name; };
+    global.localStorage = { getItem: function () { return ''; } };
+    assert.strictEqual(api.consumeHash('proof-of-play'), false);
+    assert.strictEqual(homes, 0);
+    global.localStorage = { getItem: function (key) { return key === 'btc_experience_mode' ? 'beginner' : ''; } };
+    assert.strictEqual(api.consumeHash('proof-of-play'), false);
+    assert.strictEqual(homes, 0);
+    global.localStorage = { getItem: function (key) { return key === 'btc_experience_mode' ? 'lite' : ''; } };
+    assert.strictEqual(api.consumeHash('proof-of-play'), false);
+    assert.strictEqual(homes, 0);
+    assert.strictEqual(api.consumeHash('proof-of-play/arcade'), true);
+    assert.strictEqual(homes, 1);
+    assert.strictEqual(api.consumeHash('pvp'), true);
+    assert.strictEqual(homes, 2);
+    global.localStorage = { getItem: function () { return ''; } };
+    homes = 0;
+    assert.strictEqual(api.appHidden('pop', ''), false);
+    assert.strictEqual(tab, '');
+    const route = read('app.js');
+    const popCase = route.slice(route.indexOf("case 'proof-of-play':"), route.indexOf("case 'proof-of-play':") + 500);
+    assert.ok(popCase.includes('enterProofOfPlay'));
+    assert.strictEqual(popCase.includes('enterPVPMode'), false);
+    const pvpJs = read('pvp.js');
+    assert.ok(pvpJs.includes("var base = 'https://bitcoineducation.quest/#pvp';"));
+    global.localStorage = prevStore;
+    global.goHome = prevHome;
+    global.enterProofOfPlay = prevEnter;
+});
+
 test('arcade, galaxy, and RyRacer land on the in-app launcher', () => {
     assert.strictEqual(api.resolvePopTab('nope'), 'arcade');
     assert.strictEqual(api.resolvePopTab('proof-of-play/ryracer'), 'ryracer');
@@ -263,12 +327,12 @@ test('a TCTV landing still stores the referral code for signup', () => {
     assert.strictEqual(api.shareModel('chat', { code: CODE }).hash, 'chat');
 });
 
-test('pages ship the helper, one Latest line, and the v2453 cache', () => {
+test('pages ship the helper, one Latest line, and the v2523 cache', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('miniapp-share.js?v=20261031_v2447'));
-    assert.ok(html.includes('achievement-share.js?v=20261031_v2447'));
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2455'"));
+    assert.ok(html.includes('miniapp-share.js?v=20261106_v2523'));
+    assert.ok(html.includes('achievement-share.js?v=20261105_v2499'));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2523'"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 0);
     assert.strictEqual(notes.includes('Latest: A returning signed-in player'), false);
