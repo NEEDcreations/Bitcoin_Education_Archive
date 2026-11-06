@@ -5,9 +5,20 @@ const path = require('path');
 const P = require('../functions/src/factionRacePrizes');
 const root = path.join(__dirname, '..');
 let passed = 0, failed = 0;
+const pending = [];
 function test(name, fn) {
-    try { fn(); console.log('✅ ' + name); passed++; }
-    catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
+    try {
+        const result = fn();
+        if (result && typeof result.then === 'function') {
+            pending.push(result.then(function () {
+                console.log('✅ ' + name); passed++;
+            }, function (e) {
+                console.log('❌ ' + name + ': ' + e.message); failed++;
+            }));
+            return;
+        }
+        console.log('✅ ' + name); passed++;
+    } catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 const NOW = Date.UTC(2026, 10, 5);
 function c(uid, contribution, extra) {
@@ -25,10 +36,14 @@ test('default pots: 121,000 winners, 2,100 losers top 10', () => {
     assert.strictEqual(cfg.winnerPotSats, 121000);
     assert.strictEqual(cfg.loserPotSats, 2100);
     assert.strictEqual(cfg.loserTopN, 10);
+    assert.strictEqual(cfg.headStartMult, 1.1);
+    assert.strictEqual(cfg.headStartPoints, 1000);
 });
 test('bad config values fall back to defaults', () => {
-    const cfg = P.readConfig({ winnerPotSats: -1, loserPotSats: 'x', loserTopN: 0 });
+    const cfg = P.readConfig({ winnerPotSats: -1, loserPotSats: 'x', loserTopN: 0, headStartMult: 0, headStartPoints: null });
     assert.strictEqual(cfg.winnerPotSats, 121000); assert.strictEqual(cfg.loserPotSats, 2100); assert.strictEqual(cfg.loserTopN, 10);
+    assert.strictEqual(cfg.headStartMult, 1.1);
+    assert.strictEqual(cfg.headStartPoints, 1000);
 });
 test('split always adds up to the pot exactly', () => {
     for (let k = 0; k < 200; k++) {
@@ -127,5 +142,62 @@ test('approve callable is admin-only and needs typed confirmation', () => {
     assert.ok(/data\.confirm !== 'APPROVE ' \+ raceId/.test(j));
     assert.ok(/\.create\(\{/.test(j));
 });
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-process.exit(failed ? 1 : 0);
+function assertFirestoreValue(data, path) {
+    if (data === undefined) throw new Error('Firestore rejects undefined at ' + path);
+    if (!data || typeof data !== 'object') return;
+    if (Array.isArray(data)) {
+        data.forEach(function (v, i) { assertFirestoreValue(v, path + '[' + i + ']'); });
+        return;
+    }
+    Object.keys(data).forEach(function (k) { assertFirestoreValue(data[k], path + '.' + k); });
+}
+test('decideRace writes a numeric head start when a faction hits 10,000', async function () {
+    const Jobs = require('../functions/src/factionRaceJobs');
+    const writes = [];
+    const docs = {
+        'satoshiFavor/factionTotals': { cyber_hornets: 10000, honey_badgers: 4200, raceId: 'race1' },
+    };
+    function doc(path) {
+        return { path: path, id: path.split('/').pop() };
+    }
+    const db = {
+        collection: function (name) {
+            return { doc: function (id) { return doc(name + '/' + id); } };
+        },
+        runTransaction: async function (fn) {
+            const t = {
+                get: async function (ref) {
+                    const data = docs[ref.path];
+                    return { exists: data !== undefined, data: function () { return data; } };
+                },
+                create: function (ref, data) {
+                    assertFirestoreValue(data, ref.path);
+                    writes.push({ op: 'create', path: ref.path, data: data });
+                },
+                set: function (ref, data) {
+                    assertFirestoreValue(data, ref.path);
+                    writes.push({ op: 'set', path: ref.path, data: data });
+                },
+            };
+            return fn(t);
+        },
+    };
+    const admin = { firestore: { FieldValue: { serverTimestamp: function () { return { _server: true }; } } } };
+    const result = await Jobs.decideRace(db, admin, Date.UTC(2026, 10, 6));
+    assert.strictEqual(result.decided, true);
+    assert.strictEqual(result.winner, 'cyber_hornets');
+    const totals = writes.find(function (w) { return w.path === 'satoshiFavor/factionTotals'; });
+    assert.ok(totals);
+    assert.strictEqual(totals.data.headStart.faction, 'honey_badgers');
+    assert.strictEqual(totals.data.headStart.afterRaceId, 'race1');
+    assert.strictEqual(totals.data.headStart.mult, 1.1);
+    assert.strictEqual(totals.data.headStart.points, 1000);
+    const res = writes.find(function (w) { return w.path === 'faction_race_results/race1'; });
+    assert.strictEqual(res.data.headStart.mult, 1.1);
+    assert.strictEqual(res.data.headStart.points, 1000);
+    assert.ok(writes.some(function (w) { return w.path === 'global_chat/faction_race_race1'; }));
+});
+Promise.all(pending).then(function () {
+    console.log('\n' + passed + ' passed, ' + failed + ' failed');
+    process.exit(failed ? 1 : 0);
+});
