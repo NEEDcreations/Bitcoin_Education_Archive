@@ -733,8 +733,11 @@ window.awardDailyGifts = async function() {
     }
 };
 
-window.checkPendingGifts = async function() {
-    if (window._pendingGiftsChecked || window._suppressPendingGifts) return;
+    window.checkPendingGifts = async function() {
+    if (window._pendingGiftsChecked || window._suppressPendingGifts) {
+        if (window._suppressPendingGifts && window.btcOnboardingQueue) window.btcOnboardingQueue.skip('gift');
+        return;
+    }
     if (!_isSignedIn() || typeof db === 'undefined') return;
     window._pendingGiftsChecked = true;
     try {
@@ -742,13 +745,22 @@ window.checkPendingGifts = async function() {
             .where('ownerId', '==', _getUid())
             .where('status', 'in', ['unopened', 'inventory', 'sent'])
             .limit(40).get();
-        if (window._suppressPendingGifts || document.getElementById('postSpinGiftOverlay')) return;
-        if (snap.empty) return;
+        if (window._suppressPendingGifts || document.getElementById('postSpinGiftOverlay')) {
+            if (window.btcOnboardingQueue) window.btcOnboardingQueue.skip('gift');
+            return;
+        }
+        if (snap.empty) {
+            if (window.btcOnboardingQueue) window.btcOnboardingQueue.skip('gift');
+            return;
+        }
         var gifts = snap.docs.map(function(d) {
             return { id: d.id, rewardType: (d.data().rewardType || '') };
         });
-        window.showPostSpinGiftModal(gifts, { pending: true });
+        var showGifts = function () { window.showPostSpinGiftModal(gifts, { pending: true }); };
+        if (window.btcOnboardingQueue) window.btcOnboardingQueue.ready('gift', showGifts);
+        else showGifts();
     } catch (e) {
+        if (window.btcOnboardingQueue) window.btcOnboardingQueue.skip('gift');
         console.warn('[gifting] pending gifts:', e.message);
     }
 };
@@ -854,6 +866,7 @@ function _closePostSpinGiftModal() {
     _giftReturnFocus = null;
     overlay.remove();
     if (pending) window._suppressPendingGifts = true;
+    if (window.btcOnboardingQueue) window.btcOnboardingQueue.done('gift');
     if (back && typeof back.focus === 'function' && !_nodeInside(back, overlay)) {
         try { back.focus(); } catch (e) { /* the opener may already be gone */ }
     }
