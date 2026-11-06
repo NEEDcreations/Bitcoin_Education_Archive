@@ -11077,6 +11077,19 @@ function _showTosModal() {
     document.querySelectorAll('.rank-toast').forEach(function(el) { el.remove(); });
     var pill = document.getElementById('nachoQuestPill');
     if (pill) pill.style.display = 'none';
+    // Mode / onboarding wait until Terms are accepted.
+    var modeCard = document.getElementById('bqModeHomeCard');
+    if (modeCard) modeCard.style.display = 'none';
+    var intro = document.getElementById('btcIntroOverlay');
+    if (intro) intro.style.display = 'none';
+    var questOverlay = document.getElementById('nachoQuestOverlay');
+    if (questOverlay) questOverlay.remove();
+    try {
+        var footer = m && m.querySelector('.tos-footer');
+        if (footer && footer.scrollIntoView) footer.scrollIntoView({ block: 'nearest' });
+        var btn = document.getElementById('tosAcceptBtn');
+        if (btn && btn.focus) setTimeout(function() { try { btn.focus(); } catch (e) {} }, 50);
+    } catch (e) {}
 }
 
 function _tosNeedsTick() {
@@ -11110,7 +11123,12 @@ window._acceptTos = async function() {
         }
         var m = document.getElementById('tosModal');
         if (m) m.classList.remove('open');
+        var modeCard = document.getElementById('bqModeHomeCard');
+        if (modeCard) modeCard.style.display = '';
         flushAfterTos();
+        if (typeof window.bqRefreshModeCard === 'function') {
+            try { window.bqRefreshModeCard(); } catch (e) {}
+        }
         if (typeof showToast === 'function') showToast('✅ Terms accepted. Welcome back!');
     } catch(e) {
         if (btn) { btn.textContent = 'Accept & Continue →'; btn.disabled = false; }

@@ -246,7 +246,7 @@ test('ATTACK rules deny client writes and keep limits private', () => {
     const inApp = chat.slice(chat.indexOf('_inAppLinks.push'), chat.indexOf('_inAppLinks.push') + 500);
     assert.ok(inApp.includes('white-space:nowrap'));
     assert.strictEqual(td.topicStickyScrollDelta(100, 54, 54), 38);
-    assert.ok(read('terms.html').includes('11a. Topic discussions'));
+    assert.ok(read('terms.html').includes('13a. Topic discussions'));
     assert.ok(read('privacy.html').includes('topic discussion'));
     assert.ok(client.includes('💬 Start a conversation'));
     assert.ok(client.includes('Start a conversation about '));
