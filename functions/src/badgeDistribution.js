@@ -8,6 +8,11 @@ const USER_PAGE = 200;
 const AUTH_LOOKUP_MAX = 100;
 const AUTH_BATCH = 100;
 const THIRTY_DAYS = 30 * 24 * 3600 * 1000;
+// Public ladder rung for Maxi (ranking.js / rewardNotify). Qualified players
+// are counted on users.points, not on lastActive, so someone who reached
+// Maxi and then took a break still counts. Referral "activity points"
+// (points minus Scholar exam points) are a different bar and are not used.
+const QUALIFIED_MIN_POINTS = 2140;
 
 // Holder lists that are allowed to move the public distribution.
 // hiddenBadges is a private list. earnedHidden, displayBadge, and
@@ -38,6 +43,16 @@ function isAnonymousRecord(rec) {
     if (!rec) return true;
     const providers = rec.providerData || [];
     return providers.length === 0;
+}
+
+function pointsOf(data) {
+    const n = Number(data && data.points);
+    if (!Number.isFinite(n)) return 0;
+    return n;
+}
+
+function isQualifiedPlayer(data) {
+    return pointsOf(data) >= QUALIFIED_MIN_POINTS;
 }
 
 function isPublicBadge(id) {
@@ -117,6 +132,7 @@ async function lookupAuthUsers(authApi, ids, log) {
 function summaryLine(info) {
     return '[BADGE DIST]'
         + ' users=' + info.totalUsers
+        + ' qualified=' + info.qualifiedUsers
         + ' active30d=' + info.activeUsers30d
         + ' badges=' + info.badgeCount
         + ' authBatches=' + info.authBatches
@@ -152,7 +168,9 @@ async function rebuildBadgeDistribution(db, adminSdk, o, log) {
     });
 
     const counts = {};
+    const qualifiedCounts = {};
     let totalUsers = 0;
+    let qualifiedUsers = 0;
     let activeUsers30d = 0;
     let notFound = 0;
     let failedBatches = 0;
@@ -178,6 +196,9 @@ async function rebuildBadgeDistribution(db, adminSdk, o, log) {
             if (data.ban_reason || data.banned === true || data.isBot === true || data.isTest === true) return;
             if (doc.id === 'nacho-bot' || doc.id === 'system') return;
             totalUsers += 1;
+            // XP, not recency. A Maxi who stopped visiting is still qualified.
+            const qualified = isQualifiedPlayer(data);
+            if (qualified) qualifiedUsers += 1;
             if (now - millisOf(data.lastActive) <= THIRTY_DAYS) activeUsers30d += 1;
             const held = new Set();
             if (awardSets[doc.id]) {
@@ -190,24 +211,36 @@ async function rebuildBadgeDistribution(db, adminSdk, o, log) {
             });
             held.forEach(function (id) {
                 counts[id] = (counts[id] || 0) + 1;
+                if (qualified) qualifiedCounts[id] = (qualifiedCounts[id] || 0) + 1;
             });
         });
         cursor = snap.docs[snap.docs.length - 1];
         if (snap.size < USER_PAGE) break;
     }
 
-    const publicCounts = {};
-    Object.keys(counts).forEach(function (id) {
-        if (!isPublicBadge(id)) return;
-        const n = counts[id];
-        if (typeof n !== 'number' || n <= 0) return;
-        publicCounts[id] = n;
-    });
+    function publishCounts(source) {
+        const out = {};
+        Object.keys(source).forEach(function (id) {
+            if (!isPublicBadge(id)) return;
+            const n = source[id];
+            if (typeof n !== 'number' || n <= 0) return;
+            out[id] = n;
+        });
+        return out;
+    }
 
+    const publicCounts = publishCounts(counts);
+    const publicQualified = publishCounts(qualifiedCounts);
+
+    // Global aggregates only. qualifiedCounts is holders inside the Maxi
+    // cohort, so holders / qualifiedUsers cannot exceed 1. Faction membership
+    // is not read and is not written.
     const payload = {
         totalUsers: totalUsers,
+        qualifiedUsers: qualifiedUsers,
         activeUsers30d: activeUsers30d,
         counts: publicCounts,
+        qualifiedCounts: publicQualified,
         catalogVersion: badgeRules.catalog.version || 1,
         updatedAt: adminSdk.firestore.FieldValue.serverTimestamp(),
     };
@@ -222,6 +255,7 @@ async function rebuildBadgeDistribution(db, adminSdk, o, log) {
     }
     const result = {
         totalUsers: totalUsers,
+        qualifiedUsers: qualifiedUsers,
         activeUsers30d: activeUsers30d,
         badgeCount: Object.keys(publicCounts).length,
         authBatches: authBatches,
@@ -256,7 +290,9 @@ module.exports = {
     USER_PAGE: USER_PAGE,
     AUTH_BATCH: AUTH_BATCH,
     AUTH_LOOKUP_MAX: AUTH_LOOKUP_MAX,
+    QUALIFIED_MIN_POINTS: QUALIFIED_MIN_POINTS,
     isPublicBadge: isPublicBadge,
+    isQualifiedPlayer: isQualifiedPlayer,
     refreshBadgeDistribution: refreshBadgeDistribution,
     heldThatFail: heldThatFail,
     isAnonymousRecord: isAnonymousRecord,
