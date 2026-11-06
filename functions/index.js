@@ -5652,6 +5652,26 @@ exports.onUserChannelVisit = onDocumentUpdated('users/{uid}', async (event) => {
     const change = { before: event.data.before, after: event.data.after }; const _context = { params: event.params };
         const before = change.before.data() || {};
         const after = change.after.data() || {};
+        // OT ledger (for audits): one doc per user per UTC day with total OT
+        // earned/spent, from the before/after delta of every user-doc write.
+        // Server-only collection (rules deny all client access).
+        const otBefore = Number(before.orangeTickets) || 0;
+        const otAfter = Number(after.orangeTickets) || 0;
+        if (otAfter !== otBefore && Number.isFinite(otAfter - otBefore)) {
+            try {
+                const delta = otAfter - otBefore;
+                const day = new Date().toISOString().slice(0, 10);
+                await db.collection('ot_ledger').doc(event.params.uid + '_' + day).set({
+                    uid: event.params.uid,
+                    day: day,
+                    earned: admin.firestore.FieldValue.increment(delta > 0 ? delta : 0),
+                    spent: admin.firestore.FieldValue.increment(delta < 0 ? -delta : 0),
+                    events: admin.firestore.FieldValue.increment(1),
+                    lastBalance: otAfter,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                }, { merge: true });
+            } catch (e) { console.warn('[otLedger]', e && e.message); }
+        }
         const beforeVisits = before.channelsVisited || 0;
         const afterVisits = after.channelsVisited || 0;
         if (afterVisits > beforeVisits) {
@@ -7841,6 +7861,18 @@ exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
     const monthKey = new Date(nowMs).toISOString().slice(0, 7);
     const capDailyRef = item.group && item.dailyCap ? userRef.collection('daily_action_counts').doc(dayKey + '_shop_' + item.group) : null;
     const capMonthRef = item.group && item.monthlyCap ? userRef.collection('daily_action_counts').doc(monthKey + '_shopm_' + item.group) : null;
+    // Raffle draw runs 18:00 UTC on the 1st and zeroes everyone's entries.
+    // Entries bought on the 1st before the draw finished were drawn in last
+    // month's raffle, then wiped, while the shop told the buyer they were in
+    // this month's. Hold raffle sales until last month's draw snapshot exists.
+    if (item.type === 'raffle' && new Date(nowMs).getUTCDate() === 1) {
+        const prev = new Date(Date.UTC(new Date(nowMs).getUTCFullYear(), new Date(nowMs).getUTCMonth() - 1, 1));
+        const prevKey = prev.getUTCFullYear() + '-' + String(prev.getUTCMonth() + 1).padStart(2, '0');
+        const drawn = await db.collection('stats').doc('raffle_' + prevKey + '_snapshot').get();
+        if (!drawn.exists) {
+            throw new functionsV1.https.HttpsError('failed-precondition', 'The monthly raffle is being drawn. New entries open at 1 PM ET today.');
+        }
+    }
 
     const shopResult = await db.runTransaction(async (tx) => {
         const reads = [tx.get(userRef)];
@@ -7936,6 +7968,7 @@ exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
             bonusSpins: userData.bonusSpins || 0,
             raffleEntries: userData.raffleEntries || 0,
             secondRigCharges: userData.secondRigCharges || 0,
+            spamHasherCharges: userData.spamHasherCharges || 0,
             ownedCosmetics: (userData.ownedCosmetics || []).slice(),
         };
         if (p.field) inv[p.field] = (inv[p.field] || 0) + p.units;
@@ -8102,6 +8135,44 @@ exports.activateHashBooster = functionsV1.https.onCall(async (data, context) => 
             hashBoosterHashes: (userData.hashBoosterHashes || 0) + 100,
             hashBoosters: hashBoosters - 1,
         };
+    });
+});
+
+// Spam Hasher: one charge lifts the per-minute hash limit (to a human-tap
+// ceiling, see satoshiFavor SPAM_HASHER_PER_MINUTE) for the CURRENT Satoshi's
+// Favor window only. Expiry is automatic: hashForFavor only honors it while
+// spamHasherCycleId equals the live cycle id. Server-only fields.
+exports.activateSpamHasher = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot activate boosters');
+    }
+    const uid = context.auth.uid;
+    const userRef = db.collection('users').doc(uid);
+    const stateRef = db.collection('satoshiFavor').doc('current');
+    return db.runTransaction(async (tx) => {
+        const stateDoc = await tx.get(stateRef);
+        const userDoc = await tx.get(userRef);
+        if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
+        const st = stateDoc.exists ? (stateDoc.data() || {}) : {};
+        const endMs = (st.favorEndBase && st.favorEndBase.toMillis ? st.favorEndBase.toMillis() : 0) + (st.bonusMinutes || 0) * 60000;
+        if (!st.favorActive || !st.currentCycleId || Date.now() > endMs) {
+            throw new functionsV1.https.HttpsError('failed-precondition', "Activate during an open Satoshi's Favor window.");
+        }
+        const u = userDoc.data() || {};
+        if (u.spamHasherCycleId === st.currentCycleId) {
+            throw new functionsV1.https.HttpsError('already-exists', 'Spam Hasher is already on for this window.');
+        }
+        const charges = Number(u.spamHasherCharges) || 0;
+        if (charges < 1) throw new functionsV1.https.HttpsError('failed-precondition', 'No Spam Hasher charges.');
+        tx.update(userRef, {
+            spamHasherCharges: admin.firestore.FieldValue.increment(-1),
+            spamHasherCycleId: st.currentCycleId,
+            spamHasherActivatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return { success: true, spamHasherCharges: charges - 1, endsAt: endMs };
     });
 });
 

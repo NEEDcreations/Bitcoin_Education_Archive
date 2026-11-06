@@ -269,6 +269,7 @@ service cloud.firestore {
                         'streakFreezes', 'hashBoosters', 'hashBoosterHashes',
                         'hintTokens', 'doubleXPCharges', 'doubleXPExpiry', 'doubleXpUntil',
                         'bonusSpins', 'raffleEntries', 'secondRigCharges',
+                        'spamHasherCharges', 'spamHasherCycleId', 'spamHasherActivatedAt',
                         // Bonus spin server flag (CF-only, one-time use)
                         'bonusSpinGranted',
                         'ownedCosmetics', 'spinClosetItems',

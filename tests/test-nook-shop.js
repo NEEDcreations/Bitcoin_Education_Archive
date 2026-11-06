@@ -10,7 +10,7 @@ const throwsCode = (fn, code) => assert.throws(fn, e => e.shopCode === code);
 
 t('insufficient balance rejected', () => throwsCode(() => shop.plan('hash_booster_3', 1, { orangeTickets: 26 }, {}, now), 'failed-precondition'));
 t('exact balance ok, cost once', () => { const p = shop.plan('hash_booster_3', 1, { orangeTickets: 27 }, {}, now); assert.strictEqual(p.totalCost, 27); assert.strictEqual(p.units, 3); });
-t('bundle ignores quantity', () => { const p = shop.plan('bonus_spin_3', 10, { orangeTickets: 999 }, {}, now); assert.strictEqual(p.qty, 1); assert.strictEqual(p.units, 3); assert.strictEqual(p.totalCost, 14); });
+t('bundle ignores quantity', () => { const p = shop.plan('bonus_spin_3', 10, { orangeTickets: 999 }, {}, now); assert.strictEqual(p.qty, 1); assert.strictEqual(p.units, 3); assert.strictEqual(p.totalCost, 12); });
 t('quantity clamped 1..10, garbage -> 1', () => {
   assert.strictEqual(shop.plan('raffle_entry', 50, { orangeTickets: 9999 }, {}, now).qty, 10);
   assert.strictEqual(shop.plan('raffle_entry', -5, { orangeTickets: 9999 }, {}, now).qty, 1);
@@ -30,7 +30,40 @@ t('client fallbacks match server prices', () => {
   const m = src.match(/var _NOOK_FALLBACK = (\{[^}]+\})/); const fb = eval('(' + m[1] + ')');
   const cat = shop.publicCatalog(); for (const id of Object.keys(cat)) assert.strictEqual(fb[id], cat[id].cost, id);
 });
-t('bundles never cheaper-per-unit exploit beyond singles', () => { for (const [id, it] of Object.entries(shop.ITEMS)) if (it.bundle && it.units) { const single = Object.values(shop.ITEMS).find(x => !x.bundle && x.field === it.field); assert(it.cost / it.units <= single.cost && it.cost / it.units >= single.cost * 0.75, id); } });
+t('bundles never cheaper-per-unit exploit beyond singles', () => { for (const [id, it] of Object.entries(shop.ITEMS)) if (it.bundle && it.units) { const single = Object.values(shop.ITEMS).find(x => !x.bundle && x.field === it.field); assert(it.cost / it.units <= single.cost && it.cost / it.units >= single.cost * 0.66, id); } });
+t('Nov 5 rebalance prices', () => {
+  const want = { pinned_badge: 20, chat_flair: 40, profile_frame: 50, nacho_skin_nook: 75, gift_bag: 75, bonus_spin_3: 12, hint_token_5: 10, hash_booster: 10, second_rig: 25, spam_hasher: 300 };
+  for (const [id, c] of Object.entries(want)) assert.strictEqual(shop.ITEMS[id].cost, c, id);
+});
+t('spam hasher: hold 1, monthly 4, qty forced by hold cap', () => {
+  throwsCode(() => shop.plan('spam_hasher', 1, { orangeTickets: 999, spamHasherCharges: 1 }, {}, now), 'resource-exhausted');
+  throwsCode(() => shop.plan('spam_hasher', 2, { orangeTickets: 999 }, {}, now), 'resource-exhausted');
+  throwsCode(() => shop.plan('spam_hasher', 1, { orangeTickets: 999 }, { monthly: 4 }, now), 'resource-exhausted');
+  throwsCode(() => shop.plan('spam_hasher', 1, { orangeTickets: 299 }, {}, now), 'failed-precondition');
+  const p = shop.plan('spam_hasher', 1, { orangeTickets: 300 }, { monthly: 3 }, now); assert.strictEqual(p.field, 'spamHasherCharges'); assert.strictEqual(p.units, 1);
+});
+t('spam hasher server wiring: cycle-scoped, human ceiling, rules-protected', () => {
+  const sf = fs.readFileSync(path.join(__dirname, '..', 'functions', 'src', 'satoshiFavor.js'), 'utf8');
+  assert(/const SPAM_HASHER_PER_MINUTE = 60;/.test(sf));
+  assert(/spamHasherCycleId === currentCycleId/.test(sf));
+  assert(/timestamps\.length >= rateLimitNow/.test(sf));
+  const idx = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
+  const a = idx.slice(idx.indexOf('exports.activateSpamHasher'), idx.indexOf('exports.useHintToken'));
+  assert(/requireSecondFactor/.test(a) && /runTransaction/.test(a) && /favorActive/.test(a) && /already-exists/.test(a) && /charges < 1/.test(a));
+  const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+  assert(/'spamHasherCharges', 'spamHasherCycleId', 'spamHasherActivatedAt'/.test(rules));
+});
+t('raffle sales held on the 1st until last month is drawn', () => {
+  const idx = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
+  const f = idx.slice(idx.indexOf('exports.spendTickets = '), idx.indexOf('exports.spendTickets = ') + 4000);
+  assert(/getUTCDate\(\) === 1/.test(f) && /_snapshot/.test(f));
+});
+t('OT ledger written server-side, rules deny clients', () => {
+  const idx = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
+  assert(/collection\('ot_ledger'\)/.test(idx));
+  const rules = fs.readFileSync(path.join(__dirname, '..', 'firestore.rules'), 'utf8');
+  assert(!/ot_ledger/.test(rules)); // falls through to the deny-all catch-all
+});
 
 // Optimistic-concurrency simulation of the spendTickets transaction (Firestore
 // retries a transaction whose read set changed). Two parallel buys with balance
