@@ -4,8 +4,8 @@
 (function () {
     'use strict';
     var CHECK_MS = 60000;
-    var timer = null, inflight = false, unsub = null, lastBursts = null, promptToken = '';
-    var pot = null, dropTimer = null;
+    var timer = null, inflight = false, unsub = null, watchUnsub = null, lastBursts = null, promptToken = '';
+    var pot = null, dropTimer = null, myShare = null, sharePotId = '';
 
     function user() {
         try { var u = firebase.auth().currentUser; return u && !u.isAnonymous ? u : null; } catch (e) { return null; }
@@ -65,6 +65,12 @@
             '#tctv-drip .td-coin.td-spray{animation:tdSpray .95s ease-out forwards;width:calc(var(--coin) * .75);height:calc(var(--coin) * .75);font-size:calc(var(--coin) * .48);line-height:calc(var(--coin) * .75)}' +
             '@keyframes tdSpray{0%{transform:translate3d(-50%,8px,0) scale(.4);opacity:0}18%{opacity:1}100%{transform:translate3d(var(--sx,0px),var(--sy,20px),0) scale(1);opacity:0}}' +
             '#tctv-drip .td-main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;align-items:stretch}' +
+            '#tctv-drip .td-share{display:block;margin:0 10px 2px;color:#ffcf6b;font-size:13px;font-weight:800;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
+            '#tctv-drip[data-size="3"] .td-share{font-size:14px;margin:1px 12px 2px}' +
+            '#tctv-drip[data-size="1"] .td-share{font-size:11px;margin:0 6px 1px}' +
+            '@media (max-width:420px){#tctv-drip .td-share{font-size:12px}}' +
+            '#tctv-drip .td-share.td-share-hint{font-weight:700;opacity:.92}' +
+            '#tctv-drip.td-mini .td-bubble-share{color:#fff;font-weight:800;font-size:12px;margin-left:2px}' +
             '#tctv-drip .td-pill{position:relative;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 4px;background:none;border:0;cursor:pointer;font-family:inherit;color:#ffcf6b;text-align:left}' +
             '#tctv-drip .td-face{position:relative;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:15px;font-weight:800;white-space:nowrap;overflow:visible}' +
             '#tctv-drip[data-size="3"] .td-face{font-size:18px;padding:6px 12px}' +
@@ -183,6 +189,7 @@
         el.id = 'tctv-drip';
         el.innerHTML = '<div class="td-card"><span class="td-potwrap">' + img + '<span class="td-fx" aria-hidden="true"></span></span>' +
             '<div class="td-main"><button type="button" class="td-pill" aria-expanded="false" aria-label="pot of sats details"><span class="td-face"><span class="td-lbl">pot of sats</span> <span class="td-n"><span class="td-sats">0</span>/<span class="td-target">5,000</span></span></span></button>' +
+            '<div class="td-share" aria-live="polite"></div>' +
             '<div class="td-tools">' +
             '<button type="button" class="td-pinfo" aria-label="About this button" aria-expanded="false">\u24D8</button>' +
             '<button type="button" class="td-smaller" aria-label="Shrink pot of sats">Shrink</button>' +
@@ -192,8 +199,8 @@
             '<div class="td-ptip" role="tooltip">You can ignore this, but if you don\u2019t tap it, your watch time won\u2019t be added to the pot of sats.</div>' +
             '<div class="td-pop"><div class="td-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><div class="td-fill"></div></div>' +
             '<div class="td-live" aria-live="polite"></div>' +
-            '<div style="margin-top:6px;opacity:.85">The pot of sats fills a little every minute while people watch Timechain TV together. More viewers, faster fill. When it\u2019s full, the sats are shared with the viewers who helped fill it, based on how long each person watched. Your share shows up in your sats balance to claim. Keep the video playing and this tab open to take part. Drag this anywhere. Tap Shrink or Grow to resize it, or tap \u2013 to minimize it to a small pill. The size and minimized choice stay on this device.</div></div></div>' +
-            '<button type="button" class="td-bubble" aria-label="Restore pot of sats">' + img.replace('width="136" height="136"', 'width="40" height="40"') + '<span class="td-bubble-lbl">sats</span><span class="td-fx" aria-hidden="true"></span></button>';
+            '<div style="margin-top:6px;opacity:.85">The pot of sats fills a little every minute while people watch Timechain TV together. More viewers, faster fill. When it\u2019s full, the sats are shared with the viewers who helped fill it, based on how long each person watched. Your Share updates live on this pot while you watch. When the pot is full, that share is added to your sats balance to claim. Keep the video playing and this tab open to take part. Drag this anywhere. Tap Shrink or Grow to resize it, or tap \u2013 to minimize it to a small pill. The size and minimized choice stay on this device.</div></div></div>' +
+            '<button type="button" class="td-bubble" aria-label="Restore pot of sats">' + img.replace('width="136" height="136"', 'width="40" height="40"') + '<span class="td-bubble-lbl">sats</span><span class="td-bubble-share" hidden></span><span class="td-fx" aria-hidden="true"></span></button>';
         applySize(el, readSize(), false);
         var miniOn = lsGet(MIN_KEY) === '1';
         el.classList.toggle('td-mini', miniOn);
@@ -231,6 +238,64 @@
         return el;
     }
 
+
+    function shareLine() {
+        var u = user();
+        if (!u) return { text: 'Sign in to see your share', hint: true, bubble: '' };
+        if (!myShare || myShare.ready !== true) return { text: 'Your Share: \u2026', hint: false, bubble: '\u2026' };
+        var n = Math.max(0, Math.floor(myShare.sats || 0));
+        var text = 'Your Share: ' + fmt(n) + ' sats';
+        if (myShare.waiting && n > 0) text += ' (waiting)';
+        return { text: text, hint: false, bubble: fmt(n) };
+    }
+    function paintShare(el) {
+        if (!el) return;
+        var s = shareLine();
+        var line = el.querySelector('.td-share');
+        if (line) {
+            line.textContent = s.text;
+            line.classList.toggle('td-share-hint', !!s.hint);
+        }
+        var bub = el.querySelector('.td-bubble-share');
+        if (bub) {
+            if (s.hint || !s.bubble) { bub.hidden = true; bub.textContent = ''; }
+            else { bub.hidden = false; bub.textContent = s.bubble; }
+        }
+    }
+    function stopWatch() {
+        if (watchUnsub) { watchUnsub(); watchUnsub = null; }
+        sharePotId = '';
+        myShare = null;
+    }
+    function listenWatch() {
+        var u = user();
+        var potId = pot && pot.potId ? String(pot.potId) : '';
+        if (!u || !potId || typeof firebase === 'undefined' || !firebase.firestore) {
+            if (!u) { myShare = null; sharePotId = ''; }
+            if (watchUnsub && (!u || !potId)) stopWatch();
+            return;
+        }
+        if (watchUnsub && sharePotId === potId) return;
+        stopWatch();
+        sharePotId = potId;
+        myShare = { ready: false, sats: 0, waiting: false };
+        var id = potId + '_' + u.uid;
+        watchUnsub = firebase.firestore().collection('tctv_drip_watch').doc(id).onSnapshot(function (snap) {
+            if (!snap.exists) { myShare = { ready: true, sats: 0, waiting: false }; }
+            else {
+                var d = snap.data() || {};
+                myShare = {
+                    ready: typeof d.projectedShareSats === 'number',
+                    sats: Math.max(0, Math.floor(Number(d.projectedShareSats) || 0)),
+                    waiting: d.projectedShareWaiting === true
+                };
+                // Doc exists but tick has not projected yet: keep "…" until the field appears.
+                if (typeof d.projectedShareSats !== 'number') myShare.ready = false;
+            }
+            var el = document.getElementById('tctv-drip'); if (el) paintShare(el);
+        }, function () {});
+    }
+
     function paint() {
         var el = mount(); if (!el || !pot) return;
         var target = pot.target || 5000, sats = pot.sats || 0;
@@ -248,6 +313,8 @@
         if (lastBursts !== null && (pot.bursts || 0) > lastBursts) burst(Math.floor(sats / 1000) * 1000);
         lastBursts = pot.bursts || 0;
         scheduleDrops(n);
+        listenWatch();
+        paintShare(el);
     }
 
     function celebrate(el, text) {
@@ -385,6 +452,7 @@
     }
     function stop() {
         if (unsub) { unsub(); unsub = null; }
+        stopWatch();
         if (dropTimer) { clearInterval(dropTimer); dropTimer = null; }
         if (timer) { clearInterval(timer); timer = null; }
         stopFlow();

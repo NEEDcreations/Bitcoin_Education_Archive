@@ -116,23 +116,17 @@ function shareCap(pot, n, cfg) {
     return Math.floor(pot * Math.min(1, frac));
 }
 
-// Proportional shares with a per-user cap (water filling). Sats over a cap
-// go to the uncapped watchers by watch time, repeated until nobody is over.
+// Water-fill proportional shares for an already-filtered eligible list.
 // Whole sats only: floor leftovers go 1 sat each to the largest remainders.
 // Only sats left when every watcher is capped roll into the next pot.
-// Fewer than minEligibleWatchers qualifiers: no payout (wait: true).
-function planShares(entries, cfg) {
-    const pot = Math.floor(cfg.targetSats);
-    const elig = eligibleEntries(entries, cfg);
+function fillShares(elig, pot, cap) {
     const n = elig.length;
-    const cap = shareCap(pot, n, cfg);
-    const minN = Math.max(1, Math.floor(cfg.minEligibleWatchers));
-    if (n < minN) return { wait: true, eligible: n, shares: [], paid: 0, rollover: 0, cap };
     const sats = new Map(elig.map(e => [e.uid, 0]));
     let open = elig.slice();
     let remaining = pot;
     for (let guard = 0; guard <= n && open.length && remaining > 0; guard++) {
         const total = open.reduce((t, e) => t + e.seconds, 0);
+        if (total <= 0) break;
         const over = open.filter(e => remaining * e.seconds / total > cap);
         if (over.length) {
             for (const e of over) { sats.set(e.uid, cap); remaining -= cap; }
@@ -151,9 +145,46 @@ function planShares(entries, cfg) {
         remaining = left;
         open = [];
     }
-    const shares = elig.map(e => ({ uid: e.uid, seconds: e.seconds, sats: sats.get(e.uid) })).filter(e => e.sats > 0);
+    const shares = elig.map(e => ({ uid: e.uid, seconds: e.seconds, sats: sats.get(e.uid) || 0 })).filter(e => e.sats > 0);
     const paid = shares.reduce((t, e) => t + e.sats, 0);
-    return { wait: false, eligible: n, shares, paid, rollover: pot - paid, cap };
+    return { shares, paid, rollover: pot - paid };
+}
+
+// Proportional shares with a per-user cap (water filling).
+// Fewer than minEligibleWatchers qualifiers: no payout (wait: true).
+function planShares(entries, cfg) {
+    const pot = Math.floor(cfg.targetSats);
+    const elig = eligibleEntries(entries, cfg);
+    const n = elig.length;
+    const cap = shareCap(pot, n, cfg);
+    const minN = Math.max(1, Math.floor(cfg.minEligibleWatchers));
+    if (n < minN) return { wait: true, eligible: n, shares: [], paid: 0, rollover: 0, cap };
+    const filled = fillShares(elig, pot, cap);
+    return { wait: false, eligible: n, shares: filled.shares, paid: filled.paid, rollover: filled.rollover, cap };
+}
+
+// Live UI projection: same math as planShares, but still returns per-uid sats
+// when the pot is waiting on more eligible watchers (payout still waits).
+// Watchers below minQualifySeconds get 0. Does not change payout behavior.
+function projectShares(entries, cfg) {
+    const pot = Math.floor(cfg.targetSats);
+    const all = (entries || []).filter(e => e && e.uid).map(e => ({
+        uid: String(e.uid),
+        seconds: Math.min(Math.max(0, Number(e.seconds) || 0), cfg.perAccountLimitSeconds),
+    }));
+    const elig = eligibleEntries(all, cfg);
+    const n = elig.length;
+    const cap = shareCap(pot, n, cfg);
+    const minN = Math.max(1, Math.floor(cfg.minEligibleWatchers));
+    const waiting = n < minN;
+    const byUid = new Map(all.map(e => [e.uid, 0]));
+    if (n > 0) {
+        const filled = fillShares(elig, pot, cap);
+        for (const s of filled.shares) byUid.set(s.uid, s.sats);
+    }
+    const shares = all.map(e => ({ uid: e.uid, seconds: e.seconds, sats: byUid.get(e.uid) || 0 }));
+    const paid = shares.reduce((t, e) => t + e.sats, 0);
+    return { waiting, eligible: n, shares, paid, rollover: Math.max(0, pot - paid), cap };
 }
 
 // Reserve check: the faucet floor always stays covered.
@@ -172,5 +203,5 @@ function isAgentOrBlocked(user) {
 
 module.exports = {
     DEFAULTS, CREDIT_SECONDS, MIN_GAP_MS, ACTIVE_WINDOW_MS, DEVICE_HOLD_MS,
-    readConfig, validDeviceId, nextPromptMs, planCheckin, planAccrual, planShares, eligibleEntries, shareCap, planReserve, isAgentOrBlocked,
+    readConfig, validDeviceId, nextPromptMs, planCheckin, planAccrual, planShares, projectShares, fillShares, eligibleEntries, shareCap, planReserve, isAgentOrBlocked,
 };

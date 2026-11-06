@@ -163,6 +163,43 @@ async function distribute(pot, cfg) {
     return { wait: false, paid: hist.paid, rollover: hist.rollover, shares: hist.shares };
 }
 
+
+// Write each watcher's live projected share onto their own watch doc only.
+// Same math as payout, but still projects while waiting on more eligible
+// watchers. Never touches balances, history, or the public pot doc.
+async function refreshProjections(potId, cfg) {
+    if (!potId) return;
+    const entries = await loadEntries(potId, cfg);
+    const plan = logic.projectShares(entries, cfg);
+    const byUid = new Map(plan.shares.map(s => [s.uid, s.sats]));
+    const snap = await db.collection('tctv_drip_watch').where('potId', '==', potId).get();
+    if (snap.empty) return;
+    const nowMs = Date.now();
+    let batch = db.batch();
+    let n = 0;
+    const commit = async () => { if (n) { await batch.commit(); batch = db.batch(); n = 0; } };
+    for (const doc of snap.docs) {
+        const w = doc.data() || {};
+        const uid = String(w.uid || '');
+        // Age-ok non-blocked watchers get their projected sats (0 if still under
+        // the 30-minute qualify bar). Everyone else gets 0 so the UI never keeps
+        // a stale number from an earlier pot state.
+        const sats = (uid && w.ageOk === true && byUid.has(uid)) ? (byUid.get(uid) || 0) : 0;
+        const prev = Number(w.projectedShareSats);
+        const prevWait = w.projectedShareWaiting === true;
+        if (prev === sats && prevWait === plan.waiting && Number(w.projectedSharePot) === Number(cfg.targetSats)) continue;
+        batch.set(doc.ref, {
+            projectedShareSats: sats,
+            projectedShareWaiting: plan.waiting === true,
+            projectedSharePot: Math.floor(cfg.targetSats),
+            projectedShareAtMs: nowMs,
+        }, { merge: true });
+        n++;
+        if (n >= 400) await commit();
+    }
+    await commit();
+}
+
 async function runTick() {
     const { cfg, raw } = await loadConfig();
     const nowMs = Date.now();
@@ -184,6 +221,7 @@ async function runTick() {
         if (acc.full) patch.status = 'full';
         await potRef.set(patch, { merge: true });
         Object.assign(pot, patch);
+        try { await refreshProjections(pot.potId, cfg); } catch (e) { console.error('[tctvDrip] project', e && e.message); }
     }
 
     if (pot.status === 'full' || pot.status === 'held') {
@@ -194,6 +232,7 @@ async function runTick() {
             if (pot.status !== 'full' || pot.waiting !== true) {
                 await potRef.set({ status: 'full', waiting: true }, { merge: true });
             }
+            try { await refreshProjections(pot.potId, cfg); } catch (e) { console.error('[tctvDrip] project', e && e.message); }
             return;
         }
         if (pot.waiting) await potRef.set({ waiting: admin.firestore.FieldValue.delete() }, { merge: true });
@@ -209,6 +248,7 @@ async function runTick() {
                 await resRef.set({ holdReason: r.reason, holdPotId: pot.potId }, { merge: true });
                 await alertAdmin(pot.potId, r.reason);
             }
+            try { await refreshProjections(pot.potId, cfg); } catch (e) { console.error('[tctvDrip] project', e && e.message); }
             return;
         }
         // Reserve the pot and flip to distributing atomically, so an
