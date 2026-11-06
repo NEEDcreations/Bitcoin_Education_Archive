@@ -2320,6 +2320,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Faction member counts. Server only. Race scores stay on factionTotals.
+    match /satoshiFavor/factionMembers {
+      allow read, write: if false;
+    }
+
     // Per-user all-time Satoshi's Favor contribution. Server writes only.
     // The owner can read their own total. Other clients cannot.
     match /satoshiFavor/userSfPoints {

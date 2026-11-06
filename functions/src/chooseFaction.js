@@ -84,6 +84,7 @@ function createChooseFactionHandlers(deps) {
         const userRef = db.collection('users').doc(uid);
         const ledgerRef = db.collection('faucet_ledger').doc(uid);
         const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
+        const membersRef = db.collection('satoshiFavor').doc('factionMembers');
         const syncRef = db.collection('satoshiFavor').doc('factionSyncs').collection('users').doc(uid);
         const contributorsQuery = db.collection('satoshiFavor').doc('current').collection('contributors').where('uid', '==', uid);
 
@@ -93,6 +94,7 @@ function createChooseFactionHandlers(deps) {
             const ledgerSnap = await t.get(ledgerRef);
             const syncSnap = await t.get(syncRef);
             const totalsSnap = await t.get(totalsRef);
+            const membersSnap = await t.get(membersRef);
             const contribSnap = await t.get(contributorsQuery);
 
             if (!userSnap.exists) {
@@ -128,23 +130,32 @@ function createChooseFactionHandlers(deps) {
             const prevRaw = Number(totals[faction] || 0);
             const prev = Number.isFinite(prevRaw) && prevRaw > 0 ? prevRaw : 0;
 
-            // Underdog join bonus is decided here, from the server totals in
-            // this transaction. The choice is permanent, so it is granted once.
+            // Underdog join bonus is decided here, from the private member
+            // doc in this transaction. Scores break a tie. The choice is
+            // permanent, so the bonus is granted once. A missing private doc
+            // is seeded from factionTotals.members_* and then incremented.
             const nowMs = typeof options.nowMs === 'function' ? options.nowMs() : Date.now();
-            const underdogJoin = balance.smallerFaction(totals) === faction;
+            const privateExists = !!(membersSnap && membersSnap.exists);
+            const privateData = privateExists ? (membersSnap.data() || {}) : null;
+            const counts = balance.memberCounts(privateData, privateExists, totals);
+            const underdogJoin = balance.smallerFrom(privateData, privateExists, totals) === faction;
             const userWrite = { faction: faction, factionJoinedAt: stampMs(nowMs) };
             if (underdogJoin) userWrite.factionBonusUntil = stampMs(nowMs + balance.JOIN_BONUS_MS);
             const mField = balance.memberField(faction);
-            const prevMembersRaw = Number(totals[mField] || 0);
-            const prevMembers = Number.isFinite(prevMembersRaw) && prevMembersRaw > 0 ? prevMembersRaw : 0;
+            const nextMembers = {
+                members_cyber_hornets: counts.members_cyber_hornets,
+                members_honey_badgers: counts.members_honey_badgers,
+                updatedAt: stamp(),
+            };
+            nextMembers[mField] = counts[mField] + 1;
 
             t.set(userRef, userWrite, { merge: true });
             t.set(totalsRef, {
                 unaffiliated: pool - moved,
                 [faction]: prev + moved,
-                [mField]: prevMembers + 1,
                 lastUpdated: stamp(),
             }, { merge: true });
+            t.set(membersRef, nextMembers, { merge: true });
             outcome.underdogJoin = underdogJoin;
             untagged.forEach(function (ref) {
                 t.update(ref, { faction: faction });
