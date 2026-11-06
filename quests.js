@@ -9708,15 +9708,16 @@ window._showChatFlairPicker = function() {
 
 window._selectChatFlair = function(emoji) {
     if (typeof currentUser === 'undefined' || !currentUser) return;
-    currentUser.chatFlairEmoji = emoji;
-    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
-        db.collection('users').doc(auth.currentUser.uid).update({ chatFlairEmoji: emoji }).catch(function(e) {
-            console.warn('[chatFlair] Firestore write failed:', e);
-        });
-    }
     var overlay = document.getElementById('chatFlairPickerOverlay');
     if (overlay) overlay.remove();
-    if (typeof showToast === 'function') showToast('\uD83D\uDD25 Chat flair set to ' + emoji + '!');
+    if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    // The server checks the flair is unlocked and saves it (titleFlair callable).
+    if (typeof window._titleFlairCall !== 'function') return;
+    window._titleFlairCall({ action: 'equip', flair: emoji || null }).then(function(d) {
+        if (typeof showToast !== 'function') return;
+        if (d && d.ok) showToast('\uD83D\uDD25 Chat flair set to ' + (d.chatFlairEmoji || 'none') + '!');
+        else showToast('\uD83D\uDD12 That flair is not unlocked yet');
+    }).catch(function(e) { console.warn('[chatFlair] save failed:', e && e.message); });
 };
 
 // ─── Post-Purchase Cosmetic Tooltips ─────────────────────────────────────────
