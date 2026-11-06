@@ -67,6 +67,14 @@
         try {
             if (typeof el.getClientRects === 'function' && el.getClientRects().length === 0) return false;
         } catch (e3) {}
+        // A layer with no painted area is closed. A stale empty node must never
+        // hide Global Chat and the other floating buttons.
+        try {
+            if (typeof el.getBoundingClientRect === 'function') {
+                var box = el.getBoundingClientRect();
+                if (box && (box.width <= 0 || box.height <= 0)) return false;
+            }
+        } catch (e4) {}
         return true;
     }
 
@@ -84,6 +92,9 @@
         for (var i = 0; i < nodes.length; i++) {
             var el = nodes[i];
             if (seen.indexOf(el) !== -1) continue;
+            // data-btc-sheet="0" marks a small non-blocking card (for example the
+            // PvP lobby alert). It must not hide Global Chat or the other floaters.
+            if (el.getAttribute && el.getAttribute('data-btc-sheet') === '0') continue;
             var host = el;
             // Always use the outer host for Terms / gifting. The inner [role=dialog]
             // keeps computed display:flex even when the parent is display:none, which

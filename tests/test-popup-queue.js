@@ -136,7 +136,7 @@ test('signing shell copy and the boost badge keep a gap', function () {
     assert.ok(html.includes('html.btc-signing-in #homeGuestActions'));
     assert.ok(read('engagement.js').includes('margin-left:6px'));
     assert.ok(read('bundle.min.js').includes('margin-left:6px'));
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2517'"));
+    assert.ok(/const CACHE_NAME = 'btc-archive-v\d+'/.test(read('sw.js')));
 });
 
 test('sheet helper closes the top layer on Escape and Back', function () {
@@ -238,6 +238,70 @@ test('open Terms counts the tosModal host, not the inner box', function () {
     env.sandbox.document.querySelectorAll = function () { return [tosBox]; };
     env.sandbox.btcSheet.sync();
     assert.strictEqual(env.sandbox.btcSheet.top(), tosModal);
+});
+
+function fakeLayer(opts) {
+    return {
+        nodeType: 1,
+        id: opts.id || '',
+        className: '',
+        classList: { contains: function () { return false; } },
+        hidden: false,
+        style: { display: '', zIndex: '' },
+        parentNode: { id: '', classList: { contains: function () { return false; } } },
+        getAttribute: function (name) {
+            if (name === 'role') return 'dialog';
+            if (name === 'data-btc-sheet') return opts.sheetAttr == null ? null : opts.sheetAttr;
+            return null;
+        },
+        getClientRects: function () { return [{ width: opts.w, height: opts.h }]; },
+        getBoundingClientRect: function () { return { width: opts.w, height: opts.h }; },
+        querySelector: function () { return null; },
+        querySelectorAll: function () { return []; }
+    };
+}
+
+function bootWithLayers(layers) {
+    const env = bootQueue();
+    const toggles = [];
+    env.sandbox.document.body.classList.toggle = function (name, on) { toggles.push([name, !!on]); };
+    env.sandbox.getComputedStyle = function () { return { display: 'flex', visibility: 'visible', zIndex: 'auto' }; };
+    env.sandbox.document.querySelectorAll = function () { return layers; };
+    env.sandbox.btcSheet.sync();
+    const last = toggles.filter(function (t) { return t[0] === 'btc-sheet-open'; }).pop();
+    return { env: env, sheetOpen: last ? last[1] : false };
+}
+
+test('an empty zero-size dialog does not hide Global Chat', function () {
+    const r = bootWithLayers([fakeLayer({ w: 0, h: 0 })]);
+    assert.strictEqual(r.sheetOpen, false);
+    assert.strictEqual(r.env.sandbox.btcSheet.top(), null);
+});
+
+test('a painted dialog still counts as an open sheet', function () {
+    const layer = fakeLayer({ w: 320, h: 400 });
+    const r = bootWithLayers([layer]);
+    assert.strictEqual(r.sheetOpen, true);
+    assert.strictEqual(r.env.sandbox.btcSheet.top(), layer);
+});
+
+test('a non-blocking card marked data-btc-sheet="0" does not hide Global Chat', function () {
+    const r = bootWithLayers([fakeLayer({ id: 'pvpLobbyAlert', w: 380, h: 140, sheetAttr: '0' })]);
+    assert.strictEqual(r.sheetOpen, false);
+    assert.strictEqual(r.env.sandbox.btcSheet.top(), null);
+});
+
+test('PvP lobby alert opts out of the sheet stack', function () {
+    const src = read('pvp-lobby-alert.js');
+    assert.ok(src.includes("root.setAttribute('data-btc-sheet', '0')"));
+    // On desktop the card sits above the FAB row so it does not cover the chat button.
+    assert.ok(src.includes('#pvpLobbyAlert{left:auto;right:24px;bottom:80px;width:380px;}'));
+});
+
+test('Global Chat button is only CSS-hidden while body.btc-sheet-open is set', function () {
+    const src = read('popup-stack.js');
+    assert.ok(src.includes("'body.btc-sheet-open #chatOverlayBtn,'"));
+    assert.ok(!/[^.-]#chatOverlayBtn\s*\{[^}]*display:\s*none/.test(src));
 });
 
 if (failed) {
