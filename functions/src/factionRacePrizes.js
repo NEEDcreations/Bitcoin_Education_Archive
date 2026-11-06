@@ -57,6 +57,11 @@ function intIn(v, lo, hi, dflt) {
     return Number.isFinite(n) && n >= lo && n <= hi ? n : dflt;
 }
 
+function floatIn(v, lo, hi, dflt) {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= lo && n <= hi ? n : dflt;
+}
+
 function readConfig(data) {
     const d = data || {};
     return {
@@ -65,6 +70,11 @@ function readConfig(data) {
         loserTopN: intIn(d.loserTopN, 1, 100, DEFAULTS.loserTopN),
         minContribution: intIn(d.minContribution, 0, 10000, DEFAULTS.minContribution),
         minAccountAgeDays: intIn(d.minAccountAgeDays, 0, 365, DEFAULTS.minAccountAgeDays),
+        // Always numbers. decideRace stores these on the result doc and on
+        // factionTotals. Firestore rejects undefined, which aborted the
+        // race-end transaction before any winner was recorded.
+        headStartMult: floatIn(d.headStartMult, 1, 3, DEFAULTS.headStartMult),
+        headStartPoints: intIn(d.headStartPoints, 1, 10000, DEFAULTS.headStartPoints),
     };
 }
 
