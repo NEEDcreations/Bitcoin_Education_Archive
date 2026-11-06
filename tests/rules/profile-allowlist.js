@@ -50,7 +50,7 @@ function valueFor(field) {
     if (field === 'notifPrompt') return { count: 1, lastAsked: 1, stopped: false, dontAsk: false };
     if (field === 'lqProgress') return { whitepaper: { passed: true, bestScore: 4 } };
     if (field === 'trailProgress') return { meadow: ['whitepaper'] };
-    if (field === 'trailsPassed' || field === 'earnedTitles') return ['hodler'];
+    if (field === 'trailsPassed') return ['hodler'];
     if (field === 'nachoStoryDays') return ['2026-10-22'];
     if (field === 'blockedUsers') return ['abc'];
     if (field === 'favorites' || field === 'bookmarks' || field === 'marketSaved' || field === 'completedQuests') return ['analogies'];
@@ -151,11 +151,12 @@ function valueFor(field) {
         await expect('delete pvp shard', function () {
             return updateDoc(ref, { pvpPushShard: deleteField() });
         }, true);
-        const denied = ['points', 'orangeTickets', 'tickets', 'favor', 'badges', 'scholarPoints', 'pointsClaimed', 'visibleBadges', 'weeklyXP', 'unclaimableXp', 'chatXpStreak', 'chatXpDay', 'brandNewReward'];
+        const denied = ['points', 'orangeTickets', 'tickets', 'favor', 'badges', 'scholarPoints', 'pointsClaimed', 'visibleBadges', 'weeklyXP', 'unclaimableXp', 'chatXpStreak', 'chatXpDay', 'brandNewReward',
+            'activeTitle', 'earnedTitles', 'chatFlairEmoji', 'earnedFlair', 'grandfatheredTitles', 'grandfatheredFlair'];
         for (let d = 0; d < denied.length; d++) {
             const field = denied[d];
             const patch = {};
-            patch[field] = field === 'badges' || field === 'visibleBadges' ? ['forged'] : 999;
+            patch[field] = field === 'badges' || field === 'visibleBadges' || field === 'earnedTitles' ? ['forged'] : (field === 'activeTitle' ? 'hash_god' : (field === 'chatFlairEmoji' ? '👑' : 999));
             await expect('deny ' + field, function () { return updateDoc(ref, patch); }, false);
         }
     } finally {

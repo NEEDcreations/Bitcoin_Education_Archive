@@ -85,9 +85,15 @@ const parts = emu.split(':');
         await expect('trail progress', function () {
             return updateDoc(ref, { trailProgress: { meadow: ['whitepaper'] }, trailsPassed: ['meadow'] });
         }, true);
-        await expect('earned titles', function () {
-            return updateDoc(ref, { earnedTitles: ['hodler'], activeTitle: 'hodler' });
-        }, true);
+        await expect('deny earned titles', function () {
+            return updateDoc(ref, { earnedTitles: ['hash_god'] });
+        }, false);
+        await expect('deny active title', function () {
+            return updateDoc(ref, { activeTitle: 'hash_god' });
+        }, false);
+        await expect('deny chat flair', function () {
+            return updateDoc(ref, { chatFlairEmoji: '👑' });
+        }, false);
         await expect('Nacho story', function () {
             return updateDoc(ref, { nachoStoryProgress: 2, nachoStoryDate: '2026-10-22', nachoStoryDays: ['2026-10-21', '2026-10-22'] });
         }, true);
