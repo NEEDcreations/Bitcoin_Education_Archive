@@ -397,6 +397,14 @@ async function creditDailyAllThree(uid, day) {
       trifectaDays: admin.firestore.FieldValue.increment(1),
       sfContributions: admin.firestore.FieldValue.increment(1),
     });
+    // Same fields as the contributeFavor level-up path. The contributor
+    // exists check above is the dedup, so this cannot add a second point.
+    const userSfRef = db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc(uid);
+    transaction.set(userSfRef, {
+      uid: uid,
+      points: admin.firestore.FieldValue.increment(1),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
     if (stateData.favorActive) {
       const newBonus = Math.min((stateData.bonusMinutes || 0) + BONUS_MINUTES_PER_POINT, MAX_BONUS_MINUTES);
       const updated = Object.assign({}, stateData, { bonusMinutes: newBonus });
@@ -439,9 +447,10 @@ exports.favorChatHandle = favorChatHandle;
 exports.shapeTopHashEntry = shapeTopHashEntry;
 exports.SOLVER_NAME_RE = SOLVER_NAME_RE;
 
-// Valid level names per source tier (server-side whitelist)
+// Valid level names per source tier (server-side whitelist).
+// Normie and Curious award 0 Satoshi's Favor, so contributeFavor rejects them.
 const LEVEL_TIERS = {
-  'level_up': ['Normie','Curious','Pleb','Pleb II','Pleb III','Stacker','Stacker II','Stacker III'],
+  'level_up': ['Pleb','Pleb II','Pleb III','Stacker','Stacker II','Stacker III'],
   'level_up_5': ['Maxi','Maxi II','Maxi III'],
   'level_up_10': ['Papa John','Full Node','Whale','Sovereign','Cypherpunk','Satoshi'],
 };
@@ -456,8 +465,8 @@ const LEVEL_MIN_POINTS = {
   'Sovereign': 100000, 'Cypherpunk': 133337, 'Satoshi': 210000,
 };
 
-// Normie and Curious are on the level list, and the client does not award
-// Favor for them. How it works: Pleb/Stacker 1, Maxi 5, Papa John or higher 10.
+// Normie and Curious stay off LEVEL_TIERS because they award 0.
+// Pleb/Stacker award 1, Maxi 5, Papa John or higher 10.
 function levelFavorRows() {
   const rows = [];
   Object.keys(LEVEL_TIERS).forEach(function (source) {
@@ -500,6 +509,7 @@ function levelNameForPoints(points) {
 exports.planLevelFavor = planLevelFavor;
 exports.levelNameForPoints = levelNameForPoints;
 exports.levelFavorRows = levelFavorRows;
+exports.LEVEL_TIERS = LEVEL_TIERS;
 
 // Max bonus minutes cap (prevent infinite favor window)
 const MAX_BONUS_MINUTES = 180; // 3 hours max extension

@@ -330,6 +330,9 @@ function stageBadgeFavor(t, db, adminSdk, ctx) {
     // Backfill records the player's 10 points, but it does not write the live
     // pool. That write is what opens the window and posts "SF is LIVE".
     const skipPool = src.skipPool === true;
+    const field = factionField(faction);
+    const totals = src.totalsSnap && src.totalsSnap.exists ? (src.totalsSnap.data() || {}) : {};
+    const race = require('./factionBalance').racePoints(pointsToAdd, faction, totals, src.user, nowMs);
     const contributorDoc = {
         uid: src.uid,
         source: 'badge_earned',
@@ -339,14 +342,17 @@ function stageBadgeFavor(t, db, adminSdk, ctx) {
         timestamp: adminSdk.firestore.FieldValue.serverTimestamp(),
         faction: faction,
         pointsAdded: pointsToAdd,
+        factionPoints: race.points,
     };
     if (skipPool) contributorDoc.backfill = true;
     t.set(src.contributorRef, contributorDoc);
-    const field = factionField(faction);
-    const totals = src.totalsSnap && src.totalsSnap.exists ? (src.totalsSnap.data() || {}) : {};
-    const race = require('./factionBalance').racePoints(pointsToAdd, faction, totals, src.user, nowMs);
     const totalsWrite = { lastUpdated: adminSdk.firestore.FieldValue.serverTimestamp() };
     totalsWrite[field] = Math.round(((Number(totals[field]) || 0) + race.points) * 100) / 100;
+    // Same head-start budget contributeFavor increments. This write already
+    // replaces the totals snapshot read above, so the used field is the sum.
+    if (race.headStartField) {
+        totalsWrite[race.headStartField] = Math.round(((Number(totals[race.headStartField]) || 0) + race.headStartBase) * 100) / 100;
+    }
     t.set(src.totalsRef, Object.assign({}, totals, totalsWrite));
     t.set(db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc(src.uid), {
         uid: src.uid,

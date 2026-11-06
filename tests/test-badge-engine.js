@@ -340,6 +340,7 @@ queue.push(test('every badge grant adds one Favor point once', async function ()
     assert.strictEqual(second.favor, false);
     assert.strictEqual(db.docs['satoshiFavor/current'].points, 1);
     assert.strictEqual(db.docs['satoshiFavor/current/contributors/u_badge_say_hi_1'].pointsAdded, 1);
+    assert.strictEqual(db.docs['satoshiFavor/current/contributors/u_badge_say_hi_1'].factionPoints, 1);
     assert.strictEqual(db.docs['satoshiFavor/factionTotals'].cyber_hornets, 1);
     assert.strictEqual(db.docs['satoshiFavor/userSfPoints/users/u'].uid, 'u');
     assert.strictEqual(db.docs['satoshiFavor/userSfPoints/users/u'].points._increment, 1);

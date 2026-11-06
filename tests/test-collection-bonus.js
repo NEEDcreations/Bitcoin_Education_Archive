@@ -470,6 +470,7 @@ queue.push(test('ten Favor points use the contributor total and the multi-point 
     assert.strictEqual(result.favor, true);
     const contributor = db.docs['satoshiFavor/current/contributors/u_badge_' + col.bonusId];
     assert.strictEqual(contributor.pointsAdded, 10);
+    assert.strictEqual(contributor.factionPoints, 10);
     assert.strictEqual(contributor.source, 'badge_earned');
     assert.strictEqual(contributor.backfill, undefined);
     assert.strictEqual(db.docs['satoshiFavor/userSfPoints/users/u'].points, 10);
@@ -488,6 +489,7 @@ queue.push(test('ten Favor points use the contributor total and the multi-point 
     const quietRow = backfill.docs['satoshiFavor/current/contributors/u_badge_' + col.bonusId];
     assert.strictEqual(quietRow.backfill, true);
     assert.strictEqual(quietRow.pointsAdded, 10);
+    assert.strictEqual(quietRow.factionPoints, 10);
     assert.strictEqual(backfill.docs['satoshiFavor/userSfPoints/users/u'].points, 10);
     assert.strictEqual(backfill.docs['satoshiFavor/factionTotals'].cyber_hornets, 10);
     assert.strictEqual(backfill.docs['satoshiFavor/current'].points, 15);
@@ -1041,6 +1043,76 @@ queue.push(test('a failed congrats retry is logged granted false and stays pendi
     assert.strictEqual(db.docs['users/u/badge_awards/' + col.bonusId].congratsPending, true);
     assert.strictEqual(chatDocs(db).length, 0);
     assert.ok(!fs.readFileSync(path.join(root, 'functions/src/collectionBonus.js'), 'utf8').includes('failChat'));
+}));
+
+function headStartTotals(extra) {
+    return Object.assign({
+        raceId: 'race2',
+        cyber_hornets: 0,
+        honey_badgers: 0,
+        headStart: { faction: 'honey_badgers', afterRaceId: 'race1', mult: 1.1, points: 1000 },
+    }, extra || {});
+}
+
+queue.push(test('a collection bonus stores race points and spends head-start budget once', async function () {
+    const col = collectionBonus.collectionById('col_builder');
+    const members = collectionBonus.requiredMembers(col);
+    const now = 1700000000000;
+    const day = '2026-10-24';
+    function seed(faction, totalsExtra, pool) {
+        return memoryDb(seedAwards(members, {
+            'users/u': { points: 0, visibleBadges: members.slice(), faction: faction },
+            'satoshiFavor/factionTotals': headStartTotals(totalsExtra),
+            'satoshiFavor/current': pool || { points: 0, favorActive: false, bonusMinutes: 0 },
+        }));
+    }
+    const loser = seed('honey_badgers');
+    const paid = await collectionBonus.grantCollectionBonus(loser, admin, 'u', col.id, { day: day, nowMs: now });
+    assert.strictEqual(paid.granted, true);
+    const row = loser.docs['satoshiFavor/current/contributors/u_badge_' + col.bonusId];
+    assert.strictEqual(row.pointsAdded, 10);
+    assert.strictEqual(row.factionPoints, 11);
+    assert.strictEqual(loser.docs['satoshiFavor/factionTotals'].honey_badgers, 11);
+    assert.strictEqual(loser.docs['satoshiFavor/factionTotals'].headStartUsed_race2, 10);
+    assert.strictEqual(loser.docs['satoshiFavor/userSfPoints/users/u'].points, 10);
+    assert.strictEqual(loser.docs['satoshiFavor/current'].points, 10);
+    const again = await collectionBonus.grantCollectionBonus(loser, admin, 'u', col.id, { day: day, nowMs: now });
+    assert.strictEqual(again.reason, 'already');
+    assert.strictEqual(loser.docs['satoshiFavor/factionTotals'].headStartUsed_race2, 10);
+    assert.strictEqual(loser.docs['satoshiFavor/factionTotals'].honey_badgers, 11);
+    assert.strictEqual(loser.docs['satoshiFavor/userSfPoints/users/u'].points, 10);
+    assert.strictEqual(loser.docs['satoshiFavor/current'].points, 10);
+
+    const winner = seed('cyber_hornets');
+    await collectionBonus.grantCollectionBonus(winner, admin, 'u', col.id, { day: day, nowMs: now, postChat: false });
+    const winnerRow = winner.docs['satoshiFavor/current/contributors/u_badge_' + col.bonusId];
+    assert.strictEqual(winnerRow.pointsAdded, 10);
+    assert.strictEqual(winnerRow.factionPoints, 10);
+    assert.strictEqual(winner.docs['satoshiFavor/factionTotals'].cyber_hornets, 10);
+    assert.strictEqual(winner.docs['satoshiFavor/factionTotals'].headStartUsed_race2, undefined);
+
+    const spent = seed('honey_badgers', { headStartUsed_race2: 1000 });
+    await collectionBonus.grantCollectionBonus(spent, admin, 'u', col.id, { day: day, nowMs: now, postChat: false });
+    assert.strictEqual(spent.docs['satoshiFavor/current/contributors/u_badge_' + col.bonusId].factionPoints, 10);
+    assert.strictEqual(spent.docs['satoshiFavor/factionTotals'].honey_badgers, 10);
+    assert.strictEqual(spent.docs['satoshiFavor/factionTotals'].headStartUsed_race2, 1000);
+
+    const partial = seed('honey_badgers', { headStartUsed_race2: 995 });
+    await collectionBonus.grantCollectionBonus(partial, admin, 'u', col.id, { day: day, nowMs: now, postChat: false });
+    assert.strictEqual(partial.docs['satoshiFavor/current/contributors/u_badge_' + col.bonusId].pointsAdded, 10);
+    assert.strictEqual(partial.docs['satoshiFavor/current/contributors/u_badge_' + col.bonusId].factionPoints, 10.5);
+    assert.strictEqual(partial.docs['satoshiFavor/factionTotals'].honey_badgers, 10.5);
+    assert.strictEqual(partial.docs['satoshiFavor/factionTotals'].headStartUsed_race2, 1000);
+
+    const backfill = seed('honey_badgers', {}, { points: 4, favorActive: false, bonusMinutes: 0 });
+    const quiet = await collectionBonus.grantCollectionBonus(backfill, admin, 'u', col.id, { day: day, nowMs: now, postChat: false, backfill: true });
+    assert.strictEqual(quiet.granted, true);
+    assert.strictEqual(backfill.docs['satoshiFavor/current/contributors/u_badge_' + col.bonusId].factionPoints, 11);
+    assert.strictEqual(backfill.docs['satoshiFavor/current/contributors/u_badge_' + col.bonusId].backfill, true);
+    assert.strictEqual(backfill.docs['satoshiFavor/factionTotals'].headStartUsed_race2, 10);
+    assert.strictEqual(backfill.docs['satoshiFavor/factionTotals'].honey_badgers, 11);
+    assert.strictEqual(backfill.docs['satoshiFavor/userSfPoints/users/u'].points, 10);
+    assert.strictEqual(backfill.docs['satoshiFavor/current'].points, 4);
 }));
 
 Promise.all(queue).then(function () {
