@@ -1,4 +1,4 @@
-// Cache-buster pin. This ship is btc-archive-v2515 (Terms .tos-box no longer sticky-hides the pot of sats). Before: btc-archive-v2514 (qualified badge percentages and collection order). Before: btc-archive-v2513 (Satoshi Favor counter fixes). Before: btc-archive-v2512 (popup/sheet UX #252). Before: btc-archive-v2510 (weekly patch notes). Before: btc-archive-v2509 (ranking.js, quests.js, and global-chat.js 20261106_v2509). Before: btc-archive-v2508 (pot of sats overlay: tctv-drip.js 20261106_v2508). Before: btc-archive-v2507 (collection completion recognition). Before: btc-archive-v2506 (Nook rebalance: quests.js, nacho-qa.js, features.registry.js, global-chat.js 20261105_v2506). Before: btc-archive-v2505 (faction race prizes: faction-race-prizes.js, ranking.js, global-chat.js, bundle.min.js 20261105_v2505). Before: btc-archive-v2504 (faction race balance: ranking.js, quests.js and global-chat.js 20261105_v2504). Before: btc-archive-v2503 (collections rebalance + Title & Flair: bundle.min.js, ranking.js, global-chat.js, quests.js 20261105_v2503). Before: btc-archive-v2502 (legal docs: timechain-tv.js disclaimer 20261105_v2502). Before: btc-archive-v2501 (favorite home buttons open again + star spacing: favorites.js 20261105_v2501). Before: btc-archive-v2500 (Terms Accept fix: onboarding.js, ranking.js 20261105_v2500). Before: btc-archive-v2499 (BIP Breakthrough: bip-breakthrough.js, achievement-share.js, badges.js, global-chat.js, bundle/ranking/referral-tiers 20261105_v2499; keeps notifications.js 20261105_v2497 from #237). Before: btc-archive-v2497 (homepage push bell). Before: btc-archive-v2496 (#236 referral maxi). Before: btc-archive-v2495 (pot of sats overlay). Before: btc-archive-v2494 (favorite apps).
+// Cache-buster pin. This ship is btc-archive-v2517 (root-absolute same-origin asset paths so trailing-slash routes load scripts). Before: btc-archive-v2515 (Terms .tos-box no longer sticky-hides the pot of sats). Before: btc-archive-v2514 (qualified badge percentages and collection order). Before: btc-archive-v2513 (Satoshi Favor counter fixes). Before: btc-archive-v2512 (popup/sheet UX #252). Before: btc-archive-v2510 (weekly patch notes). Before: btc-archive-v2509 (ranking.js, quests.js, and global-chat.js 20261106_v2509). Before: btc-archive-v2508 (pot of sats overlay: tctv-drip.js 20261106_v2508). Before: btc-archive-v2507 (collection completion recognition). Before: btc-archive-v2506 (Nook rebalance: quests.js, nacho-qa.js, features.registry.js, global-chat.js 20261105_v2506). Before: btc-archive-v2505 (faction race prizes: faction-race-prizes.js, ranking.js, global-chat.js, bundle.min.js 20261105_v2505). Before: btc-archive-v2504 (faction race balance: ranking.js, quests.js and global-chat.js 20261105_v2504). Before: btc-archive-v2503 (collections rebalance + Title & Flair: bundle.min.js, ranking.js, global-chat.js, quests.js 20261105_v2503). Before: btc-archive-v2502 (legal docs: timechain-tv.js disclaimer 20261105_v2502). Before: btc-archive-v2501 (favorite home buttons open again + star spacing: favorites.js 20261105_v2501). Before: btc-archive-v2500 (Terms Accept fix: onboarding.js, ranking.js 20261105_v2500). Before: btc-archive-v2499 (BIP Breakthrough: bip-breakthrough.js, achievement-share.js, badges.js, global-chat.js, bundle/ranking/referral-tiers 20261105_v2499; keeps notifications.js 20261105_v2497 from #237). Before: btc-archive-v2497 (homepage push bell). Before: btc-archive-v2496 (#236 referral maxi). Before: btc-archive-v2495 (pot of sats overlay). Before: btc-archive-v2494 (favorite apps).
 // Live gh-pages was v2446. quests.js stays v2443. bundle.min.js is v2447. global-chat.js is v2448.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
 // timechain-tv.js is 20261105_v2502. scholar.js is 20261105_v2490.
@@ -36,9 +36,11 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2515', () => {
+test('service worker cache is v2517', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2515'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2517'"));
+    assert.ok(!sw.includes('btc-archive-v2516'));
+    assert.ok(!sw.includes('btc-archive-v2515'));
     assert.ok(!sw.includes('btc-archive-v2514'));
     assert.ok(!sw.includes('btc-archive-v2513'));
     assert.ok(!sw.includes('btc-archive-v2512'));
@@ -368,7 +370,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     found.forEach(function (hit) {
         assert.ok(hit.endsWith(scholarPin[1]), hit);
     });
-    assert.strictEqual((html.match(/modules\.js\?v=20261026_v2377/g) || []).length, 2);
+    assert.strictEqual((html.match(/modules\.js\?v=20261106_v2512/g) || []).length, 2);
+    assert.strictEqual((html.match(/modules\.js\?v=20261026_v2377/g) || []).length, 0);
     assert.ok(!html.includes('modules.js?v=20261024_v2370'));
     assert.ok(!html.includes('modules.js?v=20261023_v2324'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
@@ -538,7 +541,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2324'));
     assert.ok(html.includes('lightning.js?v=20261023_v2323'));
     assert.ok(!html.includes('lightning.js?v=20261022_faucet'));
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261106_v2509/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261106_v2512/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261106_v2509/g) || []).length, 0);
     assert.ok(!html.includes('quests.js?v=20261104_v2477'));
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261030_v2436/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261030_v2435/g) || []).length, 0);
@@ -581,8 +585,41 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2515');
+    assert.ok(swVersion && swVersion[1] === 'v2517');
     assert.ok(html.includes('faction-race-prizes.js?v=20261105_v2505'));
+});
+
+
+test('same-origin script/link/img paths are root-absolute (trailing-slash safe)', () => {
+    const html = read('index.html');
+    assert.strictEqual(html, read('404.html'));
+    const bad = [];
+    const attrRe = /\b(?:src|href)=["']([^"']*)["']/gi;
+    let m;
+    while ((m = attrRe.exec(html))) {
+        const url = m[1];
+        if (!url) continue;
+        if (
+            url.startsWith('/') ||
+            url.startsWith('https:') ||
+            url.startsWith('http:') ||
+            url.startsWith('data:') ||
+            url.startsWith('mailto:') ||
+            url.startsWith('javascript:') ||
+            url.startsWith('#') ||
+            url.startsWith('//')
+        ) {
+            continue;
+        }
+        bad.push(url);
+    }
+    assert.deepStrictEqual(bad, [], 'relative same-origin assets remain: ' + bad.join(', '));
+    assert.ok(html.includes('src="/tctv-drip.js?'), 'tctv-drip stays root-absolute');
+    assert.ok(html.includes('src="/bundle.min.js?'), 'bundle is root-absolute');
+    assert.ok(html.includes('src="/popup-stack.js?'), 'popup-stack is root-absolute');
+    assert.ok(html.includes('href="/manifest.json"'), 'manifest is root-absolute');
+    assert.ok(html.includes('Strip trailing slash on deep links'), 'early trailing-slash redirect present');
+    assert.ok(html.includes("path.charAt(path.length - 1) === '/'"), 'redirect detects trailing slash');
 });
 
 test('rebuilt bundle contains the marketplace save and delete payloads', () => {
@@ -686,9 +723,6 @@ test('leaderboard snapshot is read after auth and is not prefetched', () => {
     assert.strictEqual(toggle.includes("orderBy('monthlyXP'"), false);
 });
 
-console.log('\n' + passed + ' passed, ' + failed + ' failed');
-process.exit(failed > 0 ? 1 : 0);
-
 test('terms publish Satoshi\'s Favor and cipher sats odds', () => {
     const terms = fs.readFileSync(path.join(__dirname, '..', 'terms.html'), 'utf8');
     assert.ok(terms.includes('id="odds"'));
@@ -716,3 +750,6 @@ test('PR #252 asset busters are v2512 (popup-stack bumped to v2515)', () => {
     assert.ok(!html.includes('ranking.js?v=20261106_v2509'));
     assert.ok(!html.includes('quests.js?v=20261106_v2509'));
 });
+
+console.log('\n' + passed + ' passed, ' + failed + ' failed');
+process.exit(failed > 0 ? 1 : 0);
