@@ -1005,6 +1005,22 @@
     window.showOnboardingIntro = function (opts) {
         var force = opts && opts.force;
         if (!force && alreadyOnboarded()) return false;
+        // Terms first: do not stack the welcome tour over the Accept dialog.
+        if (!force && typeof window.tosBlocking === 'function' && window.tosBlocking()) {
+            if (typeof window.runAfterTos === 'function') {
+                window.runAfterTos(function () { window.showOnboardingIntro(opts); });
+            }
+            return false;
+        }
+        if (!force) {
+            var tosEl = document.getElementById('tosModal');
+            if (tosEl && tosEl.classList.contains('open')) {
+                if (typeof window.runAfterTos === 'function') {
+                    window.runAfterTos(function () { window.showOnboardingIntro(opts); });
+                }
+                return false;
+            }
+        }
         window.btcClaimSessionPopup('onboarding');
         var old = document.getElementById('btcIntroOverlay');
         if (old) old.remove();
@@ -1160,6 +1176,9 @@
     }
     function modeCardEligible() {
         try { if (localStorage.getItem(MODE_CARD_KEY) === '1') return false; } catch (e) {}
+        if (typeof window.tosBlocking === 'function' && window.tosBlocking()) return false;
+        var tos = document.getElementById('tosModal');
+        if (tos && tos.classList.contains('open')) return false;
         return alreadyOnboarded();
     }
     function ensureModeStyles() {
