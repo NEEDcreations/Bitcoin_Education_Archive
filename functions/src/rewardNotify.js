@@ -470,6 +470,7 @@ module.exports = {
     badgeMeta: badgeMeta,
     badgeDocId: badgeDocId,
     rankDocId: rankDocId,
+    rankSlug: rankSlug,
     groupDocId: groupDocId,
     levelsCrossed: levelsCrossed,
     formatRewardMessage: formatRewardMessage,

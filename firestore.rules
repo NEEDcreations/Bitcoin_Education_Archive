@@ -135,6 +135,8 @@ service cloud.firestore {
     function userProfileServerOnlyKeys() {
       return [
         'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
+        // First time each rank was crossed. onUserRankReached only.
+        'rankReachedAt',
         'unclaimableXp', 'chatXpStreak', 'chatXpDay',
         'visibleBadges', 'hiddenBadges', 'badges', 'payingBadgeCount', 'badgeCounters',
         'marketListings', 'marketMessages', 'marketSold',
@@ -243,6 +245,8 @@ service cloud.firestore {
           || changed.hasAny([
                         // Core economy
                         'points', 'xp', 'weeklyXP', 'monthlyXP', 'level',
+                        // First time each rank was crossed. onUserRankReached only.
+                        'rankReachedAt',
                         'unclaimableXp', 'chatXpStreak', 'chatXpDay',
                         'sats', 'satsEarned', 'satsWithdrawn', 'satsDisabled', 'cipherSatsBalance',
                         'orangeTickets', 'tickets',

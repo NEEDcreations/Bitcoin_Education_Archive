@@ -132,6 +132,7 @@ const TESTS = [
     { name: 'KB question routing', file: 'test-kb-routing.js' },
     { name: 'Book KB', file: 'test-books-kb.js' },
     { name: 'Reward Notifications', file: 'test-reward-notify.js' },
+    { name: 'Rank reached timestamps', file: 'test-rank-reached.js' },
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
     { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
     { name: 'Topic Discussions', file: 'test-topic-discussion.js' },

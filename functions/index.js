@@ -159,6 +159,7 @@ const bolt11 = require('bolt11');
 const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
 const rewardNotify = require('./src/rewardNotify');
+const rankReached = require('./src/rankReached');
 const awardActions = require('./src/awardActions');
 const awardEvidence = require('./src/awardEvidence');
 const ticketGrants = require('./src/ticketGrants');
@@ -5646,6 +5647,15 @@ exports.backfillLightningAddress = functionsV1.https.onCall(async (data, context
 });
 
 // ---- Live triggers for community stats: channelVisits, questsCompleted, watchTimeMinutes ----
+
+// First time users.points crosses a rank from rewardNotify.LEVELS.
+// Writes users/{uid}.rankReachedAt.{rankId} once. A later points update
+// that does not cross a new rank does not write. Already-set keys stay.
+// This is the only writer, so every server points update is covered.
+exports.onUserRankReached = onDocumentUpdated('users/{uid}', async (event) => {
+    await rankReached.onUserRankReached(event, db, admin.firestore.FieldValue.serverTimestamp());
+    return null;
+});
 
 // Channel visit → bump global channelVisits (detects channelsVisited increment on user doc)
 exports.onUserChannelVisit = onDocumentUpdated('users/{uid}', async (event) => {
