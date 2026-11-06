@@ -305,8 +305,11 @@
         el.querySelector('.td-fill').style.width = pct.toFixed(2) + '%';
         el.querySelector('.td-bar').setAttribute('aria-valuenow', String(Math.round(pct)));
         var n = pot.liveViewers || 0;
+        var rate = Number(pot.ratePerMin);
         var line = pot.status === 'filling'
-            ? '<b>' + esc(fmt(n)) + '</b> watching right now'
+            ? (Number.isFinite(rate)
+                ? '~' + esc(fmt(rate)) + ' sats/min \u00b7 <b>' + esc(fmt(n)) + '</b> watching'
+                : '<b>' + esc(fmt(n)) + '</b> watching right now')
             : pot.waiting === true ? 'Pot is full! It\u2019s shared once enough viewers have watched long enough. Keep watching to take part.'
             : (pot.status === 'full' || pot.status === 'distributing' ? 'Pot is full! Sharing it with viewers\u2026' : 'Pot is full! Sharing will start soon.');
         el.querySelector('.td-live').innerHTML = line;

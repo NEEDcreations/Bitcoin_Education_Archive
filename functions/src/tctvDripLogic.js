@@ -5,7 +5,8 @@
 const DEFAULTS = Object.freeze({
     enabled: true,
     targetSats: 5000,
-    satsPerViewerMinute: 1,
+    satsPerViewerMinute: 1, // kept for Firestore/readConfig compat; 1-4 band uses 1 sat/min
+    satsPerFiveViewers: 5,  // >=5 viewers: floor(N/5) * this
     maxCountedViewers: 50,
     dailyCapSats: 1000,
     userShareCapPct: 5,
@@ -82,20 +83,30 @@ function planCheckin(prev, ctx) {
     return { credit, reason: 'ok', patch };
 }
 
+// Stepped fill rate from active viewers (capped at maxCountedViewers).
+// 0 -> 0; 1-4 -> 1 sat/min; >=5 -> floor(N/5) * satsPerFiveViewers.
+function rateFromViewers(activeViewers, cfg) {
+    const viewers = Math.min(Math.max(0, Math.floor(activeViewers)), cfg.maxCountedViewers);
+    if (viewers <= 0) return 0;
+    if (viewers < 5) return 1;
+    return Math.floor(viewers / 5) * cfg.satsPerFiveViewers;
+}
+
 // Accrual for one minute tick.
 function planAccrual(pot, activeViewers, cfg, dayKey) {
     const p = pot || {};
     const viewers = Math.min(Math.max(0, Math.floor(activeViewers)), cfg.maxCountedViewers);
+    const ratePerMin = rateFromViewers(viewers, cfg);
     const sameDay = p.dayKey === dayKey;
     const dayUsed = sameDay ? num(p.dayAccrued, 0) : 0;
     const sats = num(p.sats, 0);
-    let add = viewers * cfg.satsPerViewerMinute;
+    let add = ratePerMin;
     add = Math.max(0, Math.min(add, cfg.dailyCapSats - dayUsed, cfg.targetSats - sats));
     const next = Math.round((sats + add) * 1000) / 1000;
     const prevBursts = Math.floor(sats / cfg.burstEverySats);
     const bursts = Math.floor(next / cfg.burstEverySats);
     return {
-        viewers, add,
+        viewers, add, ratePerMin,
         sats: next,
         dayKey, dayAccrued: Math.round((dayUsed + add) * 1000) / 1000,
         burst: bursts > prevBursts,
@@ -203,5 +214,5 @@ function isAgentOrBlocked(user) {
 
 module.exports = {
     DEFAULTS, CREDIT_SECONDS, MIN_GAP_MS, ACTIVE_WINDOW_MS, DEVICE_HOLD_MS,
-    readConfig, validDeviceId, nextPromptMs, planCheckin, planAccrual, planShares, projectShares, fillShares, eligibleEntries, shareCap, planReserve, isAgentOrBlocked,
+    readConfig, validDeviceId, nextPromptMs, planCheckin, rateFromViewers, planAccrual, planShares, projectShares, fillShares, eligibleEntries, shareCap, planReserve, isAgentOrBlocked,
 };

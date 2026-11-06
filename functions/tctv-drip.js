@@ -218,7 +218,7 @@ async function runTick() {
             .where('potId', '==', pot.potId).where('activeMs', '>=', nowMs - logic.ACTIVE_WINDOW_MS).count().get();
         const n = active.data().count || 0;
         const acc = logic.planAccrual(pot, n, cfg, offsetDateKey(nowMs));
-        const patch = { sats: acc.sats, viewers: acc.viewers, liveViewers: n, dayKey: acc.dayKey, dayAccrued: acc.dayAccrued, target: cfg.targetSats, lastTickMs: nowMs };
+        const patch = { sats: acc.sats, viewers: acc.viewers, liveViewers: n, ratePerMin: acc.ratePerMin, dayKey: acc.dayKey, dayAccrued: acc.dayAccrued, target: cfg.targetSats, lastTickMs: nowMs };
         if (acc.burst) { patch.bursts = (pot.bursts || 0) + 1; patch.lastBurstMs = nowMs; }
         if (acc.full) patch.status = 'full';
         await potRef.set(patch, { merge: true });
