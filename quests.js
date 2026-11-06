@@ -23,6 +23,13 @@ const QUESTION_BANK = {
         { q: "The Bitcoin whitepaper solved what previously unsolvable problem?", a: "Digital scarcity without a trusted third party", wrong: ["Instant payments without any processing delays", "Quantum-proof encryption for all financial data", "Free global transfers without any intermediary"] },
         { q: "What did Satoshi embed in the Genesis Block's coinbase transaction?", a: "A newspaper headline about bank bailouts", wrong: ["A cryptographic puzzle for early miners", "A private note to the early Bitcoin team", "A list of early Bitcoin wallet addresses"] }
     ],
+    "one-stop-shop": [
+        { q: "What is the One-Stop Shop channel for?", a: "A short starter set of the best resources for understanding Bitcoin", wrong: ["A live price ticker for every altcoin", "A custodial exchange for buying bitcoin", "A mining pool signup form"] },
+        { q: "Who should start with the One-Stop Shop?", a: "Someone new who wants the core ideas in one place", wrong: ["Only miners who already run a pool", "Only developers submitting a BIP", "Only people who already memorized the whitepaper"] },
+        { q: "How long does the channel say it takes to work through its starter material?", a: "About 3 to 5 hours", wrong: ["About 5 minutes", "About 3 to 5 weeks of full-time study", "A four-year university course"] },
+        { q: "What does the channel say you will know after 15 minutes there?", a: "More about Bitcoin than 99% of the population", wrong: ["How to mine a block on a laptop", "The private key of the genesis coins", "Every proposed soft fork in detail"] },
+        { q: "What kind of material does the One-Stop Shop point you to first?", a: "Short videos and the best introductory explanations of Bitcoin", wrong: ["A hardware wallet's recovery seed", "A leveraged trading terminal", "A list of altcoin presales"] }
+    ],
     "decentralized": [
         { q: "How many people are \"in charge\" of Bitcoin?", a: "No one", wrong: ["Satoshi Nakamoto", "A board of directors", "The Bitcoin Foundation"] },
         { q: "What is needed for code updates to Bitcoin?", a: "Deep consensus from the network", wrong: ["Miner approval alone suffices", "Developer committee approval", "Permission from founding nodes"] },
@@ -1554,9 +1561,16 @@ function generateAndShowQuest(manual, targetChannelId, isRetake) {
         }
     }
 
-    // For topic-specific quests, allow fewer than 5 if the topic has fewer questions
-    var minQuestions = targetChannelId ? Math.min(3, pool.length) : 5;
-    if (pool.length < minQuestions) return;
+    // An empty topic used to pass this check (min became 0) and open a quiz
+    // with no questions. That must never count as a finished quest.
+    var minQuestions = targetChannelId ? 1 : 5;
+    if (pool.length < minQuestions) {
+        if (targetChannelId && typeof window.btcRevertEmptyTrailStop === 'function') {
+            window.btcRevertEmptyTrailStop(String(targetChannelId).split('||')[0]);
+        }
+        if (manual && typeof showToast === 'function') showToast('This quest has no questions yet.');
+        return;
+    }
 
     // Filter out already-asked questions first
     let freshPool = pool.filter(q => !askedQuestions.includes(q.q));
@@ -1761,6 +1775,12 @@ function playWarriorDrum() {
 }
 
 function showQuest(quest, retry) {
+    if (!quest || !quest.questions || !quest.questions.length) {
+        if (quest && quest.topicKey && typeof window.btcRevertEmptyTrailStop === 'function') {
+            window.btcRevertEmptyTrailStop(quest.topicKey);
+        }
+        return;
+    }
     currentQuest = quest;
     isRetry = retry;
     window._questSubmitted = false;
@@ -1903,6 +1923,14 @@ async function _gradeQuestOnServer(quest, answerIndexes, retry) {
 async function submitQuest() {
     // Prevent double-submit
     if (window._questSubmitted) return;
+    if (!currentQuest || !currentQuest.questions || !currentQuest.questions.length) {
+        window._questSubmitted = false;
+        if (typeof window.btcRevertEmptyTrailStop === 'function' && currentQuest && currentQuest.topicKey) {
+            window.btcRevertEmptyTrailStop(currentQuest.topicKey);
+        }
+        if (typeof closeQuest === 'function') closeQuest();
+        return;
+    }
     window._questSubmitted = true;
     var btn = document.getElementById('questSubmitBtn');
     if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = 'Grading...'; }

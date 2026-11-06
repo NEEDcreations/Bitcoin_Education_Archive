@@ -2089,6 +2089,8 @@
         var options = opts || {};
         container.textContent = '';
         var stored = bqStoredExperienceMode();
+        var preselect = stored || options.preselect || 'beginner';
+        if (preselect !== 'lite' && preselect !== 'beginner' && preselect !== 'intermediate' && preselect !== 'advanced') preselect = 'beginner';
         BQ_EXPERIENCE_MODES.forEach(function (meta) {
             var brief = bqModeBrief(meta.id);
             var block = document.createElement('div');
@@ -2096,17 +2098,17 @@
             var btn = document.createElement('button');
             btn.type = 'button';
             btn.setAttribute('data-mode', meta.id);
-            var on = stored === meta.id;
+            var on = stored ? stored === meta.id : preselect === meta.id;
             btn.setAttribute('aria-pressed', on ? 'true' : 'false');
             var name = document.createElement('div');
             name.className = 'bq-mode-name';
             name.textContent = meta.label;
-            if (on) {
+            if (stored && on) {
                 var current = document.createElement('span');
                 current.className = 'bq-mode-flag';
                 current.textContent = ' (current)';
                 name.appendChild(current);
-            } else if (meta.id === (options.recommended || 'beginner')) {
+            } else if (on || meta.id === (options.recommended || 'beginner')) {
                 var rec = document.createElement('span');
                 rec.className = 'bq-mode-flag';
                 rec.textContent = options.recommended ? ' · Recommended for you' : ' · Recommended';

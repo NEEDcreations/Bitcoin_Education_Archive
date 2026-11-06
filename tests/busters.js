@@ -36,9 +36,10 @@ function test(name, fn) {
     catch (e) { console.log('❌ ' + name + ': ' + e.message); failed++; }
 }
 
-test('service worker cache is v2507', () => {
+test('service worker cache is v2512', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2507'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2512'"));
+    assert.ok(!sw.includes('btc-archive-v2507'));
     assert.ok(!sw.includes('btc-archive-v2506'));
     assert.ok(!sw.includes('btc-archive-v2505'));
     assert.ok(!sw.includes('btc-archive-v2502'));
@@ -570,7 +571,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2507');
+    assert.ok(swVersion && swVersion[1] === 'v2512');
     assert.ok(html.includes('faction-race-prizes.js?v=20261105_v2505'));
 });
 
