@@ -346,6 +346,10 @@ function world() {
         'marketplace/l2': { sellerUid: 'u2', title: 'keep item' },
         'marketplace_messages/mm1': { buyerUid: 'u1', sellerUid: 'u2', message: 'buy' },
         'suggestions/u1': { uid: 'u1', text: 'idea' },
+        'chat_moderation_log/log1': { uid: 'u1', before: 'secret', after: 'nope', action: 'edit', surface: 'global' },
+        'chat_moderation_log/log2': { uid: 'u2', before: 'keep', after: 'keep', action: 'edit', surface: 'dm' },
+        'chat_edit_rate/u1': { uid: 'u1', count: 3, flagged: true },
+        'chat_edit_rate/u2': { uid: 'u2', count: 1, flagged: false },
         'suggestions/s2': { uid: 'u2', text: 'keep idea' },
         'beats_tracks/t1': { authorId: 'u1', title: 'song' },
         'beats_tracks/t1/comments/c1': { authorId: 'u1', text: 'own comment' },
@@ -711,6 +715,10 @@ function auth(uid, extras) {
         assert.ok(db.docs.has('marketplace/l2'));
         assert.strictEqual(db.docs.has('marketplace_messages/mm1'), false);
         assert.strictEqual(db.docs.has('suggestions/u1'), false);
+        assert.strictEqual(db.docs.has('chat_moderation_log/log1'), false);
+        assert.ok(db.docs.has('chat_moderation_log/log2'));
+        assert.strictEqual(db.docs.has('chat_edit_rate/u1'), false);
+        assert.ok(db.docs.has('chat_edit_rate/u2'));
         assert.ok(db.docs.has('suggestions/s2'));
         assert.strictEqual(db.docs.has('beats_tracks/t1'), false);
         assert.strictEqual(db.docs.has('beats_tracks/t1/comments/c1'), false);

@@ -31,6 +31,7 @@ const BATCHES = [
     { name: 'gen1 hot topics, Strava, referral callables', fns: ['refreshHotTopicsHttp', 'refreshHotTopicsForce', 'stravaAuth', 'syncStravaWalks', 'verifyReferral', 'registerReferral'] },
     { name: 'account security: TOTP, username, email change, delete', fns: ['totpSetup', 'totpVerify', 'totpCheck', 'totpDisable', 'totpStepUp', 'regenerateRecoveryCodes', 'setUsername', 'prepareEmailChange', 'syncEmailChange', 'confirmAccountLink', 'deleteAccount'] },
     { name: 'wallet / NWC (last)', fns: ['getFaucetStats', 'confirmTipSent', 'adminResolveCipherSatsClaim', 'resetLightningAddressOnce', 'claimSats', 'claimCipherSats', 'claimCipherWin', 'tctvDripTick'] },
+    { name: 'chat edit/delete moderation (gen2 triggers + daily purge)', fns: ['onGlobalChatEdited', 'onDmMessageEdited', 'onGlobalChatHardDeleted', 'purgeChatModerationLog'] },
 ];
 
 function loadEndpoints() {

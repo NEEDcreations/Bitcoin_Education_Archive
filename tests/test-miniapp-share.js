@@ -330,9 +330,9 @@ test('a TCTV landing still stores the referral code for signup', () => {
 test('pages ship the helper, one Latest line, and the current cache', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('miniapp-share.js?v=20261107_v2526'));
+    assert.ok(html.includes('miniapp-share.js?v=20261107_v2527'));
     assert.ok(html.includes('achievement-share.js?v=20261105_v2499'));
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2526'"));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2527'"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 0);
     assert.strictEqual(notes.includes('Latest: A returning signed-in player'), false);
