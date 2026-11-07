@@ -1,4 +1,5 @@
 'use strict';
+const { runtimeSa } = require('./src/runtimeServiceAccounts');
 // Timechain TV drip pot. Check-ins, accrual, reserve, and distribution are
 // all server-side. Clients can read the public pot doc and their own watch
 // doc; Firestore rules deny every client write.
@@ -294,7 +295,7 @@ async function runTick() {
     }
 }
 
-const tctvDripTick = onSchedule({ schedule: 'every 1 minutes', timeZone: 'UTC', retryCount: 0, secrets: [nwcUrlSecret] }, async () => {
+const tctvDripTick = onSchedule({ schedule: 'every 1 minutes', timeZone: 'UTC', retryCount: 0, secrets: [nwcUrlSecret], serviceAccount: runtimeSa('tctvDripTick') }, async () => {
     try { await runTick(); } catch (e) { console.error('[tctvDrip] tick', e && e.message); }
 });
 

@@ -1,4 +1,5 @@
 'use strict';
+const { runtimeSa } = require('./runtimeServiceAccounts');
 
 // Email change. prepareEmailChange records an HMAC of the new address after
 // a fresh sign-in and authenticator step-up, plus a claim so another uid cannot
@@ -667,18 +668,19 @@ function bindEmailChange(functionsV1, admin, db, deletionHmacSecret) {
         authApi: admin.auth(),
         HttpsError: functionsV1.https.HttpsError,
     });
-    function onCall(handler, warm) {
+    function onCall(name, handler, warm) {
         var opts = {
             enforceAppCheck: true,
             secrets: [secret],
+            serviceAccount: runtimeSa(name),
         };
         if (warm === true) opts.minInstances = 1;
         return functionsV1.runWith(opts).https.onCall(handler);
     }
     return {
-        prepareEmailChange: onCall(handlers.prepareEmailChange),
-        syncEmailChange: onCall(handlers.syncEmailChange, true),
-        confirmAccountLink: onCall(handlers.confirmAccountLink),
+        prepareEmailChange: onCall('prepareEmailChange', handlers.prepareEmailChange),
+        syncEmailChange: onCall('syncEmailChange', handlers.syncEmailChange, true),
+        confirmAccountLink: onCall('confirmAccountLink', handlers.confirmAccountLink),
     };
 }
 

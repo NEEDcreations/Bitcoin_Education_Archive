@@ -1,4 +1,5 @@
 'use strict';
+const { runtimeSa } = require('./runtimeServiceAccounts');
 
 const crypto = require('crypto');
 const quest = require('./onboardingQuest');
@@ -666,6 +667,7 @@ function registerOnboarding(deps) {
         setUsername: functionsV1.runWith({
             enforceAppCheck: false,
             secrets: deps.secrets || [],
+            serviceAccount: runtimeSa('setUsername'),
         }).https.onCall(setUsername),
     };
 }

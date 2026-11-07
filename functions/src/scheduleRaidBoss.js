@@ -1,4 +1,5 @@
 'use strict';
+const { runtimeSa } = require('./runtimeServiceAccounts');
 
 // Thin schedules. The boss table, the 1 PM Eastern clock, the final Nacho
 // post, and the Phil DM live in raidBossEngine.js. No next-month placeholder.
@@ -17,6 +18,7 @@ exports.scheduleRaidBoss = onSchedule({
     timeZone: 'America/New_York',
     region: 'us-central1',
     secrets: [tgBotTokenSecret],
+    serviceAccount: runtimeSa('scheduleRaidBoss'),
 }, async () => {
     await engine.spawnOrAlert(db(), admin, new Date());
     return null;
@@ -28,6 +30,7 @@ exports.scheduleRaidBossCatchup = onSchedule({
     timeZone: 'America/New_York',
     region: 'us-central1',
     secrets: [tgBotTokenSecret],
+    serviceAccount: runtimeSa('scheduleRaidBossCatchup'),
 }, async () => {
     await engine.spawnOrAlert(db(), admin, new Date());
     return null;

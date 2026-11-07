@@ -40,6 +40,7 @@ const {
     loadRateLimitSecret,
 } = require('./rateLimitSalt');
 const accountTombstone = require('./accountTombstone');
+const { runtimeSa } = require('./runtimeServiceAccounts');
 
 const BATCH_LIMIT = 400;
 const QUERY_PAGE = 200;
@@ -1536,6 +1537,7 @@ function bindDeleteAccount(functionsV1, admin, db, secrets) {
             memory: '1GB',
             enforceAppCheck: true,
             secrets: secrets || [],
+            serviceAccount: runtimeSa('deleteAccount'),
         }).https.onCall(handlers.deleteAccount),
     };
 }
