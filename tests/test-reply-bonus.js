@@ -552,9 +552,9 @@ test('rules keep XP, the bonus flag, and replyTo on the server', function () {
     assert.ok(chat.includes('replyTo.size() <= 128'));
     assert.ok(chat.includes("replyTo.matches('^[A-Za-z0-9_-]+$')"));
     assert.ok(chat.includes('replyTo != msgId'));
-    assert.ok(chat.includes("hasOnly(['text','editCount','edited'])"));
-    const editAllow = chat.slice(chat.indexOf('Message edit:'));
-    assert.ok(editAllow.includes("hasOnly(['text','editCount','edited'])"));
+    assert.ok(chat.includes("hasOnly(['text', 'edited', 'editedAt', 'editCount'])"));
+    const editAllow = chat.slice(chat.indexOf('Owner edit:'));
+    assert.ok(editAllow.includes("hasOnly(['text', 'edited', 'editedAt', 'editCount'])"));
     assert.strictEqual(editAllow.includes('replyTo'), false);
     ['reply_bonus_state', 'reply_bonus_claims', 'reply_bonus_pairs', 'rate_limits'].forEach(function (name) {
         const block = rules.slice(rules.indexOf('match /' + name + '/{docId}'), rules.indexOf('match /' + name + '/{docId}') + 180);
@@ -618,7 +618,7 @@ test('client shows the server amount and does not render user text', function ()
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     assert.strictEqual(html, fs.readFileSync(path.join(root, '404.html'), 'utf8'));
     assert.ok(!html.includes('joining the conversation'));
-    assert.ok(html.includes('global-chat.js?v=20261102_v2467'));
+    assert.ok(html.includes('global-chat.js?v=20261107_v2526'));
     assert.ok(!html.includes('global-chat.js?v=20261030_v2436'));
     assert.ok(!html.includes('global-chat.js?v=20261029_v2432'));
     assert.ok(!html.includes('global-chat.js?v=20261026_v2379'));

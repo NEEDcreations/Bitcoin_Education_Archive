@@ -156,6 +156,9 @@ const DELETION_QUERIES = [
     ['marketplace_messages', 'buyerUid', '==', []],
     ['marketplace_messages', 'sellerUid', '==', []],
     ['suggestions', 'uid', '==', []],
+    // Edited and deleted message text kept for moderation. Same uid equality
+    // as the other single-field deletes. No composite index.
+    ['chat_moderation_log', 'uid', '==', []],
     ['telegram_mirror_queue', 'uid', '==', []],
     ['telegram_mirror_claims', 'uid', '==', []],
     ['beats_tracks', 'authorId', '==', ['comments']],
@@ -1347,6 +1350,7 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         ['totp_sessions', uid, []],
         ['recovery_codes', uid, []],
         ['suggestions', uid, []],
+        ['chat_edit_rate', uid, []],
         ['referral_signals', uid, []],
         ['email_change_pending', uid, []],
         ['email_history', uid, []],

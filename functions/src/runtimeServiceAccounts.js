@@ -1,12 +1,14 @@
 'use strict';
 
 // Per-function runtime service accounts for every function that binds a
-// Secret Manager secret. Each listed function runs as its own account, and
-// that account is granted secretAccessor only on the secrets the function
-// lists in its own `secrets:` option (see scripts/runtime-sa-plan.js and
-// tests/test-runtime-service-accounts.js). Functions not listed here bind no
-// secrets and stay on the default runtime accounts for now (phase 2 moves
-// them to a shared no-secret account and removes roles/editor).
+// Secret Manager secret, plus the chat edit/delete triggers (they bind no
+// secret, but each still runs as its own account). Each listed function
+// runs as its own account, and that account is granted secretAccessor only
+// on the secrets the function lists in its own `secrets:` option (see
+// scripts/runtime-sa-plan.js and tests/test-runtime-service-accounts.js).
+// Functions not listed here bind no secrets and stay on the default runtime
+// accounts for now (phase 2 moves them to a shared no-secret account and
+// removes roles/editor).
 //
 // `id` is the service account id (6–30 chars). runtimeSa() returns the full
 // email `<id>@<project>.iam.gserviceaccount.com` for the project the code is
@@ -53,9 +55,13 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     onAnnouncementsTelegramUpdated: { id: 'fn-on-ann-tg-updated', extra: [] },
     onForumShoutoutDeleted: { id: 'fn-on-forum-shoutout-deleted', extra: [] },
     onForumShoutoutUpdated: { id: 'fn-on-forum-shoutout-updated', extra: [] },
+    onDmMessageEdited: { id: 'fn-on-dm-message-edited', extra: [] },
+    onGlobalChatEdited: { id: 'fn-on-global-chat-edited', extra: [] },
+    onGlobalChatHardDeleted: { id: 'fn-on-gc-hard-deleted', extra: [] },
     onGlobalChatTelegram: { id: 'fn-on-global-chat-telegram', extra: [] },
     onGlobalChatTelegramDeleted: { id: 'fn-on-global-chat-tg-deleted', extra: [] },
     onGlobalChatTelegramUpdated: { id: 'fn-on-global-chat-tg-updated', extra: [] },
+    purgeChatModerationLog: { id: 'fn-purge-chat-mod-log', extra: [] },
     onMarketplaceShoutoutDeleted: { id: 'fn-on-mkt-so-deleted', extra: [] },
     onMarketplaceShoutoutUpdated: { id: 'fn-on-mkt-so-updated', extra: [] },
     onUserReferral: { id: 'fn-on-user-referral', extra: ['auth', 'fcm'] },
