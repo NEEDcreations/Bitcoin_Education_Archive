@@ -14,10 +14,14 @@
     // 2026-06-30  |  15,000 |      0       | +100% difficulty raise — tightening odds to ~1:6,667
     // 2026-07-02  |  10,000 |      0       | +50% difficulty raise — tightening odds to ~1:10,000
     // 2026-07-10  |   8,000 |      0       | +25% difficulty raise — tightening odds to ~1:12,500
-    // 2026-07-29  |   7,000 |      0       | -12.5% difficulty drop — easing odds to ~1:14,286
+    // 2026-07-29  |   7,000 |      0       | +14.3% difficulty raise — tightening odds to ~1:14,286
     // 2026-08-20  |  10,000 |      0       | -30% difficulty decrease — easing odds to ~1:10,000
     // 2026-10-01  |  20,000 |      0       | -50% difficulty decrease — easing odds to ~1:5,000
-    const DIFFICULTY_TARGET = 20000;
+    // 2026-11-07  |  25,000 |      0       | -20% difficulty decrease — easing odds to ~1:4,000
+    // Chg = difficulty change, where difficulty = odds = 100,000,000 / target:
+    //   (newDifficulty - oldDifficulty) / oldDifficulty * 100  ==  (oldTarget / newTarget - 1) * 100
+    //   20,000 -> 25,000: (4,000 - 5,000) / 5,000 = -20%  (a bigger target is easier)
+    const DIFFICULTY_TARGET = 25000;
     // ── Difficulty history (ordered oldest→newest) ─────────────────
     // Add a new entry here whenever the target changes. quests.js reads
     // window.SF_DIFFICULTY_HISTORY to render the Difficulty History table
@@ -30,13 +34,59 @@
         { date: '2026-07-10', target: 8000,  label: '+25%',     hashes: 56913, luck: 131.8 },
         { date: '2026-07-29', target: 7000,  label: '+14.3%',   hashes: 36407, luck: 117.7 },
         { date: '2026-08-20', target: 10000, label: '-30%',      hashes: 16200, luck: 61.7,  eraHashOffset: 50538 },
-        { date: '2026-10-01', target: 20000, label: '-50%',      hashes: null,  luck: null },
+        { date: '2026-10-01', target: 20000, label: '-50%',      hashes: null,  luck: null, liveStats: true },
+        { date: '2026-11-07', target: 25000, label: '-20%',      hashes: null,  luck: null },
     ];
     // hashes = total hashes cast in that period (from Firestore analysis 2026-07-17)
     // luck   = (expected hashes for blocks found) / actual hashes * 100  (null = live/current or zero-block genesis)
     // Current period (last entry) hashes/luck are loaded live in quests.js _loadDifficultyHistoryBlocks()
+    // DIFFICULTY_TARGET / SF_DIFFICULTY_HISTORY above are the fallback. The live
+    // target and history come from the server (satoshiFavor/difficultyStats.config,
+    // written by favorDifficultyRetarget every 14 days); see _loadLiveDifficulty().
+    let SF_TARGET = DIFFICULTY_TARGET;
     window.SF_DIFFICULTY_TARGET  = DIFFICULTY_TARGET;   // expose for other modules
     window.SF_DIFFICULTY_HISTORY = SF_DIFFICULTY_HISTORY; // expose for difficulty table
+
+    // Merge server history into the static rows. Static rows keep their hashes/luck;
+    // new server rows are appended.
+    function _sfMergeDifficultyHistory(staticRows, serverRows) {
+        var out = staticRows.map(function(r) { return Object.assign({}, r); });
+        var seen = {};
+        out.forEach(function(r) { seen[r.date + '|' + r.target] = true; });
+        (Array.isArray(serverRows) ? serverRows : []).forEach(function(h) {
+            if (!h || !/^\d{4}-\d{2}-\d{2}$/.test(String(h.date || '')) || !(Number(h.target) > 0)) return;
+            var key = h.date + '|' + Number(h.target);
+            if (seen[key]) {
+                out.forEach(function(r) { if (r.date + '|' + r.target === key && h.label) r.label = String(h.label); });
+                return;
+            }
+            seen[key] = true;
+            out.push({ date: h.date, target: Number(h.target), label: String(h.label || ''), hashes: null, luck: null });
+        });
+        out.sort(function(a, b) { return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0); });
+        // Rows whose hashes were never frozen read them live from difficultyStats (quests.js).
+        out.forEach(function(r, i) { if (i < out.length - 1 && r.hashes == null) r.liveStats = true; });
+        return out;
+    }
+    window._sfMergeDifficultyHistory = _sfMergeDifficultyHistory;
+    function _sfOddsText() { return Math.round(100000000 / SF_TARGET).toLocaleString('en-US'); }
+    function _sfPctText() { return String(parseFloat((SF_TARGET / 100000000 * 100).toPrecision(3))); }
+
+    function _loadLiveDifficulty() {
+        if (typeof db === 'undefined' || !db) return;
+        db.collection('satoshiFavor').doc('difficultyStats').get().then(function(doc) {
+            var data = doc.exists ? (doc.data() || {}) : {};
+            var cfg = data.config || null;
+            if (!cfg) return;
+            var t = Math.floor(Number(cfg.target));
+            if (!(t >= 1 && t < HASH_MAX)) return;
+            SF_TARGET = t;
+            window.SF_DIFFICULTY_TARGET = t;
+            window.SF_DIFFICULTY_NEXT_RETARGET_MS = Number(cfg.nextRetargetMs) || null;
+            window.SF_DIFFICULTY_HISTORY = _sfMergeDifficultyHistory(SF_DIFFICULTY_HISTORY, cfg.history);
+            try { updateAllUIs(); } catch (e) {}
+        }).catch(function() {});
+    }
     const HASH_MAX = 100000000;
     const HASHES_PER_MINUTE = 10;
     const HASH_WINDOW_MS = 60000; // 60 seconds
@@ -165,6 +215,7 @@
             renderHomeBanner();
         }
         listenToFavorState();
+        _loadLiveDifficulty();
         _checkWeeklySFBoost();
         console.log('[FAVOR] Initialized');
     }
@@ -653,7 +704,7 @@
             '<div style="display:flex;align-items:center;gap:10px;">' +
             '<span style="font-size:1.5rem;">✨⛏️</span>' +
             '<div><div style="font-weight:800;color:var(--heading);">Satoshi\'s Favor Hashing</div>' +
-            '<div style="font-size:0.75rem;color:var(--text-muted);">Target: &lt; ' + DIFFICULTY_TARGET.toLocaleString() + ' (the current difficulty) · Solve a block!</div></div>' +
+            '<div style="font-size:0.75rem;color:var(--text-muted);">Target: &lt; ' + SF_TARGET.toLocaleString() + ' (the current difficulty) · Solve a block!</div></div>' +
             '</div>' +
             '<div style="display:flex;align-items:center;gap:8px;"><button onclick="window.closeSatoshiFavorMiner()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">← Back</button><button onclick="window._qhReopenOnMinerClose=false;window.closeSatoshiFavorMiner()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;">✕</button></div>' +
             '</div>' +
@@ -665,7 +716,7 @@
             // Feature 4: Heat meter
             _buildHeatMeterHTML() +
             '<div id="sfRateInfoBox" style="background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.2);border-radius:10px;padding:12px;margin-bottom:16px;font-size:0.8rem;color:var(--text-muted);">' +
-            'Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">' + DIFFICULTY_TARGET.toLocaleString() + '</strong> (the current difficulty), you solve a block and win a share of 21,000 sats! That\'s a 1 in 5,000 chance per hash (~0.02%). You get <strong style="color:var(--accent);" id="sfRateInfoNum">' + effectiveRateDisplay + '</strong> hashes per minute.' +
+            'Generate a hash (0–100,000,000). If your hash is below <strong style="color:#22c55e;">' + SF_TARGET.toLocaleString() + '</strong> (the current difficulty), you solve a block and win a share of 21,000 sats! That\'s a 1 in ' + _sfOddsText() + ' chance per hash (~' + _sfPctText() + '%). You get <strong style="color:var(--accent);" id="sfRateInfoNum">' + effectiveRateDisplay + '</strong> hashes per minute.' +
             '</div>' +
             '<div style="text-align:center;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-muted);">Time Remaining</div>' +
@@ -679,8 +730,8 @@
             '<div id="sfNearMissToast" style="visibility:hidden;margin-top:8px;padding:8px 12px;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.4);border-radius:10px;font-size:0.8rem;font-weight:700;color:#f7931a;"></div>' +
             '</div>' +
             '<div style="display:flex;justify-content:center;gap:20px;margin-bottom:16px;font-size:0.8rem;">' +
-            '<div style="text-align:center;"><div style="color:var(--text-muted);">Target</div><div style="font-weight:800;color:#22c55e;">&lt; ' + DIFFICULTY_TARGET.toLocaleString() + ' (the current difficulty)</div></div>' +
-            '<div style="text-align:center;"><div style="color:var(--text-muted);">Odds</div><div style="font-weight:800;">1:5,000</div></div>' +
+            '<div style="text-align:center;"><div style="color:var(--text-muted);">Target</div><div style="font-weight:800;color:#22c55e;">&lt; ' + SF_TARGET.toLocaleString() + ' (the current difficulty)</div></div>' +
+            '<div style="text-align:center;"><div style="color:var(--text-muted);">Odds</div><div style="font-weight:800;">1:' + _sfOddsText() + '</div></div>' +
             '<div style="text-align:center;"><div style="color:var(--text-muted);">Rig 1</div><div id="hashCooldown" style="font-weight:800;color:var(--accent);">Ready</div></div>' +
             (hasSecondRig ? '<div style="text-align:center;"><div style="color:var(--text-muted);">Rig 2</div><div id="hashCooldown2" style="font-weight:800;color:#8b5cf6;">Ready</div></div>' : '') +
             '</div>' +
@@ -860,8 +911,8 @@
     }
 
     function _checkNearMissUnlucky(value) {
-        if (value <= DIFFICULTY_TARGET) return; // Won — don't show
-        var nearMissThreshold = Math.floor(DIFFICULTY_TARGET * 1.15);
+        if (value <= SF_TARGET) return; // Won — don't show
+        var nearMissThreshold = Math.floor(SF_TARGET * 1.15);
         var unluckyThreshold = Math.floor(HASH_MAX * 0.85);
 
         if (value <= nearMissThreshold) {
@@ -1003,7 +1054,7 @@
             if (visual) visual.style.transform = 'scale(1)';
             if (output) {
                 output.textContent = value.toLocaleString();
-                output.style.color = isWinner ? '#22c55e' : (value < DIFFICULTY_TARGET * 10 ? '#f7931a' : 'var(--text-muted)');
+                output.style.color = isWinner ? '#22c55e' : (value < SF_TARGET * 10 ? '#f7931a' : 'var(--text-muted)');
             }
 
             if (value < 1000000) {
@@ -1164,7 +1215,7 @@
             if (visual) visual.style.transform = 'scale(1)';
             if (output) {
                 output.textContent = value.toLocaleString();
-                output.style.color = isWinner ? '#22c55e' : (value < DIFFICULTY_TARGET * 10 ? '#f7931a' : 'var(--text-muted)');
+                output.style.color = isWinner ? '#22c55e' : (value < SF_TARGET * 10 ? '#f7931a' : 'var(--text-muted)');
             }
 
             if (isWinner) {
@@ -1175,7 +1226,7 @@
                 announceWinner(value);
             } else {
                 if (msg) {
-                    const diff = value - DIFFICULTY_TARGET;
+                    const diff = value - SF_TARGET;
                     msg.textContent = diff < 10000 ? `So close! Only ${diff.toLocaleString()} over target` : `${(value/1000000).toFixed(2)}M · Keep trying!`;
                 }
                 // Feature 3: Near-miss / unlucky feedback
@@ -1689,8 +1740,8 @@
                 // colour-coded: green = near target, yellow = mid, default = high
                 if (label) {
                     var _lv = scRes.value;
-                    var _lc = _lv < DIFFICULTY_TARGET ? '#22c55e'
-                             : _lv < DIFFICULTY_TARGET * 5 ? '#facc15'
+                    var _lc = _lv < SF_TARGET ? '#22c55e'
+                             : _lv < SF_TARGET * 5 ? '#facc15'
                              : '#facc15';
                     label.style.color = _lc;
                     label.textContent = _lv.toLocaleString();

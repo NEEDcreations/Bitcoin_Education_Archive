@@ -350,7 +350,7 @@ queue.push(test('an expired reset keeps eraHashes inside the transaction', async
     assert.strictEqual(db.docs['satoshiFavor/current'].eraHashes, 4242);
     assert.strictEqual(db.docs['satoshiFavor/current'].favorActive, false);
     assert.strictEqual(db.docs['satoshiFavor/current'].points, 0);
-    assert.strictEqual(db.docs['satoshiFavor/lastWindow'].difficultyTarget, 20000);
+    assert.strictEqual(db.docs['satoshiFavor/lastWindow'].difficultyTarget, 25000);
     assert.strictEqual(db.docs['satoshiFavor/lastWindow'].totalHashes, 8);
     const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
     const cronAt = index.indexOf('exports.satoshiFavorAutoReset');
