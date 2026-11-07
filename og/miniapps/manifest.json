@@ -1,0 +1,216 @@
+{
+  "version": "20261107a",
+  "width": 1200,
+  "height": 630,
+  "cta": "Check it out!",
+  "comment": "Canonical mini-app unfurl copy. scripts/render-miniapp-og.py paints og/miniapps/<id>.<version>.png and workers/seo-router/miniapp-cards.js from this file. tctv and beats stay generic: one static image cannot name a station or a track.",
+  "cards": [
+    {
+      "id": "tctv",
+      "name": "Timechain TV",
+      "hash": "timechain-tv",
+      "title": "Timechain TV — Bitcoin Quest",
+      "description": "I'm watching Timechain TV on Bitcoin Quest! Check it out!",
+      "sentence": "I'm watching Timechain TV on Bitcoin Quest! Check it out!",
+      "dynamic": true
+    },
+    {
+      "id": "beats",
+      "name": "Bitcoin Beats",
+      "hash": "bitcoin-beats",
+      "title": "Bitcoin Beats — Bitcoin Quest",
+      "description": "I'm listening on Bitcoin Beats! Check it out!",
+      "sentence": "I'm listening on Bitcoin Beats! Check it out!",
+      "dynamic": true
+    },
+    {
+      "id": "nacho",
+      "name": "Nacho Mode",
+      "hash": "nacho",
+      "title": "Nacho Mode — Bitcoin Quest",
+      "description": "I'm asking Nacho about Bitcoin on Bitcoin Quest! Check it out!",
+      "sentence": "I'm asking Nacho about Bitcoin on Bitcoin Quest! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "pop",
+      "name": "Proof of Play",
+      "hash": "proof-of-play",
+      "title": "Proof of Play — Bitcoin Quest",
+      "description": "I'm in the Proof of Play hub on Bitcoin Quest! Check it out!",
+      "sentence": "I'm in the Proof of Play hub on Bitcoin Quest! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "pvp",
+      "name": "PVP",
+      "hash": "pvp",
+      "title": "PVP — Bitcoin Quest",
+      "description": "I'm in a Bitcoin trivia battle on Bitcoin Quest! Check it out!",
+      "sentence": "I'm in a Bitcoin trivia battle on Bitcoin Quest! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "arcade",
+      "name": "Timechain Arcade",
+      "hash": "proof-of-play/arcade",
+      "title": "Timechain Arcade — Bitcoin Quest",
+      "description": "I'm browsing Timechain Arcade games on Bitcoin Quest! Check it out!",
+      "sentence": "I'm browsing Timechain Arcade games on Bitcoin Quest! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "sat_arcade",
+      "name": "Sat Arcade",
+      "hash": "proof-of-play/sat_arcade",
+      "title": "Sat Arcade — Bitcoin Quest",
+      "description": "I'm browsing Sat Arcade games on Bitcoin Quest! Check it out!",
+      "sentence": "I'm browsing Sat Arcade games on Bitcoin Quest! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "galaxy",
+      "name": "Galaxy Mind",
+      "hash": "proof-of-play/galaxy",
+      "title": "Galaxy Mind — Bitcoin Quest",
+      "description": "I'm browsing Galaxy Mind games on Bitcoin Quest! Check it out!",
+      "sentence": "I'm browsing Galaxy Mind games on Bitcoin Quest! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "ryracer",
+      "name": "RyRacer",
+      "hash": "proof-of-play/ryracer",
+      "title": "RyRacer — Bitcoin Quest",
+      "description": "I'm at the RyRacer lineup on Bitcoin Quest! Check it out!",
+      "sentence": "I'm at the RyRacer lineup on Bitcoin Quest! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "forum",
+      "name": "Pleb Talk",
+      "hash": "forum",
+      "title": "Pleb Talk — Bitcoin Quest",
+      "description": "I'm reading Pleb Talk on Bitcoin Quest! Check it out!",
+      "sentence": "I'm reading Pleb Talk on Bitcoin Quest! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "marketplace",
+      "name": "Lightning Mart",
+      "hash": "marketplace",
+      "title": "Lightning Mart — Bitcoin Quest",
+      "description": "I'm browsing Lightning Mart on Bitcoin Quest! Check it out!",
+      "sentence": "I'm browsing Lightning Mart on Bitcoin Quest! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "irl",
+      "name": "IRL Sync",
+      "hash": "irl-sync",
+      "title": "IRL Sync — Bitcoin Quest",
+      "description": "I'm looking for a Bitcoin meetup on IRL Sync! Check it out!",
+      "sentence": "I'm looking for a Bitcoin meetup on IRL Sync! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "meetup",
+      "name": "Meetup Builder",
+      "hash": "meetup-builder",
+      "title": "Meetup Builder — Bitcoin Quest",
+      "description": "I'm planning a Bitcoin meetup on IRL Sync! Check it out!",
+      "sentence": "I'm planning a Bitcoin meetup on IRL Sync! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "ai",
+      "name": "AI Tools",
+      "hash": "ai-tools",
+      "title": "AI Tools — Bitcoin Quest",
+      "description": "I'm using the Bitcoin AI tools on Bitcoin Quest! Check it out!",
+      "sentence": "I'm using the Bitcoin AI tools on Bitcoin Quest! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "metrics",
+      "name": "Metrics",
+      "hash": "metrics",
+      "title": "Metrics — Bitcoin Quest",
+      "description": "I'm checking live Bitcoin metrics on Bitcoin Quest! Check it out!",
+      "sentence": "I'm checking live Bitcoin metrics on Bitcoin Quest! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "leaderboard",
+      "name": "Leaderboard",
+      "hash": "leaderboard",
+      "title": "Leaderboard — Bitcoin Quest",
+      "description": "I'm looking at the Bitcoin Quest leaderboard! Check it out!",
+      "sentence": "I'm looking at the Bitcoin Quest leaderboard! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "quests",
+      "name": "Quest Hub",
+      "hash": "quests",
+      "title": "Quest Hub — Bitcoin Quest",
+      "description": "I'm working through Bitcoin quests on Bitcoin Quest! Check it out!",
+      "sentence": "I'm working through Bitcoin quests on Bitcoin Quest! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "favor",
+      "name": "Satoshi's Favor",
+      "hash": "favor",
+      "title": "Satoshi's Favor — Bitcoin Quest",
+      "description": "I'm mining in Satoshi's Favor on Bitcoin Quest! Check it out!",
+      "sentence": "I'm mining in Satoshi's Favor on Bitcoin Quest! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "trails",
+      "name": "Trails",
+      "hash": "trails",
+      "title": "Trails — Bitcoin Quest",
+      "description": "I'm walking a Bitcoin learning trail on Bitcoin Quest! Check it out!",
+      "sentence": "I'm walking a Bitcoin learning trail on Bitcoin Quest! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "learning",
+      "name": "Learning Quests",
+      "hash": "learning-quests",
+      "title": "Learning Quests — Bitcoin Quest",
+      "description": "I'm on a Bitcoin learning quest on Bitcoin Quest! Check it out!",
+      "sentence": "I'm on a Bitcoin learning quest on Bitcoin Quest! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "chat",
+      "name": "Global Chat",
+      "hash": "chat",
+      "title": "Global Chat — Bitcoin Quest",
+      "description": "I'm hanging out in Global Chat on Bitcoin Quest! Check it out!",
+      "sentence": "I'm hanging out in Global Chat on Bitcoin Quest! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "lightning",
+      "name": "Lightning",
+      "hash": "lightning",
+      "title": "Lightning — Bitcoin Quest",
+      "description": "I'm learning Lightning on Bitcoin Quest! Check it out!",
+      "sentence": "I'm learning Lightning on Bitcoin Quest! Check it out!",
+      "dynamic": false
+    },
+    {
+      "id": "first",
+      "name": "First Purchase",
+      "hash": "first-purchase",
+      "title": "First Purchase — Bitcoin Quest",
+      "description": "I'm learning how to buy Bitcoin on Bitcoin Quest! Check it out!",
+      "sentence": "I'm learning how to buy Bitcoin on Bitcoin Quest! Check it out!",
+      "dynamic": false
+    }
+  ]
+}

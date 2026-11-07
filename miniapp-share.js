@@ -233,17 +233,33 @@
         return '';
     }
 
-    function buildUrl(hashPath, code, src) {
+    function withCard(url, cardId) {
+        if (!specById(cardId)) return url;
+        var hash = '';
+        var base = String(url || '');
+        var cut = base.indexOf('#');
+        if (cut >= 0) { hash = base.slice(cut); base = base.slice(0, cut); }
+        if (/(?:^|[?&])card=/.test(base)) return base + hash;
+        return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'card=' + encodeURIComponent(cardId) + hash;
+    }
+
+    function buildUrl(hashPath, code, src, cardId) {
         var path = String(hashPath || '').replace(/^#/, '').replace(/^\/+/, '');
         if (!path || path.indexOf('http') === 0 || path.indexOf('//') === 0) path = 'bitcoin-beats';
         var srcPart = srcQuery(src);
+        // code == null and no src: the page's shareDeepUrl owns the referral.
+        // card is added after that returns so both this branch and the direct
+        // query branch keep ref, src, and the hash.
         if (code == null && !srcPart && root && typeof root.shareDeepUrl === 'function') {
-            return root.shareDeepUrl(SITE + '/#' + path);
+            return withCard(root.shareDeepUrl(SITE + '/#' + path), cardId);
         }
         if (code == null) code = liveCode();
         var c = String(code || '');
-        var query = srcPart;
-        if (REF_RE.test(c)) query = 'ref=' + encodeURIComponent(c) + (srcPart ? ('&' + srcPart) : '');
+        var parts = [];
+        if (REF_RE.test(c)) parts.push('ref=' + encodeURIComponent(c));
+        if (srcPart) parts.push(srcPart);
+        if (specById(cardId)) parts.push('card=' + encodeURIComponent(cardId));
+        var query = parts.join('&');
         return SITE + '/' + (query ? ('?' + query) : '') + '#' + path;
     }
 
@@ -286,7 +302,7 @@
             }
             name = 'Bitcoin Beats';
         }
-        var url = buildUrl(hash, ctx.code, ctx.src);
+        var url = buildUrl(hash, ctx.code, ctx.src, appId);
         return { id: appId, name: name, sentence: sentence, hash: hash, url: url };
     }
 
@@ -592,6 +608,7 @@
         resolveTctv: resolveTctv,
         resolveBeats: resolveBeats,
         resolvePopTab: resolvePopTab,
+        withCard: withCard,
         buildUrl: buildUrl,
         shareModel: shareModel,
         postText: postText,
