@@ -222,7 +222,10 @@ test('the Requirements card shows the chat and TCTV rows with Go', () => {
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
     assert.ok(html.includes('.username-box button.claim-req-go { width: auto; min-width: 44px; max-width: 88px; white-space: nowrap;'));
     assert.strictEqual(html, fs.readFileSync(path.join(root, '404.html'), 'utf8'));
-    assert.ok(ranking.includes('if (!claimExempt)'));
+    assert.ok(ranking.includes("N/A · account before Nov 5"));
+    assert.ok(ranking.includes('na: true'));
+    assert.ok(ranking.includes("c.na ? '➖'"));
+    assert.ok(!ranking.includes('if (!claimExempt)'));
     assert.ok(!ranking.includes('VPNs must be off'));
     assert.ok(ranking.includes('color:var(--text-muted)'));
     assert.ok(!ranking.includes('copyClaimReferralLink'));
