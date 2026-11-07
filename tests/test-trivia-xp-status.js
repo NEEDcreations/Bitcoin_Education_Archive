@@ -59,11 +59,11 @@ test('only totpStatus and syncEmailChange keep a warm instance', function () {
     assert.ok(revoke.includes('functionsV1.https.onCall'));
     const email = fs.readFileSync(path.join(root, 'functions', 'src', 'emailChange.js'), 'utf8');
     const bound = email.slice(email.indexOf('return {'), email.indexOf('module.exports'));
-    assert.ok(bound.includes('syncEmailChange: onCall(handlers.syncEmailChange, true)'));
-    assert.ok(bound.includes('prepareEmailChange: onCall(handlers.prepareEmailChange),'));
-    assert.ok(bound.includes('confirmAccountLink: onCall(handlers.confirmAccountLink),'));
-    assert.strictEqual(bound.includes('prepareEmailChange: onCall(handlers.prepareEmailChange, true)'), false);
-    assert.strictEqual(bound.includes('confirmAccountLink: onCall(handlers.confirmAccountLink, true)'), false);
+    assert.ok(bound.includes("syncEmailChange: onCall('syncEmailChange', handlers.syncEmailChange, true)"));
+    assert.ok(bound.includes("prepareEmailChange: onCall('prepareEmailChange', handlers.prepareEmailChange),"));
+    assert.ok(bound.includes("confirmAccountLink: onCall('confirmAccountLink', handlers.confirmAccountLink),"));
+    assert.strictEqual(bound.includes("prepareEmailChange: onCall('prepareEmailChange', handlers.prepareEmailChange, true)"), false);
+    assert.strictEqual(bound.includes("confirmAccountLink: onCall('confirmAccountLink', handlers.confirmAccountLink, true)"), false);
     assert.ok(email.includes('if (warm === true) opts.minInstances = 1;'));
     assert.ok(email.includes('enforceAppCheck: true'));
 });
