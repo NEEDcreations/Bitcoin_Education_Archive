@@ -750,7 +750,7 @@ async function sendPhilDm(text, opts) {
         console.warn('[RAID SPAWN] Phil DM skipped');
         return false;
     }
-    const token = String(o.token || process.env.TG_BOT_TOKEN || '');
+    const token = String(o.token || require('./sensitiveSecrets').tgBotToken() || '');
     if (!token) {
         console.warn('[RAID SPAWN] TG_BOT_TOKEN is missing');
         return false;

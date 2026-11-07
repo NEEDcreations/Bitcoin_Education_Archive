@@ -337,7 +337,10 @@
   ],
   "functions": {
     "source": "functions",
-    "runtime": "nodejs22"
+    "runtime": "nodejs22",
+    "predeploy": [
+      "node \"$RESOURCE_DIR/scripts/reject-plain-sensitive-env.js\""
+    ]
   },
   "firestore": {
     "rules": "firestore.rules",

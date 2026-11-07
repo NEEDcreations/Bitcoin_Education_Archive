@@ -5,6 +5,17 @@ const referralIpSecret = defineSecret('REFERRAL_IP_HMAC_SECRET');
 const deletionHmacSecret = defineSecret('DELETION_HMAC_SECRET');
 // Payout wallet: Secret Manager, bound only to the functions that use it.
 const { nwcUrlSecret, nwcUrl } = require('./src/nwcSecret');
+// Other credentials: Secret Manager, bound only on the functions that read them.
+const {
+    adminTokenSecret,
+    adminToken,
+    hotTopicSecrets,
+    stravaClientSecretParam,
+    stravaClientSecret,
+    tgBotTokenSecret,
+    turnstileSecret,
+    turnstileSecretKey,
+} = require('./src/sensitiveSecrets');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onDocumentCreated, onDocumentUpdated, onDocumentWritten, onDocumentDeleted } = require('firebase-functions/v2/firestore');
 const admin = require('./src/firebaseAdmin.js');
@@ -64,7 +75,8 @@ function getOffsetDateKey() {
 function _escHtml(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ── Admin auth helper ────────────────────────────────────────────
-// Reads ADMIN_TOKEN from env; constant-time compare; accepts header OR query param.
+// Reads ADMIN_TOKEN from the bound secret at call time; constant-time compare.
+// Accepts the header only. Query-string tokens leak into access logs.
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
     'https://bitcoineducation.quest',
@@ -94,9 +106,9 @@ function setCorsHeaders(req, res) {
 // Returns true and sets CORS + auth header if valid; sends 403 and returns false if not.
 function requireAdmin(req, res) {
     if (!setCorsHeaders(req, res)) return false;
-    const expected = process.env.ADMIN_TOKEN;
+    const expected = adminToken();
     if (!expected) {
-        console.error('[requireAdmin] ADMIN_TOKEN env var not set');
+        console.error('[requireAdmin] ADMIN_TOKEN is not configured');
         res.status(500).json({ error: 'server misconfiguration' });
         return false;
     }
@@ -136,9 +148,9 @@ const { NWCClient } = require('@getalby/sdk');
 // ── Cloudflare Turnstile verification ───────────────────────────────────────
 async function verifyTurnstile(token, remoteip) {
     if (!token) return false;
-    const secret = process.env.TURNSTILE_SECRET_KEY;
+    const secret = turnstileSecretKey();
     if (!secret) {
-        console.error('[Turnstile] TURNSTILE_SECRET_KEY not set — failing closed');
+        console.error('[Turnstile] TURNSTILE_SECRET_KEY is not configured — failing closed');
         return false;
     }
     try {
@@ -1249,6 +1261,7 @@ exports.claimNachoChatTicket = functionsV1.https.onCall(async (data, context) =>
 exports.onForumShoutoutDeleted = onDocumentDeleted({
     document: 'forum_posts/{postId}',
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+    secrets: [tgBotTokenSecret],
 }, async (event) => {
     try {
         await retractActivity({
@@ -1266,6 +1279,7 @@ exports.onForumShoutoutDeleted = onDocumentDeleted({
 exports.onMarketplaceShoutoutDeleted = onDocumentDeleted({
     document: 'marketplace/{listingId}',
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+    secrets: [tgBotTokenSecret],
 }, async (event) => {
     try {
         await retractActivity({
@@ -1286,6 +1300,7 @@ exports.onMarketplaceShoutoutDeleted = onDocumentDeleted({
 exports.onForumShoutoutUpdated = onDocumentUpdated({
     document: 'forum_posts/{postId}',
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+    secrets: [tgBotTokenSecret],
 }, async (event) => {
     if (!event.data) return null;
     try {
@@ -1306,6 +1321,7 @@ exports.onForumShoutoutUpdated = onDocumentUpdated({
 exports.onMarketplaceShoutoutUpdated = onDocumentUpdated({
     document: 'marketplace/{listingId}',
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+    secrets: [tgBotTokenSecret],
 }, async (event) => {
     if (!event.data) return null;
     try {
@@ -1613,7 +1629,7 @@ async function claimChatStillLive(userData, reader, claimantUid) {
 exports.claimSats = functionsV1.runWith({
     timeoutSeconds: 300,
     enforceAppCheck: true,
-    secrets: [deletionHmacSecret, nwcUrlSecret],
+    secrets: [deletionHmacSecret, nwcUrlSecret, turnstileSecret],
 }).https.onCall(async (data, context) => {
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
@@ -5762,7 +5778,7 @@ exports.resetCommunityStats = functionsV1.https.onCall(async (data, context) => 
 // lastActive / lastLogin / lastVisit within the last 24h.
 // Usage: curl "https://us-central1-bitcoin-education-archive.cloudfunctions.net/dailyActiveUsers" -H "x-admin-token: $ADMIN_TOKEN"
 // ───────────────────────────────────────────────────────────────
-exports.dailyActiveUsers = functionsV1.https.onRequest(async (req, res) => {
+exports.dailyActiveUsers = functionsV1.runWith({ secrets: [adminTokenSecret] }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const now = new Date();
@@ -5940,7 +5956,7 @@ exports.dailyActiveUsers = functionsV1.https.onRequest(async (req, res) => {
 // One-shot investigation endpoint: accepts up to 20 UIDs, returns full records +
 // cross-referenced signals (same IP, same lightning address, giveaway entries,
 // points sources, account age, auth method, bestStreak sanity, etc).
-exports.investigateUsers = functionsV1.https.onRequest(async (req, res) => {
+exports.investigateUsers = functionsV1.runWith({ secrets: [adminTokenSecret] }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     const uidsParam = req.query.uids || '';
     const uids = uidsParam.split(',').map(s => s.trim()).filter(Boolean).slice(0, 20);
@@ -6105,7 +6121,7 @@ const BLACKLISTED_LN = [
     'seedyroute27@walletofsatoshi.com'
 ];
 
-exports.watchlistCheck = functionsV1.https.onRequest(async (req, res) => {
+exports.watchlistCheck = functionsV1.runWith({ secrets: [adminTokenSecret] }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
 
     try {
@@ -6214,7 +6230,7 @@ exports.watchlistCheck = functionsV1.https.onRequest(async (req, res) => {
 // =============================================
 // AUDIT WITHDRAWALS - Admin endpoint for monitoring blocked accounts & investigating withdrawal clusters
 // =============================================
-exports.auditWithdrawals = functionsV1.https.onRequest(async (req, res) => {
+exports.auditWithdrawals = functionsV1.runWith({ secrets: [adminTokenSecret] }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
 
     try {
@@ -6533,7 +6549,7 @@ exports.stravaInitAuth = functionsV1.https.onCall(async (data, context) => {
 // Step 2: Strava redirects here with ?code=...&state=<nonce>.
 // We look up the nonce server-side, extract the real uid, delete it
 // (one-time use), then proceed with the token exchange.
-exports.stravaAuth = functionsV1.https.onRequest(async (req, res) => {
+exports.stravaAuth = functionsV1.runWith({ secrets: [stravaClientSecretParam] }).https.onRequest(async (req, res) => {
     try {
         const code  = req.query.code;
         const nonce = req.query.state; // server-issued nonce, NOT a raw uid
@@ -6555,10 +6571,10 @@ exports.stravaAuth = functionsV1.https.onRequest(async (req, res) => {
         }
 
         const client_id = process.env.STRAVA_CLIENT_ID;
-        const client_secret = process.env.STRAVA_CLIENT_SECRET;
+        const client_secret = stravaClientSecret();
 
         if (!client_id || !client_secret) {
-            console.error("Missing Strava credentials in .env");
+            console.error('[stravaAuth] Strava client id or secret is not configured');
             return res.redirect('https://bitcoineducation.quest/#explore?strava=config-error');
         }
 
@@ -6599,7 +6615,7 @@ exports.stravaAuth = functionsV1.https.onRequest(async (req, res) => {
     }
 });
 
-exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
+exports.syncStravaWalks = functionsV1.runWith({ secrets: [stravaClientSecretParam] }).https.onCall(async (data, context) => {
     console.log('[POW] syncStravaWalks called');
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be logged in');
     const uid = context.auth.uid;
@@ -6620,7 +6636,7 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 client_id: process.env.STRAVA_CLIENT_ID,
-                client_secret: process.env.STRAVA_CLIENT_SECRET,
+                client_secret: stravaClientSecret(),
                 refresh_token: tokenData.refresh_token,
                 grant_type: 'refresh_token'
             })
@@ -6754,7 +6770,7 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
     }
     return { success: true, synced: syncedCount, pointsEarned: totalPoints, activities: results };
 });
-exports.adminLookupUser = functionsV1.https.onRequest(async (req, res) => {
+exports.adminLookupUser = functionsV1.runWith({ secrets: [adminTokenSecret] }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     await logAdminAction(req, 'adminLookupUser', { q: req.query.q });
     try {
@@ -6767,7 +6783,7 @@ exports.adminLookupUser = functionsV1.https.onRequest(async (req, res) => {
         res.json(out);
     } catch(e) { console.error('[adminLookupUser] error:', e); res.status(500).json({error: 'Internal server error'}); }
 });
-exports.adminQueryUsers = functionsV1.https.onRequest(async (req, res) => {
+exports.adminQueryUsers = functionsV1.runWith({ secrets: [adminTokenSecret] }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     await logAdminAction(req, 'adminQueryUsers', { q: req.query.q });
     try {
@@ -6787,7 +6803,7 @@ exports.adminQueryUsers = functionsV1.https.onRequest(async (req, res) => {
 });
 // [VULN-7 FIX] adminBanUser — sets ban flags in BOTH user doc and faucet_ledger atomically.
 // The ledger ban survives user-doc deletion (faucet_ledger is write:false for clients).
-exports.adminBanUser = functionsV1.https.onRequest(async (req, res) => {
+exports.adminBanUser = functionsV1.runWith({ secrets: [adminTokenSecret] }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const uid = req.query.uid;
@@ -6813,7 +6829,7 @@ exports.adminBanUser = functionsV1.https.onRequest(async (req, res) => {
     } catch(e) { console.error('[adminBanUser] error:', e); res.status(500).json({error: 'Internal server error'});}
 });
 
-exports.adminUnbanUser = functionsV1.https.onRequest(async (req, res) => {
+exports.adminUnbanUser = functionsV1.runWith({ secrets: [adminTokenSecret] }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const uid = req.query.uid;
@@ -7383,7 +7399,7 @@ exports.backfillDonationFaction = functionsV1.https.onCall(async (data, context)
 // date from points, last login, or a rank estimate. The operator script is
 // scripts/backfill-join-dates.js, which is also dry-run only.
 // ══════════════════════════════════════════════════════════════════════
-exports.backfillJoinDates = functionsV1.https.onRequest(async (req, res) => {
+exports.backfillJoinDates = functionsV1.runWith({ secrets: [adminTokenSecret] }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const snap = await db.collection('users').select('username', ...joinDate.JOIN_KEYS).get();
@@ -8365,6 +8381,7 @@ exports.refreshHotTopics = onScheduleV2({
     // in 540s, so this timeout stays put.
     timeoutSeconds: 540,
     memory: '512MiB',
+    secrets: hotTopicSecrets,
 }, async () => {
     console.log('[HotTopics] Starting weekly refresh...');
     try {
@@ -8388,6 +8405,7 @@ exports.refreshHotTopics = onScheduleV2({
 // longer than that, so this matches the scheduler's 540s ceiling.
 exports.refreshHotTopicsHttp = functionsV1.runWith({
     timeoutSeconds: 540,
+    secrets: [adminTokenSecret].concat(hotTopicSecrets),
 }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
@@ -8415,6 +8433,7 @@ exports.refreshHotTopicsHttp = functionsV1.runWith({
 // Manual force-refresh that bypasses the quality gate (admin use only)
 exports.refreshHotTopicsForce = functionsV1.runWith({
     timeoutSeconds: 540,
+    secrets: [adminTokenSecret].concat(hotTopicSecrets),
 }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
@@ -8542,7 +8561,7 @@ async function mirrorChatRetract(beforeSnap, afterSnap) {
     }
     return null;
 }
-exports.onGlobalChatTelegram = onDocumentCreated({ document: 'global_chat/{msgId}', retry: true }, async (event) => {
+exports.onGlobalChatTelegram = onDocumentCreated({ document: 'global_chat/{msgId}', retry: true, secrets: [tgBotTokenSecret] }, async (event) => {
     const snap = event.data;
     if (!snap) return null;
     return mirrorChatCreate('global_chat', event.params.msgId, snap.data());
@@ -8555,26 +8574,26 @@ exports.onGlobalChatEasterEgg = onDocumentCreated({ document: 'global_chat/{msgI
     catch (e) { console.warn('[easterEgg] failed'); }
     return null;
 });
-exports.onAnnouncementsTelegram = onDocumentCreated({ document: 'announcements/{msgId}', retry: true }, async (event) => {
+exports.onAnnouncementsTelegram = onDocumentCreated({ document: 'announcements/{msgId}', retry: true, secrets: [tgBotTokenSecret] }, async (event) => {
     const snap = event.data;
     if (!snap) return null;
     return mirrorChatCreate('announcements', event.params.msgId, snap.data());
 });
-exports.onGlobalChatTelegramUpdated = onDocumentUpdated({ document: 'global_chat/{msgId}', retry: true }, async (event) => {
+exports.onGlobalChatTelegramUpdated = onDocumentUpdated({ document: 'global_chat/{msgId}', retry: true, secrets: [tgBotTokenSecret] }, async (event) => {
     const change = event.data || {};
     return mirrorChatRetract(change.before, change.after);
 });
-exports.onGlobalChatTelegramDeleted = onDocumentDeleted({ document: 'global_chat/{msgId}', retry: true }, async (event) => {
+exports.onGlobalChatTelegramDeleted = onDocumentDeleted({ document: 'global_chat/{msgId}', retry: true, secrets: [tgBotTokenSecret] }, async (event) => {
     return mirrorChatRetract(event.data, null);
 });
-exports.onAnnouncementsTelegramUpdated = onDocumentUpdated({ document: 'announcements/{msgId}', retry: true }, async (event) => {
+exports.onAnnouncementsTelegramUpdated = onDocumentUpdated({ document: 'announcements/{msgId}', retry: true, secrets: [tgBotTokenSecret] }, async (event) => {
     const change = event.data || {};
     return mirrorChatRetract(change.before, change.after);
 });
-exports.onAnnouncementsTelegramDeleted = onDocumentDeleted({ document: 'announcements/{msgId}', retry: true }, async (event) => {
+exports.onAnnouncementsTelegramDeleted = onDocumentDeleted({ document: 'announcements/{msgId}', retry: true, secrets: [tgBotTokenSecret] }, async (event) => {
     return mirrorChatRetract(event.data, null);
 });
-exports.flushTelegramMirror = onSchedule({ schedule: '* * * * *', timeZone: 'UTC' }, async () => {
+exports.flushTelegramMirror = onSchedule({ schedule: '* * * * *', timeZone: 'UTC', secrets: [tgBotTokenSecret] }, async () => {
     try {
         await flushTelegramMirror(db, Date.now());
     } catch (e) {
@@ -9171,6 +9190,7 @@ exports.refreshBadgeDistribution = onScheduleV2({
 exports.refreshBadgeDistributionHttp = functionsV1.runWith({
     timeoutSeconds: 540,
     memory: '512MB',
+    secrets: [adminTokenSecret],
 }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
