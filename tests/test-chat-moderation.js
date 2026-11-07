@@ -414,6 +414,11 @@ test('profanity, scam, and spam are the edit block reasons', function () {
             assert.strictEqual(src.includes(name), false, name);
         });
         assert.ok(mirror.includes('src.deleted === true'));
+        assert.ok(chat.includes('function chatIdOk'));
+        assert.ok(chat.includes('data-chat-action'));
+        assert.ok(chat.includes("msgId.matches('^[A-Za-z0-9_-]{1,128}$')") || fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8').includes("msgId.matches('^[A-Za-z0-9_-]{1,128}$')"));
+        assert.strictEqual(chat.includes("toggleReaction('\\'' + m._id"), false);
+        assert.strictEqual(chat.includes("showReactPicker('\\'' + m._id"), false);
         assert.ok(chat.includes('window.saveChatEdit'));
         assert.ok(chat.includes('window.softDeleteChatMsg'));
         assert.ok(chat.includes('CHAT_EDIT_CAP = 5'));

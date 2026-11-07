@@ -1821,7 +1821,7 @@ service cloud.firestore {
               || (d.hasChatFlair == true && ('chatFlairEmoji' in d || nook)));
       }
       allow read: if true;
-      allow create: if (
+      allow create: if msgId.matches('^[A-Za-z0-9_-]{1,128}$') && ((
                     // Authenticated non-anonymous user messages only
                     request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
@@ -1885,7 +1885,7 @@ service cloud.firestore {
                     && request.resource.data.name is string
                     && request.resource.data.uid is string
                     && isAdmin()
-                    );
+                    ));
       // Reactions, owner edit, or owner soft delete. Admins do not get edit.
       // Hard delete stays admin-only so an owner cannot erase the message doc.
       function globalTextEditable(data) {

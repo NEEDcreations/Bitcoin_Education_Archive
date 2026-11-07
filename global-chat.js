@@ -5,6 +5,9 @@
 'use strict';
 
 var CHAT_COLLECTION = 'global_chat';
+function chatIdOk(id) {
+    return /^[A-Za-z0-9_-]{1,128}$/.test(String(id || ''));
+}
 var ANNOUNCEMENTS_COLLECTION = 'announcements';
 var MAX_MSG_LENGTH = 300;
 var RATE_LIMIT_MS = 3000; // 3 seconds between messages
@@ -648,20 +651,21 @@ function renderChatMessages(msgs) {
         _coreTitle += (!isNacho && m.hasFactionChampion) ? (function(){ var _fl = ({'🐝👑':'Hive Mind Champion','🦡👑':"Honey Badger Don't Care Champion",'🐝🛡️':'Still Buzzing','🦡🛡️':"Badger Don't Quit"})[m.factionRaceFlair]; return _fl ? ' <span title="Faction race" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">' + esc(m.factionRaceFlair + ' ' + _fl) + '</span>' : null; })() || ' <span title="Faction race champion" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">👑 Race Champion</span>' : '';
         html += '<span style="' + nameStyle + '"' + nameClick + '>' + _nachoSkinAvatar + _chatFlairPrefix + (m.source === 'telegram' ? '📱 ' : '') + esc(m.name || 'Anon') + _coreTitle + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
         html += '<span style="font-size:0.6rem;color:var(--text-faint);">' + timeAgo(m.ts) + '</span>';
-        if (myUid && !isDeleted) {
-            html += '<span data-reply-id="' + esc(m._id) + '" data-reply-name="' + esc(m.name || 'Anon') + '" data-reply-text="' + esc((m.text||'').substring(0,50)) + '" onclick="setChatReply(this.dataset.replyId,this.dataset.replyName,this.dataset.replyText)" style="cursor:pointer;font-size:0.6rem;color:var(--text-faint);margin-left:auto;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Reply">↩️</span>';
+        var safeMsgId = chatIdOk(m._id) ? m._id : '';
+        if (myUid && !isDeleted && safeMsgId) {
+            html += '<span data-reply-id="' + safeMsgId + '" data-reply-name="' + esc(m.name || 'Anon') + '" data-reply-text="' + esc((m.text||'').substring(0,50)) + '" onclick="setChatReply(this.dataset.replyId,this.dataset.replyName,this.dataset.replyText)" style="cursor:pointer;font-size:0.6rem;color:var(--text-faint);margin-left:auto;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Reply">↩️</span>';
         }
-        if (!isDeleted && chatCanEdit(m, isMe)) {
-            html += '<span onclick="editChatMsg(\'' + esc(m._id) + '\')" style="cursor:pointer;font-size:0.6rem;color:#6366f1;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Edit">✏️</span>';
+        if (safeMsgId && !isDeleted && chatCanEdit(m, isMe)) {
+            html += '<span data-chat-action="edit" data-msg-id="' + safeMsgId + '" style="cursor:pointer;font-size:0.6rem;color:#6366f1;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Edit">✏️</span>';
         }
-        if (!isDeleted && chatCanSoftDelete(m, isMe)) {
-            html += '<span onclick="softDeleteChatMsg(\'' + esc(m._id) + '\')" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
+        if (safeMsgId && !isDeleted && chatCanSoftDelete(m, isMe)) {
+            html += '<span data-chat-action="soft-delete" data-msg-id="' + safeMsgId + '" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
         }
-        if (isAdmin && !isMe) {
+        if (safeMsgId && isAdmin && !isMe) {
             if (!m.isGif && !m.imageUrl && !m.gifUrl && m.uid !== 'nacho-bot' && m.isNachoAuto !== true && !isDeleted) {
-                html += '<span onclick="pinChatMessage(\'' + esc(m._id) + '\')" style="cursor:pointer;font-size:0.6rem;color:var(--accent);margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Pin">📌</span>';
+                html += '<span data-chat-action="pin" data-msg-id="' + safeMsgId + '" style="cursor:pointer;font-size:0.6rem;color:var(--accent);margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Pin">📌</span>';
             }
-            html += '<span onclick="deleteChatMsg(\'' + esc(m._id) + '\')" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Remove">🗑️</span>';
+            html += '<span data-chat-action="hard-delete" data-msg-id="' + safeMsgId + '" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Remove">🗑️</span>';
         }
         html += '</div>';
         if (m.replyToName) {
@@ -709,10 +713,10 @@ function renderChatMessages(msgs) {
             var iReacted = myUid && users.indexOf(myUid) !== -1;
             var safeEmoji = esc(emoji);
             var _uidsJson = JSON.stringify(users);
-            html += '<button onclick="toggleReaction(\'' + m._id + '\',\'' + safeEmoji.replace(/[\\'"]/g, '') + '\')" onmouseenter="_showReactTipFromBtn(this)" onmouseleave="_hideReactTip()" ontouchstart="_reactTouchStart(this)" ontouchend="_reactTouchEnd()" data-uids="' + _uidsJson.replace(/"/g, '&quot;') + '" style="padding:2px 6px;border-radius:10px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (iReacted ? 'var(--accent)' : 'var(--border)') + ';background:' + (iReacted ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';color:var(--text);font-family:inherit;display:flex;align-items:center;gap:2px;touch-action:manipulation;">' + safeEmoji + '<span style="font-size:0.6rem;color:var(--text-muted);">' + count + '</span></button>';
+            html += '<button type="button" data-chat-action="toggle-react" data-msg-id="' + (chatIdOk(m._id) ? m._id : '') + '" data-emoji="' + safeEmoji + '" onmouseenter="_showReactTipFromBtn(this)" onmouseleave="_hideReactTip()" ontouchstart="_reactTouchStart(this)" ontouchend="_reactTouchEnd()" data-uids="' + _uidsJson.replace(/"/g, '&quot;') + '" style="padding:2px 6px;border-radius:10px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (iReacted ? 'var(--accent)' : 'var(--border)') + ';background:' + (iReacted ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';color:var(--text);font-family:inherit;display:flex;align-items:center;gap:2px;touch-action:manipulation;">' + safeEmoji + '<span style="font-size:0.6rem;color:var(--text-muted);">' + count + '</span></button>';
         }
         if (myUid && !isDeleted) {
-            html += '<button onclick="showReactPicker(\'' + m._id + '\',this)" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
+            if (chatIdOk(m._id)) html += '<button type="button" data-chat-action="react" data-msg-id="' + m._id + '" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
             if (!isMe && !isNacho && !isDeleted && m.uid !== 'system') {
                 html += '<button onclick="event.stopPropagation();showTipOverlay({recipientName:\'' + esc(m.name || 'Anon').replace(/[\\'"]/g,'') + '\',recipientUid:\'' + String(m.uid || '').replace(/[^A-Za-z0-9_-]/g,'') + '\',context:\'Global Chat tip\',label:\'Tip Message\'})" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);color:#eab308;font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="Tip">⚡</button>';
             }
@@ -725,6 +729,7 @@ function renderChatMessages(msgs) {
     var _savedBanner = document.getElementById('chatPinnedBanner');
     if (_savedBanner) _savedBanner.remove();
     el.innerHTML = html;
+    bindChatActions(el);
     noteChatFilterRevert();
     if (window._chatEditingId) {
         var editInp = document.getElementById('chatEditInput');
@@ -1722,6 +1727,24 @@ function refreshChatEdit() {
     if (window._chatAllMsgs) renderChatMessages(window._chatAllMsgs);
 }
 
+function bindChatActions(el) {
+    if (!el || el._chatActionsBound) return;
+    el._chatActionsBound = true;
+    el.addEventListener('click', function (e) {
+        var node = e.target && e.target.closest ? e.target.closest('[data-chat-action]') : null;
+        if (!node || !el.contains(node)) return;
+        var id = node.getAttribute('data-msg-id') || '';
+        if (!chatIdOk(id)) return;
+        var action = node.getAttribute('data-chat-action');
+        if (action === 'edit') editChatMsg(id);
+        else if (action === 'soft-delete') softDeleteChatMsg(id);
+        else if (action === 'pin') pinChatMessage(id);
+        else if (action === 'hard-delete') deleteChatMsg(id);
+        else if (action === 'react') showReactPicker(id, node);
+        else if (action === 'toggle-react') toggleReaction(id, node.getAttribute('data-emoji') || '');
+    });
+}
+
 function noteChatFilterRevert() {
     var watch = window._chatFilterWatch;
     if (!watch) return;
@@ -2432,6 +2455,7 @@ window._closeReactPicker = function _closeReactPicker() {
 }
 
 window.showReactPicker = function(msgId, btnEl) {
+    if (!chatIdOk(msgId) || !btnEl) return;
     if (_reactPickerDismiss) { document.removeEventListener('click', _reactPickerDismiss); _reactPickerDismiss = null; }
     var old = document.getElementById('reactPicker');
     if (old) { var sameMsgId = old.dataset.msgId === msgId; old.remove(); if (sameMsgId) return; }
@@ -2464,7 +2488,8 @@ window.showReactPicker = function(msgId, btnEl) {
     picker.innerHTML = searchHtml + tabHtml + '<div id="reactEmojiGrid" style="display:flex;flex-wrap:wrap;gap:1px;overflow-y:auto;max-height:230px;justify-content:center;"></div>';
 
     function _reactEmojiBtn(e) {
-        return '<button onclick="_closeReactPicker();toggleReaction(\''+msgId+'\',\''+e+'\')" style="padding:5px;font-size:1.25rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
+        if (!e || /['"<>&]/.test(e)) return '';
+        return '<button type="button" data-react-emoji="' + e + '" style="padding:5px;font-size:1.25rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">' + e + '</button>';
     }
 
     window._switchReactTab = function(cat) {
@@ -2523,6 +2548,17 @@ window.showReactPicker = function(msgId, btnEl) {
     window._switchReactTab(cats[0]);
 
     document.body.appendChild(picker);
+    var reactGrid = document.getElementById('reactEmojiGrid');
+    if (reactGrid && !reactGrid._bound) {
+        reactGrid._bound = true;
+        reactGrid.addEventListener('click', function (ev) {
+            var b = ev.target && ev.target.closest ? ev.target.closest('[data-react-emoji]') : null;
+            if (!b || !chatIdOk(msgId)) return;
+            var emoji = b.getAttribute('data-react-emoji') || '';
+            window._closeReactPicker();
+            toggleReaction(msgId, emoji);
+        });
+    }
     var rect = btnEl.getBoundingClientRect();
     var top = rect.top - 340 - 8;
     if (top < 8) top = rect.bottom + 8;

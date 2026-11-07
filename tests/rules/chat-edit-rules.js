@@ -112,6 +112,11 @@ function editPatch(text, count) {
         const stranger = env.authenticatedContext('user3', password).firestore();
         const admin = env.authenticatedContext('admin1', adminToken).firestore();
 
+        await expect('global chat id with a quote', function () {
+            return setDoc(doc(user, 'global_chat', "bad'id"), {
+                uid: 'user1', name: 'phil', text: 'nope', ts: serverTimestamp(), isNachoAuto: false,
+            });
+        }, false);
         await expect('own global chat message', function () {
             return setDoc(doc(user, 'global_chat', 'fresh1'), {
                 uid: 'user1', name: 'phil', text: 'hello', ts: serverTimestamp(), isNachoAuto: false,
