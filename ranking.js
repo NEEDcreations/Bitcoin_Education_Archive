@@ -2780,7 +2780,8 @@ window.signInWithNostr = async function() {
     var hasExtension = !!window.nostr;
     var overlay = document.createElement('div');
     overlay.id = 'nostrAuthOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:500000;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;';
+    var nostrZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100010) : 2100010;
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:' + nostrZ + ';background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML =
         '<div style="background:var(--bg-side,#1a1a2e);border:2px solid #7B2DE4;border-radius:20px;padding:28px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;">' +
@@ -3423,7 +3424,8 @@ window.showTroubleSigningIn = function() {
 
     var overlay = document.createElement('div');
     overlay.id = 'troubleSignInModal';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:600000;display:flex;align-items:center;justify-content:center;padding:20px;';
+    var troubleZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100010) : 2100010;
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:' + troubleZ + ';display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     overlay.innerHTML =
@@ -4755,7 +4757,7 @@ function ensureUsernameRepickStyle() {
     if (document.getElementById('usernameRepickStyle')) return;
     var style = document.createElement('style');
     style.id = 'usernameRepickStyle';
-    style.textContent = '#usernameRepick{position:fixed;inset:0;z-index:600000;background:var(--overlay,rgba(0,0,0,.72));overflow-y:auto;-webkit-overflow-scrolling:touch;padding:max(12px,env(safe-area-inset-top)) 12px max(16px,env(safe-area-inset-bottom));box-sizing:border-box;}' +
+    style.textContent = '#usernameRepick{position:fixed;inset:0;z-index:2100010;background:var(--overlay,rgba(0,0,0,.72));overflow-y:auto;-webkit-overflow-scrolling:touch;padding:max(12px,env(safe-area-inset-top)) 12px max(16px,env(safe-area-inset-bottom));box-sizing:border-box;}' +
         '#usernameRepick .username-box{width:min(400px,100%);max-width:400px;margin:24px auto;box-sizing:border-box;}' +
         '#usernameRepick h2{font-size:1.2rem;line-height:1.35;overflow-wrap:anywhere;}' +
         '#usernameRepick input{font-size:16px;box-sizing:border-box;}' +
@@ -6592,7 +6594,8 @@ window._changeExperienceMode = function(mode) {
 window.showDeleteAccountConfirm = function() {
     var overlay = document.createElement('div');
     overlay.id = 'deleteAccountOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:450000;background:rgba(0,0,0,0.92);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    var delZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100010) : 2100010;
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:' + delZ + ';background:rgba(0,0,0,0.92);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     var username = (currentUser && currentUser.username) ? currentUser.username : '';
@@ -9289,18 +9292,26 @@ function accountDeleteRowHtml(user) {
             { met: _reqLifeLeft > 0, label: 'Lifetime limit 15,000 sats', detail: _reqLifeLeft > 0 ? '✓ ' + _reqLifeLeft.toLocaleString() + ' sats left' : 'Lifetime limit reached' },
             { met: !satsHeld, label: 'Account in good standing', detail: satsHeld ? 'Withdrawals are paused on this account for now' : '✓ One account per person and device' }
         ];
-        if (!claimExempt) {
-            // Same length as functions/src/tctvWatch.js CREDIT_SECONDS.
-            var CLAIM_TCTV_SECONDS = 60;
+        // Always show chat + TCTV rows. Grandfathered accounts (before CLAIM_REQS_START)
+        // see them as N/A so the checklist matches what new accounts must do, without
+        // blocking older accounts. Server enforcement is unchanged.
+        var CLAIM_TCTV_SECONDS = 60;
+        if (claimExempt) {
+            checks.push({ na: true, met: true, label: 'Send 1 message in Chat', detail: 'N/A · account before Nov 5' });
+            checks.push({ na: true, met: true, label: 'Watch Timechain TV', detail: 'N/A · account before Nov 5' });
+        } else {
             checks.push({ met: chatReqMet, label: 'Send 1 message in Chat', detail: chatReqMet ? '✓ Message sent' : 'Send a short real message in Chat', go: 'openClaimChat()' });
             checks.push({ met: tctvReqMet, label: 'Watch Timechain TV', detail: tctvReqMet ? ('✓ ' + CLAIM_TCTV_SECONDS + ' seconds watched') : ('Watch at least ' + CLAIM_TCTV_SECONDS + ' seconds of a video'), go: 'openClaimTv()' });
         }
         checks.forEach(function(c) {
             html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">';
-            html += '<span style="font-size:1.1rem;flex:0 0 auto;">' + (c.met ? '✅' : '⬜') + '</span>';
-            html += '<div style="flex:1;min-width:0;"><div style="font-size:0.8rem;font-weight:600;color:' + (c.met ? 'var(--text)' : 'var(--text-muted)') + ';">' + c.label + '</div>';
-            html += '<div style="font-size:0.7rem;color:' + (c.met ? '#22c55e' : 'var(--text-faint)') + ';">' + c.detail + '</div></div>';
-            if (!c.met && c.go) {
+            var icon = c.na ? '➖' : (c.met ? '✅' : '⬜');
+            var labelColor = c.na ? 'var(--text-muted)' : (c.met ? 'var(--text)' : 'var(--text-muted)');
+            var detailColor = c.na ? 'var(--text-faint)' : (c.met ? '#22c55e' : 'var(--text-faint)');
+            html += '<span style="font-size:1.1rem;flex:0 0 auto;' + (c.na ? 'opacity:0.55;' : '') + '">' + icon + '</span>';
+            html += '<div style="flex:1;min-width:0;"><div style="font-size:0.8rem;font-weight:600;color:' + labelColor + ';">' + c.label + '</div>';
+            html += '<div style="font-size:0.7rem;color:' + detailColor + ';">' + c.detail + '</div></div>';
+            if (!c.na && !c.met && c.go) {
                 html += '<button type="button" class="claim-req-go" onclick="event.stopPropagation();' + c.go + '" style="width:auto;min-width:44px;max-width:88px;white-space:nowrap;flex:0 0 auto;padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:inherit;touch-action:manipulation;">' + (c.goLabel || 'Go') + '</button>';
             }
             html += '</div>';
@@ -10876,7 +10887,8 @@ window.showArtistProfileModal = function() {
 
     var overlay = document.createElement('div');
     overlay.id = 'artistProfileModal';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:500000;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    var artistZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100010) : 2100010;
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:' + artistZ + ';background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     overlay.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:24px;padding:28px;max-width:440px;width:100%;margin:40px auto;animation:fadeSlideIn 0.3s ease-out;">' +
@@ -11493,7 +11505,8 @@ function presentSignOutLinkWarning(warning) {
     if (existing) existing.remove();
     var overlay = document.createElement('div');
     overlay.id = 'signOutLinkWarning';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:800000;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;padding:16px;';
+    var warnZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100010) : 2100010;
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:' + warnZ + ';background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;padding:16px;';
     overlay.innerHTML = '<div role="dialog" aria-modal="true" aria-labelledby="signOutLinkWarningTitle" style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:380px;width:100%;text-align:center;box-shadow:0 16px 40px rgba(0,0,0,0.35);">' +
         '<div style="font-size:2rem;margin-bottom:8px;">⚠️</div>' +
         '<div id="signOutLinkWarningTitle" style="color:var(--heading,#fff);font-weight:800;font-size:1.05rem;margin-bottom:8px;">Sign out?</div>' +
@@ -11838,7 +11851,8 @@ function openWithdrawalAddress(opts) {
 
         var overlay = document.createElement('div');
         overlay.id = 'lnAddrModal';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,0.78);z-index:620000;display:flex;align-items:center;justify-content:center;padding:16px;';
+        var lnZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100010) : 2100010;
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,0.78);z-index:' + lnZ + ';display:flex;align-items:center;justify-content:center;padding:16px;';
         overlay.addEventListener('click', function (e) { if (e.target === overlay) finish(null); });
 
         var panel = document.createElement('div');
@@ -12318,7 +12332,8 @@ window._showTotpSignInChallenge = function() {
     if (document.getElementById('totpSignInOverlay')) return;
     var overlay = document.createElement('div');
     overlay.id = 'totpSignInOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:700000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    var totpZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100025) : 2100025;
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:' + totpZ + ';display:flex;align-items:center;justify-content:center;padding:16px;';
     overlay.innerHTML =
         '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:28px 24px;max-width:340px;width:100%;text-align:center;">' +
             '<div style="font-size:2.5rem;margin-bottom:10px;">📱</div>' +
@@ -12414,7 +12429,8 @@ window._showMFASignInChallenge = async function(resolver) {
     window._mfaResolver = resolver;
     var overlay = document.createElement('div');
     overlay.id = 'mfaSignInOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:600000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    var mfaZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100025) : 2100025;
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:' + mfaZ + ';display:flex;align-items:center;justify-content:center;padding:16px;';
 
     // On Safari, reCAPTCHA required for phone auth is blocked by ITP — show helpful message instead
     var _isSafariMFA = /^((?!chrome|android).)*safari/i.test(navigator.userAgent || '');
@@ -12609,7 +12625,8 @@ window._showLostAccess = function () {
     if (document.getElementById('lostAccessOverlay')) return;
     var overlay = document.createElement('div');
     overlay.id = 'lostAccessOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:700001;display:flex;align-items:center;justify-content:center;padding:16px;';
+    var lostZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100025) : 2100025;
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:' + lostZ + ';display:flex;align-items:center;justify-content:center;padding:16px;';
     overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:420px;width:100%;">' +
         '<div style="font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:8px;">Lost your device?</div>' +
         '<div style="color:var(--text-muted,#aaa);font-size:0.88rem;line-height:1.55;margin-bottom:14px;">Enter one of the recovery codes you saved when you turned on two-factor authentication. That code works once and turns two-factor authentication off, so you can sign in and set it up again. If you lost those codes too, contact support. After they confirm it is you, they can turn it off.</div>' +
@@ -12627,7 +12644,8 @@ window._showRecoveryCodes = function (codes) {
     }).join('');
     var overlay = document.createElement('div');
     overlay.id = 'recoveryCodesOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:700002;display:flex;align-items:center;justify-content:center;padding:16px;';
+    var recZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100025) : 2100025;
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:' + recZ + ';display:flex;align-items:center;justify-content:center;padding:16px;';
     overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:22px;max-width:420px;width:100%;max-height:90vh;overflow:auto;">' +
         '<div style="font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:6px;">Save your recovery codes</div>' +
         '<div style="color:var(--text-muted,#aaa);font-size:0.82rem;line-height:1.5;margin-bottom:12px;">These are shown once. Each code works one time and turns two-factor authentication off. Store them somewhere safe.</div>' +
@@ -13017,7 +13035,8 @@ window.bqConfirmLnFee = function(gross, label) {
         ov.setAttribute('role', 'dialog');
         ov.setAttribute('aria-modal', 'true');
         ov.setAttribute('aria-labelledby', 'lnFeeConfirmTitle');
-        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:600000;display:flex;align-items:center;justify-content:center;padding:16px;';
+        var feeZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100020) : 2100020;
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:' + feeZ + ';display:flex;align-items:center;justify-content:center;padding:16px;';
         var row = 'display:flex;justify-content:space-between;gap:12px;padding:6px 0;font-size:0.88rem;';
         ov.innerHTML = '<div style="background:var(--bg-side,#14151f);border:1px solid var(--border,#333);border-radius:16px;padding:20px;max-width:360px;width:100%;box-sizing:border-box;">' +
             '<div id="lnFeeConfirmTitle" style="font-weight:800;font-size:1rem;color:var(--accent,#f7931a);text-align:center;margin-bottom:12px;">Confirm your claim</div>' +
@@ -13105,6 +13124,37 @@ window.claimCipherSats = async function() {
     }
 };
 
+
+// Stack any Settings-opened overlay above #usernameModal (CSS z-index 2100008)
+// and above any already-open sibling overlay. Floor stays above Settings even
+// when Settings is closed, so home → claim still wins against other shells.
+window._bqAboveModalsZ = function(floor) {
+    var top = Math.max(Number(floor) || 0, 2100010);
+    var ids = [
+        'usernameModal', 'satsClaimOverlay', 'lnFeeConfirmOverlay', 'lnAddrModal',
+        'artistProfileModal', 'signOutLinkWarning', 'totpSignInOverlay', 'mfaSignInOverlay',
+        'freshStepUpOverlay', 'reauthOverlay', 'changeEmailModal', 'accountLinkHold',
+        'deleteAccountOverlay', 'nostrAuthOverlay', 'troubleSignInModal', 'usernameRepick',
+        'lostAccessOverlay', 'recoveryCodesOverlay'
+    ];
+    for (var i = 0; i < ids.length; i++) {
+        var el = document.getElementById(ids[i]);
+        if (!el) continue;
+        if (el.id === 'usernameModal' && !(el.classList && el.classList.contains('open'))) continue;
+        var z = 0;
+        if (el.style && el.style.zIndex) z = parseInt(el.style.zIndex, 10) || 0;
+        if (!z && el.getAttribute) {
+            var m = String(el.getAttribute('style') || '').match(/z-index:\s*(\d+)/i);
+            if (m) z = parseInt(m[1], 10) || 0;
+        }
+        if (!z && typeof getComputedStyle === 'function') {
+            try { z = parseInt(getComputedStyle(el).zIndex, 10) || 0; } catch (e) {}
+        }
+        if (z > top) top = z;
+    }
+    return top + 2;
+};
+
 window.initSatsClaim = function() {
     console.log('[SATS] initSatsClaim called', { currentUser: !!currentUser, auth: !!auth, authUser: !!auth?.currentUser, isAnon: auth?.currentUser?.isAnonymous });
     if (!currentUser || !auth || !auth.currentUser || auth.currentUser.isAnonymous) {
@@ -13130,10 +13180,24 @@ window.initSatsClaim = function() {
 
     var overlay = document.createElement('div');
     overlay.id = 'satsClaimOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500001;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    var claimZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100010) : 2100010;
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:' + claimZ + ';display:flex;align-items:center;justify-content:center;padding:16px;';
+    function closeSatsClaim() {
+        document.removeEventListener('keydown', onSatsClaimKey, true);
+        if (overlay.parentNode) overlay.remove();
+    }
+    function onSatsClaimKey(e) {
+        if (e.key !== 'Escape') return;
+        e.stopPropagation();
+        e.preventDefault();
+        closeSatsClaim();
+    }
+    document.addEventListener('keydown', onSatsClaimKey, true);
     // Delay dismiss listener to prevent the originating button click from immediately closing it
     setTimeout(function() {
-        overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+        overlay.onclick = function(e) { if (e.target === overlay) closeSatsClaim(); };
     }, 200);
 
     var _savedLnAddr = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightning || currentUser.lightningAddress || '') : '';
@@ -13179,6 +13243,14 @@ window.initSatsClaim = function() {
 
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
+    var cancelBtn = overlay.querySelector('button[onclick*="satsClaimOverlay"]');
+    if (cancelBtn) cancelBtn.onclick = function(e) { e.preventDefault(); closeSatsClaim(); };
+    // Successful claim removes the overlay; drop the Esc listener too.
+    var _origRemove = overlay.remove.bind(overlay);
+    overlay.remove = function() {
+        document.removeEventListener('keydown', onSatsClaimKey, true);
+        _origRemove();
+    };
     if (typeof window._ensureTurnstile === 'function') window._ensureTurnstile(document.getElementById('satsClaimTurnstile'));
 };
 

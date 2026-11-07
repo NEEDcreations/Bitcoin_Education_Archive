@@ -28,6 +28,22 @@ const PLAIN_ENV_NAMES = [
     'X_API_SECRET',
 ];
 
+// Every Secret Manager secret a deployed function binds from this module.
+// The functions predeploy hook (scripts/require-secrets-exist.js) refuses
+// to deploy unless each one exists with an enabled latest version.
+const REQUIRED_SECRET_NAMES = [
+    'ADMIN_TOKEN',
+    'BRIDGE_SECRET',
+    'CF_AI_TOKEN',
+    'STRAVA_CLIENT_SECRET',
+    'TG_BOT_TOKEN',
+    'TURNSTILE_SECRET_KEY',
+    'X_ACCESS_SECRET',
+    'X_ACCESS_TOKEN',
+    'X_API_KEY',
+    'X_API_SECRET',
+];
+
 const adminTokenSecret = defineSecret('ADMIN_TOKEN');
 const bridgeSecretParam = defineSecret('BRIDGE_SECRET');
 const cfAiTokenSecret = defineSecret('CF_AI_TOKEN');
@@ -59,6 +75,7 @@ function xApiSecret() { return readBound('X_API_SECRET'); }
 
 module.exports = {
     PLAIN_ENV_NAMES: PLAIN_ENV_NAMES,
+    REQUIRED_SECRET_NAMES: REQUIRED_SECRET_NAMES,
     adminTokenSecret: adminTokenSecret,
     bridgeSecretParam: bridgeSecretParam,
     cfAiTokenSecret: cfAiTokenSecret,
