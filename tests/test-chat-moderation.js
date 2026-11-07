@@ -390,7 +390,58 @@ test('profanity, scam, and spam are the edit block reasons', function () {
             deleteFile: async function (path) { gone.push(path); },
         });
         assert.deepStrictEqual(gone, ['dm-images/u1/a.png']);
-        assert.strictEqual(mod.storageObjectPath('https://media.tenor.com/x.gif'), '');
+        const own = 'https://firebasestorage.googleapis.com/v0/b/bitcoin-education-archive.firebasestorage.app/o/';
+        assert.strictEqual(mod.storageObjectPath(own + 'chat-images%2Fu1%2Fpic.jpg', 'u1', 'chat-images'), 'chat-images/u1/pic.jpg');
+        assert.strictEqual(mod.storageObjectPath(own + 'chat-images%2Fvictim%2Fpic.jpg', 'u1', 'chat-images'), '');
+        assert.strictEqual(mod.storageObjectPath('https://firebasestorage.googleapis.com/v0/b/evil.appspot.com/o/chat-images%2Fu1%2Fpic.jpg', 'u1', 'chat-images'), '');
+        assert.strictEqual(mod.storageObjectPath(own + 'chat-images%2Fu1%2F..%2Fvictim%2Fpic.jpg', 'u1', 'chat-images'), '');
+        assert.strictEqual(mod.storageObjectPath(own + 'chat-images%2Ftg%2Fpic.jpg', 'u1', 'chat-images'), '');
+        assert.strictEqual(mod.storageObjectPath(own + 'dm-images%2Fu1%2Fa.png', 'u1', 'chat-images'), '');
+        assert.strictEqual(mod.storageObjectPath(own + 'chat-images%2Fu1%2Fa.png', 'u1', 'dm-images'), '');
+        assert.strictEqual(mod.storageObjectPath('https://media.tenor.com/x.gif', 'u1', 'chat-images'), '');
+    });
+
+    await testAsync('a storage URL in the text and a foreign file are not deleted, and 403 does not retry', async function () {
+        const own = 'https://firebasestorage.googleapis.com/v0/b/bitcoin-education-archive.firebasestorage.app/o/chat-images%2Fu1%2Fmine.jpg?alt=media';
+        const foreign = 'https://firebasestorage.googleapis.com/v0/b/bitcoin-education-archive.firebasestorage.app/o/chat-images%2Fvictim%2Fpic.jpg?alt=media';
+        const inText = 'https://firebasestorage.googleapis.com/v0/b/bitcoin-education-archive.firebasestorage.app/o/chat-images%2Fvictim%2Fother.jpg?alt=media';
+        const removed = [];
+        const before = { uid: 'u1', text: inText, imageUrl: foreign, gifUrl: own };
+        const after = { uid: 'u1', text: '', deleted: true, deletedAt: at(now) };
+        const db = fakeDb({ 'global_chat/m1': Object.assign({}, after) });
+        const res = await mod.handleGlobalUpdate(db, admin, 'm1', before, after, now, {
+            eventId: 'foreign',
+            deleteFile: async function (path) { removed.push(path); },
+        });
+        assert.deepStrictEqual(removed, ['chat-images/u1/mine.jpg']);
+        assert.deepStrictEqual(res.removed, ['chat-images/u1/mine.jpg']);
+        const denied = [];
+        const beforeOwn = { uid: 'u1', text: 'x', imageUrl: own };
+        const db2 = fakeDb({ 'global_chat/m2': Object.assign({}, after, { uid: 'u1' }) });
+        const res2 = await mod.handleGlobalUpdate(db2, admin, 'm2', beforeOwn, Object.assign({}, after), now, {
+            eventId: 'denied',
+            deleteFile: async function () {
+                const err = new Error('forbidden');
+                err.code = 403;
+                throw err;
+            },
+        });
+        assert.deepStrictEqual(denied, []);
+        assert.deepStrictEqual(res2.removed, []);
+        let threw = false;
+        try {
+            await mod.handleGlobalUpdate(db2, admin, 'm2', beforeOwn, Object.assign({}, after), now, {
+                eventId: 'boom',
+                deleteFile: async function () {
+                    const err = new Error('unavailable');
+                    err.code = 503;
+                    throw err;
+                },
+            });
+        } catch (err) {
+            threw = err && err.code === 503;
+        }
+        assert.strictEqual(threw, true);
     });
 
     test('rewards stay on create and the new triggers do not grant them', function () {
@@ -415,6 +466,9 @@ test('profanity, scam, and spam are the edit block reasons', function () {
         });
         assert.ok(mirror.includes('src.deleted === true'));
         assert.ok(chat.includes('function chatIdOk'));
+        assert.ok(chat.includes('{1,160}'));
+        assert.ok(chat.includes('data-msg-id="\' + safeMsgId'));
+        assert.strictEqual(chat.includes('data-msg-id="\' + m._id'), false);
         assert.ok(chat.includes('data-chat-action'));
         assert.ok(chat.includes("msgId.matches('^[A-Za-z0-9_-]{1,128}$')") || fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8').includes("msgId.matches('^[A-Za-z0-9_-]{1,128}$')"));
         assert.strictEqual(chat.includes("toggleReaction('\\'' + m._id"), false);
@@ -429,7 +483,7 @@ test('profanity, scam, and spam are the edit block reasons', function () {
         assert.ok(dm.includes('window.deleteDmMsg'));
         assert.ok(dm.includes('DM_EDIT_MAX = 1000'));
         assert.ok(dm.includes('🚫 message deleted'));
-        assert.ok(privacy.includes('Edited and deleted chat and direct messages are kept for up to 90 days for moderation and safety, then removed.'));
+        assert.ok(privacy.includes('Admins can see edited and deleted chat and direct message text for up to 90 days for safety, then that copy is removed.'));
         assert.ok(claims.includes('msg.deleted === true'));
     });
 

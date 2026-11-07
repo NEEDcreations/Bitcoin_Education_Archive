@@ -21,8 +21,10 @@
 // More than 10 edits or deletes from one uid in a minute sets flagged on
 // chat_edit_rate/{uid}. Nothing else happens automatically.
 //
-// Soft delete of a chat-images/ or dm-images/ object deletes that Storage
-// file. Tenor and other https URLs are left alone.
+// Soft delete deletes a Storage object only from imageUrl or gifUrl, only in
+// the default bucket, and only at chat-images/<author>/file (Global Chat) or
+// dm-images/<author>/file (DMs). Text, another uid, another bucket, and .. are skipped.
+// A 403 or 404 from that delete is logged by skipping it; other errors still throw.
 
 const { classifyChatText } = require('./chatProfanity');
 
@@ -34,7 +36,7 @@ const RATE_FLAG_OVER = 10;
 const DELETED_QUOTE = 'message deleted';
 const DM_DELETED_PREVIEW = 'Message deleted';
 const PURGE_PAGE = 400;
-const STORAGE_PREFIXES = ['chat-images/', 'dm-images/'];
+const DEFAULT_MEDIA_BUCKET = 'bitcoin-education-archive.firebasestorage.app';
 
 function textOf(data) {
     return data && typeof data.text === 'string' ? data.text : '';
@@ -110,23 +112,45 @@ function logDocId(action, path, attempt) {
     return (action + '_' + attemptKey(attempt, null, action) + '_' + path).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 500);
 }
 
-function storageObjectPath(url) {
+// Own media only: default bucket, and exactly folder/<author uid>/<file>
+// with no extra slash. Global Chat is chat-images; DMs are dm-images.
+// text is never a source. A foreign uid, bucket, folder, or .. is skipped.
+function storageObjectPath(url, authorUid, folder) {
     const raw = String(url || '');
-    if (!raw || raw.indexOf('http') !== 0) return '';
+    const uid = String(authorUid || '');
+    if (!raw || raw.indexOf('https://') !== 0) return '';
+    if (!uid || uid.indexOf('/') !== -1 || uid.indexOf('..') !== -1) return '';
+    if (folder !== 'chat-images' && folder !== 'dm-images') return '';
+    let bucket = '';
     let encoded = '';
-    const gcs = raw.match(/firebasestorage\.googleapis\.com\/v0\/b\/[^/]+\/o\/([^?#]+)/);
-    const app = raw.match(/\.firebasestorage\.app\/(?:v0\/b\/[^/]+\/o\/)?([^?#]+)/);
-    if (gcs) encoded = gcs[1];
-    else if (app) encoded = app[1];
-    else return '';
+    const gcs = raw.match(/^https:\/\/firebasestorage\.googleapis\.com\/v0\/b\/([^/]+)\/o\/([^?#]+)/);
+    const app = raw.match(/^https:\/\/([a-z0-9.-]+\.firebasestorage\.app)\/(?:v0\/b\/[^/]+\/o\/)?([^?#]+)/);
+    if (gcs) {
+        bucket = gcs[1];
+        encoded = gcs[2];
+    } else if (app) {
+        bucket = app[1];
+        encoded = app[2];
+    } else return '';
+    if (bucket !== DEFAULT_MEDIA_BUCKET) return '';
     let path = '';
     try { path = decodeURIComponent(encoded); } catch (err) { return ''; }
-    if (!path || path.indexOf('..') !== -1) return '';
     if (path.charAt(0) === '/') path = path.slice(1);
-    for (let i = 0; i < STORAGE_PREFIXES.length; i++) {
-        if (path.indexOf(STORAGE_PREFIXES[i]) === 0) return path;
-    }
-    return '';
+    if (!path || path.indexOf('\\') !== -1 || path.indexOf('..') !== -1) return '';
+    const prefix = folder + '/' + uid + '/';
+    if (path.slice(0, prefix.length) !== prefix) return '';
+    const name = path.slice(prefix.length);
+    if (!name || name.indexOf('/') !== -1) return '';
+    return path;
+}
+
+function permanentStorageError(err) {
+    if (!err) return false;
+    const code = err.code != null ? err.code : (err.statusCode != null ? err.statusCode : err.status);
+    const num = Number(code);
+    if (num === 403 || num === 404) return true;
+    const text = String(code || '');
+    return text === '403' || text === '404';
 }
 
 function nextRate(prev, nowMs, eventKey) {
@@ -199,17 +223,25 @@ async function syncDmPreview(db, convoId, messageId, after) {
     return { updated: true, lastMessage: preview };
 }
 
-async function deleteStoredMedia(before, deleteFile) {
+async function deleteStoredMedia(before, deleteFile, surface) {
     if (typeof deleteFile !== 'function' || !before) return [];
-    const urls = [before.imageUrl, before.gifUrl, before.text];
+    const folder = surface === 'dm' ? 'dm-images' : 'chat-images';
+    const uid = actorUid(before, surface);
+    const urls = [before.imageUrl, before.gifUrl];
     const seen = {};
     const removed = [];
     for (let i = 0; i < urls.length; i++) {
-        const path = storageObjectPath(urls[i]);
+        const path = storageObjectPath(urls[i], uid, folder);
         if (!path || seen[path]) continue;
         seen[path] = true;
-        await deleteFile(path);
-        removed.push(path);
+        try {
+            await deleteFile(path);
+            removed.push(path);
+        } catch (err) {
+            // 403/404 will not succeed on retry. Other errors still fail the trigger.
+            if (permanentStorageError(err)) continue;
+            throw err;
+        }
     }
     return removed;
 }
@@ -278,7 +310,7 @@ async function handleGlobalUpdate(db, admin, msgId, before, after, nowMs, opts) 
     let removed = [];
     if (deleted) {
         await blankQuotes(db, msgId);
-        removed = await deleteStoredMedia(before, options.deleteFile);
+        removed = await deleteStoredMedia(before, options.deleteFile, 'global');
     }
     return { action: action, blocked: '', removed: removed };
 }
@@ -334,7 +366,7 @@ async function handleDmUpdate(db, admin, convoId, messageId, before, after, nowM
         return { action: action, blocked: reason, reverted: !!(reverted && reverted.reverted), revert: reverted };
     }
     let removed = [];
-    if (deleted) removed = await deleteStoredMedia(before, options.deleteFile);
+    if (deleted) removed = await deleteStoredMedia(before, options.deleteFile, 'dm');
     const preview = await syncDmPreview(db, convoId, messageId, after);
     return { action: action, blocked: '', preview: preview, removed: removed };
 }
@@ -373,7 +405,9 @@ module.exports = {
     blockReason: blockReason,
     nextRate: nextRate,
     logDocId: logDocId,
+    DEFAULT_MEDIA_BUCKET: DEFAULT_MEDIA_BUCKET,
     storageObjectPath: storageObjectPath,
+    permanentStorageError: permanentStorageError,
     handleGlobalUpdate: handleGlobalUpdate,
     handleGlobalDelete: handleGlobalDelete,
     handleDmUpdate: handleDmUpdate,

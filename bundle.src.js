@@ -13885,6 +13885,10 @@ function dmMsgCanEdit(m, isMe) {
     return (Date.now() - ms) < DM_EDIT_MS;
 }
 
+function dmIdOk(id) {
+    return /^[A-Za-z0-9_-]{1,160}$/.test(String(id || ''));
+}
+
 function dmMsgCanDelete(m, isMe) {
     if (!isMe || dmMsgProtected(m) || m.deleted === true) return false;
     return true;
@@ -14068,7 +14072,7 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
                     if (m.imageUrl) {
                         imgHtml = '<img src="' + sanitizeUrl(m.imageUrl) + '" style="max-width:100%;max-height:250px;border-radius:8px;margin:' + (m.text ? '6px 0 0' : '0') + ';display:block;cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
                     }
-                    if (dmMsgCanDelete(m, isMe)) {
+                    if (dmMsgCanDelete(m, isMe) && dmIdOk(doc.id)) {
                         menuHtml = '<button type="button" onclick="event.stopPropagation();toggleDmMsgMenu(\'' + doc.id + '\')" aria-label="Message actions" style="margin-left:8px;padding:0 4px;border:none;background:transparent;color:inherit;cursor:pointer;font-size:0.85rem;opacity:0.75;">⋯</button>';
                         if (window._dmMenuFor === doc.id) {
                             menuHtml += '<div style="position:absolute;right:0;top:100%;z-index:5;background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:10px;padding:4px;min-width:120px;box-shadow:0 8px 24px rgba(0,0,0,0.35);">';
