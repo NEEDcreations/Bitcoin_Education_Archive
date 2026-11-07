@@ -6886,6 +6886,15 @@ exports.backfillFactionTotals = backfillFactionTotals;
 exports.getFactionTotals = getFactionTotals;
 exports.getSmallerFaction = getSmallerFaction;
 
+// Scheduled job: Satoshi's Favor difficulty retarget. Checks daily at 12:10 AM ET
+// and only changes the target once payout_config/favorDifficulty.nextRetargetMs
+// has passed (every 14 days, max 4x either way, Favor budget = min(10,500,
+// 25,000 - 1,500 - other payouts)). Changes the target only; pays nothing.
+exports.favorDifficultyRetarget = onSchedule({ schedule: '10 0 * * *', timeZone: 'America/New_York' }, async () => {
+    const result = await require('./src/favorDifficulty').runRetarget(db, admin, Date.now());
+    console.log('[SF-RETARGET]', JSON.stringify(result));
+});
+
 // Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online).
 // The same private minute job posts the one ending heads-up. No public invoker.
 const { announceFavorEnding } = require('./src/favorEndingAnnounce');

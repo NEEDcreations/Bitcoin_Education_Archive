@@ -15,6 +15,7 @@ execSync('npm ci', { cwd: rulesDir, stdio: 'inherit' });
 
 const TESTS = [
     { name: 'Syntax Validation', file: 'test-syntax.js' },
+    { name: 'Favor difficulty + retarget', file: 'test-favor-difficulty.js' },
     { name: 'Faction race balance', file: 'test-faction-balance.js' },
     { name: 'Private faction member counts', file: 'test-faction-members-private.js' },
     { name: 'Faction race prizes', file: 'test-faction-race-prizes.js' },

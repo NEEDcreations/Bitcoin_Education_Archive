@@ -25,6 +25,7 @@ const db = new Proxy({}, {
 const { isSatsBanned, SATS_BANNED_ERROR } = require('./cipherClaim');
 const rewardNotify = require('./rewardNotify');
 const factionBalance = require('./factionBalance');
+const favorDifficulty = require('./favorDifficulty');
 // One-way hash of uid for public dedup (prevents uid exposure in readable docs)
 function uidHash(uid) {
   return crypto.createHash('sha256').update('sf_dedup_' + uid).digest('hex').substring(0, 16);
@@ -77,17 +78,27 @@ function rememberOwnTopHash(uid, value) {
 
 // Difficulty history (ordered oldest first):
 // Each entry: { target, since: ISO-date string (UTC midnight) }
+// % change in comments is the DIFFICULTY change (difficulty = 100,000,000 / target):
+// (newDifficulty - oldDifficulty) / oldDifficulty * 100 = (oldTarget / newTarget - 1) * 100.
 const DIFFICULTY_HISTORY = [
   { target: 1000,  since: '2026-06-02' },
   { target: 30000, since: '2026-06-21' },
   { target: 15000, since: '2026-06-30' },
   { target: 10000, since: '2026-07-02' },
   { target: 8000,  since: '2026-07-10' }, // +25% raise — tightening odds to 1:12,500
-  { target: 7000,  since: '2026-07-29' }, // -12.5% drop — easing odds to 1:14,286
+  { target: 7000,  since: '2026-07-29' }, // +14.3% raise — tightening odds to 1:14,286
   { target: 10000, since: '2026-08-20' }, // -30% decrease — easing odds to 1:10,000
   { target: 20000, since: '2026-10-01' }, // -50% decrease — easing odds to 1:5,000
+  { target: 25000, since: '2026-11-07' }, // -20% decrease — easing odds to 1:4,000
 ];
+// Hardcoded fallback. The live target is payout_config/favorDifficulty.target
+// (favorDifficultyRetarget moves it every 14 days); see favorDifficulty.js.
 const DIFFICULTY_TARGET = DIFFICULTY_HISTORY[DIFFICULTY_HISTORY.length - 1].target;
+let _lastLiveTarget = DIFFICULTY_TARGET;
+async function liveDifficultyTarget(store) {
+  _lastLiveTarget = await favorDifficulty.getTarget(store || db, DIFFICULTY_TARGET);
+  return _lastLiveTarget;
+}
 
 // Return the difficulty target that was active at a given timestamp (ms)
 function difficultyAtTime(tsMs) {
@@ -274,7 +285,7 @@ function checkAndResetFavor(stateData, transaction, stateRef, store) {
         })(),
         totalHashes: stateData.totalHashes || 0,
         lowestHash: stateData.lowestHashThisWindow || null,
-        difficultyTarget: DIFFICULTY_TARGET,
+        difficultyTarget: _lastLiveTarget,
         winner: stateData.lowestHashThisWindowUid ? {
           uid: stateData.lowestHashThisWindowUid,
           username: stateData.lowestHashThisWindowUsername || null,
@@ -316,6 +327,7 @@ async function resetExpiredFavor(nowMs) {
 async function resetExpiredFavorWith(store, nowMs) {
   const stateRef = store.collection('satoshiFavor').doc('current');
   const clock = Number(nowMs) || Date.now();
+  await liveDifficultyTarget(store);
   return store.runTransaction(async function (transaction) {
     const snap = await transaction.get(stateRef);
     if (!snap.exists) return { reset: false, reason: 'missing' };
@@ -755,6 +767,8 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
   if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
     throw new HttpsError('permission-denied', 'Anonymous users cannot mine.');
   }
+  // Live difficulty target (cached 60s, hardcoded fallback).
+  const LIVE_TARGET = await liveDifficultyTarget();
 
   const stateRef = db.collection('satoshiFavor').doc('current');
 
@@ -870,7 +884,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
 
     // Generate random value 0 to 100,000,000
     const val = crypto.randomInt(0, 100000001);
-    const winner = val < DIFFICULTY_TARGET;
+    const winner = val < LIVE_TARGET;
 
     // Consume booster / rig2 charge atomically — single update object to avoid double-write
     const userUpdate = {};
@@ -908,7 +922,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
     timestamp: admin.firestore.FieldValue.serverTimestamp(),
     isWinner,
     cycleId: stateData.currentCycleId || null,
-    difficultyTarget: DIFFICULTY_TARGET,
+    difficultyTarget: LIVE_TARGET,
   });
 
   try {
@@ -969,7 +983,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
   try {
     const diffStatsRef = db.collection('satoshiFavor').doc('difficultyStats');
     await diffStatsRef.set(
-      { ['target_' + DIFFICULTY_TARGET]: admin.firestore.FieldValue.increment(1) },
+      { ['target_' + LIVE_TARGET]: admin.firestore.FieldValue.increment(1) },
       { merge: true }
     );
   } catch (e) {
@@ -1160,7 +1174,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
           username,
           value,
           timestamp: nowTs,
-          difficultyTarget: DIFFICULTY_TARGET,
+          difficultyTarget: LIVE_TARGET,
         }));
         entries.sort((a, b) => a.value - b.value);
         entries = entries.slice(0, 50);
@@ -1188,7 +1202,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
   // Feature 7B/C: Win announcement — post to Global Chat and GGs/Announcements
   if (isWinner) {
     const handle = favorChatHandle(username, 50);
-    const winMsg = `⛏️ BLOCK FOUND! ⚡\n\n${handle} solved a block with hash ${value.toLocaleString()} (target: < ${DIFFICULTY_TARGET.toLocaleString()}) 🎉\n\n👑 Congratulations! Will you be next? ⛏️`;
+    const winMsg = `⛏️ BLOCK FOUND! ⚡\n\n${handle} solved a block with hash ${value.toLocaleString()} (target: < ${LIVE_TARGET.toLocaleString()}) 🎉\n\n👑 Congratulations! Will you be next? ⛏️`;
     const nachoUid = 'nacho-bot';
     const winTs = admin.firestore.FieldValue.serverTimestamp();
 

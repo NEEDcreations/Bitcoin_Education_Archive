@@ -2454,7 +2454,7 @@ function _renderFavorTab(body) {
         html += '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(247,147,26,0.05));border:2px solid var(--accent);border-radius:12px;padding:16px;margin-bottom:16px;animation:favorPulse 2s ease-in-out infinite;">' +
             '<div style="font-size:1.2rem;font-weight:800;color:var(--accent);margin-bottom:8px;">🎉 SATOSHI\'S FAVOR IS ACTIVE!</div>' +
             '<div style="font-size:2rem;font-weight:900;color:#fff;font-family:monospace;" id="favorTabTimer">' + remainingMin + 'm ' + remainingSec + 's</div>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;">Hash below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' (the current difficulty) to solve a block and earn a share of the reward!</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;">Hash below ' + ((window.SF_DIFFICULTY_TARGET || 25000).toLocaleString()) + ' (the current difficulty) to solve a block and earn a share of the reward!</div>' +
             '</div>' +
             '<style>@keyframes favorPulse{0%,100%{box-shadow:0 0 0 0 rgba(247,147,26,0.4)}50%{box-shadow:0 0 0 10px rgba(247,147,26,0)}}</style>';
 
@@ -2551,7 +2551,7 @@ function _renderFavorTab(body) {
         '• At 21 points, a hashing (simulation) competition opens for 60 minutes<br>' +
         '• Extra points beyond 21 add +3 min each (even while active!)<br>' +
         '• 10 hashes max per minute per user (60 second cooldown)<br>' +
-        '• Generate a random hash. Below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' (the current difficulty) = you solved a block!<br><br>' +
+        '• Generate a random hash. Below ' + ((window.SF_DIFFICULTY_TARGET || 25000).toLocaleString()) + ' (the current difficulty) = you solved a block!<br><br>' +
         '<strong style="color:var(--accent);">Pool mining rewards:</strong><br>' +
         '• Every 5 blocks found triggers a <strong>21,000 sat distribution</strong><br>' +
         '• If 5 different people each find a block — each earns <strong>4,200 sats</strong><br>' +
@@ -2620,14 +2620,16 @@ function _renderFavorTab(body) {
             var prevTarget = i > 0 ? _dh[i - 1].target : null;
             var odds = '1:' + _sfCompactNum(Math.round(100000000 / row.target));
             var changeColor = !prevTarget ? 'var(--text-faint)' : (row.target < prevTarget ? '#22c55e' : '#ef4444');
-            var changeTxt = row.label || (!prevTarget ? 'Genesis' : (((row.target - prevTarget) / prevTarget * 100).toFixed(2) + '%'));
+            // Chg = DIFFICULTY change (difficulty = 100,000,000 / target, so a bigger target is easier):
+            // (newDifficulty - oldDifficulty) / oldDifficulty * 100 = (prevTarget / target - 1) * 100
+            var changeTxt = row.label || (!prevTarget ? 'Genesis' : (function(p) { return (p > 0 ? '+' : '') + p.toFixed(2) + '%'; })((prevTarget / row.target - 1) * 100));
             changeTxt = String(changeTxt).replace(/(\d+\.\d{2,})%/, function(m, n) { return parseFloat(n).toFixed(1) + '%'; }); // -96.67% -> -96.7% (mobile fit)
             // Hashes: use static value from SF_DIFFICULTY_HISTORY for past periods; live cell for current
-            var hashTxt = isCurrent ? '<span id="sfHashesRow' + i + '">\u2026</span>' :
+            var hashTxt = (isCurrent || (row.liveStats && row.hashes == null)) ? '<span id="sfHashesRow' + i + '">\u2026</span>' :
                 (row.hashes != null ? _sfCompactNum(row.hashes) : '—');
             // Luck: null = current period (live) or genesis period (0 blocks)
             var luckTxt, luckColor;
-            if (isCurrent) {
+            if (isCurrent || (row.liveStats && row.luck == null)) {
                 luckTxt = '<span id="sfLuckRow' + i + '">\u2026</span>';
                 luckColor = 'inherit';
             } else if (row.luck == null) {
@@ -2673,7 +2675,13 @@ function _renderFavorTab(body) {
                 '<td style="text-align:right;font-weight:700;color:var(--text-muted);"><span id="sfTotalHashes">…</span></td>' +
                 '<td style=""></td>' +
             '</tr>';
-        _dhHtml += '</tbody></table></div></div>';
+        var _nextMs = (typeof window !== 'undefined' && Number(window.SF_DIFFICULTY_NEXT_RETARGET_MS)) || 0;
+        var _nextTxt = _nextMs > 0
+            ? '<div style="margin-top:6px;font-size:0.68rem;color:var(--text-faint);">Next difficulty adjustment: ' +
+              new Date(_nextMs).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+              ' (about every 14 days)</div>'
+            : '';
+        _dhHtml += '</tbody></table></div>' + _nextTxt + '</div>';
         html += _dhHtml;
     })();
     '</div>';
@@ -3121,7 +3129,7 @@ function _renderPBHTML(val) {
 // Live listener on satoshiFavor/current — updates current-period hashes + luck in real time
 var _difficultyCurrentUnsub = null;
 
-function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
+function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod, pastBlockCounts) {
     if (typeof db === 'undefined') return;
     if (_difficultyCurrentUnsub) { _difficultyCurrentUnsub(); _difficultyCurrentUnsub = null; }
     var _dh = (typeof window !== 'undefined' && window.SF_DIFFICULTY_HISTORY) || [];
@@ -3150,10 +3158,31 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
             var hashEl = document.getElementById('sfHashesRow' + currentIdx);
             if (hashEl) hashEl.textContent = _sfCompactNum(eraHashes);
 
-            // Update total hashes = sum of all past static hashes + current difficulty era
+            // Past rows without frozen hashes (liveStats) read the per-target counter,
+            // when that target value appears only once in the history.
+            var _tCount = {};
+            _dh.forEach(function(r) { _tCount[r.target] = (_tCount[r.target] || 0) + 1; });
             var pastHashSum = 0;
             for (var _pi = 0; _pi < currentIdx; _pi++) {
-                if (_dh[_pi].hashes != null) pastHashSum += _dh[_pi].hashes;
+                var _row = _dh[_pi];
+                if (_row.hashes != null) { pastHashSum += _row.hashes; continue; }
+                if (!_row.liveStats) continue;
+                var _hEl = document.getElementById('sfHashesRow' + _pi);
+                var _lEl = document.getElementById('sfLuckRow' + _pi);
+                var _raw = _tCount[_row.target] === 1 ? data['target_' + _row.target] : null;
+                if (_raw == null) { if (_hEl) _hEl.textContent = '—'; if (_lEl) _lEl.textContent = '—'; continue; }
+                var _h = Math.max(0, Number(_raw) || 0);
+                pastHashSum += _h;
+                if (_hEl) _hEl.textContent = _sfCompactNum(_h);
+                var _b = (pastBlockCounts && pastBlockCounts[_pi]) || 0;
+                if (_lEl) {
+                    if (!_h || !_b) { _lEl.textContent = '—'; _lEl.style.color = 'var(--text-faint)'; }
+                    else {
+                        var _lv = _b * (100000000 / _row.target) / _h * 100;
+                        _lEl.textContent = _lv.toFixed(1) + '%';
+                        _lEl.style.color = _lv >= 100 ? '#22c55e' : '#ef4444';
+                    }
+                }
             }
             var totalHashEl = document.getElementById('sfTotalHashes');
             if (totalHashEl) totalHashEl.textContent = _sfCompactNum(pastHashSum + eraHashes);
@@ -3233,7 +3262,7 @@ function _loadDifficultyHistoryBlocks() {
 
             // Start live listener on current doc for hashes + luck (uses eraHashes field)
             var curBlocksFound = currentIdx >= 0 ? (counts[currentIdx] || 0) : 0;
-            _startDifficultyCurrentListener(curBlocksFound);
+            _startDifficultyCurrentListener(curBlocksFound, counts);
         })
         .catch(function() {
             _dh.forEach(function(_, i) {
@@ -3264,7 +3293,7 @@ function _loadLastSFWindow() {
         var totalH = d.totalHashes || 0;
         var lowestH = d.lowestHash != null ? d.lowestHash.toLocaleString() : '—';
         var durMin = d.durationMinutes || 0;
-        var _sfTarget = (typeof window !== 'undefined' && window.SF_DIFFICULTY_TARGET) ? window.SF_DIFFICULTY_TARGET : 10000;
+        var _sfTarget = (typeof window !== 'undefined' && window.SF_DIFFICULTY_TARGET) ? window.SF_DIFFICULTY_TARGET : 25000;
         // Use the difficulty that was active at window end time, not current
         var _windowTarget = d.difficultyTarget || _sfTarget;
         var hadWinner = d.lowestHash != null && d.lowestHash < _windowTarget;
