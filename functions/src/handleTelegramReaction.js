@@ -187,15 +187,22 @@ function reactionToEmoji(reaction) {
  * setTelegramWebhook - HTTP endpoint to (re-)register the webhook with Telegram.
  *
  * [VULN-6 FIX] Now:
- *   1. Requires x-admin-token header (same pattern as other admin CFs)
+ *   1. Requires x-admin-token header (same pattern as other admin CFs).
+ *      A ?token= query parameter is rejected with 400 and never checked.
  *   2. Passes secret_token in the setWebhook call so Telegram signs all
  *      future updates with X-Telegram-Bot-Api-Secret-Token
  */
 exports.setTelegramWebhook = functionsV1.runWith({
     secrets: ['TG_WEBHOOK_SECRET', tgBotTokenSecret, adminTokenSecret],
 }).https.onRequest(async (req, res) => {
-    // [VULN-6 FIX] Require admin token to prevent anyone from re-pointing the webhook
-    const provided = req.headers['x-admin-token'] || req.query.token || '';
+    // [VULN-6 FIX] Require admin token to prevent anyone from re-pointing the webhook.
+    // Header only. A ?token= query string lands in request logs, browser
+    // history and proxies, so it is refused outright and never compared.
+    if (req.query && Object.prototype.hasOwnProperty.call(req.query, 'token')) {
+        res.status(400).json({ error: 'Send the admin token in the x-admin-token header, not the URL' });
+        return;
+    }
+    const provided = req.headers['x-admin-token'] || '';
     const expectedAdmin = adminToken();
     // [SECURITY FIX] Timing-safe comparison — prevents timing oracle on admin token
     const _tse = (a, b) => { const ea = Buffer.from(String(a)); const eb = Buffer.from(String(b)); if (ea.length !== eb.length) return false; return require('crypto').timingSafeEqual(ea, eb); };
