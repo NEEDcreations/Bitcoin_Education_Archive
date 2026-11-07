@@ -4,15 +4,25 @@
 // badge counts, reply bonus, say-hi, and easter eggs stay on the create
 // triggers and are not called from here.
 //
-// Each edit or delete copies the previous text into chat_moderation_log.
-// expireAt is 90 days out (Firestore TTL field). purgeExpired deletes rows
-// once that time has passed, so retention does not depend on the TTL policy
-// being enabled. Account deletion removes the user's rows separately.
+// A user edit is editCount going up by exactly 1 with a new editedAt, and
+// the author id unchanged. A user soft delete is deletedAt newly set, with
+// the author id unchanged and not 'deleted'. Account deletion, mention
+// scrubbing, quote blanking, and this module's own revert do not match, so
+// they create no log row, no rate record, and no revert.
 //
-// A blocked edit is logged, then the message text is restored. revertSeq
-// goes up by 1 on that write so the follow-up update is ignored.
+// Each accepted edit or delete copies the previous text into
+// chat_moderation_log. The doc id is the trigger event id, not editCount,
+// so a revert cannot overwrite the blocked text. expireAt is 90 days out.
+// purgeExpired deletes rows once that time has passed.
+//
+// A blocked edit is reverted inside a transaction. If the message changed
+// since this event, the revert is skipped. The previous text is restored
+// only when it passes the filter; otherwise the text is blanked.
 // More than 10 edits or deletes from one uid in a minute sets flagged on
 // chat_edit_rate/{uid}. Nothing else happens automatically.
+//
+// Soft delete of a chat-images/ or dm-images/ object deletes that Storage
+// file. Tenor and other https URLs are left alone.
 
 const { classifyChatText } = require('./chatProfanity');
 
@@ -24,6 +34,7 @@ const RATE_FLAG_OVER = 10;
 const DELETED_QUOTE = 'message deleted';
 const DM_DELETED_PREVIEW = 'Message deleted';
 const PURGE_PAGE = 400;
+const STORAGE_PREFIXES = ['chat-images/', 'dm-images/'];
 
 function textOf(data) {
     return data && typeof data.text === 'string' ? data.text : '';
@@ -33,6 +44,17 @@ function actorUid(data, surface) {
     if (!data) return '';
     const id = surface === 'dm' ? data.senderUid : data.uid;
     return String(id || '');
+}
+
+function millisOf(value) {
+    if (!value) return 0;
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value.toMillis === 'function') {
+        try { return value.toMillis() || 0; } catch (err) { return 0; }
+    }
+    if (value._seconds) return value._seconds * 1000;
+    if (value instanceof Date) return value.getTime() || 0;
+    return 0;
 }
 
 function rateableUid(uid) {
@@ -50,25 +72,61 @@ function protectedMessage(data, surface) {
     return false;
 }
 
-function isServerRevert(before, after) {
-    const prev = Number(before && before.revertSeq) || 0;
-    const next = Number(after && after.revertSeq) || 0;
-    return next > prev;
+function sameAuthor(before, after, surface) {
+    const prev = actorUid(before, surface);
+    const next = actorUid(after, surface);
+    return !!prev && prev === next && prev !== 'deleted';
 }
 
-function contentChanged(before, after) {
-    if (!before || !after) return true;
-    if (textOf(before) !== textOf(after)) return true;
-    if ((before.deleted === true) !== (after.deleted === true)) return true;
-    return false;
+function userEdit(before, after, surface) {
+    if (!before || !after || !sameAuthor(before, after, surface)) return false;
+    const oldCount = Number(before.editCount) || 0;
+    const newCount = Number(after.editCount);
+    if (newCount !== oldCount + 1) return false;
+    const oldAt = millisOf(before.editedAt);
+    const newAt = millisOf(after.editedAt);
+    if (!newAt || newAt === oldAt) return false;
+    return true;
+}
+
+function userSoftDelete(before, after, surface) {
+    if (!before || !after || !sameAuthor(before, after, surface)) return false;
+    if (millisOf(before.deletedAt)) return false;
+    if (!millisOf(after.deletedAt)) return false;
+    return true;
 }
 
 function blockReason(text) {
     return classifyChatText(text) || '';
 }
 
-function logDocId(action, path, key) {
-    return (action + '_' + key + '_' + path).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 500);
+function attemptKey(eventId, after, action) {
+    if (eventId) return String(eventId);
+    const stampMs = action === 'delete' ? millisOf(after && after.deletedAt) : millisOf(after && after.editedAt);
+    return action + '-' + (stampMs || 0);
+}
+
+function logDocId(action, path, attempt) {
+    return (action + '_' + attemptKey(attempt, null, action) + '_' + path).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 500);
+}
+
+function storageObjectPath(url) {
+    const raw = String(url || '');
+    if (!raw || raw.indexOf('http') !== 0) return '';
+    let encoded = '';
+    const gcs = raw.match(/firebasestorage\.googleapis\.com\/v0\/b\/[^/]+\/o\/([^?#]+)/);
+    const app = raw.match(/\.firebasestorage\.app\/(?:v0\/b\/[^/]+\/o\/)?([^?#]+)/);
+    if (gcs) encoded = gcs[1];
+    else if (app) encoded = app[1];
+    else return '';
+    let path = '';
+    try { path = decodeURIComponent(encoded); } catch (err) { return ''; }
+    if (!path || path.indexOf('..') !== -1) return '';
+    if (path.charAt(0) === '/') path = path.slice(1);
+    for (let i = 0; i < STORAGE_PREFIXES.length; i++) {
+        if (path.indexOf(STORAGE_PREFIXES[i]) === 0) return path;
+    }
+    return '';
 }
 
 function nextRate(prev, nowMs, eventKey) {
@@ -134,42 +192,75 @@ async function syncDmPreview(db, convoId, messageId, after) {
         .collection('messages').orderBy('createdAt', 'desc').limit(1).get();
     const docs = latest && latest.docs ? latest.docs : [];
     if (!docs.length || docs[0].id !== messageId) return { updated: false };
-    const preview = after && after.deleted === true
+    const preview = after && millisOf(after.deletedAt)
         ? DM_DELETED_PREVIEW
         : textOf(after).slice(0, 1000);
     await db.collection('dm_conversations').doc(convoId).update({ lastMessage: preview });
     return { updated: true, lastMessage: preview };
 }
 
-async function revertEdit(db, admin, ref, before) {
-    const patch = {
-        text: textOf(before),
-        edited: before && before.edited === true,
-        editCount: Number(before && before.editCount) || 0,
-        revertSeq: (Number(before && before.revertSeq) || 0) + 1,
-    };
-    if (before && before.editedAt) patch.editedAt = before.editedAt;
-    else patch.editedAt = admin.firestore.FieldValue.delete();
-    await ref.update(patch);
+async function deleteStoredMedia(before, deleteFile) {
+    if (typeof deleteFile !== 'function' || !before) return [];
+    const urls = [before.imageUrl, before.gifUrl, before.text];
+    const seen = {};
+    const removed = [];
+    for (let i = 0; i < urls.length; i++) {
+        const path = storageObjectPath(urls[i]);
+        if (!path || seen[path]) continue;
+        seen[path] = true;
+        await deleteFile(path);
+        removed.push(path);
+    }
+    return removed;
 }
 
-async function recordChange(db, admin, row, id, uid, nowMs) {
+// Re-reads the message. Skips when text or editCount moved on since `after`.
+// Restores before.text only when that text is clean. Otherwise blanks it.
+async function revertEdit(db, admin, ref, before, after) {
+    const previous = textOf(before);
+    const restore = blockReason(previous) ? '' : previous;
+    return db.runTransaction(async function (t) {
+        const snap = await t.get(ref);
+        if (!snap || snap.exists === false) return { skipped: 'gone' };
+        const cur = snap.data() || {};
+        if (textOf(cur) !== textOf(after)) return { skipped: 'changed' };
+        if ((Number(cur.editCount) || 0) !== (Number(after.editCount) || 0)) return { skipped: 'changed' };
+        const patch = {
+            text: restore,
+            edited: !!(before && before.edited === true) && restore === previous,
+            editCount: Number(before && before.editCount) || 0,
+            revertSeq: (Number(cur.revertSeq) || 0) + 1,
+            filterRemoved: true,
+        };
+        if (before && before.editedAt && restore === previous) patch.editedAt = before.editedAt;
+        else patch.editedAt = admin.firestore.FieldValue.delete();
+        t.update(ref, patch);
+        return { reverted: true, blanked: restore !== previous, text: restore };
+    });
+}
+
+async function recordChange(db, admin, row, id, uid, nowMs, eventKey) {
     await writeLog(db, admin, row, id);
-    await bumpRate(db, uid, nowMs, id);
+    await bumpRate(db, uid, nowMs, eventKey);
 }
 
-async function handleGlobalUpdate(db, admin, msgId, before, after, nowMs) {
+function optsOf(opts) {
+    return opts && typeof opts === 'object' ? opts : {};
+}
+
+async function handleGlobalUpdate(db, admin, msgId, before, after, nowMs, opts) {
+    const options = optsOf(opts);
     if (!before || !after) return { skipped: 'missing' };
-    if (isServerRevert(before, after)) return { skipped: 'revert' };
-    if (!contentChanged(before, after)) return { skipped: 'unchanged' };
-    const deleted = after.deleted === true && before.deleted !== true;
+    const deleted = userSoftDelete(before, after, 'global');
+    const edited = !deleted && userEdit(before, after, 'global');
+    if (!deleted && !edited) return { skipped: 'server' };
+    if (protectedMessage(before, 'global')) return { skipped: 'protected' };
     const action = deleted ? 'delete' : 'edit';
-    const locked = protectedMessage(before, 'global');
-    const uid = actorUid(before, 'global') || actorUid(after, 'global');
+    const uid = actorUid(before, 'global');
     const path = 'global_chat/' + msgId;
-    const reason = !deleted && !locked ? blockReason(textOf(after)) : '';
-    const key = deleted ? 'soft' : String(Number(after.editCount) || 0);
-    const id = logDocId(action, path, key);
+    const reason = edited ? blockReason(textOf(after)) : '';
+    const attempt = attemptKey(options.eventId, after, action);
+    const id = logDocId(action, path, attempt);
     await recordChange(db, admin, {
         surface: 'global',
         path: path,
@@ -179,20 +270,27 @@ async function handleGlobalUpdate(db, admin, msgId, before, after, nowMs) {
         action: action,
         atMs: nowMs,
         blocked: reason,
-    }, id, uid, nowMs);
+    }, id, uid, nowMs, attempt);
     if (reason) {
-        await revertEdit(db, admin, db.collection('global_chat').doc(msgId), before);
-        return { action: action, blocked: reason, reverted: true };
+        const reverted = await revertEdit(db, admin, db.collection('global_chat').doc(msgId), before, after);
+        return { action: action, blocked: reason, reverted: !!(reverted && reverted.reverted), revert: reverted };
     }
-    if (deleted) await blankQuotes(db, msgId);
-    return { action: action, blocked: '' };
+    let removed = [];
+    if (deleted) {
+        await blankQuotes(db, msgId);
+        removed = await deleteStoredMedia(before, options.deleteFile);
+    }
+    return { action: action, blocked: '', removed: removed };
 }
 
-async function handleGlobalDelete(db, admin, msgId, before, nowMs) {
+async function handleGlobalDelete(db, admin, msgId, before, nowMs, opts) {
+    const options = optsOf(opts);
     if (!before) return { skipped: 'missing' };
     const uid = actorUid(before, 'global');
+    if (!uid || uid === 'deleted') return { skipped: 'deleted-account' };
     const path = 'global_chat/' + msgId;
-    const id = logDocId('delete', path, 'hard');
+    const attempt = attemptKey(options.eventId, before, 'hard');
+    const id = logDocId('delete', path, attempt);
     await recordChange(db, admin, {
         surface: 'global',
         path: path,
@@ -202,23 +300,24 @@ async function handleGlobalDelete(db, admin, msgId, before, nowMs) {
         action: 'delete',
         atMs: nowMs,
         blocked: '',
-    }, id, uid, nowMs);
+    }, id, uid, nowMs, attempt);
     await blankQuotes(db, msgId);
     return { action: 'delete', hard: true };
 }
 
-async function handleDmUpdate(db, admin, convoId, messageId, before, after, nowMs) {
+async function handleDmUpdate(db, admin, convoId, messageId, before, after, nowMs, opts) {
+    const options = optsOf(opts);
     if (!before || !after) return { skipped: 'missing' };
-    if (isServerRevert(before, after)) return { skipped: 'revert' };
-    if (!contentChanged(before, after)) return { skipped: 'unchanged' };
-    const deleted = after.deleted === true && before.deleted !== true;
+    const deleted = userSoftDelete(before, after, 'dm');
+    const edited = !deleted && userEdit(before, after, 'dm');
+    if (!deleted && !edited) return { skipped: 'server' };
+    if (protectedMessage(before, 'dm')) return { skipped: 'protected' };
     const action = deleted ? 'delete' : 'edit';
-    const locked = protectedMessage(before, 'dm');
-    const uid = actorUid(before, 'dm') || actorUid(after, 'dm');
+    const uid = actorUid(before, 'dm');
     const path = 'dm_conversations/' + convoId + '/messages/' + messageId;
-    const reason = !deleted && !locked ? blockReason(textOf(after)) : '';
-    const key = deleted ? 'soft' : String(Number(after.editCount) || 0);
-    const id = logDocId(action, path, key);
+    const reason = edited ? blockReason(textOf(after)) : '';
+    const attempt = attemptKey(options.eventId, after, action);
+    const id = logDocId(action, path, attempt);
     await recordChange(db, admin, {
         surface: 'dm',
         path: path,
@@ -228,14 +327,16 @@ async function handleDmUpdate(db, admin, convoId, messageId, before, after, nowM
         action: action,
         atMs: nowMs,
         blocked: reason,
-    }, id, uid, nowMs);
+    }, id, uid, nowMs, attempt);
     const ref = db.collection('dm_conversations').doc(convoId).collection('messages').doc(messageId);
     if (reason) {
-        await revertEdit(db, admin, ref, before);
-        return { action: action, blocked: reason, reverted: true };
+        const reverted = await revertEdit(db, admin, ref, before, after);
+        return { action: action, blocked: reason, reverted: !!(reverted && reverted.reverted), revert: reverted };
     }
+    let removed = [];
+    if (deleted) removed = await deleteStoredMedia(before, options.deleteFile);
     const preview = await syncDmPreview(db, convoId, messageId, after);
-    return { action: action, blocked: '', preview: preview };
+    return { action: action, blocked: '', preview: preview, removed: removed };
 }
 
 async function purgeExpired(db, admin, nowMs) {
@@ -267,11 +368,12 @@ module.exports = {
     DELETED_QUOTE: DELETED_QUOTE,
     DM_DELETED_PREVIEW: DM_DELETED_PREVIEW,
     textOf: textOf,
-    isServerRevert: isServerRevert,
-    contentChanged: contentChanged,
+    userEdit: userEdit,
+    userSoftDelete: userSoftDelete,
     blockReason: blockReason,
     nextRate: nextRate,
     logDocId: logDocId,
+    storageObjectPath: storageObjectPath,
     handleGlobalUpdate: handleGlobalUpdate,
     handleGlobalDelete: handleGlobalDelete,
     handleDmUpdate: handleDmUpdate,

@@ -133,9 +133,10 @@ function fakeDb(initial) {
             };
         },
         runTransaction: async function (fn) {
-            await fn({
+            return fn({
                 get: function (r) { return r.get(); },
                 set: function (r, data) { apply(r.path, data); },
+                update: function (r, data) { return r.update(data); },
             });
         },
     };
@@ -177,16 +178,16 @@ test('profanity, scam, and spam are the edit block reasons', function () {
     const admin = fakeAdmin();
     const now = 1_700_000_000_000;
 
+    function at(ms) { return stamp(ms); }
+
     await testAsync('a clean edit is logged and the message text stays', async function () {
-        const db = fakeDb({
-            'global_chat/m1': { uid: 'u1', text: 'hello there', editCount: 0 },
-        });
-        const before = db.docs.get('global_chat/m1');
-        const after = { uid: 'u1', text: 'hello there friend', editCount: 1, edited: true };
-        const res = await mod.handleGlobalUpdate(db, admin, 'm1', before, after, now);
+        const before = { uid: 'u1', text: 'hello there', editCount: 0 };
+        const after = { uid: 'u1', text: 'hello there friend', editCount: 1, edited: true, editedAt: at(now) };
+        const db = fakeDb({ 'global_chat/m1': after });
+        const res = await mod.handleGlobalUpdate(db, admin, 'm1', before, after, now, { eventId: 'evt-clean' });
         assert.strictEqual(res.action, 'edit');
         assert.strictEqual(res.blocked, '');
-        assert.strictEqual(db.docs.get('global_chat/m1').text, 'hello there');
+        assert.strictEqual(db.docs.get('global_chat/m1').text, 'hello there friend');
         const row = logs(db)[0];
         assert.strictEqual(row.before, 'hello there');
         assert.strictEqual(row.after, 'hello there friend');
@@ -194,30 +195,32 @@ test('profanity, scam, and spam are the edit block reasons', function () {
         assert.strictEqual(row.action, 'edit');
         assert.strictEqual(row.uid, 'u1');
         assert.strictEqual(row.expireAt.toMillis(), now + mod.RETENTION_MS);
+        assert.ok(Array.from(db.docs.keys()).some(function (key) { return key.indexOf('evt-clean') !== -1 || key.indexOf('evt_clean') !== -1; }));
         assert.strictEqual(db.docs.get('chat_edit_rate/u1').count, 1);
         assert.strictEqual(db.docs.get('chat_edit_rate/u1').flagged, false);
     });
 
     await testAsync('a profane edit is logged and reverted, and the revert write is ignored', async function () {
-        const db = fakeDb({
-            'global_chat/m1': { uid: 'u1', text: 'hello there', editCount: 0, edited: false },
-        });
-        const before = Object.assign({}, db.docs.get('global_chat/m1'));
-        const after = { uid: 'u1', text: 'hello fuck', editCount: 1, edited: true };
-        const res = await mod.handleGlobalUpdate(db, admin, 'm1', before, after, now);
+        const before = { uid: 'u1', text: 'hello there', editCount: 0, edited: false };
+        const after = { uid: 'u1', text: 'hello fuck', editCount: 1, edited: true, editedAt: at(now) };
+        const db = fakeDb({ 'global_chat/m1': Object.assign({}, after) });
+        const res = await mod.handleGlobalUpdate(db, admin, 'm1', before, after, now, { eventId: 'evt-bad' });
         assert.strictEqual(res.reverted, true);
         assert.strictEqual(res.blocked, 'profanity');
         const restored = db.docs.get('global_chat/m1');
         assert.strictEqual(restored.text, 'hello there');
         assert.strictEqual(restored.editCount, 0);
+        assert.strictEqual(restored.filterRemoved, true);
         assert.strictEqual(restored.revertSeq, 1);
         const row = logs(db)[0];
         assert.strictEqual(row.before, 'hello there');
         assert.strictEqual(row.after, 'hello fuck');
         assert.strictEqual(row.blocked, 'profanity');
-        const skip = await mod.handleGlobalUpdate(db, admin, 'm1', after, restored, now + 1);
-        assert.strictEqual(skip.skipped, 'revert');
+        const skip = await mod.handleGlobalUpdate(db, admin, 'm1', after, restored, now + 1, { eventId: 'evt-revert' });
+        assert.strictEqual(skip.skipped, 'server');
         assert.strictEqual(logs(db).length, 1);
+        assert.strictEqual(db.docs.has('chat_edit_rate/u1'), true);
+        assert.strictEqual(db.docs.get('chat_edit_rate/u1').count, 1);
     });
 
     await testAsync('reactions and reply-quote blanks are not new edits', async function () {
@@ -226,9 +229,9 @@ test('profanity, scam, and spam are the edit block reasons', function () {
         });
         const before = db.docs.get('global_chat/m1');
         const reacted = Object.assign({}, before, { reactions: { '🔥': ['u2'] } });
-        assert.strictEqual((await mod.handleGlobalUpdate(db, admin, 'm1', before, reacted, now)).skipped, 'unchanged');
+        assert.strictEqual((await mod.handleGlobalUpdate(db, admin, 'm1', before, reacted, now)).skipped, 'server');
         const quoted = Object.assign({}, before, { replyToText: 'message deleted' });
-        assert.strictEqual((await mod.handleGlobalUpdate(db, admin, 'm1', before, quoted, now)).skipped, 'unchanged');
+        assert.strictEqual((await mod.handleGlobalUpdate(db, admin, 'm1', before, quoted, now)).skipped, 'server');
         assert.strictEqual(logs(db).length, 0);
     });
 
@@ -239,8 +242,9 @@ test('profanity, scam, and spam are the edit block reasons', function () {
             'global_chat/m3': { uid: 'u3', text: 'other', replyTo: 'm9', replyToText: 'leave me' },
         });
         const before = Object.assign({}, db.docs.get('global_chat/m1'));
-        const after = { uid: 'u1', text: '', deleted: true };
-        const res = await mod.handleGlobalUpdate(db, admin, 'm1', before, after, now);
+        const after = { uid: 'u1', text: '', deleted: true, deletedAt: at(now) };
+        db.docs.set('global_chat/m1', Object.assign({}, after));
+        const res = await mod.handleGlobalUpdate(db, admin, 'm1', before, after, now, { eventId: 'evt-del' });
         assert.strictEqual(res.action, 'delete');
         assert.strictEqual(logs(db)[0].before, 'hello there');
         assert.strictEqual(logs(db)[0].after, '');
@@ -255,7 +259,7 @@ test('profanity, scam, and spam are the edit block reasons', function () {
             'global_chat/m1': { uid: 'u1', text: 'evidence' },
             'global_chat/m2': { uid: 'u2', replyTo: 'm1', replyToText: 'evidence' },
         });
-        const res = await mod.handleGlobalDelete(db, admin, 'm1', db.docs.get('global_chat/m1'), now);
+        const res = await mod.handleGlobalDelete(db, admin, 'm1', db.docs.get('global_chat/m1'), now, { eventId: 'evt-hard' });
         assert.strictEqual(res.hard, true);
         assert.strictEqual(logs(db)[0].action, 'delete');
         assert.strictEqual(logs(db)[0].before, 'evidence');
@@ -265,7 +269,9 @@ test('profanity, scam, and spam are the edit block reasons', function () {
     await testAsync('eleven edits flag the uid and do not take any other action', async function () {
         const db = fakeDb({});
         for (let i = 1; i <= 11; i++) {
-            await mod.handleGlobalUpdate(db, admin, 'm' + i, { uid: 'u1', text: 'hello there ' + i }, { uid: 'u1', text: 'hello there ' + i + '!', editCount: 1 }, now + i);
+            const before = { uid: 'u1', text: 'hello there ' + i, editCount: 0 };
+            const after = { uid: 'u1', text: 'hello there ' + i + '!', editCount: 1, editedAt: at(now + i) };
+            await mod.handleGlobalUpdate(db, admin, 'm' + i, before, after, now + i, { eventId: 'burst-' + i });
         }
         const rate = db.docs.get('chat_edit_rate/u1');
         assert.strictEqual(rate.count, 11);
@@ -279,14 +285,14 @@ test('profanity, scam, and spam are the edit block reasons', function () {
             'dm_conversations/c1/messages/old': { senderUid: 'u1', text: 'old line', createdAt: stamp(100) },
             'dm_conversations/c1/messages/new': { senderUid: 'u1', text: 'latest line', createdAt: stamp(200) },
         });
-        await mod.handleDmUpdate(db, admin, 'c1', 'old', { senderUid: 'u1', text: 'old line' }, { senderUid: 'u1', text: 'old line edited', editCount: 1 }, now);
+        await mod.handleDmUpdate(db, admin, 'c1', 'old', { senderUid: 'u1', text: 'old line', editCount: 0 }, { senderUid: 'u1', text: 'old line edited', editCount: 1, editedAt: at(now) }, now, { eventId: 'dm-old' });
         assert.strictEqual(db.docs.get('dm_conversations/c1').lastMessage, 'old');
         assert.strictEqual(db.docs.get('dm_conversations/c1').unread_u2, 3);
-        const res = await mod.handleDmUpdate(db, admin, 'c1', 'new', { senderUid: 'u1', text: 'latest line' }, { senderUid: 'u1', text: 'latest line edited', editCount: 1, deleted: false }, now);
+        const res = await mod.handleDmUpdate(db, admin, 'c1', 'new', { senderUid: 'u1', text: 'latest line', editCount: 0 }, { senderUid: 'u1', text: 'latest line edited', editCount: 1, editedAt: at(now + 1) }, now, { eventId: 'dm-new' });
         assert.strictEqual(res.preview.lastMessage, 'latest line edited');
         assert.strictEqual(db.docs.get('dm_conversations/c1').lastMessageTime, 1);
-        const deleted = Object.assign({}, db.docs.get('dm_conversations/c1/messages/new'), { text: '', deleted: true });
-        await mod.handleDmUpdate(db, admin, 'c1', 'new', { senderUid: 'u1', text: 'latest line edited' }, deleted, now + 1);
+        const deleted = { senderUid: 'u1', text: '', deleted: true, deletedAt: at(now + 2), editCount: 1 };
+        await mod.handleDmUpdate(db, admin, 'c1', 'new', { senderUid: 'u1', text: 'latest line edited', editCount: 1 }, deleted, now + 1, { eventId: 'dm-del' });
         assert.strictEqual(db.docs.get('dm_conversations/c1').lastMessage, 'Message deleted');
         assert.strictEqual(logs(db).filter(function (row) { return row.surface === 'dm'; }).length, 3);
     });
@@ -296,10 +302,11 @@ test('profanity, scam, and spam are the edit block reasons', function () {
             'global_chat/egg': { uid: 'nacho-bot', text: 'hello there', isNachoAuto: true },
         });
         const before = Object.assign({}, db.docs.get('global_chat/egg'));
-        const after = { uid: 'nacho-bot', text: 'hello fuck', isNachoAuto: true, editCount: 1 };
-        const res = await mod.handleGlobalUpdate(db, admin, 'egg', before, after, now);
-        assert.strictEqual(res.reverted, undefined);
+        const after = { uid: 'nacho-bot', text: 'hello fuck', isNachoAuto: true, editCount: 1, editedAt: at(now) };
+        const res = await mod.handleGlobalUpdate(db, admin, 'egg', before, after, now, { eventId: 'egg' });
+        assert.strictEqual(res.skipped, 'protected');
         assert.strictEqual(db.docs.get('global_chat/egg').text, 'hello there');
+        assert.strictEqual(logs(db).length, 0);
         assert.strictEqual(db.docs.has('chat_edit_rate/nacho-bot'), false);
     });
 
@@ -312,6 +319,78 @@ test('profanity, scam, and spam are the edit block reasons', function () {
         assert.strictEqual(res.removed, 1);
         assert.strictEqual(db.docs.has('chat_moderation_log/old'), false);
         assert.strictEqual(db.docs.get('chat_moderation_log/fresh').before, 'y');
+    });
+
+    await testAsync('account deletion and mention scrubbing are not edits', async function () {
+        const db = fakeDb({
+            'global_chat/m1': { uid: 'u1', text: 'hello there', name: 'Phil' },
+            'global_chat/m2': { uid: 'u2', text: 'hi @Phil', mentionUid: 'u1' },
+        });
+        const tombBefore = { uid: 'u1', text: 'hello there', name: 'Phil' };
+        const tombAfter = { uid: 'deleted', text: '[deleted]', name: '[deleted]', deleted: true };
+        const tomb = await mod.handleGlobalUpdate(db, admin, 'm1', tombBefore, tombAfter, now, { eventId: 'acct' });
+        assert.strictEqual(tomb.skipped, 'server');
+        const scrubBefore = { uid: 'u2', text: 'hi @Phil', mentionUid: 'u1' };
+        const scrubAfter = { uid: 'u2', text: 'hi @[deleted]', mentionUid: '' };
+        db.docs.set('global_chat/m1', Object.assign({}, tombAfter));
+        db.docs.set('global_chat/m2', Object.assign({}, scrubAfter));
+        const scrub = await mod.handleGlobalUpdate(db, admin, 'm2', scrubBefore, scrubAfter, now, { eventId: 'scrub' });
+        assert.strictEqual(scrub.skipped, 'server');
+        assert.strictEqual(logs(db).length, 0);
+        assert.strictEqual(Array.from(db.docs.keys()).some(function (key) { return key.indexOf('chat_edit_rate/') === 0; }), false);
+        assert.strictEqual(db.docs.get('global_chat/m1').text, '[deleted]');
+        assert.strictEqual(db.docs.get('global_chat/m1').uid, 'deleted');
+        assert.strictEqual(db.docs.get('global_chat/m2').text, 'hi @[deleted]');
+        const hard = await mod.handleGlobalDelete(db, admin, 'm1', tombAfter, now, { eventId: 'hard-deleted' });
+        assert.strictEqual(hard.skipped, 'deleted-account');
+        assert.strictEqual(logs(db).length, 0);
+    });
+
+    await testAsync('a revert skips when a later edit already landed, and a dirty previous text is blanked', async function () {
+        const firstBefore = { uid: 'u1', text: 'hello there', editCount: 0 };
+        const firstAfter = { uid: 'u1', text: 'hello fuck', editCount: 1, editedAt: at(now) };
+        const later = { uid: 'u1', text: 'hello shit', editCount: 2, editedAt: at(now + 5) };
+        const db = fakeDb({ 'global_chat/m1': later });
+        const raced = await mod.handleGlobalUpdate(db, admin, 'm1', firstBefore, firstAfter, now, { eventId: 'race' });
+        assert.strictEqual(raced.reverted, false);
+        assert.strictEqual(raced.revert.skipped, 'changed');
+        assert.strictEqual(db.docs.get('global_chat/m1').text, 'hello shit');
+        const dirtyBefore = { uid: 'u1', text: 'hello fuck', editCount: 1, editedAt: at(now) };
+        db.docs.set('global_chat/m1', Object.assign({}, later));
+        const blanked = await mod.handleGlobalUpdate(db, admin, 'm1', dirtyBefore, later, now + 5, { eventId: 'blank' });
+        assert.strictEqual(blanked.reverted, true);
+        assert.strictEqual(blanked.revert.blanked, true);
+        assert.strictEqual(db.docs.get('global_chat/m1').text, '');
+        assert.strictEqual(db.docs.get('global_chat/m1').filterRemoved, true);
+    });
+
+    await testAsync('soft delete removes a chat-images or dm-images object and ignores other urls', async function () {
+        const image = 'https://firebasestorage.googleapis.com/v0/b/bitcoin-education-archive.firebasestorage.app/o/chat-images%2Fu1%2Fpic.jpg?alt=media&token=abc';
+        const tenor = 'https://media.tenor.com/x.gif';
+        const removed = [];
+        const before = { uid: 'u1', text: 'cap', imageUrl: image, gifUrl: tenor, caption: 'cap' };
+        const after = { uid: 'u1', text: '', imageUrl: '', gifUrl: '', caption: '', deleted: true, deletedAt: at(now) };
+        const db = fakeDb({ 'global_chat/m1': Object.assign({}, after) });
+        const res = await mod.handleGlobalUpdate(db, admin, 'm1', before, after, now, {
+            eventId: 'media',
+            deleteFile: async function (path) { removed.push(path); },
+        });
+        assert.deepStrictEqual(removed, ['chat-images/u1/pic.jpg']);
+        assert.deepStrictEqual(res.removed, ['chat-images/u1/pic.jpg']);
+        const dmUrl = 'https://bitcoin-education-archive.firebasestorage.app/dm-images/u1/a.png?alt=media';
+        const dmBefore = { senderUid: 'u1', text: '', imageUrl: dmUrl };
+        const dmAfter = { senderUid: 'u1', text: '', imageUrl: '', deleted: true, deletedAt: at(now) };
+        const dm = fakeDb({
+            'dm_conversations/c1': { lastMessage: 'pic' },
+            'dm_conversations/c1/messages/m': Object.assign({ createdAt: at(now) }, dmAfter),
+        });
+        const gone = [];
+        await mod.handleDmUpdate(dm, admin, 'c1', 'm', dmBefore, dmAfter, now, {
+            eventId: 'dm-media',
+            deleteFile: async function (path) { gone.push(path); },
+        });
+        assert.deepStrictEqual(gone, ['dm-images/u1/a.png']);
+        assert.strictEqual(mod.storageObjectPath('https://media.tenor.com/x.gif'), '');
     });
 
     test('rewards stay on create and the new triggers do not grant them', function () {

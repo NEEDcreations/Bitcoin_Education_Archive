@@ -53,7 +53,13 @@ test('chat moderation functions each have a least-privilege account and no secre
         assert.deepStrictEqual(f.secrets, [], n);
         assert.ok(f.projectRoles.indexOf('roles/datastore.user') !== -1, n);
         assert.ok(f.projectRoles.indexOf('roles/editor') === -1, n);
-        assert.strictEqual(f.bucketRoles.length, 0, n);
+        if (n === 'onGlobalChatEdited' || n === 'onDmMessageEdited') {
+            assert.strictEqual(f.bucketRoles.length, 1, n);
+            assert.strictEqual(f.bucketRoles[0].role, 'roles/storage.objectAdmin', n);
+            assert.strictEqual(f.bucketRoles[0].bucket, 'bitcoin-education-archive.firebasestorage.app', n);
+        } else {
+            assert.strictEqual(f.bucketRoles.length, 0, n);
+        }
         assert.strictEqual(endpoints[n].serviceAccount, RUNTIME_SERVICE_ACCOUNTS[n].id + '@bitcoin-education-archive.iam.gserviceaccount.com', n);
         if (n === 'purgeChatModerationLog') {
             assert.strictEqual(f.trigger, 'schedule');
@@ -111,12 +117,14 @@ test('batches cover each secret-bound function exactly once', function () {
     assert.deepStrictEqual(modBatch.fns.slice().sort(), CHAT_MOD_FNS.slice().sort());
 });
 
-test('wallet functions deploy in the last batch, canary first is read-only admin', function () {
-    const last = plan.batches[plan.batches.length - 1].fns;
+test('wallet functions stay batch 7, chat moderation is the batch after them', function () {
+    assert.strictEqual(plan.batches.length, 8);
+    const wallet = plan.batches[6].fns;
     ['claimSats', 'claimCipherSats', 'claimCipherWin', 'confirmTipSent', 'adminResolveCipherSatsClaim', 'tctvDripTick', 'getFaucetStats'].forEach(function (n) {
-        assert.ok(last.indexOf(n) !== -1, n);
+        assert.ok(wallet.indexOf(n) !== -1, n);
     });
     assert.ok(plan.batches[0].fns.indexOf('dailyActiveUsers') !== -1);
+    assert.deepStrictEqual(plan.batches[7].fns.slice().sort(), CHAT_MOD_FNS.slice().sort());
 });
 
 test('plan grants each account only its own secrets', function () {

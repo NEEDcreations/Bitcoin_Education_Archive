@@ -82,6 +82,10 @@ function editPatch(text, count) {
             await setDoc(doc(db, 'global_chat', 'tg1'), {
                 uid: 'user1', name: 'phil', text: 'from tg', ts: Timestamp.now(), source: 'telegram',
             });
+            await setDoc(doc(db, 'global_chat', 'capmsg'), {
+                uid: 'user1', name: 'phil', text: 'https://firebasestorage.googleapis.com/x', ts: Timestamp.now(),
+                isGif: true, caption: 'secret caption',
+            });
             await setDoc(doc(db, 'global_chat', 'gif1'), {
                 uid: 'user1', name: 'phil', text: 'cap', ts: Timestamp.now(), isGif: true, gifUrl: 'https://media.tenor.com/x.gif',
             });
@@ -171,6 +175,16 @@ function editPatch(text, count) {
         await expect('anonymous edit', function () {
             return updateDoc(doc(guest, 'global_chat', 'fresh1'), editPatch('anon', 3));
         }, false);
+        await expect('soft delete must clear caption', function () {
+            return updateDoc(doc(user, 'global_chat', 'capmsg'), {
+                deleted: true, deletedAt: serverTimestamp(), text: '',
+            });
+        }, false);
+        await expect('soft delete clears caption', function () {
+            return updateDoc(doc(user, 'global_chat', 'capmsg'), {
+                deleted: true, deletedAt: serverTimestamp(), text: '', caption: '',
+            });
+        }, true);
         await expect('owner soft delete', function () {
             return updateDoc(doc(user, 'global_chat', 'fresh1'), {
                 deleted: true, deletedAt: serverTimestamp(), text: '',
@@ -196,6 +210,14 @@ function editPatch(text, count) {
                 senderUid: 'user1', text: 'hey', createdAt: serverTimestamp(),
             });
         }, true);
+        await expect('DM create cannot set editCount or a future createdAt', function () {
+            return setDoc(doc(user, 'dm_conversations', 'user1_user2', 'messages', 'dforged'), {
+                senderUid: 'user1',
+                text: 'forged',
+                createdAt: Timestamp.fromMillis(Date.now() + 24 * 60 * 60 * 1000),
+                editCount: -1000,
+            });
+        }, false);
         await expect('DM owner edit', function () {
             return updateDoc(doc(user, 'dm_conversations', 'user1_user2', 'messages', 'd1'), editPatch('hey there', 1));
         }, true);

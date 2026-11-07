@@ -673,6 +673,8 @@ function renderChatMessages(msgs) {
         }
         if (isDeleted) {
             html += '<div style="color:var(--text-faint);font-size:0.8rem;font-style:italic;line-height:1.5;">🚫 message deleted</div>';
+        } else if (m.filterRemoved && !String(m.text || '').trim() && !m.imageUrl && !m.gifUrl) {
+            html += '<div style="color:var(--text-faint);font-size:0.8rem;font-style:italic;line-height:1.5;">Removed by filter</div>';
         } else if (window._chatEditingId === m._id) {
             html += '<div style="margin-top:4px;">' +
                 '<textarea id="chatEditInput" maxlength="' + MAX_MSG_LENGTH + '" rows="3" aria-label="Edit message" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-family:inherit;font-size:16px;resize:vertical;"></textarea>' +
@@ -723,6 +725,7 @@ function renderChatMessages(msgs) {
     var _savedBanner = document.getElementById('chatPinnedBanner');
     if (_savedBanner) _savedBanner.remove();
     el.innerHTML = html;
+    noteChatFilterRevert();
     if (window._chatEditingId) {
         var editInp = document.getElementById('chatEditInput');
         if (editInp) {
@@ -1719,6 +1722,16 @@ function refreshChatEdit() {
     if (window._chatAllMsgs) renderChatMessages(window._chatAllMsgs);
 }
 
+function noteChatFilterRevert() {
+    var watch = window._chatFilterWatch;
+    if (!watch) return;
+    var m = chatMsgById(watch.id);
+    if (!m || m.text === watch.text) return;
+    window._chatFilterWatch = null;
+    clearTimeout(window._chatFilterTimer);
+    if (typeof showToast === 'function') showToast('Removed by filter');
+}
+
 // Admin hard delete. Owners use softDeleteChatMsg.
 window.deleteChatMsg = function(msgId) {
     if (!confirm('Permanently remove this message?')) return;
@@ -1743,6 +1756,7 @@ window.softDeleteChatMsg = function(msgId) {
     };
     if (m.imageUrl) patch.imageUrl = firebase.firestore.FieldValue.delete();
     if (m.gifUrl) patch.gifUrl = firebase.firestore.FieldValue.delete();
+    if (m.caption) patch.caption = firebase.firestore.FieldValue.delete();
     if (window._chatEditingId === msgId) {
         window._chatEditingId = null;
         window._chatEditDraft = null;
@@ -1792,6 +1806,11 @@ window.saveChatEdit = function() {
         window.cancelChatEdit();
         return;
     }
+    window._chatFilterWatch = { id: msgId, text: prepared.text };
+    clearTimeout(window._chatFilterTimer);
+    window._chatFilterTimer = setTimeout(function() {
+        if (window._chatFilterWatch && window._chatFilterWatch.id === msgId) window._chatFilterWatch = null;
+    }, 8000);
     db.collection(CHAT_COLLECTION).doc(msgId).update({
         text: prepared.text,
         edited: true,

@@ -1209,7 +1209,9 @@ service cloud.firestore {
                       && request.resource.data.text.size() <= 1000
                       && !('isNachoAuto' in request.resource.data)
                       && (request.resource.data.text.size() >= 1 || ('imageUrl' in request.resource.data && request.resource.data.imageUrl is string && request.resource.data.imageUrl.matches('^https://.*')))
-                      && (!('imageUrl' in request.resource.data) || (request.resource.data.imageUrl is string && request.resource.data.imageUrl.matches('^https://.*')));
+                      && (!('imageUrl' in request.resource.data) || (request.resource.data.imageUrl is string && request.resource.data.imageUrl.matches('^https://.*')))
+                      && request.resource.data.createdAt == request.time
+                      && !request.resource.data.keys().hasAny(['edited', 'editedAt', 'editCount', 'deleted', 'deletedAt', 'revertSeq', 'filterRemoved']);
         // Owner edit: text only, 15 minutes from createdAt, editCount + 1, cap 5.
         // Owner soft delete: blank text and media. No hard delete.
         function dmEditable(data) {
@@ -1239,6 +1241,7 @@ service cloud.firestore {
                          && request.resource.data.editedAt == request.time
                          && request.resource.data.editCount is int
                          && resource.data.get('editCount', 0) is int
+                         && resource.data.get('editCount', 0) >= 0
                          && request.resource.data.editCount == resource.data.get('editCount', 0) + 1
                          && request.resource.data.editCount <= 5)
                         ||
@@ -1249,7 +1252,7 @@ service cloud.firestore {
                          && resource.data.senderUid != 'nacho-bot'
                          && resource.data.senderUid != 'system'
                          && resource.data.get('deleted', false) != true
-                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'text', 'imageUrl', 'gifUrl'])
+                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'text', 'imageUrl', 'gifUrl', 'caption'])
                          && request.resource.data.deleted == true
                          && request.resource.data.deletedAt == request.time
                          && request.resource.data.text == ''
@@ -1259,12 +1262,18 @@ service cloud.firestore {
                          && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['gifUrl'])
                              || !('gifUrl' in request.resource.data)
                              || request.resource.data.gifUrl == '')
+                         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['caption'])
+                             || !('caption' in request.resource.data)
+                             || request.resource.data.caption == '')
                          && (resource.data.get('imageUrl', '') == ''
                              || !('imageUrl' in request.resource.data)
                              || request.resource.data.imageUrl == '')
                          && (resource.data.get('gifUrl', '') == ''
                              || !('gifUrl' in request.resource.data)
-                             || request.resource.data.gifUrl == ''))
+                             || request.resource.data.gifUrl == '')
+                         && (resource.data.get('caption', '') == ''
+                             || !('caption' in request.resource.data)
+                             || request.resource.data.caption == ''))
                       );
         allow delete: if false;
       }
@@ -1914,6 +1923,7 @@ service cloud.firestore {
                        && request.resource.data.editedAt == request.time
                        && request.resource.data.editCount is int
                        && resource.data.get('editCount', 0) is int
+                       && resource.data.get('editCount', 0) >= 0
                        && request.resource.data.editCount == resource.data.get('editCount', 0) + 1
                        && request.resource.data.editCount <= 5)
                       ||
@@ -1926,7 +1936,7 @@ service cloud.firestore {
                        && resource.data.get('source', '') != 'telegram'
                        && resource.data.get('fromTelegram', false) != true
                        && resource.data.get('deleted', false) != true
-                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'text', 'imageUrl', 'gifUrl'])
+                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'text', 'imageUrl', 'gifUrl', 'caption'])
                        && request.resource.data.deleted == true
                        && request.resource.data.deletedAt == request.time
                        && request.resource.data.text == ''
@@ -1936,12 +1946,18 @@ service cloud.firestore {
                        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['gifUrl'])
                            || !('gifUrl' in request.resource.data)
                            || request.resource.data.gifUrl == '')
+                       && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['caption'])
+                           || !('caption' in request.resource.data)
+                           || request.resource.data.caption == '')
                        && (resource.data.get('imageUrl', '') == ''
                            || !('imageUrl' in request.resource.data)
                            || request.resource.data.imageUrl == '')
                        && (resource.data.get('gifUrl', '') == ''
                            || !('gifUrl' in request.resource.data)
-                           || request.resource.data.gifUrl == ''))
+                           || request.resource.data.gifUrl == '')
+                       && (resource.data.get('caption', '') == ''
+                           || !('caption' in request.resource.data)
+                           || request.resource.data.caption == ''))
                     );
       // Admin hard delete only. Owners soft-delete via update.
       allow delete: if request.auth != null

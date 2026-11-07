@@ -13903,6 +13903,16 @@ function rerenderDmSoon() {
     if (typeof window._rerenderDm === 'function') window._rerenderDm();
 }
 
+function noteDmFilterRevert() {
+    var watch = window._dmFilterWatch;
+    if (!watch) return;
+    var m = (window._dmMsgCache || {})[watch.id];
+    if (!m || m.text === watch.text) return;
+    window._dmFilterWatch = null;
+    clearTimeout(window._dmFilterTimer);
+    if (typeof showToast === 'function') showToast('Removed by filter');
+}
+
 window.toggleDmMsgMenu = function(msgId) {
     window._dmMenuFor = window._dmMenuFor === msgId ? '' : msgId;
     rerenderDmSoon();
@@ -13946,6 +13956,11 @@ window.saveDmEdit = function() {
         window.cancelDmEdit();
         return;
     }
+    window._dmFilterWatch = { id: msgId, text: prepared.text };
+    clearTimeout(window._dmFilterTimer);
+    window._dmFilterTimer = setTimeout(function() {
+        if (window._dmFilterWatch && window._dmFilterWatch.id === msgId) window._dmFilterWatch = null;
+    }, 8000);
     db.collection('dm_conversations').doc(convoId).collection('messages').doc(msgId).update({
         text: prepared.text,
         edited: true,
@@ -13976,6 +13991,7 @@ window.deleteDmMsg = function(msgId) {
     };
     if (m.imageUrl) patch.imageUrl = firebase.firestore.FieldValue.delete();
     if (m.gifUrl) patch.gifUrl = firebase.firestore.FieldValue.delete();
+    if (m.caption) patch.caption = firebase.firestore.FieldValue.delete();
     db.collection('dm_conversations').doc(convoId).collection('messages').doc(msgId).update(patch).then(function() {
         if (typeof showToast === 'function') showToast('🗑️ Message deleted');
     }).catch(function() {
@@ -14039,6 +14055,8 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
                 var menuHtml = '';
                 if (isDeleted) {
                     msgText = '<span style="font-style:italic;opacity:0.85;">🚫 message deleted</span>';
+                } else if (m.filterRemoved && !String(m.text || '').trim() && !m.imageUrl && !m.gifUrl) {
+                    msgText = '<span style="font-style:italic;opacity:0.85;">Removed by filter</span>';
                 } else if (window._dmEditingId === doc.id) {
                     msgText = '<textarea id="dmEditInput" maxlength="1000" rows="3" aria-label="Edit message" style="width:100%;min-width:180px;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.35);background:rgba(0,0,0,0.15);color:inherit;font-family:inherit;font-size:16px;resize:vertical;"></textarea>' +
                         '<div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end;">' +
@@ -14069,6 +14087,7 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
                     '</div></div>';
             });
 
+            noteDmFilterRevert();
             var dmEdit = document.getElementById('dmEditInput');
             if (dmEdit) {
                 dmEdit.value = window._dmEditDraft != null ? window._dmEditDraft : '';
