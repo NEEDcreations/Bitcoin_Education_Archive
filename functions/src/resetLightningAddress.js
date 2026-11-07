@@ -1,4 +1,5 @@
 'use strict';
+const { runtimeSa } = require('./runtimeServiceAccounts');
 
 // One-time withdrawal address for an account whose saved address is missing,
 // malformed, or fails a live lookup. A working address is never replaced.
@@ -220,7 +221,7 @@ function bindResetLightningAddress(functionsV1, deps) {
         HttpsError: functionsV1.https.HttpsError,
     }, deps || {}));
     const { turnstileSecret } = require('./sensitiveSecrets');
-    const opts = { enforceAppCheck: true, timeoutSeconds: 60, secrets: [turnstileSecret] };
+    const opts = { enforceAppCheck: true, timeoutSeconds: 60, secrets: [turnstileSecret], serviceAccount: runtimeSa('resetLightningAddressOnce') };
     return {
         resetLightningAddressOnce: functionsV1.runWith(opts).https.onCall(handlers.resetLightningAddressOnce),
     };

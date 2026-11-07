@@ -8,6 +8,7 @@
  */
 
 const functions = require('firebase-functions');
+const { runtimeSa } = require('./runtimeServiceAccounts');
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
@@ -107,6 +108,7 @@ exports.tweetSatoshisFavor = onDocumentWritten({
   document: 'satoshiFavor/current',
   timeoutSeconds: 540,
   secrets: xPostSecrets,
+  serviceAccount: runtimeSa('tweetSatoshisFavor'),
 }, async (event) => {
     const change = { before: event.data.before, after: event.data.after }; const context = { params: event.params };
     const before = change.before.exists ? change.before.data() : null;

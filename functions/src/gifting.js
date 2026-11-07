@@ -1,4 +1,5 @@
 'use strict';
+const { runtimeSa } = require('./runtimeServiceAccounts');
 
 // Gifts, keys, and locked ciphers.
 // The client is hostile: rewards, limits, and RNG live here.
@@ -1174,7 +1175,7 @@ async function _resolvePrizeInvoice(invoice, lightningAddress, amount) {
     return bolt;
 }
 
-const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [deletionHmacSecret, nwcUrlSecret] }).https.onCall(async (data, context) => {
+const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [deletionHmacSecret, nwcUrlSecret], serviceAccount: runtimeSa('claimCipherWin') }).https.onCall(async (data, context) => {
     const secondFactor = require('./secondFactor');
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
@@ -1723,6 +1724,7 @@ const claimCipherSats = functionsV1.runWith({
     timeoutSeconds: 180,
     enforceAppCheck: true,
     secrets: [deletionHmacSecret, nwcUrlSecret],
+    serviceAccount: runtimeSa('claimCipherSats'),
 }).https.onCall(async (data, context) => {
     const secondFactor = require('./secondFactor');
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
@@ -1995,6 +1997,7 @@ const adminResolveCipherSatsClaim = functionsV1.runWith({
     enforceAppCheck: true,
     timeoutSeconds: 60,
     secrets: [nwcUrlSecret],
+    serviceAccount: runtimeSa('adminResolveCipherSatsClaim'),
 }).https.onCall(async (data, context) => {
     requireAdmin(context);
     const claimId = (data && data.claimId || '').toString().trim();
