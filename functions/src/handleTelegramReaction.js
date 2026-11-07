@@ -8,6 +8,7 @@ const functionsV1 = require('firebase-functions/v1');
 const admin = require('./firebaseAdmin.js');
 const crypto = require('crypto');
 const { adminToken, adminTokenSecret, tgBotToken, tgBotTokenSecret } = require('./sensitiveSecrets');
+const { runtimeSa } = require('./runtimeServiceAccounts');
 
 const db = admin.firestore();
 const CHAT_COLLECTION = 'global_chat';
@@ -52,7 +53,7 @@ function verifyWebhookSecret(req) {
  * Main webhook handler (HTTP)
  */
 // TG_WEBHOOK_SECRET is the existing Cloud Secret. This handler does not read the bot token.
-exports.handleTelegramReaction = functionsV1.runWith({ secrets: ['TG_WEBHOOK_SECRET'] }).https.onRequest(async (req, res) => {
+exports.handleTelegramReaction = functionsV1.runWith({ secrets: ['TG_WEBHOOK_SECRET'], serviceAccount: runtimeSa('handleTelegramWebhook') }).https.onRequest(async (req, res) => {
     // Only accept POST
     if (req.method !== 'POST') {
         res.status(405).send('Method not allowed');
@@ -194,6 +195,7 @@ function reactionToEmoji(reaction) {
  */
 exports.setTelegramWebhook = functionsV1.runWith({
     secrets: ['TG_WEBHOOK_SECRET', tgBotTokenSecret, adminTokenSecret],
+    serviceAccount: runtimeSa('setTelegramWebhook'),
 }).https.onRequest(async (req, res) => {
     // [VULN-6 FIX] Require admin token to prevent anyone from re-pointing the webhook.
     // Header only. A ?token= query string lands in request logs, browser

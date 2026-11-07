@@ -1,4 +1,5 @@
 'use strict';
+const { runtimeSa } = require('./runtimeServiceAccounts');
 
 // Second factor for Bitcoin Quest.
 // Phone sign-in is Firebase Phone Multi-Factor. Authenticator codes are TOTP
@@ -265,7 +266,13 @@ function initSecondFactor(deps) {
     // process.env.TOTP_ENCRYPTION_KEY. New setup fails closed when it is absent.
     // Sign-in still accepts a legacy plaintext secret so existing users are not
     // locked out before migrate-totp-secrets.js --apply.
-    const onCallWithKey = functionsV1.runWith({ secrets: ['TOTP_ENCRYPTION_KEY'] }).https.onCall;
+    // Each key-reading callable runs as its own runtime service account.
+    function onCallWithKey(name, handler) {
+        return functionsV1.runWith({
+            secrets: ['TOTP_ENCRYPTION_KEY'],
+            serviceAccount: runtimeSa(name),
+        }).https.onCall(handler);
+    }
     const phoneCache = new Map();
 
     function httpError(code, message) {
@@ -880,7 +887,7 @@ function initSecondFactor(deps) {
         throw httpError('failed-precondition', 'Enter a current authenticator code or sign in with your phone verification.');
     }
 
-    const totpSetup = onCallWithKey(async function (data, context) {
+    const totpSetup = onCallWithKey('totpSetup', async function (data, context) {
         requireUser(context);
         rejectAnonymous(context);
         await assertTotpKey();
@@ -899,7 +906,7 @@ function initSecondFactor(deps) {
         return { qr: qrDataUrl, secret: secret };
     });
 
-    const totpVerify = onCallWithKey(async function (data, context) {
+    const totpVerify = onCallWithKey('totpVerify', async function (data, context) {
         const uid = requireUser(context);
         rejectAnonymous(context);
         if (!data || !data.code) throw httpError('invalid-argument', 'Code required');
@@ -940,7 +947,7 @@ function initSecondFactor(deps) {
         };
     });
 
-    const totpCheck = onCallWithKey(async function (data, context) {
+    const totpCheck = onCallWithKey('totpCheck', async function (data, context) {
         const uid = requireUser(context);
         if (!data || !data.code) throw httpError('invalid-argument', 'Code required');
         const nowMs = currentNow();
@@ -959,7 +966,7 @@ function initSecondFactor(deps) {
         return body;
     });
 
-    const totpDisable = onCallWithKey(async function (data, context) {
+    const totpDisable = onCallWithKey('totpDisable', async function (data, context) {
         const uid = requireUser(context);
         rejectAnonymous(context);
         const nowMs = currentNow();
@@ -1034,7 +1041,7 @@ function initSecondFactor(deps) {
         return { success: true, recoveryCodes: recoveryCodes };
     });
 
-    const regenerateRecoveryCodes = onCallWithKey(async function (data, context) {
+    const regenerateRecoveryCodes = onCallWithKey('regenerateRecoveryCodes', async function (data, context) {
         const uid = requireUser(context);
         stamp(data, context);
         const nowMs = currentNow();
@@ -1117,6 +1124,7 @@ function initSecondFactor(deps) {
     const onCallApp = functionsV1.runWith({ enforceAppCheck: true }).https.onCall;
     const onCallAppKey = functionsV1.runWith({
         secrets: ['TOTP_ENCRYPTION_KEY'],
+        serviceAccount: runtimeSa('totpStepUp'),
         enforceAppCheck: true,
     }).https.onCall;
 
