@@ -1042,6 +1042,15 @@ function initRanking() {
             // Optimistic paint is display-only. A different uid, null, or
             // signed-out clears that UI and the cache before any other work.
             reconcileOptimisticAuth(user, _pendingRedirect);
+            // Admin chrome follows the claim of the account signed in now. Any
+            // auth change drops it until settleAdminClaim() re-reads the token.
+            if (!user || user.isAnonymous || user.uid !== window._adminClaimUid) {
+                window._isAdminClaim = false;
+                window._adminClaimSettle = null;
+                window._adminClaimUid = (user && !user.isAnonymous) ? user.uid : null;
+                if (typeof syncHomeAdminBtn === 'function') syncHomeAdminBtn();
+            }
+            if (user && !user.isAnonymous) settleAdminClaim();
             // getRedirectResult() waits on the auth iframe. Calling it before this
             // listener, or on every reload, stalled the signed-in home for seconds.
             // A returning real user has nothing to consume. Only a redirect return
@@ -3556,23 +3565,35 @@ function settleAdminClaim() {
     var user = auth && auth.currentUser;
     if (!user || user.isAnonymous || typeof user.getIdTokenResult !== 'function') {
         window._isAdminClaim = false;
+        if (typeof syncHomeAdminBtn === 'function') syncHomeAdminBtn();
         return;
     }
+    // The auth listener and loadUser both settle. One pass per uid per 5s.
+    var nowMs = Date.now();
+    if (window._adminClaimSettle && window._adminClaimSettle.uid === user.uid &&
+        nowMs - window._adminClaimSettle.at < 5000) return;
+    window._adminClaimSettle = { uid: user.uid, at: nowMs };
     var forcedLanded = false;
     function applyClaim(tokenResult) {
+        // A late answer for an account that already signed out is dropped.
+        if (!auth || auth.currentUser !== user) return;
         window._isAdminClaim = !!(tokenResult && tokenResult.claims && tokenResult.claims.admin === true);
         // Firestore's onSnapshot often fires from cache before the claim lands,
         // so own messages render with isAdmin=false and miss the pin button.
         if (window._isAdminClaim && window._chatAllMsgs && typeof renderChatMessages === 'function') {
             renderChatMessages(window._chatAllMsgs);
         }
+        if (typeof syncHomeAdminBtn === 'function') syncHomeAdminBtn();
     }
     // Non-forced: uses the cached token when it is still valid.
     user.getIdTokenResult().then(function (tokenResult) {
         if (forcedLanded) return;
         applyClaim(tokenResult);
     }).catch(function () {
-        if (!forcedLanded) window._isAdminClaim = false;
+        if (!forcedLanded && auth && auth.currentUser === user) {
+            window._isAdminClaim = false;
+            if (typeof syncHomeAdminBtn === 'function') syncHomeAdminBtn();
+        }
     });
     // Forced refresh stays off the UI path. It only corrects a stale admin claim.
     user.getIdTokenResult(true).then(function (tokenResult) {
@@ -3580,6 +3601,129 @@ function settleAdminClaim() {
         applyClaim(tokenResult);
     }).catch(function () {});
 }
+
+// Home-page admin shortcut. Visible only when the Firebase custom claim
+// admin is true (window._isAdminClaim, set from getIdTokenResult). Never email.
+// It carries no admin data. Tapping re-checks the claim, then lazy-loads
+// admin-panel.js, so non-admins never download the panel.
+var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261109_v2542';
+
+function ensureHomeAdminBtnCss() {
+    if (document.getElementById('homeAdminBtnCss')) return;
+    var st = document.createElement('style');
+    st.id = 'homeAdminBtnCss';
+    st.textContent =
+        '#homeAdminBtn{display:none;width:100%;box-sizing:border-box;margin:0 0 12px;min-height:58px;padding:10px 16px;border-radius:16px;border:2px solid #f7931a;background:linear-gradient(135deg,rgba(247,147,26,0.20),rgba(247,147,26,0.06));color:var(--heading,#fff);cursor:pointer;align-items:center;gap:12px;text-align:left;font-family:inherit;box-shadow:0 4px 16px rgba(247,147,26,0.18);-webkit-tap-highlight-color:transparent;touch-action:manipulation;}' +
+        '#homeAdminBtn[data-on="1"]{display:flex;}' +
+        '#homeAdminBtn .hab-ico{font-size:1.7rem;line-height:1;flex-shrink:0;}' +
+        '#homeAdminBtn .hab-txt{display:flex;flex-direction:column;min-width:0;flex:1;}' +
+        '#homeAdminBtn .hab-t{font-size:1.08rem;font-weight:900;letter-spacing:0.2px;}' +
+        '#homeAdminBtn .hab-s{font-size:0.76rem;font-weight:600;color:var(--text-muted,#94a3b8);margin-top:2px;}' +
+        '#homeAdminBtn .hab-go{font-size:1.3rem;font-weight:900;color:#f7931a;flex-shrink:0;}' +
+        '#homeAdminBtn:hover,#homeAdminBtn:focus-visible{outline:3px solid rgba(247,147,26,0.45);outline-offset:2px;}' +
+        '#homeAdminBtn:active{transform:scale(0.99);}' +
+        '[data-theme="light"] #homeAdminBtn{background:linear-gradient(135deg,#fff4e6,#ffffff);color:#0f172a;box-shadow:0 4px 14px rgba(15,23,42,0.10);}' +
+        '[data-theme="light"] #homeAdminBtn .hab-s{color:#475569;}';
+    document.head.appendChild(st);
+}
+
+function loadHomeAdminPanel(done) {
+    if (typeof window.bqOpenAdminPanel === 'function') { done(true); return; }
+    var existing = document.getElementById('bqAdminPanelScript');
+    if (existing) {
+        existing.addEventListener('load', function () { done(typeof window.bqOpenAdminPanel === 'function'); });
+        existing.addEventListener('error', function () { done(false); });
+        return;
+    }
+    var s = document.createElement('script');
+    s.id = 'bqAdminPanelScript';
+    s.src = HOME_ADMIN_PANEL_SRC;
+    s.async = true;
+    s.onload = function () { done(typeof window.bqOpenAdminPanel === 'function'); };
+    s.onerror = function () {
+        if (s.parentNode) s.parentNode.removeChild(s);
+        done(false);
+    };
+    document.head.appendChild(s);
+}
+
+// Fallback and shared helper: Settings > Account > Admin mounts.
+function openSettingsAdminSection(targetId) {
+    if (window._isAdminClaim !== true) return;
+    if (typeof showSettings === 'function') showSettings();
+    setTimeout(function () {
+        if (typeof showSettingsPage === 'function') showSettingsPage('account');
+        setTimeout(function () {
+            var peers = document.getElementById('peersSectionContent');
+            if (peers) peers.style.display = 'block';
+            var target = (targetId && document.getElementById(targetId)) ||
+                document.getElementById('settingsAdminSection');
+            if (target && typeof target.scrollIntoView === 'function') {
+                try { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+                catch (e) { target.scrollIntoView(true); }
+            }
+        }, 220);
+    }, 80);
+}
+window.openSettingsAdminSection = openSettingsAdminSection;
+
+function openHomeAdminTools() {
+    var user = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
+    if (!user || user.isAnonymous || typeof user.getIdTokenResult !== 'function') return;
+    user.getIdTokenResult().then(function (tokenResult) {
+        var ok = !!(tokenResult && tokenResult.claims && tokenResult.claims.admin === true);
+        window._isAdminClaim = ok;
+        if (typeof syncHomeAdminBtn === 'function') syncHomeAdminBtn();
+        if (!ok) return;
+        loadHomeAdminPanel(function (loaded) {
+            if (loaded && window._isAdminClaim === true) window.bqOpenAdminPanel();
+            else openSettingsAdminSection('settingsAdminSection');
+        });
+    }).catch(function () {});
+}
+window.openHomeAdminTools = openHomeAdminTools;
+
+function syncHomeAdminBtn() {
+    ensureHomeAdminBtnCss();
+    var home = document.getElementById('home');
+    if (!home) return;
+    var btn = document.getElementById('homeAdminBtn');
+    var isAdmin = window._isAdminClaim === true;
+    if (!isAdmin) {
+        if (btn) {
+            btn.setAttribute('data-on', '0');
+            btn.style.display = 'none';
+            if (btn.parentNode) btn.parentNode.removeChild(btn);
+        }
+        if (typeof window.bqCloseAdminPanel === 'function') window.bqCloseAdminPanel();
+        return;
+    }
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'homeAdminBtn';
+        btn.type = 'button';
+        btn.setAttribute('aria-label', 'Admin tools');
+        btn.setAttribute('aria-haspopup', 'dialog');
+        btn.title = 'Admin tools: only admin accounts see this';
+        btn.innerHTML = '<span class="hab-ico" aria-hidden="true">\uD83D\uDEE1\uFE0F</span>' +
+            '<span class="hab-txt"><span class="hab-t">Admin tools</span>' +
+            '<span class="hab-s">Every admin control in one place, with tips</span></span>' +
+            '<span class="hab-go" aria-hidden="true">\u203A</span>';
+        btn.addEventListener('click', function (ev) {
+            if (ev && ev.preventDefault) ev.preventDefault();
+            openHomeAdminTools();
+        });
+        // In the normal flow at the top of the home column, so it never sits
+        // under the pot of sats or the floating buttons.
+        var host = document.querySelector('#home .home-inner') || home;
+        var before = document.getElementById('homeWalletStrip');
+        if (before && before.parentNode === host) host.insertBefore(btn, before);
+        else host.insertBefore(btn, host.firstChild || null);
+    }
+    btn.setAttribute('data-on', '1');
+    btn.style.display = 'flex';
+}
+window.syncHomeAdminBtn = syncHomeAdminBtn;
 
 async function loadUser(uid, prefetchedDoc) {
     const doc = prefetchedDoc || await db.collection('users').doc(uid).get();
@@ -9167,9 +9311,16 @@ function showSettingsPage(tab) {
             html += '</div>';
         });
         html += '</div>';
-        html += '<div id="cipherWinsAdmin" style="margin-top:12px;"></div>';
-        html += '<div id="factionPrizeAdmin" style="margin-top:12px;"></div>';
-        html += '<div id="faucetAbuseAdmin" style="margin-top:12px;"></div>';
+        // Admin mounts stay empty for non-admins. The home shortcut and these
+        // panels both require window._isAdminClaim === true (Firebase claim).
+        if (window._isAdminClaim === true) {
+            html += '<div id="settingsAdminSection" style="margin-top:14px;padding-top:8px;border-top:1px solid var(--border);">';
+            html += '<div style="font-size:0.7rem;font-weight:800;color:#f7931a;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">\uD83D\uDEE1\uFE0F Admin</div>';
+            html += '<div id="cipherWinsAdmin" style="margin-top:12px;"></div>';
+            html += '<div id="factionPrizeAdmin" style="margin-top:12px;"></div>';
+            html += '<div id="faucetAbuseAdmin" style="margin-top:12px;"></div>';
+            html += '</div>';
+        }
         html += '</div>';
 
         // Advanced Account toggle - content renders BELOW this button

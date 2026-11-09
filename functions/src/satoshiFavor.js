@@ -1357,9 +1357,8 @@ exports.getFavorHashes = functionsV1.https.onCall(async (data, context) => {
  * Can be used to backfill missing hashes.
  */
 exports.syncCycleToTop10 = functionsV1.https.onCall(async (data, context) => {
-  // Admin check - only specific UIDs can run this
-  const ADMIN_UIDS = ['Rv2KwSy4flQmYMiHobV1V03KJDX2', 'ZVlpC6mfs1W7GlKsY9TQN3Jr8Hd4']; // Add admin UIDs here
-  if (!context.auth || !ADMIN_UIDS.includes(context.auth.uid)) {
+  // Admin-only: Firebase custom claim (never a hardcoded uid or email list).
+  if (!context.auth || !context.auth.token || context.auth.token.admin !== true) {
     throw new HttpsError('permission-denied', 'Admin only');
   }
 
@@ -1455,10 +1454,8 @@ exports.syncCycleToTop10 = functionsV1.https.onCall(async (data, context) => {
 exports.backfillFactionTotals = functionsV1.https.onCall(async (data, context) => {
   if (!context.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
 
-  // Admin-only: check email
-  const ADMIN_EMAILS = ['needcreations@gmail.com', 'info.603btc@gmail.com', 'najemchris8@gmail.com'];
-  const userRecord = await admin.auth().getUser(context.auth.uid);
-  if (!ADMIN_EMAILS.includes(userRecord.email)) {
+  // Admin-only: Firebase custom claim (never email).
+  if (context.auth.token.admin !== true) {
     throw new HttpsError('permission-denied', 'Admin only.');
   }
 

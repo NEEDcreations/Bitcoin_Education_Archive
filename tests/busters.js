@@ -1,4 +1,4 @@
-// Cache-buster pin. This ship is btc-archive-v2538 (placeholder, not deployed: Start Here guide, percentile metric circles, Lite/Guided hide More, instant XP today; bundle.min.js, features.registry.js, today-card.js, and ranking.js 20261109_v2538). Before: btc-archive-v2537 (corrected Bitcoin metrics + shared /btc-data cache; bundle.min.js and ranking.js 20261109_v2537). Before: btc-archive-v2536 (leaderboard share shell, top 50, prefix search, PvP win%; ranking.js, achievement-share.js, and quests.js 20261109_v2536). Before: btc-archive-v2535 (reset timelines + opt-in reset reminders; reset-reminders.js 20261109_v2535). Before: btc-archive-v2529 (badge distribution tiers; ranking.js and bundle.min.js 20261109_v2529). Before: btc-archive-v2526 (per-card mini-app unfurls; miniapp-share.js 20261107_v2526). Before: btc-archive-v2525 (Satoshi's Favor target 25,000 + live difficulty/retarget: satoshi-favor.js and quests.js 20261106_v2525). Before: btc-archive-v2524 (Claim Sats above Settings + grandfathered chat/TCTV N/A rows; ranking.js 20261106_v2524). Before: btc-archive-v2523 (Proof of Play share opens #proof-of-play; miniapp-share.js 20261106_v2523). Before: btc-archive-v2522 (gift drop rebalance: keys 22%/ciphers 28%, single-key drops, label bias, need-label hint; gifting.js 20261106_v2522). Before: btc-archive-v2521 (TCTV stepped rate). Before: btc-archive-v2520 (Experience mode bar no longer clipped by taller signed-in mobile header: features.registry.js 20261106_v2520, --bq-mobile-bar-h). Before: btc-archive-v2519 (Global Chat button no longer hidden by empty or non-blocking layers: popup-stack.js, pvp-lobby-alert.js 20261106_v2519). Before: btc-archive-v2518 (Your Share live line on pot of sats: tctv-drip.js 20261106_v2518). Before: btc-archive-v2517 (root-absolute same-origin asset paths so trailing-slash routes load scripts). Before: btc-archive-v2515 (Terms .tos-box no longer sticky-hides the pot of sats). Before: btc-archive-v2514 (qualified badge percentages and collection order). Before: btc-archive-v2513 (Satoshi Favor counter fixes). Before: btc-archive-v2512 (popup/sheet UX #252). Before: btc-archive-v2510 (weekly patch notes). Before: btc-archive-v2509 (ranking.js, quests.js, and global-chat.js 20261106_v2509). Before: btc-archive-v2508 (pot of sats overlay: tctv-drip.js 20261106_v2508). Before: btc-archive-v2507 (collection completion recognition). Before: btc-archive-v2506 (Nook rebalance: quests.js, nacho-qa.js, features.registry.js, global-chat.js 20261105_v2506). Before: btc-archive-v2505 (faction race prizes: faction-race-prizes.js, ranking.js, global-chat.js, bundle.min.js 20261105_v2505). Before: btc-archive-v2504 (faction race balance: ranking.js, quests.js and global-chat.js 20261105_v2504). Before: btc-archive-v2503 (collections rebalance + Title & Flair: bundle.min.js, ranking.js, global-chat.js, quests.js 20261105_v2503). Before: btc-archive-v2502 (legal docs: timechain-tv.js disclaimer 20261105_v2502). Before: btc-archive-v2501 (favorite home buttons open again + star spacing: favorites.js 20261105_v2501). Before: btc-archive-v2500 (Terms Accept fix: onboarding.js, ranking.js 20261105_v2500). Before: btc-archive-v2499 (BIP Breakthrough: bip-breakthrough.js, achievement-share.js, badges.js, global-chat.js, bundle/ranking/referral-tiers 20261105_v2499; keeps notifications.js 20261105_v2497 from #237). Before: btc-archive-v2497 (homepage push bell). Before: btc-archive-v2496 (#236 referral maxi). Before: btc-archive-v2495 (pot of sats overlay). Before: btc-archive-v2494 (favorite apps).
+// Cache-buster pin. This ship is btc-archive-v2542 (placeholder, not deployed: admin home shield + claim-only admin gates; ranking.js, bundle.min.js, and beats.js 20261109_v2542). Before: btc-archive-v2538 (Start Here guide, percentile metric circles, Lite/Guided hide More, instant XP today; bundle.min.js, features.registry.js, today-card.js, and ranking.js 20261109_v2538). Before: btc-archive-v2537 (corrected Bitcoin metrics + shared /btc-data cache; bundle.min.js and ranking.js 20261109_v2537). Before: btc-archive-v2536 (leaderboard share shell, top 50, prefix search, PvP win%; ranking.js, achievement-share.js, and quests.js 20261109_v2536). Before: btc-archive-v2535 (reset timelines + opt-in reset reminders; reset-reminders.js 20261109_v2535). Before: btc-archive-v2529 (badge distribution tiers; ranking.js and bundle.min.js 20261109_v2529). Before: btc-archive-v2526 (per-card mini-app unfurls; miniapp-share.js 20261107_v2526). Before: btc-archive-v2525 (Satoshi's Favor target 25,000 + live difficulty/retarget: satoshi-favor.js and quests.js 20261106_v2525). Before: btc-archive-v2524 (Claim Sats above Settings + grandfathered chat/TCTV N/A rows; ranking.js 20261106_v2524). Before: btc-archive-v2523 (Proof of Play share opens #proof-of-play; miniapp-share.js 20261106_v2523). Before: btc-archive-v2522 (gift drop rebalance: keys 22%/ciphers 28%, single-key drops, label bias, need-label hint; gifting.js 20261106_v2522). Before: btc-archive-v2521 (TCTV stepped rate). Before: btc-archive-v2520 (Experience mode bar no longer clipped by taller signed-in mobile header: features.registry.js 20261106_v2520, --bq-mobile-bar-h). Before: btc-archive-v2519 (Global Chat button no longer hidden by empty or non-blocking layers: popup-stack.js, pvp-lobby-alert.js 20261106_v2519). Before: btc-archive-v2518 (Your Share live line on pot of sats: tctv-drip.js 20261106_v2518). Before: btc-archive-v2517 (root-absolute same-origin asset paths so trailing-slash routes load scripts). Before: btc-archive-v2515 (Terms .tos-box no longer sticky-hides the pot of sats). Before: btc-archive-v2514 (qualified badge percentages and collection order). Before: btc-archive-v2513 (Satoshi Favor counter fixes). Before: btc-archive-v2512 (popup/sheet UX #252). Before: btc-archive-v2510 (weekly patch notes). Before: btc-archive-v2509 (ranking.js, quests.js, and global-chat.js 20261106_v2509). Before: btc-archive-v2508 (pot of sats overlay: tctv-drip.js 20261106_v2508). Before: btc-archive-v2507 (collection completion recognition). Before: btc-archive-v2506 (Nook rebalance: quests.js, nacho-qa.js, features.registry.js, global-chat.js 20261105_v2506). Before: btc-archive-v2505 (faction race prizes: faction-race-prizes.js, ranking.js, global-chat.js, bundle.min.js 20261105_v2505). Before: btc-archive-v2504 (faction race balance: ranking.js, quests.js and global-chat.js 20261105_v2504). Before: btc-archive-v2503 (collections rebalance + Title & Flair: bundle.min.js, ranking.js, global-chat.js, quests.js 20261105_v2503). Before: btc-archive-v2502 (legal docs: timechain-tv.js disclaimer 20261105_v2502). Before: btc-archive-v2501 (favorite home buttons open again + star spacing: favorites.js 20261105_v2501). Before: btc-archive-v2500 (Terms Accept fix: onboarding.js, ranking.js 20261105_v2500). Before: btc-archive-v2499 (BIP Breakthrough: bip-breakthrough.js, achievement-share.js, badges.js, global-chat.js, bundle/ranking/referral-tiers 20261105_v2499; keeps notifications.js 20261105_v2497 from #237). Before: btc-archive-v2497 (homepage push bell). Before: btc-archive-v2496 (#236 referral maxi). Before: btc-archive-v2495 (pot of sats overlay). Before: btc-archive-v2494 (favorite apps).
 // Live gh-pages was v2446. quests.js stays v2443. bundle.min.js is v2447. global-chat.js is v2448.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
 // timechain-tv.js is 20261105_v2502. scholar.js is 20261105_v2490.
@@ -50,9 +50,10 @@ test('mobile main pad tracks --bq-mobile-bar-h so Experience clears the header',
     assert.ok(html404.includes('features.registry.js?v=20261109_v2538'));
 });
 
-test('service worker cache is v2538', () => {
+test('service worker cache is v2542', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2538'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2542'"));
+    assert.ok(!sw.includes('btc-archive-v2538'));
     assert.ok(!sw.includes('btc-archive-v2537'));
     assert.ok(!sw.includes('btc-archive-v2530'));
     assert.ok(!sw.includes('btc-archive-v2536'));
@@ -199,7 +200,8 @@ test('service worker cache is v2538', () => {
 test('index.html and 404.html match, and the changed script busters moved', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261109_v2538/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261109_v2542/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261109_v2538/g) || []).length, 0);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261106_v2514/g) || []).length, 0);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261105_v2505/g) || []).length, 0);
     assert.strictEqual((html.match(/bundle\.min\.js\?v=20261031_v2452/g) || []).length, 0);
@@ -208,7 +210,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2418'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2415'));
     assert.ok(!html.includes('bundle.min.js?v=20261028_v2411'));
-    assert.ok(html.includes('bundle.min.js?v=20261109_v2538'));
+    assert.ok(html.includes('bundle.min.js?v=20261109_v2542'));
     assert.ok(!html.includes('bundle.min.js?v=20261106_v2512'));
     assert.ok(!html.includes('bundle.min.js?v=20261101_v2458'));
     assert.ok(!html.includes('bundle.min.js?v=20261030_v2443'));
@@ -274,7 +276,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('username-repick.js?v=20261024_v2351'));
     assert.ok(html.includes('earn-xp-guide.js?v=20261026_v2382'));
     assert.ok(html.includes('referral-tiers.js?v=20261105_v2499'));
-    assert.ok(html.includes('ranking.js?v=20261109_v2538'));
+    assert.ok(html.includes('ranking.js?v=20261109_v2542'));
     assert.ok(!html.includes('ranking.js?v=20261104_v2483'));
     assert.ok(html.includes('/tctv-drip.js?v=20261106_v2521'));
     assert.ok(!html.includes('tctv-drip.js?v=20261106_v2518'));
@@ -300,7 +302,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261029_v2420'));
     assert.ok(!html.includes('ranking.js?v=20261028_v2416'));
     assert.ok(!html.includes('ranking.js?v=20261028_v2403'));
-    assert.ok(html.indexOf('referral-tiers.js?v=20261105_v2499') < html.indexOf('ranking.js?v=20261109_v2538'));
+    assert.ok(html.indexOf('referral-tiers.js?v=20261105_v2499') < html.indexOf('ranking.js?v=20261109_v2542'));
     assert.ok(html.includes('auth-display.js?v=20261106_v2512'));
     assert.ok(!html.includes('auth-display.js?v=20261028_v2425'));
     assert.ok(!html.includes('auth-display.js?v=20261029_v2420'));
@@ -317,7 +319,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('auth-boot.js?v=20261027_v2394'));
     assert.ok(html.includes('bundle-ready.js?v=20261027_v2394'));
     assert.ok(html.indexOf('firebase-config.js?v=20261027_v2394') < html.indexOf('auth-boot.js?v=20261027_v2394'));
-    assert.ok(html.indexOf('bundle.min.js?v=20261109_v2538') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
+    assert.ok(html.indexOf('bundle.min.js?v=20261109_v2542') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
     assert.ok(html.includes('fetchpriority="high"'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2382'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));
@@ -326,8 +328,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261026_v2373'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2367'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
-    assert.ok(html.indexOf('earn-xp-guide.js?v=20261026_v2382') < html.indexOf('ranking.js?v=20261109_v2538'));
-    assert.ok(html.indexOf('username-repick.js?v=20261104_v2476') < html.indexOf('ranking.js?v=20261109_v2538'));
+    assert.ok(html.indexOf('earn-xp-guide.js?v=20261026_v2382') < html.indexOf('ranking.js?v=20261109_v2542'));
+    assert.ok(html.indexOf('username-repick.js?v=20261104_v2476') < html.indexOf('ranking.js?v=20261109_v2542'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2359'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
@@ -450,7 +452,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('global-chat.js?v=20261022_v2267'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2265'));
     assert.ok(!html.includes('global-chat.js?v=20261022_v2252'));
-    assert.ok(html.includes('beats.js?v=20261105_v2492'));
+    assert.ok(html.includes('beats.js?v=20261109_v2542'));
+    assert.ok(!html.includes('beats.js?v=20261105_v2492'));
     assert.ok(!html.includes('beats.js?v=20261026_v2391'));
     assert.ok(!html.includes('beats.js?v=20261026_v2390'));
     assert.ok(!html.includes('beats.js?v=20261023_v2349'));
@@ -491,7 +494,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('features.registry.js?v=20261023_v2342'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2341'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2339'));
-    assert.ok(html.indexOf('beats-censor.js?v=20261022_v2322') < html.indexOf('beats.js?v=20261105_v2492'));
+    assert.ok(html.indexOf('beats-censor.js?v=20261022_v2322') < html.indexOf('beats.js?v=20261109_v2542'));
     assert.ok(!html.includes('features.registry.js?v=20261023_v2330'));
     assert.ok(html.includes('nacho-qa.js?v=20261105_v2506'));
     assert.ok(!html.includes('nacho-qa.js?v=20261104_v2482'));
@@ -576,7 +579,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2324'));
     assert.ok(html.includes('lightning.js?v=20261023_v2323'));
     assert.ok(!html.includes('lightning.js?v=20261022_faucet'));
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261109_v2536/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261109_v2542/g) || []).length, 4);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261106_v2525/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261106_v2509/g) || []).length, 0);
     assert.ok(!html.includes('quests.js?v=20261104_v2477'));
@@ -621,7 +624,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2538');
+    assert.ok(swVersion && swVersion[1] === 'v2542');
     assert.ok(html.includes('faction-race-prizes.js?v=20261105_v2505'));
 });
 
@@ -774,12 +777,12 @@ test('PR #252 asset busters are v2512 (popup-stack bumped to v2519)', () => {
     assert.ok(html.includes('popup-stack.js?v=20261106_v2519'));
     assert.ok(!html.includes('popup-stack.js?v=20261106_v2515'));
     assert.ok(!html.includes('popup-stack.js?v=20261106_v2512'));
-    assert.ok(html.includes('ranking.js?v=20261109_v2538'));
-    assert.ok(html.includes('bundle.min.js?v=20261109_v2538'));
+    assert.ok(html.includes('ranking.js?v=20261109_v2542'));
+    assert.ok(html.includes('bundle.min.js?v=20261109_v2542'));
     assert.ok(!html.includes('bundle.min.js?v=20261106_v2512'));
     assert.ok(html.includes('features.registry.js?v=20261109_v2538'));
     assert.ok(html.includes('onboarding.js?v=20261106_v2512'));
-    assert.ok(html.includes('quests.js?v=20261109_v2536'));
+    assert.ok(html.includes('quests.js?v=20261109_v2542'));
     assert.ok(html.includes('notifications.js?v=20261106_v2512'));
     assert.ok(html.includes('gifting.js?v=20261106_v2522'));
     assert.ok(!html.includes('gifting.js?v=20261106_v2512'));

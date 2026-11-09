@@ -1288,6 +1288,32 @@ function initSecondFactor(deps) {
         const note = String((data && data.note) || '').trim().slice(0, 500);
         if (!/^[A-Za-z0-9]{6,128}$/.test(targetUid)) throw httpError('invalid-argument', 'Enter the account id.');
         if (note.length < 8) throw httpError('invalid-argument', 'Describe how you verified this person.');
+        // An admin can never reset another admin's (or their own) second factor
+        // here. The target's admin claim is read from Auth, not Firestore, and an
+        // unreadable target fails closed. Admins recover with a recovery code.
+        let targetRec = null;
+        try { targetRec = await admin.auth().getUser(targetUid); } catch (e) { targetRec = null; }
+        if (!targetRec) {
+            throw httpError('failed-precondition', 'Could not look up that account. Try again.');
+        }
+        const targetIsAdmin = !!(targetRec.customClaims && targetRec.customClaims.admin === true);
+        if (targetIsAdmin) {
+            await db.collection('mfa_admin_log').add({
+                action: 'admin_reset_refused',
+                reason: 'target_is_admin',
+                targetUid: targetUid,
+                adminUid: context.auth.uid,
+                note: note,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            await notifyAdmin({
+                type: 'mfa_admin_reset_refused',
+                uid: targetUid,
+                adminUid: context.auth.uid,
+                message: 'An admin tried to turn off two-factor on an admin account. It was refused.',
+            });
+            throw httpError('permission-denied', 'Admin accounts cannot be reset here. Use a recovery code.');
+        }
         const phoneCleared = await unenrollPhone(targetUid);
         if (!phoneCleared) {
             throw httpError('failed-precondition', 'Could not turn off phone verification. Try again.');
