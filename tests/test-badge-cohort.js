@@ -45,6 +45,9 @@ vm.runInContext([
     grab(badges, '_badgeDistCohortArg'),
     grab(badges, '_badgeDistPercent'),
     grab(badges, '_badgeDistFootnote'),
+    grab(badges, '_badgeDistRarityOrder'),
+    grab(badges, '_badgeDistSortEntries'),
+    grab(badges, '_badgeDistGroupEntries'),
 ].join('\n'), sandbox);
 
 const catalogSandbox = { window: {} };
@@ -145,6 +148,36 @@ test('the distribution renderer no longer divides by every real account', functi
     assert.ok(!badges.includes('members_cyber_hornets'));
     assert.ok(!badges.includes('members_honey_badgers'));
     assert.ok(!badges.includes('factionMembers'));
+    const render = badges.slice(badges.indexOf('window._renderBadgeDist = function'), badges.indexOf('function _hexToRgb'));
+    assert.ok(render.includes('_badgeDistGroupEntries'));
+    assert.ok(render.includes('data-loaded="0"'));
+    assert.ok(render.includes('Most widely held among those players first'));
+    assert.ok(!render.includes('class="bdr-row"'), 'tiers start collapsed; rows load on expand');
+    assert.ok(badges.includes('window._badgeDistFill = function'));
+    assert.ok(badges.includes('window._toggleBadgeDistGroup = function'));
+    assert.ok(badges.includes('window._badgeDistPageSize = 24'));
+});
+
+test('rarity groups put the most widely held badges first', function () {
+    assert.strictEqual(sandbox._badgeDistRarityOrder().join(','), 'Common,Rare,Epic,Legendary,Unclaimed');
+    const groups = sandbox._badgeDistGroupEntries([
+        { id: 'late', name: 'Zebra', pct: 30, rarity: { label: 'Common' } },
+        { id: 'early', name: 'Alpha', pct: 80, rarity: { label: 'Common' } },
+        { id: 'tie-b', name: 'Beta', pct: 40, rarity: { label: 'Common' } },
+        { id: 'tie-a', name: 'Able', pct: 40, rarity: { label: 'Common' } },
+        { id: 'rare', name: 'Rare One', pct: 10, rarity: { label: 'Rare' } },
+        { id: 'epic', name: 'Epic One', pct: 2, rarity: { label: 'Epic' } },
+        { id: 'legend', name: 'Legend One', pct: 0.2, rarity: { label: 'Legendary' } },
+        { id: 'none', name: 'Secret', pct: 0, rarity: { label: 'Unclaimed' } },
+        { id: 'skip', name: 'Other', pct: 1, rarity: { label: 'Mythic' } },
+    ]);
+    function ids(list) { return list.map(function (row) { return row.id; }).join(','); }
+    assert.strictEqual(ids(groups.Common), 'early,tie-a,tie-b,late');
+    assert.strictEqual(ids(groups.Rare), 'rare');
+    assert.strictEqual(ids(groups.Epic), 'epic');
+    assert.strictEqual(ids(groups.Legendary), 'legend');
+    assert.strictEqual(ids(groups.Unclaimed), 'none');
+    assert.strictEqual(groups.Mythic, undefined);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

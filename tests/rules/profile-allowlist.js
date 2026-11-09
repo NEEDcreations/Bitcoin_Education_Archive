@@ -47,6 +47,7 @@ function valueFor(field) {
     if (field === 'pvpPushShard') return 0;
     if (field === 'spinCount' || field === 'questsCompletedToday' || field === 'nachoStoryProgress' || field === 'nachoInteractions' || field === 'nachoQuestions' || field === 'sfWindowStreak') return 1;
     if (field === 'notificationPrefs') return { master: true, rewards: false };
+    if (field === 'resetReminders') return { optedIn: false, quietStart: 22, quietEnd: 8, timeZone: 'America/New_York', items: { 'daily-spin': false } };
     if (field === 'notifPrompt') return { count: 1, lastAsked: 1, stopped: false, dontAsk: false };
     if (field === 'lqProgress') return { whitepaper: { passed: true, bestScore: 4 } };
     if (field === 'trailProgress') return { meadow: ['whitepaper'] };

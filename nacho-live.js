@@ -14,32 +14,33 @@ let nachoLiveData = {
     lastFetch: 0,
 };
 
-const FETCH_INTERVAL = 300000; // 5 minutes
+const FETCH_INTERVAL = 60000; // 1 minute; the worker edge cache is 30s
+
+function btcMetricsUrl(path) {
+    var host = 'https://jolly-surf-219enacho-search.needcreations.workers.dev';
+    try {
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') host = location.origin;
+    } catch (e) {}
+    return host + path;
+}
 var _lastTickerPrice = null;
 
 // ---- Fetch live data from mempool.space API ----
 async function fetchLiveData() {
     const now = Date.now();
-    if (now - nachoLiveData.lastFetch < FETCH_INTERVAL && nachoLiveData.price) return;
+    if (now - nachoLiveData.lastFetch < FETCH_INTERVAL && nachoLiveData.price) return Promise.resolve();
 
     try {
-        const priceRes = await fetch('https://mempool.space/api/v1/prices');
-        if (priceRes.ok) {
-            const priceData = await priceRes.json();
-            nachoLiveData.price = priceData.USD;
-        }
-        const heightRes = await fetch('https://mempool.space/api/blocks/tip/height');
-        if (heightRes.ok) {
-            nachoLiveData.blockHeight = parseInt(await heightRes.text());
-        }
-        const feeRes = await fetch('https://mempool.space/api/v1/fees/recommended');
-        if (feeRes.ok) {
-            nachoLiveData.fees = await feeRes.json();
-        }
-        const mempoolRes = await fetch('https://mempool.space/api/mempool');
-        if (mempoolRes.ok) {
-            const mp = await mempoolRes.json();
-            nachoLiveData.mempoolSize = mp.count;
+        const snapRes = await fetch(btcMetricsUrl('/btc-data'));
+        if (snapRes.ok) {
+            const snap = await snapRes.json();
+            if (snap.price) nachoLiveData.price = snap.price;
+            if (snap.blockHeight) nachoLiveData.blockHeight = snap.blockHeight;
+            if (snap.feeFast != null) {
+                nachoLiveData.fees = { fastestFee: snap.feeFast, halfHourFee: snap.feeHalf, hourFee: snap.feeHour, economyFee: snap.feeEcon };
+            }
+            if (snap.mempoolTxs != null) nachoLiveData.mempoolSize = snap.mempoolTxs;
+            if (snap.blockIntervalSec) nachoLiveData.blockIntervalSec = snap.blockIntervalSec;
         }
 
         nachoLiveData.lastFetch = now;
@@ -49,7 +50,7 @@ async function fetchLiveData() {
         window._btcData.lastUpdate = now;
         
         if (nachoLiveData.blockHeight) {
-            const nextHalving = 1050000;
+            const nextHalving = Math.ceil(nachoLiveData.blockHeight / 210000) * 210000;
             window._btcData.halvingBlocks = nextHalving - nachoLiveData.blockHeight;
         }
     } catch (e) {
@@ -186,6 +187,8 @@ function updateTicker() {
         const blockEls = document.querySelectorAll('.t-block-val');
         const changeEls = document.querySelectorAll('.t-price-change');
 
+        var wsPrice = (window._btcPriceCache && window._btcPriceCache.price) ? window._btcPriceCache.price : null;
+        if (wsPrice) nachoLiveData.price = wsPrice;
         if (nachoLiveData.price) {
             var p = nachoLiveData.price;
             priceEls.forEach(el => el.textContent = '$' + Math.round(p).toLocaleString());
@@ -226,7 +229,8 @@ function getHalvingInfo() {
     if (!height) return null;
     var nextHalving = Math.ceil(height / 210000) * 210000;
     var blocksLeft = nextHalving - height;
-    var daysLeft = Math.round(blocksLeft * 10 / 1440);
+    var intervalMin = (nachoLiveData.blockIntervalSec > 60) ? (nachoLiveData.blockIntervalSec / 60) : 10;
+    var daysLeft = Math.round(blocksLeft * intervalMin / 1440);
     return { nextHalving: nextHalving, blocksLeft: blocksLeft, daysLeft: daysLeft };
 }
 
@@ -278,6 +282,9 @@ window.nachoLiveMessage = function() {
 
 setTimeout(fetchLiveData, 3000);
 setInterval(fetchLiveData, FETCH_INTERVAL);
+setInterval(function () {
+    if (window._btcPriceCache && window._btcPriceCache.price && typeof updateTicker === 'function') updateTicker();
+}, 10000);
 
 // Toggle ticker visibility — called from Settings
 window.toggleTickerSetting = function() {
