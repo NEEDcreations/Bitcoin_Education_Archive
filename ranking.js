@@ -4236,7 +4236,7 @@ window.paintInviteTier = paintInviteTier;
 
 function paintHomeStrip(snap) {
     var satsEl = document.getElementById('homeSatsValue');
-    var claimNow = Math.min(Number(snap.claimable) || 0, 200, Number(snap.lifetimeLeft) || 0);
+    var claimNow = Math.min(Number(snap.claimable) || 0, window.SATS_CLAIM_MAX || 1000, Number(snap.lifetimeLeft) || 0);
     if (satsEl) satsEl.textContent = Number(snap.claimable || 0).toLocaleString();
     var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
     // The profile cache has no referral count. Leave the Invites tile on its
