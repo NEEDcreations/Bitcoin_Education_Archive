@@ -17,6 +17,38 @@ service cloud.firestore {
         && v.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
     }
 
+    // Optional birthday. Year is omitted, or an int from 1900 through next UTC year.
+    function birthdayYearOk(data) {
+      return !('year' in data)
+        || (data.year is int && data.year >= 1900 && data.year <= request.time.year() + 1);
+    }
+
+    function birthdayLeapYear(year) {
+      return (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+    }
+
+    function birthdayMaxDay(month, data) {
+      return month == 2
+        ? (('year' in data) ? (birthdayLeapYear(data.year) ? 29 : 28) : 29)
+        : ((month == 4 || month == 6 || month == 9 || month == 11) ? 30 : 31);
+    }
+
+    function birthdayCreateOk(userId) {
+      let data = request.resource.data;
+      return data.keys().hasOnly(['month', 'day', 'year', 'uid', 'setAt'])
+        && data.keys().hasAll(['month', 'day', 'uid', 'setAt'])
+        && data.uid == userId
+        && data.uid == request.auth.uid
+        && data.setAt == request.time
+        && data.month is int
+        && data.day is int
+        && birthdayYearOk(data)
+        && data.month >= 1
+        && data.month <= 12
+        && data.day >= 1
+        && data.day <= birthdayMaxDay(data.month, data);
+    }
+
     // The first Lightning address saved on a profile stays. Once any address
     // value exists, the client cannot write the address fields or the marker.
     // The server still writes the normalized lock and the one-time reset doc.
@@ -497,6 +529,25 @@ service cloud.firestore {
         allow update: if request.auth != null && request.auth.uid == userId
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
         allow create, delete: if false; // Cloud Function (Admin SDK) only
+      }
+
+      // Optional birthday (month, day, year optional). Owner may create
+      // birthday/profile once. Clients cannot edit or delete it. Admins can
+      // read. It is not copied to public_profiles. birthday_awards/{year} is
+      // the one-grant-per-year marker written only by awardBirthdayOrangeTix.
+      match /birthday/{docId} {
+        allow get, list: if request.auth != null
+                          && (request.auth.uid == userId || isAdmin());
+        allow create: if request.auth != null
+                      && request.auth.uid == userId
+                      && docId == 'profile'
+                      && birthdayCreateOk(userId);
+        allow update, delete: if false;
+      }
+      match /birthday_awards/{yearId} {
+        allow get, list: if request.auth != null
+                          && (request.auth.uid == userId || isAdmin());
+        allow create, update, delete: if false;
       }
     }
 

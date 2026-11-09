@@ -5557,6 +5557,7 @@ const PUBLIC_PROFILE_FIELDS = [
     'predictions', 'plebNumber',
     'lastSeen', 'isOnline', 'ghostMode',
     'lightningAddress',   // display-only; tip button uses this
+    // Birthday is users/{uid}/birthday/profile. Never copy it onto this mirror.
     'lightning',           // alias saved by older clients; tip lookup checks both
     'created', 'createdAt',
     'earnedHidden',
@@ -6901,6 +6902,26 @@ exports.getSmallerFaction = getSmallerFaction;
 exports.favorDifficultyRetarget = onSchedule({ schedule: '10 0 * * *', timeZone: 'America/New_York' }, async () => {
     const result = await require('./src/favorDifficulty').runRetarget(db, admin, Date.now());
     console.log('[SF-RETARGET]', JSON.stringify(result));
+});
+
+// Birthday OrangeTix. 12:15am America/New_York. One 25-ticket grant per user
+// per Eastern calendar year, marker users/{uid}/birthday_awards/{year}.
+// Reads users/{uid}/birthday/profile only. Does not write public_profiles.
+exports.awardBirthdayOrangeTix = onSchedule({
+    schedule: '15 0 * * *',
+    timeZone: 'America/New_York',
+    timeoutSeconds: 540,
+    retryCount: 0,
+}, async () => {
+    const birthdayReward = require('./src/birthdayReward');
+    const result = await birthdayReward.runBirthdayAwards(db, {
+        increment: admin.firestore.FieldValue.increment,
+        serverTimestamp: admin.firestore.FieldValue.serverTimestamp,
+        notify: function (writer, database, spec) {
+            rewardNotify.apply(writer, database, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan(spec));
+        },
+    }, Date.now());
+    console.log('[birthday]', JSON.stringify(result));
 });
 
 // Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online).

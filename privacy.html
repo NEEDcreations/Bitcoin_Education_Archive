@@ -33,7 +33,7 @@
 <div class="container">
     <a href="/" class="back">← Back to Bitcoin Education Archive</a>
     <h1>Privacy Policy</h1>
-    <p class="subtitle">Last updated: November 5, 2026</p>
+    <p class="subtitle">Last updated: November 9, 2026</p>
 
     <div class="highlight">
         <strong>Our commitment: We do not sell your personal information for advertising.</strong>
@@ -102,6 +102,7 @@
         <tr><td>Email (if provided)</td><td>Account verification via magic link sign-in. Linking an email from the Account tab uses Firebase sign-in linking. This flow does not write the email onto your profile from the browser.</td></tr>
         <tr><td>Sign-in provider</td><td>Google, Twitter/X, GitHub, Facebook, Nostr (NIP-07), Lightning (LNURL-auth), email link, or a guest (anonymous) session. A guest or Lightning-only account can link an email or Google sign-in from the Sign-in methods card. That sign-in stays on the same account. If it already belongs to another account, the two accounts stay separate.</td></tr>
         <tr><td>Profile picture</td><td>Optional avatar upload (resized to 128px JPEG, stored in Firestore)</td></tr>
+        <tr><td>Birthday (optional, not shared)</td><td>Month and day, and year if you add it. Stored in a private record only you and admins can read. It is not on your public profile. It can be set once. On that day the server grants 25 Orange Tickets.</td></tr>
         <tr><td>TOTP 2FA secret</td><td>Encrypted TOTP secret for two-factor authentication (if enabled)</td></tr>
         <tr><td>Remembered device</td><td>If you check “Remember this device for 30 days” after an authenticator code, we store only a hash of a random device token (not the token), a short browser and operating-system label, and the times the device was added, last used, and when the 30 days end. The 30 days are counted from the day you checked the box and do not slide forward. We do not store an IP address on that record. This browser keeps the token. You can remove a device, or sign out other devices, in Settings. Signing out revokes this device. At most 10 devices stay remembered; adding another removes the oldest. Turning off two-factor authentication, using a recovery code, the in-app password reset, or an admin reset revokes every remembered device right away. A password change finished outside the app, including a reset email, also stops devices that were remembered before that change. Clients cannot read or write these records. Expired device and fresh-code records are deleted on a schedule.</td></tr>
         <tr><td>Points & rank</td><td>Gamification and leaderboard</td></tr>
