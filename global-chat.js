@@ -682,16 +682,12 @@ function renderChatMessages(msgs) {
             html += '<div style="color:var(--text-faint);font-size:0.8rem;font-style:italic;line-height:1.5;">🚫 message deleted</div>';
         } else if (m.filterRemoved && !String(m.text || '').trim() && !m.imageUrl && !m.gifUrl) {
             html += '<div style="color:var(--text-faint);font-size:0.8rem;font-style:italic;line-height:1.5;">Removed by filter</div>';
-        } else if (window._chatEditingId === m._id) {
-            html += '<div style="margin-top:4px;">' +
-                '<textarea id="chatEditInput" maxlength="' + MAX_MSG_LENGTH + '" rows="3" aria-label="Edit message" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-family:inherit;font-size:16px;resize:vertical;"></textarea>' +
-                '<div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end;">' +
-                '<button type="button" onclick="cancelChatEdit()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-family:inherit;font-size:0.75rem;font-weight:700;cursor:pointer;">Cancel</button>' +
-                '<button type="button" onclick="saveChatEdit()" style="padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-family:inherit;font-size:0.75rem;font-weight:700;cursor:pointer;">Save</button>' +
-                '</div></div>';
+        } else if (window._chatEditingId === m._id && !chatIsMedia(m)) {
+            html += chatEditFormHtml('Edit message');
         } else if (m.isGif && m.text && (IMG_REGEX.test(m.text) || /^data:image\/(jpeg|jpg|png|gif|webp);base64,/.test(m.text))) {
             html += '<img src="' + esc(m.text) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy">';
-            if (m.caption) html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;margin-top:4px;">' + formatChatText(esc(m.caption), m.mentionUid) + '</div>';
+            if (window._chatEditingId === m._id) html += chatEditFormHtml('Edit caption');
+            else if (m.caption || m.filterRemoved) html += chatCaptionHtml(m);
         } else if (m.imageUrl || m.gifUrl) {
             var mediaSrc = m.imageUrl || m.gifUrl;
             if (m.text) html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;margin-bottom:4px;">' + formatChatText(esc(m.text), m.mentionUid) + '</div>';
@@ -700,7 +696,11 @@ function renderChatMessages(msgs) {
                 html += '<video src="' + esc(mediaSrc) + '" autoplay loop muted playsinline style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;" onerror="this.style.display=\'none\'"></video>';
             } else {
                 html += '<img src="' + esc(mediaSrc) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy" onerror="this.style.display=\'none\'">';
-            };
+            }
+            if (window._chatEditingId === m._id) html += chatEditFormHtml('Edit caption');
+            else if (m.caption || m.filterRemoved) html += chatCaptionHtml(m);
+        } else if (window._chatEditingId === m._id) {
+            html += chatEditFormHtml(chatIsMedia(m) ? 'Edit caption' : 'Edit message');
         } else {
             html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;">' + formatChatText(esc(m.text || ''), m.mentionUid) + ((m.edited || m.editCount) ? ' <span style="font-size:0.6rem;color:var(--text-faint);font-style:italic;">(edited)</span>' : '') + '</div>';
         }
@@ -1692,10 +1692,33 @@ function chatProtected(m) {
     return false;
 }
 
+function chatIsMedia(m) {
+    if (!m) return false;
+    if (m.imageUrl || m.gifUrl || m.isGif) return true;
+    return false;
+}
+
+function chatEditFormHtml(label) {
+    var safeLabel = esc(label || 'Edit message');
+    return '<div style="margin-top:4px;">' +
+        '<textarea id="chatEditInput" maxlength="' + MAX_MSG_LENGTH + '" rows="3" aria-label="' + safeLabel + '" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-family:inherit;font-size:16px;resize:vertical;"></textarea>' +
+        '<div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end;">' +
+        '<button type="button" onclick="cancelChatEdit()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-family:inherit;font-size:0.75rem;font-weight:700;cursor:pointer;">Cancel</button>' +
+        '<button type="button" onclick="saveChatEdit()" style="padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-family:inherit;font-size:0.75rem;font-weight:700;cursor:pointer;">Save</button>' +
+        '</div></div>';
+}
+
+function chatCaptionHtml(m) {
+    if (m.filterRemoved && !String(m.caption || '').trim()) {
+        return '<div style="color:var(--text-faint);font-size:0.8rem;font-style:italic;line-height:1.5;margin-top:4px;">Removed by filter</div>';
+    }
+    var edited = (m.edited || m.editCount) ? ' <span style="font-size:0.6rem;color:var(--text-faint);font-style:italic;">(edited)</span>' : '';
+    return '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;margin-top:4px;">' + formatChatText(esc(m.caption || ''), m.mentionUid) + edited + '</div>';
+}
+
 function chatCanEdit(m, isMe) {
     if (!isMe || !m || m.deleted === true || m.uid === 'deleted') return false;
     if (chatProtected(m)) return false;
-    if (m.isGif || m.imageUrl || m.gifUrl) return false;
     if ((m.editCount || 0) >= CHAT_EDIT_CAP) return false;
     var ms = chatTsMillis(m.ts);
     if (!ms) return false;
@@ -1752,7 +1775,8 @@ function noteChatFilterRevert() {
     var watch = window._chatFilterWatch;
     if (!watch) return;
     var m = chatMsgById(watch.id);
-    if (!m || m.text === watch.text) return;
+    var current = m ? (watch.caption ? (m.caption || '') : m.text) : null;
+    if (!m || current === watch.text) return;
     window._chatFilterWatch = null;
     clearTimeout(window._chatFilterTimer);
     if (typeof showToast === 'function') showToast('Removed by filter');
@@ -1802,7 +1826,7 @@ window.editChatMsg = function(msgId) {
         return;
     }
     window._chatEditingId = msgId;
-    window._chatEditDraft = m.text || '';
+    window._chatEditDraft = chatIsMedia(m) ? (m.caption || '') : (m.text || '');
     refreshChatEdit();
 };
 
@@ -1828,21 +1852,25 @@ window.saveChatEdit = function() {
         if (typeof showToast === 'function') showToast(prepared.toast);
         return;
     }
-    if (prepared.text === (m.text || '')) {
+    var media = chatIsMedia(m);
+    var current = media ? (m.caption || '') : (m.text || '');
+    if (prepared.text === current) {
         window.cancelChatEdit();
         return;
     }
-    window._chatFilterWatch = { id: msgId, text: prepared.text };
+    window._chatFilterWatch = { id: msgId, text: prepared.text, caption: media };
     clearTimeout(window._chatFilterTimer);
     window._chatFilterTimer = setTimeout(function() {
         if (window._chatFilterWatch && window._chatFilterWatch.id === msgId) window._chatFilterWatch = null;
     }, 8000);
-    db.collection(CHAT_COLLECTION).doc(msgId).update({
-        text: prepared.text,
+    var patch = {
         edited: true,
         editedAt: firebase.firestore.FieldValue.serverTimestamp(),
         editCount: (m.editCount || 0) + 1
-    }).then(function() {
+    };
+    if (media) patch.caption = prepared.text;
+    else patch.text = prepared.text;
+    db.collection(CHAT_COLLECTION).doc(msgId).update(patch).then(function() {
         window._chatEditingId = null;
         window._chatEditDraft = null;
         if (typeof showToast === 'function') showToast('✏️ Message updated');

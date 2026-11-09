@@ -3725,6 +3725,11 @@ function _ensureQuestScreen() {
         history.pushState({ overlay: 'questhub' }, '', '#questhub');
     }
     function _qhPopHandler() {
+        if (document.getElementById('decryptCipherOverlay') || document.getElementById('cipherClaimOverlay') || document.getElementById('peerPickerOverlay') || document.getElementById('keyPickerOverlay')) {
+            window._qhPopHandler = _qhPopHandler;
+            window.addEventListener('popstate', _qhPopHandler, { once: true });
+            return;
+        }
         var ov = document.getElementById('questHubOverlay');
         if (!ov) return;
         if (typeof window._cleanupRaidBoss === 'function') window._cleanupRaidBoss();

@@ -639,6 +639,33 @@
         if (am) am.style.display = 'none';
 
         renderPVPLobby();
+    };
+
+    window.findPvpOpponent = function() {
+        if (!document.getElementById('pvpOverlay')) {
+            window.enterPVPMode();
+            if (!document.getElementById('pvpOverlay')) return;
+        }
+        if (pvpState._searching || pvpState.inMatch || pvpState.lobbyDocId) return;
+        pvpState._searching = true;
+        pvpState.inLobby = true;
+        var status = document.getElementById('pvpLobbyStatus');
+        if (status) {
+            status.textContent = '';
+            var pulse = document.createElement('div');
+            pulse.className = 'pvp-pulse';
+            pulse.style.cssText = 'width:64px;height:64px;border-radius:50%;background:rgba(247,147,26,0.15);border:3px solid var(--accent);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;animation:pvpPulse 2s ease-in-out infinite;font-size:1.6rem;';
+            pulse.textContent = '🔍';
+            var title = document.createElement('div');
+            title.style.cssText = 'color:var(--text);font-weight:700;font-size:0.95rem;';
+            title.textContent = 'Searching for opponent...';
+            var sub = document.createElement('div');
+            sub.style.cssText = 'color:var(--text-faint);font-size:0.75rem;margin-top:4px;';
+            sub.textContent = 'First come, first served matchmaking';
+            status.appendChild(pulse);
+            status.appendChild(title);
+            status.appendChild(sub);
+        }
         joinLobby();
     };
 
@@ -710,6 +737,7 @@
             pvpState.lobbyDocId = null;
         }
 
+        pvpState._searching = false;
         pvpState.matchId = null;
         pvpState.currentQ = 0;
         pvpState.myScore = 0;
@@ -864,16 +892,14 @@
                     '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:14px;margin-bottom:16px;text-align:left;">' +
                         '<div style="font-size:0.65rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">How It Works</div>' +
                         '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.6;">' +
-                            '5 questions per round · First correct answer wins · Streaks = bonus pts · Win 3 of 5 for victory!' +
+                            '5 questions per round. The first correct answer wins the round. Streaks add bonus points. Win 3 of 5 rounds.' +
+                            '<br>Opening the lobby does not look for an opponent. Tap Find opponent when you want a match. You can leave before a match starts.' +
                         '</div>' +
                     '</div>' +
-                    // Searching animation
                     '<div id="pvpLobbyStatus" style="margin-bottom:20px;text-align:center;">' +
-                        '<div class="pvp-pulse" style="width:64px;height:64px;border-radius:50%;background:rgba(247,147,26,0.15);border:3px solid var(--accent);margin:0 auto 12px;display:flex;align-items:center;justify-content:center;animation:pvpPulse 2s ease-in-out infinite;">' +
-                            '<span style="font-size:1.6rem;">🔍</span>' +
-                        '</div>' +
-                        '<div style="color:var(--text);font-weight:700;font-size:0.95rem;">Searching for opponent...</div>' +
-                        '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">First come, first served matchmaking</div>' +
+                        '<div style="color:var(--text);font-weight:800;font-size:0.95rem;">Not looking for an opponent</div>' +
+                        '<div style="color:var(--text-faint);font-size:0.75rem;margin:4px 0 12px;">Read the rules above. Nothing is queued until you tap Find opponent.</div>' +
+                        '<button type="button" id="pvpFindOpponent" onclick="findPvpOpponent()" style="min-height:44px;padding:12px 22px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">Find opponent</button>' +
                     '</div>' +
                     // Share link to challenge a friend
                     '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(247,147,26,0.02));border:2px dashed rgba(247,147,26,0.4);border-radius:16px;padding:16px;margin-bottom:16px;text-align:center;">' +
@@ -1016,6 +1042,7 @@
             startPracticePromptTimer();
         }).catch(function(err) {
             console.error('PVP lobby join error:', err);
+            pvpState._searching = false;
             if (typeof showToast === 'function') showToast('⚠️ Failed to join PVP lobby');
         });
     }
@@ -1850,7 +1877,7 @@
                 '<div id="pvpRewardLine" style="color:var(--accent);font-weight:800;margin-bottom:16px;min-height:1.2em;"></div>' +
                 // Buttons
                 '<div style="display:flex;gap:12px;justify-content:center;">' +
-                    '<button onclick="exitPVPMode(true);enterPVPMode();" class="pvp-btn" style="padding:14px 28px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">Play Again ⚔️</button>' +
+                    '<button onclick="exitPVPMode(true);enterPVPMode();if(window.findPvpOpponent)findPvpOpponent();" class="pvp-btn" style="padding:14px 28px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">Play Again ⚔️</button>' +
                     '<button onclick="exitPVPMode(true)" class="pvp-btn" style="padding:14px 28px;background:none;border:2px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Leave</button>' +
                 '</div>' +
             '</div>';
@@ -1881,7 +1908,7 @@
                 '<div style="color:var(--text-muted);font-size:0.95rem;margin-bottom:12px;line-height:1.6;">' + message + '</div>' +
                 '<div id="pvpRewardLine" style="color:var(--accent);font-weight:800;margin-bottom:20px;min-height:1.2em;"></div>' +
                 '<div style="display:flex;gap:12px;justify-content:center;">' +
-                    '<button onclick="exitPVPMode(true);enterPVPMode();" class="pvp-btn" style="padding:14px 28px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">Play Again ⚔️</button>' +
+                    '<button onclick="exitPVPMode(true);enterPVPMode();if(window.findPvpOpponent)findPvpOpponent();" class="pvp-btn" style="padding:14px 28px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">Play Again ⚔️</button>' +
                     '<button onclick="exitPVPMode(true)" class="pvp-btn" style="padding:14px 28px;background:none;border:2px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Leave</button>' +
                 '</div>' +
             '</div>';

@@ -67,8 +67,9 @@ firebase.messaging().onBackgroundMessage(function (payload) {
 } catch (e) { /* FCM scripts are optional; cache and click handling still run */ }
 
 // [AUDIT FIX P7/B10] Expanded pre-cache and larger image cache
-// v2527 placeholder: owner edit and soft delete for Global Chat and direct messages.
-const CACHE_NAME = 'btc-archive-v2527';const IMG_CACHE = 'btc-images-v2';
+// v2532 placeholder: sats/bits percents, image captions, cipher opener, PvP rules before queue.
+// Overlaps open PR #271 (v2527 owner edit and soft delete). Not deployed.
+const CACHE_NAME = 'btc-archive-v2532';const IMG_CACHE = 'btc-images-v2';
 const MAX_IMG_CACHE = 800; // [AUDIT FIX P7] Increased from 200
 
 // [AUDIT FIX B10] Pre-cache critical files including key JS modules

@@ -128,9 +128,10 @@
         dismiss(true);
         function go() {
             if (typeof window.enterPVPMode === 'function') window.enterPVPMode();
+            if (typeof window.findPvpOpponent === 'function') window.findPvpOpponent();
         }
         if (typeof window.enterPVPMode === 'function') { go(); return; }
-        var src = 'pvp.js?v=20261031_v2447';
+        var src = 'pvp.js?v=20261109_v2532';
         var existing = document.querySelector('script[src="' + src + '"]');
         if (existing) { setTimeout(go, 400); return; }
         var s = document.createElement('script');

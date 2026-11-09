@@ -42,6 +42,25 @@ function textOf(data) {
     return data && typeof data.text === 'string' ? data.text : '';
 }
 
+function captionOf(data) {
+    return data && typeof data.caption === 'string' ? data.caption : '';
+}
+
+// A caption-only edit is the image URL staying put and the caption changing.
+// A text edit is the opposite. Both are filtered. An edit that changes neither
+// still checks text, which is what a count-only write used to do.
+function editedBodies(before, after) {
+    const bodies = [];
+    if (textOf(before) !== textOf(after)) {
+        bodies.push({ field: 'text', before: textOf(before), after: textOf(after) });
+    }
+    if (captionOf(before) !== captionOf(after)) {
+        bodies.push({ field: 'caption', before: captionOf(before), after: captionOf(after) });
+    }
+    if (!bodies.length) bodies.push({ field: 'text', before: textOf(before), after: textOf(after) });
+    return bodies;
+}
+
 function actorUid(data, surface) {
     if (!data) return '';
     const id = surface === 'dm' ? data.senderUid : data.uid;
@@ -246,28 +265,46 @@ async function deleteStoredMedia(before, deleteFile, surface) {
     return removed;
 }
 
-// Re-reads the message. Skips when text or editCount moved on since `after`.
-// Restores before.text only when that text is clean. Otherwise blanks it.
+// Re-reads the message. Skips when text, caption, or editCount moved on since `after`.
+// Restores a blocked field only when the previous value is clean. Otherwise blanks it.
+// A caption revert does not touch the image URL in text.
 async function revertEdit(db, admin, ref, before, after) {
-    const previous = textOf(before);
-    const restore = blockReason(previous) ? '' : previous;
+    const bodies = editedBodies(before, after);
+    const restore = {};
+    let blanked = false;
+    let restoredClean = true;
+    bodies.forEach(function (body) {
+        if (!blockReason(body.after)) return;
+        const clean = blockReason(body.before) ? '' : body.before;
+        restore[body.field] = clean;
+        if (clean !== body.before) blanked = true;
+        if (clean !== body.before) restoredClean = false;
+    });
+    const previousEdited = !!(before && before.edited === true) && restoredClean && !blanked;
     return db.runTransaction(async function (t) {
         const snap = await t.get(ref);
         if (!snap || snap.exists === false) return { skipped: 'gone' };
         const cur = snap.data() || {};
         if (textOf(cur) !== textOf(after)) return { skipped: 'changed' };
+        if (captionOf(cur) !== captionOf(after)) return { skipped: 'changed' };
         if ((Number(cur.editCount) || 0) !== (Number(after.editCount) || 0)) return { skipped: 'changed' };
         const patch = {
-            text: restore,
-            edited: !!(before && before.edited === true) && restore === previous,
+            edited: previousEdited,
             editCount: Number(before && before.editCount) || 0,
             revertSeq: (Number(cur.revertSeq) || 0) + 1,
             filterRemoved: true,
         };
-        if (before && before.editedAt && restore === previous) patch.editedAt = before.editedAt;
+        if (Object.prototype.hasOwnProperty.call(restore, 'text')) patch.text = restore.text;
+        if (Object.prototype.hasOwnProperty.call(restore, 'caption')) patch.caption = restore.caption;
+        if (before && before.editedAt && previousEdited) patch.editedAt = before.editedAt;
         else patch.editedAt = admin.firestore.FieldValue.delete();
         t.update(ref, patch);
-        return { reverted: true, blanked: restore !== previous, text: restore };
+        return {
+            reverted: true,
+            blanked: blanked,
+            text: Object.prototype.hasOwnProperty.call(restore, 'text') ? restore.text : textOf(after),
+            caption: Object.prototype.hasOwnProperty.call(restore, 'caption') ? restore.caption : captionOf(after),
+        };
     });
 }
 
@@ -290,15 +327,28 @@ async function handleGlobalUpdate(db, admin, msgId, before, after, nowMs, opts) 
     const action = deleted ? 'delete' : 'edit';
     const uid = actorUid(before, 'global');
     const path = 'global_chat/' + msgId;
-    const reason = edited ? blockReason(textOf(after)) : '';
+    const bodies = edited ? editedBodies(before, after) : [];
+    let reason = '';
+    let logged = { before: textOf(before), after: deleted ? '' : textOf(after) };
+    if (edited) {
+        logged = bodies[bodies.length - 1];
+        for (let i = 0; i < bodies.length; i++) {
+            const hit = blockReason(bodies[i].after);
+            if (hit) {
+                reason = hit;
+                logged = bodies[i];
+                break;
+            }
+        }
+    }
     const attempt = attemptKey(options.eventId, after, action);
     const id = logDocId(action, path, attempt);
     await recordChange(db, admin, {
         surface: 'global',
         path: path,
         uid: uid,
-        before: textOf(before),
-        after: deleted ? '' : textOf(after),
+        before: logged.before,
+        after: deleted ? '' : logged.after,
         action: action,
         atMs: nowMs,
         blocked: reason,

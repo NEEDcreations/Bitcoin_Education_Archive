@@ -41,6 +41,15 @@ function editPatch(text, count) {
     };
 }
 
+function captionPatch(caption, count) {
+    return {
+        caption: caption,
+        edited: true,
+        editedAt: serverTimestamp(),
+        editCount: count,
+    };
+}
+
 (async function main() {
     let failed = 0;
     const env = await initializeTestEnvironment({
@@ -83,8 +92,20 @@ function editPatch(text, count) {
                 uid: 'user1', name: 'phil', text: 'from tg', ts: Timestamp.now(), source: 'telegram',
             });
             await setDoc(doc(db, 'global_chat', 'capmsg'), {
-                uid: 'user1', name: 'phil', text: 'https://firebasestorage.googleapis.com/x', ts: Timestamp.now(),
+                uid: 'user1', name: 'phil', text: 'https://firebasestorage.googleapis.com/x.jpg', ts: Timestamp.now(),
                 isGif: true, caption: 'secret caption',
+            });
+            await setDoc(doc(db, 'global_chat', 'capedit'), {
+                uid: 'user1', name: 'phil', text: 'https://firebasestorage.googleapis.com/edit.jpg', ts: Timestamp.now(),
+                isGif: true, caption: 'secret caption',
+            });
+            await setDoc(doc(db, 'global_chat', 'capold'), {
+                uid: 'user1', name: 'phil', text: 'https://firebasestorage.googleapis.com/old.jpg', ts: old,
+                isGif: true, caption: 'late caption',
+            });
+            await setDoc(doc(db, 'global_chat', 'capmax'), {
+                uid: 'user1', name: 'phil', text: 'https://firebasestorage.googleapis.com/max.jpg', ts: Timestamp.now(),
+                isGif: true, caption: 'fifth', editCount: 5,
             });
             await setDoc(doc(db, 'global_chat', 'gif1'), {
                 uid: 'user1', name: 'phil', text: 'cap', ts: Timestamp.now(), isGif: true, gifUrl: 'https://media.tenor.com/x.gif',
@@ -176,6 +197,38 @@ function editPatch(text, count) {
         }, false);
         await expect('edit a GIF message', function () {
             return updateDoc(doc(user, 'global_chat', 'gif1'), editPatch('caption', 1));
+        }, false);
+        await expect('edit an image caption within 15 minutes', function () {
+            return updateDoc(doc(user, 'global_chat', 'capedit'), captionPatch('fixed caption', 1));
+        }, true);
+        await expect('caption edit cannot change the image url', function () {
+            return updateDoc(doc(user, 'global_chat', 'capedit'), Object.assign(captionPatch('sneaky', 2), {
+                text: 'https://evil.example/a.jpg',
+            }));
+        }, false);
+        await expect('caption edit over 300 characters', function () {
+            return updateDoc(doc(user, 'global_chat', 'capedit'), captionPatch('x'.repeat(301), 2));
+        }, false);
+        await expect('empty caption edit', function () {
+            return updateDoc(doc(user, 'global_chat', 'capedit'), captionPatch('', 2));
+        }, false);
+        await expect('second caption edit is allowed', function () {
+            return updateDoc(doc(user, 'global_chat', 'capedit'), captionPatch('fixed again', 2));
+        }, true);
+        await expect('caption edit after 15 minutes', function () {
+            return updateDoc(doc(user, 'global_chat', 'capold'), captionPatch('too late', 1));
+        }, false);
+        await expect('sixth caption edit', function () {
+            return updateDoc(doc(user, 'global_chat', 'capmax'), captionPatch('sixth', 6));
+        }, false);
+        await expect('non-owner caption edit', function () {
+            return updateDoc(doc(other, 'global_chat', 'capedit'), captionPatch('hijack', 3));
+        }, false);
+        await expect('caption edit on a text message', function () {
+            return updateDoc(doc(user, 'global_chat', 'fresh1'), captionPatch('not media', 3));
+        }, false);
+        await expect('anonymous caption edit', function () {
+            return updateDoc(doc(guest, 'global_chat', 'capedit'), captionPatch('anon', 3));
         }, false);
         await expect('anonymous edit', function () {
             return updateDoc(doc(guest, 'global_chat', 'fresh1'), editPatch('anon', 3));

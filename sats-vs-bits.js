@@ -148,19 +148,41 @@ function animateTap(side) {
     }
 }
 
+function votePercents() {
+    var total = (localSats || 0) + (localBits || 0);
+    if (total <= 0) return { sats: 0, bits: 0, total: 0 };
+    var satsPct = Math.round(localSats / total * 100);
+    return { sats: satsPct, bits: 100 - satsPct, total: total };
+}
+
 function updateDisplay() {
     var satsEl = document.getElementById('svbSatsCount');
     var bitsEl = document.getElementById('svbBitsCount');
+    var satsPctEl = document.getElementById('svbSatsPct');
+    var bitsPctEl = document.getElementById('svbBitsPct');
     var barEl = document.getElementById('svbBar');
     var remainEl = document.getElementById('svbRemaining');
+    var pct = votePercents();
 
     if (satsEl) satsEl.textContent = formatNum(localSats);
     if (bitsEl) bitsEl.textContent = formatNum(localBits);
+    if (satsPctEl) satsPctEl.textContent = pct.sats + '%';
+    if (bitsPctEl) bitsPctEl.textContent = pct.bits + '%';
+    var satsBarLabel = document.getElementById('svbSatsBarLabel');
+    var bitsBarLabel = document.getElementById('svbBitsBarLabel');
+    if (satsBarLabel) satsBarLabel.textContent = 'SATS ' + pct.sats + '%';
+    if (bitsBarLabel) bitsBarLabel.textContent = pct.bits + '% BITS';
 
-    var total = localSats + localBits;
-    if (barEl && total > 0) {
-        var satsPct = Math.round(localSats / total * 100);
-        barEl.innerHTML = '<div style="height:100%;width:' + satsPct + '%;background:linear-gradient(90deg,#f7931a,#ea580c);border-radius:4px;transition:width 0.3s;"></div>';
+    if (barEl) {
+        var fill = barEl.querySelector('.svb-sats-fill');
+        if (!fill) {
+            barEl.textContent = '';
+            fill = document.createElement('div');
+            fill.className = 'svb-sats-fill';
+            fill.style.cssText = 'height:100%;background:linear-gradient(90deg,#f7931a,#ea580c);border-radius:4px;transition:width 0.3s;';
+            barEl.appendChild(fill);
+        }
+        fill.style.width = (pct.total > 0 ? pct.sats : 0) + '%';
     }
     if (remainEl) {
         loadDailyTaps();
@@ -224,19 +246,21 @@ function toggleSvbPanel() {
             '<div style="text-align:center;flex:1;">' +
                 '<button id="svbSatsBtn" onclick="window._svbVote(\'sats\')" style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#f7931a,#ea580c);border:2px solid #f7931a;color:#fff;font-size:1.2rem;cursor:pointer;transition:transform 0.15s;display:flex;align-items:center;justify-content:center;margin:0 auto 3px;touch-action:manipulation;box-shadow:0 2px 10px rgba(247,147,26,0.3);">₿</button>' +
                 '<div id="svbSatsCount" style="font-size:0.95rem;font-weight:900;color:#f7931a;">0</div>' +
+                '<div id="svbSatsPct" style="font-size:0.72rem;font-weight:900;color:#f7931a;">0%</div>' +
                 '<div style="font-size:0.55rem;color:var(--text-faint);font-weight:700;">SATS</div>' +
             '</div>' +
             '<div style="font-size:0.7rem;font-weight:900;color:var(--text-faint);letter-spacing:1px;">VS</div>' +
             '<div style="text-align:center;flex:1;">' +
                 '<button id="svbBitsBtn" onclick="window._svbVote(\'bits\')" style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#6366f1);border:2px solid #3b82f6;color:#fff;font-size:1.2rem;cursor:pointer;transition:transform 0.15s;display:flex;align-items:center;justify-content:center;margin:0 auto 3px;touch-action:manipulation;box-shadow:0 2px 10px rgba(59,130,246,0.3);">ƀ</button>' +
                 '<div id="svbBitsCount" style="font-size:0.95rem;font-weight:900;color:#3b82f6;">0</div>' +
+                '<div id="svbBitsPct" style="font-size:0.72rem;font-weight:900;color:#3b82f6;">0%</div>' +
                 '<div style="font-size:0.55rem;color:var(--text-faint);font-weight:700;">BITS</div>' +
             '</div>' +
         '</div>' +
         '<div style="display:flex;align-items:center;gap:4px;margin-top:6px;">' +
-            '<span style="font-size:0.5rem;color:#f7931a;font-weight:700;">SATS</span>' +
+            '<span id="svbSatsBarLabel" style="font-size:0.5rem;color:#f7931a;font-weight:700;">SATS</span>' +
             '<div id="svbBar" style="flex:1;height:8px;background:linear-gradient(90deg,#3b82f6,#6366f1);border-radius:4px;overflow:hidden;"></div>' +
-            '<span style="font-size:0.5rem;color:#3b82f6;font-weight:700;">BITS</span>' +
+            '<span id="svbBitsBarLabel" style="font-size:0.5rem;color:#3b82f6;font-weight:700;">BITS</span>' +
         '</div>' +
         '<div id="svbRemaining" style="text-align:center;font-size:0.5rem;color:var(--text-faint);margin-top:3px;">' + DAILY_LIMIT + ' taps left today</div>';
 
