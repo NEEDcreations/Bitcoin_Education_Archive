@@ -94,16 +94,17 @@ function planCheckin(prev, ctx) {
 }
 
 // How many viewers may move sats on this tick.
-// liveTotal is the public header (tctv_counts/live). Logged-out clients can
-// create v_ presence docs, so that total must not fill the pot. crediting is
-// the count of signed-in, age-ok, device-locked check-ins that actually
-// credited inside the fresh window. Zero of those means zero accrual, even
-// if liveTotal is maxed out.
+// liveTotal is the public header after the staleness check (0 when the
+// aggregate is older than 3 minutes). crediting is signed-in, age-ok,
+// device-locked check-ins that actually credited. Forged presence can raise
+// the header, so accrual is the smaller of the two. Zero crediting check-ins
+// means zero sats, even when liveTotal is 50.
 function accrualViewers(liveTotal, crediting) {
-    void liveTotal;
-    const n = Math.floor(Number(crediting));
-    if (!Number.isFinite(n) || n <= 0) return 0;
-    return n;
+    const live = Math.floor(Number(liveTotal));
+    const credit = Math.floor(Number(crediting));
+    const liveN = Number.isFinite(live) && live > 0 ? live : 0;
+    const creditN = Number.isFinite(credit) && credit > 0 ? credit : 0;
+    return Math.min(liveN, creditN);
 }
 
 // Stepped fill rate from active viewers (capped at maxCountedViewers).

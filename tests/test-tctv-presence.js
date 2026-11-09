@@ -122,6 +122,14 @@ test('fresh window is 90s, stale delete is 10 min, batch is bounded', () => {
     assert.ok(lib.STALE_DELETE_LIMIT > 0 && lib.STALE_DELETE_LIMIT <= 200);
 });
 
+test('a live count older than 3 minutes is 0', () => {
+    const now = 1_700_000_000_000;
+    assert.strictEqual(lib.LIVE_STALE_MS, 3 * 60 * 1000);
+    assert.strictEqual(lib.freshLiveTotal({ stations: { news: 50 }, updatedAtMs: now }, now), 50);
+    assert.strictEqual(lib.freshLiveTotal({ stations: { news: 50 }, updatedAtMs: now - 4 * 60 * 1000 }, now), 0);
+    assert.strictEqual(lib.freshLiveTotal({ stations: { news: 50 } }, now), 0);
+});
+
 test('live viewer total is the header sum of real stations', () => {
     assert.strictEqual(lib.liveViewerTotal({ news: 4, art: 0, bad: 'x', 'not-a-station': 9 }), 4);
     assert.strictEqual(lib.liveViewerTotal(null), 0);
@@ -144,6 +152,8 @@ test('aggregator queries ts and writes one live doc', () => {
     assert.ok(fn.includes(".limit(tctvPresence.STALE_DELETE_LIMIT)"));
     assert.ok(fn.includes(".doc('live')"));
     assert.ok(fn.includes('stationCountsEqual'));
+    assert.ok(fn.includes('updatedAtMs: now'));
+    assert.ok(fn.includes('await countRef.set(beat, { merge: true })'), 'unchanged counts still heartbeat');
     assert.ok(!fn.includes(".collection('tctv_presence').get()"));
     assert.ok(!fn.includes('.collection("tctv_presence").get()'));
 });
@@ -230,8 +240,12 @@ test('TV page presence code writes expiresAt and listens to one doc', () => {
     assert.strictEqual(listeners.length, 1);
     assert.strictEqual(listeners[0].name, 'tctv_counts');
     assert.strictEqual(listeners[0].id, 'live');
-    listeners[0].cb({ exists: true, data: function () { return { stations: { news: 4, art: 0, bad: 'x' } }; } });
+    listeners[0].cb({ exists: true, data: function () { return { stations: { news: 4, art: 0, bad: 'x' }, updatedAtMs: Date.now() }; } });
     assert.strictEqual(sandbox.s.news, 4);
+    listeners[0].cb({ exists: true, data: function () { return { stations: { news: 50 }, updatedAtMs: Date.now() - 4 * 60 * 1000 }; } });
+    assert.strictEqual(sandbox.s.news, undefined);
+    assert.deepStrictEqual(Object.keys(sandbox.s), []);
+    listeners[0].cb({ exists: true, data: function () { return { stations: { news: 4 }, updatedAtMs: Date.now() }; } });
     assert.deepStrictEqual(Object.keys(sandbox.s).sort(), ['news']);
     assert.ok(sandbox.kCalls >= 1);
     sandbox.api.stop();

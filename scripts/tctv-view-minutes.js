@@ -7,6 +7,7 @@
 
 const { offsetDateKey } = require('../functions/src/offsetDay');
 const { isAgentOrBlocked, DEFAULTS } = require('../functions/src/tctvDripLogic');
+const { samePerson } = require('../functions/src/badgeProgress');
 
 const CREDIT_SECONDS = 60;
 const CLAIM_SECONDS = 600;
@@ -104,7 +105,6 @@ function assessPotCredit(row) {
     const verified = floorSeconds(src.verifiedSeconds);
     const gap = Math.max(0, verified - potSeconds);
     const stuck = src.promptStuck === true;
-    const stuckCredit = floorSeconds(src.stuckCreditSeconds);
     const ageOk = src.ageOk === true;
     const blocked = src.blocked === true;
     const open = src.potOpen === true;
@@ -115,10 +115,13 @@ function assessPotCredit(row) {
     else if (blocked) reason = 'ineligible';
     else if (!ageOk) reason = 'age-ineligible';
     else if (src.hasDripDoc === false) reason = 'no-drip-doc';
-    else if (stuck && gap >= CREDIT_SECONDS && stuckCredit >= CREDIT_SECONDS && room >= CREDIT_SECONDS) {
-        owed = Math.floor(Math.min(gap, stuckCredit, room) / CREDIT_SECONDS) * CREDIT_SECONDS;
-        reason = owed > 0 ? 'prompt-loop-while-watching' : 'ok';
-    } else if (gap >= CREDIT_SECONDS) reason = 'watch-ledger-ahead';
+    else if (src.alreadyApplied === true) reason = 'already-applied';
+    else if (gap >= CREDIT_SECONDS && room >= CREDIT_SECONDS) {
+        // Watch-log minutes minus pot seconds. Prompt state is not required,
+        // so the gap is still visible after the check-in fix is deployed.
+        owed = Math.floor(Math.min(gap, room) / CREDIT_SECONDS) * CREDIT_SECONDS;
+        reason = owed > 0 ? 'watch-log-short' : 'ok';
+    }
     const accurate = reason === 'ok' || reason === 'pot-closed';
     return {
         uid: uid,
@@ -131,7 +134,76 @@ function assessPotCredit(row) {
         reason: reason,
         promptStuck: stuck,
         accurate: accurate,
-        willCredit: owed > 0 && reason === 'prompt-loop-while-watching',
+        willCredit: owed > 0 && reason === 'watch-log-short',
+    };
+}
+
+// Linked accounts (same fingerprint, email, lightning address, or IP, the
+// same signals samePerson uses) get one credit. The largest gap is kept.
+function selectCreditRows(rows) {
+    const list = (rows || []).map(function (row) { return Object.assign({}, row); });
+    const open = [];
+    for (let i = 0; i < list.length; i++) {
+        if (list[i] && list[i].willCredit) open.push(i);
+    }
+    const parent = open.map(function (_, i) { return i; });
+    function find(i) {
+        while (parent[i] !== i) {
+            parent[i] = parent[parent[i]];
+            i = parent[i];
+        }
+        return i;
+    }
+    function person(row) {
+        return Object.assign({}, row.user || {}, { uid: String(row.uid || '') });
+    }
+    for (let a = 0; a < open.length; a++) {
+        for (let b = a + 1; b < open.length; b++) {
+            if (!samePerson(person(list[open[a]]), person(list[open[b]]))) continue;
+            const pa = find(a);
+            const pb = find(b);
+            if (pa !== pb) parent[pb] = pa;
+        }
+    }
+    const groups = new Map();
+    for (let i = 0; i < open.length; i++) {
+        const g = find(i);
+        if (!groups.has(g)) groups.set(g, []);
+        groups.get(g).push(open[i]);
+    }
+    const drop = new Set();
+    groups.forEach(function (idxs) {
+        if (idxs.length < 2) return;
+        idxs.sort(function (ia, ib) {
+            const delta = (list[ib].owedSeconds || 0) - (list[ia].owedSeconds || 0);
+            if (delta) return delta;
+            return String(list[ia].uid).localeCompare(String(list[ib].uid));
+        });
+        for (let k = 1; k < idxs.length; k++) drop.add(String(list[idxs[k]].uid));
+    });
+    return list.map(function (row) {
+        if (!row || !drop.has(String(row.uid))) return row;
+        return Object.assign({}, row, {
+            willCredit: false,
+            owedSeconds: 0,
+            owedMinutes: 0,
+            reason: 'linked-duplicate',
+        });
+    });
+}
+
+function creditReport(rows) {
+    const pay = (rows || []).filter(function (row) { return row && row.willCredit; });
+    pay.sort(function (a, b) {
+        return (b.owedSeconds - a.owedSeconds) || String(a.uid).localeCompare(String(b.uid));
+    });
+    let totalSeconds = 0;
+    for (let i = 0; i < pay.length; i++) totalSeconds += pay[i].owedSeconds || 0;
+    return {
+        totalSeconds: totalSeconds,
+        top10: pay.slice(0, 10).map(function (row) {
+            return { uid: String(row.uid), seconds: row.owedSeconds };
+        }),
     };
 }
 
@@ -162,7 +234,8 @@ function creditPatch(owedSeconds, nowMs) {
         secondsDelta: add > 0 ? add : 0,
         promptToken: '',
         promptDueMs: now + 20 * 60 * 1000,
-        viewMinuteCreditReason: 'prompt-loop-while-watching',
+        viewMinuteCreditReason: 'watch-log-short',
+        viewMinuteCreditApplied: true,
     };
 }
 
@@ -182,6 +255,8 @@ module.exports = {
     promptStuckState: promptStuckState,
     verifiedWatchSeconds: verifiedWatchSeconds,
     assessPotCredit: assessPotCredit,
+    selectCreditRows: selectCreditRows,
+    creditReport: creditReport,
     creditMode: creditMode,
     auditRejectsApply: auditRejectsApply,
     daysArg: daysArg,

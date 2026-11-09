@@ -58,44 +58,69 @@ test('verified minutes use today plus finished daily goals, not days before the 
     assert.strictEqual(v.claimDays, 2);
 });
 
-test('owed credit is the prompt loop capped by the watch ledger', function () {
+test('missed minutes are the watch log minus pot seconds, with or without a prompt', function () {
     const row = M.assessPotCredit({
         uid: 'u1',
         potSeconds: 120,
         verifiedSeconds: 1500,
-        promptStuck: true,
-        stuckCreditSeconds: 20 * 60,
+        promptStuck: false,
         ageOk: true,
         blocked: false,
         potOpen: true,
         hasDripDoc: true,
     });
-    assert.strictEqual(row.reason, 'prompt-loop-while-watching');
+    assert.strictEqual(row.reason, 'watch-log-short');
     assert.strictEqual(row.accurate, false);
-    assert.strictEqual(row.owedSeconds, 20 * 60);
+    assert.strictEqual(row.owedSeconds, 1380);
     assert.strictEqual(row.willCredit, true);
     assert.strictEqual(row.gapSeconds, 1500 - 120);
     const patch = M.creditPatch(row.owedSeconds, NOW);
-    assert.strictEqual(patch.secondsDelta, 20 * 60);
-    assert.strictEqual(patch.promptToken, '');
-    assert.ok(patch.promptDueMs > NOW);
+    assert.strictEqual(patch.secondsDelta, 1380);
+    assert.strictEqual(patch.viewMinuteCreditApplied, true);
+    const again = M.assessPotCredit({
+        uid: 'u1', potSeconds: 1500, verifiedSeconds: 1500, ageOk: true, potOpen: true, hasDripDoc: true, alreadyApplied: true,
+    });
+    assert.strictEqual(again.reason, 'already-applied');
+    assert.strictEqual(again.willCredit, false);
 });
 
-test('a ledger gap without a stuck prompt is listed and not credited', function () {
+test('a watch-log gap is credited even when the prompt is not open', function () {
     const row = M.assessPotCredit({
         uid: 'u2',
         potSeconds: 0,
         verifiedSeconds: 600,
         promptStuck: false,
-        stuckCreditSeconds: 0,
         ageOk: true,
         potOpen: true,
         hasDripDoc: true,
     });
-    assert.strictEqual(row.reason, 'watch-ledger-ahead');
-    assert.strictEqual(row.willCredit, false);
-    assert.strictEqual(row.owedSeconds, 0);
+    assert.strictEqual(row.reason, 'watch-log-short');
+    assert.strictEqual(row.willCredit, true);
+    assert.strictEqual(row.owedSeconds, 600);
     assert.strictEqual(row.gapMinutes, 10);
+});
+
+test('linked accounts are credited once and banned accounts are skipped', function () {
+    const shared = { fingerprint: 'device-1', email: 'a@example.com' };
+    const rows = M.selectCreditRows([
+        M.assessPotCredit({ uid: 'a', potSeconds: 0, verifiedSeconds: 600, ageOk: true, potOpen: true, hasDripDoc: true }),
+        M.assessPotCredit({ uid: 'b', potSeconds: 0, verifiedSeconds: 1200, ageOk: true, potOpen: true, hasDripDoc: true }),
+        M.assessPotCredit({ uid: 'c', potSeconds: 0, verifiedSeconds: 600, ageOk: true, potOpen: true, hasDripDoc: true, blocked: true }),
+    ].map(function (row, i) {
+        const users = [shared, shared, { fingerprint: 'other', email: 'c@example.com' }];
+        row.user = Object.assign({ uid: row.uid }, users[i]);
+        return row;
+    }));
+    const by = {};
+    rows.forEach(function (row) { by[row.uid] = row; });
+    assert.strictEqual(by.b.willCredit, true);
+    assert.strictEqual(by.a.reason, 'linked-duplicate');
+    assert.strictEqual(by.a.willCredit, false);
+    assert.strictEqual(by.c.reason, 'ineligible');
+    const report = M.creditReport(rows);
+    assert.strictEqual(report.totalSeconds, 1200);
+    assert.strictEqual(report.top10.length, 1);
+    assert.strictEqual(report.top10[0].uid, 'b');
 });
 
 test('ineligible, closed, and age-blocked rows are not credited', function () {
@@ -134,6 +159,9 @@ test('audit script is read-only and the credit script defaults to dry-run', func
     assert.ok(credit.includes('creditMode'));
     assert.ok(credit.includes('dry-run: no Firestore writes'));
     assert.ok(credit.includes("mode === 'apply'"));
+    assert.ok(credit.includes('viewMinuteCreditApplied'));
+    assert.ok(credit.includes('selectCreditRows'));
+    assert.ok(credit.includes('totalSeconds') && credit.includes('top10'));
     assert.ok(!credit.includes('cipherSatsBalance'), 'credit adds watch seconds, not a sats balance');
     execFileSync(process.execPath, ['--check', path.join(root, 'scripts', 'tctv-view-minutes.js')], { stdio: 'pipe' });
     execFileSync(process.execPath, ['--check', path.join(root, 'scripts', 'tctv-view-minutes-audit.js')], { stdio: 'pipe' });

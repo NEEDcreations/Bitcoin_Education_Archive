@@ -59,6 +59,7 @@ function planFrom(uid, drip, daily, claims, user, pot, today, windowStart, nowMs
         stuckCreditSeconds: stuck.stuckCreditSeconds,
         ageOk: drip.ageOk === true,
         blocked: minutes.userIsBlocked(user),
+        alreadyApplied: drip.viewMinuteCreditApplied === true,
         potOpen: minutes.potIsOpen(pot.status),
         hasDripDoc: true,
         perAccountLimitSeconds: pot.perAccountLimitSeconds,
@@ -82,6 +83,9 @@ async function applyOne(db, admin, ref, pot, today, windowStart) {
         const snap = await tx.get(ref);
         if (!snap.exists) return { uid: ref.id, reason: 'missing', willCredit: false, owedMinutes: 0 };
         const drip = snap.data() || {};
+        if (drip.viewMinuteCreditApplied === true) {
+            return { uid: String(drip.uid || ref.id), reason: 'already-applied', willCredit: false, owedMinutes: 0, owedSeconds: 0 };
+        }
         const uid = String(drip.uid || '');
         const userSnap = await tx.get(db.collection('users').doc(uid));
         const watchSnap = await tx.get(db.collection('tctv_watch').doc(uid));
@@ -106,6 +110,7 @@ async function applyOne(db, admin, ref, pot, today, windowStart) {
             promptDueMs: patch.promptDueMs,
             viewMinuteCreditSeconds: FieldValue.increment(patch.secondsDelta),
             viewMinuteCreditReason: patch.viewMinuteCreditReason,
+            viewMinuteCreditApplied: true,
             viewMinuteCreditAt: FieldValue.serverTimestamp(),
         }, { merge: true });
         return plan;
@@ -139,37 +144,45 @@ async function main() {
     }
 
     let scanned = 0;
-    let creditedUsers = 0;
-    let owedMinutes = 0;
+    const plans = [];
+    const refs = [];
     const snap = await db.collection('tctv_drip_watch').where('potId', '==', pot.potId).get();
     for (let i = 0; i < snap.docs.length && scanned < 200000; i++) {
-            const doc = snap.docs[i];
-            const drip = doc.data() || {};
-            const uid = String(drip.uid || '');
-            if (!uid) continue;
-            scanned++;
-            const ctx = await loadContext(db, uid, pot, today, windowStart, nowMs);
-            let plan = planFrom(uid, drip, ctx.daily, ctx.claims, ctx.user, pot, today, windowStart, nowMs);
-            if (apply && plan.willCredit) plan = await applyOne(db, admin, doc.ref, pot, today, windowStart);
-            if (!plan.willCredit && plan.reason === 'ok') continue;
-            if (plan.reason === 'ok') continue;
-            if (plan.willCredit) { creditedUsers++; owedMinutes += plan.owedMinutes || 0; }
-            console.log(JSON.stringify({
-                uid: plan.uid,
-                reason: plan.reason,
-                owedMinutes: plan.owedMinutes || 0,
-                potSeconds: plan.potSeconds || 0,
-                verifiedSeconds: plan.verifiedSeconds || 0,
-                willCredit: plan.willCredit === true,
-                mode: mode,
-            }));
+        const doc = snap.docs[i];
+        const drip = doc.data() || {};
+        const uid = String(drip.uid || '');
+        if (!uid) continue;
+        scanned++;
+        const ctx = await loadContext(db, uid, pot, today, windowStart, nowMs);
+        const plan = planFrom(uid, drip, ctx.daily, ctx.claims, ctx.user, pot, today, windowStart, nowMs);
+        plan.user = Object.assign({}, ctx.user, { uid: uid });
+        plans.push(plan);
+        refs.push(doc.ref);
     }
-
+    const chosen = minutes.selectCreditRows(plans);
+    for (let i = 0; i < chosen.length; i++) {
+        let plan = chosen[i];
+        if (apply && plan.willCredit) plan = await applyOne(db, admin, refs[i], pot, today, windowStart);
+        if (!plan.willCredit && plan.reason === 'ok') continue;
+        if (plan.reason === 'ok') continue;
+        console.log(JSON.stringify({
+            uid: plan.uid,
+            reason: plan.reason,
+            owedMinutes: plan.owedMinutes || 0,
+            owedSeconds: plan.owedSeconds || 0,
+            potSeconds: plan.potSeconds || 0,
+            verifiedSeconds: plan.verifiedSeconds || 0,
+            willCredit: plan.willCredit === true,
+            mode: mode,
+        }));
+        chosen[i] = plan;
+    }
+    const report = minutes.creditReport(chosen);
     console.log(JSON.stringify({
         mode: mode,
         scanned: scanned,
-        creditedUsers: creditedUsers,
-        owedMinutes: owedMinutes,
+        totalSeconds: report.totalSeconds,
+        top10: report.top10,
     }));
 }
 

@@ -206,10 +206,10 @@ async function refreshProjections(potId, cfg) {
 
 // The header next to Blocksurf reads tctv_counts/live. That total is display
 // only. Logged-out clients may create v_ presence docs, so it must not move sats.
-async function readLiveViewerTotal() {
+async function readLiveViewerTotal(nowMs) {
     const snap = await db.collection('tctv_counts').doc('live').get();
     const data = snap.exists ? (snap.data() || {}) : {};
-    return Math.max(0, Math.floor(tctvPresence.liveViewerTotal(data.stations)));
+    return tctvPresence.freshLiveTotal(data, nowMs);
 }
 
 // Signed-in, age-ok, device-locked check-ins that credited in this window.
@@ -235,7 +235,7 @@ async function runTick() {
     }
     if (!cfg.enabled) return;
 
-    const liveN = await readLiveViewerTotal();
+    const liveN = await readLiveViewerTotal(nowMs);
     if (pot.status === 'filling') {
         const crediting = await countCrediting(pot.potId, nowMs);
         const moneyN = logic.accrualViewers(liveN, crediting);

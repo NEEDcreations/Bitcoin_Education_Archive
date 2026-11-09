@@ -30,7 +30,7 @@
     function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
 
     var POS_KEY = 'tctvPotPos', MIN_KEY = 'tctvPotMin', SIZE_KEY = 'tctvPotPx';
-    var MIN_POT = 84, MAX_POT = 220, DEFAULT_POT = 136;
+    var MIN_POT = 84, PHONE_MAX = 160, DESK_MAX = 300, PHONE_DEFAULT = 135, DESK_DEFAULT = 190;
     var REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     function css() {
         if (document.getElementById('tctv-drip-css')) return;
@@ -39,7 +39,7 @@
         // minimizable, and it remembers size, minimized state, and spot on this device.
         // Default is upper-right on desktop (below the bell and title bar, left of the collapsed remote)
         // and upper-center on phones (below the mobile bar, title row, and channel remote).
-        s.textContent = '#tctv-drip{position:fixed;top:calc(84px + env(safe-area-inset-top, 0px));right:max(76px, env(safe-area-inset-right, 0px));left:auto;bottom:auto;z-index:200001;font-family:inherit;color:#fff;touch-action:none;user-select:none;-webkit-user-select:none;max-width:calc(100vw - 16px);--pot:136px;--coin:26px;--fall:100px;--td-face:15px;--td-share:13px}' +
+        s.textContent = '#tctv-drip{position:fixed;top:calc(84px + env(safe-area-inset-top, 0px));right:max(76px, env(safe-area-inset-right, 0px));left:auto;bottom:auto;z-index:200001;font-family:inherit;color:#fff;touch-action:none;user-select:none;-webkit-user-select:none;max-width:calc(100vw - 16px);--pot:190px;--coin:26px;--fall:100px;--td-face:15px;--td-share:13px}' +
             '#tctv-drip.td-mini{--coin:14px;--fall:36px}' +
             '#tctv-drip[hidden]{display:none}' +
             'body.ticker-visible #tctv-drip{top:calc(116px + env(safe-area-inset-top, 0px))}' +
@@ -100,23 +100,21 @@
 
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-    function maxPot() {
-        var room = window.innerWidth <= 420 ? 140 : MAX_POT;
-        return Math.max(MIN_POT, Math.min(MAX_POT, room));
-    }
+    function phonePot() { return window.innerWidth <= 700; }
+    function maxPot() { return phonePot() ? PHONE_MAX : DESK_MAX; }
+    function defaultPot() { return phonePot() ? PHONE_DEFAULT : DESK_DEFAULT; }
     function clampPot(n) {
         var px = Math.round(Number(n));
-        if (!isFinite(px)) px = DEFAULT_POT;
+        if (!isFinite(px)) px = defaultPot();
         return Math.max(MIN_POT, Math.min(maxPot(), px));
     }
     function readPot() {
         var saved = parseInt(lsGet(SIZE_KEY), 10);
         if (isFinite(saved) && saved > 0) return clampPot(saved);
         var old = parseInt(lsGet('tctvPotSize'), 10);
-        if (old === 1) return clampPot(84);
-        if (old === 2) return clampPot(100);
-        if (old === 3) return DEFAULT_POT;
-        return clampPot(window.innerWidth <= 420 ? 100 : DEFAULT_POT);
+        if (old === 1) return clampPot(MIN_POT);
+        if (old === 2) return clampPot(phonePot() ? 100 : 140);
+        return clampPot(defaultPot());
     }
     function clampPlace(el, x, y) {
         var w = el.offsetWidth || 60, h = el.offsetHeight || 52;
@@ -141,7 +139,7 @@
     }
     function applyPot(el, px, persist) {
         px = clampPot(px);
-        var scale = px / DEFAULT_POT;
+        var scale = px / DESK_DEFAULT;
         el.style.setProperty('--pot', px + 'px');
         el.style.setProperty('--coin', Math.max(14, Math.round(26 * scale)) + 'px');
         el.style.setProperty('--fall', Math.max(40, Math.round(100 * scale)) + 'px');

@@ -20,6 +20,9 @@ for (const [n, want] of stepCases) {
 }
 // 50 forged presence viewers and no crediting check-in add nothing.
 assert.strictEqual(L.accrualViewers(50, 0), 0);
+assert.strictEqual(L.accrualViewers(3, 10), 3);
+assert.strictEqual(L.accrualViewers(0, 10), 0);
+assert.strictEqual(L.planAccrual({ sats: 0 }, L.accrualViewers(0, 10), L.readConfig({}), 'd1').add, 0);
 let forged = L.planAccrual({ sats: 0 }, L.accrualViewers(50, 0), L.readConfig({}), 'd1');
 assert.strictEqual(forged.add, 0);
 assert.strictEqual(forged.sats, 0);
@@ -151,7 +154,7 @@ console.log('tctvDripLogic: all tests passed');
     assert.ok(!src.includes('bottom:96px') && !src.includes('bottom:150px'), 'no longer parked on the bottom edge');
     assert.ok(!src.includes('Shrink') && !src.includes('Grow'), 'no shrink/grow control');
     assert.ok(src.includes('aria-label="Resize pot of sats"') && src.includes('aria-label="Minimize pot of sats"') && src.includes('aria-label="Restore pot of sats"'));
-    assert.ok(src.includes('MIN_POT = 84') && src.includes('MAX_POT = 220'), 'resize stops at a minimum and a max');
+    assert.ok(src.includes('MIN_POT = 84') && src.includes('PHONE_MAX = 160') && src.includes('DESK_MAX = 300') && src.includes('PHONE_DEFAULT = 135') && src.includes('DESK_DEFAULT = 190'), 'phone and desktop pot sizes');
     assert.ok(src.includes('nesw-resize') && src.includes('td-resize'), 'top-right corner drag resizes');
     assert.ok(/\.td-resize\{[^}]*min-width:44px;min-height:44px/.test(src) && /\.td-min\{[^}]*min-width:44px;min-height:44px/.test(src), 'resize and minimize targets');
     assert.ok(src.includes('_tctvLiveViewers') && src.includes('function rateFromViewers') && src.includes('if (n < 5) return 1') && src.includes('return Math.floor(n / 5) * 5'), 'pot count and rate follow the live viewcount');
@@ -168,7 +171,7 @@ console.log('tctvDripLogic: all tests passed');
     assert.ok(src.includes('td-bubble-share'), 'share visible when minimized');
     assert.ok(!/addDoc|\.set\(|\.update\(/.test(src.replace(/localStorage\.setItem/g, '')), 'client never writes pot data');
     const srv = require('fs').readFileSync(require('path').join(__dirname, '..', 'functions', 'tctv-drip.js'), 'utf8');
-    assert.ok(srv.includes("collection('tctv_counts').doc('live')") && srv.includes('liveViewerTotal'), 'tick reads the live viewcount for display');
+    assert.ok(srv.includes("collection('tctv_counts').doc('live')") && srv.includes('freshLiveTotal'), 'tick reads the live viewcount for display');
     assert.ok(srv.includes("where('activeMs'") && srv.includes('accrualViewers(liveN, crediting)'), 'sats follow crediting check-ins');
     assert.ok(srv.includes('logic.planAccrual(pot, moneyN'), 'planAccrual does not take the live total');
     const D = L.readConfig({});

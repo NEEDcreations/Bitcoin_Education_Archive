@@ -6395,14 +6395,18 @@ exports.tctvAggregatePresence = onSchedule({
         const prev = existing.exists && existing.data() && existing.data().stations && typeof existing.data().stations === 'object'
             ? existing.data().stations
             : null;
+        // Heartbeat every run, including when the station map did not change,
+        // so a stopped aggregator goes stale instead of freezing a high count.
+        const beat = {
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAtMs: now,
+        };
         let wrote = false;
         if (!existing.exists || !tctvPresence.stationCountsEqual(prev, counts)) {
-            await countRef.set({
-                stations: counts,
-                total: total,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
+            await countRef.set(Object.assign({ stations: counts, total: total }, beat));
             wrote = true;
+        } else {
+            await countRef.set(beat, { merge: true });
         }
 
         // Bounded. Docs with no timestamp `ts` are left for functions/cleanup-tctv-presence.js.

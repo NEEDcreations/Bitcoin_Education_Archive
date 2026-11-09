@@ -6,6 +6,9 @@
 // window keeps a viewer who missed two heartbeats and still covers scheduler jitter.
 const FRESH_MS = 90 * 1000;
 
+// The live doc is display-only once this old. Accrual treats it as 0 viewers.
+const LIVE_STALE_MS = 3 * 60 * 1000;
+
 // Presence docs older than this are deleted in small batches. Matches the
 // expiresAt the client writes (now + 10 min) so TTL and the job agree.
 const STALE_MS = 10 * 60 * 1000;
@@ -95,6 +98,23 @@ function accumulatePresence(counts, data, now) {
 // Same number the TV header sums from tctv_counts/live.stations before the
 // viewer's own optimistic +1. Unknown station ids and non-positive values
 // are ignored, matching the client snapshot handler.
+function liveHeartbeatMs(data) {
+    const doc = data || {};
+    if (typeof doc.updatedAtMs === 'number' && Number.isFinite(doc.updatedAtMs)) return doc.updatedAtMs;
+    return timestampMillis(doc.updatedAt);
+}
+
+// 0 when the aggregate has no heartbeat or the heartbeat is older than 3 minutes.
+// Callers that only paint the header may still show the raw stations.
+function freshLiveTotal(data, nowMs) {
+    const ms = liveHeartbeatMs(data);
+    const now = Number(nowMs);
+    if (ms == null || !Number.isFinite(now)) return 0;
+    if (now - ms > LIVE_STALE_MS) return 0;
+    if (ms - now > FUTURE_SKEW_MS) return 0;
+    return Math.max(0, Math.floor(liveViewerTotal(data && data.stations)));
+}
+
 function liveViewerTotal(stations) {
     const src = stations && typeof stations === 'object' ? stations : {};
     const keys = Object.keys(src);
@@ -220,6 +240,7 @@ function advanceViewCursor(cursorMs, nowMs, newestMs, batchSize, limit) {
 
 module.exports = {
     FRESH_MS,
+    LIVE_STALE_MS,
     STALE_MS,
     FUTURE_SKEW_MS,
     STALE_DELETE_LIMIT,
@@ -234,6 +255,8 @@ module.exports = {
     isTctvStation,
     accumulatePresence,
     liveViewerTotal,
+    liveHeartbeatMs,
+    freshLiveTotal,
     stationCountsEqual,
     utcDayKey,
     viewDocId,
