@@ -13091,6 +13091,45 @@ window.cipherSatsHintHtml = function(bal) {
     return '<div class="cipher-sats-hint" role="note" style="font-size:0.72rem;color:var(--text-muted);margin-top:8px;line-height:1.35;">ⓘ ' + escapeHtml(window.cipherSatsWithdrawHint(bal)) + '</div>';
 };
 
+function cipherClaimTurnstile() {
+    return new Promise(function(resolve) {
+        var host = document.createElement('div');
+        host.id = 'cipherSatsTurnstile';
+        host.setAttribute('data-sitekey', '0x4AAAAAAD-ivgpRkbXpgz86');
+        host.style.cssText = 'position:absolute;left:-9999px;width:300px;height:70px;';
+        document.body.appendChild(host);
+        var finished = false;
+        function done(token) {
+            if (finished) return;
+            finished = true;
+            try { if (window.turnstile && host._wid != null) window.turnstile.remove(host._wid); } catch (e) {}
+            try { host.remove(); } catch (e2) {}
+            resolve(token || '');
+        }
+        var timer = setTimeout(function() { done(''); }, 20000);
+        function render() {
+            if (!window.turnstile) { clearTimeout(timer); done(''); return; }
+            try {
+                host._wid = window.turnstile.render(host, {
+                    sitekey: host.getAttribute('data-sitekey'),
+                    callback: function(token) { clearTimeout(timer); done(token); },
+                    'error-callback': function() { clearTimeout(timer); done(''); }
+                });
+            } catch (e) { clearTimeout(timer); done(''); }
+        }
+        if (window.turnstile) { render(); return; }
+        if (typeof window._ensureTurnstile === 'function') window._ensureTurnstile(host);
+        var polls = 0;
+        var poll = setInterval(function() {
+            polls++;
+            var input = host.querySelector('[name="cf-turnstile-response"]');
+            if (input && input.value) { clearInterval(poll); clearTimeout(timer); done(input.value); }
+            else if (window.turnstile && polls === 1) render();
+            else if (polls > 40) { clearInterval(poll); clearTimeout(timer); done(''); }
+        }, 500);
+    });
+}
+
 window.claimCipherSats = async function() {
     var bal = Math.max(0, Math.floor(Number(currentUser && currentUser.cipherSatsBalance) || 0));
     if (bal < window.CIPHER_SATS_RULES.min) return { success: false };
@@ -13104,7 +13143,25 @@ window.claimCipherSats = async function() {
         var _gross = Math.min(bal, window.CIPHER_SATS_RULES.max);
         var _ok = await window.bqConfirmLnFee(_gross, 'Cipher sats claim (up to)');
         if (!_ok) return { success: false, cancelled: true };
-        var res = await firebase.functions().httpsCallable('claimCipherSats')({});
+        try {
+            var _appTok = '';
+            if (typeof window._btcAppCheckForClaim === 'function') _appTok = await window._btcAppCheckForClaim(8000);
+            else if (firebase.appCheck) {
+                var _got = await firebase.appCheck().getToken(false);
+                _appTok = _got && _got.token;
+            }
+            if (!_appTok) throw new Error('app-check');
+        } catch (appErr) {
+            if (typeof showToast === 'function') showToast('Security check failed. Refresh the page and try again.');
+            return { success: false };
+        }
+        var _fp = (typeof _generateDeviceFingerprint === 'function') ? _generateDeviceFingerprint() : '';
+        var _tsToken = await cipherClaimTurnstile();
+        if (!_fp || !_tsToken) {
+            if (typeof showToast === 'function') showToast('Security check pending — please wait a moment and try again.');
+            return { success: false };
+        }
+        var res = await firebase.functions().httpsCallable('claimCipherSats')({ fingerprint: _fp, turnstileToken: _tsToken });
         var d = (res && res.data) || {};
         if (!d.success) {
             if (typeof showToast === 'function') showToast(d.error || 'Could not claim cipher sats');

@@ -9,6 +9,11 @@ const cipher = require('./cipherClaim');
 const MAX_PER_CLAIM_SATS = 1000;
 const MAX_DAILY_PER_USER_SATS = 1000;
 const MIN_WITHDRAWAL_SATS = 100;
+// Same length as emailChange.SATS_HOLD_MS. A suspicious claim above the old
+// 200 sat line pauses withdrawals until this timestamp; Phil clears satsHold.
+const REVIEW_HOLD_MS = 72 * 60 * 60 * 1000;
+const REVIEW_AMOUNT_SATS = 200;
+const UNDER_REVIEW = 'This claim is under review. Sats withdrawals are paused on this account for now.';
 const SUBNET_WINDOW_MS = 24 * 60 * 60 * 1000;
 const ADDRESS_WINDOW_MS = 24 * 60 * 60 * 1000;
 const NETWORK_ACCOUNT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
@@ -45,6 +50,43 @@ function requireLightningAddress(data) {
         return { ok: false, error: 'Invalid Lightning Address format.' };
     }
     return { ok: true, address: address, ignoredInvoice: !!String(src.invoice || '').trim() };
+}
+
+// accountDays * 500 + 2100 is the historical "suspicious but allowed" ceiling.
+// A claim at or under 200 sats still pays. A larger claim does not: the
+// caller sets satsHold and alerts Phil instead of sending.
+function assessPointsInflation(info) {
+    const src = info || {};
+    const userPoints = Math.floor(Number(src.userPoints) || 0);
+    const accountDays = Math.max(1, Math.floor(Number(src.accountDays) || 1));
+    const amount = Math.floor(Number(src.amount) || 0);
+    const nowMs = Number(src.nowMs) || 0;
+    const maxReasonablePoints = (accountDays * 500) + 2100;
+    const suspicious = userPoints > maxReasonablePoints;
+    if (!(suspicious && amount > REVIEW_AMOUNT_SATS)) {
+        return {
+            ok: true,
+            suspicious: suspicious,
+            maxReasonablePoints: maxReasonablePoints,
+            amount: amount,
+        };
+    }
+    return {
+        ok: false,
+        suspicious: true,
+        review: true,
+        maxReasonablePoints: maxReasonablePoints,
+        amount: amount,
+        holdUntil: nowMs + REVIEW_HOLD_MS,
+        error: UNDER_REVIEW,
+        flag: {
+            type: 'points_inflation',
+            uid: String(src.uid || ''),
+            displayName: String(src.displayName || ''),
+            amount: amount,
+            detail: 'points ' + userPoints + ' over ' + maxReasonablePoints + ' for ' + accountDays + 'd',
+        },
+    };
 }
 
 function assessClaimAmount(amount) {
@@ -488,6 +530,10 @@ module.exports = {
     MAX_PER_CLAIM_SATS: MAX_PER_CLAIM_SATS,
     MAX_DAILY_PER_USER_SATS: MAX_DAILY_PER_USER_SATS,
     MIN_WITHDRAWAL_SATS: MIN_WITHDRAWAL_SATS,
+    REVIEW_HOLD_MS: REVIEW_HOLD_MS,
+    REVIEW_AMOUNT_SATS: REVIEW_AMOUNT_SATS,
+    UNDER_REVIEW: UNDER_REVIEW,
+    assessPointsInflation: assessPointsInflation,
     SUBNET_WINDOW_MS: SUBNET_WINDOW_MS,
     NETWORK_ACCOUNT_WINDOW_MS: NETWORK_ACCOUNT_WINDOW_MS,
     ADDRESS_WINDOW_MS: ADDRESS_WINDOW_MS,

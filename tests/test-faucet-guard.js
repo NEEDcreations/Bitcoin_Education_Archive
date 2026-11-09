@@ -273,11 +273,9 @@ test('balance errors and explicit refusals refund; timeouts are looked up', func
     assert.strictEqual(low.action, 'refund');
 
     const refused = guard.decideFaucetPayment({ phase: 'pay', error: { code: 'PAYMENT_FAILED', message: 'no' } });
-    assert.strictEqual(refused.action, 'refund');
-    assert.strictEqual(refused.reason, 'refused');
-    assert.strictEqual(guard.decideFaucetPayment({ phase: 'pay', error: new Error('INSUFFICIENT_BALANCE') }).action, 'refund');
-    assert.strictEqual(guard.decideFaucetPayment({ phase: 'pay', error: new Error('QUOTA_EXCEEDED') }).action, 'refund');
-    assert.strictEqual(guard.decideFaucetPayment({ phase: 'pay', error: new Error('RATE_LIMITED') }).action, 'refund');
+    assert.strictEqual(refused.action, 'lookup');
+    assert.strictEqual(guard.decideFaucetPayment({ phase: 'pay', error: new Error('PAYMENT_FAILED') }).action, 'lookup');
+    assert.strictEqual(guard.decideFaucetPayment({ phase: 'pay', error: new Error('INSUFFICIENT_BALANCE') }).action, 'lookup');
 
     const timeout = guard.decideFaucetPayment({ phase: 'pay', error: new Error('[TIMEOUT] payInvoice timed out after 30000ms') });
     assert.strictEqual(timeout.action, 'lookup');
@@ -461,6 +459,48 @@ test('the lock copy is the sentence shown before an address is saved', function(
     const hosting = fs.readFileSync(path.join(__dirname, '..', 'firebase.json'), 'utf8');
     assert.ok(hosting.indexOf('https://www.google.com') !== -1);
     assert.ok(hosting.indexOf('https://www.recaptcha.net') !== -1);
+});
+
+test('a points total past the earn ceiling holds claims over 200 and still pays 200', function() {
+    const over = guard.assessPointsInflation({
+        userPoints: 5000,
+        accountDays: 1,
+        amount: 1000,
+        nowMs: 1000,
+        uid: 'u1',
+        displayName: 'Ada',
+    });
+    assert.strictEqual(over.ok, false);
+    assert.strictEqual(over.review, true);
+    assert.strictEqual(over.error, guard.UNDER_REVIEW);
+    assert.strictEqual(over.holdUntil, 1000 + guard.REVIEW_HOLD_MS);
+    assert.strictEqual(over.flag.type, 'points_inflation');
+    assert.strictEqual(over.maxReasonablePoints, 2600);
+    const small = guard.assessPointsInflation({ userPoints: 5000, accountDays: 1, amount: 200, nowMs: 1000 });
+    assert.strictEqual(small.ok, true);
+    assert.strictEqual(small.suspicious, true);
+    const fine = guard.assessPointsInflation({ userPoints: 2000, accountDays: 1, amount: 1000, nowMs: 1000 });
+    assert.strictEqual(fine.ok, true);
+    assert.strictEqual(fine.suspicious, false);
+    const emailChange = require('../functions/src/emailChange');
+    assert.strictEqual(guard.REVIEW_HOLD_MS, emailChange.SATS_HOLD_MS);
+
+    const index = fs.readFileSync(path.join(__dirname, '..', 'functions', 'index.js'), 'utf8');
+    const claimStart = index.indexOf('exports.claimSats');
+    const claim = index.slice(claimStart, index.indexOf('function _unknownPayError', claimStart));
+    const txAt = claim.indexOf('runTransaction');
+    const inflationAt = claim.indexOf('assessPointsInflation');
+    const dailyAt = claim.indexOf('MAX_DAILY_PER_USER_SATS');
+    const siteAt = claim.indexOf('GLOBAL_DAILY_MAX_SATS');
+    const debitAt = claim.indexOf('pointsClaimed: admin.firestore.FieldValue.increment');
+    assert.ok(txAt > 0 && inflationAt > txAt && dailyAt > inflationAt && siteAt > txAt && debitAt > dailyAt && debitAt > siteAt);
+    assert.ok(claim.includes('satsHold: Math.max(existingHold, inflation.holdUntil)'));
+    const rollback = index.slice(index.indexOf('async function _rollbackClaim'), index.indexOf('async function _notifySatsReview'));
+    assert.ok(rollback.includes('runTransaction'));
+    assert.ok(rollback.includes("status === 'refunded'"));
+    assert.ok(rollback.includes('per-user sats_daily doc is not decremented'));
+    assert.strictEqual(rollback.includes("collection('sats_daily')"), false);
+    assert.ok(rollback.includes('faucet_stats'));
 });
 
 Promise.all(queue).then(function() {

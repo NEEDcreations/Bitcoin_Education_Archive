@@ -7,13 +7,34 @@
 
 const { assessCipherClaim, SATS_BANNED_ERROR } = require('./cipherClaim');
 const faucetGuard = require('./faucetGuard');
-const { satsDisposition } = require('./cipherReward');
+const { satsDisposition, BALANCE_UNDER, SATS_TIERS } = require('./cipherReward');
+const { DEFAULTS: TCTV_DEFAULTS } = require('./tctvDripLogic');
 const lnFee = require('./lnFee');
 
 const CLAIM_MIN = 100;
 const CLAIM_MAX = 1000;
 const PLAYER_DAILY_CAP = 1000;
 const SITE_DAILY_CAP = 2000;
+// Per-user cap is a rolling 24h, not the UTC calendar doc. The site pool
+// stays a UTC day (SITE_DAILY_CAP). Matches gifting.js CIPHER_OPENS_PER_DAY.
+const ROLLING_WINDOW_MS = 24 * 60 * 60 * 1000;
+const CIPHER_OPENS_PER_DAY = 21;
+// Largest prize that credits cipherSatsBalance. 1,000 and above stay manual
+// (cipherReward.satsDisposition / BALANCE_UNDER).
+const MAX_BALANCE_CREDIT_SATS = SATS_TIERS.reduce(function (max, tier) {
+    return tier.amount < BALANCE_UNDER ? Math.max(max, tier.amount) : max;
+}, 0);
+// TCTV drip also credits cipherSatsBalance. With the minimum eligible
+// watchers, shareCap is max(userShareCapPct, 2/n) of the pot. Defaults:
+// n=5, 40% of 5,000 = 2,000 sats. Accrual dailyCapSats is 1,000, so a
+// 5,000 pot fills slower than once a day; 2,000/day is the code ceiling.
+const TCTV_SHARE_PER_DAY = (function () {
+    const n = Math.max(1, TCTV_DEFAULTS.minEligibleWatchers);
+    const frac = Math.max(TCTV_DEFAULTS.userShareCapPct / 100, 2 / n);
+    return Math.floor(TCTV_DEFAULTS.targetSats * Math.min(1, frac));
+}());
+// 21 * 500 cipher credits + 2,000 TCTV share = 12,500 sats per account-day.
+const MAX_CIPHER_EARN_PER_DAY = (CIPHER_OPENS_PER_DAY * MAX_BALANCE_CREDIT_SATS) + TCTV_SHARE_PER_DAY;
 // Longer than the 180s claim function so a live pay cannot be treated as abandoned.
 const ABANDON_MS = 10 * 60 * 1000;
 const RATE_WINDOW_MS = 10 * 60 * 1000;
@@ -35,15 +56,15 @@ function nonNeg(value) {
     return n > 0 ? n : 0;
 }
 
-function fail(code, error) {
-    return {
+function fail(code, error, extra) {
+    return Object.assign({
         ok: false,
         code: code,
         error: error,
         writesLastSatsClaim: false,
         touchesFaucetCaps: false,
         userFields: USER_FIELDS,
-    };
+    }, extra || {});
 }
 
 function creditDocId(cipherId, role) {
@@ -152,6 +173,63 @@ function assessAttemptRate(row, nowMs) {
 
 // A reserved claim that never reached the wallet can be released.
 // paying and unknown stay locked so a payment cannot be sent twice.
+function claimStamp(row) {
+    const src = row || {};
+    return {
+        claimId: String(src.claimId || ''),
+        amount: nonNeg(src.amount),
+        ts: Number(src.ts) || 0,
+    };
+}
+
+// Entries older than 24h drop out. A stale reserve's claimId is removed by
+// the caller so that abandon does not keep counting against the rolling cap.
+function pruneRollingClaims(list, nowMs) {
+    const now = Number(nowMs) || 0;
+    const cutoff = now - ROLLING_WINDOW_MS;
+    return (Array.isArray(list) ? list : []).map(claimStamp).filter(function (row) {
+        return row.claimId && row.amount > 0 && row.ts > cutoff && row.ts <= now + 1000;
+    });
+}
+
+function rollingUsed(list) {
+    let sum = 0;
+    const rows = Array.isArray(list) ? list : [];
+    for (let i = 0; i < rows.length; i++) sum += nonNeg(rows[i].amount);
+    return sum;
+}
+
+function withoutRollingClaim(list, claimId) {
+    const id = String(claimId || '');
+    return (Array.isArray(list) ? list : []).filter(function (row) {
+        return String(row.claimId || '') !== id;
+    });
+}
+
+// Balance above ageDays * MAX_CIPHER_EARN_PER_DAY cannot come from cipher
+// opens, key-share credits, and the default TCTV drip share. A claim of
+// 200 sats or less still pays. A larger one is held for review.
+function assessCipherBalanceGrowth(info) {
+    const src = info || {};
+    const ageDays = Math.max(1, Math.floor(Number(src.ageDays) || 0));
+    const balance = nonNeg(src.balance);
+    const amount = nonNeg(src.amount);
+    const maxBalance = ageDays * MAX_CIPHER_EARN_PER_DAY;
+    const suspicious = balance > maxBalance;
+    if (!(suspicious && amount > faucetGuard.REVIEW_AMOUNT_SATS)) {
+        return { ok: true, suspicious: suspicious, maxBalance: maxBalance, amount: amount };
+    }
+    return {
+        ok: false,
+        suspicious: true,
+        review: true,
+        maxBalance: maxBalance,
+        amount: amount,
+        holdForMs: faucetGuard.REVIEW_HOLD_MS,
+        error: faucetGuard.UNDER_REVIEW,
+    };
+}
+
 function normalizeClaimState(input) {
     const src = input || {};
     const nowMs = Number(src.nowMs) || 0;
@@ -215,10 +293,32 @@ function planCipherSatsClaim(input) {
     if (!rate.ok) return fail('rate', RATE_ERROR);
     if (norm.inFlight) return fail('inflight', IN_FLIGHT);
     if (norm.balance < CLAIM_MIN) return fail('low', LOW_BALANCE);
-    const playerLeft = PLAYER_DAILY_CAP - norm.playerDayUsed;
+    // Calendar playerDayUsed still caps the UTC day. Rolling claims cap the
+    // 24h that crosses midnight. The site pool stays on the UTC day.
+    const rolling = withoutRollingClaim(
+        pruneRollingClaims(src.rollingClaims, norm.nowMs),
+        norm.abandon ? norm.abandon.claimId : ''
+    );
+    const playerLeft = Math.min(
+        PLAYER_DAILY_CAP - norm.playerDayUsed,
+        PLAYER_DAILY_CAP - rollingUsed(rolling)
+    );
     const siteLeft = SITE_DAILY_CAP - norm.siteDayUsed;
     const amount = Math.min(norm.balance, CLAIM_MAX, playerLeft, siteLeft);
     if (!(amount >= CLAIM_MIN)) return fail('cap', UNAVAILABLE);
+    const growth = assessCipherBalanceGrowth({
+        ageDays: src.ageDays,
+        balance: norm.balance,
+        amount: amount,
+    });
+    if (!growth.ok) {
+        return fail('review', growth.error, {
+            review: true,
+            holdForMs: growth.holdForMs,
+            amount: amount,
+            maxBalance: growth.maxBalance,
+        });
+    }
     const feeQuote = lnFee.quote(amount);
     if (!feeQuote.ok) return fail('fee', feeQuote.error);
     const sameDayAbandon = norm.abandon && norm.abandon.day === norm.day ? norm.abandon.amount : 0;
@@ -235,6 +335,9 @@ function planCipherSatsClaim(input) {
         abandon: norm.abandon,
         playerDelta: amount - sameDayAbandon,
         siteDelta: amount - sameDayAbandon,
+        rollingClaims: src.claimId
+            ? rolling.concat([{ claimId: String(src.claimId), amount: amount, ts: norm.nowMs }])
+            : rolling,
         otherDay: otherDayAbandon ? otherDayAbandon.day : '',
         otherDayDelta: otherDayAbandon ? -otherDayAbandon.amount : 0,
         rate: rate,
@@ -265,6 +368,15 @@ module.exports = {
     CLAIM_MAX: CLAIM_MAX,
     PLAYER_DAILY_CAP: PLAYER_DAILY_CAP,
     SITE_DAILY_CAP: SITE_DAILY_CAP,
+    ROLLING_WINDOW_MS: ROLLING_WINDOW_MS,
+    CIPHER_OPENS_PER_DAY: CIPHER_OPENS_PER_DAY,
+    MAX_BALANCE_CREDIT_SATS: MAX_BALANCE_CREDIT_SATS,
+    TCTV_SHARE_PER_DAY: TCTV_SHARE_PER_DAY,
+    MAX_CIPHER_EARN_PER_DAY: MAX_CIPHER_EARN_PER_DAY,
+    pruneRollingClaims: pruneRollingClaims,
+    rollingUsed: rollingUsed,
+    withoutRollingClaim: withoutRollingClaim,
+    assessCipherBalanceGrowth: assessCipherBalanceGrowth,
     ABANDON_MS: ABANDON_MS,
     claimsDisabledFromConfig: claimsDisabledFromConfig,
     claimReadyToPay: claimReadyToPay,

@@ -41,7 +41,13 @@ test('server invoices are requested for the net amount', () => {
     assert.ok(!idx.includes('msats: lnAddrAmount * 1000'));
     const g = read('functions/src/gifting.js');
     assert.ok(g.includes("_resolvePrizeInvoice('', reserved.address, reserved.net)"));
-    assert.ok(g.includes('_resolvePrizeInvoice(data.invoice, data.lightningAddress, netAmount)'));
+    assert.ok(g.includes("_resolvePrizeInvoice('', payoutAddress, netAmount)"));
+    const win = g.slice(g.indexOf('const claimCipherWin'), g.indexOf('const listMyCipherWins'));
+    assert.strictEqual(win.includes('data.invoice'), false);
+    assert.strictEqual(win.includes('data.lightningAddress'), false);
+    assert.ok(win.includes('assessLockedAddress'));
+    assert.ok(win.includes('userRow.banned === true || userRow.ban_reason'));
+    assert.ok(!/payInvoice\(\{[^}]*max_fee/.test(idx + g));
 });
 test('every server payInvoice site is covered by the fee', () => {
     const files = ['functions/index.js', 'functions/src/gifting.js'];
@@ -59,6 +65,18 @@ test('every claim screen confirms the fee first', () => {
     assert.ok(r.indexOf("bqConfirmLnFee(lnAmt") !== -1 && r.indexOf("bqConfirmLnFee(lnAmt") < r.indexOf("httpsCallable('claimSats')"));
     assert.ok(r.indexOf("bqConfirmLnFee(_gross") < r.indexOf("httpsCallable('claimCipherSats')"));
     assert.ok(read('gifting.js').includes("bqConfirmLnFee(win.amount || 0, 'Cipher prize')"));
+});
+test('outgoing invoices reject route hints and a long final CLTV', () => {
+    assert.strictEqual(lnFee.assessOutgoingInvoice({ tags: [{ tagName: 'payment_hash', data: 'abc' }], minFinalCltvExpiry: 40 }).ok, true);
+    assert.strictEqual(lnFee.assessOutgoingInvoice({ tags: [{ tagName: 'routing_info', data: [] }] }).reason, 'route_hint');
+    assert.strictEqual(lnFee.assessOutgoingInvoice({ tags: [{ tag: 'r', data: [] }] }).ok, false);
+    assert.strictEqual(lnFee.assessOutgoingInvoice({ tags: [{ tagName: 'min_final_cltv_expiry', data: 289 }] }).reason, 'cltv');
+    assert.strictEqual(lnFee.assessOutgoingInvoice({ tags: [{ tagName: 'min_final_cltv_expiry', data: 288 }] }).ok, true);
+    assert.strictEqual(lnFee.feeExceeded(10, { fees_paid: 10001 }), true);
+    assert.strictEqual(lnFee.feeExceeded(10, { fees_paid: 10000 }), false);
+    assert.strictEqual(lnFee.feeExceeded(10, {}), false);
+    assert.ok(read('functions/src/lnFee.js').includes('Nip47PayInvoiceRequest'));
+    assert.ok(!/payInvoice\(\{[^}]*max_fee/.test(read('functions/index.js') + read('functions/src/gifting.js')));
 });
 test('cipher sats plan carries fee and net', () => {
     const src = read('functions/src/cipherSatsClaim.js');
