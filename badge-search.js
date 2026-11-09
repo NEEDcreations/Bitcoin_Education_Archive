@@ -82,19 +82,29 @@
             if (ae !== be) return ae - be;
             return (Number(b.badge.xp) || 0) - (Number(a.badge.xp) || 0);
         });
-        var limit = options.showAll ? hits.length : Math.min(8, hits.length);
+        var pageSize = options.showAll ? hits.length : (options.pageSize > 0 ? options.pageSize : 8);
+        var offset = options.showAll ? 0 : Math.max(0, options.offset || 0);
+        if (offset > hits.length) offset = hits.length;
+        var shown = hits.slice(offset, offset + pageSize);
         return {
             query: query,
             total: hits.length,
-            shown: hits.slice(0, limit).map(function (row) { return row.badge; }),
-            truncated: hits.length > limit,
+            offset: offset,
+            shown: shown.map(function (row) { return row.badge; }),
+            truncated: offset + shown.length < hits.length,
+            nextOffset: offset + shown.length,
         };
     }
 
-    function render(container, result) {
+    function render(container, result, append) {
         var doc = container.ownerDocument || document;
-        while (container.firstChild) container.removeChild(container.firstChild);
-        var collections = result.collections || [];
+        if (!append) {
+            while (container.firstChild) container.removeChild(container.firstChild);
+        } else {
+            var oldMore = container.querySelector('[data-badge-search-more]');
+            if (oldMore && oldMore.parentNode) oldMore.parentNode.removeChild(oldMore);
+        }
+        var collections = append ? [] : (result.collections || []);
         collections.forEach(function (col) {
             var row = doc.createElement('div');
             row.setAttribute('data-collection-progress', col.id || col.name || '');
@@ -128,15 +138,22 @@
             container.style.display = 'block';
             return;
         }
-        var head = doc.createElement('div');
-        head.style.cssText = 'padding:8px 14px;font-size:0.72rem;color:var(--text-faint);font-weight:700;';
-        head.textContent = result.total + (result.total === 1 ? ' result' : ' results');
-        container.appendChild(head);
+        var loaded = (result.offset || 0) + result.shown.length;
+        var head = container.querySelector('[data-badge-search-count]');
+        if (!head) {
+            head = doc.createElement('div');
+            head.setAttribute('data-badge-search-count', '1');
+            head.style.cssText = 'padding:8px 14px;font-size:0.72rem;color:var(--text-faint);font-weight:700;';
+            container.appendChild(head);
+        }
+        head.textContent = loaded + ' of ' + result.total;
+        var rowStart = result.offset || 0;
         result.shown.forEach(function (badge, index) {
             var row = doc.createElement('button');
             row.type = 'button';
+            row.setAttribute('role', 'option');
             row.setAttribute('data-badge-id', badge.id);
-            row.setAttribute('data-badge-search-row', String(index));
+            row.setAttribute('data-badge-search-row', String(rowStart + index));
             row.style.cssText = 'display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 14px;background:none;border:none;border-top:1px solid var(--border);cursor:pointer;font-family:inherit;color:inherit;';
             var emoji = doc.createElement('span');
             emoji.textContent = badge.earned ? (badge.emoji || '🏅') : '🔘';
@@ -164,7 +181,7 @@
             more.type = 'button';
             more.setAttribute('data-badge-search-more', '1');
             more.style.cssText = 'width:100%;padding:10px 14px;background:none;border:none;border-top:1px solid var(--border);color:var(--accent);font-weight:700;cursor:pointer;font-family:inherit;';
-            more.textContent = 'Show all ' + result.total;
+            more.textContent = 'Show more';
             container.appendChild(more);
         }
         container.style.display = 'block';
@@ -172,26 +189,50 @@
 
     var active = -1;
     var lastQuery = '';
-    var showAll = false;
     var timer = null;
+    var indexCache = null;
 
-    function paint(query) {
+    function cachedIndex() {
+        if (!indexCache && typeof root._badgeSearchRecords === 'function') {
+            indexCache = buildIndex(root._badgeSearchRecords());
+        }
+        return indexCache || [];
+    }
+
+    function paint(query, append) {
         var box = document.getElementById('badgeSearchResults');
         if (!box || !root.BadgeSearch || typeof root._badgeSearchRecords !== 'function') return;
-        var index = buildIndex(root._badgeSearchRecords());
-        var result = search(index, query, { showAll: showAll });
+        var input = document.getElementById('badgeSearchInput');
+        if (!String(query || '').trim()) {
+            box.style.display = 'none';
+            box._truncated = false;
+            box._nextOffset = 0;
+            while (box.firstChild) box.removeChild(box.firstChild);
+            if (input) input.setAttribute('aria-expanded', 'false');
+            return;
+        }
+        if (append && (box._paging || !box._truncated)) return;
+        if (append) box._paging = true;
+        var result = search(cachedIndex(), query, { offset: append ? (box._nextOffset || 0) : 0, pageSize: 8 });
         var qn = normalize(query);
         result.collections = [];
-        if (qn && typeof root._badgeCollectionProgress === 'function') {
+        if (!append && qn && typeof root._badgeCollectionProgress === 'function') {
             result.collections = root._badgeCollectionProgress().filter(function (col) {
                 return normalize(col.name).indexOf(qn) !== -1;
             });
         }
-        render(box, result);
-        active = -1;
-        if (!query) {
-            box.style.display = 'none';
-            while (box.firstChild) box.removeChild(box.firstChild);
+        render(box, result, !!append);
+        box._nextOffset = result.nextOffset;
+        box._truncated = !!result.truncated;
+        box._paging = false;
+        if (!append) active = -1;
+        if (input) input.setAttribute('aria-expanded', box.style.display === 'none' ? 'false' : 'true');
+        if (!box._badgeSearchScroll) {
+            box._badgeSearchScroll = true;
+            box.addEventListener('scroll', function () {
+                if (box.scrollHeight - box.scrollTop - box.clientHeight > 48) return;
+                paint(lastQuery, true);
+            });
         }
     }
 
@@ -210,27 +251,44 @@
         root._badgeSearchInstalled = true;
         root._badgeSearch = function (query) {
             lastQuery = query || '';
-            showAll = false;
             clearTimeout(timer);
-            timer = setTimeout(function () { paint(lastQuery); }, 120);
+            timer = setTimeout(function () { paint(lastQuery, false); }, 120);
         };
+        document.addEventListener('focusin', function (event) {
+            var input = document.getElementById('badgeSearchInput');
+            if (input && event.target === input) indexCache = null;
+        });
         document.addEventListener('click', function (event) {
             var box = document.getElementById('badgeSearchResults');
             if (!box || !event.target || !event.target.closest) return;
-            if (!box.contains(event.target)) return;
-            if (event.target.closest('[data-badge-search-more]')) {
-                showAll = true;
-                paint(lastQuery);
+            if (box.contains(event.target)) {
+                if (event.target.closest('[data-badge-search-more]')) {
+                    event.preventDefault();
+                    paint(lastQuery, true);
+                    return;
+                }
+                var row = event.target.closest('[data-badge-id]');
+                if (row && typeof root._badgeSearchJump === 'function') root._badgeSearchJump(row.getAttribute('data-badge-id'));
                 return;
             }
-            var row = event.target.closest('[data-badge-id]');
-            if (row && typeof root._badgeSearchJump === 'function') root._badgeSearchJump(row.getAttribute('data-badge-id'));
+            var wrap = document.getElementById('badgeSearchWrap');
+            if (wrap && wrap.contains(event.target)) return;
+            if (box.style.display !== 'none') {
+                box.style.display = 'none';
+                var input = document.getElementById('badgeSearchInput');
+                if (input) input.setAttribute('aria-expanded', 'false');
+            }
         });
         document.addEventListener('keydown', function (event) {
             var input = document.getElementById('badgeSearchInput');
             if (!input || document.activeElement !== input) return;
             if (event.key === 'ArrowDown') { event.preventDefault(); move(1); }
             else if (event.key === 'ArrowUp') { event.preventDefault(); move(-1); }
+            else if (event.key === 'Escape') {
+                var box = document.getElementById('badgeSearchResults');
+                if (box) box.style.display = 'none';
+                input.setAttribute('aria-expanded', 'false');
+            }
             else if (event.key === 'Enter') {
                 var box = document.getElementById('badgeSearchResults');
                 var rows = box ? box.querySelectorAll('[data-badge-search-row]') : [];

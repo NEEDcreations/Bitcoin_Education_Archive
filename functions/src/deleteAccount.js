@@ -917,6 +917,12 @@ async function deleteIdPrefix(db, batcher, collectionName, uid, documentIdField)
     for (let i = 0; i < docs.length; i++) await batcher.remove(docs[i].ref);
 }
 
+async function deleteResetReminders(db, batcher, uid, documentIdField) {
+    await deleteExactIfPresent(db, batcher, 'reset_reminder_subs', uid);
+    const claims = await collectIdPrefix(db.collection('reset_reminder_claims'), 'rr_' + uid + '_', documentIdField);
+    for (let i = 0; i < claims.length; i++) await batcher.remove(claims[i].ref);
+}
+
 async function deletePlayMarks(db, batcher, uid, documentIdField) {
     const marks = await collectIdPrefix(db.collection('beats_play_marks'), uid + '__', documentIdField);
     for (let i = 0; i < marks.length; i++) await batcher.remove(marks[i].ref);
@@ -1359,6 +1365,7 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         await deleteDocTree(batcher, db.collection(direct[i][0]).doc(direct[i][1]), direct[i][2], documentIdField, false);
         deletedDocs++;
     }
+    await deleteResetReminders(db, batcher, uid, documentIdField);
     // Session ids are uid + '_' + sessionId, so the single doc above is only
     // the legacy row. Every live session is stored under its own id.
     await deleteWhere(db, batcher, 'totp_sessions', 'uid', '==', uid, [], documentIdField);

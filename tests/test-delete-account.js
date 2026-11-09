@@ -318,6 +318,12 @@ function world() {
         'push_tokens/u1/devices/phone': { token: 'phone-u1' },
         'push_tokens/u2': { token: 'tok-u2' },
         'push_tokens/u2/devices/tablet': { token: 'tab-u2' },
+        'reset_reminder_subs/u1': { optedIn: true, items: { 'daily-spin': true } },
+        'reset_reminder_subs/u2': { optedIn: true },
+        'reset_reminder_claims/rr_u1_daily-spin_1': { at: 1 },
+        'reset_reminder_claims/rr_u1_weekly-xp_2': { at: 2 },
+        'reset_reminder_claims/rr_u2_daily-spin_3': { at: 3 },
+        'reset_reminder_claims/rr_u10_daily-spin_4': { at: 4 },
         'dm_conversations/u1_u2': { participants: ['u1', 'u2'], participantNames: { u1: 'Alice', u2: 'Bob' } },
         'dm_conversations/u1_u2/messages/m1': { senderUid: 'u1', text: 'secret dm' },
         'dm_conversations/u1_u2/messages/m2': { senderUid: 'u2', text: 'reply dm' },
@@ -691,6 +697,12 @@ function auth(uid, extras) {
         }
 
         assert.strictEqual(db.docs.has('push_tokens/u1'), false);
+        assert.strictEqual(db.docs.has('reset_reminder_subs/u1'), false);
+        assert.strictEqual(db.docs.has('reset_reminder_claims/rr_u1_daily-spin_1'), false);
+        assert.strictEqual(db.docs.has('reset_reminder_claims/rr_u1_weekly-xp_2'), false);
+        assert.ok(db.docs.has('reset_reminder_subs/u2'));
+        assert.ok(db.docs.has('reset_reminder_claims/rr_u2_daily-spin_3'));
+        assert.ok(db.docs.has('reset_reminder_claims/rr_u10_daily-spin_4'));
         assert.strictEqual(db.docs.has('push_tokens/u1/devices/phone'), false);
         assert.strictEqual(db.docs.get('push_tokens/u2').token, 'tok-u2');
         assert.strictEqual(db.docs.get('push_tokens/u2/devices/tablet').token, 'tab-u2');

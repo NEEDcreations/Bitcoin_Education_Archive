@@ -2914,10 +2914,22 @@ var _favorPBUnsub = null;
 var _favorHasherRanksUnsub = null;
 
 // Render Top 25 Hashers leaderboard
+function _bqLazyList(pieces, noun) {
+    var capped = (pieces || []).slice(0, 50);
+    var head = capped.slice(0, 10).join('');
+    var rest = capped.slice(10).join('');
+    if (!rest) return head;
+    if (typeof window._lbStashMore === 'function' && typeof window._lbMoreButton === 'function') {
+        return head + window._lbMoreButton(window._lbStashMore(rest), capped.length, noun);
+    }
+    return head;
+}
+
 function _renderHasherRanksHTML(users) {
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-    var html = '';
-    for (var i = 0; i < users.length; i++) {
+    var pieces = [];
+    var limit = Math.min(users.length, 50);
+    for (var i = 0; i < limit; i++) {
         var u = users[i];
         var rank = u.rank || (i + 1);
         var rankIcon = rank === 1 ? '\uD83E\uDD47' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
@@ -2962,18 +2974,9 @@ function _renderHasherRanksHTML(users) {
                 '<span style="font-size:0.68rem;color:var(--text-faint);">since ' + firstDate + '</span>' +
             '</div>' +
         '</div>';
-        if (i < 10) {
-            html += rowHtml;
-        } else if (i === 10) {
-            html += '<div id="hasherRanksMore" style="display:none;">' + rowHtml;
-        } else {
-            html += rowHtml;
-        }
+        pieces.push(rowHtml);
     }
-    if (users.length > 10) {
-        html += '</div>'; // close hasherRanksMore
-        html += '<button onclick="(function(){var m=document.getElementById(\'hasherRanksMore\');var b=document.getElementById(\'hasherRanksMoreBtn\');if(!m||!b)return;var open=m.style.display!==\'none\';m.style.display=open?\'none\':\'block\';b.textContent=open?\'Show more \u25bc\':\'Show less \u25b2\';})()" id="hasherRanksMoreBtn" style="width:100%;margin-top:6px;padding:6px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Show more \u25bc</button>';
-    }
+    var html = _bqLazyList(pieces, 'hashers');
     var seenMe = false;
     for (var s = 0; s < users.length; s++) {
         if (myUid && users[s] && users[s].id === myUid) seenMe = true;
@@ -2982,7 +2985,7 @@ function _renderHasherRanksHTML(users) {
         var myName = typeof escapeHtml === 'function' ? escapeHtml(currentUser.username || 'Anon') : (currentUser.username || 'Anon');
         html += '<div style="padding:6px 10px;margin-top:6px;background:rgba(247,147,26,0.1);border:1px solid var(--accent);border-radius:8px;">' +
             '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
-            '<span style="font-size:0.78rem;font-weight:800;color:var(--accent);">25+</span>' +
+            '<span style="font-size:0.78rem;font-weight:800;color:var(--accent);">50+</span>' +
             '<span style="font-size:0.8rem;font-weight:800;color:var(--accent);flex:1;">' + myName + ' (you)</span>' +
             '<span style="font-family:monospace;font-size:0.82rem;font-weight:800;color:var(--heading);">\u26CF\uFE0F ' + (currentUser.sfTotalHashes || 0).toLocaleString() + '</span>' +
             '</div></div>';
@@ -3103,17 +3106,10 @@ function _renderTopHashesHTML(entries) {
         '</div>';
     }
 
-        var top10 = entries.slice(0, 10);
-    var rest = entries.slice(10);
-    for (var i = 0; i < top10.length; i++) html += renderEntry(top10[i], i);
-
-    if (rest.length > 0) {
-        html += '<div id="favorHashesMore" style="display:none;">';
-        for (var j = 0; j < rest.length; j++) html += renderEntry(rest[j], 10 + j);
-        html += '</div>';
-        html += '<button onclick="(function(){var m=document.getElementById(\'favorHashesMore\');var b=document.getElementById(\'favorHashesMoreBtn\');if(!m||!b)return;var open=m.style.display!==\'none\';m.style.display=open?\'none\':\'block\';b.textContent=open?\'Show more \u25bc\':\'Show less \u25b2\';})()"' +
-            'id="favorHashesMoreBtn" style="width:100%;margin-top:6px;padding:6px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Show more \u25bc</button>';
-    }
+        var hashPieces = [];
+    var hashCap = Math.min(entries.length, 50);
+    for (var i = 0; i < hashCap; i++) hashPieces.push(renderEntry(entries[i], i));
+    html += _bqLazyList(hashPieces, 'hashes');
 
     return html;
 }
@@ -6557,7 +6553,7 @@ function _listenRaidParticipants(bossId) {
     window._raidParticipantsUnsub = db.collection('raid_bosses').doc(bossId)
         .collection('participants')
         .orderBy('contributed', 'desc')
-        .limit(25)
+        .limit(50)
         .onSnapshot(function(snapshot) {
             var el = document.getElementById('raidParticipants');
             if (!el) return;
@@ -6565,25 +6561,26 @@ function _listenRaidParticipants(bossId) {
                 el.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">No raiders yet - be the first! ⚔️</div>';
                 return;
             }
-            var html = '';
+            var pieces = [];
             var rank = 0;
             snapshot.docs.forEach(function(doc) {
                 rank++;
+                if (rank > 50) return;
                 var p = doc.data();
                 var displayName = typeof escapeHtml === 'function' ? escapeHtml(p.username || 'Anonymous') : (p.username || 'Anonymous');
                 var contributed = p.contributed || 0;
                 var rankIcon = rank === 1 ? '👑' : (rank === 2 ? '🥈' : (rank === 3 ? '🥉' : rank + '.'));
                 var isMe = typeof auth !== 'undefined' && auth && auth.currentUser && doc.id === auth.currentUser.uid;
                 var _pUid = doc.id;
-                html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;">' +
+                pieces.push('<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;">' +
                     '<div style="display:flex;align-items:center;gap:8px;">' +
                         '<span style="font-size:0.8rem;min-width:24px;">' + rankIcon + '</span>' +
                         '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + _pUid + '\')" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
                     '</div>' +
                     '<span style="font-size:0.78rem;font-weight:800;color:#8b5cf6;font-variant-numeric:tabular-nums;">' + contributed.toLocaleString() + ' dmg</span>' +
-                '</div>';
+                '</div>');
             });
-            el.innerHTML = html;
+            el.innerHTML = _bqLazyList(pieces, 'raiders');
         }, function(err) {
             console.error('[RAID] Participants listener error:', err);
         });
@@ -6622,7 +6619,7 @@ window._toggleRaidDamageDealers = function() {
     window._raidDamageDealersUnsub = db.collection('raid_bosses').doc(bossId)
         .collection('participants')
         .orderBy('contributed', 'desc')
-        .limit(30)
+        .limit(50)
         .onSnapshot(function(snapshot) {
             var el = document.getElementById('raidDamageDealers');
             if (!el) return;
@@ -6630,25 +6627,26 @@ window._toggleRaidDamageDealers = function() {
                 el.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">No damage recorded for this boss.</div>';
                 return;
             }
-            var html = '';
+            var pieces = [];
             var rank = 0;
             snapshot.docs.forEach(function(doc) {
                 rank++;
+                if (rank > 50) return;
                 var p = doc.data();
                 var displayName = typeof escapeHtml === 'function' ? escapeHtml(p.username || 'Anonymous') : (p.username || 'Anonymous');
                 var contributed = p.contributed || 0;
                 var rankIcon = rank === 1 ? '\uD83D\uDC51' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
                 var isMe = typeof auth !== 'undefined' && auth && auth.currentUser && doc.id === auth.currentUser.uid;
                 var pUid = doc.id;
-                html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;margin-bottom:4px;">' +
+                pieces.push('<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;margin-bottom:4px;">' +
                     '<div style="display:flex;align-items:center;gap:8px;">' +
                         '<span style="font-size:0.8rem;min-width:24px;">' + rankIcon + '</span>' +
                         '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + pUid + '\')" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
                     '</div>' +
                     '<span style="font-size:0.78rem;font-weight:800;color:#8b5cf6;font-variant-numeric:tabular-nums;">' + contributed.toLocaleString() + ' dmg</span>' +
-                '</div>';
+                '</div>');
             });
-            el.innerHTML = html;
+            el.innerHTML = _bqLazyList(pieces, 'raiders');
         }, function(err) {
             console.error('[RAID] Damage dealers listener error:', err);
             var el = document.getElementById('raidDamageDealers');
@@ -6695,10 +6693,11 @@ function _raidAllTimeHtml(doc) {
         var mine = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.raidDamageAllTime || 0) : 0;
         if (!(mine > 0)) return '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">No all-time damage recorded yet.</div>';
     }
-    var html = '';
+    var pieces = [];
     var seenMe = false;
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '';
     rows.forEach(function (u) {
+        if (pieces.length >= 50) return;
         var rank = u.rank || 0;
         var displayName = typeof escapeHtml === 'function' ? escapeHtml(u.username || 'Anonymous') : (u.username || 'Anonymous');
         var dmg = u.value || 0;
@@ -6706,19 +6705,20 @@ function _raidAllTimeHtml(doc) {
         var safeId = String(u.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
         var isMe = !!(myUid && safeId === myUid);
         if (isMe) seenMe = true;
-        html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;">' +
+        pieces.push('<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;">' +
             '<div style="display:flex;align-items:center;gap:8px;">' +
                 '<span style="font-size:0.8rem;min-width:24px;">' + rankIcon + '</span>' +
                 '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + safeId + '\')" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
             '</div>' +
             '<span style="font-size:0.78rem;font-weight:800;color:#f7931a;font-variant-numeric:tabular-nums;">' + dmg.toLocaleString() + ' dmg</span>' +
-        '</div>';
+        '</div>');
     });
+    var html = _bqLazyList(pieces, 'raiders');
     if (!seenMe && typeof currentUser !== 'undefined' && currentUser && (currentUser.raidDamageAllTime || 0) > 0) {
         var myName = typeof escapeHtml === 'function' ? escapeHtml(currentUser.username || 'Anonymous') : (currentUser.username || 'Anonymous');
         html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);border-radius:10px;">' +
             '<div style="display:flex;align-items:center;gap:8px;">' +
-                '<span style="font-size:0.8rem;min-width:24px;">25+</span>' +
+                '<span style="font-size:0.8rem;min-width:24px;">50+</span>' +
                 '<span style="font-size:0.82rem;font-weight:800;color:#8b5cf6;">' + myName + ' (you)</span>' +
             '</div>' +
             '<span style="font-size:0.78rem;font-weight:800;color:#f7931a;">' + (currentUser.raidDamageAllTime || 0).toLocaleString() + ' dmg</span>' +

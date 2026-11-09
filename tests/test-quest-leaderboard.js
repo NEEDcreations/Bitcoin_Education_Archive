@@ -164,9 +164,9 @@ test('a player with no distinct pass stays off the board', () => {
     assert.strictEqual(board.selectBoard(rows, 'alltime').length, 0);
 });
 
-test('the board stops at 25 and does not need an expand', () => {
+test('the board stops at 50', () => {
     const rows = [];
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 60; i++) {
         rows.push({
             username: 'N' + String(i).padStart(2, '0'),
             passes: i + 1,
@@ -176,11 +176,12 @@ test('the board stops at 25 and does not need an expand', () => {
         });
     }
     const picked = board.selectBoard(rows, 'alltime');
-    assert.strictEqual(picked.length, 25);
-    assert.strictEqual(picked[0].username, 'N29');
-    assert.strictEqual(picked[0].passes, 30);
-    assert.strictEqual(picked[24].passes, 6);
-    assert.strictEqual(board.BOARD_SIZE, 25);
+    assert.strictEqual(picked.length, 50);
+    assert.strictEqual(picked[0].username, 'N59');
+    assert.strictEqual(picked[0].passes, 60);
+    assert.strictEqual(picked[49].passes, 11);
+    assert.strictEqual(board.BOARD_SIZE, 50);
+    assert.strictEqual(board.FETCH_LIMIT, 100);
 });
 
 test('banned players stay, ghost mode stays off, and the doc has no email or uid', () => {
@@ -320,6 +321,7 @@ test('rules deny client writes and the page reads one doc per tab', () => {
     assert.strictEqual(fn.includes('quest_lb_stats'), false);
     assert.strictEqual(fn.includes('Show all'), false);
     assert.strictEqual(fn.includes('expandLeaderboard'), false);
+    assert.ok(fn.includes("_lbMoreButton(_lbStashMore(questSplit.rest), questSplit.total, 'questers')"));
     assert.ok(fn.includes(' · '));
     assert.ok(fn.includes('%'));
     const indexes = read('firestore.indexes.json');
