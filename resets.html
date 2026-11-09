@@ -52,7 +52,7 @@
   <section class="remind" id="reminder-resets">
     <div>
       <h2>Reminder resets</h2>
-      <p>Opt in only. Each reset has its own switch, and every switch starts off. A reminder goes out about an hour before that reset and is skipped during quiet hours (10 PM to 8 AM in your time zone, unless you change it).</p>
+      <p>Opt in only. Each reset has its own switch, and every switch starts off. A reminder goes out about an hour before that reset. If that hour is inside quiet hours (10 PM to 8 AM in your time zone, unless you change it), it is sent when quiet hours end, once per reset.</p>
     </div>
     <a href="/#reset-reminders">Turn on notifications</a>
   </section>
@@ -77,6 +77,7 @@
       <tr><td>Proof of Walk day, charity donation day</td><td class="when">05:00 UTC<small>12:00 AM EST</small></td><td>Once each game day</td><td>getOffsetDateKey</td></tr>
       <tr><td>Peer key send</td><td class="when">00:00 UTC<small>7:00 PM EST</small></td><td>One send of up to 3 keys per peer per UTC day. A send is also refused until 05:00 UTC when yesterday's UTC pair still matches the game-day check.</td><td>sendKeys, utcDateKey and getOffsetDateKey</td></tr>
       <tr><td>Cipher opens</td><td class="when">00:00 UTC<small>7:00 PM EST</small></td><td>21 opens per UTC day. XP from the open still counts on the 05:00 UTC game day.</td><td>decryptCipher, ciphersDecryptedDate</td></tr>
+      <!-- TODO(sats-caps): figures in the next two rows and in Other → Sats withdrawal are the live constants (faucetGuard MAX_PER_CLAIM_SATS 200, MAX_DAILY_PER_USER_SATS 200, GLOBAL_DAILY_MAX_SATS 10000; cipherSatsClaim CLAIM_MAX 200, PLAYER_DAILY_CAP 200, SITE_DAILY_CAP 2000). No shared cash-out config yet. PR #273 will set max 1,000 sats per cash-out and 2,000 per day across both rails. Read that one constant here and in daily-sats-cap when it exists. -->
       <tr><td>Cipher sats claims</td><td class="when">00:00 UTC<small>7:00 PM EST</small></td><td>100 to 200 sats per claim, 200 per player per UTC day, 2,000 per UTC day for the whole site. Separate from the faucet clock.</td><td>claimCipherSats, utcDateKey</td></tr>
       <tr><td>Faucet daily cap</td><td class="when">00:00 UTC<small>7:00 PM EST</small></td><td>200 sats per player and 10,000 sats site-wide per UTC day. The 24-hour wait between claims is separate and listed under Other.</td><td>claimSats, sats_daily/{UTC date}</td></tr>
       <tr><td>Scholar exam</td><td class="when">00:00 UTC<small>7:00 PM EST</small></td><td>One try per UTC day. The attempt itself lasts 10 minutes, plus 2 minutes of grace on submit.</td><td>scholarAttempt.utcDay</td></tr>

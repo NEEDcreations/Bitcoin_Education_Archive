@@ -2817,6 +2817,7 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow create, update: if request.auth != null
         && request.auth.uid == uid
+        && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
         && resetRemindersShape(request.resource.data)
         && request.resource.data.optedIn == true;
       allow delete: if request.auth != null && request.auth.uid == uid;

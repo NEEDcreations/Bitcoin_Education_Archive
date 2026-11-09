@@ -60,11 +60,30 @@ async function runDispatch(db, admin, sendPush, nowMs) {
                 summary.failed++;
                 continue;
             }
-            if (!userSnap.exists) continue;
+            if (!userSnap.exists) {
+                try {
+                    await sub.ref.delete();
+                    summary.dropped = (summary.dropped || 0) + 1;
+                } catch (dropMissing) {
+                    summary.failed++;
+                }
+                continue;
+            }
             const user = userSnap.data() || {};
+            if (user.anonymous === true || user.isAnonymous === true) {
+                try {
+                    await sub.ref.delete();
+                    summary.dropped = (summary.dropped || 0) + 1;
+                } catch (dropAnon) {
+                    summary.failed++;
+                }
+                continue;
+            }
             const hits = logic.planSends([{
                 uid: uid,
                 banned: user.banned === true,
+                anonymous: user.anonymous === true,
+                isAnonymous: user.isAnonymous === true,
                 resetReminders: user.resetReminders,
                 lastSatsClaim: user.lastSatsClaim
             }], now, {});

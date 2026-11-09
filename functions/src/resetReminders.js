@@ -27,6 +27,9 @@
         { id: 'daily-tctv', group: 'daily', title: 'Timechain TV day', body: 'The Timechain TV watch reward and sats-pot daily cap reset in about an hour.', url: ORIGIN + '/#timechain-tv', when: { tz: 'UTC', hour: 5, minute: 0 } },
         { id: 'daily-keys', group: 'daily', title: 'Peer key send', body: 'The UTC day for sending keys to the same peer rolls over in about an hour.', url: ORIGIN + '/#questhub', when: { tz: 'UTC', hour: 0, minute: 0 } },
         { id: 'daily-ciphers', group: 'daily', title: 'Cipher opens', body: 'The 21 cipher opens for this UTC day refresh in about an hour.', url: ORIGIN + '/#questhub', when: { tz: 'UTC', hour: 0, minute: 0 } },
+        // TODO(sats-caps): no shared cash-out config yet. This 200 is faucetGuard.MAX_DAILY_PER_USER_SATS.
+        // PR #273 will set a max of 1,000 sats per cash-out and 2,000 per day across the faucet and cipher rails.
+        // When those live in one constant, read it here and in resets.html. Do not hardcode the new numbers before that.
         { id: 'daily-sats-cap', group: 'daily', title: 'Daily sats cap', body: 'The UTC-day faucet cap (200 sats) resets in about an hour.', url: ORIGIN + '/#settings', when: { tz: 'UTC', hour: 0, minute: 0 } },
         { id: 'scholar-exam', group: 'daily', title: 'Scholar exam', body: 'Your scholar exam try resets at midnight UTC, about an hour from now.', url: ORIGIN + '/#questhub', when: { tz: 'UTC', hour: 0, minute: 0 } },
         { id: 'weekly-xp', group: 'weekly', title: 'Weekly leaderboard', body: 'The weekly XP leaderboard closes in about an hour.', url: ORIGIN + '/#leaderboard', when: { tz: 'UTC', hour: 5, minute: 0, dow: 1 } },
@@ -193,15 +196,62 @@
         };
     }
 
-    function windowOpen(nowMs, resetAt) {
-        if (!resetAt) return false;
+    // The instant quiet hours end after `ms`. If `ms` is already outside quiet
+    // hours, `ms` itself. 0 when a quiet-hours end cannot be found.
+    function nextQuietEnd(ms, prefs) {
+        if (!inQuietHours(ms, prefs)) return ms;
+        var local = partsInZone(ms, prefs.timeZone);
+        var y = local.y;
+        var m = local.m;
+        var d = local.d;
+        var i;
+        for (i = 0; i < 3; i++) {
+            var t = zonedTimeToUtc(y, m, d, prefs.quietEnd, 0, prefs.timeZone);
+            var shown = partsInZone(t, prefs.timeZone);
+            if (shown.hour === prefs.quietEnd && t > ms && !inQuietHours(t, prefs)) return t;
+            var step = addCivilDay(y, m, d);
+            y = step.y;
+            m = step.m;
+            d = step.d;
+        }
+        return 0;
+    }
+
+    function previousReset(when, nowMs) {
+        var cursor = nextReset(when, nowMs - 45 * DAY);
+        var prev = 0;
+        var guard = 0;
+        while (cursor && cursor <= nowMs && guard < 60) {
+            prev = cursor;
+            cursor = nextReset(when, cursor);
+            guard++;
+        }
+        return prev;
+    }
+
+    function followingReset(item, resetAt) {
+        if (!item || item.rolling === 'faucet') return resetAt + DAY;
+        return nextReset(item.when, resetAt) || (resetAt + 40 * DAY);
+    }
+
+    // Send in the hour before the reset. If that hour sits inside quiet hours
+    // (the 05:00 UTC game day does, for US Eastern, US Central, and London),
+    // hold the same reset and send it when quiet hours end. Still one claim
+    // per reset: the occurrence key is the reset instant, not the send instant.
+    function considerReset(item, resetAt, nowMs, prefs) {
+        if (!resetAt) return null;
         var planned = resetAt - LEAD_MS;
-        return nowMs >= planned && nowMs < resetAt;
+        var releaseAt = nextQuietEnd(planned, prefs);
+        if (!releaseAt) return null;
+        var deadline = releaseAt < resetAt ? resetAt : followingReset(item, resetAt);
+        if (nowMs < releaseAt || nowMs >= deadline) return null;
+        var hit = hitFor(item, resetAt);
+        hit.deferred = releaseAt >= resetAt;
+        if (hit.deferred) hit.body = 'Quiet hours are over. ' + item.title + ' has reset.';
+        return hit;
     }
 
     // Nothing is due unless optedIn is exactly true and that reset's switch is true.
-    // Quiet hours skip the send. If quiet hours end while the reset is still ahead,
-    // a later check inside the lead window can still send once.
     function dueForUser(nowMs, user) {
         var data = user || {};
         var prefs = sanitize(data.resetReminders);
@@ -210,16 +260,22 @@
         var out = [];
         CATALOG.forEach(function (item) {
             if (prefs.items[item.id] !== true) return;
-            var resetAt = 0;
             if (item.rolling === 'faucet') {
                 var last = millisOf(data.lastSatsClaim);
                 if (!last) return;
-                resetAt = last + DAY;
-            } else {
-                resetAt = nextReset(item.when, nowMs);
+                var faucetHit = considerReset(item, last + DAY, nowMs, prefs);
+                if (faucetHit) out.push(faucetHit);
+                return;
             }
-            if (!windowOpen(nowMs, resetAt)) return;
-            out.push(hitFor(item, resetAt));
+            var upcoming = nextReset(item.when, nowMs);
+            var previous = previousReset(item.when, nowMs);
+            var seen = {};
+            [previous, upcoming].forEach(function (resetAt) {
+                if (!resetAt || seen[resetAt]) return;
+                seen[resetAt] = true;
+                var hit = considerReset(item, resetAt, nowMs, prefs);
+                if (hit) out.push(hit);
+            });
         });
         return out;
     }
@@ -237,6 +293,7 @@
         (rows || []).forEach(function (row) {
             if (!row || !row.uid) return;
             if (row.banned === true) return;
+            if (row.anonymous === true || row.isAnonymous === true) return;
             dueForUser(nowMs, row).forEach(function (hit) {
                 var id = claimDocId(row.uid, hit.occurrenceKey);
                 if (!id || seen[id]) return;
@@ -258,6 +315,7 @@
         anyOn: anyOn,
         inQuietHours: inQuietHours,
         nextReset: nextReset,
+        nextQuietEnd: nextQuietEnd,
         dueForUser: dueForUser,
         claimDocId: claimDocId,
         planSends: planSends,

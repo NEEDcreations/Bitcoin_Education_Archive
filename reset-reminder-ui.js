@@ -5,6 +5,7 @@
 (function () {
     var LOCAL = 'btc_reset_reminders';
     var SHOWN = 'btc_reset_reminder_shown';
+    var _pushMaster = null;
 
     function api() { return window.ResetReminders || null; }
 
@@ -110,7 +111,7 @@
         var prefWrite = Promise.resolve();
         if (clean.optedIn && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
             prefWrite = userRef.set({
-                notificationPrefs: { master: true, reminders: true }
+                notificationPrefs: { reminders: true }
             }, { merge: true }).catch(function () {});
         }
         return Promise.all([userWrite, subWrite, prefWrite]).then(function () { return clean; });
@@ -136,7 +137,7 @@
         var title = document.createElement('h2');
         title.textContent = 'Reminder resets';
         var copy = document.createElement('p');
-        copy.textContent = 'Each reset starts off. Turn on only the ones you want. A reminder is sent about an hour before that reset, and never during quiet hours. If this browser blocks push, the reminder still shows in the app while you have it open.';
+        copy.textContent = 'Each reset starts off. Turn on only the ones you want. A reminder goes out about an hour before that reset. If that hour is inside quiet hours, it is sent when quiet hours end, once. If this browser blocks push, it still shows in the app while you have it open.';
         card.appendChild(close);
         card.appendChild(title);
         card.appendChild(copy);
@@ -144,6 +145,11 @@
             var need = document.createElement('p');
             need.textContent = 'Sign in to save these on your account.';
             card.appendChild(need);
+        } else if (_pushMaster === false) {
+            var masterOff = document.createElement('p');
+            masterOff.id = 'resetReminderMasterNote';
+            masterOff.textContent = 'Push is off for this account. These reminders stay in the app. They are not pushed to your devices until you turn notifications on in Settings.';
+            card.appendChild(masterOff);
         }
         var hours = document.createElement('div');
         hours.className = 'rr-hours';
@@ -233,6 +239,8 @@
         if (!signedIn() || typeof db === 'undefined') return Promise.resolve(current());
         return db.collection('users').doc(uid()).get().then(function (snap) {
             var data = snap.exists ? (snap.data() || {}) : {};
+            var prefsMap = data.notificationPrefs;
+            _pushMaster = !!(prefsMap && prefsMap.master === true);
             if (data.resetReminders) {
                 var lib = api();
                 var clean = lib ? lib.sanitize(data.resetReminders) : data.resetReminders;
@@ -273,7 +281,13 @@
         });
         if (typeof Notification === 'undefined' || Notification.permission !== 'default') return;
         ensurePushScript().then(function () {
-            if (typeof window.enablePushFromTap === 'function') window.enablePushFromTap();
+            if (typeof window.enablePushFromTap !== 'function') return null;
+            return window.enablePushFromTap();
+        }).then(function (ok) {
+            if (ok !== true) return;
+            _pushMaster = true;
+            var note = document.getElementById('resetReminderMasterNote');
+            if (note) note.remove();
         });
     }
 
