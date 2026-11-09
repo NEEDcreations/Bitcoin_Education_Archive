@@ -474,3 +474,16 @@ function eligibleUser(extra) {
     console.error(err);
     process.exit(1);
 });
+
+// awardBirthdayOrangeTix must bind DELETION_HMAC_SECRET: its identity markers and
+// tombstone checks are HMACs, and without the binding every candidate is skipped.
+{
+    const fs = require('fs'), path = require('path');
+    const idx = fs.readFileSync(path.join(__dirname, '../functions/index.js'), 'utf8');
+    const start = idx.indexOf('exports.awardBirthdayOrangeTix = onSchedule({');
+    if (start < 0) throw new Error('awardBirthdayOrangeTix export not found');
+    const opts = idx.slice(start, idx.indexOf('}, async', start));
+    require('assert').ok(/secrets:\s*\[deletionHmacSecret\]/.test(opts), 'awardBirthdayOrangeTix binds DELETION_HMAC_SECRET');
+    require('assert').ok(opts.includes("serviceAccount: runtimeSa('awardBirthdayOrangeTix')"), 'awardBirthdayOrangeTix runs as its own SA');
+    console.log('awardBirthdayOrangeTix secret binding: ok');
+}

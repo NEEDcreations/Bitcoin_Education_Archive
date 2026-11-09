@@ -6932,6 +6932,10 @@ exports.awardBirthdayOrangeTix = onSchedule({
     timeZone: 'America/New_York',
     timeoutSeconds: 540,
     retryCount: 0,
+    // Identity markers and tombstone checks are HMACs keyed by DELETION_HMAC_SECRET.
+    // Without this binding hmacHex() returns '' and every candidate is skipped as no-identity.
+    secrets: [deletionHmacSecret],
+    serviceAccount: runtimeSa('awardBirthdayOrangeTix'),
 }, async () => {
     const birthdayReward = require('./src/birthdayReward');
     const accountTombstone = require('./src/accountTombstone');
