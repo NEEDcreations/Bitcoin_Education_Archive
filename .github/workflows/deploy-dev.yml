@@ -4,6 +4,10 @@ on:
   push:
     branches: [dev]
 
+# Checkout only. Firebase auth is the FIREBASE_TOKEN secret.
+permissions:
+  contents: read
+
 jobs:
   deploy-dev:
     runs-on: ubuntu-latest
