@@ -76,7 +76,9 @@ const vote = createSvbVote({
     assert.ok(client.includes("httpsCallable('pollVote')"));
     assert.strictEqual(client.includes('.set('), false);
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-    assert.ok(html.includes('sats-vs-bits.js?v=20261030_v2440'));
+    assert.ok(html.includes('sats-vs-bits.js?v=20261109_v2532'));
+    assert.ok(client.includes('svbSatsPct'));
+    assert.ok(client.includes('svbBitsPct'));
     const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
     const pollsAt = rules.indexOf('match /polls/{pollId}');
     const polls = rules.slice(pollsAt, rules.indexOf('match /certs/{certId}', pollsAt));

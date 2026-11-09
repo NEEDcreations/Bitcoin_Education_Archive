@@ -200,6 +200,39 @@ test('profanity, scam, and spam are the edit block reasons', function () {
         assert.strictEqual(db.docs.get('chat_edit_rate/u1').flagged, false);
     });
 
+    await testAsync('a profane image caption is logged and reverted without touching the image url', async function () {
+        const image = 'https://firebasestorage.googleapis.com/v0/b/bitcoin-education-archive.firebasestorage.app/o/chat-images%2Fu1%2Fpic.jpg';
+        const before = { uid: 'u1', text: image, caption: 'hello there', isGif: true, editCount: 0, edited: false };
+        const after = { uid: 'u1', text: image, caption: 'hello fuck', isGif: true, editCount: 1, edited: true, editedAt: at(now) };
+        const db = fakeDb({ 'global_chat/pic': Object.assign({}, after) });
+        const res = await mod.handleGlobalUpdate(db, admin, 'pic', before, after, now, { eventId: 'evt-cap' });
+        assert.strictEqual(res.reverted, true);
+        assert.strictEqual(res.blocked, 'profanity');
+        const restored = db.docs.get('global_chat/pic');
+        assert.strictEqual(restored.caption, 'hello there');
+        assert.strictEqual(restored.text, image);
+        assert.strictEqual(restored.editCount, 0);
+        assert.strictEqual(restored.filterRemoved, true);
+        const row = logs(db)[0];
+        assert.strictEqual(row.before, 'hello there');
+        assert.strictEqual(row.after, 'hello fuck');
+        assert.strictEqual(row.blocked, 'profanity');
+    });
+
+    await testAsync('a clean image caption edit is logged and the image url stays', async function () {
+        const image = 'https://example.com/pic.jpg';
+        const before = { uid: 'u1', text: image, caption: 'hello there', isGif: true, editCount: 0 };
+        const after = { uid: 'u1', text: image, caption: 'hello there friend', isGif: true, editCount: 1, edited: true, editedAt: at(now) };
+        const db = fakeDb({ 'global_chat/pic': Object.assign({}, after) });
+        const res = await mod.handleGlobalUpdate(db, admin, 'pic', before, after, now, { eventId: 'evt-cap-ok' });
+        assert.strictEqual(res.action, 'edit');
+        assert.strictEqual(res.blocked, '');
+        assert.strictEqual(db.docs.get('global_chat/pic').text, image);
+        assert.strictEqual(db.docs.get('global_chat/pic').caption, 'hello there friend');
+        assert.strictEqual(logs(db)[0].before, 'hello there');
+        assert.strictEqual(logs(db)[0].after, 'hello there friend');
+    });
+
     await testAsync('a profane edit is logged and reverted, and the revert write is ignored', async function () {
         const before = { uid: 'u1', text: 'hello there', editCount: 0, edited: false };
         const after = { uid: 'u1', text: 'hello fuck', editCount: 1, edited: true, editedAt: at(now) };

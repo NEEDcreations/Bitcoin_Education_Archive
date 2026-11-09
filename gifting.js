@@ -544,12 +544,19 @@ function _focusables(root) {
     return out;
 }
 
+function _stopGiftingPop(e) {
+    if (e && e.stopImmediatePropagation) e.stopImmediatePropagation();
+}
+
 function _bindGiftingPop() {
     if (_giftingPopBound || !window.addEventListener) return;
     _giftingPopBound = true;
-    window.addEventListener('popstate', function() {
+    // Capture so closing a cipher, claim, or key picker does not also close
+    // the gift screen or inventory that opened it.
+    window.addEventListener('popstate', function(e) {
         if (_giftingIgnorePop > 0) {
             _giftingIgnorePop--;
+            _stopGiftingPop(e);
             return;
         }
         var top = _giftingChildren.length ? _giftingChildren[_giftingChildren.length - 1] : null;
@@ -563,7 +570,8 @@ function _bindGiftingPop() {
         if (!top.pushed) return;
         top.pushed = false;
         _finishGiftingChild(top);
-    });
+        _stopGiftingPop(e);
+    }, true);
 }
 
 function _restoreGiftingFocus(entry) {
@@ -578,12 +586,27 @@ function _restoreGiftingFocus(entry) {
     }
 }
 
+function _focusNextCipherOpener() {
+    var nodes = document.querySelectorAll ? document.querySelectorAll('.cipher-open-btn') : [];
+    for (var i = 0; i < nodes.length; i++) {
+        var btn = nodes[i];
+        if (!btn) continue;
+        var label = String(btn.textContent || '').replace(/\s+/g, ' ').trim();
+        if (label === 'Open Global Chat') continue;
+        if (label.indexOf('Open') !== 0) continue;
+        if (typeof btn.focus === 'function') {
+            try { btn.focus(); return; } catch (e) { /* the opener may already be gone */ }
+        }
+    }
+}
+
 function _finishGiftingChild(entry) {
     if (!entry) return;
     var idx = _giftingChildren.indexOf(entry);
     if (idx >= 0) _giftingChildren.splice(idx, 1);
     if (entry.el && entry.el.parentNode) entry.el.remove();
     _restoreGiftingFocus(entry);
+    if (entry.id === 'decryptCipherOverlay') _focusNextCipherOpener();
 }
 
 function _mountGiftingChild(overlay, returnFocus) {
@@ -2084,6 +2107,7 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
             resultDiv.appendChild(claim);
         }
         var done = _btn('Nice!');
+        done.id = 'cipherOpenDone';
         done.style.width = '100%';
         done.style.marginTop = '10px';
         done.onclick = function() { _dismissGiftingChild(overlay); };
@@ -2092,6 +2116,15 @@ async function _decryptCipherModal(cipherId, cipherLabel, knownKey) {
     _confetti();
     _toast('🔓 Cipher ' + cipherLabel + ' opened! ' + _rewardLabel(rw));
     await refreshPromise;
+    var doneBtn = document.getElementById('cipherOpenDone');
+    var openers = document.querySelectorAll ? document.querySelectorAll('.cipher-open-btn') : [];
+    var more = 0;
+    for (var oi = 0; oi < openers.length; oi++) {
+        var openerLabel = String(openers[oi].textContent || '').replace(/\s+/g, ' ').trim();
+        if (openerLabel === 'Open Global Chat' || openerLabel.indexOf('Open') !== 0) continue;
+        more++;
+    }
+    if (more && doneBtn && overlay.parentNode) doneBtn.textContent = 'Back to ciphers';
 }
 
 // ─── Claim a small sats win ──────────────────────────────────────────────────

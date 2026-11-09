@@ -1,4 +1,4 @@
-// Cache-buster pin. This ship is btc-archive-v2527 (Global Chat and DM owner edit and soft delete: global-chat.js, bundle, and miniapp-share.js 20261107_v2527). Before: btc-archive-v2526 (placeholder, not deployed: per-card mini-app unfurls; miniapp-share.js 20261107_v2526). Before: btc-archive-v2525 (Satoshi's Favor target 25,000 + live difficulty/retarget: satoshi-favor.js and quests.js 20261106_v2525). Before: btc-archive-v2524 (Claim Sats above Settings + grandfathered chat/TCTV N/A rows; ranking.js 20261106_v2524). Before: btc-archive-v2523 (Proof of Play share opens #proof-of-play; miniapp-share.js 20261106_v2523). Before: btc-archive-v2522 (gift drop rebalance: keys 22%/ciphers 28%, single-key drops, label bias, need-label hint; gifting.js 20261106_v2522). Before: btc-archive-v2521 (TCTV stepped rate). Before: btc-archive-v2520 (Experience mode bar no longer clipped by taller signed-in mobile header: features.registry.js 20261106_v2520, --bq-mobile-bar-h). Before: btc-archive-v2519 (Global Chat button no longer hidden by empty or non-blocking layers: popup-stack.js, pvp-lobby-alert.js 20261106_v2519). Before: btc-archive-v2518 (Your Share live line on pot of sats: tctv-drip.js 20261106_v2518). Before: btc-archive-v2517 (root-absolute same-origin asset paths so trailing-slash routes load scripts). Before: btc-archive-v2515 (Terms .tos-box no longer sticky-hides the pot of sats). Before: btc-archive-v2514 (qualified badge percentages and collection order). Before: btc-archive-v2513 (Satoshi Favor counter fixes). Before: btc-archive-v2512 (popup/sheet UX #252). Before: btc-archive-v2510 (weekly patch notes). Before: btc-archive-v2509 (ranking.js, quests.js, and global-chat.js 20261106_v2509). Before: btc-archive-v2508 (pot of sats overlay: tctv-drip.js 20261106_v2508). Before: btc-archive-v2507 (collection completion recognition). Before: btc-archive-v2506 (Nook rebalance: quests.js, nacho-qa.js, features.registry.js, global-chat.js 20261105_v2506). Before: btc-archive-v2505 (faction race prizes: faction-race-prizes.js, ranking.js, global-chat.js, bundle.min.js 20261105_v2505). Before: btc-archive-v2504 (faction race balance: ranking.js, quests.js and global-chat.js 20261105_v2504). Before: btc-archive-v2503 (collections rebalance + Title & Flair: bundle.min.js, ranking.js, global-chat.js, quests.js 20261105_v2503). Before: btc-archive-v2502 (legal docs: timechain-tv.js disclaimer 20261105_v2502). Before: btc-archive-v2501 (favorite home buttons open again + star spacing: favorites.js 20261105_v2501). Before: btc-archive-v2500 (Terms Accept fix: onboarding.js, ranking.js 20261105_v2500). Before: btc-archive-v2499 (BIP Breakthrough: bip-breakthrough.js, achievement-share.js, badges.js, global-chat.js, bundle/ranking/referral-tiers 20261105_v2499; keeps notifications.js 20261105_v2497 from #237). Before: btc-archive-v2497 (homepage push bell). Before: btc-archive-v2496 (#236 referral maxi). Before: btc-archive-v2495 (pot of sats overlay). Before: btc-archive-v2494 (favorite apps).
+// Cache-buster pin. This ship is btc-archive-v2532 (placeholder, not deployed: Sats vs Bits percents, editable image captions, cipher opener stays open, PvP lobby does not auto-queue. global-chat.js, gifting.js, quests.js, pvp.js, pvp-lobby-alert.js, and sats-vs-bits.js are 20261109_v2532. Built on open PR #271, which is v2527). Before: btc-archive-v2527 (Global Chat and DM owner edit and soft delete: global-chat.js, bundle, and miniapp-share.js 20261107_v2527). Before: btc-archive-v2526 (placeholder, not deployed: per-card mini-app unfurls; miniapp-share.js 20261107_v2526). Before: btc-archive-v2525 (Satoshi's Favor target 25,000 + live difficulty/retarget: satoshi-favor.js and quests.js 20261106_v2525). Before: btc-archive-v2524 (Claim Sats above Settings + grandfathered chat/TCTV N/A rows; ranking.js 20261106_v2524). Before: btc-archive-v2523 (Proof of Play share opens #proof-of-play; miniapp-share.js 20261106_v2523). Before: btc-archive-v2522 (gift drop rebalance: keys 22%/ciphers 28%, single-key drops, label bias, need-label hint; gifting.js 20261106_v2522). Before: btc-archive-v2521 (TCTV stepped rate). Before: btc-archive-v2520 (Experience mode bar no longer clipped by taller signed-in mobile header: features.registry.js 20261106_v2520, --bq-mobile-bar-h). Before: btc-archive-v2519 (Global Chat button no longer hidden by empty or non-blocking layers: popup-stack.js, pvp-lobby-alert.js 20261106_v2519). Before: btc-archive-v2518 (Your Share live line on pot of sats: tctv-drip.js 20261106_v2518). Before: btc-archive-v2517 (root-absolute same-origin asset paths so trailing-slash routes load scripts). Before: btc-archive-v2515 (Terms .tos-box no longer sticky-hides the pot of sats). Before: btc-archive-v2514 (qualified badge percentages and collection order). Before: btc-archive-v2513 (Satoshi Favor counter fixes). Before: btc-archive-v2512 (popup/sheet UX #252). Before: btc-archive-v2510 (weekly patch notes). Before: btc-archive-v2509 (ranking.js, quests.js, and global-chat.js 20261106_v2509). Before: btc-archive-v2508 (pot of sats overlay: tctv-drip.js 20261106_v2508). Before: btc-archive-v2507 (collection completion recognition). Before: btc-archive-v2506 (Nook rebalance: quests.js, nacho-qa.js, features.registry.js, global-chat.js 20261105_v2506). Before: btc-archive-v2505 (faction race prizes: faction-race-prizes.js, ranking.js, global-chat.js, bundle.min.js 20261105_v2505). Before: btc-archive-v2504 (faction race balance: ranking.js, quests.js and global-chat.js 20261105_v2504). Before: btc-archive-v2503 (collections rebalance + Title & Flair: bundle.min.js, ranking.js, global-chat.js, quests.js 20261105_v2503). Before: btc-archive-v2502 (legal docs: timechain-tv.js disclaimer 20261105_v2502). Before: btc-archive-v2501 (favorite home buttons open again + star spacing: favorites.js 20261105_v2501). Before: btc-archive-v2500 (Terms Accept fix: onboarding.js, ranking.js 20261105_v2500). Before: btc-archive-v2499 (BIP Breakthrough: bip-breakthrough.js, achievement-share.js, badges.js, global-chat.js, bundle/ranking/referral-tiers 20261105_v2499; keeps notifications.js 20261105_v2497 from #237). Before: btc-archive-v2497 (homepage push bell). Before: btc-archive-v2496 (#236 referral maxi). Before: btc-archive-v2495 (pot of sats overlay). Before: btc-archive-v2494 (favorite apps).
 // Live gh-pages was v2446. quests.js stays v2443. bundle.min.js is v2447. global-chat.js is v2448.
 // gh-pages shipped #139 at v2393, #136 at v2390, and #131 at v2386.
 // timechain-tv.js is 20261105_v2502. scholar.js is 20261105_v2490.
@@ -50,10 +50,11 @@ test('mobile main pad tracks --bq-mobile-bar-h so Experience clears the header',
     assert.ok(html404.includes('features.registry.js?v=20261106_v2520'));
 });
 
-test('service worker cache is v2527', () => {
+test('service worker cache is v2532', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2527'"));
-    assert.ok(sw.includes('v2527 placeholder'));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2532'"));
+    assert.ok(!sw.includes('btc-archive-v2527'));
+    assert.ok(sw.includes('v2532 placeholder'));
     assert.ok(!sw.includes('btc-archive-v2526'));
     assert.ok(!sw.includes('btc-archive-v2525'));
     assert.ok(!sw.includes('btc-archive-v2524'));
@@ -355,7 +356,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(read('app.js').includes('proof-of-play.js?v=20261031_v2447'));
     assert.ok(!read('app.js').includes('proof-of-play.js?v=20260609_pop'));
     assert.ok(!read('app.js').includes('proof-of-play.js?v=20261027_v2398'));
-    assert.ok(read('pvp-lobby-alert.js').includes('pvp.js?v=20261031_v2447'));
+    assert.ok(read('pvp-lobby-alert.js').includes('pvp.js?v=20261109_v2532'));
     assert.ok(!html.includes('scholar.js?v=20261026_v2377'));
     assert.ok(!html.includes('scholar.js?v=20261026_v2379'));
     assert.ok(!html.includes('scholar.js?v=20261026_v2378'));
@@ -399,7 +400,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('modules.js?v=20261024_v2370'));
     assert.ok(!html.includes('modules.js?v=20261023_v2324'));
     assert.ok(!html.includes('ranking.js?v=20261022_lightfix'));
-    assert.ok(html.includes('global-chat.js?v=20261107_v2527'));
+    assert.ok(html.includes('global-chat.js?v=20261109_v2532'));
+    assert.ok(!html.includes('global-chat.js?v=20261107_v2527'));
     assert.ok(!html.includes('global-chat.js?v=20261104_v2482'));
     assert.ok(!html.includes('global-chat.js?v=20261104_v2475'));
     assert.ok(!html.includes('global-chat.js?v=20261031_v2452'));
@@ -410,7 +412,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('global-chat.js?v=20261029_v2432'));
     assert.ok(!html.includes('global-chat.js?v=20261029_v2431'));
     assert.ok(!html.includes('global-chat.js?v=20261028_v2431'));
-    assert.strictEqual((html.match(/global-chat\.js\?v=20261107_v2527/g) || []).length, 5);
+    assert.strictEqual((html.match(/global-chat\.js\?v=20261109_v2532/g) || []).length, 5);
     assert.strictEqual((html.match(/global-chat\.js\?v=20261030_v2436/g) || []).length, 0);
     assert.strictEqual((html.match(/global-chat\.js\?v=20261030_v2435/g) || []).length, 0);
     assert.strictEqual((html.match(/global-chat\.js\?v=20261029_v2432/g) || []).length, 0);
@@ -466,12 +468,14 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('achievement-share.js?v=20261026_v2384'));
     assert.ok(html.includes('shareable-certs.js?v=20261028_v2410'));
     assert.ok(!html.includes('shareable-certs.js?v=20261026_v2390'));
-    assert.ok(html.includes('pvp.js?v=20261031_v2447'));
+    assert.ok(html.includes('pvp.js?v=20261109_v2532'));
+    assert.ok(!html.includes('pvp.js?v=20261031_v2447'));
     assert.ok(!html.includes('pvp.js?v=20261026_v2391'));
     assert.ok(html.includes('proof-of-play.js?v=20261031_v2447'));
     assert.ok(!html.includes('proof-of-play.js?v=20260609_pop'));
     assert.ok(!html.includes('pvp.js?v=20261026_v2390'));
-    assert.ok(html.includes('pvp-lobby-alert.js?v=20261106_v2519'));
+    assert.ok(html.includes('pvp-lobby-alert.js?v=20261109_v2532'));
+    assert.ok(!html.includes('pvp-lobby-alert.js?v=20261106_v2519'));
     assert.ok(!html.includes('pvp-lobby-alert.js?v=20261104_v2482'));
     assert.ok(!html.includes('pvp-lobby-alert.js?v=20261026_v2391'));
     assert.ok(!html.includes('pvp-lobby-alert.js?v=20261026_v2390'));
@@ -491,7 +495,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('nacho-qa.js?v=20261105_v2506'));
     assert.ok(!html.includes('nacho-qa.js?v=20261104_v2482'));
     assert.ok(!html.includes('nacho-qa.js?v=20261027_v2395'));
-    assert.ok(html.includes('sats-vs-bits.js?v=20261030_v2440'));
+    assert.ok(html.includes('sats-vs-bits.js?v=20261109_v2532'));
+    assert.ok(!html.includes('sats-vs-bits.js?v=20261030_v2440'));
     assert.ok(!html.includes('sats-vs-bits.js?v=20260713_fullnum'));
     assert.ok(!html.includes('ranking.js?v=20261030_v2434'));
     assert.ok(!html.includes('nacho-qa.js?v=20261024_v2350'));
@@ -511,7 +516,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('onboarding.js?v=20261104_v2485'));
     assert.ok(!html.includes('onboarding.js?v=20261026_v2373'));
     assert.ok(!html.includes('onboarding.js?v=20261024_v2358'));
-    assert.ok(html.includes('gifting.js?v=20261106_v2522'));
+    assert.ok(html.includes('gifting.js?v=20261109_v2532'));
+    assert.ok(!html.includes('gifting.js?v=20261106_v2522'));
     assert.ok(!html.includes('gifting.js?v=20261106_v2512'));
     assert.ok(!html.includes('gifting.js?v=20261029_v2429'));
     assert.ok(!html.includes('gifting.js?v=20261026_v2400'));
@@ -569,7 +575,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2324'));
     assert.ok(html.includes('lightning.js?v=20261023_v2323'));
     assert.ok(!html.includes('lightning.js?v=20261022_faucet'));
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261106_v2525/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261109_v2532/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261106_v2525/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261106_v2509/g) || []).length, 0);
     assert.ok(!html.includes('quests.js?v=20261104_v2477'));
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261030_v2436/g) || []).length, 0);
@@ -613,7 +620,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2527');
+    assert.ok(swVersion && swVersion[1] === 'v2532');
     assert.ok(html.includes('faction-race-prizes.js?v=20261105_v2505'));
 });
 
@@ -771,9 +778,10 @@ test('PR #252 asset busters are v2512 (popup-stack bumped to v2519)', () => {
     assert.ok(!html.includes('bundle.min.js?v=20261106_v2512'));
     assert.ok(html.includes('features.registry.js?v=20261106_v2520'));
     assert.ok(html.includes('onboarding.js?v=20261106_v2512'));
-    assert.ok(html.includes('quests.js?v=20261106_v2525'));
+    assert.ok(html.includes('quests.js?v=20261109_v2532'));
     assert.ok(html.includes('notifications.js?v=20261106_v2512'));
-    assert.ok(html.includes('gifting.js?v=20261106_v2522'));
+    assert.ok(html.includes('gifting.js?v=20261109_v2532'));
+    assert.ok(!html.includes('gifting.js?v=20261106_v2522'));
     assert.ok(!html.includes('gifting.js?v=20261106_v2512'));
     assert.ok(html.includes('modules.js?v=20261106_v2512'));
     assert.ok(html.includes('auth-display.js?v=20261106_v2512'));

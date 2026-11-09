@@ -1900,6 +1900,20 @@ service cloud.firestore {
           && data.get('imageUrl', '') == ''
           && data.get('gifUrl', '') == '';
       }
+      // Image and GIF captions use the same window, cap, and edit fields as text.
+      // The image URL in text, imageUrl, and gifUrl cannot change on this path.
+      function globalCaptionEditable(data) {
+        return data.uid == request.auth.uid
+          && data.uid != 'nacho-bot'
+          && data.uid != 'system'
+          && data.get('isNachoAuto', false) != true
+          && data.get('source', '') != 'telegram'
+          && data.get('fromTelegram', false) != true
+          && data.get('deleted', false) != true
+          && (data.get('isGif', false) == true
+              || data.get('imageUrl', '') != ''
+              || data.get('gifUrl', '') != '');
+      }
       allow update: if request.auth != null
                     && (
                       // Reactions: emoji-keyed map { emoji: [uid,...] }
@@ -1919,6 +1933,23 @@ service cloud.firestore {
                        && request.resource.data.text is string
                        && request.resource.data.text.size() >= 1
                        && request.resource.data.text.size() <= 300
+                       && request.resource.data.edited == true
+                       && request.resource.data.editedAt == request.time
+                       && request.resource.data.editCount is int
+                       && resource.data.get('editCount', 0) is int
+                       && resource.data.get('editCount', 0) >= 0
+                       && request.resource.data.editCount == resource.data.get('editCount', 0) + 1
+                       && request.resource.data.editCount <= 5)
+                      ||
+                      // Owner caption edit on an image or GIF. Same 15 minutes and cap of 5.
+                      (!request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                       && globalCaptionEditable(resource.data)
+                       && resource.data.ts is timestamp
+                       && request.time < resource.data.ts + duration.value(15, 'm')
+                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['caption', 'edited', 'editedAt', 'editCount'])
+                       && request.resource.data.caption is string
+                       && request.resource.data.caption.size() >= 1
+                       && request.resource.data.caption.size() <= 300
                        && request.resource.data.edited == true
                        && request.resource.data.editedAt == request.time
                        && request.resource.data.editCount is int

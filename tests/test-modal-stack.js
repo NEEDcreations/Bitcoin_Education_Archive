@@ -107,8 +107,21 @@ function createDocument() {
     document.dispatchEvent = function(event) {
         (document._listeners[event.type] || []).slice().forEach(function(fn) { fn(event); });
     };
-    document.querySelectorAll = function() { return []; };
-    document.querySelector = function() { return null; };
+    document.querySelectorAll = function(sel) {
+        var out = [];
+        var className = sel && sel.charAt(0) === '.' ? sel.slice(1) : '';
+        function walk(node) {
+            if (!node || node.nodeType !== 1) return;
+            if (className && String(node.className || '').split(/\s+/).indexOf(className) !== -1) out.push(node);
+            (node.childNodes || []).forEach(walk);
+        }
+        walk(html);
+        return out;
+    };
+    document.querySelector = function(sel) {
+        var all = document.querySelectorAll(sel);
+        return all.length ? all[0] : null;
+    };
     document.getElementById = function(id) {
         var found = null;
         function walk(node) {
@@ -166,15 +179,28 @@ function boot() {
         _wentHome: function() { return wentHome; }
     };
     sandbox.window = sandbox;
-    sandbox.addEventListener = function(type, fn) {
-        if (!listeners[type]) listeners[type] = [];
-        listeners[type].push(fn);
+    sandbox.addEventListener = function(type, fn, opts) {
+        var capture = opts === true || (opts && opts.capture);
+        var key = capture ? type + ':capture' : type;
+        if (!listeners[key]) listeners[key] = [];
+        listeners[key].push(fn);
     };
     sandbox.removeEventListener = function(type, fn) {
-        listeners[type] = (listeners[type] || []).filter(function(item) { return item !== fn; });
+        [type, type + ':capture'].forEach(function(key) {
+            listeners[key] = (listeners[key] || []).filter(function(item) { return item !== fn; });
+        });
     };
     function fire(type) {
-        (listeners[type] || []).slice().forEach(function(fn) { fn({ type: type }); });
+        var event = {
+            type: type,
+            _stopped: false,
+            stopImmediatePropagation: function() { event._stopped = true; }
+        };
+        var list = (listeners[type + ':capture'] || []).concat(listeners[type] || []);
+        for (var i = 0; i < list.length; i++) {
+            list[i](event);
+            if (event._stopped) break;
+        }
     }
     sandbox.history = {
         pushState: function(state) { stack.push(state || {}); },
@@ -266,6 +292,28 @@ async function main() {
         assert.strictEqual(env.document.getElementById('decryptCipherOverlay'), null);
         assert.ok(env.document.getElementById('postSpinGiftOverlay'));
         assert.strictEqual(env.document.activeElement, opener);
+        assert.strictEqual(env.sandbox._wentHome(), false);
+    });
+
+    await test('Back from a cipher returns to the quest hub opener', async function() {
+        var env = boot();
+        env.sandbox.showQuestHub();
+        var list = env.document.createElement('div');
+        list.id = 'nookKeysCiphers';
+        var next = env.document.createElement('button');
+        next.className = 'cipher-open-btn';
+        next.textContent = 'Open 7F';
+        list.appendChild(next);
+        env.document.getElementById('questHubOverlay').appendChild(list);
+        env.sandbox.decryptCipherModal('c3', '3A', { id: 'k3', status: 'inventory', label: '3A' });
+        await flush();
+        assert.ok(env.document.getElementById('decryptCipherOverlay'));
+        assert.ok(env.document.getElementById('questHubOverlay'));
+        env.sandbox.history.back();
+        await flush();
+        assert.strictEqual(env.document.getElementById('decryptCipherOverlay'), null);
+        assert.ok(env.document.getElementById('questHubOverlay'), 'inventory opener closed');
+        assert.strictEqual(env.document.activeElement, next);
         assert.strictEqual(env.sandbox._wentHome(), false);
     });
 
