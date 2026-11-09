@@ -1335,6 +1335,7 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         ['push_tokens', uid, ['devices']],
         ['visits', uid, []],
         ['presence', uid, []],
+        ['profile_presence', uid, []],
         ['giveaway_entries', uid, []],
         ['active_predictions', uid, []],
         ['prediction_stats', uid, []],

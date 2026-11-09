@@ -6933,12 +6933,27 @@ function _lbSnapRead(docId) {
         if (!raw) return null;
         var doc = JSON.parse(raw);
         if (!doc || typeof doc !== 'object') return null;
+        _lbStripPrivate(doc);
+        try { localStorage.setItem(_lbSnapStorageKey(docId), JSON.stringify(doc)); } catch (e) {}
         return doc;
     } catch (e) { return null; }
 }
 
+function _lbStripPrivate(doc) {
+    var rows = doc && doc.rows;
+    if (!rows || !rows.forEach) return doc;
+    rows.forEach(function (row) {
+        if (!row) return;
+        delete row.lightningAddress;
+        delete row.lightning;
+        delete row.lastSeen;
+        delete row.isOnline;
+    });
+    return doc;
+}
+
 function _lbSnapWrite(docId, doc) {
-    try { localStorage.setItem(_lbSnapStorageKey(docId), JSON.stringify(doc)); } catch (e) {}
+    try { localStorage.setItem(_lbSnapStorageKey(docId), JSON.stringify(_lbStripPrivate(doc))); } catch (e) {}
 }
 
 function _lbSnapFresh(doc, intervalMs) {
@@ -6966,6 +6981,7 @@ async function _lbSnapFetch(boardKey) {
     var data = snap.data() || {};
     if (!data.updatedAt) data.updatedAt = Date.now();
     if (!data.intervalMs) data.intervalMs = spec.intervalMs;
+    _lbStripPrivate(data);
     _lbSnapWrite(spec.docId, data);
     if (boardKey === 'xpAll') _lbFeedTicker(data.rows);
     return data;
@@ -6991,8 +7007,6 @@ function _lbUsersFromSnap(doc, period) {
             monthlyXP: period === 'monthly' ? (Number(r.value) || 0) : 0,
             faction: r.faction || '',
             earnedHidden: certs,
-            lastSeen: r.lastSeen || null,
-            lightningAddress: r.lightningAddress || '',
             _rank: r.rank || 0
         };
     });
@@ -7016,7 +7030,6 @@ function _lbYouOutside(users, period) {
         faction: currentUser.faction || '',
         earnedHidden: currentUser.earnedHidden || [],
         lastSeen: currentUser.lastSeen || null,
-        lightningAddress: currentUser.lightningAddress || currentUser.lightning || '',
         _rankLabel: '25+',
         _you: true
     };
@@ -7034,22 +7047,48 @@ function _lbXpRowHtml(d, period, index) {
     var hidden = (!d._you && rank > 10)
         ? ' style="display:none;" class="lb-row lb-extra' + (isMe ? ' lb-me' : '') + '"'
         : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
-    var statusDot = typeof onlineStatusDot === 'function' ? onlineStatusDot(d.lastSeen) : '';
+    var statusDot = (d._you && typeof onlineStatusDot === 'function') ? onlineStatusDot(d.lastSeen) : '';
     var certIcons = '';
     if (d.earnedHidden && d.earnedHidden.indexOf('cert_scholar') !== -1) certIcons += ' 🎓';
     if (d.earnedHidden && d.earnedHidden.indexOf('cert_tech') !== -1) certIcons += ' 🛠️';
     var safeId = String(d.id || '').replace(/[^A-Za-z0-9_-]/g, '');
-    var _lbTipData = JSON.stringify({ recipientName: d.username || 'Anon', recipientUid: safeId, lightningAddress: d.lightningAddress || d.lightning || '', context: 'leaderboard', label: 'Tip ' + (d.username || 'Anon') }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+    var _lbTipData = JSON.stringify({ recipientName: d.username || 'Anon', recipientUid: safeId, context: 'leaderboard', label: 'Tip ' + (d.username || 'Anon') }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
     var _lbNameStyle = d.faction && typeof window._factionNameStyle === 'function' ? window._factionNameStyle(d.faction) : '';
     var peerTag = (window._myPeers && window._myPeers.has(d.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
     var score = period === 'weekly' ? (d.weeklyXP || 0).toLocaleString() + ' wXP' : period === 'monthly' ? (d.monthlyXP || 0).toLocaleString() + ' mXP' : (d.points || 0).toLocaleString() + ' XP';
     return '<div' + hidden + ' onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
         '<span class="lb-rank">' + medal + '</span>' +
         '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
-        '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + peerTag + escapeHtml(d.username || 'Anon') + (d._you ? ' (you)' : '') + statusDot + certIcons + '</span>' +
+        '<span class="lb-name" ' + (!d._you && safeId ? 'data-presence-uid="' + safeId + '" ' : '') + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + peerTag + escapeHtml(d.username || 'Anon') + (d._you ? ' (you)' : '') + statusDot + certIcons + '</span>' +
         '<span class="lb-score">' + score + '</span>' +
         '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _lbTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + escapeHtml(d.username || 'Anon') + '">⚡</span>' +
         '</div>';
+}
+
+function _lbHydratePresence(root) {
+    if (!root || typeof db === 'undefined' || !db || !root.querySelectorAll) return;
+    var nodes = root.querySelectorAll('[data-presence-uid]');
+    var seen = {};
+    var queued = 0;
+    for (var i = 0; i < nodes.length && queued < 25; i++) {
+        var id = nodes[i].getAttribute('data-presence-uid') || '';
+        if (!id || seen[id] || nodes[i].getAttribute('data-presence-filled') === '1') continue;
+        seen[id] = true;
+        queued++;
+        (function (uid) {
+            db.collection('profile_presence').doc(uid).get().then(function (snap) {
+                if (!snap || !snap.exists || typeof onlineStatusDot !== 'function') return;
+                var dot = onlineStatusDot((snap.data() || {}).lastSeen);
+                if (!dot) return;
+                var live = document.querySelectorAll('[data-presence-uid="' + uid + '"]');
+                for (var j = 0; j < live.length; j++) {
+                    if (live[j].getAttribute('data-presence-filled') === '1') continue;
+                    live[j].insertAdjacentHTML('beforeend', dot);
+                    live[j].setAttribute('data-presence-filled', '1');
+                }
+            }).catch(function () {});
+        })(id);
+    }
 }
 
 function _lbXpRowsHtml(allUsers, period) {
@@ -7104,6 +7143,7 @@ async function toggleLeaderboard() {
     var _lbEarlyDoc = _lbSnapRead(_lbBoardSpec(_lbEarlyPeriod).docId);
     if (_lbEarlyDoc) {
         lb.innerHTML = '<div class="lb-header"><h3>🏆 Leaderboard</h3></div><div class="lb-list" id="lbXpList">' + _lbXpRowsHtml(_lbUsersFromSnap(_lbEarlyDoc, _lbEarlyPeriod), _lbEarlyPeriod) + '</div>';
+        _lbHydratePresence(lb);
     } else {
         lb.innerHTML = '<div style="padding:20px;text-align:center;color:#475569;">Loading leaderboard...</div>';
     }
@@ -7214,6 +7254,7 @@ async function toggleLeaderboard() {
         html += '</div>';
 
         lb.innerHTML = html;
+        _lbHydratePresence(lb);
 
         // Load PVP leaderboard data asynchronously (must be after innerHTML so DOM element exists)
         _loadStreakLeaderboard();
@@ -7230,6 +7271,7 @@ async function toggleLeaderboard() {
                 if ((window._lbPeriod || 'alltime') !== _lbPaintPeriod) return;
                 if (Number(next.updatedAt) === Number(_lbCachedDoc.updatedAt)) return;
                 list.innerHTML = _lbXpRowsHtml(_lbUsersFromSnap(next, _lbPaintPeriod), _lbPaintPeriod);
+                _lbHydratePresence(list);
             }).catch(function () {});
         }
     } catch(e) {
@@ -7714,7 +7756,7 @@ function _renderPvpSnapshot(container, doc) {
         var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
         var pvpIcon = wins >= 100 ? '👑' : wins >= 50 ? '🏆' : wins >= 25 ? '🏟️' : wins >= 5 ? '🥊' : '⚔️';
         var hidden = rank > 10 ? ' style="display:none;" class="lb-row pvp-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
-        var _pvpTipData = JSON.stringify({ recipientName: p.username || 'Anon', recipientUid: safeId, lightningAddress: p.lightningAddress || '', context: 'pvp', label: 'Tip ' + (p.username || 'Anon') }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+        var _pvpTipData = JSON.stringify({ recipientName: p.username || 'Anon', recipientUid: safeId, context: 'pvp', label: 'Tip ' + (p.username || 'Anon') }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
         var peerTag = (window._myPeers && window._myPeers.has(safeId)) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
         var rate = Number(p.value) || 0;
         pvpHtml += '<div' + hidden + ' onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +

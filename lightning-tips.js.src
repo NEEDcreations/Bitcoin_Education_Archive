@@ -66,7 +66,6 @@ async function makeInvoice(amountSats, memo) {
  * @param {string} [opts.contextId]     — e.g. post ID, track ID
  * @param {number} [opts.suggestedAmount] — Pre-fill amount in sats
  * @param {boolean} [opts.fixedAmount]  — If true, user cannot change amount
- * @param {string} [opts.lightningAddress] — If recipient has a LN address
  * @param {string} [opts.bolt11]        — Pre-made invoice to pay directly
  * @param {string} [opts.label]         — Button label override (e.g. "Buy Ticket" vs "Tip")
  * @param {Function} [opts.onSuccess]   — Callback after successful payment
@@ -77,8 +76,7 @@ window.showTipOverlay = function(opts) {
     var amount = opts.suggestedAmount || '';
     var fixed = opts.fixedAmount || false;
     var label = opts.label || 'Send Tip';
-    var hasBolt11 = !!opts.bolt11;
-    var hasLnAddr = !!opts.lightningAddress;
+    opts.lightningAddress = '';
     var connected = isLnConnected();
 
     var ov = document.createElement('div');
@@ -128,9 +126,6 @@ window.showTipOverlay = function(opts) {
 
         '<div id="tipResult" style="margin-top:8px;text-align:center;font-size:0.82rem;"></div>' +
 
-        // LN address info
-        (hasLnAddr ? '<div style="text-align:center;margin-top:8px;font-size:0.72rem;color:var(--text-faint);">Lightning Address: ' + escapeHtml(opts.lightningAddress) + '</div>' : '') +
-
         '<button onclick="this.closest(\'[id=tipOverlay]\').remove()" style="width:100%;padding:9px;background:none;border:none;color:var(--text-faint);font-size:0.82rem;cursor:pointer;font-family:inherit;margin-top:6px;">Cancel</button>' +
     '</div>';
 
@@ -156,6 +151,9 @@ window.showTipOverlay = function(opts) {
 
 window.executeTip = async function() {
     var opts = window._tipOpts || {};
+    // Another player's Lightning address is resolved by requestTipInvoice.
+    // The client never reads it and never shows it.
+    opts.lightningAddress = '';
     var btn = document.getElementById('tipPayBtn');
     var res = document.getElementById('tipResult');
     var amtInput = document.getElementById('tipAmount');
@@ -217,26 +215,6 @@ window.executeTip = async function() {
             }
         }
 
-        // If no Lightning Address provided, try to look it up from Firestore
-        if (!opts.lightningAddress && opts.recipientUid && typeof db !== 'undefined') {
-            try {
-                // Profiles show the address from public_profiles (the users doc is
-                // owner-only, so reading it for someone else always failed).
-                var userDoc = await db.collection('public_profiles').doc(opts.recipientUid).get();
-                if (userDoc.exists) {
-                    var userData = userDoc.data();
-                    var _addr = String(userData.lightningAddress || userData.lightning || userData.lnAddress || '').trim();
-                    if (_addr && _addr.length <= 320 && /^[^\s@<>"']+@[a-z0-9.-]+$/i.test(_addr)) {
-                        opts.lightningAddress = _addr;
-                        // Also fix the recipient name if it's generic
-                        if ((!opts.recipientName || opts.recipientName === 'this user') && userData.username) {
-                            opts.recipientName = userData.username;
-                        }
-                    }
-                }
-            } catch(e) { /* user doc not accessible or doesn't exist */ }
-        }
-
         // If recipient has a Lightning Address, construct LNURL-pay flow
         if (opts.lightningAddress) {
             // Parse LN address → LNURL-pay endpoint
@@ -270,20 +248,10 @@ window.executeTip = async function() {
                     }
                 } catch(e) {
                     console.warn('[TIP] LNURL-pay error:', e);
-                    // Address exists but server unreachable — don't fall through to "hasn't added address"
-                    // Show the address so tipper can send manually from their wallet app
-                    var _lnEsc = escapeHtml(opts.lightningAddress || '');
                     res.innerHTML = '<div style="padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;margin-top:8px;">' +
                         '<div style="color:var(--heading);font-size:0.82rem;font-weight:700;margin-bottom:6px;">\u26a1 Wallet server unreachable</div>' +
-                        '<div style="color:var(--text-muted);font-size:0.78rem;margin-bottom:8px;">Send directly to this Lightning Address from your wallet app:</div>' +
-                        '<div style="padding:8px;background:var(--input-bg);border:1px solid rgba(247,147,26,0.3);border-radius:8px;font-size:0.84rem;color:var(--accent);font-weight:700;margin-bottom:8px;word-break:break-all;">' + _lnEsc + '</div>' +
-                        '<button id="_tipCopyLnBtn" style="width:100%;padding:9px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">\uD83D\uDCCB Copy Lightning Address</button>' +
+                        '<div style="color:var(--text-muted);font-size:0.78rem;">Try the tip again in a moment.</div>' +
                     '</div>';
-                    var _cpBtn = res.querySelector('#_tipCopyLnBtn');
-                    if (_cpBtn) _cpBtn.addEventListener('click', function() {
-                        navigator.clipboard.writeText(opts.lightningAddress || '');
-                        if (typeof showToast === 'function') showToast('\uD83D\uDCCB Lightning Address copied!');
-                    });
                     btn.textContent = '\u26a1 ' + (opts.label || 'Send Tip');
                     btn.disabled = false;
                     return;
@@ -439,7 +407,6 @@ function _showInvoicePending(amount, opts) {
  * @param {string} p.recipientUid
  * @param {string} p.context — 'forum_post', 'beats_track', 'leaderboard', etc.
  * @param {string} [p.contextId]
- * @param {string} [p.lightningAddress]
  * @param {number} [p.amount] — If set, skip the amount picker
  * @param {string} [p.label] — Button text (default: "⚡ Tip")
  * @param {string} [p.size] — 'sm' | 'md' (default: 'sm')
@@ -455,7 +422,6 @@ window.tipButtonHtml = function(p) {
         recipientUid: p.recipientUid || '',
         context: p.context || '',
         contextId: p.contextId || '',
-        lightningAddress: p.lightningAddress || '',
         suggestedAmount: p.amount || null,
         fixedAmount: !!p.amount,
         label: p.label || 'Send Tip',

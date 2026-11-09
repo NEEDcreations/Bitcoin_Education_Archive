@@ -45,11 +45,12 @@ test('reaction picker keeps unicode-only categories', () => {
     assert.ok(react.indexOf('EMOJI_INPUT_CATEGORIES') === -1);
 });
 
-test('tip fallback reads public_profiles, not the owner-only users doc', () => {
+test('tips do not read another player lightning address from public_profiles', () => {
     const src = read('lightning-tips.js.src');
-    const block = sliceBetween(src, 'If no Lightning Address provided', 'If recipient has a Lightning Address');
-    assert.ok(block.indexOf("collection('public_profiles')") !== -1);
-    assert.ok(block.indexOf("collection('users')") === -1);
+    assert.ok(src.indexOf('requestTipInvoice') !== -1);
+    assert.ok(src.indexOf("collection('public_profiles')") === -1);
+    assert.ok(src.indexOf("collection('users')") === -1);
+    assert.ok(src.indexOf('opts.lightningAddress = \'\'') !== -1);
 });
 
 test('SF strip shows points remaining and has an info tooltip', () => {

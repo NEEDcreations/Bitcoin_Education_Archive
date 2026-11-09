@@ -108,9 +108,11 @@ function domainOfAddress(address) {
 }
 
 async function recipientLightning(recipientUid) {
-    const pub = await db().collection('public_profiles').doc(recipientUid).get();
-    if (!pub.exists) return '';
-    const data = pub.data() || {};
+    // The address stays on the owner-only users doc. Callers receive an invoice,
+    // never this string.
+    const user = await db().collection('users').doc(recipientUid).get();
+    if (!user.exists) return '';
+    const data = user.data() || {};
     return String(data.lightningAddress || data.lightning || data.lnAddress || '').trim().toLowerCase();
 }
 

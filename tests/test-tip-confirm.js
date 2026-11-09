@@ -99,7 +99,8 @@ test('LUD-21 settled verifies, and private or http URLs are refused', () => {
     assert.ok(verify.indexOf('verify-host-mismatch') < verify.indexOf('tryNwc'));
     assert.ok(verify.indexOf('verify-host-blocked') < verify.indexOf('tryNwc'));
     assert.ok(verify.indexOf("'self-tip'") < verify.indexOf('tryLud21'));
-    assert.ok(service.indexOf("collection('public_profiles')") !== -1);
+    assert.ok(service.indexOf("collection('users')") !== -1);
+    assert.ok(service.indexOf("collection('public_profiles')") === -1);
     assert.ok(service.indexOf("collection('tip_hashes')") !== -1);
     assert.ok(service.indexOf('lookupInvoice') !== -1);
     assert.ok(service.indexOf('interpretNwcLookup(invoice, hash)') !== -1);

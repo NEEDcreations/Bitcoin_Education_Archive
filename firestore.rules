@@ -506,10 +506,23 @@ service cloud.firestore {
     // Never contains email, known_ips, fingerprint, or financial fields.
     // =============================================
     match /public_profiles/{uid} {
-      // Any authenticated user (incl. anonymous) can read any public profile.
+      // Any signed-in user, including anonymous, can read one profile by id.
       // Writes are admin-SDK only (syncPublicProfile trigger). usernameNeedsRepick
       // cannot be set or cleared here either, because no client write is allowed.
-      allow read: if request.auth != null;
+      // List is capped at 50. Every client list is a username lookup of at most 10.
+      // Leaderboards read stats snapshots, not this collection.
+      // Ghost mode is not filtered here. Rules are not filters, ghostMode is
+      // missing on most docs, and a username-taken check must still see those
+      // names. Leaderboard snapshots already leave ghost-mode players off.
+      allow get: if request.auth != null;
+      allow list: if request.auth != null && request.query.limit <= 50;
+      allow write: if false;
+    }
+
+    // Online dot for one profile. Get by id only, so the collection cannot be listed.
+    match /profile_presence/{uid} {
+      allow get: if request.auth != null;
+      allow list: if false;
       allow write: if false;
     }
 

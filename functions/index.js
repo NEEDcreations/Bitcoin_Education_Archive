@@ -60,6 +60,7 @@ const questBoard = require('./src/questBoard');
 const bipBreakthrough = require('./src/bipBreakthrough');
 const lbPrizes = require('./src/lbPrizes');
 const boardSnapshots = require('./src/boardSnapshots');
+const publicProfileMirror = require('./src/publicProfileMirror');
 const leaderboardIdentity = require('./src/leaderboardIdentity');
 const leaderboardRank = require('./src/leaderboardRank');
 const joinDate = require('./src/joinDate');
@@ -5539,7 +5540,10 @@ exports.onUserDocCreated = onDocumentCreated('users/{uid}', async (event) => {
 // PUBLIC PROFILES — sanitized mirror of users collection
 // Synced by trigger on every user doc write.
 // Contains ONLY fields safe to expose to any signed-in user.
-// PII (email, known_ips, fingerprint, lightningAddress, nostr, etc.) is never copied.
+// PII (email, known_ips, fingerprint, nostr) is never copied.
+// lightning, lightningAddress, lastSeen, and isOnline are not copied.
+// Presence is written to profile_presence/{uid} (get by id, no list).
+// country stays because profile cards render it.
 // ============================================================
 const PUBLIC_PROFILE_FIELDS = [
     'username', 'username_lower', 'usernameMigratedFrom', 'displayName', 'profilePic', 'faction',
@@ -5555,9 +5559,7 @@ const PUBLIC_PROFILE_FIELDS = [
     'sfTotalHashes', 'sfBlocksFound', 'sfBestHash', 'firstHashAt',
     'raidDamageAllTime', 'raidDamageThisMonth',
     'predictions', 'plebNumber',
-    'lastSeen', 'isOnline', 'ghostMode',
-    'lightningAddress',   // display-only; tip button uses this
-    'lightning',           // alias saved by older clients; tip lookup checks both
+    'ghostMode',
     'created', 'createdAt',
     'earnedHidden',
     'peerCount', // peer network size (peers array stays server-only)
@@ -5589,6 +5591,7 @@ exports.syncPublicProfile = onDocumentWritten('users/{uid}', async (event) => {
         if (!change.after.exists) {
             try {
                 await pubRef.delete();
+                await db.collection('profile_presence').doc(uid).delete();
                 await stampLeaderboardDirty(null, null);
             } catch(e) { console.error('[syncPublicProfile] delete failed:', e); }
             return null;
@@ -5598,6 +5601,10 @@ exports.syncPublicProfile = onDocumentWritten('users/{uid}', async (event) => {
         PUBLIC_PROFILE_FIELDS.forEach(f => { if (f in data) pub[f] = data[f]; });
         try {
             await pubRef.set(pub, { merge: false });
+            const presence = publicProfileMirror.presencePatch(data);
+            if (Object.keys(presence).length) {
+                await db.collection('profile_presence').doc(uid).set(presence, { merge: true });
+            }
             const beforeData = change.before && change.before.exists ? (change.before.data() || {}) : null;
             await stampLeaderboardDirty(beforeData, data);
             try {

@@ -13568,10 +13568,13 @@ window.showUserProfile = function(uid) {
     d.innerHTML = loadingHtml;
     document.body.appendChild(d.firstChild);
 
-    // Cache-first: instant for recently-viewed profiles; falls back to network on miss
+    // Cache-first profile. Presence is a separate doc so a profile list cannot scrape lastSeen.
     var _profileFetch = db.collection('public_profiles').doc(uid).get({ source: 'cache' })
         .catch(function() { return db.collection('public_profiles').doc(uid).get(); });
-    _profileFetch.then(function(doc) {
+    var _presenceFetch = db.collection('profile_presence').doc(uid).get().catch(function() { return null; });
+    Promise.all([_profileFetch, _presenceFetch]).then(function(parts) {
+        var doc = parts[0];
+        var presenceSnap = parts[1];
         if (!doc.exists) {
             var modal = document.getElementById('userProfileModal');
             if (modal) modal.remove();
@@ -13598,7 +13601,8 @@ window.showUserProfile = function(uid) {
             } catch(e) {}
         }
 
-        var status = getOnlineStatus(u.lastSeen);
+        var _presence = presenceSnap && presenceSnap.exists ? (presenceSnap.data() || {}) : {};
+        var status = getOnlineStatus(_presence.lastSeen);
         var lvl = typeof getLevel === 'function' ? getLevel(u.points || 0) : { name: 'Newbie', emoji: '🌱' };
         var joinSources = [u];
         // Auth creationTime is only known for the signed-in viewer. It is a
@@ -13736,17 +13740,10 @@ window.showUserProfile = function(uid) {
             '</div>' : '') +
             // Own prediction stats are filled from prediction_stats after render.
             '<div id="profilePredStats"></div>' +
-            // Lightning Address & Tip button — always show for other signed-in users
+            // Tip button for other signed-in users. The Lightning address stays on the server.
             ((!_isOwnProfile && auth && auth.currentUser && !auth.currentUser.isAnonymous) ? (function() {
-                // Stash tip data on window to avoid inline-onclick escaping issues
-                window._profileTipData = { recipientName: u.username || 'Bitcoiner', recipientUid: uid, lightningAddress: u.lightningAddress || u.lightning || '', label: 'Tip ' + (u.username || 'Bitcoiner'), context: 'profile' };
-                var _lnAddr = (u.lightningAddress || u.lightning) ? escapeHtml(u.lightningAddress || u.lightning) : '';
+                window._profileTipData = { recipientName: u.username || 'Bitcoiner', recipientUid: uid, label: 'Tip ' + (u.username || 'Bitcoiner'), context: 'profile' };
                 return '<div style="margin-bottom:12px;">' +
-                (_lnAddr ? '<div style="display:flex;align-items:center;gap:6px;padding:10px 12px;background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.15);border-radius:10px;margin-bottom:8px;">' +
-                    '<span style="font-size:1rem;">⚡</span>' +
-                    '<span style="color:#eab308;font-size:0.78rem;font-weight:600;word-break:break-all;">' + _lnAddr + '</span>' +
-                    '<button onclick="event.stopPropagation();navigator.clipboard.writeText(window._profileTipData.lightningAddress);if(typeof showToast===\'function\')showToast(\'⚡ Lightning Address copied!\')" style="margin-left:auto;padding:4px 8px;background:none;border:1px solid rgba(234,179,8,0.3);border-radius:6px;color:#eab308;font-size:0.65rem;font-weight:700;cursor:pointer;white-space:nowrap;">Copy</button>' +
-                '</div>' : '') +
                 '<button onclick="event.stopPropagation();window._tipFromProfile()" style="width:100%;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.background=\'rgba(234,179,8,0.2)\'" onmouseout="this.style.background=\'rgba(234,179,8,0.1)\'>">⚡ Tip ' + escapeHtml(u.username || 'Bitcoiner') + '</button>' +
                 '</div>';
             })() : '') +
@@ -14024,8 +14021,8 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
         }
     }).catch(function() {});
 
-    // Update other user's online status
-    db.collection('users').doc(otherUid).get().then(function(doc) {
+    // Update other user's online status from the presence doc, not the owner-only users doc.
+    db.collection('profile_presence').doc(otherUid).get().then(function(doc) {
         if (doc.exists) {
             var s = getOnlineStatus(doc.data().lastSeen);
             var dot = document.getElementById('dmStatusDot');
