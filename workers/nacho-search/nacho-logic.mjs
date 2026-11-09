@@ -320,7 +320,7 @@ export function renderIntent(intent, data) {
         if (data.change24h == null || !isFinite(Number(data.change24h))) return "";
         const n = Math.round(Number(data.change24h) * 10) / 10;
         const dir = n > 0 ? "up" : n < 0 ? "down" : "unchanged at";
-        return "Bitcoin is " + dir + " " + Math.abs(n) + "% over the last 24 hours. Source: Kraken. Not financial advice.";
+        return "Bitcoin is " + dir + " " + Math.abs(n) + "% over the last 24 hours. Source: Coinbase. Not financial advice.";
     }
     return "";
 }
@@ -724,11 +724,65 @@ function num(v) {
     return isFinite(n) ? n : null;
 }
 
+function asIso(v) {
+    if (v == null || v === "") return null;
+    if (typeof v === "number" && isFinite(v)) {
+        const ms = v > 1e12 ? v : v * 1000;
+        const d = new Date(ms);
+        return isFinite(d.getTime()) ? d.toISOString() : null;
+    }
+    const t = Date.parse(String(v));
+    return isFinite(t) ? new Date(t).toISOString() : null;
+}
+
+function avgLast(values, n) {
+    if (!values || values.length < n) return null;
+    let s = 0;
+    for (let i = values.length - n; i < values.length; i++) s += values[i];
+    return s / n;
+}
+
+function rsiWilder(values, period) {
+    if (!values || values.length <= period) return null;
+    let avgG = 0;
+    let avgL = 0;
+    for (let i = 1; i <= period; i++) {
+        const ch = values[i] - values[i - 1];
+        if (ch >= 0) avgG += ch;
+        else avgL -= ch;
+    }
+    avgG /= period;
+    avgL /= period;
+    for (let i = period + 1; i < values.length; i++) {
+        const ch = values[i] - values[i - 1];
+        const g = ch > 0 ? ch : 0;
+        const l = ch < 0 ? -ch : 0;
+        avgG = (avgG * (period - 1) + g) / period;
+        avgL = (avgL * (period - 1) + l) / period;
+    }
+    if (avgL === 0) return 100;
+    const rs = avgG / avgL;
+    return 100 - (100 / (1 + rs));
+}
+
+// Slow feeds (daily prices, treasury, CBBI) stay in isolate memory so the
+// 30s edge snapshot can refresh price and chain data without refetching them.
+const _slowMemo = new Map();
+function memoGet(key, ttl) {
+    const hit = _slowMemo.get(key);
+    if (!hit) return undefined;
+    if (Date.now() - hit.at > ttl) return undefined;
+    return hit.data;
+}
+function memoSet(key, data) {
+    if (data) _slowMemo.set(key, { at: Date.now(), data: data });
+}
+
 export async function collectBtcData(fetchImpl) {
     const fetchFn = fetchImpl || fetch;
-    async function grab(url, map) {
+    async function grab(url, map, timeoutMs) {
         const ctrl = typeof AbortController === "function" ? new AbortController() : null;
-        const timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, FETCH_TIMEOUT_MS) : null;
+        const timer = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, timeoutMs || FETCH_TIMEOUT_MS) : null;
         try {
             const res = await fetchFn(url, ctrl ? { signal: ctrl.signal } : undefined);
             if (!res || (res.ok === false && res.status >= 400)) return {};
@@ -739,6 +793,13 @@ export async function collectBtcData(fetchImpl) {
             if (timer) clearTimeout(timer);
         }
     }
+    const slowPromise = Promise.all([
+        loadDailyHistory(grab),
+        loadDominance(grab),
+        loadGold(grab),
+        loadTreasury(grab),
+        loadCbbi(grab)
+    ]);
     const parts = await Promise.all([
         grab("https://mempool.space/api/blocks/tip/height", async function (r) {
             const h = await r.text();
@@ -757,7 +818,7 @@ export async function collectBtcData(fetchImpl) {
         }),
         grab("https://mempool.space/api/v1/difficulty-adjustment", async function (r) {
             const d = await r.json();
-            return { diffChange: d.difficultyChange, diffEstDate: d.estimatedRetargetDate, diffRemaining: d.remainingBlocks, diffProgress: d.progressPercent };
+            return { diffChange: d.difficultyChange, diffEstDate: d.estimatedRetargetDate, diffRemaining: d.remainingBlocks, diffProgress: d.progressPercent, timeAvg: num(d.timeAvg) };
         }),
         grab("https://mempool.space/api/mempool", async function (r) {
             const m = await r.json();
@@ -765,37 +826,54 @@ export async function collectBtcData(fetchImpl) {
         }),
         grab("https://mempool.space/api/v1/lightning/statistics/latest", async function (r) {
             const d = await r.json();
+            const latest = d && d.latest ? d.latest : d;
+            if (!latest) return {};
             return {
-                lnCapacity: d.latest ? d.latest.total_capacity : d.total_capacity,
-                lnNodes: d.latest ? d.latest.node_count : d.node_count,
-                lnChannels: d.latest ? d.latest.channel_count : d.channel_count
+                lnCapacity: latest.total_capacity,
+                lnNodes: latest.node_count,
+                lnChannels: latest.channel_count,
+                lnAsOf: asIso(latest.added)
             };
         }),
         grab("https://api.coinbase.com/v2/prices/BTC-USD/spot", async function (r) {
             const d = await r.json();
             return { price: d.data && d.data.amount ? parseFloat(d.data.amount) : null };
         }),
+        grab("https://api.exchange.coinbase.com/products/BTC-USD/stats", async function (r) {
+            const d = await r.json();
+            const open = num(d && d.open);
+            const last = num(d && d.last);
+            const high = num(d && d.high);
+            const low = num(d && d.low);
+            const out = {};
+            if (last != null) out.statsLast = last;
+            if (open != null && open > 0) out.statsOpen = open;
+            if (high != null) out.statsHigh = high;
+            if (low != null) out.statsLow = low;
+            return out;
+        }),
         grab("https://api.kraken.com/0/public/Ticker?pair=XBTUSD", async function (r) {
             const d = await r.json();
             const t = d.result && d.result.XXBTZUSD;
             if (!t) return {};
-            const price = parseFloat(t.c[0]);
-            const open = parseFloat(t.o);
+            // h[1] and l[1] are the rolling 24h high and low. Ticker field `o` is
+            // today's UTC open, so it is not used for the 24h percent.
             return {
-                high24h: parseFloat(t.h[1]),
-                low24h: parseFloat(t.l[1]),
-                volume24h: parseFloat(t.v[1]) * price,
-                change24h: open > 0 ? (price - open) / open * 100 : null
+                krakenHigh: num(t.h && t.h[1]),
+                krakenLow: num(t.l && t.l[1])
             };
         }),
         grab("https://api.coingecko.com/api/v3/coins/bitcoin?localization=false&tickers=false&community_data=false&developer_data=false", async function (r) {
             const d = await r.json();
             const md = d.market_data || {};
+            const vol = md.total_volume && md.total_volume.usd != null ? num(md.total_volume.usd) : null;
             return {
                 mktCapChange24h: md.market_cap_change_percentage_24h != null ? md.market_cap_change_percentage_24h : null,
                 ath: md.ath && md.ath.usd != null ? md.ath.usd : null,
                 athDate: md.ath_date && md.ath_date.usd ? md.ath_date.usd : null,
-                athChange: md.ath_change_percentage && md.ath_change_percentage.usd != null ? md.ath_change_percentage.usd : null
+                athChange: md.ath_change_percentage && md.ath_change_percentage.usd != null ? md.ath_change_percentage.usd : null,
+                volume24h: vol,
+                volumeSource: vol != null ? "coingecko" : null
             };
         }),
         grab("https://api.alternative.me/fng/?limit=1", async function (r) {
@@ -816,13 +894,31 @@ export async function collectBtcData(fetchImpl) {
     ]);
     const data = { ts: Date.now() };
     parts.forEach(function (part) { if (part) Object.assign(data, part); });
+    if (data.price == null && data.statsLast != null) data.price = data.statsLast;
+    if (data.statsHigh != null) data.high24h = data.statsHigh;
+    else if (data.krakenHigh != null) data.high24h = data.krakenHigh;
+    if (data.statsLow != null) data.low24h = data.statsLow;
+    else if (data.krakenLow != null) data.low24h = data.krakenLow;
+    if (data.price != null && data.statsOpen != null && data.statsOpen > 0) {
+        data.change24h = (data.price - data.statsOpen) / data.statsOpen * 100;
+        data.changeSource = "coinbase";
+    }
+    delete data.statsLast;
+    delete data.statsOpen;
+    delete data.statsHigh;
+    delete data.statsLow;
+    delete data.krakenHigh;
+    delete data.krakenLow;
     if (data.blockHeight) {
         const epoch = Math.floor(data.blockHeight / 21e4);
         data.subsidy = (50 / Math.pow(2, epoch)).toFixed(4);
         data.nextSubsidy = (50 / Math.pow(2, epoch + 1)).toFixed(4);
         data.halvingBlock = (epoch + 1) * 21e4;
         data.halving = 21e4 - data.blockHeight % 21e4;
-        const halvMs = data.halving * 10 * 60 * 1e3;
+        // mempool timeAvg is the recent average block interval in milliseconds.
+        const intervalMs = (data.timeAvg > 60000 && data.timeAvg < 30 * 60 * 1000) ? data.timeAvg : 10 * 60 * 1000;
+        data.blockIntervalSec = Math.round(intervalMs / 1000);
+        const halvMs = data.halving * intervalMs;
         data.halvingEta = new Date(Date.now() + halvMs).toISOString();
         const totalSec = Math.floor(halvMs / 1e3);
         data.halvingDays = Math.floor(totalSec / 86400);
@@ -843,7 +939,163 @@ export async function collectBtcData(fetchImpl) {
         data.moscowTime = data.satsPerDollar;
     }
     if (data.prices && data.price && data.prices.USD == null) data.prices.USD = data.price;
+    data.hashrateWindow = data.hashrate ? "mempool current estimate" : null;
+
+    const slow = await slowPromise;
+    if (slow[0]) data.history = slow[0];
+    if (slow[1] != null) data.dominance = slow[1];
+    if (slow[2] != null) data.goldUsd = slow[2];
+    if (slow[3] && slow[3].treasury && slow[3].treasury.companies && slow[3].treasury.companies.length) {
+        data.treasury = slow[3].treasury;
+        if (slow[3].mstr) data.mstr = slow[3].mstr;
+    }
+    if (slow[4]) data.cbbi = slow[4];
     return data;
+}
+
+const HISTORY_TTL = 60 * 60 * 1000;
+const DOMINANCE_TTL = 5 * 60 * 1000;
+const GOLD_TTL = 30 * 60 * 1000;
+const TREASURY_TTL = 60 * 60 * 1000;
+const CBBI_TTL = 6 * 60 * 60 * 1000;
+
+async function loadDailyHistory(grab) {
+    const cached = memoGet("history", HISTORY_TTL);
+    if (cached) return cached;
+    const got = await grab("https://api.blockchain.info/charts/market-price?timespan=5years&format=json", async function (r) {
+        const d = await r.json();
+        const rows = d && d.values;
+        if (!rows || !rows.length) return null;
+        const prices = [];
+        let lastT = null;
+        for (let i = 0; i < rows.length; i++) {
+            const p = num(rows[i].y);
+            const t = num(rows[i].x);
+            if (p == null || p <= 0) continue;
+            prices.push(p);
+            if (t != null) lastT = t;
+        }
+        if (prices.length < 120) return null;
+        const rsi = rsiWilder(prices, 22);
+        const out = {
+            asOf: lastT ? asIso(lastT) : null,
+            points: prices.length,
+            ma111: avgLast(prices, 111),
+            ma200: avgLast(prices, 200),
+            ma350: avgLast(prices, 350),
+            ma730: avgLast(prices, 730),
+            ma1460: avgLast(prices, 1460),
+            price90d: prices.length > 91 ? prices[prices.length - 91] : null,
+            price365Avg: avgLast(prices, 365),
+            rsi22: rsi == null ? null : Math.round(rsi * 10) / 10,
+            source: "blockchain.info"
+        };
+        return out;
+    });
+    if (got && got.ma200) memoSet("history", got);
+    return got && got.ma200 ? got : null;
+}
+
+async function loadDominance(grab) {
+    const cached = memoGet("dominance", DOMINANCE_TTL);
+    if (cached != null) return cached;
+    const got = await grab("https://api.coingecko.com/api/v3/global", async function (r) {
+        const d = await r.json();
+        const btc = d && d.data && d.data.market_cap_percentage ? num(d.data.market_cap_percentage.btc) : null;
+        return btc;
+    });
+    const value = typeof got === "number" ? got : null;
+    if (value != null) memoSet("dominance", value);
+    return value;
+}
+
+async function loadGold(grab) {
+    const cached = memoGet("gold", GOLD_TTL);
+    if (cached != null) return cached;
+    const got = await grab("https://api.coingecko.com/api/v3/simple/price?ids=tether-gold&vs_currencies=usd", async function (r) {
+        const d = await r.json();
+        return d && d["tether-gold"] ? num(d["tether-gold"].usd) : null;
+    });
+    const value = typeof got === "number" ? got : null;
+    if (value != null) memoSet("gold", value);
+    return value;
+}
+
+async function loadTreasury(grab) {
+    const cached = memoGet("treasury", TREASURY_TTL);
+    if (cached) return cached;
+    const got = await grab("https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin", async function (r) {
+        const d = await r.json();
+        const companies = Array.isArray(d && d.companies) ? d.companies : [];
+        const top = companies.slice(0, 5).map(function (c) {
+            return { name: c.name || "", total_holdings: num(c.total_holdings) || 0 };
+        });
+        let mstr = null;
+        for (let i = 0; i < companies.length; i++) {
+            const c = companies[i];
+            const symbol = String(c.symbol || "");
+            const name = String(c.name || "");
+            if (/^MSTR\b/i.test(symbol) || /strategy|microstrategy/i.test(name)) {
+                const btc = num(c.total_holdings);
+                const entry = num(c.total_entry_value_usd);
+                if (btc && entry && entry > 0) {
+                    mstr = { name: name || "Strategy", btc: btc, avgCost: entry / btc };
+                }
+                break;
+            }
+        }
+        return {
+            treasury: {
+                totalHoldings: num(d.total_holdings),
+                totalValueUsd: num(d.total_value_usd),
+                companies: top,
+                source: "coingecko"
+            },
+            mstr: mstr
+        };
+    });
+    if (!(got && got.treasury && got.treasury.companies && got.treasury.companies.length)) return null;
+    memoSet("treasury", got);
+    return got;
+}
+
+function cbbiLatest(series) {
+    if (!series || typeof series !== "object") return null;
+    const keys = Object.keys(series);
+    if (!keys.length) return null;
+    keys.sort();
+    const k = keys[keys.length - 1];
+    const v = num(series[k]);
+    if (v == null) return null;
+    return { t: num(k), v: v };
+}
+
+async function loadCbbi(grab) {
+    const cached = memoGet("cbbi", CBBI_TTL);
+    if (cached) return cached;
+    const got = await grab("https://colintalkscrypto.com/cbbi/data/latest.json", async function (r) {
+        const d = await r.json();
+        if (!d) return null;
+        const conf = cbbiLatest(d.Confidence);
+        const mvrv = cbbiLatest(d.MVRV);
+        const nupl = cbbiLatest(d.RUPL);
+        const rhodl = cbbiLatest(d.RHODL);
+        const woo = cbbiLatest(d.Woobull);
+        const puell = cbbiLatest(d.Puell);
+        if (!conf) return null;
+        return {
+            asOf: conf.t ? asIso(conf.t) : null,
+            confidence: conf.v,
+            mvrv: mvrv ? mvrv.v : null,
+            nupl: nupl ? nupl.v : null,
+            rhodl: rhodl ? rhodl.v : null,
+            woobull: woo ? woo.v : null,
+            puell: puell ? puell.v : null,
+            source: "cbbi"
+        };
+    }, 4000);
+    if (got && got.confidence != null) memoSet("cbbi", got);
+    return got && got.confidence != null ? got : null;
 }
 
 export { TOPICS, POOL, TOPIC_BY_ID, NO_FIGURE, FETCH_TIMEOUT_MS, retrieve, kbEntries, isAltcoinQuestion, getKbEntry };

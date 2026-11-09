@@ -211,6 +211,18 @@ function fakeDb(docs) {
         beatsPlays.PLAY_TIERS.forEach(function (t) { assert.ok(collectionBonus.SERVER_VERIFIED.has(t[0]), t[0]); });
     });
 
+    await test('settings title is one compact dropdown', function () {
+        const src = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
+        const section = src.slice(src.indexOf('window._renderTitleFlairSection'), src.indexOf('window._tfRepaint'));
+        assert.ok(section.indexOf('id="tfTitleSelect"') !== -1);
+        assert.ok(section.indexOf('class="tf-select"') !== -1);
+        assert.ok(section.indexOf('optgroup label="Locked"') !== -1);
+        assert.ok(section.indexOf('optgroup label="Unlocked"') !== -1);
+        assert.strictEqual(section.indexOf("card('title'"), -1);
+        assert.ok(section.indexOf("card('flair'") !== -1);
+        assert.ok(src.indexOf('window._tfTitleChange = function') !== -1);
+    });
+
     await test('profile_complete has a client def so it can be requested', function () {
         const src = fs.readFileSync(path.join(root, 'badges.js'), 'utf8');
         assert.ok(/id: 'profile_complete', name: 'Filled In'/.test(src));

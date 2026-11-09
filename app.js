@@ -3855,25 +3855,67 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (typeof toggleMobileLearnMenu === 'function') toggleMobileLearnMenu();
         else if (typeof toggleMenu === 'function') toggleMenu();
     };
+    // Start Here guide. The homepage embed reads this id and no other copy.
+    window.START_HERE_YT_ID = 'zOQetZgXz48';
+
+    function startHereEmbedSrc(id, autoplay) {
+        var url = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?rel=0';
+        if (autoplay) url += '&autoplay=1';
+        return url;
+    }
+
     window.ensureIntroVideo = function(play) {
-        var video = document.getElementById('introVideo');
-        if (!video) return;
-        if (!video.querySelector('source')) {
-            var src = video.getAttribute('data-src');
-            if (src) {
-                var source = document.createElement('source');
-                source.src = src;
-                source.type = 'video/mp4';
-                video.appendChild(source);
-                video.load();
-            }
+        var slot = document.getElementById('introVideo');
+        if (!slot) return;
+        var id = String(window.START_HERE_YT_ID || '').replace(/[^A-Za-z0-9_-]/g, '');
+        if (!id) return;
+        if (!slot.getAttribute('data-poster')) {
+            slot.style.backgroundImage = 'url(https://i.ytimg.com/vi/' + id + '/hqdefault.jpg)';
+            slot.style.backgroundSize = 'cover';
+            slot.style.backgroundPosition = 'center';
+            slot.setAttribute('data-poster', '1');
         }
-        if (play && video.play) video.play().catch(function() {});
+        if (!play) return;
+        var frame = slot.querySelector ? slot.querySelector('iframe') : null;
+        if (!frame) {
+            frame = document.createElement('iframe');
+            frame.title = 'Start Here';
+            frame.setAttribute('frameborder', '0');
+            frame.setAttribute('allowfullscreen', '');
+            frame.setAttribute('allow', 'autoplay; encrypted-media');
+            frame.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+            frame.setAttribute('loading', 'lazy');
+            frame.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
+            slot.appendChild(frame);
+        }
+        var src = startHereEmbedSrc(id, true);
+        if (!frame.getAttribute('src') || frame.getAttribute('src').indexOf(id) === -1) frame.src = src;
+        var overlay = document.getElementById('introVideoOverlay');
+        if (overlay) {
+            overlay.style.opacity = '0';
+            overlay.style.pointerEvents = 'none';
+        }
+    };
+
+    window.pauseIntroVideo = function() {
+        var slot = document.getElementById('introVideo');
+        if (!slot || !slot.querySelector) return;
+        var frame = slot.querySelector('iframe');
+        if (frame && frame.parentNode) frame.parentNode.removeChild(frame);
+        var overlay = document.getElementById('introVideoOverlay');
+        if (overlay) {
+            overlay.style.opacity = '';
+            overlay.style.pointerEvents = '';
+        }
     };
     window.toggleHomeMore = function() {
         var more = document.getElementById('homeMore');
         var btn = document.getElementById('homeMoreToggle');
         if (!more) return;
+        if (more.getAttribute('data-home-more-quiet')) {
+            more.hidden = true;
+            return;
+        }
         var open = !!more.hidden;
         more.hidden = !open;
         window._homeMoreOpen = open;
@@ -3893,16 +3935,27 @@ window.nachoQuizAnswer = function(btn, correct) {
     window.watchIntroVideo = function() {
         window._forceIntroVideo = true;
         var section = document.getElementById('introVideoSection');
+        var more = document.getElementById('homeMore');
+        var quiet = more && more.getAttribute('data-home-more-quiet');
         if (section) {
+            if (section.style && section.style.removeProperty) section.style.removeProperty('display');
             section.style.display = '';
             section.removeAttribute('data-simplified-hidden');
+            section.removeAttribute('data-em-hidden');
+            if (quiet && more && section.parentNode === more) {
+                if (!section._bqMoreMarked) {
+                    section._bqMoreNext = section.nextSibling;
+                    section._bqMoreMarked = true;
+                }
+                var anchor = document.getElementById('todayCard') || document.getElementById('homeMoreToggle');
+                if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(section, anchor);
+            }
             var full = document.getElementById('introVideoFull');
             var mini = document.getElementById('introVideoMini');
             if (full) full.style.display = '';
             if (mini) mini.style.display = 'none';
         }
-        var more = document.getElementById('homeMore');
-        if (more && more.hidden) window.toggleHomeMore();
+        if (!quiet && more && more.hidden) window.toggleHomeMore();
         else window.ensureIntroVideo(true);
         if (section && section.scrollIntoView) {
             try { section.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { section.scrollIntoView(true); }

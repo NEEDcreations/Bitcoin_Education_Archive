@@ -1,69 +1,77 @@
-# Security Policy
+# Security policy
 
-## Supported Versions
+## Supported versions
 
 | Version | Supported |
-|---------|-----------|
-| Current (gh-pages) | ✅ Active |
+| --- | --- |
+| Current `gh-pages` | Yes |
 
-Bitcoin Education Archive is a continuously deployed web application. Security fixes are applied to the live branch immediately — there are no versioned releases to backport.
+The app is deployed from the `gh-pages` branch. There are no versioned releases to patch separately. A fix lands on that branch.
 
-## Reporting a Vulnerability
+## Reporting a vulnerability
 
-**Please do not open a public GitHub issue for security vulnerabilities.**
+Do not open a public GitHub issue, pull request, or commit for a security vulnerability. Do not post exploit details in chat, on social media, or in a public gist.
 
-Report security issues privately by emailing:
+Report privately, either way:
 
-📧 **info.603btc@gmail.com**
+- Email [info.603btc@gmail.com](mailto:info.603btc@gmail.com)
+- GitHub private vulnerability reporting: [Open a security advisory](https://github.com/NEEDcreations/Bitcoin_Education_Archive/security/advisories/new)
 
-Include in your report:
-- Description of the vulnerability
-- Steps to reproduce
-- Potential impact
-- Any suggested mitigations (optional)
+If private reporting is not enabled on the repository, use email.
 
-We aim to acknowledge reports within **48 hours** and provide a resolution timeline within **7 days** for critical issues.
+Please include:
+
+- What is affected (page, function, rule, or endpoint)
+- Steps to reproduce, including any account state the steps need
+- Impact you believe is realistic
+- A suggested fix, if you have one
+
+Stop once you can show the issue. You do not need to keep going to prove the worst case.
 
 ## Scope
 
-This project handles:
-- Bitcoin education content and quizzes
-- User XP/points system (non-custodial)
-- Lightning Network tipping (WebLN / NWC — user-controlled wallets only)
-- Satoshi's Favor faucet (small sats payouts via NWC)
-- User authentication (Firebase Auth — Google, Nostr, Lightning, email)
-- Firestore user data (usernames, XP, badges, settings)
+In scope:
 
-**In scope:**
-- Authentication bypasses
-- Firestore rules that allow unauthorized reads/writes
-- XSS vulnerabilities in user-generated content
-- Lightning/NWC wallet drain or unauthorized payment execution
-- SSRF or injection in Cloud Functions
-- Exposed credentials or API keys
-- Logic flaws that allow fake XP, sats, or badge minting
+- The public site served from this repository, including the staging and dev hosts published by its workflows
+- Authentication and session handling
+- Firestore and Storage rules that allow a read or write the caller should not have
+- Cross-site scripting in content a player can submit
+- Unauthorized Lightning payments or wallet actions
+- Injection in Cloud Functions or Workers
+- Credentials or tokens committed or exposed to the client
+- Logic that mints XP, sats, badges, or other rewards the server should refuse
 
-**Out of scope:**
-- Theoretical attacks with no practical exploit path
-- Issues in third-party services (Firebase, Cloudflare, Lichess)
-- Rate limiting on non-sensitive endpoints
-- Self-XSS (requires the attacker to execute their own browser)
-- Clickjacking on non-authenticated pages
+Out of scope:
 
-## Security Measures
+- Attacks that need physical access, or social engineering of staff or players
+- Issues in third-party services (Firebase, Cloudflare, wallet apps, relays)
+- Missing rate limits on endpoints that do not change accounts, money, or rewards
+- Self-XSS that requires the player to attack their own browser
+- Clickjacking on pages that do not require a session
+- Findings with no practical path to affect another person or the service
+- Automated scanning output with no demonstrated impact
 
-- Firebase App Check (Turnstile-enforced) on all Firestore and Cloud Function access
-- Firestore security rules with field-level validation
-- Server-side round resolution for PVP games (tamper-proof)
-- Custom claim-based admin access (no hardcoded emails)
-- Subresource Integrity (SRI) on all CDN-loaded scripts
-- Security headers: `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `CSP frame-ancestors`
+## What not to do
 
-## Disclosure Policy
+- Do not test on real player accounts. Do not sign in as someone else, reuse a session you do not own, or read or change another person's data. Use the local Firebase emulators and the `demo-` project ids described in [CONTRIBUTING.md](CONTRIBUTING.md).
+- Do not run denial-of-service, load, spam, or resource-exhaustion tests against production, staging, or dev.
+- If a test shows you someone else's data, stop. Report what you saw and delete local copies when we ask.
+- Do not exploit an issue past the smallest proof you need to report it. Do not retain access, move money, or change data that is not your own test data on an emulator.
+- Do not publicly disclose the issue until we have had a reasonable time to fix it.
 
-We follow **responsible disclosure**. We ask that you:
-1. Give us reasonable time to fix the issue before public disclosure
-2. Avoid accessing or modifying data that isn't yours
-3. Not perform denial-of-service testing
+## Response expectations
 
-We will credit researchers in release notes (or keep disclosure anonymous on request).
+These are targets, not a guarantee.
+
+- We aim to acknowledge a report within 48 hours.
+- For an issue we treat as critical, we aim to reply with a timeline within 7 days of that acknowledgement.
+- We will keep you posted when there is something new to say.
+- We will credit you in the fix notes if you want credit. Say so if you prefer to stay unnamed.
+
+A report that is out of scope, duplicate, or not reproducible may be closed with a short explanation.
+
+## Safe harbor
+
+If you follow this policy in good faith, 603BTC LLC will not pursue a legal claim against you for that research. This is not a bug-bounty offer and it does not promise a payment. It does not bind anyone other than 603BTC LLC.
+
+The harbor does not cover activity that uses or damages another person's account, disrupts the service, discloses the issue publicly before we have had a reasonable time to fix it, or breaks the law aside from the access needed to show the vulnerability. We may still suspend access that is harming players or the service.

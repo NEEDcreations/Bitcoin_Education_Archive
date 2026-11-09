@@ -12,7 +12,7 @@ const { isSatsBanned, rewardBlocked } = require('./cipherClaim');
 const WEEK_RESET_HOUR_UTC = 5;
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 const CORRECT_XP = 25;
-const BOARD_SIZE = 25;
+const BOARD_SIZE = 50;
 const PAYOUT_SIZE = 10;
 const UNKNOWN_REACHED = 9000000000000000;
 
