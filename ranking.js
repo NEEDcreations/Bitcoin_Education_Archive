@@ -5386,6 +5386,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
     // Exception: badge_earned - defer notification until server confirms (prevents ghost XP on cache-clear re-trigger)
     var _isBadgeEarned = !!(badgeId);
     var _eagerNotifyTs = null; // timestamp of eager log entry — used to correct it post-CF if capped
+    var _xpPreview = null;
     try {
         // The server applies 2× from doubleXpUntil. The client must not multiply.
         if (pts > 0 && reason && !_isBadgeEarned && typeof notifySelfPoints === 'function') {
@@ -5402,6 +5403,10 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         if (!payload.actionKey) {
             var inferredKey = inferAwardActionKey(reason, badgeId, extra);
             if (inferredKey) payload.actionKey = inferredKey;
+        }
+        if (!_isBadgeEarned && pts > 0 && typeof window._previewDailyXpGain === 'function') {
+            var _xpDoubled = typeof window._doubleXpUntilMs === 'function' && window._doubleXpUntilMs(currentUser) > Date.now();
+            _xpPreview = window._previewDailyXpGain(pts, { doubled: _xpDoubled });
         }
         var result = await awardPointsFn(payload);
         if (result.data && result.data.dailyActionCapped) {
@@ -5443,6 +5448,9 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
                 // paint must not put the older triviaXpStatus result back.
                 if (typeof window._noteServerDailyXp === 'function') window._noteServerDailyXp(window._serverDailyXp);
                 else window._paintDailyXpMeter(window._serverDailyXp);
+            } else if (_xpPreview && typeof window._revertDailyXpPreview === 'function') {
+                window._revertDailyXpPreview(_xpPreview);
+                _xpPreview = null;
             }
             if (result.data.capped || result.data.pastCap) {
                 var _capNotifKey = 'btc_daily_cap_notified_' + new Date(Date.now() - 5 * 3600000).toISOString().split('T')[0];
@@ -5456,6 +5464,10 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
     } catch (e) {
         // [SECURITY] No local fallback - server is the only source of truth for points
         console.warn('[POINTS] Cloud Function failed:', e.message);
+        if (_xpPreview && typeof window._revertDailyXpPreview === 'function') {
+            try { window._revertDailyXpPreview(_xpPreview); } catch (eRev) {}
+            _xpPreview = null;
+        }
         if (typeof showToast === 'function') showToast('⏳ XP will sync when connection restores');
         // Re-throw so callers (.then/.catch in badges.js) can roll back on network failure.
         throw e;

@@ -16668,6 +16668,93 @@ window.addEventListener('hashchange', function() {
 // Wrappers here can't work because those functions are defined after this file loads
 
 // ---- #12: Progress Rings on Homepage ----
+// Circle diameter tracks standing versus active users when a count and a
+// cached peer list are already on the page. No new reads. Without that
+// cohort, diameter follows the ring's own 0–100 progress.
+window.metricCircleBounds = function() {
+    var wide = typeof window.innerWidth === 'number' && window.innerWidth >= 800;
+    return wide ? { min: 56, max: 88 } : { min: 48, max: 64 };
+};
+
+window.metricCircleSize = function(percentile, bounds) {
+    var b = bounds || window.metricCircleBounds();
+    var min = Number(b.min);
+    var max = Number(b.max);
+    if (!(max > min)) { min = 48; max = 64; }
+    var p = Number(percentile);
+    if (!isFinite(p) || p < 0) p = 0;
+    if (p > 100) p = 100;
+    return Math.round(min + (max - min) * (p / 100));
+};
+
+// null means the cohort is not on hand. 0 means the user has none of this metric.
+window.metricPercentileVsActive = function(value, peerValues, activeCount) {
+    var mine = Number(value) || 0;
+    var active = Math.floor(Number(activeCount) || 0);
+    if (!(mine > 0)) return 0;
+    var peers = [];
+    (peerValues || []).forEach(function(raw) {
+        var n = Number(raw) || 0;
+        if (n > 0) peers.push(n);
+    });
+    if (!(active > 0) || !peers.length) return null;
+    if (active === 1) return 100;
+    var ahead = 0;
+    for (var i = 0; i < peers.length; i++) if (peers[i] > mine) ahead++;
+    var rank;
+    if (ahead >= peers.length) {
+        var best = peers.length + 1;
+        var worst = active > best ? active : best;
+        rank = Math.round((best + worst) / 2);
+    } else {
+        rank = ahead + 1;
+    }
+    if (rank < 1) rank = 1;
+    if (rank > active) rank = active;
+    var pct = ((active - rank) / (active - 1)) * 100;
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+    return pct;
+};
+
+window.metricActiveUserCount = function() {
+    var n = Number(window._badgeDistActive) || 0;
+    if (n > 0) return Math.floor(n);
+    try {
+        var cached = JSON.parse(localStorage.getItem('btc_badge_dist_cache') || 'null');
+        n = cached && Number(cached.activeUsers30d) || 0;
+    } catch (e) {}
+    return n > 0 ? Math.floor(n) : 0;
+};
+
+function metricSnapValues(docId, pick) {
+    var doc = null;
+    if (typeof window._lbSnapRead === 'function') {
+        try { doc = window._lbSnapRead(docId); } catch (e) { doc = null; }
+    }
+    if (!doc) {
+        try { doc = JSON.parse(localStorage.getItem('btc_lb_snap_' + docId) || 'null'); } catch (e2) { doc = null; }
+    }
+    var rows = (doc && doc.rows) || [];
+    var out = [];
+    rows.forEach(function(row) {
+        var n = pick(row || {});
+        if (n > 0) out.push(n);
+    });
+    return out;
+}
+
+function metricOrdinal(n) {
+    var v = Math.round(Number(n) || 0);
+    var teen = v % 100;
+    if (teen >= 11 && teen <= 13) return v + 'th';
+    var digit = v % 10;
+    if (digit === 1) return v + 'st';
+    if (digit === 2) return v + 'nd';
+    if (digit === 3) return v + 'rd';
+    return v + 'th';
+}
+
 window.renderProgressRings = function() {
     var el = document.getElementById('progressRings');
     if (!el) return;
@@ -16681,11 +16768,33 @@ window.renderProgressRings = function() {
     var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
     var sfHashes = (typeof currentUser !== 'undefined' && currentUser && typeof currentUser.sfTotalHashes === 'number') ? currentUser.sfTotalHashes : 0;
 
-    function ring(pct, color, label, value) {
+    var activeUsers = window.metricActiveUserCount();
+    var xpPeers = metricSnapValues('lb_xp_alltime', function(row) {
+        var n = Number(row.points);
+        if (!(n > 0)) n = Number(row.value) || 0;
+        return n;
+    });
+    var hashPeers = metricSnapValues('lb_favor_hashers', function(row) {
+        return Number(row.value) || 0;
+    });
+    var streakPeers = [];
+    var streakBoard = window._streakLbCache && window._streakLbCache.data;
+    var streakRows = (streakBoard && (streakBoard.alltime || streakBoard.current)) || [];
+    streakRows.forEach(function(row) {
+        var n = Number(row && row.streak) || 0;
+        if (n > 0) streakPeers.push(n);
+    });
+
+    function ring(progressPct, color, label, value, standing, metricValue) {
+        var pct = Math.max(0, Math.min(100, Number(progressPct) || 0));
+        var percentile = standing == null ? window.metricPercentileVsActive(metricValue, [], activeUsers) : standing;
+        var sizeFrom = percentile == null ? pct : percentile;
+        var size = window.metricCircleSize(sizeFrom);
         var r = 32, c = 2 * Math.PI * r;
         var offset = c - (pct / 100) * c;
-        return '<div style="text-align:center;min-width:70px;">' +
-            '<svg width="72" height="72" viewBox="0 0 72 72">' +
+        var tip = (percentile == null || !(Number(metricValue) > 0)) ? '' : ' title="' + metricOrdinal(percentile) + ' percentile of active users"';
+        return '<div' + tip + ' data-metric="' + label + '" data-circle-size="' + size + '" style="text-align:center;width:' + size + 'px;flex:0 0 ' + size + 'px;">' +
+            '<svg width="' + size + '" height="' + size + '" viewBox="0 0 72 72" aria-hidden="true">' +
                 '<circle cx="36" cy="36" r="' + r + '" fill="none" stroke="var(--border)" stroke-width="5"/>' +
                 '<circle cx="36" cy="36" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + c + '" stroke-dashoffset="' + offset + '" transform="rotate(-90 36 36)" style="transition:stroke-dashoffset 1s;"/>' +
                 '<text x="36" y="40" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="700">' + value + '</text>' +
@@ -16693,12 +16802,12 @@ window.renderProgressRings = function() {
             '<div style="color:var(--text-faint);font-size:0.65rem;margin-top:2px;">' + label + '</div></div>';
     }
 
-    el.innerHTML = '<div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">' +
-        ring(Math.min(100, (visited / totalChannels) * 100), '#f7931a', 'Topics', visited + '/' + totalChannels) +
-        ring(Math.min(100, streak * 5), '#22c55e', 'Streak', '🔥' + streak) +
-        ring(Math.min(100, (points / 21000) * 100), '#8B5CF6', 'XP', points > 999 ? Math.floor(points/1000) + 'k' : points) +
-        ring(Math.min(100, interactions * 2), '#3B82F6', 'Nacho', interactions) +
-        ring(Math.min(100, sfHashes / 1000 * 100), '#eab308', 'Hashes', sfHashes > 999 ? Math.floor(sfHashes / 1000) + 'k' : sfHashes) +
+    el.innerHTML = '<div id="progressRingRow" style="display:flex;justify-content:center;align-items:flex-end;gap:6px;flex-wrap:wrap;">' +
+        ring(Math.min(100, (visited / totalChannels) * 100), '#f7931a', 'Topics', visited + '/' + totalChannels, null, visited) +
+        ring(Math.min(100, streak * 5), '#22c55e', 'Streak', '🔥' + streak, window.metricPercentileVsActive(streak, streakPeers, activeUsers), streak) +
+        ring(Math.min(100, (points / 21000) * 100), '#8B5CF6', 'XP', points > 999 ? Math.floor(points/1000) + 'k' : points, window.metricPercentileVsActive(points, xpPeers, activeUsers), points) +
+        ring(Math.min(100, interactions * 2), '#3B82F6', 'Nacho', interactions, null, interactions) +
+        ring(Math.min(100, sfHashes / 1000 * 100), '#eab308', 'Hashes', sfHashes > 999 ? Math.floor(sfHashes / 1000) + 'k' : sfHashes, window.metricPercentileVsActive(sfHashes, hashPeers, activeUsers), sfHashes) +
     '</div>';
 };
 
@@ -23591,25 +23700,67 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (typeof toggleMobileLearnMenu === 'function') toggleMobileLearnMenu();
         else if (typeof toggleMenu === 'function') toggleMenu();
     };
+    // Start Here guide. The homepage embed reads this id and no other copy.
+    window.START_HERE_YT_ID = 'zOQetZgXz48';
+
+    function startHereEmbedSrc(id, autoplay) {
+        var url = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?rel=0';
+        if (autoplay) url += '&autoplay=1';
+        return url;
+    }
+
     window.ensureIntroVideo = function(play) {
-        var video = document.getElementById('introVideo');
-        if (!video) return;
-        if (!video.querySelector('source')) {
-            var src = video.getAttribute('data-src');
-            if (src) {
-                var source = document.createElement('source');
-                source.src = src;
-                source.type = 'video/mp4';
-                video.appendChild(source);
-                video.load();
-            }
+        var slot = document.getElementById('introVideo');
+        if (!slot) return;
+        var id = String(window.START_HERE_YT_ID || '').replace(/[^A-Za-z0-9_-]/g, '');
+        if (!id) return;
+        if (!slot.getAttribute('data-poster')) {
+            slot.style.backgroundImage = 'url(https://i.ytimg.com/vi/' + id + '/hqdefault.jpg)';
+            slot.style.backgroundSize = 'cover';
+            slot.style.backgroundPosition = 'center';
+            slot.setAttribute('data-poster', '1');
         }
-        if (play && video.play) video.play().catch(function() {});
+        if (!play) return;
+        var frame = slot.querySelector ? slot.querySelector('iframe') : null;
+        if (!frame) {
+            frame = document.createElement('iframe');
+            frame.title = 'Start Here';
+            frame.setAttribute('frameborder', '0');
+            frame.setAttribute('allowfullscreen', '');
+            frame.setAttribute('allow', 'autoplay; encrypted-media');
+            frame.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+            frame.setAttribute('loading', 'lazy');
+            frame.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
+            slot.appendChild(frame);
+        }
+        var src = startHereEmbedSrc(id, true);
+        if (!frame.getAttribute('src') || frame.getAttribute('src').indexOf(id) === -1) frame.src = src;
+        var overlay = document.getElementById('introVideoOverlay');
+        if (overlay) {
+            overlay.style.opacity = '0';
+            overlay.style.pointerEvents = 'none';
+        }
+    };
+
+    window.pauseIntroVideo = function() {
+        var slot = document.getElementById('introVideo');
+        if (!slot || !slot.querySelector) return;
+        var frame = slot.querySelector('iframe');
+        if (frame && frame.parentNode) frame.parentNode.removeChild(frame);
+        var overlay = document.getElementById('introVideoOverlay');
+        if (overlay) {
+            overlay.style.opacity = '';
+            overlay.style.pointerEvents = '';
+        }
     };
     window.toggleHomeMore = function() {
         var more = document.getElementById('homeMore');
         var btn = document.getElementById('homeMoreToggle');
         if (!more) return;
+        if (more.getAttribute('data-home-more-quiet')) {
+            more.hidden = true;
+            return;
+        }
         var open = !!more.hidden;
         more.hidden = !open;
         window._homeMoreOpen = open;
@@ -23629,16 +23780,27 @@ window.nachoQuizAnswer = function(btn, correct) {
     window.watchIntroVideo = function() {
         window._forceIntroVideo = true;
         var section = document.getElementById('introVideoSection');
+        var more = document.getElementById('homeMore');
+        var quiet = more && more.getAttribute('data-home-more-quiet');
         if (section) {
+            if (section.style && section.style.removeProperty) section.style.removeProperty('display');
             section.style.display = '';
             section.removeAttribute('data-simplified-hidden');
+            section.removeAttribute('data-em-hidden');
+            if (quiet && more && section.parentNode === more) {
+                if (!section._bqMoreMarked) {
+                    section._bqMoreNext = section.nextSibling;
+                    section._bqMoreMarked = true;
+                }
+                var anchor = document.getElementById('todayCard') || document.getElementById('homeMoreToggle');
+                if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(section, anchor);
+            }
             var full = document.getElementById('introVideoFull');
             var mini = document.getElementById('introVideoMini');
             if (full) full.style.display = '';
             if (mini) mini.style.display = 'none';
         }
-        var more = document.getElementById('homeMore');
-        if (more && more.hidden) window.toggleHomeMore();
+        if (!quiet && more && more.hidden) window.toggleHomeMore();
         else window.ensureIntroVideo(true);
         if (section && section.scrollIntoView) {
             try { section.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { section.scrollIntoView(true); }
