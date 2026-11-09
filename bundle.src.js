@@ -13848,8 +13848,159 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
 
 window.closeDM = function() {
     if (window._dmUnsubscribe) { window._dmUnsubscribe(); window._dmUnsubscribe = null; }
+    window._dmEditingId = null;
+    window._dmEditDraft = null;
+    window._dmMenuFor = '';
+    window._dmLastSnap = null;
     var w = document.getElementById('dmWindow');
     if (w) w.remove();
+};
+
+var DM_EDIT_MS = 15 * 60 * 1000;
+var DM_EDIT_CAP = 5;
+var DM_EDIT_MAX = 1000;
+
+function dmTsMillis(ts) {
+    if (!ts) return 0;
+    if (typeof ts.toMillis === 'function') return ts.toMillis();
+    if (typeof ts.toDate === 'function') return ts.toDate().getTime();
+    if (ts instanceof Date) return ts.getTime();
+    if (typeof ts === 'number') return ts;
+    return 0;
+}
+
+function dmMsgProtected(m) {
+    if (!m) return true;
+    if (m.isNachoAuto === true || m.source === 'telegram' || m.fromTelegram === true) return true;
+    if (m.senderUid === 'nacho-bot' || m.senderUid === 'system') return true;
+    return false;
+}
+
+function dmMsgCanEdit(m, isMe) {
+    if (!isMe || dmMsgProtected(m) || m.deleted === true) return false;
+    if (m.isGif || m.imageUrl || m.gifUrl) return false;
+    if ((m.editCount || 0) >= DM_EDIT_CAP) return false;
+    var ms = dmTsMillis(m.createdAt);
+    if (!ms) return false;
+    return (Date.now() - ms) < DM_EDIT_MS;
+}
+
+function dmIdOk(id) {
+    return /^[A-Za-z0-9_-]{1,160}$/.test(String(id || ''));
+}
+
+function dmMsgCanDelete(m, isMe) {
+    if (!isMe || dmMsgProtected(m) || m.deleted === true) return false;
+    return true;
+}
+
+function prepareDmEditText(raw) {
+    var text = String(raw || '').replace(/<[^>]*>/g, '').trim();
+    if (!text) return { ok: false, toast: 'Message cannot be empty' };
+    if (text.length > DM_EDIT_MAX) return { ok: false, toast: 'Message too long (max ' + DM_EDIT_MAX + ' chars)' };
+    if (containsBlockedContent(text)) return { ok: false, toast: '⛔ Message contains prohibited content' };
+    if (containsScamPattern(text)) return { ok: false, toast: '⚠️ That message looks like a scam. Edit it before saving.' };
+    return { ok: true, text: text };
+}
+
+function rerenderDmSoon() {
+    if (typeof window._rerenderDm === 'function') window._rerenderDm();
+}
+
+function noteDmFilterRevert() {
+    var watch = window._dmFilterWatch;
+    if (!watch) return;
+    var m = (window._dmMsgCache || {})[watch.id];
+    if (!m || m.text === watch.text) return;
+    window._dmFilterWatch = null;
+    clearTimeout(window._dmFilterTimer);
+    if (typeof showToast === 'function') showToast('Removed by filter');
+}
+
+window.toggleDmMsgMenu = function(msgId) {
+    window._dmMenuFor = window._dmMenuFor === msgId ? '' : msgId;
+    rerenderDmSoon();
+};
+
+window.beginDmEdit = function(msgId) {
+    var m = (window._dmMsgCache || {})[msgId];
+    if (!m || !dmMsgCanEdit(m, true)) {
+        if (typeof showToast === 'function') showToast('This message can no longer be edited');
+        return;
+    }
+    window._dmMenuFor = '';
+    window._dmEditingId = msgId;
+    window._dmEditDraft = m.text || '';
+    rerenderDmSoon();
+};
+
+window.cancelDmEdit = function() {
+    window._dmEditingId = null;
+    window._dmEditDraft = null;
+    rerenderDmSoon();
+};
+
+window.saveDmEdit = function() {
+    var msgId = window._dmEditingId;
+    var convoId = window._dmActiveConvo;
+    var m = (window._dmMsgCache || {})[msgId];
+    var inp = document.getElementById('dmEditInput');
+    if (!msgId || !convoId || !m || !inp) return;
+    if (!dmMsgCanEdit(m, true)) {
+        if (typeof showToast === 'function') showToast('This message can no longer be edited');
+        window.cancelDmEdit();
+        return;
+    }
+    var prepared = prepareDmEditText(inp.value);
+    if (!prepared.ok) {
+        if (typeof showToast === 'function') showToast(prepared.toast);
+        return;
+    }
+    if (prepared.text === (m.text || '')) {
+        window.cancelDmEdit();
+        return;
+    }
+    window._dmFilterWatch = { id: msgId, text: prepared.text };
+    clearTimeout(window._dmFilterTimer);
+    window._dmFilterTimer = setTimeout(function() {
+        if (window._dmFilterWatch && window._dmFilterWatch.id === msgId) window._dmFilterWatch = null;
+    }, 8000);
+    db.collection('dm_conversations').doc(convoId).collection('messages').doc(msgId).update({
+        text: prepared.text,
+        edited: true,
+        editedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        editCount: (m.editCount || 0) + 1
+    }).then(function() {
+        window._dmEditingId = null;
+        window._dmEditDraft = null;
+        if (typeof showToast === 'function') showToast('✏️ Message updated');
+    }).catch(function() {
+        if (typeof showToast === 'function') showToast('Failed to edit message');
+    });
+};
+
+window.deleteDmMsg = function(msgId) {
+    var convoId = window._dmActiveConvo;
+    var m = (window._dmMsgCache || {})[msgId];
+    if (!convoId || !m || !dmMsgCanDelete(m, true)) {
+        if (typeof showToast === 'function') showToast('This message cannot be deleted');
+        return;
+    }
+    if (!confirm('Delete this message?')) return;
+    window._dmMenuFor = '';
+    var patch = {
+        deleted: true,
+        deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        text: ''
+    };
+    if (m.imageUrl) patch.imageUrl = firebase.firestore.FieldValue.delete();
+    if (m.gifUrl) patch.gifUrl = firebase.firestore.FieldValue.delete();
+    if (m.caption) patch.caption = firebase.firestore.FieldValue.delete();
+    db.collection('dm_conversations').doc(convoId).collection('messages').doc(msgId).update(patch).then(function() {
+        if (typeof showToast === 'function') showToast('🗑️ Message deleted');
+    }).catch(function() {
+        if (typeof showToast === 'function') showToast('Failed to delete');
+    });
 };
 
 function loadDMMessages(convoId, myUid, otherUid, otherName) {
@@ -13859,11 +14010,7 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
     container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Loading messages...</div>';
 
     // Real-time listener on messages
-    window._dmUnsubscribe = db.collection('dm_conversations').doc(convoId)
-        .collection('messages')
-        .orderBy('createdAt', 'asc')
-        .limit(MSG_CONFIG.maxConvoHistory)
-        .onSnapshot(function(snap) {
+    function paintDmSnapshot(snap) {
             container.innerHTML = '';
 
             if (snap.empty) {
@@ -13875,8 +14022,12 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
             }
 
             var lastDate = '';
+            window._dmMsgCache = {};
+            window._dmActiveConvo = convoId;
             snap.forEach(function(doc) {
                 var m = doc.data();
+                m._id = doc.id;
+                window._dmMsgCache[doc.id] = m;
                 var isMe = m.senderUid === myUid;
                 // [AUDIT FIX] Filter messages from blocked users (never filter Nacho)
                 if (!isMe && !m.isNachoAuto && typeof isUserBlocked === 'function' && isUserBlocked(m.senderUid)) {
@@ -13893,33 +14044,77 @@ function loadDMMessages(convoId, myUid, otherUid, otherName) {
 
                 var timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 var isNacho = m.senderUid === 'nacho-bot' || m.isNachoAuto === true;
-                // Scam warning on incoming messages (skip for Nacho)
-                var scamWarn = (!isMe && !isNacho && (containsScamPattern(m.text) || containsSuspiciousLink(m.text))) ?
+                var isDeleted = m.deleted === true;
+                // Scam warning on incoming messages (skip for Nacho and deleted)
+                var scamWarn = (!isDeleted && !isMe && !isNacho && (containsScamPattern(m.text) || containsSuspiciousLink(m.text))) ?
                     '<div style="font-size:0.65rem;color:#ef4444;margin-top:4px;padding:3px 6px;background:rgba(239,68,68,0.1);border-radius:4px;">⚠️ This message may contain a scam. Never send money to strangers.</div>' : '';
-                var piiWarn = (!isMe && !isNacho && containsPII(m.text)) ?
+                var piiWarn = (!isDeleted && !isMe && !isNacho && containsPII(m.text)) ?
                     '<div style="font-size:0.65rem;color:#eab308;margin-top:4px;padding:3px 6px;background:rgba(234,179,8,0.1);border-radius:4px;">⚠️ This person is asking for personal info. Only share details for Lightning Mart transactions.</div>' : '';
                 var bubbleBg = isNacho ? 'rgba(34,197,94,0.08)' : isMe ? 'var(--accent)' : 'var(--card-bg)';
                 var bubbleBorder = isNacho ? '1px solid rgba(34,197,94,0.25)' : 'none';
                 var bubbleColor = isNacho ? 'var(--text)' : isMe ? '#fff' : 'var(--text)';
                 var nachoLabel = isNacho ? '<div style="font-size:0.65rem;color:#22c55e;font-weight:700;margin-bottom:3px;">🦌 Nacho</div>' : '';
-                var msgText = linkifyText(escapeHtml(m.text)).replace(/\n/g, '<br>');
-                // Image support
+                var msgText = '';
                 var imgHtml = '';
-                if (m.imageUrl) {
-                    imgHtml = '<img src="' + sanitizeUrl(m.imageUrl) + '" style="max-width:100%;max-height:250px;border-radius:8px;margin:' + (m.text ? '6px 0 0' : '0') + ';display:block;cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
+                var menuHtml = '';
+                if (isDeleted) {
+                    msgText = '<span style="font-style:italic;opacity:0.85;">🚫 message deleted</span>';
+                } else if (m.filterRemoved && !String(m.text || '').trim() && !m.imageUrl && !m.gifUrl) {
+                    msgText = '<span style="font-style:italic;opacity:0.85;">Removed by filter</span>';
+                } else if (window._dmEditingId === doc.id) {
+                    msgText = '<textarea id="dmEditInput" maxlength="1000" rows="3" aria-label="Edit message" style="width:100%;min-width:180px;box-sizing:border-box;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.35);background:rgba(0,0,0,0.15);color:inherit;font-family:inherit;font-size:16px;resize:vertical;"></textarea>' +
+                        '<div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end;">' +
+                        '<button type="button" onclick="cancelDmEdit()" style="padding:4px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.4);background:transparent;color:inherit;font-family:inherit;font-size:0.72rem;font-weight:700;cursor:pointer;">Cancel</button>' +
+                        '<button type="button" onclick="saveDmEdit()" style="padding:4px 10px;border-radius:8px;border:none;background:#fff;color:#111;font-family:inherit;font-size:0.72rem;font-weight:700;cursor:pointer;">Save</button>' +
+                        '</div>';
+                } else {
+                    msgText = linkifyText(escapeHtml(m.text)).replace(/\n/g, '<br>');
+                    if (m.imageUrl) {
+                        imgHtml = '<img src="' + sanitizeUrl(m.imageUrl) + '" style="max-width:100%;max-height:250px;border-radius:8px;margin:' + (m.text ? '6px 0 0' : '0') + ';display:block;cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
+                    }
+                    if (dmMsgCanDelete(m, isMe) && dmIdOk(doc.id)) {
+                        menuHtml = '<button type="button" onclick="event.stopPropagation();toggleDmMsgMenu(\'' + doc.id + '\')" aria-label="Message actions" style="margin-left:8px;padding:0 4px;border:none;background:transparent;color:inherit;cursor:pointer;font-size:0.85rem;opacity:0.75;">⋯</button>';
+                        if (window._dmMenuFor === doc.id) {
+                            menuHtml += '<div style="position:absolute;right:0;top:100%;z-index:5;background:var(--bg-side,#1a1a2e);border:1px solid var(--border);border-radius:10px;padding:4px;min-width:120px;box-shadow:0 8px 24px rgba(0,0,0,0.35);">';
+                            if (dmMsgCanEdit(m, isMe)) {
+                                menuHtml += '<button type="button" onclick="beginDmEdit(\'' + doc.id + '\')" style="display:block;width:100%;text-align:left;padding:8px 10px;border:none;background:transparent;color:var(--text);font-family:inherit;font-size:0.8rem;cursor:pointer;border-radius:8px;">Edit</button>';
+                            }
+                            menuHtml += '<button type="button" onclick="deleteDmMsg(\'' + doc.id + '\')" style="display:block;width:100%;text-align:left;padding:8px 10px;border:none;background:transparent;color:#ef4444;font-family:inherit;font-size:0.8rem;cursor:pointer;border-radius:8px;">Delete</button></div>';
+                        }
+                    }
                 }
+                var editedLabel = (!isDeleted && (m.edited || m.editCount)) ? ' · edited' : '';
                 container.innerHTML += '<div style="display:flex;justify-content:' + (isMe && !isNacho ? 'flex-end' : 'flex-start') + ';margin-bottom:6px;">' +
-                    '<div style="max-width:85%;padding:10px 14px;border-radius:' + (isMe && !isNacho ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';background:' + bubbleBg + ';border:' + bubbleBorder + ';color:' + bubbleColor + ';font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
+                    '<div style="position:relative;max-width:85%;padding:10px 14px;border-radius:' + (isMe && !isNacho ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';background:' + bubbleBg + ';border:' + bubbleBorder + ';color:' + bubbleColor + ';font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
                         nachoLabel + (msgText || '') + imgHtml + scamWarn + piiWarn +
-                        '<div style="font-size:0.6rem;color:' + (isMe && !isNacho ? 'rgba(255,255,255,0.6)' : 'var(--text-faint)') + ';margin-top:4px;text-align:right;">' + timeStr + '</div>' +
+                        '<div style="font-size:0.6rem;color:' + (isMe && !isNacho ? 'rgba(255,255,255,0.6)' : 'var(--text-faint)') + ';margin-top:4px;text-align:right;">' + timeStr + editedLabel + menuHtml + '</div>' +
                     '</div></div>';
             });
+
+            noteDmFilterRevert();
+            var dmEdit = document.getElementById('dmEditInput');
+            if (dmEdit) {
+                dmEdit.value = window._dmEditDraft != null ? window._dmEditDraft : '';
+                dmEdit.addEventListener('input', function() { window._dmEditDraft = dmEdit.value; });
+                dmEdit.focus();
+            }
 
             // Scroll to bottom
             container.scrollTop = container.scrollHeight;
 
             // Mark messages as read
             markDMRead(convoId, myUid);
+    }
+    window._rerenderDm = function() {
+        if (window._dmLastSnap && document.getElementById('dmMessages') === container) paintDmSnapshot(window._dmLastSnap);
+    };
+    window._dmUnsubscribe = db.collection('dm_conversations').doc(convoId)
+        .collection('messages')
+        .orderBy('createdAt', 'asc')
+        .limit(MSG_CONFIG.maxConvoHistory)
+        .onSnapshot(function(snap) {
+            window._dmLastSnap = snap;
+            paintDmSnapshot(snap);
         }, function(err) {
             container.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
                 '<div style="font-size:2rem;margin-bottom:8px;">💬</div>' +

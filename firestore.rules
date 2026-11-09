@@ -1209,8 +1209,86 @@ service cloud.firestore {
                       && request.resource.data.text.size() <= 1000
                       && !('isNachoAuto' in request.resource.data)
                       && (request.resource.data.text.size() >= 1 || ('imageUrl' in request.resource.data && request.resource.data.imageUrl is string && request.resource.data.imageUrl.matches('^https://.*')))
-                      && (!('imageUrl' in request.resource.data) || (request.resource.data.imageUrl is string && request.resource.data.imageUrl.matches('^https://.*')));
+                      && (!('imageUrl' in request.resource.data) || (request.resource.data.imageUrl is string && request.resource.data.imageUrl.matches('^https://.*')))
+                      && request.resource.data.createdAt == request.time
+                      && !request.resource.data.keys().hasAny(['edited', 'editedAt', 'editCount', 'deleted', 'deletedAt', 'revertSeq', 'filterRemoved']);
+        // Owner edit: text only, 15 minutes from createdAt, editCount + 1, cap 5.
+        // Owner soft delete: blank text and media. No hard delete.
+        function dmEditable(data) {
+          return data.senderUid == request.auth.uid
+            && data.get('isNachoAuto', false) != true
+            && data.get('source', '') != 'telegram'
+            && data.get('fromTelegram', false) != true
+            && data.senderUid != 'nacho-bot'
+            && data.senderUid != 'system'
+            && data.get('deleted', false) != true
+            && data.get('isGif', false) != true
+            && data.get('imageUrl', '') == ''
+            && data.get('gifUrl', '') == '';
+        }
+        allow update: if request.auth != null
+                      && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                      && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants
+                      && (
+                        (dmEditable(resource.data)
+                         && resource.data.createdAt is timestamp
+                         && request.time < resource.data.createdAt + duration.value(15, 'm')
+                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'edited', 'editedAt', 'editCount'])
+                         && request.resource.data.text is string
+                         && request.resource.data.text.size() >= 1
+                         && request.resource.data.text.size() <= 1000
+                         && request.resource.data.edited == true
+                         && request.resource.data.editedAt == request.time
+                         && request.resource.data.editCount is int
+                         && resource.data.get('editCount', 0) is int
+                         && resource.data.get('editCount', 0) >= 0
+                         && request.resource.data.editCount == resource.data.get('editCount', 0) + 1
+                         && request.resource.data.editCount <= 5)
+                        ||
+                        (resource.data.senderUid == request.auth.uid
+                         && resource.data.get('isNachoAuto', false) != true
+                         && resource.data.get('source', '') != 'telegram'
+                         && resource.data.get('fromTelegram', false) != true
+                         && resource.data.senderUid != 'nacho-bot'
+                         && resource.data.senderUid != 'system'
+                         && resource.data.get('deleted', false) != true
+                         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'text', 'imageUrl', 'gifUrl', 'caption'])
+                         && request.resource.data.deleted == true
+                         && request.resource.data.deletedAt == request.time
+                         && request.resource.data.text == ''
+                         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['imageUrl'])
+                             || !('imageUrl' in request.resource.data)
+                             || request.resource.data.imageUrl == '')
+                         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['gifUrl'])
+                             || !('gifUrl' in request.resource.data)
+                             || request.resource.data.gifUrl == '')
+                         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['caption'])
+                             || !('caption' in request.resource.data)
+                             || request.resource.data.caption == '')
+                         && (resource.data.get('imageUrl', '') == ''
+                             || !('imageUrl' in request.resource.data)
+                             || request.resource.data.imageUrl == '')
+                         && (resource.data.get('gifUrl', '') == ''
+                             || !('gifUrl' in request.resource.data)
+                             || request.resource.data.gifUrl == '')
+                         && (resource.data.get('caption', '') == ''
+                             || !('caption' in request.resource.data)
+                             || request.resource.data.caption == ''))
+                      );
+        allow delete: if false;
       }
+    }
+
+    // Admin-only copies of edited and deleted chat/DM text. 90-day expireAt.
+    match /chat_moderation_log/{logId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
+    // Per-uid edit/delete rate. flagged is a review mark only.
+    match /chat_edit_rate/{uid} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     // =============================================
@@ -1743,7 +1821,7 @@ service cloud.firestore {
               || (d.hasChatFlair == true && ('chatFlairEmoji' in d || nook)));
       }
       allow read: if true;
-      allow create: if (
+      allow create: if msgId.matches('^[A-Za-z0-9_-]{1,128}$') && ((
                     // Authenticated non-anonymous user messages only
                     request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
@@ -1807,9 +1885,21 @@ service cloud.firestore {
                     && request.resource.data.name is string
                     && request.resource.data.uid is string
                     && isAdmin()
-                    );
-      // Allow reactions update by any authenticated user (must be a map)
-      // Allow own message edit: only text/editCount/edited fields, max 2 edits, own message only
+                    ));
+      // Reactions, owner edit, or owner soft delete. Admins do not get edit.
+      // Hard delete stays admin-only so an owner cannot erase the message doc.
+      function globalTextEditable(data) {
+        return data.uid == request.auth.uid
+          && data.uid != 'nacho-bot'
+          && data.uid != 'system'
+          && data.get('isNachoAuto', false) != true
+          && data.get('source', '') != 'telegram'
+          && data.get('fromTelegram', false) != true
+          && data.get('deleted', false) != true
+          && data.get('isGif', false) != true
+          && data.get('imageUrl', '') == ''
+          && data.get('gifUrl', '') == '';
+      }
       allow update: if request.auth != null
                     && (
                       // Reactions: emoji-keyed map { emoji: [uid,...] }
@@ -1820,18 +1910,58 @@ service cloud.firestore {
                        && request.resource.data.reactions.size() <= 20
                        && !request.auth.token.firebase.sign_in_provider.matches('anonymous'))
                       ||
-                      // Message edit: own message, text only, max 2 edits
-                      (resource.data.uid == request.auth.uid
-                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text','editCount','edited'])
+                      // Owner edit: text only, 15 minutes from ts, editCount goes up by exactly 1, cap 5.
+                      (!request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                       && globalTextEditable(resource.data)
+                       && resource.data.ts is timestamp
+                       && request.time < resource.data.ts + duration.value(15, 'm')
+                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'edited', 'editedAt', 'editCount'])
                        && request.resource.data.text is string
                        && request.resource.data.text.size() >= 1
                        && request.resource.data.text.size() <= 300
-                       && resource.data.get('editCount', 0) < 2)
+                       && request.resource.data.edited == true
+                       && request.resource.data.editedAt == request.time
+                       && request.resource.data.editCount is int
+                       && resource.data.get('editCount', 0) is int
+                       && resource.data.get('editCount', 0) >= 0
+                       && request.resource.data.editCount == resource.data.get('editCount', 0) + 1
+                       && request.resource.data.editCount <= 5)
+                      ||
+                      // Owner soft delete. No time limit. Text and media are blanked.
+                      (!request.auth.token.firebase.sign_in_provider.matches('anonymous')
+                       && resource.data.uid == request.auth.uid
+                       && resource.data.uid != 'nacho-bot'
+                       && resource.data.uid != 'system'
+                       && resource.data.get('isNachoAuto', false) != true
+                       && resource.data.get('source', '') != 'telegram'
+                       && resource.data.get('fromTelegram', false) != true
+                       && resource.data.get('deleted', false) != true
+                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['deleted', 'deletedAt', 'text', 'imageUrl', 'gifUrl', 'caption'])
+                       && request.resource.data.deleted == true
+                       && request.resource.data.deletedAt == request.time
+                       && request.resource.data.text == ''
+                       && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['imageUrl'])
+                           || !('imageUrl' in request.resource.data)
+                           || request.resource.data.imageUrl == '')
+                       && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['gifUrl'])
+                           || !('gifUrl' in request.resource.data)
+                           || request.resource.data.gifUrl == '')
+                       && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['caption'])
+                           || !('caption' in request.resource.data)
+                           || request.resource.data.caption == '')
+                       && (resource.data.get('imageUrl', '') == ''
+                           || !('imageUrl' in request.resource.data)
+                           || request.resource.data.imageUrl == '')
+                       && (resource.data.get('gifUrl', '') == ''
+                           || !('gifUrl' in request.resource.data)
+                           || request.resource.data.gifUrl == '')
+                       && (resource.data.get('caption', '') == ''
+                           || !('caption' in request.resource.data)
+                           || request.resource.data.caption == ''))
                     );
-      // Own messages or admin can delete
+      // Admin hard delete only. Owners soft-delete via update.
       allow delete: if request.auth != null
-                    && (resource.data.uid == request.auth.uid
-                        || isAdmin());
+                    && isAdmin();
     }
 
     // =============================================

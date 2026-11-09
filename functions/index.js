@@ -8606,6 +8606,96 @@ exports.onGlobalChatTelegramUpdated = onDocumentUpdated({ document: 'global_chat
 exports.onGlobalChatTelegramDeleted = onDocumentDeleted({ document: 'global_chat/{msgId}', retry: true, secrets: [tgBotTokenSecret], serviceAccount: runtimeSa('onGlobalChatTelegramDeleted') }, async (event) => {
     return mirrorChatRetract(event.data, null);
 });
+// Edit and soft delete. Does not grant XP, tickets, badges, or push.
+// A soft delete (deleted: true) is retracted on Telegram by the mirror
+// trigger above: removedForTelegram treats deleted the same as a hard delete.
+// A text edit stays visible there (mirrorChatRetract returns reason 'visible').
+const chatModeration = require('./src/chatModeration');
+function chatMediaDeleter() {
+    const bucket = admin.storage().bucket();
+    return function (objectPath) {
+        return bucket.file(objectPath).delete({ ignoreNotFound: true });
+    };
+}
+exports.onGlobalChatEdited = onDocumentUpdated({
+    document: 'global_chat/{msgId}',
+    maxInstances: 20,
+    retry: true,
+    serviceAccount: runtimeSa('onGlobalChatEdited'),
+}, async (event) => {
+    const change = event.data || {};
+    const beforeSnap = change.before;
+    const afterSnap = change.after;
+    if (!beforeSnap || !afterSnap || beforeSnap.exists === false || afterSnap.exists === false) return null;
+    try {
+        await chatModeration.handleGlobalUpdate(db, admin, event.params.msgId, beforeSnap.data() || {}, afterSnap.data() || {}, Date.now(), {
+            eventId: event.id,
+            deleteFile: chatMediaDeleter(),
+        });
+    } catch (e) {
+        console.error('[chatModeration] global update failed');
+        throw e;
+    }
+    return null;
+});
+exports.onGlobalChatHardDeleted = onDocumentDeleted({
+    document: 'global_chat/{msgId}',
+    maxInstances: 10,
+    retry: true,
+    serviceAccount: runtimeSa('onGlobalChatHardDeleted'),
+}, async (event) => {
+    const snap = event.data;
+    if (!snap || snap.exists === false) return null;
+    try {
+        await chatModeration.handleGlobalDelete(db, admin, event.params.msgId, snap.data() || {}, Date.now(), {
+            eventId: event.id,
+        });
+    } catch (e) {
+        console.error('[chatModeration] global delete failed');
+        throw e;
+    }
+    return null;
+});
+exports.onDmMessageEdited = onDocumentUpdated({
+    document: 'dm_conversations/{convoId}/messages/{messageId}',
+    maxInstances: 20,
+    retry: true,
+    serviceAccount: runtimeSa('onDmMessageEdited'),
+}, async (event) => {
+    const change = event.data || {};
+    const beforeSnap = change.before;
+    const afterSnap = change.after;
+    if (!beforeSnap || !afterSnap || beforeSnap.exists === false || afterSnap.exists === false) return null;
+    try {
+        await chatModeration.handleDmUpdate(
+            db,
+            admin,
+            event.params.convoId,
+            event.params.messageId,
+            beforeSnap.data() || {},
+            afterSnap.data() || {},
+            Date.now(),
+            { eventId: event.id, deleteFile: chatMediaDeleter() }
+        );
+    } catch (e) {
+        console.error('[chatModeration] dm update failed');
+        throw e;
+    }
+    return null;
+});
+exports.purgeChatModerationLog = onSchedule({
+    schedule: '20 4 * * *',
+    timeZone: 'UTC',
+    timeoutSeconds: 120,
+    serviceAccount: runtimeSa('purgeChatModerationLog'),
+}, async () => {
+    try {
+        await chatModeration.purgeExpired(db, admin, Date.now());
+    } catch (e) {
+        console.error('[chatModeration] purge failed');
+        throw e;
+    }
+});
 exports.onAnnouncementsTelegramUpdated = onDocumentUpdated({ document: 'announcements/{msgId}', retry: true, secrets: [tgBotTokenSecret], serviceAccount: runtimeSa('onAnnouncementsTelegramUpdated') }, async (event) => {
     const change = event.data || {};
     return mirrorChatRetract(change.before, change.after);

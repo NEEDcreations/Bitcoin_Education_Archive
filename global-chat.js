@@ -5,6 +5,11 @@
 'use strict';
 
 var CHAT_COLLECTION = 'global_chat';
+// Client creates are capped at 128 by the rules. Server ids (shoutout_, pvp_result_)
+// can be 129–131, so buttons stay on those messages. The character class matches the rule.
+function chatIdOk(id) {
+    return /^[A-Za-z0-9_-]{1,160}$/.test(String(id || ''));
+}
 var ANNOUNCEMENTS_COLLECTION = 'announcements';
 var MAX_MSG_LENGTH = 300;
 var RATE_LIMIT_MS = 3000; // 3 seconds between messages
@@ -632,7 +637,8 @@ function renderChatMessages(msgs) {
         // Override display name for Nacho auto-replies
         if (isNacho && m.name !== '🦌 Nacho') m.name = '🦌 Nacho';
 
-        html += '<div data-msg-id="' + m._id + '" style="display:flex;flex-direction:column;align-items:' + align + ';max-width:85%;">';
+        var safeMsgId = chatIdOk(m._id) ? m._id : '';
+        html += '<div data-msg-id="' + safeMsgId + '" style="display:flex;flex-direction:column;align-items:' + align + ';max-width:85%;">';
         html += '<div style="background:' + bubbleBg + ';border:1px solid ' + bubbleBorder + ';border-radius:' + (isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';padding:8px 12px;position:relative;">';
         html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">';
         // Cosmetics: chat flair prefix & nacho skin avatar
@@ -640,35 +646,50 @@ function renderChatMessages(msgs) {
         var _nachoSkinAvatar = (!isNacho && m.hasNachoSkin) ? '<img src="/nacho-deer.svg" style="width:16px;height:16px;border-radius:50%;border:1px solid #f7931a;vertical-align:-3px;margin-right:2px;filter:drop-shadow(0 0 3px rgba(247,147,26,0.5));" onerror="this.replaceWith(document.createTextNode(String.fromCodePoint(129420)))" />' : '';
         var nameStyle = 'font-weight:700;font-size:0.75rem;' + (_factionStyle || ('color:' + nameColor)) + ';';
         var nameClick = '';
-        if (!isDeleted) {
+        var safeUid = /^[A-Za-z0-9_:-]{1,128}$/.test(String(m.uid || '')) ? m.uid : '';
+        if (!isDeleted && safeUid) {
             nameStyle += 'cursor:pointer;';
-            nameClick = ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')"';
+            nameClick = ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + safeUid + '\')"';
         }
         var _coreTitle = (!isNacho && m.hasCoreContributor) ? ' <span title="Core Contributor — BIP Breakthrough" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:rgba(247,147,26,0.18);border:1px solid rgba(247,147,26,0.35);color:#f97316;vertical-align:middle;">🔧 Core Contributor</span>' : '';
         _coreTitle += (!isNacho && m.hasFactionChampion) ? (function(){ var _fl = ({'🐝👑':'Hive Mind Champion','🦡👑':"Honey Badger Don't Care Champion",'🐝🛡️':'Still Buzzing','🦡🛡️':"Badger Don't Quit"})[m.factionRaceFlair]; return _fl ? ' <span title="Faction race" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">' + esc(m.factionRaceFlair + ' ' + _fl) + '</span>' : null; })() || ' <span title="Faction race champion" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">👑 Race Champion</span>' : '';
         html += '<span style="' + nameStyle + '"' + nameClick + '>' + _nachoSkinAvatar + _chatFlairPrefix + (m.source === 'telegram' ? '📱 ' : '') + esc(m.name || 'Anon') + _coreTitle + (m.userTag ? ' <span style="font-weight:400;color:var(--text-faint);font-size:0.65rem;">' + esc(m.userTag) + '</span>' : '') + '</span>';
         html += '<span style="font-size:0.6rem;color:var(--text-faint);">' + timeAgo(m.ts) + '</span>';
-        if (myUid && !isDeleted) {
-            html += '<span data-reply-id="' + esc(m._id) + '" data-reply-name="' + esc(m.name || 'Anon') + '" data-reply-text="' + esc((m.text||'').substring(0,50)) + '" onclick="setChatReply(this.dataset.replyId,this.dataset.replyName,this.dataset.replyText)" style="cursor:pointer;font-size:0.6rem;color:var(--text-faint);margin-left:auto;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Reply">↩️</span>';
+        if (myUid && !isDeleted && safeMsgId) {
+            html += '<span data-reply-id="' + safeMsgId + '" data-reply-name="' + esc(m.name || 'Anon') + '" data-reply-text="' + esc((m.text||'').substring(0,50)) + '" onclick="setChatReply(this.dataset.replyId,this.dataset.replyName,this.dataset.replyText)" style="cursor:pointer;font-size:0.6rem;color:var(--text-faint);margin-left:auto;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Reply">↩️</span>';
         }
-        if (isMe || isAdmin) {
-            if (isMe && (m.editCount || 0) < 2 && !m.isGif && !m.imageUrl && !m.gifUrl) {
-                html += '<span onclick="editChatMsg(\'' + m._id + '\',\'' + esc((m.text||'').replace(/'/g,`\\'`)) + '\')" style="cursor:pointer;font-size:0.6rem;color:#6366f1;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="✏️ Edit">✏️</span>';
+        if (safeMsgId && !isDeleted && chatCanEdit(m, isMe)) {
+            html += '<span data-chat-action="edit" data-msg-id="' + safeMsgId + '" style="cursor:pointer;font-size:0.6rem;color:#6366f1;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Edit">✏️</span>';
+        }
+        if (safeMsgId && !isDeleted && chatCanSoftDelete(m, isMe)) {
+            html += '<span data-chat-action="soft-delete" data-msg-id="' + safeMsgId + '" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
+        }
+        if (safeMsgId && isAdmin && !isMe) {
+            if (!m.isGif && !m.imageUrl && !m.gifUrl && m.uid !== 'nacho-bot' && m.isNachoAuto !== true && !isDeleted) {
+                html += '<span data-chat-action="pin" data-msg-id="' + safeMsgId + '" style="cursor:pointer;font-size:0.6rem;color:var(--accent);margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Pin">📌</span>';
             }
-            if (isAdmin && !m.isGif && !m.imageUrl && !m.gifUrl && m.uid !== 'nacho-bot' && m.isNachoAuto !== true) {
-                html += '<span onclick="pinChatMessage(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:var(--accent);margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Pin">📌</span>';
-            }
-            html += '<span onclick="deleteChatMsg(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
+            html += '<span data-chat-action="hard-delete" data-msg-id="' + safeMsgId + '" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Remove">🗑️</span>';
         }
         html += '</div>';
         if (m.replyToName) {
-            var _replyId = m.replyTo || '';
-            html += '<div data-reply-to="' + esc(_replyId) + '" onclick="window._scrollToChatMsg(this.dataset.replyTo)" style="padding:5px 10px;margin-bottom:6px;border-left:3px solid #6366f1;font-size:0.72rem;color:var(--text);border-radius:4px;background:rgba(99,102,241,0.12);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(99,102,241,0.22)\'" onmouseout="this.style.background=\'rgba(99,102,241,0.12)\'">';
+            var _replyId = chatIdOk(m.replyTo) ? m.replyTo : '';
+            html += '<div data-reply-to="' + _replyId + '" onclick="window._scrollToChatMsg(this.dataset.replyTo)" style="padding:5px 10px;margin-bottom:6px;border-left:3px solid #6366f1;font-size:0.72rem;color:var(--text);border-radius:4px;background:rgba(99,102,241,0.12);cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(99,102,241,0.22)\'" onmouseout="this.style.background=\'rgba(99,102,241,0.12)\'">';
             html += '<span style="font-weight:700;color:#818cf8;font-size:0.7rem;display:block;margin-bottom:1px;">' + esc(m.replyToName) + '</span>';
             html += '<span style="color:var(--text-muted);">' + esc((m.replyToText||'').substring(0,80)) + (m.replyToText && m.replyToText.length > 80 ? '…' : '') + '</span>';
             html += '</div>';
         }
-        if (m.isGif && m.text && (IMG_REGEX.test(m.text) || /^data:image\/(jpeg|jpg|png|gif|webp);base64,/.test(m.text))) {
+        if (isDeleted) {
+            html += '<div style="color:var(--text-faint);font-size:0.8rem;font-style:italic;line-height:1.5;">🚫 message deleted</div>';
+        } else if (m.filterRemoved && !String(m.text || '').trim() && !m.imageUrl && !m.gifUrl) {
+            html += '<div style="color:var(--text-faint);font-size:0.8rem;font-style:italic;line-height:1.5;">Removed by filter</div>';
+        } else if (window._chatEditingId === m._id) {
+            html += '<div style="margin-top:4px;">' +
+                '<textarea id="chatEditInput" maxlength="' + MAX_MSG_LENGTH + '" rows="3" aria-label="Edit message" style="width:100%;box-sizing:border-box;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-family:inherit;font-size:16px;resize:vertical;"></textarea>' +
+                '<div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end;">' +
+                '<button type="button" onclick="cancelChatEdit()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-muted);font-family:inherit;font-size:0.75rem;font-weight:700;cursor:pointer;">Cancel</button>' +
+                '<button type="button" onclick="saveChatEdit()" style="padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-family:inherit;font-size:0.75rem;font-weight:700;cursor:pointer;">Save</button>' +
+                '</div></div>';
+        } else if (m.isGif && m.text && (IMG_REGEX.test(m.text) || /^data:image\/(jpeg|jpg|png|gif|webp);base64,/.test(m.text))) {
             html += '<img src="' + esc(m.text) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy">';
             if (m.caption) html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;margin-top:4px;">' + formatChatText(esc(m.caption), m.mentionUid) + '</div>';
         } else if (m.imageUrl || m.gifUrl) {
@@ -681,10 +702,10 @@ function renderChatMessages(msgs) {
                 html += '<img src="' + esc(mediaSrc) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy" onerror="this.style.display=\'none\'">';
             };
         } else {
-            html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;">' + formatChatText(esc(m.text || ''), m.mentionUid) + (m.editCount ? ' <span style="font-size:0.6rem;color:var(--text-faint);font-style:italic;">(edited)</span>' : '') + '</div>';
+            html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;">' + formatChatText(esc(m.text || ''), m.mentionUid) + ((m.edited || m.editCount) ? ' <span style="font-size:0.6rem;color:var(--text-faint);font-style:italic;">(edited)</span>' : '') + '</div>';
         }
-        var reactions = m.reactions || {};
-        var hasReactions = Object.keys(reactions).length > 0;
+        var reactions = (!isDeleted && m.reactions) || {};
+        var hasReactions = !isDeleted && Object.keys(reactions).length > 0;
         html += '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:' + (hasReactions ? '4px' : '0') + ';">';
         for (var emoji in reactions) {
             // Validate: reaction keys must be 1-4 char emoji only (no HTML/scripts)
@@ -695,10 +716,10 @@ function renderChatMessages(msgs) {
             var iReacted = myUid && users.indexOf(myUid) !== -1;
             var safeEmoji = esc(emoji);
             var _uidsJson = JSON.stringify(users);
-            html += '<button onclick="toggleReaction(\'' + m._id + '\',\'' + safeEmoji.replace(/[\\'"]/g, '') + '\')" onmouseenter="_showReactTipFromBtn(this)" onmouseleave="_hideReactTip()" ontouchstart="_reactTouchStart(this)" ontouchend="_reactTouchEnd()" data-uids="' + _uidsJson.replace(/"/g, '&quot;') + '" style="padding:2px 6px;border-radius:10px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (iReacted ? 'var(--accent)' : 'var(--border)') + ';background:' + (iReacted ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';color:var(--text);font-family:inherit;display:flex;align-items:center;gap:2px;touch-action:manipulation;">' + safeEmoji + '<span style="font-size:0.6rem;color:var(--text-muted);">' + count + '</span></button>';
+            html += '<button type="button" data-chat-action="toggle-react" data-msg-id="' + safeMsgId + '" data-emoji="' + safeEmoji + '" onmouseenter="_showReactTipFromBtn(this)" onmouseleave="_hideReactTip()" ontouchstart="_reactTouchStart(this)" ontouchend="_reactTouchEnd()" data-uids="' + _uidsJson.replace(/"/g, '&quot;') + '" style="padding:2px 6px;border-radius:10px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (iReacted ? 'var(--accent)' : 'var(--border)') + ';background:' + (iReacted ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';color:var(--text);font-family:inherit;display:flex;align-items:center;gap:2px;touch-action:manipulation;">' + safeEmoji + '<span style="font-size:0.6rem;color:var(--text-muted);">' + count + '</span></button>';
         }
-        if (myUid) {
-            html += '<button onclick="showReactPicker(\'' + m._id + '\',this)" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
+        if (myUid && !isDeleted) {
+            if (safeMsgId) html += '<button type="button" data-chat-action="react" data-msg-id="' + safeMsgId + '" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
             if (!isMe && !isNacho && !isDeleted && m.uid !== 'system') {
                 html += '<button onclick="event.stopPropagation();showTipOverlay({recipientName:\'' + esc(m.name || 'Anon').replace(/[\\'"]/g,'') + '\',recipientUid:\'' + String(m.uid || '').replace(/[^A-Za-z0-9_-]/g,'') + '\',context:\'Global Chat tip\',label:\'Tip Message\'})" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);color:#eab308;font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="Tip">⚡</button>';
             }
@@ -711,6 +732,16 @@ function renderChatMessages(msgs) {
     var _savedBanner = document.getElementById('chatPinnedBanner');
     if (_savedBanner) _savedBanner.remove();
     el.innerHTML = html;
+    bindChatActions(el);
+    noteChatFilterRevert();
+    if (window._chatEditingId) {
+        var editInp = document.getElementById('chatEditInput');
+        if (editInp) {
+            editInp.value = window._chatEditDraft != null ? window._chatEditDraft : '';
+            editInp.addEventListener('input', function() { window._chatEditDraft = editInp.value; });
+            editInp.focus();
+        }
+    }
     if (_savedBanner) el.insertBefore(_savedBanner, el.firstChild);
 
     // Auto-scroll to bottom if user was near bottom
@@ -1634,28 +1665,186 @@ window.sendGlobalChat = function() {
     }
 };
 
-// Admin: delete a chat message
+var CHAT_EDIT_MS = 15 * 60 * 1000;
+var CHAT_EDIT_CAP = 5;
+
+function chatTsMillis(ts) {
+    if (!ts) return 0;
+    if (typeof ts.toMillis === 'function') return ts.toMillis();
+    if (typeof ts.toDate === 'function') return ts.toDate().getTime();
+    if (ts instanceof Date) return ts.getTime();
+    if (typeof ts === 'number') return ts;
+    return 0;
+}
+
+function chatMsgById(msgId) {
+    var list = window._chatAllMsgs || [];
+    for (var i = 0; i < list.length; i++) {
+        if (list[i] && list[i]._id === msgId) return list[i];
+    }
+    return null;
+}
+
+function chatProtected(m) {
+    if (!m) return true;
+    if (m.isNachoAuto === true || m.source === 'telegram' || m.fromTelegram === true) return true;
+    if (m.uid === 'nacho-bot' || m.uid === 'system' || m.uid === 'deleted') return true;
+    return false;
+}
+
+function chatCanEdit(m, isMe) {
+    if (!isMe || !m || m.deleted === true || m.uid === 'deleted') return false;
+    if (chatProtected(m)) return false;
+    if (m.isGif || m.imageUrl || m.gifUrl) return false;
+    if ((m.editCount || 0) >= CHAT_EDIT_CAP) return false;
+    var ms = chatTsMillis(m.ts);
+    if (!ms) return false;
+    return (Date.now() - ms) < CHAT_EDIT_MS;
+}
+
+function chatCanSoftDelete(m, isMe) {
+    if (!isMe || !m || m.deleted === true || m.uid === 'deleted') return false;
+    if (chatProtected(m)) return false;
+    return true;
+}
+
+// Same checks send runs, so an edit cannot skip the filter.
+function prepareChatEditText(raw) {
+    var text = String(raw || '').replace(/<[^>]*>/g, '').trim();
+    if (!text) return { ok: false, toast: 'Message cannot be empty' };
+    if (text.length > MAX_MSG_LENGTH) return { ok: false, toast: 'Too long — max ' + MAX_MSG_LENGTH + ' chars' };
+    if (window._isAdminClaim === true) return { ok: true, text: text };
+    if (containsProfanity(text)) return { ok: false, toast: '🚫 Message contains inappropriate language.' };
+    if (/https?:\/\/\S+|www\.\S+|\S+\.(com|org|net|io|co|xyz|me|info|dev|app)\b/i.test(text)) {
+        text = text.replace(/https?:\/\/\S+/gi, '[link removed]').replace(/www\.\S+/gi, '[link removed]').replace(/\S+\.(com|org|net|io|co|xyz|me|info|dev|app)\S*/gi, '[link removed]');
+        if (text.replace(/\[link removed\]/g, '').trim().length === 0) return { ok: false, toast: '🔗 Links are not allowed in chat.' };
+    }
+    if (isSpammy(text)) return { ok: false, toast: '🚫 Message flagged as spam. Please write normally.' };
+    if (/\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/.test(text) || /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(text)) {
+        return { ok: false, toast: '🔒 For your safety, phone numbers and email addresses are not allowed in public chat. Use DMs instead.' };
+    }
+    return { ok: true, text: text };
+}
+
+function refreshChatEdit() {
+    if (window._chatAllMsgs) renderChatMessages(window._chatAllMsgs);
+}
+
+function bindChatActions(el) {
+    if (!el || el._chatActionsBound) return;
+    el._chatActionsBound = true;
+    el.addEventListener('click', function (e) {
+        var node = e.target && e.target.closest ? e.target.closest('[data-chat-action]') : null;
+        if (!node || !el.contains(node)) return;
+        var id = node.getAttribute('data-msg-id') || '';
+        if (!chatIdOk(id)) return;
+        var action = node.getAttribute('data-chat-action');
+        if (action === 'edit') editChatMsg(id);
+        else if (action === 'soft-delete') softDeleteChatMsg(id);
+        else if (action === 'pin') pinChatMessage(id);
+        else if (action === 'hard-delete') deleteChatMsg(id);
+        else if (action === 'react') showReactPicker(id, node);
+        else if (action === 'toggle-react') toggleReaction(id, node.getAttribute('data-emoji') || '');
+    });
+}
+
+function noteChatFilterRevert() {
+    var watch = window._chatFilterWatch;
+    if (!watch) return;
+    var m = chatMsgById(watch.id);
+    if (!m || m.text === watch.text) return;
+    window._chatFilterWatch = null;
+    clearTimeout(window._chatFilterTimer);
+    if (typeof showToast === 'function') showToast('Removed by filter');
+}
+
+// Admin hard delete. Owners use softDeleteChatMsg.
 window.deleteChatMsg = function(msgId) {
-    if (!confirm('Delete this message?')) return;
+    if (!confirm('Permanently remove this message?')) return;
     db.collection(CHAT_COLLECTION).doc(msgId).delete().then(function() {
+        if (typeof showToast === 'function') showToast('🗑️ Message removed');
+    }).catch(function() {
+        if (typeof showToast === 'function') showToast('Failed to delete');
+    });
+};
+
+window.softDeleteChatMsg = function(msgId) {
+    var m = chatMsgById(msgId);
+    if (!m || !chatCanSoftDelete(m, true)) {
+        if (typeof showToast === 'function') showToast('This message cannot be deleted');
+        return;
+    }
+    if (!confirm('Delete this message?')) return;
+    var patch = {
+        deleted: true,
+        deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        text: ''
+    };
+    if (m.imageUrl) patch.imageUrl = firebase.firestore.FieldValue.delete();
+    if (m.gifUrl) patch.gifUrl = firebase.firestore.FieldValue.delete();
+    if (m.caption) patch.caption = firebase.firestore.FieldValue.delete();
+    if (window._chatEditingId === msgId) {
+        window._chatEditingId = null;
+        window._chatEditDraft = null;
+    }
+    db.collection(CHAT_COLLECTION).doc(msgId).update(patch).then(function() {
         if (typeof showToast === 'function') showToast('🗑️ Message deleted');
     }).catch(function() {
         if (typeof showToast === 'function') showToast('Failed to delete');
     });
 };
 
-window.editChatMsg = function(msgId, currentText) {
-    var newText = prompt('Edit your message:', currentText || '');
-    if (newText === null) return;
-    newText = newText.trim();
-    if (!newText) { if (typeof showToast === 'function') showToast('Message cannot be empty'); return; }
-    if (newText === currentText) return;
-    if (newText.length > 300) { if (typeof showToast === 'function') showToast('Too long — max 300 chars'); return; }
+window.editChatMsg = function(msgId) {
+    var m = chatMsgById(msgId);
+    var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '';
+    if (!m || !chatCanEdit(m, m.uid === myUid)) {
+        if (typeof showToast === 'function') showToast('This message can no longer be edited');
+        return;
+    }
+    window._chatEditingId = msgId;
+    window._chatEditDraft = m.text || '';
+    refreshChatEdit();
+};
+
+window.cancelChatEdit = function() {
+    window._chatEditingId = null;
+    window._chatEditDraft = null;
+    refreshChatEdit();
+};
+
+window.saveChatEdit = function() {
+    var msgId = window._chatEditingId;
+    var m = chatMsgById(msgId);
+    var inp = document.getElementById('chatEditInput');
+    if (!msgId || !m || !inp) return;
+    var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '';
+    if (!chatCanEdit(m, m.uid === myUid)) {
+        if (typeof showToast === 'function') showToast('This message can no longer be edited');
+        window.cancelChatEdit();
+        return;
+    }
+    var prepared = prepareChatEditText(inp.value);
+    if (!prepared.ok) {
+        if (typeof showToast === 'function') showToast(prepared.toast);
+        return;
+    }
+    if (prepared.text === (m.text || '')) {
+        window.cancelChatEdit();
+        return;
+    }
+    window._chatFilterWatch = { id: msgId, text: prepared.text };
+    clearTimeout(window._chatFilterTimer);
+    window._chatFilterTimer = setTimeout(function() {
+        if (window._chatFilterWatch && window._chatFilterWatch.id === msgId) window._chatFilterWatch = null;
+    }, 8000);
     db.collection(CHAT_COLLECTION).doc(msgId).update({
-        text: newText,
-        editCount: firebase.firestore.FieldValue.increment(1),
-        edited: true
+        text: prepared.text,
+        edited: true,
+        editedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        editCount: (m.editCount || 0) + 1
     }).then(function() {
+        window._chatEditingId = null;
+        window._chatEditDraft = null;
         if (typeof showToast === 'function') showToast('✏️ Message updated');
     }).catch(function() {
         if (typeof showToast === 'function') showToast('Failed to edit message');
@@ -2269,6 +2458,7 @@ window._closeReactPicker = function _closeReactPicker() {
 }
 
 window.showReactPicker = function(msgId, btnEl) {
+    if (!chatIdOk(msgId) || !btnEl) return;
     if (_reactPickerDismiss) { document.removeEventListener('click', _reactPickerDismiss); _reactPickerDismiss = null; }
     var old = document.getElementById('reactPicker');
     if (old) { var sameMsgId = old.dataset.msgId === msgId; old.remove(); if (sameMsgId) return; }
@@ -2301,7 +2491,8 @@ window.showReactPicker = function(msgId, btnEl) {
     picker.innerHTML = searchHtml + tabHtml + '<div id="reactEmojiGrid" style="display:flex;flex-wrap:wrap;gap:1px;overflow-y:auto;max-height:230px;justify-content:center;"></div>';
 
     function _reactEmojiBtn(e) {
-        return '<button onclick="_closeReactPicker();toggleReaction(\''+msgId+'\',\''+e+'\')" style="padding:5px;font-size:1.25rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
+        if (!e || /['"<>&]/.test(e)) return '';
+        return '<button type="button" data-react-emoji="' + e + '" style="padding:5px;font-size:1.25rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">' + e + '</button>';
     }
 
     window._switchReactTab = function(cat) {
@@ -2360,6 +2551,17 @@ window.showReactPicker = function(msgId, btnEl) {
     window._switchReactTab(cats[0]);
 
     document.body.appendChild(picker);
+    var reactGrid = document.getElementById('reactEmojiGrid');
+    if (reactGrid && !reactGrid._bound) {
+        reactGrid._bound = true;
+        reactGrid.addEventListener('click', function (ev) {
+            var b = ev.target && ev.target.closest ? ev.target.closest('[data-react-emoji]') : null;
+            if (!b || !chatIdOk(msgId)) return;
+            var emoji = b.getAttribute('data-react-emoji') || '';
+            window._closeReactPicker();
+            toggleReaction(msgId, emoji);
+        });
+    }
     var rect = btnEl.getBoundingClientRect();
     var top = rect.top - 340 - 8;
     if (top < 8) top = rect.bottom + 8;
