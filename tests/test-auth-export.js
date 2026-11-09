@@ -14,7 +14,7 @@ const fnRoot = path.join(root, 'functions');
 const age = require(path.join(fnRoot, 'src', 'ageEncrypt.js'));
 const ex = require(path.join(fnRoot, 'src', 'authExport.js'));
 const cfg = require(path.join(fnRoot, 'src', 'authBackupConfig.js'));
-const verify = require(path.join(root, 'scripts', 'auth_export_verify.js'));
+const verify = require(path.join(fnRoot, 'scripts', 'auth-export-verify.js'));
 
 let passed = 0;
 let failed = 0;
@@ -369,7 +369,7 @@ test('verify script: counts, sha match, 1% drift check, refuses non-staging impo
     try {
         fs.writeFileSync(path.join(dir, 'p.jsonl'), plain);
         fs.writeFileSync(path.join(dir, 'm.json'), JSON.stringify(man));
-        const script = path.join(root, 'scripts', 'auth_export_verify.js');
+        const script = path.join(fnRoot, 'scripts', 'auth-export-verify.js');
         const out = execFileSync('node', [script, '--file', path.join(dir, 'p.jsonl'), '--manifest', path.join(dir, 'm.json'), '--expect', '300'], { encoding: 'utf8' });
         assert.ok(/VERIFY: PASS/.test(out));
         noPii(out, users);
