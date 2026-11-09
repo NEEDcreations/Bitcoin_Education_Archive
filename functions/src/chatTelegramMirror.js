@@ -15,6 +15,7 @@
 const { toTelegramText, redactForLog } = require('./telegramBridge');
 const { moderationBlock } = require('./topicDiscussion');
 const { moderateText } = require('./moderateText');
+const { containsTelegramBotMaterial, assertFirestoreSafe } = require('./telegramFileGuard');
 
 const QUEUE = 'telegram_mirror_queue';
 const CLAIMS = 'telegram_mirror_claims';
@@ -424,6 +425,7 @@ async function sendTelegramText(text, options) {
     const chatId = opts.chatId || env.TG_CHAT_ID || DEFAULT_CHAT_ID;
     if (!token) return { ok: false, error: 'not_configured', retry: true };
     if (!text) return { ok: false, error: 'empty', retry: false };
+    if (containsTelegramBotMaterial(text)) return { ok: false, error: 'telegram_file_secret', retry: false };
     const fetchImpl = opts.fetch || defaultFetchImpl();
     const timeoutMs = Number(opts.timeoutMs) > 0 ? Number(opts.timeoutMs) : SEND_TIMEOUT_MS;
     const controller = typeof AbortController === 'function' ? new AbortController() : null;
@@ -513,6 +515,16 @@ async function enqueueChatMirror(db, collection, docId, data, user, nowMs) {
             }, retentionFields(at)));
             return { queued: false, reason: reason };
         }
+        const payload = queuePayload(collection, docId, decision.line, at, uid);
+        let payloadUnsafe = false;
+        try { assertFirestoreSafe(payload); }
+        catch (err) { payloadUnsafe = true; }
+        if (payloadUnsafe) {
+            tx.set(claimRef, Object.assign({
+                status: 'skipped', reason: 'telegram_file_secret', at: at, uid: uid,
+            }, retentionFields(at)));
+            return { queued: false, reason: 'telegram_file_secret' };
+        }
         if (rateRef && rate && rate.ok) {
             tx.set(rateRef, Object.assign({
                 uid: uid,
@@ -520,7 +532,7 @@ async function enqueueChatMirror(db, collection, docId, data, user, nowMs) {
             }, retentionFields(at)));
         }
         tx.set(claimRef, Object.assign({ status: 'queued', at: at, uid: uid }, retentionFields(at)));
-        tx.set(queueRef, queuePayload(collection, docId, decision.line, at, uid));
+        tx.set(queueRef, payload);
         return { queued: true, id: id };
     });
 }
@@ -727,14 +739,15 @@ async function dropBlocked(db, plan, nowMs) {
             user: user,
             nowMs: nowMs,
         });
-        if (!decision.forward) drop.push(item);
+        const secretLine = containsTelegramBotMaterial(decision.line) || containsTelegramBotMaterial(item.line);
+        if (!decision.forward || secretLine) drop.push(item);
         else keep.push(Object.assign({}, item, { line: clipLine(decision.line) }));
     }
     if (drop.length) {
         await patchDocs(db, drop.map(function (item) {
             return {
                 ref: db.collection(QUEUE).doc(item.id),
-                patch: { status: 'skipped', reason: 'blocked', nextAttemptAt: nowMs },
+                patch: { status: 'skipped', reason: 'blocked', line: '', nextAttemptAt: nowMs },
             };
         }));
     }
@@ -764,6 +777,7 @@ function attemptCount(item) {
 }
 
 function shouldFailItem(item, result) {
+    if (result && result.error === 'telegram_file_secret') return true;
     if (isChatLevel(result)) return false;
     if (isPermanentHttp(result)) return true;
     return attemptCount(item) >= MAX_ATTEMPTS;
@@ -821,15 +835,17 @@ async function stampSent(db, items, result, nowMs) {
 async function markFailed(db, items, result, nowMs) {
     const error = String((result && (result.error || result.status)) || 'failed').slice(0, 180);
     await patchDocs(db, items.map(function (item) {
+        const patch = {
+            status: 'failed',
+            attempts: attemptCount(item),
+            lastError: error,
+            failedAtMs: nowMs,
+            nextAttemptAt: nowMs,
+        };
+        if (result && result.error === 'telegram_file_secret') patch.line = '';
         return {
             ref: db.collection(QUEUE).doc(item.id),
-            patch: {
-                status: 'failed',
-                attempts: attemptCount(item),
-                lastError: error,
-                failedAtMs: nowMs,
-                nextAttemptAt: nowMs,
-            },
+            patch: patch,
         };
     }));
 }
