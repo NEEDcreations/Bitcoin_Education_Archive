@@ -125,6 +125,10 @@ const RETAINED_COLLECTIONS = [
     'faucet_subnet_log',
     'faucet_uid_signals',
     'faucet_ln_ratelimit',
+    // Anti-drain rate and per-wallet windows (antiDrain.js). Kept so deleting
+    // and re-creating an account cannot reset them.
+    'payout_guard_users',
+    'payout_guard_wallets',
     'faucet_admin_flags',
     'faucet_abuse_reports',
     'faucet_stats',

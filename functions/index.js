@@ -192,7 +192,7 @@ const FAUCET = {
     MAX_LIFETIME_PER_USER_SATS: 15000,
     GLOBAL_DAILY_MAX_SATS: 10000,
     COOLDOWN_HOURS: 24,
-    MIN_ACCOUNT_AGE_DAYS: 7,
+    MIN_ACCOUNT_AGE_DAYS: require('./src/antiDrain').MIN_PAYOUT_ACCOUNT_AGE_DAYS,
     MIN_CHANNELS_READ: 10,
     WALLET_BALANCE_FLOOR_SATS: 5000,
     // Getter: the value comes from the NWC_URL secret on bound functions only.
@@ -1622,6 +1622,10 @@ exports.claimSats = functionsV1.runWith({
     const uid = context.auth.uid;
     const email = context.auth.token.email;
     const emailVerified = context.auth.token.email_verified;
+    const antiDrain = require('./src/antiDrain');
+    if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        return { success: false, error: antiDrain.ANON_ERROR };
+    }
 
     if (!email || !emailVerified) {
         return { success: false, error: 'Verified email required. Link and verify your email in Account settings.' };
@@ -1677,6 +1681,8 @@ exports.claimSats = functionsV1.runWith({
     let userRecord;
     try {
         userRecord = await admin.auth().getUser(uid);
+        const idGate = antiDrain.assessIdentity(context.auth.token || {}, userRecord);
+        if (!idGate.ok) return { success: false, error: idGate.error };
         const emailChange = require('./src/emailChange');
         const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, userRecord, Date.now(), context.auth.token || {}, true);
         if (!payoutGate.ok) return { success: false, error: payoutGate.error };
@@ -2169,6 +2175,8 @@ exports.claimSats = functionsV1.runWith({
         if (amount > faucetGuard.MAX_PER_CLAIM_SATS || netSendAmount >= amount) throw new Error('HARD_CAP');
         // Re-check the global hold right before pay_invoice (closes the race with an auto-pause).
         await require('./src/payoutSafety').assertPayoutsOpen(db, 'claimSats');
+        // Anti-drain: per-user rate, per-wallet cap, float circuit breaker.
+        await antiDrain.reservePayout(db, admin, { uid: uid, path: 'claimSats', address: lnNorm, sats: amount, walletSats: walletSats });
         phase = 'pay';
         payResult = await _withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');

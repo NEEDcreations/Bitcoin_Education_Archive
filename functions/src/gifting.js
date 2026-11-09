@@ -1243,6 +1243,9 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     if (!authUser || !Array.isArray(authUser.providerData)) {
         throw httpsError('failed-precondition', 'Try again later.');
     }
+    // Anti-drain identity gate: no anonymous accounts, verified email.
+    const idGate = require('./antiDrain').assessIdentity((context.auth && context.auth.token) || {}, authUser);
+    if (!idGate.ok) throw httpsError('failed-precondition', idGate.error);
     const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, authUser, Date.now(), (context.auth && context.auth.token) || {}, true);
     if (!payoutGate.ok) throw httpsError('failed-precondition', payoutGate.error);
     const looked = payoutGate.tomb || { configured: false, summary: accountTombstone.emptySummary() };
@@ -1442,6 +1445,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         const walletSats = Math.floor((balanceResult.balance || 0) / 1000);
         if (walletSats < WALLET_FLOOR_SATS) throw new Error('WALLET_LOW');
         await require('./payoutSafety').assertPayoutsOpen(db, 'claimCipherWin');
+        await require('./antiDrain').reservePayout(db, admin, { uid: uid, path: 'claimCipherWin', address: payoutAddress, sats: amount, walletSats: walletSats });
         phase = 'pay';
         payResult = await withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
@@ -1692,7 +1696,7 @@ function dayAmount(snap) {
     return Math.max(0, Math.floor(Number(data.amount) || 0));
 }
 
-async function payCipherBalanceInvoice(invoice) {
+async function payCipherBalanceInvoice(invoice, guard) {
     const nwc = new NWCClient({ nostrWalletConnectUrl: nwcUrl() });
     let phase = 'balance';
     let payResult = null;
@@ -1702,6 +1706,8 @@ async function payCipherBalanceInvoice(invoice) {
         const walletSats = Math.floor((balanceResult.balance || 0) / 1000);
         if (walletSats < WALLET_FLOOR_SATS) throw new Error('WALLET_LOW');
         await require('./payoutSafety').assertPayoutsOpen(db, 'claimCipherSats');
+        const g = guard || {};
+        await require('./antiDrain').reservePayout(db, admin, { uid: g.uid, path: 'claimCipherSats', address: g.address, sats: g.sats, walletSats: walletSats });
         phase = 'pay';
         payResult = await withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
@@ -1842,6 +1848,9 @@ const claimCipherSats = functionsV1.runWith({
     if (!authUser || !Array.isArray(authUser.providerData)) {
         throw httpsError('failed-precondition', 'Try again later.');
     }
+    // Anti-drain identity gate: no anonymous accounts, verified email.
+    const idGate = require('./antiDrain').assessIdentity((context.auth && context.auth.token) || {}, authUser);
+    if (!idGate.ok) throw httpsError('failed-precondition', idGate.error);
     const payoutGate = await emailChange.beginPayout(db, admin.auth(), uid, authUser, Date.now(), (context.auth && context.auth.token) || {}, true);
     if (!payoutGate.ok) throw httpsError('failed-precondition', payoutGate.error);
     const looked = payoutGate.tomb || { configured: false, summary: accountTombstone.emptySummary() };
@@ -2152,7 +2161,7 @@ const claimCipherSats = functionsV1.runWith({
         await invoiceRef.delete().catch(function() {});
         return { success: false, error: 'A claim is already in progress.' };
     }
-    const paid = await payCipherBalanceInvoice(invoice);
+    const paid = await payCipherBalanceInvoice(invoice, { uid: uid, address: reserved.address, sats: reserved.amount });
     if (paid.action === 'paid') {
         try {
             await finishCipherClaim(reserved, 'paid', paid.payResult);

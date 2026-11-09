@@ -3,7 +3,8 @@
 // Pure helpers for cipher-prize claims. No Firebase, so tests can run them directly.
 // Mirrors the claimSats entry errors (verified email, 7-day account, satsDisabled, ledger ban).
 
-const MIN_ACCOUNT_AGE_DAYS = 7;
+// One payout age for every path (antiDrain.MIN_PAYOUT_ACCOUNT_AGE_DAYS, Phil to confirm 7).
+const MIN_ACCOUNT_AGE_DAYS = require('./antiDrain').MIN_PAYOUT_ACCOUNT_AGE_DAYS;
 const LOOKUP_ATTEMPTS = 4;
 const LOOKUP_INTERVAL_MS = 20000; // 3 gaps = 60s between the first and last lookup
 
