@@ -9436,6 +9436,27 @@ exports.dailyFirestoreBackup = onSchedule('0 2 * * *', async (event) => {
     console.log(`[BACKUP] Export started → ${exportPath}`, result.name);
 });
 
+// ── Daily encrypted Firebase Auth export ─────────────────────────────────────
+// 3:30 AM ET. listUsers (with password hashes) + hash config -> JSONL ->
+// age-encrypted in memory to the public key(s) in src/authBackupConfig.js ->
+// gs://<project>-auth-backups/auth/<YYYY-MM-DD>.jsonl.age + manifest.json.
+// Runs as its own account (fn-daily-auth-export): custom role
+// bqAuthBackupReader (firebaseauth.users.get, configs.get, configs.getHashConfig)
+// and storage.objectCreator on that one bucket. No secrets, no Firestore.
+// Fails closed: writes auth/<date>.FAILED.json and throws. See src/authExport.js.
+exports.dailyAuthExport = onSchedule({
+    schedule: '30 3 * * *',
+    timeZone: 'America/New_York',
+    region: 'us-central1',
+    memory: '1GiB',
+    timeoutSeconds: 900,
+    retryCount: 0,
+    maxInstances: 1,
+    serviceAccount: runtimeSa('dailyAuthExport'),
+}, async () => {
+    await require('./src/authExport').runFromFunction(admin, fetch);
+});
+
 // ================================================================
 // NACHO RADIO — Auto-DJ that keeps beats playing in Global Chat
 // Runs every minute: starts Nacho when no human is DJing,

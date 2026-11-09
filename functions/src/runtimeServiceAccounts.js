@@ -20,6 +20,17 @@
 //   auth    -> roles/firebaseauth.admin
 //   fcm     -> roles/firebasecloudmessaging.admin
 //   storage -> roles/storage.objectAdmin on the default bucket only
+//   authBackupRead  -> custom role projects/<project>/roles/bqAuthBackupReader
+//                      (firebaseauth.users.get, firebaseauth.configs.get,
+//                      firebaseauth.configs.getHashConfig). No predefined role
+//                      fits: firebaseauth.viewer lacks getHashConfig, so
+//                      listUsers omits passwordHash/passwordSalt, and
+//                      firebaseauth.admin can also create/update/delete users.
+//   authBackupWrite -> roles/storage.objectCreator on <project>-auth-backups
+//                      only (create, no read, no overwrite, no delete)
+// `noSecrets: true` marks the few accounts that bind no secret but still get
+// their own account (dailyAuthExport). `noFirestore: true` skips
+// roles/datastore.user.
 // Gen2 event and scheduled triggers also need roles/run.invoker on their own
 // Cloud Run service, and gen2 event triggers need roles/eventarc.eventReceiver;
 // the plan script derives those from the trigger type.
@@ -42,6 +53,9 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     claimSats: { id: 'fn-claim-sats', extra: ['auth', 'fcm'] },
     confirmAccountLink: { id: 'fn-confirm-account-link', extra: ['auth'] },
     confirmTipSent: { id: 'fn-confirm-tip-sent', extra: ['fcm'] },
+    // No secrets and no Firestore: reads Auth (with hashes) and writes only
+    // to the auth-backups bucket. See src/authExport.js.
+    dailyAuthExport: { id: 'fn-daily-auth-export', extra: ['authBackupRead', 'authBackupWrite'], noSecrets: true, noFirestore: true },
     dailyActiveUsers: { id: 'fn-daily-active-users', extra: ['auth'] },
     deleteAccount: { id: 'fn-delete-account', extra: ['auth', 'storage'] },
     flushTelegramMirror: { id: 'fn-flush-telegram-mirror', extra: [] },
@@ -92,7 +106,22 @@ const EXTRA_ROLES = Object.freeze({
     auth: 'roles/firebaseauth.admin',
     fcm: 'roles/firebasecloudmessaging.admin',
     storage: 'roles/storage.objectAdmin',
+    authBackupRead: 'projects/$PROJECT/roles/bqAuthBackupReader',
+    authBackupWrite: 'roles/storage.objectCreator',
 });
+
+// Extras granted on one bucket instead of the project. '$DEFAULT' is the
+// default Firebase Storage bucket; otherwise '$PROJECT' is substituted.
+const BUCKET_EXTRAS = Object.freeze({
+    storage: '$DEFAULT',
+    authBackupWrite: '$PROJECT-auth-backups',
+});
+
+const AUTH_BACKUP_READER_PERMISSIONS = Object.freeze([
+    'firebaseauth.configs.get',
+    'firebaseauth.configs.getHashConfig',
+    'firebaseauth.users.get',
+]);
 
 function runtimeSa(functionName) {
     const entry = Object.prototype.hasOwnProperty.call(RUNTIME_SERVICE_ACCOUNTS, functionName)
@@ -114,5 +143,7 @@ function projectId() {
 module.exports = {
     RUNTIME_SERVICE_ACCOUNTS: RUNTIME_SERVICE_ACCOUNTS,
     EXTRA_ROLES: EXTRA_ROLES,
+    BUCKET_EXTRAS: BUCKET_EXTRAS,
+    AUTH_BACKUP_READER_PERMISSIONS: AUTH_BACKUP_READER_PERMISSIONS,
     runtimeSa: runtimeSa,
 };
