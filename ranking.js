@@ -8524,6 +8524,7 @@ window._renderTitleFlairSection = function() {
         '.tf-card.lock{opacity:0.45;filter:grayscale(1);cursor:help;}' +
         '.tf-prev{border:1px dashed var(--border);border-radius:10px;padding:10px;font-size:0.8rem;line-height:1.5;overflow-wrap:anywhere;}' +
         '.tf-pill{display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:1px 8px;font-size:0.7rem;font-weight:700;color:#f97316;margin-left:6px;}' +
+        '.tf-select{display:block;width:100%;box-sizing:border-box;margin:0 0 4px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-family:inherit;font-size:16px;line-height:1.3;}' +
         '@media (max-width:420px){.tf-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}.tf-card{min-height:58px;padding:6px 4px;}.tf-card .tf-n{font-size:0.6rem;}}' +
         '</style>';
     h += '<div class="tf-wrap" id="titleFlairSection">';
@@ -8536,22 +8537,44 @@ window._renderTitleFlairSection = function() {
             : ' class="tf-card' + (isOn ? ' on' : '') + '" aria-pressed="' + (isOn ? 'true' : 'false') + '" onmouseenter="window._tfHover(\'' + kind + '\',this.dataset.v)" onmouseleave="window._tfHover(\'' + kind + '\')" onclick="window._tfPick(\'' + kind + '\',this.dataset.v)"';
         return '<button type="button" data-v="' + _tfEsc(id) + '"' + attrs + '><span class="tf-e">' + emoji + '</span><span class="tf-n">' + _tfEsc(label) + '</span></button>';
     }
-    // Titles: None, then collection titles (locked ones greyed), then earned badge titles.
-    h += '<div class="tf-sub">Title</div><div class="tf-grid">';
-    h += card('title', '', '🚫', 'No title', !active, '');
+    // Titles: one compact dropdown. Locked collection titles stay visible but cannot be picked.
+    h += '<label class="tf-sub" for="tfTitleSelect">Title</label>';
+    h += '<select id="tfTitleSelect" class="tf-select" aria-label="Title" onchange="window._tfTitleChange(this)">';
+    h += '<option value=""' + (!active ? ' selected' : '') + '>No title</option>';
     var shown = {};
+    var unlocked = [];
+    var locked = [];
     _tfCollections().forEach(function(col) {
         if (!col.title || !col.title.id) return;
         shown[col.title.id] = true;
         var have = earnedT.indexOf(col.title.id) !== -1;
-        h += card('title', col.title.id, col.title.emoji, col.title.title, active === col.title.id, have ? '' : '🔒 Complete the ' + col.name + ' collection');
+        var item = { id: col.title.id, emoji: col.title.emoji || '', title: col.title.title || col.title.id, locked: !have, hint: have ? '' : ('Complete ' + (col.name || 'the collection')) };
+        (have ? unlocked : locked).push(item);
     });
     earnedT.forEach(function(tid) {
         if (shown[tid]) return;
         var d = _tfTitleDef(tid);
-        if (d) h += card('title', tid, d.emoji, d.title, active === tid, '');
+        if (d) unlocked.push({ id: tid, emoji: d.emoji || '', title: d.title || tid, locked: false, hint: '' });
     });
-    h += '</div>';
+    if (active && unlocked.every(function(item) { return item.id !== active; }) && locked.every(function(item) { return item.id !== active; })) {
+        var cur = _tfTitleDef(active);
+        if (cur) unlocked.unshift({ id: active, emoji: cur.emoji || '', title: cur.title || active, locked: false, hint: '' });
+    }
+    function titleOpt(item) {
+        var label = (item.emoji ? item.emoji + ' ' : '') + item.title + (item.hint ? ' — ' + item.hint : '');
+        return '<option value="' + _tfEsc(item.id) + '"' + (item.locked ? ' disabled' : '') + (active === item.id ? ' selected' : '') + '>' + _tfEsc(label) + '</option>';
+    }
+    if (unlocked.length) {
+        h += '<optgroup label="Unlocked">';
+        unlocked.forEach(function(item) { h += titleOpt(item); });
+        h += '</optgroup>';
+    }
+    if (locked.length) {
+        h += '<optgroup label="Locked">';
+        locked.forEach(function(item) { h += titleOpt(item); });
+        h += '</optgroup>';
+    }
+    h += '</select>';
     // Flair: None, Nook flair, then collection flair.
     h += '<div class="tf-sub">Chat flair</div><div class="tf-grid">';
     h += card('flair', '', '🚫', 'No flair', !flair, '');
@@ -8594,6 +8617,12 @@ window._tfRefresh = function() {
     if (typeof window._titleFlairCall !== 'function') return;
     window._titleFlairCall({ action: 'list' }).then(function() { window._tfRepaint(); }).catch(function() {});
 };
+window._tfTitleChange = function(el) {
+    if (!el) return;
+    var value = el.value || '';
+    window._tfHover('title', value);
+    window._tfPick('title', value);
+};
 window._tfPick = function(kind, value) {
     var user = auth ? auth.currentUser : null;
     if (!user) { if (typeof showToast === 'function') showToast('Sign in to equip a title'); return; }
@@ -8603,7 +8632,11 @@ window._tfPick = function(kind, value) {
     payload[kind] = value || null;
     window._tfPreview = { title: undefined, flair: undefined };
     window._titleFlairCall(payload).then(function(d) {
-        if (!d || !d.ok) { if (typeof showToast === 'function') showToast('🔒 Not unlocked yet'); return; }
+        if (!d || !d.ok) {
+            if (typeof showToast === 'function') showToast('🔒 Not unlocked yet');
+            window._tfRepaint();
+            return;
+        }
         var label = '';
         if (kind === 'title') {
             var tDef = _tfTitleDef(d.activeTitle);
