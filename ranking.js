@@ -6228,6 +6228,114 @@ function hideLeaderboard() {
     if (fab) fab.style.display = 'flex';
 }
 
+// Prefix names and the PvP record line. Pure so a test can run this block
+// without the page. Search results are usernames only.
+var LbPrefix = (function () {
+    function normalizePrefix(raw) {
+        var text = String(raw == null ? '' : raw).replace(/^\s+|\s+$/g, '');
+        if (text.charAt(0) === '@') text = text.slice(1).replace(/^\s+/, '');
+        if (text.length > 40) text = text.slice(0, 40);
+        return text.toLowerCase();
+    }
+    function prefixOk(q, anonymous) {
+        if (!q || !/^[a-z0-9_\-.]+$/.test(q)) return false;
+        if (anonymous && q.length < 2) return false;
+        return true;
+    }
+    function prefixEnd(q) {
+        return String(q || '') + '\uf8ff';
+    }
+    function publicNames(docs, query, limit) {
+        var q = normalizePrefix(query);
+        var cap = limit > 0 ? limit : 12;
+        var out = [];
+        var seen = {};
+        (docs || []).forEach(function (doc) {
+            if (!doc || out.length >= cap) return;
+            if (doc.ghostMode === true) return;
+            var raw = doc.username == null ? '' : String(doc.username);
+            if (!raw || raw.indexOf('@') !== -1 || raw.indexOf(' ') !== -1) return;
+            var sort = doc.username_lower ? String(doc.username_lower).toLowerCase() : raw.toLowerCase();
+            if (!q || sort.indexOf(q) !== 0) return;
+            if (seen[sort]) return;
+            seen[sort] = true;
+            out.push({ username: raw });
+        });
+        return out;
+    }
+    function pvpRecordText(wins, losses) {
+        var w = Math.floor(Number(wins) || 0);
+        var l = Math.floor(Number(losses) || 0);
+        if (w < 0) w = 0;
+        if (l < 0) l = 0;
+        var games = w + l;
+        var pct = games > 0 ? Math.round((w / games) * 100) : 0;
+        return w + 'W - ' + l + 'L · ' + pct + '%';
+    }
+    return {
+        DEBOUNCE_MS: 150,
+        FETCH: 12,
+        SHOW: 8,
+        VISIBLE: 10,
+        CAP: 50,
+        normalizePrefix: normalizePrefix,
+        prefixOk: prefixOk,
+        prefixEnd: prefixEnd,
+        publicNames: publicNames,
+        pvpRecordText: pvpRecordText
+    };
+})();
+window.LbPrefix = LbPrefix;
+
+// Top 10 paint now. Ranks 11–50 stay as HTML until the expand control runs.
+var _lbMoreHtml = {};
+var _lbMoreSeq = 0;
+
+function _lbCapRows(rows) {
+    var list = rows || [];
+    if (list.length > LbPrefix.CAP) return list.slice(0, LbPrefix.CAP);
+    return list;
+}
+
+function _lbStashMore(html) {
+    var id = 'lbMore' + (++_lbMoreSeq);
+    _lbMoreHtml[id] = html;
+    return id;
+}
+window._lbStashMore = _lbStashMore;
+
+function _lbMoreButton(moreId, total, noun) {
+    if (!moreId) return '';
+    var n = total > LbPrefix.CAP ? LbPrefix.CAP : total;
+    return '<button type="button" class="lb-more" data-lb-more="' + moreId + '" onclick="event.stopPropagation();_lbExpand(this)" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show top ' + n + ' ' + noun + ' ▼</button>';
+}
+window._lbMoreButton = _lbMoreButton;
+
+window._lbExpand = function (btn) {
+    if (!btn) return;
+    var id = btn.getAttribute('data-lb-more');
+    var html = id && _lbMoreHtml[id];
+    var parent = btn.parentNode;
+    if (!html || !parent) { btn.remove(); return; }
+    var holder = document.createElement('div');
+    holder.innerHTML = html;
+    while (holder.firstChild) parent.insertBefore(holder.firstChild, btn);
+    delete _lbMoreHtml[id];
+    btn.remove();
+};
+
+function _lbSplitRows(rows, render) {
+    var capped = _lbCapRows(rows);
+    var head = '';
+    var rest = '';
+    for (var i = 0; i < capped.length; i++) {
+        var piece = render(capped[i], i);
+        if (i < LbPrefix.VISIBLE) head += piece;
+        else rest += piece;
+    }
+    return { html: head, rest: rest, total: capped.length };
+}
+
 // Exact rank on one board. One callable, never a full board read.
 // The fourth board in this panel is Daily Streaks (All-Time / Current).
 window._lbRankState = window._lbRankState || {};
@@ -6302,22 +6410,132 @@ function _lbRankPaint(board, data, period) {
     el.innerHTML = html;
 }
 
-window._lbRankType = function (board, val) {
-    window._lbRankState[board] = { text: val || '', me: false };
-    clearTimeout(_lbRankTimer[board]);
-    if (!String(val || '').trim()) {
-        _lbRankGen[board] = (_lbRankGen[board] || 0) + 1;
+function _lbRankPaintNames(board, names) {
+    var el = document.getElementById('lbRankResult-' + board);
+    if (!el) return;
+    window._lbSuggestShown = window._lbSuggestShown || {};
+    window._lbSuggestShown[board] = names || [];
+    if (!names || !names.length) {
+        el.hidden = false;
+        el.innerHTML = '<div class="lb-rank-hit">No matching username</div>';
+        return;
+    }
+    var html = '<div class="lb-rank-suggest">';
+    names.forEach(function (name) {
+        html += '<button type="button" class="lb-rank-suggest-item" data-name="' + escapeHtml(name) + '" onclick="_lbRankPick(\'' + board + '\', this.getAttribute(\'data-name\'))">@' + escapeHtml(name) + '</button>';
+    });
+    html += '</div>';
+    el.hidden = false;
+    el.innerHTML = html;
+}
+
+var _lbNameCache = {};
+
+function _lbNameNarrow(q) {
+    var shorter = q.length > 1 ? q.slice(0, -1) : '';
+    var parent = shorter && _lbNameCache[shorter];
+    if (!parent || !parent.complete) return null;
+    var rows = LbPrefix.publicNames(parent.docs, q, LbPrefix.SHOW);
+    return { rows: rows, docs: parent.docs, complete: true };
+}
+
+async function _lbNamePrefix(board, q) {
+    var cached = _lbNameCache[q];
+    if (cached) return cached;
+    var narrowed = _lbNameNarrow(q);
+    if (narrowed) {
+        _lbNameCache[q] = narrowed;
+        return narrowed;
+    }
+    // Ghost mode cannot be excluded in a client list query: the field is
+    // missing on ordinary profiles, so a != true filter would drop them.
+    // leaderboardRank suggest mode runs suggestNames on the server, drops
+    // ghosts before the response, and uses the same rate limit.
+    var fn = firebase.functions().httpsCallable('leaderboardRank');
+    var res = await fn({ board: board, period: _lbRankPeriod(board), username: q, suggest: true });
+    var data = (res && res.data) || {};
+    var names = [];
+    (data.suggestions || []).forEach(function (row) {
+        var name = row && row.username;
+        if (!name || String(name).indexOf('@') !== -1) return;
+        names.push({ username: String(name), username_lower: String(name).toLowerCase() });
+    });
+    var rows = LbPrefix.publicNames(names, q, LbPrefix.SHOW);
+    var packed = { rows: rows, docs: names, complete: rows.length < LbPrefix.SHOW };
+    _lbNameCache[q] = packed;
+    return packed;
+}
+
+function _lbSuggestAnon() {
+    var user = _lbRankAuthUser();
+    return !!(user && user.isAnonymous);
+}
+
+async function _lbNameRun(board, raw) {
+    var q = LbPrefix.normalizePrefix(raw);
+    var gen = (_lbRankGen[board] = (_lbRankGen[board] || 0) + 1);
+    if (!_lbRankAuthUser()) {
+        _lbRankPaint(board, { status: 'not_found', message: 'Sign in to search the leaderboard.' });
+        return;
+    }
+    if (!LbPrefix.prefixOk(q, _lbSuggestAnon())) {
+        window._lbSuggestShown = window._lbSuggestShown || {};
+        window._lbSuggestShown[board] = [];
         _lbRankPaint(board, null);
         return;
     }
-    _lbRankTimer[board] = setTimeout(function () { _lbRankRun(board); }, 450);
+    var hit = _lbNameCache[q] || _lbNameNarrow(q);
+    if (hit) {
+        _lbRankPaintNames(board, hit.rows.map(function (row) { return row.username; }));
+        return;
+    }
+    try {
+        hit = await _lbNamePrefix(board, q);
+        if (gen !== _lbRankGen[board]) return;
+        _lbRankPaintNames(board, (hit.rows || []).map(function (row) { return row.username; }));
+    } catch (e) {
+        if (gen !== _lbRankGen[board]) return;
+        var code = (e && e.code) || '';
+        var msg = (e && e.message) || '';
+        var text = 'Search failed. Try again.';
+        if (code.indexOf('resource-exhausted') !== -1 || msg.indexOf('Too many lookups') !== -1) text = 'Too many lookups. Try again in a minute.';
+        else if (code.indexOf('unauthenticated') !== -1 || code.indexOf('permission-denied') !== -1) text = 'Sign in to search the leaderboard.';
+        else if (code.indexOf('failed-precondition') !== -1) text = 'Rank lookup is still indexing. Try again shortly.';
+        else if (code.indexOf('app-check') !== -1 || msg.indexOf('App Check') !== -1) text = 'Security check is not ready. Refresh and try again.';
+        _lbRankPaint(board, { status: 'not_found', message: text });
+    }
+}
+
+window._lbRankType = function (board, val) {
+    window._lbRankState[board] = { text: val || '', me: false };
+    clearTimeout(_lbRankTimer[board]);
+    var q = LbPrefix.normalizePrefix(val);
+    if (!q || !LbPrefix.prefixOk(q, _lbSuggestAnon())) {
+        _lbRankGen[board] = (_lbRankGen[board] || 0) + 1;
+        window._lbSuggestShown = window._lbSuggestShown || {};
+        window._lbSuggestShown[board] = [];
+        _lbRankPaint(board, null);
+        return;
+    }
+    var ready = _lbNameCache[q] || _lbNameNarrow(q);
+    if (ready) _lbRankPaintNames(board, ready.rows.map(function (row) { return row.username; }));
+    _lbRankTimer[board] = setTimeout(function () { _lbNameRun(board, q); }, LbPrefix.DEBOUNCE_MS);
 };
 
 window._lbRankKey = function (event, board) {
     if (!event || event.key !== 'Enter') return;
     event.preventDefault();
     clearTimeout(_lbRankTimer[board]);
-    _lbRankRun(board);
+    var state = window._lbRankState[board] || {};
+    var q = LbPrefix.normalizePrefix(state.text || '');
+    var shown = (window._lbSuggestShown && window._lbSuggestShown[board]) || [];
+    var exact = '';
+    for (var i = 0; i < shown.length; i++) {
+        if (String(shown[i]).toLowerCase() === q) { exact = shown[i]; break; }
+    }
+    if (exact) { _lbRankPick(board, exact); return; }
+    if (shown.length === 1) { _lbRankPick(board, shown[0]); return; }
+    _lbNameRun(board, q);
 };
 
 window._lbRankPick = function (board, name) {
@@ -6418,7 +6636,7 @@ function _lbShareSnapRow(docId) {
 async function _lbShareLookup(board) {
     if (board === 'pvp') {
         var pr = _lbShareSnapRow(LB_BOARDS.pvp && LB_BOARDS.pvp.docId);
-        return pr ? { status: 'ok', rank: pr.rank, username: pr.username, scoreText: (pr.wins || 0) + 'W - ' + (pr.losses || 0) + 'L' } : null;
+        return pr ? { status: 'ok', rank: pr.rank, username: pr.username, scoreText: LbPrefix.pvpRecordText(pr.wins, pr.losses) } : null;
     }
     var period = _lbRankPeriod(board);
     if (board === 'xp') {
@@ -6444,8 +6662,10 @@ function _lbShareFit(ctx, text, max, size, weight) {
     do { ctx.font = weight + ' ' + s + 'px system-ui,-apple-system,Segoe UI,sans-serif'; s -= 2; } while (ctx.measureText(text).width > max && s > 18);
 }
 
-// Canvas text is drawn as text, never parsed as HTML.
-function _lbShareCanvas(board, d, link) {
+// Static frame is drawn once. Each card only paints the rank line on top.
+var _lbShareFrame = null;
+function _lbShareFrameCanvas() {
+    if (_lbShareFrame) return _lbShareFrame;
     var W = 1080, H = 1080;
     var c = document.createElement('canvas'); c.width = W; c.height = H;
     var ctx = c.getContext('2d');
@@ -6456,6 +6676,30 @@ function _lbShareCanvas(board, d, link) {
     ctx.font = '800 52px system-ui,-apple-system,Segoe UI,sans-serif';
     ctx.fillText('₿ Bitcoin Quest™', W / 2, 140);
     ctx.fillStyle = '#e2e8f0';
+    ctx.font = '700 44px system-ui,-apple-system,Segoe UI,sans-serif';
+    ctx.fillText('Can you beat me? Learn Bitcoin and climb.', W / 2, 850);
+    _lbShareFrame = c;
+    try {
+        c.toBlob(function (blob) {
+            if (!blob) return;
+            if (window._lbShareFrameUrl) {
+                try { URL.revokeObjectURL(window._lbShareFrameUrl); } catch (e) {}
+            }
+            window._lbShareFrameUrl = URL.createObjectURL(blob);
+        }, 'image/png');
+    } catch (e) {}
+    return c;
+}
+
+// Canvas text is drawn as text, never parsed as HTML.
+function _lbShareCanvas(board, d, link) {
+    var frame = _lbShareFrameCanvas();
+    var W = frame.width, H = frame.height;
+    var c = document.createElement('canvas'); c.width = W; c.height = H;
+    var ctx = c.getContext('2d');
+    ctx.drawImage(frame, 0, 0);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#e2e8f0';
     var board_ = (LB_SHARE_NAMES[board] || 'Leaderboard') + (d.periodName ? ' · ' + d.periodName : '');
     _lbShareFit(ctx, board_, W - 160, 46, '700'); ctx.fillText(board_, W / 2, 230);
     ctx.fillStyle = '#f7931a'; ctx.font = '900 260px system-ui,-apple-system,Segoe UI,sans-serif';
@@ -6463,31 +6707,155 @@ function _lbShareCanvas(board, d, link) {
     var name = '@' + String(d.username || (currentUser && currentUser.username) || 'Anon').replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 40);
     ctx.fillStyle = '#ffffff'; _lbShareFit(ctx, name, W - 160, 70, '800'); ctx.fillText(name, W / 2, 640);
     if (d.scoreText) { ctx.fillStyle = '#cbd5e1'; _lbShareFit(ctx, String(d.scoreText), W - 160, 48, '600'); ctx.fillText(String(d.scoreText), W / 2, 720); }
-    ctx.fillStyle = '#e2e8f0'; ctx.font = '700 44px system-ui,-apple-system,Segoe UI,sans-serif';
-    ctx.fillText('Can you beat me? Learn Bitcoin and climb.', W / 2, 850);
     ctx.fillStyle = '#f7931a'; _lbShareFit(ctx, link.replace(/^https:\/\//, ''), W - 140, 38, '700');
     ctx.fillText(link.replace(/^https:\/\//, ''), W / 2, 950);
     return c;
 }
 window._lbShareCanvas = _lbShareCanvas;
 
+var _lbShareCache = {};
+function _lbShareCacheKey(board) {
+    return board + '|' + (board === 'pvp' ? 'pvp' : _lbRankPeriod(board));
+}
+function _lbShareRemember(board, entry) {
+    _lbShareCache[_lbShareCacheKey(board)] = entry;
+}
+function _lbShareCacheHit(board) {
+    return _lbShareCache[_lbShareCacheKey(board)] || null;
+}
+
+function _lbShareMeRow(rows) {
+    var me = _lbRankAuthUser();
+    if (!me) return null;
+    var name = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username).trim().toLowerCase() : '';
+    var list = rows || [];
+    for (var i = 0; i < list.length; i++) {
+        var row = list[i];
+        if (!row || !(Number(row.rank) > 0)) continue;
+        if (row.uid && row.uid === me.uid) return row;
+        if (name && String(row.username || '').trim().toLowerCase() === name) return row;
+    }
+    return null;
+}
+
+function _lbShareDataFromRow(board, row) {
+    if (!row) return null;
+    var period = board === 'pvp' ? '' : _lbRankPeriod(board);
+    var d = { status: 'ok', rank: row.rank, username: row.username || 'Anon' };
+    if (board === 'pvp') {
+        d.scoreText = LbPrefix.pvpRecordText(row.wins, row.losses);
+        return d;
+    }
+    if (board === 'quest') {
+        d.score = Number(row.passes) || Number(row.value) || 0;
+        d.pct = Number(row.pct) || 0;
+    } else if (board === 'predict') {
+        d.pct = Number(row.pct) || Number(row.value) || 0;
+        d.score = d.pct;
+    } else if (board === 'streak') {
+        d.score = Number(row.streak) || Number(row.value) || 0;
+    } else {
+        d.score = Number(row.value) || 0;
+    }
+    d.scoreText = _lbRankScoreText(board, period, d);
+    d.periodName = LB_SHARE_PERIODS[period] || '';
+    return d;
+}
+
+function _lbShareLocalRow(board) {
+    if (board === 'pvp') return _lbShareSnapRow(LB_BOARDS.pvp && LB_BOARDS.pvp.docId);
+    if (board === 'xp') return _lbShareSnapRow(_lbBoardSpec(_lbRankPeriod(board)).docId);
+    if (board === 'quest') {
+        var slot = window._questLbCache && window._questLbCache[_questLbPeriod()];
+        return _lbShareMeRow(slot && slot.data && slot.data.rows);
+    }
+    if (board === 'predict') {
+        var data = window._predLbCache && window._predLbCache.data;
+        return _lbShareMeRow(data && data[window._predLbPeriod || 'alltime']);
+    }
+    if (board === 'streak') {
+        var streak = window._streakLbCache && window._streakLbCache.data;
+        var period = window._streakLbPeriod === 'current' ? 'current' : 'alltime';
+        return _lbShareMeRow(streak && streak[period]);
+    }
+    return null;
+}
+
+function _lbShareCardMeta(board, d) {
+    var name = '@' + String(d.username || (currentUser && currentUser.username) || 'Anon');
+    var text = 'I\u2019m #' + Math.floor(Number(d.rank)) + ' on the Bitcoin Quest\u2122 ' + (LB_SHARE_NAMES[board] || 'leaderboard') + '. Can you beat me?';
+    return { title: text, name: name };
+}
+
+function _lbSharePrewarmBoard(board) {
+    if (_lbShareCacheHit(board)) return;
+    var row = _lbShareLocalRow(board);
+    var d = _lbShareDataFromRow(board, row);
+    if (!d) return;
+    var meta = _lbShareCardMeta(board, d);
+    _lbShareRemember(board, {
+        canvas: _lbShareCanvas(board, d, _lbShareLink()),
+        title: meta.title,
+        name: meta.name
+    });
+}
+
+function _lbSharePrewarm() {
+    if (!_lbShareSignedIn()) return;
+    var run = function () {
+        _lbShareFrameCanvas();
+        ['xp', 'quest', 'predict', 'streak', 'pvp'].forEach(_lbSharePrewarmBoard);
+    };
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 500 });
+    else setTimeout(run, 40);
+}
+window._lbSharePrewarm = _lbSharePrewarm;
+
 window._lbShareRank = async function (board) {
     if (!LB_SHARE_NAMES[board]) return;
     if (!_lbShareSignedIn()) { if (typeof showToast === 'function') showToast('Sign in to share your rank'); return; }
     if (window._lbSharing) return;
     window._lbSharing = true;
+    var opened = false;
     try {
-        var d = await _lbShareLookup(board);
-        if (!d) { if (typeof showToast === 'function') showToast('You are not ranked on this board yet'); return; }
         var link = _lbShareLink();
-        var canvas = _lbShareCanvas(board, d, link);
-        var text = 'I\u2019m #' + Math.floor(Number(d.rank)) + ' on the Bitcoin Quest\u2122 ' + (LB_SHARE_NAMES[board] || 'leaderboard') + '. Can you beat me?';
-        // Same in-app share sheet as the other share cards (no auto native share).
         var AS = window.AchievementShare;
+        var cached = _lbShareCacheHit(board);
+        var preview = '@' + String((currentUser && currentUser.username) || 'Anon');
+        // Shell first. The image is a cached canvas or a lazy blob after lookup.
         if (AS && typeof AS.openCanvasSheet === 'function') {
-            AS.openCanvasSheet({ type: 'rank', title: text, name: '@' + String(d.username || (currentUser && currentUser.username) || 'Anon'), url: link, canvas: canvas });
+            AS.openCanvasSheet({
+                type: 'rank',
+                title: cached && cached.title ? cached.title : 'Your Bitcoin Quest\u2122 rank',
+                name: cached && cached.name ? cached.name : preview,
+                url: link,
+                shellOnly: true
+            });
+            opened = true;
+            if (cached && cached.canvas && typeof AS.setSheetCanvas === 'function') {
+                AS.setSheetCanvas(cached.canvas, { title: cached.title, name: cached.name });
+                return;
+            }
+        }
+        var d = await _lbShareLookup(board);
+        if (!d) {
+            if (opened && AS && typeof AS.closeSheet === 'function') AS.closeSheet();
+            if (typeof showToast === 'function') showToast('You are not ranked on this board yet');
             return;
         }
+        var canvas = _lbShareCanvas(board, d, link);
+        var meta = _lbShareCardMeta(board, d);
+        _lbShareRemember(board, { canvas: canvas, title: meta.title, name: meta.name });
+        // Same in-app share sheet as the other share cards (no auto native share).
+        if (AS && opened && typeof AS.setSheetCanvas === 'function') {
+            AS.setSheetCanvas(canvas, meta);
+            return;
+        }
+        if (AS && typeof AS.openCanvasSheet === 'function') {
+            AS.openCanvasSheet({ type: 'rank', title: meta.title, name: meta.name, url: link, canvas: canvas });
+            return;
+        }
+        var text = meta.title;
         var blob = await new Promise(function (r) { canvas.toBlob(r, 'image/png'); });
         if (blob) {
             var a = document.createElement('a');
@@ -6906,7 +7274,7 @@ function _lbAuthReady(timeoutMs) {
 
 // One public snapshot doc per board. Intervals match the scheduled writers.
 // localStorage paints immediately. A board refetches when that copy is older
-// than its interval. Rank past 25 is the profile score with the label 25+.
+// than its interval. Rank past 50 is the profile score with the label 50+.
 var LB_BOARDS = {
     xpAll: { key: 'xpAll', docId: 'lb_xp_alltime', intervalMs: 15 * 60 * 1000 },
     xpWeek: { key: 'xpWeek', docId: 'lb_xp_week', intervalMs: 10 * 60 * 1000 },
@@ -7017,7 +7385,7 @@ function _lbYouOutside(users, period) {
         earnedHidden: currentUser.earnedHidden || [],
         lastSeen: currentUser.lastSeen || null,
         lightningAddress: currentUser.lightningAddress || currentUser.lightning || '',
-        _rankLabel: '25+',
+        _rankLabel: '50+',
         _you: true
     };
 }
@@ -7031,9 +7399,7 @@ function _lbXpRowHtml(d, period, index) {
         if (typeof updateRankUI === 'function') updateRankUI();
     }
     var medal = d._rankLabel ? d._rankLabel : (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank);
-    var hidden = (!d._you && rank > 10)
-        ? ' style="display:none;" class="lb-row lb-extra' + (isMe ? ' lb-me' : '') + '"'
-        : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+    var hidden = ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
     var statusDot = typeof onlineStatusDot === 'function' ? onlineStatusDot(d.lastSeen) : '';
     var certIcons = '';
     if (d.earnedHidden && d.earnedHidden.indexOf('cert_scholar') !== -1) certIcons += ' 🎓';
@@ -7053,13 +7419,11 @@ function _lbXpRowHtml(d, period, index) {
 }
 
 function _lbXpRowsHtml(allUsers, period) {
-    var html = '';
     var ranked = [];
     (allUsers || []).forEach(function (d) { if (d && !d._you) ranked.push(d); });
-    ranked.forEach(function (d, i) { html += _lbXpRowHtml(d, period, i); });
-    if (ranked.length > 10) {
-        html += '<button id="lbShowMore" onclick="expandLeaderboard(event)" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;transition:0.2s;">Show Top ' + ranked.length + ' Users ▼</button>';
-    }
+    var split = _lbSplitRows(ranked, function (d, i) { return _lbXpRowHtml(d, period, i); });
+    var html = split.html;
+    if (split.rest) html += _lbMoreButton(_lbStashMore(split.rest), split.total, 'players');
     var you = _lbYouOutside(ranked, period);
     if (you) html += _lbXpRowHtml(you, period, ranked.length);
     if (!ranked.length && !you) {
@@ -7221,6 +7585,7 @@ async function toggleLeaderboard() {
         _loadPredictorLeaderboard();
         _loadPVPLeaderboard();
         _lbRankReplayAll();
+        _lbSharePrewarm();
         if (_lbCachedDoc && !_lbFresh) {
             var _lbPaintPeriod = _lbPeriod;
             _lbSnapFetch(_lbSpec.key).then(function (next) {
@@ -7418,7 +7783,7 @@ function _renderPredictorBoard() {
         html += '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No Questers have qualified yet.</div>';
     } else {
         var myUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : '';
-        rows.forEach(function(entry) {
+        var predSplit = _lbSplitRows(rows, function (entry) {
             var rank = entry.rank || 0;
             var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
             var correctN = Number(entry.correct) || 0;
@@ -7436,17 +7801,15 @@ function _renderPredictorBoard() {
             var name = typeof escapeHtml === 'function' ? escapeHtml(predShown) : String(predShown);
             var peerTag = (window._myPeers && window._myPeers.has(uid)) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
             var predNameAttrs = uid ? ' data-profile-uid="' + uid + '"' + (predBlank ? ' data-blank-name="1"' : '') : '';
-            var hidden = rank > 10 ? ' style="display:none;" class="lb-row pred-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
-            html += '<div' + hidden + ' onclick="showUserProfile(\'' + uid + '\')" style="cursor:pointer;" title="View profile">' +
+            return '<div class="lb-row' + (isMe ? ' lb-me' : '') + '" onclick="showUserProfile(\'' + uid + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 _predAvatarHtml(entry) +
                 '<span class="lb-name">' + peerTag + '<span' + predNameAttrs + '>' + name + '</span></span>' +
                 '<span class="lb-score pred-score">' + pctN + '%<span class="pred-score-frac">' + correctN + '/' + totalN + '</span></span>' +
             '</div>';
         });
-        if (rows.length > 10) {
-            html += '<button type="button" onclick="event.stopPropagation();document.querySelectorAll(\'.pred-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + rows.length + ' predictors ▼</button>';
-        }
+        html += predSplit.html;
+        if (predSplit.rest) html += _lbMoreButton(_lbStashMore(predSplit.rest), predSplit.total, 'predictors');
     }
     html += '</div><p id="predLbProgress" style="margin:8px 0 0;font-size:0.75rem;line-height:1.4;color:var(--text-muted);"></p>';
     root.innerHTML = html;
@@ -7456,6 +7819,7 @@ function _renderPredictorBoard() {
     var tip = document.getElementById('predLbTip');
     if (tip && !tip.hidden) tip.textContent = _predLbInfoText(period);
     _predLbFillProgress(period, data);
+    if (typeof _lbSharePrewarm === 'function') _lbSharePrewarm();
 }
 
 function _predLbSwitchPeriod(period) {
@@ -7525,7 +7889,7 @@ function _renderStreakBoard() {
         html += '<div class="streak-lb-empty">' + (period === 'current' ? 'No streaks still going.' : 'No streaks yet.') + '</div>';
     } else {
         var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username).trim().toLowerCase() : '';
-        rows.forEach(function(entry) {
+        var streakSplit = _lbSplitRows(rows, function (entry) {
             var rank = entry.rank || 0;
             var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
             var rawName = entry.username || '';
@@ -7535,23 +7899,22 @@ function _renderStreakBoard() {
             var shown = blank ? 'Anon' : rawName;
             var name = typeof escapeHtml === 'function' ? escapeHtml(shown) : String(shown);
             var isMe = !blank && myName && myName === String(shown).trim().toLowerCase();
-            var hidden = rank > 10 ? ' style="display:none;" class="lb-row streak-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
             var open = blank ? '' : ' onclick="_streakOpenProfile(this)"';
-            html += '<div' + hidden + open + ' data-streak-name="' + _streakAttr(shown) + '" style="cursor:' + (blank ? 'default' : 'pointer') + ';" title="' + (blank ? '' : 'View profile') + '">' +
+            return '<div class="lb-row' + (isMe ? ' lb-me' : '') + '"' + open + ' data-streak-name="' + _streakAttr(shown) + '" style="cursor:' + (blank ? 'default' : 'pointer') + ';" title="' + (blank ? '' : 'View profile') + '">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 (typeof _predAvatarHtml === 'function' ? _predAvatarHtml(entry) : '') +
                 '<span class="lb-name">' + name + '</span>' +
                 '<span class="lb-score">🔥 ' + (Number(entry.streak) || 0) + '</span>' +
             '</div>';
         });
-        if (rows.length > 10) {
-            html += '<button type="button" onclick="event.stopPropagation();document.querySelectorAll(\'.streak-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + rows.length + ' streaks ▼</button>';
-        }
+        html += streakSplit.html;
+        if (streakSplit.rest) html += _lbMoreButton(_lbStashMore(streakSplit.rest), streakSplit.total, 'streaks');
     }
     html += '</div>';
     root.innerHTML = html;
     if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(root);
     if (typeof _lbRankReplay === 'function') _lbRankReplay('streak');
+    if (typeof _lbSharePrewarm === 'function') _lbSharePrewarm();
 }
 
 function _streakLbSwitchPeriod(period) {
@@ -7631,7 +7994,7 @@ function _renderQuestBoard() {
         html += '<div class="quest-lb-empty">Nobody has qualified yet.</div>';
     } else {
         var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username).trim().toLowerCase() : '';
-        rows.forEach(function(entry) {
+        var questSplit = _lbSplitRows(rows, function (entry) {
             var rank = entry.rank || 0;
             var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
             var rawName = entry.username || '';
@@ -7648,18 +8011,21 @@ function _renderQuestBoard() {
             var passes = Number(entry.passes) || 0;
             var pct = Number(entry.pct) || 0;
             var open = blank ? '' : ' onclick="_questOpenProfile(this)"';
-            html += '<div class="lb-row' + (isMe ? ' lb-me' : '') + '"' + open + ' data-quest-name="' + _streakAttr(shown) + '" style="cursor:' + (blank ? 'default' : 'pointer') + ';" title="' + (blank ? '' : 'View profile') + '">' +
+            return '<div class="lb-row' + (isMe ? ' lb-me' : '') + '"' + open + ' data-quest-name="' + _streakAttr(shown) + '" style="cursor:' + (blank ? 'default' : 'pointer') + ';" title="' + (blank ? '' : 'View profile') + '">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 (typeof _predAvatarHtml === 'function' ? _predAvatarHtml(entry) : '') +
                 '<span class="lb-name">' + name + '</span>' +
                 '<span class="lb-score" title="Pass rate">' + passes + ' · ' + pct + '%</span>' +
             '</div>';
         });
+        html += questSplit.html;
+        if (questSplit.rest) html += _lbMoreButton(_lbStashMore(questSplit.rest), questSplit.total, 'questers');
     }
     html += '</div>';
     root.innerHTML = html;
     if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(root);
     if (typeof _lbRankReplay === 'function') _lbRankReplay('quest');
+    if (typeof _lbSharePrewarm === 'function') _lbSharePrewarm();
 }
 
 function _questLbSwitchPeriod(period) {
@@ -7702,8 +8068,7 @@ function _renderPvpSnapshot(container, doc) {
         return;
     }
     var seenMe = false;
-    var pvpHtml = '';
-    rows.forEach(function (p) {
+    var pvpSplit = _lbSplitRows(rows, function (p) {
         var rank = p.rank || 0;
         var wins = p.wins || 0;
         var losses = p.losses || 0;
@@ -7713,31 +8078,30 @@ function _renderPvpSnapshot(container, doc) {
         var name = escapeHtml(p.username || 'Anon');
         var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
         var pvpIcon = wins >= 100 ? '👑' : wins >= 50 ? '🏆' : wins >= 25 ? '🏟️' : wins >= 5 ? '🥊' : '⚔️';
-        var hidden = rank > 10 ? ' style="display:none;" class="lb-row pvp-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+        var record = LbPrefix.pvpRecordText(wins, losses);
         var _pvpTipData = JSON.stringify({ recipientName: p.username || 'Anon', recipientUid: safeId, lightningAddress: p.lightningAddress || '', context: 'pvp', label: 'Tip ' + (p.username || 'Anon') }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
         var peerTag = (window._myPeers && window._myPeers.has(safeId)) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
-        var rate = Number(p.value) || 0;
-        pvpHtml += '<div' + hidden + ' onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
+        return '<div class="lb-row' + (isMe ? ' lb-me' : '') + '" onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
             '<span class="lb-rank">' + medal + '</span>' +
             '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + pvpIcon + '</span>' +
             '<span class="lb-name">' + peerTag + name + '</span>' +
-            '<span class="lb-score" title="' + Math.round(rate) + '% win rate" style="cursor:help;">' + wins + 'W - ' + losses + 'L</span>' +
+            '<span class="lb-score">' + record + '</span>' +
             '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + name + '">⚡</span>' +
             '</div>';
     });
-    if (rows.length > 10) {
-        pvpHtml += '<button onclick="event.stopPropagation();document.querySelectorAll(\'.pvp-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + rows.length + ' PVP players ▼</button>';
-    }
+    var pvpHtml = pvpSplit.html;
+    if (pvpSplit.rest) pvpHtml += _lbMoreButton(_lbStashMore(pvpSplit.rest), pvpSplit.total, 'players');
     if (!seenMe && currentUser && ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0)) > 0) {
-        var mine = (currentUser.pvpWins || 0) + 'W - ' + (currentUser.pvpLosses || 0) + 'L';
+        var mine = LbPrefix.pvpRecordText(currentUser.pvpWins, currentUser.pvpLosses);
         pvpHtml += '<div class="lb-row lb-me" style="cursor:default;">' +
-            '<span class="lb-rank">25+</span>' +
+            '<span class="lb-rank">50+</span>' +
             '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">⚔️</span>' +
             '<span class="lb-name">' + escapeHtml(currentUser.username || 'Anon') + ' (you)</span>' +
             '<span class="lb-score">' + mine + '</span>' +
             '</div>';
     }
     container.innerHTML = pvpHtml || '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet!</div>';
+    if (typeof _lbSharePrewarm === 'function') _lbSharePrewarm();
 }
 
 async function _loadPVPLeaderboard() {
