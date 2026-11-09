@@ -2192,11 +2192,10 @@
             </div>
             <div id="signupBirthdaySection" style="margin-bottom:16px;text-align:left;">
                 <label for="signupBirthdayMonth" style="display:block;color:var(--text-muted);font-size:0.8rem;font-weight:700;margin-bottom:4px;">🎂 Birthday <span style="font-weight:600;">(optional, not shared)</span></label>
-                <p style="color:var(--text-faint);font-size:0.72rem;margin:0 0 8px;line-height:1.45;">Month and day. Year is optional. Only you and admins can see this. It can be set once, and that day grants 25 OrangeTix.</p>
+                <p style="color:var(--text-faint);font-size:0.72rem;margin:0 0 8px;line-height:1.45;">Month and day only. Only you and admins can see this. It can be set once. The 25 OrangeTix reward starts once this birthday has been on file for 30 days.</p>
                 <div style="display:flex;gap:8px;">
-                    <select id="signupBirthdayMonth" aria-label="Birthday month, optional, not shared" onchange="window._syncSignupBirthdayDays&&window._syncSignupBirthdayDays()" style="flex:1.3;min-width:0;padding:12px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;"></select>
+                    <select id="signupBirthdayMonth" aria-label="Birthday month, optional, not shared" onchange="window._syncSignupBirthdayDays&&window._syncSignupBirthdayDays()" style="flex:1.4;min-width:0;padding:12px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;"></select>
                     <select id="signupBirthdayDay" aria-label="Birthday day, optional, not shared" style="flex:0.8;min-width:0;padding:12px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;"></select>
-                    <input id="signupBirthdayYear" type="text" inputmode="numeric" maxlength="4" placeholder="Year" autocomplete="bday-year" aria-label="Birthday year, optional, not shared" oninput="window._syncSignupBirthdayDays&&window._syncSignupBirthdayDays()" style="flex:0.9;min-width:0;padding:12px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;">
                 </div>
             </div>
             <div id="factionPickerSignup" style="margin-bottom:16px;text-align:left;">

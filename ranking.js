@@ -4747,257 +4747,6 @@ function clientCreatePayload(extra) {
     return data;
 }
 
-var BIRTHDAY_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-function birthdayLeapYear(year) {
-    return (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
-}
-
-function birthdayMaxDay(month, year) {
-    if (month === 2) return year ? (birthdayLeapYear(year) ? 29 : 28) : 29;
-    if (month === 4 || month === 6 || month === 9 || month === 11) return 30;
-    return 31;
-}
-
-function birthdayDayValid(month, day, year) {
-    if (!month || !day || month < 1 || month > 12 || day < 1) return false;
-    return day <= birthdayMaxDay(month, year || null);
-}
-
-function parseBirthdayInputs(monthEl, dayEl, yearEl) {
-    var month = monthEl && monthEl.value ? parseInt(monthEl.value, 10) : 0;
-    var day = dayEl && dayEl.value ? parseInt(dayEl.value, 10) : 0;
-    var yearText = yearEl ? String(yearEl.value || '').trim() : '';
-    if (!month && !day && !yearText) return { empty: true };
-    if (!month || !day) return { error: 'Pick a month and a day, or leave birthday blank.' };
-    var year = null;
-    if (yearText) {
-        if (!/^\d{4}$/.test(yearText)) return { error: 'Year must be 4 digits, or leave it blank.' };
-        year = parseInt(yearText, 10);
-        var maxYear = new Date().getFullYear();
-        if (year < 1900 || year > maxYear) return { error: 'Year must be from 1900 through ' + maxYear + ', or leave it blank.' };
-    }
-    if (!birthdayDayValid(month, day, year)) return { error: 'That day is not in that month.' };
-    return { month: month, day: day, year: year };
-}
-
-function fillBirthdaySelect(select, placeholder, count, names) {
-    if (!select || select.getAttribute('data-birthday-ready') === '1') return;
-    var current = select.value;
-    select.innerHTML = '';
-    var blank = document.createElement('option');
-    blank.value = '';
-    blank.textContent = placeholder;
-    select.appendChild(blank);
-    for (var i = 1; i <= count; i++) {
-        var opt = document.createElement('option');
-        opt.value = String(i);
-        opt.textContent = names ? names[i - 1] : String(i);
-        select.appendChild(opt);
-    }
-    if (current) select.value = current;
-    select.setAttribute('data-birthday-ready', '1');
-}
-
-function fillSignupBirthdaySelects() {
-    fillBirthdaySelect(document.getElementById('signupBirthdayMonth'), 'Month', 12, BIRTHDAY_MONTHS);
-    fillBirthdaySelect(document.getElementById('signupBirthdayDay'), 'Day', 31, null);
-    window._syncSignupBirthdayDays();
-}
-
-window._syncSignupBirthdayDays = function () {
-    var monthEl = document.getElementById('signupBirthdayMonth');
-    var dayEl = document.getElementById('signupBirthdayDay');
-    var yearEl = document.getElementById('signupBirthdayYear');
-    if (!monthEl || !dayEl) return;
-    var month = parseInt(monthEl.value, 10) || 0;
-    var yearText = yearEl ? String(yearEl.value || '').trim() : '';
-    var year = /^\d{4}$/.test(yearText) ? parseInt(yearText, 10) : null;
-    var max = month ? birthdayMaxDay(month, year) : 31;
-    for (var i = 0; i < dayEl.options.length; i++) {
-        var opt = dayEl.options[i];
-        if (!opt.value) continue;
-        var day = parseInt(opt.value, 10);
-        opt.hidden = day > max;
-        opt.disabled = day > max;
-    }
-    if (dayEl.value && parseInt(dayEl.value, 10) > max) dayEl.value = '';
-};
-
-function readSignupBirthday() {
-    var monthEl = document.getElementById('signupBirthdayMonth');
-    if (!monthEl) return { absent: true };
-    fillSignupBirthdaySelects();
-    return parseBirthdayInputs(
-        monthEl,
-        document.getElementById('signupBirthdayDay'),
-        document.getElementById('signupBirthdayYear')
-    );
-}
-
-function storeSignupBirthday(parsed) {
-    try {
-        if (!parsed || parsed.absent) return;
-        if (parsed.empty || parsed.error) {
-            if (parsed.empty) localStorage.removeItem('btc_pending_birthday');
-            return;
-        }
-        localStorage.setItem('btc_pending_birthday', JSON.stringify({
-            month: parsed.month,
-            day: parsed.day,
-            year: parsed.year || null
-        }));
-    } catch (e) {}
-}
-
-function readStoredBirthday() {
-    try {
-        var raw = localStorage.getItem('btc_pending_birthday');
-        if (!raw) return null;
-        var parsed = JSON.parse(raw);
-        if (!parsed || !birthdayDayValid(parsed.month, parsed.day, parsed.year || null)) return null;
-        return { month: parsed.month, day: parsed.day, year: parsed.year || null };
-    } catch (e) {
-        return null;
-    }
-}
-
-function birthdayLabel(data) {
-    var month = BIRTHDAY_MONTHS[(data.month || 1) - 1] || '';
-    var text = month + ' ' + data.day;
-    if (data.year) text += ', ' + data.year;
-    return text;
-}
-
-async function saveBirthdayOnce(uid, bday) {
-    if (!uid || !bday || bday.empty || bday.error || typeof db === 'undefined' || !db) return { saved: false };
-    if (!birthdayDayValid(bday.month, bday.day, bday.year || null)) return { saved: false, error: 'That day is not in that month.' };
-    var ref = db.collection('users').doc(uid).collection('birthday').doc('profile');
-    var existing = await ref.get();
-    if (existing.exists) return { saved: false, locked: true, data: existing.data() || {} };
-    var payload = {
-        month: bday.month,
-        day: bday.day,
-        uid: uid,
-        setAt: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    if (bday.year) payload.year = bday.year;
-    await ref.set(payload);
-    return { saved: true };
-}
-
-async function flushPendingBirthday(uid, explicit) {
-    if (!uid) return { saved: false };
-    var parsed = explicit || readStoredBirthday();
-    if (!parsed) return { saved: false };
-    try {
-        var result = await saveBirthdayOnce(uid, parsed);
-        if (result && (result.saved || result.locked)) {
-            try { localStorage.removeItem('btc_pending_birthday'); } catch (e) {}
-        }
-        return result;
-    } catch (err) {
-        console.warn('[birthday] save failed');
-        return { saved: false, error: err && err.message };
-    }
-}
-
-function birthdaySettingsCardHtml() {
-    var pending = readStoredBirthday();
-    var monthOpts = '<option value="">Month</option>';
-    var dayOpts = '<option value="">Day</option>';
-    for (var m = 1; m <= 12; m++) {
-        monthOpts += '<option value="' + m + '"' + (pending && pending.month === m ? ' selected' : '') + '>' + BIRTHDAY_MONTHS[m - 1] + '</option>';
-    }
-    for (var d = 1; d <= 31; d++) {
-        dayOpts += '<option value="' + d + '"' + (pending && pending.day === d ? ' selected' : '') + '>' + d + '</option>';
-    }
-    var yearValue = pending && pending.year ? String(pending.year) : '';
-    return '<div id="birthdaySettingsCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left;">' +
-        '<div style="font-size:0.75rem;color:var(--text-faint);letter-spacing:0;margin-bottom:6px;"><span style="text-transform:uppercase;letter-spacing:1px;">🎂 Birthday</span> <span style="font-weight:700;">(not shared)</span></div>' +
-        '<div style="color:var(--text-muted);font-size:0.78rem;line-height:1.45;margin-bottom:10px;">Optional. Only you and admins can see this. It can be set once. On that day you get 25 OrangeTix.</div>' +
-        '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
-        '<select id="settingsBirthdayMonth" aria-label="Birthday month, optional, not shared" style="flex:1.3;min-width:0;padding:12px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;">' + monthOpts + '</select>' +
-        '<select id="settingsBirthdayDay" aria-label="Birthday day, optional, not shared" style="flex:0.8;min-width:0;padding:12px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;">' + dayOpts + '</select>' +
-        '<input id="settingsBirthdayYear" type="text" inputmode="numeric" maxlength="4" placeholder="Year" autocomplete="bday-year" aria-label="Birthday year, optional, not shared" value="' + escapeHtml(yearValue) + '" style="flex:0.9;min-width:0;padding:12px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;box-sizing:border-box;">' +
-        '</div>' +
-        '<button type="button" id="birthdaySaveBtn" onclick="saveBirthdayFromSettings()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Save birthday</button>' +
-        '<div id="birthdayStatus" style="margin-top:6px;font-size:0.8rem;"></div>' +
-        '</div>';
-}
-
-function birthdayLockedHtml(data) {
-    return '<div id="birthdaySettingsCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left;">' +
-        '<div style="font-size:0.75rem;color:var(--text-faint);letter-spacing:0;margin-bottom:6px;"><span style="text-transform:uppercase;letter-spacing:1px;">🎂 Birthday</span> <span style="font-weight:700;">(not shared)</span></div>' +
-        '<div style="color:var(--heading);font-weight:700;font-size:1rem;">' + escapeHtml(birthdayLabel(data || {})) + '</div>' +
-        '<div style="color:var(--text-muted);font-size:0.78rem;line-height:1.45;margin-top:6px;">Not shared. Only you and admins can see this. Set once, so it cannot be changed. That day grants 25 OrangeTix.</div>' +
-        '</div>';
-}
-
-async function hydrateBirthdaySettings() {
-    var card = document.getElementById('birthdaySettingsCard');
-    if (!card || typeof auth === 'undefined' || !auth || !auth.currentUser || typeof db === 'undefined' || !db) return;
-    var uid = auth.currentUser.uid;
-    var emailPending = false;
-    try { emailPending = !!localStorage.getItem('btc_pending_email'); } catch (e) {}
-    if (!emailPending) {
-        try { await flushPendingBirthday(uid); } catch (e2) {}
-    }
-    try {
-        var snap = await db.collection('users').doc(uid).collection('birthday').doc('profile').get();
-        if (snap.exists) {
-            card.outerHTML = birthdayLockedHtml(snap.data() || {});
-        }
-    } catch (err) {}
-}
-
-window.saveBirthdayFromSettings = async function () {
-    var status = document.getElementById('birthdayStatus');
-    if (typeof auth === 'undefined' || !auth || !auth.currentUser) {
-        if (typeof showToast === 'function') showToast('Sign in first');
-        return;
-    }
-    var parsed = parseBirthdayInputs(
-        document.getElementById('settingsBirthdayMonth'),
-        document.getElementById('settingsBirthdayDay'),
-        document.getElementById('settingsBirthdayYear')
-    );
-    if (parsed.error) {
-        if (status) status.textContent = parsed.error;
-        return;
-    }
-    if (parsed.empty) {
-        if (status) status.textContent = 'Pick a month and a day, or leave birthday blank.';
-        return;
-    }
-    var btn = document.getElementById('birthdaySaveBtn');
-    if (btn) btn.disabled = true;
-    if (status) status.textContent = 'Saving...';
-    try {
-        var result = await saveBirthdayOnce(auth.currentUser.uid, parsed);
-        try { localStorage.removeItem('btc_pending_birthday'); } catch (e) {}
-        if (result && result.locked) {
-            var card = document.getElementById('birthdaySettingsCard');
-            if (card) card.outerHTML = birthdayLockedHtml(result.data || parsed);
-            if (typeof showToast === 'function') showToast('Birthday is already set and cannot be changed.');
-            return;
-        }
-        if (result && result.saved) {
-            var savedCard = document.getElementById('birthdaySettingsCard');
-            if (savedCard) savedCard.outerHTML = birthdayLockedHtml(parsed);
-            if (typeof showToast === 'function') showToast('Birthday saved. It is not shared.');
-            return;
-        }
-        if (status) status.textContent = 'Could not save birthday.';
-        if (btn) btn.disabled = false;
-    } catch (err) {
-        if (status) status.textContent = 'Could not save birthday.';
-        if (btn) btn.disabled = false;
-    }
-};
-
-try { fillSignupBirthdaySelects(); } catch (e) {}
-
 async function applyServerUsername(name) {
     var fn = firebase.functions().httpsCallable('setUsername');
     var res = await fn({ name: name });
@@ -11467,7 +11216,7 @@ window.publishAuthDisplay = publishAuthDisplay;
 window.clearAuthDisplay = clearAuthDisplay;
 
 function clearUserLocalStorage(opts) {
-    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_skip_email_link', 'btc_pending_email', 'btc_pending_username', 'btc_pending_ln_address', 'btc_pending_faction', 'btc_pending_country', 'btc_pending_birthday', 'btc_mode_card_dismissed',
+    var preserve = ['btc_theme_oled', 'btc_font_size', 'btc_volume', 'btc_lang', 'btc_haptic', 'btc_soundscape', 'btc_ticker_enabled', 'btc_ios_a2hs_dismissed', 'btc_pwa_dismissed', 'btc_swipe_hint_shown', 'btc_last_auth_uid', 'btc_signin_email', 'btc_skip_email_link', 'btc_pending_email', 'btc_pending_username', 'btc_pending_ln_address', 'btc_pending_faction', 'btc_pending_country', 'btc_mode_card_dismissed',
         // Badge cache — preserve on sign-out so the next sign-in doesn't trigger
         // a cold-start race where checkBadges() fires before Firestore restores
         // visibleBadges, causing duplicate toast/celebration modals.
@@ -12063,10 +11812,245 @@ window.submitUsername = async function() {
     }
 };
 
-window.exportUserData = function() {
+
+var BIRTHDAY_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+function birthdayMaxDay(month) {
+    if (month === 2) return 29;
+    if (month === 4 || month === 6 || month === 9 || month === 11) return 30;
+    return 31;
+}
+
+function birthdayDayValid(month, day) {
+    if (!month || !day || month < 1 || month > 12 || day < 1) return false;
+    return day <= birthdayMaxDay(month);
+}
+
+function parseBirthdayInputs(monthEl, dayEl) {
+    var month = monthEl && monthEl.value ? parseInt(monthEl.value, 10) : 0;
+    var day = dayEl && dayEl.value ? parseInt(dayEl.value, 10) : 0;
+    if (!month && !day) return { empty: true };
+    if (!month || !day) return { error: 'Pick a month and a day, or leave birthday blank.' };
+    if (!birthdayDayValid(month, day)) return { error: 'That day is not in that month.' };
+    return { month: month, day: day };
+}
+
+function fillBirthdaySelect(select, placeholder, count, names) {
+    if (!select || select.getAttribute('data-birthday-ready') === '1') return;
+    var current = select.value;
+    select.innerHTML = '';
+    var blank = document.createElement('option');
+    blank.value = '';
+    blank.textContent = placeholder;
+    select.appendChild(blank);
+    for (var i = 1; i <= count; i++) {
+        var opt = document.createElement('option');
+        opt.value = String(i);
+        opt.textContent = names ? names[i - 1] : String(i);
+        select.appendChild(opt);
+    }
+    if (current) select.value = current;
+    select.setAttribute('data-birthday-ready', '1');
+}
+
+function fillSignupBirthdaySelects() {
+    fillBirthdaySelect(document.getElementById('signupBirthdayMonth'), 'Month', 12, BIRTHDAY_MONTHS);
+    fillBirthdaySelect(document.getElementById('signupBirthdayDay'), 'Day', 31, null);
+    window._syncSignupBirthdayDays();
+}
+
+window._syncSignupBirthdayDays = function () {
+    var monthEl = document.getElementById('signupBirthdayMonth');
+    var dayEl = document.getElementById('signupBirthdayDay');
+    if (!monthEl || !dayEl) return;
+    var month = parseInt(monthEl.value, 10) || 0;
+    var max = month ? birthdayMaxDay(month) : 31;
+    for (var i = 0; i < dayEl.options.length; i++) {
+        var opt = dayEl.options[i];
+        if (!opt.value) continue;
+        var day = parseInt(opt.value, 10);
+        opt.hidden = day > max;
+        opt.disabled = day > max;
+    }
+    if (dayEl.value && parseInt(dayEl.value, 10) > max) dayEl.value = '';
+};
+
+function readSignupBirthday() {
+    var monthEl = document.getElementById('signupBirthdayMonth');
+    if (!monthEl) return { absent: true };
+    fillSignupBirthdaySelects();
+    return parseBirthdayInputs(monthEl, document.getElementById('signupBirthdayDay'));
+}
+
+function storeSignupBirthday(parsed) {
+    try {
+        if (!parsed || parsed.absent) return;
+        if (parsed.empty || parsed.error) {
+            if (parsed.empty) localStorage.removeItem('btc_pending_birthday');
+            return;
+        }
+        localStorage.setItem('btc_pending_birthday', JSON.stringify({
+            month: parsed.month,
+            day: parsed.day
+        }));
+    } catch (e) {}
+}
+
+function readStoredBirthday() {
+    try {
+        var raw = localStorage.getItem('btc_pending_birthday');
+        if (!raw) return null;
+        var parsed = JSON.parse(raw);
+        if (!parsed || !birthdayDayValid(parsed.month, parsed.day)) return null;
+        return { month: parsed.month, day: parsed.day };
+    } catch (e) {
+        return null;
+    }
+}
+
+function birthdayLabel(data) {
+    var month = BIRTHDAY_MONTHS[(data.month || 1) - 1] || '';
+    return month + ' ' + data.day;
+}
+
+async function saveBirthdayOnce(uid, bday) {
+    if (!uid || !bday || bday.empty || bday.error || typeof db === 'undefined' || !db) return { saved: false };
+    if (!birthdayDayValid(bday.month, bday.day)) return { saved: false, error: 'That day is not in that month.' };
+    var ref = db.collection('users').doc(uid).collection('birthday_private').doc('profile');
+    var existing = await ref.get();
+    if (existing.exists) return { saved: false, locked: true, data: existing.data() || {} };
+    await ref.set({
+        month: bday.month,
+        day: bday.day,
+        uid: uid,
+        setAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return { saved: true };
+}
+
+async function flushPendingBirthday(uid, explicit) {
+    if (!uid) return { saved: false };
+    var parsed = explicit || readStoredBirthday();
+    if (!parsed) return { saved: false };
+    try {
+        var result = await saveBirthdayOnce(uid, parsed);
+        if (result && (result.saved || result.locked)) {
+            try { localStorage.removeItem('btc_pending_birthday'); } catch (e) {}
+        }
+        return result;
+    } catch (err) {
+        console.warn('[birthday] save failed');
+        return { saved: false, error: err && err.message };
+    }
+}
+
+function birthdaySettingsCardHtml() {
+    var pending = readStoredBirthday();
+    var monthOpts = '<option value="">Month</option>';
+    var dayOpts = '<option value="">Day</option>';
+    for (var m = 1; m <= 12; m++) {
+        monthOpts += '<option value="' + m + '"' + (pending && pending.month === m ? ' selected' : '') + '>' + BIRTHDAY_MONTHS[m - 1] + '</option>';
+    }
+    for (var d = 1; d <= 31; d++) {
+        dayOpts += '<option value="' + d + '"' + (pending && pending.day === d ? ' selected' : '') + '>' + d + '</option>';
+    }
+    return '<div id="birthdaySettingsCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left;">' +
+        '<div style="font-size:0.75rem;color:var(--text-faint);letter-spacing:0;margin-bottom:6px;"><span style="text-transform:uppercase;letter-spacing:1px;">🎂 Birthday</span> <span style="font-weight:700;">(not shared)</span></div>' +
+        '<div style="color:var(--text-muted);font-size:0.78rem;line-height:1.45;margin-bottom:10px;">Optional. Month and day only. Only you and admins can see this. It can be set once. The 25 OrangeTix reward starts once this birthday has been on file for 30 days.</div>' +
+        '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
+        '<select id="settingsBirthdayMonth" aria-label="Birthday month, optional, not shared" style="flex:1.4;min-width:0;padding:12px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;">' + monthOpts + '</select>' +
+        '<select id="settingsBirthdayDay" aria-label="Birthday day, optional, not shared" style="flex:0.8;min-width:0;padding:12px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;">' + dayOpts + '</select>' +
+        '</div>' +
+        '<button type="button" id="birthdaySaveBtn" onclick="saveBirthdayFromSettings()" style="width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Save birthday</button>' +
+        '<div id="birthdayStatus" style="margin-top:6px;font-size:0.8rem;"></div>' +
+        '</div>';
+}
+
+function birthdayLockedHtml(data) {
+    return '<div id="birthdaySettingsCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;text-align:left;">' +
+        '<div style="font-size:0.75rem;color:var(--text-faint);letter-spacing:0;margin-bottom:6px;"><span style="text-transform:uppercase;letter-spacing:1px;">🎂 Birthday</span> <span style="font-weight:700;">(not shared)</span></div>' +
+        '<div style="color:var(--heading);font-weight:700;font-size:1rem;">' + escapeHtml(birthdayLabel(data || {})) + '</div>' +
+        '<div style="color:var(--text-muted);font-size:0.78rem;line-height:1.45;margin-top:6px;">Not shared. Only you and admins can see this. Set once, so it cannot be changed. The 25 OrangeTix reward starts once this birthday has been on file for 30 days.</div>' +
+        '</div>';
+}
+
+async function hydrateBirthdaySettings() {
+    var card = document.getElementById('birthdaySettingsCard');
+    if (!card || typeof auth === 'undefined' || !auth || !auth.currentUser || typeof db === 'undefined' || !db) return;
+    var uid = auth.currentUser.uid;
+    var emailPending = false;
+    try { emailPending = !!localStorage.getItem('btc_pending_email'); } catch (e) {}
+    if (!emailPending) {
+        try { await flushPendingBirthday(uid); } catch (e2) {}
+    }
+    try {
+        var snap = await db.collection('users').doc(uid).collection('birthday_private').doc('profile').get();
+        if (snap.exists) {
+            card.outerHTML = birthdayLockedHtml(snap.data() || {});
+        }
+    } catch (err) {}
+}
+
+window.saveBirthdayFromSettings = async function () {
+    var status = document.getElementById('birthdayStatus');
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser) {
+        if (typeof showToast === 'function') showToast('Sign in first');
+        return;
+    }
+    var parsed = parseBirthdayInputs(
+        document.getElementById('settingsBirthdayMonth'),
+        document.getElementById('settingsBirthdayDay')
+    );
+    if (parsed.error) {
+        if (status) status.textContent = parsed.error;
+        return;
+    }
+    if (parsed.empty) {
+        if (status) status.textContent = 'Pick a month and a day, or leave birthday blank.';
+        return;
+    }
+    var btn = document.getElementById('birthdaySaveBtn');
+    if (btn) btn.disabled = true;
+    if (status) status.textContent = 'Saving...';
+    try {
+        var result = await saveBirthdayOnce(auth.currentUser.uid, parsed);
+        try { localStorage.removeItem('btc_pending_birthday'); } catch (e) {}
+        if (result && result.locked) {
+            var card = document.getElementById('birthdaySettingsCard');
+            if (card) card.outerHTML = birthdayLockedHtml(result.data || parsed);
+            if (typeof showToast === 'function') showToast('Birthday is already set and cannot be changed.');
+            return;
+        }
+        if (result && result.saved) {
+            var savedCard = document.getElementById('birthdaySettingsCard');
+            if (savedCard) savedCard.outerHTML = birthdayLockedHtml(parsed);
+            if (typeof showToast === 'function') showToast('Birthday saved. It is not shared.');
+            return;
+        }
+        if (status) status.textContent = 'Could not save birthday.';
+        if (btn) btn.disabled = false;
+    } catch (err) {
+        if (status) status.textContent = 'Could not save birthday.';
+        if (btn) btn.disabled = false;
+    }
+};
+
+try { fillSignupBirthdaySelects(); } catch (e) {}
+
+
+window.exportUserData = async function() {
     if (!currentUser) return;
-    const data = JSON.stringify(currentUser, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
+    var data = Object.assign({}, currentUser);
+    try {
+        if (typeof auth !== 'undefined' && auth && auth.currentUser && typeof db !== 'undefined' && db) {
+            var snap = await db.collection('users').doc(auth.currentUser.uid).collection('birthday_private').doc('profile').get();
+            if (snap.exists) {
+                var row = snap.data() || {};
+                data.birthday = { month: row.month, day: row.day };
+            }
+        }
+    } catch (e) {}
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;

@@ -1925,6 +1925,47 @@ function auth(uid, extras) {
         assert.ok(db.docs.has('users/u2/xp_ledger/cert_bonus_prop'));
     });
 
+    await testAsync('birthday award marker survives deletion and stores only the year', async function() {
+        process.env.DELETION_HMAC_SECRET = 'unit-deletion-secret-0123456789';
+        const rewards = require(path.join(root, 'functions', 'src', 'birthdayReward'));
+        const markerId = rewards.markerDocId('email:ada@example.com', 2026);
+        assert.ok(markerId);
+        const markerPath = 'birthday_award_markers/' + markerId;
+        const db = createFakeDb({
+            'users/u1': { username: 'Ada', points: 10, email: 'ada@example.com' },
+            'users/u1/birthday_private/profile': { month: 3, day: 15, uid: 'u1' },
+            'users/u1/birthday_awards/2026': { uid: 'u1', month: 3, day: 15, dayName: 'birthday' },
+            'users/u1/birthday_grant_pending/2026': { year: 2026, applyAt: 1, tickets: 25 },
+        });
+        db.docs.set(markerPath, rewards.markerBody(2026));
+        db.omitListed = true;
+        const handlers = del.createDeleteAccountHandlers({
+            db: db,
+            bucket: createBucket([]),
+            authApi: okAuth(db),
+            HttpsError: HttpsError,
+            nowSec: function() { return 1000 + del.REAUTH_MAX_AGE_SEC; },
+            nowMs: function() { return 5000; },
+            documentIdField: '__name__',
+            ipSecret: 'unit-secret-birthday-marker',
+        });
+        await handlers.deleteAccount({}, { auth: auth('u1'), rawRequest: { headers: {} } });
+        assert.strictEqual(db.docs.has('users/u1'), false);
+        assert.strictEqual(db.docs.has('users/u1/birthday_private/profile'), false);
+        assert.strictEqual(db.docs.has('users/u1/birthday_awards/2026'), false);
+        assert.strictEqual(db.docs.has('users/u1/birthday_grant_pending/2026'), false);
+        const kept = db.docs.get(markerPath);
+        assert.ok(kept);
+        assert.deepStrictEqual(Object.keys(kept).sort(), ['year']);
+        assert.strictEqual(kept.year, 2026);
+        assert.strictEqual(kept.uid, undefined);
+        assert.strictEqual(kept.birthday, undefined);
+        assert.strictEqual(kept.month, undefined);
+        assert.strictEqual(kept.day, undefined);
+        assert.strictEqual(kept.name, undefined);
+        assert.strictEqual(kept.username, undefined);
+    });
+
     await testAsync('play marks are deleted and award claim uids are anonymized', async function() {
         const db = createFakeDb({
             'users/u1': { username: 'Ada', points: 10 },

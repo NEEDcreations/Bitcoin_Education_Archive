@@ -50,22 +50,27 @@ function birthday(extra) {
         }
     }
 
-    const alice = env.authenticatedContext('alice').firestore();
+    const alice = env.authenticatedContext('alice', { firebase: { sign_in_provider: 'password' } }).firestore();
+    const guest = env.authenticatedContext('guest', { firebase: { sign_in_provider: 'anonymous' } }).firestore();
     const bob = env.authenticatedContext('bob').firestore();
     const admin = env.authenticatedContext('admin', { admin: true }).firestore();
     const signedOut = env.unauthenticatedContext().firestore();
-    const profile = doc(alice, 'users/alice/birthday/profile');
+    const profile = doc(alice, 'users/alice/birthday_private/profile');
 
     await expect('owner creates month and day without a year', function () {
         return setDoc(profile, birthday());
     }, true);
+
+    await expect('anonymous sign-in cannot save a birthday', function () {
+        return setDoc(doc(guest, 'users/guest/birthday_private/profile'), birthday({ uid: 'guest' }));
+    }, false);
 
     await expect('owner reads their birthday', function () {
         return getDoc(profile);
     }, true);
 
     await expect('owner lists their birthday docs', function () {
-        return getDocs(collection(alice, 'users/alice/birthday'));
+        return getDocs(collection(alice, 'users/alice/birthday_private'));
     }, true);
 
     await expect('a second write is denied', function () {
@@ -81,58 +86,58 @@ function birthday(extra) {
     }, false);
 
     await expect('another user cannot read it', function () {
-        return getDoc(doc(bob, 'users/alice/birthday/profile'));
+        return getDoc(doc(bob, 'users/alice/birthday_private/profile'));
     }, false);
 
     await expect('another user cannot list it', function () {
-        return getDocs(collection(bob, 'users/alice/birthday'));
+        return getDocs(collection(bob, 'users/alice/birthday_private'));
     }, false);
 
     await expect('signed-out read is denied', function () {
-        return getDoc(doc(signedOut, 'users/alice/birthday/profile'));
+        return getDoc(doc(signedOut, 'users/alice/birthday_private/profile'));
     }, false);
 
     await expect('admin can read it', function () {
-        return getDoc(doc(admin, 'users/alice/birthday/profile'));
+        return getDoc(doc(admin, 'users/alice/birthday_private/profile'));
     }, true);
 
     await expect('admin client cannot change it', function () {
-        return updateDoc(doc(admin, 'users/alice/birthday/profile'), { day: 1 });
+        return updateDoc(doc(admin, 'users/alice/birthday_private/profile'), { day: 1 });
     }, false);
 
     await expect('admin client cannot create someone else\'s birthday', function () {
-        return setDoc(doc(admin, 'users/bob/birthday/profile'), birthday({ uid: 'bob' }));
+        return setDoc(doc(admin, 'users/bob/birthday_private/profile'), birthday({ uid: 'bob' }));
     }, false);
 
     await expect('doc id other than profile is denied', function () {
-        return setDoc(doc(alice, 'users/alice/birthday/other'), birthday());
+        return setDoc(doc(alice, 'users/alice/birthday_private/other'), birthday());
     }, false);
 
     await expect('cannot write a birthday onto someone else\'s account', function () {
-        return setDoc(doc(alice, 'users/carol/birthday/profile'), birthday({ uid: 'carol', month: 2, day: 29 }));
+        return setDoc(doc(alice, 'users/carol/birthday_private/profile'), birthday({ uid: 'carol', month: 2, day: 29 }));
     }, false);
 
     await expect('owner Feb 29 without a year on their own doc is allowed', async function () {
         await env.withSecurityRulesDisabled(async function (ctx) {
-            await deleteDoc(doc(ctx.firestore(), 'users/alice/birthday/profile'));
+            await deleteDoc(doc(ctx.firestore(), 'users/alice/birthday_private/profile'));
         });
         return setDoc(profile, birthday({ month: 2, day: 29 }));
     }, true);
 
     await expect('Feb 29 in a non-leap year is denied', async function () {
         await env.withSecurityRulesDisabled(async function (ctx) {
-            await deleteDoc(doc(ctx.firestore(), 'users/alice/birthday/profile'));
+            await deleteDoc(doc(ctx.firestore(), 'users/alice/birthday_private/profile'));
         });
         return setDoc(profile, birthday({ month: 2, day: 29, year: 1900 }));
     }, false);
 
-    await expect('Feb 29 in a leap year is allowed', function () {
+    await expect('a year is not stored', function () {
         return setDoc(profile, birthday({ month: 2, day: 29, year: 2000 }));
-    }, true);
+    }, false);
 
     await expect('April 31 is denied', async function () {
         await env.withSecurityRulesDisabled(async function (ctx) {
-            await deleteDoc(doc(ctx.firestore(), 'users/alice/birthday/profile'));
+            await deleteDoc(doc(ctx.firestore(), 'users/alice/birthday_private/profile'));
         });
         return setDoc(profile, birthday({ month: 4, day: 31 }));
     }, false);

@@ -5557,7 +5557,7 @@ const PUBLIC_PROFILE_FIELDS = [
     'predictions', 'plebNumber',
     'lastSeen', 'isOnline', 'ghostMode',
     'lightningAddress',   // display-only; tip button uses this
-    // Birthday is users/{uid}/birthday/profile. Never copy it onto this mirror.
+    // Birthday is users/{uid}/birthday_private/profile. Never copy it onto this mirror.
     'lightning',           // alias saved by older clients; tip lookup checks both
     'created', 'createdAt',
     'earnedHidden',
@@ -6906,7 +6906,7 @@ exports.favorDifficultyRetarget = onSchedule({ schedule: '10 0 * * *', timeZone:
 
 // Birthday OrangeTix. 12:15am America/New_York. One 25-ticket grant per user
 // per Eastern calendar year, marker users/{uid}/birthday_awards/{year}.
-// Reads users/{uid}/birthday/profile only. Does not write public_profiles.
+// Reads users/{uid}/birthday_private/profile only. Does not write public_profiles.
 exports.awardBirthdayOrangeTix = onSchedule({
     schedule: '15 0 * * *',
     timeZone: 'America/New_York',
@@ -6914,14 +6914,52 @@ exports.awardBirthdayOrangeTix = onSchedule({
     retryCount: 0,
 }, async () => {
     const birthdayReward = require('./src/birthdayReward');
+    const accountTombstone = require('./src/accountTombstone');
+    const crypto = require('crypto');
     const result = await birthdayReward.runBirthdayAwards(db, {
+        increment: admin.firestore.FieldValue.increment,
+        serverTimestamp: admin.firestore.FieldValue.serverTimestamp,
+        // Public profiles show orangeTickets, so the grant waits 0-23 hours
+        // and does not land on the same clock minute as the birthday scan.
+        randomDelayMs: function () { return crypto.randomInt(0, 24) * 60 * 60 * 1000; },
+        notify: function (writer, database, spec) {
+            rewardNotify.apply(writer, database, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan(spec));
+        },
+        getAuthUser: function (uid) { return admin.auth().getUser(uid); },
+        tombstoneSummary: async function (uid, authUser) {
+            if (!accountTombstone.secretReady()) return null;
+            try {
+                const looked = await accountTombstone.lookupByMaterials(db, accountTombstone.identityFrom({
+                    uid: uid,
+                    authUser: authUser || null,
+                }));
+                return looked && looked.summary ? looked.summary : null;
+            } catch (e) {
+                return { lookupFailed: true };
+            }
+        },
+    }, Date.now());
+    console.log('[birthday]', JSON.stringify(result));
+});
+
+// Applies birthday ticket grants whose random delay has elapsed.
+// Public profile ticket totals are what other people can see, so this is
+// not tied to 12:15am. awardBirthdayOrangeTix only queues the grant.
+exports.applyBirthdayOrangeTix = onSchedule({
+    schedule: '15 * * * *',
+    timeZone: 'America/New_York',
+    timeoutSeconds: 540,
+    retryCount: 0,
+}, async () => {
+    const birthdayReward = require('./src/birthdayReward');
+    const applied = await birthdayReward.applyDueGrants(db, {
         increment: admin.firestore.FieldValue.increment,
         serverTimestamp: admin.firestore.FieldValue.serverTimestamp,
         notify: function (writer, database, spec) {
             rewardNotify.apply(writer, database, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan(spec));
         },
     }, Date.now());
-    console.log('[birthday]', JSON.stringify(result));
+    console.log('[birthday apply]', applied);
 });
 
 // Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online).
