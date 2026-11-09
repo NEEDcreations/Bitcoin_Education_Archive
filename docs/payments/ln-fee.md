@@ -17,8 +17,8 @@ store payment hashes, so the sample is faucet-only. p95 rounded up = 3 (covers t
 ## Server paths (all enforced on the server)
 | Path | Gross (debited, counts toward caps) | Sent |
 |---|---|---|
-| `claimSats` (faucet, index.js) | requested amount, 100–200 | gross − 10 |
-| `claimCipherSats` (gifting.js) | min(balance, 200, caps), ≥100 | gross − 10 |
+| `claimSats` (faucet, index.js) | requested amount, 100–1,000 | gross − 10 |
+| `claimCipherSats` (gifting.js) | min(balance, 1,000, caps), ≥100 | gross − 10 |
 | `claimCipherWin` (gifting.js) | 100 or 500 prize | gross − 10 |
 
 - LNURL invoices are requested for the net amount and the decoded invoice must equal net exactly.

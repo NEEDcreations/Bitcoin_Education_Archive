@@ -45,7 +45,7 @@
 {"id":"xp","name":"XP / points, daily cap & overflow XP","group":"Rewards","open":"Settings → Sats page","deep":null,"term":"overflow","q":"how do i earn points","page":"_overflowxp","w":["xp","point"]},
 {"id":"badges","name":"Badges","group":"Rewards","open":"Settings → Nacho tab / leaderboard","deep":null,"term":"badges","q":"how do i earn badges","page":"_badges","w":["badge"]},
 {"id":"referral","name":"Referral program (50 tickets each at Maxi)","group":"Rewards","open":"Settings (Account) referral link; Refer-a-friend button pending","deep":null,"term":"referral","q":"how does the referral program work","page":"_referral","w":["refer"]},
-{"id":"sats","name":"Claim sats (faucet, 200 sats/day to Lightning address)","group":"Rewards","open":"showSettingsPage('sats')","deep":"#sats, #wallet","term":"faucet","q":"how do i claim sats","page":"_sats","w":["sats","claim"]},
+{"id":"sats","name":"Claim sats (faucet, 1,000 sats per withdrawal to Lightning address)","group":"Rewards","open":"showSettingsPage('sats')","deep":"#sats, #wallet","term":"faucet","q":"how do i claim sats","page":"_sats","w":["sats","claim"]},
 {"id":"ln-address","name":"Lightning address (payout/tips)","group":"Rewards","open":"Settings → Account","deep":null,"term":"lightning address","q":"how do i add my lightning address","page":"_lnaddress","w":["lightning address"]},
 {"id":"predictions","name":"Price prediction (24h up/down)","group":"Games","open":"showPricePrediction()","deep":null,"term":"prediction","q":"how does price prediction work","page":"_predict","w":["predict"]},
 {"id":"pvp","name":"PvP trivia battles","group":"Games","open":"enterPVPMode()","deep":"#pvp, /pvp","term":"pvp","q":"how do pvp battles work","page":"_pvp","w":["pvp","battle"]},

@@ -1480,7 +1480,8 @@ function mountCipherSatsBalance(parent, opts) {
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'cipher-sats-claim-btn';
-    btn.textContent = 'Claim ' + Math.min(bal, 200).toLocaleString() + ' sats';
+    var cipherCap = (window.CIPHER_SATS_RULES && window.CIPHER_SATS_RULES.max) || 1000;
+    btn.textContent = 'Claim ' + Math.min(bal, cipherCap).toLocaleString() + ' sats';
     var _rules = window.CIPHER_SATS_RULES || { min: 100 };
     var ready = bal >= _rules.min && !options.disabled;
     btn.disabled = !ready;

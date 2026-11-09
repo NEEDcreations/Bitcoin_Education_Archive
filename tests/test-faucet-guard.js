@@ -32,13 +32,27 @@ function test(name, fn) {
 const COPY = guard.LN_LOCK_COPY;
 const EMAIL = guard.SUPPORT_EMAIL;
 
-test('claim and daily caps are 200 sats', function() {
-    assert.strictEqual(guard.MAX_PER_CLAIM_SATS, 200);
-    assert.strictEqual(guard.MAX_DAILY_PER_USER_SATS, 200);
-    assert.strictEqual(guard.assessClaimAmount(200).ok, true);
-    assert.strictEqual(guard.assessClaimAmount(201).ok, false);
+test('claim and daily caps are 1000 sats', function() {
+    assert.strictEqual(guard.MAX_PER_CLAIM_SATS, 1000);
+    assert.strictEqual(guard.MAX_DAILY_PER_USER_SATS, 1000);
+    assert.strictEqual(guard.MIN_WITHDRAWAL_SATS, 100);
+    assert.strictEqual(guard.assessClaimAmount(1000).ok, true);
+    assert.strictEqual(guard.assessClaimAmount(1001).ok, false);
     assert.strictEqual(guard.assessClaimAmount(100).amount, 100);
     assert.strictEqual(guard.assessClaimAmount(99).ok, false);
+    const root = path.join(__dirname, '..');
+    const terms = fs.readFileSync(path.join(root, 'terms.html'), 'utf8');
+    const privacy = fs.readFileSync(path.join(root, 'privacy.html'), 'utf8');
+    const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
+    assert.ok(terms.includes('maximum 1,000 sats'));
+    assert.ok(terms.includes('24-hour cooldown'));
+    assert.ok(!terms.includes('maximum 200 sats'));
+    assert.ok(privacy.includes('1,000 sats/day cap'));
+    assert.ok(!privacy.includes('200 sats/day cap'));
+    assert.ok(ranking.includes('window.SATS_CLAIM_MAX = 1000;'));
+    assert.ok(ranking.includes('Max claim: 1,000 sats'));
+    assert.ok(ranking.includes('1 claim per 24 hours'));
+    assert.ok(!ranking.includes('Max claim: 200'));
 });
 
 test('a lightning address is required and a raw invoice is ignored', function() {

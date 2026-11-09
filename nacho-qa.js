@@ -2866,7 +2866,7 @@ const NACHO_KB = [
   answer: "Yes, {name}, you pay the Lightning fee. ⚡🦌 Every sats payout (faucet claims, cipher sats and cipher prizes) has a flat **10 sat** Lightning fee taken out of the amount. Claim 100, receive 90. The claim screen shows the amount, the fee and what you'll receive before you confirm. It's one flat fee so the math stays simple.",
   siteAction: "showSettings();setTimeout(function(){showSettingsPage('sats')},100)", siteLabel: '⚡ Go to Sats Tab', isSiteNav: true },
 
-{ keys: ['sats limit','daily limit','lifetime limit','how many sats can i claim','maximum sats','sats cap','claim limit','200 sats','15000 sats','sats per day','cooldown','how often can i claim'],
+{ keys: ['sats limit','daily limit','lifetime limit','how many sats can i claim','maximum sats','sats cap','claim limit','200 sats','1000 sats','1,000 sats','15000 sats','sats per day','cooldown','how often can i claim'],
   answer: "I don't publish the claim limits or the anti-abuse rules, {name}. ⚡🦌 They stay vague so the faucet stays fair. Open Settings → Sats to claim when you're eligible." },
 
 { keys: ['locked points','release points','unlock points','when release','when unlock','points locked','claimed points','pointsClaimed','my points are locked','why are my points locked','redeem points','how to redeem','release my points','when can i claim','how to unlock points'],

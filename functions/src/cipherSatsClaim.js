@@ -11,8 +11,8 @@ const { satsDisposition } = require('./cipherReward');
 const lnFee = require('./lnFee');
 
 const CLAIM_MIN = 100;
-const CLAIM_MAX = 200;
-const PLAYER_DAILY_CAP = 200;
+const CLAIM_MAX = 1000;
+const PLAYER_DAILY_CAP = 1000;
 const SITE_DAILY_CAP = 2000;
 // Longer than the 180s claim function so a live pay cannot be treated as abandoned.
 const ABANDON_MS = 10 * 60 * 1000;

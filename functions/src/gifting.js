@@ -1717,7 +1717,7 @@ async function beginCipherPay(reserved) {
     return ready;
 }
 
-// Pays min(balance, 200) from cipherSatsBalance. Independent of the faucet
+// Pays min(balance, claim max, player and site daily caps) from cipherSatsBalance. Independent of the faucet
 // withdrawal clock and of faucet daily caps. Cipher caps and the config flag
 // are the only payout limits here.
 const claimCipherSats = functionsV1.runWith({
