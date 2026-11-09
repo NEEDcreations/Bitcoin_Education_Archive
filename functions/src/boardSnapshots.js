@@ -62,7 +62,7 @@ const METRIC_FIELDS = {
 };
 
 const DISPLAY_ALL = ['username', 'username_lower', 'profilePic', 'ghostMode'];
-const DISPLAY_XP = ['faction', 'earnedHidden', 'lightningAddress', 'lightning'];
+const DISPLAY_XP = ['faction', 'earnedHidden'];
 
 function whole(value) {
     const n = Math.floor(Number(value) || 0);
@@ -158,15 +158,6 @@ function shortText(value, max) {
     return text.slice(0, max || 40);
 }
 
-function lightningAddress(data) {
-    const raw = data && (data.lightningAddress || data.lightning);
-    const text = String(raw || '').trim();
-    if (!text || text.length > 100) return '';
-    if (/[\s<>"'`]/.test(text)) return '';
-    if (text.indexOf('@') === -1 && text.indexOf('lnurl') !== 0 && text.toLowerCase().indexOf('lnbc') !== 0) return '';
-    return text;
-}
-
 function hasCert(data, id) {
     const list = data && data.earnedHidden;
     return Array.isArray(list) && list.indexOf(id) !== -1;
@@ -230,9 +221,7 @@ function xpRows(profiles, field) {
             points: whole(data.points),
             faction: shortText(data.faction, 40),
             certScholar: hasCert(data, 'cert_scholar'),
-            certTech: hasCert(data, 'cert_tech'),
-            lightningAddress: lightningAddress(data),
-            lastSeen: timeMs(data.lastSeen)
+            certTech: hasCert(data, 'cert_tech')
         });
     });
     rows.sort(byValue);
@@ -245,8 +234,6 @@ function buildXpDoc(profiles, spec, nowMs) {
         if (row.faction) packed.faction = row.faction;
         if (row.certScholar) packed.certScholar = true;
         if (row.certTech) packed.certTech = true;
-        if (row.lightningAddress) packed.lightningAddress = row.lightningAddress;
-        if (row.lastSeen) packed.lastSeen = row.lastSeen;
     });
     return finishDoc({
         updatedAt: Number(nowMs) || Date.now(),
@@ -276,8 +263,7 @@ function pvpRows(winProfiles, lossProfiles) {
             profilePic: data.profilePic,
             wins: wins,
             losses: losses,
-            value: winRate(wins, losses),
-            lightningAddress: lightningAddress(data)
+            value: winRate(wins, losses)
         };
     }
     (winProfiles || []).forEach(take);
@@ -295,7 +281,6 @@ function buildPvpDoc(winProfiles, lossProfiles, nowMs) {
     const rows = packRows(pvpRows(winProfiles, lossProfiles), function (packed, row) {
         packed.wins = row.wins;
         packed.losses = row.losses;
-        if (row.lightningAddress) packed.lightningAddress = row.lightningAddress;
     });
     return finishDoc({
         updatedAt: Number(nowMs) || Date.now(),

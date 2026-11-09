@@ -36,10 +36,12 @@ test('ghosts are dropped, banned players stay, and emails are not stored', () =>
     assert.strictEqual(doc.rows[0].uid, 'ban1');
     assert.strictEqual(doc.rows[0].value, 5000);
     assert.strictEqual(doc.rows[0].certScholar, true);
-    assert.strictEqual(doc.rows[0].lightningAddress, 'ban1@getalby.com');
+    assert.strictEqual(doc.rows[0].lightningAddress, undefined);
+    assert.strictEqual(doc.rows[0].lastSeen, undefined);
     assert.strictEqual(doc.rows[0].banned, undefined);
     assert.strictEqual(doc.rows[0].email, undefined);
     const raw = JSON.stringify(doc);
+    assert.strictEqual(raw.indexOf('getalby.com'), -1);
     assert.strictEqual(raw.indexOf('secret.test'), -1);
     assert.strictEqual(raw.indexOf('email'), -1);
     assert.strictEqual(doc.rankBeyond25.exact, false);
@@ -138,6 +140,7 @@ test('dirty stamps follow the field that changed and ignore lastSeen', () => {
     assert.deepStrictEqual(boards.dirtyKeys(before, next({ sfTotalHashes: 5 })), ['favor']);
     assert.deepStrictEqual(boards.dirtyKeys(before, next({ raidDamageAllTime: 3 })), ['raid']);
     assert.deepStrictEqual(boards.dirtyKeys(before, next({ lastSeen: 99, isOnline: false })), []);
+    assert.deepStrictEqual(boards.dirtyKeys(before, next({ lightningAddress: 'a@getalby.com', lightning: 'a@getalby.com' })), []);
     assert.strictEqual(boards.dirtyPatch(before, next({ lastSeen: 99 }), 5), null);
     const renamed = boards.dirtyKeys(before, { username: 'Bea', points: 10 });
     assert.strictEqual(renamed.length, boards.BOARD_KEYS.length);

@@ -153,6 +153,7 @@ const TESTS = [
     { name: 'Double XP', file: 'test-double-xp.js' },
     { name: 'Double XP all sources', file: 'test-double-xp-all.js' },
     { name: 'Tip Confirmation', file: 'test-tip-confirm.js' },
+    { name: 'Public profile privacy', file: 'test-public-profile-privacy.js' },
     { name: 'Spin Reminder', file: 'test-spin-reminder.js' },
     { name: 'Onboarding Quest Grant', file: 'test-onboarding-quest.js' },
     { name: 'Popup queue', file: 'test-popup-queue.js' },

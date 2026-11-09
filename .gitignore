@@ -12,6 +12,7 @@ scripts/*
 !scripts/raid-boss-inspect.js
 !scripts/backfill-leaderboard-snapshots.js
 !scripts/backfill-join-dates.js
+!scripts/strip-public-profile-secrets.js
 !scripts/render-miniapp-og.py
 .keys/
 firebase-debug.log

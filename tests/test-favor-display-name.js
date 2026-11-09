@@ -157,7 +157,8 @@ test('the public top hashes list matches own hash values and rules stay write-fa
     assert.ok(!load.includes('patchBlankProfileNames'));
     const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
     const profiles = rules.slice(rules.indexOf('match /public_profiles/{uid}'), rules.indexOf('match /visits/{visitorId}'));
-    assert.ok(profiles.includes('allow read: if request.auth != null;'));
+    assert.ok(profiles.includes('allow get: if request.auth != null;'));
+    assert.ok(profiles.includes('request.query.limit <= 50'));
     assert.ok(profiles.includes('allow write: if false;'));
     const live = fs.readFileSync(path.join(root, 'functions/src/favorLiveAnnounce.js'), 'utf8');
     assert.ok(live.includes('function shouldAnnounceLive'));
