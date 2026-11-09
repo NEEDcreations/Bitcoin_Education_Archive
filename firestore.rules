@@ -83,6 +83,60 @@ service cloud.firestore {
       );
     }
 
+    function resetReminderItemsOk(items) {
+      return items is map
+        && items.keys().hasOnly([
+          'daily-spin', 'daily-trivia', 'daily-quests', 'daily-gifts', 'daily-streak',
+          'daily-poll', 'daily-flex', 'daily-tctv', 'daily-keys', 'daily-ciphers',
+          'daily-sats-cap', 'scholar-exam', 'weekly-xp', 'weekly-quests', 'weekly-predictions',
+          'monthly-xp', 'monthly-quests', 'monthly-predictions', 'monthly-raffle', 'raid-boss',
+          'faucet-ready'
+        ])
+        && (!('daily-spin' in items) || items['daily-spin'] is bool)
+        && (!('daily-trivia' in items) || items['daily-trivia'] is bool)
+        && (!('daily-quests' in items) || items['daily-quests'] is bool)
+        && (!('daily-gifts' in items) || items['daily-gifts'] is bool)
+        && (!('daily-streak' in items) || items['daily-streak'] is bool)
+        && (!('daily-poll' in items) || items['daily-poll'] is bool)
+        && (!('daily-flex' in items) || items['daily-flex'] is bool)
+        && (!('daily-tctv' in items) || items['daily-tctv'] is bool)
+        && (!('daily-keys' in items) || items['daily-keys'] is bool)
+        && (!('daily-ciphers' in items) || items['daily-ciphers'] is bool)
+        && (!('daily-sats-cap' in items) || items['daily-sats-cap'] is bool)
+        && (!('scholar-exam' in items) || items['scholar-exam'] is bool)
+        && (!('weekly-xp' in items) || items['weekly-xp'] is bool)
+        && (!('weekly-quests' in items) || items['weekly-quests'] is bool)
+        && (!('weekly-predictions' in items) || items['weekly-predictions'] is bool)
+        && (!('monthly-xp' in items) || items['monthly-xp'] is bool)
+        && (!('monthly-quests' in items) || items['monthly-quests'] is bool)
+        && (!('monthly-predictions' in items) || items['monthly-predictions'] is bool)
+        && (!('monthly-raffle' in items) || items['monthly-raffle'] is bool)
+        && (!('raid-boss' in items) || items['raid-boss'] is bool)
+        && (!('faucet-ready' in items) || items['faucet-ready'] is bool);
+    }
+
+    function resetRemindersShape(data) {
+      return data is map
+        && data.keys().hasOnly(['optedIn', 'quietStart', 'quietEnd', 'timeZone', 'items'])
+        && data.optedIn is bool
+        && data.quietStart is int
+        && data.quietStart >= 0
+        && data.quietStart <= 23
+        && data.quietEnd is int
+        && data.quietEnd >= 0
+        && data.quietEnd <= 23
+        && data.timeZone is string
+        && data.timeZone.size() > 0
+        && data.timeZone.size() <= 64
+        && data.timeZone.matches('^[A-Za-z0-9_+/-]+$')
+        && resetReminderItemsOk(data.items);
+    }
+
+    // Owner opt-in for per-reset reminders. Missing means off.
+    function resetRemindersOk() {
+      return !('resetReminders' in request.resource.data) || resetRemindersShape(request.resource.data.resetReminders);
+    }
+
     // Prompt state can only move forward. stopped and dontAsk latch on.
     function notifPromptOk() {
       return !('notifPrompt' in request.resource.data) || (
@@ -135,7 +189,7 @@ service cloud.firestore {
         'lastLogin', 'lastActive', 'lastSeen', 'isOnline',
         'newsletterOptIn', 'newsletterOptInDate', 'celebratedState',
         'tosVersion', 'tosAcceptedAt', 'signupSource',
-        'inviteCard', 'notificationPrefs', 'notifPrompt', 'beatsShowUncensored',
+        'inviteCard', 'notificationPrefs', 'notifPrompt', 'resetReminders', 'beatsShowUncensored',
         'blockedUsers', 'favorites', 'bookmarks',
         'displayBadge', 'equippedBadge', 'pinnedBadgeId',
         // Titles and chat flair are set by the titleFlair callable only.
@@ -452,7 +506,8 @@ service cloud.firestore {
           && (!changed.hasAny(['lightning', 'lightningAddress', 'lnAddress']) || (true && lightningLockOk()))
           && (!changed.hasAny(['shareCardsShown']) || shareCardsShownOk())
           && (!changed.hasAny(['notificationPrefs']) || notificationPrefsOk())
-          && (!changed.hasAny(['notifPrompt']) || notifPromptOk());
+          && (!changed.hasAny(['notifPrompt']) || notifPromptOk())
+          && (!changed.hasAny(['resetReminders']) || resetRemindersOk());
       }
       // Delete disabled: a client deleting then re-creating their doc would bypass all
       // field restrictions (the create allowlist only enforces zero-values but a second
@@ -2806,6 +2861,21 @@ service cloud.firestore {
     // Nacho Radio shuffle bag (nacho_radio/queue). The scheduled tick is the
     // only reader and writer. Clients must not see or edit the upcoming order.
     match /nacho_radio/{docId} {
+      allow read, write: if false;
+    }
+
+    // Opt-in index for dispatchResetReminders. The user doc is the source of truth.
+    match /reset_reminder_subs/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null
+        && request.auth.uid == uid
+        && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
+        && resetRemindersShape(request.resource.data)
+        && request.resource.data.optedIn == true;
+      allow delete: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /reset_reminder_claims/{claimId} {
       allow read, write: if false;
     }
 

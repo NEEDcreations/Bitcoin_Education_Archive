@@ -21,9 +21,9 @@ function allowRequest(ip, bucket, limit) {
   return true;
 }
 __name(allowRequest, "allowRequest");
-function fetchWithTimeout(url, opts) {
+function fetchWithTimeout(url, opts, timeoutMs) {
   const ctrl = new AbortController();
-  const timer = setTimeout(function () { ctrl.abort(); }, 2500);
+  const timer = setTimeout(function () { ctrl.abort(); }, timeoutMs || 2500);
   const next = Object.assign({}, opts || {}, { signal: ctrl.signal });
   return fetch(url, next).finally(function () { clearTimeout(timer); });
 }
@@ -119,7 +119,7 @@ async function handleSearch(request, env, corsHeaders, url) {
   }
 }
 __name(handleSearch, "handleSearch");
-var BTC_CACHE_TTL = 90;
+var BTC_CACHE_TTL = 30;
 var _btcMem = null;
 var _btcInflight = null;
 async function loadBtcSnapshot() {
@@ -149,7 +149,7 @@ async function handleBtcData(request, env, corsHeaders) {
       "Content-Type": "application/json",
       "Cache-Control": `public, max-age=${BTC_CACHE_TTL}, s-maxage=${BTC_CACHE_TTL}`,
       "X-Cache": "MISS",
-      "X-BTC-Sources": "mempool.space,coinbase,kraken,coingecko,alternative.me"
+      "X-BTC-Sources": "mempool.space,coinbase,kraken,coingecko,alternative.me,blockchain.info,cbbi"
     }
   });
   const cacheResponse = response.clone();
@@ -167,7 +167,7 @@ async function handleBtcCandles(request, env, corsHeaders) {
   const LIMIT = 20;
   let candles = null;
   try {
-    const r = await fetchWithTimeout(`https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=300&limit=${LIMIT}`);
+    const r = await fetchWithTimeout(`https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=300&limit=${LIMIT}`, null, 5000);
     if (r.ok) {
       const raw = await r.json();
       if (Array.isArray(raw) && raw.length) {
@@ -214,7 +214,7 @@ async function handleBtcCandles(request, env, corsHeaders) {
     headers: {
       ...corsHeaders,
       "Content-Type": "application/json",
-      "Cache-Control": "public, max-age=60, s-maxage=60"
+      "Cache-Control": "public, max-age=30, s-maxage=30"
     }
   });
   await cache.put(cacheUrl.toString(), response.clone());

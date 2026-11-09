@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resets &amp; Timelines — Bitcoin Quest</title>
+<link rel="icon" type="image/svg+xml" href="/nacho-deer.svg">
+<style>
+  :root { --bg:#0d0d14; --card:#13131f; --border:rgba(255,255,255,.08); --accent:#f7931a; --text:#e2e8f0; --muted:#94a3b8; --faint:#64748b; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; line-height:1.45; }
+  header { padding:36px 20px 20px; text-align:center; border-bottom:1px solid var(--border); }
+  header h1 { font-size:1.7rem; font-weight:900; margin-bottom:8px; }
+  header p { color:var(--muted); max-width:40rem; margin:0 auto; font-size:.92rem; }
+  header a.home { display:inline-block; margin-top:14px; color:var(--accent); font-weight:700; text-decoration:none; }
+  .wrap { max-width:920px; margin:0 auto; padding:24px 16px 64px; }
+  .clocks { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; margin:8px 0 22px; }
+  .clock { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 14px; }
+  .clock b { display:block; color:var(--accent); font-size:1rem; margin-bottom:4px; }
+  .clock span { color:var(--muted); font-size:.82rem; }
+  .remind { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px 16px; margin-bottom:22px; }
+  .remind h2 { font-size:1rem; }
+  .remind p { color:var(--muted); font-size:.84rem; margin-top:4px; max-width:38rem; }
+  .remind a { display:inline-block; background:var(--accent); color:#fff; text-decoration:none; font-weight:800; border-radius:999px; padding:8px 14px; font-size:.85rem; }
+  h2.sec { font-size:1.15rem; margin:26px 0 8px; }
+  .note { color:var(--muted); font-size:.84rem; margin-bottom:10px; }
+  table { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--border); border-radius:12px; overflow:hidden; margin-bottom:8px; }
+  th, td { text-align:left; padding:9px 10px; vertical-align:top; border-bottom:1px solid var(--border); font-size:.84rem; }
+  th { color:var(--faint); font-size:.68rem; letter-spacing:.06em; text-transform:uppercase; }
+  tr:last-child td { border-bottom:none; }
+  td.when { white-space:nowrap; font-weight:700; }
+  td small { display:block; color:var(--faint); font-weight:500; margin-top:2px; }
+  @media (max-width:640px) {
+    td.when { white-space:normal; }
+    th:nth-child(4), td:nth-child(4) { display:none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Bitcoin Quest resets &amp; timelines</h1>
+  <p>Every clock below is the one the server enforces, read from the code on November 9, 2026. Eastern times are Eastern Standard Time (UTC−5) until the clocks spring forward on March 14, 2027. A job locked to UTC then shows one hour later on an Eastern clock. A job locked to America/New_York stays on the same Eastern clock.</p>
+  <a class="home" href="/">Back to Bitcoin Quest</a>
+</header>
+<div class="wrap">
+  <div class="clocks">
+    <div class="clock"><b>05:00 UTC</b><span>The game day. Midnight EST, 1:00 AM EDT. Spin, trivia, quests, gifts, streak, poll, flex, Timechain TV, and the daily XP cap.</span></div>
+    <div class="clock"><b>00:00 UTC</b><span>A different day. 7:00 PM EST the evening before. Cipher opens, cipher sats, the faucet's daily cap, and the scholar exam.</span></div>
+    <div class="clock"><b>Rolling 24 hours</b><span>Starts when you act. Sats withdrawals and username changes. Not tied to either midnight.</span></div>
+  </div>
+
+  <section class="remind" id="reminder-resets">
+    <div>
+      <h2>Reminder resets</h2>
+      <p>Opt in only. Each reset has its own switch, and every switch starts off. A reminder goes out about an hour before that reset. If that hour is inside quiet hours (10 PM to 8 AM in your time zone, unless you change it), it is sent when quiet hours end, once per reset.</p>
+    </div>
+    <a href="/#reset-reminders">Turn on notifications</a>
+  </section>
+
+  <h2 class="sec">Daily</h2>
+  <p class="note">Most daily play shares the 05:00 UTC game day. A few caps still use the UTC calendar date, so they roll over five hours earlier.</p>
+  <table>
+    <thead><tr><th>What</th><th>Resets</th><th>Cadence</th><th>Enforced by</th></tr></thead>
+    <tbody>
+      <tr><td>Daily spin</td><td class="when">05:00 UTC<small>12:00 AM EST</small></td><td>Once each game day</td><td>getOffsetDateKey in the spin claim</td></tr>
+      <tr><td>Trivia</td><td class="when">05:00 UTC<small>12:00 AM EST</small></td><td>One question each game day. Streak uses the previous offset day.</td><td>questReward.offsetDateKey, answerTrivia</td></tr>
+      <tr><td>Quests and the daily quiz</td><td class="when">05:00 UTC<small>12:00 AM EST</small></td><td>The quest day and the recommended quiz rotate with the game day</td><td>questReward.offsetDateKey, gradeQuest</td></tr>
+      <tr><td>Gift drop</td><td class="when">05:00 UTC<small>12:00 AM EST</small></td><td>One award of gifts each game day. Opening a gift you already hold is not on this clock.</td><td>awardDailyGifts, lastGiftSpinDate</td></tr>
+      <tr><td>Streak</td><td class="when">05:00 UTC<small>12:00 AM EST</small></td><td>A visit on today's offset day keeps it. Miss two game days and a saved freeze can cover one of them.</td><td>streakBoard, getOffsetDateKey</td></tr>
+      <tr><td>Daily poll</td><td class="when">05:00 UTC<small>12:00 AM EST</small></td><td>One vote each game day</td><td>pollVote, offsetDateKey</td></tr>
+      <tr><td>Flex actions</td><td class="when">05:00 UTC<small>12:00 AM EST</small></td><td>Each flex action once per game day. Five in a day complete the flex day.</td><td>awardActions, awardBadge day</td></tr>
+      <tr><td>Daily XP</td><td class="when">05:00 UTC<small>12:00 AM EST</small></td><td>Full XP until 500, half until 900, a quarter until 1,000, then nothing more that game day</td><td>dailyXp, daily_points/{offset day}</td></tr>
+      <tr><td>Timechain TV watch reward</td><td class="when">05:00 UTC<small>12:00 AM EST</small></td><td>100 XP and 1 orange ticket after 10 credited minutes, once per game day</td><td>tctvWatch.offsetDateKey</td></tr>
+      <tr><td>Sats pot daily cap</td><td class="when">05:00 UTC<small>12:00 AM EST</small></td><td>The pot fills toward 5,000 sats and is not on a clock. The site adds at most 1,000 sats per game day.</td><td>tctvDripLogic.planAccrual</td></tr>
+      <tr><td>Nacho chat ticket and first global-chat ticket</td><td class="when">05:00 UTC<small>12:00 AM EST</small></td><td>Once per game day on the server. A browser may hide the button until midnight on that device.</td><td>ticketGrants.offsetDay</td></tr>
+      <tr><td>Nook daily caps</td><td class="when">05:00 UTC<small>12:00 AM EST</small></td><td>Hash boosters 10 a day. Bonus spins 5 a day.</td><td>nookShop.offsetDay</td></tr>
+      <tr><td>Proof of Walk day, charity donation day</td><td class="when">05:00 UTC<small>12:00 AM EST</small></td><td>Once each game day</td><td>getOffsetDateKey</td></tr>
+      <tr><td>Peer key send</td><td class="when">00:00 UTC<small>7:00 PM EST</small></td><td>One send of up to 3 keys per peer per UTC day. A send is also refused until 05:00 UTC when yesterday's UTC pair still matches the game-day check.</td><td>sendKeys, utcDateKey and getOffsetDateKey</td></tr>
+      <tr><td>Cipher opens</td><td class="when">00:00 UTC<small>7:00 PM EST</small></td><td>21 opens per UTC day. XP from the open still counts on the 05:00 UTC game day.</td><td>decryptCipher, ciphersDecryptedDate</td></tr>
+      <!-- TODO(sats-caps): figures in the next two rows and in Other → Sats withdrawal are the live constants (faucetGuard MAX_PER_CLAIM_SATS 200, MAX_DAILY_PER_USER_SATS 200, GLOBAL_DAILY_MAX_SATS 10000; cipherSatsClaim CLAIM_MAX 200, PLAYER_DAILY_CAP 200, SITE_DAILY_CAP 2000). No shared cash-out config yet. PR #273 will set max 1,000 sats per cash-out and 2,000 per day across both rails. Read that one constant here and in daily-sats-cap when it exists. -->
+      <tr><td>Cipher sats claims</td><td class="when">00:00 UTC<small>7:00 PM EST</small></td><td>100 to 200 sats per claim, 200 per player per UTC day, 2,000 per UTC day for the whole site. Separate from the faucet clock.</td><td>claimCipherSats, utcDateKey</td></tr>
+      <tr><td>Faucet daily cap</td><td class="when">00:00 UTC<small>7:00 PM EST</small></td><td>200 sats per player and 10,000 sats site-wide per UTC day. The 24-hour wait between claims is separate and listed under Other.</td><td>claimSats, sats_daily/{UTC date}</td></tr>
+      <tr><td>Scholar exam</td><td class="when">00:00 UTC<small>7:00 PM EST</small></td><td>One try per UTC day. The attempt itself lasts 10 minutes, plus 2 minutes of grace on submit.</td><td>scholarAttempt.utcDay</td></tr>
+      <tr><td>Streak reminder (existing push)</td><td class="when">00:00 UTC<small>7:00 PM EST</small></td><td>Daily, only for a streak of 2 or more that has not checked in yet this game day</td><td>streakReminder</td></tr>
+      <tr><td>Spin reminder (existing push)</td><td class="when">10:00 AM ET<small>Mon, Wed, Fri</small></td><td>Those three mornings, America/New_York</td><td>spinReminder</td></tr>
+      <tr><td>Yesterday's topic comments</td><td class="when">05:15 UTC<small>12:15 AM EST</small></td><td>Credits comments that stayed up a day. Runs after the game day closes.</td><td>creditMatureTopicComments</td></tr>
+      <tr><td>Daily trifecta and Daily Five reconcile</td><td class="when">05:15 UTC<small>12:15 AM EST</small></td><td>Catches the game day that just ended</td><td>reconcileDailyProofs</td></tr>
+      <tr><td>Badge rarity numbers</td><td class="when">05:30 UTC<small>12:30 AM EST</small></td><td>Refreshed once a day after the game day closes</td><td>refreshBadgeDistribution</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sec">Weekly</h2>
+  <p class="note">The week used for XP, quests, and prediction prizes ends Monday at 05:00 UTC.</p>
+  <table>
+    <thead><tr><th>What</th><th>Resets</th><th>Cadence</th><th>Enforced by</th></tr></thead>
+    <tbody>
+      <tr><td>Weekly XP leaderboard</td><td class="when">Monday 05:00 UTC<small>Monday 12:00 AM EST</small></td><td>Weekly XP starts over. Top 10 earn 25 orange tickets.</td><td>resetWeeklyXP</td></tr>
+      <tr><td>Weekly quest leaderboard</td><td class="when">Monday 05:00 UTC<small>Monday 12:00 AM EST</small></td><td>Same Monday boundary as weekly XP</td><td>payWeeklyQuestLB</td></tr>
+      <tr><td>Weekly prediction prizes</td><td class="when">Monday 05:00 UTC<small>Monday 12:00 AM EST</small></td><td>Top 5 with at least 5 resolved predictions earn 25 orange tickets</td><td>payWeeklyPredictors</td></tr>
+      <tr><td>Quest reminder (existing push)</td><td class="when">Monday 15:00 UTC<small>Monday 10:00 AM EST</small></td><td>One nudge on Monday afternoon UTC</td><td>weeklyQuestReminder</td></tr>
+      <tr><td>Hot Topics</td><td class="when">Sunday 10:00 PM ET</td><td>America/New_York, so the clock does not move with daylight saving</td><td>refreshHotTopics</td></tr>
+      <tr><td>Raid boss weekly update</td><td class="when">Sunday 7:00 PM ET</td><td>One Global Chat post per Eastern week</td><td>raidBossWeeklyAnnouncement</td></tr>
+      <tr><td>Streak and quest boards</td><td class="when">Every 60 minutes</td><td>The public lists refresh. They are not wiped on this timer.</td><td>refreshStreakLeaderboard, refreshQuestLeaderboard</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sec">Monthly</h2>
+  <p class="note">Monthly XP and monthly prediction prizes close at 00:00 UTC on the 1st. The monthly quest board waits until 05:00 UTC that same morning. The raffle is later the same UTC day.</p>
+  <table>
+    <thead><tr><th>What</th><th>Resets</th><th>Cadence</th><th>Enforced by</th></tr></thead>
+    <tbody>
+      <tr><td>Monthly XP leaderboard</td><td class="when">00:00 UTC on the 1st<small>7:00 PM EST on the last day</small></td><td>Monthly XP starts over. Top 10 earn 100 orange tickets.</td><td>resetMonthlyXP</td></tr>
+      <tr><td>Monthly prediction prizes</td><td class="when">00:00 UTC on the 1st<small>7:00 PM EST on the last day</small></td><td>Top 5 with at least 15 resolved predictions</td><td>payMonthlyPredictors</td></tr>
+      <tr><td>Monthly quest leaderboard</td><td class="when">05:00 UTC on the 1st<small>12:00 AM EST on the 1st</small></td><td>Five hours after monthly XP closes</td><td>payMonthlyQuestLB</td></tr>
+      <tr><td>Orange Ticket raffle</td><td class="when">18:00 UTC on the 1st<small>1:00 PM EST, 2:00 PM EDT</small></td><td>One winner. Entries go back to zero. Shop cap is 150 entries per UTC month.</td><td>monthlyRaffleDraw, nookShop raffle monthlyCap</td></tr>
+      <tr><td>New raid boss</td><td class="when">1:00 PM ET on the 1st</td><td>America/New_York. A new boss stays until 1:00 PM ET on the next 1st. An hourly check on the 1st and 2nd catches a missed start.</td><td>scheduleRaidBoss</td></tr>
+      <tr><td>Spam Hasher</td><td class="when">UTC month</td><td>4 charges per UTC month</td><td>nookShop monthlyCap</td></tr>
+    </tbody>
+  </table>
+
+  <h2 class="sec">Other</h2>
+  <p class="note">These are not a daily, weekly, or monthly wall-clock reset.</p>
+  <table>
+    <thead><tr><th>What</th><th>Resets</th><th>Cadence</th><th>Enforced by</th></tr></thead>
+    <tbody>
+      <tr><td>Sats withdrawal</td><td class="when">24 hours after the last claim</td><td>100 to 200 sats per claim, 200 per UTC day, 15,000 lifetime, account at least 7 days old</td><td>FAUCET.COOLDOWN_HOURS</td></tr>
+      <tr><td>Username change</td><td class="when">24 hours after the last rename</td><td>One free rename can skip the wait once</td><td>usernamePolicy.RENAME_MS</td></tr>
+      <tr><td>Double XP</td><td class="when">60 minutes or 3 hours from when you start it</td><td>Cannot be stacked more than 6 hours ahead</td><td>nookShop double_xp</td></tr>
+      <tr><td>Satoshi's Favor window</td><td class="when">60 minutes from the moment the meter fills</td><td>Not on a clock. A job checks every minute and closes a window that has ended. Bonus minutes can extend it.</td><td>FAVOR_DURATION_MINUTES, satoshiFavorAutoReset</td></tr>
+      <tr><td>Satoshi's Favor epoch</td><td class="when">Every 5 blocks</td><td>Those 5 winners split 21,000 sats. Epochs are not a calendar reset.</td><td>poolEpoch in satoshiFavor</td></tr>
+      <tr><td>Favor difficulty</td><td class="when">Checked 12:10 AM ET daily</td><td>The target itself moves about every 14 days, and at most 4× either way</td><td>favorDifficultyRetarget, RETARGET_DAYS</td></tr>
+      <tr><td>Hash rate</td><td class="when">10 hashes per 60 seconds per rig</td><td>A hash booster bypasses that cooldown until its hashes are gone. A second rig has its own limit for one window.</td><td>HASH_WINDOW_MS</td></tr>
+      <tr><td>Prediction results</td><td class="when">Every 6 hours</td><td>00:00, 06:00, 12:00, and 18:00 UTC</td><td>resolvePredictions</td></tr>
+      <tr><td>Referral rewards</td><td class="when">Every 60 minutes</td><td>Paid after a friend you invited qualifies</td><td>payQualifiedReferrals</td></tr>
+      <tr><td>PvP lobby</td><td class="when">45 seconds without a heartbeat</td><td>A waiting lobby goes stale. Shouts are at most every 15 minutes. Empty lobbies are cleaned every 5 minutes. A taunt waits 3 seconds.</td><td>pvpFlow, cleanupExpiredLobbies</td></tr>
+      <tr><td>Raid forum credit</td><td class="when">24 hours after a post</td><td>Checked hourly at :15</td><td>scheduleRaidForumCredit</td></tr>
+    </tbody>
+  </table>
+</div>
+</body>
+</html>

@@ -450,8 +450,8 @@ function eligibleUser(extra) {
     assert.strictEqual(html, read('404.html'));
     assert.ok(html.includes('id="signupBirthdayMonth"'));
     assert.ok(html.includes('not shared'));
-    assert.ok(html.includes('ranking.js?v=20261109_v2534'));
-    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2534'"));
+    assert.ok(html.includes('ranking.js?v=20261109_v2541'));
+    assert.ok(read('sw.js').includes("const CACHE_NAME = 'btc-archive-v2541'"));
 
     const ranking = read('ranking.js');
     assert.ok(ranking.includes("collection('birthday_private').doc('profile')"));
