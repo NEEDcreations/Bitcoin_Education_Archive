@@ -93,6 +93,19 @@ function planCheckin(prev, ctx) {
     return { credit, reason: 'ok', patch };
 }
 
+// How many viewers may move sats on this tick.
+// liveTotal is the public header (tctv_counts/live). Logged-out clients can
+// create v_ presence docs, so that total must not fill the pot. crediting is
+// the count of signed-in, age-ok, device-locked check-ins that actually
+// credited inside the fresh window. Zero of those means zero accrual, even
+// if liveTotal is maxed out.
+function accrualViewers(liveTotal, crediting) {
+    void liveTotal;
+    const n = Math.floor(Number(crediting));
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return n;
+}
+
 // Stepped fill rate from active viewers (capped at maxCountedViewers).
 // 0 -> 0; 1-4 -> 1 sat/min; >=5 -> floor(N/5) * satsPerFiveViewers.
 function rateFromViewers(activeViewers, cfg) {
@@ -224,5 +237,5 @@ function isAgentOrBlocked(user) {
 
 module.exports = {
     DEFAULTS, CREDIT_SECONDS, MIN_GAP_MS, ACTIVE_WINDOW_MS, DEVICE_HOLD_MS,
-    readConfig, validDeviceId, nextPromptMs, promptIsAnswered, planCheckin, rateFromViewers, planAccrual, planShares, projectShares, fillShares, eligibleEntries, shareCap, planReserve, isAgentOrBlocked,
+    readConfig, validDeviceId, nextPromptMs, promptIsAnswered, planCheckin, accrualViewers, rateFromViewers, planAccrual, planShares, projectShares, fillShares, eligibleEntries, shareCap, planReserve, isAgentOrBlocked,
 };

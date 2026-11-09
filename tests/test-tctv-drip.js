@@ -18,6 +18,20 @@ for (const [n, want] of stepCases) {
     assert.strictEqual(a0.ratePerMin, want, 'ratePerMin viewers=' + n);
     assert.strictEqual(a0.add, want, 'add viewers=' + n);
 }
+// 50 forged presence viewers and no crediting check-in add nothing.
+assert.strictEqual(L.accrualViewers(50, 0), 0);
+let forged = L.planAccrual({ sats: 0 }, L.accrualViewers(50, 0), L.readConfig({}), 'd1');
+assert.strictEqual(forged.add, 0);
+assert.strictEqual(forged.sats, 0);
+assert.strictEqual(forged.ratePerMin, 0);
+let forgedDay = { sats: 0 };
+for (let i = 0; i < 1440; i++) forgedDay = Object.assign({}, forgedDay, L.planAccrual(forgedDay, L.accrualViewers(50, 0), L.readConfig({}), 'd1'));
+assert.strictEqual(forgedDay.sats, 0);
+assert.strictEqual(forgedDay.dayAccrued, 0);
+// Real check-ins set the rate. Extra fake presence cannot raise it.
+assert.strictEqual(L.planAccrual({ sats: 0 }, L.accrualViewers(50, 4), L.readConfig({}), 'd1').add, 1);
+assert.strictEqual(L.planAccrual({ sats: 0 }, L.accrualViewers(50, 10), L.readConfig({}), 'd1').add, 10);
+assert.strictEqual(L.planAccrual({ sats: 0 }, L.accrualViewers(50, 10), L.readConfig({}), 'd1').ratePerMin, 10);
 // accrual (stepped: 10 viewers -> 10 sats/min; 50 -> 50)
 let a = L.planAccrual({ sats: 0 }, 10, cfg, 'd1'); assert.strictEqual(a.sats, 10); assert.strictEqual(a.ratePerMin, 10);
 a = L.planAccrual({ sats: 0 }, 500, cfg, 'd1'); assert.strictEqual(a.viewers, 50); assert.strictEqual(a.sats, 50); assert.strictEqual(a.ratePerMin, 50);
@@ -154,8 +168,9 @@ console.log('tctvDripLogic: all tests passed');
     assert.ok(src.includes('td-bubble-share'), 'share visible when minimized');
     assert.ok(!/addDoc|\.set\(|\.update\(/.test(src.replace(/localStorage\.setItem/g, '')), 'client never writes pot data');
     const srv = require('fs').readFileSync(require('path').join(__dirname, '..', 'functions', 'tctv-drip.js'), 'utf8');
-    assert.ok(srv.includes("collection('tctv_counts').doc('live')") && srv.includes('liveViewerTotal'), 'tick reads the live viewcount');
-    assert.ok(!srv.includes("where('activeMs'"), 'pot watcher count is not the drip check-in count');
+    assert.ok(srv.includes("collection('tctv_counts').doc('live')") && srv.includes('liveViewerTotal'), 'tick reads the live viewcount for display');
+    assert.ok(srv.includes("where('activeMs'") && srv.includes('accrualViewers(liveN, crediting)'), 'sats follow crediting check-ins');
+    assert.ok(srv.includes('logic.planAccrual(pot, moneyN'), 'planAccrual does not take the live total');
     const D = L.readConfig({});
     assert.strictEqual(D.promptMinMinutes, 15); assert.strictEqual(D.promptMaxMinutes, 40); assert.strictEqual(D.promptAnswerSeconds, 120);
 }

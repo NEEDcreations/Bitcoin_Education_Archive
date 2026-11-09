@@ -27,6 +27,24 @@ function read(rel) {
     return fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
 }
 
+function cacheNameOf(sw) {
+    const m = sw.match(/const CACHE_NAME = '(btc-archive-v\d+)'/);
+    assert.ok(m, 'sw.js sets CACHE_NAME');
+    return m[1];
+}
+
+function scriptBuster(html, file) {
+    const re = new RegExp('(?:^|[^a-z.-])' + file.replace(/\./g, '\\.') + '\\?v=(\\d{8}_v\\d+)', 'g');
+    const versions = [];
+    let m;
+    while ((m = re.exec(html))) versions.push(m[1]);
+    assert.ok(versions.length > 0, file + ' cache buster');
+    versions.forEach(function (v) { assert.strictEqual(v, versions[0], file); });
+    const q = file + '?v=' + versions[0];
+    assert.ok(read('404.html').includes(q), '404 ' + q);
+    return q;
+}
+
 const T0 = Date.parse('2026-10-22T15:00:00.000Z');
 
 function fresh(extra) {
@@ -394,7 +412,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(html.includes('features.registry.js?v=20261104_v2482'));
+    assert.ok(html.includes(scriptBuster(html, 'features.registry.js')));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2361'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2357'));
     assert.ok(!html.includes('features.registry.js?v=20261024_v2355'));
@@ -420,7 +438,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(spin >= 0 && spin < watchBtn && watchBtn < predict && predict < hi && hi < story);
     const sw = read('sw.js');
 
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2455'"));
+    assert.ok(sw.includes("const CACHE_NAME = '" + cacheNameOf(sw) + "'"));
     assert.ok(!sw.includes('btc-archive-v2438'));
     assert.ok(!sw.includes('btc-archive-v2437'));
     assert.ok(!sw.includes('btc-archive-v2436'));

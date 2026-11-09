@@ -83,8 +83,8 @@ const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true }).https.onC
             // Ineligible-by-age accounts still get a watch doc (for the UI) but never accrue seconds.
             const patch = Object.assign({}, plan.patch);
             if (ageOk !== true) delete patch.seconds;
-            // activeMs is the last credited check-in. The pot's watcher count is
-            // tctv_counts/live (the header by the Blocksurf button), not this field.
+            // activeMs marks a check-in that credited. The fill rate counts those
+            // docs. liveViewers on the pot is only the public header total.
             if (plan.credit > 0 && ageOk === true) patch.activeMs = nowMs;
             tx.set(wRef, Object.assign(base, patch), { merge: true });
             tx.set(devRef, { uid, lastMs: nowMs }, { merge: true });
@@ -204,13 +204,24 @@ async function refreshProjections(potId, cfg) {
     await commit();
 }
 
-// The header next to Blocksurf reads tctv_counts/live. The pot's watcher
-// count and its stepped fill rate use that same aggregate, not the count of
-// drip check-ins (those stay at 0 while a prompt tap is rejected).
+// The header next to Blocksurf reads tctv_counts/live. That total is display
+// only. Logged-out clients may create v_ presence docs, so it must not move sats.
 async function readLiveViewerTotal() {
     const snap = await db.collection('tctv_counts').doc('live').get();
     const data = snap.exists ? (snap.data() || {}) : {};
     return Math.max(0, Math.floor(tctvPresence.liveViewerTotal(data.stations)));
+}
+
+// Signed-in, age-ok, device-locked check-ins that credited in this window.
+// activeMs is written only on those check-ins, and clients cannot write the doc.
+async function countCrediting(potId, nowMs) {
+    if (!potId) return 0;
+    const active = await db.collection('tctv_drip_watch')
+        .where('potId', '==', potId)
+        .where('activeMs', '>=', nowMs - logic.ACTIVE_WINDOW_MS)
+        .count()
+        .get();
+    return active.data().count || 0;
 }
 
 async function runTick() {
@@ -224,10 +235,14 @@ async function runTick() {
     }
     if (!cfg.enabled) return;
 
-    const n = await readLiveViewerTotal();
+    const liveN = await readLiveViewerTotal();
     if (pot.status === 'filling') {
-        const acc = logic.planAccrual(pot, n, cfg, offsetDateKey(nowMs));
-        const patch = { sats: acc.sats, viewers: acc.viewers, liveViewers: n, ratePerMin: acc.ratePerMin, dayKey: acc.dayKey, dayAccrued: acc.dayAccrued, target: cfg.targetSats, lastTickMs: nowMs };
+        const crediting = await countCrediting(pot.potId, nowMs);
+        const moneyN = logic.accrualViewers(liveN, crediting);
+        const acc = logic.planAccrual(pot, moneyN, cfg, offsetDateKey(nowMs));
+        // liveViewers and ratePerMin are the header. sats moved only for moneyN.
+        const displayRate = logic.rateFromViewers(liveN, cfg);
+        const patch = { sats: acc.sats, viewers: acc.viewers, liveViewers: liveN, ratePerMin: displayRate, dayKey: acc.dayKey, dayAccrued: acc.dayAccrued, target: cfg.targetSats, lastTickMs: nowMs };
         if (acc.burst) { patch.bursts = (pot.bursts || 0) + 1; patch.lastBurstMs = nowMs; }
         if (acc.full) patch.status = 'full';
         await potRef.set(patch, { merge: true });
@@ -238,11 +253,11 @@ async function runTick() {
     if (pot.status === 'full' || pot.status === 'held') {
         // Keep the published count on the live aggregate while payout waits.
         // Accrual stays off: a full pot does not keep filling.
-        const rate = logic.rateFromViewers(n, cfg);
-        const viewers = Math.min(n, cfg.maxCountedViewers);
-        if (Number(pot.liveViewers) !== n || Number(pot.ratePerMin) !== rate) {
-            await potRef.set({ liveViewers: n, viewers: viewers, ratePerMin: rate }, { merge: true });
-            pot.liveViewers = n;
+        const rate = logic.rateFromViewers(liveN, cfg);
+        const viewers = Math.min(liveN, cfg.maxCountedViewers);
+        if (Number(pot.liveViewers) !== liveN || Number(pot.ratePerMin) !== rate) {
+            await potRef.set({ liveViewers: liveN, viewers: viewers, ratePerMin: rate }, { merge: true });
+            pot.liveViewers = liveN;
             pot.viewers = viewers;
             pot.ratePerMin = rate;
         }
