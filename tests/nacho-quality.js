@@ -35,6 +35,7 @@ function mockFetch(url) {
     if (u.indexOf('/difficulty-adjustment') !== -1) return json({ difficultyChange: 1.2, remainingBlocks: 1000, progressPercent: 50 });
     if (u.indexOf('/api/mempool') !== -1) return json({ count: 25000, vsize: 80e6 });
     if (u.indexOf('/lightning/') !== -1) return json({ latest: { total_capacity: 5000, node_count: 16000, channel_count: 70000 } });
+    if (u.indexOf('/products/BTC-USD/stats') !== -1) return json({ open: '98522.66', high: '102000', low: '97000', last: '100000.50' });
     if (u.indexOf('coinbase.com') !== -1) return json({ data: { amount: '100000.50' } });
     if (u.indexOf('kraken.com') !== -1) {
         return json({ result: { XXBTZUSD: { c: ['101500'], o: '100000', h: ['102000', '102000'], l: ['99000', '99000'], v: ['10', '10'] } } });
@@ -71,7 +72,7 @@ const CASES = [
     { q: 'What is the mempool?', kind: 'live', num: function(a, d) { return within(grouped(a, /([0-9,]+)\s+transactions/), d.mempoolTxs); } },
     { q: 'How many bitcoin have been mined?', kind: 'live', num: function(a, d) { return within(grouped(a, /About\s+([0-9,]+)/), d.supply); } },
     { q: "What is Bitcoin's all-time high?", kind: 'live', source: /CoinGecko/, nfa: true, num: function(a, d) { return within(grouped(a, /\$([0-9,]+)/), d.ath); } },
-    { q: 'How much did Bitcoin change in 24 hours?', kind: 'live', source: /Kraken/, nfa: true, num: function(a, d) { return within(grouped(a, /([0-9.]+)%/), d.change24h); } },
+    { q: 'How much did Bitcoin change in 24 hours?', kind: 'live', source: /Coinbase/, nfa: true, num: function(a, d) { return within(grouped(a, /([0-9.]+)%/), Math.abs(d.change24h)); } },
     { q: 'What is a satoshi?', kind: 'model' },
     { q: 'What is Bitcoin?', kind: 'kb' },
     { q: 'How does Bitcoin mining work?', kind: 'kb' },
