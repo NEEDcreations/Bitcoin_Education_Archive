@@ -168,16 +168,19 @@ test('audit script is read-only and the credit script defaults to dry-run', func
     execFileSync(process.execPath, ['--check', path.join(root, 'scripts', 'tctv-drip-minute-credit.js')], { stdio: 'pipe' });
 });
 
-test('no Coldcard video remains on any Timechain TV station, tutorials included', function () {
+test('no Coldcard, Coinkite, Blockclock, or NVK video remains on Timechain TV', function () {
     const src = fs.readFileSync(path.join(__dirname, '..', 'timechain-tv.js'), 'utf8');
     assert.ok(src.includes('id:"tutorials"'));
+    assert.ok(!src.includes('NVK (Coinkite)'));
+    assert.ok(!src.includes('32SZtxE0sWQ') && !src.includes('N6ax-ZmTsDc') && !src.includes('Ro6FdAnF_W0'));
     const re = /\{id:"([^"]+)",title:"([^"]*)",duration:(\d+)\}/g;
     const bad = [];
     let m;
     let n = 0;
+    const banned = /cold\s*card|coinkite|block\s*clock|opendime|sats\s*card|tapsigner|\bnvk\b|novak|rodolfo/i;
     while ((m = re.exec(src))) {
         n++;
-        if (/cold\s*card/i.test(m[2])) bad.push(m[1] + ' ' + m[2]);
+        if (banned.test(m[2])) bad.push(m[1] + ' ' + m[2]);
     }
     assert.ok(n > 7000);
     assert.deepStrictEqual(bad, []);
