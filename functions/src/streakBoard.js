@@ -11,8 +11,8 @@
 
 const { offsetDateKey } = require('./offsetDay');
 
-const BOARD_SIZE = 25;
-const FETCH_LIMIT = 200;
+const BOARD_SIZE = 50;
+const FETCH_LIMIT = 50;
 const DEBOUNCE_MS = 60 * 1000;
 const PIC_MAX = 8000;
 const DOC_MAX = 800000;

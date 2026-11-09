@@ -197,7 +197,7 @@ async function takeRate(db, uid, nowMs, max) {
 
 async function suggestNames(db, prefix, callerUid) {
     const lower = String(prefix || '');
-    if (lower.length < 2 || !/^[a-z0-9_\-.]+$/.test(lower)) return [];
+    if (lower.length < 1 || !/^[a-z0-9_\-.]+$/.test(lower)) return [];
     const end = lower + '\uf8ff';
     const snap = await db.collection('public_profiles')
         .where('username_lower', '>=', lower)

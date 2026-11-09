@@ -1048,8 +1048,50 @@
             name: escapeCardText(String(opts.name || '')),
             cta: CTA,
             url: url,
+            shellOnly: opts.shellOnly === true,
             canvas: opts.canvas && opts.canvas.getContext ? opts.canvas : null
         });
+    }
+
+    // Fills the shell after the card is drawn. The image is a lazy blob.
+    function setSheetCanvas(canvas, meta) {
+        var d = doc();
+        var overlay = d && d.getElementById('bqShareSheet');
+        if (!overlay || !canvas || !canvas.getContext) return;
+        overlay._bqCanvas = canvas;
+        meta = meta || {};
+        if (meta.title) {
+            var h = d.getElementById('bqShareSheetTitle');
+            if (h) h.textContent = String(meta.title);
+        }
+        if (meta.name) {
+            var n = overlay.querySelector('[data-bq-share-name]');
+            if (n) n.textContent = String(meta.name);
+        }
+        var slot = overlay.querySelector('[data-bq-card-slot]');
+        function place(node) {
+            if (!overlay.isConnected) return;
+            if (slot && slot.parentNode) slot.replaceWith(node);
+            else {
+                var old = overlay.querySelector('[data-bq-card="custom"]');
+                if (old && old.parentNode && old !== node) old.replaceWith(node);
+            }
+        }
+        if (canvas.toBlob) {
+            canvas.toBlob(function (blob) {
+                if (!blob) { place(canvas); return; }
+                var img = d.createElement('img');
+                img.alt = 'Rank card';
+                img.loading = 'lazy';
+                img.decoding = 'async';
+                img.setAttribute('data-bq-card', 'custom');
+                img.style.cssText = 'width:min(100%,360px);height:auto;border-radius:12px;background:#111;display:block;margin:0 auto;';
+                img.src = URL.createObjectURL(blob);
+                place(img);
+            }, 'image/png');
+            return;
+        }
+        place(canvas);
     }
 
     function paintSheet(model) {
@@ -1079,16 +1121,25 @@
         head.appendChild(close);
         panel.appendChild(head);
         var name = d.createElement('p');
+        name.setAttribute('data-bq-share-name', '1');
         name.textContent = model.name;
         name.style.cssText = 'margin:8px 0;color:#e5e7eb;';
         panel.appendChild(name);
         var land = d.createElement('canvas');
         land.setAttribute('data-bq-card', 'landscape');
         land.style.cssText = 'width:100%;height:auto;border-radius:12px;background:#111;';
-        if (model.canvas) {
+        if (model.shellOnly) {
+            land = d.createElement('div');
+            land.setAttribute('data-bq-card-slot', '1');
+            land.setAttribute('data-bq-card', 'custom');
+            var frameUrl = '';
+            try { frameUrl = host._lbShareFrameUrl || ''; } catch (e) { frameUrl = ''; }
+            land.style.cssText = 'width:min(100%,360px);aspect-ratio:1;margin:0 auto;border-radius:12px;border:4px solid #f7931a;background:' + (frameUrl ? 'url("' + frameUrl + '") center/cover no-repeat,' : '') + 'linear-gradient(135deg,#0b1220,#1a1206);';
+        } else if (model.canvas) {
             land = model.canvas;
             land.setAttribute('data-bq-card', 'custom');
             land.style.cssText = 'width:min(100%,360px);height:auto;border-radius:12px;background:#111;display:block;margin:0 auto;';
+            overlay._bqCanvas = model.canvas;
         } else drawCard(land, model, 'landscape');
         panel.appendChild(land);
         var squareLabel = d.createElement('p');
@@ -1097,7 +1148,7 @@
         var square = d.createElement('canvas');
         square.setAttribute('data-bq-card', 'square');
         square.style.cssText = 'width:min(100%,360px);height:auto;border-radius:12px;background:#111;';
-        if (!model.canvas) {
+        if (!model.canvas && !model.shellOnly) {
             panel.appendChild(squareLabel);
             drawCard(square, model, 'square');
             panel.appendChild(square);
@@ -1117,7 +1168,7 @@
         actions.className = 'bq-share-actions';
         actions.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;';
         if (host.navigator && host.navigator.share) {
-            actions.appendChild(actionButton('Share', 'Share', function () { nativeShare(model, land); }));
+            actions.appendChild(actionButton('Share', 'Share', function () { nativeShare(model, overlay._bqCanvas || (land && land.toBlob ? land : null)); }));
         }
         actions.appendChild(actionButton('X', 'Share on X', function () {
             host.open(xIntent(model), '_blank', 'noopener,noreferrer');
@@ -1138,8 +1189,8 @@
         actions.appendChild(actionButton('Copy link', 'Copy link', function (btn) {
             copyText(model.url).then(function () { btn.textContent = 'Copied'; });
         }));
-        actions.appendChild(actionButton('Download', 'Download image', function () { downloadCanvas(land, 'bitcoin-quest-' + model.type + '.png'); }));
-        if (!model.canvas) actions.appendChild(actionButton('Download square', 'Download square image', function () { downloadCanvas(square, 'bitcoin-quest-' + model.type + '-square.png'); }));
+        actions.appendChild(actionButton('Download', 'Download image', function () { downloadCanvas(overlay._bqCanvas || (land && land.getContext ? land : null), 'bitcoin-quest-' + model.type + '.png'); }));
+        if (!model.canvas && !model.shellOnly) actions.appendChild(actionButton('Download square', 'Download square image', function () { downloadCanvas(square, 'bitcoin-quest-' + model.type + '-square.png'); }));
         panel.appendChild(actions);
         overlay.appendChild(panel);
         overlay.addEventListener('click', function (e) { if (e.target === overlay) closeSheet(); });
@@ -1468,6 +1519,7 @@
         closeSheet: closeSheet,
         openLinkSheet: openLinkSheet,
         openCanvasSheet: openCanvasSheet,
+        setSheetCanvas: setSheetCanvas,
         serverStreak: serverStreak,
         drawCard: drawCard,
         install: install

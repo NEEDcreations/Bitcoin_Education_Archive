@@ -29,7 +29,7 @@ function createPredictionJobs(db, admin, hooks) {
                 .orderBy('weekCorrect', 'desc')
                 .orderBy('weekTotal', 'desc')
                 .orderBy('weekReachedSort', 'asc')
-                .limit(60);
+                .limit(50);
         }
         if (period === 'monthly') {
             return q.where('monthKey', '==', key).where('qualifiesMonth', '==', true)
@@ -37,14 +37,14 @@ function createPredictionJobs(db, admin, hooks) {
                 .orderBy('monthCorrect', 'desc')
                 .orderBy('monthTotal', 'desc')
                 .orderBy('monthReachedSort', 'asc')
-                .limit(60);
+                .limit(50);
         }
         return q.where('qualifiesAllTime', '==', true)
             .orderBy('predAccuracy', 'desc')
             .orderBy('predCorrect', 'desc')
             .orderBy('predTotal', 'desc')
             .orderBy('reachedSort', 'asc')
-            .limit(60);
+            .limit(50);
     }
 
     async function periodDocs(period, key) {
@@ -61,11 +61,11 @@ function createPredictionJobs(db, admin, hooks) {
                 .where(field, '==', key)
                 .where(totalField, '>=', min)
                 .orderBy(totalField, 'desc')
-                .limit(200)
+                .limit(50)
                 .get();
         } catch (err) {
             console.warn('[predict] period index missing, scanning the week key', err && err.message ? err.message : err);
-            snap = await db.collection('prediction_stats').where(field, '==', key).limit(500).get();
+            snap = await db.collection('prediction_stats').where(field, '==', key).limit(50).get();
         }
         const docs = [];
         snap.forEach(function(doc) {
@@ -82,7 +82,7 @@ function createPredictionJobs(db, admin, hooks) {
                 { uid: b.id, accuracy: right.accuracy, correct: right.correct, total: right.total, reachedAt: right.reachedAt }
             );
         });
-        return docs.slice(0, 60);
+        return docs.slice(0, 50);
     }
 
     async function loadRows(period, key) {

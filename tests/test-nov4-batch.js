@@ -80,11 +80,15 @@ test('chat and ⋯ buttons are not hidden by fab-hold or the chat hub', () => {
     assert.ok(tog.indexOf("_overlayOpen ? 'none'") === -1);
 });
 
-test('share my rank waits for App Check once and retries', () => {
+test('share my rank opens the shell before the lookup', () => {
     const r = read('ranking.js');
+    const body = sliceBetween(r, 'window._lbShareRank = async function', '// Close leaderboard');
+    assert.ok(body.indexOf('shellOnly: true') !== -1);
+    assert.ok(body.indexOf('AS.openCanvasSheet(') < body.indexOf('await _lbShareLookup'));
+    assert.ok(body.indexOf('setSheetCanvas') !== -1);
     const block = sliceBetween(r, 'async function _lbShareLookup', 'function _lbShareFit');
-    assert.ok(block.indexOf('_btcAppCheckForClaim(10000)') !== -1);
-    assert.strictEqual((block.match(/httpsCallable\('leaderboardRank'\)/g) || []).length, 2);
+    assert.strictEqual(block.indexOf('_btcAppCheckForClaim'), -1);
+    assert.strictEqual((block.match(/httpsCallable\('leaderboardRank'\)/g) || []).length, 1);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

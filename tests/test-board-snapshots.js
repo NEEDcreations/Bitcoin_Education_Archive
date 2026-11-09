@@ -43,34 +43,34 @@ test('ghosts are dropped, banned players stay, and emails are not stored', () =>
     assert.strictEqual(raw.indexOf('secret.test'), -1);
     assert.strictEqual(raw.indexOf('email'), -1);
     assert.strictEqual(doc.rankBeyond25.exact, false);
-    assert.strictEqual(doc.rankBeyond25.label, '25+');
+    assert.strictEqual(doc.rankBeyond25.label, '50+');
     assert.ok(doc.rankBeyond25.reason.indexOf('not stored') !== -1);
 });
 
-test('each board stops at 25 and keeps public display fields only', () => {
+test('each board stops at 50 and keeps public display fields only', () => {
     const rows = [];
-    for (let i = 0; i < 40; i++) {
+    for (let i = 0; i < 60; i++) {
         rows.push(profile('u' + i, {
             username: 'N' + String(i).padStart(2, '0'),
             points: i + 1,
             weeklyXP: i + 1,
-            monthlyXP: 40 - i,
+            monthlyXP: 60 - i,
             email: 'n' + i + '@secret.test',
             profilePic: 'https://example.com/a.png'
         }));
     }
     const all = boards.buildXpDoc(rows, boards.BOARDS.xpAll, 50);
-    assert.strictEqual(all.rows.length, 25);
-    assert.strictEqual(all.rows[0].username, 'N39');
-    assert.strictEqual(all.rows[0].value, 40);
-    assert.strictEqual(all.rows[24].value, 16);
+    assert.strictEqual(all.rows.length, 50);
+    assert.strictEqual(all.rows[0].username, 'N59');
+    assert.strictEqual(all.rows[0].value, 60);
+    assert.strictEqual(all.rows[49].value, 11);
     assert.strictEqual(all.intervalMs, 15 * 60 * 1000);
     const week = boards.buildXpDoc(rows, boards.BOARDS.xpWeek, 50);
     assert.strictEqual(week.intervalMs, 10 * 60 * 1000);
-    assert.strictEqual(week.rows[0].value, 40);
+    assert.strictEqual(week.rows[0].value, 60);
     const month = boards.buildXpDoc(rows, boards.BOARDS.xpMonth, 50);
     assert.strictEqual(month.rows[0].username, 'N00');
-    assert.strictEqual(month.rows[0].value, 40);
+    assert.strictEqual(month.rows[0].value, 60);
     const packed = JSON.stringify(all.rows[0]);
     ['email', 'bio', 'known_ips', 'fingerprint'].forEach(function (field) {
         assert.strictEqual(packed.indexOf(field), -1, field);
@@ -88,18 +88,22 @@ test('pvp keeps wins and losses and sorts by win rate', () => {
     assert.deepStrictEqual(doc.rows.map(function (r) { return r.username; }), ['High', 'Banned', 'Low']);
     assert.strictEqual(doc.rows[0].wins, 9);
     assert.strictEqual(doc.rows[0].losses, 1);
+    assert.strictEqual(boards.pvpRecordText(9, 1), '9W - 1L · 90%');
+    assert.strictEqual(boards.pvpRecordText(2, 1), '2W - 1L · 67%');
+    assert.strictEqual(boards.pvpRecordText(0, 0), '0W - 0L · 0%');
+    assert.strictEqual(boards.pvpRecordText(0, 4), '0W - 4L · 0%');
     assert.ok(doc.rows[0].value > doc.rows[2].value);
     assert.strictEqual(JSON.stringify(doc).indexOf('secret.test'), -1);
     assert.strictEqual(doc.intervalMs, 15 * 60 * 1000);
 });
 
-test('favor and raid drop ghosts and cap at 25', () => {
+test('favor and raid drop ghosts and cap at 50', () => {
     const rows = [];
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 60; i++) {
         rows.push(profile('h' + i, {
             username: 'H' + i,
             sfTotalHashes: (i + 1) * 10,
-            sfBlocksFound: i === 29 ? 2 : 0,
+            sfBlocksFound: i === 59 ? 2 : 0,
             sfBestHash: 1000 - i,
             firstHashAt: 1700000000000,
             raidDamageAllTime: i + 1,
@@ -109,17 +113,17 @@ test('favor and raid drop ghosts and cap at 25', () => {
     rows.push(profile('gh', { username: 'Ghost', sfTotalHashes: 999999, raidDamageAllTime: 999999, ghostMode: true, email: 'g@secret.test' }));
     const active = boards.buildFavorDoc(rows, 90, true);
     const idle = boards.buildFavorDoc(rows, 90, false);
-    assert.strictEqual(active.rows.length, 25);
+    assert.strictEqual(active.rows.length, 50);
     assert.strictEqual(active.favorActive, true);
     assert.strictEqual(active.intervalMs, 5 * 60 * 1000);
     assert.strictEqual(idle.intervalMs, 30 * 60 * 1000);
     assert.strictEqual(idle.favorActive, false);
-    assert.strictEqual(active.rows[0].username, 'H29');
+    assert.strictEqual(active.rows[0].username, 'H59');
     assert.strictEqual(active.rows[0].blocks, 2);
-    assert.strictEqual(active.rows[0].bestHash, 971);
+    assert.strictEqual(active.rows[0].bestHash, 941);
     const raid = boards.buildRaidDoc(rows, 90);
-    assert.strictEqual(raid.rows.length, 25);
-    assert.strictEqual(raid.rows[0].value, 30);
+    assert.strictEqual(raid.rows.length, 50);
+    assert.strictEqual(raid.rows[0].value, 60);
     assert.strictEqual(raid.rows.some(function (r) { return r.username === 'Ghost'; }), false);
     assert.strictEqual(JSON.stringify(raid).indexOf('secret.test'), -1);
 });
@@ -312,7 +316,7 @@ test('opening a fresh board costs one snapshot read and a cold rebuild reads the
     const agedResult = await boards.refreshBoard(aged, 'xpWeek', now, {});
     assert.strictEqual(agedResult.reason, 'max-age');
     assert.strictEqual(agedResult.skipped, false);
-    assert.strictEqual(aged.state.profileReads, 60);
+    assert.strictEqual(aged.state.profileReads, 50);
 
     const dirty = makeDb({
         docs: {
@@ -323,10 +327,10 @@ test('opening a fresh board costs one snapshot read and a cold rebuild reads the
     });
     const built = await boards.refreshBoard(dirty, 'xpWeek', now, {});
     assert.strictEqual(built.skipped, false);
-    assert.strictEqual(built.rows, 25);
-    assert.strictEqual(dirty.state.profileReads, 60);
+    assert.strictEqual(built.rows, 50);
+    assert.strictEqual(dirty.state.profileReads, 50);
     assert.strictEqual(dirty.state.writes, 1);
-    assert.strictEqual(dirty.state.docs['stats/lb_xp_week'].rows[0].username, 'P59');
+    assert.strictEqual(dirty.state.docs['stats/lb_xp_week'].rows[0].username, 'P49');
     assert.strictEqual(JSON.stringify(dirty.state.docs['stats/lb_xp_week']).indexOf('@'), -1);
 });
 
@@ -377,7 +381,7 @@ test('the client, the visit path, and the rules match the snapshot plan', () => 
     assert.ok(ranking.includes('15 * 60 * 1000'));
     assert.ok(ranking.includes('10 * 60 * 1000'));
     assert.ok(ranking.includes('btc_lb_snap_'));
-    assert.ok(ranking.includes("_rankLabel: '25+'"));
+    assert.ok(ranking.includes("_rankLabel: '50+'"));
     assert.ok(ranking.includes("doc('streak_leaderboard')"));
     assert.ok(ranking.includes("doc('predictor_leaderboard')"));
     assert.ok(ranking.includes('quest_leaderboard_'));
@@ -450,12 +454,12 @@ test('read counts versus the live board, measured on a fake Firestore', async ()
     const pvp = await open('pvp');
     const favor = await open('favor', true);
     const raid = await open('raid');
-    assert.strictEqual(xp.rows, 25);
-    assert.strictEqual(week.profileReads, 60);
-    assert.strictEqual(month.profileReads, 60);
-    assert.strictEqual(pvp.profileReads, 120);
-    assert.strictEqual(favor.profileReads, 60);
-    assert.strictEqual(raid.profileReads, 60);
+    assert.strictEqual(xp.rows, 50);
+    assert.strictEqual(week.profileReads, 50);
+    assert.strictEqual(month.profileReads, 50);
+    assert.strictEqual(pvp.profileReads, 100);
+    assert.strictEqual(favor.profileReads, 50);
+    assert.strictEqual(raid.profileReads, 50);
     const afterOpen = { xp: xp.docReads, week: week.docReads, month: month.docReads, pvp: pvp.docReads, favor: favor.docReads, raid: raid.docReads };
     console.log('BEFORE reads per open ' + JSON.stringify(before));
     console.log('AFTER reads per open (client snapshot, localStorage miss) ' + JSON.stringify(afterOpen));

@@ -10,8 +10,8 @@
 // Profile counters are not a source for this board.
 
 const PASS_SCORE = 3;
-const BOARD_SIZE = 25;
-const FETCH_LIMIT = 200;
+const BOARD_SIZE = 50;
+const FETCH_LIMIT = 50;
 const DEBOUNCE_MS = 60 * 1000;
 const DOC_MAX = 800000;
 const PIC_MAX = 8000;

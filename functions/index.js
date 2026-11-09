@@ -4237,7 +4237,7 @@ exports.refreshQuestLeaderboard = onSchedule({
     }
 });
 
-// Leaderboard snapshots. One stats doc per board, top 25, public read.
+// Leaderboard snapshots. One stats doc per board, top 50, public read.
 // Each run rebuilds a board only when stats/lb_dirty is newer than the
 // snapshot. XP week/month every 10 minutes. XP all-time, PvP, and raid
 // every 15. Favor every 5 minutes, and the function itself waits 30 minutes
