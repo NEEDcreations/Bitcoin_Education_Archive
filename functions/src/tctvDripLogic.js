@@ -19,12 +19,19 @@ const DEFAULTS = Object.freeze({
     promptMinMinutes: 15,
     promptMaxMinutes: 40,
     promptAnswerSeconds: 120,
+    // Linked accounts (same exact IP or same device key) share one share-cap
+    // bucket at payout. Subnet linking is stricter and off by default (CGNAT /
+    // campus networks would merge strangers). Phil may flip it in config.
+    linkBySubnet: false,
 });
 
 const CREDIT_SECONDS = 60;
 const MIN_GAP_MS = 55 * 1000;      // reject rapid/duplicate check-ins
 const ACTIVE_WINDOW_MS = 90 * 1000; // a viewer counts if checked in this recently
 const DEVICE_HOLD_MS = 3 * 60 * 1000;
+// Slack on top of promptAnswerSeconds for the round trip of the tap.
+const ANSWER_GRACE_MS = 10 * 1000;
+const MAX_LINKS = 8;
 
 function num(v, d) { const n = Number(v); return Number.isFinite(n) ? n : d; }
 
@@ -53,9 +60,21 @@ function nextPromptMs(nowMs, cfg, rand) {
 // count even when it lands in the same minute as the check-in that raised the
 // prompt. Raising the prompt must not move lastCheckMs, or the tap is rejected
 // as too-fast and the watcher's seconds (and share) stay at 0.
-function promptIsAnswered(p, now, answer) {
+// The answer window (promptAnswerSeconds) runs from when the server issued
+// the token (promptIssuedMs). A token without an issue time predates the
+// window and counts as expired, so it is re-issued once.
+function promptExpired(p, now, cfg) {
+    if (!p || !p.promptToken) return false;
+    const issued = num(p.promptIssuedMs, 0);
+    if (!issued) return true;
+    const windowMs = num(cfg && cfg.promptAnswerSeconds, DEFAULTS.promptAnswerSeconds) * 1000 + ANSWER_GRACE_MS;
+    return now - issued > windowMs;
+}
+
+function promptIsAnswered(p, now, answer, cfg) {
     const due = num(p.promptDueMs, 0);
-    return !!(due && now >= due && answer && p.promptToken && answer === p.promptToken);
+    if (!(due && now >= due && answer && p.promptToken && answer === p.promptToken)) return false;
+    return !promptExpired(p, now, cfg);
 }
 
 // One check-in. prev = watch doc (or {}), returns {credit, reason, patch, prompt}
@@ -69,7 +88,7 @@ function planCheckin(prev, ctx) {
         return { credit: 0, reason: 'device-in-use', reject: true };
     }
     const last = num(p.lastCheckMs, 0);
-    const answered = promptIsAnswered(p, now, ctx.promptAnswer);
+    const answered = promptIsAnswered(p, now, ctx.promptAnswer, cfg);
     if (!answered && last && now - last < MIN_GAP_MS) return { credit: 0, reason: 'too-fast', reject: true };
     const patch = { lastCheckMs: now };
     let promptDue = num(p.promptDueMs, 0);
@@ -78,11 +97,18 @@ function planCheckin(prev, ctx) {
         if (answered) {
             patch.promptDueMs = nextPromptMs(now, cfg, ctx.rand);
             patch.promptToken = '';
+            patch.promptIssuedMs = 0;
         } else {
-            if (!p.promptToken) patch.promptToken = ctx.newToken;
+            const expired = promptExpired(p, now, cfg);
+            let token = p.promptToken || '';
+            if (!token || expired) {
+                token = ctx.newToken;
+                patch.promptToken = token;
+                patch.promptIssuedMs = now;
+            }
             // Leave lastCheckMs where it was so the tap in this same minute can credit.
             delete patch.lastCheckMs;
-            return { credit: 0, reason: 'prompt', prompt: true, token: p.promptToken || ctx.newToken, patch };
+            return { credit: 0, reason: expired ? 'prompt-expired' : 'prompt', prompt: true, token: token, patch };
         }
     }
     const seconds = num(p.seconds, 0);
@@ -141,7 +167,79 @@ function planAccrual(pot, activeViewers, cfg, dayKey) {
 // Who counts as an eligible watcher for a pot.
 function eligibleEntries(entries, cfg) {
     return (entries || []).filter(e => e && e.uid && Number(e.seconds) >= cfg.minQualifySeconds)
-        .map(e => ({ uid: String(e.uid), seconds: Math.min(Number(e.seconds), cfg.perAccountLimitSeconds) }));
+        .map(e => ({ uid: String(e.uid), seconds: Math.min(Number(e.seconds), cfg.perAccountLimitSeconds), links: Array.isArray(e.links) ? e.links : [] }));
+}
+
+// Link keys for one watch doc. ip:/dev: always, net: only with linkBySubnet.
+function linkKeys(w, cfg) {
+    const src = w || {};
+    const out = [];
+    const add = (prefix, list) => { (Array.isArray(list) ? list : []).slice(0, MAX_LINKS).forEach(v => { if (v) out.push(prefix + String(v)); }); };
+    add('ip:', src.linkIps);
+    add('dev:', src.linkDevices);
+    if (cfg && cfg.linkBySubnet) add('net:', src.linkNets);
+    return out;
+}
+
+// Merge a capped, de-duplicated list of link ids (newest last).
+function mergeLinks(prev, value) {
+    const list = (Array.isArray(prev) ? prev : []).filter(Boolean).map(String);
+    const v = value ? String(value) : '';
+    if (!v || list.indexOf(v) !== -1) return list.slice(-MAX_LINKS);
+    return list.concat([v]).slice(-MAX_LINKS);
+}
+
+// Union-find over accounts that share any link key. Returns groups of
+// eligible entries (Spam/Abuse #278 follow-up: one share-cap bucket per group).
+function groupLinked(elig) {
+    const parent = elig.map((_, i) => i);
+    const find = (i) => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
+    const owner = new Map();
+    elig.forEach((e, i) => {
+        (e.links || []).forEach(k => {
+            if (!owner.has(k)) { owner.set(k, i); return; }
+            const a = find(owner.get(k)), b = find(i);
+            if (a !== b) parent[Math.max(a, b)] = Math.min(a, b);
+        });
+    });
+    const byRoot = new Map();
+    elig.forEach((e, i) => {
+        const r = find(i);
+        if (!byRoot.has(r)) byRoot.set(r, []);
+        byRoot.get(r).push(e);
+    });
+    return Array.from(byRoot.values());
+}
+
+// Split a group's sats among its members by seconds. Whole sats, largest
+// remainder first, ties by uid, so the split is deterministic.
+function splitGroup(members, sats) {
+    const total = members.reduce((t, m) => t + m.seconds, 0);
+    if (members.length === 1) return [{ uid: members[0].uid, seconds: members[0].seconds, sats: sats }];
+    const raw = members.map(m => ({ m, v: total > 0 ? sats * m.seconds / total : sats / members.length }));
+    let given = 0;
+    const out = new Map();
+    raw.forEach(r => { const f = Math.floor(r.v); out.set(r.m.uid, f); given += f; });
+    let left = sats - given;
+    raw.slice().sort((a, b) => (b.v - Math.floor(b.v)) - (a.v - Math.floor(a.v)) || (a.m.uid < b.m.uid ? -1 : 1)).forEach(r => {
+        if (left > 0) { out.set(r.m.uid, out.get(r.m.uid) + 1); left--; }
+    });
+    return members.map(m => ({ uid: m.uid, seconds: m.seconds, sats: out.get(m.uid) || 0 }));
+}
+
+// Water-fill across linked groups, then split inside each group.
+function fillGrouped(elig, pot, cfg) {
+    const groups = groupLinked(elig);
+    const n = groups.length;
+    const cap = shareCap(pot, n, cfg);
+    const bucket = groups.map((g, i) => ({ uid: 'g' + i, seconds: g.reduce((t, m) => t + m.seconds, 0) }));
+    const filled = fillShares(bucket, pot, cap);
+    const bySats = new Map(filled.shares.map(s => [s.uid, s.sats]));
+    let shares = [];
+    groups.forEach((g, i) => { shares = shares.concat(splitGroup(g, bySats.get('g' + i) || 0)); });
+    shares = shares.filter(e => e.sats > 0);
+    const paid = shares.reduce((t, e) => t + e.sats, 0);
+    return { groups: n, linked: groups.filter(g => g.length > 1).length, cap, shares, paid, rollover: pot - paid };
 }
 
 // Per-user cap in whole sats: the larger of userShareCapPct and 2/N of the pot.
@@ -187,15 +285,17 @@ function fillShares(elig, pot, cap) {
 
 // Proportional shares with a per-user cap (water filling).
 // Fewer than minEligibleWatchers qualifiers: no payout (wait: true).
+// eligible counts linked groups, not accounts: a linked ring is one watcher
+// for minEligibleWatchers and for the 2/N cap. accounts is the raw count.
 function planShares(entries, cfg) {
     const pot = Math.floor(cfg.targetSats);
     const elig = eligibleEntries(entries, cfg);
-    const n = elig.length;
+    const n = groupLinked(elig).length;
     const cap = shareCap(pot, n, cfg);
     const minN = Math.max(1, Math.floor(cfg.minEligibleWatchers));
-    if (n < minN) return { wait: true, eligible: n, shares: [], paid: 0, rollover: 0, cap };
-    const filled = fillShares(elig, pot, cap);
-    return { wait: false, eligible: n, shares: filled.shares, paid: filled.paid, rollover: filled.rollover, cap };
+    if (n < minN) return { wait: true, eligible: n, accounts: elig.length, shares: [], paid: 0, rollover: 0, cap };
+    const filled = fillGrouped(elig, pot, cfg);
+    return { wait: false, eligible: n, accounts: elig.length, linkedGroups: filled.linked, shares: filled.shares, paid: filled.paid, rollover: filled.rollover, cap };
 }
 
 // Live UI projection: same math as planShares, but still returns per-uid sats
@@ -206,15 +306,16 @@ function projectShares(entries, cfg) {
     const all = (entries || []).filter(e => e && e.uid).map(e => ({
         uid: String(e.uid),
         seconds: Math.min(Math.max(0, Number(e.seconds) || 0), cfg.perAccountLimitSeconds),
+        links: Array.isArray(e.links) ? e.links : [],
     }));
     const elig = eligibleEntries(all, cfg);
-    const n = elig.length;
+    const n = groupLinked(elig).length;
     const cap = shareCap(pot, n, cfg);
     const minN = Math.max(1, Math.floor(cfg.minEligibleWatchers));
     const waiting = n < minN;
     const byUid = new Map(all.map(e => [e.uid, 0]));
     if (n > 0) {
-        const filled = fillShares(elig, pot, cap);
+        const filled = fillGrouped(elig, pot, cfg);
         for (const s of filled.shares) byUid.set(s.uid, s.sats);
     }
     const shares = all.map(e => ({ uid: e.uid, seconds: e.seconds, sats: byUid.get(e.uid) || 0 }));
@@ -230,6 +331,24 @@ function planReserve(walletSats, alreadyReserved, cfg) {
     return { ok: true, after };
 }
 
+// What a distributing pot gives back to the reserve. Pots reserved before
+// reservedAmount existed fall back to the current targetSats (old behavior).
+function reservedAmountOf(pot, cfg) {
+    const n = Math.floor(num(pot && pot.reservedAmount, 0));
+    return n > 0 ? n : Math.floor(cfg.targetSats);
+}
+
+// The next pot after a successful distribution (whole doc, replaces current).
+function nextPotDoc(cur, plan, cfg, nowMs) {
+    const c = cur || {};
+    const nextNum = (parseInt(String(c.potId).replace(/\D/g, ''), 10) || 1) + 1;
+    return {
+        potId: 'pot' + nextNum, status: 'filling', sats: Math.max(0, Math.min(num(plan && plan.rollover, 0), cfg.targetSats - 1)), viewers: 0, bursts: 0,
+        target: cfg.targetSats, createdMs: nowMs, lastPaidPot: c.potId, lastPaidWinners: (plan && plan.shares ? plan.shares.length : 0),
+        dayKey: c.dayKey || '', dayAccrued: c.dayAccrued || 0,
+    };
+}
+
 function isAgentOrBlocked(user) {
     const u = user || {};
     return u.isBot === true || u.isAgent === true || u.aiAgent === true || u.accountType === 'agent' ||
@@ -237,6 +356,7 @@ function isAgentOrBlocked(user) {
 }
 
 module.exports = {
-    DEFAULTS, CREDIT_SECONDS, MIN_GAP_MS, ACTIVE_WINDOW_MS, DEVICE_HOLD_MS,
+    DEFAULTS, CREDIT_SECONDS, MIN_GAP_MS, ACTIVE_WINDOW_MS, DEVICE_HOLD_MS, ANSWER_GRACE_MS, MAX_LINKS,
+    promptExpired, linkKeys, mergeLinks, groupLinked, splitGroup, fillGrouped, reservedAmountOf, nextPotDoc,
     readConfig, validDeviceId, nextPromptMs, promptIsAnswered, planCheckin, accrualViewers, rateFromViewers, planAccrual, planShares, projectShares, fillShares, eligibleEntries, shareCap, planReserve, isAgentOrBlocked,
 };

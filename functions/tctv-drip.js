@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const logic = require('./src/tctvDripLogic');
 const tctvPresence = require('./tctv-presence-lib');
 const { offsetDateKey } = require('./src/offsetDay');
+const faucetGuard = require('./src/faucetGuard');
 
 const db = admin.firestore();
 const POT_REF = () => db.collection('tctv_drip_pot').doc('current');
@@ -28,6 +29,19 @@ async function loadConfig() {
 
 function watchId(potId, uid) { return String(potId) + '_' + String(uid); }
 
+// Salted hash so the watch doc (readable by its owner) never holds a raw IP.
+function linkHash(kind, value) {
+    if (!value) return '';
+    return crypto.createHash('sha256').update('bq-tctv-link:' + kind + ':' + String(value)).digest('hex').slice(0, 24);
+}
+
+function requestLinks(context) {
+    const ip = faucetGuard.clientIpFromRequest(context && context.rawRequest);
+    const net = faucetGuard.networkKeys(ip);
+    if (!net) return { ip: '', net: '' };
+    return { ip: linkHash('ip', net.exactId), net: linkHash('net', net.rangeId) };
+}
+
 const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
     if (!context.auth) throw HttpsError('unauthenticated', 'Must be signed in');
     const provider = (context.auth.token && context.auth.token.firebase) ? context.auth.token.firebase.sign_in_provider : '';
@@ -38,6 +52,7 @@ const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true }).https.onC
     const deviceKey = crypto.createHash('sha256').update(String(body.deviceId)).digest('hex').slice(0, 32);
     const playing = body.playing === true && body.visible === true;
     const promptAnswer = typeof body.promptToken === 'string' ? body.promptToken.slice(0, 64) : '';
+    const links = requestLinks(context);
 
     const { cfg } = await loadConfig();
     if (!cfg.enabled) return { ok: false, reason: 'off' };
@@ -86,6 +101,10 @@ const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true }).https.onC
             // activeMs marks a check-in that credited. The fill rate counts those
             // docs. liveViewers on the pot is only the public header total.
             if (plan.credit > 0 && ageOk === true) patch.activeMs = nowMs;
+            // Linked-account signals for the payout split (exact IP, device, subnet).
+            patch.linkIps = logic.mergeLinks(prev.linkIps, links.ip);
+            patch.linkDevices = logic.mergeLinks(prev.linkDevices, deviceKey);
+            patch.linkNets = logic.mergeLinks(prev.linkNets, links.net);
             tx.set(wRef, Object.assign(base, patch), { merge: true });
             tx.set(devRef, { uid, lastMs: nowMs }, { merge: true });
         }
@@ -127,7 +146,7 @@ async function loadEntries(potId, cfg) {
         const w = d.data() || {};
         const u = userSnaps[i];
         if (!u.exists || logic.isAgentOrBlocked(u.data()) || w.ageOk !== true) return;
-        entries.push({ uid: w.uid, seconds: Math.min(Number(w.seconds) || 0, cfg.perAccountLimitSeconds) });
+        entries.push({ uid: w.uid, seconds: Math.min(Number(w.seconds) || 0, cfg.perAccountLimitSeconds), links: logic.linkKeys(w, cfg) });
     });
     return entries;
 }
@@ -145,6 +164,7 @@ async function distribute(pot, cfg) {
             const cur = await tx.get(histRef);
             if (cur.exists && Array.isArray((cur.data() || {}).shares)) return cur.data();
             const doc = { potId, paid: plan.paid, rollover: plan.rollover, winners: plan.shares.length, eligible: plan.eligible, cap: plan.cap,
+                accounts: plan.accounts || plan.eligible, linkedGroups: plan.linkedGroups || 0,
                 shares: plan.shares.map(x => ({ uid: x.uid, sats: x.sats, seconds: x.seconds })), at: admin.firestore.FieldValue.serverTimestamp() };
             tx.set(histRef, doc);
             return doc;
@@ -293,7 +313,8 @@ async function runTick() {
             const cur = (await tx.get(potRef)).data() || {};
             if (cur.potId !== pot.potId || (cur.status !== 'full' && cur.status !== 'held')) return false;
             tx.set(resRef, { reservedSats: admin.firestore.FieldValue.increment(cfg.targetSats), holdReason: '' }, { merge: true });
-            tx.set(potRef, { status: 'distributing', reservedMs: nowMs, holdReason: admin.firestore.FieldValue.delete() }, { merge: true });
+            // reservedAmount is what the release gives back, even if targetSats changes meanwhile.
+            tx.set(potRef, { status: 'distributing', reservedMs: nowMs, reservedAmount: cfg.targetSats, holdReason: admin.firestore.FieldValue.delete() }, { merge: true });
             return true;
         });
         if (!flipped) return;
@@ -309,21 +330,24 @@ async function runTick() {
             const released = await db.runTransaction(async (tx) => {
                 const cur = (await tx.get(potRef)).data() || {};
                 if (cur.potId !== pot.potId || cur.status !== 'distributing') return false;
-                tx.set(db.collection('tctv_drip_config').doc('reserve'), { reservedSats: admin.firestore.FieldValue.increment(-cfg.targetSats) }, { merge: true });
-                tx.set(potRef, { status: 'full', waiting: true }, { merge: true });
+                tx.set(db.collection('tctv_drip_config').doc('reserve'), { reservedSats: admin.firestore.FieldValue.increment(-logic.reservedAmountOf(cur, cfg)) }, { merge: true });
+                tx.set(potRef, { status: 'full', waiting: true, reservedAmount: admin.firestore.FieldValue.delete() }, { merge: true });
                 return true;
             });
             if (released) console.log('[tctvDrip] ' + pot.potId + ' waiting for watchers');
             return;
         }
         // The reserve becomes user balances that claimCipherSats pays from the faucet wallet.
-        await db.collection('tctv_drip_config').doc('reserve').set({ reservedSats: admin.firestore.FieldValue.increment(-cfg.targetSats) }, { merge: true });
-        const nextNum = (parseInt(String(pot.potId).replace(/\D/g, ''), 10) || 1) + 1;
-        await potRef.set({
-            potId: 'pot' + nextNum, status: 'filling', sats: Math.min(plan.rollover, cfg.targetSats - 1), viewers: 0, bursts: 0,
-            target: cfg.targetSats, createdMs: nowMs, lastPaidPot: pot.potId, lastPaidWinners: plan.shares.length,
-            dayKey: pot.dayKey || '', dayAccrued: pot.dayAccrued || 0,
+        // Release the reserve and open the next pot in one transaction, guarded on
+        // this pot still distributing, so an overlapping tick cannot release twice.
+        const advanced = await db.runTransaction(async (tx) => {
+            const cur = (await tx.get(potRef)).data() || {};
+            if (cur.potId !== pot.potId || cur.status !== 'distributing') return false;
+            tx.set(db.collection('tctv_drip_config').doc('reserve'), { reservedSats: admin.firestore.FieldValue.increment(-logic.reservedAmountOf(cur, cfg)) }, { merge: true });
+            tx.set(potRef, logic.nextPotDoc(cur, plan, cfg, nowMs));
+            return true;
         });
+        if (!advanced) return;
         console.log('[tctvDrip] distributed ' + pot.potId + ' paid=' + plan.paid + ' winners=' + plan.shares.length);
     }
 }

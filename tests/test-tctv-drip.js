@@ -55,17 +55,17 @@ c = L.planCheckin({}, ctx({ playing: false })); assert.strictEqual(c.credit, 0);
 c = L.planCheckin({}, ctx({ deviceOwner: 'x', deviceLastMs: 1e9 - 1000 })); assert.ok(c.reject);
 c = L.planCheckin({ seconds: cfg.perAccountLimitSeconds, promptDueMs: 2e9 }, ctx()); assert.strictEqual(c.reason, 'limit');
 c = L.planCheckin({ promptDueMs: 1 }, ctx()); assert.ok(c.prompt); assert.strictEqual(c.credit, 0);
-c = L.planCheckin({ promptDueMs: 1, promptToken: 'abc' }, ctx({ promptAnswer: 'abc' })); assert.strictEqual(c.credit, 60);
-c = L.planCheckin({ promptDueMs: 1, promptToken: 'abc' }, ctx({ promptAnswer: 'zzz' })); assert.strictEqual(c.credit, 0);
+c = L.planCheckin({ promptDueMs: 1, promptToken: 'abc', promptIssuedMs: 1e9 - 5000 }, ctx({ promptAnswer: 'abc' })); assert.strictEqual(c.credit, 60);
+c = L.planCheckin({ promptDueMs: 1, promptToken: 'abc', promptIssuedMs: 1e9 - 5000 }, ctx({ promptAnswer: 'zzz' })); assert.strictEqual(c.credit, 0);
 // Raising the prompt must not move lastCheckMs, or the tap in that same minute is too-fast and the share stays 0.
 c = L.planCheckin({ lastCheckMs: 1e9 - 60000, promptDueMs: 1e9 - 1000, seconds: 120 }, ctx());
 assert.ok(c.prompt); assert.strictEqual(c.credit, 0); assert.strictEqual(c.patch.lastCheckMs, undefined);
-c = L.planCheckin({ lastCheckMs: 1e9 - 60000, promptDueMs: 1e9 - 1000, promptToken: 'abc', seconds: 120 }, ctx({ promptAnswer: 'abc' }));
+c = L.planCheckin({ lastCheckMs: 1e9 - 60000, promptDueMs: 1e9 - 1000, promptToken: 'abc', promptIssuedMs: 1e9 - 5000, seconds: 120 }, ctx({ promptAnswer: 'abc' }));
 assert.strictEqual(c.credit, 60); assert.strictEqual(c.reason, 'ok');
 // A tap still counts when an older build already moved lastCheckMs into the gap.
-c = L.planCheckin({ lastCheckMs: 1e9 - 5000, promptDueMs: 1, promptToken: 'abc', seconds: 120 }, ctx({ promptAnswer: 'abc' }));
+c = L.planCheckin({ lastCheckMs: 1e9 - 5000, promptDueMs: 1, promptToken: 'abc', promptIssuedMs: 1e9 - 5000, seconds: 120 }, ctx({ promptAnswer: 'abc' }));
 assert.strictEqual(c.credit, 60);
-c = L.planCheckin({ lastCheckMs: 1e9 - 5000, promptDueMs: 1, promptToken: 'abc' }, ctx({ promptAnswer: 'zzz' }));
+c = L.planCheckin({ lastCheckMs: 1e9 - 5000, promptDueMs: 1, promptToken: 'abc', promptIssuedMs: 1e9 - 5000 }, ctx({ promptAnswer: 'zzz' }));
 assert.ok(c.reject); assert.strictEqual(c.reason, 'too-fast');
 // shares: min watchers
 const W = (n, f) => { const a = []; for (let i = 0; i < n; i++) a.push({ uid: 'w' + i, seconds: f ? f(i) : 3600 }); return a; };
