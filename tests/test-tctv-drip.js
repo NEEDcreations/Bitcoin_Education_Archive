@@ -101,14 +101,14 @@ assert.deepStrictEqual(p.shares.filter(x => x.sats > 0).map(x => x.sats).sort(),
 // under-qualify alone: all zeros, waiting
 p = L.projectShares([{ uid: 'a', seconds: 60 }], cfg);
 assert.ok(p.waiting); assert.strictEqual(p.eligible, 0); assert.strictEqual(p.shares[0].sats, 0);
-// cipher balance is never truncated by claim limits: a claim takes at most 200, rest stays
+// cipher balance is never truncated by claim limits: a claim takes at most CLAIM_MAX (1,000), rest stays
 const C = require('../functions/src/cipherSatsClaim');
 const claimIn = (bal, used) => ({ authed: true, uid: 'u1', email: 'x@example.com', emailVerified: true, ageKnown: true, ageDays: 30,
     balance: bal, playerDayUsed: used || 0, siteDayUsed: 0, day: 'd1', nowMs: 1e12, saved: 'u1@example.com', lockExists: true, lockOwner: 'u1' });
 let cl = C.planCipherSatsClaim(claimIn(4000));
-if (cl.ok) { assert.strictEqual(cl.amount, 200); assert.strictEqual(cl.balanceAfter, 3800); assert.strictEqual(cl.balanceDelta, -200); }
+if (cl.ok) { assert.strictEqual(cl.amount, 1000); assert.strictEqual(cl.balanceAfter, 3000); assert.strictEqual(cl.balanceDelta, -1000); }
 else console.log('  (claim gate refused in unit harness: ' + cl.code + ')');
-cl = C.planCipherSatsClaim(claimIn(4000, 200)); assert.ok(!cl.ok, 'daily cap hit'); assert.ok(!('balanceDelta' in cl), 'refusal never changes balance');
+cl = C.planCipherSatsClaim(claimIn(4000, 1000)); assert.ok(!cl.ok, 'daily cap hit'); assert.ok(!('balanceDelta' in cl), 'refusal never changes balance');
 // reserve
 assert.ok(!L.planReserve(-1, 0, cfg).ok);
 assert.ok(!L.planReserve(25000, 0, cfg).ok);

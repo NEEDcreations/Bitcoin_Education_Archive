@@ -1,0 +1,47 @@
+name: Bug report
+description: Something in the app is broken
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security vulnerabilities do not belong here. Email info.603btc@gmail.com or use GitHub private vulnerability reporting. See SECURITY.md.
+  - type: checkboxes
+    id: not-security
+    attributes:
+      label: This is not a security report
+      options:
+        - label: I have read SECURITY.md, and this bug is not a vulnerability
+          required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what you saw instead.
+      placeholder: Opened the quest list, tapped the daily tile, and the panel stayed blank.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Sign in on a test account
+        2. Open ...
+        3. See ...
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Browser, device, and whether this was production or a dev/staging host.
+      placeholder: Firefox 133 on Android, bitcoineducation.quest
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Screenshots or console errors. Leave out passwords, tokens, wallet secrets, and other people's data.

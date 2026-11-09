@@ -234,6 +234,26 @@ exports.adminResetSecondFactor = secondFactor.adminResetSecondFactor;
 // Fires at midnight UTC = 7 PM ET, warning users before the 5 AM UTC reset.
 // Category "reminders". broadcastCategory checks each user's pref.
 // =============================================
+const { runDispatch: runResetReminders } = require('./src/dispatchResetReminders');
+
+// Opt-in reset reminders. Every 15 minutes. Quiet hours and per-reset
+// switches are decided in resetReminders.js. A claim doc stops a retry
+// from sending the same reset twice. Category "reminders".
+exports.dispatchResetReminders = onSchedule({
+    schedule: 'every 15 minutes',
+    timeZone: 'UTC',
+    timeoutSeconds: 540,
+    retryCount: 0,
+}, async () => {
+    try {
+        const result = await runResetReminders(db, admin, sendUserPush, Date.now());
+        console.log('Reset reminders', JSON.stringify(result));
+    } catch (e) {
+        console.error('Reset reminders failed', e && e.message);
+    }
+    return null;
+});
+
 exports.streakReminder = onSchedule({ schedule: '0 0 * * *', timeZone: 'UTC', timeoutSeconds: 540 }, async (event) => {
         const today = getOffsetDateKey();
         const result = await broadcastCategory('reminders', async function (uid, userData) {
@@ -4292,7 +4312,7 @@ exports.refreshQuestLeaderboard = onSchedule({
     }
 });
 
-// Leaderboard snapshots. One stats doc per board, top 25, public read.
+// Leaderboard snapshots. One stats doc per board, top 50, public read.
 // Each run rebuilds a board only when stats/lb_dirty is newer than the
 // snapshot. XP week/month every 10 minutes. XP all-time, PvP, and raid
 // every 15. Favor every 5 minutes, and the function itself waits 30 minutes

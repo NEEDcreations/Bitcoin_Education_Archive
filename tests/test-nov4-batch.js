@@ -59,7 +59,12 @@ test('SF strip shows points remaining and has an info tooltip', () => {
         const h = read(f);
         assert.ok(h.indexOf('id="todayFavorInfo"') !== -1 && h.indexOf('id="todayFavorTip"') !== -1, f);
         assert.ok(/community total/.test(h), f);
+        assert.ok(h.indexOf('earn a badge (+1)') !== -1, f);
     });
+    const award = read('functions/src/awardBadge.js');
+    assert.ok(award.indexOf('pointsAdded: 1') !== -1);
+    assert.ok(award.indexOf('add one\n// Satoshi\'s Favor point') !== -1);
+    assert.ok(read('functions/src/userSfPoints.js').indexOf('badge_earned: 1') !== -1);
 });
 
 test('heat meter repaints from the live favor listener', () => {
@@ -80,11 +85,15 @@ test('chat and ⋯ buttons are not hidden by fab-hold or the chat hub', () => {
     assert.ok(tog.indexOf("_overlayOpen ? 'none'") === -1);
 });
 
-test('share my rank waits for App Check once and retries', () => {
+test('share my rank opens the shell before the lookup', () => {
     const r = read('ranking.js');
+    const body = sliceBetween(r, 'window._lbShareRank = async function', '// Close leaderboard');
+    assert.ok(body.indexOf('shellOnly: true') !== -1);
+    assert.ok(body.indexOf('AS.openCanvasSheet(') < body.indexOf('await _lbShareLookup'));
+    assert.ok(body.indexOf('setSheetCanvas') !== -1);
     const block = sliceBetween(r, 'async function _lbShareLookup', 'function _lbShareFit');
-    assert.ok(block.indexOf('_btcAppCheckForClaim(10000)') !== -1);
-    assert.strictEqual((block.match(/httpsCallable\('leaderboardRank'\)/g) || []).length, 2);
+    assert.strictEqual(block.indexOf('_btcAppCheckForClaim'), -1);
+    assert.strictEqual((block.match(/httpsCallable\('leaderboardRank'\)/g) || []).length, 1);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

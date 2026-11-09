@@ -1888,6 +1888,70 @@
             + 'body.bq-invite-min #inviteCard[data-show="1"] #invitePill{display:inline-flex!important}';
         document.head.appendChild(style);
     }
+    function bqMarkMoreChild(el, more) {
+        if (!el || !more || el.parentNode !== more || el._bqMoreMarked) return;
+        el._bqMoreNext = el.nextSibling || null;
+        el._bqMoreMarked = true;
+    }
+    function bqRestoreMoreChild(el, more) {
+        if (!el || !more || !el._bqMoreMarked || el.parentNode === more) return;
+        var ref = el._bqMoreNext;
+        if (ref && ref.parentNode === more) more.insertBefore(el, ref);
+        else more.appendChild(el);
+    }
+    function bqParkBefore(el, anchor) {
+        if (!el || !anchor || !anchor.parentNode) return;
+        if (el.parentNode === anchor.parentNode && el.nextSibling === anchor) return;
+        anchor.parentNode.insertBefore(el, anchor);
+    }
+    // Lite hides the whole More block, including the button. Guided hides the
+    // same block and keeps Your Quest Begins on the page.
+    function bqApplyHomeMoreQuiet(mode) {
+        if (typeof document === 'undefined') return;
+        var more = document.getElementById('homeMore');
+        var btn = document.getElementById('homeMoreToggle');
+        var quest = document.getElementById('questGuideBanner');
+        var intro = document.getElementById('introVideoSection');
+        var today = document.getElementById('todayCard');
+        var quiet = mode === 'lite' || mode === 'beginner';
+        if (more && quest) bqMarkMoreChild(quest, more);
+        if (more && intro) bqMarkMoreChild(intro, more);
+        if (!quiet) {
+            if (more && quest) bqRestoreMoreChild(quest, more);
+            if (more && intro && !win._forceIntroVideo) bqRestoreMoreChild(intro, more);
+            if (quest) quest.removeAttribute('data-quest-kept');
+            if (more) {
+                more.style.removeProperty('display');
+                more.removeAttribute('data-home-more-quiet');
+            }
+            if (btn) {
+                btn.style.removeProperty('display');
+                btn.removeAttribute('data-home-more-quiet');
+                btn.removeAttribute('aria-hidden');
+            }
+            return;
+        }
+        if (mode === 'beginner' && quest && today) {
+            bqParkBefore(quest, today);
+            if (quest.style && quest.style.removeProperty) quest.style.removeProperty('display');
+            quest.removeAttribute('data-em-hidden');
+            quest.setAttribute('data-quest-kept', '1');
+        } else if (quest && more) {
+            bqRestoreMoreChild(quest, more);
+            quest.removeAttribute('data-quest-kept');
+        }
+        if (intro && more && !win._forceIntroVideo) bqRestoreMoreChild(intro, more);
+        if (more) {
+            more.hidden = true;
+            more.setAttribute('data-home-more-quiet', mode);
+            more.style.setProperty('display', 'none', 'important');
+        }
+        if (btn) {
+            btn.setAttribute('data-home-more-quiet', mode);
+            btn.setAttribute('aria-hidden', 'true');
+            btn.style.setProperty('display', 'none', 'important');
+        }
+    }
     function bqApplyExperienceSurfaces(mode) {
         if (typeof document === 'undefined') return bqNormalizeExperienceMode(mode);
         var m = bqNormalizeExperienceMode(mode);
@@ -1926,6 +1990,7 @@
                 if (el.id === 'introVideoSection') el.removeAttribute('data-simplified-hidden');
             }
         });
+        bqApplyHomeMoreQuiet(m);
         if (typeof win._paintTodayCard === 'function') { try { win._paintTodayCard({ tilesOnly: true }); } catch (eTc) {} }
         return m;
     }
