@@ -40,6 +40,16 @@ c = L.planCheckin({ seconds: cfg.perAccountLimitSeconds, promptDueMs: 2e9 }, ctx
 c = L.planCheckin({ promptDueMs: 1 }, ctx()); assert.ok(c.prompt); assert.strictEqual(c.credit, 0);
 c = L.planCheckin({ promptDueMs: 1, promptToken: 'abc' }, ctx({ promptAnswer: 'abc' })); assert.strictEqual(c.credit, 60);
 c = L.planCheckin({ promptDueMs: 1, promptToken: 'abc' }, ctx({ promptAnswer: 'zzz' })); assert.strictEqual(c.credit, 0);
+// Raising the prompt must not move lastCheckMs, or the tap in that same minute is too-fast and the share stays 0.
+c = L.planCheckin({ lastCheckMs: 1e9 - 60000, promptDueMs: 1e9 - 1000, seconds: 120 }, ctx());
+assert.ok(c.prompt); assert.strictEqual(c.credit, 0); assert.strictEqual(c.patch.lastCheckMs, undefined);
+c = L.planCheckin({ lastCheckMs: 1e9 - 60000, promptDueMs: 1e9 - 1000, promptToken: 'abc', seconds: 120 }, ctx({ promptAnswer: 'abc' }));
+assert.strictEqual(c.credit, 60); assert.strictEqual(c.reason, 'ok');
+// A tap still counts when an older build already moved lastCheckMs into the gap.
+c = L.planCheckin({ lastCheckMs: 1e9 - 5000, promptDueMs: 1, promptToken: 'abc', seconds: 120 }, ctx({ promptAnswer: 'abc' }));
+assert.strictEqual(c.credit, 60);
+c = L.planCheckin({ lastCheckMs: 1e9 - 5000, promptDueMs: 1, promptToken: 'abc' }, ctx({ promptAnswer: 'zzz' }));
+assert.ok(c.reject); assert.strictEqual(c.reason, 'too-fast');
 // shares: min watchers
 const W = (n, f) => { const a = []; for (let i = 0; i < n; i++) a.push({ uid: 'w' + i, seconds: f ? f(i) : 3600 }); return a; };
 const sum = (p) => p.shares.reduce((t, x) => t + x.sats, 0);
@@ -122,11 +132,16 @@ console.log('tctvDripLogic: all tests passed');
     assert.ok(src.includes("you don\\u2019t tap it, your watch time won\\u2019t be added to the pot of sats."));
     assert.ok(!/sats pot/i.test(src), 'say "pot of sats"');
     assert.ok(/#tctv-drip\{position:fixed;/.test(src) && src.includes('document.body.appendChild(el)'), 'floating overlay outside the player layout (video stays centered)');
-    assert.ok(src.includes("'tctvPotPos'") && src.includes("'tctvPotMin'") && src.includes("'tctvPotSize'") && /pointerdown/.test(src), 'draggable + resizable + minimizable, remembered per device');
+    assert.ok(src.includes("'tctvPotPos'") && src.includes("'tctvPotMin'") && src.includes("'tctvPotPx'") && src.includes("'tctvPotSize'") && /pointerdown/.test(src), 'draggable + corner resize + minimizable, remembered per device');
     assert.ok(src.includes('top:calc(84px + env(safe-area-inset-top, 0px))'), 'default sits in the upper area');
     assert.ok(!src.includes('bottom:96px') && !src.includes('bottom:150px'), 'no longer parked on the bottom edge');
-    assert.ok(src.includes('aria-label="Shrink pot of sats"') && src.includes('aria-label="Enlarge pot of sats"') && src.includes('aria-label="Minimize pot of sats"') && src.includes('aria-label="Restore pot of sats"'));
-    assert.ok(/\.td-smaller\{[^}]*min-width:44px;min-height:44px/.test(src) && /\.td-larger\{[^}]*min-width:44px;min-height:44px/.test(src) && /\.td-min\{[^}]*min-width:44px;min-height:44px/.test(src), 'resize and minimize targets');
+    assert.ok(!src.includes('Shrink') && !src.includes('Grow'), 'no shrink/grow control');
+    assert.ok(src.includes('aria-label="Resize pot of sats"') && src.includes('aria-label="Minimize pot of sats"') && src.includes('aria-label="Restore pot of sats"'));
+    assert.ok(src.includes('MIN_POT = 84') && src.includes('MAX_POT = 220'), 'resize stops at a minimum and a max');
+    assert.ok(src.includes('nesw-resize') && src.includes('td-resize'), 'top-right corner drag resizes');
+    assert.ok(/\.td-resize\{[^}]*min-width:44px;min-height:44px/.test(src) && /\.td-min\{[^}]*min-width:44px;min-height:44px/.test(src), 'resize and minimize targets');
+    assert.ok(src.includes('_tctvLiveViewers') && src.includes('function rateFromViewers') && src.includes('if (n < 5) return 1') && src.includes('return Math.floor(n / 5) * 5'), 'pot count and rate follow the live viewcount');
+    assert.ok(src.includes('min counted'), 'counted minutes show while the share is still 0');
     assert.ok(/prefers-reduced-motion/.test(src) && /visibilityState/.test(src) && /requestAnimationFrame/.test(src), 'flow pauses when hidden, gentle for reduced motion');
     assert.ok(!/Watch Party/i.test(src), 'no old name');
     assert.ok(/\.td-pill\{[^}]*min-height:44px;min-width:44px/.test(src) && /\.td-pinfo\{[^}]*min-width:44px;min-height:44px/.test(src), '44px targets');
@@ -138,6 +153,9 @@ console.log('tctvDripLogic: all tests passed');
     assert.ok(src.includes('tctv_drip_watch') && src.includes('paintShare'), 'own watch doc listener');
     assert.ok(src.includes('td-bubble-share'), 'share visible when minimized');
     assert.ok(!/addDoc|\.set\(|\.update\(/.test(src.replace(/localStorage\.setItem/g, '')), 'client never writes pot data');
+    const srv = require('fs').readFileSync(require('path').join(__dirname, '..', 'functions', 'tctv-drip.js'), 'utf8');
+    assert.ok(srv.includes("collection('tctv_counts').doc('live')") && srv.includes('liveViewerTotal'), 'tick reads the live viewcount');
+    assert.ok(!srv.includes("where('activeMs'"), 'pot watcher count is not the drip check-in count');
     const D = L.readConfig({});
     assert.strictEqual(D.promptMinMinutes, 15); assert.strictEqual(D.promptMaxMinutes, 40); assert.strictEqual(D.promptAnswerSeconds, 120);
 }

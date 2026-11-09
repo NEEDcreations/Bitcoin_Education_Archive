@@ -92,6 +92,23 @@ function accumulatePresence(counts, data, now) {
     return counts;
 }
 
+// Same number the TV header sums from tctv_counts/live.stations before the
+// viewer's own optimistic +1. Unknown station ids and non-positive values
+// are ignored, matching the client snapshot handler.
+function liveViewerTotal(stations) {
+    const src = stations && typeof stations === 'object' ? stations : {};
+    const keys = Object.keys(src);
+    let sum = 0;
+    for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        if (!isTctvStation(key)) continue;
+        const n = Number(src[key]);
+        if (!Number.isFinite(n) || n <= 0) continue;
+        sum += n;
+    }
+    return sum;
+}
+
 function stationCountsEqual(prev, next) {
     const a = prev && typeof prev === 'object' ? prev : {};
     const b = next && typeof next === 'object' ? next : {};
@@ -216,6 +233,7 @@ module.exports = {
     isFreshPresence,
     isTctvStation,
     accumulatePresence,
+    liveViewerTotal,
     stationCountsEqual,
     utcDayKey,
     viewDocId,

@@ -102,6 +102,16 @@ test('fresh window is 90s, stale delete is 10 min, batch is bounded', () => {
     assert.ok(lib.STALE_DELETE_LIMIT > 0 && lib.STALE_DELETE_LIMIT <= 200);
 });
 
+test('live viewer total is the header sum of real stations', () => {
+    assert.strictEqual(lib.liveViewerTotal({ news: 4, art: 0, bad: 'x', 'not-a-station': 9 }), 4);
+    assert.strictEqual(lib.liveViewerTotal(null), 0);
+    assert.strictEqual(lib.liveViewerTotal({ tutorials: 2, news: 3 }), 5);
+    const tv = read('timechain-tv.js');
+    assert.ok(tv.includes('window._tctvLiveViewers=shown'));
+    assert.ok(tv.includes('_tctvDripSyncViewers'));
+    assert.ok(tv.includes('var shown=o>0?o:(r?1:0)'));
+});
+
 test('aggregator queries ts and writes one live doc', () => {
     const src = read('functions/index.js');
     const start = src.indexOf('exports.tctvAggregatePresence');
@@ -375,7 +385,8 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
     assert.ok(!sw.includes('btc-archive-v2240'));
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('timechain-tv.js?v=20261105_v2502'));
+    assert.ok(html.includes('timechain-tv.js?v=20261109_v2531'));
+    assert.ok(!html.includes('timechain-tv.js?v=20261105_v2502'));
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));

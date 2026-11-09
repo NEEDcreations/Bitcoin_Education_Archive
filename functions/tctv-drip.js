@@ -83,7 +83,8 @@ const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true }).https.onC
             // Ineligible-by-age accounts still get a watch doc (for the UI) but never accrue seconds.
             const patch = Object.assign({}, plan.patch);
             if (ageOk !== true) delete patch.seconds;
-            // Only crediting check-ins count toward the live viewer total.
+            // activeMs is the last credited check-in. The pot's watcher count is
+            // tctv_counts/live (the header by the Blocksurf button), not this field.
             if (plan.credit > 0 && ageOk === true) patch.activeMs = nowMs;
             tx.set(wRef, Object.assign(base, patch), { merge: true });
             tx.set(devRef, { uid, lastMs: nowMs }, { merge: true });
@@ -203,6 +204,15 @@ async function refreshProjections(potId, cfg) {
     await commit();
 }
 
+// The header next to Blocksurf reads tctv_counts/live. The pot's watcher
+// count and its stepped fill rate use that same aggregate, not the count of
+// drip check-ins (those stay at 0 while a prompt tap is rejected).
+async function readLiveViewerTotal() {
+    const snap = await db.collection('tctv_counts').doc('live').get();
+    const data = snap.exists ? (snap.data() || {}) : {};
+    return Math.max(0, Math.floor(tctvPresence.liveViewerTotal(data.stations)));
+}
+
 async function runTick() {
     const { cfg, raw } = await loadConfig();
     const nowMs = Date.now();
@@ -214,10 +224,8 @@ async function runTick() {
     }
     if (!cfg.enabled) return;
 
+    const n = await readLiveViewerTotal();
     if (pot.status === 'filling') {
-        const active = await db.collection('tctv_drip_watch')
-            .where('potId', '==', pot.potId).where('activeMs', '>=', nowMs - logic.ACTIVE_WINDOW_MS).count().get();
-        const n = active.data().count || 0;
         const acc = logic.planAccrual(pot, n, cfg, offsetDateKey(nowMs));
         const patch = { sats: acc.sats, viewers: acc.viewers, liveViewers: n, ratePerMin: acc.ratePerMin, dayKey: acc.dayKey, dayAccrued: acc.dayAccrued, target: cfg.targetSats, lastTickMs: nowMs };
         if (acc.burst) { patch.bursts = (pot.bursts || 0) + 1; patch.lastBurstMs = nowMs; }
@@ -228,6 +236,16 @@ async function runTick() {
     }
 
     if (pot.status === 'full' || pot.status === 'held') {
+        // Keep the published count on the live aggregate while payout waits.
+        // Accrual stays off: a full pot does not keep filling.
+        const rate = logic.rateFromViewers(n, cfg);
+        const viewers = Math.min(n, cfg.maxCountedViewers);
+        if (Number(pot.liveViewers) !== n || Number(pot.ratePerMin) !== rate) {
+            await potRef.set({ liveViewers: n, viewers: viewers, ratePerMin: rate }, { merge: true });
+            pot.liveViewers = n;
+            pot.viewers = viewers;
+            pot.ratePerMin = rate;
+        }
         // Watcher minimum first. Not a wallet hold: no admin alert, the pot just
         // stays full (check-ins keep counting) and every tick retries.
         const pre = logic.planShares(await loadEntries(pot.potId, cfg), cfg);

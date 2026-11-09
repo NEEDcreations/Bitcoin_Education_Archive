@@ -13,6 +13,9 @@ scripts/*
 !scripts/backfill-leaderboard-snapshots.js
 !scripts/backfill-join-dates.js
 !scripts/render-miniapp-og.py
+!scripts/tctv-view-minutes.js
+!scripts/tctv-view-minutes-audit.js
+!scripts/tctv-drip-minute-credit.js
 .keys/
 firebase-debug.log
 firestore-debug.log
