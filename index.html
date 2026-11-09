@@ -1718,7 +1718,7 @@
                 <h1 class="home-title">Bitcoin Quest<span style="display:inline-block;background:#f7931a;color:#fff;font-size:0.32em;font-weight:800;padding:3px 8px;border-radius:6px;vertical-align:middle;margin-left:10px;letter-spacing:0.04em;text-transform:uppercase;line-height:1.4;">Beta</span></h1>
                 <div id="patchNotesHome">
                 <p style="margin:0 0 6px;font-size:0.78rem;line-height:1.35;"><a id="patchNotesLink" href="/patch-notes.html" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">📋 Patch Notes — Latest updates</a></p>
-                <p style="margin:0 0 16px;font-size:0.78rem;line-height:1.35;"><a id="resetsTimelinesLink" href="https://misty-tundra-nn5uvj.pages.grok.bot/" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">⏰ Resets, Timelines &amp; Odds</a></p>
+                <p id="resetReminderRow" style="margin:0 0 16px;font-size:0.78rem;line-height:1.35;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;"><a id="resetsTimelinesLink" href="/resets.html" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">⏰ Resets, Timelines &amp; Odds</a><span style="color:var(--text-muted);font-weight:600;">Reminder resets</span><button type="button" id="resetRemindersBtn">Turn on notifications</button></p>
                 <script>
                 (function () {
                     window._applyWhatsNew = function (version) {
@@ -2262,6 +2262,8 @@
     <!-- App Check loads in the head, before auth-boot. ranking.js activates it only if that boot did not. -->
     <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs, before bundle -->
     <script src="/push-prefs.js?v=20261022_v2322" defer></script>
+    <script src="/reset-reminders.js?v=20261109_v2535" defer></script>
+    <script src="/reset-reminder-ui.js?v=20261109_v2535" defer></script>
     <script src="/username-repick.js?v=20261104_v2476" defer></script>
     <script src="/earn-xp-guide.js?v=20261026_v2382" defer></script>
     <script src="/referral-tiers.js?v=20261105_v2499" defer></script>
