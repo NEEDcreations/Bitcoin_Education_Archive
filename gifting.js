@@ -2163,7 +2163,6 @@ window.showCipherClaim = function(win) {
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
     _mountGiftingChild(overlay, returnFocus);
-    setTimeout(function() { input.focus(); }, 50);
 };
 
 // ─── Send keys ───────────────────────────────────────────────────────────────
