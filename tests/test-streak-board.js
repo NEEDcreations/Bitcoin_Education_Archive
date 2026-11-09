@@ -180,7 +180,7 @@ test('the board stops at 50', () => {
     assert.strictEqual(doc.alltime[0].streak, 60);
     assert.strictEqual(doc.alltime[0].username, 'N59');
     assert.strictEqual(doc.alltime[49].streak, 11);
-    assert.strictEqual(board.FETCH_LIMIT, 50);
+    assert.strictEqual(board.FETCH_LIMIT, 100);
 });
 
 test('rules block client streak writes and the cached doc is not client-writable', () => {

@@ -22,6 +22,8 @@ assert.strictEqual(Lb.VISIBLE, 10);
 assert.strictEqual(Lb.CAP, 50);
 assert.strictEqual(Lb.normalizePrefix('  @Chill_Guy2 '), 'chill_guy2');
 assert.strictEqual(Lb.prefixOk('c'), true);
+assert.strictEqual(Lb.prefixOk('c', true), false);
+assert.strictEqual(Lb.prefixOk('ch', true), true);
 assert.strictEqual(Lb.prefixOk(''), false);
 assert.strictEqual(Lb.prefixOk('a b'), false);
 assert.strictEqual(Lb.prefixEnd('c'), 'c\uf8ff');
@@ -32,7 +34,8 @@ const docs = [
     { username: 'Cipher', username_lower: 'cipher' },
     { username: 'secret@email.test', username_lower: 'secret@email.test', email: 'secret@email.test' },
     { username: 'Ghosty', username_lower: 'ghosty', ghostMode: true, uid: 'uid-secret' },
-    { username: 'CountLord', username_lower: 'countlord', factionCount: 40 }
+    { username: 'CountLord', username_lower: 'countlord', factionCount: 40 },
+    { username: 'casper', username_lower: 'casper', ghostMode: true, self: true }
 ];
 const hits = Lb.publicNames(docs, 'c', 8);
 assert.strictEqual(Array.prototype.map.call(hits, function (row) { return row.username; }).join('|'), 'chill_guy2|Cipher|CountLord');
@@ -47,14 +50,15 @@ assert.strictEqual(Array.prototype.map.call(narrowed, function (row) { return ro
 assert.strictEqual(Lb.pvpRecordText(12, 3), '12W - 3L · 80%');
 assert.strictEqual(Lb.pvpRecordText(0, 0), '0W - 0L · 0%');
 
-assert.ok(ranking.includes("orderBy('username_lower')"));
-assert.ok(ranking.includes('.startAt(q)'));
-assert.ok(ranking.includes('.limit(LbPrefix.FETCH)'));
-assert.ok(ranking.includes("select('username', 'username_lower', 'ghostMode')"));
 assert.ok(ranking.includes('LbPrefix.DEBOUNCE_MS'));
 assert.strictEqual(ranking.includes("httpsCallable('searchUsers')"), false);
 const search = ranking.slice(ranking.indexOf('async function _lbNamePrefix'), ranking.indexOf('async function _lbNameRun'));
+assert.ok(search.includes('suggest: true'));
+assert.ok(search.includes("httpsCallable('leaderboardRank')"));
+assert.strictEqual(search.includes("collection('public_profiles')"), false);
 assert.strictEqual(search.includes("collection('users')"), false);
+assert.ok(ranking.includes('prefixOk(q, _lbSuggestAnon())'));
+assert.strictEqual(Array.prototype.map.call(hits, function (row) { return row.username; }).join('|').indexOf('casper'), -1);
 assert.ok(ranking.includes('shellOnly: true'));
 assert.ok(ranking.indexOf('AS.openCanvasSheet(') < ranking.indexOf('await _lbShareLookup(board)'));
 assert.ok(ranking.includes("LbPrefix.pvpRecordText(wins, losses)"));
@@ -72,9 +76,10 @@ assert.ok(pin.indexes.some(function (idx) {
 
 const boards = require('../functions/src/boardSnapshots');
 assert.strictEqual(boards.BOARD_SIZE, 50);
-assert.strictEqual(boards.FETCH_LIMIT, 50);
-assert.strictEqual(require('../functions/src/questBoard').FETCH_LIMIT, 50);
-assert.strictEqual(require('../functions/src/streakBoard').FETCH_LIMIT, 50);
+assert.strictEqual(boards.FETCH_LIMIT, 100);
+assert.strictEqual(boards.BOARD_SIZE, 50);
+assert.strictEqual(require('../functions/src/questBoard').FETCH_LIMIT, 100);
+assert.strictEqual(require('../functions/src/streakBoard').FETCH_LIMIT, 100);
 assert.strictEqual(require('../functions/src/predictionStats').BOARD_SIZE, 50);
 
 console.log('test-lb-fast: all passed');

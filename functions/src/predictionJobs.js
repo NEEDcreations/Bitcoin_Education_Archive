@@ -8,6 +8,18 @@ const { planXpGrant } = require('./grantXp');
 const { offsetDateKey } = require('./offsetDay');
 const { rewardBlocked } = require('./cipherClaim');
 
+// The public board is 50 names. Prize settlement re-sorts a volume page by
+// accuracy, so that page has to stay wide enough that a low-volume sharp
+// player is still in it. Display reads use DISPLAY_LIMIT. Payout reads use
+// PAYOUT_FETCH, and the unordered fallback stays PAYOUT_FALLBACK.
+const DISPLAY_LIMIT = 50;
+const PAYOUT_FETCH = 200;
+const PAYOUT_FALLBACK = 500;
+// After the accuracy sort, the payout page keeps 75. The public week and
+// month boards stay at 50. All-time still reads at least 60.
+const PAYOUT_KEEP = 75;
+const ALLTIME_QUERY_LIMIT = 60;
+
 function createPredictionJobs(db, admin, hooks) {
     const pushHooks = hooks || {};
     async function readChunked(refs) {
@@ -29,7 +41,7 @@ function createPredictionJobs(db, admin, hooks) {
                 .orderBy('weekCorrect', 'desc')
                 .orderBy('weekTotal', 'desc')
                 .orderBy('weekReachedSort', 'asc')
-                .limit(50);
+                .limit(DISPLAY_LIMIT);
         }
         if (period === 'monthly') {
             return q.where('monthKey', '==', key).where('qualifiesMonth', '==', true)
@@ -37,35 +49,41 @@ function createPredictionJobs(db, admin, hooks) {
                 .orderBy('monthCorrect', 'desc')
                 .orderBy('monthTotal', 'desc')
                 .orderBy('monthReachedSort', 'asc')
-                .limit(50);
+                .limit(DISPLAY_LIMIT);
         }
         return q.where('qualifiesAllTime', '==', true)
             .orderBy('predAccuracy', 'desc')
             .orderBy('predCorrect', 'desc')
             .orderBy('predTotal', 'desc')
             .orderBy('reachedSort', 'asc')
-            .limit(50);
+            .limit(ALLTIME_QUERY_LIMIT);
     }
 
-    async function periodDocs(period, key) {
+    async function periodDocs(period, key, opts) {
         const field = period === 'weekly' ? 'weekKey' : 'monthKey';
         const totalField = period === 'weekly' ? 'weekTotal' : 'monthTotal';
         const min = ps.minimumFor(period);
+        const payout = !!(opts && opts.payout);
+        const limitN = payout ? PAYOUT_FETCH : DISPLAY_LIMIT;
+        const fallbackN = payout ? PAYOUT_FALLBACK : DISPLAY_LIMIT;
         // The old composite query also required qualifiesWeek/qualifiesMonth and
         // weekReachedSort. A stats doc with a real period total but a missing
         // flag or sort field never entered that index, so the weekly and monthly
         // tabs were written as empty arrays. Count the period total directly.
+        // Volume order is only the candidate page. Accuracy is applied below,
+        // so a payout page of 200 still includes a sharp player outside the
+        // top 50 by volume.
         let snap;
         try {
             snap = await db.collection('prediction_stats')
                 .where(field, '==', key)
                 .where(totalField, '>=', min)
                 .orderBy(totalField, 'desc')
-                .limit(50)
+                .limit(limitN)
                 .get();
         } catch (err) {
             console.warn('[predict] period index missing, scanning the week key', err && err.message ? err.message : err);
-            snap = await db.collection('prediction_stats').where(field, '==', key).limit(50).get();
+            snap = await db.collection('prediction_stats').where(field, '==', key).limit(fallbackN).get();
         }
         const docs = [];
         snap.forEach(function(doc) {
@@ -82,12 +100,12 @@ function createPredictionJobs(db, admin, hooks) {
                 { uid: b.id, accuracy: right.accuracy, correct: right.correct, total: right.total, reachedAt: right.reachedAt }
             );
         });
-        return docs.slice(0, 50);
+        return docs.slice(0, payout ? PAYOUT_KEEP : DISPLAY_LIMIT);
     }
 
-    async function loadRows(period, key) {
+    async function loadRows(period, key, opts) {
         const docs = (period === 'weekly' || period === 'monthly')
-            ? await periodDocs(period, key)
+            ? await periodDocs(period, key, opts)
             : (await statsQuery(period, key).get()).docs;
         if (!docs.length) return [];
         const userRefs = docs.map(function(d) { return db.collection('users').doc(d.id); });
@@ -493,4 +511,11 @@ function createPredictionJobs(db, admin, hooks) {
     };
 }
 
-module.exports = { createPredictionJobs: createPredictionJobs };
+module.exports = {
+    createPredictionJobs: createPredictionJobs,
+    DISPLAY_LIMIT: DISPLAY_LIMIT,
+    PAYOUT_FETCH: PAYOUT_FETCH,
+    PAYOUT_FALLBACK: PAYOUT_FALLBACK,
+    PAYOUT_KEEP: PAYOUT_KEEP,
+    ALLTIME_QUERY_LIMIT: ALLTIME_QUERY_LIMIT
+};

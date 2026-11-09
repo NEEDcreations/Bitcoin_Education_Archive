@@ -15,6 +15,8 @@ const look = r.slice(r.indexOf('async function _lbShareLookup'), r.indexOf('func
 assert.ok(!look.includes('_btcAppCheckForClaim'), 'no second App Check wait');
 assert.ok(look.indexOf('_lbShareSnapRow(') < look.indexOf("httpsCallable('leaderboardRank')"), 'snapshot first');
 assert.ok(a.includes('openCanvasSheet: openCanvasSheet'));
+assert.ok(a.includes('URL.revokeObjectURL'));
+assert.ok(a.includes('function releaseSheetBlob'));
 assert.ok(/if \(url\.indexOf\(SITE\) !== 0\) url = SITE;/.test(a), 'sheet link stays on our site');
 const AS = require('../achievement-share.js');
 assert.strictEqual(typeof AS.openCanvasSheet, 'function');

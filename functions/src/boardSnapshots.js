@@ -26,7 +26,8 @@
 const { displayName, safePic } = require('./streakBoard');
 
 const BOARD_SIZE = 50;
-const FETCH_LIMIT = 50;
+// Fetch about twice the board so ghosts dropped after the read still leave 50.
+const FETCH_LIMIT = 100;
 const INTERVAL_SLACK_MS = 60 * 1000;
 const STAMP_THROTTLE_MS = 60 * 1000;
 const MAX_AGE_SHORT_MS = 60 * 60 * 1000;

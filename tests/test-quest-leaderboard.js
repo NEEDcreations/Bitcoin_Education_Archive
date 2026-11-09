@@ -181,7 +181,7 @@ test('the board stops at 50', () => {
     assert.strictEqual(picked[0].passes, 60);
     assert.strictEqual(picked[49].passes, 11);
     assert.strictEqual(board.BOARD_SIZE, 50);
-    assert.strictEqual(board.FETCH_LIMIT, 50);
+    assert.strictEqual(board.FETCH_LIMIT, 100);
 });
 
 test('banned players stay, ghost mode stays off, and the doc has no email or uid', () => {

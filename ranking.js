@@ -6237,8 +6237,10 @@ var LbPrefix = (function () {
         if (text.length > 40) text = text.slice(0, 40);
         return text.toLowerCase();
     }
-    function prefixOk(q) {
-        return !!q && /^[a-z0-9_\-.]+$/.test(q);
+    function prefixOk(q, anonymous) {
+        if (!q || !/^[a-z0-9_\-.]+$/.test(q)) return false;
+        if (anonymous && q.length < 2) return false;
+        return true;
     }
     function prefixEnd(q) {
         return String(q || '') + '\uf8ff';
@@ -6250,7 +6252,7 @@ var LbPrefix = (function () {
         var seen = {};
         (docs || []).forEach(function (doc) {
             if (!doc || out.length >= cap) return;
-            if (doc.ghostMode === true && doc.self !== true) return;
+            if (doc.ghostMode === true) return;
             var raw = doc.username == null ? '' : String(doc.username);
             if (!raw || raw.indexOf('@') !== -1 || raw.indexOf(' ') !== -1) return;
             var sort = doc.username_lower ? String(doc.username_lower).toLowerCase() : raw.toLowerCase();
@@ -6437,7 +6439,7 @@ function _lbNameNarrow(q) {
     return { rows: rows, docs: parent.docs, complete: true };
 }
 
-async function _lbNamePrefix(q) {
+async function _lbNamePrefix(board, q) {
     var cached = _lbNameCache[q];
     if (cached) return cached;
     var narrowed = _lbNameNarrow(q);
@@ -6445,28 +6447,28 @@ async function _lbNamePrefix(q) {
         _lbNameCache[q] = narrowed;
         return narrowed;
     }
-    var end = LbPrefix.prefixEnd(q);
-    var qy = db.collection('public_profiles').orderBy('username_lower').startAt(q).endAt(end).limit(LbPrefix.FETCH);
-    if (qy.select) qy = qy.select('username', 'username_lower', 'ghostMode');
-    var snap = await qy.get();
-    var me = _lbRankAuthUser();
-    var docs = [];
-    snap.forEach(function (doc) {
-        var data = (doc.data && doc.data()) || {};
-        docs.push({
-            username: data.username,
-            username_lower: data.username_lower,
-            ghostMode: data.ghostMode === true,
-            self: !!(me && doc.id === me.uid)
-        });
+    // Ghost mode cannot be excluded in a client list query: the field is
+    // missing on ordinary profiles, so a != true filter would drop them.
+    // leaderboardRank suggest mode runs suggestNames on the server, drops
+    // ghosts before the response, and uses the same rate limit.
+    var fn = firebase.functions().httpsCallable('leaderboardRank');
+    var res = await fn({ board: board, period: _lbRankPeriod(board), username: q, suggest: true });
+    var data = (res && res.data) || {};
+    var names = [];
+    (data.suggestions || []).forEach(function (row) {
+        var name = row && row.username;
+        if (!name || String(name).indexOf('@') !== -1) return;
+        names.push({ username: String(name), username_lower: String(name).toLowerCase() });
     });
-    var packed = {
-        rows: LbPrefix.publicNames(docs, q, LbPrefix.SHOW),
-        docs: docs,
-        complete: snap.size < LbPrefix.FETCH
-    };
+    var rows = LbPrefix.publicNames(names, q, LbPrefix.SHOW);
+    var packed = { rows: rows, docs: names, complete: rows.length < LbPrefix.SHOW };
     _lbNameCache[q] = packed;
     return packed;
+}
+
+function _lbSuggestAnon() {
+    var user = _lbRankAuthUser();
+    return !!(user && user.isAnonymous);
 }
 
 async function _lbNameRun(board, raw) {
@@ -6476,8 +6478,10 @@ async function _lbNameRun(board, raw) {
         _lbRankPaint(board, { status: 'not_found', message: 'Sign in to search the leaderboard.' });
         return;
     }
-    if (!LbPrefix.prefixOk(q)) {
-        _lbRankPaintNames(board, []);
+    if (!LbPrefix.prefixOk(q, _lbSuggestAnon())) {
+        window._lbSuggestShown = window._lbSuggestShown || {};
+        window._lbSuggestShown[board] = [];
+        _lbRankPaint(board, null);
         return;
     }
     var hit = _lbNameCache[q] || _lbNameNarrow(q);
@@ -6486,12 +6490,19 @@ async function _lbNameRun(board, raw) {
         return;
     }
     try {
-        hit = await _lbNamePrefix(q);
+        hit = await _lbNamePrefix(board, q);
         if (gen !== _lbRankGen[board]) return;
         _lbRankPaintNames(board, (hit.rows || []).map(function (row) { return row.username; }));
     } catch (e) {
         if (gen !== _lbRankGen[board]) return;
-        _lbRankPaint(board, { status: 'not_found', message: 'Search failed. Try again.' });
+        var code = (e && e.code) || '';
+        var msg = (e && e.message) || '';
+        var text = 'Search failed. Try again.';
+        if (code.indexOf('resource-exhausted') !== -1 || msg.indexOf('Too many lookups') !== -1) text = 'Too many lookups. Try again in a minute.';
+        else if (code.indexOf('unauthenticated') !== -1 || code.indexOf('permission-denied') !== -1) text = 'Sign in to search the leaderboard.';
+        else if (code.indexOf('failed-precondition') !== -1) text = 'Rank lookup is still indexing. Try again shortly.';
+        else if (code.indexOf('app-check') !== -1 || msg.indexOf('App Check') !== -1) text = 'Security check is not ready. Refresh and try again.';
+        _lbRankPaint(board, { status: 'not_found', message: text });
     }
 }
 
@@ -6499,7 +6510,7 @@ window._lbRankType = function (board, val) {
     window._lbRankState[board] = { text: val || '', me: false };
     clearTimeout(_lbRankTimer[board]);
     var q = LbPrefix.normalizePrefix(val);
-    if (!q) {
+    if (!q || !LbPrefix.prefixOk(q, _lbSuggestAnon())) {
         _lbRankGen[board] = (_lbRankGen[board] || 0) + 1;
         window._lbSuggestShown = window._lbSuggestShown || {};
         window._lbSuggestShown[board] = [];
@@ -6670,7 +6681,11 @@ function _lbShareFrameCanvas() {
     _lbShareFrame = c;
     try {
         c.toBlob(function (blob) {
-            if (blob) window._lbShareFrameUrl = URL.createObjectURL(blob);
+            if (!blob) return;
+            if (window._lbShareFrameUrl) {
+                try { URL.revokeObjectURL(window._lbShareFrameUrl); } catch (e) {}
+            }
+            window._lbShareFrameUrl = URL.createObjectURL(blob);
         }, 'image/png');
     } catch (e) {}
     return c;

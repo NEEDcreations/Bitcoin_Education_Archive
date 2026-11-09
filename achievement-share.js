@@ -1080,13 +1080,22 @@
         if (canvas.toBlob) {
             canvas.toBlob(function (blob) {
                 if (!blob) { place(canvas); return; }
+                var url = URL.createObjectURL(blob);
+                if (!overlay.isConnected) {
+                    try { URL.revokeObjectURL(url); } catch (e) {}
+                    return;
+                }
+                if (overlay._bqBlobUrl && overlay._bqBlobUrl !== url) {
+                    try { URL.revokeObjectURL(overlay._bqBlobUrl); } catch (e2) {}
+                }
+                overlay._bqBlobUrl = url;
                 var img = d.createElement('img');
                 img.alt = 'Rank card';
                 img.loading = 'lazy';
                 img.decoding = 'async';
                 img.setAttribute('data-bq-card', 'custom');
                 img.style.cssText = 'width:min(100%,360px);height:auto;border-radius:12px;background:#111;display:block;margin:0 auto;';
-                img.src = URL.createObjectURL(blob);
+                img.src = url;
                 place(img);
             }, 'image/png');
             return;
@@ -1098,7 +1107,10 @@
         var d = doc();
         if (!d || !d.body) return;
         var existing = d.getElementById('bqShareSheet');
-        if (existing) existing.remove();
+        if (existing) {
+            releaseSheetBlob(existing);
+            existing.remove();
+        }
         sheetReturn = d.activeElement;
         var overlay = d.createElement('div');
         overlay.id = 'bqShareSheet';
@@ -1208,10 +1220,19 @@
         close.focus();
     }
 
+    function releaseSheetBlob(el) {
+        if (!el || !el._bqBlobUrl) return;
+        try { URL.revokeObjectURL(el._bqBlobUrl); } catch (e) {}
+        el._bqBlobUrl = '';
+    }
+
     function closeSheet() {
         var d = doc();
         var el = d && d.getElementById('bqShareSheet');
-        if (el) el.remove();
+        if (el) {
+            releaseSheetBlob(el);
+            el.remove();
+        }
         if (sheetReturn && sheetReturn.focus) {
             try { sheetReturn.focus(); } catch (e) {}
         }

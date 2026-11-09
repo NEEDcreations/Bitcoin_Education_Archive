@@ -316,7 +316,7 @@ test('opening a fresh board costs one snapshot read and a cold rebuild reads the
     const agedResult = await boards.refreshBoard(aged, 'xpWeek', now, {});
     assert.strictEqual(agedResult.reason, 'max-age');
     assert.strictEqual(agedResult.skipped, false);
-    assert.strictEqual(aged.state.profileReads, 50);
+    assert.strictEqual(aged.state.profileReads, 80);
 
     const dirty = makeDb({
         docs: {
@@ -328,9 +328,9 @@ test('opening a fresh board costs one snapshot read and a cold rebuild reads the
     const built = await boards.refreshBoard(dirty, 'xpWeek', now, {});
     assert.strictEqual(built.skipped, false);
     assert.strictEqual(built.rows, 50);
-    assert.strictEqual(dirty.state.profileReads, 50);
+    assert.strictEqual(dirty.state.profileReads, 80);
     assert.strictEqual(dirty.state.writes, 1);
-    assert.strictEqual(dirty.state.docs['stats/lb_xp_week'].rows[0].username, 'P49');
+    assert.strictEqual(dirty.state.docs['stats/lb_xp_week'].rows[0].username, 'P79');
     assert.strictEqual(JSON.stringify(dirty.state.docs['stats/lb_xp_week']).indexOf('@'), -1);
 });
 
@@ -455,11 +455,11 @@ test('read counts versus the live board, measured on a fake Firestore', async ()
     const favor = await open('favor', true);
     const raid = await open('raid');
     assert.strictEqual(xp.rows, 50);
-    assert.strictEqual(week.profileReads, 50);
-    assert.strictEqual(month.profileReads, 50);
-    assert.strictEqual(pvp.profileReads, 100);
-    assert.strictEqual(favor.profileReads, 50);
-    assert.strictEqual(raid.profileReads, 50);
+    assert.strictEqual(week.profileReads, 100);
+    assert.strictEqual(month.profileReads, 100);
+    assert.strictEqual(pvp.profileReads, 200);
+    assert.strictEqual(favor.profileReads, 100);
+    assert.strictEqual(raid.profileReads, 100);
     const afterOpen = { xp: xp.docReads, week: week.docReads, month: month.docReads, pvp: pvp.docReads, favor: favor.docReads, raid: raid.docReads };
     console.log('BEFORE reads per open ' + JSON.stringify(before));
     console.log('AFTER reads per open (client snapshot, localStorage miss) ' + JSON.stringify(afterOpen));

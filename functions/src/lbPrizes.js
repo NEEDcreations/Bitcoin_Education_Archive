@@ -600,7 +600,7 @@ async function settlePrediction(db, admin, jobs, opts) {
     const period = src.period === 'monthly' ? 'monthly' : 'weekly';
     const periodKey = period === 'weekly' ? ps.previousWeekKey(now) : ps.previousMonthKey(now);
     const tickets = TICKETS[period];
-    const loaded = await jobs.loadRows(period, periodKey);
+    const loaded = await jobs.loadRows(period, periodKey, { payout: true });
     const rows = ps.selectBoard(loaded, period).slice(0, TOP).map(function (row) {
         return {
             uid: row.uid,
