@@ -59,7 +59,12 @@ test('SF strip shows points remaining and has an info tooltip', () => {
         const h = read(f);
         assert.ok(h.indexOf('id="todayFavorInfo"') !== -1 && h.indexOf('id="todayFavorTip"') !== -1, f);
         assert.ok(/community total/.test(h), f);
+        assert.ok(h.indexOf('earn a badge (+1)') !== -1, f);
     });
+    const award = read('functions/src/awardBadge.js');
+    assert.ok(award.indexOf('pointsAdded: 1') !== -1);
+    assert.ok(award.indexOf('add one\n// Satoshi\'s Favor point') !== -1);
+    assert.ok(read('functions/src/userSfPoints.js').indexOf('badge_earned: 1') !== -1);
 });
 
 test('heat meter repaints from the live favor listener', () => {
