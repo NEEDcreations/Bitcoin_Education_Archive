@@ -4241,32 +4241,33 @@ let nachoLiveData = {
     lastFetch: 0,
 };
 
-const FETCH_INTERVAL = 300000; // 5 minutes
+const FETCH_INTERVAL = 60000; // 1 minute; the worker edge cache is 30s
+
+function btcMetricsUrl(path) {
+    var host = 'https://jolly-surf-219enacho-search.needcreations.workers.dev';
+    try {
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') host = location.origin;
+    } catch (e) {}
+    return host + path;
+}
 var _lastTickerPrice = null;
 
 // ---- Fetch live data from mempool.space API ----
 async function fetchLiveData() {
     const now = Date.now();
-    if (now - nachoLiveData.lastFetch < FETCH_INTERVAL && nachoLiveData.price) return;
+    if (now - nachoLiveData.lastFetch < FETCH_INTERVAL && nachoLiveData.price) return Promise.resolve();
 
     try {
-        const priceRes = await fetch('https://mempool.space/api/v1/prices');
-        if (priceRes.ok) {
-            const priceData = await priceRes.json();
-            nachoLiveData.price = priceData.USD;
-        }
-        const heightRes = await fetch('https://mempool.space/api/blocks/tip/height');
-        if (heightRes.ok) {
-            nachoLiveData.blockHeight = parseInt(await heightRes.text());
-        }
-        const feeRes = await fetch('https://mempool.space/api/v1/fees/recommended');
-        if (feeRes.ok) {
-            nachoLiveData.fees = await feeRes.json();
-        }
-        const mempoolRes = await fetch('https://mempool.space/api/mempool');
-        if (mempoolRes.ok) {
-            const mp = await mempoolRes.json();
-            nachoLiveData.mempoolSize = mp.count;
+        const snapRes = await fetch(btcMetricsUrl('/btc-data'));
+        if (snapRes.ok) {
+            const snap = await snapRes.json();
+            if (snap.price) nachoLiveData.price = snap.price;
+            if (snap.blockHeight) nachoLiveData.blockHeight = snap.blockHeight;
+            if (snap.feeFast != null) {
+                nachoLiveData.fees = { fastestFee: snap.feeFast, halfHourFee: snap.feeHalf, hourFee: snap.feeHour, economyFee: snap.feeEcon };
+            }
+            if (snap.mempoolTxs != null) nachoLiveData.mempoolSize = snap.mempoolTxs;
+            if (snap.blockIntervalSec) nachoLiveData.blockIntervalSec = snap.blockIntervalSec;
         }
 
         nachoLiveData.lastFetch = now;
@@ -4276,7 +4277,7 @@ async function fetchLiveData() {
         window._btcData.lastUpdate = now;
         
         if (nachoLiveData.blockHeight) {
-            const nextHalving = 1050000;
+            const nextHalving = Math.ceil(nachoLiveData.blockHeight / 210000) * 210000;
             window._btcData.halvingBlocks = nextHalving - nachoLiveData.blockHeight;
         }
     } catch (e) {
@@ -4413,6 +4414,8 @@ function updateTicker() {
         const blockEls = document.querySelectorAll('.t-block-val');
         const changeEls = document.querySelectorAll('.t-price-change');
 
+        var wsPrice = (window._btcPriceCache && window._btcPriceCache.price) ? window._btcPriceCache.price : null;
+        if (wsPrice) nachoLiveData.price = wsPrice;
         if (nachoLiveData.price) {
             var p = nachoLiveData.price;
             priceEls.forEach(el => el.textContent = '$' + Math.round(p).toLocaleString());
@@ -4453,7 +4456,8 @@ function getHalvingInfo() {
     if (!height) return null;
     var nextHalving = Math.ceil(height / 210000) * 210000;
     var blocksLeft = nextHalving - height;
-    var daysLeft = Math.round(blocksLeft * 10 / 1440);
+    var intervalMin = (nachoLiveData.blockIntervalSec > 60) ? (nachoLiveData.blockIntervalSec / 60) : 10;
+    var daysLeft = Math.round(blocksLeft * intervalMin / 1440);
     return { nextHalving: nextHalving, blocksLeft: blocksLeft, daysLeft: daysLeft };
 }
 
@@ -4505,6 +4509,9 @@ window.nachoLiveMessage = function() {
 
 setTimeout(fetchLiveData, 3000);
 setInterval(fetchLiveData, FETCH_INTERVAL);
+setInterval(function () {
+    if (window._btcPriceCache && window._btcPriceCache.price && typeof updateTicker === 'function') updateTicker();
+}, 10000);
 
 // Toggle ticker visibility — called from Settings
 window.toggleTickerSetting = function() {
@@ -17627,14 +17634,14 @@ function startPriceWs() {
 var _pricePollTimer = null;
 function startPricePolling() {
     if (_pricePollTimer) return; // already polling
-    console.log('[Dashboard] Starting price polling fallback (CoinGecko)');
+    console.log('[Dashboard] Starting price polling fallback (worker cache)');
     function poll() {
-        fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true')
+        fetch(WORKER_URL)
             .then(function(r) { return r.json(); })
             .then(function(d) {
-                if (d && d.bitcoin) {
-                    _lastWsPrice = d.bitcoin.usd;
-                    _lastWsChange = d.bitcoin.usd_24h_change || 0;
+                if (d && d.price) {
+                    _lastWsPrice = d.price;
+                    _lastWsChange = d.change24h || 0;
                     // Update dashboard
                     var priceEl = document.getElementById('dashLivePrice');
                     if (priceEl) priceEl.textContent = '$' + fmtNum(_lastWsPrice, 2);
@@ -17656,7 +17663,7 @@ function startPricePolling() {
             }).catch(function() {});
     }
     poll();
-    _pricePollTimer = setInterval(poll, 30000); // CoinGecko rate limit: ~30 calls/min
+    _pricePollTimer = setInterval(poll, 30000); // worker edge cache is 30s
 }
 
 function stopPriceWs() {
@@ -17670,7 +17677,7 @@ function startHighLowRefresh() { /* no-op — CoinGecko handles this */ }
 
 // ---- Cache & State ----
 var DASH_CACHE_KEY = 'btc_dashboard_cache_v2';
-var DASH_CACHE_TTL = 120000; // 2 min
+var DASH_CACHE_TTL = 30000; // 30s — matches the worker edge cache
 var _dashData = null;
 var _dashLoading = false;
 var _dashInterval = null;
@@ -17679,8 +17686,15 @@ var _dashInterval = null;
 var _candleData = null;
 var _candleInterval = null;
 var _candleFetchTs = 0;
-var CANDLE_WORKER_URL = 'https://jolly-surf-219enacho-search.needcreations.workers.dev/btc-candles';
-var CANDLE_REFRESH_MS = 5 * 60 * 1000; // re-fetch historical bars every 5 min
+function btcMetricsUrl(path) {
+    var host = 'https://jolly-surf-219enacho-search.needcreations.workers.dev';
+    try {
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') host = location.origin;
+    } catch (e) {}
+    return host + path;
+}
+var CANDLE_WORKER_URL = btcMetricsUrl('/btc-candles');
+var CANDLE_REFRESH_MS = 30 * 1000; // 5m bars; refetch the series every 30s
 
 // ---- Number Formatting ----
 function fmtNum(n, decimals) {
@@ -17728,7 +17742,7 @@ function fmtPctMined(n) {
 // ---- Fetch All Data — proxied through CF Worker ----
 // One call to /btc-data returns everything, cached 90s at the edge.
 // No direct browser-to-API calls; external breakage fixed in the worker only.
-var WORKER_URL = 'https://jolly-surf-219enacho-search.needcreations.workers.dev/btc-data';
+var WORKER_URL = btcMetricsUrl('/btc-data');
 
 async function fetchDashboardData() {
     if (_dashLoading) {
@@ -17902,7 +17916,8 @@ function renderDashboard(data) {
         d.nextSubsidy = (50 / Math.pow(2, _epoch + 1)).toFixed(4);
         d.halvingBlock = (_epoch + 1) * 210000;
         d.halving = 210000 - (d.blockHeight % 210000);
-        var _halvMs = d.halving * 10 * 60 * 1000;
+        var _blockSec = (d.blockIntervalSec > 60) ? d.blockIntervalSec : 600;
+        var _halvMs = d.halving * _blockSec * 1000;
         d.halvingEta = new Date(Date.now() + _halvMs);
         var _totalSec = Math.floor(_halvMs / 1000);
         d.halvingDays = Math.floor(_totalSec / 86400);
@@ -17921,7 +17936,7 @@ function renderDashboard(data) {
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">';
     html += '<div><h2 style="color:var(--heading);font-size:1.4rem;font-weight:900;margin:0;letter-spacing:-0.5px;">₿ Bitcoin Network</h2>';
     var _dataAge = d.ts ? Math.round((Date.now() - d.ts) / 60000) : 0;
-    var _freshLabel = _dataAge <= 2 ? 'Live metrics · Updates every 2 min' : '📦 Data from ' + (_dataAge < 60 ? _dataAge + 'm' : Math.round(_dataAge/60) + 'h') + ' ago · Refreshing...';
+    var _freshLabel = _dataAge <= 1 ? 'Live metrics · Shared cache, about every 30s' : '📦 Data from ' + (_dataAge < 60 ? _dataAge + 'm' : Math.round(_dataAge/60) + 'h') + ' ago · Refreshing...';
     html += '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:2px;">' + _freshLabel + '</div></div>';
     html += '<button onclick="closeDashboard()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button>';
     html += '</div>';
@@ -17966,7 +17981,8 @@ function renderDashboard(data) {
         html += '<div data-dash-tip="' + halvingTip.replace(/[\\'"]/g, "").replace(/"/g, '&quot;') + '" style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center;cursor:help;transition:0.2s;position:relative;">';
         html += '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:8px;">⏳ Next Halving — Block #' + fmtNum(d.halvingBlock) + ' <span style="opacity:0.4;font-size:0.55rem;">ⓘ</span></div>';
         // Store halving target for live countdown
-        window._halvingTargetMs = Date.now() + (d.halving * 10 * 60 * 1000);
+        var _halvSec = (d.blockIntervalSec > 60) ? d.blockIntervalSec : 600;
+        window._halvingTargetMs = Date.now() + (d.halving * _halvSec * 1000);
 
         html += '<div id="halvingCountdown" style="display:flex;justify-content:center;gap:12px;margin-bottom:10px;">';
         html += '<div><div id="halvDays" style="font-size:1.8rem;font-weight:900;color:var(--accent);line-height:1;">' + (d.halvingDays || 0) + '</div><div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Days</div></div>';
@@ -17997,7 +18013,8 @@ function renderDashboard(data) {
     // Hashrate
     var _hrSub = '';
     if (d.hashrateChange24h != null) { var _hc = d.hashrateChange24h; _hrSub = '<span style="color:' + (_hc >= 0 ? '#22c55e' : '#ef4444') + ';">' + (_hc >= 0 ? '▲' : '▼') + ' ' + Math.abs(_hc).toFixed(1) + '%</span>'; }
-    html += metricCard('⛏️', 'Hashrate', fmtCompact(d.hashrate), _hrSub, 'The total computing power securing the Bitcoin network, measured in hashes per second. Higher hashrate = more secure network. EH/s = quintillion hashes per second.');
+    if (!_hrSub) _hrSub = 'mempool current estimate';
+    html += metricCard('⛏️', 'Hashrate', fmtCompact(d.hashrate), _hrSub, 'The total computing power securing the Bitcoin network, measured in hashes per second. This figure is mempool.space\'s current estimate, not a 24-hour average. Higher hashrate = more secure network. EH/s = quintillion hashes per second.');
     // Difficulty
     html += metricCard('🎯', 'Difficulty', fmtT(d.difficulty), '', 'How hard it is to mine a new block. Adjusts every 2,016 blocks (~2 weeks) to keep block times at ~10 minutes. If miners join, difficulty goes up. If miners leave, it goes down.');
     // Next Difficulty Adj
@@ -18017,12 +18034,19 @@ function renderDashboard(data) {
     // 24h Volume
     var _volSub = '';
     if (d.volume24h && d.marketCap) { var _vr = (d.volume24h / d.marketCap * 100); _volSub = 'Vol/MCap: ' + _vr.toFixed(2) + '%'; }
-    html += metricCard('📈', '24h Volume', '$' + fmtT(d.volume24h), _volSub, 'Total USD value of Bitcoin traded across all exchanges in the last 24 hours. High volume often signals strong market interest or significant price moves.');
+    html += metricCard('📈', '24h Volume', '$' + fmtT(d.volume24h), _volSub, 'All-exchange 24h Bitcoin volume from CoinGecko. High volume often signals strong market interest or a large move.');
     // Lightning Network
     var lnBtcNum = d.lnCapacity ? (d.lnCapacity / 100000000) : null;
     var lnBtcStr = lnBtcNum !== null ? fmtNum(lnBtcNum.toFixed(0)) + ' BTC' : '—';
     var lnUsd = (lnBtcNum && d.price) ? '$' + fmtT(lnBtcNum * d.price) : '';
-    var _lnSub = (d.lnNodes ? fmtNum(d.lnNodes) + ' nodes · ' : '') + (d.lnChannels ? fmtNum(d.lnChannels) + ' channels' : '') + (lnUsd ? '<br>' + lnUsd : '');
+    var _lnWhen = '';
+    if (d.lnAsOf) {
+        var _lnT = Date.parse(d.lnAsOf);
+        var _lnPretty = isFinite(_lnT) ? new Date(_lnT).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+        var _lnOld = isFinite(_lnT) && (Date.now() - _lnT) > 14 * 86400000;
+        _lnWhen = _lnPretty ? ('<br>As of ' + _lnPretty + (_lnOld ? ' · source snapshot' : '')) : '';
+    }
+    var _lnSub = (d.lnNodes ? fmtNum(d.lnNodes) + ' nodes · ' : '') + (d.lnChannels ? fmtNum(d.lnChannels) + ' channels' : '') + (lnUsd ? '<br>' + lnUsd : '') + _lnWhen;
     html += metricCard('⚡', 'Lightning Capacity', lnBtcStr, _lnSub, 'Total Bitcoin locked in Lightning Network payment channels. Lightning enables instant, near-free Bitcoin payments. More capacity = more liquidity for fast payments. Nodes route payments; channels connect them.');
 
     // Fear & Greed moved to Top Indicators section
@@ -18052,7 +18076,7 @@ function renderDashboard(data) {
     html += '</div></div>';
 
     // Fetch live gold price after render
-    setTimeout(function() { _fetchGoldData(btcMktCapT, d.supply || 0); }, 150);
+    setTimeout(function() { _renderGoldFromSnapshot(d.goldUsd, btcMktCapT, d.supply || 0); }, 150);
 
     // ── Bitcoin Treasuries (live data from CoinGecko + government estimates) ──
     html += '<div id="treasuryCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:10px;cursor:help;position:relative;transition:0.2s;">';
@@ -18061,7 +18085,7 @@ function renderDashboard(data) {
     html += '</div>';
 
     // Fetch treasury data after render
-    setTimeout(function() { _fetchTreasuryData(d.price || 0); }, 200);
+    setTimeout(function() { _renderTreasuryFromSnapshot(d.treasury, d.price || 0); }, 200);
 
     // ── Bitcoin ETFs (top 5 by BTC holdings) ──
     html += '<div id="etfHoldingsCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:10px;position:relative;transition:0.2s;">';
@@ -18085,12 +18109,12 @@ function renderDashboard(data) {
     html += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:0.6rem;color:var(--text-faint);line-height:1.6;">';
     html += '<strong>Data Sources:</strong> ';
     html += '<a href="https://mempool.space" target="_blank" rel="noopener" style="color:var(--accent);">mempool.space</a> (blocks, fees, hashrate, difficulty, mempool, Lightning) · ';
-    html += '<a href="https://www.coinbase.com" target="_blank" rel="noopener" style="color:var(--accent);">Coinbase</a> (price, 5m candles) · ';
-    html += '<a href="https://www.kraken.com" target="_blank" rel="noopener" style="color:var(--accent);">Kraken</a> (24h high/low, volume) · ';
-    html += '<a href="https://www.coingecko.com" target="_blank" rel="noopener" style="color:var(--accent);">CoinGecko</a> (supply, market cap, ATH) · ';
+    html += '<a href="https://www.coinbase.com" target="_blank" rel="noopener" style="color:var(--accent);">Coinbase</a> (price, rolling 24h change, high/low, 5m candles) · ';
+    html += '<a href="https://www.coingecko.com" target="_blank" rel="noopener" style="color:var(--accent);">CoinGecko</a> (all-exchange volume, ATH, dominance, gold, treasuries) · ';
+    html += '<a href="https://www.blockchain.com/charts" target="_blank" rel="noopener" style="color:var(--accent);">Blockchain.com</a> (daily prices for moving averages) · ';
     html += '<a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener" style="color:var(--accent);">Alternative.me</a> (Fear & Greed Index) · ';
     html += '<a href="https://bitcointreasuries.net" target="_blank" rel="noopener" style="color:var(--accent);">BitcoinTreasuries.net</a> (company & government holdings) · ';
-    html += '<a href="https://colintalkscrypto.com/cbbi/" target="_blank" rel="noopener" style="color:var(--accent);">CBBI</a> (MVRV, NUPL, RHODL, Macro Oscillator)';
+    html += '<a href="https://colintalkscrypto.com/cbbi/" target="_blank" rel="noopener" style="color:var(--accent);">CBBI</a> (normalized 0–1 scores)';
     html += '<div style="margin-top:4px;">Last updated: ' + new Date(d.ts || Date.now()).toLocaleTimeString() + '</div>';
     html += '</div>';
 
@@ -18378,6 +18402,7 @@ function loadTopIndicators() {
     var supply = d.supply || 0;
     var fearGreed = d.fearGreed || 0;
     var fearLabel = d.fearGreedLabel || '—';
+    var hist = d.history || {};
 
     // Calculate indicators from available data
     var indicators = [];
@@ -18412,9 +18437,20 @@ function loadTopIndicators() {
         });
     }
 
-    // 3. Mayer Multiple (price / 200-day MA) — we'll estimate from ATH
-    // We can't get 200-day MA without historical data, but we can show placeholder and fetch
-    indicators.push({ emoji: '📐', name: 'Mayer Multiple', value: '...', sub: 'Loading...', tip: 'Price divided by 200-day moving average. Below 1.0 = historically cheap. Above 2.4 = overheated. Named after Trace Mayer.', id: 'mayerMultiple' });
+    // Mayer Multiple = price / real 200-day average (Blockchain.com daily prices)
+    {
+        var mayerHas = !!(price && hist.ma200);
+        var mayerNum = mayerHas ? price / hist.ma200 : null;
+        indicators.push({
+            emoji: '📐', name: 'Mayer Multiple',
+            value: mayerHas ? mayerNum.toFixed(2) + 'x' : '—',
+            color: !mayerHas ? 'var(--heading)' : mayerNum < 1 ? '#22c55e' : mayerNum > 2.4 ? '#ef4444' : 'var(--heading)',
+            sub: mayerHas ? ('200d MA: $' + fmtNum(Math.round(hist.ma200)) + (mayerNum < 1 ? ' · Below MA' : mayerNum > 2.4 ? ' · Overheated' : '')) : 'Daily history unavailable',
+            tip: 'Price divided by the 200-day average of daily prices (Blockchain.com). Below 1.0 = historically cheap. Above 2.4 = overheated. Named after Trace Mayer.',
+            flashing: mayerHas && mayerNum > 2.4,
+            id: 'mayerMultiple'
+        });
+    }
 
     // 4. Halving Cycle Position
     if (height) {
@@ -18444,31 +18480,10 @@ function loadTopIndicators() {
         });
     }
 
-    // 7. Thermocap Multiple (rough estimate)
-    if (price && supply && height) {
-        var epoch = Math.floor(height / 210000);
-        // Rough total miner revenue estimate
-        var thermocap = 0;
-        var h = height;
-        for (var i = 0; i <= epoch && h > 0; i++) {
-            var epochBlocks = Math.min(h, 210000);
-            var reward = 50 / Math.pow(2, i);
-            thermocap += epochBlocks * reward;
-            h -= epochBlocks;
-        }
-        // Very rough — assumes avg price over time ~$30k
-        var thermocapUSD = thermocap * 30000;
-        var marketCap = price * supply;
-        var thermoMultiple = thermocapUSD > 0 ? (marketCap / thermocapUSD).toFixed(1) : '—';
-        indicators.push({
-            emoji: '🌡️', name: 'Thermo Multiple',
-            value: thermoMultiple + 'x',
-            sub: 'Market Cap / Thermocap',
-            tip: 'Thermocap Multiple compares market cap to total miner revenue (a proxy for "energy spent"). Values >5x historically signal overheating (cycle tops hit 4-8x). <10x = accumulation zone.'
-        });
-    }
+    // Thermocap / Terminal Price need issuance priced on the day it was mined.
+    // A flat $30,000 stand-in is not that series, so those cards are not shown.
 
-    // 9. NVT Ratio (always show)
+    // 9. NVT Ratio (market cap / all-exchange 24h volume)
     {
         var nvtHas = !!(price && supply && d.volume24h);
         var nvt = nvtHas ? (price * supply / d.volume24h).toFixed(1) : null;
@@ -18479,27 +18494,38 @@ function loadTopIndicators() {
             value: nvtHas ? nvt : '—',
             color: nvtColor,
             sub: nvtHas ? (nvtNum < 30 ? 'Undervalued zone' : nvtNum > 150 ? 'Overvalued zone' : 'Normal range') : 'Loading...',
-            tip: 'Network Value to Transactions ratio. Compares market cap to annualized transaction volume. Below 30 = undervalued relative to usage. Above 150 = potentially overvalued. Think of it like P/E ratio for Bitcoin.'
+            tip: 'Market cap divided by CoinGecko all-exchange 24h volume. This is a market-volume ratio, not the on-chain NVT. Below 30 is quiet relative to these bands. Above 150 is heavy relative to these bands.'
         });
     }
 
-    // 11. Bitcoin Dominance (always show — live value fetched async)
-    indicators.push({
-        emoji: '👑', name: 'BTC Dominance',
-        value: '...', color: 'var(--heading)',
-        sub: 'Loading...',
-        tip: 'Bitcoin\'s share of the total cryptocurrency market cap. Higher dominance = Bitcoin is outperforming alts. During alt seasons, dominance drops below 40%. During Bitcoin seasons (now), it rises above 55-65%. Historically, increasing dominance signals strength.',
-        id: 'btcDominance'
-    });
+    // Bitcoin dominance from the shared snapshot (CoinGecko global)
+    {
+        var domHas = d.dominance != null && isFinite(Number(d.dominance));
+        var domNum = domHas ? Number(d.dominance) : null;
+        indicators.push({
+            emoji: '👑', name: 'BTC Dominance',
+            value: domHas ? domNum.toFixed(1) + '%' : '—',
+            color: !domHas ? 'var(--heading)' : domNum > 55 ? '#22c55e' : domNum < 40 ? '#ef4444' : 'var(--heading)',
+            sub: domHas ? (domNum > 55 ? 'Bitcoin season' : domNum < 40 ? 'Alt season' : 'Neutral') : 'Unavailable',
+            tip: 'Bitcoin\'s share of total cryptocurrency market cap, from CoinGecko. A second index (Coinpaprika) can differ by a couple of points because the coin sets differ.',
+            id: 'btcDominance'
+        });
+    }
 
-    // MVRV Z-Score (loaded from CBBI API)
-    indicators.push({
-        emoji: '💎', name: 'MVRV Z-Score',
-        value: '...', color: 'var(--heading)',
-        sub: 'Loading from CBBI...',
-        tip: 'Market Value to Realized Value ratio. Compares market cap to realized cap (sum of each coin valued at its last move price). Above 3.0 historically marks cycle tops. Below 1.0 marks bottoms. Data from CBBI open-source API. Top threshold: normalized \u2265 0.7 (\u2248 MVRV 3+).',
-        id: 'mvrvScore'
-    });
+    // CBBI normalized MVRV score (0–1), not the raw MVRV z-score
+    {
+        var mvrvN = d.cbbi && d.cbbi.mvrv != null ? Number(d.cbbi.mvrv) : null;
+        var mvrvHas = mvrvN != null && isFinite(mvrvN);
+        indicators.push({
+            emoji: '💎', name: 'MVRV (CBBI)',
+            value: mvrvHas ? Math.round(mvrvN * 100) + '%' : '—',
+            color: !mvrvHas ? 'var(--heading)' : mvrvN >= 0.7 ? '#ef4444' : mvrvN <= 0.2 ? '#22c55e' : 'var(--heading)',
+            sub: mvrvHas ? (mvrvN >= 0.7 ? 'Normalized top zone' : mvrvN <= 0.2 ? 'Normalized low zone' : 'CBBI 0–1 score') : 'CBBI unavailable',
+            tip: 'CBBI\'s normalized MVRV input, scaled 0 to 1 (shown as a percent). This is not the raw MVRV z-score, where tops have historically been near 7 and bottoms near 0. A score of 0.7 is CBBI\'s own top threshold.',
+            flashing: mvrvHas && mvrvN >= 0.7,
+            id: 'mvrvScore'
+        });
+    }
 
     // 13. Power Law Deviation
     if (price) {
@@ -18527,32 +18553,33 @@ function loadTopIndicators() {
         });
     }
 
-    // 14. Pi Cycle Top Indicator (needs 111d MA and 350d MA×2 — placeholder, fetched async)
-    indicators.push({
-        emoji: '🔵', name: 'Pi Cycle Top',
-        value: '...',
-        sub: 'Loading...',
-        tip: 'When the 111-day MA crosses above the 350-day MA × 2, it has historically signaled the exact top of every Bitcoin cycle. Flashes when the gap narrows to <5%.',
-        id: 'piCycleTop',
-        flashing: false
-    });
+    // Pi Cycle: 111-day MA vs 350-day MA × 2, from the same daily series
+    {
+        var piHas = !!(hist.ma111 && hist.ma350);
+        var ma350x2 = piHas ? hist.ma350 * 2 : null;
+        var piGapNum = piHas ? (hist.ma111 - ma350x2) / ma350x2 * 100 : null;
+        indicators.push({
+            emoji: '🔵', name: 'Pi Cycle Top',
+            value: piHas ? ((piGapNum >= 0 ? '+' : '') + piGapNum.toFixed(1) + '%') : '—',
+            color: !piHas ? 'var(--heading)' : piGapNum >= 0 ? '#ef4444' : piGapNum > -5 ? '#f97316' : 'var(--heading)',
+            sub: piHas ? ('111d: $' + fmtNum(Math.round(hist.ma111)) + ' vs 350d×2: $' + fmtNum(Math.round(ma350x2))) : 'Daily history unavailable',
+            tip: 'When the 111-day average crosses above the 350-day average × 2, it has historically lined up with cycle tops. Both averages are daily closes from Blockchain.com.',
+            flashing: piHas && piGapNum >= 0,
+            id: 'piCycleTop'
+        });
+    }
 
-    // 15. Puell Multiple (daily miner revenue / 365-day avg)
-    if (height && price) {
-        var _blockReward = (d.subsidy ? parseFloat(d.subsidy) : 3.125);
-        var dailyMinerRevenue = _blockReward * 144 * price;
-        // Rough 365-day avg: use a historical avg BTC price estimate × avg reward
-        // More accurate: avg price over last year ~$60K with reward 3.125
-        var avgDailyRevenue365 = 3.125 * 144 * 60000; // rough estimate
-        var puell = avgDailyRevenue365 > 0 ? (dailyMinerRevenue / avgDailyRevenue365).toFixed(2) : '—';
-        var puellNum = parseFloat(puell);
+    // Puell = spot / 365-day average price. Subsidy has been 3.125 BTC for this whole window.
+    {
+        var puellHas = !!(price && hist.price365Avg);
+        var puellNum = puellHas ? price / hist.price365Avg : null;
         indicators.push({
             emoji: '⛏️', name: 'Puell Multiple',
-            value: puell,
-            color: puellNum > 2.2 ? '#ef4444' : puellNum < 0.5 ? '#22c55e' : 'var(--heading)',
-            sub: puellNum > 2.2 ? 'Miners overleveraged ⚠️' : puellNum < 0.5 ? 'Miner capitulation zone 🟢' : 'Normal range',
-            tip: 'Ratio of daily miner revenue to its 365-day moving average. Above 2.2 = miners are earning far more than usual (historically a sell signal). Below 0.5 = miner capitulation (buy signal). Top threshold: ≥ 2.2.',
-            flashing: puellNum >= 2.2
+            value: puellHas ? puellNum.toFixed(2) : '—',
+            color: !puellHas ? 'var(--heading)' : puellNum > 2.2 ? '#ef4444' : puellNum < 0.5 ? '#22c55e' : 'var(--heading)',
+            sub: puellHas ? ('365d avg price: $' + fmtNum(Math.round(hist.price365Avg)) + (puellNum > 2.2 ? ' · High' : puellNum < 0.5 ? ' · Capitulation zone' : ' · Normal range')) : 'Daily history unavailable',
+            tip: 'Issuance value today divided by its 365-day average. The block subsidy has been 3.125 BTC for this whole year, so this is the spot price divided by the 365-day average daily price (Blockchain.com). Above 2.2 has been a late-cycle zone. Below 0.5 has been miner capitulation.',
+            flashing: puellHas && puellNum >= 2.2
         });
     }
 
@@ -18587,133 +18614,86 @@ function loadTopIndicators() {
         });
     }
 
-// 18. 4-Year MA Multiplier
-    if (price) {
-        // The 4-year (1460-day) moving average × 3.5 has historically caught tops
-        // We estimate the 4-year MA from the power law fair value
-        var _genesis = new Date('2009-01-03T00:00:00Z');
-        var _daysNow = Math.floor((Date.now() - _genesis.getTime()) / 86400000);
-        // Average price over last 4 years — rough estimate using power law values
-        var _sum4y = 0;
-        for (var _dy = 0; _dy < 1460; _dy++) {
-            var _d = _daysNow - _dy;
-            if (_d > 365) _sum4y += Math.pow(10, 5.82 * Math.log10(_d) - 17.01);
-        }
-        var ma4y = _sum4y / 1460;
-        var ma4yMultiplier = ma4y > 0 ? (price / ma4y).toFixed(2) : '—';
-        var ma4yNum = parseFloat(ma4yMultiplier);
+    // 4-year average of daily prices (Blockchain.com), not the power-law curve
+    {
+        var ma4Has = !!(price && hist.ma1460);
+        var ma4yNum = ma4Has ? price / hist.ma1460 : null;
         indicators.push({
             emoji: '📊', name: '4-Year MA Multiple',
-            value: ma4yMultiplier + 'x',
-            color: ma4yNum >= 3.5 ? '#ef4444' : ma4yNum < 1 ? '#22c55e' : 'var(--heading)',
-            sub: 'Est. 4Y MA: ~$' + fmtNum(Math.round(ma4y)) + (ma4yNum >= 3.5 ? ' · Top zone ⚠️' : ''),
-            tip: 'Price divided by the 4-year (1460-day) moving average. Historically, when price exceeds 3.5× the 4-year MA, it signals a cycle top. Below 1× = accumulation zone. Top threshold: ≥ 3.5.',
-            flashing: ma4yNum >= 3.5
+            value: ma4Has ? ma4yNum.toFixed(2) + 'x' : '—',
+            color: !ma4Has ? 'var(--heading)' : ma4yNum >= 3.5 ? '#ef4444' : ma4yNum < 1 ? '#22c55e' : 'var(--heading)',
+            sub: ma4Has ? ('4Y MA: $' + fmtNum(Math.round(hist.ma1460)) + (ma4yNum >= 3.5 ? ' · Top zone' : '')) : 'Daily history unavailable',
+            tip: 'Price divided by the average of the last 1,460 daily prices (Blockchain.com). When price has exceeded about 3.5× that average, it has lined up with cycle tops. Below 1× has been an accumulation zone.',
+            flashing: ma4Has && ma4yNum >= 3.5
         });
     }
 
-    // NUPL (loaded from CBBI API — RUPL metric)
-    indicators.push({
-        emoji: '💰', name: 'NUPL',
-        value: '...', color: 'var(--heading)',
-        sub: 'Loading from CBBI...',
-        tip: 'Net Unrealized Profit/Loss. Shows aggregate profit/loss of all Bitcoin holders. Above 75% = euphoria (top zone). Below 0% = capitulation (bottom zone). Data from CBBI open-source API. Top threshold: normalized \u2265 0.75.',
-        id: 'nuplScore'
-    });
+    // CBBI normalized RUPL (0–1), not raw NUPL
+    {
+        var nuplN = d.cbbi && d.cbbi.nupl != null ? Number(d.cbbi.nupl) : null;
+        var nuplHas = nuplN != null && isFinite(nuplN);
+        indicators.push({
+            emoji: '💰', name: 'NUPL (CBBI)',
+            value: nuplHas ? Math.round(nuplN * 100) + '%' : '—',
+            color: !nuplHas ? 'var(--heading)' : nuplN >= 0.75 ? '#ef4444' : nuplN <= 0.2 ? '#22c55e' : 'var(--heading)',
+            sub: nuplHas ? (nuplN >= 0.75 ? 'Normalized euphoria' : nuplN <= 0.2 ? 'Normalized low zone' : 'CBBI 0–1 score') : 'CBBI unavailable',
+            tip: 'CBBI\'s normalized RUPL input, scaled 0 to 1 (shown as a percent). This is not raw NUPL, which is unrealized profit divided by market cap. CBBI treats 0.75 as its top threshold for this input.',
+            flashing: nuplHas && nuplN >= 0.75,
+            id: 'nuplScore'
+        });
+    }
 
     // 20. Altcoin Season Index (BTC dominance inverse — estimated)
     // Moved from simple dominance to include flashing at <40% (alt season = BTC top risk)
     // (BTC Dominance is already indicator 11 — this adds the alt season angle)
 
-    // 21. AHR999 Index (cost-averaging indicator)
-    if (price && height) {
+    // AHR999 = (price / 200d MA) × (price / power-law fit)
+    if (price && hist.ma200) {
         var _dsg3 = Math.floor((Date.now() - new Date('2009-01-03').getTime()) / 86400000);
-        var logFit = Math.pow(10, 5.82 * Math.log10(_dsg3) - 17.01); // power law fair value
-        // AHR999 = (price / 200d MA) * (price / fitted value)
-        // We'll use power law as fitted value, estimate 200d MA from async (placeholder)
-        var ahr999 = logFit > 0 ? (price / logFit).toFixed(2) : '—';
-        var ahrNum = parseFloat(ahr999);
+        var logFit = Math.pow(10, 5.82 * Math.log10(_dsg3) - 17.01);
+        var ahrNum = (logFit > 0) ? (price / hist.ma200) * (price / logFit) : null;
         indicators.push({
             emoji: '🔢', name: 'AHR999',
-            value: ahr999,
+            value: ahrNum != null ? ahrNum.toFixed(2) : '—',
             color: ahrNum > 1.2 ? '#ef4444' : ahrNum < 0.45 ? '#22c55e' : 'var(--heading)',
-            sub: ahrNum > 1.2 ? 'Overvalued — stop DCA ⚠️' : ahrNum < 0.45 ? 'Deep value — DCA zone 🟢' : ahrNum < 1 ? 'Below model — DCA' : 'Near model',
-            tip: 'AHR999 compares current price to its long-term model value. Below 0.45 = extreme buy (accumulate aggressively). Above 1.2 = stop DCA, consider selling. Used by cost-averaging investors to time entries. Top threshold: ≥ 1.2.',
+            sub: ahrNum > 1.2 ? 'Overvalued — stop DCA' : ahrNum < 0.45 ? 'Deep value — DCA zone' : ahrNum < 1 ? 'Below model — DCA' : 'Near model',
+            tip: 'AHR999 = (price / 200-day average) × (price / power-law fit). The 200-day average is Blockchain.com daily prices. The fit is P = 10^(5.82 × log10(days since genesis) − 17.01). Below 0.45 has been a deep-value zone. Above 1.2 has been a stop-DCA zone.',
             flashing: ahrNum >= 1.2
         });
     }
 
-    // 22. 2-Year MA Multiplier
-    if (price) {
-        // 2-year (730d) MA and 5× that MA
-        var _gen3 = new Date('2009-01-03T00:00:00Z');
-        var _dn3 = Math.floor((Date.now() - _gen3.getTime()) / 86400000);
-        var _sum2y = 0;
-        for (var _d2y = 0; _d2y < 730; _d2y++) {
-            var _dd = _dn3 - _d2y;
-            if (_dd > 365) _sum2y += Math.pow(10, 5.82 * Math.log10(_dd) - 17.01);
-        }
-        var ma2y = _sum2y / 730;
-        var ma2yx5 = ma2y * 5;
-        var above2y = price > ma2yx5;
+    {
+        var ma2Has = !!(price && hist.ma730);
+        var ma2y = ma2Has ? hist.ma730 : null;
+        var ma2yx5 = ma2Has ? ma2y * 5 : null;
+        var ma2Mult = ma2Has ? price / ma2y : null;
+        var above2y = ma2Has && price > ma2yx5;
         indicators.push({
             emoji: '📉', name: '2-Year MA ×5',
-            value: (price / ma2y).toFixed(2) + 'x',
-            color: above2y ? '#ef4444' : price < ma2y ? '#22c55e' : 'var(--heading)',
-            sub: 'MA: $' + fmtNum(Math.round(ma2y)) + ' · ×5: $' + fmtNum(Math.round(ma2yx5)) + (above2y ? ' · Above ⚠️' : ''),
-            tip: 'Price relative to the 2-year (730-day) moving average. Historically, buying below the 2-year MA yields huge returns. Selling when price exceeds 5× the 2-year MA catches tops. Top threshold: price above 5× MA.',
+            value: ma2Has ? ma2Mult.toFixed(2) + 'x' : '—',
+            color: !ma2Has ? 'var(--heading)' : above2y ? '#ef4444' : price < ma2y ? '#22c55e' : 'var(--heading)',
+            sub: ma2Has ? ('MA: $' + fmtNum(Math.round(ma2y)) + ' · ×5: $' + fmtNum(Math.round(ma2yx5)) + (above2y ? ' · Above' : '')) : 'Daily history unavailable',
+            tip: 'Price divided by the average of the last 730 daily prices (Blockchain.com). Buying below that average has historically been early. Price above 5× that average has lined up with tops.',
             flashing: above2y
         });
     }
 
-    // 23. Golden Ratio Multiplier
-    if (price) {
-        var _gen4 = new Date('2009-01-03T00:00:00Z');
-        var _dn4 = Math.floor((Date.now() - _gen4.getTime()) / 86400000);
-        // 350d MA × golden ratio multiples (1.6, 2, 3, 5, 8, 13, 21)
-        var _sum350g = 0;
-        for (var _d350 = 0; _d350 < 350; _d350++) {
-            var _ddd = _dn4 - _d350;
-            if (_ddd > 365) _sum350g += Math.pow(10, 5.82 * Math.log10(_ddd) - 17.01);
-        }
-        var ma350g = _sum350g / 350;
-        var goldenRatio = ma350g > 0 ? (price / ma350g).toFixed(2) : '—';
-        var grNum = parseFloat(goldenRatio);
-        var grLevel = grNum >= 8 ? 'Above ×8 — max top ⚠️' : grNum >= 5 ? 'Above ×5 — overheated' : grNum >= 3 ? 'Above ×3 — elevated' : grNum >= 1.6 ? 'Above ×1.6 — bullish' : 'Below ×1.6';
+    {
+        var grHas = !!(price && hist.ma350);
+        var grNum = grHas ? price / hist.ma350 : null;
+        var grLevel = !grHas ? '' : grNum >= 8 ? 'Above ×8' : grNum >= 5 ? 'Above ×5 — overheated' : grNum >= 3 ? 'Above ×3 — elevated' : grNum >= 1.6 ? 'Above ×1.6 — bullish' : 'Below ×1.6';
         indicators.push({
             emoji: '🔱', name: 'Golden Ratio',
-            value: goldenRatio + 'x',
-            color: grNum >= 5 ? '#ef4444' : grNum >= 3 ? '#f97316' : 'var(--heading)',
-            sub: '350d MA: $' + fmtNum(Math.round(ma350g)) + ' · ' + grLevel,
-            tip: 'Price relative to the 350-day MA using Fibonacci golden ratio multiples (1.6, 2, 3, 5, 8, 13, 21). Each cycle top has touched a lower multiple. Top threshold: ≥ 5×.',
-            flashing: grNum >= 5
+            value: grHas ? grNum.toFixed(2) + 'x' : '—',
+            color: !grHas ? 'var(--heading)' : grNum >= 5 ? '#ef4444' : grNum >= 3 ? '#f97316' : 'var(--heading)',
+            sub: grHas ? ('350d MA: $' + fmtNum(Math.round(hist.ma350)) + ' · ' + grLevel) : 'Daily history unavailable',
+            tip: 'Price divided by the real 350-day average of daily prices (Blockchain.com), read against Fibonacci multiples (1.6, 2, 3, 5, 8). Top threshold used here: 5×.',
+            flashing: grHas && grNum >= 5
         });
     }
 
-    // 24. Bitcoin Terminal Price
-    if (height && supply && price) {
-        // Terminal Price = Transferred Price × 21
-        // Transferred Price ≈ Thermocap / supply × coin days destroyed ratio
-        // Simplified: Terminal Price ≈ (cumulative block rewards × avg price) / supply × 21
-        var _thermBTC3 = 0;
-        var _h3 = height;
-        for (var _ep3 = 0; _ep3 <= Math.floor(height / 210000) && _h3 > 0; _ep3++) {
-            var _epB3 = Math.min(_h3, 210000);
-            _thermBTC3 += _epB3 * (50 / Math.pow(2, _ep3));
-            _h3 -= _epB3;
-        }
-        var transferredPrice = supply > 0 ? (_thermBTC3 * 30000 / supply) : 0;
-        var terminalPrice = transferredPrice * 21;
-        var termPct = terminalPrice > 0 ? ((price / terminalPrice) * 100).toFixed(0) : '—';
-        indicators.push({
-            emoji: '🎯', name: 'Terminal Price',
-            value: '$' + fmtNum(Math.round(terminalPrice)),
-            color: price >= terminalPrice ? '#ef4444' : 'var(--heading)',
-            sub: 'Current: ' + termPct + '% of terminal · ' + (price >= terminalPrice ? 'ABOVE — extreme ⚠️' : 'Below terminal'),
-            tip: 'Terminal Price = Transferred Price × 21. Represents a theoretical maximum based on cumulative miner revenue and coin movement. Every cycle top has approached or exceeded this level. Top threshold: price ≥ Terminal Price.',
-            flashing: price >= terminalPrice
-        });
-    }
+    // Terminal Price needs thermocap (issuance × the price on the day mined).
+    // The free daily series starts in 2021, so that sum is not computed here.
 
     // 25. Bitcoin Bubble Index (price deviation from log trend)
     if (price) {
@@ -18734,70 +18714,59 @@ function loadTopIndicators() {
         });
     }
 
-    // 26. 3-Month Annualized Return
-    if (price) {
-        // Estimate 90-day ago price from power law (rough)
-        var _dsg6 = Math.floor((Date.now() - new Date('2009-01-03').getTime()) / 86400000);
-        var price90d = Math.pow(10, 5.82 * Math.log10(_dsg6 - 90) - 17.01);
-        // Better: use actual price change if we have fear/greed cached data
-        // For now use ratio of current to 90d estimated
-        var annualized3m = price90d > 0 ? (Math.pow(price / price90d, 4) - 1) * 100 : 0;
-        var ann3mStr = annualized3m.toFixed(0);
-        var ann3mNum = parseFloat(ann3mStr);
+    // 3-month return, annualized with ^4, from the daily price 90 days ago
+    {
+        var annHas = !!(price && hist.price90d);
+        var ann3mNum = annHas ? (Math.pow(price / hist.price90d, 4) - 1) * 100 : null;
+        var ann3mStr = annHas ? Math.round(ann3mNum).toString() : '';
         indicators.push({
             emoji: '🚀', name: '3M Annualized',
-            value: (ann3mNum >= 0 ? '+' : '') + ann3mStr + '%',
-            color: ann3mNum > 200 ? '#ef4444' : ann3mNum > 100 ? '#f97316' : 'var(--heading)',
-            sub: ann3mNum > 200 ? 'Unsustainable — top risk ⚠️' : ann3mNum > 100 ? 'Very high' : 'Normal',
-            tip: '3-month return annualized. When Bitcoin is gaining over 200% annualized, it historically signals the late stages of a bull run. Top threshold: > 200%.',
-            flashing: ann3mNum > 200,
+            value: annHas ? ((ann3mNum >= 0 ? '+' : '') + ann3mStr + '%') : '—',
+            color: !annHas ? 'var(--heading)' : ann3mNum > 200 ? '#ef4444' : ann3mNum > 100 ? '#f97316' : 'var(--heading)',
+            sub: annHas ? ('90d ago: $' + fmtNum(Math.round(hist.price90d)) + (ann3mNum > 200 ? ' · Very high' : ann3mNum > 100 ? ' · High' : '')) : 'Daily history unavailable',
+            tip: 'The spot price versus the daily price 90 days earlier (Blockchain.com), raised to the 4th power to annualize a quarter. Above +200% has been a late-bull reading.',
+            flashing: annHas && ann3mNum > 200,
             id: 'ann3m'
         });
     }
 
-    // 27. MicroStrategy Avg Bitcoin Cost
-    // MSTR holds ~762K BTC at avg cost ~$75.7K (as of March 2026, updated periodically)
-    if (price) {
-        var mstrAvgCost = 75694; // update periodically from public filings
-        var mstrBTC = 762099;
-        var mstrPnL = ((price - mstrAvgCost) / mstrAvgCost * 100).toFixed(1);
+    {
+        var mstrOk = !!(d.mstr && d.mstr.btc && d.mstr.avgCost && price);
+        var mstrPnL = mstrOk ? ((price - d.mstr.avgCost) / d.mstr.avgCost * 100) : null;
         indicators.push({
             emoji: '🏢', name: 'MSTR Avg Cost',
-            value: '$' + fmtNum(mstrAvgCost),
-            sub: fmtNum(mstrBTC) + ' BTC · P&L: ' + (mstrPnL >= 0 ? '+' : '') + mstrPnL + '%',
-            tip: 'MicroStrategy (MSTR) average Bitcoin acquisition cost. When price is far above MSTR\'s cost basis, it indicates broader market euphoria. MSTR holds ' + fmtNum(mstrBTC) + ' BTC. Informational — no top threshold.',
+            value: mstrOk ? ('$' + fmtNum(Math.round(d.mstr.avgCost))) : '—',
+            sub: mstrOk ? (fmtNum(Math.round(d.mstr.btc)) + ' BTC · P&L: ' + (mstrPnL >= 0 ? '+' : '') + mstrPnL.toFixed(1) + '%') : 'Treasury feed unavailable',
+            tip: mstrOk
+                ? ('Strategy holdings and average cost from CoinGecko public treasury (entry value / coins). ' + fmtNum(Math.round(d.mstr.btc)) + ' BTC at $' + fmtNum(Math.round(d.mstr.avgCost)) + '. Same feed as the treasury card.')
+                : 'Strategy holdings come from the CoinGecko public-treasury feed when that snapshot includes them.',
             flashing: false, noFlashLogic: true
         });
     }
 
 
-    // --- CBBI-sourced indicators (fetched async from colintalkscrypto.com) ---
-    // CBBI Confidence
-    indicators.push({
-        emoji: '🎯', name: 'CBBI Index',
-        value: '...', color: 'var(--heading)',
-        sub: 'Loading CBBI data...',
-        tip: 'Colin Talks Crypto Bitcoin Bull Run Index. Combines 9 on-chain metrics into a single 0-100 confidence score. Above 80 = approaching cycle top. Below 20 = approaching bottom. Open source. Top threshold: ≥ 80.',
-        id: 'cbbiScore'
-    });
-
-    // RHODL Ratio (from CBBI data)
-    indicators.push({
-        emoji: '💎', name: 'RHODL Ratio',
-        value: '...', color: 'var(--heading)',
-        sub: 'Loading...',
-        tip: 'Realized HODL Ratio. Compares 1-week realized value to 1-2 year realized value, adjusted by market age. High values = speculative activity dominating (top signal). Low values = long-term holders dominating. Top threshold: normalized ≥ 0.85.',
-        id: 'rhodlRatio'
-    });
-
-    // Woobull / Macro Oscillator (from CBBI data)
-    indicators.push({
-        emoji: '📊', name: 'Macro Oscillator',
-        value: '...', color: 'var(--heading)',
-        sub: 'Loading...',
-        tip: 'Bitcoin Macro Oscillator (Woobull). Composite z-score of MVRV, VWAP, CVDD, and Sharpe ratios. Above 0.7 = euphoria zone. Below 0.2 = accumulation zone. Top threshold: normalized ≥ 0.7.',
-        id: 'macroOsc'
-    });
+    function cbbiCard(name, key, emoji, hi, lo, hiLabel, loLabel, tip) {
+        var raw = d.cbbi && d.cbbi[key] != null ? Number(d.cbbi[key]) : null;
+        var ok = raw != null && isFinite(raw);
+        var pct = ok ? Math.round(raw * 100) : null;
+        return {
+            emoji: emoji, name: name,
+            value: ok ? pct + '%' : '—',
+            color: !ok ? 'var(--heading)' : raw >= hi ? '#ef4444' : raw <= lo ? '#22c55e' : 'var(--heading)',
+            sub: ok ? (raw >= hi ? hiLabel : raw <= lo ? loLabel : 'CBBI 0–1 score' + (d.cbbi.asOf ? ' · ' + new Date(d.cbbi.asOf).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '')) : 'CBBI unavailable',
+            tip: tip,
+            flashing: ok && raw >= hi
+        };
+    }
+    var cbbiConf = cbbiCard('CBBI Index', 'confidence', '🎯', 0.8, 0.2, 'Approaching top', 'Approaching bottom', 'Colin Talks Crypto Bitcoin Bull Run Index, a 0–1 blend of nine normalized metrics (shown as a percent). Above 80 has been late-cycle on their scale. Below 20 has been early-cycle. This is their index, not a raw on-chain reading.');
+    cbbiConf.id = 'cbbiScore';
+    indicators.push(cbbiConf);
+    var rhodlCard = cbbiCard('RHODL (CBBI)', 'rhodl', '💎', 0.85, 0.2, 'Normalized high', 'Normalized low', 'CBBI\'s normalized RHODL input, scaled 0 to 1. This is not the raw Realized HODL ratio. Their top threshold for this input is 0.85.');
+    rhodlCard.id = 'rhodlRatio';
+    indicators.push(rhodlCard);
+    var macroCard = cbbiCard('Macro Osc. (CBBI)', 'woobull', '📊', 0.7, 0.2, 'Normalized high', 'Normalized low', 'CBBI\'s normalized Woobull macro-oscillator input, scaled 0 to 1. This is not the raw oscillator. Their top threshold for this input is 0.7.');
+    macroCard.id = 'macroOsc';
+    indicators.push(macroCard);
 
 
     // Smithson's Forecast (quantile regression model)
@@ -18818,33 +18787,47 @@ function loadTopIndicators() {
     }
 
 
-    // LTH/STH Supply Ratio (estimated from CBBI metrics)
-    indicators.push({
-        emoji: '⏳', name: 'LTH/STH Ratio',
-        value: '...', color: 'var(--heading)',
-        sub: 'Estimated from CBBI data...',
-        tip: 'Long-Term Holder to Short-Term Holder supply ratio (estimated). When LTH supply drops sharply (distributing to STH), it signals late-cycle selling. When LTH supply grows, holders are accumulating. Derived from CBBI on-chain metrics. Top threshold: CBBI MVRV + Puell both > 0.7.',
-        id: 'lthSthRatio'
-    });
+    {
+        var mixHas = d.cbbi && d.cbbi.mvrv != null && d.cbbi.puell != null;
+        var mixNum = mixHas ? (Number(d.cbbi.mvrv) + Number(d.cbbi.puell)) / 2 : null;
+        indicators.push({
+            emoji: '⏳', name: 'CBBI MVRV/Puell',
+            value: mixHas ? Math.round(mixNum * 100) + '%' : '—',
+            color: !mixHas ? 'var(--heading)' : mixNum >= 0.7 ? '#ef4444' : mixNum <= 0.25 ? '#22c55e' : 'var(--heading)',
+            sub: mixHas ? 'Average of two CBBI 0–1 scores' : 'CBBI unavailable',
+            tip: 'Average of CBBI\'s normalized MVRV and Puell scores. This is not the long-term-holder to short-term-holder supply ratio. Both inputs are 0–1 index values, not coin counts.',
+            flashing: mixHas && mixNum >= 0.7,
+            id: 'lthSthRatio'
+        });
+    }
 
-    // 28. RSI-22 Day (loaded async with Mayer Multiple from 350d CoinGecko data)
-    indicators.push({
-        emoji: '📉', name: 'RSI-22 Day',
-        value: '...', color: 'var(--heading)',
-        sub: 'Loading...',
-        tip: 'Relative Strength Index over 22 days. Above 80 = overbought (potential top signal). Below 30 = oversold (potential bottom). 22-day RSI smooths out short-term noise. Top threshold: ≥ 80.',
-        id: 'rsi22d'
-    });
+    {
+        var rsiHas = hist.rsi22 != null && isFinite(Number(hist.rsi22));
+        var rsiNum = rsiHas ? Number(hist.rsi22) : null;
+        indicators.push({
+            emoji: '📉', name: 'RSI-22 Day',
+            value: rsiHas ? rsiNum.toFixed(1) : '—',
+            color: !rsiHas ? 'var(--heading)' : rsiNum >= 80 ? '#ef4444' : rsiNum <= 30 ? '#22c55e' : 'var(--heading)',
+            sub: rsiHas ? (rsiNum >= 80 ? 'Overbought' : rsiNum <= 30 ? 'Oversold' : rsiNum >= 60 ? 'Bullish' : rsiNum <= 40 ? 'Bearish' : 'Neutral') : 'Daily history unavailable',
+            tip: 'Wilder RSI over 22 daily closes (Blockchain.com). Above 80 has been overbought. Below 30 has been oversold.',
+            flashing: rsiHas && rsiNum >= 80,
+            id: 'rsi22d'
+        });
+    }
 
-    // 29. AHR999x Escape Top Indicator
-    // Uses price / 200d MA — when above 8, historically marks top territory
-    indicators.push({
-        emoji: '🚨', name: 'AHR999x',
-        value: '...', color: 'var(--heading)',
-        sub: 'Loading 200d MA...',
-        tip: 'AHR999x Escape Top indicator. Calculated as (price / 200-day MA)². When above 8, signals extreme overvaluation. Above 3.5 = elevated. A complement to the AHR999 DCA indicator. Top threshold: ≥ 8.',
-        id: 'ahr999x'
-    });
+    {
+        var ahrxHas = !!(price && hist.ma200);
+        var ahrxNum = ahrxHas ? Math.pow(price / hist.ma200, 2) : null;
+        indicators.push({
+            emoji: '🚨', name: 'AHR999x',
+            value: ahrxHas ? ahrxNum.toFixed(2) : '—',
+            color: !ahrxHas ? 'var(--heading)' : ahrxNum >= 8 ? '#ef4444' : ahrxNum >= 3.5 ? '#f97316' : 'var(--heading)',
+            sub: ahrxHas ? ('(price / 200d MA)² · MA $' + fmtNum(Math.round(hist.ma200))) : 'Daily history unavailable',
+            tip: '(Price / 200-day average) squared. The average is Blockchain.com daily prices. Above 8 has been an extreme reading. Above 3.5 is elevated.',
+            flashing: ahrxHas && ahrxNum >= 8,
+            id: 'ahr999x'
+        });
+    }
 
     // 30. ETF-to-BTC Ratio (ETF AUM / BTC market cap)
     indicators.push({
@@ -18936,255 +18919,6 @@ function loadTopIndicators() {
     // Cache the rendered indicators HTML
     try { localStorage.setItem(TOP_IND_CACHE_KEY, JSON.stringify({ html: html, ts: Date.now() })); } catch(e) {}
 
-    // Fetch Mayer Multiple (200-day MA from CoinGecko)
-    fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=365&interval=daily')
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data && data.prices && data.prices.length >= 200) {
-                var prices = data.prices;
-                var pLen = prices.length;
-                // 200-day MA for Mayer Multiple
-                var sum200 = 0;
-                for (var i = Math.max(0, pLen - 200); i < pLen; i++) sum200 += prices[i][1];
-                var ma200 = sum200 / Math.min(200, pLen);
-                var currentPrice = prices[pLen - 1][1];
-                var mayer = (currentPrice / ma200).toFixed(2);
-                var mayerEl = document.getElementById('mayerMultiple');
-                if (mayerEl) {
-                    var mayerColor = mayer < 1 ? '#22c55e' : mayer > 2.4 ? '#ef4444' : 'var(--heading)';
-                    mayerEl.style.color = mayerColor;
-                    mayerEl.textContent = mayer + 'x';
-                    var sub = mayerEl.nextElementSibling;
-                    if (sub) sub.textContent = '200d MA: $' + fmtNum(Math.round(ma200)) + (mayer < 1 ? ' \xb7 Below MA \u2705' : mayer > 2.4 ? ' \xb7 Overheated \u26a0\ufe0f' : '');
-                    var mayerCard = mayerEl.closest('div[style*="border-radius:12px"]');
-                    if (mayerCard && mayer > 2.4) {
-                        mayerCard.style.borderColor = 'rgba(239,68,68,0.5)';
-                        mayerCard.style.background = 'rgba(239,68,68,0.04)';
-                        var badge = mayerCard.querySelector('div[style*="OK"]');
-                        if (badge) { badge.innerHTML = '\ud83d\udd34 TOP'; badge.style.color = '#ef4444'; badge.style.background = 'rgba(239,68,68,0.15)'; badge.style.borderColor = 'rgba(239,68,68,0.4)'; }
-                    }
-                }
-                // Pi Cycle Top: 111-day MA vs 350-day MA x 2
-                if (pLen >= 111) {
-                    var sum111 = 0;
-                    for (var pi = pLen - 111; pi < pLen; pi++) sum111 += prices[pi][1];
-                    var ma111 = sum111 / 111;
-                    var sum350 = 0;
-                    var cnt350 = Math.min(350, pLen);
-                    for (var pk = pLen - cnt350; pk < pLen; pk++) sum350 += prices[pk][1];
-                    var ma350x2 = (sum350 / cnt350) * 2;
-                    var piGap = ma350x2 > 0 ? ((ma111 - ma350x2) / ma350x2 * 100).toFixed(1) : 0;
-                    var piGapNum = parseFloat(piGap);
-                    var piEl = document.getElementById('piCycleTop');
-                    if (piEl) {
-                        var piFlash = piGapNum >= 0;
-                        piEl.textContent = (piGapNum >= 0 ? '+' : '') + piGap + '%';
-                        piEl.style.color = piFlash ? '#ef4444' : piGapNum > -5 ? '#f97316' : 'var(--heading)';
-                        var piSub = piEl.nextElementSibling;
-                        if (piSub) piSub.textContent = '111d: $' + fmtNum(Math.round(ma111)) + ' vs 350d\xd72: $' + fmtNum(Math.round(ma350x2)) + (piFlash ? ' \xb7 CROSSED \u26a0\ufe0f' : piGapNum > -5 ? ' \xb7 Narrowing!' : '');
-                        var piCard = piEl.closest('div[style*="border-radius:12px"]');
-                        if (piCard && piFlash) {
-                            piCard.style.borderColor = 'rgba(239,68,68,0.5)';
-                            piCard.style.background = 'rgba(239,68,68,0.04)';
-                            var piBadge = piCard.querySelector('div[style*="OK"]');
-                            if (piBadge) { piBadge.innerHTML = '\ud83d\udd34 TOP'; piBadge.style.color = '#ef4444'; piBadge.style.background = 'rgba(239,68,68,0.15)'; piBadge.style.borderColor = 'rgba(239,68,68,0.4)'; }
-                        }
-                    }
-                }
-
-                // RSI-22 Day calculation
-                if (pLen >= 23) {
-                    var gains = 0, losses = 0;
-                    for (var ri = pLen - 22; ri < pLen; ri++) {
-                        var change = prices[ri][1] - prices[ri - 1][1];
-                        if (change > 0) gains += change;
-                        else losses -= change;
-                    }
-                    var avgGain = gains / 22;
-                    var avgLoss = losses / 22;
-                    var rsi22 = avgLoss === 0 ? 100 : (100 - (100 / (1 + avgGain / avgLoss)));
-                    var rsi22Str = rsi22.toFixed(1);
-                    var rsiEl = document.getElementById('rsi22d');
-                    if (rsiEl) {
-                        var rsiFlash = rsi22 >= 80;
-                        rsiEl.textContent = rsi22Str;
-                        rsiEl.style.color = rsi22 >= 80 ? '#ef4444' : rsi22 <= 30 ? '#22c55e' : 'var(--heading)';
-                        var rsiSub = rsiEl.nextElementSibling;
-                        if (rsiSub) rsiSub.textContent = rsi22 >= 80 ? 'Overbought \u26a0\ufe0f' : rsi22 <= 30 ? 'Oversold \u2705' : rsi22 >= 60 ? 'Bullish' : rsi22 <= 40 ? 'Bearish' : 'Neutral';
-                        if (rsiFlash) {
-                            var rsiCard = rsiEl.closest('div[style*="border-radius:12px"]');
-                            if (rsiCard) {
-                                rsiCard.style.borderColor = 'rgba(239,68,68,0.5)';
-                                rsiCard.style.background = 'rgba(239,68,68,0.04)';
-                                var rsiBadge = rsiCard.querySelector('div[style*="OK"]');
-                                if (rsiBadge) { rsiBadge.innerHTML = '\ud83d\udd34 TOP'; rsiBadge.style.color = '#ef4444'; rsiBadge.style.background = 'rgba(239,68,68,0.15)'; rsiBadge.style.borderColor = 'rgba(239,68,68,0.4)'; }
-                            }
-                        }
-                    }
-                }
-
-                // AHR999x Escape Top = (price / 200d MA)^2
-                var ahr999x = Math.pow(currentPrice / ma200, 2).toFixed(2);
-                var ahrxEl = document.getElementById('ahr999x');
-                if (ahrxEl) {
-                    var ahrxNum = parseFloat(ahr999x);
-                    var ahrxFlash = ahrxNum >= 8;
-                    ahrxEl.textContent = ahr999x;
-                    ahrxEl.style.color = ahrxNum >= 8 ? '#ef4444' : ahrxNum >= 3.5 ? '#f97316' : 'var(--heading)';
-                    var ahrxSub = ahrxEl.nextElementSibling;
-                    if (ahrxSub) ahrxSub.textContent = '200d MA: $' + fmtNum(Math.round(ma200)) + (ahrxNum >= 8 ? ' \xb7 Extreme top \u26a0\ufe0f' : ahrxNum >= 3.5 ? ' \xb7 Elevated' : ahrxNum < 1 ? ' \xb7 Below MA' : ' \xb7 Normal');
-                    if (ahrxFlash) {
-                        var ahrxCard = ahrxEl.closest('div[style*="border-radius:12px"]');
-                        if (ahrxCard) {
-                            ahrxCard.style.borderColor = 'rgba(239,68,68,0.5)';
-                            ahrxCard.style.background = 'rgba(239,68,68,0.04)';
-                            var ahrxBadge = ahrxCard.querySelector('div[style*="OK"]');
-                            if (ahrxBadge) { ahrxBadge.innerHTML = '\ud83d\udd34 TOP'; ahrxBadge.style.color = '#ef4444'; ahrxBadge.style.background = 'rgba(239,68,68,0.15)'; ahrxBadge.style.borderColor = 'rgba(239,68,68,0.4)'; }
-                        }
-                    }
-                }
-            }
-        }).catch(function() {
-            var mayerEl = document.getElementById('mayerMultiple');
-            if (mayerEl) { mayerEl.textContent = 'N/A'; }
-        });
-
-    // Fetch BTC dominance from CoinGecko global endpoint
-    fetch('https://api.coingecko.com/api/v3/global')
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data && data.data && data.data.market_cap_percentage && data.data.market_cap_percentage.btc) {
-                var dom = data.data.market_cap_percentage.btc.toFixed(1);
-                var domEl = document.getElementById('btcDominance');
-                if (domEl) {
-                    domEl.textContent = dom + '%';
-                    var domColor = dom > 55 ? '#22c55e' : dom < 40 ? '#ef4444' : 'var(--heading)';
-                    domEl.style.color = domColor;
-                    var sub = domEl.nextElementSibling;
-                    if (sub) sub.textContent = dom > 55 ? 'Bitcoin season 👑' : dom < 40 ? 'Alt season ⚠️' : 'Neutral';
-                }
-            }
-        }).catch(function() {});
-
-    
-    // Fetch CBBI data from ColintalksCrypto
-    fetch('https://colintalkscrypto.com/cbbi/data/latest.json')
-        .then(function(r) { return r.json(); })
-        .then(function(cbbi) {
-            if (!cbbi || !cbbi.Confidence) return;
-            var timestamps = Object.keys(cbbi.Confidence).sort();
-            var latest = timestamps[timestamps.length - 1];
-            var confidence = (cbbi.Confidence[latest] * 100).toFixed(0);
-            var confNum = parseInt(confidence);
-
-            // CBBI Score
-            var cbbiEl = document.getElementById('cbbiScore');
-            if (cbbiEl) {
-                cbbiEl.textContent = confidence + '%';
-                cbbiEl.style.color = confNum >= 80 ? '#ef4444' : confNum <= 20 ? '#22c55e' : 'var(--heading)';
-                var cbbiSub = cbbiEl.nextElementSibling;
-                if (cbbiSub) cbbiSub.textContent = confNum >= 80 ? 'Approaching top \u26a0\ufe0f' : confNum <= 20 ? 'Approaching bottom \ud83d\udfe2' : confNum >= 50 ? 'Mid-cycle bullish' : 'Early cycle';
-                if (confNum >= 80) {
-                    var cbbiCard = cbbiEl.closest('div[style*="border-radius:12px"]');
-                    if (cbbiCard) { cbbiCard.style.borderColor = 'rgba(239,68,68,0.5)'; cbbiCard.style.background = 'rgba(239,68,68,0.04)'; var b = cbbiCard.querySelector('div[style*="OK"]'); if (b) { b.innerHTML = '\ud83d\udd34 TOP'; b.style.color = '#ef4444'; b.style.background = 'rgba(239,68,68,0.15)'; b.style.borderColor = 'rgba(239,68,68,0.4)'; } }
-                }
-            }
-
-            // RHODL
-            var rhodlTs = Object.keys(cbbi.RHODL).sort();
-            var rhodlVal = cbbi.RHODL[rhodlTs[rhodlTs.length - 1]];
-            var rhodlEl = document.getElementById('rhodlRatio');
-            if (rhodlEl) {
-                rhodlEl.textContent = (rhodlVal * 100).toFixed(0) + '%';
-                rhodlEl.style.color = rhodlVal >= 0.85 ? '#ef4444' : rhodlVal <= 0.2 ? '#22c55e' : 'var(--heading)';
-                var rhodlSub = rhodlEl.nextElementSibling;
-                if (rhodlSub) rhodlSub.textContent = rhodlVal >= 0.85 ? 'Speculative frenzy \u26a0\ufe0f' : rhodlVal <= 0.2 ? 'Accumulation zone \ud83d\udfe2' : 'Normalized: ' + (rhodlVal * 100).toFixed(0) + '%';
-                if (rhodlVal >= 0.85) {
-                    var rc = rhodlEl.closest('div[style*="border-radius:12px"]'); if (rc) { rc.style.borderColor = 'rgba(239,68,68,0.5)'; rc.style.background = 'rgba(239,68,68,0.04)'; var rb = rc.querySelector('div[style*="OK"]'); if (rb) { rb.innerHTML = '\ud83d\udd34 TOP'; rb.style.color = '#ef4444'; rb.style.background = 'rgba(239,68,68,0.15)'; rb.style.borderColor = 'rgba(239,68,68,0.4)'; } }
-                }
-            }
-
-            // Macro Oscillator (Woobull)
-            var wooTs = Object.keys(cbbi.Woobull).sort();
-            var wooVal = cbbi.Woobull[wooTs[wooTs.length - 1]];
-            var macroEl = document.getElementById('macroOsc');
-            if (macroEl) {
-                macroEl.textContent = (wooVal * 100).toFixed(0) + '%';
-                macroEl.style.color = wooVal >= 0.7 ? '#ef4444' : wooVal <= 0.2 ? '#22c55e' : 'var(--heading)';
-                var macSub = macroEl.nextElementSibling;
-                if (macSub) macSub.textContent = wooVal >= 0.7 ? 'Euphoria zone \u26a0\ufe0f' : wooVal <= 0.2 ? 'Accumulation \ud83d\udfe2' : 'Normalized: ' + (wooVal * 100).toFixed(0) + '%';
-                if (wooVal >= 0.7) {
-                    var mc = macroEl.closest('div[style*="border-radius:12px"]'); if (mc) { mc.style.borderColor = 'rgba(239,68,68,0.5)'; mc.style.background = 'rgba(239,68,68,0.04)'; var mb = mc.querySelector('div[style*="OK"]'); if (mb) { mb.innerHTML = '\ud83d\udd34 TOP'; mb.style.color = '#ef4444'; mb.style.background = 'rgba(239,68,68,0.15)'; mb.style.borderColor = 'rgba(239,68,68,0.4)'; } }
-                }
-            }
-
-            // LTH/STH estimate from CBBI MVRV + Puell
-            var mvrvTs = Object.keys(cbbi.MVRV).sort();
-            var puellTs = Object.keys(cbbi.Puell).sort();
-            var mvrvVal = cbbi.MVRV[mvrvTs[mvrvTs.length - 1]];
-            var puellVal = cbbi.Puell[puellTs[puellTs.length - 1]];
-            var lthEl = document.getElementById('lthSthRatio');
-            if (lthEl) {
-                // When MVRV and Puell are both high, LTH are distributing to STH
-                var distribution = ((mvrvVal + puellVal) / 2 * 100).toFixed(0);
-                var distNum = parseInt(distribution);
-                lthEl.textContent = distNum + '%';
-                lthEl.style.color = distNum >= 70 ? '#ef4444' : distNum <= 25 ? '#22c55e' : 'var(--heading)';
-                var lthSub = lthEl.nextElementSibling;
-                if (lthSub) lthSub.textContent = distNum >= 70 ? 'LTH distributing \u26a0\ufe0f' : distNum <= 25 ? 'LTH accumulating \ud83d\udfe2' : 'Distribution score: ' + distNum + '%';
-                if (distNum >= 70) {
-                    var lc = lthEl.closest('div[style*="border-radius:12px"]'); if (lc) { lc.style.borderColor = 'rgba(239,68,68,0.5)'; lc.style.background = 'rgba(239,68,68,0.04)'; var lb = lc.querySelector('div[style*="OK"]'); if (lb) { lb.innerHTML = '\ud83d\udd34 TOP'; lb.style.color = '#ef4444'; lb.style.background = 'rgba(239,68,68,0.15)'; lb.style.borderColor = 'rgba(239,68,68,0.4)'; } }
-                }
-            }
-
-            // MVRV Z-Score from CBBI
-            var mvrvEl = document.getElementById('mvrvScore');
-            if (mvrvEl) {
-                var mvrvPct = (mvrvVal * 100).toFixed(0);
-                mvrvEl.textContent = mvrvPct + '%';
-                mvrvEl.style.color = mvrvVal >= 0.7 ? '#ef4444' : mvrvVal <= 0.2 ? '#22c55e' : 'var(--heading)';
-                var mvrvSub = mvrvEl.nextElementSibling;
-                if (mvrvSub) mvrvSub.textContent = mvrvVal >= 0.7 ? 'Overvalued — top zone \u26a0\ufe0f' : mvrvVal <= 0.2 ? 'Undervalued — accumulate \ud83d\udfe2' : 'Normalized: ' + mvrvPct + '%';
-                if (mvrvVal >= 0.7) {
-                    var mvc = mvrvEl.closest('div[style*="border-radius:12px"]'); if (mvc) { mvc.style.borderColor = 'rgba(239,68,68,0.5)'; mvc.style.background = 'rgba(239,68,68,0.04)'; var mvb = mvc.querySelector('div[style*="OK"]'); if (mvb) { mvb.innerHTML = '\ud83d\udd34 TOP'; mvb.style.color = '#ef4444'; mvb.style.background = 'rgba(239,68,68,0.15)'; mvb.style.borderColor = 'rgba(239,68,68,0.4)'; } }
-                }
-            }
-
-            // NUPL from CBBI (RUPL metric)
-            var ruplTs = Object.keys(cbbi.RUPL).sort();
-            var ruplVal = cbbi.RUPL[ruplTs[ruplTs.length - 1]];
-            var nuplEl = document.getElementById('nuplScore');
-            if (nuplEl) {
-                var nuplPct = (ruplVal * 100).toFixed(0);
-                nuplEl.textContent = nuplPct + '%';
-                nuplEl.style.color = ruplVal >= 0.75 ? '#ef4444' : ruplVal <= 0.2 ? '#22c55e' : 'var(--heading)';
-                var nuplSub = nuplEl.nextElementSibling;
-                if (nuplSub) nuplSub.textContent = ruplVal >= 0.75 ? 'Euphoria \u26a0\ufe0f' : ruplVal <= 0.2 ? 'Capitulation zone \ud83d\udfe2' : 'Normalized: ' + nuplPct + '%';
-                if (ruplVal >= 0.75) {
-                    var nc = nuplEl.closest('div[style*="border-radius:12px"]'); if (nc) { nc.style.borderColor = 'rgba(239,68,68,0.5)'; nc.style.background = 'rgba(239,68,68,0.04)'; var nb = nc.querySelector('div[style*="OK"]'); if (nb) { nb.innerHTML = '\ud83d\udd34 TOP'; nb.style.color = '#ef4444'; nb.style.background = 'rgba(239,68,68,0.15)'; nb.style.borderColor = 'rgba(239,68,68,0.4)'; } }
-                }
-            }
-
-            // Reserve Risk from CBBI
-            var rrTs = Object.keys(cbbi.ReserveRisk).sort();
-            var rrVal = cbbi.ReserveRisk[rrTs[rrTs.length - 1]];
-            // Note: We removed the fake calculated Reserve Risk.
-            // CBBI's ReserveRisk is already one of the card indicators (id already exists in RHODL/etc flow)
-            // This data is available for anyone who wants to add it back as a separate card.
-
-            // Cache CBBI data
-            try { localStorage.setItem('cbbi_cache', JSON.stringify({ ts: Date.now(), confidence: confidence, rhodl: rhodlVal, woobull: wooVal, mvrv: mvrvVal, puell: puellVal })); } catch(e) {}
-        }).catch(function() {
-            // Try cached data
-            try {
-                var cached = JSON.parse(localStorage.getItem('cbbi_cache'));
-                if (cached && Date.now() - cached.ts < 86400000) {
-                    var cbbiEl = document.getElementById('cbbiScore');
-                    if (cbbiEl) { cbbiEl.textContent = cached.confidence + '%'; }
-                }
-            } catch(e) {}
-        });
-
 // Fetch ETF flow data from cached JSON
     fetch('data/etf-flows.json?v=' + Math.floor(Date.now() / 3600000))
         .then(function(r) { return r.json(); })
@@ -19197,7 +18931,8 @@ function loadTopIndicators() {
                 flowEl.textContent = fStr;
                 flowEl.style.color = f > 0 ? '#22c55e' : f < -100 ? '#ef4444' : f < 0 ? '#f97316' : 'var(--heading)';
                 var sub = flowEl.nextElementSibling;
-                if (sub) sub.textContent = etf.latestDate + ' · ' + etf.outflowDays + '/' + etf.totalDays + ' outflow days' + (etf.outflowDays >= 7 ? ' ⚠️' : '');
+                var flowAsOf = _snapshotAsOf(etf.latestDate);
+                if (sub) sub.textContent = flowAsOf + ' · ' + etf.outflowDays + '/' + etf.totalDays + ' outflow days' + (etf.outflowDays >= 7 ? ' ⚠️' : '');
                 // Flash if 7+ outflow days in last 10
                 if (etf.outflowDays >= 7) {
                     var card = flowEl.closest('div[style*="border-radius:12px"]');
@@ -19215,7 +18950,7 @@ function loadTopIndicators() {
                 flow5El.textContent = (s5 >= 0 ? '+' : '') + s5.toFixed(1) + 'M';
                 flow5El.style.color = s5 > 100 ? '#22c55e' : s5 < -500 ? '#ef4444' : s5 < 0 ? '#f97316' : 'var(--heading)';
                 var sub5 = flow5El.nextElementSibling;
-                if (sub5) sub5.textContent = '5-day total' + (s5 < -500 ? ' · Heavy selling ⚠️' : s5 > 500 ? ' · Strong inflows 🟢' : '');
+                if (sub5) sub5.textContent = _snapshotAsOf(etf.latestDate) + ' · 5-day total' + (s5 < -500 ? ' · Heavy selling' : s5 > 500 ? ' · Strong inflows' : '');
                 if (s5 < -500) {
                     var card5 = flow5El.closest('div[style*="border-radius:12px"]');
                     if (card5) {
@@ -19230,9 +18965,10 @@ function loadTopIndicators() {
             // Try to get total from cached ETF JSON, fall back to estimate
             var etfBtcHeld = ETF_TOTAL_BTC_FALLBACK;
             try { var _ec = JSON.parse(localStorage.getItem('btc_etf_holdings_cache')); if (_ec && _ec.totalBtc) etfBtcHeld = _ec.totalBtc; } catch(e) {}
-            var btcPrice = parseFloat(localStorage.getItem('btc_last_price')) || 83000;
+            var btcPrice = (_dashData && _dashData.price) || parseFloat(localStorage.getItem('btc_last_price')) || 0;
+            var btcSupply = (_dashData && _dashData.supply) || 0;
             var etfAum = etfBtcHeld * btcPrice;
-            var btcMktCap = btcPrice * 19840000; // supply
+            var btcMktCap = btcPrice * btcSupply;
             var etfRatio = btcMktCap > 0 ? ((etfAum / btcMktCap) * 100).toFixed(1) : '—';
             var etfRatioEl = document.getElementById('etfBtcRatio');
             if (etfRatioEl) {
@@ -19240,7 +18976,7 @@ function loadTopIndicators() {
                 etfRatioEl.textContent = etfRatio + '%';
                 etfRatioEl.style.color = erNum >= 8 ? '#ef4444' : 'var(--heading)';
                 var erSub = etfRatioEl.nextElementSibling;
-                if (erSub) erSub.textContent = 'ETF AUM: ~$' + (etfAum / 1e9).toFixed(0) + 'B / Mkt Cap: ~$' + (btcMktCap / 1e12).toFixed(2) + 'T' + (erNum >= 8 ? ' · High exposure ⚠️' : '');
+                if (erSub) erSub.textContent = (btcSupply ? '' : 'Supply unavailable · ') + 'ETF AUM: ~$' + (btcPrice ? (etfAum / 1e9).toFixed(0) + 'B' : '—') + (erNum >= 8 ? ' · High exposure' : '');
                 if (erNum >= 8) {
                     var erCard = etfRatioEl.closest('div[style*="border-radius:12px"]');
                     if (erCard) {
@@ -19258,38 +18994,26 @@ function loadTopIndicators() {
 }
 
 // ── Live Gold vs Bitcoin (CoinGecko tether-gold price → calculate gold market cap) ──
-var _goldCache = null;
-var _goldCacheTs = 0;
 var TOTAL_GOLD_OZ = 222600 * 32150.7; // ~7.16 billion troy oz above-ground gold (World Gold Council, end-Q2 2026: 222,600 tonnes)
 
-function _fetchGoldData(btcMktCapT, btcSupply) {
-    // Restore from localStorage if no in-memory cache
-    if (!_goldCache) {
-        try { var _gc = JSON.parse(localStorage.getItem('btc_gold_cache')); if (_gc && _gc.p) { _goldCache = _gc.p; _goldCacheTs = _gc.t || 0; } } catch(e) {}
-    }
-    // Use cache if fresh enough
-    if (_goldCache && Date.now() - _goldCacheTs < 1800000) {
-        _renderGold(_goldCache, btcMktCapT, btcSupply);
+function _snapshotAsOf(dateStr) {
+    var t = Date.parse(dateStr);
+    if (!isFinite(t)) return dateStr ? String(dateStr) : 'date unknown';
+    var days = Math.floor((Date.now() - t) / 86400000);
+    var pretty = new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    if (days >= 3) return 'As of ' + pretty + ' · snapshot, not live';
+    return 'As of ' + pretty;
+}
+
+function _renderGoldFromSnapshot(goldUsd, btcMktCapT, btcSupply) {
+    if (goldUsd && isFinite(Number(goldUsd))) {
+        _renderGold(Number(goldUsd), btcMktCapT, btcSupply);
         return;
     }
-    // Show stale cache immediately while fetching
-    if (_goldCache) _renderGold(_goldCache, btcMktCapT, btcSupply);
-
-    fetch('https://api.coingecko.com/api/v3/simple/price?ids=tether-gold&vs_currencies=usd')
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            var goldPrice = data['tether-gold'] ? data['tether-gold'].usd : null;
-            if (goldPrice) {
-                _goldCache = goldPrice;
-                _goldCacheTs = Date.now();
-                try { localStorage.setItem('btc_gold_cache', JSON.stringify({ p: goldPrice, t: Date.now() })); } catch(e) {}
-                _renderGold(goldPrice, btcMktCapT, btcSupply);
-            }
-        })
-        .catch(function() {
-            // If we already rendered stale cache above, do nothing; otherwise use fallback
-            if (!_goldCache) _renderGold(3200, btcMktCapT, btcSupply);
-        });
+    var area = document.getElementById('goldPctArea');
+    if (area) area.innerHTML = '<div style="color:var(--text-faint);font-size:0.75rem;">Gold price unavailable</div>';
+    var label = document.getElementById('goldMktCapLabel');
+    if (label) label.textContent = '—';
 }
 
 function _renderGold(goldPricePerOz, btcMktCapT, btcSupply) {
@@ -19308,7 +19032,7 @@ function _renderGold(goldPricePerOz, btcMktCapT, btcSupply) {
         area.innerHTML =
             '<div style="color:var(--accent);font-size:1rem;font-weight:900;">' + goldPct + '% of Gold Market Cap</div>' +
             '<div style="color:var(--text-faint);font-size:0.68rem;margin-top:2px;">BTC needs ~$' + (typeof flipPrice === 'number' ? fmtNum(flipPrice) : flipPrice) + '/coin to match Gold</div>' +
-            '<div style="color:var(--text-faint);font-size:0.55rem;margin-top:4px;">Gold: $' + fmtNum(Math.round(goldPricePerOz)) + '/oz · Live via CoinGecko</div>';
+            '<div style="color:var(--text-faint);font-size:0.55rem;margin-top:4px;">Gold: $' + fmtNum(Math.round(goldPricePerOz)) + '/oz · Tether Gold via CoinGecko</div>';
     }
 
     // Add tooltip via data attribute + re-attach listeners
@@ -19321,35 +19045,18 @@ function _renderGold(goldPricePerOz, btcMktCapT, btcSupply) {
 }
 
 // ── Live Treasury Data (CoinGecko API + government estimates) ──
-var _treasuryCache = null;
-var _treasuryCacheTs = 0;
-function _fetchTreasuryData(btcPrice) {
+function _renderTreasuryFromSnapshot(treasury, btcPrice) {
     var container = document.getElementById('treasuryData');
     if (!container) return;
-
-    // Restore from localStorage if no in-memory cache
-    if (!_treasuryCache) {
-        try { var _tc = JSON.parse(localStorage.getItem('btc_treasury_cache')); if (_tc && _tc.d) { _treasuryCache = _tc.d; _treasuryCacheTs = _tc.t || 0; } } catch(e) {}
-    }
-    // Use cache if fresh enough
-    if (_treasuryCache && Date.now() - _treasuryCacheTs < 1800000) {
-        _renderTreasury(container, _treasuryCache, btcPrice);
+    if (!treasury || !treasury.companies || !treasury.companies.length) {
+        container.innerHTML = '<div style="color:var(--text-faint);font-size:0.75rem;">Treasury data unavailable</div>';
         return;
     }
-    // Show stale cache immediately while fetching
-    if (_treasuryCache) _renderTreasury(container, _treasuryCache, btcPrice);
-
-    fetch('https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin')
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            _treasuryCache = data;
-            _treasuryCacheTs = Date.now();
-            try { localStorage.setItem('btc_treasury_cache', JSON.stringify({ d: data, t: Date.now() })); } catch(e) {}
-            _renderTreasury(container, data, btcPrice);
-        })
-        .catch(function() {
-            if (!_treasuryCache) container.innerHTML = '<div style="color:var(--text-faint);font-size:0.75rem;">Could not load treasury data</div>';
-        });
+    _renderTreasury(container, {
+        companies: treasury.companies,
+        total_holdings: treasury.totalHoldings,
+        total_value_usd: treasury.totalValueUsd
+    }, btcPrice);
 }
 
 // Government holdings (updated from bitcointreasuries.net — no free API, so semi-static)
@@ -19402,7 +19109,7 @@ function _renderTreasury(container, data, btcPrice) {
                 govList +
             '</div>' +
         '</div>' +
-        '<div style="text-align:center;margin-top:8px;font-size:0.55rem;color:var(--text-faint);">Companies: live via <a href="https://www.coingecko.com/en/public-companies-bitcoin" target="_blank" rel="noopener" style="color:var(--accent);">CoinGecko</a> · Governments: <a href="https://bitcointreasuries.net/governments" target="_blank" rel="noopener" style="color:var(--accent);">bitcointreasuries.net</a></div>';
+        '<div style="text-align:center;margin-top:8px;font-size:0.68rem;color:var(--text-muted);">Companies: CoinGecko, same shared snapshot · Governments: manual estimates, not a live feed · <a href="https://bitcointreasuries.net/governments" target="_blank" rel="noopener" style="color:var(--accent);">bitcointreasuries.net</a></div>';
 
     // Remove the onclick tip since we now show data inline
     var card = document.getElementById('treasuryCard');
@@ -19468,21 +19175,15 @@ function _renderEtfData(container, holdings, totalBtc, price, totalSupply, updat
         '</div>';
     }).join('');
 
-    var updateLabel = '';
-    if (updatedStr) {
-        var ageHrs = Math.round((Date.now() - new Date(updatedStr).getTime()) / 3600000);
-        updateLabel = ageHrs < 1 ? 'Updated just now' : ageHrs < 24 ? 'Updated ' + ageHrs + 'h ago' : 'Updated ' + Math.round(ageHrs / 24) + 'd ago';
-    }
-
     container.innerHTML =
         '<div style="text-align:center;margin-bottom:10px;">' +
             '<div style="font-size:1.2rem;font-weight:900;color:var(--heading);">' + fmtNum(totalBtc) + ' BTC</div>' +
+            '<div style="font-size:0.72rem;color:#f59e0b;font-weight:700;margin-top:2px;">' + (updatedStr ? _snapshotAsOf(updatedStr) : 'As-of date missing') + '</div>' +
             '<div style="font-size:0.65rem;color:var(--text-muted);">~' + fmtDollar(totalAum) + ' AUM · ' + supplyPct + '% of supply held in ETFs</div>' +
         '</div>' +
         '<div style="padding:0 4px;">' + listHtml + '</div>' +
         '<div style="text-align:center;margin-top:8px;font-size:0.55rem;color:var(--text-faint);">' +
-            'Data: SEC filings + <a href="https://www.coinglass.com/BitcoinETF" target="_blank" rel="noopener" style="color:var(--accent);">CoinGlass</a>' +
-            (updateLabel ? ' · ' + updateLabel : '') +
+            'SEC filings + <a href="https://www.coinglass.com/BitcoinETF" target="_blank" rel="noopener" style="color:var(--accent);">CoinGlass</a>' +
         '</div>';
 }
 
