@@ -195,9 +195,14 @@ async function takeRate(db, uid, nowMs, max) {
     });
 }
 
-async function suggestNames(db, prefix, callerUid) {
+async function suggestNames(db, prefix, callerUid, opts) {
     const lower = String(prefix || '');
-    if (lower.length < 2 || !/^[a-z0-9_\-.]+$/.test(lower)) return [];
+    // Anonymous typeahead starts at 2 characters. A signed-in player can
+    // search from the first character. Ghosts are dropped here, before the
+    // payload is built, including the caller's own ghost name.
+    const minLen = opts && opts.anonymous ? 2 : 1;
+    if (lower.length < minLen || !/^[a-z0-9_\-.]+$/.test(lower)) return [];
+    if (callerUid == null) return [];
     const end = lower + '\uf8ff';
     const snap = await db.collection('public_profiles')
         .where('username_lower', '>=', lower)
@@ -209,7 +214,10 @@ async function suggestNames(db, prefix, callerUid) {
     if (snap && snap.forEach) snap.forEach(function (doc) { list.push(doc); });
     list.forEach(function (doc) {
         const data = (doc.data && doc.data()) || {};
-        if (data.ghostMode === true && doc.id !== callerUid) return;
+        // Ghost names stay off the suggestion payload. A query cannot drop
+        // them: ghostMode is missing on everyone else, so != true would
+        // hide the real names. Filter before anything is returned.
+        if (data.ghostMode === true) return;
         const name = displayName(data.username);
         if (!name || name === 'Anon') return;
         rows.push({ username: name, sort: nameLower(data) });
@@ -640,15 +648,16 @@ async function rankStreak(db, player, period, nowMs, docId) {
     return { status: 'ok', username: player.username, rank: 1 + Math.max(0, parts[0] - parts[1]), score: value };
 }
 
-async function lookup(db, data, callerUid, board, period, nowMs, docId) {
+async function lookup(db, data, callerUid, board, period, nowMs, docId, anonymous) {
     const player = await resolvePlayer(db, data, callerUid);
     const typed = cleanQuery(data && (data.me === true ? '' : data.username));
+    const suggestOpts = { anonymous: anonymous === true };
     if (!player || player.missing) {
-        const suggestions = await suggestNames(db, queryLower(typed), callerUid);
+        const suggestions = await suggestNames(db, queryLower(typed), callerUid, suggestOpts);
         return notFound(board, period, typed, suggestions);
     }
     if (player.ghost && player.uid !== callerUid) {
-        const suggestions = await suggestNames(db, player.usernameLower, callerUid);
+        const suggestions = await suggestNames(db, player.usernameLower, callerUid, suggestOpts);
         return notFound(board, period, displayName(player.username), suggestions);
     }
     let ranked;
@@ -669,11 +678,22 @@ async function handleLeaderboardRank(db, adminSdk, data, context, nowMs) {
     const period = board && canonPeriod(board, data && data.period);
     if (!board || !period) throw fail('invalid-argument', 'Unknown board or period.');
     const caller = context.auth.uid;
-    const rate = await takeRate(db, caller, nowMs, anonymousCaller(context) ? RATE_ANON_MAX : RATE_MAX);
+    const anon = anonymousCaller(context);
+    const rate = await takeRate(db, caller, nowMs, anon ? RATE_ANON_MAX : RATE_MAX);
     if (!rate.allowed) throw fail('resource-exhausted', 'Too many lookups. Try again in a minute.');
+    if (data && data.suggest === true) {
+        const suggestions = await suggestNames(db, queryLower(data.username), caller, { anonymous: anon });
+        return publicResult({
+            status: 'not_found',
+            board: board,
+            period: period,
+            message: suggestions.length ? 'Matching usernames' : 'No matching username',
+            suggestions: suggestions
+        });
+    }
     const docId = adminSdk.firestore.FieldPath.documentId();
     try {
-        const row = await lookup(db, data || {}, caller, board, period, nowMs, docId);
+        const row = await lookup(db, data || {}, caller, board, period, nowMs, docId, anon);
         return publicResult(row);
     } catch (err) {
         if (err && err.rankError) throw err;

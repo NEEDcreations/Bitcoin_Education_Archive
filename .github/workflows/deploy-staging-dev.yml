@@ -6,6 +6,7 @@ on:
 concurrency:
   group: staging-dev
   cancel-in-progress: true
+# Checkout only. The Pages deploy uses the Cloudflare API token secret.
 permissions:
   contents: read
 jobs:

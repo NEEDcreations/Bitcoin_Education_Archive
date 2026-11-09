@@ -4,6 +4,9 @@ on:
   push:
     branches: [gh-pages]
 
+# contents: read — checkout the static site
+# pages: write — upload the Pages artifact and create the deployment
+# id-token: write — OIDC token that deploy-pages exchanges for the deployment
 permissions:
   contents: read
   pages: write

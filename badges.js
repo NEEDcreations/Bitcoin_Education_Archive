@@ -1297,12 +1297,12 @@ function getBadgeHTML() {
         '</div>';
 
     // Badge search bar
-    html += '<div style="margin-bottom:14px;">' +
+    html += '<div id="badgeSearchWrap" style="position:relative;margin-bottom:14px;">' +
         '<div style="position:relative;">' +
-        '<input id="badgeSearchInput" type="text" placeholder="🔍 Search badges..." oninput="window._badgeSearch(this.value)" style="width:100%;padding:10px 36px 10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;">' +
-        '<button onclick="document.getElementById(\'badgeSearchInput\').value=\'\';window._badgeSearch(\'\')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:0;line-height:1;">✕</button>' +
+        '<input id="badgeSearchInput" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="badgeSearchResults" placeholder="🔍 Search badges..." oninput="window._badgeSearch(this.value)" style="width:100%;padding:10px 36px 10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;">' +
+        '<button type="button" onclick="document.getElementById(\'badgeSearchInput\').value=\'\';window._badgeSearch(\'\')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:0;line-height:1;">✕</button>' +
         '</div>' +
-        '<div id="badgeSearchResults" style="display:none;margin-top:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;overflow:hidden;"></div>' +
+        '<div id="badgeSearchResults" role="listbox" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;max-height:240px;overflow-y:auto;background:var(--card-bg,#161616);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.35);"></div>' +
         '</div>';
 
         // Build all category sections into a sortable map, then render in strict alpha order
@@ -1888,6 +1888,42 @@ window._getBadgeRarity = function(pct) {
     return { label: 'Common', color: '#4ade80', glow: 'none', icon: '●', border: '#16a34a' };
 };
 
+// Common first: those are the badges most active players share, so they are
+// the useful comparison. Unclaimed (nobody in the cohort) is last.
+function _badgeDistRarityOrder() {
+    return ['Common', 'Rare', 'Epic', 'Legendary', 'Unclaimed'];
+}
+function _badgeDistTierColors() {
+    return { Unclaimed:'#94a3b8', Legendary:'#fbbf24', Epic:'#a78bfa', Rare:'#38bdf8', Common:'#4ade80' };
+}
+function _badgeDistTierIcons() {
+    return { Unclaimed:'○', Legendary:'👑', Epic:'🔮', Rare:'💧', Common:'●' };
+}
+function _badgeDistRarityDesc() {
+    return { Unclaimed:'nobody yet', Legendary:'under 1%', Epic:'1 – 5%', Rare:'5 – 25%', Common:'over 25%' };
+}
+function _badgeDistSortEntries(entries) {
+    return (entries || []).slice().sort(function(a, b) {
+        var ap = Number(a && a.pct) || 0;
+        var bp = Number(b && b.pct) || 0;
+        if (bp !== ap) return bp - ap;
+        return String((a && a.name) || '').localeCompare(String((b && b.name) || ''));
+    });
+}
+function _badgeDistGroupEntries(entries) {
+    var order = _badgeDistRarityOrder();
+    var groups = {};
+    order.forEach(function(r) { groups[r] = []; });
+    (entries || []).forEach(function(e) {
+        var label = e && e.rarity && e.rarity.label;
+        if (!groups[label]) return;
+        groups[label].push(e);
+    });
+    order.forEach(function(r) { groups[r] = _badgeDistSortEntries(groups[r]); });
+    return groups;
+}
+window._badgeDistPageSize = 24;
+
 window._renderBadgeDist = function(counts, totalUsers, updatedAt, container, cohort) {
     var share = _badgeDistCohort(totalUsers, cohort);
     // Build a lookup from all badge/title/set sources
@@ -1948,7 +1984,8 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container, coh
             if (counts[b.id] == null) counts[b.id] = 0;
         });
     }
-    // Sort all entries by count desc, build rarity groups
+    // Group by the existing rarity tiers. Highest share of the active cohort
+    // comes first inside each tier, so the comparison that matters is on top.
     var entries = Object.entries(counts)
         .map(function(e) {
             var holders = share.useQualified ? (Number(share.qualifiedCounts[e[0]]) || 0) : e[1];
@@ -1961,13 +1998,10 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container, coh
                 ? { label: 'Unclaimed', color: '#94a3b8', glow: 'none', icon: '○', border: '#475569' }
                 : window._getBadgeRarity(pct);
             return { id: e[0], count: holders, pct: pct, rarity: rarity, emoji: meta.emoji, name: meta.name, desc: meta.desc || '' };
-        })
-        .sort(function(a, b) { return a.pct - b.pct; }); // rarest first
+        });
 
-    var rarityOrder = ['Unclaimed','Legendary','Epic','Rare','Common'];
-    var groups = {};
-    rarityOrder.forEach(function(r) { groups[r] = []; });
-    entries.forEach(function(e) { groups[e.rarity.label].push(e); });
+    var rarityOrder = _badgeDistRarityOrder();
+    var groups = _badgeDistGroupEntries(entries);
 
     var userEarned = new Set();
     try { userEarned = new Set(JSON.parse(localStorage.getItem('btc_badges') || '[]')); } catch(e) {}
@@ -1988,10 +2022,20 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container, coh
         });
         html += '</div>';
     }
+    window._badgeDistState = { groups: groups, earned: userEarned, filter: 'all', cursors: {} };
+
     // Summary strip
+    html += '<style>' +
+        '.bdr-toggle{width:100%;display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:rgba(0,0,0,0.2);color:inherit;font-family:inherit;cursor:pointer;text-align:left;box-sizing:border-box;}' +
+        '.bdr-label{font-size:0.72rem;font-weight:900;letter-spacing:0.4px;text-transform:uppercase;}' +
+        '.bdr-meta{font-size:0.65rem;color:var(--text-faint);font-weight:500;min-width:0;}' +
+        '.bdr-count{margin-left:auto;font-size:0.68rem;font-weight:800;flex-shrink:0;}' +
+        '.bdr-more{display:block;width:100%;margin:4px 0 8px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--accent);font-weight:700;font-family:inherit;cursor:pointer;box-sizing:border-box;}' +
+        '</style>';
     html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">';
-    var tierColors = { Unclaimed:'#94a3b8', Legendary:'#fbbf24', Epic:'#a78bfa', Rare:'#38bdf8', Common:'#4ade80' };
-    var tierIcons = { Unclaimed:'○', Legendary:'👑', Epic:'🔮', Rare:'💧', Common:'●' };
+    var tierColors = _badgeDistTierColors();
+    var tierIcons = _badgeDistTierIcons();
+    var rarityDesc = _badgeDistRarityDesc();
     rarityOrder.forEach(function(r) {
         var cnt = groups[r].length;
         if (!cnt) return;
@@ -2002,7 +2046,8 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container, coh
         html += '</div>';
     });
     html += '</div>';
-    html += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:12px;">' + _badgeDistFootnote(totalUsers, updatedAt, window._badgeDistActive, cohort) + '</div>';
+    html += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">' + _badgeDistFootnote(totalUsers, updatedAt, window._badgeDistActive, cohort) + '</div>';
+    html += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:12px;">Most widely held among those players first. Open a tier to load its badges.</div>';
 
     // Filter buttons
     html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">';
@@ -2014,34 +2059,21 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container, coh
     });
     html += '</div>';
 
-    // Badge rows by rarity group
+    // Collapsed tiers. Rows are written on expand, one page at a time.
     html += '<div id="bdgRows">';
     rarityOrder.forEach(function(r) {
         if (!groups[r].length) return;
-        html += '<div class="bdr-group" data-rarity="' + r + '" style="margin-bottom:14px;">';
-        html += '<div style="font-size:0.65rem;font-weight:900;color:' + tierColors[r] + ';text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px;">';
-        html += tierIcons[r] + ' ' + r;
-        var rarityDesc = { Unclaimed:'nobody yet', Legendary:'under 1%', Epic:'1 – 5%', Rare:'5 – 25%', Common:'over 25%' };
-        html += '<span style="color:var(--text-faint);font-weight:400;normal;text-transform:none;letter-spacing:0;">' + rarityDesc[r] + '</span>';
-        html += '</div>';
-        groups[r].forEach(function(badge) {
-            var isEarned = userEarned.has(badge.id);
-            var barWidth = Math.min(100, (badge.pct / 50) * 100); // scale: 50% = full bar
-            html += '<div class="bdr-row" data-earned="' + (isEarned?'1':'0') + '" style="display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:4px;border-radius:10px;background:' + (isEarned ? 'rgba('+_hexToRgb(badge.rarity.color)+',0.07)' : 'rgba(0,0,0,0.15)') + ';border:1px solid ' + (isEarned ? badge.rarity.border + '55' : 'var(--border)') + ';' + (isEarned && badge.rarity.glow !== 'none' ? 'box-shadow:0 0 8px ' + badge.rarity.glow + ';' : '') + '">';
-            html += '<span style="font-size:1rem;width:24px;text-align:center;flex-shrink:0;' + (isEarned?'':'filter:grayscale(1);opacity:0.4;') + '">' + badge.emoji + '</span>';
-            html += '<div style="flex:1;min-width:0;">';
-            html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">';
-            var safeDesc = badge.desc ? (typeof escapeHtml==='function'?escapeHtml(badge.desc):badge.desc.replace(/"/g,'&quot;')) : '';
-            html += '<span class="bdr-badge-title" data-desc="' + safeDesc + '"' + (safeDesc ? ' onmouseenter="window._showBadgeDistTooltip(event,this)" onmouseleave="window._hideBadgeDistTooltip()" onclick="window._showBadgeDistTooltip(event,this)"' : '') + ' style="font-size:0.78rem;font-weight:' + (isEarned?'700':'500') + ';color:' + (isEarned?'var(--heading)':'var(--text-muted)') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;cursor:' + (safeDesc?'help':'default') + ';border-bottom:' + (safeDesc?'1px dashed var(--text-faint)':'none') + ';">' + (typeof escapeHtml==='function'?escapeHtml(badge.name):badge.name) + '</span>';
-            html += '<span style="font-size:0.68rem;color:' + badge.rarity.color + ';font-weight:700;flex-shrink:0;">' + badge.pct.toFixed(1) + '%</span>';
-            html += '</div>';
-            html += '<div style="height:3px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden;">';
-            html += '<div style="height:100%;width:' + barWidth + '%;background:' + badge.rarity.color + ';border-radius:2px;transition:width 0.4s;"></div>';
-            html += '</div>';
-            html += '</div>';
-            if (isEarned) html += '<span style="font-size:0.7rem;flex-shrink:0;" title="You earned this!">✅</span>';
-            html += '</div>';
-        });
+        var yours = 0;
+        groups[r].forEach(function(badge) { if (userEarned.has(badge.id)) yours++; });
+        html += '<div class="bdr-group" data-rarity="' + r + '" style="margin-bottom:8px;">';
+        html += '<button type="button" class="bdr-toggle" data-rarity="' + r + '" aria-expanded="false" onclick="window._toggleBadgeDistGroup(this)">';
+        html += '<span aria-hidden="true">' + tierIcons[r] + '</span>';
+        html += '<span class="bdr-label" style="color:' + tierColors[r] + ';">' + r + '</span>';
+        html += '<span class="bdr-meta">' + rarityDesc[r] + '</span>';
+        html += '<span class="bdr-count" style="color:' + tierColors[r] + ';">' + groups[r].length + (yours ? ' · ' + yours + ' yours' : '') + '</span>';
+        html += '<span class="bdr-arrow" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
+        html += '</button>';
+        html += '<div id="bdr-body-' + r + '" class="bdr-body" data-rarity="' + r + '" data-open="0" data-loaded="0" style="display:none;"></div>';
         html += '</div>';
     });
     html += '</div>'; // bdgRows
@@ -2055,34 +2087,132 @@ function _hexToRgb(hex) {
     return r + ',' + g + ',' + b;
 }
 
+function _badgeDistRowHtml(badge, isEarned) {
+    var barWidth = Math.min(100, (badge.pct / 50) * 100);
+    var html = '<div class="bdr-row" data-earned="' + (isEarned ? '1' : '0') + '" style="display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:4px;border-radius:10px;background:' + (isEarned ? 'rgba(' + _hexToRgb(badge.rarity.color) + ',0.07)' : 'rgba(0,0,0,0.15)') + ';border:1px solid ' + (isEarned ? badge.rarity.border + '55' : 'var(--border)') + ';' + (isEarned && badge.rarity.glow !== 'none' ? 'box-shadow:0 0 8px ' + badge.rarity.glow + ';' : '') + '">';
+    html += '<span style="font-size:1rem;width:24px;text-align:center;flex-shrink:0;' + (isEarned ? '' : 'filter:grayscale(1);opacity:0.4;') + '">' + badge.emoji + '</span>';
+    html += '<div style="flex:1;min-width:0;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">';
+    var safeDesc = badge.desc ? (typeof escapeHtml === 'function' ? escapeHtml(badge.desc) : badge.desc.replace(/"/g, '&quot;')) : '';
+    html += '<span class="bdr-badge-title" data-desc="' + safeDesc + '"' + (safeDesc ? ' onmouseenter="window._showBadgeDistTooltip(event,this)" onmouseleave="window._hideBadgeDistTooltip()" onclick="window._showBadgeDistTooltip(event,this)"' : '') + ' style="font-size:0.78rem;font-weight:' + (isEarned ? '700' : '500') + ';color:' + (isEarned ? 'var(--heading)' : 'var(--text-muted)') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;cursor:' + (safeDesc ? 'help' : 'default') + ';border-bottom:' + (safeDesc ? '1px dashed var(--text-faint)' : 'none') + ';">' + (typeof escapeHtml === 'function' ? escapeHtml(badge.name) : badge.name) + '</span>';
+    html += '<span style="font-size:0.68rem;color:' + badge.rarity.color + ';font-weight:700;flex-shrink:0;">' + badge.pct.toFixed(1) + '%</span>';
+    html += '</div>';
+    html += '<div style="height:3px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden;">';
+    html += '<div style="height:100%;width:' + barWidth + '%;background:' + badge.rarity.color + ';border-radius:2px;transition:width 0.4s;"></div>';
+    html += '</div></div>';
+    if (isEarned) html += '<span style="font-size:0.7rem;flex-shrink:0;" title="You earned this!">✅</span>';
+    html += '</div>';
+    return html;
+}
+
+function _badgeDistMoreLeft(list, cursor, earned, filter) {
+    if (filter === 'mine') {
+        for (var i = cursor; i < list.length; i++) {
+            if (earned.has(list[i].id)) return true;
+        }
+        return false;
+    }
+    return cursor < list.length;
+}
+
+window._badgeDistFill = function(rarity) {
+    var state = window._badgeDistState;
+    var body = document.getElementById('bdr-body-' + rarity);
+    if (!state || !body) return;
+    var list = state.groups[rarity] || [];
+    var cursor = state.cursors[rarity] || 0;
+    var filter = state.filter || 'all';
+    var page = window._badgeDistPageSize || 24;
+    var html = '';
+    var added = 0;
+    while (cursor < list.length && added < page) {
+        var badge = list[cursor++];
+        var earned = state.earned.has(badge.id);
+        if (filter === 'mine' && !earned) continue;
+        html += _badgeDistRowHtml(badge, earned);
+        added++;
+    }
+    state.cursors[rarity] = cursor;
+    var oldMore = body.querySelector('.bdr-more');
+    if (oldMore) oldMore.remove();
+    if (html) {
+        var wrap = document.createElement('div');
+        wrap.innerHTML = html;
+        while (wrap.firstChild) body.appendChild(wrap.firstChild);
+    }
+    var moreLeft = _badgeDistMoreLeft(list, cursor, state.earned, filter);
+    if (moreLeft) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'bdr-more';
+        btn.textContent = 'Load more';
+        btn.addEventListener('click', function() { window._badgeDistFill(rarity); });
+        body.appendChild(btn);
+    } else if (!body.querySelector('.bdr-row')) {
+        var empty = document.createElement('div');
+        empty.style.cssText = 'font-size:0.75rem;color:var(--text-faint);padding:6px 10px 10px;';
+        empty.textContent = filter === 'mine' ? 'None of yours in this tier.' : 'No badges in this tier.';
+        body.appendChild(empty);
+    }
+    body.setAttribute('data-loaded', '1');
+};
+
+window._toggleBadgeDistGroup = function(rarityOrEl) {
+    var rarity = typeof rarityOrEl === 'string' ? rarityOrEl : (rarityOrEl && rarityOrEl.getAttribute ? rarityOrEl.getAttribute('data-rarity') : '');
+    var body = document.getElementById('bdr-body-' + rarity);
+    if (!body) return;
+    var group = body.parentNode;
+    var arrow = group ? group.querySelector('.bdr-arrow') : null;
+    var btn = group ? group.querySelector('.bdr-toggle') : null;
+    var open = body.getAttribute('data-open') === '1';
+    if (open) {
+        body.setAttribute('data-open', '0');
+        body.style.display = 'none';
+        if (arrow) arrow.textContent = '▶';
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+        return;
+    }
+    body.style.display = '';
+    body.setAttribute('data-open', '1');
+    if (arrow) arrow.textContent = '▼';
+    if (btn) btn.setAttribute('aria-expanded', 'true');
+    if (body.getAttribute('data-loaded') !== '1') window._badgeDistFill(rarity);
+};
+
 window._filterBadgeDist = function(filter) {
-    // Update active button
-    ['all','mine','Unclaimed','Legendary','Epic','Rare','Common'].forEach(function(f) {
+    var state = window._badgeDistState;
+    if (!state) return;
+    state.filter = filter;
+    var tierColors = _badgeDistTierColors();
+    ['all', 'mine'].concat(_badgeDistRarityOrder()).forEach(function(f) {
         var btn = document.getElementById('bdf-' + f);
         if (!btn) return;
         var isActive = f === filter;
         btn.style.background = isActive ? 'var(--accent)' : 'none';
-        btn.style.color = isActive ? '#000' : (f === 'all' || f === 'mine' ? 'var(--text-muted)' : btn.style.color);
-        btn.style.borderColor = isActive ? 'var(--accent)' : (f === 'all' || f === 'mine' ? 'var(--border)' : btn.style.borderColor);
+        btn.style.color = isActive ? '#000' : (f === 'all' || f === 'mine' ? 'var(--text-muted)' : tierColors[f]);
+        btn.style.borderColor = isActive ? 'var(--accent)' : (f === 'all' || f === 'mine' ? 'var(--border)' : tierColors[f] + '66');
     });
-    var userEarned = new Set();
-    try { userEarned = new Set(JSON.parse(localStorage.getItem('btc_badges') || '[]')); } catch(e) {}
-    if (typeof window.getEarnedBadges === 'function') userEarned = window.getEarnedBadges();
-
     document.querySelectorAll('.bdr-group').forEach(function(g) {
         var rarity = g.getAttribute('data-rarity');
-        if (filter === 'all') { g.style.display = ''; return; }
-        if (filter === 'mine') { g.style.display = ''; } else {
-            g.style.display = (filter === rarity) ? '' : 'none';
-        }
+        var list = state.groups[rarity] || [];
+        var yours = 0;
+        list.forEach(function(badge) { if (state.earned.has(badge.id)) yours++; });
+        var show = filter === 'all' || filter === rarity || (filter === 'mine' && yours > 0);
+        g.style.display = show ? '' : 'none';
     });
-    document.querySelectorAll('.bdr-row').forEach(function(row) {
-        if (filter === 'mine') {
-            row.style.display = row.getAttribute('data-earned') === '1' ? '' : 'none';
-        } else {
-            row.style.display = '';
-        }
+    state.cursors = {};
+    document.querySelectorAll('.bdr-body').forEach(function(body) {
+        body.innerHTML = '';
+        body.setAttribute('data-loaded', '0');
+        body.setAttribute('data-open', '0');
+        body.style.display = 'none';
+        var group = body.parentNode;
+        var arrow = group ? group.querySelector('.bdr-arrow') : null;
+        var btn = group ? group.querySelector('.bdr-toggle') : null;
+        if (arrow) arrow.textContent = '▶';
+        if (btn) btn.setAttribute('aria-expanded', 'false');
     });
+    if (filter !== 'all' && filter !== 'mine') window._toggleBadgeDistGroup(filter);
 };
 
 // Badge Distribution tooltip — inline onmouseenter/onmouseleave/onclick handlers

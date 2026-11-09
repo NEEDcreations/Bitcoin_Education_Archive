@@ -13,8 +13,9 @@ on:
         description: "Export folder date (YYYY-MM-DD, UTC). Blank = today UTC."
         required: false
 
-permissions:
-  contents: read
+# No repository checkout and no GitHub API calls.
+# GCP uses GCP_BACKUP_READER_KEY. R2 uses CF_R2_BACKUP_TOKEN.
+permissions: {}
 
 concurrency:
   group: r2-nightly-backup
