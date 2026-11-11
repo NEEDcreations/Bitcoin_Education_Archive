@@ -23,14 +23,17 @@ const adminClearPayoutHold = functionsV1.runWith({
     }
     const secondFactor = require('./secondFactor');
     const payoutSafety = require('./payoutSafety');
-    // Fresh step-up: a recent sign-in (auth_time) AND a fresh authenticator
-    // code/proof for this action (phone: second-factor sign-in). Then an
+    // Recent sign-in (auth_time), then the admin step-up below, then an
     // enrolled factor is REQUIRED: an admin with no authenticator or phone
     // factor cannot clear a hold.
     if (!payoutSafety.recentAuth(context.auth.token.auth_time, Date.now())) {
         throw new functionsV1.https.HttpsError('failed-precondition', 'Sign in again, then clear the hold.');
     }
-    const sf = await secondFactor.requireFreshStepUp(secondFactor.stamp(data, context), 'clearPayoutHold');
+    // requireAdminStepUp = recent sign-in + fresh step-up on every enrolled
+    // factor + at least one factor ESTABLISHED (enrolled 24h+ ago or before
+    // this sign-in), so a fresh session cannot enroll its own authenticator
+    // and clear holds (Spam/Abuse A1).
+    const sf = await secondFactor.requireAdminStepUp(secondFactor.stamp(data, context), 'clearPayoutHold');
     if (!payoutSafety.secondFactorEnrolled(sf)) {
         throw new functionsV1.https.HttpsError('failed-precondition', 'Turn on two-factor authentication to clear a payout hold.');
     }
