@@ -6,6 +6,7 @@
 //
 //   BQSafe.esc(v)        HTML text + attribute escape: & < > " ' `
 //   BQSafe.url(v, opts)  http(s) (and same-origin relative) URLs only, else ''
+//   BQSafe.https(v)      https:// URLs only, else ''
 //   BQSafe.img(v)        url() that also allows data:image/(png|jpeg|gif|webp)
 //   BQSafe.id(v)         Firestore-style token id ([A-Za-z0-9_-], 1-128) or ''
 //   BQSafe.act(fn, args, opts)
@@ -63,6 +64,8 @@
         if (/^data:image\/(png|jpe?g|gif|webp|avif);base64,[A-Za-z0-9+\/=\s]+$/i.test(u)) return u;
         return url(u);
     }
+    // https:// only (outside links opened in a new tab). Else ''.
+    function https(v) { var u = url(v, { relative: false }); return /^https:\/\//i.test(u) ? u : ''; }
     function id(v, max) {
         if (v === null || v === undefined) return '';
         var s = String(v);
@@ -229,7 +232,7 @@
     if (typeof root.escapeHtml !== 'function') root.escapeHtml = function (s) { return s ? esc(s) : ''; };
 
     root.BQSafe = {
-        __v: 1, esc: esc, attr: esc, url: url, img: img, id: id, text: text,
+        __v: 1, esc: esc, attr: esc, url: url, https: https, img: img, id: id, text: text,
         act: act, jsStr: jsStr, num: num, lit: lit, cleanHtml: cleanHtml, EL: EL, EV: EV, _dispatch: dispatch, _install: install,
         _allowed: function (fn) { return !!allowed[fn]; }
     };

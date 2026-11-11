@@ -79,6 +79,8 @@ console.log('BQSafe.url / img');
     ok(S.url('images/x.png') === 'images/x.png' && S.url('/a/b') === '/a/b' && S.url('#forum') === '#forum', 'url keeps relative');
     ok(S.url('https://e.com/"><img src=x onerror=alert(1)>') === 'https://e.com/%22%3E%3Cimg%20src=x%20onerror=alert(1)%3E', 'url percent-encodes breakout chars');
     ok(S.url('mailto:a@b.c') === '' && S.url('mailto:a@b.c', { schemes: ['mailto'] }) === 'mailto:a@b.c', 'url scheme allowlist opt-in');
+    for (const u of ['http://x.example/', 'javascript:alert(1)', '/rel', 'https:', "https://e.com/&#39;);alert(1)//"]) ok(!S.https(u) || S.https(u).indexOf("'") === -1 && /^https:\/\//.test(S.https(u)), 'https() only https and attribute-safe: ' + JSON.stringify(u));
+    ok(S.https('http://x.example/') === '' && S.https('https://x.example/a') === 'https://x.example/a', 'https() https only');
     ok(S.img('data:image/png;base64,iVBORw0KGgo=') === 'data:image/png;base64,iVBORw0KGgo=', 'img keeps png data URL');
     // In a real anchor, a rejected URL must not navigate to script
     const root = w.document.getElementById('root');
@@ -282,6 +284,21 @@ console.log('xss-lint (no new risky sinks)');
     try { out = execFileSync(process.execPath, [path.join(ROOT, 'tools', 'xss-lint.js')], { cwd: ROOT, encoding: 'utf8' }); }
     catch (e) { code = e.status; out = String(e.stdout || '') + String(e.stderr || ''); }
     ok(code === 0, 'tools/xss-lint.js passes against baseline' + (code ? '\n' + out.slice(0, 2000) : ''));
+}
+
+// ---------------------------------------------------------------
+console.log('No strip-only URL handlers');
+{
+    const files = fs.readdirSync(ROOT).filter((f) => /\.js$/.test(f) && !/^bundle/.test(f));
+    const bad = [];
+    for (const f of files) {
+        const src = fs.readFileSync(path.join(ROOT, f), 'utf8');
+        if (/onclick=[^\n]{0,40}window\.open\(\\'' *\+ *(?!BQSafe)/.test(src)) bad.push(f + ': window.open with concatenated URL');
+        if (/\(\\'' *\+ *escapeHtml\(/.test(src)) bad.push(f + ': escapeHtml inside a JS string in a handler');
+    }
+    ok(bad.length === 0, 'no strip-only / HTML-escaped values inside handler JS strings: ' + bad.join('; '));
+    const rk = fs.readFileSync(path.join(ROOT, 'ranking.js'), 'utf8');
+    ok((rk.match(/BQSafe\.act\('open', \[BQSafe\.https\(link\), '_blank'\]\)/g) || []).length === 2, 'newsletter links use https-only delegated open');
 }
 
 // ---------------------------------------------------------------

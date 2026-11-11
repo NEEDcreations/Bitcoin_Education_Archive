@@ -3089,10 +3089,10 @@ function _renderTopHashesHTML(entries) {
                 '<div style="display:flex;align-items:center;gap:6px;">' +
                     '<span style="font-size:0.78rem;min-width:22px;">' + rankIcon + '</span>' +
                     (function(){
-                    var _safeU = (nameMissing ? '' : (e.username || '')).replace(/\\/g,'').replace(/['"<>]/g,'');
+                    var _safeU = nameMissing ? '' : String(e.username || '');
                     var click = nameMissing
                         ? ''
-                        : 'onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\'' + _safeU + '\')"';
+                        : 'onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\'' + BQSafe.jsStr(_safeU) + '\')"';
                     return '<span ' + click + ' style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;" title="View ' + name + '\'s profile">' + name + '</span>' + (isMe ? ' (you)' : '') + badges; })() +
                 '</div>' +
                 '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">' +
@@ -3315,12 +3315,12 @@ function _loadLastSFWindow() {
                 lookupAttr = ' data-profile-uid="' + escapeHtml(w.uid) + '" data-blank-name="1"';
             }
             if (w.uid) {
-                clickHandler = 'onclick="if(typeof showUserProfile===\'function\')showUserProfile(\''+escapeHtml(w.uid)+'\')"';
+                clickHandler = 'onclick="if(typeof showUserProfile===\'function\')showUserProfile(\''+BQSafe.jsStr(w.uid)+'\')"';
                 baseStyle += 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;';
             } else if (w.username) {
-                var _safeName = escapeHtml(w.username).replace(/\\/g, '').replace(/['"<>]/g, '');
+                var _safeName = w.username;
 
-                clickHandler = 'onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\''+_safeName+'\')"';
+                clickHandler = 'onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\''+BQSafe.jsStr(_safeName)+'\')"';
                 baseStyle += 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;';
             }
             return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(247,147,26,0.1);"><span style="font-size:0.95rem">🏆</span><span ' + clickHandler + lookupAttr + ' style="' + baseStyle + '">' + display + '</span><span style="margin-left:auto;font-size:0.72rem;font-weight:700;color:#f7931a;font-family:monospace;">' + (w.value || 0).toLocaleString() + '</span></div>';

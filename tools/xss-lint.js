@@ -89,7 +89,7 @@ function scanFile(f) {
         }
         const minified = L.length > 2000;
         // --- inline handlers
-        const onRe = /\son[a-z]{3,20}\s*=\s*(\\?["'])/gi;
+        const onRe = /(?:\s|['"`])on[a-z]{3,20}\s*=\s*(\\?["'])/gi;
         let m;
         while ((m = onRe.exec(L))) {
             if (isHtml && !inScript) { add('INLINE_STATIC', i, L.slice(Math.max(0, m.index - 20), m.index + 140)); continue; }

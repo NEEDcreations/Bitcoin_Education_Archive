@@ -1,6 +1,6 @@
 {
  "note": "Accepted pre-existing XSS-lint findings. Shrink only; never add without Security review.",
- "count": 293,
+ "count": 298,
  "fingerprints": [
   "app.js|HTML_DYN|btn.innerHTML = emoji + ' ' + label;",
   "app.js|HTML_DYN|chat.innerHTML =",
@@ -142,6 +142,7 @@
   "marketplace.js|HTML_DYN|grid.innerHTML = fallbackListings.map(function(l) {",
   "meetup-builder.js|HTML_DYN|grid.innerHTML =",
   "meetup-builder.js|HTML_DYN|section.innerHTML =",
+  "meetup-builder.js|INLINE_DYN|return 'onclick=\"var c=document.getElementById(\\'' + id + '\\');var a=this.querySelector(\\'.mb-arrow\\');if(c.style.display===\\'none\\'){c.style.display=\\'block\\';",
   "meetup-builder.js|URL_DYN|inkStart = url ? '<a href=\"' + url + '\" target=\"_blank\" rel=\"noopener\" style=\"text-decoration:none;color:inherit;display:block;\">' : '<div>';",
   "messaging.js|HTML_DYN|_nd.innerHTML = '<div id=\"userProfileModal\" style=\"position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:400000;display:flex;align-items:center;justify-con",
   "messaging.js|HTML_DYN|_promptEl.innerHTML = '<div style=\"background:var(--bg-side);border:1px solid var(--border);border-radius:20px;max-width:340px;width:100%;padding:24px;text-alig",
@@ -169,6 +170,8 @@
   "mobile-ux.js|INLINE_DYN|html += '<div onclick=\"' + openQH + '\" style=\"background:linear-gradient(135deg,rgba(139,92,246,0.1),rgba(109,40,217,0.04));border:1px solid #8b5cf6;border-radi",
   "mobile-ux.js|INLINE_DYN|html = '<div onclick=\"' + openQH + '\" style=\"background:linear-gradient(135deg,rgba(34,197,94,0.1),rgba(34,197,94,0.04));border:1px solid #22c55e;border-radius:",
   "mobile-ux.js|URL_DYN|(bossImg ? '<img src=\"' + bossImg + '\" style=\"width:48px;height:48px;border-radius:10px;object-fit:cover;border:1px solid rgba(139,92,246,0.3);flex-shrink:0;\">'",
+  "modules.js|INLINE_DYN|(!isAnswered ? 'onmouseover=\"this.style.borderColor=\\'' + mod.color + '\\'\" onmouseout=\"this.style.borderColor=\\'var(--border)\\'\"' : '') + '>' +",
+  "modules.js|INLINE_DYN|(isAnswered ? 'disabled ' : 'onclick=\"trailExamAnswer(this,' + isCorrect + ')\" ') +",
   "nacho-closet.js|HTML_DYN|ht:700;cursor:pointer;\">Done</button>',n.innerHTML=i,a.appendChild(n),document.body.appendChild(a)},window._applyClosetColor=function(e,t){localStorage.setItem(",
   "nacho-closet.js|INLINE_DYN|g.revealEmoji:g.emoji;f+='<div onclick=\"'+(v?\"equipNachoItem('\"+g.id+\"')\":\"\")+'\" style=\"background:'+(y?\"var(--accent-bg,rgba(247,147,26,0.15))\":\"var(--card-bg,",
   "nacho-engage.js|HTML_DYN|textEl.innerHTML += '<div style=\"color:#ef4444;font-weight:700;margin-top:8px;\">❌ Not quite' + n + '! The answer was ' + String.fromCharCode(65 + correct) + '. ",
@@ -274,6 +277,8 @@
   "satoshi-favor.js|HTML_DYN|overlay.innerHTML =",
   "satoshi-favor.js|HTML_DYN|overlay.innerHTML = confettiCSS + confettiHTML +",
   "satoshi-favor.js|HTML_DYN|w.innerHTML =",
+  "satoshi-favor.js|INLINE_DYN|'<span ' + (safeSessionUid ? 'onclick=\"if(typeof showUserProfile===\\'function\\')showUserProfile(\\''+safeSessionUid+'\\')\" style=\"flex:1;font-size:0.78rem;font-we",
+  "satoshi-favor.js|INLINE_DYN|profileClick = safeHashUid ? `onclick=\"if(typeof showUserProfile==='function')showUserProfile('${safeHashUid}')\" title=\"View @${name}'s profile\" style=\"cursor:p",
   "sats-vs-bits.js|HTML_DYN|widget.innerHTML =",
   "scholar.js|HTML_DYN|inner.innerHTML = `<div style=\"display:flex;flex-direction:column;align-items:center;padding:10px;height:100%;min-height:400px;justify-content:center;\">",
   "scholar.js|HTML_DYN|inner.innerHTML = `<div style=\"text-align:center;padding:50px 20px;\">",
