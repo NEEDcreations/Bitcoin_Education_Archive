@@ -26,6 +26,8 @@ export {
 const TOPIC_BY_ID = new Map(TOPICS.map(function (t) { return [t.id, t]; }));
 const STOP = new Set("the a an of to and or for in on is are was were be what why how does do did you your with from this that it right now just about into per".split(" "));
 const STALE_MS = 180000;
+export const FRESH_MS = STALE_MS;
+export const STALE_USABLE_MS = 30 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 2500;
 const NO_FIGURE = "I can't get a fresh figure right now, try again in a minute.";
 const DATA_MARK = "NACHO_DATA";
@@ -297,14 +299,70 @@ function intentHasData(intent, data) {
     return false;
 }
 
-export function marketFresh(data, intents) {
+export function dataAgeMs(data, now) {
+    const ts = Number(data && data.ts);
+    if (!isFinite(ts)) return null;
+    return Math.abs((now != null ? now : Date.now()) - ts);
+}
+
+export function ageLabel(ms) {
+    if (ms == null || !isFinite(ms) || ms < 0) return "a few minutes old";
+    const mins = Math.max(1, Math.round(ms / 60000));
+    if (mins < 60) return mins === 1 ? "about 1 minute old" : "about " + mins + " minutes old";
+    const hours = Math.round(mins / 60);
+    return hours === 1 ? "about 1 hour old" : "about " + hours + " hours old";
+}
+
+function snapshotHasIntentData(data, intents) {
     if (!data || !intents || !intents.length) return false;
-    const ts = Number(data.ts);
-    if (!isFinite(ts) || Math.abs(Date.now() - ts) > STALE_MS) return false;
     for (let i = 0; i < intents.length; i++) {
         if (!intentHasData(intents[i], data)) return false;
     }
     return true;
+}
+
+export function marketFresh(data, intents, now) {
+    const age = dataAgeMs(data, now);
+    if (age == null || age > STALE_MS) return false;
+    return snapshotHasIntentData(data, intents);
+}
+
+export function marketUsable(data, intents, now) {
+    const age = dataAgeMs(data, now);
+    if (age == null || age > STALE_USABLE_MS) return false;
+    return snapshotHasIntentData(data, intents);
+}
+
+const CORE_SNAPSHOT_KEYS = ["price", "prices", "feeFast", "feeHalf", "feeHour", "feeEcon", "feeMin", "blockHeight", "hashrate", "difficulty", "mempoolTxs", "mempoolSize", "supply", "ath", "change24h", "halving", "halvingBlock", "halvingDays"];
+
+export function mergeBtcSnapshots(previous, next) {
+    const prev = previous && typeof previous === "object" ? previous : null;
+    const cur = next && typeof next === "object" ? next : null;
+    if (!prev) return cur;
+    if (!cur) return prev;
+    const out = Object.assign({}, prev, cur);
+    let usedPrev = false;
+    CORE_SNAPSHOT_KEYS.forEach(function (key) {
+        const curVal = cur[key];
+        const empty = curVal == null || curVal === "" || (typeof curVal === "number" && !isFinite(curVal));
+        if (empty && prev[key] != null) {
+            out[key] = prev[key];
+            usedPrev = true;
+        }
+    });
+    const prevTs = Number(prev.ts);
+    const curTs = Number(cur.ts);
+    if (usedPrev && isFinite(prevTs)) {
+        out.ts = isFinite(curTs) ? Math.min(prevTs, curTs) : prevTs;
+    } else if (isFinite(curTs)) {
+        out.ts = curTs;
+    }
+    return out;
+}
+
+export function snapshotHasCore(data) {
+    if (!data) return false;
+    return (data.price != null && isFinite(Number(data.price))) || Number(data.blockHeight) > 0 || (data.feeFast != null && isFinite(Number(data.feeFast)));
 }
 
 function hasMarketNumber(text) {
@@ -332,7 +390,20 @@ function stripLiveFigures(text) {
         .trim();
 }
 
-export function renderIntent(intent, data) {
+function withAgeLabel(text, data, opts) {
+    if (!text || !opts || !opts.stale) return text;
+    const age = dataAgeMs(data, opts.now);
+    if (age == null || age <= STALE_MS) return text;
+    const label = ageLabel(age);
+    let out = String(text).replace(/\s+right now/gi, "");
+    if (out.indexOf(label) === -1) {
+        if (/\.(\s*Source:)/.test(out)) out = out.replace(/\.(\s*Source:)/, " (" + label + ").$1");
+        else out = out.replace(/\.\s*$/, " (" + label + ").");
+    }
+    return out;
+}
+
+export function renderIntent(intent, data, opts) {
     if (!intent || !data) return "";
     const name = intent.name;
     if (name === "price") {
@@ -341,47 +412,47 @@ export function renderIntent(intent, data) {
         const shown = money(n, code);
         if (!shown) return "";
         const source = code === "USD" ? "Coinbase" : "mempool.space";
-        return "Bitcoin is " + shown + " right now. Source: " + source + ". Not financial advice.";
+        return withAgeLabel("Bitcoin is " + shown + " right now. Source: " + source + ". Not financial advice.", data, opts);
     }
     if (name === "fees") {
         if (data.feeFast == null) return "";
-        return "Recommended fees right now: fastest " + data.feeFast + " sat/vB, half hour " + (data.feeHalf != null ? data.feeHalf : "?") + " sat/vB, next hour " + (data.feeHour != null ? data.feeHour : "?") + " sat/vB, economy " + (data.feeEcon != null ? data.feeEcon : "?") + " sat/vB. Source: mempool.space.";
+        return withAgeLabel("Recommended fees right now: fastest " + data.feeFast + " sat/vB, half hour " + (data.feeHalf != null ? data.feeHalf : "?") + " sat/vB, next hour " + (data.feeHour != null ? data.feeHour : "?") + " sat/vB, economy " + (data.feeEcon != null ? data.feeEcon : "?") + " sat/vB. Source: mempool.space.", data, opts);
     }
     if (name === "height") {
         if (!data.blockHeight) return "";
-        return "The chain tip is block " + group(data.blockHeight) + ". Source: mempool.space.";
+        return withAgeLabel("The chain tip is block " + group(data.blockHeight) + ". Source: mempool.space.", data, opts);
     }
     if (name === "halving") {
         if (!data.halvingBlock || data.halving == null) return "";
-        return "The next halving is at block " + group(data.halvingBlock) + ", with " + group(data.halving) + " blocks left (about " + group(data.halvingDays || 0) + " days). Computed from block height " + group(data.blockHeight) + ". Source: mempool.space.";
+        return withAgeLabel("The next halving is at block " + group(data.halvingBlock) + ", with " + group(data.halving) + " blocks left (about " + group(data.halvingDays || 0) + " days). Computed from block height " + group(data.blockHeight) + ". Source: mempool.space.", data, opts);
     }
     if (name === "hashrate") {
         const shown = formatHashrate(data.hashrate);
         if (!shown) return "";
-        return "Bitcoin hashrate is about " + shown + ". Source: mempool.space.";
+        return withAgeLabel("Bitcoin hashrate is about " + shown + ". Source: mempool.space.", data, opts);
     }
     if (name === "difficulty") {
         if (!data.difficulty) return "";
-        return "Mining difficulty is " + group(data.difficulty) + ". Source: mempool.space.";
+        return withAgeLabel("Mining difficulty is " + group(data.difficulty) + ". Source: mempool.space.", data, opts);
     }
     if (name === "mempool") {
         if (data.mempoolTxs == null) return "";
         const mb = data.mempoolSize ? " (about " + group(data.mempoolSize / 1e6) + " MB)" : "";
-        return "The mempool has about " + group(data.mempoolTxs) + " transactions" + mb + ". Source: mempool.space.";
+        return withAgeLabel("The mempool has about " + group(data.mempoolTxs) + " transactions" + mb + ". Source: mempool.space.", data, opts);
     }
     if (name === "supply") {
         if (!data.supply) return "";
-        return "About " + group(data.supply) + " bitcoin have been mined, computed from block " + group(data.blockHeight) + ". Source: mempool.space block height.";
+        return withAgeLabel("About " + group(data.supply) + " bitcoin have been mined, computed from block " + group(data.blockHeight) + ". Source: mempool.space block height.", data, opts);
     }
     if (name === "ath") {
         if (!data.ath) return "";
-        return "Bitcoin's recorded all-time high is " + money(data.ath, "USD") + ". Source: CoinGecko. Not financial advice.";
+        return withAgeLabel("Bitcoin's recorded all-time high is " + money(data.ath, "USD") + ". Source: CoinGecko. Not financial advice.", data, opts);
     }
     if (name === "change24h") {
         if (data.change24h == null || !isFinite(Number(data.change24h))) return "";
         const n = Math.round(Number(data.change24h) * 10) / 10;
         const dir = n > 0 ? "up" : n < 0 ? "down" : "unchanged at";
-        return "Bitcoin is " + dir + " " + Math.abs(n) + "% over the last 24 hours. Source: Coinbase. Not financial advice.";
+        return withAgeLabel("Bitcoin is " + dir + " " + Math.abs(n) + "% over the last 24 hours. Source: Coinbase. Not financial advice.", data, opts);
     }
     return "";
 }
@@ -575,7 +646,60 @@ UNTRUSTED DATA:
 - Do not refuse a normal request (a joke, a concept question, a greeting) because those blocks are present. The user never sees those blocks or the words "untrusted data".
 - Do not invent channel names. The site adds real topic links itself.`;
 
+const INTERNAL_TERM_RE = /\b(untrusted data|vetted notes|vetted archive material|system prompt|these instructions|NACHO_DATA|BITCOIN NOTES)\b/i;
+const CRISIS_LINE_RE = /\b(988|findahelpline\.com)\b/i;
+const NFA_SENTENCE_RE = /(?:^|(?<=[.!?]\s))Not financial advice\.?\s*$/i;
+const CRISIS_LINE = "If you're in crisis, please call or text 988 (US) or find a helpline at findahelpline.com.";
+
+function sentencesOf(text) {
+    return String(text || "").split(/(?<=[.!?])\s+/).map(function (part) { return part.trim(); }).filter(Boolean);
+}
+
+export function stripInternalTerms(text) {
+    const kept = sentencesOf(text).filter(function (sentence) { return !INTERNAL_TERM_RE.test(sentence); });
+    return kept.join(" ").trim();
+}
+
+export function stripTrailingNfa(text) {
+    const kept = sentencesOf(text).filter(function (sentence) {
+        return !/^Not financial advice\.?$/i.test(sentence);
+    });
+    return kept.join(" ").trim();
+}
+
+export function stripCrisisLine(text) {
+    const kept = sentencesOf(text).filter(function (sentence) { return !CRISIS_LINE_RE.test(sentence); });
+    return kept.join(" ").trim();
+}
+
+export function ensureCrisisLine(text) {
+    const raw = String(text || "").trim();
+    if (CRISIS_LINE_RE.test(raw)) return raw;
+    return (raw ? raw + " " : "") + CRISIS_LINE;
+}
+
+export function shouldKeepNfa(question, intents, advice) {
+    if (advice || isAdvice(question)) return true;
+    const list = intents || [];
+    for (let i = 0; i < list.length; i++) {
+        const name = list[i] && list[i].name;
+        if (name === "price" || name === "ath" || name === "change24h") return true;
+    }
+    return false;
+}
+
+export function hardenOutput(text, opts) {
+    const o = opts || {};
+    let out = String(text || "");
+    out = stripInternalTerms(out);
+    if (!o.keepNfa) out = stripTrailingNfa(out);
+    if (o.keepCrisis) out = ensureCrisisLine(out);
+    else out = stripCrisisLine(out);
+    return out.trim();
+}
+
 function notesBlock(entries) {
+
     if (!entries || !entries.length) return "";
     const lines = entries.slice(0, 5).map(function (entry) {
         return "- Q: " + entry.question + "\n  A: " + String(entry.answer || "").slice(0, 420);
@@ -654,6 +778,7 @@ function packKb(entry) {
     });
     let text = stripClock(entry.answer);
     if (text.length > 1500) text = text.slice(0, 1500) + "...";
+    text = hardenOutput(text, { keepNfa: false, keepCrisis: false });
     const checked = validateOutput(text);
     return {
         answer: checked || text,
@@ -687,6 +812,11 @@ function pack(question, answer, opts) {
     if (text.length > 1500) text = text.slice(0, 1500) + "...";
     const intents = o.intents || [];
     const advice = !!o.advice;
+    text = hardenOutput(text, {
+        keepNfa: o.keepNfa != null ? o.keepNfa : shouldKeepNfa(question, intents, advice),
+        keepCrisis: o.keepCrisis != null ? o.keepCrisis : detectCrisis(question)
+    });
+    if (!text) text = UNSURE_ANSWER;
     const links = rankTopics(question + " " + text, { intents: intents, advice: advice });
     const followUps = pickFollowUps(question, links);
     const safeLinks = links.filter(function (l) { return TOPIC_BY_ID.has(l.id); }).slice(0, 3);
@@ -725,13 +855,14 @@ export async function answerTurn(body, deps) {
     const intents = detectIntents(question);
     const advice = isAdvice(question);
     const fresh = marketFresh(data, intents);
+    const usable = marketUsable(data, intents);
     const conceptual = isConceptual(question);
     const numberNow = asksForCurrentNumber(question);
     const steerFirst = !!(found.altcoin || (found.direct && found.direct.category === "crypto-steer"));
-    if (intents.length && !fresh && numberNow && !conceptual && !steerFirst) {
+    if (intents.length && !usable && numberNow && !conceptual && !steerFirst) {
         return pack(question, NO_FIGURE, { intents: intents, advice: advice, deterministic: true, asOf: null });
     }
-    const liveOwns = !!(fresh && marketOwns(question, intents));
+    const liveOwns = !!(usable && marketOwns(question, intents));
     let answer = "";
     let deterministic = false;
     let usedLive = false;
@@ -752,38 +883,38 @@ export async function answerTurn(body, deps) {
     } else if (!answer && advice) {
         answer = adviceAnswer();
         deterministic = true;
-    } else if (!answer && fresh && isSimple(question, intents)) {
-        answer = renderIntent(intents[0], data);
+    } else if (!answer && usable && isSimple(question, intents)) {
+        answer = renderIntent(intents[0], data, { stale: !fresh });
         if (answer) {
             deterministic = true;
             usedLive = true;
         }
     }
     if (!answer) {
-        const messages = buildMessages(input, fresh ? data : null, fresh ? intents : [], found.grounding);
+        const messages = buildMessages(input, usable ? data : null, usable ? intents : [], found.grounding);
         const aiRun = d.aiRun;
         if (typeof aiRun !== "function") return unsureReply(question, { intents: intents, advice: advice, deterministic: true, asOf: null });
         const ai = await aiRun("@cf/meta/llama-3.3-70b-instruct-fp8-fast", { messages: messages, max_tokens: 300, temperature: 0.4 });
         let text = (ai && (ai.response || ai.answer)) || "";
         text = String(text).replace(/\nFollow-up:\s*.+$/i, "").trim();
-        if (intents.length && !fresh && !conceptual) text = scrubUnsourcedNumbers(text);
-        if (conceptual && !fresh) text = stripLiveFigures(text);
+        if (intents.length && !usable && !conceptual) text = scrubUnsourcedNumbers(text);
+        if (conceptual && !usable) text = stripLiveFigures(text);
         text = text === NO_FIGURE ? text : validateOutput(text);
-        if (!text && fresh && intents.length === 1 && !conceptual) text = renderIntent(intents[0], data);
+        if (!text && usable && intents.length === 1 && !conceptual) text = renderIntent(intents[0], data, { stale: !fresh });
         if (!text) return unsureReply(question, { intents: intents, advice: advice, deterministic: true, asOf: null });
         if (text !== NO_FIGURE) {
             answer = stripInventedTopics(text);
             const checked = validateOutput(answer);
             if (!checked) return unsureReply(question, { intents: intents, advice: advice, deterministic: true, asOf: null });
             answer = checked;
-            if (intents.length && !fresh && !conceptual && hasMarketNumber(answer)) answer = NO_FIGURE;
-            if (conceptual && !fresh && asksForCurrentNumber(question) && answer.indexOf(NO_FIGURE) === -1) {
+            if (intents.length && !usable && !conceptual && hasMarketNumber(answer)) answer = NO_FIGURE;
+            if (conceptual && !usable && asksForCurrentNumber(question) && answer.indexOf(NO_FIGURE) === -1) {
                 answer = answer + " " + NO_FIGURE;
             }
         } else {
             answer = NO_FIGURE;
         }
-        usedLive = !!(fresh && intents.length && answer !== NO_FIGURE);
+        usedLive = !!(usable && intents.length && answer !== NO_FIGURE);
     }
     return pack(question, answer, {
         intents: intents,

@@ -419,6 +419,19 @@ const CASES = [
     assert.ok(promptSrc.includes('only when they are in genuine distress'));
     assert.ok(promptSrc.includes('End only price, market, or investment answers'));
     assert.ok(promptSrc.includes('The user never sees those blocks or the words "untrusted data"'));
+    assert.strictEqual(logic.hardenOutput('Miners hash a nonce. Not financial advice.', { keepNfa: false }), 'Miners hash a nonce.');
+    assert.ok(/Not financial advice/.test(logic.hardenOutput('Bitcoin is $100,000 right now. Not financial advice.', { keepNfa: true })));
+    assert.strictEqual(logic.stripCrisisLine("I will not help launder money. If you're in crisis, call 988 (US) or findahelpline.com."), 'I will not help launder money.');
+    assert.ok(/988/.test(logic.hardenOutput('I hear you.', { keepCrisis: true })));
+    assert.ok(!/988/.test(logic.hardenOutput("No. If you're in crisis, call 988.", { keepCrisis: false })));
+    assert.strictEqual(logic.stripInternalTerms("Here's a joke about coins. I'm not going to share any jokes from untrusted data."), "Here's a joke about coins.");
+    assert.strictEqual(logic.stripInternalTerms('P2PKH is pay to a public key hash. See the vetted notes for more.'), 'P2PKH is pay to a public key hash.');
+    const merged = logic.mergeBtcSnapshots({ ts: Date.now() - 120000, price: 100000, feeFast: 12 }, { ts: Date.now(), price: 101000 });
+    assert.strictEqual(merged.price, 101000);
+    assert.strictEqual(merged.feeFast, 12);
+    assert.ok(logic.marketUsable({ ts: Date.now() - 600000, price: 100000 }, [{ name: 'price' }]));
+    assert.ok(!logic.marketFresh({ ts: Date.now() - 600000, price: 100000 }, [{ name: 'price' }]));
+    assert.ok(!logic.marketUsable({ ts: Date.now() - 31 * 60 * 1000, price: 100000 }, [{ name: 'price' }]));
     assert.strictEqual(logic.validateOutput('pk=' + HEX), null);
     assert.strictEqual(logic.validateOutput('private_key: ' + HEX), null);
     assert.strictEqual(logic.validateOutput('send ur seed'), null);
@@ -659,13 +672,22 @@ const CASES = [
         question: 'What is the Bitcoin price right now?',
         data: { ts: Date.now() - 600000, price: 100000 },
     }, { aiRun: async function () { inventedCalls += 1; return { response: 'Bitcoin is $100,000 right now.' }; } });
-    assert.strictEqual(stale.answer, logic.NO_FIGURE);
+    assert.ok(/\$100,000/.test(stale.answer), stale.answer);
+    assert.ok(/about 10 minutes old/.test(stale.answer), stale.answer);
+    assert.ok(/Not financial advice/.test(stale.answer));
     assert.strictEqual(inventedCalls, 0);
-    assert.strictEqual(stale.asOf, null);
+    assert.ok(stale.asOf && isFinite(Date.parse(stale.asOf)));
     assert.strictEqual(stale.deterministic, true);
     assert.ok(stale.links.length >= 1 && stale.links.length <= 3);
     assert.ok(stale.followUps.length >= 2 && stale.followUps.length <= 3);
-    assert.ok(!/\$|\d+\s*%|sat\/vb/i.test(stale.answer));
+    const tooOld = await logic.answerTurn({
+        question: 'What is the Bitcoin price right now?',
+        data: { ts: Date.now() - 31 * 60 * 1000, price: 100000 },
+    }, { aiRun: async function () { inventedCalls += 1; return { response: 'Bitcoin is $100,000 right now.' }; } });
+    assert.strictEqual(tooOld.answer, logic.NO_FIGURE);
+    assert.strictEqual(inventedCalls, 0);
+    assert.strictEqual(tooOld.asOf, null);
+    assert.ok(!/\$|\d+\s*%|sat\/vb/i.test(tooOld.answer));
     const empty = await logic.answerTurn({
         question: 'What are Bitcoin fees right now?',
         data: { ts: Date.now() },
@@ -743,6 +765,17 @@ const CASES = [
     assert.ok(/988/.test(crisis.answer));
     assert.ok(crisis.deterministic);
     assert.ok(!/antlers are telling me/i.test(crisis.answer));
+    const leaky = await logic.answerTurn({ question: 'Explain the timechain.', data: data }, {
+        data: data,
+        aiRun: async function () {
+            inventedCalls += 1;
+            return { response: 'The timechain is the ordered chain of blocks. Not financial advice. If you are in crisis, call 988. See the vetted notes.' };
+        }
+    });
+    assert.ok(/ordered chain of blocks/i.test(leaky.answer), leaky.answer);
+    assert.ok(!/Not financial advice/i.test(leaky.answer), leaky.answer);
+    assert.ok(!/988/.test(leaky.answer), leaky.answer);
+    assert.ok(!/vetted notes/i.test(leaky.answer), leaky.answer);
 
     const workerSrc = require('fs').readFileSync(path.join(__dirname, '../workers/nacho-search/worker.js'), 'utf8');
     assert.ok(workerSrc.includes('_btcInflight'));
