@@ -1,6 +1,9 @@
 const fs = require('fs');
 
 // 1. Load News
+// Escape every value that comes from the news data file (external headlines).
+const esc = (v) => String(v == null ? '' : v).replace(/[&<>"'`]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' })[c]);
+const safeHttp = (u) => { const t = String(u || '').replace(/[\u0000-\u0020]/g, ''); return /^https?:\/\//i.test(t) ? t : '#'; };
 const newsData = JSON.parse(fs.readFileSync('/root/simple-archive/newsletter-data.json', 'utf8'));
 
 // 2. Load Education (from recently split scholar.js)
@@ -47,9 +50,9 @@ const html = `
             <div class="section-title">The Big Stories</div>
             ${newsData.news.map(n => `
                 <div class="news-item">
-                    <div class="news-title">${n.title}</div>
-                    <div class="news-snippet">${n.snippet}</div>
-                    <a href="${n.link}" class="news-link">Read full story →</a>
+                    <div class="news-title">${esc(n.title)}</div>
+                    <div class="news-snippet">${esc(n.snippet)}</div>
+                    <a href="${esc(safeHttp(n.link))}" class="news-link">Read full story →</a>
                 </div>
             `).join('')}
 

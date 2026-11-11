@@ -4721,7 +4721,7 @@ function renderNachoAnswer(textEl, answerHtml, match) {
     if (match && match.channel && match.channelName) {
         html += '<div style="margin-top:10px;text-align:center;">' +
             '<div style="font-size:0.7rem;color:var(--text-faint);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px;">Study more about this topic:</div>' +
-            '<button ontouchstart="event.stopPropagation();event.stopImmediatePropagation();" onmousedown="event.stopPropagation();event.stopImmediatePropagation();" onclick="event.stopPropagation();event.stopImmediatePropagation();window._nachoActionClicked=true;if(typeof go===\'function\')go(\'' + match.channel + '\');hideBubble(true);" style="width:100%;padding:11px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(247,147,26,0.2);touch-action:manipulation;">📖 ' + match.channelName + ' →</button>' +
+            '<button ontouchstart="event.stopPropagation();event.stopImmediatePropagation();" onmousedown="event.stopPropagation();event.stopImmediatePropagation();" onclick="event.stopPropagation();event.stopImmediatePropagation();window._nachoActionClicked=true;if(typeof go===\'function\')go(\'' + BQSafe.jsStr(match.channel) + '\');hideBubble(true);" style="width:100%;padding:11px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 12px rgba(247,147,26,0.2);touch-action:manipulation;">📖 ' + match.channelName + ' →</button>' +
         '</div>';
     }
 
@@ -4730,7 +4730,7 @@ function renderNachoAnswer(textEl, answerHtml, match) {
     if (!_safetyReply && match && match.followUp && String(answerHtml).indexOf(String(match.followUp).slice(0, 24)) === -1 && String(answerHtml).indexOf('data-bq-chip') === -1) {
         var _fuText = String(match.followUp).replace(/[<>]/g, '');
         var _fuAttr = _fuText.replace(/[\\'"]/g, '');
-        html += '<button data-bq-chip="1" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput();setTimeout(function(){var inp=document.getElementById(\'nachoInput\');if(inp){inp.value=\'' + _fuAttr + '\';nachoAnswer();}},150)" style="display:block;width:100%;margin-top:8px;padding:5px 8px;background:none;border:1px solid var(--border,#333);border-radius:6px;color:var(--text-muted,#aaa);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;">💬 ' + escapeHtml(_fuText) + '</button>';
+        html += '<button data-bq-chip="1" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput();setTimeout(function(){var inp=document.getElementById(\'nachoInput\');if(inp){inp.value=\'' + BQSafe.jsStr(_fuAttr) + '\';nachoAnswer();}},150)" style="display:block;width:100%;margin-top:8px;padding:5px 8px;background:none;border:1px solid var(--border,#333);border-radius:6px;color:var(--text-muted,#aaa);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;">💬 ' + escapeHtml(_fuText) + '</button>';
     } else if (!_safetyReply && match && match.answer && String(answerHtml).indexOf('data-bq-chip') === -1) {
         var followUps = typeof nachoFollowUps === 'function' ? nachoFollowUps(match.answer) : [];
         if (followUps.length > 0) {
@@ -4739,7 +4739,7 @@ function renderNachoAnswer(textEl, answerHtml, match) {
             for (var fi = 0; fi < Math.min(followUps.length, 2); fi++) {
                 var _chip = String(followUps[fi] || '').replace(/[<>]/g, '');
                 var _chipAttr = _chip.replace(/[\\'"]/g, '');
-                html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput();setTimeout(function(){var inp=document.getElementById(\'nachoInput\');if(inp){inp.value=\'' + _chipAttr + '\';nachoAnswer();}},150)" style="display:block;width:100%;padding:5px 8px;margin-bottom:3px;background:none;border:1px solid var(--border,#333);border-radius:6px;color:var(--text-muted,#aaa);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;">💬 ' + escapeHtml(_chip) + '</button>';
+                html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();showNachoInput();setTimeout(function(){var inp=document.getElementById(\'nachoInput\');if(inp){inp.value=\'' + BQSafe.jsStr(_chipAttr) + '\';nachoAnswer();}},150)" style="display:block;width:100%;padding:5px 8px;margin-bottom:3px;background:none;border:1px solid var(--border,#333);border-radius:6px;color:var(--text-muted,#aaa);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;">💬 ' + escapeHtml(_chip) + '</button>';
             }
             html += '</div>';
         }
@@ -4840,7 +4840,7 @@ window.nachoAnswer = function() {
 
                 // Topic buttons already in the answer replace the single channel link.
                 if (result.channel && String(result.answer || '').indexOf('data-bq-links') === -1) {
-                    html += '<br><a href="#" ontouchstart="event.stopPropagation();event.stopImmediatePropagation();" onmousedown="event.stopPropagation();event.stopImmediatePropagation();" onclick="event.stopPropagation();event.stopImmediatePropagation();event.preventDefault();window._nachoActionClicked=true;hideBubble(true);setTimeout(function(){go(\'' + result.channel + '\')},100)" style="color:var(--accent);font-weight:600;font-size:0.85rem;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
+                    html += '<br><a href="#" ontouchstart="event.stopPropagation();event.stopImmediatePropagation();" onmousedown="event.stopPropagation();event.stopImmediatePropagation();" onclick="event.stopPropagation();event.stopImmediatePropagation();event.preventDefault();window._nachoActionClicked=true;hideBubble(true);setTimeout(function(){go(\'' + BQSafe.jsStr(result.channel) + '\')},100)" style="color:var(--accent);font-weight:600;font-size:0.85rem;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
                 }
                 // Add site action button if available
                 if (result.siteAction) {
@@ -4914,7 +4914,7 @@ function showNachoFallback(textEl, q) {
     var html = '<div style="color:var(--text,#eee);line-height:1.6;">';
     if (suggestedChannel) {
         html += "Hmm, that one's not in my direct notes, {name}, but I found a great channel where you can learn all about it! 🦌📚";
-        html += '<button onclick="if(typeof go===\'function\')go(\'' + suggestedChannel.id + '\');hideBubble();" style="width:100%;margin-top:15px;padding:12px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">📖 Explore: ' + suggestedChannel.name + ' →</button>';
+        html += '<button onclick="if(typeof go===\'function\')go(\'' + BQSafe.jsStr(suggestedChannel.id) + '\');hideBubble();" style="width:100%;margin-top:15px;padding:12px;background:var(--accent);border:none;border-radius:10px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">📖 Explore: ' + suggestedChannel.name + ' →</button>';
     } else {
         var fb = ["I'm still sharpening my antlers on that topic, {name}! 🦌 Let's check our 'One Stop Shop' — it's the fastest way to get oriented in the rabbit hole.", "I'm a Bitcoin deer — and that topic has me stumped! 🦌 Why don't we visit the One Stop Shop to see the highlights of the archive?"];
         var pick = fb[Math.floor(Math.random() * fb.length)];
@@ -5043,8 +5043,8 @@ window.nachoRate = function(msgId, rating) {
 // Generate thumbs up/down HTML for a message
 window.nachoRatingHtml = function(msgId) {
     return '<div style="margin-top:6px;display:flex;gap:8px;align-items:center;">' +
-        '<button id="nachoUp_' + msgId + '" onclick="event.stopPropagation();nachoRate(\'' + msgId + '\',1)" style="background:none;border:none;cursor:pointer;font-size:0.85rem;opacity:0.4;transition:0.2s;padding:2px;" title="Good answer">👍</button>' +
-        '<button id="nachoDn_' + msgId + '" onclick="event.stopPropagation();nachoRate(\'' + msgId + '\',-1)" style="background:none;border:none;cursor:pointer;font-size:0.85rem;opacity:0.4;transition:0.2s;padding:2px;" title="Bad answer">👎</button>' +
+        '<button id="nachoUp_' + msgId + '" ' + BQSafe.act('nachoRate', [String(msgId), 1], { stop: 1 }) + ' style="background:none;border:none;cursor:pointer;font-size:0.85rem;opacity:0.4;transition:0.2s;padding:2px;" title="Good answer">👍</button>' +
+        '<button id="nachoDn_' + msgId + '" ' + BQSafe.act('nachoRate', [String(msgId), -1], { stop: 1 }) + ' style="background:none;border:none;cursor:pointer;font-size:0.85rem;opacity:0.4;transition:0.2s;padding:2px;" title="Bad answer">👎</button>' +
     '</div>';
 };
 

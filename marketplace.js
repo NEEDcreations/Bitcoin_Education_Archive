@@ -610,7 +610,7 @@ function loadMarketListings(category, search, sort, section) {
                         '</div>';
                 });
             } else {
-                grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-faint);">Error: ' + (e.code || e.message || 'Unknown') + '. Try refreshing.</div>';
+                grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-faint);">Error: ' + BQSafe.esc(e.code || e.message || 'Unknown') + '. Try refreshing.</div>';
             }
         }
     });
@@ -1104,7 +1104,7 @@ window.showMyListings = function(fromPopState) {
                             '<div style="font-size:0.7rem;color:var(--text-faint);">👁️ ' + (l.views || 0) + ' views · ❤️ ' + (l.saves || 0) + ' saves</div>' +
                         '</div>' +
                         '<div style="display:flex;gap:8px;align-items:center;">' +
-                            '<span style="font-size:0.65rem;color:' + statusColor + ';font-weight:700;text-transform:uppercase;">' + (l.status || 'active') + '</span>' +
+                            '<span style="font-size:0.65rem;color:' + statusColor + ';font-weight:700;text-transform:uppercase;">' + BQSafe.esc(l.status || 'active') + '</span>' +
                             (l.status === 'active' ? '<button data-mkt-action="sold" data-listing-id="' + escapeHtml(doc.id) + '" style="padding:6px 12px;background:#22c55e;color:#fff;border:none;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">Mark Sold</button>' : '') +
                         '</div>' +
                     '</div>';
@@ -1124,7 +1124,7 @@ window.showMyListings = function(fromPopState) {
             if (e.code === 'failed-precondition') {
                 container.innerHTML = '<div style="max-width:600px;margin:0 auto;padding:40px;text-align:center;color:var(--text-faint);">⚙️ Setting up marketplace database (index)...<br>Please refresh in 1 minute.</div>';
             } else {
-                container.innerHTML = '<div style="max-width:600px;margin:0 auto;padding:40px;text-align:center;color:var(--text-faint);">Error: ' + (e.code || e.message || 'Unknown') + '</div>';
+                container.innerHTML = '<div style="max-width:600px;margin:0 auto;padding:40px;text-align:center;color:var(--text-faint);">Error: ' + BQSafe.esc(e.code || e.message || 'Unknown') + '</div>';
             }
         });
 };

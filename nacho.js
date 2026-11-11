@@ -1646,7 +1646,7 @@ function _showBubble(text, pose) {
         ];
         for (var _li = 0; _li < _linkMap.length; _li++) {
             if (_linkMap[_li].pattern.test(text)) {
-                actionBtn = '<button ontouchstart="event.stopPropagation();event.stopImmediatePropagation();" ontouchend="event.stopPropagation();event.stopImmediatePropagation();" onmousedown="event.stopPropagation();event.stopImmediatePropagation();" onclick="event.stopPropagation();event.stopImmediatePropagation();window._nachoActionClicked=true;hideBubble(true);setTimeout(function(){window._nachoDispatch(\'' + _linkMap[_li].key + '\')},60);" style="width:100%;margin-top:8px;padding:8px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">' + _linkMap[_li].label + '</button>';
+                actionBtn = '<button ontouchstart="event.stopPropagation();event.stopImmediatePropagation();" ontouchend="event.stopPropagation();event.stopImmediatePropagation();" onmousedown="event.stopPropagation();event.stopImmediatePropagation();" onclick="event.stopPropagation();event.stopImmediatePropagation();window._nachoActionClicked=true;hideBubble(true);setTimeout(function(){window._nachoDispatch(\'' + BQSafe.jsStr(_linkMap[_li].key) + '\')},60);" style="width:100%;margin-top:8px;padding:8px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">' + _linkMap[_li].label + '</button>';
                 break;
             }
         }
@@ -2512,7 +2512,7 @@ window._presentBubbleQuiz = function(q) {
     var opts = q.options || [];
     for (var qi = 0; qi < opts.length; qi++) {
         var isRight = qi === q.answer;
-        quizHtml += '<button data-q="' + encodeURIComponent(q.question) + '" data-a="' + encodeURIComponent(opts[qi]) + '" onclick="event.stopPropagation();nachoBubbleQuizAnswer(this,' + isRight + ')" style="display:block;width:100%;padding:6px 10px;margin-bottom:3px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + opts[qi] + '</button>';
+        quizHtml += '<button data-q="' + encodeURIComponent(q.question) + '" data-a="' + encodeURIComponent(opts[qi]) + '" ' + BQSafe.act('nachoBubbleQuizAnswer', [BQSafe.EL, BQSafe.lit(isRight)], { stop: 1 }) + ' style="display:block;width:100%;padding:6px 10px;margin-bottom:3px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + opts[qi] + '</button>';
     }
     quizHtml += '<button type="button" onclick="event.stopPropagation();if(window.btcDismissBubbleQuiz)window.btcDismissBubbleQuiz(\'button\')" style="display:block;width:100%;min-height:44px;margin-top:8px;padding:8px 10px;background:transparent;border:2px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Not now / Back</button>';
     window._btcBubbleQuiz = q;
@@ -2573,7 +2573,8 @@ window.nachoBubbleQuizAnswer = function(btn, correct) {
         btn.style.opacity = '1';
         // Highlight the correct answer
         buttons.forEach(function(b) {
-            if (b !== btn && b.getAttribute('onclick') && b.getAttribute('onclick').indexOf('true') !== -1) {
+            var _oc = b.getAttribute('onclick') || b.getAttribute('data-bq-click-args') || '';
+            if (b !== btn && _oc && _oc.indexOf('true') !== -1) {
                 b.style.background = '#22c55e';
                 b.style.color = '#fff';
                 b.style.borderColor = '#22c55e';

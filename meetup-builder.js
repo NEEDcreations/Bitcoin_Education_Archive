@@ -171,7 +171,7 @@ function loadMeetupBuilderPosts() {
         snap.forEach(function(doc) {
             var d = doc.data();
             var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s; };
-            html += '<div onclick="viewMeetupBuilderPost(\'' + doc.id + '\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:20px;cursor:pointer;transition:0.3s;" ' +
+            html += '<div ' + BQSafe.act('viewMeetupBuilderPost', [String(doc.id)]) + ' style="background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:20px;cursor:pointer;transition:0.3s;" ' +
                 'onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-3px)\'" ' +
                 'onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\'">' +
                 '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
@@ -238,14 +238,14 @@ window.viewMeetupBuilderPost = async function(id) {
         if (d.images && d.images.length > 0) {
             html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">';
             d.images.forEach(function(imgUrl) {
-                html += '<img src="' + esc(imgUrl) + '" onclick="if(typeof openImg===\'function\')openImg(this.src)" style="width:120px;height:120px;object-fit:cover;border-radius:10px;border:1px solid var(--border);cursor:pointer;" loading="lazy">';
+                html += '<img src="' + esc(BQSafe.img(imgUrl)) + '" onclick="if(typeof openImg===\'function\')openImg(this.src)" style="width:120px;height:120px;object-fit:cover;border-radius:10px;border:1px solid var(--border);cursor:pointer;" loading="lazy">';
             });
             html += '</div>';
         }
-        if (d.videoUrl) html += '<video controls preload="metadata" style="width:100%;max-height:300px;border-radius:12px;margin-bottom:16px;background:#000;" src="' + esc(d.videoUrl) + '"></video>';
+        if (d.videoUrl) html += '<video controls preload="metadata" style="width:100%;max-height:300px;border-radius:12px;margin-bottom:16px;background:#000;" src="' + esc(BQSafe.url(d.videoUrl)) + '"></video>';
 
-        if (d.slideUrl) html += '<a href="' + esc(d.slideUrl) + '" target="_blank" rel="noopener" style="display:block;padding:14px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:12px;color:#818cf8;font-weight:700;font-size:0.9rem;text-decoration:none;text-align:center;margin-bottom:12px;">📊 View Slides / Presentation ↗</a>';
-        if (d.resourceUrl) html += '<a href="' + esc(d.resourceUrl) + '" target="_blank" rel="noopener" style="display:block;padding:14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:12px;color:#22c55e;font-weight:700;font-size:0.9rem;text-decoration:none;text-align:center;margin-bottom:12px;">📎 Additional Resources ↗</a>';
+        if (d.slideUrl) html += '<a href="' + esc(BQSafe.url(d.slideUrl)) + '" target="_blank" rel="noopener" style="display:block;padding:14px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.25);border-radius:12px;color:#818cf8;font-weight:700;font-size:0.9rem;text-decoration:none;text-align:center;margin-bottom:12px;">📊 View Slides / Presentation ↗</a>';
+        if (d.resourceUrl) html += '<a href="' + esc(BQSafe.url(d.resourceUrl)) + '" target="_blank" rel="noopener" style="display:block;padding:14px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.25);border-radius:12px;color:#22c55e;font-weight:700;font-size:0.9rem;text-decoration:none;text-align:center;margin-bottom:12px;">📎 Additional Resources ↗</a>';
 
         html += '<button onclick="document.getElementById(\'meetupBuilderOverlay\').remove()" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-faint);cursor:pointer;font-family:inherit;margin-top:8px;">Close</button>';
         html += '</div>';
@@ -304,9 +304,9 @@ window.showMeetupBuilderSubmit = function() {
     html += '<label style="display:block;font-size:0.7rem;color:var(--text-faint);font-weight:700;margin-bottom:4px;text-transform:uppercase;">Photos (up to 3)</label>';
     html += '<div style="display:flex;gap:10px;margin-bottom:12px;">';
     for (var pi = 0; pi < 3; pi++) {
-        html += '<div id="mbImgPreview' + pi + '" onclick="document.getElementById(\'mbImgFile' + pi + '\').click()" style="width:80px;height:80px;border-radius:12px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;background:rgba(255,255,255,0.03);cursor:pointer;flex-shrink:0;">' +
+        html += '<div id="mbImgPreview' + pi + '" onclick="document.getElementById(\'mbImgFile' + BQSafe.jsStr(pi) + '\').click()" style="width:80px;height:80px;border-radius:12px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;background:rgba(255,255,255,0.03);cursor:pointer;flex-shrink:0;">' +
             '<span style="font-size:1.5rem;color:var(--text-faint);">📷</span></div>' +
-            '<input type="file" id="mbImgFile' + pi + '" accept="image/jpeg,image/jpg,image/png,image/webp" style="display:none;" onchange="var f=this.files[0];if(f){var r=new FileReader();var idx=' + pi + ';r.onload=function(e){var p=document.getElementById(\'mbImgPreview\'+idx);if(p)p.innerHTML=\'<img src=\\\'\'+e.target.result+\'\\\' style=\\\'width:100%;height:100%;object-fit:cover;\\\'>\';};r.readAsDataURL(f);}">';
+            '<input type="file" id="mbImgFile' + pi + '" accept="image/jpeg,image/jpg,image/png,image/webp" style="display:none;" onchange="var f=this.files[0];if(f){var r=new FileReader();var idx=' + BQSafe.num(pi) + ';r.onload=function(e){var p=document.getElementById(\'mbImgPreview\'+idx);if(p)p.innerHTML=\'<img src=\\\'\'+e.target.result+\'\\\' style=\\\'width:100%;height:100%;object-fit:cover;\\\'>\';};r.readAsDataURL(f);}">';
     }
     html += '</div>';
 

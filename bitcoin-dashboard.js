@@ -1543,11 +1543,11 @@ function _renderTreasury(container, data, btcPrice) {
     var price = btcPrice || (totalCompany > 0 ? totalCompanyUsd / totalCompany : 0);
 
     var companyList = companies.map(function(c) {
-        return '<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.7rem;"><span style="color:var(--text);">' + (c.name || '?') + '</span><span style="color:var(--accent);font-weight:700;">' + fmtNum(c.total_holdings) + ' BTC</span></div>';
+        return '<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.7rem;"><span style="color:var(--text);">' + BQSafe.esc(c.name || '?') + '</span><span style="color:var(--accent);font-weight:700;">' + fmtNum(c.total_holdings) + ' BTC</span></div>';
     }).join('');
 
     var govList = GOV_HOLDINGS.map(function(g) {
-        return '<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.7rem;"><span style="color:var(--text);">' + g.name + '</span><span style="color:var(--accent);font-weight:700;">' + fmtNum(g.btc) + ' BTC</span></div>';
+        return '<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.7rem;"><span style="color:var(--text);">' + BQSafe.esc(g.name) + '</span><span style="color:var(--accent);font-weight:700;">' + fmtNum(g.btc) + ' BTC</span></div>';
     }).join('');
 
     var grandTotal = totalCompany + GOV_TOTAL;

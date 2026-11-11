@@ -309,11 +309,11 @@ window.reportUser = function(uid, username, reason) {
             '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:340px;width:100%;">' +
             '<div style="font-size:1rem;font-weight:800;color:var(--heading);margin-bottom:12px;">🚩 Report ' + escapeHtml(username || 'User') + '</div>' +
             '<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:12px;">Why are you reporting this user?</div>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'spam\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">📧 Spam / Unwanted messages</button>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'scam\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🎣 Scam / Phishing</button>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'harassment\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">😡 Harassment / Abuse</button>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'inappropriate\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🔞 Inappropriate content</button>' +
-            '<button onclick="submitReport(\'' + uid + '\',\'' + escapeHtml(username || '').replace(/[\\'"]/g, "") + '\',\'impersonation\')" style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🎭 Impersonation</button>' +
+            '<button ' + BQSafe.act('submitReport', [String(uid), String(username || ''), 'spam']) + ' style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">📧 Spam / Unwanted messages</button>' +
+            '<button ' + BQSafe.act('submitReport', [String(uid), String(username || ''), 'scam']) + ' style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🎣 Scam / Phishing</button>' +
+            '<button ' + BQSafe.act('submitReport', [String(uid), String(username || ''), 'harassment']) + ' style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">😡 Harassment / Abuse</button>' +
+            '<button ' + BQSafe.act('submitReport', [String(uid), String(username || ''), 'inappropriate']) + ' style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🔞 Inappropriate content</button>' +
+            '<button ' + BQSafe.act('submitReport', [String(uid), String(username || ''), 'impersonation']) + ' style="width:100%;padding:10px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;">🎭 Impersonation</button>' +
             '<button onclick="document.getElementById(\'reportModal\').remove()" style="width:100%;padding:10px;margin-top:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
             '</div></div>';
         var div = document.createElement('div');
@@ -701,7 +701,7 @@ window.showUserProfile = function(uid) {
         var _peerBtnId = 'peerActionBtn_' + uid;
         var _peerBtn = _isPeer
             ? '<button id="' + _peerBtnId + '" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:default;font-family:inherit;opacity:0.8;">🧡 Peers</button>'
-            : '<button id="' + _peerBtnId + '" onclick="window._sendPeerRequest(this,\'' + uid + '\')" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:pointer;font-family:inherit;transition:opacity 0.2s;">🧡 Add Peer</button>';
+            : '<button id="' + _peerBtnId + '" ' + BQSafe.act('window._sendPeerRequest', [BQSafe.EL, String(uid)]) + ' style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:pointer;font-family:inherit;transition:opacity 0.2s;">🧡 Add Peer</button>';
 
         // Profile frame cosmetic — orange glow border if owned
         var _profileOwnedCosmetics = u.ownedCosmetics || [];
@@ -807,7 +807,7 @@ window.showUserProfile = function(uid) {
             })() : '') +
             // Message button
             (canMessage && dmEligibility.ok ?
-                '<button onclick="document.getElementById(\'userProfileModal\').remove();openDM(\'' + uid + '\',\'' + escapeHtml(u.username || 'Bitcoiner').replace(/[\\'"]/g, "") + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">💬 Message ' + escapeHtml(u.username || 'Bitcoiner') + '</button>'
+                '<button onclick="document.getElementById(\'userProfileModal\').remove();openDM(\'' + BQSafe.jsStr(uid) + '\',\'' + BQSafe.jsStr((u.username || 'Bitcoiner').replace(/[\\'"]/g, "")) + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;">💬 Message ' + escapeHtml(u.username || 'Bitcoiner') + '</button>'
                 : (canMessage && !dmEligibility.ok ?
                     '<div style="width:100%;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;font-size:0.8rem;color:var(--text-muted);text-align:center;">' + escapeHtml(dmEligibility.reason) + '</div>'
                 : (!auth || !auth.currentUser || auth.currentUser.isAnonymous ?
@@ -818,9 +818,9 @@ window.showUserProfile = function(uid) {
                 '<div style="display:flex;gap:8px;margin-top:8px;">' +
                     _peerBtn +
                     (isUserBlocked(uid) ?
-                        '<button onclick="unblockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">✅ Unblock</button>'
-                        : '<button onclick="blockUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🚫 Block</button>') +
-                    '<button onclick="document.getElementById(\'userProfileModal\').remove();reportUser(\'' + uid + '\',\'' + escapeHtml(u.username || '').replace(/[\\'"]/g, "") + '\')" style="flex:1;padding:10px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🚩 Report</button>' +
+                        '<button onclick="unblockUser(\'' + BQSafe.jsStr(uid) + '\',\'' + BQSafe.jsStr((u.username || '').replace(/[\\'"]/g, "")) + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">✅ Unblock</button>'
+                        : '<button onclick="blockUser(\'' + BQSafe.jsStr(uid) + '\',\'' + BQSafe.jsStr((u.username || '').replace(/[\\'"]/g, "")) + '\');document.getElementById(\'userProfileModal\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">🚫 Block</button>') +
+                    '<button onclick="document.getElementById(\'userProfileModal\').remove();reportUser(\'' + BQSafe.jsStr(uid) + '\',\'' + BQSafe.jsStr((u.username || '').replace(/[\\'"]/g, "")) + '\')" style="flex:1;padding:10px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🚩 Report</button>' +
                 '</div>' : '') +
             // Own-profile country nudge (only visible to yourself, only if country not set)
             (auth && auth.currentUser && auth.currentUser.uid === uid && !u.country ?
@@ -976,7 +976,7 @@ window.openDM = function(recipientUid, recipientName) {
             '<div style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin-bottom:20px;">You\'ve blocked <strong>' + _safeRecipName + '</strong>. Unblock them to send and receive messages.</div>' +
             '<div style="display:flex;gap:10px;">' +
             '<button onclick="document.getElementById(\'dmUnblockPrompt\').remove()" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>' +
-            '<button onclick="document.getElementById(\'dmUnblockPrompt\').remove();if(typeof unblockUser===\'function\')unblockUser(\'' + recipientUid + '\',\'' + _safeRecipName + '\');setTimeout(function(){openDM(\'' + recipientUid + '\',\'' + _safeRecipName + '\')},400)" style="flex:1;padding:12px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">✅ Unblock & Chat</button>' +
+            '<button onclick="document.getElementById(\'dmUnblockPrompt\').remove();if(typeof unblockUser===\'function\')unblockUser(\'' + BQSafe.jsStr(recipientUid) + '\',\'' + BQSafe.jsStr(_safeRecipName) + '\');setTimeout(function(){openDM(\'' + BQSafe.jsStr(recipientUid) + '\',\'' + BQSafe.jsStr(_safeRecipName) + '\')},400)" style="flex:1;padding:12px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">✅ Unblock & Chat</button>' +
             '</div></div>';
         document.body.appendChild(_promptEl);
         return;
@@ -1006,12 +1006,12 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
         '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px 20px 0 0;max-width:500px;width:100%;height:80vh;max-height:600px;display:flex;flex-direction:column;overflow:hidden;">' +
         // Header
         '<div style="padding:16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">' +
-            '<div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="event.stopPropagation();closeDM();showUserProfile(\'' + otherUid + '\')">' +
+            '<div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="event.stopPropagation();closeDM();showUserProfile(\'' + BQSafe.jsStr(otherUid) + '\')">' +
                 '<div style="font-size:1.1rem;font-weight:800;color:var(--heading);">💬 ' + escapeHtml(otherName) + '</div>' +
                 '<div id="dmStatusDot"></div>' +
             '</div>' +
             '<div style="display:flex;gap:6px;align-items:center;">' +
-                '<button onclick="event.stopPropagation();reportUser(\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')" style="background:none;border:1px solid var(--border);color:var(--text-faint);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center;" title="Report user">🚩</button>' +
+                '<button ' + BQSafe.act('reportUser', [String(otherUid), String(otherName)], { stop: 1 }) + ' style="background:none;border:1px solid var(--border);color:var(--text-faint);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center;" title="Report user">🚩</button>' +
                 '<button onclick="closeDM()" style="background:none;border:1px solid var(--border);color:var(--text-muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;">✕</button>' +
             '</div>' +
         '</div>' +
@@ -1021,11 +1021,11 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
         '<div id="dmMessages" style="flex:1;overflow-y:auto;padding:16px;-webkit-overflow-scrolling:touch;"></div>' +
         // Input area
         '<div style="padding:12px 16px;border-top:1px solid var(--border);flex-shrink:0;display:flex;gap:8px;align-items:center;">' +
-            '<input type="file" id="dmImageInput" accept="image/*" style="display:none;" onchange="if(this.files[0])showDMImagePreview(this.files[0],\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')">' +
+            '<input type="file" id="dmImageInput" accept="image/*" style="display:none;" onchange="if(this.files[0])showDMImagePreview(this.files[0],\'' + BQSafe.jsStr(convoId) + '\',\'' + BQSafe.jsStr(otherUid) + '\',\'' + BQSafe.jsStr((otherName).replace(/[\\'"]/g, "")) + '\')">' +
             '<button onclick="document.getElementById(\'dmImageInput\').click()" style="padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:1rem;cursor:pointer;flex-shrink:0;touch-action:manipulation;" title="Send image">📷</button>' +
-            '<button onclick="showDMGifPicker(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'\"]/g, "") + '\')" style="padding:8px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.65rem;font-weight:800;cursor:pointer;flex-shrink:0;touch-action:manipulation;letter-spacing:0.5px;" title="Send GIF">GIF</button>' +
-            '<input type="text" id="dmInput" maxlength="' + MSG_CONFIG.maxMsgLength + '" placeholder="Type a message..." style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;" onkeydown="if(event.key===\'Enter\')sendDM(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')">' +
-            '<button onclick="sendDM(\'' + convoId + '\',\'' + otherUid + '\',\'' + escapeHtml(otherName).replace(/[\\'"]/g, "") + '\')" style="padding:12px 16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;flex-shrink:0;">Send</button>' +
+            '<button ' + BQSafe.act('showDMGifPicker', [String(convoId), String(otherUid), String(otherName)]) + ' style="padding:8px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.65rem;font-weight:800;cursor:pointer;flex-shrink:0;touch-action:manipulation;letter-spacing:0.5px;" title="Send GIF">GIF</button>' +
+            '<input type="text" id="dmInput" maxlength="' + MSG_CONFIG.maxMsgLength + '" placeholder="Type a message..." style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-family:inherit;outline:none;" onkeydown="if(event.key===\'Enter\')sendDM(\'' + BQSafe.jsStr(convoId) + '\',\'' + BQSafe.jsStr(otherUid) + '\',\'' + BQSafe.jsStr((otherName).replace(/[\\'"]/g, "")) + '\')">' +
+            '<button ' + BQSafe.act('sendDM', [String(convoId), String(otherUid), String(otherName)]) + ' style="padding:12px 16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;flex-shrink:0;">Send</button>' +
         '</div>' +
         '</div></div>';
 
@@ -1383,7 +1383,7 @@ window.searchDMGifs = function(query) {
                     var url = results[i].thumb;
                     var fullUrl = results[i].full || url;
                     if (!url) continue;
-                    html += '<img src="' + url + '" onclick="sendDMGif(\'' + fullUrl.replace(/[\\'"]/g, '') + '\')" style="width:100%;border-radius:8px;cursor:pointer;object-fit:cover;height:100px;transition:0.15s;" loading="lazy" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">';
+                    html += '<img src="' + BQSafe.esc(BQSafe.img(url)) + '" ' + BQSafe.act('sendDMGif', [String(fullUrl.replace(/[\\'"]/g, ''))]) + ' style="width:100%;border-radius:8px;cursor:pointer;object-fit:cover;height:100px;transition:0.15s;" loading="lazy" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">';
                 }
                 el.innerHTML = html || '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">No GIFs found</div>';
             })
@@ -1697,7 +1697,7 @@ window.showInbox = function() {
                 var isBuddy = c.isBuddyMatch === true;
                 var buddyStar = isBuddy ? '<span title="Buddy conversation" style="cursor:help;font-size:0.75rem;color:#22c55e;margin-left:4px;">⭐</span>' : '';
 
-                _rows.push('<div data-uid="' + escapeHtml(otherUid) + '" data-name="' + escapeHtml(otherName) + '" onclick="var _u=this.dataset.uid,_n=this.dataset.name;document.getElementById(\'dmInbox\').remove();openDM(_u,_n)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';" onmouseover="this.style.background=\'var(--card-bg)\'" onmouseout="this.style.background=\'' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + '\'">' +
+                _rows.push('<div data-uid="' + escapeHtml(otherUid) + '" data-name="' + escapeHtml(otherName) + '" onclick="var _u=this.dataset.uid,_n=this.dataset.name;document.getElementById(\'dmInbox\').remove();openDM(_u,_n)" style="display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'var(--accent)' : isBuddy ? 'rgba(34,197,94,0.2)' : 'transparent') + ';background:' + (unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none') + ';" onmouseover="this.style.background=\'var(--card-bg)\'" onmouseout="this.style.background=\'' + (BQSafe.jsStr(unread > 0 ? 'var(--accent-bg,rgba(247,147,26,0.05))' : isBuddy ? 'rgba(34,197,94,0.03)' : 'none')) + '\'">' +
                     '<div style="width:42px;height:42px;border-radius:50%;background:' + (isBuddy ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:1px solid ' + (isBuddy ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;">' + (isBuddy ? '🦌' : (otherName.charAt(0).toUpperCase() || '?')) + '</div>' +
                     '<div style="flex:1;min-width:0;">' +
                         '<div style="display:flex;justify-content:space-between;align-items:center;">' +

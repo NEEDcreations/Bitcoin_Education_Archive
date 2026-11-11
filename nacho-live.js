@@ -136,7 +136,7 @@ function initTicker() {
             data.news.forEach((n, i) => { 
                 var safeTitle = (typeof escapeHtml === 'function' ? escapeHtml(n.title) : n.title.replace(/<[^>]+>/g, '')).toUpperCase();
                 var safeLink = (n.link && /^https:\/\//.test(n.link)) ? n.link : '#';
-                html += '<a href="' + safeLink + '" rel="noopener" style="color:#fff;text-decoration:none;display:inline-flex;align-items:center;" onclick="event.preventDefault();event.stopPropagation();window.open(\'' + safeLink + '\',\'_blank\',\'noopener,noreferrer\');"><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + (i+1) + '</span>' + safeTitle + '</a>'; 
+                html += '<a href="' + safeLink + '" rel="noopener" style="color:#fff;text-decoration:none;display:inline-flex;align-items:center;" ' + BQSafe.act('window.open', [String(safeLink), '_blank', 'noopener,noreferrer'], { stop: 1, prevent: 1 }) + '><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + (i+1) + '</span>' + safeTitle + '</a>'; 
             });
             itemsSets.forEach(el => el.innerHTML = html);
         }
@@ -158,7 +158,7 @@ function initTicker() {
                 data.news.slice(0, 3).forEach(function(n, i) {
                     var safeTitle = (typeof escapeHtml === 'function' ? escapeHtml(n.title) : n.title.replace(/<[^>]+>/g, '')).toUpperCase();
                     var safeLink = (n.link && /^https:\/\//.test(n.link)) ? n.link : '#';
-                    html += '<a href="' + safeLink + '" rel="noopener" style="color:#fff;text-decoration:none;display:inline-flex;align-items:center;" onclick="event.preventDefault();event.stopPropagation();window.open(\'' + safeLink + '\',\'_blank\',\'noopener,noreferrer\');"><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + (i+1) + '</span>' + safeTitle + '</a>';
+                    html += '<a href="' + safeLink + '" rel="noopener" style="color:#fff;text-decoration:none;display:inline-flex;align-items:center;" ' + BQSafe.act('window.open', [String(safeLink), '_blank', 'noopener,noreferrer'], { stop: 1, prevent: 1 }) + '><span style="color:#f7931a;opacity:0.6;margin-right:8px;font-weight:900;">SIGNAL #' + (i+1) + '</span>' + safeTitle + '</a>';
                 });
                 // Only update DOM if content actually changed (avoids animation restart)
                 if (html !== _lastSignalHtml) {

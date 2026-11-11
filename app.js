@@ -676,7 +676,7 @@
         favs.forEach(function(id) {
             var ch = (typeof CHANNELS !== 'undefined') ? CHANNELS[id] : null;
             var label = ch ? (ch.emoji || '') + ' ' + (ch.name || id) : id;
-            html += '<div onclick="go(\''+ id + '\')" style="margin-bottom:2px;padding:8px 12px;cursor:pointer;font-size:0.85rem;color:var(--text);border-radius:8px;transition:0.15s;border:1px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" onmouseover="this.style.background=\'var(--card-bg)\';this.style.borderColor=\'var(--border)\'" onmouseout="this.style.background=\'none\';this.style.borderColor=\'transparent\'">' + label + '</div>';
+            html += '<div ' + BQSafe.act('go', [String(id)]) + ' style="margin-bottom:2px;padding:8px 12px;cursor:pointer;font-size:0.85rem;color:var(--text);border-radius:8px;transition:0.15s;border:1px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" onmouseover="this.style.background=\'var(--card-bg)\';this.style.borderColor=\'var(--border)\'" onmouseout="this.style.background=\'none\';this.style.borderColor=\'transparent\'">' + label + '</div>';
         });
         favsList.innerHTML = html;
 
@@ -690,7 +690,7 @@
                 bookmarks.slice(0, 15).forEach(function(b) {
                     var ch = (typeof CHANNELS !== 'undefined' && CHANNELS[b.channel]) ? CHANNELS[b.channel] : null;
                     var chLabel = ch ? (ch.emoji || '') + ' ' + (ch.name || b.channel) : b.channel;
-                    bmHtml += '<div onclick="go(\'' + b.channel + '\');setTimeout(function(){var el=document.getElementById(\'msg-' + b.idx + '\');if(el){el.scrollIntoView({behavior:\'smooth\',block:\'center\'});el.style.boxShadow=\'0 0 20px rgba(247,147,26,0.4)\';el.style.borderColor=\'#f7931a\';setTimeout(function(){el.style.boxShadow=\'\';el.style.borderColor=\'\';},2000);}},500)" style="margin-bottom:2px;padding:6px 12px;cursor:pointer;font-size:0.8rem;color:var(--text-muted);border-radius:8px;transition:0.15s;border:1px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" onmouseover="this.style.background=\'var(--card-bg)\';this.style.borderColor=\'var(--border)\'" onmouseout="this.style.background=\'none\';this.style.borderColor=\'transparent\'">🔖 ' + chLabel + '</div>';
+                    bmHtml += '<div onclick="go(\'' + BQSafe.jsStr(b.channel) + '\');setTimeout(function(){var el=document.getElementById(\'msg-' + BQSafe.jsStr(b.idx) + '\');if(el){el.scrollIntoView({behavior:\'smooth\',block:\'center\'});el.style.boxShadow=\'0 0 20px rgba(247,147,26,0.4)\';el.style.borderColor=\'#f7931a\';setTimeout(function(){el.style.boxShadow=\'\';el.style.borderColor=\'\';},2000);}},500)" style="margin-bottom:2px;padding:6px 12px;cursor:pointer;font-size:0.8rem;color:var(--text-muted);border-radius:8px;transition:0.15s;border:1px solid transparent;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" onmouseover="this.style.background=\'var(--card-bg)\';this.style.borderColor=\'var(--border)\'" onmouseout="this.style.background=\'none\';this.style.borderColor=\'transparent\'">🔖 ' + chLabel + '</div>';
                 });
                 bmList.innerHTML = bmHtml;
             }
@@ -829,7 +829,7 @@
                             const isMob = typeof isMobile === 'function' && isMobile();
                             const handle = twUrl.match(/(?:twitter\.com|x\.com)\/([\w]+)\//);
                             const displayHandle = handle ? '@' + handle[1] : twUrl.replace(/https?:\/\/(www\.)?/, '');
-                            return '<div class="tw-preview" id="' + twId + '" onclick="loadTweetEmbed(\''+ twId + '\',\''+ twUrl.replace(/[\\'"]/g, "") + '\')">' +
+                            return '<div class="tw-preview" id="' + twId + '" ' + BQSafe.act('loadTweetEmbed', [String(twId), String(twUrl.replace(/[\\'"]/g, ""))]) + '>' +
                                 '<div class="tw-preview-icon">𝕏</div>' +
                                 '<div class="tw-preview-content">' +
                                 '<div class="tw-preview-url">' + displayHandle + '</div>' +
@@ -843,14 +843,14 @@
                     }
                     if (m.imgs) m.imgs.forEach(img => {
                         if (m.link && String(img).indexOf('images/') !== 0) {
-                            html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" decoding="async" title="Click to open source" onerror="this.dataset.broken=1;this.alt=\'\';this.src=\'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\'"></a>';
+                            html += '<a href="' + BQSafe.esc(BQSafe.url(m.link)) + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" decoding="async" title="Click to open source" onerror="this.dataset.broken=1;this.alt=\'\';this.src=\'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\'"></a>';
                         } else {
                             html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy" decoding="async" onerror="this.dataset.broken=1;this.alt=\'\';this.src=\'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7\'">';
                         }
                     });
                     var msgIdx = startIdx + bi;
                     var isBookmarked = safeJSON('btc_bookmarks', []).some(function(b) { return b.channel === id && b.idx === msgIdx; });
-                    html += '<button onclick="toggleBookmark(\'' + id + '\',' + msgIdx + ',this)" style="background:none;border:none;cursor:pointer;font-size:0.8rem;opacity:' + (isBookmarked ? '1' : '0.3') + ';padding:4px;margin-top:4px;transition:0.2s;touch-action:manipulation;" title="Bookmark">' + (isBookmarked ? '🔖' : '🔖') + '</button>';
+                    html += '<button ' + BQSafe.act('toggleBookmark', [String(id), BQSafe.lit(msgIdx), BQSafe.EL]) + ' style="background:none;border:none;cursor:pointer;font-size:0.8rem;opacity:' + (isBookmarked ? '1' : '0.3') + ';padding:4px;margin-top:4px;transition:0.2s;touch-action:manipulation;" title="Bookmark">' + (isBookmarked ? '🔖' : '🔖') + '</button>';
                     html += '</div>';
                 });
                 return html;
@@ -882,12 +882,12 @@
         const prevTitle = CHANNELS[prevId] ? CHANNELS[prevId].title : prevId;
 
         let navHtml = '<div style="display:flex;gap:12px;justify-content:center;align-items:center;padding:30px 0 40px;border-top:1px solid var(--border);margin-top:30px;flex-wrap:wrap;">';
-        navHtml += '<button onclick="go(\''+ prevId + '\')" style="padding:12px 24px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text);transition:0.2s;">← Back</button>';
+        navHtml += '<button ' + BQSafe.act('go', [String(prevId)]) + ' style="padding:12px 24px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;color:var(--text);transition:0.2s;">← Back</button>';
         navHtml += '<button onclick="goRandom()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Channel">🎲</button>';
         navHtml += '<button onclick="goRandomGraphic()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Graphic">📊</button>';
         navHtml += '<button onclick="goRandomArt()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Art">🎨</button>';
         navHtml += '<button onclick="goRandomMeme()" style="padding:12px 18px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:1.1rem;cursor:pointer;transition:0.2s;" title="Random Meme">😂</button>';
-        navHtml += '<button onclick="go(\''+ nextId + '\')" style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">Next →</button>';
+        navHtml += '<button ' + BQSafe.act('go', [String(nextId)]) + ' style="padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">Next →</button>';
         navHtml += '</div>';
         navHtml += '<div style="text-align:center;padding-bottom:20px;">';
         navHtml += '<button onclick="if(typeof startQuestManual===\'function\')startQuestManual(currentChannelId)" style="padding:10px 20px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;">⚡ Ready to test your knowledge? Start a Quest</button>';
@@ -944,12 +944,12 @@
                     width: 500
                 }).then(function(el) {
                     if (!el) {
-                        container.innerHTML = '<div class="tw-embedded"><div class="tw-header">𝕏</div><div class="tw-body"><a class="msg-link" href="' + url + '" target="_blank">View on X →</a></div></div>';
+                        container.innerHTML = '<div class="tw-embedded"><div class="tw-header">𝕏</div><div class="tw-body"><a class="msg-link" href="' + BQSafe.esc(BQSafe.url(url)) + '" target="_blank">View on X →</a></div></div>';
                     }
                 });
             }
         } else {
-            container.innerHTML = '<div class="tw-embedded"><div class="tw-header">𝕏</div><div class="tw-body"><a class="msg-link" href="' + url + '" target="_blank">View on X →</a></div></div>';
+            container.innerHTML = '<div class="tw-embedded"><div class="tw-header">𝕏</div><div class="tw-body"><a class="msg-link" href="' + BQSafe.esc(BQSafe.url(url)) + '" target="_blank">View on X →</a></div></div>';
         }
     }
 
@@ -1726,8 +1726,8 @@
             '<div style="font-size:0.75rem;color:var(--text-faint,#888);font-weight:700;margin-bottom:8px;">' + label + '</div>' +
             qrHtml +
             (copyVal ? '<div style="display:flex;align-items:center;gap:6px;">' +
-                '<div style="flex:1;padding:6px 8px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:6px;font-family:monospace;font-size:0.65rem;color:var(--text,#ccc);word-break:break-all;line-height:1.3;max-height:40px;overflow-y:auto;cursor:pointer;" onclick="navigator.clipboard.writeText(\'' + copyVal.replace(/[\\'"]/g, "") + '\');if(typeof showToast===\'function\')showToast(\'📋 Copied!\')">' + displayVal + '</div>' +
-                '<button id="' + id + '" onclick="event.stopPropagation();navigator.clipboard.writeText(\'' + copyVal.replace(/[\\'"]/g, "") + '\');this.textContent=\'✅\';var _b=this;setTimeout(function(){_b.textContent=\'📋\'},1500);if(typeof showToast===\'function\')showToast(\'📋 Copied!\')" style="padding:6px 10px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;flex-shrink:0;">📋</button>' +
+                '<div style="flex:1;padding:6px 8px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:6px;font-family:monospace;font-size:0.65rem;color:var(--text,#ccc);word-break:break-all;line-height:1.3;max-height:40px;overflow-y:auto;cursor:pointer;" onclick="navigator.clipboard.writeText(\'' + BQSafe.jsStr(copyVal.replace(/[\\'"]/g, "")) + '\');if(typeof showToast===\'function\')showToast(\'📋 Copied!\')">' + displayVal + '</div>' +
+                '<button id="' + id + '" onclick="event.stopPropagation();navigator.clipboard.writeText(\'' + BQSafe.jsStr(copyVal.replace(/[\\'"]/g, "")) + '\');this.textContent=\'✅\';var _b=this;setTimeout(function(){_b.textContent=\'📋\'},1500);if(typeof showToast===\'function\')showToast(\'📋 Copied!\')" style="padding:6px 10px;background:var(--accent,#f7931a);color:#fff;border:none;border-radius:6px;font-size:0.75rem;cursor:pointer;flex-shrink:0;">📋</button>' +
                 linkBtn +
             '</div>' : '') +
         '</div>';
@@ -2145,7 +2145,7 @@
         ];
         var html = '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:400px;margin:0 auto;">';
         for (var i = 0; i < chips.length; i++) {
-            html += '<button onclick="nachoModeChip(\''+ chips[i].q.replace(/[\\'"]/g, "") + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:4px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' + chips[i].emoji + ' ' + chips[i].label + '</button>';
+            html += '<button ' + BQSafe.act('nachoModeChip', [String(chips[i].q.replace(/[\\'"]/g, ""))]) + ' style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:4px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' + chips[i].emoji + ' ' + chips[i].label + '</button>';
         }
         html += '</div>';
         return html;
@@ -2627,7 +2627,7 @@
             var raw = String(followUps[i] || '').replace(/[<>]/g, '');
             var safeAttr = raw.replace(/[\\'"]/g, '');
             var safeText = (typeof escapeHtml === 'function') ? escapeHtml(raw) : raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            html += '<button onclick="nachoModeChip(\''+ safeAttr + '\')" style="padding:5px 10px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">💬 ' + safeText + '</button>';
+            html += '<button ' + BQSafe.act('nachoModeChip', [String(safeAttr)]) + ' style="padding:5px 10px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">💬 ' + safeText + '</button>';
         }
         html += '</div>';
         return html;
@@ -2816,7 +2816,7 @@
             var step = NACHO_LEARNING_PATH[i];
             var done = i < progress;
             var current = i === progress;
-            html += '<button onclick="nachoPathStep(' + i + ')" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px;margin-bottom:6px;background:' + (current ? 'var(--accent-bg)' : 'var(--card-bg)') + ';border:1px solid ' + (current ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' +
+            html += '<button ' + BQSafe.act('nachoPathStep', [BQSafe.lit(i)]) + ' style="display:flex;align-items:center;gap:10px;width:100%;padding:10px;margin-bottom:6px;background:' + (current ? 'var(--accent-bg)' : 'var(--card-bg)') + ';border:1px solid ' + (current ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' +
                 '<span style="font-size:1.2rem;flex-shrink:0;">' + (done ? '✅' : step.emoji) + '</span>' +
                 '<div>' +
                     '<div style="color:' + (done ? 'var(--text-faint)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (current ? '700' : '500') + ';' + (done ? 'text-decoration:line-through;' : '') + '">Level ' + step.step + ': ' + step.title + '</div>' +
@@ -2923,7 +2923,7 @@ window.nachoQuizMe = function(topic) {
     var opts = q.options || [];
     for (var i = 0; i < opts.length; i++) {
         var isCorrect = opts[i] === q.answer;
-        html += '<button data-q="' + encodeURIComponent(q.question) + '" data-a="' + encodeURIComponent(opts[i]) + '" ' + (isCorrect ? 'data-correct="1" ' : '') + 'onclick="nachoQuizAnswer(this,' + (isCorrect ? 'true' : 'false') + ')" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
+        html += '<button data-q="' + encodeURIComponent(q.question) + '" data-a="' + encodeURIComponent(opts[i]) + '" ' + (isCorrect ? 'data-correct="1" ' : '') + '' + BQSafe.act('nachoQuizAnswer', [BQSafe.EL, BQSafe.lit(isCorrect ? 'true' : 'false')]) + ' style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
     }
     html += '</div>';
     
@@ -2933,7 +2933,7 @@ window.nachoQuizMe = function(topic) {
             '</div>';
     }
 
-    html += '<button onclick="nachoQuizMe(\''+(topic||'')+'\')" style="padding:6px 14px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🎮 Another question</button>';
+    html += '<button ' + BQSafe.act('nachoQuizMe', [String(topic||'')]) + ' style="padding:6px 14px;background:none;border:1px solid var(--border);border-radius:14px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🎮 Another question</button>';
     nachoChatAppend('nacho', '', html);
 };
 
@@ -3167,7 +3167,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var opts = q.options || [];
         for (var i = 0; i < opts.length; i++) {
             var isCorrect = opts[i] === q.answer;
-            html += '<button ' + (isCorrect ? 'data-correct="1" ' : '') + 'onclick="convoQuizAnswer(this,' + isCorrect + ')" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
+            html += '<button ' + (isCorrect ? 'data-correct="1" ' : '') + '' + BQSafe.act('convoQuizAnswer', [BQSafe.EL, BQSafe.lit(isCorrect)]) + ' style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
         }
         html += '</div>';
         nachoChatAppend('nacho', '', html);
@@ -3382,10 +3382,10 @@ window.nachoQuizAnswer = function(btn, correct) {
                 var _abtnStyle = 'background:none;border:1px solid var(--border);border-radius:16px;cursor:pointer;font-size:0.75rem;padding:4px 10px;transition:0.2s;color:var(--text-muted);display:inline-flex;align-items:center;gap:3px;touch-action:manipulation;';
                 var actionRow = '<div style="margin-top:8px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;">';
                 if (typeof nachoRatingHtml === 'function') {
-                    actionRow += '<button id="nachoUp_' + _replyMsgId + '" onclick="event.stopPropagation();nachoRate(\'' + _replyMsgId + '\',1)" style="' + _abtnStyle + '" onmouseover="this.style.borderColor=\'#22c55e\';this.style.color=\'#22c55e\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">👍 Helpful</button>';
-                    actionRow += '<button id="nachoDn_' + _replyMsgId + '" onclick="event.stopPropagation();nachoRate(\'' + _replyMsgId + '\',-1)" style="' + _abtnStyle + '" onmouseover="this.style.borderColor=\'#ef4444\';this.style.color=\'#ef4444\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">👎 Not quite</button>';
+                    actionRow += '<button id="nachoUp_' + _replyMsgId + '" ' + BQSafe.act('nachoRate', [String(_replyMsgId), 1], { stop: 1 }) + ' style="' + _abtnStyle + '" onmouseover="this.style.borderColor=\'#22c55e\';this.style.color=\'#22c55e\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">👍 Helpful</button>';
+                    actionRow += '<button id="nachoDn_' + _replyMsgId + '" ' + BQSafe.act('nachoRate', [String(_replyMsgId), -1], { stop: 1 }) + ' style="' + _abtnStyle + '" onmouseover="this.style.borderColor=\'#ef4444\';this.style.color=\'#ef4444\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">👎 Not quite</button>';
                 }
-                actionRow += '<button onclick="event.stopPropagation();nachoShareAnswer(window._nachoAnswerData[\'' + _replyMsgId + '\']||\'\')" style="' + _abtnStyle + '">📤 Share</button>';
+                actionRow += '<button onclick="event.stopPropagation();nachoShareAnswer(window._nachoAnswerData[\'' + BQSafe.jsStr(_replyMsgId) + '\']||\'\')" style="' + _abtnStyle + '">📤 Share</button>';
                 actionRow += '</div>';
                 extras += actionRow;
 
@@ -3426,7 +3426,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             if (result && result.siteAction) {
                 extra = '<br><br><button onclick="event.preventDefault();' + result.siteAction + '" style="width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (result.siteLabel || 'Go →') + '</button>';
             } else if (result && result.channel && String(result.answer || '').indexOf('data-bq-links') === -1) {
-                extra = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode(true);setTimeout(function(){go(\'' + result.channel + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
+                extra = '<br><br><a href="#" onclick="event.preventDefault();exitNachoMode(true);setTimeout(function(){go(\'' + BQSafe.jsStr(result.channel) + '\')},300)" style="color:var(--accent);font-weight:600;">📖 Read more: ' + (result.channelName || result.channel) + ' →</a>';
             }
             reply((result && result.answer ? result.answer : 'Hmm, let me think about that... Try asking another way! 🦌') + extra, (result && result.type) || 'fallback');
         }
@@ -3794,7 +3794,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (lastCh && CHANNELS[lastCh]) {
             const meta = CHANNELS[lastCh];
             el.style.display = 'none';
-            el.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--accent-glow);border-radius:16px;padding:16px 20px;cursor:pointer;transition:0.2s;" onclick="go(\''+ lastCh + '\')" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.boxShadow=\'0 4px 20px var(--accent-glow)\'" onmouseout="this.style.borderColor=\'var(--accent-glow)\';this.style.boxShadow=\'none\'">' +
+            el.innerHTML = '<div style="background:var(--card-bg);border:1px solid var(--accent-glow);border-radius:16px;padding:16px 20px;cursor:pointer;transition:0.2s;" ' + BQSafe.act('go', [String(lastCh)]) + ' onmouseover="this.style.borderColor=\'var(--accent)\';this.style.boxShadow=\'0 4px 20px var(--accent-glow)\'" onmouseout="this.style.borderColor=\'var(--accent-glow)\';this.style.boxShadow=\'none\'">' +
                 '<div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--accent);font-weight:800;margin-bottom:6px;">📖 Continue Reading</div>' +
                 '<div style="color:var(--heading);font-size:1.05rem;font-weight:700;margin-bottom:2px;">' + meta.title + '</div>' +
                 '<div style="color:var(--text-muted);font-size:0.8rem;">' + meta.cat + '</div></div>';
@@ -4777,7 +4777,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             }
             _showCertPage();
             if (typeof window.renderCertVerification !== 'function') {
-                var _certSrc = 'shareable-certs.js?v=20261028_v2410';
+                var _certSrc = 'shareable-certs.js?v=20261111_v2544b';
                 var _existingCertScript = document.querySelector('script[src="' + _certSrc + '"]');
                 if (!_existingCertScript) {
                     var _certScript = document.createElement('script');
@@ -4998,12 +4998,12 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div class="cat">' + meta.cat + '</div>' +
             '<h1>' + meta.title + '</h1>' +
             '<div class="share-bar">' +
-                '<button class="share-btn" onclick="shareChannel(\'x\', \'' + id + '\')">𝕏 Share</button>' +
-                '<button class="share-btn" onclick="shareChannel(\'nostr\', \'' + id + '\')">🟣 Nostr</button>' +
-                '<button class="share-btn" onclick="shareChannel(\'copy\', \'' + id + '\', this)">🔗 Copy Link</button>' +
-                '<button class="share-btn" id="favBtn" onclick="toggleFav(\''+ id + '\', this)">' + (getFavs().includes(id) ? '⭐ Saved' : '☆ Save') + '</button>' +
+                '<button class="share-btn" ' + BQSafe.act('shareChannel', ['x', String(id)]) + '>𝕏 Share</button>' +
+                '<button class="share-btn" ' + BQSafe.act('shareChannel', ['nostr', String(id)]) + '>🟣 Nostr</button>' +
+                '<button class="share-btn" ' + BQSafe.act('shareChannel', ['copy', String(id), BQSafe.EL]) + '>🔗 Copy Link</button>' +
+                '<button class="share-btn" id="favBtn" ' + BQSafe.act('toggleFav', [String(id), BQSafe.EL]) + '>' + (getFavs().includes(id) ? '⭐ Saved' : '☆ Save') + '</button>' +
             '</div>' +
-            (isGallery ? '<button class="gallery-toggle" id="galleryBtn" style="display:inline-block;" onclick="toggleGallery(\''+ id + '\')">🖼️ Gallery View</button>' : '');
+            (isGallery ? '<button class="gallery-toggle" id="galleryBtn" style="display:inline-block;" ' + BQSafe.act('toggleGallery', [String(id)]) + '>🖼️ Gallery View</button>' : '');
         document.getElementById('hero').classList.remove('fade-in');
         document.getElementById('msgs').innerHTML = '<div style="padding:40px;text-align:center;">' +
             '<div style="display:inline-block;width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:12px;"></div>' +
@@ -5116,8 +5116,8 @@ window.nachoQuizAnswer = function(btn, correct) {
                 html += '<div class="msg" id="msg-' + (offset + bi) + '">';
                 html += ageNoteBadge(m);
                     html += updatedNoteBadge(m);
-                if (m.text) { let t = (typeof censorText==='function'?censorText(m.text):m.text); let yt=[],tw=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g,function(m){var u=m.startsWith('http')?m:'https://'+m;tw.push(u);return '%%TW'+(tw.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,function(_,url){var label=(typeof censorUrlLabel==='function'?censorUrlLabel(url):url);return '<a class="msg-link" href="'+url+'" target="_blank" rel="noopener noreferrer">'+label+'</a>';}); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy" decoding="async"></iframe></div>';}); t=t.replace(/%%TW(\d+)%%/g,function(m,i){var u=tw[parseInt(i)],tid='tw_'+Math.random().toString(36).substr(2,8),mob=typeof isMobile==='function'&&isMobile(),hm=u.match(/(?:twitter\.com|x\.com)\/([\w]+)\//),dh=hm?'@'+hm[1]:u.replace(/https?:\/\/(www\.)?/,'');return '<div class="tw-preview" id="'+tid+'" onclick="loadTweetEmbed(\''+tid+'\',\''+u+'\')"><div class="tw-preview-icon">𝕏</div><div class="tw-preview-content"><div class="tw-preview-url">'+dh+'</div><div class="tw-preview-hint">'+(mob?'▶ Tap to display tweet':'▶ Click to display tweet')+'</div></div><div class="tw-preview-arrow">→</div></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
-                if (m.imgs) m.imgs.forEach(img => { if (m.link && String(img).indexOf('images/') !== 0) { html += '<a href="' + m.link + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" decoding="async" title="Click to open source"></a>'; } else { html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy" decoding="async">'; } });
+                if (m.text) { let t = (typeof censorText==='function'?censorText(m.text):m.text); let yt=[],tw=[]; t=t.replace(/(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch\?v=([\w-]+)(?:[&?][^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?youtu\.be\/([\w-]+)(?:\?[^\s]*)?/g,function(m,id){yt.push(id);return '%%YT'+(yt.length-1)+'%%';}); t=t.replace(/(?:https?:\/\/)?(?:twitter\.com|x\.com)\/([\w]+)\/status\/(\d+)(?:[^\s]*)?/g,function(m){var u=m.startsWith('http')?m:'https://'+m;tw.push(u);return '%%TW'+(tw.length-1)+'%%';}); t=t.replace(/(https?:\/\/[^\s<>"]+)/g,function(_,url){var label=(typeof censorUrlLabel==='function'?censorUrlLabel(url):url);return '<a class="msg-link" href="'+url+'" target="_blank" rel="noopener noreferrer">'+label+'</a>';}); t=t.replace(/%%YT(\d+)%%/g,function(m,i){return '<div class="yt-embed"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[parseInt(i)]+'" frameborder="0" allowfullscreen loading="lazy" decoding="async"></iframe></div>';}); t=t.replace(/%%TW(\d+)%%/g,function(m,i){var u=tw[parseInt(i)],tid='tw_'+Math.random().toString(36).substr(2,8),mob=typeof isMobile==='function'&&isMobile(),hm=u.match(/(?:twitter\.com|x\.com)\/([\w]+)\//),dh=hm?'@'+hm[1]:u.replace(/https?:\/\/(www\.)?/,'');return '<div class="tw-preview" id="'+tid+'" ' + BQSafe.act('loadTweetEmbed', [String(tid), String(u)]) + '><div class="tw-preview-icon">𝕏</div><div class="tw-preview-content"><div class="tw-preview-url">'+dh+'</div><div class="tw-preview-hint">'+(mob?'▶ Tap to display tweet':'▶ Click to display tweet')+'</div></div><div class="tw-preview-arrow">→</div></div>';}); t=t.replace(/🟠 (.+)/g,'<span class="orange-glow">$1</span>'); html += '<div class="msg-text">' + t + '</div>'; }
+                if (m.imgs) m.imgs.forEach(img => { if (m.link && String(img).indexOf('images/') !== 0) { html += '<a href="' + BQSafe.esc(BQSafe.url(m.link)) + '" target="_blank" style="display:block;"><img class="msg-img" src="' + img + '" loading="lazy" decoding="async" title="Click to open source"></a>'; } else { html += '<img class="msg-img" src="' + img + '" onclick="openImg(this.src)" loading="lazy" decoding="async">'; } });
                 html += '</div>';
             });
             btn.insertAdjacentHTML('beforebegin', html);
@@ -5171,8 +5171,8 @@ window.nachoQuizAnswer = function(btn, correct) {
                 '<div style="font-weight:800;color:var(--heading);margin-bottom:8px;">Did this help you learn something?</div>' +
                 '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">Your feedback helps Nacho improve the archive!</div>' +
                 '<div style="display:flex;justify-content:center;gap:12px;">' +
-                   '<button onclick="rateChannel(\''+ id + '\', 1)" style="flex:1;max-width:140px;padding:12px;background:none;border:1px solid #22c55e;border-radius:10px;color:#22c55e;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;" onmouseover="this.style.background=\'rgba(34,197,94,0.1)\'" onmouseout="this.style.background=\'none\'">👍 Yes</button>' +
-                   '<button onclick="rateChannel(\''+ id + '\', -1)" style="flex:1;max-width:140px;padding:12px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;" onmouseover="this.style.background=\'rgba(239,68,68,0.1)\'" onmouseout="this.style.background=\'none\'">👎 No</button>' +
+                   '<button ' + BQSafe.act('rateChannel', [String(id), 1]) + ' style="flex:1;max-width:140px;padding:12px;background:none;border:1px solid #22c55e;border-radius:10px;color:#22c55e;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;" onmouseover="this.style.background=\'rgba(34,197,94,0.1)\'" onmouseout="this.style.background=\'none\'">👍 Yes</button>' +
+                   '<button ' + BQSafe.act('rateChannel', [String(id), -1]) + ' style="flex:1;max-width:140px;padding:12px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;" onmouseover="this.style.background=\'rgba(239,68,68,0.1)\'" onmouseout="this.style.background=\'none\'">👎 No</button>' +
                 '</div>' +
             '</div>';
             msgs.insertAdjacentHTML('beforeend', sentimentHtml);
@@ -5369,7 +5369,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                     '</div>' +
                     '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
                 recentSearches.forEach(function(s) {
-                    recentHtml += '<button onclick="document.getElementById(\'searchOverlayInput\').value=\'' + s.replace(/[\\'"]/g, "") + '\';doSearch(\'' + s.replace(/[\\'"]/g, "") + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + s + '</button>';
+                    recentHtml += '<button onclick="document.getElementById(\'searchOverlayInput\').value=\'' + BQSafe.jsStr(s.replace(/[\\'"]/g, "")) + '\';doSearch(\'' + BQSafe.jsStr(s.replace(/[\\'"]/g, "")) + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + s + '</button>';
                 });
                 recentHtml += '</div></div>';
                 sr.innerHTML = recentHtml;
@@ -5478,7 +5478,7 @@ window.nachoQuizAnswer = function(btn, correct) {
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;font-weight:700;">🔥 Trending Topics</div>' +
             '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
         TRENDING_TOPICS.forEach(function(t) {
-            html += '<button onclick="document.getElementById(\'searchInput\').value=\''+ t.q.replace(/[\\'"]/g, "") + '\';doSearch(\''+ t.q.replace(/[\\'"]/g, "") + '\');" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:6px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' +
+            html += '<button onclick="document.getElementById(\'searchInput\').value=\''+ BQSafe.jsStr(t.q.replace(/[\\'"]/g, "")) + '\';doSearch(\''+ BQSafe.jsStr(t.q.replace(/[\\'"]/g, "")) + '\');" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:20px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;display:flex;align-items:center;gap:6px;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.background=\'var(--accent-bg)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.background=\'var(--card-bg)\'">' +
                 '<span>' + t.icon + '</span>' +
                 '<span>' + escapeHtml(t.q) + '</span>' +
                 '<span style="font-size:0.65rem;color:var(--text-faint);margin-left:4px;">' + t.reason + '</span>' +
@@ -5509,7 +5509,7 @@ window.nachoQuizAnswer = function(btn, correct) {
         var _countHtml = '<div style="padding:8px 16px 4px;font-size:0.7rem;color:var(--text-faint);font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">' + _countLabel + '</div>';
         sr.innerHTML = _countHtml + '<div>' + results.slice(0, 30).map(r => {
             const isApp = r.key && r.key.startsWith('_');
-            const onclick = isApp && r.action ? r.action : "selectResult('" + r.key + "'," + (typeof r.msgIdx === 'number' ? r.msgIdx : -1) + ")";
+            const onclick = isApp && r.action ? r.action : "selectResult('" + BQSafe.jsStr(r.key) + "'," + (typeof r.msgIdx === 'number' ? r.msgIdx : -1) + ")";
             const style = isApp ? 'border-left:3px solid var(--accent);' : '';
             return '<div class="sr-item" style="' + style + '" onclick="' + onclick + ';document.getElementById(\'searchOverlay\').style.display=\'none\';document.getElementById(\'searchOverlay\').removeAttribute(\'data-open\');document.getElementById(\'searchResults\').classList.remove(\'active\');document.getElementById(\'searchResults\').innerHTML=\'\';document.getElementById(\'channelList\').style.display=\'\';document.getElementById(\'searchInput\').value=\'\';if(document.getElementById(\'searchOverlayInput\'))document.getElementById(\'searchOverlayInput\').value=\'\';if(isMobile())document.getElementById(\'sidebar\').classList.remove(\'open\')">' +
                 '<div class="sr-cat">' + r.cat + '</div>' +
@@ -6336,7 +6336,7 @@ window.nachoQuizAnswer = function(btn, correct) {
                     if (!window._popScriptLoading) {
                         window._popScriptLoading = true;
                         var _popS = document.createElement('script');
-                        _popS.src = 'proof-of-play.js?v=20261031_v2447';
+                        _popS.src = 'proof-of-play.js?v=20261111_v2544b';
                         _popS.onload = function() { window._popScriptLoading = false; };
                         document.head.appendChild(_popS);
                     }

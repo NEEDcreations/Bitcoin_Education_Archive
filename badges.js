@@ -1097,7 +1097,7 @@ function showBadgeToast(badge) {
             '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">' +
             '<a href="' + twitterUrl + '" target="_blank" style="padding:8px 16px;background:#000;color:#fff;border-radius:8px;text-decoration:none;font-size:0.85rem;font-weight:600;">𝕏 Share on Twitter</a>' +
             '<button onclick="shareNostr(window._badgeShareLead, window._badgeShareUrl)" style="padding:8px 16px;background:#7B2DE4;color:#fff;border:none;border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">🟣 Share on Nostr</button>' +
-            '<button onclick="copyBadgeLink(\'' + badge.emoji + '\',\'' + badge.name.replace(/[\\'"]/g, "") + '\')" style="padding:8px 16px;background:var(--card-bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">🔗 Copy Link</button>' +
+            '<button ' + BQSafe.act('copyBadgeLink', [String(badge.emoji), String(badge.name.replace(/[\\'"]/g, ""))]) + ' style="padding:8px 16px;background:var(--card-bg);color:var(--text);border:1px solid var(--border);border-radius:8px;font-size:0.85rem;font-weight:600;cursor:pointer;">🔗 Copy Link</button>' +
             '</div></div>';
     }
 
@@ -1318,7 +1318,7 @@ function getBadgeHTML() {
         const allEarned = catEarned === badgeList.length;
         var _sec = '';
         _sec += '<div style="margin-bottom:6px;border:1px solid ' + (allEarned ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:10px;overflow:visible;">';
-        _sec += '<button onclick="var c=document.getElementById(\'' + _bcId + '\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:' + (allEarned ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)') + ';border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
+        _sec += '<button onclick="var c=document.getElementById(\'' + BQSafe.jsStr(_bcId) + '\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:' + (allEarned ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)') + ';border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
         _sec += '<span class="bca" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
         _sec += '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">' + catName + '</span>';
         _sec += '<span style="margin-left:auto;font-size:0.7rem;color:' + (allEarned ? '#22c55e' : 'var(--accent)') + ';font-weight:700;">' + catEarned + '/' + badgeList.length + (allEarned ? ' ✅' : '') + '</span>';
@@ -1348,7 +1348,7 @@ function getBadgeHTML() {
         var _flexEarned = 0, _flexTotal = 0;
         var _flexSec = '';
         _flexSec += '<div style="margin-bottom:6px;border:1px solid var(--border);border-radius:10px;overflow:visible;">';
-        _flexSec += '<button onclick="var c=document.getElementById(\''+_flexCatId+'\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'\u25b6\':\'\u25bc\'" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.03);border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
+        _flexSec += '<button onclick="var c=document.getElementById(\''+BQSafe.jsStr(_flexCatId)+'\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'\u25b6\':\'\u25bc\'" style="width:100%;padding:10px 12px;background:rgba(255,255,255,0.03);border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
         _flexSec += '<span class="bca" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
         _flexSec += '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">' + _flexCatName + '</span>';
         // Count earned dynamically
@@ -1392,7 +1392,7 @@ function getBadgeHTML() {
             var allGoalsEarned = goalEarned === visibleGoals.length;
             var _gsec = '';
             _gsec += '<div style="margin-bottom:6px;border:1px solid ' + (allGoalsEarned ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:10px;overflow:visible;">';
-            _gsec += '<button onclick="var c=document.getElementById(\'' + _goalId + '\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:' + (allGoalsEarned ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)') + ';border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
+            _gsec += '<button onclick="var c=document.getElementById(\'' + BQSafe.jsStr(_goalId) + '\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:' + (allGoalsEarned ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)') + ';border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
             _gsec += '<span class="bca" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
             _gsec += '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">🎯 Goals</span>';
             _gsec += '<span style="margin-left:auto;font-size:0.7rem;color:' + (allGoalsEarned ? '#22c55e' : 'var(--accent)') + ';font-weight:700;">' + goalEarned + '/' + visibleGoals.length + (allGoalsEarned ? ' ✅' : '') + '</span>';
@@ -1424,7 +1424,7 @@ function getBadgeHTML() {
         var allSecretsEarned = hiddenEarnedCount === hiddenCount;
         var _ssec = '';
         _ssec += '<div style="margin-bottom:6px;border:1px solid ' + (allSecretsEarned ? 'rgba(34,197,94,0.3)' : 'var(--border)') + ';border-radius:10px;overflow:visible;">';
-        _ssec += '<button onclick="var c=document.getElementById(\'' + _secretId + '\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:' + (allSecretsEarned ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)') + ';border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
+        _ssec += '<button onclick="var c=document.getElementById(\'' + BQSafe.jsStr(_secretId) + '\');c.style.display=c.style.display===\'none\'?\'grid\':\'none\';this.querySelector(\'.bca\').textContent=c.style.display===\'none\'?\'▶\':\'▼\'" style="width:100%;padding:10px 12px;background:' + (allSecretsEarned ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.03)') + ';border:none;cursor:pointer;display:flex;align-items:center;gap:8px;font-family:inherit;touch-action:manipulation;">';
         _ssec += '<span class="bca" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
         _ssec += '<span style="color:var(--text);font-size:0.8rem;font-weight:700;">🔮 Secret Badges</span>';
         _ssec += '<span style="margin-left:auto;font-size:0.7rem;color:' + (allSecretsEarned ? '#22c55e' : 'var(--accent)') + ';font-weight:700;">' + hiddenEarnedCount + '/' + hiddenCount + (allSecretsEarned ? ' ✅' : '') + '</span>';
@@ -1682,7 +1682,7 @@ function _renderBadgeSets(earnedBadges) {
         '@media (max-width:420px){.bc-card{padding:10px;}.bc-chip{width:46px;}.bc-title{font-size:0.8rem;}}' +
         '</style>';
     html += '<div class="bc-wrap">';
-    html += '<button class="bc-toggle" onclick="var p=document.getElementById(\'' + colId + '\');var open=p.style.display!==\'none\';p.style.display=open?\'none\':\'block\';this.querySelector(\'.bc-arrow\').textContent=open?\'▼\':\'▲\'">';
+    html += '<button class="bc-toggle" onclick="var p=document.getElementById(\'' + BQSafe.jsStr(colId) + '\');var open=p.style.display!==\'none\';p.style.display=open?\'none\':\'block\';this.querySelector(\'.bc-arrow\').textContent=open?\'▼\':\'▲\'">';
     html += '<div style="font-size:0.8rem;font-weight:900;color:var(--heading);letter-spacing:1px;text-transform:uppercase;">🏅 Badge Collections</div>';
     html += '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;"><span style="font-size:0.68rem;color:var(--text-muted);">' + completed + '/' + cols.length + '</span><span class="bc-arrow" style="font-size:0.7rem;color:var(--text-faint);">▼</span></div>';
     html += '</button>';
@@ -2055,7 +2055,7 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container, coh
     html += '<button onclick="window._filterBadgeDist(\'mine\')" id="bdf-mine" style="padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">Mine only</button>';
     rarityOrder.forEach(function(r) {
         if (!groups[r].length) return;
-        html += '<button onclick="window._filterBadgeDist(\'' + r + '\')" id="bdf-' + r + '" style="padding:4px 10px;border-radius:20px;border:1px solid ' + tierColors[r] + '66;background:none;color:' + tierColors[r] + ';font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">' + tierIcons[r] + ' ' + r + '</button>';
+        html += '<button ' + BQSafe.act('window._filterBadgeDist', [String(r)]) + ' id="bdf-' + r + '" style="padding:4px 10px;border-radius:20px;border:1px solid ' + tierColors[r] + '66;background:none;color:' + tierColors[r] + ';font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">' + tierIcons[r] + ' ' + r + '</button>';
     });
     html += '</div>';
 

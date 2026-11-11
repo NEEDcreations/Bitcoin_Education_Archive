@@ -848,6 +848,7 @@ test('formatChatText chips a multi-word name before posted and listed', function
     const chatSrc = fs.readFileSync(path.join(root, 'global-chat.js'), 'utf8');
     for (let attempt = 0; attempt < 12; attempt++) {
         try {
+            require('./xss/load-bqsafe')(vm, context);
             vm.runInContext(chatSrc, context, { filename: 'global-chat.js' });
             break;
         } catch (err) {

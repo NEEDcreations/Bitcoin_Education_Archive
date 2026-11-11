@@ -56,7 +56,7 @@ function _showExistingMatch(matchDoc, myUid) {
     html += '<div style="padding:16px;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:14px;margin-bottom:16px;">';
     html += '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">';
     html += '<div style="width:48px;height:48px;border-radius:50%;background:rgba(34,197,94,0.15);border:2px solid rgba(34,197,94,0.3);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;">' + (buddy.username ? buddy.username.charAt(0).toUpperCase() : '?') + '</div>';
-    html += '<div><div style="font-weight:800;color:var(--heading);font-size:1rem;">@' + (buddy.username || 'User') + '</div>';
+    html += '<div><div style="font-weight:800;color:var(--heading);font-size:1rem;">@' + BQSafe.esc(buddy.username || 'User') + '</div>';
     html += '<div style="font-size:0.75rem;color:var(--text-muted);">' + (buddy.goal === 'teach' ? '🎓 Teacher' : '📖 Learner') + ' · ' + (buddy.level || 'beginner').charAt(0).toUpperCase() + (buddy.level || 'beginner').slice(1) + '</div></div>';
     html += '</div>';
     if (buddy.intro) html += '<div style="font-size:0.8rem;color:var(--text);font-style:italic;padding:8px 0;border-top:1px solid rgba(34,197,94,0.15);">"' + buddy.intro + '"</div>';
@@ -65,8 +65,8 @@ function _showExistingMatch(matchDoc, myUid) {
     html += '<div style="font-size:0.75rem;color:var(--text-muted);text-align:center;margin-bottom:16px;">Your role: ' + (me.goal === 'teach' ? '🎓 Teacher' : '📖 Learner') + '</div>';
 
     // Action buttons
-    html += '<button onclick="document.getElementById(\'buddyFinderOverlay\').remove();if(typeof openDM===\'function\')openDM(\'' + buddy.uid + '\',\'' + (buddy.username || 'User').replace(/[\\'"]/g, '') + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">💬 Open Conversation</button>';
-    html += '<button onclick="_rerollBuddy(\'' + matchDoc.id + '\')" id="rerollBtn" style="width:100%;padding:12px;background:none;border:1px solid rgba(239,68,68,0.3);border-radius:12px;color:#ef4444;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">🔄 Find a New Buddy</button>';
+    html += '<button onclick="document.getElementById(\'buddyFinderOverlay\').remove();if(typeof openDM===\'function\')openDM(\'' + BQSafe.jsStr(buddy.uid) + '\',\'' + BQSafe.jsStr((buddy.username || 'User').replace(/[\\'"]/g, '')) + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">💬 Open Conversation</button>';
+    html += '<button ' + BQSafe.act('_rerollBuddy', [String(matchDoc.id)]) + ' id="rerollBtn" style="width:100%;padding:12px;background:none;border:1px solid rgba(239,68,68,0.3);border-radius:12px;color:#ef4444;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">🔄 Find a New Buddy</button>';
     html += '<div style="text-align:center;font-size:0.65rem;color:var(--text-faint);margin-bottom:12px;">This will unmatch you and put you back in the pool</div>';
     html += '<button onclick="document.getElementById(\'buddyFinderOverlay\').remove()" style="width:100%;padding:8px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.8rem;cursor:pointer;font-family:inherit;">Close</button>';
     html += '</div>';
@@ -143,7 +143,7 @@ function _showWaitingInPool(poolDoc) {
 
     html += '<div style="font-size:0.8rem;color:var(--text-muted);text-align:center;margin-bottom:16px;line-height:1.5;">We\'ll pair you with a ' + (d.goal === 'learn' ? 'teacher' : 'learner') + ' when one joins.<br>You\'ll get a DM when matched! 🧡</div>';
 
-    html += '<button onclick="_leavePool(\'' + poolDoc.id + '\')" style="width:100%;padding:12px;background:none;border:1px solid rgba(239,68,68,0.3);border-radius:12px;color:#ef4444;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">🚪 Leave Pool</button>';
+    html += '<button ' + BQSafe.act('_leavePool', [String(poolDoc.id)]) + ' style="width:100%;padding:12px;background:none;border:1px solid rgba(239,68,68,0.3);border-radius:12px;color:#ef4444;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">🚪 Leave Pool</button>';
     html += '<button onclick="document.getElementById(\'buddyFinderOverlay\').remove()" style="width:100%;padding:8px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.8rem;cursor:pointer;font-family:inherit;">Close</button>';
     html += '</div>';
 
@@ -219,14 +219,14 @@ function _showFreshBuddyForm() {
 };
 
 function _buddyBtn(id, emoji, label, sub) {
-    return '<button data-buddy-level="' + id + '" onclick="selectBuddyLevel(\'' + id + '\')" style="flex:1;padding:10px 8px;background:var(--card-bg);border:2px solid var(--border);border-radius:10px;cursor:pointer;font-family:inherit;text-align:center;transition:0.2s;touch-action:manipulation;">' +
+    return '<button data-buddy-level="' + id + '" ' + BQSafe.act('selectBuddyLevel', [String(id)]) + ' style="flex:1;padding:10px 8px;background:var(--card-bg);border:2px solid var(--border);border-radius:10px;cursor:pointer;font-family:inherit;text-align:center;transition:0.2s;touch-action:manipulation;">' +
         '<div style="font-size:1.2rem;">' + emoji + '</div>' +
         '<div style="color:var(--text);font-size:0.75rem;font-weight:700;">' + label + '</div>' +
         '<div style="color:var(--text-faint);font-size:0.6rem;">' + sub + '</div></button>';
 }
 
 function _buddyGoalBtn(id, emoji, label, sub) {
-    return '<button data-buddy-goal="' + id + '" onclick="selectBuddyGoal(\'' + id + '\')" style="flex:1;padding:10px 8px;background:var(--card-bg);border:2px solid var(--border);border-radius:10px;cursor:pointer;font-family:inherit;text-align:center;transition:0.2s;touch-action:manipulation;">' +
+    return '<button data-buddy-goal="' + id + '" ' + BQSafe.act('selectBuddyGoal', [String(id)]) + ' style="flex:1;padding:10px 8px;background:var(--card-bg);border:2px solid var(--border);border-radius:10px;cursor:pointer;font-family:inherit;text-align:center;transition:0.2s;touch-action:manipulation;">' +
         '<div style="font-size:1.2rem;">' + emoji + '</div>' +
         '<div style="color:var(--text);font-size:0.75rem;font-weight:700;">' + label + '</div>' +
         '<div style="color:var(--text-faint);font-size:0.6rem;">' + sub + '</div></button>';

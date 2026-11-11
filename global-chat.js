@@ -315,7 +315,8 @@ function isSpammy(text) {
 }
 
 // Escape HTML
-function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
+// Shared escaper (xss-safe.js): also encodes ' and ` so it is safe in any quoted attribute.
+function esc(s) { return s ? BQSafe.esc(s) : ''; }
 
 // Time format
 function timeAgo(ts) {
@@ -642,7 +643,7 @@ function renderChatMessages(msgs) {
         var nameClick = '';
         if (!isDeleted) {
             nameStyle += 'cursor:pointer;';
-            nameClick = ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')"';
+            nameClick = BQSafe.act('showUserProfile', [String(m.uid || '')]);
         }
         var _coreTitle = (!isNacho && m.hasCoreContributor) ? ' <span title="Core Contributor — BIP Breakthrough" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:rgba(247,147,26,0.18);border:1px solid rgba(247,147,26,0.35);color:#f97316;vertical-align:middle;">🔧 Core Contributor</span>' : '';
         _coreTitle += (!isNacho && m.hasFactionChampion) ? (function(){ var _fl = ({'🐝👑':'Hive Mind Champion','🦡👑':"Honey Badger Don't Care Champion",'🐝🛡️':'Still Buzzing','🦡🛡️':"Badger Don't Quit"})[m.factionRaceFlair]; return _fl ? ' <span title="Faction race" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">' + esc(m.factionRaceFlair + ' ' + _fl) + '</span>' : null; })() || ' <span title="Faction race champion" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">👑 Race Champion</span>' : '';
@@ -653,12 +654,12 @@ function renderChatMessages(msgs) {
         }
         if (isMe || isAdmin) {
             if (isMe && (m.editCount || 0) < 2 && !m.isGif && !m.imageUrl && !m.gifUrl) {
-                html += '<span onclick="editChatMsg(\'' + m._id + '\',\'' + esc((m.text||'').replace(/'/g,`\\'`)) + '\')" style="cursor:pointer;font-size:0.6rem;color:#6366f1;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="✏️ Edit">✏️</span>';
+                html += '<span ' + BQSafe.act('editChatMsg', [String(m._id), String(m.text||'')]) + ' style="cursor:pointer;font-size:0.6rem;color:#6366f1;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="✏️ Edit">✏️</span>';
             }
             if (isAdmin && !m.isGif && !m.imageUrl && !m.gifUrl && m.uid !== 'nacho-bot' && m.isNachoAuto !== true) {
-                html += '<span onclick="pinChatMessage(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:var(--accent);margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Pin">📌</span>';
+                html += '<span ' + BQSafe.act('pinChatMessage', [String(m._id)]) + ' style="cursor:pointer;font-size:0.6rem;color:var(--accent);margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Pin">📌</span>';
             }
-            html += '<span onclick="deleteChatMsg(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
+            html += '<span ' + BQSafe.act('deleteChatMsg', [String(m._id)]) + ' style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
         }
         html += '</div>';
         if (m.replyToName) {
@@ -669,16 +670,16 @@ function renderChatMessages(msgs) {
             html += '</div>';
         }
         if (m.isGif && m.text && (IMG_REGEX.test(m.text) || /^data:image\/(jpeg|jpg|png|gif|webp);base64,/.test(m.text))) {
-            html += '<img src="' + esc(m.text) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy">';
+            html += '<img src="' + esc(BQSafe.img(m.text)) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy">';
             if (m.caption) html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;margin-top:4px;">' + formatChatText(esc(m.caption), m.mentionUid) + '</div>';
         } else if (m.imageUrl || m.gifUrl) {
             var mediaSrc = m.imageUrl || m.gifUrl;
             if (m.text) html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;margin-bottom:4px;">' + formatChatText(esc(m.text), m.mentionUid) + '</div>';
             if (m.gifUrl && /\.mp4(\?|$)/i.test(mediaSrc)) {
                 // Telegram MP4 animations need a video element, not img
-                html += '<video src="' + esc(mediaSrc) + '" autoplay loop muted playsinline style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;" onerror="this.style.display=\'none\'"></video>';
+                html += '<video src="' + esc(BQSafe.img(mediaSrc)) + '" autoplay loop muted playsinline style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;" onerror="this.style.display=\'none\'"></video>';
             } else {
-                html += '<img src="' + esc(mediaSrc) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy" onerror="this.style.display=\'none\'">';
+                html += '<img src="' + esc(BQSafe.img(mediaSrc)) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy" onerror="this.style.display=\'none\'">';
             };
         } else {
             html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;">' + formatChatText(esc(m.text || ''), m.mentionUid) + (m.editCount ? ' <span style="font-size:0.6rem;color:var(--text-faint);font-style:italic;">(edited)</span>' : '') + '</div>';
@@ -695,12 +696,12 @@ function renderChatMessages(msgs) {
             var iReacted = myUid && users.indexOf(myUid) !== -1;
             var safeEmoji = esc(emoji);
             var _uidsJson = JSON.stringify(users);
-            html += '<button onclick="toggleReaction(\'' + m._id + '\',\'' + safeEmoji.replace(/[\\'"]/g, '') + '\')" onmouseenter="_showReactTipFromBtn(this)" onmouseleave="_hideReactTip()" ontouchstart="_reactTouchStart(this)" ontouchend="_reactTouchEnd()" data-uids="' + _uidsJson.replace(/"/g, '&quot;') + '" style="padding:2px 6px;border-radius:10px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (iReacted ? 'var(--accent)' : 'var(--border)') + ';background:' + (iReacted ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';color:var(--text);font-family:inherit;display:flex;align-items:center;gap:2px;touch-action:manipulation;">' + safeEmoji + '<span style="font-size:0.6rem;color:var(--text-muted);">' + count + '</span></button>';
+            html += '<button ' + BQSafe.act('toggleReaction', [String(m._id), String(safeEmoji.replace(/[\\'"]/g, ''))]) + ' onmouseenter="_showReactTipFromBtn(this)" onmouseleave="_hideReactTip()" ontouchstart="_reactTouchStart(this)" ontouchend="_reactTouchEnd()" data-uids="' + _uidsJson.replace(/"/g, '&quot;') + '" style="padding:2px 6px;border-radius:10px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (iReacted ? 'var(--accent)' : 'var(--border)') + ';background:' + (iReacted ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';color:var(--text);font-family:inherit;display:flex;align-items:center;gap:2px;touch-action:manipulation;">' + safeEmoji + '<span style="font-size:0.6rem;color:var(--text-muted);">' + count + '</span></button>';
         }
         if (myUid) {
-            html += '<button onclick="showReactPicker(\'' + m._id + '\',this)" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
+            html += '<button ' + BQSafe.act('showReactPicker', [String(m._id), BQSafe.EL]) + ' style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
             if (!isMe && !isNacho && !isDeleted && m.uid !== 'system') {
-                html += '<button onclick="event.stopPropagation();showTipOverlay({recipientName:\'' + esc(m.name || 'Anon').replace(/[\\'"]/g,'') + '\',recipientUid:\'' + String(m.uid || '').replace(/[^A-Za-z0-9_-]/g,'') + '\',context:\'Global Chat tip\',label:\'Tip Message\'})" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);color:#eab308;font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="Tip">⚡</button>';
+                html += '<button onclick="event.stopPropagation();showTipOverlay({recipientName:\'' + BQSafe.jsStr((m.name || 'Anon').replace(/[\\'"]/g,'')) + '\',recipientUid:\'' + BQSafe.jsStr(String(m.uid || '').replace(/[^A-Za-z0-9_-]/g,'')) + '\',context:\'Global Chat tip\',label:\'Tip Message\'})" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);color:#eab308;font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="Tip">⚡</button>';
             }
         }
         html += '</div>';
@@ -1018,7 +1019,7 @@ function formatChatText(text, mentionUid) {
             safeName = known.name;
         }
         var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
-        _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof lookupUserByName===\'function\')lookupUserByName(\'' + safeName + '\')" title="View profile">@' + safeName + '</span>');
+        _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" ' + BQSafe.act('lookupUserByName', [String(safeName)]) + ' title="View profile">@' + safeName + '</span>');
         return placeholder + rest;
     });
     // Fallback: single-word @mentions (user-typed, no space in name)
@@ -1026,7 +1027,7 @@ function formatChatText(text, mentionUid) {
         var safeName = name.replace(/['"]/g, '').trim();
         if (!safeName) return match;
         var placeholder = '%%SAFEMENTION_' + _safeMentions.length + '%%';
-        _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" onclick="if(typeof lookupUserByName===\'function\')lookupUserByName(\'' + safeName + '\')" title="View profile">@' + safeName + '</span>');
+        _safeMentions.push('<span style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;" ' + BQSafe.act('lookupUserByName', [String(safeName)]) + ' title="View profile">@' + safeName + '</span>');
         return placeholder;
     });
     // H1: Post-transform sanitization
@@ -1036,6 +1037,8 @@ function formatChatText(text, mentionUid) {
     text = text.replace(/<(?!\/?(?:a\b|span\b|img\b|strong\b|em\b|br\b))[^>]*>/gi, '');
     // Remove on* event handlers (from user-injected content)
     text = text.replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '');
+    // Never let user content carry our delegated-action attributes (BQSafe.act)
+    text = text.replace(/\bdata-bq-[\w-]*\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]*)/gi, '');
     // Restore in-app link placeholders (these are safe, generated by us)
     for (var _li = 0; _li < _inAppLinks.length; _li++) {
         text = text.replace('%%INAPPLINK_' + _li + '%%', _inAppLinks[_li]);
@@ -1103,7 +1106,7 @@ function showACResults(trigger, query) {
     var html = '';
     for (var j = 0; j < Math.min(results.length, 8); j++) {
         var r = results[j];
-        html += '<div class="ac-item" data-value="' + esc(r.value) + '" data-trigger="' + trigger + '" onclick="selectAC(this)" style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:0.15s;' + (j === 0 ? 'background:rgba(99,102,241,0.1);' : '') + '" onmouseover="this.style.background=\'rgba(99,102,241,0.1)\'" onmouseout="if(' + j + '!==window._acIndex)this.style.background=\'none\'">';
+        html += '<div class="ac-item" data-value="' + esc(r.value) + '" data-trigger="' + trigger + '" onclick="selectAC(this)" style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:0.15s;' + (j === 0 ? 'background:rgba(99,102,241,0.1);' : '') + '" onmouseover="this.style.background=\'rgba(99,102,241,0.1)\'" onmouseout="if(' + BQSafe.num(j) + '!==window._acIndex)this.style.background=\'none\'">';
         html += '<span style="font-weight:700;font-size:0.85rem;color:var(--accent);">' + esc(r.label) + '</span>';
         if (r.desc) html += '<span style="font-size:0.7rem;color:var(--text-faint);">' + esc(r.desc) + '</span>';
         html += '</div>';
@@ -2078,7 +2081,7 @@ function renderOverlayChat() {
                         if (lastMsg.length > 40) lastMsg = lastMsg.substring(0, 40) + '...';
                         var lastTime = c.lastMessageTime ? timeAgo(c.lastMessageTime) : '';
                         var isFromMe = c.lastSenderUid === myUid;
-                        html += '<div onclick="toggleChatOverlay();setTimeout(function(){openDM(\'' + otherUid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName).replace(/[\\'"]/g, "") + '\')},300)" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'rgba(249,115,22,0.3)' : 'transparent') + ';background:' + (unread > 0 ? 'rgba(249,115,22,0.05)' : 'none') + ';margin-bottom:4px;">' +
+                        html += '<div onclick="toggleChatOverlay();setTimeout(function(){openDM(\'' + BQSafe.jsStr(otherUid) + '\',\'' + BQSafe.jsStr((otherName).replace(/[\\'"]/g, "")) + '\')},300)" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'rgba(249,115,22,0.3)' : 'transparent') + ';background:' + (unread > 0 ? 'rgba(249,115,22,0.05)' : 'none') + ';margin-bottom:4px;">' +
                             '<div style="width:36px;height:36px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;color:var(--text);">' + (otherName.charAt(0).toUpperCase() || '?') + '</div>' +
                             '<div style="flex:1;min-width:0;">' +
                                 '<div style="display:flex;justify-content:space-between;align-items:center;">' +
@@ -2105,7 +2108,7 @@ function renderOverlayChat() {
                                 var otherUid = c.participants.find(function(p) { return p !== myUid; });
                                 var otherName = c.participantNames ? (c.participantNames[otherUid] || 'User') : 'User';
                                 var unread = c['unread_' + myUid] || 0;
-                                html += '<div onclick="toggleChatOverlay();setTimeout(function(){openDM(\'' + otherUid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName).replace(/[\\'"]/g, "") + '\')},300)" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;border:1px solid transparent;margin-bottom:4px;">' +
+                                html += '<div onclick="toggleChatOverlay();setTimeout(function(){openDM(\'' + BQSafe.jsStr(otherUid) + '\',\'' + BQSafe.jsStr((otherName).replace(/[\\'"]/g, "")) + '\')},300)" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;border:1px solid transparent;margin-bottom:4px;">' +
                                     '<div style="width:36px;height:36px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;color:var(--text);">' + (otherName.charAt(0).toUpperCase() || '?') + '</div>' +
                                     '<div style="flex:1;min-width:0;"><div style="font-weight:600;color:var(--heading);font-size:0.82rem;">' + (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName) + '</div></div>' +
                                     (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.6rem;font-weight:800;padding:2px 6px;border-radius:8px;">' + unread + '</div>' : '') +
@@ -2294,14 +2297,14 @@ window.showReactPicker = function(msgId, btnEl) {
     var tabHtml = '<div id="reactEmojiTabBar" style="display:flex;gap:2px;margin-bottom:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;">';
     cats.forEach(function(cat, i) {
         var icon = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '🤝' : cat === 'Bitcoin' ? '<span style="background:#f7931a;color:#fff;border-radius:50%;width:1.3em;height:1.3em;display:inline-flex;align-items:center;justify-content:center;font-size:0.8em;font-weight:900;line-height:1;">₿</span>' : cat === 'Animals' ? '🐾' : cat === 'Food' ? '🍔' : cat === 'Travel' ? '🌍' : cat === 'Symbols' ? '💬' : cat === 'Objects' ? '🎁' : '✨';
-        tabHtml += '<button onclick="window._switchReactTab(\''+cat+'\')" id="reactEmojiTab_'+i+'" style="padding:5px 8px;font-size:0.95rem;cursor:pointer;background:'+(i===0?'var(--accent-bg)':'none')+';border:1px solid '+(i===0?'var(--accent)':'var(--border)')+';border-radius:8px;flex-shrink:0;touch-action:manipulation;" title="'+cat+'">'+icon+'</button>';
+        tabHtml += '<button ' + BQSafe.act('window._switchReactTab', [String(cat)]) + ' id="reactEmojiTab_'+i+'" style="padding:5px 8px;font-size:0.95rem;cursor:pointer;background:'+(i===0?'var(--accent-bg)':'none')+';border:1px solid '+(i===0?'var(--accent)':'var(--border)')+';border-radius:8px;flex-shrink:0;touch-action:manipulation;" title="'+cat+'">'+icon+'</button>';
     });
     tabHtml += '</div>';
 
     picker.innerHTML = searchHtml + tabHtml + '<div id="reactEmojiGrid" style="display:flex;flex-wrap:wrap;gap:1px;overflow-y:auto;max-height:230px;justify-content:center;"></div>';
 
     function _reactEmojiBtn(e) {
-        return '<button onclick="_closeReactPicker();toggleReaction(\''+msgId+'\',\''+e+'\')" style="padding:5px;font-size:1.25rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
+        return '<button onclick="_closeReactPicker();toggleReaction(\''+BQSafe.jsStr(msgId)+'\',\''+BQSafe.jsStr(e)+'\')" style="padding:5px;font-size:1.25rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
     }
 
     window._switchReactTab = function(cat) {
@@ -2348,7 +2351,7 @@ window.showReactPicker = function(msgId, btnEl) {
             });
         }
         var html = results.length === 0
-            ? '<div style="color:var(--text-faint);font-size:0.82rem;padding:24px;text-align:center;">No results for "'+q+'"</div>'
+            ? '<div style="color:var(--text-faint);font-size:0.82rem;padding:24px;text-align:center;">No results for "'+BQSafe.esc(q)+'"</div>'
             : results.map(_reactEmojiBtn).join('');
         grid.innerHTML = html;
         cats.forEach(function(c, i) {
@@ -2491,7 +2494,7 @@ window.searchGifs = function(query) {
                     var url = results[i].thumb;
                     var fullUrl = results[i].full || url;
                     if (!url) continue;
-                    html += '<img src="' + url + '" onclick="previewGifBeforeSend(\'' + fullUrl.replace(/[\\'"]/g, "") + '\')" style="width:100%;border-radius:8px;cursor:pointer;object-fit:cover;height:100px;transition:0.15s;" loading="lazy" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">';
+                    html += '<img src="' + BQSafe.esc(BQSafe.img(url)) + '" ' + BQSafe.act('previewGifBeforeSend', [String(fullUrl.replace(/[\\'"]/g, ""))]) + ' style="width:100%;border-radius:8px;cursor:pointer;object-fit:cover;height:100px;transition:0.15s;" loading="lazy" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">';
                 }
                 el.innerHTML = html || '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">No GIFs found</div>';
             })
@@ -2515,7 +2518,7 @@ window.previewGifBeforeSend = function(url) {
     preview.id = 'chatImagePreview';
     preview.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.3);border-radius:10px;margin-bottom:6px;';
     preview.innerHTML =
-        '<img src="' + url + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">' +
+        '<img src="' + BQSafe.esc(BQSafe.img(url)) + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">' +
         '<div style="flex:1;min-width:0;"><div style="color:var(--text);font-size:0.8rem;font-weight:600;">GIF ready</div><div style="color:var(--text-faint);font-size:0.7rem;">Press Send to share</div></div>' +
         '<button onclick="cancelImagePreview()" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:4px;">✕</button>';
     var containers = document.querySelectorAll('#globalChatInput');
@@ -2673,7 +2676,7 @@ window.showEmojiPicker = function() {
     var tabHtml = '<div id="emojiTabBar" style="display:flex;gap:2px;margin-bottom:8px;overflow-x:auto;overflow-y:visible;padding:3px 0 3px 0;">';
     cats.forEach(function(cat, i) {
         var label = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '🤝' : cat === 'Bitcoin' ? '<span style="background:#f7931a;color:#fff;border-radius:50%;width:1.3em;height:1.3em;display:inline-flex;align-items:center;justify-content:center;font-size:0.8em;font-weight:900;line-height:1;">₿</span>' : cat === 'Animals' ? '🐾' : cat === 'Food' ? '🍔' : cat === 'Travel' ? '🌍' : cat === 'Symbols' ? '💬' : cat === 'Objects' ? '🎁' : cat === 'Custom' ? _customEmojiImg('btc') : '✨';
-        tabHtml += '<button onclick="window._switchEmojiTab(\'' + cat + '\')" id="emojiTab_' + i + '" style="padding:6px 10px;font-size:1rem;cursor:pointer;background:' + (i === 0 ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (i === 0 ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;flex-shrink:0;touch-action:manipulation;" title="' + cat + '">' + label + '</button>';
+        tabHtml += '<button ' + BQSafe.act('window._switchEmojiTab', [String(cat)]) + ' id="emojiTab_' + i + '" style="padding:6px 10px;font-size:1rem;cursor:pointer;background:' + (i === 0 ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (i === 0 ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;flex-shrink:0;touch-action:manipulation;" title="' + cat + '">' + label + '</button>';
     });
     tabHtml += '</div>';
 
@@ -2701,7 +2704,7 @@ window._switchEmojiTab = function(cat) {
     var emojis = EMOJI_INPUT_CATEGORIES[cat] || [];
     var html = '';
     emojis.forEach(function(e) {
-        html += '<button onclick="window._insertEmoji(\'' + e + '\')" style="padding:6px;font-size:1.3rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.1s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + renderCustomEmojis(e) + '</button>';
+        html += '<button ' + BQSafe.act('window._insertEmoji', [String(e)]) + ' style="padding:6px;font-size:1.3rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.1s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + renderCustomEmojis(e) + '</button>';
     });
     grid.innerHTML = html || '<div style="color:var(--text-faint);font-size:0.8rem;padding:20px;text-align:center;">No emojis here</div>';
 
@@ -2762,10 +2765,10 @@ window._emojiSearch = function(query) {
     });
     var html = '';
     if (results.length === 0) {
-        html = '<div style="color:var(--text-faint);font-size:0.82rem;padding:24px;text-align:center;">No results for "' + q + '"</div>';
+        html = '<div style="color:var(--text-faint);font-size:0.82rem;padding:24px;text-align:center;">No results for "' + BQSafe.esc(q) + '"</div>';
     } else {
         results.forEach(function(e) {
-            html += '<button onclick="window._insertEmoji(\'' + e + '\')" style="padding:6px;font-size:1.3rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.1s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + renderCustomEmojis(e) + '</button>';
+            html += '<button ' + BQSafe.act('window._insertEmoji', [String(e)]) + ' style="padding:6px;font-size:1.3rem;cursor:pointer;background:none;border:none;border-radius:8px;transition:0.1s;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.1)\'" onmouseout="this.style.background=\'none\'">' + renderCustomEmojis(e) + '</button>';
         });
     }
     grid.innerHTML = html;
@@ -3135,7 +3138,7 @@ function djRenderUpNext() {
                 '<div style="font-size:0.75rem;color:var(--heading);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (typeof escapeHtml === 'function' ? escapeHtml(djShown(t.title, 'Untitled')) : djShown(t.title, 'Untitled')) + '</div>' +
                 '<div style="font-size:0.65rem;color:var(--text-faint);">' + (typeof escapeHtml === 'function' ? escapeHtml(djShown(t.artist || t.authorName, '')) : djShown(t.artist || t.authorName, '')) + '</div>' +
             '</div>' +
-            '<span onclick="window._djUpNext.splice(' + i + ',1);djRenderUpNext()" style="cursor:pointer;font-size:0.7rem;color:#ef4444;padding:2px 4px;" title="Remove">✕</span>' +
+            '<span onclick="window._djUpNext.splice(' + BQSafe.num(i) + ',1);djRenderUpNext()" style="cursor:pointer;font-size:0.7rem;color:#ef4444;padding:2px 4px;" title="Remove">✕</span>' +
         '</div>';
     }
     el.innerHTML = html;
@@ -3167,7 +3170,7 @@ window.djShowTrackPicker = function() {
     for (var i = 0; i < tracks.length; i++) {
         var t = tracks[i];
         var esc = typeof escapeHtml === 'function' ? escapeHtml : function(s) { return s; };
-        listHtml += '<div class="djPickerItem" data-search="' + esc((t.title || '') + ' ' + (t.artist || t.authorName || '')).toLowerCase() + '" onclick="djAddToQueue(' + i + ')" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);transition:0.15s;" onmouseover="this.style.background=\'rgba(99,102,241,0.1)\'" onmouseout="this.style.background=\'none\'">' +
+        listHtml += '<div class="djPickerItem" data-search="' + esc((t.title || '') + ' ' + (t.artist || t.authorName || '')).toLowerCase() + '" ' + BQSafe.act('djAddToQueue', [BQSafe.lit(i)]) + ' style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);transition:0.15s;" onmouseover="this.style.background=\'rgba(99,102,241,0.1)\'" onmouseout="this.style.background=\'none\'">' +
             '<div style="font-size:0.8rem;color:var(--heading);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(djShown(t.title, 'Untitled')) + '</div>' +
             '<div style="font-size:0.65rem;color:var(--text-faint);">' + esc(djShown(t.artist || t.authorName, 'Unknown')) + '</div>' +
         '</div>';
@@ -3592,9 +3595,9 @@ function showDJBar(d) {
         djActionBtn = '<button id="djTuneBtn" onclick="' + (_djListening ? 'djStopListening()' : 'djTuneIn()') + '" style="padding:6px 10px;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;' + (_djListening ? 'background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;' : 'background:rgba(239,68,68,0.1);border:2px solid #ef4444;color:#ef4444;animation:djPulse 1.5s ease-in-out infinite;') + '">' + (_djListening ? '⏹ Stop' : '🔊 Tune In') + '</button>';
     }
 
-    var djLabel = isNacho ? '🦌 Nacho Radio — Always On!' : '🎧 <span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.djUid||'') + '\')" style="cursor:pointer;text-decoration:underline;">@' + esc(d.djName) + '</span> is DJing!' + songInfo;
+    var djLabel = isNacho ? '🦌 Nacho Radio — Always On!' : '🎧 <span ' + BQSafe.act('showUserProfile', [String(d.djUid||'')]) + ' style="cursor:pointer;text-decoration:underline;">@' + esc(d.djName) + '</span> is DJing!' + songInfo;
 
-    var artistHtml = d.artistUid ? '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.artistUid||'') + '\')" style="cursor:pointer;text-decoration:underline;" title="View Artist Profile">' + esc(d.trackArtist) + '</span>' : esc(d.trackArtist);
+    var artistHtml = d.artistUid ? '<span ' + BQSafe.act('showUserProfile', [String(d.artistUid||'')]) + ' style="cursor:pointer;text-decoration:underline;" title="View Artist Profile">' + esc(d.trackArtist) + '</span>' : esc(d.trackArtist);
 
     bar.innerHTML =
         // Row 1: DJ label
@@ -3612,7 +3615,7 @@ function showDJBar(d) {
         // Row 3: Action buttons
         '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
             djActionBtn +
-            (d.artistUid ? '<button onclick="if(\'' + (d.artistUid||'') + '\'&&typeof showUserProfile===\'function\')showUserProfile(\'' + (d.artistUid||'') + '\')" style="padding:5px 10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip Artist</button>' : '') +
+            (d.artistUid ? '<button onclick="if(\'' + (BQSafe.jsStr(d.artistUid||'')) + '\'&&typeof showUserProfile===\'function\')showUserProfile(\'' + (BQSafe.jsStr(d.artistUid||'')) + '\')" style="padding:5px 10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip Artist</button>' : '') +
             tipBtn +
             (_djQueuePosition > 0 ? '<button onclick="djLeaveQueue()" style="padding:5px 10px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:#ef4444;font-size:0.7rem;cursor:pointer;font-family:inherit;">Leave Queue (#' + _djQueuePosition + ')</button>' : '') +
         '</div>';
@@ -4802,7 +4805,7 @@ function _buildGgPartyBar(docId, count, reacted) {
     var label = (on ? 'Remove celebration, ' : 'Celebrate, ') + n;
     var id = esc(docId);
     return '<div data-react-bar data-gg-party="1" data-party-count="' + n + '" data-party-on="' + (on ? '1' : '0') + '" style="display:flex;margin-top:8px;">' +
-        '<button type="button" data-gg-party-btn="1" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + '" onclick="event.stopPropagation();window._toggleGgParty(\'' + id + '\')" style="min-width:44px;min-height:44px;padding:6px 12px;border-radius:999px;border:2px solid ' + border + ';background:' + bg + ';font-size:1rem;cursor:pointer;color:var(--text);display:inline-flex;align-items:center;justify-content:center;gap:6px;touch-action:manipulation;">' +
+        '<button type="button" data-gg-party-btn="1" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + '" ' + BQSafe.act('window._toggleGgParty', [String(id)], { stop: 1 }) + ' style="min-width:44px;min-height:44px;padding:6px 12px;border-radius:999px;border:2px solid ' + border + ';background:' + bg + ';font-size:1rem;cursor:pointer;color:var(--text);display:inline-flex;align-items:center;justify-content:center;gap:6px;touch-action:manipulation;">' +
         '<span aria-hidden="true">🎉</span><span data-gg-party-count style="font-size:0.78rem;font-weight:800;color:var(--text);">' + n + '</span></button></div>';
 }
 
@@ -4896,9 +4899,9 @@ function _buildAnnReactBar(docId, reactions, myUid, esc) {
         if (!uids.length) return;
         var reacted = myUid && uids.indexOf(myUid) !== -1;
         var _aUidsJson = JSON.stringify(uids);
-        html += '<button onclick="event.stopPropagation();_toggleAnnouncementReaction(\''+esc(docId)+'\',\''+emoji+'\')" onmouseenter="_showReactTipFromBtn(this)" onmouseleave="_hideReactTip()" ontouchstart="_reactTouchStart(this)" ontouchend="_reactTouchEnd()" data-uids="'+_aUidsJson.replace(/"/g,'&quot;')+'" style="padding:3px 8px;border-radius:20px;border:1px solid '+(reacted?'var(--accent)':'var(--border)')+';background:'+(reacted?'rgba(247,147,26,0.12)':'var(--card-bg)')+';font-size:0.75rem;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:3px;">'+emoji+'<span style="font-size:0.65rem;color:var(--text-muted);">'+uids.length+'</span></button>';
+        html += '<button ' + BQSafe.act('_toggleAnnouncementReaction', [String(docId), String(emoji)], { stop: 1 }) + ' onmouseenter="_showReactTipFromBtn(this)" onmouseleave="_hideReactTip()" ontouchstart="_reactTouchStart(this)" ontouchend="_reactTouchEnd()" data-uids="'+_aUidsJson.replace(/"/g,'&quot;')+'" style="padding:3px 8px;border-radius:20px;border:1px solid '+(reacted?'var(--accent)':'var(--border)')+';background:'+(reacted?'rgba(247,147,26,0.12)':'var(--card-bg)')+';font-size:0.75rem;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:3px;">'+emoji+'<span style="font-size:0.65rem;color:var(--text-muted);">'+uids.length+'</span></button>';
     });
-    html += '<button onclick="event.stopPropagation();_showAnnReactPicker(this,\''+esc(docId)+'\')" style="padding:3px 7px;border-radius:20px;border:1px solid var(--border);background:var(--card-bg);font-size:0.75rem;cursor:pointer;color:var(--text-faint);">➕</button>';
+    html += '<button ' + BQSafe.act('_showAnnReactPicker', [BQSafe.EL, String(docId)], { stop: 1 }) + ' style="padding:3px 7px;border-radius:20px;border:1px solid var(--border);background:var(--card-bg);font-size:0.75rem;cursor:pointer;color:var(--text-faint);">➕</button>';
     html += '</div>';
     return html;
 }
@@ -4944,7 +4947,7 @@ function _renderAnnouncementItem(doc, context) {
         // Announcement with known uid: match multi-word display names via keyword/possessive terminators only
         text = text.replace(_mentionRe('u'), function(_, rawName) {
             var uname = rawName.trim();
-            return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
+            return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+BQSafe.jsStr((mentionUid))+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
         });
     } else {
         // No uid — try multi-word first (for system announcements missing uid), then single-word for user-typed
@@ -4953,12 +4956,12 @@ function _renderAnnouncementItem(doc, context) {
         text = text.replace(_mentionRe('u'), function(_, rawName) {
             _annMentionFound = true;
             var uname = rawName.trim();
-            return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
+            return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+BQSafe.jsStr((uname))+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
         });
         // Also handle any remaining single-word @mentions (user-typed in normal chat)
         if (!_annMentionFound) {
             text = text.replace(_mentionWordRe('gu'), function(_, uname) {
-                return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+esc(uname)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
+                return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof lookupUserByName===\'function\')lookupUserByName(\''+BQSafe.jsStr((uname))+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
             });
         }
     }
@@ -5088,7 +5091,7 @@ window._showAnnReactPicker = function(btnEl, docId) {
     var tabHtml = '<div style="display:flex;gap:2px;margin-bottom:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;">';
     cats.forEach(function(cat, i) {
         var icon = cat === 'Smileys' ? '😀' : cat === 'Gestures' ? '🤝' : cat === 'Bitcoin' ? '<span style="background:#f7931a;color:#fff;border-radius:50%;width:1.3em;height:1.3em;display:inline-flex;align-items:center;justify-content:center;font-size:0.8em;font-weight:900;line-height:1;">₿</span>' : cat === 'Animals' ? '🐾' : cat === 'Food' ? '🍔' : cat === 'Travel' ? '🌍' : cat === 'Symbols' ? '💬' : cat === 'Objects' ? '🎁' : '✨';
-        tabHtml += '<button onclick="window._switchAnnEmojiTab(\''+cat+'\')" id="annEmojiTab_'+i+'" style="padding:5px 8px;font-size:0.9rem;cursor:pointer;background:'+(i===0?'var(--accent-bg)':'none')+';border:1px solid '+(i===0?'var(--accent)':'var(--border)')+';border-radius:8px;flex-shrink:0;touch-action:manipulation;" title="'+cat+'">'+icon+'</button>';
+        tabHtml += '<button ' + BQSafe.act('window._switchAnnEmojiTab', [String(cat)]) + ' id="annEmojiTab_'+i+'" style="padding:5px 8px;font-size:0.9rem;cursor:pointer;background:'+(i===0?'var(--accent-bg)':'none')+';border:1px solid '+(i===0?'var(--accent)':'var(--border)')+';border-radius:8px;flex-shrink:0;touch-action:manipulation;" title="'+cat+'">'+icon+'</button>';
     });
     tabHtml += '<button onclick="document.getElementById(\'annReactPicker\').remove()" style="margin-left:auto;padding:4px 7px;background:none;border:none;color:var(--text-faint);font-size:0.9rem;cursor:pointer;flex-shrink:0;">✕</button></div>';
     picker.innerHTML = tabHtml + '<div id="annEmojiGrid" style="display:flex;flex-wrap:wrap;gap:1px;overflow-y:auto;max-height:220px;justify-content:center;"></div>';
@@ -5107,7 +5110,7 @@ window._showAnnReactPicker = function(btnEl, docId) {
         var emojis = EMOJI_CATEGORIES[cat] || [];
         var html = '';
         emojis.forEach(function(e) {
-            html += '<button onclick="document.getElementById(\'annReactPicker\').remove();_toggleAnnouncementReaction(\''+docId+'\',\''+e+'\')" style="padding:5px;font-size:1.2rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
+            html += '<button onclick="document.getElementById(\'annReactPicker\').remove();_toggleAnnouncementReaction(\''+BQSafe.jsStr(docId)+'\',\''+BQSafe.jsStr(e)+'\')" style="padding:5px;font-size:1.2rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
         });
         grid.innerHTML = html;
         var catKeys = Object.keys(EMOJI_CATEGORIES);

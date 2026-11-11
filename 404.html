@@ -73,6 +73,7 @@
     <script>
     try { if (localStorage.getItem('btc_last_signed_in') === '1') document.documentElement.classList.add('btc-signing-in'); } catch (e) {}
     </script>
+    <script src="/xss-safe.js?v=20261111_v2544b"></script>
     <script src="/auth-display.js?v=20261106_v2512"></script>
     <meta charset="UTF-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -91,7 +92,7 @@
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" as="script" integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" as="script" integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous">
 
-    <link rel="preload" href="/bundle.min.js?v=20261111_v2544" as="script">
+    <link rel="preload" href="/bundle.min.js?v=20261111_v2544b" as="script">
 
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous"></script>
@@ -2291,11 +2292,11 @@
     <script src="/referral-tiers.js?v=20261105_v2499" defer></script>
     <script src="/popup-stack.js?v=20261106_v2519" defer></script>
 
-    <script src="/ranking.js?v=20261109_v2538" defer></script>    <!-- Critical: needed for initial page render -->
-    <script src="/bundle.min.js?v=20261111_v2544" defer fetchpriority="high"></script>
+    <script src="/ranking.js?v=20261111_v2544b" defer></script>    <!-- Critical: needed for initial page render -->
+    <script src="/bundle.min.js?v=20261111_v2544b" defer fetchpriority="high"></script>
 
     <script src="/bundle-ready.js?v=20261027_v2394" defer></script>
-    <script src="/features.registry.js?v=20261109_v2538" defer></script>
+    <script src="/features.registry.js?v=20261111_v2544b" defer></script>
     <script src="/favorites.js?v=20261105_v2501" defer></script>
     <script src="/tctv-watch.js?v=20261102_v2464" defer></script>
     <script src="/tctv-drip.js?v=20261106_v2521" defer></script>
@@ -2307,10 +2308,10 @@
     <script src="/faction-race-prizes.js?v=20261105_v2505" defer></script>
     
     <script src="/miniapp-share.js?v=20261107_v2526" defer></script>
-    <script src="/pvp-lobby-alert.js?v=20261106_v2519" defer></script>
-    <script src="/patches.js?v=20261026_v2385" defer></script>
+    <script src="/pvp-lobby-alert.js?v=20261111_v2544b" defer></script>
+    <script src="/patches.js?v=20261111_v2544b" defer></script>
     <script src="/onboarding.js?v=20261106_v2512" defer></script>
-    <script src="/learning-quests.js?v=20261026_v2377" defer></script>
+    <script src="/learning-quests.js?v=20261111_v2544b" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
     <script src="/beats-censor.js?v=20261022_v2322"></script>
@@ -2320,23 +2321,23 @@
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261106_v2509',
+            'global-chat.js?v=20261111_v2544b',
             'satoshi-favor.js?v=20261106_v2525'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261109_v2536',
-            'hot-topics.js?v=20261022_hottopics',
-            'pvp.js?v=20261031_v2447','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261105_v2506',
-            'scholar.js?v=20261105_v2490','beats.js?v=20261105_v2492',
-            'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261104_v2472',
-            'notifications.js?v=20261106_v2512','gifting.js?v=20261106_v2522','guide.js?v=20261104_v2482','modules.js?v=20261106_v2512',
-            'first-purchase.js?v=20260411','shareable-certs.js?v=20261028_v2410',
+            'quests.js?v=20261111_v2544b',
+            'hot-topics.js?v=20261111_v2544b',
+            'pvp.js?v=20261111_v2544b','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261111_v2544b',
+            'scholar.js?v=20261111_v2544b','beats.js?v=20261111_v2544b',
+            'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261111_v2544b',
+            'notifications.js?v=20261106_v2512','gifting.js?v=20261106_v2522','guide.js?v=20261111_v2544b','modules.js?v=20261111_v2544b',
+            'first-purchase.js?v=20261111_v2544b','shareable-certs.js?v=20261111_v2544b',
             'sats-vs-bits.js?v=20261030_v2440','tips-integrations.js?v=20260307','wallet-router.js?v=20261104_v2482',
-            'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
-            'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261022_v2252',
-            'timechain-tv.js?v=20261105_v2502',
-            'learning-quests.js?v=20261026_v2377',
-            'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20261031_v2447'
+            'lightning-prompt.js?v=20260307','irl-sync.js?v=20261111_v2544b',
+            'meetup-builder.js?v=20261111_v2544b','meetup-box.js?v=20261111_v2544b','bitcoin-buddy.js?v=20261111_v2544b',
+            'timechain-tv.js?v=20261111_v2544b',
+            'learning-quests.js?v=20261111_v2544b',
+            'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20261111_v2544b'
         ];
         function _injectScript(src) {
             if (document.querySelector('script[src="' + src + '"]')) return;
@@ -2589,23 +2590,23 @@
         }
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261105_v2492', 'global-chat.js?v=20261106_v2509'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261105_v2492', 'global-chat.js?v=20261106_v2509'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261106_v2509'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261106_v2509'],
-            'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
-            'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261104_v2472'],
-            'pvp':           ['pvp.js?v=20261031_v2447'],
-            'proof-of-play': ['pvp.js?v=20261031_v2447', 'proof-of-play.js?v=20261031_v2447'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261111_v2544b', 'global-chat.js?v=20261111_v2544b'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261111_v2544b', 'global-chat.js?v=20261111_v2544b'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261111_v2544b'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261111_v2544b'],
+            'irl-sync':      ['irl-sync.js?v=20261111_v2544b'],
+            'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261111_v2544b'],
+            'pvp':           ['pvp.js?v=20261111_v2544b'],
+            'proof-of-play': ['pvp.js?v=20261111_v2544b', 'proof-of-play.js?v=20261111_v2544b'],
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
-            'trails':        ['modules.js?v=20261106_v2512'],
-            'learning-quests': ['learning-quests.js?v=20261026_v2377'],
-            'quests':        ['quests.js?v=20261109_v2536'],
-            'questhub':      ['quests.js?v=20261109_v2536'],
-            'app':           ['quests.js?v=20261109_v2536'],
-            'timechain-tv':  ['timechain-tv.js?v=20261105_v2502'],
-            'tv':            ['timechain-tv.js?v=20261105_v2502'],
-            'cert':          ['shareable-certs.js?v=20261028_v2410']
+            'trails':        ['modules.js?v=20261111_v2544b'],
+            'learning-quests': ['learning-quests.js?v=20261111_v2544b'],
+            'quests':        ['quests.js?v=20261111_v2544b'],
+            'questhub':      ['quests.js?v=20261111_v2544b'],
+            'app':           ['quests.js?v=20261111_v2544b'],
+            'timechain-tv':  ['timechain-tv.js?v=20261111_v2544b'],
+            'tv':            ['timechain-tv.js?v=20261111_v2544b'],
+            'cert':          ['shareable-certs.js?v=20261111_v2544b']
         };
         var scripts = _hashScripts[hash];
         if (scripts && scripts.length) {

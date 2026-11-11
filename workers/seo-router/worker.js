@@ -119,7 +119,8 @@ function isBot(ua) {
 }
 
 function escapeHtml(s) {
-    return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    // Same set as BQSafe.esc (xss-safe.js): safe in text and in any quoted attribute.
+    return String(s == null ? '' : s).replace(/[&<>"'`]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' })[c]);
 }
 
 // ─── CSP / Nonce ─────────────────────────────────────────────────────────────
@@ -242,6 +243,47 @@ function buildCSP(nonce) {
     ].join('; ');
 }
 
+/**
+ * CSP PHASE 2 (REPORT-ONLY). Same allowlist as buildCSP, but script-src drops
+ * 'unsafe-inline' in favour of the per-request nonce and inline event-handler
+ * attributes are forbidden (script-src-attr 'none'). Sent as
+ * Content-Security-Policy-Report-Only so nothing breaks; violations are POSTed
+ * to /csp-report. Flip to enforcing once reports show no remaining inline
+ * handlers (see the XSS app-wide report for the migration plan).
+ */
+function buildCSPReportOnly(nonce) {
+    const parts = buildCSP(nonce).split('; ').map((d) => {
+        if (d.startsWith('script-src ')) {
+            return d.replace("'unsafe-inline'", `'nonce-${nonce}'`);
+        }
+        return d;
+    });
+    parts.push("script-src-attr 'none'");
+    parts.push('report-uri /csp-report');
+    return parts.join('; ');
+}
+
+/** Collect CSP violation reports (report-only phase). Logs a trimmed summary, never echoes input. */
+async function handleCspReport(request) {
+    if (request.method !== 'POST') return new Response(null, { status: 405, headers: { 'Allow': 'POST' } });
+    try {
+        const len = Number(request.headers.get('content-length') || 0);
+        if (len > 16384) return new Response(null, { status: 413 });
+        const raw = (await request.text()).slice(0, 16384);
+        const body = JSON.parse(raw || '{}');
+        const r = body['csp-report'] || body;
+        const pick = (v) => String(v == null ? '' : v).slice(0, 200);
+        console.log('csp-report', JSON.stringify({
+            directive: pick(r['violated-directive'] || r['effective-directive']),
+            blocked: pick(r['blocked-uri']),
+            source: pick(r['source-file']),
+            line: Number(r['line-number']) || 0,
+            sample: pick(r['script-sample']),
+        }));
+    } catch (_) { /* ignore malformed reports */ }
+    return new Response(null, { status: 204 });
+}
+
 /** Static headers applied to every HTML response (no nonce dependence) */
 const STATIC_HEADERS = {
     'X-Content-Type-Options':  'nosniff',
@@ -281,6 +323,7 @@ function applySecurityHeaders(response, nonce, ref) {
 
     const headers = new Headers(rewritten.headers);
     headers.set('Content-Security-Policy', csp);
+    headers.set('Content-Security-Policy-Report-Only', buildCSPReportOnly(nonce));
     for (const [k, v] of Object.entries(STATIC_HEADERS)) {
         headers.set(k, v);
     }
@@ -560,6 +603,9 @@ export default {
 
         // Generate a fresh nonce for every request
         const nonce = generateNonce();
+
+        // CSP Phase 2 report-only collector
+        if (path === '/csp-report') return handleCspReport(request);
 
         // /channels/{id}
         const channelMatch = path.match(/^\/channels\/([a-zA-Z0-9_-]+)\/?$/);

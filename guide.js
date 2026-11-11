@@ -185,7 +185,7 @@
             '<div style="font-size:1rem;">📜</div>' +
             '<div style="flex:1;"><div style="font-size:0.78rem;font-weight:700;color:var(--heading);">Quest Guide</div><div style="font-size:0.65rem;color:var(--text-muted);">Tap to see what you can do</div></div>' +
             '<div style="color:var(--text-faint);font-size:0.7rem;">Open ›</div>' +
-            '<button onclick="event.stopPropagation();this.parentElement.remove();localStorage.setItem(\'' + GUIDE_DISMISSED_KEY + '\',\'permanent\');" style="background:none;border:none;color:var(--text-faint);font-size:0.9rem;cursor:pointer;padding:4px;margin-left:4px;">✕</button>';
+            '<button onclick="event.stopPropagation();this.parentElement.remove();localStorage.setItem(\'' + BQSafe.jsStr(GUIDE_DISMISSED_KEY) + '\',\'permanent\');" style="background:none;border:none;color:var(--text-faint);font-size:0.9rem;cursor:pointer;padding:4px;margin-left:4px;">✕</button>';
 
         var homeInner = document.querySelector('.home-inner');
         if (homeInner) {
@@ -418,7 +418,7 @@
             var id = 'faqItem' + idx;
             var aid = 'faqAns' + idx;
             itemsHtml += '<div id="' + id + '" style="border:1px solid var(--border);border-radius:14px;margin-bottom:8px;overflow:hidden;transition:border-color 0.2s;">' +
-                '<button onclick="(function(){var a=document.getElementById(\'' + aid + '\');var open=a.style.display!==\'none\';a.style.display=open?\'none\':\'block\';document.getElementById(\'' + id + '\').style.borderColor=open?\'var(--border)\':\'rgba(247,147,26,0.4)\';this.querySelector(\'span.faq-arrow\').textContent=open?\'▼\':\'▲\';})()" style="width:100%;display:flex;align-items:center;gap:10px;padding:14px 16px;background:none;border:none;cursor:pointer;text-align:left;font-family:inherit;touch-action:manipulation;">' +
+                '<button onclick="(function(){var a=document.getElementById(\'' + BQSafe.jsStr(aid) + '\');var open=a.style.display!==\'none\';a.style.display=open?\'none\':\'block\';document.getElementById(\'' + BQSafe.jsStr(id) + '\').style.borderColor=open?\'var(--border)\':\'rgba(247,147,26,0.4)\';this.querySelector(\'span.faq-arrow\').textContent=open?\'▼\':\'▲\';})()" style="width:100%;display:flex;align-items:center;gap:10px;padding:14px 16px;background:none;border:none;cursor:pointer;text-align:left;font-family:inherit;touch-action:manipulation;">' +
                 '<span style="font-size:0.85rem;font-weight:700;color:var(--heading);flex:1;line-height:1.4;">' + item.q + '</span>' +
                 '<span class="faq-arrow" style="color:var(--text-faint);font-size:0.65rem;flex-shrink:0;margin-left:4px;">▼</span></button>' +
                 '<div id="' + aid + '" style="display:none;padding:0 16px 14px;font-size:0.82rem;color:var(--text-muted);line-height:1.65;border-top:1px solid var(--border);">' +

@@ -12,6 +12,8 @@ const path = require('path');
 const rulesDir = path.join(__dirname, 'rules');
 console.log('Installing tests/rules dependencies (npm ci)…');
 execSync('npm ci', { cwd: rulesDir, stdio: 'inherit' });
+console.log('Installing tests/xss dependencies (npm ci)…');
+execSync('npm ci', { cwd: path.join(__dirname, 'xss'), stdio: 'inherit' });
 
 const TESTS = [
     { name: 'Syntax Validation', file: 'test-syntax.js' },
@@ -37,6 +39,7 @@ const TESTS = [
     { name: 'Sidebar topics', file: 'test-sidebar-topics.js' },
     { name: 'Cache Busters', file: 'busters.js' },
     { name: 'Pleb Talk forum XSS', file: 'test-forum-xss.js' },
+    { name: 'App-wide XSS (jsdom + lint)', file: 'test-xss-appwide.js' },
     { name: 'Chat pinned scroll', file: 'test-chat-pinned-scroll.js' },
     { name: 'Google sign-in GIS', file: 'test-google-signin-gis.js' },
     { name: 'Beats moderation', file: 'test-beats-moderation.js' },
@@ -176,6 +179,7 @@ const TESTS = [
     { name: 'Username repick rules', file: 'rules/username-repick-rules.js' },
     { name: 'Claim requirement rules', file: 'rules/claim-req-rules.js' },
     { name: 'Forum mirror rules attack', file: 'rules/forum-mirror-attack.js' },
+    { name: 'XSS id + markup rules', file: 'rules/xss-id-rules.js' },
     { name: 'Raid bosses', file: 'test-raid-boss.js' },
     { name: 'Certification bonus', file: 'test-cert-bonus.js' },
     { name: 'Scholar exam draw', file: 'test-scholar-draw.js' },

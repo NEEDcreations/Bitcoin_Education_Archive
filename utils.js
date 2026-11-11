@@ -56,23 +56,28 @@ function safeJSON(key, fallback) {
 // Prevents XSS in user-generated content rendered as innerHTML
 function escapeHtml(str) {
     if (!str) return '';
+    // One shared escaper (xss-safe.js): & < > " ' ` — safe in element text and
+    // in any quoted attribute. The DOM fallback only runs if xss-safe.js is missing.
+    if (typeof BQSafe !== 'undefined' && BQSafe.esc) return BQSafe.esc(str);
     var div = document.createElement('div');
     div.appendChild(document.createTextNode(str));
-    // div.innerHTML encodes <, >, & but NOT " or ' — both can break out of
-    // HTML attribute contexts (e.g. src="...", onerror="..."). Encode them
-    // explicitly so escapeHtml is safe in element-text AND attribute contexts.
-    return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/`/g, '&#96;');
 }
 
 // ---- Safe URL (blocks javascript:, data:, vbscript:, blob: URIs) ----
+// Browsers ignore tabs/newlines and leading control chars in a scheme
+// ("java\nscript:"), so check a stripped copy. Quotes and angle brackets are
+// percent-encoded so the result cannot end an HTML attribute.
 function sanitizeUrl(url) {
     if (!url) return '';
-    url = url.trim();
+    url = String(url).trim();
+    var probe = url.replace(/[\u0000-\u0020\u007f-\u009f]/g, '');
+    var enc = function (u) { return u.replace(/["'<>`]/g, function (c) { return '%' + c.charCodeAt(0).toString(16).toUpperCase(); }); };
     // Allow data:image/ URLs (base64 profile pictures stored by the app)
-    if (/^data:image\//i.test(url)) return url;
-    // Block all other data:, javascript:, vbscript:, blob: URLs
-    if (/^(javascript|data|vbscript|blob):/i.test(url)) return '';
-    return url;
+    if (/^data:image\//i.test(probe)) return enc(url);
+    // Block all other data:, javascript:, vbscript:, blob:, file: URLs
+    if (/^(javascript|data|vbscript|blob|file|filesystem):/i.test(probe)) return '';
+    return enc(url);
 }
 
 // ---- Time Ago ----

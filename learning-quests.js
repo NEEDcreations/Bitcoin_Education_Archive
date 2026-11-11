@@ -632,7 +632,7 @@ window.renderLearningQuestHub = function() {
         {name:'El Salvador & Adoption',emoji:'🇸🇻'},{name:'Technical Deep Dives',emoji:'🔬'}
     ];
     var flashChipsHtml = _lqFlashTopics.map(function(t) {
-        return '<button onclick="window._lqLaunchFlashcards(\'' + t.name.replace(/'/g,"\\''") + '\')" style="padding:7px 11px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:20px;color:rgba(255,255,255,0.85);font-size:0.78rem;cursor:pointer;font-family:inherit;font-weight:600;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'#f7931a\'" onmouseout="this.style.borderColor=\'rgba(247,147,26,0.25)\'">' + t.emoji + ' ' + t.name + '</button>';
+        return '<button ' + BQSafe.act('window._lqLaunchFlashcards', [String(t.name)]) + ' style="padding:7px 11px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:20px;color:rgba(255,255,255,0.85);font-size:0.78rem;cursor:pointer;font-family:inherit;font-weight:600;transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'#f7931a\'" onmouseout="this.style.borderColor=\'rgba(247,147,26,0.25)\'">' + t.emoji + ' ' + t.name + '</button>';
     }).join('');
 
     var cardsHtml = LQ_TOPICS.map(function(topic) {
@@ -645,7 +645,7 @@ window.renderLearningQuestHub = function() {
         } else {
             statusHtml = '<span style="background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;">⬜ Start →</span>';
         }
-        return '<div class="lq-card" onclick="_lqOpenTopic(\'' + topic.slug + '\')" style="background:' + topic.color + '14;border:1.5px solid ' + topic.color + '55;display:flex;flex-direction:column;gap:8px;">' +
+        return '<div class="lq-card" ' + BQSafe.act('_lqOpenTopic', [String(topic.slug)]) + ' style="background:' + topic.color + '14;border:1.5px solid ' + topic.color + '55;display:flex;flex-direction:column;gap:8px;">' +
             '<div style="font-size:1.8rem;">' + topic.emoji + '</div>' +
             '<div style="font-weight:800;font-size:0.9rem;color:var(--text,#fff);line-height:1.3;">' + topic.title + '</div>' +
             statusHtml +
@@ -703,18 +703,18 @@ window._lqOpenTopic = function(slug) {
         if (isLast) {
             bottomBar = '<div style="display:flex;flex-direction:column;gap:10px;align-items:center;">' +
                 '<div style="font-size:0.8rem;color:rgba(255,255,255,0.4);">' + (slideIdx + 1) + ' / ' + totalSlides + '</div>' +
-                '<button onclick="_lqStartQuiz(\'' + slug + '\')" style="background:' + topic.color + ';color:#fff;padding:14px 32px;border-radius:14px;font-weight:900;cursor:pointer;font-family:inherit;border:none;font-size:1rem;width:100%;max-width:320px;">Take the Quiz →</button>' +
+                '<button ' + BQSafe.act('_lqStartQuiz', [String(slug)]) + ' style="background:' + topic.color + ';color:#fff;padding:14px 32px;border-radius:14px;font-weight:900;cursor:pointer;font-family:inherit;border:none;font-size:1rem;width:100%;max-width:320px;">Take the Quiz →</button>' +
                 '<div style="display:flex;gap:12px;">' +
-                (slideIdx > 0 ? '<button onclick="_lqNavSlide(\'' + slug + '\',' + (slideIdx - 1) + ',\'left\')" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);border-radius:10px;padding:10px 18px;cursor:pointer;font-family:inherit;font-weight:700;">← Back</button>' : '') +
+                (slideIdx > 0 ? '<button ' + BQSafe.act('_lqNavSlide', [String(slug), BQSafe.lit(slideIdx - 1), 'left']) + ' style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);border-radius:10px;padding:10px 18px;cursor:pointer;font-family:inherit;font-weight:700;">← Back</button>' : '') +
                 '</div>' +
                 '</div>';
         } else {
             bottomBar = '<div style="display:flex;align-items:center;justify-content:space-between;">' +
                 '<div>' +
-                (slideIdx > 0 ? '<button onclick="_lqNavSlide(\'' + slug + '\',' + (slideIdx - 1) + ',\'left\')" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);border-radius:10px;padding:10px 18px;cursor:pointer;font-family:inherit;font-weight:700;">←</button>' : '<span></span>') +
+                (slideIdx > 0 ? '<button ' + BQSafe.act('_lqNavSlide', [String(slug), BQSafe.lit(slideIdx - 1), 'left']) + ' style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);border-radius:10px;padding:10px 18px;cursor:pointer;font-family:inherit;font-weight:700;">←</button>' : '<span></span>') +
                 '</div>' +
                 '<div style="font-size:0.8rem;color:rgba(255,255,255,0.4);">' + (slideIdx + 1) + ' / ' + totalSlides + '</div>' +
-                '<button onclick="_lqNavSlide(\'' + slug + '\',' + (slideIdx + 1) + ',\'right\')" style="background:' + topic.color + ';color:#fff;border-radius:10px;padding:10px 22px;cursor:pointer;font-family:inherit;font-weight:800;border:none;">→</button>' +
+                '<button onclick="_lqNavSlide(\'' + BQSafe.jsStr(slug) + '\',' + (BQSafe.num(slideIdx) + BQSafe.num(1)) + ',\'right\')" style="background:' + topic.color + ';color:#fff;border-radius:10px;padding:10px 22px;cursor:pointer;font-family:inherit;font-weight:800;border:none;">→</button>' +
                 '</div>';
         }
 
@@ -827,7 +827,7 @@ function _lqShowQuestion() {
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:10px;" id="lqAnswers">' +
         answers.map(function(ans, i) {
-            return '<button class="lq-ans-btn" id="lqAns' + i + '" onclick="_lqSelectAnswer(\'' + slug_escape(ans) + '\',\'' + slug_escape(q.a) + '\',' + i + ')">' + ans + '</button>';
+            return '<button class="lq-ans-btn" id="lqAns' + i + '" ' + BQSafe.act('_lqSelectAnswer', [String(ans), String(q.a), BQSafe.lit(i)]) + '>' + ans + '</button>';
         }).join('') +
         '</div>' +
         '<div id="lqFeedback" style="margin-top:16px;min-height:40px;"></div>' +
@@ -941,9 +941,9 @@ function _lqShowScore() {
         '</div>' +
         scoreBanner +
         '<div style="display:flex;flex-direction:column;gap:10px;">' +
-        '<button onclick="_lqDoStartQuiz(\'' + slug + '\')" class="lq-btn" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:var(--text,#fff);width:100%;">🔄 Retake Quiz</button>' +
+        '<button ' + BQSafe.act('_lqDoStartQuiz', [String(slug)]) + ' class="lq-btn" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:var(--text,#fff);width:100%;">🔄 Retake Quiz</button>' +
         '<button onclick="document.getElementById(\'lqQuiz\').remove();window.renderLearningQuestHub&&renderLearningQuestHub();" class="lq-btn" style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);width:100%;">← Back to Topics</button>' +
-        (passed ? '<button onclick="_lqShowDigDeeper(\'' + slug + '\')" class="lq-btn" style="background:' + topic.color + ';color:#fff;width:100%;">Dig Deeper →</button>' : '') +
+        (passed ? '<button ' + BQSafe.act('_lqShowDigDeeper', [String(slug)]) + ' class="lq-btn" style="background:' + topic.color + ';color:#fff;width:100%;">Dig Deeper →</button>' : '') +
         '</div>' +
         '</div>';
 
@@ -1004,7 +1004,7 @@ window._lqShowDigDeeper = function(slug) {
     var closeAllScript = "document.getElementById('lqDigDeeper')&&document.getElementById('lqDigDeeper').remove();document.getElementById('lqQuiz')&&document.getElementById('lqQuiz').remove();document.getElementById('lqLesson')&&document.getElementById('lqLesson').remove();document.getElementById('lqHub')&&document.getElementById('lqHub').remove();";
 
     var linksHtml = topic.digDeeper.map(function(ch) {
-        return '<button onclick="' + closeAllScript + 'go(\'' + ch + '\')" style="padding:12px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text,#fff);border-radius:12px;cursor:pointer;font-family:inherit;font-weight:700;font-size:0.85rem;text-align:left;width:100%;">' +
+        return '<button onclick="' + closeAllScript + 'go(\'' + BQSafe.jsStr(ch) + '\')" style="padding:12px 16px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:var(--text,#fff);border-radius:12px;cursor:pointer;font-family:inherit;font-weight:700;font-size:0.85rem;text-align:left;width:100%;">' +
             '📚 ' + ch.replace(/-/g,' ').replace(/_/g,' ') +
             '</button>';
     }).join('');

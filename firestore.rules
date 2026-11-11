@@ -12,6 +12,18 @@ service cloud.firestore {
       return v is string && v.matches('^[A-Za-z0-9_-]{1,64}$');
     }
 
+    // XSS hardening (Nov 2026): every client-created doc id must be a plain
+    // token. The Pleb Talk stored XSS was a doc id containing "><img onerror>.
+    // Client code creates these with .add() (20-char auto ids), so this does
+    // not change any app flow.
+    function clientDocIdOk(id, maxLen) {
+      return id is string && id.size() >= 1 && id.size() <= maxLen && id.matches('^[A-Za-z0-9_-]+$');
+    }
+    // Display text written by clients may not carry markup brackets.
+    function noMarkup(v) {
+      return v is string && v.matches('^[^<>]*$');
+    }
+
     function lnShape(v) {
       return v is string && v.size() >= 5 && v.size() <= 320
         && v.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
@@ -525,11 +537,14 @@ service cloud.firestore {
       match /playlists/{playlistId} {
         allow read: if request.auth != null;
         allow create: if request.auth != null
+                      && clientDocIdOk(playlistId, 64)
+                      && noMarkup(request.resource.data.name)
                       && request.auth.uid == userId
                       && request.resource.data.name is string
                       && request.resource.data.name.size() <= 60;
         allow update: if request.auth != null
-                      && request.auth.uid == userId;
+                      && request.auth.uid == userId
+                      && (!('name' in request.resource.data) || noMarkup(request.resource.data.name));
         allow delete: if request.auth != null
                       && request.auth.uid == userId;
       }
@@ -1241,8 +1256,12 @@ service cloud.firestore {
                   && (resource.data.buyerUid == request.auth.uid
                       || resource.data.sellerUid == request.auth.uid);
       allow create: if request.auth != null
+                    && clientDocIdOk(msgId, 64)
                     && request.resource.data.buyerUid == request.auth.uid
-                    && request.resource.data.keys().hasAll(['buyerUid', 'sellerUid', 'listingId', 'message']);
+                    && request.resource.data.keys().hasAll(['buyerUid', 'sellerUid', 'listingId', 'message'])
+                    && clientDocIdOk(request.resource.data.listingId, 64)
+                    && clientDocIdOk(request.resource.data.sellerUid, 128)
+                    && (!('buyerName' in request.resource.data) || noMarkup(request.resource.data.buyerName));
     }
 
     // =============================================
@@ -1252,6 +1271,7 @@ service cloud.firestore {
       allow read: if request.auth != null
                   && request.auth.uid in resource.data.participants;
       allow create: if request.auth != null
+                    && clientDocIdOk(convoId, 160)
                     && request.auth.uid in request.resource.data.participants
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     // participantNames values must be strings ≤ 60 chars; no injecting arbitrary values
@@ -1267,9 +1287,11 @@ service cloud.firestore {
         allow read: if request.auth != null
                     && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants;
         allow create: if request.auth != null
+                      && clientDocIdOk(messageId, 64)
                       && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                       && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants
                       && request.resource.data.senderUid == request.auth.uid
+                      && (!('senderName' in request.resource.data) || (noMarkup(request.resource.data.senderName) && request.resource.data.senderName.size() <= 60))
                       && request.resource.data.text is string
                       && request.resource.data.text.size() <= 1000
                       && !('isNachoAuto' in request.resource.data)
@@ -1285,7 +1307,11 @@ service cloud.firestore {
       allow read: if request.auth != null
                   && isAdmin();
       allow create: if request.auth != null
-                    && request.resource.data.reporterUid == request.auth.uid;
+                    && clientDocIdOk(reportId, 64)
+                    && request.resource.data.reporterUid == request.auth.uid
+                    && (!('reason' in request.resource.data) || (noMarkup(request.resource.data.reason) && request.resource.data.reason.size() <= 500))
+                    && (!('reportedName' in request.resource.data) || (noMarkup(request.resource.data.reportedName) && request.resource.data.reportedName.size() <= 60))
+                    && (!('reporterName' in request.resource.data) || (noMarkup(request.resource.data.reporterName) && request.resource.data.reporterName.size() <= 60));
     }
 
     // =============================================
@@ -1294,6 +1320,7 @@ service cloud.firestore {
     match /irl_events/{eventId} {
       allow read: if true;
       allow create: if request.auth != null
+                    && clientDocIdOk(eventId, 64)
                     && request.resource.data.hostId == request.auth.uid
                     && request.resource.data.keys().hasAll(['title', 'hostId', 'date'])
                     && (request.resource.data.keys().hasAny(['location', 'locationName']))
@@ -1464,6 +1491,7 @@ service cloud.firestore {
     match /beats_tracks/{trackId} {
       allow read: if true;
       allow create: if request.auth != null
+                    && clientDocIdOk(trackId, 64)
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.copyrightConfirmed == true
@@ -1537,6 +1565,7 @@ service cloud.firestore {
       match /comments/{commentId} {
         allow read: if true;
         allow create: if request.auth != null
+                      && clientDocIdOk(commentId, 64)
                       && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                       && request.resource.data.authorId == request.auth.uid
                       && request.resource.data.text is string
@@ -1810,7 +1839,7 @@ service cloud.firestore {
               || (d.hasChatFlair == true && ('chatFlairEmoji' in d || nook)));
       }
       allow read: if true;
-      allow create: if (
+      allow create: if clientDocIdOk(msgId, 64) && (
                     // Authenticated non-anonymous user messages only
                     request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
@@ -1923,10 +1952,15 @@ service cloud.firestore {
                     && request.resource.data.senderName is string
                     && request.resource.data.senderName.size() > 0
                     && request.resource.data.senderName.size() <= 40
+                    && noMarkup(request.resource.data.senderName)
+                    && noMarkup(request.resource.data.message)
+                    // No look-alike system notices from clients
+                    && !request.resource.data.senderName.lower().matches('.*(bitcoin ?quest|quest team|\\bsystem\\b|\\badmin\\b|moderator|\\bofficial\\b|\\bsupport\\b).*')
                     && request.resource.data.message is string
                     && request.resource.data.message.size() > 0
                     && request.resource.data.message.size() <= 200
-                    && request.resource.data.type in ['dm', 'like', 'tip', 'mention', 'reply', 'forum', 'beats_track', 'pvp', 'buddy', 'comment', 'upvote', 'security', 'chat_mention', 'article', 'forum_post']
+                    && request.resource.data.type in ['dm', 'like', 'tip', 'mention', 'reply', 'forum', 'beats_track', 'pvp', 'buddy', 'comment', 'upvote', 'chat_mention', 'article', 'forum_post']
+                    // 'security' notices are server-only (Cloud Functions)
                     && (request.resource.data.targetType == null
                         || request.resource.data.targetType in ['dm', 'forum_post', 'article', 'beats_track', 'marketplace', 'song', 'chat', 'pvp', 'buddy'])
                     && (request.resource.data.targetId == null
@@ -2119,6 +2153,13 @@ service cloud.firestore {
     }
 
     // Timechain TV viewer counts — increment/decrement by 1 only
+    // Admin queue copies of forum posts etc. Server (Admin SDK) writes only;
+    // stated explicitly so a later catch-all change cannot open it to clients.
+    match /admin_notifications/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+
     match /timechain_viewers/{stationId} {
       allow read: if true;
       allow write: if false; // deprecated — use tctv_presence

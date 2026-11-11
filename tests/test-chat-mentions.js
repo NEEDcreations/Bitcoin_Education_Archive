@@ -37,6 +37,7 @@ const hook = 'var _chatUsers = {};';
 assert.ok(raw.indexOf(hook) !== -1, 'username cache declaration moved; update this test');
 const src = raw.replace(hook, 'var _chatUsers = window.__testChatUsers = {};');
 for (let attempt = 0; attempt < 12; attempt++) {
+    require('./xss/load-bqsafe')(vm, context);
     try { vm.runInContext(src, context, { filename: 'global-chat.js' }); break; }
     catch (err) {
         const missing = String(err && err.message || '').match(/^(\w+) is not defined$/);
@@ -124,11 +125,15 @@ test('HTML escaping and XSS protection stay intact', function() {
     assert.ok(html.indexOf('&lt;img src=x onerror=alert(1)&gt;') !== -1, html);
     assert.deepStrictEqual(chips(html), ['@chill guy2']);
     // The leftover text must never land inside the onclick attribute.
-    const onclicks = html.match(/onclick="[^"]*"/g) || [];
-    onclicks.forEach(function(o) { assert.ok(/lookupUserByName\('chill guy2'\)/.test(o), o); });
+    // Chips use delegated actions (BQSafe.act): no inline onclick, and the
+    // leftover text never lands inside the action arguments.
+    assert.strictEqual((html.match(/onclick=/g) || []).length, 0, html);
+    const argsOf = function(h) { return (h.match(/data-bq-click-args="[^"]*"/g) || []); };
+    argsOf(html).forEach(function(a) { assert.strictEqual(a, 'data-bq-click-args="[&quot;chill guy2&quot;]"', a); });
     const quoteName = render("@chill guy2 ');alert(1);//");
-    assert.strictEqual((quoteName.match(/onclick=/g) || []).length, 1, quoteName);
-    assert.ok(quoteName.indexOf("lookupUserByName('chill guy2')\"") !== -1, quoteName);
+    assert.strictEqual((quoteName.match(/onclick=/g) || []).length, 0, quoteName);
+    assert.strictEqual((quoteName.match(/data-bq-click="lookupUserByName"/g) || []).length, 1, quoteName);
+    assert.deepStrictEqual(argsOf(quoteName), ['data-bq-click-args="[&quot;chill guy2&quot;]"'], quoteName);
 });
 
 test('uid-tagged shoutouts are unchanged', function() {

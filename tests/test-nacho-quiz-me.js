@@ -175,6 +175,7 @@ function loadQuiz() {
         return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     };
     vm.createContext(sandbox);
+    require('./xss/load-bqsafe')(vm, sandbox);
     vm.runInContext(slice + '\nthis._nqShuffle = _nqShuffle;', sandbox, { filename: 'nacho-quiz-me.js' });
     return { sandbox: sandbox, dom: dom };
 }

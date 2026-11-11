@@ -437,7 +437,7 @@ function _renderArcadeTab(wrap) {
             ? '<img class="pop-game-thumb" src="' + game.thumb + '" alt="" data-fb="' + (game.thumbFallback||'🎮') + '" onerror="_popThumbErr(this)">'
             : '<div class="pop-game-thumb-fallback">' + (game.thumbFallback||'🎮') + '</div>';
 
-        html += '<div class="pop-game-card' + (game.hot ? ' hot' : '') + '" onclick="window._popLaunchGame(\'' + game.url + '\',\'' + game.title.replace(/'/g, "\\'") + '\')">' +
+        html += '<div class="pop-game-card' + (game.hot ? ' hot' : '') + '" ' + BQSafe.act('window._popLaunchGame', [String(game.url), String(game.title)]) + '>' +
             thumbEl +
             '<div class="pop-game-info">' +
                 '<div class="pop-game-title">' + game.title + '</div>' +
@@ -446,7 +446,7 @@ function _renderArcadeTab(wrap) {
                     '<span class="pop-game-tag">' + game.players + '</span>' +
                 '</div>' +
                 '<div class="pop-game-desc">' + game.desc + '</div>' +
-                '<button class="pop-game-play-btn" onclick="event.stopPropagation();window._popLaunchGame(\'' + game.url + '\',\'' + game.title.replace(/'/g, "\\'") + '\')">▶ Play Now</button>' +
+                '<button class="pop-game-play-btn" ' + BQSafe.act('window._popLaunchGame', [String(game.url), String(game.title)], { stop: 1 }) + '>▶ Play Now</button>' +
             '</div>' +
         '</div>';
     });

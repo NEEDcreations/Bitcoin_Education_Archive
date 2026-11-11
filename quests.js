@@ -1801,13 +1801,13 @@ function showQuest(quest, retry) {
         html += '<div class="quest-q" id="questQ_'+i+'">';
         html += '<div class="quest-q-num">Question ' + (i + 1) + ' of 5';
         if (hintTokens > 0) {
-            html += ' <button id="hintBtn_'+i+'" onclick="_useQuestHint('+i+')" style="float:right;padding:3px 10px;background:rgba(234,179,8,0.15);border:1px solid #eab308;border-radius:6px;color:#eab308;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">💡 Hint (' + hintTokens + ')</button>';
+            html += ' <button id="hintBtn_'+i+'" ' + BQSafe.act('_useQuestHint', [BQSafe.lit(i)]) + ' style="float:right;padding:3px 10px;background:rgba(234,179,8,0.15);border:1px solid #eab308;border-radius:6px;color:#eab308;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">💡 Hint (' + hintTokens + ')</button>';
         }
         html += '</div>';
         html += '<div class="quest-q-text">' + q.q + '</div>';
         html += '<div class="quest-options" id="questOpts_'+i+'">';
         q.options.forEach((opt, j) => {
-            html += '<button class="quest-opt" id="questOpt_'+i+'_'+j+'" onclick="selectAnswer(this,' + i + ',' + j + ')">' + opt + '</button>';
+            html += '<button class="quest-opt" id="questOpt_'+i+'_'+j+'" ' + BQSafe.act('selectAnswer', [BQSafe.EL, BQSafe.lit(i), BQSafe.lit(j)]) + '>' + opt + '</button>';
         });
         html += '</div></div>';
     });
@@ -2185,7 +2185,7 @@ function showQuestFinalResults() {
         var recTitle = CHANNELS[recChannel].title;
         var isDirectMatch = currentQuest && currentQuest.topicKey && _resolveQuestChannel(currentQuest.topicKey);
         var recVerb = isDirectMatch ? (score === 5 ? '📚 Keep learning' : '📖 Study up on') : '🔍 Explore next';
-        recHtml = '<div style="margin:16px auto 0;max-width:320px;padding:12px 16px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:12px;cursor:pointer;transition:0.2s;" onclick="closeQuest();setTimeout(function(){go(\'' + recChannel + '\')},200)" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'rgba(247,147,26,0.25)\'">' +
+        recHtml = '<div style="margin:16px auto 0;max-width:320px;padding:12px 16px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:12px;cursor:pointer;transition:0.2s;" onclick="closeQuest();setTimeout(function(){go(\'' + BQSafe.jsStr(recChannel) + '\')},200)" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'rgba(247,147,26,0.25)\'">' +
             '<div style="font-size:0.72rem;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">' + recVerb + '</div>' +
             '<div style="font-size:0.9rem;font-weight:700;color:var(--heading);">' + recTitle + ' →</div>' +
         '</div>';
@@ -2331,7 +2331,7 @@ function _showQuestTopicPicker() {
     // Daily recommended quiz - cycles through all topics, no repeats until full cycle
     var _dailyTopic = _getDailyRecommendedQuiz(topics);
     if (_dailyTopic) {
-        html += '<button onclick="_startQuestTopic(\'' + _dailyTopic.key.replace(/['\\"]/g, '') + '\')" style="width:100%;padding:14px 12px;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(34,197,94,0.03));border:2px solid #22c55e;border-radius:12px;color:#22c55e;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;transition:0.2s;display:flex;align-items:center;justify-content:center;gap:8px;" onmouseover="this.style.background=\'rgba(34,197,94,0.2)\'" onmouseout="this.style.background=\'linear-gradient(135deg,rgba(34,197,94,0.12),rgba(34,197,94,0.03))\'">' +
+        html += '<button ' + BQSafe.act('_startQuestTopic', [String(_dailyTopic.key.replace(/['\\"]/g, ''))]) + ' style="width:100%;padding:14px 12px;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(34,197,94,0.03));border:2px solid #22c55e;border-radius:12px;color:#22c55e;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;transition:0.2s;display:flex;align-items:center;justify-content:center;gap:8px;" onmouseover="this.style.background=\'rgba(34,197,94,0.2)\'" onmouseout="this.style.background=\'linear-gradient(135deg,rgba(34,197,94,0.12),rgba(34,197,94,0.03))\'">' +
             '<span style="font-size:1.1rem;">📚</span> Daily Recommended Quiz - ' + _dailyTopic.emoji + ' ' + _dailyTopic.label +
         '</button>';
     }
@@ -2348,7 +2348,7 @@ function _showQuestTopicPicker() {
         var bg = t.done ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.02)';
         var border = t.done ? 'rgba(34,197,94,0.2)' : 'var(--border)';
         var statusIcon = t.done ? '<span style="color:#22c55e;font-size:0.75rem;">✅</span>' : '<span style="color:var(--text-faint);font-size:0.65rem;">' + t.count + 'Q</span>';
-        html += '<button onclick="_startQuestTopic(\'' + t.key.replace(/[\\'"]/g, "") + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:' + bg + ';border:1px solid ' + border + ';border-radius:10px;cursor:pointer;width:100%;text-align:left;font-family:inherit;transition:0.2s;color:var(--text);" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'' + border + '\'">' +
+        html += '<button ' + BQSafe.act('_startQuestTopic', [String(t.key.replace(/[\\'"]/g, ""))]) + ' style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:' + bg + ';border:1px solid ' + border + ';border-radius:10px;cursor:pointer;width:100%;text-align:left;font-family:inherit;transition:0.2s;color:var(--text);" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'' + BQSafe.jsStr(border) + '\'">' +
             '<span style="font-size:1.1rem;flex-shrink:0;">' + t.emoji + '</span>' +
             '<span style="flex:1;font-size:0.82rem;font-weight:' + (t.done ? '500' : '700') + ';color:' + (t.done ? 'var(--text-muted)' : 'var(--text)') + ';">' + t.label + '</span>' +
             statusIcon +
@@ -2367,6 +2367,9 @@ function _showQuestTopicPicker() {
             var onclick = b.getAttribute('onclick')||'';
             var m = onclick.match(/_startQuestTopic\('([^']+)'\)/);
             if(m) b.dataset.key = m[1];
+            else if (b.getAttribute('data-bq-click') === '_startQuestTopic') {
+                try { var _a = JSON.parse(b.getAttribute('data-bq-click-args') || '[]'); if (_a[0]) b.dataset.key = String(_a[0]); } catch (_) {}
+            }
             b.dataset.label = b.textContent.trim();
         });
         var search = document.getElementById('questSearch');
@@ -2959,7 +2962,7 @@ function _renderHasherRanksHTML(users) {
             '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
                 '<div style="display:flex;align-items:center;gap:6px;min-width:0;flex:1;overflow:hidden;">' +
                     '<span style="font-size:0.78rem;min-width:22px;flex-shrink:0;">' + rankIcon + '</span>' +
-                    '<span onclick="if(typeof showUserProfileByUsername===\'function\')showUserProfileByUsername(\'' + safeU + '\')" ' +
+                    '<span ' + BQSafe.act('showUserProfileByUsername', [String(safeU)]) + ' ' +
                         'style="font-size:0.8rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? 'var(--accent)' : 'var(--text)') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" ' +
                         'title="View @' + name + '\'s profile">' + name + (isMe ? ' (you)' : '') + '</span>' +
                 '</div>' +
@@ -3095,9 +3098,9 @@ function _renderTopHashesHTML(entries) {
                 '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">' +
                     '<div style="display:flex;align-items:center;gap:6px;">' +
                         '<span title="Target when mined: ' + diffTarget.toLocaleString() + '" ' +
-                            'onclick="window._sfHashTap(\'' + rowId + '\',' + diffTarget + ')" ' +
+                            '' + BQSafe.act('window._sfHashTap', [String(rowId), BQSafe.lit(diffTarget)]) + ' ' +
                             'style="font-family:monospace;font-size:0.82rem;font-weight:800;cursor:pointer;color:' + (isWin ? '#22c55e' : 'var(--text-muted)') + ';">' + e.value.toLocaleString() + '</span>' +
-                        '<span onclick="window._sfHashTap(\'' + rowId + '\',' + diffTarget + ')" style="font-size:0.65rem;color:var(--text-faint);cursor:pointer;user-select:none;" title="Tap to see difficulty">ⓘ</span>' +
+                        '<span ' + BQSafe.act('window._sfHashTap', [String(rowId), BQSafe.lit(diffTarget)]) + ' style="font-size:0.65rem;color:var(--text-faint);cursor:pointer;user-select:none;" title="Tap to see difficulty">ⓘ</span>' +
                     '</div>' +
                     (tsMs ? '<span style="font-size:0.62rem;color:var(--text-faint);">' + winDate + '</span>' : '') +
                 '</div>' +
@@ -3910,7 +3913,7 @@ function _renderNookSubTabs() {
         ['shop','inventory','history'].map(function(st) {
             var labels = { shop:'🛒 Shop', inventory:'📦 Inventory', history:'📜 History' };
             var active = st === tab;
-            return '<button onclick="window._nookSubTab=\''+st+'\';_renderNookSubTabs()" style="flex:1;padding:8px 0;border-radius:10px;border:1px solid '+(active ? '#f7931a' : 'var(--border)')+';background:'+(active ? 'linear-gradient(135deg,#f7931a,#eab308)' : 'none')+';color:'+(active ? '#fff' : 'var(--text-muted)')+';font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">'+labels[st]+'</button>';
+            return '<button onclick="window._nookSubTab=\''+BQSafe.jsStr(st)+'\';_renderNookSubTabs()" style="flex:1;padding:8px 0;border-radius:10px;border:1px solid '+(active ? '#f7931a' : 'var(--border)')+';background:'+(active ? 'linear-gradient(135deg,#f7931a,#eab308)' : 'none')+';color:'+(active ? '#fff' : 'var(--text-muted)')+';font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;">'+labels[st]+'</button>';
         }).join('') +
     '</div>';
 
@@ -4057,7 +4060,7 @@ function _renderNookShop() {
     function buyBtn(itemId, cost, qty, label, extraStyle) {
         var canAfford = tickets >= cost * (qty || 1);
         var style = 'padding:6px 14px;border-radius:8px;border:none;font-size:0.78rem;font-weight:700;cursor:'+(canAfford?'pointer':'not-allowed')+';font-family:inherit;background:'+(canAfford?'linear-gradient(135deg,#f7931a,#e8720c)':'rgba(255,255,255,0.05)')+';color:'+(canAfford?'#fff':'var(--text-faint)')+';opacity:'+(canAfford?'1':'0.5')+';transition:0.2s;margin-top:7px;display:block;'+(extraStyle||'');
-        return '<button onclick="_nookBuyItem(\''+itemId+'\','+(qty||1)+',this)" '+(canAfford?'':'disabled')+'style="'+style+'">'+label+'</button>';
+        return '<button ' + BQSafe.act('_nookBuyItem', [String(itemId), BQSafe.lit(qty||1), BQSafe.EL]) + ' '+(canAfford?'':'disabled')+'style="'+style+'">'+label+'</button>';
     }
 
     function itemRow(icon, name, desc, cost, btnHtml) {
@@ -4077,7 +4080,7 @@ function _renderNookShop() {
         [1,5,10].map(function(n) {
             var cost = n * 500;
             var canConvert = pts >= cost;
-            return '<button onclick="_nookConvertXP('+n+',this)" '+(canConvert?'':'disabled')+' style="padding:7px 14px;border-radius:8px;border:1px solid '+(canConvert?'#22c55e':'var(--border)')+';background:'+(canConvert?'rgba(34,197,94,0.12)':'rgba(255,255,255,0.02)')+';color:'+(canConvert?'#22c55e':'var(--text-faint)')+';font-size:0.78rem;font-weight:700;cursor:'+(canConvert?'pointer':'not-allowed')+';font-family:inherit;opacity:'+(canConvert?'1':'0.5')+';">' +
+            return '<button ' + BQSafe.act('_nookConvertXP', [BQSafe.lit(n), BQSafe.EL]) + ' '+(canConvert?'':'disabled')+' style="padding:7px 14px;border-radius:8px;border:1px solid '+(canConvert?'#22c55e':'var(--border)')+';background:'+(canConvert?'rgba(34,197,94,0.12)':'rgba(255,255,255,0.02)')+';color:'+(canConvert?'#22c55e':'var(--text-faint)')+';font-size:0.78rem;font-weight:700;cursor:'+(canConvert?'pointer':'not-allowed')+';font-family:inherit;opacity:'+(canConvert?'1':'0.5')+';">' +
                 'Buy '+n+' ('+cost.toLocaleString()+' XP)' +
             '</button>';
         }).join('') +
@@ -4680,7 +4683,7 @@ function _patchCharityRecent() {
         }
         var nameHtml = isAnon
             ? '<span style="' + nameStyle + '">' + esc(d.username || 'Anonymous') + '</span>'
-            : '<span style="' + nameStyle + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + esc(d.uid) + '\')" title="View profile">' + esc(d.username || 'Anonymous') + '</span>';
+            : '<span style="' + nameStyle + '" ' + BQSafe.act('showUserProfile', [String(d.uid)]) + ' title="View profile">' + esc(d.username || 'Anonymous') + '</span>';
         html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.82rem;">' +
             '<span style="display:flex;align-items:center;gap:5px;">' + factionLabel + ' ' + nameHtml + '</span>' +
             '<span style="color:#ef4444;font-weight:700;">+' + (d.amount || 0).toLocaleString() + ' XP</span>' +
@@ -4818,7 +4821,7 @@ function _renderCharityTabInner(body) {
         html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">';
         quickPcts.forEach(function(pct) {
             var amt = Math.floor(available * pct / 100);
-            html += '<button data-charity-pct="' + pct + '" onclick="window._charitySetAmount(' + amt + ')" style="flex:1;min-width:50px;padding:8px 4px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'#ef4444\';this.style.color=\'#ef4444\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">' + pct + '%<br><span style="font-size:0.65rem;font-weight:400;">' + amt.toLocaleString() + '</span></button>';
+            html += '<button data-charity-pct="' + pct + '" ' + BQSafe.act('window._charitySetAmount', [BQSafe.lit(amt)]) + ' style="flex:1;min-width:50px;padding:8px 4px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'#ef4444\';this.style.color=\'#ef4444\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">' + pct + '%<br><span style="font-size:0.65rem;font-weight:400;">' + amt.toLocaleString() + '</span></button>';
         });
         html += '</div>';
 
@@ -5062,7 +5065,7 @@ function _renderQuestHubQuizPicker(body) {
     if (typeof _getDailyRecommendedQuiz === 'function') {
         var daily = _getDailyRecommendedQuiz(topics);
         if (daily) {
-            html += '<button onclick="window._questHubBackToTabs();setTimeout(function(){if(typeof _startQuestTopic===\'function\')_startQuestTopic(\''+daily.key.replace(/['\"]/g,'')+'\')}' + ',50)" style="width:100%;padding:12px;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(34,197,94,0.03));border:2px solid #22c55e;border-radius:12px;color:#22c55e;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px;">' +
+            html += '<button onclick="window._questHubBackToTabs();setTimeout(function(){if(typeof _startQuestTopic===\'function\')_startQuestTopic(\''+BQSafe.jsStr(daily.key.replace(/['\"]/g,''))+'\')}' + ',50)" style="width:100%;padding:12px;background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(34,197,94,0.03));border:2px solid #22c55e;border-radius:12px;color:#22c55e;font-weight:800;font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:8px;">' +
                 '<span>📚</span> Daily Recommended — ' + daily.emoji + ' ' + daily.label + '</button>';
         }
     }
@@ -5071,7 +5074,7 @@ function _renderQuestHubQuizPicker(body) {
     html += '<div id="qhQuizTopicList" style="display:flex;flex-direction:column;gap:5px;">';
     topics.forEach(function(t) {
         var safeKey = t.key.replace(/['"\\]/g, '');
-        html += '<button onclick="window._questHubBackToTabs();setTimeout(function(){if(typeof _startQuestTopic===\'function\')_startQuestTopic(\''+safeKey+'\')},50)" data-label="'+t.label.toLowerCase()+'" style="padding:10px 14px;background:var(--card-bg,#1a1a2e);border:1px solid '+(t.done ? 'rgba(34,197,94,0.3)' : 'var(--border)')+';border-radius:10px;color:'+(t.done ? '#22c55e' : 'var(--text)')+';font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;display:flex;align-items:center;gap:8px;transition:0.15s;">' +
+        html += '<button onclick="window._questHubBackToTabs();setTimeout(function(){if(typeof _startQuestTopic===\'function\')_startQuestTopic(\''+BQSafe.jsStr(safeKey)+'\')},50)" data-label="'+t.label.toLowerCase()+'" style="padding:10px 14px;background:var(--card-bg,#1a1a2e);border:1px solid '+(t.done ? 'rgba(34,197,94,0.3)' : 'var(--border)')+';border-radius:10px;color:'+(t.done ? '#22c55e' : 'var(--text)')+';font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;display:flex;align-items:center;gap:8px;transition:0.15s;">' +
             (t.done ? '<span style="font-size:0.75rem;color:#22c55e;">✅</span>' : '<span style="font-size:0.9rem;">'+t.emoji+'</span>') +
             t.label + '</button>';
     });
@@ -5411,7 +5414,7 @@ function _renderTriviaTab(body, optimisticVote) {
         } else {
             var isChecking = checking && window._triviaChecking && window._triviaChecking.idx === i;
             var dimOther = checking && !isChecking;
-            html += '<button onclick="triviaAnswer(' + i + ')"' + (checking ? ' disabled' : '') + ' style="padding:12px 16px;background:var(--card-bg,#1a1a2e);border:2px solid ' + (isChecking ? '#f7931a' : 'var(--border)') + ';border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:' + (checking ? 'default' : 'pointer') + ';font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;opacity:' + (dimOther ? '0.55' : '1') + ';">' +
+            html += '<button ' + BQSafe.act('triviaAnswer', [BQSafe.lit(i)]) + '' + (checking ? ' disabled' : '') + ' style="padding:12px 16px;background:var(--card-bg,#1a1a2e);border:2px solid ' + (isChecking ? '#f7931a' : 'var(--border)') + ';border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:' + (checking ? 'default' : 'pointer') + ';font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;opacity:' + (dimOther ? '0.55' : '1') + ';">' +
                 '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);">' + String.fromCharCode(65 + i) + '</span>' +
                 optText +
                 (isChecking ? '<span id="triviaChecking" style="margin-left:auto;font-size:0.75rem;font-weight:800;color:var(--text);white-space:nowrap;">checking\u2026</span>' : '') +
@@ -5672,7 +5675,7 @@ function _showPollVoteButtons(body, html, p) {
     html += '<div id="pollOptions" style="display:flex;flex-direction:column;gap:8px;">';
     for (var i = 0; i < p.options.length; i++) {
         var optText = typeof escapeHtml === 'function' ? escapeHtml(p.options[i]) : p.options[i];
-        html += '<button type="button" onclick="pollVote(' + i + ')" style="padding:14px 16px;background:var(--card-bg,#1a1a2e);border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;">' +
+        html += '<button type="button" ' + BQSafe.act('pollVote', [BQSafe.lit(i)]) + ' style="padding:14px 16px;background:var(--card-bg,#1a1a2e);border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;">' +
             '<span style="min-width:22px;height:22px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:800;color:var(--text-faint);">' + String.fromCharCode(65 + i) + '</span>' +
             optText +
         '</button>';
@@ -6574,7 +6577,7 @@ function _listenRaidParticipants(bossId) {
                 pieces.push('<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;">' +
                     '<div style="display:flex;align-items:center;gap:8px;">' +
                         '<span style="font-size:0.8rem;min-width:24px;">' + rankIcon + '</span>' +
-                        '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + _pUid + '\')" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
+                        '<span ' + BQSafe.act('showUserProfile', [String(_pUid)]) + ' style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
                     '</div>' +
                     '<span style="font-size:0.78rem;font-weight:800;color:#8b5cf6;font-variant-numeric:tabular-nums;">' + contributed.toLocaleString() + ' dmg</span>' +
                 '</div>');
@@ -6640,7 +6643,7 @@ window._toggleRaidDamageDealers = function() {
                 pieces.push('<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;margin-bottom:4px;">' +
                     '<div style="display:flex;align-items:center;gap:8px;">' +
                         '<span style="font-size:0.8rem;min-width:24px;">' + rankIcon + '</span>' +
-                        '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + pUid + '\')" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
+                        '<span ' + BQSafe.act('showUserProfile', [String(pUid)]) + ' style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
                     '</div>' +
                     '<span style="font-size:0.78rem;font-weight:800;color:#8b5cf6;font-variant-numeric:tabular-nums;">' + contributed.toLocaleString() + ' dmg</span>' +
                 '</div>');
@@ -6707,7 +6710,7 @@ function _raidAllTimeHtml(doc) {
         pieces.push('<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;">' +
             '<div style="display:flex;align-items:center;gap:8px;">' +
                 '<span style="font-size:0.8rem;min-width:24px;">' + rankIcon + '</span>' +
-                '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + safeId + '\')" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
+                '<span ' + BQSafe.act('showUserProfile', [String(safeId)]) + ' style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
             '</div>' +
             '<span style="font-size:0.78rem;font-weight:800;color:#f7931a;font-variant-numeric:tabular-nums;">' + dmg.toLocaleString() + ' dmg</span>' +
         '</div>');
@@ -7701,8 +7704,8 @@ function _renderFlexInteraction(action) {
             '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">' +
             '<div style="width:2px;height:10px;background:#555;border-radius:1px;"></div>' +
             '<div id="redcandle-body-' + action.id + '" ' +
-                'onmousedown="_flexRedCandleStart(\'' + action.id + '\')" onmouseup="_flexRedCandleEnd(\'' + action.id + '\')" onmouseleave="_flexRedCandleEnd(\'' + action.id + '\')" ' +
-                'ontouchstart="event.preventDefault();_flexRedCandleStart(\'' + action.id + '\')" ontouchend="_flexRedCandleEnd(\'' + action.id + '\')" ' +
+                'onmousedown="_flexRedCandleStart(\'' + BQSafe.jsStr(action.id) + '\')" onmouseup="_flexRedCandleEnd(\'' + BQSafe.jsStr(action.id) + '\')" ' + BQSafe.act('_flexRedCandleEnd', [String(action.id)], { on: 'mouseleave' }) + ' ' +
+                'ontouchstart="event.preventDefault();_flexRedCandleStart(\'' + BQSafe.jsStr(action.id) + '\')" ontouchend="_flexRedCandleEnd(\'' + BQSafe.jsStr(action.id) + '\')" ' +
                 'style="width:48px;height:140px;background:#1a0d0d;border:2px solid #ef4444;border-radius:3px 3px 4px 4px;position:relative;overflow:hidden;cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none;">' +
             // Fill falls from top
             '<div id="redcandle-fill-' + action.id + '" style="position:absolute;top:0;left:0;right:0;height:0%;background:linear-gradient(180deg,#dc2626 0%,#ef4444 100%);transition:none;"></div>' +
@@ -7731,8 +7734,8 @@ function _renderFlexInteraction(action) {
             '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">' +
             '<div style="width:2px;height:14px;background:#555;border-radius:1px;"></div>' +
             '<div id="candle-body-' + action.id + '" ' +
-                'onmousedown="_flexCandleStart(\'' + action.id + '\')" onmouseup="_flexCandleEnd(\'' + action.id + '\',false)" onmouseleave="_flexCandleEnd(\'' + action.id + '\',false)" ' +
-                'ontouchstart="event.preventDefault();_flexCandleStart(\'' + action.id + '\')" ontouchend="_flexCandleEnd(\'' + action.id + '\',false)" ' +
+                'onmousedown="_flexCandleStart(\'' + BQSafe.jsStr(action.id) + '\')" onmouseup="_flexCandleEnd(\'' + BQSafe.jsStr(action.id) + '\',false)" ' + BQSafe.act('_flexCandleEnd', [String(action.id), false], { on: 'mouseleave' }) + ' ' +
+                'ontouchstart="event.preventDefault();_flexCandleStart(\'' + BQSafe.jsStr(action.id) + '\')" ontouchend="_flexCandleEnd(\'' + BQSafe.jsStr(action.id) + '\',false)" ' +
                 'style="width:48px;height:140px;background:#0d1a0d;border:2px solid #22c55e;border-radius:4px 4px 3px 3px;position:relative;overflow:hidden;cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none;">' +
             '<div id="candle-fill-' + action.id + '" style="position:absolute;bottom:0;left:0;right:0;height:0%;background:linear-gradient(180deg,#4ade80 0%,#16a34a 100%);transition:none;"></div>' +
             '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">' +
@@ -7782,7 +7785,7 @@ function _renderFlexInteraction(action) {
                 'style="display:none;position:absolute;font-size:2rem;cursor:crosshair;transform:translate(-50%,-50%);transition:none;z-index:5;"></div>' +
             '<div id="gr-status-' + action.id + '" style="position:absolute;top:8px;left:50%;transform:translateX(-50%);font-size:0.72rem;font-weight:700;color:rgba(247,147,26,0.7);white-space:nowrap;">TAP TO START</div>' +
             '<div id="gr-hits-' + action.id + '" style="position:absolute;top:8px;right:10px;font-size:0.8rem;"></div>' +
-            '<button type="button" id="gr-start-' + action.id + '" onclick="_flexGunRangeStart(\'' + action.id + '\')" ' +
+            '<button type="button" id="gr-start-' + action.id + '" ' + BQSafe.act('_flexGunRangeStart', [String(action.id)]) + ' ' +
                 'style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);padding:6px 20px;background:var(--accent);border:none;border-radius:20px;color:#fff;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">🔫 Take aim</button>' +
         '</div>';
     }
@@ -7853,7 +7856,7 @@ function _renderFlexInteraction(action) {
             '<div id="chess-board-' + action.id + '" style="display:inline-block;border:2px solid var(--border);border-radius:4px;overflow:hidden;"></div>' +
             '<div id="chess-msg-' + action.id + '" style="font-size:0.75rem;font-weight:700;margin-top:6px;min-height:18px;"></div>' +
             '<div style="font-size:0.65rem;color:var(--text-faint);margin-top:4px;">Tap a piece, then tap where it goes</div>' +
-            '<button type="button" class="flex-btn" id="chess-flip-' + action.id + '" onclick="_chessToggleFlip(\'' + action.id + '\')" style="margin-top:8px;padding:6px 12px;font-size:0.7rem;">Flip board</button>' +
+            '<button type="button" class="flex-btn" id="chess-flip-' + action.id + '" ' + BQSafe.act('_chessToggleFlip', [String(action.id)]) + ' style="margin-top:8px;padding:6px 12px;font-size:0.7rem;">Flip board</button>' +
             '</div>';
     }
     if (action.type === 'blackjack') {
@@ -7864,8 +7867,8 @@ function _renderFlexInteraction(action) {
             '<div id="bj-dealer-' + action.id + '" style="font-size:0.75rem;color:var(--text-faint);margin-bottom:10px;"></div>' +
             '<div id="bj-msg-' + action.id + '" style="font-size:0.8rem;font-weight:700;margin-bottom:10px;"></div>' +
             '<div id="bj-btns-' + action.id + '" style="display:flex;gap:8px;">' +
-                '<button class="flex-btn" onclick="_bjHit(\'' + action.id + '\')" style="padding:8px 18px;font-size:0.8rem;">Hit 🃏</button>' +
-                '<button class="flex-btn" onclick="_bjStand(\'' + action.id + '\')" style="padding:8px 18px;font-size:0.8rem;background:rgba(100,100,100,0.15);border-color:var(--border);">Stand 🤚</button>' +
+                '<button class="flex-btn" ' + BQSafe.act('_bjHit', [String(action.id)]) + ' style="padding:8px 18px;font-size:0.8rem;">Hit 🃏</button>' +
+                '<button class="flex-btn" ' + BQSafe.act('_bjStand', [String(action.id)]) + ' style="padding:8px 18px;font-size:0.8rem;background:rgba(100,100,100,0.15);border-color:var(--border);">Stand 🤚</button>' +
             '</div>' +
             '</div>';
     }
@@ -7891,7 +7894,7 @@ function _renderFlexInteraction(action) {
             displayKeys.map(function(k) {
                 return '<div class="flex-seq-key" data-id="' + action.id + '" data-key="' + k + '" onclick="_flexSeqTap(this)">' + k + '</div>';
             }).join('') +
-            '<div class="flex-seq-key" style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);color:#ef4444;" onclick="_flexSeqReset(\'' + action.id + '\')">&#x232b;</div>' +
+            '<div class="flex-seq-key" style="background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.3);color:#ef4444;" ' + BQSafe.act('_flexSeqReset', [String(action.id)]) + '>&#x232b;</div>' +
             '</div></div>';
     }
     return '';
@@ -9717,7 +9720,7 @@ window._showPinnedBadgeSelector = function() {
     var gridHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;max-height:300px;overflow-y:auto;padding:4px;">';
     badgeMeta.forEach(function(b) {
         var isSelected = b.id === currentPinned;
-        gridHtml += '<button onclick="window._selectPinnedBadge(\'' + b.id.replace(/['"]/g,'') + '\')" ' +
+        gridHtml += '<button ' + BQSafe.act('window._selectPinnedBadge', [String(b.id.replace(/['"]/g,''))]) + ' ' +
             'style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 8px;min-width:72px;background:' +
             (isSelected ? 'rgba(247,147,26,0.15)' : 'var(--card-bg)') + ';border:1px solid ' +
             (isSelected ? '#f7931a' : 'var(--border)') + ';border-radius:10px;cursor:pointer;font-family:inherit;transition:0.2s;">' +
@@ -9772,7 +9775,7 @@ window._showChatFlairPicker = function() {
     var gridHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:16px 0;">';
     FLAIR_OPTIONS.forEach(function(emoji) {
         var isSelected = emoji === currentFlair;
-        gridHtml += '<button onclick="window._selectChatFlair(\'' + emoji + '\')" ' +
+        gridHtml += '<button ' + BQSafe.act('window._selectChatFlair', [String(emoji)]) + ' ' +
             'style="width:48px;height:48px;font-size:1.5rem;border-radius:12px;border:2px solid ' +
             (isSelected ? '#f7931a' : 'var(--border)') + ';background:' +
             (isSelected ? 'rgba(247,147,26,0.15)' : 'var(--card-bg)') + ';cursor:pointer;transition:0.15s;font-family:inherit;">' +

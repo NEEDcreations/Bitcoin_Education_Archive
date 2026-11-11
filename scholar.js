@@ -260,7 +260,7 @@ function renderScholarQuestion(idx) {
         '<div style="display:flex;flex-direction:column;gap:10px;">';
     choices.forEach(function (opt, ci) {
         var selected = scholarAnswers[idx] === opt.id;
-        html += '<button data-ci="' + ci + '" onclick="selectScholarAnswer(' + idx + ', ' + ci + ')" style="text-align:left;padding:15px;background:' + (selected ? 'var(--accent)' : 'var(--bg-side)') + ';color:' + (selected ? '#fff' : 'var(--text)') + ';border:1px solid ' + (selected ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;cursor:pointer;font-family:inherit;font-size:0.95rem;">' + scholarEscape(opt.text) + '</button>';
+        html += '<button data-ci="' + ci + '" ' + BQSafe.act('selectScholarAnswer', [BQSafe.lit(idx), BQSafe.lit(ci)]) + ' style="text-align:left;padding:15px;background:' + (selected ? 'var(--accent)' : 'var(--bg-side)') + ';color:' + (selected ? '#fff' : 'var(--text)') + ';border:1px solid ' + (selected ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;cursor:pointer;font-family:inherit;font-size:0.95rem;">' + scholarEscape(opt.text) + '</button>';
     });
     html += '</div>' +
         '<div style="margin-top:30px;display:flex;justify-content:space-between;">' +
@@ -976,7 +976,7 @@ window.startFlashcards = function(topic) {
             if (index === cards.length - 1) {
                 inner.innerHTML = `<div style="text-align:center;padding:50px 20px;">
                     <div style="font-size:5rem;margin-bottom:20px;">🎓</div>
-                    <h2 style="color:var(--heading);margin-bottom:10px;">Great job, ${typeof nachoUserName === 'function' ? nachoUserName() : 'Scholar'}!</h2>
+                    <h2 style="color:var(--heading);margin-bottom:10px;">Great job, ${BQSafe.esc(typeof nachoUserName === 'function' ? nachoUserName() : 'Scholar')}!</h2>
                     <p style="color:var(--text-muted);margin-bottom:30px;">You've mastered the <strong>${topic}</strong> deck.</p>
                     <button id="finishDeck" style="padding:16px 40px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-weight:800;font-size:1rem;cursor:pointer;font-family:inherit;box-shadow:0 6px 16px rgba(247,147,26,0.3);">Back to Scholar Tab</button>
                 </div>`;

@@ -136,7 +136,7 @@ test('signing shell copy and the boost badge keep a gap', function () {
     assert.ok(html.includes('html.btc-signing-in #homeGuestActions'));
     assert.ok(read('engagement.js').includes('margin-left:6px'));
     assert.ok(read('bundle.min.js').includes('margin-left:6px'));
-    assert.ok(/const CACHE_NAME = 'btc-archive-v\d+'/.test(read('sw.js')));
+    assert.ok(/const CACHE_NAME = 'btc-archive-v\d+[a-z]?'/.test(read('sw.js')));
 });
 
 test('sheet helper closes the top layer on Escape and Back', function () {

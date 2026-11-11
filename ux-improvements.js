@@ -48,7 +48,7 @@
             (safeMsg || 'There was an error loading this channel. Please check your connection.') +
             '</div>' +
             '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">' +
-            '<button onclick="go(\'' + safeId + '\')" style="padding:12px 24px;background:var(--accent);' +
+            '<button ' + BQSafe.act('go', [String(safeId)]) + ' style="padding:12px 24px;background:var(--accent);' +
             'color:#fff;border:none;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;' +
             'font-family:inherit;">🔄 Retry</button>' +
             '<button onclick="goRandom()" style="padding:12px 24px;background:var(--card-bg);border:1px solid var(--border);' +
