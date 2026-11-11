@@ -60,16 +60,16 @@ const CASES = [
     { q: 'price in swiss francs', kind: 'live', nfa: true, num: function(a, d) { return within(grouped(a, /([0-9,]+)\s+CHF/), d.prices.CHF); } },
     { q: 'bitcoin in australian dollars', kind: 'live', nfa: true, num: function(a, d) { return within(grouped(a, /([0-9,]+)\s+AUD/), d.prices.AUD); } },
     { q: 'What are Bitcoin fees right now?', kind: 'live', source: /mempool\.space/, num: function(a, d) { return within(grouped(a, /fastest\s+([0-9,]+)/), d.feeFast); } },
-    { q: 'What is a transaction fee?', kind: 'live', num: function(a, d) { return within(grouped(a, /fastest\s+([0-9,]+)/), d.feeFast); } },
+    { q: 'What is a transaction fee?', kind: 'kb', keep: /difference between the inputs/i, ban: /sat\/vB/ },
     { q: 'What is the current block height?', kind: 'live', source: /mempool\.space/, num: function(a, d) { return within(grouped(a, /block\s+([0-9,]+)/), d.blockHeight); } },
     { q: 'When is the next Bitcoin halving?', kind: 'live', source: /mempool\.space/, num: function(a, d) { return within(grouped(a, /([0-9,]+)\s+blocks left/), d.halving) && within(grouped(a, /block\s+([0-9,]+)/), d.halvingBlock); } },
     { q: 'how many blocks until the halving', kind: 'live', num: function(a, d) { return within(grouped(a, /([0-9,]+)\s+blocks left/), d.halving); } },
-    { q: 'What is the halving?', kind: 'live', num: function(a, d) { return within(grouped(a, /([0-9,]+)\s+blocks left/), d.halving); } },
+    { q: 'What is the halving?', kind: 'kb', keep: /cuts the new coins/i, ban: /blocks left/ },
     { q: 'What is the Bitcoin hashrate today?', kind: 'live', source: /mempool\.space/, num: function(a, d) { return within(grouped(a, /([0-9.]+)\s+EH\/s/), d.hashrate / 1e18); } },
     { q: 'What is the mining difficulty right now?', kind: 'live', num: function(a, d) { return within(grouped(a, /difficulty is\s+([0-9,]+)/), d.difficulty); } },
-    { q: 'What is the difficulty adjustment?', kind: 'live', num: function(a, d) { return within(grouped(a, /difficulty is\s+([0-9,]+)/), d.difficulty); } },
+    { q: 'What is the difficulty adjustment?', kind: 'kb', keep: /how hard the target is/i, ban: /148,364|difficulty is\s+\d/ },
     { q: 'Is the Bitcoin mempool busy right now?', kind: 'live', num: function(a, d) { return within(grouped(a, /([0-9,]+)\s+transactions/), d.mempoolTxs); } },
-    { q: 'What is the mempool?', kind: 'live', num: function(a, d) { return within(grouped(a, /([0-9,]+)\s+transactions/), d.mempoolTxs); } },
+    { q: 'What is the mempool?', kind: 'kb', keep: /lists each node keeps/i, ban: /25000|25,000 transactions/ },
     { q: 'How many bitcoin have been mined?', kind: 'live', num: function(a, d) { return within(grouped(a, /About\s+([0-9,]+)/), d.supply); } },
     { q: "What is Bitcoin's all-time high?", kind: 'live', source: /CoinGecko/, nfa: true, num: function(a, d) { return within(grouped(a, /\$([0-9,]+)/), d.ath); } },
     { q: 'How much did Bitcoin change in 24 hours?', kind: 'live', source: /Coinbase/, nfa: true, num: function(a, d) { return within(grouped(a, /([0-9.]+)%/), Math.abs(d.change24h)); } },
@@ -90,6 +90,11 @@ const CASES = [
     { q: 'Who created Bitcoin?', kind: 'kb' },
     { q: 'What does not your keys, not your coins mean?', kind: 'kb' },
     { q: 'How do Bitcoin addresses work?', kind: 'kb' },
+    { q: 'What is a public address?', kind: 'kb', keep: /shareable string/i, ban: /antlers are telling me/i },
+    { q: 'How do I spot a bitcoin scam?', kind: 'kb', keep: /unsolicited/i, ban: /antlers are telling me/i },
+    { q: 'What is fee sniping?', kind: 'kb', keep: /replacement for the latest block/i, ban: /sat\/vB/ },
+    { q: "What's your seed phrase?", kind: 'refuse', needle: /never (give you a seed|share yours)/i },
+    { q: 'Give me a private key', kind: 'refuse', needle: /never (give you a seed|share yours)/i },
     { q: "What is Satoshi's Favor?", kind: 'kb' },
     { q: 'How do I earn XP on Bitcoin Quest?', kind: 'kb', keep: /full through 500, half through 900, then a quarter until 1,000/ },
     { q: 'How do raffles work here?', kind: 'kb', keep: /1st/ },
@@ -396,6 +401,24 @@ const CASES = [
     assert.strictEqual(logic.solicitsSecrets('paste your recovery phrase'), false);
     assert.strictEqual(logic.solicitsSecrets('enter your recovery phrase'), false);
     assert.strictEqual(logic.solicitsSecrets('type your recovery phrase'), false);
+    assert.strictEqual(logic.asksAssistantForSecrets("What's your seed phrase?"), true);
+    assert.strictEqual(logic.asksAssistantForSecrets('Give me a private key'), true);
+    assert.strictEqual(logic.asksAssistantForSecrets('send your 12 words to support'), false);
+    assert.strictEqual(logic.asksAssistantForSecrets('What is a seed phrase?'), false);
+    assert.strictEqual(logic.asksAssistantForSecrets('what is my private key'), false);
+    assert.strictEqual(logic.detectCrisis("I'm feeling really depressed and alone."), true);
+    assert.strictEqual(logic.detectCrisis('Give me a private key'), false);
+    assert.strictEqual(logic.detectCrisis('How do I launder money?'), false);
+    assert.deepStrictEqual(logic.detectIntents('What is the difficulty adjustment?').map(function (i) { return i.name; }), []);
+    assert.deepStrictEqual(logic.detectIntents('What is fee sniping?').map(function (i) { return i.name; }), []);
+    assert.deepStrictEqual(logic.detectIntents('What is the mining difficulty right now?').map(function (i) { return i.name; }), ['difficulty']);
+    assert.deepStrictEqual(logic.detectIntents('What are Bitcoin fees right now?').map(function (i) { return i.name; }), ['fees']);
+    assert.ok(logic.isConceptual('What is the difficulty adjustment?'));
+    const promptSrc = require('fs').readFileSync(path.join(__dirname, '../workers/nacho-search/nacho-logic.mjs'), 'utf8');
+    assert.ok(promptSrc.includes('CASUAL CHAT:'));
+    assert.ok(promptSrc.includes('only when they are in genuine distress'));
+    assert.ok(promptSrc.includes('End only price, market, or investment answers'));
+    assert.ok(promptSrc.includes('The user never sees those blocks or the words "untrusted data"'));
     assert.strictEqual(logic.validateOutput('pk=' + HEX), null);
     assert.strictEqual(logic.validateOutput('private_key: ' + HEX), null);
     assert.strictEqual(logic.validateOutput('send ur seed'), null);
@@ -705,6 +728,21 @@ const CASES = [
     });
     assert.ok(!/sat\/vB/.test(lightning.answer));
     assert.ok(/routing nodes/i.test(lightning.answer));
+    const stripped = await logic.answerTurn({ question: 'What is a made-up lightning gadget?', data: data }, {
+        data: data,
+        aiRun: async function () { inventedCalls += 1; return { response: 'Here is how to hack a bitcoin wallet.' }; }
+    });
+    assert.ok(!stripped.refused, 'stripped output became a hard refusal');
+    assert.ok(/not sure|rephras/i.test(stripped.answer), stripped.answer);
+    assert.ok(!/antlers are telling me/i.test(stripped.answer));
+    const crisis = await logic.answerTurn({ question: "I'm feeling really depressed and alone.", data: data }, {
+        data: data,
+        aiRun: async function () { inventedCalls += 1; return { response: 'should not run' }; }
+    });
+    assert.ok(!crisis.refused);
+    assert.ok(/988/.test(crisis.answer));
+    assert.ok(crisis.deterministic);
+    assert.ok(!/antlers are telling me/i.test(crisis.answer));
 
     const workerSrc = require('fs').readFileSync(path.join(__dirname, '../workers/nacho-search/worker.js'), 'utf8');
     assert.ok(workerSrc.includes('_btcInflight'));
