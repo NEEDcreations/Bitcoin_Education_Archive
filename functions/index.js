@@ -1509,6 +1509,22 @@ exports.registerReferral = functionsV1.runWith({ secrets: [referralIpSecret, del
     return referralService.registerReferral(data, context);
 });
 
+// Read-only invite greeting. Returns only a public username. Deploy by name
+// (lookupReferralInvite) after Phil's OK. No new secret and no new runtime SA
+// (no-secret callables stay on the default account until phase 2).
+exports.lookupReferralInvite = functionsV1.https.onCall(async (data, context) => {
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    try {
+        return await referralService.lookupReferralInvite(data, context);
+    } catch (e) {
+        const code = (e && e.code) ? String(e.code) : '';
+        if (code === 'unauthenticated' || code.indexOf('unauthenticated') !== -1) {
+            throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+        }
+        return { name: null };
+    }
+});
+
 exports.deleteMyReferralSignal = functionsV1.https.onCall(async (data, context) => {
     return referralService.deleteMyReferralSignal(data, context);
 });

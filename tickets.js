@@ -261,6 +261,114 @@ function captureReferralCode() {
     }
 }
 
+
+// ---- One-time referral welcome (public username only) ----
+var REFERRAL_WELCOME_PREFIX = 'btc_referral_welcome_shown_';
+
+function referralWelcomeShownKey(code) {
+    return REFERRAL_WELCOME_PREFIX + String(code || '');
+}
+
+function referralWelcomeNameOk(name) {
+    var n = String(name || '').trim();
+    if (!n || n.length > 32) return '';
+    if (/@/.test(n) || /</.test(n) || /https?:/i.test(n) || /javascript:/i.test(n)) return '';
+    return n;
+}
+
+function formatReferralWelcome(name) {
+    var n = referralWelcomeNameOk(name);
+    if (!n) return null;
+    return {
+        title: n + ' invited you to Bitcoin Quest!',
+        body: 'Reach Maxi rank to earn 50 Orange Tickets for you and ' + n + '.'
+    };
+}
+
+function _escapeWelcomeText(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function hasReferralWelcomeShown(code) {
+    if (!code) return true;
+    try { return localStorage.getItem(referralWelcomeShownKey(code)) === '1'; } catch (e) { return false; }
+}
+
+function markReferralWelcomeShown(code) {
+    if (!code) return;
+    try { localStorage.setItem(referralWelcomeShownKey(code), '1'); } catch (e) {}
+}
+
+function closeReferralWelcomePopup() {
+    var el = document.getElementById('referralWelcomeOverlay');
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+}
+
+function showReferralWelcomePopup(name) {
+    var copy = formatReferralWelcome(name);
+    if (!copy || typeof document === 'undefined') return false;
+    if (document.getElementById('referralWelcomeOverlay')) return true;
+    var wrap = document.createElement('div');
+    wrap.id = 'referralWelcomeOverlay';
+    wrap.setAttribute('role', 'dialog');
+    wrap.setAttribute('aria-modal', 'true');
+    wrap.setAttribute('aria-labelledby', 'referralWelcomeTitle');
+    wrap.style.cssText = 'position:fixed;inset:0;z-index:7000000;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;padding:20px;';
+    wrap.innerHTML = '<div style="background:#1a1a2e;border:2px solid rgba(247,147,26,0.4);border-radius:20px;padding:24px;max-width:360px;width:100%;text-align:center;">'
+        + '<h2 id="referralWelcomeTitle" style="font-size:1.15rem;margin:0 0 10px;color:#fff;">' + _escapeWelcomeText(copy.title) + '</h2>'
+        + '<p style="color:#94a3b8;line-height:1.5;margin:0 0 18px;">' + _escapeWelcomeText(copy.body) + '</p>'
+        + '<button type="button" id="referralWelcomeOk" style="width:100%;padding:12px;background:#f7931a;border:none;border-radius:10px;color:#fff;font-weight:800;cursor:pointer;">Let\'s go</button>'
+        + '</div>';
+    wrap.addEventListener('click', function(ev) {
+        if (ev.target === wrap) closeReferralWelcomePopup();
+    });
+    document.body.appendChild(wrap);
+    var ok = document.getElementById('referralWelcomeOk');
+    if (ok) ok.addEventListener('click', closeReferralWelcomePopup);
+    if (typeof window.btcElevateOverlay === 'function') {
+        try { window.btcElevateOverlay(wrap); } catch (e) {}
+    }
+    return true;
+}
+
+async function maybeShowReferralWelcome() {
+    var code = (typeof storedReferralCode === 'function') ? storedReferralCode() : '';
+    if (!code || hasReferralWelcomeShown(code)) return;
+    if (typeof firebase === 'undefined' || !firebase.functions) return;
+    var authUser = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser : null;
+    if (!authUser) return;
+    try {
+        var fn = firebase.functions().httpsCallable('lookupReferralInvite');
+        var result = await fn({ refCode: code });
+        var data = result && result.data;
+        var ok = referralWelcomeNameOk(data && data.name);
+        if (!ok) {
+            markReferralWelcomeShown(code);
+            return;
+        }
+        if (showReferralWelcomePopup(ok)) markReferralWelcomeShown(code);
+    } catch (e) {
+        // Network or unauthenticated: retry on the next auth tick.
+    }
+}
+
+function scheduleReferralWelcome() {
+    function bind() {
+        if (typeof auth === 'undefined' || !auth || typeof auth.onAuthStateChanged !== 'function') return false;
+        if (window._referralWelcomeBound) return true;
+        window._referralWelcomeBound = true;
+        auth.onAuthStateChanged(function() { maybeShowReferralWelcome(); });
+        maybeShowReferralWelcome();
+        return true;
+    }
+    if (bind()) return;
+    var tries = 0;
+    var timer = setInterval(function() {
+        tries++;
+        if (bind() || tries > 60) clearInterval(timer);
+    }, 1000);
+}
+
 // ---- Award daily login ticket ----
 async function awardDailyTicket() {
     return;
@@ -986,6 +1094,12 @@ function inviteGuestSignup() {
 
 if (typeof window !== 'undefined') {
     captureReferralCode();
+    scheduleReferralWelcome();
+    window.formatReferralWelcome = formatReferralWelcome;
+    window.referralWelcomeNameOk = referralWelcomeNameOk;
+    window.showReferralWelcomePopup = showReferralWelcomePopup;
+    window.maybeShowReferralWelcome = maybeShowReferralWelcome;
+    window.closeReferralWelcomePopup = closeReferralWelcomePopup;
     window.openInviteFriends = openInviteFriends;
     window.minimizeInviteCard = minimizeInviteCard;
     window.expandInviteCard = expandInviteCard;
