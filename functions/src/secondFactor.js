@@ -275,9 +275,16 @@ function initSecondFactor(deps) {
     }
     const phoneCache = new Map();
 
-    function httpError(code, message) {
+    function httpError(code, message, details) {
+        if (details) return new HttpsError(code, message, details);
         return new HttpsError(code, message);
     }
+
+    // The client reads details.reason to tell "resume your remembered device
+    // or re-enter the code" apart from every other failed-precondition.
+    // The message text stays the same so older clients keep matching it.
+    const MFA_SESSION_REASON = 'mfa_session_required';
+    const PHONE_REAUTH_REASON = 'phone_reauth_required';
 
     function forgetPhone(uid) {
         phoneCache.delete(uid);
@@ -641,16 +648,33 @@ function initSecondFactor(deps) {
         const userData = userSnap.exists ? (userSnap.data() || {}) : {};
         if (secret) {
             const session = await sessionValid(uid, context.mfaSessionId || '', nowMs);
-            if (!session) throw httpError('failed-precondition', 'Authenticator session required');
+            if (!session) {
+                throw httpError('failed-precondition', 'Authenticator session required', { reason: MFA_SESSION_REASON });
+            }
         }
         const phoneMust = phone.enrolled === true || (phone.missing === true && userData.phoneVerified === true);
         if (phoneMust) {
             const token = (context.auth.token && context.auth.token.firebase) || {};
             if (!token.sign_in_second_factor) {
-                throw httpError('failed-precondition', 'Sign in again so your phone verification applies.');
+                throw httpError('failed-precondition', 'Sign in again so your phone verification applies.', { reason: PHONE_REAUTH_REASON });
             }
         }
         return { uid: uid, totp: !!secret, phone: phone.enrolled === true };
+    }
+
+    // Read-only answer to "is this browser still remembered?". It never
+    // issues a session, never updates the row, and never charges a guess.
+    // A 64-hex token is 256 bits, so this is not a guessing oracle. Resume
+    // (App Check enforced, rate limited) is still the only way to a session.
+    async function rememberedDevice(uid, token, nowMs) {
+        if (!/^[0-9a-f]{64}$/.test(token || '')) return null;
+        const found = await deviceByToken(token);
+        if (!found || found.row.uid !== uid || found.row.revoked === true) return null;
+        if (!(typeof found.row.expiresAtMs === 'number' && found.row.expiresAtMs > nowMs)) return null;
+        const boundary = await passwordBoundaryMs(uid);
+        const createdAtMs = typeof found.row.createdAtMs === 'number' ? found.row.createdAtMs : 0;
+        if (boundary == null || (boundary > 0 && createdAtMs < boundary)) return null;
+        return { expiresAtMs: found.row.expiresAtMs };
     }
 
     async function assertTotpKey() {
@@ -1000,13 +1024,21 @@ function initSecondFactor(deps) {
         const userData = userSnap.exists ? (userSnap.data() || {}) : {};
         const phoneOn = phone.enrolled === true;
         const enabled = !!secret;
-        return {
+        const body = {
             enabled: enabled,
             phoneEnabled: phoneOn || userData.phoneVerified === true,
             sessionVerified: !!session,
             needsRecoveryCodes: (enabled || phoneOn) && !codes.exists,
             expiresAt: session ? session.expiresAtMs : null,
         };
+        const deviceToken = data && typeof data.deviceToken === 'string' ? data.deviceToken.trim() : '';
+        if (enabled && deviceToken) {
+            let remembered = null;
+            try { remembered = await rememberedDevice(uid, deviceToken, nowMs); } catch (e) { remembered = null; }
+            body.deviceRemembered = !!remembered;
+            body.deviceExpiresAt = remembered ? remembered.expiresAtMs : null;
+        }
+        return body;
     });
 
     const totpRevokeSession = functionsV1.https.onCall(async function (data, context) {

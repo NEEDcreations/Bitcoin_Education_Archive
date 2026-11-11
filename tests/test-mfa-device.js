@@ -153,12 +153,18 @@ async function main() {
         assert.strictEqual(sandbox.mfaIsTransientError(err('', 'Failed to fetch')), false);
         assert.strictEqual(sandbox.mfaIsTransientError(err('', 'unavailable')), false);
         assert.strictEqual(sandbox.mfaAllowsAfterStatusError(true), false);
-        const allows = ranking.slice(ranking.indexOf('window._serverTotpAllows'), ranking.indexOf('window._maybeOfferRecoveryCodes ='));
-        assert.ok(allows.indexOf('mfaIsAppCheckError(e3)') !== -1);
-        assert.ok(allows.indexOf("resumeMsg.indexOf('Device is not trusted')") !== -1);
-        assert.ok(allows.indexOf('mfaIsAppCheckError(e3)') < allows.indexOf('mfaClearDevice'));
-        assert.ok(allows.indexOf('Device is not trusted') < allows.indexOf('mfaClearDevice'));
-        assert.strictEqual(allows.indexOf("resumeCode !== 'resource-exhausted'"), -1);
+        // Resume moved into window._mfaResumeSession (page load, keep-alive,
+        // and callable recovery share it). App Check errors are retried and
+        // never forget the device; only "Device is not trusted." does.
+        const resume = ranking.slice(ranking.indexOf('window._mfaResumeSession = function'), ranking.indexOf('window._serverTotpAllows = async function'));
+        assert.ok(resume.indexOf('mfaIsAppCheckError(e)') !== -1);
+        assert.ok(resume.indexOf("msg.indexOf('Device is not trusted')") !== -1);
+        assert.ok(resume.indexOf('mfaIsAppCheckError(e)') < resume.indexOf('mfaClearDevice'));
+        assert.ok(resume.indexOf('Device is not trusted') < resume.indexOf('mfaClearDevice'));
+        assert.strictEqual(resume.indexOf("resumeCode !== 'resource-exhausted'"), -1);
+        const allows = ranking.slice(ranking.indexOf('window._serverTotpAllows'), ranking.indexOf('window._promptMfaReentry = function'));
+        assert.ok(allows.indexOf('window._mfaResumeSession(') !== -1);
+        assert.ok(allows.indexOf('data.deviceRemembered === false') < allows.indexOf('mfaClearDevice'));
         const patch = ranking.slice(ranking.indexOf('function installMfaCallablePatch'), ranking.indexOf('function _mfaFailure'));
         assert.ok(patch.indexOf('_btcAppCheckForClaim(8000)') !== -1);
         assert.ok(patch.indexOf("missing.code = 'app-check-unavailable'") !== -1);

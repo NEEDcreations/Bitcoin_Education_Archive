@@ -36,10 +36,16 @@
         return !!(tok && tok.token && !pastRefreshPoint(tok));
     }
 
+    // Sticky only when the reCAPTCHA script itself never loaded. A loaded
+    // script that times out once ("reCAPTCHA Timeout", a backgrounded tab, a
+    // slow network) is retried on the next protected call instead of
+    // failing every App Check callable until the page is reloaded.
     function noteScriptFailure(err) {
         if (window._btcRecaptchaFailed) return;
         var blob = String((err && err.code) || '') + ' ' + String((err && err.message) || '');
-        if (blob.indexOf('recaptcha') !== -1) window._btcRecaptchaFailed = true;
+        if (blob.indexOf('recaptcha') === -1) return;
+        if (typeof window.grecaptcha === 'undefined') window._btcRecaptchaFailed = true;
+        else window._btcRecaptchaSoftFailAt = Date.now();
     }
 
     function ensureInner() {
@@ -140,6 +146,18 @@
             if (timer) clearTimeout(timer);
             return token || '';
         });
+    };
+
+    // One more try after a failure. Clears the sticky flag only if the
+    // reCAPTCHA script has loaded since, then asks for a fresh token.
+    // Resolves '' when there is still no token. Never throws.
+    window._btcRetryAppCheck = function (timeoutMs) {
+        if (usable(real)) return Promise.resolve(real.token);
+        if (window._btcRecaptchaFailed) {
+            if (typeof window.grecaptcha === 'undefined') return Promise.resolve('');
+            window._btcRecaptchaFailed = false;
+        }
+        return window._btcAppCheckForClaim(typeof timeoutMs === 'number' ? timeoutMs : 8000).catch(function () { return ''; });
     };
 
     window._btcActivateAppCheck = function () {
