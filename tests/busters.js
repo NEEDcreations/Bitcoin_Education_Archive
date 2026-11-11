@@ -50,9 +50,9 @@ test('mobile main pad tracks --bq-mobile-bar-h so Experience clears the header',
     assert.ok(html404.includes('features.registry.js?v=20261109_v2538'));
 });
 
-test('service worker cache is v2544', () => {
+test('service worker cache is v2545', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2544'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2545'"));
     assert.ok(!sw.includes('btc-archive-v2537'));
     assert.ok(!sw.includes('btc-archive-v2530'));
     assert.ok(!sw.includes('btc-archive-v2536'));
@@ -621,7 +621,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2544');
+    assert.ok(swVersion && swVersion[1] === 'v2545');
     assert.ok(html.includes('faction-race-prizes.js?v=20261105_v2505'));
 });
 
