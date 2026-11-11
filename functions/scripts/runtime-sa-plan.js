@@ -13,7 +13,7 @@
 // Run IAM commands only with Phil's OK, one batch at a time, and only before
 // deploying that same batch by name (never deploy-all).
 const path = require('path');
-const { RUNTIME_SERVICE_ACCOUNTS, EXTRA_ROLES } = require('../src/runtimeServiceAccounts');
+const { RUNTIME_SERVICE_ACCOUNTS, EXTRA_ROLES, BUCKET_EXTRAS } = require('../src/runtimeServiceAccounts');
 
 const PROJECT = process.env.GCLOUD_PROJECT || 'bitcoin-education-archive';
 const REGION = 'us-central1';
@@ -31,6 +31,10 @@ const BATCHES = [
     { name: 'gen1 hot topics, Strava, referral callables', fns: ['refreshHotTopicsHttp', 'refreshHotTopicsForce', 'stravaAuth', 'syncStravaWalks', 'verifyReferral', 'registerReferral'] },
     { name: 'account security: TOTP, username, email change, delete', fns: ['totpSetup', 'totpVerify', 'totpCheck', 'totpDisable', 'totpStepUp', 'regenerateRecoveryCodes', 'setUsername', 'prepareEmailChange', 'syncEmailChange', 'confirmAccountLink', 'deleteAccount'] },
     { name: 'wallet / NWC (last)', fns: ['getFaucetStats', 'confirmTipSent', 'adminResolveCipherSatsClaim', 'resetLightningAddressOnce', 'claimSats', 'claimCipherSats', 'claimCipherWin', 'tctvDripTick'] },
+    // Standalone, no secrets. New function: its account, custom role and
+    // bucket are created by Phil first (PHIL-SETUP.sh); run.invoker on its own
+    // Cloud Run service can only be granted after its first deploy.
+    { name: 'daily Auth export (gen2 schedule, no secrets)', fns: ['dailyAuthExport'], standalone: true },
 ];
 
 function loadEndpoints() {
@@ -65,8 +69,15 @@ function buildPlan(endpoints) {
         const ep = endpoints[name];
         if (!ep) throw new Error('manifest function is not exported: ' + name);
         const email = entry.id + '@' + PROJECT + '.iam.gserviceaccount.com';
-        const projectRoles = ['roles/datastore.user'];
-        entry.extra.forEach(function (x) { if (x !== 'storage') projectRoles.push(EXTRA_ROLES[x]); });
+        const projectRoles = entry.noFirestore ? [] : ['roles/datastore.user'];
+        const bucketRoles = [];
+        entry.extra.forEach(function (x) {
+            const role = EXTRA_ROLES[x].replace('$PROJECT', PROJECT);
+            if (BUCKET_EXTRAS[x]) {
+                const bucket = BUCKET_EXTRAS[x] === '$DEFAULT' ? DEFAULT_BUCKET : BUCKET_EXTRAS[x].replace('$PROJECT', PROJECT);
+                bucketRoles.push({ bucket: bucket, role: role });
+            } else projectRoles.push(role);
+        });
         if (ep.gen === 2 && ep.trigger === 'event') projectRoles.push('roles/eventarc.eventReceiver');
         fns[name] = {
             id: entry.id,
@@ -75,7 +86,7 @@ function buildPlan(endpoints) {
             trigger: ep.trigger,
             secrets: ep.secrets,
             projectRoles: projectRoles,
-            bucketRoles: entry.extra.indexOf('storage') !== -1 ? [{ bucket: DEFAULT_BUCKET, role: EXTRA_ROLES.storage }] : [],
+            bucketRoles: bucketRoles,
             // Gen2 event + schedule triggers now authenticate as this account.
             selfInvoker: ep.gen === 2 && (ep.trigger === 'event' || ep.trigger === 'schedule'),
         };

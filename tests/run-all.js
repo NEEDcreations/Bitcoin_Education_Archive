@@ -34,6 +34,7 @@ const TESTS = [
     { name: 'App Check SDK boot', file: 'test-app-check-sdk.js' },
     { name: 'App Check callable gate', file: 'test-app-check-callables.js' },
     { name: 'TCTV drip pot logic', file: 'test-tctv-drip.js' },
+    { name: 'Daily encrypted Auth export', file: 'test-auth-export.js' },
     { name: 'Sidebar topics', file: 'test-sidebar-topics.js' },
     { name: 'Cache Busters', file: 'busters.js' },
     { name: 'Chat pinned scroll', file: 'test-chat-pinned-scroll.js' },

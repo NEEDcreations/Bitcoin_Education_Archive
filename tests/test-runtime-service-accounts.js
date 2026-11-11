@@ -23,22 +23,47 @@ const plan = planMod.buildPlan(endpoints);
 const names = Object.keys(endpoints);
 const secretBound = names.filter(function (n) { return endpoints[n].secrets.length > 0; }).sort();
 const manifest = Object.keys(RUNTIME_SERVICE_ACCOUNTS).sort();
+// Accounts for functions that bind no secret but still must not run on the
+// default (Editor) accounts. Keep this list explicit and short.
+const NO_SECRET_ACCOUNTS = ['dailyAuthExport'];
+const secretManifest = manifest.filter(function (n) { return !RUNTIME_SERVICE_ACCOUNTS[n].noSecrets; });
 
-test('manifest lists exactly the secret-bound exports (54)', function () {
-    assert.deepStrictEqual(manifest, secretBound);
-    assert.strictEqual(manifest.length, 54);
+test('manifest lists exactly the secret-bound exports (54) plus the no-secret allowlist', function () {
+    assert.deepStrictEqual(secretManifest, secretBound);
+    assert.strictEqual(secretManifest.length, 54);
+    assert.deepStrictEqual(manifest.filter(function (n) { return RUNTIME_SERVICE_ACCOUNTS[n].noSecrets; }), NO_SECRET_ACCOUNTS);
 });
 
-test('every secret-bound function runs as its own account', function () {
-    secretBound.forEach(function (n) {
+test('every manifest function runs as its own account', function () {
+    manifest.forEach(function (n) {
         assert.strictEqual(endpoints[n].serviceAccount, RUNTIME_SERVICE_ACCOUNTS[n].id + '@bitcoin-education-archive.iam.gserviceaccount.com', n);
     });
 });
 
-test('functions without secrets do not set a service account', function () {
-    names.filter(function (n) { return endpoints[n].secrets.length === 0; }).forEach(function (n) {
+test('no-secret accounts really bind no secret', function () {
+    NO_SECRET_ACCOUNTS.forEach(function (n) { assert.deepStrictEqual(endpoints[n].secrets, [], n); });
+});
+
+test('functions without secrets do not set a service account (except the allowlist)', function () {
+    names.filter(function (n) { return endpoints[n].secrets.length === 0 && NO_SECRET_ACCOUNTS.indexOf(n) === -1; }).forEach(function (n) {
         assert.strictEqual(endpoints[n].serviceAccount, null, n);
     });
+});
+
+test('dailyAuthExport: custom reader role + objectCreator on the auth-backups bucket only', function () {
+    const f = plan.functions.dailyAuthExport;
+    assert.strictEqual(f.id, 'fn-daily-auth-export');
+    assert.deepStrictEqual(f.projectRoles, ['projects/bitcoin-education-archive/roles/bqAuthBackupReader']);
+    assert.deepStrictEqual(f.bucketRoles, [{ bucket: 'bitcoin-education-archive-auth-backups', role: 'roles/storage.objectCreator' }]);
+    assert.deepStrictEqual(f.secrets, []);
+    assert.strictEqual(f.gen, 2);
+    assert.strictEqual(f.trigger, 'schedule');
+    assert.strictEqual(f.selfInvoker, true);
+    const { AUTH_BACKUP_READER_PERMISSIONS } = require(path.join(fnRoot, 'src', 'runtimeServiceAccounts.js'));
+    assert.deepStrictEqual(AUTH_BACKUP_READER_PERMISSIONS.slice(), ['firebaseauth.configs.get', 'firebaseauth.configs.getHashConfig', 'firebaseauth.users.get']);
+    const last = plan.batches[plan.batches.length - 1];
+    assert.deepStrictEqual(last.fns, ['dailyAuthExport']);
+    assert.strictEqual(last.standalone, true);
 });
 
 test('account ids are valid, unique, and fit the project quota', function () {
@@ -75,15 +100,16 @@ test('adminApproveFactionPayout: no account, no secrets, never in a batch', func
     plan.batches.forEach(function (b) { assert.ok(b.fns.indexOf('adminApproveFactionPayout') === -1); });
 });
 
-test('batches cover each secret-bound function exactly once', function () {
+test('batches cover each manifest function exactly once', function () {
     const all = [];
     plan.batches.forEach(function (b) { all.push.apply(all, b.fns); });
     assert.strictEqual(all.length, new Set(all).size);
-    assert.deepStrictEqual(all.slice().sort(), secretBound);
+    assert.deepStrictEqual(all.slice().sort(), manifest);
 });
 
-test('wallet functions deploy in the last batch, canary first is read-only admin', function () {
-    const last = plan.batches[plan.batches.length - 1].fns;
+test('wallet functions deploy in the last secret-bound batch, canary first is read-only admin', function () {
+    const secretBatches = plan.batches.filter(function (b) { return !b.standalone; });
+    const last = secretBatches[secretBatches.length - 1].fns;
     ['claimSats', 'claimCipherSats', 'claimCipherWin', 'confirmTipSent', 'adminResolveCipherSatsClaim', 'tctvDripTick', 'getFaucetStats'].forEach(function (n) {
         assert.ok(last.indexOf(n) !== -1, n);
     });
@@ -91,7 +117,7 @@ test('wallet functions deploy in the last batch, canary first is read-only admin
 });
 
 test('plan grants each account only its own secrets', function () {
-    secretBound.forEach(function (n) {
+    manifest.forEach(function (n) {
         assert.deepStrictEqual(plan.functions[n].secrets, endpoints[n].secrets, n);
     });
 });
