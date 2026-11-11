@@ -63,13 +63,23 @@ function setup(users, opts) {
         async getUser(uid) {
             const u = users[uid];
             if (!u) throw new Error('no user');
-            return { uid, customClaims: u.claims || {}, multiFactor: { enrolledFactors: u.phoneAtMs ? [{ factorId: 'phone', enrollmentTime: new Date(u.phoneAtMs).toUTCString() }] : [] } };
+            return { uid, customClaims: u.claims || {}, multiFactor: { enrolledFactors: u.phoneAtMs ? [{ uid: u.phoneId || ('ph-' + uid), factorId: 'phone', enrollmentTime: new Date(u.phoneAtMs).toUTCString() }] : [] } };
         },
         async updateUser(uid, v) { updates.push([uid, v]); if (users[uid]) users[uid].phoneAtMs = 0; },
     };
+    // Seed the server-recorded factor list for phones the test marks as
+    // recorded (default: recorded when the phone was enrolled).
+    Object.keys(users).forEach(uid => {
+        const u = users[uid];
+        if (!u.phoneAtMs || u.recorded === false) return;
+        const enr = Math.floor(u.phoneAtMs / 1000) * 1000;
+        const phones = {};
+        phones[u.phoneId || ('ph-' + uid)] = { recordedAtMs: u.recordedAtMs || enr, enrollmentTimeMs: enr };
+        db.store['mfa_known_factors/' + uid] = { uid, phones };
+    });
     const api = SF.initSecondFactor({
         db,
-        admin: { auth: () => authApi, firestore: { FieldValue: { serverTimestamp: () => 'ts', increment: n => n, delete: () => undefined } } },
+        admin: { auth: () => authApi, firestore: { FieldValue: { serverTimestamp: () => new Date((global.__BTC_MFA_NOW__ || Date.now)()), increment: n => n, delete: () => undefined } } },
         HttpsError,
         authenticator: { generateSecret: () => 'x', keyuri: () => 'otpauth', checkDelta: (opts && opts.checkDelta) || (() => null), options: {} },
         QRCode: { toDataURL: async () => '' },
@@ -172,7 +182,7 @@ test('A1b: requireAdminStepUp busts the phoneInfo cache before reading', async (
     await api.requireAdminStepUp(ctx('a1'), 'adminResetSecondFactor');
     // ...then the phone is removed and re-enrolled just now.
     users.a1.phoneAtMs = NOW - 10000;
-    await assert.rejects(api.requireAdminStepUp(ctx('a1'), 'adminResetSecondFactor'), e => e.code === 'failed-precondition' && /too new/.test(e.message));
+    await assert.rejects(api.requireAdminStepUp(ctx('a1'), 'adminResetSecondFactor'), e => e.code === 'failed-precondition' && /too new|not added through the app/.test(e.message));
     const src = fs.readFileSync(path.join(root, 'functions', 'src', 'secondFactor.js'), 'utf8');
     const fn = src.slice(src.indexOf('async function requireAdminStepUp('), src.indexOf('const adminResetSecondFactor = '));
     assert.ok(fn.indexOf('forgetPhone(context.auth.uid)') > 0 && fn.indexOf('forgetPhone(context.auth.uid)') < fn.indexOf('requireFreshStepUp('));
@@ -220,11 +230,126 @@ test('A1b: every factor add/remove path calls the alert (source)', () => {
     assert.ok(between('const totpVerify = ', 'const totpCheck = ').indexOf("alertAdminFactorChange(uid, 'added', 'totp')") > 0);
     assert.ok(between('const totpDisable = ', 'const totpStatus = ').indexOf("alertAdminFactorChange(uid, 'removed', 'totp')") > 0);
     assert.ok(between('const useRecoveryCode = ', 'const phoneFactorRemoved = ').indexOf("alertAdminFactorChange(uid, 'removed'") > 0);
-    assert.ok(between('const phoneFactorRemoved = ', 'async function requireAdminStepUp(').indexOf("alertAdminFactorChange(uid, 'removed', 'phone')") > 0);
-    assert.ok(src.indexOf("if (freshPhone) await alertAdminFactorChange(uid, 'added', 'phone')") > 0);
-    const helper = between('async function alertAdminFactorChange(', 'async function clearTotp(');
+    assert.ok(between('const phoneFactorRemoved = ', 'async function requireAdminStepUp(').indexOf("alertAdminFactorChange(uid, 'removed', 'phone', { dedupeDaily: true })") > 0);
+    assert.ok(src.indexOf("if (newPhones.length || freshPhone) await alertAdminFactorChange(uid, 'added', 'phone')") > 0);
+    const helper = between('async function alertAdminFactorChange(', 'function knownRef(');
     assert.ok(helper.indexOf('customClaims.admin !== true') > 0 && helper.indexOf('notifyAdmin(') > 0);
     assert.strictEqual(helper.indexOf('uid: uid'), -1, 'no raw uid field');
+});
+
+// ---- Red Team #302 follow-up: server-recorded known factors ----
+const KEY = '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
+function withKey(fn) {
+    return async () => {
+        const prev = process.env.TOTP_ENCRYPTION_KEY;
+        process.env.TOTP_ENCRYPTION_KEY = KEY;
+        try { await fn(); } finally { if (prev === undefined) delete process.env.TOTP_ENCRYPTION_KEY; else process.env.TOTP_ENCRYPTION_KEY = prev; }
+    };
+}
+const unrecAlerts = (db) => Object.keys(db.store).filter(k => k.indexOf('admin_notifications/') === 0).map(k => db.store[k]).filter(r => r.type === 'admin_factor_unrecorded');
+test('known factors: an unrecorded admin phone (client-side enroll) is refused and alerts, rate-limited', async () => {
+    const { api, db, updates } = setup({ a1: { claims: { admin: true }, phoneAtMs: NOW - 3 * DAY, recorded: false }, t1abcdef: { phoneAtMs: NOW - DAY } });
+    await assert.rejects(run(api.adminResetSecondFactor, { uid: 't1abcdef', note: NOTE }, ctx('a1')), e => e.code === 'failed-precondition' && /not added through the app/.test(e.message));
+    await assert.rejects(run(api.adminResetSecondFactor, { uid: 't1abcdef', note: NOTE }, ctx('a1')), e => e.code === 'failed-precondition');
+    assert.strictEqual(updates.length, 0);
+    const a = unrecAlerts(db);
+    assert.strictEqual(a.length, 1, 'second refusal inside 6h does not alert again');
+    assert.strictEqual(JSON.stringify(a[0]).indexOf('"a1"'), -1, 'no raw uid');
+    assert.ok(a[0].uidHash && !('uid' in a[0]));
+    assert.ok(!db.store['mfa_known_factors/a1'] || !db.store['mfa_known_factors/a1'].phones, 'step-up never records what Auth shows');
+});
+test('known factors: a recorded phone older than 24h passes', async () => {
+    const { api, updates } = setup({ a1: { claims: { admin: true }, phoneAtMs: NOW - 3 * DAY, recordedAtMs: NOW - 2 * DAY }, t1abcdef: { phoneAtMs: NOW - DAY } });
+    const res = await run(api.adminResetSecondFactor, { uid: 't1abcdef', note: NOTE }, ctx('a1'));
+    assert.deepStrictEqual(res, { success: true });
+    assert.strictEqual(updates.length, 1);
+});
+test('known factors: a recorded phone under 24h is refused (record or enrollment too new)', async () => {
+    const a = setup({ a1: { claims: { admin: true }, phoneAtMs: NOW - 3 * DAY, recordedAtMs: NOW - 3600000 }, t1abcdef: {} });
+    await assert.rejects(a.api.requireAdminStepUp(ctx('a1'), 'adminResetSecondFactor'), e => /too new/.test(e.message));
+    const b = setup({ a1: { claims: { admin: true }, phoneAtMs: NOW - 3600000 } });
+    await assert.rejects(b.api.requireAdminStepUp(ctx('a1'), 'adminResetSecondFactor'), e => /too new/.test(e.message));
+});
+async function seedTotp(db, uid, enabledAtMs) {
+    await db.collection('totp_secrets').doc(uid).set({ secret: 'JBSWY3DPEHPK3PXP', secretEnc: false, enabled: true, enabledAt: new Date(enabledAtMs), lastAcceptedStep: 0 });
+}
+test("known factors: Phil-style legacy TOTP (totp_secrets server enabledAt, no list entry) keeps working", withKey(async () => {
+    const { api, db } = setup({ phil0001: { claims: { admin: true } } }, { checkDelta: () => 0 });
+    await seedTotp(db, 'phil0001', NOW - 29 * DAY);
+    const sf = await api.requireAdminStepUp(Object.assign(ctx('phil0001', { mfaSignIn: false }), { freshCode: '123456' }), 'adminResetSecondFactor');
+    assert.strictEqual(sf.established, true);
+    assert.strictEqual(unrecAlerts(db).length, 0);
+}));
+test('known factors: TOTP whose enabledAt does not match the recorded entry is refused and alerts', withKey(async () => {
+    const { api, db } = setup({ a2: { claims: { admin: true } } }, { checkDelta: () => 0 });
+    await seedTotp(db, 'a2', NOW - 10 * DAY);
+    db.store['mfa_known_factors/a2'] = { uid: 'a2', totp: { enabledAtMs: NOW - 40 * DAY, recordedAtMs: NOW - 40 * DAY } };
+    await assert.rejects(api.requireAdminStepUp(Object.assign(ctx('a2', { mfaSignIn: false }), { freshCode: '123456' }), 'adminResetSecondFactor'), e => /does not match/.test(e.message));
+    assert.strictEqual(unrecAlerts(db).length, 1);
+}));
+test('known factors: totpVerify records the TOTP with the exact server enabledAt', withKey(async () => {
+    const { api, db } = setup({ adminUid0003: { claims: { admin: true } } }, { checkDelta: () => 0 });
+    await db.collection('totp_pending').doc('adminUid0003').set({ secret: 'JBSWY3DPEHPK3PXP', secretEnc: false });
+    const c = ctx('adminUid0003'); c.auth.token.firebase = { sign_in_provider: 'password' };
+    await run(api.totpVerify, { code: '123456' }, c);
+    const rec = db.store['mfa_known_factors/adminUid0003'];
+    const sec = db.store['totp_secrets/adminUid0003'];
+    assert.ok(rec && rec.totp && rec.totp.enabledAtMs > 0);
+    assert.strictEqual(rec.totp.enabledAtMs, sec.enabledAt.getTime());
+}));
+test('known factors: issueRecoveryCodes records a proven phone (keyed by factor uid) and alerts', async () => {
+    const { api, db } = setup({ adminUid0004: { claims: { admin: true }, phoneAtMs: NOW - 60000, recorded: false, phoneId: 'mfaEnroll123' } });
+    await run(api.issueRecoveryCodes, {}, ctx('adminUid0004'));
+    const rec = db.store['mfa_known_factors/adminUid0004'];
+    assert.ok(rec && rec.phones && rec.phones.mfaEnroll123 && rec.phones.mfaEnroll123.recordedAtMs === NOW);
+    assert.ok(adminAlerts(db).some(r => r.change === 'added' && r.factor === 'phone'));
+});
+test('known factors (c): codes already exist -> nothing recorded, unrecorded admin phone still alerts; step-up refuses', async () => {
+    const { api, db } = setup({ adminUid0005: { claims: { admin: true }, phoneAtMs: NOW - 3 * DAY, recorded: false } });
+    await db.collection('recovery_codes').doc('adminUid0005').set({ codes: [] });
+    const r = await run(api.issueRecoveryCodes, {}, ctx('adminUid0005'));
+    assert.deepStrictEqual(r, { already: true });
+    assert.ok(!(db.store['mfa_known_factors/adminUid0005'] || {}).phones, 'no recording without proof');
+    assert.strictEqual(unrecAlerts(db).length, 1);
+    await assert.rejects(api.requireAdminStepUp(ctx('adminUid0005'), 'adminResetSecondFactor'), e => /not added through the app/.test(e.message));
+});
+test('known factors: non-admin phone factors are unaffected (normal second factor still passes)', async () => {
+    const { api, db } = setup({ user0001: { claims: {}, phoneAtMs: NOW - 60000, recorded: false } });
+    const sf = await api.requireSecondFactor(ctx('user0001', { admin: false }));
+    assert.strictEqual(sf.phone, true);
+    await db.collection('recovery_codes').doc('user0001').set({ codes: [] });
+    await run(api.issueRecoveryCodes, {}, ctx('user0001', { admin: false }));
+    assert.strictEqual(unrecAlerts(db).length + adminAlerts(db).length, 0, 'no admin alerts for a non-admin');
+});
+test('(a) phoneFactorRemoved notices dedupe per uid, change and day', async () => {
+    const users = { adminUid0006: { claims: { admin: true } } };
+    const { api, db } = setup(users);
+    await run(api.phoneFactorRemoved, {}, ctx('adminUid0006'));
+    await run(api.phoneFactorRemoved, {}, ctx('adminUid0006'));
+    await run(api.phoneFactorRemoved, {}, ctx('adminUid0006'));
+    assert.strictEqual(adminAlerts(db).filter(r => r.change === 'removed').length, 1);
+    const prev = global.__BTC_MFA_NOW__;
+    global.__BTC_MFA_NOW__ = () => NOW + DAY;
+    try { await run(api.phoneFactorRemoved, {}, ctx('adminUid0006')); } finally { global.__BTC_MFA_NOW__ = prev; }
+    assert.strictEqual(adminAlerts(db).filter(r => r.change === 'removed').length, 2, 'next day alerts again');
+});
+test('(b) mfa_admin_reset and mfa_recovery notices carry no raw uid', async () => {
+    const { api, db } = setup({ a1: { claims: { admin: true }, phoneAtMs: NOW - 2 * DAY }, t1abcdef: { phoneAtMs: NOW - DAY } });
+    await run(api.adminResetSecondFactor, { uid: 't1abcdef', note: NOTE }, ctx('a1'));
+    const row = Object.keys(db.store).filter(k => k.indexOf('admin_notifications/') === 0).map(k => db.store[k]).find(r => r.type === 'mfa_admin_reset');
+    assert.ok(row && row.uidHash && row.adminUidHash);
+    assert.ok(!('uid' in row) && !('adminUid' in row));
+    assert.strictEqual(JSON.stringify(row).indexOf('t1abcdef'), -1);
+    const src = fs.readFileSync(path.join(root, 'functions', 'src', 'secondFactor.js'), 'utf8');
+    const rec = src.slice(src.indexOf("type: 'mfa_recovery'") - 80, src.indexOf("type: 'mfa_recovery'") + 300);
+    assert.ok(rec.indexOf('maskUid(uid)') > 0 && rec.indexOf('uid: uid') === -1);
+});
+test('rules + deletion: mfa_known_factors is server-only and removed with the account', () => {
+    const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
+    assert.ok(/match \/mfa_known_factors\/\{userId\} \{\s*allow read, write: if false;\s*\}/.test(rules));
+    const del = fs.readFileSync(path.join(root, 'functions', 'src', 'deleteAccount.js'), 'utf8');
+    assert.ok(del.indexOf("['mfa_known_factors', uid, []]") > 0);
+    assert.ok(fs.existsSync(path.join(root, 'tests', 'rules', 'mfa-known-factors-rules.js')), 'emulator rules test present');
 });
 
 (async () => {
