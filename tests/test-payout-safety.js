@@ -240,7 +240,9 @@ test('adminClearPayoutHold: admin claim only, App Check, 2FA, confirm phrase, ow
     assert.ok(step.indexOf('recentSignIn(context, nowMs)') > 0);
     assert.ok(step.indexOf('requireFreshStepUp(context, action)') > 0);
     assert.ok(step.indexOf('factorEstablished(secret.enabledAt, nowMs)') > 0);
-    assert.ok(step.indexOf('factorEstablished(phone.enrollmentTime, nowMs)') > 0);
+    // Phone: established only via the server-recorded known-factor list (#302 Round 3).
+    assert.ok(step.indexOf('phoneStatus(phone, known, nowMs)') > 0);
+    assert.ok(sfSrc.indexOf('factorEstablished(f.enrollmentTime, nowMs) && factorEstablished(r.recordedAtMs, nowMs)') > 0);
     assert.ok(step.indexOf('forgetPhone(context.auth.uid)') > 0);
     const recent = body.indexOf('payoutSafety.recentAuth(context.auth.token.auth_time, Date.now())');
     assert.ok(recent > 0 && fresh > recent, 'recent sign-in, then fresh step-up');
