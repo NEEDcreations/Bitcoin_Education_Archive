@@ -228,6 +228,7 @@ exports.regenerateRecoveryCodes = secondFactor.regenerateRecoveryCodes;
 exports.useRecoveryCode = secondFactor.useRecoveryCode;
 exports.phoneFactorRemoved = secondFactor.phoneFactorRemoved;
 exports.adminResetSecondFactor = secondFactor.adminResetSecondFactor;
+exports.recordKnownPhoneFactor = secondFactor.recordKnownPhoneFactor;
 
 // =============================================
 // Streak Reminder Push Notifications

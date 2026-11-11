@@ -922,8 +922,8 @@ function initSecondFactor(deps) {
     // Red Team #302 follow-up: server-recorded known factors per account,
     // mfa_known_factors/{uid} (rules: no client read/write). phones is keyed
     // by the Auth factor uid; totp holds the totp_secrets enabledAt it was
-    // recorded with. Written ONLY by totpVerify and issueRecoveryCodes, never
-    // seeded from whatever Auth shows at step-up time.
+    // recorded with. Written ONLY by totpVerify, issueRecoveryCodes, and
+    // recordKnownPhoneFactor, never seeded from whatever Auth shows at step-up time.
     function knownRef(uid) {
         return db.collection('mfa_known_factors').doc(uid);
     }
@@ -941,7 +941,14 @@ function initSecondFactor(deps) {
         const added = [];
         const patch = { uid: uid, phones: {} };
         list.forEach(function (f) {
-            if (!f.id || phones[f.id]) return;
+            if (!f.id) return;
+            const existing = phones[f.id];
+            if (existing) {
+                if (timeMs(existing.enrollmentTimeMs) && f.enrollmentTime && timeMs(existing.enrollmentTimeMs) !== f.enrollmentTime) {
+                    throw httpError('failed-precondition', 'A two-factor method on this account does not match our records.');
+                }
+                return;
+            }
             patch.phones[f.id] = { recordedAtMs: nowMs, enrollmentTimeMs: f.enrollmentTime || 0 };
             added.push(f.id);
         });
@@ -1476,8 +1483,73 @@ function initSecondFactor(deps) {
         return { success: true };
     });
 
+    // D1: record the caller's current phone factor(s) onto the known list after
+    // a fresh second-factor proof. A TOTP session or trusted device is not
+    // enough. If totp_secrets has an enabled secret, a fresh authenticator
+    // code (verified through acceptTotp, with the usual replay protection) is
+    // required; a phone-token sign-in alone is refused so a password-only
+    // attacker cannot enroll a phone in the client SDK and record it. The
+    // phone-token path (sign_in_second_factor is phone for that exact factor
+    // uid, auth_time within 5 minutes) is only for accounts with no enabled
+    // TOTP. The 24h rule still counts from both enrollmentTime and recordedAt.
+    const recordKnownPhoneFactor = functionsV1.runWith({
+        secrets: ['TOTP_ENCRYPTION_KEY'],
+        serviceAccount: runtimeSa('recordKnownPhoneFactor'),
+        enforceAppCheck: true,
+    }).https.onCall(async function (data, context) {
+        const uid = requireUser(context);
+        rejectAnonymous(context);
+        const nowMs = currentNow();
+        await takeAttempt('recordKnownPhone:' + uid, nowMs);
+        forgetPhone(uid);
+        const phone = await phoneInfo(uid);
+        const list = (phone && phone.factors) || [];
+        if (phone.enrolled !== true || !list.length) {
+            throw httpError('failed-precondition', 'Turn on phone verification first.');
+        }
+        const secret = await secretRecord(uid);
+        const code = data && data.code ? String(data.code).trim() : '';
+        const token = (context.auth.token && context.auth.token.firebase) || {};
+        const factorUid = String(token.second_factor_identifier || '');
+        const signedInPhone = token.sign_in_second_factor === 'phone';
+        const authMs = authTimeMs(context);
+        const authAge = authMs ? (nowMs - authMs) : null;
+        const phoneFresh = signedInPhone && authMs && authAge >= -60000 && authAge <= FRESH_TTL_MS;
+        let target = list;
+        // TOTP-enabled accounts must prove the authenticator. A fresh phone
+        // token is not accepted in its place (Red Team: password-only enroll).
+        if (secret) {
+            if (!/^\d{6}$/.test(code)) {
+                throw httpError('failed-precondition', 'Enter a fresh authenticator code for this action.');
+            }
+            await acceptTotp(uid, code, nowMs);
+        } else if (/^\d{6}$/.test(code)) {
+            await acceptTotp(uid, code, nowMs);
+        } else if (code) {
+            throw httpError('failed-precondition', 'Enter a fresh authenticator code, or sign in again with phone verification.');
+        } else if (phoneFresh) {
+            if (!factorUid) {
+                throw httpError('failed-precondition', 'Sign in again so your phone verification applies.');
+            }
+            const matched = list.filter(function (f) { return f.id === factorUid; });
+            if (!matched.length) {
+                throw httpError('failed-precondition', 'A two-factor method on this account does not match our records.');
+            }
+            target = matched;
+        } else if (signedInPhone) {
+            throw httpError('failed-precondition', 'Sign in again so your phone verification applies.');
+        } else {
+            throw httpError('failed-precondition', 'Enter a fresh authenticator code, or sign in again with phone verification.');
+        }
+        const newPhones = await recordPhoneFactors(uid, { enrolled: true, factors: target }, nowMs);
+        if (newPhones.length) await alertAdminFactorChange(uid, 'added', 'phone');
+        return { success: true, recorded: newPhones.length };
+    });
+
     // Recent sign-in + fresh step-up (every enrolled factor) + at least one
-    // ESTABLISHED factor. Throws failed-precondition otherwise.
+    // ESTABLISHED factor. If totp_secrets has an enabled secret, that TOTP
+    // must be the established factor: a recorded phone alone is not enough.
+    // Throws failed-precondition otherwise.
     async function requireAdminStepUp(context, action) {
         if (!context || !context.auth || !context.auth.uid) throw httpError('unauthenticated', 'Must be signed in');
         const nowMs = currentNow();
@@ -1501,7 +1573,11 @@ function initSecondFactor(deps) {
         }
         const totpOk = sf.totp === true && !!secret && factorEstablished(secret.enabledAt, nowMs);
         const phoneOk = sf.phone === true && phone.enrolled === true && ps.established;
-        if (!totpOk && !phoneOk) {
+        // TOTP-enabled accounts must satisfy step-up with the established
+        // authenticator. A recorded phone alone must not stand in for TOTP
+        // (requireFreshStepUp already requires a fresh code when a secret
+        // exists; this also blocks a too-new TOTP from riding on an older phone).
+        if (secret ? !totpOk : !phoneOk) {
             throw httpError('failed-precondition', 'Your two-factor method is too new for this action. Try again after 24 hours.');
         }
         return Object.assign({}, sf, { established: true });
@@ -1588,6 +1664,7 @@ function initSecondFactor(deps) {
         regenerateRecoveryCodes: regenerateRecoveryCodes,
         useRecoveryCode: useRecoveryCode,
         phoneFactorRemoved: phoneFactorRemoved,
+        recordKnownPhoneFactor: recordKnownPhoneFactor,
         adminResetSecondFactor: adminResetSecondFactor,
         forgetPhone: forgetPhone,
         factorStillOn: factorStillOn,
