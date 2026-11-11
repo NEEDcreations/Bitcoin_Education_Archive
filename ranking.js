@@ -384,6 +384,7 @@ var APP_CHECK_CALLABLES = {
     ackBadgeBackfillToast: 1,
     ackCipherShare: 1,
     adminClearPayoutHold: 1,
+    adminResetSecondFactor: 1,
     adminResolveCipherSatsClaim: 1,
     answerTrivia: 1,
     armSayHi: 1,
