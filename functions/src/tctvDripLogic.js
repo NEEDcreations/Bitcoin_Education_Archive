@@ -243,11 +243,14 @@ function fillGrouped(elig, pot, cfg) {
 }
 
 // Per-group cap in whole sats: the larger of userShareCapPct and 2/N of the
-// pot, N = linked groups. Red Team #287: a lone group (N <= 1) is capped at
-// userShareCapPct, so one person's alts can never take the whole pot.
+// pot, N = max(linked groups, minEligibleWatchers). Spam/Abuse N1 + Red Team
+// #287: a lone group (N <= 1) is capped at userShareCapPct, and a few groups
+// never get more than 2/minEligibleWatchers each, so one person's alts on one
+// IP/device can never take the whole pot. Uncapped sats roll over.
 function shareCap(pot, n, cfg) {
     const pct = cfg.userShareCapPct / 100;
-    const frac = n > 1 ? Math.max(pct, 2 / n) : pct;
+    const minN = Math.max(1, Math.floor(cfg.minEligibleWatchers) || 1);
+    const frac = n > 1 ? Math.max(pct, 2 / Math.max(n, minN)) : pct;
     return Math.floor(pot * Math.min(1, frac));
 }
 
@@ -286,20 +289,23 @@ function fillShares(elig, pot, cap) {
 }
 
 // Proportional shares with a per-group cap (water filling).
-// Fewer than minEligibleWatchers distinct LINKED GROUPS: no payout (wait).
-// Red Team #287 re-check: accounts on one exact IP or device count once
-// toward the threshold (5 alts on one device are one watcher), and share one
-// cap bucket (Phil Nov 9). Subnet linking stays off unless linkBySubnet.
-// eligible = groups (threshold + 2/N cap); accounts = raw qualifying count.
+// Fewer than minEligibleWatchers qualifying ACCOUNTS: no payout (wait).
+// Spam/Abuse #287 M1 (kept on re-check): the threshold counts raw accounts,
+// so a classroom or household behind one IP is not stuck waiting forever.
+// Linked accounts (same exact IP or device; subnet only with linkBySubnet)
+// share ONE cap bucket (Phil Nov 9), and shareCap limits a lone group to
+// userShareCapPct (N1), so 5 alts on one device meet the threshold but get
+// at most userShareCapPct of the pot in total.
+// eligible = accounts (threshold), groups = linked groups (cap).
 function planShares(entries, cfg) {
     const pot = Math.floor(cfg.targetSats);
     const elig = eligibleEntries(entries, cfg);
     const groups = groupLinked(elig).length;
     const cap = shareCap(pot, groups, cfg);
     const minN = Math.max(1, Math.floor(cfg.minEligibleWatchers));
-    if (groups < minN) return { wait: true, eligible: groups, accounts: elig.length, groups, shares: [], paid: 0, rollover: 0, cap };
+    if (elig.length < minN) return { wait: true, eligible: elig.length, accounts: elig.length, groups, shares: [], paid: 0, rollover: 0, cap };
     const filled = fillGrouped(elig, pot, cfg);
-    return { wait: false, eligible: groups, accounts: elig.length, groups, linkedGroups: filled.linked, shares: filled.shares, paid: filled.paid, rollover: filled.rollover, cap };
+    return { wait: false, eligible: elig.length, accounts: elig.length, groups, linkedGroups: filled.linked, shares: filled.shares, paid: filled.paid, rollover: filled.rollover, cap };
 }
 
 // True when a watch doc still carries any link id (scrubbed at pot close).
@@ -322,8 +328,8 @@ function projectShares(entries, cfg) {
     const groups = groupLinked(elig).length;
     const cap = shareCap(pot, groups, cfg);
     const minN = Math.max(1, Math.floor(cfg.minEligibleWatchers));
-    const waiting = groups < minN;
-    const n = groups;
+    const waiting = elig.length < minN;
+    const n = elig.length;
     const byUid = new Map(all.map(e => [e.uid, 0]));
     if (elig.length > 0) {
         const filled = fillGrouped(elig, pot, cfg);

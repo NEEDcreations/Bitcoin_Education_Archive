@@ -28,3 +28,7 @@ username-spaces-private/
 *.bak*
 *.working-backup
 *.src.bak
+
+# Local dependency installs (real dirs or symlinks). Never commit.
+node_modules
+functions/node_modules

@@ -20,43 +20,55 @@ test('no links: identical to the per-account split', () => {
     assert.deepStrictEqual(a.shares, b.shares);
     assert.strictEqual(a.eligible, 6);
 });
-test('a 5-account ring on one IP is one bucket and one watcher (Red Team #287)', () => {
+test('a 5-account ring on one IP: one bucket, meets the account threshold, capped at userShareCapPct (N1)', () => {
     const ring = Array.from({ length: 5 }, (_, i) => ({ uid: 'r' + i, seconds: H8, links: ['ip:same'] }));
     const p = L.planShares(ring, cfg);
-    assert.ok(p.wait, 'ring alone cannot satisfy minEligibleWatchers');
-    assert.strictEqual(p.eligible, 1);
-    assert.strictEqual(p.groups, 1);
+    assert.ok(!p.wait, 'accounts count toward minEligibleWatchers (classroom gate kept)');
+    assert.strictEqual(p.eligible, 5);
     assert.strictEqual(p.accounts, 5);
+    assert.strictEqual(p.groups, 1);
+    const cap = Math.floor(cfg.targetSats * cfg.userShareCapPct / 100);
+    assert.strictEqual(p.cap, cap);
+    assert.ok(sum(p) <= cap, 'ring paid ' + sum(p) + ' <= ' + cap);
+    assert.strictEqual(p.rollover, cfg.targetSats - sum(p));
 });
-test('5 alts on one device count as one watcher', () => {
+test('5 alts on one device: never the whole pot', () => {
     const alts = Array.from({ length: 5 }, (_, i) => ({ uid: 'a' + i, seconds: H8, links: ['ip:a' + i, 'dev:one'] }));
     const p = L.planShares(alts, cfg);
-    assert.ok(p.wait);
-    assert.strictEqual(p.groups, 1);
-    assert.ok(L.projectShares(alts, cfg).waiting);
-});
-test('a lone group is capped at userShareCapPct, even with the threshold at 1', () => {
-    const c1 = L.readConfig({ minEligibleWatchers: 1 });
-    assert.strictEqual(L.shareCap(10000, 1, c1), Math.floor(10000 * c1.userShareCapPct / 100));
-    assert.strictEqual(L.shareCap(10000, 0, c1), Math.floor(10000 * c1.userShareCapPct / 100));
-    const alts = Array.from({ length: 5 }, (_, i) => ({ uid: 'a' + i, seconds: H8, links: ['dev:one'] }));
-    const p = L.planShares(alts, c1);
     assert.ok(!p.wait);
-    const cap = Math.floor(c1.targetSats * c1.userShareCapPct / 100);
-    assert.strictEqual(p.cap, cap);
-    assert.ok(sum(p) <= cap, 'lone group paid ' + sum(p) + ' <= ' + cap);
-    assert.ok(sum(p) < c1.targetSats);
-    assert.strictEqual(p.rollover, c1.targetSats - sum(p));
-    const solo = L.planShares([{ uid: 's', seconds: H8, links: ['ip:s'] }], c1);
-    assert.ok(sum(solo) <= cap, 'single account alone is capped too');
-    const proj = L.projectShares(alts, c1);
-    assert.ok(proj.paid <= cap);
+    assert.strictEqual(p.groups, 1);
+    assert.ok(sum(p) <= Math.floor(cfg.targetSats * cfg.userShareCapPct / 100));
+    assert.ok(L.projectShares(alts, cfg).paid <= p.cap);
 });
-test('threshold counts distinct groups: 4 groups wait, 5 groups pay', () => {
-    const mk = (n) => Array.from({ length: n }, (_, i) => ({ uid: 'g' + i, seconds: H8, links: ['ip:g' + i] }));
-    assert.ok(L.planShares(mk(4), cfg).wait);
-    assert.ok(!L.planShares(mk(5), cfg).wait);
-    const proj = L.projectShares(mk(4), cfg);
+test('classroom NAT: 30 honest viewers on one IP do not wait forever (capped as one group)', () => {
+    const room = Array.from({ length: 30 }, (_, i) => ({ uid: 'c' + i, seconds: 3600 + i * 60, links: ['ip:school'] }));
+    const p = L.planShares(room, cfg);
+    assert.ok(!p.wait);
+    assert.strictEqual(p.groups, 1);
+    assert.ok(sum(p) > 0 && sum(p) <= p.cap);
+});
+test('a lone group is capped at userShareCapPct even with the threshold at 1', () => {
+    const c1 = L.readConfig({ minEligibleWatchers: 1 });
+    const cap = Math.floor(10000 * c1.userShareCapPct / 100);
+    assert.strictEqual(L.shareCap(10000, 1, c1), cap);
+    assert.strictEqual(L.shareCap(10000, 0, c1), cap);
+    const solo = L.planShares([{ uid: 's', seconds: H8, links: ['ip:s'] }], c1);
+    assert.ok(sum(solo) <= Math.floor(c1.targetSats * c1.userShareCapPct / 100));
+});
+test('two groups get at most 2/minEligibleWatchers each (N = max(groups, minN))', () => {
+    assert.strictEqual(L.shareCap(10000, 2, cfg), Math.floor(10000 * 2 / cfg.minEligibleWatchers));
+    const two = [].concat(
+        Array.from({ length: 3 }, (_, i) => ({ uid: 'x' + i, seconds: H8, links: ['ip:x'] })),
+        Array.from({ length: 2 }, (_, i) => ({ uid: 'y' + i, seconds: H8, links: ['ip:y'] })));
+    const p = L.planShares(two, cfg);
+    assert.ok(!p.wait);
+    assert.strictEqual(p.groups, 2);
+    assert.ok(sum(p) < cfg.targetSats, 'two groups cannot drain the pot');
+});
+test('below the account threshold still waits; projection agrees', () => {
+    const four = Array.from({ length: 4 }, (_, i) => ({ uid: 'f' + i, seconds: H8, links: ['ip:f' + i] }));
+    assert.ok(L.planShares(four, cfg).wait);
+    const proj = L.projectShares(four, cfg);
     assert.ok(proj.waiting);
     assert.strictEqual(proj.eligible, 4);
     assert.strictEqual(proj.groups, 4);
@@ -66,7 +78,7 @@ test('ring + 5 honest viewers: ring capped to one share in total', () => {
     const honest = Array.from({ length: 5 }, (_, i) => ({ uid: 'h' + i, seconds: 3 * 3600, links: ['ip:h' + i] }));
     const p = L.planShares(ring.concat(honest), cfg);
     assert.ok(!p.wait);
-    assert.strictEqual(p.eligible, 6);
+    assert.strictEqual(p.eligible, 10);
     assert.strictEqual(p.accounts, 10);
     assert.strictEqual(p.groups, 6);
     assert.strictEqual(p.linkedGroups, 1);
