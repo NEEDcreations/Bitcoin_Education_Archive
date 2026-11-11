@@ -89,8 +89,10 @@ function setup(users, opts) {
 
 function ctx(uid, opts) {
     const o = opts || {};
+    const firebase = { sign_in_second_factor: o.mfaSignIn === false ? undefined : 'phone' };
+    if (o.secondFactorId) firebase.second_factor_identifier = o.secondFactorId;
     return {
-        auth: { uid, token: { admin: o.admin !== false, auth_time: Math.floor((o.authAtMs || NOW - 60000) / 1000), firebase: { sign_in_second_factor: o.mfaSignIn === false ? undefined : 'phone' } } },
+        auth: { uid, token: { admin: o.admin !== false, auth_time: Math.floor((o.authAtMs || NOW - 60000) / 1000), firebase } },
         rawRequest: { headers: {} },
     };
 }
@@ -344,6 +346,137 @@ test('(b) mfa_admin_reset and mfa_recovery notices carry no raw uid', async () =
     const rec = src.slice(src.indexOf("type: 'mfa_recovery'") - 80, src.indexOf("type: 'mfa_recovery'") + 300);
     assert.ok(rec.indexOf('maskUid(uid)') > 0 && rec.indexOf('uid: uid') === -1);
 });
+
+test('source: App Check, rate limit, and key-bound SA on recordKnownPhoneFactor; not a session proof', () => {
+    const src = fs.readFileSync(path.join(root, 'functions', 'src', 'secondFactor.js'), 'utf8');
+    const fn = src.slice(src.indexOf('const recordKnownPhoneFactor = '), src.indexOf('async function requireAdminStepUp('));
+    assert.ok(fn.indexOf('enforceAppCheck: true') > 0);
+    assert.ok(fn.indexOf("secrets: ['TOTP_ENCRYPTION_KEY']") > 0);
+    assert.ok(fn.indexOf("runtimeSa('recordKnownPhoneFactor')") > 0);
+    assert.ok(fn.indexOf("takeAttempt('recordKnownPhone:' + uid, nowMs)") > 0);
+    assert.ok(fn.indexOf('acceptTotp(') > 0);
+    assert.ok(fn.indexOf('secretRecord(uid)') > 0);
+    assert.ok(fn.indexOf('if (secret)') < fn.indexOf('else if (phoneFresh)'), 'TOTP accounts cannot use the phone-token branch');
+    assert.ok(fn.indexOf('sessionValid(') === -1, 'sessions must not count as proof');
+    assert.ok(fn.indexOf('FRESH_TTL_MS') > 0, 'phone sign-in must be within 5 minutes');
+    assert.ok(fn.indexOf('second_factor_identifier') > 0);
+    const idx = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
+    assert.ok(idx.indexOf('exports.recordKnownPhoneFactor = secondFactor.recordKnownPhoneFactor') > 0);
+});
+test('D1: fresh TOTP records current phone factors, stores enrollment + recordedAt, and alerts', withKey(async () => {
+    const { api, db } = setup({ adminUidD101: { claims: { admin: true }, phoneAtMs: NOW - 3 * DAY, recorded: false, phoneId: 'mfaLegacyPhone' } }, { checkDelta: () => 0 });
+    await seedTotp(db, 'adminUidD101', NOW - 29 * DAY);
+    const res = await run(api.recordKnownPhoneFactor, { code: '123456' }, ctx('adminUidD101', { mfaSignIn: false }));
+    assert.deepStrictEqual(res, { success: true, recorded: 1 });
+    const rec = db.store['mfa_known_factors/adminUidD101'].phones.mfaLegacyPhone;
+    const enr = Math.floor((NOW - 3 * DAY) / 1000) * 1000;
+    assert.strictEqual(rec.recordedAtMs, NOW);
+    assert.strictEqual(rec.enrollmentTimeMs, enr);
+    const alerts = adminAlerts(db);
+    assert.strictEqual(alerts.length, 1);
+    assert.strictEqual(alerts[0].change, 'added');
+    assert.strictEqual(alerts[0].factor, 'phone');
+    assert.strictEqual(JSON.stringify(alerts[0]).indexOf('adminUidD101'), -1, 'raw uid never in the alert');
+    assert.strictEqual(SF.factorEstablished(rec.recordedAtMs, NOW), false, '24h clock starts at recordedAt');
+    assert.strictEqual(SF.factorEstablished(rec.enrollmentTimeMs, NOW), true, 'enrollment can already be 24h old');
+}));
+test('D1: already-recorded matching phone is a no-op (no second alert)', withKey(async () => {
+    const { api, db } = setup({ adminUidD102: { claims: { admin: true }, phoneAtMs: NOW - 3 * DAY, recorded: true, phoneId: 'mfaAlready' } }, { checkDelta: () => 0 });
+    await seedTotp(db, 'adminUidD102', NOW - 29 * DAY);
+    const res = await run(api.recordKnownPhoneFactor, { code: '123456' }, ctx('adminUidD102', { mfaSignIn: false }));
+    assert.deepStrictEqual(res, { success: true, recorded: 0 });
+    assert.strictEqual(adminAlerts(db).length, 0);
+}));
+test('D1: enrollmentTime mismatch is refused and the record is not overwritten', withKey(async () => {
+    const { api, db } = setup({ adminUidD103: { claims: { admin: true }, phoneAtMs: NOW - 3 * DAY, recorded: true, phoneId: 'mfaMismatch' } }, { checkDelta: () => 0 });
+    await seedTotp(db, 'adminUidD103', NOW - 29 * DAY);
+    db.store['mfa_known_factors/adminUidD103'].phones.mfaMismatch.enrollmentTimeMs = NOW - 40 * DAY;
+    const before = Object.assign({}, db.store['mfa_known_factors/adminUidD103'].phones.mfaMismatch);
+    await assert.rejects(run(api.recordKnownPhoneFactor, { code: '123456' }, ctx('adminUidD103', { mfaSignIn: false })), e => e.code === 'failed-precondition' && /does not match/.test(e.message));
+    assert.deepStrictEqual(db.store['mfa_known_factors/adminUidD103'].phones.mfaMismatch, before);
+    assert.strictEqual(adminAlerts(db).length, 0);
+}));
+test('D1: fresh phone second-factor sign-in records that exact factor uid', async () => {
+    const { api, db } = setup({ adminUidD104: { claims: { admin: true }, phoneAtMs: NOW - 2 * DAY, recorded: false, phoneId: 'mfaPhoneA' } });
+    const res = await run(api.recordKnownPhoneFactor, {}, ctx('adminUidD104', { secondFactorId: 'mfaPhoneA', authAtMs: NOW - 60000 }));
+    assert.deepStrictEqual(res, { success: true, recorded: 1 });
+    const rec = db.store['mfa_known_factors/adminUidD104'].phones.mfaPhoneA;
+    assert.ok(rec && rec.recordedAtMs === NOW);
+    assert.ok(adminAlerts(db).some(r => r.change === 'added' && r.factor === 'phone'));
+});
+test('D1: phone sign-in older than 5 minutes is refused', async () => {
+    const { api, db } = setup({ adminUidD105: { claims: { admin: true }, phoneAtMs: NOW - 2 * DAY, recorded: false, phoneId: 'mfaStale' } });
+    await assert.rejects(run(api.recordKnownPhoneFactor, {}, ctx('adminUidD105', { secondFactorId: 'mfaStale', authAtMs: NOW - 6 * 60000 })), e => e.code === 'failed-precondition' && /Sign in again/.test(e.message));
+    assert.ok(!(db.store['mfa_known_factors/adminUidD105'] || {}).phones);
+});
+test('D1: phone sign-in with a different factor uid is refused', async () => {
+    const { api, db } = setup({ adminUidD106: { claims: { admin: true }, phoneAtMs: NOW - 2 * DAY, recorded: false, phoneId: 'mfaReal' } });
+    await assert.rejects(run(api.recordKnownPhoneFactor, {}, ctx('adminUidD106', { secondFactorId: 'mfaOther', authAtMs: NOW - 60000 })), e => e.code === 'failed-precondition' && /does not match/.test(e.message));
+    assert.ok(!(db.store['mfa_known_factors/adminUidD106'] || {}).phones);
+});
+test('D1: a TOTP session is not accepted as proof; no code and no phone sign-in is refused', withKey(async () => {
+    const { api, db } = setup({ adminUidD107: { claims: { admin: true }, phoneAtMs: NOW - 2 * DAY, recorded: false, phoneId: 'mfaSess' } }, { checkDelta: () => 0 });
+    await seedTotp(db, 'adminUidD107', NOW - 29 * DAY);
+    await db.collection('totp_sessions').doc('adminUidD107').set({ uid: 'adminUidD107', sessionId: 'abcd', expiresAtMs: NOW + 3600000, expireAt: new Date(NOW + 3600000) });
+    const c = ctx('adminUidD107', { mfaSignIn: false });
+    c.mfaSessionId = 'abcd';
+    await assert.rejects(run(api.recordKnownPhoneFactor, { mfaSessionId: 'abcd' }, c), e => e.code === 'failed-precondition' && /fresh authenticator code/.test(e.message));
+    assert.ok(!(db.store['mfa_known_factors/adminUidD107'] || {}).phones);
+}));
+test('D1: rate limit is 5 attempts per 2 minutes', async () => {
+    const { api } = setup({ adminUidD108: { claims: { admin: true }, phoneAtMs: NOW - 2 * DAY, recorded: false } });
+    const c = ctx('adminUidD108', { mfaSignIn: false });
+    for (let i = 0; i < 5; i++) {
+        await assert.rejects(run(api.recordKnownPhoneFactor, {}, c), e => e.code === 'failed-precondition');
+    }
+    await assert.rejects(run(api.recordKnownPhoneFactor, {}, c), e => e.code === 'resource-exhausted');
+});
+test('D1: unsigned-in caller is refused; no phone enrolled is refused', withKey(async () => {
+    const { api, db } = setup({ adminUidD109: { claims: { admin: true } } }, { checkDelta: () => 0 });
+    await seedTotp(db, 'adminUidD109', NOW - 29 * DAY);
+    await assert.rejects(run(api.recordKnownPhoneFactor, { code: '123456' }, { rawRequest: { headers: {} } }), e => e.code === 'unauthenticated');
+    await assert.rejects(run(api.recordKnownPhoneFactor, { code: '123456' }, ctx('adminUidD109', { mfaSignIn: false })), e => e.code === 'failed-precondition' && /phone verification first/.test(e.message));
+}));
+
+test('Red Team: TOTP account + fresh phone token + no code is refused and records nothing', withKey(async () => {
+    const { api, db } = setup({ adminUidRT01: { claims: { admin: true }, phoneAtMs: NOW - 2 * DAY, recorded: false, phoneId: 'mfaRtPhone' } }, { checkDelta: () => 0 });
+    await seedTotp(db, 'adminUidRT01', NOW - 29 * DAY);
+    await assert.rejects(run(api.recordKnownPhoneFactor, {}, ctx('adminUidRT01', { secondFactorId: 'mfaRtPhone', authAtMs: NOW - 60000 })), e => e.code === 'failed-precondition' && /fresh authenticator code/.test(e.message));
+    assert.ok(!(db.store['mfa_known_factors/adminUidRT01'] || {}).phones, 'phone-token must not record on a TOTP account');
+    assert.strictEqual(adminAlerts(db).length, 0);
+}));
+test('Red Team: TOTP account + valid fresh TOTP code records the phone', withKey(async () => {
+    const { api, db } = setup({ adminUidRT02: { claims: { admin: true }, phoneAtMs: NOW - 2 * DAY, recorded: false, phoneId: 'mfaRtTotp' } }, { checkDelta: () => 0 });
+    await seedTotp(db, 'adminUidRT02', NOW - 29 * DAY);
+    // A fresh phone token may also be present; the code is what counts.
+    const res = await run(api.recordKnownPhoneFactor, { code: '123456' }, ctx('adminUidRT02', { secondFactorId: 'mfaRtTotp', authAtMs: NOW - 60000 }));
+    assert.deepStrictEqual(res, { success: true, recorded: 1 });
+    assert.strictEqual(db.store['mfa_known_factors/adminUidRT02'].phones.mfaRtTotp.recordedAtMs, NOW);
+    assert.ok(adminAlerts(db).some(r => r.change === 'added' && r.factor === 'phone'));
+}));
+test('Red Team: no-TOTP account + fresh phone token records the phone', async () => {
+    const { api, db } = setup({ adminUidRT03: { claims: { admin: true }, phoneAtMs: NOW - 2 * DAY, recorded: false, phoneId: 'mfaRtNoTotp' } });
+    const res = await run(api.recordKnownPhoneFactor, {}, ctx('adminUidRT03', { secondFactorId: 'mfaRtNoTotp', authAtMs: NOW - 60000 }));
+    assert.deepStrictEqual(res, { success: true, recorded: 1 });
+    assert.strictEqual(db.store['mfa_known_factors/adminUidRT03'].phones.mfaRtNoTotp.recordedAtMs, NOW);
+});
+test('step-up: TOTP-enabled admin cannot satisfy step-up with a recorded phone alone', withKey(async () => {
+    // Established recorded phone, but the authenticator is under 24h old.
+    // requireFreshStepUp still gets a valid code; phone must not waive the TOTP age.
+    const { api, db } = setup({ adminUidRT04: { claims: { admin: true }, phoneAtMs: NOW - 3 * DAY, recordedAtMs: NOW - 3 * DAY, phoneId: 'mfaRtStep' } }, { checkDelta: () => 0 });
+    await seedTotp(db, 'adminUidRT04', NOW - 3600000);
+    await assert.rejects(api.requireAdminStepUp(Object.assign(ctx('adminUidRT04', { secondFactorId: 'mfaRtStep' }), { freshCode: '123456' }), 'adminResetSecondFactor'), e => e.code === 'failed-precondition' && /too new/.test(e.message));
+    const src = fs.readFileSync(path.join(root, 'functions', 'src', 'secondFactor.js'), 'utf8');
+    const fn = src.slice(src.indexOf('async function requireAdminStepUp('), src.indexOf('const adminResetSecondFactor = '));
+    assert.ok(fn.indexOf('secret ? !totpOk : !phoneOk') > 0, 'TOTP-enabled step-up requires totpOk');
+}));
+test('step-up: TOTP-enabled admin with established TOTP still passes (phone also recorded)', withKey(async () => {
+    const { api, db } = setup({ adminUidRT05: { claims: { admin: true }, phoneAtMs: NOW - 3 * DAY, recordedAtMs: NOW - 3 * DAY, phoneId: 'mfaRtOk' } }, { checkDelta: () => 0 });
+    await seedTotp(db, 'adminUidRT05', NOW - 29 * DAY);
+    const sf = await api.requireAdminStepUp(Object.assign(ctx('adminUidRT05', { secondFactorId: 'mfaRtOk' }), { freshCode: '123456' }), 'adminResetSecondFactor');
+    assert.strictEqual(sf.established, true);
+    assert.strictEqual(sf.totp, true);
+}));
 test('rules + deletion: mfa_known_factors is server-only and removed with the account', () => {
     const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
     assert.ok(/match \/mfa_known_factors\/\{userId\} \{\s*allow read, write: if false;\s*\}/.test(rules));
