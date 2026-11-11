@@ -1146,7 +1146,9 @@ async function _assertPublicHost(hostname) {
     });
 }
 
-async function _resolvePrizeInvoice(invoice, lightningAddress, amount) {
+// out (optional) receives callbackKey: the resolved LNURL-pay callback, used
+// by antiDrain to share one per-wallet cap across alias addresses.
+async function _resolvePrizeInvoice(invoice, lightningAddress, amount, out) {
     let bolt = (invoice || '').trim();
     const lnAddr = (lightningAddress || '').trim();
     if (lnAddr && !bolt) {
@@ -1158,6 +1160,7 @@ async function _resolvePrizeInvoice(invoice, lightningAddress, amount) {
         try {
             const resolved = await resolveLnurlInvoice({ address: lnAddr, msats: amount * 1000, bolt11: bolt11 });
             bolt = resolved.pr;
+            if (out && typeof out === 'object') out.callbackKey = resolved.callbackKey || '';
         } catch (e) {
             console.error('[GIFT] Lightning Address resolution failed domain=' + domain);
             const clear = e && (e.code === 'lnurl_error' || e.code === 'below_min' || e.code === 'above_max' || e.code === 'amount_mismatch' || e.code === 'wrong_network');
@@ -1199,7 +1202,7 @@ async function flagPayUnknown(flag) {
     }
 }
 
-const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [deletionHmacSecret, nwcUrlSecret], serviceAccount: runtimeSa('claimCipherWin') }).https.onCall(async (data, context) => {
+const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [deletionHmacSecret, nwcUrlSecret, require('./payoutGuardSecret').payoutGuardSecret], serviceAccount: runtimeSa('claimCipherWin') }).https.onCall(async (data, context) => {
     const secondFactor = require('./secondFactor');
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
@@ -1251,6 +1254,11 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     const looked = payoutGate.tomb || { configured: false, summary: accountTombstone.emptySummary() };
     if (looked.configured && looked.summary && (looked.summary.banned || looked.summary.satsDisabled || looked.summary.ledgerBanned)) {
         await accountTombstone.applyIdentityFlags(db, uid, looked.summary);
+    }
+    // Same age rule as claimSats / claimCipherSats: the tombstone keeps the
+    // age of a deleted-and-recreated account (Spam/Abuse #286 should-fix).
+    if (looked.summary && Number.isFinite(Number(looked.summary.ageDays))) {
+        ageDays = accountTombstone.effectiveAgeDays(ageDays, looked.summary);
     }
     tombSatsDisabled = !!(looked.summary && looked.summary.satsDisabled);
     tombLedgerBanned = !!(looked.summary && looked.summary.ledgerBanned);
@@ -1323,8 +1331,9 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     }
     const netAmount = winFee.net;
     let invoice;
+    const winResolved = {};
     try {
-        invoice = await _resolvePrizeInvoice('', payoutAddress, netAmount);
+        invoice = await _resolvePrizeInvoice('', payoutAddress, netAmount, winResolved);
     } catch (e) {
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
         return { success: false, error: e.message || 'Could not pay that invoice.' };
@@ -1445,7 +1454,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         const walletSats = Math.floor((balanceResult.balance || 0) / 1000);
         if (walletSats < WALLET_FLOOR_SATS) throw new Error('WALLET_LOW');
         await require('./payoutSafety').assertPayoutsOpen(db, 'claimCipherWin');
-        await require('./antiDrain').reservePayout(db, admin, { uid: uid, path: 'claimCipherWin', address: payoutAddress, sats: amount, walletSats: walletSats });
+        await require('./antiDrain').reservePayout(db, admin, { uid: uid, path: 'claimCipherWin', address: payoutAddress, callback: winResolved.callbackKey || '', sats: amount, walletSats: walletSats });
         phase = 'pay';
         payResult = await withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
@@ -1707,7 +1716,7 @@ async function payCipherBalanceInvoice(invoice, guard) {
         if (walletSats < WALLET_FLOOR_SATS) throw new Error('WALLET_LOW');
         await require('./payoutSafety').assertPayoutsOpen(db, 'claimCipherSats');
         const g = guard || {};
-        await require('./antiDrain').reservePayout(db, admin, { uid: g.uid, path: 'claimCipherSats', address: g.address, sats: g.sats, walletSats: walletSats });
+        await require('./antiDrain').reservePayout(db, admin, { uid: g.uid, path: 'claimCipherSats', address: g.address, callback: g.callback || '', sats: g.sats, walletSats: walletSats });
         phase = 'pay';
         payResult = await withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
@@ -1807,7 +1816,7 @@ async function beginCipherPay(reserved) {
 const claimCipherSats = functionsV1.runWith({
     timeoutSeconds: 180,
     enforceAppCheck: true,
-    secrets: [deletionHmacSecret, nwcUrlSecret, require('./sensitiveSecrets').turnstileSecret],
+    secrets: [deletionHmacSecret, nwcUrlSecret, require('./sensitiveSecrets').turnstileSecret, require('./payoutGuardSecret').payoutGuardSecret],
     serviceAccount: runtimeSa('claimCipherSats'),
 }).https.onCall(async (data, context) => {
     const secondFactor = require('./secondFactor');
@@ -2100,10 +2109,11 @@ const claimCipherSats = functionsV1.runWith({
     if (!reserved) return { success: false, error: denial || UNAVAILABLE };
 
     let invoice = '';
+    const satsResolved = {};
     try {
         // The player pays the flat Lightning fee: the invoice is for the net amount.
         if (!(reserved.net >= 1) || reserved.net + reserved.fee !== reserved.amount) throw new Error(require('./lnFee').FEE_TOO_BIG);
-        invoice = await _resolvePrizeInvoice('', reserved.address, reserved.net);
+        invoice = await _resolvePrizeInvoice('', reserved.address, reserved.net, satsResolved);
     } catch (e) {
         await finishCipherClaim(reserved, 'restore');
         console.error('[claimCipherSats] address did not resolve');
@@ -2161,7 +2171,7 @@ const claimCipherSats = functionsV1.runWith({
         await invoiceRef.delete().catch(function() {});
         return { success: false, error: 'A claim is already in progress.' };
     }
-    const paid = await payCipherBalanceInvoice(invoice, { uid: uid, address: reserved.address, sats: reserved.amount });
+    const paid = await payCipherBalanceInvoice(invoice, { uid: uid, address: reserved.address, callback: satsResolved.callbackKey || '', sats: reserved.amount });
     if (paid.action === 'paid') {
         try {
             await finishCipherClaim(reserved, 'paid', paid.payResult);

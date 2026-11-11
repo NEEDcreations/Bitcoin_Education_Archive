@@ -53,6 +53,7 @@ test('every wallet function binds the secret', function () {
         [gifting, 'const claimCipherSats = '],
         [gifting, 'const adminResolveCipherSatsClaim = '],
         [drip, 'const tctvDripTick = '],
+        [index, 'exports.payoutFloatWatch = '],
     ];
     for (const [src, marker] of bound) assert.ok(head(src, marker).includes('nwcUrlSecret'), marker);
 });
@@ -63,7 +64,8 @@ test('no other function binds the secret', function () {
         const m = fs.readFileSync(p, 'utf8').match(/secrets:\s*\[[^\]]*nwcUrlSecret/g);
         n += m ? m.length : 0;
     }
-    assert.strictEqual(n, 7);
+    // 8 with #286's payoutFloatWatch (10-minute wallet drain check; reads balance only).
+    assert.strictEqual(n, 8);
 });
 
 test('nwcUrl reads the bound value at call time', function () {

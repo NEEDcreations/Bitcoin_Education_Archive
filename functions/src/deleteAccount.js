@@ -126,7 +126,8 @@ const RETAINED_COLLECTIONS = [
     'faucet_uid_signals',
     'faucet_ln_ratelimit',
     // Anti-drain rate and per-wallet windows (antiDrain.js). Kept so deleting
-    // and re-creating an account cannot reset them.
+    // and re-creating an account cannot reset them. Doc ids are HMACs (Secret
+    // Manager key), no raw uid or address, and a 30-day expireAt TTL ends them.
     'payout_guard_users',
     'payout_guard_wallets',
     'faucet_admin_flags',

@@ -206,6 +206,8 @@ function createLnurlResolver(deps) {
             decoded: decoded,
             domain: domain,
             callbackHost: cbUrl.hostname,
+            // Stable wallet id for the anti-drain per-wallet cap (no amount/comment).
+            callbackKey: cbUrl.hostname.toLowerCase() + cbUrl.pathname + cbUrl.search,
         };
     }
 

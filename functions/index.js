@@ -1632,7 +1632,7 @@ async function claimChatStillLive(userData, reader, claimantUid) {
 exports.claimSats = functionsV1.runWith({
     timeoutSeconds: 300,
     enforceAppCheck: true,
-    secrets: [deletionHmacSecret, nwcUrlSecret, turnstileSecret],
+    secrets: [deletionHmacSecret, nwcUrlSecret, turnstileSecret, require('./src/payoutGuardSecret').payoutGuardSecret],
     serviceAccount: runtimeSa('claimSats'),
 }).https.onCall(async (data, context) => {
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
@@ -1766,6 +1766,7 @@ exports.claimSats = functionsV1.runWith({
     }
 
     let invoice = '';
+    let lnCallbackKey = '';
     try {
         await assertPublicHost(_lnDomain);
         const resolved = await resolveLnurlInvoice({
@@ -1773,6 +1774,7 @@ exports.claimSats = functionsV1.runWith({
             msats: netSendAmount * 1000,
         });
         invoice = resolved.pr;
+        lnCallbackKey = resolved.callbackKey || '';
         console.log('[FAUCET] Resolved Lightning Address for ' + netSendAmount + ' net sats domain=' + resolved.domain);
     } catch (e) {
         console.error('[FAUCET] Lightning Address resolution failed domain=' + (_lnDomain || ''));
@@ -2196,7 +2198,7 @@ exports.claimSats = functionsV1.runWith({
         // Re-check the global hold right before pay_invoice (closes the race with an auto-pause).
         await require('./src/payoutSafety').assertPayoutsOpen(db, 'claimSats');
         // Anti-drain: per-user rate, per-wallet cap, float circuit breaker.
-        await antiDrain.reservePayout(db, admin, { uid: uid, path: 'claimSats', address: lnNorm, sats: amount, walletSats: walletSats });
+        await antiDrain.reservePayout(db, admin, { uid: uid, path: 'claimSats', address: lnNorm, callback: lnCallbackKey, sats: amount, walletSats: walletSats });
         phase = 'pay';
         payResult = await _withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
@@ -4002,6 +4004,42 @@ exports.getFaucetStats = functionsV1.runWith({ secrets: [nwcUrlSecret], serviceA
         walletBalance: walletBalance,
         limits: safeLimits
     };
+});
+
+// ===== PAYOUT FLOAT WATCH (Phil Nov 9: 10-minute wallet drain check) =====
+// Reads the payout wallet balance every 10 minutes and feeds the same float
+// breaker the payout callables use (antiDrain.watchFloat): a drop of more than
+// 5,000 sats below the 1h peak sets the global satsHold, writes a permanent
+// payout_safety_audit row and alerts the admins. Catches a drain that goes
+// around our functions (for example a leaked NWC connection). Sends nothing.
+// An unreadable balance records nothing. Own runtime SA, never the default.
+exports.payoutFloatWatch = onSchedule({
+    schedule: 'every 10 minutes',
+    timeZone: 'UTC',
+    retryCount: 0,
+    timeoutSeconds: 60,
+    secrets: [nwcUrlSecret],
+    serviceAccount: runtimeSa('payoutFloatWatch'),
+}, async () => {
+    if (!FAUCET.NWC_URL) return;
+    let walletSats = -1;
+    let nwc = null;
+    try {
+        nwc = new NWCClient({ nostrWalletConnectUrl: FAUCET.NWC_URL });
+        const bal = await _withTimeout(nwc.getBalance(), 20000, 'getBalance');
+        walletSats = Math.floor((bal.balance || 0) / 1000);
+    } catch (e) {
+        console.error('[payoutFloatWatch] balance read failed');
+        walletSats = -1;
+    } finally {
+        try { if (nwc) nwc.close(); } catch (e) { /* ignore */ }
+    }
+    try {
+        const res = await require('./src/antiDrain').watchFloat(db, admin, walletSats);
+        if (res && res.trip) console.error('[payoutFloatWatch] float breaker tripped drop=' + res.drop);
+    } catch (e) {
+        console.error('[payoutFloatWatch] watch failed:', e.message);
+    }
 });
 
 // ===== FAUCET ADMIN - toggleFaucet =====

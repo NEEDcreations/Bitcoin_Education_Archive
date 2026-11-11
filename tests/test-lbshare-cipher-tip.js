@@ -17,7 +17,9 @@ test('client cipher rules match the server claim constants', () => {
     assert.strictEqual(Number(m[1]), cipherSats.CLAIM_MIN);
     assert.strictEqual(Number(m[2]), cipherSats.CLAIM_MAX);
     assert.strictEqual(Number(m[3]), cipherSats.PLAYER_DAILY_CAP);
-    assert.ok(read('functions/src/cipherClaim.js').includes('MIN_ACCOUNT_AGE_DAYS = ' + m[4] + ';'));
+    // #286: every payout path uses the one antiDrain age constant (Phil Nov 9: 7).
+    assert.strictEqual(require('../functions/src/cipherClaim').MIN_ACCOUNT_AGE_DAYS, Number(m[4]));
+    assert.strictEqual(require('../functions/src/antiDrain').MIN_PAYOUT_ACCOUNT_AGE_DAYS, Number(m[4]));
 });
 
 test('cipher hint shows on settings, inventory and gifting surfaces', () => {
@@ -48,7 +50,7 @@ test('share lookup is read-only and uses leaderboardRank me', () => {
 
 test('faucet requirements list matches claimSats gates', () => {
     const idx = read('functions/index.js');
-    assert.ok(idx.includes('MIN_ACCOUNT_AGE_DAYS: 7,') && idx.includes('MIN_CHANNELS_READ: 10,') && idx.includes('MAX_LIFETIME_PER_USER_SATS: 15000,') && idx.includes('COOLDOWN_HOURS: 24,'));
+    assert.ok(idx.includes("MIN_ACCOUNT_AGE_DAYS: require('./src/antiDrain').MIN_PAYOUT_ACCOUNT_AGE_DAYS,") && require('../functions/src/antiDrain').MIN_PAYOUT_ACCOUNT_AGE_DAYS === 7 && idx.includes('MIN_CHANNELS_READ: 10,') && idx.includes('MAX_LIFETIME_PER_USER_SATS: 15000,') && idx.includes('COOLDOWN_HOURS: 24,'));
     ['Lightning Address saved', '1 claim every 24 hours', 'Lifetime limit 15,000 sats', 'Account in good standing', 'Minimum 100 sats (1,000 XP)'].forEach((s) => assert.ok(ranking.includes(s), s));
     assert.ok(read('terms.html').includes('a saved Lightning Address, one account per person'));
 });
