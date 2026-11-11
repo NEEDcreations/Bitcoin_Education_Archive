@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const logic = require('./src/tctvDripLogic');
 const tctvPresence = require('./tctv-presence-lib');
 const { offsetDateKey } = require('./src/offsetDay');
+const faucetGuard = require('./src/faucetGuard');
 
 const db = admin.firestore();
 const POT_REF = () => db.collection('tctv_drip_pot').doc('current');
@@ -28,7 +29,22 @@ async function loadConfig() {
 
 function watchId(potId, uid) { return String(potId) + '_' + String(uid); }
 
-const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+// Link ids are HMAC-SHA256 with the TCTV_LINK_HMAC_KEY Secret Manager key
+// (tctvLinkSecret.js), so the watch doc (readable by its owner) and backups
+// never hold a raw IP or a brute-forceable static-salt hash.
+const tctvLink = require('./src/tctvLinkSecret');
+function linkHash(kind, value) {
+    return tctvLink.linkHmac(kind, value);
+}
+
+function requestLinks(context) {
+    const ip = faucetGuard.clientIpFromRequest(context && context.rawRequest);
+    const net = faucetGuard.networkKeys(ip);
+    if (!net) return { ip: '', net: '' };
+    return { ip: linkHash('ip', net.exactId), net: linkHash('net', net.rangeId) };
+}
+
+const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true, secrets: [tctvLink.tctvLinkSecret], serviceAccount: runtimeSa('tctvDripCheckin') }).https.onCall(async (data, context) => {
     if (!context.auth) throw HttpsError('unauthenticated', 'Must be signed in');
     const provider = (context.auth.token && context.auth.token.firebase) ? context.auth.token.firebase.sign_in_provider : '';
     if (provider === 'anonymous') throw HttpsError('permission-denied', 'Sign in required');
@@ -38,9 +54,16 @@ const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true }).https.onC
     const deviceKey = crypto.createHash('sha256').update(String(body.deviceId)).digest('hex').slice(0, 32);
     const playing = body.playing === true && body.visible === true;
     const promptAnswer = typeof body.promptToken === 'string' ? body.promptToken.slice(0, 64) : '';
+    const links = requestLinks(context);
 
     const { cfg } = await loadConfig();
     if (!cfg.enabled) return { ok: false, reason: 'off' };
+    // Red Team #287: without the link key, linking would silently turn off
+    // (fail open). Refuse the check-in instead; nothing is credited.
+    if (!tctvLink.secretReady()) {
+        console.error('[tctvDrip] TCTV_LINK_HMAC_KEY missing or short: check-ins refused');
+        return { ok: false, reason: 'link-key-missing' };
+    }
     const nowMs = Date.now();
 
     const potSnap = await POT_REF().get();
@@ -86,6 +109,11 @@ const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true }).https.onC
             // activeMs marks a check-in that credited. The fill rate counts those
             // docs. liveViewers on the pot is only the public header total.
             if (plan.credit > 0 && ageOk === true) patch.activeMs = nowMs;
+            // Linked-account signals for the payout split (exact IP, device, subnet).
+            // HMAC ids only (the check-in is refused above without the key).
+            patch.linkIps = logic.mergeLinks(prev.linkIps, links.ip);
+            patch.linkDevices = logic.mergeLinks(prev.linkDevices, linkHash('dev', deviceKey));
+            patch.linkNets = logic.mergeLinks(prev.linkNets, links.net);
             tx.set(wRef, Object.assign(base, patch), { merge: true });
             tx.set(devRef, { uid, lastMs: nowMs }, { merge: true });
         }
@@ -114,7 +142,9 @@ async function readWalletSats(raw) {
 async function alertAdmin(potId, reason) {
     await db.collection('admin_alerts').doc('tctv_drip_' + potId).set({
         kind: 'tctv_drip_hold', potId, reason,
-        message: 'TCTV drip pot is full but payout is on hold (' + reason + '). Faucet claims keep paying. Top up the wallet or adjust tctv_drip_config.',
+        message: reason === 'link-key-missing'
+            ? 'TCTV drip payout is on hold: the TCTV_LINK_HMAC_KEY secret is missing or too short. Check-ins are refused until it is restored. Faucet claims keep paying.'
+            : 'TCTV drip pot is full but payout is on hold (' + reason + '). Faucet claims keep paying. Top up the wallet or adjust tctv_drip_config.',
         at: admin.firestore.FieldValue.serverTimestamp(), resolved: false,
     }, { merge: true });
 }
@@ -127,9 +157,43 @@ async function loadEntries(potId, cfg) {
         const w = d.data() || {};
         const u = userSnaps[i];
         if (!u.exists || logic.isAgentOrBlocked(u.data()) || w.ageOk !== true) return;
-        entries.push({ uid: w.uid, seconds: Math.min(Number(w.seconds) || 0, cfg.perAccountLimitSeconds) });
+        entries.push({ uid: w.uid, seconds: Math.min(Number(w.seconds) || 0, cfg.perAccountLimitSeconds), links: logic.linkKeys(w, cfg) });
     });
     return entries;
+}
+
+// tctv_drip_daily/{dayKey}: sats paid today per HMAC(uid) and per link key
+// (already HMAC ids). No raw uid. Older days are deleted after each payout.
+function dailyView(doc, entries) {
+    const uidsIn = doc.uids || {};
+    const uids = {};
+    (entries || []).forEach(e => { const k = tctvLink.linkHmac('uid', e.uid); if (k && uidsIn[k]) uids[e.uid] = uidsIn[k]; });
+    return { uids, links: doc.links || {} };
+}
+
+function dailyIncrements(shares, entries, dayKey) {
+    const inc = (n) => admin.firestore.FieldValue.increment(n);
+    const linksOf = new Map((entries || []).map(e => [e.uid, e.links || []]));
+    const uids = {};
+    const links = {};
+    (shares || []).forEach(s => {
+        if (!(s.sats > 0)) return;
+        const k = tctvLink.linkHmac('uid', s.uid);
+        if (k) uids[k] = inc(s.sats);
+        (linksOf.get(s.uid) || []).forEach(l => { links[l] = (links[l] || 0) + s.sats; });
+    });
+    const out = { dayKey, uids, links: {} };
+    Object.keys(links).forEach(l => { out.links[l] = inc(links[l]); });
+    return out;
+}
+
+async function pruneDaily(todayKey) {
+    const old = await db.collection('tctv_drip_daily').where('dayKey', '<', todayKey).limit(50).get();
+    if (old.empty) return 0;
+    const b = db.batch();
+    old.docs.forEach(d => b.delete(d.ref));
+    await b.commit();
+    return old.size;
 }
 
 // The share plan is frozen in tctv_drip_history before any credit, so a
@@ -139,12 +203,19 @@ async function distribute(pot, cfg) {
     const histRef = db.collection('tctv_drip_history').doc(potId);
     let hist = (await histRef.get()).data() || null;
     if (!hist || !Array.isArray(hist.shares)) {
-        const plan = logic.planShares(await loadEntries(potId, cfg), cfg);
+        const entries = await loadEntries(potId, cfg);
+        const dayKey = offsetDateKey(Date.now());
+        const dailyRef = db.collection('tctv_drip_daily').doc(dayKey);
+        const daily = dailyView(((await dailyRef.get()).data() || {}), entries);
+        const plan = logic.planShares(entries, cfg, daily);
         if (plan.wait) return plan;
         hist = await db.runTransaction(async (tx) => {
             const cur = await tx.get(histRef);
             if (cur.exists && Array.isArray((cur.data() || {}).shares)) return cur.data();
-            const doc = { potId, paid: plan.paid, rollover: plan.rollover, winners: plan.shares.length, eligible: plan.eligible, cap: plan.cap,
+            // Per-group daily totals (HMAC keys only) for the N1b daily cap.
+            tx.set(dailyRef, dailyIncrements(plan.shares, entries, dayKey), { merge: true });
+            const doc = { potId, paid: plan.paid, rollover: plan.rollover, returnedSats: plan.returnedSats || 0, winners: plan.shares.length, eligible: plan.eligible, cap: plan.cap,
+                accounts: plan.accounts || plan.eligible, groups: plan.groups || 0, linkedGroups: plan.linkedGroups || 0,
                 shares: plan.shares.map(x => ({ uid: x.uid, sats: x.sats, seconds: x.seconds })), at: admin.firestore.FieldValue.serverTimestamp() };
             tx.set(histRef, doc);
             return doc;
@@ -164,7 +235,7 @@ async function distribute(pot, cfg) {
             });
         });
     }
-    return { wait: false, paid: hist.paid, rollover: hist.rollover, shares: hist.shares };
+    return { wait: false, paid: hist.paid, rollover: hist.rollover, returnedSats: hist.returnedSats || 0, shares: hist.shares };
 }
 
 
@@ -261,6 +332,19 @@ async function runTick() {
             pot.viewers = viewers;
             pot.ratePerMin = rate;
         }
+        // Red Team #287: no payout without the link key (linked-account caps
+        // depend on it). Held with a private reason + admin alert; every tick
+        // retries and the pot resumes once the key is back.
+        if (!tctvLink.secretReady()) {
+            const resRefK = db.collection('tctv_drip_config').doc('reserve');
+            const prevK = ((await resRefK.get()).data() || {}).holdReason || '';
+            if (pot.status !== 'held' || prevK !== 'link-key-missing') {
+                await potRef.set({ status: 'held', heldMs: nowMs }, { merge: true });
+                await resRefK.set({ holdReason: 'link-key-missing', holdPotId: pot.potId }, { merge: true });
+                await alertAdmin(pot.potId, 'link-key-missing');
+            }
+            return;
+        }
         // Watcher minimum first. Not a wallet hold: no admin alert, the pot just
         // stays full (check-ins keep counting) and every tick retries.
         const pre = logic.planShares(await loadEntries(pot.potId, cfg), cfg);
@@ -293,7 +377,8 @@ async function runTick() {
             const cur = (await tx.get(potRef)).data() || {};
             if (cur.potId !== pot.potId || (cur.status !== 'full' && cur.status !== 'held')) return false;
             tx.set(resRef, { reservedSats: admin.firestore.FieldValue.increment(cfg.targetSats), holdReason: '' }, { merge: true });
-            tx.set(potRef, { status: 'distributing', reservedMs: nowMs, holdReason: admin.firestore.FieldValue.delete() }, { merge: true });
+            // reservedAmount is what the release gives back, even if targetSats changes meanwhile.
+            tx.set(potRef, { status: 'distributing', reservedMs: nowMs, reservedAmount: cfg.targetSats, holdReason: admin.firestore.FieldValue.delete() }, { merge: true });
             return true;
         });
         if (!flipped) return;
@@ -309,27 +394,56 @@ async function runTick() {
             const released = await db.runTransaction(async (tx) => {
                 const cur = (await tx.get(potRef)).data() || {};
                 if (cur.potId !== pot.potId || cur.status !== 'distributing') return false;
-                tx.set(db.collection('tctv_drip_config').doc('reserve'), { reservedSats: admin.firestore.FieldValue.increment(-cfg.targetSats) }, { merge: true });
-                tx.set(potRef, { status: 'full', waiting: true }, { merge: true });
+                tx.set(db.collection('tctv_drip_config').doc('reserve'), { reservedSats: admin.firestore.FieldValue.increment(-logic.reservedAmountOf(cur, cfg)) }, { merge: true });
+                tx.set(potRef, { status: 'full', waiting: true, reservedAmount: admin.firestore.FieldValue.delete() }, { merge: true });
                 return true;
             });
             if (released) console.log('[tctvDrip] ' + pot.potId + ' waiting for watchers');
             return;
         }
         // The reserve becomes user balances that claimCipherSats pays from the faucet wallet.
-        await db.collection('tctv_drip_config').doc('reserve').set({ reservedSats: admin.firestore.FieldValue.increment(-cfg.targetSats) }, { merge: true });
-        const nextNum = (parseInt(String(pot.potId).replace(/\D/g, ''), 10) || 1) + 1;
-        await potRef.set({
-            potId: 'pot' + nextNum, status: 'filling', sats: Math.min(plan.rollover, cfg.targetSats - 1), viewers: 0, bursts: 0,
-            target: cfg.targetSats, createdMs: nowMs, lastPaidPot: pot.potId, lastPaidWinners: plan.shares.length,
-            dayKey: pot.dayKey || '', dayAccrued: pot.dayAccrued || 0,
+        // Release the reserve and open the next pot in one transaction, guarded on
+        // this pot still distributing, so an overlapping tick cannot release twice.
+        const advanced = await db.runTransaction(async (tx) => {
+            const cur = (await tx.get(potRef)).data() || {};
+            if (cur.potId !== pot.potId || cur.status !== 'distributing') return false;
+            tx.set(db.collection('tctv_drip_config').doc('reserve'), { reservedSats: admin.firestore.FieldValue.increment(-logic.reservedAmountOf(cur, cfg)) }, { merge: true });
+            tx.set(potRef, logic.nextPotDoc(cur, plan, cfg, nowMs));
+            return true;
         });
-        console.log('[tctvDrip] distributed ' + pot.potId + ' paid=' + plan.paid + ' winners=' + plan.shares.length);
+        if (!advanced) return;
+        console.log('[tctvDrip] distributed ' + pot.potId + ' paid=' + plan.paid + ' returned=' + (plan.returnedSats || 0) + ' winners=' + plan.shares.length);
+        // Shares are frozen in tctv_drip_history, so the closed pot's link ids
+        // are no longer needed: scrub them (User Data/Backups #287 must-fix).
+        try {
+            const n = await scrubPotLinks(pot.potId);
+            if (n) console.log('[tctvDrip] scrubbed links on ' + n + ' watch docs of ' + pot.potId);
+        } catch (e) { console.error('[tctvDrip] link scrub', e && e.message); }
+        try { await pruneDaily(offsetDateKey(nowMs)); } catch (e) { console.error('[tctvDrip] daily prune', e && e.message); }
     }
 }
 
-const tctvDripTick = onSchedule({ schedule: 'every 1 minutes', timeZone: 'UTC', retryCount: 0, secrets: [nwcUrlSecret], serviceAccount: runtimeSa('tctvDripTick') }, async () => {
+// Remove linkIps / linkDevices / linkNets from every watch doc of a closed
+// pot. Idempotent; a later tick retries docs that still carry links.
+async function scrubPotLinks(potId) {
+    if (!potId) return 0;
+    const snap = await db.collection('tctv_drip_watch').where('potId', '==', potId).get();
+    const del = admin.firestore.FieldValue.delete();
+    let n = 0;
+    let batch = db.batch();
+    let inBatch = 0;
+    for (const d of snap.docs) {
+        if (!logic.hasLinks(d.data())) continue;
+        batch.update(d.ref, { linkIps: del, linkDevices: del, linkNets: del });
+        n++;
+        if (++inBatch >= 400) { await batch.commit(); batch = db.batch(); inBatch = 0; }
+    }
+    if (inBatch) await batch.commit();
+    return n;
+}
+
+const tctvDripTick = onSchedule({ schedule: 'every 1 minutes', timeZone: 'UTC', retryCount: 0, secrets: [nwcUrlSecret, tctvLink.tctvLinkSecret], serviceAccount: runtimeSa('tctvDripTick') }, async () => {
     try { await runTick(); } catch (e) { console.error('[tctvDrip] tick', e && e.message); }
 });
 
-module.exports = { tctvDripCheckin, tctvDripTick, _runTick: runTick };
+module.exports = { tctvDripCheckin, tctvDripTick, _runTick: runTick, _scrubPotLinks: scrubPotLinks };

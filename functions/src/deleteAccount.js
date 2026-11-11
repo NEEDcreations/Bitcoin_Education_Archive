@@ -172,6 +172,10 @@ const DELETION_QUERIES = [
     ['peerRelationships', 'uid2', '==', []],
     ['channel_ratings', 'userId', '==', []],
     ['tctv_view_days', 'viewerId', '==', []],
+    // TCTV drip watch docs carry HMAC link ids; device locks carry the uid.
+    // tctv_drip_payouts / tctv_drip_history are payout records: kept.
+    ['tctv_drip_watch', 'uid', '==', []],
+    ['tctv_drip_devices', 'uid', '==', []],
     ['nacho_feedback', 'uid', '==', []],
     ['nacho_misses', 'uid', '==', []],
     ['nacho_bad_matches', 'uid', '==', []],

@@ -34,6 +34,7 @@ const TESTS = [
     { name: 'App Check SDK boot', file: 'test-app-check-sdk.js' },
     { name: 'App Check callable gate', file: 'test-app-check-callables.js' },
     { name: 'TCTV drip pot logic', file: 'test-tctv-drip.js' },
+    { name: 'TCTV drip #278 follow-ups', file: 'test-tctv-drip-followups.js' },
     { name: 'TCTV view minute audit', file: 'test-tctv-view-minutes.js' },
     { name: 'Sidebar topics', file: 'test-sidebar-topics.js' },
     { name: 'Cache Busters', file: 'busters.js' },

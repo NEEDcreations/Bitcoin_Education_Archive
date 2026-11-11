@@ -2743,6 +2743,9 @@ service cloud.firestore {
     match /tctv_drip_history/{docId} {
       allow read, write: if false;
     }
+    match /tctv_drip_daily/{docId} {
+      allow read, write: if false;
+    }
 
     // Daily Timechain TV watch ledger. The owner may read progress for the
     // home button. Watch time, the daily claim, XP, and orange tickets are
