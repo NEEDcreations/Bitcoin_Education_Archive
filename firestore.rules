@@ -7,6 +7,24 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.get('admin', false) == true;
     }
 
+    // Kill switch. exists()+get() on one doc; Firestore caches that get
+    // for the request. Admins can still write so they can use Admin tools
+    // and turn the app back on. Reads stay allowed (the maintenance page
+    // must read this flag; callables block payouts and rewards).
+    function appIsOffline() {
+      let ksPath = /databases/$(database)/documents/config/killSwitch;
+      return exists(ksPath)
+        && get(ksPath).data.enabled == true
+        && (
+          !('autoReenableAt' in get(ksPath).data)
+          || get(ksPath).data.autoReenableAt == null
+          || get(ksPath).data.autoReenableAt > request.time
+        );
+    }
+    function clientWritesOk() {
+      return isAdmin() || !appIsOffline();
+    }
+
     // Client-created notification ids. Server Admin SDK writes are not checked here.
     function notifIdOk(v) {
       return v is string && v.matches('^[A-Za-z0-9_-]{1,64}$');
@@ -249,6 +267,7 @@ service cloud.firestore {
       // and must never be supplied by the client.
       allow create: if request.auth != null
                     && request.auth.uid == userId
+                    && clientWritesOk()
                     && request.resource.data.keys().hasOnly([
                         // Identity / profile
                         'profilePic',
@@ -288,6 +307,7 @@ service cloud.firestore {
       // save validates just the keys in this write.
       allow update: if request.auth != null
                     && request.auth.uid == userId
+                    && clientWritesOk()
                     && (profileUpdateBlocked() ? false : profileShapeOk());
 
       function profileUpdateBlocked() {
@@ -2817,6 +2837,7 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow create, update: if request.auth != null
         && request.auth.uid == uid
+        && clientWritesOk()
         && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
         && resetRemindersShape(request.resource.data)
         && request.resource.data.optedIn == true;
@@ -2824,6 +2845,22 @@ service cloud.firestore {
     }
 
     match /reset_reminder_claims/{claimId} {
+      allow read, write: if false;
+    }
+
+    // Kill switch flag. Anyone may read it so the maintenance page works
+    // before sign-in. Only the Admin SDK (adminSetKillSwitch) may write.
+    match /config/{docId} {
+      allow read: if docId == 'killSwitch';
+      allow write: if false;
+    }
+    // Append-only audit log. Admins may read; nobody may write or delete
+    // from the client. The callable never deletes these rows.
+    match /kill_switch_audit/{docId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+    match /kill_switch_rate/{docId} {
       allow read, write: if false;
     }
 

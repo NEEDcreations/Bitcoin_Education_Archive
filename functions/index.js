@@ -9672,3 +9672,31 @@ const factionRace = require('./src/factionRaceJobs').factory({ functionsV1, admi
 exports.onFactionTotalsWritten = factionRace.onFactionTotalsWritten;
 exports.adminFactionRaceBreakdown = factionRace.adminFactionRaceBreakdown;
 exports.adminApproveFactionPayout = factionRace.adminApproveFactionPayout;
+
+// ================================================================
+// KILL SWITCH — admin-only app-wide offline switch (config/killSwitch).
+// adminSetKillSwitch requires the admin claim, App Check, a recent
+// sign-in, and a 24h-old second factor. It checks backups (warning only),
+// flips first, then starts a managed export in the background. A failed
+// snapshot never undoes the shutdown. Audit rows are append-only.
+// Keep this block LAST: it wraps exports defined above.
+// ================================================================
+const killSwitch = require('./src/killSwitch');
+exports.adminSetKillSwitch = killSwitch.makeAdminSetKillSwitch({
+    functionsV1: functionsV1,
+    admin: admin,
+    db: db,
+    runWith: { enforceAppCheck: true, secrets: [tgBotTokenSecret], serviceAccount: runtimeSa('adminSetKillSwitch') },
+    sendPhilDm: function (text) { return require('./src/raidBossEngine').sendPhilDm(text); },
+    listAdminUids: _listAdminClaimUids,
+});
+killSwitch.gateExports(exports, killSwitch.gatedNames(), {
+    readState: killSwitch.makeReader(function () { return db; }),
+    HttpsError: functionsV1.https.HttpsError,
+    onSkip: async function (name, why) {
+        await db.collection('admin_notifications').add({
+            type: 'kill_switch_skipped_job', fn: name, why: why,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(), read: false,
+        });
+    },
+});

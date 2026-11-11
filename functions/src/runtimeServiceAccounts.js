@@ -20,6 +20,10 @@
 //   auth    -> roles/firebaseauth.admin
 //   fcm     -> roles/firebasecloudmessaging.admin
 //   storage -> roles/storage.objectAdmin on the default bucket only
+//   backups -> roles/storage.objectAdmin on the Firestore export bucket
+//              only (<project>-backups): list existing exports and write
+//              a kill-switch snapshot
+//   importExport -> roles/datastore.importExportAdmin (managed export)
 // Gen2 event and scheduled triggers also need roles/run.invoker on their own
 // Cloud Run service, and gen2 event triggers need roles/eventarc.eventReceiver;
 // the plan script derives those from the trigger type.
@@ -34,6 +38,7 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     adminLookupUser: { id: 'fn-admin-lookup-user', extra: [] },
     adminQueryUsers: { id: 'fn-admin-query-users', extra: [] },
     adminResolveCipherSatsClaim: { id: 'fn-admin-resolve-cipher-claim', extra: [] },
+    adminSetKillSwitch: { id: 'fn-admin-kill-switch', extra: ['backups', 'importExport'] },
     adminUnbanUser: { id: 'fn-admin-unban-user', extra: [] },
     auditWithdrawals: { id: 'fn-audit-withdrawals', extra: [] },
     backfillJoinDates: { id: 'fn-backfill-join-dates', extra: ['auth'] },
@@ -92,6 +97,8 @@ const EXTRA_ROLES = Object.freeze({
     auth: 'roles/firebaseauth.admin',
     fcm: 'roles/firebasecloudmessaging.admin',
     storage: 'roles/storage.objectAdmin',
+    backups: 'roles/storage.objectAdmin',
+    importExport: 'roles/datastore.importExportAdmin',
 });
 
 function runtimeSa(functionName) {

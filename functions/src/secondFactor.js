@@ -28,7 +28,43 @@ const FRESH_ACTIONS = {
     changeEmail: true,
     linkProvider: true,
     unlinkProvider: true,
+    adminSetKillSwitch: true,
 };
+
+// Admin-only controls need a recent sign-in and a factor enrolled at least
+// 24 hours ago. A stolen password cannot enroll a new authenticator, sign
+// back in, and use it right away (Spam/Abuse A1b). Legacy factors with no
+// enabledAt count as not established until they are re-enrolled and wait 24h.
+const RECENT_SIGN_IN_MS = 10 * 60 * 1000;
+const ESTABLISHED_FACTOR_MS = 24 * 60 * 60 * 1000;
+
+function timeMs(value) {
+    if (!value) return 0;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+    if (value instanceof Date) return value.getTime() || 0;
+    if (typeof value.toMillis === 'function') return value.toMillis() || 0;
+    if (typeof value.toDate === 'function') return value.toDate().getTime() || 0;
+    return 0;
+}
+
+function authTimeMs(context) {
+    const token = context && context.auth && context.auth.token;
+    const t = Number(token && token.auth_time) * 1000;
+    return Number.isFinite(t) && t > 0 ? t : 0;
+}
+
+function recentSignIn(context, nowMs) {
+    const t = authTimeMs(context);
+    if (!t) return false;
+    const age = nowMs - t;
+    return age >= -60000 && age <= RECENT_SIGN_IN_MS;
+}
+
+function factorEstablished(enrolledMs, signInMs, nowMs) {
+    const e = timeMs(enrolledMs);
+    if (!e) return false;
+    return e <= nowMs - ESTABLISHED_FACTOR_MS;
+}
 const RECOVERY_COUNT = 10;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const STEP_MS = 30000;
@@ -543,6 +579,25 @@ function initSecondFactor(deps) {
             }
         }
         return { uid: uid, totp: !!secret, phone: phone.enrolled === true };
+    }
+
+    // Recent sign-in + fresh step-up + a factor at least 24 hours old.
+    async function requireAdminStepUp(context, action) {
+        if (!context || !context.auth || !context.auth.uid) throw httpError('unauthenticated', 'Must be signed in');
+        const nowMs = currentNow();
+        if (!recentSignIn(context, nowMs)) throw httpError('failed-precondition', 'Sign in again, then try this.');
+        const sf = await requireFreshStepUp(context, action);
+        if (!sf || (sf.totp !== true && sf.phone !== true)) {
+            throw httpError('failed-precondition', 'Turn on two-factor authentication first.');
+        }
+        const uid = context.auth.uid;
+        const [secret, phone] = await Promise.all([secretRecord(uid), phoneInfo(uid)]);
+        const totpOk = sf.totp === true && !!secret && factorEstablished(secret.enabledAt, authTimeMs(context), nowMs);
+        const phoneOk = sf.phone === true && phone.enrolled === true && factorEstablished(phone.enrollmentTime, authTimeMs(context), nowMs);
+        if (!totpOk && !phoneOk) {
+            throw httpError('failed-precondition', 'Your two-factor method is too new for this action. Try again after 24 hours.');
+        }
+        return Object.assign({}, sf, { established: true });
     }
 
     async function revokeSessions(uid, sessionId) {
@@ -1356,6 +1411,7 @@ function initSecondFactor(deps) {
         totpSignOutOtherDevices: totpSignOutOtherDevices,
         totpRevokeAllTrust: totpRevokeAllTrust,
         requireFreshStepUp: requireFreshStepUp,
+        requireAdminStepUp: requireAdminStepUp,
         issueRecoveryCodes: issueRecoveryCodes,
         regenerateRecoveryCodes: regenerateRecoveryCodes,
         useRecoveryCode: useRecoveryCode,
@@ -1385,6 +1441,10 @@ function requireFreshStepUp(context, action) {
     return requireReady().requireFreshStepUp(context, action);
 }
 
+function requireAdminStepUp(context, action) {
+    return requireReady().requireAdminStepUp(context, action);
+}
+
 // Same delete the scheduled lobby cleanup runs. nowDate is the cutoff so a
 // test can sweep a two-minute window without waiting out the day counter.
 async function sweepExpiredMfaRows(db, nowDate) {
@@ -1410,6 +1470,11 @@ module.exports = {
     stamp: stamp,
     requireSecondFactor: requireSecondFactor,
     requireFreshStepUp: requireFreshStepUp,
+    requireAdminStepUp: requireAdminStepUp,
+    recentSignIn: recentSignIn,
+    factorEstablished: factorEstablished,
+    RECENT_SIGN_IN_MS: RECENT_SIGN_IN_MS,
+    ESTABLISHED_FACTOR_MS: ESTABLISHED_FACTOR_MS,
     encryptTotpSecret: encryptTotpSecret,
     decryptTotpSecret: decryptTotpSecret,
     encryptionKeyConfigured: encryptionKeyConfigured,

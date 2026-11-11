@@ -38,6 +38,7 @@ const TESTS = [
     { name: 'Cache Busters', file: 'busters.js' },
     { name: 'Admin home button + panel', file: 'test-admin-home-btn.js' },
     { name: 'Admin claim gates (server)', file: 'test-admin-claim-gates.js' },
+    { name: 'Kill switch', file: 'test-kill-switch.js' },
     { name: 'Admin 2FA reset guard', file: 'test-admin-2fa-reset-guard.js' },
     { name: 'Chat pinned scroll', file: 'test-chat-pinned-scroll.js' },
     { name: 'Google sign-in GIS', file: 'test-google-signin-gis.js' },
