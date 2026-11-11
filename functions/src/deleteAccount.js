@@ -1357,6 +1357,7 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         ['totp_pending', uid, []],
         ['totp_sessions', uid, []],
         ['recovery_codes', uid, []],
+        ['mfa_known_factors', uid, []],
         ['suggestions', uid, []],
         ['referral_signals', uid, []],
         ['email_change_pending', uid, []],
