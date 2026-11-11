@@ -11853,7 +11853,7 @@ function _actualRenderMarketplace(options) {
     // Search bar
     html += '<div style="margin-bottom:14px;">' +
         '<input type="text" id="marketSearch" placeholder="🔍 Search listings..." value="' + escapeHtml(searchQuery || '') + '" ' +
-        'oninput="clearTimeout(window._mktSearchTimer);window._mktSearchTimer=setTimeout(function(){renderMarketplace({search:document.getElementById(\'marketSearch\').value,category:\'' + activeCategory + '\',sort:\'' + sortBy + '\'})},400)" ' +
+        'oninput="clearTimeout(window._mktSearchTimer);window._mktSearchTimer=setTimeout(function(){renderMarketplace({search:document.getElementById(\'marketSearch\').value,category:\'' + BQSafe.jsStr(activeCategory) + '\',sort:\'' + BQSafe.jsStr(sortBy) + '\'})},400)" ' +
         'style="width:100%;padding:12px 16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-family:inherit;box-sizing:border-box;">' +
     '</div>';
 

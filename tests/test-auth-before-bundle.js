@@ -127,12 +127,12 @@ test('firebase config is one literal shared by both boot paths', () => {
 });
 
 test('bundle preload is restored and the ready signal follows the bundle', () => {
-    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261111_v2544/g) || []).length, 2);
+    assert.strictEqual((html.match(/bundle\.min\.js\?v=20261111_v2546/g) || []).length, 2);
     assert.ok(!html.includes('bundle.min.js?v=20261101_v2455'));
     assert.ok(!html.includes('bundle.min.js?v=20261029_v2429'));
-    assert.ok(html.indexOf('rel="preload" href="/bundle.min.js?v=20261111_v2544b" as="script"') !== -1);
-    assert.ok(html.indexOf('src="/bundle.min.js?v=20261111_v2544b" defer fetchpriority="high"') !== -1);
-    assert.ok(html.indexOf('bundle.min.js?v=20261111_v2544b" defer') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
+    assert.ok(html.indexOf('rel="preload" href="/bundle.min.js?v=20261111_v2546" as="script"') !== -1);
+    assert.ok(html.indexOf('src="/bundle.min.js?v=20261111_v2546" defer fetchpriority="high"') !== -1);
+    assert.ok(html.indexOf('bundle.min.js?v=20261111_v2546" defer') < html.indexOf('bundle-ready.js?v=20261027_v2394'));
     const ready = fs.readFileSync(path.join(root, 'bundle-ready.js'), 'utf8');
     assert.ok(ready.indexOf('_btcBundleReady = true') !== -1);
     assert.ok(ready.indexOf('btc-bundle-ready') !== -1);
