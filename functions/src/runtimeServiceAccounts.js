@@ -71,6 +71,7 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     refreshHotTopics: { id: 'fn-refresh-hot-topics', extra: ['fcm'] },
     refreshHotTopicsForce: { id: 'fn-refresh-hot-topics-force', extra: ['fcm'] },
     refreshHotTopicsHttp: { id: 'fn-refresh-hot-topics-http', extra: ['fcm'] },
+    recordKnownPhoneFactor: { id: 'fn-record-known-phone', extra: ['auth'] },
     regenerateRecoveryCodes: { id: 'fn-regenerate-recovery-codes', extra: ['auth'] },
     registerReferral: { id: 'fn-register-referral', extra: ['auth', 'fcm'] },
     resetLightningAddressOnce: { id: 'fn-reset-ln-addr-once', extra: [] },
