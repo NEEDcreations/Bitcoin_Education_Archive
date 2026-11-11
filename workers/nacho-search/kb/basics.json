@@ -70,6 +70,8 @@
     "category": "basics",
     "question": "When was the genesis block mined?",
     "alts": [
+      "What is the genesis block?",
+      "What is Bitcoin's genesis block?",
       "Explain when was the genesis block mined?",
       "At what time was the genesis block mined?",
       "Which date fits was the genesis block mined?"
@@ -202,6 +204,8 @@
     "category": "basics",
     "question": "What is the smallest unit of bitcoin?",
     "alts": [
+      "What is a satoshi?",
+      "What is a sat?",
       "Define the smallest unit of bitcoin?",
       "Explain the smallest unit of bitcoin?",
       "Describe the smallest unit of bitcoin?"
@@ -268,6 +272,7 @@
     "category": "basics",
     "question": "What is a double spend?",
     "alts": [
+      "What is the double-spend problem?",
       "Define a double spend?",
       "Explain a double spend?",
       "Describe a double spend?"
@@ -334,6 +339,9 @@
     "category": "basics",
     "question": "Why do people say timechain?",
     "alts": [
+      "What is the timechain?",
+      "Explain the timechain.?",
+      "Explain the timechain like I'm five.?",
       "Explain why do people say timechain?",
       "For what reason do people say timechain?",
       "What is the reason do people say timechain?"
@@ -356,6 +364,9 @@
     "category": "basics",
     "question": "What is the Bitcoin blockchain?",
     "alts": [
+      "What is a blockchain?",
+      "Explain the blockchain like I'm five?",
+      "Explain the blockchain like I am five.?",
       "Define the Bitcoin blockchain?",
       "Explain the Bitcoin blockchain?",
       "Describe the Bitcoin blockchain?"
@@ -1324,6 +1335,8 @@
     "category": "basics",
     "question": "What is simplified payment verification?",
     "alts": [
+      "What is SPV?",
+      "What is SPV in bitcoin?",
       "Define simplified payment verification?",
       "Explain simplified payment verification?",
       "Describe simplified payment verification?"
@@ -1702,6 +1715,8 @@
     "category": "basics",
     "question": "When did SegWit activate?",
     "alts": [
+      "What is SegWit?",
+      "What is SegWit in bitcoin?",
       "Explain when did SegWit activate?",
       "At what time did SegWit activate?",
       "Which date fits did SegWit activate?"
@@ -1759,7 +1774,7 @@
     "followUps": [
       "basics-layers-intro",
       "basics-education-mission",
-      "basics-adam"
+      "basics-first-coins"
     ],
     "sources": "Limited script by design."
   },
@@ -1780,8 +1795,8 @@
     ],
     "followUps": [
       "basics-education-mission",
-      "basics-adam",
-      "basics-szabo"
+      "basics-first-coins",
+      "basics-whole-coin"
     ],
     "sources": "Layering as a scaling approach."
   },
@@ -1801,11 +1816,57 @@
       "faq-glossary"
     ],
     "followUps": [
+      "basics-first-coins",
+      "basics-whole-coin",
+      "basics-adam"
+    ],
+    "sources": "Bitcoin Quest product purpose."
+  },
+  {
+    "id": "basics-first-coins",
+    "category": "basics",
+    "question": "How do I get my first bitcoin?",
+    "alts": [
+      "How can I get my first bitcoin?",
+      "Show me how to get my first bitcoin?",
+      "What is the way to get my first bitcoin?"
+    ],
+    "answer": "You can get your first bitcoin by buying a small amount from an exchange, receiving it from someone, or using a bitcoin ATM. Start with an amount you can afford to learn with, then move it into a wallet whose keys you control. I can't tell you where to buy or whether you should.",
+    "topics": [
+      "self-custody",
+      "use-cases",
+      "one-stop-shop"
+    ],
+    "followUps": [
+      "basics-whole-coin",
+      "basics-adam",
+      "basics-szabo"
+    ],
+    "sources": "First coins and self-custody."
+  },
+  {
+    "id": "basics-whole-coin",
+    "category": "basics",
+    "question": "Do I need to buy a whole bitcoin?",
+    "alts": [
+      "Do I have to buy a whole bitcoin?",
+      "Can I buy a fraction of a bitcoin?",
+      "Explain whether do I need to buy a whole bitcoin?",
+      "Clarify whether do I need to buy a whole bitcoin?",
+      "Is this the case: do I need to buy a whole bitcoin?"
+    ],
+    "answer": "No. You do not need to buy a whole bitcoin. A bitcoin is divisible into 100 million satoshis, so you can hold a small fraction. Wallets can show the amount in bitcoin or in sats.",
+    "topics": [
+      "sats__or__bits",
+      "money",
+      "math"
+    ],
+    "followUps": [
       "basics-adam",
       "basics-szabo",
       "basics-wei"
     ],
-    "sources": "Bitcoin Quest product purpose."
+    "sources": "Divisibility of bitcoin."
   },
   {
     "id": "basics-adam",

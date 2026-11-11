@@ -26,6 +26,8 @@
     "category": "wallets",
     "question": "Why is self-custody important?",
     "alts": [
+      "What is self-custody?",
+      "How do I set up self-custody?",
       "Explain why is self-custody important?",
       "For what reason is self-custody important?",
       "What is the reason is self-custody important?"
@@ -48,6 +50,8 @@
     "category": "wallets",
     "question": "What do you hold on an exchange?",
     "alts": [
+      "What is an exchange?",
+      "What is a bitcoin exchange?",
       "Explain this: what do you hold on an exchange?",
       "Clarify this: what do you hold on an exchange?",
       "Unpack this: what do you hold on an exchange?"
@@ -70,6 +74,7 @@
     "category": "wallets",
     "question": "What is a hardware signer?",
     "alts": [
+      "What is a hardware wallet?",
       "Define a hardware signer?",
       "Explain a hardware signer?",
       "Describe a hardware signer?"
@@ -114,6 +119,8 @@
     "category": "wallets",
     "question": "What is a cold wallet?",
     "alts": [
+      "What is a hot wallet vs a cold wallet?",
+      "What is a hot wallet versus a cold wallet?",
       "Define a cold wallet?",
       "Explain a cold wallet?",
       "Describe a cold wallet?"
@@ -164,9 +171,9 @@
       "What happens if I lose my seed?",
       "Can a lost seed be recovered?",
       "What if the only seed copy is gone?",
+      "What happens if I lose my seed phrase?",
       "Explain this: what happens if you lose a seed?",
-      "Clarify this: what happens if you lose a seed?",
-      "Unpack this: what happens if you lose a seed?"
+      "Clarify this: what happens if you lose a seed?"
     ],
     "answer": "If every copy of the words is gone, the coins those words controlled cannot be recovered by a company or by miners. There is no reset. Write a backup before the only copy is the phone.",
     "topics": [
@@ -1130,7 +1137,7 @@
     "followUps": [
       "wallets-collaborative",
       "wallets-spending-savings",
-      "wallets-no-photo"
+      "wallets-what-is"
     ],
     "sources": "Seed phishing."
   },
@@ -1151,8 +1158,8 @@
     ],
     "followUps": [
       "wallets-spending-savings",
-      "wallets-no-photo",
-      "wallets-2of3"
+      "wallets-what-is",
+      "wallets-how-send"
     ],
     "sources": "Collaborative multisig."
   },
@@ -1172,11 +1179,57 @@
       "use-cases"
     ],
     "followUps": [
+      "wallets-what-is",
+      "wallets-how-send",
+      "wallets-no-photo"
+    ],
+    "sources": "Hot and cold amounts."
+  },
+  {
+    "id": "wallets-what-is",
+    "category": "wallets",
+    "question": "What is a bitcoin wallet?",
+    "alts": [
+      "What is a wallet?",
+      "Define a bitcoin wallet?",
+      "Explain a bitcoin wallet?",
+      "Describe a bitcoin wallet?"
+    ],
+    "answer": "A bitcoin wallet is software or a device that holds the keys that can spend your coins. It can send, receive, and show your balance by watching the chain. The coins live on the bitcoin ledger, not inside the app, so the backup of the keys is what you must protect.",
+    "topics": [
+      "self-custody",
+      "apps-tools",
+      "hardware"
+    ],
+    "followUps": [
+      "wallets-how-send",
+      "wallets-no-photo",
+      "wallets-2of3"
+    ],
+    "sources": "What a wallet holds."
+  },
+  {
+    "id": "wallets-how-send",
+    "category": "wallets",
+    "question": "How do I send bitcoin?",
+    "alts": [
+      "How can I send bitcoin?",
+      "How do you send bitcoin?",
+      "Show me how to send bitcoin?",
+      "What is the way to send bitcoin?"
+    ],
+    "answer": "To send bitcoin, you create a transaction in a wallet you control, paste the recipient's address, choose an amount and a fee, then sign and broadcast. Check the address on a screen you trust — payments are not reversible. You never need to share a seed phrase to send.",
+    "topics": [
+      "self-custody",
+      "transaction_fees",
+      "secure"
+    ],
+    "followUps": [
       "wallets-no-photo",
       "wallets-2of3",
       "wallets-psbt-flow"
     ],
-    "sources": "Hot and cold amounts."
+    "sources": "How a send works."
   },
   {
     "id": "wallets-no-photo",
