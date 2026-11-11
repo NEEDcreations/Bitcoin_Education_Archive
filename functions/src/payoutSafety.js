@@ -12,10 +12,11 @@
 //    500 sats in a rolling 24h set cipherHold. Cipher payouts refuse while it
 //    is set; the faucet keeps paying.
 //
-// Holds do not clear on their own in practice (HOLD_MS is 30 days). Phil
-// clears them in the Firebase console: payout_safety/hold, set satsHold
-// and/or cipherHold to 0. Server-only; clients cannot write payout_safety
-// (firestore.rules: admin read, no client writes).
+// Auto-holds last 30 days (HOLD_MS, Phil Nov 9) unless an admin clears them
+// first with the Clear Hold button (adminClearPayoutHold: admin claim only,
+// App Check, second factor when enrolled, typed confirm, audit row kept
+// forever in payout_safety_audit). Server-only; clients cannot write
+// payout_safety (firestore.rules: admin read, no client writes).
 
 const FEE_FLAG_WINDOW_MS = 60 * 60 * 1000;
 const FEE_FLAG_LIMIT = 2;
@@ -32,6 +33,8 @@ const FEE_WATCH_DOC = 'fee_watch';
 const AUDIT_COLLECTION = 'payout_safety_audit';
 
 const HOLD_ERROR = 'Sats payouts are paused right now. Try again later.';
+// Which global holds the admin Clear Hold button may clear.
+const CLEAR_TARGETS = Object.freeze({ satsHold: ['satsHold'], cipherHold: ['cipherHold'], all: ['satsHold', 'cipherHold'] });
 
 class PayoutHoldError extends Error {
     constructor(message, reason) {
@@ -186,7 +189,77 @@ async function assertPayoutsOpen(db, path, nowMs) {
     return true;
 }
 
+function confirmPhrase(which) {
+    return 'CLEAR ' + String(which || '');
+}
+
+// Pure. Decides what an admin Clear Hold does. Only fields that are set
+// (timestamp in the future) are cleared; the audit keeps the prior values.
+function planClearHold(hold, which, nowMs) {
+    const fields = Object.prototype.hasOwnProperty.call(CLEAR_TARGETS, which) ? CLEAR_TARGETS[which] : null;
+    if (!fields) return { ok: false, error: 'Unknown hold.' };
+    const h = hold || {};
+    const now = num(nowMs);
+    const active = fields.filter(function (f) { return num(h[f]) > now; });
+    if (!active.length) return { ok: true, cleared: [], patch: null, prior: {} };
+    const patch = {};
+    const prior = {};
+    active.forEach(function (f) {
+        prior[f] = { until: num(h[f]), reason: String(h[f + 'Reason'] || '').slice(0, 120), setAtMs: num(h[f + 'SetAtMs']) };
+        patch[f] = 0;
+        patch[f + 'ClearedAtMs'] = now;
+    });
+    return { ok: true, cleared: active, patch: patch, prior: prior };
+}
+
+// Admin Clear Hold. One transaction: clear the hold fields and write a
+// permanent audit row (who, when, what was cleared, prior reason/until).
+// The caller has already checked the admin claim.
+async function clearHold(db, admin, req, deps) {
+    const r = req || {};
+    const d = deps || {};
+    const nowMs = typeof d.nowMs === 'number' ? d.nowMs : Date.now();
+    const which = String(r.which || '');
+    const adminUid = String(r.adminUid || '').slice(0, 128);
+    if (!adminUid) throw new Error('admin uid required');
+    const holdRef = db.collection(HOLD_COLLECTION).doc(HOLD_DOC);
+    let plan = null;
+    await db.runTransaction(async function (t) {
+        const snap = await t.get(holdRef);
+        plan = planClearHold(snap.exists ? snap.data() : null, which, nowMs);
+        if (!plan.ok) return;
+        if (plan.patch) {
+            const patch = Object.assign({}, plan.patch);
+            plan.cleared.forEach(function (f) { patch[f + 'ClearedBy'] = adminUid; });
+            t.set(holdRef, patch, { merge: true });
+        }
+        t.set(db.collection(AUDIT_COLLECTION).doc(), {
+            action: 'clear_hold',
+            which: which,
+            cleared: plan.cleared,
+            prior: plan.prior,
+            byUid: adminUid,
+            note: String(r.note || '').slice(0, 200),
+            atMs: nowMs,
+        });
+    });
+    if (plan && plan.ok && plan.cleared.length) {
+        try {
+            const notify = d.notify || require('./satsReviewAlert').notifyAdminClaim;
+            await notify(db, admin, {
+                docId: 'payout_hold_cleared_' + nowMs,
+                message: ('Payout hold cleared by an admin: ' + plan.cleared.join(', ') + '.').slice(0, 180),
+                targetId: 'payout_hold_cleared',
+            });
+        } catch (e) {
+            console.error('[payoutSafety] clear alert failed:', e.message);
+        }
+    }
+    return plan;
+}
+
 module.exports = {
+    CLEAR_TARGETS, confirmPhrase, planClearHold, clearHold,
     FEE_FLAG_WINDOW_MS, FEE_FLAG_LIMIT, CIPHER_OVERPAID_WINDOW_MS, CIPHER_OVERPAID_LIMIT_SATS,
     HOLD_MS, CIPHER_PATHS, PAYOUT_PATHS, HOLD_COLLECTION, HOLD_DOC, FEE_WATCH_DOC, AUDIT_COLLECTION,
     HOLD_ERROR, PayoutHoldError,

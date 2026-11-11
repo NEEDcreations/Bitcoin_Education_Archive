@@ -180,6 +180,80 @@ test('rules: payout_safety is server-only', () => {
     assert.ok(/match \/payout_safety_audit\/\{docId\} \{\s*allow read: if isAdmin\(\);\s*allow write: if false;/.test(rules));
 });
 
+// ---- Phil Nov 9: 30-day auto-holds + admin Clear Hold button ----
+test('auto-holds last 30 days, then lapse on their own', () => {
+    assert.strictEqual(ps.HOLD_MS, 30 * 24 * H);
+    const hold = { satsHold: T0 + ps.HOLD_MS };
+    assert.strictEqual(ps.assessHold(hold, 'claimSats', T0 + ps.HOLD_MS - 1).ok, false);
+    assert.strictEqual(ps.assessHold(hold, 'claimSats', T0 + ps.HOLD_MS).ok, true);
+});
+test('planClearHold clears only active fields and keeps the prior reason', () => {
+    const hold = { satsHold: T0 + H, satsHoldReason: 'fee_over_cap x2 in 1h', satsHoldSetAtMs: T0 - 1, cipherHold: T0 - 1 };
+    const p = ps.planClearHold(hold, 'all', T0);
+    assert.deepStrictEqual(p.cleared, ['satsHold']);
+    assert.strictEqual(p.patch.satsHold, 0);
+    assert.strictEqual(p.patch.cipherHold, undefined);
+    assert.strictEqual(p.prior.satsHold.reason, 'fee_over_cap x2 in 1h');
+    assert.strictEqual(ps.planClearHold(hold, 'cipherHold', T0).cleared.length, 0);
+    assert.strictEqual(ps.planClearHold(hold, 'users', T0).ok, false);
+    assert.strictEqual(ps.planClearHold(hold, '__proto__', T0).ok, false);
+});
+test('clearHold: one transaction, hold off, permanent audit row, admin alert', async () => {
+    const db = fakeDb({ 'payout_safety/hold': { satsHold: T0 + H, satsHoldReason: 'float dropped 6000 sats in 60 min', cipherHold: T0 + H } });
+    const alerts = [];
+    const p = await ps.clearHold(db, null, { which: 'satsHold', adminUid: 'adminA' }, { nowMs: T0, notify: async (_d, _a, n) => alerts.push(n) });
+    assert.deepStrictEqual(p.cleared, ['satsHold']);
+    const h = db.store['payout_safety/hold'];
+    assert.strictEqual(h.satsHold, 0);
+    assert.strictEqual(h.satsHoldClearedBy, 'adminA');
+    assert.strictEqual(h.cipherHold, T0 + H, 'cipher hold untouched');
+    assert.strictEqual(await ps.assertPayoutsOpen(db, 'claimSats', T0), true);
+    await assert.rejects(ps.assertPayoutsOpen(db, 'claimCipherSats', T0), e => e.reason === 'cipherHold');
+    const audits = Object.keys(db.store).filter(k => k.indexOf('payout_safety_audit/') === 0).map(k => db.store[k]);
+    assert.strictEqual(audits.length, 1);
+    assert.strictEqual(audits[0].action, 'clear_hold');
+    assert.strictEqual(audits[0].byUid, 'adminA');
+    assert.strictEqual(audits[0].prior.satsHold.reason, 'float dropped 6000 sats in 60 min');
+    assert.strictEqual(alerts.length, 1);
+});
+test('clearHold with nothing active still audits, no alert', async () => {
+    const db = fakeDb({});
+    const alerts = [];
+    const p = await ps.clearHold(db, null, { which: 'all', adminUid: 'adminA' }, { nowMs: T0, notify: async () => alerts.push(1) });
+    assert.deepStrictEqual(p.cleared, []);
+    assert.strictEqual(Object.keys(db.store).filter(k => k.indexOf('payout_safety_audit/') === 0).length, 1);
+    assert.strictEqual(alerts.length, 0);
+    await assert.rejects(ps.clearHold(db, null, { which: 'all', adminUid: '' }, { nowMs: T0 }));
+});
+test('adminClearPayoutHold: admin claim only, App Check, 2FA, confirm phrase, own runtime SA, sends nothing', () => {
+    const src = read('functions/index.js');
+    const start = src.indexOf('exports.adminClearPayoutHold =');
+    assert.ok(start > 0);
+    const body = src.slice(start, src.indexOf('\nasync function ', start));
+    assert.ok(body.indexOf('enforceAppCheck: true') > 0);
+    assert.ok(body.indexOf("serviceAccount: runtimeSa('adminClearPayoutHold')") > 0);
+    assert.ok(body.indexOf('context.auth.token.admin !== true') > 0);
+    assert.ok(body.indexOf('requireSecondFactor') > 0);
+    assert.ok(body.indexOf('confirmPhrase(which)') > 0);
+    assert.ok(!/email/i.test(body), 'never an email gate');
+    assert.ok(body.indexOf('payInvoice') === -1 && body.indexOf('secrets:') === -1);
+    assert.strictEqual(ps.confirmPhrase('satsHold'), 'CLEAR satsHold');
+    const sa = require('../functions/src/runtimeServiceAccounts').RUNTIME_SERVICE_ACCOUNTS.adminClearPayoutHold;
+    assert.strictEqual(sa.id, 'fn-admin-clear-payout-hold');
+    assert.strictEqual(sa.noSecrets, true);
+});
+test('client: Clear Hold card is admin-claim gated and on the App Check list', () => {
+    const r = read('ranking.js');
+    assert.ok(r.indexOf('adminClearPayoutHold: 1,') > 0);
+    const card = r.slice(r.indexOf('window.renderPayoutHoldAdmin = function'), r.indexOf('window.renderFaucetAbuseAdmin = function'));
+    assert.ok(card.indexOf("window._isAdminClaim !== true") > 0);
+    assert.ok(card.indexOf("httpsCallable('adminClearPayoutHold')") > 0);
+    assert.ok(card.indexOf("'CLEAR ' + which") > 0);
+    assert.ok(card.indexOf('Clear Hold') > 0);
+    assert.ok(r.indexOf('<div id="payoutHoldAdmin"') > 0);
+    assert.ok(r.indexOf("window.renderPayoutHoldAdmin('payoutHoldAdmin')") > 0);
+});
+
 (async () => {
     for (const p of pending) await p();
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

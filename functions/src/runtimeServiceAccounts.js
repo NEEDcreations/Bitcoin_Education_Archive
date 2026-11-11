@@ -24,6 +24,9 @@
 // Cloud Run service, and gen2 event triggers need roles/eventarc.eventReceiver;
 // the plan script derives those from the trigger type.
 //
+// `noSecrets: true` marks a function that binds no secret but still runs as
+// its own account (payout-state changers; never the default account).
+//
 // adminApproveFactionPayout is intentionally absent: it stays undeployed.
 // The accounts must exist and carry their grants BEFORE a function that
 // references them is deployed, or the deploy fails (it never silently falls
@@ -31,6 +34,9 @@
 
 const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     adminBanUser: { id: 'fn-admin-ban-user', extra: [] },
+    // Binds no secret, but it changes payout state, so it gets its own
+    // account instead of the default one (noSecrets: plan grants no secret).
+    adminClearPayoutHold: { id: 'fn-admin-clear-payout-hold', extra: ['auth'], noSecrets: true },
     adminLookupUser: { id: 'fn-admin-lookup-user', extra: [] },
     adminQueryUsers: { id: 'fn-admin-query-users', extra: [] },
     adminResolveCipherSatsClaim: { id: 'fn-admin-resolve-cipher-claim', extra: [] },
