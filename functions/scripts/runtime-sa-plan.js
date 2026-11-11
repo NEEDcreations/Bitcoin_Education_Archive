@@ -31,7 +31,7 @@ const BATCHES = [
     { name: 'admin kill switch (gen1 callable + auto-return tick)', fns: ['adminSetKillSwitch', 'killSwitchAutoReturnTick'] },
     { name: 'gen2 schedules + referral/X triggers', fns: ['scheduleRaidBoss', 'scheduleRaidBossCatchup', 'refreshHotTopics', 'tweetSatoshisFavor', 'onUserReferral', 'payQualifiedReferrals'] },
     { name: 'gen1 hot topics, Strava, referral callables', fns: ['refreshHotTopicsHttp', 'refreshHotTopicsForce', 'stravaAuth', 'syncStravaWalks', 'verifyReferral', 'registerReferral'] },
-    { name: 'account security: TOTP, username, email change, delete', fns: ['totpSetup', 'totpVerify', 'totpCheck', 'totpDisable', 'totpStepUp', 'regenerateRecoveryCodes', 'setUsername', 'prepareEmailChange', 'syncEmailChange', 'confirmAccountLink', 'deleteAccount'] },
+    { name: 'account security: TOTP, username, email change, delete', fns: ['totpSetup', 'totpVerify', 'totpCheck', 'totpDisable', 'totpStepUp', 'regenerateRecoveryCodes', 'recordKnownPhoneFactor', 'setUsername', 'prepareEmailChange', 'syncEmailChange', 'confirmAccountLink', 'deleteAccount'] },
     { name: 'wallet / NWC (last)', fns: ['getFaucetStats', 'confirmTipSent', 'adminResolveCipherSatsClaim', 'resetLightningAddressOnce', 'claimSats', 'claimCipherSats', 'claimCipherWin', 'tctvDripTick'] },
 ];
 
@@ -111,24 +111,30 @@ function gcloudFor(plan, batchIndex) {
         lines.push('gcloud iam roles describe killSwitchExport --project "$P" >/dev/null 2>&1 || gcloud iam roles create killSwitchExport --project "$P" --title "Kill switch Firestore export" --description "Start a managed Firestore export and poll the operation. Cannot import." --permissions datastore.databases.export,datastore.operations.get');
         lines.push('gcloud iam roles update killSwitchExport --project "$P" --permissions datastore.databases.export,datastore.operations.get');
     }
+    const seenCmd = {};
+    function pushOnce(line) {
+        if (seenCmd[line]) return;
+        seenCmd[line] = true;
+        lines.push(line);
+    }
     b.fns.forEach(function (name) {
         const f = plan.functions[name];
         const m = 'serviceAccount:' + f.email;
         lines.push('', '# ' + name + ' (gen' + f.gen + ' ' + f.trigger + ')');
-        lines.push('gcloud iam service-accounts create ' + f.id + ' --project "$P" --display-name "BQ runtime ' + name + '" --description "Runtime SA for Cloud Function ' + name + ' only"');
-        lines.push('gcloud iam service-accounts add-iam-policy-binding ' + f.email + ' --project "$P" --member serviceAccount:' + plan.deployer + ' --role roles/iam.serviceAccountUser --condition=None');
+        pushOnce('gcloud iam service-accounts create ' + f.id + ' --project "$P" --display-name "BQ runtime ' + name + '" --description "Runtime SA for Cloud Function ' + name + ' only"');
+        pushOnce('gcloud iam service-accounts add-iam-policy-binding ' + f.email + ' --project "$P" --member serviceAccount:' + plan.deployer + ' --role roles/iam.serviceAccountUser --condition=None');
         f.projectRoles.forEach(function (r) {
-            lines.push('gcloud projects add-iam-policy-binding "$P" --member ' + m + ' --role ' + r + ' --condition=None');
+            pushOnce('gcloud projects add-iam-policy-binding "$P" --member ' + m + ' --role ' + r + ' --condition=None');
         });
         f.bucketRoles.forEach(function (br) {
             let cmd = 'gcloud storage buckets add-iam-policy-binding gs://' + br.bucket + ' --member ' + m + ' --role ' + br.role;
             if (br.condition) {
                 cmd += " --condition='expression=" + br.condition.expression + ",title=" + br.condition.title + ",description=" + br.condition.description + "'";
             }
-            lines.push(cmd);
+            pushOnce(cmd);
         });
         f.secrets.forEach(function (s) {
-            lines.push('gcloud secrets add-iam-policy-binding ' + s + ' --project "$P" --member ' + m + ' --role roles/secretmanager.secretAccessor --condition=None');
+            pushOnce('gcloud secrets add-iam-policy-binding ' + s + ' --project "$P" --member ' + m + ' --role roles/secretmanager.secretAccessor --condition=None');
         });
         if (f.selfInvoker) {
             lines.push('gcloud run services add-iam-policy-binding ' + name.toLowerCase() + ' --project "$P" --region ' + plan.region + ' --member ' + m + ' --role roles/run.invoker');

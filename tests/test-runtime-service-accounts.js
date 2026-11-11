@@ -24,9 +24,10 @@ const names = Object.keys(endpoints);
 const secretBound = names.filter(function (n) { return endpoints[n].secrets.length > 0; }).sort();
 const manifest = Object.keys(RUNTIME_SERVICE_ACCOUNTS).sort();
 
-test('manifest lists exactly the secret-bound exports (55)', function () {
+test('manifest lists exactly the secret-bound exports (57)', function () {
     assert.deepStrictEqual(manifest, secretBound);
-    assert.strictEqual(manifest.length, 55);
+    assert.strictEqual(manifest.length, 57);
+    assert.strictEqual(secretBound.length, 57);
 });
 
 test('every secret-bound function runs as its own account', function () {
@@ -43,12 +44,15 @@ test('functions without secrets do not set a service account', function () {
 
 test('account ids are valid, unique, and fit the project quota', function () {
     const ids = manifest.map(function (n) { return RUNTIME_SERVICE_ACCOUNTS[n].id; });
-    assert.strictEqual(new Set(ids).size, ids.length);
-    ids.forEach(function (id) {
+    // adminSetKillSwitch and killSwitchAutoReturnTick intentionally share one account.
+    const unique = Array.from(new Set(ids));
+    assert.strictEqual(ids.filter(function (id) { return id === 'fn-admin-kill-switch'; }).length, 2);
+    assert.strictEqual(unique.length, ids.length - 1);
+    unique.forEach(function (id) {
         assert.ok(/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(id), id);
         assert.ok(id.indexOf('fn-') === 0, id);
     });
-    assert.ok(ids.length + 6 <= 100, 'default quota is 100 service accounts per project');
+    assert.ok(unique.length + 6 <= 100, 'default quota is 100 service accounts per project');
 });
 
 test('runtimeSa resolves the project from env and never returns bare shorthand', function () {

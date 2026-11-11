@@ -113,6 +113,8 @@ const GATED = Object.freeze({
         'syncStravaWalks',
         'activateHashBooster',
         'useHintToken',
+        'mergeAnonBadges',
+        'incrementWeeklyChallenge',
     ]),
     // Scheduled jobs that should skip (not fail) while offline. Queued work
     // stays in place and is flushed after the switch is off.

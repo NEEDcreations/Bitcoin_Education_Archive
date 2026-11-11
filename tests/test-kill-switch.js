@@ -378,9 +378,29 @@ async function run() {
         ['claimSats', 'tctvDripTick', 'payWeeklyQuestLB', 'monthlyRaffleDraw', 'payQualifiedReferrals', 'adminApproveFactionPayout',
          'resetWeeklyXP', 'resetMonthlyXP', 'verifyReferral', 'registerReferral', 'pvpSubmitAnswer', 'pvpTimeoutOpponent',
          'tctvWatchHeartbeat', 'syncStravaWalks', 'creditMatureTopicComments', 'spendTickets', 'spendTicketsForFreeze', 'activateDoubleXP',
-         'activateHashBooster', 'useHintToken', 'resetLightningAddressOnce', 'flushBadgeGgBursts'].forEach(function (n) {
+         'activateHashBooster', 'useHintToken', 'resetLightningAddressOnce', 'flushBadgeGgBursts', 'mergeAnonBadges', 'incrementWeeklyChallenge'].forEach(function (n) {
             assert.ok(names.indexOf(n) !== -1, n);
         });
+    });
+
+    await test('every export that awards or merges badges is gated', function () {
+        const idx = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
+        const gated = {};
+        ks.gatedNames().concat(ks.gatedTriggerNames()).forEach(function (n) { gated[n] = true; });
+        const awardRe = /grantBadgeIfEarned|\bawardBadge\s*\(/;
+        const exportRe = /^exports\.([A-Za-z0-9_]+)\s*=/gm;
+        const names = [];
+        let m;
+        while ((m = exportRe.exec(idx))) names.push({ name: m[1], at: m.index });
+        const ungated = [];
+        names.forEach(function (row, i) {
+            const end = i + 1 < names.length ? names[i + 1].at : idx.length;
+            const body = idx.slice(row.at, end);
+            if (!awardRe.test(body)) return;
+            if (!gated[row.name]) ungated.push(row.name);
+        });
+        assert.deepStrictEqual(ungated, [], 'ungated badge-granting exports: ' + ungated.join(', '));
+        assert.ok(gated.mergeAnonBadges, 'mergeAnonBadges must be on the gate list');
     });
 
     await test('client maintenance page fails open and keeps admin tools', function () {
