@@ -29,10 +29,12 @@ async function loadConfig() {
 
 function watchId(potId, uid) { return String(potId) + '_' + String(uid); }
 
-// Salted hash so the watch doc (readable by its owner) never holds a raw IP.
+// Link ids are HMAC-SHA256 with the TCTV_LINK_HMAC_KEY Secret Manager key
+// (tctvLinkSecret.js), so the watch doc (readable by its owner) and backups
+// never hold a raw IP or a brute-forceable static-salt hash.
+const tctvLink = require('./src/tctvLinkSecret');
 function linkHash(kind, value) {
-    if (!value) return '';
-    return crypto.createHash('sha256').update('bq-tctv-link:' + kind + ':' + String(value)).digest('hex').slice(0, 24);
+    return tctvLink.linkHmac(kind, value);
 }
 
 function requestLinks(context) {
@@ -42,7 +44,7 @@ function requestLinks(context) {
     return { ip: linkHash('ip', net.exactId), net: linkHash('net', net.rangeId) };
 }
 
-const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async (data, context) => {
+const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true, secrets: [tctvLink.tctvLinkSecret], serviceAccount: runtimeSa('tctvDripCheckin') }).https.onCall(async (data, context) => {
     if (!context.auth) throw HttpsError('unauthenticated', 'Must be signed in');
     const provider = (context.auth.token && context.auth.token.firebase) ? context.auth.token.firebase.sign_in_provider : '';
     if (provider === 'anonymous') throw HttpsError('permission-denied', 'Sign in required');
@@ -102,8 +104,9 @@ const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true }).https.onC
             // docs. liveViewers on the pot is only the public header total.
             if (plan.credit > 0 && ageOk === true) patch.activeMs = nowMs;
             // Linked-account signals for the payout split (exact IP, device, subnet).
+            // HMAC ids only; with no key nothing new is added.
             patch.linkIps = logic.mergeLinks(prev.linkIps, links.ip);
-            patch.linkDevices = logic.mergeLinks(prev.linkDevices, deviceKey);
+            patch.linkDevices = logic.mergeLinks(prev.linkDevices, linkHash('dev', deviceKey));
             patch.linkNets = logic.mergeLinks(prev.linkNets, links.net);
             tx.set(wRef, Object.assign(base, patch), { merge: true });
             tx.set(devRef, { uid, lastMs: nowMs }, { merge: true });
@@ -164,7 +167,7 @@ async function distribute(pot, cfg) {
             const cur = await tx.get(histRef);
             if (cur.exists && Array.isArray((cur.data() || {}).shares)) return cur.data();
             const doc = { potId, paid: plan.paid, rollover: plan.rollover, winners: plan.shares.length, eligible: plan.eligible, cap: plan.cap,
-                accounts: plan.accounts || plan.eligible, linkedGroups: plan.linkedGroups || 0,
+                accounts: plan.accounts || plan.eligible, groups: plan.groups || 0, linkedGroups: plan.linkedGroups || 0,
                 shares: plan.shares.map(x => ({ uid: x.uid, sats: x.sats, seconds: x.seconds })), at: admin.firestore.FieldValue.serverTimestamp() };
             tx.set(histRef, doc);
             return doc;
@@ -349,11 +352,36 @@ async function runTick() {
         });
         if (!advanced) return;
         console.log('[tctvDrip] distributed ' + pot.potId + ' paid=' + plan.paid + ' winners=' + plan.shares.length);
+        // Shares are frozen in tctv_drip_history, so the closed pot's link ids
+        // are no longer needed: scrub them (User Data/Backups #287 must-fix).
+        try {
+            const n = await scrubPotLinks(pot.potId);
+            if (n) console.log('[tctvDrip] scrubbed links on ' + n + ' watch docs of ' + pot.potId);
+        } catch (e) { console.error('[tctvDrip] link scrub', e && e.message); }
     }
+}
+
+// Remove linkIps / linkDevices / linkNets from every watch doc of a closed
+// pot. Idempotent; a later tick retries docs that still carry links.
+async function scrubPotLinks(potId) {
+    if (!potId) return 0;
+    const snap = await db.collection('tctv_drip_watch').where('potId', '==', potId).get();
+    const del = admin.firestore.FieldValue.delete();
+    let n = 0;
+    let batch = db.batch();
+    let inBatch = 0;
+    for (const d of snap.docs) {
+        if (!logic.hasLinks(d.data())) continue;
+        batch.update(d.ref, { linkIps: del, linkDevices: del, linkNets: del });
+        n++;
+        if (++inBatch >= 400) { await batch.commit(); batch = db.batch(); inBatch = 0; }
+    }
+    if (inBatch) await batch.commit();
+    return n;
 }
 
 const tctvDripTick = onSchedule({ schedule: 'every 1 minutes', timeZone: 'UTC', retryCount: 0, secrets: [nwcUrlSecret], serviceAccount: runtimeSa('tctvDripTick') }, async () => {
     try { await runTick(); } catch (e) { console.error('[tctvDrip] tick', e && e.message); }
 });
 
-module.exports = { tctvDripCheckin, tctvDripTick, _runTick: runTick };
+module.exports = { tctvDripCheckin, tctvDripTick, _runTick: runTick, _scrubPotLinks: scrubPotLinks };

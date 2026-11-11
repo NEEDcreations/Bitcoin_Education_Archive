@@ -75,6 +75,8 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     stravaAuth: { id: 'fn-strava-auth', extra: [] },
     syncEmailChange: { id: 'fn-sync-email-change', extra: ['auth'] },
     syncStravaWalks: { id: 'fn-sync-strava-walks', extra: [] },
+    // #287: own SA so only it reads TCTV_LINK_HMAC_KEY (no NWC).
+    tctvDripCheckin: { id: 'fn-tctv-drip-checkin', extra: ['auth'] },
     tctvDripTick: { id: 'fn-tctv-drip-tick', extra: ['auth'] },
     totpCheck: { id: 'fn-totp-check', extra: ['auth'] },
     totpDisable: { id: 'fn-totp-disable', extra: ['auth'] },

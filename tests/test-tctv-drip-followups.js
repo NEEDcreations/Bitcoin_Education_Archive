@@ -20,19 +20,38 @@ test('no links: identical to the per-account split', () => {
     assert.deepStrictEqual(a.shares, b.shares);
     assert.strictEqual(a.eligible, 6);
 });
-test('a 5-account ring on one IP is one bucket and one watcher', () => {
+test('a 5-account ring on one IP is one bucket; threshold counts accounts (Spam/Abuse #287 M1)', () => {
     const ring = Array.from({ length: 5 }, (_, i) => ({ uid: 'r' + i, seconds: H8, links: ['ip:same'] }));
     const p = L.planShares(ring, cfg);
-    assert.ok(p.wait, 'ring alone cannot satisfy minEligibleWatchers');
-    assert.strictEqual(p.eligible, 1);
+    assert.ok(!p.wait, 'shared-IP accounts count toward minEligibleWatchers');
+    assert.strictEqual(p.eligible, 5);
     assert.strictEqual(p.accounts, 5);
+    assert.strictEqual(p.groups, 1);
+    assert.strictEqual(p.linkedGroups, 1);
+    assert.ok(sum(p) <= cfg.targetSats);
+});
+test('classroom NAT: 30 honest viewers on one IP do not wait forever', () => {
+    const room = Array.from({ length: 30 }, (_, i) => ({ uid: 'c' + i, seconds: 3600 + i * 60, links: ['ip:school'] }));
+    const p = L.planShares(room, cfg);
+    assert.ok(!p.wait);
+    assert.strictEqual(p.groups, 1);
+    assert.ok(p.shares.length === 30 && sum(p) > 0 && sum(p) <= cfg.targetSats);
+});
+test('below the account threshold still waits; projection agrees', () => {
+    const four = Array.from({ length: 4 }, (_, i) => ({ uid: 'f' + i, seconds: H8, links: ['ip:f' + i] }));
+    assert.ok(L.planShares(four, cfg).wait);
+    const proj = L.projectShares(four, cfg);
+    assert.ok(proj.waiting);
+    assert.strictEqual(proj.eligible, 4);
+    assert.strictEqual(proj.groups, 4);
 });
 test('ring + 5 honest viewers: ring capped to one share in total', () => {
     const ring = Array.from({ length: 5 }, (_, i) => ({ uid: 'r' + i, seconds: H8, links: ['ip:same'] }));
     const honest = Array.from({ length: 5 }, (_, i) => ({ uid: 'h' + i, seconds: 3 * 3600, links: ['ip:h' + i] }));
     const p = L.planShares(ring.concat(honest), cfg);
     assert.ok(!p.wait);
-    assert.strictEqual(p.eligible, 6);
+    assert.strictEqual(p.eligible, 10);
+    assert.strictEqual(p.groups, 6);
     assert.strictEqual(p.linkedGroups, 1);
     const m = byUid(p);
     const ringTotal = ring.reduce((t, r) => t + (m.get(r.uid) || 0), 0);
@@ -42,6 +61,11 @@ test('ring + 5 honest viewers: ring capped to one share in total', () => {
     const oldRing = ring.reduce((t, r) => t + (byUid(old).get(r.uid) || 0), 0);
     assert.ok(oldRing > ringTotal * 2, 'old ' + oldRing + ' vs new ' + ringTotal);
     assert.ok(sum(p) <= cfg.targetSats);
+});
+test('hasLinks: true only while any link list is non-empty', () => {
+    assert.strictEqual(L.hasLinks({}), false);
+    assert.strictEqual(L.hasLinks({ linkIps: [], linkDevices: [], linkNets: [] }), false);
+    assert.strictEqual(L.hasLinks({ linkDevices: ['x'] }), true);
 });
 test('links chain transitively (A-B by IP, B-C by device)', () => {
     const g = L.groupLinked([
@@ -149,6 +173,57 @@ test('server wiring', () => {
     assert.ok(src.indexOf('links: logic.linkKeys(w, cfg)') > 0, 'loadEntries passes links');
     assert.ok(src.indexOf('patch.linkIps = logic.mergeLinks(prev.linkIps, links.ip)') > 0);
     assert.ok(src.indexOf("linkHash('ip', net.exactId)") > 0, 'IP stored hashed');
+});
+
+// ---- #287 fix pass: HMAC link ids (Secret Manager), scrub at pot close, deleteAccount ----
+test('linkHmac: keyed, deterministic, empty without a key, no raw value', () => {
+    const S = require('../functions/src/tctvLinkSecret');
+    const prev = process.env[S.SECRET_ENV];
+    delete process.env[S.SECRET_ENV];
+    assert.strictEqual(S.secretReady(), false);
+    assert.strictEqual(S.linkHmac('ip', '203.0.113.7'), '');
+    process.env[S.SECRET_ENV] = 'short';
+    assert.strictEqual(S.linkHmac('ip', '203.0.113.7'), '', 'too-short key is treated as missing');
+    process.env[S.SECRET_ENV] = 'test-only-tctv-link-key-not-real';
+    const a = S.linkHmac('ip', '203.0.113.7');
+    assert.ok(/^[0-9a-f]{24}$/.test(a));
+    assert.strictEqual(S.linkHmac('ip', '203.0.113.7'), a);
+    assert.notStrictEqual(S.linkHmac('net', '203.0.113.7'), a, 'kind is bound');
+    assert.strictEqual(S.linkHmac('ip', ''), '');
+    process.env[S.SECRET_ENV] = 'another-test-only-tctv-key-xyz';
+    assert.notStrictEqual(S.linkHmac('ip', '203.0.113.7'), a, 'depends on the key');
+    if (prev === undefined) delete process.env[S.SECRET_ENV]; else process.env[S.SECRET_ENV] = prev;
+});
+test('tctvDripCheckin: secret bound, own runtime SA, no static-salt sha256 link hash', () => {
+    const src = read('functions/tctv-drip.js');
+    const sec = read('functions/src/tctvLinkSecret.js');
+    assert.ok(sec.indexOf("defineSecret(SECRET_ENV)") > 0 && sec.indexOf("'TCTV_LINK_HMAC_KEY'") > 0);
+    assert.ok(sec.indexOf('createHmac') > 0);
+    assert.ok(src.indexOf("secrets: [tctvLink.tctvLinkSecret], serviceAccount: runtimeSa('tctvDripCheckin')") > 0);
+    assert.strictEqual(src.indexOf("'bq-tctv-link:'"), -1, 'old static salt gone');
+    assert.ok(src.indexOf("linkHash('dev', deviceKey)") > 0, 'device link HMAC too');
+    // The tick never reads the link key.
+    const tick = src.slice(src.indexOf('const tctvDripTick = onSchedule('));
+    assert.strictEqual(tick.slice(0, tick.indexOf('async')).indexOf('tctvLinkSecret'), -1);
+    const M = require('../functions/src/runtimeServiceAccounts');
+    assert.strictEqual(M.RUNTIME_SERVICE_ACCOUNTS.tctvDripCheckin.id, 'fn-tctv-drip-checkin');
+});
+test('pot close scrubs link ids after the success transaction', () => {
+    const src = read('functions/tctv-drip.js');
+    const adv = src.indexOf('if (!advanced) return;');
+    const scrub = src.indexOf('await scrubPotLinks(pot.potId)');
+    assert.ok(adv > 0 && scrub > adv, 'scrub only after the pot advanced');
+    const fn = src.slice(src.indexOf('async function scrubPotLinks('), src.indexOf('const tctvDripTick = onSchedule('));
+    assert.ok(fn.indexOf("where('potId', '==', potId)") > 0);
+    assert.ok(fn.indexOf('linkIps: del, linkDevices: del, linkNets: del') > 0);
+    assert.ok(fn.indexOf('logic.hasLinks(') > 0, 'idempotent');
+});
+test('deleteAccount removes tctv_drip_watch and device locks, keeps drip payouts/history', () => {
+    const D = require('../functions/src/deleteAccount');
+    const q = D.DELETION_QUERIES.map(x => x.slice(0, 3).join('|'));
+    assert.ok(q.indexOf('tctv_drip_watch|uid|==') !== -1);
+    assert.ok(q.indexOf('tctv_drip_devices|uid|==') !== -1);
+    assert.ok(!q.some(x => x.indexOf('tctv_drip_payouts') === 0 || x.indexOf('tctv_drip_history') === 0), 'payout records kept');
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

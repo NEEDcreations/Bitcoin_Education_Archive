@@ -284,18 +284,27 @@ function fillShares(elig, pot, cap) {
 }
 
 // Proportional shares with a per-user cap (water filling).
-// Fewer than minEligibleWatchers qualifiers: no payout (wait: true).
-// eligible counts linked groups, not accounts: a linked ring is one watcher
-// for minEligibleWatchers and for the 2/N cap. accounts is the raw count.
+// Fewer than minEligibleWatchers qualifying ACCOUNTS: no payout (wait: true).
+// Spam/Abuse #287 M1: the threshold counts raw accounts, so a classroom or
+// household behind one IP is not stuck waiting forever. Linked accounts
+// (same exact IP or device; subnet only with linkBySubnet) still share ONE
+// share-cap bucket (Phil Nov 9), and the 2/N cap uses the group count.
+// eligible = accounts (threshold), groups = linked groups (cap).
 function planShares(entries, cfg) {
     const pot = Math.floor(cfg.targetSats);
     const elig = eligibleEntries(entries, cfg);
-    const n = groupLinked(elig).length;
-    const cap = shareCap(pot, n, cfg);
+    const groups = groupLinked(elig).length;
+    const cap = shareCap(pot, groups, cfg);
     const minN = Math.max(1, Math.floor(cfg.minEligibleWatchers));
-    if (n < minN) return { wait: true, eligible: n, accounts: elig.length, shares: [], paid: 0, rollover: 0, cap };
+    if (elig.length < minN) return { wait: true, eligible: elig.length, accounts: elig.length, groups, shares: [], paid: 0, rollover: 0, cap };
     const filled = fillGrouped(elig, pot, cfg);
-    return { wait: false, eligible: n, accounts: elig.length, linkedGroups: filled.linked, shares: filled.shares, paid: filled.paid, rollover: filled.rollover, cap };
+    return { wait: false, eligible: elig.length, accounts: elig.length, groups, linkedGroups: filled.linked, shares: filled.shares, paid: filled.paid, rollover: filled.rollover, cap };
+}
+
+// True when a watch doc still carries any link id (scrubbed at pot close).
+function hasLinks(w) {
+    const src = w || {};
+    return ['linkIps', 'linkDevices', 'linkNets'].some(k => Array.isArray(src[k]) && src[k].length > 0);
 }
 
 // Live UI projection: same math as planShares, but still returns per-uid sats
@@ -309,10 +318,11 @@ function projectShares(entries, cfg) {
         links: Array.isArray(e.links) ? e.links : [],
     }));
     const elig = eligibleEntries(all, cfg);
-    const n = groupLinked(elig).length;
-    const cap = shareCap(pot, n, cfg);
+    const groups = groupLinked(elig).length;
+    const cap = shareCap(pot, groups, cfg);
     const minN = Math.max(1, Math.floor(cfg.minEligibleWatchers));
-    const waiting = n < minN;
+    const waiting = elig.length < minN;
+    const n = elig.length;
     const byUid = new Map(all.map(e => [e.uid, 0]));
     if (n > 0) {
         const filled = fillGrouped(elig, pot, cfg);
@@ -320,7 +330,7 @@ function projectShares(entries, cfg) {
     }
     const shares = all.map(e => ({ uid: e.uid, seconds: e.seconds, sats: byUid.get(e.uid) || 0 }));
     const paid = shares.reduce((t, e) => t + e.sats, 0);
-    return { waiting, eligible: n, shares, paid, rollover: Math.max(0, pot - paid), cap };
+    return { waiting, eligible: n, groups, shares, paid, rollover: Math.max(0, pot - paid), cap };
 }
 
 // Reserve check: the faucet floor always stays covered.
@@ -357,6 +367,6 @@ function isAgentOrBlocked(user) {
 
 module.exports = {
     DEFAULTS, CREDIT_SECONDS, MIN_GAP_MS, ACTIVE_WINDOW_MS, DEVICE_HOLD_MS, ANSWER_GRACE_MS, MAX_LINKS,
-    promptExpired, linkKeys, mergeLinks, groupLinked, splitGroup, fillGrouped, reservedAmountOf, nextPotDoc,
+    promptExpired, linkKeys, mergeLinks, hasLinks, groupLinked, splitGroup, fillGrouped, reservedAmountOf, nextPotDoc,
     readConfig, validDeviceId, nextPromptMs, promptIsAnswered, planCheckin, accrualViewers, rateFromViewers, planAccrual, planShares, projectShares, fillShares, eligibleEntries, shareCap, planReserve, isAgentOrBlocked,
 };
