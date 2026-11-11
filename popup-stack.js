@@ -379,6 +379,74 @@
     root.btcOnboardingQueue = queue;
     root.btcSheet = sheet;
 
+    // Overlays must sit above #usernameModal (2100008) and the Terms box (5000000).
+    var OVERLAY_Z = 7000000;
+    var overlaySeq = 0;
+    var SKIP_ELEVATE = {
+        usernameModal: 1,
+        tosModal: 1,
+        lb: 1,
+        leaderboard: 1,
+        questModal: 1,
+        chatOverlay: 1,
+        bottomNav: 1,
+        sidebar: 1,
+        mobileBar: 1
+    };
+
+    function isFullOverlay(el) {
+        if (!el || el.nodeType !== 1 || !el.style) return false;
+        var st = el.style;
+        if (st.position !== 'fixed') return false;
+        if (st.inset === '0' || st.inset === '0px') return true;
+        return st.top === '0' && st.left === '0' && st.right === '0' && st.bottom === '0';
+    }
+
+    function elevateOverlay(el) {
+        var document = doc();
+        if (!el || el.nodeType !== 1) return el;
+        if (el.id && SKIP_ELEVATE[el.id]) return el;
+        if (document && document.body && el.parentNode !== document.body) {
+            try { document.body.appendChild(el); } catch (e) {}
+        }
+        overlaySeq += 1;
+        var z = OVERLAY_Z + overlaySeq;
+        if (el.style) {
+            if (!el.style.position) el.style.position = 'fixed';
+            el.style.zIndex = String(z);
+        }
+        if (el.setAttribute) el.setAttribute('data-btc-overlay', '1');
+        if (el.tagName === 'DIALOG' && typeof el.showModal === 'function' && !el.open) {
+            try { el.showModal(); } catch (e2) {}
+        }
+        return el;
+    }
+
+    function watchOverlays() {
+        var document = doc();
+        if (!document || !document.body || window._btcOverlayWatch) return;
+        if (typeof MutationObserver !== 'function') return;
+        window._btcOverlayWatch = true;
+        var obs = new MutationObserver(function (muts) {
+            var i, j, node;
+            for (i = 0; i < muts.length; i++) {
+                var add = muts[i].addedNodes || [];
+                for (j = 0; j < add.length; j++) {
+                    node = add[j];
+                    if (!node || node.nodeType !== 1) continue;
+                    if (node.getAttribute && node.getAttribute('data-btc-overlay') === '1') continue;
+                    var z = 0;
+                    if (node.style && node.style.zIndex) z = parseInt(node.style.zIndex, 10) || 0;
+                    if (isFullOverlay(node) && z < OVERLAY_Z) elevateOverlay(node);
+                }
+            }
+        });
+        obs.observe(document.body, { childList: true });
+    }
+
+    root.btcElevateOverlay = elevateOverlay;
+    root.BTC_OVERLAY_Z = OVERLAY_Z;
+
     function injectCss() {
         var document = doc();
         if (!document || document.getElementById('btcSheetStyles')) return;
@@ -409,11 +477,11 @@
     }
 
     if (doc()) {
-        if (doc().readyState === 'loading') doc().addEventListener('DOMContentLoaded', function () { injectCss(); bind(); });
-        else { injectCss(); bind(); }
+        if (doc().readyState === 'loading') doc().addEventListener('DOMContentLoaded', function () { injectCss(); bind(); watchOverlays(); });
+        else { injectCss(); bind(); watchOverlays(); }
     }
 
     if (typeof module !== 'undefined' && module.exports) {
-        module.exports = { queue: queue, sheet: sheet, shown: shown, focusables: focusables };
+        module.exports = { queue: queue, sheet: sheet, shown: shown, focusables: focusables, elevateOverlay: elevateOverlay, OVERLAY_Z: OVERLAY_Z };
     }
 })(typeof window !== 'undefined' ? window : globalThis);

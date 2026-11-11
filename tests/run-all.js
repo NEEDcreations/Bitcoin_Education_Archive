@@ -91,6 +91,8 @@ const TESTS = [
     { name: 'Sensitive secret bindings', file: 'test-sensitive-secrets.js' },
     { name: 'NWC secret binding', file: 'test-nwc-secret.js' },
     { name: 'Peer Request Speed', file: 'test-peer-request.js' },
+    { name: 'Weekly Signal rotation', file: 'test-weekly-signal.js' },
+    { name: 'Overlay elevate', file: 'test-overlay-elevate.js' },
     { name: 'Profile stacking', file: 'test-profile-stack.js' },
     { name: 'Push Notifications', file: 'test-push.js' },
     { name: 'Reset Reminders', file: 'test-reset-reminders.js' },

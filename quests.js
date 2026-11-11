@@ -9709,7 +9709,7 @@ window._showPinnedBadgeSelector = function() {
 
     var overlay = document.createElement('div');
     overlay.id = 'pinnedBadgeSelectorOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:490000;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:7000000;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     var currentPinned = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pinnedBadgeId || '') : '';
@@ -9738,6 +9738,7 @@ window._showPinnedBadgeSelector = function() {
         (currentPinned ? '<button onclick="window._selectPinnedBadge(\'\')" style="margin-top:12px;width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">Remove pinned badge</button>' : '') +
     '</div>';
     document.body.appendChild(overlay);
+    if (typeof window.btcElevateOverlay === 'function') window.btcElevateOverlay(overlay);
 };
 
 window._selectPinnedBadge = function(badgeId) {
@@ -9766,7 +9767,7 @@ window._showChatFlairPicker = function() {
 
     var overlay = document.createElement('div');
     overlay.id = 'chatFlairPickerOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:490000;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:7000000;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     var gridHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:16px 0;">';
@@ -9787,6 +9788,7 @@ window._showChatFlairPicker = function() {
         '<button onclick="document.getElementById(\'chatFlairPickerOverlay\').remove()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
     '</div>';
     document.body.appendChild(overlay);
+    if (typeof window.btcElevateOverlay === 'function') window.btcElevateOverlay(overlay);
 };
 
 window._selectChatFlair = function(emoji) {

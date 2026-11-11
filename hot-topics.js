@@ -281,6 +281,21 @@
                 padding: 2px 14px 8px;
                 text-align: center;
             }
+            .ht-signal-btn {
+                display: block;
+                width: calc(100% - 16px);
+                margin: 0 8px 8px;
+                padding: 8px 10px;
+                background: var(--card-bg, rgba(247,147,26,0.08));
+                border: 1px solid var(--accent, #f7931a);
+                border-radius: 10px;
+                color: var(--heading, #fff);
+                font-size: 0.78rem;
+                font-weight: 800;
+                font-family: inherit;
+                cursor: pointer;
+                text-align: center;
+            }
             .ht-loading { padding: 12px 14px; }
             .ht-skeleton {
                 height: 12px;
@@ -307,6 +322,7 @@
                 '</div>' +
                 '<span class="ht-header-chevron" id="htSectionChevron">▼</span>' +
             '</div>' +
+            '<button type="button" id="weeklySignalHomeBtn" class="ht-signal-btn" onclick="event.stopPropagation();if(window.openWeeklySignal)window.openWeeklySignal();">📡 Weekly Signal</button>' +
             '<div id="' + HT_CONTAINER_ID + '"></div>';
 
         channelList.insertBefore(wrapper, channelList.firstChild);

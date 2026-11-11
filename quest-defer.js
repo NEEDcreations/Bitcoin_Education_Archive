@@ -171,6 +171,18 @@
         return !!(modalById('topic-convo-modal', 'convo') || (typeof window.bqTopicConversationOpen === 'function' && window.bqTopicConversationOpen()));
     }
 
+    function homeVisible() {
+        var home = byId('home');
+        return !!(home && shown(home) && !(home.classList && home.classList.contains('hidden')));
+    }
+
+    function msgsHasSkeleton() {
+        var msgs = byId('msgs');
+        if (!msgs || !shown(msgs)) return false;
+        var html = String(msgs.innerHTML || '');
+        return html.indexOf('class="skeleton"') !== -1 || html.indexOf("class='skeleton'") !== -1 || html.indexOf('class="skeleton ') !== -1;
+    }
+
     function capturePlace() {
         if (window._btcQuestReturn) return window._btcQuestReturn;
         var channelId = window.currentChannelId || '';
@@ -180,11 +192,17 @@
         if (draft && channelId && typeof window.bqSaveTopicDraft === 'function') window.bqSaveTopicDraft(channelId, draft);
         var active = document && document.activeElement;
         var interrupted = conversationOpen();
+        var page = window.currentPage || '';
+        var onHome = homeVisible() || page === 'home' || (!channelId && !((window.location && window.location.hash) || '').slice(1));
         window._btcQuestReturn = {
             channelId: channelId,
+            page: onHome ? 'home' : (page || channelId || ''),
+            hash: (window.location && window.location.hash) || '',
+            homeVisible: onHome,
             draft: draft,
             interrupted: interrupted,
-            focusId: (active && active.id) || ''
+            focusId: (active && active.id) || '',
+            scrollY: (typeof window.scrollY === 'number') ? window.scrollY : 0
         };
         return window._btcQuestReturn;
     }
@@ -193,17 +211,41 @@
         window._btcQuestReturn = null;
     };
 
+    function restoreView(place) {
+        if (!place) return;
+        if (place.interrupted) {
+            var sameTopic = !place.channelId || !window.currentChannelId || place.channelId === window.currentChannelId;
+            if (sameTopic) {
+                if (place.draft && place.channelId && typeof window.bqSaveTopicDraft === 'function') {
+                    window.bqSaveTopicDraft(place.channelId, place.draft);
+                }
+                if (typeof window.bqRestoreTopicConversation === 'function') {
+                    window.bqRestoreTopicConversation({ channelId: place.channelId, draft: place.draft, focus: true });
+                }
+            }
+        }
+        var wantHome = place.page === 'home' || place.homeVisible;
+        if (wantHome) {
+            if (!homeVisible() || msgsHasSkeleton()) {
+                if (typeof window.goHome === 'function') window.goHome(true);
+            }
+            return;
+        }
+        // Only reload a topic when the content area is stuck on a skeleton.
+        if (place.channelId && msgsHasSkeleton() && typeof window.go === 'function') {
+            window.go(place.channelId, null, true);
+        }
+    }
+
     function restorePlace() {
         var place = window._btcQuestReturn;
         window._btcQuestReturn = null;
-        if (!place || !place.interrupted) return;
-        if (place.channelId && window.currentChannelId && place.channelId !== window.currentChannelId) return;
-        if (place.draft && place.channelId && typeof window.bqSaveTopicDraft === 'function') {
-            window.bqSaveTopicDraft(place.channelId, place.draft);
-        }
-        if (typeof window.bqRestoreTopicConversation === 'function') {
-            window.bqRestoreTopicConversation({ channelId: place.channelId, draft: place.draft, focus: true });
-        }
+        if (!place) return;
+        // Run after popstate/history.back() so we can repair a skeleton or a
+        // hidden home instead of leaving the reader on an empty loading page.
+        var run = function () { restoreView(place); };
+        if (typeof setTimeout === 'function') setTimeout(run, 0);
+        else run();
     }
 
     function hidePill() {
