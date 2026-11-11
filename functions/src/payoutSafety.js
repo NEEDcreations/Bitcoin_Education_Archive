@@ -189,6 +189,13 @@ async function assertPayoutsOpen(db, path, nowMs) {
     return true;
 }
 
+// Red Team #285 follow-up: Clear Hold needs an ENROLLED second factor
+// (authenticator app or phone), not just "checked when enrolled". Takes the
+// result of secondFactor.requireSecondFactor; anything else is false.
+function secondFactorEnrolled(sf) {
+    return !!(sf && (sf.totp === true || sf.phone === true));
+}
+
 function confirmPhrase(which) {
     return 'CLEAR ' + String(which || '');
 }
@@ -259,7 +266,7 @@ async function clearHold(db, admin, req, deps) {
 }
 
 module.exports = {
-    CLEAR_TARGETS, confirmPhrase, planClearHold, clearHold,
+    CLEAR_TARGETS, confirmPhrase, secondFactorEnrolled, planClearHold, clearHold,
     FEE_FLAG_WINDOW_MS, FEE_FLAG_LIMIT, CIPHER_OVERPAID_WINDOW_MS, CIPHER_OVERPAID_LIMIT_SATS,
     HOLD_MS, CIPHER_PATHS, PAYOUT_PATHS, HOLD_COLLECTION, HOLD_DOC, FEE_WATCH_DOC, AUDIT_COLLECTION,
     HOLD_ERROR, PayoutHoldError,

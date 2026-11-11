@@ -232,6 +232,10 @@ test('adminClearPayoutHold: admin claim only, App Check, 2FA, confirm phrase, ow
     assert.ok(body.indexOf("serviceAccount: runtimeSa('adminClearPayoutHold')") > 0);
     assert.ok(body.indexOf('context.auth.token.admin !== true') > 0);
     assert.ok(body.indexOf('requireSecondFactor') > 0);
+    // Red Team follow-up: an enrolled factor is required, checked before the hold is touched.
+    const req = body.indexOf('if (!payoutSafety.secondFactorEnrolled(sf))');
+    assert.ok(req > 0 && req < body.indexOf('payoutSafety.clearHold('));
+    assert.ok(body.indexOf("'failed-precondition', 'Turn on two-factor authentication") > 0);
     assert.ok(body.indexOf('confirmPhrase(which)') > 0);
     assert.ok(!/email/i.test(body), 'never an email gate');
     assert.ok(body.indexOf('payInvoice') === -1 && body.indexOf('secrets:') === -1);
@@ -239,6 +243,14 @@ test('adminClearPayoutHold: admin claim only, App Check, 2FA, confirm phrase, ow
     const sa = require('../functions/src/runtimeServiceAccounts').RUNTIME_SERVICE_ACCOUNTS.adminClearPayoutHold;
     assert.strictEqual(sa.id, 'fn-admin-clear-payout-hold');
     assert.strictEqual(sa.noSecrets, true);
+});
+test('secondFactorEnrolled: only an enrolled authenticator or phone passes', () => {
+    assert.strictEqual(ps.secondFactorEnrolled({ uid: 'a', totp: false, phone: false }), false);
+    assert.strictEqual(ps.secondFactorEnrolled(null), false);
+    assert.strictEqual(ps.secondFactorEnrolled(undefined), false);
+    assert.strictEqual(ps.secondFactorEnrolled({ totp: 'yes' }), false);
+    assert.strictEqual(ps.secondFactorEnrolled({ totp: true, phone: false }), true);
+    assert.strictEqual(ps.secondFactorEnrolled({ totp: false, phone: true }), true);
 });
 test('client: Clear Hold card is admin-claim gated and on the App Check list', () => {
     const r = read('ranking.js');
