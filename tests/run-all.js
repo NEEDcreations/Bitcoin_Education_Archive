@@ -150,6 +150,7 @@ const TESTS = [
     { name: 'Referrals', file: 'test-referrals.js' },
     { name: 'Referral tiers', file: 'test-referral-tiers.js' },
     { name: 'Referral Maxi freshness', file: 'test-referral-maxi-freshness.js' },
+    { name: 'Referral welcome', file: 'test-referral-welcome.js' },
     { name: 'Functions bundle', file: 'test-functions-bundle.js' },
     { name: 'Double XP', file: 'test-double-xp.js' },
     { name: 'Double XP all sources', file: 'test-double-xp-all.js' },

@@ -121,6 +121,32 @@ function userView(uid, data) {
     return Object.assign({ uid: uid }, data || {});
 }
 
+
+// Public invite greeting only. Returns the referrer's public username, or
+// { name: null } on any miss. Does not scan user ids, does not return email
+// or uid, and is not used for payouts.
+async function lookupReferralInvite(data, context) {
+    if (!context || !context.auth || !context.auth.uid) {
+        const err = new Error('Must be signed in');
+        err.code = 'unauthenticated';
+        throw err;
+    }
+    const code = referrals.normalizeCode(data && (data.refCode || data.code));
+    const miss = { name: null };
+    if (!code) return miss;
+    const codeDoc = await db().collection('referralCodes').doc(code).get();
+    if (!codeDoc.exists) return miss;
+    const owner = String((codeDoc.data() || {}).uid || '');
+    if (!owner || owner === context.auth.uid) return miss;
+    const pub = await db().collection('public_profiles').doc(owner).get();
+    if (!pub.exists) return miss;
+    const username = String((pub.data() || {}).username || '').trim();
+    if (!username) return miss;
+    if (username.length > 32) return miss;
+    if (/@/.test(username)) return miss;
+    return { name: username };
+}
+
 async function lookupReferrerUid(code, selfUid) {
     const normalized = referrals.normalizeCode(code);
     if (!normalized) return '';
@@ -1012,6 +1038,7 @@ module.exports = {
     recordReferralArrival: recordReferralArrival,
     adoptGuestArrival: adoptGuestArrival,
     lookupReferrerUid: lookupReferrerUid,
+    lookupReferralInvite: lookupReferralInvite,
     deleteMyReferralSignal: deleteMyReferralSignal,
     countReferralMaxiFor: countReferralMaxiFor,
     persistReferralMaxiCount: persistReferralMaxiCount,
