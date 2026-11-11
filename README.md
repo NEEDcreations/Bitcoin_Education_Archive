@@ -75,13 +75,12 @@ To click through the UI, serve the repo root with any static file server. That p
 
 ## How deploys work
 
-The default branch is `gh-pages`. Pushes to it and to `dev` publish sites. Cloud Functions, security rules, and Workers are deployed by a maintainer with the Firebase CLI and Wrangler. Those deploys are not steps in the workflows below.
+The default branch is `gh-pages`. Pushes to it publish sites. Cloud Functions, security rules, and Workers are deployed by a maintainer with the Firebase CLI and Wrangler. Those deploys are not steps in the workflows below.
 
 | Workflow | When it runs | What it publishes |
 | --- | --- | --- |
 | `deploy.yml` | Push to `gh-pages` | Static site to GitHub Pages, which serves [bitcoineducation.quest](https://bitcoineducation.quest). The job copies the tree into `_site` and leaves out functions, workers, tests, scripts, rules, and docs. |
 | `deploy-staging-dev.yml` | Push to `gh-pages`, or a manual run | Staging copy to Cloudflare Pages. `scripts/build-staging.sh` rewrites the client onto the staging Firebase project, marks the pages `noindex`, and fails if a live client key remains. |
-| `deploy-dev.yml` | Push to `dev` | Firebase Hosting target `dev` only (the `bitcoin-education-dev` site). No functions deploy. |
 | `r2-nightly-backup.yml` | Nightly, or a manual run | Copies that day's Firestore export into private Cloudflare R2 storage as an encrypted archive. It does not deploy the app. |
 
 `deploy.sh` and `deploy-dev.sh` are maintainer scripts. They assume a configured machine, and `deploy.sh` commits and pushes. Contributors should open a pull request instead of running them.

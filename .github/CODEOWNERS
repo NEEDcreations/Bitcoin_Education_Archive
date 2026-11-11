@@ -1,2 +1,18 @@
-# All pull requests request a review from the maintainer.
+# Code owners. With the gh-pages ruleset's "Require review from Code Owners",
+# every change needs @NEEDcreations' approval.
 * @NEEDcreations
+
+# CI, workflows, and repo settings files: owner review is mandatory.
+/.github/ @NEEDcreations
+/.github/workflows/ @NEEDcreations
+/.github/CODEOWNERS @NEEDcreations
+
+# Deploy, security rules, and server code.
+/firebase.json @NEEDcreations
+/.firebaserc @NEEDcreations
+/firestore.rules @NEEDcreations
+/storage.rules @NEEDcreations
+/functions/ @NEEDcreations
+/workers/ @NEEDcreations
+/scripts/ @NEEDcreations
+/*.sh @NEEDcreations
