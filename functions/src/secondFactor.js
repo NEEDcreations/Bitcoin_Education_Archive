@@ -28,43 +28,9 @@ const FRESH_ACTIONS = {
     changeEmail: true,
     linkProvider: true,
     unlinkProvider: true,
+    adminResetSecondFactor: true,
     adminSetKillSwitch: true,
 };
-
-// Admin-only controls need a recent sign-in and a factor enrolled at least
-// 24 hours ago. A stolen password cannot enroll a new authenticator, sign
-// back in, and use it right away (Spam/Abuse A1b). Legacy factors with no
-// enabledAt count as not established until they are re-enrolled and wait 24h.
-const RECENT_SIGN_IN_MS = 10 * 60 * 1000;
-const ESTABLISHED_FACTOR_MS = 24 * 60 * 60 * 1000;
-
-function timeMs(value) {
-    if (!value) return 0;
-    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-    if (value instanceof Date) return value.getTime() || 0;
-    if (typeof value.toMillis === 'function') return value.toMillis() || 0;
-    if (typeof value.toDate === 'function') return value.toDate().getTime() || 0;
-    return 0;
-}
-
-function authTimeMs(context) {
-    const token = context && context.auth && context.auth.token;
-    const t = Number(token && token.auth_time) * 1000;
-    return Number.isFinite(t) && t > 0 ? t : 0;
-}
-
-function recentSignIn(context, nowMs) {
-    const t = authTimeMs(context);
-    if (!t) return false;
-    const age = nowMs - t;
-    return age >= -60000 && age <= RECENT_SIGN_IN_MS;
-}
-
-function factorEstablished(enrolledMs, signInMs, nowMs) {
-    const e = timeMs(enrolledMs);
-    if (!e) return false;
-    return e <= nowMs - ESTABLISHED_FACTOR_MS;
-}
 const RECOVERY_COUNT = 10;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const STEP_MS = 30000;
@@ -185,6 +151,48 @@ function totpDelta(authenticator, token, secret, nowMs) {
     } finally {
         authenticator.options = prev;
     }
+}
+
+// Admin-only controls (adminResetSecondFactor, and #285 Clear Hold) need a
+// recent sign-in and an ESTABLISHED factor: enrolled at least 24 hours ago
+// (TOTP: server-set enabledAt; phone: Firebase Auth enrollmentTime). Signing
+// in again does NOT make a new factor count (Spam/Abuse A1 + A1b), and every
+// admin-account factor add/remove alerts the admins so the 24h is watched.
+const RECENT_SIGN_IN_MS = 10 * 60 * 1000;
+const ESTABLISHED_FACTOR_MS = 24 * 60 * 60 * 1000;
+
+function timeMs(value) {
+    if (!value) return 0;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+    if (value instanceof Date) return value.getTime() || 0;
+    if (typeof value.toMillis === 'function') return value.toMillis() || 0;
+    if (typeof value.toDate === 'function') return value.toDate().getTime() || 0;
+    return 0;
+}
+
+function authTimeMs(context) {
+    const token = context && context.auth && context.auth.token;
+    const t = Number(token && token.auth_time) * 1000;
+    return Number.isFinite(t) && t > 0 ? t : 0;
+}
+
+function recentSignIn(context, nowMs) {
+    const t = authTimeMs(context);
+    if (!t) return false;
+    const age = nowMs - t;
+    return age >= -60000 && age <= RECENT_SIGN_IN_MS;
+}
+
+function factorEstablished(enrolledMs, nowMs) {
+    const e = timeMs(enrolledMs);
+    if (!e) return false;
+    return e <= nowMs - ESTABLISHED_FACTOR_MS;
+}
+
+// Masked / hashed uid for admin alerts (never the raw uid).
+function maskUid(uid) {
+    const u = String(uid || '');
+    return { uidHint: u ? u.slice(0, 4) + '\u2026' : '', uidHash: u ? sha('mfa-admin-alert:' + u).slice(0, 16) : '' };
 }
 
 function sha(value) {
@@ -330,6 +338,9 @@ function initSecondFactor(deps) {
             value = {
                 enrolled: phone.length > 0,
                 enrollmentTime: phone[0] && phone[0].enrollmentTime ? new Date(phone[0].enrollmentTime).getTime() : 0,
+                factors: phone.map(function (f) {
+                    return { id: String(f.uid || ''), enrollmentTime: f.enrollmentTime ? new Date(f.enrollmentTime).getTime() : 0 };
+                }),
             };
         } catch (e) {
             value = { enrolled: false, enrollmentTime: 0, missing: true };
@@ -579,25 +590,6 @@ function initSecondFactor(deps) {
             }
         }
         return { uid: uid, totp: !!secret, phone: phone.enrolled === true };
-    }
-
-    // Recent sign-in + fresh step-up + a factor at least 24 hours old.
-    async function requireAdminStepUp(context, action) {
-        if (!context || !context.auth || !context.auth.uid) throw httpError('unauthenticated', 'Must be signed in');
-        const nowMs = currentNow();
-        if (!recentSignIn(context, nowMs)) throw httpError('failed-precondition', 'Sign in again, then try this.');
-        const sf = await requireFreshStepUp(context, action);
-        if (!sf || (sf.totp !== true && sf.phone !== true)) {
-            throw httpError('failed-precondition', 'Turn on two-factor authentication first.');
-        }
-        const uid = context.auth.uid;
-        const [secret, phone] = await Promise.all([secretRecord(uid), phoneInfo(uid)]);
-        const totpOk = sf.totp === true && !!secret && factorEstablished(secret.enabledAt, authTimeMs(context), nowMs);
-        const phoneOk = sf.phone === true && phone.enrolled === true && factorEstablished(phone.enrollmentTime, authTimeMs(context), nowMs);
-        if (!totpOk && !phoneOk) {
-            throw httpError('failed-precondition', 'Your two-factor method is too new for this action. Try again after 24 hours.');
-        }
-        return Object.assign({}, sf, { established: true });
     }
 
     async function revokeSessions(uid, sessionId) {
@@ -887,6 +879,136 @@ function initSecondFactor(deps) {
         }, row));
     }
 
+    // A1b: when an ADMIN-claim account adds or removes a second factor, alert
+    // the admins (existing admin_notifications path). uid masked + hashed.
+    // Never blocks the caller's flow.
+    // opts.dedupeDaily: at most one alert per uid, change and factor per UTC day.
+    async function alertAdminFactorChange(uid, change, factor, opts) {
+        try {
+            let rec = null;
+            try { rec = await admin.auth().getUser(uid); } catch (e) { rec = null; }
+            if (!rec || !rec.customClaims || rec.customClaims.admin !== true) return false;
+            if (opts && opts.dedupeDaily) {
+                const day = new Date(currentNow()).toISOString().slice(0, 10);
+                const key = String(change + '_' + factor).replace(/[^a-z0-9_]/gi, '_');
+                const ref = db.collection('mfa_known_factors').doc(uid);
+                const fresh = await db.runTransaction(async function (tx) {
+                    const snap = await tx.get(ref);
+                    const seen = snap.exists ? ((snap.data() || {}).alertDays || {}) : {};
+                    if (seen[key] === day) return false;
+                    const patch = { alertDays: {} };
+                    patch.alertDays[key] = day;
+                    tx.set(ref, patch, { merge: true });
+                    return true;
+                });
+                if (!fresh) return false;
+            }
+            const m = maskUid(uid);
+            await notifyAdmin({
+                type: 'admin_factor_change',
+                change: change,
+                factor: factor,
+                uidHint: m.uidHint,
+                uidHash: m.uidHash,
+                message: 'An admin account ' + (change === 'added' ? 'added' : 'removed') + ' a two-factor method (' + factor + '). If this was not expected, act now: it can be used for admin actions after 24 hours.',
+            });
+            return true;
+        } catch (e) {
+            console.error('[secondFactor] admin factor alert failed', e && e.message);
+            return false;
+        }
+    }
+
+    // Red Team #302 follow-up: server-recorded known factors per account,
+    // mfa_known_factors/{uid} (rules: no client read/write). phones is keyed
+    // by the Auth factor uid; totp holds the totp_secrets enabledAt it was
+    // recorded with. Written ONLY by totpVerify and issueRecoveryCodes, never
+    // seeded from whatever Auth shows at step-up time.
+    function knownRef(uid) {
+        return db.collection('mfa_known_factors').doc(uid);
+    }
+
+    async function readKnown(uid) {
+        const snap = await knownRef(uid).get();
+        return snap.exists ? (snap.data() || {}) : {};
+    }
+
+    async function recordPhoneFactors(uid, phone, nowMs) {
+        const list = (phone && phone.factors) || [];
+        if (!list.length) return [];
+        const known = await readKnown(uid);
+        const phones = known.phones || {};
+        const added = [];
+        const patch = { uid: uid, phones: {} };
+        list.forEach(function (f) {
+            if (!f.id || phones[f.id]) return;
+            patch.phones[f.id] = { recordedAtMs: nowMs, enrollmentTimeMs: f.enrollmentTime || 0 };
+            added.push(f.id);
+        });
+        if (added.length) await knownRef(uid).set(patch, { merge: true });
+        return added;
+    }
+
+    async function recordTotpFactor(uid, nowMs) {
+        const snap = await db.collection('totp_secrets').doc(uid).get();
+        const enabledAtMs = timeMs(snap.exists ? (snap.data() || {}).enabledAt : 0);
+        await knownRef(uid).set({ uid: uid, totp: { enabledAtMs: enabledAtMs, recordedAtMs: nowMs } }, { merge: true });
+        return enabledAtMs;
+    }
+
+    // TOTP: a recorded entry must match the secret's server enabledAt. With no
+    // entry (TOTP set up before this list existed), the totp_secrets doc's
+    // server-set enabledAt is the record (no Auth trust involved).
+    function totpRecorded(secret, known) {
+        const e = timeMs(secret && secret.enabledAt);
+        if (!e) return false;
+        const t = known && known.totp;
+        if (!t) return true;
+        return timeMs(t.enabledAtMs) === e;
+    }
+
+    // Phone: every Auth phone factor must be recorded; established only when
+    // both the Auth enrollmentTime and the server record are 24h+ old and match.
+    function phoneStatus(phone, known, nowMs) {
+        const list = (phone && phone.factors) || [];
+        const rec = (known && known.phones) || {};
+        let unrecorded = 0;
+        let established = false;
+        list.forEach(function (f) {
+            const r = f.id ? rec[f.id] : null;
+            if (!r) { unrecorded++; return; }
+            if (timeMs(r.enrollmentTimeMs) && f.enrollmentTime && timeMs(r.enrollmentTimeMs) !== f.enrollmentTime) { unrecorded++; return; }
+            if (factorEstablished(f.enrollmentTime, nowMs) && factorEstablished(r.recordedAtMs, nowMs)) established = true;
+        });
+        return { unrecorded: unrecorded, established: established };
+    }
+
+    const UNKNOWN_ALERT_MS = 6 * 60 * 60 * 1000;
+    async function alertUnrecordedFactor(uid, nowMs) {
+        try {
+            const ref = knownRef(uid);
+            const fire = await db.runTransaction(async function (tx) {
+                const snap = await tx.get(ref);
+                const last = snap.exists ? Number((snap.data() || {}).lastUnknownAlertMs) || 0 : 0;
+                if (last && nowMs - last < UNKNOWN_ALERT_MS) return false;
+                tx.set(ref, { uid: uid, lastUnknownAlertMs: nowMs }, { merge: true });
+                return true;
+            });
+            if (!fire) return false;
+            const m = maskUid(uid);
+            await notifyAdmin({
+                type: 'admin_factor_unrecorded',
+                uidHint: m.uidHint,
+                uidHash: m.uidHash,
+                message: 'An admin account has a two-factor method the server never recorded (likely added outside the app). Admin actions are refused until it is checked.',
+            });
+            return true;
+        } catch (e) {
+            console.error('[secondFactor] unrecorded factor alert failed', e && e.message);
+            return false;
+        }
+    }
+
     async function clearTotp(uid) {
         await revokeSessions(uid, null);
         await revokeTrustedDevices(uid, '');
@@ -987,6 +1109,8 @@ function initSecondFactor(deps) {
             lastAcceptedStep: step,
         });
         await db.collection('users').doc(uid).set({ totpEnabled: true }, { merge: true });
+        await recordTotpFactor(uid, nowMs);
+        await alertAdminFactorChange(uid, 'added', 'totp');
         try { await require('./badgeCredit').grantIds(db, admin, uid, ['totp_enabled']); }
         catch (e) { console.warn('[totpVerify] badge', e.message); }
         await db.collection('totp_pending').doc(uid).delete().catch(function () {});
@@ -1032,6 +1156,7 @@ function initSecondFactor(deps) {
         }
         await proveFreshCode(data, context, uid, 'disableTotp', nowMs);
         await clearTotp(uid);
+        await alertAdminFactorChange(uid, 'removed', 'totp');
         forgetPhone(uid);
         const phone = await phoneInfo(uid);
         if (phone.enrolled !== true) {
@@ -1078,7 +1203,18 @@ function initSecondFactor(deps) {
         forgetPhone(uid);
         const nowMs = currentNow();
         const existing = await db.collection('recovery_codes').doc(uid).get();
-        if (existing.exists) return { already: true };
+        if (existing.exists) {
+            // Codes already exist, so nothing is proven here and nothing is
+            // recorded (no Auth trust). An admin with an unrecorded phone gets
+            // a rate-limited alert now; step-up refuses it regardless.
+            if (context.auth.token && context.auth.token.admin === true) {
+                const ph = await phoneInfo(uid);
+                if (ph.enrolled === true && phoneStatus(ph, await readKnown(uid), nowMs).unrecorded > 0) {
+                    await alertUnrecordedFactor(uid, nowMs);
+                }
+            }
+            return { already: true };
+        }
         const secret = await secretRecord(uid);
         const phone = await phoneInfo(uid);
         const session = await sessionValid(uid, (data && data.mfaSessionId) || '', nowMs);
@@ -1093,6 +1229,10 @@ function initSecondFactor(deps) {
         const factor = secret && phone.enrolled ? 'both' : (secret ? 'totp' : 'phone');
         const recoveryCodes = await storeRecoveryCodes(uid, factor);
         if (phone.enrolled) await db.collection('users').doc(uid).set({ phoneVerified: true }, { merge: true });
+        // The client enrolls phone with Firebase directly; this is where the
+        // server first sees (and records) a phone factor, after the proof above.
+        const newPhones = phone.enrolled ? await recordPhoneFactors(uid, phone, nowMs) : [];
+        if (newPhones.length || freshPhone) await alertAdminFactorChange(uid, 'added', 'phone');
         return { success: true, recoveryCodes: recoveryCodes };
     });
 
@@ -1159,12 +1299,12 @@ function initSecondFactor(deps) {
         await db.collection('rate_limits').doc(ipDocId).delete().catch(function () {});
         const message = 'Two-factor authentication was turned off with a recovery code. If this was not you, contact support.';
         await notifyUser(uid, message);
-        await notifyAdmin({
+        await alertAdminFactorChange(uid, 'removed', phoneCleared ? 'totp+phone (recovery code)' : 'totp (recovery code)');
+        await notifyAdmin(Object.assign({
             type: 'mfa_recovery',
-            uid: uid,
             phoneCleared: phoneCleared,
             message: 'A recovery code turned off two-factor authentication.',
-        });
+        }, maskUid(uid)));
         await db.collection('mfa_admin_log').add({
             action: 'recovery_code',
             targetUid: uid,
@@ -1330,12 +1470,47 @@ function initSecondFactor(deps) {
         const phone = await phoneInfo(uid);
         if (phone.enrolled === true) throw httpError('failed-precondition', 'Phone verification is still on.');
         await db.collection('users').doc(uid).set({ phoneVerified: false }, { merge: true });
+        await alertAdminFactorChange(uid, 'removed', 'phone', { dedupeDaily: true });
         const secret = await secretRecord(uid);
         if (!secret) await db.collection('recovery_codes').doc(uid).delete().catch(function () {});
         return { success: true };
     });
 
-    const adminResetSecondFactor = functionsV1.https.onCall(async function (data, context) {
+    // Recent sign-in + fresh step-up (every enrolled factor) + at least one
+    // ESTABLISHED factor. Throws failed-precondition otherwise.
+    async function requireAdminStepUp(context, action) {
+        if (!context || !context.auth || !context.auth.uid) throw httpError('unauthenticated', 'Must be signed in');
+        const nowMs = currentNow();
+        if (!recentSignIn(context, nowMs)) throw httpError('failed-precondition', 'Sign in again, then try this.');
+        // Bust the 60 s phoneInfo cache so a just-changed phone factor is read fresh.
+        forgetPhone(context.auth.uid);
+        const sf = await requireFreshStepUp(context, action);
+        if (!sf || (sf.totp !== true && sf.phone !== true)) {
+            throw httpError('failed-precondition', 'Turn on two-factor authentication first.');
+        }
+        const uid = context.auth.uid;
+        const [secret, phone, known] = await Promise.all([secretRecord(uid), phoneInfo(uid), readKnown(uid)]);
+        if (secret && !totpRecorded(secret, known)) {
+            await alertUnrecordedFactor(uid, nowMs);
+            throw httpError('failed-precondition', 'Your authenticator does not match our records. An admin has been alerted.');
+        }
+        const ps = phoneStatus(phone, known, nowMs);
+        if (ps.unrecorded > 0) {
+            await alertUnrecordedFactor(uid, nowMs);
+            throw httpError('failed-precondition', 'A two-factor method on this account was not added through the app. An admin has been alerted.');
+        }
+        const totpOk = sf.totp === true && !!secret && factorEstablished(secret.enabledAt, nowMs);
+        const phoneOk = sf.phone === true && phone.enrolled === true && ps.established;
+        if (!totpOk && !phoneOk) {
+            throw httpError('failed-precondition', 'Your two-factor method is too new for this action. Try again after 24 hours.');
+        }
+        return Object.assign({}, sf, { established: true });
+    }
+
+    // Hotfix: App Check, recent sign-in, fresh step-up with an established
+    // factor on the caller, never the caller's own account, never an admin.
+    // Admin second-factor resets happen out of band in the console.
+    const adminResetSecondFactor = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async function (data, context) {
         if (!context || !context.auth || !context.auth.token || context.auth.token.admin !== true) {
             throw httpError('permission-denied', 'Admin only.');
         }
@@ -1343,16 +1518,15 @@ function initSecondFactor(deps) {
         const note = String((data && data.note) || '').trim().slice(0, 500);
         if (!/^[A-Za-z0-9]{6,128}$/.test(targetUid)) throw httpError('invalid-argument', 'Enter the account id.');
         if (note.length < 8) throw httpError('invalid-argument', 'Describe how you verified this person.');
-        // An admin can never reset another admin's (or their own) second factor
-        // here. The target's admin claim is read from Auth, not Firestore, and an
-        // unreadable target fails closed. Admins recover with a recovery code.
+        if (targetUid === context.auth.uid) {
+            throw httpError('permission-denied', 'You cannot reset your own two-factor here. Use a recovery code.');
+        }
+        await requireAdminStepUp(stamp(data, context), 'adminResetSecondFactor');
+        // The target's admin claim is read from Auth; an unreadable target fails closed.
         let targetRec = null;
         try { targetRec = await admin.auth().getUser(targetUid); } catch (e) { targetRec = null; }
-        if (!targetRec) {
-            throw httpError('failed-precondition', 'Could not look up that account. Try again.');
-        }
-        const targetIsAdmin = !!(targetRec.customClaims && targetRec.customClaims.admin === true);
-        if (targetIsAdmin) {
+        if (!targetRec) throw httpError('failed-precondition', 'Could not look up that account. Try again.');
+        if (targetRec.customClaims && targetRec.customClaims.admin === true) {
             await db.collection('mfa_admin_log').add({
                 action: 'admin_reset_refused',
                 reason: 'target_is_admin',
@@ -1361,13 +1535,7 @@ function initSecondFactor(deps) {
                 note: note,
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
             });
-            await notifyAdmin({
-                type: 'mfa_admin_reset_refused',
-                uid: targetUid,
-                adminUid: context.auth.uid,
-                message: 'An admin tried to turn off two-factor on an admin account. It was refused.',
-            });
-            throw httpError('permission-denied', 'Admin accounts cannot be reset here. Use a recovery code.');
+            throw httpError('permission-denied', 'Admin accounts cannot be reset here.');
         }
         const phoneCleared = await unenrollPhone(targetUid);
         if (!phoneCleared) {
@@ -1385,10 +1553,14 @@ function initSecondFactor(deps) {
             phoneCleared: phoneCleared,
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
+        const tm = maskUid(targetUid);
+        const am = maskUid(context.auth.uid);
         await notifyAdmin({
             type: 'mfa_admin_reset',
-            uid: targetUid,
-            adminUid: context.auth.uid,
+            uidHint: tm.uidHint,
+            uidHash: tm.uidHash,
+            adminUidHint: am.uidHint,
+            adminUidHash: am.uidHash,
             message: 'An admin turned off two-factor authentication after a manual check.',
         });
         await notifyUser(targetUid, 'Two-factor authentication was turned off by support after they verified it was you. You can turn it on again in Settings.');
@@ -1397,6 +1569,7 @@ function initSecondFactor(deps) {
 
     const api = {
         stamp: stamp,
+        requireAdminStepUp: requireAdminStepUp,
         requireSecondFactor: requireSecondFactor,
         totpSetup: totpSetup,
         totpVerify: totpVerify,
@@ -1473,6 +1646,7 @@ module.exports = {
     requireAdminStepUp: requireAdminStepUp,
     recentSignIn: recentSignIn,
     factorEstablished: factorEstablished,
+    maskUid: maskUid,
     RECENT_SIGN_IN_MS: RECENT_SIGN_IN_MS,
     ESTABLISHED_FACTOR_MS: ESTABLISHED_FACTOR_MS,
     encryptTotpSecret: encryptTotpSecret,

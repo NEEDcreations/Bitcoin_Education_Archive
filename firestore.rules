@@ -923,6 +923,10 @@ service cloud.firestore {
     match /mfa_admin_log/{docId} {
       allow read, write: if false;
     }
+    // Server-recorded second factors (Red Team #302). Server only.
+    match /mfa_known_factors/{userId} {
+      allow read, write: if false;
+    }
 
     // =============================================
     // FORUM POSTS
