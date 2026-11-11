@@ -355,6 +355,8 @@ test('source: App Check, rate limit, and key-bound SA on recordKnownPhoneFactor;
     assert.ok(fn.indexOf("runtimeSa('recordKnownPhoneFactor')") > 0);
     assert.ok(fn.indexOf("takeAttempt('recordKnownPhone:' + uid, nowMs)") > 0);
     assert.ok(fn.indexOf('acceptTotp(') > 0);
+    assert.ok(fn.indexOf('secretRecord(uid)') > 0);
+    assert.ok(fn.indexOf('if (secret)') < fn.indexOf('else if (phoneFresh)'), 'TOTP accounts cannot use the phone-token branch');
     assert.ok(fn.indexOf('sessionValid(') === -1, 'sessions must not count as proof');
     assert.ok(fn.indexOf('FRESH_TTL_MS') > 0, 'phone sign-in must be within 5 minutes');
     assert.ok(fn.indexOf('second_factor_identifier') > 0);
@@ -434,6 +436,46 @@ test('D1: unsigned-in caller is refused; no phone enrolled is refused', withKey(
     await seedTotp(db, 'adminUidD109', NOW - 29 * DAY);
     await assert.rejects(run(api.recordKnownPhoneFactor, { code: '123456' }, { rawRequest: { headers: {} } }), e => e.code === 'unauthenticated');
     await assert.rejects(run(api.recordKnownPhoneFactor, { code: '123456' }, ctx('adminUidD109', { mfaSignIn: false })), e => e.code === 'failed-precondition' && /phone verification first/.test(e.message));
+}));
+
+test('Red Team: TOTP account + fresh phone token + no code is refused and records nothing', withKey(async () => {
+    const { api, db } = setup({ adminUidRT01: { claims: { admin: true }, phoneAtMs: NOW - 2 * DAY, recorded: false, phoneId: 'mfaRtPhone' } }, { checkDelta: () => 0 });
+    await seedTotp(db, 'adminUidRT01', NOW - 29 * DAY);
+    await assert.rejects(run(api.recordKnownPhoneFactor, {}, ctx('adminUidRT01', { secondFactorId: 'mfaRtPhone', authAtMs: NOW - 60000 })), e => e.code === 'failed-precondition' && /fresh authenticator code/.test(e.message));
+    assert.ok(!(db.store['mfa_known_factors/adminUidRT01'] || {}).phones, 'phone-token must not record on a TOTP account');
+    assert.strictEqual(adminAlerts(db).length, 0);
+}));
+test('Red Team: TOTP account + valid fresh TOTP code records the phone', withKey(async () => {
+    const { api, db } = setup({ adminUidRT02: { claims: { admin: true }, phoneAtMs: NOW - 2 * DAY, recorded: false, phoneId: 'mfaRtTotp' } }, { checkDelta: () => 0 });
+    await seedTotp(db, 'adminUidRT02', NOW - 29 * DAY);
+    // A fresh phone token may also be present; the code is what counts.
+    const res = await run(api.recordKnownPhoneFactor, { code: '123456' }, ctx('adminUidRT02', { secondFactorId: 'mfaRtTotp', authAtMs: NOW - 60000 }));
+    assert.deepStrictEqual(res, { success: true, recorded: 1 });
+    assert.strictEqual(db.store['mfa_known_factors/adminUidRT02'].phones.mfaRtTotp.recordedAtMs, NOW);
+    assert.ok(adminAlerts(db).some(r => r.change === 'added' && r.factor === 'phone'));
+}));
+test('Red Team: no-TOTP account + fresh phone token records the phone', async () => {
+    const { api, db } = setup({ adminUidRT03: { claims: { admin: true }, phoneAtMs: NOW - 2 * DAY, recorded: false, phoneId: 'mfaRtNoTotp' } });
+    const res = await run(api.recordKnownPhoneFactor, {}, ctx('adminUidRT03', { secondFactorId: 'mfaRtNoTotp', authAtMs: NOW - 60000 }));
+    assert.deepStrictEqual(res, { success: true, recorded: 1 });
+    assert.strictEqual(db.store['mfa_known_factors/adminUidRT03'].phones.mfaRtNoTotp.recordedAtMs, NOW);
+});
+test('step-up: TOTP-enabled admin cannot satisfy step-up with a recorded phone alone', withKey(async () => {
+    // Established recorded phone, but the authenticator is under 24h old.
+    // requireFreshStepUp still gets a valid code; phone must not waive the TOTP age.
+    const { api, db } = setup({ adminUidRT04: { claims: { admin: true }, phoneAtMs: NOW - 3 * DAY, recordedAtMs: NOW - 3 * DAY, phoneId: 'mfaRtStep' } }, { checkDelta: () => 0 });
+    await seedTotp(db, 'adminUidRT04', NOW - 3600000);
+    await assert.rejects(api.requireAdminStepUp(Object.assign(ctx('adminUidRT04', { secondFactorId: 'mfaRtStep' }), { freshCode: '123456' }), 'adminResetSecondFactor'), e => e.code === 'failed-precondition' && /too new/.test(e.message));
+    const src = fs.readFileSync(path.join(root, 'functions', 'src', 'secondFactor.js'), 'utf8');
+    const fn = src.slice(src.indexOf('async function requireAdminStepUp('), src.indexOf('const adminResetSecondFactor = '));
+    assert.ok(fn.indexOf('secret ? !totpOk : !phoneOk') > 0, 'TOTP-enabled step-up requires totpOk');
+}));
+test('step-up: TOTP-enabled admin with established TOTP still passes (phone also recorded)', withKey(async () => {
+    const { api, db } = setup({ adminUidRT05: { claims: { admin: true }, phoneAtMs: NOW - 3 * DAY, recordedAtMs: NOW - 3 * DAY, phoneId: 'mfaRtOk' } }, { checkDelta: () => 0 });
+    await seedTotp(db, 'adminUidRT05', NOW - 29 * DAY);
+    const sf = await api.requireAdminStepUp(Object.assign(ctx('adminUidRT05', { secondFactorId: 'mfaRtOk' }), { freshCode: '123456' }), 'adminResetSecondFactor');
+    assert.strictEqual(sf.established, true);
+    assert.strictEqual(sf.totp, true);
 }));
 test('rules + deletion: mfa_known_factors is server-only and removed with the account', () => {
     const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');

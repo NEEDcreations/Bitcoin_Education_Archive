@@ -1484,10 +1484,13 @@ function initSecondFactor(deps) {
 
     // D1: record the caller's current phone factor(s) onto the known list after
     // a fresh second-factor proof. A TOTP session or trusted device is not
-    // enough: the caller must send a fresh authenticator code (verified against
-    // totp_secrets) or present an ID token whose sign_in_second_factor is phone
-    // for that exact factor uid, with auth_time within 5 minutes. The 24h
-    // established rule still counts from both enrollmentTime and recordedAt.
+    // enough. If totp_secrets has an enabled secret, a fresh authenticator
+    // code (verified through acceptTotp, with the usual replay protection) is
+    // required; a phone-token sign-in alone is refused so a password-only
+    // attacker cannot enroll a phone in the client SDK and record it. The
+    // phone-token path (sign_in_second_factor is phone for that exact factor
+    // uid, auth_time within 5 minutes) is only for accounts with no enabled
+    // TOTP. The 24h rule still counts from both enrollmentTime and recordedAt.
     const recordKnownPhoneFactor = functionsV1.runWith({
         secrets: ['TOTP_ENCRYPTION_KEY'],
         serviceAccount: runtimeSa('recordKnownPhoneFactor'),
@@ -1503,6 +1506,7 @@ function initSecondFactor(deps) {
         if (phone.enrolled !== true || !list.length) {
             throw httpError('failed-precondition', 'Turn on phone verification first.');
         }
+        const secret = await secretRecord(uid);
         const code = data && data.code ? String(data.code).trim() : '';
         const token = (context.auth.token && context.auth.token.firebase) || {};
         const factorUid = String(token.second_factor_identifier || '');
@@ -1511,7 +1515,14 @@ function initSecondFactor(deps) {
         const authAge = authMs ? (nowMs - authMs) : null;
         const phoneFresh = signedInPhone && authMs && authAge >= -60000 && authAge <= FRESH_TTL_MS;
         let target = list;
-        if (/^\d{6}$/.test(code)) {
+        // TOTP-enabled accounts must prove the authenticator. A fresh phone
+        // token is not accepted in its place (Red Team: password-only enroll).
+        if (secret) {
+            if (!/^\d{6}$/.test(code)) {
+                throw httpError('failed-precondition', 'Enter a fresh authenticator code for this action.');
+            }
+            await acceptTotp(uid, code, nowMs);
+        } else if (/^\d{6}$/.test(code)) {
             await acceptTotp(uid, code, nowMs);
         } else if (code) {
             throw httpError('failed-precondition', 'Enter a fresh authenticator code, or sign in again with phone verification.');
@@ -1535,7 +1546,9 @@ function initSecondFactor(deps) {
     });
 
     // Recent sign-in + fresh step-up (every enrolled factor) + at least one
-    // ESTABLISHED factor. Throws failed-precondition otherwise.
+    // ESTABLISHED factor. If totp_secrets has an enabled secret, that TOTP
+    // must be the established factor: a recorded phone alone is not enough.
+    // Throws failed-precondition otherwise.
     async function requireAdminStepUp(context, action) {
         if (!context || !context.auth || !context.auth.uid) throw httpError('unauthenticated', 'Must be signed in');
         const nowMs = currentNow();
@@ -1559,7 +1572,11 @@ function initSecondFactor(deps) {
         }
         const totpOk = sf.totp === true && !!secret && factorEstablished(secret.enabledAt, nowMs);
         const phoneOk = sf.phone === true && phone.enrolled === true && ps.established;
-        if (!totpOk && !phoneOk) {
+        // TOTP-enabled accounts must satisfy step-up with the established
+        // authenticator. A recorded phone alone must not stand in for TOTP
+        // (requireFreshStepUp already requires a fresh code when a secret
+        // exists; this also blocks a too-new TOTP from riding on an older phone).
+        if (secret ? !totpOk : !phoneOk) {
             throw httpError('failed-precondition', 'Your two-factor method is too new for this action. Try again after 24 hours.');
         }
         return Object.assign({}, sf, { established: true });
