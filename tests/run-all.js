@@ -73,6 +73,7 @@ const TESTS = [
     { name: 'New-account claim requirements', file: 'test-claim-reqs.js' },
     { name: 'Claimable sats cap', file: 'test-claimable-sats.js' },
     { name: 'Quiz And Trivia Rewards', file: 'test-quest-reward.js' },
+    { name: 'Grading speed', file: 'test-grading-speed.js' },
     { name: 'Trivia tally transaction', file: 'test-answer-trivia.js' },
     { name: 'Poll cumulative tally', file: 'test-poll-cumulative.js' },
     { name: 'Sats vs Bits tally', file: 'test-svb-poll.js' },

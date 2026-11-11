@@ -1952,56 +1952,29 @@ async function submitQuest() {
         });
     });
 
-    var serverData = null;
-    try {
-        serverData = await _gradeQuestOnServer(currentQuest, answers, !!isRetry);
-    } catch (e) {
-        console.warn('Quest grading failed:', e);
-    }
-    // XP on screen is only what gradeQuest actually paid.
-    var awarded = serverData && typeof serverData.awarded === 'number' ? serverData.awarded : 0;
-    var pts = awarded;
-    var xpMark = serverData && serverData.doubled === true ? ' 2x' : '';
-    var xpSuffix = awarded > 0 ? ' +' + awarded + ' XP' + xpMark + '!' : '';
+    var canGrade = typeof firebase !== 'undefined' && firebase.functions
+        && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous;
 
-    let msg = '';
     var isPerfect = score === 5;
     var isTopicQuest = !!(currentQuest.topicKey);
     if (isRetry) {
         if (score >= 3) {
-            msg = '🎉 ' + score + '/5 correct on retry!' + xpSuffix;
-            // Only permanently lock on perfect 5/5 for topic quests
-            if (isPerfect || !isTopicQuest) {
-                completedQuests.add(currentQuest.id);
-            }
+            if (isPerfect || !isTopicQuest) completedQuests.add(currentQuest.id);
             questCount++;
-        } else {
-            msg = '😅 ' + score + '/5 - Better luck next time! Keep reading and try again.';
         }
-    } else {
-        if (isPerfect) {
-            msg = '🏆 PERFECT! 5/5!' + xpSuffix;
-            completedQuests.add(currentQuest.id);
-            questCount++;
-            // Nacho celebrates perfect scores in global chat
-            if (typeof window.nachoGlobalAnnounce === 'function' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-                var _pqName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) || (auth.currentUser.displayName) || 'A mystery Bitcoiner';
-                var _pqTopic = currentQuest.title || 'a Quiz Quest';
-                window.nachoGlobalAnnounce('🏆 @' + _pqName + ' just aced ' + _pqTopic + ' with a PERFECT 5/5! Think you can do the same? ➡️ [Quest Hub](#quests)', auth.currentUser.uid);
-            }
-        } else if (score >= 3) {
-            msg = '🎉 ' + score + '/5 correct!' + xpSuffix;
-            // Non-perfect: award XP but DON'T lock topic quest (allow retake for 5/5)
-            if (!isTopicQuest) {
-                completedQuests.add(currentQuest.id);
-            }
-            questCount++;
-        } else {
-            msg = '😅 ' + score + '/5 - You can retry for 25 XP!';
+    } else if (isPerfect) {
+        completedQuests.add(currentQuest.id);
+        questCount++;
+        if (typeof window.nachoGlobalAnnounce === 'function' && canGrade) {
+            var _pqName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) || (auth.currentUser.displayName) || 'A mystery Bitcoiner';
+            var _pqTopic = currentQuest.title || 'a Quiz Quest';
+            window.nachoGlobalAnnounce('🏆 @' + _pqName + ' just aced ' + _pqTopic + ' with a PERFECT 5/5! Think you can do the same? ➡️ [Quest Hub](#quests)', auth.currentUser.uid);
         }
+    } else if (score >= 3) {
+        if (!isTopicQuest) completedQuests.add(currentQuest.id);
+        questCount++;
     }
 
-    // Always log quiz attempt (regardless of score), so "completions today" reflects actual attempts
     var todayQ = (typeof getDailyKey === 'function' ? getDailyKey() : new Date().toISOString().split('T')[0]);
     var qLog = safeJSON('btc_quest_daily', {});
     if (qLog.date !== todayQ) qLog = { date: todayQ, count: 0 };
@@ -2011,6 +1984,68 @@ async function submitQuest() {
     qLog.lastTitle = currentQuest.title || null;
     localStorage.setItem('btc_quest_daily', JSON.stringify(qLog));
 
+    function questScoreMessage(awarded, doubled) {
+        var xpMark = doubled === true ? ' 2x' : '';
+        var xpSuffix = awarded > 0 ? ' +' + awarded + ' XP' + xpMark + '!' : '';
+        if (isRetry) {
+            if (score >= 3) return '🎉 ' + score + '/5 correct on retry!' + xpSuffix;
+            return '😅 ' + score + '/5 - Better luck next time! Keep reading and try again.';
+        }
+        if (isPerfect) return '🏆 PERFECT! 5/5!' + xpSuffix;
+        if (score >= 3) return '🎉 ' + score + '/5 correct!' + xpSuffix;
+        return '😅 ' + score + '/5 - You can retry for 25 XP!';
+    }
+
+    function paintQuestResults(msg, pts, xpPending, toastIt) {
+        window._questScore = score;
+        window._questMsg = msg;
+        window._questPts = pts;
+        window._questXpPending = !!xpPending;
+        var submitBtn = document.getElementById('questSubmitBtn');
+        if (submitBtn) submitBtn.style.display = 'none';
+        var skipBtn = document.querySelector('.quest-skip');
+        if (skipBtn) skipBtn.style.display = 'none';
+        var questionsDiv = document.querySelector('.quest-questions');
+        var onFinal = !!(questionsDiv && questionsDiv.style.display === 'none');
+        if (onFinal) {
+            if (typeof showQuestFinalResults === 'function') showQuestFinalResults();
+        } else {
+            var header = document.querySelector('.quest-header');
+            if (header) {
+                var xpHtml = xpPending
+                    ? '<div id="questXpLine" data-xp="pending" style="font-size:0.95rem;font-weight:700;color:var(--accent);margin-bottom:12px;">Confirming XP…</div>'
+                    : (pts > 0
+                        ? '<div id="questXpLine" data-xp="awarded" style="font-size:0.95rem;font-weight:700;color:var(--accent);margin-bottom:12px;">+' + pts + ' XP earned!</div>'
+                        : '<div id="questXpLine" data-xp="none"></div>');
+                header.innerHTML = '<div class="quest-badge">⚡ QUEST COMPLETE</div>' +
+                    '<h2>' + currentQuest.title + '</h2>' +
+                    '<div style="font-size:2.5rem;margin:12px 0;">' + (score === 5 ? '🏆' : score >= 3 ? '🎉' : '😅') + '</div>' +
+                    '<div style="font-size:1.5rem;font-weight:900;color:var(--heading);margin-bottom:4px;">' + score + ' / 5 Correct</div>' +
+                    '<div style="font-size:0.95rem;color:var(--text-muted);margin-bottom:12px;">Review your answers below - <span style="color:#22c55e;font-weight:700;">green</span> is correct, <span style="color:#ef4444;font-weight:700;">red</span> is wrong</div>' +
+                    xpHtml +
+                    '<button class="quest-done" onclick="showQuestFinalResults()" style="margin-bottom:8px;">Show What You\'ve Earned! →</button>';
+            }
+            var inner = document.getElementById('questInner');
+            if (inner && !onFinal) inner.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        if (toastIt && typeof showToast === 'function') showToast(msg);
+    }
+
+    // Show the score immediately. XP stays pending until gradeQuest returns.
+    paintQuestResults(questScoreMessage(0, false), 0, canGrade, true);
+
+    var serverData = null;
+    try {
+        serverData = await _gradeQuestOnServer(currentQuest, answers, !!isRetry);
+    } catch (e) {
+        console.warn('Quest grading failed:', e);
+    }
+    // XP on screen is only what gradeQuest actually paid.
+    var awarded = serverData && typeof serverData.awarded === 'number' ? serverData.awarded : 0;
+    var pts = awarded;
+    var msg = questScoreMessage(awarded, !!(serverData && serverData.doubled === true));
+    paintQuestResults(msg, pts, false, awarded > 0);
+
     var serverQualified = !!(serverData && serverData.graded && (serverData.pts || 0) > 0 && !serverData.banned);
     if (awarded > 0) {
         if (typeof notifySelfQuest === 'function') notifySelfQuest(currentQuest.title);
@@ -2019,65 +2054,39 @@ async function submitQuest() {
     }
     if (serverQualified) {
         if (typeof window._raidOnQuizComplete === 'function') window._raidOnQuizComplete();
-        // Mark quiz done for the day and check if all 3 daily activities complete
         _markDailyActivity('quiz');
         _checkDailyAllThree();
-        // Signal onboarding quest step 4 (quiz completion)
         try { localStorage.setItem('onboarding_quiz_done', '1'); } catch(e) {}
         try { window.dispatchEvent(new CustomEvent('onboarding_quiz_done')); } catch(e) {}
-        // Weekly community challenge: increment quiz_completions
-        if (typeof firebase !== 'undefined' && firebase.functions && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        if (canGrade) {
             try {
                 firebase.functions().httpsCallable('incrementWeeklyChallenge')({ goalType: 'quiz_completions' }).catch(function() {});
             } catch(e) {}
         }
-
-        if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-            db.collection('users').doc(auth.currentUser.uid).update({
-                questsCompletedToday: (qLog.count || 0)
-            }).catch(function(e) { console.error('Quest sync failed:', e); });
-        }
     }
-    try {
-        if (completedQuests.has(currentQuest.id) && typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser) {
-            await db.collection('users').doc(auth.currentUser.uid).update({
-                completedQuests: firebase.firestore.FieldValue.arrayUnion(currentQuest.id)
-            });
-            // Increment global quest completion counter
-            db.collection('stats').doc('global').set({
-                questsCompleted: firebase.firestore.FieldValue.increment(1)
-            }, { merge: true }).catch(function() {});
-        }
-    } catch(e) { console.error('Quest completion sync failed:', e); }
-
-    // Hide submit and skip buttons
-    const submitBtn = document.getElementById('questSubmitBtn');
-    if (submitBtn) submitBtn.style.display = 'none';
-    const skipBtn = document.querySelector('.quest-skip');
-    if (skipBtn) skipBtn.style.display = 'none';
-
-    // Store results for the "See Results" screen
-    window._questScore = score;
-    window._questMsg = msg;
-    window._questPts = pts;
-
-    // Update header to show score summary + Review Your Answers prompt
-    const header = document.querySelector('.quest-header');
-    if (header) {
-        header.innerHTML = '<div class="quest-badge">⚡ QUEST COMPLETE</div>' +
-            '<h2>' + currentQuest.title + '</h2>' +
-            '<div style="font-size:2.5rem;margin:12px 0;">' + (score === 5 ? '🏆' : score >= 3 ? '🎉' : '😅') + '</div>' +
-            '<div style="font-size:1.5rem;font-weight:900;color:var(--heading);margin-bottom:4px;">' + score + ' / 5 Correct</div>' +
-            '<div style="font-size:0.95rem;color:var(--text-muted);margin-bottom:16px;">Review your answers below - <span style="color:#22c55e;font-weight:700;">green</span> is correct, <span style="color:#ef4444;font-weight:700;">red</span> is wrong</div>' +
-            '<button class="quest-done" onclick="showQuestFinalResults()" style="margin-bottom:8px;">Show What You\'ve Earned! →</button>';
+    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        try {
+            var userRef = db.collection('users').doc(auth.currentUser.uid);
+            var batch = db.batch();
+            var hasWrite = false;
+            var userUpdate = {};
+            if (serverQualified) userUpdate.questsCompletedToday = (qLog.count || 0);
+            if (completedQuests.has(currentQuest.id)) {
+                userUpdate.completedQuests = firebase.firestore.FieldValue.arrayUnion(currentQuest.id);
+            }
+            if (Object.keys(userUpdate).length) {
+                batch.update(userRef, userUpdate);
+                hasWrite = true;
+            }
+            if (completedQuests.has(currentQuest.id)) {
+                batch.set(db.collection('stats').doc('global'), {
+                    questsCompleted: firebase.firestore.FieldValue.increment(1)
+                }, { merge: true });
+                hasWrite = true;
+            }
+            if (hasWrite) batch.commit().catch(function(e) { console.error('Quest sync failed:', e); });
+        } catch(e) { console.error('Quest completion sync failed:', e); }
     }
-
-    // Scroll modal to top so user sees the results
-    const inner = document.getElementById('questInner');
-    if (inner) inner.scrollTo({ top: 0, behavior: 'smooth' });
-
-    // Also show a quick results toast for visibility
-    if (typeof showToast === 'function') showToast(msg);
 }
 
 function playHooraySound() {
@@ -2198,8 +2207,12 @@ function showQuestFinalResults() {
             '<h2>' + currentQuest.title + '</h2>' +
             '<div style="font-size:3rem;margin:20px 0;">' + (score === 5 ? '🏆' : score >= 3 ? '🎉' : '😅') + '</div>' +
             '<div style="font-size:1.8rem;font-weight:900;color:var(--heading);margin-bottom:8px;">' + score + ' / 5 Correct</div>' +
-            '<div style="font-size:1.1rem;color:var(--text-muted);margin-bottom:20px;">' + msg + '</div>' +
-            (pts > 0 ? '<div style="font-size:1.3rem;font-weight:800;color:var(--accent);margin-bottom:20px;">+' + pts + ' XP earned!</div>' : '') +
+            '<div id="questFinalMsg" style="font-size:1.1rem;color:var(--text-muted);margin-bottom:20px;">' + msg + '</div>' +
+            (window._questXpPending
+                ? '<div id="questXpEarned" data-xp="pending" style="font-size:1.3rem;font-weight:800;color:var(--accent);margin-bottom:20px;">Confirming XP…</div>'
+                : (pts > 0
+                    ? '<div id="questXpEarned" data-xp="awarded" style="font-size:1.3rem;font-weight:800;color:var(--accent);margin-bottom:20px;">+' + pts + ' XP earned!</div>'
+                    : '<div id="questXpEarned" data-xp="none"></div>')) +
             recHtml +
             (score < 5 ? '<button class="quest-retry" onclick="retryQuest()">🔄 Retake Quiz' + (isRetry ? '' : ' for 25 pts') + '</button>' : '') +
             '<button class="quest-done" onclick="closeQuest()">Continue Learning →</button>';
@@ -5916,6 +5929,8 @@ window.pollVote = function(chosenIdx) {
 
     var pollId = (p.id ? p.id + '_' + todayKey : 'poll_day_' + todayKey);
     var uid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
+    var canCall = !!(typeof firebase !== 'undefined' && firebase.functions && uid && auth.currentUser && !auth.currentUser.isAnonymous);
+    var prevState = state;
 
     function _showPollBody(countServerVote) {
         if (window._pollBaseline && window._pollBaseline.key === pollId) window._pollBaseline.chosenIdx = chosenIdx;
@@ -5925,12 +5940,33 @@ window.pollVote = function(chosenIdx) {
         if (body) _renderPollTab(body);
     }
 
+    function _failPollVote(message) {
+        _setPollState(prevState || {});
+        window._pollXpPending = false;
+        window._pollSubmitting = false;
+        window._pollAwaitingWrite = false;
+        window._pollVoteReady = true;
+        if (typeof showToast === 'function' && message) showToast(message, 3000);
+        var body = document.getElementById('questHubBody');
+        if (body) _renderPollTab(body);
+        else {
+            pollBtns.forEach(function(b) { b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer'; });
+        }
+    }
+
+    // Show results immediately. XP stays pending until dailyPollVote returns.
+    state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
+    _setPollState(state);
+    window._pollXpPending = canCall;
+    _showPollBody(false);
+
     _capturePollBaseline(pollId, p.options.length, function() {
         // The server records the vote, the XP, and the trifecta proof.
-        if (typeof firebase !== 'undefined' && firebase.functions && uid && auth.currentUser && !auth.currentUser.isAnonymous) {
+        if (canCall) {
             firebase.functions().httpsCallable('dailyPollVote')({ chosenIdx: chosenIdx }).then(function(res) {
                 var data = (res && res.data) || {};
-                state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
+                window._pollXpPending = false;
+                state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id, awarded: Number(data.awarded) || 0 };
                 _setPollState(state);
                 if (data.already) {
                     if (typeof showToast === 'function') showToast('You already voted on this poll today!', 3000);
@@ -5947,23 +5983,19 @@ window.pollVote = function(chosenIdx) {
             }).catch(function(e) {
                 var code = String((e && (e.code || e.message)) || '');
                 if (code.indexOf('already-exists') !== -1 || code.indexOf('already-voted') !== -1) {
+                    window._pollXpPending = false;
                     state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
                     _setPollState(state);
                     if (typeof showToast === 'function') showToast('You already voted on this poll today!', 3000);
                     _showPollBody(false);
                     return;
                 }
-                window._pollSubmitting = false;
-                window._pollAwaitingWrite = false;
                 console.error('[POLL] Vote failed:', e);
-                if (typeof showToast === 'function') showToast('⚠️ Vote failed - try again', 3000);
-                pollBtns.forEach(function(b) { b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer'; });
-                window._pollVoteReady = true;
+                _failPollVote('⚠️ Vote failed - try again');
             });
         } else {
             // No auth or offline - local-only vote (no XP, no server record)
-            state = { date: todayKey, index: today.index, chosen: chosenIdx, pollId: p.id };
-            _setPollState(state);
+            window._pollXpPending = false;
             if (typeof showToast === 'function') showToast('📊 Vote recorded locally', 3000);
             _showPollBody(false);
         }

@@ -110,11 +110,13 @@ const answerTrivia = onCall(async (data, context) => {
     const dailyPtsRef = userRef.collection('daily_points').doc(dayKey);
 
     const triviaResult = await db.runTransaction(async (tx) => {
-        const rateDoc = await tx.get(rateRef);
-        const userDoc = await tx.get(userRef);
-        const ledgerDoc = await tx.get(ledgerRef);
-        const claimDoc = await tx.get(claimRef);
-        const dailyDoc = await tx.get(dailyPtsRef);
+        const [rateDoc, userDoc, ledgerDoc, claimDoc, dailyDoc] = await Promise.all([
+            tx.get(rateRef),
+            tx.get(userRef),
+            tx.get(ledgerRef),
+            tx.get(claimRef),
+            tx.get(dailyPtsRef),
+        ]);
 
         const user = userDoc.exists ? (userDoc.data() || {}) : {};
         const ledger = ledgerDoc.exists ? ledgerDoc.data() : null;
@@ -292,14 +294,16 @@ const gradeQuest = onCall(async (data, context) => {
     const statsRef = db.collection('quest_lb_stats').doc(uid);
 
     const result = await db.runTransaction(async (tx) => {
-        const rateDoc = await tx.get(rateRef);
-        const userDoc = await tx.get(userRef);
-        const ledgerDoc = await tx.get(ledgerRef);
-        const questCountDoc = await tx.get(dailyQuestRef);
-        const dailyDoc = await tx.get(dailyPtsRef);
-        const completionDoc = completionRef ? await tx.get(completionRef) : null;
-        const passDoc = passRef ? await tx.get(passRef) : null;
-        const statsDoc = await tx.get(statsRef);
+        const [rateDoc, userDoc, ledgerDoc, questCountDoc, dailyDoc, completionDoc, passDoc, statsDoc] = await Promise.all([
+            tx.get(rateRef),
+            tx.get(userRef),
+            tx.get(ledgerRef),
+            tx.get(dailyQuestRef),
+            tx.get(dailyPtsRef),
+            completionRef ? tx.get(completionRef) : Promise.resolve(null),
+            passRef ? tx.get(passRef) : Promise.resolve(null),
+            tx.get(statsRef),
+        ]);
 
         const user = userDoc.exists ? (userDoc.data() || {}) : {};
         const banned = reward.isRewardBanned(user, ledgerDoc.exists ? ledgerDoc.data() : null);
