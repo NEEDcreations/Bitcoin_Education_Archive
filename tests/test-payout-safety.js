@@ -226,10 +226,8 @@ test('clearHold with nothing active still audits, no alert', async () => {
     await assert.rejects(ps.clearHold(db, null, { which: 'all', adminUid: '' }, { nowMs: T0 }));
 });
 test('adminClearPayoutHold: admin claim only, App Check, 2FA, confirm phrase, own runtime SA, sends nothing', () => {
-    const src = read('functions/index.js');
-    const start = src.indexOf('exports.adminClearPayoutHold =');
-    assert.ok(start > 0);
-    const body = src.slice(start, src.indexOf('\nasync function ', start));
+    assert.ok(read('functions/index.js').indexOf("exports.adminClearPayoutHold = require('./src/adminPayoutHold').adminClearPayoutHold;") > 0);
+    const body = read('functions/src/adminPayoutHold.js');
     assert.ok(body.indexOf('enforceAppCheck: true') > 0);
     assert.ok(body.indexOf("serviceAccount: runtimeSa('adminClearPayoutHold')") > 0);
     assert.ok(body.indexOf('context.auth.token.admin !== true') > 0);
