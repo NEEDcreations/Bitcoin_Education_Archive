@@ -189,6 +189,23 @@ async function assertPayoutsOpen(db, path, nowMs) {
     return true;
 }
 
+// Red Team #285 follow-up: Clear Hold needs an ENROLLED second factor
+// (authenticator app or phone), not just "checked when enrolled". Takes the
+// result of secondFactor.requireSecondFactor; anything else is false.
+function secondFactorEnrolled(sf) {
+    return !!(sf && (sf.totp === true || sf.phone === true));
+}
+
+// Fresh sign-in for Clear Hold: the ID token's auth_time (seconds) must be
+// within CLEAR_AUTH_MAX_AGE_MS, so a long-lived session alone is not enough.
+const CLEAR_AUTH_MAX_AGE_MS = 10 * 60 * 1000;
+function recentAuth(authTimeSec, nowMs, maxAgeMs) {
+    const t = Number(authTimeSec) * 1000;
+    if (!Number.isFinite(t) || t <= 0) return false;
+    const age = Number(nowMs) - t;
+    return age >= -60000 && age <= (maxAgeMs || CLEAR_AUTH_MAX_AGE_MS);
+}
+
 function confirmPhrase(which) {
     return 'CLEAR ' + String(which || '');
 }
@@ -259,7 +276,7 @@ async function clearHold(db, admin, req, deps) {
 }
 
 module.exports = {
-    CLEAR_TARGETS, confirmPhrase, planClearHold, clearHold,
+    CLEAR_TARGETS, CLEAR_AUTH_MAX_AGE_MS, confirmPhrase, secondFactorEnrolled, recentAuth, planClearHold, clearHold,
     FEE_FLAG_WINDOW_MS, FEE_FLAG_LIMIT, CIPHER_OVERPAID_WINDOW_MS, CIPHER_OVERPAID_LIMIT_SATS,
     HOLD_MS, CIPHER_PATHS, PAYOUT_PATHS, HOLD_COLLECTION, HOLD_DOC, FEE_WATCH_DOC, AUDIT_COLLECTION,
     HOLD_ERROR, PayoutHoldError,

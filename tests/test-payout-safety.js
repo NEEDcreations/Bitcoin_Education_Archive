@@ -231,7 +231,16 @@ test('adminClearPayoutHold: admin claim only, App Check, 2FA, confirm phrase, ow
     assert.ok(body.indexOf('enforceAppCheck: true') > 0);
     assert.ok(body.indexOf("serviceAccount: runtimeSa('adminClearPayoutHold')") > 0);
     assert.ok(body.indexOf('context.auth.token.admin !== true') > 0);
-    assert.ok(body.indexOf('requireSecondFactor') > 0);
+    assert.ok(body.indexOf('requireFreshStepUp') > 0);
+    // Red Team follow-up: an enrolled factor is required, checked before the hold is touched.
+    const fresh = body.indexOf("secondFactor.requireFreshStepUp(secondFactor.stamp(data, context), 'clearPayoutHold')");
+    const recent = body.indexOf('payoutSafety.recentAuth(context.auth.token.auth_time, Date.now())');
+    assert.ok(recent > 0 && fresh > recent, 'recent sign-in, then fresh step-up');
+    assert.ok(read('functions/src/secondFactor.js').indexOf('clearPayoutHold: true') > 0, 'step-up action registered');
+    const req = body.indexOf('if (!payoutSafety.secondFactorEnrolled(sf))');
+    assert.ok(req > fresh);
+    assert.ok(req > 0 && req < body.indexOf('payoutSafety.clearHold('));
+    assert.ok(body.indexOf("'failed-precondition', 'Turn on two-factor authentication") > 0);
     assert.ok(body.indexOf('confirmPhrase(which)') > 0);
     assert.ok(!/email/i.test(body), 'never an email gate');
     assert.ok(body.indexOf('payInvoice') === -1 && body.indexOf('secrets:') === -1);
@@ -239,6 +248,33 @@ test('adminClearPayoutHold: admin claim only, App Check, 2FA, confirm phrase, ow
     const sa = require('../functions/src/runtimeServiceAccounts').RUNTIME_SERVICE_ACCOUNTS.adminClearPayoutHold;
     assert.strictEqual(sa.id, 'fn-admin-clear-payout-hold');
     assert.strictEqual(sa.noSecrets, true);
+});
+test('secondFactorEnrolled: only an enrolled authenticator or phone passes', () => {
+    assert.strictEqual(ps.secondFactorEnrolled({ uid: 'a', totp: false, phone: false }), false);
+    assert.strictEqual(ps.secondFactorEnrolled(null), false);
+    assert.strictEqual(ps.secondFactorEnrolled(undefined), false);
+    assert.strictEqual(ps.secondFactorEnrolled({ totp: 'yes' }), false);
+    assert.strictEqual(ps.secondFactorEnrolled({ totp: true, phone: false }), true);
+    assert.strictEqual(ps.secondFactorEnrolled({ totp: false, phone: true }), true);
+});
+test('recentAuth: only a sign-in within 10 minutes passes', () => {
+    const now = 1_800_000_000_000;
+    assert.strictEqual(ps.recentAuth(now / 1000 - 60, now), true);
+    assert.strictEqual(ps.recentAuth(now / 1000 - 9 * 60, now), true);
+    assert.strictEqual(ps.recentAuth(now / 1000 - 11 * 60, now), false);
+    assert.strictEqual(ps.recentAuth(now / 1000 - 86400, now), false);
+    assert.strictEqual(ps.recentAuth(undefined, now), false);
+    assert.strictEqual(ps.recentAuth('x', now), false);
+    assert.strictEqual(ps.recentAuth(now / 1000 + 3600, now), false, 'future auth_time');
+});
+test('client: Clear Hold asks for re-sign-in and a fresh code before calling', () => {
+    const r = read('ranking.js');
+    const fn = r.slice(r.indexOf('window.clearPayoutHold = function'), r.indexOf('window.renderFaucetAbuseAdmin = function'));
+    const re = fn.indexOf("reauthForSensitiveAction('clearing a payout hold')");
+    const fc = fn.indexOf("_showFreshStepUp('clearPayoutHold')");
+    const call = fn.indexOf("httpsCallable('adminClearPayoutHold')(payload)");
+    assert.ok(re > 0 && fc > re && call > fc);
+    assert.ok(r.indexOf("clearPayoutHold: 'Enter a fresh authenticator code to clear a payout hold.") > 0);
 });
 test('client: Clear Hold card is admin-claim gated and on the App Check list', () => {
     const r = read('ranking.js');

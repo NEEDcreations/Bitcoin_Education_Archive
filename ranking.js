@@ -13210,7 +13210,8 @@ window._showFreshStepUp = function (action) {
         deleteAccount: 'Enter a fresh authenticator code to delete this account. Remembering this device is not enough.',
         disableTotp: 'Enter a fresh authenticator code to turn off two-factor authentication. A saved session is not enough.',
         regenerateRecoveryCodes: 'Enter a fresh authenticator code to create new recovery codes. A saved session is not enough.',
-        changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.'
+        changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.',
+        clearPayoutHold: 'Enter a fresh authenticator code to clear a payout hold. Remembering this device is not enough.'
     };
     return new Promise(function (resolve) {
         var old = document.getElementById('freshStepUpOverlay');
@@ -14036,8 +14037,23 @@ window.clearPayoutHold = function(which, containerId, btn) {
         if (typeof showToast === 'function') showToast('Not cleared: the confirm text did not match.');
         return;
     }
-    if (btn) { btn.disabled = true; btn.textContent = 'Clearing...'; }
-    firebase.functions().httpsCallable('adminClearPayoutHold')({ which: which, confirm: phrase }).then(function(res) {
+    (async function() {
+        // Server requires a recent sign-in, a fresh authenticator code, and
+        // an enrolled second factor (#285 follow-up).
+        if (typeof window.reauthForSensitiveAction === 'function') {
+            var ready = await window.reauthForSensitiveAction('clearing a payout hold');
+            if (!ready) { if (typeof showToast === 'function') showToast('Sign in again, then clear the hold.'); return null; }
+        }
+        var payload = { which: which, confirm: phrase };
+        if (typeof mfaNeedsFreshCode === 'function' && mfaNeedsFreshCode() && typeof window._showFreshStepUp === 'function') {
+            var proof = await window._showFreshStepUp('clearPayoutHold');
+            if (!proof) { if (typeof showToast === 'function') showToast('Finish the authenticator check, then try again.'); return null; }
+            payload.freshProofId = proof;
+        }
+        if (btn) { btn.disabled = true; btn.textContent = 'Clearing...'; }
+        return firebase.functions().httpsCallable('adminClearPayoutHold')(payload);
+    })().then(function(res) {
+        if (res === null) return;
         var cleared = (res && res.data && res.data.cleared) || [];
         if (typeof showToast === 'function') showToast(cleared.length ? 'Hold cleared. Payouts resume on the next claim.' : 'That hold was already off.');
         window.renderPayoutHoldAdmin(containerId);
