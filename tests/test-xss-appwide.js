@@ -316,7 +316,14 @@ console.log('Stored-payload cleanup script is dry-run only');
     ok(plan.dryRun === true && plan.plan.length >= 10, 'cleanup plan lists the stored-payload docs');
     ok(plan.plan.some((p) => /\/messages\//.test(p.shown)), 'cleanup plan covers the DM messages subdoc path');
     ok(plan.plan.every((p) => p.shown.split('/').every((seg, k) => k % 2 === 0 || /^.{1,4}…$/.test(seg))), 'built-in plan only shows masked ids');
-    const { proposeClean } = require(tool);
+    const { proposeClean, checkRelated, FANOUT_SENDER } = require(tool);
+    ok(FANOUT_SENDER === '<svg onload=alert()>' && FANOUT_SENDER.length === 20 && FANOUT_SENDER === FANOUT_SENDER.trim(), 'fan-out senderName is the confirmed exact 20-char value');
+    let rejects = 0;
+    for (const w of [['senderName', '>=', FANOUT_SENDER], ['senderName', 'startsWith', '<svg'], ['senderName', 'in', [FANOUT_SENDER]], ['senderName', '==', '']]) { try { checkRelated({ where: w }); } catch (_) { rejects++; } }
+    try { checkRelated({ where: ['senderName', '==', FANOUT_SENDER], match: 'prefix' }); } catch (_) { rejects++; }
+    ok(rejects === 5, 'related cleanup queries must be exact whole-value equality');
+    const notif = plan.plan.find((p) => /^notifications\/3BDD/.test(p.shown));
+    ok(notif && notif.related.length === 1 && notif.related[0].where[1] === '==' && notif.related[0].where[2] === FANOUT_SENDER, 'fan-out related query uses == on the full senderName');
     for (const p of FIX.payloads) ok(!/[<>]|\bon[a-z]+\s*=|javascript:/i.test(proposeClean(p)), 'proposeClean strips markup: ' + JSON.stringify(p));
 }
 

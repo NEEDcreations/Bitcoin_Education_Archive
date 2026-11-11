@@ -22,6 +22,20 @@ if (args.includes('--apply') || args.includes('--write') || args.includes('--com
     process.exit(2);
 }
 
+// Fan-out sender name confirmed by Spam/Abuse (Nov 10 9 PM export): exactly
+// this 20-character string (one inner space, no leading/trailing whitespace). Related cleanups match it with
+// whole-value equality only, never a prefix.
+const FANOUT_SENDER = '<svg onload=alert()>';
+
+// Related queries: only exact equality on a full value is allowed.
+function checkRelated(r) {
+    if (!r || !Array.isArray(r.where) || r.where.length !== 3) throw new Error('related query needs [field, "==", value]');
+    if (r.where[1] !== '==') throw new Error('related query must use exact whole-value equality (==), got ' + r.where[1]);
+    if (r.match && r.match !== 'exact') throw new Error('related query must be match: exact, never prefix');
+    if (typeof r.where[2] !== 'string' || !r.where[2].length) throw new Error('related query needs a full non-empty value');
+    return r;
+}
+
 // Masked ids (first 4 chars). Full paths live in a private file, never in git.
 const BUILTIN = [
     { path: 'forum_posts/x533…', fields: ['__id__'], action: 'delete', note: 'doc-id attribute breakout; also delete replies whose postId is this id' },
@@ -31,7 +45,8 @@ const BUILTIN = [
     { path: 'dm_conversations/gqTF…/messages/8ioO…', fields: ['text'], action: 'redact', note: 'DM img onerror (subdoc)' },
     { path: 'dm_conversations/fake…', fields: ['participantNames.*'], action: 'redact', note: 'svg onload in participantNames' },
     { path: 'dm_conversations/fake…/messages/tVrR…', fields: ['senderName'], action: 'redact', note: 'svg onload senderName' },
-    { path: 'notifications/3BDD…', fields: ['senderName', 'message'], action: 'delete', note: 'senderName fan-out notification' },
+    { path: 'notifications/3BDD…', fields: ['senderName', 'message'], action: 'delete', note: 'senderName fan-out notification (recipientId=fake-recipient, type=dm); senderName confirmed by Spam/Abuse',
+      related: [{ collection: 'notifications', where: ['senderName', '==', FANOUT_SENDER], match: 'exact', action: 'delete', note: 'exact whole-value equality only; a copy with trailing text does not match and is handled by its own id' }] },
     { path: 'marketplace/6dpL…', fields: ['sellerRank'], action: 'redact', note: 'listing already deleted' },
     { path: 'marketplace/lYiH…', fields: ['imageUrl'], action: 'clear', note: 'CSS/attribute breakout, deleted listing' },
     { path: 'marketplace/ugpe…', fields: ['imageUrl'], action: 'clear', note: 'low-risk CSS breakout, deleted listing' },
@@ -73,7 +88,7 @@ const plan = targets.map((t) => ({
     action: t.action,
     fields: t.fields || [],
     note: t.note || '',
-    related: t.related || [],
+    related: (t.related || []).map(checkRelated),
     idHasPayload: PAYLOAD_RE.test(String(t.path)),
 }));
 
@@ -91,11 +106,11 @@ for (const p of plan) {
     console.log(`   action: ${p.action}${p.fields.length ? '   fields: ' + p.fields.join(', ') : ''}`);
     if (p.idHasPayload) console.log('   doc id itself carries markup: cannot be renamed; delete and re-create under an auto id if the content is worth keeping');
     if (p.note) console.log('   note: ' + p.note);
-    for (const r of p.related) console.log(`   related: ${r.action} ${r.collection} where ${r.where[0]} ${r.where[1]} ${args.includes('--full') ? JSON.stringify(r.where[2]) : '(value masked)'}${r.note ? ' (' + r.note + ')' : ''}`);
+    for (const r of p.related) console.log(`   related: ${r.action} ${r.collection} where ${r.where[0]} == ${JSON.stringify(r.where[2])} (exact whole value, ${r.where[2].length} chars; not a prefix match)${r.note ? ' (' + r.note + ')' : ''}`);
     console.log('   redact = replace the field with its text minus markup, e.g. ' + JSON.stringify(proposeClean('<img src=x onerror=alert(1)>hello')) + ' -> keep audit trail in the admin log');
 }
 console.log(`\n${n} target(s). Not applied. Apply only with Phil's OK + Security sign-off, via a separate reviewed admin script.`);
 }
 
-module.exports = { proposeClean, PAYLOAD_RE, mask };
+module.exports = { proposeClean, PAYLOAD_RE, mask, checkRelated, FANOUT_SENDER };
 if (require.main === module) main();
