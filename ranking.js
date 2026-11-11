@@ -358,12 +358,29 @@ window._mfaSessionId = function () {
     } catch (e) { return ''; }
 };
 
-window._rememberMfaSession = function (uid, sessionId) {
+function mfaSessionExpKey(uid) {
+    return 'btc_mfa_session_exp_' + uid;
+}
+
+// expiresAt is the server's expiresAtMs for this session (12 hours). It is
+// only a hint for when to resume early; the server still checks every call.
+window._rememberMfaSession = function (uid, sessionId, expiresAt) {
     try {
         if (uid && sessionId) localStorage.setItem(mfaSessionKey(uid), sessionId);
+        if (uid && sessionId) {
+            if (typeof expiresAt === 'number' && expiresAt > 0) localStorage.setItem(mfaSessionExpKey(uid), String(expiresAt));
+            else localStorage.removeItem(mfaSessionExpKey(uid));
+        }
         if (uid) localStorage.removeItem('btc_totp_verified_' + uid);
     } catch (e) {}
 };
+
+function mfaSessionExpiresAt(uid) {
+    try {
+        var n = Number(localStorage.getItem(mfaSessionExpKey(uid)) || 0);
+        return n > 0 ? n : 0;
+    } catch (e) { return 0; }
+}
 
 window._rememberMfaDevice = function (uid, token) {
     try {
@@ -434,13 +451,7 @@ function installMfaCallablePatch() {
     var orig = proto.httpsCallable;
     function wrapped(name, options) {
         var callable = orig.call(this, name, options);
-        return function (data) {
-            var payload = data;
-            if (payload == null) payload = {};
-            if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
-                var sid = window._mfaSessionId ? window._mfaSessionId() : '';
-                if (sid && payload.mfaSessionId == null) payload.mfaSessionId = sid;
-            }
+        function attempt(payload) {
             if (!APP_CHECK_CALLABLES[name]) return callable(payload);
             if (window._btcRecaptchaFailed) {
                 var fast = new Error('Security check did not load. Refresh the page and try again.');
@@ -460,11 +471,102 @@ function installMfaCallablePatch() {
                 }
                 return callable(payload);
             });
+        }
+        return function (data) {
+            var payload = data;
+            if (payload == null) payload = {};
+            if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+                var sid = window._mfaSessionId ? window._mfaSessionId() : '';
+                if (sid && payload.mfaSessionId == null) payload.mfaSessionId = sid;
+            }
+            return Promise.resolve().then(function () { return attempt(payload); }).catch(function (err) {
+                return mfaRecoverCall(name, payload, err, attempt);
+            });
         };
     }
     wrapped._mfaPatched = true;
     proto.httpsCallable = wrapped;
     window._mfaCallablePatched = true;
+}
+
+// Callables that are themselves part of the 2FA flow. They never trigger
+// a resume or a retry from the wrapper (no loops, no double guesses).
+var MFA_FLOW_CALLABLES = {
+    totpStatus: 1,
+    totpCheck: 1,
+    totpVerify: 1,
+    totpSetup: 1,
+    totpResumeDevice: 1,
+    totpStepUp: 1,
+    totpDisable: 1,
+    useRecoveryCode: 1,
+    issueRecoveryCodes: 1,
+    regenerateRecoveryCodes: 1
+};
+
+function mfaCallCode(err) {
+    var code = String((err && (err.code || err.status)) || '').toLowerCase();
+    var slash = code.lastIndexOf('/');
+    if (slash !== -1) code = code.slice(slash + 1);
+    return code;
+}
+
+// The server marks this with details.reason. Older servers only send the text.
+function mfaNeedsSession(err) {
+    if (!err) return false;
+    var details = err.details;
+    if (details && details.reason === 'mfa_session_required') return true;
+    return String(err.message || '').indexOf('Authenticator session required') !== -1;
+}
+
+function mfaReentryError(cause, outcome) {
+    var why = outcome && outcome.reason;
+    var msg = why === 'app-check'
+        ? 'Security check did not load, so this remembered device could not be confirmed. Try again, or re-enter your 2FA code.'
+        : 'Please re-enter your 2FA code to continue.';
+    var e = new Error(msg);
+    e.code = 'mfa-required';
+    e.reason = why || 'expired';
+    e.cause = cause;
+    return e;
+}
+
+// One recovery per call, then the second answer is final:
+// - 2FA session expired: resume with the remembered device, retry once;
+//   if that cannot happen, ask for the code instead of a generic error.
+// - ID token rejected: force-refresh it, retry once.
+// - App Check token missing: ask reCAPTCHA once more, retry once.
+// The server rejected the first attempt before doing anything, so a single
+// retry cannot double-apply a reward.
+function mfaRecoverCall(name, payload, err, run) {
+    if (MFA_FLOW_CALLABLES[name] || !payload || typeof payload !== 'object' || Array.isArray(payload)) throw err;
+    var code = mfaCallCode(err);
+    if (mfaNeedsSession(err)) {
+        if (typeof window._mfaResumeSession !== 'function') throw err;
+        return Promise.resolve(window._mfaResumeSession({ staleSessionId: payload.mfaSessionId || '' })).then(function (outcome) {
+            if (outcome && outcome.ok && outcome.sessionId) {
+                payload.mfaSessionId = outcome.sessionId;
+                return run(payload).catch(function (err2) {
+                    if (mfaNeedsSession(err2)) throw mfaReentryError(err2, { reason: 'expired' });
+                    throw err2;
+                });
+            }
+            if (typeof window._promptMfaReentry === 'function') window._promptMfaReentry(outcome || {});
+            throw mfaReentryError(err, outcome);
+        });
+    }
+    if (code === 'unauthenticated') {
+        var user = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
+        if (!user || typeof user.getIdToken !== 'function') throw err;
+        return Promise.resolve(user.getIdToken(true)).then(function () { return run(payload); }, function () { throw err; });
+    }
+    if (code === 'app-check-unavailable' && typeof window._btcRetryAppCheck === 'function') {
+        return Promise.resolve(window._btcRetryAppCheck(8000)).then(function (token) {
+            if (!token) throw err;
+            return run(payload);
+        });
+    }
+    throw err;
 }
 
 function _mfaFailure(e) {
@@ -490,46 +592,208 @@ function _isMfaBlock(e) {
     return msg.indexOf('Authenticator session required') !== -1 || msg.indexOf('phone verification') !== -1;
 }
 
+function mfaSleep(ms) {
+    return new Promise(function (resolve) { setTimeout(resolve, ms); });
+}
+
+function mfaStoredDeviceToken(uid) {
+    var token = '';
+    try { token = localStorage.getItem(mfaDeviceKey(uid)) || ''; } catch (e) {}
+    return /^[0-9a-f]{64}$/.test(token) ? token : '';
+}
+
+var _mfaResumeInflight = null;
+var _mfaResumeLast = { at: 0, reason: '' };
+
+// Turns the 30-day remembered device into a fresh 12-hour session. Used at
+// page load, before the session runs out, and when a callable says the
+// session is gone. One request at a time per page. A tab that finds a newer
+// session in localStorage (another tab resumed) uses it without a request.
+// Only the server's "Device is not trusted." forgets the device token.
+window._mfaResumeSession = function (opts) {
+    var o = opts || {};
+    var user = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
+    if (!user || user.isAnonymous || typeof firebase === 'undefined' || !firebase.functions) {
+        return Promise.resolve({ ok: false, reason: 'signed-out' });
+    }
+    var uid = user.uid;
+    var storedSid = '';
+    try { storedSid = localStorage.getItem(mfaSessionKey(uid)) || ''; } catch (e0) {}
+    var storedExp = mfaSessionExpiresAt(uid);
+    if (o.staleSessionId != null && storedSid && storedSid !== o.staleSessionId && storedExp > Date.now() + 60000) {
+        return Promise.resolve({ ok: true, sessionId: storedSid, expiresAt: storedExp, shared: true });
+    }
+    if (_mfaResumeInflight) return _mfaResumeInflight;
+    var token = mfaStoredDeviceToken(uid);
+    if (!token) return Promise.resolve({ ok: false, reason: 'no-device' });
+    // Resume shares the 5-per-2-minutes guess bucket with code entry. Do not
+    // spend it again right after a definite answer unless the user asks.
+    if (!o.force && _mfaResumeLast.reason && (_mfaResumeLast.reason === 'not-trusted' || _mfaResumeLast.reason === 'rate-limited') && (Date.now() - _mfaResumeLast.at) < 30000) {
+        return Promise.resolve({ ok: false, reason: _mfaResumeLast.reason });
+    }
+    var resumeFn = firebase.functions().httpsCallable('totpResumeDevice');
+    _mfaResumeInflight = (async function () {
+        for (var attempt = 0; attempt < 2; attempt++) {
+            try {
+                var res = await resumeFn({ deviceToken: token });
+                var body = (res && res.data) || {};
+                if (body.sessionId) {
+                    window._rememberMfaSession(uid, body.sessionId, body.expiresAt);
+                    if (window._mfaStatus) {
+                        window._mfaStatus.sessionVerified = true;
+                        window._mfaStatus.expiresAt = body.expiresAt || null;
+                    }
+                    window._mfaResumeBlocked = '';
+                    return { ok: true, sessionId: body.sessionId, expiresAt: body.expiresAt || 0 };
+                }
+                return { ok: false, reason: 'error' };
+            } catch (e) {
+                var msg = String((e && e.message) || '');
+                if (mfaIsAppCheckError(e)) {
+                    if (attempt === 0) {
+                        if (typeof window._btcRetryAppCheck === 'function') {
+                            try { await window._btcRetryAppCheck(8000); } catch (eRetry) {}
+                        } else {
+                            await mfaSleep(1500);
+                        }
+                        continue;
+                    }
+                    window._mfaResumeBlocked = 'app-check';
+                    return { ok: false, reason: 'app-check' };
+                }
+                if (mfaIsTransientError(e) && attempt === 0) {
+                    await mfaSleep(700);
+                    continue;
+                }
+                if (msg.indexOf('Device is not trusted') !== -1) {
+                    mfaClearDevice(uid);
+                    return { ok: false, reason: 'not-trusted' };
+                }
+                if (mfaErrorCode(e) === 'resource-exhausted') return { ok: false, reason: 'rate-limited' };
+                return { ok: false, reason: 'error' };
+            }
+        }
+        return { ok: false, reason: 'error' };
+    })().then(function (outcome) {
+        _mfaResumeInflight = null;
+        _mfaResumeLast = { at: Date.now(), reason: outcome.ok ? '' : outcome.reason };
+        return outcome;
+    }, function () {
+        _mfaResumeInflight = null;
+        _mfaResumeLast = { at: Date.now(), reason: 'error' };
+        return { ok: false, reason: 'error' };
+    });
+    return _mfaResumeInflight;
+};
+
 window._serverTotpAllows = async function (uid) {
     if (!uid || typeof firebase === 'undefined' || !firebase.functions) return true;
     var sessionId = '';
     try { sessionId = localStorage.getItem(mfaSessionKey(uid)) || ''; } catch (e1) {}
+    var deviceToken = mfaStoredDeviceToken(uid);
     var statusFn = firebase.functions().httpsCallable('totpStatus');
     var data;
     try {
-        var result = await mfaRetryOnce(function () { return statusFn({ sessionId: sessionId }); });
+        var statusArgs = { sessionId: sessionId };
+        if (deviceToken) statusArgs.deviceToken = deviceToken;
+        var result = await mfaRetryOnce(function () { return statusFn(statusArgs); });
         data = (result && result.data) || {};
     } catch (e) {
         var totpOn = typeof currentUser !== 'undefined' && currentUser && currentUser.totpEnabled;
-        return mfaAllowsAfterStatusError(totpOn);
+        if (mfaAllowsAfterStatusError(totpOn)) return true;
+        // Status was unreachable. A remembered device can still resume.
+        if (!deviceToken) return false;
+        var direct = await window._mfaResumeSession({});
+        return !!(direct && direct.ok);
     }
     window._mfaStatus = data;
     if (!data.enabled || data.sessionVerified) {
+        if (data.sessionVerified && sessionId && typeof data.expiresAt === 'number') {
+            window._rememberMfaSession(uid, sessionId, data.expiresAt);
+        }
         if (data.needsRecoveryCodes) window._maybeOfferRecoveryCodes();
         return true;
     }
-    var deviceToken = '';
-    try { deviceToken = localStorage.getItem(mfaDeviceKey(uid)) || ''; } catch (e2) {}
-    if (!/^[0-9a-f]{64}$/.test(deviceToken)) return false;
-    var resumeFn = firebase.functions().httpsCallable('totpResumeDevice');
-    try {
-        var resumed = await mfaRetryOnce(function () { return resumeFn({ deviceToken: deviceToken }); });
-        var body = (resumed && resumed.data) || {};
-        if (body.sessionId) {
-            window._rememberMfaSession(uid, body.sessionId);
-            window._mfaStatus.sessionVerified = true;
-            if (data.needsRecoveryCodes) window._maybeOfferRecoveryCodes();
-            return true;
-        }
-        return false;
-    } catch (e3) {
-        // Only the server's exact "Device is not trusted." answer forgets
-        // this browser. App Check, network, and rate-limit errors do not.
-        var resumeMsg = String((e3 && e3.message) || '');
-        if (!mfaIsAppCheckError(e3) && resumeMsg.indexOf('Device is not trusted') !== -1) mfaClearDevice(uid);
+    if (!deviceToken) return false;
+    // The server answered for this exact token and said it is not
+    // remembered (revoked, expired, or older than a password change).
+    if (data.deviceRemembered === false) {
+        mfaClearDevice(uid);
         return false;
     }
+    var resumed = await window._mfaResumeSession({});
+    if (resumed && resumed.ok) {
+        if (data.needsRecoveryCodes) window._maybeOfferRecoveryCodes();
+        return true;
+    }
+    return false;
 };
+
+// A callable found the session gone and the device could not resume it.
+// Ask for the code once (the overlay de-dupes itself).
+window._promptMfaReentry = function (outcome) {
+    try {
+        if (document.getElementById('totpSignInOverlay')) return;
+        if (typeof window._showTotpSignInChallenge === 'function') {
+            window._showTotpSignInChallenge({ reason: (outcome && outcome.reason) || 'expired' });
+        }
+    } catch (e) {}
+};
+
+window._retryRememberedDevice = async function () {
+    var statusEl = document.getElementById('totpSignInStatus');
+    var btn = document.getElementById('totpRetryDeviceBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+    var outcome = await window._mfaResumeSession({ force: true });
+    if (outcome && outcome.ok) {
+        var ov = document.getElementById('totpSignInOverlay');
+        if (ov) ov.remove();
+        if (auth && auth.currentUser) noteTotpVerified(auth.currentUser.uid);
+        clearTotpHold();
+        _resumeAfterSecondFactor();
+        if (typeof loadUser === 'function' && auth && auth.currentUser) {
+            loadUser(auth.currentUser.uid).catch(function () {});
+        }
+        return true;
+    }
+    if (btn) { btn.disabled = false; btn.textContent = 'Try remembered device again'; }
+    if (statusEl) {
+        statusEl.textContent = outcome && outcome.reason === 'app-check'
+            ? 'Security check still did not load. Enter your 2FA code, or refresh the page.'
+            : 'This device is not remembered anymore. Enter your 2FA code.';
+    }
+    if (outcome && outcome.reason !== 'app-check' && btn) btn.style.display = 'none';
+    return false;
+};
+
+// Resume before the 12-hour session runs out instead of after a reward
+// fails. Runs on focus, on coming back online or visible, and every 5 min.
+function mfaKeepAliveTick() {
+    try {
+        var user = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
+        if (!user || user.isAnonymous || window._btcTotpHold) return;
+        var status = window._mfaStatus;
+        if (!status || !status.enabled) return;
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+        var exp = mfaSessionExpiresAt(user.uid);
+        if (exp && exp - Date.now() > 15 * 60 * 1000) return;
+        if (!mfaStoredDeviceToken(user.uid)) return;
+        window._mfaResumeSession({});
+    } catch (e) {}
+}
+
+function installMfaKeepAlive() {
+    if (window._mfaKeepAliveInstalled || typeof document === 'undefined') return;
+    window._mfaKeepAliveInstalled = true;
+    try {
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'visible') mfaKeepAliveTick();
+        });
+        window.addEventListener('focus', mfaKeepAliveTick);
+        window.addEventListener('online', mfaKeepAliveTick);
+        setInterval(mfaKeepAliveTick, 5 * 60 * 1000);
+    } catch (e) {}
+}
 
 window._maybeOfferRecoveryCodes = async function () {
     if (window._recoveryOfferStarted) return;
@@ -888,6 +1152,7 @@ function initRanking() {
         auth = window.auth || firebase.auth();
         window.auth = auth;
         installMfaCallablePatch();
+        installMfaKeepAlive();
 
         // Check if returning from email magic link
         if (auth.isSignInWithEmailLink(window.location.href)) {
@@ -5468,7 +5733,10 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
             try { window._revertDailyXpPreview(_xpPreview); } catch (eRev) {}
             _xpPreview = null;
         }
-        if (typeof showToast === 'function') showToast('⏳ XP will sync when connection restores');
+        if (typeof showToast === 'function') {
+            var _apToast = awardFailureToast(e, (typeof navigator !== 'undefined') ? navigator.onLine : true);
+            if (_apToast && !(_apToast.mfa && document.getElementById('totpSignInOverlay'))) showToast(_apToast.text, _apToast.ms || 4000);
+        }
         // Re-throw so callers (.then/.catch in badges.js) can roll back on network failure.
         throw e;
     }
@@ -5477,6 +5745,29 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
     refreshLeaderboardIfOpen();
     if (typeof nachoOnPoints === 'function') nachoOnPoints(pts);
     return result; // Return CF result so callers can check success/failure
+}
+
+// Which toast a failed awardPoints shows. "Will sync" only when the device
+// is really offline or the request never reached the server; a rejected
+// 2FA session, App Check, or any other server answer says what happened.
+// The wrapper already retried once after refreshing the ID token, the 2FA
+// session, or the App Check token before this runs.
+function awardFailureToast(err, online) {
+    var code = mfaErrorCode(err);
+    var msg = String((err && err.message) || '');
+    if (code === 'mfa-required') {
+        return { mfa: true, ms: 6000, text: '🔐 Please re-enter your 2FA code to save XP.' };
+    }
+    if (online === false || code === 'unavailable' || code === 'deadline-exceeded' || /network|failed to fetch|load failed/i.test(msg)) {
+        return { text: '⏳ XP will sync when connection restores', ms: 4000 };
+    }
+    if (mfaIsAppCheckError(err) || code === 'app-check-unavailable') {
+        return { text: '⚠️ Security check did not load. Refresh the page to keep earning XP.', ms: 6000 };
+    }
+    if (code === 'unauthenticated') {
+        return { text: '🔒 Your sign-in expired. Sign out and back in to keep earning XP.', ms: 6000 };
+    }
+    return { text: '⚠️ XP was not saved: ' + friendlyCallableError(err, 'try again in a moment.'), ms: 5000 };
 }
 
 // Helper: smart toast throttling for point awards
@@ -12727,7 +13018,7 @@ window.verifyMFACode = async function() {
 
 // TOTP sign-in challenge — shown when totpEnabled===true and session not yet verified.
 // Uses existing totpCheck Cloud Function. Calls loadUser again on success.
-window._showTotpSignInChallenge = function() {
+window._showTotpSignInChallenge = function(opts) {
     noteTotpHold(auth && auth.currentUser && auth.currentUser.uid);
     clearTotpVerified();
     if (auth && auth.currentUser) holdAuthDisplayForTotp(auth.currentUser.uid);
@@ -12736,6 +13027,18 @@ window._showTotpSignInChallenge = function() {
         return;
     }
     if (document.getElementById('totpSignInOverlay')) return;
+    var challengeReason = (opts && opts.reason) || window._mfaResumeBlocked || '';
+    var canRetryDevice = false;
+    try { canRetryDevice = !!(auth && auth.currentUser && mfaStoredDeviceToken(auth.currentUser.uid)); } catch (eTok) {}
+    var challengeNote = 'Open your authenticator app and enter the 6-digit code';
+    if (challengeReason === 'app-check') {
+        challengeNote = 'The security check did not load, so this remembered device could not be confirmed. Try again, or enter your 6-digit code.';
+    } else if (challengeReason === 'expired' || challengeReason === 'no-device' || challengeReason === 'not-trusted' || challengeReason === 'rate-limited' || challengeReason === 'error') {
+        challengeNote = 'Please re-enter your 2FA code to continue. Open your authenticator app and enter the 6-digit code.';
+    }
+    var retryDeviceBtn = (challengeReason === 'app-check' && canRetryDevice)
+        ? '<button id="totpRetryDeviceBtn" onclick="window._retryRememberedDevice()" style="width:100%;padding:10px;background:none;border:1px solid var(--accent,#f97316);border-radius:10px;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Try remembered device again</button>'
+        : '';
     var overlay = document.createElement('div');
     overlay.id = 'totpSignInOverlay';
     var totpZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100025) : 2100025;
@@ -12744,13 +13047,14 @@ window._showTotpSignInChallenge = function() {
         '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:28px 24px;max-width:340px;width:100%;text-align:center;">' +
             '<div style="font-size:2.5rem;margin-bottom:10px;">📱</div>' +
             '<div style="font-weight:800;font-size:1.1rem;color:var(--heading,#fff);margin-bottom:6px;">Authenticator Code</div>' +
-            '<div style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:16px;">Open your authenticator app and enter the 6-digit code</div>' +
+            '<div id="totpSignInNote" style="color:var(--text-muted,#aaa);font-size:0.85rem;margin-bottom:16px;">' + challengeNote + '</div>' +
             '<input id="totpSignInInput" type="text" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="width:100%;padding:14px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1.6rem;text-align:center;letter-spacing:6px;font-family:inherit;outline:none;margin-bottom:10px;box-sizing:border-box;">' +
             '<label style="display:flex;align-items:flex-start;gap:8px;text-align:left;font-size:0.82rem;color:var(--text,#fff);margin:0 0 12px;cursor:pointer;line-height:1.35;">' +
             '<input id="totpRememberDevice" type="checkbox" checked style="margin-top:2px;">' +
             '<span>Remember this device for 30 days</span></label>' +
             '<div id="totpSignInStatus" style="font-size:0.8rem;color:var(--text-muted,#aaa);min-height:18px;margin-bottom:12px;"></div>' +
             '<button id="totpSignInBtn" onclick="window._submitTotpSignIn()" style="width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Verify</button>' +
+            retryDeviceBtn +
             '<button onclick="window._toggleRecoveryEntry()" style="width:100%;padding:10px;background:none;border:none;color:var(--accent,#f97316);font-size:0.85rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">Use a recovery code</button>' +
             '<div id="totpRecoveryBox" style="display:none;margin-bottom:8px;">' +
             '<input id="totpRecoveryInput" type="text" autocomplete="one-time-code" placeholder="XXXX-XXXX" style="width:100%;padding:12px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1rem;text-align:center;letter-spacing:2px;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box;">' +
@@ -12795,7 +13099,7 @@ window._submitTotpSignIn = async function() {
         var checkFn = firebase.functions().httpsCallable('totpCheck');
         var checked = await checkFn(payload);
         var checkedData = (checked && checked.data) || {};
-        if (auth && auth.currentUser && checkedData.sessionId) window._rememberMfaSession(auth.currentUser.uid, checkedData.sessionId);
+        if (auth && auth.currentUser && checkedData.sessionId) window._rememberMfaSession(auth.currentUser.uid, checkedData.sessionId, checkedData.expiresAt);
         if (auth && auth.currentUser) {
             if (checkedData.deviceToken) window._rememberMfaDevice(auth.currentUser.uid, checkedData.deviceToken);
             else if (!remember) mfaClearDevice(auth.currentUser.uid);
@@ -13365,7 +13669,7 @@ async function verifyTotpSetup() {
         var verifyFn = firebase.functions().httpsCallable('totpVerify');
         var verified = await verifyFn({ code: code.value.trim() });
         var verifiedData = (verified && verified.data) || {};
-        if (auth && auth.currentUser && verifiedData.sessionId) window._rememberMfaSession(auth.currentUser.uid, verifiedData.sessionId);
+        if (auth && auth.currentUser && verifiedData.sessionId) window._rememberMfaSession(auth.currentUser.uid, verifiedData.sessionId, verifiedData.expiresAt);
         if (verifiedData.recoveryCodes) window._showRecoveryCodes(verifiedData.recoveryCodes);
         showToast('Authenticator app is on');
         showSettingsPage('security');
