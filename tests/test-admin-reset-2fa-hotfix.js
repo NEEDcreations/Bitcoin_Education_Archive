@@ -394,8 +394,21 @@ test('D1: enrollmentTime mismatch is refused and the record is not overwritten',
     const before = Object.assign({}, db.store['mfa_known_factors/adminUidD103'].phones.mfaMismatch);
     await assert.rejects(run(api.recordKnownPhoneFactor, { code: '123456' }, ctx('adminUidD103', { mfaSignIn: false })), e => e.code === 'failed-precondition' && /does not match/.test(e.message));
     assert.deepStrictEqual(db.store['mfa_known_factors/adminUidD103'].phones.mfaMismatch, before);
-    assert.strictEqual(adminAlerts(db).length, 0);
+    assert.strictEqual(adminAlerts(db).length, 0, 'no factor-change alert');
+    assert.strictEqual(unrecAlerts(db).length, 1, 'P3: mismatch alerts before the throw');
 }));
+test('P2/P3: issueRecoveryCodes checks factor mismatch before storing codes, and alerts', async () => {
+    const { api, db } = setup({ adminUidP201: { claims: { admin: true }, phoneAtMs: NOW - 3 * DAY, recorded: true, phoneId: 'mfaIrcMismatch' } });
+    db.store['mfa_known_factors/adminUidP201'].phones.mfaIrcMismatch.enrollmentTimeMs = NOW - 40 * DAY;
+    const before = Object.assign({}, db.store['mfa_known_factors/adminUidP201'].phones.mfaIrcMismatch);
+    await assert.rejects(run(api.issueRecoveryCodes, {}, ctx('adminUidP201')), e => e.code === 'failed-precondition' && /does not match/.test(e.message));
+    assert.deepStrictEqual(db.store['mfa_known_factors/adminUidP201'].phones.mfaIrcMismatch, before);
+    assert.ok(!db.store['recovery_codes/adminUidP201'], 'codes must not be stored after a mismatch');
+    assert.strictEqual(unrecAlerts(db).length, 1, 'P3: mismatch alerts before the throw');
+    const src = fs.readFileSync(path.join(root, 'functions', 'src', 'secondFactor.js'), 'utf8');
+    const fn = src.slice(src.indexOf('const issueRecoveryCodes = '), src.indexOf('const regenerateRecoveryCodes'));
+    assert.ok(fn.indexOf('recordPhoneFactors(') < fn.indexOf('storeRecoveryCodes('), 'P2: record before store');
+});
 test('D1: fresh phone second-factor sign-in records that exact factor uid', async () => {
     const { api, db } = setup({ adminUidD104: { claims: { admin: true }, phoneAtMs: NOW - 2 * DAY, recorded: false, phoneId: 'mfaPhoneA' } });
     const res = await run(api.recordKnownPhoneFactor, {}, ctx('adminUidD104', { secondFactorId: 'mfaPhoneA', authAtMs: NOW - 60000 }));

@@ -939,18 +939,22 @@ function initSecondFactor(deps) {
         const phones = known.phones || {};
         const added = [];
         const patch = { uid: uid, phones: {} };
-        list.forEach(function (f) {
-            if (!f.id) return;
+        for (let i = 0; i < list.length; i++) {
+            const f = list[i];
+            if (!f.id) continue;
             const existing = phones[f.id];
             if (existing) {
                 if (timeMs(existing.enrollmentTimeMs) && f.enrollmentTime && timeMs(existing.enrollmentTimeMs) !== f.enrollmentTime) {
+                    // P3: a mismatch is tampering. Alert before refusing so both
+                    // callers (issueRecoveryCodes and recordKnownPhoneFactor) notify.
+                    await alertUnrecordedFactor(uid, nowMs);
                     throw httpError('failed-precondition', 'A two-factor method on this account does not match our records.');
                 }
-                return;
+                continue;
             }
             patch.phones[f.id] = { recordedAtMs: nowMs, enrollmentTimeMs: f.enrollmentTime || 0 };
             added.push(f.id);
-        });
+        }
         if (added.length) await knownRef(uid).set(patch, { merge: true });
         return added;
     }
@@ -1233,11 +1237,11 @@ function initSecondFactor(deps) {
             throw httpError('failed-precondition', 'Confirm your authenticator or phone before saving recovery codes.');
         }
         const factor = secret && phone.enrolled ? 'both' : (secret ? 'totp' : 'phone');
+        // P2: check (and record) phone factors before storing codes, so a
+        // mismatch throw cannot leave codes that were never shown.
+        const newPhones = phone.enrolled ? await recordPhoneFactors(uid, phone, nowMs) : [];
         const recoveryCodes = await storeRecoveryCodes(uid, factor);
         if (phone.enrolled) await db.collection('users').doc(uid).set({ phoneVerified: true }, { merge: true });
-        // The client enrolls phone with Firebase directly; this is where the
-        // server first sees (and records) a phone factor, after the proof above.
-        const newPhones = phone.enrolled ? await recordPhoneFactors(uid, phone, nowMs) : [];
         if (newPhones.length || freshPhone) await alertAdminFactorChange(uid, 'added', 'phone');
         return { success: true, recoveryCodes: recoveryCodes };
     });
