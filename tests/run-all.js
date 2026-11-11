@@ -54,6 +54,7 @@ const TESTS = [
     { name: 'Badge search', file: 'test-badge-search.js' },
     { name: 'Collection bonus remainder', file: 'test-collection-bonus.js' },
     { name: 'Title & Flair server checks', file: 'test-title-flair.js' },
+    { name: 'Settings consolidation', file: 'test-settings-consolidation.js' },
     { name: 'Variable Scope Safety', file: 'test-variable-scope.js' },
     { name: 'OnClick Function Existence', file: 'test-onclick-functions.js' },
     { name: 'Gift open popup', file: 'test-gift-open.js' },

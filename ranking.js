@@ -1490,6 +1490,28 @@ function accountLinkTotpHoldMessage() {
     return 'Finish the authenticator check before linking a sign-in.';
 }
 
+
+function signInBackupRecommendation(user, profile, methods) {
+    var labels = methods || listSignInMethodLabels(user, profile);
+    if (!user || (user.isAnonymous && !hasLinkedProvider(user))) return '';
+    if (isLightningOnlyAccount(user, profile)) return '';
+    var hasEmail = labels.indexOf('Email') !== -1;
+    var hasGoogle = labels.indexOf('Google') !== -1;
+    var real = [];
+    var i;
+    for (i = 0; i < labels.length; i++) {
+        if (labels[i] && labels[i] !== 'Guest') real.push(labels[i]);
+    }
+    if (real.length <= 1) {
+        if (!hasEmail) return 'Add an email sign-in as a backup so you can still get in if you lose this one, and so you can turn on 2FA.';
+        if (!hasGoogle) return 'Add Google as a second way to sign in, so you can still get in if you lose access to email.';
+        return 'Add a second sign-in method so you can still get in if you lose this one.';
+    }
+    if (hasGoogle && !hasEmail) return 'Link an email too, so you can turn on 2FA and have a backup sign-in.';
+    if (hasEmail && !hasGoogle && real.length === 1) return 'Add Google as a second way to sign in.';
+    return '';
+}
+
 function renderSignInMethodsCard(user, profile) {
     var methods = listSignInMethodLabels(user, profile);
     var canLink = accountCanLinkSignIn(user, profile);
@@ -1503,6 +1525,8 @@ function renderSignInMethodsCard(user, profile) {
         html += 'This account signs in with Lightning only. Link an email or Google so you can get back in without that wallet.';
     } else {
         html += 'Ways you can sign back in to this account.';
+        var rec = signInBackupRecommendation(user, profile, methods);
+        if (rec) html += ' ' + rec;
     }
     html += '</div>';
     html += '<div id="signInMethodList" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">';
@@ -8512,6 +8536,50 @@ function _tfTitleDef(id) {
     return null;
 }
 window._tfPreview = { title: undefined, flair: undefined };
+
+window._tfFlairItems = function(u) {
+    u = u || ((typeof currentUser !== 'undefined' && currentUser) ? currentUser : {});
+    var earnedF = Array.isArray(u.earnedFlair) ? u.earnedFlair : [];
+    var nookOwned = Array.isArray(u.ownedCosmetics) && u.ownedCosmetics.indexOf('chat_flair') !== -1;
+    var items = [{ id: '', emoji: '🚫', title: 'No flair', locked: false, hint: '', group: '' }];
+    var seenF = {};
+    (window.CHAT_FLAIR_NOOK || []).forEach(function(e) {
+        seenF[e] = true;
+        var have = earnedF.indexOf(e) !== -1 || nookOwned;
+        items.push({ id: e, emoji: e, title: 'Nook', locked: !have, hint: have ? '' : 'Buy Chat Flair in the Nook', group: have ? 'Unlocked' : 'Locked' });
+    });
+    _tfCollections().forEach(function(col) {
+        if (!col.flair || seenF[col.flair]) return;
+        seenF[col.flair] = true;
+        var have = earnedF.indexOf(col.flair) !== -1;
+        items.push({ id: col.flair, emoji: col.flair, title: col.name || 'Flair', locked: !have, hint: have ? '' : ('Complete the ' + (col.name || 'collection') + ' collection'), group: have ? 'Unlocked' : 'Locked' });
+    });
+    earnedF.forEach(function(e) {
+        if (!e || seenF[e]) return;
+        seenF[e] = true;
+        items.push({ id: e, emoji: e, title: 'Flair', locked: false, hint: '', group: 'Unlocked' });
+    });
+    return items;
+};
+window._tfFlairSelectHtml = function(selected, selectId, onchange) {
+    var items = window._tfFlairItems();
+    var sid = selectId || 'tfFlairSelect';
+    var h = '<select id="' + sid + '" class="tf-select" aria-label="Chat flair" onchange="' + (onchange || 'window._tfFlairChange(this)') + '">';
+    var unlocked = items.filter(function(item) { return !item.locked; });
+    var locked = items.filter(function(item) { return item.locked; });
+    function flairOpt(item) {
+        var label = (item.emoji ? item.emoji + ' ' : '') + item.title + (item.hint ? ' — ' + item.hint : '');
+        return '<option value="' + _tfEsc(item.id) + '"' + (item.locked ? ' disabled' : '') + (selected === item.id ? ' selected' : '') + '>' + _tfEsc(label) + '</option>';
+    }
+    unlocked.forEach(function(item) { h += flairOpt(item); });
+    if (locked.length) {
+        h += '<optgroup label="Locked">';
+        locked.forEach(function(item) { h += flairOpt(item); });
+        h += '</optgroup>';
+    }
+    h += '</select>';
+    return h;
+};
 window._renderTitleFlairSection = function() {
     var u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
     var earnedT = Array.isArray(u.earnedTitles) ? u.earnedTitles : [];
@@ -8587,23 +8655,10 @@ window._renderTitleFlairSection = function() {
         h += '</optgroup>';
     }
     h += '</select>';
-    // Flair: None, Nook flair, then collection flair.
-    h += '<div class="tf-sub">Chat flair</div><div class="tf-grid">';
-    h += card('flair', '', '🚫', 'No flair', !flair, '');
-    var seenF = {};
-    var nookOwned = Array.isArray(u.ownedCosmetics) && u.ownedCosmetics.indexOf('chat_flair') !== -1;
-    (window.CHAT_FLAIR_NOOK || []).forEach(function(e) {
-        seenF[e] = true;
-        var have = earnedF.indexOf(e) !== -1 || nookOwned;
-        h += card('flair', e, e, 'Nook', flair === e, have ? '' : '🔒 Buy Chat Flair in the Nook');
-    });
-    _tfCollections().forEach(function(col) {
-        if (!col.flair || seenF[col.flair]) return;
-        seenF[col.flair] = true;
-        var have = earnedF.indexOf(col.flair) !== -1;
-        h += card('flair', col.flair, col.flair, col.name, flair === col.flair, have ? '' : '🔒 Complete the ' + col.name + ' collection');
-    });
-    h += '</div></div>';
+    // Flair: one compact dropdown. Locked options stay visible but cannot be picked.
+    h += '<label class="tf-sub" for="tfFlairSelect">Chat flair</label>';
+    h += window._tfFlairSelectHtml(showFlair, 'tfFlairSelect', 'window._tfFlairChange(this)');
+    h += '</div>';
     return h;
 };
 window._tfRepaint = function() {
@@ -8634,6 +8689,12 @@ window._tfTitleChange = function(el) {
     var value = el.value || '';
     window._tfHover('title', value);
     window._tfPick('title', value);
+};
+window._tfFlairChange = function(el) {
+    if (!el) return;
+    var value = el.value || '';
+    window._tfHover('flair', value);
+    window._tfPick('flair', value);
 };
 window._tfPick = function(kind, value) {
     var user = auth ? auth.currentUser : null;
@@ -8969,17 +9030,10 @@ function showSettingsPage(tab) {
         if (user.email) _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Email</span><span style="color:var(--text);font-size:0.85rem;">' + user.email + '</span></div>';
         if (user.displayName) _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Name</span><span style="color:var(--text);font-size:0.85rem;">' + user.displayName + '</span></div>';
 
-        // Sign-in provider
-        let provider = 'Anonymous';
-        if (user.providerData && user.providerData.length > 0) {
-            const pid = user.providerData[0].providerId;
-            if (pid === 'google.com') provider = 'Google';
-            else if (pid === 'twitter.com') provider = 'Twitter/X';
-            else if (pid === 'github.com') provider = 'GitHub';
-            else if (pid === 'facebook.com') provider = 'Facebook';
-            else if (pid === 'password') provider = 'Email';
-        }
-        _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Sign-in method</span><span style="color:var(--text);font-size:0.85rem;">' + provider + '</span></div>';
+        // Sign-in methods: list every linked provider, not only the first one.
+        var _methodLabels = listSignInMethodLabels(user, (typeof currentUser !== 'undefined') ? currentUser : null);
+        var provider = _methodLabels.length ? _methodLabels.join(', ') : 'Anonymous';
+        _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Sign-in methods</span><span style="color:var(--text);font-size:0.85rem;">' + accountLinkEscape(provider) + '</span></div>';
 
         // Account created
         if (currentUser && currentUser.created) {
@@ -9007,14 +9061,14 @@ function showSettingsPage(tab) {
                 }
                 var _badgePickerHtml = '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">' +
                     '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:10px;">Choose a badge to show next to your name instead of your rank emoji.</div>' +
-                    '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">';
-                _badgePickerHtml += '<div onclick="setDisplayBadge(\'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (!chosenBadge ? 'var(--accent)' : 'var(--border)') + ';background:' + (!chosenBadge ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + lvl.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + lvl.name + ' (Default)</div><div style="color:var(--text-faint);font-size:0.7rem;">Your current rank emoji</div></div>' + (!chosenBadge ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
+                    '<select id="displayBadgeSelect" aria-label="Display badge" onchange="setDisplayBadge(this.value)" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-family:inherit;font-size:16px;line-height:1.3;">' +
+                    '<option value=""' + (!chosenBadge ? ' selected' : '') + '>' + lvl.emoji + ' ' + lvl.name + ' (Default)</option>';
                 for (var bi = 0; bi < allEarned.length; bi++) {
                     var b = allEarned[bi];
                     var isChosen = chosenBadge === b.id;
-                    _badgePickerHtml += '<div onclick="setDisplayBadge(\'' + b.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (isChosen ? 'var(--accent)' : 'var(--border)') + ';background:' + (isChosen ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + b.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + b.name + '</div></div>' + (isChosen ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
+                    _badgePickerHtml += '<option value="' + b.id + '"' + (isChosen ? ' selected' : '') + '>' + b.emoji + ' ' + b.name + '</option>';
                 }
-                _badgePickerHtml += '</div></div>';
+                _badgePickerHtml += '</select></div>';
 
                 _advHtml += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
                     '<div onclick="var _bp=document.getElementById(\'badgePickerPanel\');var _arr=document.getElementById(\'badgePickerArrow\');if(_bp){var open=_bp.style.display===\'block\';_bp.style.display=open?\'none\':\'block\';if(_arr)_arr.textContent=open?\'▸\':\'▾\';}" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;-webkit-tap-highlight-color:rgba(247,147,26,0.2);">' +
@@ -9900,21 +9954,18 @@ function accountDeleteRowHtml(user) {
         const savedSize = localStorage.getItem('btc_font_size') || 'medium';
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">🎨 Appearance</div>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:6px;">Theme</div>' +
-            '<div style="display:flex;gap:8px;margin-bottom:12px;">' +
-            '<button onclick="if(document.body.getAttribute(\'data-theme\')===\'light\')toggleTheme();document.body.classList.remove(\'oled-theme\');localStorage.setItem(\'btc_theme_oled\',\'false\');showSettingsPage(\'prefs\')" style="flex:1;padding:10px;border:' + (isDark && !isOLED ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (isDark && !isOLED ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (isDark && !isOLED ? 'var(--accent)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (isDark && !isOLED ? '700' : '400') + ';cursor:pointer;font-family:inherit;">🌙 Dark</button>' +
-            '<button onclick="if(document.body.getAttribute(\'data-theme\')===\'light\')toggleTheme();toggleOLEDTheme();showSettingsPage(\'prefs\')" style="flex:1;padding:10px;border:' + (isOLED ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (isOLED ? '#000' : 'var(--bg-side)') + ';color:' + (isOLED ? 'var(--accent)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (isOLED ? '700' : '400') + ';cursor:pointer;font-family:inherit;">🖤 OLED</button>' +
-            '<button onclick="if(document.body.getAttribute(\'data-theme\')!==\'light\')toggleTheme();document.body.classList.remove(\'oled-theme\');localStorage.setItem(\'btc_theme_oled\',\'false\');showSettingsPage(\'prefs\')" style="flex:1;padding:10px;border:' + (!isDark ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (!isDark ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (!isDark ? 'var(--accent)' : 'var(--text)') + ';font-size:0.85rem;font-weight:' + (!isDark ? '700' : '400') + ';cursor:pointer;font-family:inherit;">☀️ Light</button>' +
-            '</div>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-bottom:6px;">Font Size</div>' +
-            '<div style="display:flex;gap:8px;">';
-        ['small', 'medium', 'large'].forEach(function(size) {
-            var active = savedSize === size;
-            var label = size.charAt(0).toUpperCase() + size.slice(1);
-            var px = size === 'small' ? '14px' : size === 'medium' ? '16px' : '18px';
-            html += '<button onclick="setFontSize(\'' + size + '\')" style="flex:1;padding:10px;border:' + (active ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (active ? 'var(--accent)' : 'var(--text)') + ';font-size:' + px + ';font-weight:' + (active ? '700' : '400') + ';cursor:pointer;font-family:inherit;">' + label + '</button>';
-        });
-        html += '</div></div>';
+            '<label for="themeSelect" style="color:var(--text-muted);font-size:0.8rem;margin-bottom:6px;display:block;">Theme</label>' +
+            '<select id="themeSelect" aria-label="Theme" onchange="window._setAppearanceTheme(this.value)" style="width:100%;box-sizing:border-box;padding:10px 12px;margin-bottom:12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-family:inherit;font-size:16px;line-height:1.3;">' +
+            '<option value="dark"' + (isDark && !isOLED ? ' selected' : '') + '>🌙 Dark</option>' +
+            '<option value="oled"' + (isOLED ? ' selected' : '') + '>🖤 OLED</option>' +
+            '<option value="light"' + (!isDark ? ' selected' : '') + '>☀️ Light</option>' +
+            '</select>' +
+            '<label for="fontSizeSelect" style="color:var(--text-muted);font-size:0.8rem;margin-bottom:6px;display:block;">Font Size</label>' +
+            '<select id="fontSizeSelect" aria-label="Font size" onchange="setFontSize(this.value)" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-family:inherit;font-size:16px;line-height:1.3;">' +
+            '<option value="small"' + (savedSize === 'small' ? ' selected' : '') + '>Small</option>' +
+            '<option value="medium"' + (savedSize === 'medium' ? ' selected' : '') + '>Medium</option>' +
+            '<option value="large"' + (savedSize === 'large' ? ' selected' : '') + '>Large</option>' +
+            '</select></div>';
 
         // Language
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
@@ -10426,9 +10477,12 @@ function accountDeleteRowHtml(user) {
                     '<button onclick="if(typeof window._showPinnedBadgeSelector===\'function\')window._showPinnedBadgeSelector()" style="padding:5px 12px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;font-size:0.75rem;color:#f7931a;font-weight:700;cursor:pointer;font-family:inherit;">Change →</button></div>';
             }
             if (_settCosmetics.indexOf('chat_flair') !== -1) {
-                var _flairEmoji = (typeof currentUser !== 'undefined' && currentUser && currentUser.chatFlairEmoji) ? currentUser.chatFlairEmoji : '🔥';
-                html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">🔥 Chat Flair: <strong style="color:var(--text);">' + _flairEmoji + '</strong></span>' +
-                    '<button onclick="if(typeof window._showChatFlairPicker===\'function\')window._showChatFlairPicker()" style="padding:5px 12px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;font-size:0.75rem;color:#f7931a;font-weight:700;cursor:pointer;font-family:inherit;">Change →</button></div>';
+                var _flairEmoji = (typeof currentUser !== 'undefined' && currentUser && currentUser.chatFlairEmoji) ? currentUser.chatFlairEmoji : '';
+                html += '<div style="padding:10px 0;border-bottom:1px solid var(--border);"><div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:8px;">🔥 Chat Flair</div>';
+                html += (typeof window._tfFlairSelectHtml === 'function')
+                    ? window._tfFlairSelectHtml(_flairEmoji, 'dataFlairSelect', 'window._tfFlairChange(this)')
+                    : '<div style="color:var(--text);">' + (_flairEmoji || 'None') + '</div>';
+                html += '</div>';
             }
             if (_settCosmetics.indexOf('profile_frame') !== -1) {
                 html += '<div style="padding:10px 0;border-bottom:1px solid var(--border);color:var(--text-muted);font-size:0.85rem;">🧓 Profile Frame: <strong style="color:#f7931a;">Active - orange glow on your rank card</strong></div>';
@@ -10982,6 +11036,25 @@ function accountDeleteRowHtml(user) {
 }
 
 // Language translation via Google Translate
+window._setAppearanceTheme = function(mode) {
+    var isLight = document.body.getAttribute('data-theme') === 'light';
+    if (mode === 'light') {
+        if (!isLight && typeof toggleTheme === 'function') toggleTheme();
+        document.body.classList.remove('oled-theme');
+        try { localStorage.setItem('btc_theme_oled', 'false'); } catch (e) {}
+    } else {
+        if (isLight && typeof toggleTheme === 'function') toggleTheme();
+        if (mode === 'oled') {
+            document.body.classList.add('oled-theme');
+            try { localStorage.setItem('btc_theme_oled', 'true'); } catch (e2) {}
+        } else {
+            document.body.classList.remove('oled-theme');
+            try { localStorage.setItem('btc_theme_oled', 'false'); } catch (e3) {}
+        }
+    }
+    if (typeof showSettingsPage === 'function') showSettingsPage('prefs');
+};
+
 function changeLanguage(lang) {
     const status = document.getElementById('langStatus');
     if (!lang) {
@@ -12547,13 +12620,14 @@ window.setDisplayBadge = function(badgeId) {
         var _earnedHidden = JSON.parse(localStorage.getItem('btc_hidden_badges') || '[]');
         if (typeof HIDDEN_BADGES !== 'undefined') HIDDEN_BADGES.forEach(function(bd) { if (_earnedHidden.indexOf(bd.id) !== -1) _allE.push({ id: bd.id, emoji: bd.hidden ? (bd.revealEmoji || bd.emoji) : bd.emoji, name: bd.hidden ? (bd.revealName || bd.name) : bd.name }); });
         var _chosen = badgeId || '';
-        var _ph = '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);"><div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:10px;">Choose a badge to show next to your name instead of your rank emoji.</div><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">';
-        _ph += '<div onclick="setDisplayBadge(\'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (!_chosen ? 'var(--accent)' : 'var(--border)') + ';background:' + (!_chosen ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + _lvl.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + _lvl.name + ' (Default)</div><div style="color:var(--text-faint);font-size:0.7rem;">Your current rank emoji</div></div>' + (!_chosen ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
+        var _ph = '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);"><div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:10px;">Choose a badge to show next to your name instead of your rank emoji.</div>';
+        _ph += '<select id="displayBadgeSelect" aria-label="Display badge" onchange="setDisplayBadge(this.value)" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-family:inherit;font-size:16px;line-height:1.3;">';
+        _ph += '<option value=""' + (!_chosen ? ' selected' : '') + '>' + _lvl.emoji + ' ' + _lvl.name + ' (Default)</option>';
         _allE.forEach(function(bd) {
             var _ic = _chosen === bd.id;
-            _ph += '<div onclick="setDisplayBadge(\'' + bd.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (_ic ? 'var(--accent)' : 'var(--border)') + ';background:' + (_ic ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + bd.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + bd.name + '</div></div>' + (_ic ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
+            _ph += '<option value="' + bd.id + '"' + (_ic ? ' selected' : '') + '>' + bd.emoji + ' ' + bd.name + '</option>';
         });
-        _ph += '</div></div>';
+        _ph += '</select></div>';
         _bp.innerHTML = _ph;
         _bp.style.display = 'block';
     }

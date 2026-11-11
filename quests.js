@@ -9714,27 +9714,21 @@ window._showPinnedBadgeSelector = function() {
 
     var currentPinned = typeof currentUser !== 'undefined' && currentUser ? (currentUser.pinnedBadgeId || '') : '';
 
-    var gridHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;max-height:300px;overflow-y:auto;padding:4px;">';
+    var selectHtml = '<select id="pinnedBadgeSelect" aria-label="Pinned badge" onchange="window._selectPinnedBadge(this.value)" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-family:inherit;font-size:16px;line-height:1.3;">';
+    selectHtml += '<option value=""' + (!currentPinned ? ' selected' : '') + '>No pinned badge</option>';
     badgeMeta.forEach(function(b) {
         var isSelected = b.id === currentPinned;
-        gridHtml += '<button onclick="window._selectPinnedBadge(\'' + b.id.replace(/['"]/g,'') + '\')" ' +
-            'style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 8px;min-width:72px;background:' +
-            (isSelected ? 'rgba(247,147,26,0.15)' : 'var(--card-bg)') + ';border:1px solid ' +
-            (isSelected ? '#f7931a' : 'var(--border)') + ';border-radius:10px;cursor:pointer;font-family:inherit;transition:0.2s;">' +
-            '<span style="font-size:1.5rem;">' + (typeof escapeHtml === 'function' ? escapeHtml(b.emoji) : b.emoji) + '</span>' +
-            '<span style="font-size:0.6rem;color:var(--text-muted);text-align:center;max-width:68px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
-            (typeof escapeHtml === 'function' ? escapeHtml(b.name) : b.name) + '</span>' +
-            (isSelected ? '<span style="font-size:0.55rem;color:#f7931a;font-weight:700;">Pinned ✓</span>' : '') +
-            '</button>';
+        var label = (b.emoji ? b.emoji + ' ' : '') + b.name;
+        selectHtml += '<option value="' + (typeof escapeHtml === 'function' ? escapeHtml(b.id) : b.id) + '"' + (isSelected ? ' selected' : '') + '>' + (typeof escapeHtml === 'function' ? escapeHtml(label) : label) + '</option>';
     });
-    gridHtml += '</div>';
+    selectHtml += '</select>';
 
     overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:2px solid rgba(247,147,26,0.3);border-radius:20px;padding:24px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;">' +
         '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
         '<div style="font-size:1rem;font-weight:800;color:var(--heading);">\uD83D\uDCCC Choose a Badge to Pin</div>' +
         '<button onclick="document.getElementById(\'pinnedBadgeSelectorOverlay\').remove()" style="background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);width:32px;height:32px;cursor:pointer;font-size:1rem;font-family:inherit;">\u2715</button></div>' +
         '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:12px;">This badge will be displayed on your profile card.</div>' +
-        gridHtml +
+        selectHtml +
         (currentPinned ? '<button onclick="window._selectPinnedBadge(\'\')" style="margin-top:12px;width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">Remove pinned badge</button>' : '') +
     '</div>';
     document.body.appendChild(overlay);
@@ -9761,30 +9755,21 @@ window._selectPinnedBadge = function(badgeId) {
 // ─── Chat Flair Picker ────────────────────────────────────────────────────────
 
 window._showChatFlairPicker = function() {
-    var FLAIR_OPTIONS = ['\uD83D\uDD25', '\u26A1', '\uD83E\uDD8C', '\uD83E\uDDE1', '\uD83D\uDC8E', '\uD83D\uDC51', '\uD83C\uDFAF', '\u26CF\uFE0F', '\uD83D\uDFE0'];
-    var currentFlair = typeof currentUser !== 'undefined' && currentUser ? (currentUser.chatFlairEmoji || '\uD83D\uDD25') : '\uD83D\uDD25';
-
+    var currentFlair = typeof currentUser !== 'undefined' && currentUser ? (currentUser.chatFlairEmoji || '') : '';
     var overlay = document.createElement('div');
     overlay.id = 'chatFlairPickerOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:490000;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:500000;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
-    var gridHtml = '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:16px 0;">';
-    FLAIR_OPTIONS.forEach(function(emoji) {
-        var isSelected = emoji === currentFlair;
-        gridHtml += '<button onclick="window._selectChatFlair(\'' + emoji + '\')" ' +
-            'style="width:48px;height:48px;font-size:1.5rem;border-radius:12px;border:2px solid ' +
-            (isSelected ? '#f7931a' : 'var(--border)') + ';background:' +
-            (isSelected ? 'rgba(247,147,26,0.15)' : 'var(--card-bg)') + ';cursor:pointer;transition:0.15s;font-family:inherit;">' +
-            emoji + '</button>';
-    });
-    gridHtml += '</div>';
+    var selectHtml = (typeof window._tfFlairSelectHtml === 'function')
+        ? window._tfFlairSelectHtml(currentFlair, 'chatFlairSelect', 'window._selectChatFlair(this.value)')
+        : '<select id="chatFlairSelect" class="tf-select" aria-label="Chat flair" onchange="window._selectChatFlair(this.value)" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;font-size:16px;"><option value="">No flair</option></select>';
 
     overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:2px solid rgba(247,147,26,0.3);border-radius:20px;padding:24px;max-width:360px;width:100%;text-align:center;">' +
-        '<div style="font-size:1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">\uD83D\uDD25 Choose Your Chat Flair</div>' +
-        '<div style="font-size:0.78rem;color:var(--text-muted);">This emoji appears next to your name in Global Chat.</div>' +
-        gridHtml +
-        '<button onclick="document.getElementById(\'chatFlairPickerOverlay\').remove()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
+        '<div style="font-size:1rem;font-weight:800;color:var(--heading);margin-bottom:4px;">Choose Your Chat Flair</div>' +
+        '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:12px;">This emoji appears next to your name in Global Chat.</div>' +
+        '<div style="text-align:left;margin:8px 0 16px;">' + selectHtml + '</div>' +
+        '<button type="button" onclick="document.getElementById(\'chatFlairPickerOverlay\').remove()" style="width:100%;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.8rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
     '</div>';
     document.body.appendChild(overlay);
 };
