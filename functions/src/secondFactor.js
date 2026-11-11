@@ -28,6 +28,7 @@ const FRESH_ACTIONS = {
     changeEmail: true,
     linkProvider: true,
     unlinkProvider: true,
+    adminResetSecondFactor: true,
 };
 const RECOVERY_COUNT = 10;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -149,6 +150,42 @@ function totpDelta(authenticator, token, secret, nowMs) {
     } finally {
         authenticator.options = prev;
     }
+}
+
+// Admin-only controls (adminResetSecondFactor, and #285 Clear Hold) need a
+// recent sign-in and an ESTABLISHED factor: enrolled at least 24 hours ago,
+// or before the current sign-in. A stolen fresh session cannot enroll its
+// own authenticator and use it right away (Spam/Abuse A1).
+const RECENT_SIGN_IN_MS = 10 * 60 * 1000;
+const ESTABLISHED_FACTOR_MS = 24 * 60 * 60 * 1000;
+
+function timeMs(value) {
+    if (!value) return 0;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+    if (value instanceof Date) return value.getTime() || 0;
+    if (typeof value.toMillis === 'function') return value.toMillis() || 0;
+    if (typeof value.toDate === 'function') return value.toDate().getTime() || 0;
+    return 0;
+}
+
+function authTimeMs(context) {
+    const token = context && context.auth && context.auth.token;
+    const t = Number(token && token.auth_time) * 1000;
+    return Number.isFinite(t) && t > 0 ? t : 0;
+}
+
+function recentSignIn(context, nowMs) {
+    const t = authTimeMs(context);
+    if (!t) return false;
+    const age = nowMs - t;
+    return age >= -60000 && age <= RECENT_SIGN_IN_MS;
+}
+
+function factorEstablished(enrolledMs, signInMs, nowMs) {
+    const e = timeMs(enrolledMs);
+    if (!e) return false;
+    if (e <= nowMs - ESTABLISHED_FACTOR_MS) return true;
+    return signInMs > 0 && e < signInMs;
 }
 
 function sha(value) {
@@ -1280,7 +1317,31 @@ function initSecondFactor(deps) {
         return { success: true };
     });
 
-    const adminResetSecondFactor = functionsV1.https.onCall(async function (data, context) {
+    // Recent sign-in + fresh step-up (every enrolled factor) + at least one
+    // ESTABLISHED factor. Throws failed-precondition otherwise.
+    async function requireAdminStepUp(context, action) {
+        if (!context || !context.auth || !context.auth.uid) throw httpError('unauthenticated', 'Must be signed in');
+        const nowMs = currentNow();
+        if (!recentSignIn(context, nowMs)) throw httpError('failed-precondition', 'Sign in again, then try this.');
+        const sf = await requireFreshStepUp(context, action);
+        if (!sf || (sf.totp !== true && sf.phone !== true)) {
+            throw httpError('failed-precondition', 'Turn on two-factor authentication first.');
+        }
+        const uid = context.auth.uid;
+        const signIn = authTimeMs(context);
+        const [secret, phone] = await Promise.all([secretRecord(uid), phoneInfo(uid)]);
+        const totpOk = sf.totp === true && !!secret && factorEstablished(secret.enabledAt, signIn, nowMs);
+        const phoneOk = sf.phone === true && phone.enrolled === true && factorEstablished(phone.enrollmentTime, signIn, nowMs);
+        if (!totpOk && !phoneOk) {
+            throw httpError('failed-precondition', 'Your two-factor method is too new for this action. Try again after 24 hours.');
+        }
+        return Object.assign({}, sf, { established: true });
+    }
+
+    // Hotfix: App Check, recent sign-in, fresh step-up with an established
+    // factor on the caller, never the caller's own account, never an admin.
+    // Admin second-factor resets happen out of band in the console.
+    const adminResetSecondFactor = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async function (data, context) {
         if (!context || !context.auth || !context.auth.token || context.auth.token.admin !== true) {
             throw httpError('permission-denied', 'Admin only.');
         }
@@ -1288,6 +1349,25 @@ function initSecondFactor(deps) {
         const note = String((data && data.note) || '').trim().slice(0, 500);
         if (!/^[A-Za-z0-9]{6,128}$/.test(targetUid)) throw httpError('invalid-argument', 'Enter the account id.');
         if (note.length < 8) throw httpError('invalid-argument', 'Describe how you verified this person.');
+        if (targetUid === context.auth.uid) {
+            throw httpError('permission-denied', 'You cannot reset your own two-factor here. Use a recovery code.');
+        }
+        await requireAdminStepUp(stamp(data, context), 'adminResetSecondFactor');
+        // The target's admin claim is read from Auth; an unreadable target fails closed.
+        let targetRec = null;
+        try { targetRec = await admin.auth().getUser(targetUid); } catch (e) { targetRec = null; }
+        if (!targetRec) throw httpError('failed-precondition', 'Could not look up that account. Try again.');
+        if (targetRec.customClaims && targetRec.customClaims.admin === true) {
+            await db.collection('mfa_admin_log').add({
+                action: 'admin_reset_refused',
+                reason: 'target_is_admin',
+                targetUid: targetUid,
+                adminUid: context.auth.uid,
+                note: note,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            throw httpError('permission-denied', 'Admin accounts cannot be reset here.');
+        }
         const phoneCleared = await unenrollPhone(targetUid);
         if (!phoneCleared) {
             throw httpError('failed-precondition', 'Could not turn off phone verification. Try again.');
@@ -1316,6 +1396,7 @@ function initSecondFactor(deps) {
 
     const api = {
         stamp: stamp,
+        requireAdminStepUp: requireAdminStepUp,
         requireSecondFactor: requireSecondFactor,
         totpSetup: totpSetup,
         totpVerify: totpVerify,
@@ -1355,6 +1436,10 @@ function requireSecondFactor(context) {
     return requireReady().requireSecondFactor(context);
 }
 
+function requireAdminStepUp(context, action) {
+    return requireReady().requireAdminStepUp(context, action);
+}
+
 function requireFreshStepUp(context, action) {
     return requireReady().requireFreshStepUp(context, action);
 }
@@ -1384,6 +1469,11 @@ module.exports = {
     stamp: stamp,
     requireSecondFactor: requireSecondFactor,
     requireFreshStepUp: requireFreshStepUp,
+    requireAdminStepUp: requireAdminStepUp,
+    recentSignIn: recentSignIn,
+    factorEstablished: factorEstablished,
+    RECENT_SIGN_IN_MS: RECENT_SIGN_IN_MS,
+    ESTABLISHED_FACTOR_MS: ESTABLISHED_FACTOR_MS,
     encryptTotpSecret: encryptTotpSecret,
     decryptTotpSecret: decryptTotpSecret,
     encryptionKeyConfigured: encryptionKeyConfigured,
