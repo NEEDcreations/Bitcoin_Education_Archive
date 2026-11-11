@@ -27,9 +27,9 @@ const manifest = Object.keys(RUNTIME_SERVICE_ACCOUNTS).sort();
 const noSecretOwn = manifest.filter(function (n) { return RUNTIME_SERVICE_ACCOUNTS[n].noSecrets === true; });
 const ownAccount = secretBound.concat(noSecretOwn).sort();
 
-test('manifest lists exactly the secret-bound exports (55) plus explicit noSecrets accounts', function () {
+test('manifest lists exactly the secret-bound exports (56) plus explicit noSecrets accounts', function () {
     assert.deepStrictEqual(manifest, ownAccount);
-    assert.strictEqual(secretBound.length, 55);
+    assert.strictEqual(secretBound.length, 56);
     assert.deepStrictEqual(noSecretOwn, ['adminClearPayoutHold']);
 });
 
@@ -96,7 +96,7 @@ test('batches cover each own-account function exactly once', function () {
 
 test('wallet functions deploy in the last batch, canary first is read-only admin', function () {
     const last = plan.batches[plan.batches.length - 1].fns;
-    ['claimSats', 'claimCipherSats', 'claimCipherWin', 'confirmTipSent', 'adminResolveCipherSatsClaim', 'tctvDripTick', 'getFaucetStats', 'adminClearPayoutHold'].forEach(function (n) {
+    ['claimSats', 'claimCipherSats', 'claimCipherWin', 'confirmTipSent', 'adminResolveCipherSatsClaim', 'tctvDripTick', 'getFaucetStats', 'adminClearPayoutHold', 'payoutFloatWatch'].forEach(function (n) {
         assert.ok(last.indexOf(n) !== -1, n);
     });
     assert.ok(plan.batches[0].fns.indexOf('dailyActiveUsers') !== -1);
