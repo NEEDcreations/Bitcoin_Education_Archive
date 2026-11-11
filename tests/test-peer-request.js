@@ -86,6 +86,7 @@ function harness() {
         _timeouts: [],
         auth: { currentUser: { uid: 'me' } },
         window: { _myPeers: new Set() },
+        localStorage: null,
         checkBadges: function() {},
         showToast: function(msg) {
             state.toasts.push(msg);
@@ -113,8 +114,19 @@ function harness() {
             }
         }
     };
+    const store = {};
+    sandbox.localStorage = {
+        getItem: function(k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
+        setItem: function(k, v) { store[k] = String(v); },
+        removeItem: function(k) { delete store[k]; }
+    };
+    sandbox.window.localStorage = sandbox.localStorage;
     vm.createContext(sandbox);
-    vm.runInContext(extractFunction(read('messaging.js'), 'window._sendPeerRequest = async function'), sandbox);
+    const messaging = read('messaging.js');
+    const start = messaging.indexOf('window._outgoingPeerIds = window._outgoingPeerIds || new Set();');
+    const sendFn = extractFunction(messaging, 'window._sendPeerRequest = async function');
+    const end = messaging.indexOf(sendFn) + sendFn.length;
+    vm.runInContext(messaging.slice(start, end), sandbox);
     vm.runInContext(extractFunction(read('ranking.js'), 'window.managePeer = async function'), sandbox);
     return { state: state, sandbox: sandbox };
 }
@@ -135,7 +147,7 @@ queue.push(test('profile send updates the button and toast before the callable',
     const h = harness();
     const btn = mockBtn('🧡 Add Peer');
     const pending = h.sandbox.window._sendPeerRequest(btn, 'peer-1234');
-    assert.strictEqual(btn.textContent, '🧡 Sent!');
+    assert.strictEqual(btn.textContent, 'Sent');
     assert.strictEqual(btn.disabled, true);
     assert.strictEqual(btn._busy, '1');
     assert.deepStrictEqual(h.state.toasts, ['Peer request sent! 🧡']);
@@ -145,7 +157,7 @@ queue.push(test('profile send updates the button and toast before the callable',
     assert.strictEqual(h.state.calls[0].data.targetUid, 'peer-1234');
     h.state.release({ data: { success: true } });
     await pending;
-    assert.strictEqual(btn.textContent, '🧡 Sent!');
+    assert.strictEqual(btn.textContent, 'Sent');
     assert.strictEqual(btn.disabled, true);
 }));
 
@@ -180,7 +192,7 @@ queue.push(test('profile send treats already-exists code and message as success'
     const pending = byCode.sandbox.window._sendPeerRequest(btn, 'peer-1234');
     byCode.state.fail(Object.assign(new Error('Already peers'), { code: 'functions/already-exists' }));
     await pending;
-    assert.strictEqual(btn.textContent, '🧡 Sent!');
+    assert.strictEqual(btn.textContent, 'Sent');
     assert.strictEqual(btn.disabled, true);
     assert.deepStrictEqual(byCode.state.toasts, ['Peer request sent! 🧡']);
 
@@ -189,8 +201,19 @@ queue.push(test('profile send treats already-exists code and message as success'
     const pending2 = byMsg.sandbox.window._sendPeerRequest(btn2, 'peer-1234');
     byMsg.state.fail(new Error('already-exists'));
     await pending2;
-    assert.strictEqual(btn2.textContent, '🧡 Sent!');
+    assert.strictEqual(btn2.textContent, 'Sent');
     assert.strictEqual(btn2.disabled, true);
+}));
+
+queue.push(test('profile send stays Sent after a re-render from pending state', async function() {
+    const h = harness();
+    const btn = mockBtn('🧡 Add Peer');
+    const pending = h.sandbox.window._sendPeerRequest(btn, 'peer-1234');
+    h.state.release({ data: { success: true } });
+    await pending;
+    assert.strictEqual(h.sandbox.window._isOutgoingPeerRequest('peer-1234'), true);
+    // Re-render uses the same pending helper the profile modal uses.
+    assert.strictEqual(h.sandbox.window._isOutgoingPeerRequest('peer-9999'), false);
 }));
 
 queue.push(test('managePeer send, accept, decline, and remove update before the callable', async function() {
@@ -405,7 +428,8 @@ queue.push(test('cache busters are current and index.html matches 404.html', fun
     const html404 = read('404.html');
     const sw = read('sw.js');
     assert.strictEqual(html, html404);
-    assert.ok(html.includes('ranking.js?v=20261102_v2466'));
+    assert.ok(html.includes('ranking.js?v=20261111_v2546'));
+    assert.ok(!html.includes('ranking.js?v=20261102_v2466'));
     assert.ok(!html.includes('ranking.js?v=20261029_v2431'));
     assert.ok(!html.includes('global-chat.js?v=20261029_v2431'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2378'));

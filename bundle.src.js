@@ -13586,6 +13586,7 @@ window.showUserProfile = function(uid) {
             return;
         }
         var u = doc.data();
+        if (typeof window._loadOutgoingPeerRequests === 'function') window._loadOutgoingPeerRequests();
 
         // — Profile explorer badge tracking —
         var _selfUid = auth && auth.currentUser ? auth.currentUser.uid : null;
@@ -13651,9 +13652,12 @@ window.showUserProfile = function(uid) {
         var dmEligibility = canMessage ? _canAccountDM(uid) : { ok: false };
         var _isPeer = window._myPeers && window._myPeers.has(uid);
         var _peerBtnId = 'peerActionBtn_' + uid;
+        var _pendingPeer = !_isPeer && typeof window._isOutgoingPeerRequest === 'function' && window._isOutgoingPeerRequest(uid);
         var _peerBtn = _isPeer
             ? '<button id="' + _peerBtnId + '" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:default;font-family:inherit;opacity:0.8;">🧡 Peers</button>'
-            : '<button id="' + _peerBtnId + '" onclick="window._sendPeerRequest(this,\'' + uid + '\')" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:pointer;font-family:inherit;transition:opacity 0.2s;">🧡 Add Peer</button>';
+            : (_pendingPeer
+                ? '<button id="' + _peerBtnId + '" disabled data-peer-busy="1" style="flex:1;padding:9px;background:rgba(249,115,22,0.2);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:default;font-family:inherit;">Sent</button>'
+                : '<button id="' + _peerBtnId + '" onclick="window._sendPeerRequest(this,\'' + uid + '\')" style="flex:1;padding:9px;background:rgba(249,115,22,0.12);border:1px solid rgba(249,115,22,0.3);border-radius:8px;color:#f97316;font-size:0.82rem;cursor:pointer;font-family:inherit;transition:opacity 0.2s;">🧡 Add Peer</button>');
 
         // Profile frame cosmetic — orange glow border if owned
         var _profileOwnedCosmetics = u.ownedCosmetics || [];
@@ -13838,6 +13842,53 @@ window._tipFromProfile = function() {
     }
 };
 
+window._outgoingPeerIds = window._outgoingPeerIds || new Set();
+
+window._isOutgoingPeerRequest = function(uid) {
+    if (!uid) return false;
+    if (window._outgoingPeerIds && window._outgoingPeerIds.has(uid)) return true;
+    try {
+        var arr = JSON.parse(localStorage.getItem('btc_peer_outgoing') || '[]');
+        return Array.isArray(arr) && arr.indexOf(uid) !== -1;
+    } catch (e) { return false; }
+};
+
+window._markOutgoingPeerRequest = function(uid) {
+    if (!uid) return;
+    window._outgoingPeerIds = window._outgoingPeerIds || new Set();
+    window._outgoingPeerIds.add(uid);
+    try {
+        var arr = [];
+        try { arr = JSON.parse(localStorage.getItem('btc_peer_outgoing') || '[]') || []; } catch (e1) { arr = []; }
+        if (arr.indexOf(uid) === -1) arr.push(uid);
+        localStorage.setItem('btc_peer_outgoing', JSON.stringify(arr.slice(-200)));
+    } catch (e2) {}
+};
+
+window._clearOutgoingPeerRequest = function(uid) {
+    if (!uid) return;
+    if (window._outgoingPeerIds && window._outgoingPeerIds.delete) window._outgoingPeerIds.delete(uid);
+    try {
+        var arr = JSON.parse(localStorage.getItem('btc_peer_outgoing') || '[]') || [];
+        localStorage.setItem('btc_peer_outgoing', JSON.stringify(arr.filter(function(id) { return id !== uid; })));
+    } catch (e) {}
+};
+
+window._loadOutgoingPeerRequests = function() {
+    if (typeof auth === 'undefined' || !auth || !auth.currentUser || typeof db === 'undefined' || !db) return Promise.resolve();
+    var uid = auth.currentUser.uid;
+    return db.collection('peer_requests').where('from', '==', uid).limit(80).get().then(function(snap) {
+        var set = new Set();
+        snap.forEach(function(doc) {
+            var d = doc.data() || {};
+            if (d.status === 'pending' && d.to) set.add(d.to);
+        });
+        window._outgoingPeerIds = set;
+        try { localStorage.setItem('btc_peer_outgoing', JSON.stringify(Array.from(set))); } catch (e) {}
+        return set;
+    }).catch(function() { return window._outgoingPeerIds || new Set(); });
+};
+
 window._sendPeerRequest = async function(btnEl, targetUid) {
     if (!btnEl || btnEl.disabled || btnEl.getAttribute('data-peer-busy') === '1') return;
     var prev = {
@@ -13848,10 +13899,11 @@ window._sendPeerRequest = async function(btnEl, targetUid) {
     };
     btnEl.setAttribute('data-peer-busy', '1');
     btnEl.disabled = true;
-    btnEl.textContent = '🧡 Sent!';
+    btnEl.textContent = 'Sent';
     btnEl.style.background = 'rgba(249,115,22,0.2)';
     btnEl.style.opacity = '1';
     btnEl.style.cursor = 'default';
+    if (typeof window._markOutgoingPeerRequest === 'function') window._markOutgoingPeerRequest(targetUid);
     if (typeof showToast === 'function') showToast('Peer request sent! 🧡');
     try {
         var fn = firebase.functions().httpsCallable('managePeer');
@@ -13866,6 +13918,7 @@ window._sendPeerRequest = async function(btnEl, targetUid) {
         btnEl.style.opacity = prev.opacity || '1';
         btnEl.style.cursor = prev.cursor || 'pointer';
         btnEl.style.background = prev.background || '';
+        if (typeof window._clearOutgoingPeerRequest === 'function') window._clearOutgoingPeerRequest(targetUid);
         if (typeof showToast === 'function') showToast(msg);
     }
 };
@@ -30431,6 +30484,18 @@ if (window.btcDebugLog) window.btcDebugLog('✅ UX Patches loaded — 24 tasks f
         return !!(modalById('topic-convo-modal', 'convo') || (typeof window.bqTopicConversationOpen === 'function' && window.bqTopicConversationOpen()));
     }
 
+    function homeVisible() {
+        var home = byId('home');
+        return !!(home && shown(home) && !(home.classList && home.classList.contains('hidden')));
+    }
+
+    function msgsHasSkeleton() {
+        var msgs = byId('msgs');
+        if (!msgs || !shown(msgs)) return false;
+        var html = String(msgs.innerHTML || '');
+        return html.indexOf('class="skeleton"') !== -1 || html.indexOf("class='skeleton'") !== -1 || html.indexOf('class="skeleton ') !== -1;
+    }
+
     function capturePlace() {
         if (window._btcQuestReturn) return window._btcQuestReturn;
         var channelId = window.currentChannelId || '';
@@ -30440,11 +30505,17 @@ if (window.btcDebugLog) window.btcDebugLog('✅ UX Patches loaded — 24 tasks f
         if (draft && channelId && typeof window.bqSaveTopicDraft === 'function') window.bqSaveTopicDraft(channelId, draft);
         var active = document && document.activeElement;
         var interrupted = conversationOpen();
+        var page = window.currentPage || '';
+        var onHome = homeVisible() || page === 'home' || (!channelId && !((window.location && window.location.hash) || '').slice(1));
         window._btcQuestReturn = {
             channelId: channelId,
+            page: onHome ? 'home' : (page || channelId || ''),
+            hash: (window.location && window.location.hash) || '',
+            homeVisible: onHome,
             draft: draft,
             interrupted: interrupted,
-            focusId: (active && active.id) || ''
+            focusId: (active && active.id) || '',
+            scrollY: (typeof window.scrollY === 'number') ? window.scrollY : 0
         };
         return window._btcQuestReturn;
     }
@@ -30453,17 +30524,41 @@ if (window.btcDebugLog) window.btcDebugLog('✅ UX Patches loaded — 24 tasks f
         window._btcQuestReturn = null;
     };
 
+    function restoreView(place) {
+        if (!place) return;
+        if (place.interrupted) {
+            var sameTopic = !place.channelId || !window.currentChannelId || place.channelId === window.currentChannelId;
+            if (sameTopic) {
+                if (place.draft && place.channelId && typeof window.bqSaveTopicDraft === 'function') {
+                    window.bqSaveTopicDraft(place.channelId, place.draft);
+                }
+                if (typeof window.bqRestoreTopicConversation === 'function') {
+                    window.bqRestoreTopicConversation({ channelId: place.channelId, draft: place.draft, focus: true });
+                }
+            }
+        }
+        var wantHome = place.page === 'home' || place.homeVisible;
+        if (wantHome) {
+            if (!homeVisible() || msgsHasSkeleton()) {
+                if (typeof window.goHome === 'function') window.goHome(true);
+            }
+            return;
+        }
+        // Only reload a topic when the content area is stuck on a skeleton.
+        if (place.channelId && msgsHasSkeleton() && typeof window.go === 'function') {
+            window.go(place.channelId, null, true);
+        }
+    }
+
     function restorePlace() {
         var place = window._btcQuestReturn;
         window._btcQuestReturn = null;
-        if (!place || !place.interrupted) return;
-        if (place.channelId && window.currentChannelId && place.channelId !== window.currentChannelId) return;
-        if (place.draft && place.channelId && typeof window.bqSaveTopicDraft === 'function') {
-            window.bqSaveTopicDraft(place.channelId, place.draft);
-        }
-        if (typeof window.bqRestoreTopicConversation === 'function') {
-            window.bqRestoreTopicConversation({ channelId: place.channelId, draft: place.draft, focus: true });
-        }
+        if (!place) return;
+        // Run after popstate/history.back() so we can repair a skeleton or a
+        // hidden home instead of leaving the reader on an empty loading page.
+        var run = function () { restoreView(place); };
+        if (typeof setTimeout === 'function') setTimeout(run, 0);
+        else run();
     }
 
     function hidePill() {

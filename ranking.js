@@ -9361,11 +9361,7 @@ function accountDeleteRowHtml(user) {
         html += '<style>#signalLiveNews::-webkit-scrollbar{display:none;}</style>';
 
         // Featured deep dives
-        var signalPosts = [
-            { date: 'Feb 26, 2026', title: 'Why Proof of Stake is just Fiat 2.0', snippet: 'Most cryptos claim to be better than Bitcoin because they use less energy. But energy IS the point.', channel: 'pow-vs-pos' },
-            { date: 'Feb 19, 2026', title: 'The Great Definancialization', snippet: 'Why we don\'t need thousands of stocks if we have one form of hard money.', channel: 'problems-of-money' },
-            { date: 'Feb 12, 2026', title: 'The 21 Million Cap is Inviolate', snippet: 'Even if every miner wanted to change the supply, they couldn\'t.', channel: 'scarce' }
-        ];
+        var signalPosts = (typeof window.btcWeeklySignalPosts === 'function') ? window.btcWeeklySignalPosts() : [];
         signalPosts.forEach(function(n) {
             html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px;text-align:left;">' +
                 '<div style="font-size:0.65rem;color:var(--accent);font-weight:800;margin-bottom:4px;">' + n.date.toUpperCase() + '</div>' +
@@ -9400,13 +9396,7 @@ function accountDeleteRowHtml(user) {
             '<button onclick="localStorage.setItem(\'btc_ticker_enabled\',localStorage.getItem(\'btc_ticker_enabled\')===\'true\'?\'false\':\'true\');showSettingsPage(\'signal\');" style="padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:' + (_sigTickerOn ? '#22c55e' : 'var(--bg-side)') + ';color:' + (_sigTickerOn ? '#fff' : 'var(--text-muted)') + ';font-size:0.8rem;cursor:pointer;font-family:inherit;font-weight:600;">' + (_sigTickerOn ? 'ON' : 'OFF') + '</button></div>';
 
         // Curated editorial + live news from ticker
-        var signalPosts = [
-            { date: 'Feb 26, 2026', title: 'Why Proof of Stake is just Fiat 2.0', snippet: 'Most cryptos claim to be better than Bitcoin because they use less energy. But Gigi explains why energy IS the point - PoW converts real-world resources into unforgeable security.', channel: 'pow-vs-pos' },
-            { date: 'Feb 19, 2026', title: 'The Great Definancialization', snippet: 'Parker Lewis breaks down why we don\'t need thousands of stocks, bonds, and derivatives if we have one form of hard money that can\'t be debased.', channel: 'problems-of-money' },
-            { date: 'Feb 12, 2026', title: 'The 21 Million Cap is Inviolate', snippet: 'Why even if every miner in the world wanted to change the supply, they couldn\'t. The users run the rules.', channel: 'scarce' },
-            { date: 'Feb 5, 2026', title: 'Not Your Keys, Not Your Coins', snippet: 'After another exchange collapse, the importance of self-custody has never been clearer. Here\'s how to take control.', channel: 'self-custody' },
-            { date: 'Jan 29, 2026', title: 'The Halving: Scarcity You Can Verify', snippet: 'Every 210,000 blocks, the supply issuance gets cut in half. No vote. No committee. Just code.', channel: 'difficulty-adjustment' }
-        ];
+        var signalPosts = (typeof window.btcWeeklySignalPosts === 'function') ? window.btcWeeklySignalPosts() : [];
 
         // Live Signal headlines from ticker (newsletter-data.json)
         html += '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;font-weight:700;">📡 Live Signals</div>';
@@ -9428,55 +9418,9 @@ function accountDeleteRowHtml(user) {
                 '</div>';
         });
 
-        // Fetch Signal headlines from curated ticker data
+        // Live headlines: prefer this week's Hot Topics, then newsletter-data.json.
         setTimeout(function() {
-            var container = document.getElementById('signalLiveNews');
-            if (!container) return;
-
-            fetch('newsletter-data.json?v=' + Date.now()).then(function(r) { return r.json(); }).then(function(data) {
-                if (!data || !data.news || data.news.length === 0) {
-                    container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;">No signals available</div>';
-                    return;
-                }
-                var inner = container.querySelector('div') || container;
-                var cardsHtml = '';
-                data.news.slice(0, 3).forEach(function(n, i) {
-                    var title = (n.title || '').replace(/<[^>]+>/g, '');
-                    var snippet = (n.snippet || '').replace(/<[^>]+>/g, '');
-                    var link = n.link || '';
-                    cardsHtml += '<div style="min-width:260px;max-width:300px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:left;cursor:pointer;transition:0.2s;" ' +
-                        (link ? 'onclick="window.open(\'' + link.replace(/[\\'"]/g, "") + '\',\'_blank\')"' : '') +
-                        ' onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
-                        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
-                            '<span style="background:var(--accent);color:#fff;font-size:0.6rem;font-weight:900;padding:2px 8px;border-radius:10px;">SIGNAL #' + (i + 1) + '</span>' +
-                            '<span style="font-size:0.65rem;color:var(--text-faint);">' + (n.date || '').toUpperCase() + '</span>' +
-                        '</div>' +
-                        '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;line-height:1.4;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + title + '</div>' +
-                        (snippet ? '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:8px;">' + snippet + '</div>' : '') +
-                        (link ? '<div style="color:var(--accent);font-size:0.75rem;font-weight:700;">Read full article →</div>' : '') +
-                    '</div>';
-                });
-                inner.innerHTML = cardsHtml;
-
-                // Show arrow buttons on desktop if content overflows
-                var updateSignalArrows = function() {
-                    var lBtn = document.getElementById('signalArrowL');
-                    var rBtn = document.getElementById('signalArrowR');
-                    if (!lBtn || !rBtn) return;
-                    var canScroll = container.scrollWidth > container.clientWidth + 10;
-                    if (canScroll) {
-                        lBtn.style.display = container.scrollLeft > 10 ? 'flex' : 'none';
-                        rBtn.style.display = container.scrollLeft + container.clientWidth < container.scrollWidth - 10 ? 'flex' : 'none';
-                    } else {
-                        lBtn.style.display = 'none';
-                        rBtn.style.display = 'none';
-                    }
-                };
-                container.addEventListener('scroll', updateSignalArrows);
-                setTimeout(updateSignalArrows, 200);
-            }).catch(function() {
-                container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;">Could not load signals</div>';
-            });
+            if (typeof window.loadSignalContent === 'function') window.loadSignalContent();
         }, 100);
 
         var isOptedIn = (currentUser && currentUser.newsletterOptIn);
@@ -11413,25 +11357,136 @@ function _pasteFieldFallback(field) {
 }
 
 // Load Signal live news content
+
+window.btcIsoWeekInfo = function(now) {
+    var d = now ? new Date(now) : new Date();
+    var utc = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    var day = utc.getUTCDay() || 7;
+    utc.setUTCDate(utc.getUTCDate() + 4 - day);
+    var year = utc.getUTCFullYear();
+    var yearStart = new Date(Date.UTC(year, 0, 1));
+    var week = Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
+    var monday = new Date(utc);
+    monday.setUTCDate(utc.getUTCDate() - 3); // Thursday minus 3 = Monday
+    var label = 'Week of ' + monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+    return { year: year, week: week, monday: monday, label: label };
+};
+
+window.btcWeeklySignalCatalog = function() {
+    return [
+        { title: 'Why Proof of Stake is just Fiat 2.0', snippet: 'Most cryptos claim to be better than Bitcoin because they use less energy. But energy IS the point — Proof of Work converts real-world resources into unforgeable security.', channel: 'pow-vs-pos' },
+        { title: 'The Great Definancialization', snippet: 'Why we don\'t need thousands of stocks, bonds, and derivatives if we have one form of hard money that can\'t be debased.', channel: 'problems-of-money' },
+        { title: 'The 21 Million Cap is Inviolate', snippet: 'Even if every miner in the world wanted to change the supply, they couldn\'t. The users run the rules.', channel: 'scarce' },
+        { title: 'Not Your Keys, Not Your Coins', snippet: 'After another exchange collapse, the importance of self-custody has never been clearer. Here\'s how to take control.', channel: 'self-custody' },
+        { title: 'The Halving: Scarcity You Can Verify', snippet: 'Every 210,000 blocks, the supply issuance gets cut in half. No vote. No committee. Just code.', channel: 'halving' },
+        { title: 'Difficulty Adjustment Keeps Time', snippet: 'Bitcoin retargets mining difficulty so blocks stay near 10 minutes, no matter how many machines join or leave.', channel: 'difficulty-adjustment' },
+        { title: 'Lightning Is Bitcoin, Faster', snippet: 'Layer 2 payments settle instantly and cheaply while still being anchored to the base chain.', channel: 'layer-2-lightning' },
+        { title: 'Run a Node, Run the Rules', snippet: 'A node doesn\'t mine. It verifies. That is how ordinary users keep the 21 million cap honest.', channel: 'nodes' },
+        { title: 'Privacy Is Not a Crime', snippet: 'Know the difference between privacy tools and secrecy, and why KYC is not a Bitcoin requirement.', channel: 'privacy-nonkyc' },
+        { title: 'The White Paper, Still the Map', snippet: 'Satoshi\'s nine pages still describe the system we run today. Start there, then read the code.', channel: 'whitepaper' },
+        { title: 'Energy Is the Feature', snippet: 'Bitcoin turns spare and stranded energy into a monetary good that no committee can inflate.', channel: 'energy' },
+        { title: 'CBDCs Are Programmable Control', snippet: 'A central bank digital currency can freeze, expire, or steer spending. Bitcoin cannot.', channel: 'cbdc' },
+        { title: 'Mining Is Open Competition', snippet: 'Anyone can try to find the next block. The cost is energy and hardware, not a permission slip.', channel: 'mining' },
+        { title: 'Sound Money and Time Preference', snippet: 'Hard money rewards saving and long-term building. Easy money rewards debt and short-term thinking.', channel: 'austrian_economics' },
+        { title: 'The Block Size Wars', snippet: 'The users, not the companies, decided how Bitcoin scales. That fight still teaches how governance works.', channel: 'block_size_wars' },
+        { title: 'Seed Phrases Are the Vault', snippet: 'A 12 or 24 word phrase is the backup. Write it offline, never type it into a website.', channel: 'self-custody' }
+    ];
+};
+
+window.btcWeeklySignalPosts = function(now) {
+    var info = window.btcIsoWeekInfo(now);
+    var pool = window.btcWeeklySignalCatalog();
+    var count = 4;
+    var start = ((info.week - 1) * count) % pool.length;
+    var posts = [];
+    var i;
+    for (i = 0; i < count; i++) {
+        var item = pool[(start + i) % pool.length];
+        posts.push({ date: info.label, title: item.title, snippet: item.snippet, channel: item.channel, week: info.week, year: info.year });
+    }
+    return posts;
+};
+
+window.openWeeklySignal = function() {
+    if (typeof showSettingsPage === 'function') showSettingsPage('scholar');
+    setTimeout(function() {
+        var panel = document.getElementById('signalPanel');
+        var btns = document.querySelectorAll('button');
+        var i;
+        for (i = 0; i < btns.length; i++) {
+            if ((btns[i].textContent || '').indexOf('The Weekly Signal') !== -1) {
+                var arrow = btns[i].querySelector('span');
+                if (arrow) arrow.textContent = '▲';
+            }
+        }
+        if (panel) {
+            panel.style.display = 'block';
+            if (typeof window.loadSignalContent === 'function') {
+                panel.setAttribute && document.getElementById('signalLiveNews') && document.getElementById('signalLiveNews').removeAttribute('data-loaded');
+                window.loadSignalContent();
+            }
+            if (panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 200);
+};
+
 window.loadSignalContent = function() {
     var container = document.getElementById('signalLiveNews');
-    if (!container || container.getAttribute('data-loaded')) return;
-    container.setAttribute('data-loaded', '1');
-    fetch('newsletter-data.json?v=' + Date.now()).then(function(r) { return r.json(); }).then(function(data) {
-        if (!data || !data.news || data.news.length === 0) return;
+    if (!container) return;
+    var weekKey = '1';
+    try {
+        var info = window.btcIsoWeekInfo ? window.btcIsoWeekInfo() : null;
+        if (info) weekKey = String(info.year) + '-W' + String(info.week);
+    } catch (e0) {}
+    if (container.getAttribute('data-loaded') === weekKey) return;
+    container.setAttribute('data-loaded', weekKey);
+
+    function esc(s) {
+        return String(s || '').replace(/<[^>]+>/g, '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    }
+    function render(items) {
         var inner = container.querySelector('div') || container;
+        if (!items || !items.length) {
+            inner.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;">No live signals this week yet.</div>';
+            return;
+        }
         var cardsHtml = '';
-        data.news.slice(0, 3).forEach(function(n, i) {
-            var title = (n.title || '').replace(/<[^>]+>/g, '');
-            var link = n.link || '';
+        items.slice(0, 3).forEach(function(n, i) {
+            var title = esc(n.title);
+            var link = n.link || n.url || '';
+            var safeLink = link.replace(/[\\'"]/g, '');
             cardsHtml += '<div style="min-width:240px;max-width:280px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:left;cursor:pointer;transition:0.2s;" ' +
-                (link ? 'onclick="window.open(\'' + link.replace(/[\\'"]/g, "") + '\',\'_blank\')"' : '') +
+                (safeLink ? 'onclick="window.open(\'' + safeLink + '\',\'_blank\')"' : '') +
                 '><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="background:var(--accent);color:#fff;font-size:0.55rem;font-weight:900;padding:2px 6px;border-radius:8px;">SIGNAL #' + (i + 1) + '</span></div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.82rem;line-height:1.3;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + title + '</div>' +
-                (link ? '<div style="color:var(--accent);font-size:0.7rem;font-weight:700;margin-top:6px;">Read →</div>' : '') + '</div>';
+                (safeLink ? '<div style="color:var(--accent);font-size:0.7rem;font-weight:700;margin-top:6px;">Read →</div>' : '') + '</div>';
         });
         inner.innerHTML = cardsHtml;
-    }).catch(function() {});
+    }
+    function fromHotTopics() {
+        if (typeof db === 'undefined' || !db) return Promise.reject(new Error('no-db'));
+        return db.collection('hotTopics').doc('latest').get().then(function(doc) {
+            if (!doc || !doc.exists) throw new Error('empty');
+            var data = doc.data() || {};
+            var topics = data.topics || [];
+            var items = [];
+            topics.forEach(function(topic) {
+                var link = '';
+                if (topic.posts && topic.posts[0] && topic.posts[0].url) link = topic.posts[0].url;
+                if (topic.title) items.push({ title: topic.title, link: link });
+            });
+            if (!items.length) throw new Error('empty');
+            return items;
+        });
+    }
+    function fromNewsletter() {
+        return fetch('newsletter-data.json?v=' + Date.now()).then(function(r) { return r.json(); }).then(function(data) {
+            return (data && data.news) ? data.news : [];
+        });
+    }
+    fromHotTopics().then(render).catch(function() {
+        return fromNewsletter().then(render).catch(function() { render([]); });
+    });
 };
 
 // Expand the Sign Up banner back out (re-runs updateUserDisplay to re-render)

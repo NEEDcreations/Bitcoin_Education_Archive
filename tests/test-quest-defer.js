@@ -374,6 +374,37 @@ function wait(ms) {
     window.btcDismissQuest('button');
     assert.ok(!restores.some(function(row) { return row[0] === 'restore'; }), 'a closed conversation is not reopened');
 
+    // Not now from the home page must restore a rendered home, not a skeleton.
+    var home = makeEl('div');
+    home.id = 'home';
+    env.document.body.appendChild(home);
+    var msgs = makeEl('div');
+    msgs.id = 'msgs';
+    msgs.style.display = 'none';
+    env.document.body.appendChild(msgs);
+    window.currentPage = 'home';
+    window.currentChannelId = '';
+    var goHomeCount = 0;
+    window.goHome = function() {
+        goHomeCount += 1;
+        home.hidden = false;
+        home.classList.remove('hidden');
+        msgs.style.display = 'none';
+        msgs.innerHTML = '';
+    };
+    window._btcQuestReturn = null;
+    window.showQuest({ id: 'from-home' });
+    assert.strictEqual(window._btcQuestReturn.page, 'home');
+    home.hidden = true;
+    home.classList.add('hidden');
+    msgs.style.display = 'block';
+    msgs.innerHTML = '<div class="skeleton" style="height:180px"></div>';
+    window._btcQuestHistoryPushed = false;
+    window.btcDismissQuest('button');
+    await wait(30);
+    assert.ok(goHomeCount >= 1, 'Not now returns to a rendered home instead of a skeleton');
+    assert.strictEqual(home.hidden, false);
+
     var qsrc = fs.readFileSync(path.join(root, 'quest-defer.js'), 'utf8');
     assert.ok(qsrc.indexOf('clearInterval') !== -1);
     assert.strictEqual(qsrc.indexOf("modal.style.display = 'none'"), -1);
