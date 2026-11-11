@@ -231,9 +231,16 @@ test('adminClearPayoutHold: admin claim only, App Check, 2FA, confirm phrase, ow
     assert.ok(body.indexOf('enforceAppCheck: true') > 0);
     assert.ok(body.indexOf("serviceAccount: runtimeSa('adminClearPayoutHold')") > 0);
     assert.ok(body.indexOf('context.auth.token.admin !== true') > 0);
-    assert.ok(body.indexOf('requireFreshStepUp') > 0);
+    assert.ok(body.indexOf('requireAdminStepUp') > 0);
     // Red Team follow-up: an enrolled factor is required, checked before the hold is touched.
-    const fresh = body.indexOf("secondFactor.requireFreshStepUp(secondFactor.stamp(data, context), 'clearPayoutHold')");
+    const fresh = body.indexOf("secondFactor.requireAdminStepUp(secondFactor.stamp(data, context), 'clearPayoutHold')");
+    // A1: the admin step-up requires an ESTABLISHED factor.
+    const sfSrc = read('functions/src/secondFactor.js');
+    const step = sfSrc.slice(sfSrc.indexOf('async function requireAdminStepUp('), sfSrc.indexOf('const adminResetSecondFactor = '));
+    assert.ok(step.indexOf('recentSignIn(context, nowMs)') > 0);
+    assert.ok(step.indexOf('requireFreshStepUp(context, action)') > 0);
+    assert.ok(step.indexOf('factorEstablished(secret.enabledAt, signIn, nowMs)') > 0);
+    assert.ok(step.indexOf('factorEstablished(phone.enrollmentTime, signIn, nowMs)') > 0);
     const recent = body.indexOf('payoutSafety.recentAuth(context.auth.token.auth_time, Date.now())');
     assert.ok(recent > 0 && fresh > recent, 'recent sign-in, then fresh step-up');
     assert.ok(read('functions/src/secondFactor.js').indexOf('clearPayoutHold: true') > 0, 'step-up action registered');
@@ -275,6 +282,15 @@ test('client: Clear Hold asks for re-sign-in and a fresh code before calling', (
     const call = fn.indexOf("httpsCallable('adminClearPayoutHold')(payload)");
     assert.ok(re > 0 && fc > re && call > fc);
     assert.ok(r.indexOf("clearPayoutHold: 'Enter a fresh authenticator code to clear a payout hold.") > 0);
+});
+test('A1: a factor enrolled in this session cannot clear holds; an established one can', () => {
+    const SF = require('../functions/src/secondFactor');
+    const now = 1_800_000_000_000;
+    const signIn = now - 60000;
+    assert.strictEqual(SF.factorEstablished(now - 30000, signIn, now), false, 'enrolled after sign-in');
+    assert.strictEqual(SF.factorEstablished(now - 2 * 3600000, signIn, now), true, 'enrolled before sign-in');
+    assert.strictEqual(SF.factorEstablished(now - 25 * 3600000, 0, now), true, '24h+ old');
+    assert.strictEqual(SF.factorEstablished(0, signIn, now), false);
 });
 test('client: Clear Hold card is admin-claim gated and on the App Check list', () => {
     const r = read('ranking.js');
