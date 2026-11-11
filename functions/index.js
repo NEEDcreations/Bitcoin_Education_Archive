@@ -1045,6 +1045,7 @@ exports.onMarketplaceSaleCount = onDocumentUpdated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data || !event.data.after) return null;
+    if (await killSwitchIsOn()) return null;
     try {
         const counted = await countMarketplaceSale({
             db: db,

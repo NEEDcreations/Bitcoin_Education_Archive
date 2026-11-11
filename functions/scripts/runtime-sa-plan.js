@@ -138,7 +138,7 @@ function gcloudFor(plan, batchIndex) {
         f.bucketRoles.forEach(function (br) {
             let cmd = 'gcloud storage buckets add-iam-policy-binding gs://' + br.bucket + ' --member ' + m + ' --role ' + br.role;
             if (br.condition) {
-                cmd += " --condition='expression=" + br.condition.expression + ",title=" + br.condition.title + ",description=" + br.condition.description + "'";
+                cmd += ' --condition="expression=' + br.condition.expression + ',title=' + br.condition.title + ',description=' + br.condition.description + '"';
             }
             pushOnce(cmd);
         });

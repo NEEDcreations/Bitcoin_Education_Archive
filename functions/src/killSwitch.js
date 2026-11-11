@@ -115,11 +115,16 @@ const GATED = Object.freeze({
         'useHintToken',
         'mergeAnonBadges',
         'incrementWeeklyChallenge',
+        'dailyPollVote',
+        'pollVote',
+        'chooseFaction',
     ]),
     // Scheduled jobs that should skip (not fail) while offline. Queued work
     // stays in place and is flushed after the switch is off.
     skips: Object.freeze([
         'flushBadgeGgBursts',
+        'reconcileDailyProofs',
+        'scheduleRaidForumCredit',
     ]),
     // Firestore triggers cannot be wrapped by gateExport. Each of these has
     // an in-body killSwitchIsOn()/isOffline() check (defer with retry, or skip).
@@ -135,6 +140,7 @@ const GATED = Object.freeze({
         'onForumReplyBadgeCount',
         'onBeatsUploadBadgeCount',
         'onArticleBadgeCount',
+        'onMarketplaceSaleCount',
     ]),
 });
 

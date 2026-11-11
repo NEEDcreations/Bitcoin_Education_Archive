@@ -120,6 +120,29 @@ test('gcloud output: named deploy only, metadata-free, one secret grant per boun
     });
 });
 
+test('gcloud --condition is double-quoted and the plan is valid bash (K1-L1)', function () {
+    const { execFileSync } = require('child_process');
+    const os = require('os');
+    let sawCondition = 0;
+    for (let i = 0; i < plan.batches.length; i++) {
+        const text = planMod.gcloudFor(plan, i);
+        const tmp = path.join(os.tmpdir(), 'runtime-sa-plan-batch-' + i + '.sh');
+        fs.writeFileSync(tmp, text);
+        try {
+            execFileSync('bash', ['-n', tmp], { encoding: 'utf8' });
+        } finally {
+            try { fs.unlinkSync(tmp); } catch (e) { /* ignore */ }
+        }
+        text.split('\n').forEach(function (l) {
+            if (l.indexOf('--condition=') === -1 || l.indexOf('--condition=None') !== -1) return;
+            assert.ok(/--condition="/.test(l), 'outer quotes must be double: ' + l);
+            assert.ok(!/--condition='/.test(l), 'single-quoted --condition breaks CEL: ' + l);
+            sawCondition++;
+        });
+    }
+    assert.ok(sawCondition > 0, 'expected at least one prefixed bucket condition');
+});
+
 test('gen2 event triggers get eventReceiver + own-service invoker; gen1 never does', function () {
     secretBound.forEach(function (n) {
         const f = plan.functions[n];

@@ -378,9 +378,14 @@ async function run() {
         ['claimSats', 'tctvDripTick', 'payWeeklyQuestLB', 'monthlyRaffleDraw', 'payQualifiedReferrals', 'adminApproveFactionPayout',
          'resetWeeklyXP', 'resetMonthlyXP', 'verifyReferral', 'registerReferral', 'pvpSubmitAnswer', 'pvpTimeoutOpponent',
          'tctvWatchHeartbeat', 'syncStravaWalks', 'creditMatureTopicComments', 'spendTickets', 'spendTicketsForFreeze', 'activateDoubleXP',
-         'activateHashBooster', 'useHintToken', 'resetLightningAddressOnce', 'flushBadgeGgBursts', 'mergeAnonBadges', 'incrementWeeklyChallenge'].forEach(function (n) {
+         'activateHashBooster', 'useHintToken', 'resetLightningAddressOnce', 'flushBadgeGgBursts', 'mergeAnonBadges', 'incrementWeeklyChallenge',
+         'dailyPollVote', 'pollVote', 'chooseFaction', 'reconcileDailyProofs', 'scheduleRaidForumCredit'].forEach(function (n) {
             assert.ok(names.indexOf(n) !== -1, n);
         });
+        const triggers = ks.gatedTriggerNames();
+        assert.ok(triggers.indexOf('onMarketplaceSaleCount') !== -1, 'onMarketplaceSaleCount must be listed as a trigger');
+        const sale = idx.slice(idx.indexOf('exports.onMarketplaceSaleCount'), idx.indexOf('exports.onChatBadgeCount'));
+        assert.ok(sale.indexOf('if (await killSwitchIsOn()) return null;') !== -1, 'onMarketplaceSaleCount must return early when the switch is on');
     });
 
     await test('every export that awards or merges badges is gated', function () {
