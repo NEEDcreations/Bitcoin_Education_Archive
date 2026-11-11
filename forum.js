@@ -106,7 +106,60 @@ function isCleanText(text) {
 }
 
 // Sanitize HTML
-function fEsc(str) { return typeof escapeHtml === 'function' ? escapeHtml(str) : String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// Escape for element text AND quoted attributes (& < > " ' all encoded).
+function fEsc(str) { if (str == null) return ''; return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// Firestore doc ids / uids rendered into the DOM must be plain tokens.
+// Doc ids are client-chosen strings, so a crafted id like  x"><img onerror=...>  must never reach markup.
+var FORUM_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+function fId(id) { id = id == null ? '' : String(id); return FORUM_ID_RE.test(id) ? id : ''; }
+// http(s) only; anything else (javascript:, data:, vbscript:) becomes ''.
+function fSafeUrl(u) { if (!u) return ''; try { var x = new URL(String(u), 'https://bitcoineducation.quest/'); return (x.protocol === 'https:' || x.protocol === 'http:') ? x.href : ''; } catch (e) { return ''; } }
+// Delegated click handling for forum actions. Markup carries data-fa (action) + data-id/data-id2;
+// no user data is ever placed inside an inline on* handler.
+var FORUM_ACTIONS = {
+    viewPost: function(id) { forumViewPost(id); },
+    votePost: function(id) { forumVotePost(id); },
+    deletePost: function(id) { forumDeletePost(id); },
+    submitReply: function(id) { forumSubmitReply(id); },
+    voteReply: function(id) { forumVoteReply(id); },
+    deleteReply: function(id, id2) { forumDeleteReply(id, id2); },
+    profile: function(id) { if (typeof showUserProfile === 'function') showUserProfile(id); },
+    articleView: function(id) { articleView(id); },
+    articleEdit: function(id) { articleEdit(id); },
+    articlePin: function(id, id2) { articleTogglePin(id, id2 === 'true'); },
+    articleVote: function(id) { articleVote(id); },
+    articleDelete: function(id) { articleDelete(id); },
+    articleReply: function(id) { articleSubmitReply(id); },
+    snOpen: function(id) { var n = Number(id); if (Number.isSafeInteger(n) && n > 0) snOpenPost(n); }
+};
+function forumActionClick(e) {
+    var el = e.target && e.target.closest ? e.target.closest('[data-fa]') : null;
+    if (!el) return;
+    var fn = Object.prototype.hasOwnProperty.call(FORUM_ACTIONS, el.getAttribute('data-fa')) ? FORUM_ACTIONS[el.getAttribute('data-fa')] : null;
+    if (!fn) return;
+    var id = fId(el.getAttribute('data-id'));
+    if (!id) return;
+    var id2 = el.getAttribute('data-id2') || '';
+    if (id2 && id2 !== 'true' && id2 !== 'false') { id2 = fId(id2); if (!id2) return; }
+    e.stopPropagation();
+    fn(id, id2);
+}
+if (typeof document !== 'undefined' && !window._forumActionBound) {
+    window._forumActionBound = true;
+    document.addEventListener('click', forumActionClick);
+}
+// data-fa attribute string for markup. Returns '' (inert element) when the id is not a plain token.
+function fAct(action, id, id2) {
+    var a = fId(id);
+    if (!a) return '';
+    var out = ' data-fa="' + action + '" data-id="' + a + '"';
+    if (id2 != null) { var b = (id2 === true || id2 === false) ? String(id2) : fId(id2); if (b) out += ' data-id2="' + b + '"'; }
+    return out;
+}
+// Hover border without inline handlers.
+if (typeof document !== 'undefined' && !document.getElementById('forumHoverCss')) {
+    try { var _fhc = document.createElement('style'); _fhc.id = 'forumHoverCss'; _fhc.textContent = '.forum-card-hover:hover{border-color:var(--accent)!important}'; (document.head || document.documentElement).appendChild(_fhc); } catch (e) {}
+}
 
 // Time ago helper
 // [AUDIT FIX] timeAgo moved to utils.js
@@ -331,21 +384,21 @@ function forumRenderPosts(posts, container) {
         var canDelete = isOwn || isForumAdmin();
         var hasVoted = p.voters && auth && auth.currentUser && p.voters.indexOf(auth.currentUser.uid) !== -1;
 
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer;transition:0.2s;-webkit-tap-highlight-color:rgba(247,147,26,0.1);" onclick="forumViewPost(\'' + p.id + '\')" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer;transition:0.2s;-webkit-tap-highlight-color:rgba(247,147,26,0.1);" class="forum-card-hover"' + fAct('viewPost', p.id) + '>' +
             '<div style="display:flex;gap:10px;">' +
                 '<div style="display:flex;flex-direction:column;align-items:center;min-width:36px;flex-shrink:0;">' +
-                    '<button onclick="event.stopPropagation();forumVotePost(\'' + p.id + '\')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:4px;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-faint)') + ';touch-action:manipulation;" title="Upvote">👍</button>' +
+                    '<button' + fAct('votePost', p.id) + ' style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:4px;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-faint)') + ';touch-action:manipulation;" title="Upvote">👍</button>' +
                     '<span style="color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:700;">' + (p.upvotes || 0) + '</span>' +
                 '</div>' +
                 '<div style="flex:1;min-width:0;overflow:hidden;">' +
                     '<div style="color:var(--heading);font-size:0.9rem;font-weight:700;margin-bottom:3px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</div>' +
                     (p.body ? '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.4;margin-bottom:5px;overflow:hidden;max-height:2.6em;word-wrap:break-word;">' + fEsc(p.body).substring(0, 120) + (p.body.length > 120 ? '...' : '') + '</div>' : '') +
                     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
-                        '<span onclick="event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')" style="font-size:0.7rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-faint)') + ';cursor:pointer;transition:0.2s;">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
+                        '<span' + fAct('profile', p.authorId) + ' style="font-size:0.7rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-faint)') + ';cursor:pointer;transition:0.2s;">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
                         '<span style="font-size:0.65rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
                         '<span style="font-size:0.7rem;color:var(--text-faint);">💬 ' + (p.replyCount || 0) + '</span>' +
                         (catLabel ? '<span style="font-size:0.6rem;padding:2px 6px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text-faint);white-space:nowrap;">' + catLabel + '</span>' : '') +
-                        (canDelete ? '<button onclick="event.stopPropagation();forumDeletePost(\'' + p.id + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;touch-action:manipulation;opacity:0.5;" title="Delete post">🗑️</button>' : '') +
+                        (canDelete ? '<button' + fAct('deletePost', p.id) + ' style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;touch-action:manipulation;opacity:0.5;" title="Delete post">🗑️</button>' : '') +
                     '</div>' +
                 '</div>' +
             '</div>' +
@@ -400,6 +453,8 @@ function forumTopicContinueLink(p) {
 
 // ---- View Post ----
 window.forumViewPost = async function(postId, fromPopState) {
+    postId = fId(postId);
+    if (!postId) return;
     var fc = document.getElementById('forumContainer');
     if (!fc || typeof db === 'undefined') return;
     if (!fromPopState) history.pushState({ channel: 'forum', forumPost: postId }, '', '#forum/post/' + postId);
@@ -430,7 +485,7 @@ window.forumViewPost = async function(postId, fromPopState) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<h2 style="color:var(--heading);font-size:1.15rem;font-weight:800;margin:0 0 8px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</h2>' +
             '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">' +
-                '<span style="font-size:0.8rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
+                '<span style="font-size:0.8rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;"' + fAct('profile', p.authorId) + '>' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
                 '<span style="font-size:0.75rem;color:var(--text-faint);">' + forumWhen(p.createdAt) + '</span>' +
             '</div>';
 
@@ -457,9 +512,9 @@ window.forumViewPost = async function(postId, fromPopState) {
         // Vote + meta + admin delete
         var canDeletePost = (auth && auth.currentUser && p.authorId === auth.currentUser.uid) || isForumAdmin();
         html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
-            '<button onclick="forumVotePost(\'' + p.id + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:6px 12px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:600;font-family:inherit;touch-action:manipulation;">👍 ' + (p.upvotes || 0) + '</button>' +
+            '<button' + fAct('votePost', p.id) + ' style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:6px 12px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:600;font-family:inherit;touch-action:manipulation;">👍 ' + (p.upvotes || 0) + '</button>' +
             '<span style="color:var(--text-faint);font-size:0.8rem;">💬 ' + (p.replyCount || 0) + ' replies</span>' +
-            (canDeletePost ? '<button onclick="forumDeletePost(\'' + p.id + '\')" style="background:none;border:1px solid var(--border);border-radius:16px;padding:4px 10px;color:#ef4444;font-size:0.75rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️ Delete</button>' : '') +
+            (canDeletePost ? '<button' + fAct('deletePost', p.id) + ' style="background:none;border:1px solid var(--border);border-radius:16px;padding:4px 10px;color:#ef4444;font-size:0.75rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️ Delete</button>' : '') +
         '</div>';
         html += '</div>';
 
@@ -473,7 +528,7 @@ window.forumViewPost = async function(postId, fromPopState) {
                 '<textarea id="forumReplyInput" rows="3" maxlength="1000" placeholder="Write a reply..." style="width:100%;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:8px;min-height:70px;-webkit-appearance:none;"></textarea>' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
                     '<span id="forumReplyStatus" style="font-size:0.8rem;flex:1;min-width:0;"></span>' +
-                    '<button onclick="forumSubmitReply(\'' + p.id + '\')" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;flex-shrink:0;">Reply</button>' +
+                    '<button' + fAct('submitReply', p.id) + ' style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;flex-shrink:0;">Reply</button>' +
                 '</div></div>';
         } else {
             html += '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.9rem;margin-bottom:20px;background:var(--card-bg);border:2px solid var(--accent);border-radius:12px;">' +
@@ -559,14 +614,14 @@ async function forumLoadReplies(postId) {
             var out = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;word-wrap:break-word;overflow-wrap:break-word;' + indent + '">' +
                 replyToLabel +
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
-                    '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
+                    '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;"' + fAct('profile', r.authorId) + '>' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
                     '<span style="font-size:0.7rem;color:var(--text-faint);">' + forumWhen(r.createdAt) + '</span>' +
                 '</div>' +
                 '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;margin-bottom:8px;">' + bodyHtml + '</div>' +
                 '<div style="display:flex;gap:8px;align-items:center;">' +
-                    '<button onclick="forumVoteReply(\'' + r.id + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVotedR ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVotedR ? 'var(--accent)' : 'var(--border)') + ';border-radius:12px;padding:3px 10px;cursor:pointer;color:' + (hasVotedR ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\uD83D\uDC4D ' + (r.upvotes || 0) + '</button>' +
-                    (canReply ? '<button data-reply-id="' + r.id + '" data-reply-author="' + fEsc(r.authorName || 'Anon') + '" onclick="window.forumReplyToReply(this.dataset.replyId,this.dataset.replyAuthor)" style="display:flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:12px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\u21A9 Reply</button>' : '') +
-                    (canDeleteReply ? '<button onclick="forumDeleteReply(\'' + r.id + '\',\'' + r.postId + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:2px;touch-action:manipulation;opacity:0.5;" title="Delete reply">\uD83D\uDDD1\uFE0F</button>' : '') +
+                    '<button' + fAct('voteReply', r.id) + ' style="display:flex;align-items:center;gap:4px;background:' + (hasVotedR ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVotedR ? 'var(--accent)' : 'var(--border)') + ';border-radius:12px;padding:3px 10px;cursor:pointer;color:' + (hasVotedR ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\uD83D\uDC4D ' + (r.upvotes || 0) + '</button>' +
+                    (canReply ? '<button data-reply-id="' + fId(r.id) + '" data-reply-author="' + fEsc(r.authorName || 'Anon') + '" onclick="window.forumReplyToReply(this.dataset.replyId,this.dataset.replyAuthor)" style="display:flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:12px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\u21A9 Reply</button>' : '') +
+                    (canDeleteReply ? '<button' + fAct('deleteReply', r.id, r.postId) + ' style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:2px;touch-action:manipulation;opacity:0.5;" title="Delete reply">\uD83D\uDDD1\uFE0F</button>' : '') +
                 '</div>' +
             '</div>';
             return out;
@@ -1134,10 +1189,10 @@ async function loadArticles() {
             var dateStr = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate().toLocaleDateString() : '';
             var pinned = a.pinned ? '<span style="color:#f7931a;font-size:0.7rem;font-weight:700;">📌 PINNED</span> ' : '';
             
-            html += '<div onclick="articleView(\'' + a.id + '\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:0;margin-bottom:12px;cursor:pointer;transition:0.2s;overflow:hidden;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
+            html += '<div class="forum-card-hover"' + fAct('articleView', a.id) + ' style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:0;margin-bottom:12px;cursor:pointer;transition:0.2s;overflow:hidden;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
             
             if (a.coverUrl) {
-                html += '<div style="height:160px;background:url(' + fEsc(a.coverUrl) + ') center/cover no-repeat;"></div>';
+                html += '<div style="height:160px;background:url(&quot;' + fEsc(fSafeUrl(a.coverUrl)).replace(/[()\\]/g, '') + '&quot;) center/cover no-repeat;"></div>';
             }
             
             html += '<div style="padding:16px;">';
@@ -1584,6 +1639,8 @@ window.articleSubmit = async function() {
 
 // ---- View Article ----
 window.articleView = async function(articleId) {
+    articleId = fId(articleId);
+    if (!articleId) return;
     var fc = document.getElementById('forumContainer');
     if (!fc || !db) return;
     
@@ -1607,7 +1664,7 @@ window.articleView = async function(articleId) {
         
         // Cover
         if (a.coverUrl) {
-            html += '<div style="margin:-16px -12px 20px;border-radius:0 0 16px 16px;overflow:hidden;"><img src="' + fEsc(a.coverUrl) + '" alt="Cover" style="width:100%;display:block;object-fit:contain;max-height:500px;"></div>';
+            html += '<div style="margin:-16px -12px 20px;border-radius:0 0 16px 16px;overflow:hidden;"><img src="' + fEsc(fSafeUrl(a.coverUrl)) + '" alt="Cover" style="width:100%;display:block;object-fit:contain;max-height:500px;"></div>';
         }
         
         // Title
@@ -1616,15 +1673,15 @@ window.articleView = async function(articleId) {
         
         // Author bar
         html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">';
-        if (a.authorPic) html += '<img src="' + fEsc(a.authorPic) + '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--border);">';
+        if (a.authorPic) html += '<img src="' + fEsc(fSafeUrl(a.authorPic)) + '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--border);">';
         html += '<div>' +
-            '<div style="font-weight:700;font-size:0.9rem;' + (a.authorFaction ? window._factionNameStyle(a.authorFaction) : 'color:var(--text)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + a.authorId + '\')">' + lv.emoji + ' ' + fEsc(a.authorName || 'Anon') + '</div>' +
+            '<div style="font-weight:700;font-size:0.9rem;' + (a.authorFaction ? window._factionNameStyle(a.authorFaction) : 'color:var(--text)') + ';cursor:pointer;"' + fAct('profile', a.authorId) + '>' + lv.emoji + ' ' + fEsc(a.authorName || 'Anon') + '</div>' +
             '<div style="font-size:0.75rem;color:var(--text-faint);">' + dateStr + ' · ' + readTime + ' min read · ' + (a.wordCount || 0).toLocaleString() + ' words</div>' +
         '</div>';
         // Edit button for author
-        if (isAuthor) html += '<button onclick="articleEdit(\'' + articleId + '\')" style="margin-left:auto;padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✏️ Edit</button>';
+        if (isAuthor) html += '<button' + fAct('articleEdit', articleId) + ' style="margin-left:auto;padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✏️ Edit</button>';
         // Pin button for admin
-        if (isAdmin) html += '<button onclick="articleTogglePin(\'' + articleId + '\',' + (a.pinned ? 'false' : 'true') + ')" style="margin-left:' + (isAuthor ? '4px' : 'auto') + ';padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">' + (a.pinned ? '📌 Unpin' : '📌 Pin') + '</button>';
+        if (isAdmin) html += '<button' + fAct('articlePin', articleId, !a.pinned) + ' style="margin-left:' + (isAuthor ? '4px' : 'auto') + ';padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">' + (a.pinned ? '📌 Unpin' : '📌 Pin') + '</button>';
         html += '</div>';
         
         // Tags
@@ -1639,7 +1696,7 @@ window.articleView = async function(articleId) {
         
         // Action bar
         html += '<div style="display:flex;align-items:center;gap:12px;padding:16px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:20px;">';
-        html += '<button onclick="articleVote(\'' + articleId + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:8px 14px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:600;font-family:inherit;">👍 ' + (a.upvotes || 0) + '</button>';
+        html += '<button ' + fAct('articleVote', articleId) + ' style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:8px 14px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:600;font-family:inherit;">👍 ' + (a.upvotes || 0) + '</button>';
         
         // Tip button
         if (typeof tipButtonHtml === 'function') {
@@ -1648,7 +1705,7 @@ window.articleView = async function(articleId) {
         
         // Delete for admin/author
         if (isAuthor || isAdmin) {
-            html += '<button onclick="articleDelete(\'' + articleId + '\')" style="margin-left:auto;padding:8px 14px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🗑️ Delete</button>';
+            html += '<button ' + fAct('articleDelete', articleId) + ' style="margin-left:auto;padding:8px 14px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🗑️ Delete</button>';
         }
         html += '</div>';
         
@@ -1664,7 +1721,7 @@ window.articleView = async function(articleId) {
                     '<button onclick="window.articleCancelReplyTo()" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:2px 4px;line-height:1;touch-action:manipulation;" title="Cancel reply">✕</button>' +
                 '</div>' +
                 '<textarea id="articleReplyInput" rows="3" maxlength="1000" placeholder="Share your thoughts..." style="width:100%;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical;"></textarea>' +
-                '<button onclick="articleSubmitReply(\'' + articleId + '\')" style="margin-top:6px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Post Comment</button>' +
+                '<button ' + fAct('articleReply', articleId) + ' style="margin-top:6px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Post Comment</button>' +
                 '<div id="articleReplyStatus" style="margin-top:4px;font-size:0.8rem;"></div>' +
             '</div>';
         } else {
@@ -1781,12 +1838,12 @@ async function articleLoadReplies(articleId) {
             return '<div style="padding:12px 0;border-bottom:1px solid var(--border);' + indent + '">' +
                 replyToLabel +
                 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
-                    '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
+                    '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;"' + fAct('profile', r.authorId) + '>' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
                     '<span style="font-size:0.7rem;color:var(--text-faint);">· ' + rDate + '</span>' +
-                    (canDel ? '<button onclick="forumDeleteReply(\'' + r.id + '\',\'' + articleId + '\')" style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;touch-action:manipulation;">🗑️</button>' : '') +
+                    (canDel ? '<button' + fAct('deleteReply', r.id, articleId) + ' style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;touch-action:manipulation;">🗑️</button>' : '') +
                 '</div>' +
                 '<div style="font-size:0.9rem;color:var(--text);line-height:1.6;margin-bottom:6px;">' + bodyHtml + '</div>' +
-                (canReply ? '<button data-rid="' + r.id + '" data-rname="' + fEsc(r.authorName || 'Anon') + '" onclick="window.articleReplyToComment(this.dataset.rid,this.dataset.rname)" style="display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:10px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">↩ Reply</button>' : '') +
+                (canReply ? '<button data-rid="' + fId(r.id) + '" data-rname="' + fEsc(r.authorName || 'Anon') + '" onclick="window.articleReplyToComment(this.dataset.rid,this.dataset.rname)" style="display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:10px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">↩ Reply</button>' : '') +
             '</div>';
         }
 
@@ -1968,7 +2025,7 @@ window.loadStackerNewsFeed = function(sort, when, sub) {
         }
         feed.innerHTML = snRenderFeedCards(items);
     }).catch(function() {
-        feed.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Failed to load feed. <button onclick="loadStackerNewsFeed(\'' + sort + '\',\'' + when + '\',\'' + (sub||'') + '\')" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Retry</button></div>';
+        feed.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Failed to load feed. <button onclick="loadStackerNewsFeed(\'' + fId(sort) + '\',\'' + fId(when) + '\',\'' + fId(sub||'') + '\')" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Retry</button></div>';
     });
 };
 
@@ -2020,7 +2077,7 @@ function snRenderFeedCards(items) {
             try { domain = new URL(item.url).hostname.replace('www.',''); } catch(e) {}
         }
         var subName = (item.sub && item.sub.name) ? item.sub.name : '';
-        h += '<div onclick="snOpenPost(' + item.id + ')" style="cursor:pointer;padding:14px 16px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--card-bg);transition:border-color 0.2s,transform 0.1s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\'">';
+        h += '<div ' + fAct('snOpen', String(Number(item.id) || '')) + ' style="cursor:pointer;padding:14px 16px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--card-bg);transition:border-color 0.2s,transform 0.1s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\'">';
         h += '<div style="display:flex;gap:12px;align-items:flex-start;">';
         // Sats badge
         h += '<div style="min-width:52px;text-align:center;padding:6px 0;">';
@@ -2049,7 +2106,7 @@ function snRenderFeedCards(items) {
         }
         h += '</div></div>';
         // View on SN link
-        h += '<a href="https://stacker.news/items/' + item.id + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="position:absolute;top:12px;right:12px;color:var(--text-muted);font-size:0.8rem;text-decoration:none;opacity:0.5;padding:4px;" onmouseover="this.style.opacity=\'1\';this.style.color=\'var(--accent)\'" onmouseout="this.style.opacity=\'0.5\';this.style.color=\'var(--text-muted)\'">\u2197</a>';
+        h += '<a href="https://stacker.news/items/' + (Number(item.id) || '') + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="position:absolute;top:12px;right:12px;color:var(--text-muted);font-size:0.8rem;text-decoration:none;opacity:0.5;padding:4px;" onmouseover="this.style.opacity=\'1\';this.style.color=\'var(--accent)\'" onmouseout="this.style.opacity=\'0.5\';this.style.color=\'var(--text-muted)\'">\u2197</a>';
         h += '</div></div>';
     }
     return h;
@@ -2065,7 +2122,7 @@ window.snOpenPost = function(id) {
             'Loading post...' +
         '</div></div>';
 
-    fetch('https://embed-proxy.needcreations.workers.dev/api/sn/item?id=' + id)
+    fetch('https://embed-proxy.needcreations.workers.dev/api/sn/item?id=' + encodeURIComponent(Number(id) || 0))
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data || !data.data || !data.data.item) {
@@ -2076,7 +2133,7 @@ window.snOpenPost = function(id) {
             snRenderPost(fc, item);
         })
         .catch(function() {
-            fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;"><div style="text-align:center;padding:40px 0;color:var(--text-muted);">Failed to load post. <button onclick="snOpenPost(' + id + ')" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Retry</button> · <button onclick="forumTab=\'stacker\';renderForum()" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Back</button></div></div>';
+            fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;"><div style="text-align:center;padding:40px 0;color:var(--text-muted);">Failed to load post. <button onclick="snOpenPost(' + (Number(id) || 0) + ')" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Retry</button> · <button onclick="forumTab=\'stacker\';renderForum()" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Back</button></div></div>';
         });
 };
 
@@ -2109,7 +2166,7 @@ function snRenderPost(fc, item) {
     if (item.url) {
         var domain = '';
         try { domain = new URL(item.url).hostname.replace('www.',''); } catch(e) {}
-        h += '<a href="' + snEscape(item.url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:8px 16px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.8rem;text-decoration:none;margin-bottom:14px;word-break:break-all;">🔗 ' + snEscape(domain || item.url) + ' ↗</a>';
+        h += '<a href="' + fEsc(fSafeUrl(item.url)) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:8px 16px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.8rem;text-decoration:none;margin-bottom:14px;word-break:break-all;">🔗 ' + snEscape(domain || item.url) + ' ↗</a>';
     }
 
     // Body text
@@ -2119,7 +2176,7 @@ function snRenderPost(fc, item) {
 
     // View on SN link
     h += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">';
-    h += '<a href="https://stacker.news/items/' + item.id + '" target="_blank" rel="noopener noreferrer" style="color:var(--text-muted);font-size:0.75rem;text-decoration:none;">View on stacker.news ↗</a>';
+    h += '<a href="https://stacker.news/items/' + (Number(item.id) || '') + '" target="_blank" rel="noopener noreferrer" style="color:var(--text-muted);font-size:0.75rem;text-decoration:none;">View on stacker.news ↗</a>';
     h += '</div>';
 
     h += '</div>'; // end post card
@@ -2515,5 +2572,8 @@ if (document.readyState === 'loading') {
 } else {
     setTimeout(mentionObserveForTextareas, 1000);
 }
+
+// Escaping helpers, exposed read-only for tests/test-forum-xss.js.
+window._forumSafe = Object.freeze({ fId: fId, fEsc: fEsc, fSafeUrl: fSafeUrl, fAct: fAct, renderPosts: function(posts, container) { return forumRenderPosts(posts, container); } });
 
 })();
