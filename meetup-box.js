@@ -114,8 +114,8 @@ function injectMeetupBox() {
 
     html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;">';
     TEMPLATES.forEach(function(t, i) {
-        html += '<div onclick="showMeetupTemplate(' + i + ')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;cursor:pointer;transition:0.2s;" ' +
-            'onmouseover="this.style.borderColor=\'' + t.color + '\';this.style.transform=\'translateY(-2px)\'" ' +
+        html += '<div ' + BQSafe.act('showMeetupTemplate', [BQSafe.lit(i)]) + ' style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;cursor:pointer;transition:0.2s;" ' +
+            'onmouseover="this.style.borderColor=\'' + BQSafe.jsStr(t.color) + '\';this.style.transform=\'translateY(-2px)\'" ' +
             'onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\'">' +
             '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">' +
                 '<span style="font-size:1.3rem;">' + t.emoji + '</span>' +
@@ -177,13 +177,13 @@ window.showMeetupTemplate = function(idx) {
         t.channels.forEach(function(ch) {
             var chData = typeof CHANNELS !== 'undefined' && CHANNELS[ch] ? CHANNELS[ch] : null;
             var chName = chData ? chData.title : ch;
-            html += '<button onclick="document.getElementById(\'meetupTemplateOverlay\').remove();goHome();setTimeout(function(){go(\'' + ch + '\')},300)" style="padding:5px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;font-size:0.75rem;color:var(--text);cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + esc(chName) + '</button>';
+            html += '<button onclick="document.getElementById(\'meetupTemplateOverlay\').remove();goHome();setTimeout(function(){go(\'' + BQSafe.jsStr(ch) + '\')},300)" style="padding:5px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;font-size:0.75rem;color:var(--text);cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + esc(chName) + '</button>';
         });
         html += '</div></div>';
     }
 
     html += '<div style="display:flex;gap:8px;margin-top:16px;">' +
-        '<button onclick="downloadMeetupTemplate(' + idx + ')" style="flex:1;padding:10px;background:linear-gradient(135deg,' + t.color + '22,' + t.color + '11);border:1px solid ' + t.color + ';border-radius:10px;color:' + t.color + ';cursor:pointer;font-family:inherit;font-weight:700;font-size:0.85rem;">⬇️ Download</button>' +
+        '<button ' + BQSafe.act('downloadMeetupTemplate', [BQSafe.lit(idx)]) + ' style="flex:1;padding:10px;background:linear-gradient(135deg,' + t.color + '22,' + t.color + '11);border:1px solid ' + t.color + ';border-radius:10px;color:' + t.color + ';cursor:pointer;font-family:inherit;font-weight:700;font-size:0.85rem;">⬇️ Download</button>' +
         '<button onclick="document.getElementById(\'meetupTemplateOverlay\').remove()" style="flex:1;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-faint);cursor:pointer;font-family:inherit;">Close</button>' +
     '</div>';
     html += '</div>';

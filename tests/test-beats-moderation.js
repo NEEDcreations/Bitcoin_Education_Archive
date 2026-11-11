@@ -151,6 +151,7 @@ sandbox.document.body.appendChild = function(child) {
 global.window = sandbox;
 
 vm.createContext(sandbox);
+require('./xss/load-bqsafe')(vm, sandbox);
 vm.runInContext(read('beats.js'), sandbox, { filename: 'beats.js' });
 vm.runInContext(read('notifications.js'), sandbox, { filename: 'notifications.js' });
 

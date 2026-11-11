@@ -316,7 +316,7 @@ window.showNachoStory = function(chapterOverride) {
         var unlocked = i < chaptersUnlocked;
         var isCurrent = i === chIdx;
         if (unlocked) {
-            pillsHtml += '<button onclick="event.stopPropagation();document.getElementById(\'nachoStoryOverlay\').remove();showNachoStory(' + i + ')" style="width:32px;height:32px;border-radius:50%;border:' + (isCurrent ? '2px solid #f7931a' : '1px solid var(--border,#333)') + ';background:' + (isCurrent ? '#f7931a' : 'var(--card-bg,#1a1a2e)') + ';color:' + (isCurrent ? '#000' : 'var(--text,#e2e8f0)') + ';font-size:0.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">' + (i + 1) + '</button>';
+            pillsHtml += '<button onclick="event.stopPropagation();document.getElementById(\'nachoStoryOverlay\').remove();showNachoStory(' + BQSafe.num(i) + ')" style="width:32px;height:32px;border-radius:50%;border:' + (isCurrent ? '2px solid #f7931a' : '1px solid var(--border,#333)') + ';background:' + (isCurrent ? '#f7931a' : 'var(--card-bg,#1a1a2e)') + ';color:' + (isCurrent ? '#000' : 'var(--text,#e2e8f0)') + ';font-size:0.75rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">' + (i + 1) + '</button>';
         } else {
             pillsHtml += '<button disabled style="width:32px;height:32px;border-radius:50%;border:1px solid var(--border,#222);background:var(--bg-side,#0a0a1a);color:var(--text-faint,#333);font-size:0.75rem;font-weight:700;cursor:not-allowed;display:flex;align-items:center;justify-content:center;opacity:0.4;">🔒</button>';
         }
@@ -324,11 +324,11 @@ window.showNachoStory = function(chapterOverride) {
     pillsHtml += '</div>';
 
     // Nav buttons — only navigate to unlocked chapters
-    var prevBtn = chIdx > 0 ? '<button onclick="event.stopPropagation();document.getElementById(\'nachoStoryOverlay\').remove();showNachoStory(' + (chIdx - 1) + ')" style="padding:8px 16px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#e2e8f0);font-size:0.85rem;cursor:pointer;font-weight:600;">← Prev</button>' : '<span></span>';
+    var prevBtn = chIdx > 0 ? '<button onclick="event.stopPropagation();document.getElementById(\'nachoStoryOverlay\').remove();showNachoStory(' + (BQSafe.num(chIdx - 1)) + ')" style="padding:8px 16px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#e2e8f0);font-size:0.85rem;cursor:pointer;font-weight:600;">← Prev</button>' : '<span></span>';
     var nextBtn;
     if (chIdx + 1 < chaptersUnlocked && chIdx < CHAPTERS.length - 1) {
         // Next chapter is unlocked
-        nextBtn = '<button onclick="event.stopPropagation();document.getElementById(\'nachoStoryOverlay\').remove();showNachoStory(' + (chIdx + 1) + ')" style="padding:8px 16px;background:#f7931a;border:none;border-radius:8px;color:#000;font-size:0.85rem;cursor:pointer;font-weight:700;">Next →</button>';
+        nextBtn = '<button onclick="event.stopPropagation();document.getElementById(\'nachoStoryOverlay\').remove();showNachoStory(' + (BQSafe.num(chIdx) + BQSafe.num(1)) + ')" style="padding:8px 16px;background:#f7931a;border:none;border-radius:8px;color:#000;font-size:0.85rem;cursor:pointer;font-weight:700;">Next →</button>';
     } else if (chIdx >= CHAPTERS.length - 1) {
         nextBtn = '<span style="color:#22c55e;font-size:0.8rem;">✅ Story Complete!</span>';
     } else {
@@ -873,7 +873,7 @@ function renderExplorationMap() {
         var isVisited = visited.indexOf(key) !== -1;
         var titleMatch = CHANNELS[key].title.match(/^([\u{1F000}-\u{1FFFF}|\u{2600}-\u{26FF}|\u{2700}-\u{27BF}|\u{FE00}-\u{FEFF}|\u{1F900}-\u{1F9FF}|\u{1FA00}-\u{1FA6F}|\u{1FA70}-\u{1FAFF}|\u{200D}|\u{FE0F}]+)/u);
         var icon = titleMatch ? titleMatch[1] : '📄';
-        grid += '<div onclick="go(\'' + key + '\')" ' + (isVisited ? 'title="' + CHANNELS[key].title.replace(/"/g, '') + '"' : '') + ' style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:0.75rem;cursor:pointer;transition:0.2s;' +
+        grid += '<div ' + BQSafe.act('go', [String(key)]) + ' ' + (isVisited ? 'title="' + CHANNELS[key].title.replace(/"/g, '') + '"' : '') + ' style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:0.75rem;cursor:pointer;transition:0.2s;' +
             (isVisited ? 'background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.3);' : 'background:var(--card-bg);border:1px solid var(--border);opacity:0.4;') +
             '">' + (isVisited ? icon : '?') + '</div>';
     });
@@ -982,7 +982,7 @@ function qotdPaint(el, list) {
             '<a href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();" style="color:var(--text-dim);text-decoration:none;border-bottom:1px solid rgba(148,163,184,0.45);">' +
             escapeHtml(label) + '</a></div>';
     }
-    el.innerHTML = '<div onclick="if(typeof go===\'function\')go(\'' + channel + '\')" style="padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:border-color 0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+    el.innerHTML = '<div ' + BQSafe.act('go', [String(channel)]) + ' style="padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:border-color 0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
         '<div style="font-size:0.7rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">\uD83D\uDCAC Quote of the Day</div>' +
         '<div style="color:var(--text);font-size:0.95rem;font-style:italic;line-height:1.6;margin-bottom:8px;">"' + escapeHtml(quote.text) + '"</div>' +
         '<div style="color:var(--accent);font-size:0.8rem;font-weight:600;">\u2014 ' + escapeHtml(quote.author || '') + '</div>' +
@@ -1027,7 +1027,7 @@ window.renderReadNext = function(currentId) {
     shuffled.forEach(function(e) {
         var emoji = e[1].title.match(/^([\u{1F000}-\u{1FFFF}|\u{2600}-\u{26FF}]+)/u);
         var icon = emoji ? emoji[1] : '📄';
-        html += '<button onclick="go(\'' + e[0] + '\')" style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + icon + ' ' + e[0].replace(/-/g,' ') + '</button>';
+        html += '<button ' + BQSafe.act('go', [String(e[0])]) + ' style="padding:8px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + icon + ' ' + e[0].replace(/-/g,' ') + '</button>';
     });
     html += '</div></div>';
     return html;

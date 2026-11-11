@@ -1138,8 +1138,8 @@
         var extras = follows.filter(function (item) { return item !== follow; });
         return '<div class="bq-nacho-card" data-bq-card="1" data-bq-chip="1" style="color:var(--text,#eee);line-height:1.55;">' +
             '<div>' + esc(text).replace(/\n/g, '<br>') + '</div>' +
-            '<button type="button" data-bq-open="1" ontouchstart="event.stopPropagation();" onmousedown="event.stopPropagation();" onclick="event.stopPropagation();event.preventDefault();window.bqOpenFeature(\'' + id + '\')" style="width:100%;margin-top:10px;padding:10px;background:var(--accent,#f7931a);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">Open it</button>' +
-            '<a href="#' + esc(f ? f.hash : ('app/' + id)) + '" onclick="event.preventDefault();window.bqOpenFeature(\'' + id + '\')" style="display:block;margin-top:4px;text-align:center;font-size:0.72rem;color:var(--text-faint,#888);">#' + esc(f ? f.hash : id) + '</a>' +
+            '<button type="button" data-bq-open="1" ontouchstart="event.stopPropagation();" onmousedown="event.stopPropagation();" ' + BQSafe.act('window.bqOpenFeature', [String(id)], { stop: 1, prevent: 1 }) + ' style="width:100%;margin-top:10px;padding:10px;background:var(--accent,#f7931a);border:none;border-radius:8px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">Open it</button>' +
+            '<a href="#' + esc(f ? f.hash : ('app/' + id)) + '" ' + BQSafe.act('window.bqOpenFeature', [String(id)], { prevent: 1 }) + ' style="display:block;margin-top:4px;text-align:center;font-size:0.72rem;color:var(--text-faint,#888);">#' + esc(f ? f.hash : id) + '</a>' +
             (ground.links && ground.links.length ? linkButtonsHtml(ground.links) : '') +
             chip +
             (extras.length ? followButtonsHtml(extras) : '') +
@@ -1336,11 +1336,11 @@
             feats.forEach(function (row) {
                 var f = row.feature;
                 var blurb = (f.id === 'ciphers' || f.id === 'keys') ? (f.desc + ' ' + f.how) : f.desc;
-                html += '<div class="sr-item" data-bq-feature="' + f.id + '" style="border-left:3px solid var(--accent);cursor:pointer;" onclick="window.bqOpenFeature(\'' + f.id + '\');window.bqCloseSearch&&window.bqCloseSearch();">' +
+                html += '<div class="sr-item" data-bq-feature="' + f.id + '" style="border-left:3px solid var(--accent);cursor:pointer;" onclick="window.bqOpenFeature(\'' + BQSafe.jsStr(f.id) + '\');window.bqCloseSearch&&window.bqCloseSearch();">' +
                     '<div class="sr-cat">Feature</div>' +
                     '<div>' + esc(f.title) + '</div>' +
                     '<div class="sr-match">' + esc(blurb) + '</div>' +
-                    '<button type="button" onclick="event.stopPropagation();event.preventDefault();window.bqOpenFeature(\'' + f.id + '\');window.bqCloseSearch&&window.bqCloseSearch();" style="margin-top:6px;padding:6px 12px;background:var(--accent,#f7931a);border:none;border-radius:8px;color:#fff;font-weight:800;cursor:pointer;font-family:inherit;">Open</button>' +
+                    '<button type="button" onclick="event.stopPropagation();event.preventDefault();window.bqOpenFeature(\'' + BQSafe.jsStr(f.id) + '\');window.bqCloseSearch&&window.bqCloseSearch();" style="margin-top:6px;padding:6px 12px;background:var(--accent,#f7931a);border:none;border-radius:8px;color:#fff;font-weight:800;cursor:pointer;font-family:inherit;">Open</button>' +
                     '</div>';
             });
             html += '</div></div>';

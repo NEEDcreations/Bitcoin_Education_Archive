@@ -52,7 +52,7 @@
             if (topic.posts && topic.posts.length) {
                 topic.posts.forEach(function (post) {
                     var meta = SOURCE_META[post.source] || SOURCE_META.web;
-                    postsHtml += '<a href="' + escHtml(post.url) + '" target="_blank" rel="noopener noreferrer" class="ht-post-link">' +
+                    postsHtml += '<a href="' + escHtml(BQSafe.url(post.url)) + '" target="_blank" rel="noopener noreferrer" class="ht-post-link">' +
                         '<span class="ht-source-badge" style="background:' + meta.color + '22;color:' + meta.color + ';border:1px solid ' + meta.color + '44;">' +
                         meta.icon + ' ' + meta.label + '</span>' +
                         '<span class="ht-post-title">' + escHtml(post.title) + '</span>' +

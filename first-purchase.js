@@ -206,7 +206,7 @@ window.renderFirstPurchase = function() {
             { id: 'other', emoji: '🌐', name: 'Other / Global' },
         ];
         regions.forEach(function(r) {
-            html += '<button onclick="localStorage.setItem(\'btc_fp_region\',\'' + r.id + '\');_fpNav(1)" style="display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;margin-bottom:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+            html += '<button onclick="localStorage.setItem(\'btc_fp_region\',\'' + BQSafe.jsStr(r.id) + '\');_fpNav(1)" style="display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;margin-bottom:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
                 '<span style="font-size:1.5rem;">' + r.emoji + '</span>' + r.name + '</button>';
         });
     }
@@ -232,7 +232,7 @@ window.renderFirstPurchase = function() {
                 html += '<div style="padding:8px 16px 12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">';
                 html += '<span style="font-size:0.72rem;color:#22c55e;font-weight:700;">🎁 ' + (app.referralBonus || 'Referral') + '</span>';
                 html += '<span id="' + copyId + '" style="font-size:0.72rem;color:var(--text-muted);background:rgba(255,255,255,0.05);padding:3px 8px;border-radius:6px;font-family:monospace;word-break:break-all;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (typeof escapeHtml === 'function' ? escapeHtml(copyVal) : copyVal) + '</span>';
-                html += '<button onclick="event.preventDefault();event.stopPropagation();var t=document.getElementById(\'' + copyId + '\').textContent;navigator.clipboard.writeText(t).then(function(){if(typeof showToast===\'function\')showToast(\'📋 Copied!\')}).catch(function(){var i=document.createElement(\'textarea\');i.value=t;document.body.appendChild(i);i.select();document.execCommand(\'copy\');document.body.removeChild(i);if(typeof showToast===\'function\')showToast(\'📋 Copied!\')})" style="padding:4px 10px;background:#22c55e;color:#000;border:none;border-radius:6px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">Copy</button>';
+                html += '<button onclick="event.preventDefault();event.stopPropagation();var t=document.getElementById(\'' + BQSafe.jsStr(copyId) + '\').textContent;navigator.clipboard.writeText(t).then(function(){if(typeof showToast===\'function\')showToast(\'📋 Copied!\')}).catch(function(){var i=document.createElement(\'textarea\');i.value=t;document.body.appendChild(i);i.select();document.execCommand(\'copy\');document.body.removeChild(i);if(typeof showToast===\'function\')showToast(\'📋 Copied!\')})" style="padding:4px 10px;background:#22c55e;color:#000;border:none;border-radius:6px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">Copy</button>';
                 html += '</div>';
             }
             html += '</div>';
@@ -600,7 +600,7 @@ function _stepHeader(step) {
 function _walletCard(w) {
     var badge = w.rec ? ' <span style="color:var(--accent);font-size:0.6rem;">★ RECOMMENDED</span>' : '';
     if (w.note) badge = ' <span style="color:#a855f7;font-size:0.6rem;font-weight:600;">' + w.note + '</span>';
-    var html = '<a href="' + w.url + '" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:12px 14px;margin-bottom:' + (w.extra ? '4px' : '6px') + ';background:var(--card-bg);border:1px solid ' + (w.rec ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;text-decoration:none;color:var(--text);transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'' + (w.rec ? 'var(--accent)' : 'var(--border)') + '\'">' +
+    var html = '<a href="' + w.url + '" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:12px 14px;margin-bottom:' + (w.extra ? '4px' : '6px') + ';background:var(--card-bg);border:1px solid ' + (w.rec ? 'var(--accent)' : 'var(--border)') + ';border-radius:10px;text-decoration:none;color:var(--text);transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'' + (BQSafe.jsStr(w.rec ? 'var(--accent)' : 'var(--border)')) + '\'">' +
         '<span style="font-size:1.3rem;">' + w.icon + '</span>' +
         '<div style="flex:1;"><div style="font-weight:700;font-size:0.85rem;">' + w.name + badge + ' ↗</div>' +
         '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.4;margin-top:1px;">' + w.desc + '</div></div></a>';
@@ -634,8 +634,8 @@ function _walletCard(w) {
 
 function _navButtons(stepNum) {
     return '<div style="display:flex;justify-content:space-between;margin-top:20px;">' +
-        '<button onclick="_fpNav(' + (stepNum - 1) + ')" style="padding:10px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;touch-action:manipulation;">← Back</button>' +
-        '<button onclick="_fpNav(' + (stepNum + 1) + ')" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">Next Step →</button>' +
+        '<button ' + BQSafe.act('_fpNav', [BQSafe.lit(stepNum - 1)]) + ' style="padding:10px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;touch-action:manipulation;">← Back</button>' +
+        '<button onclick="_fpNav(' + (BQSafe.num(stepNum) + BQSafe.num(1)) + ')" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;">Next Step →</button>' +
     '</div>';
 }
 

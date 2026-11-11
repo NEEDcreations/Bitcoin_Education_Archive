@@ -186,6 +186,7 @@ function boot(opts) {
     sandbox.self = sandbox;
     sandbox.window.auth = authObj;
     vm.createContext(sandbox);
+    require('./xss/load-bqsafe')(vm, sandbox);
     vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'ranking.js'), 'utf8'), sandbox, { filename: 'ranking.js' });
     if (!opts || opts.init !== false) sandbox.initRanking();
     sandbox._showTotpSignInChallenge = function () { sandbox.challenges++; };

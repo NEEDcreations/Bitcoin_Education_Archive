@@ -419,7 +419,7 @@ window.beatsCollapsePlayer = function() {
         var miniArt = document.getElementById('beatsMiniArt');
         if (art && miniArt) {
             var img = art.querySelector('img');
-            miniArt.innerHTML = img ? '<img src="' + img.src + '" style="width:100%;height:100%;object-fit:cover;">' : '🎵';
+            miniArt.innerHTML = img ? '<img src="' + BQSafe.esc(BQSafe.img(img.src)) + '" style="width:100%;height:100%;object-fit:cover;">' : '🎵';
         }
         var title = document.getElementById('beatsNowTitle');
         var miniTitle = document.getElementById('beatsMiniTitle');
@@ -593,14 +593,14 @@ window.beatsLoadTracks = function(tab) {
             var isLiked = liked.indexOf(t.id) !== -1;
             var isPlaying = window._beatsQueueIdx === idx;
             var duration = t.duration ? beatsFormatTime(t.duration) : '--:--';
-            html += '<div class="beats-track-row" onclick="beatsPlayTrack(' + idx + ')" style="padding:10px 12px;border-radius:12px;cursor:pointer;transition:0.15s;' + (isPlaying ? 'background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);' : 'background:var(--card-bg);border:1px solid var(--border);') + 'margin-bottom:8px;">' +
+            html += '<div class="beats-track-row" ' + BQSafe.act('beatsPlayTrack', [BQSafe.lit(idx)]) + ' style="padding:10px 12px;border-radius:12px;cursor:pointer;transition:0.15s;' + (isPlaying ? 'background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);' : 'background:var(--card-bg);border:1px solid var(--border);') + 'margin-bottom:8px;">' +
                 /* Row 1: number + art + title/artist + duration */
                 '<div style="display:flex;align-items:center;gap:10px;">' +
                     '<div style="width:28px;text-align:center;color:' + (isPlaying ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-weight:700;flex-shrink:0;">' + (isPlaying ? '<span style="display:flex;gap:1px;justify-content:center;align-items:flex-end;height:14px;"><div style="width:2px;height:60%;background:var(--accent);animation:beatsEqualizer 0.8s infinite alternate;"></div><div style="width:2px;height:100%;background:var(--accent);animation:beatsEqualizer 1.1s infinite alternate;"></div><div style="width:2px;height:40%;background:var(--accent);animation:beatsEqualizer 0.9s infinite alternate;"></div></span>' : (idx + 1)) + '</div>' +
                     '<div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + _safeCover(t.coverUrl || t.coverArt) + '" style="width:100%;height:100%;object-fit:cover;">' : (t.genre === 'podcast' ? '🎙️' : '🎵')) + '</div>' +
-                    '<div onclick="event.stopPropagation();beatsShowTrackDetail(' + idx + ')" style="flex:1;min-width:0;cursor:pointer;">' +
+                    '<div ' + BQSafe.act('beatsShowTrackDetail', [BQSafe.lit(idx)], { stop: 1 }) + ' style="flex:1;min-width:0;cursor:pointer;">' +
                         '<div style="color:' + (isPlaying ? 'var(--accent)' : 'var(--heading)') + ';font-weight:700;font-size:0.88rem;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3;">' + beatsSlot(t.title || 'Untitled') + '</div>' +
-                        '<div style="color:var(--text-faint);font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (t.authorId ? '<span onclick="event.stopPropagation();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + t.authorId + '\')" style="cursor:pointer;color:var(--text-muted);transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + beatsSlot(t.artist || t.authorName || 'Unknown') + '</span>' : beatsSlot(t.artist || t.authorName || 'Unknown')) + (t.genre ? ' · ' + escapeHtml(t.genre) : '') + '</div>' +
+                        '<div style="color:var(--text-faint);font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (t.authorId ? '<span ' + BQSafe.act('beatsShowArtistPage', [String(t.authorId)], { stop: 1 }) + ' style="cursor:pointer;color:var(--text-muted);transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + beatsSlot(t.artist || t.authorName || 'Unknown') + '</span>' : beatsSlot(t.artist || t.authorName || 'Unknown')) + (t.genre ? ' · ' + escapeHtml(t.genre) : '') + '</div>' +
                     '</div>' +
                     '<div style="flex-shrink:0;text-align:right;">' +
                         '<div style="color:var(--text-faint);font-size:0.7rem;">' + duration + '</div>' +
@@ -612,10 +612,10 @@ window.beatsLoadTracks = function(tab) {
                 '</div>' +
                 /* Row 2: action buttons — compact */
                 '<div style="display:flex;align-items:center;gap:4px;margin-top:6px;padding-left:38px;">' +
-                    '<button class="beats-action-btn" onclick="event.stopPropagation();beatsShowComments(\'' + t.id + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);display:flex;align-items:center;gap:2px;border-radius:6px;transition:0.15s;" title="Comments">💬' + (t.commentCount ? '<span style="font-size:0.6rem;">' + t.commentCount + '</span>' : '') + '</button>' +
-                    '<button class="beats-action-btn" onclick="event.stopPropagation();beatsToggleLike(\'' + t.id + '\',this)" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';border-radius:6px;transition:0.15s;" title="Like">' + (isLiked ? '❤️' : '🤍') + '</button>' +
-                    '<button class="beats-action-btn" onclick="event.stopPropagation();beatsAddToPlaylistPicker(\'' + t.id + '\')" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:var(--accent);border-radius:6px;transition:0.15s;" title="Add to playlist">➕</button>' +
-                    '<button class="beats-action-btn" onclick="event.stopPropagation();beatsTrackMenu(\'' + t.id + '\',' + idx + ')" style="background:none;border:none;font-size:0.8rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;margin-left:auto;" title="More">⋮</button>' +
+                    '<button class="beats-action-btn" ' + BQSafe.act('beatsShowComments', [String(t.id)], { stop: 1 }) + ' style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);display:flex;align-items:center;gap:2px;border-radius:6px;transition:0.15s;" title="Comments">💬' + (t.commentCount ? '<span style="font-size:0.6rem;">' + t.commentCount + '</span>' : '') + '</button>' +
+                    '<button class="beats-action-btn" ' + BQSafe.act('beatsToggleLike', [String(t.id), BQSafe.EL], { stop: 1 }) + ' style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';border-radius:6px;transition:0.15s;" title="Like">' + (isLiked ? '❤️' : '🤍') + '</button>' +
+                    '<button class="beats-action-btn" ' + BQSafe.act('beatsAddToPlaylistPicker', [String(t.id)], { stop: 1 }) + ' style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:var(--accent);border-radius:6px;transition:0.15s;" title="Add to playlist">➕</button>' +
+                    '<button class="beats-action-btn" ' + BQSafe.act('beatsTrackMenu', [String(t.id), BQSafe.lit(idx)], { stop: 1 }) + ' style="background:none;border:none;font-size:0.8rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;margin-left:auto;" title="More">⋮</button>' +
                 '</div>' +
             '</div>';
         });
@@ -994,11 +994,11 @@ window.beatsBulkFileChange = function(input) {
         var html = '';
         for (var i = 0; i < files.length; i++) {
             var name = files[i].name.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ').replace(/^\d+\s*/, '');
-            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:8px 10px;" draggable="true" data-idx="' + i + '" ondragstart="event.dataTransfer.setData(\'text/plain\',\'' + i + '\')" ondragover="event.preventDefault();this.style.borderColor=\'var(--accent)\'" ondragleave="this.style.borderColor=\'var(--border)\'" ondrop="beatsBulkReorder(event,\'' + i + '\')">' +
+            html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:8px 10px;" draggable="true" data-idx="' + i + '" ondragstart="event.dataTransfer.setData(\'text/plain\',\'' + BQSafe.jsStr(i) + '\')" ondragover="event.preventDefault();this.style.borderColor=\'var(--accent)\'" ondragleave="this.style.borderColor=\'var(--border)\'" ondrop="beatsBulkReorder(event,\'' + BQSafe.jsStr(i) + '\')">' +
                 '<span style="color:var(--text-faint);font-size:0.75rem;font-weight:700;width:24px;text-align:center;flex-shrink:0;">' + (i + 1) + '</span>' +
                 '<input type="text" value="' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name).replace(/"/g, '&quot;') + '" maxlength="100" class="beats-bulk-title" data-idx="' + i + '" style="flex:1;padding:6px 10px;background:transparent;border:1px solid transparent;border-radius:8px;color:var(--text);font-size:0.82rem;font-family:inherit;" onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'transparent\'">' +
                 '<span style="color:var(--text-faint);font-size:0.6rem;">' + (files[i].size / (1024 * 1024)).toFixed(1) + 'MB</span>' +
-                '<button onclick="beatsBulkRemove(' + i + ')" style="background:none;border:none;color:var(--text-faint);font-size:0.9rem;cursor:pointer;padding:2px 6px;">✕</button>' +
+                '<button ' + BQSafe.act('beatsBulkRemove', [BQSafe.lit(i)]) + ' style="background:none;border:none;color:var(--text-faint);font-size:0.9rem;cursor:pointer;padding:2px 6px;">✕</button>' +
             '</div>';
         }
         tracksEl.innerHTML = html;
@@ -1528,8 +1528,8 @@ window.beatsShowTrackDetail = function(idx) {
         '<div style="text-align:center;margin-bottom:20px;">' + coverHtml + '</div>' +
         '<div style="text-align:center;margin-bottom:6px;color:var(--heading);font-weight:800;font-size:1.1rem;word-break:break-word;">' + beatsSlot(track.title || 'Untitled') + '</div>' +
         '<div style="text-align:center;font-size:0.85rem;margin-bottom:4px;">' +
-            (track.authorId ? '<span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + track.authorId + '\')" style="color:var(--text-muted);cursor:pointer;transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + beatsSlot(track.artist || track.authorName || 'Unknown') + '</span>' : '<span style="color:var(--text-faint);">' + beatsSlot(track.artist || track.authorName || 'Unknown') + '</span>') +
-            (track.authorId ? ' <span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();beatsTipCurrentArtistById(\'' + track.authorId + '\',\'' + track.id + '\')" style="color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;">⚡ Tip</span>' : '') +
+            (track.authorId ? '<span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + BQSafe.jsStr(track.authorId) + '\')" style="color:var(--text-muted);cursor:pointer;transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">' + beatsSlot(track.artist || track.authorName || 'Unknown') + '</span>' : '<span style="color:var(--text-faint);">' + beatsSlot(track.artist || track.authorName || 'Unknown') + '</span>') +
+            (track.authorId ? ' <span onclick="event.stopPropagation();document.getElementById(\'beatsDetailOverlay\').remove();beatsTipCurrentArtistById(\'' + BQSafe.jsStr(track.authorId) + '\',\'' + BQSafe.jsStr(track.id) + '\')" style="color:var(--accent);font-weight:700;font-size:0.8rem;cursor:pointer;">⚡ Tip</span>' : '') +
         '</div>' +
         (track.genre ? '<div style="text-align:center;margin-bottom:10px;"><span style="background:rgba(247,147,26,0.15);color:var(--accent);font-size:0.7rem;font-weight:600;padding:3px 10px;border-radius:20px;">' + escapeHtml(track.genre) + '</span></div>' : '<div style="margin-bottom:10px;"></div>') +
         // Upload date — small, subtle, tooltip shows full timestamp
@@ -1548,8 +1548,8 @@ window.beatsShowTrackDetail = function(idx) {
         '<div style="display:flex;gap:8px;">' +
             '<button id="beatsDetailPlayBtn" onclick="' + (isPlaying ? 'beatsTogglePlay();var b=this;if(window._beatsAudio&&window._beatsAudio.paused){b.textContent=\'▶ Paused\';b.style.background=\'rgba(247,147,26,0.3)\'}else{b.textContent=\'⏸ Now Playing\';b.style.background=\'var(--accent)\'}' : 'document.getElementById(\'beatsDetailOverlay\').remove();beatsPlayTrack(' + idx + ')') + '" style="flex:1;padding:14px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">' + (isPlaying ? '⏸ Now Playing' : '▶ Play') + '</button>' +
             (isPlaying ? '<button class="beats-action-btn" onclick="event.stopPropagation();djBroadcast();document.getElementById(\'beatsDetailOverlay\').remove()" style="padding:14px 18px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);border-radius:12px;color:#6366f1;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;" title="Broadcast to Global Chat">📡 DJ</button>' : '') +
-            '<button class="beats-action-btn" onclick="event.stopPropagation();beatsToggleLike(\'' + track.id + '\',this);setTimeout(function(){var o=document.getElementById(\'beatsDetailOverlay\');if(o)o.remove();beatsLoadTracks(window._beatsCurrentTab);},300)" style="padding:14px 18px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:12px;font-size:1rem;cursor:pointer;font-family:inherit;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';">' + (isLiked ? '❤️' : '🤍') + '</button>' +
-            '<button class="beats-action-btn" onclick="event.stopPropagation();beatsShowComments(\'' + track.id + '\');document.getElementById(\'beatsDetailOverlay\').remove()" style="padding:14px 18px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:12px;font-size:1rem;cursor:pointer;font-family:inherit;color:var(--text-faint);">💬</button>' +
+            '<button class="beats-action-btn" onclick="event.stopPropagation();beatsToggleLike(\'' + BQSafe.jsStr(track.id) + '\',this);setTimeout(function(){var o=document.getElementById(\'beatsDetailOverlay\');if(o)o.remove();beatsLoadTracks(window._beatsCurrentTab);},300)" style="padding:14px 18px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:12px;font-size:1rem;cursor:pointer;font-family:inherit;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';">' + (isLiked ? '❤️' : '🤍') + '</button>' +
+            '<button class="beats-action-btn" onclick="event.stopPropagation();beatsShowComments(\'' + BQSafe.jsStr(track.id) + '\');document.getElementById(\'beatsDetailOverlay\').remove()" style="padding:14px 18px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:12px;font-size:1rem;cursor:pointer;font-family:inherit;color:var(--text-faint);">💬</button>' +
         '</div>' +
         '</div>';
     overlay.innerHTML = html;
@@ -1577,12 +1577,12 @@ window.beatsTrackMenu = function(trackId, idx) {
 
     // Add to playlist (for signed-in users)
     if (auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-        html += '<button onclick="document.getElementById(\'beatsMenuOverlay\').remove();beatsAddToPlaylistPicker(\'' + trackId + '\')" style="width:100%;padding:14px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:12px;color:var(--accent);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;">➕ Add to Playlist</button>';
+        html += '<button onclick="document.getElementById(\'beatsMenuOverlay\').remove();beatsAddToPlaylistPicker(\'' + BQSafe.jsStr(trackId) + '\')" style="width:100%;padding:14px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:12px;color:var(--accent);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;">➕ Add to Playlist</button>';
     }
     if (isOwner || isAdmin) {
-        html += '<button onclick="beatsDeleteTrack(\'' + trackId + '\')" style="width:100%;padding:14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:12px;color:#ef4444;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;">' + (isAdmin ? '🗑️🛡️ Admin Delete Track' : '🗑️ Delete My Track') + '</button>';
+        html += '<button ' + BQSafe.act('beatsDeleteTrack', [String(trackId)]) + ' style="width:100%;padding:14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:12px;color:#ef4444;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;">' + (isAdmin ? '🗑️🛡️ Admin Delete Track' : '🗑️ Delete My Track') + '</button>';
     }
-    html += '<button onclick="beatsReportTrack(\'' + trackId + '\')" style="width:100%;padding:14px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);border-radius:12px;color:#eab308;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;">🚩 Report Copyright / Abuse</button>' +
+    html += '<button ' + BQSafe.act('beatsReportTrack', [String(trackId)]) + ' style="width:100%;padding:14px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);border-radius:12px;color:#eab308;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px;">🚩 Report Copyright / Abuse</button>' +
         '<button onclick="document.getElementById(\'beatsMenuOverlay\').remove()" style="width:100%;padding:14px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.9rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
         '</div>';
     overlay.innerHTML = html;
@@ -1637,7 +1637,7 @@ window.beatsEditTrack = function(trackId, artistUid) {
                 '<input type="file" id="beatsEditCover" accept="image/*" style="display:block;margin-top:4px;font-size:0.8rem;color:var(--text-muted);"></label>' +
             '<div style="display:flex;gap:8px;">' +
                 '<button onclick="document.getElementById(\'beatsEditOverlay\').remove()" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;font-size:0.85rem;">Cancel</button>' +
-                '<button onclick="beatsSaveTrackEdit(\'' + trackId + '\',\'' + artistUid + '\')" style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">💾 Save</button>' +
+                '<button ' + BQSafe.act('beatsSaveTrackEdit', [String(trackId), String(artistUid)]) + ' style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">💾 Save</button>' +
             '</div>' +
         '</div>';
         document.body.appendChild(overlay);
@@ -2474,7 +2474,7 @@ window.beatsLoadComments = function(trackId) {
                         '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:2px;">' +
                             '<span style="color:var(--heading);font-weight:700;font-size:0.8rem;">' + escapeHtml(c.authorName || 'Anonymous') + '</span>' +
                             '<span style="color:var(--text-faint);font-size:0.65rem;">' + timeStr + '</span>' +
-                            (canDelete ? '<button onclick="beatsDeleteComment(\'' + trackId + '\',\'' + commentId + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.65rem;cursor:pointer;padding:0 4px;opacity:0.6;transition:0.2s;" onmouseover="this.style.opacity=1;this.style.color=\'#ef4444\'" onmouseout="this.style.opacity=0.6;this.style.color=\'var(--text-faint)\'">🗑️</button>' : '') +
+                            (canDelete ? '<button ' + BQSafe.act('beatsDeleteComment', [String(trackId), String(commentId)]) + ' style="background:none;border:none;color:var(--text-faint);font-size:0.65rem;cursor:pointer;padding:0 4px;opacity:0.6;transition:0.2s;" onmouseover="this.style.opacity=1;this.style.color=\'#ef4444\'" onmouseout="this.style.opacity=0.6;this.style.color=\'var(--text-faint)\'">🗑️</button>' : '') +
                         '</div>' +
                         '<div style="color:var(--text-muted);font-size:0.8rem;line-height:1.4;word-break:break-word;">' + escapeHtml(c.text || '') + '</div>' +
                     '</div>' +
@@ -2721,13 +2721,13 @@ window.beatsSetGenre = function(genre) {
                 var isLiked = liked.indexOf(t.id) !== -1;
                 var isPlaying = window._beatsQueueIdx === idx;
                 var duration = t.duration ? beatsFormatTime(t.duration) : '--:--';
-                html += '<div class="beats-track-row" onclick="beatsPlayTrack(' + idx + ')" style="padding:10px 12px;border-radius:12px;cursor:pointer;transition:0.15s;' + (isPlaying ? 'background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);' : 'background:var(--card-bg);border:1px solid var(--border);') + 'margin-bottom:8px;">' +
+                html += '<div class="beats-track-row" ' + BQSafe.act('beatsPlayTrack', [BQSafe.lit(idx)]) + ' style="padding:10px 12px;border-radius:12px;cursor:pointer;transition:0.15s;' + (isPlaying ? 'background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);' : 'background:var(--card-bg);border:1px solid var(--border);') + 'margin-bottom:8px;">' +
                     '<div style="display:flex;align-items:center;gap:10px;">' +
                         '<div style="width:28px;text-align:center;color:' + (isPlaying ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-weight:700;flex-shrink:0;">' + (isPlaying ? '<span style="display:flex;gap:1px;justify-content:center;align-items:flex-end;height:14px;"><div style="width:2px;height:60%;background:var(--accent);animation:beatsEqualizer 0.8s infinite alternate;"></div><div style="width:2px;height:100%;background:var(--accent);animation:beatsEqualizer 1.1s infinite alternate;"></div><div style="width:2px;height:40%;background:var(--accent);animation:beatsEqualizer 0.9s infinite alternate;"></div></span>' : (idx + 1)) + '</div>' +
                         '<div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + _safeCover(t.coverUrl || t.coverArt) + '" loading="lazy" style="width:100%;height:100%;object-fit:cover;">' : (t.genre === 'podcast' ? '🎙️' : '🎵')) + '</div>' +
-                        '<div onclick="event.stopPropagation();beatsShowTrackDetail(' + idx + ')" style="flex:1;min-width:0;cursor:pointer;">' +
+                        '<div ' + BQSafe.act('beatsShowTrackDetail', [BQSafe.lit(idx)], { stop: 1 }) + ' style="flex:1;min-width:0;cursor:pointer;">' +
                             '<div style="color:' + (isPlaying ? 'var(--accent)' : 'var(--heading)') + ';font-weight:700;font-size:0.88rem;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3;">' + beatsSlot(t.title || 'Untitled') + '</div>' +
-                            '<div style="color:var(--text-faint);font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (t.authorId ? '<span onclick="event.stopPropagation();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + t.authorId + '\')" style="cursor:pointer;color:var(--text-muted);transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">'+beatsSlot(t.artist || t.authorName || 'Unknown')+'</span>' : beatsSlot(t.artist||t.authorName||'Unknown')) + (t.genre ? ' · ' + escapeHtml(t.genre) : '') + '</div>' +
+                            '<div style="color:var(--text-faint);font-size:0.72rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (t.authorId ? '<span ' + BQSafe.act('beatsShowArtistPage', [String(t.authorId)], { stop: 1 }) + ' style="cursor:pointer;color:var(--text-muted);transition:0.2s;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">'+beatsSlot(t.artist || t.authorName || 'Unknown')+'</span>' : beatsSlot(t.artist||t.authorName||'Unknown')) + (t.genre ? ' · ' + escapeHtml(t.genre) : '') + '</div>' +
                         '</div>' +
                         '<div style="flex-shrink:0;text-align:right;">' +
                             '<div style="color:var(--text-faint);font-size:0.7rem;">' + duration + '</div>' +
@@ -2738,12 +2738,12 @@ window.beatsSetGenre = function(genre) {
                         '</div>' +
                     '</div>' +
                     '<div style="display:flex;align-items:center;gap:4px;margin-top:6px;padding-left:38px;">' +
-                        '<button class="beats-action-btn" onclick="event.stopPropagation();beatsShowComments(\'' + t.id + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);display:flex;align-items:center;gap:2px;border-radius:6px;transition:0.15s;" title="Comments">💬' + (t.commentCount ? '<span style="font-size:0.6rem;">' + t.commentCount + '</span>' : '') + '</button>' +
-                        '<button class="beats-action-btn" onclick="event.stopPropagation();beatsToggleLike(\'' + t.id + '\',this)" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';border-radius:6px;transition:0.15s;" title="Like">' + (isLiked ? '❤️' : '🤍') + '</button>' +
-                        '<button class="beats-action-btn" onclick="event.stopPropagation();beatsAddToPlaylistPicker(\'' + t.id + '\')" style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:var(--accent);border-radius:6px;transition:0.15s;" title="Add to playlist">➕</button>' +
-                        (t.authorId ? '<button class="beats-action-btn" onclick="event.stopPropagation();beatsTipCurrentArtistById(\'' + t.authorId + '\',\'' + t.id + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:#eab308;border-radius:6px;" title="Tip Artist">⚡ Tip</button>' : '') +
-                        '<button class="beats-action-btn" onclick="event.stopPropagation();beatsShareTrack(\'' + t.id + '\')" style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;margin-left:auto;" title="Share">🔗</button>' +
-                        '<button class="beats-action-btn" onclick="event.stopPropagation();beatsTrackMenu(\'' + t.id + '\',' + idx + ')" style="background:none;border:none;font-size:0.8rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;" title="More">⋮</button>' +
+                        '<button class="beats-action-btn" ' + BQSafe.act('beatsShowComments', [String(t.id)], { stop: 1 }) + ' style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);display:flex;align-items:center;gap:2px;border-radius:6px;transition:0.15s;" title="Comments">💬' + (t.commentCount ? '<span style="font-size:0.6rem;">' + t.commentCount + '</span>' : '') + '</button>' +
+                        '<button class="beats-action-btn" ' + BQSafe.act('beatsToggleLike', [String(t.id), BQSafe.EL], { stop: 1 }) + ' style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';border-radius:6px;transition:0.15s;" title="Like">' + (isLiked ? '❤️' : '🤍') + '</button>' +
+                        '<button class="beats-action-btn" ' + BQSafe.act('beatsAddToPlaylistPicker', [String(t.id)], { stop: 1 }) + ' style="background:none;border:none;font-size:0.85rem;cursor:pointer;padding:3px 6px;color:var(--accent);border-radius:6px;transition:0.15s;" title="Add to playlist">➕</button>' +
+                        (t.authorId ? '<button class="beats-action-btn" ' + BQSafe.act('beatsTipCurrentArtistById', [String(t.authorId), String(t.id)], { stop: 1 }) + ' style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:#eab308;border-radius:6px;" title="Tip Artist">⚡ Tip</button>' : '') +
+                        '<button class="beats-action-btn" ' + BQSafe.act('beatsShareTrack', [String(t.id)], { stop: 1 }) + ' style="background:none;border:none;font-size:0.75rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;margin-left:auto;" title="Share">🔗</button>' +
+                        '<button class="beats-action-btn" ' + BQSafe.act('beatsTrackMenu', [String(t.id), BQSafe.lit(idx)], { stop: 1 }) + ' style="background:none;border:none;font-size:0.8rem;cursor:pointer;padding:3px 6px;color:var(--text-faint);border-radius:6px;" title="More">⋮</button>' +
                     '</div>' +
                 '</div>';
             });
@@ -2896,7 +2896,7 @@ window.beatsSetGenre = function(genre) {
                     if (!genreData[g]) return;
                     var active = window._beatsGenreFilter === g;
                     var label = GENRE_META[g] || g;
-                    chipHtml += '<button class="beats-genre-btn" data-genre="' + escapeHtml(g) + '" onclick="beatsSetGenre(\'' + g + '\')" style="' + chipStyle + (active ? 'border-color:var(--accent);background:var(--accent);color:#fff;' : '') + '">' + label + ' <span style="font-size:0.6rem;opacity:0.65;">(' + genreData[g] + ')</span></button>';
+                    chipHtml += '<button class="beats-genre-btn" data-genre="' + escapeHtml(g) + '" ' + BQSafe.act('beatsSetGenre', [String(g)]) + ' style="' + chipStyle + (active ? 'border-color:var(--accent);background:var(--accent);color:#fff;' : '') + '">' + label + ' <span style="font-size:0.6rem;opacity:0.65;">(' + genreData[g] + ')</span></button>';
                 });
                 genreChips.innerHTML = chipHtml;
             }
@@ -3025,7 +3025,7 @@ window.beatsShowArtistPage = function(uid) {
             '</div>' : '') +
             // Action buttons
             '<div style="display:flex;gap:8px;margin-bottom:20px;">' +
-                ((u.lightningAddress || u.lightning) ? '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();beatsTipArtistFromPage(\'' + uid + '\')" style="flex:1;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">⚡ Tip Artist</button>' : '') +
+                ((u.lightningAddress || u.lightning) ? '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();beatsTipArtistFromPage(\'' + BQSafe.jsStr(uid) + '\')" style="flex:1;padding:12px;background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#eab308;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">⚡ Tip Artist</button>' : '') +
                 (isV4V && (ad.wavlakeUrl || ad.sourceUrl) ? '<a href="' + escapeHtml(sanitizeUrl(ad.wavlakeUrl || ad.sourceUrl || '')) + '" target="_blank" rel="noopener" style="flex:1;padding:12px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:6px;">🌐 Artist Page</a>' : '') +
             '</div>' +
             // Discography — grouped by album, then singles
@@ -3085,7 +3085,7 @@ window.beatsShowArtistPage = function(uid) {
                 var albumUid = 'album_' + alb.id.replace(/[^a-zA-Z0-9]/g, '');
                 var typeLabel = (alb.type === 'ep' ? 'EP' : 'Album');
                 html += '<div style="margin-bottom:10px;border:1px solid var(--border);border-radius:12px;overflow:hidden;background:var(--card-bg);">' +
-                    '<div onclick="var el=document.getElementById(\'' + albumUid + '\');el.style.display=el.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=el.style.display===\'none\'?\'▸\':\'▾\'" style="display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer;transition:0.15s;" onmouseover="this.style.background=\'rgba(247,147,26,0.05)\'" onmouseout="this.style.background=\'none\'">' +
+                    '<div onclick="var el=document.getElementById(\'' + BQSafe.jsStr(albumUid) + '\');el.style.display=el.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'span\').textContent=el.style.display===\'none\'?\'▸\':\'▾\'" style="display:flex;align-items:center;gap:12px;padding:12px;cursor:pointer;transition:0.15s;" onmouseover="this.style.background=\'rgba(247,147,26,0.05)\'" onmouseout="this.style.background=\'none\'">' +
                         '<div style="width:52px;height:52px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + (alb.cover ? '<img src="' + _safeCover(alb.cover) + '" style="width:100%;height:100%;object-fit:cover;">' : '💿') + '</div>' +
                         '<div style="flex:1;min-width:0;">' +
                             '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + beatsSlot(alb.title) + '</div>' +
@@ -3098,7 +3098,7 @@ window.beatsShowArtistPage = function(uid) {
                     // Find the track's index in the original tracks array for playback
                     var origIdx = tracks.indexOf(t);
                     html += '<div style="display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;cursor:pointer;transition:0.15s;margin-bottom:3px;" onmouseover="this.style.background=\'rgba(247,147,26,0.05)\'" onmouseout="this.style.background=\'none\'">' +
-                        '<div onclick="document.getElementById(\'beatsArtistOverlay\').remove();beatsArtistPlayTrack(\'' + uid + '\',' + origIdx + ')" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">' +
+                        '<div onclick="document.getElementById(\'beatsArtistOverlay\').remove();beatsArtistPlayTrack(\'' + BQSafe.jsStr(uid) + '\',' + BQSafe.num(origIdx) + ')" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">' +
                             '<div style="width:22px;color:var(--text-faint);font-size:0.7rem;text-align:center;flex-shrink:0;">' + (t.trackNumber || '') + '</div>' +
                             '<div style="flex:1;min-width:0;">' +
                                 '<div style="color:var(--heading);font-weight:600;font-size:0.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + beatsSlot(t.title || 'Untitled') + '</div>' +
@@ -3106,7 +3106,7 @@ window.beatsShowArtistPage = function(uid) {
                             '</div>' +
                             '<div style="flex-shrink:0;color:var(--text-faint);font-size:0.68rem;">' + (t.duration ? beatsFormatTime(t.duration) : '') + '</div>' +
                         '</div>' +
-                        (isOwner ? '<button onclick="event.stopPropagation();beatsEditTrack(\'' + t.id + '\',\'' + uid + '\')" style="flex-shrink:0;width:26px;height:26px;border-radius:6px;background:none;border:1px solid var(--border);color:var(--text-faint);font-size:0.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Edit">✏️</button>' : '') +
+                        (isOwner ? '<button ' + BQSafe.act('beatsEditTrack', [String(t.id), String(uid)], { stop: 1 }) + ' style="flex-shrink:0;width:26px;height:26px;border-radius:6px;background:none;border:1px solid var(--border);color:var(--text-faint);font-size:0.7rem;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Edit">✏️</button>' : '') +
                     '</div>';
                 });
                 html += '</div></div>';
@@ -3120,7 +3120,7 @@ window.beatsShowArtistPage = function(uid) {
             singles.forEach(function(t) {
                 var origIdx = tracks.indexOf(t);
                 html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;cursor:pointer;transition:0.15s;margin-bottom:4px;background:var(--card-bg);border:1px solid var(--border);" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
-                    '<div onclick="document.getElementById(\'beatsArtistOverlay\').remove();beatsArtistPlayTrack(\'' + uid + '\',' + origIdx + ')" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">' +
+                    '<div onclick="document.getElementById(\'beatsArtistOverlay\').remove();beatsArtistPlayTrack(\'' + BQSafe.jsStr(uid) + '\',' + BQSafe.num(origIdx) + ')" style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">' +
                         '<div style="width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + _safeCover(t.coverUrl || t.coverArt) + '" style="width:100%;height:100%;object-fit:cover;">' : '🎵') + '</div>' +
                         '<div style="flex:1;min-width:0;">' +
                             '<div style="color:var(--heading);font-weight:600;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + beatsSlot(t.title || 'Untitled') + '</div>' +
@@ -3128,7 +3128,7 @@ window.beatsShowArtistPage = function(uid) {
                         '</div>' +
                         '<div style="flex-shrink:0;color:var(--text-faint);font-size:0.7rem;">' + (t.duration ? beatsFormatTime(t.duration) : '') + '</div>' +
                     '</div>' +
-                    (isOwner ? '<button onclick="event.stopPropagation();beatsEditTrack(\'' + t.id + '\',\'' + uid + '\')" style="flex-shrink:0;width:30px;height:30px;border-radius:8px;background:none;border:1px solid var(--border);color:var(--text-faint);font-size:0.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Edit track">✏️</button>' : '') +
+                    (isOwner ? '<button ' + BQSafe.act('beatsEditTrack', [String(t.id), String(uid)], { stop: 1 }) + ' style="flex-shrink:0;width:30px;height:30px;border-radius:8px;background:none;border:1px solid var(--border);color:var(--text-faint);font-size:0.75rem;cursor:pointer;display:flex;align-items:center;justify-content:center;" title="Edit track">✏️</button>' : '') +
                 '</div>';
             });
         }
@@ -3166,7 +3166,7 @@ window.beatsShowArtistPage = function(uid) {
                             '<div style="text-align:center;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;"><div style="font-weight:900;color:var(--heading);">' + (ud.channelsVisited || 0) + '</div><div style="color:var(--text-faint);font-size:0.65rem;">Topics</div></div>' +
                             '<div style="text-align:center;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;"><div style="font-weight:900;color:var(--heading);">' + (ud.points || 0).toLocaleString() + '</div><div style="color:var(--text-faint);font-size:0.65rem;">XP</div></div>' +
                         '</div>' +
-                        '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();if(typeof showUserProfile===\'function\')showUserProfile(\'' + uid + '\')" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;margin-bottom:8px;">👤 Open Full App Profile</button>';
+                        '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();if(typeof showUserProfile===\'function\')showUserProfile(\'' + BQSafe.jsStr(uid) + '\')" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;margin-bottom:8px;">👤 Open Full App Profile</button>';
                 }).catch(function() { appBody.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">Could not load app profile</div>'; });
             }
         }
@@ -3317,7 +3317,7 @@ window.beatsRenderLibrary = function() {
     ].forEach(function(s) {
         if (!s.show) return;
         var active = section === s.id;
-        html += '<button onclick="window._beatsLibrarySection=\'' + s.id + '\';beatsRenderLibrary()" style="' + btnStyle + (active ? 'border-color:var(--accent);background:var(--accent);color:#fff;' : '') + '">' + s.label + '</button>';
+        html += '<button onclick="window._beatsLibrarySection=\'' + BQSafe.jsStr(s.id) + '\';beatsRenderLibrary()" style="' + btnStyle + (active ? 'border-color:var(--accent);background:var(--accent);color:#fff;' : '') + '">' + s.label + '</button>';
     });
     html += '</div>';
 
@@ -3506,7 +3506,7 @@ window.beatsRenderTrackList = function(el, tracks, showTip) {
     tracks.forEach(function(t, idx) {
         var isLiked = liked.indexOf(t.id) !== -1;
         var isPlaying = window._beatsQueueIdx === idx;
-        html += '<div class="beats-track-row" onclick="beatsPlayTrack(' + idx + ')" style="padding:8px 10px;border-radius:10px;cursor:pointer;transition:0.15s;' + (isPlaying ? 'background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);' : 'background:var(--card-bg);border:1px solid var(--border);') + 'margin-bottom:6px;display:flex;align-items:center;gap:10px;">' +
+        html += '<div class="beats-track-row" ' + BQSafe.act('beatsPlayTrack', [BQSafe.lit(idx)]) + ' style="padding:8px 10px;border-radius:10px;cursor:pointer;transition:0.15s;' + (isPlaying ? 'background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);' : 'background:var(--card-bg);border:1px solid var(--border);') + 'margin-bottom:6px;display:flex;align-items:center;gap:10px;">' +
             '<div style="width:36px;height:36px;border-radius:6px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt || t.coverUrl) ? '<img src="' + _safeCover(t.coverUrl || t.coverArt) + '" style="width:100%;height:100%;object-fit:cover;">' : '🎵') + '</div>' +
             '<div style="flex:1;min-width:0;">' +
                 '<div style="color:' + (isPlaying ? 'var(--accent)' : 'var(--heading)') + ';font-weight:700;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + beatsSlot(t.title || 'Untitled') + '</div>' +
@@ -3514,8 +3514,8 @@ window.beatsRenderTrackList = function(el, tracks, showTip) {
             '</div>' +
             '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">' +
                 '<span style="color:var(--text-faint);font-size:0.65rem;">▶ ' + _formatPlays(t.plays || 0) + '</span>' +
-                '<button class="beats-action-btn" onclick="event.stopPropagation();beatsToggleLike(\'' + t.id + '\',this)" style="background:none;border:none;font-size:0.8rem;cursor:pointer;padding:2px;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';">' + (isLiked ? '❤️' : '🤍') + '</button>' +
-                '<button class="beats-action-btn" onclick="event.stopPropagation();beatsAddToPlaylistPicker(\'' + t.id + '\')" style="background:none;border:none;font-size:0.7rem;cursor:pointer;padding:2px;color:var(--text-faint);" title="Add to playlist">➕</button>' +
+                '<button class="beats-action-btn" ' + BQSafe.act('beatsToggleLike', [String(t.id), BQSafe.EL], { stop: 1 }) + ' style="background:none;border:none;font-size:0.8rem;cursor:pointer;padding:2px;color:' + (isLiked ? '#ef4444' : 'var(--text-faint)') + ';">' + (isLiked ? '❤️' : '🤍') + '</button>' +
+                '<button class="beats-action-btn" ' + BQSafe.act('beatsAddToPlaylistPicker', [String(t.id)], { stop: 1 }) + ' style="background:none;border:none;font-size:0.7rem;cursor:pointer;padding:2px;color:var(--text-faint);" title="Add to playlist">➕</button>' +
             '</div>' +
         '</div>';
     });
@@ -3546,13 +3546,13 @@ window.beatsLoadPlaylists = function() {
         } else {
             playlists.forEach(function(p) {
                 var count = p.trackIds ? p.trackIds.length : 0;
-                html += '<div onclick="beatsOpenPlaylist(\'' + p.id + '\')" style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;cursor:pointer;margin-bottom:8px;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+                html += '<div ' + BQSafe.act('beatsOpenPlaylist', [String(p.id)]) + ' style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;cursor:pointer;margin-bottom:8px;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
                     '<div style="width:48px;height:48px;border-radius:10px;background:linear-gradient(135deg,#1e293b,#2d1f4e);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0;">📋</div>' +
                     '<div style="flex:1;min-width:0;">' +
                         '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(p.name || 'Untitled Playlist') + '</div>' +
                         '<div style="color:var(--text-faint);font-size:0.72rem;">' + count + ' track' + (count !== 1 ? 's' : '') + '</div>' +
                     '</div>' +
-                    '<button onclick="event.stopPropagation();beatsDeletePlaylist(\'' + p.id + '\',\'' + escapeHtml(p.name || '').replace(/[\\'"]/g, "") + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.8rem;cursor:pointer;padding:4px;" title="Delete">🗑️</button>' +
+                    '<button ' + BQSafe.act('beatsDeletePlaylist', [String(p.id), String(p.name || '')], { stop: 1 }) + ' style="background:none;border:none;color:var(--text-faint);font-size:0.8rem;cursor:pointer;padding:4px;" title="Delete">🗑️</button>' +
                 '</div>';
             });
         }
@@ -3597,9 +3597,9 @@ window.beatsOpenPlaylist = function(playlistId) {
         var header = '<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">' +
             '<button onclick="beatsRenderLibrary()" style="background:none;border:none;color:var(--text-muted);font-size:1.2rem;cursor:pointer;padding:4px;">←</button>' +
             '<div style="flex:1;"><div style="color:var(--heading);font-weight:800;font-size:1.1rem;">' + escapeHtml(pl.name || 'Playlist') + '</div><div style="color:var(--text-faint);font-size:0.75rem;">' + ids.length + ' tracks</div></div>' +
-            '<button onclick="beatsPlayPlaylist(\'' + playlistId + '\')" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">▶ Play All</button>' +
-            '<button onclick="beatsShufflePlaylist(\'' + playlistId + '\')" style="padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:0.82rem;cursor:pointer;font-family:inherit;color:var(--text-muted);">🎲</button>' +
-            '<button onclick="beatsSharePlaylistLink(\'' + playlistId + '\',\'' + escapeHtml(pl.name || 'Playlist').replace(/[\\'"]/g, "") + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.9rem;cursor:pointer;" title="Share">🔗</button>' +
+            '<button ' + BQSafe.act('beatsPlayPlaylist', [String(playlistId)]) + ' style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.82rem;font-weight:700;cursor:pointer;font-family:inherit;">▶ Play All</button>' +
+            '<button ' + BQSafe.act('beatsShufflePlaylist', [String(playlistId)]) + ' style="padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;font-size:0.82rem;cursor:pointer;font-family:inherit;color:var(--text-muted);">🎲</button>' +
+            '<button ' + BQSafe.act('beatsSharePlaylistLink', [String(playlistId), String(pl.name || 'Playlist')]) + ' style="background:none;border:none;color:var(--text-faint);font-size:0.9rem;cursor:pointer;" title="Share">🔗</button>' +
         '</div>';
 
         if (ids.length === 0) {
@@ -3746,7 +3746,7 @@ window.beatsAddToPlaylistPicker = function(trackId) {
     overlay.id = 'beatsPlaylistPicker';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.7);display:flex;align-items:flex-end;justify-content:center;padding:16px;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
-    overlay.innerHTML = '<div style="background:var(--bg-side);border:2px solid var(--border);border-radius:20px 20px 0 0;padding:20px;max-width:400px;width:100%;"><div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;"></div><div style="color:var(--heading);font-weight:700;font-size:0.95rem;margin-bottom:12px;">Add to Playlist</div><div id="playlistPickerList" style="max-height:300px;overflow-y:auto;"><div style="text-align:center;color:var(--text-faint);padding:12px;">Loading...</div></div><button onclick="beatsQuickCreateAndAdd(\'' + trackId + '\')" style="width:100%;margin-top:12px;padding:12px;background:var(--accent-bg);border:2px dashed var(--accent);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">➕ New Playlist</button><button onclick="document.getElementById(\'beatsPlaylistPicker\').remove()" style="width:100%;margin-top:8px;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button></div>';
+    overlay.innerHTML = '<div style="background:var(--bg-side);border:2px solid var(--border);border-radius:20px 20px 0 0;padding:20px;max-width:400px;width:100%;"><div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;"></div><div style="color:var(--heading);font-weight:700;font-size:0.95rem;margin-bottom:12px;">Add to Playlist</div><div id="playlistPickerList" style="max-height:300px;overflow-y:auto;"><div style="text-align:center;color:var(--text-faint);padding:12px;">Loading...</div></div><button ' + BQSafe.act('beatsQuickCreateAndAdd', [String(trackId)]) + ' style="width:100%;margin-top:12px;padding:12px;background:var(--accent-bg);border:2px dashed var(--accent);border-radius:10px;color:var(--accent);font-weight:700;font-size:0.85rem;cursor:pointer;font-family:inherit;">➕ New Playlist</button><button onclick="document.getElementById(\'beatsPlaylistPicker\').remove()" style="width:100%;margin-top:8px;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">Cancel</button></div>';
     document.body.appendChild(overlay);
 
     db.collection('users').doc(auth.currentUser.uid).collection('playlists').orderBy('createdAt', 'desc').limit(20).get().then(function(snap) {
@@ -3758,7 +3758,7 @@ window.beatsAddToPlaylistPicker = function(trackId) {
             var p = doc.data();
             var count = p.trackIds ? p.trackIds.length : 0;
             var already = p.trackIds && p.trackIds.indexOf(trackId) !== -1;
-            html += '<button onclick="beatsAddTrackToPlaylist(\'' + doc.id + '\',\'' + trackId + '\')" style="display:flex;align-items:center;gap:10px;width:100%;padding:10px;background:' + (already ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:1px solid ' + (already ? '#22c55e' : 'var(--border)') + ';border-radius:10px;cursor:pointer;font-family:inherit;margin-bottom:6px;text-align:left;transition:0.2s;">' +
+            html += '<button ' + BQSafe.act('beatsAddTrackToPlaylist', [String(doc.id), String(trackId)]) + ' style="display:flex;align-items:center;gap:10px;width:100%;padding:10px;background:' + (already ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:1px solid ' + (already ? '#22c55e' : 'var(--border)') + ';border-radius:10px;cursor:pointer;font-family:inherit;margin-bottom:6px;text-align:left;transition:0.2s;">' +
                 '<span style="font-size:1.2rem;">📋</span>' +
                 '<div style="flex:1;min-width:0;"><div style="color:var(--heading);font-weight:600;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(p.name || 'Untitled') + '</div><div style="color:var(--text-faint);font-size:0.68rem;">' + count + ' tracks' + (already ? ' · ✅ Added' : '') + '</div></div>' +
             '</button>';
@@ -3965,7 +3965,7 @@ window.beatsPerformSearch = function() {
 
             var html = '<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px;"><span style="color:var(--text-faint);font-size:0.75rem;">🔍 Found '+allResults.length+' result'+(allResults.length!==1?'s':'')+' for "'+escapeHtml(query)+'"</span><button onclick="beatsClearSearch()" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.7rem;cursor:pointer;">Clear</button></div>';
 
-            allResults.forEach(function(t,idx){ var isLiked=liked.indexOf(t.id)!==-1;var isPlaying=window._beatsQueueIdx===idx;var duration=t.duration?beatsFormatTime(t.duration):'--:--'; html+='<div class="beats-track-row" onclick="beatsPlayTrack('+idx+')" style="padding:10px 12px;border-radius:12px;cursor:pointer;transition:0.15s;'+ (isPlaying?'background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);':'background:var(--card-bg);border:1px solid var(--border);') + 'margin-bottom:8px;"><div style="display:flex;align-items:center;gap:10px;"><div style="width:28px;text-align:center;color:' + (isPlaying?'var(--accent)':'var(--text-faint)') + ';font-size:0.75rem;font-weight:700;">'+(isPlaying?'▶':(idx+1))+'</div><div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt||t.coverUrl)?'<img src="'+_safeCover(t.coverUrl||t.coverArt)+'" style="width:100%;height:100%;object-fit:cover;">':(t.genre==='podcast'?'🎙️':'🎵')) + '</div><div style="flex:1;min-width:0;"><div style="color:' + (isPlaying?'var(--accent)':'var(--heading)') + ';font-weight:700;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + beatsSlot(t.title||'Untitled') + '</div><div style="color:var(--text-faint);font-size:0.72rem;">' + beatsSlot(t.artist||t.authorName||'Unknown') + (t.genre?' · '+t.genre:'') + '</div></div><div style="flex-shrink:0;text-align:right;"><div style="color:var(--text-faint);font-size:0.7rem;">'+duration+'</div><div style="color:var(--text-faint);font-size:0.6rem;">▶ '+_formatPlays(t.plays||0)+'</div></div></div></div>';});
+            allResults.forEach(function(t,idx){ var isLiked=liked.indexOf(t.id)!==-1;var isPlaying=window._beatsQueueIdx===idx;var duration=t.duration?beatsFormatTime(t.duration):'--:--'; html+='<div class="beats-track-row" ' + BQSafe.act('beatsPlayTrack', [BQSafe.lit(idx)]) + ' style="padding:10px 12px;border-radius:12px;cursor:pointer;transition:0.15s;'+ (isPlaying?'background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.2);':'background:var(--card-bg);border:1px solid var(--border);') + 'margin-bottom:8px;"><div style="display:flex;align-items:center;gap:10px;"><div style="width:28px;text-align:center;color:' + (isPlaying?'var(--accent)':'var(--text-faint)') + ';font-size:0.75rem;font-weight:700;">'+(isPlaying?'▶':(idx+1))+'</div><div style="width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#1e293b,#0f172a);display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden;">' + ((t.coverArt||t.coverUrl)?'<img src="'+_safeCover(t.coverUrl||t.coverArt)+'" style="width:100%;height:100%;object-fit:cover;">':(t.genre==='podcast'?'🎙️':'🎵')) + '</div><div style="flex:1;min-width:0;"><div style="color:' + (isPlaying?'var(--accent)':'var(--heading)') + ';font-weight:700;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + beatsSlot(t.title||'Untitled') + '</div><div style="color:var(--text-faint);font-size:0.72rem;">' + beatsSlot(t.artist||t.authorName||'Unknown') + (t.genre?' · '+t.genre:'') + '</div></div><div style="flex-shrink:0;text-align:right;"><div style="color:var(--text-faint);font-size:0.7rem;">'+duration+'</div><div style="color:var(--text-faint);font-size:0.6rem;">▶ '+_formatPlays(t.plays||0)+'</div></div></div></div>';});
 
             listEl.innerHTML = html;
             beatsFillText(listEl);
@@ -4172,7 +4172,7 @@ window.beatsRenderArtists=function(){
             html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;">';
             artistList.forEach(function(artist){
                 var img=artist.avatarUrl ? '<div style="width:68px;height:68px;border-radius:50%;margin:0 auto 8px;background:linear-gradient(135deg,#1e293b,#0f172a);overflow:hidden;flex-shrink:0;"><img src="'+_safeCover(artist.avatarUrl)+'" style="width:100%;height:100%;object-fit:cover;" onerror="this.style.display=\'none\'"></div>' : '<div style="width:68px;height:68px;border-radius:50%;margin:0 auto 8px;background:linear-gradient(135deg,var(--accent),#ea580c);display:flex;align-items:center;justify-content:center;font-size:1.6rem;">🎤</div>';
-                html+='<div onclick="beatsShowArtistPage(\''+artist.id+'\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px 10px;cursor:pointer;text-align:center;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'\'">';
+                html+='<div ' + BQSafe.act('beatsShowArtistPage', [String(artist.id)]) + ' style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px 10px;cursor:pointer;text-align:center;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-2px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'\'">';
                 html+=img;
                 html+='<div style="color:var(--heading);font-weight:700;font-size:0.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px;">'+beatsSlot(artist.name)+'</div>';
                 html+='<div style="color:var(--text-faint);font-size:0.65rem;">'+artist.count+' track'+(artist.count!==1?'s':'')+(artist.claimed&&artist.claimed!==false?' • ⚡ V4V':'')+'</div>';
@@ -4282,10 +4282,10 @@ window.beatsShowV4VTip = async function(track) {
             '<div style="text-align:center;color:var(--text-faint);font-size:0.68rem;margin-top:3px;">Split proportionally to each artist</div>' +
         '</div>' +
         '<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;justify-content:center;">' +
-            [100,500,1000,5000,21000].map(function(v){return '<button onclick="document.getElementById(\'v4vTipAmount\').value='+v+'" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;">'+(v>=1000?v/1000+'K':v)+' sats</button>';}).join('') +
+            [100,500,1000,5000,21000].map(function(v){return '<button onclick="document.getElementById(\'v4vTipAmount\').value='+BQSafe.num(v)+'" style="padding:4px 10px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.72rem;font-weight:600;cursor:pointer;font-family:inherit;">'+(v>=1000?v/1000+'K':v)+' sats</button>';}).join('') +
         '</div>' +
         '<div id="v4vTipResult" style="margin-bottom:10px;"></div>' +
-        '<button id="v4vTipBtn" onclick="beatsExecuteV4VTip(\'' + track.id + '\')" style="width:100%;padding:13px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-size:0.92rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:8px;">⚡ Pay All Artists</button>' +
+        '<button id="v4vTipBtn" ' + BQSafe.act('beatsExecuteV4VTip', [String(track.id)]) + ' style="width:100%;padding:13px;background:var(--accent);color:#fff;border:none;border-radius:14px;font-size:0.92rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:8px;">⚡ Pay All Artists</button>' +
         '<button onclick="document.getElementById(\'v4vTipOverlay\').remove()" style="width:100%;padding:9px;background:none;border:none;color:var(--text-faint);font-size:0.82rem;cursor:pointer;font-family:inherit;">Cancel</button>' +
     '</div>';
     document.body.appendChild(overlay);

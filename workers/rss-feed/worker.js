@@ -89,6 +89,12 @@ async function sendTelegram(text, botToken) {
 
 // ── RSS Feed Generator ──
 
+// Only http(s) links go into Telegram HTML; anything else becomes the site root.
+function safeHttpUrl(u) {
+    const s = String(u || '').replace(/[\u0000-\u0020]/g, '');
+    return /^https?:\/\//i.test(s) ? s : 'https://bitcoineducation.quest/';
+}
+
 function escXml(s) {
     return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
@@ -237,13 +243,13 @@ async function cronBroadcast(botToken) {
         // Build Telegram message
         let msg = '';
         if (item.type === 'forum') {
-            msg = `🗣️ <b>New Forum Post</b>\n\n<b>${escXml(item.title.replace('🗣️ ', ''))}</b>\n${escXml(item.desc.replace(/^New forum post by /, 'by '))}\n\n<a href="${item.link}">Open PlebTalk →</a>`;
+            msg = `🗣️ <b>New Forum Post</b>\n\n<b>${escXml(item.title.replace('🗣️ ', ''))}</b>\n${escXml(item.desc.replace(/^New forum post by /, 'by '))}\n\n<a href="${escXml(safeHttpUrl(item.link))}">Open PlebTalk →</a>`;
         } else if (item.type === 'beats') {
-            msg = `🎵 <b>New Track on Bitcoin Beats</b>\n\n<b>${escXml(item.title.replace('🎵 ', ''))}</b>\n\n<a href="${item.link}">Listen now →</a>`;
+            msg = `🎵 <b>New Track on Bitcoin Beats</b>\n\n<b>${escXml(item.title.replace('🎵 ', ''))}</b>\n\n<a href="${escXml(safeHttpUrl(item.link))}">Listen now →</a>`;
         } else if (item.type === 'marketplace') {
-            msg = `🛒 <b>New Listing on Lightning Mart</b>\n\n<b>${escXml(item.title.replace('🛒 ', ''))}</b>\n\n<a href="${item.link}">View listing →</a>`;
+            msg = `🛒 <b>New Listing on Lightning Mart</b>\n\n<b>${escXml(item.title.replace('🛒 ', ''))}</b>\n\n<a href="${escXml(safeHttpUrl(item.link))}">View listing →</a>`;
         } else if (item.type === 'event') {
-            msg = `🤝 <b>New Bitcoin Meetup</b>\n\n<b>${escXml(item.title.replace('🤝 ', ''))}</b>\n${escXml(item.desc)}\n\n<a href="${item.link}">View event →</a>`;
+            msg = `🤝 <b>New Bitcoin Meetup</b>\n\n<b>${escXml(item.title.replace('🤝 ', ''))}</b>\n${escXml(item.desc)}\n\n<a href="${escXml(safeHttpUrl(item.link))}">View event →</a>`;
         }
 
         if (msg) {
@@ -325,7 +331,7 @@ export default {
                 if (!text) return new Response('Missing text field', { status: 400 });
                 
                 const emoji = body.emoji || '📢';
-                const msg = `${emoji} <b>${escXml(body.title || 'Update')}</b>\n\n${escXml(text)}${body.link ? '\n\n<a href="' + escXml(body.link) + '">Learn more →</a>' : ''}`;
+                const msg = `${emoji} <b>${escXml(body.title || 'Update')}</b>\n\n${escXml(text)}${body.link ? '\n\n<a href="' + escXml(safeHttpUrl(body.link)) + '">Learn more →</a>' : ''}`;
                 
                 const result = await sendTelegram(msg, env.TELEGRAM_BOT_TOKEN);
                 return new Response(JSON.stringify(result), {

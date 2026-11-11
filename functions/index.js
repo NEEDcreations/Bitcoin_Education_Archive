@@ -73,7 +73,7 @@ function getOffsetDateKey() {
 
 
 // HTML escape for server-side email/notification content
-function _escHtml(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function _escHtml(s) { return String(s || '').replace(/[&<>"'`]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c]; }); }
 
 // ── Admin auth helper ────────────────────────────────────────────
 // Reads ADMIN_TOKEN from the bound secret at call time; constant-time compare.

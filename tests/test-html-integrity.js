@@ -48,7 +48,10 @@ test('all external scripts are deferred', () => {
     const scriptTags = html.match(/<script src="[^"]*"[^>]*>/g) || [];
     // auth-display.js is intentionally blocking. It only paints a display-only
     // signed-in class during HTML parse, before first paint. It grants nothing.
-    const nonDeferred = scriptTags.filter(s => !s.includes('defer') && !s.includes('async') && !s.includes('gstatic') && !s.includes('security-patches') && !s.includes('beats-censor.js') && !s.includes('auth-display.js'));
+    const nonDeferred = scriptTags.filter(s => !s.includes('defer') && !s.includes('async') && !s.includes('gstatic') && !s.includes('security-patches') && !s.includes('beats-censor.js') && !s.includes('auth-display.js') && !s.includes('xss-safe.js'));
+    // xss-safe.js (window.BQSafe) is intentionally blocking too: every later script relies on it.
+    const blockingSafe = scriptTags.filter(s => s.includes('xss-safe.js'));
+    assert(blockingSafe.length === 1 && !/\b(defer|async)\b/.test(blockingSafe[0]), 'xss-safe.js loads once, parser-blocking');
     assert(nonDeferred.length === 0, `Non-deferred scripts: ${nonDeferred.join(', ')}`);
     const blockingDisplay = scriptTags.filter(s => s.includes('auth-display.js'));
     assert(blockingDisplay.length === 1, 'auth-display.js should be the one blocking local painter');

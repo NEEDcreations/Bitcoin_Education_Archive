@@ -290,8 +290,8 @@ queue.push(test('managePeer asks the user to sign in and does not call the funct
 
 queue.push(test('settings buttons pass the clicked element into managePeer', function() {
     const ranking = read('ranking.js');
-    assert.ok(ranking.includes("managePeer(\\'accept\\',\\'' + d.from + '\\',this)"));
-    assert.ok(ranking.includes("managePeer(\\'decline\\',\\'' + d.from + '\\',this)"));
+    assert.ok(ranking.includes("managePeer(\\'accept\\',\\'' + BQSafe.jsStr(d.from) + '\\',this)"));
+    assert.ok(ranking.includes("managePeer(\\'decline\\',\\'' + BQSafe.jsStr(d.from) + '\\',this)"));
     assert.ok(ranking.includes('data-peer-action="remove"'));
     assert.ok(ranking.includes("managePeer('remove', uid, btnEl)"));
 }));

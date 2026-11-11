@@ -1,0 +1,53 @@
+{
+  "_comment": "Shared XSS payload fixtures. Used by tests/test-xss-appwide.js and meant to be loaded by QA's headless payload harness (plain JSON, no code). Each payload sets window.__pwned when it executes.",
+  "payloads": [
+    "\"><img src=x onerror=\"window.__pwned=1\">",
+    "'><img src=x onerror='window.__pwned=1'>",
+    "x');window.__pwned=1;//",
+    "x\");window.__pwned=1;//",
+    "x`;window.__pwned=1;//",
+    "</textarea><img src=x onerror=window.__pwned=1>",
+    "</title><svg onload=window.__pwned=1>",
+    "<svg/onload=window.__pwned=1>",
+    "<script>window.__pwned=1</script>",
+    "<a href=\"javascript:window.__pwned=1\">x</a>",
+    "javascript:window.__pwned=1",
+    "java\tscript:window.__pwned=1",
+    " \u0001javascript:window.__pwned=1",
+    "JaVaScRiPt:window.__pwned=1",
+    "data:text/html,<script>window.__pwned=1</script>",
+    "vbscript:msgbox(1)",
+    "\" autofocus onfocus=\"window.__pwned=1",
+    "' onmouseover='window.__pwned=1",
+    "x\u2028');window.__pwned=1;//",
+    "<div data-bq-click=\"eval\" data-bq-click-args='[\"window.__pwned=1\"]'>click</div>"
+  ],
+  "docIdPayloads": [
+    "x');window.__pwned=1;//",
+    "\"><img src=x onerror=window.__pwned=1>",
+    "abc def",
+    "a/b",
+    "__proto__x<"
+  ],
+  "fields": [
+    { "collection": "forum_posts", "fields": ["title", "body", "authorName", "tags", "id"] },
+    { "collection": "forum_replies", "fields": ["body", "authorName", "id"] },
+    { "collection": "articles", "fields": ["title", "body", "authorName", "id"] },
+    { "collection": "article_replies", "fields": ["body", "authorName", "id"] },
+    { "collection": "global_chat", "fields": ["text", "username", "displayName", "gifUrl", "mediaUrl", "id"] },
+    { "collection": "dm_conversations", "fields": ["participantNames", "lastMessage", "id"] },
+    { "collection": "dm_conversations/{id}/messages", "fields": ["text", "senderName", "imageUrl", "isNachoAuto", "id"] },
+    { "collection": "notifications", "fields": ["senderName", "message", "targetId", "id"] },
+    { "collection": "marketplace_listings", "fields": ["title", "description", "status", "sellerName", "imageUrl", "id"] },
+    { "collection": "marketplace_messages", "fields": ["message", "buyerName", "listingId", "id"] },
+    { "collection": "playlists", "fields": ["name", "id"] },
+    { "collection": "beats_tracks", "fields": ["title", "artist", "url", "coverUrl", "id"] },
+    { "collection": "beats_tracks/{id}/comments", "fields": ["text", "authorName", "id"] },
+    { "collection": "irl_events", "fields": ["title", "description", "location", "link", "emoji", "id"] },
+    { "collection": "meetups", "fields": ["videoUrl", "slideUrl", "resourceUrl", "imageUrl"] },
+    { "collection": "reports", "fields": ["reason", "reportedName", "reporterName", "id"] },
+    { "collection": "admin_notifications", "fields": ["message", "title"] },
+    { "collection": "users / public_profiles", "fields": ["username", "displayName", "email", "bio", "avatarUrl", "pvpBadge", "equippedBadge"] },
+    { "collection": "url", "fields": ["location.hash", "location.search", "postMessage.data"] }
+  ]
+}

@@ -201,9 +201,10 @@ test('Nacho quotes drop other links, channel shares read the ref at click, and P
     const heroSrc = appSrc.slice(heroAt, heroEnd);
     assert.ok(heroAt >= 0 && heroEnd > heroAt);
     assert.strictEqual(heroSrc.includes('shareDeepUrl'), false);
-    assert.ok(heroSrc.includes("shareChannel(\\'x\\'"));
-    assert.ok(heroSrc.includes("shareChannel(\\'nostr\\'"));
-    assert.ok(heroSrc.includes("shareChannel(\\'copy\\'"));
+    // Handlers are delegated (BQSafe.act) instead of inline onclick strings.
+    assert.ok(heroSrc.includes("BQSafe.act('shareChannel', ['x', String(id)])"));
+    assert.ok(heroSrc.includes("BQSafe.act('shareChannel', ['nostr', String(id)])"));
+    assert.ok(heroSrc.includes("BQSafe.act('shareChannel', ['copy', String(id), BQSafe.EL])"));
 
     const answers = [
         'https://bitcoineducation.quest/#mining',

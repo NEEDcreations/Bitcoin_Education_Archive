@@ -188,7 +188,7 @@ test('sources post verifyCertificate and paint fields as text', () => {
     assert.strictEqual(read('index.html'), read('404.html'));
     const app = read('app.js');
     assert.ok(app.includes('if (window._certPainted !== _certRaw) _paintBundleCert(_certRaw, false)'));
-    assert.ok(app.includes("shareable-certs.js?v=20261028_v2410"));
+    assert.ok(app.includes("shareable-certs.js?v=20261111_v2544b"));
     const early = hashScript();
     assert.ok(early.includes('DOMContentLoaded'));
     assert.ok(early.includes('firebase.firestore'));

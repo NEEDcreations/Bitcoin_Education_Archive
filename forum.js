@@ -241,7 +241,7 @@ window.renderForum = function() {
         for (var ti = 0; ti < snTerritories.length; ti++) {
             var t = snTerritories[ti];
             var isActive = snSub === t.id;
-            html += '<button onclick="window._snSub=\'' + t.id + '\';window._snSearchQuery=\'\';renderForum()" style="padding:5px 12px;border-radius:16px;border:1px solid ' + (isActive ? 'var(--accent)' : 'var(--border)') + ';background:' + (isActive ? 'rgba(247,147,26,0.15)' : 'var(--card-bg)') + ';color:' + (isActive ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.7rem;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;">' + snEscape(t.label) + '</button>';
+            html += '<button onclick="window._snSub=\'' + BQSafe.jsStr(t.id) + '\';window._snSearchQuery=\'\';renderForum()" style="padding:5px 12px;border-radius:16px;border:1px solid ' + (isActive ? 'var(--accent)' : 'var(--border)') + ';background:' + (isActive ? 'rgba(247,147,26,0.15)' : 'var(--card-bg)') + ';color:' + (isActive ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.7rem;cursor:pointer;font-family:inherit;font-weight:600;white-space:nowrap;">' + snEscape(t.label) + '</button>';
         }
         html += '</div>';
 
@@ -254,7 +254,7 @@ window.renderForum = function() {
             var snSorts = [{id:'top',label:'🔥 Top'},{id:'recent',label:'🕐 Recent'},{id:'random',label:'🎲 Random'}];
             for (var ss = 0; ss < snSorts.length; ss++) {
                 var s = snSorts[ss];
-                html += '<button onclick="window._snSort=\'' + s.id + '\';renderForum()" style="padding:6px 14px;border-radius:20px;border:1px solid ' + (snSort === s.id ? 'var(--accent)' : 'var(--border)') + ';background:' + (snSort === s.id ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (snSort === s.id ? '#fff' : 'var(--text-muted)') + ';font-size:0.75rem;cursor:pointer;font-family:inherit;font-weight:600;">' + s.label + '</button>';
+                html += '<button onclick="window._snSort=\'' + BQSafe.jsStr(s.id) + '\';renderForum()" style="padding:6px 14px;border-radius:20px;border:1px solid ' + (snSort === s.id ? 'var(--accent)' : 'var(--border)') + ';background:' + (snSort === s.id ? 'var(--accent)' : 'var(--card-bg)') + ';color:' + (snSort === s.id ? '#fff' : 'var(--text-muted)') + ';font-size:0.75rem;cursor:pointer;font-family:inherit;font-weight:600;">' + s.label + '</button>';
             }
             // Time range (only for top)
             if (snSort === 'top') {
@@ -294,7 +294,7 @@ window.renderForum = function() {
     ['recent','top','discussed'].forEach(function(s) {
         var labels = { recent: '🕐 Recent', top: '🔥 Top', discussed: '💬 Discussed' };
         var active = forumSort === s;
-        html += '<button onclick="forumSetSort(\'' + s + '\')" style="padding:8px 12px;border-radius:16px;font-size:0.75rem;cursor:pointer;font-family:inherit;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-weight:' + (active ? '700' : '400') + ';touch-action:manipulation;">' + labels[s] + '</button>';
+        html += '<button ' + BQSafe.act('forumSetSort', [String(s)]) + ' style="padding:8px 12px;border-radius:16px;font-size:0.75rem;cursor:pointer;font-family:inherit;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-weight:' + (active ? '700' : '400') + ';touch-action:manipulation;">' + labels[s] + '</button>';
     });
     // Category dropdown
     html += '<select id="forumCatFilter" onchange="forumSetCategory(this.value)" style="padding:8px 10px;border-radius:8px;background:var(--input-bg);border:1px solid var(--border);color:var(--text);font-size:0.75rem;font-family:inherit;cursor:pointer;flex:1;min-width:120px;">';
@@ -1150,7 +1150,7 @@ function renderArticlesList(htmlPrefix, fc) {
     ['recent','top'].forEach(function(s) {
         var labels = { recent: '🕐 Recent', top: '🔥 Top' };
         var active = forumSort === s;
-        html += '<button onclick="forumSetSort(\'' + s + '\')" style="padding:8px 12px;border-radius:16px;font-size:0.75rem;cursor:pointer;font-family:inherit;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-weight:' + (active ? '700' : '400') + ';">' + labels[s] + '</button>';
+        html += '<button ' + BQSafe.act('forumSetSort', [String(s)]) + ' style="padding:8px 12px;border-radius:16px;font-size:0.75rem;cursor:pointer;font-family:inherit;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-weight:' + (active ? '700' : '400') + ';">' + labels[s] + '</button>';
     });
     html += '</div>';
     
@@ -1283,7 +1283,7 @@ window.articleNew = function() {
     var draftTags = (draft && draft.tags) ? draft.tags : [];
     ARTICLE_TAGS.forEach(function(t) {
         var sel = draftTags.indexOf(t) !== -1;
-        html += '<button onclick="toggleArticleTag(this,\'' + t + '\')" data-tag="' + t + '" style="padding:6px 12px;border-radius:16px;font-size:0.75rem;cursor:pointer;font-family:inherit;border:1px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'var(--accent-bg)' : 'none') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-muted)') + ';font-weight:600;">' + t + '</button>';
+        html += '<button ' + BQSafe.act('toggleArticleTag', [BQSafe.EL, String(t)]) + ' data-tag="' + t + '" style="padding:6px 12px;border-radius:16px;font-size:0.75rem;cursor:pointer;font-family:inherit;border:1px solid ' + (sel ? 'var(--accent)' : 'var(--border)') + ';background:' + (sel ? 'var(--accent-bg)' : 'none') + ';color:' + (sel ? 'var(--accent)' : 'var(--text-muted)') + ';font-weight:600;">' + t + '</button>';
     });
     html += '</div>';
     
@@ -1471,7 +1471,7 @@ window.articleInsertImage = function() {
                     return snap.ref.getDownloadURL();
                 }).then(function(url) {
                     document.getElementById('imageDialogUrl').value = url;
-                    if (preview) { preview.style.display = 'block'; preview.innerHTML = '<img src="' + url + '" style="max-width:100%;max-height:150px;border-radius:8px;">'; }
+                    if (preview) { preview.style.display = 'block'; preview.innerHTML = '<img src="' + fEsc(fSafeUrl(url)) + '" style="max-width:100%;max-height:150px;border-radius:8px;">'; }
                     if (btn) { btn.disabled = false; btn.textContent = 'Insert Image'; }
                     if (typeof showToast === 'function') showToast('✅ Image uploaded!');
                 }).catch(function(err) {
@@ -2025,7 +2025,7 @@ window.loadStackerNewsFeed = function(sort, when, sub) {
         }
         feed.innerHTML = snRenderFeedCards(items);
     }).catch(function() {
-        feed.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Failed to load feed. <button onclick="loadStackerNewsFeed(\'' + fId(sort) + '\',\'' + fId(when) + '\',\'' + fId(sub||'') + '\')" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Retry</button></div>';
+        feed.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Failed to load feed. <button ' + BQSafe.act('loadStackerNewsFeed', [String(fId(sort)), String(fId(when)), String(fId(sub||''))]) + ' style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Retry</button></div>';
     });
 };
 
@@ -2133,7 +2133,7 @@ window.snOpenPost = function(id) {
             snRenderPost(fc, item);
         })
         .catch(function() {
-            fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;"><div style="text-align:center;padding:40px 0;color:var(--text-muted);">Failed to load post. <button onclick="snOpenPost(' + (Number(id) || 0) + ')" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Retry</button> · <button onclick="forumTab=\'stacker\';renderForum()" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Back</button></div></div>';
+            fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;"><div style="text-align:center;padding:40px 0;color:var(--text-muted);">Failed to load post. <button ' + BQSafe.act('snOpenPost', [BQSafe.lit(Number(id) || 0)]) + ' style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Retry</button> · <button onclick="forumTab=\'stacker\';renderForum()" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Back</button></div></div>';
         });
 };
 
@@ -2276,7 +2276,7 @@ function forumRenderMentions(html) {
     return html.replace(/(<[^>]+>)|(@([a-zA-Z0-9_\-\.]{2,20}))/g, function(match, tag, mention, username) {
         if (tag) return tag; // HTML tag — pass through unchanged
         // It's an @mention in a text node
-        return '<span class="forum-mention" onclick="forumMentionClick(\'' + username.replace(/'/g, '') + '\')">' + mention + '</span>';
+        return '<span class="forum-mention" ' + BQSafe.act('forumMentionClick', [String(username.replace(/'/g, ''))]) + '>' + mention + '</span>';
     });
 }
 

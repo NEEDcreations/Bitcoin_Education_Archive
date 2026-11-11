@@ -213,7 +213,7 @@ function renderNachoTrivia(t) {
         '<div style="color:var(--text,#eee);margin-bottom:10px;line-height:1.5;">' + t.q + '</div>';
 
     for (var i = 0; i < t.options.length; i++) {
-        html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();nachoTriviaAnswer(' + i + ',' + t.correct + ',' + t.pts + ',this)" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#eee);font-size:0.8rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.15s;">' + String.fromCharCode(65 + i) + '. ' + t.options[i] + '</button>';
+        html += '<button onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" ' + BQSafe.act('nachoTriviaAnswer', [BQSafe.lit(i), BQSafe.lit(t.correct), BQSafe.lit(t.pts), BQSafe.EL], { stop: 1 }) + ' style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:var(--card-bg,#1a1a2e);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#eee);font-size:0.8rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.15s;">' + String.fromCharCode(65 + i) + '. ' + t.options[i] + '</button>';
     }
     html += '<button type="button" onmousedown="event.stopPropagation();" ontouchstart="event.stopPropagation();" onclick="event.stopPropagation();if(window.btcDismissNachoTrivia)window.btcDismissNachoTrivia(\'button\')" style="display:block;width:100%;min-height:44px;margin-top:8px;padding:8px 12px;background:transparent;border:2px solid #f7931a;border-radius:8px;color:#f7931a;font-size:0.85rem;font-weight:800;cursor:pointer;font-family:inherit;">Not now / Back</button>';
 

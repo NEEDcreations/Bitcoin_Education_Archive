@@ -1,0 +1,8 @@
+{
+  "name": "bq-xss-tests",
+  "private": true,
+  "description": "Pinned DOM harness for tests/test-xss-appwide.js",
+  "dependencies": {
+    "jsdom": "26.1.0"
+  }
+}

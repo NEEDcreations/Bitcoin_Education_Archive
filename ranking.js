@@ -1544,13 +1544,13 @@ function renderSignInMethodsCard(user, profile) {
             html += '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
             addable.forEach(function(item) {
                 if (linkedIds.indexOf(item.id) !== -1) return;
-                html += '<button type="button" onclick="linkFullAccountProvider(\'' + item.id + '\')" style="padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">Add ' + accountLinkEscape(item.label) + '</button>';
+                html += '<button type="button" ' + BQSafe.act('linkFullAccountProvider', [String(item.id)]) + ' style="padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">Add ' + accountLinkEscape(item.label) + '</button>';
             });
             if (linkedIds.length > 1) {
                 linkedIds.forEach(function(pid) {
                     if (pid === 'phone') return;
                     var label = ({ 'password': 'Email', 'google.com': 'Google', 'twitter.com': 'X', 'github.com': 'GitHub', 'facebook.com': 'Facebook' })[pid] || pid;
-                    html += '<button type="button" onclick="unlinkFullAccountProvider(\'' + pid + '\')" style="padding:8px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">Remove ' + accountLinkEscape(label) + '</button>';
+                    html += '<button type="button" ' + BQSafe.act('unlinkFullAccountProvider', [String(pid)]) + ' style="padding:8px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">Remove ' + accountLinkEscape(label) + '</button>';
                 });
             }
             html += '</div>';
@@ -2819,7 +2819,7 @@ window.nostrSignInWithExtension = async function() {
         var signed = await window.nostr.signEvent({ kind: 22242, created_at: Math.floor(Date.now() / 1000), tags: [['challenge', 'btc-edu-' + Date.now()]], content: 'Sign in to Bitcoin Education Archive', pubkey: pubkey });
         if (!signed || !signed.sig) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Signing cancelled</span>'; return; }
         await nostrCompleteAuth(pubkey, signed.sig, signed);
-    } catch(e) { console.error('Nostr extension error:', e); if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Extension error: ' + (e.message || 'Unknown') + '</span>'; }
+    } catch(e) { console.error('Nostr extension error:', e); if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Extension error: ' + BQSafe.esc(e.message || 'Unknown') + '</span>'; }
 };
 
 // nsec sign-in - uses nostr-tools CDN for key derivation and signing
@@ -2866,7 +2866,7 @@ window.nostrSignInWithNsec = async function() {
         try { document.getElementById('nostrNsecInput').value = ''; } catch(_) {}
         nsec = '';
         console.error('Nostr nsec error:', e && e.message ? e.message : 'unknown');
-        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Error: ' + (e.message || 'Failed to sign') + '</span>';
+        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Error: ' + BQSafe.esc(e.message || 'Failed to sign') + '</span>';
         btn.disabled = false; btn.textContent = 'Sign In with nsec';
     }
 };
@@ -2910,7 +2910,7 @@ window.nostrSignInWithNpub = async function() {
         if (currentUser) currentUser.nostr = pubkey;
         var overlay = document.getElementById('nostrAuthOverlay'); if (overlay) overlay.remove();
         showToast('🟣 Nostr identity linked! (npub)');
-    } catch(e) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Error: ' + (e.message || 'Unknown') + '</span>'; }
+    } catch(e) { if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Error: ' + BQSafe.esc(e.message || 'Unknown') + '</span>'; }
 };
 
 // Complete Nostr auth - send signed event to Cloud Function for verification
@@ -2949,7 +2949,7 @@ window.nostrCompleteAuth = async function(pubkey, sig, event) {
             return;
         }
         console.error('Nostr auth error:', e);
-        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Verification failed: ' + (e.message || 'Unknown') + '</span>';
+        if (statusEl) statusEl.innerHTML = '<span style="color:#ef4444;">Verification failed: ' + BQSafe.esc(e.message || 'Unknown') + '</span>';
     }
 };
 
@@ -6390,8 +6390,8 @@ function _lbRankBox(board) {
     var value = state.text || '';
     return '<div class="lb-rank-search" data-board="' + board + '">' +
         '<div class="lb-rank-search-row">' +
-        '<input id="lbRankInput-' + board + '" class="lb-rank-input" type="text" maxlength="40" enterkeyhint="search" placeholder="Search username" value="' + escapeHtml(value) + '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" oninput="_lbRankType(\'' + board + '\', this.value)" onkeydown="_lbRankKey(event, \'' + board + '\')">' +
-        '<button type="button" class="lb-rank-find" onclick="_lbRankFindMe(\'' + board + '\')">Find me</button>' +
+        '<input id="lbRankInput-' + board + '" class="lb-rank-input" type="text" maxlength="40" enterkeyhint="search" placeholder="Search username" value="' + escapeHtml(value) + '" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" oninput="_lbRankType(\'' + BQSafe.jsStr(board) + '\', this.value)" ' + BQSafe.act('_lbRankKey', [BQSafe.EV, String(board)], { on: 'keydown' }) + '>' +
+        '<button type="button" class="lb-rank-find" ' + BQSafe.act('_lbRankFindMe', [String(board)]) + '>Find me</button>' +
         '</div>' +
         _lbShareBtn(board) +
         '<div id="lbRankResult-' + board + '" class="lb-rank-result" hidden></div>' +
@@ -6415,7 +6415,7 @@ function _lbRankPaint(board, data, period) {
         suggestions.slice(0, 8).forEach(function (row) {
             var name = row && row.username;
             if (!name) return;
-            html += '<button type="button" class="lb-rank-suggest-item" data-name="' + escapeHtml(name) + '" onclick="_lbRankPick(\'' + board + '\', this.getAttribute(\'data-name\'))">@' + escapeHtml(name) + '</button>';
+            html += '<button type="button" class="lb-rank-suggest-item" data-name="' + escapeHtml(name) + '" onclick="_lbRankPick(\'' + BQSafe.jsStr(board) + '\', this.getAttribute(\'data-name\'))">@' + escapeHtml(name) + '</button>';
         });
         html += '</div>';
     }
@@ -6434,7 +6434,7 @@ function _lbRankPaintNames(board, names) {
     }
     var html = '<div class="lb-rank-suggest">';
     names.forEach(function (name) {
-        html += '<button type="button" class="lb-rank-suggest-item" data-name="' + escapeHtml(name) + '" onclick="_lbRankPick(\'' + board + '\', this.getAttribute(\'data-name\'))">@' + escapeHtml(name) + '</button>';
+        html += '<button type="button" class="lb-rank-suggest-item" data-name="' + escapeHtml(name) + '" onclick="_lbRankPick(\'' + BQSafe.jsStr(board) + '\', this.getAttribute(\'data-name\'))">@' + escapeHtml(name) + '</button>';
     });
     html += '</div>';
     el.hidden = false;
@@ -6623,7 +6623,7 @@ function _lbShareSignedIn() {
 
 function _lbShareBtn(board) {
     if (!_lbShareSignedIn()) return '';
-    return '<button type="button" class="lb-share-btn" data-board="' + board + '" onclick="event.stopPropagation();_lbShareRank(\'' + board + '\')">📤 Share my rank</button>';
+    return '<button type="button" class="lb-share-btn" data-board="' + board + '" ' + BQSafe.act('_lbShareRank', [String(board)], { stop: 1 }) + '>📤 Share my rank</button>';
 }
 window._lbShareBtn = _lbShareBtn;
 
@@ -7421,7 +7421,7 @@ function _lbXpRowHtml(d, period, index) {
     var _lbNameStyle = d.faction && typeof window._factionNameStyle === 'function' ? window._factionNameStyle(d.faction) : '';
     var peerTag = (window._myPeers && window._myPeers.has(d.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
     var score = period === 'weekly' ? (d.weeklyXP || 0).toLocaleString() + ' wXP' : period === 'monthly' ? (d.monthlyXP || 0).toLocaleString() + ' mXP' : (d.points || 0).toLocaleString() + ' XP';
-    return '<div' + hidden + ' onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
+    return '<div' + hidden + ' ' + BQSafe.act('showUserProfile', [String(safeId)]) + ' style="cursor:pointer;" title="View profile">' +
         '<span class="lb-rank">' + medal + '</span>' +
         '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
         '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + peerTag + escapeHtml(d.username || 'Anon') + (d._you ? ' (you)' : '') + statusDot + certIcons + '</span>' +
@@ -7546,7 +7546,7 @@ async function toggleLeaderboard() {
         html += '<div style="display:flex;gap:4px;padding:0 12px 10px;">';
         [['alltime','All Time'],['weekly','This Week'],['monthly','This Month']].forEach(function(p) {
             var active = _lbPeriod === p[0];
-            html += '<button onclick="_lbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
+            html += '<button ' + BQSafe.act('_lbSwitchPeriod', [String(p[0])]) + ' style="flex:1;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
         });
         html += '</div>';
         // Prize banners for weekly/monthly
@@ -7611,7 +7611,7 @@ async function toggleLeaderboard() {
         }
     } catch(e) {
         console.error('[Leaderboard] Error:', e);
-        lb.innerHTML = '<div style="padding:20px;color:#f97316;">Error loading leaderboard: ' + (e.message || 'Unknown error') + '</div>';
+        lb.innerHTML = '<div style="padding:20px;color:#f97316;">Error loading leaderboard: ' + BQSafe.esc(e.message || 'Unknown error') + '</div>';
     }
 }
 
@@ -7788,7 +7788,7 @@ function _renderPredictorBoard() {
     html += '<div style="display:flex;gap:4px;padding:0 0 10px;">';
     tabs.forEach(function(p) {
         var active = period === p[0];
-        html += '<button type="button" onclick="_predLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
+        html += '<button type="button" ' + BQSafe.act('_predLbSwitchPeriod', [String(p[0])]) + ' style="flex:1;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
     });
     html += '</div>' + _lbRankBox('predict') + '<div id="predictorLeaderboardList">';
     if (!rows.length) {
@@ -7813,7 +7813,7 @@ function _renderPredictorBoard() {
             var name = typeof escapeHtml === 'function' ? escapeHtml(predShown) : String(predShown);
             var peerTag = (window._myPeers && window._myPeers.has(uid)) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
             var predNameAttrs = uid ? ' data-profile-uid="' + uid + '"' + (predBlank ? ' data-blank-name="1"' : '') : '';
-            return '<div class="lb-row' + (isMe ? ' lb-me' : '') + '" onclick="showUserProfile(\'' + uid + '\')" style="cursor:pointer;" title="View profile">' +
+            return '<div class="lb-row' + (isMe ? ' lb-me' : '') + '" ' + BQSafe.act('showUserProfile', [String(uid)]) + ' style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 _predAvatarHtml(entry) +
                 '<span class="lb-name">' + peerTag + '<span' + predNameAttrs + '>' + name + '</span></span>' +
@@ -7894,7 +7894,7 @@ function _renderStreakBoard() {
     html += '<div class="streak-lb-tabs">';
     tabs.forEach(function(p) {
         var active = period === p[0];
-        html += '<button type="button" onclick="_streakLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;min-width:0;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
+        html += '<button type="button" ' + BQSafe.act('_streakLbSwitchPeriod', [String(p[0])]) + ' style="flex:1;min-width:0;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
     });
     html += '</div>' + _lbRankBox('streak') + '<div id="streakLeaderboardList">';
     if (!rows.length) {
@@ -7999,7 +7999,7 @@ function _renderQuestBoard() {
     html += '<div class="quest-lb-tabs">';
     tabs.forEach(function(p) {
         var active = period === p[0];
-        html += '<button type="button" onclick="_questLbSwitchPeriod(\'' + p[0] + '\')" style="flex:1;min-width:0;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
+        html += '<button type="button" ' + BQSafe.act('_questLbSwitchPeriod', [String(p[0])]) + ' style="flex:1;min-width:0;padding:6px 4px;border:1px solid ' + (active ? 'var(--accent)' : 'var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent)' : 'none') + ';color:' + (active ? '#fff' : 'var(--text-muted)') + ';font-size:0.72rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;white-space:nowrap;">' + p[1] + '</button>';
     });
     html += '</div>' + _lbRankBox('quest') + '<div id="questLeaderboardList">';
     if (!rows.length) {
@@ -8093,7 +8093,7 @@ function _renderPvpSnapshot(container, doc) {
         var record = LbPrefix.pvpRecordText(wins, losses);
         var _pvpTipData = JSON.stringify({ recipientName: p.username || 'Anon', recipientUid: safeId, lightningAddress: p.lightningAddress || '', context: 'pvp', label: 'Tip ' + (p.username || 'Anon') }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
         var peerTag = (window._myPeers && window._myPeers.has(safeId)) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
-        return '<div class="lb-row' + (isMe ? ' lb-me' : '') + '" onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
+        return '<div class="lb-row' + (isMe ? ' lb-me' : '') + '" ' + BQSafe.act('showUserProfile', [String(safeId)]) + ' style="cursor:pointer;" title="View profile">' +
             '<span class="lb-rank">' + medal + '</span>' +
             '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + pvpIcon + '</span>' +
             '<span class="lb-name">' + peerTag + name + '</span>' +
@@ -8151,7 +8151,9 @@ window._showToastNow = function _showToastNow(msg, duration) {
     t.className = 'rank-toast';
     var _raw = typeof msg === 'object' ? msg.msg : msg;
     // Strip dangerous tags but allow emoji and simple formatting
-    t.innerHTML = _raw.replace(/<(script|svg|img|iframe|object|embed|form|input|link|style|meta|base)[^>]*>/gi, '').replace(/on\w+\s*=/gi, 'data-blocked=');
+    // Allowlist sanitizer (xss-safe.js). The old tag/on*= blocklist could be
+    // bypassed (e.g. <a href=javascript:…>, <details>, <video>).
+    t.innerHTML = BQSafe.cleanHtml(_raw == null ? '' : String(_raw));
     if (typeof msg === 'object' && msg.duration) ms = msg.duration;
     // Above Settings (400000) and the peer/gift dialogs (480000–540000).
     t.style.zIndex = '620000';
@@ -8475,7 +8477,7 @@ window._filterCountryList = function() {
         var highlighted = (typeof escapeHtml === 'function' ? escapeHtml(m.substring(0, idx)) : m.substring(0, idx)) +
             '<strong style="color:var(--accent);">' + (typeof escapeHtml === 'function' ? escapeHtml(m.substring(idx, idx + query.length)) : m.substring(idx, idx + query.length)) + '</strong>' +
             (typeof escapeHtml === 'function' ? escapeHtml(m.substring(idx + query.length)) : m.substring(idx + query.length));
-        html += '<div onmousedown="window._selectCountry(\'' + m.replace(/'/g, "\\'") + '\')" style="padding:10px 14px;color:var(--text);font-size:0.9rem;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.15s;" ontouchstart="this.style.background=\'rgba(247,147,26,0.15)\'" ontouchend="this.style.background=\'none\'" onmouseover="this.style.background=\'rgba(247,147,26,0.1)\'" onmouseout="this.style.background=\'none\'">' + highlighted + '</div>';
+        html += '<div onmousedown="window._selectCountry(\'' + BQSafe.jsStr(m.replace(/'/g, "\\'")) + '\')" style="padding:10px 14px;color:var(--text);font-size:0.9rem;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.15s;" ontouchstart="this.style.background=\'rgba(247,147,26,0.15)\'" ontouchend="this.style.background=\'none\'" onmouseover="this.style.background=\'rgba(247,147,26,0.1)\'" onmouseout="this.style.background=\'none\'">' + highlighted + '</div>';
     }
     if (matches.length > 8) {
         html += '<div style="padding:8px 14px;color:var(--text-faint);font-size:0.75rem;text-align:center;">+' + (matches.length - 8) + ' more - keep typing</div>';
@@ -8808,7 +8810,7 @@ window._filterSignupCountry = function() {
         var highlighted = (typeof escapeHtml === 'function' ? escapeHtml(m.substring(0, idx)) : m.substring(0, idx)) +
             '<strong style="color:var(--accent);">' + (typeof escapeHtml === 'function' ? escapeHtml(m.substring(idx, idx + query.length)) : m.substring(idx, idx + query.length)) + '</strong>' +
             (typeof escapeHtml === 'function' ? escapeHtml(m.substring(idx + query.length)) : m.substring(idx + query.length));
-        html += '<div onmousedown="window._selectSignupCountry(\'' + m.replace(/'/g, "\\'") + '\')" style="padding:10px 14px;color:var(--text);font-size:0.9rem;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.15s;" ontouchstart="this.style.background=\'rgba(247,147,26,0.15)\'" ontouchend="this.style.background=\'none\'" onmouseover="this.style.background=\'rgba(247,147,26,0.1)\'" onmouseout="this.style.background=\'none\'">' + highlighted + '</div>';
+        html += '<div onmousedown="window._selectSignupCountry(\'' + BQSafe.jsStr(m.replace(/'/g, "\\'")) + '\')" style="padding:10px 14px;color:var(--text);font-size:0.9rem;cursor:pointer;border-bottom:1px solid var(--border);transition:background 0.15s;" ontouchstart="this.style.background=\'rgba(247,147,26,0.15)\'" ontouchend="this.style.background=\'none\'" onmouseover="this.style.background=\'rgba(247,147,26,0.1)\'" onmouseout="this.style.background=\'none\'">' + highlighted + '</div>';
     }
     if (matches.length > 8) html += '<div style="padding:8px 14px;color:var(--text-faint);font-size:0.75rem;text-align:center;">+' + (matches.length - 8) + ' more \u2014 keep typing</div>';
     dropdown.innerHTML = html;
@@ -8867,7 +8869,7 @@ function showSettingsPage(tab) {
         const icons = { account: '👤', scholar: '🎓', sats: '⚡', prefs: '🎨', security: '🔒', data: '📊' };
         const names = { account: 'Acct', scholar: 'Scholar', sats: 'Sats', prefs: 'Prefs', security: 'Lock', data: 'Stats/<br>Nacho/Tix' };
         const active = settingsTab === t;
-        html += '<button onclick="showSettingsPage(\'' + t + '\')" style="flex:1;min-width:0;padding:8px 2px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.6rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:normal;text-align:center;line-height:1.2;touch-action:manipulation;"><span style="font-size:1.3rem;line-height:1;">' + icons[t] + '</span>' + names[t] + '</button>';
+        html += '<button ' + BQSafe.act('showSettingsPage', [String(t)]) + ' style="flex:1;min-width:0;padding:8px 2px;border:none;background:' + (active ? 'var(--accent-bg)' : 'none') + ';color:' + (active ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.6rem;font-weight:' + (active ? '700' : '500') + ';cursor:pointer;font-family:inherit;border-bottom:' + (active ? '2px solid var(--accent)' : '2px solid transparent') + ';margin-bottom:-2px;display:flex;flex-direction:column;align-items:center;gap:1px;white-space:normal;text-align:center;line-height:1.2;touch-action:manipulation;"><span style="font-size:1.3rem;line-height:1;">' + icons[t] + '</span>' + names[t] + '</button>';
     });
     html += '</div>';
 
@@ -8966,8 +8968,8 @@ function showSettingsPage(tab) {
         // --- Account Details ---
         var _acctDetailsHtml = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Account Details</div>';
-        if (user.email) _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Email</span><span style="color:var(--text);font-size:0.85rem;">' + user.email + '</span></div>';
-        if (user.displayName) _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Name</span><span style="color:var(--text);font-size:0.85rem;">' + user.displayName + '</span></div>';
+        if (user.email) _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Email</span><span style="color:var(--text);font-size:0.85rem;">' + BQSafe.esc(user.email) + '</span></div>';
+        if (user.displayName) _acctDetailsHtml += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);"><span style="color:var(--text-muted);font-size:0.85rem;">Name</span><span style="color:var(--text);font-size:0.85rem;">' + BQSafe.esc(user.displayName) + '</span></div>';
 
         // Sign-in provider
         let provider = 'Anonymous';
@@ -9012,7 +9014,7 @@ function showSettingsPage(tab) {
                 for (var bi = 0; bi < allEarned.length; bi++) {
                     var b = allEarned[bi];
                     var isChosen = chosenBadge === b.id;
-                    _badgePickerHtml += '<div onclick="setDisplayBadge(\'' + b.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (isChosen ? 'var(--accent)' : 'var(--border)') + ';background:' + (isChosen ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + b.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + b.name + '</div></div>' + (isChosen ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
+                    _badgePickerHtml += '<div ' + BQSafe.act('setDisplayBadge', [String(b.id)]) + ' style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (isChosen ? 'var(--accent)' : 'var(--border)') + ';background:' + (isChosen ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + b.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + b.name + '</div></div>' + (isChosen ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
                 }
                 _badgePickerHtml += '</div></div>';
 
@@ -9087,7 +9089,7 @@ function showSettingsPage(tab) {
             html += '<div class="pf-link-row" data-key="' + s.k + '" style="display:flex;align-items:center;gap:12px;margin-bottom:12px;background:rgba(255,255,255,0.02);padding:10px;border-radius:12px;border:1px solid var(--border);">' +
                 '<span style="font-size:1.2rem;width:28px;text-align:center;flex-shrink:0;">' + s.e + '</span>' +
                 '<input type="' + (s.t || 'text') + '" id="profile_' + s.k + '" value="' + escapeHtml(val) + '" placeholder="' + s.p + '" maxlength="' + s.m + '" style="flex:1;padding:8px 10px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:8px;color:var(--text,#e2e8f0);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;min-width:0;-webkit-appearance:none;">' +
-                '<button onclick="document.getElementById(\'profile_' + s.k + '\').value=\'\';this.parentElement.remove();profileLinkRemoved(\'' + s.k + '\')" style="background:rgba(239,68,68,0.1);border:none;color:#ef4444;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;touch-action:manipulation;" title="Remove">✕</button>' +
+                '<button onclick="document.getElementById(\'profile_' + BQSafe.jsStr(s.k) + '\').value=\'\';this.parentElement.remove();profileLinkRemoved(\'' + BQSafe.jsStr(s.k) + '\')" style="background:rgba(239,68,68,0.1);border:none;color:#ef4444;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;touch-action:manipulation;" title="Remove">✕</button>' +
             '</div>';
         });
         html += '</div>';
@@ -9098,7 +9100,7 @@ function showSettingsPage(tab) {
                 '<button id="addLinkBtn" onclick="document.getElementById(\'addLinkMenu\').style.display=document.getElementById(\'addLinkMenu\').style.display===\'none\'?\'block\':\'none\'" style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:none;border:1px dashed var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;width:100%;touch-action:manipulation;"><span style="font-size:1rem;">+</span> Add a link</button>' +
                 '<div id="addLinkMenu" style="display:none;margin-top:6px;background:var(--bg-side);border:1px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.3);">';
             _emptyLinks.forEach(function(s) {
-                html += '<button onclick="addProfileLink(\'' + s.k + '\',\'' + s.e + '\',\'' + s.l + '\',\'' + s.p + '\',' + s.m + ',\'' + (s.t||'text') + '\')" style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 14px;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;text-align:left;touch-action:manipulation;"><span style="font-size:1.1rem;">' + s.e + '</span> ' + s.l + (s.note ? ' <span style="color:var(--text-faint);font-size:0.7rem;">(' + s.note + ')</span>' : '') + '</button>';
+                html += '<button ' + BQSafe.act('addProfileLink', [String(s.k), String(s.e), String(s.l), String(s.p), BQSafe.lit(s.m), String(s.t||'text')]) + ' style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 14px;background:none;border:none;border-bottom:1px solid var(--border);color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;text-align:left;touch-action:manipulation;"><span style="font-size:1.1rem;">' + s.e + '</span> ' + s.l + (s.note ? ' <span style="color:var(--text-faint);font-size:0.7rem;">(' + s.note + ')</span>' : '') + '</button>';
             });
             html += '</div></div>';
         }
@@ -9289,7 +9291,7 @@ function accountDeleteRowHtml(user) {
         html += '<button onclick="saveArtistProfile()" id="artistSaveBtn" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 15px rgba(247,147,26,0.3);margin-bottom:12px;">💾 Save Artist Profile</button>';
 
         // View artist page button
-        html += '<button onclick="hideUsernamePrompt();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + (auth && auth.currentUser ? auth.currentUser.uid : '') + '\')" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">👀 Preview My Artist Page</button>';
+        html += '<button onclick="hideUsernamePrompt();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + (BQSafe.jsStr(auth && auth.currentUser ? auth.currentUser.uid : '')) + '\')" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;">👀 Preview My Artist Page</button>';
 
     } else if (settingsTab === 'scholar') {
         // Scholar - Quests, Certifications, Flashcards
@@ -9342,7 +9344,7 @@ function accountDeleteRowHtml(user) {
             {name:'El Salvador & Adoption', emoji:'🇸🇻'}, {name:'Technical Deep Dives', emoji:'🔬'}
         ];
         flashTopics.forEach(function(t) {
-            html += '<button onclick="hideUsernamePrompt();startFlashcards(\'' + t.name.replace(/[\\'"]/g, "") + '\')" style="padding:6px 10px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + t.emoji + ' ' + t.name + '</button>';
+            html += '<button onclick="hideUsernamePrompt();startFlashcards(\'' + BQSafe.jsStr(t.name.replace(/[\\'"]/g, "")) + '\')" style="padding:6px 10px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.75rem;cursor:pointer;font-family:inherit;transition:0.2s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' + t.emoji + ' ' + t.name + '</button>';
         });
         html += '</div></div></div>';
 
@@ -9371,7 +9373,7 @@ function accountDeleteRowHtml(user) {
                 '<div style="font-size:0.65rem;color:var(--accent);font-weight:800;margin-bottom:4px;">' + n.date.toUpperCase() + '</div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;margin-bottom:4px;">' + n.title + '</div>' +
                 '<div style="color:var(--text-muted);font-size:0.78rem;line-height:1.4;margin-bottom:8px;">' + n.snippet + '</div>' +
-                '<button onclick="hideUsernamePrompt();go(\'' + n.channel + '\')" style="padding:6px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Read →</button></div>';
+                '<button onclick="hideUsernamePrompt();go(\'' + BQSafe.jsStr(n.channel) + '\')" style="padding:6px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Read →</button></div>';
         });
 
         // Subscribe
@@ -9424,7 +9426,7 @@ function accountDeleteRowHtml(user) {
                 '<div style="font-size:0.7rem;color:var(--accent);font-weight:800;margin-bottom:4px;">' + n.date.toUpperCase() + '</div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:1rem;margin-bottom:6px;">' + n.title + '</div>' +
                 '<div style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin-bottom:10px;">' + n.snippet + '</div>' +
-                '<button onclick="hideUsernamePrompt();go(\'' + n.channel + '\')" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Read in Archive →</button>' +
+                '<button onclick="hideUsernamePrompt();go(\'' + BQSafe.jsStr(n.channel) + '\')" style="padding:8px 16px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Read in Archive →</button>' +
                 '</div>';
         });
 
@@ -9445,7 +9447,7 @@ function accountDeleteRowHtml(user) {
                     var snippet = (n.snippet || '').replace(/<[^>]+>/g, '');
                     var link = n.link || '';
                     cardsHtml += '<div style="min-width:260px;max-width:300px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:left;cursor:pointer;transition:0.2s;" ' +
-                        (link ? 'onclick="window.open(\'' + link.replace(/[\\'"]/g, "") + '\',\'_blank\')"' : '') +
+                        (BQSafe.https(link) ? BQSafe.act('open', [BQSafe.https(link), '_blank']) : '') +
                         ' onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
                         '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
                             '<span style="background:var(--accent);color:#fff;font-size:0.6rem;font-weight:900;padding:2px 8px;border-radius:10px;">SIGNAL #' + (i + 1) + '</span>' +
@@ -9846,7 +9848,7 @@ function accountDeleteRowHtml(user) {
                 html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">';
                 _quickPcts.forEach(function(pct) {
                     var amt = Math.floor(_donateAvail * pct / 100);
-                    html += '<button onclick="window._satsCharitySetAmt(' + amt + ')" style="flex:1;min-width:50px;padding:8px 4px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;" onmouseover="this.style.borderColor=\'#ef4444\';this.style.color=\'#ef4444\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">' + pct + '%<br><span style="font-size:0.65rem;font-weight:400;">' + amt.toLocaleString() + '</span></button>';
+                    html += '<button ' + BQSafe.act('window._satsCharitySetAmt', [BQSafe.lit(amt)]) + ' style="flex:1;min-width:50px;padding:8px 4px;border-radius:10px;border:1px solid var(--border);background:none;color:var(--text-muted);font-size:0.78rem;font-weight:700;cursor:pointer;font-family:inherit;" onmouseover="this.style.borderColor=\'#ef4444\';this.style.color=\'#ef4444\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.color=\'var(--text-muted)\'">' + pct + '%<br><span style="font-size:0.65rem;font-weight:400;">' + amt.toLocaleString() + '</span></button>';
                 });
                 html += '</div>';
                 html += '<div style="display:flex;gap:8px;margin-bottom:12px;">';
@@ -9912,7 +9914,7 @@ function accountDeleteRowHtml(user) {
             var active = savedSize === size;
             var label = size.charAt(0).toUpperCase() + size.slice(1);
             var px = size === 'small' ? '14px' : size === 'medium' ? '16px' : '18px';
-            html += '<button onclick="setFontSize(\'' + size + '\')" style="flex:1;padding:10px;border:' + (active ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (active ? 'var(--accent)' : 'var(--text)') + ';font-size:' + px + ';font-weight:' + (active ? '700' : '400') + ';cursor:pointer;font-family:inherit;">' + label + '</button>';
+            html += '<button ' + BQSafe.act('setFontSize', [String(size)]) + ' style="flex:1;padding:10px;border:' + (active ? '2px solid var(--accent)' : '1px solid var(--border)') + ';border-radius:8px;background:' + (active ? 'var(--accent-bg)' : 'var(--bg-side)') + ';color:' + (active ? 'var(--accent)' : 'var(--text)') + ';font-size:' + px + ';font-weight:' + (active ? '700' : '400') + ';cursor:pointer;font-family:inherit;">' + label + '</button>';
         });
         html += '</div></div>';
 
@@ -10208,13 +10210,13 @@ function accountDeleteRowHtml(user) {
                         var safeName = name.replace(/[\'"]/g, '');
                         listHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;' + (loaded > 0 ? 'border-top:1px solid var(--border);' : '') + '">' +
                             '<span style="color:var(--text);font-size:0.85rem;">' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</span>' +
-                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + uid + '\',\'' + safeName + '\')};setTimeout(function(){showSettingsPage(\'security\')},300)" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
+                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + BQSafe.jsStr(uid) + '\',\'' + BQSafe.jsStr(safeName) + '\')};setTimeout(function(){showSettingsPage(\'security\')},300)" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
                         loaded++;
                         if (loaded === merged.length && rowsEl) rowsEl.innerHTML = listHtml;
                     }).catch(function() {
                         listHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border);">' +
                             '<span style="color:var(--text-faint);font-size:0.85rem;">Unknown User</span>' +
-                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + uid + '\')};setTimeout(function(){showSettingsPage(\'security\')},300)" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
+                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + BQSafe.jsStr(uid) + '\')};setTimeout(function(){showSettingsPage(\'security\')},300)" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
                         loaded++;
                         if (loaded === merged.length && rowsEl) rowsEl.innerHTML = listHtml;
                     });
@@ -10843,8 +10845,8 @@ function accountDeleteRowHtml(user) {
                         reqHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">' +
                             '<span style="font-size:0.85rem;">🧡 ' + (d.fromUsername || 'Bitcoiner') + '</span>' +
                             '<div style="display:flex;gap:6px;">' +
-                            '<button onclick="window.managePeer(\'accept\',\'' + d.from + '\',this).then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.75rem;cursor:pointer;font-family:inherit;">Accept</button>' +
-                            '<button onclick="window.managePeer(\'decline\',\'' + d.from + '\',this).then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">Decline</button>' +
+                            '<button onclick="window.managePeer(\'accept\',\'' + BQSafe.jsStr(d.from) + '\',this).then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:#f97316;border:none;border-radius:6px;color:#fff;font-size:0.75rem;cursor:pointer;font-family:inherit;">Accept</button>' +
+                            '<button onclick="window.managePeer(\'decline\',\'' + BQSafe.jsStr(d.from) + '\',this).then(function(){if(typeof showSettingsPage===\'function\')showSettingsPage(\'account\')})" style="padding:4px 10px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">Decline</button>' +
                             '</div></div>';
                     });
                 }
@@ -10970,7 +10972,7 @@ function accountDeleteRowHtml(user) {
                 if (listEl2) listEl2.innerHTML = finalHtml || '<p style="text-align:center;color:var(--text-muted);">No peers yet</p>';
             } catch(e) {
                 var listEl3 = document.getElementById('peersList');
-                if (listEl3) listEl3.innerHTML = '<p style="color:#ef4444;text-align:center;">Could not load peers: ' + (e.message || 'error') + '</p>';
+                if (listEl3) listEl3.innerHTML = '<p style="color:#ef4444;text-align:center;">Could not load peers: ' + BQSafe.esc(e.message || 'error') + '</p>';
             }
         }, 150);
     }
@@ -11087,7 +11089,7 @@ window.addProfileLink = function(key, emoji, label, placeholder, maxlen, type) {
     row.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:12px;background:rgba(255,255,255,0.02);padding:10px;border-radius:12px;border:1px solid var(--border);';
     row.innerHTML = '<span style="font-size:1.2rem;width:28px;text-align:center;flex-shrink:0;">' + emoji + '</span>' +
         '<input type="' + (type || 'text') + '" id="profile_' + key + '" value="" placeholder="' + placeholder + '" maxlength="' + maxlen + '" style="flex:1;padding:8px 10px;background:var(--input-bg,rgba(255,255,255,0.05));border:1px solid var(--border);border-radius:8px;color:var(--text,#e2e8f0);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;min-width:0;-webkit-appearance:none;">' +
-        '<button onclick="document.getElementById(\'profile_' + key + '\').value=\'\';this.parentElement.remove();profileLinkRemoved(\'' + key + '\')" style="background:rgba(239,68,68,0.1);border:none;color:#ef4444;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;" title="Remove">✕</button>';
+        '<button onclick="document.getElementById(\'profile_' + BQSafe.jsStr(key) + '\').value=\'\';this.parentElement.remove();profileLinkRemoved(\'' + BQSafe.jsStr(key) + '\')" style="background:rgba(239,68,68,0.1);border:none;color:#ef4444;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;" title="Remove">✕</button>';
     area.appendChild(row);
     // Hide the menu
     var menu = document.getElementById('addLinkMenu');
@@ -11147,7 +11149,7 @@ window.handleProfilePicUpload = function(input) {
                 if (typeof showToast === 'function') showToast('📷 Profile picture updated!');
                 setTimeout(function() { showSettingsPage('account'); }, 1000);
             }).catch(function(err) {
-                if (status) status.innerHTML = '<span style="color:#ef4444;">❌ Save failed: ' + err.message + '</span>';
+                if (status) status.innerHTML = '<span style="color:#ef4444;">❌ Save failed: ' + BQSafe.esc(err.message) + '</span>';
             });
         };
         img.onerror = function() {
@@ -11343,7 +11345,7 @@ window.showArtistProfileModal = function() {
         '</div>' +
         // Save + Preview
         '<button onclick="saveArtistProfile()" id="artistSaveBtn" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 15px rgba(247,147,26,0.3);margin-bottom:8px;">💾 Save Artist Profile</button>' +
-        '<button onclick="document.getElementById(\'artistProfileModal\').remove();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + uid + '\')" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.82rem;cursor:pointer;font-family:inherit;">👀 Preview My Artist Page</button>' +
+        '<button onclick="document.getElementById(\'artistProfileModal\').remove();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + BQSafe.jsStr(uid) + '\')" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.82rem;cursor:pointer;font-family:inherit;">👀 Preview My Artist Page</button>' +
     '</div>';
 
     document.body.appendChild(overlay);
@@ -11425,7 +11427,7 @@ window.loadSignalContent = function() {
             var title = (n.title || '').replace(/<[^>]+>/g, '');
             var link = n.link || '';
             cardsHtml += '<div style="min-width:240px;max-width:280px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:left;cursor:pointer;transition:0.2s;" ' +
-                (link ? 'onclick="window.open(\'' + link.replace(/[\\'"]/g, "") + '\',\'_blank\')"' : '') +
+                (BQSafe.https(link) ? BQSafe.act('open', [BQSafe.https(link), '_blank']) : '') +
                 '><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="background:var(--accent);color:#fff;font-size:0.55rem;font-weight:900;padding:2px 6px;border-radius:8px;">SIGNAL #' + (i + 1) + '</span></div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.82rem;line-height:1.3;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + title + '</div>' +
                 (link ? '<div style="color:var(--accent);font-size:0.7rem;font-weight:700;margin-top:6px;">Read →</div>' : '') + '</div>';
@@ -12551,7 +12553,7 @@ window.setDisplayBadge = function(badgeId) {
         _ph += '<div onclick="setDisplayBadge(\'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (!_chosen ? 'var(--accent)' : 'var(--border)') + ';background:' + (!_chosen ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + _lvl.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + _lvl.name + ' (Default)</div><div style="color:var(--text-faint);font-size:0.7rem;">Your current rank emoji</div></div>' + (!_chosen ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
         _allE.forEach(function(bd) {
             var _ic = _chosen === bd.id;
-            _ph += '<div onclick="setDisplayBadge(\'' + bd.id + '\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (_ic ? 'var(--accent)' : 'var(--border)') + ';background:' + (_ic ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + bd.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + bd.name + '</div></div>' + (_ic ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
+            _ph += '<div ' + BQSafe.act('setDisplayBadge', [String(bd.id)]) + ' style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid ' + (_ic ? 'var(--accent)' : 'var(--border)') + ';background:' + (_ic ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';cursor:pointer;margin-bottom:6px;transition:0.2s;"><span style="font-size:1.3rem;">' + bd.emoji + '</span><div><div style="color:var(--text);font-size:0.85rem;font-weight:600;">' + bd.name + '</div></div>' + (_ic ? '<span style="margin-left:auto;color:var(--accent);font-size:0.8rem;font-weight:700;">✓</span>' : '') + '</div>';
         });
         _ph += '</div></div>';
         _bp.innerHTML = _ph;
@@ -13156,7 +13158,7 @@ window._renderTrustedDevices = function (devices) {
         return '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--border);">' +
             '<div style="text-align:left;"><div style="color:var(--heading);font-size:0.82rem;font-weight:700;">' + label + mine + '</div>' +
             '<div style="color:var(--text-muted);font-size:0.72rem;">Added ' + mfaEscapeText(mfaWhen(device.createdAtMs)) + ' · Last used ' + mfaEscapeText(mfaWhen(device.lastUsedAtMs)) + '</div></div>' +
-            '<button type="button" onclick="window._removeTrustedDevice(\'' + id + '\',' + (device.current ? 'true' : 'false') + ')" style="padding:6px 10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;cursor:pointer;font-family:inherit;font-size:0.75rem;">Remove</button></div>';
+            '<button type="button" ' + BQSafe.act('window._removeTrustedDevice', [String(id), BQSafe.lit(device.current ? 'true' : 'false')]) + ' style="padding:6px 10px;background:none;border:1px solid #ef4444;border-radius:8px;color:#ef4444;cursor:pointer;font-family:inherit;font-size:0.75rem;">Remove</button></div>';
     }).join('');
 };
 
@@ -13634,7 +13636,7 @@ window.initSatsClaim = function() {
     html += '<label style="display:block;font-size:0.78rem;color:var(--text-muted);margin-bottom:5px;">Amount <span style="color:var(--text-faint);">(100-' + maxClaim + ' sats)</span></label>';
     html += '<div style="display:flex;gap:6px;align-items:center;">';
     html += '<input id="satsLnAmount" type="number" min="100" max="' + maxClaim + '" value="' + maxClaim + '" style="flex:1;padding:11px 13px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:1rem;font-family:inherit;outline:none;text-align:center;font-weight:700;">';
-    html += '<button onclick="document.getElementById(\'satsLnAmount\').value=' + maxClaim + '" style="padding:10px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--accent);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">Max</button>';
+    html += '<button onclick="document.getElementById(\'satsLnAmount\').value=' + BQSafe.num(maxClaim) + '" style="padding:10px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--accent);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">Max</button>';
     html += '</div></div>';
     html += '<div style="font-size:0.7rem;color:#22c55e;margin-bottom:14px;">Your wallet receives sats automatically.</div>';
     html += '</div>';

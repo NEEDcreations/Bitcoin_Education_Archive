@@ -208,7 +208,7 @@
                     uploadTask.snapshot.ref.getDownloadURL().then(function(url) {
                         window._mktUploadedImage = url;
                         if (preview && previewImg) {
-                            preview.innerHTML = '<img id="mktImagePreviewImg" src="' + url + '" style="max-width:100%;max-height:200px;border-radius:10px;border:1px solid var(--border);" /><button onclick="clearMktImage()" style="display:block;margin:6px auto 0;padding:4px 12px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-faint);font-size:0.7rem;cursor:pointer;font-family:inherit;">✕ Remove</button>';
+                            preview.innerHTML = '<img id="mktImagePreviewImg" src="' + BQSafe.esc(BQSafe.img(url)) + '" style="max-width:100%;max-height:200px;border-radius:10px;border:1px solid var(--border);" /><button onclick="clearMktImage()" style="display:block;margin:6px auto 0;padding:4px 12px;background:none;border:1px solid var(--border);border-radius:6px;color:var(--text-faint);font-size:0.7rem;cursor:pointer;font-family:inherit;">✕ Remove</button>';
                         }
                         if (typeof showToast === 'function') showToast('✅ Image uploaded!');
                     });
@@ -382,7 +382,7 @@
                     '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Body</label>' +
                     '<textarea id="editPostBody" rows="6" maxlength="2000" style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;resize:vertical;">' + (typeof escapeHtml === 'function' ? escapeHtml(p.body || '') : (p.body || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')) + '</textarea>' +
                     '<div style="display:flex;gap:10px;">' +
-                        '<button onclick="forumSaveEdit(\'' + postId + '\')" style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">Save Changes</button>' +
+                        '<button ' + BQSafe.act('forumSaveEdit', [String(postId)]) + ' style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">Save Changes</button>' +
                         '<button onclick="document.getElementById(\'forumEditOverlay\').remove()" style="padding:12px 20px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Cancel</button>' +
                     '</div>' +
                     '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;text-align:center;">Edited posts will show an "edited" indicator</div>' +

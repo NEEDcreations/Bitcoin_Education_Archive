@@ -230,7 +230,7 @@ window.renderModules = function(container) {
             html += '<div style="margin-bottom:12px;">';
             mod.channels.forEach(function(ch) {
                 var done = status.visited.indexOf(ch.id) !== -1;
-                html += '<div onclick="window._fromTrails=true;go(\'' + ch.id + '\')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:4px;border-radius:10px;cursor:pointer;transition:0.2s;border:1px solid transparent;" ' +
+                html += '<div onclick="window._fromTrails=true;go(\'' + BQSafe.jsStr(ch.id) + '\')" style="display:flex;align-items:center;gap:10px;padding:8px 10px;margin-bottom:4px;border-radius:10px;cursor:pointer;transition:0.2s;border:1px solid transparent;" ' +
                     'onmouseover="this.style.background=\'rgba(255,255,255,0.03)\';this.style.borderColor=\'var(--border)\'" ' +
                     'onmouseout="this.style.background=\'none\';this.style.borderColor=\'transparent\'">' +
                     '<span style="font-size:1rem;flex-shrink:0;">' + (done ? '✅' : '⬜') + '</span>' +
@@ -244,12 +244,12 @@ window.renderModules = function(container) {
 
             // Action button
             if (status.isPassed) {
-                html += '<button onclick="startTrailExam(\'' + mod.id + '\')" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">🔄 Retake Trail Quest</button>';
+                html += '<button ' + BQSafe.act('startTrailExam', [String(mod.id)]) + ' style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;">🔄 Retake Trail Quest</button>';
             } else if (status.isComplete) {
-                html += '<button onclick="startTrailExam(\'' + mod.id + '\')" style="width:100%;padding:14px;background:' + mod.color + ';border:none;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 15px ' + mod.color + '40;">⚡ Take the ' + mod.name + ' Trail Quest (25 Questions)</button>';
+                html += '<button ' + BQSafe.act('startTrailExam', [String(mod.id)]) + ' style="width:100%;padding:14px;background:' + mod.color + ';border:none;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 15px ' + mod.color + '40;">⚡ Take the ' + mod.name + ' Trail Quest (25 Questions)</button>';
             } else {
                 var nextChannel = mod.channels.find(function(ch) { return status.visited.indexOf(ch.id) === -1; });
-                html += '<button onclick="window._fromTrails=true;go(\'' + (nextChannel ? nextChannel.id : mod.channels[0].id) + '\')" style="width:100%;padding:14px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Continue: ' + (nextChannel ? nextChannel.name : mod.channels[0].name) + ' →</button>';
+                html += '<button onclick="window._fromTrails=true;go(\'' + (BQSafe.jsStr(nextChannel ? nextChannel.id : mod.channels[0].id)) + '\')" style="width:100%;padding:14px;background:var(--accent);border:none;border-radius:12px;color:#fff;font-size:0.95rem;font-weight:700;cursor:pointer;font-family:inherit;">📖 Continue: ' + (nextChannel ? nextChannel.name : mod.channels[0].name) + ' →</button>';
             }
         }
 
@@ -595,7 +595,7 @@ function renderTrailExamResults() {
     // Buttons
     html += '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">';
     if (!passed) {
-        html += '<button onclick="startTrailExam(\'' + mod.id + '\')" style="padding:14px 28px;background:' + mod.color + ';color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;">🔄 Retry Trail Quest</button>';
+        html += '<button ' + BQSafe.act('startTrailExam', [String(mod.id)]) + ' style="padding:14px 28px;background:' + mod.color + ';color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;">🔄 Retry Trail Quest</button>';
     }
     html += '<button onclick="renderModules()" style="padding:14px 28px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;color:var(--text);font-weight:700;cursor:pointer;font-family:inherit;font-size:0.95rem;">🗺️ Back to Trails</button>';
 
