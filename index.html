@@ -1146,6 +1146,8 @@
 
     /* Simpler home */
     .mobile-bar .mobile-brand { min-width:0; flex:1 1 auto; overflow:hidden; display:flex; align-items:center; gap:8px; cursor:pointer; }
+    .mobile-bar .mobile-brand-text { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; min-width:0; }
+    .mobile-bar .mobile-brand-home { font-size:0.55rem; font-weight:800; letter-spacing:0.14em; color:var(--text-muted); line-height:1; margin-top:2px; }
     .mobile-bar .mobile-tools { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; gap:3px; min-width:0; }
     .mobile-bar h2 { letter-spacing:0; font-size:clamp(11px, 3.1vw, 0.85rem); line-height:1.05; }
     .mobile-bar h2 span { display:block; }
@@ -1199,6 +1201,8 @@
     #homeHero .home-logos { margin-bottom:12px; }
     #homeHero .home-logos img { width:72px !important; height:72px !important; }
     #homeHero .home-title { font-size:1.7rem; margin-bottom:8px; }
+    .home-kicker { font-size:0.72rem; font-weight:800; letter-spacing:0.16em; color:var(--accent); margin:-6px 0 14px; }
+    #homeHero .home-kicker { margin-top:0; margin-bottom:8px; }
     #homeHero .home-subtitle { font-size:1rem; margin-bottom:12px; }
     #patchNotesHome { width:100%; max-width:100%; box-sizing:border-box; text-align:center; }
     #patchNotesHome p { max-width:100%; overflow-wrap:anywhere; }
@@ -1402,7 +1406,7 @@
     <div class="mobile-bar">
         <div class="mobile-brand" onclick="goHome()">
             <svg viewBox="0 0 64 64" width="28" height="28" style="flex-shrink:0;"><circle cx="32" cy="32" r="30" fill="#f7931a"/><g transform="rotate(14,32,32)"><text x="32" y="44" text-anchor="middle" font-size="36" font-weight="bold" fill="#fff" font-family="Arial,sans-serif">B</text><line x1="28" y1="12" x2="28" y2="52" stroke="#fff" stroke-width="3"/><line x1="36" y1="12" x2="36" y2="52" stroke="#fff" stroke-width="3"/></g></svg>
-            <h2 style="margin:0;"><span>BITCOIN</span><span>EDUCATION</span><span>ARCHIVE</span></h2>
+            <div class="mobile-brand-text"><h2 style="margin:0;"><span>BITCOIN</span><span>QUEST</span></h2><div class="mobile-brand-home">HOME</div></div>
         </div>
         <div class="mobile-tools">
             <span id="mobileUserInfo" style="font-size:0.65rem;color:var(--text-muted);cursor:pointer;display:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;"><span id="mobileUserLabel"></span></span>
@@ -1714,10 +1718,11 @@
                 </div>
                 <div id="homeHero">
                 <div class="home-logos">
-                    <img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Bitcoin Education Archive" fetchpriority="high" decoding="async" width="130" height="130" style="width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 0 40px rgba(247,147,26,0.4);cursor:pointer;" onclick="goHome()" title="Home — Long-press for Nacho Mode 🦌">
+                    <img src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" alt="Bitcoin Quest" fetchpriority="high" decoding="async" width="130" height="130" style="width:130px;height:130px;border-radius:50%;object-fit:cover;box-shadow:0 0 40px rgba(247,147,26,0.4);cursor:pointer;" onclick="goHome()" title="Home — Long-press for Nacho Mode 🦌">
                     <span class="donate-circle" onclick="showDonateModal()"><svg class="home-ln" viewBox="0 0 64 64" width="80" height="80" style="cursor:pointer;" title="Donate"><circle cx="32" cy="32" r="30" fill="#f7931a"/><polygon points="36,10 22,38 30,38 28,54 42,26 34,26" fill="#fff"/></svg></span>
                 </div>
-                <h1 class="home-title">Bitcoin Quest<span style="display:inline-block;background:#f7931a;color:#fff;font-size:0.32em;font-weight:800;padding:3px 8px;border-radius:6px;vertical-align:middle;margin-left:10px;letter-spacing:0.04em;text-transform:uppercase;line-height:1.4;">Beta</span></h1>
+                <h1 class="home-title">BITCOIN QUEST<span style="display:inline-block;background:#f7931a;color:#fff;font-size:0.32em;font-weight:800;padding:3px 8px;border-radius:6px;vertical-align:middle;margin-left:10px;letter-spacing:0.04em;text-transform:uppercase;line-height:1.4;">Beta</span></h1>
+                <p class="home-kicker">HOME</p>
                 <div id="patchNotesHome">
                 <p style="margin:0 0 6px;font-size:0.78rem;line-height:1.35;"><a id="patchNotesLink" href="/patch-notes.html" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">📋 Patch Notes — Latest updates</a></p>
                 <p id="resetReminderRow" style="margin:0 0 16px;font-size:0.78rem;line-height:1.35;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;"><a id="resetsTimelinesLink" href="/resets.html" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">⏰ Resets, Timelines &amp; Odds</a><span style="color:var(--text-muted);font-weight:600;">Reminder resets</span><button type="button" id="resetRemindersBtn">Turn on notifications</button></p>
@@ -1752,7 +1757,7 @@
                 })();
                 </script>
                 </div>
-                <p class="home-subtitle">Learn Bitcoin and earn real sats.</p>
+                <p class="home-subtitle">Play, Learn, and Earn real bitcoin!</p>
                 <span id="homeTopicCount" hidden>145 topics</span>
                 </div>
                 <!-- As Featured On -->
@@ -2309,7 +2314,7 @@
     <script src="/miniapp-share.js?v=20261107_v2526" defer></script>
     <script src="/pvp-lobby-alert.js?v=20261106_v2519" defer></script>
     <script src="/patches.js?v=20261026_v2385" defer></script>
-    <script src="/onboarding.js?v=20261106_v2512" defer></script>
+    <script src="/onboarding.js?v=20261109_v2542" defer></script>
     <script src="/learning-quests.js?v=20261026_v2377" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
