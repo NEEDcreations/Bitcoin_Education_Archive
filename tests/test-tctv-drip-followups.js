@@ -20,27 +20,43 @@ test('no links: identical to the per-account split', () => {
     assert.deepStrictEqual(a.shares, b.shares);
     assert.strictEqual(a.eligible, 6);
 });
-test('a 5-account ring on one IP is one bucket; threshold counts accounts (Spam/Abuse #287 M1)', () => {
+test('a 5-account ring on one IP is one bucket and one watcher (Red Team #287)', () => {
     const ring = Array.from({ length: 5 }, (_, i) => ({ uid: 'r' + i, seconds: H8, links: ['ip:same'] }));
     const p = L.planShares(ring, cfg);
-    assert.ok(!p.wait, 'shared-IP accounts count toward minEligibleWatchers');
-    assert.strictEqual(p.eligible, 5);
+    assert.ok(p.wait, 'ring alone cannot satisfy minEligibleWatchers');
+    assert.strictEqual(p.eligible, 1);
+    assert.strictEqual(p.groups, 1);
     assert.strictEqual(p.accounts, 5);
-    assert.strictEqual(p.groups, 1);
-    assert.strictEqual(p.linkedGroups, 1);
-    assert.ok(sum(p) <= cfg.targetSats);
 });
-test('classroom NAT: 30 honest viewers on one IP do not wait forever', () => {
-    const room = Array.from({ length: 30 }, (_, i) => ({ uid: 'c' + i, seconds: 3600 + i * 60, links: ['ip:school'] }));
-    const p = L.planShares(room, cfg);
+test('5 alts on one device count as one watcher', () => {
+    const alts = Array.from({ length: 5 }, (_, i) => ({ uid: 'a' + i, seconds: H8, links: ['ip:a' + i, 'dev:one'] }));
+    const p = L.planShares(alts, cfg);
+    assert.ok(p.wait);
+    assert.strictEqual(p.groups, 1);
+    assert.ok(L.projectShares(alts, cfg).waiting);
+});
+test('a lone group is capped at userShareCapPct, even with the threshold at 1', () => {
+    const c1 = L.readConfig({ minEligibleWatchers: 1 });
+    assert.strictEqual(L.shareCap(10000, 1, c1), Math.floor(10000 * c1.userShareCapPct / 100));
+    assert.strictEqual(L.shareCap(10000, 0, c1), Math.floor(10000 * c1.userShareCapPct / 100));
+    const alts = Array.from({ length: 5 }, (_, i) => ({ uid: 'a' + i, seconds: H8, links: ['dev:one'] }));
+    const p = L.planShares(alts, c1);
     assert.ok(!p.wait);
-    assert.strictEqual(p.groups, 1);
-    assert.ok(p.shares.length === 30 && sum(p) > 0 && sum(p) <= cfg.targetSats);
+    const cap = Math.floor(c1.targetSats * c1.userShareCapPct / 100);
+    assert.strictEqual(p.cap, cap);
+    assert.ok(sum(p) <= cap, 'lone group paid ' + sum(p) + ' <= ' + cap);
+    assert.ok(sum(p) < c1.targetSats);
+    assert.strictEqual(p.rollover, c1.targetSats - sum(p));
+    const solo = L.planShares([{ uid: 's', seconds: H8, links: ['ip:s'] }], c1);
+    assert.ok(sum(solo) <= cap, 'single account alone is capped too');
+    const proj = L.projectShares(alts, c1);
+    assert.ok(proj.paid <= cap);
 });
-test('below the account threshold still waits; projection agrees', () => {
-    const four = Array.from({ length: 4 }, (_, i) => ({ uid: 'f' + i, seconds: H8, links: ['ip:f' + i] }));
-    assert.ok(L.planShares(four, cfg).wait);
-    const proj = L.projectShares(four, cfg);
+test('threshold counts distinct groups: 4 groups wait, 5 groups pay', () => {
+    const mk = (n) => Array.from({ length: n }, (_, i) => ({ uid: 'g' + i, seconds: H8, links: ['ip:g' + i] }));
+    assert.ok(L.planShares(mk(4), cfg).wait);
+    assert.ok(!L.planShares(mk(5), cfg).wait);
+    const proj = L.projectShares(mk(4), cfg);
     assert.ok(proj.waiting);
     assert.strictEqual(proj.eligible, 4);
     assert.strictEqual(proj.groups, 4);
@@ -50,7 +66,8 @@ test('ring + 5 honest viewers: ring capped to one share in total', () => {
     const honest = Array.from({ length: 5 }, (_, i) => ({ uid: 'h' + i, seconds: 3 * 3600, links: ['ip:h' + i] }));
     const p = L.planShares(ring.concat(honest), cfg);
     assert.ok(!p.wait);
-    assert.strictEqual(p.eligible, 10);
+    assert.strictEqual(p.eligible, 6);
+    assert.strictEqual(p.accounts, 10);
     assert.strictEqual(p.groups, 6);
     assert.strictEqual(p.linkedGroups, 1);
     const m = byUid(p);
@@ -202,11 +219,44 @@ test('tctvDripCheckin: secret bound, own runtime SA, no static-salt sha256 link 
     assert.ok(src.indexOf("secrets: [tctvLink.tctvLinkSecret], serviceAccount: runtimeSa('tctvDripCheckin')") > 0);
     assert.strictEqual(src.indexOf("'bq-tctv-link:'"), -1, 'old static salt gone');
     assert.ok(src.indexOf("linkHash('dev', deviceKey)") > 0, 'device link HMAC too');
-    // The tick never reads the link key.
-    const tick = src.slice(src.indexOf('const tctvDripTick = onSchedule('));
-    assert.strictEqual(tick.slice(0, tick.indexOf('async')).indexOf('tctvLinkSecret'), -1);
+    // The tick binds the key only to check it is there (Red Team #287).
+    assert.ok(src.indexOf("secrets: [nwcUrlSecret, tctvLink.tctvLinkSecret], serviceAccount: runtimeSa('tctvDripTick')") > 0);
     const M = require('../functions/src/runtimeServiceAccounts');
     assert.strictEqual(M.RUNTIME_SERVICE_ACCOUNTS.tctvDripCheckin.id, 'fn-tctv-drip-checkin');
+});
+test('Red Team #287: missing link key refuses check-ins (fails closed, nothing credited)', () => {
+    const src = read('functions/tctv-drip.js');
+    const fn = src.slice(src.indexOf('const tctvDripCheckin = '), src.indexOf('async function readWalletSats('));
+    const gate = fn.indexOf('if (!tctvLink.secretReady()) {');
+    assert.ok(gate > 0, 'checkin calls secretReady');
+    assert.ok(gate < fn.indexOf('db.runTransaction'), 'before any write');
+    assert.ok(gate < fn.indexOf('admin.auth().getUser'), 'before any lookup');
+    assert.ok(fn.slice(gate, gate + 300).indexOf("return { ok: false, reason: 'link-key-missing' }") > 0);
+});
+test('Red Team #287: missing link key holds the pot payout before shares or reserve', () => {
+    const src = read('functions/tctv-drip.js');
+    const tick = src.slice(src.indexOf('async function runTick('));
+    const gate = tick.indexOf('if (!tctvLink.secretReady()) {');
+    assert.ok(gate > 0, 'tick calls secretReady');
+    assert.ok(gate < tick.indexOf('logic.planShares('), 'before planning shares');
+    assert.ok(gate < tick.indexOf('readWalletSats('), 'before the wallet read');
+    assert.ok(gate < tick.indexOf("status: 'distributing'"), 'before reserving');
+    const blk = tick.slice(gate, tick.indexOf('return;', gate));
+    assert.ok(blk.indexOf("status: 'held'") > 0 && blk.indexOf("holdReason: 'link-key-missing'") > 0);
+    assert.ok(blk.indexOf("alertAdmin(pot.potId, 'link-key-missing')") > 0);
+    assert.ok(src.indexOf("reason === 'link-key-missing'") > 0, 'alert explains the missing key');
+});
+test('secretReady matches linkHmac: key present => ids, missing/short => not ready', () => {
+    const S = require('../functions/src/tctvLinkSecret');
+    const prev = process.env[S.SECRET_ENV];
+    delete process.env[S.SECRET_ENV];
+    assert.strictEqual(S.secretReady(), false);
+    process.env[S.SECRET_ENV] = '   short   ';
+    assert.strictEqual(S.secretReady(), false);
+    process.env[S.SECRET_ENV] = 'test-only-tctv-link-key-not-real';
+    assert.strictEqual(S.secretReady(), true);
+    assert.ok(S.linkHmac('dev', 'x').length === 24);
+    if (prev === undefined) delete process.env[S.SECRET_ENV]; else process.env[S.SECRET_ENV] = prev;
 });
 test('pot close scrubs link ids after the success transaction', () => {
     const src = read('functions/tctv-drip.js');

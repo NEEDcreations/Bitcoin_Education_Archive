@@ -3,10 +3,12 @@
 // Secret Manager key for the TCTV drip link ids (exact IP, device, subnet)
 // on tctv_drip_watch docs. HMAC-SHA256 only; the raw IP never leaves the
 // request and no static salt is used (User Data/Backups + Spam/Abuse #287
-// must-fix). Bound only on tctvDripCheckin and read at call time from
+// must-fix). Bound on tctvDripCheckin (hashes) and tctvDripTick (ready check
+// only), read at call time from
 // process.env.TCTV_LINK_HMAC_KEY. Must exist (enabled, >= 16 chars) and be
-// readable by fn-tctv-drip-checkin before that function deploys. Without
-// the key, check-ins still credit but record no link ids.
+// readable by fn-tctv-drip-checkin and fn-tctv-drip-tick before they deploy.
+// Fails closed (Red Team #287): without the key, check-ins are refused and the
+// pot payout is held (secretReady() gates both).
 const crypto = require('crypto');
 const { defineSecret } = require('firebase-functions/params');
 

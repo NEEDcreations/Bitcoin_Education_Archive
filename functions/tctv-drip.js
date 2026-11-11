@@ -58,6 +58,12 @@ const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true, secrets: [t
 
     const { cfg } = await loadConfig();
     if (!cfg.enabled) return { ok: false, reason: 'off' };
+    // Red Team #287: without the link key, linking would silently turn off
+    // (fail open). Refuse the check-in instead; nothing is credited.
+    if (!tctvLink.secretReady()) {
+        console.error('[tctvDrip] TCTV_LINK_HMAC_KEY missing or short: check-ins refused');
+        return { ok: false, reason: 'link-key-missing' };
+    }
     const nowMs = Date.now();
 
     const potSnap = await POT_REF().get();
@@ -104,7 +110,7 @@ const tctvDripCheckin = functionsV1.runWith({ enforceAppCheck: true, secrets: [t
             // docs. liveViewers on the pot is only the public header total.
             if (plan.credit > 0 && ageOk === true) patch.activeMs = nowMs;
             // Linked-account signals for the payout split (exact IP, device, subnet).
-            // HMAC ids only; with no key nothing new is added.
+            // HMAC ids only (the check-in is refused above without the key).
             patch.linkIps = logic.mergeLinks(prev.linkIps, links.ip);
             patch.linkDevices = logic.mergeLinks(prev.linkDevices, linkHash('dev', deviceKey));
             patch.linkNets = logic.mergeLinks(prev.linkNets, links.net);
@@ -136,7 +142,9 @@ async function readWalletSats(raw) {
 async function alertAdmin(potId, reason) {
     await db.collection('admin_alerts').doc('tctv_drip_' + potId).set({
         kind: 'tctv_drip_hold', potId, reason,
-        message: 'TCTV drip pot is full but payout is on hold (' + reason + '). Faucet claims keep paying. Top up the wallet or adjust tctv_drip_config.',
+        message: reason === 'link-key-missing'
+            ? 'TCTV drip payout is on hold: the TCTV_LINK_HMAC_KEY secret is missing or too short. Check-ins are refused until it is restored. Faucet claims keep paying.'
+            : 'TCTV drip pot is full but payout is on hold (' + reason + '). Faucet claims keep paying. Top up the wallet or adjust tctv_drip_config.',
         at: admin.firestore.FieldValue.serverTimestamp(), resolved: false,
     }, { merge: true });
 }
@@ -284,6 +292,19 @@ async function runTick() {
             pot.viewers = viewers;
             pot.ratePerMin = rate;
         }
+        // Red Team #287: no payout without the link key (linked-account caps
+        // depend on it). Held with a private reason + admin alert; every tick
+        // retries and the pot resumes once the key is back.
+        if (!tctvLink.secretReady()) {
+            const resRefK = db.collection('tctv_drip_config').doc('reserve');
+            const prevK = ((await resRefK.get()).data() || {}).holdReason || '';
+            if (pot.status !== 'held' || prevK !== 'link-key-missing') {
+                await potRef.set({ status: 'held', heldMs: nowMs }, { merge: true });
+                await resRefK.set({ holdReason: 'link-key-missing', holdPotId: pot.potId }, { merge: true });
+                await alertAdmin(pot.potId, 'link-key-missing');
+            }
+            return;
+        }
         // Watcher minimum first. Not a wallet hold: no admin alert, the pot just
         // stays full (check-ins keep counting) and every tick retries.
         const pre = logic.planShares(await loadEntries(pot.potId, cfg), cfg);
@@ -380,7 +401,7 @@ async function scrubPotLinks(potId) {
     return n;
 }
 
-const tctvDripTick = onSchedule({ schedule: 'every 1 minutes', timeZone: 'UTC', retryCount: 0, secrets: [nwcUrlSecret], serviceAccount: runtimeSa('tctvDripTick') }, async () => {
+const tctvDripTick = onSchedule({ schedule: 'every 1 minutes', timeZone: 'UTC', retryCount: 0, secrets: [nwcUrlSecret, tctvLink.tctvLinkSecret], serviceAccount: runtimeSa('tctvDripTick') }, async () => {
     try { await runTick(); } catch (e) { console.error('[tctvDrip] tick', e && e.message); }
 });
 
