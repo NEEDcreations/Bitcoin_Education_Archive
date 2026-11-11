@@ -134,7 +134,12 @@ function hit(method, url, ua) {
 function meta(html, attr, key) {
     const re = new RegExp('<meta ' + attr + '="' + key + '" content="([^"]*)"', 'i');
     const m = re.exec(html);
-    return m ? m[1] : '';
+    // The worker HTML-escapes attribute values (& < > " ' `); decode before comparing.
+    return m ? decodeAttr(m[1]) : '';
+}
+function decodeAttr(v) {
+    // Only the two entities the shared escaper added (' and `); &amp; etc. are compared as before.
+    return v.replace(/&#39;/g, "'").replace(/&#96;/g, '`');
 }
 
 loadWorker().then(function () {

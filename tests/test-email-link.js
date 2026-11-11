@@ -111,6 +111,7 @@ test('sign-in methods card shows for guests and Lightning-only accounts, and sig
     const block = src.slice(src.indexOf('// ACCOUNT_LINK_PLAN_START'), src.indexOf('// ACCOUNT_LINK_PLAN_END'));
     const sandbox = {};
     vm.createContext(sandbox);
+    require('./xss/load-bqsafe')(vm, sandbox);
     vm.runInContext(block, sandbox);
 
     const guest = { uid: 'guest-1', isAnonymous: true, providerData: [] };
@@ -221,6 +222,7 @@ test('a pending authenticator check blocks linking and cancel signs straight out
         }
     };
     vm.createContext(sandbox);
+    require('./xss/load-bqsafe')(vm, sandbox);
     vm.runInContext(block, sandbox);
     assert.strictEqual(sandbox.accountLinkTotpPending(), true);
     const guest = { uid: 'guest-1', isAnonymous: true, providerData: [] };
@@ -268,6 +270,7 @@ test('a guest link creates the profile and a stale intent falls through', functi
     const block = src.slice(src.indexOf('// ACCOUNT_LINK_PLAN_START'), src.indexOf('// ACCOUNT_LINK_PLAN_END'));
     const sandbox = {};
     vm.createContext(sandbox);
+    require('./xss/load-bqsafe')(vm, sandbox);
     vm.runInContext(block, sandbox);
     const now = 1700000000000;
     const hour = sandbox.ACCOUNT_LINK_MAX_AGE_MS;
