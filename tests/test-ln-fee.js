@@ -40,8 +40,8 @@ test('server invoices are requested for the net amount', () => {
     assert.ok(idx.includes('msats: netSendAmount * 1000'));
     assert.ok(!idx.includes('msats: lnAddrAmount * 1000'));
     const g = read('functions/src/gifting.js');
-    assert.ok(g.includes("_resolvePrizeInvoice('', reserved.address, reserved.net)"));
-    assert.ok(g.includes("_resolvePrizeInvoice('', payoutAddress, netAmount)"));
+    assert.ok(g.includes("_resolvePrizeInvoice('', reserved.address, reserved.net, satsResolved)")); // #286: 4th arg collects the LNURL callback key
+    assert.ok(g.includes("_resolvePrizeInvoice('', payoutAddress, netAmount, winResolved)"));
     const win = g.slice(g.indexOf('const claimCipherWin'), g.indexOf('const listMyCipherWins'));
     assert.strictEqual(win.includes('data.invoice'), false);
     assert.strictEqual(win.includes('data.lightningAddress'), false);
