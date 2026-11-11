@@ -154,9 +154,10 @@ function totpDelta(authenticator, token, secret, nowMs) {
 }
 
 // Admin-only controls (adminResetSecondFactor, and #285 Clear Hold) need a
-// recent sign-in and an ESTABLISHED factor: enrolled at least 24 hours ago,
-// or before the current sign-in. A stolen fresh session cannot enroll its
-// own authenticator and use it right away (Spam/Abuse A1).
+// recent sign-in and an ESTABLISHED factor: enrolled at least 24 hours ago
+// (TOTP: server-set enabledAt; phone: Firebase Auth enrollmentTime). Signing
+// in again does NOT make a new factor count (Spam/Abuse A1 + A1b), and every
+// admin-account factor add/remove alerts the admins so the 24h is watched.
 const RECENT_SIGN_IN_MS = 10 * 60 * 1000;
 const ESTABLISHED_FACTOR_MS = 24 * 60 * 60 * 1000;
 
@@ -182,11 +183,16 @@ function recentSignIn(context, nowMs) {
     return age >= -60000 && age <= RECENT_SIGN_IN_MS;
 }
 
-function factorEstablished(enrolledMs, signInMs, nowMs) {
+function factorEstablished(enrolledMs, nowMs) {
     const e = timeMs(enrolledMs);
     if (!e) return false;
-    if (e <= nowMs - ESTABLISHED_FACTOR_MS) return true;
-    return signInMs > 0 && e < signInMs;
+    return e <= nowMs - ESTABLISHED_FACTOR_MS;
+}
+
+// Masked / hashed uid for admin alerts (never the raw uid).
+function maskUid(uid) {
+    const u = String(uid || '');
+    return { uidHint: u ? u.slice(0, 4) + '\u2026' : '', uidHash: u ? sha('mfa-admin-alert:' + u).slice(0, 16) : '' };
 }
 
 function sha(value) {
@@ -870,6 +876,30 @@ function initSecondFactor(deps) {
         }, row));
     }
 
+    // A1b: when an ADMIN-claim account adds or removes a second factor, alert
+    // the admins (existing admin_notifications path). uid masked + hashed.
+    // Never blocks the caller's flow.
+    async function alertAdminFactorChange(uid, change, factor) {
+        try {
+            let rec = null;
+            try { rec = await admin.auth().getUser(uid); } catch (e) { rec = null; }
+            if (!rec || !rec.customClaims || rec.customClaims.admin !== true) return false;
+            const m = maskUid(uid);
+            await notifyAdmin({
+                type: 'admin_factor_change',
+                change: change,
+                factor: factor,
+                uidHint: m.uidHint,
+                uidHash: m.uidHash,
+                message: 'An admin account ' + (change === 'added' ? 'added' : 'removed') + ' a two-factor method (' + factor + '). If this was not expected, act now: it can be used for admin actions after 24 hours.',
+            });
+            return true;
+        } catch (e) {
+            console.error('[secondFactor] admin factor alert failed', e && e.message);
+            return false;
+        }
+    }
+
     async function clearTotp(uid) {
         await revokeSessions(uid, null);
         await revokeTrustedDevices(uid, '');
@@ -970,6 +1000,7 @@ function initSecondFactor(deps) {
             lastAcceptedStep: step,
         });
         await db.collection('users').doc(uid).set({ totpEnabled: true }, { merge: true });
+        await alertAdminFactorChange(uid, 'added', 'totp');
         try { await require('./badgeCredit').grantIds(db, admin, uid, ['totp_enabled']); }
         catch (e) { console.warn('[totpVerify] badge', e.message); }
         await db.collection('totp_pending').doc(uid).delete().catch(function () {});
@@ -1015,6 +1046,7 @@ function initSecondFactor(deps) {
         }
         await proveFreshCode(data, context, uid, 'disableTotp', nowMs);
         await clearTotp(uid);
+        await alertAdminFactorChange(uid, 'removed', 'totp');
         forgetPhone(uid);
         const phone = await phoneInfo(uid);
         if (phone.enrolled !== true) {
@@ -1076,6 +1108,9 @@ function initSecondFactor(deps) {
         const factor = secret && phone.enrolled ? 'both' : (secret ? 'totp' : 'phone');
         const recoveryCodes = await storeRecoveryCodes(uid, factor);
         if (phone.enrolled) await db.collection('users').doc(uid).set({ phoneVerified: true }, { merge: true });
+        // The client enrolls phone with Firebase directly; this is where the
+        // server first sees a fresh phone factor.
+        if (freshPhone) await alertAdminFactorChange(uid, 'added', 'phone');
         return { success: true, recoveryCodes: recoveryCodes };
     });
 
@@ -1142,6 +1177,7 @@ function initSecondFactor(deps) {
         await db.collection('rate_limits').doc(ipDocId).delete().catch(function () {});
         const message = 'Two-factor authentication was turned off with a recovery code. If this was not you, contact support.';
         await notifyUser(uid, message);
+        await alertAdminFactorChange(uid, 'removed', phoneCleared ? 'totp+phone (recovery code)' : 'totp (recovery code)');
         await notifyAdmin({
             type: 'mfa_recovery',
             uid: uid,
@@ -1313,6 +1349,7 @@ function initSecondFactor(deps) {
         const phone = await phoneInfo(uid);
         if (phone.enrolled === true) throw httpError('failed-precondition', 'Phone verification is still on.');
         await db.collection('users').doc(uid).set({ phoneVerified: false }, { merge: true });
+        await alertAdminFactorChange(uid, 'removed', 'phone');
         const secret = await secretRecord(uid);
         if (!secret) await db.collection('recovery_codes').doc(uid).delete().catch(function () {});
         return { success: true };
@@ -1324,15 +1361,16 @@ function initSecondFactor(deps) {
         if (!context || !context.auth || !context.auth.uid) throw httpError('unauthenticated', 'Must be signed in');
         const nowMs = currentNow();
         if (!recentSignIn(context, nowMs)) throw httpError('failed-precondition', 'Sign in again, then try this.');
+        // Bust the 60 s phoneInfo cache so a just-changed phone factor is read fresh.
+        forgetPhone(context.auth.uid);
         const sf = await requireFreshStepUp(context, action);
         if (!sf || (sf.totp !== true && sf.phone !== true)) {
             throw httpError('failed-precondition', 'Turn on two-factor authentication first.');
         }
         const uid = context.auth.uid;
-        const signIn = authTimeMs(context);
         const [secret, phone] = await Promise.all([secretRecord(uid), phoneInfo(uid)]);
-        const totpOk = sf.totp === true && !!secret && factorEstablished(secret.enabledAt, signIn, nowMs);
-        const phoneOk = sf.phone === true && phone.enrolled === true && factorEstablished(phone.enrollmentTime, signIn, nowMs);
+        const totpOk = sf.totp === true && !!secret && factorEstablished(secret.enabledAt, nowMs);
+        const phoneOk = sf.phone === true && phone.enrolled === true && factorEstablished(phone.enrollmentTime, nowMs);
         if (!totpOk && !phoneOk) {
             throw httpError('failed-precondition', 'Your two-factor method is too new for this action. Try again after 24 hours.');
         }
@@ -1473,6 +1511,7 @@ module.exports = {
     requireAdminStepUp: requireAdminStepUp,
     recentSignIn: recentSignIn,
     factorEstablished: factorEstablished,
+    maskUid: maskUid,
     RECENT_SIGN_IN_MS: RECENT_SIGN_IN_MS,
     ESTABLISHED_FACTOR_MS: ESTABLISHED_FACTOR_MS,
     encryptTotpSecret: encryptTotpSecret,
