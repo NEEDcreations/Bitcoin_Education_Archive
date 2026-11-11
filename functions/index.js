@@ -1061,11 +1061,20 @@ exports.onMarketplaceSaleCount = onDocumentUpdated({
     return null;
 });
 
+
+// Shared kill-switch check for value-granting triggers (gateExport only
+// wraps callables and schedules). Fail closed. Triggers with retry:true
+// throw so the event is redelivered after the switch is off.
+async function killSwitchIsOn() {
+    return require('./src/killSwitch').isOffline(db);
+}
+
 exports.onChatBadgeCount = onDocumentCreated({
     document: 'global_chat/{messageId}',
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
+    if (await killSwitchIsOn()) return null;
     try { await activityCounters.recordChat(db, admin, event.data.data()); }
     catch (e) { console.warn('[onChatBadgeCount]', e && e.message); }
     return null;
@@ -1076,6 +1085,7 @@ exports.onDmBadgeCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
+    if (await killSwitchIsOn()) return null;
     try { await activityCounters.recordDm(db, admin, event.data.data()); }
     catch (e) { console.warn('[onDmBadgeCount]', e && e.message); }
     return null;
@@ -1086,6 +1096,7 @@ exports.onForumPostBadgeCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
+    if (await killSwitchIsOn()) return null;
     try {
         const recorded = await activityCounters.recordForumPost(db, admin, event.data.data());
         if (recorded && recorded.bumped && recorded.uid) {
@@ -1107,6 +1118,7 @@ exports.onForumReplyBadgeCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
+    if (await killSwitchIsOn()) return null;
     try { await activityCounters.recordForumReply(db, admin, event.data.data()); }
     catch (e) { console.warn('[onForumReplyBadgeCount]', e && e.message); }
     return null;
@@ -1148,6 +1160,7 @@ exports.onBeatsUploadBadgeCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
+    if (await killSwitchIsOn()) return null;
     try { await activityCounters.recordBeatsUpload(db, admin, event.data.data()); }
     catch (e) { console.warn('[onBeatsUploadBadgeCount]', e && e.message); }
     return null;
@@ -1158,6 +1171,7 @@ exports.onArticleBadgeCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
+    if (await killSwitchIsOn()) return null;
     try {
         const recorded = await activityCounters.recordArticle(db, admin, event.data.data());
         if (recorded && recorded.bumped && recorded.uid) {
@@ -1182,6 +1196,13 @@ exports.onArticlePublishXp = onDocumentWritten({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
     retry: true,
 }, async (event) => {
+    // Defer while the kill switch is on. Losing this event would drop
+    // article XP; retry:true redelivers after the switch is off (up to
+    // the platform retry window — see the runbook if the outage is long).
+    const ksArticle = require('./src/killSwitch');
+    if ((await ksArticle.makeReader(function () { return db; })()).on) {
+        throw new Error('kill switch on: defer article publish xp');
+    }
     const change = event.data;
     if (!change) return null;
     const beforeSnap = change.before;
@@ -1526,6 +1547,7 @@ exports.onUserReferral = onDocumentWritten({
     secrets: [referralIpSecret, deletionHmacSecret],
     serviceAccount: runtimeSa('onUserReferral'),
 }, async (event) => {
+    if (await killSwitchIsOn()) return null;
     return referralService.onUserWritten(event);
 });
 
@@ -5498,7 +5520,12 @@ exports.onPushDeviceWritten = onDocumentWritten({
     return null;
 });
 
-exports.onPvpMatchFinished = onDocumentUpdated('pvp_matches/{matchId}', async (event) => {
+exports.onPvpMatchFinished = onDocumentUpdated({
+    document: 'pvp_matches/{matchId}',
+    retry: true,
+}, async (event) => {
+    // Defer settle/XP/badges while offline; retry after the switch is off.
+    if (await killSwitchIsOn()) throw new Error('kill switch on: defer pvp settle');
     const before = (event.data.before && event.data.before.data()) || {};
     const after = (event.data.after && event.data.after.data()) || {};
     const matchId = event.params.matchId;
@@ -5661,6 +5688,11 @@ exports.backfillPublicProfiles = functionsV1.https.onCall(async (data, context) 
 exports.backfillLightningAddress = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth || !context.auth.token || context.auth.token.admin !== true) {
         throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
+    }
+    // After the admin gate so a non-admin still gets permission-denied.
+    // Gated here (not via gateExports) for the same reason.
+    if (await require('./src/killSwitch').isOffline(db)) {
+        throw new functionsV1.https.HttpsError('unavailable', require('./src/killSwitch').OFFLINE_MESSAGE);
     }
     const snap = await db.collection('users').get();
     const BATCH_SIZE = 400;
@@ -8531,6 +8563,13 @@ const { flushDueRecognitions } = require('./src/collectionRecognition');
 // keeps a retry from posting the same badge twice. A recognition post failure
 // does not throw: the bonus is already committed and the burst stays open.
 exports.onBadgeAwardCreated = onDocumentCreated({ document: 'users/{uid}/badge_awards/{badgeId}', retry: true }, async (event) => {
+    // Defer while the kill switch is on. Losing this event would drop
+    // the collection bonus and the GG queue row; retry:true redelivers
+    // after the switch is off (see the runbook if the outage is long).
+    const ksBadge = require('./src/killSwitch');
+    if ((await ksBadge.makeReader(function () { return db; })()).on) {
+        throw new Error('kill switch on: defer badge award');
+    }
     const snap = event.data;
     if (!snap) return null;
     const uid = event.params && event.params.uid;
@@ -9690,6 +9729,19 @@ exports.adminSetKillSwitch = killSwitch.makeAdminSetKillSwitch({
     sendPhilDm: function (text) { return require('./src/raidBossEngine').sendPhilDm(text); },
     listAdminUids: _listAdminClaimUids,
 });
+// Settle an expired auto-return even if no admin opens the panel. Same
+// runtime SA as adminSetKillSwitch. Not gated — it is how the app comes back.
+exports.killSwitchAutoReturnTick = onSchedule({
+    schedule: 'every 5 minutes',
+    timeZone: 'UTC',
+    secrets: [tgBotTokenSecret],
+    serviceAccount: runtimeSa('killSwitchAutoReturnTick'),
+}, killSwitch.makeAutoReturnTick({
+    admin: admin,
+    db: db,
+    sendPhilDm: function (text) { return require('./src/raidBossEngine').sendPhilDm(text); },
+    listAdminUids: _listAdminClaimUids,
+}));
 killSwitch.gateExports(exports, killSwitch.gatedNames(), {
     readState: killSwitch.makeReader(function () { return db; }),
     HttpsError: functionsV1.https.HttpsError,

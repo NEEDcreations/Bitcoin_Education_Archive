@@ -1,6 +1,6 @@
 # Bitcoin Quest kill switch runbook
 
-Last updated: 11 November 2026, 6:15 PM ET.
+Last updated: 11 November 2026, 6:20 PM ET.
 
 This is the operator guide for the admin-shield kill switch. Nothing in this document is sent automatically. The user email and X post below are drafts for Phil to approve; do not send them until he says so.
 
@@ -9,12 +9,82 @@ This is the operator guide for the admin-shield kill switch. Nothing in this doc
 The kill switch takes Bitcoin Quest offline for everyone except admins.
 
 1. An admin opens **Admin tools → Kill switch**. The confirm screen checks that backups exist (latest managed Firestore export under about 26 hours old, point-in-time recovery on, and the newest R2 object when that can be checked). A stale or missing backup is a **warning**, not a block. An emergency shutdown must never wait on a backup check.
-2. The admin types a reason, types **OFFLINE**, and enters a fresh authenticator code. The factor must be at least 24 hours old. The callable also requires the admin claim, App Check, and a recent sign-in.
-3. The flag (`config/killSwitch`) flips first. Clients show a calm maintenance page. Payout, reward, and write callables return “temporarily offline.” Scheduled payout jobs skip that run. Non-admin client writes are denied in Firestore rules for the user profile and a few other cheap paths. Admins can still open Admin tools and turn the switch off.
-4. After the flag is on, the function starts a managed Firestore export in the background to `gs://<project>-backups/kill-switch/<timestamp>/`, with a small manifest of who flipped it and why. A failed snapshot **never** turns the app back on or delays the shutdown. The export operation id is written to the append-only `kill_switch_audit` log and shown in the admin UI.
-5. Every admin is notified (in-app + the admin notifications collection). Phil also gets a Telegram DM when that path is configured. Flips are rate-limited (8 per admin per hour, 20 global per hour). Audit rows are never deleted.
+2. The admin types a reason, types **OFFLINE**, and enters a fresh authenticator code. The factor must be at least 24 hours old and on the server-recorded known-factor list (#302). The callable also requires the admin claim, App Check, and a recent sign-in.
+3. The public flag (`config/killSwitch`) flips first. That doc holds only `enabled`, `mode`, `message`, `since`, and `autoReenableAt`. Reason, who flipped it, and the snapshot path live on `config/killSwitchAdmin` (admins only). Clients show a calm maintenance page. Payout, reward, ticket, XP and write callables return “temporarily offline.” Scheduled payout jobs skip that run. **All** non-admin client writes are denied in Firestore rules (forum, chat, DMs, notifications, reports, marketplace, beats, profiles, and the rest). Admins can still open Admin tools and turn the switch off. Each write evaluation does one extra `get()` of `config/killSwitch` (cached for the request).
+4. After the flag is on, the function starts a managed Firestore export in the background to `gs://<project>-backups/kill-switch/<timestamp>/`, with a small manifest of who flipped it and why. If a snapshot was already started in the last 6 hours, that one is reused instead of starting another full export. A failed snapshot **never** turns the app back on or delays the shutdown. The export operation id is written to the append-only `kill_switch_audit` log and shown in the admin UI (not on the public flag).
+5. Every admin is notified (in-app + the admin notifications collection, with the actor uid masked). Phil also gets a Telegram DM when that path is configured. Alerts fire on every state write (flip, reason change, or auto-return change) and once when the auto-return actually fires (`killSwitchAutoReturnTick`, every 5 minutes). A no-op write (for example OFF while already off) does not alert and does not use the rate budget. Flips that change state are rate-limited (8 per admin per hour, 20 global per hour). Status/preflight is limited separately (30 per admin per hour). Audit rows are never deleted.
+6. Sending **ON** while the switch is already on is refused unless the auto-return moves **later** (a later deadline, or dropping the deadline). That extension still alerts every admin and DMs Phil. A reason-only change, a shorten, or a re-arm with no later deadline is rejected.
 
 Turning it off is the same flow, typing **ONLINE** and a reason. No new snapshot is started on the way back.
+
+Angle brackets are stripped from the reason so it cannot carry markup into notices.
+
+## Backup IAM (fn-admin-kill-switch)
+
+Phil (or someone with `resourcemanager.projects.setIamPolicy` and bucket IAM) must create the custom role and bind it. `rufus2-deploy` cannot create service accounts or custom roles. The setup script is `functions/scripts/runtime-sa-plan.js` (batch “admin kill switch”).
+
+The runtime SA must **not** be able to import over live data or delete nightlies.
+
+```bash
+P=bitcoin-education-archive
+SA=fn-admin-kill-switch@$P.iam.gserviceaccount.com
+BUCKET=bitcoin-education-archive-backups
+
+# Custom role: export + operations.get only. No import.
+gcloud iam roles describe killSwitchExport --project "$P" >/dev/null 2>&1 \
+  || gcloud iam roles create killSwitchExport --project "$P" \
+      --title "Kill switch Firestore export" \
+      --description "Start a managed Firestore export and poll the operation. Cannot import." \
+      --permissions datastore.databases.export,datastore.operations.get
+gcloud iam roles update killSwitchExport --project "$P" \
+  --permissions datastore.databases.export,datastore.operations.get
+gcloud projects add-iam-policy-binding "$P" \
+  --member "serviceAccount:$SA" \
+  --role "projects/$P/roles/killSwitchExport" \
+  --condition=None
+
+# List/read nightlies for the preflight check. Viewer cannot delete.
+gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" \
+  --member "serviceAccount:$SA" \
+  --role roles/storage.objectViewer
+
+# Create objects only under kill-switch/. No delete, and no writes elsewhere.
+gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" \
+  --member "serviceAccount:$SA" \
+  --role roles/storage.objectCreator \
+  --condition='expression=resource.name.startsWith("projects/_/buckets/'"$BUCKET"'/objects/kill-switch/"),title=kill-switch-prefix-only,description=Create objects only under kill-switch/; no delete'
+```
+
+Repeat for staging (`bitcoin-quest-staging`, bucket `bitcoin-quest-staging-backups`) if you test there.
+
+The function only lists/reads existing export metadata and **creates** objects under a unique `kill-switch/<timestamp>/` prefix (manifest `save` uses `ifGenerationMatch: 0` so it will not overwrite). It never deletes or overwrites backup objects. Do **not** grant `roles/storage.objectAdmin` or `roles/datastore.importExportAdmin`.
+
+### Retention, versioning, and lifecycle (recommended)
+
+- Turn on object versioning on `gs://bitcoin-education-archive-backups` so a mistaken overwrite of a nightly can be recovered.
+- Prefer a retention policy or bucket lock on the daily `YYYY-MM-DD/` exports if Legal agrees (this is a policy change; Phil must approve).
+- Add a lifecycle rule so `kill-switch/` snapshots do not grow forever. Example (90 days; Phil can pick a longer window):
+
+```json
+{
+  "rule": [
+    {
+      "action": { "type": "Delete" },
+      "condition": {
+        "age": 90,
+        "matchesPrefix": ["kill-switch/"]
+      }
+    }
+  ]
+}
+```
+
+```bash
+gcloud storage buckets update gs://bitcoin-education-archive-backups --versioning
+gcloud storage buckets update gs://bitcoin-education-archive-backups --lifecycle-file=kill-switch-lifecycle.json
+```
+
+Do not apply a short lifecycle to the daily `YYYY-MM-DD/` prefixes.
 
 ## How to fix issues while the app is offline
 
@@ -41,18 +111,43 @@ The live app being off does not stop you from working. Use staging, then deploy 
 - Live Firestore PITR keeps a 7-day window. This can roll the database back to a minute before the incident.
 - PITR restore **overwrites** the current database. Only Phil can approve this. Do it only if the snapshot and the daily export are not enough, and after you have a current export to fall back to.
 - Prefer restoring into a new database or a staging copy first, then copy selected data, rather than restoring over live.
-- The kill-switch snapshot folder (`gs://bitcoin-education-archive-backups/kill-switch/<timestamp>/`) is an export of exactly what the database looked like just after the shutdown. Importing it is also a last-resort, Phil-approved operation. Import does not happen automatically.
+- The kill-switch snapshot folder (`gs://bitcoin-education-archive-backups/kill-switch/<timestamp>/`) is an export of exactly what the database looked like just after the shutdown. Importing it is also a last-resort, Phil-approved operation. Import does not happen automatically. The kill-switch runtime SA **cannot** import.
+
+## Break-glass (rate limit or a compromised admin)
+
+If the 8/20-per-hour write budget is exhausted, or a compromised admin is flipping the switch, do this in order:
+
+1. **Revoke the admin claim first** on the compromised account(s). Do not leave them able to open Admin tools.
+2. Write the flag from the Firebase console or from an Admin SDK session that is **not** the kill-switch SA (Phil’s user, or `rufus2-deploy` used only for this write). Set `config/killSwitch` to `{enabled: false, mode: "offline", message: null, since: null, autoReenableAt: null}` and update `config/killSwitchAdmin` with a reason such as “break-glass: rate limit / compromised admin”. Console / Admin SDK writes bypass the callable rate limit.
+3. Add an audit note (a new `kill_switch_audit` row, or a written log) of who did the break-glass and why.
+4. Rotate or disable the compromised admin’s factors and sessions.
+
+## Catch-up after missed weekly / monthly payouts
+
+`resetWeeklyXP` and `resetMonthlyXP` (and the prize jobs `payWeeklyQuestLB` / `payMonthlyQuestLB`) **skip** while the switch is on. They do **not** backfill a missed period on the next cron.
+
+`lbPrizes.settleXp` is idempotent per `periodKey` via `lb_prize_markers`. After bringing the app back:
+
+1. Check `lb_prize_markers` / `leaderboard_winners` for the missed `periodKey`.
+2. If that period was not paid, run a one-off of the named job with the missed period’s `now` (Monday 05:00 UTC for weekly, 1st 00:00 UTC for monthly). A later cron will settle a **different** period.
+3. Only do this with Phil’s OK.
+
+## Triggers that defer or skip
+
+- **Defer** (throw, `retry: true`, redelivered after the switch is off, up to the platform retry window): `onArticlePublishXp`, `onBadgeAwardCreated`, `onPvpMatchFinished` (includes `settlePvpMatch` XP/badges). If an outage lasts longer than the retry window, those events may be lost and need a manual catch-up.
+- **Skip** (return, no grant; new client content is already blocked by rules): `flushBadgeGgBursts` (queue stays), `onUserReferral` (the hourly `payQualifiedReferrals` scan will catch pending rows after return), activity badge counters (`onChatBadgeCount`, `onDmBadgeCount`, `onForumPostBadgeCount`, `onForumReplyBadgeCount`, `onBeatsUploadBadgeCount`, `onArticleBadgeCount`). Admin-authored content during an outage will not increment those counters.
+- **Ungated on purpose:** `onUserDocCreated` only assigns `plebNumber` / join date and bumps `userCount` (no signup bonus). `onUserQuestCompleted` only bumps a global counter (`gradeQuest` is gated). `satoshiFavorAutoReset` only expires an already-running boost and posts a heads-up; it does not grant favor or XP. `syncPublicProfile` is a public mirror, not a grant.
 
 ## Bringing the app back (checklist)
 
 Do this in order. Typical time: 1–2 seconds for the flip, 5–15 minutes for the checks around it.
 
 1. Confirm the incident is contained (or that you are only taking a maintenance window down). Note the time in Eastern Time.
-2. Open **Admin tools → Kill switch**. Read the current snapshot status (STARTED / SUCCESS / START_FAILED). A failed snapshot is not a reason to stay offline, but write down the operation id from the audit log.
+2. Open **Admin tools → Kill switch**. Read the current snapshot status (STARTED / SUCCESS / START_FAILED / reused). A failed snapshot is not a reason to stay offline, but write down the operation id from the audit log (or the admin-only doc).
 3. Sign in again if prompted, so your sign-in is recent. Enter a fresh authenticator code. Type a reason and **ONLINE**.
 4. Confirm the maintenance page is gone for a signed-out window and for a test user. Confirm you can open the home screen, sign in, and that a harmless read works.
-5. Confirm a payout path is no longer paused: one staging or tiny live check that Phil has approved (for example a staging claim, not a real user payout, unless he asks). Scheduled payouts that were **skipped** while the switch was on were not paid and were not taken from the reserve. If a weekly or monthly cron was due during the outage, pay that period manually or run the named job once Phil agrees. Do not assume the next cron will backfill a missed window.
-6. Confirm the audit log has the OFF row (who, when, why) and that admins got the “back online” alert.
+5. Confirm a payout path is no longer paused: one staging or tiny live check that Phil has approved (for example a staging claim, not a real user payout, unless he asks). Scheduled payouts that were **skipped** while the switch was on were not paid and were not taken from the reserve. If a weekly or monthly cron was due during the outage, follow the catch-up section above. Do not assume the next cron will backfill a missed window.
+6. Confirm the audit log has the OFF row (who, when, why) and that admins got the “back online” alert (or the auto-return alert, if it came back on its own).
 7. If you used a client or function fix, confirm its version is what you intended (SW / cache buster, function revision).
 8. If user-facing downtime needs a public note, use the drafts below, only after Phil approves and only send what he approves.
 
@@ -63,9 +158,10 @@ Do this in order. Typical time: 1–2 seconds for the flip, 5–15 minutes for t
 | Confirm screen + backup check | 2–5 seconds |
 | Flip on or off | 1–2 seconds |
 | Maintenance page visible to open clients | a few seconds (Firestore listener); new visits are immediate once the client bundle with `kill-switch.js` is loaded |
-| Snapshot request accepted | 1–3 seconds after the flip |
+| Snapshot request accepted (or reused if one started in the last 6 hours) | 1–3 seconds after the flip |
 | Snapshot finished | 5–20 minutes, depending on database size |
 | Admin alert delivery | usually under a minute |
+| Auto-return tick | up to 5 minutes after the deadline |
 | Staging repro | 15–60 minutes |
 | Named function deploy | 5–15 minutes |
 | PITR or export import (if approved) | 30–90+ minutes |
@@ -99,5 +195,8 @@ Bitcoin Quest is temporarily offline for maintenance. Your sats and progress are
 - Kill-switch snapshots: `gs://bitcoin-education-archive-backups/kill-switch/<timestamp>/`
 - Daily exports: `gs://bitcoin-education-archive-backups/<YYYY-MM-DD>/`
 - R2 copy: GitHub Action `r2-nightly-backup` (not checkable from the function itself)
+- Runtime SA: `fn-admin-kill-switch@bitcoin-education-archive.iam.gserviceaccount.com`
+- Custom role: `projects/bitcoin-education-archive/roles/killSwitchExport` (`datastore.databases.export`, `datastore.operations.get` only)
 - Audit collection: `kill_switch_audit` (append-only)
-- Flag: `config/killSwitch`
+- Public flag: `config/killSwitch`
+- Admin-only details: `config/killSwitchAdmin`

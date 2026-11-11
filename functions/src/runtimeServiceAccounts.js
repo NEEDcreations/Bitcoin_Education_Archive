@@ -20,10 +20,14 @@
 //   auth    -> roles/firebaseauth.admin
 //   fcm     -> roles/firebasecloudmessaging.admin
 //   storage -> roles/storage.objectAdmin on the default bucket only
-//   backups -> roles/storage.objectAdmin on the Firestore export bucket
-//              only (<project>-backups): list existing exports and write
-//              a kill-switch snapshot
-//   importExport -> roles/datastore.importExportAdmin (managed export)
+//   backups -> roles/storage.objectViewer on the Firestore export bucket
+//              (<project>-backups) so preflight can list/read nightlies,
+//              PLUS roles/storage.objectCreator limited by an IAM condition
+//              to the kill-switch/ prefix (create only; no delete, and no
+//              writes outside that prefix). objectAdmin is never used.
+//   killSwitchExport -> custom role projects/$PROJECT/roles/killSwitchExport
+//              with only datastore.databases.export and
+//              datastore.operations.get (cannot import over live data).
 // Gen2 event and scheduled triggers also need roles/run.invoker on their own
 // Cloud Run service, and gen2 event triggers need roles/eventarc.eventReceiver;
 // the plan script derives those from the trigger type.
@@ -38,7 +42,8 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     adminLookupUser: { id: 'fn-admin-lookup-user', extra: [] },
     adminQueryUsers: { id: 'fn-admin-query-users', extra: [] },
     adminResolveCipherSatsClaim: { id: 'fn-admin-resolve-cipher-claim', extra: [] },
-    adminSetKillSwitch: { id: 'fn-admin-kill-switch', extra: ['backups', 'importExport'] },
+    adminSetKillSwitch: { id: 'fn-admin-kill-switch', extra: ['backups', 'killSwitchExport'] },
+    killSwitchAutoReturnTick: { id: 'fn-admin-kill-switch', extra: ['backups', 'killSwitchExport'] },
     adminUnbanUser: { id: 'fn-admin-unban-user', extra: [] },
     auditWithdrawals: { id: 'fn-audit-withdrawals', extra: [] },
     backfillJoinDates: { id: 'fn-backfill-join-dates', extra: ['auth'] },
@@ -97,8 +102,8 @@ const EXTRA_ROLES = Object.freeze({
     auth: 'roles/firebaseauth.admin',
     fcm: 'roles/firebasecloudmessaging.admin',
     storage: 'roles/storage.objectAdmin',
-    backups: 'roles/storage.objectAdmin',
-    importExport: 'roles/datastore.importExportAdmin',
+    backups: 'roles/storage.objectCreator+objectViewer',
+    killSwitchExport: 'projects/' + (process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'bitcoin-education-archive') + '/roles/killSwitchExport',
 });
 
 function runtimeSa(functionName) {

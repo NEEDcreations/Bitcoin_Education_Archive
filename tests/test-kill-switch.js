@@ -55,7 +55,12 @@ function makeDb() {
             },
             async set(data, opts) {
                 const cur = store.get(k) || {};
-                store.set(k, opts && opts.merge ? Object.assign({}, cur, JSON.parse(JSON.stringify(data))) : JSON.parse(JSON.stringify(data)));
+                const incoming = JSON.parse(JSON.stringify(data));
+                const merged = opts && opts.merge ? Object.assign({}, cur, incoming) : incoming;
+                Object.keys(incoming || {}).forEach(function (key) {
+                    if (incoming[key] && incoming[key]._delete) delete merged[key];
+                });
+                store.set(k, merged);
             },
             async delete() { store.delete(k); },
         };
@@ -89,7 +94,10 @@ function makeDb() {
 function makeAdmin() {
     return {
         firestore: {
-            FieldValue: { serverTimestamp: function () { return { _sv: true }; } },
+            FieldValue: {
+                serverTimestamp: function () { return { _sv: true }; },
+                delete: function () { return { _delete: true }; },
+            },
             Timestamp: { fromMillis: function (ms) { return { _ms: ms, toMillis: function () { return ms; } }; } },
         },
     };
@@ -166,12 +174,12 @@ async function run() {
     await test('24h factorEstablished rejects a brand-new factor even after re-sign-in', function () {
         const now = 1_000_000_000_000;
         const day = secondFactor.ESTABLISHED_FACTOR_MS;
-        // Enrolled 1 minute ago, signed in after that: still not established.
-        assert.strictEqual(secondFactor.factorEstablished(now - 60_000, now - 10_000, now), false);
+        // Enrolled 1 minute ago: still not established (#302 is 2-arg: enrolledMs, nowMs).
+        assert.strictEqual(secondFactor.factorEstablished(now - 60_000, now), false);
         // Enrolled 24h ago: established.
-        assert.strictEqual(secondFactor.factorEstablished(now - day, now - 10_000, now), true);
+        assert.strictEqual(secondFactor.factorEstablished(now - day, now), true);
         // Missing enabledAt: not established.
-        assert.strictEqual(secondFactor.factorEstablished(null, now - 10_000, now), false);
+        assert.strictEqual(secondFactor.factorEstablished(null, now), false);
         assert.strictEqual(secondFactor.recentSignIn({ auth: { token: { auth_time: (now / 1000) - 30 } } }, now), true);
         assert.strictEqual(secondFactor.recentSignIn({ auth: { token: { auth_time: (now / 1000) - 20 * 60 } } }, now), false);
     });
@@ -253,7 +261,13 @@ async function run() {
         assert.deepStrictEqual(events, ['flip', 'export:start', 'export:fail']);
         const flag = await db.collection('config').doc('killSwitch').get();
         assert.strictEqual(flag.data().enabled, true);
-        assert.strictEqual(flag.data().snapshot.status, 'START_FAILED');
+        assert.strictEqual(flag.data().reason, undefined);
+        assert.strictEqual(flag.data().updatedBy, undefined);
+        assert.strictEqual(flag.data().snapshot, undefined);
+        const adminDoc = await db.collection('config').doc('killSwitchAdmin').get();
+        assert.strictEqual(adminDoc.data().snapshot.status, 'START_FAILED');
+        assert.strictEqual(adminDoc.data().updatedBy, 'admin1');
+        assert.strictEqual(adminDoc.data().reason, 'security incident');
         // Audit row exists and was not deleted.
         const rows = [...db._store.keys()].filter((k) => k.startsWith('kill_switch_audit/'));
         assert.strictEqual(rows.length, 1);
@@ -357,9 +371,14 @@ async function run() {
         assert.ok(idx.includes('listAdminUids: _listAdminClaimUids'));
         const sa = fs.readFileSync(path.join(root, 'functions/src/runtimeServiceAccounts.js'), 'utf8');
         assert.ok(sa.includes("adminSetKillSwitch: { id: 'fn-admin-kill-switch'"));
-        assert.ok(sa.includes('importExport'));
+        assert.ok(sa.includes('killSwitchExport'));
+        assert.ok(!sa.includes('importExportAdmin'));
+        assert.ok(!/backups: 'roles\/storage.objectAdmin'/.test(sa));
         const names = ks.gatedNames();
-        ['claimSats', 'tctvDripTick', 'payWeeklyQuestLB', 'monthlyRaffleDraw', 'payQualifiedReferrals', 'adminApproveFactionPayout'].forEach(function (n) {
+        ['claimSats', 'tctvDripTick', 'payWeeklyQuestLB', 'monthlyRaffleDraw', 'payQualifiedReferrals', 'adminApproveFactionPayout',
+         'resetWeeklyXP', 'resetMonthlyXP', 'verifyReferral', 'registerReferral', 'pvpSubmitAnswer', 'pvpTimeoutOpponent',
+         'tctvWatchHeartbeat', 'syncStravaWalks', 'creditMatureTopicComments', 'spendTickets', 'spendTicketsForFreeze', 'activateDoubleXP',
+         'activateHashBooster', 'useHintToken', 'resetLightningAddressOnce', 'flushBadgeGgBursts'].forEach(function (n) {
             assert.ok(names.indexOf(n) !== -1, n);
         });
     });
@@ -381,6 +400,180 @@ async function run() {
     await test('BACKUP_MAX_AGE is 26 hours', function () {
         assert.strictEqual(ks.BACKUP_MAX_AGE_HOURS, 26);
     });
+
+    await test('cleanReason strips control chars and angle brackets', function () {
+        assert.strictEqual(ks.cleanReason('hello <script> alert'), 'hello script alert');
+        assert.ok(!ks.cleanReason('foo<>bar').includes('<'));
+    });
+
+    await test('publicState never includes reason, actor, or snapshot', function () {
+        const st = ks.publicState({
+            enabled: true,
+            mode: 'offline',
+            reason: 'secret reason',
+            updatedBy: 'admin1',
+            snapshot: { outputUri: 'gs://bitcoin-education-archive-backups/kill-switch/x', status: 'STARTED' },
+            autoReenableAt: 2000,
+        }, 1000);
+        assert.strictEqual(st.on, true);
+        assert.strictEqual(st.mode, 'offline');
+        assert.ok(st.message);
+        assert.strictEqual(st.autoReenableAt, 2000);
+        assert.strictEqual(st.reason, undefined);
+        assert.strictEqual(st.updatedBy, undefined);
+        assert.strictEqual(st.snapshot, undefined);
+        const adm = ks.adminState({
+            reason: 'secret reason',
+            updatedBy: 'admin1',
+            snapshot: { outputUri: 'gs://bucket/kill-switch/x', status: 'STARTED', startedAt: 1000 },
+        }, 1000);
+        assert.strictEqual(adm.reason, 'secret reason');
+        assert.strictEqual(adm.updatedBy, ks.maskUid('admin1'));
+        assert.ok(adm.updatedBy !== 'admin1');
+        assert.ok(adm.snapshot && adm.snapshot.outputUri);
+    });
+
+    await test('isLaterAutoReturn only allows a later deadline or dropping it', function () {
+        assert.strictEqual(ks.isLaterAutoReturn(null, 1000), false);
+        assert.strictEqual(ks.isLaterAutoReturn(1000, 1000), false);
+        assert.strictEqual(ks.isLaterAutoReturn(1000, 999), false);
+        assert.strictEqual(ks.isLaterAutoReturn(1000, 2000), true);
+        assert.strictEqual(ks.isLaterAutoReturn(1000, null), true);
+    });
+
+    await test('refuses a silent re-arm unless auto-return moves later, and alerts on an extension', async function () {
+        const db = makeDb();
+        const now = Date.parse('2026-11-11T22:50:00Z');
+        const { handler } = hook(db, { now: function () { return now; } });
+        const first = await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident', reenableInMinutes: 30 }, adminContext());
+        assert.strictEqual(first.ok, true);
+        const notifsBefore = [...db._store.keys()].filter(function (k) { return k.startsWith('notifications/') || k.startsWith('admin_notifications/'); }).length;
+        await assert.rejects(
+            () => handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident', reenableInMinutes: 30 }, adminContext()),
+            /already offline/
+        );
+        await assert.rejects(
+            () => handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident', reenableInMinutes: 10 }, adminContext()),
+            /already offline/
+        );
+        const extended = await handler({ action: 'on', confirm: 'OFFLINE', reason: 'still containing it', reenableInMinutes: 90 }, adminContext());
+        assert.strictEqual(extended.ok, true);
+        assert.strictEqual(extended.changed, false);
+        assert.strictEqual(extended.alertedAdmins >= 1, true);
+        const notifsAfter = [...db._store.keys()].filter(function (k) { return k.startsWith('notifications/') || k.startsWith('admin_notifications/'); }).length;
+        assert.ok(notifsAfter > notifsBefore, 'extension alerts admins');
+        const adminNotes = [...db._store.values()].filter(function (v) { return v && v.type === 'kill_switch'; });
+        adminNotes.forEach(function (n) {
+            assert.ok(!n.uid || n.uid === 'auto-return' || n.uid.indexOf('\u2026') !== -1, 'admin_notifications uid is masked');
+        });
+    });
+
+    await test('auto-return flips the switch off once and alerts admins plus Phil', async function () {
+        const db = makeDb();
+        let now = Date.parse('2026-11-11T22:50:00Z');
+        const dms = [];
+        const { handler } = hook(db, {
+            now: function () { return now; },
+            sendPhilDm: async function (text) { dms.push(text); return true; },
+        });
+        await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident', reenableInMinutes: 5 }, adminContext());
+        now = now + 5 * 60 * 1000 + 1;
+        const tick = ks.makeAutoReturnTick({
+            admin: makeAdmin(),
+            db: db,
+            now: function () { return now; },
+            listAdminUids: async function () { return ['admin1', 'admin2']; },
+            sendPhilDm: async function (text) { dms.push('tick:' + text); return true; },
+        });
+        const first = await tick();
+        assert.strictEqual(first.fired, true);
+        assert.ok(first.alertSent);
+        const flag = await db.collection('config').doc('killSwitch').get();
+        assert.strictEqual(flag.data().enabled, false);
+        const second = await tick();
+        assert.strictEqual(second.fired, false);
+        const audit = [...db._store.entries()].filter(function (e) { return e[0].indexOf('kill_switch_audit/') === 0 && e[1] && e[1].action === 'auto-return'; }).map(function (e) { return e[1]; });
+        assert.strictEqual(audit.length, 1);
+        assert.strictEqual(audit[0].reason, 'security incident');
+        assert.ok(dms.some(function (t) { return t.indexOf('tick:') === 0 && /back online/.test(t); }));
+    });
+
+    await test('a no-op off while already off does not consume the rate budget', async function () {
+        const db = makeDb();
+        const { handler } = hook(db);
+        const first = await handler({ action: 'off', confirm: 'ONLINE', reason: 'all clear now' }, adminContext());
+        assert.strictEqual(first.ok, true);
+        assert.strictEqual(first.noop, true);
+        assert.strictEqual(first.changed, false);
+        const rate = await db.collection('kill_switch_rate').doc('admin1').get();
+        assert.strictEqual(rate.exists, false);
+    });
+
+    await test('reuses a snapshot started in the last 6 hours instead of exporting again', async function () {
+        const db = makeDb();
+        let exports = 0;
+        const now = Date.parse('2026-11-11T22:50:00Z');
+        const { handler, events } = hook(db, {
+            now: function () { return now; },
+            startExport: async function () {
+                exports++;
+                return { operationName: 'operations/op1', outputUriPrefix: 'gs://bucket/kill-switch/x' };
+            },
+        });
+        await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident' }, adminContext());
+        assert.strictEqual(exports, 1);
+        await handler({ action: 'off', confirm: 'ONLINE', reason: 'all clear now' }, adminContext());
+        events.length = 0;
+        const again = await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident' }, adminContext());
+        assert.strictEqual(exports, 1);
+        assert.strictEqual(again.snapshot.reused, true);
+        assert.ok(events.indexOf('export:reuse') !== -1);
+        assert.ok(events.indexOf('export:start') === -1);
+    });
+
+    await test('storage IAM is objectCreator (kill-switch/ only) + objectViewer, and code never deletes or overwrites backups', function () {
+        const src = fs.readFileSync(path.join(root, 'functions/src/killSwitch.js'), 'utf8');
+        assert.ok(src.includes('ifGenerationMatch: 0'));
+        assert.ok(!/\.delete\s*\(/.test(src) || src.includes('never delete'));
+        assert.ok(!/bucket\(.*\)[\s\S]{0,200}\.delete\s*\(/.test(src));
+        const plan = fs.readFileSync(path.join(root, 'functions/scripts/runtime-sa-plan.js'), 'utf8');
+        assert.ok(plan.includes('roles/storage.objectCreator'));
+        assert.ok(plan.includes('roles/storage.objectViewer'));
+        assert.ok(plan.includes('kill-switch/'));
+        assert.ok(plan.includes('datastore.databases.export'));
+        assert.ok(plan.includes('datastore.operations.get'));
+        assert.ok(!plan.includes('importExportAdmin'));
+        assert.ok(!plan.includes('objectAdmin'));
+        const rules = fs.readFileSync(path.join(root, 'firestore.rules'), 'utf8');
+        assert.ok(rules.includes("docId == 'killSwitchAdmin' && isAdmin()"));
+        const idx = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
+        assert.ok(idx.includes('killSwitchAutoReturnTick'));
+        assert.ok(idx.includes('kill switch on: defer article publish xp'));
+        assert.ok(idx.includes('kill switch on: defer pvp settle'));
+        assert.ok(idx.includes("require('./src/killSwitch').isOffline(db)"));
+        const pvp = fs.readFileSync(path.join(root, 'functions/src/pvpResolve.js'), 'utf8');
+        assert.ok(pvp.includes('kill switch on: defer pvpResolveRound'));
+        ks.gatedTriggerNames().forEach(function (n) {
+            assert.ok(ks.gatedNames().indexOf(n) === -1, n + ' is a trigger, not a gateExport wrap');
+        });
+        assert.ok(idx.includes('adminSetKillSwitch'));
+    });
+
+    await test('status/preflight hides admin fields from the public state object', async function () {
+        const db = makeDb();
+        const { handler } = hook(db);
+        await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident' }, adminContext());
+        const st = await handler({ action: 'status' }, adminContext());
+        assert.strictEqual(st.state.on, true);
+        assert.strictEqual(st.state.reason, undefined);
+        assert.strictEqual(st.state.snapshot, undefined);
+        assert.strictEqual(st.admin.reason, 'security incident');
+        assert.ok(st.admin.snapshot);
+        const pub = await db.collection('config').doc('killSwitch').get();
+        assert.strictEqual(pub.data().reason, undefined);
+        assert.strictEqual(pub.data().snapshot, undefined);
+    });
+
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed ? 1 : 0);

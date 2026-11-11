@@ -50,6 +50,9 @@ const BACKUP_MAX_AGE_HOURS = 26;
 const RATE_WINDOW_MS = 60 * 60 * 1000;
 const RATE_MAX_USER = 8;
 const RATE_MAX_GLOBAL = 20;
+const RATE_MAX_STATUS_USER = 30;
+const SNAPSHOT_REUSE_MS = 6 * 60 * 60 * 1000;
+const KILL_SWITCH_ADMIN_DOC_ID = 'killSwitchAdmin';
 
 // Functions that move sats, or grant XP / points / tickets / badges, plus
 // scheduled jobs that pay out. Each is wrapped by gateExports() in index.js.
@@ -72,6 +75,9 @@ const GATED = Object.freeze({
         'payWeeklyQuestLB',
         'payMonthlyQuestLB',
         'monthlyRaffleDraw',
+        'resetWeeklyXP',
+        'resetMonthlyXP',
+        'creditMatureTopicComments',
     ]),
     rewards: Object.freeze([
         'awardPoints',
@@ -93,10 +99,45 @@ const GATED = Object.freeze({
         'donatePoints',
         'convertPointsToTickets',
         'recordDailyVisit',
+        'sendKeys',
+        'spendTickets',
+        'spendTicketsForFreeze',
+        'activateDoubleXP',
+        'syncUserFactionPoints',
+        'verifyReferral',
+        'registerReferral',
+        'pvpSubmitAnswer',
+        'pvpTimeoutOpponent',
+        'resetLightningAddressOnce',
+        'tctvWatchHeartbeat',
+        'syncStravaWalks',
+        'activateHashBooster',
+        'useHintToken',
+    ]),
+    // Scheduled jobs that should skip (not fail) while offline. Queued work
+    // stays in place and is flushed after the switch is off.
+    skips: Object.freeze([
+        'flushBadgeGgBursts',
+    ]),
+    // Firestore triggers cannot be wrapped by gateExport. Each of these has
+    // an in-body killSwitchIsOn()/isOffline() check (defer with retry, or skip).
+    triggers: Object.freeze([
+        'onArticlePublishXp',
+        'onBadgeAwardCreated',
+        'onPvpMatchFinished',
+        'pvpResolveRound',
+        'onUserReferral',
+        'onChatBadgeCount',
+        'onDmBadgeCount',
+        'onForumPostBadgeCount',
+        'onForumReplyBadgeCount',
+        'onBeatsUploadBadgeCount',
+        'onArticleBadgeCount',
     ]),
 });
 
-function gatedNames() { return GATED.payouts.concat(GATED.rewards); }
+function gatedNames() { return GATED.payouts.concat(GATED.rewards, GATED.skips || []); }
+function gatedTriggerNames() { return (GATED.triggers || []).slice(); }
 
 function toMillis(v) {
     if (v == null) return null;
@@ -105,6 +146,7 @@ function toMillis(v) {
     if (typeof v.toMillis === 'function') return v.toMillis();
     if (typeof v.seconds === 'number') return v.seconds * 1000;
     if (typeof v._seconds === 'number') return v._seconds * 1000;
+    if (typeof v._ms === 'number') return v._ms;
     return null;
 }
 
@@ -115,7 +157,38 @@ function effectiveOn(data, nowMs) {
     return true;
 }
 
+// A later auto-return: a later deadline, or dropping the deadline
+// (indefinite). Moving from indefinite to a finite time, or keeping the
+// same deadline, is not later — that would be a silent re-arm or a shorten.
+function isLaterAutoReturn(oldUntil, newUntil) {
+    if (oldUntil == null) return false;
+    if (newUntil == null) return true;
+    return newUntil > oldUntil;
+}
+
 function docRef(db) { return db.collection(KILL_SWITCH_COLLECTION).doc(KILL_SWITCH_DOC_ID); }
+function adminDocRef(db) { return db.collection(KILL_SWITCH_COLLECTION).doc(KILL_SWITCH_ADMIN_DOC_ID); }
+
+// Fail closed: if the flag can't be read, treat the app as offline so
+// value-granting triggers do not pay or grant.
+async function isOffline(db, nowFn) {
+    const t = (nowFn || Date.now)();
+    try {
+        const snap = await docRef(db).get();
+        return effectiveOn(snap.exists ? (snap.data() || {}) : null, t);
+    } catch (e) {
+        return true;
+    }
+}
+
+function reuseRecentSnapshot(adminData, nowMs) {
+    const snap = adminData && adminData.snapshot;
+    if (!snap || !snap.operationName) return null;
+    if (snap.status === 'START_FAILED') return null;
+    const started = toMillis(snap.startedAt);
+    if (started == null || (nowMs - started) > SNAPSHOT_REUSE_MS) return null;
+    return snap;
+}
 
 function makeReader(getDb, opts) {
     const o = opts || {};
@@ -353,8 +426,14 @@ function makeBackupDeps(admin, db, opts) {
                 throw err;
             }
             try {
+                // Create-only: ifGenerationMatch 0 refuses an overwrite.
+                // The folder stamp is unique, and this SA cannot delete or
+                // overwrite existing nightlies (objectCreator + objectViewer).
                 const file = admin.storage().bucket(bucketName).file(folder + '/kill-switch-manifest.json');
-                await file.save(JSON.stringify(manifest, null, 2), { contentType: 'application/json' });
+                await file.save(JSON.stringify(manifest, null, 2), {
+                    contentType: 'application/json',
+                    precondition: { ifGenerationMatch: 0 },
+                });
             } catch (e) {
                 console.warn('[KILL SWITCH] manifest write failed');
             }
@@ -382,7 +461,7 @@ function maskUid(uid) {
 function cleanReason(raw) {
     if (raw == null) return '';
     // eslint-disable-next-line no-control-regex
-    return String(raw).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_REASON);
+    return String(raw).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, MAX_REASON);
 }
 
 function parseReenable(raw) {
@@ -406,21 +485,47 @@ function alertText(action, uid, reason, autoMs, override, preflight) {
     return t;
 }
 
+function extendAlertText(uid, reason, autoMs, prevAutoMs) {
+    let t = 'Bitcoin Quest is still offline. An admin changed the kill switch (admin ' + maskUid(uid) + ').';
+    if (reason) t += ' Reason: ' + reason + '.';
+    if (autoMs) t += ' Auto-return is now ' + new Date(autoMs).toISOString().replace('.000Z', 'Z') + '.';
+    else t += ' Auto-return was removed; it stays off until an admin turns it on.';
+    if (prevAutoMs) t += ' It was previously ' + new Date(prevAutoMs).toISOString().replace('.000Z', 'Z') + '.';
+    return t;
+}
+
+function autoReturnAlertText(reason, untilMs) {
+    let t = 'Bitcoin Quest is back online. The kill switch auto-return time was reached';
+    if (untilMs) t += ' at ' + new Date(untilMs).toISOString().replace('.000Z', 'Z');
+    t += '.';
+    if (reason) t += ' It had been on for: ' + reason + '.';
+    return t;
+}
+
 function publicState(data, nowMs) {
     const on = effectiveOn(data, nowMs);
     return {
         on: on,
         mode: data && data.mode ? data.mode : 'offline',
+        message: on ? OFFLINE_MESSAGE : null,
         since: data && data.since ? toMillis(data.since) : null,
         autoReenableAt: data && data.autoReenableAt ? toMillis(data.autoReenableAt) : null,
-        snapshot: data && data.snapshot ? {
-            operationName: data.snapshot.operationName || null,
-            outputUri: data.snapshot.outputUri || null,
-            startedAt: toMillis(data.snapshot.startedAt) || data.snapshot.startedAt || null,
-            status: data.snapshot.status || null,
-            error: data.snapshot.error || null,
-        } : null,
+    };
+}
+
+function adminState(data, nowMs) {
+    const snap = data && data.snapshot ? data.snapshot : null;
+    return {
+        reason: data && data.reason ? data.reason : null,
+        updatedBy: data && data.updatedBy ? maskUid(data.updatedBy) : null,
         updatedAt: data && data.updatedAt ? toMillis(data.updatedAt) : null,
+        snapshot: snap ? {
+            operationName: snap.operationName || null,
+            outputUri: snap.outputUri || null,
+            startedAt: toMillis(snap.startedAt) || snap.startedAt || null,
+            status: snap.status || null,
+            error: snap.error || null,
+        } : null,
     };
 }
 
@@ -462,7 +567,7 @@ async function maybeRefreshSnapshot(db, admin, backupDeps, data, nowFn) {
         const next = Object.assign({}, snap, { status: status, error: error });
         if (status !== snap.status) {
             try {
-                await docRef(db).set({ snapshot: next }, { merge: true });
+                await adminDocRef(db).set({ snapshot: next }, { merge: true });
             } catch (e) { /* best effort */ }
         }
         return next;
@@ -490,12 +595,13 @@ async function startSnapshotAfterFlip(args) {
             status: 'STARTED',
             error: null,
         };
-        await docRef(db).set({ snapshot: snapshot }, { merge: true });
+        await adminDocRef(db).set({ snapshot: snapshot }, { merge: true });
         try {
             await auditRef.set({
                 snapshotOperationId: snapshot.operationName,
                 snapshotOutputUri: snapshot.outputUri,
                 snapshotStatus: 'STARTED',
+                snapshotReused: false,
             }, { merge: true });
         } catch (e) { /* audit row already written; never delete it */ }
         if (events) events.push('export:ok');
@@ -508,7 +614,7 @@ async function startSnapshotAfterFlip(args) {
             status: 'START_FAILED',
             error: String(e && e.message ? e.message : e).slice(0, 300),
         };
-        try { await docRef(db).set({ snapshot: snapshot }, { merge: true }); } catch (err) { /* still leave the switch on */ }
+        try { await adminDocRef(db).set({ snapshot: snapshot }, { merge: true }); } catch (err) { /* still leave the switch on */ }
         try {
             await auditRef.set({
                 snapshotOperationId: null,
@@ -520,6 +626,122 @@ async function startSnapshotAfterFlip(args) {
         console.error('[KILL SWITCH] snapshot failed; switch stays on:', snapshot.error);
         return snapshot;
     }
+}
+
+
+async function notifyAdmins(deps, text, extra) {
+    const db = deps.db;
+    const FieldValue = deps.admin.firestore.FieldValue;
+    const listAdminUids = deps.listAdminUids || (async function () { return []; });
+    const sendPhilDm = deps.sendPhilDm || (async function () { return false; });
+    let alerted = 0;
+    let dmSent = false;
+    extra = extra || {};
+    try {
+        await db.collection('admin_notifications').add({
+            type: 'kill_switch',
+            action: extra.action || null,
+            uid: extra.uid && extra.uid !== 'auto-return' ? maskUid(extra.uid) : (extra.uid || null),
+            text: text,
+            createdAt: FieldValue.serverTimestamp(),
+            read: false,
+        });
+    } catch (e) { console.warn('[KILL SWITCH] admin_notifications failed'); }
+    try {
+        const admins = await listAdminUids();
+        for (let i = 0; i < admins.length; i++) {
+            const dest = admins[i];
+            try {
+                await db.collection('notifications').add({
+                    recipientId: dest,
+                    senderName: 'Bitcoin Quest',
+                    type: 'security',
+                    message: text,
+                    read: false,
+                    createdAt: FieldValue.serverTimestamp(),
+                });
+                alerted++;
+            } catch (e) { /* one admin must not block the rest */ }
+        }
+    } catch (e) { console.warn('[KILL SWITCH] listing admins failed'); }
+    try { dmSent = !!(await sendPhilDm(text)); } catch (e) { dmSent = false; }
+    return { alerted: alerted, dmSent: dmSent };
+}
+
+// Idempotent: if the switch is still marked on and autoReenableAt has
+// passed, flip it off, write an auto-return audit row, and return fired:true
+// so the caller can alert admins and DM Phil. A second call is a no-op.
+async function maybeSettleAutoReturn(db, admin, nowFn) {
+    const nowMs = nowFn();
+    const FieldValue = admin.firestore.FieldValue;
+    const ref = docRef(db);
+    let fired = false;
+    let auditRef = null;
+    let reason = '';
+    let until = null;
+    await db.runTransaction(async function (tx) {
+        const snap = await tx.get(ref);
+        if (!snap.exists) return;
+        const data = snap.data() || {};
+        if (data.enabled !== true) return;
+        const untilMs = toMillis(data.autoReenableAt);
+        if (untilMs == null || nowMs < untilMs) return;
+        const adminSnap = await tx.get(adminDocRef(db));
+        const adminData = adminSnap.exists ? (adminSnap.data() || {}) : {};
+        fired = true;
+        reason = adminData.reason || data.reason || '';
+        until = untilMs;
+        auditRef = db.collection(AUDIT_COLLECTION).doc();
+        tx.set(ref, {
+            enabled: false,
+            mode: 'offline',
+            message: null,
+            since: null,
+            autoReenableAt: null,
+            updatedAt: FieldValue.serverTimestamp(),
+            reason: FieldValue.delete(),
+            updatedBy: FieldValue.delete(),
+            snapshot: FieldValue.delete(),
+        }, { merge: true });
+        tx.set(adminDocRef(db), {
+            enabled: false,
+            autoReturnedAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+            updatedBy: 'auto-return',
+        }, { merge: true });
+        tx.set(auditRef, {
+            action: 'auto-return',
+            changed: true,
+            prevOn: true,
+            uid: 'auto-return',
+            at: FieldValue.serverTimestamp(),
+            reason: reason,
+            autoReenableAt: data.autoReenableAt || null,
+        });
+    });
+    return { fired: fired, auditRef: auditRef, reason: reason, until: until };
+}
+
+function makeAutoReturnTick(deps) {
+    const admin = deps.admin;
+    const db = deps.db;
+    const nowFn = deps.now || Date.now;
+    return async function tick() {
+        const result = await maybeSettleAutoReturn(db, admin, nowFn);
+        if (!result.fired) return { fired: false };
+        const text = autoReturnAlertText(result.reason, result.until);
+        const alerted = await notifyAdmins(deps, text, { action: 'auto-return', uid: 'auto-return' });
+        if (result.auditRef) {
+            try {
+                await result.auditRef.set({
+                    alertedAdmins: alerted.alerted,
+                    alertDmSent: alerted.dmSent,
+                }, { merge: true });
+            } catch (e) { /* never delete */ }
+        }
+        console.log('[KILL SWITCH] auto-return fired');
+        return { fired: true, alertedAdmins: alerted.alerted, alertSent: alerted.dmSent };
+    };
 }
 
 function makeAdminSetKillSwitch(deps) {
@@ -550,12 +772,44 @@ function makeAdminSetKillSwitch(deps) {
             throw new HttpsError('invalid-argument', 'action must be preflight, status, on or off');
         }
 
+        // Auto-return first so status/preflight and a later on/off see the settled flag.
+        const settled = await maybeSettleAutoReturn(db, admin, nowFn);
+        if (settled.fired) {
+            const text = autoReturnAlertText(settled.reason, settled.until);
+            const alerted = await notifyAdmins({
+                db: db, admin: admin, listAdminUids: listAdminUids, sendPhilDm: sendPhilDm,
+            }, text, { action: 'auto-return', uid: 'auto-return' });
+            if (settled.auditRef) {
+                try {
+                    await settled.auditRef.set({
+                        alertedAdmins: alerted.alerted,
+                        alertDmSent: alerted.dmSent,
+                    }, { merge: true });
+                } catch (e) { /* never delete */ }
+            }
+        }
+
         if (action === 'preflight' || action === 'status') {
+            const statusRateRef = db.collection(RATE_COLLECTION).doc(uid + '_status');
+            const nowMs = nowFn();
+            await db.runTransaction(async function (tx) {
+                const rateSnap = await tx.get(statusRateRef);
+                if (!takeRate(tx, rateSnap, nowMs, RATE_MAX_STATUS_USER)) {
+                    throw new HttpsError('resource-exhausted', 'Too many kill-switch status checks. Wait an hour and try again.');
+                }
+            });
             const snap = await docRef(db).get();
             const cur = snap.exists ? (snap.data() || {}) : null;
-            const snapshot = await maybeRefreshSnapshot(db, admin, backupDeps, cur, nowFn);
-            const state = publicState(cur ? Object.assign({}, cur, { snapshot: snapshot || cur.snapshot }) : null, nowFn());
-            const out = { ok: true, state: state };
+            const adminSnap = await adminDocRef(db).get();
+            const adminCur = adminSnap.exists ? (adminSnap.data() || {}) : null;
+            const snapshot = await maybeRefreshSnapshot(db, admin, backupDeps, adminCur, nowFn);
+            const state = publicState(cur, nowFn());
+            const out = {
+                ok: true,
+                state: state,
+                admin: adminState(adminCur ? Object.assign({}, adminCur, { snapshot: snapshot || (adminCur && adminCur.snapshot) }) : null, nowFn()),
+                autoReturned: !!settled.fired,
+            };
             if (action === 'preflight') {
                 out.preflight = await backupPreflight(Object.assign({ now: nowFn }, backupDeps));
             }
@@ -589,33 +843,66 @@ function makeAdminSetKillSwitch(deps) {
         const FieldValue = admin.firestore.FieldValue;
         const Timestamp = admin.firestore.Timestamp;
         const ref = docRef(db);
+        const adminRef = adminDocRef(db);
         const auditRef = db.collection(AUDIT_COLLECTION).doc();
         const userRateRef = db.collection(RATE_COLLECTION).doc(uid);
         const globalRateRef = db.collection(RATE_COLLECTION).doc('_global');
         let prevOn = false;
+        let prevReason = '';
+        let prevAutoMs = null;
+        let prevAdmin = null;
+        let noop = false;
         const nowMs = nowFn();
 
         await db.runTransaction(async function (tx) {
+            const snap = await tx.get(ref);
+            const adminSnap = await tx.get(adminRef);
+            const prev = snap.exists ? (snap.data() || {}) : null;
+            prevAdmin = adminSnap.exists ? (adminSnap.data() || {}) : null;
+            prevOn = effectiveOn(prev, nowMs);
+            prevReason = (prevAdmin && prevAdmin.reason) || (prev && prev.reason) || '';
+            prevAutoMs = toMillis(prev && prev.autoReenableAt);
+
+            if (action === 'off' && !prevOn) {
+                noop = true;
+                return;
+            }
+            if (action === 'on' && prevOn) {
+                if (!isLaterAutoReturn(prevAutoMs, autoMs)) {
+                    throw new HttpsError(
+                        'failed-precondition',
+                        'The app is already offline. You can only extend the auto-return to a later time (or leave it off until an admin turns it back on).'
+                    );
+                }
+            }
+
+            // Rate budget applies only to writes that change state.
             const userRateSnap = await tx.get(userRateRef);
             const globalRateSnap = await tx.get(globalRateRef);
             if (!takeRate(tx, userRateSnap, nowMs, RATE_MAX_USER) || !takeRate(tx, globalRateSnap, nowMs, RATE_MAX_GLOBAL)) {
                 throw new HttpsError('resource-exhausted', 'Too many kill-switch changes. Wait an hour and try again.');
             }
-            const snap = await tx.get(ref);
-            const prev = snap.exists ? (snap.data() || {}) : null;
-            prevOn = effectiveOn(prev, nowMs);
-            const next = {
+
+            const publicNext = {
                 enabled: action === 'on',
                 mode: 'offline',
+                message: action === 'on' ? OFFLINE_MESSAGE : null,
+                autoReenableAt: autoMs ? Timestamp.fromMillis(autoMs) : null,
+                updatedAt: FieldValue.serverTimestamp(),
+                reason: FieldValue.delete(),
+                updatedBy: FieldValue.delete(),
+                snapshot: FieldValue.delete(),
+            };
+            if (action === 'on') publicNext.since = (prevOn && prev && prev.since) ? prev.since : FieldValue.serverTimestamp();
+            else publicNext.since = null;
+            tx.set(ref, publicNext, { merge: true });
+            tx.set(adminRef, {
+                enabled: action === 'on',
                 reason: reason,
                 autoReenableAt: autoMs ? Timestamp.fromMillis(autoMs) : null,
                 updatedAt: FieldValue.serverTimestamp(),
                 updatedBy: uid,
-            };
-            if (action === 'on') next.since = (prevOn && prev && prev.since) ? prev.since : FieldValue.serverTimestamp();
-            else next.since = null;
-            if (action === 'off') next.snapshot = (prev && prev.snapshot) ? prev.snapshot : null;
-            tx.set(ref, next, { merge: true });
+            }, { merge: true });
             tx.set(auditRef, {
                 action: action,
                 changed: prevOn !== (action === 'on'),
@@ -624,7 +911,9 @@ function makeAdminSetKillSwitch(deps) {
                 signInProvider: (auth.token.firebase && auth.token.firebase.sign_in_provider) || null,
                 at: FieldValue.serverTimestamp(),
                 reason: reason,
+                reasonChanged: reason !== prevReason,
                 autoReenableAt: autoMs ? Timestamp.fromMillis(autoMs) : null,
+                autoReenableChanged: (prevAutoMs || null) !== (autoMs || null),
                 backupCheckOk: preflight ? preflight.ok : null,
                 backupOverride: action === 'on' ? (preflight ? !preflight.ok && override : false) : false,
                 backupChecks: preflight ? preflight.checks.map(function (c) { return { id: c.id, ok: c.ok, skipped: !!c.skipped }; }) : null,
@@ -632,50 +921,57 @@ function makeAdminSetKillSwitch(deps) {
                 snapshotStatus: null,
             });
         });
+        if (noop) {
+            return { ok: true, on: false, changed: false, noop: true, autoReenableAt: null, alertedAdmins: 0, alertSent: false };
+        }
         if (events) events.push('flip');
 
         const changed = prevOn !== (action === 'on');
+        const reasonChanged = reason !== prevReason;
+        const autoChanged = (prevAutoMs || null) !== (autoMs || null);
         let snapshot = null;
         // Flip first, then snapshot. A failed export must leave the switch as written.
+        // Reuse a snapshot started in the last 6 hours instead of starting another full export.
+        // Extending auto-return while already on does not start a new snapshot.
         if (action === 'on' && changed) {
-            const folder = 'kill-switch/' + snapshotFolderStamp(nowMs);
-            snapshot = await startSnapshotAfterFlip({
-                db: db, admin: admin, FieldValue: FieldValue, backupDeps: backupDeps,
-                uid: uid, reason: reason, auditRef: auditRef, folder: folder, nowMs: nowMs, events: events,
-            });
+            const reused = reuseRecentSnapshot(prevAdmin, nowMs);
+            if (reused) {
+                snapshot = Object.assign({}, reused, { reused: true });
+                try { await adminDocRef(db).set({ snapshot: snapshot }, { merge: true }); } catch (e) { /* keep the flag on */ }
+                try {
+                    await auditRef.set({
+                        snapshotOperationId: snapshot.operationName,
+                        snapshotOutputUri: snapshot.outputUri || null,
+                        snapshotStatus: snapshot.status || 'REUSED',
+                        snapshotReused: true,
+                    }, { merge: true });
+                } catch (e) { /* never delete */ }
+                if (events) events.push('export:reuse');
+            } else {
+                const folder = 'kill-switch/' + snapshotFolderStamp(nowMs);
+                snapshot = await startSnapshotAfterFlip({
+                    db: db, admin: admin, FieldValue: FieldValue, backupDeps: backupDeps,
+                    uid: uid, reason: reason, auditRef: auditRef, folder: folder, nowMs: nowMs, events: events,
+                });
+            }
         }
 
         let alerted = 0;
         let dmSent = false;
-        if (changed) {
-            const text = alertText(action, uid, reason, autoMs, preflight ? (!preflight.ok && override) : false, preflight);
-            try {
-                await db.collection('admin_notifications').add({
-                    type: 'kill_switch', action: action, uid: uid, text: text,
-                    createdAt: FieldValue.serverTimestamp(), read: false,
-                });
-            } catch (e) { console.warn('[KILL SWITCH] admin_notifications failed'); }
-            try {
-                const admins = await listAdminUids();
-                for (let i = 0; i < admins.length; i++) {
-                    const dest = admins[i];
-                    try {
-                        await db.collection('notifications').add({
-                            recipientId: dest,
-                            senderName: 'Bitcoin Quest',
-                            type: 'security',
-                            message: text,
-                            read: false,
-                            createdAt: FieldValue.serverTimestamp(),
-                        });
-                        alerted++;
-                    } catch (e) { /* one admin must not block the rest */ }
-                }
-            } catch (e) { console.warn('[KILL SWITCH] listing admins failed'); }
-            try { dmSent = !!(await sendPhilDm(text)); } catch (e) { dmSent = false; }
+        // Alert on every state write: a flip, a reason change, or an auto-return change.
+        const shouldAlert = changed || reasonChanged || autoChanged;
+        if (shouldAlert) {
+            const text = changed
+                ? alertText(action, uid, reason, autoMs, preflight ? (!preflight.ok && override) : false, preflight)
+                : extendAlertText(uid, reason, autoMs, prevAutoMs);
+            const noted = await notifyAdmins({
+                db: db, admin: admin, listAdminUids: listAdminUids, sendPhilDm: sendPhilDm,
+            }, text, { action: action, uid: uid });
+            alerted = noted.alerted;
+            dmSent = noted.dmSent;
             try { await auditRef.set({ alertedAdmins: alerted, alertDmSent: dmSent }, { merge: true }); } catch (e) { /* never delete */ }
         }
-        console.log('[KILL SWITCH] ' + action + ' by ' + maskUid(uid) + (changed ? '' : ' (no change)'));
+        console.log('[KILL SWITCH] ' + action + ' by ' + maskUid(uid) + (changed ? '' : ' (no flip)'));
         return {
             ok: true,
             on: action === 'on',
@@ -694,11 +990,13 @@ function makeAdminSetKillSwitch(deps) {
 }
 
 module.exports = {
-    KILL_SWITCH_COLLECTION, KILL_SWITCH_DOC_ID, AUDIT_COLLECTION, RATE_COLLECTION,
+    KILL_SWITCH_COLLECTION, KILL_SWITCH_DOC_ID, KILL_SWITCH_ADMIN_DOC_ID, AUDIT_COLLECTION, RATE_COLLECTION,
     OFFLINE_MESSAGE, CONFIRM_ON, CONFIRM_OFF, CONFIRM_WORD: CONFIRM_ON,
     BACKUP_BUCKET_DEFAULT, BACKUP_MAX_AGE_HOURS, MAX_REENABLE_MIN, MIN_REENABLE_MIN,
-    MIN_REASON, RATE_WINDOW_MS, RATE_MAX_USER, RATE_MAX_GLOBAL,
-    GATED, gatedNames, effectiveOn, makeReader, gateExport, gateExports, backupPreflight,
-    makeBackupDeps, makeAdminSetKillSwitch, cleanReason, parseReenable, maskUid, alertText,
-    publicState, snapshotFolderStamp,
+    MIN_REASON, RATE_WINDOW_MS, RATE_MAX_USER, RATE_MAX_GLOBAL, RATE_MAX_STATUS_USER, SNAPSHOT_REUSE_MS,
+    GATED, gatedNames, gatedTriggerNames, effectiveOn, isLaterAutoReturn, isOffline, reuseRecentSnapshot,
+    makeReader, gateExport, gateExports, backupPreflight,
+    makeBackupDeps, makeAdminSetKillSwitch, makeAutoReturnTick, maybeSettleAutoReturn,
+    cleanReason, parseReenable, maskUid, alertText, extendAlertText, autoReturnAlertText,
+    publicState, adminState, snapshotFolderStamp, notifyAdmins,
 };

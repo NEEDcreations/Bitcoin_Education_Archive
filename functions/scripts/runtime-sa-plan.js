@@ -28,7 +28,7 @@ const BATCHES = [
     { name: 'canary: admin read-only HTTP (gen1)', fns: ['dailyActiveUsers', 'adminLookupUser', 'adminQueryUsers', 'watchlistCheck', 'auditWithdrawals'] },
     { name: 'admin tools + Telegram webhook (gen1)', fns: ['adminBanUser', 'adminUnbanUser', 'investigateUsers', 'backfillJoinDates', 'refreshBadgeDistributionHttp', 'setTelegramWebhook', 'handleTelegramWebhook'] },
     { name: 'Telegram mirrors (gen2 Firestore triggers + schedule)', fns: ['onGlobalChatTelegram', 'onGlobalChatTelegramUpdated', 'onGlobalChatTelegramDeleted', 'onAnnouncementsTelegram', 'onAnnouncementsTelegramUpdated', 'onAnnouncementsTelegramDeleted', 'onForumShoutoutUpdated', 'onForumShoutoutDeleted', 'onMarketplaceShoutoutUpdated', 'onMarketplaceShoutoutDeleted', 'flushTelegramMirror'] },
-    { name: 'admin kill switch (gen1 callable)', fns: ['adminSetKillSwitch'] },
+    { name: 'admin kill switch (gen1 callable + auto-return tick)', fns: ['adminSetKillSwitch', 'killSwitchAutoReturnTick'] },
     { name: 'gen2 schedules + referral/X triggers', fns: ['scheduleRaidBoss', 'scheduleRaidBossCatchup', 'refreshHotTopics', 'tweetSatoshisFavor', 'onUserReferral', 'payQualifiedReferrals'] },
     { name: 'gen1 hot topics, Strava, referral callables', fns: ['refreshHotTopicsHttp', 'refreshHotTopicsForce', 'stravaAuth', 'syncStravaWalks', 'verifyReferral', 'registerReferral'] },
     { name: 'account security: TOTP, username, email change, delete', fns: ['totpSetup', 'totpVerify', 'totpCheck', 'totpDisable', 'totpStepUp', 'regenerateRecoveryCodes', 'setUsername', 'prepareEmailChange', 'syncEmailChange', 'confirmAccountLink', 'deleteAccount'] },
@@ -79,7 +79,18 @@ function buildPlan(endpoints) {
             projectRoles: projectRoles,
             bucketRoles: [].concat(
                 entry.extra.indexOf('storage') !== -1 ? [{ bucket: DEFAULT_BUCKET, role: EXTRA_ROLES.storage }] : [],
-                entry.extra.indexOf('backups') !== -1 ? [{ bucket: BACKUP_BUCKET, role: EXTRA_ROLES.backups }] : []),
+                entry.extra.indexOf('backups') !== -1 ? [
+                    {
+                        bucket: BACKUP_BUCKET,
+                        role: 'roles/storage.objectCreator',
+                        condition: {
+                            title: 'kill-switch-prefix-only',
+                            description: 'Create objects only under kill-switch/; no delete',
+                            expression: "resource.name.startsWith('projects/_/buckets/" + BACKUP_BUCKET + "/objects/kill-switch/')",
+                        },
+                    },
+                    { bucket: BACKUP_BUCKET, role: 'roles/storage.objectViewer' },
+                ] : []),
             // Gen2 event + schedule triggers now authenticate as this account.
             selfInvoker: ep.gen === 2 && (ep.trigger === 'event' || ep.trigger === 'schedule'),
         };
@@ -91,6 +102,15 @@ function gcloudFor(plan, batchIndex) {
     const b = plan.batches[batchIndex];
     const P = plan.project;
     const lines = ['# Batch ' + (batchIndex + 1) + ': ' + b.name + ' (' + b.fns.length + ' functions)', 'set -euo pipefail', 'P=' + P];
+    const needsExportRole = b.fns.some(function (name) {
+        const f = plan.functions[name];
+        return f.projectRoles.some(function (r) { return /roles\/killSwitchExport$/.test(r); });
+    });
+    if (needsExportRole) {
+        lines.push('', '# Custom role: export + operations.get only (cannot import over live data).');
+        lines.push('gcloud iam roles describe killSwitchExport --project "$P" >/dev/null 2>&1 || gcloud iam roles create killSwitchExport --project "$P" --title "Kill switch Firestore export" --description "Start a managed Firestore export and poll the operation. Cannot import." --permissions datastore.databases.export,datastore.operations.get');
+        lines.push('gcloud iam roles update killSwitchExport --project "$P" --permissions datastore.databases.export,datastore.operations.get');
+    }
     b.fns.forEach(function (name) {
         const f = plan.functions[name];
         const m = 'serviceAccount:' + f.email;
@@ -101,7 +121,11 @@ function gcloudFor(plan, batchIndex) {
             lines.push('gcloud projects add-iam-policy-binding "$P" --member ' + m + ' --role ' + r + ' --condition=None');
         });
         f.bucketRoles.forEach(function (br) {
-            lines.push('gcloud storage buckets add-iam-policy-binding gs://' + br.bucket + ' --member ' + m + ' --role ' + br.role);
+            let cmd = 'gcloud storage buckets add-iam-policy-binding gs://' + br.bucket + ' --member ' + m + ' --role ' + br.role;
+            if (br.condition) {
+                cmd += " --condition='expression=" + br.condition.expression + ",title=" + br.condition.title + ",description=" + br.condition.description + "'";
+            }
+            lines.push(cmd);
         });
         f.secrets.forEach(function (s) {
             lines.push('gcloud secrets add-iam-policy-binding ' + s + ' --project "$P" --member ' + m + ' --role roles/secretmanager.secretAccessor --condition=None');
