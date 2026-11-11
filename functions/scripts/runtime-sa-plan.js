@@ -110,6 +110,15 @@ function gcloudFor(plan, batchIndex) {
         lines.push('', '# Custom role: export + operations.get only (cannot import over live data).');
         lines.push('gcloud iam roles describe killSwitchExport --project "$P" >/dev/null 2>&1 || gcloud iam roles create killSwitchExport --project "$P" --title "Kill switch Firestore export" --description "Start a managed Firestore export and poll the operation. Cannot import." --permissions datastore.databases.export,datastore.operations.get');
         lines.push('gcloud iam roles update killSwitchExport --project "$P" --permissions datastore.databases.export,datastore.operations.get');
+        lines.push('');
+        lines.push('# Versioning + lifecycle on the backups bucket. --lifecycle-file REPLACES the');
+        lines.push('# whole policy, so docs/kill-switch-lifecycle.json keeps the existing 90-day');
+        lines.push('# delete on nightlies, adds a 90-day delete for kill-switch/, and deletes');
+        lines.push('# noncurrent versions after 30 days. Re-read the live config and do not apply');
+        lines.push('# until Phil says so. Never run this against the live bucket from a script.');
+        lines.push('# gcloud storage buckets describe gs://' + BACKUP_BUCKET + " --format='json(lifecycle_config)'");
+        lines.push('# gcloud storage buckets update gs://' + BACKUP_BUCKET + ' --versioning');
+        lines.push('# gcloud storage buckets update gs://' + BACKUP_BUCKET + ' --lifecycle-file=docs/kill-switch-lifecycle.json');
     }
     const seenCmd = {};
     function pushOnce(line) {

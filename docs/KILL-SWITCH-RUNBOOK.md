@@ -63,28 +63,20 @@ The function only lists/reads existing export metadata and **creates** objects u
 
 - Turn on object versioning on `gs://bitcoin-education-archive-backups` so a mistaken overwrite of a nightly can be recovered.
 - Prefer a retention policy or bucket lock on the daily `YYYY-MM-DD/` exports if Legal agrees (this is a policy change; Phil must approve).
-- Add a lifecycle rule so `kill-switch/` snapshots do not grow forever. Example (90 days; Phil can pick a longer window):
+- Add a lifecycle config so `kill-switch/` snapshots do not grow forever, and so noncurrent versions (after versioning is turned on) do not pile up. **`gcloud storage buckets update --lifecycle-file` replaces the bucket's entire lifecycle setup.** A file that only has the `kill-switch/` rule would wipe the existing 90-day delete rule on the nightly `YYYY-MM-DD/` exports. The file in the repo already includes every current rule plus the new ones. Re-read the live config before applying, and do not apply this until Phil says so.
 
-```json
-{
-  "rule": [
-    {
-      "action": { "type": "Delete" },
-      "condition": {
-        "age": 90,
-        "matchesPrefix": ["kill-switch/"]
-      }
-    }
-  ]
-}
-```
+The complete file is `docs/kill-switch-lifecycle.json`. It keeps the existing 90-day delete for all objects, adds a 90-day delete scoped to `kill-switch/` (Phil can pick a longer window), and deletes noncurrent versions after 30 days (`daysSinceNoncurrentTime: 30`) once versioning is on.
 
 ```bash
+# Read the live rules first. If they have changed, edit the file so it still
+# includes every existing rule, then apply.
+gcloud storage buckets describe gs://bitcoin-education-archive-backups --format='json(lifecycle_config)'
+
 gcloud storage buckets update gs://bitcoin-education-archive-backups --versioning
-gcloud storage buckets update gs://bitcoin-education-archive-backups --lifecycle-file=kill-switch-lifecycle.json
+gcloud storage buckets update gs://bitcoin-education-archive-backups --lifecycle-file=docs/kill-switch-lifecycle.json
 ```
 
-Do not apply a short lifecycle to the daily `YYYY-MM-DD/` prefixes.
+Do not apply a short lifecycle only to the daily `YYYY-MM-DD/` prefixes, and do not apply a file that omits the existing 90-day rule.
 
 ## How to fix issues while the app is offline
 
