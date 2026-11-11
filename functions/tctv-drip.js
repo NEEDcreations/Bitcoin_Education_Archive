@@ -162,6 +162,40 @@ async function loadEntries(potId, cfg) {
     return entries;
 }
 
+// tctv_drip_daily/{dayKey}: sats paid today per HMAC(uid) and per link key
+// (already HMAC ids). No raw uid. Older days are deleted after each payout.
+function dailyView(doc, entries) {
+    const uidsIn = doc.uids || {};
+    const uids = {};
+    (entries || []).forEach(e => { const k = tctvLink.linkHmac('uid', e.uid); if (k && uidsIn[k]) uids[e.uid] = uidsIn[k]; });
+    return { uids, links: doc.links || {} };
+}
+
+function dailyIncrements(shares, entries, dayKey) {
+    const inc = (n) => admin.firestore.FieldValue.increment(n);
+    const linksOf = new Map((entries || []).map(e => [e.uid, e.links || []]));
+    const uids = {};
+    const links = {};
+    (shares || []).forEach(s => {
+        if (!(s.sats > 0)) return;
+        const k = tctvLink.linkHmac('uid', s.uid);
+        if (k) uids[k] = inc(s.sats);
+        (linksOf.get(s.uid) || []).forEach(l => { links[l] = (links[l] || 0) + s.sats; });
+    });
+    const out = { dayKey, uids, links: {} };
+    Object.keys(links).forEach(l => { out.links[l] = inc(links[l]); });
+    return out;
+}
+
+async function pruneDaily(todayKey) {
+    const old = await db.collection('tctv_drip_daily').where('dayKey', '<', todayKey).limit(50).get();
+    if (old.empty) return 0;
+    const b = db.batch();
+    old.docs.forEach(d => b.delete(d.ref));
+    await b.commit();
+    return old.size;
+}
+
 // The share plan is frozen in tctv_drip_history before any credit, so a
 // retried tick pays exactly the same shares. Ledger docs stay one per user per pot.
 async function distribute(pot, cfg) {
@@ -169,12 +203,18 @@ async function distribute(pot, cfg) {
     const histRef = db.collection('tctv_drip_history').doc(potId);
     let hist = (await histRef.get()).data() || null;
     if (!hist || !Array.isArray(hist.shares)) {
-        const plan = logic.planShares(await loadEntries(potId, cfg), cfg);
+        const entries = await loadEntries(potId, cfg);
+        const dayKey = offsetDateKey(Date.now());
+        const dailyRef = db.collection('tctv_drip_daily').doc(dayKey);
+        const daily = dailyView(((await dailyRef.get()).data() || {}), entries);
+        const plan = logic.planShares(entries, cfg, daily);
         if (plan.wait) return plan;
         hist = await db.runTransaction(async (tx) => {
             const cur = await tx.get(histRef);
             if (cur.exists && Array.isArray((cur.data() || {}).shares)) return cur.data();
-            const doc = { potId, paid: plan.paid, rollover: plan.rollover, winners: plan.shares.length, eligible: plan.eligible, cap: plan.cap,
+            // Per-group daily totals (HMAC keys only) for the N1b daily cap.
+            tx.set(dailyRef, dailyIncrements(plan.shares, entries, dayKey), { merge: true });
+            const doc = { potId, paid: plan.paid, rollover: plan.rollover, returnedSats: plan.returnedSats || 0, winners: plan.shares.length, eligible: plan.eligible, cap: plan.cap,
                 accounts: plan.accounts || plan.eligible, groups: plan.groups || 0, linkedGroups: plan.linkedGroups || 0,
                 shares: plan.shares.map(x => ({ uid: x.uid, sats: x.sats, seconds: x.seconds })), at: admin.firestore.FieldValue.serverTimestamp() };
             tx.set(histRef, doc);
@@ -195,7 +235,7 @@ async function distribute(pot, cfg) {
             });
         });
     }
-    return { wait: false, paid: hist.paid, rollover: hist.rollover, shares: hist.shares };
+    return { wait: false, paid: hist.paid, rollover: hist.rollover, returnedSats: hist.returnedSats || 0, shares: hist.shares };
 }
 
 
@@ -372,13 +412,14 @@ async function runTick() {
             return true;
         });
         if (!advanced) return;
-        console.log('[tctvDrip] distributed ' + pot.potId + ' paid=' + plan.paid + ' winners=' + plan.shares.length);
+        console.log('[tctvDrip] distributed ' + pot.potId + ' paid=' + plan.paid + ' returned=' + (plan.returnedSats || 0) + ' winners=' + plan.shares.length);
         // Shares are frozen in tctv_drip_history, so the closed pot's link ids
         // are no longer needed: scrub them (User Data/Backups #287 must-fix).
         try {
             const n = await scrubPotLinks(pot.potId);
             if (n) console.log('[tctvDrip] scrubbed links on ' + n + ' watch docs of ' + pot.potId);
         } catch (e) { console.error('[tctvDrip] link scrub', e && e.message); }
+        try { await pruneDaily(offsetDateKey(nowMs)); } catch (e) { console.error('[tctvDrip] daily prune', e && e.message); }
     }
 }
 

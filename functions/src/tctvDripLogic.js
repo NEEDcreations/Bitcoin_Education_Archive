@@ -228,11 +228,43 @@ function splitGroup(members, sats) {
 }
 
 // Water-fill across linked groups, then split inside each group.
-function fillGrouped(elig, pot, cfg) {
+// Spam/Abuse N1b: per-group DAILY cap for few-group pots (fewer than
+// minEligibleWatchers groups). daily = { uids: {uid: sats today},
+// links: {linkKey: sats today} } from the tick; a group's prior is the larger
+// of its members' uid total and its busiest link key.
+function groupDailyCapSats(cfg) {
+    const v = Math.floor(num(cfg.groupDailyCapSats, 0));
+    return v > 0 ? v : Math.floor(cfg.targetSats * cfg.userShareCapPct / 100);
+}
+
+function groupPriorSats(members, daily) {
+    if (!daily) return 0;
+    const u = daily.uids || {};
+    const l = daily.links || {};
+    let su = 0;
+    let ml = 0;
+    (members || []).forEach(m => {
+        su += Math.max(0, num(u[m.uid], 0));
+        (m.links || []).forEach(k => { ml = Math.max(ml, num(l[k], 0)); });
+    });
+    return Math.max(su, ml);
+}
+
+function fewGroups(n, cfg) {
+    return n < Math.max(1, Math.floor(cfg.minEligibleWatchers));
+}
+
+function fillGrouped(elig, pot, cfg, daily) {
     const groups = groupLinked(elig);
     const n = groups.length;
     const cap = shareCap(pot, n, cfg);
-    const bucket = groups.map((g, i) => ({ uid: 'g' + i, seconds: g.reduce((t, m) => t + m.seconds, 0) }));
+    const few = fewGroups(n, cfg);
+    const dayCap = groupDailyCapSats(cfg);
+    const bucket = groups.map((g, i) => {
+        const b = { uid: 'g' + i, seconds: g.reduce((t, m) => t + m.seconds, 0) };
+        if (few) b.cap = Math.max(0, dayCap - groupPriorSats(g, daily));
+        return b;
+    });
     const filled = fillShares(bucket, pot, cap);
     const bySats = new Map(filled.shares.map(s => [s.uid, s.sats]));
     let shares = [];
@@ -257,17 +289,19 @@ function shareCap(pot, n, cfg) {
 // Water-fill proportional shares for an already-filtered eligible list.
 // Whole sats only: floor leftovers go 1 sat each to the largest remainders.
 // Only sats left when every watcher is capped roll into the next pot.
+// e.cap (optional) lowers the cap for one entry (per-group daily room).
 function fillShares(elig, pot, cap) {
     const n = elig.length;
+    const capOf = (e) => (Number.isFinite(e.cap) ? Math.max(0, Math.min(cap, Math.floor(e.cap))) : cap);
     const sats = new Map(elig.map(e => [e.uid, 0]));
     let open = elig.slice();
     let remaining = pot;
     for (let guard = 0; guard <= n && open.length && remaining > 0; guard++) {
         const total = open.reduce((t, e) => t + e.seconds, 0);
         if (total <= 0) break;
-        const over = open.filter(e => remaining * e.seconds / total > cap);
+        const over = open.filter(e => remaining * e.seconds / total > capOf(e));
         if (over.length) {
-            for (const e of over) { sats.set(e.uid, cap); remaining -= cap; }
+            for (const e of over) { sats.set(e.uid, capOf(e)); remaining -= capOf(e); }
             open = open.filter(e => over.indexOf(e) === -1);
             continue;
         }
@@ -278,7 +312,7 @@ function fillShares(elig, pot, cap) {
         raw.sort((a, b) => (b.v - Math.floor(b.v)) - (a.v - Math.floor(a.v)) || b.e.seconds - a.e.seconds || (a.e.uid < b.e.uid ? -1 : 1));
         for (const r of raw) {
             if (left <= 0) break;
-            if (sats.get(r.e.uid) < cap) { sats.set(r.e.uid, sats.get(r.e.uid) + 1); left--; }
+            if (sats.get(r.e.uid) < capOf(r.e)) { sats.set(r.e.uid, sats.get(r.e.uid) + 1); left--; }
         }
         remaining = left;
         open = [];
@@ -297,15 +331,22 @@ function fillShares(elig, pot, cap) {
 // userShareCapPct (N1), so 5 alts on one device meet the threshold but get
 // at most userShareCapPct of the pot in total.
 // eligible = accounts (threshold), groups = linked groups (cap).
-function planShares(entries, cfg) {
+// N1b: when fewer than minEligibleWatchers groups share the pot (the cap is
+// what binds), the unpaid sats go back to the reserve (returnedSats) and the
+// next pot starts at 0, so a lone linked group cannot be paid the leftover
+// again an hour later. Few-group pots also get the per-group daily cap.
+function planShares(entries, cfg, daily) {
     const pot = Math.floor(cfg.targetSats);
     const elig = eligibleEntries(entries, cfg);
     const groups = groupLinked(elig).length;
     const cap = shareCap(pot, groups, cfg);
     const minN = Math.max(1, Math.floor(cfg.minEligibleWatchers));
-    if (elig.length < minN) return { wait: true, eligible: elig.length, accounts: elig.length, groups, shares: [], paid: 0, rollover: 0, cap };
-    const filled = fillGrouped(elig, pot, cfg);
-    return { wait: false, eligible: elig.length, accounts: elig.length, groups, linkedGroups: filled.linked, shares: filled.shares, paid: filled.paid, rollover: filled.rollover, cap };
+    if (elig.length < minN) return { wait: true, eligible: elig.length, accounts: elig.length, groups, shares: [], paid: 0, rollover: 0, returnedSats: 0, cap };
+    const filled = fillGrouped(elig, pot, cfg, daily);
+    const few = fewGroups(groups, cfg);
+    const returnedSats = few ? filled.rollover : 0;
+    const rollover = few ? 0 : filled.rollover;
+    return { wait: false, eligible: elig.length, accounts: elig.length, groups, linkedGroups: filled.linked, shares: filled.shares, paid: filled.paid, rollover, returnedSats, cap };
 }
 
 // True when a watch doc still carries any link id (scrubbed at pot close).
@@ -317,7 +358,7 @@ function hasLinks(w) {
 // Live UI projection: same math as planShares, but still returns per-uid sats
 // when the pot is waiting on more eligible watchers (payout still waits).
 // Watchers below minQualifySeconds get 0. Does not change payout behavior.
-function projectShares(entries, cfg) {
+function projectShares(entries, cfg, daily) {
     const pot = Math.floor(cfg.targetSats);
     const all = (entries || []).filter(e => e && e.uid).map(e => ({
         uid: String(e.uid),
@@ -332,7 +373,7 @@ function projectShares(entries, cfg) {
     const n = elig.length;
     const byUid = new Map(all.map(e => [e.uid, 0]));
     if (elig.length > 0) {
-        const filled = fillGrouped(elig, pot, cfg);
+        const filled = fillGrouped(elig, pot, cfg, daily);
         for (const s of filled.shares) byUid.set(s.uid, s.sats);
     }
     const shares = all.map(e => ({ uid: e.uid, seconds: e.seconds, sats: byUid.get(e.uid) || 0 }));
@@ -374,6 +415,6 @@ function isAgentOrBlocked(user) {
 
 module.exports = {
     DEFAULTS, CREDIT_SECONDS, MIN_GAP_MS, ACTIVE_WINDOW_MS, DEVICE_HOLD_MS, ANSWER_GRACE_MS, MAX_LINKS,
-    promptExpired, linkKeys, mergeLinks, hasLinks, groupLinked, splitGroup, fillGrouped, reservedAmountOf, nextPotDoc,
+    promptExpired, linkKeys, mergeLinks, hasLinks, groupLinked, groupDailyCapSats, groupPriorSats, splitGroup, fillGrouped, reservedAmountOf, nextPotDoc,
     readConfig, validDeviceId, nextPromptMs, promptIsAnswered, planCheckin, accrualViewers, rateFromViewers, planAccrual, planShares, projectShares, fillShares, eligibleEntries, shareCap, planReserve, isAgentOrBlocked,
 };

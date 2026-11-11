@@ -30,7 +30,8 @@ test('a 5-account ring on one IP: one bucket, meets the account threshold, cappe
     const cap = Math.floor(cfg.targetSats * cfg.userShareCapPct / 100);
     assert.strictEqual(p.cap, cap);
     assert.ok(sum(p) <= cap, 'ring paid ' + sum(p) + ' <= ' + cap);
-    assert.strictEqual(p.rollover, cfg.targetSats - sum(p));
+    assert.strictEqual(p.rollover, 0, 'N1b: no rollover for a few-group pot');
+    assert.strictEqual(p.returnedSats, cfg.targetSats - sum(p));
 });
 test('5 alts on one device: never the whole pot', () => {
     const alts = Array.from({ length: 5 }, (_, i) => ({ uid: 'a' + i, seconds: H8, links: ['ip:a' + i, 'dev:one'] }));
@@ -202,6 +203,97 @@ test('server wiring', () => {
     assert.ok(src.indexOf('links: logic.linkKeys(w, cfg)') > 0, 'loadEntries passes links');
     assert.ok(src.indexOf('patch.linkIps = logic.mergeLinks(prev.linkIps, links.ip)') > 0);
     assert.ok(src.indexOf("linkHash('ip', net.exactId)") > 0, 'IP stored hashed');
+});
+
+// ---- N1b: no leftover refill for few-group pots + per-group daily cap ----
+function simulate(cfgIn, days, startSats, viewers) {
+    const c = L.readConfig(cfgIn);
+    const { offsetDateKey } = require('../functions/src/offsetDay');
+    const alts = Array.from({ length: 5 }, (_, i) => ({ uid: 'alt' + i, seconds: H8, links: ['dev:one'] }));
+    let pot = { potId: 'pot1', status: 'filling', sats: startSats, dayKey: '', dayAccrued: 0 };
+    const t0 = Date.UTC(2026, 10, 12, 12, 0, 0);
+    const perDay = {};
+    const perPot = [];
+    let daily = { key: '', uids: {}, links: {} };
+    for (let m = 0; m < days * 1440; m++) {
+        const now = t0 + m * 60000;
+        const day = offsetDateKey(now);
+        if (daily.key !== day) daily = { key: day, uids: {}, links: {} };
+        if (pot.status === 'filling') {
+            const acc = L.planAccrual(pot, viewers, c, day);
+            pot = Object.assign({}, pot, { sats: acc.sats, dayKey: acc.dayKey, dayAccrued: acc.dayAccrued, status: acc.full ? 'full' : 'filling' });
+        }
+        if (pot.status === 'full') {
+            const plan = L.planShares(alts, c, daily);
+            assert.ok(!plan.wait);
+            perPot.push({ paid: plan.paid, returned: plan.returnedSats, cap: plan.cap });
+            perDay[day] = (perDay[day] || 0) + plan.paid;
+            plan.shares.forEach(x => {
+                daily.uids[x.uid] = (daily.uids[x.uid] || 0) + x.sats;
+                daily.links['dev:one'] = (daily.links['dev:one'] || 0) + x.sats;
+            });
+            pot = L.nextPotDoc(pot, plan, c, now);
+            assert.strictEqual(pot.sats, 0, 'next pot starts at 0 after a few-group pot');
+        }
+    }
+    return { c, perDay, perPot };
+}
+test('N1b: few-group pot returns the unpaid sats; next pot starts at 0', () => {
+    const alts = Array.from({ length: 5 }, (_, i) => ({ uid: 'alt' + i, seconds: H8, links: ['dev:one'] }));
+    const p = L.planShares(alts, cfg);
+    assert.ok(!p.wait && p.groups === 1);
+    assert.strictEqual(p.rollover, 0);
+    assert.strictEqual(p.returnedSats, cfg.targetSats - p.paid);
+    assert.strictEqual(L.nextPotDoc({ potId: 'pot7' }, p, cfg, 1).sats, 0);
+    // Five or more groups: no cap-bound leftover, nothing returned.
+    const many = Array.from({ length: 6 }, (_, i) => ({ uid: 'm' + i, seconds: H8, links: ['ip:m' + i] }));
+    const q = L.planShares(many, cfg);
+    assert.strictEqual(q.returnedSats, 0);
+});
+test('N1b: per-group daily cap applies to few-group pots only', () => {
+    const alts = Array.from({ length: 5 }, (_, i) => ({ uid: 'alt' + i, seconds: H8, links: ['dev:one'] }));
+    const capDay = L.groupDailyCapSats(cfg);
+    assert.strictEqual(capDay, Math.floor(cfg.targetSats * cfg.userShareCapPct / 100));
+    const used = L.planShares(alts, cfg, { uids: {}, links: { 'dev:one': capDay } });
+    assert.strictEqual(used.paid, 0, 'group already at its daily cap (by link key)');
+    assert.strictEqual(used.returnedSats, cfg.targetSats);
+    const byUid = L.planShares(alts, cfg, { uids: { alt0: capDay - 10 }, links: {} });
+    assert.ok(byUid.paid <= 10, 'uid totals count too: ' + byUid.paid);
+    assert.strictEqual(L.groupPriorSats([{ uid: 'a', links: ['x'] }, { uid: 'b', links: ['x', 'y'] }], { uids: { a: 5, b: 7 }, links: { x: 9, y: 20 } }), 20);
+    const many = Array.from({ length: 6 }, (_, i) => ({ uid: 'm' + i, seconds: H8, links: ['ip:m' + i] }));
+    const q = L.planShares(many, cfg, { uids: { m0: 99999 }, links: {} });
+    assert.strictEqual(q.paid, cfg.targetSats, 'normal pots ignore the few-group daily cap');
+});
+test('N1b 3-day simulation: lone group from a 4,750 seed takes one capped share, no refill', () => {
+    const r = simulate({}, 3, 4750, 5);
+    const cap = Math.floor(r.c.targetSats * r.c.userShareCapPct / 100);
+    assert.ok(r.perPot.length >= 1);
+    r.perPot.forEach(x => assert.ok(x.paid <= cap));
+    Object.keys(r.perDay).forEach(d => assert.ok(r.perDay[d] <= L.groupDailyCapSats(r.c), d + ' ' + r.perDay[d]));
+    assert.strictEqual(r.perPot.length, 1, 'with no rollover the next pot cannot refill in 3 days (1,000/day accrual)');
+});
+test('N1b 3-day simulation: small fast pots, lone group never above its daily cap', () => {
+    const r = simulate({ targetSats: 400, dailyCapSats: 1000, userShareCapPct: 5 }, 3, 0, 50);
+    const dayCap = L.groupDailyCapSats(r.c);
+    assert.ok(r.perPot.length >= 6, 'several pots ran: ' + r.perPot.length);
+    const days = Object.keys(r.perDay);
+    assert.ok(days.length >= 3);
+    days.forEach(d => assert.ok(r.perDay[d] <= dayCap, d + ' paid ' + r.perDay[d] + ' > ' + dayCap));
+    const total = r.perPot.reduce((t, x) => t + x.paid, 0);
+    const returned = r.perPot.reduce((t, x) => t + x.returned, 0);
+    assert.ok(total <= dayCap * days.length);
+    assert.ok(returned > total * 5, 'most of the accrual went back to the reserve');
+});
+test('tick: daily doc uses HMAC keys only, frozen with the history, pruned after payout; rules deny', () => {
+    const src = read('functions/tctv-drip.js');
+    const d = src.slice(src.indexOf('function dailyView('), src.indexOf('async function pruneDaily('));
+    assert.ok(d.indexOf("tctvLink.linkHmac('uid', e.uid)") > 0 && d.indexOf("tctvLink.linkHmac('uid', s.uid)") > 0);
+    const dist = src.slice(src.indexOf('async function distribute('));
+    assert.ok(dist.indexOf('logic.planShares(entries, cfg, daily)') > 0);
+    const tx = dist.indexOf('hist = await db.runTransaction');
+    assert.ok(dist.indexOf('tx.set(dailyRef, dailyIncrements(plan.shares, entries, dayKey), { merge: true })') > tx);
+    assert.ok(src.indexOf('await pruneDaily(offsetDateKey(nowMs))') > src.indexOf('if (!advanced) return;'));
+    assert.ok(/match \/tctv_drip_daily\/\{docId\} \{\s*allow read, write: if false;/.test(read('firestore.rules')));
 });
 
 // ---- #287 fix pass: HMAC link ids (Secret Manager), scrub at pot close, deleteAccount ----
