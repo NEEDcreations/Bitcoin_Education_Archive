@@ -9871,7 +9871,7 @@ exports.adminSetKillSwitch = killSwitch.makeAdminSetKillSwitch({
     functionsV1: functionsV1,
     admin: admin,
     db: db,
-    runWith: { enforceAppCheck: true, secrets: [tgBotTokenSecret], serviceAccount: runtimeSa('adminSetKillSwitch') },
+    runWith: { enforceAppCheck: true, secrets: [tgBotTokenSecret, 'TOTP_ENCRYPTION_KEY'], serviceAccount: runtimeSa('adminSetKillSwitch') },
     sendPhilDm: function (text) { return require('./src/raidBossEngine').sendPhilDm(text); },
     listAdminUids: _listAdminClaimUids,
 });

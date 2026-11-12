@@ -27,10 +27,10 @@ const manifest = Object.keys(RUNTIME_SERVICE_ACCOUNTS).sort();
 const noSecretOwn = manifest.filter(function (n) { return RUNTIME_SERVICE_ACCOUNTS[n].noSecrets === true; });
 const ownAccount = secretBound.concat(noSecretOwn).sort();
 
-test('manifest lists exactly the secret-bound exports (59) plus explicit noSecrets accounts', function () {
+test('manifest lists exactly the secret-bound exports (60) plus explicit noSecrets accounts', function () {
     assert.deepStrictEqual(manifest, ownAccount);
-    assert.strictEqual(secretBound.length, 59);
-    assert.deepStrictEqual(noSecretOwn, ['adminClearPayoutHold']);
+    assert.strictEqual(secretBound.length, 60);
+    assert.deepStrictEqual(noSecretOwn, []);
 });
 
 test('noSecrets accounts really bind no secret and run as their own account', function () {
@@ -126,7 +126,15 @@ test('gcloud output: named deploy only, metadata-free, one secret grant per boun
             const grants = text.split('\n').filter(function (l) {
                 return l.indexOf('gcloud secrets add-iam-policy-binding') === 0 && l.indexOf('serviceAccount:' + f.email + ' ') !== -1;
             });
-            assert.strictEqual(grants.length, f.secrets.length, n);
+            // Shared runtime SAs emit one grant per unique secret on that
+            // account, not per function in the batch.
+            const union = new Set();
+            b.fns.forEach(function (other) {
+                if (plan.functions[other].email === f.email) {
+                    plan.functions[other].secrets.forEach(function (s) { union.add(s); });
+                }
+            });
+            assert.strictEqual(grants.length, union.size, n);
         });
     });
 });

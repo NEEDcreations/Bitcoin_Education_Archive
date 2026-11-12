@@ -44,7 +44,7 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     adminBanUser: { id: 'fn-admin-ban-user', extra: [] },
     // Binds no secret, but it changes payout state, so it gets its own
     // account instead of the default one (noSecrets: plan grants no secret).
-    adminClearPayoutHold: { id: 'fn-admin-clear-payout-hold', extra: ['auth'], noSecrets: true },
+    adminClearPayoutHold: { id: 'fn-admin-clear-payout-hold', extra: ['auth'] },
     adminLookupUser: { id: 'fn-admin-lookup-user', extra: [] },
     adminQueryUsers: { id: 'fn-admin-query-users', extra: [] },
     adminResetSecondFactor: { id: 'fn-admin-reset-second', extra: ['auth'] },

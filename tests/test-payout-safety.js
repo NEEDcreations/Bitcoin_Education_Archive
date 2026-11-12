@@ -253,11 +253,12 @@ test('adminClearPayoutHold: admin claim only, App Check, 2FA, confirm phrase, ow
     assert.ok(body.indexOf("'failed-precondition', 'Turn on two-factor authentication") > 0);
     assert.ok(body.indexOf('confirmPhrase(which)') > 0);
     assert.ok(!/email/i.test(body), 'never an email gate');
-    assert.ok(body.indexOf('payInvoice') === -1 && body.indexOf('secrets:') === -1);
+    assert.ok(body.indexOf('payInvoice') === -1);
+    assert.ok(body.indexOf("secrets: ['TOTP_ENCRYPTION_KEY']") > 0, 'must mount TOTP key to decrypt step-up codes');
     assert.strictEqual(ps.confirmPhrase('satsHold'), 'CLEAR satsHold');
     const sa = require('../functions/src/runtimeServiceAccounts').RUNTIME_SERVICE_ACCOUNTS.adminClearPayoutHold;
     assert.strictEqual(sa.id, 'fn-admin-clear-payout-hold');
-    assert.strictEqual(sa.noSecrets, true);
+    assert.ok(!sa.noSecrets);
 });
 test('secondFactorEnrolled: only an enrolled authenticator or phone passes', () => {
     assert.strictEqual(ps.secondFactorEnrolled({ uid: 'a', totp: false, phone: false }), false);
