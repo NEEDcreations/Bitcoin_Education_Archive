@@ -49,6 +49,15 @@ function nextPromptMs(nowMs, cfg, rand) {
     return Math.floor(nowMs + mins * 60000);
 }
 
+// A highlighted "still watching?" tap sends the prompt token. That tap has to
+// count even when it lands in the same minute as the check-in that raised the
+// prompt. Raising the prompt must not move lastCheckMs, or the tap is rejected
+// as too-fast and the watcher's seconds (and share) stay at 0.
+function promptIsAnswered(p, now, answer) {
+    const due = num(p.promptDueMs, 0);
+    return !!(due && now >= due && answer && p.promptToken && answer === p.promptToken);
+}
+
 // One check-in. prev = watch doc (or {}), returns {credit, reason, patch, prompt}
 function planCheckin(prev, ctx) {
     const p = prev || {};
@@ -56,22 +65,23 @@ function planCheckin(prev, ctx) {
     const cfg = ctx.cfg;
     if (!ctx.playing) return { credit: 0, reason: 'not-playing' };
     if (!ctx.presenceFresh) return { credit: 0, reason: 'no-presence' };
-    const last = num(p.lastCheckMs, 0);
-    if (last && now - last < MIN_GAP_MS) return { credit: 0, reason: 'too-fast', reject: true };
     if (ctx.deviceOwner && ctx.deviceOwner !== ctx.uid && now - num(ctx.deviceLastMs, 0) < DEVICE_HOLD_MS) {
         return { credit: 0, reason: 'device-in-use', reject: true };
     }
+    const last = num(p.lastCheckMs, 0);
+    const answered = promptIsAnswered(p, now, ctx.promptAnswer);
+    if (!answered && last && now - last < MIN_GAP_MS) return { credit: 0, reason: 'too-fast', reject: true };
     const patch = { lastCheckMs: now };
     let promptDue = num(p.promptDueMs, 0);
     if (!promptDue) { promptDue = nextPromptMs(now, cfg, ctx.rand); patch.promptDueMs = promptDue; }
     if (now >= promptDue) {
-        const answered = ctx.promptAnswer && p.promptToken && ctx.promptAnswer === p.promptToken;
         if (answered) {
             patch.promptDueMs = nextPromptMs(now, cfg, ctx.rand);
             patch.promptToken = '';
         } else {
             if (!p.promptToken) patch.promptToken = ctx.newToken;
-            // Unanswered prompt past its answer window: no credit until answered.
+            // Leave lastCheckMs where it was so the tap in this same minute can credit.
+            delete patch.lastCheckMs;
             return { credit: 0, reason: 'prompt', prompt: true, token: p.promptToken || ctx.newToken, patch };
         }
     }
@@ -81,6 +91,20 @@ function planCheckin(prev, ctx) {
     const credit = Math.min(CREDIT_SECONDS, room);
     patch.seconds = seconds + credit;
     return { credit, reason: 'ok', patch };
+}
+
+// How many viewers may move sats on this tick.
+// liveTotal is the public header after the staleness check (0 when the
+// aggregate is older than 3 minutes). crediting is signed-in, age-ok,
+// device-locked check-ins that actually credited. Forged presence can raise
+// the header, so accrual is the smaller of the two. Zero crediting check-ins
+// means zero sats, even when liveTotal is 50.
+function accrualViewers(liveTotal, crediting) {
+    const live = Math.floor(Number(liveTotal));
+    const credit = Math.floor(Number(crediting));
+    const liveN = Number.isFinite(live) && live > 0 ? live : 0;
+    const creditN = Number.isFinite(credit) && credit > 0 ? credit : 0;
+    return Math.min(liveN, creditN);
 }
 
 // Stepped fill rate from active viewers (capped at maxCountedViewers).
@@ -214,5 +238,5 @@ function isAgentOrBlocked(user) {
 
 module.exports = {
     DEFAULTS, CREDIT_SECONDS, MIN_GAP_MS, ACTIVE_WINDOW_MS, DEVICE_HOLD_MS,
-    readConfig, validDeviceId, nextPromptMs, planCheckin, rateFromViewers, planAccrual, planShares, projectShares, fillShares, eligibleEntries, shareCap, planReserve, isAgentOrBlocked,
+    readConfig, validDeviceId, nextPromptMs, promptIsAnswered, planCheckin, accrualViewers, rateFromViewers, planAccrual, planShares, projectShares, fillShares, eligibleEntries, shareCap, planReserve, isAgentOrBlocked,
 };

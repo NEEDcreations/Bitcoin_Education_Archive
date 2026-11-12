@@ -4,7 +4,7 @@
 (function () {
     'use strict';
     var CHECK_MS = 60000;
-    var timer = null, inflight = false, unsub = null, watchUnsub = null, lastBursts = null, promptToken = '';
+    var timer = null, inflight = false, unsub = null, watchUnsub = null, lastBursts = null, promptToken = '', promptAnswered = false;
     var pot = null, dropTimer = null, myShare = null, sharePotId = '';
 
     function user() {
@@ -29,7 +29,8 @@
     function fmt(n) { return Math.floor(n || 0).toLocaleString(); }
     function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
 
-    var POS_KEY = 'tctvPotPos', MIN_KEY = 'tctvPotMin', SIZE_KEY = 'tctvPotSize';
+    var POS_KEY = 'tctvPotPos', MIN_KEY = 'tctvPotMin', SIZE_KEY = 'tctvPotPx';
+    var MIN_POT = 84, PHONE_MAX = 160, DESK_MAX = 300, PHONE_DEFAULT = 135, DESK_DEFAULT = 190;
     var REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     function css() {
         if (document.getElementById('tctv-drip-css')) return;
@@ -38,23 +39,18 @@
         // minimizable, and it remembers size, minimized state, and spot on this device.
         // Default is upper-right on desktop (below the bell and title bar, left of the collapsed remote)
         // and upper-center on phones (below the mobile bar, title row, and channel remote).
-        s.textContent = '#tctv-drip{position:fixed;top:calc(84px + env(safe-area-inset-top, 0px));right:max(76px, env(safe-area-inset-right, 0px));left:auto;bottom:auto;z-index:200001;font-family:inherit;color:#fff;touch-action:none;user-select:none;-webkit-user-select:none;max-width:calc(100vw - 16px);--pot:136px;--coin:26px;--fall:100px}' +
-            '#tctv-drip[data-size="2"]{--pot:92px;--coin:20px;--fall:72px}' +
-            '#tctv-drip[data-size="1"]{--pot:60px;--coin:16px;--fall:50px}' +
+        s.textContent = '#tctv-drip{position:fixed;top:calc(84px + env(safe-area-inset-top, 0px));right:max(76px, env(safe-area-inset-right, 0px));left:auto;bottom:auto;z-index:200001;font-family:inherit;color:#fff;touch-action:none;user-select:none;-webkit-user-select:none;max-width:calc(100vw - 16px);--pot:190px;--coin:26px;--fall:100px;--td-face:15px;--td-share:13px}' +
             '#tctv-drip.td-mini{--coin:14px;--fall:36px}' +
             '#tctv-drip[hidden]{display:none}' +
             'body.ticker-visible #tctv-drip{top:calc(116px + env(safe-area-inset-top, 0px))}' +
             '@media (max-width:700px){#tctv-drip{top:calc(178px + env(safe-area-inset-top, 0px));left:8px;right:8px;width:fit-content;margin-left:auto;margin-right:auto}body.ticker-visible #tctv-drip{top:calc(210px + env(safe-area-inset-top, 0px))}}' +
-            '@media (max-width:420px){#tctv-drip{--pot:88px;--coin:20px;--fall:60px}#tctv-drip[data-size="2"]{--pot:68px;--coin:16px;--fall:48px}#tctv-drip[data-size="1"]{--pot:52px;--coin:14px;--fall:36px}#tctv-drip[data-size="3"] .td-card{padding:4px}#tctv-drip[data-size="3"] .td-face{font-size:13px}}' +
-            '@media (max-width:360px){#tctv-drip{--pot:76px;--coin:18px;--fall:52px}#tctv-drip[data-size="3"] .td-card{padding:6px}}' +
-            '#tctv-drip .td-card{position:relative;display:flex;flex-wrap:nowrap;align-items:center;gap:8px;padding:8px;border-radius:28px;background:rgba(17,12,4,.92);border:1px solid rgba(247,147,26,.7);box-shadow:0 10px 28px rgba(0,0,0,.5);cursor:grab;max-width:min(420px,calc(100vw - 16px));box-sizing:border-box}' +
-            '#tctv-drip[data-size="3"] .td-card{padding:10px;border-width:2px;box-shadow:0 0 0 3px rgba(247,147,26,.35),0 16px 42px rgba(247,147,26,.45),0 10px 24px rgba(0,0,0,.5)}' +
-            '#tctv-drip.td-hello[data-size="3"]:not(.td-mini) .td-card{animation:tdGlow 1.5s ease-in-out 3}' +
+            '#tctv-drip .td-card{position:relative;display:flex;flex-wrap:nowrap;align-items:center;gap:8px;padding:10px;border-radius:28px;background:rgba(17,12,4,.92);border:2px solid rgba(247,147,26,.7);box-shadow:0 0 0 3px rgba(247,147,26,.35),0 16px 42px rgba(247,147,26,.45),0 10px 24px rgba(0,0,0,.5);cursor:grab;max-width:min(420px,calc(100vw - 16px));box-sizing:border-box}' +
+            '#tctv-drip.td-hello:not(.td-mini) .td-card{animation:tdGlow 1.5s ease-in-out 3}' +
             '@keyframes tdGlow{0%,100%{box-shadow:0 0 0 3px rgba(247,147,26,.35),0 12px 32px rgba(247,147,26,.35)}50%{box-shadow:0 0 0 10px rgba(247,147,26,.2),0 0 36px 8px rgba(255,207,107,.7)}}' +
             '#tctv-drip.td-drag .td-card,#tctv-drip.td-drag .td-bubble{cursor:grabbing}' +
             '#tctv-drip .td-potwrap{position:relative;flex:none;width:var(--pot);height:var(--pot);border-radius:22%;overflow:hidden}' +
             '#tctv-drip .td-pot{width:100%;height:100%;border-radius:22%;display:block;object-fit:cover;pointer-events:none}' +
-            '#tctv-drip[data-size="3"] .td-pot{box-shadow:0 0 22px rgba(247,147,26,.75)}' +
+            '#tctv-drip .td-pot{box-shadow:0 0 22px rgba(247,147,26,.75)}' +
             '#tctv-drip .td-fx{position:absolute;left:0;right:0;top:0;height:100%;overflow:hidden;pointer-events:none}' +
             '#tctv-drip .td-coin{position:absolute;top:0;width:var(--coin);height:var(--coin);margin-left:calc(var(--coin) / -2);border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffe7a3,#f7931a 58%,#b85f00);color:#3a1d00;font-size:calc(var(--coin) * .62);line-height:var(--coin);text-align:center;font-weight:900;box-shadow:0 0 8px rgba(247,147,26,.95);animation:tdFall var(--d,1.15s) cubic-bezier(.33,.05,.45,1) forwards;will-change:transform,opacity}' +
             '@keyframes tdFall{0%{transform:translate3d(var(--x0,0px),0px,0) scale(.55) rotate(0deg);opacity:0}12%{opacity:1}62%{transform:translate3d(var(--x1,0px),calc(var(--fall) * .7),0) scale(1) rotate(140deg);opacity:1}76%{transform:translate3d(var(--x1,0px),calc(var(--fall) * .55),0) scale(1.12) rotate(175deg);opacity:1}100%{transform:translate3d(0px,calc(var(--fall) * .88),0) scale(.42) rotate(210deg);opacity:0}}' +
@@ -65,24 +61,18 @@
             '#tctv-drip .td-coin.td-spray{animation:tdSpray .95s ease-out forwards;width:calc(var(--coin) * .75);height:calc(var(--coin) * .75);font-size:calc(var(--coin) * .48);line-height:calc(var(--coin) * .75)}' +
             '@keyframes tdSpray{0%{transform:translate3d(-50%,8px,0) scale(.4);opacity:0}18%{opacity:1}100%{transform:translate3d(var(--sx,0px),var(--sy,20px),0) scale(1);opacity:0}}' +
             '#tctv-drip .td-main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;align-items:stretch}' +
-            '#tctv-drip .td-share{display:block;margin:0 10px 2px;color:#ffcf6b;font-size:13px;font-weight:800;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
-            '#tctv-drip[data-size="3"] .td-share{font-size:14px;margin:1px 12px 2px}' +
-            '#tctv-drip[data-size="1"] .td-share{font-size:11px;margin:0 6px 1px}' +
-            '@media (max-width:420px){#tctv-drip .td-share{font-size:12px}}' +
+            '#tctv-drip .td-share{display:block;margin:0 10px 2px;color:#ffcf6b;font-size:var(--td-share,13px);font-weight:800;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
             '#tctv-drip .td-share.td-share-hint{font-weight:700;opacity:.92}' +
             '#tctv-drip.td-mini .td-bubble-share{color:#fff;font-weight:800;font-size:12px;margin-left:2px}' +
             '#tctv-drip .td-pill{position:relative;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 4px;background:none;border:0;cursor:pointer;font-family:inherit;color:#ffcf6b;text-align:left}' +
-            '#tctv-drip .td-face{position:relative;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:15px;font-weight:800;white-space:nowrap;overflow:visible}' +
-            '#tctv-drip[data-size="3"] .td-face{font-size:18px;padding:6px 12px}' +
-            '#tctv-drip[data-size="1"] .td-face{font-size:13px}' +
-            '@media (max-width:420px){#tctv-drip .td-face{font-size:13px}#tctv-drip .td-lbl,#tctv-drip .td-n{overflow:hidden;text-overflow:ellipsis}}' +
+            '#tctv-drip .td-face{position:relative;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:var(--td-face,15px);font-weight:800;white-space:nowrap;overflow:visible}' +
+            '@media (max-width:420px){#tctv-drip .td-lbl,#tctv-drip .td-n{overflow:hidden;text-overflow:ellipsis}}' +
             '#tctv-drip .td-pill .td-n{color:#fff;font-weight:800}' +
             '#tctv-drip.td-ask .td-face{background:#f7931a;color:#000}#tctv-drip.td-ask .td-pill .td-n{color:#000}' +
             '#tctv-drip .td-tools{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center}' +
             '#tctv-drip .td-pinfo{background:none;border:0;color:#fff;opacity:.9;font-size:16px;cursor:pointer;min-width:44px;min-height:44px;padding:0}' +
-            '#tctv-drip .td-smaller{background:none;border:0;color:#ffcf6b;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;min-width:44px;min-height:44px;padding:0 8px}' +
-            '#tctv-drip .td-larger{background:none;border:0;color:#ffcf6b;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;min-width:44px;min-height:44px;padding:0 8px}' +
-            '#tctv-drip .td-min{background:none;border:0;color:#fff;opacity:.9;font-size:22px;font-weight:800;font-family:inherit;line-height:1;cursor:pointer;min-width:44px;min-height:44px;padding:0}' +
+            '#tctv-drip .td-min{position:absolute;top:0;left:0;z-index:5;width:44px;height:44px;min-width:44px;min-height:44px;border:0;border-radius:18px 0 14px 0;background:rgba(0,0,0,.5);color:#fff;font-size:22px;font-weight:800;font-family:inherit;line-height:1;cursor:pointer;padding:0}' +
+            '#tctv-drip .td-resize{position:absolute;top:0;right:0;z-index:5;width:44px;height:44px;min-width:44px;min-height:44px;border:0;padding:0;cursor:nesw-resize;touch-action:none;background:linear-gradient(225deg, rgba(255,207,107,.95) 0 12px, transparent 12px)}' +
             '#tctv-drip [hidden]{display:none !important}' +
             '#tctv-drip button:focus-visible{outline:2px solid #ffcf6b;outline-offset:2px}' +
             '#tctv-drip .td-ptip,#tctv-drip .td-pop{display:none;position:absolute;left:0;bottom:calc(100% + 8px);box-sizing:border-box;width:min(300px,calc(100vw - 24px));font-size:12px;line-height:1.45;font-weight:400;background:#111;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:9px 11px;box-shadow:0 6px 18px rgba(0,0,0,.5);text-align:left;white-space:normal;color:#fff;cursor:auto;z-index:2}' +
@@ -110,9 +100,21 @@
 
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-    function readSize() {
-        var n = parseInt(lsGet(SIZE_KEY), 10);
-        return n === 1 || n === 2 || n === 3 ? n : 3;
+    function phonePot() { return window.innerWidth <= 700; }
+    function maxPot() { return phonePot() ? PHONE_MAX : DESK_MAX; }
+    function defaultPot() { return phonePot() ? PHONE_DEFAULT : DESK_DEFAULT; }
+    function clampPot(n) {
+        var px = Math.round(Number(n));
+        if (!isFinite(px)) px = defaultPot();
+        return Math.max(MIN_POT, Math.min(maxPot(), px));
+    }
+    function readPot() {
+        var saved = parseInt(lsGet(SIZE_KEY), 10);
+        if (isFinite(saved) && saved > 0) return clampPot(saved);
+        var old = parseInt(lsGet('tctvPotSize'), 10);
+        if (old === 1) return clampPot(MIN_POT);
+        if (old === 2) return clampPot(phonePot() ? 100 : 140);
+        return clampPot(defaultPot());
     }
     function clampPlace(el, x, y) {
         var w = el.offsetWidth || 60, h = el.offsetHeight || 52;
@@ -135,15 +137,65 @@
             el.classList.toggle('td-right', window.innerWidth > 700);
         }
     }
-    function applySize(el, n, persist) {
-        if (n !== 1 && n !== 2 && n !== 3) n = 3;
-        el.setAttribute('data-size', String(n));
-        if (persist) lsSet(SIZE_KEY, String(n));
-        var smaller = el.querySelector('.td-smaller');
-        var larger = el.querySelector('.td-larger');
-        if (smaller) smaller.hidden = n === 1;
-        if (larger) larger.hidden = n === 3;
-        if (el.style.top) { var r = el.getBoundingClientRect(); clampPlace(el, r.left, r.top); }
+    function applyPot(el, px, persist) {
+        px = clampPot(px);
+        var scale = px / DESK_DEFAULT;
+        el.style.setProperty('--pot', px + 'px');
+        el.style.setProperty('--coin', Math.max(14, Math.round(26 * scale)) + 'px');
+        el.style.setProperty('--fall', Math.max(40, Math.round(100 * scale)) + 'px');
+        el.style.setProperty('--td-face', Math.max(12, Math.round(15 * scale)) + 'px');
+        el.style.setProperty('--td-share', Math.max(11, Math.round(13 * scale)) + 'px');
+        el._tdPot = px;
+        if (persist) lsSet(SIZE_KEY, String(px));
+        return px;
+    }
+    // Top-right corner. The bottom-left stays put, so dragging away from it grows
+    // the pot and dragging toward it shrinks, stopping at MIN_POT and maxPot().
+    function resizable(el) {
+        var grip = el.querySelector('.td-resize');
+        if (!grip) return;
+        grip.addEventListener('pointerdown', function (e) {
+            if (e.button !== undefined && e.button !== 0) return;
+            e.stopPropagation();
+            e.preventDefault();
+            var rect = el.getBoundingClientRect();
+            var st = {
+                id: e.pointerId,
+                ax: rect.left,
+                ay: rect.bottom,
+                pot: el._tdPot || readPot(),
+                dist: 0
+            };
+            var dx0 = e.clientX - st.ax, dy0 = st.ay - e.clientY;
+            st.dist = Math.max(48, Math.sqrt(dx0 * dx0 + dy0 * dy0));
+            try { grip.setPointerCapture(e.pointerId); } catch (err) {}
+            function move(ev) {
+                if (ev.pointerId !== st.id) return;
+                var dx = ev.clientX - st.ax, dy = st.ay - ev.clientY;
+                var dist = Math.max(24, Math.sqrt(dx * dx + dy * dy));
+                var px = applyPot(el, st.pot * (dist / st.dist), false);
+                var h = el.offsetHeight || rect.height;
+                clampPlace(el, st.ax, st.ay - h);
+                ev.preventDefault();
+                st.px = px;
+            }
+            var ended = false;
+            function end(ev) {
+                if (ended || ev.pointerId !== st.id) return;
+                ended = true;
+                grip.removeEventListener('pointermove', move);
+                grip.removeEventListener('pointerup', end);
+                grip.removeEventListener('pointercancel', end);
+                applyPot(el, st.px || el._tdPot, true);
+                var r = el.getBoundingClientRect();
+                lsSet(POS_KEY, JSON.stringify({ x: Math.round(r.left), y: Math.round(r.top) }));
+                el._tdSkipClick = true;
+                setTimeout(function () { el._tdSkipClick = false; }, 0);
+            }
+            grip.addEventListener('pointermove', move);
+            grip.addEventListener('pointerup', end);
+            grip.addEventListener('pointercancel', end);
+        });
     }
     function setMini(el, on) {
         el.classList.toggle('td-mini', on); el.classList.remove('td-open', 'td-tipopen');
@@ -155,7 +207,7 @@
         var st = null;
         el.addEventListener('pointerdown', function (e) {
             if (e.button !== undefined && e.button !== 0) return;
-            if (e.target.closest('.td-ptip,.td-pop')) return;
+            if (e.target.closest('.td-ptip,.td-pop,.td-resize,.td-min')) return;
             var r = el.getBoundingClientRect();
             st = { id: e.pointerId, sx: e.clientX, sy: e.clientY, ox: r.left, oy: r.top, moved: false };
         });
@@ -187,31 +239,41 @@
         var img = '<img class="td-pot" src="assets/pot-of-sats.webp" width="136" height="136" alt="" draggable="false">';
         el = document.createElement('div');
         el.id = 'tctv-drip';
-        el.innerHTML = '<div class="td-card"><span class="td-potwrap">' + img + '<span class="td-fx" aria-hidden="true"></span></span>' +
+        el.innerHTML = '<div class="td-card"><button type="button" class="td-min" aria-label="Minimize pot of sats">\u2013</button>' +
+            '<button type="button" class="td-resize" aria-label="Resize pot of sats"></button>' +
+            '<span class="td-potwrap">' + img + '<span class="td-fx" aria-hidden="true"></span></span>' +
             '<div class="td-main"><button type="button" class="td-pill" aria-expanded="false" aria-label="pot of sats details"><span class="td-face"><span class="td-lbl">pot of sats</span> <span class="td-n"><span class="td-sats">0</span>/<span class="td-target">5,000</span></span></span></button>' +
             '<div class="td-share" aria-live="polite"></div>' +
             '<div class="td-tools">' +
             '<button type="button" class="td-pinfo" aria-label="About this button" aria-expanded="false">\u24D8</button>' +
-            '<button type="button" class="td-smaller" aria-label="Shrink pot of sats">Shrink</button>' +
-            '<button type="button" class="td-larger" aria-label="Enlarge pot of sats">Grow</button>' +
-            '<button type="button" class="td-min" aria-label="Minimize pot of sats">\u2013</button>' +
             '</div></div>' +
             '<div class="td-ptip" role="tooltip">You can ignore this, but if you don\u2019t tap it, your watch time won\u2019t be added to the pot of sats.</div>' +
             '<div class="td-pop"><div class="td-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><div class="td-fill"></div></div>' +
             '<div class="td-live" aria-live="polite"></div>' +
-            '<div style="margin-top:6px;opacity:.85">The pot of sats fills a little every minute while people watch Timechain TV together. More viewers, faster fill. When it\u2019s full, the sats are shared with the viewers who helped fill it, based on how long each person watched. Your Share updates live on this pot while you watch. When the pot is full, that share is added to your sats balance to claim. Keep the video playing and this tab open to take part. Drag this anywhere. Tap Shrink or Grow to resize it, or tap \u2013 to minimize it to a small pill. The size and minimized choice stay on this device.</div></div></div>' +
+            '<div style="margin-top:6px;opacity:.85">The pot of sats fills a little every minute while people watch Timechain TV together. More viewers, faster fill. When it\u2019s full, the sats are shared with the viewers who helped fill it, based on how long each person watched. Your Share updates live on this pot while you watch. When the pot is full, that share is added to your sats balance to claim. Keep the video playing and this tab open to take part. Drag this anywhere. Drag the top-right corner to resize it. It will not shrink past the smallest size. Tap the corner button to minimize it to a small pill. The size and minimized choice stay on this device.</div></div></div>' +
             '<button type="button" class="td-bubble" aria-label="Restore pot of sats">' + img.replace('width="136" height="136"', 'width="40" height="40"') + '<span class="td-bubble-lbl">sats</span><span class="td-bubble-share" hidden></span><span class="td-fx" aria-hidden="true"></span></button>';
-        applySize(el, readSize(), false);
+        applyPot(el, readPot(), false);
         var miniOn = lsGet(MIN_KEY) === '1';
         el.classList.toggle('td-mini', miniOn);
-        if (!REDUCED && !miniOn && readSize() === 3) {
+        if (!REDUCED && !miniOn) {
             el.classList.add('td-hello');
             setTimeout(function () { el.classList.remove('td-hello'); }, 4600);
         }
         document.body.appendChild(el);
         var pill = el.querySelector('.td-pill'), pinfo = el.querySelector('.td-pinfo');
+        function answerTap() {
+            if (!el.classList.contains('td-ask') || el._tdSkipClick) return false;
+            promptAnswered = true;
+            hidePrompt(el);
+            checkin(true);
+            return true;
+        }
+        el.querySelector('.td-card').addEventListener('click', function (e) {
+            if (e.target.closest('.td-pinfo,.td-min,.td-resize,.td-ptip,.td-pop')) return;
+            if (answerTap()) { e.preventDefault(); return; }
+        });
         pill.addEventListener('click', function () {
-            if (el.classList.contains('td-ask')) { hidePrompt(el); celebrate(el, 'Counted!'); checkin(true); return; }
+            if (el.classList.contains('td-ask')) return;
             el.classList.remove('td-tipopen'); pinfo.setAttribute('aria-expanded', 'false');
             var open = el.classList.toggle('td-open');
             pill.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -221,17 +283,16 @@
             var o = el.classList.toggle('td-tipopen');
             pinfo.setAttribute('aria-expanded', o ? 'true' : 'false');
         });
-        el.querySelector('.td-smaller').addEventListener('click', function () {
-            applySize(el, Math.max(1, (parseInt(el.getAttribute('data-size'), 10) || 3) - 1), true);
+        el.querySelector('.td-min').addEventListener('click', function (e) {
+            e.stopPropagation();
+            setMini(el, true);
         });
-        el.querySelector('.td-larger').addEventListener('click', function () {
-            applySize(el, Math.min(3, (parseInt(el.getAttribute('data-size'), 10) || 1) + 1), true);
-        });
-        el.querySelector('.td-min').addEventListener('click', function () { setMini(el, true); });
         el.querySelector('.td-bubble').addEventListener('click', function () {
-            if (el.classList.contains('td-ask')) { hidePrompt(el); celebrate(el, 'Counted!'); checkin(true); }
+            if (el._tdSkipClick) return;
+            if (el.classList.contains('td-ask')) { promptAnswered = true; hidePrompt(el); checkin(true); }
             setMini(el, false);
         });
+        resizable(el);
         draggable(el);
         restorePos(el);
         startFlow();
@@ -244,9 +305,12 @@
         if (!u) return { text: 'Sign in to see your share', hint: true, bubble: '' };
         if (!myShare || myShare.ready !== true) return { text: 'Your Share: \u2026', hint: false, bubble: '\u2026' };
         var n = Math.max(0, Math.floor(myShare.sats || 0));
+        var secs = Math.max(0, Math.floor(myShare.seconds || 0));
         var text = 'Your Share: ' + fmt(n) + ' sats';
+        if (n === 0 && secs > 0) text += ' \u00b7 ' + Math.floor(secs / 60) + ' min counted';
         if (myShare.waiting && n > 0) text += ' (waiting)';
-        return { text: text, hint: false, bubble: fmt(n) };
+        var bubble = n > 0 ? fmt(n) : (secs > 0 ? (Math.floor(secs / 60) + 'm') : '');
+        return { text: text, hint: false, bubble: bubble };
     }
     function paintShare(el) {
         if (!el) return;
@@ -281,16 +345,17 @@
         myShare = { ready: false, sats: 0, waiting: false };
         var id = potId + '_' + u.uid;
         watchUnsub = firebase.firestore().collection('tctv_drip_watch').doc(id).onSnapshot(function (snap) {
-            if (!snap.exists) { myShare = { ready: true, sats: 0, waiting: false }; }
+            if (!snap.exists) { myShare = { ready: true, sats: 0, waiting: false, seconds: 0 }; }
             else {
                 var d = snap.data() || {};
+                var hasShare = typeof d.projectedShareSats === 'number';
+                var hasSeconds = typeof d.seconds === 'number';
                 myShare = {
-                    ready: typeof d.projectedShareSats === 'number',
-                    sats: Math.max(0, Math.floor(Number(d.projectedShareSats) || 0)),
-                    waiting: d.projectedShareWaiting === true
+                    ready: hasShare || hasSeconds,
+                    sats: hasShare ? Math.max(0, Math.floor(Number(d.projectedShareSats) || 0)) : 0,
+                    waiting: d.projectedShareWaiting === true,
+                    seconds: Math.max(0, Math.floor(Number(d.seconds) || 0))
                 };
-                // Doc exists but tick has not projected yet: keep "…" until the field appears.
-                if (typeof d.projectedShareSats !== 'number') myShare.ready = false;
             }
             var el = document.getElementById('tctv-drip'); if (el) paintShare(el);
         }, function () {});
@@ -304,8 +369,8 @@
         var pct = Math.max(0, Math.min(100, sats / target * 100));
         el.querySelector('.td-fill').style.width = pct.toFixed(2) + '%';
         el.querySelector('.td-bar').setAttribute('aria-valuenow', String(Math.round(pct)));
-        var n = pot.liveViewers || 0;
-        var rate = Number(pot.ratePerMin);
+        var n = shownViewers(pot);
+        var rate = rateFromViewers(n);
         var line = pot.status === 'filling'
             ? (Number.isFinite(rate)
                 ? '~' + esc(fmt(rate)) + ' sats/min \u00b7 <b>' + esc(fmt(n)) + '</b> watching'
@@ -408,6 +473,27 @@
     function startFlow() { if (!flowRaf) { flowLast = 0; flowRaf = requestAnimationFrame(flowTick); } }
     function stopFlow() { if (flowRaf) cancelAnimationFrame(flowRaf); flowRaf = 0; }
     document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && document.getElementById('tctv-drip')) startFlow(); else stopFlow(); });
+    // Same steps as tctvDripLogic.rateFromViewers with the shipped defaults:
+    // 0 -> 0, 1-4 -> 1 sat/min, then floor(n/5)*5, and viewers above 50 count as 50.
+    // The server stores that step on pot.ratePerMin from tctv_counts/live.
+    function rateFromViewers(n) {
+        n = Math.min(50, Math.max(0, Math.floor(Number(n) || 0)));
+        if (n <= 0) return 0;
+        if (n < 5) return 1;
+        return Math.floor(n / 5) * 5;
+    }
+    // The number painted on #tctv-main-viewers, next to the Blocksurf button.
+    // That header is the single source. The pot doc's liveViewers is the same
+    // aggregate, used only before the header has painted.
+    function shownViewers(p) {
+        var live = window._tctvLiveViewers;
+        if (typeof live === 'number' && isFinite(live) && live >= 0) return Math.floor(live);
+        return Math.max(0, Math.floor(Number(p && p.liveViewers) || 0));
+    }
+    window._tctvDripSyncViewers = function (n) {
+        if (typeof n === 'number' && isFinite(n) && n >= 0) window._tctvLiveViewers = n;
+        if (pot) paint();
+    };
     window._tctvDripPaint = function (p) { pot = p; paint(); };
 
     // The pill itself becomes the "Still watching?" button for the 2-minute
@@ -431,19 +517,33 @@
     window._tctvDripShowPrompt = function () { var el = document.getElementById('tctv-drip'); if (el) showPrompt(el); };
 
     function checkin(answer) {
+        if (answer) promptAnswered = true;
         if (inflight || !user() || !onTv()) return;
         var vis = document.visibilityState === 'visible', play = playing();
         if (!vis || !play) return;
+        var sendAnswer = promptAnswered && !!promptToken;
         inflight = true;
+        var retryToken = false;
         try {
             firebase.functions().httpsCallable('tctvDripCheckin')({
                 deviceId: deviceId(), visible: vis, playing: play,
-                promptToken: answer ? promptToken : ''
+                promptToken: sendAnswer ? promptToken : ''
             }).then(function (res) {
                 var d = (res && res.data) || {};
                 var el = document.getElementById('tctv-drip');
-                if (d.prompt && el) { promptToken = d.promptToken || ''; showPrompt(el); }
-            }).catch(function () {}).then(function () { inflight = false; });
+                if (d.prompt && el) {
+                    promptToken = d.promptToken || '';
+                    if (sendAnswer) promptAnswered = false;
+                    else if (promptAnswered && promptToken) retryToken = true;
+                    if (!retryToken) showPrompt(el);
+                } else if (sendAnswer && d.ok && d.credited > 0) {
+                    promptAnswered = false;
+                    if (el) celebrate(el, 'Counted!');
+                }
+            }).catch(function () {}).then(function () {
+                inflight = false;
+                if (retryToken) checkin(false);
+            });
         } catch (e) { inflight = false; }
     }
 
