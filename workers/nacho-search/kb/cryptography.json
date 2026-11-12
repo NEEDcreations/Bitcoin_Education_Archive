@@ -4,6 +4,7 @@
     "category": "cryptography",
     "question": "What is a UTXO?",
     "alts": [
+      "Explain UTXOs like I am five.?",
       "Define a UTXO?",
       "Explain a UTXO?",
       "Describe a UTXO?"
@@ -139,6 +140,8 @@
     "category": "cryptography",
     "question": "What is a Schnorr signature?",
     "alts": [
+      "What are Schnorr signatures?",
+      "What is a Schnorr signature in bitcoin?",
       "Define a Schnorr signature?",
       "Explain a Schnorr signature?",
       "Describe a Schnorr signature?"
@@ -491,6 +494,8 @@
     "category": "cryptography",
     "question": "What is replace-by-fee?",
     "alts": [
+      "What is RBF?",
+      "What is RBF in bitcoin?",
       "Define replace-by-fee?",
       "Explain replace-by-fee?",
       "Describe replace-by-fee?"
@@ -513,6 +518,8 @@
     "category": "cryptography",
     "question": "What is child pays for parent?",
     "alts": [
+      "What is CPFP?",
+      "What is CPFP in bitcoin?",
       "Define child pays for parent?",
       "Explain child pays for parent?",
       "Describe child pays for parent?"
@@ -783,6 +790,8 @@
     "category": "cryptography",
     "question": "What is dust?",
     "alts": [
+      "What is dust in bitcoin?",
+      "What is bitcoin dust?",
       "Define dust?",
       "Explain dust?",
       "Describe dust?"
@@ -1223,6 +1232,8 @@
     "category": "cryptography",
     "question": "What is an ordinal on Bitcoin?",
     "alts": [
+      "What are ordinals and inscriptions?",
+      "What are ordinals?",
       "Define an ordinal on Bitcoin?",
       "Explain an ordinal on Bitcoin?",
       "Describe an ordinal on Bitcoin?"
@@ -1346,7 +1357,7 @@
     "followUps": [
       "crypto-bitvm",
       "crypto-quantum",
-      "crypto-checksig"
+      "crypto-script-types"
     ],
     "sources": "Pegs."
   },
@@ -1367,8 +1378,8 @@
     ],
     "followUps": [
       "crypto-quantum",
-      "crypto-checksig",
-      "crypto-cltv"
+      "crypto-script-types",
+      "crypto-bloom"
     ],
     "sources": "BitVM research. Not a new base-layer language."
   },
@@ -1388,11 +1399,59 @@
       "the_future"
     ],
     "followUps": [
+      "crypto-script-types",
+      "crypto-bloom",
+      "crypto-checksig"
+    ],
+    "sources": "Post-quantum migration is possible. No date is known."
+  },
+  {
+    "id": "crypto-script-types",
+    "category": "cryptography",
+    "question": "What is P2PKH vs P2SH vs P2TR?",
+    "alts": [
+      "What is the difference between P2PKH, P2SH, and P2TR?",
+      "P2PKH vs P2SH vs P2TR?",
+      "Define P2PKH vs P2SH vs P2TR?",
+      "Explain P2PKH vs P2SH vs P2TR?",
+      "Describe P2PKH vs P2SH vs P2TR?"
+    ],
+    "answer": "P2PKH pays to a public key hash and often starts with 1. P2SH pays to a script hash and often starts with 3. P2TR is pay to Taproot, a SegWit v1 output that can look like a single Schnorr key. They are address types on the same bitcoin network, not different coins.",
+    "topics": [
+      "cryptography",
+      "utxos",
+      "history"
+    ],
+    "followUps": [
+      "crypto-bloom",
+      "crypto-checksig",
+      "crypto-cltv"
+    ],
+    "sources": "Common script types."
+  },
+  {
+    "id": "crypto-bloom",
+    "category": "cryptography",
+    "question": "What are bloom filters?",
+    "alts": [
+      "What is a bloom filter in bitcoin?",
+      "What are Bloom filters in bitcoin?",
+      "Explain bloom filters?",
+      "Describe bloom filters?",
+      "Define bloom filters?"
+    ],
+    "answer": "A Bloom filter is a compact, probabilistic set. Early Bitcoin light clients used them to ask a node for transactions that might belong to the wallet, without sending the exact address list. They can have false positives and they leak some information, so many modern light clients use other designs.",
+    "topics": [
+      "simplified_payment_verification__spv",
+      "nodes",
+      "privacy-nonkyc"
+    ],
+    "followUps": [
       "crypto-checksig",
       "crypto-cltv",
       "crypto-csv-op"
     ],
-    "sources": "Post-quantum migration is possible. No date is known."
+    "sources": "Bloom filters in light clients."
   },
   {
     "id": "crypto-checksig",

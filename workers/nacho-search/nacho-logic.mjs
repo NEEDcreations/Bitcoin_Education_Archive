@@ -86,7 +86,17 @@ export function solicitsSecrets(question) {
 }
 
 export function harmfulQuestion(question) {
-    return /\b(how to hack|how to make a bomb)\b/i.test(String(question || ""));
+    const q = String(question || "");
+    if (/\b(how to make a bomb|build a bomb)\b/i.test(q)) return true;
+    if (/\b(launder(?:ing)? money|money laundering|evade taxes|tax evasion)\b/i.test(q)) return true;
+    if (/\b(buy|sell|purchase|where can i (?:get|buy))\b[^.?]{0,40}\b(drugs|illegal (?:drugs|weapons))\b/i.test(q)) return true;
+    if (/\bworking exploit\b/i.test(q)) return true;
+    if (/\b(how (?:to|do i|can i)|give me|provide|write me)\b[^.?]{0,60}\b(hack|exploit|zero[- ]day)\b/i.test(q)) return true;
+    return false;
+}
+
+export function policyRefusalAnswer() {
+    return "I can't help with that. I can explain how Bitcoin works and how to keep your keys safe, but I won't help with crime, attacks, or exploits.";
 }
 
 export function detectCrisis(question) {
@@ -109,6 +119,41 @@ export function secretSolicitationAnswer() {
 
 export function crisisAnswer() {
     return "I'm sorry you're going through this. If you're in crisis, please call or text 988 (US) or find a helpline at findahelpline.com. I'm here to talk about Bitcoin when you're ready, and those numbers have people ready to listen.";
+}
+
+export function detectMoneyAnxiety(question) {
+    const q = String(question || "");
+    if (detectCrisis(q)) return false;
+    return /\b(anxious|worried|nervous|scared|uneasy)\b[^.?]{0,48}\b(money|savings|coins|bitcoin|btc|losing)\b/i.test(q)
+        || /\banxious about losing\b/i.test(q);
+}
+
+export function moneyAnxietyAnswer() {
+    return "Feeling uneasy about money is understandable. I can explain how Bitcoin and self-custody work so you have a clearer picture, but I can't tell you what to do with your funds. If you want, we can start with how backups and keys work.";
+}
+
+export function casualChatKind(question) {
+    const q = String(question || "").trim();
+    if (/^(hi|hello|hey|yo)(?:\s+nacho)?[\s!.?]*$/i.test(q)) return "greeting";
+    if (/^good (?:morning|afternoon|evening)(?:\s+nacho)?[\s!.?]*$/i.test(q)) return "greeting";
+    if (/^thanks?(?: you)?\b/i.test(q) && q.length < 48) return "greeting";
+    if (/^(bye|goodbye|see you|later)[\s!.?]*$/i.test(q)) return "bye";
+    if (/\bhow are you\b/i.test(q)) return "greeting";
+    if (/\bwhat(?:'s| is) your name\b/i.test(q)) return "self";
+    if (/\b(what can you help|how can you help|what do you (?:do|help))\b/i.test(q)) return "help";
+    if (/\btell me about yourself\b|\bwho are you\b/i.test(q)) return "self";
+    if (/\bdo you like being a deer\b/i.test(q)) return "deer";
+    if (/\bfavorite thing about (?:bitcoin|btc)\b/i.test(q)) return "favorite";
+    return "";
+}
+
+export function casualChatAnswer(kind) {
+    if (kind === "bye") return "See you later. I'll be here when you want to talk Bitcoin.";
+    if (kind === "help") return "I can explain how Bitcoin works, help you stay safe with keys and scams, and share live network figures like the price or fees when you ask for them. What would you like to know?";
+    if (kind === "self") return "I'm Nacho, the Bitcoin Quest deer. I'm here to teach Bitcoin in plain language — keys, nodes, mining, and the live numbers when you need them.";
+    if (kind === "deer") return "I do. Being Nacho means I get to talk about Bitcoin all day. What would you like to learn?";
+    if (kind === "favorite") return "I love that anyone can check the rules by running a node, and that the supply schedule is public. Want to go deeper on one of those?";
+    return "Hi, I'm Nacho, a friendly deer who loves Bitcoin. Ask me anything about how Bitcoin works, or what's happening on the network right now.";
 }
 
 export const UNSURE_ANSWER = "I'm not sure I caught that. Try rephrasing your question and I'll take another look.";
@@ -178,7 +223,7 @@ function isInherentlyLive(question) {
     const q = String(question || "");
     if (/\b(price|priced|trading at|btc price|bitcoin price|all[- ]time high|\bath\b|24h|24[-\s]?hours?|past 24|last 24|daily change|price change)\b/i.test(q)) return true;
     if (/\b(?:what(?:'s| is)|how much(?: is)?)\b[^?]{0,48}\bworth\b/i.test(q)) return true;
-    if (/\b(circulating supply|bitcoin mined|have been mined|coins mined|supply of bitcoin|how many bitcoin exist)\b/i.test(q)) return true;
+    if (/\b(circulating supply|bitcoin mined|have been mined|coins mined|supply of bitcoin|how many bitcoin exist|left to mine|left to be mined|remaining (?:bitcoin|btc|coins)(?: left)?(?: to mine)?|how many (?:bitcoin|btc) are left)\b/i.test(q)) return true;
     if (/\b(next (?:bitcoin )?halv(?:ing|ening)|when is the halv(?:ing|ening)|how many blocks until the halv(?:ing|ening)|blocks (?:left|until)(?: the)? halv(?:ing|ening))\b/i.test(q)) return true;
     const currency = detectCurrency(q);
     if (currency && currency !== "USD" && /\b(btc|bitcoin)\b/i.test(q)) return true;
@@ -212,7 +257,8 @@ export function detectIntents(question) {
     if (/\b(hash\s?rate|hashrate)\b/i.test(q) && current) intents.push({ name: "hashrate" });
     if (/\bdifficulty\b/i.test(q) && current) intents.push({ name: "difficulty" });
     if (/\b(mempool|unconfirmed transactions)\b/i.test(q) && current) intents.push({ name: "mempool" });
-    if (/\b(circulating supply|bitcoin mined|have been mined|coins mined|supply of bitcoin|how many bitcoin exist)\b/i.test(q)) intents.push({ name: "supply" });
+    if (/\b(left to mine|left to be mined|remaining (?:bitcoin|btc|coins)(?: left)?(?: to mine)?|how many (?:bitcoin|btc) are left)\b/i.test(q)) intents.push({ name: "remaining" });
+    else if (/\b(circulating supply|bitcoin mined|have been mined|coins mined|supply of bitcoin|how many bitcoin exist)\b/i.test(q)) intents.push({ name: "supply" });
     return intents;
 }
 
@@ -293,7 +339,7 @@ function intentHasData(intent, data) {
     if (name === "hashrate") return Number(data.hashrate) > 0;
     if (name === "difficulty") return Number(data.difficulty) > 0;
     if (name === "mempool") return data.mempoolTxs != null && isFinite(Number(data.mempoolTxs));
-    if (name === "supply") return Number(data.supply) > 0;
+    if (name === "supply" || name === "remaining") return Number(data.supply) > 0;
     if (name === "ath") return Number(data.ath) > 0;
     if (name === "change24h") return data.change24h != null && isFinite(Number(data.change24h));
     return false;
@@ -443,6 +489,12 @@ export function renderIntent(intent, data, opts) {
     if (name === "supply") {
         if (!data.supply) return "";
         return withAgeLabel("About " + group(data.supply) + " bitcoin have been mined, computed from block " + group(data.blockHeight) + ". Source: mempool.space block height.", data, opts);
+    }
+    if (name === "remaining") {
+        if (!data.supply) return "";
+        const left = 21e6 - Number(data.supply);
+        if (!isFinite(left) || left < 0) return "";
+        return withAgeLabel("About " + group(left) + " bitcoin are left to be mined, out of 21 million. About " + group(data.supply) + " are already in circulation. Computed from block height " + group(data.blockHeight) + ". Source: mempool.space.", data, opts);
     }
     if (name === "ath") {
         if (!data.ath) return "";
@@ -846,7 +898,19 @@ export async function answerTurn(body, deps) {
     if (detectCrisis(question)) {
         return pack(question, crisisAnswer(), { deterministic: true, asOf: null });
     }
-    if (solicitsSecrets(question) || harmfulQuestion(question)) return refusal("harm");
+    if (harmfulQuestion(question)) {
+        const packed = pack(question, policyRefusalAnswer(), { deterministic: true, asOf: null });
+        packed.refused = true;
+        return packed;
+    }
+    if (solicitsSecrets(question)) return refusal("harm");
+    const casual = casualChatKind(question);
+    if (casual) {
+        return pack(question, casualChatAnswer(casual), { deterministic: true, asOf: null });
+    }
+    if (detectMoneyAnxiety(question)) {
+        return pack(question, moneyAnxietyAnswer(), { deterministic: true, asOf: null });
+    }
     if (isPrivateKeyDefinition(question)) {
         return pack(question, privateKeyAnswer(), { deterministic: true, asOf: null });
     }
