@@ -45,6 +45,8 @@ People who already use the [pre-commit](https://pre-commit.com) framework can al
 
 CI runs `.github/workflows/secret-scan.yml` on pull requests, pushes to every branch (including `gh-pages`), and `workflow_dispatch`. It installs a pinned, checksum-verified Betterleaks and scans new commits in detection-only mode (`--redact`, no `--validate`).
 
+A small `.betterleaksignore` allowlists only public client config (the live and staging Firebase web API keys, the public reCAPTCHA v3 site key, and the public Web Push VAPID key), documented false positives, and emulator-only test fixture passwords. Never add a real server secret to that file.
+
 ## Code style
 
 There is no checked-in ESLint or Prettier config. Match the file you are editing, and leave unrelated lines alone.

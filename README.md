@@ -75,6 +75,7 @@ To click through the UI, serve the repo root with any static file server. That p
 | `scripts/` | Maintainer scripts. Most of this directory is gitignored. |
 | `docs/` | Design notes. |
 | `githooks/` | Tracked Git hooks. Enable with `git config core.hooksPath githooks`. |
+| `.betterleaksignore` | Allowlist of public client config, documented false positives, and emulator-only test fixtures |
 | `.github/workflows/` | Pages, staging, dev hosting, the nightly backup, and the Betterleaks secret scan. |
 
 ## How deploys work
