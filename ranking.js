@@ -383,6 +383,8 @@ function mfaClearDevice(uid) {
 var APP_CHECK_CALLABLES = {
     ackBadgeBackfillToast: 1,
     ackCipherShare: 1,
+    adminClearPayoutHold: 1,
+    adminResetSecondFactor: 1,
     adminResolveCipherSatsClaim: 1,
     answerTrivia: 1,
     armSayHi: 1,
@@ -407,6 +409,7 @@ var APP_CHECK_CALLABLES = {
     pvpStoreAnswerKey: 1,
     pvpSubmitAnswer: 1,
     pvpTimeoutOpponent: 1,
+    recordKnownPhoneFactor: 1,
     recordNachoAnalytics: 1,
     resetLightningAddressOnce: 1,
     startQuest: 1,
@@ -9169,6 +9172,7 @@ function showSettingsPage(tab) {
         html += '</div>';
         html += '<div id="cipherWinsAdmin" style="margin-top:12px;"></div>';
         html += '<div id="factionPrizeAdmin" style="margin-top:12px;"></div>';
+        html += '<div id="payoutHoldAdmin" style="margin-top:12px;"></div>';
         html += '<div id="faucetAbuseAdmin" style="margin-top:12px;"></div>';
         html += '</div>';
 
@@ -10658,6 +10662,9 @@ function accountDeleteRowHtml(user) {
             }
             if (window._isAdminClaim === true && typeof window.renderFactionPrizeAdmin === 'function') {
                 window.renderFactionPrizeAdmin('factionPrizeAdmin');
+            }
+            if (window._isAdminClaim === true && typeof window.renderPayoutHoldAdmin === 'function') {
+                window.renderPayoutHoldAdmin('payoutHoldAdmin');
             }
             if (window._isAdminClaim === true && typeof window.renderFaucetAbuseAdmin === 'function') {
                 window.renderFaucetAbuseAdmin('faucetAbuseAdmin');
@@ -13205,7 +13212,8 @@ window._showFreshStepUp = function (action) {
         deleteAccount: 'Enter a fresh authenticator code to delete this account. Remembering this device is not enough.',
         disableTotp: 'Enter a fresh authenticator code to turn off two-factor authentication. A saved session is not enough.',
         regenerateRecoveryCodes: 'Enter a fresh authenticator code to create new recovery codes. A saved session is not enough.',
-        changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.'
+        changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.',
+        clearPayoutHold: 'Enter a fresh authenticator code to clear a payout hold. Remembering this device is not enough.'
     };
     return new Promise(function (resolve) {
         var old = document.getElementById('freshStepUpOverlay');
@@ -13943,6 +13951,119 @@ function _faucetAbuseAccountRow(acc) {
     row.appendChild(_faucetAbuseBanButton(acc && acc.uid));
     return row;
 }
+
+// Payout holds (PR #285): global auto-pause on payout_safety/hold. Admin
+// claim only; the server re-checks the claim, App Check and a typed confirm,
+// and writes a permanent audit row. Auto-holds lapse after 30 days.
+var PAYOUT_HOLD_LABELS = {
+    satsHold: { name: 'All sats payouts', tip: 'Set when 2 Lightning fees over the charged fee land within 1 hour, or the payout wallet drops more than 5,000 sats within 1 hour. Faucet, cipher and prize cash-outs all stop.' },
+    cipherHold: { name: 'Cipher payouts', tip: 'Set when overpaid fees on cipher cash-outs and prizes pass 500 sats in 24 hours. The faucet keeps paying.' }
+};
+
+function _payoutHoldWhen(ms) {
+    var n = Number(ms) || 0;
+    if (!n) return '';
+    try { return new Date(n).toLocaleString(); } catch (e) { return String(n); }
+}
+
+window.renderPayoutHoldAdmin = function(containerId) {
+    var root = document.getElementById(containerId);
+    if (!root) return;
+    root.textContent = '';
+    if (window._isAdminClaim !== true || typeof db === 'undefined' || !db) return;
+    var card = document.createElement('div');
+    card.style.cssText = 'background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;';
+    var title = document.createElement('div');
+    title.textContent = '⏸️ Payout holds';
+    title.style.cssText = 'font-weight:800;font-size:0.9rem;margin-bottom:6px;color:var(--text);';
+    card.appendChild(title);
+    var hint = document.createElement('div');
+    hint.textContent = 'Automatic safety pauses. Each lasts 30 days unless you clear it. Clearing is logged. Every per-claim safety check still runs after you clear.';
+    hint.style.cssText = 'font-size:0.72rem;color:var(--text-faint);margin-bottom:8px;';
+    card.appendChild(hint);
+    var status = document.createElement('div');
+    status.textContent = 'Loading...';
+    status.style.cssText = 'font-size:0.78rem;color:var(--text-muted);';
+    card.appendChild(status);
+    root.appendChild(card);
+    db.collection('payout_safety').doc('hold').get().then(function(snap) {
+        var h = snap.exists ? (snap.data() || {}) : {};
+        var now = Date.now();
+        status.textContent = '';
+        var any = false;
+        ['satsHold', 'cipherHold'].forEach(function(field) {
+            var label = PAYOUT_HOLD_LABELS[field];
+            var row = document.createElement('div');
+            row.style.cssText = 'border-top:1px solid var(--border);padding:8px 0;display:flex;align-items:center;gap:8px;';
+            var text = document.createElement('div');
+            text.style.cssText = 'flex:1;min-width:0;font-size:0.78rem;color:var(--text);';
+            text.title = label.tip;
+            var on = (Number(h[field]) || 0) > now;
+            if (on) any = true;
+            var line = label.name + ': ' + (on ? 'ON until ' + _payoutHoldWhen(h[field]) : 'off');
+            if (on && h[field + 'Reason']) line += ' · ' + String(h[field + 'Reason']).slice(0, 120);
+            text.textContent = line;
+            var tip = document.createElement('div');
+            tip.textContent = label.tip;
+            tip.style.cssText = 'font-size:0.68rem;color:var(--text-faint);margin-top:2px;';
+            text.appendChild(tip);
+            row.appendChild(text);
+            if (on) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = 'Clear Hold';
+                btn.title = 'Resume ' + label.name.toLowerCase() + ' now. You will be asked to type CLEAR ' + field + '.';
+                btn.style.cssText = 'padding:8px 12px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.45);border-radius:8px;color:#22c55e;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:inherit;flex-shrink:0;';
+                btn.addEventListener('click', function() { window.clearPayoutHold(field, containerId, btn); });
+                row.appendChild(btn);
+            }
+            card.appendChild(row);
+        });
+        if (!any) {
+            var ok = document.createElement('div');
+            ok.textContent = '✅ Payouts are running. No hold is set.';
+            ok.style.cssText = 'font-size:0.75rem;color:#22c55e;margin-top:6px;';
+            card.appendChild(ok);
+        }
+    }).catch(function() {
+        status.textContent = 'Could not load payout holds.';
+    });
+};
+
+window.clearPayoutHold = function(which, containerId, btn) {
+    if (window._isAdminClaim !== true) return;
+    var phrase = 'CLEAR ' + which;
+    var typed = window.prompt('Payouts resume as soon as you clear this hold. Type ' + phrase + ' to confirm.');
+    if (typed === null) return;
+    if (String(typed).trim() !== phrase) {
+        if (typeof showToast === 'function') showToast('Not cleared: the confirm text did not match.');
+        return;
+    }
+    (async function() {
+        // Server requires a recent sign-in, a fresh authenticator code, and
+        // an enrolled second factor (#285 follow-up).
+        if (typeof window.reauthForSensitiveAction === 'function') {
+            var ready = await window.reauthForSensitiveAction('clearing a payout hold');
+            if (!ready) { if (typeof showToast === 'function') showToast('Sign in again, then clear the hold.'); return null; }
+        }
+        var payload = { which: which, confirm: phrase };
+        if (typeof mfaNeedsFreshCode === 'function' && mfaNeedsFreshCode() && typeof window._showFreshStepUp === 'function') {
+            var proof = await window._showFreshStepUp('clearPayoutHold');
+            if (!proof) { if (typeof showToast === 'function') showToast('Finish the authenticator check, then try again.'); return null; }
+            payload.freshProofId = proof;
+        }
+        if (btn) { btn.disabled = true; btn.textContent = 'Clearing...'; }
+        return firebase.functions().httpsCallable('adminClearPayoutHold')(payload);
+    })().then(function(res) {
+        if (res === null) return;
+        var cleared = (res && res.data && res.data.cleared) || [];
+        if (typeof showToast === 'function') showToast(cleared.length ? 'Hold cleared. Payouts resume on the next claim.' : 'That hold was already off.');
+        window.renderPayoutHoldAdmin(containerId);
+    }).catch(function(e) {
+        if (typeof showToast === 'function') showToast('Could not clear the hold. ' + ((e && e.message) || ''));
+        if (btn) { btn.disabled = false; btn.textContent = 'Clear Hold'; }
+    });
+};
 
 window.renderFaucetAbuseAdmin = function(containerId) {
     var root = document.getElementById(containerId);

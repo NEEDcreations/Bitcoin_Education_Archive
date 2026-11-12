@@ -1206,6 +1206,8 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     const winId = (data.winId || '').toString().trim();
     if (!winId || winId.length > 128) throw httpsError('invalid-argument', 'Invalid win');
     if (!nwcUrl()) throw httpsError('failed-precondition', 'Prize wallet is not configured yet. Phil can pay this from the admin list.');
+    try { await require('./payoutSafety').assertPayoutsOpen(db, 'claimCipherWin'); }
+    catch (e) { return { success: false, error: (e && e.userMessage) || 'Sats payouts are paused right now. Try again later.' }; }
     const accountTombstone = require('./accountTombstone');
     const emailChange = require('./emailChange');
     if (!accountTombstone.secretReady()) {
@@ -1379,6 +1381,12 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
                 amount: require('./lnFee').feePaidSats(payRes),
                 detail: 'charged ' + winFee.fee,
             });
+            await require('./payoutSafety').recordFeeOverCap(db, admin, {
+                path: 'claimCipherWin',
+                uid: uid,
+                charged: winFee.fee,
+                feePaid: require('./lnFee').feePaidSats(payRes),
+            });
         }
         try {
             await winRef.update({
@@ -1433,6 +1441,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         const balanceResult = await withTimeout(nwc.getBalance(), 20000, 'getBalance');
         const walletSats = Math.floor((balanceResult.balance || 0) / 1000);
         if (walletSats < WALLET_FLOOR_SATS) throw new Error('WALLET_LOW');
+        await require('./payoutSafety').assertPayoutsOpen(db, 'claimCipherWin');
         phase = 'pay';
         payResult = await withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
@@ -1449,6 +1458,9 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         await releaseUnpaid();
         if (payError && payError.message === 'WALLET_LOW') {
             return { success: false, error: 'The prize wallet is being refilled. Try again later, or Phil can mark it paid.' };
+        }
+        if (payError && payError.code === 'PAYOUT_GUARD') {
+            return { success: false, error: payError.userMessage };
         }
         const timedOut = payError && payError.message && payError.message.indexOf('[TIMEOUT]') === 0;
         return { success: false, error: timedOut ? 'The wallet did not answer in time. Your prize is still waiting — try again.' : 'Payment failed. Your prize is still waiting.' };
@@ -1689,6 +1701,7 @@ async function payCipherBalanceInvoice(invoice) {
         const balanceResult = await withTimeout(nwc.getBalance(), 20000, 'getBalance');
         const walletSats = Math.floor((balanceResult.balance || 0) / 1000);
         if (walletSats < WALLET_FLOOR_SATS) throw new Error('WALLET_LOW');
+        await require('./payoutSafety').assertPayoutsOpen(db, 'claimCipherSats');
         phase = 'pay';
         payResult = await withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
@@ -1697,7 +1710,11 @@ async function payCipherBalanceInvoice(invoice) {
     }
     if (payResult && payResult.preimage) return { action: 'paid', payResult: payResult };
     if (!shouldLookupPay({ phase: phase, error: payError, payResult: payResult })) {
-        return { action: 'release', low: !!(payError && payError.message === 'WALLET_LOW') };
+        return {
+            action: 'release',
+            low: !!(payError && payError.message === 'WALLET_LOW'),
+            guard: payError && payError.code === 'PAYOUT_GUARD' ? payError.userMessage : '',
+        };
     }
     let lookupReq = null;
     try { lookupReq = lookupRequestFromDecoded(bolt11.decode(invoice)); }
@@ -1791,6 +1808,8 @@ const claimCipherSats = functionsV1.runWith({
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     if (!nwcUrl()) throw httpsError('failed-precondition', 'Prize wallet is not configured yet.');
+    try { await require('./payoutSafety').assertPayoutsOpen(db, 'claimCipherSats'); }
+    catch (e) { return { success: false, error: (e && e.userMessage) || 'Sats payouts are paused right now. Try again later.' }; }
     const turnstileOk = await require('./turnstileCheck').verifyTurnstile((data && data.turnstileToken) || '', null);
     if (!turnstileOk) return { success: false, error: 'Security check failed. Please refresh and try again.' };
     const fingerprint = String((data && data.fingerprint) || '').trim();
@@ -2154,6 +2173,12 @@ const claimCipherSats = functionsV1.runWith({
                 amount: require('./lnFee').feePaidSats(paid.payResult),
                 detail: 'charged ' + reserved.fee,
             });
+            await require('./payoutSafety').recordFeeOverCap(db, admin, {
+                path: 'claimCipherSats',
+                uid: uid,
+                charged: reserved.fee,
+                feePaid: require('./lnFee').feePaidSats(paid.payResult),
+            });
         }
         return { success: true, amount: reserved.amount, sent: reserved.net, fee: reserved.fee, balance: reserved.balanceAfter };
     }
@@ -2172,6 +2197,7 @@ const claimCipherSats = functionsV1.runWith({
     await finishCipherClaim(reserved, 'restore');
     await invoiceRef.delete().catch(function() {});
     if (paid.low) return { success: false, error: 'The prize wallet is being refilled. Try again later.' };
+    if (paid.guard) return { success: false, error: paid.guard };
     return { success: false, error: 'Payment failed. Your cipher sats balance was restored.' };
 });
 

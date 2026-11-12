@@ -20,6 +20,7 @@ const TESTS = [
     { name: 'Private faction member counts', file: 'test-faction-members-private.js' },
     { name: 'Faction race prizes', file: 'test-faction-race-prizes.js' },
     { name: 'Lightning fee', file: 'test-ln-fee.js' },
+    { name: 'Payout safety auto-pause', file: 'test-payout-safety.js' },
     { name: '5-tier badges', file: 'test-badge-tiers.js' },
     { name: 'Nov 4 batch', file: 'test-nov4-batch.js' },
     { name: 'Chat easter eggs', file: 'test-chat-easter-eggs.js' },

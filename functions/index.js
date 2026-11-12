@@ -228,6 +228,7 @@ exports.regenerateRecoveryCodes = secondFactor.regenerateRecoveryCodes;
 exports.useRecoveryCode = secondFactor.useRecoveryCode;
 exports.phoneFactorRemoved = secondFactor.phoneFactorRemoved;
 exports.adminResetSecondFactor = secondFactor.adminResetSecondFactor;
+exports.recordKnownPhoneFactor = secondFactor.recordKnownPhoneFactor;
 
 // =============================================
 // Streak Reminder Push Notifications
@@ -1734,6 +1735,12 @@ exports.claimSats = functionsV1.runWith({
     if (configDoc.exists && configDoc.data().paused) {
         return { success: false, error: 'Sats faucet is temporarily paused.' };
     }
+    // Global payout hold (payout_safety/hold.satsHold). Set by fee_over_cap auto-pause.
+    try {
+        await require('./src/payoutSafety').assertPayoutsOpen(db, 'claimSats');
+    } catch (e) {
+        return { success: false, error: (e && e.userMessage) || 'Sats payouts are paused right now. Try again later.' };
+    }
 
     const _lnDomainRaw = lnNorm.split('@')[1] || '';
     const _lnDomain = _lnDomainRaw.split(':')[0].toLowerCase();
@@ -2181,6 +2188,8 @@ exports.claimSats = functionsV1.runWith({
         const walletSats = Math.floor(balanceResult.balance / 1000);
         if (walletSats < FAUCET.WALLET_BALANCE_FLOOR_SATS) throw new Error('WALLET_LOW');
         if (amount > faucetGuard.MAX_PER_CLAIM_SATS || netSendAmount >= amount) throw new Error('HARD_CAP');
+        // Re-check the global hold right before pay_invoice (closes the race with an auto-pause).
+        await require('./src/payoutSafety').assertPayoutsOpen(db, 'claimSats');
         phase = 'pay';
         payResult = await _withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
@@ -2213,6 +2222,9 @@ exports.claimSats = functionsV1.runWith({
         }
         if (payError && payError.message === 'HARD_CAP') {
             return { success: false, error: 'Claim exceeds maximum. Contact support.' };
+        }
+        if (payError && payError.code === 'PAYOUT_GUARD') {
+            return { success: false, error: payError.userMessage };
         }
         const isTimeout = payError && payError.message && payError.message.indexOf('[TIMEOUT]') === 0;
         if (phase !== 'pay') {
@@ -2348,7 +2360,17 @@ async function _flagFeeOver(uid, displayName, charged, payResult) {
         amount: lnFee.feePaidSats(payResult),
         detail: 'charged ' + charged,
     });
+    // Alert Phil and apply the auto-pause rules (payoutSafety). Never throws.
+    await require('./src/payoutSafety').recordFeeOverCap(db, admin, {
+        path: 'claimSats',
+        uid: uid,
+        charged: charged,
+        feePaid: lnFee.feePaidSats(payResult),
+    });
 }
+
+// Admin Clear Hold button (payout holds). Code in src/adminPayoutHold.js.
+exports.adminClearPayoutHold = require('./src/adminPayoutHold').adminClearPayoutHold;
 
 async function _notifySatsReview(flag, message) {
     try {

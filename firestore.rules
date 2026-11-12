@@ -903,6 +903,10 @@ service cloud.firestore {
     match /mfa_admin_log/{docId} {
       allow read, write: if false;
     }
+    // Server-recorded second factors (Red Team #302). Server only.
+    match /mfa_known_factors/{userId} {
+      allow read, write: if false;
+    }
 
     // =============================================
     // FORUM POSTS
@@ -2595,6 +2599,15 @@ service cloud.firestore {
     }
     match /cipher_sats_rolling/{docId} {
       allow read, write: if false;
+    }
+    // Payout safety auto-pause state + audit (server-only; admin may read).
+    match /payout_safety/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
+    }
+    match /payout_safety_audit/{docId} {
+      allow read: if isAdmin();
+      allow write: if false;
     }
     match /cipher_sats_config/{docId} {
       allow read: if isAdmin();

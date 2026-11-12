@@ -1500,6 +1500,9 @@
     "category": "basics",
     "question": "Where do transactions wait before a block?",
     "alts": [
+      "What is the mempool?",
+      "What is a mempool?",
+      "What does mempool mean?",
       "Explain this: where do transactions wait before a block?",
       "Clarify this: where do transactions wait before a block?",
       "Unpack this: where do transactions wait before a block?"
