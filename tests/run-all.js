@@ -36,6 +36,7 @@ const TESTS = [
     { name: 'TCTV drip pot logic', file: 'test-tctv-drip.js' },
     { name: 'Sidebar topics', file: 'test-sidebar-topics.js' },
     { name: 'Cache Busters', file: 'busters.js' },
+    { name: 'Reserved names need the admin claim', file: 'test-reserved-name-claim.js' },
     { name: 'Chat pinned scroll', file: 'test-chat-pinned-scroll.js' },
     { name: 'Google sign-in GIS', file: 'test-google-signin-gis.js' },
     { name: 'Beats moderation', file: 'test-beats-moderation.js' },
