@@ -66,28 +66,25 @@ function lookupRequestFromDecoded(decoded) {
     return { payment_hash: paymentHash };
 }
 
-// These NWC codes are an explicit refusal: the wallet did not send the payment.
+// NWC error codes. A pay-phase refusal is NOT proof the payment failed:
+// PAYMENT_FAILED is also returned when the wallet times out and the payment
+// is still pending. Match the code field only. A message that merely contains
+// one of these words is not a refusal.
 const EXPLICIT_PAY_REFUSALS = ['PAYMENT_FAILED', 'INSUFFICIENT_BALANCE', 'QUOTA_EXCEEDED', 'RATE_LIMITED'];
 
 function explicitPayRefusal(error) {
-    if (!error) return false;
-    const code = String(error.code || '').toUpperCase();
-    if (EXPLICIT_PAY_REFUSALS.indexOf(code) !== -1) return true;
-    const msg = String(error.message || error).toUpperCase();
-    for (let i = 0; i < EXPLICIT_PAY_REFUSALS.length; i++) {
-        if (msg.indexOf(EXPLICIT_PAY_REFUSALS[i]) !== -1) return true;
-    }
-    return false;
+    if (!error || error.code == null || error.code === '') return false;
+    const code = String(error.code).toUpperCase();
+    return EXPLICIT_PAY_REFUSALS.indexOf(code) !== -1;
 }
 
-// Release only when nothing was sent (still on the balance check) or the wallet
-// explicitly refused. Every other pay-phase error, including timeouts, relay
-// drops, and INTERNAL/OTHER, must be looked up.
+// Release only when pay_invoice was never called (balance check, wallet low).
+// After pay_invoice, including PAYMENT_FAILED and timeouts, look the payment
+// hash up before any refund. Confirmed failure releases. Pending or unknown holds.
 function payErrorAction(info) {
     const src = info || {};
     if (src.payResult && src.payResult.preimage) return 'paid';
     if (src.phase !== 'pay') return 'release';
-    if (explicitPayRefusal(src.error)) return 'release';
     return 'lookup';
 }
 

@@ -2593,6 +2593,9 @@ service cloud.firestore {
     match /cipher_sats_invoices/{docId} {
       allow read, write: if false;
     }
+    match /cipher_sats_rolling/{docId} {
+      allow read, write: if false;
+    }
     match /cipher_sats_config/{docId} {
       allow read: if isAdmin();
       allow write: if false;

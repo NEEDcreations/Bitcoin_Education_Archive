@@ -4236,7 +4236,7 @@ window.paintInviteTier = paintInviteTier;
 
 function paintHomeStrip(snap) {
     var satsEl = document.getElementById('homeSatsValue');
-    var claimNow = Math.min(Number(snap.claimable) || 0, 200, Number(snap.lifetimeLeft) || 0);
+    var claimNow = Math.min(Number(snap.claimable) || 0, window.SATS_CLAIM_MAX || 1000, Number(snap.lifetimeLeft) || 0);
     if (satsEl) satsEl.textContent = Number(snap.claimable || 0).toLocaleString();
     var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
     // The profile cache has no referral count. Leave the Invites tile on its
@@ -9551,7 +9551,7 @@ function accountDeleteRowHtml(user) {
         var satsBalance = _claimMath ? _claimMath.balance : Math.floor(Math.max(0, availableForClaim) / 10); // 10 pts = 1 sat
         var _satCap = _claimMath ? _claimMath.cap : lifetimeSatCap();
         var lifetimeLeft = _claimMath ? _claimMath.lifetimeLeft : Math.max(0, _satCap - satsWithdrawn);
-        var claimable = Math.min(satsBalance, 200, lifetimeLeft);
+        var claimable = Math.min(satsBalance, window.SATS_CLAIM_MAX, lifetimeLeft);
         var lastClaim = currentUser ? currentUser.lastSatsClaim || null : null;
         var canClaimTime = lastClaim ? new Date(lastClaim.seconds ? lastClaim.seconds * 1000 : lastClaim).getTime() + (24 * 60 * 60 * 1000) : 0;
         var now = Date.now();
@@ -9647,7 +9647,7 @@ function accountDeleteRowHtml(user) {
         html += '<div id="cipherSatsBalanceSettingsAmount" class="cipher-sats-balance-amount" style="font-size:1.6rem;font-weight:900;color:#f7931a;margin:8px 0;">' + cipherBal.toLocaleString() + ' sats</div>';
         html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">Separate from your faucet balance</div>';
         html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;">Small sats wins from locked ciphers land here.</div>';
-        html += '<button id="cipherSatsClaimSettings" type="button" class="cipher-sats-claim-btn" ' + (cipherReady ? '' : 'disabled ') + 'onclick="if(window.claimCipherSats)window.claimCipherSats()" style="width:100%;min-height:44px;padding:12px;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;font-family:inherit;' + (cipherReady ? 'background:#f7931a;color:#fff;cursor:pointer;' : 'background:var(--card-bg);color:var(--text-muted);cursor:default;opacity:0.65;') + '">Claim ' + Math.min(cipherBal, 200).toLocaleString() + ' sats</button>';
+        html += '<button id="cipherSatsClaimSettings" type="button" class="cipher-sats-claim-btn" ' + (cipherReady ? '' : 'disabled ') + 'onclick="if(window.claimCipherSats)window.claimCipherSats()" style="width:100%;min-height:44px;padding:12px;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;font-family:inherit;' + (cipherReady ? 'background:#f7931a;color:#fff;cursor:pointer;' : 'background:var(--card-bg);color:var(--text-muted);cursor:default;opacity:0.65;') + '">Claim ' + Math.min(cipherBal, window.CIPHER_SATS_RULES.max).toLocaleString() + ' sats</button>';
         html += window.cipherSatsHintHtml(cipherBal);
         html += '</div>';
         // ── Overflow queue section ──
@@ -9669,7 +9669,7 @@ function accountDeleteRowHtml(user) {
 
         // Claim button area
         if (!isAnon && eligible && meetsMin && !onCooldown && claimable >= 100) {
-            html += '<button onclick="initSatsClaim()" style="width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:16px;transition:0.2s;touch-action:manipulation;">⚡ Claim Up to ' + Math.min(claimable, 200) + ' Sats</button>';
+            html += '<button onclick="initSatsClaim()" style="width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:16px;transition:0.2s;touch-action:manipulation;">⚡ Claim Up to ' + Math.min(claimable, window.SATS_CLAIM_MAX) + ' Sats</button>';
         } else if (onCooldown) {
             html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">⏳ Next claim in <strong>' + cooldownStr + '</strong></div>';
         } else if (!meetsMin && eligible) {
@@ -9747,7 +9747,7 @@ function accountDeleteRowHtml(user) {
         html += '<div style="font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
         html += '• <strong>1,000 XP = 100 sats</strong> - earn XP by reading, quests, and daily visits<br>';
         html += '• <strong>Min claim: 100 sats</strong> (1,000 XP)<br>';
-        html += '• <strong>Max claim: 200 sats/day</strong><br>';
+        html += '• <strong>Max claim: 1,000 sats</strong> per withdrawal<br>';
         html += '• <strong>1 claim per 24 hours</strong><br>';
         html += '• <strong>Lifetime max: 15,000 sats</strong> per account<br>';
         html += '• <strong>Daily XP:</strong> full through 500, half through 900, then a quarter until 1,000<br>';
@@ -13483,7 +13483,10 @@ window.saveSatsLnAddress = function() {
 // Cipher sats claim rules. Mirrors functions/src/cipherSatsClaim.js (CLAIM_MIN,
 // CLAIM_MAX, PLAYER_DAILY_CAP) and cipherClaim.js (MIN_ACCOUNT_AGE_DAYS).
 // The server config doc is admin-only and holds just an on/off flag.
-window.CIPHER_SATS_RULES = { min: 100, max: 200, perDay: 200, ageDays: 7 };
+// SATS_CLAIM_MAX mirrors faucetGuard MAX_PER_CLAIM_SATS and MAX_DAILY_PER_USER_SATS.
+// The faucet still allows one claim per 24 hours. That cooldown is separate.
+window.SATS_CLAIM_MAX = 1000;
+window.CIPHER_SATS_RULES = { min: 100, max: 1000, perDay: 1000, ageDays: 7 };
 window.cipherSatsWithdrawHint = function(bal) {
     var r = window.CIPHER_SATS_RULES;
     var b = Math.max(0, Math.floor(Number(bal) || 0));
@@ -13493,6 +13496,45 @@ window.cipherSatsWithdrawHint = function(bal) {
 window.cipherSatsHintHtml = function(bal) {
     return '<div class="cipher-sats-hint" role="note" style="font-size:0.72rem;color:var(--text-muted);margin-top:8px;line-height:1.35;">ⓘ ' + escapeHtml(window.cipherSatsWithdrawHint(bal)) + '</div>';
 };
+
+function cipherClaimTurnstile() {
+    return new Promise(function(resolve) {
+        var host = document.createElement('div');
+        host.id = 'cipherSatsTurnstile';
+        host.setAttribute('data-sitekey', '0x4AAAAAAD-ivgpRkbXpgz86');
+        host.style.cssText = 'position:absolute;left:-9999px;width:300px;height:70px;';
+        document.body.appendChild(host);
+        var finished = false;
+        function done(token) {
+            if (finished) return;
+            finished = true;
+            try { if (window.turnstile && host._wid != null) window.turnstile.remove(host._wid); } catch (e) {}
+            try { host.remove(); } catch (e2) {}
+            resolve(token || '');
+        }
+        var timer = setTimeout(function() { done(''); }, 20000);
+        function render() {
+            if (!window.turnstile) { clearTimeout(timer); done(''); return; }
+            try {
+                host._wid = window.turnstile.render(host, {
+                    sitekey: host.getAttribute('data-sitekey'),
+                    callback: function(token) { clearTimeout(timer); done(token); },
+                    'error-callback': function() { clearTimeout(timer); done(''); }
+                });
+            } catch (e) { clearTimeout(timer); done(''); }
+        }
+        if (window.turnstile) { render(); return; }
+        if (typeof window._ensureTurnstile === 'function') window._ensureTurnstile(host);
+        var polls = 0;
+        var poll = setInterval(function() {
+            polls++;
+            var input = host.querySelector('[name="cf-turnstile-response"]');
+            if (input && input.value) { clearInterval(poll); clearTimeout(timer); done(input.value); }
+            else if (window.turnstile && polls === 1) render();
+            else if (polls > 40) { clearInterval(poll); clearTimeout(timer); done(''); }
+        }, 500);
+    });
+}
 
 window.claimCipherSats = async function() {
     var bal = Math.max(0, Math.floor(Number(currentUser && currentUser.cipherSatsBalance) || 0));
@@ -13504,10 +13546,28 @@ window.claimCipherSats = async function() {
     }
     window._cipherSatsClaiming = true;
     try {
-        var _gross = Math.min(bal, 200);
+        var _gross = Math.min(bal, window.CIPHER_SATS_RULES.max);
         var _ok = await window.bqConfirmLnFee(_gross, 'Cipher sats claim (up to)');
         if (!_ok) return { success: false, cancelled: true };
-        var res = await firebase.functions().httpsCallable('claimCipherSats')({});
+        try {
+            var _appTok = '';
+            if (typeof window._btcAppCheckForClaim === 'function') _appTok = await window._btcAppCheckForClaim(8000);
+            else if (firebase.appCheck) {
+                var _got = await firebase.appCheck().getToken(false);
+                _appTok = _got && _got.token;
+            }
+            if (!_appTok) throw new Error('app-check');
+        } catch (appErr) {
+            if (typeof showToast === 'function') showToast('Security check failed. Refresh the page and try again.');
+            return { success: false };
+        }
+        var _fp = (typeof _generateDeviceFingerprint === 'function') ? _generateDeviceFingerprint() : '';
+        var _tsToken = await cipherClaimTurnstile();
+        if (!_fp || !_tsToken) {
+            if (typeof showToast === 'function') showToast('Security check pending — please wait a moment and try again.');
+            return { success: false };
+        }
+        var res = await firebase.functions().httpsCallable('claimCipherSats')({ fingerprint: _fp, turnstileToken: _tsToken });
         var d = (res && res.data) || {};
         if (!d.success) {
             if (typeof showToast === 'function') showToast(d.error || 'Could not claim cipher sats');
@@ -13575,7 +13635,7 @@ window.initSatsClaim = function() {
     var satsWithdrawn = _claimMath ? _claimMath.withdrawn : (currentUser.satsWithdrawn || 0);
     var _satCap = _claimMath ? _claimMath.cap : lifetimeSatCap();
     var lifetimeLeft = _claimMath ? _claimMath.lifetimeLeft : Math.max(0, _satCap - satsWithdrawn);
-    var maxClaim = Math.min(satsBalance, 200, lifetimeLeft);
+    var maxClaim = Math.min(satsBalance, window.SATS_CLAIM_MAX, lifetimeLeft);
     console.log('[SATS] maxClaim:', maxClaim, '| satsBalance:', satsBalance, '| lifetimeLeft:', lifetimeLeft, '| satsWithdrawn:', satsWithdrawn);
     if (maxClaim < 100) {
         console.log('[SATS] BLOCKED: maxClaim < 100');
@@ -13725,7 +13785,7 @@ window.submitSatsClaim = async function() {
         if (errorEl) { errorEl.textContent = 'Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)'; errorEl.style.display = 'block'; }
         return;
     }
-    var _maxCl = window._satsClaimMaxClaim || 200;
+    var _maxCl = window._satsClaimMaxClaim || window.SATS_CLAIM_MAX;
     if (!lnAmt || lnAmt < 100 || lnAmt > _maxCl) {
         if (errorEl) { errorEl.textContent = 'Amount must be between 100 and ' + _maxCl + ' sats'; errorEl.style.display = 'block'; }
         return;

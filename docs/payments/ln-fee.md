@@ -17,12 +17,13 @@ store payment hashes, so the sample is faucet-only. p95 rounded up = 3 (covers t
 ## Server paths (all enforced on the server)
 | Path | Gross (debited, counts toward caps) | Sent |
 |---|---|---|
-| `claimSats` (faucet, index.js) | requested amount, 100–200 | gross − 10 |
-| `claimCipherSats` (gifting.js) | min(balance, 200, caps), ≥100 | gross − 10 |
+| `claimSats` (faucet, index.js) | requested amount, 100–1,000 | gross − 10 |
+| `claimCipherSats` (gifting.js) | min(balance, 1,000, caps), ≥100 | gross − 10 |
 | `claimCipherWin` (gifting.js) | 100 or 500 prize | gross − 10 |
 
 - LNURL invoices are requested for the net amount and the decoded invoice must equal net exactly.
-  A pasted cipher-prize invoice must be for the net amount.
+  Cipher prizes (`claimCipherWin`) pay the Lightning Address locked on the account. A pasted invoice or a different address on the request is ignored.
+- `@getalby/sdk` 7.0.0 and NIP-47 `pay_invoice` accept `invoice` plus an optional amount. They do not accept a per-payment max fee. Set the routing fee limit on the Alby Hub connection. `payInvoice` is called with `{ invoice }` only.
 - A claim whose net would be < 1 is refused (`FEE_TOO_BIG`). Current minimums (100) always leave 90.
 - Ledger: `fee_charged`, `net_sent`, `fee_paid` (sats, rounded up from NWC `fees_paid` msat; null when
   only a lookup confirmed the payment) on `faucet_invoices`, `users/{uid}/sats_withdrawals`,

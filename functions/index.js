@@ -14,7 +14,6 @@ const {
     stravaClientSecret,
     tgBotTokenSecret,
     turnstileSecret,
-    turnstileSecretKey,
 } = require('./src/sensitiveSecrets');
 const { runtimeSa } = require('./src/runtimeServiceAccounts');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
@@ -146,30 +145,7 @@ async function logAdminAction(req, action, params) {
 
 const { NWCClient } = require('@getalby/sdk');
 
-// ── Cloudflare Turnstile verification ───────────────────────────────────────
-async function verifyTurnstile(token, remoteip) {
-    if (!token) return false;
-    const secret = turnstileSecretKey();
-    if (!secret) {
-        console.error('[Turnstile] TURNSTILE_SECRET_KEY is not configured — failing closed');
-        return false;
-    }
-    try {
-        const params = new URLSearchParams({ secret, response: token });
-        if (remoteip) params.append('remoteip', remoteip);
-        const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: params.toString(),
-        });
-        const result = await res.json();
-        console.log('[Turnstile] verify result:', result.success, result['error-codes']);
-        return result.success === true;
-    } catch (e) {
-        console.error('[Turnstile] verify error:', e.message);
-        return false;
-    }
-}
+const { verifyTurnstile } = require('./src/turnstileCheck');
 const bolt11 = require('bolt11');
 const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
@@ -1816,6 +1792,8 @@ exports.claimSats = functionsV1.runWith({
     if (!invoiceSats || invoiceSats !== netSendAmount || Number(decoded.millisatoshis) !== netSendAmount * 1000) {
         return { success: false, error: 'Lightning Address returned an unexpected amount.' };
     }
+    const invoiceGate = require('./src/lnFee').assessOutgoingInvoice(decoded);
+    if (!invoiceGate.ok) return { success: false, error: invoiceGate.error };
     // Gross claim: what leaves the player's balance and counts toward every cap.
     const amount = lnAddrAmount;
     if (amount > faucetGuard.MAX_PER_CLAIM_SATS) {
@@ -1862,9 +1840,11 @@ exports.claimSats = functionsV1.runWith({
 
     let txFlag = null;
     let displayName = 'Bitcoiner';
+    let pointsReview = null;
     try {
         await db.runTransaction(async (t) => {
             txFlag = null;
+            pointsReview = null;
             function deny(message, extra) {
                 txFlag = extra || null;
                 const err = new Error('FAUCET_USER:' + message);
@@ -1940,9 +1920,22 @@ exports.claimSats = functionsV1.runWith({
 
             const authCreation = new Date(userRecord.metadata.creationTime);
             const accountDays = Math.max(1, Math.floor((Date.now() - authCreation.getTime()) / 86400000));
-            const maxReasonablePoints = (accountDays * 500) + 2100;
-            if (userPoints > maxReasonablePoints) {
-                console.error('[FAUCET] SUSPICIOUS (allowed): uid=' + uid + ' has ' + userPoints + ' pts but max reasonable=' + maxReasonablePoints + ' for ' + accountDays + ' day account');
+            const inflation = faucetGuard.assessPointsInflation({
+                userPoints: userPoints,
+                accountDays: accountDays,
+                amount: amount,
+                nowMs: Date.now(),
+                uid: uid,
+                displayName: displayName,
+            });
+            if (inflation.suspicious && inflation.ok) {
+                console.error('[FAUCET] SUSPICIOUS (allowed): uid=' + uid + ' has ' + userPoints + ' pts but max reasonable=' + inflation.maxReasonablePoints + ' for ' + accountDays + ' day account');
+            }
+            if (!inflation.ok) {
+                const existingHold = Number(user.satsHold) || 0;
+                t.update(userRef, { satsHold: Math.max(existingHold, inflation.holdUntil) });
+                pointsReview = inflation;
+                return;
             }
 
             const userSatsWithdrawn = user.satsWithdrawn || 0;
@@ -2159,6 +2152,12 @@ exports.claimSats = functionsV1.runWith({
         return { success: false, error: 'Claim validation failed. Please try again.' };
     }
 
+    if (pointsReview) {
+        await _flagFaucetAdmin(pointsReview.flag);
+        await _notifySatsReview(pointsReview.flag, 'Claim under review for ' + faucetGuard.publicDisplayName({ username: displayName }) + ' (' + amount + ' sats). Open Settings, then Account.');
+        return { success: false, error: pointsReview.error };
+    }
+
     const payInfo = {
         uid: uid,
         amount: amount,
@@ -2201,6 +2200,7 @@ exports.claimSats = functionsV1.runWith({
             return { success: true, amount: amount, sent: netSendAmount, fee: lnFeeQuote.fee, preimage: decision.preimage, warning: faucetGuard.supportError('Paid, but the receipt did not save.') };
         }
         console.log('[FAUCET] Paid ' + amount + ' sats to ' + uid);
+        await _flagFeeOver(uid, displayName, lnFeeQuote.fee, payResult);
         await _notifyClaimedSats(uid, netSendAmount);
         try { await grantFamily(db, admin, uid, familyFor('satsWithdrawn')); }
         catch (satsBadgeErr) { console.warn('[FAUCET] sats badges', satsBadgeErr && satsBadgeErr.message); }
@@ -2298,31 +2298,68 @@ async function _notifyClaimedSats(uid, amount) {
 }
 
 async function _rollbackClaim(uid, amount, today, invoiceRef) {
+    // The per-user sats_daily doc is not decremented. A failed pay must not
+    // reopen that day's cap. The site pool is returned once, and only while
+    // this invoice is still pending, so a second rollback cannot drive it
+    // negative and let later claims slip past GLOBAL_DAILY_MAX_SATS.
+    if (!invoiceRef) {
+        console.error('[FAUCET] CRITICAL: Rollback missing invoice for ' + uid);
+        return;
+    }
     try {
-        const pointsToRefund = amount * FAUCET.POINTS_PER_SAT;
-        const batch = db.batch();
-        batch.update(db.collection('users').doc(uid), {
-            pointsClaimed: admin.firestore.FieldValue.increment(-pointsToRefund),
-            satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
-            _pendingClaim: admin.firestore.FieldValue.delete(),
-            _pendingClaimAt: admin.firestore.FieldValue.delete()
+        await db.runTransaction(async (t) => {
+            const invoiceDoc = await t.get(invoiceRef);
+            if (!invoiceDoc.exists) return;
+            const status = String((invoiceDoc.data() || {}).status || '');
+            if (status === 'refunded' || status === 'used' || status === 'unknown') return;
+            const pointsToRefund = amount * FAUCET.POINTS_PER_SAT;
+            t.update(db.collection('users').doc(uid), {
+                pointsClaimed: admin.firestore.FieldValue.increment(-pointsToRefund),
+                satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
+                _pendingClaim: admin.firestore.FieldValue.delete(),
+                _pendingClaimAt: admin.firestore.FieldValue.delete(),
+            });
+            t.set(db.collection('faucet_ledger').doc(uid), {
+                satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
+                claimCount: admin.firestore.FieldValue.increment(-1),
+            }, { merge: true });
+            t.set(db.collection('faucet_stats').doc(today), {
+                totalPaid: admin.firestore.FieldValue.increment(-amount),
+                claimCount: admin.firestore.FieldValue.increment(-1),
+            }, { merge: true });
+            t.set(invoiceRef, {
+                status: 'refunded',
+                refundedAt: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
         });
-        batch.set(db.collection('faucet_ledger').doc(uid), {
-            satsWithdrawn: admin.firestore.FieldValue.increment(-amount),
-            claimCount: admin.firestore.FieldValue.increment(-1)
-        }, { merge: true });
-        batch.set(db.collection('users').doc(uid).collection('sats_daily').doc(today), {
-            amount: admin.firestore.FieldValue.increment(-amount)
-        }, { merge: true });
-        batch.set(db.collection('faucet_stats').doc(today), {
-            totalPaid: admin.firestore.FieldValue.increment(-amount),
-            claimCount: admin.firestore.FieldValue.increment(-1)
-        }, { merge: true });
-        if (invoiceRef) batch.delete(invoiceRef);
-        await batch.commit();
         console.log('[FAUCET] Rolled back ' + amount + ' sats for ' + uid);
     } catch (e) {
         console.error('[FAUCET] CRITICAL: Rollback failed for ' + uid + ', amount=' + amount + ':', e.message);
+    }
+}
+
+async function _flagFeeOver(uid, displayName, charged, payResult) {
+    const lnFee = require('./src/lnFee');
+    if (!lnFee.feeExceeded(charged, payResult)) return;
+    await _flagFaucetAdmin({
+        type: 'fee_over_cap',
+        uid: uid,
+        displayName: displayName,
+        amount: lnFee.feePaidSats(payResult),
+        detail: 'charged ' + charged,
+    });
+}
+
+async function _notifySatsReview(flag, message) {
+    try {
+        const { notifyAdminClaim } = require('./src/satsReviewAlert');
+        await notifyAdminClaim(db, admin, {
+            docId: 'sats_review_' + String(flag && flag.uid || '') + '_' + Date.now(),
+            message: message,
+            targetId: flag && flag.type,
+        });
+    } catch (e) {
+        console.error('[FAUCET] review notify failed:', e.message);
     }
 }
 

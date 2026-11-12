@@ -29,6 +29,8 @@ const {
     adminReleaseFromLookup,
     RATE_ERROR,
     UNAVAILABLE,
+    assessLockedAddress,
+    withoutRollingClaim,
 } = require('./cipherSatsClaim');
 const { planCipherShare, senderFromKey, clonePrize } = require('./cipherShare');
 const { rollGiftReward: rollGiftRewardImpl, rollGiftCount, unmatchedLabels } = require('./giftRoll');
@@ -1172,7 +1174,29 @@ async function _resolvePrizeInvoice(invoice, lightningAddress, amount) {
     if (decoded.timeExpireDate && decoded.timeExpireDate < Math.floor(Date.now() / 1000)) {
         throw new Error('That invoice has expired. Make a new one.');
     }
+    const invoiceGate = require('./lnFee').assessOutgoingInvoice(decoded);
+    if (!invoiceGate.ok) throw new Error(invoiceGate.error);
     return bolt;
+}
+
+async function flagPayUnknown(flag) {
+    const src = flag || {};
+    try {
+        await db.collection('faucet_admin_flags').add({
+            type: String(src.type || 'unknown_payment').slice(0, 40),
+            uid: String(src.uid || '').slice(0, 128),
+            displayName: faucetGuard.publicDisplayName({ username: src.displayName }),
+            otherUid: '',
+            otherDisplayName: '',
+            detail: String(src.detail || '').slice(0, 200),
+            amount: Math.floor(Number(src.amount) || 0),
+            paymentHash: String(src.paymentHash || '').slice(0, 80),
+            createdAtMs: Date.now(),
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+    } catch (e) {
+        console.error('[GIFT] admin flag failed:', e.message);
+    }
 }
 
 const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [deletionHmacSecret, nwcUrlSecret], serviceAccount: runtimeSa('claimCipherWin') }).https.onCall(async (data, context) => {
@@ -1194,6 +1218,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     let amount = 0;
     let username = 'a Bitcoiner';
     let isFactionPrize = false;
+    let payoutAddress = '';
 
     // Auth lookup stays outside the transaction (retries would repeat it).
     // The decision itself runs inside the transaction, with the user and ledger docs.
@@ -1247,6 +1272,24 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         if (Number(userRow.satsHold) > Date.now()) {
             throw httpsError('failed-precondition', 'Sats withdrawals are paused on this account. Try again later.');
         }
+        if (userRow.banned === true || userRow.ban_reason) {
+            throw httpsError('failed-precondition', SATS_BANNED_ERROR);
+        }
+        // Pay only the Lightning Address locked on this account. A pasted
+        // invoice or a different address on the request is ignored.
+        const savedLn = faucetGuard.normalizeLightningAddress(userRow.lightningAddress || userRow.lightning || userRow.lnAddress || '');
+        let addrSnap = null;
+        if (savedLn && savedLn.indexOf('/') === -1 && savedLn.length <= 300) {
+            addrSnap = await t.get(db.collection('lightning_addresses').doc(savedLn));
+        }
+        const locked = assessLockedAddress({
+            saved: savedLn,
+            uid: uid,
+            lockExists: !!(addrSnap && addrSnap.exists),
+            lockOwner: addrSnap && addrSnap.exists ? String((addrSnap.data() || {}).uid || '') : '',
+        });
+        if (!locked.ok) throw httpsError('failed-precondition', locked.error);
+        payoutAddress = locked.address;
         const token = (context.auth && context.auth.token) || {};
         const verifiedAuthEmail = authUser && authUser.email && authUser.emailVerified === true;
         const verifiedTokenEmail = token.email && token.email_verified === true;
@@ -1276,7 +1319,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     const netAmount = winFee.net;
     let invoice;
     try {
-        invoice = await _resolvePrizeInvoice(data.invoice, data.lightningAddress, netAmount);
+        invoice = await _resolvePrizeInvoice('', payoutAddress, netAmount);
     } catch (e) {
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
         return { success: false, error: e.message || 'Could not pay that invoice.' };
@@ -1315,11 +1358,28 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
             status: 'unknown',
             ts: admin.firestore.FieldValue.serverTimestamp(),
         }, { merge: true });
+        await flagPayUnknown({
+            type: 'unknown_payment',
+            uid: uid,
+            displayName: username,
+            amount: amount,
+            paymentHash: paymentHash || '',
+            detail: 'cipher_win',
+        });
     }
 
     async function markPaid(preimage, payRes) {
         // Payment already left the wallet. Never flip the win back to claimable after this.
         const feeRec = require('./lnFee').feeFields(winFee, payRes);
+        if (require('./lnFee').feeExceeded(winFee.fee, payRes)) {
+            await flagPayUnknown({
+                type: 'fee_over_cap',
+                uid: uid,
+                displayName: username,
+                amount: require('./lnFee').feePaidSats(payRes),
+                detail: 'charged ' + winFee.fee,
+            });
+        }
         try {
             await winRef.update({
                 status: 'paid',
@@ -1382,9 +1442,8 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
 
     if (payResult && payResult.preimage) return markPaid(payResult.preimage, payResult);
 
-    // Balance-check failures never reached the wallet. Explicit refusals
-    // (PAYMENT_FAILED, INSUFFICIENT_BALANCE, QUOTA_EXCEEDED, RATE_LIMITED)
-    // prove nothing was sent. Anything else is looked up below.
+    // Balance-check failures never reached the wallet. After pay_invoice,
+    // including PAYMENT_FAILED, look the payment up before unlocking.
     if (!shouldLookupPay({ phase: phase, error: payError, payResult: payResult })) {
         console.error('[claimCipherWin] pay refused before send:', payError && payError.message);
         await releaseUnpaid();
@@ -1661,7 +1720,6 @@ async function finishCipherClaim(reserved, outcome, payResult) {
     const lockRef = db.collection('cipher_sats_locks').doc(reserved.lockId);
     const auditRef = db.collection('cipher_sats_payouts').doc(reserved.claimId);
     const userRef = db.collection('users').doc(reserved.uid);
-    const playerRef = db.collection('cipher_sats_player_daily').doc(reserved.playerDayId);
     const siteRef = db.collection('cipher_sats_site_daily').doc(reserved.day);
     await db.runTransaction(async (t) => {
         const auditSnap = await t.get(auditRef);
@@ -1685,7 +1743,10 @@ async function finishCipherClaim(reserved, outcome, payResult) {
         t.update(userRef, {
             cipherSatsBalance: admin.firestore.FieldValue.increment(reserved.amount),
         });
-        t.set(playerRef, { amount: admin.firestore.FieldValue.increment(-reserved.amount) }, { merge: true });
+        // Per-user rolling and calendar caps stay consumed. Reopening them
+        // here would let a failed pay plus a retry exceed 1,000 in 24h.
+        // The site pool is returned once; the status guard above stops a
+        // second restore from subtracting it again.
         t.set(siteRef, { amount: admin.firestore.FieldValue.increment(-reserved.amount) }, { merge: true });
         t.set(auditRef, { status: 'restored', restoredAt: stamp }, { merge: true });
         if (owns) t.delete(lockRef);
@@ -1717,19 +1778,28 @@ async function beginCipherPay(reserved) {
     return ready;
 }
 
-// Pays min(balance, 200) from cipherSatsBalance. Independent of the faucet
+// Pays min(balance, claim max, player and site daily caps) from cipherSatsBalance. Independent of the faucet
 // withdrawal clock and of faucet daily caps. Cipher caps and the config flag
 // are the only payout limits here.
 const claimCipherSats = functionsV1.runWith({
     timeoutSeconds: 180,
     enforceAppCheck: true,
-    secrets: [deletionHmacSecret, nwcUrlSecret],
+    secrets: [deletionHmacSecret, nwcUrlSecret, require('./sensitiveSecrets').turnstileSecret],
     serviceAccount: runtimeSa('claimCipherSats'),
 }).https.onCall(async (data, context) => {
     const secondFactor = require('./secondFactor');
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     if (!nwcUrl()) throw httpsError('failed-precondition', 'Prize wallet is not configured yet.');
+    const turnstileOk = await require('./turnstileCheck').verifyTurnstile((data && data.turnstileToken) || '', null);
+    if (!turnstileOk) return { success: false, error: 'Security check failed. Please refresh and try again.' };
+    const fingerprint = String((data && data.fingerprint) || '').trim();
+    const fpId = faucetGuard.fingerprintDocId(fingerprint);
+    if (!fpId) return { success: false, error: 'Device verification required.' };
+    const clientIP = faucetGuard.clientIpFromRequest(context && context.rawRequest) || 'unknown';
+    if (clientIP === 'unknown') return { success: false, error: faucetGuard.supportError('Could not verify request origin.') };
+    const net = faucetGuard.networkKeys(clientIP);
+    if (!net) return { success: false, error: faucetGuard.supportError('Could not verify request origin.') };
     const accountTombstone = require('./accountTombstone');
     const emailChange = require('./emailChange');
     if (!accountTombstone.secretReady()) throw httpsError('failed-precondition', UNAVAILABLE);
@@ -1778,10 +1848,16 @@ const claimCipherSats = functionsV1.runWith({
     const rateRef = db.collection('rate_limits').doc('cipher_sats_' + lockId);
     const configRef = db.collection('cipher_sats_config').doc('settings');
     const auditRef = db.collection('cipher_sats_payouts').doc(claimId);
+    const rollingRef = db.collection('cipher_sats_rolling').doc(lockId);
+    const fpRef = db.collection('faucet_fingerprints').doc(fpId);
+    const ipRef = db.collection('faucet_ip_log').doc(net.exactId);
+    const subnetRef = db.collection('faucet_subnet_log').doc(net.rangeId);
 
     let reserved = null;
     let denial = '';
+    let reviewHold = null;
     await db.runTransaction(async (t) => {
+        reviewHold = null;
         const userSnap = await t.get(userRef);
         const ledgerSnap = await t.get(ledgerRef);
         const lockSnap = await t.get(lockRef);
@@ -1789,6 +1865,10 @@ const claimCipherSats = functionsV1.runWith({
         const siteSnap = await t.get(siteRef);
         const rateSnap = await t.get(rateRef);
         const configSnap = await t.get(configRef);
+        const rollingSnap = await t.get(rollingRef);
+        const fpSnap = await t.get(fpRef);
+        const ipSnap = await t.get(ipRef);
+        const subnetSnap = await t.get(subnetRef);
         if (!userSnap.exists) throw httpsError('not-found', 'User not found');
         const user = userSnap.data() || {};
         const saved = faucetGuard.normalizeLightningAddress(user.lightningAddress || user.lightning || user.lnAddress || '');
@@ -1797,6 +1877,32 @@ const claimCipherSats = functionsV1.runWith({
             addrSnap = await t.get(db.collection('lightning_addresses').doc(saved));
         }
         const flight = lockSnap.exists ? (lockSnap.data() || {}) : null;
+        const fpUids = fpSnap.exists ? ((fpSnap.data() || {}).uids || []) : [];
+        const fpDecision = faucetGuard.assessFingerprint(fpUids, uid);
+        if (!fpDecision.ok) {
+            denial = fpDecision.error;
+            return;
+        }
+        const ipSlot = ipSnap.exists ? (ipSnap.data() || {}) : {};
+        const subnetSlot = subnetSnap.exists ? (subnetSnap.data() || {}) : {};
+        const ipDecision = faucetGuard.assessExactIpSlot({
+            seen: ipSlot.seen || null,
+            lastUid: ipSlot.lastUid || '',
+            lastClaimMs: holdMillis(ipSlot.lastClaim),
+        }, uid, nowMs);
+        if (!ipDecision.ok) {
+            denial = ipDecision.error;
+            return;
+        }
+        const subnetDecision = faucetGuard.assessSubnetSlot({
+            seen: subnetSlot.seen || null,
+            lastUid: subnetSlot.lastUid || '',
+            lastClaimMs: holdMillis(subnetSlot.lastClaim),
+        }, uid, nowMs);
+        if (!subnetDecision.ok) {
+            denial = subnetDecision.error;
+            return;
+        }
         const attempt = assessAttemptRate(rateSnap.exists ? (rateSnap.data() || {}) : null, nowMs);
         if (!attempt.ok) {
             denial = RATE_ERROR;
@@ -1826,6 +1932,8 @@ const claimCipherSats = functionsV1.runWith({
             balance: user.cipherSatsBalance,
             playerDayUsed: dayAmount(playerSnap),
             siteDayUsed: dayAmount(siteSnap),
+            rollingClaims: rollingSnap.exists ? ((rollingSnap.data() || {}).claims || []) : [],
+            claimId: claimId,
             day: day,
             nowMs: nowMs,
             saved: saved,
@@ -1835,6 +1943,19 @@ const claimCipherSats = functionsV1.runWith({
             rate: { count: Math.max(0, attempt.count - 1), windowStartMs: attempt.windowStartMs },
         });
         const userPatch = cipherClaimUserPatch(plan);
+        if (plan.review) {
+            const existingHold = holdMillis(user.satsHold);
+            t.set(userRef, { satsHold: Math.max(existingHold, nowMs + plan.holdForMs) }, { merge: true });
+            reviewHold = {
+                type: 'cipher_balance_inflation',
+                uid: uid,
+                displayName: faucetGuard.publicDisplayName(user),
+                amount: plan.amount,
+                detail: 'balance over ' + plan.maxBalance,
+            };
+            denial = plan.error || UNAVAILABLE;
+            return;
+        }
         if (!plan.ok) {
             denial = plan.error || UNAVAILABLE;
             return;
@@ -1847,6 +1968,26 @@ const claimCipherSats = functionsV1.runWith({
         if (plan.playerDelta) {
             t.set(playerRef, { amount: admin.firestore.FieldValue.increment(plan.playerDelta), day: day }, { merge: true });
         }
+        t.set(rollingRef, { uid: uid, claims: plan.rollingClaims || [] }, { merge: true });
+        t.set(fpRef, {
+            lastClaim: admin.firestore.FieldValue.serverTimestamp(),
+            lastUid: uid,
+            uids: admin.firestore.FieldValue.arrayUnion(uid),
+            claimCount: admin.firestore.FieldValue.increment(1),
+        }, { merge: true });
+        t.set(ipRef, {
+            lastClaim: admin.firestore.FieldValue.serverTimestamp(),
+            lastUid: uid,
+            seen: ipDecision.seen,
+            claimCount: admin.firestore.FieldValue.increment(1),
+        }, { merge: true });
+        t.set(subnetRef, {
+            lastClaim: admin.firestore.FieldValue.serverTimestamp(),
+            lastUid: uid,
+            label: net.rangeLabel,
+            seen: subnetDecision.seen,
+            claimCount: admin.firestore.FieldValue.increment(1),
+        }, { merge: true });
         if (plan.siteDelta) {
             t.set(siteRef, { amount: admin.firestore.FieldValue.increment(plan.siteDelta), day: day }, { merge: true });
         }
@@ -1897,6 +2038,36 @@ const claimCipherSats = functionsV1.runWith({
             balanceAfter: plan.balanceAfter,
         };
     });
+
+    if (reviewHold) {
+        try {
+            await db.collection('faucet_admin_flags').add({
+                type: reviewHold.type,
+                uid: reviewHold.uid,
+                displayName: reviewHold.displayName,
+                otherUid: '',
+                otherDisplayName: '',
+                detail: String(reviewHold.detail || '').slice(0, 200),
+                amount: reviewHold.amount,
+                paymentHash: '',
+                createdAtMs: Date.now(),
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+        } catch (e) {
+            console.error('[claimCipherSats] review flag failed:', e.message);
+        }
+        try {
+            const { notifyAdminClaim } = require('./satsReviewAlert');
+            await notifyAdminClaim(db, admin, {
+                docId: 'sats_review_' + uid + '_' + Date.now(),
+                message: 'Cipher sats claim under review for ' + reviewHold.displayName + ' (' + reviewHold.amount + ' sats). Open Settings, then Account.',
+                targetId: reviewHold.type,
+            });
+        } catch (e) {
+            console.error('[claimCipherSats] review notify failed:', e.message);
+        }
+        return { success: false, error: denial || UNAVAILABLE };
+    }
 
     if (!reserved) return { success: false, error: denial || UNAVAILABLE };
 
@@ -1976,12 +2147,26 @@ const claimCipherSats = functionsV1.runWith({
             sourceLabel: 'cipher sats',
             icon: '⚡',
         }));
+        if (paid.payResult && require('./lnFee').feeExceeded(reserved.fee, paid.payResult)) {
+            await flagPayUnknown({
+                type: 'fee_over_cap',
+                uid: uid,
+                amount: require('./lnFee').feePaidSats(paid.payResult),
+                detail: 'charged ' + reserved.fee,
+            });
+        }
         return { success: true, amount: reserved.amount, sent: reserved.net, fee: reserved.fee, balance: reserved.balanceAfter };
     }
     if (paid.action === 'hold') {
         try { await finishCipherClaim(reserved, 'hold'); }
         catch (e) { console.error('[claimCipherSats] could not hold the claim'); }
         await invoiceRef.set({ status: 'unknown', ts: admin.firestore.FieldValue.serverTimestamp() }, { merge: true }).catch(function() {});
+        await flagPayUnknown({
+            type: 'unknown_payment',
+            uid: uid,
+            amount: reserved.amount,
+            detail: 'cipher_sats',
+        });
         return { success: false, error: 'The payment is not confirmed yet. This claim is on hold so it cannot be paid twice.' };
     }
     await finishCipherClaim(reserved, 'restore');
@@ -2057,7 +2242,9 @@ const adminResolveCipherSatsClaim = functionsV1.runWith({
         const day = String(row.day || '');
         const lockId = winnerUid.replace(/\//g, '_').slice(0, 200);
         const lockRef = lockId ? db.collection('cipher_sats_locks').doc(lockId) : null;
+        const rollingRef = lockId ? db.collection('cipher_sats_rolling').doc(lockId) : null;
         const lockSnap = lockRef ? await t.get(lockRef) : null;
+        const rollingSnap = rollingRef ? await t.get(rollingRef) : null;
         const lock = lockSnap && lockSnap.exists ? (lockSnap.data() || {}) : null;
         const owns = lockOwnedByClaim(lock, claimId);
         const stamp = admin.firestore.FieldValue.serverTimestamp();
@@ -2082,6 +2269,11 @@ const adminResolveCipherSatsClaim = functionsV1.runWith({
                 t.set(db.collection('cipher_sats_site_daily').doc(day), {
                     amount: admin.firestore.FieldValue.increment(-amount),
                     day: day,
+                }, { merge: true });
+            }
+            if (rollingRef && rollingSnap && rollingSnap.exists) {
+                t.set(rollingRef, {
+                    claims: withoutRollingClaim((rollingSnap.data() || {}).claims, claimId),
                 }, { merge: true });
             }
             t.set(auditRef, {
