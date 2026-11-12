@@ -19,6 +19,35 @@ Report privately, either way:
 
 If private reporting is not enabled on the repository, use email.
 
+### Encrypting your report
+
+To encrypt an email report, use this PGP key. It is also in [`security-pgp-key.asc`](security-pgp-key.asc).
+
+- User ID: `Bitcoin Quest Security <info.603btc@gmail.com>`
+- Fingerprint: `A7E7 5CED 9B66 B252 FB10  9B95 28EA AF43 E798 EE5E`
+- Encryption subkey: `6FBC 8829 3FB9 B759 2705  4120 8233 540E 9845 A237`
+- Created 2026-11-12, expires 2028-11-11
+
+Check the fingerprint before you use the key.
+
+```
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mDMEavYEPRYJKwYBBAHaRw8BAQdAC0fmE+T9AnU55n0oy76N/v0VkBiOfwJW1VOQ
+e360NWe0LkJpdGNvaW4gUXVlc3QgU2VjdXJpdHkgPGluZm8uNjAzYnRjQGdtYWls
+LmNvbT6IsgQTFgoAWhYhBKfnXO2bZrJS+xCblSjqr0PnmO5eBQJq9gQ9GxSAAAAA
+AAQADm1hbnUyLDIuNSsxLjEyLDAsMwIbAwUJA8JnAAULCQgHAgYVCgkICwIEFgID
+AQIeAQIXgAAKCRAo6q9D55juXgTZAQCAtXuL8idcQkIU3wxDVu2qiPnuSenBrSmp
+iyv68wzywwD/bbdqaQYuXx7B+EbTOVQrDw2SPYqbwcw9mQrtPWwyowe4OARq9gSN
+EgorBgEEAZdVAQUBAQdAEtki/gV8evmNHttS2XQw/Q/MFVQuiU8QtYFpJRx3DDkD
+AQgHiJoEGBYKAEIWIQSn51ztm2ayUvsQm5Uo6q9D55juXgUCavYEjRsUgAAAAAAE
+AA5tYW51MiwyLjUrMS4xMiwwLDMCGwwFCQPCZwAACgkQKOqvQ+eY7l7DVwEA+XIe
+DAz+OdyS3UsRlrdjT3O+IyKqn5llk20vvhyMof4A/iYwY+oCTvPaNgQN+2Kw9itd
+EGAlzyE0Y6G2kZYqZ+YB
+=c6LA
+-----END PGP PUBLIC KEY BLOCK-----
+```
+
 Please include:
 
 - What is affected (page, function, rule, or endpoint)
