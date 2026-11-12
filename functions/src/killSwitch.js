@@ -118,6 +118,7 @@ const GATED = Object.freeze({
         'dailyPollVote',
         'pollVote',
         'chooseFaction',
+        'managePeer',
     ]),
     // Scheduled jobs that should skip (not fail) while offline. Queued work
     // stays in place and is flushed after the switch is off.
@@ -141,11 +142,24 @@ const GATED = Object.freeze({
         'onBeatsUploadBadgeCount',
         'onArticleBadgeCount',
         'onMarketplaceSaleCount',
+        'onForumPost',
+        'onMarketplaceListingCount',
+        'onMarketplaceMessageCount',
+        'onIrlEventCreated',
+        'onChatMessageCreated',
+        'onPushDeviceWritten',
+    ]),
+    // HTTP onRequest handlers cannot be wrapped by gateExport. Each has an
+    // in-body killSwitchIsOn() check (stravaAuth must run it before the nonce
+    // is consumed, so the user can retry later).
+    requests: Object.freeze([
+        'stravaAuth',
     ]),
 });
 
 function gatedNames() { return GATED.payouts.concat(GATED.rewards, GATED.skips || []); }
 function gatedTriggerNames() { return (GATED.triggers || []).slice(); }
+function gatedRequestNames() { return (GATED.requests || []).slice(); }
 
 function toMillis(v) {
     if (v == null) return null;
@@ -1002,7 +1016,7 @@ module.exports = {
     OFFLINE_MESSAGE, CONFIRM_ON, CONFIRM_OFF, CONFIRM_WORD: CONFIRM_ON,
     BACKUP_BUCKET_DEFAULT, BACKUP_MAX_AGE_HOURS, MAX_REENABLE_MIN, MIN_REENABLE_MIN,
     MIN_REASON, RATE_WINDOW_MS, RATE_MAX_USER, RATE_MAX_GLOBAL, RATE_MAX_STATUS_USER, SNAPSHOT_REUSE_MS,
-    GATED, gatedNames, gatedTriggerNames, effectiveOn, isLaterAutoReturn, isOffline, reuseRecentSnapshot,
+    GATED, gatedNames, gatedTriggerNames, gatedRequestNames, effectiveOn, isLaterAutoReturn, isOffline, reuseRecentSnapshot,
     makeReader, gateExport, gateExports, backupPreflight,
     makeBackupDeps, makeAdminSetKillSwitch, makeAutoReturnTick, maybeSettleAutoReturn,
     cleanReason, parseReenable, maskUid, alertText, extendAlertText, autoReturnAlertText,

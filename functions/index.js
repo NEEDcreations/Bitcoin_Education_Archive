@@ -869,7 +869,12 @@ function bech32Encode(url) {
 // =============================================
 // Forum Post Notification - email admin on new post
 // =============================================
-exports.onForumPost = onDocumentCreated('forum_posts/{postId}', async (event) => {
+exports.onForumPost = onDocumentCreated({
+    document: 'forum_posts/{postId}',
+    retry: true,
+}, async (event) => {
+    // Defer the forum-post ticket (and the admin notice) while offline.
+    if (await killSwitchIsOn()) throw new Error('kill switch on: defer forum post ticket');
     const snap = event.data; const context = { params: event.params };
         const post = snap.data();
         const postId = context.params.postId;
@@ -1000,8 +1005,10 @@ exports.onMarketplaceShoutout = onDocumentCreated({
 exports.onMarketplaceListingCount = onDocumentCreated({
     document: 'marketplace/{listingId}',
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+    retry: true,
 }, async (event) => {
     if (!event.data) return null;
+    if (await killSwitchIsOn()) throw new Error('kill switch on: defer marketplace listing grant');
     const listing = event.data.data() || {};
     if (listing.sellerUid && listing.status !== 'deleted') {
         await grantServerTickets(listing.sellerUid, 'marketplace_listing_ticket');
@@ -1027,8 +1034,10 @@ exports.onMarketplaceListingCount = onDocumentCreated({
 exports.onMarketplaceMessageCount = onDocumentCreated({
     document: 'marketplace_messages/{messageId}',
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+    retry: true,
 }, async (event) => {
     if (!event.data) return null;
+    if (await killSwitchIsOn()) throw new Error('kill switch on: defer marketplace message badge');
     try {
         const counted = await countMarketplaceMessage({ db: db, admin: admin, data: event.data.data() });
         if (counted && counted.counted && counted.uid) {
@@ -1284,8 +1293,12 @@ exports.reconcileDailyProofs = onSchedule({
     }
 });
 
-exports.onIrlEventCreated = onDocumentCreated('irl_events/{eventId}', async (event) => {
+exports.onIrlEventCreated = onDocumentCreated({
+    document: 'irl_events/{eventId}',
+    retry: true,
+}, async (event) => {
     if (!event.data) return null;
+    if (await killSwitchIsOn()) throw new Error('kill switch on: defer irl listing ticket');
     const ev = event.data.data() || {};
     if (!ev.hostId || !String(ev.title || '').trim()) return null;
     await grantServerTickets(ev.hostId, 'irl_listing_ticket');
@@ -5342,7 +5355,12 @@ exports.verifyCertificate = functionsV1.https.onCall(async (data) => {
 // Each counter is bumped by a Firestore trigger on the authoritative event.
 
 // Chat message posted → bump chatMessages
-exports.onChatMessageCreated = onDocumentCreated('global_chat/{msgId}', async (event) => {
+exports.onChatMessageCreated = onDocumentCreated({
+    document: 'global_chat/{msgId}',
+    retry: true,
+}, async (event) => {
+    // Defer the daily chat ticket (and raid credit) while offline.
+    if (await killSwitchIsOn()) throw new Error('kill switch on: defer daily chat ticket');
     const snap = event.data; const _context = { params: event.params };
         const data = snap.data() || {};
         // Skip bot/nacho/system messages so the counter reflects real users
@@ -5498,10 +5516,12 @@ exports.onMarketplaceMessageCreated = onDocumentCreated('marketplace_messages/{i
 // Last registration of a token wins. Also keep at most 10 devices, oldest first.
 exports.onPushDeviceWritten = onDocumentWritten({
     document: 'push_tokens/{uid}/devices/{deviceId}',
-    timeoutSeconds: 60
+    timeoutSeconds: 60,
+    retry: true,
 }, async (event) => {
     const after = event.data && event.data.after;
     if (!after || !after.exists) return null;
+    if (await killSwitchIsOn()) throw new Error('kill switch on: defer push-enabled badge');
     const uid = String(event.params.uid || '');
     if (!_pushUidOk(uid)) return null;
     try {
@@ -6618,6 +6638,11 @@ exports.stravaAuth = functionsV1.runWith({ secrets: [stravaClientSecretParam], s
 
         if (!code || !nonce) {
             return res.redirect('https://bitcoineducation.quest/#explore?strava=error-missing-params');
+        }
+
+        // Fail before consuming the one-time nonce so the user can retry later.
+        if (await killSwitchIsOn()) {
+            return res.redirect('https://bitcoineducation.quest/#explore?strava=offline');
         }
 
         // Validate nonce: fetch, delete immediately (replay-safe), then verify TTL

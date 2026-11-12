@@ -126,9 +126,14 @@ If the 8/20-per-hour write budget is exhausted, or a compromised admin is flippi
 
 ## Triggers that defer or skip
 
-- **Defer** (throw, `retry: true`, redelivered after the switch is off, up to the platform retry window): `onArticlePublishXp`, `onBadgeAwardCreated`, `onPvpMatchFinished` (includes `settlePvpMatch` XP/badges). If an outage lasts longer than the retry window, those events may be lost and need a manual catch-up.
-- **Skip** (return, no grant; new client content is already blocked by rules): `flushBadgeGgBursts` (queue stays), `onUserReferral` (the hourly `payQualifiedReferrals` scan will catch pending rows after return), activity badge counters (`onChatBadgeCount`, `onDmBadgeCount`, `onForumPostBadgeCount`, `onForumReplyBadgeCount`, `onBeatsUploadBadgeCount`, `onArticleBadgeCount`). Admin-authored content during an outage will not increment those counters.
-- **Ungated on purpose:** `onUserDocCreated` only assigns `plebNumber` / join date and bumps `userCount` (no signup bonus). `onUserQuestCompleted` only bumps a global counter (`gradeQuest` is gated). `satoshiFavorAutoReset` only expires an already-running boost and posts a heads-up; it does not grant favor or XP. `syncPublicProfile` is a public mirror, not a grant.
+- **Defer** (throw, `retry: true`, redelivered after the switch is off, up to the platform retry window): `onArticlePublishXp`, `onBadgeAwardCreated`, `onPvpMatchFinished` (includes `settlePvpMatch` XP/badges), `onForumPost` (forum-post ticket), `onMarketplaceListingCount` (listing ticket + marketListings badge), `onMarketplaceMessageCount` (marketMessages badge), `onIrlEventCreated` (IRL listing ticket), `onChatMessageCreated` (daily chat ticket + raid credit), `onPushDeviceWritten` (pushEnabled badge). If an outage lasts longer than the retry window, those events may be lost and need a manual catch-up.
+- **Skip** (return, no grant; new client content is already blocked by rules): `flushBadgeGgBursts` (queue stays), `onUserReferral` (the hourly `payQualifiedReferrals` scan will catch pending rows after return), activity badge counters (`onChatBadgeCount`, `onDmBadgeCount`, `onForumPostBadgeCount`, `onForumReplyBadgeCount`, `onBeatsUploadBadgeCount`, `onArticleBadgeCount`), `onMarketplaceSaleCount` (marketSold badge; a later server write can grant after return). Admin-authored content during an outage will not increment those counters.
+- **Callables / HTTP (in addition to the payout and reward wraps):** `managePeer` is a client callable and is wrapped with the other reward gates (accept grants peerCount badges and peer-accept XP). `stravaAuth` is a public HTTP handler and cannot use `gateExport`; it returns early when the switch is on, *before* the one-time OAuth nonce is consumed, so the user can retry later.
+- **Ungated on purpose** (the coverage test asserts this exact list; nothing that grants XP, sats, badges, or tickets belongs here):
+  - `onUserDocCreated`: assigns plebNumber / join date and bumps userCount (no signup bonus).
+  - `onUserQuestCompleted`: bumps a global counter only (the gradeQuest callable is already gated).
+  - `satoshiFavorAutoReset`: expires an already-running boost and posts a heads-up; it does not grant favor or XP.
+  - `syncPublicProfile`: public mirror, not a grant.
 
 ## Bringing the app back (checklist)
 

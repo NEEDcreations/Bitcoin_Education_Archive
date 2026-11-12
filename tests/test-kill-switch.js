@@ -379,33 +379,113 @@ async function run() {
          'resetWeeklyXP', 'resetMonthlyXP', 'verifyReferral', 'registerReferral', 'pvpSubmitAnswer', 'pvpTimeoutOpponent',
          'tctvWatchHeartbeat', 'syncStravaWalks', 'creditMatureTopicComments', 'spendTickets', 'spendTicketsForFreeze', 'activateDoubleXP',
          'activateHashBooster', 'useHintToken', 'resetLightningAddressOnce', 'flushBadgeGgBursts', 'mergeAnonBadges', 'incrementWeeklyChallenge',
-         'dailyPollVote', 'pollVote', 'chooseFaction', 'reconcileDailyProofs', 'scheduleRaidForumCredit'].forEach(function (n) {
+         'dailyPollVote', 'pollVote', 'chooseFaction', 'reconcileDailyProofs', 'scheduleRaidForumCredit',
+         'managePeer'].forEach(function (n) {
             assert.ok(names.indexOf(n) !== -1, n);
         });
         const triggers = ks.gatedTriggerNames();
-        assert.ok(triggers.indexOf('onMarketplaceSaleCount') !== -1, 'onMarketplaceSaleCount must be listed as a trigger');
+        ['onMarketplaceSaleCount', 'onForumPost', 'onMarketplaceListingCount', 'onMarketplaceMessageCount',
+         'onIrlEventCreated', 'onChatMessageCreated', 'onPushDeviceWritten'].forEach(function (n) {
+            assert.ok(triggers.indexOf(n) !== -1, n + ' must be listed as a trigger');
+        });
         const sale = idx.slice(idx.indexOf('exports.onMarketplaceSaleCount'), idx.indexOf('exports.onChatBadgeCount'));
         assert.ok(sale.indexOf('if (await killSwitchIsOn()) return null;') !== -1, 'onMarketplaceSaleCount must return early when the switch is on');
+        assert.ok(ks.gatedRequestNames().indexOf('stravaAuth') !== -1, 'stravaAuth must be on the HTTP self-check list');
+        const strava = idx.slice(idx.indexOf('exports.stravaAuth'), idx.indexOf('exports.stravaAuth') + 1800);
+        const nonceDel = strava.indexOf('nonceRef.delete()');
+        const offline = strava.indexOf('killSwitchIsOn()');
+        assert.ok(offline !== -1 && nonceDel !== -1 && offline < nonceDel, 'stravaAuth must check the switch before consuming the nonce');
     });
 
-    await test('every export that awards or merges badges is gated', function () {
+    await test('every export that writes value is gated, self-checks, or allow-listed', function () {
         const idx = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
-        const gated = {};
-        ks.gatedNames().concat(ks.gatedTriggerNames()).forEach(function (n) { gated[n] = true; });
-        const awardRe = /grantBadgeIfEarned|\bawardBadge\s*\(/;
-        const exportRe = /^exports\.([A-Za-z0-9_]+)\s*=/gm;
-        const names = [];
-        let m;
-        while ((m = exportRe.exec(idx))) names.push({ name: m[1], at: m.index });
-        const ungated = [];
-        names.forEach(function (row, i) {
-            const end = i + 1 < names.length ? names[i + 1].at : idx.length;
-            const body = idx.slice(row.at, end);
-            if (!awardRe.test(body)) return;
-            if (!gated[row.name]) ungated.push(row.name);
+        const runbook = fs.readFileSync(path.join(root, 'docs/KILL-SWITCH-RUNBOOK.md'), 'utf8');
+        // Exact ungated-on-purpose list from the runbook. Do not put anything
+        // that grants XP, sats, badges, or tickets here.
+        const UNGATED_ON_PURPOSE = {
+            onUserDocCreated: 'assigns plebNumber / join date and bumps userCount (no signup bonus)',
+            onUserQuestCompleted: 'global questsCompleted counter only; gradeQuest is gated',
+            satoshiFavorAutoReset: 'expires an already-running boost and posts a heads-up; no favor or XP grant',
+            syncPublicProfile: 'public mirror, not a grant',
+        };
+        const allowBlock = (runbook.split('**Ungated on purpose**')[1] || '').split('\n## ')[0];
+        assert.ok(allowBlock, 'runbook must have an Ungated on purpose section');
+        const runbookNames = [];
+        allowBlock.split('\n').forEach(function (line) {
+            const m = line.match(/^\s*-\s+`([A-Za-z0-9_]+)`:/);
+            if (m) runbookNames.push(m[1]);
         });
-        assert.deepStrictEqual(ungated, [], 'ungated badge-granting exports: ' + ungated.join(', '));
-        assert.ok(gated.mergeAnonBadges, 'mergeAnonBadges must be on the gate list');
+        assert.deepStrictEqual(runbookNames, Object.keys(UNGATED_ON_PURPOSE), 'runbook ungated list must match the test allow-list');
+
+        const covered = {};
+        ks.gatedNames().concat(ks.gatedTriggerNames(), ks.gatedRequestNames()).forEach(function (n) { covered[n] = true; });
+        // The previous badge-only regex (grantBadgeIfEarned|awardBadge) missed
+        // grantServerTickets, grantFamily, grantIds, noteTrusted, and the
+        // trifecta / peer-XP helpers, which is why these eight were not flagged.
+        const REQUIRED = ['onForumPost', 'onMarketplaceListingCount', 'onMarketplaceMessageCount',
+            'onIrlEventCreated', 'managePeer', 'onChatMessageCreated', 'onPushDeviceWritten', 'stravaAuth'];
+        REQUIRED.forEach(function (n) {
+            assert.ok(covered[n], n + ' must be gated or on the HTTP self-check list');
+            assert.ok(!UNGATED_ON_PURPOSE[n], n + ' grants value and must not be on the ungated-on-purpose list');
+        });
+
+        const valueRe = /grantServerTickets|grantFamily|grantIds|grantBadgeIfEarned|\bawardBadge\s*\(|creditPeerAcceptXp|creditDailyAllThree|maybeCompleteTrifecta|maybeCompleteDailyFive|\bnoteTrusted\s*\(|\bcreditTrusted\s*\(|maybeGrantTickets|maybeGrantForBadge|planXpGrant|\bgrantXp\s*\(/;
+        const checkRe = /killSwitchIsOn\s*\(|\.isOffline\s*\(|makeReader\s*\(/;
+
+        function exportedExpression(src, at) {
+            const eq = src.indexOf('=', at);
+            let i = eq + 1;
+            let depth = 0;
+            let start = i;
+            while (i < src.length) {
+                const c = src[i];
+                if (c === '"' || c === "'" || c === '`') {
+                    const q = c;
+                    i++;
+                    while (i < src.length && src[i] !== q) {
+                        if (src[i] === '\\') i++;
+                        i++;
+                    }
+                    i++;
+                    continue;
+                }
+                if (c === '/' && src[i + 1] === '/') {
+                    while (i < src.length && src[i] !== '\n') i++;
+                    i++;
+                    continue;
+                }
+                if (c === '/' && src[i + 1] === '*') {
+                    const endC = src.indexOf('*/', i);
+                    i = endC < 0 ? src.length : endC + 2;
+                    continue;
+                }
+                if (c === '{' || c === '(' || c === '[') depth++;
+                else if (c === '}' || c === ')' || c === ']') depth = Math.max(0, depth - 1);
+                else if (c === ';' && depth === 0) return src.slice(start, i);
+                else if (c === '\n' && depth === 0) {
+                    const rest = src.slice(i + 1);
+                    if (/^\s*(exports\.|async function |function |const |let |var )/.test(rest)) {
+                        return src.slice(start, i);
+                    }
+                }
+                i++;
+            }
+            return src.slice(start);
+        }
+
+        const exportRe = /^exports\.([A-Za-z0-9_]+)\s*=/gm;
+        const uncovered = [];
+        let m;
+        while ((m = exportRe.exec(idx))) {
+            const body = exportedExpression(idx, m.index);
+            if (!valueRe.test(body)) continue;
+            if (covered[m[1]]) continue;
+            if (checkRe.test(body)) continue;
+            if (UNGATED_ON_PURPOSE[m[1]]) continue;
+            uncovered.push(m[1]);
+        }
+        assert.deepStrictEqual(uncovered, [], 'ungated value-writing exports: ' + uncovered.join(', '));
+        assert.ok(covered.mergeAnonBadges, 'mergeAnonBadges must be on the gate list');
     });
 
     await test('client maintenance page fails open and keeps admin tools', function () {
