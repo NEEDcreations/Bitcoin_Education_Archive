@@ -404,7 +404,9 @@ async function backupPreflight(deps) {
 function makeBackupDeps(admin, db, opts) {
     const o = opts || {};
     const project = o.projectId || process.env.GCLOUD_PROJECT || 'bitcoin-education-archive';
-    const bucketName = o.backupBucket || (project + '-backups');
+    // Prefer an explicit bucket (opts or BQ_BACKUP_BUCKET) so a regional
+    // Firestore can export to a same-region bucket. Default is <project>-backups.
+    const bucketName = o.backupBucket || process.env.BQ_BACKUP_BUCKET || (project + '-backups');
     return {
         projectId: project,
         backupBucket: bucketName,
@@ -448,19 +450,28 @@ function makeBackupDeps(admin, db, opts) {
                 err.payload = result.error;
                 throw err;
             }
+            const started = { operationName: result.name || null, outputUriPrefix: outputUriPrefix };
             try {
                 // Create-only: ifGenerationMatch 0 refuses an overwrite.
                 // The folder stamp is unique, and this SA cannot delete or
                 // overwrite existing nightlies (objectCreator + objectViewer).
+                // Record the export operation name and output URI so a later
+                // failure can be traced from the manifest alone. Do not wait
+                // for the export to finish; a failed snapshot must never
+                // delay the shutdown.
                 const file = admin.storage().bucket(bucketName).file(folder + '/kill-switch-manifest.json');
-                await file.save(JSON.stringify(manifest, null, 2), {
+                const body = Object.assign({}, manifest || {}, {
+                    operationName: started.operationName,
+                    outputUriPrefix: started.outputUriPrefix,
+                });
+                await file.save(JSON.stringify(body, null, 2), {
                     contentType: 'application/json',
                     precondition: { ifGenerationMatch: 0 },
                 });
             } catch (e) {
                 console.warn('[KILL SWITCH] manifest write failed');
             }
-            return { operationName: result.name || null, outputUriPrefix: outputUriPrefix };
+            return started;
         },
         readExportOperation: async function (operationName) {
             if (!operationName) return null;

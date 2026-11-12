@@ -183,5 +183,16 @@ test('no source passes a default or literal service account', function () {
     });
 });
 
+test('kill-switch SA gets auth viewer for listUsers, not auth admin', function () {
+    ['adminSetKillSwitch', 'killSwitchAutoReturnTick'].forEach(function (n) {
+        const extras = RUNTIME_SERVICE_ACCOUNTS[n].extra;
+        assert.ok(extras.indexOf('authViewer') !== -1, n);
+        assert.ok(extras.indexOf('auth') === -1, n);
+        const roles = plan.functions[n].projectRoles;
+        assert.ok(roles.indexOf('roles/firebaseauth.viewer') !== -1, n);
+        assert.ok(roles.indexOf('roles/firebaseauth.admin') === -1, n);
+    });
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

@@ -1,6 +1,6 @@
 # Bitcoin Quest kill switch runbook
 
-Last updated: 11 November 2026, 6:20 PM ET.
+Last updated: 12 November 2026, 5:36 AM ET.
 
 This is the operator guide for the admin-shield kill switch. Nothing in this document is sent automatically. The user email and X post below are drafts for Phil to approve; do not send them until he says so.
 
@@ -11,7 +11,7 @@ The kill switch takes Bitcoin Quest offline for everyone except admins.
 1. An admin opens **Admin tools → Kill switch**. The confirm screen checks that backups exist (latest managed Firestore export under about 26 hours old, point-in-time recovery on, and the newest R2 object when that can be checked). A stale or missing backup is a **warning**, not a block. An emergency shutdown must never wait on a backup check.
 2. The admin types a reason, types **OFFLINE**, and enters a fresh authenticator code. The factor must be at least 24 hours old and on the server-recorded known-factor list (#302). The callable also requires the admin claim, App Check, and a recent sign-in.
 3. The public flag (`config/killSwitch`) flips first. That doc holds only `enabled`, `mode`, `message`, `since`, and `autoReenableAt`. Reason, who flipped it, and the snapshot path live on `config/killSwitchAdmin` (admins only). Clients show a calm maintenance page. Payout, reward, ticket, XP and write callables return “temporarily offline.” Scheduled payout jobs skip that run. **All** non-admin client writes are denied in Firestore rules (forum, chat, DMs, notifications, reports, marketplace, beats, profiles, and the rest). Admins can still open Admin tools and turn the switch off. Each write evaluation does one extra `get()` of `config/killSwitch` (cached for the request).
-4. After the flag is on, the function starts a managed Firestore export in the background to `gs://<project>-backups/kill-switch/<timestamp>/`, with a small manifest of who flipped it and why. If a snapshot was already started in the last 6 hours, that one is reused instead of starting another full export. A failed snapshot **never** turns the app back on or delays the shutdown. The export operation id is written to the append-only `kill_switch_audit` log and shown in the admin UI (not on the public flag).
+4. After the flag is on, the function starts a managed Firestore export in the background to `gs://<project>-backups/kill-switch/<timestamp>/` (or `gs://$BQ_BACKUP_BUCKET/kill-switch/<timestamp>/` when that env var is set). The small manifest records who flipped it, why, the export operation name, and the output URI prefix. The manifest is written as soon as the export is accepted; the function does **not** wait for the export to finish. If a snapshot was already started in the last 6 hours, that one is reused instead of starting another full export. A failed snapshot **never** turns the app back on or delays the shutdown. The export operation id is also written to the append-only `kill_switch_audit` log and shown in the admin UI (not on the public flag).
 5. Every admin is notified (in-app + the admin notifications collection, with the actor uid masked). Phil also gets a Telegram DM when that path is configured. Alerts fire on every state write (flip, reason change, or auto-return change) and once when the auto-return actually fires (`killSwitchAutoReturnTick`, every 5 minutes). A no-op write (for example OFF while already off) does not alert and does not use the rate budget. Flips that change state are rate-limited (8 per admin per hour, 20 global per hour). Status/preflight is limited separately (30 per admin per hour). Audit rows are never deleted.
 6. Sending **ON** while the switch is already on is refused unless the auto-return moves **later** (a later deadline, or dropping the deadline). That extension still alerts every admin and DMs Phil. A reason-only change, a shorten, or a re-arm with no later deadline is rejected.
 
@@ -53,9 +53,15 @@ gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" \
   --member "serviceAccount:$SA" \
   --role roles/storage.objectCreator \
   --condition='expression=resource.name.startsWith("projects/_/buckets/'"$BUCKET"'/objects/kill-switch/"),title=kill-switch-prefix-only,description=Create objects only under kill-switch/; no delete'
+
+# listUsers so notifyAdmins can page Auth. Viewer, not admin.
+gcloud projects add-iam-policy-binding "$P" \
+  --member "serviceAccount:$SA" \
+  --role roles/firebaseauth.viewer \
+  --condition=None
 ```
 
-Repeat for staging (`bitcoin-quest-staging`, bucket `bitcoin-quest-staging-backups`) if you test there.
+Repeat for staging (`bitcoin-quest-staging`, bucket `bitcoin-quest-staging-backups-use1` in us-east1, matching staging Firestore). The default-named `bitcoin-quest-staging-backups` bucket is in us-central1 and cannot receive managed exports from that database. Point the staging function at the us-east1 bucket with `BQ_BACKUP_BUCKET`; do not set that env var on live, which already uses the compatible US multi-region `bitcoin-education-archive-backups`.
 
 The function only lists/reads existing export metadata and **creates** objects under a unique `kill-switch/<timestamp>/` prefix (manifest `save` uses `ifGenerationMatch: 0` so it will not overwrite). It never deletes or overwrites backup objects. Do **not** grant `roles/storage.objectAdmin` or `roles/datastore.importExportAdmin`.
 
@@ -93,6 +99,8 @@ The live app being off does not stop you from working. Use staging, then deploy 
 - Ship one function (or a short, named list) after review:
 
       firebase deploy --project bitcoin-education-archive --only functions:functionName
+
+- When first shipping `adminSetKillSwitch` and `killSwitchAutoReturnTick` to live (and after any rollback-and-redeploy of those functions), set `PHIL_TELEGRAM_CHAT_ID` on both. The functions read that env var to DM Phil. If it is missing, flips still succeed but the Telegram DM is skipped and the log says `PHIL_TELEGRAM_CHAT_ID is missing`. Do not put a live `BQ_BACKUP_BUCKET` in a committed `.env`; live keeps the default `bitcoin-education-archive-backups` bucket.
 
 - For a client fix, deploy hosting / Pages only after Phil’s OK, and only the files that changed. The service worker placeholder on this PR is `btc-archive-v2551` and must be renumbered at ship.
 - Do not deploy the kill switch itself a second time unless that is the fix. Do not `firebase deploy` without `--only`.
@@ -204,7 +212,8 @@ Bitcoin Quest is temporarily offline for maintenance. Your sats and progress are
 - Kill-switch snapshots: `gs://bitcoin-education-archive-backups/kill-switch/<timestamp>/`
 - Daily exports: `gs://bitcoin-education-archive-backups/<YYYY-MM-DD>/`
 - R2 copy: GitHub Action `r2-nightly-backup` (not checkable from the function itself)
-- Runtime SA: `fn-admin-kill-switch@bitcoin-education-archive.iam.gserviceaccount.com`
+- Runtime SA: `fn-admin-kill-switch@bitcoin-education-archive.iam.gserviceaccount.com` (needs `roles/firebaseauth.viewer` so it can list admin uids)
+- Live Telegram DM: set `PHIL_TELEGRAM_CHAT_ID` on `adminSetKillSwitch` and `killSwitchAutoReturnTick`
 - Custom role: `projects/bitcoin-education-archive/roles/killSwitchExport` (`datastore.databases.export`, `datastore.operations.get` only)
 - Audit collection: `kill_switch_audit` (append-only)
 - Public flag: `config/killSwitch`

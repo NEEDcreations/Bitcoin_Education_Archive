@@ -800,6 +800,83 @@ async function run() {
         assert.ok(idx.includes('adminSetKillSwitch'));
     });
 
+    await test('makeBackupDeps prefers opts, then BQ_BACKUP_BUCKET, then <project>-backups', function () {
+        const savedBucket = process.env.BQ_BACKUP_BUCKET;
+        const savedProject = process.env.GCLOUD_PROJECT;
+        try {
+            delete process.env.BQ_BACKUP_BUCKET;
+            delete process.env.GCLOUD_PROJECT;
+            const def = ks.makeBackupDeps({}, {}, { projectId: 'bitcoin-quest-staging' });
+            assert.strictEqual(def.backupBucket, 'bitcoin-quest-staging-backups');
+            process.env.BQ_BACKUP_BUCKET = 'bitcoin-quest-staging-backups-use1';
+            const fromEnv = ks.makeBackupDeps({}, {}, { projectId: 'bitcoin-quest-staging' });
+            assert.strictEqual(fromEnv.backupBucket, 'bitcoin-quest-staging-backups-use1');
+            const fromOpts = ks.makeBackupDeps({}, {}, {
+                projectId: 'bitcoin-quest-staging',
+                backupBucket: 'explicit-bucket',
+            });
+            assert.strictEqual(fromOpts.backupBucket, 'explicit-bucket');
+        } finally {
+            if (savedBucket == null) delete process.env.BQ_BACKUP_BUCKET;
+            else process.env.BQ_BACKUP_BUCKET = savedBucket;
+            if (savedProject == null) delete process.env.GCLOUD_PROJECT;
+            else process.env.GCLOUD_PROJECT = savedProject;
+        }
+    });
+
+    await test('startExport writes operationName and outputUriPrefix into the manifest without waiting', async function () {
+        const savedFetch = global.fetch;
+        let fetchCalls = 0;
+        let savedBody = null;
+        const file = {
+            save: async function (text, opts) {
+                savedBody = JSON.parse(text);
+                assert.strictEqual(opts.precondition.ifGenerationMatch, 0);
+            },
+        };
+        const admin = {
+            app: function () {
+                return { options: { credential: { getAccessToken: async function () { return { access_token: 't' }; } } } };
+            },
+            storage: function () {
+                return {
+                    bucket: function (name) {
+                        assert.strictEqual(name, 'bitcoin-quest-staging-backups-use1');
+                        return {
+                            file: function (objectPath) {
+                                assert.strictEqual(objectPath, 'kill-switch/ts/kill-switch-manifest.json');
+                                return file;
+                            },
+                        };
+                    },
+                };
+            },
+        };
+        try {
+            global.fetch = async function (url, opts) {
+                fetchCalls++;
+                assert.ok(String(url).indexOf(':exportDocuments') !== -1);
+                assert.strictEqual(opts.method, 'POST');
+                return { json: async function () { return { name: 'projects/p/databases/(default)/operations/op-9' }; } };
+            };
+            const deps = ks.makeBackupDeps(admin, {}, {
+                projectId: 'bitcoin-quest-staging',
+                backupBucket: 'bitcoin-quest-staging-backups-use1',
+            });
+            const started = await deps.startExport('kill-switch/ts', { kind: 'kill-switch-snapshot', reason: 'test' });
+            assert.strictEqual(fetchCalls, 1);
+            assert.strictEqual(started.operationName, 'projects/p/databases/(default)/operations/op-9');
+            assert.strictEqual(started.outputUriPrefix, 'gs://bitcoin-quest-staging-backups-use1/kill-switch/ts');
+            assert.strictEqual(savedBody.kind, 'kill-switch-snapshot');
+            assert.strictEqual(savedBody.reason, 'test');
+            assert.strictEqual(savedBody.operationName, started.operationName);
+            assert.strictEqual(savedBody.outputUriPrefix, started.outputUriPrefix);
+        } finally {
+            if (savedFetch === undefined) delete global.fetch;
+            else global.fetch = savedFetch;
+        }
+    });
+
     await test('status/preflight hides admin fields from the public state object', async function () {
         const db = makeDb();
         const { handler } = hook(db);

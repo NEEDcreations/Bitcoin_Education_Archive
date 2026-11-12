@@ -18,6 +18,7 @@
 // `extra` lists least-privilege roles beyond Firestore (roles/datastore.user,
 // which every listed function gets):
 //   auth    -> roles/firebaseauth.admin
+//   authViewer -> roles/firebaseauth.viewer (listUsers / read-only Auth)
 //   fcm     -> roles/firebasecloudmessaging.admin
 //   storage -> roles/storage.objectAdmin on the default bucket only
 //   backups -> roles/storage.objectViewer on the Firestore export bucket
@@ -42,8 +43,8 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     adminLookupUser: { id: 'fn-admin-lookup-user', extra: [] },
     adminQueryUsers: { id: 'fn-admin-query-users', extra: [] },
     adminResolveCipherSatsClaim: { id: 'fn-admin-resolve-cipher-claim', extra: [] },
-    adminSetKillSwitch: { id: 'fn-admin-kill-switch', extra: ['backups', 'killSwitchExport'] },
-    killSwitchAutoReturnTick: { id: 'fn-admin-kill-switch', extra: ['backups', 'killSwitchExport'] },
+    adminSetKillSwitch: { id: 'fn-admin-kill-switch', extra: ['backups', 'killSwitchExport', 'authViewer'] },
+    killSwitchAutoReturnTick: { id: 'fn-admin-kill-switch', extra: ['backups', 'killSwitchExport', 'authViewer'] },
     adminUnbanUser: { id: 'fn-admin-unban-user', extra: [] },
     auditWithdrawals: { id: 'fn-audit-withdrawals', extra: [] },
     backfillJoinDates: { id: 'fn-backfill-join-dates', extra: ['auth'] },
@@ -101,6 +102,7 @@ const DEFAULT_PROJECT = 'bitcoin-education-archive';
 
 const EXTRA_ROLES = Object.freeze({
     auth: 'roles/firebaseauth.admin',
+    authViewer: 'roles/firebaseauth.viewer',
     fcm: 'roles/firebasecloudmessaging.admin',
     storage: 'roles/storage.objectAdmin',
     backups: 'roles/storage.objectCreator+objectViewer',
