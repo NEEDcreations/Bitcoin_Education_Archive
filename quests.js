@@ -2675,12 +2675,10 @@ function _renderFavorTab(body) {
                 '<td style="text-align:right;font-weight:700;color:var(--text-muted);"><span id="sfTotalHashes">…</span></td>' +
                 '<td style=""></td>' +
             '</tr>';
-        var _nextMs = (typeof window !== 'undefined' && Number(window.SF_DIFFICULTY_NEXT_RETARGET_MS)) || 0;
-        var _nextTxt = _nextMs > 0
-            ? '<div style="margin-top:6px;font-size:0.68rem;color:var(--text-faint);">Next difficulty adjustment: ' +
-              new Date(_nextMs).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
-              ' (about every 14 days)</div>'
-            : '';
+        var _nextEpoch = (typeof window !== 'undefined' && Math.floor(Number(window.SF_DIFFICULTY_NEXT_RETARGET_EPOCH))) || 0;
+        var _nextTxt = '<div style="margin-top:6px;font-size:0.68rem;color:var(--text-faint);">Next difficulty adjustment: ' +
+              (_nextEpoch > 0 ? 'when Epoch #' + _nextEpoch + ' fills 5/5' : 'when the current epoch fills 5/5') +
+              ' (aiming for one epoch about every 14 days, at most 4× per step)</div>';
         _dhHtml += '</tbody></table></div>' + _nextTxt + '</div>';
         html += _dhHtml;
     })();
