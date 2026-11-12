@@ -1,5 +1,6 @@
 // Satoshi's Favor difficulty: 25,000 target, difficulty-based history %, live
-// target from payout_config/favorDifficulty, 14-day retarget within budget.
+// target from payout_config/favorDifficulty, Bitcoin-style retarget once per
+// full (5/5) epoch aiming for one epoch per 14 days, 100,000 sats/month budget.
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
@@ -23,7 +24,14 @@ function fakeDb(docs) {
     function setDoc(p, v, opt) { store[p] = (opt && opt.merge && store[p]) ? Object.assign({}, store[p], v) : Object.assign({}, v); }
     const db = {
         docs: store,
-        collection(c) { return { doc(id) { const p = c + '/' + id; return { _p: p, get: async () => snap(p), set: async (v, o) => setDoc(p, v, o) }; } }; },
+        collection(c) { return {
+            doc(id) { const p = c + '/' + id; return { _p: p, get: async () => snap(p), set: async (v, o) => setDoc(p, v, o) }; },
+            where(field, op, val) { return { get: async () => {
+                const rows = Object.keys(store).filter(k => k.startsWith(c + '/')).map(k => store[k])
+                    .filter(d => (op === '>' ? d[field] > val : op === '==' ? d[field] === val : false));
+                return { forEach(fn) { rows.forEach(d => fn({ data: () => JSON.parse(JSON.stringify(d)) })); } };
+            } }; },
+        }; },
         async runTransaction(fn) { return fn({ get: async (ref) => snap(ref._p), set: (ref, v, o) => setDoc(ref._p, v, o) }); },
     };
     return db;
@@ -66,29 +74,65 @@ test('quests.js fallback % is computed from difficulty, not target', () => {
     assert.ok(!q.includes('(row.target - prevTarget) / prevTarget * 100'));
 });
 
-test('budget = min(10,500, 25,000 - 1,500 - other payouts)', () => {
-    assert.strictEqual(fd.favorBudgetPerMonth(0), 10500);
-    assert.strictEqual(fd.favorBudgetPerMonth(13000), 10500);
-    assert.strictEqual(fd.favorBudgetPerMonth(20000), 3500);
-    assert.strictEqual(fd.favorBudgetPerMonth(40000), 0);
+test('budget: 100,000 sats/month = 45,000 Favor + 55,000 everything else; other payouts do not reduce Favor', () => {
+    assert.strictEqual(fd.MONTHLY_TOTAL, 100000);
+    assert.strictEqual(fd.FAVOR_BUDGET, 45000);
+    assert.strictEqual(fd.OTHER_BUDGET, 55000);
+    assert.strictEqual(fd.FAVOR_BUDGET + fd.OTHER_BUDGET, fd.MONTHLY_TOTAL);
+    assert.strictEqual(fd.favorBudgetPerMonth(0), 45000);
+    assert.strictEqual(fd.favorBudgetPerMonth(999999), 45000, 'faucet spend no longer zeroes the Favor budget');
+    // one 21,000-sat epoch per 14 days IS the 45,000 / 30-day Favor budget
+    assert.strictEqual(fd.EPOCH_SATS * fd.DAYS_PER_MONTH / fd.TARGET_EPOCH_DAYS, fd.FAVOR_BUDGET);
+    assert.strictEqual(fd.TARGET_EPOCH_DAYS, 14);
+    assert.strictEqual(fd.BLOCKS_PER_EPOCH, 5);
+    assert.strictEqual(fd.BUFFER, undefined);
+    assert.strictEqual(fd.FAVOR_CAP, undefined);
+    const src = read('functions/src/favorDifficulty.js');
+    assert.ok(!/10,?500|\b1,?500\b|25,000 total/.test(src.replace(/\/\/.*$/gm, '')), 'no old 25,000 / 10,500 / 1,500 budget constants');
+    assert.ok(!/favor_?cap|buffer/i.test(src.replace(/\/\/.*$/gm, '')));
+    assert.ok(!/faucet_stats|cipher_sats_site_daily|otherPaid/.test(src), 'other payouts are not read');
+    const index = read('functions/index.js');
+    assert.ok(!index.includes('min(10,500'));
+    assert.ok(index.includes('100,000 sats/month = 45,000 Favor + 55,000'));
 });
 
-test('retarget moves at most 4x either way and lands on budget inside the clamp', () => {
-    // budget 10,500 -> 0.5 epoch/month -> 2.5 blocks/30 days
-    const onBudget = fd.planRetarget({ currentTarget: 25000, windowDays: 14, blocksInWindow: 2, otherPaidInWindow: 0 });
-    const wantFactor = (2.5 / 30) / (2 / 14);
-    assert.strictEqual(onBudget.target, Math.round(25000 * wantFactor));
-    const harder = fd.planRetarget({ currentTarget: 25000, windowDays: 14, blocksInWindow: 19, otherPaidInWindow: 0 });
-    assert.strictEqual(harder.target, 6250);
-    assert.strictEqual(harder.label, '+300%');
-    const noBudget = fd.planRetarget({ currentTarget: 25000, windowDays: 14, blocksInWindow: 1, otherPaidInWindow: 50000 });
-    assert.strictEqual(noBudget.target, 6250);
-    assert.strictEqual(noBudget.favorBudgetPerMonth, 0);
-    const easier = fd.planRetarget({ currentTarget: 25000, windowDays: 14, blocksInWindow: 0, otherPaidInWindow: 0 });
-    assert.strictEqual(easier.target, 100000);
-    assert.strictEqual(easier.label, '-75%');
-    const floor = fd.planRetarget({ currentTarget: 120, windowDays: 14, blocksInWindow: 50, otherPaidInWindow: 0 });
-    assert.strictEqual(floor.target, fd.MIN_TARGET);
+test('epoch faster than 14 days -> harder, clamped to 4x (target / 4)', () => {
+    const fast = fd.planRetarget({ currentTarget: 25000, epochDurationMs: 1.73 * DAY });
+    assert.strictEqual(fast.target, 6250);
+    assert.strictEqual(fast.factor, 0.25);
+    assert.strictEqual(fast.clamped, true);
+    assert.strictEqual(fast.label, '+300%');
+    const halfway = fd.planRetarget({ currentTarget: 25000, epochDurationMs: 7 * DAY });
+    assert.strictEqual(halfway.target, 12500, '7 days = 2x too fast = half the target');
+    assert.strictEqual(halfway.label, '+100%');
+    assert.ok(halfway.target < 25000, 'smaller target is harder');
+});
+
+test('epoch slower than 14 days -> easier, clamped to 4x (target * 4)', () => {
+    const slow = fd.planRetarget({ currentTarget: 25000, epochDurationMs: 21 * DAY });
+    assert.strictEqual(slow.target, 37500);
+    assert.ok(slow.target > 25000, 'bigger target is easier');
+    const verySlow = fd.planRetarget({ currentTarget: 25000, epochDurationMs: 200 * DAY });
+    assert.strictEqual(verySlow.target, 100000);
+    assert.strictEqual(verySlow.label, '-75%');
+    assert.strictEqual(verySlow.clamped, true);
+});
+
+test('epoch of exactly 14 days -> target unchanged', () => {
+    const same = fd.planRetarget({ currentTarget: 25000, epochDurationMs: 14 * DAY });
+    assert.strictEqual(same.target, 25000);
+    assert.strictEqual(same.factor, 1);
+    assert.strictEqual(same.label, '0%');
+    const two = fd.planRetarget({ currentTarget: 25000, epochDurationMs: 28 * DAY, epochs: 2 });
+    assert.strictEqual(two.target, 25000, 'two epochs in 28 days is on target');
+});
+
+test('floor/ceiling sanity bounds still apply; bad durations never guess a direction', () => {
+    assert.strictEqual(fd.planRetarget({ currentTarget: 120, epochDurationMs: 1 * DAY }).target, fd.MIN_TARGET);
+    assert.strictEqual(fd.planRetarget({ currentTarget: fd.MAX_TARGET, epochDurationMs: 56 * DAY }).target, fd.MAX_TARGET);
+    assert.strictEqual(fd.planRetarget({ currentTarget: 25000, epochDurationMs: 0 }), null);
+    assert.strictEqual(fd.planRetarget({ currentTarget: 25000, epochDurationMs: -5 }), null);
+    assert.strictEqual(fd.planRetarget({ currentTarget: 25000 }), null);
 });
 
 test('live target reads payout_config/favorDifficulty with a hardcoded fallback', async () => {
@@ -129,32 +173,107 @@ test('expired reset stamps the live target on lastWindow', async () => {
     fd._resetCache();
 });
 
-test('scheduled retarget waits for nextRetargetMs, then writes config, history and the public mirror once', async () => {
-    const apply = Date.parse('2026-11-07T01:00:00Z');
-    const seed = { target: 25000, previous: 20000, label: '-20%', lastRetargetMs: apply, nextRetargetMs: apply + 14 * DAY,
-        history: [{ date: '2026-11-07', since: apply, target: 25000, previous: 20000, label: '-20%' }] };
-    const db = fakeDb({ 'payout_config/favorDifficulty': seed });
-    const deps = { countBlocks: async () => 19, sumOtherPaid: async () => 0 };
-    const early = await fd.runRetarget(db, null, apply + 13 * DAY, deps);
-    assert.strictEqual(early.skipped, 'not_due');
+const E6_CLOSED = Date.parse('2026-11-10T15:15:09Z');
+function migratedSeed(extra) {
+    const seedAt = Date.parse('2026-11-07T01:03:00Z');
+    return Object.assign({ target: 25000, previous: 20000, label: '-20%', lastRetargetMs: seedAt, nextRetargetMs: seedAt + 14 * DAY,
+        history: [{ date: '2026-11-07', since: seedAt, target: 25000, previous: 20000, label: '-20%' }],
+        lastRetargetEpoch: 6, lastRetargetEpochClosedMs: E6_CLOSED, retargetRule: 'epoch' }, extra || {});
+}
+
+test('no time-based retarget: unmigrated config never moves, even long after the old nextRetargetMs', async () => {
+    const seedAt = Date.parse('2026-11-07T01:03:00Z');
+    const old = { target: 25000, lastRetargetMs: seedAt, nextRetargetMs: seedAt + 14 * DAY, history: [] };
+    const db = fakeDb({ 'payout_config/favorDifficulty': old, 'sfPoolHistory/a': { epochNumber: 7, completedAt: E6_CLOSED + DAY } });
+    for (const at of [Date.parse('2026-11-21T05:10:00Z'), seedAt + 60 * DAY]) {
+        const r = await fd.runRetarget(db, null, at);
+        assert.strictEqual(r.skipped, 'not_migrated');
+    }
     assert.strictEqual(db.docs['payout_config/favorDifficulty'].target, 25000);
-    const now = apply + 14 * DAY + 600000;
-    const r = await fd.runRetarget(db, null, now, deps);
+    assert.strictEqual(db.docs['satoshiFavor/difficultyStats'], undefined);
+    // migrated, but no new epoch closed: 60 days later still nothing
+    const db2 = fakeDb({ 'payout_config/favorDifficulty': migratedSeed(), 'sfPoolHistory/e6': { epochNumber: 6, completedAt: E6_CLOSED } });
+    const r2 = await fd.runRetarget(db2, null, E6_CLOSED + 60 * DAY);
+    assert.deepStrictEqual(r2, { skipped: 'no_new_epoch', waitingForEpoch: 7 });
+    assert.strictEqual(db2.docs['payout_config/favorDifficulty'].target, 25000);
+    const src = read('functions/src/favorDifficulty.js');
+    assert.ok(!/now\s*<\s*next|RETARGET_DAYS\s*\*/.test(src), 'no clock check left');
+});
+
+test('epoch close retargets once (idempotent per epoch), writes history + public mirror, keeps epoch records', async () => {
+    const e7Closed = E6_CLOSED + 3.5 * DAY;
+    const e7 = { epochNumber: 7, completedAt: e7Closed, totalSats: 21000, blocks: [1, 2, 3, 4, 5] };
+    const db = fakeDb({ 'payout_config/favorDifficulty': migratedSeed(), 'sfPoolHistory/e6': { epochNumber: 6, completedAt: E6_CLOSED }, 'sfPoolHistory/e7': e7 });
+    const now = e7Closed + 3 * 3600000;
+    const r = await fd.runRetarget(db, null, now);
     assert.strictEqual(r.retargeted, true);
+    assert.strictEqual(r.epoch, 7);
+    assert.strictEqual(r.target, 6250, '3.5 days vs 14 = 4x too fast -> 4x harder');
     const cfg = db.docs['payout_config/favorDifficulty'];
     assert.strictEqual(cfg.target, 6250);
-    assert.strictEqual(cfg.nextRetargetMs, now + 14 * DAY);
+    assert.strictEqual(cfg.lastRetargetEpoch, 7);
+    assert.strictEqual(cfg.lastRetargetEpochClosedMs, e7Closed);
+    assert.strictEqual(cfg.nextRetargetMs, null);
     assert.strictEqual(cfg.history.length, 2);
-    assert.strictEqual(cfg.history[1].label, '+300%');
+    const h = cfg.history[1];
+    assert.strictEqual(h.previous, 25000);
+    assert.strictEqual(h.target, 6250);
+    assert.strictEqual(h.factor, 0.25);
+    assert.strictEqual(h.epochDurationDays, 3.5);
+    assert.strictEqual(h.epoch, 7);
+    assert.ok(/Epoch #7 filled 5\/5/.test(h.reason));
     const pub = db.docs['satoshiFavor/difficultyStats'].config;
     assert.strictEqual(pub.target, 6250);
     assert.strictEqual(pub.odds, 16000);
-    assert.strictEqual(pub.history.length, 2);
-    assert.ok(!JSON.stringify(pub).includes('favorBudgetPerMonth'));
-    const again = await fd.runRetarget(db, null, now + 1000, deps);
-    assert.strictEqual(again.skipped, 'not_due');
-    const missing = await fd.runRetarget(fakeDb({}), null, now, deps);
+    assert.strictEqual(pub.nextRetargetEpoch, 8);
+    assert.strictEqual(pub.nextRetargetMs, null);
+    assert.strictEqual(pub.retargetRule, 'epoch');
+    assert.ok(!JSON.stringify(pub).includes('reason'));
+    // same epoch again (later daily runs): no second retarget
+    for (const at of [now + 1000, now + DAY, now + 30 * DAY]) {
+        const again = await fd.runRetarget(db, null, at);
+        assert.deepStrictEqual(again, { skipped: 'no_new_epoch', waitingForEpoch: 8 });
+    }
+    assert.strictEqual(db.docs['payout_config/favorDifficulty'].target, 6250);
+    assert.strictEqual(db.docs['payout_config/favorDifficulty'].history.length, 2);
+    assert.deepStrictEqual(db.docs['sfPoolHistory/e7'], e7, 'epoch record untouched');
+    // a run that lost the race to another run for the same epoch writes nothing
+    const db3 = fakeDb({ 'payout_config/favorDifficulty': migratedSeed(), 'sfPoolHistory/e7': e7 });
+    const racedTx = db3.runTransaction;
+    db3.runTransaction = async (fn) => { db3.docs['payout_config/favorDifficulty'].lastRetargetEpoch = 7; return racedTx(fn); };
+    assert.deepStrictEqual(await fd.runRetarget(db3, null, now), { skipped: 'raced' });
+    assert.strictEqual(db3.docs['payout_config/favorDifficulty'].target, 25000);
+});
+
+test('slow epoch eases, missing anchor falls back to the previous epoch record, two closed epochs = one step', async () => {
+    const e7Closed = E6_CLOSED + 21 * DAY;
+    const seed = migratedSeed({ lastRetargetEpochClosedMs: undefined });
+    delete seed.lastRetargetEpochClosedMs;
+    const db = fakeDb({ 'payout_config/favorDifficulty': seed, 'sfPoolHistory/e6': { epochNumber: 6, completedAt: E6_CLOSED },
+        'sfPoolHistory/e7': { epochNumber: 7, completedAt: e7Closed } });
+    const r = await fd.runRetarget(db, null, e7Closed + 1000);
+    assert.strictEqual(r.target, 37500);
+    const noAnchor = fakeDb({ 'payout_config/favorDifficulty': seed, 'sfPoolHistory/e7': { epochNumber: 7, completedAt: e7Closed } });
+    assert.deepStrictEqual(await fd.runRetarget(noAnchor, null, e7Closed + 1000), { skipped: 'no_epoch_start', epoch: 7 });
+    assert.strictEqual(noAnchor.docs['payout_config/favorDifficulty'].target, 25000);
+    const two = fakeDb({ 'payout_config/favorDifficulty': migratedSeed(),
+        'sfPoolHistory/e7': { epochNumber: 7, completedAt: E6_CLOSED + 2 * DAY },
+        'sfPoolHistory/e8': { epochNumber: 8, completedAt: E6_CLOSED + 3 * DAY } });
+    const r2 = await fd.runRetarget(two, null, E6_CLOSED + 3 * DAY + 1000);
+    assert.strictEqual(r2.target, 6250, 'one clamped 4x step, not 16x');
+    assert.strictEqual(r2.epochs, 2);
+    assert.strictEqual(two.docs['payout_config/favorDifficulty'].lastRetargetEpoch, 8);
+    const missing = await fd.runRetarget(fakeDb({}), null, Date.now());
     assert.strictEqual(missing.skipped, 'missing');
+});
+
+test('migration script is dry-run by default and refuses to write without --apply', () => {
+    const m = read('scripts/migrate-favor-epoch-retarget.js');
+    assert.ok(m.includes("process.argv.includes('--apply')"));
+    assert.ok(/if \(!APPLY\)[^\n]*return/.test(m));
+    assert.ok(m.includes('lastRetargetEpoch'));
+    assert.ok(m.includes("refusing: already migrated"));
+    assert.ok(!/\.delete\(\)|recursiveDelete|sfPoolHistory'\)\.doc\([^)]*\)\.(set|update)/.test(m), 'never deletes or rewrites epoch records');
 });
 
 test('retarget pays nothing and binds no secrets', () => {
@@ -190,7 +309,16 @@ test('client merges server history and reads the live target, odds and next date
     assert.ok(src.includes("db.collection('satoshiFavor').doc('difficultyStats').get()"));
     assert.ok(src.includes("That\\'s a 1 in ' + _sfOddsText()"));
     assert.ok(!src.includes('1:5,000</div>'));
-    assert.ok(read('quests.js').includes('Next difficulty adjustment: '));
+    const q = read('quests.js');
+    assert.ok(q.includes('Next difficulty adjustment: '));
+    assert.ok(q.includes("'when Epoch #' + _nextEpoch + ' fills 5/5'"));
+    assert.ok(q.includes("'when the current epoch fills 5/5'"));
+    assert.ok(!q.includes('SF_DIFFICULTY_NEXT_RETARGET_MS'));
+    assert.ok(!q.includes('(about every 14 days)'));
+    assert.ok(src.includes('window.SF_DIFFICULTY_NEXT_RETARGET_EPOCH'));
+    assert.ok(read('resets.html').includes('When an epoch fills 5/5'));
+    assert.ok(!read('resets.html').includes('RETARGET_DAYS'));
+    assert.ok(read('terms.html').includes('adjusted each time an epoch fills 5 of 5 blocks'));
 });
 
 Promise.all(queue).then(() => {
