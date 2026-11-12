@@ -58,7 +58,7 @@ const BATCHES = [
     { name: 'admin kill switch (gen1 callable + auto-return tick)', fns: ['adminSetKillSwitch', 'killSwitchAutoReturnTick'] },
     { name: 'gen2 schedules + referral/X triggers', fns: ['scheduleRaidBoss', 'scheduleRaidBossCatchup', 'refreshHotTopics', 'tweetSatoshisFavor', 'onUserReferral', 'payQualifiedReferrals'] },
     { name: 'gen1 hot topics, Strava, referral callables', fns: ['refreshHotTopicsHttp', 'refreshHotTopicsForce', 'stravaAuth', 'syncStravaWalks', 'verifyReferral', 'registerReferral'] },
-    { name: 'account security: TOTP, username, email change, delete', fns: ['totpSetup', 'totpVerify', 'totpCheck', 'totpDisable', 'totpStepUp', 'regenerateRecoveryCodes', 'recordKnownPhoneFactor', 'setUsername', 'prepareEmailChange', 'syncEmailChange', 'confirmAccountLink', 'deleteAccount'] },
+    { name: 'account security: TOTP, username, email change, delete', fns: ['totpSetup', 'totpVerify', 'totpCheck', 'totpDisable', 'totpStepUp', 'regenerateRecoveryCodes', 'recordKnownPhoneFactor', 'adminResetSecondFactor', 'setUsername', 'prepareEmailChange', 'syncEmailChange', 'confirmAccountLink', 'deleteAccount'] },
     { name: 'wallet / NWC (last)', fns: ['getFaucetStats', 'confirmTipSent', 'adminResolveCipherSatsClaim', 'resetLightningAddressOnce', 'claimSats', 'claimCipherSats', 'claimCipherWin', 'tctvDripTick'] },
 ];
 

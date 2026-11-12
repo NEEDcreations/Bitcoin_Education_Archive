@@ -116,10 +116,27 @@ test('pure: factorEstablished = enrolled 24h+ ago only (A1b: sign-in time does n
     assert.strictEqual(m.uidHint, 'abcd\u2026');
     assert.ok(/^[0-9a-f]{16}$/.test(m.uidHash) && m.uidHash.indexOf('abcdEFGH') === -1);
 });
-test('source: App Check on adminResetSecondFactor; action registered', () => {
+test('source: App Check, TOTP key, and runtime SA on adminResetSecondFactor; action registered', () => {
     const src = fs.readFileSync(path.join(root, 'functions', 'src', 'secondFactor.js'), 'utf8');
-    assert.ok(src.indexOf('const adminResetSecondFactor = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(') > 0);
+    const fn = src.slice(src.indexOf('const adminResetSecondFactor = '), src.indexOf('await requireAdminStepUp(stamp(data, context), \'adminResetSecondFactor\')'));
+    assert.ok(fn.indexOf('enforceAppCheck: true') > 0);
+    assert.ok(fn.indexOf("secrets: ['TOTP_ENCRYPTION_KEY']") > 0);
+    assert.ok(fn.indexOf("runtimeSa('adminResetSecondFactor')") > 0);
     assert.ok(/adminResetSecondFactor: true,/.test(src.slice(src.indexOf('const FRESH_ACTIONS'), src.indexOf('const RECOVERY_COUNT'))));
+});
+test('source: other step-up callables that decrypt TOTP also bind TOTP_ENCRYPTION_KEY', () => {
+    const del = fs.readFileSync(path.join(root, 'functions', 'src', 'deleteAccount.js'), 'utf8');
+    const delBind = del.slice(del.indexOf('function bindDeleteAccount'), del.indexOf('module.exports'));
+    assert.ok(delBind.indexOf("TOTP_ENCRYPTION_KEY") > 0);
+    const email = fs.readFileSync(path.join(root, 'functions', 'src', 'emailChange.js'), 'utf8');
+    const emailBind = email.slice(email.indexOf('function bindEmailChange'), email.indexOf('module.exports'));
+    assert.ok(emailBind.indexOf("prepareEmailChange: onCall('prepareEmailChange', handlers.prepareEmailChange, false, true)") > 0);
+    assert.ok(emailBind.indexOf("confirmAccountLink: onCall('confirmAccountLink', handlers.confirmAccountLink, false, true)") > 0);
+    assert.ok(emailBind.indexOf("syncEmailChange: onCall('syncEmailChange', handlers.syncEmailChange, true)") > 0);
+    assert.ok(emailBind.indexOf("[secret, 'TOTP_ENCRYPTION_KEY']") > 0);
+    const ln = fs.readFileSync(path.join(root, 'functions', 'src', 'resetLightningAddress.js'), 'utf8');
+    const lnBind = ln.slice(ln.indexOf('function bindResetLightningAddress'), ln.indexOf('module.exports'));
+    assert.ok(lnBind.indexOf("TOTP_ENCRYPTION_KEY") > 0);
 });
 test('refuses a non-admin', async () => {
     const { api } = setup({ a1: { claims: { admin: true }, phoneAtMs: NOW - 2 * DAY }, t1: {} });

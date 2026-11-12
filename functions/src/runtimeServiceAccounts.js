@@ -42,6 +42,7 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     adminBanUser: { id: 'fn-admin-ban-user', extra: [] },
     adminLookupUser: { id: 'fn-admin-lookup-user', extra: [] },
     adminQueryUsers: { id: 'fn-admin-query-users', extra: [] },
+    adminResetSecondFactor: { id: 'fn-admin-reset-second', extra: ['auth'] },
     adminResolveCipherSatsClaim: { id: 'fn-admin-resolve-cipher-claim', extra: [] },
     adminSetKillSwitch: { id: 'fn-admin-kill-switch', extra: ['backups', 'killSwitchExport', 'authViewer'] },
     killSwitchAutoReturnTick: { id: 'fn-admin-kill-switch', extra: ['backups', 'killSwitchExport', 'authViewer'] },

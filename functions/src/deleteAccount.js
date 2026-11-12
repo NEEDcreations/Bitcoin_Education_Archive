@@ -1544,7 +1544,7 @@ function bindDeleteAccount(functionsV1, admin, db, secrets) {
             timeoutSeconds: 540,
             memory: '1GB',
             enforceAppCheck: true,
-            secrets: secrets || [],
+            secrets: (secrets || []).concat(['TOTP_ENCRYPTION_KEY']),
             serviceAccount: runtimeSa('deleteAccount'),
         }).https.onCall(handlers.deleteAccount),
     };

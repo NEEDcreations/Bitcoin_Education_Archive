@@ -1,0 +1,9 @@
+# Optional. The required hook is githooks/pre-commit (git config core.hooksPath githooks).
+# This file lets contributors who already use the pre-commit framework run the
+# same official Betterleaks hook: https://github.com/betterleaks/betterleaks
+repos:
+  - repo: https://github.com/betterleaks/betterleaks
+    # v2.0.0-rc.7 (latest v2 release; no stable v2.0.0 yet)
+    rev: 8f376ff9c31ed5309ac448fe601c5dd21b376155
+    hooks:
+      - id: betterleaks
