@@ -66,6 +66,7 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     onMarketplaceShoutoutUpdated: { id: 'fn-on-mkt-so-updated', extra: [] },
     onUserReferral: { id: 'fn-on-user-referral', extra: ['auth', 'fcm'] },
     payQualifiedReferrals: { id: 'fn-pay-qualified-referrals', extra: ['auth', 'fcm'] },
+    payoutFloatWatch: { id: 'fn-payout-float-watch', extra: ['auth'] },
     prepareEmailChange: { id: 'fn-prepare-email-change', extra: ['auth'] },
     refreshBadgeDistributionHttp: { id: 'fn-refresh-badge-dist-http', extra: ['auth', 'storage'] },
     refreshHotTopics: { id: 'fn-refresh-hot-topics', extra: ['fcm'] },

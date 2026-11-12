@@ -122,15 +122,18 @@ test('each reader binds only the secrets it uses', function () {
     }
     assert.strictEqual(count('adminTokenSecret'), 13);
     assert.strictEqual(count('turnstileSecret'), 3);
-    assert.ok(read('src/gifting.js').includes("secrets: [deletionHmacSecret, nwcUrlSecret, require('./sensitiveSecrets').turnstileSecret]"));
+    assert.ok(read('src/gifting.js').includes("secrets: [deletionHmacSecret, nwcUrlSecret, require('./sensitiveSecrets').turnstileSecret, require('./payoutGuardSecret').payoutGuardSecret]"));
+    // #286: the anti-drain HMAC key binds on exactly the three payout callables.
+    assert.strictEqual(count('payoutGuardSecret'), 3);
     assert.strictEqual(count('stravaClientSecretParam'), 2);
     assert.strictEqual(count('hotTopicSecrets'), 3);
     assert.strictEqual(count('xPostSecrets'), 1);
     assert.strictEqual(count('tgBotTokenSecret'), 14);
     assert.strictEqual(count('bridgeSecretParam'), 0);
     assert.strictEqual(count('CF_API_TOKEN'), 0);
-    assert.strictEqual(count('nwcUrlSecret'), 7);
-    assert.ok(index.includes('secrets: [deletionHmacSecret, nwcUrlSecret, turnstileSecret]'));
+    // +1 in #286: payoutFloatWatch (10-minute wallet drain check) reads the balance.
+    assert.strictEqual(count('nwcUrlSecret'), 8);
+    assert.ok(index.includes("secrets: [deletionHmacSecret, nwcUrlSecret, turnstileSecret, require('./src/payoutGuardSecret').payoutGuardSecret]"));
     assert.ok(index.includes('secrets: [adminTokenSecret].concat(hotTopicSecrets)'));
     assert.ok(read('src/handleTelegramReaction.js').includes("secrets: ['TG_WEBHOOK_SECRET']"));
     assert.ok(read('src/handleTelegramReaction.js').includes("secrets: ['TG_WEBHOOK_SECRET', tgBotTokenSecret, adminTokenSecret]"));
