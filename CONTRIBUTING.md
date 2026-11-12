@@ -43,7 +43,7 @@ Do not use `git commit --no-verify` or otherwise skip this hook.
 
 People who already use the [pre-commit](https://pre-commit.com) framework can also install `.pre-commit-config.yaml`, which runs the same official Betterleaks hook. The tracked `githooks/pre-commit` path is still required so commits are scanned without that framework.
 
-CI runs `.github/workflows/secret-scan.yml` on pull requests, pushes to every branch (including `gh-pages`), and `workflow_dispatch`. It installs a pinned, checksum-verified Betterleaks and scans new commits in detection-only mode (`--redact`, no `--validate`).
+CI runs `.github/workflows/secret-scan.yml` on pull requests, pushes to every branch (including `gh-pages`), and `workflow_dispatch`. It installs a pinned, checksum-verified Betterleaks and scans new commits in detection-only mode (`--redact`, no `--validate`). A first push of a new branch, or a manual run without the full-history option, scans from the merge-base with `origin/gh-pages` (or only that commit if there is no merge-base). Full-history scans are a separate manual `workflow_dispatch` job.
 
 A small `.betterleaksignore` allowlists only public client config (the live and staging Firebase web API keys, the public reCAPTCHA v3 site key, and the public Web Push VAPID key), documented false positives, and emulator-only test fixture passwords. Never add a real server secret to that file.
 
