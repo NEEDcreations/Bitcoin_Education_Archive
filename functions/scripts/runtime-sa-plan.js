@@ -15,7 +15,34 @@
 const path = require('path');
 const { RUNTIME_SERVICE_ACCOUNTS, EXTRA_ROLES } = require('../src/runtimeServiceAccounts');
 
-const PROJECT = process.env.GCLOUD_PROJECT || 'bitcoin-education-archive';
+const LIVE_PROJECT = 'bitcoin-education-archive';
+
+function projectIdFrom(argv, env) {
+    argv = argv || process.argv.slice(2);
+    env = env || process.env;
+    for (let i = 0; i < argv.length; i++) {
+        const a = argv[i];
+        if (a === '--project' && argv[i + 1] && argv[i + 1].charAt(0) !== '-') return argv[i + 1];
+        if (a.indexOf('--project=') === 0) return a.slice(10);
+    }
+    return env.GCLOUD_PROJECT || LIVE_PROJECT;
+}
+
+// A leftover staging BQ_BACKUP_BUCKET must never be used to plan IAM or
+// export paths for live. Staging may set it; live uses <project>-backups.
+function assertLiveBackupBucketUnset(project, bucket) {
+    if (bucket === undefined) bucket = process.env.BQ_BACKUP_BUCKET;
+    if (project === LIVE_PROJECT && bucket) {
+        throw new Error(
+            'BQ_BACKUP_BUCKET is set while planning for ' + LIVE_PROJECT
+            + '. Unset it (`unset BQ_BACKUP_BUCKET`) so live IAM and exports use '
+            + LIVE_PROJECT + '-backups.'
+        );
+    }
+}
+
+const PROJECT = projectIdFrom();
+assertLiveBackupBucketUnset(PROJECT);
 const REGION = 'us-central1';
 const DEFAULT_BUCKET = process.env.BQ_DEFAULT_BUCKET || 'bitcoin-education-archive.firebasestorage.app';
 const BACKUP_BUCKET = process.env.BQ_BACKUP_BUCKET || (PROJECT + '-backups');
@@ -172,7 +199,7 @@ function markdown(plan) {
     return out.join('\n');
 }
 
-module.exports = { BATCHES: BATCHES, NEVER_DEPLOY: NEVER_DEPLOY, loadEndpoints: loadEndpoints, buildPlan: buildPlan, gcloudFor: gcloudFor, markdown: markdown };
+module.exports = { BATCHES: BATCHES, NEVER_DEPLOY: NEVER_DEPLOY, LIVE_PROJECT: LIVE_PROJECT, projectIdFrom: projectIdFrom, assertLiveBackupBucketUnset: assertLiveBackupBucketUnset, loadEndpoints: loadEndpoints, buildPlan: buildPlan, gcloudFor: gcloudFor, markdown: markdown };
 
 if (require.main === module) {
     const plan = buildPlan(loadEndpoints());

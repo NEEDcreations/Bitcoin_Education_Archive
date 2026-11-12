@@ -21,7 +21,7 @@ Angle brackets are stripped from the reason so it cannot carry markup into notic
 
 ## Backup IAM (fn-admin-kill-switch)
 
-Phil (or someone with `resourcemanager.projects.setIamPolicy` and bucket IAM) must create the custom role and bind it. `rufus2-deploy` cannot create service accounts or custom roles. The setup script is `functions/scripts/runtime-sa-plan.js` (batch “admin kill switch”).
+Phil (or someone with `resourcemanager.projects.setIamPolicy` and bucket IAM) must create the custom role and bind it. `rufus2-deploy` cannot create service accounts or custom roles. The setup script is `functions/scripts/runtime-sa-plan.js` (batch “admin kill switch”). Before printing a live plan, `unset BQ_BACKUP_BUCKET`. The script also refuses to run if that variable is set and the project is `bitcoin-education-archive` (from `--project` or `GCLOUD_PROJECT`).
 
 The runtime SA must **not** be able to import over live data or delete nightlies.
 
@@ -61,7 +61,7 @@ gcloud projects add-iam-policy-binding "$P" \
   --condition=None
 ```
 
-Repeat for staging (`bitcoin-quest-staging`, bucket `bitcoin-quest-staging-backups-use1` in us-east1, matching staging Firestore). The default-named `bitcoin-quest-staging-backups` bucket is in us-central1 and cannot receive managed exports from that database. Point the staging function at the us-east1 bucket with `BQ_BACKUP_BUCKET`; do not set that env var on live, which already uses the compatible US multi-region `bitcoin-education-archive-backups`.
+Repeat for staging (`bitcoin-quest-staging`, bucket `bitcoin-quest-staging-backups-use1` in us-east1, matching staging Firestore). The default-named `bitcoin-quest-staging-backups` bucket is in us-central1 and cannot receive managed exports from that database. A staging Firebase deploy picks this up from `functions/.env.bitcoin-quest-staging` (`BQ_BACKUP_BUCKET=bitcoin-quest-staging-backups-use1`). That file is loaded only for `--project bitcoin-quest-staging`. Do not add `functions/.env` or a live `.env.bitcoin-education-archive`; live keeps the default US multi-region `bitcoin-education-archive-backups`.
 
 The function only lists/reads existing export metadata and **creates** objects under a unique `kill-switch/<timestamp>/` prefix (manifest `save` uses `ifGenerationMatch: 0` so it will not overwrite). It never deletes or overwrites backup objects. Do **not** grant `roles/storage.objectAdmin` or `roles/datastore.importExportAdmin`.
 

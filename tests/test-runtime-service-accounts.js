@@ -194,5 +194,20 @@ test('kill-switch SA gets auth viewer for listUsers, not auth admin', function (
     });
 });
 
+test('runtime-sa-plan refuses BQ_BACKUP_BUCKET when the project is live', function () {
+    assert.throws(function () {
+        planMod.assertLiveBackupBucketUnset('bitcoin-education-archive', 'bitcoin-quest-staging-backups-use1');
+    }, /BQ_BACKUP_BUCKET/);
+    assert.doesNotThrow(function () {
+        planMod.assertLiveBackupBucketUnset('bitcoin-education-archive', '');
+        planMod.assertLiveBackupBucketUnset('bitcoin-education-archive', undefined);
+        planMod.assertLiveBackupBucketUnset('bitcoin-quest-staging', 'bitcoin-quest-staging-backups-use1');
+    });
+    assert.strictEqual(planMod.projectIdFrom(['--project', 'bitcoin-quest-staging'], {}), 'bitcoin-quest-staging');
+    assert.strictEqual(planMod.projectIdFrom(['--project=bitcoin-education-archive'], { GCLOUD_PROJECT: 'bitcoin-quest-staging' }), 'bitcoin-education-archive');
+    assert.strictEqual(planMod.projectIdFrom([], { GCLOUD_PROJECT: 'bitcoin-quest-staging' }), 'bitcoin-quest-staging');
+    assert.strictEqual(planMod.projectIdFrom([], {}), 'bitcoin-education-archive');
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);
