@@ -30,6 +30,7 @@ const FRESH_ACTIONS = {
     unlinkProvider: true,
     clearPayoutHold: true, // #285 admin Clear Hold (Spam/Abuse + Red Team follow-up)
     adminResetSecondFactor: true,
+    adminSetKillSwitch: true,
 };
 const RECOVERY_COUNT = 10;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1664,6 +1665,7 @@ function initSecondFactor(deps) {
         totpSignOutOtherDevices: totpSignOutOtherDevices,
         totpRevokeAllTrust: totpRevokeAllTrust,
         requireFreshStepUp: requireFreshStepUp,
+        requireAdminStepUp: requireAdminStepUp,
         issueRecoveryCodes: issueRecoveryCodes,
         regenerateRecoveryCodes: regenerateRecoveryCodes,
         useRecoveryCode: useRecoveryCode,
@@ -1690,12 +1692,12 @@ function requireSecondFactor(context) {
     return requireReady().requireSecondFactor(context);
 }
 
-function requireAdminStepUp(context, action) {
-    return requireReady().requireAdminStepUp(context, action);
-}
-
 function requireFreshStepUp(context, action) {
     return requireReady().requireFreshStepUp(context, action);
+}
+
+function requireAdminStepUp(context, action) {
+    return requireReady().requireAdminStepUp(context, action);
 }
 
 // Same delete the scheduled lobby cleanup runs. nowDate is the cutoff so a

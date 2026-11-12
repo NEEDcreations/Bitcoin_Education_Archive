@@ -18,6 +18,7 @@ const { RUNTIME_SERVICE_ACCOUNTS, EXTRA_ROLES } = require('../src/runtimeService
 const PROJECT = process.env.GCLOUD_PROJECT || 'bitcoin-education-archive';
 const REGION = 'us-central1';
 const DEFAULT_BUCKET = process.env.BQ_DEFAULT_BUCKET || 'bitcoin-education-archive.firebasestorage.app';
+const BACKUP_BUCKET = process.env.BQ_BACKUP_BUCKET || (PROJECT + '-backups');
 // Set BQ_DEPLOYER_SA to the deploy identity's email when printing commands.
 const DEPLOYER = process.env.BQ_DEPLOYER_SA || '<deployer-sa-email>';
 const NEVER_DEPLOY = ['adminApproveFactionPayout'];
@@ -27,6 +28,7 @@ const BATCHES = [
     { name: 'canary: admin read-only HTTP (gen1)', fns: ['dailyActiveUsers', 'adminLookupUser', 'adminQueryUsers', 'watchlistCheck', 'auditWithdrawals'] },
     { name: 'admin tools + Telegram webhook (gen1)', fns: ['adminBanUser', 'adminUnbanUser', 'investigateUsers', 'backfillJoinDates', 'refreshBadgeDistributionHttp', 'setTelegramWebhook', 'handleTelegramWebhook'] },
     { name: 'Telegram mirrors (gen2 Firestore triggers + schedule)', fns: ['onGlobalChatTelegram', 'onGlobalChatTelegramUpdated', 'onGlobalChatTelegramDeleted', 'onAnnouncementsTelegram', 'onAnnouncementsTelegramUpdated', 'onAnnouncementsTelegramDeleted', 'onForumShoutoutUpdated', 'onForumShoutoutDeleted', 'onMarketplaceShoutoutUpdated', 'onMarketplaceShoutoutDeleted', 'flushTelegramMirror'] },
+    { name: 'admin kill switch (gen1 callable + auto-return tick)', fns: ['adminSetKillSwitch', 'killSwitchAutoReturnTick'] },
     { name: 'gen2 schedules + referral/X triggers', fns: ['scheduleRaidBoss', 'scheduleRaidBossCatchup', 'refreshHotTopics', 'tweetSatoshisFavor', 'onUserReferral', 'payQualifiedReferrals'] },
     { name: 'gen1 hot topics, Strava, referral callables', fns: ['refreshHotTopicsHttp', 'refreshHotTopicsForce', 'stravaAuth', 'syncStravaWalks', 'verifyReferral', 'registerReferral'] },
     { name: 'account security: TOTP, username, email change, delete', fns: ['totpSetup', 'totpVerify', 'totpCheck', 'totpDisable', 'totpStepUp', 'regenerateRecoveryCodes', 'recordKnownPhoneFactor', 'setUsername', 'prepareEmailChange', 'syncEmailChange', 'confirmAccountLink', 'deleteAccount'] },
@@ -66,7 +68,7 @@ function buildPlan(endpoints) {
         if (!ep) throw new Error('manifest function is not exported: ' + name);
         const email = entry.id + '@' + PROJECT + '.iam.gserviceaccount.com';
         const projectRoles = ['roles/datastore.user'];
-        entry.extra.forEach(function (x) { if (x !== 'storage') projectRoles.push(EXTRA_ROLES[x]); });
+        entry.extra.forEach(function (x) { if (x !== 'storage' && x !== 'backups') projectRoles.push(EXTRA_ROLES[x]); });
         if (ep.gen === 2 && ep.trigger === 'event') projectRoles.push('roles/eventarc.eventReceiver');
         fns[name] = {
             id: entry.id,
@@ -75,7 +77,20 @@ function buildPlan(endpoints) {
             trigger: ep.trigger,
             secrets: ep.secrets,
             projectRoles: projectRoles,
-            bucketRoles: entry.extra.indexOf('storage') !== -1 ? [{ bucket: DEFAULT_BUCKET, role: EXTRA_ROLES.storage }] : [],
+            bucketRoles: [].concat(
+                entry.extra.indexOf('storage') !== -1 ? [{ bucket: DEFAULT_BUCKET, role: EXTRA_ROLES.storage }] : [],
+                entry.extra.indexOf('backups') !== -1 ? [
+                    {
+                        bucket: BACKUP_BUCKET,
+                        role: 'roles/storage.objectCreator',
+                        condition: {
+                            title: 'kill-switch-prefix-only',
+                            description: 'Create objects only under kill-switch/; no delete',
+                            expression: "resource.name.startsWith('projects/_/buckets/" + BACKUP_BUCKET + "/objects/kill-switch/')",
+                        },
+                    },
+                    { bucket: BACKUP_BUCKET, role: 'roles/storage.objectViewer' },
+                ] : []),
             // Gen2 event + schedule triggers now authenticate as this account.
             selfInvoker: ep.gen === 2 && (ep.trigger === 'event' || ep.trigger === 'schedule'),
         };
@@ -87,20 +102,48 @@ function gcloudFor(plan, batchIndex) {
     const b = plan.batches[batchIndex];
     const P = plan.project;
     const lines = ['# Batch ' + (batchIndex + 1) + ': ' + b.name + ' (' + b.fns.length + ' functions)', 'set -euo pipefail', 'P=' + P];
+    const needsExportRole = b.fns.some(function (name) {
+        const f = plan.functions[name];
+        return f.projectRoles.some(function (r) { return /roles\/killSwitchExport$/.test(r); });
+    });
+    if (needsExportRole) {
+        lines.push('', '# Custom role: export + operations.get only (cannot import over live data).');
+        lines.push('gcloud iam roles describe killSwitchExport --project "$P" >/dev/null 2>&1 || gcloud iam roles create killSwitchExport --project "$P" --title "Kill switch Firestore export" --description "Start a managed Firestore export and poll the operation. Cannot import." --permissions datastore.databases.export,datastore.operations.get');
+        lines.push('gcloud iam roles update killSwitchExport --project "$P" --permissions datastore.databases.export,datastore.operations.get');
+        lines.push('');
+        lines.push('# Versioning + lifecycle on the backups bucket. --lifecycle-file REPLACES the');
+        lines.push('# whole policy, so docs/kill-switch-lifecycle.json keeps the existing 90-day');
+        lines.push('# delete on nightlies, adds a 90-day delete for kill-switch/, and deletes');
+        lines.push('# noncurrent versions after 30 days. Re-read the live config and do not apply');
+        lines.push('# until Phil says so. Never run this against the live bucket from a script.');
+        lines.push('# gcloud storage buckets describe gs://' + BACKUP_BUCKET + " --format='json(lifecycle_config)'");
+        lines.push('# gcloud storage buckets update gs://' + BACKUP_BUCKET + ' --versioning');
+        lines.push('# gcloud storage buckets update gs://' + BACKUP_BUCKET + ' --lifecycle-file=docs/kill-switch-lifecycle.json');
+    }
+    const seenCmd = {};
+    function pushOnce(line) {
+        if (seenCmd[line]) return;
+        seenCmd[line] = true;
+        lines.push(line);
+    }
     b.fns.forEach(function (name) {
         const f = plan.functions[name];
         const m = 'serviceAccount:' + f.email;
         lines.push('', '# ' + name + ' (gen' + f.gen + ' ' + f.trigger + ')');
-        lines.push('gcloud iam service-accounts create ' + f.id + ' --project "$P" --display-name "BQ runtime ' + name + '" --description "Runtime SA for Cloud Function ' + name + ' only"');
-        lines.push('gcloud iam service-accounts add-iam-policy-binding ' + f.email + ' --project "$P" --member serviceAccount:' + plan.deployer + ' --role roles/iam.serviceAccountUser --condition=None');
+        pushOnce('gcloud iam service-accounts create ' + f.id + ' --project "$P" --display-name "BQ runtime ' + name + '" --description "Runtime SA for Cloud Function ' + name + ' only"');
+        pushOnce('gcloud iam service-accounts add-iam-policy-binding ' + f.email + ' --project "$P" --member serviceAccount:' + plan.deployer + ' --role roles/iam.serviceAccountUser --condition=None');
         f.projectRoles.forEach(function (r) {
-            lines.push('gcloud projects add-iam-policy-binding "$P" --member ' + m + ' --role ' + r + ' --condition=None');
+            pushOnce('gcloud projects add-iam-policy-binding "$P" --member ' + m + ' --role ' + r + ' --condition=None');
         });
         f.bucketRoles.forEach(function (br) {
-            lines.push('gcloud storage buckets add-iam-policy-binding gs://' + br.bucket + ' --member ' + m + ' --role ' + br.role);
+            let cmd = 'gcloud storage buckets add-iam-policy-binding gs://' + br.bucket + ' --member ' + m + ' --role ' + br.role;
+            if (br.condition) {
+                cmd += ' --condition="expression=' + br.condition.expression + ',title=' + br.condition.title + ',description=' + br.condition.description + '"';
+            }
+            pushOnce(cmd);
         });
         f.secrets.forEach(function (s) {
-            lines.push('gcloud secrets add-iam-policy-binding ' + s + ' --project "$P" --member ' + m + ' --role roles/secretmanager.secretAccessor --condition=None');
+            pushOnce('gcloud secrets add-iam-policy-binding ' + s + ' --project "$P" --member ' + m + ' --role roles/secretmanager.secretAccessor --condition=None');
         });
         if (f.selfInvoker) {
             lines.push('gcloud run services add-iam-policy-binding ' + name.toLowerCase() + ' --project "$P" --region ' + plan.region + ' --member ' + m + ' --role roles/run.invoker');

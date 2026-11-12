@@ -7,6 +7,27 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.get('admin', false) == true;
     }
 
+    // Kill switch. exists()+get() on one doc; Firestore caches that get
+    // for the request (one extra read per write evaluation, not per
+    // condition). Admins can still write so they can use Admin tools
+    // and turn the app back on. Reads stay allowed (the maintenance page
+    // must read this flag). clientWritesOk() is on every non-admin
+    // client write so the switch also contains a content attack (forum
+    // XSS, chat, marketplace, DMs) while the app is offline.
+    function appIsOffline() {
+      let ksPath = /databases/$(database)/documents/config/killSwitch;
+      return exists(ksPath)
+        && get(ksPath).data.enabled == true
+        && (
+          !('autoReenableAt' in get(ksPath).data)
+          || get(ksPath).data.autoReenableAt == null
+          || get(ksPath).data.autoReenableAt > request.time
+        );
+    }
+    function clientWritesOk() {
+      return isAdmin() || !appIsOffline();
+    }
+
     // Client-created notification ids. Server Admin SDK writes are not checked here.
     function notifIdOk(v) {
       return v is string && v.matches('^[A-Za-z0-9_-]{1,64}$');
@@ -249,6 +270,7 @@ service cloud.firestore {
       // and must never be supplied by the client.
       allow create: if request.auth != null
                     && request.auth.uid == userId
+                    && clientWritesOk()
                     && request.resource.data.keys().hasOnly([
                         // Identity / profile
                         'profilePic',
@@ -288,6 +310,7 @@ service cloud.firestore {
       // save validates just the keys in this write.
       allow update: if request.auth != null
                     && request.auth.uid == userId
+                    && clientWritesOk()
                     && (profileUpdateBlocked() ? false : profileShapeOk());
 
       function profileUpdateBlocked() {
@@ -524,14 +547,14 @@ service cloud.firestore {
       // Playlists subcollection
       match /playlists/{playlistId} {
         allow read: if request.auth != null;
-        allow create: if request.auth != null
+        allow create: if clientWritesOk() && (request.auth != null
                       && request.auth.uid == userId
                       && request.resource.data.name is string
-                      && request.resource.data.name.size() <= 60;
-        allow update: if request.auth != null
-                      && request.auth.uid == userId;
-        allow delete: if request.auth != null
-                      && request.auth.uid == userId;
+                      && request.resource.data.name.size() <= 60);
+        allow update: if clientWritesOk() && (request.auth != null
+                      && request.auth.uid == userId);
+        allow delete: if clientWritesOk() && (request.auth != null
+                      && request.auth.uid == userId);
       }
 
       // Nook shop purchase history — owner read only, Cloud Function writes
@@ -549,8 +572,8 @@ service cloud.firestore {
       match /notifications/{notifId} {
         allow read: if request.auth != null && request.auth.uid == userId;
         // Owner can mark as read (update only); Cloud Function creates via Admin SDK
-        allow update: if request.auth != null && request.auth.uid == userId
-                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+        allow update: if clientWritesOk() && (request.auth != null && request.auth.uid == userId
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']));
         allow create, delete: if false; // Cloud Function (Admin SDK) only
       }
     }
@@ -579,21 +602,21 @@ service cloud.firestore {
       // [SECURITY FIX H-2] Require auth and uid == visitorId on both create and update.
       // Previously create had no auth check at all, and update never verified uid == visitorId.
       // Any signed-in user could write/overwrite any visitor's fp, poisoning the ban signal.
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && request.auth.uid == visitorId
                     && request.resource.data.keys().hasOnly(['lastVisit', 'fp'])
                     && request.resource.data.lastVisit is string
                     && request.resource.data.lastVisit.size() == 10
                     && request.resource.data.fp is string
-                    && request.resource.data.fp.size() <= 64;
-      allow update: if request.auth != null
+                    && request.resource.data.fp.size() <= 64);
+      allow update: if clientWritesOk() && (request.auth != null
                     && request.auth.uid == visitorId
                     && request.resource.data.keys().hasOnly(['lastVisit', 'fp'])
                     && request.resource.data.lastVisit is string
                     && request.resource.data.lastVisit.size() == 10
                     && request.resource.data.lastVisit != resource.data.lastVisit
                     && request.resource.data.fp is string
-                    && request.resource.data.fp.size() <= 64;
+                    && request.resource.data.fp.size() <= 64);
     }
 
     // =============================================
@@ -605,11 +628,11 @@ service cloud.firestore {
       // any signed-in user, including anonymous, may read them. A signed-out
       // read is denied. Every other stats doc stays public.
       allow read: if !statId.matches('lb_.*') || request.auth != null;
-      allow update: if request.auth != null
+      allow update: if clientWritesOk() && (request.auth != null
                     && statId == 'visits'
-                    && request.resource.data.total == resource.data.total + 1;
-      allow create: if request.auth != null
-                    && statId == 'visits';
+                    && request.resource.data.total == resource.data.total + 1);
+      allow create: if clientWritesOk() && (request.auth != null
+                    && statId == 'visits');
       // stats/nacho-analytics is written only by recordNachoAnalytics.
       // A signed-in client used to create and set these counters to any value.
       // No write rule matches statId == 'nacho-analytics'. Clients can still read it.
@@ -642,13 +665,13 @@ service cloud.firestore {
       // are cosmetic engagement metrics only — no points, sats, or access granted.
       // Worst case: admin calls resetCommunityStats() to reset.
       // Cosmetic engagement counters only — no points, sats, or access.
-      allow update, create: if statId == 'global'
+      allow update, create: if clientWritesOk() && (statId == 'global'
                              && request.auth != null
-                             && isAdmin();
+                             && isAdmin());
       // Per-field +1 increments for non-admin authenticated users.
       // Writes must touch exactly ONE whitelisted field; the value must equal
       // the previous value + 1 (or +1..+5 for watchTimeMinutes — allows small batched TCTV ticks).
-      allow update: if statId == 'global'
+      allow update: if clientWritesOk() && (statId == 'global'
                     && request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.diff(resource.data).affectedKeys().size() == 1
@@ -671,9 +694,9 @@ service cloud.firestore {
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['watchTimeMinutes'])
                         && request.resource.data.watchTimeMinutes >= resource.data.get('watchTimeMinutes', 0) + 1
                         && request.resource.data.watchTimeMinutes <= resource.data.get('watchTimeMinutes', 0) + 5)
-                    );
+                    ));
       // Create when doc doesn't exist — same pattern, diff against empty fallback
-      allow create: if statId == 'global'
+      allow create: if clientWritesOk() && (statId == 'global'
                     && request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.keys()
@@ -681,7 +704,7 @@ service cloud.firestore {
                     && request.resource.data.keys().size() == 1
                     && request.resource.data.values()[0] is int
                     && request.resource.data.values()[0] >= 1
-                    && request.resource.data.values()[0] <= 5;
+                    && request.resource.data.values()[0] <= 5);
     }
 
     // Nacho miss and feedback counters. The client used to increment these.
@@ -696,7 +719,7 @@ service cloud.firestore {
     // resolved must be false so the open prediction is eligible for scoring.
     match /active_predictions/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && request.auth.uid == uid
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.keys().hasOnly(['uid', 'direction', 'price', 'time', 'resolved'])
@@ -705,7 +728,7 @@ service cloud.firestore {
                     && (request.resource.data.direction == 'up' || request.resource.data.direction == 'down')
                     && request.resource.data.uid == request.auth.uid
                     && request.resource.data.price > 0
-                    && request.resource.data.time == request.time;
+                    && request.resource.data.time == request.time);
       // No updates allowed — predictions are immutable once placed
       allow update: if false;
       // Clients must not delete a prediction to dodge server scoring.
@@ -755,16 +778,16 @@ service cloud.firestore {
     // =============================================
     match /suggestions/{suggestionId} {
       allow read: if false;
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && suggestionId == request.auth.uid
                     && request.resource.data.keys().hasAny(['text', 'suggestion'])
                     && ((request.resource.data.get('suggestion', '') is string && request.resource.data.get('suggestion', '').size() <= 1000)
-                       || (request.resource.data.get('text', '') is string && request.resource.data.get('text', '').size() <= 1000));
-      allow update: if request.auth != null
+                       || (request.resource.data.get('text', '') is string && request.resource.data.get('text', '').size() <= 1000)));
+      allow update: if clientWritesOk() && (request.auth != null
                     && suggestionId == request.auth.uid
                     && request.resource.data.keys().hasAny(['text', 'suggestion'])
                     && ((request.resource.data.get('suggestion', '') is string && request.resource.data.get('suggestion', '').size() <= 1000)
-                       || (request.resource.data.get('text', '') is string && request.resource.data.get('text', '').size() <= 1000));
+                       || (request.resource.data.get('text', '') is string && request.resource.data.get('text', '').size() <= 1000)));
     }
 
     // =============================================
@@ -833,12 +856,12 @@ service cloud.firestore {
     match /giveaway_entries/{entryId} {
       allow read: if false;
       // [AUDIT FIX H-3] One entry per user — force entryId == uid so duplicates are impossible
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && entryId == request.auth.uid
-                    && request.resource.data.uid == request.auth.uid;
-      allow update: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid);
+      allow update: if clientWritesOk() && (request.auth != null
                     && entryId == request.auth.uid
-                    && resource.data.uid == request.auth.uid;
+                    && resource.data.uid == request.auth.uid);
     }
 
     // =============================================
@@ -847,21 +870,23 @@ service cloud.firestore {
     // Per-user token index. The parent doc is server-managed.
     // Devices are owner-only: another user cannot read or write the token.
     match /push_tokens/{uid} {
-      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow delete: if clientWritesOk() && (request.auth != null && request.auth.uid == uid);
       // The parent doc must exist so broadcasts can list devices.
       // Clients may only touch updatedAt. Tokens live on devices/{deviceId}.
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && request.auth.uid == uid
                     && request.resource.data.keys().hasOnly(['updatedAt'])
-                    && request.resource.data.updatedAt == request.time;
-      allow update: if request.auth != null
+                    && request.resource.data.updatedAt == request.time);
+      allow update: if clientWritesOk() && (request.auth != null
                     && request.auth.uid == uid
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['updatedAt'])
-                    && request.resource.data.updatedAt == request.time;
+                    && request.resource.data.updatedAt == request.time);
 
       match /devices/{deviceId} {
-        allow read, delete: if request.auth != null && request.auth.uid == uid;
-        allow create, update: if request.auth != null
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow delete: if clientWritesOk() && (request.auth != null && request.auth.uid == uid);
+        allow create, update: if clientWritesOk() && (request.auth != null
                               && request.auth.uid == uid
                               && deviceId.matches('^[A-Za-z0-9_\\-]{8,64}$')
                               && request.resource.data.keys().hasOnly(['token', 'updatedAt', 'platform', 'ua'])
@@ -872,7 +897,7 @@ service cloud.firestore {
                               && request.resource.data.platform is string
                               && request.resource.data.platform.size() <= 40
                               && request.resource.data.ua is string
-                              && request.resource.data.ua.size() <= 160;
+                              && request.resource.data.ua.size() <= 160);
       }
     }
 
@@ -981,15 +1006,15 @@ service cloud.firestore {
 
     match /forum_posts/{postId} {
       allow read: if true;
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && request.resource.data.keys().hasAll(['title', 'authorId', 'authorName', 'createdAt'])
                     && request.resource.data.title is string
                     && request.resource.data.title.size() >= 5
                     && request.resource.data.title.size() <= 120
                     && request.resource.data.authorId == request.auth.uid
                     && forumMirrorFieldsAbsent()
-                    && (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0);
-      allow update: if request.auth != null
+                    && (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0));
+      allow update: if clientWritesOk() && (request.auth != null
                     && evidenceAuthorFrozen()
                     && (
                       isAdmin()
@@ -1014,10 +1039,10 @@ service cloud.firestore {
                       || forumAuthorMayUpdate(2000)
                         )
                       )
-                    );
-      allow delete: if request.auth != null
+                    ));
+      allow delete: if clientWritesOk() && (request.auth != null
                     && (resource.data.authorId == request.auth.uid
-                        || isAdmin());
+                        || isAdmin()));
     }
 
     // =============================================
@@ -1025,14 +1050,14 @@ service cloud.firestore {
     // =============================================
     match /forum_replies/{replyId} {
       allow read: if true;
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && request.resource.data.keys().hasAll(['postId', 'body', 'authorId', 'authorName', 'createdAt'])
                     && request.resource.data.body is string
                     && request.resource.data.body.size() >= 2
                     && request.resource.data.body.size() <= 1000
                     && request.resource.data.authorId == request.auth.uid
-                    && forumMirrorFieldsAbsent();
-      allow update: if request.auth != null
+                    && forumMirrorFieldsAbsent());
+      allow update: if clientWritesOk() && (request.auth != null
                     && evidenceAuthorFrozen()
                     && (
                       isAdmin()
@@ -1047,10 +1072,10 @@ service cloud.firestore {
                       || forumAuthorMayUpdate(1000)
                         )
                       )
-                    );
-      allow delete: if request.auth != null
+                    ));
+      allow delete: if clientWritesOk() && (request.auth != null
                     && (resource.data.authorId == request.auth.uid
-                        || isAdmin());
+                        || isAdmin()));
     }
 
     // Listing photo: https URL, or a jpeg/png/webp data URL. Blocks javascript: and other schemes.
@@ -1188,7 +1213,7 @@ service cloud.firestore {
       allow read: if true;
       // Client payload from marketplace.js submitListing(). sellerName is the
       // profile username (or empty when that username is missing).
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && listingId.matches('^[A-Za-z0-9]{20}$')
                     && request.resource.data.keys().hasOnly(['title','description','priceSats','category','condition','imageUrl','lightningAddress','shipping','localPickup','sellerUid','sellerName','sellerRank','status','views','saves','createdAt'])
@@ -1216,15 +1241,15 @@ service cloud.firestore {
                     && request.resource.data.get('sellerName', '').size() <= 40
                     && marketSellerNameMatches()
                     && request.resource.data.get('sellerRank', '') is string
-                    && request.resource.data.get('sellerRank', '').size() <= 40;
-      allow update: if request.auth != null
+                    && request.resource.data.get('sellerRank', '').size() <= 40);
+      allow update: if clientWritesOk() && (request.auth != null
                     && (marketOwnerEdit()
                         || isAdmin()
                         || marketViewBump()
-                        || marketSaveToggle());
-      allow delete: if request.auth != null
+                        || marketSaveToggle()));
+      allow delete: if clientWritesOk() && (request.auth != null
                     && (marketOwnerHardDelete()
-                        || isAdmin());
+                        || isAdmin()));
     }
 
     // =============================================
@@ -1234,9 +1259,9 @@ service cloud.firestore {
       allow read: if request.auth != null
                   && (resource.data.buyerUid == request.auth.uid
                       || resource.data.sellerUid == request.auth.uid);
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && request.resource.data.buyerUid == request.auth.uid
-                    && request.resource.data.keys().hasAll(['buyerUid', 'sellerUid', 'listingId', 'message']);
+                    && request.resource.data.keys().hasAll(['buyerUid', 'sellerUid', 'listingId', 'message']));
     }
 
     // =============================================
@@ -1245,22 +1270,22 @@ service cloud.firestore {
     match /dm_conversations/{convoId} {
       allow read: if request.auth != null
                   && request.auth.uid in resource.data.participants;
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && request.auth.uid in request.resource.data.participants
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     // participantNames values must be strings ≤ 60 chars; no injecting arbitrary values
                     && (!('participantNames' in request.resource.data)
                         || (request.resource.data.participantNames is map
                             && request.resource.data.participantNames.keys().hasOnly(request.resource.data.participants)
-                            && request.resource.data.participantNames.values().toSet().size() <= 2));
-      allow update: if request.auth != null
+                            && request.resource.data.participantNames.values().toSet().size() <= 2)));
+      allow update: if clientWritesOk() && (request.auth != null
                     && request.auth.uid in resource.data.participants
-                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['participants', 'participantNames', 'createdAt']);
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['participants', 'participantNames', 'createdAt']));
 
       match /messages/{messageId} {
         allow read: if request.auth != null
                     && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants;
-        allow create: if request.auth != null
+        allow create: if clientWritesOk() && (request.auth != null
                       && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                       && request.auth.uid in get(/databases/$(database)/documents/dm_conversations/$(convoId)).data.participants
                       && request.resource.data.senderUid == request.auth.uid
@@ -1268,7 +1293,7 @@ service cloud.firestore {
                       && request.resource.data.text.size() <= 1000
                       && !('isNachoAuto' in request.resource.data)
                       && (request.resource.data.text.size() >= 1 || ('imageUrl' in request.resource.data && request.resource.data.imageUrl is string && request.resource.data.imageUrl.matches('^https://.*')))
-                      && (!('imageUrl' in request.resource.data) || (request.resource.data.imageUrl is string && request.resource.data.imageUrl.matches('^https://.*')));
+                      && (!('imageUrl' in request.resource.data) || (request.resource.data.imageUrl is string && request.resource.data.imageUrl.matches('^https://.*'))));
       }
     }
 
@@ -1278,8 +1303,8 @@ service cloud.firestore {
     match /reports/{reportId} {
       allow read: if request.auth != null
                   && isAdmin();
-      allow create: if request.auth != null
-                    && request.resource.data.reporterUid == request.auth.uid;
+      allow create: if clientWritesOk() && (request.auth != null
+                    && request.resource.data.reporterUid == request.auth.uid);
     }
 
     // =============================================
@@ -1287,7 +1312,7 @@ service cloud.firestore {
     // =============================================
     match /irl_events/{eventId} {
       allow read: if true;
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && request.resource.data.hostId == request.auth.uid
                     && request.resource.data.keys().hasAll(['title', 'hostId', 'date'])
                     && (request.resource.data.keys().hasAny(['location', 'locationName']))
@@ -1297,8 +1322,8 @@ service cloud.firestore {
                     // link field must be https:// or absent — blocks javascript: and data: XSS
                     && (!request.resource.data.keys().hasAny(['link'])
                         || (request.resource.data.link is string
-                            && request.resource.data.link.matches('https://.*')));
-      allow update: if request.auth != null
+                            && request.resource.data.link.matches('https://.*'))));
+      allow update: if clientWritesOk() && (request.auth != null
                     && (resource.data.hostId == request.auth.uid
                         || isAdmin()
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendees'])
@@ -1308,10 +1333,10 @@ service cloud.firestore {
                     && (!request.resource.data.keys().hasAny(['link'])
                         || request.resource.data.link == null
                         || (request.resource.data.link is string
-                            && request.resource.data.link.matches('https://.*')));
-      allow delete: if request.auth != null
+                            && request.resource.data.link.matches('https://.*'))));
+      allow delete: if clientWritesOk() && (request.auth != null
                     && (resource.data.hostId == request.auth.uid
-                        || isAdmin());
+                        || isAdmin()));
     }
 
     // =============================================
@@ -1320,12 +1345,12 @@ service cloud.firestore {
     // =============================================
     match /channel_ratings/{ratingId} {
       allow read: if true;
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && ratingId == request.resource.data.channelId + '_' + request.auth.uid
-                    && request.resource.data.userId == request.auth.uid;
-      allow update: if request.auth != null
+                    && request.resource.data.userId == request.auth.uid);
+      allow update: if clientWritesOk() && (request.auth != null
                     && ratingId == resource.data.channelId + '_' + request.auth.uid
-                    && resource.data.userId == request.auth.uid;
+                    && resource.data.userId == request.auth.uid);
     }
 
     // =============================================
@@ -1345,7 +1370,7 @@ service cloud.firestore {
     match /pvp_lobby/{docId} {
       allow read: if request.auth != null;
       // Signed-in, non-anonymous, own uid, strict field list. No extra payload.
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && docId == request.auth.uid
                     && request.resource.data.keys().hasOnly(['uid', 'name', 'profilePic', 'status', 'createdAt', 'lastSeen'])
@@ -1359,16 +1384,16 @@ service cloud.firestore {
                     && request.resource.data.createdAt == request.time
                     && request.resource.data.lastSeen is number
                     && request.resource.data.lastSeen <= request.time.toMillis() + 5000
-                    && request.resource.data.lastSeen >= request.time.toMillis() - 120000;
+                    && request.resource.data.lastSeen >= request.time.toMillis() - 120000);
       // Heartbeat only, and not faster than once every 4 seconds.
-      allow update: if request.auth != null
+      allow update: if clientWritesOk() && (request.auth != null
                     && docId == request.auth.uid
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeen'])
                     && request.resource.data.lastSeen is number
                     && request.resource.data.lastSeen >= resource.data.lastSeen + 4000
-                    && request.resource.data.lastSeen <= request.time.toMillis() + 5000;
-      allow delete: if request.auth != null
-                    && docId == request.auth.uid;
+                    && request.resource.data.lastSeen <= request.time.toMillis() + 5000);
+      allow delete: if clientWritesOk() && (request.auth != null
+                    && docId == request.auth.uid);
     }
 
     // One summary of who is waiting. Clients listen to this doc only.
@@ -1416,7 +1441,7 @@ service cloud.firestore {
       // player1 and player2 are server-owned (uids live in pvp_answer_keys).
       // A client may forfeit only as itself, and only with manual_leave.
       // questionWinner may be cleared to null. The timer moves only when a round starts.
-      allow update: if request.auth != null
+      allow update: if clientWritesOk() && (request.auth != null
                     && (resource.data.player1.uid == request.auth.uid
                         || resource.data.player2.uid == request.auth.uid)
                     && resource.data.status in ['countdown', 'active', 'question_result']
@@ -1449,7 +1474,7 @@ service cloud.firestore {
                             && request.resource.data.lastTaunt.emoji is string
                             && request.resource.data.lastTaunt.emoji.size() > 0
                             && request.resource.data.lastTaunt.emoji.size() <= 8
-                            && request.resource.data.lastTaunt.ts is number));
+                            && request.resource.data.lastTaunt.ts is number)));
     }
 
     // =============================================
@@ -1457,7 +1482,7 @@ service cloud.firestore {
     // =============================================
     match /beats_tracks/{trackId} {
       allow read: if true;
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.copyrightConfirmed == true
@@ -1484,8 +1509,8 @@ service cloud.firestore {
                         || (request.resource.data.releaseDate is string
                             && request.resource.data.releaseDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
                     && (!('plays' in request.resource.data) || request.resource.data.plays == 0)
-                    && (!('likes' in request.resource.data) || request.resource.data.likes == 0);
-      allow update: if request.auth != null
+                    && (!('likes' in request.resource.data) || request.resource.data.likes == 0));
+      allow update: if clientWritesOk() && (request.auth != null
                     && evidenceAuthorFrozen()
                     && (
                       // Author can update their own track (with coverUrl + XSS validation)
@@ -1520,23 +1545,23 @@ service cloud.firestore {
                     // or sets hidden to anything other than true, is rejected, so an
                     // import cannot un-hide the doc.
                     && (resource.data.get('hidden', false) != true
-                        || request.resource.data.hidden == true);
-      allow delete: if request.auth != null
+                        || request.resource.data.hidden == true));
+      allow delete: if clientWritesOk() && (request.auth != null
                     && (
                       isAdmin()
                       || (resource.data.authorId == request.auth.uid
                           && resource.data.get('hidden', false) != true)
-                    );
+                    ));
 
       match /comments/{commentId} {
         allow read: if true;
-        allow create: if request.auth != null
+        allow create: if clientWritesOk() && (request.auth != null
                       && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                       && request.resource.data.authorId == request.auth.uid
                       && request.resource.data.text is string
-                      && request.resource.data.text.size() <= 280;
-        allow delete: if request.auth != null
-                      && resource.data.authorId == request.auth.uid;
+                      && request.resource.data.text.size() <= 280);
+        allow delete: if clientWritesOk() && (request.auth != null
+                      && resource.data.authorId == request.auth.uid);
       }
     }
 
@@ -1546,8 +1571,8 @@ service cloud.firestore {
     match /beats_artists/{artistId} {
       allow read: if true;
       // Only admin can create/update (import script uses Admin SDK)
-      allow write: if request.auth != null
-                   && isAdmin();
+      allow write: if clientWritesOk() && (request.auth != null
+                   && isAdmin());
     }
 
     // =============================================
@@ -1563,7 +1588,7 @@ service cloud.firestore {
     // BITCOIN BEATS — REPORTS
     // =============================================
     match /beats_reports/{reportId} {
-      allow create: if request.auth != null;
+      allow create: if clientWritesOk() && (request.auth != null);
       allow read: if false;
     }
 
@@ -1579,7 +1604,7 @@ service cloud.firestore {
     // =============================================
     match /articles/{articleId} {
       allow read: if true;
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.title is string
@@ -1588,8 +1613,8 @@ service cloud.firestore {
                     && request.resource.data.body is string
                     && request.resource.data.body.size() <= 50000
                     && request.resource.data.agreedToTerms == true
-                    && (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0);
-      allow update: if request.auth != null
+                    && (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0));
+      allow update: if clientWritesOk() && (request.auth != null
                     && evidenceAuthorFrozen()
                     && (
                       // Author can edit their own article. replyCount stays server-owned.
@@ -1629,10 +1654,10 @@ service cloud.firestore {
                       )
                       // Admin
                       || isAdmin()
-                    );
-      allow delete: if request.auth != null
+                    ));
+      allow delete: if clientWritesOk() && (request.auth != null
                     && (resource.data.authorId == request.auth.uid
-                        || isAdmin());
+                        || isAdmin()));
     }
 
     // =============================================
@@ -1640,13 +1665,13 @@ service cloud.firestore {
     // =============================================
     match /article_replies/{replyId} {
       allow read: if true;
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.body is string
                     && request.resource.data.body.size() >= 2
-                    && request.resource.data.body.size() <= 2000;
-      allow update: if request.auth != null
+                    && request.resource.data.body.size() <= 2000);
+      allow update: if clientWritesOk() && (request.auth != null
                     && evidenceAuthorFrozen()
                     && (resource.data.authorId == request.auth.uid
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
@@ -1654,10 +1679,10 @@ service cloud.firestore {
                             && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
                             && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
                             && request.auth.uid in request.resource.data.voters)
-                        || isAdmin());
-      allow delete: if request.auth != null
+                        || isAdmin()));
+      allow delete: if clientWritesOk() && (request.auth != null
                     && (resource.data.authorId == request.auth.uid
-                        || isAdmin());
+                        || isAdmin()));
     }
 
     // =============================================
@@ -1665,10 +1690,10 @@ service cloud.firestore {
     // =============================================
     match /presence/{userId} {
       allow read: if true;
-      allow create, update: if request.auth != null
-                            && request.auth.uid == userId;
-      allow delete: if request.auth != null
-                    && request.auth.uid == userId;
+      allow create, update: if clientWritesOk() && (request.auth != null
+                            && request.auth.uid == userId);
+      allow delete: if clientWritesOk() && (request.auth != null
+                    && request.auth.uid == userId);
     }
 
     // =============================================
@@ -1680,15 +1705,15 @@ service cloud.firestore {
     match /global_chat_meta/typing {
       allow read: if true;
       // F-005: restrict to expected shape only — prevents arbitrary data/cost inflation
-      allow write: if request.auth != null
+      allow write: if clientWritesOk() && (request.auth != null
                    && request.resource.data.keys().hasOnly(['typing'])
-                   && request.resource.data.typing is map;
+                   && request.resource.data.typing is map);
     }
 
     match /global_chat_meta/pinned {
       allow read: if true;
-      allow write: if isAdmin();
-      allow delete: if isAdmin();
+      allow write: if clientWritesOk() && (isAdmin());
+      allow delete: if clientWritesOk() && (isAdmin());
     }
 
     match /global_chat_meta/{docId} {
@@ -1696,12 +1721,12 @@ service cloud.firestore {
 
       // Strict: creating the DJ doc requires you to be claiming it for yourself.
       // djUid and djName MUST match the authenticated user.
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.djUid == request.auth.uid
                     && request.resource.data.djName is string
                     && request.resource.data.djName.size() >= 2
-                    && request.resource.data.djName.size() <= 40;
+                    && request.resource.data.djName.size() <= 40);
 
       // Strict: updates fall into 3 allowed paths:
       //   1) CURRENT DJ updates their own booth (heartbeat, track change, stop).
@@ -1710,7 +1735,7 @@ service cloud.firestore {
       //      AND djName to a non-empty string.
       //   3) ADMIN override.
       // This closes the hijack vector where anyone could overwrite djName while active=false.
-      allow update: if request.auth != null
+      allow update: if clientWritesOk() && (request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && (
                       // Path 1: current DJ updating their own booth
@@ -1729,26 +1754,26 @@ service cloud.firestore {
                       ||
                       // Path 3: admin
                       isAdmin()
-                    );
+                    ));
 
       // DJ Queue subcollection
       match /dj_queue/{queueId} {
         allow read: if true;
         // Can only add/update YOUR OWN queue entry, and it must carry your uid.
-        allow create: if request.auth != null
+        allow create: if clientWritesOk() && (request.auth != null
                       && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                       && request.auth.uid == queueId
                       && request.resource.data.uid == request.auth.uid
                       && request.resource.data.name is string
                       && request.resource.data.name.size() >= 1
-                      && request.resource.data.name.size() <= 40;
-        allow update: if request.auth != null
+                      && request.resource.data.name.size() <= 40);
+        allow update: if clientWritesOk() && (request.auth != null
                       && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                       && request.auth.uid == queueId
-                      && request.resource.data.uid == request.auth.uid;
-        allow delete: if request.auth != null
+                      && request.resource.data.uid == request.auth.uid);
+        allow delete: if clientWritesOk() && (request.auth != null
                       && (request.auth.uid == queueId
-                          || isAdmin());
+                          || isAdmin()));
       }
     }
 
@@ -1768,13 +1793,13 @@ service cloud.firestore {
       // Any signed-in user can toggle their own emoji reaction (only their own uid key within reactions).
       // partyCount is the server 🎉 total. Clients cannot write it. Per-player
       // markers live in the reactions subcollection and are Admin SDK only.
-      allow update: if request.auth != null
+      allow update: if clientWritesOk() && (request.auth != null
                     && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['partyCount'])
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions'])
-                    && request.resource.data.reactions.diff(resource.data.get('reactions', {})).affectedKeys().hasOnly([request.auth.uid]);
+                    && request.resource.data.reactions.diff(resource.data.get('reactions', {})).affectedKeys().hasOnly([request.auth.uid]));
       // Admin-only delete and full update
-      allow delete: if request.auth != null
-                    && isAdmin();
+      allow delete: if clientWritesOk() && (request.auth != null
+                    && isAdmin());
 
       match /reactions/{uid} {
         allow get: if request.auth != null
@@ -1802,7 +1827,7 @@ service cloud.firestore {
               || (d.hasChatFlair == true && ('chatFlairEmoji' in d || nook)));
       }
       allow read: if true;
-      allow create: if (
+      allow create: if clientWritesOk() && ((
                     // Authenticated non-anonymous user messages only
                     request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
@@ -1866,10 +1891,10 @@ service cloud.firestore {
                     && request.resource.data.name is string
                     && request.resource.data.uid is string
                     && isAdmin()
-                    );
+                    ));
       // Allow reactions update by any authenticated user (must be a map)
       // Allow own message edit: only text/editCount/edited fields, max 2 edits, own message only
-      allow update: if request.auth != null
+      allow update: if clientWritesOk() && (request.auth != null
                     && (
                       // Reactions: emoji-keyed map { emoji: [uid,...] }
                       // We can only validate shape here; client enforces per-user logic.
@@ -1886,11 +1911,11 @@ service cloud.firestore {
                        && request.resource.data.text.size() >= 1
                        && request.resource.data.text.size() <= 300
                        && resource.data.get('editCount', 0) < 2)
-                    );
+                    ));
       // Own messages or admin can delete
-      allow delete: if request.auth != null
+      allow delete: if clientWritesOk() && (request.auth != null
                     && (resource.data.uid == request.auth.uid
-                        || isAdmin());
+                        || isAdmin()));
     }
 
     // =============================================
@@ -1906,7 +1931,7 @@ service cloud.firestore {
       // and never pass through this create rule.
       // targetType is a fixed list. targetId, giftId, fromUid, and the doc id
       // must match ^[A-Za-z0-9_-]{1,64}$. senderId must be the signed-in user.
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && notifIdOk(notifId)
                     && request.resource.data.keys().hasOnly(['recipientId', 'senderId', 'senderName', 'type', 'message', 'targetType', 'targetId', 'giftId', 'fromUid', 'read', 'createdAt'])
@@ -1931,13 +1956,13 @@ service cloud.firestore {
                     && request.resource.data.read == false
                     && (!('createdAt' in request.resource.data)
                         || request.resource.data.createdAt == request.time)
-                    && !request.resource.data.keys().hasAny(['xp', 'tickets', 'sats', 'points', 'orangeTickets', 'badgeId', 'freezes']);
-      allow update: if request.auth != null
+                    && !request.resource.data.keys().hasAny(['xp', 'tickets', 'sats', 'points', 'orangeTickets', 'badgeId', 'freezes']));
+      allow update: if clientWritesOk() && (request.auth != null
                     && request.auth.uid == resource.data.recipientId
                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
-                    && request.resource.data.read is bool;
-      allow delete: if request.auth != null
-                    && request.auth.uid == resource.data.recipientId;
+                    && request.resource.data.read is bool);
+      allow delete: if clientWritesOk() && (request.auth != null
+                    && request.auth.uid == resource.data.recipientId);
     }
 
     // =============================================
@@ -1967,11 +1992,11 @@ service cloud.firestore {
     // [AUDIT FIX L-NEW-6] Enforce 1 entry per user via document ID
     match /buddy_pool/{docId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && docId == request.auth.uid
-                    && request.resource.data.uid == request.auth.uid;
-      allow delete: if request.auth != null
-                    && (docId == request.auth.uid || resource.data.uid == request.auth.uid || isAdmin());
+                    && request.resource.data.uid == request.auth.uid);
+      allow delete: if clientWritesOk() && (request.auth != null
+                    && (docId == request.auth.uid || resource.data.uid == request.auth.uid || isAdmin()));
     }
 
     // Faucet invoice dedup (Cloud Function only)
@@ -2099,15 +2124,15 @@ service cloud.firestore {
                       || resource.data.user2.uid == request.auth.uid);
       
       // Prevent arbitrary match creation — enforce deterministic UID-based document ID
-      allow create: if request.auth != null
+      allow create: if clientWritesOk() && (request.auth != null
                     && (request.resource.data.user1.uid == request.auth.uid || request.resource.data.user2.uid == request.auth.uid)
                     && (request.resource.data.user1.uid < request.resource.data.user2.uid ? 
                         docId == request.resource.data.user1.uid + '_' + request.resource.data.user2.uid : 
-                        docId == request.resource.data.user2.uid + '_' + request.resource.data.user1.uid);
+                        docId == request.resource.data.user2.uid + '_' + request.resource.data.user1.uid));
       
-      allow delete: if request.auth != null
+      allow delete: if clientWritesOk() && (request.auth != null
                     && (resource.data.user1.uid == request.auth.uid
-                        || resource.data.user2.uid == request.auth.uid);
+                        || resource.data.user2.uid == request.auth.uid));
     }
 
     // Timechain TV viewer counts — increment/decrement by 1 only
@@ -2150,7 +2175,7 @@ service cloud.firestore {
       // TTL policy on tctv_presence.expiresAt. The window is wide on
       // purpose: a skewed clock can still write, and a client still cannot
       // push expiry out by days. The minute job deletes by ts, not expiresAt.
-      allow create, update: if
+      allow create, update: if clientWritesOk() && (
         (
           (request.auth != null && viewerId == request.auth.uid)
           || (request.auth == null && viewerId.matches('^v_[a-z0-9]{5,40}$'))
@@ -2168,12 +2193,14 @@ service cloud.firestore {
             && request.resource.data.expiresAt < request.time + duration.value(2, 'h')
           )
         )
-        && (!('tsClient' in request.resource.data) || request.resource.data.tsClient is number);
+        && (!('tsClient' in request.resource.data) || request.resource.data.tsClient is number)
+      );
       // Auth-uid docs: only the owning user can delete.
       // v_ anon docs: open delete (worst case: griefer evicts strangers; they'll auto-re-register in <30s).
-      allow delete: if
+      allow delete: if clientWritesOk() && (
         (request.auth != null && viewerId == request.auth.uid)
-        || viewerId.matches('^v_[a-z0-9]{5,40}$');
+        || viewerId.matches('^v_[a-z0-9]{5,40}$')
+      );
     }
 
     // One aggregate doc for the live viewer counter. Written only by
@@ -2191,7 +2218,7 @@ service cloud.firestore {
     // Block-surf does not write here. Presence rules are unchanged.
     match /tctv_view_days/{docId} {
       allow get, list: if false;
-      allow create: if
+      allow create: if clientWritesOk() && (
         request.resource.data.keys().hasOnly(['viewerId', 'station', 'day', 'ts'])
         && request.resource.data.day == tctvUtcDay()
         && request.resource.data.day is string
@@ -2206,17 +2233,19 @@ service cloud.firestore {
           || (request.auth == null
             && request.resource.data.viewerId.matches('^v_[a-z0-9]{5,40}$')
             && docId.matches('^[0-9]{8}_v_[a-z0-9]{5,40}_[a-z0-9-]{1,48}$'))
-        );
+        )
+      );
       allow update, delete: if false;
     }
 
     // AI Tools open tracking — anyone can create, no reads/updates/deletes
     match /ai_tools_opens/{docId} {
-      allow create: if
+      allow create: if clientWritesOk() && (
         request.resource.data.keys().hasOnly(['uid', 'openedAt'])
         && request.resource.data.uid is string
         && request.resource.data.uid.size() > 0
-        && request.resource.data.uid.size() < 60;
+        && request.resource.data.uid.size() < 60
+      );
       allow read, update, delete: if false;
     }
 
@@ -2840,13 +2869,33 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow create, update: if request.auth != null
         && request.auth.uid == uid
+        && clientWritesOk()
         && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
         && resetRemindersShape(request.resource.data)
         && request.resource.data.optedIn == true;
-      allow delete: if request.auth != null && request.auth.uid == uid;
+      allow delete: if clientWritesOk() && (request.auth != null && request.auth.uid == uid);
     }
 
     match /reset_reminder_claims/{claimId} {
+      allow read, write: if false;
+    }
+
+    // Kill switch flag. Anyone may read it so the maintenance page works
+    // before sign-in. Only the Admin SDK (adminSetKillSwitch) may write.
+    // Public flag: only enabled, mode, message, since, autoReenableAt.
+    // Reason, actor and snapshot live on killSwitchAdmin (admins only).
+    match /config/{docId} {
+      allow read: if docId == 'killSwitch';
+      allow read: if docId == 'killSwitchAdmin' && isAdmin();
+      allow write: if false;
+    }
+    // Append-only audit log. Admins may read; nobody may write or delete
+    // from the client. The callable never deletes these rows.
+    match /kill_switch_audit/{docId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+    match /kill_switch_rate/{docId} {
       allow read, write: if false;
     }
 

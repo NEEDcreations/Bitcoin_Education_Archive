@@ -27,9 +27,9 @@ const manifest = Object.keys(RUNTIME_SERVICE_ACCOUNTS).sort();
 const noSecretOwn = manifest.filter(function (n) { return RUNTIME_SERVICE_ACCOUNTS[n].noSecrets === true; });
 const ownAccount = secretBound.concat(noSecretOwn).sort();
 
-test('manifest lists exactly the secret-bound exports (56) plus explicit noSecrets accounts', function () {
+test('manifest lists exactly the secret-bound exports (58) plus explicit noSecrets accounts', function () {
     assert.deepStrictEqual(manifest, ownAccount);
-    assert.strictEqual(secretBound.length, 56);
+    assert.strictEqual(secretBound.length, 58);
     assert.deepStrictEqual(noSecretOwn, ['adminClearPayoutHold']);
 });
 
@@ -55,12 +55,15 @@ test('functions without secrets do not set a service account', function () {
 
 test('account ids are valid, unique, and fit the project quota', function () {
     const ids = manifest.map(function (n) { return RUNTIME_SERVICE_ACCOUNTS[n].id; });
-    assert.strictEqual(new Set(ids).size, ids.length);
-    ids.forEach(function (id) {
+    // adminSetKillSwitch and killSwitchAutoReturnTick intentionally share one account.
+    const unique = Array.from(new Set(ids));
+    assert.strictEqual(ids.filter(function (id) { return id === 'fn-admin-kill-switch'; }).length, 2);
+    assert.strictEqual(unique.length, ids.length - 1);
+    unique.forEach(function (id) {
         assert.ok(/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(id), id);
         assert.ok(id.indexOf('fn-') === 0, id);
     });
-    assert.ok(ids.length + 6 <= 100, 'default quota is 100 service accounts per project');
+    assert.ok(unique.length + 6 <= 100, 'default quota is 100 service accounts per project');
 });
 
 test('runtimeSa resolves the project from env and never returns bare shorthand', function () {
@@ -126,6 +129,29 @@ test('gcloud output: named deploy only, metadata-free, one secret grant per boun
             assert.strictEqual(grants.length, f.secrets.length, n);
         });
     });
+});
+
+test('gcloud --condition is double-quoted and the plan is valid bash (K1-L1)', function () {
+    const { execFileSync } = require('child_process');
+    const os = require('os');
+    let sawCondition = 0;
+    for (let i = 0; i < plan.batches.length; i++) {
+        const text = planMod.gcloudFor(plan, i);
+        const tmp = path.join(os.tmpdir(), 'runtime-sa-plan-batch-' + i + '.sh');
+        fs.writeFileSync(tmp, text);
+        try {
+            execFileSync('bash', ['-n', tmp], { encoding: 'utf8' });
+        } finally {
+            try { fs.unlinkSync(tmp); } catch (e) { /* ignore */ }
+        }
+        text.split('\n').forEach(function (l) {
+            if (l.indexOf('--condition=') === -1 || l.indexOf('--condition=None') !== -1) return;
+            assert.ok(/--condition="/.test(l), 'outer quotes must be double: ' + l);
+            assert.ok(!/--condition='/.test(l), 'single-quoted --condition breaks CEL: ' + l);
+            sawCondition++;
+        });
+    }
+    assert.ok(sawCondition > 0, 'expected at least one prefixed bucket condition');
 });
 
 test('gen2 event triggers get eventReceiver + own-service invoker; gen1 never does', function () {
