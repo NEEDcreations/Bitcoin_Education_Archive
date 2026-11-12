@@ -1352,6 +1352,7 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         ['totp_pending', uid, []],
         ['totp_sessions', uid, []],
         ['recovery_codes', uid, []],
+        ['mfa_known_factors', uid, []],
         ['suggestions', uid, []],
         ['referral_signals', uid, []],
         ['email_change_pending', uid, []],
@@ -1543,7 +1544,7 @@ function bindDeleteAccount(functionsV1, admin, db, secrets) {
             timeoutSeconds: 540,
             memory: '1GB',
             enforceAppCheck: true,
-            secrets: secrets || [],
+            secrets: (secrets || []).concat(['TOTP_ENCRYPTION_KEY']),
             serviceAccount: runtimeSa('deleteAccount'),
         }).https.onCall(handlers.deleteAccount),
     };

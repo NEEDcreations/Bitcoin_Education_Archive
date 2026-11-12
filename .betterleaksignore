@@ -1,0 +1,29 @@
+# Betterleaks allowlist: fingerprints of public client config, documented false positives,
+# and emulator-only test fixtures. Never add a real server secret here.
+
+# Public Firebase web API key for bitcoin-education-archive (client config in firebase-config.js and related files). Not a server secret.
+51fd90e15f438e35e2c7dce225e5e47348a788ed662e5ddb26342398b5117f5a
+
+# Public Firebase web API key for bitcoin-quest-staging (scripts/build-staging.sh client config). Not a server secret.
+b76c0d90a96a3a331e276eafa829b317da11042048dcacece862121a1a258546
+
+# Public reCAPTCHA v3 site key (APP_CHECK_RECAPTCHA_SITE_KEY). The matching secret stays in the Firebase console.
+5e062a0161ac1b3d8c7eb3a0477a3ba7483c649f8e2fbcbed7cb6d035239b682
+
+# Public Web Push VAPID key in notifications.js. Senders stay on the server.
+d040e76e71e9897666e930c2874ea0f9db3573e856b0982b16db549aa9353e8a
+
+# False positive: ranking.js maps Firebase provider id "password" to the label "Email".
+969ccbd3cf6300ecd5c880459d81ae9027df7517563184a1b8b15282db230621
+
+# False positive: the word "password" as a term in the nacho-search knowledge-base index / test fixture, not a credential.
+ac000f1f3fd755e4d9ff1f46c83c575ec6fd552497b894a80092e486669b0c8a
+
+# Test fixture password in tests/email-link-oob-check.js (emulator only).
+9dca666eb54730714630d1519264a7bf1eeaad00b8f2edc90d3ecbfad928d163
+
+# Test fixture password in tests/test-totp-emulator.js (emulator only).
+330a7927bcec2e7d0ed49e00dfb7fb07e2c6c57ab80b560ef9a127da3600933e
+
+# Test fixture password in tests/test-totp-emulator.js (emulator only).
+e024079b82a8c7e9ff1020b7c26ed29349b9dbad1d639905d8b8388dd33728b2

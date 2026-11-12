@@ -92,7 +92,7 @@ const DIFFICULTY_HISTORY = [
   { target: 25000, since: '2026-11-07' }, // -20% decrease — easing odds to 1:4,000
 ];
 // Hardcoded fallback. The live target is payout_config/favorDifficulty.target
-// (favorDifficultyRetarget moves it every 14 days); see favorDifficulty.js.
+// (favorDifficultyRetarget moves it when an epoch fills 5/5); see favorDifficulty.js.
 const DIFFICULTY_TARGET = DIFFICULTY_HISTORY[DIFFICULTY_HISTORY.length - 1].target;
 let _lastLiveTarget = DIFFICULTY_TARGET;
 async function liveDifficultyTarget(store) {
