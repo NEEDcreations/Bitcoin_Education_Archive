@@ -100,6 +100,13 @@ const USER_SUBCOLLECTIONS = [
     'article_publish_days',
     'cert_bonuses',
     'xp_ledger',
+    // Optional birthday and the one-grant-per-year marker. Private to the
+    // owner and admins. Removed with the account so the date does not remain.
+    'birthday_private',
+    // Old per-uid award rows. The surviving record is birthday_award_markers,
+    // keyed by a salted identity hash, and is not under this user.
+    'birthday_awards',
+    'birthday_grant_pending',
 ];
 
 // Dedupe rows. Removed only after the Auth user is deleted, with the caps.

@@ -2212,6 +2212,14 @@
                 <p style="color:var(--text-faint);font-size:0.72rem;margin:6px 0 0;line-height:1.5;">⚠️ <strong style="color:var(--text-muted);">You need a Lightning address to withdraw sats from this app.</strong> Other users can also tip you sats directly to your Lightning address! It's so easy once you're set up.</p>
                 <button type="button" onclick="window._signupGoGetLnAddress()" style="margin-top:8px;width:100%;padding:10px;background:none;border:1px dashed rgba(247,147,26,0.5);border-radius:10px;color:var(--accent);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.background='rgba(247,147,26,0.08)'" onmouseout="this.style.background='none'">⚡ Here's how to get one →</button>
             </div>
+            <div id="signupBirthdaySection" style="margin-bottom:16px;text-align:left;">
+                <label for="signupBirthdayMonth" style="display:block;color:var(--text-muted);font-size:0.8rem;font-weight:700;margin-bottom:4px;">🎂 Birthday <span style="font-weight:600;">(optional, not shared)</span></label>
+                <p style="color:var(--text-faint);font-size:0.72rem;margin:0 0 8px;line-height:1.45;">Month and day only. Only you and admins can see this. It can be set once. The 25 OrangeTix reward starts once this birthday has been on file for 30 days.</p>
+                <div style="display:flex;gap:8px;">
+                    <select id="signupBirthdayMonth" aria-label="Birthday month, optional, not shared" onchange="window._syncSignupBirthdayDays&&window._syncSignupBirthdayDays()" style="flex:1.4;min-width:0;padding:12px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;"></select>
+                    <select id="signupBirthdayDay" aria-label="Birthday day, optional, not shared" style="flex:0.8;min-width:0;padding:12px 8px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;"></select>
+                </div>
+            </div>
             <div id="factionPickerSignup" style="margin-bottom:16px;text-align:left;">
                 <div style="color:#94a3b8;font-size:0.8rem;font-weight:700;margin-bottom:4px;text-align:center;">⚔️ Choose Your Faction</div>
                 <div style="color:#475569;font-size:0.68rem;margin-bottom:10px;text-align:center;">This choice is permanent. Your unclaimed points go to the faction you pick.</div>
@@ -2291,7 +2299,7 @@
     <script src="/referral-tiers.js?v=20261105_v2499" defer></script>
     <script src="/popup-stack.js?v=20261106_v2519" defer></script>
 
-    <script src="/ranking.js?v=20261109_v2538" defer></script>    <!-- Critical: needed for initial page render -->
+    <script src="/ranking.js?v=20261109_v2541" defer></script>    <!-- Critical: needed for initial page render -->
     <script src="/bundle.min.js?v=20261109_v2538" defer fetchpriority="high"></script>
 
     <script src="/bundle-ready.js?v=20261027_v2394" defer></script>

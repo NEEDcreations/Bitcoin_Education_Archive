@@ -36,6 +36,7 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     adminResolveCipherSatsClaim: { id: 'fn-admin-resolve-cipher-claim', extra: [] },
     adminUnbanUser: { id: 'fn-admin-unban-user', extra: [] },
     auditWithdrawals: { id: 'fn-audit-withdrawals', extra: [] },
+    awardBirthdayOrangeTix: { id: 'fn-award-birthday-ot', extra: ['auth'] },
     backfillJoinDates: { id: 'fn-backfill-join-dates', extra: ['auth'] },
     claimCipherSats: { id: 'fn-claim-cipher-sats', extra: ['auth'] },
     claimCipherWin: { id: 'fn-claim-cipher-win', extra: ['auth'] },

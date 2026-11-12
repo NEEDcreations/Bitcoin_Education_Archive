@@ -17,6 +17,27 @@ service cloud.firestore {
         && v.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$');
     }
 
+    // Optional birthday. Month and day only. February 29 is allowed.
+    function birthdayMaxDay(month) {
+      return month == 2 ? 29
+        : ((month == 4 || month == 6 || month == 9 || month == 11) ? 30 : 31);
+    }
+
+    function birthdayCreateOk(userId) {
+      let data = request.resource.data;
+      return data.keys().hasOnly(['month', 'day', 'uid', 'setAt'])
+        && data.keys().hasAll(['month', 'day', 'uid', 'setAt'])
+        && data.uid == userId
+        && data.uid == request.auth.uid
+        && data.setAt == request.time
+        && data.month is int
+        && data.day is int
+        && data.month >= 1
+        && data.month <= 12
+        && data.day >= 1
+        && data.day <= birthdayMaxDay(data.month);
+    }
+
     // The first Lightning address saved on a profile stays. Once any address
     // value exists, the client cannot write the address fields or the marker.
     // The server still writes the normalized lock and the one-time reset doc.
@@ -553,6 +574,31 @@ service cloud.firestore {
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
         allow create, delete: if false; // Cloud Function (Admin SDK) only
       }
+
+      // Optional birthday (month and day only). Owner may create
+      // birthday_private/profile once. The name is unique so a collection-group
+      // query cannot match some other birthday subcollection. Clients cannot
+      // edit or delete it. Anonymous sign-ins cannot create it. Admins can
+      // read. It is not copied to public_profiles. birthday_awards/{year} is
+      // the one-grant-per-year marker written only by awardBirthdayOrangeTix.
+      match /birthday_private/{docId} {
+        allow get, list: if request.auth != null
+                          && (request.auth.uid == userId || isAdmin());
+        allow create: if request.auth != null
+                      && request.auth.uid == userId
+                      && docId == 'profile'
+                      && request.auth.token.get('firebase', {}).get('sign_in_provider', '') != 'anonymous'
+                      && birthdayCreateOk(userId);
+        allow update, delete: if false;
+      }
+      match /birthday_awards/{yearId} {
+        allow get, list: if request.auth != null
+                          && (request.auth.uid == userId || isAdmin());
+        allow create, update, delete: if false;
+      }
+      match /birthday_grant_pending/{yearId} {
+        allow read, write: if false;
+      }
     }
 
     // =============================================
@@ -560,6 +606,12 @@ service cloud.firestore {
     // Synced server-side by syncPublicProfile CF trigger.
     // Never contains email, known_ips, fingerprint, or financial fields.
     // =============================================
+    // Surviving birthday award rows. Document id is a salted identity hash.
+    // The body is the year only. Clients cannot read or write them.
+    match /birthday_award_markers/{markerId} {
+      allow read, write: if false;
+    }
+
     match /public_profiles/{uid} {
       // Any authenticated user (incl. anonymous) can read any public profile.
       // Writes are admin-SDK only (syncPublicProfile trigger). usernameNeedsRepick
