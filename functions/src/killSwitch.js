@@ -404,7 +404,9 @@ async function backupPreflight(deps) {
 function makeBackupDeps(admin, db, opts) {
     const o = opts || {};
     const project = o.projectId || process.env.GCLOUD_PROJECT || 'bitcoin-education-archive';
-    const bucketName = o.backupBucket || (project + '-backups');
+    // Prefer an explicit bucket (opts or BQ_BACKUP_BUCKET) so a regional
+    // Firestore can export to a same-region bucket. Default is <project>-backups.
+    const bucketName = o.backupBucket || process.env.BQ_BACKUP_BUCKET || (project + '-backups');
     return {
         projectId: project,
         backupBucket: bucketName,

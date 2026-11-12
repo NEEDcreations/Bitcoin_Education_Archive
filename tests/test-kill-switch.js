@@ -800,6 +800,30 @@ async function run() {
         assert.ok(idx.includes('adminSetKillSwitch'));
     });
 
+    await test('makeBackupDeps prefers opts, then BQ_BACKUP_BUCKET, then <project>-backups', function () {
+        const savedBucket = process.env.BQ_BACKUP_BUCKET;
+        const savedProject = process.env.GCLOUD_PROJECT;
+        try {
+            delete process.env.BQ_BACKUP_BUCKET;
+            delete process.env.GCLOUD_PROJECT;
+            const def = ks.makeBackupDeps({}, {}, { projectId: 'bitcoin-quest-staging' });
+            assert.strictEqual(def.backupBucket, 'bitcoin-quest-staging-backups');
+            process.env.BQ_BACKUP_BUCKET = 'bitcoin-quest-staging-backups-use1';
+            const fromEnv = ks.makeBackupDeps({}, {}, { projectId: 'bitcoin-quest-staging' });
+            assert.strictEqual(fromEnv.backupBucket, 'bitcoin-quest-staging-backups-use1');
+            const fromOpts = ks.makeBackupDeps({}, {}, {
+                projectId: 'bitcoin-quest-staging',
+                backupBucket: 'explicit-bucket',
+            });
+            assert.strictEqual(fromOpts.backupBucket, 'explicit-bucket');
+        } finally {
+            if (savedBucket == null) delete process.env.BQ_BACKUP_BUCKET;
+            else process.env.BQ_BACKUP_BUCKET = savedBucket;
+            if (savedProject == null) delete process.env.GCLOUD_PROJECT;
+            else process.env.GCLOUD_PROJECT = savedProject;
+        }
+    });
+
     await test('status/preflight hides admin fields from the public state object', async function () {
         const db = makeDb();
         const { handler } = hook(db);
