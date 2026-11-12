@@ -102,14 +102,19 @@ test('the sender is offered the same roll, including the new small amounts', () 
     });
 });
 
-test('a claim pays min(balance, 200) only at 100 or more', () => {
+test('a claim pays min(balance, 1000) only at 100 or more', () => {
+    assert.strictEqual(claim.CLAIM_MAX, 1000);
+    assert.strictEqual(claim.PLAYER_DAILY_CAP, 1000);
+    assert.strictEqual(claim.SITE_DAILY_CAP, 2000);
+    assert.strictEqual(claim.RATE_MAX, 6);
     assert.strictEqual(claim.planCipherSatsClaim(ready({ balance: 99 })).ok, false);
     assert.strictEqual(claim.planCipherSatsClaim(ready({ balance: 100 })).amount, 100);
     assert.strictEqual(claim.planCipherSatsClaim(ready({ balance: 140 })).amount, 140);
-    assert.strictEqual(claim.planCipherSatsClaim(ready({ balance: 250 })).amount, 200);
-    const capped = claim.planCipherSatsClaim(ready({ balance: 180, playerDayUsed: 50 }));
-    assert.strictEqual(capped.amount, 150);
-    assert.strictEqual(claim.planCipherSatsClaim(ready({ balance: 180, playerDayUsed: 150 })).ok, false);
+    assert.strictEqual(claim.planCipherSatsClaim(ready({ balance: 250 })).amount, 250);
+    assert.strictEqual(claim.planCipherSatsClaim(ready({ balance: 1500 })).amount, 1000);
+    const capped = claim.planCipherSatsClaim(ready({ balance: 1800, playerDayUsed: 400 }));
+    assert.strictEqual(capped.amount, 600);
+    assert.strictEqual(claim.planCipherSatsClaim(ready({ balance: 180, playerDayUsed: 950 })).ok, false);
     assert.strictEqual(claim.planCipherSatsClaim(ready({ balance: 200, siteDayUsed: 1900 })).amount, 100);
     assert.strictEqual(claim.planCipherSatsClaim(ready({ balance: 200, siteDayUsed: 1950 })).ok, false);
     assert.strictEqual(claim.planCipherSatsClaim(ready({ claimsDisabled: true })).code, 'disabled');
@@ -139,13 +144,13 @@ test('a faucet withdrawal clock does not block a cipher claim', () => {
     };
     const first = claim.planCipherSatsClaim(ready({ balance: user.cipherSatsBalance }));
     assert.strictEqual(first.ok, true);
-    assert.strictEqual(first.amount, 200);
+    assert.strictEqual(first.amount, 400);
     assert.strictEqual(first.writesLastSatsClaim, false);
     assert.strictEqual(first.touchesFaucetCaps, false);
     assert.deepStrictEqual(first.userFields, ['cipherSatsBalance']);
     const patch = claim.cipherClaimUserPatch(first);
     assert.deepStrictEqual(Object.keys(patch), ['cipherSatsBalanceDelta']);
-    assert.strictEqual(patch.cipherSatsBalanceDelta, -200);
+    assert.strictEqual(patch.cipherSatsBalanceDelta, -400);
     user.cipherSatsBalance += patch.cipherSatsBalanceDelta;
     assert.strictEqual(user.lastSatsClaim, null);
     assert.strictEqual(user.pointsClaimed, 0);
@@ -163,15 +168,15 @@ test('a faucet withdrawal clock does not block a cipher claim', () => {
     user.pointsClaimed += faucetPatch.pointsClaimed;
     user.satsWithdrawn += faucetPatch.satsWithdrawn;
     user.lastSatsClaim = faucetPatch.lastSatsClaim;
-    assert.strictEqual(user.cipherSatsBalance, 200);
+    assert.strictEqual(user.cipherSatsBalance, 0);
 
     const second = claim.planCipherSatsClaim(ready({
-        balance: user.cipherSatsBalance,
+        balance: 250,
         playerDayUsed: 0,
         siteDayUsed: 0,
     }));
     assert.strictEqual(second.ok, true, 'faucet clock must not block the cipher claim');
-    assert.strictEqual(second.amount, 200);
+    assert.strictEqual(second.amount, 250);
     assert.strictEqual(second.writesLastSatsClaim, false);
 });
 
@@ -237,7 +242,7 @@ test('rules deny client writes of the balance and the claim collections', () => 
     assert.ok(keysFn.includes("'cipherSatsBalance'"));
     const blocked = rules.slice(rules.indexOf('function profileUpdateBlocked()'), rules.indexOf('function profileShapeOk()'));
     assert.ok(blocked.includes("'cipherSatsBalance'"));
-    ['cipher_sats_credits', 'cipher_sats_locks', 'cipher_sats_player_daily', 'cipher_sats_site_daily', 'cipher_sats_payouts', 'cipher_sats_invoices'].forEach(function(name) {
+    ['cipher_sats_credits', 'cipher_sats_locks', 'cipher_sats_player_daily', 'cipher_sats_site_daily', 'cipher_sats_payouts', 'cipher_sats_invoices', 'cipher_sats_rolling'].forEach(function(name) {
         const chunk = rules.slice(rules.indexOf('match /' + name + '/{docId}'));
         assert.ok(chunk.indexOf('allow read, write: if false') !== -1, name);
     });
@@ -255,7 +260,9 @@ test('the client shows the balance and claim button without publishing caps', ()
     const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
     const quests = fs.readFileSync(path.join(root, 'quests.js'), 'utf8');
     const mount = gifting.slice(gifting.indexOf('function mountCipherSatsBalance'), gifting.indexOf('function _lockedCipherNote'));
-    assert.ok(mount.includes("btn.textContent = 'Claim ' + Math.min(bal, 200).toLocaleString() + ' sats'"));
+    assert.ok(mount.includes("btn.textContent = 'Claim ' + Math.min(bal, cipherCap).toLocaleString() + ' sats'"));
+    assert.ok(mount.includes('CIPHER_SATS_RULES.max'));
+    assert.strictEqual(mount.indexOf('Math.min(bal, 200)'), -1);
     assert.ok(mount.includes('Cipher sats balance'));
     assert.strictEqual(mount.indexOf('claim 100-200 sats'), -1);
     assert.ok(gifting.includes('cipherSatsBalanceOpen'));
@@ -378,6 +385,94 @@ test('a release refunds only when the wallet says the payment failed', () => {
     ['pending', 'unknown', 'error', '', 'expired'].forEach(function(kind) {
         assert.strictEqual(claim.adminReleaseFromLookup(kind), 'refuse', kind);
     });
+});
+
+test('cipher balance above the earn rate holds claims over 200', () => {
+    assert.strictEqual(claim.CIPHER_OPENS_PER_DAY, 21);
+    assert.strictEqual(claim.MAX_BALANCE_CREDIT_SATS, 500);
+    assert.strictEqual(claim.TCTV_SHARE_PER_DAY, 2000);
+    assert.strictEqual(claim.MAX_CIPHER_EARN_PER_DAY, 21 * 500 + 2000);
+    const gifting = fs.readFileSync(path.join(root, 'functions/src/gifting.js'), 'utf8');
+    const shareSrc = fs.readFileSync(path.join(root, 'functions/src/cipherShare.js'), 'utf8');
+    assert.ok(gifting.includes('const CIPHER_OPENS_PER_DAY = 21'));
+    assert.ok(shareSrc.includes('const CIPHER_OPENS_PER_DAY = 21'));
+    const day = claim.assessCipherBalanceGrowth({ ageDays: 1, balance: claim.MAX_CIPHER_EARN_PER_DAY + 1, amount: 1000 });
+    assert.strictEqual(day.ok, false);
+    assert.strictEqual(day.review, true);
+    assert.strictEqual(day.error, require('../functions/src/faucetGuard').UNDER_REVIEW);
+    const small = claim.assessCipherBalanceGrowth({ ageDays: 1, balance: claim.MAX_CIPHER_EARN_PER_DAY + 1, amount: 200 });
+    assert.strictEqual(small.ok, true);
+    const room = claim.assessCipherBalanceGrowth({ ageDays: 2, balance: claim.MAX_CIPHER_EARN_PER_DAY, amount: 1000 });
+    assert.strictEqual(room.ok, true);
+    const planned = claim.planCipherSatsClaim(ready({
+        ageDays: 30,
+        balance: (30 * claim.MAX_CIPHER_EARN_PER_DAY) + 50,
+        claimId: 'big',
+    }));
+    assert.strictEqual(planned.review, true);
+    assert.strictEqual(planned.ok, false);
+});
+
+test('a cipher claim at 23:59 UTC blocks another 1,000 at 00:00', () => {
+    const late = Date.parse('2026-11-09T23:59:00.000Z');
+    const early = Date.parse('2026-11-10T00:00:30.000Z');
+    const first = claim.planCipherSatsClaim(ready({
+        nowMs: late,
+        day: '2026-11-09',
+        balance: 2000,
+        claimId: 'night',
+        rollingClaims: [],
+        playerDayUsed: 0,
+    }));
+    assert.strictEqual(first.ok, true);
+    assert.strictEqual(first.amount, 1000);
+    const second = claim.planCipherSatsClaim(ready({
+        nowMs: early,
+        day: '2026-11-10',
+        balance: 1000,
+        claimId: 'morning',
+        playerDayUsed: 0,
+        siteDayUsed: 0,
+        rollingClaims: first.rollingClaims,
+    }));
+    assert.strictEqual(second.ok, false);
+    assert.strictEqual(second.code, 'cap');
+    const later = claim.planCipherSatsClaim(ready({
+        nowMs: late + claim.ROLLING_WINDOW_MS + 1000,
+        day: '2026-11-10',
+        balance: 1000,
+        claimId: 'next',
+        playerDayUsed: 0,
+        rollingClaims: first.rollingClaims,
+    }));
+    assert.strictEqual(later.ok, true);
+    assert.strictEqual(later.amount, 1000);
+});
+
+test('cipher caps are reserved inside the claim transaction and a failed pay keeps the user cap', () => {
+    const gifting = fs.readFileSync(path.join(root, 'functions/src/gifting.js'), 'utf8');
+    const body = gifting.slice(gifting.indexOf('const claimCipherSats'), gifting.indexOf('const adminResolveCipherSatsClaim'));
+    const tx = body.slice(body.indexOf('runTransaction'), body.indexOf('if (reviewHold)'));
+    assert.ok(body.includes("collection('cipher_sats_rolling')"));
+    assert.ok(tx.includes('playerDayUsed: dayAmount(playerSnap)'));
+    assert.ok(tx.includes('siteDayUsed: dayAmount(siteSnap)'));
+    assert.ok(tx.includes('rollingClaims'));
+    assert.ok(tx.includes('t.get(rollingRef)'));
+    assert.ok(tx.indexOf('t.get(playerSnap') === -1);
+    assert.ok(tx.includes('dayAmount(playerSnap)'));
+    assert.ok(tx.includes('planCipherSatsClaim'));
+    assert.ok(tx.includes('assessFingerprint'));
+    assert.ok(tx.includes('assessExactIpSlot'));
+    assert.ok(tx.includes('assessSubnetSlot'));
+    assert.ok(body.includes('verifyTurnstile'));
+    assert.ok(body.includes('enforceAppCheck: true'));
+    const finish = gifting.slice(gifting.indexOf('async function finishCipherClaim'), gifting.indexOf('async function beginCipherPay'));
+    assert.ok(finish.includes("status === 'restored'"));
+    assert.ok(finish.includes('cipherSatsBalance'));
+    assert.ok(finish.includes('siteRef'));
+    assert.strictEqual(finish.includes('playerRef'), false);
+    assert.strictEqual(finish.includes('cipher_sats_player_daily'), false);
+    assert.strictEqual(finish.includes('cipher_sats_rolling'), false);
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

@@ -383,6 +383,7 @@ function mfaClearDevice(uid) {
 var APP_CHECK_CALLABLES = {
     ackBadgeBackfillToast: 1,
     ackCipherShare: 1,
+    adminClearPayoutHold: 1,
     adminResetSecondFactor: 1,
     adminResolveCipherSatsClaim: 1,
     answerTrivia: 1,
@@ -4238,7 +4239,7 @@ window.paintInviteTier = paintInviteTier;
 
 function paintHomeStrip(snap) {
     var satsEl = document.getElementById('homeSatsValue');
-    var claimNow = Math.min(Number(snap.claimable) || 0, 200, Number(snap.lifetimeLeft) || 0);
+    var claimNow = Math.min(Number(snap.claimable) || 0, window.SATS_CLAIM_MAX || 1000, Number(snap.lifetimeLeft) || 0);
     if (satsEl) satsEl.textContent = Number(snap.claimable || 0).toLocaleString();
     var user = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
     // The profile cache has no referral count. Leave the Invites tile on its
@@ -9171,6 +9172,7 @@ function showSettingsPage(tab) {
         html += '</div>';
         html += '<div id="cipherWinsAdmin" style="margin-top:12px;"></div>';
         html += '<div id="factionPrizeAdmin" style="margin-top:12px;"></div>';
+        html += '<div id="payoutHoldAdmin" style="margin-top:12px;"></div>';
         html += '<div id="faucetAbuseAdmin" style="margin-top:12px;"></div>';
         html += '</div>';
 
@@ -9553,7 +9555,7 @@ function accountDeleteRowHtml(user) {
         var satsBalance = _claimMath ? _claimMath.balance : Math.floor(Math.max(0, availableForClaim) / 10); // 10 pts = 1 sat
         var _satCap = _claimMath ? _claimMath.cap : lifetimeSatCap();
         var lifetimeLeft = _claimMath ? _claimMath.lifetimeLeft : Math.max(0, _satCap - satsWithdrawn);
-        var claimable = Math.min(satsBalance, 200, lifetimeLeft);
+        var claimable = Math.min(satsBalance, window.SATS_CLAIM_MAX, lifetimeLeft);
         var lastClaim = currentUser ? currentUser.lastSatsClaim || null : null;
         var canClaimTime = lastClaim ? new Date(lastClaim.seconds ? lastClaim.seconds * 1000 : lastClaim).getTime() + (24 * 60 * 60 * 1000) : 0;
         var now = Date.now();
@@ -9649,7 +9651,7 @@ function accountDeleteRowHtml(user) {
         html += '<div id="cipherSatsBalanceSettingsAmount" class="cipher-sats-balance-amount" style="font-size:1.6rem;font-weight:900;color:#f7931a;margin:8px 0;">' + cipherBal.toLocaleString() + ' sats</div>';
         html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:4px;">Separate from your faucet balance</div>';
         html += '<div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:10px;">Small sats wins from locked ciphers land here.</div>';
-        html += '<button id="cipherSatsClaimSettings" type="button" class="cipher-sats-claim-btn" ' + (cipherReady ? '' : 'disabled ') + 'onclick="if(window.claimCipherSats)window.claimCipherSats()" style="width:100%;min-height:44px;padding:12px;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;font-family:inherit;' + (cipherReady ? 'background:#f7931a;color:#fff;cursor:pointer;' : 'background:var(--card-bg);color:var(--text-muted);cursor:default;opacity:0.65;') + '">Claim ' + Math.min(cipherBal, 200).toLocaleString() + ' sats</button>';
+        html += '<button id="cipherSatsClaimSettings" type="button" class="cipher-sats-claim-btn" ' + (cipherReady ? '' : 'disabled ') + 'onclick="if(window.claimCipherSats)window.claimCipherSats()" style="width:100%;min-height:44px;padding:12px;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;font-family:inherit;' + (cipherReady ? 'background:#f7931a;color:#fff;cursor:pointer;' : 'background:var(--card-bg);color:var(--text-muted);cursor:default;opacity:0.65;') + '">Claim ' + Math.min(cipherBal, window.CIPHER_SATS_RULES.max).toLocaleString() + ' sats</button>';
         html += window.cipherSatsHintHtml(cipherBal);
         html += '</div>';
         // ── Overflow queue section ──
@@ -9671,7 +9673,7 @@ function accountDeleteRowHtml(user) {
 
         // Claim button area
         if (!isAnon && eligible && meetsMin && !onCooldown && claimable >= 100) {
-            html += '<button onclick="initSatsClaim()" style="width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:16px;transition:0.2s;touch-action:manipulation;">⚡ Claim Up to ' + Math.min(claimable, 200) + ' Sats</button>';
+            html += '<button onclick="initSatsClaim()" style="width:100%;padding:16px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:16px;transition:0.2s;touch-action:manipulation;">⚡ Claim Up to ' + Math.min(claimable, window.SATS_CLAIM_MAX) + ' Sats</button>';
         } else if (onCooldown) {
             html += '<div style="width:100%;padding:16px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;margin-bottom:16px;color:var(--text-muted);font-size:0.85rem;">⏳ Next claim in <strong>' + cooldownStr + '</strong></div>';
         } else if (!meetsMin && eligible) {
@@ -9749,7 +9751,7 @@ function accountDeleteRowHtml(user) {
         html += '<div style="font-size:0.78rem;color:var(--text-muted);line-height:1.7;">';
         html += '• <strong>1,000 XP = 100 sats</strong> - earn XP by reading, quests, and daily visits<br>';
         html += '• <strong>Min claim: 100 sats</strong> (1,000 XP)<br>';
-        html += '• <strong>Max claim: 200 sats/day</strong><br>';
+        html += '• <strong>Max claim: 1,000 sats</strong> per withdrawal<br>';
         html += '• <strong>1 claim per 24 hours</strong><br>';
         html += '• <strong>Lifetime max: 15,000 sats</strong> per account<br>';
         html += '• <strong>Daily XP:</strong> full through 500, half through 900, then a quarter until 1,000<br>';
@@ -10660,6 +10662,9 @@ function accountDeleteRowHtml(user) {
             }
             if (window._isAdminClaim === true && typeof window.renderFactionPrizeAdmin === 'function') {
                 window.renderFactionPrizeAdmin('factionPrizeAdmin');
+            }
+            if (window._isAdminClaim === true && typeof window.renderPayoutHoldAdmin === 'function') {
+                window.renderPayoutHoldAdmin('payoutHoldAdmin');
             }
             if (window._isAdminClaim === true && typeof window.renderFaucetAbuseAdmin === 'function') {
                 window.renderFaucetAbuseAdmin('faucetAbuseAdmin');
@@ -13207,7 +13212,8 @@ window._showFreshStepUp = function (action) {
         deleteAccount: 'Enter a fresh authenticator code to delete this account. Remembering this device is not enough.',
         disableTotp: 'Enter a fresh authenticator code to turn off two-factor authentication. A saved session is not enough.',
         regenerateRecoveryCodes: 'Enter a fresh authenticator code to create new recovery codes. A saved session is not enough.',
-        changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.'
+        changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.',
+        clearPayoutHold: 'Enter a fresh authenticator code to clear a payout hold. Remembering this device is not enough.'
     };
     return new Promise(function (resolve) {
         var old = document.getElementById('freshStepUpOverlay');
@@ -13485,7 +13491,10 @@ window.saveSatsLnAddress = function() {
 // Cipher sats claim rules. Mirrors functions/src/cipherSatsClaim.js (CLAIM_MIN,
 // CLAIM_MAX, PLAYER_DAILY_CAP) and cipherClaim.js (MIN_ACCOUNT_AGE_DAYS).
 // The server config doc is admin-only and holds just an on/off flag.
-window.CIPHER_SATS_RULES = { min: 100, max: 200, perDay: 200, ageDays: 7 };
+// SATS_CLAIM_MAX mirrors faucetGuard MAX_PER_CLAIM_SATS and MAX_DAILY_PER_USER_SATS.
+// The faucet still allows one claim per 24 hours. That cooldown is separate.
+window.SATS_CLAIM_MAX = 1000;
+window.CIPHER_SATS_RULES = { min: 100, max: 1000, perDay: 1000, ageDays: 7 };
 window.cipherSatsWithdrawHint = function(bal) {
     var r = window.CIPHER_SATS_RULES;
     var b = Math.max(0, Math.floor(Number(bal) || 0));
@@ -13495,6 +13504,45 @@ window.cipherSatsWithdrawHint = function(bal) {
 window.cipherSatsHintHtml = function(bal) {
     return '<div class="cipher-sats-hint" role="note" style="font-size:0.72rem;color:var(--text-muted);margin-top:8px;line-height:1.35;">ⓘ ' + escapeHtml(window.cipherSatsWithdrawHint(bal)) + '</div>';
 };
+
+function cipherClaimTurnstile() {
+    return new Promise(function(resolve) {
+        var host = document.createElement('div');
+        host.id = 'cipherSatsTurnstile';
+        host.setAttribute('data-sitekey', '0x4AAAAAAD-ivgpRkbXpgz86');
+        host.style.cssText = 'position:absolute;left:-9999px;width:300px;height:70px;';
+        document.body.appendChild(host);
+        var finished = false;
+        function done(token) {
+            if (finished) return;
+            finished = true;
+            try { if (window.turnstile && host._wid != null) window.turnstile.remove(host._wid); } catch (e) {}
+            try { host.remove(); } catch (e2) {}
+            resolve(token || '');
+        }
+        var timer = setTimeout(function() { done(''); }, 20000);
+        function render() {
+            if (!window.turnstile) { clearTimeout(timer); done(''); return; }
+            try {
+                host._wid = window.turnstile.render(host, {
+                    sitekey: host.getAttribute('data-sitekey'),
+                    callback: function(token) { clearTimeout(timer); done(token); },
+                    'error-callback': function() { clearTimeout(timer); done(''); }
+                });
+            } catch (e) { clearTimeout(timer); done(''); }
+        }
+        if (window.turnstile) { render(); return; }
+        if (typeof window._ensureTurnstile === 'function') window._ensureTurnstile(host);
+        var polls = 0;
+        var poll = setInterval(function() {
+            polls++;
+            var input = host.querySelector('[name="cf-turnstile-response"]');
+            if (input && input.value) { clearInterval(poll); clearTimeout(timer); done(input.value); }
+            else if (window.turnstile && polls === 1) render();
+            else if (polls > 40) { clearInterval(poll); clearTimeout(timer); done(''); }
+        }, 500);
+    });
+}
 
 window.claimCipherSats = async function() {
     var bal = Math.max(0, Math.floor(Number(currentUser && currentUser.cipherSatsBalance) || 0));
@@ -13506,10 +13554,28 @@ window.claimCipherSats = async function() {
     }
     window._cipherSatsClaiming = true;
     try {
-        var _gross = Math.min(bal, 200);
+        var _gross = Math.min(bal, window.CIPHER_SATS_RULES.max);
         var _ok = await window.bqConfirmLnFee(_gross, 'Cipher sats claim (up to)');
         if (!_ok) return { success: false, cancelled: true };
-        var res = await firebase.functions().httpsCallable('claimCipherSats')({});
+        try {
+            var _appTok = '';
+            if (typeof window._btcAppCheckForClaim === 'function') _appTok = await window._btcAppCheckForClaim(8000);
+            else if (firebase.appCheck) {
+                var _got = await firebase.appCheck().getToken(false);
+                _appTok = _got && _got.token;
+            }
+            if (!_appTok) throw new Error('app-check');
+        } catch (appErr) {
+            if (typeof showToast === 'function') showToast('Security check failed. Refresh the page and try again.');
+            return { success: false };
+        }
+        var _fp = (typeof _generateDeviceFingerprint === 'function') ? _generateDeviceFingerprint() : '';
+        var _tsToken = await cipherClaimTurnstile();
+        if (!_fp || !_tsToken) {
+            if (typeof showToast === 'function') showToast('Security check pending — please wait a moment and try again.');
+            return { success: false };
+        }
+        var res = await firebase.functions().httpsCallable('claimCipherSats')({ fingerprint: _fp, turnstileToken: _tsToken });
         var d = (res && res.data) || {};
         if (!d.success) {
             if (typeof showToast === 'function') showToast(d.error || 'Could not claim cipher sats');
@@ -13577,7 +13643,7 @@ window.initSatsClaim = function() {
     var satsWithdrawn = _claimMath ? _claimMath.withdrawn : (currentUser.satsWithdrawn || 0);
     var _satCap = _claimMath ? _claimMath.cap : lifetimeSatCap();
     var lifetimeLeft = _claimMath ? _claimMath.lifetimeLeft : Math.max(0, _satCap - satsWithdrawn);
-    var maxClaim = Math.min(satsBalance, 200, lifetimeLeft);
+    var maxClaim = Math.min(satsBalance, window.SATS_CLAIM_MAX, lifetimeLeft);
     console.log('[SATS] maxClaim:', maxClaim, '| satsBalance:', satsBalance, '| lifetimeLeft:', lifetimeLeft, '| satsWithdrawn:', satsWithdrawn);
     if (maxClaim < 100) {
         console.log('[SATS] BLOCKED: maxClaim < 100');
@@ -13727,7 +13793,7 @@ window.submitSatsClaim = async function() {
         if (errorEl) { errorEl.textContent = 'Enter a valid Lightning Address (e.g. you@walletofsatoshi.com)'; errorEl.style.display = 'block'; }
         return;
     }
-    var _maxCl = window._satsClaimMaxClaim || 200;
+    var _maxCl = window._satsClaimMaxClaim || window.SATS_CLAIM_MAX;
     if (!lnAmt || lnAmt < 100 || lnAmt > _maxCl) {
         if (errorEl) { errorEl.textContent = 'Amount must be between 100 and ' + _maxCl + ' sats'; errorEl.style.display = 'block'; }
         return;
@@ -13885,6 +13951,119 @@ function _faucetAbuseAccountRow(acc) {
     row.appendChild(_faucetAbuseBanButton(acc && acc.uid));
     return row;
 }
+
+// Payout holds (PR #285): global auto-pause on payout_safety/hold. Admin
+// claim only; the server re-checks the claim, App Check and a typed confirm,
+// and writes a permanent audit row. Auto-holds lapse after 30 days.
+var PAYOUT_HOLD_LABELS = {
+    satsHold: { name: 'All sats payouts', tip: 'Set when 2 Lightning fees over the charged fee land within 1 hour, or the payout wallet drops more than 5,000 sats within 1 hour. Faucet, cipher and prize cash-outs all stop.' },
+    cipherHold: { name: 'Cipher payouts', tip: 'Set when overpaid fees on cipher cash-outs and prizes pass 500 sats in 24 hours. The faucet keeps paying.' }
+};
+
+function _payoutHoldWhen(ms) {
+    var n = Number(ms) || 0;
+    if (!n) return '';
+    try { return new Date(n).toLocaleString(); } catch (e) { return String(n); }
+}
+
+window.renderPayoutHoldAdmin = function(containerId) {
+    var root = document.getElementById(containerId);
+    if (!root) return;
+    root.textContent = '';
+    if (window._isAdminClaim !== true || typeof db === 'undefined' || !db) return;
+    var card = document.createElement('div');
+    card.style.cssText = 'background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;';
+    var title = document.createElement('div');
+    title.textContent = '⏸️ Payout holds';
+    title.style.cssText = 'font-weight:800;font-size:0.9rem;margin-bottom:6px;color:var(--text);';
+    card.appendChild(title);
+    var hint = document.createElement('div');
+    hint.textContent = 'Automatic safety pauses. Each lasts 30 days unless you clear it. Clearing is logged. Every per-claim safety check still runs after you clear.';
+    hint.style.cssText = 'font-size:0.72rem;color:var(--text-faint);margin-bottom:8px;';
+    card.appendChild(hint);
+    var status = document.createElement('div');
+    status.textContent = 'Loading...';
+    status.style.cssText = 'font-size:0.78rem;color:var(--text-muted);';
+    card.appendChild(status);
+    root.appendChild(card);
+    db.collection('payout_safety').doc('hold').get().then(function(snap) {
+        var h = snap.exists ? (snap.data() || {}) : {};
+        var now = Date.now();
+        status.textContent = '';
+        var any = false;
+        ['satsHold', 'cipherHold'].forEach(function(field) {
+            var label = PAYOUT_HOLD_LABELS[field];
+            var row = document.createElement('div');
+            row.style.cssText = 'border-top:1px solid var(--border);padding:8px 0;display:flex;align-items:center;gap:8px;';
+            var text = document.createElement('div');
+            text.style.cssText = 'flex:1;min-width:0;font-size:0.78rem;color:var(--text);';
+            text.title = label.tip;
+            var on = (Number(h[field]) || 0) > now;
+            if (on) any = true;
+            var line = label.name + ': ' + (on ? 'ON until ' + _payoutHoldWhen(h[field]) : 'off');
+            if (on && h[field + 'Reason']) line += ' · ' + String(h[field + 'Reason']).slice(0, 120);
+            text.textContent = line;
+            var tip = document.createElement('div');
+            tip.textContent = label.tip;
+            tip.style.cssText = 'font-size:0.68rem;color:var(--text-faint);margin-top:2px;';
+            text.appendChild(tip);
+            row.appendChild(text);
+            if (on) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = 'Clear Hold';
+                btn.title = 'Resume ' + label.name.toLowerCase() + ' now. You will be asked to type CLEAR ' + field + '.';
+                btn.style.cssText = 'padding:8px 12px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.45);border-radius:8px;color:#22c55e;font-size:0.75rem;font-weight:800;cursor:pointer;font-family:inherit;flex-shrink:0;';
+                btn.addEventListener('click', function() { window.clearPayoutHold(field, containerId, btn); });
+                row.appendChild(btn);
+            }
+            card.appendChild(row);
+        });
+        if (!any) {
+            var ok = document.createElement('div');
+            ok.textContent = '✅ Payouts are running. No hold is set.';
+            ok.style.cssText = 'font-size:0.75rem;color:#22c55e;margin-top:6px;';
+            card.appendChild(ok);
+        }
+    }).catch(function() {
+        status.textContent = 'Could not load payout holds.';
+    });
+};
+
+window.clearPayoutHold = function(which, containerId, btn) {
+    if (window._isAdminClaim !== true) return;
+    var phrase = 'CLEAR ' + which;
+    var typed = window.prompt('Payouts resume as soon as you clear this hold. Type ' + phrase + ' to confirm.');
+    if (typed === null) return;
+    if (String(typed).trim() !== phrase) {
+        if (typeof showToast === 'function') showToast('Not cleared: the confirm text did not match.');
+        return;
+    }
+    (async function() {
+        // Server requires a recent sign-in, a fresh authenticator code, and
+        // an enrolled second factor (#285 follow-up).
+        if (typeof window.reauthForSensitiveAction === 'function') {
+            var ready = await window.reauthForSensitiveAction('clearing a payout hold');
+            if (!ready) { if (typeof showToast === 'function') showToast('Sign in again, then clear the hold.'); return null; }
+        }
+        var payload = { which: which, confirm: phrase };
+        if (typeof mfaNeedsFreshCode === 'function' && mfaNeedsFreshCode() && typeof window._showFreshStepUp === 'function') {
+            var proof = await window._showFreshStepUp('clearPayoutHold');
+            if (!proof) { if (typeof showToast === 'function') showToast('Finish the authenticator check, then try again.'); return null; }
+            payload.freshProofId = proof;
+        }
+        if (btn) { btn.disabled = true; btn.textContent = 'Clearing...'; }
+        return firebase.functions().httpsCallable('adminClearPayoutHold')(payload);
+    })().then(function(res) {
+        if (res === null) return;
+        var cleared = (res && res.data && res.data.cleared) || [];
+        if (typeof showToast === 'function') showToast(cleared.length ? 'Hold cleared. Payouts resume on the next claim.' : 'That hold was already off.');
+        window.renderPayoutHoldAdmin(containerId);
+    }).catch(function(e) {
+        if (typeof showToast === 'function') showToast('Could not clear the hold. ' + ((e && e.message) || ''));
+        if (btn) { btn.disabled = false; btn.textContent = 'Clear Hold'; }
+    });
+};
 
 window.renderFaucetAbuseAdmin = function(containerId) {
     var root = document.getElementById(containerId);

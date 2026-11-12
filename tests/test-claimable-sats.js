@@ -65,7 +65,8 @@ test('ranking no longer falls back to a 10000 cap', () => {
     assert.ok(!ranking.includes('? 10000'));
     assert.ok(ranking.includes('function lifetimeSatCap'));
     assert.ok(ranking.includes('return 15000'));
-    assert.ok(ranking.includes('Math.min(Number(snap.claimable) || 0, 200'));
+    assert.ok(ranking.includes('Math.min(Number(snap.claimable) || 0, window.SATS_CLAIM_MAX || 1000'));
+    assert.ok(!ranking.includes('Math.min(Number(snap.claimable) || 0, 200'));
     assert.ok(!ranking.includes('function homePreviewAllowed'));
     assert.ok(!ranking.includes('_homePreviewUser'));
     assert.ok(!ranking.includes("host === 'localhost'"));

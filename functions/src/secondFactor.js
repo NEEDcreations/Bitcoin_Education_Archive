@@ -28,6 +28,7 @@ const FRESH_ACTIONS = {
     changeEmail: true,
     linkProvider: true,
     unlinkProvider: true,
+    clearPayoutHold: true, // #285 admin Clear Hold (Spam/Abuse + Red Team follow-up)
     adminResetSecondFactor: true,
 };
 const RECOVERY_COUNT = 10;

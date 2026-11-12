@@ -1480,7 +1480,8 @@ function mountCipherSatsBalance(parent, opts) {
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'cipher-sats-claim-btn';
-    btn.textContent = 'Claim ' + Math.min(bal, 200).toLocaleString() + ' sats';
+    var cipherCap = (window.CIPHER_SATS_RULES && window.CIPHER_SATS_RULES.max) || 1000;
+    btn.textContent = 'Claim ' + Math.min(bal, cipherCap).toLocaleString() + ' sats';
     var _rules = window.CIPHER_SATS_RULES || { min: 100 };
     var ready = bal >= _rules.min && !options.disabled;
     btn.disabled = !ready;
@@ -2117,12 +2118,8 @@ window.showCipherClaim = function(win) {
     var help = document.createElement('div');
     help.style.cssText = 'font-size:0.78rem;color:var(--text-muted);margin-bottom:10px;text-align:center;';
     var _feeQ = (typeof window.bqLnFeeQuote === 'function') ? window.bqLnFeeQuote(win.amount || 0) : { gross: win.amount || 0, fee: 10, net: Math.max(0, (win.amount || 0) - 10), ok: (win.amount || 0) > 3 };
-    help.textContent = 'A flat ' + _feeQ.fee + ' sat Lightning fee comes out of this prize, so you receive ' + _feeQ.net.toLocaleString() + ' sats. Paste a Lightning invoice for exactly ' + _feeQ.net.toLocaleString() + ' sats, or type a Lightning Address (name@wallet).';
-    var input = document.createElement('textarea');
-    input.id = 'cipherClaimInput';
-    input.rows = 3;
-    input.placeholder = 'lnbc… invoice   or   you@walletofsatoshi.com';
-    input.style.cssText = 'width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid var(--border,#333);background:var(--input-bg,#111);color:var(--text,#fff);font-family:inherit;font-size:0.85rem;margin-bottom:10px;';
+    var lockedLn = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightningAddress || currentUser.lightning || '') : '';
+    help.textContent = 'A flat ' + _feeQ.fee + ' sat Lightning fee comes out of this prize, so you receive ' + _feeQ.net.toLocaleString() + ' sats at the Lightning Address locked on your account' + (lockedLn ? ' (' + lockedLn + ').' : '.');
     var row = document.createElement('div');
     row.style.cssText = 'display:flex;gap:8px;';
     var go = _btn('Pay me');
@@ -2132,8 +2129,6 @@ window.showCipherClaim = function(win) {
     cancel.style.color = 'var(--text-muted)';
     cancel.onclick = function() { _dismissGiftingChild(overlay); };
     go.onclick = async function() {
-        var raw = (input.value || '').trim();
-        if (!raw) { _toast('Paste an invoice or Lightning Address'); return; }
         var _confirmed = (typeof window.bqConfirmLnFee === 'function')
             ? await window.bqConfirmLnFee(win.amount || 0, 'Cipher prize')
             : window.confirm('Prize ' + _feeQ.gross + ' sats − ' + _feeQ.fee + ' sat Lightning fee = ' + _feeQ.net + ' sats to you. Confirm?');
@@ -2141,8 +2136,6 @@ window.showCipherClaim = function(win) {
         go.disabled = true;
         go.textContent = 'Paying…';
         var payload = { winId: win.id };
-        if (raw.toLowerCase().indexOf('lnbc') === 0) payload.invoice = raw;
-        else payload.lightningAddress = raw;
         try {
             var res = await _callCF('claimCipherWin', payload);
             var d = res.data || {};
@@ -2166,12 +2159,10 @@ window.showCipherClaim = function(win) {
     row.appendChild(cancel);
     modal.appendChild(title);
     modal.appendChild(help);
-    modal.appendChild(input);
     modal.appendChild(row);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
     _mountGiftingChild(overlay, returnFocus);
-    setTimeout(function() { input.focus(); }, 50);
 };
 
 // ─── Send keys ───────────────────────────────────────────────────────────────

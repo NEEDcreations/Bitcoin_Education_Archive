@@ -30,7 +30,7 @@ const BATCHES = [
     { name: 'gen2 schedules + referral/X triggers', fns: ['scheduleRaidBoss', 'scheduleRaidBossCatchup', 'refreshHotTopics', 'tweetSatoshisFavor', 'onUserReferral', 'payQualifiedReferrals'] },
     { name: 'gen1 hot topics, Strava, referral callables', fns: ['refreshHotTopicsHttp', 'refreshHotTopicsForce', 'stravaAuth', 'syncStravaWalks', 'verifyReferral', 'registerReferral'] },
     { name: 'account security: TOTP, username, email change, delete', fns: ['totpSetup', 'totpVerify', 'totpCheck', 'totpDisable', 'totpStepUp', 'regenerateRecoveryCodes', 'recordKnownPhoneFactor', 'setUsername', 'prepareEmailChange', 'syncEmailChange', 'confirmAccountLink', 'deleteAccount'] },
-    { name: 'wallet / NWC (last)', fns: ['getFaucetStats', 'confirmTipSent', 'adminResolveCipherSatsClaim', 'resetLightningAddressOnce', 'claimSats', 'claimCipherSats', 'claimCipherWin', 'tctvDripTick'] },
+    { name: 'wallet / NWC (last)', fns: ['getFaucetStats', 'confirmTipSent', 'adminResolveCipherSatsClaim', 'resetLightningAddressOnce', 'claimSats', 'claimCipherSats', 'claimCipherWin', 'tctvDripTick', 'adminClearPayoutHold'] },
 ];
 
 function loadEndpoints() {

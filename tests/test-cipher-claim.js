@@ -7,6 +7,7 @@ const {
     lookupRequestFromDecoded,
     shouldLookupPay,
     payErrorAction,
+    explicitPayRefusal,
     EXPLICIT_PAY_REFUSALS,
     classifyLookup,
     decideAfterLookups,
@@ -100,20 +101,54 @@ later('payment hash is read from the decoded invoice', function() {
     assert.strictEqual(lookupRequestFromDecoded({ tags: [] }), null);
 });
 
-later('only an explicit wallet refusal skips the lookup and releases', function() {
+later('a pay-phase error is looked up, including PAYMENT_FAILED, and the code is not read from the message', function() {
     assert.strictEqual(payErrorAction({ phase: 'balance', error: new Error('[TIMEOUT] getBalance') }), 'release');
     assert.strictEqual(shouldLookupPay({ phase: 'balance', error: new Error('[TIMEOUT] getBalance') }), false);
     assert.strictEqual(payErrorAction({ phase: 'pay', error: new Error('[TIMEOUT] payInvoice') }), 'lookup');
     assert.strictEqual(payErrorAction({ phase: 'pay', error: new Error('NO_PREIMAGE') }), 'lookup');
     assert.strictEqual(payErrorAction({ phase: 'pay', payResult: null }), 'lookup');
     assert.strictEqual(payErrorAction({ phase: 'pay', payResult: { preimage: 'ee' } }), 'paid');
+    assert.strictEqual(explicitPayRefusal(new Error('PAYMENT_FAILED timeout')), false);
+    assert.strictEqual(explicitPayRefusal(Object.assign(new Error('still pending'), { code: 'PAYMENT_FAILED' })), true);
     EXPLICIT_PAY_REFUSALS.forEach(function(code) {
         const err = Object.assign(new Error('wallet refused'), { code: code });
-        assert.strictEqual(payErrorAction({ phase: 'pay', error: err }), 'release', code);
-        assert.strictEqual(shouldLookupPay({ phase: 'pay', error: err }), false, code);
-        assert.strictEqual(payErrorAction({ phase: 'pay', error: new Error(code) }), 'release', code);
+        assert.strictEqual(payErrorAction({ phase: 'pay', error: err }), 'lookup', code);
+        assert.strictEqual(shouldLookupPay({ phase: 'pay', error: err }), true, code);
+        assert.strictEqual(payErrorAction({ phase: 'pay', error: new Error(code) }), 'lookup', code);
     });
     assert.deepStrictEqual(EXPLICIT_PAY_REFUSALS, ['PAYMENT_FAILED', 'INSUFFICIENT_BALANCE', 'QUOTA_EXCEEDED', 'RATE_LIMITED']);
+});
+
+later('lookup settles a pending payment, releases a confirmed failure, and holds a timeout', async function() {
+    const pendingThenPaid = await lookupSettlement({
+        attempts: 2,
+        intervalMs: 0,
+        sleep: async function() {},
+        lookup: (function() {
+            let n = 0;
+            return async function() {
+                n++;
+                if (n === 1) return { payment_hash: 'abc', state: 'pending' };
+                return { payment_hash: 'abc', state: 'settled', preimage: 'beef' };
+            };
+        })(),
+    });
+    assert.deepStrictEqual(pendingThenPaid, { action: 'paid', preimage: 'beef' });
+    const failed = await lookupSettlement({
+        attempts: 1,
+        intervalMs: 0,
+        sleep: async function() {},
+        lookup: async function() { return { payment_hash: 'abc', state: 'failed' }; },
+    });
+    assert.strictEqual(failed.action, 'release');
+    const timedOut = await lookupSettlement({
+        attempts: 2,
+        intervalMs: 0,
+        sleep: async function() {},
+        lookup: async function() { throw new Error('[TIMEOUT] lookupInvoice'); },
+    });
+    assert.strictEqual(timedOut.action, 'hold');
+    assert.strictEqual(payErrorAction({ phase: 'pay', error: new Error('[TIMEOUT] payInvoice timed out after 30000ms') }), 'lookup');
 });
 
 later('settled lookup is paid, failed lookup releases, pending holds', function() {
