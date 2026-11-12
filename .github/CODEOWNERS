@@ -6,6 +6,7 @@
 /.github/ @NEEDcreations
 /.github/workflows/ @NEEDcreations
 /.github/CODEOWNERS @NEEDcreations
+/.betterleaksignore @NEEDcreations
 
 # Deploy, security rules, and server code.
 /firebase.json @NEEDcreations
