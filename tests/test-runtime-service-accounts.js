@@ -27,10 +27,10 @@ const manifest = Object.keys(RUNTIME_SERVICE_ACCOUNTS).sort();
 const noSecretOwn = manifest.filter(function (n) { return RUNTIME_SERVICE_ACCOUNTS[n].noSecrets === true; });
 const ownAccount = secretBound.concat(noSecretOwn).sort();
 
-test('manifest lists exactly the secret-bound exports (55) plus explicit noSecrets accounts', function () {
+test('manifest lists exactly the secret-bound exports (56) plus explicit noSecrets accounts', function () {
     assert.deepStrictEqual(manifest, ownAccount);
-    assert.strictEqual(secretBound.length, 55);
-    assert.deepStrictEqual(noSecretOwn, ['adminClearPayoutHold']);
+    assert.strictEqual(secretBound.length, 56);
+    assert.deepStrictEqual(noSecretOwn, []);
 });
 
 test('noSecrets accounts really bind no secret and run as their own account', function () {

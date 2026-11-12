@@ -15,6 +15,7 @@ const db = admin.firestore();
 const adminClearPayoutHold = functionsV1.runWith({
     enforceAppCheck: true,
     timeoutSeconds: 30,
+    secrets: ['TOTP_ENCRYPTION_KEY'],
     serviceAccount: runtimeSa('adminClearPayoutHold'),
 }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
