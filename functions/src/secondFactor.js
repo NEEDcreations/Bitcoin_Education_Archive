@@ -1591,7 +1591,11 @@ function initSecondFactor(deps) {
     // Hotfix: App Check, recent sign-in, fresh step-up with an established
     // factor on the caller, never the caller's own account, never an admin.
     // Admin second-factor resets happen out of band in the console.
-    const adminResetSecondFactor = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async function (data, context) {
+    const adminResetSecondFactor = functionsV1.runWith({
+        secrets: ['TOTP_ENCRYPTION_KEY'],
+        serviceAccount: runtimeSa('adminResetSecondFactor'),
+        enforceAppCheck: true,
+    }).https.onCall(async function (data, context) {
         if (!context || !context.auth || !context.auth.token || context.auth.token.admin !== true) {
             throw httpError('permission-denied', 'Admin only.');
         }
