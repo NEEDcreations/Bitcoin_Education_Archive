@@ -39,10 +39,13 @@ Install Node.js 22 (the Functions runtime and the dev workflow both use 22) and 
 ```bash
 git clone https://github.com/NEEDcreations/Bitcoin_Education_Archive.git
 cd Bitcoin_Education_Archive
+git config core.hooksPath githooks
 npm ci --prefix functions
 npm ci --prefix tests/rules
 node tests/test-syntax.js
 ```
+
+The `core.hooksPath` line is required so the tracked pre-commit hook can block secrets before they are committed. Install Betterleaks v2 and the rest of the hook setup as described in [CONTRIBUTING.md](CONTRIBUTING.md). Do not use `git commit --no-verify`.
 
 `node tests/run-all.js` installs the rules-test dependencies again, then runs every suite in `tests/run-all.js`. Suites that need Firebase start the emulators themselves when `FIRESTORE_EMULATOR_HOST` (and, for auth, `FIREBASE_AUTH_EMULATOR_HOST`) is unset. They use project ids that start with `demo-`, which stay on the emulator.
 
@@ -71,7 +74,8 @@ To click through the UI, serve the repo root with any static file server. That p
 | `tests/rules/` | Firestore rules tests against the emulator. |
 | `scripts/` | Maintainer scripts. Most of this directory is gitignored. |
 | `docs/` | Design notes. |
-| `.github/workflows/` | Pages, staging, dev hosting, and the nightly backup. |
+| `githooks/` | Tracked Git hooks. Enable with `git config core.hooksPath githooks`. |
+| `.github/workflows/` | Pages, staging, dev hosting, the nightly backup, and the Betterleaks secret scan. |
 
 ## How deploys work
 
@@ -83,6 +87,7 @@ The default branch is `gh-pages`. Pushes to it and to `dev` publish sites. Cloud
 | `deploy-staging-dev.yml` | Push to `gh-pages`, or a manual run | Staging copy to Cloudflare Pages. `scripts/build-staging.sh` rewrites the client onto the staging Firebase project, marks the pages `noindex`, and fails if a live client key remains. |
 | `deploy-dev.yml` | Push to `dev` | Firebase Hosting target `dev` only (the `bitcoin-education-dev` site). No functions deploy. |
 | `r2-nightly-backup.yml` | Nightly, or a manual run | Copies that day's Firestore export into private Cloudflare R2 storage as an encrypted archive. It does not deploy the app. |
+| `secret-scan.yml` | Pull requests, pushes to every branch, or a manual run | Installs a pinned, checksum-verified Betterleaks and scans new commits for secrets (detection only, redacted). |
 
 `deploy.sh` and `deploy-dev.sh` are maintainer scripts. They assume a configured machine, and `deploy.sh` commits and pushes. Contributors should open a pull request instead of running them.
 
