@@ -119,6 +119,7 @@ const GATED = Object.freeze({
         'pollVote',
         'chooseFaction',
         'managePeer',
+        'decryptCipher',
     ]),
     // Scheduled jobs that should skip (not fail) while offline. Queued work
     // stays in place and is flushed after the switch is off.

@@ -875,9 +875,13 @@ exports.onForumPost = onDocumentCreated({
 }, async (event) => {
     // Defer the forum-post ticket (and the admin notice) while offline.
     if (await killSwitchIsOn()) throw new Error('kill switch on: defer forum post ticket');
-    const snap = event.data; const context = { params: event.params };
-        const post = snap.data();
-        const postId = context.params.postId;
+    const context = { params: event.params };
+    const postId = context.params && context.params.postId;
+    if (!postId) return null;
+    // Redelivery can arrive after the post was deleted or removed; skip if gone.
+    const live = await db.collection('forum_posts').doc(postId).get();
+    if (!live.exists) return null;
+    const post = live.data() || {};
         if (!activityCounters.forumActivityAwardable(post)) return null;
         const authorId = post.authorId || 'unknown';
         if (authorId !== 'unknown' && String(post.title || '').trim()) {
@@ -1007,21 +1011,29 @@ exports.onMarketplaceListingCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
     retry: true,
 }, async (event) => {
-    if (!event.data) return null;
     if (await killSwitchIsOn()) throw new Error('kill switch on: defer marketplace listing grant');
-    const listing = event.data.data() || {};
-    if (listing.sellerUid && listing.status !== 'deleted') {
-        await grantServerTickets(listing.sellerUid, 'marketplace_listing_ticket');
-    }
+    const listingId = event.params && event.params.listingId;
+    if (!listingId) return null;
+    // Redelivery can arrive after the listing was deleted or removed; skip if gone.
+    const live = await db.collection('marketplace').doc(listingId).get();
+    if (!live.exists) return null;
+    const listing = live.data() || {};
+    if (listing.status === 'deleted' || listing.status === 'removed') return null;
     try {
+        // Count first so grantFamily sees the updated marketListings tally.
+        // Then grant the badge even on already_counted, so a retry after a
+        // failed badge grant is not dropped. Tickets are last (idempotent).
         const counted = await countMarketplaceListing({
             db: db,
             admin: admin,
-            listingId: event.params.listingId,
-            data: event.data.data(),
+            listingId: listingId,
+            data: listing,
         });
-        if (counted && counted.counted && counted.uid) {
+        if (counted && counted.uid && (counted.counted || counted.reason === 'already_counted')) {
             await grantFamily(db, admin, counted.uid, familyFor('marketListings'));
+        }
+        if (listing.sellerUid) {
+            await grantServerTickets(listing.sellerUid, 'marketplace_listing_ticket');
         }
     } catch (e) {
         console.error('[onMarketplaceListingCount] failed', e && e.message ? e.message : '');

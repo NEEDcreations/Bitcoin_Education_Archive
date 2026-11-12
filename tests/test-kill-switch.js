@@ -380,7 +380,7 @@ async function run() {
          'tctvWatchHeartbeat', 'syncStravaWalks', 'creditMatureTopicComments', 'spendTickets', 'spendTicketsForFreeze', 'activateDoubleXP',
          'activateHashBooster', 'useHintToken', 'resetLightningAddressOnce', 'flushBadgeGgBursts', 'mergeAnonBadges', 'incrementWeeklyChallenge',
          'dailyPollVote', 'pollVote', 'chooseFaction', 'reconcileDailyProofs', 'scheduleRaidForumCredit',
-         'managePeer'].forEach(function (n) {
+         'managePeer', 'decryptCipher'].forEach(function (n) {
             assert.ok(names.indexOf(n) !== -1, n);
         });
         const triggers = ks.gatedTriggerNames();
@@ -419,9 +419,6 @@ async function run() {
 
         const covered = {};
         ks.gatedNames().concat(ks.gatedTriggerNames(), ks.gatedRequestNames()).forEach(function (n) { covered[n] = true; });
-        // The previous badge-only regex (grantBadgeIfEarned|awardBadge) missed
-        // grantServerTickets, grantFamily, grantIds, noteTrusted, and the
-        // trifecta / peer-XP helpers, which is why these eight were not flagged.
         const REQUIRED = ['onForumPost', 'onMarketplaceListingCount', 'onMarketplaceMessageCount',
             'onIrlEventCreated', 'managePeer', 'onChatMessageCreated', 'onPushDeviceWritten', 'stravaAuth'];
         REQUIRED.forEach(function (n) {
@@ -429,14 +426,19 @@ async function run() {
             assert.ok(!UNGATED_ON_PURPOSE[n], n + ' grants value and must not be on the ungated-on-purpose list');
         });
 
-        const valueRe = /grantServerTickets|grantFamily|grantIds|grantBadgeIfEarned|\bawardBadge\s*\(|creditPeerAcceptXp|creditDailyAllThree|maybeCompleteTrifecta|maybeCompleteDailyFive|\bnoteTrusted\s*\(|\bcreditTrusted\s*\(|maybeGrantTickets|maybeGrantForBadge|planXpGrant|\bgrantXp\s*\(/;
+        const valueRe = /grantServerTickets|grantFamily|grantIds|grantBadgeIfEarned|\bawardBadge\s*\(|creditPeerAcceptXp|creditDailyAllThree|maybeCompleteTrifecta|maybeCompleteDailyFive|\bnoteTrusted\s*\(|\bcreditTrusted\s*\(|maybeGrantTickets|maybeGrantForBadge|planXpGrant|\bgrantXp\s*\(|\b(?:orangeTickets|weeklyXP|monthlyXP|points)\s*[:=][^\n]*\.increment\s*\(/;
         const checkRe = /killSwitchIsOn\s*\(|\.isOffline\s*\(|makeReader\s*\(/;
+
+        function stripComments(src) {
+            return String(src || '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+        }
 
         function exportedExpression(src, at) {
             const eq = src.indexOf('=', at);
+            if (eq < 0) return '';
             let i = eq + 1;
             let depth = 0;
-            let start = i;
+            const startAt = i;
             while (i < src.length) {
                 const c = src[i];
                 if (c === '"' || c === "'" || c === '`') {
@@ -461,31 +463,165 @@ async function run() {
                 }
                 if (c === '{' || c === '(' || c === '[') depth++;
                 else if (c === '}' || c === ')' || c === ']') depth = Math.max(0, depth - 1);
-                else if (c === ';' && depth === 0) return src.slice(start, i);
+                else if (c === ';' && depth === 0) return src.slice(startAt, i);
                 else if (c === '\n' && depth === 0) {
                     const rest = src.slice(i + 1);
-                    if (/^\s*(exports\.|async function |function |const |let |var )/.test(rest)) {
-                        return src.slice(start, i);
+                    if (/^\s*(exports\.|module\.exports|async function |function |const |let |var )/.test(rest)) {
+                        return src.slice(startAt, i);
                     }
                 }
                 i++;
             }
-            return src.slice(start);
+            return src.slice(startAt);
         }
 
-        const exportRe = /^exports\.([A-Za-z0-9_]+)\s*=/gm;
+        function exportAt(src, name) {
+            const re = new RegExp('^exports\\.' + name + '\\s*=', 'm');
+            const m = re.exec(src);
+            return m ? m.index : -1;
+        }
+
+        function extractNamed(src, name) {
+            const at = exportAt(src, name);
+            if (at >= 0) return exportedExpression(src, at);
+            const fn = new RegExp('(?:async\\s+)?function\\s+' + name + '\\s*\\(', 'm').exec(src);
+            if (fn) {
+                let i = fn.index;
+                const brace = src.indexOf('{', i);
+                if (brace < 0) return src.slice(i);
+                let depth = 0;
+                for (let j = brace; j < src.length; j++) {
+                    if (src[j] === '{') depth++;
+                    else if (src[j] === '}') {
+                        depth--;
+                        if (depth === 0) return src.slice(i, j + 1);
+                    }
+                }
+                return src.slice(i);
+            }
+            const cst = new RegExp('(?:const|let|var)\\s+' + name + '\\s*=', 'm').exec(src);
+            if (cst) return exportedExpression(src, cst.index);
+            return '';
+        }
+
+        function resolveModule(spec) {
+            const rel = spec.replace(/^['"]|['"]$/g, '');
+            let base = path.join(root, 'functions', rel);
+            if (fs.existsSync(base)) return base;
+            if (fs.existsSync(base + '.js')) return base + '.js';
+            return null;
+        }
+
+        function sourceFor(indexSrc, name) {
+            const at = exportAt(indexSrc, name);
+            if (at < 0) return '';
+            const expr = exportedExpression(indexSrc, at).trim();
+            const req = /^require\((['"][^'"]+['"])\)(?:\.([A-Za-z0-9_]+))?$/.exec(expr);
+            if (req) {
+                const file = resolveModule(req[1]);
+                if (!file) return expr;
+                const mod = fs.readFileSync(file, 'utf8');
+                const exported = extractNamed(mod, req[2] || name);
+                return exported || mod;
+            }
+            if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(expr)) {
+                const ident = expr;
+                const bind = new RegExp('^const\\s+\\{([^}]+)\\}\\s*=\\s*require\\((["\'][^"\']+["\'])\\)', 'gm');
+                let bm;
+                while ((bm = bind.exec(indexSrc))) {
+                    const names = bm[1].split(',').map(function (p) { return p.trim().split(/\s+as\s+/).pop().trim(); });
+                    if (names.indexOf(ident) === -1) continue;
+                    const file = resolveModule(bm[2]);
+                    if (!file) continue;
+                    const mod = fs.readFileSync(file, 'utf8');
+                    const exported = extractNamed(mod, ident);
+                    return exported || mod;
+                }
+            }
+            return expr;
+        }
+
+        function firstCodeIndex(src, re) {
+            const code = stripComments(src);
+            const m = re.exec(code);
+            return m ? m.index : -1;
+        }
+
+        // Plain delegates (exports.x = require(...).fn, or a required binding
+        // re-exported as exports.x = x) must be classified if they write value.
+        const delegates = [];
+        const reqAssign = /^exports\.([A-Za-z0-9_]+)\s*=\s*require\((['"][^'"]+['"])\)(?:\.([A-Za-z0-9_]+))?/gm;
+        let dm;
+        while ((dm = reqAssign.exec(idx))) delegates.push(dm[1]);
+        const bindRe = /^const\s+\{([^}]+)\}\s*=\s*require\((['"][^'"]+['"])\)/gm;
+        let bm;
+        while ((bm = bindRe.exec(idx))) {
+            bm[1].split(',').forEach(function (part) {
+                const ident = part.trim().split(/\s+as\s+/).pop().trim();
+                if (!ident) return;
+                const ex = new RegExp('^exports\\.' + ident + '\\s*=\\s*' + ident + '\\b', 'm');
+                if (ex.test(idx)) delegates.push(ident);
+            });
+        }
+        assert.ok(delegates.indexOf('pvpResolveRound') !== -1, 'pvpResolveRound must be listed as a file delegate');
+        const pvpSrc = sourceFor(idx, 'pvpResolveRound');
+        assert.ok(/isOffline\s*\(/.test(pvpSrc) || /killSwitchIsOn\s*\(/.test(pvpSrc), 'pvpResolveRound check is looked up in its own file');
+        const uncoveredDelegates = [];
+        delegates.forEach(function (n) {
+            const body = sourceFor(idx, n);
+            if (!valueRe.test(stripComments(body))) return;
+            if (covered[n] || UNGATED_ON_PURPOSE[n]) return;
+            uncoveredDelegates.push(n);
+        });
+        assert.deepStrictEqual(uncoveredDelegates, [], 'ungated value-writing delegates: ' + uncoveredDelegates.join(', '));
+
         const uncovered = [];
+        const exportRe = /^exports\.([A-Za-z0-9_]+)\s*=/gm;
         let m;
         while ((m = exportRe.exec(idx))) {
-            const body = exportedExpression(idx, m.index);
-            if (!valueRe.test(body)) continue;
+            const body = sourceFor(idx, m[1]);
+            if (!valueRe.test(stripComments(body))) continue;
             if (covered[m[1]]) continue;
-            if (checkRe.test(body)) continue;
+            if (checkRe.test(stripComments(body))) continue;
             if (UNGATED_ON_PURPOSE[m[1]]) continue;
             uncovered.push(m[1]);
         }
         assert.deepStrictEqual(uncovered, [], 'ungated value-writing exports: ' + uncovered.join(', '));
         assert.ok(covered.mergeAnonBadges, 'mergeAnonBadges must be on the gate list');
+
+        // Gate check must appear in code (not only in a comment) before the
+        // first value write, for every trigger and HTTP self-check.
+        const selfChecked = ks.gatedTriggerNames().concat(ks.gatedRequestNames());
+        const orderFails = [];
+        selfChecked.forEach(function (n) {
+            const body = sourceFor(idx, n);
+            assert.ok(body, 'missing source for ' + n);
+            const code = stripComments(body);
+            const checkAt = firstCodeIndex(code, checkRe);
+            const valueAt = firstCodeIndex(code, valueRe);
+            if (checkAt < 0) orderFails.push(n + ' (no kill-switch check in code)');
+            else if (valueAt >= 0 && checkAt > valueAt) orderFails.push(n + ' (check after first value write)');
+        });
+        assert.deepStrictEqual(orderFails, [], 'kill-switch check must precede the first value write: ' + orderFails.join(', '));
+
+        function stripTriggerCheck(src, name) {
+            const at = exportAt(src, name);
+            if (at < 0) return src;
+            const expr = exportedExpression(src, at);
+            const cleaned = expr.replace(/if\s*\(\s*await\s+killSwitchIsOn\s*\(\s*\)\s*\)\s*(?:throw[^;]+;|return[^;]*;)/g, '');
+            return src.slice(0, at) + 'exports.' + name + ' =' + cleaned + src.slice(at + ('exports.' + name + ' =' + expr).length);
+        }
+
+        ['onIrlEventCreated', 'onChatMessageCreated'].forEach(function (n) {
+            const mutated = stripTriggerCheck(idx, n);
+            const body = sourceFor(mutated, n);
+            const code = stripComments(body);
+            const checkAt = firstCodeIndex(code, checkRe);
+            const valueAt = firstCodeIndex(code, valueRe);
+            const ok = checkAt >= 0 && (valueAt < 0 || checkAt < valueAt);
+            assert.ok(!ok, 'mutation removing the kill-switch check from ' + n + ' must fail the coverage test');
+            assert.ok(valueAt >= 0, n + ' mutation still has a value write to catch');
+        });
     });
 
     await test('client maintenance page fails open and keeps admin tools', function () {

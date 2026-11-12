@@ -124,11 +124,23 @@ If the 8/20-per-hour write budget is exhausted, or a compromised admin is flippi
 2. If that period was not paid, run a one-off of the named job with the missed period’s `now` (Monday 05:00 UTC for weekly, 1st 00:00 UTC for monthly). A later cron will settle a **different** period.
 3. Only do this with Phil’s OK.
 
+
+## Catch-up after an outage longer than 24 hours
+
+2nd-gen trigger retries stop after 24 hours. After a longer outage, do not assume the deferred events will arrive. With Phil's OK, review and catch up these paths (they are idempotent where noted):
+
+1. **Tickets:** forum post (`forum_post_ticket`), marketplace listing (`marketplace_listing_ticket`), IRL listing (`irl_listing_ticket`), and daily chat (`daily_chat_ticket`). Grant only for content that still exists and would have qualified.
+2. **Push badge:** `onPushDeviceWritten` / `pushEnabled` for users who wrote a device token during the outage and do not yet have the badge.
+3. **Article XP:** `onArticlePublishXp` for articles published (or first published) during the window whose XP was not written.
+4. **Badge bonuses:** `onBadgeAwardCreated` collection bonuses and GG queue rows for awards created during the window that never settled.
+5. **PvP settlement:** `onPvpMatchFinished` / `settlePvpMatch` for matches that became finished or forfeit during the window and have no `pvp_rewards` / `rewardsGranted` row.
+6. **Daily proofs:** `reconcileDailyProofs` only processes the previous offset day. The next 05:15 UTC run will not backfill older days. For each missed day, run a one-off with that day's key.
+
 ## Triggers that defer or skip
 
-- **Defer** (throw, `retry: true`, redelivered after the switch is off, up to the platform retry window): `onArticlePublishXp`, `onBadgeAwardCreated`, `onPvpMatchFinished` (includes `settlePvpMatch` XP/badges), `onForumPost` (forum-post ticket), `onMarketplaceListingCount` (listing ticket + marketListings badge), `onMarketplaceMessageCount` (marketMessages badge), `onIrlEventCreated` (IRL listing ticket), `onChatMessageCreated` (daily chat ticket + raid credit), `onPushDeviceWritten` (pushEnabled badge). If an outage lasts longer than the retry window, those events may be lost and need a manual catch-up.
+- **Defer** (throw, `retry: true`, redelivered after the switch is off): `onArticlePublishXp`, `onBadgeAwardCreated`, `onPvpMatchFinished` (includes `settlePvpMatch` XP/badges), `onForumPost` (forum-post ticket), `onMarketplaceListingCount` (listing ticket + marketListings badge), `onMarketplaceMessageCount` (marketMessages badge), `onIrlEventCreated` (IRL listing ticket), `onChatMessageCreated` (daily chat ticket + raid credit), `onPushDeviceWritten` (pushEnabled badge). These are 2nd-gen Firestore triggers (`firebase-functions/v2/firestore`). Their retry window is **24 hours**, not 7 days. If an outage lasts longer than 24 hours, redelivery stops and those events need a manual catch-up (see below). On redelivery, `onForumPost` and `onMarketplaceListingCount` re-read the live doc and skip if it was deleted or removed.
 - **Skip** (return, no grant; new client content is already blocked by rules): `flushBadgeGgBursts` (queue stays), `onUserReferral` (the hourly `payQualifiedReferrals` scan will catch pending rows after return), activity badge counters (`onChatBadgeCount`, `onDmBadgeCount`, `onForumPostBadgeCount`, `onForumReplyBadgeCount`, `onBeatsUploadBadgeCount`, `onArticleBadgeCount`), `onMarketplaceSaleCount` (marketSold badge; a later server write can grant after return). Admin-authored content during an outage will not increment those counters.
-- **Callables / HTTP (in addition to the payout and reward wraps):** `managePeer` is a client callable and is wrapped with the other reward gates (accept grants peerCount badges and peer-accept XP). `stravaAuth` is a public HTTP handler and cannot use `gateExport`; it returns early when the switch is on, *before* the one-time OAuth nonce is consumed, so the user can retry later.
+- **Callables / HTTP (in addition to the payout and reward wraps):** `managePeer` is a client callable and is wrapped with the other reward gates (accept grants peerCount badges and peer-accept XP). `decryptCipher` is also wrapped: a successful solve can grant XP, tickets, sats, and badges. `stravaAuth` is a public HTTP handler and cannot use `gateExport`; it returns early when the switch is on, *before* the one-time OAuth nonce is consumed, so the user can retry later.
 - **Ungated on purpose** (the coverage test asserts this exact list; nothing that grants XP, sats, badges, or tickets belongs here):
   - `onUserDocCreated`: assigns plebNumber / join date and bumps userCount (no signup bonus).
   - `onUserQuestCompleted`: bumps a global counter only (the gradeQuest callable is already gated).

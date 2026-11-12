@@ -125,7 +125,9 @@ test('each reader binds only the secrets it uses', function () {
     assert.strictEqual(count('stravaClientSecretParam'), 2);
     assert.strictEqual(count('hotTopicSecrets'), 3);
     assert.strictEqual(count('xPostSecrets'), 1);
-    assert.strictEqual(count('tgBotTokenSecret'), 14);
+    // adminSetKillSwitch and killSwitchAutoReturnTick also bind the Telegram
+    // bot token (admin / Phil alerts), so 16 functions are bound, not 14.
+    assert.strictEqual(count('tgBotTokenSecret'), 16);
     assert.strictEqual(count('bridgeSecretParam'), 0);
     assert.strictEqual(count('CF_API_TOKEN'), 0);
     assert.strictEqual(count('nwcUrlSecret'), 7);
