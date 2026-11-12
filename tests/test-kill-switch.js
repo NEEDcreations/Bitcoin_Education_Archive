@@ -772,7 +772,7 @@ async function run() {
         assert.ok(events.indexOf('export:start') === -1);
     });
 
-    await test('storage IAM is objectCreator (kill-switch/ only) + objectViewer, and code never deletes or overwrites backups', function () {
+    await test('storage IAM is objectCreator+objectViewer on the snapshot bucket and objectViewer on backups, and code never deletes or overwrites backups', function () {
         const src = fs.readFileSync(path.join(root, 'functions/src/killSwitch.js'), 'utf8');
         assert.ok(src.includes('ifGenerationMatch: 0'));
         assert.ok(!/\.delete\s*\(/.test(src) || src.includes('never delete'));
@@ -780,7 +780,9 @@ async function run() {
         const plan = fs.readFileSync(path.join(root, 'functions/scripts/runtime-sa-plan.js'), 'utf8');
         assert.ok(plan.includes('roles/storage.objectCreator'));
         assert.ok(plan.includes('roles/storage.objectViewer'));
-        assert.ok(plan.includes('kill-switch/'));
+        assert.ok(plan.includes('bitcoin-education-archive-killswitch-exports'));
+        assert.ok(!plan.includes('kill-switch-prefix-only'));
+        assert.ok(!/resource\.name\.startsWith/.test(plan));
         assert.ok(plan.includes('datastore.databases.export'));
         assert.ok(plan.includes('datastore.operations.get'));
         assert.ok(!plan.includes('importExportAdmin'));
@@ -802,25 +804,61 @@ async function run() {
 
     await test('makeBackupDeps prefers opts, then BQ_BACKUP_BUCKET, then <project>-backups', function () {
         const savedBucket = process.env.BQ_BACKUP_BUCKET;
+        const savedSnap = process.env.BQ_KILLSWITCH_EXPORT_BUCKET;
         const savedProject = process.env.GCLOUD_PROJECT;
         try {
             delete process.env.BQ_BACKUP_BUCKET;
+            delete process.env.BQ_KILLSWITCH_EXPORT_BUCKET;
             delete process.env.GCLOUD_PROJECT;
             const def = ks.makeBackupDeps({}, {}, { projectId: 'bitcoin-quest-staging' });
             assert.strictEqual(def.backupBucket, 'bitcoin-quest-staging-backups');
+            assert.strictEqual(def.snapshotBucket, ks.SNAPSHOT_BUCKET_DEFAULT);
             process.env.BQ_BACKUP_BUCKET = 'bitcoin-quest-staging-backups-use1';
             const fromEnv = ks.makeBackupDeps({}, {}, { projectId: 'bitcoin-quest-staging' });
             assert.strictEqual(fromEnv.backupBucket, 'bitcoin-quest-staging-backups-use1');
+            assert.strictEqual(fromEnv.snapshotBucket, ks.SNAPSHOT_BUCKET_DEFAULT);
             const fromOpts = ks.makeBackupDeps({}, {}, {
                 projectId: 'bitcoin-quest-staging',
                 backupBucket: 'explicit-bucket',
+                snapshotBucket: 'explicit-snapshot',
             });
             assert.strictEqual(fromOpts.backupBucket, 'explicit-bucket');
+            assert.strictEqual(fromOpts.snapshotBucket, 'explicit-snapshot');
         } finally {
             if (savedBucket == null) delete process.env.BQ_BACKUP_BUCKET;
             else process.env.BQ_BACKUP_BUCKET = savedBucket;
+            if (savedSnap == null) delete process.env.BQ_KILLSWITCH_EXPORT_BUCKET;
+            else process.env.BQ_KILLSWITCH_EXPORT_BUCKET = savedSnap;
             if (savedProject == null) delete process.env.GCLOUD_PROJECT;
             else process.env.GCLOUD_PROJECT = savedProject;
+        }
+    });
+
+    await test('makeBackupDeps snapshot bucket prefers opts, then BQ_KILLSWITCH_EXPORT_BUCKET, then the default', function () {
+        const savedSnap = process.env.BQ_KILLSWITCH_EXPORT_BUCKET;
+        const savedBucket = process.env.BQ_BACKUP_BUCKET;
+        try {
+            delete process.env.BQ_KILLSWITCH_EXPORT_BUCKET;
+            process.env.BQ_BACKUP_BUCKET = 'nightly-backups';
+            const def = ks.makeBackupDeps({}, {}, { projectId: 'bitcoin-education-archive' });
+            assert.strictEqual(def.backupBucket, 'nightly-backups');
+            assert.strictEqual(def.snapshotBucket, 'bitcoin-education-archive-killswitch-exports');
+            process.env.BQ_KILLSWITCH_EXPORT_BUCKET = 'env-snapshot-bucket';
+            const fromEnv = ks.makeBackupDeps({}, {}, { projectId: 'bitcoin-education-archive', backupBucket: 'nightly-backups' });
+            assert.strictEqual(fromEnv.backupBucket, 'nightly-backups');
+            assert.strictEqual(fromEnv.snapshotBucket, 'env-snapshot-bucket');
+            const fromOpts = ks.makeBackupDeps({}, {}, {
+                projectId: 'bitcoin-education-archive',
+                backupBucket: 'nightly-backups',
+                snapshotBucket: 'opts-snapshot-bucket',
+            });
+            assert.strictEqual(fromOpts.backupBucket, 'nightly-backups');
+            assert.strictEqual(fromOpts.snapshotBucket, 'opts-snapshot-bucket');
+        } finally {
+            if (savedSnap == null) delete process.env.BQ_KILLSWITCH_EXPORT_BUCKET;
+            else process.env.BQ_KILLSWITCH_EXPORT_BUCKET = savedSnap;
+            if (savedBucket == null) delete process.env.BQ_BACKUP_BUCKET;
+            else process.env.BQ_BACKUP_BUCKET = savedBucket;
         }
     });
 
@@ -828,6 +866,8 @@ async function run() {
         const savedFetch = global.fetch;
         let fetchCalls = 0;
         let savedBody = null;
+        let exportBody = null;
+        const bucketsTouched = [];
         const file = {
             save: async function (text, opts) {
                 savedBody = JSON.parse(text);
@@ -841,11 +881,15 @@ async function run() {
             storage: function () {
                 return {
                     bucket: function (name) {
-                        assert.strictEqual(name, 'bitcoin-quest-staging-backups-use1');
+                        bucketsTouched.push(name);
                         return {
                             file: function (objectPath) {
+                                assert.strictEqual(name, 'snap-exports');
                                 assert.strictEqual(objectPath, 'kill-switch/ts/kill-switch-manifest.json');
                                 return file;
+                            },
+                            getFiles: async function () {
+                                throw new Error('startExport must not list the backups bucket');
                             },
                         };
                     },
@@ -857,24 +901,62 @@ async function run() {
                 fetchCalls++;
                 assert.ok(String(url).indexOf(':exportDocuments') !== -1);
                 assert.strictEqual(opts.method, 'POST');
+                exportBody = JSON.parse(opts.body);
                 return { json: async function () { return { name: 'projects/p/databases/(default)/operations/op-9' }; } };
             };
             const deps = ks.makeBackupDeps(admin, {}, {
                 projectId: 'bitcoin-quest-staging',
                 backupBucket: 'bitcoin-quest-staging-backups-use1',
+                snapshotBucket: 'snap-exports',
             });
             const started = await deps.startExport('kill-switch/ts', { kind: 'kill-switch-snapshot', reason: 'test' });
             assert.strictEqual(fetchCalls, 1);
             assert.strictEqual(started.operationName, 'projects/p/databases/(default)/operations/op-9');
-            assert.strictEqual(started.outputUriPrefix, 'gs://bitcoin-quest-staging-backups-use1/kill-switch/ts');
+            assert.strictEqual(started.outputUriPrefix, 'gs://snap-exports/kill-switch/ts');
+            assert.strictEqual(exportBody.outputUriPrefix, started.outputUriPrefix);
             assert.strictEqual(savedBody.kind, 'kill-switch-snapshot');
             assert.strictEqual(savedBody.reason, 'test');
             assert.strictEqual(savedBody.operationName, started.operationName);
             assert.strictEqual(savedBody.outputUriPrefix, started.outputUriPrefix);
+            assert.deepStrictEqual(bucketsTouched, ['snap-exports']);
         } finally {
             if (savedFetch === undefined) delete global.fetch;
             else global.fetch = savedFetch;
         }
+    });
+
+    await test('findExportMetadata lists the backups bucket, not the snapshot bucket', async function () {
+        const bucketsTouched = [];
+        const admin = {
+            storage: function () {
+                return {
+                    bucket: function (name) {
+                        bucketsTouched.push(name);
+                        return {
+                            getFiles: async function (opts) {
+                                assert.strictEqual(opts.prefix, '2026-11-11/');
+                                return [[{
+                                    name: '2026-11-11/foo.overall_export_metadata',
+                                    metadata: { updated: '2026-11-11T02:10:00Z' },
+                                }]];
+                            },
+                            file: function () {
+                                throw new Error('backup check must not write the snapshot bucket');
+                            },
+                        };
+                    },
+                };
+            },
+        };
+        const deps = ks.makeBackupDeps(admin, {}, {
+            projectId: 'bitcoin-education-archive',
+            backupBucket: 'nightly-backups',
+            snapshotBucket: 'snap-exports',
+        });
+        const meta = await deps.findExportMetadata('2026-11-11');
+        assert.strictEqual(meta.name, '2026-11-11/foo.overall_export_metadata');
+        assert.strictEqual(meta.updatedMs, Date.parse('2026-11-11T02:10:00Z'));
+        assert.deepStrictEqual(bucketsTouched, ['nightly-backups']);
     });
 
     await test('status/preflight hides admin fields from the public state object', async function () {

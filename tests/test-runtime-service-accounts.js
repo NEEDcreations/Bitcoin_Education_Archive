@@ -128,7 +128,7 @@ test('gcloud output: named deploy only, metadata-free, one secret grant per boun
     });
 });
 
-test('gcloud --condition is double-quoted and the plan is valid bash (K1-L1)', function () {
+test('gcloud plan is valid bash and has no prefixed bucket IAM condition', function () {
     const { execFileSync } = require('child_process');
     const os = require('os');
     let sawCondition = 0;
@@ -148,7 +148,7 @@ test('gcloud --condition is double-quoted and the plan is valid bash (K1-L1)', f
             sawCondition++;
         });
     }
-    assert.ok(sawCondition > 0, 'expected at least one prefixed bucket condition');
+    assert.strictEqual(sawCondition, 0, 'kill-switch grants must not use a prefix IAM condition');
 });
 
 test('gen2 event triggers get eventReceiver + own-service invoker; gen1 never does', function () {
@@ -191,6 +191,20 @@ test('kill-switch SA gets auth viewer for listUsers, not auth admin', function (
         const roles = plan.functions[n].projectRoles;
         assert.ok(roles.indexOf('roles/firebaseauth.viewer') !== -1, n);
         assert.ok(roles.indexOf('roles/firebaseauth.admin') === -1, n);
+    });
+});
+
+test('kill-switch SA gets objectCreator+objectViewer on the snapshot bucket and objectViewer only on backups', function () {
+    ['adminSetKillSwitch', 'killSwitchAutoReturnTick'].forEach(function (n) {
+        const roles = plan.functions[n].bucketRoles;
+        assert.deepStrictEqual(roles, [
+            { bucket: 'bitcoin-education-archive-killswitch-exports', role: 'roles/storage.objectCreator' },
+            { bucket: 'bitcoin-education-archive-killswitch-exports', role: 'roles/storage.objectViewer' },
+            { bucket: 'bitcoin-education-archive-backups', role: 'roles/storage.objectViewer' },
+        ], n);
+        roles.forEach(function (br) {
+            assert.ok(!br.condition, n + ' must not use a prefix IAM condition');
+        });
     });
 });
 

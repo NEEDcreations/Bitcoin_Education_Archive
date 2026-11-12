@@ -46,6 +46,7 @@ assertLiveBackupBucketUnset(PROJECT);
 const REGION = 'us-central1';
 const DEFAULT_BUCKET = process.env.BQ_DEFAULT_BUCKET || 'bitcoin-education-archive.firebasestorage.app';
 const BACKUP_BUCKET = process.env.BQ_BACKUP_BUCKET || (PROJECT + '-backups');
+const SNAPSHOT_BUCKET = process.env.BQ_KILLSWITCH_EXPORT_BUCKET || 'bitcoin-education-archive-killswitch-exports';
 // Set BQ_DEPLOYER_SA to the deploy identity's email when printing commands.
 const DEPLOYER = process.env.BQ_DEPLOYER_SA || '<deployer-sa-email>';
 const NEVER_DEPLOY = ['adminApproveFactionPayout'];
@@ -107,15 +108,8 @@ function buildPlan(endpoints) {
             bucketRoles: [].concat(
                 entry.extra.indexOf('storage') !== -1 ? [{ bucket: DEFAULT_BUCKET, role: EXTRA_ROLES.storage }] : [],
                 entry.extra.indexOf('backups') !== -1 ? [
-                    {
-                        bucket: BACKUP_BUCKET,
-                        role: 'roles/storage.objectCreator',
-                        condition: {
-                            title: 'kill-switch-prefix-only',
-                            description: 'Create objects only under kill-switch/; no delete',
-                            expression: "resource.name.startsWith('projects/_/buckets/" + BACKUP_BUCKET + "/objects/kill-switch/')",
-                        },
-                    },
+                    { bucket: SNAPSHOT_BUCKET, role: 'roles/storage.objectCreator' },
+                    { bucket: SNAPSHOT_BUCKET, role: 'roles/storage.objectViewer' },
                     { bucket: BACKUP_BUCKET, role: 'roles/storage.objectViewer' },
                 ] : []),
             // Gen2 event + schedule triggers now authenticate as this account.
@@ -138,14 +132,10 @@ function gcloudFor(plan, batchIndex) {
         lines.push('gcloud iam roles describe killSwitchExport --project "$P" >/dev/null 2>&1 || gcloud iam roles create killSwitchExport --project "$P" --title "Kill switch Firestore export" --description "Start a managed Firestore export and poll the operation. Cannot import." --permissions datastore.databases.export,datastore.operations.get');
         lines.push('gcloud iam roles update killSwitchExport --project "$P" --permissions datastore.databases.export,datastore.operations.get');
         lines.push('');
-        lines.push('# Versioning + lifecycle on the backups bucket. --lifecycle-file REPLACES the');
-        lines.push('# whole policy, so docs/kill-switch-lifecycle.json keeps the existing 90-day');
-        lines.push('# delete on nightlies, adds a 90-day delete for kill-switch/, and deletes');
-        lines.push('# noncurrent versions after 30 days. Re-read the live config and do not apply');
-        lines.push('# until Phil says so. Never run this against the live bucket from a script.');
-        lines.push('# gcloud storage buckets describe gs://' + BACKUP_BUCKET + " --format='json(lifecycle_config)'");
-        lines.push('# gcloud storage buckets update gs://' + BACKUP_BUCKET + ' --versioning');
-        lines.push('# gcloud storage buckets update gs://' + BACKUP_BUCKET + ' --lifecycle-file=docs/kill-switch-lifecycle.json');
+        lines.push('# Snapshots go to a separate private bucket (' + SNAPSHOT_BUCKET + ').');
+        lines.push('# Do not change the live backups bucket lifecycle or versioning.');
+        lines.push('# The kill-switch SA gets objectViewer only on gs://' + BACKUP_BUCKET);
+        lines.push('# and objectCreator + objectViewer on gs://' + SNAPSHOT_BUCKET + '.');
     }
     const seenCmd = {};
     function pushOnce(line) {

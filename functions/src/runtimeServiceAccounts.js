@@ -23,9 +23,11 @@
 //   storage -> roles/storage.objectAdmin on the default bucket only
 //   backups -> roles/storage.objectViewer on the Firestore export bucket
 //              (<project>-backups) so preflight can list/read nightlies,
-//              PLUS roles/storage.objectCreator limited by an IAM condition
-//              to the kill-switch/ prefix (create only; no delete, and no
-//              writes outside that prefix). objectAdmin is never used.
+//              PLUS roles/storage.objectCreator and objectViewer on the
+//              dedicated kill-switch snapshot bucket
+//              (bitcoin-education-archive-killswitch-exports). No IAM
+//              condition: the backups bucket cannot take a prefix grant.
+//              objectAdmin is never used.
 //   killSwitchExport -> custom role projects/$PROJECT/roles/killSwitchExport
 //              with only datastore.databases.export and
 //              datastore.operations.get (cannot import over live data).

@@ -24,7 +24,7 @@
 // Shutdown order (must never change):
 //   1. Flip the flag so the app stops right away.
 //   2. Start a managed Firestore export in the background to
-//      gs://<backup-bucket>/kill-switch/<timestamp>/.
+//      gs://<snapshot-bucket>/kill-switch/<timestamp>/.
 //   A failed snapshot never undoes or delays the shutdown.
 //
 // Fail-safe:
@@ -46,6 +46,7 @@ const MIN_REENABLE_MIN = 5;
 const MAX_REENABLE_MIN = 7 * 24 * 60;
 const GATE_CACHE_MS = 5000;
 const BACKUP_BUCKET_DEFAULT = 'bitcoin-education-archive-backups';
+const SNAPSHOT_BUCKET_DEFAULT = 'bitcoin-education-archive-killswitch-exports';
 const BACKUP_MAX_AGE_HOURS = 26;
 const RATE_WINDOW_MS = 60 * 60 * 1000;
 const RATE_MAX_USER = 8;
@@ -405,11 +406,17 @@ function makeBackupDeps(admin, db, opts) {
     const o = opts || {};
     const project = o.projectId || process.env.GCLOUD_PROJECT || 'bitcoin-education-archive';
     // Prefer an explicit bucket (opts or BQ_BACKUP_BUCKET) so a regional
-    // Firestore can export to a same-region bucket. Default is <project>-backups.
+    // Firestore can check a same-region nightly. Default is <project>-backups.
     const bucketName = o.backupBucket || process.env.BQ_BACKUP_BUCKET || (project + '-backups');
+    // Emergency snapshots go to a dedicated private bucket. The nightly
+    // backups bucket cannot take a prefix IAM condition, so this SA only
+    // gets objectViewer there. Override with opts.snapshotBucket or
+    // BQ_KILLSWITCH_EXPORT_BUCKET; the default is not project-derived.
+    const snapshotBucket = o.snapshotBucket || process.env.BQ_KILLSWITCH_EXPORT_BUCKET || SNAPSHOT_BUCKET_DEFAULT;
     return {
         projectId: project,
         backupBucket: bucketName,
+        snapshotBucket: snapshotBucket,
         findExportMetadata: async function (day) {
             const [files] = await admin.storage().bucket(bucketName).getFiles({ prefix: day + '/', maxResults: 50, autoPaginate: false });
             const meta = (files || []).find(function (f) { return /\.overall_export_metadata$/.test(f.name); });
@@ -432,7 +439,7 @@ function makeBackupDeps(admin, db, opts) {
         },
         startExport: async function (folder, manifest) {
             const token = await admin.app().options.credential.getAccessToken();
-            const outputUriPrefix = 'gs://' + bucketName + '/' + folder;
+            const outputUriPrefix = 'gs://' + snapshotBucket + '/' + folder;
             const res = await fetch(
                 'https://firestore.googleapis.com/v1/projects/' + project + '/databases/(default):exportDocuments',
                 {
@@ -453,13 +460,13 @@ function makeBackupDeps(admin, db, opts) {
             const started = { operationName: result.name || null, outputUriPrefix: outputUriPrefix };
             try {
                 // Create-only: ifGenerationMatch 0 refuses an overwrite.
-                // The folder stamp is unique, and this SA cannot delete or
-                // overwrite existing nightlies (objectCreator + objectViewer).
-                // Record the export operation name and output URI so a later
-                // failure can be traced from the manifest alone. Do not wait
-                // for the export to finish; a failed snapshot must never
-                // delay the shutdown.
-                const file = admin.storage().bucket(bucketName).file(folder + '/kill-switch-manifest.json');
+                // Snapshots land in a dedicated bucket (objectCreator +
+                // objectViewer). This SA cannot write the nightly backups
+                // bucket (objectViewer only). Do not wait for the export
+                // to finish; a failed snapshot must never delay shutdown.
+                // Record the operation name and output URI in the manifest
+                // so a later failure can be traced from that file alone.
+                const file = admin.storage().bucket(snapshotBucket).file(folder + '/kill-switch-manifest.json');
                 const body = Object.assign({}, manifest || {}, {
                     operationName: started.operationName,
                     outputUriPrefix: started.outputUriPrefix,
@@ -1026,7 +1033,7 @@ function makeAdminSetKillSwitch(deps) {
 module.exports = {
     KILL_SWITCH_COLLECTION, KILL_SWITCH_DOC_ID, KILL_SWITCH_ADMIN_DOC_ID, AUDIT_COLLECTION, RATE_COLLECTION,
     OFFLINE_MESSAGE, CONFIRM_ON, CONFIRM_OFF, CONFIRM_WORD: CONFIRM_ON,
-    BACKUP_BUCKET_DEFAULT, BACKUP_MAX_AGE_HOURS, MAX_REENABLE_MIN, MIN_REENABLE_MIN,
+    BACKUP_BUCKET_DEFAULT, SNAPSHOT_BUCKET_DEFAULT, BACKUP_MAX_AGE_HOURS, MAX_REENABLE_MIN, MIN_REENABLE_MIN,
     MIN_REASON, RATE_WINDOW_MS, RATE_MAX_USER, RATE_MAX_GLOBAL, RATE_MAX_STATUS_USER, SNAPSHOT_REUSE_MS,
     GATED, gatedNames, gatedTriggerNames, gatedRequestNames, effectiveOn, isLaterAutoReturn, isOffline, reuseRecentSnapshot,
     makeReader, gateExport, gateExports, backupPreflight,
