@@ -245,7 +245,7 @@ test('epoch close retargets once (idempotent per epoch), writes history + public
     assert.strictEqual(db3.docs['payout_config/favorDifficulty'].target, 25000);
 });
 
-test('slow epoch eases, missing anchor falls back to the previous epoch record, two closed epochs = one step', async () => {
+test('slow epoch eases, missing anchor falls back to the previous epoch record, two closed epochs step once each', async () => {
     const e7Closed = E6_CLOSED + 21 * DAY;
     const seed = migratedSeed({ lastRetargetEpochClosedMs: undefined });
     delete seed.lastRetargetEpochClosedMs;
@@ -260,11 +260,52 @@ test('slow epoch eases, missing anchor falls back to the previous epoch record, 
         'sfPoolHistory/e7': { epochNumber: 7, completedAt: E6_CLOSED + 2 * DAY },
         'sfPoolHistory/e8': { epochNumber: 8, completedAt: E6_CLOSED + 3 * DAY } });
     const r2 = await fd.runRetarget(two, null, E6_CLOSED + 3 * DAY + 1000);
-    assert.strictEqual(r2.target, 6250, 'one clamped 4x step, not 16x');
+    assert.strictEqual(r2.target, 1563, 'two fast epochs: 4x then 4x (25000 -> 6250 -> 1563), not one combined step');
     assert.strictEqual(r2.epochs, 2);
+    assert.strictEqual(r2.previousTarget, 25000);
     assert.strictEqual(two.docs['payout_config/favorDifficulty'].lastRetargetEpoch, 8);
+    const hist = two.docs['payout_config/favorDifficulty'].history;
+    assert.strictEqual(hist.length, 3, 'one history row per epoch step, plus the seed row');
+    assert.strictEqual(hist[1].epoch, 7);
+    assert.strictEqual(hist[1].previous, 25000);
+    assert.strictEqual(hist[1].target, 6250);
+    assert.strictEqual(hist[2].epoch, 8);
+    assert.strictEqual(hist[2].previous, 6250);
+    assert.strictEqual(hist[2].target, 1563);
     const missing = await fd.runRetarget(fakeDb({}), null, Date.now());
     assert.strictEqual(missing.skipped, 'missing');
+});
+
+test('three fast epochs each clamp to 4x, compounding to 4^3 harder', async () => {
+    const db = fakeDb({
+        'payout_config/favorDifficulty': migratedSeed(),
+        'sfPoolHistory/e7': { epochNumber: 7, completedAt: E6_CLOSED + 2 * DAY },
+        'sfPoolHistory/e8': { epochNumber: 8, completedAt: E6_CLOSED + 4 * DAY },
+        'sfPoolHistory/e9': { epochNumber: 9, completedAt: E6_CLOSED + 6 * DAY },
+    });
+    const r = await fd.runRetarget(db, null, E6_CLOSED + 6 * DAY + 1000);
+    assert.strictEqual(r.retargeted, true);
+    assert.strictEqual(r.epochs, 3);
+    assert.strictEqual(r.epoch, 9);
+    assert.strictEqual(r.previousTarget, 25000);
+    // 25000 * 0.25 = 6250; 6250 * 0.25 = 1562.5 -> 1563; 1563 * 0.25 = 390.75 -> 391
+    assert.strictEqual(r.target, 391);
+    assert.ok(r.target >= fd.MIN_TARGET);
+    const cfg = db.docs['payout_config/favorDifficulty'];
+    assert.strictEqual(cfg.target, 391);
+    assert.strictEqual(cfg.lastRetargetEpoch, 9);
+    assert.strictEqual(cfg.history.length, 4);
+    assert.deepStrictEqual(cfg.history.slice(1).map((h) => [h.epoch, h.previous, h.target]), [
+        [7, 25000, 6250],
+        [8, 6250, 1563],
+        [9, 1563, 391],
+    ]);
+    const pub = db.docs['satoshiFavor/difficultyStats'].config;
+    assert.strictEqual(pub.target, 391);
+    assert.strictEqual(pub.nextRetargetEpoch, 10);
+    const again = await fd.runRetarget(db, null, E6_CLOSED + 7 * DAY);
+    assert.deepStrictEqual(again, { skipped: 'no_new_epoch', waitingForEpoch: 10 });
+    assert.strictEqual(db.docs['payout_config/favorDifficulty'].history.length, 4);
 });
 
 test('migration script is dry-run by default and refuses to write without --apply', () => {
@@ -276,6 +317,40 @@ test('migration script is dry-run by default and refuses to write without --appl
     assert.ok(!/\.delete\(\)|recursiveDelete|sfPoolHistory'\)\.doc\([^)]*\)\.(set|update)/.test(m), 'never deletes or rewrites epoch records');
 });
 
+test('--apply without --project refuses and does not default to the live project', () => {
+    const { spawnSync } = require('child_process');
+    const r = spawnSync(process.execPath, ['scripts/migrate-favor-epoch-retarget.js', '--apply'], {
+        cwd: root, encoding: 'utf8', env: Object.assign({}, process.env, { GOOGLE_APPLICATION_CREDENTIALS: '' }),
+    });
+    assert.ok(r.status !== 0);
+    const out = (r.stderr || '') + (r.stdout || '');
+    assert.ok(/--apply requires an explicit --project=/.test(out), out);
+    assert.ok(!/\(APPLY\)/.test(out), 'must refuse before initializing the live default');
+});
+
+test('migration allows lastRetargetEpoch = 0 when the open epoch is #1 and uses the epoch start as the baseline', () => {
+    const { resolveAnchor } = require('../scripts/migrate-favor-epoch-retarget.js');
+    const start = Date.parse('2026-11-01T15:00:00Z');
+    const a = resolveAnchor({ openEpoch: 1, openStartMs: start, pinLast: null, historyClosedMs: 0 });
+    assert.strictEqual(a.lastEpoch, 0);
+    assert.strictEqual(a.closedMs, start);
+    assert.strictEqual(a.openEpoch, 1);
+    const pinned = resolveAnchor({ openEpoch: 1, openStartMs: start, pinLast: '0', historyClosedMs: 0 });
+    assert.strictEqual(pinned.lastEpoch, 0);
+    assert.strictEqual(pinned.closedMs, start);
+    let threw = false;
+    try { resolveAnchor({ openEpoch: 1, openStartMs: 0, pinLast: null, historyClosedMs: 0 }); }
+    catch (e) { threw = /no close time for epoch 0/.test(e.message); }
+    assert.ok(threw, 'missing start and history must refuse');
+    let threwHigh = false;
+    try { resolveAnchor({ openEpoch: 1, openStartMs: start, pinLast: '1', historyClosedMs: 0 }); }
+    catch (e) { threwHigh = /must be below the open epoch 1/.test(e.message); }
+    assert.ok(threwHigh);
+    const later = resolveAnchor({ openEpoch: 7, openStartMs: start + 86400000, pinLast: null, historyClosedMs: start });
+    assert.strictEqual(later.lastEpoch, 6);
+    assert.strictEqual(later.closedMs, start);
+});
+
 test('retarget pays nothing and binds no secrets', () => {
     const src = read('functions/src/favorDifficulty.js');
     assert.ok(!/nwc|payInvoice|sendPayment|lnurl|faucet_ledger|defineSecret/i.test(src.replace(/faucet_stats/g, '')));
@@ -283,7 +358,7 @@ test('retarget pays nothing and binds no secrets', () => {
     const at = index.indexOf('exports.favorDifficultyRetarget = onSchedule(');
     assert.ok(at > 0);
     const line = index.slice(at, index.indexOf('\n', at));
-    assert.ok(line.includes("schedule: '10 0 * * *'") && line.includes("timeZone: 'America/New_York'"));
+    assert.ok(line.includes("schedule: '*/30 * * * *'") && line.includes("timeZone: 'America/New_York'"));
     assert.ok(!line.includes('secrets'));
 });
 
@@ -316,8 +391,9 @@ test('client merges server history and reads the live target, odds and next date
     assert.ok(!q.includes('SF_DIFFICULTY_NEXT_RETARGET_MS'));
     assert.ok(!q.includes('(about every 14 days)'));
     assert.ok(src.includes('window.SF_DIFFICULTY_NEXT_RETARGET_EPOCH'));
-    assert.ok(read('resets.html').includes('When an epoch fills 5/5'));
+    assert.ok(read('resets.html').includes('When an epoch fills 5/5 (checked every 30 minutes)'));
     assert.ok(!read('resets.html').includes('RETARGET_DAYS'));
+    assert.ok(!read('resets.html').includes('12:10 AM ET daily'));
     assert.ok(read('terms.html').includes('adjusted each time an epoch fills 5 of 5 blocks'));
 });
 

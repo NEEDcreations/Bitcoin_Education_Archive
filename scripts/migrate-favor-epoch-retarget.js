@@ -8,10 +8,13 @@
  *
  * What it changes in payout_config/favorDifficulty (merge, nothing removed):
  *   lastRetargetEpoch         = open epoch - 1 (so the FIRST retarget happens
- *                               when the currently open epoch fills 5/5)
+ *                               when the currently open epoch fills 5/5).
+ *                               If the open epoch is #1, this is 0, and the
+ *                               baseline is poolEpoch.startedAt.
  *   lastRetargetEpochClosedMs = when that epoch closed (= open epoch start),
  *                               from sfPoolHistory, cross-checked against
- *                               satoshiFavor/poolEpoch.startedAt
+ *                               satoshiFavor/poolEpoch.startedAt (or the
+ *                               open epoch start when lastRetargetEpoch is 0)
  *   retargetRule              = 'epoch'
  *   targetEpochDays           = 14
  *   nextRetargetMs            = null (the old 14-day clock; nothing reads it now)
@@ -30,10 +33,20 @@
  *
  *   node scripts/migrate-favor-epoch-retarget.js                       # dry run, live project
  *   node scripts/migrate-favor-epoch-retarget.js --project=bitcoin-quest-staging
- *   node scripts/migrate-favor-epoch-retarget.js --last-epoch=6 --apply  # pin the anchor epoch
+ *   node scripts/migrate-favor-epoch-retarget.js --project=bitcoin-quest-staging --apply
+ *   node scripts/migrate-favor-epoch-retarget.js --project=... --last-epoch=6 --apply
+ *
+ * --apply REQUIRES an explicit --project=<id>. It will refuse rather than
+ * default to the live project.
  *
  * Auth is Application Default Credentials. No key file is read from the repo.
  * Needs Security Team sign-off and Phil's OK before --apply on the live project.
+ *
+ * RUNBOOK — rollback: after this migration (or any later epoch retarget that
+ * updates lastRetargetMs), rolling back to the old 14-day-clock code would
+ * fire a clock retarget 14 days after lastRetargetMs. The old job treats a
+ * missing nextRetargetMs as lastRetargetMs + 14 days. Do not roll back after
+ * migrate or after a live epoch retarget without a plan for that clock.
  */
 'use strict';
 
@@ -44,19 +57,45 @@ function arg(name) {
   const hit = process.argv.find((a) => a.startsWith('--' + name + '='));
   return hit ? hit.slice(name.length + 3) : null;
 }
-const PROJECT_ID = arg('project') || 'bitcoin-education-archive';
+const PROJECT_FLAG = arg('project');
+const PROJECT_ID = PROJECT_FLAG || 'bitcoin-education-archive';
 const PIN_LAST = arg('last-epoch');
 
+// firebase-admin 14 dropped admin.apps / admin.firestore() on the default
+// export. functions/src/firebaseAdmin.js restores that surface.
 function loadAdmin() {
-  try { return require('firebase-admin'); }
-  catch (e) { return require(path.join(__dirname, '..', 'functions', 'node_modules', 'firebase-admin')); }
+  return require(path.join(__dirname, '..', 'functions', 'src', 'firebaseAdmin'));
 }
 const fd = require(path.join(__dirname, '..', 'functions', 'src', 'favorDifficulty'));
 
 function ms(v) { return v && typeof v.toMillis === 'function' ? v.toMillis() : (Number(v) || 0); }
 function et(t) { return t ? new Date(t).toLocaleString('en-US', { timeZone: 'America/New_York' }) + ' ET' : 'n/a'; }
 
+// Pure helper (unit-tested). lastRetargetEpoch may be 0 when the open epoch is #1.
+function resolveAnchor(input) {
+  const src = input || {};
+  const openEpoch = Number(src.openEpoch) || 1;
+  const openStartMs = Number(src.openStartMs) || 0;
+  const pinLast = src.pinLast;
+  const historyClosedMs = Number(src.historyClosedMs) || 0;
+  const lastEpoch = pinLast != null && pinLast !== '' ? Number(pinLast) : openEpoch - 1;
+  if (!Number.isInteger(lastEpoch) || lastEpoch < 0) {
+    throw new Error('refusing: bad lastRetargetEpoch ' + pinLast);
+  }
+  if (lastEpoch >= openEpoch) {
+    throw new Error('refusing: lastRetargetEpoch ' + lastEpoch + ' must be below the open epoch ' + openEpoch);
+  }
+  let closedMs = historyClosedMs;
+  if (!closedMs && lastEpoch === openEpoch - 1) closedMs = openStartMs;
+  if (!closedMs && lastEpoch === 0) closedMs = openStartMs;
+  if (!closedMs) throw new Error('refusing: no close time for epoch ' + lastEpoch);
+  return { lastEpoch: lastEpoch, closedMs: closedMs, openEpoch: openEpoch };
+}
+
 async function main() {
+  if (APPLY && !PROJECT_FLAG) {
+    throw new Error('refusing: --apply requires an explicit --project=<id> (never defaults to the live project)');
+  }
   const admin = loadAdmin();
   if (!admin.apps.length) admin.initializeApp({ projectId: PROJECT_ID });
   const db = admin.firestore();
@@ -72,17 +111,19 @@ async function main() {
   const openEpoch = Number(pe.epochNumber) || 1;
   const openStartMs = ms(pe.startedAt);
   const blocks = Array.isArray(pe.blocks) ? pe.blocks.length : 0;
-  const lastEpoch = PIN_LAST != null ? Number(PIN_LAST) : openEpoch - 1;
-  if (!Number.isInteger(lastEpoch) || lastEpoch < 1) throw new Error('refusing: bad lastRetargetEpoch ' + PIN_LAST);
-  if (lastEpoch >= openEpoch) throw new Error('refusing: lastRetargetEpoch ' + lastEpoch + ' must be below the open epoch ' + openEpoch);
-  if (lastEpoch !== openEpoch - 1) console.warn('WARNING: epochs ' + (lastEpoch + 1) + '..' + (openEpoch - 1) + ' already closed; the first retarget will count them together with the open epoch.');
 
-  const hist = await db.collection('sfPoolHistory').where('epochNumber', '==', lastEpoch).get();
-  let closedMs = 0;
-  hist.forEach((d) => { const t = ms((d.data() || {}).completedAt); if (t && (!closedMs || t < closedMs)) closedMs = t; });
-  if (!closedMs && lastEpoch === openEpoch - 1) closedMs = openStartMs;
-  if (!closedMs) throw new Error('refusing: no close time for epoch ' + lastEpoch);
-  if (lastEpoch === openEpoch - 1 && openStartMs && Math.abs(openStartMs - closedMs) > 60000) {
+  const lastEpochGuess = PIN_LAST != null ? Number(PIN_LAST) : openEpoch - 1;
+  const hist = await db.collection('sfPoolHistory').where('epochNumber', '==', lastEpochGuess).get();
+  let historyClosedMs = 0;
+  hist.forEach((d) => { const t = ms((d.data() || {}).completedAt); if (t && (!historyClosedMs || t < historyClosedMs)) historyClosedMs = t; });
+
+  const anchor = resolveAnchor({ openEpoch: openEpoch, openStartMs: openStartMs, pinLast: PIN_LAST, historyClosedMs: historyClosedMs });
+  const lastEpoch = anchor.lastEpoch;
+  const closedMs = anchor.closedMs;
+  if (lastEpoch !== openEpoch - 1) {
+    console.warn('WARNING: epochs ' + (lastEpoch + 1) + '..' + (openEpoch - 1) + ' already closed; the first retarget will apply one clamped step per already-closed epoch, then another when the open epoch fills.');
+  }
+  if (lastEpoch === openEpoch - 1 && lastEpoch !== 0 && openStartMs && Math.abs(openStartMs - closedMs) > 60000) {
     console.warn('WARNING: sfPoolHistory close (' + et(closedMs) + ') and poolEpoch.startedAt (' + et(openStartMs) + ') differ by more than 60 s; using sfPoolHistory.');
   }
 
@@ -98,12 +139,12 @@ async function main() {
   };
   const pub = { config: fd.publicConfig(Object.assign({}, cfg, update)) };
   const elapsedDays = (now - closedMs) / fd.DAY_MS;
-  const ifNow = fd.planRetarget({ currentTarget: fd.validTarget(cfg.target) || 25000, epochDurationMs: now - closedMs, epochs: openEpoch - lastEpoch });
+  const ifNow = fd.planRetarget({ currentTarget: fd.validTarget(cfg.target) || 25000, epochDurationMs: now - closedMs, epochs: 1 });
 
   console.log('current target:', cfg.target, '(1 in ' + Math.round(fd.HASH_SPACE / cfg.target).toLocaleString('en-US') + ')');
   console.log('open epoch: #' + openEpoch + ', ' + blocks + '/5 blocks, started ' + et(openStartMs) + ' (' + elapsedDays.toFixed(2) + ' days ago)');
-  console.log('first retarget: when epoch #' + (lastEpoch + 1) + (openEpoch - lastEpoch > 1 ? '..#' + openEpoch : '') + ' fills 5/5, measured from ' + et(closedMs));
-  console.log('if it closed now:', JSON.stringify(ifNow));
+  console.log('first retarget: when epoch #' + (lastEpoch + 1) + (openEpoch - lastEpoch > 1 ? '..#' + openEpoch : '') + ' fills 5/5, measured from ' + et(closedMs) + (openEpoch - lastEpoch > 1 ? ', one clamped step per epoch' : ''));
+  console.log('if the next epoch closed now (single step):', JSON.stringify(ifNow));
   console.log('MERGE payout_config/favorDifficulty =', JSON.stringify(update));
   console.log('MERGE satoshiFavor/difficultyStats =', JSON.stringify(pub));
   if (!APPLY) { console.log('DRY RUN: nothing written. Re-run with --apply after Security sign-off and Phil\'s OK.'); return; }
@@ -119,4 +160,8 @@ async function main() {
   console.log('APPLIED');
 }
 
-main().catch((e) => { console.error('ERR', e.message); process.exit(1); });
+if (require.main === module) {
+  main().catch((e) => { console.error('ERR', e.message); process.exit(1); });
+}
+
+module.exports = { resolveAnchor, arg, APPLY };

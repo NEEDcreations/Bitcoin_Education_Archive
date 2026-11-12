@@ -6914,13 +6914,14 @@ exports.backfillFactionTotals = backfillFactionTotals;
 exports.getFactionTotals = getFactionTotals;
 exports.getSmallerFaction = getSmallerFaction;
 
-// Scheduled job: Satoshi's Favor difficulty retarget. Checks daily at 12:10 AM ET
+// Scheduled job: Satoshi's Favor difficulty retarget. Checks every 30 minutes
 // whether a new epoch has filled 5/5 since payout_config/favorDifficulty
 // .lastRetargetEpoch. Only then it moves the target, Bitcoin-style: aim one
-// 21,000-sat epoch per 14 days, max 4x either way, once per epoch. No
-// time-based retarget. Budget: 100,000 sats/month = 45,000 Favor + 55,000
-// everything else; other payouts do not feed the formula. Pays nothing.
-exports.favorDifficultyRetarget = onSchedule({ schedule: '10 0 * * *', timeZone: 'America/New_York' }, async () => {
+// 21,000-sat epoch per 14 days, max 4x either way per closed epoch (applied
+// in order if several closed between runs). No time-based retarget. Budget:
+// 100,000 sats/month = 45,000 Favor + 55,000 everything else; other payouts
+// do not feed the formula. Pays nothing. Idempotent per epoch.
+exports.favorDifficultyRetarget = onSchedule({ schedule: '*/30 * * * *', timeZone: 'America/New_York' }, async () => {
     const result = await require('./src/favorDifficulty').runRetarget(db, admin, Date.now());
     console.log('[SF-RETARGET]', JSON.stringify(result));
 });

@@ -16,12 +16,17 @@
 //     time-based retarget any more (the old 14-day clock is gone).
 //   - Aim: one 21,000-sat epoch about every TARGET_EPOCH_DAYS (14) days.
 //   - newTarget = currentTarget * (actualEpochDuration / 14 days), factor
-//     clamped to [1/4, 4] per step, then to [MIN_TARGET, MAX_TARGET].
-//     Faster than 14 days -> smaller target -> harder. Slower -> easier.
+//     clamped to [1/4, 4] PER CLOSED EPOCH, then to [MIN_TARGET, MAX_TARGET].
+//     If several epochs closed since lastRetargetEpoch, each is its own
+//     step, applied in order. N fast epochs can move up to 4^N harder
+//     (still bounded by MIN_TARGET/MAX_TARGET). Faster than 14 days ->
+//     smaller target -> harder. Slower -> easier.
 //   - Faucet and other payouts no longer feed the formula.
 // Budget (Phil, Nov 12 2026): app-wide 100,000 sats/month =
 //   45,000 Satoshi's Favor + 55,000 everything else.
 //   21,000 sats per 14 days = 45,000 per 30 days, so the 14-day aim IS the Favor budget.
+// The scheduled job checks every 30 minutes; a retarget still only happens
+// when a new epoch has closed (idempotent per epoch).
 //
 // Epoch records: satoshiFavor/poolEpoch is the open epoch; each full epoch is
 // archived once to sfPoolHistory { epochNumber, completedAt, blocks, totalSats }
@@ -31,7 +36,7 @@
 const HASH_SPACE = 100000000;
 const MONTHLY_TOTAL = 100000;
 const FAVOR_BUDGET = 45000;
-const OTHER_BUDGET = 55000;
+const OTHER_BUDGET = 55000; // Informational only: not enforced by this module (or elsewhere yet). The retarget formula uses the 14-day Favor aim, not this cap.
 const EPOCH_SATS = 21000;
 const BLOCKS_PER_EPOCH = 5;
 const TARGET_EPOCH_DAYS = 14;
@@ -163,10 +168,12 @@ async function loadEpochClosedMs(db, n) {
   return best;
 }
 
-// Scheduled entry (daily). Retargets only when a new epoch has filled 5/5 since
-// lastRetargetEpoch. Never time-based, never seeds, never pays. Idempotent per
-// epoch: the transaction re-checks lastRetargetEpoch before writing, and the
-// written lastRetargetEpoch makes the next run skip until another epoch closes.
+// Scheduled entry (every 30 minutes). Retargets only when a new epoch has
+// filled 5/5 since lastRetargetEpoch. Each newly closed epoch is its own
+// step, clamped to [1/4, 4] on its own duration, applied in order. Never
+// time-based, never seeds, never pays. Idempotent per epoch: the transaction
+// re-checks lastRetargetEpoch before writing, and the written lastRetargetEpoch
+// makes the next run skip until another epoch closes.
 async function runRetarget(db, admin, nowMs, deps) {
   const now = nowMs || Date.now();
   const d = deps || {};
@@ -183,38 +190,69 @@ async function runRetarget(db, admin, nowMs, deps) {
   const newest = closed[closed.length - 1];
   let startMs = Number(row.lastRetargetEpochClosedMs) || 0;
   if (!startMs) startMs = await (d.loadEpochClosedMs || loadEpochClosedMs)(db, lastEpoch);
-  if (!startMs) return { skipped: 'no_epoch_start', epoch: newest.epochNumber };
-  const epochs = newest.epochNumber - lastEpoch;
-  const durationMs = newest.completedAtMs - startMs;
-  if (!(durationMs > 0)) return { skipped: 'bad_duration', epoch: newest.epochNumber };
+  if (!startMs) return { skipped: 'no_epoch_start', epoch: closed[0].epochNumber };
+
+  // One clamped step per closed epoch, in order. Duration of epoch n is
+  // completedAt(n) - completedAt(n-1) (or lastRetargetEpochClosedMs for the first).
+  const steps = [];
+  let prevClose = startMs;
+  for (let i = 0; i < closed.length; i++) {
+    const e = closed[i];
+    const durationMs = e.completedAtMs - prevClose;
+    if (!(durationMs > 0)) return { skipped: 'bad_duration', epoch: e.epochNumber };
+    steps.push({ epochNumber: e.epochNumber, startMs: prevClose, closedMs: e.completedAtMs, durationMs: durationMs });
+    prevClose = e.completedAtMs;
+  }
+
   let result = null;
   await db.runTransaction(async (t) => {
     const cur = await t.get(ref);
     const c = cur.data() || {};
     if (c.lastRetargetEpoch !== lastEpoch) return; // already retargeted for this epoch
-    const plan = planRetarget({ currentTarget: validTarget(c.target) || 25000, epochDurationMs: durationMs, epochs: epochs });
-    if (!plan) return;
-    const entry = { date: isoDay(now), since: now, target: plan.target, previous: plan.previousTarget,
-      label: plan.label, factor: plan.factor, rawFactor: plan.rawFactor,
-      reason: 'Epoch #' + newest.epochNumber + ' filled 5/5' + (epochs > 1 ? ' (' + epochs + ' epochs since last retarget)' : ''),
-      epoch: newest.epochNumber, epochs: epochs, epochStartMs: startMs, epochClosedMs: newest.completedAtMs,
-      epochDurationDays: plan.epochDurationDays, targetDays: plan.targetDays };
+    let current = validTarget(c.target) || 25000;
+    const entries = [];
+    let lastPlan = null;
+    for (let i = 0; i < steps.length; i++) {
+      const s = steps[i];
+      const plan = planRetarget({ currentTarget: current, epochDurationMs: s.durationMs, epochs: 1 });
+      if (!plan) return;
+      entries.push({
+        date: isoDay(now), since: now, target: plan.target, previous: plan.previousTarget,
+        label: plan.label, factor: plan.factor, rawFactor: plan.rawFactor,
+        reason: 'Epoch #' + s.epochNumber + ' filled 5/5',
+        epoch: s.epochNumber, epochs: 1, epochStartMs: s.startMs, epochClosedMs: s.closedMs,
+        epochDurationDays: plan.epochDurationDays, targetDays: plan.targetDays
+      });
+      current = plan.target;
+      lastPlan = plan;
+    }
+    const first = entries[0];
     const updated = {
-      target: plan.target,
-      previous: plan.previousTarget,
-      label: plan.label,
+      target: lastPlan.target,
+      previous: first.previous,
+      label: changeLabel(first.previous, lastPlan.target),
       retargetRule: 'epoch',
       lastRetargetMs: now,
       lastRetargetEpoch: newest.epochNumber,
       lastRetargetEpochClosedMs: newest.completedAtMs,
       nextRetargetMs: null,
-      history: (Array.isArray(c.history) ? c.history : []).concat([entry]),
-      lastPlan: plan,
+      history: (Array.isArray(c.history) ? c.history : []).concat(entries),
+      lastPlan: lastPlan,
     };
     t.set(ref, updated, { merge: true });
     t.set(db.collection('satoshiFavor').doc('difficultyStats'),
       { config: publicConfig(Object.assign({}, c, updated)) }, { merge: true });
-    result = Object.assign({ epoch: newest.epochNumber }, plan);
+    result = {
+      epoch: newest.epochNumber,
+      epochs: steps.length,
+      previousTarget: first.previous,
+      target: lastPlan.target,
+      label: updated.label,
+      factor: Math.round((lastPlan.target / first.previous) * 10000) / 10000,
+      steps: entries.map(function (e) {
+        return { epoch: e.epoch, previous: e.previous, target: e.target, factor: e.factor, label: e.label, epochDurationDays: e.epochDurationDays };
+      }),
+    };
   });
   _resetCache();
   if (result) console.log('[FAVOR] retarget', JSON.stringify(result));
