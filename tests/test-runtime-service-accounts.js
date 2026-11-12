@@ -115,7 +115,15 @@ test('gcloud output: named deploy only, metadata-free, one secret grant per boun
             const grants = text.split('\n').filter(function (l) {
                 return l.indexOf('gcloud secrets add-iam-policy-binding') === 0 && l.indexOf('serviceAccount:' + f.email + ' ') !== -1;
             });
-            assert.strictEqual(grants.length, f.secrets.length, n);
+            // Shared runtime SAs emit one grant per unique secret on that
+            // account, not per function in the batch.
+            const union = new Set();
+            b.fns.forEach(function (other) {
+                if (plan.functions[other].email === f.email) {
+                    plan.functions[other].secrets.forEach(function (s) { union.add(s); });
+                }
+            });
+            assert.strictEqual(grants.length, union.size, n);
         });
     });
 });
