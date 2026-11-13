@@ -468,6 +468,29 @@ test('D1: unsigned-in caller is refused; no phone enrolled is refused', withKey(
     await assert.rejects(run(api.recordKnownPhoneFactor, { code: '123456' }, ctx('adminUidD109', { mfaSignIn: false })), e => e.code === 'failed-precondition' && /phone verification first/.test(e.message));
 }));
 
+test('issueRecoveryCodes: TOTP account + fresh phone sign-in mints no codes and records nothing', async () => {
+    const { api, db } = setup({ userIrcTotp: { claims: {}, phoneAtMs: NOW - 60000, recorded: false, phoneId: 'mfaAttacker' } });
+    await seedTotp(db, 'userIrcTotp', NOW - 10 * DAY);
+    await assert.rejects(
+        run(api.issueRecoveryCodes, {}, ctx('userIrcTotp', { admin: false, secondFactorId: 'mfaAttacker', authAtMs: NOW - 60000 })),
+        e => e.code === 'failed-precondition' && /fresh authenticator code/.test(e.message)
+    );
+    assert.ok(!db.store['recovery_codes/userIrcTotp'], 'recovery codes must not be stored');
+    assert.ok(!(db.store['mfa_known_factors/userIrcTotp'] || {}).phones, 'phone must not be recorded');
+    assert.strictEqual(adminAlerts(db).length, 0);
+});
+test('issueRecoveryCodes: TOTP account with a live authenticator session still saves codes', async () => {
+    const { api, db } = setup({ userIrcSess: { claims: {}, phoneAtMs: 0 } });
+    await seedTotp(db, 'userIrcSess', NOW - 10 * DAY);
+    const sid = 'ab'.repeat(32);
+    await db.collection('totp_sessions').doc('userIrcSess_' + sid).set({
+        uid: 'userIrcSess', sessionId: sid, expiresAtMs: NOW + 3600000, revoked: false,
+    });
+    const res = await run(api.issueRecoveryCodes, { mfaSessionId: sid }, ctx('userIrcSess', { admin: false, mfaSignIn: false }));
+    assert.strictEqual(res.success, true);
+    assert.strictEqual(res.recoveryCodes.length, 10);
+    assert.ok(db.store['recovery_codes/userIrcSess']);
+});
 test('Red Team: TOTP account + fresh phone token + no code is refused and records nothing', withKey(async () => {
     const { api, db } = setup({ adminUidRT01: { claims: { admin: true }, phoneAtMs: NOW - 2 * DAY, recorded: false, phoneId: 'mfaRtPhone' } }, { checkDelta: () => 0 });
     await seedTotp(db, 'adminUidRT01', NOW - 29 * DAY);

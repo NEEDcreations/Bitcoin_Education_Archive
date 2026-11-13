@@ -1233,7 +1233,18 @@ function initSecondFactor(deps) {
         if (!secret && phone.enrolled !== true) {
             throw httpError('failed-precondition', 'Turn on two-factor authentication first.');
         }
-        if (!session && !token.sign_in_second_factor && !freshPhone) {
+        // Custom TOTP is not a Firebase Auth factor, so a password session can
+        // enroll a phone. A phone sign-in or a phone enrolled in the last 20
+        // minutes must not mint recovery codes while an authenticator is on:
+        // useRecoveryCode turns that authenticator off. Same rule as
+        // recordKnownPhoneFactor. A live authenticator session (issued only
+        // after a valid code) is the proof. Phone-only accounts keep the
+        // phone-token and fresh-enrollment paths.
+        if (secret) {
+            if (!session) {
+                throw httpError('failed-precondition', 'Enter a fresh authenticator code for this action.');
+            }
+        } else if (!token.sign_in_second_factor && !freshPhone) {
             throw httpError('failed-precondition', 'Confirm your authenticator or phone before saving recovery codes.');
         }
         const factor = secret && phone.enrolled ? 'both' : (secret ? 'totp' : 'phone');
