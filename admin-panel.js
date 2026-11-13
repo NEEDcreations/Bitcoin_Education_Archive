@@ -6,7 +6,7 @@
 (function () {
     'use strict';
 
-    var QUESTS_SRC = '/quests.js?v=20261109_v2542';
+    var QUESTS_SRC = '/quests.js?v=20261112_v2545';
 
     function isAdmin() { return window._isAdminClaim === true; }
 

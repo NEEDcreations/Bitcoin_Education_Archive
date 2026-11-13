@@ -221,7 +221,7 @@ function bindResetLightningAddress(functionsV1, deps) {
         HttpsError: functionsV1.https.HttpsError,
     }, deps || {}));
     const { turnstileSecret } = require('./sensitiveSecrets');
-    const opts = { enforceAppCheck: true, timeoutSeconds: 60, secrets: [turnstileSecret], serviceAccount: runtimeSa('resetLightningAddressOnce') };
+    const opts = { enforceAppCheck: true, timeoutSeconds: 60, secrets: [turnstileSecret, 'TOTP_ENCRYPTION_KEY'], serviceAccount: runtimeSa('resetLightningAddressOnce') };
     return {
         resetLightningAddressOnce: functionsV1.runWith(opts).https.onCall(handlers.resetLightningAddressOnce),
     };

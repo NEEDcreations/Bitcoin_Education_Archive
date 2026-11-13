@@ -383,6 +383,7 @@ function mfaClearDevice(uid) {
 var APP_CHECK_CALLABLES = {
     ackBadgeBackfillToast: 1,
     ackCipherShare: 1,
+    adminResetSecondFactor: 1,
     adminResolveCipherSatsClaim: 1,
     answerTrivia: 1,
     armSayHi: 1,
@@ -407,6 +408,7 @@ var APP_CHECK_CALLABLES = {
     pvpStoreAnswerKey: 1,
     pvpSubmitAnswer: 1,
     pvpTimeoutOpponent: 1,
+    recordKnownPhoneFactor: 1,
     recordNachoAnalytics: 1,
     resetLightningAddressOnce: 1,
     startQuest: 1,

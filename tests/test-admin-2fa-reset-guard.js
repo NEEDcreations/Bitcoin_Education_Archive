@@ -90,13 +90,29 @@ function makeAdmin(users) {
     return adminSdk;
 }
 
+const NOW = Date.now();
+const DAY = 24 * 60 * 60 * 1000;
+const CALLER_PHONE_ID = 'ph-adminAaaa01';
+const CALLER_PHONE_AT = NOW - 2 * DAY;
+
 function adminCtx(uid) {
-    return { auth: { uid: uid, token: { admin: true, firebase: { sign_in_provider: 'password' } } } };
+    // Fresh auth_time (and an established recorded phone below) so
+    // requireAdminStepUp lets the call through to the check under test.
+    return {
+        auth: {
+            uid: uid,
+            token: {
+                admin: true,
+                auth_time: Math.floor((NOW - 60000) / 1000),
+                firebase: { sign_in_provider: 'password', sign_in_second_factor: 'phone', second_factor_identifier: CALLER_PHONE_ID },
+            },
+        },
+    };
 }
 
 function setup() {
     const users = {
-        adminAaaa01: { uid: 'adminAaaa01', customClaims: { admin: true }, multiFactor: { enrolledFactors: [] } },
+        adminAaaa01: { uid: 'adminAaaa01', customClaims: { admin: true }, multiFactor: { enrolledFactors: [{ uid: CALLER_PHONE_ID, factorId: 'phone', enrollmentTime: new Date(CALLER_PHONE_AT).toISOString() }] } },
         adminBbbb02: { uid: 'adminBbbb02', customClaims: { admin: true }, multiFactor: { enrolledFactors: [] } },
         playerCc03: { uid: 'playerCc03', customClaims: {}, multiFactor: { enrolledFactors: [] } },
     };
@@ -113,6 +129,9 @@ function setup() {
     db.store.set('recovery_codes/adminBbbb02', { codes: [] });
     db.store.set('totp_secrets/playerCc03', { secret: 'enc' });
     db.store.set('recovery_codes/playerCc03', { codes: [] });
+    const phones = {};
+    phones[CALLER_PHONE_ID] = { recordedAtMs: CALLER_PHONE_AT, enrollmentTimeMs: CALLER_PHONE_AT };
+    db.store.set('mfa_known_factors/adminAaaa01', { uid: 'adminAaaa01', phones: phones });
     return { api: api, db: db };
 }
 
@@ -129,7 +148,7 @@ async function expectCode(promise, code) {
         const { api, db } = setup();
         const err = await expectCode(api.adminResetSecondFactor.run(
             { uid: 'adminBbbb02', note: 'Matched a support ticket and their email.' }, adminCtx('adminAaaa01')), 'permission-denied');
-        assert.ok(/recovery code/i.test(err.message));
+        assert.ok(/admin accounts cannot be reset/i.test(err.message));
         assert.ok(db.store.has('totp_secrets/adminBbbb02'), 'target authenticator must stay on');
         assert.ok(db.store.has('recovery_codes/adminBbbb02'), 'target recovery codes must stay');
         const log = db.adds.filter(function (a) { return a.col === 'mfa_admin_log'; });
