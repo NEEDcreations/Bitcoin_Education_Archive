@@ -10,6 +10,8 @@ Firebase-free, so it keeps working while the app kill switch is on.
 - Rate limit: Workers rate-limit binding, 5/min per IP (IP is a key only).
 - Origin must be https://bitcoineducation.quest.
 
+- New signups also email info.603btc@gmail.com (subject: "New Citadel Spark waitlist signup") with the address, ET time, running total, and the stored Substack status (`ok`, `error_*`, `browser`, etc.). Sent with `waitUntil` so a mail failure never fails the signup. Binding: `NOTIFY` (`send_email`, destination locked to that inbox). From: waitlist@bitcoineducation.quest.
+
 Test: `MINIFLARE_PATH=<dir with miniflare@4>/package.json node workers/waitlist-api/test.mjs`
 
 Go-live (each step needs Phil's OK):

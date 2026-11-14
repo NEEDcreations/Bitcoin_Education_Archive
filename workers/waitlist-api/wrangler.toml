@@ -30,3 +30,9 @@ simple = { limit = 5, period = 60 }
 
 # Secrets (wrangler secret put, never in this file):
 # TURNSTILE_SECRET_KEY   secret for the existing site key 0x4AAAAAAD-ivgpRkbXpgz86
+
+# Signup notifications (Phil OK Nov 14). Restricted to info.603btc@gmail.com.
+# Destination must be a verified Email Routing address before mail can send.
+[[send_email]]
+name = "NOTIFY"
+destination_address = "info.603btc@gmail.com"

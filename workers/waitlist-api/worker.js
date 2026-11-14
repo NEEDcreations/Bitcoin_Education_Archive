@@ -8,11 +8,17 @@
  * Stored per row: email (trimmed, lowercased), created_at, source='waitlist',
  * consent=1, substack_status, substack_at. No IP, no user agent, no referrer.
  *
- * Bindings (wrangler.toml): DB (D1), RL (rate limit, optional).
+ * Bindings (wrangler.toml): DB (D1), RL (rate limit, optional),
+ *       NOTIFY (send_email, optional; destination info.603btc@gmail.com).
  * Vars: SUBSTACK_PUBLICATION, SUBSTACK_DRY_RUN ("1" = never call Substack),
  *       ALLOWED_ORIGINS (comma list), TURNSTILE_OPTIONAL ("1" = dev only).
  * Secret: TURNSTILE_SECRET_KEY (wrangler secret put; legacy name TURNSTILE_SECRET also read). Never logged.
+ * New-signup mail is sent with ctx.waitUntil so a notify failure never changes the HTTP response.
  */
+
+const NOTIFY_TO = 'info.603btc@gmail.com';
+const NOTIFY_FROM = 'waitlist@bitcoineducation.quest';
+const SUBSTACK_DONE = new Set(['ok', 'dry_run', 'browser']);
 
 const EMAIL_RE = /^[^\s@<>()"',;:\\[\]]{1,64}@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
 const MAX_BODY = 4096;
@@ -102,7 +108,56 @@ export async function forwardToSubstack(env, email) {
     } catch (_) { return 'error_network'; }
 }
 
-export async function handleWaitlist(req, env) {
+
+export function formatEt(d = new Date()) {
+    const formatted = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+    }).format(d);
+    return formatted + ' ET';
+}
+
+export async function notifySignup(env, { email, at, total, substack }) {
+    if (!env || !env.NOTIFY || typeof env.NOTIFY.send !== 'function') return;
+    const text = [
+        'A new signup was added to the Citadel Spark waitlist.',
+        '',
+        'Email: ' + email,
+        'Time: ' + at,
+        'Total signups: ' + total,
+        'Substack forward: ' + substack,
+    ].join('\n');
+    try {
+        await env.NOTIFY.send({
+            to: NOTIFY_TO,
+            from: { email: NOTIFY_FROM, name: 'Citadel Spark Waitlist' },
+            subject: 'New Citadel Spark waitlist signup',
+            text,
+        });
+    } catch (err) {
+        console.log('waitlist notify failed', (err && (err.code || err.message)) || 'error');
+    }
+}
+
+function scheduleSignupNotify(ctx, env, email, status) {
+    const job = (async () => {
+        const countRow = await env.DB.prepare('SELECT COUNT(*) AS n FROM waitlist').first();
+        const total = countRow && countRow.n != null ? countRow.n : 0;
+        await notifySignup(env, { email, at: formatEt(), total, substack: status });
+    })();
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(job);
+    // If waitUntil is unavailable, still do not await: a notify failure must not fail the signup.
+    job.catch(() => {});
+}
+
+export async function handleWaitlist(req, env, ctx) {
     if (req.method === 'OPTIONS') return new Response(null, { status: 204 });
     if (req.method !== 'POST') return json({ ok: false, error: 'method' }, 405, { allow: 'POST' });
 
@@ -127,26 +182,34 @@ export async function handleWaitlist(req, env) {
     if (!ts) return reply(req, 403, { ok: false, error: 'challenge' });
 
     const now = new Date().toISOString();
-    await env.DB.prepare(
+    const ins = await env.DB.prepare(
         "INSERT INTO waitlist (email, created_at, source, consent, substack_status) VALUES (?1, ?2, 'waitlist', 1, 'pending') ON CONFLICT(email) DO NOTHING"
     ).bind(email, now).run();
+    const isNew = !!(ins && ins.meta && ins.meta.changes === 1);
 
     const row = await env.DB.prepare('SELECT substack_status FROM waitlist WHERE email = ?1').bind(email).first();
-    if (row && (row.substack_status === 'ok' || row.substack_status === 'dry_run')) {
-        return reply(req, 200, { ok: true }); // duplicate: same answer, no second forward
+    // 'browser' means the page will subscribe the visitor in their own browser (no server forward).
+    if (!isNew && row && SUBSTACK_DONE.has(row.substack_status)) {
+        return reply(req, 200, { ok: true, ...(row.substack_status === 'dry_run' ? { dryRun: true } : {}) });
     }
 
-    const status = await forwardToSubstack(env, email);
-    await env.DB.prepare('UPDATE waitlist SET substack_status = ?1, substack_at = ?2 WHERE email = ?3').bind(status, now, email).run();
-    if (status === 'ok' || status === 'dry_run') return reply(req, 200, { ok: true, ...(status === 'dry_run' ? { dryRun: true } : {}) });
+    let status = row && row.substack_status;
+    if (status === 'browser') {
+        // Already marked for a browser subscribe; do not also POST from the Worker.
+    } else {
+        status = await forwardToSubstack(env, email);
+        await env.DB.prepare('UPDATE waitlist SET substack_status = ?1, substack_at = ?2 WHERE email = ?3').bind(status, now, email).run();
+    }
+    if (isNew) scheduleSignupNotify(ctx, env, email, status);
+    if (SUBSTACK_DONE.has(status)) return reply(req, 200, { ok: true, ...(status === 'dry_run' ? { dryRun: true } : {}) });
     return reply(req, 200, { ok: true, retry: true }); // saved on our list; Substack retried later
 }
 
 export default {
-    async fetch(req, env) {
+    async fetch(req, env, ctx) {
         const url = new URL(req.url);
         if (url.pathname === '/api/waitlist') {
-            try { return await handleWaitlist(req, env); }
+            try { return await handleWaitlist(req, env, ctx); }
             catch (_) { return json({ ok: false, error: 'server' }, 500); }
         }
         return json({ ok: false, error: 'not_found' }, 404);
