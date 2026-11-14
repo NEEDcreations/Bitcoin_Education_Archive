@@ -318,10 +318,11 @@ test('cwSetOpen(false) is a close, not a toggle', function() {
 
 test('narrow sidebar gets a scale-down, wide sidebar stays 1', function() {
     const ctx = loadPanel();
-    assert.strictEqual(ctx.window._cwScaleForWidth(290, 360), 290 / 360);
-    assert.strictEqual(ctx.window._cwScaleForWidth(360, 360), 1);
-    assert.strictEqual(ctx.window._cwScaleForWidth(400, 360), 1);
-    assert.strictEqual(ctx.window._cwScaleForWidth(0, 360), 1);
+    assert.strictEqual(ctx.window._cwScaleForWidth(290, 404), 290 / 404);
+    assert.strictEqual(ctx.window._cwScaleForWidth(390, 404), 390 / 404);
+    assert.strictEqual(ctx.window._cwScaleForWidth(404, 404), 1);
+    assert.strictEqual(ctx.window._cwScaleForWidth(440, 404), 1);
+    assert.strictEqual(ctx.window._cwScaleForWidth(0, 404), 1);
 });
 
 test('fitFrame scales the iframe to the wrap width and does not set a fixed min-width CSS', function() {
@@ -332,13 +333,13 @@ test('fitFrame scales the iframe to the wrap width and does not set a fixed min-
     wrap.clientHeight = 640;
     ctx.window._cwSetOpen(true);
     // _cwSetOpen calls cwFitFrame
-    assert.strictEqual(frame.style.width, '360px');
+    assert.strictEqual(frame.style.width, '404px');
     assert.strictEqual(frame.style.maxWidth, 'none');
     assert.strictEqual(frame.style.minWidth, '0');
     assert.ok(frame.style.transform.indexOf('scale(') === 0);
-    const scale = 290 / 360;
+    const scale = 290 / 404;
     assert.strictEqual(frame.style.height, String(Math.round(640 / scale)) + 'px');
-    wrap.clientWidth = 400;
+    wrap.clientWidth = 440;
     wrap.clientHeight = 640;
     ctx.window._cwSetOpen(true);
     assert.strictEqual(frame.style.width, '100%');

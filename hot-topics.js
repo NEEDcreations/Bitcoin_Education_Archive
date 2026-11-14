@@ -447,7 +447,10 @@
         }
     }
 
-    var CW_MIN_WIDTH = 360;
+    // Measured with headless Chrome: the Donate button's right edge is 402px.
+    // 400px still clips it by 2px; 404px is the narrowest width with no
+    // horizontal overflow and no clipped header controls.
+    var CW_MIN_WIDTH = 404;
 
     function cwScaleForWidth(width, minWidth) {
         minWidth = minWidth || CW_MIN_WIDTH;
