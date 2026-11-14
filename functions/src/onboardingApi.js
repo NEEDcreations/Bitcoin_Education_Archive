@@ -66,11 +66,9 @@ function accountBlocked(user, ledger) {
     return isSatsBanned(user, ledger || {});
 }
 
-function roleMayUseReserved(user) {
-    if (!user) return false;
-    if (user.isAdmin === true || user.admin === true) return true;
-    const role = String(user.role || '');
-    return role === 'admin' || role === 'moderator';
+function roleMayUseReserved(context) {
+    // Firebase custom claim only. Firestore role/email fields are not trusted here.
+    return !!(context && context.auth && context.auth.token && context.auth.token.admin === true);
 }
 
 function reservationView(data) {
@@ -586,7 +584,7 @@ function registerOnboarding(deps) {
             const decision = names.assessUsername(rawName, {
                 taken: reservedByOther,
                 selfHasSame: selfHasSame,
-                allowReserved: roleMayUseReserved(current),
+                allowReserved: roleMayUseReserved(context),
                 renameTooSoon: renameTooSoon,
             });
             if (!decision.ok) return decision;

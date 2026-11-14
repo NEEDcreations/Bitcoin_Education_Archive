@@ -7,14 +7,9 @@
 
 (function() {
 
-// Admin UIDs — can delete any post/reply
-var FORUM_ADMINS = [];
+// Admin check: Firebase custom claim only (window._isAdminClaim from getIdTokenResult).
 function isForumAdmin() {
-    if (!auth || !auth.currentUser) return false;
-    if (FORUM_ADMINS.indexOf(auth.currentUser.uid) !== -1) return true;
-    // Also check email
-    var email = auth.currentUser.email || '';
-    return email === 'needcreations@gmail.com' || email === 'info.603btc@gmail.com' || email === 'najemchris8@gmail.com';
+    return window._isAdminClaim === true;
 }
 
 var FORUM_CATEGORIES = [

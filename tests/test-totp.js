@@ -80,6 +80,11 @@ test('server session, recovery hashes, and fail-closed key live in the second-fa
     ['totpSetup', 'totpVerify', 'totpCheck', 'totpDisable', 'regenerateRecoveryCodes'].forEach(function (name) {
         assert.ok(src.includes('const ' + name + ' = onCallWithKey'), name + ' secret binding');
     });
+    const resetAt = src.indexOf('const adminResetSecondFactor = ');
+    assert.ok(resetAt > 0);
+    const resetFn = src.slice(resetAt, resetAt + 400);
+    assert.ok(resetFn.indexOf("secrets: ['TOTP_ENCRYPTION_KEY']") > 0, 'adminResetSecondFactor secret binding');
+    assert.ok(resetFn.indexOf("runtimeSa('adminResetSecondFactor')") > 0, 'adminResetSecondFactor runtime SA');
     assert.ok(src.includes('sign_in_second_factor'));
     assert.ok(!src.includes('console.log'));
     assert.ok(index.includes('requireSecondFactor'));

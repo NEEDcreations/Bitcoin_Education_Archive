@@ -8935,14 +8935,9 @@ window.nachoNickname=function(){return localStorage.getItem("btc_nacho_nickname"
 
 (function() {
 
-// Admin UIDs — can delete any post/reply
-var FORUM_ADMINS = [];
+// Admin check: Firebase custom claim only (window._isAdminClaim from getIdTokenResult).
 function isForumAdmin() {
-    if (!auth || !auth.currentUser) return false;
-    if (FORUM_ADMINS.indexOf(auth.currentUser.uid) !== -1) return true;
-    // Also check email
-    var email = auth.currentUser.email || '';
-    return email === 'needcreations@gmail.com' || email === 'info.603btc@gmail.com' || email === 'najemchris8@gmail.com';
+    return window._isAdminClaim === true;
 }
 
 var FORUM_CATEGORIES = [
@@ -11517,9 +11512,8 @@ function checkMarketRules() {
 
 // ---- Admin check ----
 function isMarketAdmin() {
-    if (!auth || !auth.currentUser) return false;
-    var email = auth.currentUser.email || '';
-    return email === 'needcreations@gmail.com' || email === 'info.603btc@gmail.com' || email === 'najemchris8@gmail.com';
+    // Firebase custom claim only. Never gate on email client-side.
+    return window._isAdminClaim === true;
 }
 
 var MARKETPLACE_SECTIONS = [
@@ -28998,8 +28992,8 @@ window.toggleAITools = function() {
 
     // Helper: check if user is forum admin (matches the existing function in forum.js)
     function isForumAdmin() {
-        if (!auth || !auth.currentUser) return false;
-        var _e = (auth.currentUser.email || ''); return _e === 'needcreations@gmail.com' || _e === 'najemchris8@gmail.com';
+        // Firebase custom claim only. Never gate on email client-side.
+        return window._isAdminClaim === true;
     }
 })();
 
