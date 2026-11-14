@@ -1,0 +1,32 @@
+# waitlist-api: NOT DEPLOYED. Needs Phil's OK (new Worker, new D1 database, new route).
+# Kept out of the Pages publish tree (deploy-pages.sh skips workers/).
+name = "waitlist-api"
+main = "worker.js"
+compatibility_date = "2026-08-01"
+account_id = "bc12a6ce8540408b7552f1d658c45bf7"
+workers_dev = false
+
+# Most-specific route wins over seo-router's catch-all, so this path skips seo-router.
+routes = [
+  { pattern = "bitcoineducation.quest/api/waitlist", zone_name = "bitcoineducation.quest" }
+]
+
+[vars]
+SUBSTACK_PUBLICATION = "https://603btc.substack.com"
+SUBSTACK_DRY_RUN = "1"          # set to "0" only after Phil OKs live forwarding
+ALLOWED_ORIGINS = "https://bitcoineducation.quest"
+
+# Create with: wrangler d1 create bq-waitlist   (needs Phil's OK; not created)
+[[d1_databases]]
+binding = "DB"
+database_name = "bq-waitlist"
+database_id = "00000000-0000-0000-0000-000000000000"   # placeholder until created
+
+# 5 requests per minute per IP. The IP is a limiter key only and is never stored.
+[[ratelimits]]
+name = "RL"
+namespace_id = "7101"
+simple = { limit = 5, period = 60 }
+
+# Secrets (wrangler secret put, never in this file):
+# TURNSTILE_SECRET   secret for the existing site key 0x4AAAAAAD-ivgpRkbXpgz86
