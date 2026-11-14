@@ -688,6 +688,16 @@ test('scheduler wiring is unchanged and the old X and Reddit paths are gone', fu
     assert.ok(home.indexOf('rel="noopener noreferrer"') !== -1);
     assert.ok(home.indexOf('id="cwCollapse"') !== -1);
     assert.ok(home.indexOf('window._cwToggle') !== -1);
+    assert.ok(home.indexOf('window._cwSetOpen') !== -1);
+    assert.ok(home.indexOf('e.stopPropagation()') !== -1);
+    assert.ok(home.indexOf('window._cwSetOpen(false)') !== -1);
+    assert.ok(home.indexOf('#cwEmbed { display: none !important; }') !== -1);
+    assert.ok(home.indexOf('#cwEmbed.is-open { display: block !important; }') !== -1);
+    assert.ok(home.indexOf('overflow: hidden') !== -1);
+    assert.ok(home.indexOf('overflow: auto') === -1);
+    assert.ok(home.indexOf('min-width: 0') !== -1);
+    assert.ok(home.indexOf('min(70vh, 640px)') !== -1);
+    assert.ok(home.indexOf("CW_MIN_WIDTH = 360") !== -1);
     const worker = fs.readFileSync(path.join(__dirname, '../workers/seo-router/worker.js'), 'utf8');
     const framePolicy = worker.slice(worker.indexOf('frame-src'), worker.indexOf('font-src'));
     assert.ok(framePolicy.indexOf('https://citadelwire.com') !== -1);

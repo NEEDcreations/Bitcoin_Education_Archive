@@ -1,6 +1,6 @@
 // hot-topics.js — Bitcoin Hot Topics sidebar section
 // Lazy-loaded. Fetches cached data from Firestore (populated weekly by Firebase Function).
-// Version: 20261114
+// Version: 20261114b
 
 (function () {
     'use strict';
@@ -297,12 +297,19 @@
                 border-bottom: 1px solid var(--border);
                 margin-bottom: 4px;
                 padding: 0 8px 8px;
+                box-sizing: border-box;
+                max-width: 100%;
+                min-width: 0;
             }
+            #citadelWirePanel *,
+            #citadelWirePanel *::before,
+            #citadelWirePanel *::after { box-sizing: border-box; }
             .cw-toggle {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
                 width: 100%;
+                max-width: 100%;
                 gap: 8px;
                 padding: 8px 6px;
                 background: transparent;
@@ -327,6 +334,7 @@
                 transform: rotate(-90deg);
                 flex-shrink: 0;
             }
+            #citadelWirePanel.is-open .cw-toggle-chevron { transform: rotate(0deg); }
             .cw-embed-toolbar {
                 display: flex;
                 align-items: center;
@@ -353,27 +361,28 @@
                 text-decoration: none;
             }
             .cw-open-link:hover { text-decoration: underline; }
+            #cwEmbed { display: none !important; }
+            #cwEmbed.is-open { display: block !important; }
             .cw-frame-wrap {
+                width: 100%;
+                max-width: 100%;
+                min-width: 0;
+                height: min(70vh, 640px);
+                max-height: min(70vh, 640px);
                 border: 1px solid var(--border);
                 border-radius: 10px;
-                overflow: auto;
-                -webkit-overflow-scrolling: touch;
-                max-height: min(70vh, 520px);
+                overflow: hidden;
                 background: #080b12;
             }
             #cwFrame {
                 display: block;
                 width: 100%;
-                height: min(70vh, 520px);
-                min-height: 320px;
+                max-width: 100%;
+                min-width: 0;
+                height: 100%;
                 border: 0;
                 background: #080b12;
-            }
-            @media (max-width: 768px) {
-                .cw-frame-wrap, #cwFrame {
-                    max-height: min(60vh, 420px);
-                    height: min(60vh, 420px);
-                }
+                transform-origin: top left;
             }
         `;
         document.head.appendChild(style);
@@ -417,36 +426,96 @@
         var toggle = document.getElementById('cwToggle');
         var collapse = document.getElementById('cwCollapse');
         if (toggle) {
-            toggle.addEventListener('click', function() { window._cwToggle(); });
+            toggle.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                window._cwToggle();
+            });
         }
         if (collapse) {
             collapse.addEventListener('click', function(e) {
                 e.preventDefault();
-                window._cwToggle(false);
+                e.stopPropagation();
+                window._cwSetOpen(false);
             });
+        }
+        if (window.ResizeObserver) {
+            var wrap = panel.querySelector('.cw-frame-wrap');
+            if (wrap) new ResizeObserver(function() { cwFitFrame(); }).observe(wrap);
+        } else {
+            window.addEventListener('resize', cwFitFrame);
         }
     }
 
-    window._cwToggle = function(forceOpen) {
+    var CW_MIN_WIDTH = 360;
+
+    function cwScaleForWidth(width, minWidth) {
+        minWidth = minWidth || CW_MIN_WIDTH;
+        if (!width || width >= minWidth) return 1;
+        return width / minWidth;
+    }
+
+    function cwIsOpen(embed) {
+        return !!(embed && embed.classList && embed.classList.contains('is-open'));
+    }
+
+    function cwFitFrame() {
+        var wrap = document.querySelector('#citadelWirePanel .cw-frame-wrap');
+        var frame = document.getElementById('cwFrame');
+        if (!wrap || !frame) return;
+        var width = wrap.clientWidth;
+        var height = wrap.clientHeight;
+        if (!width || !height) return;
+        var scale = cwScaleForWidth(width, CW_MIN_WIDTH);
+        frame.style.minWidth = '0';
+        frame.style.transformOrigin = 'top left';
+        if (scale < 1) {
+            frame.style.width = CW_MIN_WIDTH + 'px';
+            frame.style.maxWidth = 'none';
+            frame.style.height = Math.round(height / scale) + 'px';
+            frame.style.transform = 'scale(' + scale + ')';
+        } else {
+            frame.style.width = '100%';
+            frame.style.maxWidth = '100%';
+            frame.style.height = '100%';
+            frame.style.transform = 'none';
+        }
+    }
+
+    function cwSetOpen(open) {
+        var panel = document.getElementById('citadelWirePanel');
         var embed = document.getElementById('cwEmbed');
         var toggle = document.getElementById('cwToggle');
         var chevron = document.getElementById('cwChevron');
         var frame = document.getElementById('cwFrame');
         if (!embed || !toggle) return;
-        var open = typeof forceOpen === 'boolean' ? forceOpen : embed.hasAttribute('hidden');
         if (open) {
+            embed.classList.add('is-open');
             embed.removeAttribute('hidden');
+            if (panel) panel.classList.add('is-open');
             toggle.setAttribute('aria-expanded', 'true');
             if (chevron) chevron.style.transform = 'rotate(0deg)';
             if (frame && !frame.getAttribute('src')) {
                 frame.setAttribute('src', 'https://citadelwire.com');
             }
+            cwFitFrame();
         } else {
-            embed.setAttribute('hidden');
+            embed.classList.remove('is-open');
+            embed.setAttribute('hidden', '');
+            if (panel) panel.classList.remove('is-open');
             toggle.setAttribute('aria-expanded', 'false');
             if (chevron) chevron.style.transform = 'rotate(-90deg)';
         }
+    }
+
+    window._cwSetOpen = cwSetOpen;
+    window._cwToggle = function(forceOpen) {
+        var embed = document.getElementById('cwEmbed');
+        if (!embed) return;
+        var next = typeof forceOpen === 'boolean' ? forceOpen : !cwIsOpen(embed);
+        cwSetOpen(next);
     };
+    window._cwScaleForWidth = cwScaleForWidth;
 
     // ── Section-level collapse ────────────────────────────────────────────────
     window._htSectionToggle = function (headerEl) {
