@@ -34,9 +34,10 @@ function test(name, fn) {
 }
 
 class HttpsError extends Error {
-    constructor(code, message) {
+    constructor(code, message, details) {
         super(message);
         this.code = code;
+        this.details = details;
     }
 }
 
@@ -978,11 +979,11 @@ async function run() {
     });
 
 
-    await test('admin banner: every kill-switch action needs a live Kill switch tool session', async function () {
+    await test('admin banner: status, preflight and off need a live Kill switch tool session', async function () {
         const db = makeDb();
         const now = Date.parse('2026-11-11T22:50:00Z');
         const { handler } = hook(db, { realToolGuard: true, now: function () { return now; } });
-        for (const action of ['status', 'preflight', 'on', 'off']) {
+        for (const action of ['status', 'preflight', 'off']) {
             let err = null;
             try { await handler({ action: action, confirm: action === 'on' ? 'OFFLINE' : 'ONLINE', reason: 'security incident' }, adminContext()); } catch (e) { err = e; }
             assert.ok(err, action + ' must be refused without a tool session');
@@ -1029,6 +1030,98 @@ async function run() {
         assert.strictEqual(stepUps, 1);
         const flag = await db.collection('config').doc('killSwitch').get();
         assert.strictEqual(flag.exists, false);
+    });
+
+    // Red Team #325 F1: emergency ON stays one code.
+    await test('F1: ON with no tool session and a valid fresh step-up goes offline (one code)', async function () {
+        const db = makeDb();
+        const now = Date.parse('2026-11-11T22:50:00Z');
+        let stepUps = 0;
+        const { handler } = hook(db, {
+            realToolGuard: true,
+            now: function () { return now; },
+            stepUp: async function () { stepUps++; return { established: true, totp: true }; },
+        });
+        const res = await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident' }, adminContext());
+        assert.strictEqual(res.on, true);
+        assert.strictEqual(stepUps, 1, 'exactly one fresh step-up');
+        const flag = await db.collection('config').doc('killSwitch').get();
+        assert.strictEqual(flag.exists && flag.data().enabled, true);
+    });
+
+    await test('F1: ON is never free of a code: no tool session and a refused step-up flips nothing', async function () {
+        const db = makeDb();
+        const now = Date.parse('2026-11-11T22:50:00Z');
+        const { handler } = hook(db, {
+            realToolGuard: true,
+            now: function () { return now; },
+            stepUp: async function () { throw new HttpsError('failed-precondition', 'Enter a fresh authenticator code for this action.'); },
+        });
+        let err = null;
+        try { await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident' }, adminContext()); } catch (e) { err = e; }
+        assert.ok(err && err.code === 'failed-precondition');
+        const flag = await db.collection('config').doc('killSwitch').get();
+        assert.strictEqual(flag.exists, false);
+    });
+
+    await test('F1: ON still refuses a non-admin before any step-up', async function () {
+        const db = makeDb();
+        let stepUps = 0;
+        const { handler } = hook(db, { realToolGuard: true, stepUp: async function () { stepUps++; return { established: true }; } });
+        const ctx = adminContext();
+        ctx.auth.token.admin = false;
+        let err = null;
+        try { await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident' }, ctx); } catch (e) { err = e; }
+        assert.ok(err && err.code === 'permission-denied');
+        assert.strictEqual(stepUps, 0);
+    });
+
+    await test('F1: OFF with no tool session is refused before the step-up, even with a valid proof', async function () {
+        const db = makeDb();
+        const now = Date.parse('2026-11-11T22:50:00Z');
+        let stepUps = 0;
+        const { handler } = hook(db, {
+            realToolGuard: true,
+            now: function () { return now; },
+            stepUp: async function () { stepUps++; return { established: true, totp: true }; },
+        });
+        await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident' }, adminContext());
+        stepUps = 0;
+        let err = null;
+        try { await handler({ action: 'off', confirm: 'ONLINE', reason: 'incident resolved', freshProofId: 'f'.repeat(32) }, adminContext()); } catch (e) { err = e; }
+        assert.ok(err && err.code === 'failed-precondition');
+        assert.strictEqual(err.details && err.details.reason, 'admin-step-up');
+        assert.strictEqual(stepUps, 0, 'tool session is checked first');
+        const flag = await db.collection('config').doc('killSwitch').get();
+        assert.strictEqual(flag.data().enabled, true, 'still offline');
+    });
+
+    await test('F1: OFF with a tool session AND a fresh step-up brings the app back', async function () {
+        const db = makeDb();
+        const now = Date.parse('2026-11-11T22:50:00Z');
+        let stepUps = 0;
+        const { handler } = hook(db, {
+            realToolGuard: true,
+            now: function () { return now; },
+            stepUp: async function () { stepUps++; return { established: true, totp: true }; },
+        });
+        await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident' }, adminContext());
+        const sid = 'd4'.repeat(16);
+        await db.collection('admin_tool_sessions').doc('admin1_killSwitch').set({ uid: 'admin1', tool: 'killSwitch', sessionId: sid, verifiedAtMs: now, expiresAtMs: now + 300000 });
+        stepUps = 0;
+        const res = await handler({ action: 'off', confirm: 'ONLINE', reason: 'incident resolved', adminToolSession: sid }, adminContext());
+        assert.strictEqual(res.on, false);
+        assert.strictEqual(stepUps, 1);
+    });
+
+    await test('F1: client has an Emergency stop path straight to the ON prompt (no tool window)', function () {
+        const panel = fs.readFileSync(path.join(root, 'admin-panel.js'), 'utf8');
+        assert.ok(panel.includes('window.bqEmergencyStop = openEmergencyStop'));
+        const body = panel.slice(panel.indexOf('function openEmergencyStop'), panel.indexOf('window.bqEmergencyStop'));
+        assert.ok(body.includes("_showFreshStepUp('adminSetKillSwitch')"), 'one fresh code');
+        assert.ok(body.includes("action: 'on'"));
+        assert.ok(!body.includes('bqAdminToolStepUp'), 'no tool-window prompt first');
+        assert.ok(!/action: 'off'/.test(body), 'emergency path only turns the switch ON');
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

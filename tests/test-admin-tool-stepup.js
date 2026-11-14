@@ -102,12 +102,16 @@ function codeAt(ms) {
 function setup(opts) {
     const o = opts || {};
     const db = makeDb();
+    const phoneAt = o.phoneAt || (T0 - 3 * 86400000);
     const users = {
-        adminA1: { uid: 'adminA1', customClaims: { admin: true }, multiFactor: { enrolledFactors: o.phone ? [{ uid: 'ph1', factorId: 'phone', enrollmentTime: new Date(T0 - 3 * 86400000).toISOString() }] : [] } },
+        adminA1: { uid: 'adminA1', customClaims: { admin: true }, multiFactor: { enrolledFactors: o.phone ? [{ uid: 'ph1', factorId: 'phone', enrollmentTime: new Date(phoneAt).toISOString() }] : [] } },
     };
     const adminSdk = {
         auth: function () { return { async getUser(uid) { if (!users[uid]) throw new Error('no user'); return users[uid]; } }; },
-        firestore: { FieldValue: { serverTimestamp: function () { return 'ts'; } } },
+        firestore: {
+            FieldValue: { serverTimestamp: function () { return 'ts'; } },
+            Timestamp: { fromMillis: function (ms) { return { _ts: true, toMillis: function () { return ms; } }; } },
+        },
     };
     const api = initSecondFactor({
         db: db,
@@ -116,16 +120,23 @@ function setup(opts) {
         authenticator: authenticator,
         QRCode: { toDataURL: async function () { return ''; } },
     });
+    const enabledAt = o.totpEnabledAt || (T0 - 3 * 86400000);
     if (o.totp !== false) {
-        db.store.set('totp_secrets/adminA1', { uid: 'adminA1', enabled: true, secret: SEED, secretEnc: false, enabledAt: T0 - 3 * 86400000 });
+        db.store.set('totp_secrets/adminA1', { uid: 'adminA1', enabled: true, secret: SEED, secretEnc: false, enabledAt: enabledAt });
     }
+    const known = { uid: 'adminA1' };
+    if (o.totp !== false && o.totpKnown !== false) known.totp = { enabledAtMs: o.totpKnownAt || enabledAt };
+    if (o.phone && o.phoneKnown !== false) {
+        known.phones = { ph1: { enrollmentTimeMs: phoneAt, recordedAtMs: o.phoneRecordedAt || phoneAt } };
+    }
+    db.store.set('mfa_known_factors/adminA1', known);
     return { api: api, db: db };
 }
 
 function ctx(uid, tokenExtra, ip) {
     return {
         auth: { uid: uid, token: Object.assign({ admin: true, auth_time: Math.floor((NOW - 60000) / 1000), firebase: { sign_in_provider: 'password' } }, tokenExtra || {}) },
-        rawRequest: { ip: ip || '203.0.113.7', headers: {} },
+        rawRequest: { ip: ip === '' ? '' : (ip || '203.0.113.7'), headers: ip === '' ? {} : { 'x-forwarded-for': ip || '203.0.113.7' } },
     };
 }
 
@@ -139,7 +150,11 @@ async function expectErr(promise, code, reason) {
 }
 
 function logRows(db, action) {
-    return db.adds.filter(function (a) { return a.col === 'mfa_admin_log' && (!action || a.data.action === action); });
+    const rows = [];
+    db.store.forEach(function (v, k) {
+        if (k.indexOf('mfa_admin_log/') === 0 && (!action || v.action === action)) rows.push({ col: 'mfa_admin_log', data: v });
+    });
+    return rows;
 }
 
 async function guard(db, data, tool, c) {
@@ -283,9 +298,9 @@ function settle(promise, ms) {
         const good = codeAt(NOW);
         const bad = good === '000000' ? '111111' : '000000';
         for (let i = 0; i < 5; i++) {
-            await expectErr(api.totpStepUp.run({ tool: 'forum', code: bad }, ctx('adminA1', null, '198.51.100.' + (i + 1))), 'invalid-argument');
+            await expectErr(api.totpStepUp.run({ tool: 'forum', code: bad }, ctx('adminA1', null, '198.51.' + (100 + i) + '.1')), 'invalid-argument');
         }
-        await expectErr(api.totpStepUp.run({ tool: 'forum', code: good }, ctx('adminA1', null, '198.51.100.99')), 'resource-exhausted');
+        await expectErr(api.totpStepUp.run({ tool: 'forum', code: good }, ctx('adminA1', null, '198.51.120.1')), 'resource-exhausted');
         assert.ok(!db.store.has('admin_tool_sessions/adminA1_forum'));
     });
 
@@ -324,6 +339,155 @@ function settle(promise, ms) {
         await expectErr(guard(db, { adminToolSession: sid }, 'market'), 'failed-precondition');
         db.store.set('admin_tool_sessions/adminA1_market', { uid: 'adminA1', tool: 'market', sessionId: sid, verifiedAtMs: NOW - 3600000, expiresAtMs: NOW + 3600000 });
         await expectErr(guard(db, { adminToolSession: sid }, 'market'), 'failed-precondition');
+    });
+
+
+    // ── Red Team #325 fixes ──
+    await test('F3: bad codes from different addresses in one IPv6 /64 share the network limit', async function () {
+        NOW = T0;
+        const { api, db } = setup();
+        for (let i = 0; i < 5; i++) {
+            await expectErr(api.totpStepUp.run({ tool: 'forum', code: '000000' }, ctx('adminX' + i, null, '2001:db8:1:2::' + (i + 1))), 'failed-precondition');
+        }
+        await expectErr(api.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '2001:db8:1:2:aaaa::ff')), 'resource-exhausted');
+        assert.ok(!db.store.has('admin_tool_sessions/adminA1_forum'));
+        // Another /64 has its own bucket.
+        const ok = await api.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '2001:db8:1:3::1'));
+        assert.strictEqual(ok.success, true);
+    });
+
+    await test('F3: IPv4 addresses in one /24 share the network limit', async function () {
+        NOW = T0;
+        const { api } = setup();
+        for (let i = 0; i < 5; i++) {
+            await expectErr(api.totpStepUp.run({ tool: 'forum', code: '000000' }, ctx('adminY' + i, null, '192.0.2.' + (10 + i))), 'failed-precondition');
+        }
+        await expectErr(api.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '192.0.2.200')), 'resource-exhausted');
+    });
+
+    await test('F3: an empty IP skips the network limit (no shared unknown bucket), notes it in the audit row', async function () {
+        NOW = T0;
+        const { api, db } = setup();
+        for (let i = 0; i < 6; i++) {
+            await expectErr(api.totpStepUp.run({ tool: 'forum', code: '000000' }, ctx('adminZ' + i, null, '')), 'failed-precondition');
+        }
+        const res = await api.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, ''));
+        assert.strictEqual(res.success, true, 'other admins with no IP never lock this admin out');
+        let ipRows = 0;
+        db.store.forEach(function (v, k) { if (k.indexOf('rate_limits/admintoolip_') === 0) ipRows++; });
+        assert.strictEqual(ipRows, 0, 'no network bucket written');
+        const ok = logRows(db, 'admin_tool_step_up');
+        assert.strictEqual(ok.length, 1);
+        assert.strictEqual(ok[0].data.ipLimit, 'skipped-no-ip');
+        assert.ok(logRows(db, 'admin_tool_step_up_failed').every(function (r) { return r.data.ipLimit === 'skipped-no-ip'; }));
+        // Per-uid limit still applies with no IP.
+        const bad = codeAt(NOW) === '000000' ? '111111' : '000000';
+        NOW = T0 + 60000;
+        for (let i = 0; i < 5; i++) await expectErr(api.totpStepUp.run({ tool: 'beats', code: bad }, ctx('adminA1', null, '')), 'invalid-argument');
+        await expectErr(api.totpStepUp.run({ tool: 'beats', code: codeAt(NOW) }, ctx('adminA1', null, '')), 'resource-exhausted');
+        NOW = T0;
+    });
+
+    await test('F3: source keys the network limit on faucetGuard.networkKeys(ip).rangeId, never a shared unknown bucket', function () {
+        const src = fs.readFileSync(path.join(fnRoot, 'src', 'secondFactor.js'), 'utf8');
+        const body = src.slice(src.indexOf('async function adminToolStepUp'), src.indexOf('const totpStepUp = onCallAppKey'));
+        assert.ok(src.includes('faucetGuard.networkKeys(raw)') && src.includes('keys.rangeId'));
+        assert.ok(!body.includes("|| 'unknown'"), 'no shared unknown bucket');
+    });
+
+    await test('F4: a TOTP enrolled less than 24 h ago cannot open an admin tool', async function () {
+        NOW = T0;
+        const { api, db } = setup({ totpEnabledAt: T0 - 3600000 });
+        await expectErr(api.totpStepUp.run({ tool: 'killSwitch', code: codeAt(NOW) }, ctx('adminA1')), 'failed-precondition', 'factor-too-new');
+        assert.ok(!db.store.has('admin_tool_sessions/adminA1_killSwitch'));
+        assert.strictEqual(logRows(db, 'admin_tool_step_up_failed')[0].data.reason, 'factor-too-new');
+    });
+
+    await test('F4: a TOTP that does not match the server record is refused', async function () {
+        NOW = T0;
+        const { api, db } = setup({ totpKnownAt: T0 - 9 * 86400000 });
+        await expectErr(api.totpStepUp.run({ tool: 'killSwitch', code: codeAt(NOW) }, ctx('adminA1')), 'failed-precondition', 'factor-unrecorded');
+        assert.ok(!db.store.has('admin_tool_sessions/adminA1_killSwitch'));
+    });
+
+    await test('F4: a TOTP admin with an unrecorded phone factor is refused', async function () {
+        NOW = T0;
+        const { api } = setup({ phone: true, phoneKnown: false });
+        await expectErr(api.totpStepUp.run({ tool: 'killSwitch', code: codeAt(NOW) }, ctx('adminA1')), 'failed-precondition', 'factor-unrecorded');
+    });
+
+    await test('F4: phone-only admin with a phone added less than 24 h ago is refused', async function () {
+        NOW = T0;
+        const { api } = setup({ totp: false, phone: true, phoneAt: T0 - 3600000 });
+        const fresh = { auth_time: Math.floor((NOW - 30000) / 1000), firebase: { sign_in_provider: 'password', sign_in_second_factor: 'phone' } };
+        await expectErr(api.totpStepUp.run({ tool: 'beats' }, ctx('adminA1', fresh)), 'failed-precondition', 'factor-too-new');
+    });
+
+    await test('F4: phone-only admin with an unrecorded phone factor is refused', async function () {
+        NOW = T0;
+        const { api } = setup({ totp: false, phone: true, phoneKnown: false });
+        const fresh = { auth_time: Math.floor((NOW - 30000) / 1000), firebase: { sign_in_provider: 'password', sign_in_second_factor: 'phone' } };
+        await expectErr(api.totpStepUp.run({ tool: 'beats' }, ctx('adminA1', fresh)), 'failed-precondition', 'factor-unrecorded');
+    });
+
+    await test('F6: the success audit row is written in the same batch as the session', async function () {
+        NOW = T0;
+        const { api, db } = setup();
+        const res = await api.totpStepUp.run({ tool: 'market', code: codeAt(NOW) }, ctx('adminA1'));
+        assert.ok(res.adminToolSession);
+        assert.strictEqual(db.adds.filter(function (a) { return a.data.action === 'admin_tool_step_up'; }).length, 0, 'not a best-effort add()');
+        assert.strictEqual(logRows(db, 'admin_tool_step_up').length, 1);
+        // A failed commit writes neither the session nor the success row.
+        NOW = T0 + 31000;
+        const realBatch = db.batch;
+        db.batch = function () { const b = realBatch(); b.commit = async function () { throw new Error('commit failed'); }; return b; };
+        let err = null;
+        try { await api.totpStepUp.run({ tool: 'beats', code: codeAt(NOW) }, ctx('adminA1')); } catch (e) { err = e; }
+        db.batch = realBatch;
+        assert.ok(err);
+        assert.ok(!db.store.has('admin_tool_sessions/adminA1_beats'));
+        assert.strictEqual(logRows(db, 'admin_tool_step_up').filter(function (r) { return r.data.tool === 'beats'; }).length, 0);
+        NOW = T0;
+    });
+
+    await test('F9: sessions carry an expireAt Timestamp equal to expiresAtMs (for a later TTL policy)', async function () {
+        NOW = T0;
+        const { api, db } = setup();
+        const res = await api.totpStepUp.run({ tool: 'chat', code: codeAt(NOW) }, ctx('adminA1'));
+        const row = db.store.get('admin_tool_sessions/adminA1_chat');
+        assert.ok(row.expireAt && row.expireAt._ts === true, 'Timestamp, not a number');
+        assert.strictEqual(row.expireAt.toMillis(), res.expiresAt);
+        assert.strictEqual(row.expiresAtMs, res.expiresAt);
+    });
+
+    await test('F2: docs call it a 5-minute tool window, not single-use', function () {
+        const src = fs.readFileSync(path.join(fnRoot, 'src', 'adminToolSession.js'), 'utf8');
+        assert.ok(src.includes('5-minute tool window'));
+        assert.ok(src.includes('NOT single-use'));
+    });
+
+    await test('F2: adminApproveFactionPayout needs a single-use proof on top of the tool window (and stays unexported)', async function () {
+        NOW = T0;
+        const { api, db } = setup();
+        const v1 = require(require.resolve('firebase-functions/v1', { paths: [fnRoot] }));
+        const jobs = require(path.join(fnRoot, 'src', 'factionRaceJobs.js')).factory({
+            functionsV1: v1, admin: { firestore: { FieldValue: {} } }, db: db, onDocumentWritten: function () { return function () {}; },
+        });
+        const open = await api.totpStepUp.run({ tool: 'factionPrize', code: codeAt(NOW) }, ctx('adminA1'));
+        const r = await settle(jobs.adminApproveFactionPayout.run({ raceId: 'r1', confirm: 'APPROVE r1', adminToolSession: open.adminToolSession }, ctx('adminA1')), 1500);
+        assert.ok(r.err, 'refused without a fresh proof');
+        assert.strictEqual(r.err.code, 'failed-precondition');
+        assert.notStrictEqual(r.err.details && r.err.details.reason, 'admin-step-up', 'the tool window passed; the proof is what failed');
+        // A proof for the payout action is consumed once.
+        NOW = T0 + 31000;
+        const proof = await api.totpStepUp.run({ action: 'adminApproveFactionPayout', code: codeAt(NOW) }, ctx('adminA1'));
+        await settle(jobs.adminApproveFactionPayout.run({ raceId: 'r1', confirm: 'APPROVE r1', adminToolSession: open.adminToolSession, freshProofId: proof.freshProofId }, ctx('adminA1')), 1500);
+        assert.strictEqual(db.store.get('totp_fresh_proofs/adminA1_adminApproveFactionPayout').consumed, true);
+        const again = await settle(jobs.adminApproveFactionPayout.run({ raceId: 'r1', confirm: 'APPROVE r1', adminToolSession: open.adminToolSession, freshProofId: proof.freshProofId }, ctx('adminA1')), 1500);
+        assert.ok(again.err && again.err.code === 'failed-precondition', 'a proof is single-use');
+        const killSwitch = fs.readFileSync(path.join(fnRoot, 'src', 'killSwitch.js'), 'utf8');
+        assert.ok(killSwitch.includes("NEVER_EXPORTED = Object.freeze(['adminApproveFactionPayout'])"));
+        NOW = T0;
     });
 
     // Each guarded callable refuses an admin who has no tool session.
@@ -374,6 +538,51 @@ function settle(promise, ms) {
             const r = await settle(direct[name].run({}, PLAYER), 1500);
             assert.ok(r.err);
             assert.strictEqual(r.err.code, 'permission-denied', String(r.err && r.err.message));
+        });
+    }
+
+
+    // After a proof is accepted these functions go on to the real Firestore
+    // client, which points at a closed local port; ignore those late network
+    // rejections (nothing here can reach a real project).
+    process.on('unhandledRejection', function (e) {
+        const msg = String((e && e.message) || e);
+        if (/default credentials|ECONNREFUSED|UNAVAILABLE|DEADLINE|ETIMEDOUT/i.test(msg)) return;
+        console.log('\u274c unhandled rejection: ' + msg);
+        failed++;
+    });
+    for (const spec of [
+        { name: 'toggleFaucet', fn: function () { return fns.toggleFaucet; }, data: { paused: false } },
+        { name: 'adminResolveCipherSatsClaim', fn: function () { return require(path.join(fnRoot, 'src', 'gifting.js')).adminResolveCipherSatsClaim; }, data: { claimId: 'c1', action: 'release' } },
+    ]) {
+        await test('F7: ' + spec.name + ' refuses a non-admin first', async function () {
+            const r = await settle(spec.fn().run(spec.data, PLAYER), 1500);
+            assert.ok(r.err && r.err.code === 'permission-denied', JSON.stringify(r) + ' ' + String(r.err && r.err.message));
+        });
+        await test('F7: ' + spec.name + ' refuses an admin with no fresh proof, and a raw code is not accepted', async function () {
+            NOW = T0;
+            const { db } = setup();
+            const r = await settle(spec.fn().run(spec.data, ctx('adminA1')), 1500);
+            assert.ok(r.err && r.err.code === 'failed-precondition', String(r.err && r.err.message));
+            const r2 = await settle(spec.fn().run(Object.assign({ code: codeAt(NOW) }, spec.data), ctx('adminA1')), 1500);
+            assert.ok(r2.err && r2.err.code === 'failed-precondition', 'raw code refused');
+            assert.ok(!db.store.has('totp_fresh_proofs/adminA1_' + spec.name));
+        });
+        await test('F7: ' + spec.name + ' consumes a single-use proof and refuses it the second time', async function () {
+            NOW = T0;
+            const { api, db } = setup();
+            const proof = await api.totpStepUp.run({ action: spec.name, code: codeAt(NOW) }, ctx('adminA1'));
+            await settle(spec.fn().run(Object.assign({ freshProofId: proof.freshProofId }, spec.data), ctx('adminA1')), 1500);
+            assert.strictEqual(db.store.get('totp_fresh_proofs/adminA1_' + spec.name).consumed, true);
+            const again = await settle(spec.fn().run(Object.assign({ freshProofId: proof.freshProofId }, spec.data), ctx('adminA1')), 1500);
+            assert.ok(again.err && again.err.code === 'failed-precondition');
+        });
+        await test('F7: ' + spec.name + ' refuses a proof minted for another action', async function () {
+            NOW = T0;
+            const { api } = setup();
+            const proof = await api.totpStepUp.run({ action: 'adminSetKillSwitch', code: codeAt(NOW) }, ctx('adminA1'));
+            const r = await settle(spec.fn().run(Object.assign({ freshProofId: proof.freshProofId }, spec.data), ctx('adminA1')), 1500);
+            assert.ok(r.err && r.err.code === 'failed-precondition');
         });
     }
 

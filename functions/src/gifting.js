@@ -16,7 +16,7 @@ const { resolveLnurlInvoice } = require('./lnurlResolve');
 const { NWCClient } = require('@getalby/sdk');
 const { updatePeerLevelAfterGift } = require('./peerLevel');
 const faucetGuard = require('./faucetGuard');
-const { requireAdminToolSession } = require('./adminToolSession');
+const { requireAdminToolSession, requireAdminProof } = require('./adminToolSession');
 const { rollCipherReward, satsDisposition, ALLOWED_SATS_AMOUNTS } = require('./cipherReward');
 const {
     creditDocId,
@@ -2003,6 +2003,10 @@ const adminResolveCipherSatsClaim = functionsV1.runWith({
     serviceAccount: runtimeSa('adminResolveCipherSatsClaim'),
 }).https.onCall(async (data, context) => {
     requireAdmin(context);
+    // Single-use fresh 2FA proof (Red Team #325 F7): resolving a held claim
+    // can release a refund. Pass freshProofId from
+    // totpStepUp({ action: 'adminResolveCipherSatsClaim', code }).
+    await requireAdminProof(data, context, 'adminResolveCipherSatsClaim');
     const claimId = (data && data.claimId || '').toString().trim();
     const action = (data && data.action || '').toString().trim();
     if (!claimId || claimId.length > 128 || !/^[A-Za-z0-9_-]+$/.test(claimId)) {

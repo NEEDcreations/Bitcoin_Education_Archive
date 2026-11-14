@@ -3614,7 +3614,7 @@ function settleAdminClaim() {
 // admin is true (window._isAdminClaim, set from getIdTokenResult). Never email.
 // It carries no admin data. Tapping re-checks the claim, then lazy-loads
 // admin-panel.js, so non-admins never download the panel.
-var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261114_v2562';
+var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261114_v2563';
 
 function ensureHomeAdminBtnCss() {
     if (document.getElementById('homeAdminBtnCss')) return;

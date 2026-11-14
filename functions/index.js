@@ -3959,10 +3959,14 @@ exports.getFaucetStats = functionsV1.runWith({ secrets: [nwcUrlSecret], serviceA
 
 // ===== FAUCET ADMIN - toggleFaucet =====
 exports.toggleFaucet = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth || !context.auth.token.admin) {
+    if (!context || !context.auth || !context.auth.token || context.auth.token.admin !== true) {
         throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
     }
-    const paused = !!data.paused;
+    // Single-use fresh 2FA proof (Red Team #325 F7): un-pausing can reopen a
+    // faucet that was paused for abuse. Pass freshProofId from
+    // totpStepUp({ action: 'toggleFaucet', code }).
+    await require('./src/adminToolSession').requireAdminProof(data, context, 'toggleFaucet');
+    const paused = !!(data && data.paused);
     await db.collection('faucet_config').doc('settings').set({ paused: paused }, { merge: true });
     return { success: true, paused: paused };
 });

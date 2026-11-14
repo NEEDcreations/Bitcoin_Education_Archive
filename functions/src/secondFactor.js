@@ -35,6 +35,12 @@ const FRESH_ACTIONS = {
     adminSetFavorClaims: true,
     adminFreezeFavorEpoch: true,
     adminResolveFavorReview: true,
+    // Single-use proofs for admin actions outside the banner tool window
+    // (Red Team #325 F2/F7). Callers pass the freshProofId from
+    // totpStepUp({ action, code }).
+    adminApproveFactionPayout: true,
+    toggleFaucet: true,
+    adminResolveCipherSatsClaim: true,
 };
 const RECOVERY_COUNT = 10;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -1414,13 +1420,60 @@ function initSecondFactor(deps) {
         }, row)).catch(function () {});
     }
 
+    // Firestore Timestamp for TTL fields (a Date is stored as a Timestamp by
+    // the Admin SDK too; this keeps it explicit where Timestamp exists).
+    function ttlAt(ms) {
+        const TS = admin.firestore && admin.firestore.Timestamp;
+        return TS && typeof TS.fromMillis === 'function' ? TS.fromMillis(ms) : new Date(ms);
+    }
+
+    // The per-network bucket for admin tool step-ups: the /64 (IPv6) or /24
+    // (IPv4) range, so rotating addresses inside one range share a limit
+    // (Red Team #325 F3, same keying as #322). An unparseable non-empty value
+    // falls back to the exact string. An empty IP returns '' and the caller
+    // skips the network limit (per-uid limits still apply) instead of
+    // sharing one 'unknown' bucket across every admin.
+    function adminToolNetworkKey(ip) {
+        const raw = String(ip || '').trim();
+        if (!raw || raw.toLowerCase() === 'unknown') return '';
+        const keys = faucetGuard.networkKeys(raw);
+        return keys && keys.rangeId ? keys.rangeId : raw;
+    }
+
+    // Red Team #325 F4: the same recorded and established (24 h+) factor
+    // checks as requireAdminStepUp, for the factor that was just verified.
+    async function assertAdminToolFactor(uid, method, secret, nowMs) {
+        forgetPhone(uid);
+        const [phone, known] = await Promise.all([phoneInfo(uid), readKnown(uid)]);
+        if (method === 'totp' && !totpRecorded(secret, known)) {
+            await alertUnrecordedFactor(uid, nowMs);
+            throw new HttpsError('failed-precondition', 'Your authenticator does not match our records. An admin has been alerted.', { reason: 'factor-unrecorded' });
+        }
+        const ps = phoneStatus(phone, known, nowMs);
+        if (ps.unrecorded > 0) {
+            await alertUnrecordedFactor(uid, nowMs);
+            throw new HttpsError('failed-precondition', 'A two-factor method on this account was not added through the app. An admin has been alerted.', { reason: 'factor-unrecorded' });
+        }
+        const ok = method === 'totp'
+            ? factorEstablished(secret && secret.enabledAt, nowMs)
+            : (phone.enrolled === true && ps.established);
+        if (!ok) {
+            throw new HttpsError('failed-precondition', 'Your two-factor method is too new for admin tools. Try again after 24 hours.', { reason: 'factor-too-new' });
+        }
+    }
+
     // Admin banner tools: a NEW second-factor check for every opening of a
-    // tool. A TOTP code goes through acceptTotp (per-uid 5 per 2 minutes and
+    // tool. It opens a 5-minute tool window for that one tool: calls behind
+    // the tool may repeat inside the window (it is NOT single-use), so
+    // anything that moves sats also needs a single-use requireAdminStepUp
+    // proof. A TOTP code goes through acceptTotp (per-uid 5 per 2 minutes and
     // 20 failures a day, and lastAcceptedStep rejects a reused code). A
     // phone-only admin must have signed in with phone verification in the
-    // last five minutes, and each sign-in opens one tool once. Attempts are
-    // also limited per network address. Sessions and remembered devices never
-    // count. Success and failure both write an mfa_admin_log row.
+    // last five minutes, and each sign-in opens one tool once. The factor
+    // must be recorded and at least 24 h old. Attempts are also limited per
+    // network range (/64 or /24). Sessions and remembered devices never
+    // count. Success and failure both write an mfa_admin_log row; the
+    // success row is committed in the same batch as the session.
     async function adminToolStepUp(data, context) {
         const uid = requireUser(context);
         rejectAnonymous(context);
@@ -1445,10 +1498,14 @@ function initSecondFactor(deps) {
         }
 
         let method = '';
+        const netKey = adminToolNetworkKey(faucetGuard.clientIpFromRequest(context && context.rawRequest));
+        const ipNote = netKey ? {} : { ipLimit: 'skipped-no-ip' };
         try {
-            const ip = faucetGuard.clientIpFromRequest(context && context.rawRequest) || 'unknown';
-            const ipDocId = await networkRateDocId(db, 'admintoolip_', ip, nowMs);
-            await takeNetworkAttempt(ipDocId, nowMs);
+            let ipDocId = '';
+            if (netKey) {
+                ipDocId = await networkRateDocId(db, 'admintoolip_', netKey, nowMs);
+                await takeNetworkAttempt(ipDocId, nowMs);
+            }
             const secret = await secretRecord(uid);
             const code = data && typeof data.code === 'string' ? data.code.trim() : '';
             if (secret) {
@@ -1474,7 +1531,7 @@ function initSecondFactor(deps) {
                     const snap = await tx.get(usedRef);
                     const row = snap.exists ? (snap.data() || {}) : {};
                     if (typeof row.lastAuthTimeMs === 'number' && row.lastAuthTimeMs >= authMs) return false;
-                    tx.set(usedRef, { uid: uid, lastAuthTimeMs: authMs, expireAt: new Date(nowMs + 24 * 60 * 60 * 1000) });
+                    tx.set(usedRef, { uid: uid, lastAuthTimeMs: authMs, expireAt: ttlAt(nowMs + 24 * 60 * 60 * 1000) });
                     return true;
                 });
                 if (!fresh) {
@@ -1482,29 +1539,41 @@ function initSecondFactor(deps) {
                 }
                 method = 'phone';
             }
-            await db.collection('rate_limits').doc(ipDocId).delete().catch(function () {});
+            await assertAdminToolFactor(uid, method, secret, nowMs);
+            if (ipDocId) await db.collection('rate_limits').doc(ipDocId).delete().catch(function () {});
         } catch (e) {
-            await logAdminTool({
+            await logAdminTool(Object.assign({
                 action: 'admin_tool_step_up_failed',
                 tool: tool,
                 adminUid: uid,
                 reason: String((e && e.details && e.details.reason) || (e && e.code) || 'error').slice(0, 60),
-            });
+            }, ipNote));
             throw e;
         }
         const sessionId = adminTools.newSessionId();
         const expiresAtMs = nowMs + adminTools.TOOL_SESSION_TTL_MS;
-        await docRef.set({
+        // Session and success audit row commit together (Red Team #325 F6).
+        // expireAt is a Timestamp so a Firestore TTL policy can be enabled on
+        // admin_tool_sessions.expireAt later (infra step, needs Phil's OK).
+        const batch = db.batch();
+        batch.set(docRef, {
             uid: uid,
             tool: tool,
             sessionId: sessionId,
             method: method,
             verifiedAtMs: nowMs,
             expiresAtMs: expiresAtMs,
-            expireAt: new Date(expiresAtMs),
+            expireAt: ttlAt(expiresAtMs),
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-        await logAdminTool({ action: 'admin_tool_step_up', tool: tool, adminUid: uid, method: method });
+        batch.set(db.collection('mfa_admin_log').doc(), Object.assign({
+            action: 'admin_tool_step_up',
+            tool: tool,
+            adminUid: uid,
+            method: method,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, ipNote));
+        await batch.commit();
         return { success: true, tool: tool, adminToolSession: sessionId, expiresAt: expiresAtMs, method: method };
     }
 

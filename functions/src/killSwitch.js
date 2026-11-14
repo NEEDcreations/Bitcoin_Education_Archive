@@ -807,9 +807,12 @@ function makeAdminSetKillSwitch(deps) {
         const sf = require('./secondFactor');
         return sf.requireAdminStepUp(sf.stamp(data, context), 'adminSetKillSwitch');
     });
-    // Every call (status, preflight, on, off) needs a live Kill switch tool
-    // session from a fresh 2FA code entered when the tool was opened. The
-    // on/off step-up above is still required on top of it.
+    // status, preflight and off need a live Kill switch tool window (a fresh
+    // 2FA code entered when the tool was opened), and off also needs the
+    // single-use step-up above. Turning the switch ON is the emergency path:
+    // it skips the tool window so one fresh code is enough (Red Team F1), but
+    // it still needs the admin claim, a recent sign-in and the single-use
+    // fresh step-up above. ON is never free of a code.
     const toolGuard = deps.toolGuard || (async function (data, context) {
         return require('./adminToolSession').requireAdminToolSession(db, data, context, 'killSwitch', { HttpsError: HttpsError, now: nowFn });
     });
@@ -825,7 +828,7 @@ function makeAdminSetKillSwitch(deps) {
         if (action !== 'preflight' && action !== 'status' && action !== 'on' && action !== 'off') {
             throw new HttpsError('invalid-argument', 'action must be preflight, status, on or off');
         }
-        await toolGuard(d, context);
+        if (action !== 'on') await toolGuard(d, context);
 
         // Auto-return first so status/preflight and a later on/off see the settled flag.
         const settled = await maybeSettleAutoReturn(db, admin, nowFn);

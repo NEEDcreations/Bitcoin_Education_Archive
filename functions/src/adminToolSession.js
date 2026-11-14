@@ -4,12 +4,17 @@
 //
 // totpStepUp({ tool, code }) (secondFactor.js) verifies a NEW authenticator
 // code for an admin and writes admin_tool_sessions/{uid}_{tool} with a random
-// session id that lasts TOOL_SESSION_TTL_MS. Each new step-up for a tool
-// replaces the row, so the previous opening of that tool stops working.
+// session id that lasts TOOL_SESSION_TTL_MS: a 5-minute tool window. The
+// window is NOT single-use; calls behind the tool may repeat inside it.
+// Anything that moves sats also needs requireAdminProof (single-use).
+// Each new step-up for a tool replaces the row, so the previous opening of
+// that tool stops working.
 // Every admin callable behind a banner tool calls requireAdminToolSession()
 // with the session id the client got back, on top of its own admin-claim
 // check. A session for one tool never opens another tool.
 //
+// Rows carry expireAt (a Timestamp) so a Firestore TTL policy on
+// admin_tool_sessions.expireAt can be enabled later (needs Phil's OK).
 // The collection is server-only (firestore.rules ends in a deny-all match).
 // Nothing here reads or prints a secret.
 
@@ -111,6 +116,19 @@ async function requireAdminToolSession(db, data, context, tool, opts) {
     return { uid: auth.uid, tool: tool, method: row.method || '' };
 }
 
+// Single-use admin proof for actions that must not ride on a reusable tool
+// window (payouts, held-claim resolution, faucet toggle). Runs
+// secondFactor.requireAdminStepUp: recent sign-in, a fresh proof consumed in
+// a transaction, and a recorded factor at least 24 h old. Only a freshProofId
+// from totpStepUp({ action, code }) is accepted here, never a raw code, so
+// these functions do not need to bind the TOTP encryption key.
+async function requireAdminProof(data, context, action) {
+    const sf = require('./secondFactor');
+    const proofOnly = Object.assign({}, data || {});
+    delete proofOnly.code;
+    return sf.requireAdminStepUp(sf.stamp(proofOnly, context), action);
+}
+
 module.exports = {
     COLLECTION: COLLECTION,
     TOOL_SESSION_TTL_MS: TOOL_SESSION_TTL_MS,
@@ -122,4 +140,5 @@ module.exports = {
     sessionFrom: sessionFrom,
     newSessionId: newSessionId,
     requireAdminToolSession: requireAdminToolSession,
+    requireAdminProof: requireAdminProof,
 };
