@@ -2707,6 +2707,7 @@ exports.banReportedFaucetUser = functionsV1.https.onCall(async (data, context) =
     if (context.auth.token.admin !== true) {
         throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
     }
+    await require('./src/adminToolSession').requireAdminToolSession(db, data, context, 'faucetAbuse');
     const uid = String((data && data.uid) || '');
     if (!/^[A-Za-z0-9_-]{4,128}$/.test(uid)) {
         throw new functionsV1.https.HttpsError('invalid-argument', 'uid required');

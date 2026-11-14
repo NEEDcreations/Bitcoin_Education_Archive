@@ -11,6 +11,7 @@ const crypto = require('crypto');
 const functionsV1 = require('firebase-functions/v1');
 const faucetGuard = require('./faucetGuard');
 const { networkRateDocId } = require('./rateLimitSalt');
+const adminTools = require('./adminToolSession');
 
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const DEVICE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -1407,7 +1408,108 @@ function initSecondFactor(deps) {
         return { success: true, sessionId: session.sessionId, expiresAt: session.expiresAtMs };
     });
 
+    async function logAdminTool(row) {
+        await db.collection('mfa_admin_log').add(Object.assign({
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        }, row)).catch(function () {});
+    }
+
+    // Admin banner tools: a NEW second-factor check for every opening of a
+    // tool. A TOTP code goes through acceptTotp (per-uid 5 per 2 minutes and
+    // 20 failures a day, and lastAcceptedStep rejects a reused code). A
+    // phone-only admin must have signed in with phone verification in the
+    // last five minutes, and each sign-in opens one tool once. Attempts are
+    // also limited per network address. Sessions and remembered devices never
+    // count. Success and failure both write an mfa_admin_log row.
+    async function adminToolStepUp(data, context) {
+        const uid = requireUser(context);
+        rejectAnonymous(context);
+        const token = context.auth.token || {};
+        if (token.admin !== true) throw httpError('permission-denied', 'Admin only.');
+        const tool = String((data && data.tool) || '');
+        if (!adminTools.isAdminTool(tool)) throw httpError('invalid-argument', 'Unknown admin tool.');
+        const nowMs = currentNow();
+        const docRef = db.collection(adminTools.COLLECTION).doc(adminTools.sessionDocId(uid, tool));
+
+        if (data && data.end === true) {
+            const sid = adminTools.sessionFrom(data);
+            if (sid) {
+                await db.runTransaction(async function (tx) {
+                    const snap = await tx.get(docRef);
+                    if (!snap.exists) return;
+                    const row = snap.data() || {};
+                    if (row.uid === uid && sameSecret(row.sessionId, sid)) tx.delete(docRef);
+                });
+            }
+            return { success: true, ended: true };
+        }
+
+        let method = '';
+        try {
+            const ip = faucetGuard.clientIpFromRequest(context && context.rawRequest) || 'unknown';
+            const ipDocId = await networkRateDocId(db, 'admintoolip_', ip, nowMs);
+            await takeNetworkAttempt(ipDocId, nowMs);
+            const secret = await secretRecord(uid);
+            const code = data && typeof data.code === 'string' ? data.code.trim() : '';
+            if (secret) {
+                if (!/^\d{6}$/.test(code)) {
+                    throw new HttpsError('invalid-argument', 'Enter the 6-digit code from your authenticator app.', { reason: 'code-required' });
+                }
+                await acceptTotp(uid, code, nowMs);
+                method = 'totp';
+            } else {
+                forgetPhone(uid);
+                const phone = await phoneInfo(uid);
+                if (phone.enrolled !== true) {
+                    throw new HttpsError('failed-precondition', 'Set up two-factor authentication in Settings before using admin tools.', { reason: 'no-2fa' });
+                }
+                const fb = token.firebase || {};
+                const authMs = authTimeMs(context);
+                const age = authMs ? (nowMs - authMs) : null;
+                if (fb.sign_in_second_factor !== 'phone' || !authMs || age < -60000 || age > FRESH_TTL_MS) {
+                    throw new HttpsError('failed-precondition', 'Sign in again with phone verification, then open this tool within 5 minutes.', { reason: 'phone-resign' });
+                }
+                const usedRef = db.collection(adminTools.COLLECTION).doc(uid + '__phone');
+                const fresh = await db.runTransaction(async function (tx) {
+                    const snap = await tx.get(usedRef);
+                    const row = snap.exists ? (snap.data() || {}) : {};
+                    if (typeof row.lastAuthTimeMs === 'number' && row.lastAuthTimeMs >= authMs) return false;
+                    tx.set(usedRef, { uid: uid, lastAuthTimeMs: authMs, expireAt: new Date(nowMs + 24 * 60 * 60 * 1000) });
+                    return true;
+                });
+                if (!fresh) {
+                    throw new HttpsError('failed-precondition', 'Sign in again with phone verification, then open this tool within 5 minutes.', { reason: 'phone-resign' });
+                }
+                method = 'phone';
+            }
+            await db.collection('rate_limits').doc(ipDocId).delete().catch(function () {});
+        } catch (e) {
+            await logAdminTool({
+                action: 'admin_tool_step_up_failed',
+                tool: tool,
+                adminUid: uid,
+                reason: String((e && e.details && e.details.reason) || (e && e.code) || 'error').slice(0, 60),
+            });
+            throw e;
+        }
+        const sessionId = adminTools.newSessionId();
+        const expiresAtMs = nowMs + adminTools.TOOL_SESSION_TTL_MS;
+        await docRef.set({
+            uid: uid,
+            tool: tool,
+            sessionId: sessionId,
+            method: method,
+            verifiedAtMs: nowMs,
+            expiresAtMs: expiresAtMs,
+            expireAt: new Date(expiresAtMs),
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        await logAdminTool({ action: 'admin_tool_step_up', tool: tool, adminUid: uid, method: method });
+        return { success: true, tool: tool, adminToolSession: sessionId, expiresAt: expiresAtMs, method: method };
+    }
+
     const totpStepUp = onCallAppKey(async function (data, context) {
+        if (data && typeof data.tool === 'string' && !data.action) return adminToolStepUp(data, context);
         const uid = requireUser(context);
         const action = String((data && data.action) || '');
         if (!FRESH_ACTIONS[action]) throw httpError('invalid-argument', 'Unknown action');
@@ -1691,6 +1793,7 @@ function initSecondFactor(deps) {
         totpRevokeSession: totpRevokeSession,
         totpResumeDevice: totpResumeDevice,
         totpStepUp: totpStepUp,
+        adminToolStepUp: adminToolStepUp,
         totpListDevices: totpListDevices,
         totpRevokeDevice: totpRevokeDevice,
         totpSignOutOtherDevices: totpSignOutOtherDevices,

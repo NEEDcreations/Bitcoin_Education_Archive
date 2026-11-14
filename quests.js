@@ -2743,7 +2743,11 @@ window._runFactionBackfill = function() {
     if (typeof firebase === 'undefined') return;
     var btn = document.querySelector('#sfAdminBackfill button');
     if (btn) { btn.textContent = '⏳ Running backfill...'; btn.disabled = true; }
-    firebase.functions().httpsCallable('backfillFactionTotals')({}).then(function(r) {
+    // Faction totals recount: needs a fresh 2FA code (admin tool session).
+    var run = (typeof window.bqAdminToolCall === 'function')
+        ? window.bqAdminToolCall('factionBackfill', 'backfillFactionTotals', {})
+        : firebase.functions().httpsCallable('backfillFactionTotals')({});
+    run.then(function(r) {
         var d = r.data;
         if (typeof showToast === 'function') showToast('✅ Backfill done! 🐝 ' + (d.totals && d.totals.cyber_hornets || 0) + ' vs 🦡 ' + (d.totals && d.totals.honey_badgers || 0));
         if (btn) { btn.textContent = '✅ Done!'; }

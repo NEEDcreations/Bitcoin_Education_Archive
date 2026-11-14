@@ -1270,13 +1270,24 @@ test('anchor shape is a bounded index plus a short hash, otherwise dropped', () 
         await expectFail(function() {
             return api.moderateTopicPost({ channelId: 'mining', postId: hideMe.postId, action: 'hide' }, auth('author'));
         }, 'permission-denied');
-        await api.moderateTopicPost({ channelId: 'mining', postId: hideMe.postId, action: 'hide' }, auth('mod', { admin: true }));
+        // Admin banner: a moderator with no fresh 2FA tool session is refused.
+        await expectFail(function() {
+            return api.moderateTopicPost({ channelId: 'mining', postId: hideMe.postId, action: 'hide' }, auth('mod', { admin: true }));
+        }, 'failed-precondition');
+        db.seed('admin_tool_sessions/mod_topics', {
+            uid: 'mod', tool: 'topics', sessionId: 'ab'.repeat(16),
+            verifiedAtMs: harness.now(), expiresAtMs: harness.now() + 5 * 60 * 1000,
+        });
+        await expectFail(function() {
+            return api.moderateTopicPost({ channelId: 'mining', postId: hideMe.postId, action: 'hide', adminToolSession: 'cd'.repeat(16) }, auth('mod', { admin: true }));
+        }, 'failed-precondition');
+        await api.moderateTopicPost({ channelId: 'mining', postId: hideMe.postId, action: 'hide', adminToolSession: 'ab'.repeat(16) }, auth('mod', { admin: true }));
         const hidden = postsOf(db, 'mining').filter(function(post) { return post._id === hideMe.postId; })[0];
         assert.strictEqual(hidden.hidden, true);
         assert.strictEqual(hidden.text, '');
         const priv = db.read('topic_discussion_private/mining~' + hideMe.postId);
         assert.strictEqual(priv.text, 'please hide this comment');
-        await api.moderateTopicPost({ channelId: 'mining', postId: hideMe.postId, action: 'unhide' }, auth('mod', { admin: true }));
+        await api.moderateTopicPost({ channelId: 'mining', postId: hideMe.postId, action: 'unhide', adminToolSession: 'ab'.repeat(16) }, auth('mod', { admin: true }));
         const restored = postsOf(db, 'mining').filter(function(post) { return post._id === hideMe.postId; })[0];
         assert.strictEqual(restored.hidden, false);
         assert.strictEqual(restored.text, 'please hide this comment');

@@ -138,6 +138,9 @@ function hook(db, extra) {
         now: extra && extra.now ? extra.now : (function () { return Date.parse('2026-11-11T22:50:00Z'); }),
         events: events,
         stepUp: extra && extra.stepUp ? extra.stepUp : async function () { return { established: true, totp: true }; },
+        // The admin-tool 2FA session guard has its own tests below and in
+        // test-admin-tool-stepup.js; extra.realToolGuard uses the real one.
+        toolGuard: extra && extra.realToolGuard ? undefined : (extra && extra.toolGuard ? extra.toolGuard : async function () { return { tool: 'killSwitch' }; }),
         listAdminUids: extra && extra.listAdminUids ? extra.listAdminUids : async function () { return ['admin1', 'admin2', 'admin3']; },
         sendPhilDm: extra && extra.sendPhilDm ? extra.sendPhilDm : async function () { return true; },
         backupDeps: Object.assign({
@@ -974,6 +977,59 @@ async function run() {
         assert.strictEqual(pub.data().snapshot, undefined);
     });
 
+
+    await test('admin banner: every kill-switch action needs a live Kill switch tool session', async function () {
+        const db = makeDb();
+        const now = Date.parse('2026-11-11T22:50:00Z');
+        const { handler } = hook(db, { realToolGuard: true, now: function () { return now; } });
+        for (const action of ['status', 'preflight', 'on', 'off']) {
+            let err = null;
+            try { await handler({ action: action, confirm: action === 'on' ? 'OFFLINE' : 'ONLINE', reason: 'security incident' }, adminContext()); } catch (e) { err = e; }
+            assert.ok(err, action + ' must be refused without a tool session');
+            assert.strictEqual(err.code, 'failed-precondition');
+        }
+        const flag = await db.collection('config').doc('killSwitch').get();
+        assert.strictEqual(flag.exists, false, 'nothing flipped');
+        const sid = 'a1'.repeat(16);
+        await db.collection('admin_tool_sessions').doc('admin1_cipherWins').set({ uid: 'admin1', tool: 'cipherWins', sessionId: sid, verifiedAtMs: now, expiresAtMs: now + 300000 });
+        let wrongTool = null;
+        try { await handler({ action: 'status', adminToolSession: sid }, adminContext()); } catch (e) { wrongTool = e; }
+        assert.ok(wrongTool && wrongTool.code === 'failed-precondition', 'a session for another tool does not open the kill switch');
+        await db.collection('admin_tool_sessions').doc('admin1_killSwitch').set({ uid: 'admin1', tool: 'killSwitch', sessionId: sid, verifiedAtMs: now, expiresAtMs: now + 300000 });
+        const st = await handler({ action: 'status', adminToolSession: sid }, adminContext());
+        assert.ok(st && st.state);
+    });
+
+    await test('admin banner: an expired Kill switch tool session is refused', async function () {
+        const db = makeDb();
+        let now = Date.parse('2026-11-11T22:50:00Z');
+        const { handler } = hook(db, { realToolGuard: true, now: function () { return now; } });
+        const sid = 'b2'.repeat(16);
+        await db.collection('admin_tool_sessions').doc('admin1_killSwitch').set({ uid: 'admin1', tool: 'killSwitch', sessionId: sid, verifiedAtMs: now, expiresAtMs: now + 300000 });
+        now += 300001;
+        let err = null;
+        try { await handler({ action: 'status', adminToolSession: sid }, adminContext()); } catch (e) { err = e; }
+        assert.ok(err && err.code === 'failed-precondition');
+    });
+
+    await test('admin banner: the on/off fresh step-up is still required with a tool session', async function () {
+        const db = makeDb();
+        const now = Date.parse('2026-11-11T22:50:00Z');
+        let stepUps = 0;
+        const { handler } = hook(db, {
+            realToolGuard: true,
+            now: function () { return now; },
+            stepUp: async function () { stepUps++; throw new HttpsError('failed-precondition', 'Enter a fresh authenticator code for this action.'); },
+        });
+        const sid = 'c3'.repeat(16);
+        await db.collection('admin_tool_sessions').doc('admin1_killSwitch').set({ uid: 'admin1', tool: 'killSwitch', sessionId: sid, verifiedAtMs: now, expiresAtMs: now + 300000 });
+        let err = null;
+        try { await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident', adminToolSession: sid }, adminContext()); } catch (e) { err = e; }
+        assert.ok(err && err.code === 'failed-precondition');
+        assert.strictEqual(stepUps, 1);
+        const flag = await db.collection('config').doc('killSwitch').get();
+        assert.strictEqual(flag.exists, false);
+    });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed ? 1 : 0);

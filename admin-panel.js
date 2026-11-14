@@ -6,7 +6,7 @@
 (function () {
     'use strict';
 
-    var QUESTS_SRC = '/quests.js?v=20261112_v2545';
+    var QUESTS_SRC = '/quests.js?v=20261114_v2562';
 
     function isAdmin() { return window._isAdminClaim === true; }
 
@@ -219,7 +219,7 @@
         head.appendChild(x);
         sheet.appendChild(head);
         sheet.appendChild(el('p', 'bap-note',
-            'Only admin accounts see this. Tap a tool to open it, or tap \u24D8 for how it works. The server checks your admin access again on every action.'));
+            'Only admin accounts see this. Each tool asks for a fresh 2FA code every time you open it. Tap \u24D8 for how a tool works. The server checks your admin access and that code on every action.'));
 
         GROUPS.forEach(function (g) {
             sheet.appendChild(el('div', 'bap-group', g.title));
@@ -239,7 +239,15 @@
                 tile.addEventListener('click', function () {
                     if (!isAdmin()) { closeAll(); return; }
                     closeAll();
-                    try { t.open(); } catch (e) {}
+                    // Fresh 2FA code on EVERY open (the server checks it too).
+                    // No prompt available (stale ranking.js) means no tool.
+                    var gate = (typeof window.bqAdminToolStepUp === 'function')
+                        ? window.bqAdminToolStepUp(t.id, { from: 'banner' })
+                        : Promise.resolve(null);
+                    gate.then(function (session) {
+                        if (!session || !isAdmin()) return;
+                        try { t.open(); } catch (e) {}
+                    });
                 });
                 var how = el('div', 'bap-how', t.how);
                 how.id = 'bapHow_' + t.id;
@@ -276,13 +284,15 @@
     function closeKillSwitchUi() {
         var el = document.getElementById('bqKillSwitchUi');
         if (el && el.parentNode) el.parentNode.removeChild(el);
+        // Closing the tool ends its 2FA session; the next open asks again.
+        if (typeof window.bqAdminToolEnd === 'function') window.bqAdminToolEnd('killSwitch');
     }
 
     function callKillSwitch(payload) {
-        if (typeof firebase === 'undefined' || !firebase.functions) {
+        if (typeof firebase === 'undefined' || !firebase.functions || typeof window.bqAdminToolCall !== 'function') {
             return Promise.reject(new Error('Functions are not ready. Refresh and try again.'));
         }
-        return firebase.functions().httpsCallable('adminSetKillSwitch')(payload).then(function (res) {
+        return window.bqAdminToolCall('killSwitch', 'adminSetKillSwitch', payload).then(function (res) {
             return (res && res.data) || {};
         });
     }
@@ -312,7 +322,14 @@
 
     function openKillSwitch() {
         if (!isAdmin()) return;
-        closeKillSwitchUi();
+        // Opened some other way than the banner tile: ask for the code first.
+        if (typeof window.bqAdminToolSession !== 'function' || !window.bqAdminToolSession('killSwitch')) {
+            if (typeof window.bqAdminToolStepUp !== 'function') return;
+            window.bqAdminToolStepUp('killSwitch').then(function (session) { if (session) openKillSwitch(); });
+            return;
+        }
+        var el0 = document.getElementById('bqKillSwitchUi');
+        if (el0 && el0.parentNode) el0.parentNode.removeChild(el0);
         if (!document.getElementById('bqKillSwitchUiCss')) {
             var st = document.createElement('style');
             st.id = 'bqKillSwitchUiCss';

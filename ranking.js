@@ -3614,7 +3614,7 @@ function settleAdminClaim() {
 // admin is true (window._isAdminClaim, set from getIdTokenResult). Never email.
 // It carries no admin data. Tapping re-checks the claim, then lazy-loads
 // admin-panel.js, so non-admins never download the panel.
-var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261111_v2551';
+var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261114_v2562';
 
 function ensureHomeAdminBtnCss() {
     if (document.getElementById('homeAdminBtnCss')) return;
@@ -10812,14 +10812,18 @@ function accountDeleteRowHtml(user) {
             if (typeof window.renderGiftsSettingsTab === 'function') {
                 window.renderGiftsSettingsTab();
             }
-            if (window._isAdminClaim === true && typeof window.renderCipherWinsAdmin === 'function') {
-                window.renderCipherWinsAdmin('cipherWinsAdmin');
-            }
-            if (window._isAdminClaim === true && typeof window.renderFactionPrizeAdmin === 'function') {
-                window.renderFactionPrizeAdmin('factionPrizeAdmin');
-            }
-            if (window._isAdminClaim === true && typeof window.renderFaucetAbuseAdmin === 'function') {
-                window.renderFaucetAbuseAdmin('faucetAbuseAdmin');
+            // Admin tools here stay locked until a fresh 2FA code opens them
+            // (the server refuses their callables without that session).
+            if (window._isAdminClaim === true) {
+                bqRenderLockedAdminTool('cipherWins', 'cipherWinsAdmin', function () {
+                    if (typeof window.renderCipherWinsAdmin === 'function') window.renderCipherWinsAdmin('cipherWinsAdmin');
+                });
+                bqRenderLockedAdminTool('factionPrize', 'factionPrizeAdmin', function () {
+                    if (typeof window.renderFactionPrizeAdmin === 'function') window.renderFactionPrizeAdmin('factionPrizeAdmin');
+                });
+                bqRenderLockedAdminTool('faucetAbuse', 'faucetAbuseAdmin', function () {
+                    if (typeof window.renderFaucetAbuseAdmin === 'function') window.renderFaucetAbuseAdmin('faucetAbuseAdmin');
+                });
             }
             // Populate badge on the Peers/Gifts button (waiting gifts + keys held + ciphers)
             var _giftBadge = document.getElementById('peersGiftsBadge');
@@ -13422,6 +13426,244 @@ function mfaNeedsFreshCode() {
     return !!((window._mfaStatus && window._mfaStatus.enabled) || (typeof currentUser !== 'undefined' && currentUser && currentUser.totpEnabled));
 }
 
+// ── Admin banner tools: a fresh 2FA code on every open ──
+// Every tile on the Admin tools banner calls bqAdminToolStepUp(tool) first.
+// The server (totpStepUp with { tool, code }) checks a NEW code and returns a
+// session bound to this admin and this one tool for 5 minutes. The admin
+// callables behind the tool refuse without it, so this prompt is not just UI.
+// Opening the tool again always asks again. Cancel closes the tool.
+var BQ_ADMIN_TOOL_NAMES = {
+    killSwitch: 'Kill switch',
+    cipherWins: 'Cipher sats wins',
+    factionPrize: 'Faction race payouts',
+    faucetAbuse: 'Faucet abuse reports',
+    factionBackfill: 'Faction totals recount',
+    chat: 'Global Chat moderation',
+    forum: 'Forum moderation',
+    topics: 'Topic discussions moderation',
+    market: 'Marketplace moderation',
+    beats: 'Bitcoin Beats moderation'
+};
+window._bqAdminToolSessions = window._bqAdminToolSessions || {};
+
+window.bqAdminToolSession = function (tool) {
+    var s = window._bqAdminToolSessions[tool];
+    if (!s || !s.id || !(s.exp > Date.now() + 5000)) return '';
+    return s.id;
+};
+
+window.bqAdminToolEnd = function (tool) {
+    var s = window._bqAdminToolSessions[tool];
+    delete window._bqAdminToolSessions[tool];
+    if (!s || !s.id || typeof firebase === 'undefined' || !firebase.functions) return;
+    try {
+        firebase.functions().httpsCallable('totpStepUp')({ tool: tool, end: true, adminToolSession: s.id }).catch(function () {});
+    } catch (e) {}
+};
+
+function bqAdminHasPhoneFactor() {
+    try {
+        var u = auth && auth.currentUser;
+        var f = u && u.multiFactor && u.multiFactor.enrolledFactors;
+        return !!(f && f.length);
+    } catch (e) { return false; }
+}
+
+function bqAdminStepUpReason(e) {
+    return (e && e.details && e.details.reason) || '';
+}
+
+window.bqAdminToolStepUp = function (tool) {
+    // Always a fresh prompt: forget any earlier session for this tool.
+    if (window._bqAdminToolSessions[tool]) window.bqAdminToolEnd(tool);
+    var label = BQ_ADMIN_TOOL_NAMES[tool] || 'this admin tool';
+    var totp = mfaNeedsFreshCode();
+    var phoneOnly = !totp && bqAdminHasPhoneFactor();
+    return new Promise(function (resolve) {
+        var old = document.getElementById('bqAdminStepUpOverlay');
+        if (old) old.remove();
+        var settled = false;
+        function finish(value) {
+            if (settled) return;
+            settled = true;
+            var el = document.getElementById('bqAdminStepUpOverlay');
+            if (el) el.remove();
+            document.removeEventListener('keydown', onEsc, true);
+            resolve(value);
+        }
+        function onEsc(ev) { if (ev.key === 'Escape') { ev.stopPropagation(); finish(null); } }
+        function mk(tag, css, text) {
+            var n = document.createElement(tag);
+            if (css) n.style.cssText = css;
+            if (text != null) n.textContent = text;
+            return n;
+        }
+        var overlay = mk('div', 'position:fixed;inset:0;background:rgba(2,6,23,0.88);z-index:2200040;display:flex;align-items:center;justify-content:center;padding:16px;');
+        overlay.id = 'bqAdminStepUpOverlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-labelledby', 'bqAdminStepUpTitle');
+        var card = mk('div', 'background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:380px;width:100%;text-align:center;box-sizing:border-box;');
+        var title = mk('div', 'font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:8px;', '\uD83D\uDD10 Confirm it\u2019s you');
+        title.id = 'bqAdminStepUpTitle';
+        var body = mk('div', 'color:var(--text-muted,#aaa);font-size:0.85rem;line-height:1.45;margin-bottom:14px;');
+        var status = mk('div', 'font-size:0.8rem;color:#ef4444;min-height:18px;margin-bottom:10px;');
+        status.id = 'bqAdminStepUpStatus';
+        status.setAttribute('role', 'alert');
+        var input = null;
+        var go = mk('button', 'width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;', 'Open ' + label);
+        go.type = 'button';
+        go.id = 'bqAdminStepUpGo';
+        var cancel = mk('button', 'width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);cursor:pointer;font-family:inherit;', 'Cancel');
+        cancel.type = 'button';
+        cancel.id = 'bqAdminStepUpCancel';
+        card.appendChild(title);
+        card.appendChild(body);
+
+        function blocked(msg, withSetup) {
+            body.textContent = msg;
+            if (input) input.style.display = 'none';
+            go.style.display = 'none';
+            status.textContent = '';
+            if (withSetup) {
+                var setup = mk('button', 'width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;', 'Set up 2FA');
+                setup.type = 'button';
+                setup.setAttribute('data-setup', '1');
+                setup.addEventListener('click', function () {
+                    finish(null);
+                    try { if (typeof showSettings === 'function') showSettings(); } catch (e) {}
+                    setTimeout(function () { try { if (typeof showSettingsPage === 'function') showSettingsPage('security'); } catch (e) {} }, 120);
+                });
+                card.insertBefore(setup, cancel);
+            }
+            cancel.textContent = 'Close';
+        }
+
+        function codeInput() {
+            body.textContent = 'Enter a fresh code from your authenticator app to open ' + label + '. You\u2019ll be asked again every time you open an admin tool.';
+            input = mk('input', 'width:100%;padding:14px;background:var(--input-bg,#111);border:1px solid var(--border,#333);border-radius:8px;color:var(--text,#fff);font-size:1.4rem;text-align:center;letter-spacing:6px;font-family:inherit;outline:none;margin-bottom:8px;box-sizing:border-box;');
+            input.id = 'bqAdminStepUpInput';
+            input.type = 'text';
+            input.inputMode = 'numeric';
+            input.maxLength = 6;
+            input.placeholder = '000000';
+            input.autocomplete = 'one-time-code';
+            input.setAttribute('aria-label', '6-digit authenticator code');
+            return input;
+        }
+        if (totp) {
+            card.appendChild(codeInput());
+        } else if (phoneOnly) {
+            body.textContent = 'Your account uses phone verification. Sign out and sign back in with your phone code, then open ' + label + ' within 5 minutes. Each sign-in opens one tool once.';
+            go.textContent = 'I just signed in \u2014 open ' + label;
+        }
+        card.appendChild(status);
+        card.appendChild(go);
+        card.appendChild(cancel);
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+        document.addEventListener('keydown', onEsc, true);
+        cancel.addEventListener('click', function () { finish(null); });
+        overlay.addEventListener('click', function (e) { if (e.target === overlay) finish(null); });
+
+        if (!totp && !phoneOnly) {
+            blocked('Admin tools need two-factor authentication. Set up an authenticator app in Settings \u203A Security, then open ' + label + ' again.', true);
+            // The 2FA status may not have loaded yet. The server still decides.
+            var have = mk('button', 'background:none;border:none;color:var(--text-muted,#aaa);text-decoration:underline;cursor:pointer;font-family:inherit;font-size:0.78rem;margin-top:10px;', 'I already use an authenticator app');
+            have.type = 'button';
+            have.addEventListener('click', function () {
+                var setupBtn = have.parentNode && have.parentNode.querySelector('button[data-setup="1"]');
+                if (setupBtn) setupBtn.remove();
+                have.remove();
+                card.insertBefore(codeInput(), status);
+                go.style.display = '';
+                cancel.textContent = 'Cancel';
+                input.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
+                setTimeout(function () { try { input.focus(); } catch (e) {} }, 30);
+            });
+            card.appendChild(have);
+            setTimeout(function () { try { cancel.focus(); } catch (e) {} }, 30);
+        }
+
+        async function submit() {
+            var code = input ? input.value.replace(/\D/g, '') : '';
+            if (input && code.length !== 6) { status.textContent = 'Enter the full 6-digit code.'; return; }
+            if (typeof firebase === 'undefined' || !firebase.functions) { status.textContent = 'Not ready yet. Refresh and try again.'; return; }
+            go.disabled = true;
+            var prev = go.textContent;
+            go.textContent = 'Checking\u2026';
+            status.textContent = '';
+            try {
+                var res = await firebase.functions().httpsCallable('totpStepUp')({ tool: tool, code: input ? code : '' });
+                var d = (res && res.data) || {};
+                if (!d.adminToolSession) throw new Error('Could not confirm your code. Try again.');
+                window._bqAdminToolSessions[tool] = { id: d.adminToolSession, exp: Number(d.expiresAt) || (Date.now() + 4 * 60 * 1000) };
+                finish(d.adminToolSession);
+            } catch (e) {
+                go.disabled = false;
+                go.textContent = prev;
+                var reason = bqAdminStepUpReason(e);
+                if (reason === 'no-2fa') { blocked('Admin tools need two-factor authentication. Set up an authenticator app in Settings \u203A Security, then try again.', true); return; }
+                if (reason === 'phone-resign') { status.textContent = 'Sign out and sign back in with your phone code, then open this tool within 5 minutes.'; return; }
+                status.textContent = (typeof _mfaFailure === 'function') ? _mfaFailure(e) : ((e && e.message) || 'That code did not work.');
+                if (input) { input.value = ''; try { input.focus(); } catch (x) {} }
+            }
+        }
+        go.addEventListener('click', function () { submit(); });
+        if (input) {
+            input.addEventListener('keydown', function (e) { if (e.key === 'Enter') submit(); });
+            setTimeout(function () { try { input.focus(); } catch (e) {} }, 30);
+        } else {
+            setTimeout(function () { try { go.focus(); } catch (e) {} }, 30);
+        }
+    });
+};
+
+function bqIsAdminStepUpError(e) {
+    if (bqAdminStepUpReason(e) === 'admin-step-up') return true;
+    var msg = (e && e.message) || '';
+    return msg.indexOf('fresh 2FA code to open this admin tool') !== -1;
+}
+
+// Calls an admin callable with this tool's session. If the session is
+// missing or ran out (5 minutes), asks for a new code once and retries.
+// Settings > Account > Admin: show a tool only while it has a live session
+// from a fresh code; otherwise a locked tile that asks for one.
+function bqRenderLockedAdminTool(tool, containerId, render) {
+    var el = document.getElementById(containerId);
+    if (!el || window._isAdminClaim !== true) return;
+    if (typeof window.bqAdminToolSession === 'function' && window.bqAdminToolSession(tool)) { render(); return; }
+    el.textContent = '';
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('data-admin-tool', tool);
+    b.style.cssText = 'width:100%;padding:10px 12px;border:1px solid var(--border,#333);border-radius:10px;background:var(--card-bg,transparent);color:var(--heading,#fff);font-family:inherit;font-weight:700;font-size:0.82rem;cursor:pointer;text-align:left;';
+    b.textContent = '\uD83D\uDD12 ' + (BQ_ADMIN_TOOL_NAMES[tool] || tool) + ' \u2014 tap and enter a fresh 2FA code to open';
+    b.addEventListener('click', function () {
+        window.bqAdminToolStepUp(tool).then(function (sid) { if (sid) render(); });
+    });
+    el.appendChild(b);
+}
+window.bqRenderLockedAdminTool = bqRenderLockedAdminTool;
+
+window.bqAdminToolCall = async function (tool, name, data) {
+    if (typeof firebase === 'undefined' || !firebase.functions) throw new Error('Functions are not ready. Refresh and try again.');
+    var sid = window.bqAdminToolSession(tool);
+    if (!sid) {
+        sid = await window.bqAdminToolStepUp(tool);
+        if (!sid) { var c = new Error('Cancelled. Enter a fresh 2FA code to use this admin tool.'); c.code = 'cancelled'; throw c; }
+    }
+    try {
+        return await firebase.functions().httpsCallable(name)(Object.assign({}, data || {}, { adminToolSession: sid }));
+    } catch (e) {
+        if (!bqIsAdminStepUpError(e)) throw e;
+        delete window._bqAdminToolSessions[tool];
+        sid = await window.bqAdminToolStepUp(tool);
+        if (!sid) throw e;
+        return firebase.functions().httpsCallable(name)(Object.assign({}, data || {}, { adminToolSession: sid }));
+    }
+};
+
 async function loadTotpStatus() {
     var section = document.getElementById('twoFactorPanel') || document.getElementById('totpSection');
     if (!section) return;
@@ -14119,8 +14361,7 @@ window.banFaucetReportedUser = async function(uid) {
     }
     if (!window.confirm('Ban ' + id + ' from the faucet?')) return;
     try {
-        var banReportedFaucetUser = firebase.functions().httpsCallable('banReportedFaucetUser');
-        var result = await banReportedFaucetUser({ uid: id, reason: 'faucet abuse report' });
+        var result = await window.bqAdminToolCall('faucetAbuse', 'banReportedFaucetUser', { uid: id, reason: 'faucet abuse report' });
         if (result && result.data && result.data.success) {
             if (typeof showToast === 'function') showToast('Banned ' + id);
             return;

@@ -225,7 +225,7 @@ console.log('');
         sb.syncHomeAdminBtn();
         doc.getElementById('homeAdminBtn').click();
         await flush();
-        const s = doc.scripts().find((x) => /admin-panel\.js\?v=20261111_v2551$/.test(x.src));
+        const s = doc.scripts().find((x) => /admin-panel\.js\?v=20261114_v2562$/.test(x.src));
         assert.ok(s, 'panel script requested');
         vm.runInContext(read('admin-panel.js'), sb, { filename: 'admin-panel.js' });
         s.onload();
@@ -252,8 +252,24 @@ console.log('');
             return c.className === 'bap-row' && c.children[0] && c.children[0].attributes && c.children[0].attributes['data-tool'] === 'cipherWins';
         });
         const row = cipherRow || sheet.children.find((c) => c.className === 'bap-row');
+        // Every open asks for a fresh 2FA code first; Cancel opens nothing.
+        const asked = [];
+        let answer = null;
+        sb.bqAdminToolStepUp = function (tool) { asked.push(tool); return Promise.resolve(answer); };
         row.children[0].click();
         assert.strictEqual(doc.getElementById('bqAdminPanel'), null);
+        await flush();
+        assert.deepStrictEqual(asked, ['cipherWins']);
+        assert.ok(!sb._opened.includes('settings'), 'cancelled step-up opens nothing');
+        sb.bqOpenAdminPanel();
+        answer = 'ab'.repeat(16);
+        const sheet2 = doc.getElementById('bqAdminPanel').children[0];
+        const row2 = sheet2.children.find(function (c) {
+            return c.className === 'bap-row' && c.children[0] && c.children[0].attributes && c.children[0].attributes['data-tool'] === 'cipherWins';
+        }) || sheet2.children.find((c) => c.className === 'bap-row');
+        row2.children[0].click();
+        await flush();
+        assert.deepStrictEqual(asked, ['cipherWins', 'cipherWins'], 'asked again on the next open');
         assert.ok(sb._opened.includes('settings'));
     });
 

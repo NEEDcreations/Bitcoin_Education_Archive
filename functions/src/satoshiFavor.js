@@ -1479,6 +1479,7 @@ exports.backfillFactionTotals = functionsV1.https.onCall(async (data, context) =
   if (context.auth.token.admin !== true) {
     throw new HttpsError('permission-denied', 'Admin only.');
   }
+  await require('./adminToolSession').requireAdminToolSession(db, data, context, 'factionBackfill', { HttpsError: HttpsError });
 
   const contributorsRef = db.collection('satoshiFavor').doc('current').collection('contributors');
   const totalsRef = db.collection('satoshiFavor').doc('factionTotals');

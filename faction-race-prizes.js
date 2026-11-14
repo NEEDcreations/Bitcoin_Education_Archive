@@ -60,7 +60,11 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', listen); else listen();
 
     // ── Admin: payout breakdown + Approve & pay ──
-    function call(name, data) { return firebase.functions().httpsCallable(name)(data || {}); }
+    // Admin calls carry the Faction race payouts tool session (fresh 2FA on open).
+    function call(name, data) {
+        if (typeof window.bqAdminToolCall === 'function') return window.bqAdminToolCall('factionPrize', name, data || {});
+        return firebase.functions().httpsCallable(name)(data || {});
+    }
 
     function potTable(title, pot, statusById, raceId, side) {
         pot = pot || { recipients: [], excluded: [] };

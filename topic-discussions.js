@@ -94,6 +94,11 @@
     }
 
     function callFn(name, payload) {
+        // Admin moderation carries the Topic discussions tool session
+        // (a fresh 2FA code; the server refuses without it).
+        if (name === 'moderateTopicPost' && typeof window.bqAdminToolCall === 'function') {
+            return window.bqAdminToolCall('topics', name, payload);
+        }
         return firebase.functions().httpsCallable(name)(payload);
     }
 

@@ -4,6 +4,7 @@
 // factionRacePrizes.js. Every write here is Admin SDK; rules deny clients.
 
 const P = require('./factionRacePrizes');
+const { requireAdminToolSession } = require('./adminToolSession');
 
 const RESULTS = 'faction_race_results';
 const PUBLIC_DOC = ['faction_race_public', 'current'];
@@ -172,6 +173,7 @@ function factory(deps) {
     // Admin: stored breakdown + payout status, or a live dry run when the race is still open.
     const adminFactionRaceBreakdown = functionsV1.https.onCall(async function (data, context) {
         requireAdmin(functionsV1, context);
+        await requireAdminToolSession(db, data, context, 'factionPrize', { HttpsError: functionsV1.https.HttpsError });
         const totalsSnap = await db.collection('satoshiFavor').doc('factionTotals').get();
         const totals = totalsSnap.exists ? totalsSnap.data() : {};
         const raceId = P.raceIdOf(totals);
@@ -200,6 +202,7 @@ function factory(deps) {
     // re-checking each recipient. Retry = call again; existing rows are skipped.
     const adminApproveFactionPayout = functionsV1.https.onCall(async function (data, context) {
         requireAdmin(functionsV1, context);
+        await requireAdminToolSession(db, data, context, 'factionPrize', { HttpsError: functionsV1.https.HttpsError });
         const raceId = String((data && data.raceId) || '');
         if (!/^[A-Za-z0-9_-]{1,40}$/.test(raceId) || !data || data.confirm !== 'APPROVE ' + raceId) {
             throw httpsError(functionsV1, 'invalid-argument', 'Confirmation text does not match.');
