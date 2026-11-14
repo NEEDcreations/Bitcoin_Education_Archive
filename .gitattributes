@@ -22,3 +22,7 @@
 *.svg text eol=lf
 *.woff binary
 *.woff2 binary
+
+# Video
+*.mp4 binary
+*.webm binary
