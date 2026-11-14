@@ -35,7 +35,7 @@ function mockWallet(cfg) {
         payInvoice: async function () {
             if (cfg.mockPayOutcome === 'refuse') { const e = new Error('PAYMENT_FAILED'); e.code = 'PAYMENT_FAILED'; throw e; }
             if (cfg.mockPayOutcome === 'timeout') throw new Error('[TIMEOUT] payInvoice');
-            return { preimage: require('crypto').randomBytes(32).toString('hex'), fees_paid: 0 };
+            return { preimage: require('crypto').randomBytes(32).toString('hex'), fees_paid: cfg.mockFeesPaidMsat || 0 };
         },
         lookupInvoice: async function () { return { state: 'pending' }; },
     };
@@ -43,21 +43,44 @@ function mockWallet(cfg) {
 
 // Staging mock invoices: a real, signed mainnet-format BOLT11 for the exact
 // amount from a throwaway key, so the decode checks run for real.
-function mockInvoice(sats) {
+// hint: 'none' | 'normal' (tiny route-hint fee) | 'high' (inflated hint fee),
+// so the route-hint fee cap can be proven on staging.
+const MOCK_HINTS = {
+    normal: { fee_base_msat: 1000, fee_proportional_millionths: 100 },
+    high: { fee_base_msat: 50000, fee_proportional_millionths: 50000 },
+};
+function mockInvoice(sats, hint) {
     const crypto = require('crypto');
     const key = crypto.randomBytes(32).toString('hex');
+    const tags = [
+        { tagName: 'payment_hash', data: crypto.randomBytes(32).toString('hex') },
+        { tagName: 'payment_secret', data: crypto.randomBytes(32).toString('hex') },
+        { tagName: 'description', data: 'staging favor mock' },
+        { tagName: 'expire_time', data: 600 },
+    ];
+    if (MOCK_HINTS[hint]) {
+        tags.push({ tagName: 'routing_info', data: [Object.assign({
+            pubkey: (function () { const e = crypto.createECDH('secp256k1'); e.generateKeys(); return e.getPublicKey('hex', 'compressed'); })(),
+            short_channel_id: '0000010000020003',
+            cltv_expiry_delta: 40,
+        }, MOCK_HINTS[hint])] });
+    }
     const enc = bolt11.encode({
         network: { bech32: 'bc', pubKeyHash: 0x00, scriptHash: 0x05, validWitnessVersions: [0] },
         millisatoshis: String(sats * 1000),
         timestamp: Math.floor(Date.now() / 1000),
-        tags: [
-            { tagName: 'payment_hash', data: crypto.randomBytes(32).toString('hex') },
-            { tagName: 'payment_secret', data: crypto.randomBytes(32).toString('hex') },
-            { tagName: 'description', data: 'staging favor mock' },
-            { tagName: 'expire_time', data: 600 },
-        ],
+        tags: tags,
     });
     return bolt11.sign(enc, key).paymentRequest;
+}
+
+// Staging only: a fake address tagged '+highfee' / '+normalhint' gets that
+// hint, so one test account can be refused without flipping shared config.
+function mockHintFor(ln, cfg) {
+    const a = String(ln || '');
+    if (/\+highfee@/.test(a)) return 'high';
+    if (/\+normalhint@/.test(a)) return 'normal';
+    return cfg && cfg.mockRouteHint;
 }
 
 function withTimeout(promise, ms, label) {
@@ -148,6 +171,9 @@ function factory(functionsV1, deps) {
             recentSignIn: secondFactor.recentSignIn,
             wallet: function (cfg) {
                 if (staging) {
+                    // Defence in depth: a staging build never pays with a real
+                    // wallet string, even if one is somehow in the environment.
+                    if (nwcUrl()) throw new Error('staging must not have NWC_URL');
                     if (cfg.mockWallet !== true) throw new Error('staging has no wallet');
                     return mockWallet(cfg);
                 }
@@ -155,8 +181,8 @@ function factory(functionsV1, deps) {
                 if (!url) throw new Error('NO_WALLET');
                 return new NWCClient({ nostrWalletConnectUrl: url });
             },
-            resolveInvoice: async function (ln, sats) {
-                if (staging) return mockInvoice(sats);
+            resolveInvoice: async function (ln, sats, cfg) {
+                if (staging) return mockInvoice(sats, mockHintFor(ln, cfg));
                 const r = await resolveLnurlInvoice({ address: ln, msats: sats * 1000, bolt11: bolt11 });
                 return r.pr;
             },
@@ -169,6 +195,7 @@ function factory(functionsV1, deps) {
 
     // Player: claim one archived block. Input { epoch, block } only.
     const claimFavorBlock = functionsV1.runWith({
+        enforceAppCheck: true,
         timeoutSeconds: 180,
         secrets: staging ? [deletionHmacSecret] : [deletionHmacSecret, nwcUrlSecret],
         serviceAccount: runtimeSa('claimFavorBlock'),
@@ -177,13 +204,13 @@ function factory(functionsV1, deps) {
     });
 
     // Player: my own blocks for the epochs shown in Epoch History.
-    const myFavorEpochClaims = functionsV1.https.onCall(async function (data, context) {
+    const myFavorEpochClaims = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async function (data, context) {
         if (!context || !context.auth || !context.auth.uid) throw new HttpsError('unauthenticated', 'Sign in');
         return service().listMine(context, data || {});
     });
 
     // Admin: switches and caps. Fresh admin 2FA every time.
-    const adminSetFavorClaims = functionsV1.https.onCall(async function (data, context) {
+    const adminSetFavorClaims = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async function (data, context) {
         requireAdmin(context);
         const secondFactor = require('./secondFactor');
         await secondFactor.requireAdminStepUp(secondFactor.stamp(data, context), 'adminSetFavorClaims');
@@ -203,11 +230,20 @@ function factory(functionsV1, deps) {
                 patch[k] = n;
             }
         });
-        if (d.mockWallet != null || d.mockWalletBalanceSats != null || d.mockPayOutcome != null) {
+        if (d.mockWallet != null || d.mockWalletBalanceSats != null || d.mockPayOutcome != null || d.mockRouteHint != null || d.mockFeesPaidMsat != null) {
             if (!staging) throw new HttpsError('permission-denied', 'Mock wallet is staging only');
+            if (d.mockRouteHint != null) patch.mockRouteHint = ['none', 'normal', 'high'].indexOf(d.mockRouteHint) !== -1 ? d.mockRouteHint : 'none';
+            if (d.mockFeesPaidMsat != null) patch.mockFeesPaidMsat = Math.max(0, Math.floor(Number(d.mockFeesPaidMsat)) || 0);
             if (d.mockWallet != null) patch.mockWallet = d.mockWallet === true;
             if (d.mockWalletBalanceSats != null) patch.mockWalletBalanceSats = Math.floor(Number(d.mockWalletBalanceSats)) || 0;
             if (d.mockPayOutcome != null) patch.mockPayOutcome = ['paid', 'refuse', 'timeout'].indexOf(d.mockPayOutcome) !== -1 ? d.mockPayOutcome : 'paid';
+        }
+        // Clearing a routing-fee halt is its own explicit, audited step.
+        if (d.clearFeeHalt === true) {
+            await db.collection('sf_claim_counters').doc(core.FEE_HALT_DOC_ID).set({ halted: false, clearedAtMs: Date.now(),
+                clearedBy: core.maskUid(context.auth.uid) }, { merge: true });
+            await db.collection('sf_claim_audit').add({ type: 'fee_halt_cleared', atMs: Date.now(), by: core.maskUid(context.auth.uid) });
+            if (!Object.keys(patch).length) return { ok: true, feeHaltCleared: true };
         }
         if (!Object.keys(patch).length) throw new HttpsError('invalid-argument', 'Nothing to change');
         patch.updatedAtMs = Date.now();
@@ -220,10 +256,10 @@ function factory(functionsV1, deps) {
 
     // Admin: freeze (backfill) one closed epoch's per-block result from
     // sfPoolHistory. Create-only; never touches sfPoolHistory. dryRun shows it.
-    const adminFreezeFavorEpoch = functionsV1.https.onCall(async function (data, context) {
+    const adminFreezeFavorEpoch = functionsV1.runWith({ enforceAppCheck: true }).https.onCall(async function (data, context) {
         requireAdmin(context);
         const secondFactor = require('./secondFactor');
-        await secondFactor.requireAdminStepUp(secondFactor.stamp(data, context), 'adminSetFavorClaims');
+        await secondFactor.requireAdminStepUp(secondFactor.stamp(data, context), 'adminFreezeFavorEpoch');
         const r = await service().freezeEpoch(data && data.epoch, { source: 'backfill', dryRun: !!(data && data.dryRun) });
         const res = r.result || null;
         return {
@@ -243,4 +279,4 @@ function factory(functionsV1, deps) {
     };
 }
 
-module.exports = { factory, isStagingProject, mockInvoice, MOCK_NODE_PUBKEY, STAGING_PROJECT };
+module.exports = { factory, isStagingProject, mockInvoice, mockHintFor, MOCK_NODE_PUBKEY, STAGING_PROJECT };

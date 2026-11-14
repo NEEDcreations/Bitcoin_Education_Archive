@@ -47,8 +47,18 @@ function makeDb() {
         return {
             doc: function (id) { return docRef(col, id); },
             add: async function (d) { const id = 'auto' + (++auto); apply(col + '/' + id, d); return docRef(col, id); },
+            get: async function () {
+                const docs = [];
+                store.forEach(function (v, k) {
+                    if (k.indexOf(col + '/') !== 0) return;
+                    const id = k.slice(col.length + 1);
+                    if (id.indexOf('/') === -1) docs.push(snap(k, id));
+                });
+                return { docs: docs, empty: !docs.length, size: docs.length };
+            },
             where: function (field, op, val) {
                 return {
+                    limit: function () { return this; },
                     get: async function () {
                         const docs = [];
                         store.forEach(function (v, k) {
@@ -112,6 +122,11 @@ function seed(db, opts) {
     db.store.set('users/' + BOB, { lightningAddress: 'bob@wallet.example' });
     db.store.set('users/' + CARA, { lightningAddress: o.caraLn || 'cara@wallet.example' });
     db.store.set('users/' + MALLORY, { lightningAddress: 'mallory@evil.example' });
+    // Address locks made before the close (first save), unless a test says otherwise.
+    [[ALICE, 'alice@wallet.example'], [BOB, 'bob@wallet.example'], [CARA, o.caraLn || 'cara@wallet.example'], [MALLORY, 'mallory@evil.example']].forEach(function (p) {
+        if (o.noLocks) return;
+        if (!db.store.has('lightning_addresses/' + p[1])) db.store.set('lightning_addresses/' + p[1], { uid: p[0], address: p[1], lockedAt: { seconds: CLOSED_MS / 1000 - 86400 } });
+    });
     db.store.set('config/satoshiFavorPayouts', Object.assign({ claimsEnabled: true, enabledEpochs: [1] }, o.config || {}));
 }
 
@@ -137,7 +152,7 @@ function makeHarness(opts) {
         alerts: [],
         statusAtPay: [],
     };
-    h.svc = core.createBlockClaimService({
+    h.deps = {
         db: db,
         nowMs: function () { return h.clock; },
         isOffline: async function () { return h.offline; },
@@ -178,7 +193,8 @@ function makeHarness(opts) {
         lookupSettlement: lookupSettlement,
         lookupIntervalMs: 0,
         notifyAdmin: async function (text) { h.alerts.push(text); },
-    });
+    };
+    h.svc = core.createBlockClaimService(h.deps);
     return h;
 }
 
@@ -566,10 +582,16 @@ test('catch-up ceiling counts routing fees: overpaid fees cannot push spend past
     const h = makeHarness({ config: { perUidDailySats: 1000000 } });
     await freeze(h, 1);
     h.routingFeeMsat = 900 * 1000;
-    for (const b of [0, 1, 2]) assert.ok((await h.svc.claim(ctx(ALICE), { epoch: 1, block: b })).success);
+    // A 900-sat fee is over the routing-fee limit, so each paid claim halts
+    // claims; clear the halt between claims (as an admin would) to reach the ceiling.
+    function clearHalt() {
+        assert.strictEqual(h.db.store.get('sf_claim_counters/' + core.FEE_HALT_DOC_ID).halted, true);
+        h.db.store.set('sf_claim_counters/' + core.FEE_HALT_DOC_ID, { halted: false });
+    }
+    for (const b of [0, 1, 2]) { assert.ok((await h.svc.claim(ctx(ALICE), { epoch: 1, block: b })).success); clearHalt(); }
     const cu = h.db.store.get('sf_claim_counters/' + core.CATCH_UP_COUNTER_ID);
     assert.strictEqual(cu.sats, 3 * (4190 + 900));
-    assert.ok((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).success);
+    assert.ok((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).success); clearHalt();
     assert.strictEqual((await h.svc.claim(ctx(CARA), { epoch: 1, block: 4 })).code, 'catch_up_ceiling', '4 x 5,090 = 20,360; + 4,200 > 23,000');
 });
 
@@ -632,7 +654,7 @@ test('payout records are write-once: a second write for the same block is refuse
     assert.ok(threw);
 });
 
-test('every refusal and every payment writes an audit row', async function () {
+test('every refusal (except signed-out and bad_id) and every payment writes an audit row', async function () {
     const h = makeHarness();
     await freeze(h, 1);
     await h.svc.claim(ctx(null), { epoch: 1, block: 3 });
@@ -640,7 +662,8 @@ test('every refusal and every payment writes an audit row', async function () {
     await h.svc.claim(ctx(BOB), { epoch: 'x', block: 3 });
     await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
     const rows = audits(h).filter(function (a) { return a.type !== 'freeze'; });
-    assert.deepStrictEqual(rows.map(function (a) { return a.code; }), ['unauthenticated', 'not_winner', 'bad_id', 'paid']);
+    // Signed-out and bad_id calls are not audited (Spam/Abuse #311 M1).
+    assert.deepStrictEqual(rows.map(function (a) { return a.code; }), ['not_winner', 'paid']);
     rows.forEach(function (a) { assert.ok(!('uid' in a), 'audit rows carry a masked uid only'); });
 });
 
@@ -652,6 +675,249 @@ test('listMine returns only the caller\'s own blocks', async function () {
     assert.ok(a.claims.every(function (c) { return c.status === 'claimable' && c.payTo === 'al\u2026@wallet.example'; }));
     assert.deepStrictEqual((await h.svc.listMine(ctx(MALLORY), { epochNumbers: [1] })).claims, []);
     assert.deepStrictEqual((await h.svc.listMine(ctx(null), { epochNumbers: [1] })).claims, []);
+});
+
+// ---------- routing-fee cap (Red Team #311 item 2) ----------
+function hint(base, ppm) {
+    return { tagName: 'routing_info', data: [{ pubkey: '03' + '11'.repeat(32), short_channel_id: '0000010000020003', fee_base_msat: base, fee_proportional_millionths: ppm, cltv_expiry_delta: 40 }] };
+}
+
+test('route-hint fee: limit is max(10 sats, 1%) and the worst path is summed per hop', function () {
+    assert.strictEqual(core.routeFeeLimitMsat(4190), 41900);
+    assert.strictEqual(core.routeFeeLimitMsat(500), 10000);
+    const two = { tags: [hint(1000, 100), { tagName: 'routing_info', data: [
+        { fee_base_msat: 20000, fee_proportional_millionths: 1000 }, { fee_base_msat: 20000, fee_proportional_millionths: 1000 }] }] };
+    const r = core.routeHintFeeMsat(two, 4190000);
+    assert.strictEqual(r.paths, 2);
+    assert.strictEqual(r.worstMsat, 2 * (20000 + 4190), 'second path, both hops summed');
+    assert.strictEqual(core.routeHintFeeMsat({ tags: [] }, 4190000).worstMsat, 0);
+    assert.strictEqual(core.routeHintFeeMsat({ tags: [{ tagName: 'routing_info', data: [{ fee_base_msat: 'x' }] }] }, 1).worstMsat, Infinity, 'malformed fails closed');
+    assert.ok(core.checkRouteFees({ tags: [hint(1000, 100)] }, 4190).ok);
+    assert.ok(!core.checkRouteFees({ tags: [hint(50000, 50000)] }, 4190).ok);
+    assert.ok(!core.checkRouteFees({ tags: [hint(41901, 0)] }, 4190).ok, 'one msat over the limit');
+    assert.ok(core.checkRouteFees({ tags: [hint(41900, 0)] }, 4190).ok, 'exactly the limit is allowed');
+});
+
+test('route-hint fee: an invoice with a high-fee hint is never paid, held for review, counters released, audited', async function () {
+    const h = makeHarness();
+    await freeze(h, 1);
+    h.invoiceMutator = function (d) { d.tags.push(hint(50000, 50000)); return d; };
+    const r = await h.svc.claim(ctx(ALICE), { epoch: 1, block: 0 });
+    assert.strictEqual(r.success, false);
+    assert.strictEqual(r.code, 'route_fee_high');
+    assert.strictEqual(h.pays.length, 0, 'wallet never called');
+    const c = h.db.store.get('sf_block_claims/e1_b0');
+    assert.strictEqual(c.status, 'manual_review');
+    assert.strictEqual(c.reviewReason, 'route_fee_high');
+    keys(h, 'sf_claim_counters/').forEach(function (k) { assert.strictEqual(h.db.store.get(k).sats || 0, 0, k + ' released'); });
+    const a = audits(h).filter(function (x) { return x.code === 'route_fee_high'; });
+    assert.strictEqual(a.length, 1);
+    assert.strictEqual(a[0].detail.worstHintFeeMsat, 50000 + Math.ceil(50000 * 4190000 / 1e6));
+    assert.strictEqual(a[0].detail.limitMsat, 41900);
+    assert.ok(h.alerts.some(function (t) { return /route-hint fee/.test(t); }));
+    assert.ok(!keys(h, 'sf_block_payouts/').length);
+    // Retrying does not reach the wallet: the block waits for a person.
+    h.clock += 3600 * 1000;
+    assert.strictEqual((await h.svc.claim(ctx(ALICE), { epoch: 1, block: 0 })).code, 'manual_review');
+    assert.strictEqual(h.pays.length, 0);
+});
+
+test('route-hint fee: a normal invoice (small hint or none) pays as before', async function () {
+    const h = makeHarness();
+    await freeze(h, 1);
+    h.invoiceMutator = function (d) { d.tags.push(hint(1000, 100)); return d; };
+    const r = await h.svc.claim(ctx(ALICE), { epoch: 1, block: 0 });
+    assert.ok(r.success, JSON.stringify(r));
+    h.invoiceMutator = null;
+    h.routingFeeMsat = 41900; // exactly the limit: no halt
+    assert.ok((await h.svc.claim(ctx(ALICE), { epoch: 1, block: 1 })).success);
+    assert.strictEqual(h.pays.length, 2);
+    const halt = h.db.store.get('sf_claim_counters/' + core.FEE_HALT_DOC_ID);
+    assert.ok(!halt || halt.halted !== true);
+});
+
+test('post-pay overspend: a routing fee over the limit records the payout, halts every further claim, audited', async function () {
+    const h = makeHarness();
+    await freeze(h, 1);
+    h.routingFeeMsat = 41901; // 1 msat over max(10, 1% of 4,190)
+    const r = await h.svc.claim(ctx(ALICE), { epoch: 1, block: 0 });
+    assert.ok(r.success, 'the payment happened, so it is recorded as paid');
+    const p = h.db.store.get('sf_block_payouts/e1_b0');
+    assert.strictEqual(p.routingFeeSats, 42);
+    assert.strictEqual(p.walletSpentSats, 4190 + 42);
+    const halt = h.db.store.get('sf_claim_counters/' + core.FEE_HALT_DOC_ID);
+    assert.strictEqual(halt.halted, true);
+    assert.strictEqual(halt.reason, 'routing_fee_over_limit');
+    assert.ok(audits(h).some(function (a) { return a.type === 'fee_halt' && a.routingFeeSats === 42 && a.limitSats === 42; }));
+    assert.ok(h.alerts.some(function (t) { return /HALTED/.test(t); }));
+    h.routingFeeMsat = 0;
+    const next = await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+    assert.strictEqual(next.code, 'fee_halt');
+    assert.strictEqual(h.pays.length, 1, 'no further wallet call while halted');
+    assert.ok(audits(h).some(function (a) { return a.type === 'refused' && a.code === 'fee_halt' && a.block === 3; }));
+    keys(h, 'sf_claim_counters/').filter(function (k) { return k.indexOf('uid_') !== -1; }).forEach(function (k) {
+        assert.ok(h.db.store.get(k).sats === 4200 || h.db.store.get(k).sats === undefined || h.db.store.get(k).sats === 0);
+    });
+    // An admin clears it; claims resume.
+    h.db.store.set('sf_claim_counters/' + core.FEE_HALT_DOC_ID, { halted: false });
+    assert.ok((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).success);
+});
+
+test('wiring: the NWC pay call carries only the invoice; staging mock can add hint fees; halt is clearable by admin only', function () {
+    const src = fs.readFileSync(path.join(root, 'functions/src/favorBlockClaims.js'), 'utf8');
+    assert.ok(/checkRouteFees\(decoded, net\)[\s\S]{0,600}release\('route_fee_high'[\s\S]{0,200}review: 'route_fee_high'/.test(src));
+    assert.ok(src.indexOf("checkRouteFees(decoded, net)") < src.indexOf('wallet.payInvoice('), 'fee check runs before the wallet call');
+    const fns = fs.readFileSync(path.join(root, 'functions/src/favorBlockClaimsFns.js'), 'utf8');
+    assert.ok(/if \(staging\) return mockInvoice\(sats, mockHintFor\(ln, cfg\)\)/.test(fns));
+    const m = require(path.join(root, 'functions/src/favorBlockClaimsFns.js'));
+    assert.strictEqual(m.mockHintFor('sf-x+highfee@staging.test', {}), 'high');
+    assert.strictEqual(m.mockHintFor('sf-x+normalhint@staging.test', {}), 'normal');
+    assert.strictEqual(m.mockHintFor('sf-x@staging.test', { mockRouteHint: 'none' }), 'none');
+    assert.ok(/d\.clearFeeHalt === true/.test(fns) && /requireAdmin\(context\);[\s\S]{0,200}requireAdminStepUp/.test(fns));
+    const mod = require(path.join(root, 'functions/src/favorBlockClaimsFns.js'));
+    const bolt11 = require(path.join(root, 'functions/node_modules/bolt11'));
+    const hi = bolt11.decode(mod.mockInvoice(4190, 'high'));
+    const lo = bolt11.decode(mod.mockInvoice(4190, 'normal'));
+    const none = bolt11.decode(mod.mockInvoice(4190));
+    assert.ok(!core.checkRouteFees(hi, 4190).ok);
+    assert.ok(core.checkRouteFees(lo, 4190).ok && core.routeHintFeeMsat(lo, 4190000).paths === 1);
+    assert.ok(core.checkRouteFees(none, 4190).ok && core.routeHintFeeMsat(none, 4190000).paths === 0);
+});
+
+test('admin approve payout functions are not exported, so they cannot be redeployed', function () {
+    const idx = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
+    assert.ok(!/exports\.adminApproveFavorPayout\b/.test(idx));
+    assert.ok(!/exports\.adminApproveFactionPayout\b/.test(idx));
+});
+
+// ---------- Spam/Abuse #311 fixes ----------
+test('M1: signed-out and malformed calls write no audit row and no counter', async function () {
+    const h = makeHarness();
+    await freeze(h, 1);
+    const before = keys(h, 'sf_claim_audit/').length;
+    const writesBefore = h.db.writes.length;
+    assert.strictEqual((await h.svc.claim(ctx(null), { epoch: 1, block: 0 })).code, 'unauthenticated');
+    assert.strictEqual(h.db.writes.length, writesBefore, 'signed-out call writes nothing');
+    assert.strictEqual((await h.svc.claim(ctx(ALICE), { epoch: 'x', block: 0 })).code, 'bad_id');
+    assert.strictEqual((await h.svc.claim(ctx(ALICE), { epoch: 1, block: 9 })).code, 'bad_id');
+    assert.strictEqual(keys(h, 'sf_claim_audit/').length, before, 'no audit rows for unauthenticated or bad_id');
+});
+
+test('M1: per-uid call limit refuses past RATE_MAX in the window, audits once, then resets', async function () {
+    const h = makeHarness();
+    await freeze(h, 1);
+    for (let i = 0; i < core.RATE_MAX; i++) assert.notStrictEqual((await h.svc.claim(ctx(MALLORY), { epoch: 1, block: 0 })).code, 'rate_limited');
+    assert.strictEqual((await h.svc.claim(ctx(MALLORY), { epoch: 1, block: 0 })).code, 'rate_limited');
+    assert.strictEqual((await h.svc.claim(ctx(MALLORY), { epoch: 1, block: 0 })).code, 'rate_limited');
+    assert.strictEqual(audits(h).filter(function (a) { return a.code === 'rate_limited'; }).length, 1, 'only the first refused call is audited');
+    // Another player is not affected.
+    assert.ok((await h.svc.claim(ctx(ALICE), { epoch: 1, block: 0 })).success);
+    h.clock += core.RATE_WINDOW_MS;
+    assert.strictEqual((await h.svc.claim(ctx(MALLORY), { epoch: 1, block: 0 })).code, 'not_winner');
+});
+
+test('M1: repeat manual-review, address-changed and history-mismatch alerts fire once per key per ET day', async function () {
+    const h = makeHarness({ caraLn: 'alice@wallet.example' });
+    await freeze(h, 1);
+    for (let i = 0; i < 3; i++) await h.svc.claim(ctx(CARA), { epoch: 1, block: 4 });
+    assert.strictEqual(h.alerts.filter(function (t) { return /manual review: epoch 1 block 4/.test(t); }).length, 1);
+    h.db.store.set('users/' + BOB, { lightningAddress: 'bob2@wallet.example' });
+    for (let i = 0; i < 3; i++) await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+    assert.strictEqual(h.alerts.filter(function (t) { return /changed their Lightning address/.test(t); }).length, 1);
+    const hist = h.db.store.get('sfPoolHistory/h1');
+    hist.blocks[0].uid = MALLORY; h.db.store.set('sfPoolHistory/h1', hist);
+    for (let i = 0; i < 3; i++) assert.strictEqual((await h.svc.claim(ctx(ALICE), { epoch: 1, block: 1 })).code, 'history_mismatch');
+    assert.strictEqual(h.alerts.filter(function (t) { return /does not match sfPoolHistory/.test(t); }).length, 1);
+    // Next ET day: alerts again.
+    h.clock += 24 * 3600 * 1000;
+    await h.svc.claim(ctx(ALICE), { epoch: 1, block: 1 });
+    assert.strictEqual(h.alerts.filter(function (t) { return /does not match sfPoolHistory/.test(t); }).length, 2);
+    assert.strictEqual(core.etDayKey(Date.UTC(2026, 10, 15, 4, 30)), '2026-11-14', '11:30 PM ET is still the 14th');
+});
+
+test('M2: backfill sends a winner whose address lock postdates the close (or has no time) to review', async function () {
+    const h = makeHarness();
+    h.db.store.set('lightning_addresses/bob@wallet.example', { uid: BOB, address: 'bob@wallet.example', lockedAt: { seconds: CLOSED_MS / 1000 + 60 } });
+    h.db.store.delete('lightning_addresses/cara@wallet.example');
+    const r = await freeze(h, 1);
+    const b = r.result.blocks;
+    assert.strictEqual(b[0].manualReview, '');
+    assert.strictEqual(b[3].manualReview, 'address_changed_after_close');
+    assert.strictEqual(b[3].lnChangedAfterClose, true);
+    assert.strictEqual(b[4].manualReview, 'address_changed_after_close', 'no lock = unknown time = review');
+    const c = await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+    assert.ok(['manual_review', 'step_up_required'].indexOf(c.code) !== -1);
+    assert.strictEqual(h.pays.length, 0);
+});
+
+test('M2: the close-time freeze is not affected by the lock check', async function () {
+    const h = makeHarness({ noLocks: true });
+    const r = await h.svc.freezeEpoch(1, { source: 'close' });
+    assert.ok(r.ok);
+    assert.ok(r.result.blocks.every(function (b) { return b.manualReview === ''; }));
+});
+
+test('LOW: shared-address flagging looks across epochs and across accounts', async function () {
+    const h = makeHarness({ epochs: 2 });
+    await freeze(h, 1);
+    // Epoch 2: BOB now uses ALICE's epoch-1 address.
+    h.db.store.set('users/' + BOB, { lightningAddress: 'alice@wallet.example' });
+    const r2 = await freeze(h, 2);
+    r2.result.blocks.filter(function (x) { return x.uid === BOB; }).forEach(function (x) { assert.strictEqual(x.manualReview, 'shared_address'); });
+    // Another account holding the address right now also counts.
+    const h2 = makeHarness();
+    h2.db.store.set('users/someoneElse', { lightningAddress: 'cara@wallet.example' });
+    const r = await freeze(h2, 1);
+    assert.strictEqual(r.result.blocks[4].manualReview, 'shared_address');
+    assert.strictEqual(r.result.blocks[0].manualReview, '');
+});
+
+test('LOW: a wallet that cannot be built releases the reservation instead of leaving paying', async function () {
+    const h = makeHarness();
+    await freeze(h, 1);
+    const svc = core.createBlockClaimService(Object.assign({}, h.deps, { wallet: function () { throw new Error('NO_WALLET'); } }));
+    const r = await svc.claim(ctx(ALICE), { epoch: 1, block: 0 });
+    assert.strictEqual(r.code, 'wallet_unavailable');
+    const c = h.db.store.get('sf_block_claims/e1_b0');
+    assert.strictEqual(c.status, 'claimable');
+    keys(h, 'sf_claim_counters/').filter(function (k) { return /uid_|site_|catchup/.test(k); }).forEach(function (k) { assert.strictEqual(h.db.store.get(k).sats, 0, k); });
+});
+
+test('LOW wiring: App Check on all four callables, own freeze step-up action, staging refuses NWC_URL', function () {
+    const fns = fs.readFileSync(path.join(root, 'functions/src/favorBlockClaimsFns.js'), 'utf8');
+    assert.ok(/const claimFavorBlock = functionsV1\.runWith\(\{\s*enforceAppCheck: true,/.test(fns));
+    ['myFavorEpochClaims', 'adminSetFavorClaims', 'adminFreezeFavorEpoch'].forEach(function (n) {
+        assert.ok(new RegExp('const ' + n + ' = functionsV1\\.runWith\\(\\{ enforceAppCheck: true \\}\\)').test(fns), n);
+    });
+    assert.ok(/requireAdminStepUp\(secondFactor\.stamp\(data, context\), 'adminFreezeFavorEpoch'\)/.test(fns));
+    const sf = fs.readFileSync(path.join(root, 'functions/src/secondFactor.js'), 'utf8');
+    assert.ok(/adminFreezeFavorEpoch: true/.test(sf));
+    assert.ok(/if \(nwcUrl\(\)\) throw new Error\('staging must not have NWC_URL'\)/.test(fns));
+});
+
+test('seeder hard-refuses every project but staging before any write', function () {
+    const cp = require('child_process');
+    const os = require('os');
+    const seedPath = path.join(root, 'scripts/staging/seed-favor-winners.js');
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'seedtest-'));
+    try {
+        function run(keyProject, argProject, envProject) {
+            const kf = path.join(tmp, 'k.json');
+            fs.writeFileSync(kf, JSON.stringify({ project_id: keyProject }));
+            const env = Object.assign({}, process.env, { GOOGLE_APPLICATION_CREDENTIALS: kf, GCLOUD_PROJECT: envProject });
+            delete env.FIREBASE_SA_JSON; delete env.GOOGLE_CLOUD_PROJECT;
+            return cp.spawnSync(process.execPath, [seedPath, '--project', argProject, '--epoch', '2', '--dry-run'], { env: env, encoding: 'utf8', timeout: 20000 });
+        }
+        const live = 'bitcoin-education-archive';
+        [[live, live, live], ['bitcoin-quest-staging', live, 'bitcoin-quest-staging'], [live, 'bitcoin-quest-staging', 'bitcoin-quest-staging'],
+         ['bitcoin-quest-staging', 'bitcoin-quest-staging', live], ['bitcoin-quest-staging', 'bitcoin-quest-staging', '']].forEach(function (c) {
+            const r = run(c[0], c[1], c[2]);
+            assert.strictEqual(r.status, 2, JSON.stringify(c) + ' must exit 2: ' + r.stderr);
+            assert.ok(/REFUSED: project is/.test(r.stderr), r.stderr);
+        });
+    } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+    const src = fs.readFileSync(seedPath, 'utf8');
+    assert.ok(src.indexOf('if (project !== STAGING) die(') < src.indexOf("require(path.join(__dirname, '../../functions/src/firebaseAdmin.js'))"), 'project check runs before the admin SDK loads');
 });
 
 // ---------- static guards over the repo ----------
@@ -738,7 +1004,7 @@ test('wiring: claimFavorBlock is kill-switch gated, step-up action exists, stagi
     assert.ok(/claimFavorBlock: true/.test(sfSrc) && /adminSetFavorClaims: true/.test(sfSrc));
     const fns = fs.readFileSync(path.join(root, 'functions/src/favorBlockClaimsFns.js'), 'utf8');
     assert.ok(fns.includes('secrets: staging ? [deletionHmacSecret] : [deletionHmacSecret, nwcUrlSecret]'));
-    assert.ok(/if \(staging\) \{\s*if \(cfg\.mockWallet !== true\)/.test(fns));
+    assert.ok(/if \(staging\) \{[\s\S]{0,250}if \(nwcUrl\(\)\) throw[\s\S]{0,80}if \(cfg\.mockWallet !== true\)/.test(fns));
     assert.ok(/Mock wallet is staging only/.test(fns));
     const idx = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
     assert.ok(!/adminApproveFavorPayout/.test(idx), 'no admin approve step');

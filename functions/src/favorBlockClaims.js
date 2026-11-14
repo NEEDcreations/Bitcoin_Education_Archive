@@ -56,6 +56,25 @@ const CATCH_UP_MAX_BLOCK_SATS = 168000;
 const CATCH_UP_FEE_ALLOWANCE_SATS = 2000;
 const CATCH_UP_COUNTER_ID = 'catchup_e1_8';
 
+// Routing-fee cap (Red Team, Nov 14 2026). The payee controls the invoice
+// through LNURL, so route hints through a private channel they own could
+// carry an inflated fee that our wallet pays on top of the exact amount.
+// Before paying: refuse any invoice whose worst route-hint path fee is over
+// max(10 sats, 1% of the invoice amount) and set the block aside for a person.
+// After paying: if the wallet's reported routing fee is over the same limit,
+// halt every further claim (sf_claim_counters/fee_halt) until an admin clears it.
+const ROUTE_FEE_MIN_SATS = 10;
+const ROUTE_FEE_PPM = 10000; // 1%
+const FEE_HALT_DOC_ID = 'fee_halt';
+
+// Per-uid call limit on claimFavorBlock (Spam/Abuse #311 M1): at most
+// RATE_MAX calls per RATE_WINDOW_MS per account. Signed-out and malformed
+// calls are refused without any Firestore write.
+const RATE_MAX = 20;
+const RATE_WINDOW_MS = 10 * 60 * 1000;
+// Codes that never write an sf_claim_audit row (no spam into a permanent log).
+const NO_AUDIT_CODES = Object.freeze(['unauthenticated', 'bad_id']);
+
 function isCatchUpEpoch(epoch) {
     return Number.isInteger(epoch) && epoch >= CATCH_UP_FIRST_EPOCH && epoch <= CATCH_UP_LAST_EPOCH;
 }
@@ -110,6 +129,9 @@ const MESSAGES = Object.freeze({
     bad_invoice: 'Could not get a valid invoice from your Lightning address. Your block is saved.',
     pay_failed: 'Payment failed. Your block is still waiting.',
     catch_up_ceiling: 'This payout is over the catch-up total and needs a manual check. Your block is saved.',
+    route_fee_high: 'Your wallet\'s invoice asks for an unusually high routing fee, so this block is set aside for a manual check. Your sats are safe.',
+    fee_halt: 'Favor payouts are paused for a quick check. Your block is saved.',
+    rate_limited: 'Too many tries. Wait a few minutes and try again.',
 });
 
 function intStrict(v, lo, hi) {
@@ -197,6 +219,9 @@ function readConfig(raw) {
         mockWallet: d.mockWallet === true,
         mockWalletBalanceSats: posInt(d.mockWalletBalanceSats, 10000000, 50000),
         mockPayOutcome: typeof d.mockPayOutcome === 'string' ? d.mockPayOutcome : 'paid',
+        // Staging mock wallet only (ignored unless the staging build uses the mock).
+        mockRouteHint: ['none', 'normal', 'high'].indexOf(d.mockRouteHint) !== -1 ? d.mockRouteHint : 'none',
+        mockFeesPaidMsat: posInt(d.mockFeesPaidMsat, 100000000, 0),
     };
 }
 
@@ -241,10 +266,19 @@ function buildEpochResult(derived, players, opts) {
     const blocks = derived.rows.map(function (r) {
         const p = players[r.uid] || {};
         const ln = normalizeLn(p.ln);
-        const shared = validLn(ln) && Object.keys(byLn[ln] || {}).length > 1;
+        const priorOwners = Object.keys(((o.priorLnOwners || {})[ln]) || {}).filter(function (u) { return u !== r.uid; });
+        const otherHolders = (p.otherHolders || []).filter(function (u) { return u !== r.uid; });
+        const lockedByOther = !!p.lnLockOwner && p.lnLockOwner !== r.uid;
+        // Shared within this epoch, with a winner of another epoch, with
+        // another account now, or locked to another account.
+        const shared = validLn(ln) && (Object.keys(byLn[ln] || {}).length > 1 || priorOwners.length > 0 || otherHolders.length > 0 || lockedByOther);
         // Backfills happen after close. A one-time address reset after close
         // means the frozen address may not be the close-time one: hold it.
-        const changedAfterClose = Number(p.lnResetMs) > derived.completedAtMs;
+        // Backfill only: the first save of an address is not an ln_reset, so
+        // also require the address lock to predate the close. A lock made after
+        // close, or with no known time, goes to review (Spam/Abuse #311 M2).
+        const lockAfterClose = o.source !== 'close' && validLn(ln) && !(Number(p.lnLockMs) > 0 && Number(p.lnLockMs) <= derived.completedAtMs);
+        const changedAfterClose = Number(p.lnResetMs) > derived.completedAtMs || lockAfterClose;
         let review = '';
         if (!validLn(ln)) review = 'no_address';
         else if (shared) review = 'shared_address';
@@ -306,6 +340,45 @@ function validateInvoice(bolt, decoded, expectedSats, nowSec, ownPubkey) {
     return { ok: true, paymentHash: hash };
 }
 
+// Most this payout may spend on routing, in msat: max(10 sats, 1% of the invoice).
+function routeFeeLimitMsat(invoiceSats) {
+    const msat = Math.max(0, Math.floor(Number(invoiceSats) || 0)) * 1000;
+    return Math.max(ROUTE_FEE_MIN_SATS * 1000, Math.ceil(msat * ROUTE_FEE_PPM / 1e6));
+}
+
+// Worst route-hint fee of a decoded BOLT11, in msat. Each routing_info tag is
+// one hint path; its fee is the sum over its hops of
+// fee_base_msat + fee_proportional_millionths * amount / 1e6.
+// Anything malformed counts as infinite (fail closed).
+function routeHintFeeMsat(decoded, amountMsat) {
+    const amt = Number(amountMsat);
+    const tags = decoded && Array.isArray(decoded.tags) ? decoded.tags : [];
+    let worst = 0;
+    let paths = 0;
+    for (let i = 0; i < tags.length; i++) {
+        const t = tags[i];
+        if (!t || (t.tagName !== 'routing_info' && t.tag !== 'routing_info')) continue;
+        paths++;
+        if (!Array.isArray(t.data) || !Number.isFinite(amt) || amt < 0) return { worstMsat: Infinity, paths: paths };
+        let sum = 0;
+        for (let j = 0; j < t.data.length; j++) {
+            const hop = t.data[j] || {};
+            const base = Number(hop.fee_base_msat);
+            const ppm = Number(hop.fee_proportional_millionths);
+            if (!Number.isFinite(base) || !Number.isFinite(ppm) || base < 0 || ppm < 0) return { worstMsat: Infinity, paths: paths };
+            sum += base + Math.ceil(ppm * amt / 1e6);
+        }
+        if (sum > worst) worst = sum;
+    }
+    return { worstMsat: worst, paths: paths };
+}
+
+function checkRouteFees(decoded, invoiceSats) {
+    const limitMsat = routeFeeLimitMsat(invoiceSats);
+    const r = routeHintFeeMsat(decoded, Number(invoiceSats) * 1000);
+    return { ok: r.worstMsat <= limitMsat, worstMsat: r.worstMsat === Infinity ? -1 : r.worstMsat, limitMsat: limitMsat, paths: r.paths };
+}
+
 // Pure cap check on the current counters.
 function capCheck(cfg, amount, counters, catchUp) {
     const c = counters || {};
@@ -323,6 +396,10 @@ function capCheck(cfg, amount, counters, catchUp) {
 }
 
 function dayKey(ms) { return new Date(ms).toISOString().slice(0, 10); }
+// Calendar day in America/New_York, for once-a-day admin alerts.
+function etDayKey(ms) {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(ms));
+}
 function monthKey(ms) { return new Date(ms).toISOString().slice(0, 7); }
 
 class ClaimRefusal extends Error {
@@ -359,6 +436,31 @@ function createBlockClaimService(deps) {
     async function alert(text, extra) {
         try { if (deps.notifyAdmin) await deps.notifyAdmin(text, extra || {}); }
         catch (e) { console.warn('[sfclaim] admin alert failed'); }
+    }
+    // Same alert at most once per key per ET day (key = reason/epoch/block).
+    async function alertOnce(key, text, extra) {
+        const id = 'alert_' + String(key).replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 120) + '_' + etDayKey(now());
+        try {
+            await db.collection('sf_claim_counters').doc(id).create({ atMs: now(), key: String(key).slice(0, 120) });
+        } catch (e) { return false; } // already alerted today (or write failed: stay quiet)
+        await alert(text, extra);
+        return true;
+    }
+    // Sliding fixed window per uid. Returns { ok, first } where first marks
+    // the first refused call of a window (the only one that is audited).
+    async function rateCheck(uid) {
+        const ref = db.collection('sf_claim_counters').doc('rate_' + uidHash(uid));
+        const t = now();
+        let out = { ok: true, first: false };
+        await db.runTransaction(async function (tx) {
+            const snap = await tx.get(ref);
+            const cur = snap.exists ? (snap.data() || {}) : {};
+            const fresh = !cur.windowStartMs || t - Number(cur.windowStartMs) >= RATE_WINDOW_MS;
+            const count = fresh ? 1 : (Number(cur.count) || 0) + 1;
+            tx.set(ref, { windowStartMs: fresh ? t : Number(cur.windowStartMs), count: count, updatedAtMs: t });
+            out = { ok: count <= RATE_MAX, first: count === RATE_MAX + 1 };
+        });
+        return out;
     }
     async function loadConfig() {
         const snap = await db.collection('config').doc('satoshiFavorPayouts').get();
@@ -399,9 +501,37 @@ function createBlockClaimService(deps) {
             const u = await db.collection('users').doc(uids[i]).get();
             const r = await db.collection('ln_resets').doc(uids[i]).get();
             const rr = r.exists ? (r.data() || {}) : {};
-            players[uids[i]] = { ln: savedLn(u.exists ? u.data() : {}), lnResetMs: toMs(rr.ln_reset_used) };
+            const ln = savedLn(u.exists ? u.data() : {});
+            const p = { ln: ln, lnResetMs: toMs(rr.ln_reset_used), lnLockMs: 0, lnLockOwner: '', otherHolders: [] };
+            if (validLn(ln)) {
+                // The address lock (lightning_addresses/{ln}) dates the first save.
+                const lock = await db.collection('lightning_addresses').doc(ln).get();
+                if (lock.exists) {
+                    const ld = lock.data() || {};
+                    p.lnLockOwner = String(ld.uid || '');
+                    p.lnLockMs = toMs(ld.lockedAt) || toMs(lock.createTime);
+                }
+                // Other accounts holding the same address right now.
+                for (const field of ['lightningAddress', 'lightning', 'lnAddress']) {
+                    const q = await db.collection('users').where(field, '==', ln).limit(5).get();
+                    (q.docs || []).forEach(function (d) { if (d.id !== uids[i]) p.otherHolders.push(d.id); });
+                }
+            }
+            players[uids[i]] = p;
         }
-        const result = buildEpochResult(derived, players, { epoch: e, nowMs: now(), source: o.source });
+        // Addresses already frozen for other winners in other epochs.
+        const priorLnOwners = {};
+        const prior = await db.collection('sf_payout_results').get();
+        (prior.docs || []).forEach(function (d) {
+            if (d.id === resultId(e)) return;
+            const blocks = ((d.data() || {}).blocks) || [];
+            blocks.forEach(function (b) {
+                if (!b || !validLn(b.frozenLn)) return;
+                priorLnOwners[b.frozenLn] = priorLnOwners[b.frozenLn] || {};
+                priorLnOwners[b.frozenLn][b.uid] = true;
+            });
+        });
+        const result = buildEpochResult(derived, players, { epoch: e, nowMs: now(), source: o.source, priorLnOwners: priorLnOwners });
         if (o.dryRun) return { ok: true, dryRun: true, result: result };
         try {
             await ref.create(result);
@@ -429,6 +559,8 @@ function createBlockClaimService(deps) {
         const base = { uidMasked: maskUid(uid), uidHash: uid ? uidHash(uid) : '' };
         try {
             if (!uid || provider === 'anonymous') refuse('unauthenticated');
+            const rate = await rateCheck(uid);
+            if (!rate.ok) refuse('rate_limited', { quiet: !rate.first });
             ids = parseClaimIds(data);
             if (!ids) refuse('bad_id');
             base.epoch = ids.epoch; base.block = ids.block;
@@ -442,7 +574,7 @@ function createBlockClaimService(deps) {
             if (!result || result.version !== RESULT_VERSION) refuse('epoch_not_ready');
             const derived = deriveEpochBlocks(await loadHistory(ids.epoch), ids.epoch);
             if (!derived.ok || !resultMatchesHistory(result, derived)) {
-                await alert('Favor claim: epoch ' + ids.epoch + ' result does not match sfPoolHistory (' + (derived.reason || 'mismatch') + ').', { epoch: ids.epoch });
+                await alertOnce('history_mismatch_e' + ids.epoch, 'Favor claim: epoch ' + ids.epoch + ' result does not match sfPoolHistory (' + (derived.reason || 'mismatch') + ').', { epoch: ids.epoch });
                 refuse('history_mismatch');
             }
             const row = result.blocks[ids.block];
@@ -465,7 +597,7 @@ function createBlockClaimService(deps) {
             const currentLn = savedLn(userSnap.exists ? userSnap.data() : {});
             const addressChanged = row.lnChangedAfterClose === true || (currentLn && currentLn !== row.frozenLn);
             if (addressChanged) {
-                await alert('Favor claim: winner ' + maskUid(uid) + ' changed their Lightning address after epoch ' + ids.epoch +
+                await alertOnce('address_changed_e' + ids.epoch + '_b' + ids.block, 'Favor claim: winner ' + maskUid(uid) + ' changed their Lightning address after epoch ' + ids.epoch +
                     ' closed. The payout still goes only to the frozen address.', { epoch: ids.epoch, block: ids.block });
                 if (!deps.recentSignIn(context, now())) refuse('step_up_required', { why: 'address_changed' });
             }
@@ -482,7 +614,7 @@ function createBlockClaimService(deps) {
                         reviewReason: row.manualReview || 'no_address', createdAtMs: now(), attempts: 0,
                     });
                 });
-                await alert('Favor claim set aside for manual review: epoch ' + ids.epoch + ' block ' + ids.block + ' (' + (row.manualReview || 'no_address') + ').', { epoch: ids.epoch, block: ids.block });
+                await alertOnce('manual_review_e' + ids.epoch + '_b' + ids.block + '_' + (row.manualReview || 'no_address'), 'Favor claim set aside for manual review: epoch ' + ids.epoch + ' block ' + ids.block + ' (' + (row.manualReview || 'no_address') + ').', { epoch: ids.epoch, block: ids.block });
                 refuse('manual_review', { reason: row.manualReview || 'no_address' });
             }
 
@@ -497,11 +629,14 @@ function createBlockClaimService(deps) {
             const catchUpRef = db.collection('sf_claim_counters').doc(CATCH_UP_COUNTER_ID);
             // Catch-up claims count against the hard ceiling, not the month.
             const budgetRef = catchUp ? catchUpRef : monthRef;
+            const haltRef = db.collection('sf_claim_counters').doc(FEE_HALT_DOC_ID);
             await db.runTransaction(async function (t) {
                 const c = await t.get(claimRef);
                 const ud = await t.get(uidDayRef);
                 const sd = await t.get(siteDayRef);
                 const md = await t.get(budgetRef);
+                const hd = await t.get(haltRef);
+                if (hd.exists && (hd.data() || {}).halted === true) refuse('fee_halt');
                 const cur = c.exists ? (c.data() || {}) : null;
                 if (cur) {
                     if (cur.uid !== uid) refuse('not_winner');
@@ -537,7 +672,10 @@ function createBlockClaimService(deps) {
             });
             reserved = true;
 
-            async function release(code, extra) {
+            // opts.review: set the block aside for a person instead of letting
+            // the player retry (counters are still released).
+            async function release(code, extra, opts) {
+                const review = opts && opts.review ? String(opts.review) : '';
                 await db.runTransaction(async function (t) {
                     const c = await t.get(claimRef);
                     const ud = await t.get(uidDayRef);
@@ -546,9 +684,10 @@ function createBlockClaimService(deps) {
                     const cur = c.exists ? (c.data() || {}) : {};
                     if (cur.status !== 'paying') return;
                     const strikes = Number(cur.attempts) || 0;
+                    const toReview = !!review || strikes >= cfg.maxAttempts;
                     t.set(claimRef, {
-                        status: strikes >= cfg.maxAttempts ? 'manual_review' : 'claimable',
-                        reviewReason: strikes >= cfg.maxAttempts ? 'repeat_failures' : null,
+                        status: toReview ? 'manual_review' : 'claimable',
+                        reviewReason: review || (strikes >= cfg.maxAttempts ? 'repeat_failures' : null),
                         lastError: code, payingAtMs: null,
                     }, { merge: true });
                     t.set(uidDayRef, { sats: Math.max(0, (ud.exists ? Number(ud.data().sats) || 0 : 0) - amount) }, { merge: true });
@@ -560,10 +699,12 @@ function createBlockClaimService(deps) {
             }
 
             // 2. Wallet floor + own node.
-            const wallet = deps.wallet(cfg);
+            let wallet = null;
             let walletSats = null;
             let ownPubkey = '';
             try {
+                // Inside the try: NO_WALLET or mock-off releases the reservation.
+                wallet = deps.wallet(cfg);
                 const bal = await withTimeout(wallet.getBalance(), 20000, 'getBalance');
                 const raw = bal && Number(bal.balance);
                 if (!Number.isFinite(raw)) throw new Error('no balance');
@@ -575,7 +716,7 @@ function createBlockClaimService(deps) {
                 await release('wallet_unavailable');
             }
             if (walletSats - amount < cfg.walletFloorSats) {
-                await alert('Favor claims halted: prize wallet is below the ' + cfg.walletFloorSats + '-sat floor.', { floor: cfg.walletFloorSats });
+                await alertOnce('wallet_low', 'Favor claims halted: prize wallet is below the ' + cfg.walletFloorSats + '-sat floor.', { floor: cfg.walletFloorSats });
                 await release('wallet_low');
             }
 
@@ -583,13 +724,23 @@ function createBlockClaimService(deps) {
             const net = amount - cfg.feeSats;
             let bolt = '';
             let inv = null;
+            let decoded = null;
             try {
-                bolt = await deps.resolveInvoice(row.frozenLn, net);
-                inv = validateInvoice(bolt, deps.decodeInvoice(bolt), net, Math.floor(now() / 1000), ownPubkey);
+                bolt = await deps.resolveInvoice(row.frozenLn, net, cfg);
+                decoded = deps.decodeInvoice(bolt);
+                inv = validateInvoice(bolt, decoded, net, Math.floor(now() / 1000), ownPubkey);
             } catch (e) {
                 inv = { ok: false, reason: 'resolve_failed' };
             }
             if (!inv.ok) await release('bad_invoice', { reason: inv.reason });
+            // Route-hint fee cap, before any wallet call.
+            const feeLimitMsat = routeFeeLimitMsat(net);
+            const hintFees = checkRouteFees(decoded, net);
+            if (!hintFees.ok) {
+                await alert('Favor claim set aside: the invoice for epoch ' + ids.epoch + ' block ' + ids.block +
+                    ' carries a route-hint fee over the ' + Math.round(feeLimitMsat / 1000) + '-sat limit. Not paid.', { epoch: ids.epoch, block: ids.block });
+                await release('route_fee_high', { worstHintFeeMsat: hintFees.worstMsat, limitMsat: hintFees.limitMsat, hintPaths: hintFees.paths }, { review: 'route_fee_high' });
+            }
             const invoiceHash = crypto.createHash('sha256').update(bolt).digest('hex').slice(0, 32);
             await claimRef.set({ paymentHash: inv.paymentHash, invoiceHash: invoiceHash, netSats: net, feeSats: cfg.feeSats }, { merge: true });
 
@@ -608,9 +759,16 @@ function createBlockClaimService(deps) {
                 // Wallet spend is net + routing fee. The reservation was the gross
                 // block amount; true it up so the ceiling counts real spend.
                 const spent = net + routing;
+                // Post-pay check: wallet spend over net must stay inside the fee limit.
+                const routingMsat = Math.max(0, Number(routingFeeSats) * 1000 || 0);
+                const overspend = routingMsat > feeLimitMsat;
                 await db.runTransaction(async function (t) {
                     const p = await t.get(payoutRef);
                     const bd = await t.get(budgetRef);
+                    if (overspend) {
+                        t.set(haltRef, { halted: true, reason: 'routing_fee_over_limit', epoch: ids.epoch, block: ids.block,
+                            routingFeeSats: routing, limitSats: Math.ceil(feeLimitMsat / 1000), atMs: paidAtMs }, { merge: true });
+                    }
                     if (spent !== amount) {
                         t.set(budgetRef, { sats: Math.max(0, (bd.exists ? Number(bd.data().sats) || 0 : 0) - amount + spent) }, { merge: true });
                     }
@@ -629,7 +787,13 @@ function createBlockClaimService(deps) {
                     }
                 });
                 reserved = false;
-                await audit(Object.assign({}, base, { type: 'paid', code: 'paid', amount: amount, netSats: net, paymentHash: inv.paymentHash, ms: now() - t0 }));
+                await audit(Object.assign({}, base, { type: 'paid', code: 'paid', amount: amount, netSats: net, routingFeeSats: routing, paymentHash: inv.paymentHash, ms: now() - t0 }));
+                if (overspend) {
+                    await audit(Object.assign({}, base, { type: 'fee_halt', code: 'fee_halt', routingFeeSats: routing,
+                        walletSpentSats: spent, netSats: net, limitSats: Math.ceil(feeLimitMsat / 1000) }));
+                    await alert('Favor claims HALTED: epoch ' + ids.epoch + ' block ' + ids.block + ' paid a ' + routing +
+                        '-sat routing fee, over the ' + Math.ceil(feeLimitMsat / 1000) + '-sat limit. Clear sf_claim_counters/fee_halt only after a check.', { epoch: ids.epoch, block: ids.block });
+                }
                 return { success: true, epoch: ids.epoch, block: ids.block, amount: amount, sent: net, fee: cfg.feeSats };
             }
 
@@ -659,7 +823,8 @@ function createBlockClaimService(deps) {
                 // 'paying' for a person rather than guessing. Never auto-retry.
                 await alert('Favor claim stuck in paying for epoch ' + (ids && ids.epoch) + ' block ' + (ids && ids.block) + '.', {});
             }
-            await audit(Object.assign({}, base, { type: 'refused', code: code, detail: (e && e.extra) || {}, ms: now() - t0 }));
+            const quiet = NO_AUDIT_CODES.indexOf(code) !== -1 || (code === 'rate_limited' && e && e.extra && e.extra.quiet);
+            if (!quiet) await audit(Object.assign({}, base, { type: 'refused', code: code, detail: (e && e.extra) || {}, ms: now() - t0 }));
             return { success: false, code: code, error: MESSAGES[code] || MESSAGES.pay_failed };
         }
     }
@@ -709,6 +874,16 @@ module.exports = {
     CATCH_UP_MAX_BLOCK_SATS,
     CATCH_UP_FEE_ALLOWANCE_SATS,
     CATCH_UP_COUNTER_ID,
+    ROUTE_FEE_MIN_SATS,
+    ROUTE_FEE_PPM,
+    FEE_HALT_DOC_ID,
+    routeFeeLimitMsat,
+    routeHintFeeMsat,
+    checkRouteFees,
+    RATE_MAX,
+    RATE_WINDOW_MS,
+    NO_AUDIT_CODES,
+    etDayKey,
     isCatchUpEpoch,
     catchUpCeiling,
     DEFAULTS,

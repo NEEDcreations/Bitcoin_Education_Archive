@@ -32,6 +32,7 @@ const FRESH_ACTIONS = {
     adminSetKillSwitch: true,
     claimFavorBlock: true,
     adminSetFavorClaims: true,
+    adminFreezeFavorEpoch: true,
 };
 const RECOVERY_COUNT = 10;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

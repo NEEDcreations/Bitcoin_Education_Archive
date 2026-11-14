@@ -17,6 +17,9 @@ scripts/*
 !scripts/backfill-leaderboard-snapshots.js
 !scripts/backfill-join-dates.js
 !scripts/render-miniapp-og.py
+!scripts/staging/
+scripts/staging/*
+!scripts/staging/seed-favor-winners.js
 .keys/
 firebase-debug.log
 firestore-debug.log

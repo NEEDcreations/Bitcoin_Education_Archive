@@ -9760,7 +9760,9 @@ exports.tctvDripTick = tctvDrip.tctvDripTick;
 const factionRace = require('./src/factionRaceJobs').factory({ functionsV1, admin, db, onDocumentWritten });
 exports.onFactionTotalsWritten = factionRace.onFactionTotalsWritten;
 exports.adminFactionRaceBreakdown = factionRace.adminFactionRaceBreakdown;
-exports.adminApproveFactionPayout = factionRace.adminApproveFactionPayout;
+// adminApproveFactionPayout (and the old Favor approve step) are NOT
+// exported, so a deploy can never ship them (Red Team #311). The handler
+// code stays in factionRaceJobs.js for reference; it is never deployed.
 
 // ================================================================
 // KILL SWITCH — admin-only app-wide offline switch (config/killSwitch).
