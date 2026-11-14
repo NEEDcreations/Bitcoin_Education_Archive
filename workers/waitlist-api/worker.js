@@ -7,7 +7,8 @@
  * their WAF was blocking server-side forwards with HTTP 403).
  *
  * Stored per row: email (trimmed, lowercased), created_at, source='waitlist',
- * consent=1, substack_status, substack_at. No IP, no user agent, no referrer.
+ * consent=1, substack_status, substack_at, optional ref and src campaign tags.
+ * No IP, no user agent, no referrer.
  *
  * Bindings (wrangler.toml): DB (D1), RL (rate limit, optional),
  *       NOTIFY (send_email, optional; destination info.603btc@gmail.com).
@@ -32,6 +33,22 @@ export function normalizeEmail(raw) {
     const tld = e.slice(e.lastIndexOf('.') + 1);
     if (tld.length < 2 || /^\d+$/.test(tld)) return null;
     return e;
+}
+
+// Campaign tags from /waitlist?ref=&src=. Anything that does not match is dropped, not rejected.
+const REF_RE = /^[A-Za-z0-9]{4,16}$/;
+const SRC_RE = /^[a-z0-9-]{1,32}$/;
+
+export function normalizeRef(raw) {
+    if (typeof raw !== 'string') return null;
+    const v = raw.trim();
+    return REF_RE.test(v) ? v : null;
+}
+
+export function normalizeSrc(raw) {
+    if (typeof raw !== 'string') return null;
+    const v = raw.trim();
+    return SRC_RE.test(v) ? v : null;
 }
 
 function json(body, status, extra) {
@@ -159,10 +176,13 @@ export async function handleWaitlist(req, env, ctx) {
     if (ts === null) return reply(req, 503, { ok: false, error: 'unavailable' });
     if (!ts) return reply(req, 403, { ok: false, error: 'challenge' });
 
+    const ref = normalizeRef(body.ref);
+    const src = normalizeSrc(body.src);
+
     const now = new Date().toISOString();
     const ins = await env.DB.prepare(
-        "INSERT INTO waitlist (email, created_at, source, consent, substack_status, substack_at) VALUES (?1, ?2, 'waitlist', 1, 'browser', ?2) ON CONFLICT(email) DO NOTHING"
-    ).bind(email, now).run();
+        "INSERT INTO waitlist (email, created_at, source, consent, substack_status, substack_at, ref, src) VALUES (?1, ?2, 'waitlist', 1, 'browser', ?2, ?3, ?4) ON CONFLICT(email) DO NOTHING"
+    ).bind(email, now, ref, src).run();
     const isNew = !!(ins && ins.meta && ins.meta.changes === 1);
 
     const row = await env.DB.prepare('SELECT substack_status FROM waitlist WHERE email = ?1').bind(email).first();

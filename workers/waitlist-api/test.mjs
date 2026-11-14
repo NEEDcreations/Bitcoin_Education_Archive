@@ -4,7 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { notifySignup, formatEt, handleWaitlist } from './worker.js';
+import { notifySignup, formatEt, handleWaitlist, normalizeRef, normalizeSrc } from './worker.js';
 const here = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(process.env.MINIFLARE_PATH || import.meta.url);
 const { Miniflare } = require('miniflare');
@@ -62,7 +62,8 @@ let d = await r.json();
 ok(r.status === 200 && d.ok === true && !d.retry, 'valid email -> 200 ok');
 let row = await db.prepare('SELECT * FROM waitlist WHERE email=?').bind('alice@example.com').first();
 ok(row && row.source === 'waitlist' && row.consent === 1 && row.substack_status === 'browser' && /^\d{4}-\d\d-\d\dT/.test(row.created_at), 'stored lowercased with createdAt, source, consent, browser status');
-ok(Object.keys(row).every(k => ['email','created_at','source','consent','substack_status','substack_at'].includes(k)), 'row has no IP or UA column');
+ok(row && row.ref == null && row.src == null, 'untagged signup stores null ref and src');
+ok(Object.keys(row).every(k => ['email','created_at','source','consent','substack_status','substack_at','ref','src'].includes(k)), 'row has no IP or UA column');
 const sub = calls.filter(c => c.host === '603btc.substack.com');
 ok(sub.length === 0, 'Worker does not POST to Substack; the browser does');
 
@@ -95,6 +96,56 @@ ok(calls.filter(c => c.host === '603btc.substack.com').length === 0, 'resubmit o
 
 r = await post(mf, { email: 'carol@example.com', consent: 'on', 'cf-turnstile-response': 'good' }, { ip: '10.0.4.1', accept: 'text/html' });
 ok(r.status === 303 && r.headers.get('location') === '/waitlist?s=ok', 'no-JS form post -> 303 back to /waitlist?s=ok');
+
+// Campaign tags: persist valid ref/src, drop invalid, keep first src on duplicate.
+r = await post(mf, { email: 'tagged@example.com', consent: 'on', 'cf-turnstile-response': 'good', ref: 's2rP0nRE', src: 'sub-1201' }, { ip: '10.0.6.1' });
+d = await r.json();
+row = await db.prepare('SELECT * FROM waitlist WHERE email=?').bind('tagged@example.com').first();
+ok(r.status === 200 && d.ok && row && row.ref === 's2rP0nRE' && row.src === 'sub-1201', 'valid ref and src are stored');
+
+r = await post(mf, { email: 'tagged@example.com', consent: 'on', 'cf-turnstile-response': 'good', ref: 'ABCD1234', src: 'other-post' }, { ip: '10.0.6.2' });
+d = await r.json();
+row = await db.prepare('SELECT * FROM waitlist WHERE email=?').bind('tagged@example.com').first();
+ok(r.status === 200 && d.ok && row.ref === 's2rP0nRE' && row.src === 'sub-1201', 'duplicate keeps the first src and ref');
+
+r = await post(mf, { email: 'firstnull@example.com', consent: 'on', 'cf-turnstile-response': 'good' }, { ip: '10.0.6.3' });
+r = await post(mf, { email: 'firstnull@example.com', consent: 'on', 'cf-turnstile-response': 'good', ref: 's2rP0nRE', src: 'sub-1201' }, { ip: '10.0.6.4' });
+row = await db.prepare('SELECT * FROM waitlist WHERE email=?').bind('firstnull@example.com').first();
+ok(row && row.ref == null && row.src == null, 'duplicate keeps a first-null src rather than filling it later');
+
+r = await post(mf, { email: 'json-tags@example.com', consent: true, 'cf-turnstile-response': 'good', ref: 'Ab12', src: 'x' }, { ip: '10.0.6.5', form: false });
+row = await db.prepare('SELECT * FROM waitlist WHERE email=?').bind('json-tags@example.com').first();
+ok(r.status === 200 && row && row.ref === 'Ab12' && row.src === 'x', 'JSON body also stores min-length valid ref and src');
+
+const badTags = [
+  '', 'ab', 'abc', 'A'.repeat(17), 'ref_bad', 's2rP0nRE!', 's2r P0n', '<script>',
+  "s2rP0nRE'; DROP TABLE waitlist;--", 's2rP0nRE\nX', '🎉abcd'
+];
+let badRefOk = true;
+for (let i = 0; i < badTags.length; i++) {
+  const email = 'badref' + i + '@example.com';
+  r = await post(mf, { email, consent: 'on', 'cf-turnstile-response': 'good', ref: badTags[i], src: 'sub-1201' }, { ip: '10.0.7.' + (i + 1) });
+  row = await db.prepare('SELECT * FROM waitlist WHERE email=?').bind(email).first();
+  if (!(r.status === 200 && row && row.ref == null && row.src === 'sub-1201')) badRefOk = false;
+}
+ok(badRefOk, 'invalid ref values become null; signup and src still succeed');
+
+const badSrcs = [
+  '', 'SUB-1201', 'sub_1201', 'sub.1201', 'sub 1201', 'a'.repeat(33),
+  "sub-1201'; DROP TABLE waitlist;--", '../etc/passwd', 'https://evil.example',
+  'sub-1201\x00x', '<img>', 'src=foo'
+];
+let badSrcOk = true;
+for (let i = 0; i < badSrcs.length; i++) {
+  const email = 'badsrc' + i + '@example.com';
+  r = await post(mf, { email, consent: 'on', 'cf-turnstile-response': 'good', ref: 's2rP0nRE', src: badSrcs[i] }, { ip: '10.0.8.' + (i + 1) });
+  row = await db.prepare('SELECT * FROM waitlist WHERE email=?').bind(email).first();
+  if (!(r.status === 200 && row && row.ref === 's2rP0nRE' && row.src == null)) badSrcOk = false;
+}
+ok(badSrcOk, 'invalid src values become null; signup and ref still succeed');
+
+const dropped = await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='waitlist'").first();
+ok(dropped && dropped.name === 'waitlist', 'injection attempts did not drop the waitlist table');
 
 let limited = false;
 for (let i = 0; i < 8; i++) {
@@ -271,6 +322,46 @@ const pageJs = readFileSync(join(repo, 'waitlist.js'), 'utf8');
 ok(pageJs.includes("show('ok')") && /revealSubstack/.test(pageJs) && !/api\/v1\/free/.test(pageJs), 'page shows success and reveals the Substack embed; no hidden server-style Substack POST');
 ok(/getResponse/.test(pageJs) && /if \(!token\) \{ show\('check'\); return; \}/.test(pageJs), 'page refuses to POST without a Turnstile token');
 ok(/code === 'email'\) show\('err'\)/.test(pageJs) && /code === 'challenge'\) show\('check'\)/.test(pageJs), 'only an email error shows the bad-email copy; a challenge error shows the check copy');
+ok(/sessionStorage/.test(pageJs) && /location\.search/.test(pageJs) && /wl_/.test(pageJs), 'page reads ref/src from the query string and keeps them in sessionStorage');
+ok(/\[A-Za-z0-9\]\{4,16\}/.test(pageJs) && /\[a-z0-9-\]\{1,32\}/.test(pageJs), 'page validates ref and src with the same strict patterns as the Worker');
+ok(/body\.set\('ref'/.test(pageJs) && /body\.set\('src'/.test(pageJs), 'page sends ref and src with the form POST');
+
+ok(normalizeRef('s2rP0nRE') === 's2rP0nRE' && normalizeRef('  Ab12  ') === 'Ab12' && normalizeRef('abc') === null && normalizeRef("s2r';DROP") === null && normalizeRef(1234) === null, 'normalizeRef accepts [A-Za-z0-9]{4,16} and drops the rest');
+ok(normalizeSrc('sub-1201') === 'sub-1201' && normalizeSrc('x') === 'x' && normalizeSrc('SUB-1201') === null && normalizeSrc('a'.repeat(33)) === null && normalizeSrc("sub';DROP") === null, 'normalizeSrc accepts [a-z0-9-]{1,32} and drops the rest');
+
+const migration = readFileSync(join(here, 'migrations/0001_add_ref_src.sql'), 'utf8');
+ok(/ALTER TABLE waitlist ADD COLUMN ref TEXT/.test(migration) && /ALTER TABLE waitlist ADD COLUMN src TEXT/.test(migration) && !/DROP TABLE|CREATE TABLE waitlist/i.test(migration), 'migration only adds nullable ref and src columns');
+
+const OLD_SCHEMA = `CREATE TABLE IF NOT EXISTS waitlist (
+  email TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT 'waitlist',
+  consent INTEGER NOT NULL DEFAULT 1,
+  substack_status TEXT NOT NULL DEFAULT 'pending',
+  substack_at TEXT
+);`;
+const mfMig = new Miniflare({
+  workers: [{
+    name: 'waitlist-api',
+    modules: true,
+    scriptPath: join(here, 'worker.js'),
+    compatibilityDate: '2026-08-01',
+    d1Databases: ['DB'],
+    bindings: live,
+    outboundService: outbound,
+  }],
+});
+const dbMig = await mfMig.getD1Database('DB');
+await dbMig.prepare(OLD_SCHEMA).run();
+for (const stmt of migration.split(';').map(s => s.replace(/--.*$/gm, '').trim()).filter(Boolean)) {
+  await dbMig.prepare(stmt).run();
+}
+await dbMig.prepare("INSERT INTO waitlist (email, created_at, source, consent, substack_status, substack_at, ref, src) VALUES ('mig@example.com', '2026-11-14T00:00:00Z', 'waitlist', 1, 'browser', '2026-11-14T00:00:00Z', 's2rP0nRE', 'sub-1201')").run();
+const migRow = await dbMig.prepare('SELECT ref, src FROM waitlist WHERE email=?').bind('mig@example.com').first();
+const counts = await dbMig.prepare('SELECT src, COUNT(*) AS n FROM waitlist GROUP BY src').first();
+ok(migRow && migRow.ref === 's2rP0nRE' && migRow.src === 'sub-1201' && counts && counts.src === 'sub-1201' && counts.n === 1, 'migration applies to an existing table and supports count-by-src');
+await mfMig.dispose();
+
 const cspSrc = readFileSync(join(repo, 'workers/seo-router/worker.js'), 'utf8');
 ok(/function isWaitlistPath/.test(cspSrc) && /allowSubstackSubscribe/.test(cspSrc) && /form-action 'self'" \+ \(allowSubstackSubscribe \? " https:\/\/603btc\.substack\.com"/.test(cspSrc), 'seo-router allows Substack form-action and frame-src only on the waitlist path');
 
