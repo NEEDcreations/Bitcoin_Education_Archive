@@ -268,8 +268,9 @@ ok(r.status === 200 && d.ok && store.has('dana@example.com'), 'notify failure ne
 globalThis.fetch = prevFetch;
 
 const pageJs = readFileSync(join(repo, 'waitlist.js'), 'utf8');
-ok(pageJs.includes('https://603btc.substack.com/api/v1/free?nojs=true') && pageJs.includes('wlSubstackFrame') && pageJs.includes("show('ok')"), 'page posts to Substack nojs endpoint in a hidden iframe and shows the confirm-inbox message');
-ok(/Check your inbox to confirm/.test(pageJs), 'success copy tells the visitor to check their inbox to confirm');
+ok(pageJs.includes("show('ok')") && /revealSubstack/.test(pageJs) && !/api\/v1\/free/.test(pageJs), 'page shows success and reveals the Substack embed; no hidden server-style Substack POST');
+ok(/getResponse/.test(pageJs) && /if \(!token\) \{ show\('check'\); return; \}/.test(pageJs), 'page refuses to POST without a Turnstile token');
+ok(/code === 'email'\) show\('err'\)/.test(pageJs) && /code === 'challenge'\) show\('check'\)/.test(pageJs), 'only an email error shows the bad-email copy; a challenge error shows the check copy');
 const cspSrc = readFileSync(join(repo, 'workers/seo-router/worker.js'), 'utf8');
 ok(/function isWaitlistPath/.test(cspSrc) && /allowSubstackSubscribe/.test(cspSrc) && /form-action 'self'" \+ \(allowSubstackSubscribe \? " https:\/\/603btc\.substack\.com"/.test(cspSrc), 'seo-router allows Substack form-action and frame-src only on the waitlist path');
 
