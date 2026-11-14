@@ -225,7 +225,7 @@ console.log('');
         sb.syncHomeAdminBtn();
         doc.getElementById('homeAdminBtn').click();
         await flush();
-        const s = doc.scripts().find((x) => /admin-panel\.js\?v=20261109_v2542$/.test(x.src));
+        const s = doc.scripts().find((x) => /admin-panel\.js\?v=20261111_v2551$/.test(x.src));
         assert.ok(s, 'panel script requested');
         vm.runInContext(read('admin-panel.js'), sb, { filename: 'admin-panel.js' });
         s.onload();
@@ -239,12 +239,20 @@ console.log('');
             assert.ok(t.how && t.how.length >= 20, 'how tip for ' + t.id);
             assert.strictEqual(typeof t.open, 'function');
         });
-        ['cipherWins', 'factionPrize', 'faucetAbuse', 'factionBackfill', 'chat', 'forum', 'market', 'beats', 'topics']
+        ['killSwitch', 'cipherWins', 'factionPrize', 'faucetAbuse', 'factionBackfill', 'chat', 'forum', 'market', 'beats', 'topics']
             .forEach((id) => assert.ok(tools.some((t) => t.id === id), 'tile ' + id));
         // Tapping a Settings tile closes the panel and opens the existing admin mount.
         const sheet = panel.children[0];
-        const firstRow = sheet.children.find((c) => c.className === 'bap-row');
-        firstRow.children[0].click();
+        const cipherTile = sheet.querySelector('[data-tool="cipherWins"]') || (function () {
+            const rows = sheet.children.filter ? sheet.children.filter((c) => c.className === 'bap-row') : [];
+            // fallback: find the row whose tile data-tool is cipherWins
+            return null;
+        })();
+        const cipherRow = sheet.children.find && sheet.children.find(function (c) {
+            return c.className === 'bap-row' && c.children[0] && c.children[0].attributes && c.children[0].attributes['data-tool'] === 'cipherWins';
+        });
+        const row = cipherRow || sheet.children.find((c) => c.className === 'bap-row');
+        row.children[0].click();
         assert.strictEqual(doc.getElementById('bqAdminPanel'), null);
         assert.ok(sb._opened.includes('settings'));
     });

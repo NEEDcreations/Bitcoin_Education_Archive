@@ -46,6 +46,17 @@
     // "how" line that the (i) button shows on tap or hover.
     var GROUPS = [
         {
+            title: 'Safety',
+            tools: [
+                {
+                    id: 'killSwitch', icon: '\uD83D\uDED1', name: 'Kill switch',
+                    tip: 'Take the app offline for everyone, then bring it back.',
+                    how: 'Checks that a recent backup exists (a stale backup warns, never blocks), asks you to type OFFLINE and a reason, then flips first and starts a database snapshot. You can still use Admin tools while it is off.',
+                    open: openKillSwitch
+                }
+            ]
+        },
+        {
             title: 'Payouts',
             tools: [
                 {
@@ -137,6 +148,26 @@
         '[data-theme="light"] #bqAdminPanel .bap-tip,[data-theme="light"] #bqAdminPanel .bap-note{color:#475569;}' +
         '[data-theme="light"] #bqAdminPanel .bap-how{color:#0f172a;}' +
         '[data-theme="light"] #bqAdminPanel .bap-x{color:#0f172a;border-color:#cbd5e1;}';
+
+    var KSCSS =
+        '#bqKillSwitchUi{position:fixed;inset:0;z-index:480000;display:flex;align-items:flex-end;justify-content:center;background:rgba(2,6,23,0.72);}' +
+        '@media (min-width:700px){#bqKillSwitchUi{align-items:center;}}' +
+        '#bqKillSwitchUi .ksu-sheet{width:100%;max-width:560px;max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch;box-sizing:border-box;background:var(--bg,#0b1220);color:var(--text,#e2e8f0);border:1px solid var(--border,#334155);border-radius:20px 20px 0 0;padding:16px 14px calc(16px + env(safe-area-inset-bottom,0px));font-family:inherit;}' +
+        '@media (min-width:700px){#bqKillSwitchUi .ksu-sheet{border-radius:20px;padding:20px;}}' +
+        '#bqKillSwitchUi h2{margin:0;font-size:1.2rem;font-weight:900;flex:1;}' +
+        '#bqKillSwitchUi .ksu-head{display:flex;align-items:center;gap:10px;margin-bottom:8px;}' +
+        '#bqKillSwitchUi .ksu-x{width:44px;height:44px;border-radius:12px;border:1px solid var(--border,#334155);background:transparent;color:inherit;font-size:1.2rem;cursor:pointer;}' +
+        '#bqKillSwitchUi p,#bqKillSwitchUi li{font-size:0.88rem;line-height:1.45;margin:0 0 8px;}' +
+        '#bqKillSwitchUi .ok{color:#86efac;}' +
+        '#bqKillSwitchUi .warn{color:#fbbf24;}' +
+        '#bqKillSwitchUi .bad{color:#fca5a5;}' +
+        '#bqKillSwitchUi label{display:block;font-size:0.8rem;font-weight:700;margin:10px 0 4px;}' +
+        '#bqKillSwitchUi input,#bqKillSwitchUi textarea,#bqKillSwitchUi select{width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid var(--border,#334155);background:var(--input-bg,#0b1220);color:inherit;font-family:inherit;}' +
+        '#bqKillSwitchUi .ksu-row{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}' +
+        '#bqKillSwitchUi .ksu-go{flex:1;min-height:44px;border:0;border-radius:12px;background:#b91c1c;color:#fff;font-weight:800;cursor:pointer;font-family:inherit;}' +
+        '#bqKillSwitchUi .ksu-go.on{background:#15803d;}' +
+        '#bqKillSwitchUi .ksu-cancel{min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--border,#334155);background:transparent;color:inherit;cursor:pointer;font-family:inherit;}' +
+        '#bqKillSwitchUi .ksu-status{font-size:0.82rem;color:var(--text-muted,#94a3b8);min-height:18px;margin-top:8px;}';
 
     function el(tag, cls, text) {
         var n = document.createElement(tag);
@@ -237,5 +268,201 @@
         if (first) { try { first.focus({ preventScroll: true }); } catch (e) {} }
     };
 
+
+    function escapeHtml(s) {
+        return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function closeKillSwitchUi() {
+        var el = document.getElementById('bqKillSwitchUi');
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+    }
+
+    function callKillSwitch(payload) {
+        if (typeof firebase === 'undefined' || !firebase.functions) {
+            return Promise.reject(new Error('Functions are not ready. Refresh and try again.'));
+        }
+        return firebase.functions().httpsCallable('adminSetKillSwitch')(payload).then(function (res) {
+            return (res && res.data) || {};
+        });
+    }
+
+    function renderChecks(preflight) {
+        if (!preflight || !preflight.checks) return '<p>Checking backups\u2026</p>';
+        var items = preflight.checks.map(function (c) {
+            var cls = c.skipped ? '' : (c.ok ? 'ok' : 'warn');
+            var mark = c.skipped ? '\u2014' : (c.ok ? '\u2713' : '!');
+            return '<li class="' + cls + '">' + escapeHtml(mark + ' ' + c.label + ': ' + (c.detail || '')) + '</li>';
+        }).join('');
+        var head = preflight.ok
+            ? '<p class="ok">Backups look current.</p>'
+            : '<p class="warn">A backup check failed. You can still go offline \u2014 a stale backup is a warning, not a block.</p>';
+        return head + '<ul style="padding-left:18px;margin:0 0 10px;">' + items + '</ul>';
+    }
+
+    function renderSnapshot(snap) {
+        if (!snap) return '<p>No snapshot yet.</p>';
+        var st = snap.status || 'unknown';
+        var cls = st === 'SUCCESS' ? 'ok' : (st === 'FAILED' || st === 'START_FAILED' ? 'bad' : '');
+        var line = 'Snapshot: ' + st;
+        if (snap.operationName) line += ' (operation ' + snap.operationName.split('/').pop() + ')';
+        if (snap.error) line += ' \u2014 ' + snap.error;
+        return '<p class="' + cls + '">' + escapeHtml(line) + '</p>';
+    }
+
+    function openKillSwitch() {
+        if (!isAdmin()) return;
+        closeKillSwitchUi();
+        if (!document.getElementById('bqKillSwitchUiCss')) {
+            var st = document.createElement('style');
+            st.id = 'bqKillSwitchUiCss';
+            st.textContent = KSCSS;
+            document.head.appendChild(st);
+        }
+        var root = document.createElement('div');
+        root.id = 'bqKillSwitchUi';
+        root.setAttribute('role', 'dialog');
+        root.setAttribute('aria-modal', 'true');
+        root.setAttribute('aria-labelledby', 'bqKillSwitchTitle');
+        var sheet = document.createElement('div');
+        sheet.className = 'ksu-sheet';
+        sheet.innerHTML =
+            '<div class="ksu-head"><h2 id="bqKillSwitchTitle">Kill switch</h2><button type="button" class="ksu-x" aria-label="Close">\u2715</button></div>' +
+            '<p>Turning this on takes Bitcoin Quest offline for everyone except admins. Payouts and rewards pause. A database snapshot starts right after the app stops, and a failed snapshot will not turn it back on.</p>' +
+            '<div id="ksuState"><p>Loading current status and backups\u2026</p></div>' +
+            '<div id="ksuForm" style="display:none">' +
+            '<label for="ksuReason">Reason (required, shown to admins only)</label>' +
+            '<textarea id="ksuReason" rows="2" maxlength="200" placeholder="Why are you flipping this?"></textarea>' +
+            '<label for="ksuConfirm">Type <span id="ksuWord">OFFLINE</span> to confirm</label>' +
+            '<input id="ksuConfirm" type="text" autocomplete="off" autocapitalize="characters">' +
+            '<label for="ksuReenable" id="ksuReenableLab">Auto-return (optional)</label>' +
+            '<select id="ksuReenable">' +
+            '<option value="">Stay off until an admin turns it on</option>' +
+            '<option value="30">30 minutes</option>' +
+            '<option value="60">1 hour</option>' +
+            '<option value="180">3 hours</option>' +
+            '<option value="720">12 hours</option>' +
+            '<option value="1440">24 hours</option>' +
+            '</select>' +
+            '<label id="ksuOverrideLab" style="display:none"><input type="checkbox" id="ksuOverride"> I understand a backup is stale or missing, and I still want to go offline.</label>' +
+            '<div class="ksu-row">' +
+            '<button type="button" class="ksu-go" id="ksuGo">Go offline</button>' +
+            '<button type="button" class="ksu-cancel" id="ksuCancel">Cancel</button>' +
+            '</div></div>' +
+            '<div class="ksu-status" id="ksuStatus"></div>';
+        root.appendChild(sheet);
+        document.body.appendChild(root);
+        function close() { closeKillSwitchUi(); }
+        sheet.querySelector('.ksu-x').addEventListener('click', close);
+        sheet.querySelector('#ksuCancel').addEventListener('click', close);
+        root.addEventListener('click', function (ev) { if (ev.target === root) close(); });
+
+        var state = { on: false, preflight: null, needsOverride: false };
+
+        function paint() {
+            var box = sheet.querySelector('#ksuState');
+            var form = sheet.querySelector('#ksuForm');
+            var word = sheet.querySelector('#ksuWord');
+            var go = sheet.querySelector('#ksuGo');
+            var reLab = sheet.querySelector('#ksuReenableLab');
+            var re = sheet.querySelector('#ksuReenable');
+            var ovLab = sheet.querySelector('#ksuOverrideLab');
+            var heading = state.on
+                ? '<p class="warn">The app is currently <strong>offline</strong>.</p>'
+                : '<p>The app is currently <strong>online</strong>.</p>';
+            box.innerHTML = heading + renderChecks(state.preflight) + renderSnapshot(state.snapshot);
+            form.style.display = 'block';
+            word.textContent = state.on ? 'ONLINE' : 'OFFLINE';
+            go.textContent = state.on ? 'Bring the app back' : 'Go offline';
+            go.className = 'ksu-go' + (state.on ? ' on' : '');
+            reLab.style.display = state.on ? 'none' : '';
+            re.style.display = state.on ? 'none' : '';
+            ovLab.style.display = (!state.on && state.needsOverride) ? 'block' : 'none';
+        }
+
+        callKillSwitch({ action: 'preflight' }).then(function (data) {
+            state.on = !!(data.state && data.state.on);
+            state.preflight = data.preflight || null;
+            state.snapshot = data.state && data.state.snapshot;
+            state.needsOverride = !!(data.preflight && data.preflight.ok === false);
+            paint();
+        }).catch(function (e) {
+            sheet.querySelector('#ksuState').innerHTML = '<p class="bad">Could not read status. ' + escapeHtml((e && e.message) || e) + '</p>';
+        });
+
+        sheet.querySelector('#ksuGo').addEventListener('click', function () {
+            var action = state.on ? 'off' : 'on';
+            var reason = (sheet.querySelector('#ksuReason').value || '').trim();
+            var confirm = (sheet.querySelector('#ksuConfirm').value || '').trim();
+            var status = sheet.querySelector('#ksuStatus');
+            var go = sheet.querySelector('#ksuGo');
+            var override = !!(sheet.querySelector('#ksuOverride') && sheet.querySelector('#ksuOverride').checked);
+            var mins = sheet.querySelector('#ksuReenable').value;
+            status.textContent = '';
+            if (reason.length < 8) { status.textContent = 'Add a short reason (at least 8 characters).'; return; }
+            if (confirm !== (action === 'on' ? 'OFFLINE' : 'ONLINE')) {
+                status.textContent = 'Type ' + (action === 'on' ? 'OFFLINE' : 'ONLINE') + ' to confirm.';
+                return;
+            }
+            go.disabled = true;
+            go.textContent = 'Checking your sign-in\u2026';
+            var payload = { action: action, reason: reason, confirm: confirm, override: override };
+            if (action === 'on' && mins) payload.reenableInMinutes = Number(mins);
+
+            function afterProof(proof) {
+                if (proof) payload.freshProofId = proof;
+                go.textContent = action === 'on' ? 'Going offline\u2026' : 'Bringing it back\u2026';
+                return callKillSwitch(payload).then(function (data) {
+                    if (data && data.needsOverride) {
+                        state.needsOverride = true;
+                        state.preflight = data.preflight || state.preflight;
+                        paint();
+                        status.textContent = 'A backup is stale or missing. Tick the override box if you still want to go offline.';
+                        go.disabled = false;
+                        go.textContent = 'Go offline';
+                        return;
+                    }
+                    state.on = !!data.on;
+                    state.snapshot = data.snapshot || (data.state && data.state.snapshot) || state.snapshot;
+                    if (data.preflight) state.preflight = data.preflight;
+                    state.needsOverride = false;
+                    sheet.querySelector('#ksuConfirm').value = '';
+                    paint();
+                    var snapLine = data.snapshot
+                        ? (' Snapshot: ' + (data.snapshot.status || 'started') + (data.snapshot.error ? (' \u2014 ' + data.snapshot.error) : '') + '.')
+                        : '';
+                    status.textContent = (data.changed
+                        ? (data.on ? 'The app is now offline.' : 'The app is back online.')
+                        : 'No change \u2014 it was already in that state.') + snapLine;
+                    go.disabled = false;
+                    if (typeof window.bqKillSwitchApply === 'function') window.bqKillSwitchApply(!!data.on);
+                });
+            }
+
+            var step = (typeof window._showFreshStepUp === 'function')
+                ? window._showFreshStepUp('adminSetKillSwitch')
+                : Promise.resolve(null);
+            step.then(function (proof) {
+                if (proof === null && typeof window._showFreshStepUp === 'function') {
+                    go.disabled = false;
+                    go.textContent = state.on ? 'Bring the app back' : 'Go offline';
+                    status.textContent = 'Enter a fresh authenticator code to continue.';
+                    return;
+                }
+                return afterProof(proof);
+            }).catch(function (e) {
+                go.disabled = false;
+                go.textContent = state.on ? 'Bring the app back' : 'Go offline';
+                var msg = (e && (e.message || (e.details && e.details.message))) || String(e);
+                if (String((e && e.code) || '').indexOf('failed-precondition') !== -1 || /sign in again|too new|two-factor/i.test(msg)) {
+                    status.textContent = msg;
+                } else {
+                    status.textContent = msg;
+                }
+            });
+        });
+    }
+
     window.bqAdminPanelTools = GROUPS;
+    window.bqOpenKillSwitch = openKillSwitch;
 })();

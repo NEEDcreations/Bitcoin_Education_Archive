@@ -18,8 +18,19 @@
 // `extra` lists least-privilege roles beyond Firestore (roles/datastore.user,
 // which every listed function gets):
 //   auth    -> roles/firebaseauth.admin
+//   authViewer -> roles/firebaseauth.viewer (listUsers / read-only Auth)
 //   fcm     -> roles/firebasecloudmessaging.admin
 //   storage -> roles/storage.objectAdmin on the default bucket only
+//   backups -> roles/storage.objectViewer on the Firestore export bucket
+//              (<project>-backups) so preflight can list/read nightlies,
+//              PLUS roles/storage.objectCreator and objectViewer on the
+//              dedicated kill-switch snapshot bucket
+//              (bitcoin-education-archive-killswitch-exports). No IAM
+//              condition: the backups bucket cannot take a prefix grant.
+//              objectAdmin is never used.
+//   killSwitchExport -> custom role projects/$PROJECT/roles/killSwitchExport
+//              with only datastore.databases.export and
+//              datastore.operations.get (cannot import over live data).
 // Gen2 event and scheduled triggers also need roles/run.invoker on their own
 // Cloud Run service, and gen2 event triggers need roles/eventarc.eventReceiver;
 // the plan script derives those from the trigger type.
@@ -35,6 +46,8 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     adminQueryUsers: { id: 'fn-admin-query-users', extra: [] },
     adminResetSecondFactor: { id: 'fn-admin-reset-second', extra: ['auth'] },
     adminResolveCipherSatsClaim: { id: 'fn-admin-resolve-cipher-claim', extra: [] },
+    adminSetKillSwitch: { id: 'fn-admin-kill-switch', extra: ['backups', 'killSwitchExport', 'authViewer'] },
+    killSwitchAutoReturnTick: { id: 'fn-admin-kill-switch', extra: ['backups', 'killSwitchExport', 'authViewer'] },
     adminUnbanUser: { id: 'fn-admin-unban-user', extra: [] },
     auditWithdrawals: { id: 'fn-audit-withdrawals', extra: [] },
     backfillJoinDates: { id: 'fn-backfill-join-dates', extra: ['auth'] },
@@ -92,8 +105,11 @@ const DEFAULT_PROJECT = 'bitcoin-education-archive';
 
 const EXTRA_ROLES = Object.freeze({
     auth: 'roles/firebaseauth.admin',
+    authViewer: 'roles/firebaseauth.viewer',
     fcm: 'roles/firebasecloudmessaging.admin',
     storage: 'roles/storage.objectAdmin',
+    backups: 'roles/storage.objectCreator+objectViewer',
+    killSwitchExport: 'projects/' + (process.env.GCLOUD_PROJECT || process.env.GCP_PROJECT || 'bitcoin-education-archive') + '/roles/killSwitchExport',
 });
 
 function runtimeSa(functionName) {

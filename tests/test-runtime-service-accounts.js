@@ -24,9 +24,10 @@ const names = Object.keys(endpoints);
 const secretBound = names.filter(function (n) { return endpoints[n].secrets.length > 0; }).sort();
 const manifest = Object.keys(RUNTIME_SERVICE_ACCOUNTS).sort();
 
-test('manifest lists exactly the secret-bound exports (56)', function () {
+test('manifest lists exactly the secret-bound exports (58)', function () {
     assert.deepStrictEqual(manifest, secretBound);
-    assert.strictEqual(manifest.length, 56);
+    assert.strictEqual(manifest.length, 58);
+    assert.strictEqual(secretBound.length, 58);
 });
 
 test('every secret-bound function runs as its own account', function () {
@@ -43,12 +44,15 @@ test('functions without secrets do not set a service account', function () {
 
 test('account ids are valid, unique, and fit the project quota', function () {
     const ids = manifest.map(function (n) { return RUNTIME_SERVICE_ACCOUNTS[n].id; });
-    assert.strictEqual(new Set(ids).size, ids.length);
-    ids.forEach(function (id) {
+    // adminSetKillSwitch and killSwitchAutoReturnTick intentionally share one account.
+    const unique = Array.from(new Set(ids));
+    assert.strictEqual(ids.filter(function (id) { return id === 'fn-admin-kill-switch'; }).length, 2);
+    assert.strictEqual(unique.length, ids.length - 1);
+    unique.forEach(function (id) {
         assert.ok(/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(id), id);
         assert.ok(id.indexOf('fn-') === 0, id);
     });
-    assert.ok(ids.length + 6 <= 100, 'default quota is 100 service accounts per project');
+    assert.ok(unique.length + 6 <= 100, 'default quota is 100 service accounts per project');
 });
 
 test('runtimeSa resolves the project from env and never returns bare shorthand', function () {
@@ -111,9 +115,40 @@ test('gcloud output: named deploy only, metadata-free, one secret grant per boun
             const grants = text.split('\n').filter(function (l) {
                 return l.indexOf('gcloud secrets add-iam-policy-binding') === 0 && l.indexOf('serviceAccount:' + f.email + ' ') !== -1;
             });
-            assert.strictEqual(grants.length, f.secrets.length, n);
+            // Shared runtime SAs emit one grant per unique secret on that
+            // account, not per function in the batch.
+            const union = new Set();
+            b.fns.forEach(function (other) {
+                if (plan.functions[other].email === f.email) {
+                    plan.functions[other].secrets.forEach(function (s) { union.add(s); });
+                }
+            });
+            assert.strictEqual(grants.length, union.size, n);
         });
     });
+});
+
+test('gcloud plan is valid bash and has no prefixed bucket IAM condition', function () {
+    const { execFileSync } = require('child_process');
+    const os = require('os');
+    let sawCondition = 0;
+    for (let i = 0; i < plan.batches.length; i++) {
+        const text = planMod.gcloudFor(plan, i);
+        const tmp = path.join(os.tmpdir(), 'runtime-sa-plan-batch-' + i + '.sh');
+        fs.writeFileSync(tmp, text);
+        try {
+            execFileSync('bash', ['-n', tmp], { encoding: 'utf8' });
+        } finally {
+            try { fs.unlinkSync(tmp); } catch (e) { /* ignore */ }
+        }
+        text.split('\n').forEach(function (l) {
+            if (l.indexOf('--condition=') === -1 || l.indexOf('--condition=None') !== -1) return;
+            assert.ok(/--condition="/.test(l), 'outer quotes must be double: ' + l);
+            assert.ok(!/--condition='/.test(l), 'single-quoted --condition breaks CEL: ' + l);
+            sawCondition++;
+        });
+    }
+    assert.strictEqual(sawCondition, 0, 'kill-switch grants must not use a prefix IAM condition');
 });
 
 test('gen2 event triggers get eventReceiver + own-service invoker; gen1 never does', function () {
@@ -146,6 +181,46 @@ test('no source passes a default or literal service account', function () {
         const hits = src.match(/\bserviceAccount:\s+(?!runtimeSa\()[^,}\n]*/g) || [];
         assert.deepStrictEqual(hits, [], path.relative(fnRoot, p));
     });
+});
+
+test('kill-switch SA gets auth viewer for listUsers, not auth admin', function () {
+    ['adminSetKillSwitch', 'killSwitchAutoReturnTick'].forEach(function (n) {
+        const extras = RUNTIME_SERVICE_ACCOUNTS[n].extra;
+        assert.ok(extras.indexOf('authViewer') !== -1, n);
+        assert.ok(extras.indexOf('auth') === -1, n);
+        const roles = plan.functions[n].projectRoles;
+        assert.ok(roles.indexOf('roles/firebaseauth.viewer') !== -1, n);
+        assert.ok(roles.indexOf('roles/firebaseauth.admin') === -1, n);
+    });
+});
+
+test('kill-switch SA gets objectCreator+objectViewer on the snapshot bucket and objectViewer only on backups', function () {
+    ['adminSetKillSwitch', 'killSwitchAutoReturnTick'].forEach(function (n) {
+        const roles = plan.functions[n].bucketRoles;
+        assert.deepStrictEqual(roles, [
+            { bucket: 'bitcoin-education-archive-killswitch-exports', role: 'roles/storage.objectCreator' },
+            { bucket: 'bitcoin-education-archive-killswitch-exports', role: 'roles/storage.objectViewer' },
+            { bucket: 'bitcoin-education-archive-backups', role: 'roles/storage.objectViewer' },
+        ], n);
+        roles.forEach(function (br) {
+            assert.ok(!br.condition, n + ' must not use a prefix IAM condition');
+        });
+    });
+});
+
+test('runtime-sa-plan refuses BQ_BACKUP_BUCKET when the project is live', function () {
+    assert.throws(function () {
+        planMod.assertLiveBackupBucketUnset('bitcoin-education-archive', 'bitcoin-quest-staging-backups-use1');
+    }, /BQ_BACKUP_BUCKET/);
+    assert.doesNotThrow(function () {
+        planMod.assertLiveBackupBucketUnset('bitcoin-education-archive', '');
+        planMod.assertLiveBackupBucketUnset('bitcoin-education-archive', undefined);
+        planMod.assertLiveBackupBucketUnset('bitcoin-quest-staging', 'bitcoin-quest-staging-backups-use1');
+    });
+    assert.strictEqual(planMod.projectIdFrom(['--project', 'bitcoin-quest-staging'], {}), 'bitcoin-quest-staging');
+    assert.strictEqual(planMod.projectIdFrom(['--project=bitcoin-education-archive'], { GCLOUD_PROJECT: 'bitcoin-quest-staging' }), 'bitcoin-education-archive');
+    assert.strictEqual(planMod.projectIdFrom([], { GCLOUD_PROJECT: 'bitcoin-quest-staging' }), 'bitcoin-quest-staging');
+    assert.strictEqual(planMod.projectIdFrom([], {}), 'bitcoin-education-archive');
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

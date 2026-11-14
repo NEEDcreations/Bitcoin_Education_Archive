@@ -385,6 +385,7 @@ var APP_CHECK_CALLABLES = {
     ackCipherShare: 1,
     adminResetSecondFactor: 1,
     adminResolveCipherSatsClaim: 1,
+    adminSetKillSwitch: 1,
     answerTrivia: 1,
     armSayHi: 1,
     chooseFaction: 1,
@@ -3608,7 +3609,7 @@ function settleAdminClaim() {
 // admin is true (window._isAdminClaim, set from getIdTokenResult). Never email.
 // It carries no admin data. Tapping re-checks the claim, then lazy-loads
 // admin-panel.js, so non-admins never download the panel.
-var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261109_v2542';
+var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261111_v2551';
 
 function ensureHomeAdminBtnCss() {
     if (document.getElementById('homeAdminBtnCss')) return;
@@ -13358,7 +13359,8 @@ window._showFreshStepUp = function (action) {
         deleteAccount: 'Enter a fresh authenticator code to delete this account. Remembering this device is not enough.',
         disableTotp: 'Enter a fresh authenticator code to turn off two-factor authentication. A saved session is not enough.',
         regenerateRecoveryCodes: 'Enter a fresh authenticator code to create new recovery codes. A saved session is not enough.',
-        changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.'
+        changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.',
+        adminSetKillSwitch: 'Enter a fresh authenticator code to flip the kill switch. A remembered device is not enough, and the authenticator must be at least 24 hours old.'
     };
     return new Promise(function (resolve) {
         var old = document.getElementById('freshStepUpOverlay');

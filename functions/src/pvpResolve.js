@@ -9,7 +9,15 @@ const admin = require('./firebaseAdmin.js');
 const pvpFlow = require('./pvpFlow');
 const db = admin.firestore();
 
-exports.pvpResolveRound = onDocumentWritten('pvp_matches/{matchId}', async (event) => {
+exports.pvpResolveRound = onDocumentWritten({
+    document: 'pvp_matches/{matchId}',
+    retry: true,
+}, async (event) => {
+    // Defer round resolution while the kill switch is on; retry after it is off.
+    // Rewards themselves settle in onPvpMatchFinished, which is also deferred.
+    if (await require('./killSwitch').isOffline(db)) {
+        throw new Error('kill switch on: defer pvpResolveRound');
+    }
     const change = { before: event.data.before, after: event.data.after };
     const context = { params: event.params };
     if (!change.after.exists) return null;
