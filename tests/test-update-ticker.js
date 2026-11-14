@@ -312,6 +312,58 @@ test('Citadel Wire is a native source, still drops altcoin titles, and stays 1-p
     assert.strictEqual(sources.filter(function(id) { return id === 'citadel-wire'; }).length, 1);
 });
 
+test('drops items whose links are not strict https (quote, javascript:, space, angle brackets)', function() {
+    const bad = [
+        "https://evil.example/a'+alert(1)+'",
+        'https://evil.example/a"onmouseover=x',
+        'javascript:alert(1)',
+        'JAVASCRIPT:alert(1)',
+        'https://evil.example/a b',
+        'https://evil.example/<script>',
+        'https://evil.example/a>b',
+        'https://evil.example/a\\b',
+        'https://evil.example/a`b',
+        'http://plain.example/story',
+        '',
+        'https://'
+    ];
+    bad.forEach(function(link) {
+        assert.strictEqual(ticker.isSafeLink(link), false, 'should reject ' + JSON.stringify(link));
+    });
+    assert.strictEqual(ticker.isSafeLink('https://citadelwire.com/posts/2026-11-14-150016?x=1&y=2#z'), true);
+
+    const t = Date.parse('2026-11-14T00:00:00Z');
+    const headlines = bad.map(function(link, i) {
+        return { title: 'Bitcoin story number ' + i + ' with a bad link', source: 's' + i, timestamp: t, link: link };
+    }).concat([{ title: 'Bitcoin story with a good link', source: 'ok', timestamp: t, link: 'https://good.example/story' }]);
+    const picked = ticker.selectTop(headlines, NOW, { maxAgeDays: 14 });
+    assert.strictEqual(picked.length, 1);
+    assert.strictEqual(picked[0].link, 'https://good.example/story');
+
+    const src = { id: 'evil', name: 'Evil', native: true };
+    const xml = '<rss><channel>' +
+        "<item><title>Bitcoin quote link story here</title><link>https://evil.example/a&apos;);alert(1);//</link><pubDate>Sat, 14 Nov 2026 10:00:00 GMT</pubDate></item>" +
+        '<item><title>Bitcoin javascript link story</title><link>javascript:alert(1)</link><pubDate>Sat, 14 Nov 2026 10:00:00 GMT</pubDate></item>' +
+        '<item><title>Bitcoin space link story here</title><link>https://evil.example/a b</link><pubDate>Sat, 14 Nov 2026 10:00:00 GMT</pubDate></item>' +
+        '<item><title>Bitcoin angle link story here</title><link>https://evil.example/a&lt;b</link><pubDate>Sat, 14 Nov 2026 10:00:00 GMT</pubDate></item>' +
+        '<item><title>Bitcoin clean link story here</title><link>https://evil.example/clean</link><pubDate>Sat, 14 Nov 2026 10:00:00 GMT</pubDate></item>' +
+        '</channel></rss>';
+    const items = ticker.itemsFromSource(src, xml);
+    assert.deepStrictEqual(items.map(function(i) { return i.link; }), ['https://evil.example/clean']);
+});
+
+test('nacho-live and ranking ticker renderers use the strict link check and no inline window.open URL', function() {
+    const root = path.join(__dirname, '..');
+    ['nacho-live.js', 'ranking.js', 'bundle.src.js'].forEach(function(f) {
+        const src = fs.readFileSync(path.join(root, f), 'utf8');
+        assert.ok(src.indexOf("/^https:\\/\\/[^\\s'\"<>\\\\`]+$/.test(n.link)") !== -1, f + ' strict link regex');
+        assert.ok(src.indexOf("window.open(\\'' + safeLink") === -1, f + ' still builds onclick with safeLink');
+        assert.ok(src.indexOf("window.open(\\'' + link.replace") === -1, f + ' still builds onclick with link');
+    });
+    const live = fs.readFileSync(path.join(root, 'nacho-live.js'), 'utf8');
+    assert.strictEqual((live.match(/target="_blank" rel="noopener noreferrer"/g) || []).length >= 2, true);
+});
+
 Promise.all(queue).then(function() {
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed > 0 ? 1 : 0);

@@ -110,6 +110,20 @@ function parseFeed(xml) {
     }).filter(function(item) { return item.title; });
 }
 
+// Strict link check: only plain https URLs with no quotes, spaces, angle
+// brackets, backslashes or backticks. Items failing this are dropped, so a
+// feed link can never break out of an attribute or JS string on the client.
+const SAFE_LINK_RE = /^https:\/\/[^\s'"<>\\`]+$/;
+
+function isSafeLink(link) {
+    if (typeof link !== 'string' || !SAFE_LINK_RE.test(link)) return false;
+    try {
+        return new URL(link).protocol === 'https:';
+    } catch (e) {
+        return false;
+    }
+}
+
 function isBitcoinFocused(title, source) {
     if (!title) return false;
     if (BAD_WORDS.test(title)) return false;
@@ -146,6 +160,7 @@ function selectTop(headlines, now, opts) {
     for (let i = 0; i < sorted.length && picked.length < topN; i++) {
         const h = sorted[i];
         if (!h || !h.title) continue;
+        if (!isSafeLink(h.link)) continue;
         if ((h.timestamp || 0) < cutoff) continue;
         if (h.link && /news\.google\.com/i.test(h.link)) continue;
         const key = normalizeTitle(h.title);
@@ -319,6 +334,7 @@ function itemsFromSource(source, xml) {
     for (let i = 0; i < parsed.length; i++) {
         const item = parsed[i];
         if (!isBitcoinFocused(item.title, source)) continue;
+        if (!isSafeLink(item.link)) continue;
         if (item.link && /news\.google\.com/i.test(item.link)) continue;
         out.push({
             date: formatDate(item.timestamp),
@@ -366,6 +382,8 @@ module.exports = {
     CITADEL_DIGEST_TITLE: CITADEL_DIGEST_TITLE,
     decodeEntities: decodeEntities,
     parseFeed: parseFeed,
+    SAFE_LINK_RE: SAFE_LINK_RE,
+    isSafeLink: isSafeLink,
     isBitcoinFocused: isBitcoinFocused,
     normalizeTitle: normalizeTitle,
     selectTop: selectTop,
