@@ -1140,6 +1140,8 @@ function createPremiumHandlers(deps) {
                 r.ent.subscriptionUntilMs = Math.max(Number(r.ent.subscriptionUntilMs) || 0, periodEnd * 1000 + SUB_GRACE_MS);
                 writeEntitlement(tx, r);
                 const orderPatch = { invoicesPaid: (Number(o.invoicesPaid) || 0) + 1, firstInvoiceId: o.firstInvoiceId || obj.id || null };
+                // Refunds and disputes find the order by customer when the charge has no metadata.
+                if (typeof obj.customer === 'string' && !o.stripeCustomerId) orderPatch.stripeCustomerId = obj.customer;
                 if (o.status !== 'paid') Object.assign(orderPatch, { status: 'paid', paidAtMs: r.nowMs, stripeSubscriptionId: subId });
                 tx.update(r.orderRef, orderPatch);
                 return 'granted';
@@ -1629,21 +1631,34 @@ async function purgePremiumForAccount(db, uid, nowMs) {
 
 // ---------------------------------------------------------------- bind
 
+// Projects without a BTCPay store yet. Remove staging once its store exists.
+const BTCPAY_OFF_PROJECTS = Object.freeze([STAGING_PROJECT]);
+function envProject(env) {
+    if (env.GCLOUD_PROJECT) return env.GCLOUD_PROJECT;
+    try { return (JSON.parse(env.FIREBASE_CONFIG || '{}').projectId) || ''; } catch (e) { return ''; }
+}
+function btcpayOff(env) {
+    return env.PREMIUM_BTCPAY === 'off' || BTCPAY_OFF_PROJECTS.indexOf(envProject(env)) !== -1;
+}
+
 function bindPremium(functionsV1, deps) {
     const { defineSecret } = require('firebase-functions/params');
     const { runtimeSa } = require('./runtimeServiceAccounts');
     const s = {};
-    // PREMIUM_BTCPAY=off (functions/.env.bitcoin-quest-staging): do not call
-    // defineSecret for BTCPay names, or the CLI will prompt to create those
-    // secrets even when they are unbound. Lightning then fails closed
-    // (btcpay_config) and premiumBtcpayWebhook is not exported. Unset (live)
-    // defines and binds them as normal.
-    const btcpayOff = process.env.PREMIUM_BTCPAY === 'off';
+    // No BTCPay store on staging yet (Phil, Nov 14): there the BTCPay secrets
+    // stay unbound and premiumBtcpayWebhook is not exported, so card checkout
+    // can deploy without them. Lightning fails closed (btcpay_config).
+    // Decided from the project id, which the Firebase CLI sets during
+    // discovery (.env files are not loaded then). PREMIUM_BTCPAY=off forces it.
+    const btcOn = !btcpayOff(process.env);
+    // defineSecret registers a deploy-time param even when unbound, and the
+    // CLI then asks for its value, so BTCPay secrets are not defined at all
+    // where BTCPay is off.
     SECRET_NAMES.forEach(function (n) {
-        if (btcpayOff && n.indexOf('BTCPAY_') === 0) return;
+        if (!btcOn && /^BTCPAY_/.test(n)) return;
         s[n] = defineSecret(n);
     });
-    const btc = btcpayOff ? [] : [s.BTCPAY_API_KEY, s.BTCPAY_URL, s.BTCPAY_STORE_ID];
+    const btc = btcOn ? [s.BTCPAY_API_KEY, s.BTCPAY_URL, s.BTCPAY_STORE_ID] : [];
     const handlers = createPremiumHandlers(Object.assign({ HttpsError: functionsV1.https.HttpsError }, deps || {}));
 
     const createPremiumCheckout = functionsV1.runWith({
@@ -1677,7 +1692,7 @@ function bindPremium(functionsV1, deps) {
         secrets: [s.STRIPE_WEBHOOK_SECRET, s.STRIPE_SECRET_KEY, s.PREMIUM_HASH_KEY],
         serviceAccount: runtimeSa('premiumStripeWebhook'),
     }).https.onRequest(handlers.stripeWebhook);
-    const premiumBtcpayWebhook = btcpayOff ? null : functionsV1.runWith({
+    const premiumBtcpayWebhook = !btcOn ? null : functionsV1.runWith({
         timeoutSeconds: 60,
         secrets: [s.BTCPAY_API_KEY, s.BTCPAY_WEBHOOK_SECRET, s.BTCPAY_URL, s.BTCPAY_STORE_ID],
         serviceAccount: runtimeSa('premiumBtcpayWebhook'),
@@ -1695,7 +1710,7 @@ function bindPremium(functionsV1, deps) {
         getPremiumStatus: getPremiumStatus,
         claimPremiumAllowance: claimPremiumAllowance,
         premiumStripeWebhook: premiumStripeWebhook,
-        premiumBtcpayWebhook: premiumBtcpayWebhook,
+        premiumBtcpayWebhook: btcOn ? premiumBtcpayWebhook : undefined,
         premiumExpirySweep: premiumExpirySweep,
         adminRevokePremium: adminRevokePremium,
     };
@@ -1729,6 +1744,7 @@ module.exports = {
     maskDeletedUid,
     nonLightningPayments,
     purgePremiumForAccount,
+    btcpayOff,
     PERMANENT_COLLECTIONS,
     TURNSTILE_ACTION,
     createPremiumHandlers,
