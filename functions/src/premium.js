@@ -496,6 +496,10 @@ function createPremiumHandlers(deps) {
             if (provider === 'stripe') {
                 const params = {
                     mode: q.cardMode,
+                    // Cards only (Apple Pay / Google Pay ride on card). Keeps
+                    // Klarna, bank debits and other delayed or BNPL methods off
+                    // even if the Stripe account has them switched on.
+                    payment_method_types: ['card'],
                     client_reference_id: orderId,
                     metadata: metadata,
                     line_items: [{

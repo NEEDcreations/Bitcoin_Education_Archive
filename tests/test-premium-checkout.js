@@ -311,6 +311,8 @@ test('card checkout: server amount, client amount ignored, src tag in metadata',
     assert.ok(body.indexOf('line_items[0][price_data][unit_amount]=4750') !== -1);
     assert.ok(body.indexOf('line_items[0][price_data][recurring][interval]=year') !== -1);
     assert.ok(body.indexOf('mode=subscription') !== -1);
+    assert.ok(body.indexOf('payment_method_types[0]=card') !== -1);
+    assert.ok(body.indexOf('payment_method_types[1]') === -1);
     assert.ok(body.indexOf('metadata[src]=yt-1217') !== -1);
     assert.ok(body.indexOf('subscription_data[metadata][src]=yt-1217') !== -1);
     assert.ok(body.indexOf('trial_end') === -1);
