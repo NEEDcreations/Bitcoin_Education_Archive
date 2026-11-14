@@ -2865,8 +2865,21 @@ service cloud.firestore {
     // before sign-in. Only the Admin SDK (adminSetKillSwitch) may write.
     // Public flag: only enabled, mode, message, since, autoReenableAt.
     // Reason, actor and snapshot live on killSwitchAdmin (admins only).
+    // In-app survey. submitSurvey (Admin SDK) is the only writer. Answers
+    // and the grant audit are admin-only reads; players never read them,
+    // not even their own. config/survey holds only { openedAt, closed }.
+    match /survey_responses/{uid} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+    match /survey_audit/{docId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
     match /config/{docId} {
       allow read: if docId == 'killSwitch';
+      allow read: if docId == 'survey';
       allow read: if docId == 'killSwitchAdmin' && isAdmin();
       allow write: if false;
     }
