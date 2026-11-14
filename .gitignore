@@ -10,6 +10,8 @@ functions/private-bank/*
 functions/private-bank/trivia-key.json
 test.sh
 scripts/*
+!scripts/update-ticker.js
+!scripts/update-ticker.sh
 !scripts/migrate-push-optin.js
 !scripts/backfill-badge-favor.js
 !scripts/raid-boss-activity.js

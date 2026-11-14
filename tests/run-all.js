@@ -94,6 +94,7 @@ const TESTS = [
     { name: 'Timechain TV Views', file: 'test-tctv-views.js' },
     { name: 'Timechain TV Daily Watch', file: 'test-tctv-watch.js' },
     { name: 'Hot Topics', file: 'test-hot-topics.js' },
+    { name: 'Signal ticker refresh', file: 'test-update-ticker.js' },
     { name: 'Sensitive secret bindings', file: 'test-sensitive-secrets.js' },
     { name: 'NWC secret binding', file: 'test-nwc-secret.js' },
     { name: 'Peer Request Speed', file: 'test-peer-request.js' },
