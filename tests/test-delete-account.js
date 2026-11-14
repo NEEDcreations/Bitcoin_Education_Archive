@@ -310,6 +310,9 @@ function world() {
         'public_profiles/u2': { username: 'Bob' },
         'username_migrations/u1': { uid: 'u1', from: 'Alice Smith', to: 'Alice', atMs: 1 },
         'username_migrations/u2': { uid: 'u2', from: 'Bob Two', to: 'Bob', atMs: 1 },
+        'survey_responses/u1': { uid: 'u1', answers: { q3: 'I am Alice from Ohio' } },
+        'survey_responses/u2': { uid: 'u2', answers: { q3: 'keep me' } },
+        'survey_audit/a1': { uid: 'u1', uidMasked: '***', action: 'survey_reward_granted', tickets: 25 },
         'usernames/alice': { uid: 'u1' },
         'usernames/u1': { uid: 'u1' },
         'usernames/bob': { uid: 'u2' },
@@ -714,6 +717,9 @@ function auth(uid, extras) {
         assert.ok(db.docs.has('public_profiles/u2'));
         assert.strictEqual(db.docs.has('username_migrations/u1'), false);
         assert.strictEqual(db.docs.get('username_migrations/u2').from, 'Bob Two');
+        assert.strictEqual(db.docs.has('survey_responses/u1'), false);
+        assert.strictEqual(db.docs.get('survey_responses/u2').answers.q3, 'keep me');
+        assert.strictEqual(db.docs.get('survey_audit/a1').tickets, 25);
         assert.strictEqual(db.docs.has('users/u1'), false);
 
         assert.strictEqual(db.docs.has('forum_posts/p1'), false);

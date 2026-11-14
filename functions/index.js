@@ -9755,6 +9755,20 @@ exports.adminFactionRaceBreakdown = factionRace.adminFactionRaceBreakdown;
 exports.adminApproveFactionPayout = factionRace.adminApproveFactionPayout;
 
 // ================================================================
+// IN-APP SURVEY (Citadel Spark survey). One 25 OrangeTix grant per uid,
+// server-side, idempotent and audited (survey_responses/{uid} is
+// create-only). App Check + rate limit. Gated by the kill switch below, and
+// closed for good once the switch has flipped after the survey opened.
+// ================================================================
+exports.submitSurvey = require('./src/survey').makeSubmitSurvey({
+    // deletionHmacSecret: the deleted_accounts tombstone lookup (re-created accounts get no grant).
+    runWith: { enforceAppCheck: true, secrets: [deletionHmacSecret] },
+    functionsV1: functionsV1,
+    admin: admin,
+    getDb: function () { return db; },
+});
+
+// ================================================================
 // KILL SWITCH — admin-only app-wide offline switch (config/killSwitch).
 // adminSetKillSwitch requires the admin claim, App Check, a recent
 // sign-in, and a 24h-old second factor. It checks backups (warning only),
