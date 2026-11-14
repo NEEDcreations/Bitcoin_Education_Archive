@@ -78,7 +78,18 @@ const COL = Object.freeze({
     rate: 'premium_rate',
     allowance: 'premium_allowance',
     allowanceLedger: 'premium_allowance_ledger',
+    cardTrials: 'premium_card_trials',
+    adminAudit: 'premium_admin_audit',
 });
+
+// Financial and audit records. Never deleted by account deletion or any
+// cleanup; account deletion only masks the uid and clears email fields.
+// The 10-year vault copy must include these (see docs/payments/premium-checkout.md).
+const PERMANENT_COLLECTIONS = Object.freeze([
+    COL.orders, COL.events, COL.review, COL.allowanceLedger, COL.cardTrials, COL.adminAudit,
+]);
+const GLOBAL_PUBLIC_RATE_ID = 'public_global';
+const HOLDS_ALERT_AFTER_MS = 3600000;
 
 // ---------------------------------------------------------------- helpers
 
@@ -87,6 +98,29 @@ function providerMode(projectId) {
     if (projectId === STAGING_PROJECT) return 'test';
     if (typeof projectId === 'string' && projectId.indexOf('demo-') === 0) return 'test'; // emulator / unit tests
     return null; // unknown project: refuse
+}
+
+// Client IP for the public endpoint. Express (trust proxy) puts the LEFTMOST
+// X-Forwarded-For entry in req.ip, which the caller controls. Google's front
+// end appends the real peer address as the RIGHTMOST entry, so use that.
+function clientIp(req) {
+    const h = req && req.headers ? req.headers : {};
+    const raw = h['x-forwarded-for'] || (req && req.get ? req.get('x-forwarded-for') : '') || '';
+    const parts = String(raw).split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1].slice(0, 64);
+    const sock = req && (req.socket || req.connection);
+    return String((sock && sock.remoteAddress) || 'none').slice(0, 64);
+}
+
+// Stable masked id for a deleted account's financial records. Not reversible
+// without the original uid; the same uid always maps to the same mask so an
+// accountant can still group one person's records.
+function maskDeletedUid(uid) {
+    return 'del_' + crypto.createHash('sha256').update('bq-premium-del:' + String(uid)).digest('hex').slice(0, 24);
+}
+
+function cardFpHash(fp) {
+    return crypto.createHash('sha256').update('bq-premium-card:' + String(fp)).digest('hex').slice(0, 40);
 }
 
 function stripeKeyOk(key, mode) {
@@ -212,12 +246,12 @@ function summarize(ent, nowMs) {
     const sub = Number(e.subscriptionUntilMs) || 0;
     const pre = Number(e.prepaidUntilMs) || 0;
     const expiresAtMs = founders ? null : (Math.max(sub, pre) || null);
-    const covered = founders || (expiresAtMs != null && expiresAtMs > nowMs);
+    const covered = e.revoked !== true && (founders || (expiresAtMs != null && expiresAtMs > nowMs));
     const startsAtMs = Number(e.startsAtMs) || null;
     const started = !startsAtMs || nowMs >= startsAtMs;
     const active = covered && started;
     let plan = null;
-    if (founders) plan = 'founders';
+    if (founders && e.revoked !== true) plan = 'founders';
     else if (active) plan = sub >= pre ? (e.subscriptionPlan || 'monthly') : (e.prepaidPlan || 'months');
     if (!plan && covered) plan = founders ? 'founders' : (sub >= pre ? (e.subscriptionPlan || 'monthly') : (e.prepaidPlan || 'months'));
     const trialUntilMs = Number(e.trialUntilMs) || null;
@@ -433,15 +467,28 @@ function createPremiumHandlers(deps) {
         const orderRef = ref(COL.orders, orderId);
         const counterRef = ref(COL.counters, 'founders');
         const rateRef = ref(COL.rate, who.rateKey);
+        const globalRef = channel === 'public' ? ref(COL.rate, GLOBAL_PUBLIC_RATE_ID) : null;
         const limit = who.uid ? ORDERS_PER_HOUR : PUBLIC_ORDERS_PER_HOUR_PER_IP;
+        function windowCount(d) {
+            const ws = Number(d.windowStartMs) || 0;
+            const inW = nowMs - ws < 3600000;
+            return { inWindow: inW, windowStart: ws, count: inW ? (Number(d.count) || 0) : 0 };
+        }
         await db.runTransaction(async function (tx) {
             const rateSnap = await tx.get(rateRef);
+            const globalSnap = globalRef ? await tx.get(globalRef) : null;
             const counterSnap = q.lifetime ? await tx.get(counterRef) : null;
             const rate = rateSnap.exists ? rateSnap.data() : {};
-            const windowStart = Number(rate.windowStartMs) || 0;
-            const inWindow = nowMs - windowStart < 3600000;
-            const count = inWindow ? (Number(rate.count) || 0) : 0;
+            const w = windowCount(rate);
+            const inWindow = w.inWindow;
+            const windowStart = w.windowStart;
+            const count = w.count;
             if (count >= limit) throw fail('resource-exhausted', 'Too many checkout attempts. Try again in an hour.', 'rate_limited');
+            if (globalRef) {
+                const g = windowCount(globalSnap.exists ? globalSnap.data() : {});
+                if (g.count >= cfg.publicOrdersPerHour) throw fail('resource-exhausted', 'Checkout is busy. Try again in an hour.', 'rate_limited_global');
+                tx.set(globalRef, { windowStartMs: g.inWindow ? g.windowStart : nowMs, count: g.count + 1 });
+            }
             if (q.lifetime) {
                 const c = counterSnap.exists ? counterSnap.data() : { sold: 0, holds: {} };
                 const holds = liveHolds(c.holds, nowMs);
@@ -450,14 +497,20 @@ function createPremiumHandlers(deps) {
                 if ((Number(c.sold) || 0) + Object.keys(holds).length >= pricing.FOUNDERS_CAP) {
                     throw fail('resource-exhausted', "Founders' Lifetime is sold out.", 'founders_sold_out');
                 }
+                if (Object.keys(holds).length >= cfg.maxLiveFoundersHolds) {
+                    throw fail('resource-exhausted', "Lots of people are checking out Founders' right now. Try again in about 30 minutes.", 'founders_busy');
+                }
                 holds[orderId] = { uid: who.holdKey, expMs: nowMs + holdMs };
-                tx.set(counterRef, { sold: Number(c.sold) || 0, holds: holds, cap: pricing.FOUNDERS_CAP, updatedAtMs: nowMs });
+                tx.set(counterRef, Object.assign({}, c, { sold: Number(c.sold) || 0, holds: holds, cap: pricing.FOUNDERS_CAP, updatedAtMs: nowMs }));
             }
             tx.set(rateRef, { windowStartMs: inWindow ? windowStart : nowMs, count: count + 1 });
             tx.set(orderRef, {
                 uid: who.uid || null,
                 emailKey: who.email ? emailKey(who.email) : null,
                 email: who.uid ? null : who.email,
+                // Set only while a plain email is stored; the sweep clears the
+                // email after publicOrderEmailRetentionMonths (single-field range query).
+                emailHeldSinceMs: who.uid || !who.email ? null : nowMs,
                 channel: channel,
                 src: src || null,
                 plan: q.plan,
@@ -620,6 +673,9 @@ function createPremiumHandlers(deps) {
         const b = body && typeof body === 'object' ? body : {};
         const cfg = await loadConfig();
         if (!cfg.checkoutEnabled) throw fail('failed-precondition', 'Checkout is not open yet.', 'checkout_closed');
+        // Founders' seats are scarce: sold only to signed-in accounts (in the
+        // app), never to an email on the public page (Red Team, Nov 14).
+        if (String(b.plan || '') === 'founders') throw fail('failed-precondition', "Sign in to Bitcoin Quest to buy Founders' Lifetime.", 'founders_sign_in');
         const email = normalizeEmail(b.email);
         if (!email) throw fail('invalid-argument', 'Enter a valid email.', 'bad_email');
         if (!verifyTurnstile) throw fail('failed-precondition', 'Checkout is not set up yet.', 'no_turnstile');
@@ -650,7 +706,7 @@ function createPremiumHandlers(deps) {
             // Send buyers back to the allowlisted page they came from (live
             // site, staging, or a Pages preview). corsOk already checked it.
             const origin = (req.get ? req.get('origin') : req.headers.origin) || '';
-            const out = await publicCheckout(body, req.ip, origin);
+            const out = await publicCheckout(body, clientIp(req), origin);
             res.status(200).json({ ok: true, url: out.url, amountCents: out.amountCents, plan: out.plan });
         } catch (e) {
             if (e instanceof HttpsError) {
@@ -735,7 +791,8 @@ function createPremiumHandlers(deps) {
             const userSnap = uid ? await tx.get(ref('users', uid)) : null;
             const cSnap = order && order.lifetime ? await tx.get(ref(COL.counters, 'founders')) : null;
             const ent = entSnap && entSnap.exists ? Object.assign({}, entSnap.data()) : {};
-            if (entRef && !uid && order) { ent.email = order.email; ent.emailKey = order.emailKey; }
+            // Email-held entitlements keep only the hashed key, never the plain email.
+            if (entRef && !uid && order) { delete ent.email; ent.emailKey = order.emailKey; }
             const out = await fn(tx, {
                 nowMs: nowMs,
                 orderRef: orderRef,
@@ -764,12 +821,12 @@ function createPremiumHandlers(deps) {
         const live = liveHolds(holds, r.nowMs);
         const sold = Number(c.sold) || 0;
         if (!hadHold && sold + Object.keys(live).length >= pricing.FOUNDERS_CAP) {
-            tx.set(ref(COL.counters, 'founders'), { sold: sold, holds: holds, cap: pricing.FOUNDERS_CAP, updatedAtMs: r.nowMs });
+            tx.set(ref(COL.counters, 'founders'), Object.assign({}, c, { sold: sold, holds: holds, cap: pricing.FOUNDERS_CAP, updatedAtMs: r.nowMs }));
             tx.update(r.orderRef, { status: 'review', reviewReason: 'founders_sold_out_late_payment', paidAtMs: r.nowMs, providerRef: providerRef });
             review(tx, 'founders_sold_out_late_payment', { orderId: orderId, uid: r.uid, providerRef: providerRef, amountCents: r.order.amountCents }, r.nowMs);
             return 'review';
         }
-        tx.set(ref(COL.counters, 'founders'), { sold: sold + 1, holds: holds, cap: pricing.FOUNDERS_CAP, updatedAtMs: r.nowMs });
+        tx.set(ref(COL.counters, 'founders'), Object.assign({}, c, { sold: sold + 1, holds: holds, cap: pricing.FOUNDERS_CAP, updatedAtMs: r.nowMs }));
         if (r.ent.autoRenew === true && r.ent.stripeSubscriptionId) {
             review(tx, 'founders_with_active_subscription', { orderId: orderId, uid: r.uid, stripeSubscriptionId: r.ent.stripeSubscriptionId }, r.nowMs);
         }
@@ -792,6 +849,44 @@ function createPremiumHandlers(deps) {
         return 'granted';
     }
 
+    async function sessionCardFingerprint(sessionId) {
+        if (typeof sessionId !== 'string' || !/^cs_[A-Za-z0-9_]{6,200}$/.test(sessionId)) return null;
+        const q = '?expand[]=setup_intent.payment_method&expand[]=payment_intent.payment_method&expand[]=subscription.default_payment_method';
+        const s = await stripeRequest('GET', '/v1/checkout/sessions/' + encodeURIComponent(sessionId) + q);
+        const pms = [
+            s && s.subscription && s.subscription.default_payment_method,
+            s && s.setup_intent && s.setup_intent.payment_method,
+            s && s.payment_intent && s.payment_intent.payment_method,
+        ];
+        for (const pm of pms) {
+            if (pm && pm.card && typeof pm.card.fingerprint === 'string' && pm.card.fingerprint) return pm.card.fingerprint;
+        }
+        return null;
+    }
+
+    function orderIdsForCharge(ch) {
+        const id = ch && ch.metadata && ch.metadata.orderId;
+        return typeof id === 'string' && /^[A-Za-z0-9_-]{6,64}$/.test(id) ? [id] : [];
+    }
+
+    // Clears the plain email from orders (by id, else by Stripe customer).
+    async function clearOrderEmails(orderIds, customerId, why) {
+        const nowMs = now();
+        const docs = [];
+        for (const id of orderIds) { const d = await ref(COL.orders, id).get(); if (d.exists) docs.push(d); }
+        if (!docs.length && customerId) {
+            const q = await db.collection(COL.orders).where('stripeCustomerId', '==', customerId).limit(50).get();
+            q.docs.forEach(function (d) { docs.push(d); });
+        }
+        let cleared = 0;
+        for (const d of docs) {
+            if (d.data().email == null && d.data().emailHeldSinceMs == null) continue;
+            await d.ref.update({ email: null, emailHeldSinceMs: null, emailClearedAtMs: nowMs, emailClearedReason: why });
+            cleared++;
+        }
+        return cleared;
+    }
+
     // ---- Stripe webhook
     async function handleStripeEvent(event) {
         if (!event || typeof event.id !== 'string' || typeof event.type !== 'string') return { status: 400, outcome: 'bad_event' };
@@ -803,8 +898,15 @@ function createPremiumHandlers(deps) {
 
         if (t === 'checkout.session.completed' || t === 'checkout.session.async_payment_succeeded') {
             const orderId = String(obj.client_reference_id || (obj.metadata && obj.metadata.orderId) || '');
+            // Card fingerprint (hashed) for trial-reuse checks. Webhook payloads
+            // never carry the payment method, so read the session back expanded.
+            // A failed read throws, the webhook answers 500 and Stripe retries.
+            const fp = await sessionCardFingerprint(obj.id);
+            const fpHash = fp ? cardFpHash(fp) : null;
             const outcome = await once(key, orderId || null, async function (tx, r) {
                 const o = r.order;
+                const trialRef = fpHash && o && o.trialEndMs ? ref(COL.cardTrials, fpHash) : null;
+                const trialSnap = trialRef ? await tx.get(trialRef) : null;
                 if (!o || o.provider !== 'stripe' || o.providerSessionId !== obj.id || !r.entRef) {
                     review(tx, 'stripe_unknown_order', { orderId: orderId || null, sessionId: obj.id || null, eventId: event.id }, r.nowMs);
                     return 'review';
@@ -818,8 +920,17 @@ function createPremiumHandlers(deps) {
                 }
                 const settled = obj.payment_status === 'paid' || (want === 0 && obj.payment_status === 'no_payment_required');
                 if (!settled) return 'not_paid_yet';
+                // Same card already used a free trial: no free access, no
+                // automatic billing change. Admin decides from the review queue.
+                if (trialSnap && trialSnap.exists && trialSnap.data().orderId !== orderId) {
+                    review(tx, 'trial_card_reused', { orderId: orderId, uid: o.uid, sessionId: obj.id, cardFpHash: fpHash, firstOrderId: trialSnap.data().orderId || null }, r.nowMs);
+                    tx.update(r.orderRef, { status: 'review', reviewReason: 'trial_card_reused', cardFpHash: fpHash, stripeCustomerId: typeof obj.customer === 'string' ? obj.customer : null });
+                    return 'review';
+                }
+                if (trialRef) tx.set(trialRef, { orderId: orderId, atMs: r.nowMs });
                 setStart(r, o);
                 if (typeof obj.customer === 'string') r.ent.stripeCustomerId = obj.customer;
+                tx.update(r.orderRef, { cardFpHash: fpHash, stripeCustomerId: typeof obj.customer === 'string' ? obj.customer : null });
                 if (o.lifetime) return grantFounders(tx, r, orderId, obj.id);
                 r.ent.stripeSubscriptionId = typeof obj.subscription === 'string' ? obj.subscription : (r.ent.stripeSubscriptionId || null);
                 r.ent.subscriptionPlan = o.plan;
@@ -854,6 +965,17 @@ function createPremiumHandlers(deps) {
                     review(tx, 'stripe_invoice_amount_mismatch', { orderId: orderId, uid: o.uid, invoiceId: obj.id, got: obj.amount_paid, want: o.unitCents }, r.nowMs);
                     return 'review';
                 }
+                // A $0 invoice is only the trial's opening invoice: the order had
+                // a trial, Stripe says subscription_create, and it is the first
+                // invoice for this order. Anything else (promo code, credit
+                // balance, coupon added later) goes to review, no time granted.
+                if (Number(obj.amount_paid) === 0) {
+                    const firstInvoice = !(Number(o.invoicesPaid) > 0) && !o.firstInvoiceId;
+                    if (!o.trialEndMs || obj.billing_reason !== 'subscription_create' || !firstInvoice) {
+                        review(tx, 'stripe_zero_invoice', { orderId: orderId, uid: o.uid, invoiceId: obj.id, billingReason: String(obj.billing_reason || '') }, r.nowMs);
+                        return 'review';
+                    }
+                }
                 const lines = (obj.lines && obj.lines.data) || [];
                 let periodEnd = 0;
                 lines.forEach(function (l) { if (l && l.period && Number(l.period.end) > periodEnd) periodEnd = Number(l.period.end); });
@@ -867,7 +989,9 @@ function createPremiumHandlers(deps) {
                 r.ent.subscriptionOrderId = orderId;
                 r.ent.subscriptionUntilMs = Math.max(Number(r.ent.subscriptionUntilMs) || 0, periodEnd * 1000 + SUB_GRACE_MS);
                 writeEntitlement(tx, r);
-                if (o.status !== 'paid') tx.update(r.orderRef, { status: 'paid', paidAtMs: r.nowMs, stripeSubscriptionId: subId });
+                const orderPatch = { invoicesPaid: (Number(o.invoicesPaid) || 0) + 1, firstInvoiceId: o.firstInvoiceId || obj.id || null };
+                if (o.status !== 'paid') Object.assign(orderPatch, { status: 'paid', paidAtMs: r.nowMs, stripeSubscriptionId: subId });
+                tx.update(r.orderRef, orderPatch);
                 return 'granted';
             });
             return { status: 200, outcome: outcome };
@@ -898,6 +1022,10 @@ function createPremiumHandlers(deps) {
         }
 
         if (t === 'charge.refunded' || t === 'charge.dispute.created' || t === 'invoice.payment_failed') {
+            if (t === 'charge.refunded' && obj.refunded === true) {
+                // Full refund: the buyer's plain email is no longer needed.
+                await clearOrderEmails(orderIdsForCharge(obj), typeof obj.customer === 'string' ? obj.customer : null, 'refunded');
+            }
             const outcome = await once(key, null, async function (tx, r) {
                 review(tx, 'stripe_' + t.replace(/\./g, '_'), {
                     eventId: event.id,

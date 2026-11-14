@@ -47,7 +47,27 @@ const DEFAULT_CONFIG = Object.freeze({
     // charged at purchase with the seat reserved. Unset = start immediately.
     billingStartsAtMs: null,
     trialDays: 7, // first subscription only; 0 turns trials off
+    // Security (Red Team, Nov 14): global cap on public-page orders per hour,
+    // across every IP. Per-IP limit still applies on top.
+    publicOrdersPerHour: 60,
+    // Founders' seats held in open checkouts at once, across everyone.
+    maxLiveFoundersHolds: 25,
+    // Alert (review row) when live holds stay at or above this for over an hour.
+    foundersHoldsAlertThreshold: 15,
+    // Data/Backups (Nov 14): plain email on an unclaimed public order is
+    // cleared this many months after purchase (or at once on a full refund).
+    // Pending Phil's OK on the 24-month default.
+    publicOrderEmailRetentionMonths: 24,
+    // Stripe billing portal configuration id (bpc_...). Required: the portal
+    // refuses to open without it, so promotion codes and plan switches stay
+    // off (see functions/scripts/premium-portal-config.js).
+    stripePortalConfigId: null,
 });
+
+function intIn(v, lo, hi, dflt) {
+    const n = Number(v);
+    return (v != null && Number.isInteger(n) && n >= lo && n <= hi) ? n : dflt;
+}
 
 function pct(v, fallback) {
     const n = Number(v);
@@ -75,6 +95,11 @@ function normalizeConfig(raw) {
         checkoutLaunchedAtMs: ms(r.checkoutLaunchedAtMs),
         billingStartsAtMs: typeof r.billingStartsAt === 'string' ? (ms(Date.parse(r.billingStartsAt)) || null) : ms(r.billingStartsAtMs != null ? r.billingStartsAtMs : r.billingStartsAt),
         trialDays: (function (v) { const n = Number(v); return (v != null && Number.isInteger(n) && n >= 0 && n <= 14) ? n : DEFAULT_CONFIG.trialDays; })(r.trialDays),
+        publicOrdersPerHour: intIn(r.publicOrdersPerHour, 1, 10000, DEFAULT_CONFIG.publicOrdersPerHour),
+        maxLiveFoundersHolds: intIn(r.maxLiveFoundersHolds, 1, FOUNDERS_CAP, DEFAULT_CONFIG.maxLiveFoundersHolds),
+        foundersHoldsAlertThreshold: intIn(r.foundersHoldsAlertThreshold, 1, FOUNDERS_CAP, DEFAULT_CONFIG.foundersHoldsAlertThreshold),
+        publicOrderEmailRetentionMonths: intIn(r.publicOrderEmailRetentionMonths, 1, 120, DEFAULT_CONFIG.publicOrderEmailRetentionMonths),
+        stripePortalConfigId: typeof r.stripePortalConfigId === 'string' && /^bpc_[A-Za-z0-9]{6,80}$/.test(r.stripePortalConfigId) ? r.stripePortalConfigId : null,
     };
 }
 
