@@ -50,7 +50,17 @@ const PUBLIC_ORIGINS = Object.freeze({
     test: [/^https:\/\/bitcoin-quest-staging\.web\.app$/, /^https:\/\/[a-z0-9-]+\.bitcoin-quest\.pages\.dev$/, /^http:\/\/(localhost|127\.0\.0\.1):\d{2,5}$/],
 });
 
+const TURNSTILE_ACTION = 'premium_checkout';
+// Hostnames Turnstile may report for the premium page, per environment.
+const TURNSTILE_HOSTS = Object.freeze({
+    live: ['bitcoineducation.quest', 'www.bitcoineducation.quest'],
+    test: ['bitcoin-quest-staging.web.app', /^[a-z0-9-]+\.bitcoin-quest\.pages\.dev$/, 'localhost', '127.0.0.1'],
+});
+
 const SECRET_NAMES = Object.freeze([
+    // PREMIUM_HASH_KEY: HMAC key for IP, email and card-fingerprint hashes
+    // (User Data/Backups, Nov 14). No plain IP, email key or fingerprint is stored.
+    'PREMIUM_HASH_KEY',
     'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET',
     'BTCPAY_API_KEY', 'BTCPAY_WEBHOOK_SECRET', 'BTCPAY_URL', 'BTCPAY_STORE_ID',
 ]);
@@ -78,7 +88,9 @@ const COL = Object.freeze({
     rate: 'premium_rate',
     allowance: 'premium_allowance',
     allowanceLedger: 'premium_allowance_ledger',
-    cardTrials: 'premium_card_trials',
+    // Long-term: one marker per keyed hash of a canonical email ('e_') or a
+    // card fingerprint ('c_') that already had a free trial.
+    trialMarkers: 'premium_trial_markers',
     adminAudit: 'premium_admin_audit',
 });
 
@@ -86,7 +98,7 @@ const COL = Object.freeze({
 // cleanup; account deletion only masks the uid and clears email fields.
 // The 10-year vault copy must include these (see docs/payments/premium-checkout.md).
 const PERMANENT_COLLECTIONS = Object.freeze([
-    COL.orders, COL.events, COL.review, COL.allowanceLedger, COL.cardTrials, COL.adminAudit,
+    COL.orders, COL.events, COL.review, COL.allowanceLedger, COL.trialMarkers, COL.adminAudit,
 ]);
 const GLOBAL_PUBLIC_RATE_ID = 'public_global';
 const HOLDS_ALERT_AFTER_MS = 3600000;
@@ -100,16 +112,35 @@ function providerMode(projectId) {
     return null; // unknown project: refuse
 }
 
-// Client IP for the public endpoint. Express (trust proxy) puts the LEFTMOST
-// X-Forwarded-For entry in req.ip, which the caller controls. Google's front
-// end appends the real peer address as the RIGHTMOST entry, so use that.
+// Client IP: faucetGuard.clientIpFromRequest takes the RIGHTMOST
+// X-Forwarded-For entry (appended by Google's front end). req.ip is the
+// leftmost one, which the caller controls, so it is never used.
 function clientIp(req) {
-    const h = req && req.headers ? req.headers : {};
-    const raw = h['x-forwarded-for'] || (req && req.get ? req.get('x-forwarded-for') : '') || '';
-    const parts = String(raw).split(',').map(function (x) { return x.trim(); }).filter(Boolean);
-    if (parts.length) return parts[parts.length - 1].slice(0, 64);
-    const sock = req && (req.socket || req.connection);
-    return String((sock && sock.remoteAddress) || 'none').slice(0, 64);
+    return require('./faucetGuard').clientIpFromRequest(req) || 'none';
+}
+
+// Keyed hash (HMAC-SHA256) for anything that identifies a person: IPs,
+// canonical emails, card fingerprints. Without the key the hash cannot be
+// brute-forced back to an IP or email.
+function keyedHash(key, kind, value) {
+    if (typeof key !== 'string' || key.length < 16) throw new Error('premium_hash_key_missing');
+    return crypto.createHmac('sha256', key).update('bq-premium:' + kind + ':' + String(value)).digest('hex').slice(0, 40);
+}
+
+// Canonical email for trials and email-held purchases: lowercase, strip
+// +tags, and for Gmail drop dots and map googlemail.com to gmail.com.
+function canonicalEmail(v) {
+    const e = normalizeEmail(v);
+    if (!e) return null;
+    const at = e.lastIndexOf('@');
+    let local = e.slice(0, at);
+    let domain = e.slice(at + 1);
+    const plus = local.indexOf('+');
+    if (plus > 0) local = local.slice(0, plus);
+    if (domain === 'googlemail.com') domain = 'gmail.com';
+    if (domain === 'gmail.com') local = local.replace(/\./g, '');
+    if (!local) return null;
+    return local + '@' + domain;
 }
 
 // Stable masked id for a deleted account's financial records. Not reversible
@@ -117,10 +148,6 @@ function clientIp(req) {
 // accountant can still group one person's records.
 function maskDeletedUid(uid) {
     return 'del_' + crypto.createHash('sha256').update('bq-premium-del:' + String(uid)).digest('hex').slice(0, 24);
-}
-
-function cardFpHash(fp) {
-    return crypto.createHash('sha256').update('bq-premium-card:' + String(fp)).digest('hex').slice(0, 40);
 }
 
 function stripeKeyOk(key, mode) {
@@ -204,8 +231,22 @@ function normalizeEmail(v) {
     if (e.length < 6 || e.length > 254 || !/^[^\s@<>"',;]+@[a-z0-9.-]+\.[a-z]{2,}$/.test(e)) return null;
     return e;
 }
-function emailKey(email) {
-    return crypto.createHash('sha256').update('bq-premium:' + email).digest('hex').slice(0, 40);
+// BTCPay Greenfield payment-methods: ids like BTC-LN, BTC-LNURL,
+// BTC-LightningNetwork, BTC-LNURLPAY are Lightning; BTC / BTC-CHAIN are on-chain.
+function isLightningMethod(id) {
+    return /(^|-)(LN|LNURL|LNURLPAY|LIGHTNINGNETWORK)$/i.test(String(id || ''));
+}
+function nonLightningPayments(pms) {
+    if (!Array.isArray(pms)) return ['unreadable'];
+    return pms.filter(function (m) {
+        const id = m && (m.paymentMethodId || m.paymentMethod);
+        return m && Array.isArray(m.payments) && m.payments.length > 0 && !isLightningMethod(id);
+    }).map(function (m) { return String(m.paymentMethodId || m.paymentMethod || 'unknown'); });
+}
+
+function emailKey(email, key) {
+    const c = canonicalEmail(email);
+    return c ? keyedHash(key, 'email', c) : null;
 }
 
 function etMonthKey(nowMs) {
@@ -246,12 +287,12 @@ function summarize(ent, nowMs) {
     const sub = Number(e.subscriptionUntilMs) || 0;
     const pre = Number(e.prepaidUntilMs) || 0;
     const expiresAtMs = founders ? null : (Math.max(sub, pre) || null);
-    const covered = e.revoked !== true && (founders || (expiresAtMs != null && expiresAtMs > nowMs));
+    const covered = e.revoked !== true && e.frozen !== true && (founders || (expiresAtMs != null && expiresAtMs > nowMs));
     const startsAtMs = Number(e.startsAtMs) || null;
     const started = !startsAtMs || nowMs >= startsAtMs;
     const active = covered && started;
     let plan = null;
-    if (founders && e.revoked !== true) plan = 'founders';
+    if (founders && e.revoked !== true && e.frozen !== true) plan = 'founders';
     else if (active) plan = sub >= pre ? (e.subscriptionPlan || 'monthly') : (e.prepaidPlan || 'months');
     if (!plan && covered) plan = founders ? 'founders' : (sub >= pre ? (e.subscriptionPlan || 'monthly') : (e.prepaidPlan || 'months'));
     const trialUntilMs = Number(e.trialUntilMs) || null;
@@ -336,6 +377,17 @@ function createPremiumHandlers(deps) {
         return new HttpsError(code, msg, reason ? { reason: reason } : undefined);
     }
     function ref(col, id) { return db.collection(col).doc(id); }
+    // Keyed hash; refuses (fails closed) when PREMIUM_HASH_KEY is not set.
+    function H(kind, value) {
+        try { return keyedHash(deps.hashKey || env.PREMIUM_HASH_KEY, kind, value); }
+        catch (e) { throw fail('failed-precondition', 'Checkout is not set up yet.', 'hash_key'); }
+    }
+    function ekey(email) { const c = canonicalEmail(email); return c ? H('email', c) : null; }
+    async function trialMarkerExists(kind, hash) {
+        if (!hash) return false;
+        const snap = await ref(COL.trialMarkers, kind + '_' + hash).get();
+        return snap.exists;
+    }
 
     function mode() {
         const m = providerMode(projectId);
@@ -487,26 +539,32 @@ function createPremiumHandlers(deps) {
             if (globalRef) {
                 const g = windowCount(globalSnap.exists ? globalSnap.data() : {});
                 if (g.count >= cfg.publicOrdersPerHour) throw fail('resource-exhausted', 'Checkout is busy. Try again in an hour.', 'rate_limited_global');
-                tx.set(globalRef, { windowStartMs: g.inWindow ? g.windowStart : nowMs, count: g.count + 1 });
+                const gws = g.inWindow ? g.windowStart : nowMs;
+                tx.set(globalRef, { windowStartMs: gws, count: g.count + 1, expireAt: new Date(gws + 2 * 3600000) });
             }
             if (q.lifetime) {
                 const c = counterSnap.exists ? counterSnap.data() : { sold: 0, holds: {} };
                 const holds = liveHolds(c.holds, nowMs);
                 const mine = Object.keys(holds).filter(function (id) { return holds[id].uid === who.holdKey; });
                 if (mine.length) throw fail('failed-precondition', "You already have a Founders' checkout open. Finish it or wait about 35 minutes.", 'hold_exists');
+                // One live Founders' hold per real client IP (keyed hash only).
+                const sameIp = who.ipHash ? Object.keys(holds).filter(function (id) { return holds[id].ipHash === who.ipHash; }) : [];
+                if (sameIp.length) throw fail('failed-precondition', "A Founders' checkout is already open from this network. Finish it or wait about 35 minutes.", 'hold_exists_ip');
                 if ((Number(c.sold) || 0) + Object.keys(holds).length >= pricing.FOUNDERS_CAP) {
                     throw fail('resource-exhausted', "Founders' Lifetime is sold out.", 'founders_sold_out');
                 }
                 if (Object.keys(holds).length >= cfg.maxLiveFoundersHolds) {
                     throw fail('resource-exhausted', "Lots of people are checking out Founders' right now. Try again in about 30 minutes.", 'founders_busy');
                 }
-                holds[orderId] = { uid: who.holdKey, expMs: nowMs + holdMs };
+                holds[orderId] = { uid: who.holdKey, ipHash: who.ipHash || null, expMs: nowMs + holdMs };
                 tx.set(counterRef, Object.assign({}, c, { sold: Number(c.sold) || 0, holds: holds, cap: pricing.FOUNDERS_CAP, updatedAtMs: nowMs }));
             }
-            tx.set(rateRef, { windowStartMs: inWindow ? windowStart : nowMs, count: count + 1 });
+            // expireAt: Firestore TTL field (policy on premium_rate.expireAt; see docs).
+            const ws = inWindow ? windowStart : nowMs;
+            tx.set(rateRef, { windowStartMs: ws, count: count + 1, expireAt: new Date(ws + 2 * 3600000) });
             tx.set(orderRef, {
                 uid: who.uid || null,
-                emailKey: who.email ? emailKey(who.email) : null,
+                emailKey: who.emailKey || null,
                 email: who.uid ? null : who.email,
                 // Set only while a plain email is stored; the sweep clears the
                 // email after publicOrderEmailRetentionMonths (single-field range query).
@@ -650,7 +708,21 @@ function createPremiumHandlers(deps) {
             throw fail('failed-precondition', 'Your prepaid time is still running. You can start a card plan in its last 3 days.', 'prepaid_active');
         }
         const email = auth.token && auth.token.email_verified === true ? normalizeEmail(auth.token.email) : null;
-        return startOrder(q, { uid: uid, email: email, holdKey: uid, rateKey: uid, customerId: ent.stripeCustomerId || null, trialEligible: !ent.trialUsed && !ent.stripeSubscriptionId && !ent.founders }, cfg, nowMs, cleanSrc(d.src), 'app');
+        const ek = email ? ekey(email) : null;
+        const ipHash = H('ip', clientIp(context && context.rawRequest));
+        // A canonical email that already had a free trial starts paid, no trial.
+        const emailTrialUsed = await trialMarkerExists('e', ek);
+        return startOrder(q, { uid: uid, email: email, emailKey: ek, ipHash: ipHash, holdKey: uid, rateKey: uid, customerId: ent.stripeCustomerId || null, trialEligible: !ent.trialUsed && !ent.stripeSubscriptionId && !ent.founders && !emailTrialUsed }, cfg, nowMs, cleanSrc(d.src), 'app');
+    }
+
+    // Turnstile siteverify result must be a success, for the premium_checkout
+    // action, from a hostname allowed in this environment.
+    function turnstileOk(r) {
+        const m = providerMode(projectId);
+        if (!m || !r || typeof r !== 'object' || r.success !== true) return false;
+        if (r.action !== TURNSTILE_ACTION) return false;
+        const host = String(r.hostname || '').toLowerCase();
+        return TURNSTILE_HOSTS[m].some(function (h) { return typeof h === 'string' ? h === host : h.test(host); });
     }
 
     // ---- Public checkout for the static /premium page. Full price only.
@@ -677,10 +749,10 @@ function createPremiumHandlers(deps) {
         // app), never to an email on the public page (Red Team, Nov 14).
         if (String(b.plan || '') === 'founders') throw fail('failed-precondition', "Sign in to Bitcoin Quest to buy Founders' Lifetime.", 'founders_sign_in');
         const email = normalizeEmail(b.email);
-        if (!email) throw fail('invalid-argument', 'Enter a valid email.', 'bad_email');
+        if (!email || !canonicalEmail(email)) throw fail('invalid-argument', 'Enter a valid email.', 'bad_email');
         if (!verifyTurnstile) throw fail('failed-precondition', 'Checkout is not set up yet.', 'no_turnstile');
-        const human = await verifyTurnstile(String(b.turnstileToken || ''), ip || undefined).catch(function () { return false; });
-        if (!human) throw fail('permission-denied', 'Please complete the security check.', 'turnstile');
+        const tsr = await Promise.resolve(verifyTurnstile(String(b.turnstileToken || ''), ip || undefined)).catch(function () { return null; });
+        if (!turnstileOk(tsr)) throw fail('permission-denied', 'Please complete the security check.', 'turnstile');
         const nowMs = now();
         const q = quoteOrThrow({
             plan: String(b.plan || ''),
@@ -689,11 +761,12 @@ function createPremiumHandlers(deps) {
             nowMs: nowMs,
             existingUserEligible: false, // never on the public page
         }, cfg);
-        const ek = emailKey(email);
+        const ek = ekey(email);
         const held = await ref(COL.emailEntitlements, ek).get();
         if (held.exists && held.data().founders === true) throw fail('failed-precondition', "This email already has Founders' Lifetime.", 'already_lifetime');
-        const ipKey = 'ip_' + crypto.createHash('sha256').update('bq-premium-ip:' + String(ip || 'none')).digest('hex').slice(0, 32);
-        return startOrder(q, { uid: null, email: email, holdKey: 'email:' + ek, rateKey: ipKey, returnBase: returnBase || null, customerId: null, trialEligible: !(held.exists && (held.data().trialUsed || held.data().stripeSubscriptionId)) }, cfg, nowMs, cleanSrc(b.src), 'public');
+        const ipHash = H('ip', ip || 'none');
+        const emailTrialUsed = await trialMarkerExists('e', ek);
+        return startOrder(q, { uid: null, email: email, emailKey: ek, ipHash: ipHash, holdKey: 'email:' + ek, rateKey: 'ip_' + ipHash, returnBase: returnBase || null, customerId: null, trialEligible: !emailTrialUsed && !(held.exists && (held.data().trialUsed || held.data().stripeSubscriptionId)) }, cfg, nowMs, cleanSrc(b.src), 'public');
     }
 
     async function premiumPublicCheckout(req, res) {
@@ -902,11 +975,16 @@ function createPremiumHandlers(deps) {
             // never carry the payment method, so read the session back expanded.
             // A failed read throws, the webhook answers 500 and Stripe retries.
             const fp = await sessionCardFingerprint(obj.id);
-            const fpHash = fp ? cardFpHash(fp) : null;
+            const fpHash = fp ? H('card', fp) : null;
             const outcome = await once(key, orderId || null, async function (tx, r) {
                 const o = r.order;
-                const trialRef = fpHash && o && o.trialEndMs ? ref(COL.cardTrials, fpHash) : null;
-                const trialSnap = trialRef ? await tx.get(trialRef) : null;
+                // Trial markers (keyed hashes only): card fingerprint and canonical email.
+                const isTrial = !!(o && o.trialEndMs && o.trialDays > 0);
+                const cardRef = isTrial && fpHash ? ref(COL.trialMarkers, 'c_' + fpHash) : null;
+                const mailRef = isTrial && o.emailKey ? ref(COL.trialMarkers, 'e_' + o.emailKey) : null;
+                const cardSnap = cardRef ? await tx.get(cardRef) : null;
+                const mailSnap = mailRef ? await tx.get(mailRef) : null;
+                const reused = [cardSnap, mailSnap].filter(function (x) { return x && x.exists && x.data().orderId !== orderId; });
                 if (!o || o.provider !== 'stripe' || o.providerSessionId !== obj.id || !r.entRef) {
                     review(tx, 'stripe_unknown_order', { orderId: orderId || null, sessionId: obj.id || null, eventId: event.id }, r.nowMs);
                     return 'review';
@@ -922,12 +1000,13 @@ function createPremiumHandlers(deps) {
                 if (!settled) return 'not_paid_yet';
                 // Same card already used a free trial: no free access, no
                 // automatic billing change. Admin decides from the review queue.
-                if (trialSnap && trialSnap.exists && trialSnap.data().orderId !== orderId) {
-                    review(tx, 'trial_card_reused', { orderId: orderId, uid: o.uid, sessionId: obj.id, cardFpHash: fpHash, firstOrderId: trialSnap.data().orderId || null }, r.nowMs);
-                    tx.update(r.orderRef, { status: 'review', reviewReason: 'trial_card_reused', cardFpHash: fpHash, stripeCustomerId: typeof obj.customer === 'string' ? obj.customer : null });
+                if (reused.length) {
+                    review(tx, 'trial_reused', { orderId: orderId, uid: o.uid, customerId: typeof obj.customer === 'string' ? obj.customer : null, sessionId: obj.id, firstOrderId: reused[0].data().orderId || null, by: reused.map(function (x) { return x === cardSnap ? 'card' : 'email'; }) }, r.nowMs);
+                    tx.update(r.orderRef, { status: 'review', reviewReason: 'trial_reused', cardFpHash: fpHash, stripeCustomerId: typeof obj.customer === 'string' ? obj.customer : null });
                     return 'review';
                 }
-                if (trialRef) tx.set(trialRef, { orderId: orderId, atMs: r.nowMs });
+                if (cardRef) tx.set(cardRef, { orderId: orderId, kind: 'card', atMs: r.nowMs });
+                if (mailRef) tx.set(mailRef, { orderId: orderId, kind: 'email', atMs: r.nowMs });
                 setStart(r, o);
                 if (typeof obj.customer === 'string') r.ent.stripeCustomerId = obj.customer;
                 tx.update(r.orderRef, { cardFpHash: fpHash, stripeCustomerId: typeof obj.customer === 'string' ? obj.customer : null });
@@ -955,6 +1034,11 @@ function createPremiumHandlers(deps) {
                 const o = r.order;
                 if (!o || o.provider !== 'stripe' || o.cardMode !== 'subscription' || !subId || !r.entRef) {
                     review(tx, 'stripe_invoice_unknown_order', { orderId: orderId || null, invoiceId: obj.id || null, eventId: event.id }, r.nowMs);
+                    return 'review';
+                }
+                // Orders held for review (e.g. trial reuse) get no time until a human clears them.
+                if (o.status === 'review') {
+                    review(tx, 'stripe_invoice_order_in_review', { orderId: orderId, uid: o.uid, invoiceId: obj.id, customerId: typeof obj.customer === 'string' ? obj.customer : null, amount: obj.amount_paid }, r.nowMs);
                     return 'review';
                 }
                 if (o.stripeSubscriptionId && o.stripeSubscriptionId !== subId) {
@@ -1022,17 +1106,56 @@ function createPremiumHandlers(deps) {
         }
 
         if (t === 'charge.refunded' || t === 'charge.dispute.created' || t === 'invoice.payment_failed') {
+            // Find who this is about: order id from metadata, else the Stripe customer.
+            const customerId = typeof obj.customer === 'string' ? obj.customer : null;
+            let orderIds = orderIdsForCharge(obj);
+            const subMeta = obj.parent && obj.parent.subscription_details && obj.parent.subscription_details.metadata;
+            if (!orderIds.length && subMeta && typeof subMeta.orderId === 'string') orderIds = [subMeta.orderId];
+            if (!orderIds.length && customerId) {
+                const q = await db.collection(COL.orders).where('stripeCustomerId', '==', customerId).limit(10).get();
+                orderIds = q.docs.map(function (d) { return d.id; });
+            }
+            // Entitlements to freeze: by Stripe customer (account and email-held).
+            const entRefs = [];
+            if (customerId) {
+                const a = await db.collection(COL.entitlements).where('stripeCustomerId', '==', customerId).limit(10).get();
+                const b = await db.collection(COL.emailEntitlements).where('stripeCustomerId', '==', customerId).limit(10).get();
+                a.docs.concat(b.docs).forEach(function (d) { entRefs.push(d.ref); });
+            }
             if (t === 'charge.refunded' && obj.refunded === true) {
                 // Full refund: the buyer's plain email is no longer needed.
-                await clearOrderEmails(orderIdsForCharge(obj), typeof obj.customer === 'string' ? obj.customer : null, 'refunded');
+                await clearOrderEmails(orderIds, customerId, 'refunded');
             }
-            const outcome = await once(key, null, async function (tx, r) {
+            const firstOrderId = orderIds[0] || null;
+            const outcome = await once(key, firstOrderId, async function (tx, r) {
+                const snaps = [];
+                for (const er of entRefs) snaps.push(await tx.get(er));
+                const uids = [];
+                snaps.forEach(function (sn) {
+                    if (!sn.exists) return;
+                    const e = Object.assign({}, sn.data(), { frozen: true, frozenAtMs: r.nowMs, frozenReason: t });
+                    const isAccount = sn.ref.path.indexOf(COL.entitlements + '/') === 0;
+                    if (isAccount) uids.push(sn.id);
+                    writeEntitlement(tx, { nowMs: r.nowMs, uid: isAccount ? sn.id : null, entRef: sn.ref, ent: e, userExists: isAccount });
+                });
+                const uid = (r.order && r.order.uid) || uids[0] || null;
                 review(tx, 'stripe_' + t.replace(/\./g, '_'), {
                     eventId: event.id,
                     objectId: obj.id || null,
-                    customer: typeof obj.customer === 'string' ? obj.customer : null,
-                    amount: obj.amount || obj.amount_due || null,
+                    uid: uid,
+                    orderId: firstOrderId,
+                    customerId: customerId,
+                    amount: obj.amount_refunded || obj.amount || obj.amount_due || null,
+                    frozen: snaps.filter(function (x) { return x.exists; }).length,
                 }, r.nowMs);
+                // Human alert: the admin panel's admin_notifications feed.
+                tx.set(ref('admin_notifications', newId()), {
+                    type: 'premium_review',
+                    text: 'Premium ' + t + ': perks frozen until review (order ' + (firstOrderId || 'unknown') + ').',
+                    uid: uid ? String(uid).slice(0, 4) + '\u2026' : null,
+                    read: false,
+                    createdAt: new Date(r.nowMs),
+                });
                 return 'review';
             });
             return { status: 200, outcome: outcome };
@@ -1072,6 +1195,10 @@ function createPremiumHandlers(deps) {
         if (t === 'InvoiceSettled') {
             const inv = await btcpayRequest('GET', '/invoices/' + encodeURIComponent(body.invoiceId));
             const orderId = String((inv && inv.metadata && inv.metadata.orderId) || '');
+            // Lightning only: re-read how it was paid. Any payment on a
+            // non-Lightning method (on-chain) goes to review, no grant.
+            const pms = await btcpayRequest('GET', '/invoices/' + encodeURIComponent(body.invoiceId) + '/payment-methods');
+            const offRail = nonLightningPayments(pms);
             const outcome = await once(key, orderId || null, async function (tx, r) {
                 const o = r.order;
                 if (!o || o.provider !== 'btcpay' || o.providerInvoiceId !== inv.id || inv.id !== body.invoiceId || !r.entRef) {
@@ -1080,6 +1207,11 @@ function createPremiumHandlers(deps) {
                 }
                 if (o.status === 'paid') return 'already_paid';
                 if (inv.status !== 'Settled') return 'not_settled';
+                if (offRail.length) {
+                    review(tx, 'btcpay_not_lightning', { orderId: orderId, uid: o.uid, invoiceId: inv.id, methods: offRail }, r.nowMs);
+                    tx.update(r.orderRef, { status: 'review', reviewReason: 'not_lightning' });
+                    return 'review';
+                }
                 if (String(inv.currency).toUpperCase() !== 'USD' || usdToCents(inv.amount) !== o.amountCents) {
                     review(tx, 'btcpay_amount_mismatch', { orderId: orderId, uid: o.uid, invoiceId: inv.id, got: String(inv.amount), want: o.amountCents }, r.nowMs);
                     tx.update(r.orderRef, { status: 'review', reviewReason: 'amount_mismatch' });
@@ -1130,9 +1262,13 @@ function createPremiumHandlers(deps) {
         const entSnap = await ref(COL.entitlements, auth.uid).get();
         const ent = entSnap.exists ? entSnap.data() : {};
         if (!ent.stripeCustomerId) throw fail('failed-precondition', 'No card billing on this account.', 'no_customer');
+        // Always our own portal configuration (no promotion codes, no plan
+        // switching); never Stripe's default. Missing id = portal stays closed.
+        const cfg = await loadConfig();
+        if (!cfg.stripePortalConfigId) throw fail('failed-precondition', 'Billing management opens soon.', 'portal_not_configured');
         let s;
         try {
-            s = await stripeRequest('POST', '/v1/billing_portal/sessions', { customer: ent.stripeCustomerId, return_url: siteUrl() + '/?premium=portal' });
+            s = await stripeRequest('POST', '/v1/billing_portal/sessions', { customer: ent.stripeCustomerId, configuration: cfg.stripePortalConfigId, return_url: siteUrl() + '/?premium=portal' });
         } catch (e) {
             if (e instanceof HttpsError) throw e;
             throw fail('unavailable', 'Billing could not open. Try again in a minute.', 'provider_error');
@@ -1147,23 +1283,35 @@ function createPremiumHandlers(deps) {
         const email = auth.token && auth.token.email_verified === true ? normalizeEmail(auth.token.email) : null;
         if (!email) throw fail('failed-precondition', 'Verify your email first.', 'email_not_verified');
         const nowMs = now();
-        const eRef = ref(COL.emailEntitlements, emailKey(email));
+        const ek = ekey(email);
+        const eRef = ref(COL.emailEntitlements, ek);
         const aRef = ref(COL.entitlements, auth.uid);
         const uRef = ref('users', auth.uid);
-        return db.runTransaction(async function (tx) {
+        const out = await db.runTransaction(async function (tx) {
             const e = await tx.get(eRef);
             const a = await tx.get(aRef);
             const u = await tx.get(uRef);
+            const blocked = blockedUser(u.exists ? u.data() : null);
+            if (blocked) throw fail('permission-denied', 'This account cannot use Premium.', blocked);
             if (!e.exists) return { claimed: false, reason: 'nothing_to_claim' };
             const held = e.data();
             if (held.claimedByUid && held.claimedByUid !== auth.uid) throw fail('failed-precondition', 'Already claimed by another account.', 'claimed_elsewhere');
             if (held.claimedByUid === auth.uid) return { claimed: true, already: true };
             const r = { tx: tx, nowMs: nowMs, uid: auth.uid, entRef: aRef, userExists: u.exists, ent: mergeEntitlements(a.exists ? a.data() : {}, held, nowMs) };
+            if (held.frozen === true) { r.ent.frozen = true; r.ent.frozenAtMs = held.frozenAtMs || nowMs; r.ent.frozenReason = held.frozenReason || null; }
             writeEntitlement(tx, r);
             tx.update(eRef, { claimedByUid: auth.uid, claimedAtMs: nowMs });
             const s = summarize(r.ent, nowMs);
             return { claimed: true, active: s.active, plan: s.plan, expiresAtMs: s.expiresAtMs };
         });
+        // Claimed: the plain email on its public orders is no longer needed.
+        if (out.claimed) {
+            const q = await db.collection(COL.orders).where('emailKey', '==', ek).limit(50).get();
+            for (const d of q.docs) {
+                if (d.data().email != null) await d.ref.update({ email: null, emailHeldSinceMs: null, emailClearedAtMs: nowMs, emailClearedReason: 'claimed' });
+            }
+        }
+        return out;
     }
 
     // ---- Status + server prices for this player (in-app; may include the 5%)
@@ -1250,7 +1398,84 @@ function createPremiumHandlers(deps) {
                 flipped++;
             });
         }
-        return { checked: snap.docs.length, flipped: flipped };
+        const emailsCleared = await clearExpiredOrderEmails(nowMs, limit);
+        const holds = await checkHoldsAlert(nowMs);
+        return { checked: snap.docs.length, flipped: flipped, emailsCleared: emailsCleared, holdsAlert: holds };
+    }
+
+    // Unclaimed public orders: clear the plain email after
+    // publicOrderEmailRetentionMonths (default 24) from purchase.
+    async function clearExpiredOrderEmails(nowMs, limit) {
+        const cfg = await loadConfig();
+        const cutoff = pricing.addMonths(nowMs, -cfg.publicOrderEmailRetentionMonths);
+        const q = await db.collection(COL.orders).where('emailHeldSinceMs', '<=', cutoff).limit(limit || 300).get();
+        let n = 0;
+        for (const d of q.docs) {
+            await d.ref.update({ email: null, emailHeldSinceMs: null, emailClearedAtMs: nowMs, emailClearedReason: 'retention' });
+            n++;
+        }
+        return n;
+    }
+
+    // Founders' holds at or above the threshold for over an hour: one review
+    // row plus an admin_notifications alert per high streak.
+    async function checkHoldsAlert(nowMs) {
+        const cfg = await loadConfig();
+        const counterRef = ref(COL.counters, 'founders');
+        return db.runTransaction(async function (tx) {
+            const c = await tx.get(counterRef);
+            if (!c.exists) return 'none';
+            const d = c.data();
+            const live = Object.keys(liveHolds(d.holds, nowMs)).length;
+            if (live < cfg.foundersHoldsAlertThreshold) {
+                if (d.holdsHighSinceMs) tx.update(counterRef, { holdsHighSinceMs: null, holdsAlertedAtMs: null });
+                return 'ok';
+            }
+            if (!d.holdsHighSinceMs) { tx.update(counterRef, { holdsHighSinceMs: nowMs }); return 'high'; }
+            if (nowMs - d.holdsHighSinceMs < HOLDS_ALERT_AFTER_MS || d.holdsAlertedAtMs) return 'high';
+            review(tx, 'founders_holds_high', { liveHolds: live, sinceMs: d.holdsHighSinceMs, threshold: cfg.foundersHoldsAlertThreshold }, nowMs);
+            tx.set(ref('admin_notifications', newId()), { type: 'premium_holds_high', text: "Founders' holds have been at " + live + ' or more for over an hour.', read: false, createdAt: new Date(nowMs) });
+            tx.update(counterRef, { holdsAlertedAtMs: nowMs });
+            return 'alerted';
+        });
+    }
+
+    // ---- Admin: revoke or restore Premium (refunds, disputes, abuse).
+    // Admin claim + fresh 2FA step-up (same as adminSetKillSwitch), audit row
+    // in premium_admin_audit (permanent). Not deployed.
+    async function adminRevokePremium(data, context) {
+        const auth = context && context.auth;
+        if (!auth || !auth.token || auth.token.admin !== true) throw fail('permission-denied', 'Admins only.', 'not_admin');
+        const d = data && typeof data === 'object' ? data : {};
+        const action = d.action;
+        if (action !== 'revoke' && action !== 'restore') throw fail('invalid-argument', 'action must be revoke or restore', 'bad_action');
+        const target = typeof d.uid === 'string' && /^[A-Za-z0-9_-]{6,128}$/.test(d.uid) ? d.uid : null;
+        if (!target) throw fail('invalid-argument', 'uid required', 'bad_uid');
+        const reason = String(d.reason || '').replace(/[\u0000-\u001f\u007f<>]/g, ' ').trim().slice(0, 300);
+        if (!reason) throw fail('invalid-argument', 'reason required', 'no_reason');
+        const stepUp = deps.stepUp || function (dd, ctx) {
+            const sf = require('./secondFactor');
+            return sf.requireAdminStepUp(sf.stamp(dd, ctx), 'adminRevokePremium');
+        };
+        await stepUp(data, context);
+        const nowMs = now();
+        const entRef = ref(COL.entitlements, target);
+        return db.runTransaction(async function (tx) {
+            const e = await tx.get(entRef);
+            const u = await tx.get(ref('users', target));
+            if (!e.exists) throw fail('not-found', 'No Premium record for that account.', 'no_entitlement');
+            const ent = Object.assign({}, e.data());
+            const before = summarize(ent, nowMs);
+            if (action === 'revoke') { ent.revoked = true; ent.revokedAtMs = nowMs; }
+            else { ent.revoked = false; ent.frozen = false; ent.restoredAtMs = nowMs; }
+            writeEntitlement(tx, { nowMs: nowMs, uid: target, entRef: entRef, ent: ent, userExists: u.exists });
+            const after = summarize(ent, nowMs);
+            tx.set(ref(COL.adminAudit, newId()), {
+                action: action, targetUid: target, adminUid: auth.uid, reason: reason,
+                activeBefore: before.active, activeAfter: after.active, atMs: nowMs,
+            });
+            return { ok: true, action: action, active: after.active };
+        });
     }
 
     return {
@@ -1267,7 +1492,73 @@ function createPremiumHandlers(deps) {
         handleBtcpayEvent: handleBtcpayEvent,
         releaseOrder: releaseOrder,
         sweepExpired: sweepExpired,
+        adminRevokePremium: adminRevokePremium,
     };
+}
+
+// ---- Account deletion (called from deleteAccount.purgeAccount).
+// Financial records stay (orders, events, allowance ledger, review rows,
+// admin audit) but the uid is replaced by a stable masked id and every email
+// field is cleared. Entitlement, allowance, rate and email-held docs go.
+// Writes go straight to Firestore (not the deletion batcher, which refuses
+// to write retained collections).
+async function purgePremiumForAccount(db, uid, nowMs) {
+    const masked = maskDeletedUid(uid);
+    const t = nowMs || Date.now();
+    const out = { masked: masked, orders: 0, ledger: 0, review: 0, deleted: 0, activeSubscription: false };
+    const entRef = db.collection(COL.entitlements).doc(uid);
+    const entSnap = await entRef.get();
+    const ent = entSnap.exists ? entSnap.data() : null;
+    // Email-held purchases this account claimed: their email keys.
+    const claimed = await db.collection(COL.emailEntitlements).where('claimedByUid', '==', uid).get();
+    const keys = claimed.docs.map(function (d) { return d.id; });
+    const orderDocs = (await db.collection(COL.orders).where('uid', '==', uid).get()).docs;
+    for (const k of keys) {
+        (await db.collection(COL.orders).where('emailKey', '==', k).get()).docs.forEach(function (d) { orderDocs.push(d); });
+    }
+    const seen = new Set();
+    for (const d of orderDocs) {
+        if (seen.has(d.id)) continue;
+        seen.add(d.id);
+        const o = d.data();
+        await d.ref.update({ uid: o.uid ? masked : null, uidMasked: true, email: null, emailKey: null, emailHeldSinceMs: null, emailClearedAtMs: t, emailClearedReason: 'account_deleted' });
+        out.orders++;
+    }
+    const ledger = await db.collection(COL.allowanceLedger).where('uid', '==', uid).get();
+    for (const d of ledger.docs) {
+        const row = Object.assign({}, d.data(), { uid: masked, uidMasked: true });
+        await db.collection(COL.allowanceLedger).doc(masked + '_' + (row.month || d.id)).set(row);
+        await d.ref.delete();
+        out.ledger++;
+    }
+    const reviews = await db.collection(COL.review).where('uid', '==', uid).get();
+    for (const d of reviews.docs) { await d.ref.update({ uid: masked, uidMasked: true }); out.review++; }
+    const audits = await db.collection(COL.adminAudit).where('targetUid', '==', uid).get();
+    for (const d of audits.docs) { await d.ref.update({ targetUid: masked, uidMasked: true }); }
+    // A renewing card subscription must be cancelled in Stripe by a human.
+    if (ent && ent.autoRenew === true && ent.stripeSubscriptionId) {
+        out.activeSubscription = true;
+        await db.collection(COL.review).doc('del_' + masked).set({
+            reason: 'deleted_account_active_subscription', uid: masked, uidMasked: true,
+            subscriptionId: ent.stripeSubscriptionId, customerId: ent.stripeCustomerId || null,
+            createdAtMs: t, resolved: false,
+        });
+    }
+    // Founders' holds keyed by this uid.
+    const cRef = db.collection(COL.counters).doc('founders');
+    const c = await cRef.get();
+    if (c.exists) {
+        const holds = Object.assign({}, c.data().holds || {});
+        let changed = false;
+        Object.keys(holds).forEach(function (id) { if (holds[id] && holds[id].uid === uid) { holds[id] = Object.assign({}, holds[id], { uid: masked }); changed = true; } });
+        if (changed) await cRef.update({ holds: holds });
+    }
+    const drop = [entRef, db.collection(COL.allowance).doc(uid), db.collection(COL.rate).doc(uid)].concat(claimed.docs.map(function (d) { return d.ref; }));
+    for (const r of drop) {
+        const s = await r.get();
+        if (s.exists) { await r.delete(); out.deleted++; }
+    }
+    return out;
 }
 
 // ---------------------------------------------------------------- bind
@@ -1282,12 +1573,12 @@ function bindPremium(functionsV1, deps) {
     const createPremiumCheckout = functionsV1.runWith({
         enforceAppCheck: true,
         timeoutSeconds: 60,
-        secrets: [s.STRIPE_SECRET_KEY, s.BTCPAY_API_KEY, s.BTCPAY_URL, s.BTCPAY_STORE_ID],
+        secrets: [s.PREMIUM_HASH_KEY, s.STRIPE_SECRET_KEY, s.BTCPAY_API_KEY, s.BTCPAY_URL, s.BTCPAY_STORE_ID],
         serviceAccount: runtimeSa('createPremiumCheckout'),
     }).https.onCall(handlers.createPremiumCheckout);
     const premiumPublicCheckout = functionsV1.runWith({
         timeoutSeconds: 60,
-        secrets: [s.STRIPE_SECRET_KEY, s.BTCPAY_API_KEY, s.BTCPAY_URL, s.BTCPAY_STORE_ID, deps.turnstileSecret].filter(Boolean),
+        secrets: [s.PREMIUM_HASH_KEY, s.STRIPE_SECRET_KEY, s.BTCPAY_API_KEY, s.BTCPAY_URL, s.BTCPAY_STORE_ID, deps.turnstileSecret].filter(Boolean),
         serviceAccount: runtimeSa('premiumPublicCheckout'),
     }).https.onRequest(handlers.premiumPublicCheckout);
     const createPremiumPortal = functionsV1.runWith({
@@ -1296,12 +1587,18 @@ function bindPremium(functionsV1, deps) {
         secrets: [s.STRIPE_SECRET_KEY],
         serviceAccount: runtimeSa('createPremiumPortal'),
     }).https.onCall(handlers.createPremiumPortal);
-    const claimPremiumByEmail = functionsV1.runWith({ enforceAppCheck: true, timeoutSeconds: 30 }).https.onCall(handlers.claimPremiumByEmail);
+    const claimPremiumByEmail = functionsV1.runWith({
+        enforceAppCheck: true,
+        timeoutSeconds: 30,
+        secrets: [s.PREMIUM_HASH_KEY],
+        serviceAccount: runtimeSa('claimPremiumByEmail'),
+    }).https.onCall(handlers.claimPremiumByEmail);
     const getPremiumStatus = functionsV1.runWith({ enforceAppCheck: true, timeoutSeconds: 30 }).https.onCall(handlers.getPremiumStatus);
     const claimPremiumAllowance = functionsV1.runWith({ enforceAppCheck: true, timeoutSeconds: 30 }).https.onCall(handlers.claimPremiumAllowance);
     const premiumStripeWebhook = functionsV1.runWith({
         timeoutSeconds: 60,
-        secrets: [s.STRIPE_WEBHOOK_SECRET],
+        // STRIPE_SECRET_KEY: re-reads the session for the card fingerprint.
+        secrets: [s.STRIPE_WEBHOOK_SECRET, s.STRIPE_SECRET_KEY, s.PREMIUM_HASH_KEY],
         serviceAccount: runtimeSa('premiumStripeWebhook'),
     }).https.onRequest(handlers.stripeWebhook);
     const premiumBtcpayWebhook = functionsV1.runWith({
@@ -1309,6 +1606,8 @@ function bindPremium(functionsV1, deps) {
         secrets: [s.BTCPAY_API_KEY, s.BTCPAY_WEBHOOK_SECRET, s.BTCPAY_URL, s.BTCPAY_STORE_ID],
         serviceAccount: runtimeSa('premiumBtcpayWebhook'),
     }).https.onRequest(handlers.btcpayWebhook);
+    // Admin-only (admin claim + fresh 2FA step-up). Not deployed until Phil OKs.
+    const adminRevokePremium = functionsV1.runWith({ enforceAppCheck: true, timeoutSeconds: 30 }).https.onCall(handlers.adminRevokePremium);
     const premiumExpirySweep = functionsV1.pubsub.schedule('every 60 minutes').timeZone('UTC').onRun(async function () {
         await handlers.sweepExpired(300);
     });
@@ -1322,6 +1621,7 @@ function bindPremium(functionsV1, deps) {
         premiumStripeWebhook: premiumStripeWebhook,
         premiumBtcpayWebhook: premiumBtcpayWebhook,
         premiumExpirySweep: premiumExpirySweep,
+        adminRevokePremium: adminRevokePremium,
     };
 }
 
@@ -1347,6 +1647,14 @@ module.exports = {
     isPremiumActive,
     mergeEntitlements,
     foundersLeft,
+    canonicalEmail,
+    keyedHash,
+    clientIp,
+    maskDeletedUid,
+    nonLightningPayments,
+    purgePremiumForAccount,
+    PERMANENT_COLLECTIONS,
+    TURNSTILE_ACTION,
     createPremiumHandlers,
     bindPremium,
 };

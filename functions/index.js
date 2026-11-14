@@ -147,12 +147,15 @@ async function logAdminAction(req, action, params) {
 const { NWCClient } = require('@getalby/sdk');
 
 // ── Cloudflare Turnstile verification ───────────────────────────────────────
-async function verifyTurnstile(token, remoteip) {
-    if (!token) return false;
+// Detailed form ({ success, hostname, action }) for callers that also check
+// the hostname and action (Premium checkout). Fails closed.
+async function verifyTurnstileDetailed(token, remoteip) {
+    const no = { success: false, hostname: null, action: null };
+    if (!token) return no;
     const secret = turnstileSecretKey();
     if (!secret) {
         console.error('[Turnstile] TURNSTILE_SECRET_KEY is not configured — failing closed');
-        return false;
+        return no;
     }
     try {
         const params = new URLSearchParams({ secret, response: token });
@@ -164,11 +167,18 @@ async function verifyTurnstile(token, remoteip) {
         });
         const result = await res.json();
         console.log('[Turnstile] verify result:', result.success, result['error-codes']);
-        return result.success === true;
+        return {
+            success: result.success === true,
+            hostname: typeof result.hostname === 'string' ? result.hostname : null,
+            action: typeof result.action === 'string' ? result.action : null,
+        };
     } catch (e) {
         console.error('[Turnstile] verify error:', e.message);
-        return false;
+        return no;
     }
+}
+async function verifyTurnstile(token, remoteip) {
+    return (await verifyTurnstileDetailed(token, remoteip)).success;
 }
 const bolt11 = require('bolt11');
 const dns = require('dns').promises;
@@ -9592,7 +9602,7 @@ const { bindPremium } = require('./src/premium');
 const premiumFns = bindPremium(functionsV1, {
     admin: admin,
     db: db,
-    verifyTurnstile: verifyTurnstile,
+    verifyTurnstile: verifyTurnstileDetailed,
     turnstileSecret: turnstileSecret,
     log: function (msg, meta) { console.warn(msg, meta || {}); },
 });
@@ -9605,6 +9615,7 @@ exports.claimPremiumAllowance = premiumFns.claimPremiumAllowance;
 exports.premiumStripeWebhook = premiumFns.premiumStripeWebhook;
 exports.premiumBtcpayWebhook = premiumFns.premiumBtcpayWebhook;
 exports.premiumExpirySweep = premiumFns.premiumExpirySweep;
+exports.adminRevokePremium = premiumFns.adminRevokePremium;
 
 const { bindSayHi } = require('./src/sayHi');
 const sayHiFns = bindSayHi(functionsV1, admin, db);

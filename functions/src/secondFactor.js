@@ -30,6 +30,7 @@ const FRESH_ACTIONS = {
     unlinkProvider: true,
     adminResetSecondFactor: true,
     adminSetKillSwitch: true,
+    adminRevokePremium: true,
 };
 const RECOVERY_COUNT = 10;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

@@ -385,6 +385,7 @@ var APP_CHECK_CALLABLES = {
     ackCipherShare: 1,
     adminResetSecondFactor: 1,
     adminResolveCipherSatsClaim: 1,
+    adminRevokePremium: 1,
     adminSetKillSwitch: 1,
     answerTrivia: 1,
     armSayHi: 1,
@@ -13365,7 +13366,8 @@ window._showFreshStepUp = function (action) {
         disableTotp: 'Enter a fresh authenticator code to turn off two-factor authentication. A saved session is not enough.',
         regenerateRecoveryCodes: 'Enter a fresh authenticator code to create new recovery codes. A saved session is not enough.',
         changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.',
-        adminSetKillSwitch: 'Enter a fresh authenticator code to flip the kill switch. A remembered device is not enough, and the authenticator must be at least 24 hours old.'
+        adminSetKillSwitch: 'Enter a fresh authenticator code to flip the kill switch. A remembered device is not enough, and the authenticator must be at least 24 hours old.',
+        adminRevokePremium: 'Enter a fresh authenticator code to revoke or restore Premium. A remembered device is not enough.'
     };
     return new Promise(function (resolve) {
         var old = document.getElementById('freshStepUpOverlay');

@@ -90,7 +90,8 @@ function normalizeConfig(raw) {
         btcDiscountPct: pct(r.btcDiscountPct, DEFAULT_CONFIG.btcDiscountPct),
         existingUserDiscountPct: pct(r.existingUserDiscountPct, DEFAULT_CONFIG.existingUserDiscountPct),
         stackMode: r.stackMode === 'sequential' ? 'sequential' : 'additive',
-        existingUserDiscountEndsAtMs: ms(r.existingUserDiscountEndsAtMs) || DEFAULT_CONFIG.existingUserDiscountEndsAtMs,
+        // Config may end the 5% offer earlier, never later than 2027-01-01 00:00 ET.
+        existingUserDiscountEndsAtMs: Math.min(ms(r.existingUserDiscountEndsAtMs) || EXISTING_DISCOUNT_ENDS_MS, EXISTING_DISCOUNT_ENDS_MS),
         existingUserCutoffMs: ms(r.existingUserCutoffMs),
         checkoutLaunchedAtMs: ms(r.checkoutLaunchedAtMs),
         billingStartsAtMs: typeof r.billingStartsAt === 'string' ? (ms(Date.parse(r.billingStartsAt)) || null) : ms(r.billingStartsAtMs != null ? r.billingStartsAtMs : r.billingStartsAt),

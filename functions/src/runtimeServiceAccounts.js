@@ -56,6 +56,7 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     claimSats: { id: 'fn-claim-sats', extra: ['auth', 'fcm'] },
     confirmAccountLink: { id: 'fn-confirm-account-link', extra: ['auth'] },
     confirmTipSent: { id: 'fn-confirm-tip-sent', extra: ['fcm'] },
+    claimPremiumByEmail: { id: 'fn-premium-claim', extra: [] },
     createPremiumCheckout: { id: 'fn-premium-checkout', extra: ['authViewer'] },
     createPremiumPortal: { id: 'fn-premium-portal', extra: [] },
     dailyActiveUsers: { id: 'fn-daily-active-users', extra: ['auth'] },
