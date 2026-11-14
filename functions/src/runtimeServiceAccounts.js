@@ -53,6 +53,9 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     backfillJoinDates: { id: 'fn-backfill-join-dates', extra: ['auth'] },
     claimCipherSats: { id: 'fn-claim-cipher-sats', extra: ['auth'] },
     claimCipherWin: { id: 'fn-claim-cipher-win', extra: ['auth'] },
+    // Same account and grants as claimCipherWin (NWC_URL + DELETION_HMAC_SECRET):
+    // no new service account or IAM grant for the Favor block claim.
+    claimFavorBlock: { id: 'fn-claim-cipher-win', extra: ['auth'] },
     claimSats: { id: 'fn-claim-sats', extra: ['auth', 'fcm'] },
     confirmAccountLink: { id: 'fn-confirm-account-link', extra: ['auth'] },
     confirmTipSent: { id: 'fn-confirm-tip-sent', extra: ['fcm'] },

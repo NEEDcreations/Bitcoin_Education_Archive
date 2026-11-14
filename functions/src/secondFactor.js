@@ -30,6 +30,10 @@ const FRESH_ACTIONS = {
     unlinkProvider: true,
     adminResetSecondFactor: true,
     adminSetKillSwitch: true,
+    claimFavorBlock: true,
+    adminSetFavorClaims: true,
+    adminFreezeFavorEpoch: true,
+    adminResolveFavorReview: true,
 };
 const RECOVERY_COUNT = 10;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

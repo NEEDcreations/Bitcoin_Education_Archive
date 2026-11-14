@@ -754,6 +754,7 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
  * hashForFavor (onCall)
  * The mining/hashing function. Auth required.
  */
+// App Check stays off for real miners (Phil follow-up). Per-uid cooldown below is the rate limit.
 exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
   const data = request.data;
   const context = request;
@@ -1110,17 +1111,37 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
           ts: epochTs,
         }).catch(e => console.warn('[FAVOR] Epoch announce announcements failed:', e.message));
         console.log(`[FAVOR] Epoch #${epochNum} completion announced to chat.`);
-        const share = Math.floor(21000 / Math.max(1, blocks.length));
+        // Freeze the per-block payout result now, at close: winner uid per
+        // block from the archived blocks and each winner's saved Lightning
+        // address at this moment. Create-only; never writes sfPoolHistory.
+        // If it fails, an admin can run adminFreezeFavorEpoch later.
+        const notifyShare = Math.floor(21000 / Math.max(1, blocks.length));
+        try {
+          const favorBlockClaims = require('./favorBlockClaims');
+          await favorBlockClaims.createBlockClaimService({ db: db, nowMs: Date.now }).freezeEpoch(epochNum, { source: 'close' });
+        } catch (e) {
+          console.warn('[FAVOR] epoch block result freeze failed:', e.message);
+        }
+        const share = notifyShare;
         const seen = {};
+        const blockCountByUid = {};
+        for (let bi = 0; bi < blocks.length; bi++) {
+          const winnerUid = blocks[bi] && blocks[bi].uid;
+          if (!winnerUid) continue;
+          blockCountByUid[winnerUid] = (blockCountByUid[winnerUid] || 0) + 1;
+        }
         for (let bi = 0; bi < blocks.length; bi++) {
           const winnerUid = blocks[bi] && blocks[bi].uid;
           if (!winnerUid || seen[winnerUid]) continue;
           seen[winnerUid] = true;
+          const blocksFound = blockCountByUid[winnerUid] || 1;
+          const approx = share * blocksFound;
           await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
             uid: winnerUid,
             onceKey: 'sfepoch_' + epochNum,
             icon: '⛏️',
-            message: '⛏️ Epoch #' + epochNum + ' complete. Your block share is about ' + share.toLocaleString('en-US') + ' sats.',
+            message: '⛏️ Epoch #' + epochNum + ' complete. Your block share is about ' + approx.toLocaleString('en-US') + ' sats' +
+              (blocksFound > 1 ? ' (' + blocksFound + ' blocks, claim each one)' : '') + '. Claim it in Epoch History once claims open. It never expires.',
           }));
         }
       } catch (e) {

@@ -383,13 +383,17 @@ function mfaClearDevice(uid) {
 var APP_CHECK_CALLABLES = {
     ackBadgeBackfillToast: 1,
     ackCipherShare: 1,
+    adminFreezeFavorEpoch: 1,
     adminResetSecondFactor: 1,
     adminResolveCipherSatsClaim: 1,
+    adminResolveFavorReview: 1,
+    adminSetFavorClaims: 1,
     adminSetKillSwitch: 1,
     answerTrivia: 1,
     armSayHi: 1,
     chooseFaction: 1,
     claimCipherSats: 1,
+    claimFavorBlock: 1,
     claimOnboardingQuestStep: 1,
     claimReplyBonus: 1,
     claimSats: 1,
@@ -402,6 +406,7 @@ var APP_CHECK_CALLABLES = {
     leaderboardRank: 1,
     linkGuestAccount: 1,
     markIntroSeen: 1,
+    myFavorEpochClaims: 1,
     noteNachoQuestion: 1,
     prepareEmailChange: 1,
     prepareGuestLink: 1,
@@ -13360,7 +13365,9 @@ window._showFreshStepUp = function (action) {
         disableTotp: 'Enter a fresh authenticator code to turn off two-factor authentication. A saved session is not enough.',
         regenerateRecoveryCodes: 'Enter a fresh authenticator code to create new recovery codes. A saved session is not enough.',
         changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.',
-        adminSetKillSwitch: 'Enter a fresh authenticator code to flip the kill switch. A remembered device is not enough, and the authenticator must be at least 24 hours old.'
+        adminSetKillSwitch: 'Enter a fresh authenticator code to flip the kill switch. A remembered device is not enough, and the authenticator must be at least 24 hours old.',
+        claimFavorBlock: 'Enter a fresh authenticator code to claim your Favor block. A remembered device is not enough.',
+        adminSetFavorClaims: 'Enter a fresh authenticator code to change Favor claim settings.'
     };
     return new Promise(function (resolve) {
         var old = document.getElementById('freshStepUpOverlay');
