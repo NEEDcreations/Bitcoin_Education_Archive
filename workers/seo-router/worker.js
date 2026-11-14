@@ -144,7 +144,12 @@ function generateNonce() {
  * PHASE 2 (after onclick= migration): Remove 'unsafe-inline' from script-src.
  *   All inline <script> blocks will be authenticated by nonce alone.
  */
-function buildCSP(nonce) {
+function isWaitlistPath(path) {
+    return path === '/waitlist' || path === '/waitlist/' || path === '/waitlist.html';
+}
+
+function buildCSP(nonce, opts) {
+    const allowSubstackSubscribe = !!(opts && opts.allowSubstackSubscribe);
     return [
         "default-src 'self'",
 
@@ -226,7 +231,8 @@ function buildCSP(nonce) {
             " https://plebeian.market" +             // Lightning Mart: Plebeian Market
             " https://proofofink.com" +              // Lightning Mart: Proof of Ink
             " https://scarce.city" +                 // Lightning Mart: Scarce City
-            " https://shop.conduit.market",          // Lightning Mart: Conduit Market
+            " https://shop.conduit.market" +         // Lightning Mart: Conduit Market
+            (allowSubstackSubscribe ? " https://603btc.substack.com" : ""), // waitlist browser subscribe iframe
 
         "font-src 'self' https://fonts.gstatic.com",
 
@@ -237,7 +243,9 @@ function buildCSP(nonce) {
 
         "object-src 'none'",    // No Flash/plugins
         "base-uri 'self'",      // No <base> tag hijacking
-        "form-action 'self'",   // No phishing form submissions
+        // Waitlist posts the visitor's email to Substack's public no-JS endpoint
+        // in a hidden iframe. Other pages stay form-action 'self'.
+        "form-action 'self'" + (allowSubstackSubscribe ? " https://603btc.substack.com" : ""),
         "worker-src 'self' blob: https://auth.bitcoineducation.quest", // Service worker + audio blob workers
     ].join('; ');
 }
@@ -256,8 +264,8 @@ const STATIC_HEADERS = {
  * Uses Cloudflare HTMLRewriter to inject a nonce attribute into every <script>
  * tag in the response body — streaming, no buffering.
  */
-function applySecurityHeaders(response, nonce, ref) {
-    const csp = buildCSP(nonce);
+function applySecurityHeaders(response, nonce, ref, opts) {
+    const csp = buildCSP(nonce, opts);
 
     // Inject nonce into every <script> element (inline blocks AND external src tags).
     // A validated ref is copied onto og:url so link previews keep it.
@@ -682,7 +690,7 @@ export default {
         const resp = await fetchOrigin(request, url);
         const ct   = resp.headers.get('content-type') || '';
         if (ct.includes('text/html')) {
-            return applySecurityHeaders(resp, nonce, ref);
+            return applySecurityHeaders(resp, nonce, ref, { allowSubstackSubscribe: isWaitlistPath(path) });
         }
         return resp;
     },

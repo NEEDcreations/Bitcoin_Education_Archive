@@ -1,0 +1,38 @@
+# waitlist-api: deployed Nov 14 2026 with Phil's OK (new Worker, D1 database, route).
+# Kept out of the Pages publish tree (deploy-pages.sh skips workers/).
+name = "waitlist-api"
+main = "worker.js"
+compatibility_date = "2026-08-01"
+account_id = "bc12a6ce8540408b7552f1d658c45bf7"
+workers_dev = false
+
+# Most-specific route wins over seo-router's catch-all, so this path skips seo-router.
+routes = [
+  { pattern = "bitcoineducation.quest/api/waitlist", zone_name = "bitcoineducation.quest" }
+]
+
+[vars]
+SUBSTACK_PUBLICATION = "https://603btc.substack.com"
+SUBSTACK_DRY_RUN = "0"          # live forwarding, Phil OK Nov 14
+ALLOWED_ORIGINS = "https://bitcoineducation.quest"
+
+# D1 bq-waitlist created Nov 14 2026 (Phil's OK).
+[[d1_databases]]
+binding = "DB"
+database_name = "bq-waitlist"
+database_id = "2c45e49e-3e09-468a-a1fa-0c69c47ba658"
+
+# 5 requests per minute per IP. The IP is a limiter key only and is never stored.
+[[ratelimits]]
+name = "RL"
+namespace_id = "7101"
+simple = { limit = 5, period = 60 }
+
+# Secrets (wrangler secret put, never in this file):
+# TURNSTILE_SECRET_KEY   secret for the existing site key 0x4AAAAAAD-ivgpRkbXpgz86
+
+# Signup notifications (Phil OK Nov 14). Restricted to info.603btc@gmail.com.
+# Destination must be a verified Email Routing address before mail can send.
+[[send_email]]
+name = "NOTIFY"
+destination_address = "info.603btc@gmail.com"
