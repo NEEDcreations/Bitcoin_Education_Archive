@@ -245,6 +245,7 @@ async function rejects(p, code) {
         assert.strictEqual(a.action, 'survey_reward_granted');
         assert.strictEqual(a.tickets, 25);
         assert.strictEqual(a.uidMasked, '***');
+        assert.strictEqual(a.uid, undefined);
         assert.strictEqual(survey.maskUid('abcdefghijkl'), 'abc***jkl');
     });
 
@@ -287,6 +288,8 @@ async function rejects(p, code) {
         assert.strictEqual(audits.length, 1);
         assert.strictEqual(audits[0].action, 'survey_response_no_grant');
         assert.strictEqual(audits[0].tickets, 0);
+        assert.strictEqual(audits[0].uidMasked, '***');
+        assert.strictEqual(audits[0].uid, undefined);
         // A repeat stays a no-op.
         const again = await s.call(goodFull, ctx('new1'));
         assert.deepStrictEqual(again, { ok: true, already: true, granted: false, tickets: 0 });

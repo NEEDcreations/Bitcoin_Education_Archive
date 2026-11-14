@@ -281,7 +281,6 @@ function makeSubmitSurvey(deps) {
                 tx.create(auditRef, {
                     action: 'survey_response_no_grant',
                     surveyId: SURVEY_ID,
-                    uid: uid,
                     uidMasked: maskUid(uid),
                     variant: v.variant,
                     reason: blocked,
@@ -301,7 +300,6 @@ function makeSubmitSurvey(deps) {
             tx.create(auditRef, {
                 action: 'survey_reward_granted',
                 surveyId: SURVEY_ID,
-                uid: uid,
                 uidMasked: maskUid(uid),
                 variant: v.variant,
                 tickets: REWARD_TICKETS,
