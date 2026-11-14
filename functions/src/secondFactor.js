@@ -1610,7 +1610,10 @@ function initSecondFactor(deps) {
         let targetRec = null;
         try { targetRec = await admin.auth().getUser(targetUid); } catch (e) { targetRec = null; }
         if (!targetRec) throw httpError('failed-precondition', 'Could not look up that account. Try again.');
-        if (targetRec.customClaims && targetRec.customClaims.admin === true) {
+        // An admin can never reset another admin's (or their own) second factor
+        // here. Admins recover with a recovery code.
+        const targetIsAdmin = !!(targetRec.customClaims && targetRec.customClaims.admin === true);
+        if (targetIsAdmin) {
             await db.collection('mfa_admin_log').add({
                 action: 'admin_reset_refused',
                 reason: 'target_is_admin',
@@ -1619,7 +1622,17 @@ function initSecondFactor(deps) {
                 note: note,
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
             });
-            throw httpError('permission-denied', 'Admin accounts cannot be reset here.');
+            const rtm = maskUid(targetUid);
+            const ram = maskUid(context.auth.uid);
+            await notifyAdmin({
+                type: 'mfa_admin_reset_refused',
+                uidHint: rtm.uidHint,
+                uidHash: rtm.uidHash,
+                adminUidHint: ram.uidHint,
+                adminUidHash: ram.uidHash,
+                message: 'An admin tried to turn off two-factor on an admin account. It was refused.',
+            }).catch(function () {});
+            throw httpError('permission-denied', 'Admin accounts cannot be reset here. Use a recovery code.');
         }
         const phoneCleared = await unenrollPhone(targetUid);
         if (!phoneCleared) {

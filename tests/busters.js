@@ -53,8 +53,10 @@ test('mobile main pad tracks --bq-mobile-bar-h so Experience clears the header',
 test('service worker cache is v2551', () => {
     const sw = read('sw.js');
     assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2551'"));
+    assert.ok(!sw.includes('btc-archive-v2545'));
     assert.ok(!sw.includes('btc-archive-v2544'));
     assert.ok(!sw.includes('btc-archive-v2542'));
+    assert.ok(!sw.includes('btc-archive-v2539'));
     assert.ok(!sw.includes('btc-archive-v2538'));
     assert.ok(!sw.includes('btc-archive-v2537'));
     assert.ok(!sw.includes('btc-archive-v2530'));
@@ -583,6 +585,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('lightning.js?v=20261023_v2323'));
     assert.ok(!html.includes('lightning.js?v=20261022_faucet'));
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261112_v2551/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261112_v2545/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261112_v2539/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261109_v2542/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261109_v2536/g) || []).length, 0);

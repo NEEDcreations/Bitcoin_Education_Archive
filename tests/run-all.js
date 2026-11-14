@@ -40,6 +40,7 @@ const TESTS = [
     { name: 'Admin claim gates (server)', file: 'test-admin-claim-gates.js' },
     { name: 'Kill switch', file: 'test-kill-switch.js' },
     { name: 'Admin 2FA reset guard', file: 'test-admin-2fa-reset-guard.js' },
+    { name: 'Reserved names need the admin claim', file: 'test-reserved-name-claim.js' },
     { name: 'Chat pinned scroll', file: 'test-chat-pinned-scroll.js' },
     { name: 'Google sign-in GIS', file: 'test-google-signin-gis.js' },
     { name: 'Beats moderation', file: 'test-beats-moderation.js' },
