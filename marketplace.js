@@ -70,9 +70,8 @@ function checkMarketRules() {
 
 // ---- Admin check ----
 function isMarketAdmin() {
-    if (!auth || !auth.currentUser) return false;
-    var email = auth.currentUser.email || '';
-    return email === 'needcreations@gmail.com' || email === 'info.603btc@gmail.com' || email === 'najemchris8@gmail.com';
+    // Firebase custom claim only. Never gate on email client-side.
+    return window._isAdminClaim === true;
 }
 
 var MARKETPLACE_SECTIONS = [

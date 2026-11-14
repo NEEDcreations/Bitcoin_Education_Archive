@@ -5633,7 +5633,7 @@ exports.syncPublicProfile = onDocumentWritten('users/{uid}', async (event) => {
 // Admin-only backfill: copies all existing user docs → public_profiles.
 // Call once after deploy: firebase functions:call backfillPublicProfiles (with admin auth)
 exports.backfillPublicProfiles = functionsV1.https.onCall(async (data, context) => {
-        if (!context.auth || !context.auth.token.get('admin', false)) {
+        if (!context.auth || !context.auth.token || context.auth.token.admin !== true) {
             throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
         }
         const snap = await db.collection('users').get();
@@ -5660,7 +5660,7 @@ exports.backfillPublicProfiles = functionsV1.https.onCall(async (data, context) 
 // Fixes users who saved their address before the dual-field save was deployed.
 // Each batch.update() triggers syncPublicProfile, keeping public_profiles in sync.
 exports.backfillLightningAddress = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth || !context.auth.token.get('admin', false)) {
+    if (!context.auth || !context.auth.token || context.auth.token.admin !== true) {
         throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
     }
     const snap = await db.collection('users').get();
