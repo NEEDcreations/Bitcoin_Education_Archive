@@ -121,7 +121,8 @@ test('each reader binds only the secrets it uses', function () {
         return lines.filter(function (line) { return line.indexOf(needle) !== -1; }).length;
     }
     assert.strictEqual(count('adminTokenSecret'), 13);
-    assert.strictEqual(count('turnstileSecret'), 2);
+    // premiumPublicCheckout (static /premium page) verifies Turnstile too.
+    assert.strictEqual(count('turnstileSecret'), 3);
     assert.strictEqual(count('stravaClientSecretParam'), 2);
     assert.strictEqual(count('hotTopicSecrets'), 3);
     assert.strictEqual(count('xPostSecrets'), 1);
