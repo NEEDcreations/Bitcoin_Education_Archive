@@ -75,7 +75,9 @@ const CARD_SUB_PREPAID_WINDOW_MS = 3 * 24 * 3600 * 1000;
 const ORDERS_PER_HOUR = 6;
 const PUBLIC_ORDERS_PER_HOUR_PER_IP = 10;
 const RETRYABLE_OUTCOMES = Object.freeze(['not_settled', 'not_paid_yet']);
-const ALLOWANCE_PER_MONTH = 50; // cosmetic-only credits; never sats, never chance items.
+const EMBERS_PER_MONTH = 100; // monthly Embers for paid Premium (not trial or referral weeks)
+const EMBERS_CAP = 300; // unspent Embers roll over up to 3 months' worth
+const ALLOWANCE_PER_MONTH = EMBERS_PER_MONTH; // alias kept for callers/tests
 
 const COL = Object.freeze({
     config: 'premium_config',
@@ -310,6 +312,39 @@ function summarize(ent, nowMs) {
 }
 
 function isPremiumActive(ent, nowMs) { return summarize(ent, nowMs).active; }
+
+// Paid Premium (including Founders and the Family buyer's account) can claim
+// Embers. Trial and referral weeks cannot, and a canceled subscription gets
+// no new grants (leftovers are kept). Frozen or inactive entitlements cannot.
+function inReferralWeek(ent, nowMs) {
+    const e = ent || {};
+    if (e.referralWeek === true) return true;
+    const until = Number(e.referralWeekUntilMs) || 0;
+    return until > 0 && nowMs < until;
+}
+function embersGrantAllowed(ent, nowMs) {
+    const s = summarize(ent, nowMs);
+    if (!s.active) return false;
+    if (s.inTrial) return false;
+    if (inReferralWeek(ent, nowMs)) return false;
+    if (s.founders) return true;
+    if (ent && ent.stripeSubscriptionId && s.autoRenew !== true) return false;
+    return true;
+}
+function walletEmbers(wallet) {
+    const w = wallet || {};
+    if (w.embers != null) return Number(w.embers) || 0;
+    return Number(w.cosmeticCredits) || 0;
+}
+// Unspent Embers from this period: the leftover portion of this month's grant.
+function periodUnspentEmbers(wallet) {
+    const w = wallet || {};
+    const granted = Number(w.periodGranted) || 0;
+    const spent = Number(w.periodSpent) || 0;
+    const unspent = Math.max(0, granted - spent);
+    return Math.min(walletEmbers(w), unspent);
+}
+
 
 // Merges an email-held entitlement into an account entitlement.
 function mergeEntitlements(a, b, nowMs) {
@@ -1195,17 +1230,36 @@ function createPremiumHandlers(deps) {
                 await clearOrderEmails(orderIds, customerId, 'refunded');
             }
             const firstOrderId = orderIds[0] || null;
+            const isFullRefund = t === 'charge.refunded' && obj.refunded === true;
             const outcome = await once(key, firstOrderId, async function (tx, r) {
                 const snaps = [];
                 for (const er of entRefs) snaps.push(await tx.get(er));
                 const uids = [];
                 snaps.forEach(function (sn) {
                     if (!sn.exists) return;
-                    const e = Object.assign({}, sn.data(), { frozen: true, frozenAtMs: r.nowMs, frozenReason: t });
                     const isAccount = sn.ref.path.indexOf(COL.entitlements + '/') === 0;
                     if (isAccount) uids.push(sn.id);
+                });
+                const walletSnaps = [];
+                if (isFullRefund) {
+                    for (let i = 0; i < uids.length; i++) walletSnaps.push(await tx.get(ref(COL.allowance, uids[i])));
+                }
+                snaps.forEach(function (sn) {
+                    if (!sn.exists) return;
+                    const e = Object.assign({}, sn.data(), { frozen: true, frozenAtMs: r.nowMs, frozenReason: t });
+                    const isAccount = sn.ref.path.indexOf(COL.entitlements + '/') === 0;
                     writeEntitlement(tx, { nowMs: r.nowMs, uid: isAccount ? sn.id : null, entRef: sn.ref, ent: e, userExists: isAccount });
                 });
+                if (isFullRefund) {
+                    walletSnaps.forEach(function (ws, i) {
+                        if (!ws.exists) return;
+                        const cur = ws.data();
+                        const take = periodUnspentEmbers(cur);
+                        if (take <= 0) return;
+                        const next = Math.max(0, walletEmbers(cur) - take);
+                        tx.set(ws.ref, Object.assign({}, cur, { embers: next, cosmeticCredits: next, periodGranted: 0, periodSpent: 0, clawedBackAtMs: r.nowMs, clawedBack: take, updatedAtMs: r.nowMs }));
+                    });
+                }
                 const uid = (r.order && r.order.uid) || uids[0] || null;
                 review(tx, 'stripe_' + t.replace(/\./g, '_'), {
                     eventId: event.id,
@@ -1386,11 +1440,12 @@ function createPremiumHandlers(deps) {
     async function getPremiumStatus(data, context) {
         const auth = requireUser(context);
         const nowMs = now();
-        const [entSnap, counterSnap, userSnap, cfg] = await Promise.all([
+        const [entSnap, counterSnap, userSnap, cfg, walletSnap] = await Promise.all([
             ref(COL.entitlements, auth.uid).get(),
             ref(COL.counters, 'founders').get(),
             ref('users', auth.uid).get(),
             loadConfig(),
+            ref(COL.allowance, auth.uid).get(),
         ]);
         const s = summarize(entSnap.exists ? entSnap.data() : {}, nowMs);
         const elig = await eligibilityFor(auth, cfg, nowMs, userSnap.exists ? userSnap.data() : null);
@@ -1416,12 +1471,18 @@ function createPremiumHandlers(deps) {
             existingUserOffer: elig.ok ? { pct: cfg.existingUserDiscountPct, endsAtMs: cfg.existingUserDiscountEndsAtMs } : null,
             foundersLeft: foundersLeft(counterSnap.exists ? counterSnap.data() : null, nowMs),
             offers: offers,
+            embers: walletEmbers(walletSnap.exists ? walletSnap.data() : null),
+            embersCap: EMBERS_CAP,
+            embersPerMonth: embersGrantAllowed(entSnap.exists ? entSnap.data() : null, nowMs) ? EMBERS_PER_MONTH : 0,
+            embersName: 'Embers',
         };
     }
 
-    // ---- Monthly cosmetic allowance (50/mo while Premium is active).
-    // Cosmetic-only credits: never sats, never OrangeTix, never raffles,
-    // packs, chance items or battle items. No conversion path exists.
+    // ---- Monthly Embers (100/mo for paid Premium, rollover cap 300).
+    // Cosmetic-only: never sats, never OrangeTix, never raffles, packs,
+    // chance items or battle items. No conversion path and no buying more.
+    // Trial and referral weeks get none. After cancel, leftovers are kept
+    // but no new grants. Founders gets 100/mo; Family, 100 for the buyer only.
     async function claimPremiumAllowance(data, context) {
         const auth = requireUser(context);
         const uid = auth.uid;
@@ -1434,13 +1495,35 @@ function createPremiumHandlers(deps) {
             const e = await tx.get(entRef);
             const w = await tx.get(walletRef);
             const l = await tx.get(ledgerRef);
-            if (!isPremiumActive(e.exists ? e.data() : null, nowMs)) throw fail('permission-denied', 'Premium is not active.', 'not_premium');
-            const wallet = w.exists ? w.data() : { cosmeticCredits: 0 };
-            if (l.exists || wallet.lastMonth === month) return { granted: 0, cosmeticCredits: Number(wallet.cosmeticCredits) || 0, month: month };
-            const credits = (Number(wallet.cosmeticCredits) || 0) + ALLOWANCE_PER_MONTH;
-            tx.set(walletRef, { cosmeticCredits: credits, lastMonth: month, updatedAtMs: nowMs });
-            tx.create(ledgerRef, { uid: uid, month: month, amount: ALLOWANCE_PER_MONTH, kind: 'premium_allowance', atMs: nowMs });
-            return { granted: ALLOWANCE_PER_MONTH, cosmeticCredits: credits, month: month };
+            const ent = e.exists ? e.data() : null;
+            const bal = walletEmbers(w.exists ? w.data() : null);
+            if (!isPremiumActive(ent, nowMs)) throw fail('permission-denied', 'Premium is not active.', 'not_premium');
+            const out = { granted: 0, embers: bal, cosmeticCredits: bal, month: month, cap: EMBERS_CAP, name: 'Embers' };
+            if (!embersGrantAllowed(ent, nowMs)) {
+                const s = summarize(ent, nowMs);
+                if (s.inTrial) out.reason = 'trial';
+                else if (inReferralWeek(ent, nowMs)) out.reason = 'referral_week';
+                else out.reason = 'canceled';
+                return out;
+            }
+            if (l.exists || (w.exists && w.data().lastMonth === month)) {
+                out.reason = 'already_granted';
+                return out;
+            }
+            const granted = Math.max(0, Math.min(EMBERS_PER_MONTH, EMBERS_CAP - bal));
+            const next = bal + granted;
+            if (granted === 0) {
+                out.reason = 'at_cap';
+                out.embers = bal;
+                out.cosmeticCredits = bal;
+                return out;
+            }
+            tx.set(walletRef, { embers: next, cosmeticCredits: next, lastMonth: month, periodGranted: granted, periodSpent: 0, updatedAtMs: nowMs });
+            tx.create(ledgerRef, { uid: uid, month: month, amount: granted, kind: 'premium_embers', name: 'Embers', atMs: nowMs });
+            out.granted = granted;
+            out.embers = next;
+            out.cosmeticCredits = next;
+            return out;
         });
     }
 
@@ -1722,6 +1805,12 @@ module.exports = {
     SECRET_NAMES,
     COL,
     ALLOWANCE_PER_MONTH,
+    EMBERS_PER_MONTH,
+    EMBERS_CAP,
+    embersGrantAllowed,
+    inReferralWeek,
+    walletEmbers,
+    periodUnspentEmbers,
     providerMode,
     stripeKeyOk,
     verifyStripeSignature,

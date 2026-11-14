@@ -732,19 +732,88 @@ test('expiry sweep flips active off when paid time runs out; lifetime never expi
     assert.strictEqual(premium.isPremiumActive({ founders: true, startsAtMs: JAN3 }, JAN3), true);
 });
 
-test('allowance: 50 cosmetic credits per ET month, Premium only, once', async function () {
+test('Embers: 100 a month for paid Premium, once per ET month, rollover cap 300', async function () {
+    assert.strictEqual(premium.EMBERS_PER_MONTH, 100);
+    assert.strictEqual(premium.EMBERS_CAP, 300);
     const a = setup();
     await rejects(a.h.claimPremiumAllowance({}, ctx('old')), 'not_premium');
-    a.db.store.set('premium_entitlements/old', { prepaidUntilMs: T0 + 86400000 * 40 });
-    assert.strictEqual((await a.h.claimPremiumAllowance({}, ctx('old'))).granted, 50);
+    a.db.store.set('premium_entitlements/old', { prepaidUntilMs: T0 + 86400000 * 400 });
+    const r1 = await a.h.claimPremiumAllowance({}, ctx('old'));
+    assert.strictEqual(r1.granted, 100);
+    assert.strictEqual(r1.embers, 100);
+    assert.strictEqual(r1.name, 'Embers');
     const r2 = await a.h.claimPremiumAllowance({}, ctx('old'));
     assert.strictEqual(r2.granted, 0);
-    assert.strictEqual(r2.cosmeticCredits, 50);
+    assert.strictEqual(r2.embers, 100);
+    assert.strictEqual(r2.reason, 'already_granted');
     a.clock.now = Date.parse('2026-12-01T05:00:00.000Z');
     const r3 = await a.h.claimPremiumAllowance({}, ctx('old'));
-    assert.strictEqual(r3.granted, 50);
-    assert.strictEqual(r3.cosmeticCredits, 100);
+    assert.strictEqual(r3.granted, 100);
+    assert.strictEqual(r3.embers, 200);
     assert.strictEqual(premium.etMonthKey(Date.parse('2026-12-01T04:59:00.000Z')), '2026-11');
+    // Rollover caps at 300: 250 + 100 grants only 50.
+    a.clock.now = Date.parse('2027-01-01T05:00:00.000Z');
+    a.db.store.set('premium_allowance/old', Object.assign(a.db.store.get('premium_allowance/old'), { embers: 250, cosmeticCredits: 250 }));
+    const r4 = await a.h.claimPremiumAllowance({}, ctx('old'));
+    assert.strictEqual(r4.granted, 50);
+    assert.strictEqual(r4.embers, 300);
+    a.clock.now = Date.parse('2027-02-01T05:00:00.000Z');
+    const r5 = await a.h.claimPremiumAllowance({}, ctx('old'));
+    assert.strictEqual(r5.granted, 0);
+    assert.strictEqual(r5.embers, 300);
+    assert.strictEqual(r5.reason, 'at_cap');
+});
+test('Embers: trial and referral weeks get none; Founders and Family buyer get 100; cancel keeps leftovers', async function () {
+    const a = setup();
+    // Trial: Premium is active but no Embers.
+    a.db.store.set('premium_entitlements/old', { subscriptionUntilMs: T0 + 86400000 * 20, trialUntilMs: T0 + 86400000 * 7, autoRenew: true, stripeSubscriptionId: 'sub_t', subscriptionPlan: 'monthly' });
+    const trial = await a.h.claimPremiumAllowance({}, ctx('old'));
+    assert.strictEqual(trial.granted, 0);
+    assert.strictEqual(trial.reason, 'trial');
+    assert.strictEqual(trial.embers, 0);
+    // Referral week.
+    const b = setup();
+    b.db.store.set('premium_entitlements/old', { prepaidUntilMs: T0 + 86400000 * 40, referralWeekUntilMs: T0 + 86400000 * 7 });
+    const refw = await b.h.claimPremiumAllowance({}, ctx('old'));
+    assert.strictEqual(refw.granted, 0);
+    assert.strictEqual(refw.reason, 'referral_week');
+    // Founders: 100 even with autoRenew false and no subscription.
+    const c = setup();
+    c.db.store.set('premium_entitlements/old', { founders: true });
+    assert.strictEqual((await c.h.claimPremiumAllowance({}, ctx('old'))).granted, 100);
+    // Family: 100 for the buyer only.
+    const d = setup();
+    d.db.store.set('premium_entitlements/old', { prepaidUntilMs: T0 + 86400000 * 40, subscriptionPlan: 'family' });
+    assert.strictEqual((await d.h.claimPremiumAllowance({}, ctx('old'))).granted, 100);
+    await rejects(d.h.claimPremiumAllowance({}, ctx('new')), 'not_premium');
+    // After cancel: leftovers kept, no new grant.
+    const e = setup();
+    e.db.store.set('premium_entitlements/old', { subscriptionUntilMs: T0 + 86400000 * 20, autoRenew: false, stripeSubscriptionId: 'sub_c', subscriptionPlan: 'monthly' });
+    e.db.store.set('premium_allowance/old', { embers: 175, cosmeticCredits: 175, lastMonth: '2026-10', periodGranted: 0, periodSpent: 0 });
+    const canceled = await e.h.claimPremiumAllowance({}, ctx('old'));
+    assert.strictEqual(canceled.granted, 0);
+    assert.strictEqual(canceled.reason, 'canceled');
+    assert.strictEqual(canceled.embers, 175);
+});
+test('Embers: a full refund removes that period\'s unspent Embers; spent stay spent', async function () {
+    assert.strictEqual(premium.periodUnspentEmbers({ embers: 275, periodGranted: 100, periodSpent: 25 }), 75);
+    assert.strictEqual(premium.periodUnspentEmbers({ embers: 40, periodGranted: 100, periodSpent: 80 }), 20);
+    const a = setup();
+    const out = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old'));
+    await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 475 }));
+    await stripePost(a, invoicePaid(out.orderId, 475, { billing_reason: 'subscription_create' }));
+    a.db.store.set('premium_allowance/old', { embers: 275, cosmeticCredits: 275, lastMonth: '2026-11', periodGranted: 100, periodSpent: 25 });
+    await stripePost(a, { id: 'evt_fr_emb', type: 'charge.refunded', livemode: false, data: { object: { id: 'ch_emb', refunded: true, amount_refunded: 475, customer: 'cus_1' } } });
+    const w = a.db.store.get('premium_allowance/old');
+    assert.strictEqual(w.embers, 200);
+    assert.strictEqual(w.clawedBack, 75);
+    assert.strictEqual(a.db.store.get('premium_entitlements/old').frozen, true);
+    await rejects(a.h.claimPremiumAllowance({}, ctx('old')), 'not_premium');
+    // Extra Embers cannot be bought.
+    const src = require('fs').readFileSync(path.join(__dirname, '..', 'functions', 'src', 'premium.js'), 'utf8');
+    ['buyEmbers', 'purchaseEmbers', 'embersPrice', 'buyAllowance'].forEach(function (wrd) {
+        assert.strictEqual(src.indexOf(wrd), -1, wrd);
+    });
 });
 
 test('allowance is cosmetic-only: the module never touches sats, points, tickets or raffles', async function () {
@@ -930,7 +999,7 @@ test('Spam: refund/dispute/payment failure freezes perks by Stripe customer, rev
     await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 475 }));
     await stripePost(a, invoicePaid(out.orderId, 475, { billing_reason: 'subscription_create' }));
     a.db.store.set('premium_entitlements/old', Object.assign(a.db.store.get('premium_entitlements/old'), { prepaidUntilMs: T0 + 9e9 }));
-    assert.strictEqual((await a.h.claimPremiumAllowance({}, ctx('old'))).granted, 50);
+    assert.strictEqual((await a.h.claimPremiumAllowance({}, ctx('old'))).granted, 100);
     a.clock.now = Date.parse('2026-12-02T15:00:00Z');
     const ev = { id: 'evt_disp1', type: 'charge.dispute.created', livemode: false, data: { object: { id: 'dp_1', amount: 475, customer: 'cus_1' } } };
     assert.strictEqual((await stripePost(a, ev)).body.outcome, 'review');

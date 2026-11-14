@@ -44,6 +44,7 @@ test('approved perks present, dropped perks absent, banned claims absent', funct
     assert.ok(/One username change and one faction change per year/.test(text));
     assert.ok(/60 days old/.test(text));
     assert.ok(/can't become sats/.test(text));
+    assert.ok(/100 Embers a month to spend on cosmetics in the Nook/.test(text));
     ['supporter badge', 'badge', 'frame', 'streak freeze', 'unlimited', 'no ceiling', 'better odds', 'more raffle entries'].forEach(function (w) {
         assert.strictEqual(text.toLowerCase().indexOf(w), -1, w);
     });

@@ -160,11 +160,16 @@ or stale signature (300 s); livemode event on staging; BTCPay invoice not
 Settled on re-read or from another store; Founders sold out (holds count
 against the 500); refunds, disputes and failed payments (review, no auto-grant).
 
-## Allowance
+## Embers (monthly cosmetic allowance)
 
-50 cosmetic credits per America/New_York month for active Premium. Cosmetic
-only: never sats, never raffles, chances, packs or battle items. The module has
-a test that fails if it ever references sats balances, points, tickets or NWC.
+100 Embers per America/New_York month for paid Premium, including Founders'
+Lifetime and the Family buyer's account only (not extra seats). Unspent Embers
+roll over, capped at 300. Trial and referral weeks get none. After a
+subscription is canceled, leftovers are kept but no new Embers are granted.
+A full refund removes that period's unspent Embers; already-spent Embers stay
+spent. Extra Embers cannot be bought. Cosmetic only: never sats, never raffles,
+chances, packs or battle items. The module has a test that fails if it ever
+references sats balances, points, tickets or NWC.
 
 ## Setup steps for Phil (staging first)
 
