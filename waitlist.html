@@ -35,11 +35,14 @@
   .foot{margin-top:22px;font-size:.8rem;color:#6b7280}
   .cf-turnstile{min-height:0}
   .media{width:100%;max-width:960px;margin-top:24px}
-  video.teaser{display:block;width:100%;max-width:720px;margin:0 auto 18px;border-radius:12px;border:1px solid #232838;background:#000}
+  video.teaser{display:block;width:auto;height:auto;max-width:min(100%,360px);max-height:min(70vh,640px);margin:0 auto 18px;border-radius:12px;border:1px solid #232838;background:#000}
   video.teaser:not([src]){display:none}
   .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   .gallery img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;border-radius:12px;border:1px solid #232838;background:#12151d}
-  @media (max-width:640px){.gallery{grid-template-columns:1fr}}
+  @media (max-width:640px){
+    .gallery{grid-template-columns:1fr}
+    video.teaser{max-width:min(72vw,280px);max-height:50vh}
+  }
 </style>
 </head>
 <body>
@@ -64,8 +67,7 @@
   <p class="privacy">We'll use your email only to tell you when we're back and for occasional updates. Stored by us and by Substack; unsubscribe anytime, and we'll delete your copy on request at our <a href="mailto:info.603btc@gmail.com">support address</a>. <a href="/privacy.html">Privacy Policy</a></p>
 </main>
 <section class="media">
-  <!-- Teaser slot: stays hidden until a src is set, e.g. src="/images/waitlist/teaser.mp4" -->
-  <video class="teaser" id="wlTeaser" controls playsinline preload="none" poster="/images/waitlist/citadel-demo-1-overview.jpg"></video>
+  <video class="teaser" id="wlTeaser" src="/images/waitlist/citadel-spark-teaser.mp4" poster="/images/waitlist/citadel-spark-teaser.jpg" controls muted playsinline preload="metadata" width="720" height="1280" aria-label="Citadel Spark teaser"></video>
   <div class="gallery">
     <img src="/images/waitlist/citadel-demo-1-overview.jpg" alt="A Citadel overview" width="1000" height="563" loading="lazy" decoding="async">
     <img src="/images/waitlist/citadel-demo-2-raid.jpg" alt="A Citadel raid" width="1000" height="563" loading="lazy" decoding="async">
