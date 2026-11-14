@@ -250,6 +250,9 @@ test('bad config never raises a discount; billingStartsAt parses ET string', asy
     assert.strictEqual(wild.trialDays, 7);
     assert.strictEqual(pricing.normalizeConfig({}).billingStartsAtMs, null);
     assert.strictEqual(pricing.normalizeConfig({ billingStartsAt: '2027-01-03T00:00:00-05:00' }).billingStartsAtMs, JAN3);
+    assert.strictEqual(pricing.DEFAULT_CONFIG.foundersRequireVerifiedEmail, true);
+    assert.strictEqual(pricing.normalizeConfig({}).foundersRequireVerifiedEmail, true);
+    assert.strictEqual(pricing.normalizeConfig({ foundersRequireVerifiedEmail: false }).foundersRequireVerifiedEmail, false);
 });
 test('rails: monthly not on Lightning, months not on card, family refused, months 1..12', async function () {
     const code = function (input) { try { pricing.quote(Object.assign({ nowMs: T0 }, input), {}); return 'ok'; } catch (e) { return e.code; } };
@@ -890,6 +893,55 @@ test('Red Team 2: Founders needs sign-in; live-hold cap; one hold per real IP', 
     const holds = a.db.store.get('premium_counters/founders').holds;
     Object.keys(holds).forEach(function (k) { assert.ok(holds[k].expMs > T0); assert.ok(/^[0-9a-f]{40}$/.test(holds[k].ipHash)); });
     assert.strictEqual(storeJson(a).indexOf('198.51.100.20'), -1);
+});
+test('Red Team L3: IPv6 /64 shares a Founders hold and a public rate key; IPv4 stays exact; unverified Founders is refused', async function () {
+    const a = setup();
+    const v6a = '2001:db8:85a3:1:1111:2222:3333:4444';
+    const v6b = '2001:db8:85a3:1:aaaa:bbbb:cccc:dddd';
+    const v6other = '2001:db8:85a3:2::1';
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('old', v6a));
+    await rejects(a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('new', v6b)), 'hold_exists_ip');
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('new', v6other));
+    const holds = a.db.store.get('premium_counters/founders').holds;
+    const hashes = Object.keys(holds).map(function (k) { return holds[k].ipHash; });
+    assert.strictEqual(hashes.length, 2);
+    assert.notStrictEqual(hashes[0], hashes[1]);
+    assert.strictEqual(storeJson(a).indexOf('2001:db8'), -1);
+
+    const r = setup();
+    for (let i = 0; i < 10; i++) {
+        const out = await publicPost(r, { plan: 'monthly', rail: 'card', email: 'n' + i + '@example.com', turnstileToken: 'ok-token' }, null, v6a);
+        assert.strictEqual(out.code, 200, JSON.stringify(out.body));
+    }
+    const same = await publicPost(r, { plan: 'monthly', rail: 'card', email: 'same64@example.com', turnstileToken: 'ok-token' }, null, v6b);
+    assert.strictEqual(same.code, 429);
+    assert.strictEqual(same.body.reason, 'rate_limited');
+    const other = await publicPost(r, { plan: 'monthly', rail: 'card', email: 'other64@example.com', turnstileToken: 'ok-token' }, null, v6other);
+    assert.strictEqual(other.code, 200, JSON.stringify(other.body));
+    const rateKeys = Array.from(r.db.store.keys()).filter(function (k) { return k.indexOf('premium_rate/ip_') === 0; });
+    assert.strictEqual(rateKeys.length, 2); // one /64 + the other /64; global is not ip_
+
+    const u = setup();
+    await rejects(u.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('old', '198.51.100.30', { email_verified: false })), 'email_not_verified');
+    assert.ok(!u.db.store.has('premium_counters/founders'));
+    assert.strictEqual((await u.h.createPremiumCheckout({ plan: 'yearly', rail: 'card' }, ctx('old', { email_verified: false }))).amountCents, 5000);
+    const off = setup({ config: { foundersRequireVerifiedEmail: false } });
+    const allowed = await off.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('old', '198.51.100.30', { email_verified: false }));
+    assert.strictEqual(allowed.amountCents, 15000); // unverified is not eligible for the 5%
+});
+test('Red Team L1: a non-string plan or rail is refused as bad_plan or bad_rail, in-app and public', async function () {
+    const a = setup();
+    await rejects(a.h.createPremiumCheckout({ plan: { toString: 'founders' }, rail: 'card' }, ctx('old')), 'bad_plan');
+    await rejects(a.h.createPremiumCheckout({ plan: 'monthly', rail: { toString: 'card' } }, ctx('old')), 'bad_rail');
+    await rejects(a.h.createPremiumCheckout({ plan: 1, rail: 'card' }, ctx('old')), 'bad_plan');
+    const plan = await publicPost(a, { plan: { toString: 'founders' }, rail: 'card', email: 'x@example.com', turnstileToken: 'ok-token' });
+    assert.strictEqual(plan.code, 400);
+    assert.strictEqual(plan.body.reason, 'bad_plan');
+    const rail = await publicPost(a, { plan: 'monthly', rail: { toString: 'card' }, email: 'x@example.com', turnstileToken: 'ok-token' });
+    assert.strictEqual(rail.code, 400);
+    assert.strictEqual(rail.body.reason, 'bad_rail');
+    assert.ok(!a.db.store.has('premium_counters/founders'));
+    assert.strictEqual(Array.from(a.db.store.keys()).filter(function (k) { return k.indexOf('premium_orders/') === 0; }).length, 0);
 });
 test('Red Team 2: holds above threshold for over an hour raise one review row + admin alert', async function () {
     const a = setup({ config: { foundersHoldsAlertThreshold: 2 } });

@@ -54,6 +54,7 @@ foundersHoldsAlertThreshold: 15 // holds at/above this for > 1 hour -> review ro
 publicOrderEmailRetentionMonths: 24 // unclaimed public orders: plain email cleared after this (Phil to confirm)
 stripePortalConfigId: null      // bpc_... from functions/scripts/premium-portal-config.js; portal closed until set
 existingUserDiscountEndsAtMs    // may end the 5% earlier; clamped to 2027-01-01 00:00 ET at most
+foundersRequireVerifiedEmail: true // Founders in-app requires a verified email; false turns this off. Absent = on
 ```
 
 ## billingStartsAt
@@ -133,10 +134,10 @@ review row so a human cancels it in Stripe.
 
 ## Abuse controls
 
-- **IP:** `faucetGuard.clientIpFromRequest` (rightmost X-Forwarded-For entry, which Google's front end appends; forged left entries are ignored). The same IP goes to Turnstile as `remoteip`. A Firebase Hosting rewrite or any other proxy in front of the function would append another address and break this (the rightmost entry would then be the proxy, not the client).
+- **IP:** `faucetGuard.clientIpFromRequest` (rightmost X-Forwarded-For entry, which Google's front end appends; forged left entries are ignored). The same IP goes to Turnstile as `remoteip`. Founders holds and the public `ip_` rate key hash `faucetGuard.networkKeys(ip)` (IPv6 /64 `rangeId`, exact IPv4 `exactId`), so addresses in one IPv6 /64 share a bucket. A Firebase Hosting rewrite or any other proxy in front of the function would append another address and break this (the rightmost entry would then be the proxy, not the client).
 - **Turnstile:** server checks success, `action === 'premium_checkout'` (premium.html sets `data-action`), and the hostname against the environment's allowlist (live: bitcoineducation.quest, www; staging: bitcoin-quest-staging.web.app, *.bitcoin-quest.pages.dev, localhost). Unknown project = no origins, no pass.
-- **Rate:** 10 public orders per IP per hour, 6 in-app per account per hour, `publicOrdersPerHour` across all public orders.
-- **Founders:** in-app only (sign-in required; the public page sends Founders buyers to `/?premium=founders`). One live hold per account and per real IP; at most `maxLiveFoundersHolds` live holds. Holds at/above `foundersHoldsAlertThreshold` for over an hour raise one `founders_holds_high` review row and an `admin_notifications` alert.
+- **Rate:** 10 public orders per network per hour (IPv6 /64 or exact IPv4), 6 in-app per account per hour, `publicOrdersPerHour` across all public orders.
+- **Founders:** in-app only (sign-in required; the public page sends Founders buyers to `/?premium=founders`). A verified email is required unless `foundersRequireVerifiedEmail` is set to false (default is true when absent). One live hold per account and per network (IPv6 /64 or exact IPv4); at most `maxLiveFoundersHolds` live holds. Holds at/above `foundersHoldsAlertThreshold` for over an hour raise one `founders_holds_high` review row and an `admin_notifications` alert.
 - **Trials:** when a trial is granted, the card fingerprint (re-read from the Checkout Session) and canonical email are recorded as keyed-hash markers. A known email gets a paid checkout with no trial; a known card found after checkout, or a trial order whose card fingerprint could not be read, sends the order to review (`trial_reused`) with no Premium, and the Stripe subscription is canceled immediately (`subscription_canceled` on the review row) so nothing is charged at `trial_end`. `checkout.session.completed` and `invoice.paid` share one idempotent trial gate, so a $0 `subscription_create` invoice that arrives first cannot grant time without passing the fingerprint and email checks. `already_paid` never skips that gate.
 - **$0 invoices:** granted only for the order's trial opening invoice (order has trialEndMs, `billing_reason === 'subscription_create'`, first invoice). Anything else -> review `stripe_zero_invoice`. Renewals must equal the order's unitCents.
 - **Refunds, disputes, failed payments:** entitlements found by stripeCustomerId (account and email-held) get `frozen: true`; frozen means no perks and no allowance until an admin restores with `adminRevokePremium`. A review row carries uid, orderId and customerId, and an `admin_notifications` row (type `premium_review`) alerts a human in the admin panel feed.

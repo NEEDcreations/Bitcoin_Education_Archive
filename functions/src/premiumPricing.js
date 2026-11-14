@@ -62,6 +62,9 @@ const DEFAULT_CONFIG = Object.freeze({
     // refuses to open without it, so promotion codes and plan switches stay
     // off (see functions/scripts/premium-portal-config.js).
     stripePortalConfigId: null,
+    // Founders' Lifetime checkout requires a verified email (in-app; the
+    // public page still refuses Founders with founders_sign_in). Default on.
+    foundersRequireVerifiedEmail: true,
 });
 
 function intIn(v, lo, hi, dflt) {
@@ -101,6 +104,8 @@ function normalizeConfig(raw) {
         foundersHoldsAlertThreshold: intIn(r.foundersHoldsAlertThreshold, 1, FOUNDERS_CAP, DEFAULT_CONFIG.foundersHoldsAlertThreshold),
         publicOrderEmailRetentionMonths: intIn(r.publicOrderEmailRetentionMonths, 1, 120, DEFAULT_CONFIG.publicOrderEmailRetentionMonths),
         stripePortalConfigId: typeof r.stripePortalConfigId === 'string' && /^bpc_[A-Za-z0-9]{6,80}$/.test(r.stripePortalConfigId) ? r.stripePortalConfigId : null,
+        // Absent or any value other than false stays on (Red Team, Nov 14).
+        foundersRequireVerifiedEmail: r.foundersRequireVerifiedEmail !== false,
     };
 }
 

@@ -35,6 +35,7 @@
 
 const crypto = require('crypto');
 const pricing = require('./premiumPricing');
+const faucetGuard = require('./faucetGuard');
 
 const LIVE_PROJECT = 'bitcoin-education-archive';
 const STAGING_PROJECT = 'bitcoin-quest-staging';
@@ -118,7 +119,16 @@ function providerMode(projectId) {
 // X-Forwarded-For entry (appended by Google's front end). req.ip is the
 // leftmost one, which the caller controls, so it is never used.
 function clientIp(req) {
-    return require('./faucetGuard').clientIpFromRequest(req) || 'none';
+    return faucetGuard.clientIpFromRequest(req) || 'none';
+}
+
+// Material hashed for Founders holds and the public per-IP rate key: the IPv6
+// /64 (rangeId) or the exact IPv4 address (exactId). Two addresses in one
+// IPv6 /64 therefore share a hold and a rate bucket (Red Team, Nov 14).
+function networkIpMaterial(ip) {
+    const k = faucetGuard.networkKeys(ip);
+    if (!k) return ip;
+    return k.version === 6 ? k.rangeId : k.exactId;
 }
 
 // Keyed hash (HMAC-SHA256) for anything that identifies a person: IPs,
@@ -591,7 +601,7 @@ function createPremiumHandlers(deps) {
                 const holds = liveHolds(c.holds, nowMs);
                 const mine = Object.keys(holds).filter(function (id) { return holds[id].uid === who.holdKey; });
                 if (mine.length) throw fail('failed-precondition', "You already have a Founders' checkout open. Finish it or wait about 35 minutes.", 'hold_exists');
-                // One live Founders' hold per real client IP (keyed hash only).
+                // One live Founders' hold per network (IPv6 /64 or exact IPv4; keyed hash only).
                 const sameIp = who.ipHash ? Object.keys(holds).filter(function (id) { return holds[id].ipHash === who.ipHash; }) : [];
                 if (sameIp.length) throw fail('failed-precondition', "A Founders' checkout is already open from this network. Finish it or wait about 35 minutes.", 'hold_exists_ip');
                 if ((Number(c.sold) || 0) + Object.keys(holds).length >= pricing.FOUNDERS_CAP) {
@@ -729,6 +739,20 @@ function createPremiumHandlers(deps) {
     }
 
     // ---- In-app checkout (signed in). The only path that can apply the 5%.
+    function requirePlanRail(d) {
+        if (typeof d.plan !== 'string') throw fail('invalid-argument', 'Unknown plan.', 'bad_plan');
+        if (typeof d.rail !== 'string') throw fail('invalid-argument', 'Pick card or Lightning.', 'bad_rail');
+    }
+    function ipHashFor(ipRaw) {
+        if (!ipRaw || ipRaw === 'none') return null;
+        return H('ip', networkIpMaterial(ipRaw));
+    }
+    function requireFoundersVerifiedEmail(auth, cfg) {
+        if (!cfg.foundersRequireVerifiedEmail) return;
+        if (auth && auth.token && auth.token.email_verified === true) return;
+        throw fail('failed-precondition', 'Verify your email first.', 'email_not_verified');
+    }
+
     async function createPremiumCheckout(data, context) {
         const auth = requireUser(context);
         const uid = auth.uid;
@@ -736,6 +760,7 @@ function createPremiumHandlers(deps) {
         const d = data && typeof data === 'object' ? data : {};
         const cfg = await loadConfig();
         if (!cfg.checkoutEnabled) throw fail('failed-precondition', 'Checkout is not open yet.', 'checkout_closed');
+        requirePlanRail(d);
 
         const userSnap = await ref('users', uid).get();
         const userDoc = userSnap.exists ? userSnap.data() : null;
@@ -745,12 +770,13 @@ function createPremiumHandlers(deps) {
         const nowMs = now();
         const elig = await eligibilityFor(auth, cfg, nowMs, userDoc);
         const q = quoteOrThrow({
-            plan: String(d.plan || ''),
-            rail: String(d.rail || ''),
+            plan: d.plan,
+            rail: d.rail,
             months: d.months == null ? undefined : Number(d.months),
             nowMs: nowMs,
             existingUserEligible: elig.ok,
         }, cfg);
+        if (q.lifetime) requireFoundersVerifiedEmail(auth, cfg);
 
         const entSnap = await ref(COL.entitlements, uid).get();
         const ent = entSnap.exists ? entSnap.data() : {};
@@ -767,7 +793,7 @@ function createPremiumHandlers(deps) {
         const tek = email ? tkey(email) : null;
         // Unknown IP (no raw request): no per-IP hold cap, never a shared bucket.
         const ipRaw = context && context.rawRequest ? clientIp(context.rawRequest) : 'none';
-        const ipHash = ipRaw === 'none' ? null : H('ip', ipRaw);
+        const ipHash = ipHashFor(ipRaw);
         // A canonical email that already had a free trial starts paid, no trial.
         const emailTrialUsed = await trialMarkerExists('e', tek);
         return startOrder(q, { uid: uid, email: email, emailKey: ek, trialEmailKey: tek, ipHash: ipHash, holdKey: uid, rateKey: uid, customerId: ent.stripeCustomerId || null, trialEligible: !ent.trialUsed && !ent.stripeSubscriptionId && !ent.founders && !emailTrialUsed }, cfg, nowMs, cleanSrc(d.src), 'app');
@@ -803,9 +829,12 @@ function createPremiumHandlers(deps) {
         const b = body && typeof body === 'object' ? body : {};
         const cfg = await loadConfig();
         if (!cfg.checkoutEnabled) throw fail('failed-precondition', 'Checkout is not open yet.', 'checkout_closed');
+        requirePlanRail(b);
         // Founders' seats are scarce: sold only to signed-in accounts (in the
         // app), never to an email on the public page (Red Team, Nov 14).
-        if (String(b.plan || '') === 'founders') throw fail('failed-precondition', "Sign in to Bitcoin Quest to buy Founders' Lifetime.", 'founders_sign_in');
+        // In-app Founders also requires a verified email when
+        // foundersRequireVerifiedEmail is on (the default).
+        if (b.plan === 'founders') throw fail('failed-precondition', "Sign in to Bitcoin Quest to buy Founders' Lifetime.", 'founders_sign_in');
         const email = normalizeEmail(b.email);
         if (!email || !canonicalEmail(email)) throw fail('invalid-argument', 'Enter a valid email.', 'bad_email');
         if (!verifyTurnstile) throw fail('failed-precondition', 'Checkout is not set up yet.', 'no_turnstile');
@@ -813,8 +842,8 @@ function createPremiumHandlers(deps) {
         if (!turnstileOk(tsr)) throw fail('permission-denied', 'Please complete the security check.', 'turnstile');
         const nowMs = now();
         const q = quoteOrThrow({
-            plan: String(b.plan || ''),
-            rail: String(b.rail || ''),
+            plan: b.plan,
+            rail: b.rail,
             months: b.months == null ? undefined : Number(b.months),
             nowMs: nowMs,
             existingUserEligible: false, // never on the public page
@@ -823,7 +852,7 @@ function createPremiumHandlers(deps) {
         const tek = tkey(email);
         const held = await ref(COL.emailEntitlements, ek).get();
         if (held.exists && held.data().founders === true) throw fail('failed-precondition', "This email already has Founders' Lifetime.", 'already_lifetime');
-        const ipHash = H('ip', ip || 'none');
+        const ipHash = ipHashFor(ip) || H('ip', 'none');
         const emailTrialUsed = await trialMarkerExists('e', tek);
         return startOrder(q, { uid: null, email: email, emailKey: ek, trialEmailKey: tek, ipHash: ipHash, holdKey: 'email:' + ek, rateKey: 'ip_' + ipHash, returnBase: returnBase || null, customerId: null, trialEligible: !emailTrialUsed && !(held.exists && (held.data().trialUsed || held.data().stripeSubscriptionId)) }, cfg, nowMs, cleanSrc(b.src), 'public');
     }
