@@ -24,6 +24,7 @@
   if (form.getAttribute('data-mode') !== 'live') {
     if (card) card.setAttribute('data-mode', 'preview');
     email.disabled = true; btn.disabled = true;
+    if (!s) show('down');
     form.addEventListener('submit', function (e) { e.preventDefault(); });
     return;
   }
