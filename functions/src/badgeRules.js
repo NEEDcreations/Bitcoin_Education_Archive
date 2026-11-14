@@ -176,6 +176,7 @@ const WAITING_COUNTERS = {
 
 // Registered before the generic peer_, cipher_, and predict_ prefixes.
 const NEW_SOURCES = {
+    original_builder: { type: 'originalBuilder' },
     gift_open_1: counter('giftsOpened', 1),
     gift_open_25: counter('giftsOpened', 25),
     gift_open_100: counter('giftsOpened', 100),
@@ -608,6 +609,7 @@ function meets(rule, user, ctx) {
             && typeof data.country === 'string' && data.country.length >= 2;
     }
     if (src.type === 'signed-in') return bag.signedIn === true;
+    if (src.type === 'originalBuilder') return false;
     return false;
 }
 

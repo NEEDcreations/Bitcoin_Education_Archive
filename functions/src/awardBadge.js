@@ -265,7 +265,7 @@ async function awardBadge(db, adminSdk, uid, rawBadgeId, opts) {
 
         let favor = false;
         let favorPoint = false;
-        const grantFavor = hiddenPlan ? HIDDEN_ONLY_GRANT_FAVOR === true : true;
+        const grantFavor = options.favor === false ? false : (hiddenPlan ? HIDDEN_ONLY_GRANT_FAVOR === true : true);
         if (grantFavor && !contributorSnap.exists && !grandfatheredOnly) {
             const stateData = stateSnap.exists ? (stateSnap.data() || {}) : {
                 points: 0, favorActive: false, bonusMinutes: 0, eraHashes: 0,

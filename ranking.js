@@ -3897,6 +3897,7 @@ async function loadUser(uid, prefetchedDoc) {
         scheduleAccountEmailSync(uid);
         if (typeof renderProgressRings === 'function') renderProgressRings();
         awardVisitPoints();
+        if (isRealUser) claimOriginalBuilderBadge();
         startReadTimer();
 
         // Restore flex completions from server (signed-in users only)
@@ -5274,6 +5275,19 @@ async function createUser(username, email, enteredGiveaway, giveawayLnAddress, c
             }
         }
     } catch(e) {}
+}
+
+async function claimOriginalBuilderBadge() {
+    try {
+        if (!firebase || !firebase.functions || !auth || !auth.currentUser || auth.currentUser.isAnonymous) return;
+        if (window._originalBuilderClaimed) return;
+        var fn = firebase.functions().httpsCallable('claimOriginalBuilder');
+        var res = await fn({});
+        var data = res && res.data;
+        if (data && (data.granted || data.reason === 'already')) window._originalBuilderClaimed = true;
+    } catch (e) {
+        console.warn('[originalBuilder] claim failed', e && e.message);
+    }
 }
 
 async function awardVisitPoints() {
