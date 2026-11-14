@@ -595,6 +595,64 @@ function settle(promise, ms) {
         });
     });
 
+
+    await test('MED1: kill-switch ON skips the 20/day cap but keeps the 2-minute limit; OFF keeps the daily cap', async function () {
+        NOW = T0;
+        const { api, db } = setup();
+        db.store.set('totp_rate_limits/adminA1_day', {
+            uid: 'adminA1',
+            failedAttempts: 20,
+            failedWindowStartMs: NOW,
+            expireAt: new Date(NOW + 24 * 60 * 60 * 1000),
+        });
+        const offErr = await expectErr(api.totpStepUp.run({ action: 'adminSetKillSwitch', code: codeAt(NOW) }, ctx('adminA1')), 'resource-exhausted');
+        assert.ok(/tomorrow/i.test(offErr.message), offErr.message);
+        const onProof = await api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1'));
+        assert.ok(/^[a-f0-9]{32}$/.test(onProof.freshProofId), 'ON still accepts a good code after the daily cap');
+        // A raw code on requireAdminStepUp for ON also skips the daily cap.
+        NOW = T0 + 31000;
+        db.store.set('totp_rate_limits/adminA1_day', {
+            uid: 'adminA1',
+            failedAttempts: 20,
+            failedWindowStartMs: NOW,
+            expireAt: new Date(NOW + 24 * 60 * 60 * 1000),
+        });
+        const stamped = api.stamp({ code: codeAt(NOW) }, ctx('adminA1'));
+        const stepped = await api.requireAdminStepUp(stamped, 'adminSetKillSwitchOn', { skipDailyCap: true });
+        assert.strictEqual(stepped.totp, true);
+        // The 2-minute window still blocks ON after 5 guesses.
+        const bad = codeAt(NOW) === '000000' ? '111111' : '000000';
+        for (let i = 0; i < 5; i++) {
+            await expectErr(api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: bad }, ctx('adminA1')), 'invalid-argument');
+        }
+        const winErr = await expectErr(api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1')), 'resource-exhausted');
+        assert.ok(/2 minutes/i.test(winErr.message), winErr.message);
+        NOW = T0;
+    });
+
+    await test('MED2: phone-only requireAdminStepUp consumes the sign-in once per action', async function () {
+        NOW = T0;
+        const { api, db } = setup({ totp: false, phone: true });
+        const fresh = { auth_time: Math.floor((NOW - 30000) / 1000), firebase: { sign_in_provider: 'password', sign_in_second_factor: 'phone' } };
+        const first = await api.requireAdminStepUp(ctx('adminA1', fresh), 'toggleFaucet');
+        assert.strictEqual(first.phone, true);
+        const row = db.store.get('admin_tool_sessions/adminA1__phone_step_toggleFaucet');
+        assert.ok(row, 'phone step-up row written');
+        assert.strictEqual(row.lastAuthTimeMs, fresh.auth_time * 1000);
+        assert.strictEqual(row.consumed, true);
+        await expectErr(api.requireAdminStepUp(ctx('adminA1', fresh), 'toggleFaucet'), 'failed-precondition');
+        // Different action is separately consumed (unlike the tool-open
+        // {uid}__phone row, which is once per sign-in across all tools).
+        const other = await api.requireAdminStepUp(ctx('adminA1', fresh), 'adminSetKillSwitch');
+        assert.strictEqual(other.phone, true);
+        await expectErr(api.requireAdminStepUp(ctx('adminA1', fresh), 'adminSetKillSwitch'), 'failed-precondition');
+        // A newer phone sign-in can prove the same action again.
+        const later = { auth_time: Math.floor((NOW - 5000) / 1000), firebase: { sign_in_provider: 'password', sign_in_second_factor: 'phone' } };
+        const again = await api.requireAdminStepUp(ctx('adminA1', later), 'toggleFaucet');
+        assert.strictEqual(again.phone, true);
+        NOW = T0;
+    });
+
     await test('client: every banner tile asks for a fresh code before it opens', function () {
         const panel = fs.readFileSync(path.join(root, 'admin-panel.js'), 'utf8');
         assert.ok(/bqAdminToolStepUp\(t\.id/.test(panel), 'tile click goes through bqAdminToolStepUp');

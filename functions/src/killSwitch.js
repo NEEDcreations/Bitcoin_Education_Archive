@@ -805,14 +805,19 @@ function makeAdminSetKillSwitch(deps) {
     const events = deps.events || null;
     const stepUp = deps.stepUp || (async function (data, context) {
         const sf = require('./secondFactor');
-        return sf.requireAdminStepUp(sf.stamp(data, context), 'adminSetKillSwitch');
+        // ON uses a distinct action so its TOTP proof skips the 20/day cap
+        // (the 2-minute limit still applies). OFF keeps adminSetKillSwitch
+        // and the daily cap (Spam/Abuse #325 MED1).
+        const on = data && data.action === 'on';
+        return sf.requireAdminStepUp(sf.stamp(data, context), on ? 'adminSetKillSwitchOn' : 'adminSetKillSwitch', on ? { skipDailyCap: true } : undefined);
     });
     // status, preflight and off need a live Kill switch tool window (a fresh
     // 2FA code entered when the tool was opened), and off also needs the
     // single-use step-up above. Turning the switch ON is the emergency path:
     // it skips the tool window so one fresh code is enough (Red Team F1), but
     // it still needs the admin claim, a recent sign-in and the single-use
-    // fresh step-up above. ON is never free of a code.
+    // fresh step-up above. ON is never free of a code. A stale-backup
+    // refusal does not consume that code (Red Team #325 N1).
     const toolGuard = deps.toolGuard || (async function (data, context) {
         return require('./adminToolSession').requireAdminToolSession(db, data, context, 'killSwitch', { HttpsError: HttpsError, now: nowFn });
     });
@@ -874,8 +879,11 @@ function makeAdminSetKillSwitch(deps) {
             return out;
         }
 
-        await stepUp(d, context);
-
+        // Reason, confirm and (for ON) backup freshness run BEFORE the
+        // step-up so a stale backup or a typo does not burn the code
+        // (Red Team #325 N1). The override still requires the same
+        // reason and OFFLINE confirmation; audit rows are still written
+        // only when the switch actually flips.
         const reason = cleanReason(d.reason);
         if (reason.length < MIN_REASON) {
             throw new HttpsError('invalid-argument', 'Add a short reason (at least ' + MIN_REASON + ' characters).');
@@ -897,6 +905,8 @@ function makeAdminSetKillSwitch(deps) {
                 return { ok: false, needsOverride: true, preflight: preflight };
             }
         }
+
+        await stepUp(d, context);
 
         const FieldValue = admin.firestore.FieldValue;
         const Timestamp = admin.firestore.Timestamp;

@@ -1114,14 +1114,67 @@ async function run() {
         assert.strictEqual(stepUps, 1);
     });
 
+    await test('N1: stale backups without override do not consume the step-up', async function () {
+        const db = makeDb();
+        let used = 0;
+        const { handler } = hook(db, {
+            backupDeps: {
+                findExportMetadata: async function () { return null; },
+                readPitr: async function () { return 'POINT_IN_TIME_RECOVERY_DISABLED'; },
+            },
+            stepUp: async function () { used++; return { established: true, totp: true }; },
+        });
+        const first = await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident' }, adminContext());
+        assert.strictEqual(first.ok, false);
+        assert.strictEqual(first.needsOverride, true);
+        assert.strictEqual(used, 0, 'step-up must not run when override is still needed');
+        const flag = await db.collection('config').doc('killSwitch').get();
+        assert.strictEqual(flag.exists, false);
+        const rows = [...db._store.keys()].filter((k) => k.startsWith('kill_switch_audit/'));
+        assert.strictEqual(rows.length, 0, 'no audit row on a refused stale-backup ON');
+    });
+
+    await test('N1: stale backups plus override in one request consume exactly one step-up', async function () {
+        const db = makeDb();
+        let used = 0;
+        const { handler } = hook(db, {
+            backupDeps: {
+                findExportMetadata: async function () { return null; },
+                readPitr: async function () { return 'POINT_IN_TIME_RECOVERY_DISABLED'; },
+            },
+            stepUp: async function () { used++; return { established: true, totp: true }; },
+        });
+        const res = await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident', override: true }, adminContext());
+        assert.strictEqual(res.ok, true);
+        assert.strictEqual(res.on, true);
+        assert.strictEqual(used, 1, 'exactly one step-up');
+        const rows = [...db._store.keys()].filter((k) => k.startsWith('kill_switch_audit/'));
+        assert.strictEqual(rows.length, 1);
+        assert.strictEqual(db._store.get(rows[0]).backupOverride, true);
+    });
+
+    await test('MED1: ON step-up uses adminSetKillSwitchOn (skips the 20/day cap); OFF keeps adminSetKillSwitch', function () {
+        const src = fs.readFileSync(path.join(root, 'functions/src/killSwitch.js'), 'utf8');
+        assert.ok(src.includes("on ? 'adminSetKillSwitchOn' : 'adminSetKillSwitch'"));
+        assert.ok(src.includes('skipDailyCap: true'));
+        const panel = fs.readFileSync(path.join(root, 'admin-panel.js'), 'utf8');
+        assert.ok(panel.includes("action === 'on' ? 'adminSetKillSwitchOn' : 'adminSetKillSwitch'"));
+    });
+
     await test('F1: client has an Emergency stop path straight to the ON prompt (no tool window)', function () {
         const panel = fs.readFileSync(path.join(root, 'admin-panel.js'), 'utf8');
         assert.ok(panel.includes('window.bqEmergencyStop = openEmergencyStop'));
         const body = panel.slice(panel.indexOf('function openEmergencyStop'), panel.indexOf('window.bqEmergencyStop'));
-        assert.ok(body.includes("_showFreshStepUp('adminSetKillSwitch')"), 'one fresh code');
+        assert.ok(body.includes("_showFreshStepUp('adminSetKillSwitchOn')"), 'one fresh code, ON action skips the daily cap');
         assert.ok(body.includes("action: 'on'"));
         assert.ok(!body.includes('bqAdminToolStepUp'), 'no tool-window prompt first');
         assert.ok(!/action: 'off'/.test(body), 'emergency path only turns the switch ON');
+        // N1: the override box is visible from the start so one code is enough
+        // when backups are stale. A needsOverride retry must not ask for a new code.
+        assert.ok(body.includes("I understand a backup is stale or missing"));
+        assert.ok(!/ksuOverrideLab" style="display:none"/.test(body), 'override box is shown up front');
+        assert.ok(body.includes('Your code was not used.'));
+        assert.ok(!body.includes('it asks for a new code'));
     });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');

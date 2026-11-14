@@ -448,7 +448,7 @@
                         state.needsOverride = true;
                         state.preflight = data.preflight || state.preflight;
                         paint();
-                        status.textContent = 'A backup is stale or missing. Tick the override box if you still want to go offline.';
+                        status.textContent = 'A backup is stale or missing. Tick the override box if you still want to go offline. Your code was not used.';
                         go.disabled = false;
                         go.textContent = 'Go offline';
                         return;
@@ -471,7 +471,7 @@
             }
 
             var step = (typeof window._showFreshStepUp === 'function')
-                ? window._showFreshStepUp('adminSetKillSwitch')
+                ? window._showFreshStepUp(action === 'on' ? 'adminSetKillSwitchOn' : 'adminSetKillSwitch')
                 : Promise.resolve(null);
             step.then(function (proof) {
                 if (proof === null && typeof window._showFreshStepUp === 'function') {
@@ -521,7 +521,7 @@
             '<textarea id="ksuReason" rows="2" maxlength="200" placeholder="What is happening?"></textarea>' +
             '<label for="ksuConfirm">Type OFFLINE to confirm</label>' +
             '<input id="ksuConfirm" type="text" autocomplete="off" autocapitalize="characters">' +
-            '<label id="ksuOverrideLab" style="display:none"><input type="checkbox" id="ksuOverride"> I understand a backup is stale or missing, and I still want to go offline.</label>' +
+            '<label id="ksuOverrideLab"><input type="checkbox" id="ksuOverride"> I understand a backup is stale or missing, and I still want to go offline.</label>' +
             '<div class="ksu-row">' +
             '<button type="button" class="ksu-go" id="ksuGo">Go offline now</button>' +
             '<button type="button" class="ksu-cancel" id="ksuCancel">Cancel</button>' +
@@ -549,7 +549,7 @@
             go.textContent = 'Checking your code\u2026';
             var needCode = !(typeof mfaNeedsFreshCode === 'function' && !mfaNeedsFreshCode());
             var step = (needCode && typeof window._showFreshStepUp === 'function')
-                ? window._showFreshStepUp('adminSetKillSwitch')
+                ? window._showFreshStepUp('adminSetKillSwitchOn')
                 : Promise.resolve('');
             step.then(function (proof) {
                 if (proof === null) {
@@ -565,7 +565,7 @@
                     var data = (res && res.data) || {};
                     if (data.needsOverride) {
                         sheet.querySelector('#ksuOverrideLab').style.display = 'block';
-                        status.textContent = 'A backup is stale or missing. Tick the box, then tap Go offline now again (it asks for a new code).';
+                        status.textContent = 'A backup is stale or missing. Tick the box, then tap Go offline now again. Your code was not used.';
                         go.disabled = false;
                         go.textContent = 'Go offline now';
                         return;
