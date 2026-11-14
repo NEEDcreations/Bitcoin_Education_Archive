@@ -13,7 +13,7 @@ routes = [
 
 [vars]
 SUBSTACK_PUBLICATION = "https://603btc.substack.com"
-SUBSTACK_DRY_RUN = "1"          # set to "0" only after Phil OKs live forwarding
+SUBSTACK_DRY_RUN = "0"          # live forwarding, Phil OK Nov 14
 ALLOWED_ORIGINS = "https://bitcoineducation.quest"
 
 # D1 bq-waitlist created Nov 14 2026 (Phil's OK).
