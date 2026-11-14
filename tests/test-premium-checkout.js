@@ -457,12 +457,13 @@ test('rate limit: 6 in-app checkouts per hour per account', async function () {
 });
 
 // ---------- trials + billingStartsAt
-test('7-day trial (flag off): no charge today, trial_end = now + 7d, access now, trial used once', async function () {
+test('7-day trial (flag off): no charge today, trial_period_days = 7, access now, trial used once', async function () {
     const a = setup({ config: { trialDays: 7 } });
     const out = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new'));
     const body = bodyOf(a.calls[0]);
     const trialEnd = T0 + 7 * 86400000;
-    assert.ok(body.indexOf('subscription_data[trial_end]=' + Math.floor(trialEnd / 1000)) !== -1);
+    assert.ok(body.indexOf('subscription_data[trial_period_days]=7') !== -1);
+    assert.ok(body.indexOf('subscription_data[trial_end]=') === -1);
     assert.ok(body.indexOf('custom_text[submit][message]=You will not be charged today. Your first charge is on Nov 27, 2026.') !== -1);
     assert.strictEqual(a.db.store.get('premium_orders/' + out.orderId).expectedTotalCents, 0);
     const r = await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 0, payment_status: 'no_payment_required' }));
@@ -928,7 +929,7 @@ test('Red Team 4 / Spam: a card that already had a trial sends the order to revi
     const o1 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old', { email: 'one@example.com' }));
     assert.strictEqual((await stripePost(a, completed(o1.orderId, 'cs_test_1', { amount_total: 0, payment_status: 'no_payment_required' }))).body.outcome, 'granted');
     const o2 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new', { email: 'two@example.com' }));
-    assert.ok(bodyOf(a.calls[a.calls.length - 1]).indexOf('trial_end') !== -1); // unknown card at checkout time
+    assert.ok(bodyOf(a.calls[a.calls.length - 1]).indexOf('trial_period_days') !== -1); // unknown card at checkout time
     assert.strictEqual((await stripePost(a, completed(o2.orderId, 'cs_test_2', { amount_total: 0, payment_status: 'no_payment_required', customer: 'cus_2', subscription: 'sub_2' }))).body.outcome, 'review');
     assert.strictEqual(a.db.store.get('premium_orders/' + o2.orderId).status, 'review');
     assert.strictEqual((await stripePost(a, invoicePaid(o2.orderId, 0, { billing_reason: 'subscription_create', customer: 'cus_2', parent: { subscription_details: { subscription: 'sub_2', metadata: { orderId: o2.orderId } } } }))).body.outcome, 'review');
@@ -980,6 +981,51 @@ test('Red Team 6: a trial order with a null card fingerprint is sent to review w
         return c.init.method === 'DELETE' && c.url === 'https://api.stripe.com/v1/subscriptions/sub_nf';
     });
     assert.strictEqual(del.length, 1);
+});
+test('Spam: invoice.paid first then session.completed still runs the trial gate; reused card goes to review', async function () {
+    const a = setup({ config: { trialDays: 7 }, defaultCardFp: 'fp_same_card' });
+    const o1 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old', { email: 'one@example.com' }));
+    const s1 = a.db.store.get('premium_orders/' + o1.orderId).providerSessionId;
+    // Normal order: invoice.paid arrives first, then session.completed.
+    const inv1 = invoicePaid(o1.orderId, 0, { billing_reason: 'subscription_create', customer: 'cus_1', parent: { subscription_details: { subscription: 'sub_1', metadata: { orderId: o1.orderId } } } });
+    assert.strictEqual((await stripePost(a, inv1)).body.outcome, 'granted');
+    const ent1 = a.db.store.get('premium_entitlements/old');
+    assert.strictEqual(ent1.trialUsed, true);
+    assert.strictEqual(ent1.autoRenew, true);
+    assert.ok(ent1.trialUntilMs > T0);
+    assert.strictEqual((await stripePost(a, completed(o1.orderId, s1, { amount_total: 0, payment_status: 'no_payment_required', customer: 'cus_1', subscription: 'sub_1' }))).body.outcome, 'already_paid');
+    assert.strictEqual(a.db.store.get('premium_entitlements/old').trialUsed, true);
+    // Replay of either event does not grant a second time.
+    assert.strictEqual((await stripePost(a, inv1)).body.outcome, 'duplicate');
+    const ev1b = completed(o1.orderId, s1, { amount_total: 0, payment_status: 'no_payment_required', customer: 'cus_1', subscription: 'sub_1' });
+    // New event id, same session: already_paid, still one grant.
+    assert.strictEqual((await stripePost(a, ev1b)).body.outcome, 'already_paid');
+    assert.strictEqual(rows(a, 'premium_trial_markers').length, 2); // card + email
+
+    // Second account, same card: invoice.paid first, then session.completed.
+    const o2 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new', { email: 'two@example.com' }));
+    const s2 = a.db.store.get('premium_orders/' + o2.orderId).providerSessionId;
+    const inv2 = invoicePaid(o2.orderId, 0, { billing_reason: 'subscription_create', customer: 'cus_2', parent: { subscription_details: { subscription: 'sub_2', metadata: { orderId: o2.orderId } } } });
+    assert.strictEqual((await stripePost(a, inv2)).body.outcome, 'review');
+    assert.strictEqual(a.db.store.get('premium_orders/' + o2.orderId).status, 'review');
+    assert.strictEqual(a.db.store.get('premium_orders/' + o2.orderId).reviewReason, 'trial_reused');
+    assert.strictEqual(a.db.store.get('premium_orders/' + o2.orderId).subscription_canceled, true);
+    assert.strictEqual(premium.isPremiumActive(a.db.store.get('premium_entitlements/new') || null, a.clock.now), false);
+    const ev2 = completed(o2.orderId, s2, { amount_total: 0, payment_status: 'no_payment_required', customer: 'cus_2', subscription: 'sub_2' });
+    assert.strictEqual((await stripePost(a, ev2)).body.outcome, 'review');
+    assert.strictEqual(premium.isPremiumActive(a.db.store.get('premium_entitlements/new') || null, a.clock.now), false);
+    const del = a.calls.filter(function (c) {
+        return c.init.method === 'DELETE' && c.url === 'https://api.stripe.com/v1/subscriptions/sub_2';
+    });
+    assert.ok(del.length >= 1);
+    const row = rows(a, 'premium_review').find(function (r) { return r.reason === 'trial_reused'; });
+    assert.strictEqual(row.subscription_canceled, true);
+    // subscription.updated must not turn autoRenew back on or unlock Embers.
+    const upd = { id: 'evt_upd_reused', type: 'customer.subscription.updated', livemode: false, data: { object: { id: 'sub_2', status: 'trialing', cancel_at_period_end: false, metadata: { orderId: o2.orderId } } } };
+    const updOut = (await stripePost(a, upd)).body.outcome;
+    assert.ok(updOut === 'review' || updOut === 'not_renewing', updOut);
+    assert.strictEqual(premium.isPremiumActive(a.db.store.get('premium_entitlements/new') || null, a.clock.now), false);
+    await rejects(a.h.claimPremiumAllowance({}, ctx('new')), 'not_premium');
 });
 test('Spam: canonical email (plus-alias, gmail dots) that had a trial gets a paid checkout with no trial', async function () {
     assert.strictEqual(premium.canonicalEmail('J.Doe+promo@GoogleMail.com'), 'jdoe@gmail.com');

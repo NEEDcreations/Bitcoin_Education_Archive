@@ -58,8 +58,12 @@ existingUserDiscountEndsAtMs    // may end the 5% earlier; clamped to 2027-01-01
 
 ## billingStartsAt
 
-Implemented with Stripe `subscription_data.trial_end` (not `billing_cycle_anchor`):
-no charge today and no proration invoice.
+Implemented with Stripe subscription trials (not `billing_cycle_anchor`):
+no charge today and no proration invoice. A plain N-day trial uses
+`subscription_data.trial_period_days` so the hosted page shows the full
+N days. When `billingStartsAt` is in the future, the session still uses
+`trial_end` (Jan 3, or Jan 3 + trial days); `trial_period_days` would
+start the clock at checkout and charge too soon.
 
 | | Flag unset (default) | Flag = 2027-01-03T00:00:00-05:00 |
 |---|---|---|
@@ -133,7 +137,7 @@ review row so a human cancels it in Stripe.
 - **Turnstile:** server checks success, `action === 'premium_checkout'` (premium.html sets `data-action`), and the hostname against the environment's allowlist (live: bitcoineducation.quest, www; staging: bitcoin-quest-staging.web.app, *.bitcoin-quest.pages.dev, localhost). Unknown project = no origins, no pass.
 - **Rate:** 10 public orders per IP per hour, 6 in-app per account per hour, `publicOrdersPerHour` across all public orders.
 - **Founders:** in-app only (sign-in required; the public page sends Founders buyers to `/?premium=founders`). One live hold per account and per real IP; at most `maxLiveFoundersHolds` live holds. Holds at/above `foundersHoldsAlertThreshold` for over an hour raise one `founders_holds_high` review row and an `admin_notifications` alert.
-- **Trials:** when a trial is granted, the card fingerprint (re-read from the Checkout Session) and canonical email are recorded as keyed-hash markers. A known email gets a paid checkout with no trial; a known card found after checkout, or a trial order whose card fingerprint could not be read, sends the order to review (`trial_reused`) with no Premium, and the Stripe subscription is canceled immediately (`subscription_canceled` on the review row) so nothing is charged at `trial_end`.
+- **Trials:** when a trial is granted, the card fingerprint (re-read from the Checkout Session) and canonical email are recorded as keyed-hash markers. A known email gets a paid checkout with no trial; a known card found after checkout, or a trial order whose card fingerprint could not be read, sends the order to review (`trial_reused`) with no Premium, and the Stripe subscription is canceled immediately (`subscription_canceled` on the review row) so nothing is charged at `trial_end`. `checkout.session.completed` and `invoice.paid` share one idempotent trial gate, so a $0 `subscription_create` invoice that arrives first cannot grant time without passing the fingerprint and email checks. `already_paid` never skips that gate.
 - **$0 invoices:** granted only for the order's trial opening invoice (order has trialEndMs, `billing_reason === 'subscription_create'`, first invoice). Anything else -> review `stripe_zero_invoice`. Renewals must equal the order's unitCents.
 - **Refunds, disputes, failed payments:** entitlements found by stripeCustomerId (account and email-held) get `frozen: true`; frozen means no perks and no allowance until an admin restores with `adminRevokePremium`. A review row carries uid, orderId and customerId, and an `admin_notifications` row (type `premium_review`) alerts a human in the admin panel feed.
 - **Portal:** always opened with our own configuration (`stripePortalConfigId`). Promotion codes and plan switching are off in that configuration (`features.subscription_update.enabled=false`, `default_allowed_updates=[]`), created by `functions/scripts/premium-portal-config.js`. Stripe's default portal configuration is never used.

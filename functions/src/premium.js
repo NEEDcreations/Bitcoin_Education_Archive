@@ -673,9 +673,19 @@ function createPremiumHandlers(deps) {
                 };
                 if (q.cardMode === 'subscription') {
                     params.subscription_data = { metadata: metadata };
-                    // trial_end (not billing_cycle_anchor): no charge today, no
-                    // proration, first full charge on trial_end.
-                    if (trialEndMs) params.subscription_data.trial_end = Math.floor(trialEndMs / 1000);
+                    // No charge today, no proration. A plain N-day trial uses
+                    // trial_period_days so the hosted page shows the full N
+                    // days even if checkout finishes a few minutes later.
+                    // billingStartsAt in the future must stay trial_end:
+                    // trial_period_days would start the clock at checkout and
+                    // charge before Jan 3 / Jan 10.
+                    if (trialEndMs) {
+                        if (!startMs && who.trialEligible && cfg.trialDays > 0) {
+                            params.subscription_data.trial_period_days = cfg.trialDays;
+                        } else {
+                            params.subscription_data.trial_end = Math.floor(trialEndMs / 1000);
+                        }
+                    }
                 } else { params.payment_intent_data = { metadata: metadata }; params.customer_creation = 'always'; }
                 const note = checkoutNote(q, startMs, trialEndMs);
                 if (note) params.custom_text = { submit: { message: note } };
@@ -1018,6 +1028,147 @@ function createPremiumHandlers(deps) {
         return cleared;
     }
 
+    // Shared trial gate for checkout.session.completed and invoice.paid.
+    // Reads markers before any writes. Idempotent: markers for this order
+    // are not reuse, and an order already in trial_reused review is left as-is.
+    async function applyTrialGate(tx, r, g) {
+        const o = r.order;
+        const orderId = g.orderId;
+        const fpHash = g.fpHash || null;
+        const isTrial = !!(o && o.trialEndMs && o.trialDays > 0);
+        if (!isTrial) return { outcome: 'ok', isTrial: false, fpHash: fpHash };
+
+        if (o.status === 'review' && o.reviewReason === 'trial_reused') {
+            return {
+                outcome: 'review',
+                isTrial: true,
+                already: true,
+                trialReuseSubId: o.stripeSubscriptionId || g.subId || null,
+                trialReuseReviewId: o.trialReuseReviewId || null,
+                fpHash: o.cardFpHash || fpHash,
+            };
+        }
+
+        const missingFp = !fpHash;
+        const cardRef = fpHash ? ref(COL.trialMarkers, 'c_' + fpHash) : null;
+        const trialEk = (o.trialEmailKey || o.emailKey) || null;
+        const mailRef = trialEk ? ref(COL.trialMarkers, 'e_' + trialEk) : null;
+        const cardSnap = cardRef ? await tx.get(cardRef) : null;
+        const mailSnap = mailRef ? await tx.get(mailRef) : null;
+        const reused = [cardSnap, mailSnap].filter(function (x) {
+            return x && x.exists && x.data().orderId !== orderId;
+        });
+
+        if (reused.length || missingFp) {
+            const subId = g.subId || o.stripeSubscriptionId || null;
+            const by = [];
+            if (missingFp) by.push('missing_fingerprint');
+            reused.forEach(function (x) { by.push(x === cardSnap ? 'card' : 'email'); });
+            const reviewId = o.trialReuseReviewId || newId();
+            if (!o.trialReuseReviewId) {
+                review(tx, 'trial_reused', {
+                    eventId: g.eventId || null,
+                    orderId: orderId,
+                    uid: o.uid || r.uid || null,
+                    customerId: g.customerId || null,
+                    sessionId: g.sessionId || o.providerSessionId || null,
+                    firstOrderId: reused.length ? (reused[0].data().orderId || null) : null,
+                    by: by,
+                    subscriptionId: subId,
+                    subscription_canceled: false,
+                }, r.nowMs, reviewId);
+            }
+            tx.update(r.orderRef, {
+                status: 'review',
+                reviewReason: 'trial_reused',
+                cardFpHash: fpHash,
+                stripeCustomerId: g.customerId || o.stripeCustomerId || null,
+                stripeSubscriptionId: subId,
+                trialReuseReviewId: reviewId,
+                subscription_canceled: o.subscription_canceled === true,
+            });
+            // If an earlier event already granted time, take it back.
+            revokeTrialGrant(tx, r, orderId);
+            return {
+                outcome: 'review',
+                isTrial: true,
+                trialReuseSubId: subId,
+                trialReuseReviewId: reviewId,
+                fpHash: fpHash,
+            };
+        }
+
+        if (cardRef) tx.set(cardRef, { orderId: orderId, kind: 'card', atMs: r.nowMs });
+        if (mailRef) tx.set(mailRef, { orderId: orderId, kind: 'email', atMs: r.nowMs });
+        return { outcome: 'ok', isTrial: true, fpHash: fpHash };
+    }
+
+    function revokeTrialGrant(tx, r, orderId) {
+        const e = r.ent;
+        if (!e) return;
+        if (e.subscriptionOrderId && e.subscriptionOrderId !== orderId) return;
+        const had = e.subscriptionOrderId === orderId || e.trialUsed === true || Number(e.subscriptionUntilMs) > 0 || Number(e.trialUntilMs) > 0;
+        if (!had) return;
+        e.autoRenew = false;
+        e.trialUntilMs = null;
+        e.subscriptionUntilMs = 0;
+        e.stripeSubscriptionStatus = 'canceled';
+        e.trialReused = true;
+        e.frozen = true;
+        e.frozenReason = 'trial_reused';
+        e.frozenAtMs = r.nowMs;
+        writeEntitlement(tx, r);
+    }
+
+    function grantSubscriptionFromOrder(tx, r, g, periodEndSec) {
+        const o = r.order;
+        const orderId = g.orderId;
+        setStart(r, o);
+        if (g.customerId) r.ent.stripeCustomerId = g.customerId;
+        if (g.subId) r.ent.stripeSubscriptionId = g.subId;
+        else r.ent.stripeSubscriptionId = r.ent.stripeSubscriptionId || null;
+        r.ent.subscriptionPlan = o.plan;
+        r.ent.subscriptionOrderId = orderId;
+        r.ent.autoRenew = true;
+        if (o.trialEndMs) { r.ent.trialUsed = true; if (o.trialDays > 0) r.ent.trialUntilMs = o.trialEndMs; }
+        const stashed = Number(o.trialInvoicePeriodEnd) || 0;
+        const provisional = (o.trialEndMs || pricing.addMonths(r.nowMs, o.interval === 'year' ? 12 : 1)) + SUB_GRACE_MS;
+        const fromInvoice = periodEndSec ? (Number(periodEndSec) * 1000 + SUB_GRACE_MS) : (stashed ? stashed * 1000 + SUB_GRACE_MS : 0);
+        r.ent.subscriptionUntilMs = Math.max(Number(r.ent.subscriptionUntilMs) || 0, fromInvoice || provisional);
+        writeEntitlement(tx, r);
+        const orderPatch = {
+            status: 'paid',
+            paidAtMs: o.paidAtMs || r.nowMs,
+            cardFpHash: g.fpHash || o.cardFpHash || null,
+            stripeCustomerId: g.customerId || o.stripeCustomerId || null,
+            stripeSubscriptionId: r.ent.stripeSubscriptionId,
+        };
+        if (g.providerRef) orderPatch.providerRef = g.providerRef;
+        if (g.invoicePatch) Object.assign(orderPatch, g.invoicePatch);
+        tx.update(r.orderRef, orderPatch);
+        return 'granted';
+    }
+
+    async function cancelTrialReuse(subId, orderId, reviewId) {
+        if (!subId) return { status: 200, canceled: false };
+        try {
+            await stripeRequest('DELETE', '/v1/subscriptions/' + encodeURIComponent(subId));
+            if (orderId) {
+                const oRef = ref(COL.orders, orderId);
+                const oSnap = await oRef.get();
+                if (oSnap.exists) await oRef.update({ subscription_canceled: true });
+            }
+            if (reviewId) {
+                const rRef = ref(COL.review, reviewId);
+                const rSnap = await rRef.get();
+                if (rSnap.exists) await rRef.update({ subscription_canceled: true });
+            }
+            return { status: 200, canceled: true };
+        } catch (e) {
+            return { status: 500, canceled: false };
+        }
+    }
+
     // ---- Stripe webhook
     async function handleStripeEvent(event) {
         if (!event || typeof event.id !== 'string' || typeof event.type !== 'string') return { status: 400, outcome: 'bad_event' };
@@ -1038,78 +1189,50 @@ function createPremiumHandlers(deps) {
             let trialReuseSubId = null;
             const outcome = await once(key, orderId || null, async function (tx, r) {
                 const o = r.order;
-                // Trial markers (keyed hashes only): card fingerprint and canonical email.
-                const isTrial = !!(o && o.trialEndMs && o.trialDays > 0);
-                // A missing card fingerprint on a trial fails closed: treat it like reuse.
-                const missingFp = isTrial && !fpHash;
-                const cardRef = isTrial && fpHash ? ref(COL.trialMarkers, 'c_' + fpHash) : null;
-                // Trial markers use the canonical email hash. New orders store
-                // it as trialEmailKey; older orders used emailKey for this.
-                const trialEk = (o && (o.trialEmailKey || o.emailKey)) || null;
-                const mailRef = isTrial && trialEk ? ref(COL.trialMarkers, 'e_' + trialEk) : null;
-                const cardSnap = cardRef ? await tx.get(cardRef) : null;
-                const mailSnap = mailRef ? await tx.get(mailRef) : null;
-                const reused = [cardSnap, mailSnap].filter(function (x) { return x && x.exists && x.data().orderId !== orderId; });
                 if (!o || o.provider !== 'stripe' || o.providerSessionId !== obj.id || !r.entRef) {
                     review(tx, 'stripe_unknown_order', { orderId: orderId || null, sessionId: obj.id || null, eventId: event.id }, r.nowMs);
                     return 'review';
                 }
-                if (o.status === 'paid') return 'already_paid';
                 const want = o.expectedTotalCents != null ? o.expectedTotalCents : o.amountCents;
-                if (obj.amount_total !== want || obj.currency !== 'usd' || obj.mode !== o.cardMode) {
+                if (o.status !== 'review' && (obj.amount_total !== want || obj.currency !== 'usd' || obj.mode !== o.cardMode)) {
                     review(tx, 'stripe_amount_mismatch', { orderId: orderId, uid: o.uid, sessionId: obj.id, got: obj.amount_total, want: want }, r.nowMs);
                     tx.update(r.orderRef, { status: 'review', reviewReason: 'amount_mismatch' });
                     return 'review';
                 }
                 const settled = obj.payment_status === 'paid' || (want === 0 && obj.payment_status === 'no_payment_required');
                 if (!settled) return 'not_paid_yet';
-                // Same card already used a free trial, or the card fingerprint
-                // could not be read: no Premium, and cancel the Stripe
-                // subscription immediately so nothing is charged at trial_end.
-                if (reused.length || missingFp) {
-                    const subId = stripeSubId(obj);
-                    const by = [];
-                    if (missingFp) by.push('missing_fingerprint');
-                    reused.forEach(function (x) { by.push(x === cardSnap ? 'card' : 'email'); });
-                    trialReuseSubId = subId;
-                    trialReuseReviewId = newId();
-                    review(tx, 'trial_reused', {
-                        orderId: orderId,
-                        uid: o.uid,
-                        customerId: typeof obj.customer === 'string' ? obj.customer : null,
-                        sessionId: obj.id,
-                        firstOrderId: reused.length ? (reused[0].data().orderId || null) : null,
-                        by: by,
-                        subscriptionId: subId,
-                        subscription_canceled: false,
-                    }, r.nowMs, trialReuseReviewId);
-                    tx.update(r.orderRef, {
-                        status: 'review',
-                        reviewReason: 'trial_reused',
-                        cardFpHash: fpHash,
-                        stripeCustomerId: typeof obj.customer === 'string' ? obj.customer : null,
-                        stripeSubscriptionId: subId,
-                        trialReuseReviewId: trialReuseReviewId,
-                        subscription_canceled: false,
-                    });
+                const subId = stripeSubId(obj) || o.stripeSubscriptionId || null;
+                const customerId = typeof obj.customer === 'string' ? obj.customer : (o.stripeCustomerId || null);
+                // already_paid must never skip the trial gate.
+                const gate = await applyTrialGate(tx, r, {
+                    orderId: orderId,
+                    fpHash: fpHash,
+                    sessionId: obj.id,
+                    customerId: customerId,
+                    subId: subId,
+                    eventId: event.id,
+                });
+                if (gate.outcome === 'review') {
+                    trialReuseSubId = gate.trialReuseSubId;
+                    trialReuseReviewId = gate.trialReuseReviewId;
                     return 'review';
                 }
-                if (cardRef) tx.set(cardRef, { orderId: orderId, kind: 'card', atMs: r.nowMs });
-                if (mailRef) tx.set(mailRef, { orderId: orderId, kind: 'email', atMs: r.nowMs });
-                setStart(r, o);
-                if (typeof obj.customer === 'string') r.ent.stripeCustomerId = obj.customer;
-                tx.update(r.orderRef, { cardFpHash: fpHash, stripeCustomerId: typeof obj.customer === 'string' ? obj.customer : null });
+                if (o.status === 'review') return 'review';
+                if (o.status === 'paid') {
+                    const patch = {};
+                    if (fpHash && !o.cardFpHash) patch.cardFpHash = fpHash;
+                    if (customerId && !o.stripeCustomerId) patch.stripeCustomerId = customerId;
+                    if (Object.keys(patch).length) tx.update(r.orderRef, patch);
+                    return 'already_paid';
+                }
                 if (o.lifetime) return grantFounders(tx, r, orderId, obj.id);
-                r.ent.stripeSubscriptionId = typeof obj.subscription === 'string' ? obj.subscription : (r.ent.stripeSubscriptionId || null);
-                r.ent.subscriptionPlan = o.plan;
-                r.ent.subscriptionOrderId = orderId;
-                r.ent.autoRenew = true;
-                if (o.trialEndMs) { r.ent.trialUsed = true; if (o.trialDays > 0) r.ent.trialUntilMs = o.trialEndMs; }
-                const provisional = (o.trialEndMs || pricing.addMonths(r.nowMs, o.interval === 'year' ? 12 : 1)) + SUB_GRACE_MS;
-                r.ent.subscriptionUntilMs = Math.max(Number(r.ent.subscriptionUntilMs) || 0, provisional);
-                writeEntitlement(tx, r);
-                tx.update(r.orderRef, { status: 'paid', paidAtMs: r.nowMs, providerRef: obj.id, stripeSubscriptionId: r.ent.stripeSubscriptionId });
-                return 'granted';
+                return grantSubscriptionFromOrder(tx, r, {
+                    orderId: orderId,
+                    fpHash: gate.fpHash || fpHash,
+                    customerId: customerId,
+                    subId: subId,
+                    providerRef: obj.id,
+                }, Number(o.trialInvoicePeriodEnd) || 0);
             });
             // Cancel outside the transaction. Also runs on a webhook retry
             // (once() returns 'duplicate') if the first cancel attempt failed.
@@ -1122,21 +1245,8 @@ function createPremiumHandlers(deps) {
                 }
             }
             if (trialReuseSubId) {
-                try {
-                    await stripeRequest('DELETE', '/v1/subscriptions/' + encodeURIComponent(trialReuseSubId));
-                    if (orderId) {
-                        const oRef = ref(COL.orders, orderId);
-                        const oSnap = await oRef.get();
-                        if (oSnap.exists) await oRef.update({ subscription_canceled: true });
-                    }
-                    if (trialReuseReviewId) {
-                        const rRef = ref(COL.review, trialReuseReviewId);
-                        const rSnap = await rRef.get();
-                        if (rSnap.exists) await rRef.update({ subscription_canceled: true });
-                    }
-                } catch (e) {
-                    return { status: 500, outcome: 'subscription_cancel_failed' };
-                }
+                const canceled = await cancelTrialReuse(trialReuseSubId, orderId, trialReuseReviewId);
+                if (canceled.status === 500) return { status: 500, outcome: 'subscription_cancel_failed' };
             }
             return { status: 200, outcome: outcome };
         }
@@ -1146,6 +1256,21 @@ function createPremiumHandlers(deps) {
             const subId = obj.subscription || (parent && parent.subscription) || null;
             const meta = (obj.subscription_details && obj.subscription_details.metadata) || (parent && parent.metadata) || {};
             const orderId = String(meta.orderId || '');
+            // $0 trial opening invoices must pass the same fingerprint/email
+            // gate. Fetch the session fingerprint before the transaction, in
+            // case this event arrives before checkout.session.completed.
+            let fpHash = null;
+            if (orderId && Number(obj.amount_paid) === 0 && obj.billing_reason === 'subscription_create') {
+                const pre = await ref(COL.orders, orderId).get();
+                const po = pre.exists ? pre.data() : null;
+                if (po && po.trialEndMs && po.trialDays > 0) {
+                    if (!po.providerSessionId) return { status: 500, outcome: 'session_missing' };
+                    const fp = await sessionCardFingerprint(po.providerSessionId);
+                    fpHash = fp ? H('card', fp) : null;
+                }
+            }
+            let trialReuseReviewId = null;
+            let trialReuseSubId = null;
             const outcome = await once(key, orderId || null, async function (tx, r) {
                 const o = r.order;
                 if (!o || o.provider !== 'stripe' || o.cardMode !== 'subscription' || !subId || !r.entRef) {
@@ -1155,6 +1280,10 @@ function createPremiumHandlers(deps) {
                 // Orders held for review (e.g. trial reuse) get no time until a human clears them.
                 if (o.status === 'review') {
                     review(tx, 'stripe_invoice_order_in_review', { orderId: orderId, uid: o.uid, invoiceId: obj.id, customerId: typeof obj.customer === 'string' ? obj.customer : null, amount: obj.amount_paid }, r.nowMs);
+                    if (o.reviewReason === 'trial_reused' && o.subscription_canceled !== true) {
+                        trialReuseSubId = o.stripeSubscriptionId || subId;
+                        trialReuseReviewId = o.trialReuseReviewId || null;
+                    }
                     return 'review';
                 }
                 if (o.stripeSubscriptionId && o.stripeSubscriptionId !== subId) {
@@ -1183,19 +1312,64 @@ function createPremiumHandlers(deps) {
                     review(tx, 'stripe_invoice_no_period', { orderId: orderId, uid: o.uid, invoiceId: obj.id }, r.nowMs);
                     return 'review';
                 }
+                const customerId = typeof obj.customer === 'string' ? obj.customer : (o.stripeCustomerId || null);
+                const invoicePatch = { invoicesPaid: (Number(o.invoicesPaid) || 0) + 1, firstInvoiceId: o.firstInvoiceId || obj.id || null, trialInvoicePeriodEnd: periodEnd };
+                if (customerId && !o.stripeCustomerId) invoicePatch.stripeCustomerId = customerId;
+                // $0 trial opening invoice: must pass the shared trial gate.
+                // It may grant only after the gate passes (idempotent if the
+                // session event already granted).
+                if (Number(obj.amount_paid) === 0 && o.trialDays > 0) {
+                    const gate = await applyTrialGate(tx, r, {
+                        orderId: orderId,
+                        fpHash: fpHash,
+                        sessionId: o.providerSessionId || null,
+                        customerId: customerId,
+                        subId: subId,
+                        eventId: event.id,
+                    });
+                    if (gate.outcome === 'review') {
+                        trialReuseSubId = gate.trialReuseSubId;
+                        trialReuseReviewId = gate.trialReuseReviewId;
+                        return 'review';
+                    }
+                    if (o.status === 'paid') {
+                        r.ent.stripeSubscriptionId = subId;
+                        if (customerId) r.ent.stripeCustomerId = customerId;
+                        r.ent.subscriptionUntilMs = Math.max(Number(r.ent.subscriptionUntilMs) || 0, periodEnd * 1000 + SUB_GRACE_MS);
+                        writeEntitlement(tx, r);
+                        tx.update(r.orderRef, invoicePatch);
+                        return 'granted';
+                    }
+                    return grantSubscriptionFromOrder(tx, r, {
+                        orderId: orderId,
+                        fpHash: gate.fpHash || fpHash,
+                        customerId: customerId,
+                        subId: subId,
+                        invoicePatch: invoicePatch,
+                    }, periodEnd);
+                }
                 r.ent.stripeSubscriptionId = subId;
-                if (typeof obj.customer === 'string') r.ent.stripeCustomerId = obj.customer;
+                if (customerId) r.ent.stripeCustomerId = customerId;
                 r.ent.subscriptionPlan = o.plan;
                 r.ent.subscriptionOrderId = orderId;
                 r.ent.subscriptionUntilMs = Math.max(Number(r.ent.subscriptionUntilMs) || 0, periodEnd * 1000 + SUB_GRACE_MS);
                 writeEntitlement(tx, r);
-                const orderPatch = { invoicesPaid: (Number(o.invoicesPaid) || 0) + 1, firstInvoiceId: o.firstInvoiceId || obj.id || null };
-                // Refunds and disputes find the order by customer when the charge has no metadata.
-                if (typeof obj.customer === 'string' && !o.stripeCustomerId) orderPatch.stripeCustomerId = obj.customer;
-                if (o.status !== 'paid') Object.assign(orderPatch, { status: 'paid', paidAtMs: r.nowMs, stripeSubscriptionId: subId });
-                tx.update(r.orderRef, orderPatch);
+                if (o.status !== 'paid') Object.assign(invoicePatch, { status: 'paid', paidAtMs: r.nowMs, stripeSubscriptionId: subId });
+                tx.update(r.orderRef, invoicePatch);
                 return 'granted';
             });
+            if (outcome === 'duplicate' && orderId && !trialReuseSubId) {
+                const prev = await ref(COL.orders, orderId).get();
+                const po = prev.exists ? prev.data() : null;
+                if (po && po.reviewReason === 'trial_reused' && po.subscription_canceled !== true) {
+                    trialReuseSubId = po.stripeSubscriptionId || subId;
+                    trialReuseReviewId = po.trialReuseReviewId || null;
+                }
+            }
+            if (trialReuseSubId) {
+                const canceled = await cancelTrialReuse(trialReuseSubId, orderId, trialReuseReviewId);
+                if (canceled.status === 500) return { status: 500, outcome: 'subscription_cancel_failed' };
+            }
             return { status: 200, outcome: outcome };
         }
 
@@ -1204,6 +1378,14 @@ function createPremiumHandlers(deps) {
             const outcome = await once(key, orderId || null, async function (tx, r) {
                 const o = r.order;
                 if (!o || o.provider !== 'stripe' || !r.entRef || (r.ent.stripeSubscriptionId && r.ent.stripeSubscriptionId !== obj.id)) return 'ignored';
+                // A reused trial sent to review must not become renewing again.
+                if (o.status === 'review' && o.reviewReason === 'trial_reused') return 'review';
+                if (r.ent.trialReused === true || r.ent.frozenReason === 'trial_reused') {
+                    r.ent.autoRenew = false;
+                    r.ent.stripeSubscriptionStatus = String(obj.status || '');
+                    writeEntitlement(tx, r);
+                    return 'not_renewing';
+                }
                 const renewing = t !== 'customer.subscription.deleted' && obj.cancel_at_period_end !== true && (obj.status === 'active' || obj.status === 'trialing');
                 r.ent.autoRenew = renewing;
                 r.ent.stripeSubscriptionStatus = String(obj.status || '');
