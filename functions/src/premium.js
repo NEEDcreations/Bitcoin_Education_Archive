@@ -1634,17 +1634,22 @@ function bindPremium(functionsV1, deps) {
     const { runtimeSa } = require('./runtimeServiceAccounts');
     const s = {};
     SECRET_NAMES.forEach(function (n) { s[n] = defineSecret(n); });
+    // PREMIUM_BTCPAY=off (functions/.env.bitcoin-quest-staging) leaves the
+    // BTCPay secrets unbound so checkout can deploy before the store exists.
+    // Lightning then fails closed (btcpay_config); premiumBtcpayWebhook is not
+    // deployed. Unset (live) binds them as normal.
+    const btc = process.env.PREMIUM_BTCPAY === 'off' ? [] : [s.BTCPAY_API_KEY, s.BTCPAY_URL, s.BTCPAY_STORE_ID];
     const handlers = createPremiumHandlers(Object.assign({ HttpsError: functionsV1.https.HttpsError }, deps || {}));
 
     const createPremiumCheckout = functionsV1.runWith({
         enforceAppCheck: true,
         timeoutSeconds: 60,
-        secrets: [s.PREMIUM_HASH_KEY, s.STRIPE_SECRET_KEY, s.BTCPAY_API_KEY, s.BTCPAY_URL, s.BTCPAY_STORE_ID],
+        secrets: [s.PREMIUM_HASH_KEY, s.STRIPE_SECRET_KEY].concat(btc),
         serviceAccount: runtimeSa('createPremiumCheckout'),
     }).https.onCall(handlers.createPremiumCheckout);
     const premiumPublicCheckout = functionsV1.runWith({
         timeoutSeconds: 60,
-        secrets: [s.PREMIUM_HASH_KEY, s.STRIPE_SECRET_KEY, s.BTCPAY_API_KEY, s.BTCPAY_URL, s.BTCPAY_STORE_ID, deps.turnstileSecret].filter(Boolean),
+        secrets: [s.PREMIUM_HASH_KEY, s.STRIPE_SECRET_KEY].concat(btc, [deps.turnstileSecret]).filter(Boolean),
         serviceAccount: runtimeSa('premiumPublicCheckout'),
     }).https.onRequest(handlers.premiumPublicCheckout);
     const createPremiumPortal = functionsV1.runWith({
