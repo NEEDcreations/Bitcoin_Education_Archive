@@ -23,6 +23,13 @@ const QUESTION_BANK = {
         { q: "The Bitcoin whitepaper solved what previously unsolvable problem?", a: "Digital scarcity without a trusted third party", wrong: ["Instant payments without any processing delays", "Quantum-proof encryption for all financial data", "Free global transfers without any intermediary"] },
         { q: "What did Satoshi embed in the Genesis Block's coinbase transaction?", a: "A newspaper headline about bank bailouts", wrong: ["A cryptographic puzzle for early miners", "A private note to the early Bitcoin team", "A list of early Bitcoin wallet addresses"] }
     ],
+    "one-stop-shop": [
+        { q: "What is the One-Stop Shop channel for?", a: "A short starter set of the best resources for understanding Bitcoin", wrong: ["A live price ticker for every altcoin", "A custodial exchange for buying bitcoin", "A mining pool signup form"] },
+        { q: "Who should start with the One-Stop Shop?", a: "Someone new who wants the core ideas in one place", wrong: ["Only miners who already run a pool", "Only developers submitting a BIP", "Only people who already memorized the whitepaper"] },
+        { q: "How long does the channel say it takes to work through its starter material?", a: "About 3 to 5 hours", wrong: ["About 5 minutes", "About 3 to 5 weeks of full-time study", "A four-year university course"] },
+        { q: "What does the channel say you will know after 15 minutes there?", a: "More about Bitcoin than 99% of the population", wrong: ["How to mine a block on a laptop", "The private key of the genesis coins", "Every proposed soft fork in detail"] },
+        { q: "What kind of material does the One-Stop Shop point you to first?", a: "Short videos and the best introductory explanations of Bitcoin", wrong: ["A hardware wallet's recovery seed", "A leveraged trading terminal", "A list of altcoin presales"] }
+    ],
     "decentralized": [
         { q: "How many people are \"in charge\" of Bitcoin?", a: "No one", wrong: ["Satoshi Nakamoto", "A board of directors", "The Bitcoin Foundation"] },
         { q: "What is needed for code updates to Bitcoin?", a: "Deep consensus from the network", wrong: ["Miner approval alone suffices", "Developer committee approval", "Permission from founding nodes"] },
@@ -1554,9 +1561,16 @@ function generateAndShowQuest(manual, targetChannelId, isRetake) {
         }
     }
 
-    // For topic-specific quests, allow fewer than 5 if the topic has fewer questions
-    var minQuestions = targetChannelId ? Math.min(3, pool.length) : 5;
-    if (pool.length < minQuestions) return;
+    // An empty topic used to pass this check (min became 0) and open a quiz
+    // with no questions. That must never count as a finished quest.
+    var minQuestions = targetChannelId ? 1 : 5;
+    if (pool.length < minQuestions) {
+        if (targetChannelId && typeof window.btcRevertEmptyTrailStop === 'function') {
+            window.btcRevertEmptyTrailStop(String(targetChannelId).split('||')[0]);
+        }
+        if (manual && typeof showToast === 'function') showToast('This quest has no questions yet.');
+        return;
+    }
 
     // Filter out already-asked questions first
     let freshPool = pool.filter(q => !askedQuestions.includes(q.q));
@@ -1761,6 +1775,12 @@ function playWarriorDrum() {
 }
 
 function showQuest(quest, retry) {
+    if (!quest || !quest.questions || !quest.questions.length) {
+        if (quest && quest.topicKey && typeof window.btcRevertEmptyTrailStop === 'function') {
+            window.btcRevertEmptyTrailStop(quest.topicKey);
+        }
+        return;
+    }
     currentQuest = quest;
     isRetry = retry;
     window._questSubmitted = false;
@@ -1903,6 +1923,14 @@ async function _gradeQuestOnServer(quest, answerIndexes, retry) {
 async function submitQuest() {
     // Prevent double-submit
     if (window._questSubmitted) return;
+    if (!currentQuest || !currentQuest.questions || !currentQuest.questions.length) {
+        window._questSubmitted = false;
+        if (typeof window.btcRevertEmptyTrailStop === 'function' && currentQuest && currentQuest.topicKey) {
+            window.btcRevertEmptyTrailStop(currentQuest.topicKey);
+        }
+        if (typeof closeQuest === 'function') closeQuest();
+        return;
+    }
     window._questSubmitted = true;
     var btn = document.getElementById('questSubmitBtn');
     if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = 'Grading...'; }
@@ -2426,7 +2454,7 @@ function _renderFavorTab(body) {
         html += '<div style="background:linear-gradient(135deg,rgba(247,147,26,0.15),rgba(247,147,26,0.05));border:2px solid var(--accent);border-radius:12px;padding:16px;margin-bottom:16px;animation:favorPulse 2s ease-in-out infinite;">' +
             '<div style="font-size:1.2rem;font-weight:800;color:var(--accent);margin-bottom:8px;">🎉 SATOSHI\'S FAVOR IS ACTIVE!</div>' +
             '<div style="font-size:2rem;font-weight:900;color:#fff;font-family:monospace;" id="favorTabTimer">' + remainingMin + 'm ' + remainingSec + 's</div>' +
-            '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;">Hash below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' (the current difficulty) to solve a block and earn a share of the reward!</div>' +
+            '<div style="color:var(--text-muted);font-size:0.8rem;margin-top:8px;">Hash below ' + ((window.SF_DIFFICULTY_TARGET || 25000).toLocaleString()) + ' (the current difficulty) to solve a block and earn a share of the reward!</div>' +
             '</div>' +
             '<style>@keyframes favorPulse{0%,100%{box-shadow:0 0 0 0 rgba(247,147,26,0.4)}50%{box-shadow:0 0 0 10px rgba(247,147,26,0)}}</style>';
 
@@ -2458,6 +2486,8 @@ function _renderFavorTab(body) {
                 '<div style="font-size:0.78rem;font-weight:800;color:#f7931a;margin-bottom:6px;">Cyber Hornets</div>' +
                 '<div id="sfScoreHornets" style="font-size:1.6rem;font-weight:900;color:var(--heading);font-family:monospace;">0</div>' +
                 '<div style="font-size:0.62rem;color:var(--text-faint);margin-top:2px;">SF points</div>' +
+                '<div id="sfBoostHornets" style="display:none;font-size:0.62rem;font-weight:800;color:#22c55e;margin-top:4px;">🔥 Underdog boost 1.2×</div>' +
+                '<div style="font-size:0.6rem;font-style:italic;color:var(--text-faint);margin-top:6px;line-height:1.35;">"' + _sfQuip('cyber_hornets') + '"</div>' +
             '</div>' +
             '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex-shrink:0;">' +
                 '<div style="font-size:0.9rem;font-weight:900;color:var(--text-faint);">VS</div>' +
@@ -2468,8 +2498,17 @@ function _renderFavorTab(body) {
                 '<div style="font-size:0.78rem;font-weight:800;color:#a855f7;margin-bottom:6px;">Honey Badgers</div>' +
                 '<div id="sfScoreBadgers" style="font-size:1.6rem;font-weight:900;color:var(--heading);font-family:monospace;">0</div>' +
                 '<div style="font-size:0.62rem;color:var(--text-faint);margin-top:2px;">SF points</div>' +
+                '<div id="sfBoostBadgers" style="display:none;font-size:0.62rem;font-weight:800;color:#22c55e;margin-top:4px;">🔥 Underdog boost 1.2×</div>' +
+                '<div style="font-size:0.6rem;font-style:italic;color:var(--text-faint);margin-top:6px;line-height:1.35;">"' + _sfQuip('honey_badgers') + '"</div>' +
             '</div>' +
         '</div>' +
+        '<details id="sfRaceRules" style="margin-top:10px;font-size:0.72rem;color:var(--text-muted);line-height:1.5;">' +
+            '<summary style="cursor:pointer;font-weight:700;color:var(--text);">How the race stays fair</summary>' +
+            '<div style="margin-top:6px;">🏁 First faction to 10,000 race points wins.</div>' +
+            '<div>🔥 <b>Underdog boost:</b> while a faction trails by 1,000 or more, its new points count 1.2×. It switches off once the race is close.</div>' +
+            '<div>🆕 <b>Underdog join bonus:</b> new players who join the smaller faction earn +25% faction points for their first 7 days.</div>' +
+            '<div>🔒 Faction choice is permanent, and all scoring happens on our servers.</div>' +
+        '</details>' +
         '<div id="sfScoreBar" style="margin-top:10px;height:6px;background:var(--border);border-radius:3px;overflow:hidden;display:none;">' +
             '<div id="sfScoreBarFill" style="height:100%;background:linear-gradient(90deg,#f7931a,#f7931a 50%,#a855f7 50%,#a855f7);width:100%;border-radius:3px;transition:background 0.5s;"></div>' +
         '</div>' +
@@ -2512,7 +2551,7 @@ function _renderFavorTab(body) {
         '• At 21 points, a hashing (simulation) competition opens for 60 minutes<br>' +
         '• Extra points beyond 21 add +3 min each (even while active!)<br>' +
         '• 10 hashes max per minute per user (60 second cooldown)<br>' +
-        '• Generate a random hash. Below ' + ((window.SF_DIFFICULTY_TARGET || 30000).toLocaleString()) + ' (the current difficulty) = you solved a block!<br><br>' +
+        '• Generate a random hash. Below ' + ((window.SF_DIFFICULTY_TARGET || 25000).toLocaleString()) + ' (the current difficulty) = you solved a block!<br><br>' +
         '<strong style="color:var(--accent);">Pool mining rewards:</strong><br>' +
         '• Every 5 blocks found triggers a <strong>21,000 sat distribution</strong><br>' +
         '• If 5 different people each find a block — each earns <strong>4,200 sats</strong><br>' +
@@ -2581,14 +2620,16 @@ function _renderFavorTab(body) {
             var prevTarget = i > 0 ? _dh[i - 1].target : null;
             var odds = '1:' + _sfCompactNum(Math.round(100000000 / row.target));
             var changeColor = !prevTarget ? 'var(--text-faint)' : (row.target < prevTarget ? '#22c55e' : '#ef4444');
-            var changeTxt = row.label || (!prevTarget ? 'Genesis' : (((row.target - prevTarget) / prevTarget * 100).toFixed(2) + '%'));
+            // Chg = DIFFICULTY change (difficulty = 100,000,000 / target, so a bigger target is easier):
+            // (newDifficulty - oldDifficulty) / oldDifficulty * 100 = (prevTarget / target - 1) * 100
+            var changeTxt = row.label || (!prevTarget ? 'Genesis' : (function(p) { return (p > 0 ? '+' : '') + p.toFixed(2) + '%'; })((prevTarget / row.target - 1) * 100));
             changeTxt = String(changeTxt).replace(/(\d+\.\d{2,})%/, function(m, n) { return parseFloat(n).toFixed(1) + '%'; }); // -96.67% -> -96.7% (mobile fit)
             // Hashes: use static value from SF_DIFFICULTY_HISTORY for past periods; live cell for current
-            var hashTxt = isCurrent ? '<span id="sfHashesRow' + i + '">\u2026</span>' :
+            var hashTxt = (isCurrent || (row.liveStats && row.hashes == null)) ? '<span id="sfHashesRow' + i + '">\u2026</span>' :
                 (row.hashes != null ? _sfCompactNum(row.hashes) : '—');
             // Luck: null = current period (live) or genesis period (0 blocks)
             var luckTxt, luckColor;
-            if (isCurrent) {
+            if (isCurrent || (row.liveStats && row.luck == null)) {
                 luckTxt = '<span id="sfLuckRow' + i + '">\u2026</span>';
                 luckColor = 'inherit';
             } else if (row.luck == null) {
@@ -2634,7 +2675,11 @@ function _renderFavorTab(body) {
                 '<td style="text-align:right;font-weight:700;color:var(--text-muted);"><span id="sfTotalHashes">…</span></td>' +
                 '<td style=""></td>' +
             '</tr>';
-        _dhHtml += '</tbody></table></div></div>';
+        var _nextEpoch = (typeof window !== 'undefined' && Math.floor(Number(window.SF_DIFFICULTY_NEXT_RETARGET_EPOCH))) || 0;
+        var _nextTxt = '<div style="margin-top:6px;font-size:0.68rem;color:var(--text-faint);">Next difficulty adjustment: ' +
+              (_nextEpoch > 0 ? 'when Epoch #' + _nextEpoch + ' fills 5/5' : 'when the current epoch fills 5/5') +
+              ' (aiming for one epoch about every 14 days, at most 4× per step)</div>';
+        _dhHtml += '</tbody></table></div>' + _nextTxt + '</div>';
         html += _dhHtml;
     })();
     '</div>';
@@ -2709,6 +2754,12 @@ window._runFactionBackfill = function() {
     });
 };
 
+function _sfQuip(f) {
+    var q = (typeof window.bqFactionQuip === 'function') ? window.bqFactionQuip(f) : '';
+    if (!q) q = f === 'cyber_hornets' ? 'The swarm protects the network.' : "Honey badger don't care.";
+    return typeof escapeHtml === 'function' ? escapeHtml(q) : q;
+}
+
 // -- Faction scoreboard live listener --
 function _startFactionScoreboardListener() {
     // Detach any previous listener
@@ -2731,8 +2782,14 @@ function _startFactionScoreboardListener() {
         var elNote = document.getElementById('sfNoFactionNote');
         var unaffiliated = data.unaffiliated || 0;
 
-        if (elH) elH.textContent = hornets.toLocaleString();
-        if (elB) elB.textContent = badgers.toLocaleString();
+        if (elH) elH.textContent = Math.floor(hornets).toLocaleString();
+        if (elB) elB.textContent = Math.floor(badgers).toLocaleString();
+        ['cyber_hornets', 'honey_badgers'].forEach(function(f) {
+            var key = f === 'cyber_hornets' ? 'Hornets' : 'Badgers';
+            var mine = Number(data[f]) || 0, theirs = Number(data[f === 'cyber_hornets' ? 'honey_badgers' : 'cyber_hornets']) || 0;
+            var boostEl = document.getElementById('sfBoost' + key);
+            if (boostEl) boostEl.style.display = (theirs - mine >= 1000) ? 'block' : 'none';
+        });
         if (elU) elU.textContent = unaffiliated.toLocaleString() + ' pts unclaimed';
         var elExplain = document.getElementById('sfUnclaimedExplain');
         if (elExplain) elExplain.textContent = "These come from players who haven't picked a faction yet.";
@@ -2792,7 +2849,7 @@ function _startFactionScoreboardListener() {
         // Show backfill button for admin
         var elAdmin = document.getElementById('sfAdminBackfill');
         if (elAdmin) {
-            var isAdmin = (typeof currentUser !== 'undefined' && currentUser && (currentUser.email === 'needcreations@gmail.com' || currentUser.email === 'najemchris8@gmail.com'));
+            var isAdmin = window._isAdminClaim === true; // Firebase custom claim only
             elAdmin.style.display = isAdmin ? 'block' : 'none';
         }
 
@@ -2855,10 +2912,22 @@ var _favorPBUnsub = null;
 var _favorHasherRanksUnsub = null;
 
 // Render Top 25 Hashers leaderboard
+function _bqLazyList(pieces, noun) {
+    var capped = (pieces || []).slice(0, 50);
+    var head = capped.slice(0, 10).join('');
+    var rest = capped.slice(10).join('');
+    if (!rest) return head;
+    if (typeof window._lbStashMore === 'function' && typeof window._lbMoreButton === 'function') {
+        return head + window._lbMoreButton(window._lbStashMore(rest), capped.length, noun);
+    }
+    return head;
+}
+
 function _renderHasherRanksHTML(users) {
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
-    var html = '';
-    for (var i = 0; i < users.length; i++) {
+    var pieces = [];
+    var limit = Math.min(users.length, 50);
+    for (var i = 0; i < limit; i++) {
         var u = users[i];
         var rank = u.rank || (i + 1);
         var rankIcon = rank === 1 ? '\uD83E\uDD47' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
@@ -2903,18 +2972,9 @@ function _renderHasherRanksHTML(users) {
                 '<span style="font-size:0.68rem;color:var(--text-faint);">since ' + firstDate + '</span>' +
             '</div>' +
         '</div>';
-        if (i < 10) {
-            html += rowHtml;
-        } else if (i === 10) {
-            html += '<div id="hasherRanksMore" style="display:none;">' + rowHtml;
-        } else {
-            html += rowHtml;
-        }
+        pieces.push(rowHtml);
     }
-    if (users.length > 10) {
-        html += '</div>'; // close hasherRanksMore
-        html += '<button onclick="(function(){var m=document.getElementById(\'hasherRanksMore\');var b=document.getElementById(\'hasherRanksMoreBtn\');if(!m||!b)return;var open=m.style.display!==\'none\';m.style.display=open?\'none\':\'block\';b.textContent=open?\'Show more \u25bc\':\'Show less \u25b2\';})()" id="hasherRanksMoreBtn" style="width:100%;margin-top:6px;padding:6px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Show more \u25bc</button>';
-    }
+    var html = _bqLazyList(pieces, 'hashers');
     var seenMe = false;
     for (var s = 0; s < users.length; s++) {
         if (myUid && users[s] && users[s].id === myUid) seenMe = true;
@@ -2923,7 +2983,7 @@ function _renderHasherRanksHTML(users) {
         var myName = typeof escapeHtml === 'function' ? escapeHtml(currentUser.username || 'Anon') : (currentUser.username || 'Anon');
         html += '<div style="padding:6px 10px;margin-top:6px;background:rgba(247,147,26,0.1);border:1px solid var(--accent);border-radius:8px;">' +
             '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">' +
-            '<span style="font-size:0.78rem;font-weight:800;color:var(--accent);">25+</span>' +
+            '<span style="font-size:0.78rem;font-weight:800;color:var(--accent);">50+</span>' +
             '<span style="font-size:0.8rem;font-weight:800;color:var(--accent);flex:1;">' + myName + ' (you)</span>' +
             '<span style="font-family:monospace;font-size:0.82rem;font-weight:800;color:var(--heading);">\u26CF\uFE0F ' + (currentUser.sfTotalHashes || 0).toLocaleString() + '</span>' +
             '</div></div>';
@@ -3044,17 +3104,10 @@ function _renderTopHashesHTML(entries) {
         '</div>';
     }
 
-        var top10 = entries.slice(0, 10);
-    var rest = entries.slice(10);
-    for (var i = 0; i < top10.length; i++) html += renderEntry(top10[i], i);
-
-    if (rest.length > 0) {
-        html += '<div id="favorHashesMore" style="display:none;">';
-        for (var j = 0; j < rest.length; j++) html += renderEntry(rest[j], 10 + j);
-        html += '</div>';
-        html += '<button onclick="(function(){var m=document.getElementById(\'favorHashesMore\');var b=document.getElementById(\'favorHashesMoreBtn\');if(!m||!b)return;var open=m.style.display!==\'none\';m.style.display=open?\'none\':\'block\';b.textContent=open?\'Show more \u25bc\':\'Show less \u25b2\';})()"' +
-            'id="favorHashesMoreBtn" style="width:100%;margin-top:6px;padding:6px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Show more \u25bc</button>';
-    }
+        var hashPieces = [];
+    var hashCap = Math.min(entries.length, 50);
+    for (var i = 0; i < hashCap; i++) hashPieces.push(renderEntry(entries[i], i));
+    html += _bqLazyList(hashPieces, 'hashes');
 
     return html;
 }
@@ -3070,7 +3123,7 @@ function _renderPBHTML(val) {
 // Live listener on satoshiFavor/current — updates current-period hashes + luck in real time
 var _difficultyCurrentUnsub = null;
 
-function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
+function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod, pastBlockCounts) {
     if (typeof db === 'undefined') return;
     if (_difficultyCurrentUnsub) { _difficultyCurrentUnsub(); _difficultyCurrentUnsub = null; }
     var _dh = (typeof window !== 'undefined' && window.SF_DIFFICULTY_HISTORY) || [];
@@ -3099,10 +3152,31 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod) {
             var hashEl = document.getElementById('sfHashesRow' + currentIdx);
             if (hashEl) hashEl.textContent = _sfCompactNum(eraHashes);
 
-            // Update total hashes = sum of all past static hashes + current difficulty era
+            // Past rows without frozen hashes (liveStats) read the per-target counter,
+            // when that target value appears only once in the history.
+            var _tCount = {};
+            _dh.forEach(function(r) { _tCount[r.target] = (_tCount[r.target] || 0) + 1; });
             var pastHashSum = 0;
             for (var _pi = 0; _pi < currentIdx; _pi++) {
-                if (_dh[_pi].hashes != null) pastHashSum += _dh[_pi].hashes;
+                var _row = _dh[_pi];
+                if (_row.hashes != null) { pastHashSum += _row.hashes; continue; }
+                if (!_row.liveStats) continue;
+                var _hEl = document.getElementById('sfHashesRow' + _pi);
+                var _lEl = document.getElementById('sfLuckRow' + _pi);
+                var _raw = _tCount[_row.target] === 1 ? data['target_' + _row.target] : null;
+                if (_raw == null) { if (_hEl) _hEl.textContent = '—'; if (_lEl) _lEl.textContent = '—'; continue; }
+                var _h = Math.max(0, Number(_raw) || 0);
+                pastHashSum += _h;
+                if (_hEl) _hEl.textContent = _sfCompactNum(_h);
+                var _b = (pastBlockCounts && pastBlockCounts[_pi]) || 0;
+                if (_lEl) {
+                    if (!_h || !_b) { _lEl.textContent = '—'; _lEl.style.color = 'var(--text-faint)'; }
+                    else {
+                        var _lv = _b * (100000000 / _row.target) / _h * 100;
+                        _lEl.textContent = _lv.toFixed(1) + '%';
+                        _lEl.style.color = _lv >= 100 ? '#22c55e' : '#ef4444';
+                    }
+                }
             }
             var totalHashEl = document.getElementById('sfTotalHashes');
             if (totalHashEl) totalHashEl.textContent = _sfCompactNum(pastHashSum + eraHashes);
@@ -3182,7 +3256,7 @@ function _loadDifficultyHistoryBlocks() {
 
             // Start live listener on current doc for hashes + luck (uses eraHashes field)
             var curBlocksFound = currentIdx >= 0 ? (counts[currentIdx] || 0) : 0;
-            _startDifficultyCurrentListener(curBlocksFound);
+            _startDifficultyCurrentListener(curBlocksFound, counts);
         })
         .catch(function() {
             _dh.forEach(function(_, i) {
@@ -3213,7 +3287,7 @@ function _loadLastSFWindow() {
         var totalH = d.totalHashes || 0;
         var lowestH = d.lowestHash != null ? d.lowestHash.toLocaleString() : '—';
         var durMin = d.durationMinutes || 0;
-        var _sfTarget = (typeof window !== 'undefined' && window.SF_DIFFICULTY_TARGET) ? window.SF_DIFFICULTY_TARGET : 10000;
+        var _sfTarget = (typeof window !== 'undefined' && window.SF_DIFFICULTY_TARGET) ? window.SF_DIFFICULTY_TARGET : 25000;
         // Use the difficulty that was active at window end time, not current
         var _windowTarget = d.difficultyTarget || _sfTarget;
         var hadWinner = d.lowestHash != null && d.lowestHash < _windowTarget;
@@ -3347,26 +3421,28 @@ function _loadPoolEpoch() {
     var _sfClaimByEpoch = {}; // epochNumber -> array of real claim rows (empty array = loaded, no win)
     var _sfClaimLoading = false;
 
-    function _sfClaimLabel(st, amount) {
+    function _sfClaimLabel(st, amount, block) {
         var a = Math.floor(Number(amount) || 0);
         var sats = a ? (a.toLocaleString('en-US') + ' sats') : '';
-        if (st === 'claimable') return { text: 'Claim ' + (sats || 'sats'), kind: 'claim' };
-        if (st === 'claimed') return { text: 'Claimed' + (sats ? ' · ' + sats : ''), kind: 'done' };
-        if (st === 'pending_manual') return { text: 'Waiting on Phil to pay' + (sats ? ' · ' + sats : ''), kind: 'wait' };
-        if (st === 'waiting_approval') return { text: 'Waiting on approval' + (sats ? ' · ' + sats : ''), kind: 'wait' };
-        if (st === 'excluded') return { text: 'Not eligible', kind: 'muted' };
+        var blk = (block != null && block !== '') ? ('Block #' + (Number(block) + 1) + ' \u00b7 ') : '';
+        if (st === 'claimable') return { text: 'Claim ' + blk + (sats || 'sats'), kind: 'claim' };
+        if (st === 'paid') return { text: blk + 'Claimed' + (sats ? ' \u00b7 ' + sats : ''), kind: 'done' };
+        if (st === 'paying') return { text: blk + 'Payment in progress', kind: 'wait' };
+        if (st === 'unknown') return { text: blk + 'Being confirmed so it cannot pay twice', kind: 'wait' };
+        if (st === 'manual_review') return { text: blk + 'Set aside for a manual check. Your sats are safe.', kind: 'wait' };
+        if (st === 'not_open') return { text: blk + (sats ? sats + ' saved for you. ' : '') + 'Claims open soon. It never expires.', kind: 'wait' };
         return null;
     }
 
     function _sfOneClaimHtml(epochNum, info) {
         if (!info || !info.winId) return '';
-        var lab = _sfClaimLabel(info.status, info.amount);
+        var lab = _sfClaimLabel(info.status, info.amount, info.block);
         if (!lab) return '';
         if (lab.kind === 'claim') {
             return '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
-                '<button type="button" data-sf-claim-win="' + String(info.winId || '').replace(/"/g, '') + '" data-sf-claim-epoch="' + epochNum + '" ' +
+                '<button type="button" data-sf-claim-win="' + String(info.winId || '').replace(/[^a-z0-9_]/gi, '') + '" data-sf-claim-epoch="' + (parseInt(epochNum, 10) || 0) + '" data-sf-claim-block="' + (parseInt(info.block, 10) || 0) + '" ' +
                 'style="padding:8px 14px;min-height:44px;border-radius:10px;border:none;background:var(--accent);color:#fff;font-weight:800;font-size:0.78rem;cursor:pointer;font-family:inherit;">⚡ ' + lab.text + '</button>' +
-                '<span style="font-size:0.68rem;color:var(--text-muted);">Pays your saved Lightning address</span></div>';
+                '<span style="font-size:0.68rem;color:var(--text-muted);">Pays ' + (info.payTo ? String(info.payTo).replace(/[<>&"']/g, '') : 'the Lightning address saved when the epoch closed') + '</span></div>';
         }
         var color = lab.kind === 'done' ? '#22c55e' : (lab.kind === 'wait' ? '#eab308' : 'var(--text-faint)');
         return '<div style="margin-top:8px;font-size:0.75rem;font-weight:700;color:' + color + ';">' + lab.text + '</div>';
@@ -3472,41 +3548,53 @@ function _loadPoolEpoch() {
             });
         }).catch(function() { _sfHist.loading = false; _sfHist.error = true; _sfHistPaint(); });
     }
-    function _sfDoClaim(winId, epochNum, btn) {
+    function _sfDoClaim(winId, epochNum, btn, blockNum) {
         if (!winId || typeof firebase === 'undefined' || !firebase.functions) return;
-        if (btn) { btn.disabled = true; btn.textContent = 'Paying…'; }
-        firebase.functions().httpsCallable('claimCipherWin')({ winId: winId }).then(function (res) {
+        if (btn) { btn.disabled = true; btn.textContent = 'Paying\u2026'; }
+        // Only { epoch, block } go to the server. It decides who won from its own records.
+        var payload = { epoch: epochNum, block: blockNum };
+        function send(p) { return firebase.functions().httpsCallable('claimFavorBlock')(p); }
+        function withProof() {
+            if (typeof window._showFreshStepUp !== 'function') return Promise.resolve(null);
+            return window._showFreshStepUp('claimFavorBlock');
+        }
+        var first = (typeof mfaNeedsFreshCode === 'function' && mfaNeedsFreshCode())
+            ? withProof().then(function (proof) { if (!proof) throw new Error('cancelled'); return send(Object.assign({}, payload, { freshProofId: proof })); })
+            : send(payload);
+        first.then(function (res) {
             var d = (res && res.data) || {};
-            if (d.success) {
-                var list = _sfClaimByEpoch[epochNum];
-                if (!Array.isArray(list)) list = [];
-                var hit = false;
-                for (var ci = 0; ci < list.length; ci++) {
-                    if (list[ci] && list[ci].winId === winId) {
-                        list[ci] = Object.assign({}, list[ci], { status: 'claimed', winId: winId, amount: d.amount || list[ci].amount || 0 });
-                        hit = true;
-                    }
-                }
-                if (!hit) list.push({ status: 'claimed', winId: winId, amount: d.amount || 0, epochNumber: epochNum });
-                _sfClaimByEpoch[epochNum] = list;
-                if (typeof showToast === 'function') showToast('⚡ Favor sats sent!');
-            } else {
-                if (typeof showToast === 'function') showToast(d.error || 'Claim failed. Try again.');
-                if (btn) { btn.disabled = false; btn.textContent = '⚡ Claim'; }
+            if (!d.success && d.code === 'step_up_required' && typeof window._showFreshStepUp === 'function') {
+                return withProof().then(function (proof) {
+                    if (!proof) return d;
+                    return send(Object.assign({}, payload, { freshProofId: proof })).then(function (r2) { return (r2 && r2.data) || {}; });
+                });
             }
+            return d;
+        }).then(function (d) {
+            var list = _sfClaimByEpoch[epochNum];
+            if (!Array.isArray(list)) list = [];
+            var next = d.success ? 'paid' : (d.code === 'manual_review' ? 'manual_review' : (d.code === 'held_unknown' ? 'unknown' : (d.code === 'already_paid' ? 'paid' : null)));
+            if (next) {
+                for (var ci = 0; ci < list.length; ci++) {
+                    if (list[ci] && list[ci].winId === winId) list[ci] = Object.assign({}, list[ci], { status: next });
+                }
+                _sfClaimByEpoch[epochNum] = list;
+            }
+            if (typeof showToast === 'function') showToast(d.success ? '\u26a1 Favor sats sent!' : (d.error || 'Claim failed. Your block is saved.'));
+            if (!d.success && btn) { btn.disabled = false; btn.textContent = '\u26a1 Claim'; }
             var inner = document.getElementById('sfPoolEpochInner');
             if (inner && inner._sfRepaint) inner._sfRepaint();
             else _sfHistPaint();
         }).catch(function (e) {
-            var msg = (e && e.message) ? e.message : 'Claim failed.';
+            var msg = (e && e.message && e.message !== 'cancelled') ? e.message : 'Claim cancelled. Your block is saved.';
             if (typeof showToast === 'function') showToast(msg);
-            if (btn) { btn.disabled = false; btn.textContent = '⚡ Claim'; }
+            if (btn) { btn.disabled = false; btn.textContent = '\u26a1 Claim'; }
         });
     }
     function _sfHistClick(e) {
         var claimBtn = e.target.closest && e.target.closest('[data-sf-claim-win]');
         if (claimBtn) {
-            _sfDoClaim(claimBtn.getAttribute('data-sf-claim-win'), parseInt(claimBtn.getAttribute('data-sf-claim-epoch'), 10) || 0, claimBtn);
+            _sfDoClaim(claimBtn.getAttribute('data-sf-claim-win'), parseInt(claimBtn.getAttribute('data-sf-claim-epoch'), 10) || 0, claimBtn, parseInt(claimBtn.getAttribute('data-sf-claim-block'), 10) || 0);
             return true;
         }
         var b = e.target.closest && e.target.closest('[data-sf-hist]');
@@ -4054,6 +4142,7 @@ function _nookBuyItem(itemId, qty, btnEl) {
                     if (inv.bonusSpins      !== undefined) currentUser.bonusSpins      = inv.bonusSpins;
                     if (inv.raffleEntries      !== undefined) currentUser.raffleEntries      = inv.raffleEntries;
                     if (inv.secondRigCharges   !== undefined) currentUser.secondRigCharges   = inv.secondRigCharges;
+                    if (inv.spamHasherCharges  !== undefined) currentUser.spamHasherCharges  = inv.spamHasherCharges;
                     if (inv.ownedCosmetics     !== undefined) currentUser.ownedCosmetics     = inv.ownedCosmetics;
                 }
             }
@@ -4117,7 +4206,7 @@ function _nookConvertXP(tickets, btnEl) {
 
 // Prices come from the server (getNookShopCatalog). Fallbacks match the server
 // constants so the shop still renders offline; the server always charges its own price.
-var _NOOK_FALLBACK = {streak_freeze:6,streak_freeze_3:15,hint_token:3,hint_token_5:12,hash_booster:10,hash_booster_3:27,bonus_spin:5,bonus_spin_3:14,double_xp:20,double_xp_3h:50,second_rig:25,second_rig_3:70,raffle_entry:10,raffle_entry_10:95,pinned_badge:30,chat_flair:60,profile_frame:75,nacho_skin_nook:100};
+var _NOOK_FALLBACK = {streak_freeze:6,streak_freeze_3:15,hint_token:3,hint_token_5:10,hash_booster:10,hash_booster_3:27,bonus_spin:5,bonus_spin_3:12,double_xp:20,double_xp_3h:50,second_rig:25,second_rig_3:70,spam_hasher:300,raffle_entry:10,raffle_entry_10:95,pinned_badge:20,chat_flair:40,profile_frame:50,nacho_skin_nook:75};
 function _nookPrice(id) {
     var c = window._nookCatalog && window._nookCatalog[id];
     return c && typeof c.cost === 'number' ? c.cost : _NOOK_FALLBACK[id];
@@ -4200,6 +4289,9 @@ function _renderNookShop() {
         : '') + buyBtn('second_rig', _nookPrice('second_rig'), 1, 'Buy');
     html += itemRow('⚡', 'Second Mining Rig', 'Unlocks Hash #2 button for one SF window. Hold up to 10 charges.', _nookPrice('second_rig'), rigBtnHtml);
     html += itemRow('⚡', '3× Second Mining Rig', 'NEW · 3 charges for 3 SF windows.', _nookPrice('second_rig_3'), buyBtn('second_rig_3', _nookPrice('second_rig_3'), 1, 'Bundle'));
+    var spamHeld = u.spamHasherCharges || 0;
+    html += itemRow('🌪️', 'Spam Hasher', 'NEW · Lifts the per-minute hash limit for one whole SF window, up to 60 hashes a minute per rig. Activate from Inventory while a window is open. It ends when the window closes. Hold 1, up to 4 a month.', _nookPrice('spam_hasher'),
+        spamHeld > 0 ? '<div style="padding:5px 10px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;font-size:0.75rem;color:#22c55e;font-weight:700;margin-top:4px;">In Inventory</div>' : buyBtn('spam_hasher', _nookPrice('spam_hasher'), 1, 'Buy'));
     html += '</div>';
 
     // ─── Gifts ───
@@ -4279,7 +4371,7 @@ function _renderNookShop() {
     (function() {
         if (typeof db === 'undefined') return;
         var now = new Date();
-        var monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+        var monthKey = now.getUTCFullYear() + '-' + String(now.getUTCMonth() + 1).padStart(2, '0');
         db.collection('stats').doc('raffle_' + monthKey).get().then(function(snap) {
             var el2 = document.getElementById('_raffleCommTotal');
             if (!el2) return;
@@ -4337,7 +4429,7 @@ function _renderNookInventory() {
                 var fresh = doc.data();
                 // Sync all inventory fields from server into currentUser
                 var invFields = ['streakFreezes','hintTokens','hashBoosters','doubleXPCharges','bonusSpins',
-                    'raffleEntries','secondRigCharges','ownedCosmetics','orangeTickets','doubleXPExpiry','doubleXpUntil',
+                    'raffleEntries','secondRigCharges','spamHasherCharges','ownedCosmetics','orangeTickets','doubleXPExpiry','doubleXpUntil',
                     'cipherSatsBalance'];
                 invFields.forEach(function(f) {
                     if (fresh[f] !== undefined) currentUser[f] = fresh[f];
@@ -4442,6 +4534,12 @@ function _renderNookInventoryContent(el) {
         secondRigCharges > 0 ? '<button onclick="window._qhReopenOnMinerClose=false;if(window.closeQuestHubForFavor)window.closeQuestHubForFavor();setTimeout(function(){if(window.openSatoshiFavorMiner)window.openSatoshiFavorMiner();},100);" style="margin-top:4px;padding:5px 12px;background:linear-gradient(135deg,#8b5cf6,#7c3aed);border:none;border-radius:8px;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">⛏️ Deploy Rig</button>' : '',
         secondRigCharges > 0 ? 'Tap Deploy Rig to open the miner — Hash #2 button will appear!' : 'Each charge unlocks Hash #2 for one SF mining window.');
 
+    // Spam Hasher
+    var spamCharges = u.spamHasherCharges || 0;
+    html += invRow('🌪️', 'Spam Hasher', spamCharges,
+        spamCharges > 0 ? '<button onclick="_nookActivateSpamHasher(this)" style="margin-top:4px;padding:5px 12px;background:linear-gradient(135deg,#f7931a,#ea580c);border:none;border-radius:8px;color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;">Activate</button>' : '',
+        'Tap Activate during an open SF window. Up to 60 hashes a minute per rig until the window closes.');
+
     html += '</div>';
 
     // Cosmetics
@@ -4472,7 +4570,7 @@ function _renderNookInventoryContent(el) {
         html += '</div>';
     }
 
-    if (freezes === 0 && hintTokens === 0 && hashBoosters === 0 && doubleXPCharges === 0 && !doubleXPActive && bonusSpins === 0 && raffleEntries === 0 && secondRigCharges === 0 && ownedCosmetics.length === 0) {
+    if (freezes === 0 && hintTokens === 0 && hashBoosters === 0 && doubleXPCharges === 0 && !doubleXPActive && bonusSpins === 0 && raffleEntries === 0 && secondRigCharges === 0 && !(u.spamHasherCharges > 0) && ownedCosmetics.length === 0) {
         html = '<div id="nookKeysCiphers" style="margin:0 0 16px;"></div>' +
             '<div style="text-align:center;padding:32px 20px;">' +
             '<div style="font-size:2.5rem;margin-bottom:12px;">📦</div>' +
@@ -4515,6 +4613,28 @@ window._nookActivateHashBooster = function(btnEl) {
                 currentUser.hashBoosterHashes = d.hashBoosterHashes;
             }
             if (typeof showToast === 'function') showToast('⚡ Hash Booster activated! 100 instant hashes ready — no cooldown until they\'re gone!');
+            _renderNookSubTabs();
+        }
+    }).catch(function(err) {
+        var msg = (err && err.message) ? err.message : 'Activation failed';
+        if (typeof showToast === 'function') showToast('❌ ' + msg);
+        btnEl.disabled = false;
+        btnEl.textContent = origText;
+    });
+};
+
+window._nookActivateSpamHasher = function(btnEl) {
+    if (!btnEl) return;
+    btnEl.disabled = true;
+    var origText = btnEl.textContent;
+    btnEl.textContent = '⏳';
+    var fn = typeof firebase !== 'undefined' ? firebase.functions().httpsCallable('activateSpamHasher') : null;
+    if (!fn) { btnEl.disabled = false; btnEl.textContent = origText; return; }
+    fn({}).then(function(r) {
+        var d = r.data;
+        if (d && d.success) {
+            if (typeof currentUser !== 'undefined' && currentUser) currentUser.spamHasherCharges = d.spamHasherCharges;
+            if (typeof showToast === 'function') showToast('🌪️ Spam Hasher on! Hash as fast as you can until this window closes.');
             _renderNookSubTabs();
         }
     }).catch(function(err) {
@@ -6608,7 +6728,7 @@ function _listenRaidParticipants(bossId) {
     window._raidParticipantsUnsub = db.collection('raid_bosses').doc(bossId)
         .collection('participants')
         .orderBy('contributed', 'desc')
-        .limit(25)
+        .limit(50)
         .onSnapshot(function(snapshot) {
             var el = document.getElementById('raidParticipants');
             if (!el) return;
@@ -6616,25 +6736,26 @@ function _listenRaidParticipants(bossId) {
                 el.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">No raiders yet - be the first! ⚔️</div>';
                 return;
             }
-            var html = '';
+            var pieces = [];
             var rank = 0;
             snapshot.docs.forEach(function(doc) {
                 rank++;
+                if (rank > 50) return;
                 var p = doc.data();
                 var displayName = typeof escapeHtml === 'function' ? escapeHtml(p.username || 'Anonymous') : (p.username || 'Anonymous');
                 var contributed = p.contributed || 0;
                 var rankIcon = rank === 1 ? '👑' : (rank === 2 ? '🥈' : (rank === 3 ? '🥉' : rank + '.'));
                 var isMe = typeof auth !== 'undefined' && auth && auth.currentUser && doc.id === auth.currentUser.uid;
                 var _pUid = doc.id;
-                html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;">' +
+                pieces.push('<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;">' +
                     '<div style="display:flex;align-items:center;gap:8px;">' +
                         '<span style="font-size:0.8rem;min-width:24px;">' + rankIcon + '</span>' +
                         '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + _pUid + '\')" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
                     '</div>' +
                     '<span style="font-size:0.78rem;font-weight:800;color:#8b5cf6;font-variant-numeric:tabular-nums;">' + contributed.toLocaleString() + ' dmg</span>' +
-                '</div>';
+                '</div>');
             });
-            el.innerHTML = html;
+            el.innerHTML = _bqLazyList(pieces, 'raiders');
         }, function(err) {
             console.error('[RAID] Participants listener error:', err);
         });
@@ -6673,7 +6794,7 @@ window._toggleRaidDamageDealers = function() {
     window._raidDamageDealersUnsub = db.collection('raid_bosses').doc(bossId)
         .collection('participants')
         .orderBy('contributed', 'desc')
-        .limit(30)
+        .limit(50)
         .onSnapshot(function(snapshot) {
             var el = document.getElementById('raidDamageDealers');
             if (!el) return;
@@ -6681,25 +6802,26 @@ window._toggleRaidDamageDealers = function() {
                 el.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">No damage recorded for this boss.</div>';
                 return;
             }
-            var html = '';
+            var pieces = [];
             var rank = 0;
             snapshot.docs.forEach(function(doc) {
                 rank++;
+                if (rank > 50) return;
                 var p = doc.data();
                 var displayName = typeof escapeHtml === 'function' ? escapeHtml(p.username || 'Anonymous') : (p.username || 'Anonymous');
                 var contributed = p.contributed || 0;
                 var rankIcon = rank === 1 ? '\uD83D\uDC51' : (rank === 2 ? '\uD83E\uDD48' : (rank === 3 ? '\uD83E\uDD49' : rank + '.'));
                 var isMe = typeof auth !== 'undefined' && auth && auth.currentUser && doc.id === auth.currentUser.uid;
                 var pUid = doc.id;
-                html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;margin-bottom:4px;">' +
+                pieces.push('<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;margin-bottom:4px;">' +
                     '<div style="display:flex;align-items:center;gap:8px;">' +
                         '<span style="font-size:0.8rem;min-width:24px;">' + rankIcon + '</span>' +
                         '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + pUid + '\')" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
                     '</div>' +
                     '<span style="font-size:0.78rem;font-weight:800;color:#8b5cf6;font-variant-numeric:tabular-nums;">' + contributed.toLocaleString() + ' dmg</span>' +
-                '</div>';
+                '</div>');
             });
-            el.innerHTML = html;
+            el.innerHTML = _bqLazyList(pieces, 'raiders');
         }, function(err) {
             console.error('[RAID] Damage dealers listener error:', err);
             var el = document.getElementById('raidDamageDealers');
@@ -6746,10 +6868,11 @@ function _raidAllTimeHtml(doc) {
         var mine = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.raidDamageAllTime || 0) : 0;
         if (!(mine > 0)) return '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px;">No all-time damage recorded yet.</div>';
     }
-    var html = '';
+    var pieces = [];
     var seenMe = false;
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : '';
     rows.forEach(function (u) {
+        if (pieces.length >= 50) return;
         var rank = u.rank || 0;
         var displayName = typeof escapeHtml === 'function' ? escapeHtml(u.username || 'Anonymous') : (u.username || 'Anonymous');
         var dmg = u.value || 0;
@@ -6757,19 +6880,20 @@ function _raidAllTimeHtml(doc) {
         var safeId = String(u.uid || '').replace(/[^A-Za-z0-9_-]/g, '');
         var isMe = !!(myUid && safeId === myUid);
         if (isMe) seenMe = true;
-        html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;">' +
+        pieces.push('<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;">' +
             '<div style="display:flex;align-items:center;gap:8px;">' +
                 '<span style="font-size:0.8rem;min-width:24px;">' + rankIcon + '</span>' +
                 '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + safeId + '\')" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
             '</div>' +
             '<span style="font-size:0.78rem;font-weight:800;color:#f7931a;font-variant-numeric:tabular-nums;">' + dmg.toLocaleString() + ' dmg</span>' +
-        '</div>';
+        '</div>');
     });
+    var html = _bqLazyList(pieces, 'raiders');
     if (!seenMe && typeof currentUser !== 'undefined' && currentUser && (currentUser.raidDamageAllTime || 0) > 0) {
         var myName = typeof escapeHtml === 'function' ? escapeHtml(currentUser.username || 'Anonymous') : (currentUser.username || 'Anonymous');
         html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);border-radius:10px;">' +
             '<div style="display:flex;align-items:center;gap:8px;">' +
-                '<span style="font-size:0.8rem;min-width:24px;">25+</span>' +
+                '<span style="font-size:0.8rem;min-width:24px;">50+</span>' +
                 '<span style="font-size:0.82rem;font-weight:800;color:#8b5cf6;">' + myName + ' (you)</span>' +
             '</div>' +
             '<span style="font-size:0.78rem;font-weight:800;color:#f7931a;">' + (currentUser.raidDamageAllTime || 0).toLocaleString() + ' dmg</span>' +
@@ -9843,15 +9967,16 @@ window._showChatFlairPicker = function() {
 
 window._selectChatFlair = function(emoji) {
     if (typeof currentUser === 'undefined' || !currentUser) return;
-    currentUser.chatFlairEmoji = emoji;
-    if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth.currentUser && !auth.currentUser.isAnonymous) {
-        db.collection('users').doc(auth.currentUser.uid).update({ chatFlairEmoji: emoji }).catch(function(e) {
-            console.warn('[chatFlair] Firestore write failed:', e);
-        });
-    }
     var overlay = document.getElementById('chatFlairPickerOverlay');
     if (overlay) overlay.remove();
-    if (typeof showToast === 'function') showToast('\uD83D\uDD25 Chat flair set to ' + emoji + '!');
+    if (typeof auth === 'undefined' || !auth.currentUser || auth.currentUser.isAnonymous) return;
+    // The server checks the flair is unlocked and saves it (titleFlair callable).
+    if (typeof window._titleFlairCall !== 'function') return;
+    window._titleFlairCall({ action: 'equip', flair: emoji || null }).then(function(d) {
+        if (typeof showToast !== 'function') return;
+        if (d && d.ok) showToast('\uD83D\uDD25 Chat flair set to ' + (d.chatFlairEmoji || 'none') + '!');
+        else showToast('\uD83D\uDD12 That flair is not unlocked yet');
+    }).catch(function(e) { console.warn('[chatFlair] save failed:', e && e.message); });
 };
 
 // ─── Post-Purchase Cosmetic Tooltips ─────────────────────────────────────────

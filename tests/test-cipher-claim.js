@@ -16,7 +16,7 @@ const {
     LOOKUP_INTERVAL_MS,
     SATS_DISABLED_ERROR,
 } = require('../functions/src/cipherClaim');
-const { rollGiftCount, rollGiftReward } = require('../functions/src/giftRoll');
+const { rollGiftCount, rollGiftReward, pickLabel, unmatchedLabels, LABEL_BIAS_BP } = require('../functions/src/giftRoll');
 const { splitDailyXp, DAILY_POINTS_CAP } = require('../functions/src/dailyXp');
 
 let passed = 0, failed = 0;
@@ -253,12 +253,21 @@ later('gift count and reward rolls use the integer odds', function() {
     assert.strictEqual(rollGiftCount(scripted([8500])), 5);
     assert.strictEqual(rollGiftCount(scripted([9999])), 5);
 
-    const oneKey = rollGiftReward({ randomInt: scripted([0, 0, 0]), labels: LABELS, closet: CLOSET });
+    // keys band is now 0..2199 (22%). Always exactly one key.
+    const oneKey = rollGiftReward({ randomInt: scripted([0, 0]), labels: LABELS, closet: CLOSET });
     assert.deepStrictEqual(oneKey, { rewardType: 'keys', keyLabels: ['3A'] });
-    const threeKeys = rollGiftReward({ randomInt: scripted([2999, 5500, 6500, 1, 2, 0]), labels: LABELS, closet: CLOSET });
-    assert.deepStrictEqual(threeKeys.keyLabels, ['7F', 'B2', '3A']);
-    const twoCiphers = rollGiftReward({ randomInt: scripted([3000, 7000, 1, 2]), labels: LABELS, closet: CLOSET });
+    const edgeKey = rollGiftReward({ randomInt: scripted([2199, 1]), labels: LABELS, closet: CLOSET });
+    assert.strictEqual(edgeKey.rewardType, 'keys');
+    assert.deepStrictEqual(edgeKey.keyLabels, ['7F']);
+    assert.strictEqual(edgeKey.keyLabels.length, 1);
+
+    // ciphers band 2200..4999 (28%). Count roll still 1 or 2.
+    const twoCiphers = rollGiftReward({ randomInt: scripted([2200, 7000, 1, 2]), labels: LABELS, closet: CLOSET });
     assert.deepStrictEqual(twoCiphers.cipherLabels, ['7F', 'B2']);
+    const oneCipher = rollGiftReward({ randomInt: scripted([4999, 0, 2]), labels: LABELS, closet: CLOSET });
+    assert.strictEqual(oneCipher.rewardType, 'locked_ciphers');
+    assert.deepStrictEqual(oneCipher.cipherLabels, ['B2']);
+
     const tickets = rollGiftReward({ randomInt: scripted([7949, 9000]), labels: LABELS, closet: CLOSET });
     assert.strictEqual(tickets.rewardType, 'tickets');
     assert.strictEqual(tickets.ticketCount, 3);
@@ -273,7 +282,7 @@ later('gift count and reward rolls use the integer odds', function() {
     assert.strictEqual(rollGiftReward({ randomInt: scripted([9700, 0]), labels: LABELS, closet: CLOSET }).itemId, 'crown');
 });
 
-later('a Nacho shoutout is 0.5 percent and the freed share is tickets', function() {
+later('a Nacho shoutout is 0.5 percent; keys 22 and ciphers 28', function() {
     const counts = {};
     for (let r = 0; r < 10000; r++) {
         let n = 0;
@@ -290,11 +299,66 @@ later('a Nacho shoutout is 0.5 percent and the freed share is tickets', function
     assert.strictEqual(counts.nacho_shoutout, 50);
     assert.strictEqual(counts.nacho_shoutout / 10000, 0.005);
     assert.strictEqual(counts.tickets, 2950);
-    assert.strictEqual(counts.keys, 3000);
-    assert.strictEqual(counts.locked_ciphers, 2000);
+    assert.strictEqual(counts.keys, 2200);
+    assert.strictEqual(counts.locked_ciphers, 2800);
     assert.strictEqual(counts.xp_bonus, 1200);
     assert.strictEqual(counts.streak_shield, 500);
     assert.strictEqual(counts.closet_item, 300);
+});
+
+later('key drops never stack above one key', function() {
+    for (let r = 0; r < 2200; r++) {
+        let n = 0;
+        const reward = rollGiftReward({
+            randomInt: function() {
+                n += 1;
+                // first call = reward band, later calls = label picks / bias coin
+                return n === 1 ? r : 0;
+            },
+            labels: LABELS,
+            closet: CLOSET,
+        });
+        assert.strictEqual(reward.rewardType, 'keys');
+        assert.strictEqual(reward.keyLabels.length, 1);
+    }
+});
+
+later('unmatchedLabels and 70 percent label bias', function() {
+    assert.strictEqual(LABEL_BIAS_BP, 7000);
+    const u = unmatchedLabels(['3A', '7F', '3A'], ['7F', 'B2']);
+    assert.deepStrictEqual(u.forKeys.sort(), ['B2']); // cipher B2 has no key
+    assert.deepStrictEqual(u.forCiphers.sort(), ['3A']); // key 3A has no cipher
+
+    // bias hit (<7000) picks from preferred
+    assert.strictEqual(pickLabel(LABELS, ['B2'], scripted([0, 0])), 'B2');
+    // bias miss (>=7000) falls back to full labels
+    assert.strictEqual(pickLabel(LABELS, ['B2'], scripted([7000, 1])), '7F');
+    // empty preferred always uses full labels
+    assert.strictEqual(pickLabel(LABELS, [], scripted([2])), 'B2');
+
+    const biasedKey = rollGiftReward({
+        randomInt: scripted([0, 0, 0]), // keys band, bias hit, preferred[0]
+        labels: LABELS,
+        closet: CLOSET,
+        preferredKeyLabels: ['B2'],
+    });
+    assert.deepStrictEqual(biasedKey.keyLabels, ['B2']);
+
+    const unbiasedKey = rollGiftReward({
+        randomInt: scripted([0, 7000, 1]), // keys band, bias miss, labels[1]
+        labels: LABELS,
+        closet: CLOSET,
+        preferredKeyLabels: ['B2'],
+    });
+    assert.deepStrictEqual(unbiasedKey.keyLabels, ['7F']);
+
+    const biasedCipher = rollGiftReward({
+        randomInt: scripted([2200, 0, 0, 0]), // cipher band, count=1, bias hit, preferred[0]
+        labels: LABELS,
+        closet: CLOSET,
+        preferredCipherLabels: ['3A'],
+    });
+    assert.deepStrictEqual(biasedCipher.cipherLabels, ['3A']);
 });
 
 later('key-send XP uses the shared 500/900/1000 taper', function() {

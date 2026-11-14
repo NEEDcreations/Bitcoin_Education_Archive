@@ -4,7 +4,7 @@
 // can run without Firebase. Admin SDK writes bypass the security rules.
 
 const functionsV1 = require('firebase-functions/v1');
-const admin = require('firebase-admin');
+const admin = require('./firebaseAdmin.js');
 const referrals = require('./referrals');
 const referralTiers = require('../referral-tiers');
 const rewardNotify = require('./rewardNotify');

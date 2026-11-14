@@ -733,8 +733,11 @@ window.awardDailyGifts = async function() {
     }
 };
 
-window.checkPendingGifts = async function() {
-    if (window._pendingGiftsChecked || window._suppressPendingGifts) return;
+    window.checkPendingGifts = async function() {
+    if (window._pendingGiftsChecked || window._suppressPendingGifts) {
+        if (window._suppressPendingGifts && window.btcOnboardingQueue) window.btcOnboardingQueue.skip('gift');
+        return;
+    }
     if (!_isSignedIn() || typeof db === 'undefined') return;
     window._pendingGiftsChecked = true;
     try {
@@ -742,13 +745,22 @@ window.checkPendingGifts = async function() {
             .where('ownerId', '==', _getUid())
             .where('status', 'in', ['unopened', 'inventory', 'sent'])
             .limit(40).get();
-        if (window._suppressPendingGifts || document.getElementById('postSpinGiftOverlay')) return;
-        if (snap.empty) return;
+        if (window._suppressPendingGifts || document.getElementById('postSpinGiftOverlay')) {
+            if (window.btcOnboardingQueue) window.btcOnboardingQueue.skip('gift');
+            return;
+        }
+        if (snap.empty) {
+            if (window.btcOnboardingQueue) window.btcOnboardingQueue.skip('gift');
+            return;
+        }
         var gifts = snap.docs.map(function(d) {
             return { id: d.id, rewardType: (d.data().rewardType || '') };
         });
-        window.showPostSpinGiftModal(gifts, { pending: true });
+        var showGifts = function () { window.showPostSpinGiftModal(gifts, { pending: true }); };
+        if (window.btcOnboardingQueue) window.btcOnboardingQueue.ready('gift', showGifts);
+        else showGifts();
     } catch (e) {
+        if (window.btcOnboardingQueue) window.btcOnboardingQueue.skip('gift');
         console.warn('[gifting] pending gifts:', e.message);
     }
 };
@@ -854,6 +866,7 @@ function _closePostSpinGiftModal() {
     _giftReturnFocus = null;
     overlay.remove();
     if (pending) window._suppressPendingGifts = true;
+    if (window.btcOnboardingQueue) window.btcOnboardingQueue.done('gift');
     if (back && typeof back.focus === 'function' && !_nodeInside(back, overlay)) {
         try { back.focus(); } catch (e) { /* the opener may already be gone */ }
     }
@@ -1499,8 +1512,8 @@ function _lockedCipherNote(parent, label) {
     note.style.cssText = 'margin:0 0 10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(124,58,237,0.45);background:var(--bg-side);';
     var text = document.createElement('div');
     text.style.cssText = 'font-size:0.8rem;color:var(--text);line-height:1.45;';
-    var which = label ? ('a ' + label + ' key') : 'a key with the same label, such as 3A';
-    text.textContent = '🔒 Locked cipher: you need ' + which + ' to open it. Keys come from daily wheel gifts. Ask a peer to send you a matching key. Ask in Chat whether anyone has the key.';
+    var which = label ? (label + ' key') : 'matching key';
+    text.textContent = 'Need a ' + which + ' · ask in Chat';
     var chat = document.createElement('button');
     chat.type = 'button';
     chat.textContent = 'Open Global Chat';
@@ -1757,7 +1770,7 @@ window.renderKeysAndCiphersPanel = async function(container) {
         } else {
             _copy(card,
                 '🔒 Locked cipher ' + label,
-                'You need a ' + label + ' key to open it. Keys come from daily wheel gifts. Ask a peer to send you that key. Ask in Chat whether anyone has the key.' + countBit);
+                'Need a ' + label + ' key · ask in Chat' + countBit);
             var chat = document.createElement('button');
             chat.type = 'button';
             chat.className = 'cipher-open-btn';

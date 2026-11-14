@@ -29,7 +29,7 @@
 //   node migrate-totp-secrets.js --apply
 //   unset TOTP_ENCRYPTION_KEY
 
-const admin = require('firebase-admin');
+const admin = require('./src/firebaseAdmin.js');
 const { migratePlaintextSecrets, encryptionKeyConfigured } = require('./src/secondFactor');
 
 const projectId = process.env.GCLOUD_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'bitcoin-education-archive';

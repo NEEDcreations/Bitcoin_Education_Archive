@@ -4,7 +4,7 @@
 // The body is ignored. This deletes users/{uid}.badgeBackfillToast.
 
 const functionsV1 = require('firebase-functions/v1');
-const admin = require('firebase-admin');
+const admin = require('./src/firebaseAdmin.js');
 const ack = require('./src/ackBadgeBackfill');
 
 const db = admin.firestore();

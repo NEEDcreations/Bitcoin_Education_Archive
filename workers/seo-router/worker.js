@@ -16,7 +16,14 @@
  * CSP Phase 2: remove 'unsafe-inline' after onclick= → addEventListener migration is complete
  *
  * Domains: bitcoineducation.quest, btcedu.app, btcedu.quest
+ *
+ * Mini-app share links (?card=<id>) get a static unfurl for known crawlers.
+ * Humans still receive the Pages app. Known achievement ?a= wins when both
+ * are present. Card HTML is private, no-store so a ref cannot be cached
+ * under another visitor's URL.
  */
+
+import { MINIAPP_CARDS, MINIAPP_CARD_VERSION } from './miniapp-cards.js';
 
 // Bot user-agent patterns
 const BOT_UA = /googlebot|bingbot|yandex|baiduspider|duckduckbot|slurp|facebot|facebookexternalhit|twitterbot|linkedinbot|telegrambot|discordbot|whatsapp|ia_archiver|archive\.org_bot|applebot|semrushbot|ahrefsbot|mj12bot|dotbot|petalbot|rogerbot|sogou|exabot|swiftbot/i;
@@ -48,6 +55,25 @@ function urlWithRef(base, ref) {
     return core + (core.indexOf('?') >= 0 ? '&' : '?') + 'ref=' + ref + hash;
 }
 
+// Same charset as miniapp-share.js srcQuery. Anything else is dropped.
+function validatedSrc(search) {
+    const match = /(?:^|[?&])src=([A-Za-z0-9_.-]{1,64})(?:&|#|$)/.exec(String(search || ''));
+    return match ? match[1] : '';
+}
+
+// Kept next to the redirect helpers so the referral slice can run without
+// the module binding. Tests require this list to match MINIAPP_CARDS.
+const MINIAPP_CARD_ID_LIST = 'tctv beats nacho pop pvp arcade sat_arcade galaxy ryracer forum marketplace irl meetup ai metrics leaderboard quests favor trails learning chat lightning first';
+
+// Allowlisted mini-app id. The raw value is never copied into HTML.
+function validatedCardId(search) {
+    const match = /(?:^|[?&])card=([a-z0-9_]{1,32})(?:&|#|$)/.exec(String(search || ''));
+    if (!match) return '';
+    const id = match[1];
+    if ((' ' + MINIAPP_CARD_ID_LIST + ' ').indexOf(' ' + id + ' ') === -1) return '';
+    return id;
+}
+
 // Plain http was fetched straight through. That subrequest throws and the
 // worker answers 500 on every path. Send the browser to https and keep the
 // path and query. The hash is not on the request.
@@ -60,8 +86,14 @@ function httpsRedirectTarget(requestUrl) {
 
 function spaRedirectTarget(page, search) {
     const ref = validatedReferralRef(search);
-    if (!ref) return PRIMARY_ORIGIN + '/#' + page;
-    return PRIMARY_ORIGIN + '/?ref=' + ref + '#' + page;
+    const src = validatedSrc(search);
+    const card = validatedCardId(search);
+    const parts = [];
+    if (ref) parts.push('ref=' + ref);
+    if (src) parts.push('src=' + encodeURIComponent(src));
+    if (card) parts.push('card=' + card);
+    const query = parts.length ? ('?' + parts.join('&')) : '';
+    return PRIMARY_ORIGIN + '/' + query + '#' + page;
 }
 
 let channelCache = null;
@@ -380,7 +412,24 @@ const ACHIEVEMENT_OG = {
     streak: { title: 'Streak on Bitcoin Quest', desc: 'A streak milestone on Bitcoin Quest.' },
     daily: { title: 'Daily quests done', desc: 'Daily quests were completed on Bitcoin Quest.' },
     xp: { title: 'Bitcoin Quest progress', desc: 'Progress on Bitcoin Quest.' },
+    // Generic. The in-app card names a BIP number; this preview does not.
+    bip_breakthrough: { title: 'BIP Breakthrough', desc: 'A BIP breakthrough on Bitcoin Quest.' },
 };
+
+function ogImageTags(img, alt) {
+    const safeImg = escapeHtml(img);
+    const safeAlt = escapeHtml(alt);
+    return [
+        `<meta property="og:image" content="${safeImg}">`,
+        `<meta property="og:image:secure_url" content="${safeImg}">`,
+        `<meta property="og:image:type" content="image/png">`,
+        `<meta property="og:image:width" content="1200">`,
+        `<meta property="og:image:height" content="630">`,
+        `<meta property="og:image:alt" content="${safeAlt}">`,
+        `<meta name="twitter:image" content="${safeImg}">`,
+        `<meta name="twitter:image:alt" content="${safeAlt}">`,
+    ].join('\n    ');
+}
 
 function renderAchievementPage(type, origin, ref) {
     const info = ACHIEVEMENT_OG[type];
@@ -402,11 +451,10 @@ function renderAchievementPage(type, origin, ref) {
     <meta property="og:url" content="${ogUrl}">
     <meta property="og:title" content="${title}">
     <meta property="og:description" content="${desc}">
-    <meta property="og:image" content="${ogImg}">
+    ${ogImageTags(ogImg, info.title)}
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="${title}">
     <meta name="twitter:description" content="${desc}">
-    <meta name="twitter:image" content="${ogImg}">
     <meta http-equiv="refresh" content="0;url=${url}">
 </head>
 <body>
@@ -415,6 +463,54 @@ function renderAchievementPage(type, origin, ref) {
     <p><a href="${url}">Open Bitcoin Quest</a></p>
 </body>
 </html>`;
+}
+
+// Static per-type mini-app preview. og:url keeps card, a validated ref, and
+// a validated src. The hash is the type's public landing, not a station,
+// track, or anything taken from the query. Refresh keeps the same URL.
+function renderMiniappPage(cardId, origin, ref, src) {
+    const info = MINIAPP_CARDS[cardId];
+    const title = escapeHtml(info.title);
+    const desc = escapeHtml(info.description);
+    const parts = [];
+    if (ref) parts.push('ref=' + encodeURIComponent(ref));
+    if (src) parts.push('src=' + encodeURIComponent(src));
+    parts.push('card=' + cardId);
+    const hash = info.hash ? ('#' + info.hash) : '';
+    const pageUrl = origin + '/?' + parts.join('&') + hash;
+    const safeUrl = escapeHtml(pageUrl);
+    const ogImg = origin + '/og/miniapps/' + cardId + '.' + MINIAPP_CARD_VERSION + '.png';
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+    <meta name="description" content="${desc}">
+    <meta name="robots" content="noindex, follow">
+    <link rel="canonical" href="${safeUrl}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="${safeUrl}">
+    <meta property="og:title" content="${title}">
+    <meta property="og:description" content="${desc}">
+    ${ogImageTags(ogImg, info.sentence || info.description)}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="${title}">
+    <meta name="twitter:description" content="${desc}">
+    <meta http-equiv="refresh" content="0;url=${safeUrl}">
+</head>
+<body>
+    <h1>${title}</h1>
+    <p>${desc}</p>
+    <p><a href="${safeUrl}">Open Bitcoin Quest</a></p>
+</body>
+</html>`;
+}
+
+function botHtmlResponse(body, nonce, method, extraHeaders) {
+    const headers = botPageHeaders(nonce, extraHeaders || {});
+    if (method === 'HEAD') return new Response(null, { status: 200, headers });
+    return new Response(body, { status: 200, headers });
 }
 
 // ─── Cloudflare Pages origin ─────────────────────────────────────────────────
@@ -560,15 +656,24 @@ export default {
             }
         }
 
-        // Bots requesting a known achievement type get a static preview.
-        // Humans fall through so the app can read ?ref=. A validated ref is
-        // copied onto og:url and is not otherwise rendered.
-        if ((path === '/' || path === '/index.html') && request.method === 'GET' && isBot(ua)) {
+        // Bots requesting a known achievement or mini-app card get a static
+        // preview. Humans fall through so the app can read ?ref=, ?src=, and
+        // the hash. A known achievement wins when a and card are both set.
+        // Card HTML is not cached: Vary is not treated as edge isolation, and
+        // a ref-bearing body must not be stored under a ref-less key.
+        if ((path === '/' || path === '/index.html') && (request.method === 'GET' || request.method === 'HEAD') && isBot(ua)) {
             const ach = url.searchParams.get('a');
-            if (ach && Object.prototype.hasOwnProperty.call(ACHIEVEMENT_OG, ach)) {
-                return new Response(renderAchievementPage(ach, origin, ref), {
-                    status: 200,
-                    headers: botPageHeaders(nonce, { 'Vary': 'User-Agent' }),
+            const achKnown = !!(ach && Object.prototype.hasOwnProperty.call(ACHIEVEMENT_OG, ach));
+            const cardId = validatedCardId(url.search);
+            const cardInfo = cardId && Object.prototype.hasOwnProperty.call(MINIAPP_CARDS, cardId) ? MINIAPP_CARDS[cardId] : null;
+            if (achKnown) {
+                return botHtmlResponse(renderAchievementPage(ach, origin, ref), nonce, request.method, { 'Vary': 'User-Agent' });
+            }
+            if (cardInfo) {
+                return botHtmlResponse(renderMiniappPage(cardId, origin, ref, validatedSrc(url.search)), nonce, request.method, {
+                    'Vary': 'User-Agent',
+                    'Cache-Control': 'private, no-store',
+                    'CDN-Cache-Control': 'no-store',
                 });
             }
         }

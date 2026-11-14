@@ -1562,7 +1562,7 @@
       "Explain a Double XP charge?",
       "Describe a Double XP charge?"
     ],
-    "answer": "A Double XP charge starts when you buy it and lasts 60 minutes. Buying another charge while one is running adds another hour, and it doubles daily activity XP only. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "A Double XP charge starts when you buy it and lasts 60 minutes. Buying another charge while one is running adds another hour, and it doubles every way you earn XP. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "double-xp",
       "one-stop-shop"
@@ -1583,7 +1583,7 @@
       "Describe how a Double XP charge work?",
       "How can a Double XP charge work?"
     ],
-    "answer": "A Double XP charge starts when you buy it and lasts 60 minutes. Buying another charge while one is running adds another hour, and it doubles daily activity XP only. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "A Double XP charge starts when you buy it and lasts 60 minutes. Buying another charge while one is running adds another hour, and it doubles every way you earn XP. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "double-xp",
       "one-stop-shop"
@@ -1688,7 +1688,7 @@
       "Explain a hash booster?",
       "Describe a hash booster?"
     ],
-    "answer": "A hash booster is spent one hash at a time, and while charges remain that hash skips the per-minute limit. A second rig is a separate rig with its own cooldown, and one charge unlocks rig 2 for the current cycle. It is not a larger booster. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "A hash booster costs 10 Orange Tickets in the Nook, up to 10 a day. Activating one gives 100 instant hashes with no cooldown in Satoshi's Favor. A second rig is not cosmetic. One charge unlocks a Hash #2 button with its own separate hash limit for the whole current window, so you can hash about twice as fast. The Spam Hasher lifts the per-minute limit for one whole window. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "hash-booster",
       "one-stop-shop"
@@ -1709,7 +1709,7 @@
       "Describe how the hash booster differ from a second rig?",
       "How can the hash booster differ from a second rig?"
     ],
-    "answer": "A hash booster is spent one hash at a time, and while charges remain that hash skips the per-minute limit. A second rig is a separate rig with its own cooldown, and one charge unlocks rig 2 for the current cycle. It is not a larger booster. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "A hash booster costs 10 Orange Tickets in the Nook, up to 10 a day. Activating one gives 100 instant hashes with no cooldown in Satoshi's Favor. A second rig is not cosmetic. One charge unlocks a Hash #2 button with its own separate hash limit for the whole current window, so you can hash about twice as fast. The Spam Hasher lifts the per-minute limit for one whole window. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "hash-booster",
       "one-stop-shop"
@@ -1898,7 +1898,7 @@
       "Describe locked ciphers?",
       "Define locked ciphers?"
     ],
-    "answer": "A locked cipher opens when you use a key with the same label. If an accepted peer sent that key, you both get the same prize and they see a reveal of what you won. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "A locked cipher opens when you use a key with the same label. Smaller sats wins are added to your cipher sats balance. If an accepted peer sent that key, you both get the same prize and they see a reveal of what you won. Claim a cipher sats balance from Inventory or Settings. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "ciphers",
       "one-stop-shop"
@@ -1919,7 +1919,7 @@
       "Show me how to open a locked cipher?",
       "What is the way to open a locked cipher?"
     ],
-    "answer": "A locked cipher opens when you use a key with the same label. If an accepted peer sent that key, you both get the same prize and they see a reveal of what you won. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "A locked cipher opens when you use a key with the same label. Smaller sats wins are added to your cipher sats balance. If an accepted peer sent that key, you both get the same prize and they see a reveal of what you won. Claim a cipher sats balance from Inventory or Settings. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "ciphers",
       "one-stop-shop"
@@ -2234,7 +2234,7 @@
       "Explain the invite-friends reward?",
       "Describe the invite-friends reward?"
     ],
-    "answer": "Share your referral link from the home page. When a friend you refer reaches Maxi, you both get 50 orange tickets. Open Invite friends. Copy or share your referral link. Your friend signs up with it, reaches Maxi (2,140 XP), and you both get 50 orange tickets automatically. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Share your referral link from the home page. When a friend you refer reaches 2,140 points (Scholar exam points don't count), you both get 50 orange tickets. Open Invite friends. Copy or share your referral link. Your friend signs up with it, reaches 2,140 points (Scholar exam points don't count), and you both get 50 orange tickets automatically. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "referral",
       "one-stop-shop"
@@ -2255,7 +2255,7 @@
       "Show me how to invite friends to Bitcoin Quest?",
       "What is the way to invite friends to Bitcoin Quest?"
     ],
-    "answer": "Share your referral link from the home page. When a friend you refer reaches Maxi, you both get 50 orange tickets. Open Invite friends. Copy or share your referral link. Your friend signs up with it, reaches Maxi (2,140 XP), and you both get 50 orange tickets automatically. This describes a Bitcoin Quest feature, not financial advice.",
+    "answer": "Share your referral link from the home page. When a friend you refer reaches 2,140 points (Scholar exam points don't count), you both get 50 orange tickets. Open Invite friends. Copy or share your referral link. Your friend signs up with it, reaches 2,140 points (Scholar exam points don't count), and you both get 50 orange tickets automatically. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
       "referral",
       "one-stop-shop"

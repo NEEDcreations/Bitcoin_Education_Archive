@@ -3,9 +3,23 @@ const functionsV1 = require('firebase-functions/v1');
 const { defineSecret } = require('firebase-functions/params');
 const referralIpSecret = defineSecret('REFERRAL_IP_HMAC_SECRET');
 const deletionHmacSecret = defineSecret('DELETION_HMAC_SECRET');
+// Payout wallet: Secret Manager, bound only to the functions that use it.
+const { nwcUrlSecret, nwcUrl } = require('./src/nwcSecret');
+// Other credentials: Secret Manager, bound only on the functions that read them.
+const {
+    adminTokenSecret,
+    adminToken,
+    hotTopicSecrets,
+    stravaClientSecretParam,
+    stravaClientSecret,
+    tgBotTokenSecret,
+    turnstileSecret,
+    turnstileSecretKey,
+} = require('./src/sensitiveSecrets');
+const { runtimeSa } = require('./src/runtimeServiceAccounts');
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onDocumentCreated, onDocumentUpdated, onDocumentWritten, onDocumentDeleted } = require('firebase-functions/v2/firestore');
-const admin = require('firebase-admin');
+const admin = require('./src/firebaseAdmin.js');
 const { authenticator } = require("otplib");
 const QRCode = require('qrcode');
 const fetch = require('node-fetch');
@@ -62,7 +76,8 @@ function getOffsetDateKey() {
 function _escHtml(s) { return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // ── Admin auth helper ────────────────────────────────────────────
-// Reads ADMIN_TOKEN from env; constant-time compare; accepts header OR query param.
+// Reads ADMIN_TOKEN from the bound secret at call time; constant-time compare.
+// Accepts the header only. Query-string tokens leak into access logs.
 // Allowed origins for CORS
 const ALLOWED_ORIGINS = [
     'https://bitcoineducation.quest',
@@ -92,9 +107,9 @@ function setCorsHeaders(req, res) {
 // Returns true and sets CORS + auth header if valid; sends 403 and returns false if not.
 function requireAdmin(req, res) {
     if (!setCorsHeaders(req, res)) return false;
-    const expected = process.env.ADMIN_TOKEN;
+    const expected = adminToken();
     if (!expected) {
-        console.error('[requireAdmin] ADMIN_TOKEN env var not set');
+        console.error('[requireAdmin] ADMIN_TOKEN is not configured');
         res.status(500).json({ error: 'server misconfiguration' });
         return false;
     }
@@ -134,9 +149,9 @@ const { NWCClient } = require('@getalby/sdk');
 // ── Cloudflare Turnstile verification ───────────────────────────────────────
 async function verifyTurnstile(token, remoteip) {
     if (!token) return false;
-    const secret = process.env.TURNSTILE_SECRET_KEY;
+    const secret = turnstileSecretKey();
     if (!secret) {
-        console.error('[Turnstile] TURNSTILE_SECRET_KEY not set — failing closed');
+        console.error('[Turnstile] TURNSTILE_SECRET_KEY is not configured — failing closed');
         return false;
     }
     try {
@@ -159,6 +174,7 @@ const bolt11 = require('bolt11');
 const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
 const rewardNotify = require('./src/rewardNotify');
+const rankReached = require('./src/rankReached');
 const awardActions = require('./src/awardActions');
 const awardEvidence = require('./src/awardEvidence');
 const ticketGrants = require('./src/ticketGrants');
@@ -203,7 +219,8 @@ const FAUCET = {
     MIN_ACCOUNT_AGE_DAYS: 7,
     MIN_CHANNELS_READ: 10,
     WALLET_BALANCE_FLOOR_SATS: 5000,
-    NWC_URL: process.env.NWC_URL || ''
+    // Getter: the value comes from the NWC_URL secret on bound functions only.
+    get NWC_URL() { return nwcUrl(); }
 };
 
 // Authenticator sessions are totp_sessions/{uid}_{sessionId}.
@@ -235,12 +252,33 @@ exports.regenerateRecoveryCodes = secondFactor.regenerateRecoveryCodes;
 exports.useRecoveryCode = secondFactor.useRecoveryCode;
 exports.phoneFactorRemoved = secondFactor.phoneFactorRemoved;
 exports.adminResetSecondFactor = secondFactor.adminResetSecondFactor;
+exports.recordKnownPhoneFactor = secondFactor.recordKnownPhoneFactor;
 
 // =============================================
 // Streak Reminder Push Notifications
 // Fires at midnight UTC = 7 PM ET, warning users before the 5 AM UTC reset.
 // Category "reminders". broadcastCategory checks each user's pref.
 // =============================================
+const { runDispatch: runResetReminders } = require('./src/dispatchResetReminders');
+
+// Opt-in reset reminders. Every 15 minutes. Quiet hours and per-reset
+// switches are decided in resetReminders.js. A claim doc stops a retry
+// from sending the same reset twice. Category "reminders".
+exports.dispatchResetReminders = onSchedule({
+    schedule: 'every 15 minutes',
+    timeZone: 'UTC',
+    timeoutSeconds: 540,
+    retryCount: 0,
+}, async () => {
+    try {
+        const result = await runResetReminders(db, admin, sendUserPush, Date.now());
+        console.log('Reset reminders', JSON.stringify(result));
+    } catch (e) {
+        console.error('Reset reminders failed', e && e.message);
+    }
+    return null;
+});
+
 exports.streakReminder = onSchedule({ schedule: '0 0 * * *', timeZone: 'UTC', timeoutSeconds: 540 }, async (event) => {
         const today = getOffsetDateKey();
         const result = await broadcastCategory('reminders', async function (uid, userData) {
@@ -831,10 +869,19 @@ function bech32Encode(url) {
 // =============================================
 // Forum Post Notification - email admin on new post
 // =============================================
-exports.onForumPost = onDocumentCreated('forum_posts/{postId}', async (event) => {
-    const snap = event.data; const context = { params: event.params };
-        const post = snap.data();
-        const postId = context.params.postId;
+exports.onForumPost = onDocumentCreated({
+    document: 'forum_posts/{postId}',
+    retry: true,
+}, async (event) => {
+    // Defer the forum-post ticket (and the admin notice) while offline.
+    if (await killSwitchIsOn()) throw new Error('kill switch on: defer forum post ticket');
+    const context = { params: event.params };
+    const postId = context.params && context.params.postId;
+    if (!postId) return null;
+    // Redelivery can arrive after the post was deleted or removed; skip if gone.
+    const live = await db.collection('forum_posts').doc(postId).get();
+    if (!live.exists) return null;
+    const post = live.data() || {};
         if (!activityCounters.forumActivityAwardable(post)) return null;
         const authorId = post.authorId || 'unknown';
         if (authorId !== 'unknown' && String(post.title || '').trim()) {
@@ -962,21 +1009,31 @@ exports.onMarketplaceShoutout = onDocumentCreated({
 exports.onMarketplaceListingCount = onDocumentCreated({
     document: 'marketplace/{listingId}',
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+    retry: true,
 }, async (event) => {
-    if (!event.data) return null;
-    const listing = event.data.data() || {};
-    if (listing.sellerUid && listing.status !== 'deleted') {
-        await grantServerTickets(listing.sellerUid, 'marketplace_listing_ticket');
-    }
+    if (await killSwitchIsOn()) throw new Error('kill switch on: defer marketplace listing grant');
+    const listingId = event.params && event.params.listingId;
+    if (!listingId) return null;
+    // Redelivery can arrive after the listing was deleted or removed; skip if gone.
+    const live = await db.collection('marketplace').doc(listingId).get();
+    if (!live.exists) return null;
+    const listing = live.data() || {};
+    if (listing.status === 'deleted' || listing.status === 'removed') return null;
     try {
+        // Count first so grantFamily sees the updated marketListings tally.
+        // Then grant the badge even on already_counted, so a retry after a
+        // failed badge grant is not dropped. Tickets are last (idempotent).
         const counted = await countMarketplaceListing({
             db: db,
             admin: admin,
-            listingId: event.params.listingId,
-            data: event.data.data(),
+            listingId: listingId,
+            data: listing,
         });
-        if (counted && counted.counted && counted.uid) {
+        if (counted && counted.uid && (counted.counted || counted.reason === 'already_counted')) {
             await grantFamily(db, admin, counted.uid, familyFor('marketListings'));
+        }
+        if (listing.sellerUid) {
+            await grantServerTickets(listing.sellerUid, 'marketplace_listing_ticket');
         }
     } catch (e) {
         console.error('[onMarketplaceListingCount] failed', e && e.message ? e.message : '');
@@ -989,8 +1046,10 @@ exports.onMarketplaceListingCount = onDocumentCreated({
 exports.onMarketplaceMessageCount = onDocumentCreated({
     document: 'marketplace_messages/{messageId}',
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+    retry: true,
 }, async (event) => {
     if (!event.data) return null;
+    if (await killSwitchIsOn()) throw new Error('kill switch on: defer marketplace message badge');
     try {
         const counted = await countMarketplaceMessage({ db: db, admin: admin, data: event.data.data() });
         if (counted && counted.counted && counted.uid) {
@@ -1007,6 +1066,7 @@ exports.onMarketplaceSaleCount = onDocumentUpdated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data || !event.data.after) return null;
+    if (await killSwitchIsOn()) return null;
     try {
         const counted = await countMarketplaceSale({
             db: db,
@@ -1024,11 +1084,20 @@ exports.onMarketplaceSaleCount = onDocumentUpdated({
     return null;
 });
 
+
+// Shared kill-switch check for value-granting triggers (gateExport only
+// wraps callables and schedules). Fail closed. Triggers with retry:true
+// throw so the event is redelivered after the switch is off.
+async function killSwitchIsOn() {
+    return require('./src/killSwitch').isOffline(db);
+}
+
 exports.onChatBadgeCount = onDocumentCreated({
     document: 'global_chat/{messageId}',
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
+    if (await killSwitchIsOn()) return null;
     try { await activityCounters.recordChat(db, admin, event.data.data()); }
     catch (e) { console.warn('[onChatBadgeCount]', e && e.message); }
     return null;
@@ -1039,6 +1108,7 @@ exports.onDmBadgeCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
+    if (await killSwitchIsOn()) return null;
     try { await activityCounters.recordDm(db, admin, event.data.data()); }
     catch (e) { console.warn('[onDmBadgeCount]', e && e.message); }
     return null;
@@ -1049,6 +1119,7 @@ exports.onForumPostBadgeCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
+    if (await killSwitchIsOn()) return null;
     try {
         const recorded = await activityCounters.recordForumPost(db, admin, event.data.data());
         if (recorded && recorded.bumped && recorded.uid) {
@@ -1070,6 +1141,7 @@ exports.onForumReplyBadgeCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
+    if (await killSwitchIsOn()) return null;
     try { await activityCounters.recordForumReply(db, admin, event.data.data()); }
     catch (e) { console.warn('[onForumReplyBadgeCount]', e && e.message); }
     return null;
@@ -1111,6 +1183,7 @@ exports.onBeatsUploadBadgeCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
+    if (await killSwitchIsOn()) return null;
     try { await activityCounters.recordBeatsUpload(db, admin, event.data.data()); }
     catch (e) { console.warn('[onBeatsUploadBadgeCount]', e && e.message); }
     return null;
@@ -1121,6 +1194,7 @@ exports.onArticleBadgeCount = onDocumentCreated({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
 }, async (event) => {
     if (!event.data) return null;
+    if (await killSwitchIsOn()) return null;
     try {
         const recorded = await activityCounters.recordArticle(db, admin, event.data.data());
         if (recorded && recorded.bumped && recorded.uid) {
@@ -1145,6 +1219,13 @@ exports.onArticlePublishXp = onDocumentWritten({
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
     retry: true,
 }, async (event) => {
+    // Defer while the kill switch is on. Losing this event would drop
+    // article XP; retry:true redelivers after the switch is off (up to
+    // the platform retry window — see the runbook if the outage is long).
+    const ksArticle = require('./src/killSwitch');
+    if ((await ksArticle.makeReader(function () { return db; })()).on) {
+        throw new Error('kill switch on: defer article publish xp');
+    }
     const change = event.data;
     if (!change) return null;
     const beforeSnap = change.before;
@@ -1224,8 +1305,12 @@ exports.reconcileDailyProofs = onSchedule({
     }
 });
 
-exports.onIrlEventCreated = onDocumentCreated('irl_events/{eventId}', async (event) => {
+exports.onIrlEventCreated = onDocumentCreated({
+    document: 'irl_events/{eventId}',
+    retry: true,
+}, async (event) => {
     if (!event.data) return null;
+    if (await killSwitchIsOn()) throw new Error('kill switch on: defer irl listing ticket');
     const ev = event.data.data() || {};
     if (!ev.hostId || !String(ev.title || '').trim()) return null;
     await grantServerTickets(ev.hostId, 'irl_listing_ticket');
@@ -1245,6 +1330,8 @@ exports.claimNachoChatTicket = functionsV1.https.onCall(async (data, context) =>
 exports.onForumShoutoutDeleted = onDocumentDeleted({
     document: 'forum_posts/{postId}',
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+    secrets: [tgBotTokenSecret],
+    serviceAccount: runtimeSa('onForumShoutoutDeleted'),
 }, async (event) => {
     try {
         await retractActivity({
@@ -1262,6 +1349,8 @@ exports.onForumShoutoutDeleted = onDocumentDeleted({
 exports.onMarketplaceShoutoutDeleted = onDocumentDeleted({
     document: 'marketplace/{listingId}',
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+    secrets: [tgBotTokenSecret],
+    serviceAccount: runtimeSa('onMarketplaceShoutoutDeleted'),
 }, async (event) => {
     try {
         await retractActivity({
@@ -1282,6 +1371,8 @@ exports.onMarketplaceShoutoutDeleted = onDocumentDeleted({
 exports.onForumShoutoutUpdated = onDocumentUpdated({
     document: 'forum_posts/{postId}',
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+    secrets: [tgBotTokenSecret],
+    serviceAccount: runtimeSa('onForumShoutoutUpdated'),
 }, async (event) => {
     if (!event.data) return null;
     try {
@@ -1302,6 +1393,8 @@ exports.onForumShoutoutUpdated = onDocumentUpdated({
 exports.onMarketplaceShoutoutUpdated = onDocumentUpdated({
     document: 'marketplace/{listingId}',
     maxInstances: ACTIVITY_SHOUTOUT_OPTS.maxInstances,
+    secrets: [tgBotTokenSecret],
+    serviceAccount: runtimeSa('onMarketplaceShoutoutUpdated'),
 }, async (event) => {
     if (!event.data) return null;
     try {
@@ -1438,7 +1531,7 @@ exports.nachoFeedbackReport = onSchedule({
 // Referral payouts are server-side. The old client path looked up `referredUid`
 // and paid 50 tickets from the referrer's browser; rules blocked that write, so
 // nobody was ever paid. This callable now only pays the signed-in referee, once.
-exports.verifyReferral = functionsV1.runWith({ secrets: [referralIpSecret, deletionHmacSecret] }).https.onCall(async (data, context) => {
+exports.verifyReferral = functionsV1.runWith({ secrets: [referralIpSecret, deletionHmacSecret], serviceAccount: runtimeSa('verifyReferral') }).https.onCall(async (data, context) => {
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     const result = await referralService.payIfQualified(context.auth.uid);
     if (result && result.paid && result.referrerUid) {
@@ -1460,7 +1553,7 @@ exports.verifyReferral = functionsV1.runWith({ secrets: [referralIpSecret, delet
     };
 });
 
-exports.registerReferral = functionsV1.runWith({ secrets: [referralIpSecret, deletionHmacSecret] }).https.onCall(async (data, context) => {
+exports.registerReferral = functionsV1.runWith({ secrets: [referralIpSecret, deletionHmacSecret], serviceAccount: runtimeSa('registerReferral') }).https.onCall(async (data, context) => {
     return referralService.registerReferral(data, context);
 });
 
@@ -1468,7 +1561,7 @@ exports.deleteMyReferralSignal = functionsV1.https.onCall(async (data, context) 
     return referralService.deleteMyReferralSignal(data, context);
 });
 
-exports.confirmTipSent = functionsV1.https.onCall(async (data, context) => {
+exports.confirmTipSent = functionsV1.runWith({ secrets: [nwcUrlSecret], serviceAccount: runtimeSa('confirmTipSent') }).https.onCall(async (data, context) => {
     return tipService.confirmTipSent(data, context);
 });
 
@@ -1479,7 +1572,9 @@ exports.requestTipInvoice = functionsV1.https.onCall(async (data, context) => {
 exports.onUserReferral = onDocumentWritten({
     document: 'users/{uid}',
     secrets: [referralIpSecret, deletionHmacSecret],
+    serviceAccount: runtimeSa('onUserReferral'),
 }, async (event) => {
+    if (await killSwitchIsOn()) return null;
     return referralService.onUserWritten(event);
 });
 
@@ -1487,6 +1582,7 @@ exports.payQualifiedReferrals = onSchedule({
     schedule: 'every 60 minutes',
     timeZone: 'UTC',
     secrets: [referralIpSecret, deletionHmacSecret],
+    serviceAccount: runtimeSa('payQualifiedReferrals'),
 }, async () => {
     return referralService.scanPending(40);
 });
@@ -1609,7 +1705,8 @@ async function claimChatStillLive(userData, reader, claimantUid) {
 exports.claimSats = functionsV1.runWith({
     timeoutSeconds: 300,
     enforceAppCheck: true,
-    secrets: [deletionHmacSecret],
+    secrets: [deletionHmacSecret, nwcUrlSecret, turnstileSecret],
+    serviceAccount: runtimeSa('claimSats'),
 }).https.onCall(async (data, context) => {
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
@@ -2943,7 +3040,23 @@ exports.recordBeatsPlay = functionsV1.https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
     }
-    return beatsPlays.recordPlay(db, admin, context.auth.uid, data && data.trackId, Date.now());
+    const result = await beatsPlays.recordPlay(db, admin, context.auth.uid, data && data.trackId, Date.now());
+    if (result && result.counted && result.plays) {
+        try { await beatsPlays.grantPlayBadges(db, admin, context.auth.uid, result.plays); }
+        catch (e) { console.warn('[recordBeatsPlay] badges', e && e.message); }
+    }
+    return { counted: !!(result && result.counted), reason: result ? result.reason : '' };
+});
+
+// Titles and chat flair. Lists what the player has earned and equips one.
+// The only writer of activeTitle, chatFlairEmoji, earnedTitles and earnedFlair.
+const titleFlair = require('./src/titleFlair');
+exports.titleFlair = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
+    if (!context.auth) {
+        throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    return titleFlair.handle(db, admin, context.auth.uid, data || {}, Date.now());
 });
 
 exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
@@ -3819,7 +3932,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
 });
 
 // ===== FAUCET ADMIN - getFaucetStats =====
-exports.getFaucetStats = functionsV1.https.onCall(async (data, context) => {
+exports.getFaucetStats = functionsV1.runWith({ secrets: [nwcUrlSecret], serviceAccount: runtimeSa('getFaucetStats') }).https.onCall(async (data, context) => {
     if (!context.auth || !context.auth.token.admin) {
         throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
     }
@@ -4193,7 +4306,7 @@ exports.refreshQuestLeaderboard = onSchedule({
     }
 });
 
-// Leaderboard snapshots. One stats doc per board, top 25, public read.
+// Leaderboard snapshots. One stats doc per board, top 50, public read.
 // Each run rebuilds a board only when stats/lb_dirty is newer than the
 // snapshot. XP week/month every 10 minutes. XP all-time, PvP, and raid
 // every 15. Favor every 5 minutes, and the function itself waits 30 minutes
@@ -4588,13 +4701,22 @@ exports.dailySpin = functionsV1.https.onCall(async (data, context) => {
     } catch (spinBadgeErr) { console.warn('[SPIN] badges', spinBadgeErr && spinBadgeErr.message); }
 
     if (result && result.breakthrough && result.breakthrough.unlocked && result.breakthrough.badgeId) {
+        const bipBadgeId = result.breakthrough.badgeId;
         try {
-            await awardBadge(db, admin, uid, result.breakthrough.badgeId, {
+            await awardBadge(db, admin, uid, bipBadgeId, {
                 verified: true,
                 source: 'bip_breakthrough',
             });
         } catch (bipBadgeErr) {
             console.warn('[SPIN] bip badge', bipBadgeErr && bipBadgeErr.message);
+        }
+        // BIP badges live in users.bipBadges (claimFields). awardBadge also
+        // hooks maybeGrantForBadge, but call it here too so BIP Season 1
+        // still advances if the badge_awards write fails or skips collections.
+        try {
+            await require('./src/collectionBonus').maybeGrantForBadge(db, admin, uid, bipBadgeId);
+        } catch (bipColErr) {
+            console.warn('[SPIN] bip collection', bipColErr && bipColErr.message);
         }
     }
 
@@ -5245,7 +5367,12 @@ exports.verifyCertificate = functionsV1.https.onCall(async (data) => {
 // Each counter is bumped by a Firestore trigger on the authoritative event.
 
 // Chat message posted → bump chatMessages
-exports.onChatMessageCreated = onDocumentCreated('global_chat/{msgId}', async (event) => {
+exports.onChatMessageCreated = onDocumentCreated({
+    document: 'global_chat/{msgId}',
+    retry: true,
+}, async (event) => {
+    // Defer the daily chat ticket (and raid credit) while offline.
+    if (await killSwitchIsOn()) throw new Error('kill switch on: defer daily chat ticket');
     const snap = event.data; const _context = { params: event.params };
         const data = snap.data() || {};
         // Skip bot/nacho/system messages so the counter reflects real users
@@ -5401,10 +5528,12 @@ exports.onMarketplaceMessageCreated = onDocumentCreated('marketplace_messages/{i
 // Last registration of a token wins. Also keep at most 10 devices, oldest first.
 exports.onPushDeviceWritten = onDocumentWritten({
     document: 'push_tokens/{uid}/devices/{deviceId}',
-    timeoutSeconds: 60
+    timeoutSeconds: 60,
+    retry: true,
 }, async (event) => {
     const after = event.data && event.data.after;
     if (!after || !after.exists) return null;
+    if (await killSwitchIsOn()) throw new Error('kill switch on: defer push-enabled badge');
     const uid = String(event.params.uid || '');
     if (!_pushUidOk(uid)) return null;
     try {
@@ -5425,7 +5554,12 @@ exports.onPushDeviceWritten = onDocumentWritten({
     return null;
 });
 
-exports.onPvpMatchFinished = onDocumentUpdated('pvp_matches/{matchId}', async (event) => {
+exports.onPvpMatchFinished = onDocumentUpdated({
+    document: 'pvp_matches/{matchId}',
+    retry: true,
+}, async (event) => {
+    // Defer settle/XP/badges while offline; retry after the switch is off.
+    if (await killSwitchIsOn()) throw new Error('kill switch on: defer pvp settle');
     const before = (event.data.before && event.data.before.data()) || {};
     const after = (event.data.after && event.data.after.data()) || {};
     const matchId = event.params.matchId;
@@ -5559,7 +5693,7 @@ exports.syncPublicProfile = onDocumentWritten('users/{uid}', async (event) => {
 // Admin-only backfill: copies all existing user docs → public_profiles.
 // Call once after deploy: firebase functions:call backfillPublicProfiles (with admin auth)
 exports.backfillPublicProfiles = functionsV1.https.onCall(async (data, context) => {
-        if (!context.auth || !context.auth.token.get('admin', false)) {
+        if (!context.auth || !context.auth.token || context.auth.token.admin !== true) {
             throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
         }
         const snap = await db.collection('users').get();
@@ -5586,8 +5720,13 @@ exports.backfillPublicProfiles = functionsV1.https.onCall(async (data, context) 
 // Fixes users who saved their address before the dual-field save was deployed.
 // Each batch.update() triggers syncPublicProfile, keeping public_profiles in sync.
 exports.backfillLightningAddress = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth || !context.auth.token.get('admin', false)) {
+    if (!context.auth || !context.auth.token || context.auth.token.admin !== true) {
         throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
+    }
+    // After the admin gate so a non-admin still gets permission-denied.
+    // Gated here (not via gateExports) for the same reason.
+    if (await require('./src/killSwitch').isOffline(db)) {
+        throw new functionsV1.https.HttpsError('unavailable', require('./src/killSwitch').OFFLINE_MESSAGE);
     }
     const snap = await db.collection('users').get();
     const BATCH_SIZE = 400;
@@ -5622,11 +5761,40 @@ exports.backfillLightningAddress = functionsV1.https.onCall(async (data, context
 
 // ---- Live triggers for community stats: channelVisits, questsCompleted, watchTimeMinutes ----
 
+// First time users.points crosses a rank from rewardNotify.LEVELS.
+// Writes users/{uid}.rankReachedAt.{rankId} once. A later points update
+// that does not cross a new rank does not write. Already-set keys stay.
+// This is the only writer, so every server points update is covered.
+exports.onUserRankReached = onDocumentUpdated('users/{uid}', async (event) => {
+    await rankReached.onUserRankReached(event, db, admin.firestore.FieldValue.serverTimestamp());
+    return null;
+});
+
 // Channel visit → bump global channelVisits (detects channelsVisited increment on user doc)
 exports.onUserChannelVisit = onDocumentUpdated('users/{uid}', async (event) => {
     const change = { before: event.data.before, after: event.data.after }; const _context = { params: event.params };
         const before = change.before.data() || {};
         const after = change.after.data() || {};
+        // OT ledger (for audits): one doc per user per UTC day with total OT
+        // earned/spent, from the before/after delta of every user-doc write.
+        // Server-only collection (rules deny all client access).
+        const otBefore = Number(before.orangeTickets) || 0;
+        const otAfter = Number(after.orangeTickets) || 0;
+        if (otAfter !== otBefore && Number.isFinite(otAfter - otBefore)) {
+            try {
+                const delta = otAfter - otBefore;
+                const day = new Date().toISOString().slice(0, 10);
+                await db.collection('ot_ledger').doc(event.params.uid + '_' + day).set({
+                    uid: event.params.uid,
+                    day: day,
+                    earned: admin.firestore.FieldValue.increment(delta > 0 ? delta : 0),
+                    spent: admin.firestore.FieldValue.increment(delta < 0 ? -delta : 0),
+                    events: admin.firestore.FieldValue.increment(1),
+                    lastBalance: otAfter,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                }, { merge: true });
+            } catch (e) { console.warn('[otLedger]', e && e.message); }
+        }
         const beforeVisits = before.channelsVisited || 0;
         const afterVisits = after.channelsVisited || 0;
         if (afterVisits > beforeVisits) {
@@ -5704,7 +5872,7 @@ exports.resetCommunityStats = functionsV1.https.onCall(async (data, context) => 
 // lastActive / lastLogin / lastVisit within the last 24h.
 // Usage: curl "https://us-central1-bitcoin-education-archive.cloudfunctions.net/dailyActiveUsers" -H "x-admin-token: $ADMIN_TOKEN"
 // ───────────────────────────────────────────────────────────────
-exports.dailyActiveUsers = functionsV1.https.onRequest(async (req, res) => {
+exports.dailyActiveUsers = functionsV1.runWith({ secrets: [adminTokenSecret], serviceAccount: runtimeSa('dailyActiveUsers') }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const now = new Date();
@@ -5882,7 +6050,7 @@ exports.dailyActiveUsers = functionsV1.https.onRequest(async (req, res) => {
 // One-shot investigation endpoint: accepts up to 20 UIDs, returns full records +
 // cross-referenced signals (same IP, same lightning address, giveaway entries,
 // points sources, account age, auth method, bestStreak sanity, etc).
-exports.investigateUsers = functionsV1.https.onRequest(async (req, res) => {
+exports.investigateUsers = functionsV1.runWith({ secrets: [adminTokenSecret], serviceAccount: runtimeSa('investigateUsers') }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     const uidsParam = req.query.uids || '';
     const uids = uidsParam.split(',').map(s => s.trim()).filter(Boolean).slice(0, 20);
@@ -6047,7 +6215,7 @@ const BLACKLISTED_LN = [
     'seedyroute27@walletofsatoshi.com'
 ];
 
-exports.watchlistCheck = functionsV1.https.onRequest(async (req, res) => {
+exports.watchlistCheck = functionsV1.runWith({ secrets: [adminTokenSecret], serviceAccount: runtimeSa('watchlistCheck') }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
 
     try {
@@ -6156,7 +6324,7 @@ exports.watchlistCheck = functionsV1.https.onRequest(async (req, res) => {
 // =============================================
 // AUDIT WITHDRAWALS - Admin endpoint for monitoring blocked accounts & investigating withdrawal clusters
 // =============================================
-exports.auditWithdrawals = functionsV1.https.onRequest(async (req, res) => {
+exports.auditWithdrawals = functionsV1.runWith({ secrets: [adminTokenSecret], serviceAccount: runtimeSa('auditWithdrawals') }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
 
     try {
@@ -6475,13 +6643,18 @@ exports.stravaInitAuth = functionsV1.https.onCall(async (data, context) => {
 // Step 2: Strava redirects here with ?code=...&state=<nonce>.
 // We look up the nonce server-side, extract the real uid, delete it
 // (one-time use), then proceed with the token exchange.
-exports.stravaAuth = functionsV1.https.onRequest(async (req, res) => {
+exports.stravaAuth = functionsV1.runWith({ secrets: [stravaClientSecretParam], serviceAccount: runtimeSa('stravaAuth') }).https.onRequest(async (req, res) => {
     try {
         const code  = req.query.code;
         const nonce = req.query.state; // server-issued nonce, NOT a raw uid
 
         if (!code || !nonce) {
             return res.redirect('https://bitcoineducation.quest/#explore?strava=error-missing-params');
+        }
+
+        // Fail before consuming the one-time nonce so the user can retry later.
+        if (await killSwitchIsOn()) {
+            return res.redirect('https://bitcoineducation.quest/#explore?strava=offline');
         }
 
         // Validate nonce: fetch, delete immediately (replay-safe), then verify TTL
@@ -6497,10 +6670,10 @@ exports.stravaAuth = functionsV1.https.onRequest(async (req, res) => {
         }
 
         const client_id = process.env.STRAVA_CLIENT_ID;
-        const client_secret = process.env.STRAVA_CLIENT_SECRET;
+        const client_secret = stravaClientSecret();
 
         if (!client_id || !client_secret) {
-            console.error("Missing Strava credentials in .env");
+            console.error('[stravaAuth] Strava client id or secret is not configured');
             return res.redirect('https://bitcoineducation.quest/#explore?strava=config-error');
         }
 
@@ -6541,7 +6714,7 @@ exports.stravaAuth = functionsV1.https.onRequest(async (req, res) => {
     }
 });
 
-exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
+exports.syncStravaWalks = functionsV1.runWith({ secrets: [stravaClientSecretParam], serviceAccount: runtimeSa('syncStravaWalks') }).https.onCall(async (data, context) => {
     console.log('[POW] syncStravaWalks called');
     if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be logged in');
     const uid = context.auth.uid;
@@ -6562,7 +6735,7 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 client_id: process.env.STRAVA_CLIENT_ID,
-                client_secret: process.env.STRAVA_CLIENT_SECRET,
+                client_secret: stravaClientSecret(),
                 refresh_token: tokenData.refresh_token,
                 grant_type: 'refresh_token'
             })
@@ -6679,6 +6852,10 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
     });
 
     console.log('[POW] Done. synced:', syncedCount, 'pts:', totalPoints);
+    if (syncedCount > 0) {
+        try { await require('./src/powBadges').grantForUser(db, admin, uid, Date.now()); }
+        catch (e) { console.warn('[POW] badges', e && e.message); }
+    }
     if (totalPoints > 0) {
         await rewardNotify.safeCommit(db, admin.firestore.FieldValue.serverTimestamp(), rewardNotify.plan({
             uid: uid,
@@ -6692,7 +6869,7 @@ exports.syncStravaWalks = functionsV1.https.onCall(async (data, context) => {
     }
     return { success: true, synced: syncedCount, pointsEarned: totalPoints, activities: results };
 });
-exports.adminLookupUser = functionsV1.https.onRequest(async (req, res) => {
+exports.adminLookupUser = functionsV1.runWith({ secrets: [adminTokenSecret], serviceAccount: runtimeSa('adminLookupUser') }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     await logAdminAction(req, 'adminLookupUser', { q: req.query.q });
     try {
@@ -6705,7 +6882,7 @@ exports.adminLookupUser = functionsV1.https.onRequest(async (req, res) => {
         res.json(out);
     } catch(e) { console.error('[adminLookupUser] error:', e); res.status(500).json({error: 'Internal server error'}); }
 });
-exports.adminQueryUsers = functionsV1.https.onRequest(async (req, res) => {
+exports.adminQueryUsers = functionsV1.runWith({ secrets: [adminTokenSecret], serviceAccount: runtimeSa('adminQueryUsers') }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     await logAdminAction(req, 'adminQueryUsers', { q: req.query.q });
     try {
@@ -6725,7 +6902,7 @@ exports.adminQueryUsers = functionsV1.https.onRequest(async (req, res) => {
 });
 // [VULN-7 FIX] adminBanUser — sets ban flags in BOTH user doc and faucet_ledger atomically.
 // The ledger ban survives user-doc deletion (faucet_ledger is write:false for clients).
-exports.adminBanUser = functionsV1.https.onRequest(async (req, res) => {
+exports.adminBanUser = functionsV1.runWith({ secrets: [adminTokenSecret], serviceAccount: runtimeSa('adminBanUser') }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const uid = req.query.uid;
@@ -6751,7 +6928,7 @@ exports.adminBanUser = functionsV1.https.onRequest(async (req, res) => {
     } catch(e) { console.error('[adminBanUser] error:', e); res.status(500).json({error: 'Internal server error'});}
 });
 
-exports.adminUnbanUser = functionsV1.https.onRequest(async (req, res) => {
+exports.adminUnbanUser = functionsV1.runWith({ secrets: [adminTokenSecret], serviceAccount: runtimeSa('adminUnbanUser') }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const uid = req.query.uid;
@@ -6798,7 +6975,7 @@ exports.scheduleRaidForumCredit = scheduleRaidForumCredit;
 exports.contributeRaid = contributeRaid;
 
 // ===== SATOSHI'S FAVOR =====
-const { contributeFavor, hashForFavor, checkFavorState, getFavorHashes, syncCycleToTop10, backfillFactionTotals, getFactionTotals, resetExpiredFavor } = require('./src/satoshiFavor');
+const { contributeFavor, hashForFavor, checkFavorState, getFavorHashes, syncCycleToTop10, backfillFactionTotals, getFactionTotals, getSmallerFaction, resetExpiredFavor } = require('./src/satoshiFavor');
 exports.contributeFavor = contributeFavor;
 exports.hashForFavor = hashForFavor;
 exports.checkFavorState = checkFavorState;
@@ -6806,45 +6983,36 @@ exports.getFavorHashes = getFavorHashes;
 exports.syncCycleToTop10 = syncCycleToTop10;
 exports.backfillFactionTotals = backfillFactionTotals;
 exports.getFactionTotals = getFactionTotals;
+exports.getSmallerFaction = getSmallerFaction;
 
-// Favor epoch / window sats: admin breakdown + typed APPROVE. No auto-pay.
-const favorEpochJobs = require('./src/favorEpochJobs').factory(functionsV1, { db: db, admin: admin });
-exports.adminFavorPayoutBreakdown = favorEpochJobs.adminFavorPayoutBreakdown;
-exports.adminApproveFavorPayout = favorEpochJobs.adminApproveFavorPayout;
-exports.adminRebuildFavorBreakdown = favorEpochJobs.adminRebuildFavorBreakdown;
-exports.myFavorEpochClaims = favorEpochJobs.myFavorEpochClaims;
+// Scheduled job: Satoshi's Favor difficulty retarget. Checks every 30 minutes
+// whether a new epoch has filled 5/5 since payout_config/favorDifficulty
+// .lastRetargetEpoch. Only then it moves the target, Bitcoin-style: aim one
+// 21,000-sat epoch per 14 days, max 4x either way per closed epoch (applied
+// in order if several closed between runs). No time-based retarget. Budget:
+// 100,000 sats/month = 45,000 Favor + 55,000 everything else; other payouts
+// do not feed the formula. Pays nothing. Idempotent per epoch.
+exports.favorDifficultyRetarget = onSchedule({ schedule: '*/30 * * * *', timeZone: 'America/New_York' }, async () => {
+    const result = await require('./src/favorDifficulty').runRetarget(db, admin, Date.now());
+    console.log('[SF-RETARGET]', JSON.stringify(result));
+});
+
+// Favor per-block self-claim (Phil, Nov 14 2026): no admin approve step.
+// Winners claim each archived block themselves; see src/favorBlockClaims.js.
+const favorBlockClaimFns = require('./src/favorBlockClaimsFns').factory(functionsV1, { db: db, admin: admin });
+exports.claimFavorBlock = favorBlockClaimFns.claimFavorBlock;
+exports.myFavorEpochClaims = favorBlockClaimFns.myFavorEpochClaims;
+exports.adminSetFavorClaims = favorBlockClaimFns.adminSetFavorClaims;
+exports.adminFreezeFavorEpoch = favorBlockClaimFns.adminFreezeFavorEpoch;
 
 // Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online).
 // The same private minute job posts the one ending heads-up. No public invoker.
 const { announceFavorEnding } = require('./src/favorEndingAnnounce');
 exports.satoshiFavorAutoReset = onSchedule({ schedule: '* * * * *', timeZone: 'UTC' }, async (event) => {
     try {
-        // Snapshot the live window winner before reset clears it.
-        let windowSnap = null;
-        try {
-            const cur = await db.collection('satoshiFavor').doc('current').get();
-            if (cur.exists) windowSnap = cur.data() || null;
-        } catch (e) { /* ignore */ }
         const result = await resetExpiredFavor();
         if (result && result.reset) {
             console.log('[SF-CRON] Auto-reset expired favor at', new Date().toISOString());
-            try {
-                const favorEpochJobs = require('./src/favorEpochJobs');
-                await favorEpochJobs.finalizeWindow(db, admin, {
-                    cycleId: windowSnap && windowSnap.currentCycleId,
-                    winnerUid: windowSnap && windowSnap.lowestHashThisWindowUid,
-                    winnerUsername: windowSnap && windowSnap.lowestHashThisWindowUsername,
-                    nowMs: Date.now(),
-                });
-            } catch (e) {
-                console.warn('[SF-CRON] window payout breakdown failed:', e.message);
-            }
-        }
-        try {
-            const favorEpochJobs = require('./src/favorEpochJobs');
-            await favorEpochJobs.retryFailedFavorBreakdowns(db, admin, Date.now());
-        } catch (e) {
-            console.warn('[SF-CRON] breakdown retry failed:', e.message);
         }
     } catch (e) {
         console.warn('[SF-CRON] reset failed:', e.message);
@@ -7350,7 +7518,7 @@ exports.backfillDonationFaction = functionsV1.https.onCall(async (data, context)
 // date from points, last login, or a rank estimate. The operator script is
 // scripts/backfill-join-dates.js, which is also dry-run only.
 // ══════════════════════════════════════════════════════════════════════
-exports.backfillJoinDates = functionsV1.https.onRequest(async (req, res) => {
+exports.backfillJoinDates = functionsV1.runWith({ secrets: [adminTokenSecret], serviceAccount: runtimeSa('backfillJoinDates') }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
         const snap = await db.collection('users').select('username', ...joinDate.JOIN_KEYS).get();
@@ -7842,6 +8010,18 @@ exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
     const monthKey = new Date(nowMs).toISOString().slice(0, 7);
     const capDailyRef = item.group && item.dailyCap ? userRef.collection('daily_action_counts').doc(dayKey + '_shop_' + item.group) : null;
     const capMonthRef = item.group && item.monthlyCap ? userRef.collection('daily_action_counts').doc(monthKey + '_shopm_' + item.group) : null;
+    // Raffle draw runs 18:00 UTC on the 1st and zeroes everyone's entries.
+    // Entries bought on the 1st before the draw finished were drawn in last
+    // month's raffle, then wiped, while the shop told the buyer they were in
+    // this month's. Hold raffle sales until last month's draw snapshot exists.
+    if (item.type === 'raffle' && new Date(nowMs).getUTCDate() === 1) {
+        const prev = new Date(Date.UTC(new Date(nowMs).getUTCFullYear(), new Date(nowMs).getUTCMonth() - 1, 1));
+        const prevKey = prev.getUTCFullYear() + '-' + String(prev.getUTCMonth() + 1).padStart(2, '0');
+        const drawn = await db.collection('stats').doc('raffle_' + prevKey + '_snapshot').get();
+        if (!drawn.exists) {
+            throw new functionsV1.https.HttpsError('failed-precondition', 'The monthly raffle is being drawn. New entries open at 1 PM ET today.');
+        }
+    }
 
     const shopResult = await db.runTransaction(async (tx) => {
         const reads = [tx.get(userRef)];
@@ -7937,6 +8117,7 @@ exports.spendTickets = functionsV1.https.onCall(async (data, context) => {
             bonusSpins: userData.bonusSpins || 0,
             raffleEntries: userData.raffleEntries || 0,
             secondRigCharges: userData.secondRigCharges || 0,
+            spamHasherCharges: userData.spamHasherCharges || 0,
             ownedCosmetics: (userData.ownedCosmetics || []).slice(),
         };
         if (p.field) inv[p.field] = (inv[p.field] || 0) + p.units;
@@ -8103,6 +8284,44 @@ exports.activateHashBooster = functionsV1.https.onCall(async (data, context) => 
             hashBoosterHashes: (userData.hashBoosterHashes || 0) + 100,
             hashBoosters: hashBoosters - 1,
         };
+    });
+});
+
+// Spam Hasher: one charge lifts the per-minute hash limit (to a human-tap
+// ceiling, see satoshiFavor SPAM_HASHER_PER_MINUTE) for the CURRENT Satoshi's
+// Favor window only. Expiry is automatic: hashForFavor only honors it while
+// spamHasherCycleId equals the live cycle id. Server-only fields.
+exports.activateSpamHasher = functionsV1.https.onCall(async (data, context) => {
+    await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
+    if (!context.auth) throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    if (context.auth.token.firebase.sign_in_provider === 'anonymous') {
+        throw new functionsV1.https.HttpsError('permission-denied', 'Anonymous users cannot activate boosters');
+    }
+    const uid = context.auth.uid;
+    const userRef = db.collection('users').doc(uid);
+    const stateRef = db.collection('satoshiFavor').doc('current');
+    return db.runTransaction(async (tx) => {
+        const stateDoc = await tx.get(stateRef);
+        const userDoc = await tx.get(userRef);
+        if (!userDoc.exists) throw new functionsV1.https.HttpsError('not-found', 'User not found');
+        const st = stateDoc.exists ? (stateDoc.data() || {}) : {};
+        const endMs = (st.favorEndBase && st.favorEndBase.toMillis ? st.favorEndBase.toMillis() : 0) + (st.bonusMinutes || 0) * 60000;
+        if (!st.favorActive || !st.currentCycleId || Date.now() > endMs) {
+            throw new functionsV1.https.HttpsError('failed-precondition', "Activate during an open Satoshi's Favor window.");
+        }
+        const u = userDoc.data() || {};
+        if (u.spamHasherCycleId === st.currentCycleId) {
+            throw new functionsV1.https.HttpsError('already-exists', 'Spam Hasher is already on for this window.');
+        }
+        const charges = Number(u.spamHasherCharges) || 0;
+        if (charges < 1) throw new functionsV1.https.HttpsError('failed-precondition', 'No Spam Hasher charges.');
+        tx.update(userRef, {
+            spamHasherCharges: admin.firestore.FieldValue.increment(-1),
+            spamHasherCycleId: st.currentCycleId,
+            spamHasherActivatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return { success: true, spamHasherCharges: charges - 1, endsAt: endMs };
     });
 });
 
@@ -8281,6 +8500,8 @@ exports.refreshHotTopics = onScheduleV2({
     // in 540s, so this timeout stays put.
     timeoutSeconds: 540,
     memory: '512MiB',
+    secrets: hotTopicSecrets,
+    serviceAccount: runtimeSa('refreshHotTopics'),
 }, async () => {
     console.log('[HotTopics] Starting weekly refresh...');
     try {
@@ -8304,6 +8525,8 @@ exports.refreshHotTopics = onScheduleV2({
 // longer than that, so this matches the scheduler's 540s ceiling.
 exports.refreshHotTopicsHttp = functionsV1.runWith({
     timeoutSeconds: 540,
+    secrets: [adminTokenSecret].concat(hotTopicSecrets),
+    serviceAccount: runtimeSa('refreshHotTopicsHttp'),
 }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
@@ -8331,6 +8554,8 @@ exports.refreshHotTopicsHttp = functionsV1.runWith({
 // Manual force-refresh that bypasses the quality gate (admin use only)
 exports.refreshHotTopicsForce = functionsV1.runWith({
     timeoutSeconds: 540,
+    secrets: [adminTokenSecret].concat(hotTopicSecrets),
+    serviceAccount: runtimeSa('refreshHotTopicsForce'),
 }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
@@ -8379,13 +8604,22 @@ exports.onSatoshiFavorLive = onDocumentWritten({ document: 'satoshiFavor/current
 });
 
 const { queueBadgeGg, flushDueBursts } = require('./src/badgeGg');
+const { flushDueRecognitions } = require('./src/collectionRecognition');
 // One create handler. GGs claims the award first, then a collection that this
 // badge finishes can grant. Existing award docs do not fire this, so a deploy
 // does not pay historical completions. A badge outside every collection returns
 // before the collection read. A settled collection, with no congrats pending,
-// does too. Either failure throws so the platform retries; the GGs claim doc
-// keeps a retry from posting the same badge twice.
+// does too. A GGs queue failure throws so the platform retries; the claim doc
+// keeps a retry from posting the same badge twice. A recognition post failure
+// does not throw: the bonus is already committed and the burst stays open.
 exports.onBadgeAwardCreated = onDocumentCreated({ document: 'users/{uid}/badge_awards/{badgeId}', retry: true }, async (event) => {
+    // Defer while the kill switch is on. Losing this event would drop
+    // the collection bonus and the GG queue row; retry:true redelivers
+    // after the switch is off (see the runbook if the outage is long).
+    const ksBadge = require('./src/killSwitch');
+    if ((await ksBadge.makeReader(function () { return db; })()).on) {
+        throw new Error('kill switch on: defer badge award');
+    }
     const snap = event.data;
     if (!snap) return null;
     const uid = event.params && event.params.uid;
@@ -8413,10 +8647,17 @@ exports.onBadgeAwardCreated = onDocumentCreated({ document: 'users/{uid}/badge_a
     return null;
 });
 exports.flushBadgeGgBursts = onSchedule({ schedule: '* * * * *', timeZone: 'UTC' }, async () => {
+    const nowMs = Date.now();
     try {
-        await flushDueBursts(db, admin, Date.now());
+        await flushDueBursts(db, admin, nowMs);
     } catch (e) {
         console.error('[BADGE GG] flush failed:', e && e.message ? e.message : e);
+        throw e;
+    }
+    try {
+        await flushDueRecognitions(db, admin, nowMs);
+    } catch (e) {
+        console.error('[COLLECTION GG] flush failed:', e && e.message ? e.message : e);
         throw e;
     }
 });
@@ -8449,7 +8690,7 @@ async function mirrorChatRetract(beforeSnap, afterSnap) {
     }
     return null;
 }
-exports.onGlobalChatTelegram = onDocumentCreated({ document: 'global_chat/{msgId}', retry: true }, async (event) => {
+exports.onGlobalChatTelegram = onDocumentCreated({ document: 'global_chat/{msgId}', retry: true, secrets: [tgBotTokenSecret], serviceAccount: runtimeSa('onGlobalChatTelegram') }, async (event) => {
     const snap = event.data;
     if (!snap) return null;
     return mirrorChatCreate('global_chat', event.params.msgId, snap.data());
@@ -8462,26 +8703,26 @@ exports.onGlobalChatEasterEgg = onDocumentCreated({ document: 'global_chat/{msgI
     catch (e) { console.warn('[easterEgg] failed'); }
     return null;
 });
-exports.onAnnouncementsTelegram = onDocumentCreated({ document: 'announcements/{msgId}', retry: true }, async (event) => {
+exports.onAnnouncementsTelegram = onDocumentCreated({ document: 'announcements/{msgId}', retry: true, secrets: [tgBotTokenSecret], serviceAccount: runtimeSa('onAnnouncementsTelegram') }, async (event) => {
     const snap = event.data;
     if (!snap) return null;
     return mirrorChatCreate('announcements', event.params.msgId, snap.data());
 });
-exports.onGlobalChatTelegramUpdated = onDocumentUpdated({ document: 'global_chat/{msgId}', retry: true }, async (event) => {
+exports.onGlobalChatTelegramUpdated = onDocumentUpdated({ document: 'global_chat/{msgId}', retry: true, secrets: [tgBotTokenSecret], serviceAccount: runtimeSa('onGlobalChatTelegramUpdated') }, async (event) => {
     const change = event.data || {};
     return mirrorChatRetract(change.before, change.after);
 });
-exports.onGlobalChatTelegramDeleted = onDocumentDeleted({ document: 'global_chat/{msgId}', retry: true }, async (event) => {
+exports.onGlobalChatTelegramDeleted = onDocumentDeleted({ document: 'global_chat/{msgId}', retry: true, secrets: [tgBotTokenSecret], serviceAccount: runtimeSa('onGlobalChatTelegramDeleted') }, async (event) => {
     return mirrorChatRetract(event.data, null);
 });
-exports.onAnnouncementsTelegramUpdated = onDocumentUpdated({ document: 'announcements/{msgId}', retry: true }, async (event) => {
+exports.onAnnouncementsTelegramUpdated = onDocumentUpdated({ document: 'announcements/{msgId}', retry: true, secrets: [tgBotTokenSecret], serviceAccount: runtimeSa('onAnnouncementsTelegramUpdated') }, async (event) => {
     const change = event.data || {};
     return mirrorChatRetract(change.before, change.after);
 });
-exports.onAnnouncementsTelegramDeleted = onDocumentDeleted({ document: 'announcements/{msgId}', retry: true }, async (event) => {
+exports.onAnnouncementsTelegramDeleted = onDocumentDeleted({ document: 'announcements/{msgId}', retry: true, secrets: [tgBotTokenSecret], serviceAccount: runtimeSa('onAnnouncementsTelegramDeleted') }, async (event) => {
     return mirrorChatRetract(event.data, null);
 });
-exports.flushTelegramMirror = onSchedule({ schedule: '* * * * *', timeZone: 'UTC' }, async () => {
+exports.flushTelegramMirror = onSchedule({ schedule: '* * * * *', timeZone: 'UTC', secrets: [tgBotTokenSecret], serviceAccount: runtimeSa('flushTelegramMirror') }, async () => {
     try {
         await flushTelegramMirror(db, Date.now());
     } catch (e) {
@@ -9078,6 +9319,8 @@ exports.refreshBadgeDistribution = onScheduleV2({
 exports.refreshBadgeDistributionHttp = functionsV1.runWith({
     timeoutSeconds: 540,
     memory: '512MB',
+    secrets: [adminTokenSecret],
+    serviceAccount: runtimeSa('refreshBadgeDistributionHttp'),
 }).https.onRequest(async (req, res) => {
     if (!requireAdmin(req, res)) return;
     try {
@@ -9511,3 +9754,51 @@ exports.onTopicPostMirrorSync = onDocumentUpdated({
 const tctvDrip = require('./tctv-drip');
 exports.tctvDripCheckin = tctvDrip.tctvDripCheckin;
 exports.tctvDripTick = tctvDrip.tctvDripTick;
+
+// Faction race end prizes: winner detection (once), Nacho announcement,
+// badges/titles/flair, and the admin-approved pot of sats.
+const factionRace = require('./src/factionRaceJobs').factory({ functionsV1, admin, db, onDocumentWritten });
+exports.onFactionTotalsWritten = factionRace.onFactionTotalsWritten;
+exports.adminFactionRaceBreakdown = factionRace.adminFactionRaceBreakdown;
+exports.adminApproveFactionPayout = factionRace.adminApproveFactionPayout;
+
+// ================================================================
+// KILL SWITCH — admin-only app-wide offline switch (config/killSwitch).
+// adminSetKillSwitch requires the admin claim, App Check, a recent
+// sign-in, and a 24h-old second factor. It checks backups (warning only),
+// flips first, then starts a managed export in the background. A failed
+// snapshot never undoes the shutdown. Audit rows are append-only.
+// Keep this block LAST: it wraps exports defined above.
+// ================================================================
+const killSwitch = require('./src/killSwitch');
+exports.adminSetKillSwitch = killSwitch.makeAdminSetKillSwitch({
+    functionsV1: functionsV1,
+    admin: admin,
+    db: db,
+    runWith: { enforceAppCheck: true, secrets: [tgBotTokenSecret, 'TOTP_ENCRYPTION_KEY'], serviceAccount: runtimeSa('adminSetKillSwitch') },
+    sendPhilDm: function (text) { return require('./src/raidBossEngine').sendPhilDm(text); },
+    listAdminUids: _listAdminClaimUids,
+});
+// Settle an expired auto-return even if no admin opens the panel. Same
+// runtime SA as adminSetKillSwitch. Not gated — it is how the app comes back.
+exports.killSwitchAutoReturnTick = onSchedule({
+    schedule: 'every 5 minutes',
+    timeZone: 'UTC',
+    secrets: [tgBotTokenSecret],
+    serviceAccount: runtimeSa('killSwitchAutoReturnTick'),
+}, killSwitch.makeAutoReturnTick({
+    admin: admin,
+    db: db,
+    sendPhilDm: function (text) { return require('./src/raidBossEngine').sendPhilDm(text); },
+    listAdminUids: _listAdminClaimUids,
+}));
+killSwitch.gateExports(exports, killSwitch.gatedNames(), {
+    readState: killSwitch.makeReader(function () { return db; }),
+    HttpsError: functionsV1.https.HttpsError,
+    onSkip: async function (name, why) {
+        await db.collection('admin_notifications').add({
+            type: 'kill_switch_skipped_job', fn: name, why: why,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(), read: false,
+        });
+    },
+});

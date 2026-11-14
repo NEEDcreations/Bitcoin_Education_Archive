@@ -106,6 +106,12 @@ const parts = emu.split(':');
         await expect('write badge claim', function () {
             return setDoc(doc(user, 'badge_gg_claims', 'user1__quest_1'), { badgeId: 'quest_1' });
         }, false);
+        await expect('write collection recognition burst', function () {
+            return setDoc(doc(user, 'collection_recog_bursts', 'user1'), { posted: false });
+        }, false);
+        await expect('write collection recognition claim', function () {
+            return setDoc(doc(user, 'collection_recog_claims', 'user1__col_learning_bonus'), { bonusId: 'col_learning_bonus' });
+        }, false);
         await expect('read telegram mirror claim', function () {
             return getDoc(doc(user, 'telegram_mirror_claims', 'global_chat__own1'));
         }, false);

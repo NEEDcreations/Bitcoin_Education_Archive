@@ -968,6 +968,9 @@ if (typeof auth !== 'undefined' && auth) {
     auth.onAuthStateChanged(function(user) {
         if (user && !user.isAnonymous) {
             setTimeout(initNotifications, 2000);
+        } else {
+            window._notifCount = 0;
+            if (typeof _updatePointsBadge === 'function') _updatePointsBadge();
         }
     });
 }
@@ -990,26 +993,40 @@ function _getUnreadPointsCount() {
     } catch(e) { return local; }
 }
 
+// Badge matches unread rows the Alerts panel can actually show.
+// Signed-out visitors never see a count. A points-log entry that is not
+// in the panel does not add to the badge.
+function _alertUnreadCount() {
+    if (!_isSignedInAccount()) return 0;
+    var local = 0;
+    try {
+        local = _visibleLocalRewards().filter(function(n) { return n && !n.read; }).length;
+    } catch (e) {}
+    var server = 0;
+    try { server = window._notifCount || 0; } catch (e2) { server = 0; }
+    return server + local;
+}
+
 // Update badge to include points count
 function _updatePointsBadge() {
-    var ptsCount = _getUnreadPointsCount();
-    var serverCount = window._notifCount || 0;
-    var total = serverCount + ptsCount;
+    var total = _alertUnreadCount();
     var badge = document.getElementById('notifOverlayBadge');
     if (badge) {
         if (total > 0 && !_notifOverlayOpen) {
-            badge.textContent = total > 9 ? '9+' : total;
+            badge.textContent = total > 9 ? '9+' : String(total);
             badge.style.display = 'block';
         } else {
+            badge.textContent = '';
             badge.style.display = 'none';
         }
     }
     var bnavBadge = document.getElementById('bnavNotifBadge');
     if (bnavBadge) {
         if (total > 0 && !_notifOverlayOpen) {
-            bnavBadge.textContent = total > 9 ? '9+' : total;
+            bnavBadge.textContent = total > 9 ? '9+' : String(total);
             bnavBadge.style.display = 'block';
         } else {
+            bnavBadge.textContent = '';
             bnavBadge.style.display = 'none';
         }
     }

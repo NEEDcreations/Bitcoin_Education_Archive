@@ -1,6 +1,6 @@
 'use strict';
 
-// Public leaderboard snapshots. One stats doc per board, top 25.
+// Public leaderboard snapshots. One stats doc per board, top 50.
 //
 // XP week and month refresh every 10 minutes. XP all-time, PvP, and raid
 // all-time refresh every 15. Favor hashers refresh every 5 minutes while a
@@ -14,10 +14,10 @@
 // write. lastSeen and other non-board fields do not stamp it. One instance
 // skips a stamp it already wrote for that board in the last 60 seconds.
 //
-// Rank past 25 is not stored. An exact rank for every player is one count
+// Rank past 50 is not stored. An exact rank for every player is one count
 // query per player, or a full scan of public_profiles. ghostMode is absent on
 // most profiles, so a count() cannot drop ghosts either. The snapshot holds
-// the exact top 25. A signed-in player outside that list sees "25+" and the
+// the exact top 50. A signed-in player outside that list sees "50+" and the
 // score already on their own profile. No per-player rank query is issued.
 //
 // Banned players stay on the board. The existing boards do not hide them.
@@ -25,8 +25,9 @@
 
 const { displayName, safePic } = require('./streakBoard');
 
-const BOARD_SIZE = 25;
-const FETCH_LIMIT = 60;
+const BOARD_SIZE = 50;
+// Fetch about twice the board so ghosts dropped after the read still leave 50.
+const FETCH_LIMIT = 100;
 const INTERVAL_SLACK_MS = 60 * 1000;
 const STAMP_THROTTLE_MS = 60 * 1000;
 const MAX_AGE_SHORT_MS = 60 * 60 * 1000;
@@ -37,8 +38,8 @@ const FAVOR_STATE = 'current';
 
 const RANK_BEYOND_25 = {
     exact: false,
-    label: '25+',
-    reason: 'Exact rank past the top 25 is not stored. A true rank is one count query per player, or a full scan of public_profiles, and ghostMode is missing on most profiles so a count cannot drop ghosts. The snapshot keeps the top 25 exact. A signed-in player outside that list sees 25+ and the score already on their profile. No per-player rank query is issued.'
+    label: '50+',
+    reason: 'Exact rank past the top 50 is not stored. A true rank is one count query per player, or a full scan of public_profiles, and ghostMode is missing on most profiles so a count cannot drop ghosts. The snapshot keeps the top 50 exact. A signed-in player outside that list sees 50+ and the score already on their profile. No per-player rank query is issued.'
 };
 
 const BOARDS = {
@@ -259,6 +260,15 @@ function winRate(wins, losses) {
     const total = wins + losses;
     if (total <= 0) return 0;
     return Math.round((wins / total) * 1000) / 10;
+}
+
+// Shown next to a PvP record. Whole percent. Zero games is 0%, not a divide.
+function pvpRecordText(wins, losses) {
+    const w = whole(wins);
+    const l = whole(losses);
+    const games = w + l;
+    const pct = games > 0 ? Math.round((w / games) * 100) : 0;
+    return w + 'W - ' + l + 'L · ' + pct + '%';
 }
 
 function pvpRows(winProfiles, lossProfiles) {
@@ -526,5 +536,6 @@ module.exports = {
     loadBoard: loadBoard,
     refreshBoard: refreshBoard,
     refreshMany: refreshMany,
-    winRate: winRate
+    winRate: winRate,
+    pvpRecordText: pvpRecordText
 };

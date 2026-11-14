@@ -256,7 +256,7 @@ async function main() {
             assert.strictEqual(codesGone.exists, false);
             const note = await db.collection('notifications').where('recipientId', '==', uid).get();
             assert.ok(note.size >= 1);
-            const adminNote = await db.collection('admin_notifications').where('uid', '==', uid).get();
+            const adminNote = await db.collection('admin_notifications').where('uidHash', '==', require('../functions/src/secondFactor').maskUid(uid).uidHash).get();
             assert.ok(adminNote.docs.some(function (doc) { return doc.data().type === 'mfa_recovery'; }));
             await pastGate(fns.claimSats, {}, first.context);
         });

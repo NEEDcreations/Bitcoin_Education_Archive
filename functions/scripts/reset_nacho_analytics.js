@@ -68,7 +68,7 @@ async function main() {
         console.log('Dry-run is the default. --apply zeros stats/nacho-analytics.');
         return;
     }
-    const admin = require('firebase-admin');
+    const admin = require('../src/firebaseAdmin.js');
     if (!admin.apps.length) admin.initializeApp();
     const result = await runReset(admin.firestore(), admin.firestore.FieldValue, args);
     printResult(result);

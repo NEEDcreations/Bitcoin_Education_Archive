@@ -341,9 +341,11 @@ if (typeof module !== 'undefined' && module.exports) {
         raidHomePillText: raidHomePillText
     };
 }
-window.BADGE_CATALOG={"first_channel":{"name":"First Steps","emoji":"👶","desc":"Opened your first channel","xp":10,"category":"","hidden":false,"serverAward":true},"explorer_10":{"name":"Explorer","emoji":"🧭","desc":"Visited 10 topics","xp":10,"category":"","hidden":false,"serverAward":true},"explorer_25":{"name":"Trailblazer","emoji":"🗺️","desc":"Visited 25 topics","xp":50,"category":"","hidden":false,"serverAward":true},"explorer_50":{"name":"Pathfinder","emoji":"🏕️","desc":"Visited 50 topics","xp":50,"category":"","hidden":false,"serverAward":true},"explorer_100":{"name":"Cartographer","emoji":"🌍","desc":"Visited 100 topics","xp":50,"category":"","hidden":false,"serverAward":true},"explorer_all":{"name":"Completionist","emoji":"🗝️","desc":"Visited every single topic","xp":150,"category":"","hidden":false,"serverAward":true},"global_citizen":{"name":"Global Citizen","emoji":"🌍","desc":"Added your country to your profile — representing Bitcoin worldwide","xp":10,"category":"","hidden":false,"serverAward":true},"quest_1":{"name":"Quester","emoji":"⚔️","desc":"Completed your first Quest","xp":10,"category":"","hidden":false,"serverAward":true},"quest_3":{"name":"Quest Seeker","emoji":"📜","desc":"Completed 3 Quests","xp":50,"category":"","hidden":false,"serverAward":true},"quest_5":{"name":"Quest Champion","emoji":"🏆","desc":"Completed 5 Quests","xp":50,"category":"","hidden":false,"serverAward":true},"quest_10":{"name":"Quest Veteran","emoji":"🗡️","desc":"Completed 10 Quests","xp":150,"category":"","hidden":false,"serverAward":true},"quest_25":{"name":"Quest Crusader","emoji":"⚜️","desc":"Completed 25 Quests","xp":150,"category":"","hidden":false,"serverAward":true},"quest_50":{"name":"Quest Master","emoji":"👑","desc":"Completed 50 Quests","xp":500,"category":"","hidden":false,"serverAward":true},"quest_100":{"name":"Quest Legend","emoji":"🏰","desc":"Completed 100 Quests","xp":500,"category":"","hidden":false,"serverAward":true},"cert_scholar":{"name":"Bitcoin Scholar","emoji":"🎓","desc":"Passed the Bitcoin Scholar Certification","xp":0,"category":"","hidden":false,"serverAward":false},"cert_tech":{"name":"Protocol Expert","emoji":"🛠️","desc":"Passed the Technical Protocol Expert Certification","xp":0,"category":"","hidden":false,"serverAward":false},"cert_double":{"name":"Double Scholar","emoji":"🏛️","desc":"Earned both Scholar AND Protocol Expert certifications","xp":0,"category":"","hidden":false,"serverAward":false},"all_certs":{"name":"Grand Scholar","emoji":"🎓","desc":"Earned all three Bitcoin certifications (Scholar, Protocol Expert, and all Trails)","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_tuned_in":{"name":"Tuned In","emoji":"📺","desc":"Watched 10 min of Timechain TV","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_couch_potato":{"name":"Couch Potato","emoji":"🛋️","desc":"Watched 60 min of Timechain TV","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_binge_watcher":{"name":"Binge Watcher","emoji":"🍿","desc":"Watched 5 hours of Timechain TV","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_couch_king":{"name":"Couch King","emoji":"🛌","desc":"Watched 24 hours of Timechain TV","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_satellite":{"name":"Satellite","emoji":"🛰️","desc":"Watched 100 hours of Timechain TV","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_channel_hopper":{"name":"Channel Hopper","emoji":"📡","desc":"Switched TCTV channel for the first time","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_remote_warrior":{"name":"Remote Warrior","emoji":"🕹️","desc":"Switched TCTV channels 5 times","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_dial_spinner":{"name":"Dial Spinner","emoji":"🌀","desc":"Switched TCTV channels 10 times","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_signal_seeker":{"name":"Signal Seeker","emoji":"📶","desc":"Switched TCTV channels 25 times","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_antenna_wizard":{"name":"Antenna Wizard","emoji":"🧙","desc":"Switched TCTV channels 50 times","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_timechain_surfer":{"name":"Timechain Surfer","emoji":"🏄","desc":"Switched TCTV channels 100 times — a true Timechain TV veteran","xp":0,"category":"","hidden":false,"serverAward":false},"nacho_chatterbox":{"name":"Nacho Chatterbox","emoji":"🦌","desc":"Interacted with Nacho 50+ times","xp":0,"category":"","hidden":false,"serverAward":false},"nacho_bestie":{"name":"Nacho's Bestie","emoji":"🧡","desc":"Interacted with Nacho 250+ times","xp":0,"category":"","hidden":false,"serverAward":false},"nacho_asked_10":{"name":"Curious","emoji":"🤔","desc":"Asked Nacho 10 questions","xp":0,"category":"","hidden":false,"serverAward":false},"nacho_asked_100":{"name":"Nacho Scholar","emoji":"🦌","desc":"Asked Nacho 100 questions","xp":0,"category":"","hidden":false,"serverAward":false},"nacho_whisper":{"name":"Nacho's Confidant","emoji":"🤫","desc":"Interacted with Nacho 500+ times","xp":0,"category":"","hidden":false,"serverAward":false},"nacho_eli5":{"name":"ELI5 Mode","emoji":"👶","desc":"Used Explain it Like I'm 5 mode with Nacho","xp":0,"category":"","hidden":false,"serverAward":false},"chat_first":{"name":"First Words","emoji":"💦","desc":"Sent your first message in Global Chat","xp":10,"category":"","hidden":false,"serverAward":true},"chat_10":{"name":"Chatty","emoji":"🗣️","desc":"Sent 10 messages in Global Chat","xp":10,"category":"","hidden":false,"serverAward":true},"chat_50":{"name":"Conversationalist","emoji":"💬","desc":"Sent 50 messages in Global Chat","xp":50,"category":"","hidden":false,"serverAward":true},"chat_100":{"name":"Town Crier","emoji":"📢","desc":"Sent 100 messages in Global Chat","xp":50,"category":"","hidden":false,"serverAward":true},"chat_500":{"name":"Chat Legend","emoji":"📯","desc":"Sent 500 messages in Global Chat","xp":150,"category":"","hidden":false,"serverAward":true},"chat_streak_3":{"name":"Regular","emoji":"📅","desc":"Chatted 3 days in a row","xp":0,"category":"","hidden":false,"serverAward":false},"chat_streak_7":{"name":"Devoted Chatter","emoji":"💪","desc":"Chatted 7 days in a row","xp":0,"category":"","hidden":false,"serverAward":false},"chat_streak_30":{"name":"Chat Addict","emoji":"💠","desc":"Chatted 30 days in a row","xp":0,"category":"","hidden":false,"serverAward":false},"dj_first":{"name":"First Set","emoji":"🎧","desc":"DJed for the first time in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"dj_5":{"name":"Resident DJ","emoji":"🎛️","desc":"DJed 5 sets in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"dj_25":{"name":"Club Legend","emoji":"🎶","desc":"DJed 25 sets in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"dj_songs_10":{"name":"Playlist Pro","emoji":"📻","desc":"Broadcast 10 songs as DJ","xp":0,"category":"","hidden":false,"serverAward":false},"dj_songs_50":{"name":"Jukebox Hero","emoji":"🎵","desc":"Broadcast 50 songs as DJ","xp":0,"category":"","hidden":false,"serverAward":false},"dj_songs_100":{"name":"Vinyl Master","emoji":"🎼","desc":"Broadcast 100 songs as DJ","xp":0,"category":"","hidden":false,"serverAward":false},"dj_listener":{"name":"Good Listener","emoji":"🔊","desc":"Tuned in to 10 DJ sets","xp":0,"category":"","hidden":false,"serverAward":false},"dj_listener_50":{"name":"Groupie","emoji":"🤘","desc":"Tuned in to 50 DJ sets","xp":0,"category":"","hidden":false,"serverAward":false},"producer_1":{"name":"Producer","emoji":"🎤","desc":"Uploaded your first song to Bitcoin Beats","xp":50,"category":"","hidden":false,"serverAward":true},"producer_10":{"name":"Discographer","emoji":"💿","desc":"Uploaded 10 songs to Bitcoin Beats","xp":500,"category":"","hidden":false,"serverAward":true},"beats_first_listen":{"name":"First Listen","emoji":"🎵","desc":"Listened to your first track on Bitcoin Beats","xp":0,"category":"","hidden":false,"serverAward":false},"beats_50_plays":{"name":"Audiophile","emoji":"🎧","desc":"Played 50 tracks on Bitcoin Beats","xp":0,"category":"","hidden":false,"serverAward":false},"beats_liked_10":{"name":"Music Fan","emoji":"🩷","desc":"Liked 10 tracks on Bitcoin Beats","xp":0,"category":"","hidden":false,"serverAward":false},"beats_liked_50":{"name":"Taste Maker","emoji":"🎼","desc":"Liked 50 tracks on Bitcoin Beats","xp":0,"category":"","hidden":false,"serverAward":false},"dm_first":{"name":"DM Starter","emoji":"✉️","desc":"Sent your first direct message","xp":10,"category":"","hidden":false,"serverAward":true},"dm_10":{"name":"Inbox Zero","emoji":"📥","desc":"Sent 10 direct messages","xp":10,"category":"","hidden":false,"serverAward":true},"dm_buddy":{"name":"Buddy Up","emoji":"🫂","desc":"Matched with a Bitcoin learning buddy","xp":10,"category":"","hidden":false,"serverAward":true},"react_5":{"name":"Reactor","emoji":"⚡","desc":"Reacted to 5 messages in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"react_50":{"name":"Reaction King","emoji":"❤️","desc":"Reacted to 50 messages in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"react_200":{"name":"Emoji Sensei","emoji":"🧘","desc":"Reacted to 200 messages in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"pvp_first":{"name":"First Blood","emoji":"🩸","desc":"Won your first PVP battle","xp":10,"category":"","hidden":false,"serverAward":true},"pvp_5":{"name":"Contender","emoji":"🥊","desc":"Won 5 PVP battles","xp":50,"category":"","hidden":false,"serverAward":true},"pvp_25":{"name":"Gladiator","emoji":"🏟️","desc":"Won 25 PVP battles","xp":150,"category":"","hidden":false,"serverAward":true},"pvp_50":{"name":"Champion","emoji":"🏆","desc":"Won 50 PVP battles","xp":150,"category":"","hidden":false,"serverAward":true},"pvp_100":{"name":"PVP Legend","emoji":"🥇","desc":"Won 100 PVP battles","xp":500,"category":"","hidden":false,"serverAward":true},"referral_1":{"name":"Meetup Regular","emoji":"🍻","desc":"1 friend you invited reached Maxi rank","xp":10,"category":"","hidden":false,"serverAward":true},"referral_5":{"name":"Connector","emoji":"🤝","desc":"Earlier badge for 5 paid referrals. No longer awarded.","xp":0,"category":"","hidden":false,"serverAward":false},"referral_10":{"name":"Meetup Organizer","emoji":"📋","desc":"10 friends you invited reached Maxi rank","xp":50,"category":"","hidden":false,"serverAward":true},"referral_25":{"name":"Conference Speaker","emoji":"🎤","desc":"25 friends you invited reached Maxi rank","xp":150,"category":"","hidden":false,"serverAward":true},"referral_50":{"name":"Conference Host","emoji":"🏟️","desc":"50 friends you invited reached Maxi rank","xp":500,"category":"","hidden":false,"serverAward":true},"referral_100":{"name":"Keynote Legend","emoji":"🏆","desc":"100 friends you invited reached Maxi rank","xp":2000,"category":"","hidden":false,"serverAward":true},"referred":{"name":"Referred Friend","emoji":"🫂","desc":"Joined Bitcoin Education Archive via a referral link","xp":10,"category":"","hidden":false,"serverAward":true},"sf_first_hash":{"name":"First Hash","emoji":"⛏️","desc":"Generated your first hash during Satoshi's Favor","xp":10,"category":"","hidden":false,"serverAward":true},"sf_10_hashes":{"name":"Pickaxe Swinger","emoji":"💥","desc":"Generated 10 hashes during Satoshi's Favor","xp":10,"category":"","hidden":false,"serverAward":true},"sf_50_hashes":{"name":"Mine Foreman","emoji":"🪨","desc":"Generated 50 hashes during Satoshi's Favor","xp":10,"category":"","hidden":false,"serverAward":true},"sf_100_hashes":{"name":"Hash Machine","emoji":"🔩","desc":"Generated 100 hashes during Satoshi's Favor","xp":50,"category":"","hidden":false,"serverAward":true},"sf_500_hashes":{"name":"ASIC Mode","emoji":"🖥️","desc":"Generated 500 hashes during Satoshi's Favor","xp":150,"category":"","hidden":false,"serverAward":true},"sf_1000_hashes":{"name":"Mining Rig","emoji":"🏭","desc":"Generated 1,000 hashes during Satoshi's Favor","xp":150,"category":"","hidden":false,"serverAward":true},"sf_10000_hashes":{"name":"Hash Lord","emoji":"☄️","desc":"Generated 10,000 hashes during Satoshi's Favor","xp":2000,"category":"","hidden":false,"serverAward":true},"sf_low_hash":{"name":"Lucky Strike","emoji":"⭐","desc":"Mined a hash under 1,000,000","xp":0,"category":"","hidden":false,"serverAward":false},"sf_ultra_low":{"name":"Golden Nonce","emoji":"✨","desc":"Mined a hash under 100,000","xp":0,"category":"","hidden":false,"serverAward":false},"sf_block_solver":{"name":"Block Solver","emoji":"🌞","desc":"Solved a block! Hash under the difficulty target","xp":500,"category":"","hidden":false,"serverAward":true},"sf_contributor":{"name":"Community Miner","emoji":"🤝","desc":"Contributed to activating Satoshi's Favor 3 times","xp":10,"category":"","hidden":false,"serverAward":true},"sf_contributor_10":{"name":"Favor Champion","emoji":"🏅","desc":"Contributed to activating Satoshi's Favor 10 times","xp":150,"category":"","hidden":false,"serverAward":true},"raid_first":{"name":"Raid Recruit","emoji":"🛡️","desc":"Dealt damage to your first Raid Boss","xp":10,"category":"","hidden":false,"serverAward":true},"raid_5":{"name":"Raid Warrior","emoji":"🗡️","desc":"Dealt 5 total raid damage","xp":50,"category":"","hidden":false,"serverAward":true},"raid_10":{"name":"Raid Veteran","emoji":"⚙️","desc":"Dealt 10 total raid damage","xp":50,"category":"","hidden":false,"serverAward":true},"raid_25":{"name":"Raid Commander","emoji":"⚜️","desc":"Dealt 25 total raid damage","xp":150,"category":"","hidden":false,"serverAward":true},"raid_50":{"name":"Raid Legend","emoji":"👑","desc":"Dealt 50 total raid damage","xp":150,"category":"","hidden":false,"serverAward":true},"raid_100":{"name":"Raid Warlord","emoji":"🔱","desc":"Dealt 100 total raid damage","xp":500,"category":"","hidden":false,"serverAward":true},"raid_boss_slayer":{"name":"Boss Slayer","emoji":"💀","desc":"Participated in defeating a Raid Boss","xp":50,"category":"","hidden":false,"serverAward":true},"raid_boss_slayer_5":{"name":"Boss Hunter","emoji":"🐉","desc":"Participated in defeating 5 Raid Bosses","xp":500,"category":"","hidden":false,"serverAward":true},"raid_boss_slayer_10":{"name":"Dragon Slayer","emoji":"🐲","desc":"Participated in defeating 10 Raid Bosses","xp":500,"category":"","hidden":false,"serverAward":true},"raid_winner":{"name":"Raid Champion","emoji":"🎖️","desc":"Won the sats lottery after a Raid Boss defeat","xp":150,"category":"","hidden":false,"serverAward":true},"trivia_first":{"name":"Quiz Curious","emoji":"🧠","desc":"Answered your first daily trivia question","xp":10,"category":"","hidden":false,"serverAward":true},"trivia_correct_1":{"name":"Trivia Warm-Up","emoji":"✅","desc":"Got your first trivia question correct","xp":10,"category":"","hidden":false,"serverAward":true},"trivia_correct_10":{"name":"Fact Checker","emoji":"🔎","desc":"Got 10 trivia questions correct","xp":150,"category":"","hidden":false,"serverAward":true},"trivia_correct_30":{"name":"Big Brain","emoji":"🦾","desc":"Got 30 trivia questions correct","xp":150,"category":"","hidden":false,"serverAward":true},"trivia_correct_100":{"name":"Trivia Titan","emoji":"🏅","desc":"Got 100 trivia questions correct — absolute Bitcoin scholar","xp":500,"category":"","hidden":false,"serverAward":true},"trivia_streak_7":{"name":"Daily Habit","emoji":"📆","desc":"Answered trivia 7 days in a row","xp":150,"category":"","hidden":false,"serverAward":true},"trivia_streak_30":{"name":"Trivia Devotee","emoji":"🔱","desc":"Answered trivia 30 days in a row","xp":500,"category":"","hidden":false,"serverAward":true},"poll_first":{"name":"Opinionated","emoji":"🗳️","desc":"Cast your first vote in the daily poll","xp":10,"category":"","hidden":false,"serverAward":true},"poll_10":{"name":"Regular Voter","emoji":"🗓️","desc":"Voted in 10 daily polls","xp":150,"category":"","hidden":false,"serverAward":true},"poll_50":{"name":"Civic Plebian","emoji":"🏛️","desc":"Voted in 50 daily polls","xp":500,"category":"","hidden":false,"serverAward":true},"poll_100":{"name":"Democracy Maxi","emoji":"⚖️","desc":"Voted in 100 daily polls — never missed an opinion","xp":10,"category":"","hidden":false,"serverAward":true},"daily_triple_1":{"name":"Triple Play","emoji":"🎯","desc":"Completed quiz, trivia AND poll in one day","xp":10,"category":"","hidden":false,"serverAward":true},"daily_triple_7":{"name":"Consistent Stacker","emoji":"📚","desc":"Completed the Daily Trifecta 7 times","xp":50,"category":"","hidden":false,"serverAward":true},"daily_triple_30":{"name":"Unstoppable","emoji":"🚂","desc":"Completed the Daily Trifecta 30 times","xp":150,"category":"","hidden":false,"serverAward":true},"market_browse":{"name":"Window Shopper","emoji":"🛍️","desc":"Visited the Lightning Marketplace","xp":0,"category":"","hidden":false,"serverAward":false},"market_listed_1":{"name":"Vendor","emoji":"🏪","desc":"Listed your first item in the Marketplace","xp":10,"category":"","hidden":false,"serverAward":true},"market_listed_5":{"name":"Merchant","emoji":"💼","desc":"Listed 5 items in the Marketplace","xp":50,"category":"","hidden":false,"serverAward":true},"market_saved_5":{"name":"Wishlist","emoji":"❤️‍🔥","desc":"Saved 5 items in the Marketplace","xp":0,"category":"","hidden":false,"serverAward":false},"market_message":{"name":"Dealmaker","emoji":"🤜","desc":"Sent your first Marketplace message to a seller","xp":10,"category":"","hidden":false,"serverAward":true},"bookmarks_1":{"name":"Earmarked","emoji":"🔖","desc":"Bookmarked your first article","xp":0,"category":"","hidden":false,"serverAward":false},"bookmarks_10":{"name":"Archivist","emoji":"🗄️","desc":"Bookmarked 10 articles","xp":0,"category":"","hidden":false,"serverAward":false},"favs_10":{"name":"Curator","emoji":"🧹","desc":"Saved 10 topics to favorites","xp":0,"category":"","hidden":false,"serverAward":false},"favs_25":{"name":"Collection","emoji":"🗂️","desc":"Saved 25 topics to favorites","xp":0,"category":"","hidden":false,"serverAward":false},"tip_first":{"name":"First Tip","emoji":"💸","desc":"Sent your first Lightning tip","xp":10,"category":"","hidden":false,"serverAward":true},"tip_10":{"name":"Generous Pleb","emoji":"💛","desc":"Tipped 10 times","xp":500,"category":"","hidden":false,"serverAward":true},"tip_magnet":{"name":"Tip Magnet","emoji":"🧲","desc":"Received 10 tips from others","xp":500,"category":"","hidden":false,"serverAward":true},"tip_whale":{"name":"Whale Tipper","emoji":"🐳","desc":"Tipped 1,000+ sats total","xp":50,"category":"","hidden":false,"serverAward":true},"tip_received_1":{"name":"Tip Received","emoji":"🎁","desc":"Received your first tip from another user","xp":50,"category":"","hidden":false,"serverAward":true},"tip_received_50":{"name":"Community Darling","emoji":"🌟","desc":"Received 50 tips from others","xp":2000,"category":"","hidden":false,"serverAward":true},"tip_sats_10k":{"name":"Sat Slinger","emoji":"💰","desc":"Tipped 10,000+ sats total","xp":500,"category":"","hidden":false,"serverAward":true},"predict_1":{"name":"Oracle","emoji":"🎱","desc":"Made your first price prediction","xp":10,"category":"","hidden":false,"serverAward":true},"predict_10":{"name":"Market Watcher","emoji":"📊","desc":"Made 10 price predictions","xp":150,"category":"","hidden":false,"serverAward":true},"predict_50":{"name":"Chartist","emoji":"📈","desc":"Made 50 price predictions","xp":500,"category":"","hidden":false,"serverAward":true},"predict_correct_5":{"name":"Crystal Ball","emoji":"🏐","desc":"5 correct predictions","xp":150,"category":"","hidden":false,"serverAward":true},"predict_correct_25":{"name":"Pattern Reader","emoji":"🌊","desc":"25 correct price predictions","xp":500,"category":"","hidden":false,"serverAward":true},"predict_correct_100":{"name":"Time Traveler","emoji":"⏳","desc":"100 correct price predictions — you can see the future","xp":2000,"category":"","hidden":false,"serverAward":true},"predict_streak_3":{"name":"Oracle Streak","emoji":"🎯","desc":"3 correct predictions in a row","xp":150,"category":"","hidden":false,"serverAward":true},"predict_streak_10":{"name":"Nostradamus","emoji":"🔮","desc":"10 correct predictions in a row","xp":150,"category":"","hidden":false,"serverAward":true},"irl_attend_1":{"name":"Show Up","emoji":"📍","desc":"RSVPed to your first IRL event","xp":0,"category":"","hidden":false,"serverAward":false},"irl_attend_5":{"name":"Scene Regular","emoji":"🗺️","desc":"Attended 5 IRL Bitcoin events","xp":0,"category":"","hidden":false,"serverAward":false},"irl_host":{"name":"Event Host","emoji":"🎪","desc":"Hosted your first IRL event","xp":0,"category":"","hidden":false,"serverAward":false},"irl_host_5":{"name":"Community Builder","emoji":"🏗️","desc":"Hosted 5 IRL events","xp":0,"category":"","hidden":false,"serverAward":false},"irl_host_10":{"name":"Regional Leader","emoji":"🌆","desc":"Hosted 10 IRL Bitcoin events","xp":0,"category":"","hidden":false,"serverAward":false},"spin_30":{"name":"Lucky Spinner","emoji":"🎰","desc":"Spun the wheel 30 days total","xp":150,"category":"","hidden":false,"serverAward":true},"spin_streak_7":{"name":"Spin Streak","emoji":"🎡","desc":"Spun 7 days in a row","xp":150,"category":"","hidden":false,"serverAward":true},"spin_jackpot":{"name":"Jackpot Winner","emoji":"🌟","desc":"Hit the RARE drop on the spin wheel","xp":150,"category":"","hidden":false,"serverAward":true},"lightning_setup":{"name":"Lightning Rod","emoji":"⚡","desc":"Set up a Lightning wallet or added a Lightning address","xp":10,"category":"","hidden":false,"serverAward":true},"forum_5":{"name":"Voice of the People","emoji":"📣","desc":"Made 5 forum posts","xp":50,"category":"","hidden":false,"serverAward":true},"forum_25":{"name":"Thought Leader","emoji":"🧠","desc":"Made 25 forum posts","xp":150,"category":"","hidden":false,"serverAward":true},"article_1":{"name":"Author","emoji":"✍️","desc":"Published your first article","xp":50,"category":"","hidden":false,"serverAward":true},"first_purchase":{"name":"First Purchase","emoji":"🛒","desc":"Made your first purchase in Nacho's Nook","xp":10,"category":"","hidden":false,"serverAward":true},"sats_first":{"name":"First Sats","emoji":"🪙","desc":"Claimed your first sats from the faucet","xp":10,"category":"","hidden":false,"serverAward":true},"sats_1k":{"name":"Stacker","emoji":"📦","desc":"Claimed 1,000 sats total","xp":0,"category":"","hidden":false,"serverAward":false},"sats_5k":{"name":"Sat Whale","emoji":"🧊","desc":"Claimed 5,000 sats total","xp":0,"category":"","hidden":false,"serverAward":false},"sats_10k":{"name":"Sat Hoarder","emoji":"🏦","desc":"Claimed 10,000 sats total from the faucet","xp":0,"category":"","hidden":false,"serverAward":false},"sats_21k":{"name":"21 Million Dreams","emoji":"₿","desc":"Claimed 21,000 sats — because 21 million is the magic number","xp":0,"category":"","hidden":false,"serverAward":false},"streak_7":{"name":"Week Warrior","emoji":"🔥","desc":"7-day visit streak","xp":150,"category":"","hidden":false,"serverAward":true},"streak_14":{"name":"Two Weeks Strong","emoji":"📅","desc":"14-day visit streak","xp":150,"category":"","hidden":false,"serverAward":true},"streak_30":{"name":"Monthly Maxi","emoji":"🦾","desc":"30-day visit streak","xp":500,"category":"","hidden":false,"serverAward":true},"streak_60":{"name":"Two Month Maxi","emoji":"🗓️","desc":"60-day visit streak","xp":500,"category":"","hidden":false,"serverAward":true},"streak_100":{"name":"Diamond Hands","emoji":"💎","desc":"100-day visit streak","xp":2000,"category":"","hidden":false,"serverAward":true},"streak_200":{"name":"Sovereign Individual","emoji":"🗽","desc":"200-day visit streak — this is dedication","xp":2000,"category":"","hidden":false,"serverAward":true},"streak_365":{"name":"HODLer Supreme","emoji":"🪩","desc":"365-day visit streak","xp":2000,"category":"","hidden":false,"serverAward":true},"story_begun":{"name":"Story Begun","emoji":"📖","desc":"Read Chapter 1 of Nacho's Story — the Genesis Block","xp":0,"category":"","hidden":false,"serverAward":false},"story_halfway":{"name":"Halfway There","emoji":"🎙️","desc":"Read 4 chapters of Nacho's Story","xp":0,"category":"","hidden":false,"serverAward":false},"story_complete":{"name":"Story Master","emoji":"🦧📚","desc":"Completed all 7 chapters of Nacho's Story","xp":0,"category":"","hidden":false,"serverAward":false},"trail_meadow":{"name":"Meadow Walker","emoji":"🌿","desc":"Completed The Meadow trail","xp":0,"category":"","hidden":false,"serverAward":false},"trail_mountain":{"name":"Mountain Climber","emoji":"⛰️","desc":"Completed The Mountain trail","xp":0,"category":"","hidden":false,"serverAward":false},"trail_summit":{"name":"Summit Conqueror","emoji":"🏔️","desc":"Completed The Summit trail","xp":0,"category":"","hidden":false,"serverAward":false},"trail_all":{"name":"Trail Master","emoji":"🏁","desc":"Completed all three Nacho's Trails","xp":0,"category":"","hidden":false,"serverAward":false},"lq_what_is_bitcoin":{"name":"🟠 Bitcoin Basics","emoji":"🟠","desc":"Passed the What is Bitcoin? Learning Quest","xp":50,"category":"","hidden":false,"serverAward":true},"lq_mining":{"name":"⛏️ Hash Slinger","emoji":"⛏️","desc":"Passed the Mining & Proof of Work Learning Quest","xp":50,"category":"","hidden":false,"serverAward":true},"lq_nodes":{"name":"🖥️ Node Runner","emoji":"🖥️","desc":"Passed the Nodes & Decentralization Learning Quest","xp":50,"category":"","hidden":false,"serverAward":true},"lq_self_custody":{"name":"🔑 Sovereign Stacker","emoji":"🔑","desc":"Passed the Self-Custody & Keys Learning Quest","xp":50,"category":"","hidden":false,"serverAward":true},"lq_lightning":{"name":"⚡ Lightning Pleb","emoji":"⚡","desc":"Passed the Lightning Network Learning Quest","xp":50,"category":"","hidden":false,"serverAward":true},"lq_scarcity":{"name":"💎 21M Believer","emoji":"💎","desc":"Passed the Fixed Supply Learning Quest","xp":50,"category":"","hidden":false,"serverAward":true},"lq_bitcoin_only":{"name":"🛡️ Bitcoin Maximalist","emoji":"🛡️","desc":"Passed the Why Bitcoin, Not Crypto Learning Quest","xp":50,"category":"","hidden":false,"serverAward":true},"lq_privacy":{"name":"🕵️ Cypherpunk","emoji":"🕵️","desc":"Passed the Privacy & Sovereignty Learning Quest","xp":50,"category":"","hidden":false,"serverAward":true},"lq_graduate":{"name":"📖 Learning Quest Graduate","emoji":"📖","desc":"Completed ALL 8 Learning Quests — true Bitcoin scholar","xp":150,"category":"","hidden":false,"serverAward":true},"flex_rookie":{"name":"Healthy Start","emoji":"🌱","desc":"Completed 10 Flex actions total","xp":50,"category":"","hidden":false,"serverAward":true},"flex_committed":{"name":"Committed","emoji":"💪","desc":"Completed 50 Flex actions total","xp":150,"category":"","hidden":false,"serverAward":true},"flex_athlete":{"name":"Bitcoin Athlete","emoji":"🏅","desc":"Completed 200 Flex actions total","xp":500,"category":"","hidden":false,"serverAward":true},"flex_legend":{"name":"Flex Legend","emoji":"🦁","desc":"Completed 1,000 Flex actions total","xp":2000,"category":"","hidden":false,"serverAward":true},"flex_all_once":{"name":"Full Stack Human","emoji":"🧬","desc":"Completed every Flex action at least once","xp":50,"category":"","hidden":false,"serverAward":true},"flex_steak_1":{"name":"flex_steak_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_steak_5":{"name":"flex_steak_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_steak_50":{"name":"flex_steak_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_steak_500":{"name":"flex_steak_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_sunlight_1":{"name":"flex_sunlight_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_sunlight_5":{"name":"flex_sunlight_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_sunlight_50":{"name":"flex_sunlight_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_sunlight_500":{"name":"flex_sunlight_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_dca_1":{"name":"flex_dca_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_dca_5":{"name":"flex_dca_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_dca_50":{"name":"flex_dca_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_dca_500":{"name":"flex_dca_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_custody_1":{"name":"flex_custody_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_custody_5":{"name":"flex_custody_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_custody_50":{"name":"flex_custody_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_custody_500":{"name":"flex_custody_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_lift_1":{"name":"flex_lift_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_lift_5":{"name":"flex_lift_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_lift_50":{"name":"flex_lift_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_lift_500":{"name":"flex_lift_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_meetup_1":{"name":"flex_meetup_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_meetup_5":{"name":"flex_meetup_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_meetup_50":{"name":"flex_meetup_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_meetup_500":{"name":"flex_meetup_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_lightning_1":{"name":"flex_lightning_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_lightning_5":{"name":"flex_lightning_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_lightning_50":{"name":"flex_lightning_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_lightning_500":{"name":"flex_lightning_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_read_1":{"name":"flex_read_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_read_5":{"name":"flex_read_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_read_50":{"name":"flex_read_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_read_500":{"name":"flex_read_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_sleep_1":{"name":"flex_sleep_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_sleep_5":{"name":"flex_sleep_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_sleep_50":{"name":"flex_sleep_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_sleep_500":{"name":"flex_sleep_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_nokyc_1":{"name":"flex_nokyc_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_nokyc_5":{"name":"flex_nokyc_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_nokyc_50":{"name":"flex_nokyc_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_nokyc_500":{"name":"flex_nokyc_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_node_1":{"name":"flex_node_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_node_5":{"name":"flex_node_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_node_50":{"name":"flex_node_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_node_500":{"name":"flex_node_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_cold_1":{"name":"flex_cold_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_cold_5":{"name":"flex_cold_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_cold_50":{"name":"flex_cold_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_cold_500":{"name":"flex_cold_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_fast_1":{"name":"flex_fast_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_fast_5":{"name":"flex_fast_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_fast_50":{"name":"flex_fast_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_fast_500":{"name":"flex_fast_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_walk_1":{"name":"flex_walk_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_walk_5":{"name":"flex_walk_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_walk_50":{"name":"flex_walk_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_walk_500":{"name":"flex_walk_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_journal_1":{"name":"flex_journal_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_journal_5":{"name":"flex_journal_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_journal_50":{"name":"flex_journal_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_journal_500":{"name":"flex_journal_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_meditate_1":{"name":"flex_meditate_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_meditate_5":{"name":"flex_meditate_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_meditate_50":{"name":"flex_meditate_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_meditate_500":{"name":"flex_meditate_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_teach_1":{"name":"flex_teach_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_teach_5":{"name":"flex_teach_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_teach_50":{"name":"flex_teach_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_teach_500":{"name":"flex_teach_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_water_1":{"name":"flex_water_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_water_5":{"name":"flex_water_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_water_50":{"name":"flex_water_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_water_500":{"name":"flex_water_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_gratitude_1":{"name":"flex_gratitude_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_gratitude_5":{"name":"flex_gratitude_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_gratitude_50":{"name":"flex_gratitude_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_gratitude_500":{"name":"flex_gratitude_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_verify_1":{"name":"flex_verify_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_verify_5":{"name":"flex_verify_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_verify_50":{"name":"flex_verify_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_verify_500":{"name":"flex_verify_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_focus_1":{"name":"flex_focus_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_focus_5":{"name":"flex_focus_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_focus_50":{"name":"flex_focus_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_focus_500":{"name":"flex_focus_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_risk_1":{"name":"flex_risk_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_risk_5":{"name":"flex_risk_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_risk_50":{"name":"flex_risk_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_risk_500":{"name":"flex_risk_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_pattern_1":{"name":"flex_pattern_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_pattern_5":{"name":"flex_pattern_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_pattern_50":{"name":"flex_pattern_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_pattern_500":{"name":"flex_pattern_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_findq_1":{"name":"flex_findq_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_findq_5":{"name":"flex_findq_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_findq_50":{"name":"flex_findq_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_findq_500":{"name":"flex_findq_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_noleverage_1":{"name":"flex_noleverage_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_noleverage_5":{"name":"flex_noleverage_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_noleverage_50":{"name":"flex_noleverage_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_noleverage_500":{"name":"flex_noleverage_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_gunrange_1":{"name":"flex_gunrange_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_gunrange_5":{"name":"flex_gunrange_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_gunrange_50":{"name":"flex_gunrange_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_gunrange_500":{"name":"flex_gunrange_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_sellchairs_1":{"name":"flex_sellchairs_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_sellchairs_5":{"name":"flex_sellchairs_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_sellchairs_50":{"name":"flex_sellchairs_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_sellchairs_500":{"name":"flex_sellchairs_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_starebtc_1":{"name":"flex_starebtc_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_starebtc_5":{"name":"flex_starebtc_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_starebtc_50":{"name":"flex_starebtc_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_starebtc_500":{"name":"flex_starebtc_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_itoldyou_1":{"name":"flex_itoldyou_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_itoldyou_5":{"name":"flex_itoldyou_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_itoldyou_50":{"name":"flex_itoldyou_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_itoldyou_500":{"name":"flex_itoldyou_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_pumpndump_1":{"name":"flex_pumpndump_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_pumpndump_5":{"name":"flex_pumpndump_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_pumpndump_50":{"name":"flex_pumpndump_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_pumpndump_500":{"name":"flex_pumpndump_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_all_1":{"name":"Full Stack Bitcoiner","emoji":"💪","desc":"Completed 5 Flex actions in one day","xp":10,"category":"","hidden":false,"serverAward":true},"flex_all_5":{"name":"Consistent Stacker","emoji":"🔥","desc":"Hit the daily Flex goal 5 days","xp":50,"category":"","hidden":false,"serverAward":true},"flex_all_50":{"name":"Sovereign Individual","emoji":"🔑","desc":"Hit the daily Flex goal 50 days","xp":500,"category":"","hidden":false,"serverAward":true},"flex_all_500":{"name":"Proof of Discipline","emoji":"🏆","desc":"Hit the daily Flex goal 500 days","xp":2000,"category":"","hidden":false,"serverAward":true},"donor_100":{"name":"Giving Pleb","emoji":"🫷","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"donor_500":{"name":"Stack Sharer","emoji":"💛","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"donor_1000":{"name":"Community Builder","emoji":"🧡","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"donor_5000":{"name":"Archive Patron","emoji":"❤️","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"donor_10000":{"name":"Sats Saint","emoji":"🔥","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"donor_25000":{"name":"Lightning Philanthropist","emoji":"⚡","desc":"","xp":2000,"category":"","hidden":false,"serverAward":true},"donor_50000":{"name":"Satoshi's Steward","emoji":"🏆","desc":"","xp":2000,"category":"","hidden":false,"serverAward":true},"donor_100000":{"name":"Legend of the Archive","emoji":"👑","desc":"","xp":2000,"category":"","hidden":false,"serverAward":true},"pow_first_step":{"name":"First Step","emoji":"👟","desc":"Synced your first walk via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":false},"pow_marathoner":{"name":"Marathoner","emoji":"🏃‍♂️","desc":"Hit the 42km daily cap in Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":false},"pow_streak_3":{"name":"3-Day Streak","emoji":"🔥","desc":"Synced walks 3 days in a row via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":false},"pow_streak_7":{"name":"7-Day Streak","emoji":"🔥","desc":"Synced walks 7 days in a row via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":false},"pow_streak_30":{"name":"30-Day Streak","emoji":"💎","desc":"Synced walks 30 days in a row via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":false},"pow_km_10":{"name":"10 km Club","emoji":"🥾","desc":"Walked 10 km lifetime via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":false},"pow_km_50":{"name":"50 km Club","emoji":"🚶","desc":"Walked 50 km lifetime via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":false},"pow_km_100":{"name":"Century Walker","emoji":"🏅","desc":"Walked 100 km lifetime via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":false},"pow_km_500":{"name":"500 km Legend","emoji":"🏔️","desc":"Walked 500 km lifetime via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":false},"pow_km_1000":{"name":"1,000 km Titan","emoji":"🌍","desc":"Walked 1,000 km lifetime via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":false},"pow_km_5000":{"name":"To the Moon","emoji":"🌕","desc":"Walked 5,000 km lifetime via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":false},"hall_of_fame":{"name":"Chancellor on Brink","emoji":"📰","desc":"Earned 50 distinct badges — Chancellor on brink of second bailout for banks","xp":500,"category":"","hidden":false,"serverAward":true},"the_archive":{"name":"The Archivist","emoji":"🏛️","desc":"Earned 100 distinct badges — you don't just use the Archive, you are it","xp":500,"category":"","hidden":false,"serverAward":true},"genesis_block":{"name":"Hall of Fame","emoji":"🏆","desc":"Earned 150 distinct badges — a true legend of the Archive","xp":2000,"category":"","hidden":false,"serverAward":true},"satoshis_ghost":{"name":"Satoshi's Revenge","emoji":"⚔️","desc":"Earned 200 distinct badges — the network never forgets","xp":2000,"category":"","hidden":false,"serverAward":true},"block_250":{"name":"Satoshi's Vendetta","emoji":"🗡️","desc":"Earned 250 distinct badges — deeper than most will ever go","xp":2000,"category":"","hidden":false,"serverAward":true},"the_hodler":{"name":"Satoshi's Ghost","emoji":"👻","desc":"Earned 300 distinct badges — so rare, nobody knows if it has ever been done","xp":2000,"category":"","hidden":false,"serverAward":true},"satoshis_covenant":{"name":"Satoshi's Covenant","emoji":"📜","desc":"Earned 350 distinct badges — bound to the protocol, forever","xp":2000,"category":"","hidden":false,"serverAward":true},"satoshis_cipher":{"name":"Satoshi's Cipher","emoji":"🔐","desc":"Earned 400 distinct badges — you have cracked something most never will","xp":2000,"category":"","hidden":false,"serverAward":true},"daily_1":{"name":"First Mission","emoji":"🎯","desc":"Complete 1 daily challenge","xp":0,"category":"","hidden":false,"serverAward":false},"daily_5":{"name":"Challenge Accepted","emoji":"🔥","desc":"Complete 5 daily challenges total","xp":0,"category":"","hidden":false,"serverAward":false},"daily_10":{"name":"Daily Grinder","emoji":"💪","desc":"Complete 10 daily challenges total","xp":0,"category":"","hidden":false,"serverAward":false},"daily_25":{"name":"Consistent Warrior","emoji":"🏅","desc":"Complete 25 daily challenges total","xp":0,"category":"","hidden":false,"serverAward":false},"daily_50":{"name":"Discipline Protocol","emoji":"🔑","desc":"Complete 50 daily challenges total","xp":0,"category":"","hidden":false,"serverAward":false},"daily_100":{"name":"Centurion","emoji":"👑","desc":"Complete 100 daily challenges total","xp":0,"category":"","hidden":false,"serverAward":false},"combo_trio":{"name":"Trio Combo","emoji":"🔥","desc":"Hit a 3-feature combo in one session","xp":50,"category":"","hidden":false,"serverAward":false},"combo_mega":{"name":"Mega Combo","emoji":"💥","desc":"Hit a 5-feature combo in one session","xp":150,"category":"","hidden":false,"serverAward":false},"combo_legend":{"name":"Legend Mode","emoji":"🏆","desc":"Hit all 8 features in one session","xp":500,"category":"","hidden":true,"serverAward":false},"weekly_hero":{"name":"Community Hero","emoji":"⚡","desc":"Participated in a weekly community challenge","xp":500,"category":"","hidden":true,"serverAward":false},"set_miner_complete":{"name":"Master Miner","emoji":"🏆","desc":"Completed The Miner Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_scholar_complete":{"name":"Satoshi Scholar","emoji":"🎓","desc":"Completed The Scholar Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_social_complete":{"name":"Community Pillar","emoji":"🌐","desc":"Completed The Social Set","xp":150,"category":"","hidden":true,"serverAward":true},"set_streak_complete":{"name":"Diamond Hands","emoji":"💎","desc":"Completed The Streak Set","xp":2000,"category":"","hidden":true,"serverAward":true},"set_pvp_complete":{"name":"Arena Champion","emoji":"👑","desc":"Completed The Fighter Set","xp":500,"category":"","hidden":true,"serverAward":true},"set_builder_complete":{"name":"Archive Builder","emoji":"🔧","desc":"Completed The Builder Set","xp":500,"category":"","hidden":true,"serverAward":true},"set_explorer_complete":{"name":"World Traveler","emoji":"🗺️","desc":"Completed The Explorer Set","xp":150,"category":"","hidden":true,"serverAward":true},"set_fun_complete":{"name":"Bitcoin Calendar Hero","emoji":"🎊","desc":"Completed The Calendar Set","xp":0,"category":"","hidden":true,"serverAward":false},"first_save":{"name":"No Longer a Ghost","emoji":"✅","desc":"Saved your progress by signing in. Smart move.","xp":10,"category":"","hidden":false,"serverAward":true},"ghost_mode":{"name":"Ghost Mode","emoji":"👻","desc":"Exploring the Archive anonymously — your progress is at risk!","xp":0,"category":"","hidden":false,"serverAward":false},"nacho_quester":{"name":"Nacho's Apprentice","emoji":"🦌","desc":"Completed the Nacho onboarding quest","xp":0,"category":"","hidden":false,"serverAward":false},"bio_author":{"name":"Got Something to Say","emoji":"✍️","desc":"Added a bio to your profile","xp":10,"category":"","hidden":false,"serverAward":true},"lightning_address_set":{"name":"Zap Me","emoji":"⚡","desc":"Added a Lightning Address to your profile","xp":10,"category":"","hidden":false,"serverAward":true},"profile_curious":{"name":"People Person","emoji":"👋","desc":"Opened Nacho's profile — you found the legend","xp":0,"category":"","hidden":false,"serverAward":false},"profile_explorer_5":{"name":"Profile Prowler","emoji":"🕵️","desc":"Viewed 5 user profiles","xp":0,"category":"","hidden":false,"serverAward":false},"profile_explorer_10":{"name":"Social Butterfly","emoji":"🦋","desc":"Viewed 10 user profiles","xp":0,"category":"","hidden":false,"serverAward":false},"profile_explorer_25":{"name":"Community Watcher","emoji":"🔭","desc":"Viewed 25 user profiles","xp":0,"category":"","hidden":false,"serverAward":false},"profile_explorer_50":{"name":"The Networker","emoji":"🤝","desc":"Viewed 50 user profiles","xp":0,"category":"","hidden":false,"serverAward":false},"profile_explorer_100":{"name":"Archive Archivist","emoji":"📚","desc":"Viewed 100 user profiles","xp":0,"category":"","hidden":false,"serverAward":false},"nacho_dressed":{"name":"Fashion Forward","emoji":"👗","desc":"Equipped a closet item on Nacho","xp":0,"category":"","hidden":false,"serverAward":false},"explorer_5":{"name":"Curious Mind","emoji":"🔍","desc":"Visited 5 topics","xp":10,"category":"","hidden":false,"serverAward":true},"foundation_builder":{"name":"Foundation Builder","emoji":"🧱","desc":"Read all Layer 1 Properties (Orange)","xp":50,"category":"","hidden":false,"serverAward":true},"experienced_pro":{"name":"Deep Diver","emoji":"🤿","desc":"Read all Experienced Topics (Purple)","xp":50,"category":"","hidden":false,"serverAward":true},"librarian":{"name":"The Librarian","emoji":"📚","desc":"Read all Resource topics (Blue)","xp":50,"category":"","hidden":false,"serverAward":true},"bookworm":{"name":"Bookworm","emoji":"📖","desc":"Saved 5 topics to favorites","xp":0,"category":"","hidden":false,"serverAward":false},"early_bird":{"name":"Early Bird","emoji":"🐦","desc":"Browsing between 5am and 7am","xp":0,"category":"","hidden":false,"serverAward":false},"night_owl":{"name":"Night Owl","emoji":"🦉","desc":"Browsing between midnight and 5am","xp":0,"category":"","hidden":false,"serverAward":false},"chat_25":{"name":"Getting Chatty","emoji":"🗨️","desc":"Sent 25 messages in Global Chat","xp":50,"category":"","hidden":false,"serverAward":true},"chat_200":{"name":"Chat Veteran","emoji":"🎖️","desc":"Sent 200 messages in Global Chat","xp":150,"category":"","hidden":false,"serverAward":true},"chat_1000":{"name":"Chat Immortal","emoji":"♾️","desc":"Sent 1,000 messages in Global Chat","xp":500,"category":"","hidden":false,"serverAward":true},"chat_lurker_5":{"name":"Chat Lurker","emoji":"💬","desc":"Opened the chat 5 times","xp":0,"category":"","hidden":true,"serverAward":false},"chat_lurker_10":{"name":"Social Butterfly","emoji":"🦋","desc":"Opened the chat 10 times","xp":0,"category":"","hidden":true,"serverAward":false},"chat_lurker_50":{"name":"Always Online","emoji":"🟢","desc":"Opened the chat 50 times","xp":0,"category":"","hidden":true,"serverAward":false},"chat_lurker_100":{"name":"Chat Addict","emoji":"🗣️","desc":"Opened the chat 100 times","xp":0,"category":"","hidden":true,"serverAward":false},"chat_lurker_500":{"name":"Global Chat Legend","emoji":"🌐","desc":"Opened the chat 500 times","xp":0,"category":"","hidden":true,"serverAward":false},"lb_lurker_5":{"name":"Leaderboard Lurker","emoji":"👀","desc":"Opened the leaderboard 5 times","xp":0,"category":"","hidden":true,"serverAward":false},"lb_lurker_10":{"name":"Rank Watcher","emoji":"📊","desc":"Opened the leaderboard 10 times","xp":0,"category":"","hidden":true,"serverAward":false},"lb_lurker_50":{"name":"Standing Obsession","emoji":"🔭","desc":"Opened the leaderboard 50 times","xp":0,"category":"","hidden":true,"serverAward":false},"lb_lurker_100":{"name":"Rank Addict","emoji":"🎯","desc":"Opened the leaderboard 100 times","xp":0,"category":"","hidden":true,"serverAward":false},"lb_lurker_500":{"name":"Leaderboard Legend","emoji":"🏆","desc":"Opened the leaderboard 500 times","xp":0,"category":"","hidden":true,"serverAward":false},"dj_50":{"name":"DJ Legend","emoji":"🎤","desc":"DJed 50 sets in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"dj_listener_100":{"name":"Super Fan","emoji":"🌟","desc":"Tuned in to 100 DJ sets","xp":0,"category":"","hidden":false,"serverAward":false},"beats_100_plays":{"name":"Music Lover","emoji":"🎵","desc":"Played 100 tracks on Bitcoin Beats","xp":0,"category":"","hidden":false,"serverAward":false},"beats_200_plays":{"name":"Music Junkie","emoji":"🎶","desc":"Played 200 tracks on Bitcoin Beats","xp":0,"category":"","hidden":false,"serverAward":false},"beats_500_plays":{"name":"Audiophile","emoji":"🎧","desc":"Played 500 tracks on Bitcoin Beats","xp":0,"category":"","hidden":false,"serverAward":false},"beats_comment_1":{"name":"Reviewer","emoji":"⭐","desc":"Left a comment on a Bitcoin Beats track","xp":0,"category":"","hidden":false,"serverAward":false},"dm_25":{"name":"Power Networker","emoji":"📡","desc":"Sent 25 direct messages","xp":50,"category":"","hidden":false,"serverAward":true},"dm_100":{"name":"Inbox King","emoji":"👑","desc":"Sent 100 direct messages","xp":150,"category":"","hidden":false,"serverAward":true},"forum_first":{"name":"First Post","emoji":"📝","desc":"Made your first forum post","xp":10,"category":"","hidden":false,"serverAward":true},"forum_10":{"name":"Active Voice","emoji":"🗣️","desc":"Made 10 forum posts","xp":50,"category":"","hidden":false,"serverAward":true},"forum_50":{"name":"Prolific Poster","emoji":"✍️","desc":"Made 50 forum posts","xp":150,"category":"","hidden":false,"serverAward":true},"forum_100":{"name":"Forum Legend","emoji":"🏛️","desc":"Made 100 forum posts","xp":500,"category":"","hidden":false,"serverAward":true},"forum_reply_1":{"name":"Responder","emoji":"💬","desc":"Left your first forum reply","xp":10,"category":"","hidden":false,"serverAward":true},"forum_reply_10":{"name":"Commentator","emoji":"🗣️","desc":"Left 10 forum replies","xp":50,"category":"","hidden":false,"serverAward":true},"article_5":{"name":"Journalist","emoji":"📰","desc":"Published 5 articles","xp":150,"category":"","hidden":false,"serverAward":true},"article_10":{"name":"Staff Writer","emoji":"🗞️","desc":"Published 10 articles","xp":500,"category":"","hidden":false,"serverAward":true},"daily_triple_90":{"name":"Trifecta Legend","emoji":"🏆","desc":"Completed the Daily Trifecta 90 times","xp":500,"category":"","hidden":false,"serverAward":true},"daily_triple_365":{"name":"Satoshi's Disciple","emoji":"🟠","desc":"Completed the Daily Trifecta 365 times","xp":2000,"category":"","hidden":false,"serverAward":true},"react_10":{"name":"Reaction Habit","emoji":"👍","desc":"Reacted to 10 messages in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"react_100":{"name":"Reactor","emoji":"⚡","desc":"Reacted to 100 messages in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"react_500":{"name":"Reaction God","emoji":"🔮","desc":"Reacted to 500 messages in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"pvp_played_1":{"name":"Challenger","emoji":"🥋","desc":"Played your first PVP battle","xp":10,"category":"","hidden":false,"serverAward":true},"pvp_played_10":{"name":"Battle Tested","emoji":"🪖","desc":"Played 10 PVP battles","xp":50,"category":"","hidden":false,"serverAward":true},"pvp_played_50":{"name":"Battle Hardened","emoji":"⚔️","desc":"Played 50 PVP battles","xp":150,"category":"","hidden":false,"serverAward":true},"pvp_win_streak_3":{"name":"Hot Streak","emoji":"🔥","desc":"Won 3 PVP battles in a row","xp":0,"category":"","hidden":false,"serverAward":false},"pvp_win_streak_5":{"name":"Unstoppable","emoji":"💥","desc":"Won 5 PVP battles in a row","xp":0,"category":"","hidden":false,"serverAward":false},"streak_3":{"name":"Three's Company","emoji":"📆","desc":"3-day visit streak","xp":50,"category":"","hidden":false,"serverAward":true},"streak_21":{"name":"21 Days","emoji":"₿","desc":"21-day visit streak — the Bitcoin number","xp":500,"category":"","hidden":false,"serverAward":true},"trail_started":{"name":"On the Trail","emoji":"🌱","desc":"Attempted your first Nacho's Trail quiz","xp":0,"category":"","hidden":false,"serverAward":false},"trail_double":{"name":"Double Summit","emoji":"🏔️","desc":"Completed two Nacho's Trails","xp":0,"category":"","hidden":false,"serverAward":false},"trail_speed_3":{"name":"Speedrunner","emoji":"🏁","desc":"Completed all three trails","xp":0,"category":"","hidden":false,"serverAward":false},"trail_meadow_fast":{"name":"Speed Hiker","emoji":"⚡","desc":"Completed The Meadow trail","xp":0,"category":"","hidden":false,"serverAward":false},"trail_perfectionist":{"name":"No Shortcuts","emoji":"🧠","desc":"Completed The Summit trail","xp":0,"category":"","hidden":false,"serverAward":false},"trail_revisit":{"name":"Back for More","emoji":"🔁","desc":"Retook a trail you already passed","xp":0,"category":"","hidden":false,"serverAward":false},"spin_1":{"name":"First Spin","emoji":"🎰","desc":"Spun the wheel for the first time","xp":10,"category":"","hidden":false,"serverAward":true},"spin_7":{"name":"Spin Week","emoji":"🌀","desc":"Spun 7 days total","xp":50,"category":"","hidden":false,"serverAward":true},"spin_100":{"name":"Century Spinner","emoji":"🏅","desc":"Spun the wheel 100 days total","xp":500,"category":"","hidden":false,"serverAward":true},"spin_closet_1":{"name":"Dressed to Impress","emoji":"👔","desc":"Won your first closet item from the spin","xp":150,"category":"","hidden":false,"serverAward":true},"spin_closet_5":{"name":"Full Wardrobe","emoji":"🌈","desc":"Won 5 closet items from spins","xp":500,"category":"","hidden":false,"serverAward":true},"spin_streak_14":{"name":"Fortnight Spinner","emoji":"🔄","desc":"Spun 14 days in a row","xp":150,"category":"","hidden":false,"serverAward":true},"spin_streak_30":{"name":"Wheel Addict","emoji":"🎡","desc":"Spun 30 days in a row","xp":500,"category":"","hidden":false,"serverAward":true},"sf_lucky_1":{"name":"Lucky Roll","emoji":"🎰","desc":"Mined a lucky hash (under 1,000,000) 1 time","xp":0,"category":"","hidden":false,"serverAward":false},"sf_lucky_5":{"name":"Hot Streak","emoji":"🔥","desc":"Mined a lucky hash (under 1,000,000) 5 times","xp":0,"category":"","hidden":false,"serverAward":false},"sf_lucky_10":{"name":"Clover Nonce","emoji":"🍀","desc":"Mined a lucky hash (under 1,000,000) 10 times","xp":0,"category":"","hidden":false,"serverAward":false},"sf_lucky_50":{"name":"Fortune Miner","emoji":"🪄","desc":"Mined a lucky hash (under 1,000,000) 50 times","xp":0,"category":"","hidden":false,"serverAward":false},"sf_lucky_100":{"name":"Blessed Nonce","emoji":"✨","desc":"Mined a lucky hash (under 1,000,000) 100 times","xp":0,"category":"","hidden":false,"serverAward":false},"sf_lucky_1000":{"name":"Satoshi's Chosen","emoji":"💎","desc":"Mined a lucky hash (under 1,000,000) 1,000 times","xp":0,"category":"","hidden":false,"serverAward":false},"sf_unlucky_1":{"name":"Off the Mark","emoji":"💨","desc":"Mined an unlucky hash (over 99,000,000) 1 time","xp":0,"category":"","hidden":false,"serverAward":false},"sf_unlucky_5":{"name":"Cold Streak","emoji":"🧊","desc":"Mined an unlucky hash (over 99,000,000) 5 times","xp":0,"category":"","hidden":false,"serverAward":false},"sf_unlucky_10":{"name":"Wrong Side of Zero","emoji":"🚫","desc":"Mined an unlucky hash (over 99,000,000) 10 times","xp":0,"category":"","hidden":false,"serverAward":false},"sf_unlucky_50":{"name":"Perpetual Loser","emoji":"💔","desc":"Mined an unlucky hash (over 99,000,000) 50 times","xp":0,"category":"","hidden":false,"serverAward":false},"sf_unlucky_100":{"name":"Cursed Miner","emoji":"⚰️","desc":"Mined an unlucky hash (over 99,000,000) 100 times","xp":0,"category":"","hidden":false,"serverAward":false},"sf_unlucky_1000":{"name":"Proof of Pain","emoji":"🕱️","desc":"Mined an unlucky hash (over 99,000,000) 1,000 times","xp":0,"category":"","hidden":false,"serverAward":false},"market_listed_10":{"name":"Power Seller","emoji":"🏆","desc":"Listed 10 items in the Marketplace","xp":150,"category":"","hidden":false,"serverAward":true},"predict_correct_50":{"name":"Half-Oracle","emoji":"🌙","desc":"50 correct price predictions","xp":500,"category":"","hidden":false,"serverAward":true},"predict_accuracy_70":{"name":"Precision Forecaster","emoji":"🎯","desc":"Hit 70%+ accuracy across 20+ predictions","xp":150,"category":"","hidden":false,"serverAward":true},"fun_friday":{"name":"TGIF Pleb","emoji":"🍕","desc":"Visited on a Friday","xp":0,"category":"","hidden":false,"serverAward":false},"fun_weekend":{"name":"Weekend Warrior","emoji":"🏖️","desc":"Visited on a Saturday or Sunday","xp":0,"category":"","hidden":false,"serverAward":false},"fun_midnight":{"name":"Midnight Maxi","emoji":"🌕","desc":"Visited right at midnight (12:00 AM)","xp":0,"category":"","hidden":false,"serverAward":false},"fun_new_year":{"name":"New Year Stacker","emoji":"🎆","desc":"Visited on January 1st","xp":0,"category":"","hidden":false,"serverAward":false},"fun_bitcoin_birthday":{"name":"Bitcoin Birthday","emoji":"🎂","desc":"Visited on Jan 3 — Genesis Block Day","xp":0,"category":"","hidden":false,"serverAward":false},"fun_halving_day":{"name":"Halving Day","emoji":"✂️","desc":"Visited on April 20 — the spirit of the halving","xp":0,"category":"","hidden":false,"serverAward":false},"fun_pi_day":{"name":"Pi Day Pleb","emoji":"🥧","desc":"Visited on March 14 (3.14) — Bitcoiners appreciate irrational numbers too","xp":0,"category":"","hidden":false,"serverAward":false},"fun_whitepaper_day":{"name":"Whitepaper Day","emoji":"📜","desc":"Visited on Oct 31 — Bitcoin Whitepaper Anniversary","xp":0,"category":"","hidden":false,"serverAward":false},"set_beats_complete":{"name":"Beats Maestro","emoji":"🎤","desc":"Completed The Beats Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_daily_complete":{"name":"Challenge Master","emoji":"🏅","desc":"Completed The Daily Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_irl_complete":{"name":"Community Anchor","emoji":"🌍","desc":"Completed The IRL Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_lightning_complete":{"name":"Lightning Lord","emoji":"⚡","desc":"Completed The Lightning Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_pow_complete":{"name":"Distance Legend","emoji":"🌍","desc":"Completed The Proof of Walk Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_profile_complete":{"name":"Archive Legend","emoji":"🦌","desc":"Completed The Profile Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_spin_complete":{"name":"Wheel Master","emoji":"🎰","desc":"Completed The Wheel Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_tctv_complete":{"name":"Timechain Veteran","emoji":"🛸","desc":"Completed The Timechain TV Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_trails_complete":{"name":"Trail Blazer","emoji":"🏔️","desc":"Completed The Trails Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_trifecta_complete":{"name":"Trifecta God","emoji":"🌞","desc":"Completed The Trifecta Set","xp":2000,"category":"","hidden":true,"serverAward":true},"jack_of_all":{"name":"Jack of All Trades","emoji":"🃏","desc":"Earned at least one badge in every major category","xp":150,"category":"","hidden":false,"serverAward":true},"flex_steak_10":{"name":"flex_steak_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_steak_25":{"name":"flex_steak_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_steak_100":{"name":"flex_steak_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_steak_1000":{"name":"flex_steak_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_sunlight_10":{"name":"flex_sunlight_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_sunlight_25":{"name":"flex_sunlight_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_sunlight_100":{"name":"flex_sunlight_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_sunlight_1000":{"name":"flex_sunlight_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_dca_10":{"name":"flex_dca_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_dca_25":{"name":"flex_dca_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_dca_100":{"name":"flex_dca_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_dca_1000":{"name":"flex_dca_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_custody_10":{"name":"flex_custody_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_custody_25":{"name":"flex_custody_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_custody_100":{"name":"flex_custody_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_custody_1000":{"name":"flex_custody_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_lift_10":{"name":"flex_lift_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_lift_25":{"name":"flex_lift_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_lift_100":{"name":"flex_lift_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_lift_1000":{"name":"flex_lift_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_meetup_10":{"name":"flex_meetup_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_meetup_25":{"name":"flex_meetup_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_meetup_100":{"name":"flex_meetup_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_meetup_1000":{"name":"flex_meetup_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_lightning_10":{"name":"flex_lightning_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_lightning_25":{"name":"flex_lightning_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_lightning_100":{"name":"flex_lightning_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_lightning_1000":{"name":"flex_lightning_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_read_10":{"name":"flex_read_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_read_25":{"name":"flex_read_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_read_100":{"name":"flex_read_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_read_1000":{"name":"flex_read_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_sleep_10":{"name":"flex_sleep_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_sleep_25":{"name":"flex_sleep_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_sleep_100":{"name":"flex_sleep_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_sleep_1000":{"name":"flex_sleep_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_nokyc_10":{"name":"flex_nokyc_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_nokyc_25":{"name":"flex_nokyc_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_nokyc_100":{"name":"flex_nokyc_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_nokyc_1000":{"name":"flex_nokyc_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_node_10":{"name":"flex_node_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_node_25":{"name":"flex_node_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_node_100":{"name":"flex_node_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_node_1000":{"name":"flex_node_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_cold_10":{"name":"flex_cold_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_cold_25":{"name":"flex_cold_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_cold_100":{"name":"flex_cold_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_cold_1000":{"name":"flex_cold_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_fast_10":{"name":"flex_fast_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_fast_25":{"name":"flex_fast_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_fast_100":{"name":"flex_fast_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_fast_1000":{"name":"flex_fast_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_walk_10":{"name":"flex_walk_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_walk_25":{"name":"flex_walk_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_walk_100":{"name":"flex_walk_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_walk_1000":{"name":"flex_walk_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_journal_10":{"name":"flex_journal_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_journal_25":{"name":"flex_journal_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_journal_100":{"name":"flex_journal_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_journal_1000":{"name":"flex_journal_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_meditate_10":{"name":"flex_meditate_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_meditate_25":{"name":"flex_meditate_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_meditate_100":{"name":"flex_meditate_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_meditate_1000":{"name":"flex_meditate_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_teach_10":{"name":"flex_teach_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_teach_25":{"name":"flex_teach_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_teach_100":{"name":"flex_teach_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_teach_1000":{"name":"flex_teach_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_water_10":{"name":"flex_water_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_water_25":{"name":"flex_water_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_water_100":{"name":"flex_water_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_water_1000":{"name":"flex_water_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_gratitude_10":{"name":"flex_gratitude_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_gratitude_25":{"name":"flex_gratitude_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_gratitude_100":{"name":"flex_gratitude_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_gratitude_1000":{"name":"flex_gratitude_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_verify_10":{"name":"flex_verify_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_verify_25":{"name":"flex_verify_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_verify_100":{"name":"flex_verify_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_verify_1000":{"name":"flex_verify_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_focus_10":{"name":"flex_focus_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_focus_25":{"name":"flex_focus_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_focus_100":{"name":"flex_focus_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_focus_1000":{"name":"flex_focus_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_risk_10":{"name":"flex_risk_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_risk_25":{"name":"flex_risk_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_risk_100":{"name":"flex_risk_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_risk_1000":{"name":"flex_risk_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_pattern_10":{"name":"flex_pattern_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_pattern_25":{"name":"flex_pattern_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_pattern_100":{"name":"flex_pattern_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_pattern_1000":{"name":"flex_pattern_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_findq_10":{"name":"flex_findq_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_findq_25":{"name":"flex_findq_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_findq_100":{"name":"flex_findq_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_findq_1000":{"name":"flex_findq_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_noleverage_10":{"name":"flex_noleverage_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_noleverage_25":{"name":"flex_noleverage_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_noleverage_100":{"name":"flex_noleverage_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_noleverage_1000":{"name":"flex_noleverage_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_gunrange_10":{"name":"flex_gunrange_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_gunrange_25":{"name":"flex_gunrange_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_gunrange_100":{"name":"flex_gunrange_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_gunrange_1000":{"name":"flex_gunrange_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_sellchairs_10":{"name":"flex_sellchairs_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_sellchairs_25":{"name":"flex_sellchairs_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_sellchairs_100":{"name":"flex_sellchairs_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_sellchairs_1000":{"name":"flex_sellchairs_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_starebtc_10":{"name":"flex_starebtc_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_starebtc_25":{"name":"flex_starebtc_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_starebtc_100":{"name":"flex_starebtc_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_starebtc_1000":{"name":"flex_starebtc_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_itoldyou_10":{"name":"flex_itoldyou_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_itoldyou_25":{"name":"flex_itoldyou_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_itoldyou_100":{"name":"flex_itoldyou_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_itoldyou_1000":{"name":"flex_itoldyou_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_pumpndump_10":{"name":"flex_pumpndump_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_pumpndump_25":{"name":"flex_pumpndump_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_pumpndump_100":{"name":"flex_pumpndump_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_pumpndump_1000":{"name":"flex_pumpndump_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"first_peer":{"name":"First Peer","emoji":"🧡","desc":"Connected with your first peer on the Bitcoin Education Archive","xp":10,"category":"","hidden":false,"serverAward":true},"peer_network_10":{"name":"Node Runner","emoji":"🕸️","desc":"Built a peer network of 10 people","xp":10,"category":"","hidden":false,"serverAward":true},"peer_network_50":{"name":"Signal Booster","emoji":"📡","desc":"Connected with 50 peers — spreading the signal","xp":2000,"category":"","hidden":false,"serverAward":true},"peer_network_100":{"name":"Hub Node","emoji":"🌐","desc":"Connected with 100 peers — you are a hub on the network","xp":2000,"category":"","hidden":false,"serverAward":true},"peer_network_250":{"name":"Network Sovereign","emoji":"👑","desc":"Connected with 250 peers — sovereign node of the Archive","xp":2000,"category":"","hidden":false,"serverAward":true},"sf_100000_hashes":{"name":"Hundred Thousand Hashes","emoji":"⛏️","desc":"Contributed 100,000 Satoshi's Favor hashes","xp":2000,"category":"Favor","hidden":false,"serverAward":true},"gift_open_1":{"name":"Unwrapped","emoji":"🎁","desc":"Opened your first gift","xp":10,"category":"Open Hand","hidden":false,"serverAward":true},"gift_open_25":{"name":"Ribbon Cutter","emoji":"🎀","desc":"Opened 25 gifts","xp":50,"category":"Open Hand","hidden":false,"serverAward":true},"gift_open_100":{"name":"Present Pro","emoji":"🎁","desc":"Opened 100 gifts","xp":150,"category":"Open Hand","hidden":false,"serverAward":true},"gift_open_500":{"name":"Gift Hoarder","emoji":"📦","desc":"Opened 500 gifts","xp":500,"category":"Open Hand","hidden":false,"serverAward":true},"gift_open_1500":{"name":"Endless Wrapping","emoji":"♾️","desc":"Opened 1,500 gifts","xp":2000,"category":"Open Hand","hidden":false,"serverAward":true},"gift_lucky_shoutout":{"name":"Nacho's Pick","emoji":"📣","desc":"A gift's Nacho shoutout was posted","xp":50,"category":"Open Hand","hidden":false,"serverAward":true},"gift_sent_1":{"name":"Gift Giver","emoji":"🎁","desc":"A peer used a key you sent","xp":10,"category":"Open Hand","hidden":false,"serverAward":true},"gift_sent_10":{"name":"Generous","emoji":"🎁","desc":"Peers used 10 keys you sent","xp":150,"category":"Open Hand","hidden":false,"serverAward":true},"gift_sent_50":{"name":"Santa Sats","emoji":"🎅","desc":"Peers used 50 keys you sent","xp":500,"category":"Open Hand","hidden":false,"serverAward":true},"gift_sent_200":{"name":"Key Philanthropist","emoji":"🗝️","desc":"Peers used 200 keys you sent","xp":2000,"category":"Open Hand","hidden":false,"serverAward":true},"key_peers_5":{"name":"Keymaster","emoji":"🔑","desc":"5 different peers used a key you sent","xp":150,"category":"Peer Network","hidden":false,"serverAward":true},"key_peers_21":{"name":"Web of Trust","emoji":"🕸️","desc":"21 different peers used a key you sent","xp":500,"category":"Peer Network","hidden":false,"serverAward":true},"cipher_peer_key_1":{"name":"Borrowed Key","emoji":"🔐","desc":"Opened a cipher with a peer's key","xp":10,"category":"Codebreaker","hidden":false,"serverAward":true},"cipher_peer_key_25":{"name":"Trusted Circle","emoji":"🔐","desc":"Opened 25 ciphers with peers' keys","xp":150,"category":"Codebreaker","hidden":false,"serverAward":true},"cipher_peer_key_100":{"name":"Shared Secrets","emoji":"🔐","desc":"Opened 100 ciphers with peers' keys","xp":500,"category":"Codebreaker","hidden":false,"serverAward":true},"cipher_full_ring":{"name":"Full Keyring","emoji":"💍","desc":"Opened 21 ciphers in one day","xp":150,"category":"Codebreaker","hidden":false,"serverAward":true},"cipher_sats_1":{"name":"Cracked the Vault","emoji":"⚡","desc":"Received your first paid cipher sats win","xp":150,"category":"Codebreaker","hidden":false,"serverAward":true},"cipher_sats_5":{"name":"Vault Regular","emoji":"⚡","desc":"Received 5 paid cipher sats wins","xp":500,"category":"Codebreaker","hidden":false,"serverAward":true},"cipher_sats_10k":{"name":"Whale Cipher","emoji":"🐳","desc":"A paid cipher win of 10,000 sats or more","xp":2000,"category":"Codebreaker","hidden":false,"serverAward":true},"peer_level_2":{"name":"Channel Opened","emoji":"🟨","desc":"A peer pair reached Opening Channel","xp":10,"category":"Peer Network","hidden":false,"serverAward":true},"peer_level_3":{"name":"Routing Nodes","emoji":"🟧","desc":"A peer pair reached Routing Nodes","xp":50,"category":"Peer Network","hidden":false,"serverAward":true},"peer_level_4":{"name":"Adjusted Fees","emoji":"🟦","desc":"A peer pair reached Adjusted Fees","xp":150,"category":"Peer Network","hidden":false,"serverAward":true},"peer_level_5":{"name":"Balanced Liquidity","emoji":"🟪","desc":"A peer pair reached Balanced Liquidity","xp":500,"category":"Peer Network","hidden":false,"serverAward":true},"peer_level_6":{"name":"Wumbo Channel","emoji":"⚡","desc":"A peer pair reached Wumbo Channel","xp":2000,"category":"Peer Network","hidden":false,"serverAward":true},"peer_hub_5":{"name":"Lightning Hub","emoji":"🌐","desc":"5 peers at Routing Nodes or higher","xp":500,"category":"Peer Network","hidden":false,"serverAward":true},"topic_comment_1":{"name":"Chimed In","emoji":"💬","desc":"A counted comment on a topic","xp":10,"category":"Community Voice","hidden":false,"serverAward":true},"topic_comment_10":{"name":"Discussion Regular","emoji":"💬","desc":"10 counted topic comments","xp":50,"category":"Community Voice","hidden":false,"serverAward":true},"topic_comment_50":{"name":"Thread Weaver","emoji":"🧵","desc":"50 counted topic comments","xp":150,"category":"Community Voice","hidden":false,"serverAward":true},"topic_comment_250":{"name":"Town Crier","emoji":"📢","desc":"250 counted topic comments","xp":500,"category":"Community Voice","hidden":false,"serverAward":true},"topic_channels_10":{"name":"Well-Rounded","emoji":"📚","desc":"Counted comments in 10 different topics","xp":150,"category":"Community Voice","hidden":false,"serverAward":true},"shop_10":{"name":"Regular Customer","emoji":"🛒","desc":"Made 10 purchases in Nacho's Nook","xp":50,"category":"Nook","hidden":false,"serverAward":true},"shop_50":{"name":"Nook VIP","emoji":"🛒","desc":"Made 50 purchases in Nacho's Nook","xp":150,"category":"Nook","hidden":false,"serverAward":true},"raffle_entered":{"name":"Feeling Lucky","emoji":"🎟️","desc":"Bought a raffle ticket with orange tickets","xp":10,"category":"Raffle","hidden":false,"serverAward":true},"raffle_10":{"name":"Ticket Stacker","emoji":"🎟️","desc":"Bought 10 raffle tickets with orange tickets","xp":50,"category":"Raffle","hidden":false,"serverAward":true},"raffle_50":{"name":"Regular Drawer","emoji":"🎲","desc":"Bought 50 raffle tickets with orange tickets","xp":150,"category":"Raffle","hidden":false,"serverAward":true},"raffle_250":{"name":"High Roller","emoji":"🎰","desc":"Bought 250 raffle tickets with orange tickets","xp":500,"category":"Raffle","hidden":false,"serverAward":true},"raffle_1000":{"name":"House Favorite","emoji":"🏆","desc":"Bought 1,000 raffle tickets with orange tickets","xp":2000,"category":"Raffle","hidden":false,"serverAward":true},"raffle_winner":{"name":"Raffle Champion","emoji":"🏆","desc":"Won the monthly orange-ticket raffle","xp":500,"category":"Raffle","hidden":false,"serverAward":true},"predict_top_week":{"name":"Weekly Oracle","emoji":"🔮","desc":"Paid as a weekly Top Predictor","xp":150,"category":"Oracle","hidden":false,"serverAward":true},"predict_top_week_5":{"name":"Seasoned Oracle","emoji":"🔮","desc":"Paid as a weekly Top Predictor 5 times","xp":500,"category":"Oracle","hidden":false,"serverAward":true},"predict_top_month":{"name":"Monthly Oracle","emoji":"🌕","desc":"Paid as a monthly Top Predictor","xp":500,"category":"Oracle","hidden":false,"serverAward":true},"totp_enabled":{"name":"Fort Knox","emoji":"🔒","desc":"Turned on an authenticator","xp":50,"category":"Sovereign Setup","hidden":false,"serverAward":true},"faction_chosen":{"name":"Pledged","emoji":"🏴","desc":"Chose a faction","xp":10,"category":"Sovereign Setup","hidden":false,"serverAward":true},"onboarding_complete":{"name":"Welcome Aboard","emoji":"🧭","desc":"Finished onboarding","xp":10,"category":"Welcome Aboard","hidden":false,"serverAward":true},"push_enabled":{"name":"Ring the Bell","emoji":"🔔","desc":"Turned on push notifications","xp":10,"category":"Welcome Aboard","hidden":false,"serverAward":true},"the_completionist":{"name":"the_completionist","emoji":"🗺️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"quest_legend":{"name":"quest_legend","emoji":"⚔️","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"hash_lord":{"name":"hash_lord","emoji":"☄️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"hash_god":{"name":"hash_god","emoji":"⚡","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"satoshis_chosen":{"name":"satoshis_chosen","emoji":"💎","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"block_solver":{"name":"block_solver","emoji":"🌞","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"hodler_supreme":{"name":"hodler_supreme","emoji":"🪩","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"sovereign_individual":{"name":"sovereign_individual","emoji":"🗽","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"the_satellite":{"name":"the_satellite","emoji":"🛰️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"timechain_surfer":{"name":"timechain_surfer","emoji":"🏄","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"chat_legend":{"name":"chat_legend","emoji":"📯","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"the_devoted":{"name":"the_devoted","emoji":"💠","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"pvp_legend":{"name":"pvp_legend","emoji":"🥇","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"raid_warlord":{"name":"raid_warlord","emoji":"🔱","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"dragon_slayer":{"name":"dragon_slayer","emoji":"🐲","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"the_viral_plebian":{"name":"the_viral_plebian","emoji":"👑","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"satoshis_disciple":{"name":"satoshis_disciple","emoji":"🟠","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"trifecta_legend":{"name":"trifecta_legend","emoji":"🏆","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"double_scholar":{"name":"double_scholar","emoji":"🏛️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"trivia_titan":{"name":"trivia_titan","emoji":"🏅","desc":"","xp":2000,"category":"","hidden":false,"serverAward":true},"the_devotee":{"name":"the_devotee","emoji":"🔱","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"vinyl_master":{"name":"vinyl_master","emoji":"🎼","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"nachos_confidant":{"name":"nachos_confidant","emoji":"🤫","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"regional_leader":{"name":"regional_leader","emoji":"🌆","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"twenty_one_million":{"name":"twenty_one_million","emoji":"₿","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"proof_of_pain":{"name":"proof_of_pain","emoji":"🕱️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"trail_master":{"name":"trail_master","emoji":"🏁","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"to_the_moon":{"name":"to_the_moon","emoji":"🌕","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"democracy_maxi":{"name":"democracy_maxi","emoji":"⚖️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"sat_slinger":{"name":"sat_slinger","emoji":"💰","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"community_darling":{"name":"community_darling","emoji":"🌟","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"time_traveler":{"name":"time_traveler","emoji":"⏳","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"the_long_walker":{"name":"the_long_walker","emoji":"💎","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"chancellor":{"name":"chancellor","emoji":"📰","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"the_archivist_t":{"name":"the_archivist_t","emoji":"🏛️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"hall_of_fame_t":{"name":"hall_of_fame_t","emoji":"🏆","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"satoshis_revenge_t":{"name":"satoshis_revenge_t","emoji":"⚔️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"satoshis_vendetta_t":{"name":"satoshis_vendetta_t","emoji":"🗡️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"satoshis_ghost_t":{"name":"satoshis_ghost_t","emoji":"👻","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"satoshis_covenant_t":{"name":"satoshis_covenant_t","emoji":"📜","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"satoshis_cipher_t":{"name":"satoshis_cipher_t","emoji":"🔐","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"grand_scholar":{"name":"grand_scholar","emoji":"🎓","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"jack_of_all_t":{"name":"jack_of_all_t","emoji":"🃏","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"master_miner_t":{"name":"master_miner_t","emoji":"⛏️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"satoshi_scholar_t":{"name":"satoshi_scholar_t","emoji":"🎓","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"community_pillar_t":{"name":"community_pillar_t","emoji":"🌐","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"diamond_hands_set_t":{"name":"diamond_hands_set_t","emoji":"💎","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"arena_champion_t":{"name":"arena_champion_t","emoji":"👑","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"archive_builder_t":{"name":"archive_builder_t","emoji":"🔧","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"world_traveler_t":{"name":"world_traveler_t","emoji":"🗺️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"bitcoin_cal_hero_t":{"name":"bitcoin_cal_hero_t","emoji":"🎊","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"challenge_master_t":{"name":"challenge_master_t","emoji":"🏅","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"timechain_veteran_t":{"name":"timechain_veteran_t","emoji":"🛸","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"lightning_lord_t":{"name":"lightning_lord_t","emoji":"⚡","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"trail_blazer_t":{"name":"trail_blazer_t","emoji":"🏔️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"beats_maestro_t":{"name":"beats_maestro_t","emoji":"🎤","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"trifecta_god_t":{"name":"trifecta_god_t","emoji":"🌞","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"irl_set_t":{"name":"irl_set_t","emoji":"🏟️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"spin_set_t":{"name":"spin_set_t","emoji":"🎰","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"pow_set_t":{"name":"pow_set_t","emoji":"👟","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"chat_immortal_t":{"name":"chat_immortal_t","emoji":"♾️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"reaction_god_t":{"name":"reaction_god_t","emoji":"🔮","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"dj_legend_t":{"name":"dj_legend_t","emoji":"🎛️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"super_fan_t":{"name":"super_fan_t","emoji":"🌟","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"audiophile_t":{"name":"audiophile_t","emoji":"🎧","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"forum_legend_t":{"name":"forum_legend_t","emoji":"🏛️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"staff_writer_t":{"name":"staff_writer_t","emoji":"🗞️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"unstoppable_pvp_t":{"name":"unstoppable_pvp_t","emoji":"💥","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"diamond_hands_100_t":{"name":"diamond_hands_100_t","emoji":"💎","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"wheel_addict_t":{"name":"wheel_addict_t","emoji":"🎡","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"century_spinner_t":{"name":"century_spinner_t","emoji":"🏅","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"precision_forecaster_t":{"name":"precision_forecaster_t","emoji":"🎯","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"nostradamus_t":{"name":"nostradamus_t","emoji":"🔮","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"flex_legend_t":{"name":"flex_legend_t","emoji":"🦁","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"full_stack_human_t":{"name":"full_stack_human_t","emoji":"🧬","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"legend_mode_t":{"name":"legend_mode_t","emoji":"🏆","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"nachos_bestie_t":{"name":"nachos_bestie_t","emoji":"🧡","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"super_spreader_t":{"name":"super_spreader_t","emoji":"📡","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"sat_hoarder_t":{"name":"sat_hoarder_t","emoji":"🏦","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"favor_champion_t":{"name":"favor_champion_t","emoji":"🏅","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"golden_nonce_t":{"name":"golden_nonce_t","emoji":"✨","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"asic_mode_t":{"name":"asic_mode_t","emoji":"🖥️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"summit_conqueror_t":{"name":"summit_conqueror_t","emoji":"🏔️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"pow_titan_t":{"name":"pow_titan_t","emoji":"🌍","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"story_master_t":{"name":"story_master_t","emoji":"🦧","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"scene_regular_t":{"name":"scene_regular_t","emoji":"🗺️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"tip_magnet_t":{"name":"tip_magnet_t","emoji":"🧲","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"community_hero_t":{"name":"community_hero_t","emoji":"⚡","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_beats":{"name":"The Beats Set","emoji":"🎵","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_builder":{"name":"The Builder Set","emoji":"🏗️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_fun":{"name":"The Calendar Set","emoji":"📅","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_daily":{"name":"The Daily Set","emoji":"🎯","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_explorer":{"name":"The Explorer Set","emoji":"🧭","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_pvp":{"name":"The Fighter Set","emoji":"⚔️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_irl":{"name":"The IRL Set","emoji":"🤝","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_lightning":{"name":"The Lightning Set","emoji":"⚡","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_miner":{"name":"The Miner Set","emoji":"⛏️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_pow":{"name":"The Proof of Walk Set","emoji":"🚶","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_scholar":{"name":"The Scholar Set","emoji":"📚","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_social":{"name":"The Social Set","emoji":"💬","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_streak":{"name":"The Streak Set","emoji":"🔥","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_tctv":{"name":"The Timechain TV Set","emoji":"📺","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_trails":{"name":"The Trails Set","emoji":"🥾","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_trifecta":{"name":"The Trifecta Set","emoji":"🔱","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_spin":{"name":"The Wheel Set","emoji":"🎡","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_profile":{"name":"The Profile Set","emoji":"👤","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_daily_five":{"name":"Daily Five Set","emoji":"🖐️","desc":"Completed the Daily Five collection","xp":150,"category":"Collections","hidden":false,"serverAward":true},"set_voice":{"name":"Community Voice Set","emoji":"💬","desc":"Completed the Community Voice collection","xp":150,"category":"Collections","hidden":false,"serverAward":true},"set_tv":{"name":"Prime Time Set","emoji":"📺","desc":"Completed the Prime Time collection","xp":150,"category":"Collections","hidden":false,"serverAward":true},"set_trader":{"name":"Open for Business Set","emoji":"🏪","desc":"Completed the Open for Business collection","xp":150,"category":"Collections","hidden":false,"serverAward":true},"set_codebreaker":{"name":"Codebreaker Set","emoji":"🔐","desc":"Completed the Codebreaker collection","xp":500,"category":"Collections","hidden":false,"serverAward":true},"set_generous":{"name":"Open Hand Set","emoji":"🎁","desc":"Completed the Open Hand collection","xp":150,"category":"Collections","hidden":false,"serverAward":true},"set_network":{"name":"Peer Network Set","emoji":"🤝","desc":"Completed the Peer Network collection","xp":500,"category":"Collections","hidden":false,"serverAward":true},"set_gladiator":{"name":"Gladiator Set","emoji":"⚔️","desc":"Completed the Gladiator collection","xp":150,"category":"Collections","hidden":false,"serverAward":true},"set_scholar_daily":{"name":"Daily Scholar Set","emoji":"📚","desc":"Completed the Daily Scholar collection","xp":150,"category":"Collections","hidden":false,"serverAward":true},"set_newcomer":{"name":"Welcome Aboard Set","emoji":"🧭","desc":"Completed the Welcome Aboard collection","xp":150,"category":"Collections","hidden":false,"serverAward":true},"set_favor":{"name":"Favor of Satoshi Set","emoji":"🔱","desc":"Completed the Favor of Satoshi collection","xp":500,"category":"Collections","hidden":false,"serverAward":true},"set_oracle":{"name":"Oracle Set","emoji":"🔮","desc":"Completed the Oracle collection","xp":500,"category":"Collections","hidden":false,"serverAward":true},"set_sovereign":{"name":"Sovereign Setup Set","emoji":"🔒","desc":"Completed the Sovereign Setup collection","xp":150,"category":"Collections","hidden":false,"serverAward":true},"set_raffle":{"name":"Raffle Regular Set","emoji":"🎟️","desc":"Completed the Raffle Regular collection","xp":500,"category":"Collections","hidden":false,"serverAward":true},"nacho_friend":{"name":"Nacho's Friend","emoji":"🦌","desc":"Interact with Nacho","xp":0,"category":"","hidden":false,"serverAward":false},"genesis":{"name":"Genesis Reader","emoji":"📜","desc":"Read the whitepaper channel","xp":10,"category":"","hidden":false,"serverAward":true},"nacho_curious":{"name":"Curious Deer","emoji":"❓","desc":"Ask Nacho your first question","xp":0,"category":"","hidden":false,"serverAward":false},"ticket_bronze":{"name":"Ticket Fish","emoji":"🐟","desc":"Earn 25 Orange Tickets","xp":150,"category":"","hidden":false,"serverAward":true},"ticket_silver":{"name":"Ticket Shark","emoji":"🦈","desc":"Earn 50 Orange Tickets","xp":150,"category":"","hidden":false,"serverAward":true},"ticket_gold":{"name":"Ticket Whale","emoji":"🐋","desc":"Earn 100 Orange Tickets","xp":500,"category":"","hidden":false,"serverAward":true},"nacho_10q":{"name":"Inquisitive Buck","emoji":"🔍","desc":"Ask Nacho 10 questions","xp":0,"category":"","hidden":false,"serverAward":false},"collector":{"name":"Collector","emoji":"💎","desc":"Save 10+ topics to favorites","xp":0,"category":"","hidden":false,"serverAward":false},"first_post":{"name":"PlebTalk Voice","emoji":"📣","desc":"Make your first Pleb Talk post","xp":10,"category":"","hidden":false,"serverAward":true},"first_reply":{"name":"Conversationalist","emoji":"💬","desc":"Reply to a forum post","xp":10,"category":"","hidden":false,"serverAward":true},"market_seller":{"name":"Shopkeeper","emoji":"🏪","desc":"List an item on Lightning Mart","xp":10,"category":"","hidden":false,"serverAward":true},"market_buyer":{"name":"Shopper","emoji":"🛍️","desc":"Contact a seller on the marketplace","xp":10,"category":"","hidden":false,"serverAward":true},"speed_runner":{"name":"Speed Runner","emoji":"⚡","desc":"Visit 15+ channels in one session","xp":0,"category":"","hidden":true,"serverAward":false},"scholar":{"name":"Bitcoin Scholar","emoji":"🎓","desc":"Pass the Scholar Certification","xp":150,"category":"","hidden":true,"serverAward":true},"nacho_20q":{"name":"20 Questions","emoji":"🏅","desc":"Ask Nacho 20 questions","xp":0,"category":"","hidden":true,"serverAward":false},"marathon":{"name":"Marathon Reader","emoji":"🏃","desc":"Spent 30+ minutes reading in one session","xp":0,"category":"","hidden":true,"serverAward":false},"early_adopter":{"name":"Early Adopter","emoji":"🌅","desc":"Browsing between 5am and 7am","xp":0,"category":"","hidden":true,"serverAward":false},"weekend_warrior":{"name":"Weekend Warrior","emoji":"🎉","desc":"Learning Bitcoin on a weekend","xp":0,"category":"","hidden":true,"serverAward":false},"triple_threat":{"name":"Triple Threat","emoji":"🎯","desc":"Completed a quest, sent a chat message, and read a channel in one session","xp":0,"category":"","hidden":true,"serverAward":false},"nacho_50q":{"name":"Nacho Sage","emoji":"🧙","desc":"Ask Nacho 50 questions","xp":0,"category":"","hidden":true,"serverAward":false},"bookmark_collector":{"name":"Bookmark Hoarder","emoji":"📚","desc":"Bookmarked 20+ messages","xp":0,"category":"","hidden":true,"serverAward":false},"pvp_streak":{"name":"Undefeated","emoji":"🔱","desc":"Won 5 PVP battles in a row","xp":0,"category":"","hidden":true,"serverAward":false},"sats_maxed":{"name":"Faucet King","emoji":"👑","desc":"Claimed all 15,000 sats from the faucet","xp":2000,"category":"","hidden":true,"serverAward":true},"streak_freeze":{"name":"Ice Shield","emoji":"🧊","desc":"Used a streak freeze to save your streak","xp":50,"category":"","hidden":true,"serverAward":true},"nacho_closet_full":{"name":"Fashionista","emoji":"👗","desc":"Unlocked all Nacho closet items from the spin wheel","xp":0,"category":"","hidden":true,"serverAward":false},"ghost_reader":{"name":"Ghost Reader","emoji":"👻","desc":"Visited the archive every day for a week without earning any points","xp":150,"category":"","hidden":true,"serverAward":true},"whitepaper_pilgrim":{"name":"Whitepaper Pilgrim","emoji":"📜","desc":"Read the whitepaper channel 10 times in separate sessions","xp":0,"category":"","hidden":true,"serverAward":false},"insomniac":{"name":"Insomniac","emoji":"🌑","desc":"Visited the archive between 2am and 4am on 3 separate occasions","xp":0,"category":"","hidden":true,"serverAward":false},"contrarian":{"name":"The Contrarian","emoji":"🙃","desc":"Voted against the majority in 10 daily polls","xp":0,"category":"","hidden":true,"serverAward":false},"block_42":{"name":"Block 42","emoji":"🎱","desc":"Discovered something hidden in the archive","xp":0,"category":"","hidden":true,"serverAward":false},"rabbit_hole":{"name":"Rabbit Hole","emoji":"🕳️","desc":"Spent 3 hours straight learning in one session","xp":0,"category":"","hidden":true,"serverAward":false},"the_plebeian":{"name":"The Plebeian","emoji":"🫡","desc":"Reached the leaderboard top 100 without a single referral","xp":0,"category":"","hidden":true,"serverAward":false},"silent_donor":{"name":"Silent Donor","emoji":"🤫","desc":"Donated XP to charity without ever sharing your referral link","xp":150,"category":"","hidden":true,"serverAward":true},"dust_collector":{"name":"Dust Collector","emoji":"🧹","desc":"Claimed sats from the faucet 21 days in a row","xp":0,"category":"","hidden":true,"serverAward":false},"hash_obsessed":{"name":"Hash Obsessed","emoji":"⛏️","desc":"Contributed 25,000 hashes to Satoshi's Favor","xp":2000,"category":"","hidden":true,"serverAward":true},"search_sleuth":{"name":"Search Sleuth","emoji":"🔎","desc":"Used every search in the archive — topics, users, badges, forum, marketplace, beats, and GIFs","xp":0,"category":"","hidden":true,"serverAward":false},"q__":{"name":"q__","emoji":"🏅","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"profile_frame":{"name":"Profile Frame","emoji":"🏅","desc":"Exclusive border on your profile card","xp":0,"category":"","hidden":false,"serverAward":false},"chat_flair":{"name":"Chat Flair","emoji":"🏅","desc":"Special badge next to your name in chat","xp":0,"category":"","hidden":false,"serverAward":false},"pinned_badge":{"name":"Pinned Badge","emoji":"🏅","desc":"Showcase a permanent achievement badge","xp":0,"category":"","hidden":false,"serverAward":false},"nacho_skin_nook":{"name":"Exclusive Nacho Skin","emoji":"🏅","desc":"Rare Nacho avatar — Nook exclusive!","xp":0,"category":"","hidden":false,"serverAward":false},"steak":{"name":"Eat Steak","emoji":"🥩","desc":"Fuel up like a carnivore maxi","xp":0,"category":"","hidden":false,"serverAward":false},"sunlight":{"name":"Get Sunlight","emoji":"☀️","desc":"Touch grass. Outside. On purpose.","xp":0,"category":"","hidden":false,"serverAward":false},"dca":{"name":"DCA Bitcoin","emoji":"📈","desc":"Stack sats on schedule. No emotion.","xp":0,"category":"","hidden":false,"serverAward":false},"custody":{"name":"Self-Custody","emoji":"🔑","desc":"Not your keys, not your coins.","xp":0,"category":"","hidden":false,"serverAward":false},"lift":{"name":"Lift Weights","emoji":"🏋️","desc":"Proof of strength. Every rep counts.","xp":0,"category":"","hidden":false,"serverAward":false},"meetup":{"name":"Host a Meetup","emoji":"🤝","desc":"Orange-pill your city. IRL > URL.","xp":0,"category":"","hidden":false,"serverAward":false},"lightning":{"name":"Spend via Lightning","emoji":"⚡","desc":"Circular economy. Spend and re-stack.","xp":0,"category":"","hidden":false,"serverAward":false},"read":{"name":"Read Bitcoin","emoji":"📚","desc":"One page of Saifedean a day.","xp":0,"category":"","hidden":false,"serverAward":false},"sleep":{"name":"Sleep 8 Hours","emoji":"😴","desc":"Low time-preference recovery.","xp":0,"category":"","hidden":false,"serverAward":false},"nokyc":{"name":"Buy No-KYC","emoji":"🕵️","desc":"Preserve your privacy. Stay sovereign.","xp":0,"category":"","hidden":false,"serverAward":false},"node":{"name":"Run Your Node","emoji":"💻","desc":"Don't trust. Verify.","xp":0,"category":"","hidden":false,"serverAward":false},"cold":{"name":"Cold Plunge","emoji":"🧊","desc":"Hormetic stress. Bitcoin is similar.","xp":0,"category":"","hidden":false,"serverAward":false},"fast":{"name":"Intermittent Fast","emoji":"⏱️","desc":"Low glucose, high signal.","xp":0,"category":"","hidden":false,"serverAward":false},"walk":{"name":"Walk 10k Steps","emoji":"🚶","desc":"Proof of Walk. Calories are energy.","xp":0,"category":"","hidden":false,"serverAward":false},"journal":{"name":"Journal Today","emoji":"📝","desc":"Long-term thinking. Write it down.","xp":0,"category":"","hidden":false,"serverAward":false},"meditate":{"name":"Meditate","emoji":"🧘","desc":"Clear mind. Bitcoin is signal.","xp":0,"category":"","hidden":false,"serverAward":false},"teach":{"name":"Orange-Pill Someone","emoji":"🗣️","desc":"Share the truth. One person at a time.","xp":0,"category":"","hidden":false,"serverAward":false},"water":{"name":"Drink Water","emoji":"💧","desc":"Hydration is a low time preference act.","xp":0,"category":"","hidden":false,"serverAward":false},"gratitude":{"name":"Gratitude Practice","emoji":"🙏","desc":"Abundance mindset. Stack happiness.","xp":0,"category":"","hidden":false,"serverAward":false},"verify":{"name":"Verify a Transaction","emoji":"🔍","desc":"Trust no one. Not even Rufus.","xp":0,"category":"","hidden":false,"serverAward":false},"focus":{"name":"Focus Mode","emoji":"🐍","desc":"Clear your head. Guide the snake.","xp":0,"category":"","hidden":false,"serverAward":false},"risk":{"name":"Risk Assessment","emoji":"💣","desc":"Navigate uncertainty. Find the safe path.","xp":0,"category":"","hidden":false,"serverAward":false},"pattern":{"name":"Pattern Recognition","emoji":"🧩","desc":"Spot recurring patterns like a Bitcoiner.","xp":0,"category":"","hidden":false,"serverAward":false},"findq":{"name":"Spot the FED","emoji":"🏦","desc":"One impostor among the p's. Hunt it down.","xp":0,"category":"","hidden":false,"serverAward":false},"noleverage":{"name":"Avoid Leverage","emoji":"🧮","desc":"Stay humble. Do the math, not the margin.","xp":0,"category":"","hidden":false,"serverAward":false},"gunrange":{"name":"Gun Range","emoji":"🎯","desc":"Lock and load. Hit all three targets.","xp":0,"category":"","hidden":false,"serverAward":false},"sellchairs":{"name":"Sell Your Chairs","emoji":"🪑","desc":"Stack sats, not stuff. Color it in.","xp":0,"category":"","hidden":false,"serverAward":false},"starebtc":{"name":"Stare at the Price","emoji":"📈","desc":"Hold the candle. Zoom out. Never sell.","xp":0,"category":"","hidden":false,"serverAward":false},"itoldyou":{"name":"I Told You So","emoji":"🙏","desc":"Say it. They never listened.","xp":0,"category":"","hidden":false,"serverAward":false},"pumpndump":{"name":"Observe a Pump & Dump","emoji":"📉","desc":"Watch the rug pull happen in real time.","xp":0,"category":"","hidden":false,"serverAward":false},"p01":{"name":"p01","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p02":{"name":"p02","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p03":{"name":"p03","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p04":{"name":"p04","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p05":{"name":"p05","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p06":{"name":"p06","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p07":{"name":"p07","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p08":{"name":"p08","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p09":{"name":"p09","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p10":{"name":"p10","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p11":{"name":"p11","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p12":{"name":"p12","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p13":{"name":"p13","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p14":{"name":"p14","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p15":{"name":"p15","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p16":{"name":"p16","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p17":{"name":"p17","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p18":{"name":"p18","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p19":{"name":"p19","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p20":{"name":"p20","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p21":{"name":"p21","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p22":{"name":"p22","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p23":{"name":"p23","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p24":{"name":"p24","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p25":{"name":"p25","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p26":{"name":"p26","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p27":{"name":"p27","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p28":{"name":"p28","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p29":{"name":"p29","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p30":{"name":"p30","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p31":{"name":"p31","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p32":{"name":"p32","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p33":{"name":"p33","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p34":{"name":"p34","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p35":{"name":"p35","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p36":{"name":"p36","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p37":{"name":"p37","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p38":{"name":"p38","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p39":{"name":"p39","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p40":{"name":"p40","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p41":{"name":"p41","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p42":{"name":"p42","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p43":{"name":"p43","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p44":{"name":"p44","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p45":{"name":"p45","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p46":{"name":"p46","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p47":{"name":"p47","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p48":{"name":"p48","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p49":{"name":"p49","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p50":{"name":"p50","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p51":{"name":"p51","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p52":{"name":"p52","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p53":{"name":"p53","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p54":{"name":"p54","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p55":{"name":"p55","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p56":{"name":"p56","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p57":{"name":"p57","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p58":{"name":"p58","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p59":{"name":"p59","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p60":{"name":"p60","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p61":{"name":"p61","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p62":{"name":"p62","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p63":{"name":"p63","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p64":{"name":"p64","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p65":{"name":"p65","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p66":{"name":"p66","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p67":{"name":"p67","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p68":{"name":"p68","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p69":{"name":"p69","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p70":{"name":"p70","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p71":{"name":"p71","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p72":{"name":"p72","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p73":{"name":"p73","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p74":{"name":"p74","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p75":{"name":"p75","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p76":{"name":"p76","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p77":{"name":"p77","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p78":{"name":"p78","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p79":{"name":"p79","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p80":{"name":"p80","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"daily_five_1":{"name":"High Five","emoji":"🖐️","desc":"Finished all 5 daily challenges in one day","xp":10,"category":"Daily Five","hidden":false,"serverAward":true},"daily_five_7":{"name":"Five Alive","emoji":"🖐️","desc":"Finished the daily five on 7 days","xp":50,"category":"Daily Five","hidden":false,"serverAward":true},"daily_five_30":{"name":"Fivefold","emoji":"🖐️","desc":"Finished the daily five on 30 days","xp":150,"category":"Daily Five","hidden":false,"serverAward":true},"daily_five_100":{"name":"Perfect Hundred","emoji":"💯","desc":"Finished the daily five on 100 days","xp":500,"category":"Daily Five","hidden":false,"serverAward":true},"daily_five_streak_7":{"name":"Five-Day Fever","emoji":"🔥","desc":"Finished the daily five 7 days in a row","xp":150,"category":"Daily Five","hidden":false,"serverAward":true},"say_hi_1":{"name":"Hello World","emoji":"👋","desc":"Said hi in Global Chat","xp":10,"category":"Community Voice","hidden":false,"serverAward":true},"say_hi_7":{"name":"Friendly Face","emoji":"👋","desc":"Said hi on 7 days","xp":50,"category":"Community Voice","hidden":false,"serverAward":true},"say_hi_30":{"name":"Town Greeter","emoji":"👋","desc":"Said hi on 30 days","xp":150,"category":"Community Voice","hidden":false,"serverAward":true},"say_hi_100":{"name":"Mayor of Chat","emoji":"🎩","desc":"Said hi on 100 days","xp":500,"category":"Community Voice","hidden":false,"serverAward":true},"tctv_daily_1":{"name":"Tuned In Daily","emoji":"📺","desc":"Watched 10 minutes of Timechain TV in one day","xp":10,"category":"Prime Time","hidden":false,"serverAward":true},"tctv_daily_7":{"name":"Regular Viewer","emoji":"📺","desc":"Watched Timechain TV on 7 days","xp":50,"category":"Prime Time","hidden":false,"serverAward":true},"tctv_daily_30":{"name":"Prime Timer","emoji":"📺","desc":"Watched Timechain TV on 30 days","xp":150,"category":"Prime Time","hidden":false,"serverAward":true},"tctv_daily_100":{"name":"Network Exec","emoji":"📺","desc":"Watched Timechain TV on 100 days","xp":500,"category":"Prime Time","hidden":false,"serverAward":true},"reply_bonus_1":{"name":"Conversation Starter","emoji":"💬","desc":"Earned a reply bonus","xp":10,"category":"Community Voice","hidden":false,"serverAward":true},"reply_bonus_25":{"name":"Good Listener","emoji":"💬","desc":"Earned 25 reply bonuses","xp":150,"category":"Community Voice","hidden":false,"serverAward":true},"reply_bonus_100":{"name":"Thread Weaver","emoji":"🧵","desc":"Earned 100 reply bonuses","xp":500,"category":"Community Voice","hidden":false,"serverAward":true},"reply_bonus_500":{"name":"Community Pillar","emoji":"🏛️","desc":"Earned 500 reply bonuses","xp":2000,"category":"Community Voice","hidden":false,"serverAward":true},"poll_days_7":{"name":"Voice of the People","emoji":"🗳️","desc":"Voted in the daily poll on 7 days","xp":50,"category":"Daily Scholar","hidden":false,"serverAward":true},"poll_days_30":{"name":"Poll Regular","emoji":"🗳️","desc":"Voted in the daily poll on 30 days","xp":150,"category":"Daily Scholar","hidden":false,"serverAward":true},"poll_days_100":{"name":"Poll Warden","emoji":"🗳️","desc":"Voted in the daily poll on 100 days","xp":500,"category":"Daily Scholar","hidden":false,"serverAward":true},"quest_days_7":{"name":"Quiz Regular","emoji":"📝","desc":"Finished a daily quiz on 7 days","xp":50,"category":"Daily Scholar","hidden":false,"serverAward":true},"quest_days_30":{"name":"Quiz Devotee","emoji":"📝","desc":"Finished a daily quiz on 30 days","xp":150,"category":"Daily Scholar","hidden":false,"serverAward":true},"quest_days_100":{"name":"Quiz Master","emoji":"📝","desc":"Finished a daily quiz on 100 days","xp":500,"category":"Daily Scholar","hidden":false,"serverAward":true},"sf_trifecta_10":{"name":"Favor Feeder","emoji":"🔱","desc":"Completed the daily trifecta 10 times","xp":150,"category":"Favor","hidden":false,"serverAward":true},"sf_trifecta_50":{"name":"Favor Regular","emoji":"🔱","desc":"Completed the daily trifecta 50 times","xp":500,"category":"Favor","hidden":false,"serverAward":true},"sf_trifecta_100":{"name":"Favor Keeper","emoji":"🔱","desc":"Completed the daily trifecta 100 times","xp":500,"category":"Favor","hidden":false,"serverAward":true},"peer_1":{"name":"First Peer","emoji":"🤝","desc":"Accepted your first peer","xp":50,"category":"Peer Network","hidden":false,"serverAward":true},"peer_3":{"name":"Small Circle","emoji":"🤝","desc":"Accepted 3 peers","xp":150,"category":"Peer Network","hidden":false,"serverAward":true},"peer_10":{"name":"Node Operator","emoji":"🕸️","desc":"Accepted 10 peers","xp":500,"category":"Peer Network","hidden":false,"serverAward":true},"peer_25":{"name":"Hub","emoji":"🌐","desc":"Accepted 25 peers","xp":500,"category":"Peer Network","hidden":false,"serverAward":true},"market_sold_1":{"name":"First Sale","emoji":"🏷️","desc":"Sold a listing that had a buyer message","xp":150,"category":"Open for Business","hidden":false,"serverAward":true},"market_sold_5":{"name":"Trusted Seller","emoji":"🏷️","desc":"Sold 5 listings that had a buyer message","xp":500,"category":"Open for Business","hidden":false,"serverAward":true},"cipher_1":{"name":"Decoder","emoji":"🔐","desc":"Opened your first cipher","xp":10,"category":"Codebreaker","hidden":false,"serverAward":true},"cipher_10":{"name":"Cryptographer","emoji":"🔐","desc":"Opened 10 ciphers","xp":150,"category":"Codebreaker","hidden":false,"serverAward":true},"cipher_50":{"name":"Enigma","emoji":"🔐","desc":"Opened 50 ciphers","xp":500,"category":"Codebreaker","hidden":false,"serverAward":true},"cipher_200":{"name":"Satoshi's Pen","emoji":"🖊️","desc":"Opened 200 ciphers","xp":2000,"category":"Codebreaker","hidden":false,"serverAward":true},"plebtalk_1":{"name":"First Words","emoji":"📣","desc":"Joined a PlebTalk session","xp":10,"category":"Community Voice","hidden":false,"serverAward":true},"plebtalk_10":{"name":"Regular Guest","emoji":"📣","desc":"Joined 10 PlebTalk sessions","xp":150,"category":"Community Voice","hidden":false,"serverAward":true},"plebtalk_50":{"name":"PlebTalk Host","emoji":"🎙️","desc":"Joined 50 PlebTalk sessions","xp":500,"category":"Community Voice","hidden":false,"serverAward":true},"profile_complete":{"name":"Filled In","emoji":"🪪","desc":"Added a username, bio, and country","xp":10,"category":"Welcome Aboard","hidden":false,"serverAward":true},"col_learning_bonus":{"name":"Learning","emoji":"📚","desc":"Completed the Learning collection","xp":300,"category":"Collections","hidden":true,"serverAward":false},"col_daily_habits_bonus":{"name":"Daily Habits","emoji":"🎯","desc":"Completed the Daily Habits collection","xp":4150,"category":"Collections","hidden":true,"serverAward":false},"col_mining_bonus":{"name":"Mining","emoji":"⛏️","desc":"Completed the Mining collection","xp":500,"category":"Collections","hidden":true,"serverAward":false},"col_foresight_bonus":{"name":"Foresight and Luck","emoji":"🔮","desc":"Completed the Foresight and Luck collection","xp":1000,"category":"Collections","hidden":true,"serverAward":false},"col_arena_bonus":{"name":"Arena","emoji":"⚔️","desc":"Completed the Arena collection","xp":1150,"category":"Collections","hidden":true,"serverAward":false},"col_community_bonus":{"name":"Community","emoji":"💬","desc":"Completed the Community collection","xp":800,"category":"Collections","hidden":true,"serverAward":false},"col_lightning_bonus":{"name":"Lightning and Giving","emoji":"⚡","desc":"Completed the Lightning and Giving collection","xp":150,"category":"Collections","hidden":true,"serverAward":false},"col_builder_bonus":{"name":"Builder and Market","emoji":"🏗️","desc":"Completed the Builder and Market collection","xp":650,"category":"Collections","hidden":true,"serverAward":false},"col_entertainment_bonus":{"name":"Entertainment","emoji":"🎵","desc":"Completed the Entertainment collection","xp":150,"category":"Collections","hidden":true,"serverAward":false},"col_profile_bonus":{"name":"Profile and Setup","emoji":"👤","desc":"Completed the Profile and Setup collection","xp":300,"category":"Collections","hidden":true,"serverAward":false},"col_fitness_bonus":{"name":"Fun and Fitness","emoji":"🚶","desc":"Completed the Fun and Fitness collection","xp":0,"category":"Collections","hidden":true,"serverAward":false},"tctv_watch_t1":{"name":"Timechain TV Watcher · Bronze","emoji":"🟫","desc":"Watched 10 minutes of Timechain TV (server-verified, up to 3 hours a day)","xp":10,"category":"Prime Time","hidden":false,"serverAward":true},"tctv_watch_t2":{"name":"Timechain TV Watcher · Silver","emoji":"⬜","desc":"Watched 5 hours of Timechain TV (server-verified, up to 3 hours a day)","xp":150,"category":"Prime Time","hidden":false,"serverAward":true},"tctv_watch_t3":{"name":"Timechain TV Watcher · Gold","emoji":"🟨","desc":"Watched 100 hours of Timechain TV (server-verified, up to 3 hours a day)","xp":1000,"category":"Prime Time","hidden":false,"serverAward":true},"tctv_watch_t4":{"name":"Timechain TV Watcher · Platinum","emoji":"🟪","desc":"Watched 500 hours of Timechain TV (server-verified, up to 3 hours a day) (+5 orange tickets)","xp":2500,"category":"Prime Time","hidden":false,"serverAward":true},"tctv_watch_t5":{"name":"Timechain TV Watcher · Diamond","emoji":"💎","desc":"Watched 2,100 hours of Timechain TV (server-verified, up to 3 hours a day) (+21 orange tickets)","xp":5000,"category":"Prime Time","hidden":false,"serverAward":true},"tier_all_platinum":{"name":"All Platinum","emoji":"🟪","desc":"Reached Platinum in every tiered badge (+21 orange tickets)","xp":2500,"category":"Collections","hidden":false,"serverAward":true},"tier_all_diamond":{"name":"All Diamond","emoji":"💎","desc":"Reached Diamond in every tiered badge (+46 orange tickets)","xp":5000,"category":"Collections","hidden":false,"serverAward":true}};
+window.BADGE_CATALOG={"first_channel":{"name":"First Steps","emoji":"👶","desc":"Opened your first channel","xp":10,"category":"","hidden":false,"serverAward":true},"explorer_10":{"name":"Explorer","emoji":"🧭","desc":"Visited 10 topics","xp":10,"category":"","hidden":false,"serverAward":true},"explorer_25":{"name":"Trailblazer","emoji":"🗺️","desc":"Visited 25 topics","xp":50,"category":"","hidden":false,"serverAward":true},"explorer_50":{"name":"Pathfinder","emoji":"🏕️","desc":"Visited 50 topics","xp":50,"category":"","hidden":false,"serverAward":true},"explorer_100":{"name":"Cartographer","emoji":"🌍","desc":"Visited 100 topics","xp":50,"category":"","hidden":false,"serverAward":true},"explorer_all":{"name":"Completionist","emoji":"🗝️","desc":"Visited every single topic","xp":150,"category":"","hidden":false,"serverAward":true},"global_citizen":{"name":"Global Citizen","emoji":"🌍","desc":"Added your country to your profile — representing Bitcoin worldwide","xp":10,"category":"","hidden":false,"serverAward":true},"quest_1":{"name":"Quester","emoji":"⚔️","desc":"Completed your first Quest","xp":10,"category":"","hidden":false,"serverAward":true},"quest_3":{"name":"Quest Seeker","emoji":"📜","desc":"Completed 3 Quests","xp":50,"category":"","hidden":false,"serverAward":true},"quest_5":{"name":"Quest Champion","emoji":"🏆","desc":"Completed 5 Quests","xp":50,"category":"","hidden":false,"serverAward":true},"quest_10":{"name":"Quest Veteran","emoji":"🗡️","desc":"Completed 10 Quests","xp":150,"category":"","hidden":false,"serverAward":true},"quest_25":{"name":"Quest Crusader","emoji":"⚜️","desc":"Completed 25 Quests","xp":150,"category":"","hidden":false,"serverAward":true},"quest_50":{"name":"Quest Master","emoji":"👑","desc":"Completed 50 Quests","xp":500,"category":"","hidden":false,"serverAward":true},"quest_100":{"name":"Quest Legend","emoji":"🏰","desc":"Completed 100 Quests","xp":500,"category":"","hidden":false,"serverAward":true},"cert_scholar":{"name":"Bitcoin Scholar","emoji":"🎓","desc":"Passed the Bitcoin Scholar Certification","xp":0,"category":"","hidden":false,"serverAward":false},"cert_tech":{"name":"Protocol Expert","emoji":"🛠️","desc":"Passed the Technical Protocol Expert Certification","xp":0,"category":"","hidden":false,"serverAward":false},"cert_double":{"name":"Double Scholar","emoji":"🏛️","desc":"Earned both Scholar AND Protocol Expert certifications","xp":0,"category":"","hidden":false,"serverAward":false},"all_certs":{"name":"Grand Scholar","emoji":"🎓","desc":"Earned all three Bitcoin certifications (Scholar, Protocol Expert, and all Trails)","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_tuned_in":{"name":"Tuned In","emoji":"📺","desc":"Watched 10 min of Timechain TV","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_couch_potato":{"name":"Couch Potato","emoji":"🛋️","desc":"Watched 60 min of Timechain TV","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_binge_watcher":{"name":"Binge Watcher","emoji":"🍿","desc":"Watched 5 hours of Timechain TV","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_couch_king":{"name":"Couch King","emoji":"🛌","desc":"Watched 24 hours of Timechain TV","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_satellite":{"name":"Satellite","emoji":"🛰️","desc":"Watched 100 hours of Timechain TV","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_channel_hopper":{"name":"Channel Hopper","emoji":"📡","desc":"Switched TCTV channel for the first time","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_remote_warrior":{"name":"Remote Warrior","emoji":"🕹️","desc":"Switched TCTV channels 5 times","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_dial_spinner":{"name":"Dial Spinner","emoji":"🌀","desc":"Switched TCTV channels 10 times","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_signal_seeker":{"name":"Signal Seeker","emoji":"📶","desc":"Switched TCTV channels 25 times","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_antenna_wizard":{"name":"Antenna Wizard","emoji":"🧙","desc":"Switched TCTV channels 50 times","xp":0,"category":"","hidden":false,"serverAward":false},"tctv_timechain_surfer":{"name":"Timechain Surfer","emoji":"🏄","desc":"Switched TCTV channels 100 times — a true Timechain TV veteran","xp":0,"category":"","hidden":false,"serverAward":false},"nacho_chatterbox":{"name":"Nacho Chatterbox","emoji":"🦌","desc":"Interacted with Nacho 50+ times","xp":0,"category":"","hidden":false,"serverAward":false},"nacho_bestie":{"name":"Nacho's Bestie","emoji":"🧡","desc":"Interacted with Nacho 250+ times","xp":0,"category":"","hidden":false,"serverAward":false},"nacho_asked_10":{"name":"Curious","emoji":"🤔","desc":"Asked Nacho 10 questions","xp":0,"category":"","hidden":false,"serverAward":false},"nacho_asked_100":{"name":"Nacho Scholar","emoji":"🦌","desc":"Asked Nacho 100 questions","xp":0,"category":"","hidden":false,"serverAward":false},"nacho_whisper":{"name":"Nacho's Confidant","emoji":"🤫","desc":"Interacted with Nacho 500+ times","xp":0,"category":"","hidden":false,"serverAward":false},"nacho_eli5":{"name":"ELI5 Mode","emoji":"👶","desc":"Used Explain it Like I'm 5 mode with Nacho","xp":0,"category":"","hidden":false,"serverAward":false},"chat_first":{"name":"First Words","emoji":"💦","desc":"Sent your first message in Global Chat","xp":10,"category":"","hidden":false,"serverAward":true},"chat_10":{"name":"Chatty","emoji":"🗣️","desc":"Sent 10 messages in Global Chat","xp":10,"category":"","hidden":false,"serverAward":true},"chat_50":{"name":"Conversationalist","emoji":"💬","desc":"Sent 50 messages in Global Chat","xp":50,"category":"","hidden":false,"serverAward":true},"chat_100":{"name":"Town Crier","emoji":"📢","desc":"Sent 100 messages in Global Chat","xp":50,"category":"","hidden":false,"serverAward":true},"chat_500":{"name":"Chat Legend","emoji":"📯","desc":"Sent 500 messages in Global Chat","xp":150,"category":"","hidden":false,"serverAward":true},"chat_streak_3":{"name":"Regular","emoji":"📅","desc":"Chatted 3 days in a row","xp":0,"category":"","hidden":false,"serverAward":false},"chat_streak_7":{"name":"Devoted Chatter","emoji":"💪","desc":"Chatted 7 days in a row","xp":0,"category":"","hidden":false,"serverAward":false},"chat_streak_30":{"name":"Chat Addict","emoji":"💠","desc":"Chatted 30 days in a row","xp":0,"category":"","hidden":false,"serverAward":false},"dj_first":{"name":"First Set","emoji":"🎧","desc":"DJed for the first time in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"dj_5":{"name":"Resident DJ","emoji":"🎛️","desc":"DJed 5 sets in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"dj_25":{"name":"Club Legend","emoji":"🎶","desc":"DJed 25 sets in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"dj_songs_10":{"name":"Playlist Pro","emoji":"📻","desc":"Broadcast 10 songs as DJ","xp":0,"category":"","hidden":false,"serverAward":false},"dj_songs_50":{"name":"Jukebox Hero","emoji":"🎵","desc":"Broadcast 50 songs as DJ","xp":0,"category":"","hidden":false,"serverAward":false},"dj_songs_100":{"name":"Vinyl Master","emoji":"🎼","desc":"Broadcast 100 songs as DJ","xp":0,"category":"","hidden":false,"serverAward":false},"dj_listener":{"name":"Good Listener","emoji":"🔊","desc":"Tuned in to 10 DJ sets","xp":0,"category":"","hidden":false,"serverAward":false},"dj_listener_50":{"name":"Groupie","emoji":"🤘","desc":"Tuned in to 50 DJ sets","xp":0,"category":"","hidden":false,"serverAward":false},"producer_1":{"name":"Producer","emoji":"🎤","desc":"Uploaded your first song to Bitcoin Beats","xp":50,"category":"","hidden":false,"serverAward":true},"producer_10":{"name":"Discographer","emoji":"💿","desc":"Uploaded 10 songs to Bitcoin Beats","xp":500,"category":"","hidden":false,"serverAward":true},"beats_first_listen":{"name":"First Listen","emoji":"🎵","desc":"Listened to your first track on Bitcoin Beats","xp":0,"category":"","hidden":false,"serverAward":true},"beats_50_plays":{"name":"Audiophile","emoji":"🎧","desc":"Played 50 tracks on Bitcoin Beats","xp":0,"category":"","hidden":false,"serverAward":true},"beats_liked_10":{"name":"Music Fan","emoji":"🩷","desc":"Liked 10 tracks on Bitcoin Beats","xp":0,"category":"","hidden":false,"serverAward":false},"beats_liked_50":{"name":"Taste Maker","emoji":"🎼","desc":"Liked 50 tracks on Bitcoin Beats","xp":0,"category":"","hidden":false,"serverAward":false},"dm_first":{"name":"DM Starter","emoji":"✉️","desc":"Sent your first direct message","xp":10,"category":"","hidden":false,"serverAward":true},"dm_10":{"name":"Inbox Zero","emoji":"📥","desc":"Sent 10 direct messages","xp":10,"category":"","hidden":false,"serverAward":true},"dm_buddy":{"name":"Buddy Up","emoji":"🫂","desc":"Matched with a Bitcoin learning buddy","xp":10,"category":"","hidden":false,"serverAward":true},"react_5":{"name":"Reactor","emoji":"⚡","desc":"Reacted to 5 messages in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"react_50":{"name":"Reaction King","emoji":"❤️","desc":"Reacted to 50 messages in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"react_200":{"name":"Emoji Sensei","emoji":"🧘","desc":"Reacted to 200 messages in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"pvp_first":{"name":"First Blood","emoji":"🩸","desc":"Won your first PVP battle","xp":10,"category":"","hidden":false,"serverAward":true},"pvp_5":{"name":"Contender","emoji":"🥊","desc":"Won 5 PVP battles","xp":50,"category":"","hidden":false,"serverAward":true},"pvp_25":{"name":"Gladiator","emoji":"🏟️","desc":"Won 25 PVP battles","xp":150,"category":"","hidden":false,"serverAward":true},"pvp_50":{"name":"Champion","emoji":"🏆","desc":"Won 50 PVP battles","xp":150,"category":"","hidden":false,"serverAward":true},"pvp_100":{"name":"PVP Legend","emoji":"🥇","desc":"Won 100 PVP battles","xp":500,"category":"","hidden":false,"serverAward":true},"referral_1":{"name":"Meetup Regular","emoji":"🍻","desc":"1 friend you invited reached Maxi rank","xp":10,"category":"","hidden":false,"serverAward":true},"referral_5":{"name":"Connector","emoji":"🤝","desc":"Earlier badge for 5 paid referrals. No longer awarded.","xp":0,"category":"","hidden":false,"serverAward":false},"referral_10":{"name":"Meetup Organizer","emoji":"📋","desc":"10 friends you invited reached Maxi rank","xp":50,"category":"","hidden":false,"serverAward":true},"referral_25":{"name":"Conference Speaker","emoji":"🎤","desc":"25 friends you invited reached Maxi rank","xp":150,"category":"","hidden":false,"serverAward":true},"referral_50":{"name":"Conference Host","emoji":"🏟️","desc":"50 friends you invited reached Maxi rank","xp":500,"category":"","hidden":false,"serverAward":true},"referral_100":{"name":"Keynote Legend","emoji":"🏆","desc":"100 friends you invited reached Maxi rank","xp":2000,"category":"","hidden":false,"serverAward":true},"referred":{"name":"Referred Friend","emoji":"🫂","desc":"Joined Bitcoin Education Archive via a referral link","xp":10,"category":"","hidden":false,"serverAward":true},"sf_first_hash":{"name":"First Hash","emoji":"⛏️","desc":"Generated your first hash during Satoshi's Favor","xp":10,"category":"","hidden":false,"serverAward":true},"sf_10_hashes":{"name":"Pickaxe Swinger","emoji":"💥","desc":"Generated 10 hashes during Satoshi's Favor","xp":10,"category":"","hidden":false,"serverAward":true},"sf_50_hashes":{"name":"Mine Foreman","emoji":"🪨","desc":"Generated 50 hashes during Satoshi's Favor","xp":10,"category":"","hidden":false,"serverAward":true},"sf_100_hashes":{"name":"Hash Machine","emoji":"🔩","desc":"Generated 100 hashes during Satoshi's Favor","xp":50,"category":"","hidden":false,"serverAward":true},"sf_500_hashes":{"name":"ASIC Mode","emoji":"🖥️","desc":"Generated 500 hashes during Satoshi's Favor","xp":150,"category":"","hidden":false,"serverAward":true},"sf_1000_hashes":{"name":"Mining Rig","emoji":"🏭","desc":"Generated 1,000 hashes during Satoshi's Favor","xp":150,"category":"","hidden":false,"serverAward":true},"sf_10000_hashes":{"name":"Hash Lord","emoji":"☄️","desc":"Generated 10,000 hashes during Satoshi's Favor","xp":2000,"category":"","hidden":false,"serverAward":true},"sf_low_hash":{"name":"Lucky Strike","emoji":"⭐","desc":"Mined a hash under 1,000,000","xp":0,"category":"","hidden":false,"serverAward":false},"sf_ultra_low":{"name":"Golden Nonce","emoji":"✨","desc":"Mined a hash under 100,000","xp":0,"category":"","hidden":false,"serverAward":false},"sf_block_solver":{"name":"Block Solver","emoji":"🌞","desc":"Solved a block! Hash under the difficulty target","xp":500,"category":"","hidden":false,"serverAward":true},"sf_contributor":{"name":"Community Miner","emoji":"🤝","desc":"Contributed to activating Satoshi's Favor 3 times","xp":10,"category":"","hidden":false,"serverAward":true},"sf_contributor_10":{"name":"Favor Champion","emoji":"🏅","desc":"Contributed to activating Satoshi's Favor 10 times","xp":150,"category":"","hidden":false,"serverAward":true},"raid_first":{"name":"Raid Recruit","emoji":"🛡️","desc":"Dealt damage to your first Raid Boss","xp":10,"category":"","hidden":false,"serverAward":true},"raid_5":{"name":"Raid Warrior","emoji":"🗡️","desc":"Dealt 5 total raid damage","xp":50,"category":"","hidden":false,"serverAward":true},"raid_10":{"name":"Raid Veteran","emoji":"⚙️","desc":"Dealt 10 total raid damage","xp":50,"category":"","hidden":false,"serverAward":true},"raid_25":{"name":"Raid Commander","emoji":"⚜️","desc":"Dealt 25 total raid damage","xp":150,"category":"","hidden":false,"serverAward":true},"raid_50":{"name":"Raid Legend","emoji":"👑","desc":"Dealt 50 total raid damage","xp":150,"category":"","hidden":false,"serverAward":true},"raid_100":{"name":"Raid Warlord","emoji":"🔱","desc":"Dealt 100 total raid damage","xp":500,"category":"","hidden":false,"serverAward":true},"raid_boss_slayer":{"name":"Boss Slayer","emoji":"💀","desc":"Participated in defeating a Raid Boss","xp":50,"category":"","hidden":false,"serverAward":true},"raid_boss_slayer_5":{"name":"Boss Hunter","emoji":"🐉","desc":"Participated in defeating 5 Raid Bosses","xp":500,"category":"","hidden":false,"serverAward":true},"raid_boss_slayer_10":{"name":"Dragon Slayer","emoji":"🐲","desc":"Participated in defeating 10 Raid Bosses","xp":500,"category":"","hidden":false,"serverAward":true},"raid_winner":{"name":"Raid Champion","emoji":"🎖️","desc":"Won the sats lottery after a Raid Boss defeat","xp":150,"category":"","hidden":false,"serverAward":true},"trivia_first":{"name":"Quiz Curious","emoji":"🧠","desc":"Answered your first daily trivia question","xp":10,"category":"","hidden":false,"serverAward":true},"trivia_correct_1":{"name":"Trivia Warm-Up","emoji":"✅","desc":"Got your first trivia question correct","xp":10,"category":"","hidden":false,"serverAward":true},"trivia_correct_10":{"name":"Fact Checker","emoji":"🔎","desc":"Got 10 trivia questions correct","xp":150,"category":"","hidden":false,"serverAward":true},"trivia_correct_30":{"name":"Big Brain","emoji":"🦾","desc":"Got 30 trivia questions correct","xp":150,"category":"","hidden":false,"serverAward":true},"trivia_correct_100":{"name":"Trivia Titan","emoji":"🏅","desc":"Got 100 trivia questions correct — absolute Bitcoin scholar","xp":500,"category":"","hidden":false,"serverAward":true},"trivia_streak_7":{"name":"Daily Habit","emoji":"📆","desc":"Answered trivia 7 days in a row","xp":150,"category":"","hidden":false,"serverAward":true},"trivia_streak_30":{"name":"Trivia Devotee","emoji":"🔱","desc":"Answered trivia 30 days in a row","xp":500,"category":"","hidden":false,"serverAward":true},"poll_first":{"name":"Opinionated","emoji":"🗳️","desc":"Cast your first vote in the daily poll","xp":10,"category":"","hidden":false,"serverAward":true},"poll_10":{"name":"Regular Voter","emoji":"🗓️","desc":"Voted in 10 daily polls","xp":150,"category":"","hidden":false,"serverAward":true},"poll_50":{"name":"Civic Plebian","emoji":"🏛️","desc":"Voted in 50 daily polls","xp":500,"category":"","hidden":false,"serverAward":true},"poll_100":{"name":"Democracy Maxi","emoji":"⚖️","desc":"Voted in 100 daily polls — never missed an opinion","xp":10,"category":"","hidden":false,"serverAward":true},"daily_triple_1":{"name":"Triple Play","emoji":"🎯","desc":"Completed quiz, trivia AND poll in one day","xp":10,"category":"","hidden":false,"serverAward":true},"daily_triple_7":{"name":"Consistent Stacker","emoji":"📚","desc":"Completed the Daily Trifecta 7 times","xp":50,"category":"","hidden":false,"serverAward":true},"daily_triple_30":{"name":"Unstoppable","emoji":"🚂","desc":"Completed the Daily Trifecta 30 times","xp":150,"category":"","hidden":false,"serverAward":true},"market_browse":{"name":"Window Shopper","emoji":"🛍️","desc":"Visited the Lightning Marketplace","xp":0,"category":"","hidden":false,"serverAward":false},"market_listed_1":{"name":"Vendor","emoji":"🏪","desc":"Listed your first item in the Marketplace","xp":10,"category":"","hidden":false,"serverAward":true},"market_listed_5":{"name":"Merchant","emoji":"💼","desc":"Listed 5 items in the Marketplace","xp":50,"category":"","hidden":false,"serverAward":true},"market_saved_5":{"name":"Wishlist","emoji":"❤️‍🔥","desc":"Saved 5 items in the Marketplace","xp":0,"category":"","hidden":false,"serverAward":false},"market_message":{"name":"Dealmaker","emoji":"🤜","desc":"Sent your first Marketplace message to a seller","xp":10,"category":"","hidden":false,"serverAward":true},"bookmarks_1":{"name":"Earmarked","emoji":"🔖","desc":"Bookmarked your first article","xp":0,"category":"","hidden":false,"serverAward":false},"bookmarks_10":{"name":"Archivist","emoji":"🗄️","desc":"Bookmarked 10 articles","xp":0,"category":"","hidden":false,"serverAward":false},"favs_10":{"name":"Curator","emoji":"🧹","desc":"Saved 10 topics to favorites","xp":0,"category":"","hidden":false,"serverAward":false},"favs_25":{"name":"Collection","emoji":"🗂️","desc":"Saved 25 topics to favorites","xp":0,"category":"","hidden":false,"serverAward":false},"tip_first":{"name":"First Tip","emoji":"💸","desc":"Sent your first Lightning tip","xp":10,"category":"","hidden":false,"serverAward":true},"tip_10":{"name":"Generous Pleb","emoji":"💛","desc":"Tipped 10 times","xp":500,"category":"","hidden":false,"serverAward":true},"tip_magnet":{"name":"Tip Magnet","emoji":"🧲","desc":"Received 10 tips from others","xp":500,"category":"","hidden":false,"serverAward":true},"tip_whale":{"name":"Whale Tipper","emoji":"🐳","desc":"Tipped 1,000+ sats total","xp":50,"category":"","hidden":false,"serverAward":true},"tip_received_1":{"name":"Tip Received","emoji":"🎁","desc":"Received your first tip from another user","xp":50,"category":"","hidden":false,"serverAward":true},"tip_received_50":{"name":"Community Darling","emoji":"🌟","desc":"Received 50 tips from others","xp":2000,"category":"","hidden":false,"serverAward":true},"tip_sats_10k":{"name":"Sat Slinger","emoji":"💰","desc":"Tipped 10,000+ sats total","xp":500,"category":"","hidden":false,"serverAward":true},"predict_1":{"name":"Oracle","emoji":"🎱","desc":"Made your first price prediction","xp":10,"category":"","hidden":false,"serverAward":true},"predict_10":{"name":"Market Watcher","emoji":"📊","desc":"Made 10 price predictions","xp":150,"category":"","hidden":false,"serverAward":true},"predict_50":{"name":"Chartist","emoji":"📈","desc":"Made 50 price predictions","xp":500,"category":"","hidden":false,"serverAward":true},"predict_correct_5":{"name":"Crystal Ball","emoji":"🏐","desc":"5 correct predictions","xp":150,"category":"","hidden":false,"serverAward":true},"predict_correct_25":{"name":"Pattern Reader","emoji":"🌊","desc":"25 correct price predictions","xp":500,"category":"","hidden":false,"serverAward":true},"predict_correct_100":{"name":"Time Traveler","emoji":"⏳","desc":"100 correct price predictions — you can see the future","xp":2000,"category":"","hidden":false,"serverAward":true},"predict_streak_3":{"name":"Oracle Streak","emoji":"🎯","desc":"3 correct predictions in a row","xp":150,"category":"","hidden":false,"serverAward":true},"predict_streak_10":{"name":"Nostradamus","emoji":"🔮","desc":"10 correct predictions in a row","xp":150,"category":"","hidden":false,"serverAward":true},"irl_attend_1":{"name":"Show Up","emoji":"📍","desc":"RSVPed to your first IRL event","xp":0,"category":"","hidden":false,"serverAward":false},"irl_attend_5":{"name":"Scene Regular","emoji":"🗺️","desc":"Attended 5 IRL Bitcoin events","xp":0,"category":"","hidden":false,"serverAward":false},"irl_host":{"name":"Event Host","emoji":"🎪","desc":"Hosted your first IRL event","xp":0,"category":"","hidden":false,"serverAward":false},"irl_host_5":{"name":"Community Builder","emoji":"🏗️","desc":"Hosted 5 IRL events","xp":0,"category":"","hidden":false,"serverAward":false},"irl_host_10":{"name":"Regional Leader","emoji":"🌆","desc":"Hosted 10 IRL Bitcoin events","xp":0,"category":"","hidden":false,"serverAward":false},"spin_30":{"name":"Lucky Spinner","emoji":"🎰","desc":"Spun the wheel 30 days total","xp":150,"category":"","hidden":false,"serverAward":true},"spin_streak_7":{"name":"Spin Streak","emoji":"🎡","desc":"Spun 7 days in a row","xp":150,"category":"","hidden":false,"serverAward":true},"spin_jackpot":{"name":"Jackpot Winner","emoji":"🌟","desc":"Hit the RARE drop on the spin wheel","xp":150,"category":"","hidden":false,"serverAward":true},"lightning_setup":{"name":"Lightning Rod","emoji":"⚡","desc":"Set up a Lightning wallet or added a Lightning address","xp":10,"category":"","hidden":false,"serverAward":true},"forum_5":{"name":"Voice of the People","emoji":"📣","desc":"Made 5 forum posts","xp":50,"category":"","hidden":false,"serverAward":true},"forum_25":{"name":"Thought Leader","emoji":"🧠","desc":"Made 25 forum posts","xp":150,"category":"","hidden":false,"serverAward":true},"article_1":{"name":"Author","emoji":"✍️","desc":"Published your first article","xp":50,"category":"","hidden":false,"serverAward":true},"first_purchase":{"name":"First Purchase","emoji":"🛒","desc":"Made your first purchase in Nacho's Nook","xp":10,"category":"","hidden":false,"serverAward":true},"sats_first":{"name":"First Sats","emoji":"🪙","desc":"Claimed your first sats from the faucet","xp":10,"category":"","hidden":false,"serverAward":true},"sats_1k":{"name":"Stacker","emoji":"📦","desc":"Claimed 1,000 sats total","xp":0,"category":"","hidden":false,"serverAward":false},"sats_5k":{"name":"Sat Whale","emoji":"🧊","desc":"Claimed 5,000 sats total","xp":0,"category":"","hidden":false,"serverAward":false},"sats_10k":{"name":"Sat Hoarder","emoji":"🏦","desc":"Claimed 10,000 sats total from the faucet","xp":0,"category":"","hidden":false,"serverAward":false},"sats_21k":{"name":"21 Million Dreams","emoji":"₿","desc":"Claimed 21,000 sats — because 21 million is the magic number","xp":0,"category":"","hidden":false,"serverAward":false},"streak_7":{"name":"Week Warrior","emoji":"🔥","desc":"7-day visit streak","xp":150,"category":"","hidden":false,"serverAward":true},"streak_14":{"name":"Two Weeks Strong","emoji":"📅","desc":"14-day visit streak","xp":150,"category":"","hidden":false,"serverAward":true},"streak_30":{"name":"Monthly Maxi","emoji":"🦾","desc":"30-day visit streak","xp":500,"category":"","hidden":false,"serverAward":true},"streak_60":{"name":"Two Month Maxi","emoji":"🗓️","desc":"60-day visit streak","xp":500,"category":"","hidden":false,"serverAward":true},"streak_100":{"name":"Diamond Hands","emoji":"💎","desc":"100-day visit streak","xp":2000,"category":"","hidden":false,"serverAward":true},"streak_200":{"name":"Sovereign Individual","emoji":"🗽","desc":"200-day visit streak — this is dedication","xp":2000,"category":"","hidden":false,"serverAward":true},"streak_365":{"name":"HODLer Supreme","emoji":"🪩","desc":"365-day visit streak","xp":2000,"category":"","hidden":false,"serverAward":true},"story_begun":{"name":"Story Begun","emoji":"📖","desc":"Read Chapter 1 of Nacho's Story — the Genesis Block","xp":0,"category":"","hidden":false,"serverAward":false},"story_halfway":{"name":"Halfway There","emoji":"🎙️","desc":"Read 4 chapters of Nacho's Story","xp":0,"category":"","hidden":false,"serverAward":false},"story_complete":{"name":"Story Master","emoji":"🦧📚","desc":"Completed all 7 chapters of Nacho's Story","xp":0,"category":"","hidden":false,"serverAward":false},"trail_meadow":{"name":"Meadow Walker","emoji":"🌿","desc":"Completed The Meadow trail","xp":0,"category":"","hidden":false,"serverAward":false},"trail_mountain":{"name":"Mountain Climber","emoji":"⛰️","desc":"Completed The Mountain trail","xp":0,"category":"","hidden":false,"serverAward":false},"trail_summit":{"name":"Summit Conqueror","emoji":"🏔️","desc":"Completed The Summit trail","xp":0,"category":"","hidden":false,"serverAward":false},"trail_all":{"name":"Trail Master","emoji":"🏁","desc":"Completed all three Nacho's Trails","xp":0,"category":"","hidden":false,"serverAward":false},"lq_what_is_bitcoin":{"name":"🟠 Bitcoin Basics","emoji":"🟠","desc":"Passed the What is Bitcoin? Learning Quest","xp":50,"category":"","hidden":false,"serverAward":true},"lq_mining":{"name":"⛏️ Hash Slinger","emoji":"⛏️","desc":"Passed the Mining & Proof of Work Learning Quest","xp":50,"category":"","hidden":false,"serverAward":true},"lq_nodes":{"name":"🖥️ Node Runner","emoji":"🖥️","desc":"Passed the Nodes & Decentralization Learning Quest","xp":50,"category":"","hidden":false,"serverAward":true},"lq_self_custody":{"name":"🔑 Sovereign Stacker","emoji":"🔑","desc":"Passed the Self-Custody & Keys Learning Quest","xp":50,"category":"","hidden":false,"serverAward":true},"lq_lightning":{"name":"⚡ Lightning Pleb","emoji":"⚡","desc":"Passed the Lightning Network Learning Quest","xp":50,"category":"","hidden":false,"serverAward":true},"lq_scarcity":{"name":"💎 21M Believer","emoji":"💎","desc":"Passed the Fixed Supply Learning Quest","xp":50,"category":"","hidden":false,"serverAward":true},"lq_bitcoin_only":{"name":"🛡️ Bitcoin Maximalist","emoji":"🛡️","desc":"Passed the Why Bitcoin, Not Crypto Learning Quest","xp":50,"category":"","hidden":false,"serverAward":true},"lq_privacy":{"name":"🕵️ Cypherpunk","emoji":"🕵️","desc":"Passed the Privacy & Sovereignty Learning Quest","xp":50,"category":"","hidden":false,"serverAward":true},"lq_graduate":{"name":"📖 Learning Quest Graduate","emoji":"📖","desc":"Completed ALL 8 Learning Quests — true Bitcoin scholar","xp":150,"category":"","hidden":false,"serverAward":true},"flex_rookie":{"name":"Healthy Start","emoji":"🌱","desc":"Completed 10 Flex actions total","xp":50,"category":"","hidden":false,"serverAward":true},"flex_committed":{"name":"Committed","emoji":"💪","desc":"Completed 50 Flex actions total","xp":150,"category":"","hidden":false,"serverAward":true},"flex_athlete":{"name":"Bitcoin Athlete","emoji":"🏅","desc":"Completed 200 Flex actions total","xp":500,"category":"","hidden":false,"serverAward":true},"flex_legend":{"name":"Flex Legend","emoji":"🦁","desc":"Completed 1,000 Flex actions total","xp":2000,"category":"","hidden":false,"serverAward":true},"flex_all_once":{"name":"Full Stack Human","emoji":"🧬","desc":"Completed every Flex action at least once","xp":50,"category":"","hidden":false,"serverAward":true},"flex_steak_1":{"name":"flex_steak_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_steak_5":{"name":"flex_steak_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_steak_50":{"name":"flex_steak_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_steak_500":{"name":"flex_steak_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_sunlight_1":{"name":"flex_sunlight_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_sunlight_5":{"name":"flex_sunlight_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_sunlight_50":{"name":"flex_sunlight_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_sunlight_500":{"name":"flex_sunlight_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_dca_1":{"name":"flex_dca_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_dca_5":{"name":"flex_dca_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_dca_50":{"name":"flex_dca_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_dca_500":{"name":"flex_dca_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_custody_1":{"name":"flex_custody_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_custody_5":{"name":"flex_custody_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_custody_50":{"name":"flex_custody_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_custody_500":{"name":"flex_custody_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_lift_1":{"name":"flex_lift_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_lift_5":{"name":"flex_lift_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_lift_50":{"name":"flex_lift_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_lift_500":{"name":"flex_lift_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_meetup_1":{"name":"flex_meetup_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_meetup_5":{"name":"flex_meetup_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_meetup_50":{"name":"flex_meetup_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_meetup_500":{"name":"flex_meetup_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_lightning_1":{"name":"flex_lightning_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_lightning_5":{"name":"flex_lightning_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_lightning_50":{"name":"flex_lightning_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_lightning_500":{"name":"flex_lightning_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_read_1":{"name":"flex_read_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_read_5":{"name":"flex_read_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_read_50":{"name":"flex_read_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_read_500":{"name":"flex_read_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_sleep_1":{"name":"flex_sleep_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_sleep_5":{"name":"flex_sleep_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_sleep_50":{"name":"flex_sleep_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_sleep_500":{"name":"flex_sleep_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_nokyc_1":{"name":"flex_nokyc_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_nokyc_5":{"name":"flex_nokyc_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_nokyc_50":{"name":"flex_nokyc_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_nokyc_500":{"name":"flex_nokyc_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_node_1":{"name":"flex_node_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_node_5":{"name":"flex_node_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_node_50":{"name":"flex_node_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_node_500":{"name":"flex_node_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_cold_1":{"name":"flex_cold_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_cold_5":{"name":"flex_cold_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_cold_50":{"name":"flex_cold_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_cold_500":{"name":"flex_cold_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_fast_1":{"name":"flex_fast_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_fast_5":{"name":"flex_fast_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_fast_50":{"name":"flex_fast_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_fast_500":{"name":"flex_fast_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_walk_1":{"name":"flex_walk_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_walk_5":{"name":"flex_walk_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_walk_50":{"name":"flex_walk_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_walk_500":{"name":"flex_walk_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_journal_1":{"name":"flex_journal_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_journal_5":{"name":"flex_journal_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_journal_50":{"name":"flex_journal_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_journal_500":{"name":"flex_journal_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_meditate_1":{"name":"flex_meditate_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_meditate_5":{"name":"flex_meditate_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_meditate_50":{"name":"flex_meditate_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_meditate_500":{"name":"flex_meditate_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_teach_1":{"name":"flex_teach_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_teach_5":{"name":"flex_teach_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_teach_50":{"name":"flex_teach_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_teach_500":{"name":"flex_teach_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_water_1":{"name":"flex_water_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_water_5":{"name":"flex_water_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_water_50":{"name":"flex_water_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_water_500":{"name":"flex_water_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_gratitude_1":{"name":"flex_gratitude_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_gratitude_5":{"name":"flex_gratitude_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_gratitude_50":{"name":"flex_gratitude_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_gratitude_500":{"name":"flex_gratitude_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_verify_1":{"name":"flex_verify_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_verify_5":{"name":"flex_verify_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_verify_50":{"name":"flex_verify_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_verify_500":{"name":"flex_verify_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_focus_1":{"name":"flex_focus_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_focus_5":{"name":"flex_focus_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_focus_50":{"name":"flex_focus_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_focus_500":{"name":"flex_focus_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_risk_1":{"name":"flex_risk_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_risk_5":{"name":"flex_risk_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_risk_50":{"name":"flex_risk_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_risk_500":{"name":"flex_risk_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_pattern_1":{"name":"flex_pattern_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_pattern_5":{"name":"flex_pattern_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_pattern_50":{"name":"flex_pattern_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_pattern_500":{"name":"flex_pattern_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_findq_1":{"name":"flex_findq_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_findq_5":{"name":"flex_findq_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_findq_50":{"name":"flex_findq_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_findq_500":{"name":"flex_findq_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_noleverage_1":{"name":"flex_noleverage_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_noleverage_5":{"name":"flex_noleverage_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_noleverage_50":{"name":"flex_noleverage_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_noleverage_500":{"name":"flex_noleverage_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_gunrange_1":{"name":"flex_gunrange_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_gunrange_5":{"name":"flex_gunrange_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_gunrange_50":{"name":"flex_gunrange_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_gunrange_500":{"name":"flex_gunrange_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_sellchairs_1":{"name":"flex_sellchairs_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_sellchairs_5":{"name":"flex_sellchairs_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_sellchairs_50":{"name":"flex_sellchairs_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_sellchairs_500":{"name":"flex_sellchairs_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_starebtc_1":{"name":"flex_starebtc_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_starebtc_5":{"name":"flex_starebtc_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_starebtc_50":{"name":"flex_starebtc_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_starebtc_500":{"name":"flex_starebtc_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_itoldyou_1":{"name":"flex_itoldyou_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_itoldyou_5":{"name":"flex_itoldyou_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_itoldyou_50":{"name":"flex_itoldyou_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_itoldyou_500":{"name":"flex_itoldyou_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_pumpndump_1":{"name":"flex_pumpndump_1","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_pumpndump_5":{"name":"flex_pumpndump_5","emoji":"🏅","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"flex_pumpndump_50":{"name":"flex_pumpndump_50","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_pumpndump_500":{"name":"flex_pumpndump_500","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_all_1":{"name":"Full Stack Bitcoiner","emoji":"💪","desc":"Completed 5 Flex actions in one day","xp":10,"category":"","hidden":false,"serverAward":true},"flex_all_5":{"name":"Consistent Stacker","emoji":"🔥","desc":"Hit the daily Flex goal 5 days","xp":50,"category":"","hidden":false,"serverAward":true},"flex_all_50":{"name":"Sovereign Individual","emoji":"🔑","desc":"Hit the daily Flex goal 50 days","xp":500,"category":"","hidden":false,"serverAward":true},"flex_all_500":{"name":"Proof of Discipline","emoji":"🏆","desc":"Hit the daily Flex goal 500 days","xp":2000,"category":"","hidden":false,"serverAward":true},"donor_100":{"name":"Giving Pleb","emoji":"🫷","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"donor_500":{"name":"Stack Sharer","emoji":"💛","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"donor_1000":{"name":"Community Builder","emoji":"🧡","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"donor_5000":{"name":"Archive Patron","emoji":"❤️","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"donor_10000":{"name":"Sats Saint","emoji":"🔥","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"donor_25000":{"name":"Lightning Philanthropist","emoji":"⚡","desc":"","xp":2000,"category":"","hidden":false,"serverAward":true},"donor_50000":{"name":"Satoshi's Steward","emoji":"🏆","desc":"","xp":2000,"category":"","hidden":false,"serverAward":true},"donor_100000":{"name":"Legend of the Archive","emoji":"👑","desc":"","xp":2000,"category":"","hidden":false,"serverAward":true},"pow_first_step":{"name":"First Step","emoji":"👟","desc":"Synced your first walk via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":true},"pow_marathoner":{"name":"Marathoner","emoji":"🏃‍♂️","desc":"Hit the 42km daily cap in Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":true},"pow_streak_3":{"name":"3-Day Streak","emoji":"🔥","desc":"Synced walks 3 days in a row via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":true},"pow_streak_7":{"name":"7-Day Streak","emoji":"🔥","desc":"Synced walks 7 days in a row via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":true},"pow_streak_30":{"name":"30-Day Streak","emoji":"💎","desc":"Synced walks 30 days in a row via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":true},"pow_km_10":{"name":"10 km Club","emoji":"🥾","desc":"Walked 10 km lifetime via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":true},"pow_km_50":{"name":"50 km Club","emoji":"🚶","desc":"Walked 50 km lifetime via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":true},"pow_km_100":{"name":"Century Walker","emoji":"🏅","desc":"Walked 100 km lifetime via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":true},"pow_km_500":{"name":"500 km Legend","emoji":"🏔️","desc":"Walked 500 km lifetime via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":true},"pow_km_1000":{"name":"1,000 km Titan","emoji":"🌍","desc":"Walked 1,000 km lifetime via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":true},"pow_km_5000":{"name":"To the Moon","emoji":"🌕","desc":"Walked 5,000 km lifetime via Proof of Walk","xp":0,"category":"","hidden":false,"serverAward":true},"hall_of_fame":{"name":"Chancellor on Brink","emoji":"📰","desc":"Earned 50 distinct badges — Chancellor on brink of second bailout for banks","xp":500,"category":"","hidden":false,"serverAward":true},"the_archive":{"name":"The Archivist","emoji":"🏛️","desc":"Earned 100 distinct badges — you don't just use the Archive, you are it","xp":500,"category":"","hidden":false,"serverAward":true},"genesis_block":{"name":"Hall of Fame","emoji":"🏆","desc":"Earned 150 distinct badges — a true legend of the Archive","xp":2000,"category":"","hidden":false,"serverAward":true},"satoshis_ghost":{"name":"Satoshi's Revenge","emoji":"⚔️","desc":"Earned 200 distinct badges — the network never forgets","xp":2000,"category":"","hidden":false,"serverAward":true},"block_250":{"name":"Satoshi's Vendetta","emoji":"🗡️","desc":"Earned 250 distinct badges — deeper than most will ever go","xp":2000,"category":"","hidden":false,"serverAward":true},"the_hodler":{"name":"Satoshi's Ghost","emoji":"👻","desc":"Earned 300 distinct badges — so rare, nobody knows if it has ever been done","xp":2000,"category":"","hidden":false,"serverAward":true},"satoshis_covenant":{"name":"Satoshi's Covenant","emoji":"📜","desc":"Earned 350 distinct badges — bound to the protocol, forever","xp":2000,"category":"","hidden":false,"serverAward":true},"satoshis_cipher":{"name":"Satoshi's Cipher","emoji":"🔐","desc":"Earned 400 distinct badges — you have cracked something most never will","xp":2000,"category":"","hidden":false,"serverAward":true},"daily_1":{"name":"First Mission","emoji":"🎯","desc":"Complete 1 daily challenge","xp":0,"category":"","hidden":false,"serverAward":false},"daily_5":{"name":"Challenge Accepted","emoji":"🔥","desc":"Complete 5 daily challenges total","xp":0,"category":"","hidden":false,"serverAward":false},"daily_10":{"name":"Daily Grinder","emoji":"💪","desc":"Complete 10 daily challenges total","xp":0,"category":"","hidden":false,"serverAward":false},"daily_25":{"name":"Consistent Warrior","emoji":"🏅","desc":"Complete 25 daily challenges total","xp":0,"category":"","hidden":false,"serverAward":false},"daily_50":{"name":"Discipline Protocol","emoji":"🔑","desc":"Complete 50 daily challenges total","xp":0,"category":"","hidden":false,"serverAward":false},"daily_100":{"name":"Centurion","emoji":"👑","desc":"Complete 100 daily challenges total","xp":0,"category":"","hidden":false,"serverAward":false},"combo_trio":{"name":"Trio Combo","emoji":"🔥","desc":"Hit a 3-feature combo in one session","xp":50,"category":"","hidden":false,"serverAward":false},"combo_mega":{"name":"Mega Combo","emoji":"💥","desc":"Hit a 5-feature combo in one session","xp":150,"category":"","hidden":false,"serverAward":false},"combo_legend":{"name":"Legend Mode","emoji":"🏆","desc":"Hit all 8 features in one session","xp":500,"category":"","hidden":true,"serverAward":false},"weekly_hero":{"name":"Community Hero","emoji":"⚡","desc":"Participated in a weekly community challenge","xp":500,"category":"","hidden":true,"serverAward":false},"set_miner_complete":{"name":"Master Miner","emoji":"🏆","desc":"Completed The Miner Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_scholar_complete":{"name":"Satoshi Scholar","emoji":"🎓","desc":"Completed The Scholar Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_social_complete":{"name":"Community Pillar","emoji":"🌐","desc":"Completed The Social Set","xp":150,"category":"","hidden":true,"serverAward":true},"set_streak_complete":{"name":"Diamond Hands","emoji":"💎","desc":"Completed The Streak Set","xp":2000,"category":"","hidden":true,"serverAward":true},"set_pvp_complete":{"name":"Arena Champion","emoji":"👑","desc":"Completed The Fighter Set","xp":500,"category":"","hidden":true,"serverAward":true},"set_builder_complete":{"name":"Archive Builder","emoji":"🔧","desc":"Completed The Builder Set","xp":500,"category":"","hidden":true,"serverAward":true},"set_explorer_complete":{"name":"World Traveler","emoji":"🗺️","desc":"Completed The Explorer Set","xp":150,"category":"","hidden":true,"serverAward":true},"set_fun_complete":{"name":"Bitcoin Calendar Hero","emoji":"🎊","desc":"Completed The Calendar Set","xp":0,"category":"","hidden":true,"serverAward":false},"first_save":{"name":"No Longer a Ghost","emoji":"✅","desc":"Saved your progress by signing in. Smart move.","xp":10,"category":"","hidden":false,"serverAward":true},"ghost_mode":{"name":"Ghost Mode","emoji":"👻","desc":"Exploring the Archive anonymously — your progress is at risk!","xp":0,"category":"","hidden":false,"serverAward":false},"nacho_quester":{"name":"Nacho's Apprentice","emoji":"🦌","desc":"Completed the Nacho onboarding quest","xp":0,"category":"","hidden":false,"serverAward":false},"bio_author":{"name":"Got Something to Say","emoji":"✍️","desc":"Added a bio to your profile","xp":10,"category":"","hidden":false,"serverAward":true},"lightning_address_set":{"name":"Zap Me","emoji":"⚡","desc":"Added a Lightning Address to your profile","xp":10,"category":"","hidden":false,"serverAward":true},"profile_curious":{"name":"People Person","emoji":"👋","desc":"Opened Nacho's profile — you found the legend","xp":0,"category":"","hidden":false,"serverAward":false},"profile_explorer_5":{"name":"Profile Prowler","emoji":"🕵️","desc":"Viewed 5 user profiles","xp":0,"category":"","hidden":false,"serverAward":false},"profile_explorer_10":{"name":"Social Butterfly","emoji":"🦋","desc":"Viewed 10 user profiles","xp":0,"category":"","hidden":false,"serverAward":false},"profile_explorer_25":{"name":"Community Watcher","emoji":"🔭","desc":"Viewed 25 user profiles","xp":0,"category":"","hidden":false,"serverAward":false},"profile_explorer_50":{"name":"The Networker","emoji":"🤝","desc":"Viewed 50 user profiles","xp":0,"category":"","hidden":false,"serverAward":false},"profile_explorer_100":{"name":"Archive Archivist","emoji":"📚","desc":"Viewed 100 user profiles","xp":0,"category":"","hidden":false,"serverAward":false},"nacho_dressed":{"name":"Fashion Forward","emoji":"👗","desc":"Equipped a closet item on Nacho","xp":0,"category":"","hidden":false,"serverAward":false},"explorer_5":{"name":"Curious Mind","emoji":"🔍","desc":"Visited 5 topics","xp":10,"category":"","hidden":false,"serverAward":true},"foundation_builder":{"name":"Foundation Builder","emoji":"🧱","desc":"Read all Layer 1 Properties (Orange)","xp":50,"category":"","hidden":false,"serverAward":true},"experienced_pro":{"name":"Deep Diver","emoji":"🤿","desc":"Read all Experienced Topics (Purple)","xp":50,"category":"","hidden":false,"serverAward":true},"librarian":{"name":"The Librarian","emoji":"📚","desc":"Read all Resource topics (Blue)","xp":50,"category":"","hidden":false,"serverAward":true},"bookworm":{"name":"Bookworm","emoji":"📖","desc":"Saved 5 topics to favorites","xp":0,"category":"","hidden":false,"serverAward":false},"early_bird":{"name":"Early Bird","emoji":"🐦","desc":"Browsing between 5am and 7am","xp":0,"category":"","hidden":false,"serverAward":false},"night_owl":{"name":"Night Owl","emoji":"🦉","desc":"Browsing between midnight and 5am","xp":0,"category":"","hidden":false,"serverAward":false},"chat_25":{"name":"Getting Chatty","emoji":"🗨️","desc":"Sent 25 messages in Global Chat","xp":50,"category":"","hidden":false,"serverAward":true},"chat_200":{"name":"Chat Veteran","emoji":"🎖️","desc":"Sent 200 messages in Global Chat","xp":150,"category":"","hidden":false,"serverAward":true},"chat_1000":{"name":"Chat Immortal","emoji":"♾️","desc":"Sent 1,000 messages in Global Chat","xp":500,"category":"","hidden":false,"serverAward":true},"chat_lurker_5":{"name":"Chat Lurker","emoji":"💬","desc":"Opened the chat 5 times","xp":0,"category":"","hidden":true,"serverAward":false},"chat_lurker_10":{"name":"Social Butterfly","emoji":"🦋","desc":"Opened the chat 10 times","xp":0,"category":"","hidden":true,"serverAward":false},"chat_lurker_50":{"name":"Always Online","emoji":"🟢","desc":"Opened the chat 50 times","xp":0,"category":"","hidden":true,"serverAward":false},"chat_lurker_100":{"name":"Chat Addict","emoji":"🗣️","desc":"Opened the chat 100 times","xp":0,"category":"","hidden":true,"serverAward":false},"chat_lurker_500":{"name":"Global Chat Legend","emoji":"🌐","desc":"Opened the chat 500 times","xp":0,"category":"","hidden":true,"serverAward":false},"lb_lurker_5":{"name":"Leaderboard Lurker","emoji":"👀","desc":"Opened the leaderboard 5 times","xp":0,"category":"","hidden":true,"serverAward":false},"lb_lurker_10":{"name":"Rank Watcher","emoji":"📊","desc":"Opened the leaderboard 10 times","xp":0,"category":"","hidden":true,"serverAward":false},"lb_lurker_50":{"name":"Standing Obsession","emoji":"🔭","desc":"Opened the leaderboard 50 times","xp":0,"category":"","hidden":true,"serverAward":false},"lb_lurker_100":{"name":"Rank Addict","emoji":"🎯","desc":"Opened the leaderboard 100 times","xp":0,"category":"","hidden":true,"serverAward":false},"lb_lurker_500":{"name":"Leaderboard Legend","emoji":"🏆","desc":"Opened the leaderboard 500 times","xp":0,"category":"","hidden":true,"serverAward":false},"dj_50":{"name":"DJ Legend","emoji":"🎤","desc":"DJed 50 sets in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"dj_listener_100":{"name":"Super Fan","emoji":"🌟","desc":"Tuned in to 100 DJ sets","xp":0,"category":"","hidden":false,"serverAward":false},"beats_100_plays":{"name":"Music Lover","emoji":"🎵","desc":"Played 100 tracks on Bitcoin Beats","xp":0,"category":"","hidden":false,"serverAward":true},"beats_200_plays":{"name":"Music Junkie","emoji":"🎶","desc":"Played 200 tracks on Bitcoin Beats","xp":0,"category":"","hidden":false,"serverAward":true},"beats_500_plays":{"name":"Audiophile","emoji":"🎧","desc":"Played 500 tracks on Bitcoin Beats","xp":0,"category":"","hidden":false,"serverAward":true},"beats_comment_1":{"name":"Reviewer","emoji":"⭐","desc":"Left a comment on a Bitcoin Beats track","xp":0,"category":"","hidden":false,"serverAward":false},"dm_25":{"name":"Power Networker","emoji":"📡","desc":"Sent 25 direct messages","xp":50,"category":"","hidden":false,"serverAward":true},"dm_100":{"name":"Inbox King","emoji":"👑","desc":"Sent 100 direct messages","xp":150,"category":"","hidden":false,"serverAward":true},"forum_first":{"name":"First Post","emoji":"📝","desc":"Made your first forum post","xp":10,"category":"","hidden":false,"serverAward":true},"forum_10":{"name":"Active Voice","emoji":"🗣️","desc":"Made 10 forum posts","xp":50,"category":"","hidden":false,"serverAward":true},"forum_50":{"name":"Prolific Poster","emoji":"✍️","desc":"Made 50 forum posts","xp":150,"category":"","hidden":false,"serverAward":true},"forum_100":{"name":"Forum Legend","emoji":"🏛️","desc":"Made 100 forum posts","xp":500,"category":"","hidden":false,"serverAward":true},"forum_reply_1":{"name":"Responder","emoji":"💬","desc":"Left your first forum reply","xp":10,"category":"","hidden":false,"serverAward":true},"forum_reply_10":{"name":"Commentator","emoji":"🗣️","desc":"Left 10 forum replies","xp":50,"category":"","hidden":false,"serverAward":true},"article_5":{"name":"Journalist","emoji":"📰","desc":"Published 5 articles","xp":150,"category":"","hidden":false,"serverAward":true},"article_10":{"name":"Staff Writer","emoji":"🗞️","desc":"Published 10 articles","xp":500,"category":"","hidden":false,"serverAward":true},"daily_triple_90":{"name":"Trifecta Legend","emoji":"🏆","desc":"Completed the Daily Trifecta 90 times","xp":500,"category":"","hidden":false,"serverAward":true},"daily_triple_365":{"name":"Satoshi's Disciple","emoji":"🟠","desc":"Completed the Daily Trifecta 365 times","xp":2000,"category":"","hidden":false,"serverAward":true},"react_10":{"name":"Reaction Habit","emoji":"👍","desc":"Reacted to 10 messages in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"react_100":{"name":"Reactor","emoji":"⚡","desc":"Reacted to 100 messages in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"react_500":{"name":"Reaction God","emoji":"🔮","desc":"Reacted to 500 messages in Global Chat","xp":0,"category":"","hidden":false,"serverAward":false},"pvp_played_1":{"name":"Challenger","emoji":"🥋","desc":"Played your first PVP battle","xp":10,"category":"","hidden":false,"serverAward":true},"pvp_played_10":{"name":"Battle Tested","emoji":"🪖","desc":"Played 10 PVP battles","xp":50,"category":"","hidden":false,"serverAward":true},"pvp_played_50":{"name":"Battle Hardened","emoji":"⚔️","desc":"Played 50 PVP battles","xp":150,"category":"","hidden":false,"serverAward":true},"pvp_win_streak_3":{"name":"Hot Streak","emoji":"🔥","desc":"Won 3 PVP battles in a row","xp":0,"category":"","hidden":false,"serverAward":false},"pvp_win_streak_5":{"name":"Unstoppable","emoji":"💥","desc":"Won 5 PVP battles in a row","xp":0,"category":"","hidden":false,"serverAward":false},"streak_3":{"name":"Three's Company","emoji":"📆","desc":"3-day visit streak","xp":50,"category":"","hidden":false,"serverAward":true},"streak_21":{"name":"21 Days","emoji":"₿","desc":"21-day visit streak — the Bitcoin number","xp":500,"category":"","hidden":false,"serverAward":true},"trail_started":{"name":"On the Trail","emoji":"🌱","desc":"Attempted your first Nacho's Trail quiz","xp":0,"category":"","hidden":false,"serverAward":false},"trail_double":{"name":"Double Summit","emoji":"🏔️","desc":"Completed two Nacho's Trails","xp":0,"category":"","hidden":false,"serverAward":false},"trail_speed_3":{"name":"Speedrunner","emoji":"🏁","desc":"Completed all three trails","xp":0,"category":"","hidden":false,"serverAward":false},"trail_meadow_fast":{"name":"Speed Hiker","emoji":"⚡","desc":"Completed The Meadow trail","xp":0,"category":"","hidden":false,"serverAward":false},"trail_perfectionist":{"name":"No Shortcuts","emoji":"🧠","desc":"Completed The Summit trail","xp":0,"category":"","hidden":false,"serverAward":false},"trail_revisit":{"name":"Back for More","emoji":"🔁","desc":"Retook a trail you already passed","xp":0,"category":"","hidden":false,"serverAward":false},"spin_1":{"name":"First Spin","emoji":"🎰","desc":"Spun the wheel for the first time","xp":10,"category":"","hidden":false,"serverAward":true},"spin_7":{"name":"Spin Week","emoji":"🌀","desc":"Spun 7 days total","xp":50,"category":"","hidden":false,"serverAward":true},"spin_100":{"name":"Century Spinner","emoji":"🏅","desc":"Spun the wheel 100 days total","xp":500,"category":"","hidden":false,"serverAward":true},"spin_closet_1":{"name":"Dressed to Impress","emoji":"👔","desc":"Won your first closet item from the spin","xp":150,"category":"","hidden":false,"serverAward":true},"spin_closet_5":{"name":"Full Wardrobe","emoji":"🌈","desc":"Won 5 closet items from spins","xp":500,"category":"","hidden":false,"serverAward":true},"spin_streak_14":{"name":"Fortnight Spinner","emoji":"🔄","desc":"Spun 14 days in a row","xp":150,"category":"","hidden":false,"serverAward":true},"spin_streak_30":{"name":"Wheel Addict","emoji":"🎡","desc":"Spun 30 days in a row","xp":500,"category":"","hidden":false,"serverAward":true},"sf_lucky_1":{"name":"Lucky Roll","emoji":"🎰","desc":"Mined a lucky hash (under 1,000,000) 1 time","xp":0,"category":"","hidden":false,"serverAward":false},"sf_lucky_5":{"name":"Hot Streak","emoji":"🔥","desc":"Mined a lucky hash (under 1,000,000) 5 times","xp":0,"category":"","hidden":false,"serverAward":false},"sf_lucky_10":{"name":"Clover Nonce","emoji":"🍀","desc":"Mined a lucky hash (under 1,000,000) 10 times","xp":0,"category":"","hidden":false,"serverAward":false},"sf_lucky_50":{"name":"Fortune Miner","emoji":"🪄","desc":"Mined a lucky hash (under 1,000,000) 50 times","xp":0,"category":"","hidden":false,"serverAward":false},"sf_lucky_100":{"name":"Blessed Nonce","emoji":"✨","desc":"Mined a lucky hash (under 1,000,000) 100 times","xp":0,"category":"","hidden":false,"serverAward":false},"sf_lucky_1000":{"name":"Satoshi's Chosen","emoji":"💎","desc":"Mined a lucky hash (under 1,000,000) 1,000 times","xp":0,"category":"","hidden":false,"serverAward":false},"sf_unlucky_1":{"name":"Off the Mark","emoji":"💨","desc":"Mined an unlucky hash (over 99,000,000) 1 time","xp":0,"category":"","hidden":false,"serverAward":false},"sf_unlucky_5":{"name":"Cold Streak","emoji":"🧊","desc":"Mined an unlucky hash (over 99,000,000) 5 times","xp":0,"category":"","hidden":false,"serverAward":false},"sf_unlucky_10":{"name":"Wrong Side of Zero","emoji":"🚫","desc":"Mined an unlucky hash (over 99,000,000) 10 times","xp":0,"category":"","hidden":false,"serverAward":false},"sf_unlucky_50":{"name":"Perpetual Loser","emoji":"💔","desc":"Mined an unlucky hash (over 99,000,000) 50 times","xp":0,"category":"","hidden":false,"serverAward":false},"sf_unlucky_100":{"name":"Cursed Miner","emoji":"⚰️","desc":"Mined an unlucky hash (over 99,000,000) 100 times","xp":0,"category":"","hidden":false,"serverAward":false},"sf_unlucky_1000":{"name":"Proof of Pain","emoji":"🕱️","desc":"Mined an unlucky hash (over 99,000,000) 1,000 times","xp":0,"category":"","hidden":false,"serverAward":false},"market_listed_10":{"name":"Power Seller","emoji":"🏆","desc":"Listed 10 items in the Marketplace","xp":150,"category":"","hidden":false,"serverAward":true},"predict_correct_50":{"name":"Half-Oracle","emoji":"🌙","desc":"50 correct price predictions","xp":500,"category":"","hidden":false,"serverAward":true},"predict_accuracy_70":{"name":"Precision Forecaster","emoji":"🎯","desc":"Hit 70%+ accuracy across 20+ predictions","xp":150,"category":"","hidden":false,"serverAward":true},"fun_friday":{"name":"TGIF Pleb","emoji":"🍕","desc":"Visited on a Friday","xp":0,"category":"","hidden":false,"serverAward":false},"fun_weekend":{"name":"Weekend Warrior","emoji":"🏖️","desc":"Visited on a Saturday or Sunday","xp":0,"category":"","hidden":false,"serverAward":false},"fun_midnight":{"name":"Midnight Maxi","emoji":"🌕","desc":"Visited right at midnight (12:00 AM)","xp":0,"category":"","hidden":false,"serverAward":false},"fun_new_year":{"name":"New Year Stacker","emoji":"🎆","desc":"Visited on January 1st","xp":0,"category":"","hidden":false,"serverAward":false},"fun_bitcoin_birthday":{"name":"Bitcoin Birthday","emoji":"🎂","desc":"Visited on Jan 3 — Genesis Block Day","xp":0,"category":"","hidden":false,"serverAward":false},"fun_halving_day":{"name":"Halving Day","emoji":"✂️","desc":"Visited on April 20 — the spirit of the halving","xp":0,"category":"","hidden":false,"serverAward":false},"fun_pi_day":{"name":"Pi Day Pleb","emoji":"🥧","desc":"Visited on March 14 (3.14) — Bitcoiners appreciate irrational numbers too","xp":0,"category":"","hidden":false,"serverAward":false},"fun_whitepaper_day":{"name":"Whitepaper Day","emoji":"📜","desc":"Visited on Oct 31 — Bitcoin Whitepaper Anniversary","xp":0,"category":"","hidden":false,"serverAward":false},"set_beats_complete":{"name":"Beats Maestro","emoji":"🎤","desc":"Completed The Beats Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_daily_complete":{"name":"Challenge Master","emoji":"🏅","desc":"Completed The Daily Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_irl_complete":{"name":"Community Anchor","emoji":"🌍","desc":"Completed The IRL Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_lightning_complete":{"name":"Lightning Lord","emoji":"⚡","desc":"Completed The Lightning Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_pow_complete":{"name":"Distance Legend","emoji":"🌍","desc":"Completed The Proof of Walk Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_profile_complete":{"name":"Archive Legend","emoji":"🦌","desc":"Completed The Profile Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_spin_complete":{"name":"Wheel Master","emoji":"🎰","desc":"Completed The Wheel Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_tctv_complete":{"name":"Timechain Veteran","emoji":"🛸","desc":"Completed The Timechain TV Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_trails_complete":{"name":"Trail Blazer","emoji":"🏔️","desc":"Completed The Trails Set","xp":0,"category":"","hidden":true,"serverAward":false},"set_trifecta_complete":{"name":"Trifecta God","emoji":"🌞","desc":"Completed The Trifecta Set","xp":2000,"category":"","hidden":true,"serverAward":true},"jack_of_all":{"name":"Jack of All Trades","emoji":"🃏","desc":"Earned at least one badge in every major category","xp":150,"category":"","hidden":false,"serverAward":true},"flex_steak_10":{"name":"flex_steak_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_steak_25":{"name":"flex_steak_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_steak_100":{"name":"flex_steak_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_steak_1000":{"name":"flex_steak_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_sunlight_10":{"name":"flex_sunlight_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_sunlight_25":{"name":"flex_sunlight_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_sunlight_100":{"name":"flex_sunlight_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_sunlight_1000":{"name":"flex_sunlight_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_dca_10":{"name":"flex_dca_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_dca_25":{"name":"flex_dca_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_dca_100":{"name":"flex_dca_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_dca_1000":{"name":"flex_dca_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_custody_10":{"name":"flex_custody_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_custody_25":{"name":"flex_custody_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_custody_100":{"name":"flex_custody_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_custody_1000":{"name":"flex_custody_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_lift_10":{"name":"flex_lift_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_lift_25":{"name":"flex_lift_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_lift_100":{"name":"flex_lift_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_lift_1000":{"name":"flex_lift_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_meetup_10":{"name":"flex_meetup_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_meetup_25":{"name":"flex_meetup_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_meetup_100":{"name":"flex_meetup_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_meetup_1000":{"name":"flex_meetup_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_lightning_10":{"name":"flex_lightning_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_lightning_25":{"name":"flex_lightning_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_lightning_100":{"name":"flex_lightning_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_lightning_1000":{"name":"flex_lightning_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_read_10":{"name":"flex_read_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_read_25":{"name":"flex_read_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_read_100":{"name":"flex_read_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_read_1000":{"name":"flex_read_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_sleep_10":{"name":"flex_sleep_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_sleep_25":{"name":"flex_sleep_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_sleep_100":{"name":"flex_sleep_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_sleep_1000":{"name":"flex_sleep_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_nokyc_10":{"name":"flex_nokyc_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_nokyc_25":{"name":"flex_nokyc_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_nokyc_100":{"name":"flex_nokyc_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_nokyc_1000":{"name":"flex_nokyc_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_node_10":{"name":"flex_node_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_node_25":{"name":"flex_node_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_node_100":{"name":"flex_node_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_node_1000":{"name":"flex_node_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_cold_10":{"name":"flex_cold_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_cold_25":{"name":"flex_cold_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_cold_100":{"name":"flex_cold_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_cold_1000":{"name":"flex_cold_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_fast_10":{"name":"flex_fast_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_fast_25":{"name":"flex_fast_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_fast_100":{"name":"flex_fast_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_fast_1000":{"name":"flex_fast_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_walk_10":{"name":"flex_walk_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_walk_25":{"name":"flex_walk_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_walk_100":{"name":"flex_walk_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_walk_1000":{"name":"flex_walk_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_journal_10":{"name":"flex_journal_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_journal_25":{"name":"flex_journal_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_journal_100":{"name":"flex_journal_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_journal_1000":{"name":"flex_journal_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_meditate_10":{"name":"flex_meditate_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_meditate_25":{"name":"flex_meditate_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_meditate_100":{"name":"flex_meditate_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_meditate_1000":{"name":"flex_meditate_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_teach_10":{"name":"flex_teach_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_teach_25":{"name":"flex_teach_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_teach_100":{"name":"flex_teach_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_teach_1000":{"name":"flex_teach_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_water_10":{"name":"flex_water_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_water_25":{"name":"flex_water_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_water_100":{"name":"flex_water_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_water_1000":{"name":"flex_water_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_gratitude_10":{"name":"flex_gratitude_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_gratitude_25":{"name":"flex_gratitude_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_gratitude_100":{"name":"flex_gratitude_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_gratitude_1000":{"name":"flex_gratitude_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_verify_10":{"name":"flex_verify_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_verify_25":{"name":"flex_verify_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_verify_100":{"name":"flex_verify_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_verify_1000":{"name":"flex_verify_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_focus_10":{"name":"flex_focus_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_focus_25":{"name":"flex_focus_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_focus_100":{"name":"flex_focus_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_focus_1000":{"name":"flex_focus_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_risk_10":{"name":"flex_risk_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_risk_25":{"name":"flex_risk_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_risk_100":{"name":"flex_risk_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_risk_1000":{"name":"flex_risk_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_pattern_10":{"name":"flex_pattern_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_pattern_25":{"name":"flex_pattern_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_pattern_100":{"name":"flex_pattern_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_pattern_1000":{"name":"flex_pattern_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_findq_10":{"name":"flex_findq_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_findq_25":{"name":"flex_findq_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_findq_100":{"name":"flex_findq_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_findq_1000":{"name":"flex_findq_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_noleverage_10":{"name":"flex_noleverage_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_noleverage_25":{"name":"flex_noleverage_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_noleverage_100":{"name":"flex_noleverage_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_noleverage_1000":{"name":"flex_noleverage_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_gunrange_10":{"name":"flex_gunrange_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_gunrange_25":{"name":"flex_gunrange_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_gunrange_100":{"name":"flex_gunrange_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_gunrange_1000":{"name":"flex_gunrange_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_sellchairs_10":{"name":"flex_sellchairs_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_sellchairs_25":{"name":"flex_sellchairs_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_sellchairs_100":{"name":"flex_sellchairs_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_sellchairs_1000":{"name":"flex_sellchairs_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_starebtc_10":{"name":"flex_starebtc_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_starebtc_25":{"name":"flex_starebtc_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_starebtc_100":{"name":"flex_starebtc_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_starebtc_1000":{"name":"flex_starebtc_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_itoldyou_10":{"name":"flex_itoldyou_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_itoldyou_25":{"name":"flex_itoldyou_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_itoldyou_100":{"name":"flex_itoldyou_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_itoldyou_1000":{"name":"flex_itoldyou_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"flex_pumpndump_10":{"name":"flex_pumpndump_10","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_pumpndump_25":{"name":"flex_pumpndump_25","emoji":"🏅","desc":"","xp":50,"category":"","hidden":false,"serverAward":true},"flex_pumpndump_100":{"name":"flex_pumpndump_100","emoji":"🏅","desc":"","xp":150,"category":"","hidden":false,"serverAward":true},"flex_pumpndump_1000":{"name":"flex_pumpndump_1000","emoji":"🏅","desc":"","xp":500,"category":"","hidden":false,"serverAward":true},"profile_complete":{"name":"Filled In","emoji":"🪪","desc":"Added a username, bio, and country","xp":10,"category":"Welcome Aboard","hidden":false,"serverAward":true},"first_peer":{"name":"First Peer","emoji":"🧡","desc":"Connected with your first peer on the Bitcoin Education Archive","xp":10,"category":"","hidden":false,"serverAward":true},"peer_network_10":{"name":"Node Runner","emoji":"🕸️","desc":"Built a peer network of 10 people","xp":10,"category":"","hidden":false,"serverAward":true},"peer_network_50":{"name":"Signal Booster","emoji":"📡","desc":"Connected with 50 peers — spreading the signal","xp":2000,"category":"","hidden":false,"serverAward":true},"peer_network_100":{"name":"Hub Node","emoji":"🌐","desc":"Connected with 100 peers — you are a hub on the network","xp":2000,"category":"","hidden":false,"serverAward":true},"peer_network_250":{"name":"Network Sovereign","emoji":"👑","desc":"Connected with 250 peers — sovereign node of the Archive","xp":2000,"category":"","hidden":false,"serverAward":true},"bip_360":{"name":"BIP-360 P2MR","emoji":"🛡️","desc":"Merged BIP-360: Pay-to-Merkle-Root (quantum-resistant script path)","xp":75,"category":"","hidden":false,"serverAward":true},"bip_119":{"name":"BIP-119 CTV","emoji":"📋","desc":"Merged BIP-119: OP_CHECKTEMPLATEVERIFY covenants","xp":75,"category":"","hidden":false,"serverAward":true},"bip_347":{"name":"BIP-347 OP_CAT","emoji":"🐱","desc":"Merged BIP-347: OP_CAT for covenants and contracts","xp":75,"category":"","hidden":false,"serverAward":true},"bip_118":{"name":"BIP-118 ANYPREVOUT","emoji":"🔗","desc":"Merged BIP-118: SIGHASH_ANYPREVOUT for eltoo","xp":75,"category":"","hidden":false,"serverAward":true},"bip_352":{"name":"BIP-352 Silent Payments","emoji":"🤫","desc":"Merged BIP-352: Silent Payments","xp":75,"category":"","hidden":false,"serverAward":true},"bip_348":{"name":"BIP-348 CSFS","emoji":"✍️","desc":"Merged BIP-348: OP_CHECKSIGFROMSTACK","xp":75,"category":"","hidden":false,"serverAward":true},"bip_349":{"name":"BIP-349 INTERNALKEY","emoji":"🔑","desc":"Merged BIP-349: OP_INTERNALKEY","xp":75,"category":"","hidden":false,"serverAward":true},"bip_443":{"name":"BIP-443 CCV","emoji":"📦","desc":"Merged BIP-443: OP_CHECKCONTRACTVERIFY","xp":75,"category":"","hidden":false,"serverAward":true},"bip_353":{"name":"BIP-353 DNS Payments","emoji":"🌐","desc":"Merged BIP-353: DNS Payment Instructions","xp":75,"category":"","hidden":false,"serverAward":true},"bip_324":{"name":"BIP-324 P2Pv2","emoji":"🔐","desc":"Merged BIP-324: encrypted P2P transport","xp":75,"category":"","hidden":false,"serverAward":true},"bip_85":{"name":"BIP-85 Entropy","emoji":"🌱","desc":"Merged BIP-85: deterministic entropy from BIP32","xp":75,"category":"","hidden":false,"serverAward":true},"bip_86":{"name":"BIP-86 P2TR Keys","emoji":"🪙","desc":"Merged BIP-86: single-key P2TR derivation","xp":75,"category":"","hidden":false,"serverAward":true},"sf_100000_hashes":{"name":"Hundred Thousand Hashes","emoji":"⛏️","desc":"Contributed 100,000 Satoshi's Favor hashes","xp":2000,"category":"Favor","hidden":false,"serverAward":true},"gift_open_1":{"name":"Unwrapped","emoji":"🎁","desc":"Opened your first gift","xp":10,"category":"Open Hand","hidden":false,"serverAward":true},"gift_open_25":{"name":"Ribbon Cutter","emoji":"🎀","desc":"Opened 25 gifts","xp":50,"category":"Open Hand","hidden":false,"serverAward":true},"gift_open_100":{"name":"Present Pro","emoji":"🎁","desc":"Opened 100 gifts","xp":150,"category":"Open Hand","hidden":false,"serverAward":true},"gift_open_500":{"name":"Gift Hoarder","emoji":"📦","desc":"Opened 500 gifts","xp":500,"category":"Open Hand","hidden":false,"serverAward":true},"gift_open_1500":{"name":"Endless Wrapping","emoji":"♾️","desc":"Opened 1,500 gifts","xp":2000,"category":"Open Hand","hidden":false,"serverAward":true},"gift_lucky_shoutout":{"name":"Nacho's Pick","emoji":"📣","desc":"A gift's Nacho shoutout was posted","xp":50,"category":"Open Hand","hidden":false,"serverAward":true},"gift_sent_1":{"name":"Gift Giver","emoji":"🎁","desc":"A peer used a key you sent","xp":10,"category":"Open Hand","hidden":false,"serverAward":true},"gift_sent_10":{"name":"Generous","emoji":"🎁","desc":"Peers used 10 keys you sent","xp":150,"category":"Open Hand","hidden":false,"serverAward":true},"gift_sent_50":{"name":"Santa Sats","emoji":"🎅","desc":"Peers used 50 keys you sent","xp":500,"category":"Open Hand","hidden":false,"serverAward":true},"gift_sent_200":{"name":"Key Philanthropist","emoji":"🗝️","desc":"Peers used 200 keys you sent","xp":2000,"category":"Open Hand","hidden":false,"serverAward":true},"key_peers_5":{"name":"Keymaster","emoji":"🔑","desc":"5 different peers used a key you sent","xp":150,"category":"Peer Network","hidden":false,"serverAward":true},"key_peers_21":{"name":"Web of Trust","emoji":"🕸️","desc":"21 different peers used a key you sent","xp":500,"category":"Peer Network","hidden":false,"serverAward":true},"cipher_peer_key_1":{"name":"Borrowed Key","emoji":"🔐","desc":"Opened a cipher with a peer's key","xp":10,"category":"Codebreaker","hidden":false,"serverAward":true},"cipher_peer_key_25":{"name":"Trusted Circle","emoji":"🔐","desc":"Opened 25 ciphers with peers' keys","xp":150,"category":"Codebreaker","hidden":false,"serverAward":true},"cipher_peer_key_100":{"name":"Shared Secrets","emoji":"🔐","desc":"Opened 100 ciphers with peers' keys","xp":500,"category":"Codebreaker","hidden":false,"serverAward":true},"cipher_full_ring":{"name":"Full Keyring","emoji":"💍","desc":"Opened 21 ciphers in one day","xp":150,"category":"Codebreaker","hidden":false,"serverAward":true},"cipher_sats_1":{"name":"Cracked the Vault","emoji":"⚡","desc":"Received your first paid cipher sats win","xp":150,"category":"Codebreaker","hidden":false,"serverAward":true},"cipher_sats_5":{"name":"Vault Regular","emoji":"⚡","desc":"Received 5 paid cipher sats wins","xp":500,"category":"Codebreaker","hidden":false,"serverAward":true},"cipher_sats_10k":{"name":"Whale Cipher","emoji":"🐳","desc":"A paid cipher win of 10,000 sats or more","xp":2000,"category":"Codebreaker","hidden":false,"serverAward":true},"peer_level_2":{"name":"Channel Opened","emoji":"🟨","desc":"A peer pair reached Opening Channel","xp":10,"category":"Peer Network","hidden":false,"serverAward":true},"peer_level_3":{"name":"Routing Nodes","emoji":"🟧","desc":"A peer pair reached Routing Nodes","xp":50,"category":"Peer Network","hidden":false,"serverAward":true},"peer_level_4":{"name":"Adjusted Fees","emoji":"🟦","desc":"A peer pair reached Adjusted Fees","xp":150,"category":"Peer Network","hidden":false,"serverAward":true},"peer_level_5":{"name":"Balanced Liquidity","emoji":"🟪","desc":"A peer pair reached Balanced Liquidity","xp":500,"category":"Peer Network","hidden":false,"serverAward":true},"peer_level_6":{"name":"Wumbo Channel","emoji":"⚡","desc":"A peer pair reached Wumbo Channel","xp":2000,"category":"Peer Network","hidden":false,"serverAward":true},"peer_hub_5":{"name":"Lightning Hub","emoji":"🌐","desc":"5 peers at Routing Nodes or higher","xp":500,"category":"Peer Network","hidden":false,"serverAward":true},"topic_comment_1":{"name":"Chimed In","emoji":"💬","desc":"A counted comment on a topic","xp":10,"category":"Community Voice","hidden":false,"serverAward":true},"topic_comment_10":{"name":"Discussion Regular","emoji":"💬","desc":"10 counted topic comments","xp":50,"category":"Community Voice","hidden":false,"serverAward":true},"topic_comment_50":{"name":"Thread Weaver","emoji":"🧵","desc":"50 counted topic comments","xp":150,"category":"Community Voice","hidden":false,"serverAward":true},"topic_comment_250":{"name":"Town Crier","emoji":"📢","desc":"250 counted topic comments","xp":500,"category":"Community Voice","hidden":false,"serverAward":true},"topic_channels_10":{"name":"Well-Rounded","emoji":"📚","desc":"Counted comments in 10 different topics","xp":150,"category":"Community Voice","hidden":false,"serverAward":true},"shop_10":{"name":"Regular Customer","emoji":"🛒","desc":"Made 10 purchases in Nacho's Nook","xp":50,"category":"Nook","hidden":false,"serverAward":true},"shop_50":{"name":"Nook VIP","emoji":"🛒","desc":"Made 50 purchases in Nacho's Nook","xp":150,"category":"Nook","hidden":false,"serverAward":true},"raffle_entered":{"name":"Feeling Lucky","emoji":"🎟️","desc":"Bought a raffle ticket with orange tickets","xp":10,"category":"Raffle","hidden":false,"serverAward":true},"raffle_10":{"name":"Ticket Stacker","emoji":"🎟️","desc":"Bought 10 raffle tickets with orange tickets","xp":50,"category":"Raffle","hidden":false,"serverAward":true},"raffle_50":{"name":"Regular Drawer","emoji":"🎲","desc":"Bought 50 raffle tickets with orange tickets","xp":150,"category":"Raffle","hidden":false,"serverAward":true},"raffle_250":{"name":"High Roller","emoji":"🎰","desc":"Bought 250 raffle tickets with orange tickets","xp":500,"category":"Raffle","hidden":false,"serverAward":true},"raffle_1000":{"name":"House Favorite","emoji":"🏆","desc":"Bought 1,000 raffle tickets with orange tickets","xp":2000,"category":"Raffle","hidden":false,"serverAward":true},"raffle_winner":{"name":"Raffle Champion","emoji":"🏆","desc":"Won the monthly orange-ticket raffle","xp":500,"category":"Raffle","hidden":false,"serverAward":true},"predict_top_week":{"name":"Weekly Oracle","emoji":"🔮","desc":"Paid as a weekly Top Predictor","xp":150,"category":"Oracle","hidden":false,"serverAward":true},"predict_top_week_5":{"name":"Seasoned Oracle","emoji":"🔮","desc":"Paid as a weekly Top Predictor 5 times","xp":500,"category":"Oracle","hidden":false,"serverAward":true},"predict_top_month":{"name":"Monthly Oracle","emoji":"🌕","desc":"Paid as a monthly Top Predictor","xp":500,"category":"Oracle","hidden":false,"serverAward":true},"totp_enabled":{"name":"Fort Knox","emoji":"🔒","desc":"Turned on an authenticator","xp":50,"category":"Sovereign Setup","hidden":false,"serverAward":true},"faction_chosen":{"name":"Pledged","emoji":"🏴","desc":"Chose a faction","xp":10,"category":"Sovereign Setup","hidden":false,"serverAward":true},"onboarding_complete":{"name":"Welcome Aboard","emoji":"🧭","desc":"Finished onboarding","xp":10,"category":"Welcome Aboard","hidden":false,"serverAward":true},"push_enabled":{"name":"Ring the Bell","emoji":"🔔","desc":"Turned on push notifications","xp":10,"category":"Welcome Aboard","hidden":false,"serverAward":true},"the_completionist":{"name":"the_completionist","emoji":"🗺️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"quest_legend":{"name":"quest_legend","emoji":"⚔️","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"hash_lord":{"name":"hash_lord","emoji":"☄️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"hash_god":{"name":"hash_god","emoji":"⚡","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"satoshis_chosen":{"name":"satoshis_chosen","emoji":"💎","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"block_solver":{"name":"block_solver","emoji":"🌞","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"hodler_supreme":{"name":"hodler_supreme","emoji":"🪩","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"sovereign_individual":{"name":"sovereign_individual","emoji":"🗽","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"the_satellite":{"name":"the_satellite","emoji":"🛰️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"timechain_surfer":{"name":"timechain_surfer","emoji":"🏄","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"chat_legend":{"name":"chat_legend","emoji":"📯","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"the_devoted":{"name":"the_devoted","emoji":"💠","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"pvp_legend":{"name":"pvp_legend","emoji":"🥇","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"raid_warlord":{"name":"raid_warlord","emoji":"🔱","desc":"","xp":10,"category":"","hidden":false,"serverAward":true},"dragon_slayer":{"name":"dragon_slayer","emoji":"🐲","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"the_viral_plebian":{"name":"the_viral_plebian","emoji":"👑","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"satoshis_disciple":{"name":"satoshis_disciple","emoji":"🟠","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"trifecta_legend":{"name":"trifecta_legend","emoji":"🏆","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"double_scholar":{"name":"double_scholar","emoji":"🏛️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"trivia_titan":{"name":"trivia_titan","emoji":"🏅","desc":"","xp":2000,"category":"","hidden":false,"serverAward":true},"the_devotee":{"name":"the_devotee","emoji":"🔱","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"vinyl_master":{"name":"vinyl_master","emoji":"🎼","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"nachos_confidant":{"name":"nachos_confidant","emoji":"🤫","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"regional_leader":{"name":"regional_leader","emoji":"🌆","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"twenty_one_million":{"name":"twenty_one_million","emoji":"₿","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"proof_of_pain":{"name":"proof_of_pain","emoji":"🕱️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"trail_master":{"name":"trail_master","emoji":"🏁","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"to_the_moon":{"name":"to_the_moon","emoji":"🌕","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"democracy_maxi":{"name":"democracy_maxi","emoji":"⚖️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"sat_slinger":{"name":"sat_slinger","emoji":"💰","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"community_darling":{"name":"community_darling","emoji":"🌟","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"time_traveler":{"name":"time_traveler","emoji":"⏳","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"the_long_walker":{"name":"the_long_walker","emoji":"💎","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"chancellor":{"name":"chancellor","emoji":"📰","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"the_archivist_t":{"name":"the_archivist_t","emoji":"🏛️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"hall_of_fame_t":{"name":"hall_of_fame_t","emoji":"🏆","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"satoshis_revenge_t":{"name":"satoshis_revenge_t","emoji":"⚔️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"satoshis_vendetta_t":{"name":"satoshis_vendetta_t","emoji":"🗡️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"satoshis_ghost_t":{"name":"satoshis_ghost_t","emoji":"👻","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"satoshis_covenant_t":{"name":"satoshis_covenant_t","emoji":"📜","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"satoshis_cipher_t":{"name":"satoshis_cipher_t","emoji":"🔐","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"grand_scholar":{"name":"grand_scholar","emoji":"🎓","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"jack_of_all_t":{"name":"jack_of_all_t","emoji":"🃏","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"master_miner_t":{"name":"master_miner_t","emoji":"⛏️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"satoshi_scholar_t":{"name":"satoshi_scholar_t","emoji":"🎓","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"community_pillar_t":{"name":"community_pillar_t","emoji":"🌐","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"diamond_hands_set_t":{"name":"diamond_hands_set_t","emoji":"💎","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"arena_champion_t":{"name":"arena_champion_t","emoji":"👑","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"archive_builder_t":{"name":"archive_builder_t","emoji":"🔧","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"world_traveler_t":{"name":"world_traveler_t","emoji":"🗺️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"bitcoin_cal_hero_t":{"name":"bitcoin_cal_hero_t","emoji":"🎊","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"challenge_master_t":{"name":"challenge_master_t","emoji":"🏅","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"timechain_veteran_t":{"name":"timechain_veteran_t","emoji":"🛸","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"lightning_lord_t":{"name":"lightning_lord_t","emoji":"⚡","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"trail_blazer_t":{"name":"trail_blazer_t","emoji":"🏔️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"beats_maestro_t":{"name":"beats_maestro_t","emoji":"🎤","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"trifecta_god_t":{"name":"trifecta_god_t","emoji":"🌞","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"irl_set_t":{"name":"irl_set_t","emoji":"🏟️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"spin_set_t":{"name":"Core Contributor","emoji":"🎰","desc":"Merged this week\\","xp":0,"category":"","hidden":false,"serverAward":false},"core_contributor":{"name":"Core Contributor","emoji":"🔧","desc":"Merged this week's BIP after 7 daily spins","xp":0,"category":"","hidden":false,"serverAward":false},"pow_set_t":{"name":"pow_set_t","emoji":"👟","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"chat_immortal_t":{"name":"chat_immortal_t","emoji":"♾️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"reaction_god_t":{"name":"reaction_god_t","emoji":"🔮","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"dj_legend_t":{"name":"dj_legend_t","emoji":"🎛️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"super_fan_t":{"name":"super_fan_t","emoji":"🌟","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"audiophile_t":{"name":"audiophile_t","emoji":"🎧","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"forum_legend_t":{"name":"forum_legend_t","emoji":"🏛️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"staff_writer_t":{"name":"staff_writer_t","emoji":"🗞️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"unstoppable_pvp_t":{"name":"unstoppable_pvp_t","emoji":"💥","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"diamond_hands_100_t":{"name":"diamond_hands_100_t","emoji":"💎","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"wheel_addict_t":{"name":"wheel_addict_t","emoji":"🎡","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"century_spinner_t":{"name":"century_spinner_t","emoji":"🏅","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"precision_forecaster_t":{"name":"precision_forecaster_t","emoji":"🎯","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"nostradamus_t":{"name":"nostradamus_t","emoji":"🔮","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"flex_legend_t":{"name":"flex_legend_t","emoji":"🦁","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"full_stack_human_t":{"name":"full_stack_human_t","emoji":"🧬","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"legend_mode_t":{"name":"legend_mode_t","emoji":"🏆","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"nachos_bestie_t":{"name":"nachos_bestie_t","emoji":"🧡","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"super_spreader_t":{"name":"super_spreader_t","emoji":"📡","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"sat_hoarder_t":{"name":"sat_hoarder_t","emoji":"🏦","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"favor_champion_t":{"name":"favor_champion_t","emoji":"🏅","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"golden_nonce_t":{"name":"golden_nonce_t","emoji":"✨","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"asic_mode_t":{"name":"asic_mode_t","emoji":"🖥️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"summit_conqueror_t":{"name":"summit_conqueror_t","emoji":"🏔️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"pow_titan_t":{"name":"pow_titan_t","emoji":"🌍","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"story_master_t":{"name":"story_master_t","emoji":"🦧","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"scene_regular_t":{"name":"scene_regular_t","emoji":"🗺️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"tip_magnet_t":{"name":"tip_magnet_t","emoji":"🧲","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"community_hero_t":{"name":"community_hero_t","emoji":"⚡","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_beats":{"name":"The Beats Set","emoji":"🎵","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_builder":{"name":"The Builder Set","emoji":"🏗️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_fun":{"name":"The Calendar Set","emoji":"📅","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_daily":{"name":"The Daily Set","emoji":"🎯","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_explorer":{"name":"The Explorer Set","emoji":"🧭","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_pvp":{"name":"The Fighter Set","emoji":"⚔️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_irl":{"name":"The IRL Set","emoji":"🤝","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_lightning":{"name":"The Lightning Set","emoji":"⚡","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_miner":{"name":"The Miner Set","emoji":"⛏️","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_pow":{"name":"The Proof of Walk Set","emoji":"🚶","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_scholar":{"name":"The Scholar Set","emoji":"📚","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_social":{"name":"The Social Set","emoji":"💬","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_streak":{"name":"The Streak Set","emoji":"🔥","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_tctv":{"name":"The Timechain TV Set","emoji":"📺","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_trails":{"name":"The Trails Set","emoji":"🥾","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_trifecta":{"name":"The Trifecta Set","emoji":"🔱","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_spin":{"name":"The Wheel Set","emoji":"🎡","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_profile":{"name":"The Profile Set","emoji":"👤","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"set_daily_five":{"name":"Daily Five Set","emoji":"🖐️","desc":"Completed the Daily Five collection","xp":150,"category":"Collections","hidden":false,"serverAward":true},"set_voice":{"name":"Community Voice Set","emoji":"💬","desc":"Completed the Community Voice collection","xp":150,"category":"Collections","hidden":false,"serverAward":true},"set_tv":{"name":"Prime Time Set","emoji":"📺","desc":"Completed the Prime Time collection","xp":150,"category":"Collections","hidden":false,"serverAward":true},"set_trader":{"name":"Open for Business Set","emoji":"🏪","desc":"Completed the Open for Business collection","xp":150,"category":"Collections","hidden":false,"serverAward":true},"set_codebreaker":{"name":"Codebreaker Set","emoji":"🔐","desc":"Completed the Codebreaker collection","xp":500,"category":"Collections","hidden":false,"serverAward":true},"set_generous":{"name":"Open Hand Set","emoji":"🎁","desc":"Completed the Open Hand collection","xp":150,"category":"Collections","hidden":false,"serverAward":true},"set_network":{"name":"Peer Network Set","emoji":"🤝","desc":"Completed the Peer Network collection","xp":500,"category":"Collections","hidden":false,"serverAward":true},"set_gladiator":{"name":"Gladiator Set","emoji":"⚔️","desc":"Completed the Gladiator collection","xp":150,"category":"Collections","hidden":false,"serverAward":true},"set_scholar_daily":{"name":"Daily Scholar Set","emoji":"📚","desc":"Completed the Daily Scholar collection","xp":150,"category":"Collections","hidden":false,"serverAward":true},"set_newcomer":{"name":"Welcome Aboard Set","emoji":"🧭","desc":"Completed the Welcome Aboard collection","xp":150,"category":"Collections","hidden":false,"serverAward":true},"set_favor":{"name":"Favor of Satoshi Set","emoji":"🔱","desc":"Completed the Favor of Satoshi collection","xp":500,"category":"Collections","hidden":false,"serverAward":true},"set_oracle":{"name":"Oracle Set","emoji":"🔮","desc":"Completed the Oracle collection","xp":500,"category":"Collections","hidden":false,"serverAward":true},"set_sovereign":{"name":"Sovereign Setup Set","emoji":"🔒","desc":"Completed the Sovereign Setup collection","xp":150,"category":"Collections","hidden":false,"serverAward":true},"set_raffle":{"name":"Raffle Regular Set","emoji":"🎟️","desc":"Completed the Raffle Regular collection","xp":500,"category":"Collections","hidden":false,"serverAward":true},"nacho_friend":{"name":"Nacho's Friend","emoji":"🦌","desc":"Interact with Nacho","xp":0,"category":"","hidden":false,"serverAward":false},"genesis":{"name":"Genesis Reader","emoji":"📜","desc":"Read the whitepaper channel","xp":10,"category":"","hidden":false,"serverAward":true},"nacho_curious":{"name":"Curious Deer","emoji":"❓","desc":"Ask Nacho your first question","xp":0,"category":"","hidden":false,"serverAward":false},"ticket_bronze":{"name":"Ticket Fish","emoji":"🐟","desc":"Earn 25 Orange Tickets","xp":150,"category":"","hidden":false,"serverAward":true},"ticket_silver":{"name":"Ticket Shark","emoji":"🦈","desc":"Earn 50 Orange Tickets","xp":150,"category":"","hidden":false,"serverAward":true},"ticket_gold":{"name":"Ticket Whale","emoji":"🐋","desc":"Earn 100 Orange Tickets","xp":500,"category":"","hidden":false,"serverAward":true},"nacho_10q":{"name":"Inquisitive Buck","emoji":"🔍","desc":"Ask Nacho 10 questions","xp":0,"category":"","hidden":false,"serverAward":false},"collector":{"name":"Collector","emoji":"💎","desc":"Save 10+ topics to favorites","xp":0,"category":"","hidden":false,"serverAward":false},"first_post":{"name":"PlebTalk Voice","emoji":"📣","desc":"Make your first Pleb Talk post","xp":10,"category":"","hidden":false,"serverAward":true},"first_reply":{"name":"Conversationalist","emoji":"💬","desc":"Reply to a forum post","xp":10,"category":"","hidden":false,"serverAward":true},"market_seller":{"name":"Shopkeeper","emoji":"🏪","desc":"List an item on Lightning Mart","xp":10,"category":"","hidden":false,"serverAward":true},"market_buyer":{"name":"Shopper","emoji":"🛍️","desc":"Contact a seller on the marketplace","xp":10,"category":"","hidden":false,"serverAward":true},"speed_runner":{"name":"Speed Runner","emoji":"⚡","desc":"Visit 15+ channels in one session","xp":0,"category":"","hidden":true,"serverAward":false},"scholar":{"name":"Bitcoin Scholar","emoji":"🎓","desc":"Pass the Scholar Certification","xp":150,"category":"","hidden":true,"serverAward":true},"nacho_20q":{"name":"20 Questions","emoji":"🏅","desc":"Ask Nacho 20 questions","xp":0,"category":"","hidden":true,"serverAward":false},"marathon":{"name":"Marathon Reader","emoji":"🏃","desc":"Spent 30+ minutes reading in one session","xp":0,"category":"","hidden":true,"serverAward":false},"early_adopter":{"name":"Early Adopter","emoji":"🌅","desc":"Browsing between 5am and 7am","xp":0,"category":"","hidden":true,"serverAward":false},"weekend_warrior":{"name":"Weekend Warrior","emoji":"🎉","desc":"Learning Bitcoin on a weekend","xp":0,"category":"","hidden":true,"serverAward":false},"triple_threat":{"name":"Triple Threat","emoji":"🎯","desc":"Completed a quest, sent a chat message, and read a channel in one session","xp":0,"category":"","hidden":true,"serverAward":false},"nacho_50q":{"name":"Nacho Sage","emoji":"🧙","desc":"Ask Nacho 50 questions","xp":0,"category":"","hidden":true,"serverAward":false},"bookmark_collector":{"name":"Bookmark Hoarder","emoji":"📚","desc":"Bookmarked 20+ messages","xp":0,"category":"","hidden":true,"serverAward":false},"pvp_streak":{"name":"Undefeated","emoji":"🔱","desc":"Won 5 PVP battles in a row","xp":0,"category":"","hidden":true,"serverAward":false},"sats_maxed":{"name":"Faucet King","emoji":"👑","desc":"Claimed all 15,000 sats from the faucet","xp":2000,"category":"","hidden":true,"serverAward":true},"streak_freeze":{"name":"Ice Shield","emoji":"🧊","desc":"Used a streak freeze to save your streak","xp":50,"category":"","hidden":true,"serverAward":true},"nacho_closet_full":{"name":"Fashionista","emoji":"👗","desc":"Unlocked all Nacho closet items from the spin wheel","xp":0,"category":"","hidden":true,"serverAward":false},"ghost_reader":{"name":"Ghost Reader","emoji":"👻","desc":"Visited the archive every day for a week without earning any points","xp":150,"category":"","hidden":true,"serverAward":true},"whitepaper_pilgrim":{"name":"Whitepaper Pilgrim","emoji":"📜","desc":"Read the whitepaper channel 10 times in separate sessions","xp":0,"category":"","hidden":true,"serverAward":false},"insomniac":{"name":"Insomniac","emoji":"🌑","desc":"Visited the archive between 2am and 4am on 3 separate occasions","xp":0,"category":"","hidden":true,"serverAward":false},"contrarian":{"name":"The Contrarian","emoji":"🙃","desc":"Voted against the majority in 10 daily polls","xp":0,"category":"","hidden":true,"serverAward":false},"block_42":{"name":"Block 42","emoji":"🎱","desc":"Discovered something hidden in the archive","xp":0,"category":"","hidden":true,"serverAward":false},"rabbit_hole":{"name":"Rabbit Hole","emoji":"🕳️","desc":"Spent 3 hours straight learning in one session","xp":0,"category":"","hidden":true,"serverAward":false},"the_plebeian":{"name":"The Plebeian","emoji":"🫡","desc":"Reached the leaderboard top 100 without a single referral","xp":0,"category":"","hidden":true,"serverAward":false},"silent_donor":{"name":"Silent Donor","emoji":"🤫","desc":"Donated XP to charity without ever sharing your referral link","xp":150,"category":"","hidden":true,"serverAward":true},"dust_collector":{"name":"Dust Collector","emoji":"🧹","desc":"Claimed sats from the faucet 21 days in a row","xp":0,"category":"","hidden":true,"serverAward":false},"hash_obsessed":{"name":"Hash Obsessed","emoji":"⛏️","desc":"Contributed 25,000 hashes to Satoshi's Favor","xp":2000,"category":"","hidden":true,"serverAward":true},"search_sleuth":{"name":"Search Sleuth","emoji":"🔎","desc":"Used every search in the archive — topics, users, badges, forum, marketplace, beats, and GIFs","xp":0,"category":"","hidden":true,"serverAward":false},"q__":{"name":"q__","emoji":"🏅","desc":"","xp":0,"category":"","hidden":false,"serverAward":false},"profile_frame":{"name":"Profile Frame","emoji":"🏅","desc":"Exclusive border on your profile card","xp":0,"category":"","hidden":false,"serverAward":false},"chat_flair":{"name":"Chat Flair","emoji":"🏅","desc":"Special badge next to your name in chat","xp":0,"category":"","hidden":false,"serverAward":false},"pinned_badge":{"name":"Pinned Badge","emoji":"🏅","desc":"Showcase a permanent achievement badge","xp":0,"category":"","hidden":false,"serverAward":false},"nacho_skin_nook":{"name":"Exclusive Nacho Skin","emoji":"🏅","desc":"Rare Nacho avatar — Nook exclusive!","xp":0,"category":"","hidden":false,"serverAward":false},"steak":{"name":"Eat Steak","emoji":"🥩","desc":"Fuel up like a carnivore maxi","xp":0,"category":"","hidden":false,"serverAward":false},"sunlight":{"name":"Get Sunlight","emoji":"☀️","desc":"Touch grass. Outside. On purpose.","xp":0,"category":"","hidden":false,"serverAward":false},"dca":{"name":"DCA Bitcoin","emoji":"📈","desc":"Stack sats on schedule. No emotion.","xp":0,"category":"","hidden":false,"serverAward":false},"custody":{"name":"Self-Custody","emoji":"🔑","desc":"Not your keys, not your coins.","xp":0,"category":"","hidden":false,"serverAward":false},"lift":{"name":"Lift Weights","emoji":"🏋️","desc":"Proof of strength. Every rep counts.","xp":0,"category":"","hidden":false,"serverAward":false},"meetup":{"name":"Host a Meetup","emoji":"🤝","desc":"Orange-pill your city. IRL > URL.","xp":0,"category":"","hidden":false,"serverAward":false},"lightning":{"name":"Spend via Lightning","emoji":"⚡","desc":"Circular economy. Spend and re-stack.","xp":0,"category":"","hidden":false,"serverAward":false},"read":{"name":"Read Bitcoin","emoji":"📚","desc":"One page of Saifedean a day.","xp":0,"category":"","hidden":false,"serverAward":false},"sleep":{"name":"Sleep 8 Hours","emoji":"😴","desc":"Low time-preference recovery.","xp":0,"category":"","hidden":false,"serverAward":false},"nokyc":{"name":"Buy No-KYC","emoji":"🕵️","desc":"Preserve your privacy. Stay sovereign.","xp":0,"category":"","hidden":false,"serverAward":false},"node":{"name":"Run Your Node","emoji":"💻","desc":"Don't trust. Verify.","xp":0,"category":"","hidden":false,"serverAward":false},"cold":{"name":"Cold Plunge","emoji":"🧊","desc":"Hormetic stress. Bitcoin is similar.","xp":0,"category":"","hidden":false,"serverAward":false},"fast":{"name":"Intermittent Fast","emoji":"⏱️","desc":"Low glucose, high signal.","xp":0,"category":"","hidden":false,"serverAward":false},"walk":{"name":"Walk 10k Steps","emoji":"🚶","desc":"Proof of Walk. Calories are energy.","xp":0,"category":"","hidden":false,"serverAward":false},"journal":{"name":"Journal Today","emoji":"📝","desc":"Long-term thinking. Write it down.","xp":0,"category":"","hidden":false,"serverAward":false},"meditate":{"name":"Meditate","emoji":"🧘","desc":"Clear mind. Bitcoin is signal.","xp":0,"category":"","hidden":false,"serverAward":false},"teach":{"name":"Orange-Pill Someone","emoji":"🗣️","desc":"Share the truth. One person at a time.","xp":0,"category":"","hidden":false,"serverAward":false},"water":{"name":"Drink Water","emoji":"💧","desc":"Hydration is a low time preference act.","xp":0,"category":"","hidden":false,"serverAward":false},"gratitude":{"name":"Gratitude Practice","emoji":"🙏","desc":"Abundance mindset. Stack happiness.","xp":0,"category":"","hidden":false,"serverAward":false},"verify":{"name":"Verify a Transaction","emoji":"🔍","desc":"Trust no one. Not even Rufus.","xp":0,"category":"","hidden":false,"serverAward":false},"focus":{"name":"Focus Mode","emoji":"🐍","desc":"Clear your head. Guide the snake.","xp":0,"category":"","hidden":false,"serverAward":false},"risk":{"name":"Risk Assessment","emoji":"💣","desc":"Navigate uncertainty. Find the safe path.","xp":0,"category":"","hidden":false,"serverAward":false},"pattern":{"name":"Pattern Recognition","emoji":"🧩","desc":"Spot recurring patterns like a Bitcoiner.","xp":0,"category":"","hidden":false,"serverAward":false},"findq":{"name":"Spot the FED","emoji":"🏦","desc":"One impostor among the p's. Hunt it down.","xp":0,"category":"","hidden":false,"serverAward":false},"noleverage":{"name":"Avoid Leverage","emoji":"🧮","desc":"Stay humble. Do the math, not the margin.","xp":0,"category":"","hidden":false,"serverAward":false},"gunrange":{"name":"Gun Range","emoji":"🎯","desc":"Lock and load. Hit all three targets.","xp":0,"category":"","hidden":false,"serverAward":false},"sellchairs":{"name":"Sell Your Chairs","emoji":"🪑","desc":"Stack sats, not stuff. Color it in.","xp":0,"category":"","hidden":false,"serverAward":false},"starebtc":{"name":"Stare at the Price","emoji":"📈","desc":"Hold the candle. Zoom out. Never sell.","xp":0,"category":"","hidden":false,"serverAward":false},"itoldyou":{"name":"I Told You So","emoji":"🙏","desc":"Say it. They never listened.","xp":0,"category":"","hidden":false,"serverAward":false},"pumpndump":{"name":"Observe a Pump & Dump","emoji":"📉","desc":"Watch the rug pull happen in real time.","xp":0,"category":"","hidden":false,"serverAward":false},"p01":{"name":"p01","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p02":{"name":"p02","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p03":{"name":"p03","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p04":{"name":"p04","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p05":{"name":"p05","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p06":{"name":"p06","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p07":{"name":"p07","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p08":{"name":"p08","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p09":{"name":"p09","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p10":{"name":"p10","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p11":{"name":"p11","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p12":{"name":"p12","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p13":{"name":"p13","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p14":{"name":"p14","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p15":{"name":"p15","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p16":{"name":"p16","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p17":{"name":"p17","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p18":{"name":"p18","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p19":{"name":"p19","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p20":{"name":"p20","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p21":{"name":"p21","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p22":{"name":"p22","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p23":{"name":"p23","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p24":{"name":"p24","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p25":{"name":"p25","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p26":{"name":"p26","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p27":{"name":"p27","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p28":{"name":"p28","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p29":{"name":"p29","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p30":{"name":"p30","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p31":{"name":"p31","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p32":{"name":"p32","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p33":{"name":"p33","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p34":{"name":"p34","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p35":{"name":"p35","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p36":{"name":"p36","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p37":{"name":"p37","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p38":{"name":"p38","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p39":{"name":"p39","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p40":{"name":"p40","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p41":{"name":"p41","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p42":{"name":"p42","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p43":{"name":"p43","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p44":{"name":"p44","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p45":{"name":"p45","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p46":{"name":"p46","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p47":{"name":"p47","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p48":{"name":"p48","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p49":{"name":"p49","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p50":{"name":"p50","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p51":{"name":"p51","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p52":{"name":"p52","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p53":{"name":"p53","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p54":{"name":"p54","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p55":{"name":"p55","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p56":{"name":"p56","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p57":{"name":"p57","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p58":{"name":"p58","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p59":{"name":"p59","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p60":{"name":"p60","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p61":{"name":"p61","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p62":{"name":"p62","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p63":{"name":"p63","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p64":{"name":"p64","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p65":{"name":"p65","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p66":{"name":"p66","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p67":{"name":"p67","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p68":{"name":"p68","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p69":{"name":"p69","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p70":{"name":"p70","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p71":{"name":"p71","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p72":{"name":"p72","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p73":{"name":"p73","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p74":{"name":"p74","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p75":{"name":"p75","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p76":{"name":"p76","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p77":{"name":"p77","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p78":{"name":"p78","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p79":{"name":"p79","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"p80":{"name":"p80","emoji":"🏅","desc":"Find checkmate","xp":0,"category":"","hidden":false,"serverAward":false},"daily_five_1":{"name":"High Five","emoji":"🖐️","desc":"Finished all 5 daily challenges in one day","xp":10,"category":"Daily Five","hidden":false,"serverAward":true},"daily_five_7":{"name":"Five Alive","emoji":"🖐️","desc":"Finished the daily five on 7 days","xp":50,"category":"Daily Five","hidden":false,"serverAward":true},"daily_five_30":{"name":"Fivefold","emoji":"🖐️","desc":"Finished the daily five on 30 days","xp":150,"category":"Daily Five","hidden":false,"serverAward":true},"daily_five_100":{"name":"Perfect Hundred","emoji":"💯","desc":"Finished the daily five on 100 days","xp":500,"category":"Daily Five","hidden":false,"serverAward":true},"daily_five_streak_7":{"name":"Five-Day Fever","emoji":"🔥","desc":"Finished the daily five 7 days in a row","xp":150,"category":"Daily Five","hidden":false,"serverAward":true},"say_hi_1":{"name":"Hello World","emoji":"👋","desc":"Said hi in Global Chat","xp":10,"category":"Community Voice","hidden":false,"serverAward":true},"say_hi_7":{"name":"Friendly Face","emoji":"👋","desc":"Said hi on 7 days","xp":50,"category":"Community Voice","hidden":false,"serverAward":true},"say_hi_30":{"name":"Town Greeter","emoji":"👋","desc":"Said hi on 30 days","xp":150,"category":"Community Voice","hidden":false,"serverAward":true},"say_hi_100":{"name":"Mayor of Chat","emoji":"🎩","desc":"Said hi on 100 days","xp":500,"category":"Community Voice","hidden":false,"serverAward":true},"tctv_daily_1":{"name":"Tuned In Daily","emoji":"📺","desc":"Watched 10 minutes of Timechain TV in one day","xp":10,"category":"Prime Time","hidden":false,"serverAward":true},"tctv_daily_7":{"name":"Regular Viewer","emoji":"📺","desc":"Watched Timechain TV on 7 days","xp":50,"category":"Prime Time","hidden":false,"serverAward":true},"tctv_daily_30":{"name":"Prime Timer","emoji":"📺","desc":"Watched Timechain TV on 30 days","xp":150,"category":"Prime Time","hidden":false,"serverAward":true},"tctv_daily_100":{"name":"Network Exec","emoji":"📺","desc":"Watched Timechain TV on 100 days","xp":500,"category":"Prime Time","hidden":false,"serverAward":true},"reply_bonus_1":{"name":"Conversation Starter","emoji":"💬","desc":"Earned a reply bonus","xp":10,"category":"Community Voice","hidden":false,"serverAward":true},"reply_bonus_25":{"name":"Good Listener","emoji":"💬","desc":"Earned 25 reply bonuses","xp":150,"category":"Community Voice","hidden":false,"serverAward":true},"reply_bonus_100":{"name":"Thread Weaver","emoji":"🧵","desc":"Earned 100 reply bonuses","xp":500,"category":"Community Voice","hidden":false,"serverAward":true},"reply_bonus_500":{"name":"Community Pillar","emoji":"🏛️","desc":"Earned 500 reply bonuses","xp":2000,"category":"Community Voice","hidden":false,"serverAward":true},"poll_days_7":{"name":"Voice of the People","emoji":"🗳️","desc":"Voted in the daily poll on 7 days","xp":50,"category":"Daily Scholar","hidden":false,"serverAward":true},"poll_days_30":{"name":"Poll Regular","emoji":"🗳️","desc":"Voted in the daily poll on 30 days","xp":150,"category":"Daily Scholar","hidden":false,"serverAward":true},"poll_days_100":{"name":"Poll Warden","emoji":"🗳️","desc":"Voted in the daily poll on 100 days","xp":500,"category":"Daily Scholar","hidden":false,"serverAward":true},"quest_days_7":{"name":"Quiz Regular","emoji":"📝","desc":"Finished a daily quiz on 7 days","xp":50,"category":"Daily Scholar","hidden":false,"serverAward":true},"quest_days_30":{"name":"Quiz Devotee","emoji":"📝","desc":"Finished a daily quiz on 30 days","xp":150,"category":"Daily Scholar","hidden":false,"serverAward":true},"quest_days_100":{"name":"Quiz Master","emoji":"📝","desc":"Finished a daily quiz on 100 days","xp":500,"category":"Daily Scholar","hidden":false,"serverAward":true},"sf_trifecta_10":{"name":"Favor Feeder","emoji":"🔱","desc":"Completed the daily trifecta 10 times","xp":150,"category":"Favor","hidden":false,"serverAward":true},"sf_trifecta_50":{"name":"Favor Regular","emoji":"🔱","desc":"Completed the daily trifecta 50 times","xp":500,"category":"Favor","hidden":false,"serverAward":true},"sf_trifecta_100":{"name":"Favor Keeper","emoji":"🔱","desc":"Completed the daily trifecta 100 times","xp":500,"category":"Favor","hidden":false,"serverAward":true},"peer_1":{"name":"First Peer","emoji":"🤝","desc":"Accepted your first peer","xp":50,"category":"Peer Network","hidden":false,"serverAward":true},"peer_3":{"name":"Small Circle","emoji":"🤝","desc":"Accepted 3 peers","xp":150,"category":"Peer Network","hidden":false,"serverAward":true},"peer_10":{"name":"Node Operator","emoji":"🕸️","desc":"Accepted 10 peers","xp":500,"category":"Peer Network","hidden":false,"serverAward":true},"peer_25":{"name":"Hub","emoji":"🌐","desc":"Accepted 25 peers","xp":500,"category":"Peer Network","hidden":false,"serverAward":true},"market_sold_1":{"name":"First Sale","emoji":"🏷️","desc":"Sold a listing that had a buyer message","xp":150,"category":"Open for Business","hidden":false,"serverAward":true},"market_sold_5":{"name":"Trusted Seller","emoji":"🏷️","desc":"Sold 5 listings that had a buyer message","xp":500,"category":"Open for Business","hidden":false,"serverAward":true},"cipher_1":{"name":"Decoder","emoji":"🔐","desc":"Opened your first cipher","xp":10,"category":"Codebreaker","hidden":false,"serverAward":true},"cipher_10":{"name":"Cryptographer","emoji":"🔐","desc":"Opened 10 ciphers","xp":150,"category":"Codebreaker","hidden":false,"serverAward":true},"cipher_50":{"name":"Enigma","emoji":"🔐","desc":"Opened 50 ciphers","xp":500,"category":"Codebreaker","hidden":false,"serverAward":true},"cipher_200":{"name":"Satoshi's Pen","emoji":"🖊️","desc":"Opened 200 ciphers","xp":2000,"category":"Codebreaker","hidden":false,"serverAward":true},"plebtalk_1":{"name":"First Words","emoji":"📣","desc":"Joined a PlebTalk session","xp":10,"category":"Community Voice","hidden":false,"serverAward":true},"plebtalk_10":{"name":"Regular Guest","emoji":"📣","desc":"Joined 10 PlebTalk sessions","xp":150,"category":"Community Voice","hidden":false,"serverAward":true},"plebtalk_50":{"name":"PlebTalk Host","emoji":"🎙️","desc":"Joined 50 PlebTalk sessions","xp":500,"category":"Community Voice","hidden":false,"serverAward":true},"col_learning_bonus":{"name":"Learning","emoji":"📚","desc":"Completed the Learning collection","xp":300,"category":"Collections","hidden":true,"serverAward":false},"col_daily_habits_bonus":{"name":"Daily Habits","emoji":"🎯","desc":"Completed the Daily Habits collection","xp":4150,"category":"Collections","hidden":true,"serverAward":false},"col_mining_bonus":{"name":"Mining","emoji":"⛏️","desc":"Completed the Mining collection","xp":500,"category":"Collections","hidden":true,"serverAward":false},"col_foresight_bonus":{"name":"Foresight and Luck","emoji":"🔮","desc":"Completed the Foresight and Luck collection","xp":1000,"category":"Collections","hidden":true,"serverAward":false},"col_arena_bonus":{"name":"Arena","emoji":"⚔️","desc":"Completed the Arena collection","xp":1150,"category":"Collections","hidden":true,"serverAward":false},"col_chat_forum_bonus":{"name":"Chat & Forum","emoji":"💬","desc":"Completed the Chat & Forum collection","xp":300,"category":"Collections","hidden":true,"serverAward":false},"col_peers_bonus":{"name":"Peers & Referrals","emoji":"🤝","desc":"Completed the Peers & Referrals collection","xp":500,"category":"Collections","hidden":true,"serverAward":false},"col_irl_bonus":{"name":"IRL Meetups","emoji":"🍻","desc":"Completed the IRL Meetups collection","xp":0,"category":"Collections","hidden":true,"serverAward":false},"col_lightning_bonus":{"name":"Lightning and Giving","emoji":"⚡","desc":"Completed the Lightning and Giving collection","xp":150,"category":"Collections","hidden":true,"serverAward":false},"col_builder_bonus":{"name":"Builder and Market","emoji":"🏗️","desc":"Completed the Builder and Market collection","xp":650,"category":"Collections","hidden":true,"serverAward":false},"col_tctv_bonus":{"name":"Timechain TV","emoji":"📺","desc":"Completed the Timechain TV collection","xp":150,"category":"Collections","hidden":true,"serverAward":false},"col_beats_bonus":{"name":"Beats & DJ","emoji":"🎵","desc":"Completed the Beats & DJ collection","xp":0,"category":"Collections","hidden":true,"serverAward":false},"col_profile_bonus":{"name":"Profile and Setup","emoji":"👤","desc":"Completed the Profile and Setup collection","xp":300,"category":"Collections","hidden":true,"serverAward":false},"col_fitness_bonus":{"name":"Fun and Fitness","emoji":"🚶","desc":"Completed the Fun and Fitness collection","xp":0,"category":"Collections","hidden":true,"serverAward":false},"col_bip_s1_bonus":{"name":"BIP Breakthroughs · Season 1","emoji":"📜","desc":"Completed the BIP Breakthroughs · Season 1 collection","xp":0,"category":"Collections","hidden":true,"serverAward":false},"col_proof_of_everything_bonus":{"name":"Proof of Everything","emoji":"🛡️","desc":"Completed the Proof of Everything collection","xp":0,"category":"Collections","hidden":true,"serverAward":false},"col_community_bonus":{"name":"Community","emoji":"💬","desc":"Completed the Community collection (retired)","xp":0,"category":"Collections","hidden":true,"serverAward":false},"col_entertainment_bonus":{"name":"Entertainment","emoji":"🎵","desc":"Completed the Entertainment collection (retired)","xp":0,"category":"Collections","hidden":true,"serverAward":false},"tctv_watch_t1":{"name":"Timechain TV Watcher · Bronze","emoji":"🟫","desc":"Watched 10 minutes of Timechain TV (server-verified, up to 3 hours a day)","xp":10,"category":"Prime Time","hidden":false,"serverAward":true},"tctv_watch_t2":{"name":"Timechain TV Watcher · Silver","emoji":"⬜","desc":"Watched 5 hours of Timechain TV (server-verified, up to 3 hours a day)","xp":150,"category":"Prime Time","hidden":false,"serverAward":true},"tctv_watch_t3":{"name":"Timechain TV Watcher · Gold","emoji":"🟨","desc":"Watched 100 hours of Timechain TV (server-verified, up to 3 hours a day)","xp":1000,"category":"Prime Time","hidden":false,"serverAward":true},"tctv_watch_t4":{"name":"Timechain TV Watcher · Platinum","emoji":"🟪","desc":"Watched 500 hours of Timechain TV (server-verified, up to 3 hours a day) (+5 orange tickets)","xp":2500,"category":"Prime Time","hidden":false,"serverAward":true},"tctv_watch_t5":{"name":"Timechain TV Watcher · Diamond","emoji":"💎","desc":"Watched 2,100 hours of Timechain TV (server-verified, up to 3 hours a day) (+21 orange tickets)","xp":5000,"category":"Prime Time","hidden":false,"serverAward":true},"tier_all_platinum":{"name":"All Platinum","emoji":"🟪","desc":"Reached Platinum in every tiered badge (+21 orange tickets)","xp":2500,"category":"Collections","hidden":false,"serverAward":true},"tier_all_diamond":{"name":"All Diamond","emoji":"💎","desc":"Reached Diamond in every tiered badge (+46 orange tickets)","xp":5000,"category":"Collections","hidden":false,"serverAward":true},"race_10k_finisher":{"name":"Ran the Race","emoji":"🏁","desc":"Contributed to a faction in a race to 10,000","xp":50,"category":"","hidden":false,"serverAward":true},"race_champion_hornets":{"name":"Hive Mind Champion","emoji":"🐝","desc":"Cyber Hornets won the race to 10,000 and you helped","xp":150,"category":"","hidden":false,"serverAward":true},"race_champion_badgers":{"name":"Honey Badger Don't Care Champion","emoji":"🦡","desc":"Honey Badgers won the race to 10,000 and you helped","xp":150,"category":"","hidden":false,"serverAward":true},"race_still_buzzing":{"name":"Still Buzzing","emoji":"🐝","desc":"Cyber Hornets fought to the finish in a race to 10,000. Still buzzing.","xp":75,"category":"","hidden":false,"serverAward":true},"race_badger_dont_quit":{"name":"Badger Don't Quit","emoji":"🦡","desc":"Honey Badgers fought to the finish in a race to 10,000. Badger don't quit.","xp":75,"category":"","hidden":false,"serverAward":true},"hive_mind_champion":{"name":"Core Contributor","emoji":"🐝","desc":"Merged this week's BIP after 7 daily spins","xp":0,"category":"","hidden":false,"serverAward":false},"honey_badger_champion":{"name":"Core Contributor","emoji":"🦡","desc":"Merged this week's BIP after 7 daily spins","xp":0,"category":"","hidden":false,"serverAward":false}};
 window.BADGE_CATALOG_VERSION=1;
-window.BADGE_COLLECTION_PAY={"col_learning":{"bonusPts":300,"legacy":[{"id":"set_scholar_complete","pts":0},{"id":"set_scholar_daily","pts":150},{"id":"set_explorer_complete","pts":150},{"id":"set_trails_complete","pts":0}]},"col_daily_habits":{"bonusPts":4150,"legacy":[{"id":"set_daily_complete","pts":0},{"id":"set_daily_five","pts":150},{"id":"set_trifecta_complete","pts":2000},{"id":"set_streak_complete","pts":2000},{"id":"set_spin_complete","pts":0}]},"col_mining":{"bonusPts":500,"legacy":[{"id":"set_miner_complete","pts":0},{"id":"set_favor","pts":500}]},"col_foresight":{"bonusPts":1000,"legacy":[{"id":"set_oracle","pts":500},{"id":"set_raffle","pts":500}]},"col_arena":{"bonusPts":1150,"legacy":[{"id":"set_pvp_complete","pts":500},{"id":"set_gladiator","pts":150},{"id":"set_codebreaker","pts":500}]},"col_community":{"bonusPts":800,"legacy":[{"id":"set_social_complete","pts":150},{"id":"set_voice","pts":150},{"id":"set_network","pts":500},{"id":"set_irl_complete","pts":0}]},"col_lightning":{"bonusPts":150,"legacy":[{"id":"set_lightning_complete","pts":0},{"id":"set_generous","pts":150}]},"col_builder":{"bonusPts":650,"legacy":[{"id":"set_builder_complete","pts":500},{"id":"set_trader","pts":150}]},"col_entertainment":{"bonusPts":150,"legacy":[{"id":"set_beats_complete","pts":0},{"id":"set_tctv_complete","pts":0},{"id":"set_tv","pts":150}]},"col_profile":{"bonusPts":300,"legacy":[{"id":"set_profile_complete","pts":0},{"id":"set_newcomer","pts":150},{"id":"set_sovereign","pts":150}]},"col_fitness":{"bonusPts":0,"legacy":[{"id":"set_fun_complete","pts":0},{"id":"set_pow_complete","pts":0}]}};
+window.BADGE_COLLECTION_PAY={"col_learning":{"bonusPts":300,"legacy":[{"id":"set_scholar_complete","pts":0},{"id":"set_scholar_daily","pts":150},{"id":"set_explorer_complete","pts":150},{"id":"set_trails_complete","pts":0}]},"col_daily_habits":{"bonusPts":4150,"legacy":[{"id":"set_daily_complete","pts":0},{"id":"set_daily_five","pts":150},{"id":"set_trifecta_complete","pts":2000},{"id":"set_streak_complete","pts":2000},{"id":"set_spin_complete","pts":0}]},"col_mining":{"bonusPts":500,"legacy":[{"id":"set_miner_complete","pts":0},{"id":"set_favor","pts":500}]},"col_foresight":{"bonusPts":1000,"legacy":[{"id":"set_oracle","pts":500},{"id":"set_raffle","pts":500}]},"col_arena":{"bonusPts":1150,"legacy":[{"id":"set_pvp_complete","pts":500},{"id":"set_gladiator","pts":150},{"id":"set_codebreaker","pts":500}]},"col_chat_forum":{"bonusPts":300,"legacy":[{"id":"set_social_complete","pts":150},{"id":"set_voice","pts":150}]},"col_peers":{"bonusPts":500,"legacy":[{"id":"set_network","pts":500}]},"col_irl":{"bonusPts":0,"legacy":[{"id":"set_irl_complete","pts":0}]},"col_lightning":{"bonusPts":150,"legacy":[{"id":"set_lightning_complete","pts":0},{"id":"set_generous","pts":150}]},"col_builder":{"bonusPts":650,"legacy":[{"id":"set_builder_complete","pts":500},{"id":"set_trader","pts":150}]},"col_tctv":{"bonusPts":150,"legacy":[{"id":"set_tctv_complete","pts":0},{"id":"set_tv","pts":150}]},"col_beats":{"bonusPts":0,"legacy":[{"id":"set_beats_complete","pts":0}]},"col_profile":{"bonusPts":300,"legacy":[{"id":"set_profile_complete","pts":0},{"id":"set_newcomer","pts":150},{"id":"set_sovereign","pts":150}]},"col_fitness":{"bonusPts":0,"legacy":[{"id":"set_fun_complete","pts":0},{"id":"set_pow_complete","pts":0}]},"col_bip_s1":{"bonusPts":0,"legacy":[]},"col_proof_of_everything":{"bonusPts":0,"legacy":[]}};
+window.BADGE_COLLECTION_DEFS=[{"id":"col_learning","name":"Learning","emoji":"📚","color":"#3b82f6","kind":"core","optional":false,"badgeIds":["first_channel","explorer_5","explorer_25","explorer_all","trivia_correct_1","trivia_correct_10","trivia_correct_30","trivia_streak_7","quest_days_7","quest_days_30","cert_scholar","cert_tech","cert_double","trail_started","trail_summit"],"bonusId":"col_learning_bonus","title":{"id":"col_title_learning","title":"Satoshi Scholar","emoji":"🎓","flavor":"Finished the Learning collection"},"flair":"🎓"},{"id":"col_daily_habits","name":"Daily Habits","emoji":"🎯","color":"#f7931a","kind":"core","optional":false,"badgeIds":["streak_3","streak_7","streak_14","streak_30","daily_triple_1","daily_triple_7","daily_triple_30","spin_1","spin_7","spin_streak_7","daily_five_1","daily_five_7","say_hi_1","poll_days_7","poll_days_30"],"bonusId":"col_daily_habits_bonus","title":{"id":"col_title_daily_habits","title":"Diamond Hands","emoji":"🙌","flavor":"Finished the Daily Habits collection"},"flair":"🙌"},{"id":"col_mining","name":"Mining","emoji":"⛏️","color":"#f7931a","kind":"core","optional":false,"badgeIds":["sf_first_hash","sf_10_hashes","sf_50_hashes","sf_100_hashes","sf_1000_hashes","sf_low_hash","sf_block_solver","sf_lucky_1","sf_lucky_5","sf_lucky_10","sf_unlucky_1","sf_unlucky_5","sf_unlucky_10","sf_trifecta_10","sf_contributor_10"],"bonusId":"col_mining_bonus","title":{"id":"col_title_mining","title":"Master Miner","emoji":"⚒️","flavor":"Finished the Mining collection"},"flair":"⚒️"},{"id":"col_foresight","name":"Foresight and Luck","emoji":"🔮","color":"#a78bfa","kind":"core","optional":false,"badgeIds":["predict_1","predict_top_week","predict_top_week_5","predict_top_month","raffle_entered","raffle_10","raffle_50"],"bonusId":"col_foresight_bonus","title":{"id":"col_title_foresight","title":"The Oracle","emoji":"🔮","flavor":"Finished the Foresight and Luck collection"},"flair":"🔮"},{"id":"col_arena","name":"Arena","emoji":"⚔️","color":"#ec4899","kind":"core","optional":false,"badgeIds":["pvp_played_1","pvp_played_10","pvp_played_50","pvp_first","pvp_5","pvp_25","pvp_50","cipher_1","cipher_10","cipher_peer_key_1","cipher_full_ring","cipher_sats_1"],"bonusId":"col_arena_bonus","title":{"id":"col_title_arena","title":"Arena Champion","emoji":"⚔️","flavor":"Finished the Arena collection"},"flair":"⚔️"},{"id":"col_chat_forum","name":"Chat & Forum","emoji":"💬","color":"#8b5cf6","kind":"core","optional":false,"badgeIds":["chat_first","chat_10","chat_50","chat_100","chat_200","dm_first","dm_10","say_hi_7","reply_bonus_25","forum_reply_10","topic_comment_1","topic_channels_10"],"bonusId":"col_chat_forum_bonus","title":{"id":"col_title_chat_forum","title":"Town Crier","emoji":"📣","flavor":"Finished the Chat & Forum collection"},"flair":"📣"},{"id":"col_peers","name":"Peers & Referrals","emoji":"🤝","color":"#06b6d4","kind":"core","optional":false,"badgeIds":["peer_1","peer_3","peer_10","referral_1","referral_10","key_peers_5","key_peers_21","peer_level_2","peer_level_3","peer_level_4","peer_level_5","peer_hub_5"],"bonusId":"col_peers_bonus","title":{"id":"col_title_peers","title":"Community Pillar","emoji":"🏛️","flavor":"Finished the Peers & Referrals collection"},"flair":"🏛️"},{"id":"col_irl","name":"IRL Meetups","emoji":"🍻","color":"#f59e0b","kind":"core","optional":true,"badgeIds":["irl_host","irl_host_5","irl_host_10","irl_attend_1","irl_attend_5"],"bonusId":"col_irl_bonus","title":{"id":"col_title_irl","title":"Meetup Legend","emoji":"🍻","flavor":"Finished the optional IRL Meetups set"},"flair":"🍻"},{"id":"col_lightning","name":"Lightning and Giving","emoji":"⚡","color":"#eab308","kind":"core","optional":false,"badgeIds":["tip_first","tip_10","tip_received_1","tip_magnet","tip_received_50","sats_first","sats_1k","sats_5k","sats_10k","gift_sent_1","gift_sent_10","gift_open_1","donor_1000"],"bonusId":"col_lightning_bonus","title":{"id":"col_title_lightning","title":"Lightning Lord","emoji":"⚡","flavor":"Finished the Lightning and Giving collection"},"flair":"⚡"},{"id":"col_builder","name":"Builder and Market","emoji":"🏗️","color":"#22c55e","kind":"core","optional":false,"badgeIds":["producer_1","producer_10","forum_first","forum_10","market_listed_1","market_listed_5","market_message","first_purchase"],"bonusId":"col_builder_bonus","title":{"id":"col_title_builder","title":"Archive Builder","emoji":"🏗️","flavor":"Finished the Builder and Market collection"},"flair":"🏗️"},{"id":"col_tctv","name":"Timechain TV","emoji":"📺","color":"#a855f7","kind":"core","optional":false,"badgeIds":["tctv_tuned_in","tctv_couch_potato","tctv_binge_watcher","tctv_couch_king","tctv_channel_hopper","tctv_remote_warrior","tctv_dial_spinner","tctv_signal_seeker","tctv_antenna_wizard","tctv_timechain_surfer","tctv_daily_1","tctv_daily_7","tctv_daily_30"],"bonusId":"col_tctv_bonus","title":{"id":"col_title_tctv","title":"Timechain Veteran","emoji":"📺","flavor":"Finished the Timechain TV collection"},"flair":"📺"},{"id":"col_beats","name":"Beats & DJ","emoji":"🎵","color":"#f472b6","kind":"core","optional":false,"badgeIds":["beats_first_listen","beats_50_plays","beats_100_plays","beats_200_plays","beats_liked_10","beats_liked_50","beats_comment_1","dj_first","dj_5","dj_25","dj_songs_10","dj_songs_50"],"bonusId":"col_beats_bonus","title":{"id":"col_title_beats","title":"Beats Maestro","emoji":"🎧","flavor":"Finished the Beats & DJ collection"},"flair":"🎧"},{"id":"col_profile","name":"Profile and Setup","emoji":"👤","color":"#6366f1","kind":"core","optional":false,"badgeIds":["onboarding_complete","push_enabled","profile_complete","global_citizen","bio_author","profile_curious","profile_explorer_5","profile_explorer_10","profile_explorer_25","lightning_address_set","totp_enabled","faction_chosen"],"bonusId":"col_profile_bonus","title":{"id":"col_title_profile","title":"Sovereign Individual","emoji":"🔐","flavor":"Finished the Profile and Setup collection"},"flair":"🔐"},{"id":"col_fitness","name":"Fun and Fitness","emoji":"🚶","color":"#84cc16","kind":"core","optional":false,"badgeIds":["pow_first_step","pow_km_10","pow_km_50","pow_km_100","pow_streak_3","pow_streak_7","pow_streak_30","pow_marathoner","fun_weekend","fun_friday","fun_midnight"],"bonusId":"col_fitness_bonus","title":{"id":"col_title_fitness","title":"Distance Legend","emoji":"🚶","flavor":"Finished the Fun and Fitness collection"},"flair":"🚶"},{"id":"col_bip_s1","name":"BIP Breakthroughs · Season 1","emoji":"📜","color":"#f7931a","kind":"bip","optional":true,"badgeIds":["bip_360","bip_119","bip_347","bip_118","bip_352","bip_348","bip_349","bip_443","bip_353","bip_324","bip_85","bip_86"],"bonusId":"col_bip_s1_bonus","title":{"id":"col_title_bip_s1","title":"BIP Merger","emoji":"📜","flavor":"Merged all 12 BIPs of Season 1"},"flair":"📜"},{"id":"col_proof_of_everything","name":"Proof of Everything","emoji":"🛡️","color":"#fbbf24","kind":"meta","optional":false,"badgeIds":["col_learning_bonus","col_daily_habits_bonus","col_mining_bonus","col_foresight_bonus","col_arena_bonus","col_chat_forum_bonus","col_peers_bonus","col_lightning_bonus","col_builder_bonus","col_tctv_bonus","col_beats_bonus","col_profile_bonus","col_fitness_bonus"],"bonusId":"col_proof_of_everything_bonus","title":{"id":"col_title_proof_of_everything","title":"Unconfiscatable","emoji":"🛡️","flavor":"Completed every collection. Nothing can take it away."},"flair":"⚡🛡️"}];
+window.BADGE_LEGEND_IDS=["trivia_correct_100","trivia_streak_30","explorer_10","explorer_50","explorer_100","trail_meadow","trail_mountain","trail_all","trail_double","trail_perfectionist","trail_speed_3","trail_meadow_fast","streak_60","streak_100","streak_200","streak_365","daily_triple_90","daily_triple_365","spin_30","spin_100","spin_streak_14","spin_streak_30","spin_jackpot","spin_closet_1","spin_closet_5","sf_lucky_50","sf_lucky_100","sf_lucky_1000","sf_unlucky_50","sf_unlucky_100","sf_unlucky_1000","raffle_250","raffle_1000","raffle_winner","pvp_100","cipher_50","gift_sent_200","sats_21k","tip_sats_10k","tip_whale","market_sold_1","beats_500_plays","dj_songs_100","tctv_satellite","profile_explorer_50","profile_explorer_100","pow_km_500","pow_km_1000","pow_km_5000","fun_bitcoin_birthday","fun_whitepaper_day","fun_new_year","fun_halving_day","fun_pi_day"];
 /* Badge search. Names, ids, descriptions, categories, and collection names.
    Normalization is accent-insensitive and treats _, -, and spaces as the same.
    Results are drawn with textContent. */
@@ -428,19 +430,29 @@ window.BADGE_COLLECTION_PAY={"col_learning":{"bonusPts":300,"legacy":[{"id":"set
             if (ae !== be) return ae - be;
             return (Number(b.badge.xp) || 0) - (Number(a.badge.xp) || 0);
         });
-        var limit = options.showAll ? hits.length : Math.min(8, hits.length);
+        var pageSize = options.showAll ? hits.length : (options.pageSize > 0 ? options.pageSize : 8);
+        var offset = options.showAll ? 0 : Math.max(0, options.offset || 0);
+        if (offset > hits.length) offset = hits.length;
+        var shown = hits.slice(offset, offset + pageSize);
         return {
             query: query,
             total: hits.length,
-            shown: hits.slice(0, limit).map(function (row) { return row.badge; }),
-            truncated: hits.length > limit,
+            offset: offset,
+            shown: shown.map(function (row) { return row.badge; }),
+            truncated: offset + shown.length < hits.length,
+            nextOffset: offset + shown.length,
         };
     }
 
-    function render(container, result) {
+    function render(container, result, append) {
         var doc = container.ownerDocument || document;
-        while (container.firstChild) container.removeChild(container.firstChild);
-        var collections = result.collections || [];
+        if (!append) {
+            while (container.firstChild) container.removeChild(container.firstChild);
+        } else {
+            var oldMore = container.querySelector('[data-badge-search-more]');
+            if (oldMore && oldMore.parentNode) oldMore.parentNode.removeChild(oldMore);
+        }
+        var collections = append ? [] : (result.collections || []);
         collections.forEach(function (col) {
             var row = doc.createElement('div');
             row.setAttribute('data-collection-progress', col.id || col.name || '');
@@ -474,15 +486,22 @@ window.BADGE_COLLECTION_PAY={"col_learning":{"bonusPts":300,"legacy":[{"id":"set
             container.style.display = 'block';
             return;
         }
-        var head = doc.createElement('div');
-        head.style.cssText = 'padding:8px 14px;font-size:0.72rem;color:var(--text-faint);font-weight:700;';
-        head.textContent = result.total + (result.total === 1 ? ' result' : ' results');
-        container.appendChild(head);
+        var loaded = (result.offset || 0) + result.shown.length;
+        var head = container.querySelector('[data-badge-search-count]');
+        if (!head) {
+            head = doc.createElement('div');
+            head.setAttribute('data-badge-search-count', '1');
+            head.style.cssText = 'padding:8px 14px;font-size:0.72rem;color:var(--text-faint);font-weight:700;';
+            container.appendChild(head);
+        }
+        head.textContent = loaded + ' of ' + result.total;
+        var rowStart = result.offset || 0;
         result.shown.forEach(function (badge, index) {
             var row = doc.createElement('button');
             row.type = 'button';
+            row.setAttribute('role', 'option');
             row.setAttribute('data-badge-id', badge.id);
-            row.setAttribute('data-badge-search-row', String(index));
+            row.setAttribute('data-badge-search-row', String(rowStart + index));
             row.style.cssText = 'display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 14px;background:none;border:none;border-top:1px solid var(--border);cursor:pointer;font-family:inherit;color:inherit;';
             var emoji = doc.createElement('span');
             emoji.textContent = badge.earned ? (badge.emoji || '🏅') : '🔘';
@@ -510,7 +529,7 @@ window.BADGE_COLLECTION_PAY={"col_learning":{"bonusPts":300,"legacy":[{"id":"set
             more.type = 'button';
             more.setAttribute('data-badge-search-more', '1');
             more.style.cssText = 'width:100%;padding:10px 14px;background:none;border:none;border-top:1px solid var(--border);color:var(--accent);font-weight:700;cursor:pointer;font-family:inherit;';
-            more.textContent = 'Show all ' + result.total;
+            more.textContent = 'Show more';
             container.appendChild(more);
         }
         container.style.display = 'block';
@@ -518,26 +537,50 @@ window.BADGE_COLLECTION_PAY={"col_learning":{"bonusPts":300,"legacy":[{"id":"set
 
     var active = -1;
     var lastQuery = '';
-    var showAll = false;
     var timer = null;
+    var indexCache = null;
 
-    function paint(query) {
+    function cachedIndex() {
+        if (!indexCache && typeof root._badgeSearchRecords === 'function') {
+            indexCache = buildIndex(root._badgeSearchRecords());
+        }
+        return indexCache || [];
+    }
+
+    function paint(query, append) {
         var box = document.getElementById('badgeSearchResults');
         if (!box || !root.BadgeSearch || typeof root._badgeSearchRecords !== 'function') return;
-        var index = buildIndex(root._badgeSearchRecords());
-        var result = search(index, query, { showAll: showAll });
+        var input = document.getElementById('badgeSearchInput');
+        if (!String(query || '').trim()) {
+            box.style.display = 'none';
+            box._truncated = false;
+            box._nextOffset = 0;
+            while (box.firstChild) box.removeChild(box.firstChild);
+            if (input) input.setAttribute('aria-expanded', 'false');
+            return;
+        }
+        if (append && (box._paging || !box._truncated)) return;
+        if (append) box._paging = true;
+        var result = search(cachedIndex(), query, { offset: append ? (box._nextOffset || 0) : 0, pageSize: 8 });
         var qn = normalize(query);
         result.collections = [];
-        if (qn && typeof root._badgeCollectionProgress === 'function') {
+        if (!append && qn && typeof root._badgeCollectionProgress === 'function') {
             result.collections = root._badgeCollectionProgress().filter(function (col) {
                 return normalize(col.name).indexOf(qn) !== -1;
             });
         }
-        render(box, result);
-        active = -1;
-        if (!query) {
-            box.style.display = 'none';
-            while (box.firstChild) box.removeChild(box.firstChild);
+        render(box, result, !!append);
+        box._nextOffset = result.nextOffset;
+        box._truncated = !!result.truncated;
+        box._paging = false;
+        if (!append) active = -1;
+        if (input) input.setAttribute('aria-expanded', box.style.display === 'none' ? 'false' : 'true');
+        if (!box._badgeSearchScroll) {
+            box._badgeSearchScroll = true;
+            box.addEventListener('scroll', function () {
+                if (box.scrollHeight - box.scrollTop - box.clientHeight > 48) return;
+                paint(lastQuery, true);
+            });
         }
     }
 
@@ -556,27 +599,44 @@ window.BADGE_COLLECTION_PAY={"col_learning":{"bonusPts":300,"legacy":[{"id":"set
         root._badgeSearchInstalled = true;
         root._badgeSearch = function (query) {
             lastQuery = query || '';
-            showAll = false;
             clearTimeout(timer);
-            timer = setTimeout(function () { paint(lastQuery); }, 120);
+            timer = setTimeout(function () { paint(lastQuery, false); }, 120);
         };
+        document.addEventListener('focusin', function (event) {
+            var input = document.getElementById('badgeSearchInput');
+            if (input && event.target === input) indexCache = null;
+        });
         document.addEventListener('click', function (event) {
             var box = document.getElementById('badgeSearchResults');
             if (!box || !event.target || !event.target.closest) return;
-            if (!box.contains(event.target)) return;
-            if (event.target.closest('[data-badge-search-more]')) {
-                showAll = true;
-                paint(lastQuery);
+            if (box.contains(event.target)) {
+                if (event.target.closest('[data-badge-search-more]')) {
+                    event.preventDefault();
+                    paint(lastQuery, true);
+                    return;
+                }
+                var row = event.target.closest('[data-badge-id]');
+                if (row && typeof root._badgeSearchJump === 'function') root._badgeSearchJump(row.getAttribute('data-badge-id'));
                 return;
             }
-            var row = event.target.closest('[data-badge-id]');
-            if (row && typeof root._badgeSearchJump === 'function') root._badgeSearchJump(row.getAttribute('data-badge-id'));
+            var wrap = document.getElementById('badgeSearchWrap');
+            if (wrap && wrap.contains(event.target)) return;
+            if (box.style.display !== 'none') {
+                box.style.display = 'none';
+                var input = document.getElementById('badgeSearchInput');
+                if (input) input.setAttribute('aria-expanded', 'false');
+            }
         });
         document.addEventListener('keydown', function (event) {
             var input = document.getElementById('badgeSearchInput');
             if (!input || document.activeElement !== input) return;
             if (event.key === 'ArrowDown') { event.preventDefault(); move(1); }
             else if (event.key === 'ArrowUp') { event.preventDefault(); move(-1); }
+            else if (event.key === 'Escape') {
+                var box = document.getElementById('badgeSearchResults');
+                if (box) box.style.display = 'none';
+                input.setAttribute('aria-expanded', 'false');
+            }
             else if (event.key === 'Enter') {
                 var box = document.getElementById('badgeSearchResults');
                 var rows = box ? box.querySelectorAll('[data-badge-search-row]') : [];
@@ -761,6 +821,8 @@ const BADGE_DEFS = [
     { id: 'lightning_setup', name: 'Lightning Rod', emoji: '⚡', desc: 'Set up a Lightning wallet or added a Lightning address', check: () => localStorage.getItem('btc_lightning_setup') === 'true', pts: 100 },
     { id: 'global_citizen', name: 'Global Citizen', emoji: '🌍', desc: 'Added your country to your profile — representing Bitcoin worldwide', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.country), pts: 100 },
     { id: 'bio_author', name: 'Got Something to Say', emoji: '✍️', desc: 'Added a bio to your profile', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.bio && currentUser.bio.trim().length > 0), pts: 50 },
+    // Was never asked for (no client def), so nobody held it. The server checks the same rule.
+    { id: 'profile_complete', name: 'Filled In', emoji: '🪪', desc: 'Added a username, bio, and country', check: () => typeof currentUser !== 'undefined' && currentUser && typeof currentUser.username === 'string' && currentUser.username.length >= 3 && !!(currentUser.bio && currentUser.bio.trim().length > 0) && typeof currentUser.country === 'string' && currentUser.country.length >= 2, pts: 25 },
     { id: 'lightning_address_set', name: 'Zap Me', emoji: '⚡', desc: 'Added a Lightning Address to your profile', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.lightningAddress || currentUser.lightning), pts: 75 },
 
     // ---- Profile Explorer Badges (viewing other users' profiles) ----
@@ -807,6 +869,26 @@ const BADGE_DEFS = [
 
     // ---- Spin Wheel Badges ----
     { id: 'spin_30', name: 'Lucky Spinner', emoji: '🎰', desc: 'Spun the wheel 30 days total', check: () => parseInt(localStorage.getItem('btc_spin_count') || '0') >= 30, pts: 75 },
+
+    // BIP Breakthrough collectibles (server-awarded via dailySpin; one per BIP)
+    { id: 'bip_360', name: 'BIP-360 P2MR', emoji: '🛡️', desc: 'Merged BIP-360: Pay-to-Merkle-Root (quantum-resistant script path)', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_119', name: 'BIP-119 CTV', emoji: '📋', desc: 'Merged BIP-119: OP_CHECKTEMPLATEVERIFY covenants', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_347', name: 'BIP-347 OP_CAT', emoji: '🐱', desc: 'Merged BIP-347: OP_CAT for covenants and contracts', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_118', name: 'BIP-118 ANYPREVOUT', emoji: '🔗', desc: 'Merged BIP-118: SIGHASH_ANYPREVOUT for eltoo', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_352', name: 'BIP-352 Silent Payments', emoji: '🤫', desc: 'Merged BIP-352: Silent Payments', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_348', name: 'BIP-348 CSFS', emoji: '✍️', desc: 'Merged BIP-348: OP_CHECKSIGFROMSTACK', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_349', name: 'BIP-349 INTERNALKEY', emoji: '🔑', desc: 'Merged BIP-349: OP_INTERNALKEY', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_443', name: 'BIP-443 CCV', emoji: '📦', desc: 'Merged BIP-443: OP_CHECKCONTRACTVERIFY', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_353', name: 'BIP-353 DNS Payments', emoji: '🌐', desc: 'Merged BIP-353: DNS Payment Instructions', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_324', name: 'BIP-324 P2Pv2', emoji: '🔐', desc: 'Merged BIP-324: encrypted P2P transport', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_85', name: 'BIP-85 Entropy', emoji: '🌱', desc: 'Merged BIP-85: deterministic entropy from BIP32', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'race_10k_finisher', name: 'Ran the Race', emoji: '🏁', desc: 'Contributed to a faction in a race to 10,000', check: () => false, pts: 50, hidden: false, serverOnly: true },
+    { id: 'race_champion_hornets', name: 'Hive Mind Champion', emoji: '🐝', desc: 'Cyber Hornets won the race to 10,000 and you helped', check: () => false, pts: 150, hidden: false, serverOnly: true },
+    { id: 'race_champion_badgers', name: "Honey Badger Don't Care Champion", emoji: '🦡', desc: 'Honey Badgers won the race to 10,000 and you helped', check: () => false, pts: 150, hidden: false, serverOnly: true },
+    { id: 'race_still_buzzing', name: 'Still Buzzing', emoji: '🐝', desc: 'Cyber Hornets fought to the finish in a race to 10,000. Still buzzing.', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'race_badger_dont_quit', name: "Badger Don't Quit", emoji: '🦡', desc: "Honey Badgers fought to the finish in a race to 10,000. Badger don't quit.", check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'bip_86', name: 'BIP-86 P2TR Keys', emoji: '🪙', desc: 'Merged BIP-86: single-key P2TR derivation', check: () => false, pts: 75, hidden: false, serverOnly: true },
+
     { id: 'spin_streak_7', name: 'Spin Streak', emoji: '🎡', desc: 'Spun 7 days in a row', check: () => parseInt(localStorage.getItem('btc_spin_streak') || '0') >= 7, pts: 50 },
     { id: 'spin_jackpot', name: 'Jackpot Winner', emoji: '🌟', desc: 'Hit the RARE drop on the spin wheel', check: () => localStorage.getItem('btc_spin_hit_rare') === 'true', pts: 100 },
 
@@ -1223,6 +1305,11 @@ const TITLE_DEFS = [
     { id: 'trifecta_god_t',      title: 'Trifecta God',           emoji: '🌞', requiredBadge: 'set_trifecta_complete', flavor: 'The Trifecta Set complete. Daily discipline personified.' },
     { id: 'irl_set_t',           title: 'IRL Champion',           emoji: '🏟️', requiredBadge: 'set_irl_complete',     flavor: 'The IRL Set complete. Bitcoin isn\'t just on a screen.' },
     { id: 'spin_set_t',          title: 'Wheel of Fortune',       emoji: '🎰', requiredBadge: 'set_spin_complete',     flavor: 'The Spin Set complete. Fortune favored you enough.' },
+    { id: 'hive_mind_champion', title: 'Hive Mind Champion', emoji: '🐝', requiredBadge: 'race_champion_hornets', flavor: 'The swarm reached 10,000 first. Bzzzt.' },
+    { id: 'honey_badger_champion', title: "Honey Badger Don't Care Champion", emoji: '🦡', requiredBadge: 'race_champion_badgers', flavor: "Won the race to 10,000. Honey badger still don't care." },
+    { id: 'still_buzzing', title: 'Still Buzzing', emoji: '🐝', requiredBadge: 'race_still_buzzing', flavor: 'Lost the race. Still buzzing. Rematch.' },
+    { id: 'badger_dont_quit', title: "Badger Don't Quit", emoji: '🦡', requiredBadge: 'race_badger_dont_quit', flavor: "Lost the race. Badger don't quit." },
+    { id: 'core_contributor', name: 'Core Contributor', title: 'Core Contributor', emoji: '🔧', requiredBadge: null, desc: 'Merged this week\'s BIP after 7 daily spins', flavor: 'Merged this week\'s BIP after 7 daily spins. Bit Devs energy.' },
     { id: 'pow_set_t',           title: 'Proof of Walker',        emoji: '👟', requiredBadge: 'set_pow_complete',      flavor: 'The Proof of Walk Set complete. Every step counted.' },
 
     // ── Chat ──
@@ -1294,6 +1381,25 @@ const TITLE_DEFS = [
 
 let earnedBadges = new Set();
 let badgeCheckInterval = null;
+// Collection titles and the BIP Core Contributor title are listed after the
+// badge titles. The server (titleFlair callable) decides which ones a player holds.
+(function() {
+    var defs = (typeof window !== 'undefined' && Array.isArray(window.BADGE_COLLECTION_DEFS)) ? window.BADGE_COLLECTION_DEFS : [];
+    defs.forEach(function(col) {
+        if (!col || !col.title || !col.title.id) return;
+        if (TITLE_DEFS.some(function(t) { return t.id === col.title.id; })) return;
+        TITLE_DEFS.push({ id: col.title.id, title: col.title.title, emoji: col.title.emoji, requiredBadge: col.bonusId, flavor: col.title.flavor || '', collectionId: col.id, collectionName: col.name, flair: col.flair || '' });
+    });
+    if (!TITLE_DEFS.some(function(t) { return t.id === 'core_contributor'; })) {
+        TITLE_DEFS.push({ id: 'core_contributor', title: 'Core Contributor', emoji: '🔧', requiredBadge: null, flavor: 'Merged this week\'s BIP after 7 daily spins. Bit Devs energy.' });
+    }
+    if (typeof window !== 'undefined') window.TITLE_DEFS = TITLE_DEFS;
+})();
+
+// Nook Chat Flair options. Collection flair is listed on each collection.
+var CHAT_FLAIR_NOOK = ['🔥', '⚡', '🦌', '🧡', '💎', '👑', '🎯', '⛏️', '🟠'];
+if (typeof window !== 'undefined') window.CHAT_FLAIR_NOOK = CHAT_FLAIR_NOOK;
+
 // Session-scoped toast guard: prevents re-toasting badges whose CF award is rolled back.
 // earnedBadges rolls back on CF rejection so the badge can retry next session,
 // but the toast must NOT fire again every 30s while the local condition stays true.
@@ -1499,31 +1605,45 @@ function checkBadges() {
     }
 }
 
-// Award titles when max-tier badges are earned
-window._checkAndAwardTitles = function(earnedBadgeIds) {
+// Titles are decided and saved by the server (titleFlair callable). This asks
+// it to refresh the list at most once a minute and toasts any new title.
+window._titleFlairState = window._titleFlairState || { at: 0, busy: false };
+window._titleFlairCall = function(payload) {
+    if (typeof firebase === 'undefined' || !firebase.functions) return Promise.reject(new Error('offline'));
+    return firebase.functions().httpsCallable('titleFlair')(payload || {}).then(function(res) {
+        var d = (res && res.data) || {};
+        if (d.ok && typeof currentUser !== 'undefined' && currentUser) {
+            currentUser.earnedTitles = d.titles || [];
+            currentUser.earnedFlair = d.flair || [];
+            currentUser.activeTitle = d.activeTitle || null;
+            currentUser.chatFlairEmoji = d.chatFlairEmoji || null;
+        }
+        return d;
+    });
+};
+window._checkAndAwardTitles = function(earnedBadgeIds, force) {
     var u = typeof currentUser !== 'undefined' ? currentUser : null;
-    if (!u) return;
-    var currentTitles = u.earnedTitles || [];
-    var newTitles = [];
-    TITLE_DEFS.forEach(function(t) {
-        if (earnedBadgeIds.indexOf(t.requiredBadge) !== -1 && currentTitles.indexOf(t.id) === -1) {
-            newTitles.push(t.id);
-        }
-    });
-    if (newTitles.length === 0) return;
-    // Merge and save to Firestore
-    var merged = currentTitles.concat(newTitles);
-    if (typeof currentUser !== 'undefined' && currentUser) currentUser.earnedTitles = merged;
-    if (typeof db !== 'undefined' && db && typeof auth !== 'undefined' && auth && auth.currentUser) {
-        db.collection('users').doc(auth.currentUser.uid).update({ earnedTitles: merged });
+    if (!u || typeof auth === 'undefined' || !auth || !auth.currentUser) return;
+    var st = window._titleFlairState;
+    var now = Date.now();
+    if (st.busy || (!force && now - st.at < 60000)) return;
+    // Only call when a title-giving badge is held that the profile does not list yet.
+    var before = (u.earnedTitles || []).slice();
+    if (!force) {
+        var ids = earnedBadgeIds || [];
+        var missing = TITLE_DEFS.some(function(t) { return t.requiredBadge && ids.indexOf(t.requiredBadge) !== -1 && before.indexOf(t.id) === -1; });
+        if (!missing) return;
     }
-    // Toast/announce each new title
-    newTitles.forEach(function(tid) {
-        var tDef = TITLE_DEFS.find(function(x) { return x.id === tid; });
-        if (tDef && typeof showToast === 'function' && (typeof window.bqModeAllows !== 'function' || window.bqModeAllows('badges'))) {
-            showToast('🎖️ New Title Unlocked: ' + tDef.emoji + ' ' + tDef.title + '!');
-        }
-    });
+    st.busy = true; st.at = now;
+    window._titleFlairCall({ action: 'list' }).then(function(d) {
+        st.busy = false;
+        (d.titles || []).filter(function(tid) { return before.indexOf(tid) === -1; }).forEach(function(tid) {
+            var tDef = TITLE_DEFS.find(function(x) { return x.id === tid; });
+            if (tDef && typeof showToast === 'function' && (typeof window.bqModeAllows !== 'function' || window.bqModeAllows('badges'))) {
+                showToast('🎖️ New Title Unlocked: ' + tDef.emoji + ' ' + tDef.title + '!');
+            }
+        });
+    }).catch(function() { st.busy = false; });
 };
 
 // Major badges that deserve a share prompt
@@ -1837,12 +1957,12 @@ function getBadgeHTML() {
         '</div>';
 
     // Badge search bar
-    html += '<div style="margin-bottom:14px;">' +
+    html += '<div id="badgeSearchWrap" style="position:relative;margin-bottom:14px;">' +
         '<div style="position:relative;">' +
-        '<input id="badgeSearchInput" type="text" placeholder="🔍 Search badges..." oninput="window._badgeSearch(this.value)" style="width:100%;padding:10px 36px 10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;">' +
-        '<button onclick="document.getElementById(\'badgeSearchInput\').value=\'\';window._badgeSearch(\'\')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:0;line-height:1;">✕</button>' +
+        '<input id="badgeSearchInput" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="badgeSearchResults" placeholder="🔍 Search badges..." oninput="window._badgeSearch(this.value)" style="width:100%;padding:10px 36px 10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;">' +
+        '<button type="button" onclick="document.getElementById(\'badgeSearchInput\').value=\'\';window._badgeSearch(\'\')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:0;line-height:1;">✕</button>' +
         '</div>' +
-        '<div id="badgeSearchResults" style="display:none;margin-top:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;overflow:hidden;"></div>' +
+        '<div id="badgeSearchResults" role="listbox" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;max-height:240px;overflow-y:auto;background:var(--card-bg,#161616);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.35);"></div>' +
         '</div>';
 
         // Build all category sections into a sortable map, then render in strict alpha order
@@ -2037,61 +2157,69 @@ var BADGE_SETS = [
     { id:'set_raffle', name:'Raffle Regular', emoji:'🎟️', color:'#f7931a', badgeIds:['raffle_entered','raffle_10','raffle_50','raffle_250','raffle_1000','raffle_winner'], bonusId:'set_raffle', bonusPts:500, bonusEmoji:'🎟️', bonusName:'Raffle Regular Set', bonusDesc:'Completed the Raffle Regular collection' }
 ];
 
-// Eleven collections. collectionId is not parsed as a badge id.
-// serverBonusPts is the sum of server-paid XP for the old sets, not the
-// client display pts. Fun and Fitness paid 0, so its bonus stays 0.
-var BADGE_COLLECTION_GROUPS = [
-    { collectionId: 'col_learning', name: 'Learning', emoji: '📚', color: '#3b82f6', setIds: ['set_scholar', 'set_scholar_daily', 'set_explorer', 'set_trails'], serverBonusPts: 300 },
-    { collectionId: 'col_daily_habits', name: 'Daily Habits', emoji: '🎯', color: '#f7931a', setIds: ['set_daily', 'set_daily_five', 'set_trifecta', 'set_streak', 'set_spin'], serverBonusPts: 4150 },
-    { collectionId: 'col_mining', name: 'Mining', emoji: '⛏️', color: '#f7931a', setIds: ['set_miner', 'set_favor'], serverBonusPts: 500 },
-    { collectionId: 'col_foresight', name: 'Foresight and Luck', emoji: '🔮', color: '#a78bfa', setIds: ['set_oracle', 'set_raffle'], serverBonusPts: 1000 },
-    { collectionId: 'col_arena', name: 'Arena', emoji: '⚔️', color: '#ec4899', setIds: ['set_pvp', 'set_gladiator', 'set_codebreaker'], serverBonusPts: 1150 },
-    { collectionId: 'col_community', name: 'Community', emoji: '💬', color: '#8b5cf6', setIds: ['set_social', 'set_voice', 'set_network', 'set_irl'], serverBonusPts: 800 },
-    { collectionId: 'col_lightning', name: 'Lightning and Giving', emoji: '⚡', color: '#eab308', setIds: ['set_lightning', 'set_generous'], serverBonusPts: 150 },
-    { collectionId: 'col_builder', name: 'Builder and Market', emoji: '🏗️', color: '#22c55e', setIds: ['set_builder', 'set_trader'], serverBonusPts: 650 },
-    { collectionId: 'col_entertainment', name: 'Entertainment', emoji: '🎵', color: '#f472b6', setIds: ['set_beats', 'set_tctv', 'set_tv'], serverBonusPts: 150 },
-    { collectionId: 'col_profile', name: 'Profile and Setup', emoji: '👤', color: '#6366f1', setIds: ['set_profile', 'set_newcomer', 'set_sovereign'], serverBonusPts: 300 },
-    { collectionId: 'col_fitness', name: 'Fun and Fitness', emoji: '🚶', color: '#84cc16', setIds: ['set_fun', 'set_pow'], serverBonusPts: 0 }
-];
+// Collections, titles and flair come from functions/src/collection-groups.json
+// through badges.catalog.js (window.BADGE_COLLECTION_DEFS), the same file the
+// server grants from. Members are explicit badge ids. Long grinds and date-locked
+// badges are standalone Legend badges (window.BADGE_LEGEND_IDS).
+// Display order is chosen when sections render: A–Z by name, case-insensitive,
+// with Proof of Everything last. BADGE_COLLECTION_DEFS keeps catalog order.
+var PROOF_COLLECTION_ID = 'col_proof_of_everything';
 
-function _shortCollectionSetName(name) {
-    return String(name || '').replace(/^The /, '').replace(/ Set$/, '');
+function _isProofCollection(col) {
+    if (!col) return false;
+    if (col.id === PROOF_COLLECTION_ID || col.collectionId === PROOF_COLLECTION_ID) return true;
+    return String(col.name || '').replace(/^\s+|\s+$/g, '').toLowerCase() === 'proof of everything';
+}
+
+function _collectionSortName(col) {
+    return String((col && (col.name || col.id)) || '').toLowerCase();
+}
+
+function _sortBadgeCollections(list) {
+    return (list || []).slice().sort(function(a, b) {
+        var ap = _isProofCollection(a);
+        var bp = _isProofCollection(b);
+        if (ap !== bp) return ap ? 1 : -1;
+        var an = _collectionSortName(a);
+        var bn = _collectionSortName(b);
+        if (an < bn) return -1;
+        if (an > bn) return 1;
+        var ai = String((a && (a.id || a.collectionId)) || '');
+        var bi = String((b && (b.id || b.collectionId)) || '');
+        if (ai < bi) return -1;
+        if (ai > bi) return 1;
+        return 0;
+    });
 }
 
 function _buildBadgeCollections() {
-    var byId = {};
-    (BADGE_SETS || []).forEach(function(set) { if (set && set.id) byId[set.id] = set; });
-    return BADGE_COLLECTION_GROUPS.map(function(group) {
-        var badgeIds = [];
-        var seen = {};
-        var bonusPts = Math.max(0, Math.floor(Number(group.serverBonusPts) || 0));
-        var includes = [];
-        (group.setIds || []).forEach(function(setId) {
-            var set = byId[setId];
-            if (!set) return;
-            includes.push(_shortCollectionSetName(set.name));
-            (set.badgeIds || []).forEach(function(badgeId) {
-                if (seen[badgeId]) return;
-                seen[badgeId] = true;
-                badgeIds.push(badgeId);
-            });
-        });
+    var defs = (typeof window !== 'undefined' && Array.isArray(window.BADGE_COLLECTION_DEFS)) ? window.BADGE_COLLECTION_DEFS : [];
+    var cat = (typeof window !== 'undefined' && window.BADGE_CATALOG) ? window.BADGE_CATALOG : {};
+    // A BIP season shows once its badges are in the catalog (BIP Breakthrough release).
+    var built = defs.filter(function(group) {
+        return group.kind !== 'bip' || (group.badgeIds || []).some(function(id) { return !!cat[id]; });
+    }).map(function(group) {
+        var title = group.title || null;
         return {
-            collectionId: group.collectionId,
-            id: group.collectionId,
+            collectionId: group.id,
+            id: group.id,
             name: group.name,
             emoji: group.emoji,
             color: group.color,
-            setIds: (group.setIds || []).slice(),
-            includes: includes,
-            badgeIds: badgeIds,
-            bonusId: group.collectionId + '_bonus',
-            bonusPts: bonusPts,
+            kind: group.kind || 'core',
+            optional: !!group.optional,
+            includes: title ? ['Title: ' + (title.emoji || '') + ' ' + title.title, 'Flair: ' + (group.flair || '')] : [],
+            badgeIds: (group.badgeIds || []).slice(),
+            bonusId: group.bonusId || (group.id + '_bonus'),
+            bonusPts: 0,
             bonusEmoji: group.emoji,
             bonusName: group.name,
-            bonusDesc: 'Completed the ' + group.name + ' collection'
+            bonusDesc: 'Completed the ' + group.name + ' collection',
+            title: title,
+            flair: group.flair || ''
         };
     });
+    return _sortBadgeCollections(built);
 }
 
 var BADGE_COLLECTIONS = _buildBadgeCollections();
@@ -2157,7 +2285,7 @@ window._badgeCollectionProgress = function(earned) {
         held = new Set();
         try { JSON.parse(localStorage.getItem('btc_badges') || '[]').forEach(function(id) { held.add(id); }); } catch (e2) {}
     }
-    return (BADGE_COLLECTIONS || []).map(function(col) {
+    return _sortBadgeCollections(BADGE_COLLECTIONS || []).map(function(col) {
         var lists = _collectionMemberLists(col);
         var count = 0;
         lists.required.forEach(function(id) { if (held.has(id)) count += 1; });
@@ -2179,7 +2307,7 @@ window._badgeCollectionProgress = function(earned) {
 };
 
 function _renderBadgeSets(earnedBadges) {
-    var cols = (BADGE_COLLECTIONS || []).filter(Boolean);
+    var cols = _sortBadgeCollections((BADGE_COLLECTIONS || []).filter(Boolean));
     if (!cols.length) return '';
     var completed = cols.filter(function(col) {
         var lists = _collectionMemberLists(col);
@@ -2231,7 +2359,7 @@ function _renderBadgeSets(earnedBadges) {
         html += '<div class="bc-card" style="border-color:' + (complete ? col.color + '55' : 'var(--border)') + ';' + (complete ? 'box-shadow:0 0 12px ' + col.color + '22;' : '') + '">';
         html += '<div class="bc-head">';
         html += '<span class="bc-emoji">' + col.emoji + '</span>';
-        html += '<div class="bc-copy"><div class="bc-title">' + escapeHtml(col.name) + '</div>';
+        html += '<div class="bc-copy"><div class="bc-title">' + escapeHtml(col.name) + (col.optional ? ' <span class="bc-flag">optional</span>' : '') + (col.kind === 'meta' ? ' <span class="bc-flag">every collection</span>' : '') + '</div>';
         html += '<div class="bc-sub">' + earnedReq.length + '/' + total;
         if (lists.optional.length) html += ' · ' + optionalHeld + '/' + lists.optional.length + ' optional';
         html += ' · ' + escapeHtml((col.includes || []).join(' · ')) + '</div></div>';
@@ -2313,17 +2441,68 @@ window._toggleBadgeDist = function(btn) {
 var _BADGE_DIST_TTL = 6 * 60 * 60 * 1000; // 6 hours
 var _BADGE_DIST_LS_KEY = 'btc_badge_dist_cache';
 
+// Percentages use the Maxi cohort when the stats doc has it. Older snapshots
+// that only have totalUsers keep holders / totalUsers.
+function _badgeDistCohort(totalUsers, cohort) {
+    var qualifiedUsers = null;
+    var qualifiedCounts = null;
+    if (cohort && typeof cohort.qualifiedUsers === 'number' && isFinite(cohort.qualifiedUsers)
+        && cohort.qualifiedCounts && typeof cohort.qualifiedCounts === 'object'
+        && !Array.isArray(cohort.qualifiedCounts)) {
+        qualifiedUsers = cohort.qualifiedUsers;
+        qualifiedCounts = cohort.qualifiedCounts;
+    }
+    var useQualified = qualifiedUsers != null;
+    var denom = useQualified ? qualifiedUsers : (Number(totalUsers) || 0);
+    if (!isFinite(denom) || denom < 0) denom = 0;
+    return {
+        useQualified: useQualified,
+        qualifiedUsers: qualifiedUsers,
+        qualifiedCounts: qualifiedCounts,
+        denom: denom
+    };
+}
+
+function _badgeDistCohortArg(source) {
+    if (!source || typeof source.qualifiedUsers !== 'number' || !isFinite(source.qualifiedUsers)) return null;
+    if (!source.qualifiedCounts || typeof source.qualifiedCounts !== 'object' || Array.isArray(source.qualifiedCounts)) return null;
+    return { qualifiedUsers: source.qualifiedUsers, qualifiedCounts: source.qualifiedCounts };
+}
+
+function _badgeDistPercent(holders, denom) {
+    var n = Number(holders);
+    var d = Number(denom);
+    if (!isFinite(n) || n <= 0) return 0;
+    if (!isFinite(d) || d <= 0) return 0;
+    var pct = (n / d) * 100;
+    if (pct > 100) return 100;
+    return pct;
+}
+
+function _badgeDistFootnote(totalUsers, updatedAt, activeUsers, cohort) {
+    var info = _badgeDistCohort(totalUsers, cohort);
+    var updated = updatedAt ? ' · Updated ' + updatedAt.toLocaleDateString() : '';
+    if (info.useQualified) {
+        var players = (Number(info.qualifiedUsers) || 0).toLocaleString();
+        return 'Percentages are among players with 2,140+ XP · ' + players + ' players' + updated;
+    }
+    var accounts = (Number(totalUsers) || 0).toLocaleString();
+    var active = activeUsers ? ' · ' + Number(activeUsers).toLocaleString() + ' active in 30 days' : '';
+    return accounts + ' real accounts' + active + updated;
+}
+
 window._loadBadgeDist = function() {
     var container = document.getElementById('badgeDistContent');
     if (!container) return;
 
-    // Check localStorage cache first (TTL: 48h)
+    // Check localStorage cache first (TTL: 6h). A cache written before the
+    // qualified cohort existed is missing qualifiedUsers, so it is not used.
     try {
         var cached = JSON.parse(localStorage.getItem(_BADGE_DIST_LS_KEY) || 'null');
-        if (cached && cached.ts && (Date.now() - cached.ts) < _BADGE_DIST_TTL) {
+        if (cached && cached.ts && (Date.now() - cached.ts) < _BADGE_DIST_TTL && Object.prototype.hasOwnProperty.call(cached, 'qualifiedUsers')) {
             var updatedAt = cached.updatedAt ? new Date(cached.updatedAt) : null;
             window._badgeDistActive = cached.activeUsers30d || 0;
-            window._renderBadgeDist(cached.counts, cached.totalUsers, updatedAt, container);
+            window._renderBadgeDist(cached.counts, cached.totalUsers, updatedAt, container, _badgeDistCohortArg(cached));
             return; // served from cache, 0 Firestore reads
         }
     } catch(e) { /* bad cache, fall through */ }
@@ -2340,6 +2519,7 @@ window._loadBadgeDist = function() {
         var data = doc.data();
         var totalUsers = data.totalUsers || 1;
         var counts = data.counts || {};
+        var cohort = _badgeDistCohortArg(data);
         window._badgeDistActive = data.activeUsers30d || 0;
         var _uTs = data.updatedAt;
         var updatedAt = _uTs ? (_uTs._seconds ? new Date(_uTs._seconds * 1000) : (_uTs.toDate ? _uTs.toDate() : new Date(_uTs))) : null;
@@ -2348,12 +2528,14 @@ window._loadBadgeDist = function() {
             localStorage.setItem(_BADGE_DIST_LS_KEY, JSON.stringify({
                 ts: Date.now(),
                 totalUsers: totalUsers,
+                qualifiedUsers: typeof data.qualifiedUsers === 'number' ? data.qualifiedUsers : null,
+                qualifiedCounts: (data.qualifiedCounts && typeof data.qualifiedCounts === 'object' && !Array.isArray(data.qualifiedCounts)) ? data.qualifiedCounts : null,
                 activeUsers30d: window._badgeDistActive || 0,
                 counts: counts,
                 updatedAt: updatedAt ? updatedAt.getTime() : null
             }));
         } catch(e) { /* storage full, skip cache */ }
-        window._renderBadgeDist(counts, totalUsers, updatedAt, container);
+        window._renderBadgeDist(counts, totalUsers, updatedAt, container, cohort);
     }).catch(function() {
         container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;text-align:center;padding:12px;">Could not load distribution.</div>';
     });
@@ -2366,7 +2548,44 @@ window._getBadgeRarity = function(pct) {
     return { label: 'Common', color: '#4ade80', glow: 'none', icon: '●', border: '#16a34a' };
 };
 
-window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
+// Common first: those are the badges most active players share, so they are
+// the useful comparison. Unclaimed (nobody in the cohort) is last.
+function _badgeDistRarityOrder() {
+    return ['Common', 'Rare', 'Epic', 'Legendary', 'Unclaimed'];
+}
+function _badgeDistTierColors() {
+    return { Unclaimed:'#94a3b8', Legendary:'#fbbf24', Epic:'#a78bfa', Rare:'#38bdf8', Common:'#4ade80' };
+}
+function _badgeDistTierIcons() {
+    return { Unclaimed:'○', Legendary:'👑', Epic:'🔮', Rare:'💧', Common:'●' };
+}
+function _badgeDistRarityDesc() {
+    return { Unclaimed:'nobody yet', Legendary:'under 1%', Epic:'1 – 5%', Rare:'5 – 25%', Common:'over 25%' };
+}
+function _badgeDistSortEntries(entries) {
+    return (entries || []).slice().sort(function(a, b) {
+        var ap = Number(a && a.pct) || 0;
+        var bp = Number(b && b.pct) || 0;
+        if (bp !== ap) return bp - ap;
+        return String((a && a.name) || '').localeCompare(String((b && b.name) || ''));
+    });
+}
+function _badgeDistGroupEntries(entries) {
+    var order = _badgeDistRarityOrder();
+    var groups = {};
+    order.forEach(function(r) { groups[r] = []; });
+    (entries || []).forEach(function(e) {
+        var label = e && e.rarity && e.rarity.label;
+        if (!groups[label]) return;
+        groups[label].push(e);
+    });
+    order.forEach(function(r) { groups[r] = _badgeDistSortEntries(groups[r]); });
+    return groups;
+}
+window._badgeDistPageSize = 24;
+
+window._renderBadgeDist = function(counts, totalUsers, updatedAt, container, cohort) {
+    var share = _badgeDistCohort(totalUsers, cohort);
     // Build a lookup from all badge/title/set sources
     var badgeMeta = {};
     if (typeof BADGE_DEFS !== 'undefined') {
@@ -2425,25 +2644,24 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
             if (counts[b.id] == null) counts[b.id] = 0;
         });
     }
-    // Sort all entries by count desc, build rarity groups
+    // Group by the existing rarity tiers. Highest share of the active cohort
+    // comes first inside each tier, so the comparison that matters is on top.
     var entries = Object.entries(counts)
         .map(function(e) {
-            var pct = totalUsers ? (e[1] / totalUsers) * 100 : 0;
+            var holders = share.useQualified ? (Number(share.qualifiedCounts[e[0]]) || 0) : e[1];
+            var pct = _badgeDistPercent(holders, share.denom);
             var meta = getBadgeDisplay(e[0]);
             if (meta.hidden && !(earnedNow && earnedNow.has && earnedNow.has(e[0]))) {
                 meta = { emoji: '🔒', name: 'Secret badge', desc: 'Hidden until you earn it' };
             }
-            var rarity = e[1] === 0
+            var rarity = holders === 0
                 ? { label: 'Unclaimed', color: '#94a3b8', glow: 'none', icon: '○', border: '#475569' }
                 : window._getBadgeRarity(pct);
-            return { id: e[0], count: e[1], pct: pct, rarity: rarity, emoji: meta.emoji, name: meta.name, desc: meta.desc || '' };
-        })
-        .sort(function(a, b) { return a.pct - b.pct; }); // rarest first
+            return { id: e[0], count: holders, pct: pct, rarity: rarity, emoji: meta.emoji, name: meta.name, desc: meta.desc || '' };
+        });
 
-    var rarityOrder = ['Unclaimed','Legendary','Epic','Rare','Common'];
-    var groups = {};
-    rarityOrder.forEach(function(r) { groups[r] = []; });
-    entries.forEach(function(e) { groups[e.rarity.label].push(e); });
+    var rarityOrder = _badgeDistRarityOrder();
+    var groups = _badgeDistGroupEntries(entries);
 
     var userEarned = new Set();
     try { userEarned = new Set(JSON.parse(localStorage.getItem('btc_badges') || '[]')); } catch(e) {}
@@ -2464,10 +2682,20 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
         });
         html += '</div>';
     }
+    window._badgeDistState = { groups: groups, earned: userEarned, filter: 'all', cursors: {} };
+
     // Summary strip
+    html += '<style>' +
+        '.bdr-toggle{width:100%;display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:rgba(0,0,0,0.2);color:inherit;font-family:inherit;cursor:pointer;text-align:left;box-sizing:border-box;}' +
+        '.bdr-label{font-size:0.72rem;font-weight:900;letter-spacing:0.4px;text-transform:uppercase;}' +
+        '.bdr-meta{font-size:0.65rem;color:var(--text-faint);font-weight:500;min-width:0;}' +
+        '.bdr-count{margin-left:auto;font-size:0.68rem;font-weight:800;flex-shrink:0;}' +
+        '.bdr-more{display:block;width:100%;margin:4px 0 8px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--accent);font-weight:700;font-family:inherit;cursor:pointer;box-sizing:border-box;}' +
+        '</style>';
     html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">';
-    var tierColors = { Unclaimed:'#94a3b8', Legendary:'#fbbf24', Epic:'#a78bfa', Rare:'#38bdf8', Common:'#4ade80' };
-    var tierIcons = { Unclaimed:'○', Legendary:'👑', Epic:'🔮', Rare:'💧', Common:'●' };
+    var tierColors = _badgeDistTierColors();
+    var tierIcons = _badgeDistTierIcons();
+    var rarityDesc = _badgeDistRarityDesc();
     rarityOrder.forEach(function(r) {
         var cnt = groups[r].length;
         if (!cnt) return;
@@ -2478,7 +2706,8 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
         html += '</div>';
     });
     html += '</div>';
-    html += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:12px;">' + totalUsers.toLocaleString() + ' real accounts' + (window._badgeDistActive ? ' · ' + Number(window._badgeDistActive).toLocaleString() + ' active in 30 days' : '') + (updatedAt ? ' · Updated ' + updatedAt.toLocaleDateString() : '') + '</div>';
+    html += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">' + _badgeDistFootnote(totalUsers, updatedAt, window._badgeDistActive, cohort) + '</div>';
+    html += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:12px;">Most widely held among those players first. Open a tier to load its badges.</div>';
 
     // Filter buttons
     html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">';
@@ -2490,34 +2719,21 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
     });
     html += '</div>';
 
-    // Badge rows by rarity group
+    // Collapsed tiers. Rows are written on expand, one page at a time.
     html += '<div id="bdgRows">';
     rarityOrder.forEach(function(r) {
         if (!groups[r].length) return;
-        html += '<div class="bdr-group" data-rarity="' + r + '" style="margin-bottom:14px;">';
-        html += '<div style="font-size:0.65rem;font-weight:900;color:' + tierColors[r] + ';text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px;">';
-        html += tierIcons[r] + ' ' + r;
-        var rarityDesc = { Unclaimed:'nobody yet', Legendary:'under 1%', Epic:'1 – 5%', Rare:'5 – 25%', Common:'over 25%' };
-        html += '<span style="color:var(--text-faint);font-weight:400;normal;text-transform:none;letter-spacing:0;">' + rarityDesc[r] + '</span>';
-        html += '</div>';
-        groups[r].forEach(function(badge) {
-            var isEarned = userEarned.has(badge.id);
-            var barWidth = Math.min(100, (badge.pct / 50) * 100); // scale: 50% = full bar
-            html += '<div class="bdr-row" data-earned="' + (isEarned?'1':'0') + '" style="display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:4px;border-radius:10px;background:' + (isEarned ? 'rgba('+_hexToRgb(badge.rarity.color)+',0.07)' : 'rgba(0,0,0,0.15)') + ';border:1px solid ' + (isEarned ? badge.rarity.border + '55' : 'var(--border)') + ';' + (isEarned && badge.rarity.glow !== 'none' ? 'box-shadow:0 0 8px ' + badge.rarity.glow + ';' : '') + '">';
-            html += '<span style="font-size:1rem;width:24px;text-align:center;flex-shrink:0;' + (isEarned?'':'filter:grayscale(1);opacity:0.4;') + '">' + badge.emoji + '</span>';
-            html += '<div style="flex:1;min-width:0;">';
-            html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">';
-            var safeDesc = badge.desc ? (typeof escapeHtml==='function'?escapeHtml(badge.desc):badge.desc.replace(/"/g,'&quot;')) : '';
-            html += '<span class="bdr-badge-title" data-desc="' + safeDesc + '"' + (safeDesc ? ' onmouseenter="window._showBadgeDistTooltip(event,this)" onmouseleave="window._hideBadgeDistTooltip()" onclick="window._showBadgeDistTooltip(event,this)"' : '') + ' style="font-size:0.78rem;font-weight:' + (isEarned?'700':'500') + ';color:' + (isEarned?'var(--heading)':'var(--text-muted)') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;cursor:' + (safeDesc?'help':'default') + ';border-bottom:' + (safeDesc?'1px dashed var(--text-faint)':'none') + ';">' + (typeof escapeHtml==='function'?escapeHtml(badge.name):badge.name) + '</span>';
-            html += '<span style="font-size:0.68rem;color:' + badge.rarity.color + ';font-weight:700;flex-shrink:0;">' + badge.pct.toFixed(1) + '%</span>';
-            html += '</div>';
-            html += '<div style="height:3px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden;">';
-            html += '<div style="height:100%;width:' + barWidth + '%;background:' + badge.rarity.color + ';border-radius:2px;transition:width 0.4s;"></div>';
-            html += '</div>';
-            html += '</div>';
-            if (isEarned) html += '<span style="font-size:0.7rem;flex-shrink:0;" title="You earned this!">✅</span>';
-            html += '</div>';
-        });
+        var yours = 0;
+        groups[r].forEach(function(badge) { if (userEarned.has(badge.id)) yours++; });
+        html += '<div class="bdr-group" data-rarity="' + r + '" style="margin-bottom:8px;">';
+        html += '<button type="button" class="bdr-toggle" data-rarity="' + r + '" aria-expanded="false" onclick="window._toggleBadgeDistGroup(this)">';
+        html += '<span aria-hidden="true">' + tierIcons[r] + '</span>';
+        html += '<span class="bdr-label" style="color:' + tierColors[r] + ';">' + r + '</span>';
+        html += '<span class="bdr-meta">' + rarityDesc[r] + '</span>';
+        html += '<span class="bdr-count" style="color:' + tierColors[r] + ';">' + groups[r].length + (yours ? ' · ' + yours + ' yours' : '') + '</span>';
+        html += '<span class="bdr-arrow" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
+        html += '</button>';
+        html += '<div id="bdr-body-' + r + '" class="bdr-body" data-rarity="' + r + '" data-open="0" data-loaded="0" style="display:none;"></div>';
         html += '</div>';
     });
     html += '</div>'; // bdgRows
@@ -2531,34 +2747,132 @@ function _hexToRgb(hex) {
     return r + ',' + g + ',' + b;
 }
 
+function _badgeDistRowHtml(badge, isEarned) {
+    var barWidth = Math.min(100, (badge.pct / 50) * 100);
+    var html = '<div class="bdr-row" data-earned="' + (isEarned ? '1' : '0') + '" style="display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:4px;border-radius:10px;background:' + (isEarned ? 'rgba(' + _hexToRgb(badge.rarity.color) + ',0.07)' : 'rgba(0,0,0,0.15)') + ';border:1px solid ' + (isEarned ? badge.rarity.border + '55' : 'var(--border)') + ';' + (isEarned && badge.rarity.glow !== 'none' ? 'box-shadow:0 0 8px ' + badge.rarity.glow + ';' : '') + '">';
+    html += '<span style="font-size:1rem;width:24px;text-align:center;flex-shrink:0;' + (isEarned ? '' : 'filter:grayscale(1);opacity:0.4;') + '">' + badge.emoji + '</span>';
+    html += '<div style="flex:1;min-width:0;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">';
+    var safeDesc = badge.desc ? (typeof escapeHtml === 'function' ? escapeHtml(badge.desc) : badge.desc.replace(/"/g, '&quot;')) : '';
+    html += '<span class="bdr-badge-title" data-desc="' + safeDesc + '"' + (safeDesc ? ' onmouseenter="window._showBadgeDistTooltip(event,this)" onmouseleave="window._hideBadgeDistTooltip()" onclick="window._showBadgeDistTooltip(event,this)"' : '') + ' style="font-size:0.78rem;font-weight:' + (isEarned ? '700' : '500') + ';color:' + (isEarned ? 'var(--heading)' : 'var(--text-muted)') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;cursor:' + (safeDesc ? 'help' : 'default') + ';border-bottom:' + (safeDesc ? '1px dashed var(--text-faint)' : 'none') + ';">' + (typeof escapeHtml === 'function' ? escapeHtml(badge.name) : badge.name) + '</span>';
+    html += '<span style="font-size:0.68rem;color:' + badge.rarity.color + ';font-weight:700;flex-shrink:0;">' + badge.pct.toFixed(1) + '%</span>';
+    html += '</div>';
+    html += '<div style="height:3px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden;">';
+    html += '<div style="height:100%;width:' + barWidth + '%;background:' + badge.rarity.color + ';border-radius:2px;transition:width 0.4s;"></div>';
+    html += '</div></div>';
+    if (isEarned) html += '<span style="font-size:0.7rem;flex-shrink:0;" title="You earned this!">✅</span>';
+    html += '</div>';
+    return html;
+}
+
+function _badgeDistMoreLeft(list, cursor, earned, filter) {
+    if (filter === 'mine') {
+        for (var i = cursor; i < list.length; i++) {
+            if (earned.has(list[i].id)) return true;
+        }
+        return false;
+    }
+    return cursor < list.length;
+}
+
+window._badgeDistFill = function(rarity) {
+    var state = window._badgeDistState;
+    var body = document.getElementById('bdr-body-' + rarity);
+    if (!state || !body) return;
+    var list = state.groups[rarity] || [];
+    var cursor = state.cursors[rarity] || 0;
+    var filter = state.filter || 'all';
+    var page = window._badgeDistPageSize || 24;
+    var html = '';
+    var added = 0;
+    while (cursor < list.length && added < page) {
+        var badge = list[cursor++];
+        var earned = state.earned.has(badge.id);
+        if (filter === 'mine' && !earned) continue;
+        html += _badgeDistRowHtml(badge, earned);
+        added++;
+    }
+    state.cursors[rarity] = cursor;
+    var oldMore = body.querySelector('.bdr-more');
+    if (oldMore) oldMore.remove();
+    if (html) {
+        var wrap = document.createElement('div');
+        wrap.innerHTML = html;
+        while (wrap.firstChild) body.appendChild(wrap.firstChild);
+    }
+    var moreLeft = _badgeDistMoreLeft(list, cursor, state.earned, filter);
+    if (moreLeft) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'bdr-more';
+        btn.textContent = 'Load more';
+        btn.addEventListener('click', function() { window._badgeDistFill(rarity); });
+        body.appendChild(btn);
+    } else if (!body.querySelector('.bdr-row')) {
+        var empty = document.createElement('div');
+        empty.style.cssText = 'font-size:0.75rem;color:var(--text-faint);padding:6px 10px 10px;';
+        empty.textContent = filter === 'mine' ? 'None of yours in this tier.' : 'No badges in this tier.';
+        body.appendChild(empty);
+    }
+    body.setAttribute('data-loaded', '1');
+};
+
+window._toggleBadgeDistGroup = function(rarityOrEl) {
+    var rarity = typeof rarityOrEl === 'string' ? rarityOrEl : (rarityOrEl && rarityOrEl.getAttribute ? rarityOrEl.getAttribute('data-rarity') : '');
+    var body = document.getElementById('bdr-body-' + rarity);
+    if (!body) return;
+    var group = body.parentNode;
+    var arrow = group ? group.querySelector('.bdr-arrow') : null;
+    var btn = group ? group.querySelector('.bdr-toggle') : null;
+    var open = body.getAttribute('data-open') === '1';
+    if (open) {
+        body.setAttribute('data-open', '0');
+        body.style.display = 'none';
+        if (arrow) arrow.textContent = '▶';
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+        return;
+    }
+    body.style.display = '';
+    body.setAttribute('data-open', '1');
+    if (arrow) arrow.textContent = '▼';
+    if (btn) btn.setAttribute('aria-expanded', 'true');
+    if (body.getAttribute('data-loaded') !== '1') window._badgeDistFill(rarity);
+};
+
 window._filterBadgeDist = function(filter) {
-    // Update active button
-    ['all','mine','Unclaimed','Legendary','Epic','Rare','Common'].forEach(function(f) {
+    var state = window._badgeDistState;
+    if (!state) return;
+    state.filter = filter;
+    var tierColors = _badgeDistTierColors();
+    ['all', 'mine'].concat(_badgeDistRarityOrder()).forEach(function(f) {
         var btn = document.getElementById('bdf-' + f);
         if (!btn) return;
         var isActive = f === filter;
         btn.style.background = isActive ? 'var(--accent)' : 'none';
-        btn.style.color = isActive ? '#000' : (f === 'all' || f === 'mine' ? 'var(--text-muted)' : btn.style.color);
-        btn.style.borderColor = isActive ? 'var(--accent)' : (f === 'all' || f === 'mine' ? 'var(--border)' : btn.style.borderColor);
+        btn.style.color = isActive ? '#000' : (f === 'all' || f === 'mine' ? 'var(--text-muted)' : tierColors[f]);
+        btn.style.borderColor = isActive ? 'var(--accent)' : (f === 'all' || f === 'mine' ? 'var(--border)' : tierColors[f] + '66');
     });
-    var userEarned = new Set();
-    try { userEarned = new Set(JSON.parse(localStorage.getItem('btc_badges') || '[]')); } catch(e) {}
-    if (typeof window.getEarnedBadges === 'function') userEarned = window.getEarnedBadges();
-
     document.querySelectorAll('.bdr-group').forEach(function(g) {
         var rarity = g.getAttribute('data-rarity');
-        if (filter === 'all') { g.style.display = ''; return; }
-        if (filter === 'mine') { g.style.display = ''; } else {
-            g.style.display = (filter === rarity) ? '' : 'none';
-        }
+        var list = state.groups[rarity] || [];
+        var yours = 0;
+        list.forEach(function(badge) { if (state.earned.has(badge.id)) yours++; });
+        var show = filter === 'all' || filter === rarity || (filter === 'mine' && yours > 0);
+        g.style.display = show ? '' : 'none';
     });
-    document.querySelectorAll('.bdr-row').forEach(function(row) {
-        if (filter === 'mine') {
-            row.style.display = row.getAttribute('data-earned') === '1' ? '' : 'none';
-        } else {
-            row.style.display = '';
-        }
+    state.cursors = {};
+    document.querySelectorAll('.bdr-body').forEach(function(body) {
+        body.innerHTML = '';
+        body.setAttribute('data-loaded', '0');
+        body.setAttribute('data-open', '0');
+        body.style.display = 'none';
+        var group = body.parentNode;
+        var arrow = group ? group.querySelector('.bdr-arrow') : null;
+        var btn = group ? group.querySelector('.bdr-toggle') : null;
+        if (arrow) arrow.textContent = '▶';
+        if (btn) btn.setAttribute('aria-expanded', 'false');
     });
+    if (filter !== 'all' && filter !== 'mine') window._toggleBadgeDistGroup(filter);
 };
 
 // Badge Distribution tooltip — inline onmouseenter/onmouseleave/onclick handlers
@@ -3965,7 +4279,7 @@ if (typeof window !== 'undefined') {
             const btn = document.querySelector('[onclick*="go(\'' + id + '\'"]');
             if (btn) {
                 const badge = document.createElement('span');
-                badge.style.cssText = 'position:absolute;top:4px;right:4px;background:#f7931a;color:#fff;font-size:0.55rem;font-weight:900;padding:2px 5px;border-radius:4px;box-shadow:0 0 10px rgba(247,147,26,0.4);';
+                badge.style.cssText = 'display:inline-block;margin-left:6px;vertical-align:middle;background:#f7931a;color:#fff;font-size:0.55rem;font-weight:900;padding:2px 5px;border-radius:4px;box-shadow:0 0 10px rgba(247,147,26,0.4);';
                 badge.textContent = '2X PTS';
                 btn.style.position = 'relative';
                 btn.appendChild(badge);
@@ -4115,32 +4429,33 @@ let nachoLiveData = {
     lastFetch: 0,
 };
 
-const FETCH_INTERVAL = 300000; // 5 minutes
+const FETCH_INTERVAL = 60000; // 1 minute; the worker edge cache is 30s
+
+function btcMetricsUrl(path) {
+    var host = 'https://jolly-surf-219enacho-search.needcreations.workers.dev';
+    try {
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') host = location.origin;
+    } catch (e) {}
+    return host + path;
+}
 var _lastTickerPrice = null;
 
 // ---- Fetch live data from mempool.space API ----
 async function fetchLiveData() {
     const now = Date.now();
-    if (now - nachoLiveData.lastFetch < FETCH_INTERVAL && nachoLiveData.price) return;
+    if (now - nachoLiveData.lastFetch < FETCH_INTERVAL && nachoLiveData.price) return Promise.resolve();
 
     try {
-        const priceRes = await fetch('https://mempool.space/api/v1/prices');
-        if (priceRes.ok) {
-            const priceData = await priceRes.json();
-            nachoLiveData.price = priceData.USD;
-        }
-        const heightRes = await fetch('https://mempool.space/api/blocks/tip/height');
-        if (heightRes.ok) {
-            nachoLiveData.blockHeight = parseInt(await heightRes.text());
-        }
-        const feeRes = await fetch('https://mempool.space/api/v1/fees/recommended');
-        if (feeRes.ok) {
-            nachoLiveData.fees = await feeRes.json();
-        }
-        const mempoolRes = await fetch('https://mempool.space/api/mempool');
-        if (mempoolRes.ok) {
-            const mp = await mempoolRes.json();
-            nachoLiveData.mempoolSize = mp.count;
+        const snapRes = await fetch(btcMetricsUrl('/btc-data'));
+        if (snapRes.ok) {
+            const snap = await snapRes.json();
+            if (snap.price) nachoLiveData.price = snap.price;
+            if (snap.blockHeight) nachoLiveData.blockHeight = snap.blockHeight;
+            if (snap.feeFast != null) {
+                nachoLiveData.fees = { fastestFee: snap.feeFast, halfHourFee: snap.feeHalf, hourFee: snap.feeHour, economyFee: snap.feeEcon };
+            }
+            if (snap.mempoolTxs != null) nachoLiveData.mempoolSize = snap.mempoolTxs;
+            if (snap.blockIntervalSec) nachoLiveData.blockIntervalSec = snap.blockIntervalSec;
         }
 
         nachoLiveData.lastFetch = now;
@@ -4150,7 +4465,7 @@ async function fetchLiveData() {
         window._btcData.lastUpdate = now;
         
         if (nachoLiveData.blockHeight) {
-            const nextHalving = 1050000;
+            const nextHalving = Math.ceil(nachoLiveData.blockHeight / 210000) * 210000;
             window._btcData.halvingBlocks = nextHalving - nachoLiveData.blockHeight;
         }
     } catch (e) {
@@ -4287,6 +4602,8 @@ function updateTicker() {
         const blockEls = document.querySelectorAll('.t-block-val');
         const changeEls = document.querySelectorAll('.t-price-change');
 
+        var wsPrice = (window._btcPriceCache && window._btcPriceCache.price) ? window._btcPriceCache.price : null;
+        if (wsPrice) nachoLiveData.price = wsPrice;
         if (nachoLiveData.price) {
             var p = nachoLiveData.price;
             priceEls.forEach(el => el.textContent = '$' + Math.round(p).toLocaleString());
@@ -4327,7 +4644,8 @@ function getHalvingInfo() {
     if (!height) return null;
     var nextHalving = Math.ceil(height / 210000) * 210000;
     var blocksLeft = nextHalving - height;
-    var daysLeft = Math.round(blocksLeft * 10 / 1440);
+    var intervalMin = (nachoLiveData.blockIntervalSec > 60) ? (nachoLiveData.blockIntervalSec / 60) : 10;
+    var daysLeft = Math.round(blocksLeft * intervalMin / 1440);
     return { nextHalving: nextHalving, blocksLeft: blocksLeft, daysLeft: daysLeft };
 }
 
@@ -4379,6 +4697,9 @@ window.nachoLiveMessage = function() {
 
 setTimeout(fetchLiveData, 3000);
 setInterval(fetchLiveData, FETCH_INTERVAL);
+setInterval(function () {
+    if (window._btcPriceCache && window._btcPriceCache.price && typeof updateTicker === 'function') updateTicker();
+}, 10000);
 
 // Toggle ticker visibility — called from Settings
 window.toggleTickerSetting = function() {
@@ -8614,14 +8935,9 @@ window.nachoNickname=function(){return localStorage.getItem("btc_nacho_nickname"
 
 (function() {
 
-// Admin UIDs — can delete any post/reply
-var FORUM_ADMINS = [];
+// Admin check: Firebase custom claim only (window._isAdminClaim from getIdTokenResult).
 function isForumAdmin() {
-    if (!auth || !auth.currentUser) return false;
-    if (FORUM_ADMINS.indexOf(auth.currentUser.uid) !== -1) return true;
-    // Also check email
-    var email = auth.currentUser.email || '';
-    return email === 'needcreations@gmail.com' || email === 'info.603btc@gmail.com' || email === 'najemchris8@gmail.com';
+    return window._isAdminClaim === true;
 }
 
 var FORUM_CATEGORIES = [
@@ -11196,9 +11512,8 @@ function checkMarketRules() {
 
 // ---- Admin check ----
 function isMarketAdmin() {
-    if (!auth || !auth.currentUser) return false;
-    var email = auth.currentUser.email || '';
-    return email === 'needcreations@gmail.com' || email === 'info.603btc@gmail.com' || email === 'najemchris8@gmail.com';
+    // Firebase custom claim only. Never gate on email client-side.
+    return window._isAdminClaim === true;
 }
 
 var MARKETPLACE_SECTIONS = [
@@ -16347,6 +16662,93 @@ window.addEventListener('hashchange', function() {
 // Wrappers here can't work because those functions are defined after this file loads
 
 // ---- #12: Progress Rings on Homepage ----
+// Circle diameter tracks standing versus active users when a count and a
+// cached peer list are already on the page. No new reads. Without that
+// cohort, diameter follows the ring's own 0–100 progress.
+window.metricCircleBounds = function() {
+    var wide = typeof window.innerWidth === 'number' && window.innerWidth >= 800;
+    return wide ? { min: 56, max: 88 } : { min: 48, max: 64 };
+};
+
+window.metricCircleSize = function(percentile, bounds) {
+    var b = bounds || window.metricCircleBounds();
+    var min = Number(b.min);
+    var max = Number(b.max);
+    if (!(max > min)) { min = 48; max = 64; }
+    var p = Number(percentile);
+    if (!isFinite(p) || p < 0) p = 0;
+    if (p > 100) p = 100;
+    return Math.round(min + (max - min) * (p / 100));
+};
+
+// null means the cohort is not on hand. 0 means the user has none of this metric.
+window.metricPercentileVsActive = function(value, peerValues, activeCount) {
+    var mine = Number(value) || 0;
+    var active = Math.floor(Number(activeCount) || 0);
+    if (!(mine > 0)) return 0;
+    var peers = [];
+    (peerValues || []).forEach(function(raw) {
+        var n = Number(raw) || 0;
+        if (n > 0) peers.push(n);
+    });
+    if (!(active > 0) || !peers.length) return null;
+    if (active === 1) return 100;
+    var ahead = 0;
+    for (var i = 0; i < peers.length; i++) if (peers[i] > mine) ahead++;
+    var rank;
+    if (ahead >= peers.length) {
+        var best = peers.length + 1;
+        var worst = active > best ? active : best;
+        rank = Math.round((best + worst) / 2);
+    } else {
+        rank = ahead + 1;
+    }
+    if (rank < 1) rank = 1;
+    if (rank > active) rank = active;
+    var pct = ((active - rank) / (active - 1)) * 100;
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+    return pct;
+};
+
+window.metricActiveUserCount = function() {
+    var n = Number(window._badgeDistActive) || 0;
+    if (n > 0) return Math.floor(n);
+    try {
+        var cached = JSON.parse(localStorage.getItem('btc_badge_dist_cache') || 'null');
+        n = cached && Number(cached.activeUsers30d) || 0;
+    } catch (e) {}
+    return n > 0 ? Math.floor(n) : 0;
+};
+
+function metricSnapValues(docId, pick) {
+    var doc = null;
+    if (typeof window._lbSnapRead === 'function') {
+        try { doc = window._lbSnapRead(docId); } catch (e) { doc = null; }
+    }
+    if (!doc) {
+        try { doc = JSON.parse(localStorage.getItem('btc_lb_snap_' + docId) || 'null'); } catch (e2) { doc = null; }
+    }
+    var rows = (doc && doc.rows) || [];
+    var out = [];
+    rows.forEach(function(row) {
+        var n = pick(row || {});
+        if (n > 0) out.push(n);
+    });
+    return out;
+}
+
+function metricOrdinal(n) {
+    var v = Math.round(Number(n) || 0);
+    var teen = v % 100;
+    if (teen >= 11 && teen <= 13) return v + 'th';
+    var digit = v % 10;
+    if (digit === 1) return v + 'st';
+    if (digit === 2) return v + 'nd';
+    if (digit === 3) return v + 'rd';
+    return v + 'th';
+}
+
 window.renderProgressRings = function() {
     var el = document.getElementById('progressRings');
     if (!el) return;
@@ -16360,11 +16762,33 @@ window.renderProgressRings = function() {
     var interactions = parseInt(localStorage.getItem('btc_nacho_interactions') || '0');
     var sfHashes = (typeof currentUser !== 'undefined' && currentUser && typeof currentUser.sfTotalHashes === 'number') ? currentUser.sfTotalHashes : 0;
 
-    function ring(pct, color, label, value) {
+    var activeUsers = window.metricActiveUserCount();
+    var xpPeers = metricSnapValues('lb_xp_alltime', function(row) {
+        var n = Number(row.points);
+        if (!(n > 0)) n = Number(row.value) || 0;
+        return n;
+    });
+    var hashPeers = metricSnapValues('lb_favor_hashers', function(row) {
+        return Number(row.value) || 0;
+    });
+    var streakPeers = [];
+    var streakBoard = window._streakLbCache && window._streakLbCache.data;
+    var streakRows = (streakBoard && (streakBoard.alltime || streakBoard.current)) || [];
+    streakRows.forEach(function(row) {
+        var n = Number(row && row.streak) || 0;
+        if (n > 0) streakPeers.push(n);
+    });
+
+    function ring(progressPct, color, label, value, standing, metricValue) {
+        var pct = Math.max(0, Math.min(100, Number(progressPct) || 0));
+        var percentile = standing == null ? window.metricPercentileVsActive(metricValue, [], activeUsers) : standing;
+        var sizeFrom = percentile == null ? pct : percentile;
+        var size = window.metricCircleSize(sizeFrom);
         var r = 32, c = 2 * Math.PI * r;
         var offset = c - (pct / 100) * c;
-        return '<div style="text-align:center;min-width:70px;">' +
-            '<svg width="72" height="72" viewBox="0 0 72 72">' +
+        var tip = (percentile == null || !(Number(metricValue) > 0)) ? '' : ' title="' + metricOrdinal(percentile) + ' percentile of active users"';
+        return '<div' + tip + ' data-metric="' + label + '" data-circle-size="' + size + '" style="text-align:center;width:' + size + 'px;flex:0 0 ' + size + 'px;">' +
+            '<svg width="' + size + '" height="' + size + '" viewBox="0 0 72 72" aria-hidden="true">' +
                 '<circle cx="36" cy="36" r="' + r + '" fill="none" stroke="var(--border)" stroke-width="5"/>' +
                 '<circle cx="36" cy="36" r="' + r + '" fill="none" stroke="' + color + '" stroke-width="5" stroke-linecap="round" stroke-dasharray="' + c + '" stroke-dashoffset="' + offset + '" transform="rotate(-90 36 36)" style="transition:stroke-dashoffset 1s;"/>' +
                 '<text x="36" y="40" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="700">' + value + '</text>' +
@@ -16372,12 +16796,12 @@ window.renderProgressRings = function() {
             '<div style="color:var(--text-faint);font-size:0.65rem;margin-top:2px;">' + label + '</div></div>';
     }
 
-    el.innerHTML = '<div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;">' +
-        ring(Math.min(100, (visited / totalChannels) * 100), '#f7931a', 'Topics', visited + '/' + totalChannels) +
-        ring(Math.min(100, streak * 5), '#22c55e', 'Streak', '🔥' + streak) +
-        ring(Math.min(100, (points / 21000) * 100), '#8B5CF6', 'XP', points > 999 ? Math.floor(points/1000) + 'k' : points) +
-        ring(Math.min(100, interactions * 2), '#3B82F6', 'Nacho', interactions) +
-        ring(Math.min(100, sfHashes / 1000 * 100), '#eab308', 'Hashes', sfHashes > 999 ? Math.floor(sfHashes / 1000) + 'k' : sfHashes) +
+    el.innerHTML = '<div id="progressRingRow" style="display:flex;justify-content:center;align-items:flex-end;gap:6px;flex-wrap:wrap;">' +
+        ring(Math.min(100, (visited / totalChannels) * 100), '#f7931a', 'Topics', visited + '/' + totalChannels, null, visited) +
+        ring(Math.min(100, streak * 5), '#22c55e', 'Streak', '🔥' + streak, window.metricPercentileVsActive(streak, streakPeers, activeUsers), streak) +
+        ring(Math.min(100, (points / 21000) * 100), '#8B5CF6', 'XP', points > 999 ? Math.floor(points/1000) + 'k' : points, window.metricPercentileVsActive(points, xpPeers, activeUsers), points) +
+        ring(Math.min(100, interactions * 2), '#3B82F6', 'Nacho', interactions, null, interactions) +
+        ring(Math.min(100, sfHashes / 1000 * 100), '#eab308', 'Hashes', sfHashes > 999 ? Math.floor(sfHashes / 1000) + 'k' : sfHashes, window.metricPercentileVsActive(sfHashes, hashPeers, activeUsers), sfHashes) +
     '</div>';
 };
 
@@ -17501,14 +17925,14 @@ function startPriceWs() {
 var _pricePollTimer = null;
 function startPricePolling() {
     if (_pricePollTimer) return; // already polling
-    console.log('[Dashboard] Starting price polling fallback (CoinGecko)');
+    console.log('[Dashboard] Starting price polling fallback (worker cache)');
     function poll() {
-        fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true')
+        fetch(WORKER_URL)
             .then(function(r) { return r.json(); })
             .then(function(d) {
-                if (d && d.bitcoin) {
-                    _lastWsPrice = d.bitcoin.usd;
-                    _lastWsChange = d.bitcoin.usd_24h_change || 0;
+                if (d && d.price) {
+                    _lastWsPrice = d.price;
+                    _lastWsChange = d.change24h || 0;
                     // Update dashboard
                     var priceEl = document.getElementById('dashLivePrice');
                     if (priceEl) priceEl.textContent = '$' + fmtNum(_lastWsPrice, 2);
@@ -17530,7 +17954,7 @@ function startPricePolling() {
             }).catch(function() {});
     }
     poll();
-    _pricePollTimer = setInterval(poll, 30000); // CoinGecko rate limit: ~30 calls/min
+    _pricePollTimer = setInterval(poll, 30000); // worker edge cache is 30s
 }
 
 function stopPriceWs() {
@@ -17544,7 +17968,7 @@ function startHighLowRefresh() { /* no-op — CoinGecko handles this */ }
 
 // ---- Cache & State ----
 var DASH_CACHE_KEY = 'btc_dashboard_cache_v2';
-var DASH_CACHE_TTL = 120000; // 2 min
+var DASH_CACHE_TTL = 30000; // 30s — matches the worker edge cache
 var _dashData = null;
 var _dashLoading = false;
 var _dashInterval = null;
@@ -17553,8 +17977,15 @@ var _dashInterval = null;
 var _candleData = null;
 var _candleInterval = null;
 var _candleFetchTs = 0;
-var CANDLE_WORKER_URL = 'https://jolly-surf-219enacho-search.needcreations.workers.dev/btc-candles';
-var CANDLE_REFRESH_MS = 5 * 60 * 1000; // re-fetch historical bars every 5 min
+function btcMetricsUrl(path) {
+    var host = 'https://jolly-surf-219enacho-search.needcreations.workers.dev';
+    try {
+        if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') host = location.origin;
+    } catch (e) {}
+    return host + path;
+}
+var CANDLE_WORKER_URL = btcMetricsUrl('/btc-candles');
+var CANDLE_REFRESH_MS = 30 * 1000; // 5m bars; refetch the series every 30s
 
 // ---- Number Formatting ----
 function fmtNum(n, decimals) {
@@ -17602,7 +18033,7 @@ function fmtPctMined(n) {
 // ---- Fetch All Data — proxied through CF Worker ----
 // One call to /btc-data returns everything, cached 90s at the edge.
 // No direct browser-to-API calls; external breakage fixed in the worker only.
-var WORKER_URL = 'https://jolly-surf-219enacho-search.needcreations.workers.dev/btc-data';
+var WORKER_URL = btcMetricsUrl('/btc-data');
 
 async function fetchDashboardData() {
     if (_dashLoading) {
@@ -17776,7 +18207,8 @@ function renderDashboard(data) {
         d.nextSubsidy = (50 / Math.pow(2, _epoch + 1)).toFixed(4);
         d.halvingBlock = (_epoch + 1) * 210000;
         d.halving = 210000 - (d.blockHeight % 210000);
-        var _halvMs = d.halving * 10 * 60 * 1000;
+        var _blockSec = (d.blockIntervalSec > 60) ? d.blockIntervalSec : 600;
+        var _halvMs = d.halving * _blockSec * 1000;
         d.halvingEta = new Date(Date.now() + _halvMs);
         var _totalSec = Math.floor(_halvMs / 1000);
         d.halvingDays = Math.floor(_totalSec / 86400);
@@ -17795,7 +18227,7 @@ function renderDashboard(data) {
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">';
     html += '<div><h2 style="color:var(--heading);font-size:1.4rem;font-weight:900;margin:0;letter-spacing:-0.5px;">₿ Bitcoin Network</h2>';
     var _dataAge = d.ts ? Math.round((Date.now() - d.ts) / 60000) : 0;
-    var _freshLabel = _dataAge <= 2 ? 'Live metrics · Updates every 2 min' : '📦 Data from ' + (_dataAge < 60 ? _dataAge + 'm' : Math.round(_dataAge/60) + 'h') + ' ago · Refreshing...';
+    var _freshLabel = _dataAge <= 1 ? 'Live metrics · Shared cache, about every 30s' : '📦 Data from ' + (_dataAge < 60 ? _dataAge + 'm' : Math.round(_dataAge/60) + 'h') + ' ago · Refreshing...';
     html += '<div style="color:var(--text-faint);font-size:0.7rem;margin-top:2px;">' + _freshLabel + '</div></div>';
     html += '<button onclick="closeDashboard()" style="background:none;border:none;color:var(--text-muted);font-size:1.5rem;cursor:pointer;padding:4px;">✕</button>';
     html += '</div>';
@@ -17840,7 +18272,8 @@ function renderDashboard(data) {
         html += '<div data-dash-tip="' + halvingTip.replace(/[\\'"]/g, "").replace(/"/g, '&quot;') + '" style="background:linear-gradient(135deg,rgba(247,147,26,0.08),rgba(234,88,12,0.04));border:2px solid rgba(247,147,26,0.2);border-radius:14px;padding:16px;margin-bottom:16px;text-align:center;cursor:help;transition:0.2s;position:relative;">';
         html += '<div style="color:var(--text-faint);font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;font-weight:800;margin-bottom:8px;">⏳ Next Halving — Block #' + fmtNum(d.halvingBlock) + ' <span style="opacity:0.4;font-size:0.55rem;">ⓘ</span></div>';
         // Store halving target for live countdown
-        window._halvingTargetMs = Date.now() + (d.halving * 10 * 60 * 1000);
+        var _halvSec = (d.blockIntervalSec > 60) ? d.blockIntervalSec : 600;
+        window._halvingTargetMs = Date.now() + (d.halving * _halvSec * 1000);
 
         html += '<div id="halvingCountdown" style="display:flex;justify-content:center;gap:12px;margin-bottom:10px;">';
         html += '<div><div id="halvDays" style="font-size:1.8rem;font-weight:900;color:var(--accent);line-height:1;">' + (d.halvingDays || 0) + '</div><div style="font-size:0.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">Days</div></div>';
@@ -17871,7 +18304,8 @@ function renderDashboard(data) {
     // Hashrate
     var _hrSub = '';
     if (d.hashrateChange24h != null) { var _hc = d.hashrateChange24h; _hrSub = '<span style="color:' + (_hc >= 0 ? '#22c55e' : '#ef4444') + ';">' + (_hc >= 0 ? '▲' : '▼') + ' ' + Math.abs(_hc).toFixed(1) + '%</span>'; }
-    html += metricCard('⛏️', 'Hashrate', fmtCompact(d.hashrate), _hrSub, 'The total computing power securing the Bitcoin network, measured in hashes per second. Higher hashrate = more secure network. EH/s = quintillion hashes per second.');
+    if (!_hrSub) _hrSub = 'mempool current estimate';
+    html += metricCard('⛏️', 'Hashrate', fmtCompact(d.hashrate), _hrSub, 'The total computing power securing the Bitcoin network, measured in hashes per second. This figure is mempool.space\'s current estimate, not a 24-hour average. Higher hashrate = more secure network. EH/s = quintillion hashes per second.');
     // Difficulty
     html += metricCard('🎯', 'Difficulty', fmtT(d.difficulty), '', 'How hard it is to mine a new block. Adjusts every 2,016 blocks (~2 weeks) to keep block times at ~10 minutes. If miners join, difficulty goes up. If miners leave, it goes down.');
     // Next Difficulty Adj
@@ -17891,12 +18325,19 @@ function renderDashboard(data) {
     // 24h Volume
     var _volSub = '';
     if (d.volume24h && d.marketCap) { var _vr = (d.volume24h / d.marketCap * 100); _volSub = 'Vol/MCap: ' + _vr.toFixed(2) + '%'; }
-    html += metricCard('📈', '24h Volume', '$' + fmtT(d.volume24h), _volSub, 'Total USD value of Bitcoin traded across all exchanges in the last 24 hours. High volume often signals strong market interest or significant price moves.');
+    html += metricCard('📈', '24h Volume', '$' + fmtT(d.volume24h), _volSub, 'All-exchange 24h Bitcoin volume from CoinGecko. High volume often signals strong market interest or a large move.');
     // Lightning Network
     var lnBtcNum = d.lnCapacity ? (d.lnCapacity / 100000000) : null;
     var lnBtcStr = lnBtcNum !== null ? fmtNum(lnBtcNum.toFixed(0)) + ' BTC' : '—';
     var lnUsd = (lnBtcNum && d.price) ? '$' + fmtT(lnBtcNum * d.price) : '';
-    var _lnSub = (d.lnNodes ? fmtNum(d.lnNodes) + ' nodes · ' : '') + (d.lnChannels ? fmtNum(d.lnChannels) + ' channels' : '') + (lnUsd ? '<br>' + lnUsd : '');
+    var _lnWhen = '';
+    if (d.lnAsOf) {
+        var _lnT = Date.parse(d.lnAsOf);
+        var _lnPretty = isFinite(_lnT) ? new Date(_lnT).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+        var _lnOld = isFinite(_lnT) && (Date.now() - _lnT) > 14 * 86400000;
+        _lnWhen = _lnPretty ? ('<br>As of ' + _lnPretty + (_lnOld ? ' · source snapshot' : '')) : '';
+    }
+    var _lnSub = (d.lnNodes ? fmtNum(d.lnNodes) + ' nodes · ' : '') + (d.lnChannels ? fmtNum(d.lnChannels) + ' channels' : '') + (lnUsd ? '<br>' + lnUsd : '') + _lnWhen;
     html += metricCard('⚡', 'Lightning Capacity', lnBtcStr, _lnSub, 'Total Bitcoin locked in Lightning Network payment channels. Lightning enables instant, near-free Bitcoin payments. More capacity = more liquidity for fast payments. Nodes route payments; channels connect them.');
 
     // Fear & Greed moved to Top Indicators section
@@ -17926,7 +18367,7 @@ function renderDashboard(data) {
     html += '</div></div>';
 
     // Fetch live gold price after render
-    setTimeout(function() { _fetchGoldData(btcMktCapT, d.supply || 0); }, 150);
+    setTimeout(function() { _renderGoldFromSnapshot(d.goldUsd, btcMktCapT, d.supply || 0); }, 150);
 
     // ── Bitcoin Treasuries (live data from CoinGecko + government estimates) ──
     html += '<div id="treasuryCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:10px;cursor:help;position:relative;transition:0.2s;">';
@@ -17935,7 +18376,7 @@ function renderDashboard(data) {
     html += '</div>';
 
     // Fetch treasury data after render
-    setTimeout(function() { _fetchTreasuryData(d.price || 0); }, 200);
+    setTimeout(function() { _renderTreasuryFromSnapshot(d.treasury, d.price || 0); }, 200);
 
     // ── Bitcoin ETFs (top 5 by BTC holdings) ──
     html += '<div id="etfHoldingsCard" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:10px;position:relative;transition:0.2s;">';
@@ -17959,12 +18400,12 @@ function renderDashboard(data) {
     html += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);font-size:0.6rem;color:var(--text-faint);line-height:1.6;">';
     html += '<strong>Data Sources:</strong> ';
     html += '<a href="https://mempool.space" target="_blank" rel="noopener" style="color:var(--accent);">mempool.space</a> (blocks, fees, hashrate, difficulty, mempool, Lightning) · ';
-    html += '<a href="https://www.coinbase.com" target="_blank" rel="noopener" style="color:var(--accent);">Coinbase</a> (price, 5m candles) · ';
-    html += '<a href="https://www.kraken.com" target="_blank" rel="noopener" style="color:var(--accent);">Kraken</a> (24h high/low, volume) · ';
-    html += '<a href="https://www.coingecko.com" target="_blank" rel="noopener" style="color:var(--accent);">CoinGecko</a> (supply, market cap, ATH) · ';
+    html += '<a href="https://www.coinbase.com" target="_blank" rel="noopener" style="color:var(--accent);">Coinbase</a> (price, rolling 24h change, high/low, 5m candles) · ';
+    html += '<a href="https://www.coingecko.com" target="_blank" rel="noopener" style="color:var(--accent);">CoinGecko</a> (all-exchange volume, ATH, dominance, gold, treasuries) · ';
+    html += '<a href="https://www.blockchain.com/charts" target="_blank" rel="noopener" style="color:var(--accent);">Blockchain.com</a> (daily prices for moving averages) · ';
     html += '<a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener" style="color:var(--accent);">Alternative.me</a> (Fear & Greed Index) · ';
     html += '<a href="https://bitcointreasuries.net" target="_blank" rel="noopener" style="color:var(--accent);">BitcoinTreasuries.net</a> (company & government holdings) · ';
-    html += '<a href="https://colintalkscrypto.com/cbbi/" target="_blank" rel="noopener" style="color:var(--accent);">CBBI</a> (MVRV, NUPL, RHODL, Macro Oscillator)';
+    html += '<a href="https://colintalkscrypto.com/cbbi/" target="_blank" rel="noopener" style="color:var(--accent);">CBBI</a> (normalized 0–1 scores)';
     html += '<div style="margin-top:4px;">Last updated: ' + new Date(d.ts || Date.now()).toLocaleTimeString() + '</div>';
     html += '</div>';
 
@@ -18252,6 +18693,7 @@ function loadTopIndicators() {
     var supply = d.supply || 0;
     var fearGreed = d.fearGreed || 0;
     var fearLabel = d.fearGreedLabel || '—';
+    var hist = d.history || {};
 
     // Calculate indicators from available data
     var indicators = [];
@@ -18286,9 +18728,20 @@ function loadTopIndicators() {
         });
     }
 
-    // 3. Mayer Multiple (price / 200-day MA) — we'll estimate from ATH
-    // We can't get 200-day MA without historical data, but we can show placeholder and fetch
-    indicators.push({ emoji: '📐', name: 'Mayer Multiple', value: '...', sub: 'Loading...', tip: 'Price divided by 200-day moving average. Below 1.0 = historically cheap. Above 2.4 = overheated. Named after Trace Mayer.', id: 'mayerMultiple' });
+    // Mayer Multiple = price / real 200-day average (Blockchain.com daily prices)
+    {
+        var mayerHas = !!(price && hist.ma200);
+        var mayerNum = mayerHas ? price / hist.ma200 : null;
+        indicators.push({
+            emoji: '📐', name: 'Mayer Multiple',
+            value: mayerHas ? mayerNum.toFixed(2) + 'x' : '—',
+            color: !mayerHas ? 'var(--heading)' : mayerNum < 1 ? '#22c55e' : mayerNum > 2.4 ? '#ef4444' : 'var(--heading)',
+            sub: mayerHas ? ('200d MA: $' + fmtNum(Math.round(hist.ma200)) + (mayerNum < 1 ? ' · Below MA' : mayerNum > 2.4 ? ' · Overheated' : '')) : 'Daily history unavailable',
+            tip: 'Price divided by the 200-day average of daily prices (Blockchain.com). Below 1.0 = historically cheap. Above 2.4 = overheated. Named after Trace Mayer.',
+            flashing: mayerHas && mayerNum > 2.4,
+            id: 'mayerMultiple'
+        });
+    }
 
     // 4. Halving Cycle Position
     if (height) {
@@ -18318,31 +18771,10 @@ function loadTopIndicators() {
         });
     }
 
-    // 7. Thermocap Multiple (rough estimate)
-    if (price && supply && height) {
-        var epoch = Math.floor(height / 210000);
-        // Rough total miner revenue estimate
-        var thermocap = 0;
-        var h = height;
-        for (var i = 0; i <= epoch && h > 0; i++) {
-            var epochBlocks = Math.min(h, 210000);
-            var reward = 50 / Math.pow(2, i);
-            thermocap += epochBlocks * reward;
-            h -= epochBlocks;
-        }
-        // Very rough — assumes avg price over time ~$30k
-        var thermocapUSD = thermocap * 30000;
-        var marketCap = price * supply;
-        var thermoMultiple = thermocapUSD > 0 ? (marketCap / thermocapUSD).toFixed(1) : '—';
-        indicators.push({
-            emoji: '🌡️', name: 'Thermo Multiple',
-            value: thermoMultiple + 'x',
-            sub: 'Market Cap / Thermocap',
-            tip: 'Thermocap Multiple compares market cap to total miner revenue (a proxy for "energy spent"). Values >5x historically signal overheating (cycle tops hit 4-8x). <10x = accumulation zone.'
-        });
-    }
+    // Thermocap / Terminal Price need issuance priced on the day it was mined.
+    // A flat $30,000 stand-in is not that series, so those cards are not shown.
 
-    // 9. NVT Ratio (always show)
+    // 9. NVT Ratio (market cap / all-exchange 24h volume)
     {
         var nvtHas = !!(price && supply && d.volume24h);
         var nvt = nvtHas ? (price * supply / d.volume24h).toFixed(1) : null;
@@ -18353,27 +18785,38 @@ function loadTopIndicators() {
             value: nvtHas ? nvt : '—',
             color: nvtColor,
             sub: nvtHas ? (nvtNum < 30 ? 'Undervalued zone' : nvtNum > 150 ? 'Overvalued zone' : 'Normal range') : 'Loading...',
-            tip: 'Network Value to Transactions ratio. Compares market cap to annualized transaction volume. Below 30 = undervalued relative to usage. Above 150 = potentially overvalued. Think of it like P/E ratio for Bitcoin.'
+            tip: 'Market cap divided by CoinGecko all-exchange 24h volume. This is a market-volume ratio, not the on-chain NVT. Below 30 is quiet relative to these bands. Above 150 is heavy relative to these bands.'
         });
     }
 
-    // 11. Bitcoin Dominance (always show — live value fetched async)
-    indicators.push({
-        emoji: '👑', name: 'BTC Dominance',
-        value: '...', color: 'var(--heading)',
-        sub: 'Loading...',
-        tip: 'Bitcoin\'s share of the total cryptocurrency market cap. Higher dominance = Bitcoin is outperforming alts. During alt seasons, dominance drops below 40%. During Bitcoin seasons (now), it rises above 55-65%. Historically, increasing dominance signals strength.',
-        id: 'btcDominance'
-    });
+    // Bitcoin dominance from the shared snapshot (CoinGecko global)
+    {
+        var domHas = d.dominance != null && isFinite(Number(d.dominance));
+        var domNum = domHas ? Number(d.dominance) : null;
+        indicators.push({
+            emoji: '👑', name: 'BTC Dominance',
+            value: domHas ? domNum.toFixed(1) + '%' : '—',
+            color: !domHas ? 'var(--heading)' : domNum > 55 ? '#22c55e' : domNum < 40 ? '#ef4444' : 'var(--heading)',
+            sub: domHas ? (domNum > 55 ? 'Bitcoin season' : domNum < 40 ? 'Alt season' : 'Neutral') : 'Unavailable',
+            tip: 'Bitcoin\'s share of total cryptocurrency market cap, from CoinGecko. A second index (Coinpaprika) can differ by a couple of points because the coin sets differ.',
+            id: 'btcDominance'
+        });
+    }
 
-    // MVRV Z-Score (loaded from CBBI API)
-    indicators.push({
-        emoji: '💎', name: 'MVRV Z-Score',
-        value: '...', color: 'var(--heading)',
-        sub: 'Loading from CBBI...',
-        tip: 'Market Value to Realized Value ratio. Compares market cap to realized cap (sum of each coin valued at its last move price). Above 3.0 historically marks cycle tops. Below 1.0 marks bottoms. Data from CBBI open-source API. Top threshold: normalized \u2265 0.7 (\u2248 MVRV 3+).',
-        id: 'mvrvScore'
-    });
+    // CBBI normalized MVRV score (0–1), not the raw MVRV z-score
+    {
+        var mvrvN = d.cbbi && d.cbbi.mvrv != null ? Number(d.cbbi.mvrv) : null;
+        var mvrvHas = mvrvN != null && isFinite(mvrvN);
+        indicators.push({
+            emoji: '💎', name: 'MVRV (CBBI)',
+            value: mvrvHas ? Math.round(mvrvN * 100) + '%' : '—',
+            color: !mvrvHas ? 'var(--heading)' : mvrvN >= 0.7 ? '#ef4444' : mvrvN <= 0.2 ? '#22c55e' : 'var(--heading)',
+            sub: mvrvHas ? (mvrvN >= 0.7 ? 'Normalized top zone' : mvrvN <= 0.2 ? 'Normalized low zone' : 'CBBI 0–1 score') : 'CBBI unavailable',
+            tip: 'CBBI\'s normalized MVRV input, scaled 0 to 1 (shown as a percent). This is not the raw MVRV z-score, where tops have historically been near 7 and bottoms near 0. A score of 0.7 is CBBI\'s own top threshold.',
+            flashing: mvrvHas && mvrvN >= 0.7,
+            id: 'mvrvScore'
+        });
+    }
 
     // 13. Power Law Deviation
     if (price) {
@@ -18401,32 +18844,33 @@ function loadTopIndicators() {
         });
     }
 
-    // 14. Pi Cycle Top Indicator (needs 111d MA and 350d MA×2 — placeholder, fetched async)
-    indicators.push({
-        emoji: '🔵', name: 'Pi Cycle Top',
-        value: '...',
-        sub: 'Loading...',
-        tip: 'When the 111-day MA crosses above the 350-day MA × 2, it has historically signaled the exact top of every Bitcoin cycle. Flashes when the gap narrows to <5%.',
-        id: 'piCycleTop',
-        flashing: false
-    });
+    // Pi Cycle: 111-day MA vs 350-day MA × 2, from the same daily series
+    {
+        var piHas = !!(hist.ma111 && hist.ma350);
+        var ma350x2 = piHas ? hist.ma350 * 2 : null;
+        var piGapNum = piHas ? (hist.ma111 - ma350x2) / ma350x2 * 100 : null;
+        indicators.push({
+            emoji: '🔵', name: 'Pi Cycle Top',
+            value: piHas ? ((piGapNum >= 0 ? '+' : '') + piGapNum.toFixed(1) + '%') : '—',
+            color: !piHas ? 'var(--heading)' : piGapNum >= 0 ? '#ef4444' : piGapNum > -5 ? '#f97316' : 'var(--heading)',
+            sub: piHas ? ('111d: $' + fmtNum(Math.round(hist.ma111)) + ' vs 350d×2: $' + fmtNum(Math.round(ma350x2))) : 'Daily history unavailable',
+            tip: 'When the 111-day average crosses above the 350-day average × 2, it has historically lined up with cycle tops. Both averages are daily closes from Blockchain.com.',
+            flashing: piHas && piGapNum >= 0,
+            id: 'piCycleTop'
+        });
+    }
 
-    // 15. Puell Multiple (daily miner revenue / 365-day avg)
-    if (height && price) {
-        var _blockReward = (d.subsidy ? parseFloat(d.subsidy) : 3.125);
-        var dailyMinerRevenue = _blockReward * 144 * price;
-        // Rough 365-day avg: use a historical avg BTC price estimate × avg reward
-        // More accurate: avg price over last year ~$60K with reward 3.125
-        var avgDailyRevenue365 = 3.125 * 144 * 60000; // rough estimate
-        var puell = avgDailyRevenue365 > 0 ? (dailyMinerRevenue / avgDailyRevenue365).toFixed(2) : '—';
-        var puellNum = parseFloat(puell);
+    // Puell = spot / 365-day average price. Subsidy has been 3.125 BTC for this whole window.
+    {
+        var puellHas = !!(price && hist.price365Avg);
+        var puellNum = puellHas ? price / hist.price365Avg : null;
         indicators.push({
             emoji: '⛏️', name: 'Puell Multiple',
-            value: puell,
-            color: puellNum > 2.2 ? '#ef4444' : puellNum < 0.5 ? '#22c55e' : 'var(--heading)',
-            sub: puellNum > 2.2 ? 'Miners overleveraged ⚠️' : puellNum < 0.5 ? 'Miner capitulation zone 🟢' : 'Normal range',
-            tip: 'Ratio of daily miner revenue to its 365-day moving average. Above 2.2 = miners are earning far more than usual (historically a sell signal). Below 0.5 = miner capitulation (buy signal). Top threshold: ≥ 2.2.',
-            flashing: puellNum >= 2.2
+            value: puellHas ? puellNum.toFixed(2) : '—',
+            color: !puellHas ? 'var(--heading)' : puellNum > 2.2 ? '#ef4444' : puellNum < 0.5 ? '#22c55e' : 'var(--heading)',
+            sub: puellHas ? ('365d avg price: $' + fmtNum(Math.round(hist.price365Avg)) + (puellNum > 2.2 ? ' · High' : puellNum < 0.5 ? ' · Capitulation zone' : ' · Normal range')) : 'Daily history unavailable',
+            tip: 'Issuance value today divided by its 365-day average. The block subsidy has been 3.125 BTC for this whole year, so this is the spot price divided by the 365-day average daily price (Blockchain.com). Above 2.2 has been a late-cycle zone. Below 0.5 has been miner capitulation.',
+            flashing: puellHas && puellNum >= 2.2
         });
     }
 
@@ -18461,133 +18905,86 @@ function loadTopIndicators() {
         });
     }
 
-// 18. 4-Year MA Multiplier
-    if (price) {
-        // The 4-year (1460-day) moving average × 3.5 has historically caught tops
-        // We estimate the 4-year MA from the power law fair value
-        var _genesis = new Date('2009-01-03T00:00:00Z');
-        var _daysNow = Math.floor((Date.now() - _genesis.getTime()) / 86400000);
-        // Average price over last 4 years — rough estimate using power law values
-        var _sum4y = 0;
-        for (var _dy = 0; _dy < 1460; _dy++) {
-            var _d = _daysNow - _dy;
-            if (_d > 365) _sum4y += Math.pow(10, 5.82 * Math.log10(_d) - 17.01);
-        }
-        var ma4y = _sum4y / 1460;
-        var ma4yMultiplier = ma4y > 0 ? (price / ma4y).toFixed(2) : '—';
-        var ma4yNum = parseFloat(ma4yMultiplier);
+    // 4-year average of daily prices (Blockchain.com), not the power-law curve
+    {
+        var ma4Has = !!(price && hist.ma1460);
+        var ma4yNum = ma4Has ? price / hist.ma1460 : null;
         indicators.push({
             emoji: '📊', name: '4-Year MA Multiple',
-            value: ma4yMultiplier + 'x',
-            color: ma4yNum >= 3.5 ? '#ef4444' : ma4yNum < 1 ? '#22c55e' : 'var(--heading)',
-            sub: 'Est. 4Y MA: ~$' + fmtNum(Math.round(ma4y)) + (ma4yNum >= 3.5 ? ' · Top zone ⚠️' : ''),
-            tip: 'Price divided by the 4-year (1460-day) moving average. Historically, when price exceeds 3.5× the 4-year MA, it signals a cycle top. Below 1× = accumulation zone. Top threshold: ≥ 3.5.',
-            flashing: ma4yNum >= 3.5
+            value: ma4Has ? ma4yNum.toFixed(2) + 'x' : '—',
+            color: !ma4Has ? 'var(--heading)' : ma4yNum >= 3.5 ? '#ef4444' : ma4yNum < 1 ? '#22c55e' : 'var(--heading)',
+            sub: ma4Has ? ('4Y MA: $' + fmtNum(Math.round(hist.ma1460)) + (ma4yNum >= 3.5 ? ' · Top zone' : '')) : 'Daily history unavailable',
+            tip: 'Price divided by the average of the last 1,460 daily prices (Blockchain.com). When price has exceeded about 3.5× that average, it has lined up with cycle tops. Below 1× has been an accumulation zone.',
+            flashing: ma4Has && ma4yNum >= 3.5
         });
     }
 
-    // NUPL (loaded from CBBI API — RUPL metric)
-    indicators.push({
-        emoji: '💰', name: 'NUPL',
-        value: '...', color: 'var(--heading)',
-        sub: 'Loading from CBBI...',
-        tip: 'Net Unrealized Profit/Loss. Shows aggregate profit/loss of all Bitcoin holders. Above 75% = euphoria (top zone). Below 0% = capitulation (bottom zone). Data from CBBI open-source API. Top threshold: normalized \u2265 0.75.',
-        id: 'nuplScore'
-    });
+    // CBBI normalized RUPL (0–1), not raw NUPL
+    {
+        var nuplN = d.cbbi && d.cbbi.nupl != null ? Number(d.cbbi.nupl) : null;
+        var nuplHas = nuplN != null && isFinite(nuplN);
+        indicators.push({
+            emoji: '💰', name: 'NUPL (CBBI)',
+            value: nuplHas ? Math.round(nuplN * 100) + '%' : '—',
+            color: !nuplHas ? 'var(--heading)' : nuplN >= 0.75 ? '#ef4444' : nuplN <= 0.2 ? '#22c55e' : 'var(--heading)',
+            sub: nuplHas ? (nuplN >= 0.75 ? 'Normalized euphoria' : nuplN <= 0.2 ? 'Normalized low zone' : 'CBBI 0–1 score') : 'CBBI unavailable',
+            tip: 'CBBI\'s normalized RUPL input, scaled 0 to 1 (shown as a percent). This is not raw NUPL, which is unrealized profit divided by market cap. CBBI treats 0.75 as its top threshold for this input.',
+            flashing: nuplHas && nuplN >= 0.75,
+            id: 'nuplScore'
+        });
+    }
 
     // 20. Altcoin Season Index (BTC dominance inverse — estimated)
     // Moved from simple dominance to include flashing at <40% (alt season = BTC top risk)
     // (BTC Dominance is already indicator 11 — this adds the alt season angle)
 
-    // 21. AHR999 Index (cost-averaging indicator)
-    if (price && height) {
+    // AHR999 = (price / 200d MA) × (price / power-law fit)
+    if (price && hist.ma200) {
         var _dsg3 = Math.floor((Date.now() - new Date('2009-01-03').getTime()) / 86400000);
-        var logFit = Math.pow(10, 5.82 * Math.log10(_dsg3) - 17.01); // power law fair value
-        // AHR999 = (price / 200d MA) * (price / fitted value)
-        // We'll use power law as fitted value, estimate 200d MA from async (placeholder)
-        var ahr999 = logFit > 0 ? (price / logFit).toFixed(2) : '—';
-        var ahrNum = parseFloat(ahr999);
+        var logFit = Math.pow(10, 5.82 * Math.log10(_dsg3) - 17.01);
+        var ahrNum = (logFit > 0) ? (price / hist.ma200) * (price / logFit) : null;
         indicators.push({
             emoji: '🔢', name: 'AHR999',
-            value: ahr999,
+            value: ahrNum != null ? ahrNum.toFixed(2) : '—',
             color: ahrNum > 1.2 ? '#ef4444' : ahrNum < 0.45 ? '#22c55e' : 'var(--heading)',
-            sub: ahrNum > 1.2 ? 'Overvalued — stop DCA ⚠️' : ahrNum < 0.45 ? 'Deep value — DCA zone 🟢' : ahrNum < 1 ? 'Below model — DCA' : 'Near model',
-            tip: 'AHR999 compares current price to its long-term model value. Below 0.45 = extreme buy (accumulate aggressively). Above 1.2 = stop DCA, consider selling. Used by cost-averaging investors to time entries. Top threshold: ≥ 1.2.',
+            sub: ahrNum > 1.2 ? 'Overvalued — stop DCA' : ahrNum < 0.45 ? 'Deep value — DCA zone' : ahrNum < 1 ? 'Below model — DCA' : 'Near model',
+            tip: 'AHR999 = (price / 200-day average) × (price / power-law fit). The 200-day average is Blockchain.com daily prices. The fit is P = 10^(5.82 × log10(days since genesis) − 17.01). Below 0.45 has been a deep-value zone. Above 1.2 has been a stop-DCA zone.',
             flashing: ahrNum >= 1.2
         });
     }
 
-    // 22. 2-Year MA Multiplier
-    if (price) {
-        // 2-year (730d) MA and 5× that MA
-        var _gen3 = new Date('2009-01-03T00:00:00Z');
-        var _dn3 = Math.floor((Date.now() - _gen3.getTime()) / 86400000);
-        var _sum2y = 0;
-        for (var _d2y = 0; _d2y < 730; _d2y++) {
-            var _dd = _dn3 - _d2y;
-            if (_dd > 365) _sum2y += Math.pow(10, 5.82 * Math.log10(_dd) - 17.01);
-        }
-        var ma2y = _sum2y / 730;
-        var ma2yx5 = ma2y * 5;
-        var above2y = price > ma2yx5;
+    {
+        var ma2Has = !!(price && hist.ma730);
+        var ma2y = ma2Has ? hist.ma730 : null;
+        var ma2yx5 = ma2Has ? ma2y * 5 : null;
+        var ma2Mult = ma2Has ? price / ma2y : null;
+        var above2y = ma2Has && price > ma2yx5;
         indicators.push({
             emoji: '📉', name: '2-Year MA ×5',
-            value: (price / ma2y).toFixed(2) + 'x',
-            color: above2y ? '#ef4444' : price < ma2y ? '#22c55e' : 'var(--heading)',
-            sub: 'MA: $' + fmtNum(Math.round(ma2y)) + ' · ×5: $' + fmtNum(Math.round(ma2yx5)) + (above2y ? ' · Above ⚠️' : ''),
-            tip: 'Price relative to the 2-year (730-day) moving average. Historically, buying below the 2-year MA yields huge returns. Selling when price exceeds 5× the 2-year MA catches tops. Top threshold: price above 5× MA.',
+            value: ma2Has ? ma2Mult.toFixed(2) + 'x' : '—',
+            color: !ma2Has ? 'var(--heading)' : above2y ? '#ef4444' : price < ma2y ? '#22c55e' : 'var(--heading)',
+            sub: ma2Has ? ('MA: $' + fmtNum(Math.round(ma2y)) + ' · ×5: $' + fmtNum(Math.round(ma2yx5)) + (above2y ? ' · Above' : '')) : 'Daily history unavailable',
+            tip: 'Price divided by the average of the last 730 daily prices (Blockchain.com). Buying below that average has historically been early. Price above 5× that average has lined up with tops.',
             flashing: above2y
         });
     }
 
-    // 23. Golden Ratio Multiplier
-    if (price) {
-        var _gen4 = new Date('2009-01-03T00:00:00Z');
-        var _dn4 = Math.floor((Date.now() - _gen4.getTime()) / 86400000);
-        // 350d MA × golden ratio multiples (1.6, 2, 3, 5, 8, 13, 21)
-        var _sum350g = 0;
-        for (var _d350 = 0; _d350 < 350; _d350++) {
-            var _ddd = _dn4 - _d350;
-            if (_ddd > 365) _sum350g += Math.pow(10, 5.82 * Math.log10(_ddd) - 17.01);
-        }
-        var ma350g = _sum350g / 350;
-        var goldenRatio = ma350g > 0 ? (price / ma350g).toFixed(2) : '—';
-        var grNum = parseFloat(goldenRatio);
-        var grLevel = grNum >= 8 ? 'Above ×8 — max top ⚠️' : grNum >= 5 ? 'Above ×5 — overheated' : grNum >= 3 ? 'Above ×3 — elevated' : grNum >= 1.6 ? 'Above ×1.6 — bullish' : 'Below ×1.6';
+    {
+        var grHas = !!(price && hist.ma350);
+        var grNum = grHas ? price / hist.ma350 : null;
+        var grLevel = !grHas ? '' : grNum >= 8 ? 'Above ×8' : grNum >= 5 ? 'Above ×5 — overheated' : grNum >= 3 ? 'Above ×3 — elevated' : grNum >= 1.6 ? 'Above ×1.6 — bullish' : 'Below ×1.6';
         indicators.push({
             emoji: '🔱', name: 'Golden Ratio',
-            value: goldenRatio + 'x',
-            color: grNum >= 5 ? '#ef4444' : grNum >= 3 ? '#f97316' : 'var(--heading)',
-            sub: '350d MA: $' + fmtNum(Math.round(ma350g)) + ' · ' + grLevel,
-            tip: 'Price relative to the 350-day MA using Fibonacci golden ratio multiples (1.6, 2, 3, 5, 8, 13, 21). Each cycle top has touched a lower multiple. Top threshold: ≥ 5×.',
-            flashing: grNum >= 5
+            value: grHas ? grNum.toFixed(2) + 'x' : '—',
+            color: !grHas ? 'var(--heading)' : grNum >= 5 ? '#ef4444' : grNum >= 3 ? '#f97316' : 'var(--heading)',
+            sub: grHas ? ('350d MA: $' + fmtNum(Math.round(hist.ma350)) + ' · ' + grLevel) : 'Daily history unavailable',
+            tip: 'Price divided by the real 350-day average of daily prices (Blockchain.com), read against Fibonacci multiples (1.6, 2, 3, 5, 8). Top threshold used here: 5×.',
+            flashing: grHas && grNum >= 5
         });
     }
 
-    // 24. Bitcoin Terminal Price
-    if (height && supply && price) {
-        // Terminal Price = Transferred Price × 21
-        // Transferred Price ≈ Thermocap / supply × coin days destroyed ratio
-        // Simplified: Terminal Price ≈ (cumulative block rewards × avg price) / supply × 21
-        var _thermBTC3 = 0;
-        var _h3 = height;
-        for (var _ep3 = 0; _ep3 <= Math.floor(height / 210000) && _h3 > 0; _ep3++) {
-            var _epB3 = Math.min(_h3, 210000);
-            _thermBTC3 += _epB3 * (50 / Math.pow(2, _ep3));
-            _h3 -= _epB3;
-        }
-        var transferredPrice = supply > 0 ? (_thermBTC3 * 30000 / supply) : 0;
-        var terminalPrice = transferredPrice * 21;
-        var termPct = terminalPrice > 0 ? ((price / terminalPrice) * 100).toFixed(0) : '—';
-        indicators.push({
-            emoji: '🎯', name: 'Terminal Price',
-            value: '$' + fmtNum(Math.round(terminalPrice)),
-            color: price >= terminalPrice ? '#ef4444' : 'var(--heading)',
-            sub: 'Current: ' + termPct + '% of terminal · ' + (price >= terminalPrice ? 'ABOVE — extreme ⚠️' : 'Below terminal'),
-            tip: 'Terminal Price = Transferred Price × 21. Represents a theoretical maximum based on cumulative miner revenue and coin movement. Every cycle top has approached or exceeded this level. Top threshold: price ≥ Terminal Price.',
-            flashing: price >= terminalPrice
-        });
-    }
+    // Terminal Price needs thermocap (issuance × the price on the day mined).
+    // The free daily series starts in 2021, so that sum is not computed here.
 
     // 25. Bitcoin Bubble Index (price deviation from log trend)
     if (price) {
@@ -18608,70 +19005,59 @@ function loadTopIndicators() {
         });
     }
 
-    // 26. 3-Month Annualized Return
-    if (price) {
-        // Estimate 90-day ago price from power law (rough)
-        var _dsg6 = Math.floor((Date.now() - new Date('2009-01-03').getTime()) / 86400000);
-        var price90d = Math.pow(10, 5.82 * Math.log10(_dsg6 - 90) - 17.01);
-        // Better: use actual price change if we have fear/greed cached data
-        // For now use ratio of current to 90d estimated
-        var annualized3m = price90d > 0 ? (Math.pow(price / price90d, 4) - 1) * 100 : 0;
-        var ann3mStr = annualized3m.toFixed(0);
-        var ann3mNum = parseFloat(ann3mStr);
+    // 3-month return, annualized with ^4, from the daily price 90 days ago
+    {
+        var annHas = !!(price && hist.price90d);
+        var ann3mNum = annHas ? (Math.pow(price / hist.price90d, 4) - 1) * 100 : null;
+        var ann3mStr = annHas ? Math.round(ann3mNum).toString() : '';
         indicators.push({
             emoji: '🚀', name: '3M Annualized',
-            value: (ann3mNum >= 0 ? '+' : '') + ann3mStr + '%',
-            color: ann3mNum > 200 ? '#ef4444' : ann3mNum > 100 ? '#f97316' : 'var(--heading)',
-            sub: ann3mNum > 200 ? 'Unsustainable — top risk ⚠️' : ann3mNum > 100 ? 'Very high' : 'Normal',
-            tip: '3-month return annualized. When Bitcoin is gaining over 200% annualized, it historically signals the late stages of a bull run. Top threshold: > 200%.',
-            flashing: ann3mNum > 200,
+            value: annHas ? ((ann3mNum >= 0 ? '+' : '') + ann3mStr + '%') : '—',
+            color: !annHas ? 'var(--heading)' : ann3mNum > 200 ? '#ef4444' : ann3mNum > 100 ? '#f97316' : 'var(--heading)',
+            sub: annHas ? ('90d ago: $' + fmtNum(Math.round(hist.price90d)) + (ann3mNum > 200 ? ' · Very high' : ann3mNum > 100 ? ' · High' : '')) : 'Daily history unavailable',
+            tip: 'The spot price versus the daily price 90 days earlier (Blockchain.com), raised to the 4th power to annualize a quarter. Above +200% has been a late-bull reading.',
+            flashing: annHas && ann3mNum > 200,
             id: 'ann3m'
         });
     }
 
-    // 27. MicroStrategy Avg Bitcoin Cost
-    // MSTR holds ~762K BTC at avg cost ~$75.7K (as of March 2026, updated periodically)
-    if (price) {
-        var mstrAvgCost = 75694; // update periodically from public filings
-        var mstrBTC = 762099;
-        var mstrPnL = ((price - mstrAvgCost) / mstrAvgCost * 100).toFixed(1);
+    {
+        var mstrOk = !!(d.mstr && d.mstr.btc && d.mstr.avgCost && price);
+        var mstrPnL = mstrOk ? ((price - d.mstr.avgCost) / d.mstr.avgCost * 100) : null;
         indicators.push({
             emoji: '🏢', name: 'MSTR Avg Cost',
-            value: '$' + fmtNum(mstrAvgCost),
-            sub: fmtNum(mstrBTC) + ' BTC · P&L: ' + (mstrPnL >= 0 ? '+' : '') + mstrPnL + '%',
-            tip: 'MicroStrategy (MSTR) average Bitcoin acquisition cost. When price is far above MSTR\'s cost basis, it indicates broader market euphoria. MSTR holds ' + fmtNum(mstrBTC) + ' BTC. Informational — no top threshold.',
+            value: mstrOk ? ('$' + fmtNum(Math.round(d.mstr.avgCost))) : '—',
+            sub: mstrOk ? (fmtNum(Math.round(d.mstr.btc)) + ' BTC · P&L: ' + (mstrPnL >= 0 ? '+' : '') + mstrPnL.toFixed(1) + '%') : 'Treasury feed unavailable',
+            tip: mstrOk
+                ? ('Strategy holdings and average cost from CoinGecko public treasury (entry value / coins). ' + fmtNum(Math.round(d.mstr.btc)) + ' BTC at $' + fmtNum(Math.round(d.mstr.avgCost)) + '. Same feed as the treasury card.')
+                : 'Strategy holdings come from the CoinGecko public-treasury feed when that snapshot includes them.',
             flashing: false, noFlashLogic: true
         });
     }
 
 
-    // --- CBBI-sourced indicators (fetched async from colintalkscrypto.com) ---
-    // CBBI Confidence
-    indicators.push({
-        emoji: '🎯', name: 'CBBI Index',
-        value: '...', color: 'var(--heading)',
-        sub: 'Loading CBBI data...',
-        tip: 'Colin Talks Crypto Bitcoin Bull Run Index. Combines 9 on-chain metrics into a single 0-100 confidence score. Above 80 = approaching cycle top. Below 20 = approaching bottom. Open source. Top threshold: ≥ 80.',
-        id: 'cbbiScore'
-    });
-
-    // RHODL Ratio (from CBBI data)
-    indicators.push({
-        emoji: '💎', name: 'RHODL Ratio',
-        value: '...', color: 'var(--heading)',
-        sub: 'Loading...',
-        tip: 'Realized HODL Ratio. Compares 1-week realized value to 1-2 year realized value, adjusted by market age. High values = speculative activity dominating (top signal). Low values = long-term holders dominating. Top threshold: normalized ≥ 0.85.',
-        id: 'rhodlRatio'
-    });
-
-    // Woobull / Macro Oscillator (from CBBI data)
-    indicators.push({
-        emoji: '📊', name: 'Macro Oscillator',
-        value: '...', color: 'var(--heading)',
-        sub: 'Loading...',
-        tip: 'Bitcoin Macro Oscillator (Woobull). Composite z-score of MVRV, VWAP, CVDD, and Sharpe ratios. Above 0.7 = euphoria zone. Below 0.2 = accumulation zone. Top threshold: normalized ≥ 0.7.',
-        id: 'macroOsc'
-    });
+    function cbbiCard(name, key, emoji, hi, lo, hiLabel, loLabel, tip) {
+        var raw = d.cbbi && d.cbbi[key] != null ? Number(d.cbbi[key]) : null;
+        var ok = raw != null && isFinite(raw);
+        var pct = ok ? Math.round(raw * 100) : null;
+        return {
+            emoji: emoji, name: name,
+            value: ok ? pct + '%' : '—',
+            color: !ok ? 'var(--heading)' : raw >= hi ? '#ef4444' : raw <= lo ? '#22c55e' : 'var(--heading)',
+            sub: ok ? (raw >= hi ? hiLabel : raw <= lo ? loLabel : 'CBBI 0–1 score' + (d.cbbi.asOf ? ' · ' + new Date(d.cbbi.asOf).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '')) : 'CBBI unavailable',
+            tip: tip,
+            flashing: ok && raw >= hi
+        };
+    }
+    var cbbiConf = cbbiCard('CBBI Index', 'confidence', '🎯', 0.8, 0.2, 'Approaching top', 'Approaching bottom', 'Colin Talks Crypto Bitcoin Bull Run Index, a 0–1 blend of nine normalized metrics (shown as a percent). Above 80 has been late-cycle on their scale. Below 20 has been early-cycle. This is their index, not a raw on-chain reading.');
+    cbbiConf.id = 'cbbiScore';
+    indicators.push(cbbiConf);
+    var rhodlCard = cbbiCard('RHODL (CBBI)', 'rhodl', '💎', 0.85, 0.2, 'Normalized high', 'Normalized low', 'CBBI\'s normalized RHODL input, scaled 0 to 1. This is not the raw Realized HODL ratio. Their top threshold for this input is 0.85.');
+    rhodlCard.id = 'rhodlRatio';
+    indicators.push(rhodlCard);
+    var macroCard = cbbiCard('Macro Osc. (CBBI)', 'woobull', '📊', 0.7, 0.2, 'Normalized high', 'Normalized low', 'CBBI\'s normalized Woobull macro-oscillator input, scaled 0 to 1. This is not the raw oscillator. Their top threshold for this input is 0.7.');
+    macroCard.id = 'macroOsc';
+    indicators.push(macroCard);
 
 
     // Smithson's Forecast (quantile regression model)
@@ -18692,33 +19078,47 @@ function loadTopIndicators() {
     }
 
 
-    // LTH/STH Supply Ratio (estimated from CBBI metrics)
-    indicators.push({
-        emoji: '⏳', name: 'LTH/STH Ratio',
-        value: '...', color: 'var(--heading)',
-        sub: 'Estimated from CBBI data...',
-        tip: 'Long-Term Holder to Short-Term Holder supply ratio (estimated). When LTH supply drops sharply (distributing to STH), it signals late-cycle selling. When LTH supply grows, holders are accumulating. Derived from CBBI on-chain metrics. Top threshold: CBBI MVRV + Puell both > 0.7.',
-        id: 'lthSthRatio'
-    });
+    {
+        var mixHas = d.cbbi && d.cbbi.mvrv != null && d.cbbi.puell != null;
+        var mixNum = mixHas ? (Number(d.cbbi.mvrv) + Number(d.cbbi.puell)) / 2 : null;
+        indicators.push({
+            emoji: '⏳', name: 'CBBI MVRV/Puell',
+            value: mixHas ? Math.round(mixNum * 100) + '%' : '—',
+            color: !mixHas ? 'var(--heading)' : mixNum >= 0.7 ? '#ef4444' : mixNum <= 0.25 ? '#22c55e' : 'var(--heading)',
+            sub: mixHas ? 'Average of two CBBI 0–1 scores' : 'CBBI unavailable',
+            tip: 'Average of CBBI\'s normalized MVRV and Puell scores. This is not the long-term-holder to short-term-holder supply ratio. Both inputs are 0–1 index values, not coin counts.',
+            flashing: mixHas && mixNum >= 0.7,
+            id: 'lthSthRatio'
+        });
+    }
 
-    // 28. RSI-22 Day (loaded async with Mayer Multiple from 350d CoinGecko data)
-    indicators.push({
-        emoji: '📉', name: 'RSI-22 Day',
-        value: '...', color: 'var(--heading)',
-        sub: 'Loading...',
-        tip: 'Relative Strength Index over 22 days. Above 80 = overbought (potential top signal). Below 30 = oversold (potential bottom). 22-day RSI smooths out short-term noise. Top threshold: ≥ 80.',
-        id: 'rsi22d'
-    });
+    {
+        var rsiHas = hist.rsi22 != null && isFinite(Number(hist.rsi22));
+        var rsiNum = rsiHas ? Number(hist.rsi22) : null;
+        indicators.push({
+            emoji: '📉', name: 'RSI-22 Day',
+            value: rsiHas ? rsiNum.toFixed(1) : '—',
+            color: !rsiHas ? 'var(--heading)' : rsiNum >= 80 ? '#ef4444' : rsiNum <= 30 ? '#22c55e' : 'var(--heading)',
+            sub: rsiHas ? (rsiNum >= 80 ? 'Overbought' : rsiNum <= 30 ? 'Oversold' : rsiNum >= 60 ? 'Bullish' : rsiNum <= 40 ? 'Bearish' : 'Neutral') : 'Daily history unavailable',
+            tip: 'Wilder RSI over 22 daily closes (Blockchain.com). Above 80 has been overbought. Below 30 has been oversold.',
+            flashing: rsiHas && rsiNum >= 80,
+            id: 'rsi22d'
+        });
+    }
 
-    // 29. AHR999x Escape Top Indicator
-    // Uses price / 200d MA — when above 8, historically marks top territory
-    indicators.push({
-        emoji: '🚨', name: 'AHR999x',
-        value: '...', color: 'var(--heading)',
-        sub: 'Loading 200d MA...',
-        tip: 'AHR999x Escape Top indicator. Calculated as (price / 200-day MA)². When above 8, signals extreme overvaluation. Above 3.5 = elevated. A complement to the AHR999 DCA indicator. Top threshold: ≥ 8.',
-        id: 'ahr999x'
-    });
+    {
+        var ahrxHas = !!(price && hist.ma200);
+        var ahrxNum = ahrxHas ? Math.pow(price / hist.ma200, 2) : null;
+        indicators.push({
+            emoji: '🚨', name: 'AHR999x',
+            value: ahrxHas ? ahrxNum.toFixed(2) : '—',
+            color: !ahrxHas ? 'var(--heading)' : ahrxNum >= 8 ? '#ef4444' : ahrxNum >= 3.5 ? '#f97316' : 'var(--heading)',
+            sub: ahrxHas ? ('(price / 200d MA)² · MA $' + fmtNum(Math.round(hist.ma200))) : 'Daily history unavailable',
+            tip: '(Price / 200-day average) squared. The average is Blockchain.com daily prices. Above 8 has been an extreme reading. Above 3.5 is elevated.',
+            flashing: ahrxHas && ahrxNum >= 8,
+            id: 'ahr999x'
+        });
+    }
 
     // 30. ETF-to-BTC Ratio (ETF AUM / BTC market cap)
     indicators.push({
@@ -18810,255 +19210,6 @@ function loadTopIndicators() {
     // Cache the rendered indicators HTML
     try { localStorage.setItem(TOP_IND_CACHE_KEY, JSON.stringify({ html: html, ts: Date.now() })); } catch(e) {}
 
-    // Fetch Mayer Multiple (200-day MA from CoinGecko)
-    fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=365&interval=daily')
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data && data.prices && data.prices.length >= 200) {
-                var prices = data.prices;
-                var pLen = prices.length;
-                // 200-day MA for Mayer Multiple
-                var sum200 = 0;
-                for (var i = Math.max(0, pLen - 200); i < pLen; i++) sum200 += prices[i][1];
-                var ma200 = sum200 / Math.min(200, pLen);
-                var currentPrice = prices[pLen - 1][1];
-                var mayer = (currentPrice / ma200).toFixed(2);
-                var mayerEl = document.getElementById('mayerMultiple');
-                if (mayerEl) {
-                    var mayerColor = mayer < 1 ? '#22c55e' : mayer > 2.4 ? '#ef4444' : 'var(--heading)';
-                    mayerEl.style.color = mayerColor;
-                    mayerEl.textContent = mayer + 'x';
-                    var sub = mayerEl.nextElementSibling;
-                    if (sub) sub.textContent = '200d MA: $' + fmtNum(Math.round(ma200)) + (mayer < 1 ? ' \xb7 Below MA \u2705' : mayer > 2.4 ? ' \xb7 Overheated \u26a0\ufe0f' : '');
-                    var mayerCard = mayerEl.closest('div[style*="border-radius:12px"]');
-                    if (mayerCard && mayer > 2.4) {
-                        mayerCard.style.borderColor = 'rgba(239,68,68,0.5)';
-                        mayerCard.style.background = 'rgba(239,68,68,0.04)';
-                        var badge = mayerCard.querySelector('div[style*="OK"]');
-                        if (badge) { badge.innerHTML = '\ud83d\udd34 TOP'; badge.style.color = '#ef4444'; badge.style.background = 'rgba(239,68,68,0.15)'; badge.style.borderColor = 'rgba(239,68,68,0.4)'; }
-                    }
-                }
-                // Pi Cycle Top: 111-day MA vs 350-day MA x 2
-                if (pLen >= 111) {
-                    var sum111 = 0;
-                    for (var pi = pLen - 111; pi < pLen; pi++) sum111 += prices[pi][1];
-                    var ma111 = sum111 / 111;
-                    var sum350 = 0;
-                    var cnt350 = Math.min(350, pLen);
-                    for (var pk = pLen - cnt350; pk < pLen; pk++) sum350 += prices[pk][1];
-                    var ma350x2 = (sum350 / cnt350) * 2;
-                    var piGap = ma350x2 > 0 ? ((ma111 - ma350x2) / ma350x2 * 100).toFixed(1) : 0;
-                    var piGapNum = parseFloat(piGap);
-                    var piEl = document.getElementById('piCycleTop');
-                    if (piEl) {
-                        var piFlash = piGapNum >= 0;
-                        piEl.textContent = (piGapNum >= 0 ? '+' : '') + piGap + '%';
-                        piEl.style.color = piFlash ? '#ef4444' : piGapNum > -5 ? '#f97316' : 'var(--heading)';
-                        var piSub = piEl.nextElementSibling;
-                        if (piSub) piSub.textContent = '111d: $' + fmtNum(Math.round(ma111)) + ' vs 350d\xd72: $' + fmtNum(Math.round(ma350x2)) + (piFlash ? ' \xb7 CROSSED \u26a0\ufe0f' : piGapNum > -5 ? ' \xb7 Narrowing!' : '');
-                        var piCard = piEl.closest('div[style*="border-radius:12px"]');
-                        if (piCard && piFlash) {
-                            piCard.style.borderColor = 'rgba(239,68,68,0.5)';
-                            piCard.style.background = 'rgba(239,68,68,0.04)';
-                            var piBadge = piCard.querySelector('div[style*="OK"]');
-                            if (piBadge) { piBadge.innerHTML = '\ud83d\udd34 TOP'; piBadge.style.color = '#ef4444'; piBadge.style.background = 'rgba(239,68,68,0.15)'; piBadge.style.borderColor = 'rgba(239,68,68,0.4)'; }
-                        }
-                    }
-                }
-
-                // RSI-22 Day calculation
-                if (pLen >= 23) {
-                    var gains = 0, losses = 0;
-                    for (var ri = pLen - 22; ri < pLen; ri++) {
-                        var change = prices[ri][1] - prices[ri - 1][1];
-                        if (change > 0) gains += change;
-                        else losses -= change;
-                    }
-                    var avgGain = gains / 22;
-                    var avgLoss = losses / 22;
-                    var rsi22 = avgLoss === 0 ? 100 : (100 - (100 / (1 + avgGain / avgLoss)));
-                    var rsi22Str = rsi22.toFixed(1);
-                    var rsiEl = document.getElementById('rsi22d');
-                    if (rsiEl) {
-                        var rsiFlash = rsi22 >= 80;
-                        rsiEl.textContent = rsi22Str;
-                        rsiEl.style.color = rsi22 >= 80 ? '#ef4444' : rsi22 <= 30 ? '#22c55e' : 'var(--heading)';
-                        var rsiSub = rsiEl.nextElementSibling;
-                        if (rsiSub) rsiSub.textContent = rsi22 >= 80 ? 'Overbought \u26a0\ufe0f' : rsi22 <= 30 ? 'Oversold \u2705' : rsi22 >= 60 ? 'Bullish' : rsi22 <= 40 ? 'Bearish' : 'Neutral';
-                        if (rsiFlash) {
-                            var rsiCard = rsiEl.closest('div[style*="border-radius:12px"]');
-                            if (rsiCard) {
-                                rsiCard.style.borderColor = 'rgba(239,68,68,0.5)';
-                                rsiCard.style.background = 'rgba(239,68,68,0.04)';
-                                var rsiBadge = rsiCard.querySelector('div[style*="OK"]');
-                                if (rsiBadge) { rsiBadge.innerHTML = '\ud83d\udd34 TOP'; rsiBadge.style.color = '#ef4444'; rsiBadge.style.background = 'rgba(239,68,68,0.15)'; rsiBadge.style.borderColor = 'rgba(239,68,68,0.4)'; }
-                            }
-                        }
-                    }
-                }
-
-                // AHR999x Escape Top = (price / 200d MA)^2
-                var ahr999x = Math.pow(currentPrice / ma200, 2).toFixed(2);
-                var ahrxEl = document.getElementById('ahr999x');
-                if (ahrxEl) {
-                    var ahrxNum = parseFloat(ahr999x);
-                    var ahrxFlash = ahrxNum >= 8;
-                    ahrxEl.textContent = ahr999x;
-                    ahrxEl.style.color = ahrxNum >= 8 ? '#ef4444' : ahrxNum >= 3.5 ? '#f97316' : 'var(--heading)';
-                    var ahrxSub = ahrxEl.nextElementSibling;
-                    if (ahrxSub) ahrxSub.textContent = '200d MA: $' + fmtNum(Math.round(ma200)) + (ahrxNum >= 8 ? ' \xb7 Extreme top \u26a0\ufe0f' : ahrxNum >= 3.5 ? ' \xb7 Elevated' : ahrxNum < 1 ? ' \xb7 Below MA' : ' \xb7 Normal');
-                    if (ahrxFlash) {
-                        var ahrxCard = ahrxEl.closest('div[style*="border-radius:12px"]');
-                        if (ahrxCard) {
-                            ahrxCard.style.borderColor = 'rgba(239,68,68,0.5)';
-                            ahrxCard.style.background = 'rgba(239,68,68,0.04)';
-                            var ahrxBadge = ahrxCard.querySelector('div[style*="OK"]');
-                            if (ahrxBadge) { ahrxBadge.innerHTML = '\ud83d\udd34 TOP'; ahrxBadge.style.color = '#ef4444'; ahrxBadge.style.background = 'rgba(239,68,68,0.15)'; ahrxBadge.style.borderColor = 'rgba(239,68,68,0.4)'; }
-                        }
-                    }
-                }
-            }
-        }).catch(function() {
-            var mayerEl = document.getElementById('mayerMultiple');
-            if (mayerEl) { mayerEl.textContent = 'N/A'; }
-        });
-
-    // Fetch BTC dominance from CoinGecko global endpoint
-    fetch('https://api.coingecko.com/api/v3/global')
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data && data.data && data.data.market_cap_percentage && data.data.market_cap_percentage.btc) {
-                var dom = data.data.market_cap_percentage.btc.toFixed(1);
-                var domEl = document.getElementById('btcDominance');
-                if (domEl) {
-                    domEl.textContent = dom + '%';
-                    var domColor = dom > 55 ? '#22c55e' : dom < 40 ? '#ef4444' : 'var(--heading)';
-                    domEl.style.color = domColor;
-                    var sub = domEl.nextElementSibling;
-                    if (sub) sub.textContent = dom > 55 ? 'Bitcoin season 👑' : dom < 40 ? 'Alt season ⚠️' : 'Neutral';
-                }
-            }
-        }).catch(function() {});
-
-    
-    // Fetch CBBI data from ColintalksCrypto
-    fetch('https://colintalkscrypto.com/cbbi/data/latest.json')
-        .then(function(r) { return r.json(); })
-        .then(function(cbbi) {
-            if (!cbbi || !cbbi.Confidence) return;
-            var timestamps = Object.keys(cbbi.Confidence).sort();
-            var latest = timestamps[timestamps.length - 1];
-            var confidence = (cbbi.Confidence[latest] * 100).toFixed(0);
-            var confNum = parseInt(confidence);
-
-            // CBBI Score
-            var cbbiEl = document.getElementById('cbbiScore');
-            if (cbbiEl) {
-                cbbiEl.textContent = confidence + '%';
-                cbbiEl.style.color = confNum >= 80 ? '#ef4444' : confNum <= 20 ? '#22c55e' : 'var(--heading)';
-                var cbbiSub = cbbiEl.nextElementSibling;
-                if (cbbiSub) cbbiSub.textContent = confNum >= 80 ? 'Approaching top \u26a0\ufe0f' : confNum <= 20 ? 'Approaching bottom \ud83d\udfe2' : confNum >= 50 ? 'Mid-cycle bullish' : 'Early cycle';
-                if (confNum >= 80) {
-                    var cbbiCard = cbbiEl.closest('div[style*="border-radius:12px"]');
-                    if (cbbiCard) { cbbiCard.style.borderColor = 'rgba(239,68,68,0.5)'; cbbiCard.style.background = 'rgba(239,68,68,0.04)'; var b = cbbiCard.querySelector('div[style*="OK"]'); if (b) { b.innerHTML = '\ud83d\udd34 TOP'; b.style.color = '#ef4444'; b.style.background = 'rgba(239,68,68,0.15)'; b.style.borderColor = 'rgba(239,68,68,0.4)'; } }
-                }
-            }
-
-            // RHODL
-            var rhodlTs = Object.keys(cbbi.RHODL).sort();
-            var rhodlVal = cbbi.RHODL[rhodlTs[rhodlTs.length - 1]];
-            var rhodlEl = document.getElementById('rhodlRatio');
-            if (rhodlEl) {
-                rhodlEl.textContent = (rhodlVal * 100).toFixed(0) + '%';
-                rhodlEl.style.color = rhodlVal >= 0.85 ? '#ef4444' : rhodlVal <= 0.2 ? '#22c55e' : 'var(--heading)';
-                var rhodlSub = rhodlEl.nextElementSibling;
-                if (rhodlSub) rhodlSub.textContent = rhodlVal >= 0.85 ? 'Speculative frenzy \u26a0\ufe0f' : rhodlVal <= 0.2 ? 'Accumulation zone \ud83d\udfe2' : 'Normalized: ' + (rhodlVal * 100).toFixed(0) + '%';
-                if (rhodlVal >= 0.85) {
-                    var rc = rhodlEl.closest('div[style*="border-radius:12px"]'); if (rc) { rc.style.borderColor = 'rgba(239,68,68,0.5)'; rc.style.background = 'rgba(239,68,68,0.04)'; var rb = rc.querySelector('div[style*="OK"]'); if (rb) { rb.innerHTML = '\ud83d\udd34 TOP'; rb.style.color = '#ef4444'; rb.style.background = 'rgba(239,68,68,0.15)'; rb.style.borderColor = 'rgba(239,68,68,0.4)'; } }
-                }
-            }
-
-            // Macro Oscillator (Woobull)
-            var wooTs = Object.keys(cbbi.Woobull).sort();
-            var wooVal = cbbi.Woobull[wooTs[wooTs.length - 1]];
-            var macroEl = document.getElementById('macroOsc');
-            if (macroEl) {
-                macroEl.textContent = (wooVal * 100).toFixed(0) + '%';
-                macroEl.style.color = wooVal >= 0.7 ? '#ef4444' : wooVal <= 0.2 ? '#22c55e' : 'var(--heading)';
-                var macSub = macroEl.nextElementSibling;
-                if (macSub) macSub.textContent = wooVal >= 0.7 ? 'Euphoria zone \u26a0\ufe0f' : wooVal <= 0.2 ? 'Accumulation \ud83d\udfe2' : 'Normalized: ' + (wooVal * 100).toFixed(0) + '%';
-                if (wooVal >= 0.7) {
-                    var mc = macroEl.closest('div[style*="border-radius:12px"]'); if (mc) { mc.style.borderColor = 'rgba(239,68,68,0.5)'; mc.style.background = 'rgba(239,68,68,0.04)'; var mb = mc.querySelector('div[style*="OK"]'); if (mb) { mb.innerHTML = '\ud83d\udd34 TOP'; mb.style.color = '#ef4444'; mb.style.background = 'rgba(239,68,68,0.15)'; mb.style.borderColor = 'rgba(239,68,68,0.4)'; } }
-                }
-            }
-
-            // LTH/STH estimate from CBBI MVRV + Puell
-            var mvrvTs = Object.keys(cbbi.MVRV).sort();
-            var puellTs = Object.keys(cbbi.Puell).sort();
-            var mvrvVal = cbbi.MVRV[mvrvTs[mvrvTs.length - 1]];
-            var puellVal = cbbi.Puell[puellTs[puellTs.length - 1]];
-            var lthEl = document.getElementById('lthSthRatio');
-            if (lthEl) {
-                // When MVRV and Puell are both high, LTH are distributing to STH
-                var distribution = ((mvrvVal + puellVal) / 2 * 100).toFixed(0);
-                var distNum = parseInt(distribution);
-                lthEl.textContent = distNum + '%';
-                lthEl.style.color = distNum >= 70 ? '#ef4444' : distNum <= 25 ? '#22c55e' : 'var(--heading)';
-                var lthSub = lthEl.nextElementSibling;
-                if (lthSub) lthSub.textContent = distNum >= 70 ? 'LTH distributing \u26a0\ufe0f' : distNum <= 25 ? 'LTH accumulating \ud83d\udfe2' : 'Distribution score: ' + distNum + '%';
-                if (distNum >= 70) {
-                    var lc = lthEl.closest('div[style*="border-radius:12px"]'); if (lc) { lc.style.borderColor = 'rgba(239,68,68,0.5)'; lc.style.background = 'rgba(239,68,68,0.04)'; var lb = lc.querySelector('div[style*="OK"]'); if (lb) { lb.innerHTML = '\ud83d\udd34 TOP'; lb.style.color = '#ef4444'; lb.style.background = 'rgba(239,68,68,0.15)'; lb.style.borderColor = 'rgba(239,68,68,0.4)'; } }
-                }
-            }
-
-            // MVRV Z-Score from CBBI
-            var mvrvEl = document.getElementById('mvrvScore');
-            if (mvrvEl) {
-                var mvrvPct = (mvrvVal * 100).toFixed(0);
-                mvrvEl.textContent = mvrvPct + '%';
-                mvrvEl.style.color = mvrvVal >= 0.7 ? '#ef4444' : mvrvVal <= 0.2 ? '#22c55e' : 'var(--heading)';
-                var mvrvSub = mvrvEl.nextElementSibling;
-                if (mvrvSub) mvrvSub.textContent = mvrvVal >= 0.7 ? 'Overvalued — top zone \u26a0\ufe0f' : mvrvVal <= 0.2 ? 'Undervalued — accumulate \ud83d\udfe2' : 'Normalized: ' + mvrvPct + '%';
-                if (mvrvVal >= 0.7) {
-                    var mvc = mvrvEl.closest('div[style*="border-radius:12px"]'); if (mvc) { mvc.style.borderColor = 'rgba(239,68,68,0.5)'; mvc.style.background = 'rgba(239,68,68,0.04)'; var mvb = mvc.querySelector('div[style*="OK"]'); if (mvb) { mvb.innerHTML = '\ud83d\udd34 TOP'; mvb.style.color = '#ef4444'; mvb.style.background = 'rgba(239,68,68,0.15)'; mvb.style.borderColor = 'rgba(239,68,68,0.4)'; } }
-                }
-            }
-
-            // NUPL from CBBI (RUPL metric)
-            var ruplTs = Object.keys(cbbi.RUPL).sort();
-            var ruplVal = cbbi.RUPL[ruplTs[ruplTs.length - 1]];
-            var nuplEl = document.getElementById('nuplScore');
-            if (nuplEl) {
-                var nuplPct = (ruplVal * 100).toFixed(0);
-                nuplEl.textContent = nuplPct + '%';
-                nuplEl.style.color = ruplVal >= 0.75 ? '#ef4444' : ruplVal <= 0.2 ? '#22c55e' : 'var(--heading)';
-                var nuplSub = nuplEl.nextElementSibling;
-                if (nuplSub) nuplSub.textContent = ruplVal >= 0.75 ? 'Euphoria \u26a0\ufe0f' : ruplVal <= 0.2 ? 'Capitulation zone \ud83d\udfe2' : 'Normalized: ' + nuplPct + '%';
-                if (ruplVal >= 0.75) {
-                    var nc = nuplEl.closest('div[style*="border-radius:12px"]'); if (nc) { nc.style.borderColor = 'rgba(239,68,68,0.5)'; nc.style.background = 'rgba(239,68,68,0.04)'; var nb = nc.querySelector('div[style*="OK"]'); if (nb) { nb.innerHTML = '\ud83d\udd34 TOP'; nb.style.color = '#ef4444'; nb.style.background = 'rgba(239,68,68,0.15)'; nb.style.borderColor = 'rgba(239,68,68,0.4)'; } }
-                }
-            }
-
-            // Reserve Risk from CBBI
-            var rrTs = Object.keys(cbbi.ReserveRisk).sort();
-            var rrVal = cbbi.ReserveRisk[rrTs[rrTs.length - 1]];
-            // Note: We removed the fake calculated Reserve Risk.
-            // CBBI's ReserveRisk is already one of the card indicators (id already exists in RHODL/etc flow)
-            // This data is available for anyone who wants to add it back as a separate card.
-
-            // Cache CBBI data
-            try { localStorage.setItem('cbbi_cache', JSON.stringify({ ts: Date.now(), confidence: confidence, rhodl: rhodlVal, woobull: wooVal, mvrv: mvrvVal, puell: puellVal })); } catch(e) {}
-        }).catch(function() {
-            // Try cached data
-            try {
-                var cached = JSON.parse(localStorage.getItem('cbbi_cache'));
-                if (cached && Date.now() - cached.ts < 86400000) {
-                    var cbbiEl = document.getElementById('cbbiScore');
-                    if (cbbiEl) { cbbiEl.textContent = cached.confidence + '%'; }
-                }
-            } catch(e) {}
-        });
-
 // Fetch ETF flow data from cached JSON
     fetch('data/etf-flows.json?v=' + Math.floor(Date.now() / 3600000))
         .then(function(r) { return r.json(); })
@@ -19071,7 +19222,8 @@ function loadTopIndicators() {
                 flowEl.textContent = fStr;
                 flowEl.style.color = f > 0 ? '#22c55e' : f < -100 ? '#ef4444' : f < 0 ? '#f97316' : 'var(--heading)';
                 var sub = flowEl.nextElementSibling;
-                if (sub) sub.textContent = etf.latestDate + ' · ' + etf.outflowDays + '/' + etf.totalDays + ' outflow days' + (etf.outflowDays >= 7 ? ' ⚠️' : '');
+                var flowAsOf = _snapshotAsOf(etf.latestDate);
+                if (sub) sub.textContent = flowAsOf + ' · ' + etf.outflowDays + '/' + etf.totalDays + ' outflow days' + (etf.outflowDays >= 7 ? ' ⚠️' : '');
                 // Flash if 7+ outflow days in last 10
                 if (etf.outflowDays >= 7) {
                     var card = flowEl.closest('div[style*="border-radius:12px"]');
@@ -19089,7 +19241,7 @@ function loadTopIndicators() {
                 flow5El.textContent = (s5 >= 0 ? '+' : '') + s5.toFixed(1) + 'M';
                 flow5El.style.color = s5 > 100 ? '#22c55e' : s5 < -500 ? '#ef4444' : s5 < 0 ? '#f97316' : 'var(--heading)';
                 var sub5 = flow5El.nextElementSibling;
-                if (sub5) sub5.textContent = '5-day total' + (s5 < -500 ? ' · Heavy selling ⚠️' : s5 > 500 ? ' · Strong inflows 🟢' : '');
+                if (sub5) sub5.textContent = _snapshotAsOf(etf.latestDate) + ' · 5-day total' + (s5 < -500 ? ' · Heavy selling' : s5 > 500 ? ' · Strong inflows' : '');
                 if (s5 < -500) {
                     var card5 = flow5El.closest('div[style*="border-radius:12px"]');
                     if (card5) {
@@ -19104,9 +19256,10 @@ function loadTopIndicators() {
             // Try to get total from cached ETF JSON, fall back to estimate
             var etfBtcHeld = ETF_TOTAL_BTC_FALLBACK;
             try { var _ec = JSON.parse(localStorage.getItem('btc_etf_holdings_cache')); if (_ec && _ec.totalBtc) etfBtcHeld = _ec.totalBtc; } catch(e) {}
-            var btcPrice = parseFloat(localStorage.getItem('btc_last_price')) || 83000;
+            var btcPrice = (_dashData && _dashData.price) || parseFloat(localStorage.getItem('btc_last_price')) || 0;
+            var btcSupply = (_dashData && _dashData.supply) || 0;
             var etfAum = etfBtcHeld * btcPrice;
-            var btcMktCap = btcPrice * 19840000; // supply
+            var btcMktCap = btcPrice * btcSupply;
             var etfRatio = btcMktCap > 0 ? ((etfAum / btcMktCap) * 100).toFixed(1) : '—';
             var etfRatioEl = document.getElementById('etfBtcRatio');
             if (etfRatioEl) {
@@ -19114,7 +19267,7 @@ function loadTopIndicators() {
                 etfRatioEl.textContent = etfRatio + '%';
                 etfRatioEl.style.color = erNum >= 8 ? '#ef4444' : 'var(--heading)';
                 var erSub = etfRatioEl.nextElementSibling;
-                if (erSub) erSub.textContent = 'ETF AUM: ~$' + (etfAum / 1e9).toFixed(0) + 'B / Mkt Cap: ~$' + (btcMktCap / 1e12).toFixed(2) + 'T' + (erNum >= 8 ? ' · High exposure ⚠️' : '');
+                if (erSub) erSub.textContent = (btcSupply ? '' : 'Supply unavailable · ') + 'ETF AUM: ~$' + (btcPrice ? (etfAum / 1e9).toFixed(0) + 'B' : '—') + (erNum >= 8 ? ' · High exposure' : '');
                 if (erNum >= 8) {
                     var erCard = etfRatioEl.closest('div[style*="border-radius:12px"]');
                     if (erCard) {
@@ -19132,38 +19285,26 @@ function loadTopIndicators() {
 }
 
 // ── Live Gold vs Bitcoin (CoinGecko tether-gold price → calculate gold market cap) ──
-var _goldCache = null;
-var _goldCacheTs = 0;
 var TOTAL_GOLD_OZ = 222600 * 32150.7; // ~7.16 billion troy oz above-ground gold (World Gold Council, end-Q2 2026: 222,600 tonnes)
 
-function _fetchGoldData(btcMktCapT, btcSupply) {
-    // Restore from localStorage if no in-memory cache
-    if (!_goldCache) {
-        try { var _gc = JSON.parse(localStorage.getItem('btc_gold_cache')); if (_gc && _gc.p) { _goldCache = _gc.p; _goldCacheTs = _gc.t || 0; } } catch(e) {}
-    }
-    // Use cache if fresh enough
-    if (_goldCache && Date.now() - _goldCacheTs < 1800000) {
-        _renderGold(_goldCache, btcMktCapT, btcSupply);
+function _snapshotAsOf(dateStr) {
+    var t = Date.parse(dateStr);
+    if (!isFinite(t)) return dateStr ? String(dateStr) : 'date unknown';
+    var days = Math.floor((Date.now() - t) / 86400000);
+    var pretty = new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    if (days >= 3) return 'As of ' + pretty + ' · snapshot, not live';
+    return 'As of ' + pretty;
+}
+
+function _renderGoldFromSnapshot(goldUsd, btcMktCapT, btcSupply) {
+    if (goldUsd && isFinite(Number(goldUsd))) {
+        _renderGold(Number(goldUsd), btcMktCapT, btcSupply);
         return;
     }
-    // Show stale cache immediately while fetching
-    if (_goldCache) _renderGold(_goldCache, btcMktCapT, btcSupply);
-
-    fetch('https://api.coingecko.com/api/v3/simple/price?ids=tether-gold&vs_currencies=usd')
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            var goldPrice = data['tether-gold'] ? data['tether-gold'].usd : null;
-            if (goldPrice) {
-                _goldCache = goldPrice;
-                _goldCacheTs = Date.now();
-                try { localStorage.setItem('btc_gold_cache', JSON.stringify({ p: goldPrice, t: Date.now() })); } catch(e) {}
-                _renderGold(goldPrice, btcMktCapT, btcSupply);
-            }
-        })
-        .catch(function() {
-            // If we already rendered stale cache above, do nothing; otherwise use fallback
-            if (!_goldCache) _renderGold(3200, btcMktCapT, btcSupply);
-        });
+    var area = document.getElementById('goldPctArea');
+    if (area) area.innerHTML = '<div style="color:var(--text-faint);font-size:0.75rem;">Gold price unavailable</div>';
+    var label = document.getElementById('goldMktCapLabel');
+    if (label) label.textContent = '—';
 }
 
 function _renderGold(goldPricePerOz, btcMktCapT, btcSupply) {
@@ -19182,7 +19323,7 @@ function _renderGold(goldPricePerOz, btcMktCapT, btcSupply) {
         area.innerHTML =
             '<div style="color:var(--accent);font-size:1rem;font-weight:900;">' + goldPct + '% of Gold Market Cap</div>' +
             '<div style="color:var(--text-faint);font-size:0.68rem;margin-top:2px;">BTC needs ~$' + (typeof flipPrice === 'number' ? fmtNum(flipPrice) : flipPrice) + '/coin to match Gold</div>' +
-            '<div style="color:var(--text-faint);font-size:0.55rem;margin-top:4px;">Gold: $' + fmtNum(Math.round(goldPricePerOz)) + '/oz · Live via CoinGecko</div>';
+            '<div style="color:var(--text-faint);font-size:0.55rem;margin-top:4px;">Gold: $' + fmtNum(Math.round(goldPricePerOz)) + '/oz · Tether Gold via CoinGecko</div>';
     }
 
     // Add tooltip via data attribute + re-attach listeners
@@ -19195,35 +19336,18 @@ function _renderGold(goldPricePerOz, btcMktCapT, btcSupply) {
 }
 
 // ── Live Treasury Data (CoinGecko API + government estimates) ──
-var _treasuryCache = null;
-var _treasuryCacheTs = 0;
-function _fetchTreasuryData(btcPrice) {
+function _renderTreasuryFromSnapshot(treasury, btcPrice) {
     var container = document.getElementById('treasuryData');
     if (!container) return;
-
-    // Restore from localStorage if no in-memory cache
-    if (!_treasuryCache) {
-        try { var _tc = JSON.parse(localStorage.getItem('btc_treasury_cache')); if (_tc && _tc.d) { _treasuryCache = _tc.d; _treasuryCacheTs = _tc.t || 0; } } catch(e) {}
-    }
-    // Use cache if fresh enough
-    if (_treasuryCache && Date.now() - _treasuryCacheTs < 1800000) {
-        _renderTreasury(container, _treasuryCache, btcPrice);
+    if (!treasury || !treasury.companies || !treasury.companies.length) {
+        container.innerHTML = '<div style="color:var(--text-faint);font-size:0.75rem;">Treasury data unavailable</div>';
         return;
     }
-    // Show stale cache immediately while fetching
-    if (_treasuryCache) _renderTreasury(container, _treasuryCache, btcPrice);
-
-    fetch('https://api.coingecko.com/api/v3/companies/public_treasury/bitcoin')
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            _treasuryCache = data;
-            _treasuryCacheTs = Date.now();
-            try { localStorage.setItem('btc_treasury_cache', JSON.stringify({ d: data, t: Date.now() })); } catch(e) {}
-            _renderTreasury(container, data, btcPrice);
-        })
-        .catch(function() {
-            if (!_treasuryCache) container.innerHTML = '<div style="color:var(--text-faint);font-size:0.75rem;">Could not load treasury data</div>';
-        });
+    _renderTreasury(container, {
+        companies: treasury.companies,
+        total_holdings: treasury.totalHoldings,
+        total_value_usd: treasury.totalValueUsd
+    }, btcPrice);
 }
 
 // Government holdings (updated from bitcointreasuries.net — no free API, so semi-static)
@@ -19276,7 +19400,7 @@ function _renderTreasury(container, data, btcPrice) {
                 govList +
             '</div>' +
         '</div>' +
-        '<div style="text-align:center;margin-top:8px;font-size:0.55rem;color:var(--text-faint);">Companies: live via <a href="https://www.coingecko.com/en/public-companies-bitcoin" target="_blank" rel="noopener" style="color:var(--accent);">CoinGecko</a> · Governments: <a href="https://bitcointreasuries.net/governments" target="_blank" rel="noopener" style="color:var(--accent);">bitcointreasuries.net</a></div>';
+        '<div style="text-align:center;margin-top:8px;font-size:0.68rem;color:var(--text-muted);">Companies: CoinGecko, same shared snapshot · Governments: manual estimates, not a live feed · <a href="https://bitcointreasuries.net/governments" target="_blank" rel="noopener" style="color:var(--accent);">bitcointreasuries.net</a></div>';
 
     // Remove the onclick tip since we now show data inline
     var card = document.getElementById('treasuryCard');
@@ -19342,21 +19466,15 @@ function _renderEtfData(container, holdings, totalBtc, price, totalSupply, updat
         '</div>';
     }).join('');
 
-    var updateLabel = '';
-    if (updatedStr) {
-        var ageHrs = Math.round((Date.now() - new Date(updatedStr).getTime()) / 3600000);
-        updateLabel = ageHrs < 1 ? 'Updated just now' : ageHrs < 24 ? 'Updated ' + ageHrs + 'h ago' : 'Updated ' + Math.round(ageHrs / 24) + 'd ago';
-    }
-
     container.innerHTML =
         '<div style="text-align:center;margin-bottom:10px;">' +
             '<div style="font-size:1.2rem;font-weight:900;color:var(--heading);">' + fmtNum(totalBtc) + ' BTC</div>' +
+            '<div style="font-size:0.72rem;color:#f59e0b;font-weight:700;margin-top:2px;">' + (updatedStr ? _snapshotAsOf(updatedStr) : 'As-of date missing') + '</div>' +
             '<div style="font-size:0.65rem;color:var(--text-muted);">~' + fmtDollar(totalAum) + ' AUM · ' + supplyPct + '% of supply held in ETFs</div>' +
         '</div>' +
         '<div style="padding:0 4px;">' + listHtml + '</div>' +
         '<div style="text-align:center;margin-top:8px;font-size:0.55rem;color:var(--text-faint);">' +
-            'Data: SEC filings + <a href="https://www.coinglass.com/BitcoinETF" target="_blank" rel="noopener" style="color:var(--accent);">CoinGlass</a>' +
-            (updateLabel ? ' · ' + updateLabel : '') +
+            'SEC filings + <a href="https://www.coinglass.com/BitcoinETF" target="_blank" rel="noopener" style="color:var(--accent);">CoinGlass</a>' +
         '</div>';
 }
 
@@ -21284,6 +21402,10 @@ document.addEventListener('btcProfileSaved', function() {
                 '</div>';
 
                 if (typeof notifySelfSpin === 'function') notifySelfSpin(rewardText);
+
+                if (reward && reward.breakthrough && reward.breakthrough.unlocked && window.BipBreakthrough && typeof window.BipBreakthrough.handleSpinReward === 'function') {
+                    window.BipBreakthrough.handleSpinReward(reward);
+                }
 
                 if (!isBonusSpin) {
                     setTimeout(function() {
@@ -23572,25 +23694,67 @@ window.nachoQuizAnswer = function(btn, correct) {
         if (typeof toggleMobileLearnMenu === 'function') toggleMobileLearnMenu();
         else if (typeof toggleMenu === 'function') toggleMenu();
     };
+    // Start Here guide. The homepage embed reads this id and no other copy.
+    window.START_HERE_YT_ID = 'zOQetZgXz48';
+
+    function startHereEmbedSrc(id, autoplay) {
+        var url = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?rel=0';
+        if (autoplay) url += '&autoplay=1';
+        return url;
+    }
+
     window.ensureIntroVideo = function(play) {
-        var video = document.getElementById('introVideo');
-        if (!video) return;
-        if (!video.querySelector('source')) {
-            var src = video.getAttribute('data-src');
-            if (src) {
-                var source = document.createElement('source');
-                source.src = src;
-                source.type = 'video/mp4';
-                video.appendChild(source);
-                video.load();
-            }
+        var slot = document.getElementById('introVideo');
+        if (!slot) return;
+        var id = String(window.START_HERE_YT_ID || '').replace(/[^A-Za-z0-9_-]/g, '');
+        if (!id) return;
+        if (!slot.getAttribute('data-poster')) {
+            slot.style.backgroundImage = 'url(https://i.ytimg.com/vi/' + id + '/hqdefault.jpg)';
+            slot.style.backgroundSize = 'cover';
+            slot.style.backgroundPosition = 'center';
+            slot.setAttribute('data-poster', '1');
         }
-        if (play && video.play) video.play().catch(function() {});
+        if (!play) return;
+        var frame = slot.querySelector ? slot.querySelector('iframe') : null;
+        if (!frame) {
+            frame = document.createElement('iframe');
+            frame.title = 'Start Here';
+            frame.setAttribute('frameborder', '0');
+            frame.setAttribute('allowfullscreen', '');
+            frame.setAttribute('allow', 'autoplay; encrypted-media');
+            frame.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+            frame.setAttribute('loading', 'lazy');
+            frame.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;border:0;';
+            slot.appendChild(frame);
+        }
+        var src = startHereEmbedSrc(id, true);
+        if (!frame.getAttribute('src') || frame.getAttribute('src').indexOf(id) === -1) frame.src = src;
+        var overlay = document.getElementById('introVideoOverlay');
+        if (overlay) {
+            overlay.style.opacity = '0';
+            overlay.style.pointerEvents = 'none';
+        }
+    };
+
+    window.pauseIntroVideo = function() {
+        var slot = document.getElementById('introVideo');
+        if (!slot || !slot.querySelector) return;
+        var frame = slot.querySelector('iframe');
+        if (frame && frame.parentNode) frame.parentNode.removeChild(frame);
+        var overlay = document.getElementById('introVideoOverlay');
+        if (overlay) {
+            overlay.style.opacity = '';
+            overlay.style.pointerEvents = '';
+        }
     };
     window.toggleHomeMore = function() {
         var more = document.getElementById('homeMore');
         var btn = document.getElementById('homeMoreToggle');
         if (!more) return;
+        if (more.getAttribute('data-home-more-quiet')) {
+            more.hidden = true;
+            return;
+        }
         var open = !!more.hidden;
         more.hidden = !open;
         window._homeMoreOpen = open;
@@ -23610,16 +23774,27 @@ window.nachoQuizAnswer = function(btn, correct) {
     window.watchIntroVideo = function() {
         window._forceIntroVideo = true;
         var section = document.getElementById('introVideoSection');
+        var more = document.getElementById('homeMore');
+        var quiet = more && more.getAttribute('data-home-more-quiet');
         if (section) {
+            if (section.style && section.style.removeProperty) section.style.removeProperty('display');
             section.style.display = '';
             section.removeAttribute('data-simplified-hidden');
+            section.removeAttribute('data-em-hidden');
+            if (quiet && more && section.parentNode === more) {
+                if (!section._bqMoreMarked) {
+                    section._bqMoreNext = section.nextSibling;
+                    section._bqMoreMarked = true;
+                }
+                var anchor = document.getElementById('todayCard') || document.getElementById('homeMoreToggle');
+                if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(section, anchor);
+            }
             var full = document.getElementById('introVideoFull');
             var mini = document.getElementById('introVideoMini');
             if (full) full.style.display = '';
             if (mini) mini.style.display = 'none';
         }
-        var more = document.getElementById('homeMore');
-        if (more && more.hidden) window.toggleHomeMore();
+        if (!quiet && more && more.hidden) window.toggleHomeMore();
         else window.ensureIntroVideo(true);
         if (section && section.scrollIntoView) {
             try { section.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) { section.scrollIntoView(true); }
@@ -28817,8 +28992,8 @@ window.toggleAITools = function() {
 
     // Helper: check if user is forum admin (matches the existing function in forum.js)
     function isForumAdmin() {
-        if (!auth || !auth.currentUser) return false;
-        var _e = (auth.currentUser.email || ''); return _e === 'needcreations@gmail.com' || _e === 'najemchris8@gmail.com';
+        // Firebase custom claim only. Never gate on email client-side.
+        return window._isAdminClaim === true;
     }
 })();
 

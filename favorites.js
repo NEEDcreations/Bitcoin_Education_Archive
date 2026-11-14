@@ -177,6 +177,7 @@
         if (!tile || !id || !isAllowed(id)) return;
         if (tile.querySelector('[data-fav-star="' + id + '"]')) return;
         tile.style.position = tile.style.position || 'relative';
+        tile.classList.add('bq-fav-tile');
         tile.appendChild(makeStarButton(id, true));
     }
 
@@ -204,6 +205,7 @@
             '#bqFavoriteApps .bq-fav-home-btn{flex:1 1 140px;min-width:0;min-height:44px;padding:10px 12px;border-radius:12px;border:1px solid var(--border,#334155);background:var(--card-bg,#0f172a);color:var(--heading,#f8fafc);font:inherit;font-size:0.9rem;font-weight:800;cursor:pointer;text-align:left;display:flex;align-items:center;gap:8px;touch-action:manipulation;}' +
             '#bqFavoriteApps .bq-fav-home-btn span.emoji{font-size:1.15rem;line-height:1;}' +
             '#bqFavoriteApps .bq-fav-home-btn span.label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}' +
+            '.bq-fav-tile{padding-right:44px !important;}' +
             '.bq-fav-star.is-fav,.bq-fav-star-compact.is-fav{color:#f7931a;}' +
             '.bq-fav-inapp-bar{display:flex;justify-content:flex-end;align-items:center;gap:8px;padding:8px 12px 0;position:relative;z-index:5;}' +
             '@media(max-width:390px){#bqFavoriteApps .bq-fav-home-btn{flex:1 1 calc(50% - 4px);font-size:0.82rem;padding:10px 8px;}}' +
@@ -228,6 +230,14 @@
             else home.appendChild(bar);
         }
         var favs = readLocal();
+        // Only rebuild when the favorites actually change. Rebuilding on every
+        // DOM mutation (this function runs from a MutationObserver) replaced the
+        // buttons every ~60ms, so a press landed on a node that was gone before
+        // mouseup and the click never fired. Rebuilding also re-triggered the
+        // observer, which made it an endless loop.
+        var sig = favs.join(',') + '|' + (root.BQ_EXPLORE_APPS ? root.BQ_EXPLORE_APPS.length : 0);
+        if (bar.getAttribute('data-fav-sig') === sig) return;
+        bar.setAttribute('data-fav-sig', sig);
         while (bar.firstChild) bar.removeChild(bar.firstChild);
         if (!favs.length) {
             bar.classList.remove('is-on');

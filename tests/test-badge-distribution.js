@@ -353,6 +353,85 @@ queue.push(test('write:false rebuilds the same counts and does not set the doc',
     assert.strictEqual(world.writes[0].payload.counts.first_channel, 1);
 }));
 
+queue.push(test('qualified players are non-anon, non-banned accounts with 2140+ XP', async function () {
+    assert.strictEqual(dist.QUALIFIED_MIN_POINTS, 2140);
+    assert.strictEqual(dist.isQualifiedPlayer({ points: 2140 }), true);
+    assert.strictEqual(dist.isQualifiedPlayer({ points: 6102 }), true);
+    assert.strictEqual(dist.isQualifiedPlayer({ points: '2140' }), true);
+    assert.strictEqual(dist.isQualifiedPlayer({ points: 2139 }), false);
+    assert.strictEqual(dist.isQualifiedPlayer({ points: 0 }), false);
+    assert.strictEqual(dist.isQualifiedPlayer({}), false);
+    assert.strictEqual(dist.isQualifiedPlayer({ points: 'nope' }), false);
+
+    const users = {
+        maxi: { points: 2140, visibleBadges: ['first_channel'], lastActive: Date.parse('2020-01-01T00:00:00Z'), faction: 'cyber_hornets', members_cyber_hornets: 60 },
+        maxi2: { points: 6102, visibleBadges: ['quest_1'], lastActive: Date.parse('2026-10-20T00:00:00Z') },
+        whale: { points: 100000, visibleBadges: [] },
+        under: { points: 2139, visibleBadges: ['first_channel', 'quest_1'] },
+        rested: { points: 0, visibleBadges: ['explorer_10'] },
+        textPts: { points: '2140', visibleBadges: ['explorer_10'] },
+        banned: { points: 9000, banned: true, visibleBadges: ['first_channel'], members_honey_badgers: 40 },
+        reason: { points: 9000, ban_reason: 'ledger', visibleBadges: ['quest_1'] },
+        bot: { points: 9000, isBot: true, visibleBadges: ['first_channel'] },
+        testacct: { points: 9000, isTest: true, visibleBadges: ['first_channel'] },
+        'nacho-bot': { points: 9000, visibleBadges: ['first_channel'] },
+        system: { points: 9000, visibleBadges: ['first_channel'] },
+        ghost: { points: 8000, visibleBadges: ['first_channel', 'quest_1'] },
+    };
+    for (let i = 0; i < 6; i++) {
+        users['new' + i] = { points: 10, visibleBadges: ['quest_1'] };
+    }
+    const world = createWorld({
+        users: users,
+        anon: { ghost: true },
+        awards: {
+            maxi: [
+                { id: 'first_channel', data: {} },
+                { id: 'explorer_25', data: {} },
+                { id: 'block_42', data: {} },
+            ],
+            under: [{ id: 'explorer_25', data: {} }],
+        },
+    });
+    const result = await run(world);
+    assert.strictEqual(result.totalUsers, 12);
+    assert.strictEqual(result.qualifiedUsers, 4);
+    assert.strictEqual(result.activeUsers30d, 1);
+    assert.strictEqual(result.wrote, true);
+    const payload = world.writes[0].payload;
+    assert.strictEqual(payload.qualifiedUsers, 4);
+    assert.strictEqual(payload.totalUsers, 12);
+    assert.strictEqual(payload.counts.first_channel, 2);
+    assert.strictEqual(payload.qualifiedCounts.first_channel, 1);
+    assert.strictEqual(payload.counts.quest_1, 8);
+    assert.strictEqual(payload.qualifiedCounts.quest_1, 1);
+    assert.strictEqual(payload.counts.explorer_10, 2);
+    assert.strictEqual(payload.qualifiedCounts.explorer_10, 1);
+    assert.strictEqual(payload.counts.explorer_25, 2);
+    assert.strictEqual(payload.qualifiedCounts.explorer_25, 1);
+    assert.strictEqual(payload.counts.block_42, undefined);
+    assert.strictEqual(payload.qualifiedCounts.block_42, undefined);
+    Object.keys(payload.qualifiedCounts).forEach(function (id) {
+        assert.ok(payload.qualifiedCounts[id] <= payload.qualifiedUsers, id);
+        assert.ok(payload.qualifiedCounts[id] <= payload.counts[id], id);
+    });
+    assert.ok(payload.counts.quest_1 > payload.qualifiedUsers);
+    assert.ok((payload.qualifiedCounts.quest_1 / payload.qualifiedUsers) <= 1);
+    assert.deepStrictEqual(Object.keys(payload).sort(), [
+        'activeUsers30d', 'catalogVersion', 'counts', 'qualifiedCounts', 'qualifiedUsers', 'totalUsers', 'updatedAt',
+    ]);
+    const packed = JSON.stringify(payload);
+    assert.ok(packed.indexOf('members_') === -1);
+    assert.ok(packed.indexOf('faction') === -1);
+    assert.ok(packed.indexOf('cyber_hornets') === -1);
+    assert.ok(packed.indexOf('honey_badgers') === -1);
+    assertNoSecrets(packed, ['maxi', 'ghost', '@']);
+    const logged = world.logs.join('\n');
+    assert.ok(logged.indexOf('qualified=4') !== -1);
+    assert.ok(logged.indexOf('users=12') !== -1);
+    assert.ok(logged.indexOf('active30d=1') !== -1);
+}));
+
 queue.push(test('the HTTP trigger cannot start a scan without admin auth', function () {
     const index = fs.readFileSync(path.join(__dirname, '../functions/index.js'), 'utf8');
     const start = index.indexOf('// ── Badge Distribution Cache Refresh');

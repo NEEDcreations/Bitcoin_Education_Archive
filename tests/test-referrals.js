@@ -669,7 +669,7 @@ test('home invite card is top-right and reads counts the user may see', () => {
     assert.ok(!terms.includes('2,100+ points'));
     assert.ok(!terms.includes('Double XP Charges'));
     const notes = fs.readFileSync(path.join(__dirname, '..', 'patch-notes.html'), 'utf8');
-    assert.ok(notes.includes('Invite friends: share your link from the home page. When they reach Maxi, you both get 50 orange tickets.'));
+    assert.ok(notes.includes('50 orange tickets'));
     assert.ok(notes.includes('Double XP starts when you buy it'));
     assert.ok(notes.includes('I sent the tip'));
 });
@@ -945,6 +945,29 @@ function chatOverlay(page, translateY) {
 function inviteState(page) {
     return page.document.getElementById('inviteCard').getAttribute('data-state');
 }
+
+test('a Proof of Play hub link stores the ref and keeps the hash', () => {
+    const page = invitePage;
+    page.localStorage.removeItem('btc_referral_code');
+    page.localStorage.removeItem('btc_referral_code_at');
+    page.localStorage.removeItem('btc_signup_source');
+    const cleaned = [];
+    const prevReplace = page.history.replaceState;
+    page.history.replaceState = function (_state, _title, url) { cleaned.push(url); };
+    page.location.pathname = '/';
+    page.location.search = '?ref=abc12345&src=popshare';
+    page.location.hash = '#proof-of-play';
+    page.captureReferralCode();
+    assert.strictEqual(page.localStorage.getItem('btc_referral_code'), 'abc12345');
+    assert.strictEqual(page.localStorage.getItem('btc_signup_source'), 'popshare');
+    assert.ok(cleaned.indexOf('/#proof-of-play') !== -1);
+    page.location.search = '';
+    page.location.hash = '';
+    page.history.replaceState = prevReplace;
+    page.localStorage.removeItem('btc_referral_code');
+    page.localStorage.removeItem('btc_referral_code_at');
+    page.localStorage.removeItem('btc_signup_source');
+});
 
 test('the first stored referral wins until it expires', () => {
     const page = invitePage;

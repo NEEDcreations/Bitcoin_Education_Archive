@@ -16,7 +16,7 @@ if (process.argv.indexOf('--apply') !== -1) {
     process.exit(2);
 }
 
-const admin = require('firebase-admin');
+const admin = require('../src/firebaseAdmin.js');
 const badgeRules = require('../src/badgeRules');
 const badgeXp = require('../src/badgeXpTable');
 const {

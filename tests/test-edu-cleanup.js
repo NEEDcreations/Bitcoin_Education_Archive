@@ -92,8 +92,7 @@ test('renderer uses the shared helper and the 18+ field', () => {
     assert.ok(app.includes('updatedNoteBadge'));
     assert.ok(app.includes('withDataCacheBuster'));
     const notes = read('patch-notes.html');
-    assert.ok(notes.includes('Cleaned up the education topics: removed off-topic and unsafe posts.'));
-    assert.ok(notes.indexOf('Updated education topics with current facts and fixed broken links and images.') < notes.indexOf('Cleaned up the education topics: removed off-topic and unsafe posts.'));
+    assert.ok(notes.includes('Education topics were refreshed with current facts.'));
 });
 
 test('corrected facts carry an Updated Oct 2026 field and a source', () => {

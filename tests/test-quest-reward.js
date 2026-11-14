@@ -377,7 +377,7 @@ test('callables enforce App Check, bans, and rate limits, and ignore client keys
     assert.strictEqual(quests.includes("httpsCallable('startQuest')"), false);
     assert.ok(quests.includes('Trivia updated, please refresh'));
     assert.ok(quests.includes('data/trivia-bank.js?v=20261030_v2435'));
-    assert.ok(read('patch-notes.html').includes('Quiz and trivia rewards are now checked by the server, and Part 2 quizzes pay out correctly again.'));
+    assert.ok(read('patch-notes.html').includes('Quiz and trivia rewards are checked before they pay out.'));
     assert.ok(read('firestore.rules').includes('quest_completions'));
 });
 

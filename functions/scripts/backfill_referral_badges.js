@@ -16,7 +16,7 @@ const BADGE_IDS = ['referral_1', 'referral_5', 'referral_10', 'referral_25', 're
 
 function loadAdmin() {
     try {
-        return require('firebase-admin');
+        return require('../src/firebaseAdmin.js');
     } catch (err) {
         return require(path.join(__dirname, '..', 'node_modules', 'firebase-admin'));
     }

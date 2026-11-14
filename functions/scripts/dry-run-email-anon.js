@@ -52,6 +52,7 @@ async function main() {
     }
     console.log('dry-run');
     console.log('read-only');
+    require('../src/firebaseAdmin.js');
     var admin = require('firebase-admin');
     if (!admin.apps.length) admin.initializeApp({ projectId: 'bitcoin-education-archive' });
     var authUser = null;

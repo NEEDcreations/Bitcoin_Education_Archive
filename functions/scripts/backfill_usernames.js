@@ -18,7 +18,7 @@
 // Uses Application Default Credentials (GOOGLE_APPLICATION_CREDENTIALS or
 // `gcloud auth application-default login`). Does not take a key path on argv.
 
-const admin = require('firebase-admin');
+const admin = require('../src/firebaseAdmin.js');
 
 const PAGE = 400;
 

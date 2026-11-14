@@ -8,7 +8,7 @@
 const functions = require('firebase-functions');
 const functionsV1 = require('firebase-functions/v1');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
-const admin = require('firebase-admin');
+const admin = require('./firebaseAdmin.js');
 const crypto = require('crypto');
 
 // Resolved on first use so unit tests can import helpers before initializeApp().
@@ -24,6 +24,8 @@ const db = new Proxy({}, {
 });
 const { isSatsBanned, SATS_BANNED_ERROR } = require('./cipherClaim');
 const rewardNotify = require('./rewardNotify');
+const factionBalance = require('./factionBalance');
+const favorDifficulty = require('./favorDifficulty');
 // One-way hash of uid for public dedup (prevents uid exposure in readable docs)
 function uidHash(uid) {
   return crypto.createHash('sha256').update('sf_dedup_' + uid).digest('hex').substring(0, 16);
@@ -76,17 +78,27 @@ function rememberOwnTopHash(uid, value) {
 
 // Difficulty history (ordered oldest first):
 // Each entry: { target, since: ISO-date string (UTC midnight) }
+// % change in comments is the DIFFICULTY change (difficulty = 100,000,000 / target):
+// (newDifficulty - oldDifficulty) / oldDifficulty * 100 = (oldTarget / newTarget - 1) * 100.
 const DIFFICULTY_HISTORY = [
   { target: 1000,  since: '2026-06-02' },
   { target: 30000, since: '2026-06-21' },
   { target: 15000, since: '2026-06-30' },
   { target: 10000, since: '2026-07-02' },
   { target: 8000,  since: '2026-07-10' }, // +25% raise — tightening odds to 1:12,500
-  { target: 7000,  since: '2026-07-29' }, // -12.5% drop — easing odds to 1:14,286
+  { target: 7000,  since: '2026-07-29' }, // +14.3% raise — tightening odds to 1:14,286
   { target: 10000, since: '2026-08-20' }, // -30% decrease — easing odds to 1:10,000
   { target: 20000, since: '2026-10-01' }, // -50% decrease — easing odds to 1:5,000
+  { target: 25000, since: '2026-11-07' }, // -20% decrease — easing odds to 1:4,000
 ];
+// Hardcoded fallback. The live target is payout_config/favorDifficulty.target
+// (favorDifficultyRetarget moves it when an epoch fills 5/5); see favorDifficulty.js.
 const DIFFICULTY_TARGET = DIFFICULTY_HISTORY[DIFFICULTY_HISTORY.length - 1].target;
+let _lastLiveTarget = DIFFICULTY_TARGET;
+async function liveDifficultyTarget(store) {
+  _lastLiveTarget = await favorDifficulty.getTarget(store || db, DIFFICULTY_TARGET);
+  return _lastLiveTarget;
+}
 
 // Return the difficulty target that was active at a given timestamp (ms)
 function difficultyAtTime(tsMs) {
@@ -95,6 +107,9 @@ function difficultyAtTime(tsMs) {
 }
 const HASHES_PER_MINUTE = 10;
 const HASH_WINDOW_MS = 60000; // 60 seconds
+// Spam Hasher ceiling: fastest sustained human tapping (1 hash/sec per rig).
+// Anything faster is a bot, Spam Hasher or not.
+const SPAM_HASHER_PER_MINUTE = 60;
 const FAVOR_DURATION_MINUTES = 60;
 const BONUS_MINUTES_PER_POINT = 3;
 const POINTS_TO_ACTIVATE = 21;
@@ -270,7 +285,7 @@ function checkAndResetFavor(stateData, transaction, stateRef, store) {
         })(),
         totalHashes: stateData.totalHashes || 0,
         lowestHash: stateData.lowestHashThisWindow || null,
-        difficultyTarget: DIFFICULTY_TARGET,
+        difficultyTarget: _lastLiveTarget,
         winner: stateData.lowestHashThisWindowUid ? {
           uid: stateData.lowestHashThisWindowUid,
           username: stateData.lowestHashThisWindowUsername || null,
@@ -312,6 +327,7 @@ async function resetExpiredFavor(nowMs) {
 async function resetExpiredFavorWith(store, nowMs) {
   const stateRef = store.collection('satoshiFavor').doc('current');
   const clock = Number(nowMs) || Date.now();
+  await liveDifficultyTarget(store);
   return store.runTransaction(async function (transaction) {
     const snap = await transaction.get(stateRef);
     if (!snap.exists) return { reset: false, reason: 'missing' };
@@ -341,13 +357,14 @@ async function creditDailyAllThree(uid, day) {
   const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
 
   const result = await db.runTransaction(async function (transaction) {
-    const [triviaDoc, questDoc, pollDoc, contributorDoc, stateDoc, userDoc] = await Promise.all([
+    const [triviaDoc, questDoc, pollDoc, contributorDoc, stateDoc, userDoc, totalsDoc] = await Promise.all([
       transaction.get(triviaRef),
       transaction.get(questRef),
       transaction.get(pollRef),
       transaction.get(contributorRef),
       transaction.get(stateRef),
       transaction.get(userRef),
+      transaction.get(totalsRef),
     ]);
     if (!userDoc.exists) return { ok: false, reason: 'no_user' };
     const userData = userDoc.data() || {};
@@ -371,6 +388,7 @@ async function creditDailyAllThree(uid, day) {
     };
     stateData = checkAndResetFavor(stateData, transaction, stateRef);
     const faction = userData.faction || null;
+    const race = factionBalance.racePoints(1, faction, totalsDoc && totalsDoc.exists ? totalsDoc.data() : {}, userData, Date.now());
     transaction.set(contributorRef, {
       uid: uid,
       source: 'daily_all_three',
@@ -379,16 +397,26 @@ async function creditDailyAllThree(uid, day) {
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
       faction: faction,
       pointsAdded: 1,
+      factionPoints: race.points,
     });
     const factionField = faction === 'cyber_hornets' ? 'cyber_hornets' : faction === 'honey_badgers' ? 'honey_badgers' : 'unaffiliated';
     transaction.set(totalsRef, {
-      [factionField]: admin.firestore.FieldValue.increment(1),
+      [factionField]: admin.firestore.FieldValue.increment(race.points),
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      ...(race.headStartField ? { [race.headStartField]: admin.firestore.FieldValue.increment(race.headStartBase) } : {}),
     }, { merge: true });
     transaction.update(userRef, {
       trifectaDays: admin.firestore.FieldValue.increment(1),
       sfContributions: admin.firestore.FieldValue.increment(1),
     });
+    // Same fields as the contributeFavor level-up path. The contributor
+    // exists check above is the dedup, so this cannot add a second point.
+    const userSfRef = db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc(uid);
+    transaction.set(userSfRef, {
+      uid: uid,
+      points: admin.firestore.FieldValue.increment(1),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
     if (stateData.favorActive) {
       const newBonus = Math.min((stateData.bonusMinutes || 0) + BONUS_MINUTES_PER_POINT, MAX_BONUS_MINUTES);
       const updated = Object.assign({}, stateData, { bonusMinutes: newBonus });
@@ -431,9 +459,10 @@ exports.favorChatHandle = favorChatHandle;
 exports.shapeTopHashEntry = shapeTopHashEntry;
 exports.SOLVER_NAME_RE = SOLVER_NAME_RE;
 
-// Valid level names per source tier (server-side whitelist)
+// Valid level names per source tier (server-side whitelist).
+// Normie and Curious award 0 Satoshi's Favor, so contributeFavor rejects them.
 const LEVEL_TIERS = {
-  'level_up': ['Normie','Curious','Pleb','Pleb II','Pleb III','Stacker','Stacker II','Stacker III'],
+  'level_up': ['Pleb','Pleb II','Pleb III','Stacker','Stacker II','Stacker III'],
   'level_up_5': ['Maxi','Maxi II','Maxi III'],
   'level_up_10': ['Papa John','Full Node','Whale','Sovereign','Cypherpunk','Satoshi'],
 };
@@ -448,8 +477,8 @@ const LEVEL_MIN_POINTS = {
   'Sovereign': 100000, 'Cypherpunk': 133337, 'Satoshi': 210000,
 };
 
-// Normie and Curious are on the level list, and the client does not award
-// Favor for them. How it works: Pleb/Stacker 1, Maxi 5, Papa John or higher 10.
+// Normie and Curious stay off LEVEL_TIERS because they award 0.
+// Pleb/Stacker award 1, Maxi 5, Papa John or higher 10.
 function levelFavorRows() {
   const rows = [];
   Object.keys(LEVEL_TIERS).forEach(function (source) {
@@ -492,6 +521,7 @@ function levelNameForPoints(points) {
 exports.planLevelFavor = planLevelFavor;
 exports.levelNameForPoints = levelNameForPoints;
 exports.levelFavorRows = levelFavorRows;
+exports.LEVEL_TIERS = LEVEL_TIERS;
 
 // Max bonus minutes cap (prevent infinite favor window)
 const MAX_BONUS_MINUTES = 180; // 3 hours max extension
@@ -608,9 +638,11 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
   // Run in a transaction for atomicity
   const result = await db.runTransaction(async (transaction) => {
     // Batch all reads before any writes (Firestore best practice for transactions)
-    const [contributorDoc, stateDoc] = await Promise.all([
+    const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
+    const [contributorDoc, stateDoc, totalsDoc] = await Promise.all([
       transaction.get(contributorRef),
       transaction.get(stateRef),
+      transaction.get(totalsRef),
     ]);
 
     // Check dedup
@@ -636,6 +668,8 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
 
     // Record contributor — stamp faction at time of contribution
     const faction = userData.faction || null; // cyber_hornets | honey_badgers | null
+    // Race points use server totals from this transaction (underdog + join bonus).
+    const race = factionBalance.racePoints(pointsToAdd, faction, totalsDoc.exists ? totalsDoc.data() : {}, userData, Date.now());
     transaction.set(contributorRef, {
       uid,
       source,
@@ -643,16 +677,17 @@ exports.contributeFavor = functionsV1.https.onCall(async (data, context) => {
       timestamp: admin.firestore.FieldValue.serverTimestamp(),
       faction,
       pointsAdded: pointsToAdd,
+      factionPoints: race.points,
     });
 
     // Update faction totals doc atomically
-    const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
     const factionField = faction === 'cyber_hornets' ? 'cyber_hornets'
                        : faction === 'honey_badgers' ? 'honey_badgers'
                        : 'unaffiliated';
     transaction.set(totalsRef, {
-      [factionField]: admin.firestore.FieldValue.increment(pointsToAdd),
+      [factionField]: admin.firestore.FieldValue.increment(race.points),
       lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      ...(race.headStartField ? { [race.headStartField]: admin.firestore.FieldValue.increment(race.headStartBase) } : {}),
     }, { merge: true });
 
     // Same transaction as the contributor doc. Owner-readable counter only.
@@ -733,6 +768,8 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
   if (context.auth.token.firebase && context.auth.token.firebase.sign_in_provider === 'anonymous') {
     throw new HttpsError('permission-denied', 'Anonymous users cannot mine.');
   }
+  // Live difficulty target (cached 60s, hardcoded fallback).
+  const LIVE_TARGET = await liveDifficultyTarget();
 
   const stateRef = db.collection('satoshiFavor').doc('current');
 
@@ -832,19 +869,23 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
       });
     }
 
+    // Spam Hasher: active only for the cycle it was activated in (server-set).
+    const spamActive = !!userData.spamHasherCycleId && userData.spamHasherCycleId === currentCycleId;
+    const rateLimitNow = spamActive ? Math.max(effectiveRateLimit, SPAM_HASHER_PER_MINUTE) : effectiveRateLimit;
+
     // Only enforce rate limit when booster is NOT active
-    if (!usingBooster && timestamps.length >= effectiveRateLimit) {
+    if (!usingBooster && timestamps.length >= rateLimitNow) {
       const oldestMs = timestamps[0].toMillis ? timestamps[0].toMillis() : timestamps[0];
       const waitSec = Math.ceil((HASH_WINDOW_MS - (now - oldestMs)) / 1000);
       throw new HttpsError(
         'resource-exhausted',
-        `Rate limit: ${waitSec}s until next hash (${effectiveRateLimit}/min).`
+        `Rate limit: ${waitSec}s until next hash (${rateLimitNow}/min).`
       );
     }
 
     // Generate random value 0 to 100,000,000
     const val = crypto.randomInt(0, 100000001);
-    const winner = val < DIFFICULTY_TARGET;
+    const winner = val < LIVE_TARGET;
 
     // Consume booster / rig2 charge atomically — single update object to avoid double-write
     const userUpdate = {};
@@ -862,7 +903,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
     // Always append timestamp (so cooldown tracks correctly after booster runs out)
     timestamps.push(admin.firestore.Timestamp.now());
     // Cap stored timestamps to avoid unbounded growth
-    if (timestamps.length > effectiveRateLimit + 10) timestamps = timestamps.slice(-effectiveRateLimit - 10);
+    if (timestamps.length > rateLimitNow + 10) timestamps = timestamps.slice(-rateLimitNow - 10);
     transaction.set(cooldownRef, { timestamps });
 
     return {
@@ -882,7 +923,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
     timestamp: admin.firestore.FieldValue.serverTimestamp(),
     isWinner,
     cycleId: stateData.currentCycleId || null,
-    difficultyTarget: DIFFICULTY_TARGET,
+    difficultyTarget: LIVE_TARGET,
   });
 
   try {
@@ -943,7 +984,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
   try {
     const diffStatsRef = db.collection('satoshiFavor').doc('difficultyStats');
     await diffStatsRef.set(
-      { ['target_' + DIFFICULTY_TARGET]: admin.firestore.FieldValue.increment(1) },
+      { ['target_' + LIVE_TARGET]: admin.firestore.FieldValue.increment(1) },
       { merge: true }
     );
   } catch (e) {
@@ -1070,45 +1111,16 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
           ts: epochTs,
         }).catch(e => console.warn('[FAVOR] Epoch announce announcements failed:', e.message));
         console.log(`[FAVOR] Epoch #${epochNum} completion announced to chat.`);
-        // Admin-approve payout ledger. Does not send sats.
-        let notifyShare = Math.floor(21000 / Math.max(1, blocks.length));
+        // Freeze the per-block payout result now, at close: winner uid per
+        // block from the archived blocks and each winner's saved Lightning
+        // address at this moment. Create-only; never writes sfPoolHistory.
+        // If it fails, an admin can run adminFreezeFavorEpoch later.
+        const notifyShare = Math.floor(21000 / Math.max(1, blocks.length));
         try {
-          const favorEpochJobs = require('./favorEpochJobs');
-          const fin = await favorEpochJobs.finalizeEpoch(db, admin, {
-            epochNumber: epochNum,
-            blocks: blocks,
-            nowMs: Date.now(),
-          });
-          if (fin && Number(fin.notifyShare) > 0) notifyShare = Number(fin.notifyShare);
+          const favorBlockClaims = require('./favorBlockClaims');
+          await favorBlockClaims.createBlockClaimService({ db: db, nowMs: Date.now }).freezeEpoch(epochNum, { source: 'close' });
         } catch (e) {
-          console.warn('[FAVOR] epoch payout breakdown failed:', e.message);
-          try {
-            const epochId = 'epoch_' + epochNum;
-            const lnSnap = {};
-            const seenLn = {};
-            for (let li = 0; li < blocks.length; li++) {
-              const bu = blocks[li] && blocks[li].uid;
-              if (!bu || seenLn[bu]) continue;
-              seenLn[bu] = true;
-              try {
-                const us = await db.collection('users').doc(bu).get();
-                const ud = us.exists ? (us.data() || {}) : {};
-                lnSnap[bu] = String(ud.lightningAddress || ud.lightning || ud.lnAddress || '').trim().toLowerCase();
-              } catch (eLn) {
-                lnSnap[bu] = '';
-              }
-            }
-            await db.collection('sf_payout_results').doc(epochId).set({
-              kind: 'epoch',
-              epochId: epochId,
-              epochNumber: epochNum,
-              breakdownFailed: true,
-              breakdownDone: false,
-              payoutStatus: 'awaiting_admin_approval',
-              createdAtMs: Date.now(),
-              lightningAddressesAtClose: lnSnap,
-            }, { merge: true });
-          } catch (e2) { /* ignore */ }
+          console.warn('[FAVOR] epoch block result freeze failed:', e.message);
         }
         const share = notifyShare;
         const seen = {};
@@ -1129,7 +1141,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
             onceKey: 'sfepoch_' + epochNum,
             icon: '⛏️',
             message: '⛏️ Epoch #' + epochNum + ' complete. Your block share is about ' + approx.toLocaleString('en-US') + ' sats' +
-              (blocksFound > 1 ? ' (' + blocksFound + ' blocks)' : '') + '. Waiting on approval before you can claim.',
+              (blocksFound > 1 ? ' (' + blocksFound + ' blocks, claim each one)' : '') + '. Claim it in Epoch History once claims open. It never expires.',
           }));
         }
       } catch (e) {
@@ -1183,7 +1195,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
           username,
           value,
           timestamp: nowTs,
-          difficultyTarget: DIFFICULTY_TARGET,
+          difficultyTarget: LIVE_TARGET,
         }));
         entries.sort((a, b) => a.value - b.value);
         entries = entries.slice(0, 50);
@@ -1211,7 +1223,7 @@ exports.hashForFavor = onCall({ enforceAppCheck: false }, async (request) => {
   // Feature 7B/C: Win announcement — post to Global Chat and GGs/Announcements
   if (isWinner) {
     const handle = favorChatHandle(username, 50);
-    const winMsg = `⛏️ BLOCK FOUND! ⚡\n\n${handle} solved a block with hash ${value.toLocaleString()} (target: < ${DIFFICULTY_TARGET.toLocaleString()}) 🎉\n\n👑 Congratulations! Will you be next? ⛏️`;
+    const winMsg = `⛏️ BLOCK FOUND! ⚡\n\n${handle} solved a block with hash ${value.toLocaleString()} (target: < ${LIVE_TARGET.toLocaleString()}) 🎉\n\n👑 Congratulations! Will you be next? ⛏️`;
     const nachoUid = 'nacho-bot';
     const winTs = admin.firestore.FieldValue.serverTimestamp();
 
@@ -1366,9 +1378,8 @@ exports.getFavorHashes = functionsV1.https.onCall(async (data, context) => {
  * Can be used to backfill missing hashes.
  */
 exports.syncCycleToTop10 = functionsV1.https.onCall(async (data, context) => {
-  // Admin check - only specific UIDs can run this
-  const ADMIN_UIDS = ['Rv2KwSy4flQmYMiHobV1V03KJDX2', 'ZVlpC6mfs1W7GlKsY9TQN3Jr8Hd4']; // Add admin UIDs here
-  if (!context.auth || !ADMIN_UIDS.includes(context.auth.uid)) {
+  // Admin-only: Firebase custom claim (never a hardcoded uid or email list).
+  if (!context.auth || !context.auth.token || context.auth.token.admin !== true) {
     throw new HttpsError('permission-denied', 'Admin only');
   }
 
@@ -1464,10 +1475,8 @@ exports.syncCycleToTop10 = functionsV1.https.onCall(async (data, context) => {
 exports.backfillFactionTotals = functionsV1.https.onCall(async (data, context) => {
   if (!context.auth) throw new HttpsError('unauthenticated', 'Must be signed in.');
 
-  // Admin-only: check email
-  const ADMIN_EMAILS = ['needcreations@gmail.com', 'info.603btc@gmail.com', 'najemchris8@gmail.com'];
-  const userRecord = await admin.auth().getUser(context.auth.uid);
-  if (!ADMIN_EMAILS.includes(userRecord.email)) {
+  // Admin-only: Firebase custom claim (never email).
+  if (context.auth.token.admin !== true) {
     throw new HttpsError('permission-denied', 'Admin only.');
   }
 
@@ -1508,7 +1517,9 @@ exports.backfillFactionTotals = functionsV1.https.onCall(async (data, context) =
     const fKey = faction === 'cyber_hornets' ? 'cyber_hornets'
                 : faction === 'honey_badgers' ? 'honey_badgers'
                 : 'unaffiliated';
-    totals[fKey] += pts;
+    // Keep earned race boosts when the doc was scored for this same faction.
+    const racePts = (d.faction && d.faction === faction && Number(d.factionPoints) > 0) ? Number(d.factionPoints) : pts;
+    totals[fKey] += racePts;
 
     // Stamp faction if missing
     if (!d.faction && faction) {
@@ -1522,14 +1533,15 @@ exports.backfillFactionTotals = functionsV1.https.onCall(async (data, context) =
   // Commit contributor doc stamps in batches of 500
   await writeBatch.commit();
 
-  // Overwrite factionTotals
+  // Overwrite the race scores. merge keeps race fields this job does not
+  // own (head start, race id). Member counts live on factionMembers.
   await totalsRef.set({
     cyber_hornets: totals.cyber_hornets,
     honey_badgers: totals.honey_badgers,
     unaffiliated: totals.unaffiliated,
     lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
     lastBackfill: admin.firestore.FieldValue.serverTimestamp(),
-  });
+  }, { merge: true });
 
   console.log(`[BACKFILL] Done. Totals:`, totals, `Stamped: ${stamped}`);
   return { success: true, totals, contributorDocs: snap.size, uniqueUsers: uids.length, stamped };
@@ -1537,15 +1549,27 @@ exports.backfillFactionTotals = functionsV1.https.onCall(async (data, context) =
 
 /**
  * getFactionTotals (onCall)
- * Public read of factionTotals doc. Real-time updates handled client-side via Firestore listener.
+ * Public race scores. Member counts and per-member averages stay off this response.
+ * Real-time score updates are handled client-side via the factionTotals listener.
  */
-exports.getFactionTotals = functionsV1.https.onCall(async (data, context) => {
+exports.getFactionTotals = functionsV1.https.onCall(async () => {
   const doc = await db.collection('satoshiFavor').doc('factionTotals').get();
-  if (!doc.exists) return { cyber_hornets: 0, honey_badgers: 0, unaffiliated: 0 };
-  const d = doc.data();
-  return {
-    cyber_hornets: d.cyber_hornets || 0,
-    honey_badgers: d.honey_badgers || 0,
-    unaffiliated: d.unaffiliated || 0,
-  };
+  return factionBalance.publicFactionTotals(doc.exists ? doc.data() : null);
 });
+
+/**
+ * getSmallerFaction (onCall)
+ * Which side is smaller for the join hint. No counts, no scores.
+ */
+exports.getSmallerFaction = functionsV1.https.onCall(async () => {
+  const membersSnap = await db.collection('satoshiFavor').doc('factionMembers').get();
+  const totalsSnap = await db.collection('satoshiFavor').doc('factionTotals').get();
+  const totals = totalsSnap.exists ? (totalsSnap.data() || {}) : {};
+  return factionBalance.smallerFactionReply(
+    membersSnap.exists ? (membersSnap.data() || {}) : null,
+    !!membersSnap.exists,
+    totals
+  );
+});
+
+exports.SPAM_HASHER_PER_MINUTE = SPAM_HASHER_PER_MINUTE;

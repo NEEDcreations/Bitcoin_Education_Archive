@@ -375,7 +375,7 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
     assert.ok(!sw.includes('btc-archive-v2240'));
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));
-    assert.ok(html.includes('timechain-tv.js?v=20261031_v2447'));
+    assert.ok(html.includes('timechain-tv.js?v=20261105_v2502'));
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
@@ -529,7 +529,7 @@ test('cache name is v2358 and the TV script cache-buster moved', () => {
     assert.ok(!html.includes('features.registry.js?v=20261023_v2330'));
     assert.ok(!html.includes('features.registry.js?v=20261022_v2266'));
     assert.ok(!html.includes('features.registry.js?v=20261022_v2265'));
-    assert.ok(html.includes('satoshi-favor.js?v=20261104_v2482'));
+    assert.ok(html.includes('satoshi-favor.js?v=20261112_v2539'));
     assert.ok(!html.includes('satoshi-favor.js?v=20261024_v2351'));
     assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2323'));
     assert.ok(!html.includes('satoshi-favor.js?v=20261022_v2250'));

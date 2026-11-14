@@ -235,26 +235,43 @@ function displayNameFromUser(user) {
     return visiblePlayerName(data.username || '');
 }
 
-function stageAnnouncement(t, db, adminSdk, burst, user, existingSnap) {
-    const annId = announcementId(burst.uid, burst.startedAtMs);
-    const annRef = db.collection('announcements').doc(annId);
-    const name = displayNameFromUser(user, burst.uid);
-    const text = formatBadgeGg(name, burst.items || []);
-    const exists = !!(existingSnap && existingSnap.exists);
+// One GGs (announcements) write. Badge bursts and collection recognition
+// both come through here. The caller has already read existingSnap.
+function writeAnnouncement(t, db, adminSdk, spec) {
+    const src = spec || {};
+    const annRef = db.collection('announcements').doc(src.annId);
+    const exists = !!(src.existingSnap && src.existingSnap.exists);
     if (!exists) {
-        t.set(annRef, {
+        const doc = {
             uid: 'nacho-bot',
             name: '🦌 Nacho',
-            text: text,
+            text: src.text,
             isNachoAuto: true,
-            mentionUid: burst.uid,
-            badgeIds: postedBadgeIds(burst.items),
-            ggKind: 'badge',
             ts: adminSdk.firestore.FieldValue.serverTimestamp(),
-            postedByUid: 'badge-gg',
-        });
+            postedByUid: src.postedByUid || 'badge-gg',
+        };
+        if (src.mentionUid) doc.mentionUid = src.mentionUid;
+        if (Object.prototype.hasOwnProperty.call(src, 'badgeIds')) doc.badgeIds = src.badgeIds;
+        if (src.ggKind) doc.ggKind = src.ggKind;
+        t.set(annRef, doc);
     }
-    return { annId: annId, text: text, created: !exists };
+    return { annId: src.annId, created: !exists };
+}
+
+function stageAnnouncement(t, db, adminSdk, burst, user, existingSnap) {
+    const annId = announcementId(burst.uid, burst.startedAtMs);
+    const name = displayNameFromUser(user, burst.uid);
+    const text = formatBadgeGg(name, burst.items || []);
+    const written = writeAnnouncement(t, db, adminSdk, {
+        annId: annId,
+        text: text,
+        mentionUid: burst.uid,
+        badgeIds: postedBadgeIds(burst.items),
+        ggKind: 'badge',
+        postedByUid: 'badge-gg',
+        existingSnap: existingSnap,
+    });
+    return { annId: annId, text: text, created: written.created };
 }
 
 async function queueBadgeGg(db, adminSdk, uid, badgeId, data, nowMs) {
@@ -359,4 +376,5 @@ module.exports = {
     flushDueBursts: flushDueBursts,
     announcementId: announcementId,
     postedBadgeIds: postedBadgeIds,
+    writeAnnouncement: writeAnnouncement,
 };

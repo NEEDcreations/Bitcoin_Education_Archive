@@ -267,7 +267,7 @@ queue.push(test('level-ups, achievements, and earned lines qualify, and nothing 
     const index = fs.readFileSync(path.join(root, 'functions', 'index.js'), 'utf8');
     assert.ok(src.includes('enforceAppCheck: true'));
     assert.ok(index.includes('exports.toggleGgReaction = ggFns.toggleGgReaction'));
-    assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 8);
+    assert.strictEqual((index.match(/enforceAppCheck:\s*true/g) || []).length, 9);
     const ranking = fs.readFileSync(path.join(root, 'ranking.js'), 'utf8');
     assert.ok(ranking.includes('toggleGgReaction: 1'));
     const party = chat.slice(chat.indexOf('function ggIsEarnedPost'), chat.indexOf('function _buildAnnReactBar'));

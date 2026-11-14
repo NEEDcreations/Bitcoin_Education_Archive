@@ -284,7 +284,7 @@ function auth(email) {
         assert.strictEqual(claim.includes('lookupByMaterials'), false);
         assert.ok(claim.includes('tombSummary.lastClaimAt') || claim.includes('summary.lastClaimAt') || claim.includes('millisOf(tombSummary && tombSummary.lastClaimAt)'));
         const gifting = fs.readFileSync(path.join(root, 'functions', 'src', 'gifting.js'), 'utf8');
-        assert.ok(gifting.includes('secrets: [deletionHmacSecret]'));
+        assert.ok(/secrets: \[deletionHmacSecret[\],]/.test(gifting));
         assert.ok(gifting.includes('beginPayout'));
         assert.ok(gifting.includes("Number(userRow.satsHold) > Date.now()"));
         assert.ok(gifting.includes('tombSatsDisabled'));

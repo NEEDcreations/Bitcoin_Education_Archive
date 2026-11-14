@@ -6,6 +6,7 @@
 // and does nothing.
 
 const { isSatsBanned } = require('./cipherClaim');
+const balance = require('./factionBalance');
 
 const FACTION_IDS = { cyber_hornets: true, honey_badgers: true };
 
@@ -58,6 +59,13 @@ function createChooseFactionHandlers(deps) {
         return new Date();
     }
 
+    function stampMs(ms) {
+        if (admin && admin.firestore && admin.firestore.Timestamp && admin.firestore.Timestamp.fromMillis) {
+            return admin.firestore.Timestamp.fromMillis(ms);
+        }
+        return new Date(ms);
+    }
+
     async function chooseFaction(data, context) {
         if (!context || !context.auth || !context.auth.uid) {
             throw new HttpsError('unauthenticated', 'Must be signed in.');
@@ -76,15 +84,17 @@ function createChooseFactionHandlers(deps) {
         const userRef = db.collection('users').doc(uid);
         const ledgerRef = db.collection('faucet_ledger').doc(uid);
         const totalsRef = db.collection('satoshiFavor').doc('factionTotals');
+        const membersRef = db.collection('satoshiFavor').doc('factionMembers');
         const syncRef = db.collection('satoshiFavor').doc('factionSyncs').collection('users').doc(uid);
         const contributorsQuery = db.collection('satoshiFavor').doc('current').collection('contributors').where('uid', '==', uid);
 
-        const outcome = { moved: 0 };
+        const outcome = { moved: 0, underdogJoin: false };
         await db.runTransaction(async function (t) {
             const userSnap = await t.get(userRef);
             const ledgerSnap = await t.get(ledgerRef);
             const syncSnap = await t.get(syncRef);
             const totalsSnap = await t.get(totalsRef);
+            const membersSnap = await t.get(membersRef);
             const contribSnap = await t.get(contributorsQuery);
 
             if (!userSnap.exists) {
@@ -120,12 +130,33 @@ function createChooseFactionHandlers(deps) {
             const prevRaw = Number(totals[faction] || 0);
             const prev = Number.isFinite(prevRaw) && prevRaw > 0 ? prevRaw : 0;
 
-            t.set(userRef, { faction: faction }, { merge: true });
+            // Underdog join bonus is decided here, from the private member
+            // doc in this transaction. Scores break a tie. The choice is
+            // permanent, so the bonus is granted once. A missing private doc
+            // is seeded from factionTotals.members_* and then incremented.
+            const nowMs = typeof options.nowMs === 'function' ? options.nowMs() : Date.now();
+            const privateExists = !!(membersSnap && membersSnap.exists);
+            const privateData = privateExists ? (membersSnap.data() || {}) : null;
+            const counts = balance.memberCounts(privateData, privateExists, totals);
+            const underdogJoin = balance.smallerFrom(privateData, privateExists, totals) === faction;
+            const userWrite = { faction: faction, factionJoinedAt: stampMs(nowMs) };
+            if (underdogJoin) userWrite.factionBonusUntil = stampMs(nowMs + balance.JOIN_BONUS_MS);
+            const mField = balance.memberField(faction);
+            const nextMembers = {
+                members_cyber_hornets: counts.members_cyber_hornets,
+                members_honey_badgers: counts.members_honey_badgers,
+                updatedAt: stamp(),
+            };
+            nextMembers[mField] = counts[mField] + 1;
+
+            t.set(userRef, userWrite, { merge: true });
             t.set(totalsRef, {
                 unaffiliated: pool - moved,
                 [faction]: prev + moved,
                 lastUpdated: stamp(),
             }, { merge: true });
+            t.set(membersRef, nextMembers, { merge: true });
+            outcome.underdogJoin = underdogJoin;
             untagged.forEach(function (ref) {
                 t.update(ref, { faction: faction });
             });
@@ -140,7 +171,7 @@ function createChooseFactionHandlers(deps) {
 
         try { await require('./badgeCredit').grantIds(db, admin, uid, ['faction_chosen']); }
         catch (e) { console.warn('[chooseFaction] badge', e && e.message); }
-        return { success: true, moved: outcome.moved, pointsSynced: outcome.moved };
+        return { success: true, moved: outcome.moved, pointsSynced: outcome.moved, underdogJoin: outcome.underdogJoin };
     }
 
     return { chooseFaction: chooseFaction, rewardsBlocked: rewardsBlocked, docPoints: docPoints };

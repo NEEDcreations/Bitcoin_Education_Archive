@@ -15,7 +15,7 @@ if (process.env.CERT_DRY_RUN !== '1') {
     process.exit(0);
 }
 
-const admin = require('firebase-admin');
+const admin = require('./src/firebaseAdmin.js');
 if (!admin.apps.length) admin.initializeApp();
 const db = admin.firestore();
 

@@ -76,7 +76,7 @@ function grandfatherRecord(adminSdk, id, reason, day) {
 }
 
 function loadAdmin() {
-    try { return require('firebase-admin'); } catch (e) { return require(path.join(__dirname, '..', 'node_modules', 'firebase-admin')); }
+    try { return require('../src/firebaseAdmin.js'); } catch (e) { return require(path.join(__dirname, '..', 'node_modules', 'firebase-admin')); }
 }
 
 async function main() {

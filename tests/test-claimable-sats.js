@@ -97,7 +97,7 @@ test('ranking no longer falls back to a 10000 cap', () => {
 
 test('terms sheet blocks the page and the consent row is a real tap target', () => {
     const html = read('index.html');
-    assert.ok(html.includes('z-index:2100010'));
+    assert.ok(html.includes('#tosModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.82); z-index:5000000;'));
     assert.ok(html.includes('Tick the box to agree first.'));
     assert.ok(html.includes('align-self:stretch'));
     assert.ok(html.includes('min-height:48px'));
@@ -105,7 +105,7 @@ test('terms sheet blocks the page and the consent row is a real tap target', () 
     assert.ok(html.includes('id="tosConsentRow"'));
     assert.ok(html.includes('id="signupConsentRow"'));
     assert.ok(html.includes('id="headerSearchBtn"'));
-    assert.ok(html.includes('max-height:calc(100dvh - 24px)'));
+    assert.ok(html.includes('max-height:min(calc(100vh - 32px), calc(100dvh - 32px))'));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

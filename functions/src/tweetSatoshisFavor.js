@@ -8,9 +8,17 @@
  */
 
 const functions = require('firebase-functions');
+const { runtimeSa } = require('./runtimeServiceAccounts');
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const crypto = require('crypto');
 const fetch = require('node-fetch');
+const {
+    xPostSecrets,
+    xApiKey,
+    xApiSecret,
+    xAccessToken,
+    xAccessSecret,
+} = require('./sensitiveSecrets');
 
 // ── OAuth 1.0a helpers ─────────────────────────────────────────────────────
 
@@ -63,10 +71,10 @@ async function postTweet(text) {
   const url = 'https://api.twitter.com/2/tweets';
   const method = 'POST';
 
-  const consumerKey    = process.env.X_API_KEY;
-  const consumerSecret = process.env.X_API_SECRET;
-  const tokenKey       = process.env.X_ACCESS_TOKEN;
-  const tokenSecret    = process.env.X_ACCESS_SECRET;
+  const consumerKey    = xApiKey();
+  const consumerSecret = xApiSecret();
+  const tokenKey       = xAccessToken();
+  const tokenSecret    = xAccessSecret();
 
   if (!consumerKey || !consumerSecret || !tokenKey || !tokenSecret) {
     throw new Error('Missing X API credentials in environment');
@@ -99,6 +107,8 @@ async function postTweet(text) {
 exports.tweetSatoshisFavor = onDocumentWritten({
   document: 'satoshiFavor/current',
   timeoutSeconds: 540,
+  secrets: xPostSecrets,
+  serviceAccount: runtimeSa('tweetSatoshisFavor'),
 }, async (event) => {
     const change = { before: event.data.before, after: event.data.after }; const context = { params: event.params };
     const before = change.before.exists ? change.before.data() : null;

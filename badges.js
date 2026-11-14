@@ -161,6 +161,8 @@ const BADGE_DEFS = [
     { id: 'lightning_setup', name: 'Lightning Rod', emoji: '⚡', desc: 'Set up a Lightning wallet or added a Lightning address', check: () => localStorage.getItem('btc_lightning_setup') === 'true', pts: 100 },
     { id: 'global_citizen', name: 'Global Citizen', emoji: '🌍', desc: 'Added your country to your profile — representing Bitcoin worldwide', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.country), pts: 100 },
     { id: 'bio_author', name: 'Got Something to Say', emoji: '✍️', desc: 'Added a bio to your profile', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.bio && currentUser.bio.trim().length > 0), pts: 50 },
+    // Was never asked for (no client def), so nobody held it. The server checks the same rule.
+    { id: 'profile_complete', name: 'Filled In', emoji: '🪪', desc: 'Added a username, bio, and country', check: () => typeof currentUser !== 'undefined' && currentUser && typeof currentUser.username === 'string' && currentUser.username.length >= 3 && !!(currentUser.bio && currentUser.bio.trim().length > 0) && typeof currentUser.country === 'string' && currentUser.country.length >= 2, pts: 25 },
     { id: 'lightning_address_set', name: 'Zap Me', emoji: '⚡', desc: 'Added a Lightning Address to your profile', check: () => typeof currentUser !== 'undefined' && currentUser && !!(currentUser.lightningAddress || currentUser.lightning), pts: 75 },
 
     // ---- Profile Explorer Badges (viewing other users' profiles) ----
@@ -220,6 +222,11 @@ const BADGE_DEFS = [
     { id: 'bip_353', name: 'BIP-353 DNS Payments', emoji: '🌐', desc: 'Merged BIP-353: DNS Payment Instructions', check: () => false, pts: 75, hidden: false, serverOnly: true },
     { id: 'bip_324', name: 'BIP-324 P2Pv2', emoji: '🔐', desc: 'Merged BIP-324: encrypted P2P transport', check: () => false, pts: 75, hidden: false, serverOnly: true },
     { id: 'bip_85', name: 'BIP-85 Entropy', emoji: '🌱', desc: 'Merged BIP-85: deterministic entropy from BIP32', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'race_10k_finisher', name: 'Ran the Race', emoji: '🏁', desc: 'Contributed to a faction in a race to 10,000', check: () => false, pts: 50, hidden: false, serverOnly: true },
+    { id: 'race_champion_hornets', name: 'Hive Mind Champion', emoji: '🐝', desc: 'Cyber Hornets won the race to 10,000 and you helped', check: () => false, pts: 150, hidden: false, serverOnly: true },
+    { id: 'race_champion_badgers', name: "Honey Badger Don't Care Champion", emoji: '🦡', desc: 'Honey Badgers won the race to 10,000 and you helped', check: () => false, pts: 150, hidden: false, serverOnly: true },
+    { id: 'race_still_buzzing', name: 'Still Buzzing', emoji: '🐝', desc: 'Cyber Hornets fought to the finish in a race to 10,000. Still buzzing.', check: () => false, pts: 75, hidden: false, serverOnly: true },
+    { id: 'race_badger_dont_quit', name: "Badger Don't Quit", emoji: '🦡', desc: "Honey Badgers fought to the finish in a race to 10,000. Badger don't quit.", check: () => false, pts: 75, hidden: false, serverOnly: true },
     { id: 'bip_86', name: 'BIP-86 P2TR Keys', emoji: '🪙', desc: 'Merged BIP-86: single-key P2TR derivation', check: () => false, pts: 75, hidden: false, serverOnly: true },
 
     { id: 'spin_streak_7', name: 'Spin Streak', emoji: '🎡', desc: 'Spun 7 days in a row', check: () => parseInt(localStorage.getItem('btc_spin_streak') || '0') >= 7, pts: 50 },
@@ -638,6 +645,10 @@ const TITLE_DEFS = [
     { id: 'trifecta_god_t',      title: 'Trifecta God',           emoji: '🌞', requiredBadge: 'set_trifecta_complete', flavor: 'The Trifecta Set complete. Daily discipline personified.' },
     { id: 'irl_set_t',           title: 'IRL Champion',           emoji: '🏟️', requiredBadge: 'set_irl_complete',     flavor: 'The IRL Set complete. Bitcoin isn\'t just on a screen.' },
     { id: 'spin_set_t',          title: 'Wheel of Fortune',       emoji: '🎰', requiredBadge: 'set_spin_complete',     flavor: 'The Spin Set complete. Fortune favored you enough.' },
+    { id: 'hive_mind_champion', title: 'Hive Mind Champion', emoji: '🐝', requiredBadge: 'race_champion_hornets', flavor: 'The swarm reached 10,000 first. Bzzzt.' },
+    { id: 'honey_badger_champion', title: "Honey Badger Don't Care Champion", emoji: '🦡', requiredBadge: 'race_champion_badgers', flavor: "Won the race to 10,000. Honey badger still don't care." },
+    { id: 'still_buzzing', title: 'Still Buzzing', emoji: '🐝', requiredBadge: 'race_still_buzzing', flavor: 'Lost the race. Still buzzing. Rematch.' },
+    { id: 'badger_dont_quit', title: "Badger Don't Quit", emoji: '🦡', requiredBadge: 'race_badger_dont_quit', flavor: "Lost the race. Badger don't quit." },
     { id: 'core_contributor', name: 'Core Contributor', title: 'Core Contributor', emoji: '🔧', requiredBadge: null, desc: 'Merged this week\'s BIP after 7 daily spins', flavor: 'Merged this week\'s BIP after 7 daily spins. Bit Devs energy.' },
     { id: 'pow_set_t',           title: 'Proof of Walker',        emoji: '👟', requiredBadge: 'set_pow_complete',      flavor: 'The Proof of Walk Set complete. Every step counted.' },
 
@@ -710,6 +721,25 @@ const TITLE_DEFS = [
 
 let earnedBadges = new Set();
 let badgeCheckInterval = null;
+// Collection titles and the BIP Core Contributor title are listed after the
+// badge titles. The server (titleFlair callable) decides which ones a player holds.
+(function() {
+    var defs = (typeof window !== 'undefined' && Array.isArray(window.BADGE_COLLECTION_DEFS)) ? window.BADGE_COLLECTION_DEFS : [];
+    defs.forEach(function(col) {
+        if (!col || !col.title || !col.title.id) return;
+        if (TITLE_DEFS.some(function(t) { return t.id === col.title.id; })) return;
+        TITLE_DEFS.push({ id: col.title.id, title: col.title.title, emoji: col.title.emoji, requiredBadge: col.bonusId, flavor: col.title.flavor || '', collectionId: col.id, collectionName: col.name, flair: col.flair || '' });
+    });
+    if (!TITLE_DEFS.some(function(t) { return t.id === 'core_contributor'; })) {
+        TITLE_DEFS.push({ id: 'core_contributor', title: 'Core Contributor', emoji: '🔧', requiredBadge: null, flavor: 'Merged this week\'s BIP after 7 daily spins. Bit Devs energy.' });
+    }
+    if (typeof window !== 'undefined') window.TITLE_DEFS = TITLE_DEFS;
+})();
+
+// Nook Chat Flair options. Collection flair is listed on each collection.
+var CHAT_FLAIR_NOOK = ['🔥', '⚡', '🦌', '🧡', '💎', '👑', '🎯', '⛏️', '🟠'];
+if (typeof window !== 'undefined') window.CHAT_FLAIR_NOOK = CHAT_FLAIR_NOOK;
+
 // Session-scoped toast guard: prevents re-toasting badges whose CF award is rolled back.
 // earnedBadges rolls back on CF rejection so the badge can retry next session,
 // but the toast must NOT fire again every 30s while the local condition stays true.
@@ -915,31 +945,45 @@ function checkBadges() {
     }
 }
 
-// Award titles when max-tier badges are earned
-window._checkAndAwardTitles = function(earnedBadgeIds) {
+// Titles are decided and saved by the server (titleFlair callable). This asks
+// it to refresh the list at most once a minute and toasts any new title.
+window._titleFlairState = window._titleFlairState || { at: 0, busy: false };
+window._titleFlairCall = function(payload) {
+    if (typeof firebase === 'undefined' || !firebase.functions) return Promise.reject(new Error('offline'));
+    return firebase.functions().httpsCallable('titleFlair')(payload || {}).then(function(res) {
+        var d = (res && res.data) || {};
+        if (d.ok && typeof currentUser !== 'undefined' && currentUser) {
+            currentUser.earnedTitles = d.titles || [];
+            currentUser.earnedFlair = d.flair || [];
+            currentUser.activeTitle = d.activeTitle || null;
+            currentUser.chatFlairEmoji = d.chatFlairEmoji || null;
+        }
+        return d;
+    });
+};
+window._checkAndAwardTitles = function(earnedBadgeIds, force) {
     var u = typeof currentUser !== 'undefined' ? currentUser : null;
-    if (!u) return;
-    var currentTitles = u.earnedTitles || [];
-    var newTitles = [];
-    TITLE_DEFS.forEach(function(t) {
-        if (t.requiredBadge && earnedBadgeIds.indexOf(t.requiredBadge) !== -1 && currentTitles.indexOf(t.id) === -1) {
-            newTitles.push(t.id);
-        }
-    });
-    if (newTitles.length === 0) return;
-    // Merge and save to Firestore
-    var merged = currentTitles.concat(newTitles);
-    if (typeof currentUser !== 'undefined' && currentUser) currentUser.earnedTitles = merged;
-    if (typeof db !== 'undefined' && db && typeof auth !== 'undefined' && auth && auth.currentUser) {
-        db.collection('users').doc(auth.currentUser.uid).update({ earnedTitles: merged });
+    if (!u || typeof auth === 'undefined' || !auth || !auth.currentUser) return;
+    var st = window._titleFlairState;
+    var now = Date.now();
+    if (st.busy || (!force && now - st.at < 60000)) return;
+    // Only call when a title-giving badge is held that the profile does not list yet.
+    var before = (u.earnedTitles || []).slice();
+    if (!force) {
+        var ids = earnedBadgeIds || [];
+        var missing = TITLE_DEFS.some(function(t) { return t.requiredBadge && ids.indexOf(t.requiredBadge) !== -1 && before.indexOf(t.id) === -1; });
+        if (!missing) return;
     }
-    // Toast/announce each new title
-    newTitles.forEach(function(tid) {
-        var tDef = TITLE_DEFS.find(function(x) { return x.id === tid; });
-        if (tDef && typeof showToast === 'function' && (typeof window.bqModeAllows !== 'function' || window.bqModeAllows('badges'))) {
-            showToast('🎖️ New Title Unlocked: ' + tDef.emoji + ' ' + tDef.title + '!');
-        }
-    });
+    st.busy = true; st.at = now;
+    window._titleFlairCall({ action: 'list' }).then(function(d) {
+        st.busy = false;
+        (d.titles || []).filter(function(tid) { return before.indexOf(tid) === -1; }).forEach(function(tid) {
+            var tDef = TITLE_DEFS.find(function(x) { return x.id === tid; });
+            if (tDef && typeof showToast === 'function' && (typeof window.bqModeAllows !== 'function' || window.bqModeAllows('badges'))) {
+                showToast('🎖️ New Title Unlocked: ' + tDef.emoji + ' ' + tDef.title + '!');
+            }
+        });
+    }).catch(function() { st.busy = false; });
 };
 
 // Major badges that deserve a share prompt
@@ -1253,12 +1297,12 @@ function getBadgeHTML() {
         '</div>';
 
     // Badge search bar
-    html += '<div style="margin-bottom:14px;">' +
+    html += '<div id="badgeSearchWrap" style="position:relative;margin-bottom:14px;">' +
         '<div style="position:relative;">' +
-        '<input id="badgeSearchInput" type="text" placeholder="🔍 Search badges..." oninput="window._badgeSearch(this.value)" style="width:100%;padding:10px 36px 10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.88rem;font-family:inherit;outline:none;box-sizing:border-box;">' +
-        '<button onclick="document.getElementById(\'badgeSearchInput\').value=\'\';window._badgeSearch(\'\')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:0;line-height:1;">✕</button>' +
+        '<input id="badgeSearchInput" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="badgeSearchResults" placeholder="🔍 Search badges..." oninput="window._badgeSearch(this.value)" style="width:100%;padding:10px 36px 10px 14px;background:var(--input-bg,#111);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;">' +
+        '<button type="button" onclick="document.getElementById(\'badgeSearchInput\').value=\'\';window._badgeSearch(\'\')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:0;line-height:1;">✕</button>' +
         '</div>' +
-        '<div id="badgeSearchResults" style="display:none;margin-top:8px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;overflow:hidden;"></div>' +
+        '<div id="badgeSearchResults" role="listbox" style="display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:40;max-height:240px;overflow-y:auto;background:var(--card-bg,#161616);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.35);"></div>' +
         '</div>';
 
         // Build all category sections into a sortable map, then render in strict alpha order
@@ -1453,61 +1497,69 @@ var BADGE_SETS = [
     { id:'set_raffle', name:'Raffle Regular', emoji:'🎟️', color:'#f7931a', badgeIds:['raffle_entered','raffle_10','raffle_50','raffle_250','raffle_1000','raffle_winner'], bonusId:'set_raffle', bonusPts:500, bonusEmoji:'🎟️', bonusName:'Raffle Regular Set', bonusDesc:'Completed the Raffle Regular collection' }
 ];
 
-// Eleven collections. collectionId is not parsed as a badge id.
-// serverBonusPts is the sum of server-paid XP for the old sets, not the
-// client display pts. Fun and Fitness paid 0, so its bonus stays 0.
-var BADGE_COLLECTION_GROUPS = [
-    { collectionId: 'col_learning', name: 'Learning', emoji: '📚', color: '#3b82f6', setIds: ['set_scholar', 'set_scholar_daily', 'set_explorer', 'set_trails'], serverBonusPts: 300 },
-    { collectionId: 'col_daily_habits', name: 'Daily Habits', emoji: '🎯', color: '#f7931a', setIds: ['set_daily', 'set_daily_five', 'set_trifecta', 'set_streak', 'set_spin'], serverBonusPts: 4150 },
-    { collectionId: 'col_mining', name: 'Mining', emoji: '⛏️', color: '#f7931a', setIds: ['set_miner', 'set_favor'], serverBonusPts: 500 },
-    { collectionId: 'col_foresight', name: 'Foresight and Luck', emoji: '🔮', color: '#a78bfa', setIds: ['set_oracle', 'set_raffle'], serverBonusPts: 1000 },
-    { collectionId: 'col_arena', name: 'Arena', emoji: '⚔️', color: '#ec4899', setIds: ['set_pvp', 'set_gladiator', 'set_codebreaker'], serverBonusPts: 1150 },
-    { collectionId: 'col_community', name: 'Community', emoji: '💬', color: '#8b5cf6', setIds: ['set_social', 'set_voice', 'set_network', 'set_irl'], serverBonusPts: 800 },
-    { collectionId: 'col_lightning', name: 'Lightning and Giving', emoji: '⚡', color: '#eab308', setIds: ['set_lightning', 'set_generous'], serverBonusPts: 150 },
-    { collectionId: 'col_builder', name: 'Builder and Market', emoji: '🏗️', color: '#22c55e', setIds: ['set_builder', 'set_trader'], serverBonusPts: 650 },
-    { collectionId: 'col_entertainment', name: 'Entertainment', emoji: '🎵', color: '#f472b6', setIds: ['set_beats', 'set_tctv', 'set_tv'], serverBonusPts: 150 },
-    { collectionId: 'col_profile', name: 'Profile and Setup', emoji: '👤', color: '#6366f1', setIds: ['set_profile', 'set_newcomer', 'set_sovereign'], serverBonusPts: 300 },
-    { collectionId: 'col_fitness', name: 'Fun and Fitness', emoji: '🚶', color: '#84cc16', setIds: ['set_fun', 'set_pow'], serverBonusPts: 0 }
-];
+// Collections, titles and flair come from functions/src/collection-groups.json
+// through badges.catalog.js (window.BADGE_COLLECTION_DEFS), the same file the
+// server grants from. Members are explicit badge ids. Long grinds and date-locked
+// badges are standalone Legend badges (window.BADGE_LEGEND_IDS).
+// Display order is chosen when sections render: A–Z by name, case-insensitive,
+// with Proof of Everything last. BADGE_COLLECTION_DEFS keeps catalog order.
+var PROOF_COLLECTION_ID = 'col_proof_of_everything';
 
-function _shortCollectionSetName(name) {
-    return String(name || '').replace(/^The /, '').replace(/ Set$/, '');
+function _isProofCollection(col) {
+    if (!col) return false;
+    if (col.id === PROOF_COLLECTION_ID || col.collectionId === PROOF_COLLECTION_ID) return true;
+    return String(col.name || '').replace(/^\s+|\s+$/g, '').toLowerCase() === 'proof of everything';
+}
+
+function _collectionSortName(col) {
+    return String((col && (col.name || col.id)) || '').toLowerCase();
+}
+
+function _sortBadgeCollections(list) {
+    return (list || []).slice().sort(function(a, b) {
+        var ap = _isProofCollection(a);
+        var bp = _isProofCollection(b);
+        if (ap !== bp) return ap ? 1 : -1;
+        var an = _collectionSortName(a);
+        var bn = _collectionSortName(b);
+        if (an < bn) return -1;
+        if (an > bn) return 1;
+        var ai = String((a && (a.id || a.collectionId)) || '');
+        var bi = String((b && (b.id || b.collectionId)) || '');
+        if (ai < bi) return -1;
+        if (ai > bi) return 1;
+        return 0;
+    });
 }
 
 function _buildBadgeCollections() {
-    var byId = {};
-    (BADGE_SETS || []).forEach(function(set) { if (set && set.id) byId[set.id] = set; });
-    return BADGE_COLLECTION_GROUPS.map(function(group) {
-        var badgeIds = [];
-        var seen = {};
-        var bonusPts = Math.max(0, Math.floor(Number(group.serverBonusPts) || 0));
-        var includes = [];
-        (group.setIds || []).forEach(function(setId) {
-            var set = byId[setId];
-            if (!set) return;
-            includes.push(_shortCollectionSetName(set.name));
-            (set.badgeIds || []).forEach(function(badgeId) {
-                if (seen[badgeId]) return;
-                seen[badgeId] = true;
-                badgeIds.push(badgeId);
-            });
-        });
+    var defs = (typeof window !== 'undefined' && Array.isArray(window.BADGE_COLLECTION_DEFS)) ? window.BADGE_COLLECTION_DEFS : [];
+    var cat = (typeof window !== 'undefined' && window.BADGE_CATALOG) ? window.BADGE_CATALOG : {};
+    // A BIP season shows once its badges are in the catalog (BIP Breakthrough release).
+    var built = defs.filter(function(group) {
+        return group.kind !== 'bip' || (group.badgeIds || []).some(function(id) { return !!cat[id]; });
+    }).map(function(group) {
+        var title = group.title || null;
         return {
-            collectionId: group.collectionId,
-            id: group.collectionId,
+            collectionId: group.id,
+            id: group.id,
             name: group.name,
             emoji: group.emoji,
             color: group.color,
-            setIds: (group.setIds || []).slice(),
-            includes: includes,
-            badgeIds: badgeIds,
-            bonusId: group.collectionId + '_bonus',
-            bonusPts: bonusPts,
+            kind: group.kind || 'core',
+            optional: !!group.optional,
+            includes: title ? ['Title: ' + (title.emoji || '') + ' ' + title.title, 'Flair: ' + (group.flair || '')] : [],
+            badgeIds: (group.badgeIds || []).slice(),
+            bonusId: group.bonusId || (group.id + '_bonus'),
+            bonusPts: 0,
             bonusEmoji: group.emoji,
             bonusName: group.name,
-            bonusDesc: 'Completed the ' + group.name + ' collection'
+            bonusDesc: 'Completed the ' + group.name + ' collection',
+            title: title,
+            flair: group.flair || ''
         };
     });
+    return _sortBadgeCollections(built);
 }
 
 var BADGE_COLLECTIONS = _buildBadgeCollections();
@@ -1573,7 +1625,7 @@ window._badgeCollectionProgress = function(earned) {
         held = new Set();
         try { JSON.parse(localStorage.getItem('btc_badges') || '[]').forEach(function(id) { held.add(id); }); } catch (e2) {}
     }
-    return (BADGE_COLLECTIONS || []).map(function(col) {
+    return _sortBadgeCollections(BADGE_COLLECTIONS || []).map(function(col) {
         var lists = _collectionMemberLists(col);
         var count = 0;
         lists.required.forEach(function(id) { if (held.has(id)) count += 1; });
@@ -1595,7 +1647,7 @@ window._badgeCollectionProgress = function(earned) {
 };
 
 function _renderBadgeSets(earnedBadges) {
-    var cols = (BADGE_COLLECTIONS || []).filter(Boolean);
+    var cols = _sortBadgeCollections((BADGE_COLLECTIONS || []).filter(Boolean));
     if (!cols.length) return '';
     var completed = cols.filter(function(col) {
         var lists = _collectionMemberLists(col);
@@ -1647,7 +1699,7 @@ function _renderBadgeSets(earnedBadges) {
         html += '<div class="bc-card" style="border-color:' + (complete ? col.color + '55' : 'var(--border)') + ';' + (complete ? 'box-shadow:0 0 12px ' + col.color + '22;' : '') + '">';
         html += '<div class="bc-head">';
         html += '<span class="bc-emoji">' + col.emoji + '</span>';
-        html += '<div class="bc-copy"><div class="bc-title">' + escapeHtml(col.name) + '</div>';
+        html += '<div class="bc-copy"><div class="bc-title">' + escapeHtml(col.name) + (col.optional ? ' <span class="bc-flag">optional</span>' : '') + (col.kind === 'meta' ? ' <span class="bc-flag">every collection</span>' : '') + '</div>';
         html += '<div class="bc-sub">' + earnedReq.length + '/' + total;
         if (lists.optional.length) html += ' · ' + optionalHeld + '/' + lists.optional.length + ' optional';
         html += ' · ' + escapeHtml((col.includes || []).join(' · ')) + '</div></div>';
@@ -1729,17 +1781,68 @@ window._toggleBadgeDist = function(btn) {
 var _BADGE_DIST_TTL = 6 * 60 * 60 * 1000; // 6 hours
 var _BADGE_DIST_LS_KEY = 'btc_badge_dist_cache';
 
+// Percentages use the Maxi cohort when the stats doc has it. Older snapshots
+// that only have totalUsers keep holders / totalUsers.
+function _badgeDistCohort(totalUsers, cohort) {
+    var qualifiedUsers = null;
+    var qualifiedCounts = null;
+    if (cohort && typeof cohort.qualifiedUsers === 'number' && isFinite(cohort.qualifiedUsers)
+        && cohort.qualifiedCounts && typeof cohort.qualifiedCounts === 'object'
+        && !Array.isArray(cohort.qualifiedCounts)) {
+        qualifiedUsers = cohort.qualifiedUsers;
+        qualifiedCounts = cohort.qualifiedCounts;
+    }
+    var useQualified = qualifiedUsers != null;
+    var denom = useQualified ? qualifiedUsers : (Number(totalUsers) || 0);
+    if (!isFinite(denom) || denom < 0) denom = 0;
+    return {
+        useQualified: useQualified,
+        qualifiedUsers: qualifiedUsers,
+        qualifiedCounts: qualifiedCounts,
+        denom: denom
+    };
+}
+
+function _badgeDistCohortArg(source) {
+    if (!source || typeof source.qualifiedUsers !== 'number' || !isFinite(source.qualifiedUsers)) return null;
+    if (!source.qualifiedCounts || typeof source.qualifiedCounts !== 'object' || Array.isArray(source.qualifiedCounts)) return null;
+    return { qualifiedUsers: source.qualifiedUsers, qualifiedCounts: source.qualifiedCounts };
+}
+
+function _badgeDistPercent(holders, denom) {
+    var n = Number(holders);
+    var d = Number(denom);
+    if (!isFinite(n) || n <= 0) return 0;
+    if (!isFinite(d) || d <= 0) return 0;
+    var pct = (n / d) * 100;
+    if (pct > 100) return 100;
+    return pct;
+}
+
+function _badgeDistFootnote(totalUsers, updatedAt, activeUsers, cohort) {
+    var info = _badgeDistCohort(totalUsers, cohort);
+    var updated = updatedAt ? ' · Updated ' + updatedAt.toLocaleDateString() : '';
+    if (info.useQualified) {
+        var players = (Number(info.qualifiedUsers) || 0).toLocaleString();
+        return 'Percentages are among players with 2,140+ XP · ' + players + ' players' + updated;
+    }
+    var accounts = (Number(totalUsers) || 0).toLocaleString();
+    var active = activeUsers ? ' · ' + Number(activeUsers).toLocaleString() + ' active in 30 days' : '';
+    return accounts + ' real accounts' + active + updated;
+}
+
 window._loadBadgeDist = function() {
     var container = document.getElementById('badgeDistContent');
     if (!container) return;
 
-    // Check localStorage cache first (TTL: 48h)
+    // Check localStorage cache first (TTL: 6h). A cache written before the
+    // qualified cohort existed is missing qualifiedUsers, so it is not used.
     try {
         var cached = JSON.parse(localStorage.getItem(_BADGE_DIST_LS_KEY) || 'null');
-        if (cached && cached.ts && (Date.now() - cached.ts) < _BADGE_DIST_TTL) {
+        if (cached && cached.ts && (Date.now() - cached.ts) < _BADGE_DIST_TTL && Object.prototype.hasOwnProperty.call(cached, 'qualifiedUsers')) {
             var updatedAt = cached.updatedAt ? new Date(cached.updatedAt) : null;
             window._badgeDistActive = cached.activeUsers30d || 0;
-            window._renderBadgeDist(cached.counts, cached.totalUsers, updatedAt, container);
+            window._renderBadgeDist(cached.counts, cached.totalUsers, updatedAt, container, _badgeDistCohortArg(cached));
             return; // served from cache, 0 Firestore reads
         }
     } catch(e) { /* bad cache, fall through */ }
@@ -1756,6 +1859,7 @@ window._loadBadgeDist = function() {
         var data = doc.data();
         var totalUsers = data.totalUsers || 1;
         var counts = data.counts || {};
+        var cohort = _badgeDistCohortArg(data);
         window._badgeDistActive = data.activeUsers30d || 0;
         var _uTs = data.updatedAt;
         var updatedAt = _uTs ? (_uTs._seconds ? new Date(_uTs._seconds * 1000) : (_uTs.toDate ? _uTs.toDate() : new Date(_uTs))) : null;
@@ -1764,12 +1868,14 @@ window._loadBadgeDist = function() {
             localStorage.setItem(_BADGE_DIST_LS_KEY, JSON.stringify({
                 ts: Date.now(),
                 totalUsers: totalUsers,
+                qualifiedUsers: typeof data.qualifiedUsers === 'number' ? data.qualifiedUsers : null,
+                qualifiedCounts: (data.qualifiedCounts && typeof data.qualifiedCounts === 'object' && !Array.isArray(data.qualifiedCounts)) ? data.qualifiedCounts : null,
                 activeUsers30d: window._badgeDistActive || 0,
                 counts: counts,
                 updatedAt: updatedAt ? updatedAt.getTime() : null
             }));
         } catch(e) { /* storage full, skip cache */ }
-        window._renderBadgeDist(counts, totalUsers, updatedAt, container);
+        window._renderBadgeDist(counts, totalUsers, updatedAt, container, cohort);
     }).catch(function() {
         container.innerHTML = '<div style="color:var(--text-faint);font-size:0.8rem;text-align:center;padding:12px;">Could not load distribution.</div>';
     });
@@ -1782,7 +1888,44 @@ window._getBadgeRarity = function(pct) {
     return { label: 'Common', color: '#4ade80', glow: 'none', icon: '●', border: '#16a34a' };
 };
 
-window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
+// Common first: those are the badges most active players share, so they are
+// the useful comparison. Unclaimed (nobody in the cohort) is last.
+function _badgeDistRarityOrder() {
+    return ['Common', 'Rare', 'Epic', 'Legendary', 'Unclaimed'];
+}
+function _badgeDistTierColors() {
+    return { Unclaimed:'#94a3b8', Legendary:'#fbbf24', Epic:'#a78bfa', Rare:'#38bdf8', Common:'#4ade80' };
+}
+function _badgeDistTierIcons() {
+    return { Unclaimed:'○', Legendary:'👑', Epic:'🔮', Rare:'💧', Common:'●' };
+}
+function _badgeDistRarityDesc() {
+    return { Unclaimed:'nobody yet', Legendary:'under 1%', Epic:'1 – 5%', Rare:'5 – 25%', Common:'over 25%' };
+}
+function _badgeDistSortEntries(entries) {
+    return (entries || []).slice().sort(function(a, b) {
+        var ap = Number(a && a.pct) || 0;
+        var bp = Number(b && b.pct) || 0;
+        if (bp !== ap) return bp - ap;
+        return String((a && a.name) || '').localeCompare(String((b && b.name) || ''));
+    });
+}
+function _badgeDistGroupEntries(entries) {
+    var order = _badgeDistRarityOrder();
+    var groups = {};
+    order.forEach(function(r) { groups[r] = []; });
+    (entries || []).forEach(function(e) {
+        var label = e && e.rarity && e.rarity.label;
+        if (!groups[label]) return;
+        groups[label].push(e);
+    });
+    order.forEach(function(r) { groups[r] = _badgeDistSortEntries(groups[r]); });
+    return groups;
+}
+window._badgeDistPageSize = 24;
+
+window._renderBadgeDist = function(counts, totalUsers, updatedAt, container, cohort) {
+    var share = _badgeDistCohort(totalUsers, cohort);
     // Build a lookup from all badge/title/set sources
     var badgeMeta = {};
     if (typeof BADGE_DEFS !== 'undefined') {
@@ -1841,25 +1984,24 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
             if (counts[b.id] == null) counts[b.id] = 0;
         });
     }
-    // Sort all entries by count desc, build rarity groups
+    // Group by the existing rarity tiers. Highest share of the active cohort
+    // comes first inside each tier, so the comparison that matters is on top.
     var entries = Object.entries(counts)
         .map(function(e) {
-            var pct = totalUsers ? (e[1] / totalUsers) * 100 : 0;
+            var holders = share.useQualified ? (Number(share.qualifiedCounts[e[0]]) || 0) : e[1];
+            var pct = _badgeDistPercent(holders, share.denom);
             var meta = getBadgeDisplay(e[0]);
             if (meta.hidden && !(earnedNow && earnedNow.has && earnedNow.has(e[0]))) {
                 meta = { emoji: '🔒', name: 'Secret badge', desc: 'Hidden until you earn it' };
             }
-            var rarity = e[1] === 0
+            var rarity = holders === 0
                 ? { label: 'Unclaimed', color: '#94a3b8', glow: 'none', icon: '○', border: '#475569' }
                 : window._getBadgeRarity(pct);
-            return { id: e[0], count: e[1], pct: pct, rarity: rarity, emoji: meta.emoji, name: meta.name, desc: meta.desc || '' };
-        })
-        .sort(function(a, b) { return a.pct - b.pct; }); // rarest first
+            return { id: e[0], count: holders, pct: pct, rarity: rarity, emoji: meta.emoji, name: meta.name, desc: meta.desc || '' };
+        });
 
-    var rarityOrder = ['Unclaimed','Legendary','Epic','Rare','Common'];
-    var groups = {};
-    rarityOrder.forEach(function(r) { groups[r] = []; });
-    entries.forEach(function(e) { groups[e.rarity.label].push(e); });
+    var rarityOrder = _badgeDistRarityOrder();
+    var groups = _badgeDistGroupEntries(entries);
 
     var userEarned = new Set();
     try { userEarned = new Set(JSON.parse(localStorage.getItem('btc_badges') || '[]')); } catch(e) {}
@@ -1880,10 +2022,20 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
         });
         html += '</div>';
     }
+    window._badgeDistState = { groups: groups, earned: userEarned, filter: 'all', cursors: {} };
+
     // Summary strip
+    html += '<style>' +
+        '.bdr-toggle{width:100%;display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:rgba(0,0,0,0.2);color:inherit;font-family:inherit;cursor:pointer;text-align:left;box-sizing:border-box;}' +
+        '.bdr-label{font-size:0.72rem;font-weight:900;letter-spacing:0.4px;text-transform:uppercase;}' +
+        '.bdr-meta{font-size:0.65rem;color:var(--text-faint);font-weight:500;min-width:0;}' +
+        '.bdr-count{margin-left:auto;font-size:0.68rem;font-weight:800;flex-shrink:0;}' +
+        '.bdr-more{display:block;width:100%;margin:4px 0 8px;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--accent);font-weight:700;font-family:inherit;cursor:pointer;box-sizing:border-box;}' +
+        '</style>';
     html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">';
-    var tierColors = { Unclaimed:'#94a3b8', Legendary:'#fbbf24', Epic:'#a78bfa', Rare:'#38bdf8', Common:'#4ade80' };
-    var tierIcons = { Unclaimed:'○', Legendary:'👑', Epic:'🔮', Rare:'💧', Common:'●' };
+    var tierColors = _badgeDistTierColors();
+    var tierIcons = _badgeDistTierIcons();
+    var rarityDesc = _badgeDistRarityDesc();
     rarityOrder.forEach(function(r) {
         var cnt = groups[r].length;
         if (!cnt) return;
@@ -1894,7 +2046,8 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
         html += '</div>';
     });
     html += '</div>';
-    html += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:12px;">' + totalUsers.toLocaleString() + ' real accounts' + (window._badgeDistActive ? ' · ' + Number(window._badgeDistActive).toLocaleString() + ' active in 30 days' : '') + (updatedAt ? ' · Updated ' + updatedAt.toLocaleDateString() : '') + '</div>';
+    html += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:6px;">' + _badgeDistFootnote(totalUsers, updatedAt, window._badgeDistActive, cohort) + '</div>';
+    html += '<div style="font-size:0.65rem;color:var(--text-faint);margin-bottom:12px;">Most widely held among those players first. Open a tier to load its badges.</div>';
 
     // Filter buttons
     html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">';
@@ -1906,34 +2059,21 @@ window._renderBadgeDist = function(counts, totalUsers, updatedAt, container) {
     });
     html += '</div>';
 
-    // Badge rows by rarity group
+    // Collapsed tiers. Rows are written on expand, one page at a time.
     html += '<div id="bdgRows">';
     rarityOrder.forEach(function(r) {
         if (!groups[r].length) return;
-        html += '<div class="bdr-group" data-rarity="' + r + '" style="margin-bottom:14px;">';
-        html += '<div style="font-size:0.65rem;font-weight:900;color:' + tierColors[r] + ';text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px;display:flex;align-items:center;gap:6px;">';
-        html += tierIcons[r] + ' ' + r;
-        var rarityDesc = { Unclaimed:'nobody yet', Legendary:'under 1%', Epic:'1 – 5%', Rare:'5 – 25%', Common:'over 25%' };
-        html += '<span style="color:var(--text-faint);font-weight:400;normal;text-transform:none;letter-spacing:0;">' + rarityDesc[r] + '</span>';
-        html += '</div>';
-        groups[r].forEach(function(badge) {
-            var isEarned = userEarned.has(badge.id);
-            var barWidth = Math.min(100, (badge.pct / 50) * 100); // scale: 50% = full bar
-            html += '<div class="bdr-row" data-earned="' + (isEarned?'1':'0') + '" style="display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:4px;border-radius:10px;background:' + (isEarned ? 'rgba('+_hexToRgb(badge.rarity.color)+',0.07)' : 'rgba(0,0,0,0.15)') + ';border:1px solid ' + (isEarned ? badge.rarity.border + '55' : 'var(--border)') + ';' + (isEarned && badge.rarity.glow !== 'none' ? 'box-shadow:0 0 8px ' + badge.rarity.glow + ';' : '') + '">';
-            html += '<span style="font-size:1rem;width:24px;text-align:center;flex-shrink:0;' + (isEarned?'':'filter:grayscale(1);opacity:0.4;') + '">' + badge.emoji + '</span>';
-            html += '<div style="flex:1;min-width:0;">';
-            html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">';
-            var safeDesc = badge.desc ? (typeof escapeHtml==='function'?escapeHtml(badge.desc):badge.desc.replace(/"/g,'&quot;')) : '';
-            html += '<span class="bdr-badge-title" data-desc="' + safeDesc + '"' + (safeDesc ? ' onmouseenter="window._showBadgeDistTooltip(event,this)" onmouseleave="window._hideBadgeDistTooltip()" onclick="window._showBadgeDistTooltip(event,this)"' : '') + ' style="font-size:0.78rem;font-weight:' + (isEarned?'700':'500') + ';color:' + (isEarned?'var(--heading)':'var(--text-muted)') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;cursor:' + (safeDesc?'help':'default') + ';border-bottom:' + (safeDesc?'1px dashed var(--text-faint)':'none') + ';">' + (typeof escapeHtml==='function'?escapeHtml(badge.name):badge.name) + '</span>';
-            html += '<span style="font-size:0.68rem;color:' + badge.rarity.color + ';font-weight:700;flex-shrink:0;">' + badge.pct.toFixed(1) + '%</span>';
-            html += '</div>';
-            html += '<div style="height:3px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden;">';
-            html += '<div style="height:100%;width:' + barWidth + '%;background:' + badge.rarity.color + ';border-radius:2px;transition:width 0.4s;"></div>';
-            html += '</div>';
-            html += '</div>';
-            if (isEarned) html += '<span style="font-size:0.7rem;flex-shrink:0;" title="You earned this!">✅</span>';
-            html += '</div>';
-        });
+        var yours = 0;
+        groups[r].forEach(function(badge) { if (userEarned.has(badge.id)) yours++; });
+        html += '<div class="bdr-group" data-rarity="' + r + '" style="margin-bottom:8px;">';
+        html += '<button type="button" class="bdr-toggle" data-rarity="' + r + '" aria-expanded="false" onclick="window._toggleBadgeDistGroup(this)">';
+        html += '<span aria-hidden="true">' + tierIcons[r] + '</span>';
+        html += '<span class="bdr-label" style="color:' + tierColors[r] + ';">' + r + '</span>';
+        html += '<span class="bdr-meta">' + rarityDesc[r] + '</span>';
+        html += '<span class="bdr-count" style="color:' + tierColors[r] + ';">' + groups[r].length + (yours ? ' · ' + yours + ' yours' : '') + '</span>';
+        html += '<span class="bdr-arrow" style="color:var(--text-faint);font-size:0.7rem;">▶</span>';
+        html += '</button>';
+        html += '<div id="bdr-body-' + r + '" class="bdr-body" data-rarity="' + r + '" data-open="0" data-loaded="0" style="display:none;"></div>';
         html += '</div>';
     });
     html += '</div>'; // bdgRows
@@ -1947,34 +2087,132 @@ function _hexToRgb(hex) {
     return r + ',' + g + ',' + b;
 }
 
+function _badgeDistRowHtml(badge, isEarned) {
+    var barWidth = Math.min(100, (badge.pct / 50) * 100);
+    var html = '<div class="bdr-row" data-earned="' + (isEarned ? '1' : '0') + '" style="display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:4px;border-radius:10px;background:' + (isEarned ? 'rgba(' + _hexToRgb(badge.rarity.color) + ',0.07)' : 'rgba(0,0,0,0.15)') + ';border:1px solid ' + (isEarned ? badge.rarity.border + '55' : 'var(--border)') + ';' + (isEarned && badge.rarity.glow !== 'none' ? 'box-shadow:0 0 8px ' + badge.rarity.glow + ';' : '') + '">';
+    html += '<span style="font-size:1rem;width:24px;text-align:center;flex-shrink:0;' + (isEarned ? '' : 'filter:grayscale(1);opacity:0.4;') + '">' + badge.emoji + '</span>';
+    html += '<div style="flex:1;min-width:0;">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">';
+    var safeDesc = badge.desc ? (typeof escapeHtml === 'function' ? escapeHtml(badge.desc) : badge.desc.replace(/"/g, '&quot;')) : '';
+    html += '<span class="bdr-badge-title" data-desc="' + safeDesc + '"' + (safeDesc ? ' onmouseenter="window._showBadgeDistTooltip(event,this)" onmouseleave="window._hideBadgeDistTooltip()" onclick="window._showBadgeDistTooltip(event,this)"' : '') + ' style="font-size:0.78rem;font-weight:' + (isEarned ? '700' : '500') + ';color:' + (isEarned ? 'var(--heading)' : 'var(--text-muted)') + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px;cursor:' + (safeDesc ? 'help' : 'default') + ';border-bottom:' + (safeDesc ? '1px dashed var(--text-faint)' : 'none') + ';">' + (typeof escapeHtml === 'function' ? escapeHtml(badge.name) : badge.name) + '</span>';
+    html += '<span style="font-size:0.68rem;color:' + badge.rarity.color + ';font-weight:700;flex-shrink:0;">' + badge.pct.toFixed(1) + '%</span>';
+    html += '</div>';
+    html += '<div style="height:3px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden;">';
+    html += '<div style="height:100%;width:' + barWidth + '%;background:' + badge.rarity.color + ';border-radius:2px;transition:width 0.4s;"></div>';
+    html += '</div></div>';
+    if (isEarned) html += '<span style="font-size:0.7rem;flex-shrink:0;" title="You earned this!">✅</span>';
+    html += '</div>';
+    return html;
+}
+
+function _badgeDistMoreLeft(list, cursor, earned, filter) {
+    if (filter === 'mine') {
+        for (var i = cursor; i < list.length; i++) {
+            if (earned.has(list[i].id)) return true;
+        }
+        return false;
+    }
+    return cursor < list.length;
+}
+
+window._badgeDistFill = function(rarity) {
+    var state = window._badgeDistState;
+    var body = document.getElementById('bdr-body-' + rarity);
+    if (!state || !body) return;
+    var list = state.groups[rarity] || [];
+    var cursor = state.cursors[rarity] || 0;
+    var filter = state.filter || 'all';
+    var page = window._badgeDistPageSize || 24;
+    var html = '';
+    var added = 0;
+    while (cursor < list.length && added < page) {
+        var badge = list[cursor++];
+        var earned = state.earned.has(badge.id);
+        if (filter === 'mine' && !earned) continue;
+        html += _badgeDistRowHtml(badge, earned);
+        added++;
+    }
+    state.cursors[rarity] = cursor;
+    var oldMore = body.querySelector('.bdr-more');
+    if (oldMore) oldMore.remove();
+    if (html) {
+        var wrap = document.createElement('div');
+        wrap.innerHTML = html;
+        while (wrap.firstChild) body.appendChild(wrap.firstChild);
+    }
+    var moreLeft = _badgeDistMoreLeft(list, cursor, state.earned, filter);
+    if (moreLeft) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'bdr-more';
+        btn.textContent = 'Load more';
+        btn.addEventListener('click', function() { window._badgeDistFill(rarity); });
+        body.appendChild(btn);
+    } else if (!body.querySelector('.bdr-row')) {
+        var empty = document.createElement('div');
+        empty.style.cssText = 'font-size:0.75rem;color:var(--text-faint);padding:6px 10px 10px;';
+        empty.textContent = filter === 'mine' ? 'None of yours in this tier.' : 'No badges in this tier.';
+        body.appendChild(empty);
+    }
+    body.setAttribute('data-loaded', '1');
+};
+
+window._toggleBadgeDistGroup = function(rarityOrEl) {
+    var rarity = typeof rarityOrEl === 'string' ? rarityOrEl : (rarityOrEl && rarityOrEl.getAttribute ? rarityOrEl.getAttribute('data-rarity') : '');
+    var body = document.getElementById('bdr-body-' + rarity);
+    if (!body) return;
+    var group = body.parentNode;
+    var arrow = group ? group.querySelector('.bdr-arrow') : null;
+    var btn = group ? group.querySelector('.bdr-toggle') : null;
+    var open = body.getAttribute('data-open') === '1';
+    if (open) {
+        body.setAttribute('data-open', '0');
+        body.style.display = 'none';
+        if (arrow) arrow.textContent = '▶';
+        if (btn) btn.setAttribute('aria-expanded', 'false');
+        return;
+    }
+    body.style.display = '';
+    body.setAttribute('data-open', '1');
+    if (arrow) arrow.textContent = '▼';
+    if (btn) btn.setAttribute('aria-expanded', 'true');
+    if (body.getAttribute('data-loaded') !== '1') window._badgeDistFill(rarity);
+};
+
 window._filterBadgeDist = function(filter) {
-    // Update active button
-    ['all','mine','Unclaimed','Legendary','Epic','Rare','Common'].forEach(function(f) {
+    var state = window._badgeDistState;
+    if (!state) return;
+    state.filter = filter;
+    var tierColors = _badgeDistTierColors();
+    ['all', 'mine'].concat(_badgeDistRarityOrder()).forEach(function(f) {
         var btn = document.getElementById('bdf-' + f);
         if (!btn) return;
         var isActive = f === filter;
         btn.style.background = isActive ? 'var(--accent)' : 'none';
-        btn.style.color = isActive ? '#000' : (f === 'all' || f === 'mine' ? 'var(--text-muted)' : btn.style.color);
-        btn.style.borderColor = isActive ? 'var(--accent)' : (f === 'all' || f === 'mine' ? 'var(--border)' : btn.style.borderColor);
+        btn.style.color = isActive ? '#000' : (f === 'all' || f === 'mine' ? 'var(--text-muted)' : tierColors[f]);
+        btn.style.borderColor = isActive ? 'var(--accent)' : (f === 'all' || f === 'mine' ? 'var(--border)' : tierColors[f] + '66');
     });
-    var userEarned = new Set();
-    try { userEarned = new Set(JSON.parse(localStorage.getItem('btc_badges') || '[]')); } catch(e) {}
-    if (typeof window.getEarnedBadges === 'function') userEarned = window.getEarnedBadges();
-
     document.querySelectorAll('.bdr-group').forEach(function(g) {
         var rarity = g.getAttribute('data-rarity');
-        if (filter === 'all') { g.style.display = ''; return; }
-        if (filter === 'mine') { g.style.display = ''; } else {
-            g.style.display = (filter === rarity) ? '' : 'none';
-        }
+        var list = state.groups[rarity] || [];
+        var yours = 0;
+        list.forEach(function(badge) { if (state.earned.has(badge.id)) yours++; });
+        var show = filter === 'all' || filter === rarity || (filter === 'mine' && yours > 0);
+        g.style.display = show ? '' : 'none';
     });
-    document.querySelectorAll('.bdr-row').forEach(function(row) {
-        if (filter === 'mine') {
-            row.style.display = row.getAttribute('data-earned') === '1' ? '' : 'none';
-        } else {
-            row.style.display = '';
-        }
+    state.cursors = {};
+    document.querySelectorAll('.bdr-body').forEach(function(body) {
+        body.innerHTML = '';
+        body.setAttribute('data-loaded', '0');
+        body.setAttribute('data-open', '0');
+        body.style.display = 'none';
+        var group = body.parentNode;
+        var arrow = group ? group.querySelector('.bdr-arrow') : null;
+        var btn = group ? group.querySelector('.bdr-toggle') : null;
+        if (arrow) arrow.textContent = '▶';
+        if (btn) btn.setAttribute('aria-expanded', 'false');
     });
+    if (filter !== 'all' && filter !== 'mine') window._toggleBadgeDistGroup(filter);
 };
 
 // Badge Distribution tooltip — inline onmouseenter/onmouseleave/onclick handlers

@@ -465,6 +465,27 @@
         } catch (e) {}
     }
 
+    function signingFlag(storage) {
+        try { return storageOf(storage).getItem('btc_last_signed_in') === '1'; }
+        catch (e) { return false; }
+    }
+
+    function showSigningShell() {
+        var doc = root.document;
+        if (!doc || !doc.documentElement) return;
+        doc.documentElement.classList.add('btc-signing-in');
+        var shell = doc.getElementById('btcSigningShell');
+        if (shell) shell.hidden = false;
+    }
+
+    function hideSigningShell() {
+        var doc = root.document;
+        if (!doc || !doc.documentElement) return;
+        doc.documentElement.classList.remove('btc-signing-in');
+        var shell = doc.getElementById('btcSigningShell');
+        if (shell) shell.hidden = true;
+    }
+
     function paint(snap) {
         if (!root.document) return;
         var doc = root.document;
@@ -483,8 +504,11 @@
                 btn.textContent = 'Create Free Account / Sign In';
                 btn.removeAttribute('data-auth-display');
             }
+            if (signingFlag() && typeof root._btcEarlyAuthUser === 'undefined') showSigningShell();
+            else hideSigningShell();
             return;
         }
+        hideSigningShell();
         if (rootEl) {
             rootEl.classList.add('home-signed-in');
             rootEl.setAttribute('data-auth-display', '1');
@@ -690,6 +714,9 @@
         safeAvatar: safeAvatar,
         showsLevelChip: showsLevelChip,
         paint: paint,
+        showSigningShell: showSigningShell,
+        hideSigningShell: hideSigningShell,
+        signingFlag: signingFlag,
         paintCachedProfile: paintCachedProfile,
         clearProfilePaint: clearProfilePaint,
         forceClearProfile: forceClearProfile,

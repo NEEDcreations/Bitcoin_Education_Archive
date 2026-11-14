@@ -1,0 +1,204 @@
+#!/usr/bin/env node
+'use strict';
+
+// Prints the per-function runtime service account plan: one account per
+// secret-bound function, the exact IAM grants it needs, and the named deploy
+// batches. PRINTS ONLY. It never calls gcloud, never changes IAM, never
+// deploys, and never reads a secret value.
+//
+//   node scripts/runtime-sa-plan.js            # markdown table + batches
+//   node scripts/runtime-sa-plan.js --json     # machine-readable plan
+//   node scripts/runtime-sa-plan.js --gcloud 3 # gcloud commands for batch 3
+//
+// Run IAM commands only with Phil's OK, one batch at a time, and only before
+// deploying that same batch by name (never deploy-all).
+const path = require('path');
+const { RUNTIME_SERVICE_ACCOUNTS, EXTRA_ROLES } = require('../src/runtimeServiceAccounts');
+
+const LIVE_PROJECT = 'bitcoin-education-archive';
+
+function projectIdFrom(argv, env) {
+    argv = argv || process.argv.slice(2);
+    env = env || process.env;
+    for (let i = 0; i < argv.length; i++) {
+        const a = argv[i];
+        if (a === '--project' && argv[i + 1] && argv[i + 1].charAt(0) !== '-') return argv[i + 1];
+        if (a.indexOf('--project=') === 0) return a.slice(10);
+    }
+    return env.GCLOUD_PROJECT || LIVE_PROJECT;
+}
+
+// A leftover staging BQ_BACKUP_BUCKET must never be used to plan IAM or
+// export paths for live. Staging may set it; live uses <project>-backups.
+function assertLiveBackupBucketUnset(project, bucket) {
+    if (bucket === undefined) bucket = process.env.BQ_BACKUP_BUCKET;
+    if (project === LIVE_PROJECT && bucket) {
+        throw new Error(
+            'BQ_BACKUP_BUCKET is set while planning for ' + LIVE_PROJECT
+            + '. Unset it (`unset BQ_BACKUP_BUCKET`) so live IAM and exports use '
+            + LIVE_PROJECT + '-backups.'
+        );
+    }
+}
+
+const PROJECT = projectIdFrom();
+assertLiveBackupBucketUnset(PROJECT);
+const REGION = 'us-central1';
+const DEFAULT_BUCKET = process.env.BQ_DEFAULT_BUCKET || 'bitcoin-education-archive.firebasestorage.app';
+const BACKUP_BUCKET = process.env.BQ_BACKUP_BUCKET || (PROJECT + '-backups');
+const SNAPSHOT_BUCKET = process.env.BQ_KILLSWITCH_EXPORT_BUCKET || 'bitcoin-education-archive-killswitch-exports';
+// Set BQ_DEPLOYER_SA to the deploy identity's email when printing commands.
+const DEPLOYER = process.env.BQ_DEPLOYER_SA || '<deployer-sa-email>';
+const NEVER_DEPLOY = ['adminApproveFactionPayout'];
+
+// Lowest risk first. Wallet-paying functions go last.
+const BATCHES = [
+    { name: 'canary: admin read-only HTTP (gen1)', fns: ['dailyActiveUsers', 'adminLookupUser', 'adminQueryUsers', 'watchlistCheck', 'auditWithdrawals'] },
+    { name: 'admin tools + Telegram webhook (gen1)', fns: ['adminBanUser', 'adminUnbanUser', 'investigateUsers', 'backfillJoinDates', 'refreshBadgeDistributionHttp', 'setTelegramWebhook', 'handleTelegramWebhook'] },
+    { name: 'Telegram mirrors (gen2 Firestore triggers + schedule)', fns: ['onGlobalChatTelegram', 'onGlobalChatTelegramUpdated', 'onGlobalChatTelegramDeleted', 'onAnnouncementsTelegram', 'onAnnouncementsTelegramUpdated', 'onAnnouncementsTelegramDeleted', 'onForumShoutoutUpdated', 'onForumShoutoutDeleted', 'onMarketplaceShoutoutUpdated', 'onMarketplaceShoutoutDeleted', 'flushTelegramMirror'] },
+    { name: 'admin kill switch (gen1 callable + auto-return tick)', fns: ['adminSetKillSwitch', 'killSwitchAutoReturnTick'] },
+    { name: 'gen2 schedules + referral/X triggers', fns: ['scheduleRaidBoss', 'scheduleRaidBossCatchup', 'refreshHotTopics', 'tweetSatoshisFavor', 'onUserReferral', 'payQualifiedReferrals'] },
+    { name: 'gen1 hot topics, Strava, referral callables', fns: ['refreshHotTopicsHttp', 'refreshHotTopicsForce', 'stravaAuth', 'syncStravaWalks', 'verifyReferral', 'registerReferral'] },
+    { name: 'account security: TOTP, username, email change, delete', fns: ['totpSetup', 'totpVerify', 'totpCheck', 'totpDisable', 'totpStepUp', 'regenerateRecoveryCodes', 'recordKnownPhoneFactor', 'adminResetSecondFactor', 'setUsername', 'prepareEmailChange', 'syncEmailChange', 'confirmAccountLink', 'deleteAccount'] },
+    { name: 'wallet / NWC (last)', fns: ['getFaucetStats', 'confirmTipSent', 'adminResolveCipherSatsClaim', 'resetLightningAddressOnce', 'claimSats', 'claimCipherSats', 'claimCipherWin', 'claimFavorBlock', 'tctvDripTick'] },
+];
+
+function loadEndpoints() {
+    process.env.GCLOUD_PROJECT = PROJECT;
+    if (!process.env.FIREBASE_CONFIG) {
+        process.env.FIREBASE_CONFIG = JSON.stringify({ projectId: PROJECT, storageBucket: DEFAULT_BUCKET });
+    }
+    const ex = require(path.join(__dirname, '..', 'index.js'));
+    const out = {};
+    Object.keys(ex).forEach(function (name) {
+        const ep = ex[name] && ex[name].__endpoint;
+        if (!ep) return;
+        let trigger = 'other';
+        if (ep.httpsTrigger) trigger = 'https';
+        else if (ep.callableTrigger) trigger = 'callable';
+        else if (ep.scheduleTrigger) trigger = 'schedule';
+        else if (ep.eventTrigger) trigger = 'event';
+        out[name] = {
+            gen: ep.platform === 'gcfv2' ? 2 : 1,
+            trigger: trigger,
+            secrets: (ep.secretEnvironmentVariables || []).map(function (s) { return s.key; }).sort(),
+            serviceAccount: typeof ep.serviceAccountEmail === 'string' ? ep.serviceAccountEmail : null,
+        };
+    });
+    return out;
+}
+
+function buildPlan(endpoints) {
+    const fns = {};
+    Object.keys(RUNTIME_SERVICE_ACCOUNTS).sort().forEach(function (name) {
+        const entry = RUNTIME_SERVICE_ACCOUNTS[name];
+        const ep = endpoints[name];
+        if (!ep) throw new Error('manifest function is not exported: ' + name);
+        const email = entry.id + '@' + PROJECT + '.iam.gserviceaccount.com';
+        const projectRoles = ['roles/datastore.user'];
+        entry.extra.forEach(function (x) { if (x !== 'storage' && x !== 'backups') projectRoles.push(EXTRA_ROLES[x]); });
+        if (ep.gen === 2 && ep.trigger === 'event') projectRoles.push('roles/eventarc.eventReceiver');
+        fns[name] = {
+            id: entry.id,
+            email: email,
+            gen: ep.gen,
+            trigger: ep.trigger,
+            secrets: ep.secrets,
+            projectRoles: projectRoles,
+            bucketRoles: [].concat(
+                entry.extra.indexOf('storage') !== -1 ? [{ bucket: DEFAULT_BUCKET, role: EXTRA_ROLES.storage }] : [],
+                entry.extra.indexOf('backups') !== -1 ? [
+                    { bucket: SNAPSHOT_BUCKET, role: 'roles/storage.objectCreator' },
+                    { bucket: SNAPSHOT_BUCKET, role: 'roles/storage.objectViewer' },
+                    { bucket: BACKUP_BUCKET, role: 'roles/storage.objectViewer' },
+                ] : []),
+            // Gen2 event + schedule triggers now authenticate as this account.
+            selfInvoker: ep.gen === 2 && (ep.trigger === 'event' || ep.trigger === 'schedule'),
+        };
+    });
+    return { project: PROJECT, region: REGION, deployer: DEPLOYER, neverDeploy: NEVER_DEPLOY, functions: fns, batches: BATCHES };
+}
+
+function gcloudFor(plan, batchIndex) {
+    const b = plan.batches[batchIndex];
+    const P = plan.project;
+    const lines = ['# Batch ' + (batchIndex + 1) + ': ' + b.name + ' (' + b.fns.length + ' functions)', 'set -euo pipefail', 'P=' + P];
+    const needsExportRole = b.fns.some(function (name) {
+        const f = plan.functions[name];
+        return f.projectRoles.some(function (r) { return /roles\/killSwitchExport$/.test(r); });
+    });
+    if (needsExportRole) {
+        lines.push('', '# Custom role: export + operations.get only (cannot import over live data).');
+        lines.push('gcloud iam roles describe killSwitchExport --project "$P" >/dev/null 2>&1 || gcloud iam roles create killSwitchExport --project "$P" --title "Kill switch Firestore export" --description "Start a managed Firestore export and poll the operation. Cannot import." --permissions datastore.databases.export,datastore.operations.get');
+        lines.push('gcloud iam roles update killSwitchExport --project "$P" --permissions datastore.databases.export,datastore.operations.get');
+        lines.push('');
+        lines.push('# Snapshots go to a separate private bucket (' + SNAPSHOT_BUCKET + ').');
+        lines.push('# Do not change the live backups bucket lifecycle or versioning.');
+        lines.push('# The kill-switch SA gets objectViewer only on gs://' + BACKUP_BUCKET);
+        lines.push('# and objectCreator + objectViewer on gs://' + SNAPSHOT_BUCKET + '.');
+    }
+    const seenCmd = {};
+    function pushOnce(line) {
+        if (seenCmd[line]) return;
+        seenCmd[line] = true;
+        lines.push(line);
+    }
+    b.fns.forEach(function (name) {
+        const f = plan.functions[name];
+        const m = 'serviceAccount:' + f.email;
+        lines.push('', '# ' + name + ' (gen' + f.gen + ' ' + f.trigger + ')');
+        pushOnce('gcloud iam service-accounts create ' + f.id + ' --project "$P" --display-name "BQ runtime ' + name + '" --description "Runtime SA for Cloud Function ' + name + ' only"');
+        pushOnce('gcloud iam service-accounts add-iam-policy-binding ' + f.email + ' --project "$P" --member serviceAccount:' + plan.deployer + ' --role roles/iam.serviceAccountUser --condition=None');
+        f.projectRoles.forEach(function (r) {
+            pushOnce('gcloud projects add-iam-policy-binding "$P" --member ' + m + ' --role ' + r + ' --condition=None');
+        });
+        f.bucketRoles.forEach(function (br) {
+            let cmd = 'gcloud storage buckets add-iam-policy-binding gs://' + br.bucket + ' --member ' + m + ' --role ' + br.role;
+            if (br.condition) {
+                cmd += ' --condition="expression=' + br.condition.expression + ',title=' + br.condition.title + ',description=' + br.condition.description + '"';
+            }
+            pushOnce(cmd);
+        });
+        f.secrets.forEach(function (s) {
+            pushOnce('gcloud secrets add-iam-policy-binding ' + s + ' --project "$P" --member ' + m + ' --role roles/secretmanager.secretAccessor --condition=None');
+        });
+        if (f.selfInvoker) {
+            lines.push('gcloud run services add-iam-policy-binding ' + name.toLowerCase() + ' --project "$P" --region ' + plan.region + ' --member ' + m + ' --role roles/run.invoker');
+        }
+    });
+    lines.push('', '# Then deploy THIS batch by name only (never deploy-all):');
+    lines.push('firebase deploy --project "$P" --non-interactive --force --only ' + b.fns.map(function (n) { return 'functions:' + n; }).join(','));
+    return lines.join('\n');
+}
+
+function markdown(plan) {
+    const out = ['| # | function | gen | trigger | service account | secrets | roles |', '|---|---|---|---|---|---|---|'];
+    plan.batches.forEach(function (b, i) {
+        b.fns.forEach(function (name) {
+            const f = plan.functions[name];
+            const roles = f.projectRoles.map(function (r) { return r.replace('roles/', ''); })
+                .concat(f.bucketRoles.map(function (br) { return br.role.replace('roles/', '') + '@bucket'; }))
+                .concat(f.selfInvoker ? ['run.invoker@own-service'] : []);
+            out.push('| ' + (i + 1) + ' | ' + name + ' | ' + f.gen + ' | ' + f.trigger + ' | ' + f.id + ' | ' + f.secrets.join(', ') + ' | ' + roles.join(', ') + ' |');
+        });
+    });
+    out.push('');
+    plan.batches.forEach(function (b, i) {
+        out.push('Batch ' + (i + 1) + ' (' + b.name + ', ' + b.fns.length + '): `firebase deploy --only ' + b.fns.map(function (n) { return 'functions:' + n; }).join(',') + '`');
+    });
+    return out.join('\n');
+}
+
+module.exports = { BATCHES: BATCHES, NEVER_DEPLOY: NEVER_DEPLOY, LIVE_PROJECT: LIVE_PROJECT, projectIdFrom: projectIdFrom, assertLiveBackupBucketUnset: assertLiveBackupBucketUnset, loadEndpoints: loadEndpoints, buildPlan: buildPlan, gcloudFor: gcloudFor, markdown: markdown };
+
+if (require.main === module) {
+    const plan = buildPlan(loadEndpoints());
+    const argv = process.argv.slice(2);
+    const g = argv.indexOf('--gcloud');
+    if (argv.indexOf('--json') !== -1) console.log(JSON.stringify(plan, null, 2));
+    else if (g !== -1) {
+        const n = parseInt(argv[g + 1], 10);
+        if (!(n >= 1 && n <= plan.batches.length)) { console.error('batch 1..' + plan.batches.length); process.exit(1); }
+        console.log(gcloudFor(plan, n - 1));
+    } else console.log(markdown(plan));
+}

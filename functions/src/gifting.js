@@ -1,4 +1,5 @@
 'use strict';
+const { runtimeSa } = require('./runtimeServiceAccounts');
 
 // Gifts, keys, and locked ciphers.
 // The client is hostile: rewards, limits, and RNG live here.
@@ -7,7 +8,7 @@
 const functionsV1 = require('firebase-functions/v1');
 const { defineSecret } = require('firebase-functions/params');
 const deletionHmacSecret = defineSecret('DELETION_HMAC_SECRET');
-const admin = require('firebase-admin');
+const admin = require('./firebaseAdmin.js');
 const crypto = require('crypto');
 const dns = require('dns').promises;
 const bolt11 = require('bolt11');
@@ -30,7 +31,7 @@ const {
     UNAVAILABLE,
 } = require('./cipherSatsClaim');
 const { planCipherShare, senderFromKey, clonePrize } = require('./cipherShare');
-const { rollGiftReward: rollGiftRewardImpl, rollGiftCount } = require('./giftRoll');
+const { rollGiftReward: rollGiftRewardImpl, rollGiftCount, unmatchedLabels } = require('./giftRoll');
 const { applyDailyXp } = require('./applyDailyXp');
 const rewardNotify = require('./rewardNotify');
 const { planXpGrant } = require('./grantXp');
@@ -60,7 +61,8 @@ const CIPHER_OPENS_PER_DAY = 21;
 const KEYS_PER_SEND = 3;
 const WALLET_FLOOR_SATS = 5000; // matches FAUCET.WALLET_BALANCE_FLOOR_SATS
 const KEY_SEND_XP = 25;
-const NWC_URL = process.env.NWC_URL || '';
+// Payout wallet comes from the NWC_URL secret (bound below), read per call.
+const { nwcUrlSecret, nwcUrl } = require('./nwcSecret');
 
 const GIFT_CLOSET_ITEMS = [
     { id: 'orange_scarf',    name: 'Bitcoin Scarf',    emoji: '🧣' },
@@ -113,8 +115,31 @@ function withTimeout(promise, ms, label) {
     ]);
 }
 
-function rollGiftReward() {
-    return rollGiftRewardImpl({ labels: CIPHER_LABELS, closet: GIFT_CLOSET_ITEMS });
+function rollGiftReward(bias) {
+    const opts = { labels: CIPHER_LABELS, closet: GIFT_CLOSET_ITEMS };
+    if (bias) {
+        if (Array.isArray(bias.preferredKeyLabels)) opts.preferredKeyLabels = bias.preferredKeyLabels;
+        if (Array.isArray(bias.preferredCipherLabels)) opts.preferredCipherLabels = bias.preferredCipherLabels;
+    }
+    return rollGiftRewardImpl(opts);
+}
+
+function labelsFromSnap(snap) {
+    const out = [];
+    if (!snap || !snap.docs) return out;
+    snap.docs.forEach(function(doc) {
+        const label = doc.data() && doc.data().label;
+        if (label) out.push(label);
+    });
+    return out;
+}
+
+function biasFromHoldings(keyLabels, cipherLabels) {
+    const u = unmatchedLabels(keyLabels, cipherLabels);
+    return {
+        preferredKeyLabels: u.forKeys,
+        preferredCipherLabels: u.forCiphers,
+    };
 }
 
 function publicReward(reward) {
@@ -243,11 +268,27 @@ const awardDailyGifts = functionsV1.https.onCall(async (data, context) => {
         if (!userDoc.exists) throw httpsError('not-found', 'User not found');
         if (userDoc.data().lastGiftSpinDate === today) return { alreadyAwarded: true };
 
+        // All reads before writes. Bias new key/cipher labels toward the
+        // player's unmatched inventory so gifts are more often usable.
+        const keysInvSnap = await t.get(
+            db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'inventory').limit(100)
+        );
+        const keysPeerSnap = await t.get(
+            db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'sent').limit(100)
+        );
+        const ciphersSnap = await t.get(
+            db.collection('locked_ciphers').where('ownerId', '==', uid).where('status', '==', 'inventory').limit(200)
+        );
+        const bias = biasFromHoldings(
+            labelsFromSnap(keysInvSnap).concat(labelsFromSnap(keysPeerSnap)),
+            labelsFromSnap(ciphersSnap)
+        );
+
         const giftsToAdd = rollGiftCount();
         const gifts = [];
 
         for (let i = 0; i < giftsToAdd; i++) {
-            const reward = rollGiftReward();
+            const reward = rollGiftReward(bias);
             const giftRef = db.collection('gifts').doc();
             const secretRef = db.collection('gift_secrets').doc(giftRef.id);
             t.set(giftRef, {
@@ -332,7 +373,19 @@ const openGift = functionsV1.https.onCall(async (data, context) => {
         else if (gift.rewardData && gift.rewardData.rewardType) reward = gift.rewardData;
         else {
             console.warn('[openGift] missing secret, rolling fresh reward for ' + giftId);
-            reward = rollGiftReward();
+            const keysInvSnap = await t.get(
+                db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'inventory').limit(100)
+            );
+            const keysPeerSnap = await t.get(
+                db.collection('keys').where('ownerId', '==', uid).where('status', '==', 'sent').limit(100)
+            );
+            const ciphersSnap = await t.get(
+                db.collection('locked_ciphers').where('ownerId', '==', uid).where('status', '==', 'inventory').limit(200)
+            );
+            reward = rollGiftReward(biasFromHoldings(
+                labelsFromSnap(keysInvSnap).concat(labelsFromSnap(keysPeerSnap)),
+                labelsFromSnap(ciphersSnap)
+            ));
         }
 
         const userUpdate = {};
@@ -1122,13 +1175,13 @@ async function _resolvePrizeInvoice(invoice, lightningAddress, amount) {
     return bolt;
 }
 
-const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [deletionHmacSecret] }).https.onCall(async (data, context) => {
+const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [deletionHmacSecret, nwcUrlSecret], serviceAccount: runtimeSa('claimCipherWin') }).https.onCall(async (data, context) => {
     const secondFactor = require('./secondFactor');
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
     const winId = (data.winId || '').toString().trim();
     if (!winId || winId.length > 128) throw httpsError('invalid-argument', 'Invalid win');
-    // NWC / wallet check runs AFTER Favor gates + claimable→paying (see below).
+    if (!nwcUrl()) throw httpsError('failed-precondition', 'Prize wallet is not configured yet. Phil can pay this from the admin list.');
     const accountTombstone = require('./accountTombstone');
     const emailChange = require('./emailChange');
     if (!accountTombstone.secretReady()) {
@@ -1140,8 +1193,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
     let amount = 0;
     let username = 'a Bitcoiner';
-    let sfClaimLimits = null;
-    let sfReserveDay = '';
+    let isFactionPrize = false;
 
     // Auth lookup stays outside the transaction (retries would repeat it).
     // The decision itself runs inside the transaction, with the user and ledger docs.
@@ -1184,24 +1236,14 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         if (win.status === 'paying') throw httpsError('failed-precondition', 'A payment is already in progress. Wait a minute and try again.');
         if (win.status === 'unknown') throw httpsError('failed-precondition', 'This payment needs Phil to confirm it before it can be claimed again.');
         if (win.status !== 'claimable') throw httpsError('failed-precondition', 'This prize is waiting for Phil to pay it.');
-        const sfSource = win.source === 'sf_epoch' || win.source === 'sf_window';
-        // Merge note for #243: faction_race + adminApproved should use the same
-        // after-send floor + locked-address binding as Favor (see PR body).
-        const userRow = userDoc.exists ? (userDoc.data() || {}) : {};
-        if (sfSource) {
-            const favorEpochPrizes = require('./favorEpochPrizes');
-            const cfgSnap = await t.get(db.collection('config').doc('satoshiFavorPayouts'));
-            const pre = favorEpochPrizes.favorClaimPrechecks({
-                win: win,
-                savedLightning: userRow.lightningAddress || userRow.lightning || userRow.lnAddress || '',
-                config: cfgSnap.exists ? cfgSnap.data() : {},
-                nowMs: Date.now(),
-            });
-            sfClaimLimits = pre.limits;
-            if (!pre.ok) throw httpsError('failed-precondition', pre.message);
-        } else if (win.amount >= 1000 || (win.amount !== 100 && win.amount !== 500)) {
+        // Faction race pot of sats: any whole amount, but only after an admin approved it server-side.
+        const factionPrize = win.source === 'faction_race' && win.adminApproved === true &&
+            Number.isInteger(win.amount) && win.amount > 0 && win.amount <= 1000000;
+        if (!factionPrize && (win.amount >= 1000 || (win.amount !== 100 && win.amount !== 500))) {
             throw httpsError('failed-precondition', 'This prize is paid manually.');
         }
+        isFactionPrize = factionPrize;
+        const userRow = userDoc.exists ? (userDoc.data() || {}) : {};
         if (Number(userRow.satsHold) > Date.now()) {
             throw httpsError('failed-precondition', 'Sats withdrawals are paused on this account. Try again later.');
         }
@@ -1233,138 +1275,11 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     }
     const netAmount = winFee.net;
     let invoice;
-    let sfLockedLn = '';
-    let sfDidReserve = false;
-    const favorEpochPrizes = require('./favorEpochPrizes');
-    async function releaseFavorReserve(clearReserved) {
-        if (!sfDidReserve && !sfReserveDay) return;
-        const day = sfReserveDay || new Date().toISOString().slice(0, 10);
-        const siteRef = db.collection('sf_payout_site_daily').doc(day);
-        const lockRef = db.collection('sf_payout_locks').doc(winId);
-        try {
-            await db.runTransaction(async (t) => {
-                const siteSnap = await t.get(siteRef);
-                const lockSnap = await t.get(lockRef);
-                const site = siteSnap.exists ? (siteSnap.data() || {}) : {};
-                const lock = lockSnap.exists ? (lockSnap.data() || {}) : {};
-                const plan = favorEpochPrizes.planFavorClaimRelease({
-                    amount: amount,
-                    reservedSats: site.reservedSats,
-                    inFlightSats: site.inFlightSats,
-                    clearInFlight: true,
-                    clearReserved: clearReserved === true && lock.reserved === true,
-                    day: day,
-                });
-                t.set(siteRef, {
-                    reservedSats: plan.reservedSats,
-                    inFlightSats: plan.inFlightSats,
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                }, { merge: true });
-                if (clearReserved) t.set(lockRef, { reserved: false, inFlight: false, releasedAt: Date.now(), day: day }, { merge: true });
-                else t.set(lockRef, { inFlight: false, inFlightClearedAt: Date.now(), day: day }, { merge: true });
-            });
-        } catch (e) {
-            console.warn('[claimCipherWin] favor reserve release failed');
-        }
-    }
     try {
-        const winAfter = await winRef.get();
-        const w = winAfter.exists ? (winAfter.data() || {}) : {};
-        if (w.source === 'sf_epoch' || w.source === 'sf_window') {
-            sfLockedLn = String(w.lockedLightningAddress || '').trim().toLowerCase();
-            // Balance first so the in-flight floor check is meaningful.
-            // Gates + paying already passed; wallet missing is an after-gate failure.
-            // Unknown balance fails closed: do not reserve and do not pay.
-            // That failure is a wallet error, not a reserve error.
-            let walletSatsPeek = null;
-            try {
-                if (!NWC_URL) throw new Error('NO_WALLET');
-                const nwcPeek = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
-                const balPeek = await withTimeout(nwcPeek.getBalance(), 20000, 'getBalance');
-                const rawBal = balPeek && Number(balPeek.balance);
-                if (!Number.isFinite(rawBal)) throw new Error('WALLET_UNAVAILABLE');
-                walletSatsPeek = Math.floor(rawBal / 1000);
-            } catch (e) {
-                const revert = { status: 'claimable', payingAt: admin.firestore.FieldValue.delete() };
-                // Pre-reserve: clear any cooldown stamp so a dead wallet cannot lock the prize.
-                revert.walletFailAt = admin.firestore.FieldValue.delete();
-                await winRef.update(revert).catch(function() {});
-                console.error('[claimCipherWin] favor wallet unavailable:', e && e.message, 'didReserve=false');
-                return { success: false, error: favorEpochPrizes.balanceCheckClaimError(e) };
-            }
-            const day = new Date().toISOString().slice(0, 10);
-            sfReserveDay = day;
-            const siteRef = db.collection('sf_payout_site_daily').doc(day);
-            const lockRef = db.collection('sf_payout_locks').doc(winId);
-            const cfgSnap = await db.collection('config').doc('satoshiFavorPayouts').get();
-            try {
-                await db.runTransaction(async (t) => {
-                    const siteSnap = await t.get(siteRef);
-                    const lockSnap = await t.get(lockRef);
-                    const site = siteSnap.exists ? (siteSnap.data() || {}) : {};
-                    const lock = lockSnap.exists ? (lockSnap.data() || {}) : {};
-                    const plan = favorEpochPrizes.planFavorClaimReserve({
-                        amount: amount,
-                        reservedSats: site.reservedSats,
-                        inFlightSats: site.inFlightSats,
-                        walletSats: walletSatsPeek,
-                        lockReserved: lock.reserved === true,
-                        lockInFlight: lock.inFlight === true,
-                        config: cfgSnap.exists ? cfgSnap.data() : {},
-                        day: day,
-                    });
-                    if (!plan.ok) throw new Error(plan.error);
-                    sfClaimLimits = plan.limits;
-                    t.set(siteRef, {
-                        reservedSats: plan.nextReservedSats,
-                        inFlightSats: plan.nextInFlightSats,
-                        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    }, { merge: true });
-                    t.set(lockRef, {
-                        reserved: true,
-                        inFlight: true,
-                        amount: amount,
-                        day: day,
-                        uid: uid,
-                        at: Date.now(),
-                    }, { merge: true });
-                });
-                sfDidReserve = true;
-            } catch (e) {
-                // Always release. Never leave reserved/inFlight stuck after a reserve failure.
-                await releaseFavorReserve(true);
-                const walletish = e && (e.message === 'WALLET_LOW' || e.message === 'NO_WALLET');
-                const revert = { status: 'claimable', payingAt: admin.firestore.FieldValue.delete() };
-                // Cooldown only if we had actually reserved funds.
-                if (walletish && sfDidReserve) revert.walletFailAt = Date.now();
-                else revert.walletFailAt = admin.firestore.FieldValue.delete();
-                await winRef.update(revert).catch(function() {});
-                console.error('[claimCipherWin] favor reserve failed:', e && e.message, 'didReserve=', !!sfDidReserve);
-                return { success: false, error: favorEpochPrizes.clientSafeClaimError(e, 'Could not reserve this Favor payout.') };
-            }
-        }
+        invoice = await _resolvePrizeInvoice(data.invoice, data.lightningAddress, netAmount);
     } catch (e) {
-        // Non-Favor read failed, or a Favor path threw outside the handlers above.
-        await releaseFavorReserve(true);
-        const revert = { status: 'claimable', payingAt: admin.firestore.FieldValue.delete() };
-        revert.walletFailAt = admin.firestore.FieldValue.delete();
-        await winRef.update(revert).catch(function() {});
-        console.error('[claimCipherWin] favor reserve/wallet failed:', e && e.message, 'didReserve=', !!sfDidReserve);
-        return { success: false, error: favorEpochPrizes.clientSafeClaimError(e, 'Could not reserve this Favor payout.') };
-    }
-    // After Favor reserve (or for non-Favor wins): still need a wallet to pay.
-    if (!NWC_URL) {
-        await releaseFavorReserve(true);
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
-        throw httpsError('failed-precondition', 'Prize wallet is not configured yet. Phil can pay this from the admin list.');
-    }
-    try {
-        invoice = await _resolvePrizeInvoice(sfLockedLn ? '' : (data && data.invoice), sfLockedLn || (data && data.lightningAddress), netAmount);
-    } catch (e) {
-        await releaseFavorReserve(true);
-        await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
-        console.error('[claimCipherWin] invoice resolve failed:', e && e.message);
-        return { success: false, error: favorEpochPrizes.clientSafeClaimError(e, 'Could not pay that invoice.') };
+        return { success: false, error: e.message || 'Could not pay that invoice.' };
     }
 
     const invoiceHash = crypto.createHash('sha256').update(invoice).digest('hex').slice(0, 32);
@@ -1376,14 +1291,11 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
             t.set(invoiceRef, { uid: uid, winId: winId, amount: amount, fee_charged: winFee.fee, net_sent: netAmount, status: 'pending', ts: admin.firestore.FieldValue.serverTimestamp() });
         });
     } catch (e) {
-        await releaseFavorReserve(true);
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
-        console.error('[claimCipherWin] invoice reserve failed:', e && e.message);
-        return { success: false, error: favorEpochPrizes.clientSafeClaimError(e, 'Could not reserve that invoice.') };
+        return { success: false, error: e.message || 'Could not reserve that invoice.' };
     }
 
     async function releaseUnpaid() {
-        await releaseFavorReserve(true);
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
         await invoiceRef.delete().catch(function() {});
     }
@@ -1422,13 +1334,12 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
                 payingAt: admin.firestore.FieldValue.delete(),
             });
             await invoiceRef.set({ uid: uid, winId: winId, amount: amount, fee_charged: feeRec.fee_charged, net_sent: feeRec.net_sent, fee_paid: feeRec.fee_paid, status: 'used', ts: admin.firestore.FieldValue.serverTimestamp() });
-            await releaseFavorReserve(false); // clear inFlight; keep daily reserved accounting
         } catch (e) {
             console.error('[claimCipherWin] paid but record update failed:', e.message);
             await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan({
                 uid: uid,
                 sats: netAmount,
-                sourceLabel: 'a cipher win',
+                sourceLabel: isFactionPrize ? 'the faction race pot of sats' : 'a cipher win',
                 icon: '⚡',
             }));
             return { success: true, amount: amount, sent: netAmount, fee: winFee.fee, warning: 'Paid, but the receipt did not save. Phil can confirm it in the admin list.' };
@@ -1436,9 +1347,12 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         await rewardNotify.safeCommit(db, rewardStamp(), rewardNotify.plan({
             uid: uid,
             sats: netAmount,
-            sourceLabel: 'a cipher win',
+            sourceLabel: isFactionPrize ? 'the faction race pot of sats' : 'a cipher win',
             icon: '⚡',
         }));
+        // Faction race prizes: no cipher badge credit and no cipher chat line
+        // (the race already had its one big Nacho announcement).
+        if (isFactionPrize) return { success: true, amount: amount, sent: netAmount, fee: winFee.fee };
         try {
             await require('./badgeCredit').creditCipherPaid(db, admin, uid, amount, winRef);
         } catch (e) { console.warn('[claimCipherWin] badge', e.message); }
@@ -1451,27 +1365,14 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         return { success: true, amount: amount, sent: netAmount, fee: winFee.fee };
     }
 
-    // Non-Favor and Favor pay paths: wallet required only after gates + paying.
-    if (!NWC_URL) {
-        await releaseFavorReserve(true);
-        await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
-        await invoiceRef.delete().catch(function() {});
-        throw httpsError('failed-precondition', 'Prize wallet is not configured yet. Phil can pay this from the admin list.');
-    }
-    const nwc = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
+    const nwc = new NWCClient({ nostrWalletConnectUrl: nwcUrl() });
     let phase = 'balance';
     let payResult = null;
     let payError = null;
     try {
         const balanceResult = await withTimeout(nwc.getBalance(), 20000, 'getBalance');
         const walletSats = Math.floor((balanceResult.balance || 0) / 1000);
-        // Favor: floor already enforced with inFlight at reserve time. Re-check raw floor.
-        if (sfLockedLn) {
-            const floor = (sfClaimLimits && sfClaimLimits.walletFloorSats) || WALLET_FLOOR_SATS;
-            if (walletSats - amount < floor) throw new Error('WALLET_LOW');
-        } else if (walletSats < WALLET_FLOOR_SATS) {
-            throw new Error('WALLET_LOW');
-        }
+        if (walletSats < WALLET_FLOOR_SATS) throw new Error('WALLET_LOW');
         phase = 'pay';
         payResult = await withTimeout(nwc.payInvoice({ invoice: invoice }), 30000, 'payInvoice');
         if (!payResult || !payResult.preimage) throw new Error('NO_PREIMAGE');
@@ -1721,7 +1622,7 @@ function dayAmount(snap) {
 }
 
 async function payCipherBalanceInvoice(invoice) {
-    const nwc = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
+    const nwc = new NWCClient({ nostrWalletConnectUrl: nwcUrl() });
     let phase = 'balance';
     let payResult = null;
     let payError = null;
@@ -1822,12 +1723,13 @@ async function beginCipherPay(reserved) {
 const claimCipherSats = functionsV1.runWith({
     timeoutSeconds: 180,
     enforceAppCheck: true,
-    secrets: [deletionHmacSecret],
+    secrets: [deletionHmacSecret, nwcUrlSecret],
+    serviceAccount: runtimeSa('claimCipherSats'),
 }).https.onCall(async (data, context) => {
     const secondFactor = require('./secondFactor');
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     const uid = requireUser(context);
-    if (!NWC_URL) throw httpsError('failed-precondition', 'Prize wallet is not configured yet.');
+    if (!nwcUrl()) throw httpsError('failed-precondition', 'Prize wallet is not configured yet.');
     const accountTombstone = require('./accountTombstone');
     const emailChange = require('./emailChange');
     if (!accountTombstone.secretReady()) throw httpsError('failed-precondition', UNAVAILABLE);
@@ -2094,6 +1996,8 @@ const claimCipherSats = functionsV1.runWith({
 const adminResolveCipherSatsClaim = functionsV1.runWith({
     enforceAppCheck: true,
     timeoutSeconds: 60,
+    secrets: [nwcUrlSecret],
+    serviceAccount: runtimeSa('adminResolveCipherSatsClaim'),
 }).https.onCall(async (data, context) => {
     requireAdmin(context);
     const claimId = (data && data.claimId || '').toString().trim();
@@ -2119,12 +2023,12 @@ const adminResolveCipherSatsClaim = functionsV1.runWith({
     let resolution = action;
     if (action === 'release') {
         const paymentHash = String(preview.paymentHash || '');
-        if (!paymentHash || !NWC_URL) {
+        if (!paymentHash || !nwcUrl()) {
             throw httpsError('failed-precondition', 'This claim cannot be released yet.');
         }
         let kind = 'unknown';
         try {
-            const nwc = new NWCClient({ nostrWalletConnectUrl: NWC_URL });
+            const nwc = new NWCClient({ nostrWalletConnectUrl: nwcUrl() });
             const raw = await withTimeout(nwc.lookupInvoice({ payment_hash: paymentHash }), 15000, 'lookupInvoice');
             kind = classifyLookup(raw).kind;
         } catch (e) {

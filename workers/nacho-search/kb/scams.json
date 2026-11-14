@@ -1,5 +1,29 @@
 [
   {
+    "id": "scams-spot",
+    "category": "scams",
+    "question": "How do I spot a bitcoin scam?",
+    "alts": [
+      "How can I spot a bitcoin scam?",
+      "How do I recognize a bitcoin scam?",
+      "How to tell if a bitcoin offer is a scam?",
+      "Show me how to spot a bitcoin scam?",
+      "What is the way to spot a bitcoin scam?"
+    ],
+    "answer": "Treat unsolicited investment pitches, easy-profit promises, and anyone who asks for your seed or a remote-control session as a scam. Check addresses on a trusted screen, download wallets only from a known publisher, and never pay a fee to free a stuck withdrawal. If a stranger needs your keys or a first payment to release more coins, walk away.",
+    "topics": [
+      "risks__threats__attack_vectors__weaknes",
+      "self-custody",
+      "misconceptions-fud"
+    ],
+    "followUps": [
+      "scams-seed-ask",
+      "scams-giveaway",
+      "scams-double"
+    ],
+    "sources": "Common scam tells."
+  },
+  {
     "id": "scams-seed-ask",
     "category": "scams",
     "question": "What should you do if a site asks for your seed?",
@@ -747,7 +771,7 @@
     "followUps": [
       "scams-device-check",
       "scams-urgency",
-      "scams-seed-ask"
+      "scams-spot"
     ],
     "sources": "Search-ad lookalikes."
   },
@@ -767,8 +791,8 @@
     ],
     "followUps": [
       "scams-urgency",
-      "scams-seed-ask",
-      "scams-giveaway"
+      "scams-spot",
+      "scams-seed-ask"
     ],
     "sources": "On-device confirmation."
   },
@@ -787,9 +811,9 @@
       "misconceptions-fud"
     ],
     "followUps": [
+      "scams-spot",
       "scams-seed-ask",
-      "scams-giveaway",
-      "scams-double"
+      "scams-giveaway"
     ],
     "sources": "Pressure tactic."
   }

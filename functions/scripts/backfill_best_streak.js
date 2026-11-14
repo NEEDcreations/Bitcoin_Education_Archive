@@ -28,7 +28,7 @@ async function main() {
         console.log('Dry-run is the default. --apply writes bestStreak = max(bestStreak, streak).');
         return;
     }
-    const admin = require('firebase-admin');
+    const admin = require('../src/firebaseAdmin.js');
     if (!admin.apps.length) admin.initializeApp();
     const db = admin.firestore();
     let scanned = 0;

@@ -31,13 +31,24 @@ fixtures.push(row({ id: 'night_earned', name: 'Earned Secret', hidden: true, ear
 
 const index = BadgeSearch.buildIndex(fixtures);
 
-test('pvp is not silently capped at 8', function () {
+test('pvp pages 8 at a time and can still reach every match', function () {
     const page = BadgeSearch.search(index, 'pvp');
     const all = BadgeSearch.search(index, '  PvP  ', { showAll: true });
     assert.ok(page.total >= 10);
     assert.strictEqual(page.shown.length, 8);
+    assert.strictEqual(page.offset, 0);
+    assert.strictEqual(page.nextOffset, 8);
     assert.strictEqual(page.truncated, true);
+    const next = BadgeSearch.search(index, 'pvp', { offset: page.nextOffset });
+    assert.ok(next.shown.length > 0);
+    assert.strictEqual(next.offset, 8);
+    const seen = {};
+    page.shown.concat(next.shown).forEach(function (badge) {
+        assert.ok(!seen[badge.id], badge.id);
+        seen[badge.id] = true;
+    });
     assert.strictEqual(all.shown.length, all.total);
+    assert.ok(all.total > page.shown.length);
 });
 
 test('ids, curly apostrophes, accents, and emoji match', function () {
@@ -71,6 +82,13 @@ test('the renderer uses textContent and jump uses CSS.escape', function () {
     const badges = fs.readFileSync(path.join(root, 'badges.js'), 'utf8');
     assert.ok(searchSrc.includes('textContent'));
     assert.ok(!searchSrc.includes('innerHTML'));
+    assert.ok(searchSrc.includes('Show more'));
+    assert.ok(!searchSrc.includes('Show all'));
+    assert.ok(searchSrc.includes('indexCache'));
+    assert.ok(searchSrc.includes("addEventListener('scroll'"));
+    assert.ok(badges.includes('role="listbox"'));
+    assert.ok(badges.includes('position:absolute'));
+    assert.ok(badges.includes('id="badgeSearchWrap"'));
     assert.ok(badges.includes('CSS.escape'));
     const searchField = badges.slice(badges.indexOf('id="badgeSearchInput"'), badges.indexOf('id="badgeSearchResults"'));
     assert.ok(searchField.includes('</div>'), 'the clear control is positioned on the input, not the results');

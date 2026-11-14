@@ -7,8 +7,12 @@
 // remainder is credited outside the shared daily cap and is not written to
 // that day's daily_points total. The ledger source is collection_bonus.
 // Ten Satoshi's Favor points are added with the first record. That record
-// also posts one Nacho message in Global Chat. A failed post stays pending
-// and is retried. A client claim cannot choose the amount or the post.
+// queues one recognition. Completions for the same player inside one minute
+// share one Nacho line in Global Chat and one GGs announcement. A failed
+// post stays pending and is retried. It does not roll back the bonus. A
+// client claim cannot choose the amount or the post.
+
+const recognition = require('./collectionRecognition');
 
 const fs = require('fs');
 const path = require('path');
@@ -22,19 +26,34 @@ const SETS_FILE = path.join(__dirname, 'collection-sets.json');
 const COLLECTION_FAVOR_POINTS = 10;
 const NEUTRAL_NAME = 'A Bitcoiner';
 
-const GROUPS = [
-    { id: 'col_learning', name: 'Learning', emoji: '📚', color: '#3b82f6', setIds: ['set_scholar', 'set_scholar_daily', 'set_explorer', 'set_trails'] },
-    { id: 'col_daily_habits', name: 'Daily Habits', emoji: '🎯', color: '#f7931a', setIds: ['set_daily', 'set_daily_five', 'set_trifecta', 'set_streak', 'set_spin'] },
-    { id: 'col_mining', name: 'Mining', emoji: '⛏️', color: '#f7931a', setIds: ['set_miner', 'set_favor'] },
-    { id: 'col_foresight', name: 'Foresight and Luck', emoji: '🔮', color: '#a78bfa', setIds: ['set_oracle', 'set_raffle'] },
-    { id: 'col_arena', name: 'Arena', emoji: '⚔️', color: '#ec4899', setIds: ['set_pvp', 'set_gladiator', 'set_codebreaker'] },
-    { id: 'col_community', name: 'Community', emoji: '💬', color: '#8b5cf6', setIds: ['set_social', 'set_voice', 'set_network', 'set_irl'] },
-    { id: 'col_lightning', name: 'Lightning and Giving', emoji: '⚡', color: '#eab308', setIds: ['set_lightning', 'set_generous'] },
-    { id: 'col_builder', name: 'Builder and Market', emoji: '🏗️', color: '#22c55e', setIds: ['set_builder', 'set_trader'] },
-    { id: 'col_entertainment', name: 'Entertainment', emoji: '🎵', color: '#f472b6', setIds: ['set_beats', 'set_tctv', 'set_tv'] },
-    { id: 'col_profile', name: 'Profile and Setup', emoji: '👤', color: '#6366f1', setIds: ['set_profile', 'set_newcomer', 'set_sovereign'] },
-    { id: 'col_fitness', name: 'Fun and Fitness', emoji: '🚶', color: '#84cc16', setIds: ['set_fun', 'set_pow'] },
-];
+// Rebalanced collections (Nov 5, 2026): ~90 days for a daily player, 8-15
+// badges each. collection-groups.json is the single source of truth; the
+// client copy in badges.js is checked against it by tests. setIds only map
+// the old per-set bonuses (legacy remainder math); membership is badgeIds.
+const GROUP_DOC = require('./collection-groups.json');
+const GROUPS = GROUP_DOC.groups.map(function (g) {
+    return Object.assign({}, g, { collectionId: g.id, kind: 'core' });
+});
+const BIP_SEASONS = (GROUP_DOC.bipSeasons || []).map(function (g) {
+    return Object.assign({}, g, { collectionId: g.id, setIds: [], kind: 'bip', optional: true });
+});
+const META = Object.assign({}, GROUP_DOC.meta, { collectionId: GROUP_DOC.meta.id, setIds: [], kind: 'meta' });
+const SERVER_VERIFIED = new Set(GROUP_DOC.serverVerified || []);
+const LEGEND_IDS = new Set(GROUP_DOC.legend || []);
+const RETIRED_COLLECTION_IDS = new Set(((GROUP_DOC.retired || {}).collectionIds) || []);
+
+// Collections the meta collection requires: every core, non-optional one.
+// Computed from the list, so resizing or adding a collection follows along.
+function metaMemberGroups() {
+    return GROUPS.filter(function (g) { return !g.optional; });
+}
+
+function allGroupDefs() {
+    const meta = Object.assign({}, META, {
+        badgeIds: metaMemberGroups().map(function (g) { return g.id + '_bonus'; }),
+    });
+    return GROUPS.concat(BIP_SEASONS, [meta]);
+}
 
 let cachedSets = null;
 
@@ -120,19 +139,19 @@ function remainderXp(bonusPts, heldLegacy) {
 function buildCollections(sets) {
     const byId = {};
     (sets || []).forEach(function (set) { byId[set.id] = set; });
-    return GROUPS.map(function (group) {
+    return allGroupDefs().map(function (group) {
         const badgeIds = [];
         const seen = {};
+        (group.badgeIds || []).forEach(function (badgeId) {
+            if (seen[badgeId]) return;
+            seen[badgeId] = true;
+            badgeIds.push(badgeId);
+        });
         const legacyBonuses = [];
         let bonusPts = 0;
-        group.setIds.forEach(function (setId) {
+        (group.setIds || []).forEach(function (setId) {
             const set = byId[setId];
             if (!set) throw new Error('missing set ' + setId);
-            (set.badgeIds || []).forEach(function (badgeId) {
-                if (seen[badgeId]) return;
-                seen[badgeId] = true;
-                badgeIds.push(badgeId);
-            });
             const pts = serverPaidXp(set.bonusId);
             bonusPts += pts;
             legacyBonuses.push({ id: set.bonusId, pts: pts, setId: set.id });
@@ -142,7 +161,9 @@ function buildCollections(sets) {
             name: group.name,
             emoji: group.emoji,
             color: group.color,
-            setIds: group.setIds.slice(),
+            kind: group.kind,
+            optional: group.optional === true,
+            setIds: (group.setIds || []).slice(),
             badgeIds: badgeIds,
             bonusId: group.id + '_bonus',
             bonusPts: bonusPts,
@@ -150,8 +171,19 @@ function buildCollections(sets) {
             bonusName: group.name,
             bonusDesc: 'Completed the ' + group.name + ' collection',
             legacyBonuses: legacyBonuses,
+            title: group.title || null,
+            flair: group.flair || '',
         };
     });
+}
+
+// Held ids for collection math. BIP Breakthrough badges (PR #238) are kept
+// in the server-only bipBadges list, so they are added here.
+function collectionHeldIds(user, rows) {
+    const held = heldIdsForCollection(user, rows);
+    const bip = user && Array.isArray(user.bipBadges) ? user.bipBadges : [];
+    bip.forEach(function (id) { if (typeof id === 'string' && /^bip_[0-9]{1,4}$/.test(id)) held.add(id); });
+    return held;
 }
 
 function collections() {
@@ -189,6 +221,7 @@ function serverPaidXp(bonusId) {
 function proofMemberIds(col) {
     const rules = require('./badgeRules');
     return (col && col.badgeIds || []).filter(function (id) {
+        if (SERVER_VERIFIED.has(id)) return true;
         const rule = rules.ruleFor(id);
         return !!(rule && !rule.cosmetic);
     });
@@ -301,6 +334,9 @@ function stageBadgeFavor(t, db, adminSdk, ctx) {
     // Backfill records the player's 10 points, but it does not write the live
     // pool. That write is what opens the window and posts "SF is LIVE".
     const skipPool = src.skipPool === true;
+    const field = factionField(faction);
+    const totals = src.totalsSnap && src.totalsSnap.exists ? (src.totalsSnap.data() || {}) : {};
+    const race = require('./factionBalance').racePoints(pointsToAdd, faction, totals, src.user, nowMs);
     const contributorDoc = {
         uid: src.uid,
         source: 'badge_earned',
@@ -310,13 +346,17 @@ function stageBadgeFavor(t, db, adminSdk, ctx) {
         timestamp: adminSdk.firestore.FieldValue.serverTimestamp(),
         faction: faction,
         pointsAdded: pointsToAdd,
+        factionPoints: race.points,
     };
     if (skipPool) contributorDoc.backfill = true;
     t.set(src.contributorRef, contributorDoc);
-    const field = factionField(faction);
-    const totals = src.totalsSnap && src.totalsSnap.exists ? (src.totalsSnap.data() || {}) : {};
     const totalsWrite = { lastUpdated: adminSdk.firestore.FieldValue.serverTimestamp() };
-    totalsWrite[field] = (Number(totals[field]) || 0) + pointsToAdd;
+    totalsWrite[field] = Math.round(((Number(totals[field]) || 0) + race.points) * 100) / 100;
+    // Same head-start budget contributeFavor increments. This write already
+    // replaces the totals snapshot read above, so the used field is the sum.
+    if (race.headStartField) {
+        totalsWrite[race.headStartField] = Math.round(((Number(totals[race.headStartField]) || 0) + race.headStartBase) * 100) / 100;
+    }
     t.set(src.totalsRef, Object.assign({}, totals, totalsWrite));
     t.set(db.collection('satoshiFavor').doc('userSfPoints').collection('users').doc(src.uid), {
         uid: src.uid,
@@ -371,74 +411,12 @@ function mentionUsername(profile) {
     return name;
 }
 
-function collectionChatDocId(bonusId, uid) {
-    const clean = String(bonusId || '') + '_' + String(uid || '');
-    const safe = clean.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 120);
-    return safe ? ('colbonus_' + safe) : '';
-}
-
 function collectionCongratsText(username, collectionName) {
     const collection = String(collectionName || 'collection').replace(/[\r\n<>@]/g, ' ').trim() || 'collection';
     const who = username ? ('@' + username) : NEUTRAL_NAME;
     return '🎉 ' + who + ' completed the ' + collection + ' collection! The whole set is yours. Congratulations!';
 }
 
-async function postCollectionCongrats(db, adminSdk, uid, col) {
-    const docId = collectionChatDocId(col && col.bonusId, uid);
-    if (!db || !adminSdk || !docId || !col) return { wrote: false, reason: 'bad_plan' };
-    let username = '';
-    try {
-        const profileSnap = await db.collection('public_profiles').doc(uid).get();
-        const profile = profileSnap && profileSnap.exists ? (profileSnap.data() || {}) : null;
-        username = mentionUsername(profile);
-    } catch (err) {
-        username = '';
-    }
-    const text = collectionCongratsText(username, col.name).slice(0, 500);
-    const chatRef = db.collection('global_chat').doc(docId);
-    const notifRef = db.collection('notifications').doc(docId);
-    const serverTimestamp = function () { return adminSdk.firestore.FieldValue.serverTimestamp(); };
-    const outcome = await db.runTransaction(async function (t) {
-        const chatSnap = await t.get(chatRef);
-        if (chatSnap.exists) return { wrote: false, reason: 'already_posted' };
-        const msg = {
-            uid: 'nacho-bot',
-            name: '🦌 Nacho',
-            text: text,
-            isNachoAuto: false,
-            ts: serverTimestamp(),
-        };
-        if (username) msg.mentionUid = uid;
-        t.set(chatRef, msg);
-        if (username) {
-            t.set(notifRef, {
-                recipientId: uid,
-                senderId: 'nacho-bot',
-                senderName: 'Nacho 🦌',
-                type: 'chat_mention',
-                message: '💬 @Nacho mentioned you in Global Chat: "' + text.slice(0, 50) + '"',
-                targetType: 'chat',
-                targetId: docId,
-                read: false,
-                createdAt: serverTimestamp(),
-            });
-        }
-        return { wrote: true, reason: 'ok', mentionUid: username ? uid : '' };
-    });
-    if (outcome && outcome.wrote && outcome.mentionUid) {
-        try {
-            const push = require('./push');
-            await push.sendUserPush(outcome.mentionUid, 'mentions', {
-                title: 'You were mentioned',
-                body: '🦌 Nacho mentioned you in chat.',
-                url: 'https://bitcoineducation.quest/#chat',
-            });
-        } catch (err) {
-            console.warn('[collectionBonus] mention push failed', err && err.message ? err.message : err);
-        }
-    }
-    return outcome || { wrote: false, reason: 'empty' };
-}
 
 function collectionsTouching(badgeId) {
     if (!badgeId || isRetiredSetBonus(badgeId)) return [];
@@ -471,7 +449,7 @@ async function awardAlreadySettled(db, uid, badgeId, awardData) {
         const awardsSnap = await userRef.collection('badge_awards').get();
         const user = userSnap && userSnap.exists ? (userSnap.data() || {}) : {};
         const rows = awardRowsFromSnap(awardsSnap);
-        const held = heldIdsForCollection(user, rows);
+        const held = collectionHeldIds(user, rows);
         for (let i = 0; i < hits.length; i++) {
             const col = hits[i];
             const plan = planGrant(col, held);
@@ -496,24 +474,20 @@ async function congratsPendingFor(db, uid, bonusId) {
     }
 }
 
-async function clearCongratsPending(db, awardRef) {
-    await db.runTransaction(async function (t) {
-        const snap = await t.get(awardRef);
-        if (!snap || !snap.exists) return;
-        const data = typeof snap.data === 'function' ? (snap.data() || {}) : {};
-        if (data.congratsPending !== true) return;
-        t.set(awardRef, { congratsPending: false }, { merge: true });
-    });
-}
-
-async function finishCongrats(db, adminSdk, uid, col, awardRef) {
-    const posted = await module.exports.postCollectionCongrats(db, adminSdk, uid, col);
-    const settled = !!(posted && (posted.wrote || posted.reason === 'already_posted'));
-    if (settled) await clearCongratsPending(db, awardRef);
-    return {
-        chatPosted: !!(posted && posted.wrote),
-        congratsPending: !settled,
-    };
+async function finishCongrats(db, adminSdk, uid, col, nowMs) {
+    try {
+        const queued = await recognition.enqueueRecognition(db, adminSdk, uid, col, nowMs);
+        const settled = !!(queued && queued.settled);
+        const flushed = queued && queued.flushed;
+        return {
+            chatPosted: !!(flushed && flushed.posted),
+            congratsPending: !settled,
+            recognitionQueued: !!(queued && queued.queued),
+        };
+    } catch (err) {
+        console.error('[collectionBonus] chat', err && err.message ? err.message : err);
+        return { chatPosted: false, congratsPending: true };
+    }
 }
 
 async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
@@ -542,7 +516,7 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
         if (rewardBlocked(user, ledger)) {
             return { granted: false, success: true, reason: 'banned', awarded: 0, xp: 0, badgeId: col.bonusId };
         }
-        const held = heldIdsForCollection(user, awardRowsFromSnap(awardsSnap));
+        const held = collectionHeldIds(user, awardRowsFromSnap(awardsSnap));
         const award = awardSnap && awardSnap.exists ? (awardSnap.data() || {}) : {};
         if (xpSnap.exists || awardSnap.exists || held.has(col.bonusId)) {
             return {
@@ -613,9 +587,9 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
             congratsPending: options.postChat === false ? false : true,
             favorPoint: favorCtx.favorPoint === true,
             // This create re-enters onBadgeAwardCreated. ggSkip keeps the bonus
-            // out of the GGs burst, so it neither joins an open burst nor flushes
-            // one. Nacho posts the collection line in Global Chat when postChat is on.
-            // Backfill and any postChat:false grant also stay quiet in GGs.
+            // out of the badge GGs burst. The recognition flush writes the
+            // collection line in Global Chat and in GGs when postChat is on.
+            // Backfill and any postChat:false grant stay quiet.
             ggSkip: true,
         };
         t.set(awardRef, awardDoc);
@@ -639,20 +613,10 @@ async function grantCollectionBonus(db, adminSdk, uid, collectionId, opts) {
         result.granted === true || (result.reason === 'already' && result.congratsPending === true)
     );
     if (shouldPost) {
-        try {
-            const posted = await finishCongrats(db, adminSdk, uid, col, awardRef);
-            result.chatPosted = posted.chatPosted;
-            result.congratsPending = posted.congratsPending;
-        } catch (err) {
-            console.error('[collectionBonus] chat', err && err.message ? err.message : err);
-            result.chatPosted = false;
-            result.congratsPending = true;
-            if (err && typeof err === 'object') {
-                err.collectionChat = true;
-                err.grantResult = result;
-            }
-            throw err;
-        }
+        const posted = await finishCongrats(db, adminSdk, uid, col, nowMs);
+        result.chatPosted = posted.chatPosted;
+        result.congratsPending = posted.congratsPending;
+        if (posted.recognitionQueued) result.recognitionQueued = true;
     }
     return result;
 }
@@ -671,11 +635,10 @@ async function maybeGrantForBadge(db, adminSdk, uid, badgeId, opts) {
         const userSnap = await userRef.get();
         const awardsSnap = await userRef.collection('badge_awards').get();
         const user = userSnap && userSnap.exists ? (userSnap.data() || {}) : {};
-        held = heldIdsForCollection(user, awardRowsFromSnap(awardsSnap));
+        held = collectionHeldIds(user, awardRowsFromSnap(awardsSnap));
     } catch (err) {
         held = null;
     }
-    let chatErr = null;
     for (let i = 0; i < hits.length; i++) {
         if (held) {
             const plan = planGrant(hits[i], held);
@@ -707,36 +670,20 @@ async function maybeGrantForBadge(db, adminSdk, uid, badgeId, opts) {
                 }
             }
         }
-        try {
-            out.push(await grantCollectionBonus(db, adminSdk, uid, hits[i].id, opts));
-        } catch (err) {
-            if (!err || !err.collectionChat) throw err;
-            const prior = err.grantResult || {};
-            const report = {
-                granted: prior.reason === 'already' ? false : prior.granted === true,
-                success: true,
-                reason: 'chat',
-                chatPosted: false,
-                congratsPending: true,
-                awarded: 0,
-                xp: 0,
-                badgeId: hits[i].bonusId,
-                collectionId: hits[i].id,
-            };
-            console.error('[collectionBonus] pending', report.granted, report.congratsPending, report.reason);
-            if (!chatErr) {
-                err.chatReport = report;
-                chatErr = err;
-            }
-            out.push(report);
-        }
+        out.push(await grantCollectionBonus(db, adminSdk, uid, hits[i].id, opts));
     }
-    if (chatErr) throw chatErr;
     return out;
 }
 
 module.exports = {
     GROUPS: GROUPS,
+    BIP_SEASONS: BIP_SEASONS,
+    META: META,
+    SERVER_VERIFIED: SERVER_VERIFIED,
+    LEGEND_IDS: LEGEND_IDS,
+    RETIRED_COLLECTION_IDS: RETIRED_COLLECTION_IDS,
+    metaMemberGroups: metaMemberGroups,
+    collectionHeldIds: collectionHeldIds,
     parseSets: parseSets,
     parseHiddenPts: parseHiddenPts,
     legacyBonusPts: legacyBonusPts,
@@ -756,9 +703,9 @@ module.exports = {
     addUser: addUser,
     COLLECTION_FAVOR_POINTS: COLLECTION_FAVOR_POINTS,
     mentionUsername: mentionUsername,
-    collectionChatDocId: collectionChatDocId,
     collectionCongratsText: collectionCongratsText,
-    postCollectionCongrats: postCollectionCongrats,
+    postRecognitionBurst: recognition.postRecognitionBurst,
+    flushDueRecognitions: recognition.flushDueRecognitions,
     stageBadgeFavor: stageBadgeFavor,
     grantCollectionBonus: grantCollectionBonus,
     maybeGrantForBadge: maybeGrantForBadge,

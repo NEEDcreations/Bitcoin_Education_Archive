@@ -1,4 +1,4 @@
-import { collectBtcData, answerTurn, detectIntents, containsKeyMaterial } from "./nacho-logic.mjs";
+import { collectBtcData, answerTurn, detectIntents, containsKeyMaterial, mergeBtcSnapshots, snapshotHasCore, STALE_USABLE_MS } from "./nacho-logic.mjs";
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
@@ -21,9 +21,9 @@ function allowRequest(ip, bucket, limit) {
   return true;
 }
 __name(allowRequest, "allowRequest");
-function fetchWithTimeout(url, opts) {
+function fetchWithTimeout(url, opts, timeoutMs) {
   const ctrl = new AbortController();
-  const timer = setTimeout(function () { ctrl.abort(); }, 2500);
+  const timer = setTimeout(function () { ctrl.abort(); }, timeoutMs || 2500);
   const next = Object.assign({}, opts || {}, { signal: ctrl.signal });
   return fetch(url, next).finally(function () { clearTimeout(timer); });
 }
@@ -119,16 +119,25 @@ async function handleSearch(request, env, corsHeaders, url) {
   }
 }
 __name(handleSearch, "handleSearch");
-var BTC_CACHE_TTL = 90;
+var BTC_CACHE_TTL = 30;
 var _btcMem = null;
 var _btcInflight = null;
 async function loadBtcSnapshot() {
   const now = Date.now();
   if (_btcMem && now - _btcMem.at < BTC_CACHE_TTL * 1000) return _btcMem.data;
   if (_btcInflight) return _btcInflight;
+  const previous = _btcMem && _btcMem.data;
   _btcInflight = collectBtcData(fetch).then(function (data) {
-    _btcMem = { at: Date.now(), data: data };
-    return data;
+    const merged = mergeBtcSnapshots(previous, data);
+    if (snapshotHasCore(merged)) {
+      _btcMem = { at: Date.now(), data: merged };
+      return merged;
+    }
+    if (previous && now - Number(previous.ts) <= STALE_USABLE_MS) return previous;
+    return merged || data;
+  }).catch(function (err) {
+    if (previous && now - Number(previous.ts) <= STALE_USABLE_MS) return previous;
+    throw err;
   }).finally(function () {
     _btcInflight = null;
   });
@@ -149,7 +158,7 @@ async function handleBtcData(request, env, corsHeaders) {
       "Content-Type": "application/json",
       "Cache-Control": `public, max-age=${BTC_CACHE_TTL}, s-maxage=${BTC_CACHE_TTL}`,
       "X-Cache": "MISS",
-      "X-BTC-Sources": "mempool.space,coinbase,kraken,coingecko,alternative.me"
+      "X-BTC-Sources": "mempool.space,coinbase,kraken,coingecko,alternative.me,blockchain.info,cbbi"
     }
   });
   const cacheResponse = response.clone();
@@ -167,7 +176,7 @@ async function handleBtcCandles(request, env, corsHeaders) {
   const LIMIT = 20;
   let candles = null;
   try {
-    const r = await fetchWithTimeout(`https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=300&limit=${LIMIT}`);
+    const r = await fetchWithTimeout(`https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=300&limit=${LIMIT}`, null, 5000);
     if (r.ok) {
       const raw = await r.json();
       if (Array.isArray(raw) && raw.length) {
@@ -214,7 +223,7 @@ async function handleBtcCandles(request, env, corsHeaders) {
     headers: {
       ...corsHeaders,
       "Content-Type": "application/json",
-      "Cache-Control": "public, max-age=60, s-maxage=60"
+      "Cache-Control": "public, max-age=30, s-maxage=30"
     }
   });
   await cache.put(cacheUrl.toString(), response.clone());

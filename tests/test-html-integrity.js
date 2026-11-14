@@ -32,7 +32,7 @@ test('forumContainer exists', () => assert(html.includes('id="forumContainer"'))
 test('questModal exists', () => assert(html.includes('id="questModal"')));
 
 // Critical script references
-test('bundle.min.js referenced', () => assert(html.match(/src="bundle\.min\.js\?v=[\w]+"/)));
+test('bundle.min.js referenced', () => assert(html.match(/src="\/?bundle\.min\.js\?v=[\w]+"/)));
 // app.js is now in bundle.js
 // nacho-qa.js is now in bundle.js
 // nacho.js is now in bundle.js

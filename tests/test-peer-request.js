@@ -360,7 +360,13 @@ queue.push(test('preferRest is enabled once before any Firestore use', function(
     assert.strictEqual(src.indexOf(call), src.lastIndexOf(call));
     assert.ok(src.indexOf(call) > 0);
     assert.ok(src.indexOf(call) < src.indexOf('db.collection('));
-    assert.ok(src.indexOf(call) < src.indexOf("require('./src/"));
+    // The firebase-admin 14 namespace shim loads first; it only defines
+    // helpers and never touches Firestore, so skip it when finding the
+    // first ./src module.
+    const shim = "require('./src/firebaseAdmin.js')";
+    assert.ok(src.indexOf(shim) < 0 || src.indexOf(shim) < src.indexOf(call));
+    const firstSrc = src.replace(shim, '').indexOf("require('./src/");
+    assert.ok(src.replace(shim, '').indexOf(call) < firstSrc);
     assert.ok(src.includes('__btcFirestorePreferRest'));
 }));
 

@@ -1,5 +1,9 @@
 .env
 functions/.env
+# Staging/local env files stay local (sfclaim-245). The tracked, non-secret
+# functions/.env.bitcoin-quest-staging (gh-pages) is explicitly allowed.
+.env.*
+!functions/.env.bitcoin-quest-staging
 functions/private-bank/*
 !functions/private-bank/README.md
 # Trivia answer key for functions/scripts/upload-trivia-key.js. Never commit.
@@ -12,6 +16,7 @@ scripts/*
 !scripts/raid-boss-inspect.js
 !scripts/backfill-leaderboard-snapshots.js
 !scripts/backfill-join-dates.js
+!scripts/render-miniapp-og.py
 .keys/
 firebase-debug.log
 firestore-debug.log
@@ -24,4 +29,7 @@ username-spaces-private/
 *.bak*
 *.working-backup
 *.src.bak
-.env.*
+
+# Local dependency installs (real dirs or symlinks). Never commit.
+node_modules
+functions/node_modules

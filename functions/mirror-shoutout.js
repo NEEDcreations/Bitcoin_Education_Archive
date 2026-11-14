@@ -46,7 +46,7 @@ function isShoutoutDoc(id, data) {
 function loadAdmin() {
     const local = path.join(__dirname, 'node_modules', 'firebase-admin');
     try {
-        return require('firebase-admin');
+        return require('./src/firebaseAdmin.js');
     } catch (err) {
         try {
             return require(local);
@@ -69,7 +69,8 @@ async function main() {
         console.error('Usage: node functions/mirror-shoutout.js <chatMessageId> [--apply]');
         process.exit(1);
     }
-    if (!process.env.ADMIN_TOKEN) {
+    const { adminToken, bridgeSecret } = require('./src/sensitiveSecrets');
+    if (!adminToken()) {
         console.error('[mirror-shoutout] ADMIN_TOKEN is not set. This script is admin-only.');
         process.exit(1);
     }
@@ -100,7 +101,7 @@ async function main() {
         console.log('[mirror-shoutout] dry-run. Re-run with --apply to post once.');
         process.exit(0);
     }
-    if (!process.env.BRIDGE_SECRET) {
+    if (!bridgeSecret()) {
         console.error('[mirror-shoutout] BRIDGE_SECRET is not set.');
         process.exit(1);
     }

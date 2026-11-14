@@ -106,6 +106,22 @@ function savePassed(arr) {
     }
 }
 
+// An empty quiz must not leave the trail stop checked.
+window.btcRevertEmptyTrailStop = function(channelId) {
+    if (!channelId) return;
+    var progress = getProgress();
+    var changed = false;
+    Object.keys(progress).forEach(function(modId) {
+        var list = progress[modId];
+        if (!Array.isArray(list)) return;
+        var idx = list.indexOf(channelId);
+        if (idx === -1) return;
+        list.splice(idx, 1);
+        changed = true;
+    });
+    if (changed) saveProgress(progress);
+};
+
 // Mark a channel as visited for a module
 function markChannelVisited(channelId) {
     var progress = getProgress();

@@ -169,17 +169,18 @@ test('banned players stay, ghost mode stays off, and the doc has no email or uid
     assert.strictEqual(doc.alltime.length <= board.BOARD_SIZE, true);
 });
 
-test('the board stops at 25', () => {
+test('the board stops at 50', () => {
     const rows = [];
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 60; i++) {
         rows.push(user('u' + i, { username: 'N' + String(i).padStart(2, '0'), streak: i + 1, bestStreak: i + 1, lastVisit: TODAY, bestStreakAt: 1000 + i, streakReachedAt: 1000 + i }));
     }
     const doc = board.buildBoards(rows, NOW);
-    assert.strictEqual(doc.alltime.length, 25);
-    assert.strictEqual(doc.current.length, 25);
-    assert.strictEqual(doc.alltime[0].streak, 30);
-    assert.strictEqual(doc.alltime[0].username, 'N29');
-    assert.strictEqual(doc.alltime[24].streak, 6);
+    assert.strictEqual(doc.alltime.length, 50);
+    assert.strictEqual(doc.current.length, 50);
+    assert.strictEqual(doc.alltime[0].streak, 60);
+    assert.strictEqual(doc.alltime[0].username, 'N59');
+    assert.strictEqual(doc.alltime[49].streak, 11);
+    assert.strictEqual(board.FETCH_LIMIT, 100);
 });
 
 test('rules block client streak writes and the cached doc is not client-writable', () => {

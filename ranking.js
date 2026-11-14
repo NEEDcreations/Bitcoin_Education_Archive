@@ -383,7 +383,9 @@ function mfaClearDevice(uid) {
 var APP_CHECK_CALLABLES = {
     ackBadgeBackfillToast: 1,
     ackCipherShare: 1,
+    adminResetSecondFactor: 1,
     adminResolveCipherSatsClaim: 1,
+    adminSetKillSwitch: 1,
     answerTrivia: 1,
     armSayHi: 1,
     chooseFaction: 1,
@@ -407,6 +409,7 @@ var APP_CHECK_CALLABLES = {
     pvpStoreAnswerKey: 1,
     pvpSubmitAnswer: 1,
     pvpTimeoutOpponent: 1,
+    recordKnownPhoneFactor: 1,
     recordNachoAnalytics: 1,
     resetLightningAddressOnce: 1,
     startQuest: 1,
@@ -1011,6 +1014,14 @@ function initRanking() {
         }).then(function (redirectUser) {
             redirectResultResolved = true;
             _resolveRedirectGate(redirectUser || null);
+            var stillReal = redirectUser || (auth.currentUser && !auth.currentUser.isAnonymous);
+            if (!stillReal) {
+                try { localStorage.setItem('btc_last_signed_in', '0'); } catch (eGone) {}
+                if (window.btcAuthDisplay && window.btcAuthDisplay.hideSigningShell) {
+                    try { window.btcAuthDisplay.hideSigningShell(); } catch (eHide) {}
+                }
+                try { updateAuthButton(); } catch (eBtn) {}
+            }
         }, function () {
             redirectResultResolved = true;
             _resolveRedirectGate(null);
@@ -1034,6 +1045,15 @@ function initRanking() {
             // Optimistic paint is display-only. A different uid, null, or
             // signed-out clears that UI and the cache before any other work.
             reconcileOptimisticAuth(user, _pendingRedirect);
+            // Admin chrome follows the claim of the account signed in now. Any
+            // auth change drops it until settleAdminClaim() re-reads the token.
+            if (!user || user.isAnonymous || user.uid !== window._adminClaimUid) {
+                window._isAdminClaim = false;
+                window._adminClaimSettle = null;
+                window._adminClaimUid = (user && !user.isAnonymous) ? user.uid : null;
+                if (typeof syncHomeAdminBtn === 'function') syncHomeAdminBtn();
+            }
+            if (user && !user.isAnonymous) settleAdminClaim();
             // getRedirectResult() waits on the auth iframe. Calling it before this
             // listener, or on every reload, stalled the signed-in home for seconds.
             // A returning real user has nothing to consume. Only a redirect return
@@ -1058,6 +1078,13 @@ function initRanking() {
                     clearUserLocalStorage({ keepGuest: !!localStorage.getItem('btc_guest_link') });
                 }
                 localStorage.setItem('btc_last_auth_uid', user.uid);
+                try { localStorage.setItem('btc_last_signed_in', '1'); } catch (eSign) {}
+                if (window.btcAuthDisplay && window.btcAuthDisplay.hideSigningShell) {
+                    try { window.btcAuthDisplay.hideSigningShell(); } catch (eShell) {}
+                }
+                if (window.btcOnboardingQueue) {
+                    try { window.btcOnboardingQueue.onSignedIn(); } catch (eQueue) {}
+                }
                 // Sync experienceMode from Firestore (cross-device continuity)
                 if (typeof window.syncExperienceModeFromFirestore === 'function') {
                     window.syncExperienceModeFromFirestore();
@@ -2765,7 +2792,8 @@ window.signInWithNostr = async function() {
     var hasExtension = !!window.nostr;
     var overlay = document.createElement('div');
     overlay.id = 'nostrAuthOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:500000;background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;';
+    var nostrZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100010) : 2100010;
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:' + nostrZ + ';background:rgba(0,0,0,0.85);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
     overlay.innerHTML =
         '<div style="background:var(--bg-side,#1a1a2e);border:2px solid #7B2DE4;border-radius:20px;padding:28px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;">' +
@@ -3408,7 +3436,8 @@ window.showTroubleSigningIn = function() {
 
     var overlay = document.createElement('div');
     overlay.id = 'troubleSignInModal';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:600000;display:flex;align-items:center;justify-content:center;padding:20px;';
+    var troubleZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100010) : 2100010;
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:' + troubleZ + ';display:flex;align-items:center;justify-content:center;padding:20px;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     overlay.innerHTML =
@@ -3539,23 +3568,35 @@ function settleAdminClaim() {
     var user = auth && auth.currentUser;
     if (!user || user.isAnonymous || typeof user.getIdTokenResult !== 'function') {
         window._isAdminClaim = false;
+        if (typeof syncHomeAdminBtn === 'function') syncHomeAdminBtn();
         return;
     }
+    // The auth listener and loadUser both settle. One pass per uid per 5s.
+    var nowMs = Date.now();
+    if (window._adminClaimSettle && window._adminClaimSettle.uid === user.uid &&
+        nowMs - window._adminClaimSettle.at < 5000) return;
+    window._adminClaimSettle = { uid: user.uid, at: nowMs };
     var forcedLanded = false;
     function applyClaim(tokenResult) {
+        // A late answer for an account that already signed out is dropped.
+        if (!auth || auth.currentUser !== user) return;
         window._isAdminClaim = !!(tokenResult && tokenResult.claims && tokenResult.claims.admin === true);
         // Firestore's onSnapshot often fires from cache before the claim lands,
         // so own messages render with isAdmin=false and miss the pin button.
         if (window._isAdminClaim && window._chatAllMsgs && typeof renderChatMessages === 'function') {
             renderChatMessages(window._chatAllMsgs);
         }
+        if (typeof syncHomeAdminBtn === 'function') syncHomeAdminBtn();
     }
     // Non-forced: uses the cached token when it is still valid.
     user.getIdTokenResult().then(function (tokenResult) {
         if (forcedLanded) return;
         applyClaim(tokenResult);
     }).catch(function () {
-        if (!forcedLanded) window._isAdminClaim = false;
+        if (!forcedLanded && auth && auth.currentUser === user) {
+            window._isAdminClaim = false;
+            if (typeof syncHomeAdminBtn === 'function') syncHomeAdminBtn();
+        }
     });
     // Forced refresh stays off the UI path. It only corrects a stale admin claim.
     user.getIdTokenResult(true).then(function (tokenResult) {
@@ -3563,6 +3604,129 @@ function settleAdminClaim() {
         applyClaim(tokenResult);
     }).catch(function () {});
 }
+
+// Home-page admin shortcut. Visible only when the Firebase custom claim
+// admin is true (window._isAdminClaim, set from getIdTokenResult). Never email.
+// It carries no admin data. Tapping re-checks the claim, then lazy-loads
+// admin-panel.js, so non-admins never download the panel.
+var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261111_v2551';
+
+function ensureHomeAdminBtnCss() {
+    if (document.getElementById('homeAdminBtnCss')) return;
+    var st = document.createElement('style');
+    st.id = 'homeAdminBtnCss';
+    st.textContent =
+        '#homeAdminBtn{display:none;width:100%;box-sizing:border-box;margin:0 0 12px;min-height:58px;padding:10px 16px;border-radius:16px;border:2px solid #f7931a;background:linear-gradient(135deg,rgba(247,147,26,0.20),rgba(247,147,26,0.06));color:var(--heading,#fff);cursor:pointer;align-items:center;gap:12px;text-align:left;font-family:inherit;box-shadow:0 4px 16px rgba(247,147,26,0.18);-webkit-tap-highlight-color:transparent;touch-action:manipulation;}' +
+        '#homeAdminBtn[data-on="1"]{display:flex;}' +
+        '#homeAdminBtn .hab-ico{font-size:1.7rem;line-height:1;flex-shrink:0;}' +
+        '#homeAdminBtn .hab-txt{display:flex;flex-direction:column;min-width:0;flex:1;}' +
+        '#homeAdminBtn .hab-t{font-size:1.08rem;font-weight:900;letter-spacing:0.2px;}' +
+        '#homeAdminBtn .hab-s{font-size:0.76rem;font-weight:600;color:var(--text-muted,#94a3b8);margin-top:2px;}' +
+        '#homeAdminBtn .hab-go{font-size:1.3rem;font-weight:900;color:#f7931a;flex-shrink:0;}' +
+        '#homeAdminBtn:hover,#homeAdminBtn:focus-visible{outline:3px solid rgba(247,147,26,0.45);outline-offset:2px;}' +
+        '#homeAdminBtn:active{transform:scale(0.99);}' +
+        '[data-theme="light"] #homeAdminBtn{background:linear-gradient(135deg,#fff4e6,#ffffff);color:#0f172a;box-shadow:0 4px 14px rgba(15,23,42,0.10);}' +
+        '[data-theme="light"] #homeAdminBtn .hab-s{color:#475569;}';
+    document.head.appendChild(st);
+}
+
+function loadHomeAdminPanel(done) {
+    if (typeof window.bqOpenAdminPanel === 'function') { done(true); return; }
+    var existing = document.getElementById('bqAdminPanelScript');
+    if (existing) {
+        existing.addEventListener('load', function () { done(typeof window.bqOpenAdminPanel === 'function'); });
+        existing.addEventListener('error', function () { done(false); });
+        return;
+    }
+    var s = document.createElement('script');
+    s.id = 'bqAdminPanelScript';
+    s.src = HOME_ADMIN_PANEL_SRC;
+    s.async = true;
+    s.onload = function () { done(typeof window.bqOpenAdminPanel === 'function'); };
+    s.onerror = function () {
+        if (s.parentNode) s.parentNode.removeChild(s);
+        done(false);
+    };
+    document.head.appendChild(s);
+}
+
+// Fallback and shared helper: Settings > Account > Admin mounts.
+function openSettingsAdminSection(targetId) {
+    if (window._isAdminClaim !== true) return;
+    if (typeof showSettings === 'function') showSettings();
+    setTimeout(function () {
+        if (typeof showSettingsPage === 'function') showSettingsPage('account');
+        setTimeout(function () {
+            var peers = document.getElementById('peersSectionContent');
+            if (peers) peers.style.display = 'block';
+            var target = (targetId && document.getElementById(targetId)) ||
+                document.getElementById('settingsAdminSection');
+            if (target && typeof target.scrollIntoView === 'function') {
+                try { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+                catch (e) { target.scrollIntoView(true); }
+            }
+        }, 220);
+    }, 80);
+}
+window.openSettingsAdminSection = openSettingsAdminSection;
+
+function openHomeAdminTools() {
+    var user = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
+    if (!user || user.isAnonymous || typeof user.getIdTokenResult !== 'function') return;
+    user.getIdTokenResult().then(function (tokenResult) {
+        var ok = !!(tokenResult && tokenResult.claims && tokenResult.claims.admin === true);
+        window._isAdminClaim = ok;
+        if (typeof syncHomeAdminBtn === 'function') syncHomeAdminBtn();
+        if (!ok) return;
+        loadHomeAdminPanel(function (loaded) {
+            if (loaded && window._isAdminClaim === true) window.bqOpenAdminPanel();
+            else openSettingsAdminSection('settingsAdminSection');
+        });
+    }).catch(function () {});
+}
+window.openHomeAdminTools = openHomeAdminTools;
+
+function syncHomeAdminBtn() {
+    ensureHomeAdminBtnCss();
+    var home = document.getElementById('home');
+    if (!home) return;
+    var btn = document.getElementById('homeAdminBtn');
+    var isAdmin = window._isAdminClaim === true;
+    if (!isAdmin) {
+        if (btn) {
+            btn.setAttribute('data-on', '0');
+            btn.style.display = 'none';
+            if (btn.parentNode) btn.parentNode.removeChild(btn);
+        }
+        if (typeof window.bqCloseAdminPanel === 'function') window.bqCloseAdminPanel();
+        return;
+    }
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'homeAdminBtn';
+        btn.type = 'button';
+        btn.setAttribute('aria-label', 'Admin tools');
+        btn.setAttribute('aria-haspopup', 'dialog');
+        btn.title = 'Admin tools: only admin accounts see this';
+        btn.innerHTML = '<span class="hab-ico" aria-hidden="true">\uD83D\uDEE1\uFE0F</span>' +
+            '<span class="hab-txt"><span class="hab-t">Admin tools</span>' +
+            '<span class="hab-s">Every admin control in one place, with tips</span></span>' +
+            '<span class="hab-go" aria-hidden="true">\u203A</span>';
+        btn.addEventListener('click', function (ev) {
+            if (ev && ev.preventDefault) ev.preventDefault();
+            openHomeAdminTools();
+        });
+        // In the normal flow at the top of the home column, so it never sits
+        // under the pot of sats or the floating buttons.
+        var host = document.querySelector('#home .home-inner') || home;
+        var before = document.getElementById('homeWalletStrip');
+        if (before && before.parentNode === host) host.insertBefore(btn, before);
+        else host.insertBefore(btn, host.firstChild || null);
+    }
+    btn.setAttribute('data-on', '1');
+    btn.style.display = 'flex';
+}
+window.syncHomeAdminBtn = syncHomeAdminBtn;
 
 async function loadUser(uid, prefetchedDoc) {
     const doc = prefetchedDoc || await db.collection('users').doc(uid).get();
@@ -3596,6 +3760,8 @@ async function loadUser(uid, prefetchedDoc) {
         // TOS check — show acceptance modal if user hasn't accepted current version
         if (currentUser && !auth.currentUser.isAnonymous && currentUser.tosVersion !== TOS_CURRENT_VERSION) {
             _showTosModal();
+        } else if (window.btcOnboardingQueue) {
+            window.btcOnboardingQueue.skip('terms');
         }
 
         // Authenticator gate. The server, not a localStorage flag, decides.
@@ -4574,6 +4740,12 @@ function updateAuthButton() {
     // The display snapshot may already have painted. Auth has not settled yet,
     // so this call must not swap that paint back to the guest button.
     var authSettled = typeof window._btcEarlyAuthUser !== 'undefined' || !!firebaseUser;
+    var signingHold = false;
+    try { signingHold = localStorage.getItem('btc_last_signed_in') === '1'; } catch (eHold) {}
+    if (!authSettled && signingHold && !shouldShowSignedIn) {
+        if (window.btcAuthDisplay && window.btcAuthDisplay.showSigningShell) window.btcAuthDisplay.showSigningShell();
+        return;
+    }
     var keepOptimistic = !authSettled && !_authBtnSignedIn && document.documentElement.getAttribute('data-auth-display') === '1';
 
     // Once signed in, NEVER go back to "Create Account" unless explicitly signed out (firebaseUser is null)
@@ -4732,7 +4904,7 @@ function ensureUsernameRepickStyle() {
     if (document.getElementById('usernameRepickStyle')) return;
     var style = document.createElement('style');
     style.id = 'usernameRepickStyle';
-    style.textContent = '#usernameRepick{position:fixed;inset:0;z-index:600000;background:var(--overlay,rgba(0,0,0,.72));overflow-y:auto;-webkit-overflow-scrolling:touch;padding:max(12px,env(safe-area-inset-top)) 12px max(16px,env(safe-area-inset-bottom));box-sizing:border-box;}' +
+    style.textContent = '#usernameRepick{position:fixed;inset:0;z-index:2100010;background:var(--overlay,rgba(0,0,0,.72));overflow-y:auto;-webkit-overflow-scrolling:touch;padding:max(12px,env(safe-area-inset-top)) 12px max(16px,env(safe-area-inset-bottom));box-sizing:border-box;}' +
         '#usernameRepick .username-box{width:min(400px,100%);max-width:400px;margin:24px auto;box-sizing:border-box;}' +
         '#usernameRepick h2{font-size:1.2rem;line-height:1.35;overflow-wrap:anywhere;}' +
         '#usernameRepick input{font-size:16px;box-sizing:border-box;}' +
@@ -5361,6 +5533,7 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
     // Exception: badge_earned - defer notification until server confirms (prevents ghost XP on cache-clear re-trigger)
     var _isBadgeEarned = !!(badgeId);
     var _eagerNotifyTs = null; // timestamp of eager log entry — used to correct it post-CF if capped
+    var _xpPreview = null;
     try {
         // The server applies 2× from doubleXpUntil. The client must not multiply.
         if (pts > 0 && reason && !_isBadgeEarned && typeof notifySelfPoints === 'function') {
@@ -5377,6 +5550,10 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
         if (!payload.actionKey) {
             var inferredKey = inferAwardActionKey(reason, badgeId, extra);
             if (inferredKey) payload.actionKey = inferredKey;
+        }
+        if (!_isBadgeEarned && pts > 0 && typeof window._previewDailyXpGain === 'function') {
+            var _xpDoubled = typeof window._doubleXpUntilMs === 'function' && window._doubleXpUntilMs(currentUser) > Date.now();
+            _xpPreview = window._previewDailyXpGain(pts, { doubled: _xpDoubled });
         }
         var result = await awardPointsFn(payload);
         if (result.data && result.data.dailyActionCapped) {
@@ -5418,6 +5595,9 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
                 // paint must not put the older triviaXpStatus result back.
                 if (typeof window._noteServerDailyXp === 'function') window._noteServerDailyXp(window._serverDailyXp);
                 else window._paintDailyXpMeter(window._serverDailyXp);
+            } else if (_xpPreview && typeof window._revertDailyXpPreview === 'function') {
+                window._revertDailyXpPreview(_xpPreview);
+                _xpPreview = null;
             }
             if (result.data.capped || result.data.pastCap) {
                 var _capNotifKey = 'btc_daily_cap_notified_' + new Date(Date.now() - 5 * 3600000).toISOString().split('T')[0];
@@ -5431,6 +5611,10 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
     } catch (e) {
         // [SECURITY] No local fallback - server is the only source of truth for points
         console.warn('[POINTS] Cloud Function failed:', e.message);
+        if (_xpPreview && typeof window._revertDailyXpPreview === 'function') {
+            try { window._revertDailyXpPreview(_xpPreview); } catch (eRev) {}
+            _xpPreview = null;
+        }
         if (typeof showToast === 'function') showToast('⏳ XP will sync when connection restores');
         // Re-throw so callers (.then/.catch in badges.js) can roll back on network failure.
         throw e;
@@ -6203,6 +6387,114 @@ function hideLeaderboard() {
     if (fab) fab.style.display = 'flex';
 }
 
+// Prefix names and the PvP record line. Pure so a test can run this block
+// without the page. Search results are usernames only.
+var LbPrefix = (function () {
+    function normalizePrefix(raw) {
+        var text = String(raw == null ? '' : raw).replace(/^\s+|\s+$/g, '');
+        if (text.charAt(0) === '@') text = text.slice(1).replace(/^\s+/, '');
+        if (text.length > 40) text = text.slice(0, 40);
+        return text.toLowerCase();
+    }
+    function prefixOk(q, anonymous) {
+        if (!q || !/^[a-z0-9_\-.]+$/.test(q)) return false;
+        if (anonymous && q.length < 2) return false;
+        return true;
+    }
+    function prefixEnd(q) {
+        return String(q || '') + '\uf8ff';
+    }
+    function publicNames(docs, query, limit) {
+        var q = normalizePrefix(query);
+        var cap = limit > 0 ? limit : 12;
+        var out = [];
+        var seen = {};
+        (docs || []).forEach(function (doc) {
+            if (!doc || out.length >= cap) return;
+            if (doc.ghostMode === true) return;
+            var raw = doc.username == null ? '' : String(doc.username);
+            if (!raw || raw.indexOf('@') !== -1 || raw.indexOf(' ') !== -1) return;
+            var sort = doc.username_lower ? String(doc.username_lower).toLowerCase() : raw.toLowerCase();
+            if (!q || sort.indexOf(q) !== 0) return;
+            if (seen[sort]) return;
+            seen[sort] = true;
+            out.push({ username: raw });
+        });
+        return out;
+    }
+    function pvpRecordText(wins, losses) {
+        var w = Math.floor(Number(wins) || 0);
+        var l = Math.floor(Number(losses) || 0);
+        if (w < 0) w = 0;
+        if (l < 0) l = 0;
+        var games = w + l;
+        var pct = games > 0 ? Math.round((w / games) * 100) : 0;
+        return w + 'W - ' + l + 'L · ' + pct + '%';
+    }
+    return {
+        DEBOUNCE_MS: 150,
+        FETCH: 12,
+        SHOW: 8,
+        VISIBLE: 10,
+        CAP: 50,
+        normalizePrefix: normalizePrefix,
+        prefixOk: prefixOk,
+        prefixEnd: prefixEnd,
+        publicNames: publicNames,
+        pvpRecordText: pvpRecordText
+    };
+})();
+window.LbPrefix = LbPrefix;
+
+// Top 10 paint now. Ranks 11–50 stay as HTML until the expand control runs.
+var _lbMoreHtml = {};
+var _lbMoreSeq = 0;
+
+function _lbCapRows(rows) {
+    var list = rows || [];
+    if (list.length > LbPrefix.CAP) return list.slice(0, LbPrefix.CAP);
+    return list;
+}
+
+function _lbStashMore(html) {
+    var id = 'lbMore' + (++_lbMoreSeq);
+    _lbMoreHtml[id] = html;
+    return id;
+}
+window._lbStashMore = _lbStashMore;
+
+function _lbMoreButton(moreId, total, noun) {
+    if (!moreId) return '';
+    var n = total > LbPrefix.CAP ? LbPrefix.CAP : total;
+    return '<button type="button" class="lb-more" data-lb-more="' + moreId + '" onclick="event.stopPropagation();_lbExpand(this)" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show top ' + n + ' ' + noun + ' ▼</button>';
+}
+window._lbMoreButton = _lbMoreButton;
+
+window._lbExpand = function (btn) {
+    if (!btn) return;
+    var id = btn.getAttribute('data-lb-more');
+    var html = id && _lbMoreHtml[id];
+    var parent = btn.parentNode;
+    if (!html || !parent) { btn.remove(); return; }
+    var holder = document.createElement('div');
+    holder.innerHTML = html;
+    while (holder.firstChild) parent.insertBefore(holder.firstChild, btn);
+    delete _lbMoreHtml[id];
+    btn.remove();
+};
+
+function _lbSplitRows(rows, render) {
+    var capped = _lbCapRows(rows);
+    var head = '';
+    var rest = '';
+    for (var i = 0; i < capped.length; i++) {
+        var piece = render(capped[i], i);
+        if (i < LbPrefix.VISIBLE) head += piece;
+        else rest += piece;
+    }
+    return { html: head, rest: rest, total: capped.length };
+}
+
 // Exact rank on one board. One callable, never a full board read.
 // The fourth board in this panel is Daily Streaks (All-Time / Current).
 window._lbRankState = window._lbRankState || {};
@@ -6277,22 +6569,132 @@ function _lbRankPaint(board, data, period) {
     el.innerHTML = html;
 }
 
-window._lbRankType = function (board, val) {
-    window._lbRankState[board] = { text: val || '', me: false };
-    clearTimeout(_lbRankTimer[board]);
-    if (!String(val || '').trim()) {
-        _lbRankGen[board] = (_lbRankGen[board] || 0) + 1;
+function _lbRankPaintNames(board, names) {
+    var el = document.getElementById('lbRankResult-' + board);
+    if (!el) return;
+    window._lbSuggestShown = window._lbSuggestShown || {};
+    window._lbSuggestShown[board] = names || [];
+    if (!names || !names.length) {
+        el.hidden = false;
+        el.innerHTML = '<div class="lb-rank-hit">No matching username</div>';
+        return;
+    }
+    var html = '<div class="lb-rank-suggest">';
+    names.forEach(function (name) {
+        html += '<button type="button" class="lb-rank-suggest-item" data-name="' + escapeHtml(name) + '" onclick="_lbRankPick(\'' + board + '\', this.getAttribute(\'data-name\'))">@' + escapeHtml(name) + '</button>';
+    });
+    html += '</div>';
+    el.hidden = false;
+    el.innerHTML = html;
+}
+
+var _lbNameCache = {};
+
+function _lbNameNarrow(q) {
+    var shorter = q.length > 1 ? q.slice(0, -1) : '';
+    var parent = shorter && _lbNameCache[shorter];
+    if (!parent || !parent.complete) return null;
+    var rows = LbPrefix.publicNames(parent.docs, q, LbPrefix.SHOW);
+    return { rows: rows, docs: parent.docs, complete: true };
+}
+
+async function _lbNamePrefix(board, q) {
+    var cached = _lbNameCache[q];
+    if (cached) return cached;
+    var narrowed = _lbNameNarrow(q);
+    if (narrowed) {
+        _lbNameCache[q] = narrowed;
+        return narrowed;
+    }
+    // Ghost mode cannot be excluded in a client list query: the field is
+    // missing on ordinary profiles, so a != true filter would drop them.
+    // leaderboardRank suggest mode runs suggestNames on the server, drops
+    // ghosts before the response, and uses the same rate limit.
+    var fn = firebase.functions().httpsCallable('leaderboardRank');
+    var res = await fn({ board: board, period: _lbRankPeriod(board), username: q, suggest: true });
+    var data = (res && res.data) || {};
+    var names = [];
+    (data.suggestions || []).forEach(function (row) {
+        var name = row && row.username;
+        if (!name || String(name).indexOf('@') !== -1) return;
+        names.push({ username: String(name), username_lower: String(name).toLowerCase() });
+    });
+    var rows = LbPrefix.publicNames(names, q, LbPrefix.SHOW);
+    var packed = { rows: rows, docs: names, complete: rows.length < LbPrefix.SHOW };
+    _lbNameCache[q] = packed;
+    return packed;
+}
+
+function _lbSuggestAnon() {
+    var user = _lbRankAuthUser();
+    return !!(user && user.isAnonymous);
+}
+
+async function _lbNameRun(board, raw) {
+    var q = LbPrefix.normalizePrefix(raw);
+    var gen = (_lbRankGen[board] = (_lbRankGen[board] || 0) + 1);
+    if (!_lbRankAuthUser()) {
+        _lbRankPaint(board, { status: 'not_found', message: 'Sign in to search the leaderboard.' });
+        return;
+    }
+    if (!LbPrefix.prefixOk(q, _lbSuggestAnon())) {
+        window._lbSuggestShown = window._lbSuggestShown || {};
+        window._lbSuggestShown[board] = [];
         _lbRankPaint(board, null);
         return;
     }
-    _lbRankTimer[board] = setTimeout(function () { _lbRankRun(board); }, 450);
+    var hit = _lbNameCache[q] || _lbNameNarrow(q);
+    if (hit) {
+        _lbRankPaintNames(board, hit.rows.map(function (row) { return row.username; }));
+        return;
+    }
+    try {
+        hit = await _lbNamePrefix(board, q);
+        if (gen !== _lbRankGen[board]) return;
+        _lbRankPaintNames(board, (hit.rows || []).map(function (row) { return row.username; }));
+    } catch (e) {
+        if (gen !== _lbRankGen[board]) return;
+        var code = (e && e.code) || '';
+        var msg = (e && e.message) || '';
+        var text = 'Search failed. Try again.';
+        if (code.indexOf('resource-exhausted') !== -1 || msg.indexOf('Too many lookups') !== -1) text = 'Too many lookups. Try again in a minute.';
+        else if (code.indexOf('unauthenticated') !== -1 || code.indexOf('permission-denied') !== -1) text = 'Sign in to search the leaderboard.';
+        else if (code.indexOf('failed-precondition') !== -1) text = 'Rank lookup is still indexing. Try again shortly.';
+        else if (code.indexOf('app-check') !== -1 || msg.indexOf('App Check') !== -1) text = 'Security check is not ready. Refresh and try again.';
+        _lbRankPaint(board, { status: 'not_found', message: text });
+    }
+}
+
+window._lbRankType = function (board, val) {
+    window._lbRankState[board] = { text: val || '', me: false };
+    clearTimeout(_lbRankTimer[board]);
+    var q = LbPrefix.normalizePrefix(val);
+    if (!q || !LbPrefix.prefixOk(q, _lbSuggestAnon())) {
+        _lbRankGen[board] = (_lbRankGen[board] || 0) + 1;
+        window._lbSuggestShown = window._lbSuggestShown || {};
+        window._lbSuggestShown[board] = [];
+        _lbRankPaint(board, null);
+        return;
+    }
+    var ready = _lbNameCache[q] || _lbNameNarrow(q);
+    if (ready) _lbRankPaintNames(board, ready.rows.map(function (row) { return row.username; }));
+    _lbRankTimer[board] = setTimeout(function () { _lbNameRun(board, q); }, LbPrefix.DEBOUNCE_MS);
 };
 
 window._lbRankKey = function (event, board) {
     if (!event || event.key !== 'Enter') return;
     event.preventDefault();
     clearTimeout(_lbRankTimer[board]);
-    _lbRankRun(board);
+    var state = window._lbRankState[board] || {};
+    var q = LbPrefix.normalizePrefix(state.text || '');
+    var shown = (window._lbSuggestShown && window._lbSuggestShown[board]) || [];
+    var exact = '';
+    for (var i = 0; i < shown.length; i++) {
+        if (String(shown[i]).toLowerCase() === q) { exact = shown[i]; break; }
+    }
+    if (exact) { _lbRankPick(board, exact); return; }
+    if (shown.length === 1) { _lbRankPick(board, shown[0]); return; }
+    _lbNameRun(board, q);
 };
 
 window._lbRankPick = function (board, name) {
@@ -6393,7 +6795,7 @@ function _lbShareSnapRow(docId) {
 async function _lbShareLookup(board) {
     if (board === 'pvp') {
         var pr = _lbShareSnapRow(LB_BOARDS.pvp && LB_BOARDS.pvp.docId);
-        return pr ? { status: 'ok', rank: pr.rank, username: pr.username, scoreText: (pr.wins || 0) + 'W - ' + (pr.losses || 0) + 'L' } : null;
+        return pr ? { status: 'ok', rank: pr.rank, username: pr.username, scoreText: LbPrefix.pvpRecordText(pr.wins, pr.losses) } : null;
     }
     var period = _lbRankPeriod(board);
     if (board === 'xp') {
@@ -6419,8 +6821,10 @@ function _lbShareFit(ctx, text, max, size, weight) {
     do { ctx.font = weight + ' ' + s + 'px system-ui,-apple-system,Segoe UI,sans-serif'; s -= 2; } while (ctx.measureText(text).width > max && s > 18);
 }
 
-// Canvas text is drawn as text, never parsed as HTML.
-function _lbShareCanvas(board, d, link) {
+// Static frame is drawn once. Each card only paints the rank line on top.
+var _lbShareFrame = null;
+function _lbShareFrameCanvas() {
+    if (_lbShareFrame) return _lbShareFrame;
     var W = 1080, H = 1080;
     var c = document.createElement('canvas'); c.width = W; c.height = H;
     var ctx = c.getContext('2d');
@@ -6431,6 +6835,30 @@ function _lbShareCanvas(board, d, link) {
     ctx.font = '800 52px system-ui,-apple-system,Segoe UI,sans-serif';
     ctx.fillText('₿ Bitcoin Quest™', W / 2, 140);
     ctx.fillStyle = '#e2e8f0';
+    ctx.font = '700 44px system-ui,-apple-system,Segoe UI,sans-serif';
+    ctx.fillText('Can you beat me? Learn Bitcoin and climb.', W / 2, 850);
+    _lbShareFrame = c;
+    try {
+        c.toBlob(function (blob) {
+            if (!blob) return;
+            if (window._lbShareFrameUrl) {
+                try { URL.revokeObjectURL(window._lbShareFrameUrl); } catch (e) {}
+            }
+            window._lbShareFrameUrl = URL.createObjectURL(blob);
+        }, 'image/png');
+    } catch (e) {}
+    return c;
+}
+
+// Canvas text is drawn as text, never parsed as HTML.
+function _lbShareCanvas(board, d, link) {
+    var frame = _lbShareFrameCanvas();
+    var W = frame.width, H = frame.height;
+    var c = document.createElement('canvas'); c.width = W; c.height = H;
+    var ctx = c.getContext('2d');
+    ctx.drawImage(frame, 0, 0);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#e2e8f0';
     var board_ = (LB_SHARE_NAMES[board] || 'Leaderboard') + (d.periodName ? ' · ' + d.periodName : '');
     _lbShareFit(ctx, board_, W - 160, 46, '700'); ctx.fillText(board_, W / 2, 230);
     ctx.fillStyle = '#f7931a'; ctx.font = '900 260px system-ui,-apple-system,Segoe UI,sans-serif';
@@ -6438,31 +6866,155 @@ function _lbShareCanvas(board, d, link) {
     var name = '@' + String(d.username || (currentUser && currentUser.username) || 'Anon').replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 40);
     ctx.fillStyle = '#ffffff'; _lbShareFit(ctx, name, W - 160, 70, '800'); ctx.fillText(name, W / 2, 640);
     if (d.scoreText) { ctx.fillStyle = '#cbd5e1'; _lbShareFit(ctx, String(d.scoreText), W - 160, 48, '600'); ctx.fillText(String(d.scoreText), W / 2, 720); }
-    ctx.fillStyle = '#e2e8f0'; ctx.font = '700 44px system-ui,-apple-system,Segoe UI,sans-serif';
-    ctx.fillText('Can you beat me? Learn Bitcoin and climb.', W / 2, 850);
     ctx.fillStyle = '#f7931a'; _lbShareFit(ctx, link.replace(/^https:\/\//, ''), W - 140, 38, '700');
     ctx.fillText(link.replace(/^https:\/\//, ''), W / 2, 950);
     return c;
 }
 window._lbShareCanvas = _lbShareCanvas;
 
+var _lbShareCache = {};
+function _lbShareCacheKey(board) {
+    return board + '|' + (board === 'pvp' ? 'pvp' : _lbRankPeriod(board));
+}
+function _lbShareRemember(board, entry) {
+    _lbShareCache[_lbShareCacheKey(board)] = entry;
+}
+function _lbShareCacheHit(board) {
+    return _lbShareCache[_lbShareCacheKey(board)] || null;
+}
+
+function _lbShareMeRow(rows) {
+    var me = _lbRankAuthUser();
+    if (!me) return null;
+    var name = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username).trim().toLowerCase() : '';
+    var list = rows || [];
+    for (var i = 0; i < list.length; i++) {
+        var row = list[i];
+        if (!row || !(Number(row.rank) > 0)) continue;
+        if (row.uid && row.uid === me.uid) return row;
+        if (name && String(row.username || '').trim().toLowerCase() === name) return row;
+    }
+    return null;
+}
+
+function _lbShareDataFromRow(board, row) {
+    if (!row) return null;
+    var period = board === 'pvp' ? '' : _lbRankPeriod(board);
+    var d = { status: 'ok', rank: row.rank, username: row.username || 'Anon' };
+    if (board === 'pvp') {
+        d.scoreText = LbPrefix.pvpRecordText(row.wins, row.losses);
+        return d;
+    }
+    if (board === 'quest') {
+        d.score = Number(row.passes) || Number(row.value) || 0;
+        d.pct = Number(row.pct) || 0;
+    } else if (board === 'predict') {
+        d.pct = Number(row.pct) || Number(row.value) || 0;
+        d.score = d.pct;
+    } else if (board === 'streak') {
+        d.score = Number(row.streak) || Number(row.value) || 0;
+    } else {
+        d.score = Number(row.value) || 0;
+    }
+    d.scoreText = _lbRankScoreText(board, period, d);
+    d.periodName = LB_SHARE_PERIODS[period] || '';
+    return d;
+}
+
+function _lbShareLocalRow(board) {
+    if (board === 'pvp') return _lbShareSnapRow(LB_BOARDS.pvp && LB_BOARDS.pvp.docId);
+    if (board === 'xp') return _lbShareSnapRow(_lbBoardSpec(_lbRankPeriod(board)).docId);
+    if (board === 'quest') {
+        var slot = window._questLbCache && window._questLbCache[_questLbPeriod()];
+        return _lbShareMeRow(slot && slot.data && slot.data.rows);
+    }
+    if (board === 'predict') {
+        var data = window._predLbCache && window._predLbCache.data;
+        return _lbShareMeRow(data && data[window._predLbPeriod || 'alltime']);
+    }
+    if (board === 'streak') {
+        var streak = window._streakLbCache && window._streakLbCache.data;
+        var period = window._streakLbPeriod === 'current' ? 'current' : 'alltime';
+        return _lbShareMeRow(streak && streak[period]);
+    }
+    return null;
+}
+
+function _lbShareCardMeta(board, d) {
+    var name = '@' + String(d.username || (currentUser && currentUser.username) || 'Anon');
+    var text = 'I\u2019m #' + Math.floor(Number(d.rank)) + ' on the Bitcoin Quest\u2122 ' + (LB_SHARE_NAMES[board] || 'leaderboard') + '. Can you beat me?';
+    return { title: text, name: name };
+}
+
+function _lbSharePrewarmBoard(board) {
+    if (_lbShareCacheHit(board)) return;
+    var row = _lbShareLocalRow(board);
+    var d = _lbShareDataFromRow(board, row);
+    if (!d) return;
+    var meta = _lbShareCardMeta(board, d);
+    _lbShareRemember(board, {
+        canvas: _lbShareCanvas(board, d, _lbShareLink()),
+        title: meta.title,
+        name: meta.name
+    });
+}
+
+function _lbSharePrewarm() {
+    if (!_lbShareSignedIn()) return;
+    var run = function () {
+        _lbShareFrameCanvas();
+        ['xp', 'quest', 'predict', 'streak', 'pvp'].forEach(_lbSharePrewarmBoard);
+    };
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(run, { timeout: 500 });
+    else setTimeout(run, 40);
+}
+window._lbSharePrewarm = _lbSharePrewarm;
+
 window._lbShareRank = async function (board) {
     if (!LB_SHARE_NAMES[board]) return;
     if (!_lbShareSignedIn()) { if (typeof showToast === 'function') showToast('Sign in to share your rank'); return; }
     if (window._lbSharing) return;
     window._lbSharing = true;
+    var opened = false;
     try {
-        var d = await _lbShareLookup(board);
-        if (!d) { if (typeof showToast === 'function') showToast('You are not ranked on this board yet'); return; }
         var link = _lbShareLink();
-        var canvas = _lbShareCanvas(board, d, link);
-        var text = 'I\u2019m #' + Math.floor(Number(d.rank)) + ' on the Bitcoin Quest\u2122 ' + (LB_SHARE_NAMES[board] || 'leaderboard') + '. Can you beat me?';
-        // Same in-app share sheet as the other share cards (no auto native share).
         var AS = window.AchievementShare;
+        var cached = _lbShareCacheHit(board);
+        var preview = '@' + String((currentUser && currentUser.username) || 'Anon');
+        // Shell first. The image is a cached canvas or a lazy blob after lookup.
         if (AS && typeof AS.openCanvasSheet === 'function') {
-            AS.openCanvasSheet({ type: 'rank', title: text, name: '@' + String(d.username || (currentUser && currentUser.username) || 'Anon'), url: link, canvas: canvas });
+            AS.openCanvasSheet({
+                type: 'rank',
+                title: cached && cached.title ? cached.title : 'Your Bitcoin Quest\u2122 rank',
+                name: cached && cached.name ? cached.name : preview,
+                url: link,
+                shellOnly: true
+            });
+            opened = true;
+            if (cached && cached.canvas && typeof AS.setSheetCanvas === 'function') {
+                AS.setSheetCanvas(cached.canvas, { title: cached.title, name: cached.name });
+                return;
+            }
+        }
+        var d = await _lbShareLookup(board);
+        if (!d) {
+            if (opened && AS && typeof AS.closeSheet === 'function') AS.closeSheet();
+            if (typeof showToast === 'function') showToast('You are not ranked on this board yet');
             return;
         }
+        var canvas = _lbShareCanvas(board, d, link);
+        var meta = _lbShareCardMeta(board, d);
+        _lbShareRemember(board, { canvas: canvas, title: meta.title, name: meta.name });
+        // Same in-app share sheet as the other share cards (no auto native share).
+        if (AS && opened && typeof AS.setSheetCanvas === 'function') {
+            AS.setSheetCanvas(canvas, meta);
+            return;
+        }
+        if (AS && typeof AS.openCanvasSheet === 'function') {
+            AS.openCanvasSheet({ type: 'rank', title: meta.title, name: meta.name, url: link, canvas: canvas });
+            return;
+        }
+        var text = meta.title;
         var blob = await new Promise(function (r) { canvas.toBlob(r, 'image/png'); });
         if (blob) {
             var a = document.createElement('a');
@@ -6569,7 +7121,8 @@ window._changeExperienceMode = function(mode) {
 window.showDeleteAccountConfirm = function() {
     var overlay = document.createElement('div');
     overlay.id = 'deleteAccountOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:450000;background:rgba(0,0,0,0.92);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    var delZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100010) : 2100010;
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:' + delZ + ';background:rgba(0,0,0,0.92);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     var username = (currentUser && currentUser.username) ? currentUser.username : '';
@@ -6880,7 +7433,7 @@ function _lbAuthReady(timeoutMs) {
 
 // One public snapshot doc per board. Intervals match the scheduled writers.
 // localStorage paints immediately. A board refetches when that copy is older
-// than its interval. Rank past 25 is the profile score with the label 25+.
+// than its interval. Rank past 50 is the profile score with the label 50+.
 var LB_BOARDS = {
     xpAll: { key: 'xpAll', docId: 'lb_xp_alltime', intervalMs: 15 * 60 * 1000 },
     xpWeek: { key: 'xpWeek', docId: 'lb_xp_week', intervalMs: 10 * 60 * 1000 },
@@ -6991,7 +7544,7 @@ function _lbYouOutside(users, period) {
         earnedHidden: currentUser.earnedHidden || [],
         lastSeen: currentUser.lastSeen || null,
         lightningAddress: currentUser.lightningAddress || currentUser.lightning || '',
-        _rankLabel: '25+',
+        _rankLabel: '50+',
         _you: true
     };
 }
@@ -7005,9 +7558,7 @@ function _lbXpRowHtml(d, period, index) {
         if (typeof updateRankUI === 'function') updateRankUI();
     }
     var medal = d._rankLabel ? d._rankLabel : (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank);
-    var hidden = (!d._you && rank > 10)
-        ? ' style="display:none;" class="lb-row lb-extra' + (isMe ? ' lb-me' : '') + '"'
-        : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+    var hidden = ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
     var statusDot = typeof onlineStatusDot === 'function' ? onlineStatusDot(d.lastSeen) : '';
     var certIcons = '';
     if (d.earnedHidden && d.earnedHidden.indexOf('cert_scholar') !== -1) certIcons += ' 🎓';
@@ -7027,13 +7578,11 @@ function _lbXpRowHtml(d, period, index) {
 }
 
 function _lbXpRowsHtml(allUsers, period) {
-    var html = '';
     var ranked = [];
     (allUsers || []).forEach(function (d) { if (d && !d._you) ranked.push(d); });
-    ranked.forEach(function (d, i) { html += _lbXpRowHtml(d, period, i); });
-    if (ranked.length > 10) {
-        html += '<button id="lbShowMore" onclick="expandLeaderboard(event)" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;transition:0.2s;">Show Top ' + ranked.length + ' Users ▼</button>';
-    }
+    var split = _lbSplitRows(ranked, function (d, i) { return _lbXpRowHtml(d, period, i); });
+    var html = split.html;
+    if (split.rest) html += _lbMoreButton(_lbStashMore(split.rest), split.total, 'players');
     var you = _lbYouOutside(ranked, period);
     if (you) html += _lbXpRowHtml(you, period, ranked.length);
     if (!ranked.length && !you) {
@@ -7195,6 +7744,7 @@ async function toggleLeaderboard() {
         _loadPredictorLeaderboard();
         _loadPVPLeaderboard();
         _lbRankReplayAll();
+        _lbSharePrewarm();
         if (_lbCachedDoc && !_lbFresh) {
             var _lbPaintPeriod = _lbPeriod;
             _lbSnapFetch(_lbSpec.key).then(function (next) {
@@ -7392,7 +7942,7 @@ function _renderPredictorBoard() {
         html += '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No Questers have qualified yet.</div>';
     } else {
         var myUid = (typeof auth !== 'undefined' && auth.currentUser) ? auth.currentUser.uid : '';
-        rows.forEach(function(entry) {
+        var predSplit = _lbSplitRows(rows, function (entry) {
             var rank = entry.rank || 0;
             var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
             var correctN = Number(entry.correct) || 0;
@@ -7410,17 +7960,15 @@ function _renderPredictorBoard() {
             var name = typeof escapeHtml === 'function' ? escapeHtml(predShown) : String(predShown);
             var peerTag = (window._myPeers && window._myPeers.has(uid)) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
             var predNameAttrs = uid ? ' data-profile-uid="' + uid + '"' + (predBlank ? ' data-blank-name="1"' : '') : '';
-            var hidden = rank > 10 ? ' style="display:none;" class="lb-row pred-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
-            html += '<div' + hidden + ' onclick="showUserProfile(\'' + uid + '\')" style="cursor:pointer;" title="View profile">' +
+            return '<div class="lb-row' + (isMe ? ' lb-me' : '') + '" onclick="showUserProfile(\'' + uid + '\')" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 _predAvatarHtml(entry) +
                 '<span class="lb-name">' + peerTag + '<span' + predNameAttrs + '>' + name + '</span></span>' +
                 '<span class="lb-score pred-score">' + pctN + '%<span class="pred-score-frac">' + correctN + '/' + totalN + '</span></span>' +
             '</div>';
         });
-        if (rows.length > 10) {
-            html += '<button type="button" onclick="event.stopPropagation();document.querySelectorAll(\'.pred-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + rows.length + ' predictors ▼</button>';
-        }
+        html += predSplit.html;
+        if (predSplit.rest) html += _lbMoreButton(_lbStashMore(predSplit.rest), predSplit.total, 'predictors');
     }
     html += '</div><p id="predLbProgress" style="margin:8px 0 0;font-size:0.75rem;line-height:1.4;color:var(--text-muted);"></p>';
     root.innerHTML = html;
@@ -7430,6 +7978,7 @@ function _renderPredictorBoard() {
     var tip = document.getElementById('predLbTip');
     if (tip && !tip.hidden) tip.textContent = _predLbInfoText(period);
     _predLbFillProgress(period, data);
+    if (typeof _lbSharePrewarm === 'function') _lbSharePrewarm();
 }
 
 function _predLbSwitchPeriod(period) {
@@ -7499,7 +8048,7 @@ function _renderStreakBoard() {
         html += '<div class="streak-lb-empty">' + (period === 'current' ? 'No streaks still going.' : 'No streaks yet.') + '</div>';
     } else {
         var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username).trim().toLowerCase() : '';
-        rows.forEach(function(entry) {
+        var streakSplit = _lbSplitRows(rows, function (entry) {
             var rank = entry.rank || 0;
             var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
             var rawName = entry.username || '';
@@ -7509,23 +8058,22 @@ function _renderStreakBoard() {
             var shown = blank ? 'Anon' : rawName;
             var name = typeof escapeHtml === 'function' ? escapeHtml(shown) : String(shown);
             var isMe = !blank && myName && myName === String(shown).trim().toLowerCase();
-            var hidden = rank > 10 ? ' style="display:none;" class="lb-row streak-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
             var open = blank ? '' : ' onclick="_streakOpenProfile(this)"';
-            html += '<div' + hidden + open + ' data-streak-name="' + _streakAttr(shown) + '" style="cursor:' + (blank ? 'default' : 'pointer') + ';" title="' + (blank ? '' : 'View profile') + '">' +
+            return '<div class="lb-row' + (isMe ? ' lb-me' : '') + '"' + open + ' data-streak-name="' + _streakAttr(shown) + '" style="cursor:' + (blank ? 'default' : 'pointer') + ';" title="' + (blank ? '' : 'View profile') + '">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 (typeof _predAvatarHtml === 'function' ? _predAvatarHtml(entry) : '') +
                 '<span class="lb-name">' + name + '</span>' +
                 '<span class="lb-score">🔥 ' + (Number(entry.streak) || 0) + '</span>' +
             '</div>';
         });
-        if (rows.length > 10) {
-            html += '<button type="button" onclick="event.stopPropagation();document.querySelectorAll(\'.streak-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + rows.length + ' streaks ▼</button>';
-        }
+        html += streakSplit.html;
+        if (streakSplit.rest) html += _lbMoreButton(_lbStashMore(streakSplit.rest), streakSplit.total, 'streaks');
     }
     html += '</div>';
     root.innerHTML = html;
     if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(root);
     if (typeof _lbRankReplay === 'function') _lbRankReplay('streak');
+    if (typeof _lbSharePrewarm === 'function') _lbSharePrewarm();
 }
 
 function _streakLbSwitchPeriod(period) {
@@ -7605,7 +8153,7 @@ function _renderQuestBoard() {
         html += '<div class="quest-lb-empty">Nobody has qualified yet.</div>';
     } else {
         var myName = (typeof currentUser !== 'undefined' && currentUser && currentUser.username) ? String(currentUser.username).trim().toLowerCase() : '';
-        rows.forEach(function(entry) {
+        var questSplit = _lbSplitRows(rows, function (entry) {
             var rank = entry.rank || 0;
             var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
             var rawName = entry.username || '';
@@ -7622,18 +8170,21 @@ function _renderQuestBoard() {
             var passes = Number(entry.passes) || 0;
             var pct = Number(entry.pct) || 0;
             var open = blank ? '' : ' onclick="_questOpenProfile(this)"';
-            html += '<div class="lb-row' + (isMe ? ' lb-me' : '') + '"' + open + ' data-quest-name="' + _streakAttr(shown) + '" style="cursor:' + (blank ? 'default' : 'pointer') + ';" title="' + (blank ? '' : 'View profile') + '">' +
+            return '<div class="lb-row' + (isMe ? ' lb-me' : '') + '"' + open + ' data-quest-name="' + _streakAttr(shown) + '" style="cursor:' + (blank ? 'default' : 'pointer') + ';" title="' + (blank ? '' : 'View profile') + '">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 (typeof _predAvatarHtml === 'function' ? _predAvatarHtml(entry) : '') +
                 '<span class="lb-name">' + name + '</span>' +
                 '<span class="lb-score" title="Pass rate">' + passes + ' · ' + pct + '%</span>' +
             '</div>';
         });
+        html += questSplit.html;
+        if (questSplit.rest) html += _lbMoreButton(_lbStashMore(questSplit.rest), questSplit.total, 'questers');
     }
     html += '</div>';
     root.innerHTML = html;
     if (typeof window.patchBlankProfileNames === 'function') window.patchBlankProfileNames(root);
     if (typeof _lbRankReplay === 'function') _lbRankReplay('quest');
+    if (typeof _lbSharePrewarm === 'function') _lbSharePrewarm();
 }
 
 function _questLbSwitchPeriod(period) {
@@ -7676,8 +8227,7 @@ function _renderPvpSnapshot(container, doc) {
         return;
     }
     var seenMe = false;
-    var pvpHtml = '';
-    rows.forEach(function (p) {
+    var pvpSplit = _lbSplitRows(rows, function (p) {
         var rank = p.rank || 0;
         var wins = p.wins || 0;
         var losses = p.losses || 0;
@@ -7687,31 +8237,30 @@ function _renderPvpSnapshot(container, doc) {
         var name = escapeHtml(p.username || 'Anon');
         var medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : '#' + rank;
         var pvpIcon = wins >= 100 ? '👑' : wins >= 50 ? '🏆' : wins >= 25 ? '🏟️' : wins >= 5 ? '🥊' : '⚔️';
-        var hidden = rank > 10 ? ' style="display:none;" class="lb-row pvp-lb-extra' + (isMe ? ' lb-me' : '') + '"' : ' class="lb-row' + (isMe ? ' lb-me' : '') + '"';
+        var record = LbPrefix.pvpRecordText(wins, losses);
         var _pvpTipData = JSON.stringify({ recipientName: p.username || 'Anon', recipientUid: safeId, lightningAddress: p.lightningAddress || '', context: 'pvp', label: 'Tip ' + (p.username || 'Anon') }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
         var peerTag = (window._myPeers && window._myPeers.has(safeId)) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
-        var rate = Number(p.value) || 0;
-        pvpHtml += '<div' + hidden + ' onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
+        return '<div class="lb-row' + (isMe ? ' lb-me' : '') + '" onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
             '<span class="lb-rank">' + medal + '</span>' +
             '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + pvpIcon + '</span>' +
             '<span class="lb-name">' + peerTag + name + '</span>' +
-            '<span class="lb-score" title="' + Math.round(rate) + '% win rate" style="cursor:help;">' + wins + 'W - ' + losses + 'L</span>' +
+            '<span class="lb-score">' + record + '</span>' +
             '<span data-lb-tip="1" onclick="event.stopPropagation();showTipOverlay(JSON.parse(this.getAttribute(\'data-tip-action\').replace(/&quot;/g,\'\\&quot;\')))" data-tip-action="' + _pvpTipData + '" style="cursor:pointer;font-size:0.75rem;color:#eab308;margin-left:6px;flex-shrink:0;" title="Tip ' + name + '">⚡</span>' +
             '</div>';
     });
-    if (rows.length > 10) {
-        pvpHtml += '<button onclick="event.stopPropagation();document.querySelectorAll(\'.pvp-lb-extra\').forEach(function(el){el.style.display=\'flex\'});this.remove();" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.85rem;cursor:pointer;font-family:inherit;margin:8px 0;">Show all ' + rows.length + ' PVP players ▼</button>';
-    }
+    var pvpHtml = pvpSplit.html;
+    if (pvpSplit.rest) pvpHtml += _lbMoreButton(_lbStashMore(pvpSplit.rest), pvpSplit.total, 'players');
     if (!seenMe && currentUser && ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0)) > 0) {
-        var mine = (currentUser.pvpWins || 0) + 'W - ' + (currentUser.pvpLosses || 0) + 'L';
+        var mine = LbPrefix.pvpRecordText(currentUser.pvpWins, currentUser.pvpLosses);
         pvpHtml += '<div class="lb-row lb-me" style="cursor:default;">' +
-            '<span class="lb-rank">25+</span>' +
+            '<span class="lb-rank">50+</span>' +
             '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">⚔️</span>' +
             '<span class="lb-name">' + escapeHtml(currentUser.username || 'Anon') + ' (you)</span>' +
             '<span class="lb-score">' + mine + '</span>' +
             '</div>';
     }
     container.innerHTML = pvpHtml || '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:12px 0;">No PVP battles yet!</div>';
+    if (typeof _lbSharePrewarm === 'function') _lbSharePrewarm();
 }
 
 async function _loadPVPLeaderboard() {
@@ -8009,6 +8558,7 @@ window._restoreSignUpForm = function() {
     if (lnSection) lnSection.style.display = '';
     var factionPicker = document.getElementById('factionPickerSignup');
     if (factionPicker) factionPicker.style.display = '';
+    if (window._paintFactionHints) window._paintFactionHints();
 
     if (h2) h2.style.display = '';
     if (firstP) firstP.style.display = '';
@@ -8088,25 +8638,237 @@ window._selectCountry = function(name) {
     if (dropdown) dropdown.style.display = 'none';
 };
 
-// Title equip
-window._equipTitle = function(titleId) {
+// Title & Flair. The server (titleFlair callable) lists what this player has
+// earned and is the only writer of activeTitle and chatFlairEmoji.
+function _tfEsc(v) { return typeof escapeHtml === 'function' ? escapeHtml(String(v == null ? '' : v)) : String(v == null ? '' : v).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function _tfCollections() {
+    return (typeof window !== 'undefined' && Array.isArray(window.BADGE_COLLECTION_DEFS)) ? window.BADGE_COLLECTION_DEFS : [];
+}
+function _tfTitleDef(id) {
+    if (!id) return null;
+    if (typeof TITLE_DEFS !== 'undefined') {
+        var fromBadge = TITLE_DEFS.find(function(t){ return t.id === id; });
+        if (fromBadge) return fromBadge;
+    }
+    // Collection titles (BIP Merger, Unconfiscatable, etc.) live on BADGE_COLLECTION_DEFS.
+    var cols = _tfCollections();
+    for (var i = 0; i < cols.length; i++) {
+        if (cols[i].title && cols[i].title.id === id) return cols[i].title;
+    }
+    if (id === 'core_contributor') return { id: id, title: 'Core Contributor', emoji: '🔧' };
+    return null;
+}
+window._tfPreview = { title: undefined, flair: undefined };
+window._renderTitleFlairSection = function() {
+    var u = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : {};
+    var earnedT = Array.isArray(u.earnedTitles) ? u.earnedTitles : [];
+    var earnedF = Array.isArray(u.earnedFlair) ? u.earnedFlair : [];
+    var active = u.activeTitle || '';
+    var flair = u.chatFlairEmoji || '';
+    var pv = window._tfPreview || {};
+    var showTitle = pv.title !== undefined ? pv.title : active;
+    var showFlair = pv.flair !== undefined ? pv.flair : flair;
+    var tDef = _tfTitleDef(showTitle);
+    var name = _tfEsc(u.username || 'Bitcoiner');
+    var h = '<style>' +
+        '.tf-wrap{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;box-sizing:border-box;max-width:100%;}' +
+        '.tf-h{font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:0 0 10px;}' +
+        '.tf-sub{font-size:0.7rem;color:var(--text-muted);margin:14px 0 8px;font-weight:700;}' +
+        '.tf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;}' +
+        '.tf-card{position:relative;box-sizing:border-box;min-height:64px;padding:8px 6px;border-radius:10px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;min-width:0;}' +
+        '.tf-card .tf-e{font-size:1.25rem;line-height:1;}' +
+        '.tf-card .tf-n{font-size:0.66rem;font-weight:700;line-height:1.2;overflow-wrap:anywhere;}' +
+        '.tf-card.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:rgba(247,147,26,0.10);}' +
+        '.tf-card.on::after{content:"✓";position:absolute;top:3px;right:6px;font-size:0.7rem;font-weight:900;color:var(--accent);}' +
+        '.tf-card.lock{opacity:0.45;filter:grayscale(1);cursor:help;}' +
+        '.tf-prev{border:1px dashed var(--border);border-radius:10px;padding:10px;font-size:0.8rem;line-height:1.5;overflow-wrap:anywhere;}' +
+        '.tf-pill{display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:1px 8px;font-size:0.7rem;font-weight:700;color:#f97316;margin-left:6px;}' +
+        '.tf-select{display:block;width:100%;box-sizing:border-box;margin:0 0 4px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-family:inherit;font-size:16px;line-height:1.3;}' +
+        '@media (max-width:420px){.tf-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}.tf-card{min-height:58px;padding:6px 4px;}.tf-card .tf-n{font-size:0.6rem;}}' +
+        '</style>';
+    h += '<div class="tf-wrap" id="titleFlairSection">';
+    h += '<div class="tf-h">🎖️ Title &amp; Flair</div>';
+    h += '<div class="tf-prev" aria-live="polite"><div><strong>' + name + '</strong>' + (tDef ? '<span class="tf-pill">' + tDef.emoji + ' ' + _tfEsc(tDef.title) + '</span>' : '') + '</div>' +
+        '<div style="color:var(--text-muted);">' + (showFlair ? _tfEsc(showFlair) + ' ' : '') + '<strong style="color:var(--text);">' + name + '</strong>: gm, stacking sats 🧡</div></div>';
+    function card(kind, id, emoji, label, isOn, lockTip) {
+        var attrs = lockTip
+            ? ' class="tf-card lock" aria-disabled="true" title="' + _tfEsc(lockTip) + '" onclick="if(typeof showToast===\'function\')showToast(this.title)"'
+            : ' class="tf-card' + (isOn ? ' on' : '') + '" aria-pressed="' + (isOn ? 'true' : 'false') + '" onmouseenter="window._tfHover(\'' + kind + '\',this.dataset.v)" onmouseleave="window._tfHover(\'' + kind + '\')" onclick="window._tfPick(\'' + kind + '\',this.dataset.v)"';
+        return '<button type="button" data-v="' + _tfEsc(id) + '"' + attrs + '><span class="tf-e">' + emoji + '</span><span class="tf-n">' + _tfEsc(label) + '</span></button>';
+    }
+    // Titles: one compact dropdown. Locked collection titles stay visible but cannot be picked.
+    h += '<label class="tf-sub" for="tfTitleSelect">Title</label>';
+    h += '<select id="tfTitleSelect" class="tf-select" aria-label="Title" onchange="window._tfTitleChange(this)">';
+    h += '<option value=""' + (!active ? ' selected' : '') + '>No title</option>';
+    var shown = {};
+    var unlocked = [];
+    var locked = [];
+    _tfCollections().forEach(function(col) {
+        if (!col.title || !col.title.id) return;
+        shown[col.title.id] = true;
+        var have = earnedT.indexOf(col.title.id) !== -1;
+        var item = { id: col.title.id, emoji: col.title.emoji || '', title: col.title.title || col.title.id, locked: !have, hint: have ? '' : ('Complete ' + (col.name || 'the collection')) };
+        (have ? unlocked : locked).push(item);
+    });
+    earnedT.forEach(function(tid) {
+        if (shown[tid]) return;
+        var d = _tfTitleDef(tid);
+        if (d) unlocked.push({ id: tid, emoji: d.emoji || '', title: d.title || tid, locked: false, hint: '' });
+    });
+    if (active && unlocked.every(function(item) { return item.id !== active; }) && locked.every(function(item) { return item.id !== active; })) {
+        var cur = _tfTitleDef(active);
+        if (cur) unlocked.unshift({ id: active, emoji: cur.emoji || '', title: cur.title || active, locked: false, hint: '' });
+    }
+    function titleOpt(item) {
+        var label = (item.emoji ? item.emoji + ' ' : '') + item.title + (item.hint ? ' — ' + item.hint : '');
+        return '<option value="' + _tfEsc(item.id) + '"' + (item.locked ? ' disabled' : '') + (active === item.id ? ' selected' : '') + '>' + _tfEsc(label) + '</option>';
+    }
+    if (unlocked.length) {
+        h += '<optgroup label="Unlocked">';
+        unlocked.forEach(function(item) { h += titleOpt(item); });
+        h += '</optgroup>';
+    }
+    if (locked.length) {
+        h += '<optgroup label="Locked">';
+        locked.forEach(function(item) { h += titleOpt(item); });
+        h += '</optgroup>';
+    }
+    h += '</select>';
+    // Flair: None, Nook flair, then collection flair.
+    h += '<div class="tf-sub">Chat flair</div><div class="tf-grid">';
+    h += card('flair', '', '🚫', 'No flair', !flair, '');
+    var seenF = {};
+    var nookOwned = Array.isArray(u.ownedCosmetics) && u.ownedCosmetics.indexOf('chat_flair') !== -1;
+    (window.CHAT_FLAIR_NOOK || []).forEach(function(e) {
+        seenF[e] = true;
+        var have = earnedF.indexOf(e) !== -1 || nookOwned;
+        h += card('flair', e, e, 'Nook', flair === e, have ? '' : '🔒 Buy Chat Flair in the Nook');
+    });
+    _tfCollections().forEach(function(col) {
+        if (!col.flair || seenF[col.flair]) return;
+        seenF[col.flair] = true;
+        var have = earnedF.indexOf(col.flair) !== -1;
+        h += card('flair', col.flair, col.flair, col.name, flair === col.flair, have ? '' : '🔒 Complete the ' + col.name + ' collection');
+    });
+    h += '</div></div>';
+    return h;
+};
+window._tfRepaint = function() {
+    var el = document.getElementById('titleFlairSection');
+    if (!el) return;
+    var tmp = document.createElement('div');
+    tmp.innerHTML = window._renderTitleFlairSection();
+    var fresh = tmp.querySelector('#titleFlairSection');
+    var style = tmp.querySelector('style');
+    if (fresh) el.replaceWith(fresh);
+    if (style && !document.getElementById('tfStyle')) { style.id = 'tfStyle'; document.head.appendChild(style); }
+};
+window._tfHover = function(kind, v) {
+    window._tfPreview[kind] = v === undefined ? undefined : (v || '');
+    var el = document.querySelector('#titleFlairSection .tf-prev');
+    if (!el) return;
+    var tmp = document.createElement('div');
+    tmp.innerHTML = window._renderTitleFlairSection();
+    var p = tmp.querySelector('.tf-prev');
+    if (p) el.innerHTML = p.innerHTML;
+};
+window._tfRefresh = function() {
+    if (typeof window._titleFlairCall !== 'function') return;
+    window._titleFlairCall({ action: 'list' }).then(function() { window._tfRepaint(); }).catch(function() {});
+};
+window._tfTitleChange = function(el) {
+    if (!el) return;
+    var value = el.value || '';
+    window._tfHover('title', value);
+    window._tfPick('title', value);
+};
+window._tfPick = function(kind, value) {
     var user = auth ? auth.currentUser : null;
     if (!user) { if (typeof showToast === 'function') showToast('Sign in to equip a title'); return; }
     if (user.isAnonymous) { if (typeof showToast === 'function') showToast('Create an account to equip a title'); return; }
-    if (typeof currentUser !== 'undefined' && currentUser) currentUser.activeTitle = titleId || null;
-    if (typeof db !== 'undefined' && db) {
-        db.collection('users').doc(user.uid).update({ activeTitle: titleId || null }).catch(function(){});
+    if (typeof window._titleFlairCall !== 'function') return;
+    var payload = { action: 'equip' };
+    payload[kind] = value || null;
+    window._tfPreview = { title: undefined, flair: undefined };
+    window._titleFlairCall(payload).then(function(d) {
+        if (!d || !d.ok) {
+            if (typeof showToast === 'function') showToast('🔒 Not unlocked yet');
+            window._tfRepaint();
+            return;
+        }
+        var label = '';
+        if (kind === 'title') {
+            var tDef = _tfTitleDef(d.activeTitle);
+            label = tDef ? '🎖️ Title equipped: ' + tDef.emoji + ' ' + tDef.title : 'Title removed';
+        } else {
+            label = d.chatFlairEmoji ? 'Chat flair equipped: ' + d.chatFlairEmoji : 'Chat flair removed';
+        }
+        if (typeof showToast === 'function') showToast(label);
+        window._tfRepaint();
+        var pill = document.getElementById('settingsTitlePill');
+        if (pill) {
+            var t = _tfTitleDef(d.activeTitle);
+            pill.innerHTML = t ? '<div style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;color:#f97316;margin-top:6px;">' + t.emoji + ' ' + _tfEsc(t.title) + '</div>' : '';
+        }
+    }).catch(function() { if (typeof showToast === 'function') showToast('Could not save. Try again.'); });
+};
+// Older callers (profile menus) still use this name.
+window._equipTitle = function(titleId) { window._tfPick('title', titleId || ''); };
+
+// Faction identities. Display only. The race math lives in Cloud Functions.
+window.BQ_FACTIONS = window.BQ_FACTIONS || {
+    cyber_hornets: {
+        name: 'Cyber Hornets', emoji: '🐝', flair: '🐝⚡', color: '#f7931a',
+        tagline: 'The swarm protects the network',
+        quips: [
+            'Ten thousand stingers. One chain.',
+            'Bzzz. Your FUD has been swarmed.',
+            "Don't trust. Verify. Then sting.",
+            'Hive mind, cold wallet.',
+            'We run nodes in swarms.'
+        ]
+    },
+    honey_badgers: {
+        name: 'Honey Badgers', emoji: '🦡', flair: '🦡🍯', color: '#a855f7',
+        tagline: "Honey badger don't care",
+        quips: [
+            "Honey badger don't care about your FUD.",
+            'Bitten by a cobra. Still hodling.',
+            'Down 80%? Nap. Wake up. Stack.',
+            'Unkillable. Unbothered. Unshaken.',
+            'Declared dead 400 times. Still here.'
+        ]
     }
-    var label = '';
-    if (titleId && typeof TITLE_DEFS !== 'undefined') {
-        var tDef = TITLE_DEFS.find(function(t){return t.id===titleId;});
-        if (tDef) label = tDef.emoji + ' ' + tDef.title;
-    }
-    if (typeof showToast === 'function') {
-        showToast(label ? '🎖️ Title equipped: ' + label : 'Title removed');
-    }
-    // Re-render settings to update the pill display
-    if (typeof showSettings === 'function') setTimeout(function(){ showSettings('account'); }, 300);
+};
+window.bqFactionQuip = function(f) {
+    var d = window.BQ_FACTIONS[f];
+    if (!d) return '';
+    var day = Math.floor(Date.now() / 86400000);
+    return d.quips[day % d.quips.length];
+};
+// The server names the smaller faction. This only shows the join hint.
+// Member counts stay on the server, so this call returns no numbers.
+window._paintFactionHints = function() {
+    if (typeof firebase === 'undefined' || !firebase.functions) return;
+    firebase.functions().httpsCallable('getSmallerFaction')({}).then(function(res) {
+        var data = res && res.data ? res.data : {};
+        var small = data.smaller === 'cyber_hornets' || data.smaller === 'honey_badgers' ? data.smaller : null;
+        window._factionUnderdogPick = small;
+        ['cyber_hornets', 'honey_badgers'].forEach(function(f) {
+            var tag = document.getElementById('factionUnderdogTag_' + f);
+            if (tag) tag.style.display = small === f ? 'block' : 'none';
+        });
+        // Suggest the smaller side when nothing is picked yet.
+        if (small && !window._signupFaction) {
+            var btn = document.getElementById(small === 'cyber_hornets' ? 'factionBtnHornets' : 'factionBtnBadgers');
+            if (btn && btn.offsetParent !== null && typeof btn.onclick === 'function') btn.onclick();
+        }
+        var sp = document.getElementById('settingsFactionPicker');
+        if (sp && !(currentUser && currentUser.faction) && typeof showSettingsPage === 'function' && !window._factionHintsPainted) {
+            window._factionHintsPainted = true;
+            showSettingsPage('account');
+        }
+    }).catch(function(e) { console.warn('[FACTION] hints', e && e.message); });
 };
 
 // Faction selection. The profile field is server-only. chooseFaction moves
@@ -8116,6 +8878,7 @@ async function commitFactionChoice(faction) {
     if (typeof firebase === 'undefined' || !firebase.functions) throw new Error('Faction save is unavailable.');
     var res = await firebase.functions().httpsCallable('chooseFaction')({ faction: faction });
     var data = res && res.data ? res.data : {};
+    window._lastFactionUnderdogJoin = data.underdogJoin === true;
     var moved = Number(data.moved);
     if (!isFinite(moved)) moved = Number(data.pointsSynced);
     if (!isFinite(moved) || moved < 0) moved = 0;
@@ -8149,7 +8912,8 @@ window._selectFaction = async function(faction) {
         }
 
         var moved = await commitFactionChoice(faction);
-        if (typeof showToast === 'function') showToast(faction === 'cyber_hornets' ? '🐝 Welcome to the Cyber Hornets!' : '🦡 Welcome to the Honey Badgers!');
+        if (typeof showToast === 'function') showToast((faction === 'cyber_hornets' ? '🐝 Welcome to the Cyber Hornets! ' : '🦡 Welcome to the Honey Badgers! ') + window.bqFactionQuip(faction));
+        if (window._lastFactionUnderdogJoin && typeof showToast === 'function') showToast('🔥 Underdog bonus: +25% faction points for 7 days.');
         if (typeof showToast === 'function') showToast(moved + ' unclaimed point' + (moved === 1 ? '' : 's') + ' moved to your faction.');
         showSettingsPage('account');
 
@@ -8267,29 +9031,21 @@ function showSettingsPage(tab) {
         var _titlePillHtml = _activeTitleDef
             ? '<div style="display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:3px 10px;font-size:0.75rem;font-weight:700;color:#f97316;margin-top:6px;">' + _activeTitleDef.emoji + ' ' + escapeHtml(_activeTitleDef.title) + '</div><div style="color:var(--text-faint);font-size:0.7rem;margin-top:3px;font-style:italic;">' + escapeHtml(_activeTitleDef.flavor) + '</div>'
             : '';
-        // Build equip title button if user has earned titles
-        var _earnedTitles = currentUser ? currentUser.earnedTitles || [] : [];
         var _equipTitleHtml = '';
-        if (_earnedTitles.length > 0 && typeof TITLE_DEFS !== 'undefined') {
-            var _titleOptions = '<option value="">- No Title -</option>';
-            _earnedTitles.forEach(function(tid) {
-                var tDef = TITLE_DEFS.find(function(t){return t.id===tid;});
-                if (tDef) _titleOptions += '<option value="' + escapeHtml(tDef.id) + '"' + (tDef.id===_activeTitleId?' selected':'') + '>' + tDef.emoji + ' ' + escapeHtml(tDef.title) + '</option>';
-            });
-            _equipTitleHtml = '<div style="margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;">' +
-                '<span style="font-size:0.8rem;color:var(--text-muted);">🎖️ Equip Title:</span>' +
-                '<select onchange="window._equipTitle(this.value)" style="padding:5px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.8rem;font-family:inherit;cursor:pointer;">' + _titleOptions + '</select>' +
-                '</div>';
-        }
         html += '<div style="text-align:center;margin-bottom:20px;">' +
             '<div style="margin-bottom:8px;position:relative;display:inline-block;">' + _pfpHtml + '</div>' +
             '<div style="color:var(--heading);font-weight:700;font-size:1.2rem;">' + (currentUser ? currentUser.username || 'Bitcoiner' : 'Bitcoiner') + '</div>' +
             '<div style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">' + lvl.name + ' · ' + (currentUser ? currentUser.points || 0 : 0).toLocaleString() + ' XP' + (currentUser && currentUser.faction ? ' · ' + (currentUser.faction === 'cyber_hornets' ? '🐝 Cyber Hornets' : '🦡 Honey Badgers') : '') + '</div>' +
-            _titlePillHtml +
+            '<div id="settingsTitlePill">' + _titlePillHtml + '</div>' +
             _equipTitleHtml +
             '<div style="margin-top:10px;"><a href="/patch-notes.html" id="settingsWhatsNew" onclick="if(window._markPatchSeen)window._markPatchSeen()" style="display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-weight:700;font-size:0.85rem;text-decoration:none;">What\'s new <span class="whats-new-dot" hidden></span></a></div>' +
             '</div>';
 
+        // Title & Flair picker (server-validated). Refreshes from the server once shown.
+        if (!isAnon && typeof window._renderTitleFlairSection === 'function') {
+            html += window._renderTitleFlairSection();
+            setTimeout(function(){ if (window._tfRefresh) window._tfRefresh(); }, 0);
+        }
         // Country selector (custom autocomplete - datalist broken on iOS Safari)
         var _userCountry = currentUser ? currentUser.country || '' : '';
         var _countryXpNudge = !_userCountry ? ' <span style="color:#22c55e;font-size:0.7rem;font-weight:700;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;padding:2px 7px;margin-left:4px;">+100 XP + badge</span>' : '';
@@ -8304,7 +9060,11 @@ function showSettingsPage(tab) {
 
         // Faction selector
         var _userFaction = currentUser ? currentUser.faction || '' : '';
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
+        var _fSmall = _userFaction ? null : (window._factionUnderdogPick || null);
+        var _fTag = function(f) { return _fSmall === f ? '<div style="color:#22c55e;font-size:0.65rem;font-weight:800;margin-top:6px;">🔥 Underdog bonus: +25% for 7 days</div>' : ''; };
+        var _fQuip = function(f) { return '<div style="color:var(--text-faint);font-size:0.62rem;font-style:italic;margin-top:4px;">"' + escapeHtml(window.bqFactionQuip(f)) + '"</div>'; };
+        if (!_userFaction && !window._factionHintsPainted) setTimeout(function() { window._paintFactionHints && window._paintFactionHints(); }, 0);
+        html += '<div id="settingsFactionPicker" style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<div style="font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">⚔️ Faction</div>' +
             (_userFaction
                 ? '<div style="color:var(--text-faint);font-size:0.7rem;margin-bottom:12px;">Your faction choice is permanent.</div>'
@@ -8314,12 +9074,14 @@ function showSettingsPage(tab) {
                 '<div style="font-size:2rem;margin-bottom:6px;">🐝</div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;">Cyber Hornets</div>' +
                 '<div style="color:var(--text-muted);font-size:0.65rem;margin-top:4px;">The swarm protects the network</div>' +
+                _fQuip('cyber_hornets') + _fTag('cyber_hornets') +
                 (_userFaction === 'cyber_hornets' ? '<div style="color:#f7931a;font-size:0.75rem;font-weight:700;margin-top:6px;">✓ Joined</div>' : '') +
             '</div>' +
             '<div onclick="window._selectFaction(\'honey_badgers\')" style="flex:1;padding:14px 10px;border-radius:12px;border:2px solid ' + (_userFaction === 'honey_badgers' ? '#a855f7' : 'var(--border)') + ';background:' + (_userFaction === 'honey_badgers' ? 'rgba(168,85,247,0.1)' : 'var(--card-bg)') + ';cursor:' + (_userFaction && _userFaction !== 'honey_badgers' ? 'default' : 'pointer') + ';text-align:center;transition:all 0.2s;opacity:' + (_userFaction && _userFaction !== 'honey_badgers' ? '0.5' : '1') + ';">' +
                 '<div style="font-size:2rem;margin-bottom:6px;">🦡</div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;">Honey Badgers</div>' +
                 '<div style="color:var(--text-muted);font-size:0.65rem;margin-top:4px;">Honey badger don\'t care</div>' +
+                _fQuip('honey_badgers') + _fTag('honey_badgers') +
                 (_userFaction === 'honey_badgers' ? '<div style="color:#a855f7;font-size:0.75rem;font-weight:700;margin-top:6px;">✓ Joined</div>' : '') +
             '</div>' +
             '</div>' +
@@ -8552,8 +9314,16 @@ function showSettingsPage(tab) {
             html += '</div>';
         });
         html += '</div>';
-        html += '<div id="cipherWinsAdmin" style="margin-top:12px;"></div>';
-        html += '<div id="faucetAbuseAdmin" style="margin-top:12px;"></div>';
+        // Admin mounts stay empty for non-admins. The home shortcut and these
+        // panels both require window._isAdminClaim === true (Firebase claim).
+        if (window._isAdminClaim === true) {
+            html += '<div id="settingsAdminSection" style="margin-top:14px;padding-top:8px;border-top:1px solid var(--border);">';
+            html += '<div style="font-size:0.7rem;font-weight:800;color:#f7931a;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">\uD83D\uDEE1\uFE0F Admin</div>';
+            html += '<div id="cipherWinsAdmin" style="margin-top:12px;"></div>';
+            html += '<div id="factionPrizeAdmin" style="margin-top:12px;"></div>';
+            html += '<div id="faucetAbuseAdmin" style="margin-top:12px;"></div>';
+            html += '</div>';
+        }
         html += '</div>';
 
         // Advanced Account toggle - content renders BELOW this button
@@ -9085,18 +9855,26 @@ function accountDeleteRowHtml(user) {
             { met: _reqLifeLeft > 0, label: 'Lifetime limit 15,000 sats', detail: _reqLifeLeft > 0 ? '✓ ' + _reqLifeLeft.toLocaleString() + ' sats left' : 'Lifetime limit reached' },
             { met: !satsHeld, label: 'Account in good standing', detail: satsHeld ? 'Withdrawals are paused on this account for now' : '✓ One account per person and device' }
         ];
-        if (!claimExempt) {
-            // Same length as functions/src/tctvWatch.js CREDIT_SECONDS.
-            var CLAIM_TCTV_SECONDS = 60;
+        // Always show chat + TCTV rows. Grandfathered accounts (before CLAIM_REQS_START)
+        // see them as N/A so the checklist matches what new accounts must do, without
+        // blocking older accounts. Server enforcement is unchanged.
+        var CLAIM_TCTV_SECONDS = 60;
+        if (claimExempt) {
+            checks.push({ na: true, met: true, label: 'Send 1 message in Chat', detail: 'N/A · account before Nov 5' });
+            checks.push({ na: true, met: true, label: 'Watch Timechain TV', detail: 'N/A · account before Nov 5' });
+        } else {
             checks.push({ met: chatReqMet, label: 'Send 1 message in Chat', detail: chatReqMet ? '✓ Message sent' : 'Send a short real message in Chat', go: 'openClaimChat()' });
             checks.push({ met: tctvReqMet, label: 'Watch Timechain TV', detail: tctvReqMet ? ('✓ ' + CLAIM_TCTV_SECONDS + ' seconds watched') : ('Watch at least ' + CLAIM_TCTV_SECONDS + ' seconds of a video'), go: 'openClaimTv()' });
         }
         checks.forEach(function(c) {
             html += '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);">';
-            html += '<span style="font-size:1.1rem;flex:0 0 auto;">' + (c.met ? '✅' : '⬜') + '</span>';
-            html += '<div style="flex:1;min-width:0;"><div style="font-size:0.8rem;font-weight:600;color:' + (c.met ? 'var(--text)' : 'var(--text-muted)') + ';">' + c.label + '</div>';
-            html += '<div style="font-size:0.7rem;color:' + (c.met ? '#22c55e' : 'var(--text-faint)') + ';">' + c.detail + '</div></div>';
-            if (!c.met && c.go) {
+            var icon = c.na ? '➖' : (c.met ? '✅' : '⬜');
+            var labelColor = c.na ? 'var(--text-muted)' : (c.met ? 'var(--text)' : 'var(--text-muted)');
+            var detailColor = c.na ? 'var(--text-faint)' : (c.met ? '#22c55e' : 'var(--text-faint)');
+            html += '<span style="font-size:1.1rem;flex:0 0 auto;' + (c.na ? 'opacity:0.55;' : '') + '">' + icon + '</span>';
+            html += '<div style="flex:1;min-width:0;"><div style="font-size:0.8rem;font-weight:600;color:' + labelColor + ';">' + c.label + '</div>';
+            html += '<div style="font-size:0.7rem;color:' + detailColor + ';">' + c.detail + '</div></div>';
+            if (!c.na && !c.met && c.go) {
                 html += '<button type="button" class="claim-req-go" onclick="event.stopPropagation();' + c.go + '" style="width:auto;min-width:44px;max-width:88px;white-space:nowrap;flex:0 0 auto;padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.72rem;font-weight:800;cursor:pointer;font-family:inherit;touch-action:manipulation;">' + (c.goLabel || 'Go') + '</button>';
             }
             html += '</div>';
@@ -10032,6 +10810,9 @@ function accountDeleteRowHtml(user) {
             if (window._isAdminClaim === true && typeof window.renderCipherWinsAdmin === 'function') {
                 window.renderCipherWinsAdmin('cipherWinsAdmin');
             }
+            if (window._isAdminClaim === true && typeof window.renderFactionPrizeAdmin === 'function') {
+                window.renderFactionPrizeAdmin('factionPrizeAdmin');
+            }
             if (window._isAdminClaim === true && typeof window.renderFaucetAbuseAdmin === 'function') {
                 window.renderFaucetAbuseAdmin('faucetAbuseAdmin');
             }
@@ -10669,7 +11450,8 @@ window.showArtistProfileModal = function() {
 
     var overlay = document.createElement('div');
     overlay.id = 'artistProfileModal';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:500000;background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
+    var artistZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100010) : 2100010;
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:' + artistZ + ';background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;-webkit-overflow-scrolling:touch;';
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     overlay.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:24px;padding:28px;max-width:440px;width:100%;margin:40px auto;animation:fadeSlideIn 0.3s ease-out;">' +
@@ -10999,12 +11781,36 @@ function clearUserLocalStorage(opts) {
 window.clearUserLocalStorage = clearUserLocalStorage;
 
 // ---- TOS Acceptance Modal (existing users) ----
-function _showTosModal() {
+function _openTosModalNow() {
     var m = document.getElementById('tosModal');
     if (m) m.classList.add('open');
     document.querySelectorAll('.rank-toast').forEach(function(el) { el.remove(); });
     var pill = document.getElementById('nachoQuestPill');
     if (pill) pill.style.display = 'none';
+    // Mode / onboarding wait until Terms are accepted or dismissed.
+    var modeCard = document.getElementById('bqModeHomeCard');
+    if (modeCard) modeCard.style.display = 'none';
+    var intro = document.getElementById('btcIntroOverlay');
+    if (intro) intro.style.display = 'none';
+    var questOverlay = document.getElementById('nachoQuestOverlay');
+    if (questOverlay) questOverlay.remove();
+    if (window.btcSheet && window.btcSheet.setCloser) {
+        window.btcSheet.setCloser(m, function () { window._dismissTos(); });
+    }
+    if (window.btcSheet && window.btcSheet.sync) window.btcSheet.sync();
+    try {
+        var footer = m && m.querySelector('.tos-footer');
+        if (footer && footer.scrollIntoView) footer.scrollIntoView({ block: 'nearest' });
+        var closeBtn = document.getElementById('tosCloseBtn');
+        if (closeBtn && closeBtn.focus) setTimeout(function() { try { closeBtn.focus(); } catch (e) {} }, 50);
+    } catch (e) {}
+}
+function _showTosModal() {
+    if (window.btcOnboardingQueue) {
+        window.btcOnboardingQueue.ready('terms', _openTosModalNow);
+        return;
+    }
+    _openTosModalNow();
 }
 
 function _tosNeedsTick() {
@@ -11018,6 +11824,18 @@ function _tosNeedsTick() {
     if (hint) hint.hidden = false;
 }
 
+window._dismissTos = function () {
+    var m = document.getElementById('tosModal');
+    var wasOpen = !!(m && m.classList.contains('open'));
+    if (m) m.classList.remove('open');
+    var check = document.getElementById('tosModalCheck');
+    if (check) check.checked = false;
+    var hint = document.getElementById('tosNeedTick');
+    if (hint) hint.hidden = true;
+    try { sessionStorage.setItem('btc_tos_dismissed', '1'); } catch (e) {}
+    if (wasOpen && window.btcOnboardingQueue) window.btcOnboardingQueue.done('terms');
+    if (window.btcSheet && window.btcSheet.sync) window.btcSheet.sync();
+};
 window._acceptTos = async function() {
     var check = document.getElementById('tosModalCheck');
     if (!check || !check.checked) { _tosNeedsTick(); return; }
@@ -11038,7 +11856,13 @@ window._acceptTos = async function() {
         }
         var m = document.getElementById('tosModal');
         if (m) m.classList.remove('open');
+        if (window.btcOnboardingQueue) window.btcOnboardingQueue.done('terms');
+        var modeCard = document.getElementById('bqModeHomeCard');
+        if (modeCard) modeCard.style.display = '';
         flushAfterTos();
+        if (typeof window.bqRefreshModeCard === 'function') {
+            try { window.bqRefreshModeCard(); } catch (e) {}
+        }
         if (typeof showToast === 'function') showToast('✅ Terms accepted. Welcome back!');
     } catch(e) {
         if (btn) { btn.textContent = 'Accept & Continue →'; btn.disabled = false; }
@@ -11244,7 +12068,8 @@ function presentSignOutLinkWarning(warning) {
     if (existing) existing.remove();
     var overlay = document.createElement('div');
     overlay.id = 'signOutLinkWarning';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:800000;background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;padding:16px;';
+    var warnZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100010) : 2100010;
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:' + warnZ + ';background:rgba(0,0,0,0.88);display:flex;align-items:center;justify-content:center;padding:16px;';
     overlay.innerHTML = '<div role="dialog" aria-modal="true" aria-labelledby="signOutLinkWarningTitle" style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:380px;width:100%;text-align:center;box-shadow:0 16px 40px rgba(0,0,0,0.35);">' +
         '<div style="font-size:2rem;margin-bottom:8px;">⚠️</div>' +
         '<div id="signOutLinkWarningTitle" style="color:var(--heading,#fff);font-weight:800;font-size:1.05rem;margin-bottom:8px;">Sign out?</div>' +
@@ -11312,6 +12137,10 @@ async function signOutUser(force) {
     clearTotpVerified();
     clearAuthDisplay();
     clearUserLocalStorage();
+    try { localStorage.setItem('btc_last_signed_in', '0'); } catch (eSignOut) {}
+    if (window.btcAuthDisplay && window.btcAuthDisplay.hideSigningShell) {
+        try { window.btcAuthDisplay.hideSigningShell(); } catch (eShellOut) {}
+    }
     if (typeof window.bqClearTopicDrafts === 'function') window.bqClearTopicDrafts();
     await auth.signOut();
     location.reload();
@@ -11526,15 +12355,12 @@ window.exportUserData = function() {
 };
 
 
-// ---- Prefetch BTC price immediately (don't wait for auth) ----
-if (!localStorage.getItem('btc_last_price') || Date.now() - parseInt(localStorage.getItem('btc_price_ts') || '0') > 300000) {
-    fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd').then(function(r){return r.json()}).then(function(d){
-        if(d&&d.bitcoin&&d.bitcoin.usd){localStorage.setItem('btc_last_price',d.bitcoin.usd.toString());localStorage.setItem('btc_price_ts',Date.now().toString());}
-    }).catch(function(){});
-}
-if (!localStorage.getItem('btc_last_height') || Date.now() - parseInt(localStorage.getItem('btc_height_ts') || '0') > 300000) {
-    fetch('https://mempool.space/api/blocks/tip/height').then(function(r){return r.text()}).then(function(h){
-        var height=parseInt(h);if(height){localStorage.setItem('btc_last_height',height.toString());localStorage.setItem('btc_height_ts',Date.now().toString());}
+// ---- Prefetch BTC price from the shared worker cache (don't wait for auth) ----
+if (!localStorage.getItem('btc_last_price') || Date.now() - parseInt(localStorage.getItem('btc_price_ts') || '0') > 300000 || !localStorage.getItem('btc_last_height') || Date.now() - parseInt(localStorage.getItem('btc_height_ts') || '0') > 300000) {
+    var _btcHost = (location.hostname === 'localhost' || location.hostname === '127.0.0.1') ? location.origin : 'https://jolly-surf-219enacho-search.needcreations.workers.dev';
+    fetch(_btcHost + '/btc-data').then(function(r){return r.json()}).then(function(d){
+        if (d && d.price) { localStorage.setItem('btc_last_price', String(d.price)); localStorage.setItem('btc_price_ts', Date.now().toString()); }
+        if (d && d.blockHeight) { localStorage.setItem('btc_last_height', String(d.blockHeight)); localStorage.setItem('btc_height_ts', Date.now().toString()); }
     }).catch(function(){});
 }
 
@@ -11585,7 +12411,8 @@ function openWithdrawalAddress(opts) {
 
         var overlay = document.createElement('div');
         overlay.id = 'lnAddrModal';
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,0.78);z-index:620000;display:flex;align-items:center;justify-content:center;padding:16px;';
+        var lnZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100010) : 2100010;
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,0.78);z-index:' + lnZ + ';display:flex;align-items:center;justify-content:center;padding:16px;';
         overlay.addEventListener('click', function (e) { if (e.target === overlay) finish(null); });
 
         var panel = document.createElement('div');
@@ -12065,7 +12892,8 @@ window._showTotpSignInChallenge = function() {
     if (document.getElementById('totpSignInOverlay')) return;
     var overlay = document.createElement('div');
     overlay.id = 'totpSignInOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:700000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    var totpZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100025) : 2100025;
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:' + totpZ + ';display:flex;align-items:center;justify-content:center;padding:16px;';
     overlay.innerHTML =
         '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:28px 24px;max-width:340px;width:100%;text-align:center;">' +
             '<div style="font-size:2.5rem;margin-bottom:10px;">📱</div>' +
@@ -12161,7 +12989,8 @@ window._showMFASignInChallenge = async function(resolver) {
     window._mfaResolver = resolver;
     var overlay = document.createElement('div');
     overlay.id = 'mfaSignInOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:600000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    var mfaZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100025) : 2100025;
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:' + mfaZ + ';display:flex;align-items:center;justify-content:center;padding:16px;';
 
     // On Safari, reCAPTCHA required for phone auth is blocked by ITP — show helpful message instead
     var _isSafariMFA = /^((?!chrome|android).)*safari/i.test(navigator.userAgent || '');
@@ -12356,7 +13185,8 @@ window._showLostAccess = function () {
     if (document.getElementById('lostAccessOverlay')) return;
     var overlay = document.createElement('div');
     overlay.id = 'lostAccessOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:700001;display:flex;align-items:center;justify-content:center;padding:16px;';
+    var lostZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100025) : 2100025;
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:' + lostZ + ';display:flex;align-items:center;justify-content:center;padding:16px;';
     overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:420px;width:100%;">' +
         '<div style="font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:8px;">Lost your device?</div>' +
         '<div style="color:var(--text-muted,#aaa);font-size:0.88rem;line-height:1.55;margin-bottom:14px;">Enter one of the recovery codes you saved when you turned on two-factor authentication. That code works once and turns two-factor authentication off, so you can sign in and set it up again. If you lost those codes too, contact support. After they confirm it is you, they can turn it off.</div>' +
@@ -12374,7 +13204,8 @@ window._showRecoveryCodes = function (codes) {
     }).join('');
     var overlay = document.createElement('div');
     overlay.id = 'recoveryCodesOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:700002;display:flex;align-items:center;justify-content:center;padding:16px;';
+    var recZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100025) : 2100025;
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:' + recZ + ';display:flex;align-items:center;justify-content:center;padding:16px;';
     overlay.innerHTML = '<div style="background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:22px;max-width:420px;width:100%;max-height:90vh;overflow:auto;">' +
         '<div style="font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:6px;">Save your recovery codes</div>' +
         '<div style="color:var(--text-muted,#aaa);font-size:0.82rem;line-height:1.5;margin-bottom:12px;">These are shown once. Each code works one time and turns two-factor authentication off. Store them somewhere safe.</div>' +
@@ -12528,7 +13359,10 @@ window._showFreshStepUp = function (action) {
         deleteAccount: 'Enter a fresh authenticator code to delete this account. Remembering this device is not enough.',
         disableTotp: 'Enter a fresh authenticator code to turn off two-factor authentication. A saved session is not enough.',
         regenerateRecoveryCodes: 'Enter a fresh authenticator code to create new recovery codes. A saved session is not enough.',
-        changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.'
+        changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.',
+        adminSetKillSwitch: 'Enter a fresh authenticator code to flip the kill switch. A remembered device is not enough, and the authenticator must be at least 24 hours old.',
+        claimFavorBlock: 'Enter a fresh authenticator code to claim your Favor block. A remembered device is not enough.',
+        adminSetFavorClaims: 'Enter a fresh authenticator code to change Favor claim settings.'
     };
     return new Promise(function (resolve) {
         var old = document.getElementById('freshStepUpOverlay');
@@ -12764,7 +13598,8 @@ window.bqConfirmLnFee = function(gross, label) {
         ov.setAttribute('role', 'dialog');
         ov.setAttribute('aria-modal', 'true');
         ov.setAttribute('aria-labelledby', 'lnFeeConfirmTitle');
-        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:600000;display:flex;align-items:center;justify-content:center;padding:16px;';
+        var feeZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100020) : 2100020;
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:' + feeZ + ';display:flex;align-items:center;justify-content:center;padding:16px;';
         var row = 'display:flex;justify-content:space-between;gap:12px;padding:6px 0;font-size:0.88rem;';
         ov.innerHTML = '<div style="background:var(--bg-side,#14151f);border:1px solid var(--border,#333);border-radius:16px;padding:20px;max-width:360px;width:100%;box-sizing:border-box;">' +
             '<div id="lnFeeConfirmTitle" style="font-weight:800;font-size:1rem;color:var(--accent,#f7931a);text-align:center;margin-bottom:12px;">Confirm your claim</div>' +
@@ -12852,6 +13687,37 @@ window.claimCipherSats = async function() {
     }
 };
 
+
+// Stack any Settings-opened overlay above #usernameModal (CSS z-index 2100008)
+// and above any already-open sibling overlay. Floor stays above Settings even
+// when Settings is closed, so home → claim still wins against other shells.
+window._bqAboveModalsZ = function(floor) {
+    var top = Math.max(Number(floor) || 0, 2100010);
+    var ids = [
+        'usernameModal', 'satsClaimOverlay', 'lnFeeConfirmOverlay', 'lnAddrModal',
+        'artistProfileModal', 'signOutLinkWarning', 'totpSignInOverlay', 'mfaSignInOverlay',
+        'freshStepUpOverlay', 'reauthOverlay', 'changeEmailModal', 'accountLinkHold',
+        'deleteAccountOverlay', 'nostrAuthOverlay', 'troubleSignInModal', 'usernameRepick',
+        'lostAccessOverlay', 'recoveryCodesOverlay'
+    ];
+    for (var i = 0; i < ids.length; i++) {
+        var el = document.getElementById(ids[i]);
+        if (!el) continue;
+        if (el.id === 'usernameModal' && !(el.classList && el.classList.contains('open'))) continue;
+        var z = 0;
+        if (el.style && el.style.zIndex) z = parseInt(el.style.zIndex, 10) || 0;
+        if (!z && el.getAttribute) {
+            var m = String(el.getAttribute('style') || '').match(/z-index:\s*(\d+)/i);
+            if (m) z = parseInt(m[1], 10) || 0;
+        }
+        if (!z && typeof getComputedStyle === 'function') {
+            try { z = parseInt(getComputedStyle(el).zIndex, 10) || 0; } catch (e) {}
+        }
+        if (z > top) top = z;
+    }
+    return top + 2;
+};
+
 window.initSatsClaim = function() {
     console.log('[SATS] initSatsClaim called', { currentUser: !!currentUser, auth: !!auth, authUser: !!auth?.currentUser, isAnon: auth?.currentUser?.isAnonymous });
     if (!currentUser || !auth || !auth.currentUser || auth.currentUser.isAnonymous) {
@@ -12877,10 +13743,24 @@ window.initSatsClaim = function() {
 
     var overlay = document.createElement('div');
     overlay.id = 'satsClaimOverlay';
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500001;display:flex;align-items:center;justify-content:center;padding:16px;';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    var claimZ = (typeof window._bqAboveModalsZ === 'function') ? window._bqAboveModalsZ(2100010) : 2100010;
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:' + claimZ + ';display:flex;align-items:center;justify-content:center;padding:16px;';
+    function closeSatsClaim() {
+        document.removeEventListener('keydown', onSatsClaimKey, true);
+        if (overlay.parentNode) overlay.remove();
+    }
+    function onSatsClaimKey(e) {
+        if (e.key !== 'Escape') return;
+        e.stopPropagation();
+        e.preventDefault();
+        closeSatsClaim();
+    }
+    document.addEventListener('keydown', onSatsClaimKey, true);
     // Delay dismiss listener to prevent the originating button click from immediately closing it
     setTimeout(function() {
-        overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+        overlay.onclick = function(e) { if (e.target === overlay) closeSatsClaim(); };
     }, 200);
 
     var _savedLnAddr = (typeof currentUser !== 'undefined' && currentUser) ? (currentUser.lightning || currentUser.lightningAddress || '') : '';
@@ -12926,6 +13806,14 @@ window.initSatsClaim = function() {
 
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
+    var cancelBtn = overlay.querySelector('button[onclick*="satsClaimOverlay"]');
+    if (cancelBtn) cancelBtn.onclick = function(e) { e.preventDefault(); closeSatsClaim(); };
+    // Successful claim removes the overlay; drop the Esc listener too.
+    var _origRemove = overlay.remove.bind(overlay);
+    overlay.remove = function() {
+        document.removeEventListener('keydown', onSatsClaimKey, true);
+        _origRemove();
+    };
     if (typeof window._ensureTurnstile === 'function') window._ensureTurnstile(document.getElementById('satsClaimTurnstile'));
 };
 

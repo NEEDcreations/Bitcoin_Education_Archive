@@ -378,9 +378,9 @@
             follow: 'Want the daily spin, which also helps a streak?',
             hash: 'app/streak-freeze', aliases: ['streak-freeze'], kind: 'quest', arg: 'nook' }),
         R({ id: 'hash-booster', title: 'Hash booster', group: 'Shop & items', term: 'hash booster', priority: 70,
-            kw: 'hash booster second rig hashes extra hash',
-            desc: 'A hash booster is spent one hash at a time, and while charges remain that hash skips the per-minute limit.',
-            how: 'A second rig is a separate rig with its own cooldown, and one charge unlocks rig 2 for the current cycle. It is not a larger booster.',
+            kw: 'hash booster second rig spam hasher hashes extra hash',
+            desc: 'A hash booster costs 10 Orange Tickets in the Nook, up to 10 a day. Activating one gives 100 instant hashes with no cooldown in Satoshi\'s Favor.',
+            how: 'A second rig is not cosmetic. One charge unlocks a Hash #2 button with its own separate hash limit for the whole current window, so you can hash about twice as fast. The Spam Hasher lifts the per-minute limit for one whole window.',
             follow: 'Want to open Satoshi\'s Favor now?',
             hash: 'app/hash-booster', aliases: ['hash-booster', 'second-rig'], kind: 'quest', arg: 'nook' }),
         R({ id: 'raffle', title: 'Orange ticket raffle', group: 'Shop & items', term: 'raffle', priority: 65,
@@ -1888,6 +1888,70 @@
             + 'body.bq-invite-min #inviteCard[data-show="1"] #invitePill{display:inline-flex!important}';
         document.head.appendChild(style);
     }
+    function bqMarkMoreChild(el, more) {
+        if (!el || !more || el.parentNode !== more || el._bqMoreMarked) return;
+        el._bqMoreNext = el.nextSibling || null;
+        el._bqMoreMarked = true;
+    }
+    function bqRestoreMoreChild(el, more) {
+        if (!el || !more || !el._bqMoreMarked || el.parentNode === more) return;
+        var ref = el._bqMoreNext;
+        if (ref && ref.parentNode === more) more.insertBefore(el, ref);
+        else more.appendChild(el);
+    }
+    function bqParkBefore(el, anchor) {
+        if (!el || !anchor || !anchor.parentNode) return;
+        if (el.parentNode === anchor.parentNode && el.nextSibling === anchor) return;
+        anchor.parentNode.insertBefore(el, anchor);
+    }
+    // Lite hides the whole More block, including the button. Guided hides the
+    // same block and keeps Your Quest Begins on the page.
+    function bqApplyHomeMoreQuiet(mode) {
+        if (typeof document === 'undefined') return;
+        var more = document.getElementById('homeMore');
+        var btn = document.getElementById('homeMoreToggle');
+        var quest = document.getElementById('questGuideBanner');
+        var intro = document.getElementById('introVideoSection');
+        var today = document.getElementById('todayCard');
+        var quiet = mode === 'lite' || mode === 'beginner';
+        if (more && quest) bqMarkMoreChild(quest, more);
+        if (more && intro) bqMarkMoreChild(intro, more);
+        if (!quiet) {
+            if (more && quest) bqRestoreMoreChild(quest, more);
+            if (more && intro && !win._forceIntroVideo) bqRestoreMoreChild(intro, more);
+            if (quest) quest.removeAttribute('data-quest-kept');
+            if (more) {
+                more.style.removeProperty('display');
+                more.removeAttribute('data-home-more-quiet');
+            }
+            if (btn) {
+                btn.style.removeProperty('display');
+                btn.removeAttribute('data-home-more-quiet');
+                btn.removeAttribute('aria-hidden');
+            }
+            return;
+        }
+        if (mode === 'beginner' && quest && today) {
+            bqParkBefore(quest, today);
+            if (quest.style && quest.style.removeProperty) quest.style.removeProperty('display');
+            quest.removeAttribute('data-em-hidden');
+            quest.setAttribute('data-quest-kept', '1');
+        } else if (quest && more) {
+            bqRestoreMoreChild(quest, more);
+            quest.removeAttribute('data-quest-kept');
+        }
+        if (intro && more && !win._forceIntroVideo) bqRestoreMoreChild(intro, more);
+        if (more) {
+            more.hidden = true;
+            more.setAttribute('data-home-more-quiet', mode);
+            more.style.setProperty('display', 'none', 'important');
+        }
+        if (btn) {
+            btn.setAttribute('data-home-more-quiet', mode);
+            btn.setAttribute('aria-hidden', 'true');
+            btn.style.setProperty('display', 'none', 'important');
+        }
+    }
     function bqApplyExperienceSurfaces(mode) {
         if (typeof document === 'undefined') return bqNormalizeExperienceMode(mode);
         var m = bqNormalizeExperienceMode(mode);
@@ -1926,6 +1990,7 @@
                 if (el.id === 'introVideoSection') el.removeAttribute('data-simplified-hidden');
             }
         });
+        bqApplyHomeMoreQuiet(m);
         if (typeof win._paintTodayCard === 'function') { try { win._paintTodayCard({ tilesOnly: true }); } catch (eTc) {} }
         return m;
     }
@@ -2089,6 +2154,8 @@
         var options = opts || {};
         container.textContent = '';
         var stored = bqStoredExperienceMode();
+        var preselect = stored || options.preselect || 'beginner';
+        if (preselect !== 'lite' && preselect !== 'beginner' && preselect !== 'intermediate' && preselect !== 'advanced') preselect = 'beginner';
         BQ_EXPERIENCE_MODES.forEach(function (meta) {
             var brief = bqModeBrief(meta.id);
             var block = document.createElement('div');
@@ -2096,17 +2163,17 @@
             var btn = document.createElement('button');
             btn.type = 'button';
             btn.setAttribute('data-mode', meta.id);
-            var on = stored === meta.id;
+            var on = stored ? stored === meta.id : preselect === meta.id;
             btn.setAttribute('aria-pressed', on ? 'true' : 'false');
             var name = document.createElement('div');
             name.className = 'bq-mode-name';
             name.textContent = meta.label;
-            if (on) {
+            if (stored && on) {
                 var current = document.createElement('span');
                 current.className = 'bq-mode-flag';
                 current.textContent = ' (current)';
                 name.appendChild(current);
-            } else if (meta.id === (options.recommended || 'beginner')) {
+            } else if (on || meta.id === (options.recommended || 'beginner')) {
                 var rec = document.createElement('span');
                 rec.className = 'bq-mode-flag';
                 rec.textContent = options.recommended ? ' · Recommended for you' : ' · Recommended';
@@ -2182,6 +2249,46 @@
             + '[data-theme="light"] .bq-home-seg-summary{color:#475569;}';
         document.head.appendChild(style);
     }
+    // Keep #main clear of the fixed .mobile-bar. Signed-in bars grow (username +
+    // price + block + XP above Topics), so a fixed 76px pad left Experience clipped.
+    function bqSyncMobileBarPad() {
+        if (typeof document === 'undefined' || typeof window === 'undefined') return;
+        var root = document.documentElement;
+        if (!root || !root.style || !root.style.setProperty) return;
+        if (window.innerWidth > 900) {
+            root.style.removeProperty('--bq-mobile-bar-h');
+            return;
+        }
+        var bar = document.querySelector('.mobile-bar');
+        if (!bar) return;
+        var cs = window.getComputedStyle ? window.getComputedStyle(bar) : null;
+        if (cs && cs.display === 'none') {
+            root.style.removeProperty('--bq-mobile-bar-h');
+            return;
+        }
+        var h = Math.ceil(bar.getBoundingClientRect().height || bar.offsetHeight || 0);
+        if (h < 40) return;
+        // A few px of breathing room so Experience never kisses the header.
+        root.style.setProperty('--bq-mobile-bar-h', (h + 8) + 'px');
+    }
+    function bqWatchMobileBarPad() {
+        if (typeof document === 'undefined' || typeof window === 'undefined') return;
+        if (window._bqMobileBarPadWatch) return;
+        window._bqMobileBarPadWatch = true;
+        bqSyncMobileBarPad();
+        window.addEventListener('resize', bqSyncMobileBarPad);
+        if (typeof MutationObserver === 'function') {
+            var bar = document.querySelector('.mobile-bar');
+            if (bar) {
+                new MutationObserver(function () { bqSyncMobileBarPad(); }).observe(bar, {
+                    childList: true, subtree: true, attributes: true, characterData: true
+                });
+            }
+        }
+        // Ranking paints the rich mobile user row a bit later.
+        setTimeout(bqSyncMobileBarPad, 800);
+        setTimeout(bqSyncMobileBarPad, 2500);
+    }
     function bqHomeModeCollapsedKey() {
         return 'btc_experience_section_collapsed';
     }
@@ -2208,6 +2315,8 @@
         if (!container || typeof document === 'undefined') return;
         bqEnsurePickerStyles();
         bqEnsureHomeModeStyles();
+        bqWatchMobileBarPad();
+        bqSyncMobileBarPad();
         var options = opts || {};
         var effective = options.current || bqNormalizeExperienceMode();
         var stored = (typeof options.stored === 'string') ? options.stored : bqStoredExperienceMode();
@@ -2322,6 +2431,7 @@
     win.bqFillModePicker = bqFillModePicker;
     win.bqRecommendMode = bqRecommendMode;
     win.bqFillHomeModeBar = bqFillHomeModeBar;
+    win.bqSyncMobileBarPad = bqSyncMobileBarPad;
     win.bqWriteHomeModeCollapsedPref = bqWriteHomeModeCollapsedPref;
     win.bqHomeModeCollapsedKey = bqHomeModeCollapsedKey;
     win.bqGuideCards = bqGuideCards;

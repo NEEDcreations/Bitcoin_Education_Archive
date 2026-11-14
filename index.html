@@ -4,6 +4,20 @@
 <html lang="en">
 <head>
 <script>
+// Strip trailing slash on deep links before any assets load.
+// Live seo-router only aliases /timechain-tv (no slash); /timechain-tv/ used to serve
+// this HTML with a directory base URL and break relative script/css paths.
+(function () {
+    try {
+        var path = window.location.pathname || '';
+        if (path.length > 1 && path.charAt(path.length - 1) === '/') {
+            var next = path.replace(/\/+$/, '') + (window.location.search || '') + (window.location.hash || '');
+            window.location.replace(next);
+        }
+    } catch (e) {}
+})();
+</script>
+<script>
 // Consume the notifications deep link before the hash router treats it as a channel.
 (function(){
     var raw = (window.location.hash || '').replace('#', '');
@@ -56,7 +70,10 @@
     }
 })();
 </script>
-    <script src="auth-display.js?v=20261105_v2487"></script>
+    <script>
+    try { if (localStorage.getItem('btc_last_signed_in') === '1') document.documentElement.classList.add('btc-signing-in'); } catch (e) {}
+    </script>
+    <script src="/auth-display.js?v=20261106_v2512"></script>
     <meta charset="UTF-8">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -73,21 +90,23 @@
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" as="script" integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" as="script" integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous">
     <link rel="preload" href="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" as="script" integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous">
-    <link rel="preload" href="bundle.min.js?v=20261105_v2505" as="script">
+
+    <link rel="preload" href="/bundle.min.js?v=20261109_v2542" as="script">
+
     <link rel="preload" href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image">
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js" defer integrity="sha384-ajMUFBUFMCyjh8uxJg6bkGcKe9RTolyjwbxB3yES0QQMenP3Oztj/W9vA2SJPcIh" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-check-compat.js" defer integrity="sha384-HTm9DHQcJ0avSI5BWVmeKtm3+YULHbl/wgtLQaMGgYEZLQ8cINY+UF+ZsliUaBvK" crossorigin="anonymous"></script>
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js" defer integrity="sha384-xD1t9dGSVKobUztxDkv6xUI0H4AnFz0NxwlgDJJ7FDlblG9xxr1Z9iauCZuJYj6p" crossorigin="anonymous"></script>
-    <script src="firebase-config.js?v=20261027_v2394" defer></script>
-    <script src="app-check-boot.js?v=20261029_v2426" defer></script>
-    <script src="auth-boot.js?v=20261027_v2394" defer></script>
+    <script src="/firebase-config.js?v=20261027_v2394" defer></script>
+    <script src="/app-check-boot.js?v=20261029_v2426" defer></script>
+    <script src="/auth-boot.js?v=20261027_v2394" defer></script>
     <meta name="description" content="A curated Bitcoin education archive with 145 topics, Timechain TV (24/7 Bitcoin video streaming), mini-apps, AI tutor, and Lightning rewards — free for the world.">
     <meta name="keywords" content="Bitcoin, Bitcoin education, learn Bitcoin, Bitcoin archive, Bitcoin guide, cryptocurrency education, Bitcoin for beginners, Bitcoin quiz, Lightning Network, Bitcoin knowledge, Nacho, sats, proof of work, Bitcoin channels, free Bitcoin education">
     <meta name="author" content="603BTC LLC">
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
     <link rel="canonical" href="https://bitcoineducation.quest/">
     <meta name="theme-color" content="#f7931a">
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png">
@@ -480,30 +499,38 @@
         .consent-hint[hidden] { display:none !important; }
         .consent-row.shake, .tos-check-row.shake { animation: consentShake 0.45s ease; }
         @keyframes consentShake { 0%,100% { transform:translateX(0); } 20% { transform:translateX(-6px); } 40% { transform:translateX(6px); } 60% { transform:translateX(-4px); } 80% { transform:translateX(4px); } }
-        #tosModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.72); z-index:2100010; }
-        #tosModal.open { display:flex; align-items:flex-end; justify-content:center; }
-        #tosModal .tos-box { display:flex; flex-direction:column; background:rgba(15,23,42,0.98); border:1px solid rgba(247,147,26,0.3); border-radius:20px 20px 16px 16px; padding:20px 16px 16px; width:min(440px, calc(100% - 32px)); max-height:calc(100vh - 24px); max-height:calc(100dvh - 24px); margin:12px auto max(12px, env(safe-area-inset-bottom, 0px)); box-shadow:0 20px 60px rgba(0,0,0,0.7); overflow:hidden; box-sizing:border-box; }
-        #tosModal .tos-scroll { overflow:auto; -webkit-overflow-scrolling:touch; flex:1 1 auto; min-height:0; }
-        #tosModal .tos-footer { flex:0 0 auto; padding-top:10px; padding-bottom:max(0px, env(safe-area-inset-bottom, 0px)); }
-        #tosModal h2 { color:#f7931a; font-size:1.3rem; margin-bottom:8px; text-align:center; }
-        #tosModal .tos-subtitle { color:#94a3b8; font-size:0.85rem; margin-bottom:16px; text-align:center; line-height:1.5; }
+        /* TOS modal: stay above every other overlay; sticky Accept footer; scroll body only.
+           Mode / onboarding chrome hides while Terms is open so players are not stuck. */
+        #tosModal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.82); z-index:5000000; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
+        #tosModal.open { display:flex; align-items:center; justify-content:center; padding:16px; padding-bottom:max(16px, env(safe-area-inset-bottom, 0px)); box-sizing:border-box; }
+        #tosModal .tos-box { position:relative; display:flex; flex-direction:column; background:rgba(15,23,42,0.98); border:1px solid rgba(247,147,26,0.3); border-radius:20px; padding:0; width:min(440px, 100%); max-height:min(calc(100vh - 32px), calc(100dvh - 32px)); margin:0 auto; box-shadow:0 20px 60px rgba(0,0,0,0.7); overflow:hidden; box-sizing:border-box; }
+        #tosModal .tos-close { position:absolute; top:8px; right:8px; z-index:3; width:44px; height:44px; border-radius:10px; border:1px solid rgba(255,255,255,0.22); background:rgba(15,23,42,0.95); color:#e2e8f0; font-size:1.4rem; line-height:1; cursor:pointer; font-family:inherit; }
+        #tosModal .tos-close:focus-visible { outline:2px solid #f7931a; outline-offset:2px; }
+        #tosModal .tos-scroll { overflow:auto; -webkit-overflow-scrolling:touch; flex:1 1 auto; min-height:0; padding:20px 16px 8px; }
+        #tosModal .tos-footer { flex:0 0 auto; flex-shrink:0; position:sticky; bottom:0; z-index:2; padding:12px 16px max(12px, env(safe-area-inset-bottom, 0px)); background:rgba(15,23,42,1); border-top:1px solid rgba(247,147,26,0.2); box-shadow:0 -8px 24px rgba(0,0,0,0.35); }
+        #tosModal h2 { color:#f7931a; font-size:1.3rem; margin:0 0 8px; text-align:center; }
+        #tosModal .tos-subtitle { color:#94a3b8; font-size:0.85rem; margin:0 0 16px; text-align:center; line-height:1.5; }
         #tosModal .tos-links { background:rgba(247,147,26,0.06); border:1px solid rgba(247,147,26,0.15); border-radius:10px; padding:14px 16px; margin-bottom:8px; }
         #tosModal .tos-links a { display:flex; align-items:center; gap:8px; color:#f7931a; font-size:0.9rem; font-weight:600; text-decoration:none; padding:6px 0; }
         #tosModal .tos-links a:hover { text-decoration:underline; }
         #tosModal .tos-links a + a { border-top:1px solid rgba(255,255,255,0.06); margin-top:4px; padding-top:10px; }
-        #tosModal .tos-accept-btn { width:100%; min-height:48px; padding:14px; background:#f7931a; border:none; border-radius:10px; color:#fff; font-size:1rem; font-weight:700; cursor:pointer; font-family:inherit; opacity:1; pointer-events:auto; }
+        #tosModal .tos-accept-btn { display:block; width:100%; min-height:52px; padding:14px; background:#f7931a; border:none; border-radius:10px; color:#fff; font-size:1rem; font-weight:700; cursor:pointer; font-family:inherit; opacity:1; pointer-events:auto; }
         #tosModal .tos-accept-btn:hover { background:#ea580c; }
+        #tosModal .tos-accept-btn:disabled { opacity:0.7; cursor:wait; }
         #tosModal .tos-signout { display:block; text-align:center; margin-top:12px; color:#475569; font-size:0.78rem; cursor:pointer; }
         #tosModal .tos-signout:hover { color:#94a3b8; }
-        @media (max-width: 480px) { #tosModal .tos-box { width:calc(100% - 32px); padding:20px 16px 16px; } }
+        @media (max-width: 480px) { #tosModal .tos-box { width:100%; } }
         body:has(#tosModal.open) .rank-toast,
         body:has(#tosModal.open) #nachoQuestPill,
         body:has(#tosModal.open) #btcIntroOverlay,
+        body:has(#tosModal.open) #bqModeHomeCard,
+        body:has(#tosModal.open) #nachoQuestOverlay,
         body:has(#tosModal.open) #guestPointsBanner,
         body:has(#tosModal.open) #nwcSecAlert,
         body:has(#tosModal.open) #usernameRepick,
         body:has(#tosModal.open) #totpSignInOverlay,
-        body:has(#tosModal.open) #mfaSignInOverlay { display:none !important; }
+        body:has(#tosModal.open) #mfaSignInOverlay,
+        body:has(#tosModal.open) #pushOptIn { display:none !important; }
         body:has(#usernameModal.open) .rank-toast { display:none !important; }
 
         /* FAB row: Chat | AI | Metrics | Leaderboard (L→R) */
@@ -978,7 +1005,7 @@
             .sidebar-expand-btn { display: none !important; }
             .sidebar-collapse-btn { display: none !important; }
             body { flex-direction: column; }
-            main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-top: calc(76px + env(safe-area-inset-top, 0px)); padding-bottom: calc(var(--above-fab) + 44px + var(--fab-gap)); touch-action: pan-y; contain: content; }
+            main { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-top: var(--bq-mobile-bar-h, calc(110px + env(safe-area-inset-top, 0px))); padding-bottom: calc(var(--above-fab) + 44px + var(--fab-gap)); touch-action: pan-y; contain: content; }
             .mobile-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 10px; padding-top: calc(12px + env(safe-area-inset-top, 0px)); background: var(--bg-side); border-bottom: 1px solid var(--border); flex-shrink: 0; position: fixed; top: 0; left: 0; right: 0; z-index: 100; overflow: hidden; gap: 6px; }
             .mobile-bar h2 { color: var(--accent); font-size: clamp(11px, 3.1vw, 0.85rem); font-weight: 900; text-transform: uppercase; letter-spacing: 0; line-height: 1.05; }
             .mobile-bar button { background: none; border: 1px solid var(--border); color: var(--text-dim); padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: background 0.15s, color 0.15s, border-color 0.15s; }
@@ -1055,7 +1082,8 @@
             .home-stats { gap: 8px; }
             .home-stat-num { font-size: 1.1rem; }
             .mobile-bar h2 { font-size: clamp(10px, 3.2vw, 0.72rem); letter-spacing: 0; line-height: 1.05; }
-            .mobile-bar { padding: 10px 8px; gap: 4px; }
+            /* Keep safe-area: the shorthand alone wiped padding-top's env(safe-area-inset-top). */
+            .mobile-bar { padding: 10px 8px; padding-top: calc(10px + env(safe-area-inset-top, 0px)); gap: 4px; }
             #mobileUserInfo { max-width: 50px !important; font-size: 0.6rem !important; }
             .channel-logos .channel-logo-img { width: 54px; height: 54px; }
             .channel-logos svg { width: 34px; height: 34px; }
@@ -1158,7 +1186,11 @@
     .home-tile-claim .home-tile-value { color:#fff; font-size:1.15rem; }
     #homeGuestActions { margin:0 0 12px; }
     html.home-signed-in #homeGuestActions, body.home-signed-in #homeGuestActions,
-    html.home-signed-in #homeHero, body.home-signed-in #homeHero { display:none !important; }
+    html.home-signed-in #homeHero, body.home-signed-in #homeHero,
+    html.btc-signing-in #homeGuestActions, html.btc-signing-in #homeHero { display:none !important; }
+    #btcSigningShell { display:none; box-sizing:border-box; width:100%; max-width:520px; margin:12px auto 16px; padding:18px 16px; border-radius:16px; border:1px solid rgba(247,147,26,0.45); background:#111827; color:#f8fafc; font-weight:800; font-size:1.05rem; text-align:center; }
+    html.btc-signing-in #btcSigningShell { display:block; }
+    @media (max-width:360px) { #btcSigningShell { font-size:1rem; padding:16px 12px; } }
     html:not(.home-signed-in) #authBtn { display:none !important; }
     .home-guest-cta, .home-watch-intro { width:100%; border-radius:14px; font-family:inherit; cursor:pointer; touch-action:manipulation; }
     .home-guest-cta { background:#f7931a; color:#fff; border:none; padding:14px 16px; font-weight:800; font-size:1rem; }
@@ -1675,9 +1707,10 @@
                         </div>
                     </div>
                 </div>
+                <div id="btcSigningShell" role="status" aria-live="polite">Signing you in…</div>
                 <div id="homeGuestActions">
                     <button type="button" id="homeGuestCta" class="home-guest-cta" onclick="showUsernamePrompt()">Sign up free and earn sats</button>
-                    <button type="button" id="homeWatchIntro" class="home-watch-intro" onclick="watchIntroVideo()">Watch the intro</button>
+                    <button type="button" id="homeWatchIntro" class="home-watch-intro" onclick="watchIntroVideo()">Start Here</button>
                 </div>
                 <div id="homeHero">
                 <div class="home-logos">
@@ -1687,7 +1720,7 @@
                 <h1 class="home-title">Bitcoin Quest<span style="display:inline-block;background:#f7931a;color:#fff;font-size:0.32em;font-weight:800;padding:3px 8px;border-radius:6px;vertical-align:middle;margin-left:10px;letter-spacing:0.04em;text-transform:uppercase;line-height:1.4;">Beta</span></h1>
                 <div id="patchNotesHome">
                 <p style="margin:0 0 6px;font-size:0.78rem;line-height:1.35;"><a id="patchNotesLink" href="/patch-notes.html" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">📋 Patch Notes — Latest updates</a></p>
-                <p style="margin:0 0 16px;font-size:0.78rem;line-height:1.35;"><a id="resetsTimelinesLink" href="https://misty-tundra-nn5uvj.pages.grok.bot/" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">⏰ Resets, Timelines &amp; Odds</a></p>
+                <p id="resetReminderRow" style="margin:0 0 16px;font-size:0.78rem;line-height:1.35;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;"><a id="resetsTimelinesLink" href="/resets.html" style="color:var(--accent);text-decoration:none;font-weight:600;opacity:0.85;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.85">⏰ Resets, Timelines &amp; Odds</a><span style="color:var(--text-muted);font-weight:600;">Reminder resets</span><button type="button" id="resetRemindersBtn">Turn on notifications</button></p>
                 <script>
                 (function () {
                     window._applyWhatsNew = function (version) {
@@ -1733,7 +1766,7 @@
                     </div>
                     <div style="width:1px;height:50px;background:rgba(255,255,255,0.1);"></div>
                     <div style="opacity:0.8;display:flex;align-items:center;">
-                      <img src="stackchain-magazine-logo.jpg" alt="Stackchain Magazine" loading="lazy" style="height:clamp(160px,32vw,260px);width:auto;max-width:min(480px,90vw);object-fit:contain;border-radius:6px;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline';"><span style="display:none;color:var(--text-muted);font-size:1.1rem;font-weight:800;">Stackchain Magazine</span>
+                      <img src="/stackchain-magazine-logo.jpg" alt="Stackchain Magazine" loading="lazy" style="height:clamp(160px,32vw,260px);width:auto;max-width:min(480px,90vw);object-fit:contain;border-radius:6px;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline';"><span style="display:none;color:var(--text-muted);font-size:1.1rem;font-weight:800;">Stackchain Magazine</span>
                     </div>
                   </div>
                 </div>
@@ -1744,20 +1777,19 @@
                 </div>
                 </div>
                 <script>if(localStorage.getItem('btc_featured_on_collapsed')==='1'){var _fof=document.getElementById('featuredOnFull');var _fom=document.getElementById('featuredOnMini');if(_fof)_fof.style.display='none';if(_fom)_fom.style.display='flex';}</script>
-                <!-- Intro/Tutorial Video -->
+                <!-- Start Here guide. The YouTube id lives in window.START_HERE_YT_ID. -->
                 <div id="introVideoSection" style="width:100%;max-width:640px;margin:0 auto 24px auto;">
                     <div id="introVideoFull" style="position:relative;width:100%;border-radius:14px;overflow:hidden;background:#000;box-shadow:0 4px 32px rgba(247,147,26,0.18);border:1px solid rgba(247,147,26,0.25);">
-                        <video id="introVideo" controls playsinline preload="none" data-src="https://assets.bitcoineducation.quest/videos/intro-tutorial.mp4" style="display:block;width:100%;max-height:360px;object-fit:contain;" onplay="var o=document.getElementById('introVideoOverlay');if(o){o.style.opacity='0';o.style.pointerEvents='none';}">
-                        </video>
-                        <div id="introVideoOverlay" onclick="if(window.ensureIntroVideo)window.ensureIntroVideo(true);else{var v=document.getElementById('introVideo');if(v)v.play();} this.style.opacity='0';this.style.pointerEvents='none';" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:rgba(0,0,0,0.52);cursor:pointer;transition:opacity 0.4s ease;">
-                            <div style="font-size:1.9rem;font-weight:900;color:#fff;text-align:center;text-shadow:0 2px 20px rgba(0,0,0,0.9);letter-spacing:0.5px;line-height:1.25;padding:0 24px;">Introduction / Tutorial</div>
+                        <div id="introVideo" style="position:relative;width:100%;padding-top:56.25%;background:#111;"></div>
+                        <div id="introVideoOverlay" onclick="if(window.ensureIntroVideo)window.ensureIntroVideo(true);" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:rgba(0,0,0,0.52);cursor:pointer;transition:opacity 0.4s ease;">
+                            <div style="font-size:1.9rem;font-weight:900;color:#fff;text-align:center;text-shadow:0 2px 20px rgba(0,0,0,0.9);letter-spacing:0.5px;line-height:1.25;padding:0 24px;">Start Here</div>
                             <div style="width:60px;height:60px;background:rgba(247,147,26,0.92);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.5rem;box-shadow:0 4px 24px rgba(247,147,26,0.55);padding-left:4px;">▶</div>
                         </div>
-                        <button onclick="var v=document.getElementById('introVideo');if(v)v.pause();document.getElementById('introVideoFull').style.display='none';document.getElementById('introVideoMini').style.display='flex';localStorage.setItem('btc_intro_video_collapsed','1')" style="position:absolute;top:8px;right:10px;background:rgba(0,0,0,0.55);border:none;color:rgba(255,255,255,0.75);font-size:0.7rem;font-weight:700;cursor:pointer;padding:5px 9px;border-radius:8px;font-family:inherit;letter-spacing:0.3px;line-height:1;touch-action:manipulation;" title="Minimize video">▲ hide</button>
+                        <button onclick="if(window.pauseIntroVideo)window.pauseIntroVideo();document.getElementById('introVideoFull').style.display='none';document.getElementById('introVideoMini').style.display='flex';localStorage.setItem('btc_intro_video_collapsed','1')" style="position:absolute;top:8px;right:10px;background:rgba(0,0,0,0.55);border:none;color:rgba(255,255,255,0.75);font-size:0.7rem;font-weight:700;cursor:pointer;padding:5px 9px;border-radius:8px;font-family:inherit;letter-spacing:0.3px;line-height:1;touch-action:manipulation;" title="Minimize video">▲ hide</button>
                     </div>
-                    <div id="introVideoMini" style="display:none;align-items:center;gap:10px;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;cursor:pointer;" onclick="document.getElementById('introVideoFull').style.display='';document.getElementById('introVideoMini').style.display='none';localStorage.removeItem('btc_intro_video_collapsed')">
+                    <div id="introVideoMini" style="display:none;align-items:center;gap:10px;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;cursor:pointer;" onclick="document.getElementById('introVideoFull').style.display='';document.getElementById('introVideoMini').style.display='none';localStorage.removeItem('btc_intro_video_collapsed');if(window.ensureIntroVideo)window.ensureIntroVideo(false);">
                         <span style="font-size:1rem;">🎬</span>
-                        <span style="font-size:0.8rem;color:var(--text-muted);font-weight:600;flex:1;">Introduction / Tutorial</span>
+                        <span style="font-size:0.8rem;color:var(--text-muted);font-weight:600;flex:1;">Start Here</span>
                         <span style="font-size:0.72rem;color:var(--accent);font-weight:700;">▼ show</span>
                     </div>
                 </div>
@@ -1803,7 +1835,7 @@
                         <span class="today-favor-go" aria-hidden="true">›</span>
                         <button type="button" id="todayEarnFavor" onclick="if(window.todayEarnFavor)window.todayEarnFavor()">Earn Favor</button>
                     </div>
-                    <div id="todayFavorTip" role="tooltip" hidden><strong>How to earn points:</strong> finish all three daily quests (+1) or level up (+1, more on milestone levels). This is a <strong>community total</strong>: every player's points add up, and at 21 points Satoshi's Favor activates for everyone.</div>
+                    <div id="todayFavorTip" role="tooltip" hidden><strong>How to earn points:</strong> finish all three daily quests (+1), earn a badge (+1), or level up (+1, more on milestone levels). This is a <strong>community total</strong>: every player's points add up, and at 21 points Satoshi's Favor activates for everyone.</div>
                     <div class="today-body">
                         <div class="today-check-head">
                             <h2 id="todayCardTitle">Today</h2>
@@ -1916,7 +1948,7 @@
                     </div>
                 <div id="donateSection"><div id="donatePanelInner" style="display:none;margin-top:10px;padding:16px 20px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;text-align:center;">
                     <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">Donations are greatly appreciated and go towards site upkeep. Thank you for your support!</p>
-                    <img src="donation-qr.jpg" loading="lazy" alt="Bitcoin Donation QR Code" style="width:200px;height:auto;margin-bottom:12px;border:2px solid var(--border);border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.1);">
+                    <img src="/donation-qr.jpg" loading="lazy" alt="Bitcoin Donation QR Code" style="width:200px;height:auto;margin-bottom:12px;border:2px solid var(--border);border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,0.1);">
                     <div style="color:var(--accent);font-weight:600;font-size:0.95rem;margin-bottom:8px;">spontaneousleopard54@zeuspay.com</div>
                     <button onclick="navigator.clipboard.writeText('spontaneousleopard54@zeuspay.com');if(typeof showToast==='function')showToast('📋 Lightning Address copied!')" style="padding:10px 24px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px;">📋 Copy Lightning Address</button>
                     <br>
@@ -2013,6 +2045,27 @@
                         var el = document.getElementById(id);
                         if (el && el.parentNode !== more) more.appendChild(el);
                     });
+                    var mode = '';
+                    try { mode = localStorage.getItem('btc_experience_mode') || ''; } catch (e) {}
+                    if (mode === 'lite' || mode === 'beginner') {
+                        var quest = document.getElementById('questGuideBanner');
+                        var today = document.getElementById('todayCard');
+                        if (mode === 'beginner' && quest && quest.parentNode === more && today && today.parentNode) {
+                            quest._bqMoreNext = quest.nextSibling;
+                            quest._bqMoreMarked = true;
+                            today.parentNode.insertBefore(quest, today);
+                            quest.setAttribute('data-quest-kept', '1');
+                        }
+                        more.hidden = true;
+                        more.setAttribute('data-home-more-quiet', mode);
+                        more.style.setProperty('display', 'none', 'important');
+                        var btn = document.getElementById('homeMoreToggle');
+                        if (btn) {
+                            btn.setAttribute('data-home-more-quiet', mode);
+                            btn.setAttribute('aria-hidden', 'true');
+                            btn.style.setProperty('display', 'none', 'important');
+                        }
+                    }
                 })();
                 </script>
             </div>
@@ -2026,6 +2079,7 @@
     <div id="tosModal">
         <div class="tos-box" role="dialog" aria-modal="true" aria-labelledby="tosModalTitle">
             <div class="tos-scroll">
+                <button type="button" id="tosCloseBtn" class="tos-close" aria-label="Close" onclick="if(window._dismissTos)window._dismissTos()">×</button>
                 <h2 id="tosModalTitle">📜 Updated Terms & Privacy</h2>
                 <p class="tos-subtitle">We've updated our Terms of Service and Privacy Policy. Please review and accept to continue using Bitcoin Education Archive.</p>
                 <div class="tos-links">
@@ -2193,16 +2247,16 @@
                 <p style="color:var(--text-faint);font-size:0.75rem;margin-bottom:8px;">Or sign in with a provider:</p>
                 <div id="gsiButtonHost" style="display:none;margin:0 0 6px;min-height:44px;text-align:center;"></div>
                 <button id="googleSignInFallback" type="button" onclick="signInWithGoogle()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
-                    <img src="auth-icons/google.svg" alt="" width="18" height="18"> Sign in with Google
+                    <img src="/auth-icons/google.svg" alt="" width="18" height="18"> Sign in with Google
                 </button>
                 <button onclick="signInWithFacebook()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
-                    <img src="auth-icons/facebook.svg" alt="" width="18" height="18"> Sign in with Facebook
+                    <img src="/auth-icons/facebook.svg" alt="" width="18" height="18"> Sign in with Facebook
                 </button>
                 <button onclick="signInWithTwitter()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
                     𝕏 Sign in with Twitter/X
                 </button>
                 <button onclick="signInWithGithub()" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.9rem;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:0.2s;margin-bottom:6px;">
-                    <img src="auth-icons/github.svg" alt="" width="18" height="18"> Sign in with GitHub
+                    <img src="/auth-icons/github.svg" alt="" width="18" height="18"> Sign in with GitHub
                 </button>
 <!-- Apple sign-in removed -->
                 <div style="border-top:1px solid var(--border);margin:10px 0 6px;padding-top:10px;">
@@ -2229,52 +2283,59 @@
     <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-functions-compat.js" defer integrity="sha384-Cn425IPPqYFT0+lUg71+39dOh8zj/Ebpl97FkjUqrd+P37HLlysOYDvdw+N7tPuj" crossorigin="anonymous"></script>
     <!-- App Check loads in the head, before auth-boot. ranking.js activates it only if that boot did not. -->
     <!-- ranking.js: defer (not async) so it executes in document order after Firebase SDKs, before bundle -->
-    <script src="push-prefs.js?v=20261022_v2322" defer></script>
-    <script src="username-repick.js?v=20261104_v2476" defer></script>
-    <script src="earn-xp-guide.js?v=20261026_v2382" defer></script>
-    <script src="referral-tiers.js?v=20261105_v2505" defer></script>
-    <script src="ranking.js?v=20261105_v2505" defer></script>
-    <!-- Critical: needed for initial page render -->
-    <script src="bundle.min.js?v=20261105_v2505" defer fetchpriority="high"></script>
-    <script src="bundle-ready.js?v=20261027_v2394" defer></script>
-    <script src="features.registry.js?v=20261105_v2494" defer></script>
-    <script src="favorites.js?v=20261105_v2494" defer></script>
-    <script src="tctv-watch.js?v=20261102_v2464" defer></script>
-    <script src="tctv-drip.js?v=20261105_v2495" defer></script>
-    <script src="today-card.js?v=20261104_v2482" defer></script>
-    <script src="achievement-share.js?v=20261105_v2505" defer></script>
-    <script src="favor-epoch-prizes.js?v=20261105_v2505" defer></script>
-    <script src="bip-breakthrough.js?v=20261105_v2505" defer></script>
+    <script src="/push-prefs.js?v=20261022_v2322" defer></script>
+    <script src="/reset-reminders.js?v=20261109_v2535" defer></script>
+    <script src="/reset-reminder-ui.js?v=20261109_v2535" defer></script>
+    <script src="/username-repick.js?v=20261104_v2476" defer></script>
+    <script src="/earn-xp-guide.js?v=20261026_v2382" defer></script>
+    <script src="/referral-tiers.js?v=20261105_v2499" defer></script>
+    <script src="/popup-stack.js?v=20261106_v2519" defer></script>
+
+    <script src="/kill-switch.js?v=20261111_v2551" defer></script>
+    <script src="/ranking.js?v=20261114_v2560" defer></script>    <!-- Critical: needed for initial page render -->
+    <script src="/bundle.min.js?v=20261109_v2542" defer fetchpriority="high"></script>
+
+    <script src="/bundle-ready.js?v=20261027_v2394" defer></script>
+    <script src="/features.registry.js?v=20261109_v2538" defer></script>
+    <script src="/favorites.js?v=20261105_v2501" defer></script>
+    <script src="/tctv-watch.js?v=20261102_v2464" defer></script>
+    <script src="/tctv-drip.js?v=20261106_v2521" defer></script>
+
+    <script src="/today-card.js?v=20261109_v2538" defer></script>
+    <script src="/achievement-share.js?v=20261109_v2536" defer></script>
+
+    <script src="/bip-breakthrough.js?v=20261105_v2499" defer></script>
+    <script src="/faction-race-prizes.js?v=20261105_v2505" defer></script>
     
-    <script src="miniapp-share.js?v=20261031_v2447" defer></script>
-    <script src="pvp-lobby-alert.js?v=20261104_v2482" defer></script>
-    <script src="patches.js?v=20261026_v2385" defer></script>
-    <script src="onboarding.js?v=20261105_v2487" defer></script>
-    <script src="learning-quests.js?v=20261026_v2377" defer></script>
+    <script src="/miniapp-share.js?v=20261107_v2526" defer></script>
+    <script src="/pvp-lobby-alert.js?v=20261106_v2519" defer></script>
+    <script src="/patches.js?v=20261026_v2385" defer></script>
+    <script src="/onboarding.js?v=20261106_v2512" defer></script>
+    <script src="/learning-quests.js?v=20261026_v2377" defer></script>
     <!-- timechain-tv.js is lazy-loaded on demand (282KB saved on non-TCTV page loads) -->
     <!-- Beats censor runs before chat, notifications, and Bitcoin Beats draw titles. -->
-    <script src="beats-censor.js?v=20261022_v2322"></script>
+    <script src="/beats-censor.js?v=20261022_v2322"></script>
     <!-- Deferred: loaded after page is interactive (saves ~500KB on initial load) -->
     <script>
     (function(){
         // Priority scripts: load immediately for returning users, first in batch for new users
         var _priorityScripts = [
             'beats-censor.js?v=20261022_v2322',
-            'global-chat.js?v=20261105_v2492',
-            'satoshi-favor.js?v=20261104_v2482'
+            'global-chat.js?v=20261106_v2509',
+            'satoshi-favor.js?v=20261112_v2539'
         ];
         var _lazyScripts = [
-            'quests.js?v=20261105_v2505',
+            'quests.js?v=20261114_v2560',
             'hot-topics.js?v=20261022_hottopics',
-            'pvp.js?v=20261031_v2447','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261104_v2482',
-            'scholar.js?v=20261105_v2490','beats.js?v=20261105_v2492',
+            'pvp.js?v=20261031_v2447','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261105_v2506',
+            'scholar.js?v=20261105_v2490','beats.js?v=20261109_v2542',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261104_v2472',
-            'notifications.js?v=20261105_v2497','gifting.js?v=20261102_v2465','guide.js?v=20261104_v2482','modules.js?v=20261026_v2377',
+            'notifications.js?v=20261106_v2512','gifting.js?v=20261106_v2522','guide.js?v=20261104_v2482','modules.js?v=20261106_v2512',
             'first-purchase.js?v=20260411','shareable-certs.js?v=20261028_v2410',
             'sats-vs-bits.js?v=20261030_v2440','tips-integrations.js?v=20260307','wallet-router.js?v=20261104_v2482',
             'lightning-prompt.js?v=20260307','irl-sync.js?v=20261022_v2287',
             'meetup-builder.js?v=20260713','meetup-box.js?v=20260401','bitcoin-buddy.js?v=20261022_v2252',
-            'timechain-tv.js?v=20261031_v2447',
+            'timechain-tv.js?v=20261105_v2502',
             'learning-quests.js?v=20261026_v2377',
             'proof-of-walk.js?v=20260527_strava_comply','proof-of-play.js?v=20261031_v2447'
         ];
@@ -2529,22 +2590,22 @@
         }
         // Map hash prefixes → script files that must be loaded to render them
         var _hashScripts = {
-            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261105_v2492', 'global-chat.js?v=20261105_v2492'],
-            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261105_v2492', 'global-chat.js?v=20261105_v2492'],
-            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261105_v2492'],
-            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261105_v2492'],
+            'bitcoin-beats': ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261109_v2542', 'global-chat.js?v=20261106_v2509'],
+            'beats':         ['beats-censor.js?v=20261022_v2322', 'beats.js?v=20261109_v2542', 'global-chat.js?v=20261106_v2509'],
+            'chat':          ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261106_v2509'],
+            'dms':           ['beats-censor.js?v=20261022_v2322', 'global-chat.js?v=20261106_v2509'],
             'irl-sync':      ['irl-sync.js?v=20261022_v2287'],
             'lightning':     ['lightning.js?v=20261023_v2323', 'lightning-tips.js?v=20261104_v2472'],
             'pvp':           ['pvp.js?v=20261031_v2447'],
             'proof-of-play': ['pvp.js?v=20261031_v2447', 'proof-of-play.js?v=20261031_v2447'],
             'proof-of-walk': ['proof-of-walk.js?v=20260527_strava_comply'],
-            'trails':        ['modules.js?v=20261026_v2377'],
+            'trails':        ['modules.js?v=20261106_v2512'],
             'learning-quests': ['learning-quests.js?v=20261026_v2377'],
-            'quests':        ['quests.js?v=20261105_v2505'],
-            'questhub':      ['quests.js?v=20261105_v2505'],
-            'app':           ['quests.js?v=20261105_v2505'],
-            'timechain-tv':  ['timechain-tv.js?v=20261031_v2447'],
-            'tv':            ['timechain-tv.js?v=20261031_v2447'],
+            'quests':        ['quests.js?v=20261114_v2560'],
+            'questhub':      ['quests.js?v=20261114_v2560'],
+            'app':           ['quests.js?v=20261114_v2560'],
+            'timechain-tv':  ['timechain-tv.js?v=20261105_v2502'],
+            'tv':            ['timechain-tv.js?v=20261105_v2502'],
             'cert':          ['shareable-certs.js?v=20261028_v2410']
         };
         var scripts = _hashScripts[hash];
