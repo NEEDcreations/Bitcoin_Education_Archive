@@ -124,8 +124,16 @@ function setup(opts) {
         }
         const sm = url.match(/^https:\/\/api\.stripe\.com\/v1\/checkout\/sessions\/([A-Za-z0-9_]+)\?/);
         if (sm && init.method === 'GET') {
-            const fp = (o.cardFp && o.cardFp[sm[1]]) || o.defaultCardFp || 'fp_default_card';
-            return { ok: true, status: 200, json: async function () { return { id: sm[1], payment_intent: { payment_method: { card: { fingerprint: fp } } }, setup_intent: null, subscription: { default_payment_method: { card: { fingerprint: fp } } } }; } };
+            let fp;
+            if (o.cardFp && Object.prototype.hasOwnProperty.call(o.cardFp, sm[1])) fp = o.cardFp[sm[1]];
+            else fp = o.defaultCardFp || 'fp_default_card';
+            const pm = (fp == null) ? { card: {} } : { card: { fingerprint: fp } };
+            return { ok: true, status: 200, json: async function () { return { id: sm[1], payment_intent: { payment_method: pm }, setup_intent: null, subscription: { default_payment_method: pm } }; } };
+        }
+        const subDel = url.match(/^https:\/\/api\.stripe\.com\/v1\/subscriptions\/([A-Za-z0-9_]+)$/);
+        if (subDel && init.method === 'DELETE') {
+            if (o.cancelSubFail) return { ok: false, status: 500, json: async function () { return { error: { code: 'cancel_failed' } }; } };
+            return { ok: true, status: 200, json: async function () { return { id: subDel[1], status: 'canceled' }; } };
         }
         if (url.indexOf('https://api.stripe.com/v1/billing_portal/sessions') === 0) {
             return { ok: true, status: 200, json: async function () { return { url: 'https://billing.stripe.test/p' }; } };
@@ -865,6 +873,44 @@ test('Red Team 4 / Spam: a card that already had a trial sends the order to revi
     assert.strictEqual(markers.length, 2);
     assert.strictEqual(storeJson(a).indexOf('fp_same_card'), -1);
     assert.strictEqual(storeJson(a).indexOf('one@example.com'), -1);
+});
+test('Red Team 5: trial_reused cancels the Stripe subscription immediately and records subscription_canceled', async function () {
+    const a = setup({ config: { trialDays: 7 }, defaultCardFp: 'fp_same_card' });
+    const o1 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old', { email: 'one@example.com' }));
+    assert.strictEqual((await stripePost(a, completed(o1.orderId, 'cs_test_1', { amount_total: 0, payment_status: 'no_payment_required' }))).body.outcome, 'granted');
+    const o2 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new', { email: 'two@example.com' }));
+    const ev = completed(o2.orderId, 'cs_test_2', { amount_total: 0, payment_status: 'no_payment_required', customer: 'cus_2', subscription: 'sub_2' });
+    assert.strictEqual((await stripePost(a, ev)).body.outcome, 'review');
+    const del = a.calls.filter(function (c) {
+        return c.init.method === 'DELETE' && c.url === 'https://api.stripe.com/v1/subscriptions/sub_2';
+    });
+    assert.strictEqual(del.length, 1);
+    const row = rows(a, 'premium_review').find(function (r) { return r.reason === 'trial_reused'; });
+    assert.strictEqual(row.subscription_canceled, true);
+    assert.strictEqual(row.subscriptionId, 'sub_2');
+    assert.strictEqual(a.db.store.get('premium_orders/' + o2.orderId).subscription_canceled, true);
+    assert.strictEqual(a.db.store.get('premium_orders/' + o2.orderId).status, 'review');
+    assert.strictEqual(premium.isPremiumActive(a.db.store.get('premium_entitlements/new') || null, a.clock.now), false);
+    // Opening invoice after cancel still grants no time.
+    assert.strictEqual((await stripePost(a, invoicePaid(o2.orderId, 0, { billing_reason: 'subscription_create', customer: 'cus_2', parent: { subscription_details: { subscription: 'sub_2', metadata: { orderId: o2.orderId } } } }))).body.outcome, 'review');
+    assert.strictEqual(premium.isPremiumActive(a.db.store.get('premium_entitlements/new') || null, a.clock.now), false);
+});
+test('Red Team 6: a trial order with a null card fingerprint is sent to review with no Premium, and the subscription is canceled', async function () {
+    const a = setup({ config: { trialDays: 7 }, cardFp: { cs_test_1: null } });
+    const o1 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new', { email: 'nofp@example.com' }));
+    const ev = completed(o1.orderId, 'cs_test_1', { amount_total: 0, payment_status: 'no_payment_required', customer: 'cus_nf', subscription: 'sub_nf' });
+    assert.strictEqual((await stripePost(a, ev)).body.outcome, 'review');
+    assert.strictEqual(a.db.store.get('premium_orders/' + o1.orderId).status, 'review');
+    assert.strictEqual(a.db.store.get('premium_orders/' + o1.orderId).reviewReason, 'trial_reused');
+    assert.strictEqual(premium.isPremiumActive(a.db.store.get('premium_entitlements/new') || null, a.clock.now), false);
+    const row = rows(a, 'premium_review').find(function (r) { return r.reason === 'trial_reused'; });
+    assert.deepStrictEqual(row.by, ['missing_fingerprint']);
+    assert.strictEqual(row.subscription_canceled, true);
+    assert.strictEqual(row.subscriptionId, 'sub_nf');
+    const del = a.calls.filter(function (c) {
+        return c.init.method === 'DELETE' && c.url === 'https://api.stripe.com/v1/subscriptions/sub_nf';
+    });
+    assert.strictEqual(del.length, 1);
 });
 test('Spam: canonical email (plus-alias, gmail dots) that had a trial gets a paid checkout with no trial', async function () {
     assert.strictEqual(premium.canonicalEmail('J.Doe+promo@GoogleMail.com'), 'jdoe@gmail.com');
