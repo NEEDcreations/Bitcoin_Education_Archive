@@ -74,6 +74,7 @@ const TESTS = [
     { name: 'Chat Mentions', file: 'test-chat-mentions.js' },
     { name: 'Telegram Shoutout Mirror', file: 'test-telegram-bridge.js' },
     { name: 'Chat Telegram mirror', file: 'test-chat-telegram-mirror.js' },
+    { name: 'Telegram file URL guard', file: 'test-telegram-file-guard.js' },
     { name: 'Faucet Guard', file: 'test-faucet-guard.js' },
     { name: 'New-account claim requirements', file: 'test-claim-reqs.js' },
     { name: 'Claimable sats cap', file: 'test-claimable-sats.js' },
