@@ -1083,6 +1083,22 @@ test('Portal config script: promotion codes and plan switching off; test keys on
     assert.strictEqual(pricing.normalizeConfig({ stripePortalConfigId: 'bad id' }).stripePortalConfigId, null);
     assert.strictEqual(pricing.normalizeConfig({ stripePortalConfigId: 'bpc_1AbCdEf' }).stripePortalConfigId, 'bpc_1AbCdEf');
 });
+test('PREMIUM_BTCPAY=off (staging env) unbinds BTCPay secrets; default binds them', async function () {
+    const fv1 = require(require.resolve('firebase-functions/v1', { paths: [path.join(__dirname, '..', 'functions')] }));
+    const names = function (fn) { return ((fn.__endpoint && fn.__endpoint.secretEnvironmentVariables) || []).map(function (x) { return x.key; }).sort(); };
+    const prev = process.env.PREMIUM_BTCPAY;
+    try {
+        delete process.env.PREMIUM_BTCPAY;
+        const on = premium.bindPremium(fv1, { db: {}, admin: {} });
+        assert.ok(names(on.createPremiumCheckout).indexOf('BTCPAY_API_KEY') !== -1);
+        process.env.PREMIUM_BTCPAY = 'off';
+        const off = premium.bindPremium(fv1, { db: {}, admin: {} });
+        assert.deepStrictEqual(names(off.createPremiumCheckout), ['PREMIUM_HASH_KEY', 'STRIPE_SECRET_KEY']);
+        assert.strictEqual(names(off.premiumPublicCheckout).indexOf('BTCPAY_URL'), -1);
+    } finally { if (prev === undefined) delete process.env.PREMIUM_BTCPAY; else process.env.PREMIUM_BTCPAY = prev; }
+    const envFile = require('fs').readFileSync(path.join(__dirname, '..', 'functions', '.env.bitcoin-quest-staging'), 'utf8');
+    assert.ok(/^PREMIUM_BTCPAY=off$/m.test(envFile));
+});
 test('Keyed hashes only: no plain IP or card fingerprint stored; rate docs carry expireAt', async function () {
     const a = setup({ defaultCardFp: 'fp_plain_value' });
     const r = await publicPost(a, { plan: 'monthly', rail: 'card', email: 'kh@example.com', turnstileToken: 'ok-token' }, null, '192.0.2.77');
