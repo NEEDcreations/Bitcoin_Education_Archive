@@ -213,12 +213,103 @@ test('source list stays Bitcoin-focused and includes the new feeds', function() 
     const ids = ticker.SOURCES.map(function(s) { return s.id; });
     ['lukemikic', 'bitcoin-magazine', 'coindesk', 'bitcoin-optech', 'bitcoin-core',
         'delving-bitcoin', 'casa', 'btc-sessions', 'tftc', 'stephan-livera',
-        'jameson-lopp', 'brink', 'natalie-brunell', 'what-bitcoin-did'].forEach(function(id) {
+        'jameson-lopp', 'brink', 'natalie-brunell', 'what-bitcoin-did',
+        'citadel-wire'].forEach(function(id) {
         assert.ok(ids.indexOf(id) !== -1, 'missing source ' + id);
     });
     ticker.SOURCES.forEach(function(s) {
         assert.ok(/^https:\/\//.test(s.url), s.id + ' must be https');
     });
+    const cw = ticker.SOURCES.find(function(s) { return s.id === 'citadel-wire'; });
+    assert.strictEqual(cw.url, 'https://citadelwire.com/feed.xml');
+    assert.strictEqual(cw.native, true);
+    assert.strictEqual(cw.expand, 'citadelwire');
+});
+
+const CITADEL_RSS = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<channel><title>CITADEL WIRE</title>
+<item>
+  <title>2026-11-14 20:00 UTC | BLOCK 975831</title>
+  <link>https://citadelwire.com/posts/2026-11-14-200016</link>
+  <pubDate>Sat, 14 Nov 2026 20:00:16 GMT</pubDate>
+  <description><![CDATA[
+    2026-11-14 20:00 UTC | BLOCK 975831<br />BITCOIN $65,524<br />
+    <br />1. White House Organises a Defence Against the Coming Democratic Subpoena Wave
+    <br />-- The administration is building a counter-offensive.
+  ]]></description>
+</item>
+<item>
+  <title>2026-11-14 15:00 UTC | BLOCK 975807</title>
+  <link>https://citadelwire.com/posts/2026-11-14-150016</link>
+  <pubDate>Sat, 14 Nov 2026 15:00:16 GMT</pubDate>
+  <content:encoded><![CDATA[
+    <div>1. Bomb Defused at Illinois Ethanol Plant After One-Mile Evacuation
+    <br />2. Trump Media Faces $1 Billion Debt Crunch as Bitcoin Bet Fades</div>
+  ]]></content:encoded>
+</item>
+<item>
+  <title>CODE WIRE | BLOCK 975816</title>
+  <link>https://citadelwire.com/posts/2026-11-14-165916</link>
+  <pubDate>Sat, 14 Nov 2026 16:59:16 GMT</pubDate>
+  <description><![CDATA[
+    CODE WIRE | BLOCK 975816<br />BITCOIN $65,140 | GOLD $3,841<br /><br />Alby Hub v1.24.7<br />-- Alby Hub lets NWC-compatible applications control your Lightning node.
+  ]]></description>
+</item>
+<item>
+  <title>2026-11-14 12:00 UTC | BLOCK 975788</title>
+  <link>https://citadelwire.com/posts/2026-11-14-120016</link>
+  <pubDate>Sat, 14 Nov 2026 12:00:16 GMT</pubDate>
+  <description><![CDATA[
+    1. New Solana ETF inflows smash records
+    <br />2. Ethereum staking withdrawals explained
+  ]]></description>
+</item>
+</channel></rss>`;
+
+test('Citadel Wire expands digest bodies and skips block-stamp titles', function() {
+    const stories = ticker.expandCitadelWireStories(CITADEL_RSS);
+    const titles = stories.map(function(s) { return s.title; });
+    assert.ok(titles.indexOf('2026-11-14 20:00 UTC | BLOCK 975831') === -1);
+    assert.ok(titles.indexOf('CODE WIRE | BLOCK 975816') === -1);
+    assert.ok(titles.indexOf('Trump Media Faces $1 Billion Debt Crunch as Bitcoin Bet Fades') !== -1);
+    // Prefer Bitcoin-titled stories when any exist, so the White House item drops.
+    assert.ok(titles.indexOf('White House Organises a Defence Against the Coming Democratic Subpoena Wave') === -1);
+    const btc = stories.find(function(s) { return /Bitcoin Bet/.test(s.title); });
+    assert.strictEqual(btc.link, 'https://citadelwire.com/posts/2026-11-14-150016');
+    assert.strictEqual(btc.timestamp, Date.parse('Sat, 14 Nov 2026 15:00:16 GMT'));
+});
+
+test('Citadel Wire is a native source, still drops altcoin titles, and stays 1-per-source', function() {
+    const cw = ticker.SOURCES.find(function(s) { return s.id === 'citadel-wire'; });
+    const items = ticker.itemsFromSource(cw, CITADEL_RSS);
+    const titles = items.map(function(s) { return s.title; });
+    assert.ok(titles.indexOf('Trump Media Faces $1 Billion Debt Crunch as Bitcoin Bet Fades') !== -1);
+    assert.ok(titles.indexOf('New Solana ETF inflows smash records') === -1);
+    assert.ok(titles.indexOf('Ethereum staking withdrawals explained') === -1);
+    assert.ok(items.every(function(s) { return s.source === 'citadel-wire' && s.snippet === 'Citadel Wire'; }));
+
+    // Without a Bitcoin keyword, a CODE WIRE / macro story is still allowed.
+    const codeOnly = `<?xml version="1.0"?><rss version="2.0"><channel>
+      <item>
+        <title>CODE WIRE | BLOCK 975816</title>
+        <link>https://citadelwire.com/posts/2026-11-14-165916</link>
+        <pubDate>Sat, 14 Nov 2026 16:59:16 GMT</pubDate>
+        <description><![CDATA[CODE WIRE | BLOCK 975816<br />BITCOIN $65,140<br /><br />Alby Hub v1.24.7<br />-- Lightning wallet update.]]></description>
+      </item>
+    </channel></rss>`;
+    const codeItems = ticker.itemsFromSource(cw, codeOnly);
+    assert.strictEqual(codeItems.length, 1);
+    assert.strictEqual(codeItems[0].title, 'Alby Hub v1.24.7');
+    assert.strictEqual(ticker.isBitcoinFocused('Alby Hub v1.24.7', cw), true);
+    assert.strictEqual(ticker.isBitcoinFocused('Ethereum staking withdrawals explained', cw), false);
+
+    const picked = ticker.selectTop(items.concat(codeItems).concat([
+        { title: 'Magazine Bitcoin price falls to $65,000', source: 'bitcoin-magazine', timestamp: Date.parse('2026-11-14T18:00:00Z'), link: 'https://bitcoinmagazine.com/a', snippet: 'Bitcoin Magazine' }
+    ]), NOW, { maxAgeDays: 14 });
+    const sources = picked.map(function(h) { return h.source; });
+    assert.ok(sources.indexOf('citadel-wire') !== -1);
+    assert.strictEqual(sources.filter(function(id) { return id === 'citadel-wire'; }).length, 1);
 });
 
 Promise.all(queue).then(function() {

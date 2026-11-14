@@ -1,6 +1,6 @@
 // hot-topics.js — Bitcoin Hot Topics sidebar section
 // Lazy-loaded. Fetches cached data from Firestore (populated weekly by Firebase Function).
-// Version: 20261022
+// Version: 20261114
 
 (function () {
     'use strict';
@@ -293,6 +293,88 @@
                 0%,100% { opacity: 0.4; }
                 50% { opacity: 0.8; }
             }
+            #citadelWirePanel {
+                border-bottom: 1px solid var(--border);
+                margin-bottom: 4px;
+                padding: 0 8px 8px;
+            }
+            .cw-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                width: 100%;
+                gap: 8px;
+                padding: 8px 6px;
+                background: transparent;
+                border: 0;
+                cursor: pointer;
+                color: var(--text);
+                text-align: left;
+                font: inherit;
+                border-radius: 8px;
+            }
+            .cw-toggle:hover { background: var(--accent-bg); }
+            .cw-toggle-label {
+                font-size: 0.72rem;
+                font-weight: 700;
+                line-height: 1.4;
+                color: var(--text);
+            }
+            .cw-toggle-chevron {
+                color: var(--text-dim);
+                font-size: 0.7rem;
+                transition: transform 0.2s;
+                transform: rotate(-90deg);
+                flex-shrink: 0;
+            }
+            .cw-embed-toolbar {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+                padding: 0 6px 6px;
+                flex-wrap: wrap;
+            }
+            .cw-collapse {
+                font-size: 0.72rem;
+                font-weight: 700;
+                padding: 4px 10px;
+                border-radius: 999px;
+                border: 1px solid var(--border);
+                background: var(--card-bg);
+                color: var(--text);
+                cursor: pointer;
+            }
+            .cw-collapse:hover { background: var(--accent-bg); }
+            .cw-open-link {
+                font-size: 0.72rem;
+                font-weight: 700;
+                color: var(--accent);
+                text-decoration: none;
+            }
+            .cw-open-link:hover { text-decoration: underline; }
+            .cw-frame-wrap {
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                overflow: auto;
+                -webkit-overflow-scrolling: touch;
+                max-height: min(70vh, 520px);
+                background: #080b12;
+            }
+            #cwFrame {
+                display: block;
+                width: 100%;
+                height: min(70vh, 520px);
+                min-height: 320px;
+                border: 0;
+                background: #080b12;
+            }
+            @media (max-width: 768px) {
+                .cw-frame-wrap, #cwFrame {
+                    max-height: min(60vh, 420px);
+                    height: min(60vh, 420px);
+                }
+            }
         `;
         document.head.appendChild(style);
 
@@ -310,7 +392,61 @@
             '<div id="' + HT_CONTAINER_ID + '"></div>';
 
         channelList.insertBefore(wrapper, channelList.firstChild);
+        injectCitadelWirePanel(wrapper);
     }
+
+    function injectCitadelWirePanel(wrapper) {
+        if (document.getElementById('citadelWirePanel') || !wrapper) return;
+        var panel = document.createElement('div');
+        panel.id = 'citadelWirePanel';
+        panel.innerHTML =
+            '<button type="button" class="cw-toggle" id="cwToggle" aria-expanded="false" aria-controls="cwEmbed">' +
+                '<span class="cw-toggle-label">More high-signal news: Citadel Wire by Odell</span>' +
+                '<span class="cw-toggle-chevron" id="cwChevron">▼</span>' +
+            '</button>' +
+            '<div id="cwEmbed" class="cw-embed" hidden>' +
+                '<div class="cw-embed-toolbar">' +
+                    '<button type="button" class="cw-collapse" id="cwCollapse">Collapse</button>' +
+                    '<a class="cw-open-link" href="https://citadelwire.com" target="_blank" rel="noopener noreferrer">Open Citadel Wire</a>' +
+                '</div>' +
+                '<div class="cw-frame-wrap">' +
+                    '<iframe id="cwFrame" title="Citadel Wire" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer-when-downgrade"></iframe>' +
+                '</div>' +
+            '</div>';
+        wrapper.insertAdjacentElement('afterend', panel);
+        var toggle = document.getElementById('cwToggle');
+        var collapse = document.getElementById('cwCollapse');
+        if (toggle) {
+            toggle.addEventListener('click', function() { window._cwToggle(); });
+        }
+        if (collapse) {
+            collapse.addEventListener('click', function(e) {
+                e.preventDefault();
+                window._cwToggle(false);
+            });
+        }
+    }
+
+    window._cwToggle = function(forceOpen) {
+        var embed = document.getElementById('cwEmbed');
+        var toggle = document.getElementById('cwToggle');
+        var chevron = document.getElementById('cwChevron');
+        var frame = document.getElementById('cwFrame');
+        if (!embed || !toggle) return;
+        var open = typeof forceOpen === 'boolean' ? forceOpen : embed.hasAttribute('hidden');
+        if (open) {
+            embed.removeAttribute('hidden');
+            toggle.setAttribute('aria-expanded', 'true');
+            if (chevron) chevron.style.transform = 'rotate(0deg)';
+            if (frame && !frame.getAttribute('src')) {
+                frame.setAttribute('src', 'https://citadelwire.com');
+            }
+        } else {
+            embed.setAttribute('hidden');
+            toggle.setAttribute('aria-expanded', 'false');
+            if (chevron) chevron.style.transform = 'rotate(-90deg)';
+        }
+    };
 
     // ── Section-level collapse ────────────────────────────────────────────────
     window._htSectionToggle = function (headerEl) {

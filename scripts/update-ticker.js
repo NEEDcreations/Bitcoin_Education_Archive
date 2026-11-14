@@ -47,7 +47,11 @@ const SOURCES = [
     { id: 'jameson-lopp', name: 'Jameson Lopp', url: 'https://blog.lopp.net/rss/', native: true },
     { id: 'brink', name: 'Brink', url: 'https://brink.dev/feed.xml', native: true },
     { id: 'natalie-brunell', name: 'Natalie Brunell', url: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCru3nlhzHrbgK21x0MdB_eg', native: false },
-    { id: 'what-bitcoin-did', name: 'What Bitcoin Did', url: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCtvg5cXLY_tHDJeBoRySBtg', native: false }
+    { id: 'what-bitcoin-did', name: 'What Bitcoin Did', url: 'https://www.youtube.com/feeds/videos.xml?channel_id=UCtvg5cXLY_tHDJeBoRySBtg', native: false },
+    // Trusted Bitcoin source (Odell). Canonical RSS; item titles are digest
+    // stamps, so stories are expanded from the body. Native: keep items even
+    // when a title omits the word Bitcoin, but still drop altcoin titles.
+    { id: 'citadel-wire', name: 'Citadel Wire', url: 'https://citadelwire.com/feed.xml', native: true, expand: 'citadelwire' }
 ];
 
 function decodeEntities(str) {
@@ -236,8 +240,87 @@ function fetchText(url, depth) {
     });
 }
 
+const CITADEL_DIGEST_TITLE = /^(?:(?:\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC)|(?:(?:CODE|WEEKLY|DAILY|EDITOR|FORWARD) WIRE))\s*\|/i;
+
+function feedBodyText(chunk) {
+    const raw = firstMatch(chunk, [
+        /<content:encoded[^>]*>([\s\S]*?)<\/content:encoded>/i,
+        /<description[^>]*>([\s\S]*?)<\/description>/i,
+        /<content[^>]*>([\s\S]*?)<\/content>/i
+    ]);
+    if (!raw) return '';
+    return String(raw)
+        .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/(?:p|div|li|h[1-6])>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&#x([0-9a-fA-F]+);/g, function(_, h) { return safeChar(parseInt(h, 16)); })
+        .replace(/&#(\d+);/g, function(_, d) { return safeChar(parseInt(d, 10)); })
+        .replace(/\r/g, '')
+        .replace(/[ \t]+\n/g, '\n')
+        .trim();
+}
+
+function headlinesFromCitadelWireBody(body, feedTitle) {
+    const numbered = [];
+    const re = /^\s*\d+\.\s+(.+)$/gm;
+    let m;
+    while ((m = re.exec(body || ''))) {
+        const title = m[1].replace(/\s+/g, ' ').trim();
+        if (title) numbered.push(title);
+    }
+    if (numbered.length) return numbered;
+    if (/^CODE WIRE\b/i.test(feedTitle || '') || /^CODE WIRE\b/im.test(body || '')) {
+        const lines = String(body || '').split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (/^CODE WIRE\b/i.test(line)) continue;
+            if (/^BITCOIN\s+\$/i.test(line)) continue;
+            if (/^--/.test(line)) continue;
+            if (/^https?:\/\//i.test(line)) continue;
+            if (line.length >= 8) return [line];
+        }
+    }
+    return [];
+}
+
+function expandCitadelWireStories(xml) {
+    if (!xml || typeof xml !== 'string') return [];
+    const chunks = xml.match(/<(?:item|entry)\b[\s\S]*?<\/(?:item|entry)>/g) || [];
+    const stories = [];
+    for (let i = 0; i < chunks.length && i < PER_FEED_LIMIT; i++) {
+        const parsed = parseFeed(chunks[i]);
+        const base = parsed[0];
+        if (!base) continue;
+        const extracted = headlinesFromCitadelWireBody(feedBodyText(chunks[i]), base.title);
+        const titles = extracted.length
+            ? extracted
+            : (CITADEL_DIGEST_TITLE.test(base.title) ? [] : [base.title]);
+        for (let j = 0; j < titles.length; j++) {
+            const title = decodeEntities(titles[j]);
+            if (!title) continue;
+            stories.push({
+                title: title,
+                link: base.link || '',
+                timestamp: base.timestamp || 0
+            });
+        }
+    }
+    // Prefer Bitcoin-titled stories when any exist; otherwise keep all
+    // (native source, so a title may omit the word Bitcoin).
+    const bitcoin = stories.filter(function(s) { return MUST_HAVE_BTC.test(s.title); });
+    return (bitcoin.length ? bitcoin : stories).slice(0, PER_FEED_LIMIT);
+}
+
 function itemsFromSource(source, xml) {
-    const parsed = parseFeed(xml).slice(0, PER_FEED_LIMIT);
+    const parsed = (source && source.expand === 'citadelwire')
+        ? expandCitadelWireStories(xml)
+        : parseFeed(xml).slice(0, PER_FEED_LIMIT);
     const out = [];
     for (let i = 0; i < parsed.length; i++) {
         const item = parsed[i];
@@ -312,6 +395,8 @@ module.exports = {
     selectWithRelax: selectWithRelax,
     toOutput: toOutput,
     itemsFromSource: itemsFromSource,
+    expandCitadelWireStories: expandCitadelWireStories,
+    headlinesFromCitadelWireBody: headlinesFromCitadelWireBody,
     collectHeadlines: collectHeadlines,
     run: run
 };
