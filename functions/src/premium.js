@@ -1645,13 +1645,19 @@ function bindPremium(functionsV1, deps) {
     const { defineSecret } = require('firebase-functions/params');
     const { runtimeSa } = require('./runtimeServiceAccounts');
     const s = {};
-    SECRET_NAMES.forEach(function (n) { s[n] = defineSecret(n); });
     // No BTCPay store on staging yet (Phil, Nov 14): there the BTCPay secrets
     // stay unbound and premiumBtcpayWebhook is not exported, so card checkout
     // can deploy without them. Lightning fails closed (btcpay_config).
     // Decided from the project id, which the Firebase CLI sets during
     // discovery (.env files are not loaded then). PREMIUM_BTCPAY=off forces it.
     const btcOn = !btcpayOff(process.env);
+    // defineSecret registers a deploy-time param even when unbound, and the
+    // CLI then asks for its value, so BTCPay secrets are not defined at all
+    // where BTCPay is off.
+    SECRET_NAMES.forEach(function (n) {
+        if (!btcOn && /^BTCPAY_/.test(n)) return;
+        s[n] = defineSecret(n);
+    });
     const btc = btcOn ? [s.BTCPAY_API_KEY, s.BTCPAY_URL, s.BTCPAY_STORE_ID] : [];
     const handlers = createPremiumHandlers(Object.assign({ HttpsError: functionsV1.https.HttpsError }, deps || {}));
 
