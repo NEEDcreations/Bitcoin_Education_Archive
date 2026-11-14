@@ -829,8 +829,17 @@ function createPremiumHandlers(deps) {
         }
     }
 
-    function review(tx, reason, detail, nowMs) {
-        tx.set(ref(COL.review, newId()), Object.assign({ reason: reason, createdAtMs: nowMs, resolved: false }, detail));
+    function review(tx, reason, detail, nowMs, id) {
+        const rid = id || newId();
+        tx.set(ref(COL.review, rid), Object.assign({ reason: reason, createdAtMs: nowMs, resolved: false }, detail));
+        return rid;
+    }
+
+    function stripeSubId(obj) {
+        if (!obj) return null;
+        if (typeof obj.subscription === 'string' && obj.subscription) return obj.subscription;
+        if (obj.subscription && typeof obj.subscription.id === 'string' && obj.subscription.id) return obj.subscription.id;
+        return null;
     }
 
     // An entitlement that is not already running starts at the order's start
@@ -978,10 +987,14 @@ function createPremiumHandlers(deps) {
             // A failed read throws, the webhook answers 500 and Stripe retries.
             const fp = await sessionCardFingerprint(obj.id);
             const fpHash = fp ? H('card', fp) : null;
+            let trialReuseReviewId = null;
+            let trialReuseSubId = null;
             const outcome = await once(key, orderId || null, async function (tx, r) {
                 const o = r.order;
                 // Trial markers (keyed hashes only): card fingerprint and canonical email.
                 const isTrial = !!(o && o.trialEndMs && o.trialDays > 0);
+                // A missing card fingerprint on a trial fails closed: treat it like reuse.
+                const missingFp = isTrial && !fpHash;
                 const cardRef = isTrial && fpHash ? ref(COL.trialMarkers, 'c_' + fpHash) : null;
                 const mailRef = isTrial && o.emailKey ? ref(COL.trialMarkers, 'e_' + o.emailKey) : null;
                 const cardSnap = cardRef ? await tx.get(cardRef) : null;
@@ -1000,11 +1013,35 @@ function createPremiumHandlers(deps) {
                 }
                 const settled = obj.payment_status === 'paid' || (want === 0 && obj.payment_status === 'no_payment_required');
                 if (!settled) return 'not_paid_yet';
-                // Same card already used a free trial: no free access, no
-                // automatic billing change. Admin decides from the review queue.
-                if (reused.length) {
-                    review(tx, 'trial_reused', { orderId: orderId, uid: o.uid, customerId: typeof obj.customer === 'string' ? obj.customer : null, sessionId: obj.id, firstOrderId: reused[0].data().orderId || null, by: reused.map(function (x) { return x === cardSnap ? 'card' : 'email'; }) }, r.nowMs);
-                    tx.update(r.orderRef, { status: 'review', reviewReason: 'trial_reused', cardFpHash: fpHash, stripeCustomerId: typeof obj.customer === 'string' ? obj.customer : null });
+                // Same card already used a free trial, or the card fingerprint
+                // could not be read: no Premium, and cancel the Stripe
+                // subscription immediately so nothing is charged at trial_end.
+                if (reused.length || missingFp) {
+                    const subId = stripeSubId(obj);
+                    const by = [];
+                    if (missingFp) by.push('missing_fingerprint');
+                    reused.forEach(function (x) { by.push(x === cardSnap ? 'card' : 'email'); });
+                    trialReuseSubId = subId;
+                    trialReuseReviewId = newId();
+                    review(tx, 'trial_reused', {
+                        orderId: orderId,
+                        uid: o.uid,
+                        customerId: typeof obj.customer === 'string' ? obj.customer : null,
+                        sessionId: obj.id,
+                        firstOrderId: reused.length ? (reused[0].data().orderId || null) : null,
+                        by: by,
+                        subscriptionId: subId,
+                        subscription_canceled: false,
+                    }, r.nowMs, trialReuseReviewId);
+                    tx.update(r.orderRef, {
+                        status: 'review',
+                        reviewReason: 'trial_reused',
+                        cardFpHash: fpHash,
+                        stripeCustomerId: typeof obj.customer === 'string' ? obj.customer : null,
+                        stripeSubscriptionId: subId,
+                        trialReuseReviewId: trialReuseReviewId,
+                        subscription_canceled: false,
+                    });
                     return 'review';
                 }
                 if (cardRef) tx.set(cardRef, { orderId: orderId, kind: 'card', atMs: r.nowMs });
@@ -1024,6 +1061,33 @@ function createPremiumHandlers(deps) {
                 tx.update(r.orderRef, { status: 'paid', paidAtMs: r.nowMs, providerRef: obj.id, stripeSubscriptionId: r.ent.stripeSubscriptionId });
                 return 'granted';
             });
+            // Cancel outside the transaction. Also runs on a webhook retry
+            // (once() returns 'duplicate') if the first cancel attempt failed.
+            if (outcome === 'duplicate' && orderId && !trialReuseSubId) {
+                const prev = await ref(COL.orders, orderId).get();
+                const po = prev.exists ? prev.data() : null;
+                if (po && po.reviewReason === 'trial_reused' && po.subscription_canceled !== true) {
+                    trialReuseSubId = po.stripeSubscriptionId || stripeSubId(obj);
+                    trialReuseReviewId = po.trialReuseReviewId || null;
+                }
+            }
+            if (trialReuseSubId) {
+                try {
+                    await stripeRequest('DELETE', '/v1/subscriptions/' + encodeURIComponent(trialReuseSubId));
+                    if (orderId) {
+                        const oRef = ref(COL.orders, orderId);
+                        const oSnap = await oRef.get();
+                        if (oSnap.exists) await oRef.update({ subscription_canceled: true });
+                    }
+                    if (trialReuseReviewId) {
+                        const rRef = ref(COL.review, trialReuseReviewId);
+                        const rSnap = await rRef.get();
+                        if (rSnap.exists) await rRef.update({ subscription_canceled: true });
+                    }
+                } catch (e) {
+                    return { status: 500, outcome: 'subscription_cancel_failed' };
+                }
+            }
             return { status: 200, outcome: outcome };
         }
 
