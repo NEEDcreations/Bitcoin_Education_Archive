@@ -1633,12 +1633,17 @@ function bindPremium(functionsV1, deps) {
     const { defineSecret } = require('firebase-functions/params');
     const { runtimeSa } = require('./runtimeServiceAccounts');
     const s = {};
-    SECRET_NAMES.forEach(function (n) { s[n] = defineSecret(n); });
-    // PREMIUM_BTCPAY=off (functions/.env.bitcoin-quest-staging) leaves the
-    // BTCPay secrets unbound so checkout can deploy before the store exists.
-    // Lightning then fails closed (btcpay_config); premiumBtcpayWebhook is not
-    // deployed. Unset (live) binds them as normal.
-    const btc = process.env.PREMIUM_BTCPAY === 'off' ? [] : [s.BTCPAY_API_KEY, s.BTCPAY_URL, s.BTCPAY_STORE_ID];
+    // PREMIUM_BTCPAY=off (functions/.env.bitcoin-quest-staging): do not call
+    // defineSecret for BTCPay names, or the CLI will prompt to create those
+    // secrets even when they are unbound. Lightning then fails closed
+    // (btcpay_config) and premiumBtcpayWebhook is not exported. Unset (live)
+    // defines and binds them as normal.
+    const btcpayOff = process.env.PREMIUM_BTCPAY === 'off';
+    SECRET_NAMES.forEach(function (n) {
+        if (btcpayOff && n.indexOf('BTCPAY_') === 0) return;
+        s[n] = defineSecret(n);
+    });
+    const btc = btcpayOff ? [] : [s.BTCPAY_API_KEY, s.BTCPAY_URL, s.BTCPAY_STORE_ID];
     const handlers = createPremiumHandlers(Object.assign({ HttpsError: functionsV1.https.HttpsError }, deps || {}));
 
     const createPremiumCheckout = functionsV1.runWith({
@@ -1672,7 +1677,7 @@ function bindPremium(functionsV1, deps) {
         secrets: [s.STRIPE_WEBHOOK_SECRET, s.STRIPE_SECRET_KEY, s.PREMIUM_HASH_KEY],
         serviceAccount: runtimeSa('premiumStripeWebhook'),
     }).https.onRequest(handlers.stripeWebhook);
-    const premiumBtcpayWebhook = functionsV1.runWith({
+    const premiumBtcpayWebhook = btcpayOff ? null : functionsV1.runWith({
         timeoutSeconds: 60,
         secrets: [s.BTCPAY_API_KEY, s.BTCPAY_WEBHOOK_SECRET, s.BTCPAY_URL, s.BTCPAY_STORE_ID],
         serviceAccount: runtimeSa('premiumBtcpayWebhook'),

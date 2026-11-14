@@ -1141,6 +1141,9 @@ test('PREMIUM_BTCPAY=off (staging env) unbinds BTCPay secrets; default binds the
         const off = premium.bindPremium(fv1, { db: {}, admin: {} });
         assert.deepStrictEqual(names(off.createPremiumCheckout), ['PREMIUM_HASH_KEY', 'STRIPE_SECRET_KEY']);
         assert.strictEqual(names(off.premiumPublicCheckout).indexOf('BTCPAY_URL'), -1);
+        assert.strictEqual(off.premiumBtcpayWebhook, null);
+        assert.ok(on.premiumBtcpayWebhook);
+        assert.ok(names(on.premiumBtcpayWebhook).indexOf('BTCPAY_API_KEY') !== -1);
     } finally { if (prev === undefined) delete process.env.PREMIUM_BTCPAY; else process.env.PREMIUM_BTCPAY = prev; }
     const envFile = require('fs').readFileSync(path.join(__dirname, '..', 'functions', '.env.bitcoin-quest-staging'), 'utf8');
     assert.ok(/^PREMIUM_BTCPAY=off$/m.test(envFile));
