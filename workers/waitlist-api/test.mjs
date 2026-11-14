@@ -53,7 +53,7 @@ const post = (mf, body, { ip = '203.0.113.1', origin = ORIGIN, accept = 'applica
   });
 
 // Live-forwarding config with Substack mocked.
-const live = { SUBSTACK_DRY_RUN: '0', SUBSTACK_PUBLICATION: 'https://603btc.substack.com', ALLOWED_ORIGINS: ORIGIN, TURNSTILE_SECRET: 'test-secret-not-real' };
+const live = { SUBSTACK_DRY_RUN: '0', SUBSTACK_PUBLICATION: 'https://603btc.substack.com', ALLOWED_ORIGINS: ORIGIN, TURNSTILE_SECRET_KEY: 'test-secret-not-real' };
 let { mf, db } = await makeMf(live);
 
 let r = await post(mf, { email: '  Alice@Example.COM ', consent: 'on', 'cf-turnstile-response': 'good' }, { ip: '10.0.0.1' });

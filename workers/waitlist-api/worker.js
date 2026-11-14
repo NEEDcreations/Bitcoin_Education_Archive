@@ -11,7 +11,7 @@
  * Bindings (wrangler.toml): DB (D1), RL (rate limit, optional).
  * Vars: SUBSTACK_PUBLICATION, SUBSTACK_DRY_RUN ("1" = never call Substack),
  *       ALLOWED_ORIGINS (comma list), TURNSTILE_OPTIONAL ("1" = dev only).
- * Secret: TURNSTILE_SECRET (wrangler secret put). Never logged.
+ * Secret: TURNSTILE_SECRET_KEY (wrangler secret put; legacy name TURNSTILE_SECRET also read). Never logged.
  */
 
 const EMAIL_RE = /^[^\s@<>()"',;:\\[\]]{1,64}@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
@@ -69,9 +69,10 @@ async function readBody(req) {
 }
 
 async function verifyTurnstile(env, token) {
-    if (!env.TURNSTILE_SECRET) return env.TURNSTILE_OPTIONAL === '1' ? true : null; // null = misconfigured
+    const secret = env.TURNSTILE_SECRET_KEY || env.TURNSTILE_SECRET;
+    if (!secret) return env.TURNSTILE_OPTIONAL === '1' ? true : null; // null = misconfigured
     if (typeof token !== 'string' || !token || token.length > 2048) return false;
-    const form = new URLSearchParams({ secret: env.TURNSTILE_SECRET, response: token });
+    const form = new URLSearchParams({ secret, response: token });
     try {
         const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', { method: 'POST', body: form });
         const d = await r.json();
