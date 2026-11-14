@@ -489,7 +489,7 @@ function createPremiumHandlers(deps) {
 
         let url = null;
         try {
-            const base = siteUrl();
+            const base = who.returnBase || siteUrl();
             const back = channel === 'public' ? base + '/premium' : base + '/';
             const metadata = { orderId: orderId };
             if (src) metadata.src = src;
@@ -611,7 +611,7 @@ function createPremiumHandlers(deps) {
         return allowed;
     }
 
-    async function publicCheckout(body, ip) {
+    async function publicCheckout(body, ip, returnBase) {
         mode();
         const b = body && typeof body === 'object' ? body : {};
         const cfg = await loadConfig();
@@ -633,7 +633,7 @@ function createPremiumHandlers(deps) {
         const held = await ref(COL.emailEntitlements, ek).get();
         if (held.exists && held.data().founders === true) throw fail('failed-precondition', "This email already has Founders' Lifetime.", 'already_lifetime');
         const ipKey = 'ip_' + crypto.createHash('sha256').update('bq-premium-ip:' + String(ip || 'none')).digest('hex').slice(0, 32);
-        return startOrder(q, { uid: null, email: email, holdKey: 'email:' + ek, rateKey: ipKey, customerId: null, trialEligible: !(held.exists && (held.data().trialUsed || held.data().stripeSubscriptionId)) }, cfg, nowMs, cleanSrc(b.src), 'public');
+        return startOrder(q, { uid: null, email: email, holdKey: 'email:' + ek, rateKey: ipKey, returnBase: returnBase || null, customerId: null, trialEligible: !(held.exists && (held.data().trialUsed || held.data().stripeSubscriptionId)) }, cfg, nowMs, cleanSrc(b.src), 'public');
     }
 
     async function premiumPublicCheckout(req, res) {
@@ -643,7 +643,10 @@ function createPremiumHandlers(deps) {
         let body = req.body;
         if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = null; } }
         try {
-            const out = await publicCheckout(body, req.ip);
+            // Send buyers back to the allowlisted page they came from (live
+            // site, staging, or a Pages preview). corsOk already checked it.
+            const origin = (req.get ? req.get('origin') : req.headers.origin) || '';
+            const out = await publicCheckout(body, req.ip, origin);
             res.status(200).json({ ok: true, url: out.url, amountCents: out.amountCents, plan: out.plan });
         } catch (e) {
             if (e instanceof HttpsError) {

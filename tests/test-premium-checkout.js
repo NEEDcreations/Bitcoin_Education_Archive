@@ -580,7 +580,7 @@ test('public checkout: full price only, src carried, email locked, CORS + Turnst
     const body = bodyOf(a.calls[0]);
     assert.ok(body.indexOf('customer_email=old@example.com') !== -1);
     assert.ok(body.indexOf('metadata[src]=yt-teaser') !== -1);
-    assert.ok(body.indexOf('success_url=https://bitcoin-quest-staging.web.app/premium?premium=success') !== -1);
+    assert.ok(body.indexOf('success_url=https://preview1.bitcoin-quest.pages.dev/premium?premium=success') !== -1);
     assert.strictEqual(res.headers['access-control-allow-origin'], 'https://preview1.bitcoin-quest.pages.dev');
     assert.strictEqual((await publicPost(a, { plan: 'yearly', rail: 'card', email: 'x@example.com', turnstileToken: 'ok-token' }, 'https://evil.example')).code, 403);
     assert.strictEqual((await publicPost(a, { plan: 'yearly', rail: 'card', email: 'x@example.com', turnstileToken: 'bad' })).body.reason, 'turnstile');
