@@ -40,6 +40,10 @@
   .gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
   .gallery img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;border-radius:12px;border:1px solid #232838;background:#12151d}
 
+
+  .substack-box{margin-top:16px;width:100%;text-align:center}
+  .substack-box .substack-prompt{color:#c7cbd6;font-size:.92rem;margin-bottom:10px}
+  .substack-box iframe{display:block;width:100%;max-width:480px;height:150px;margin:0 auto;border:0;background:#fff;border-radius:8px}
   .follow{margin-top:22px;padding-top:18px;border-top:1px solid #232838;text-align:center}
   .follow-label{font-size:.75rem;letter-spacing:.14em;text-transform:uppercase;color:#9aa1b2;font-weight:700;margin-bottom:12px}
   .follow-list{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;list-style:none;padding:0;margin:0}
@@ -72,6 +76,11 @@
 
   <p class="msg" id="wlMsg" role="status" aria-live="polite"></p>
 
+  <div id="wlSubstackEmbed" class="substack-box" hidden>
+    <p class="substack-prompt">One more tap: get email updates on Substack.</p>
+    <iframe src="https://603btc.substack.com/embed" width="480" height="150" frameborder="0" scrolling="no" title="Subscribe on Substack" style="width:100%;max-width:480px;height:150px;background:#fff;border:0;"></iframe>
+  </div>
+
   <p class="privacy">We'll use your email only to tell you when we're back and for occasional updates. Stored by us and by Substack; unsubscribe anytime, and we'll delete your copy on request at our <a href="mailto:info.603btc@gmail.com">support address</a>. <a href="/privacy.html">Privacy Policy</a></p>
   <nav class="follow" aria-label="Follow us">
     <p class="follow-label">Follow us</p>
@@ -98,7 +107,6 @@
   </div>
 </section>
 <p class="foot"><a href="/privacy.html">Privacy</a> &middot; <a href="/terms.html">Terms</a></p>
-<iframe id="wlSubstackFrame" name="wlSubstackFrame" title="Substack signup" aria-hidden="true" hidden></iframe>
 <script src="/waitlist.js" defer></script>
 </body>
 </html>
