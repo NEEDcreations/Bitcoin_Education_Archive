@@ -2878,6 +2878,9 @@ service cloud.firestore {
     match /premium_rate/{docId} { allow read, write: if false; }
     match /premium_config/{docId} { allow read, write: if false; }
     match /premium_allowance_ledger/{docId} { allow read, write: if false; }
+    // Keyed-hash trial markers (card / canonical email) and admin revoke audit.
+    match /premium_trial_markers/{docId} { allow read, write: if false; }
+    match /premium_admin_audit/{docId} { allow read, write: if false; }
 
     match /reset_reminder_claims/{claimId} {
       allow read, write: if false;

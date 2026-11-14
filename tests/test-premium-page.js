@@ -49,20 +49,20 @@ test('approved perks present, dropped perks absent, banned claims absent', funct
     });
 });
 test('Turnstile widget and plan values match the server', function () {
-    assert.ok(/class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86"/.test(html));
+    assert.ok(/class="cf-turnstile" data-sitekey="0x4AAAAAAD-ivgpRkbXpgz86" data-action="premium_checkout"/.test(html));
     ['monthly', 'yearly', 'founders'].forEach(function (p) { assert.ok(html.indexOf('value="' + p + '"') !== -1, p); });
     assert.ok(/rail: 'card'/.test(js));
 });
 
 // Run premium.js in a tiny fake DOM to check endpoint choice, src and redirect guard.
-function run(hostname, search, reply) {
+function run(hostname, search, reply, plan) {
     const sent = [];
     const nodes = {};
     function el(id) { return nodes[id] || (nodes[id] = { id: id, hidden: true, disabled: false, value: '', textContent: '', className: '', focus: function () {}, appendChild: function () {} }); }
     let submit = null;
     const form = el('premiumForm');
     form.addEventListener = function (t, fn) { if (t === 'submit') submit = fn; };
-    form.querySelector = function (sel) { return sel.indexOf('plan') !== -1 ? { value: 'yearly' } : null; };
+    form.querySelector = function (sel) { return sel.indexOf('plan') !== -1 ? { value: plan || 'yearly' } : null; };
     el('pmEmail').value = 'buyer@example.com';
     let assigned = null;
     const ctx = {
@@ -97,6 +97,17 @@ function run(hostname, search, reply) {
     const d = await run('bitcoin-quest-staging.web.app', '', { ok: false, reason: 'checkout_closed' });
     test('closed checkout shows a friendly message', function () {
         assert.ok(/opens soon/.test(d.msg.textContent));
+    });
+    const f = await run('bitcoineducation.quest', '?src=yt-1217', okReply, 'founders');
+    test("Founders goes to app sign-in (with src), never the public email checkout", function () {
+        assert.strictEqual(f.sent.length, 0);
+        assert.strictEqual(f.assigned, '/?premium=founders&src=yt-1217');
+        assert.ok(/Sign in to Bitcoin Quest to buy/.test(text));
+    });
+    const g = await run('bitcoin-quest-staging.web.app', '', { ok: false, reason: 'rate_limited_global' });
+    test('global cap and Founders reasons have friendly messages', function () {
+        assert.ok(/busy/.test(g.msg.textContent));
+        ['founders_sign_in', 'founders_busy', 'hold_exists_ip', 'rate_limited_global'].forEach(function (k) { assert.ok(js.indexOf(k + ':') !== -1, k); });
     });
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed ? 1 : 0);

@@ -44,6 +44,7 @@ function makeDb() {
             set: async function (d, o) { write(p, 'set', d, o); },
             update: async function (d) { write(p, 'update', d); },
             create: async function (d) { write(p, 'create', d); },
+            delete: async function () { store.delete(p); },
         };
     }
     function collection(c) {
@@ -104,6 +105,7 @@ const FAKE_ENV = {
     BTCPAY_WEBHOOK_SECRET: 'fake-btcpay-hook-secret',
     BTCPAY_URL: 'https://btcpay.example.test',
     BTCPAY_STORE_ID: 'StoreABC12345',
+    PREMIUM_HASH_KEY: 'fake-premium-hash-key-0123456789',
 };
 
 function setup(opts) {
@@ -112,12 +114,18 @@ function setup(opts) {
     const clock = { now: o.now || T0 };
     const calls = [];
     const btcInvoices = {};
+    const a_ts = [];
     let idn = 0;
     const fetchMock = async function (url, init) {
         calls.push({ url: url, init: init });
         if (o.providerDown) return { ok: false, status: 503, json: async function () { return {}; } };
-        if (url.indexOf('https://api.stripe.com/v1/checkout/sessions') === 0) {
+        if (url.indexOf('https://api.stripe.com/v1/checkout/sessions') === 0 && init.method === 'POST') {
             return { ok: true, status: 200, json: async function () { return { id: 'cs_test_' + (++idn), url: 'https://checkout.stripe.test/' + idn }; } };
+        }
+        const sm = url.match(/^https:\/\/api\.stripe\.com\/v1\/checkout\/sessions\/([A-Za-z0-9_]+)\?/);
+        if (sm && init.method === 'GET') {
+            const fp = (o.cardFp && o.cardFp[sm[1]]) || o.defaultCardFp || 'fp_default_card';
+            return { ok: true, status: 200, json: async function () { return { id: sm[1], payment_intent: { payment_method: { card: { fingerprint: fp } } }, setup_intent: null, subscription: { default_payment_method: { card: { fingerprint: fp } } } }; } };
         }
         if (url.indexOf('https://api.stripe.com/v1/billing_portal/sessions') === 0) {
             return { ok: true, status: 200, json: async function () { return { url: 'https://billing.stripe.test/p' }; } };
@@ -128,6 +136,11 @@ function setup(opts) {
             const id = 'Inv' + String(++idn).padStart(8, '0');
             btcInvoices[id] = { id: id, status: 'New', amount: body.amount, currency: body.currency, metadata: body.metadata, checkoutLink: 'https://btcpay.example.test/i/' + id };
             return { ok: true, status: 200, json: async function () { return clone(btcInvoices[id]); } };
+        }
+        const pm = url.match(/\/api\/v1\/stores\/StoreABC12345\/invoices\/([A-Za-z0-9]+)\/payment-methods$/);
+        if (pm && init.method === 'GET') {
+            const method = (o.btcMethod && o.btcMethod[pm[1]]) || 'BTC-LN';
+            return { ok: true, status: 200, json: async function () { return [{ paymentMethodId: method, payments: [{ id: 'p1', value: '0.0001', status: 'Settled' }] }, { paymentMethodId: method === 'BTC-LN' ? 'BTC-CHAIN' : 'BTC-LN', payments: [] }]; } };
         }
         if (m && init.method === 'GET') {
             const inv = btcInvoices[m[1]];
@@ -144,14 +157,19 @@ function setup(opts) {
         fetch: fetchMock,
         projectId: o.projectId || 'bitcoin-quest-staging',
         getAuthUser: async function (uid) { return { metadata: { creationTime: new Date(created[uid] || OLD).toUTCString() } }; },
-        verifyTurnstile: async function (token) { return token === 'ok-token'; },
+        verifyTurnstile: async function (token, remoteip) {
+            a_ts.push({ token: token, remoteip: remoteip });
+            if (token === 'ok-token') return { success: true, hostname: o.tsHost || 'bitcoin-quest-staging.web.app', action: o.tsAction || 'premium_checkout' };
+            return { success: false, hostname: null, action: null };
+        },
+        stepUp: o.stepUp || async function () { return true; },
     });
     if (o.config !== false) {
         db.store.set('premium_config/settings', Object.assign({ checkoutEnabled: true, lightningEnabled: true, checkoutLaunchedAtMs: LAUNCH, trialDays: 0 }, o.config || {}));
     }
     db.store.set('users/old', { displayName: 'Old' });
     db.store.set('users/new', { displayName: 'New' });
-    return { db: db, h: h, clock: clock, calls: calls, btcInvoices: btcInvoices };
+    return { db: db, h: h, clock: clock, calls: calls, btcInvoices: btcInvoices, ts: a_ts };
 }
 function ctx(uid, extra) {
     return { auth: { uid: uid, token: Object.assign({ firebase: { sign_in_provider: 'password' }, email: uid + '@example.com', email_verified: true }, extra || {}) }, app: {} };
@@ -399,7 +417,7 @@ test('Stripe: livemode event refused on staging; amount or session mismatch goes
 });
 
 test('already subscribed / lifetime refused; portal needs a Stripe customer', async function () {
-    const a = setup();
+    const a = setup({ config: { stripePortalConfigId: 'bpc_test123456' } });
     await rejects(a.h.createPremiumPortal({}, ctx('old')), 'no_customer');
     const out = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old'));
     await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 475 }));
@@ -407,6 +425,11 @@ test('already subscribed / lifetime refused; portal needs a Stripe customer', as
     await rejects(a.h.createPremiumCheckout({ plan: 'yearly', rail: 'lightning' }, ctx('old')), 'subscription_renewing');
     assert.strictEqual((await a.h.createPremiumPortal({}, ctx('old'))).url, 'https://billing.stripe.test/p');
     assert.ok(bodyOf(a.calls[a.calls.length - 1]).indexOf('customer=cus_1') !== -1);
+    // Always our own portal configuration (promotion codes off), never Stripe's default.
+    assert.ok(bodyOf(a.calls[a.calls.length - 1]).indexOf('configuration=bpc_test123456') !== -1);
+    const noCfg = setup();
+    noCfg.db.store.set('premium_entitlements/old', { stripeCustomerId: 'cus_9' });
+    await rejects(noCfg.h.createPremiumPortal({}, ctx('old')), 'portal_not_configured');
 });
 
 test('provider error releases the order and the Founders hold', async function () {
@@ -571,7 +594,7 @@ test('Founders counter never exceeds 500 with 520 buyers', async function () {
 // ---------- public /premium checkout
 async function publicPost(a, body, origin, ip) {
     const res = fakeRes();
-    await a.h.premiumPublicCheckout(req(null, { Origin: origin || 'https://preview1.bitcoin-quest.pages.dev' }, { body: body, ip: ip || '203.0.113.9' }), res);
+    await a.h.premiumPublicCheckout(req(null, { Origin: origin || 'https://preview1.bitcoin-quest.pages.dev', 'X-Forwarded-For': ip || '203.0.113.9' }, { body: body }), res);
     return res;
 }
 test('public checkout: full price only, src carried, email locked, CORS + Turnstile enforced', async function () {
@@ -604,7 +627,7 @@ test('public checkout: per-IP limit; paid order held by email until a verified a
     assert.strictEqual(order[1].uid, null);
     assert.strictEqual(order[1].src, 'yt-1217');
     assert.strictEqual((await stripePost(b, completed(orderId, order[1].providerSessionId, { amount_total: r.body.amountCents }))).body.outcome, 'granted');
-    const ek = premium.emailKey('buyer@example.com');
+    const ek = premium.emailKey('buyer@example.com', FAKE_ENV.PREMIUM_HASH_KEY);
     assert.strictEqual(b.db.store.get('premium_email_entitlements/' + ek).active, true);
     b.db.store.set('users/buyer', {});
     await rejects(b.h.claimPremiumByEmail({}, ctx('buyer', { email: 'buyer@example.com', email_verified: false })), 'email_not_verified');
@@ -733,6 +756,348 @@ test('helpers: usdToCents, signatures, form encoding, email', async function () 
     assert.strictEqual(premium.stripeForm({ a: { b: [{ c: 'd e' }] } }), 'a%5Bb%5D%5B0%5D%5Bc%5D=d%20e');
     assert.strictEqual(premium.normalizeEmail(' A@B.co '), 'a@b.co');
     assert.strictEqual(premium.normalizeEmail('a@b'), null);
+});
+
+// ---------- Security pass (Nov 14): Red Team, Spam/Abuse, User Data/Backups
+function ipCtx(uid, ip, extra) {
+    const c = ctx(uid, extra);
+    c.rawRequest = { headers: { 'x-forwarded-for': ip }, socket: { remoteAddress: '10.0.0.1' } };
+    return c;
+}
+function lastOrderId(a) { const k = Array.from(a.db.store.keys()).filter(function (x) { return x.indexOf('premium_orders/') === 0; }); return k[k.length - 1].split('/')[1]; }
+function storeJson(a) { return JSON.stringify(Array.from(a.db.store.entries())); }
+function rows(a, prefix) { return Array.from(a.db.store.entries()).filter(function (e) { return e[0].indexOf(prefix + '/') === 0; }).map(function (e) { return e[1]; }); }
+function invoicePaid(orderId, amount, extra) {
+    const periodEnd = Math.floor((T0 + 30 * 86400000) / 1000);
+    return { id: 'evt_' + crypto.randomBytes(4).toString('hex'), type: 'invoice.paid', livemode: false, data: { object: Object.assign({ id: 'in_' + crypto.randomBytes(3).toString('hex'), currency: 'usd', amount_paid: amount, customer: 'cus_1', billing_reason: 'subscription_cycle', parent: { subscription_details: { subscription: 'sub_1', metadata: { orderId: orderId } } }, lines: { data: [{ period: { end: periodEnd } }] } }, extra || {}) } };
+}
+
+test('Red Team 1: forged X-Forwarded-For does not reset the per-IP limit; Turnstile gets the same IP', async function () {
+    const a = setup();
+    for (let i = 0; i < 10; i++) {
+        const r = await publicPost(a, { plan: 'monthly', rail: 'card', email: 'b' + i + '@example.com', turnstileToken: 'ok-token' }, null, '1.2.3.' + i + ', 198.51.100.7');
+        assert.strictEqual(r.code, 200, JSON.stringify(r.body));
+    }
+    const r = await publicPost(a, { plan: 'monthly', rail: 'card', email: 'z@example.com', turnstileToken: 'ok-token' }, null, '9.9.9.9, 198.51.100.7');
+    assert.strictEqual(r.code, 429);
+    assert.strictEqual(r.body.reason, 'rate_limited');
+    a.ts.forEach(function (t) { assert.strictEqual(t.remoteip, '198.51.100.7'); });
+    // A different real (rightmost) IP is its own bucket.
+    assert.strictEqual((await publicPost(a, { plan: 'monthly', rail: 'card', email: 'z@example.com', turnstileToken: 'ok-token' }, null, '198.51.100.7, 198.51.100.8')).code, 200);
+});
+test('Red Team 1: global hourly cap on public orders (premium_config.publicOrdersPerHour)', async function () {
+    const a = setup({ config: { publicOrdersPerHour: 3 } });
+    for (let i = 0; i < 3; i++) assert.strictEqual((await publicPost(a, { plan: 'monthly', rail: 'card', email: 'g' + i + '@example.com', turnstileToken: 'ok-token' }, null, '203.0.113.' + (i + 1))).code, 200);
+    const r = await publicPost(a, { plan: 'monthly', rail: 'card', email: 'g9@example.com', turnstileToken: 'ok-token' }, null, '203.0.113.50');
+    assert.strictEqual(r.body.reason, 'rate_limited_global');
+    a.clock.now += 3600001;
+    assert.strictEqual((await publicPost(a, { plan: 'monthly', rail: 'card', email: 'g9@example.com', turnstileToken: 'ok-token' }, null, '203.0.113.50')).code, 200);
+    assert.strictEqual(pricing.DEFAULT_CONFIG.publicOrdersPerHour, 60);
+});
+test('Red Team 2: Founders needs sign-in; live-hold cap; one hold per real IP', async function () {
+    const a = setup();
+    const r = await publicPost(a, { plan: 'founders', rail: 'card', email: 'f@example.com', turnstileToken: 'ok-token' });
+    assert.strictEqual(r.body.reason, 'founders_sign_in');
+    assert.ok(!a.db.store.has('premium_counters/founders'));
+    // One live hold per real IP across accounts.
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('old', '6.6.6.6, 198.51.100.20'));
+    await rejects(a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('new', '7.7.7.7, 198.51.100.20')), 'hold_exists_ip');
+    await a.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ipCtx('new', '198.51.100.21'));
+    // Cap on total live holds.
+    const b = setup({ config: { maxLiveFoundersHolds: 2 } });
+    await b.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('u1aaaa'));
+    await b.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('u2aaaa'));
+    await rejects(b.h.createPremiumCheckout({ plan: 'founders', rail: 'card' }, ctx('u3aaaa')), 'founders_busy');
+    // Holds are stored with an expiry and a keyed IP hash, never a plain IP.
+    const holds = a.db.store.get('premium_counters/founders').holds;
+    Object.keys(holds).forEach(function (k) { assert.ok(holds[k].expMs > T0); assert.ok(/^[0-9a-f]{40}$/.test(holds[k].ipHash)); });
+    assert.strictEqual(storeJson(a).indexOf('198.51.100.20'), -1);
+});
+test('Red Team 2: holds above threshold for over an hour raise one review row + admin alert', async function () {
+    const a = setup({ config: { foundersHoldsAlertThreshold: 2 } });
+    a.db.store.set('premium_counters/founders', { sold: 0, holds: { o1: { uid: 'x', expMs: T0 + 9e9 }, o2: { uid: 'y', expMs: T0 + 9e9 } } });
+    assert.strictEqual((await a.h.sweepExpired(10)).holdsAlert, 'high');
+    a.clock.now += 30 * 60000;
+    assert.strictEqual((await a.h.sweepExpired(10)).holdsAlert, 'high');
+    a.clock.now += 31 * 60000;
+    assert.strictEqual((await a.h.sweepExpired(10)).holdsAlert, 'alerted');
+    assert.strictEqual((await a.h.sweepExpired(10)).holdsAlert, 'high'); // once per streak
+    assert.strictEqual(rows(a, 'premium_review').filter(function (r) { return r.reason === 'founders_holds_high'; }).length, 1);
+    const n = rows(a, 'admin_notifications');
+    assert.strictEqual(n.length, 1);
+    assert.strictEqual(n[0].type, 'premium_holds_high');
+    assert.strictEqual(n[0].read, false);
+});
+test('Red Team 3: $0 invoice only for the trial opening invoice; renewals must equal the price', async function () {
+    const a = setup({ config: { trialDays: 7 } });
+    const out = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new'));
+    await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 0, payment_status: 'no_payment_required' }));
+    assert.strictEqual((await stripePost(a, invoicePaid(out.orderId, 0, { billing_reason: 'subscription_cycle' }))).body.outcome, 'review');
+    assert.strictEqual((await stripePost(a, invoicePaid(out.orderId, 0, { billing_reason: 'subscription_create' }))).body.outcome, 'granted');
+    assert.strictEqual((await stripePost(a, invoicePaid(out.orderId, 0, { billing_reason: 'subscription_create' }))).body.outcome, 'review');
+    assert.strictEqual((await stripePost(a, invoicePaid(out.orderId, 499))).body.outcome, 'review');
+    assert.strictEqual((await stripePost(a, invoicePaid(out.orderId, 500))).body.outcome, 'granted');
+    const reasons = rows(a, 'premium_review').map(function (r) { return r.reason; });
+    assert.strictEqual(reasons.filter(function (x) { return x === 'stripe_zero_invoice'; }).length, 2);
+    assert.ok(reasons.indexOf('stripe_invoice_amount_mismatch') !== -1);
+    // No trial on the order: a $0 invoice (promo code, credit) never grants time.
+    const b = setup();
+    const o2 = await b.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new'));
+    await stripePost(b, completed(o2.orderId, 'cs_test_1', { amount_total: 500 }));
+    assert.strictEqual((await stripePost(b, invoicePaid(o2.orderId, 0, { billing_reason: 'subscription_create' }))).body.outcome, 'review');
+});
+test('Red Team 4 / Spam: a card that already had a trial sends the order to review (no time)', async function () {
+    const a = setup({ config: { trialDays: 7 }, defaultCardFp: 'fp_same_card' });
+    const o1 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old', { email: 'one@example.com' }));
+    assert.strictEqual((await stripePost(a, completed(o1.orderId, 'cs_test_1', { amount_total: 0, payment_status: 'no_payment_required' }))).body.outcome, 'granted');
+    const o2 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new', { email: 'two@example.com' }));
+    assert.ok(bodyOf(a.calls[a.calls.length - 1]).indexOf('trial_end') !== -1); // unknown card at checkout time
+    assert.strictEqual((await stripePost(a, completed(o2.orderId, 'cs_test_2', { amount_total: 0, payment_status: 'no_payment_required', customer: 'cus_2', subscription: 'sub_2' }))).body.outcome, 'review');
+    assert.strictEqual(a.db.store.get('premium_orders/' + o2.orderId).status, 'review');
+    assert.strictEqual((await stripePost(a, invoicePaid(o2.orderId, 0, { billing_reason: 'subscription_create', customer: 'cus_2', parent: { subscription_details: { subscription: 'sub_2', metadata: { orderId: o2.orderId } } } }))).body.outcome, 'review');
+    assert.strictEqual(premium.isPremiumActive(a.db.store.get('premium_entitlements/new') || null, a.clock.now), false);
+    const row = rows(a, 'premium_review').find(function (r) { return r.reason === 'trial_reused'; });
+    assert.deepStrictEqual(row.by, ['card']);
+    assert.strictEqual(row.uid, 'new');
+    assert.strictEqual(row.customerId, 'cus_2');
+    // Markers hold keyed hashes only.
+    const markers = Array.from(a.db.store.keys()).filter(function (k) { return k.indexOf('premium_trial_markers/') === 0; });
+    assert.strictEqual(markers.length, 2);
+    assert.strictEqual(storeJson(a).indexOf('fp_same_card'), -1);
+    assert.strictEqual(storeJson(a).indexOf('one@example.com'), -1);
+});
+test('Spam: canonical email (plus-alias, gmail dots) that had a trial gets a paid checkout with no trial', async function () {
+    assert.strictEqual(premium.canonicalEmail('J.Doe+promo@GoogleMail.com'), 'jdoe@gmail.com');
+    assert.strictEqual(premium.canonicalEmail('j.doe+x@example.com'), 'j.doe@example.com');
+    const a = setup({ config: { trialDays: 7 }, cardFp: { cs_test_1: 'fp_a', cs_test_2: 'fp_b' } });
+    const o1 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old', { email: 'jdoe@gmail.com' }));
+    await stripePost(a, completed(o1.orderId, 'cs_test_1', { amount_total: 0, payment_status: 'no_payment_required' }));
+    await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new', { email: 'J.Doe+again@googlemail.com' }));
+    assert.strictEqual(bodyOf(a.calls[a.calls.length - 1]).indexOf('trial_end'), -1);
+    const pub = await publicPost(a, { plan: 'monthly', rail: 'card', email: 'jd.oe+3@gmail.com', turnstileToken: 'ok-token' });
+    assert.strictEqual(pub.code, 200);
+    assert.strictEqual(bodyOf(a.calls[a.calls.length - 1]).indexOf('trial_end'), -1);
+});
+test('Spam: refund/dispute/payment failure freezes perks by Stripe customer, review row + admin alert', async function () {
+    const a = setup();
+    const out = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old'));
+    await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 475 }));
+    await stripePost(a, invoicePaid(out.orderId, 475, { billing_reason: 'subscription_create' }));
+    a.db.store.set('premium_entitlements/old', Object.assign(a.db.store.get('premium_entitlements/old'), { prepaidUntilMs: T0 + 9e9 }));
+    assert.strictEqual((await a.h.claimPremiumAllowance({}, ctx('old'))).granted, 50);
+    a.clock.now = Date.parse('2026-12-02T15:00:00Z');
+    const ev = { id: 'evt_disp1', type: 'charge.dispute.created', livemode: false, data: { object: { id: 'dp_1', amount: 475, customer: 'cus_1' } } };
+    assert.strictEqual((await stripePost(a, ev)).body.outcome, 'review');
+    const ent = a.db.store.get('premium_entitlements/old');
+    assert.strictEqual(ent.frozen, true);
+    assert.strictEqual(premium.isPremiumActive(ent, a.clock.now), false);
+    assert.strictEqual(a.db.store.get('users/old').premium.active, false);
+    await rejects(a.h.claimPremiumAllowance({}, ctx('old')), 'not_premium');
+    const row = rows(a, 'premium_review').find(function (r) { return r.reason === 'stripe_charge_dispute_created'; });
+    assert.strictEqual(row.uid, 'old');
+    assert.strictEqual(row.orderId, out.orderId);
+    assert.strictEqual(row.customerId, 'cus_1');
+    const n = rows(a, 'admin_notifications');
+    assert.strictEqual(n.length, 1);
+    assert.strictEqual(n[0].type, 'premium_review');
+    // A later renewal does not unfreeze; only the admin tool restores.
+    await stripePost(a, invoicePaid(out.orderId, 475));
+    assert.strictEqual(a.db.store.get('premium_entitlements/old').frozen, true);
+    a.db.store.set('users/adminx', {});
+    await a.h.adminRevokePremium({ action: 'restore', uid: 'old', reason: 'dispute won' }, ctx('adminx', { admin: true }));
+    assert.strictEqual(premium.isPremiumActive(a.db.store.get('premium_entitlements/old'), a.clock.now), true);
+});
+test('User Data: full refund clears the plain email at once; partial refund does not', async function () {
+    const a = setup();
+    const r = await publicPost(a, { plan: 'monthly', rail: 'card', email: 'refund@example.com', turnstileToken: 'ok-token' });
+    const orderId = lastOrderId(a);
+    await stripePost(a, completed(orderId, a.db.store.get('premium_orders/' + orderId).providerSessionId, { amount_total: 500 }));
+    await stripePost(a, { id: 'evt_pr', type: 'charge.refunded', livemode: false, data: { object: { id: 'ch_1', refunded: false, amount_refunded: 100, customer: 'cus_1' } } });
+    assert.strictEqual(a.db.store.get('premium_orders/' + orderId).email, 'refund@example.com');
+    await stripePost(a, { id: 'evt_fr', type: 'charge.refunded', livemode: false, data: { object: { id: 'ch_1', refunded: true, amount_refunded: 500, customer: 'cus_1' } } });
+    const o = a.db.store.get('premium_orders/' + orderId);
+    assert.strictEqual(o.email, null);
+    assert.strictEqual(o.emailClearedReason, 'refunded');
+    assert.ok(/^[0-9a-f]{40}$/.test(o.emailKey));
+    // The email-held entitlement never stores the plain email, and is frozen.
+    const held = a.db.store.get('premium_email_entitlements/' + o.emailKey);
+    assert.strictEqual(held.email, undefined);
+    assert.strictEqual(held.frozen, true);
+});
+test('User Data: unclaimed public order email cleared after 24 months (configurable); claim clears it at once', async function () {
+    assert.strictEqual(pricing.DEFAULT_CONFIG.publicOrderEmailRetentionMonths, 24);
+    const a = setup();
+    const r = await publicPost(a, { plan: 'monthly', rail: 'card', email: 'keep@example.com', turnstileToken: 'ok-token' });
+    const id = lastOrderId(a);
+    a.clock.now = pricing.addMonths(T0, 24) - 1000;
+    assert.strictEqual((await a.h.sweepExpired(10)).emailsCleared, 0);
+    a.clock.now = pricing.addMonths(T0, 24) + 1000;
+    assert.strictEqual((await a.h.sweepExpired(10)).emailsCleared, 1);
+    assert.strictEqual(a.db.store.get('premium_orders/' + id).email, null);
+    assert.strictEqual(a.db.store.get('premium_orders/' + id).emailClearedReason, 'retention');
+    const b = setup({ config: { publicOrderEmailRetentionMonths: 6 } });
+    const r2 = await publicPost(b, { plan: 'monthly', rail: 'card', email: 'six@example.com', turnstileToken: 'ok-token' });
+    b.clock.now = pricing.addMonths(T0, 6) + 1;
+    await b.h.sweepExpired(10);
+    assert.strictEqual(b.db.store.get('premium_orders/' + lastOrderId(b)).email, null);
+    // Claim by a verified account clears it immediately.
+    const c = setup();
+    const r3 = await publicPost(c, { plan: 'monthly', rail: 'card', email: 'claim.me+x@gmail.com', turnstileToken: 'ok-token' });
+    await stripePost(c, completed(lastOrderId(c), c.db.store.get('premium_orders/' + lastOrderId(c)).providerSessionId, { amount_total: 500 }));
+    c.db.store.set('users/claimer', {});
+    assert.strictEqual((await c.h.claimPremiumByEmail({}, ctx('claimer', { email: 'claimme@gmail.com' }))).claimed, true);
+    const o = c.db.store.get('premium_orders/' + lastOrderId(c));
+    assert.strictEqual(o.email, null);
+    assert.strictEqual(o.emailClearedReason, 'claimed');
+});
+test('Spam: claimPremiumByEmail re-checks banned and minor accounts', async function () {
+    const a = setup();
+    a.db.store.set('users/bad', { banned: true });
+    a.db.store.set('users/kid', { isMinor: true });
+    await rejects(a.h.claimPremiumByEmail({}, ctx('bad')), 'banned');
+    await rejects(a.h.claimPremiumByEmail({}, ctx('kid')), 'minor');
+});
+test('Spam: Turnstile must match action premium_checkout and an allowed hostname for the environment', async function () {
+    const wrongHost = setup({ tsHost: 'evil.example' });
+    assert.strictEqual((await publicPost(wrongHost, { plan: 'monthly', rail: 'card', email: 'a@example.com', turnstileToken: 'ok-token' })).body.reason, 'turnstile');
+    const wrongAction = setup({ tsAction: 'login' });
+    assert.strictEqual((await publicPost(wrongAction, { plan: 'monthly', rail: 'card', email: 'a@example.com', turnstileToken: 'ok-token' })).body.reason, 'turnstile');
+    const liveHostOnStaging = setup({ tsHost: 'bitcoineducation.quest' });
+    assert.strictEqual((await publicPost(liveHostOnStaging, { plan: 'monthly', rail: 'card', email: 'a@example.com', turnstileToken: 'ok-token' })).body.reason, 'turnstile');
+    const preview = setup({ tsHost: 'abc123.bitcoin-quest.pages.dev' });
+    assert.strictEqual((await publicPost(preview, { plan: 'monthly', rail: 'card', email: 'a@example.com', turnstileToken: 'ok-token' })).code, 200);
+    assert.strictEqual(premium.TURNSTILE_ACTION, 'premium_checkout');
+    const html = require('fs').readFileSync(path.join(__dirname, '..', 'premium.html'), 'utf8');
+    assert.ok(/data-action="premium_checkout"/.test(html));
+});
+test('Red Team 6: unknown project is fail-closed (no test origins, no CORS, no Turnstile pass)', async function () {
+    const a = setup({ projectId: 'some-other-project' });
+    for (const origin of ['https://bitcoin-quest-staging.web.app', 'https://preview1.bitcoin-quest.pages.dev', 'http://localhost:5000', 'https://bitcoineducation.quest']) {
+        const pre = fakeRes();
+        await a.h.premiumPublicCheckout(req(null, { Origin: origin }, { method: 'OPTIONS' }), pre);
+        assert.strictEqual(pre.code, 403, origin);
+        assert.strictEqual(pre.headers['access-control-allow-origin'], undefined);
+        assert.strictEqual((await publicPost(a, { plan: 'monthly', rail: 'card', email: 'a@example.com', turnstileToken: 'ok-token' }, origin)).code, 403);
+    }
+    assert.strictEqual(premium.providerMode('some-other-project'), null);
+    assert.strictEqual(a.calls.length, 0);
+});
+test('5% end date: config can end it earlier, never later than 2027-01-01 00:00 ET', async function () {
+    const late = pricing.normalizeConfig({ existingUserDiscountEndsAtMs: Date.parse('2030-01-01T00:00:00Z') });
+    assert.strictEqual(late.existingUserDiscountEndsAtMs, pricing.EXISTING_DISCOUNT_ENDS_MS);
+    const early = Date.parse('2026-12-15T05:00:00Z');
+    assert.strictEqual(pricing.normalizeConfig({ existingUserDiscountEndsAtMs: early }).existingUserDiscountEndsAtMs, early);
+    assert.strictEqual(pricing.normalizeConfig({}).existingUserDiscountEndsAtMs, pricing.EXISTING_DISCOUNT_ENDS_MS);
+});
+test('BTCPay: on-chain settlement goes to review, Lightning grants', async function () {
+    const a = setup();
+    const o = await a.h.createPremiumCheckout({ plan: 'yearly', rail: 'lightning' }, ctx('old'));
+    const invId = a.db.store.get('premium_orders/' + o.orderId).providerInvoiceId;
+    a.btcInvoices[invId].status = 'Settled';
+    const b2 = setup({ btcMethod: {} });
+    void b2;
+    // Same store, but mark this invoice as paid on-chain.
+    const chain = setup({ btcMethod: { Inv00000001: 'BTC-CHAIN' } });
+    const oc = await chain.h.createPremiumCheckout({ plan: 'yearly', rail: 'lightning' }, ctx('old'));
+    const ci = chain.db.store.get('premium_orders/' + oc.orderId).providerInvoiceId;
+    assert.strictEqual(ci, 'Inv00000001');
+    chain.btcInvoices[ci].status = 'Settled';
+    assert.strictEqual((await btcPost(chain, { type: 'InvoiceSettled', invoiceId: ci, storeId: 'StoreABC12345' })).body.outcome, 'review');
+    assert.strictEqual(chain.db.store.get('premium_orders/' + oc.orderId).reviewReason, 'not_lightning');
+    assert.ok(!chain.db.store.has('premium_entitlements/old') || !premium.isPremiumActive(chain.db.store.get('premium_entitlements/old'), T0));
+    assert.strictEqual((await btcPost(a, { type: 'InvoiceSettled', invoiceId: invId, storeId: 'StoreABC12345' })).body.outcome, 'granted');
+    assert.deepStrictEqual(premium.nonLightningPayments([{ paymentMethodId: 'BTC-LightningNetwork', payments: [{}] }, { paymentMethodId: 'BTC', payments: [] }]), []);
+    assert.deepStrictEqual(premium.nonLightningPayments([{ paymentMethodId: 'BTC', payments: [{}] }]), ['BTC']);
+    assert.deepStrictEqual(premium.nonLightningPayments(null), ['unreadable']);
+});
+test('Red Team 5: adminRevokePremium needs admin + fresh step-up and writes an audit row', async function () {
+    const a = setup();
+    a.db.store.set('premium_entitlements/old', { prepaidUntilMs: T0 + 9e9 });
+    await rejects(a.h.adminRevokePremium({ action: 'revoke', uid: 'old', reason: 'abuse' }, ctx('someone')), 'not_admin');
+    const denied = setup({ stepUp: async function () { throw new HttpsError('failed-precondition', 'step up', { reason: 'step_up' }); } });
+    denied.db.store.set('premium_entitlements/old', { prepaidUntilMs: T0 + 9e9 });
+    await assert.rejects(denied.h.adminRevokePremium({ action: 'revoke', uid: 'old', reason: 'abuse' }, ctx('adminx', { admin: true })));
+    assert.strictEqual(rows(denied, 'premium_admin_audit').length, 0);
+    await rejects(a.h.adminRevokePremium({ action: 'revoke', uid: 'old', reason: '' }, ctx('adminx', { admin: true })), 'no_reason');
+    const out = await a.h.adminRevokePremium({ action: 'revoke', uid: 'old', reason: 'chargeback' }, ctx('adminx', { admin: true }));
+    assert.strictEqual(out.active, false);
+    assert.strictEqual(a.db.store.get('users/old').premium.active, false);
+    const audit = rows(a, 'premium_admin_audit');
+    assert.strictEqual(audit.length, 1);
+    assert.strictEqual(audit[0].adminUid, 'adminx');
+    assert.strictEqual(audit[0].activeBefore, true);
+    const sf = require('fs').readFileSync(path.join(__dirname, '..', 'functions', 'src', 'secondFactor.js'), 'utf8');
+    assert.ok(/adminRevokePremium: true/.test(sf));
+});
+test('User Data: account deletion masks uid on orders/ledger/review, clears emails, drops entitlement', async function () {
+    const a = setup();
+    const out = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old'));
+    await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 475 }));
+    await stripePost(a, invoicePaid(out.orderId, 475, { billing_reason: 'subscription_create' }));
+    await a.h.claimPremiumAllowance({}, ctx('old'));
+    const r = await publicPost(a, { plan: 'monthly', rail: 'card', email: 'old@example.com', turnstileToken: 'ok-token' });
+    const pubId = lastOrderId(a);
+    await stripePost(a, completed(lastOrderId(a), a.db.store.get('premium_orders/' + lastOrderId(a)).providerSessionId, { amount_total: 500, customer: 'cus_7', subscription: 'sub_7' }));
+    await a.h.claimPremiumByEmail({}, ctx('old'));
+    a.db.store.set('premium_review/x1', { reason: 'test', uid: 'old' });
+    const res = await premium.purgePremiumForAccount(a.db, 'old', a.clock.now);
+    const masked = premium.maskDeletedUid('old');
+    assert.strictEqual(res.masked, masked);
+    assert.ok(/^del_[0-9a-f]{24}$/.test(masked));
+    const o1 = a.db.store.get('premium_orders/' + out.orderId);
+    assert.strictEqual(o1.uid, masked);
+    assert.strictEqual(o1.email, null);
+    assert.strictEqual(o1.emailKey, null);
+    const o2 = a.db.store.get('premium_orders/' + pubId);
+    assert.strictEqual(o2.email, null);
+    assert.strictEqual(o2.emailKey, null);
+    assert.ok(!a.db.store.has('premium_entitlements/old'));
+    assert.ok(!a.db.store.has('premium_allowance/old'));
+    assert.strictEqual(Array.from(a.db.store.keys()).filter(function (k) { return k.indexOf('premium_email_entitlements/') === 0; }).length, 0);
+    const ledger = rows(a, 'premium_allowance_ledger');
+    assert.strictEqual(ledger.length, 1);
+    assert.strictEqual(ledger[0].uid, masked);
+    assert.strictEqual(a.db.store.get('premium_review/x1').uid, masked);
+    assert.strictEqual(res.activeSubscription, true);
+    assert.ok(rows(a, 'premium_review').some(function (x) { return x.reason === 'deleted_account_active_subscription'; }));
+    const left = storeJson(a);
+    assert.strictEqual(left.indexOf('old@example.com'), -1);
+    assert.strictEqual(left.indexOf('"uid":"old"'), -1);
+});
+test('Retention: orders, events, review, ledger, trial markers, admin audit are permanent everywhere', async function () {
+    const perm = premium.PERMANENT_COLLECTIONS;
+    ['premium_orders', 'premium_events', 'premium_review', 'premium_allowance_ledger', 'premium_trial_markers', 'premium_admin_audit'].forEach(function (c) { assert.ok(perm.indexOf(c) !== -1, c); });
+    ['premium_rate', 'premium_counters', 'premium_entitlements', 'premium_allowance'].forEach(function (c) { assert.strictEqual(perm.indexOf(c), -1, c); });
+    const del = require('../functions/src/deleteAccount');
+    perm.forEach(function (c) { assert.ok(del.RETAINED_COLLECTIONS.indexOf(c) !== -1, 'deleteAccount retains ' + c); });
+    const delSrc = require('fs').readFileSync(path.join(__dirname, '..', 'functions', 'src', 'deleteAccount.js'), 'utf8');
+    assert.ok(/purgePremiumForAccount\(db, uid\)/.test(delSrc), 'purgeAccount wires the premium purge');
+    const doc = require('fs').readFileSync(path.join(__dirname, '..', 'docs', 'payments', 'premium-checkout.md'), 'utf8');
+    perm.forEach(function (c) { assert.ok(doc.indexOf(c) !== -1, 'docs vault list ' + c); });
+});
+test('Portal config script: promotion codes and plan switching off; test keys only', async function () {
+    const P = require('../functions/scripts/premium-portal-config').PARAMS;
+    assert.strictEqual(P.features.subscription_update.enabled, false);
+    assert.strictEqual(P.features.subscription_update.default_allowed_updates, '');
+    assert.ok(premium.stripeForm(P).indexOf('promotion_code') === -1);
+    assert.strictEqual(pricing.normalizeConfig({ stripePortalConfigId: 'bad id' }).stripePortalConfigId, null);
+    assert.strictEqual(pricing.normalizeConfig({ stripePortalConfigId: 'bpc_1AbCdEf' }).stripePortalConfigId, 'bpc_1AbCdEf');
+});
+test('Keyed hashes only: no plain IP or card fingerprint stored; rate docs carry expireAt', async function () {
+    const a = setup({ defaultCardFp: 'fp_plain_value' });
+    const r = await publicPost(a, { plan: 'monthly', rail: 'card', email: 'kh@example.com', turnstileToken: 'ok-token' }, null, '192.0.2.77');
+    await stripePost(a, completed(lastOrderId(a), a.db.store.get('premium_orders/' + lastOrderId(a)).providerSessionId, { amount_total: 500 }));
+    const all = storeJson(a);
+    assert.strictEqual(all.indexOf('192.0.2.77'), -1);
+    assert.strictEqual(all.indexOf('fp_plain_value'), -1);
+    const plainSha = crypto.createHash('sha256').update('kh@example.com').digest('hex').slice(0, 40);
+    assert.strictEqual(all.indexOf(plainSha), -1);
+    rows(a, 'premium_rate').forEach(function (d) { assert.ok(d.expireAt, 'expireAt'); });
+    assert.ok(rows(a, 'premium_rate').length >= 2); // per-IP + global
+    assert.throws(function () { premium.keyedHash('short', 'ip', '1.2.3.4'); });
+    assert.notStrictEqual(premium.keyedHash('k'.repeat(16), 'ip', '1.2.3.4'), premium.keyedHash('j'.repeat(16), 'ip', '1.2.3.4'));
+    const noKey = setup({ env: { PREMIUM_HASH_KEY: '' } });
+    assert.strictEqual((await publicPost(noKey, { plan: 'monthly', rail: 'card', email: 'kh@example.com', turnstileToken: 'ok-token' })).body.reason, 'hash_key');
 });
 
 (async function () {

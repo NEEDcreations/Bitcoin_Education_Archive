@@ -33,6 +33,10 @@
     hold_exists: ["You already have a Founders' checkout open. Finish it, or try again in about 30 minutes.", 'err'],
     already_lifetime: ["This email already has Founders' Lifetime.", 'ok'],
     rate_limited: ['Too many tries. Please wait a while and try again.', 'err'],
+    rate_limited_global: ['Checkout is busy right now. Please try again in an hour.', 'err'],
+    founders_sign_in: ["Founders' Lifetime is sold in the app. Sign in to Bitcoin Quest to buy it.", 'err'],
+    founders_busy: ["All open Founders' seats are in checkout right now. Try again in about 30 minutes.", 'err'],
+    hold_exists_ip: ["A Founders' checkout is already open from this network. Finish it, or try again in about 30 minutes.", 'err'],
     down: ["Checkout isn't available right now. Please try again later.", 'err']
   };
   function show(key) {
@@ -55,8 +59,16 @@
   }
   function resetTurnstile() { if (window.turnstile) try { window.turnstile.reset(); } catch (_) {} }
 
+  // Founders' seats are sold only to signed-in accounts: send buyers to the
+  // app sign-in (same site), carrying the src tag. No POST, no email here.
+  function foundersSignIn() {
+    location.assign('/?premium=founders' + (src ? '&src=' + encodeURIComponent(src) : ''));
+  }
+
   form.addEventListener('submit', function (e) {
     e.preventDefault();
+    var chosen = form.querySelector('input[name="plan"]:checked');
+    if (chosen && chosen.value === 'founders') { foundersSignIn(); return; }
     var value = (email.value || '').trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) { show('bad_email'); email.focus(); return; }
     var token = turnstileToken();
@@ -76,6 +88,7 @@
           location.assign(out.url);
           return;
         }
+        if (out && out.reason === 'founders_sign_in') { foundersSignIn(); return; }
         show(out && out.reason); btn.disabled = false; resetTurnstile();
       })
       .catch(function () { show('down'); btn.disabled = false; resetTurnstile(); });

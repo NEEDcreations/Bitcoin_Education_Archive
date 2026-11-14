@@ -48,6 +48,12 @@ existingUserCutoffMs: null      // accounts created before this are "existing"
 checkoutLaunchedAtMs: null      // fallback cutoff
 billingStartsAt: null           // e.g. '2027-01-03T00:00:00-05:00' (string or ms)
 trialDays: 7                    // 0..14
+publicOrdersPerHour: 60         // global cap on public-page orders per hour (all IPs)
+maxLiveFoundersHolds: 25        // cap on Founders' seats in checkout at once
+foundersHoldsAlertThreshold: 15 // holds at/above this for > 1 hour -> review row + admin alert
+publicOrderEmailRetentionMonths: 24 // unclaimed public orders: plain email cleared after this (Phil to confirm)
+stripePortalConfigId: null      // bpc_... from functions/scripts/premium-portal-config.js; portal closed until set
+existingUserDiscountEndsAtMs    // may end the 5% earlier; clamped to 2027-01-01 00:00 ET at most
 ```
 
 ## billingStartsAt
@@ -75,20 +81,76 @@ Entitlements bought early carry `startsAtMs`; `premiumExpirySweep` (hourly) turn
 
 - `premium_entitlements/{uid}`: founders, subscriptionUntilMs, prepaidUntilMs, startsAtMs, trialUsed, trialUntilMs, stripeCustomerId, stripeSubscriptionId, autoRenew, active, pendingStart. Owner can read.
 - `users/{uid}.premium`: read-only mirror for the client (rules already deny client writes).
-- `premium_email_entitlements/{sha256 key}`: purchases from the public page, claimed by `claimPremiumByEmail` once the buyer signs in with that verified email.
+- `premium_email_entitlements/{keyed hash}`: purchases from the public page, claimed by `claimPremiumByEmail` once the buyer signs in with that verified email. No plain email is stored here.
 - `premium_orders/{orderId}`, `premium_counters/founders` (sold + holds), `premium_events/{id}` (once-only webhook markers), `premium_review/{id}`, `premium_rate/{key}`, `premium_allowance/{uid}`, `premium_allowance_ledger/{id}`.
+- `premium_trial_markers/{e_<hash>|c_<hash>}`: one per canonical email / card fingerprint that already had a free trial. Long-term.
+- `premium_admin_audit/{id}`: every `adminRevokePremium` revoke/restore.
+
+### Hashing (PREMIUM_HASH_KEY)
+
+IPs, canonical emails and card fingerprints are stored only as keyed hashes:
+HMAC-SHA256(PREMIUM_HASH_KEY, 'bq-premium:<kind>:<value>'), 40 hex chars. No
+plain IP or card fingerprint is ever written. Canonical email: lowercase,
+`+tag` stripped, dots removed for gmail.com/googlemail.com, googlemail.com ->
+gmail.com. Missing key = checkout refuses (`hash_key`). PREMIUM_HASH_KEY is a
+new Secret Manager secret (needs Phil's OK); rotating it resets trial markers
+and rate buckets.
+
+### Retention
+
+| Data | Kept |
+|---|---|
+| premium_orders, premium_events, premium_review, premium_allowance_ledger, premium_trial_markers, premium_admin_audit | Permanent (`PERMANENT_COLLECTIONS`). Excluded from every cleanup, retained by account deletion (uid masked). |
+| Plain email on a public order | Cleared when a verified account claims it, on a full refund, or by the hourly sweep `publicOrderEmailRetentionMonths` (default 24) after purchase. The keyed `emailKey` stays. |
+| premium_rate docs (per-IP / per-account / global) | `expireAt` = window start + 2 h |
+| Founders holds | `expMs` in `premium_counters/founders.holds` (released on expiry) |
+| premium_entitlements, premium_allowance, premium_email_entitlements | Deleted on account deletion |
+
+TTL: `premium_rate.expireAt` is in place, but no Firestore TTL policy was
+created. Creating one (`gcloud firestore fields ttls update expireAt
+--collection-group=premium_rate`) is a project config change Phil has to OK;
+until then expired rate docs are ignored by the code and stay small.
+
+**10-year vault export:** the repo has no per-collection vault list yet
+(`dailyFirestoreBackup` exports all collections; the offline-vault copy job is
+not built). When it is built it must include every collection in
+`PERMANENT_COLLECTIONS` (functions/src/premium.js): premium_orders,
+premium_events, premium_review, premium_allowance_ledger,
+premium_trial_markers, premium_admin_audit.
+
+**Account deletion:** `purgeAccount` calls `purgePremiumForAccount`. Orders,
+ledger, review and audit rows stay with the uid replaced by
+`del_<sha256(uid) prefix>`; every email and emailKey field is cleared; the
+entitlement, allowance, rate doc and claimed email entitlements are deleted. A
+still-renewing card subscription gets a `deleted_account_active_subscription`
+review row so a human cancels it in Stripe.
+
+## Abuse controls
+
+- **IP:** `faucetGuard.clientIpFromRequest` (rightmost X-Forwarded-For entry, which Google's front end appends; forged left entries are ignored). The same IP goes to Turnstile as `remoteip`.
+- **Turnstile:** server checks success, `action === 'premium_checkout'` (premium.html sets `data-action`), and the hostname against the environment's allowlist (live: bitcoineducation.quest, www; staging: bitcoin-quest-staging.web.app, *.bitcoin-quest.pages.dev, localhost). Unknown project = no origins, no pass.
+- **Rate:** 10 public orders per IP per hour, 6 in-app per account per hour, `publicOrdersPerHour` across all public orders.
+- **Founders:** in-app only (sign-in required; the public page sends Founders buyers to `/?premium=founders`). One live hold per account and per real IP; at most `maxLiveFoundersHolds` live holds. Holds at/above `foundersHoldsAlertThreshold` for over an hour raise one `founders_holds_high` review row and an `admin_notifications` alert.
+- **Trials:** when a trial is granted, the card fingerprint (re-read from the Checkout Session) and canonical email are recorded as keyed-hash markers. A known email gets a paid checkout with no trial; a known card found after checkout sends the order to review (`trial_reused`) and no time is granted.
+- **$0 invoices:** granted only for the order's trial opening invoice (order has trialEndMs, `billing_reason === 'subscription_create'`, first invoice). Anything else -> review `stripe_zero_invoice`. Renewals must equal the order's unitCents.
+- **Refunds, disputes, failed payments:** entitlements found by stripeCustomerId (account and email-held) get `frozen: true`; frozen means no perks and no allowance until an admin restores with `adminRevokePremium`. A review row carries uid, orderId and customerId, and an `admin_notifications` row (type `premium_review`) alerts a human in the admin panel feed.
+- **Portal:** always opened with our own configuration (`stripePortalConfigId`). Promotion codes and plan switching are off in that configuration (`features.subscription_update.enabled=false`, `default_allowed_updates=[]`), created by `functions/scripts/premium-portal-config.js`. Stripe's default portal configuration is never used.
+- **BTCPay:** on settle, the invoice and its `/payment-methods` are re-read; any payment on a non-Lightning method (BTC / BTC-CHAIN) -> review `not_lightning`, no grant. An unreadable response fails the webhook so BTCPay retries.
+- **Claim:** `claimPremiumByEmail` refuses banned and minor accounts.
 
 ## Functions
 
 | Function | Kind | Secrets |
 |---|---|---|
-| createPremiumCheckout | callable, App Check | STRIPE_SECRET_KEY, BTCPAY_API_KEY, BTCPAY_URL, BTCPAY_STORE_ID |
-| premiumPublicCheckout | HTTPS, CORS allowlist + Turnstile + per-IP limit | same + Turnstile secret |
+| createPremiumCheckout | callable, App Check | PREMIUM_HASH_KEY, STRIPE_SECRET_KEY, BTCPAY_API_KEY, BTCPAY_URL, BTCPAY_STORE_ID |
+| premiumPublicCheckout | HTTPS, CORS allowlist + Turnstile + per-IP and global limit | same + Turnstile secret |
 | createPremiumPortal | callable, App Check | STRIPE_SECRET_KEY |
-| premiumStripeWebhook | HTTPS, Stripe signature | STRIPE_WEBHOOK_SECRET |
+| premiumStripeWebhook | HTTPS, Stripe signature | STRIPE_WEBHOOK_SECRET, STRIPE_SECRET_KEY (card fingerprint re-read), PREMIUM_HASH_KEY |
 | premiumBtcpayWebhook | HTTPS, BTCPay-Sig | BTCPAY_WEBHOOK_SECRET, BTCPAY_API_KEY, BTCPAY_URL, BTCPAY_STORE_ID |
-| getPremiumStatus, claimPremiumByEmail, claimPremiumAllowance | callable, App Check | none |
-| premiumExpirySweep | hourly schedule | none |
+| claimPremiumByEmail | callable, App Check | PREMIUM_HASH_KEY |
+| getPremiumStatus, claimPremiumAllowance | callable, App Check | none |
+| adminRevokePremium | callable, App Check, admin claim + fresh 2FA step-up, audit row | none (not deployed) |
+| premiumExpirySweep | hourly schedule (expiry, email retention, holds alert) | none |
 
 ## Fails closed when
 
@@ -106,8 +168,9 @@ a test that fails if it ever references sats balances, points, tickets or NWC.
 
 ## Setup steps for Phil (staging first)
 
-1. Create staging runtime service accounts for the 5 new secret-bound functions and grant secret access (needs Phil's OK: new IAM).
-2. Add Secret Manager secrets on staging: STRIPE_SECRET_KEY (sk_test_), STRIPE_WEBHOOK_SECRET, and later BTCPAY_*.
+1. Create staging runtime service accounts for the 6 new secret-bound functions (incl. fn-premium-claim) and grant secret access (needs Phil's OK: new IAM).
+2. Add Secret Manager secrets on staging: PREMIUM_HASH_KEY (32+ random bytes), STRIPE_SECRET_KEY (sk_test_), STRIPE_WEBHOOK_SECRET, and later BTCPAY_*.
+2b. Run `node functions/scripts/premium-portal-config.js --apply` with the staging test key and set `stripePortalConfigId`.
 3. Deploy rules + functions by name to `bitcoin-quest-staging`.
 4. Add a Stripe test webhook endpoint pointing at `premiumStripeWebhook` with events: checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.expired, invoice.paid, invoice.payment_failed, customer.subscription.updated, customer.subscription.deleted, charge.refunded, charge.dispute.created.
 5. Write `premium_config/settings` on staging with `checkoutEnabled: true`.

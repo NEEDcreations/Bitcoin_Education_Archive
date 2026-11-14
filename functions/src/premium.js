@@ -709,7 +709,9 @@ function createPremiumHandlers(deps) {
         }
         const email = auth.token && auth.token.email_verified === true ? normalizeEmail(auth.token.email) : null;
         const ek = email ? ekey(email) : null;
-        const ipHash = H('ip', clientIp(context && context.rawRequest));
+        // Unknown IP (no raw request): no per-IP hold cap, never a shared bucket.
+        const ipRaw = context && context.rawRequest ? clientIp(context.rawRequest) : 'none';
+        const ipHash = ipRaw === 'none' ? null : H('ip', ipRaw);
         // A canonical email that already had a free trial starts paid, no trial.
         const emailTrialUsed = await trialMarkerExists('e', ek);
         return startOrder(q, { uid: uid, email: email, emailKey: ek, ipHash: ipHash, holdKey: uid, rateKey: uid, customerId: ent.stripeCustomerId || null, trialEligible: !ent.trialUsed && !ent.stripeSubscriptionId && !ent.founders && !emailTrialUsed }, cfg, nowMs, cleanSrc(d.src), 'app');
@@ -1449,7 +1451,7 @@ function createPremiumHandlers(deps) {
         const d = data && typeof data === 'object' ? data : {};
         const action = d.action;
         if (action !== 'revoke' && action !== 'restore') throw fail('invalid-argument', 'action must be revoke or restore', 'bad_action');
-        const target = typeof d.uid === 'string' && /^[A-Za-z0-9_-]{6,128}$/.test(d.uid) ? d.uid : null;
+        const target = typeof d.uid === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(d.uid) ? d.uid : null;
         if (!target) throw fail('invalid-argument', 'uid required', 'bad_uid');
         const reason = String(d.reason || '').replace(/[\u0000-\u001f\u007f<>]/g, ' ').trim().slice(0, 300);
         if (!reason) throw fail('invalid-argument', 'reason required', 'no_reason');
