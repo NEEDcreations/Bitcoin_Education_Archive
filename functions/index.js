@@ -9585,6 +9585,27 @@ const factionFns = bindChooseFaction(functionsV1, { admin: admin, db: db });
 exports.chooseFaction = factionFns.chooseFaction;
 exports.syncUserFactionPoints = factionFns.syncUserFactionPoints;
 
+// Premium checkout (Stripe cards + BTCPay Lightning), webhooks, entitlements.
+// Server-only prices and grants; see src/premium.js and docs/payments/premium-checkout.md.
+// Checkout stays closed until premium_config/settings.checkoutEnabled is set by an admin.
+const { bindPremium } = require('./src/premium');
+const premiumFns = bindPremium(functionsV1, {
+    admin: admin,
+    db: db,
+    verifyTurnstile: verifyTurnstile,
+    turnstileSecret: turnstileSecret,
+    log: function (msg, meta) { console.warn(msg, meta || {}); },
+});
+exports.createPremiumCheckout = premiumFns.createPremiumCheckout;
+exports.premiumPublicCheckout = premiumFns.premiumPublicCheckout;
+exports.createPremiumPortal = premiumFns.createPremiumPortal;
+exports.claimPremiumByEmail = premiumFns.claimPremiumByEmail;
+exports.getPremiumStatus = premiumFns.getPremiumStatus;
+exports.claimPremiumAllowance = premiumFns.claimPremiumAllowance;
+exports.premiumStripeWebhook = premiumFns.premiumStripeWebhook;
+exports.premiumBtcpayWebhook = premiumFns.premiumBtcpayWebhook;
+exports.premiumExpirySweep = premiumFns.premiumExpirySweep;
+
 const { bindSayHi } = require('./src/sayHi');
 const sayHiFns = bindSayHi(functionsV1, admin, db);
 exports.armSayHi = sayHiFns.armSayHi;

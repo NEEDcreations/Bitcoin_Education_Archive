@@ -24,10 +24,10 @@ const names = Object.keys(endpoints);
 const secretBound = names.filter(function (n) { return endpoints[n].secrets.length > 0; }).sort();
 const manifest = Object.keys(RUNTIME_SERVICE_ACCOUNTS).sort();
 
-test('manifest lists exactly the secret-bound exports (58)', function () {
+test('manifest lists exactly the secret-bound exports (63)', function () {
     assert.deepStrictEqual(manifest, secretBound);
-    assert.strictEqual(manifest.length, 58);
-    assert.strictEqual(secretBound.length, 58);
+    assert.strictEqual(manifest.length, 63);
+    assert.strictEqual(secretBound.length, 63);
 });
 
 test('every secret-bound function runs as its own account', function () {

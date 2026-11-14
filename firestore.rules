@@ -2857,6 +2857,28 @@ service cloud.firestore {
       allow delete: if clientWritesOk() && (request.auth != null && request.auth.uid == uid);
     }
 
+    // Premium (functions/src/premium.js). Only the Admin SDK writes any of
+    // these. A player may read their own entitlement and cosmetic allowance.
+    // Orders, email-held entitlements, the Founders seat counter, webhook
+    // markers, review rows, rate limits, config and the allowance ledger are
+    // server-only.
+    match /premium_entitlements/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create, update, delete: if false;
+    }
+    match /premium_allowance/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow create, update, delete: if false;
+    }
+    match /premium_email_entitlements/{docId} { allow read, write: if false; }
+    match /premium_orders/{docId} { allow read, write: if false; }
+    match /premium_counters/{docId} { allow read, write: if false; }
+    match /premium_events/{docId} { allow read, write: if false; }
+    match /premium_review/{docId} { allow read, write: if false; }
+    match /premium_rate/{docId} { allow read, write: if false; }
+    match /premium_config/{docId} { allow read, write: if false; }
+    match /premium_allowance_ledger/{docId} { allow read, write: if false; }
+
     match /reset_reminder_claims/{claimId} {
       allow read, write: if false;
     }
