@@ -21,6 +21,7 @@ const TESTS = [
     { name: 'Faction race prizes', file: 'test-faction-race-prizes.js' },
     { name: 'Lightning fee', file: 'test-ln-fee.js' },
     { name: '5-tier badges', file: 'test-badge-tiers.js' },
+    { name: 'Original Builder badge', file: 'test-original-builder.js' },
     { name: 'Nov 4 batch', file: 'test-nov4-batch.js' },
     { name: 'Chat easter eggs', file: 'test-chat-easter-eggs.js' },
     { name: 'HTML Integrity', file: 'test-html-integrity.js' },

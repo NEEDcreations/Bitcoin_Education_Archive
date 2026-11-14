@@ -34,6 +34,7 @@ function grabFields(block) {
         desc: one('desc') || one('hint'),
         pts: pts ? Number(pts[1]) : null,
         hidden: /hidden\s*:\s*true/.test(block),
+        icon: one('icon'),
     };
 }
 
@@ -216,6 +217,7 @@ Object.keys(serverXp).forEach(function (id) {
         xp: serverXp[id],
         hidden: meta.hidden === true,
         category: '',
+        icon: meta.icon || '',
     };
 });
 Object.keys(client).forEach(function (id) {
@@ -224,6 +226,7 @@ Object.keys(client).forEach(function (id) {
         if (client[id].emoji) badges[id].emoji = client[id].emoji;
         if (client[id].desc) badges[id].desc = client[id].desc;
         if (client[id].hidden) badges[id].hidden = true;
+        if (client[id].icon) badges[id].icon = client[id].icon;
         return;
     }
     badges[id] = {
@@ -233,6 +236,7 @@ Object.keys(client).forEach(function (id) {
         xp: client[id].pts || 0,
         hidden: client[id].hidden === true,
         category: '',
+        icon: client[id].icon || '',
     };
 });
 Object.keys(extra).forEach(function (id) {
@@ -279,6 +283,7 @@ Object.keys(badges).forEach(function (id) {
         category: badges[id].category || '',
         hidden: badges[id].hidden === true,
         serverAward: !!(rule && !rule.cosmetic) || collectionBonus.SERVER_VERIFIED.has(id),
+        icon: badges[id].icon || '',
     };
 });
 const collectionPay = {};

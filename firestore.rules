@@ -2868,7 +2868,16 @@ service cloud.firestore {
     match /config/{docId} {
       allow read: if docId == 'killSwitch';
       allow read: if docId == 'killSwitchAdmin' && isAdmin();
+      allow read: if docId == 'originalBuilder' && isAdmin();
       allow write: if false;
+    }
+    match /original_builder_claims/{uid} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+    match /original_builder_eligible/{uid} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
     }
     // Append-only audit log. Admins may read; nobody may write or delete
     // from the client. The callable never deletes these rows.

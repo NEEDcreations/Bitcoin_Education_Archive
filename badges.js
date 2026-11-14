@@ -70,6 +70,8 @@ const BADGE_DEFS = [
     { id: 'quest_25',  name: 'Quest Crusader',   emoji: '⚜️',  desc: 'Completed 25 Quests',        check: (v, t, q) => q >= 25,  pts: 200 },
     { id: 'quest_50',  name: 'Quest Master',     emoji: '👑',  desc: 'Completed 50 Quests',        check: (v, t, q) => q >= 50,  pts: 400 },
     { id: 'quest_100', name: 'Quest Legend',     emoji: '🏰',  desc: 'Completed 100 Quests',       check: (v, t, q) => q >= 100, pts: 750 },
+    // ---- Citadel Spark / Original Builder (server-awarded, 0 XP) ----
+    { id: 'original_builder', name: 'Original Builder', emoji: '🏰', icon: 'assets/badges/original-builder-512.webp', desc: 'Completed a Quest before the break, then signed in on or after January 3 for the Citadel Spark relaunch.', check: () => false, pts: 0, hidden: false },
     { id: 'bookworm', name: 'Bookworm', emoji: '📖', desc: 'Saved 5 topics to favorites', check: () => {
         return (JSON.parse(localStorage.getItem('btc_favs') || '[]')).length >= 5;
     }, pts: 20},
@@ -987,7 +989,7 @@ window._checkAndAwardTitles = function(earnedBadgeIds, force) {
 };
 
 // Major badges that deserve a share prompt
-const MAJOR_BADGES = ['explorer_50', 'explorer_100', 'explorer_all', 'properties_all', 'quest_5', 'quest_25', 'quest_100', 'cert_scholar', 'cert_tech', 'cert_double', 'all_certs', 'gift_open_1500', 'gift_sent_200', 'cipher_sats_10k', 'peer_level_6', 'raffle_1000'];
+const MAJOR_BADGES = ['explorer_50', 'explorer_100', 'explorer_all', 'properties_all', 'quest_5', 'quest_25', 'quest_100', 'cert_scholar', 'cert_tech', 'cert_double', 'all_certs', 'gift_open_1500', 'gift_sent_200', 'cipher_sats_10k', 'peer_level_6', 'raffle_1000', 'original_builder'];
 
 // Displayed XP is the shared table (window.BADGE_CATALOG, generated from
 // functions/src/badge-xp.json). The badge object's own pts is only a fallback.
@@ -1030,6 +1032,25 @@ function badgeShareText(emoji, name, desc) {
 
 function badgeShareCopy(emoji, name) {
     return 'I earned the ' + emoji + ' ' + name + ' badge on Bitcoin Quest!\nLearn Bitcoin and earn sats on Bitcoin Quest 👇\n' + badgeShareLink();
+}
+
+
+function badgeIconSrc(badge) {
+    if (!badge) return '';
+    if (badge.icon) return badge.icon;
+    var cat = (typeof window !== 'undefined' && window.BADGE_CATALOG) ? window.BADGE_CATALOG[badge.id] : null;
+    return (cat && cat.icon) ? cat.icon : '';
+}
+
+function badgeMarkHtml(badge, fontSize, earned) {
+    var showLocked = earned === false;
+    var src = showLocked ? '' : badgeIconSrc(badge);
+    if (src) {
+        var size = fontSize || '1.8rem';
+        return '<img class="badge-emoji badge-icon" src="' + src + '" alt="' + String((badge && badge.name) || '').replace(/"/g, '&quot;') + '" style="width:' + size + ';height:' + size + ';object-fit:contain;display:inline-block;vertical-align:middle;">';
+    }
+    var emoji = showLocked ? ((badge && badge.lockedEmoji) || '🔘') : ((badge && badge.emoji) || '🏅');
+    return '<div class="badge-emoji" style="font-size:' + (fontSize || '1.8rem') + '; margin-bottom:4px;">' + emoji + '</div>';
 }
 
 function showBadgeToast(badge) {
@@ -1102,7 +1123,7 @@ function showBadgeToast(badge) {
     }
 
     overlay.innerHTML = '<div style="background:var(--bg-side);border:1px solid var(--border);border-radius:20px;padding:40px;max-width:380px;width:90%;text-align:center;animation:fadeSlideIn 0.4s ease-out;">' +
-        '<div style="font-size:4rem;margin-bottom:12px;animation:badgeBounce 0.6s ease-out;">' + badge.emoji + '</div>' +
+        '<div style="font-size:4rem;margin-bottom:12px;animation:badgeBounce 0.6s ease-out;line-height:1;">' + (badgeIconSrc(badge) ? '<img class="badge-icon" src="' + badgeIconSrc(badge) + '" alt="" style="width:5.5rem;height:5.5rem;object-fit:contain;">' : badge.emoji) + '</div>' +
         '<div style="color:#f7931a;font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;font-weight:800;margin-bottom:8px;">🎉 Badge Earned!</div>' +
         '<div style="color:var(--heading);font-size:1.4rem;font-weight:900;margin-bottom:8px;">' + badge.name + '</div>' +
         '<div style="color:var(--text-muted);font-size:0.95rem;margin-bottom:4px;">' + badge.desc + '</div>' +
@@ -1221,7 +1242,8 @@ function getBadgeHTML() {
     function _cat(list, filter) { var r = list.filter(function(b) { return !_used[b.id] && !b.collectionBonus && filter(b); }); r.forEach(function(b) { _used[b.id] = true; }); return r; }
     const categories = {
         '🧭 Discovery': _cat(BADGE_DEFS, b => b.id.includes('explorer') || b.id === 'first_channel' || b.id === 'bookworm'),
-        '🧠 Knowledge': _cat(BADGE_DEFS, b => b.id.includes('builder') || b.id.includes('diver') || b.id.includes('librarian') || b.id.includes('quest') || b.id.includes('cert_') || b.id === 'experienced_pro'),
+        '🏰 Citadel': _cat(BADGE_DEFS, b => b.id === 'original_builder' || b.id.startsWith('citadel_')),
+        '🧠 Knowledge': _cat(BADGE_DEFS, b => b.id !== 'original_builder' && (b.id.includes('builder') || b.id.includes('diver') || b.id.includes('librarian') || b.id.includes('quest') || b.id.includes('cert_') || b.id === 'experienced_pro')),
         '🦌 Trails': _cat(BADGE_DEFS, b => b.id.startsWith('trail_')),
         '📖 Learning Quests': _cat(BADGE_DEFS, b => b.id.startsWith('lq_')),
         '💬 Global Chat': _cat(BADGE_DEFS, b => b.id.startsWith('chat_')),
@@ -1330,7 +1352,7 @@ function getBadgeHTML() {
             const requirementsText = !earned ? '<div style="margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.1);color:var(--accent);font-weight:700;">How to earn: ' + badge.desc + '</div>' : '';
             const tip = earned ? '✅ ' + badge.desc + ' (+' + shownPts + ' XP)' : '🔒 Locked — ' + badge.desc + ' <span style="color:var(--accent);font-weight:700;">(+' + shownPts + ' XP)</span>';
             _sec += '<div class="badge-item ' + (earned ? 'earned' : 'locked') + '" data-badge-id="' + badge.id + '" data-badge-cat="' + escapeHtml(catName) + '" title="' + escapeHtml(badge.desc) + '" onclick="window._showBadgeTip(event,this)" style="padding:10px 5px; background:var(--card-bg); border-radius:12px; border:1px solid var(--border); overflow:visible;">' +
-                '<div class="badge-emoji" style="font-size:1.8rem; margin-bottom:4px;">' + (earned ? badge.emoji : (badge.lockedEmoji || '🔘')) + '</div>' +
+                badgeMarkHtml(badge, '1.8rem', earned) +
                 '<div class="badge-name" style="font-size:0.6rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + badge.name + '</div>' +
                 '<div class="badge-xp" style="font-size:0.55rem;color:var(--accent);font-weight:700;margin-top:1px;">+' + shownPts + ' XP</div>' +
                 '<div class="badge-tooltip" style="white-space:normal; min-width:150px; line-height:1.4; z-index:200;">' + tip + requirementsText + '</div>' +

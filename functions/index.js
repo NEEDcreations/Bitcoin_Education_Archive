@@ -3109,6 +3109,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         global_citizen: 100,
         // Daily Quest Hub
         quest_1: 10, quest_3: 25, quest_5: 50, quest_10: 100, quest_25: 200, quest_50: 400, quest_100: 750,
+        original_builder: 0,
         // Certs
         cert_scholar: 50, cert_tech: 100, cert_double: 250, all_certs: 1500,
         // Timechain TV - watch time
@@ -3258,6 +3259,7 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
         early_bird: 15, night_owl: 15,
         // Quests
         quest_3: 25, quest_5: 50, quest_10: 100, quest_25: 200, quest_50: 400, quest_100: 750,
+        original_builder: 0,
         // Certs / scholar
         cert_tech: 100, cert_double: 250, all_certs: 1500,
         // Chat extras
@@ -4257,11 +4259,17 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
             await grantFamily(db, admin, uid, visitIds);
         }
         catch (streakBadgeErr) { console.warn('[VISIT] streak badges', streakBadgeErr && streakBadgeErr.message); }
+        let originalBuilder = null;
+        try {
+            originalBuilder = await require('./src/originalBuilder').maybeAward(db, admin, uid);
+        } catch (obErr) {
+            console.warn('[VISIT] original builder', obErr && obErr.message);
+        }
         // The streak board is rebuilt by refreshStreakLeaderboard on its
         // hourly schedule. It used to run here, awaited, and that refresh
         // was on the login path (p90 about 18s). Reward and streak fields
         // above are unchanged. The board can lag until the next scheduled run.
-        return { success: true, ...result };
+        return { success: true, ...result, originalBuilder: originalBuilder };
     } catch (e) {
         console.error('[VISIT] recordDailyVisit failed for ' + uid + ':', e.message);
         return { success: false, error: 'Visit recording failed' };
@@ -4271,6 +4279,14 @@ exports.recordDailyVisit = functionsV1.https.onCall(async (data, context) => {
 // Cached Daily Streaks board. Public read, Admin SDK write. Rebuilt hourly
 // so a lapsed streak drops off Current even if that player never comes back.
 // recordDailyVisit no longer waits on this refresh.
+exports.claimOriginalBuilder = functionsV1.https.onCall(
+    require('./src/originalBuilder').makeClaimOriginalBuilder({
+        db: db,
+        admin: admin,
+        functionsV1: functionsV1,
+    })
+);
+
 exports.refreshStreakLeaderboard = onSchedule({
     schedule: 'every 60 minutes',
     timeZone: 'UTC',

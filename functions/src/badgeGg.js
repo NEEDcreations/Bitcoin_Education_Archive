@@ -20,7 +20,7 @@ const MAJOR_BADGES = [
     'explorer_50', 'explorer_100', 'explorer_all', 'properties_all',
     'quest_5', 'quest_25', 'quest_100', 'cert_scholar', 'cert_tech',
     'cert_double', 'all_certs', 'gift_open_1500', 'gift_sent_200',
-    'cipher_sats_10k', 'peer_level_6', 'raffle_1000',
+    'cipher_sats_10k', 'peer_level_6', 'raffle_1000', 'original_builder',
 ];
 
 function safeId(raw) {
