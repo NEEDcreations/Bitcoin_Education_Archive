@@ -1,5 +1,7 @@
 name: Update Signal ticker
 
+# After the Cloudflare Worker in workers/signal-ticker is shipped live,
+# this workflow can be disabled. Do not disable it until that ship is done.
 # Every 4 hours, the same cadence the old OpenClaw cron used.
 # GITHUB_TOKEN commits do not trigger deploy.yml, so this workflow
 # also deploys GitHub Pages when newsletter-data.json changes.
