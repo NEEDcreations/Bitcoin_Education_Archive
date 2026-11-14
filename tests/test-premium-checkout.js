@@ -1403,6 +1403,109 @@ test('Keyed hashes only: no plain IP or card fingerprint stored; rate docs carry
     assert.strictEqual((await publicPost(noKey, { plan: 'monthly', rail: 'card', email: 'kh@example.com', turnstileToken: 'ok-token' })).body.reason, 'hash_key');
 });
 
+function subEvent(type, orderId, obj) {
+    return { id: 'evt_' + crypto.randomBytes(4).toString('hex'), type: type, livemode: false, data: { object: Object.assign({ id: 'sub_1', metadata: { orderId: orderId } }, obj) } };
+}
+async function trialGranted(a, uid) {
+    const out = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx(uid));
+    assert.strictEqual((await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 0, payment_status: 'no_payment_required' }))).body.outcome, 'granted');
+    return out;
+}
+
+test('Spam MED 2: a trial canceled right away ends at trial_end with no grace period', async function () {
+    const a = setup({ config: { trialDays: 7 } });
+    const out = await trialGranted(a, 'new');
+    const trialEnd = T0 + 7 * 86400000;
+    assert.strictEqual(a.db.store.get('premium_entitlements/new').subscriptionUntilMs, trialEnd + 3 * 86400000);
+    const del = subEvent('customer.subscription.deleted', out.orderId, { status: 'canceled', trial_end: trialEnd / 1000, canceled_at: T0 / 1000 + 60, ended_at: T0 / 1000 + 60, cancellation_details: { reason: 'cancellation_requested', comment: null } });
+    a.clock.now = T0 + 60000;
+    assert.strictEqual((await stripePost(a, del)).body.outcome, 'trial_ends');
+    const ent = a.db.store.get('premium_entitlements/new');
+    assert.strictEqual(ent.subscriptionUntilMs, trialEnd);
+    assert.strictEqual(ent.autoRenew, false);
+    assert.strictEqual(ent.subscriptionEndedReason, 'trial_canceled');
+    assert.strictEqual(premium.isPremiumActive(ent, trialEnd - 1), true);
+    assert.strictEqual(premium.isPremiumActive(ent, trialEnd + 1), false);
+    assert.strictEqual(a.db.store.get('users/new').premium.expiresAtMs, trialEnd);
+});
+
+test('Spam MED 2: cancel at period end during a trial ends at trial_end; undoing it restores trial_end + grace', async function () {
+    const a = setup({ config: { trialDays: 7 } });
+    const out = await trialGranted(a, 'new');
+    const trialEnd = T0 + 7 * 86400000;
+    const upd = subEvent('customer.subscription.updated', out.orderId, { status: 'trialing', trial_end: trialEnd / 1000, cancel_at_period_end: true, cancel_at: trialEnd / 1000 });
+    assert.strictEqual((await stripePost(a, upd)).body.outcome, 'trial_ends');
+    assert.strictEqual(a.db.store.get('premium_entitlements/new').subscriptionUntilMs, trialEnd);
+    const back = subEvent('customer.subscription.updated', out.orderId, { status: 'trialing', trial_end: trialEnd / 1000, cancel_at_period_end: false });
+    assert.strictEqual((await stripePost(a, back)).body.outcome, 'renewing');
+    const ent = a.db.store.get('premium_entitlements/new');
+    assert.strictEqual(ent.subscriptionUntilMs, trialEnd + 3 * 86400000);
+    assert.strictEqual(ent.autoRenew, true);
+    assert.strictEqual(ent.subscriptionEndedReason, null);
+});
+
+test('Spam MED 2: grace stays for paid periods (cancel after the trial converted)', async function () {
+    const a = setup({ config: { trialDays: 7 } });
+    const out = await trialGranted(a, 'new');
+    const trialEnd = T0 + 7 * 86400000;
+    const periodEnd = Math.floor((trialEnd + 30 * 86400000) / 1000);
+    a.clock.now = trialEnd + 1000;
+    assert.strictEqual((await stripePost(a, invoicePaid(out.orderId, 500, { billing_reason: 'subscription_cycle', lines: { data: [{ period: { end: periodEnd } }] } }))).body.outcome, 'granted');
+    const paidUntil = a.db.store.get('premium_entitlements/new').subscriptionUntilMs;
+    assert.strictEqual(paidUntil, periodEnd * 1000 + 3 * 86400000);
+    a.clock.now = trialEnd + 86400000;
+    const del = subEvent('customer.subscription.deleted', out.orderId, { status: 'canceled', trial_end: trialEnd / 1000, canceled_at: a.clock.now / 1000, ended_at: a.clock.now / 1000, cancellation_details: { reason: 'cancellation_requested' } });
+    assert.strictEqual((await stripePost(a, del)).body.outcome, 'not_renewing');
+    assert.strictEqual(a.db.store.get('premium_entitlements/new').subscriptionUntilMs, paidUntil);
+    // Paid yearly with no trial: cancel keeps paid time + grace.
+    const b = setup();
+    const o2 = await b.h.createPremiumCheckout({ plan: 'yearly', rail: 'card' }, ctx('old'));
+    await stripePost(b, completed(o2.orderId, 'cs_test_1'));
+    const before = b.db.store.get('premium_entitlements/old').subscriptionUntilMs;
+    const del2 = subEvent('customer.subscription.deleted', o2.orderId, { status: 'canceled', canceled_at: T0 / 1000, ended_at: T0 / 1000, cancellation_details: { reason: 'cancellation_requested' } });
+    assert.strictEqual((await stripePost(b, del2)).body.outcome, 'not_renewing');
+    assert.strictEqual(b.db.store.get('premium_entitlements/old').subscriptionUntilMs, before);
+});
+
+test('Spam MED 1: a subscription canceled for fraud or trial_reused ends Premium now, with a review row for fraud', async function () {
+    const cases = [
+        { cd: { reason: 'cancellation_requested', comment: 'fraud: stolen card' }, why: 'fraud' },
+        { cd: { reason: 'cancellation_requested', comment: 'trial_reused' }, why: 'trial_reused' },
+        { cd: { reason: 'payment_disputed' }, why: 'payment_disputed' },
+        { cd: { reason: 'cancellation_requested' }, meta: 'fraud', why: 'fraud' },
+    ];
+    for (const c of cases) {
+        const a = setup();
+        const out = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('old'));
+        await stripePost(a, completed(out.orderId, 'cs_test_1', { amount_total: 475 }));
+        assert.strictEqual(premium.isPremiumActive(a.db.store.get('premium_entitlements/old'), a.clock.now), true);
+        a.clock.now = T0 + 3600000;
+        const meta = { orderId: out.orderId };
+        if (c.meta) meta.bqCancelReason = c.meta;
+        const del = subEvent('customer.subscription.deleted', out.orderId, { status: 'canceled', canceled_at: a.clock.now / 1000, ended_at: a.clock.now / 1000, cancellation_details: c.cd, metadata: meta });
+        assert.strictEqual((await stripePost(a, del)).body.outcome, 'revoked', c.why);
+        const ent = a.db.store.get('premium_entitlements/old');
+        assert.strictEqual(ent.subscriptionUntilMs, a.clock.now, c.why);
+        assert.strictEqual(ent.subscriptionEndedReason, c.why);
+        assert.strictEqual(premium.isPremiumActive(ent, a.clock.now), false);
+        assert.strictEqual(a.db.store.get('users/old').premium.active, false);
+        const rr = rows(a, 'premium_review').filter(function (r) { return r.reason === 'subscription_revoked'; });
+        assert.strictEqual(rr.length, c.why === 'trial_reused' ? 0 : 1, c.why);
+    }
+});
+
+test('Spam MED 1: trial_reused cancel sends cancellation_details[comment]=trial_reused to Stripe', async function () {
+    const a = setup({ config: { trialDays: 7 }, defaultCardFp: 'fp_same_card' });
+    await trialGranted(a, 'old');
+    const o2 = await a.h.createPremiumCheckout({ plan: 'monthly', rail: 'card' }, ctx('new', { email: 'two@example.com' }));
+    await stripePost(a, completed(o2.orderId, 'cs_test_2', { amount_total: 0, payment_status: 'no_payment_required', customer: 'cus_2', subscription: 'sub_2' }));
+    const del = a.calls.filter(function (c) { return c.init.method === 'DELETE' && c.url === 'https://api.stripe.com/v1/subscriptions/sub_2'; });
+    assert.strictEqual(del.length, 1);
+    assert.strictEqual(bodyOf(del[0]), 'cancellation_details[comment]=trial_reused');
+    // The first (legit) trial is untouched.
+    assert.strictEqual(premium.isPremiumActive(a.db.store.get('premium_entitlements/old'), a.clock.now), true);
+});
+
 (async function () {
     for (const t of queue) {
         try { await t.fn(); passed++; console.log('✅ ' + t.name); }

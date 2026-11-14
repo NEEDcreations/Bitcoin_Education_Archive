@@ -472,7 +472,7 @@ function createPremiumHandlers(deps) {
         if (!fetchImpl) throw new Error('no fetch');
         const headers = { Authorization: 'Bearer ' + stripeKey() };
         const init = { method: method, headers: headers };
-        if (method === 'POST') {
+        if (method === 'POST' || (method === 'DELETE' && params)) {
             headers['Content-Type'] = 'application/x-www-form-urlencoded';
             init.body = stripeForm(params || {});
             if (idemKey) headers['Idempotency-Key'] = idemKey;
@@ -1178,10 +1178,43 @@ function createPremiumHandlers(deps) {
         return 'granted';
     }
 
+    // How a canceled or cancel-scheduled subscription ends, from the Stripe
+    // subscription object (customer.subscription.updated / .deleted):
+    //   revoke    fraud, dispute or trial reuse: time ends now
+    //             (cancellation_details.reason payment_disputed, a comment or
+    //             metadata.bqCancelReason of fraud/trial_reused, or an order or
+    //             entitlement already marked trial_reused)
+    //   trial_end canceled during a trial (status trialing, or ended before
+    //             trial_end): time ends at trial_end, no grace period
+    //   null      paid period: the paid time plus grace stays
+    function subscriptionEnd(t, obj, o, r) {
+        const deleted = t === 'customer.subscription.deleted' || obj.status === 'canceled';
+        const trialEndSec = Number(obj.trial_end) || 0;
+        const cancelAtSec = Number(obj.cancel_at) || 0;
+        const ending = deleted || obj.cancel_at_period_end === true || (cancelAtSec > 0 && trialEndSec > 0 && cancelAtSec <= trialEndSec);
+        if (!ending) return null;
+        const cd = obj.cancellation_details && typeof obj.cancellation_details === 'object' ? obj.cancellation_details : {};
+        const comment = String(cd.comment || '').toLowerCase();
+        const meta = String((obj.metadata && obj.metadata.bqCancelReason) || '').toLowerCase();
+        let reason = null;
+        if (/\btrial_reused\b/.test(comment) || meta === 'trial_reused' || (o && o.reviewReason === 'trial_reused') || r.ent.frozenReason === 'trial_reused') reason = 'trial_reused';
+        else if (/\bfraud/.test(comment) || meta === 'fraud') reason = 'fraud';
+        else if (cd.reason === 'payment_disputed') reason = 'payment_disputed';
+        if (reason) return { kind: 'revoke', reason: reason };
+        if (!trialEndSec) return null;
+        const nowSec = r.nowMs / 1000;
+        const endedSec = Number(obj.ended_at || obj.canceled_at) || 0;
+        const inTrial = obj.status === 'trialing' || (deleted && (endedSec ? endedSec < trialEndSec : nowSec < trialEndSec));
+        if (!inTrial) return null;
+        return { kind: 'trial_end', atMs: trialEndSec * 1000 };
+    }
+
     async function cancelTrialReuse(subId, orderId, reviewId) {
         if (!subId) return { status: 200, canceled: false };
         try {
-            await stripeRequest('DELETE', '/v1/subscriptions/' + encodeURIComponent(subId));
+            // The comment tells our own subscription.deleted handler to end
+            // the entitlement now (no trial or grace time).
+            await stripeRequest('DELETE', '/v1/subscriptions/' + encodeURIComponent(subId), { cancellation_details: { comment: 'trial_reused' } });
             if (orderId) {
                 const oRef = ref(COL.orders, orderId);
                 const oSnap = await oRef.get();
@@ -1418,7 +1451,35 @@ function createPremiumHandlers(deps) {
                 const renewing = t !== 'customer.subscription.deleted' && obj.cancel_at_period_end !== true && (obj.status === 'active' || obj.status === 'trialing');
                 r.ent.autoRenew = renewing;
                 r.ent.stripeSubscriptionStatus = String(obj.status || '');
-                writeEntitlement(tx, r); // paid time already granted stays
+                const owns = r.ent.stripeSubscriptionId === obj.id || (!!orderId && r.ent.subscriptionOrderId === orderId);
+                const end = owns ? subscriptionEnd(t, obj, o, r) : null;
+                if (end && end.kind === 'revoke') {
+                    // Fraud, dispute or trial reuse: the subscription's time ends now.
+                    r.ent.subscriptionUntilMs = Math.min(Number(r.ent.subscriptionUntilMs) || 0, r.nowMs);
+                    r.ent.trialUntilMs = null;
+                    r.ent.subscriptionEndedReason = end.reason;
+                    r.ent.subscriptionEndedAtMs = r.nowMs;
+                    writeEntitlement(tx, r);
+                    if (end.reason !== 'trial_reused') {
+                        review(tx, 'subscription_revoked', { eventId: event.id, orderId: orderId || null, uid: o.uid || r.uid || null, subscriptionId: obj.id || null, why: end.reason }, r.nowMs);
+                    }
+                    return 'revoked';
+                }
+                if (end && end.kind === 'trial_end') {
+                    // A canceled trial ends at trial_end with no grace period.
+                    r.ent.subscriptionUntilMs = Math.min(Number(r.ent.subscriptionUntilMs) || 0, end.atMs);
+                    r.ent.subscriptionEndedReason = 'trial_canceled';
+                    r.ent.subscriptionEndedAtMs = r.nowMs;
+                    writeEntitlement(tx, r);
+                    return 'trial_ends';
+                }
+                if (owns && renewing && obj.status === 'trialing' && Number(obj.trial_end) > 0 && r.ent.subscriptionEndedReason === 'trial_canceled') {
+                    // Trial cancel undone: back to trial_end + grace for the first charge.
+                    r.ent.subscriptionUntilMs = Math.max(Number(r.ent.subscriptionUntilMs) || 0, Number(obj.trial_end) * 1000 + SUB_GRACE_MS);
+                    r.ent.subscriptionEndedReason = null;
+                    r.ent.subscriptionEndedAtMs = null;
+                }
+                writeEntitlement(tx, r); // paid time already granted stays (with grace)
                 return renewing ? 'renewing' : 'not_renewing';
             });
             return { status: 200, outcome: outcome };
