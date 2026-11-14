@@ -1357,8 +1357,9 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         ['referral_signals', uid, []],
         ['email_change_pending', uid, []],
         ['email_history', uid, []],
-        // Survey answers include free text about the player. The grant marker
-        // and the masked survey_audit row are kept so the reward stays one-time.
+        // Survey answers include free text about the player. The grant
+        // marker (survey_responses/{uid}) is deleted along with the profile.
+        // The masked survey_audit row is kept so the reward stays one-time.
         ['survey_responses', uid, []],
     ];
     for (let i = 0; i < direct.length; i++) {
