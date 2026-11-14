@@ -894,6 +894,7 @@ test('Spam: refund/dispute/payment failure freezes perks by Stripe customer, rev
     assert.strictEqual(a.db.store.get('users/old').premium.active, false);
     await rejects(a.h.claimPremiumAllowance({}, ctx('old')), 'not_premium');
     const row = rows(a, 'premium_review').find(function (r) { return r.reason === 'stripe_charge_dispute_created'; });
+    assert.strictEqual(a.db.store.get('premium_orders/' + out.orderId).stripeCustomerId, 'cus_1');
     assert.strictEqual(row.uid, 'old');
     assert.strictEqual(row.orderId, out.orderId);
     assert.strictEqual(row.customerId, 'cus_1');
@@ -1083,7 +1084,7 @@ test('Portal config script: promotion codes and plan switching off; test keys on
     assert.strictEqual(pricing.normalizeConfig({ stripePortalConfigId: 'bad id' }).stripePortalConfigId, null);
     assert.strictEqual(pricing.normalizeConfig({ stripePortalConfigId: 'bpc_1AbCdEf' }).stripePortalConfigId, 'bpc_1AbCdEf');
 });
-test('PREMIUM_BTCPAY=off (staging env) unbinds BTCPay secrets; default binds them', async function () {
+test('No BTCPay on staging: secrets unbound and webhook not exported there; live binds them', async function () {
     const fv1 = require(require.resolve('firebase-functions/v1', { paths: [path.join(__dirname, '..', 'functions')] }));
     const names = function (fn) { return ((fn.__endpoint && fn.__endpoint.secretEnvironmentVariables) || []).map(function (x) { return x.key; }).sort(); };
     const prev = process.env.PREMIUM_BTCPAY;
@@ -1096,8 +1097,17 @@ test('PREMIUM_BTCPAY=off (staging env) unbinds BTCPay secrets; default binds the
         assert.deepStrictEqual(names(off.createPremiumCheckout), ['PREMIUM_HASH_KEY', 'STRIPE_SECRET_KEY']);
         assert.strictEqual(names(off.premiumPublicCheckout).indexOf('BTCPAY_URL'), -1);
     } finally { if (prev === undefined) delete process.env.PREMIUM_BTCPAY; else process.env.PREMIUM_BTCPAY = prev; }
-    const envFile = require('fs').readFileSync(path.join(__dirname, '..', 'functions', '.env.bitcoin-quest-staging'), 'utf8');
-    assert.ok(/^PREMIUM_BTCPAY=off$/m.test(envFile));
+    assert.strictEqual(premium.btcpayOff({ GCLOUD_PROJECT: 'bitcoin-quest-staging' }), true);
+    assert.strictEqual(premium.btcpayOff({ FIREBASE_CONFIG: JSON.stringify({ projectId: 'bitcoin-quest-staging' }) }), true);
+    assert.strictEqual(premium.btcpayOff({ GCLOUD_PROJECT: 'bitcoin-education-archive' }), false);
+    assert.strictEqual(premium.btcpayOff({}), false);
+    const prevP = process.env.GCLOUD_PROJECT;
+    try {
+        process.env.GCLOUD_PROJECT = 'bitcoin-quest-staging';
+        const stg = premium.bindPremium(fv1, { db: {}, admin: {} });
+        assert.strictEqual(stg.premiumBtcpayWebhook, undefined);
+        assert.strictEqual(names(stg.createPremiumCheckout).indexOf('BTCPAY_API_KEY'), -1);
+    } finally { if (prevP === undefined) delete process.env.GCLOUD_PROJECT; else process.env.GCLOUD_PROJECT = prevP; }
 });
 test('Keyed hashes only: no plain IP or card fingerprint stored; rate docs carry expireAt', async function () {
     const a = setup({ defaultCardFp: 'fp_plain_value' });

@@ -9613,7 +9613,8 @@ exports.claimPremiumByEmail = premiumFns.claimPremiumByEmail;
 exports.getPremiumStatus = premiumFns.getPremiumStatus;
 exports.claimPremiumAllowance = premiumFns.claimPremiumAllowance;
 exports.premiumStripeWebhook = premiumFns.premiumStripeWebhook;
-exports.premiumBtcpayWebhook = premiumFns.premiumBtcpayWebhook;
+// Not exported where BTCPay is off (staging until its store exists).
+if (premiumFns.premiumBtcpayWebhook) exports.premiumBtcpayWebhook = premiumFns.premiumBtcpayWebhook;
 exports.premiumExpirySweep = premiumFns.premiumExpirySweep;
 exports.adminRevokePremium = premiumFns.adminRevokePremium;
 
