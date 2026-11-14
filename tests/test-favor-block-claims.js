@@ -191,6 +191,7 @@ function makeHarness(opts) {
         },
         shouldLookupPay: shouldLookupPay,
         lookupSettlement: lookupSettlement,
+        classifyLookup: require(path.join(root, 'functions/src/cipherClaim.js')).classifyLookup,
         lookupIntervalMs: 0,
         notifyAdmin: async function (text) { h.alerts.push(text); },
     };
@@ -918,6 +919,158 @@ test('seeder hard-refuses every project but staging before any write', function 
     } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
     const src = fs.readFileSync(seedPath, 'utf8');
     assert.ok(src.indexOf('if (project !== STAGING) die(') < src.indexOf("require(path.join(__dirname, '../../functions/src/firebaseAdmin.js'))"), 'project check runs before the admin SDK loads');
+});
+
+// ---------- adminResolveFavorReview (Spam/Abuse NEW LOW, Red Team rules) ----------
+const ADMIN = 'adminUid000001';
+function reviewHarness() {
+    const h = makeHarness();
+    // BOB's lock postdates the close -> frozen as address_changed_after_close.
+    h.db.store.set('lightning_addresses/bob@wallet.example', { uid: BOB, address: 'bob@wallet.example', lockedAt: { seconds: CLOSED_MS / 1000 + 60 } });
+    return h;
+}
+function claimDoc(h, id) { return h.db.store.get('sf_block_claims/' + id); }
+function reviewAudits(h) { return audits(h).filter(function (a) { return a.type === 'admin_review'; }); }
+
+test('review release: frozen-review block goes back to claimable for its frozen winner, audited with admin, before/after, note', async function () {
+    const h = reviewHarness();
+    const fr = await freeze(h, 1);
+    assert.strictEqual(fr.result.blocks[3].manualReview, 'address_changed_after_close');
+    assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'manual_review');
+    const r = await h.svc.resolveReview(ADMIN, { epoch: 1, block: 3, action: 'release', note: 'lock missing: faucet never used; address checked' });
+    assert.ok(r.ok && r.code === 'released', JSON.stringify(r));
+    assert.strictEqual(r.before, 'manual_review'); assert.strictEqual(r.after, 'claimable');
+    const c = claimDoc(h, 'e1_b3');
+    assert.strictEqual(c.status, 'claimable'); assert.strictEqual(c.reviewReleased, true);
+    assert.strictEqual(c.uid, BOB); assert.strictEqual(c.frozenLn, 'bob@wallet.example');
+    const a = reviewAudits(h);
+    assert.strictEqual(a.length, 1);
+    assert.deepStrictEqual([a[0].action, a[0].code, a[0].by, a[0].before, a[0].after, a[0].epoch, a[0].block], ['release', 'released', 'admin\u2026', 'manual_review', 'claimable', 1, 3]);
+    assert.ok(/faucet never used/.test(a[0].note));
+    // The winner now goes through every normal check and is paid to the frozen address.
+    const p = await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+    assert.ok(p.success, JSON.stringify(p));
+    assert.strictEqual(h.lastResolve.ln, 'bob@wallet.example');
+    assert.strictEqual(h.db.store.get('sf_block_payouts/e1_b3').frozenLn, 'bob@wallet.example');
+});
+
+test('review release: no admin input for uid, address or amount; non-winners still refused; idempotent', async function () {
+    const h = reviewHarness();
+    await freeze(h, 1);
+    const r = await h.svc.resolveReview(ADMIN, { epoch: 1, block: 3, action: 'release', note: 'ok', uid: MALLORY, frozenLn: 'evil@evil.example', address: 'evil@evil.example', amount: 99999 });
+    assert.strictEqual(r.code, 'released');
+    const c = claimDoc(h, 'e1_b3');
+    assert.strictEqual(c.uid, BOB); assert.strictEqual(c.frozenLn, 'bob@wallet.example'); assert.strictEqual(c.amount, 4200);
+    assert.strictEqual((await h.svc.claim(ctx(MALLORY), { epoch: 1, block: 3 })).code, 'not_winner');
+    const again = await h.svc.resolveReview(ADMIN, { epoch: 1, block: 3, action: 'release', note: 'again' });
+    assert.strictEqual(again.code, 'noop');
+    assert.strictEqual(reviewAudits(h).length, 2, 'every call is audited, noops too');
+    const src = fs.readFileSync(path.join(root, 'functions/src/favorBlockClaimsFns.js'), 'utf8');
+    assert.ok(/resolveReview\(context\.auth\.uid, \{ epoch: d\.epoch, block: d\.block, action: d\.action, note: d\.note \}\)/.test(src), 'only epoch, block, action, note reach the service');
+});
+
+test('review release: refused on a paid block, on a rejected block, without a note, with a bad action, and for a no-address block', async function () {
+    const h = makeHarness();
+    await freeze(h, 1);
+    assert.ok((await h.svc.claim(ctx(ALICE), { epoch: 1, block: 0 })).success);
+    const r = await h.svc.resolveReview(ADMIN, { epoch: 1, block: 0, action: 'release', note: 'try' });
+    assert.strictEqual(r.code, 'refused_paid'); assert.strictEqual(r.ok, false);
+    assert.strictEqual(claimDoc(h, 'e1_b0').status, 'paid');
+    assert.strictEqual((await h.svc.resolveReview(ADMIN, { epoch: 1, block: 0, action: 'reject', note: 'try' })).code, 'refused_paid');
+    assert.strictEqual((await h.svc.resolveReview(ADMIN, { epoch: 1, block: 1, action: 'release' })).code, 'note_required');
+    assert.strictEqual((await h.svc.resolveReview(ADMIN, { epoch: 1, block: 1, action: 'pay', note: 'x' })).code, 'bad_action');
+    assert.strictEqual((await h.svc.resolveReview(ADMIN, { epoch: 1, block: 1, action: 'release', note: 'x' })).code, 'not_in_review', 'a normal claimable block is not in review');
+    const h2 = makeHarness({ caraLn: 'not-an-address' });
+    await freeze(h2, 1);
+    assert.strictEqual((await h2.svc.resolveReview(ADMIN, { epoch: 1, block: 4, action: 'release', note: 'x' })).code, 'no_frozen_address');
+    assert.strictEqual(h.pays.length, 1, 'no admin path ever pays');
+});
+
+test('review release: paying/unknown or a block with a paymentHash needs an explicit failed lookup first', async function () {
+    const h = makeHarness();
+    await freeze(h, 1);
+    h.payMode = 'timeout'; h.lookupState = 'pending';
+    assert.strictEqual((await h.svc.claim(ctx(ALICE), { epoch: 1, block: 0 })).code, 'held_unknown');
+    assert.strictEqual(claimDoc(h, 'e1_b0').status, 'unknown');
+    const site = function () { return h.db.store.get(keys(h, 'sf_claim_counters/site_')[0]).sats; };
+    assert.strictEqual(site(), 4200, 'reserved while unknown');
+    for (const st of ['pending', 'expired', 'settled']) {
+        h.lookupState = st;
+        const r = await h.svc.resolveReview(ADMIN, { epoch: 1, block: 0, action: 'release', note: 'check ' + st });
+        assert.strictEqual(r.code, st === 'settled' ? 'refused_payment_not_failed' : 'refused_payment_not_failed', st);
+        assert.strictEqual(claimDoc(h, 'e1_b0').status, 'unknown');
+    }
+    h.lookupState = 'failed';
+    const ok = await h.svc.resolveReview(ADMIN, { epoch: 1, block: 0, action: 'release', note: 'wallet says failed' });
+    assert.strictEqual(ok.code, 'released'); assert.strictEqual(ok.lookup, 'failed');
+    assert.strictEqual(claimDoc(h, 'e1_b0').status, 'claimable');
+    assert.strictEqual(site(), 0, 'reservation returned only after a proven failure');
+    // paying with no hash cannot be verified
+    h.db.store.set('sf_block_claims/e1_b1', { epoch: 1, block: 1, uid: ALICE, amount: 4200, frozenLn: 'alice@wallet.example', status: 'paying', attempts: 1 });
+    assert.strictEqual((await h.svc.resolveReview(ADMIN, { epoch: 1, block: 1, action: 'release', note: 'x' })).code, 'refused_unverifiable');
+    // manual_review after strikes still carries the last hash: lookup must prove failure
+    h.db.store.set('sf_block_claims/e1_b2', { epoch: 1, block: 2, uid: ALICE, amount: 4200, frozenLn: 'alice@wallet.example', status: 'manual_review', reviewReason: 'repeat_failures', attempts: 3, paymentHash: 'abc' });
+    h.lookupState = 'pending';
+    assert.strictEqual((await h.svc.resolveReview(ADMIN, { epoch: 1, block: 2, action: 'release', note: 'x' })).code, 'refused_payment_not_failed');
+});
+
+test('review release: does not reset attempts or bypass fee_halt, route-hint check or caps', async function () {
+    const h = reviewHarness();
+    await freeze(h, 1);
+    // attempts kept: a block at max strikes goes straight back to review on its next claim
+    h.db.store.set('sf_block_claims/e1_b4', { epoch: 1, block: 4, uid: CARA, amount: 4200, frozenLn: 'cara@wallet.example', status: 'manual_review', reviewReason: 'repeat_failures', attempts: 3 });
+    assert.strictEqual((await h.svc.resolveReview(ADMIN, { epoch: 1, block: 4, action: 'release', note: 'x' })).code, 'released');
+    assert.strictEqual(claimDoc(h, 'e1_b4').attempts, 3);
+    assert.strictEqual((await h.svc.claim(ctx(CARA), { epoch: 1, block: 4 })).code, 'manual_review');
+    // fee_halt still applies
+    await h.svc.resolveReview(ADMIN, { epoch: 1, block: 3, action: 'release', note: 'x' });
+    h.db.store.set('sf_claim_counters/' + core.FEE_HALT_DOC_ID, { halted: true });
+    assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'fee_halt');
+    h.db.store.set('sf_claim_counters/' + core.FEE_HALT_DOC_ID, { halted: false });
+    // route-hint fee check still applies
+    h.invoiceMutator = function (d) { d.tags.push(hint(50000, 50000)); return d; };
+    assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'route_fee_high');
+    assert.strictEqual(h.pays.length, 0);
+    // caps still apply
+    const h2 = reviewHarness();
+    await freeze(h2, 1);
+    await h2.svc.resolveReview(ADMIN, { epoch: 1, block: 3, action: 'release', note: 'x' });
+    h2.db.store.set('sf_claim_counters/site_' + new Date(h2.clock).toISOString().slice(0, 10), { sats: 21000 });
+    assert.strictEqual((await h2.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'site_daily_cap');
+});
+
+test('review reject is final: create-only marker, no path back to claimable, claims refused', async function () {
+    const h = reviewHarness();
+    await freeze(h, 1);
+    const r = await h.svc.resolveReview(ADMIN, { epoch: 1, block: 3, action: 'reject', note: 'not the winner\u2019s wallet' });
+    assert.strictEqual(r.code, 'rejected'); assert.strictEqual(r.after, 'rejected');
+    assert.ok(h.db.store.get('sf_claim_reviews/e1_b3_rejected'));
+    assert.strictEqual(claimDoc(h, 'e1_b3').status, 'rejected');
+    assert.strictEqual((await h.svc.resolveReview(ADMIN, { epoch: 1, block: 3, action: 'release', note: 'undo' })).code, 'refused_rejected');
+    assert.strictEqual((await h.svc.resolveReview(ADMIN, { epoch: 1, block: 3, action: 'reject', note: 'again' })).code, 'noop');
+    assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'review_rejected');
+    // Even if the claim doc were flipped back by hand, the marker still refuses.
+    h.db.store.set('sf_block_claims/e1_b3', Object.assign({}, claimDoc(h, 'e1_b3'), { status: 'claimable', reviewReleased: true }));
+    assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'review_rejected');
+    assert.strictEqual(h.pays.length, 0);
+    assert.ok(core.PERMANENT_COLLECTIONS.indexOf('sf_claim_reviews') !== -1);
+    assert.ok(reviewAudits(h).every(function (a) { return a.by === 'admin\u2026' && 'before' in a && 'after' in a && typeof a.note === 'string'; }));
+});
+
+test('wiring: adminResolveFavorReview needs admin + fresh step-up every call, App Check, kill-switch gate, own FRESH action', function () {
+    const fns = fs.readFileSync(path.join(root, 'functions/src/favorBlockClaimsFns.js'), 'utf8');
+    assert.ok(/const adminResolveFavorReview = functionsV1\.runWith\(\{\s*enforceAppCheck: true,/.test(fns));
+    assert.ok(/requireAdmin\(context\);\s*const secondFactor = require\('\.\/secondFactor'\);\s*await secondFactor\.requireAdminStepUp\(secondFactor\.stamp\(data, context\), 'adminResolveFavorReview'\);/.test(fns));
+    assert.ok(/adminResolveFavorReview: true/.test(fs.readFileSync(path.join(root, 'functions/src/secondFactor.js'), 'utf8')));
+    const decl = fns.slice(fns.indexOf('const adminResolveFavorReview'), fns.indexOf('.https.onCall', fns.indexOf('const adminResolveFavorReview')));
+    assert.ok(decl.indexOf('secrets') === -1 && decl.indexOf('nwcUrlSecret') === -1, 'never binds the wallet secret');
+    const ks = require(path.join(root, 'functions/src/killSwitch.js'));
+    assert.ok(ks.gatedNames().indexOf('adminResolveFavorReview') !== -1);
+    assert.ok(/exports\.adminResolveFavorReview = favorBlockClaimFns\.adminResolveFavorReview;/.test(fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8')));
+    const core2 = fs.readFileSync(path.join(root, 'functions/src/favorBlockClaims.js'), 'utf8');
+    const body = core2.slice(core2.indexOf('async function resolveReview'), core2.indexOf('return { claim: claim'));
+    assert.ok(body.indexOf('payInvoice') === -1 && body.indexOf('resolveInvoice') === -1, 'review never pays');
+    assert.ok(!/\.delete\(/.test(body));
 });
 
 // ---------- static guards over the repo ----------

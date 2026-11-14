@@ -89,6 +89,7 @@ const PERMANENT_COLLECTIONS = Object.freeze([
     'sf_block_claims',
     'sf_block_payouts',
     'sf_claim_audit',
+    'sf_claim_reviews',
 ]);
 
 const DEFAULTS = Object.freeze({
@@ -132,6 +133,7 @@ const MESSAGES = Object.freeze({
     route_fee_high: 'Your wallet\'s invoice asks for an unusually high routing fee, so this block is set aside for a manual check. Your sats are safe.',
     fee_halt: 'Favor payouts are paused for a quick check. Your block is saved.',
     rate_limited: 'Too many tries. Wait a few minutes and try again.',
+    review_rejected: 'This block was reviewed and cannot be paid.',
 });
 
 function intStrict(v, lo, hi) {
@@ -604,7 +606,14 @@ function createBlockClaimService(deps) {
 
             const cid = claimId(ids.epoch, ids.block);
             const claimRef = db.collection('sf_block_claims').doc(cid);
-            if (row.manualReview || !validLn(row.frozenLn)) {
+            const rejectRef = db.collection('sf_claim_reviews').doc(cid + '_rejected');
+            const preSnap = await claimRef.get();
+            const pre = preSnap.exists ? (preSnap.data() || {}) : null;
+            if ((pre && pre.status === 'rejected') || (await rejectRef.get()).exists) refuse('review_rejected');
+            // An admin release (adminResolveFavorReview) lets a frozen-review block
+            // through to the normal checks below; it never changes winner or address.
+            const released = !!pre && pre.reviewReleased === true && pre.status === 'claimable';
+            if ((row.manualReview && !released) || !validLn(row.frozenLn)) {
                 await db.runTransaction(async function (t) {
                     const c = await t.get(claimRef);
                     if (c.exists) return;
@@ -637,6 +646,8 @@ function createBlockClaimService(deps) {
                 const md = await t.get(budgetRef);
                 const hd = await t.get(haltRef);
                 if (hd.exists && (hd.data() || {}).halted === true) refuse('fee_halt');
+                const rj = await t.get(rejectRef);
+                if (rj.exists) refuse('review_rejected');
                 const cur = c.exists ? (c.data() || {}) : null;
                 if (cur) {
                     if (cur.uid !== uid) refuse('not_winner');
@@ -644,6 +655,7 @@ function createBlockClaimService(deps) {
                     if (cur.status === 'paying') refuse('in_progress');
                     if (cur.status === 'unknown') refuse('held_unknown');
                     if (cur.status === 'manual_review') refuse('manual_review');
+                    if (cur.status === 'rejected') refuse('review_rejected');
                     if ((Number(cur.attempts) || 0) >= cfg.maxAttempts) refuse('manual_review');
                     if (cur.lastAttemptMs && nowMs - cur.lastAttemptMs < cfg.cooldownMs) refuse('cooldown');
                 }
@@ -861,7 +873,114 @@ function createBlockClaimService(deps) {
         return { claims: out };
     }
 
-    return { claim: claim, listMine: listMine, freezeEpoch: freezeEpoch, loadConfig: loadConfig, catchUpBlockTotal: catchUpBlockTotal };
+    // Admin: release a manual-review block back to its FROZEN winner, or reject
+    // it for good. Inputs are only { epoch, block, action, note }; no uid,
+    // address or amount is ever taken from the caller. Never pays. The next
+    // claim after a release runs every normal check (winner, caps, ceiling,
+    // fee_halt, route-hint fee, attempts). Every call writes an audit row.
+    // The caller (Fns) has already checked the admin claim and fresh step-up.
+    async function resolveReview(adminUid, data) {
+        const d = data && typeof data === 'object' ? data : {};
+        const ids = parseClaimIds({ epoch: d.epoch, block: d.block });
+        const action = d.action === 'release' || d.action === 'reject' ? d.action : '';
+        const note = typeof d.note === 'string' ? d.note.trim().slice(0, 300) : '';
+        const by = maskUid(adminUid);
+        const row0 = { type: 'admin_review', action: action || String(d.action || '').slice(0, 20), by: by, note: note };
+        async function done(code, before, after, extra) {
+            await audit(Object.assign({}, row0, { epoch: ids ? ids.epoch : null, block: ids ? ids.block : null,
+                code: code, before: before || null, after: after || null }, extra || {}));
+            return Object.assign({ ok: code === 'released' || code === 'rejected' || code === 'noop', code: code, before: before || null, after: after || null }, extra || {});
+        }
+        if (!adminUid) return done('unauthenticated');
+        if (!ids) return done('bad_id');
+        if (!action) return done('bad_action');
+        if (!note) return done('note_required');
+        const resSnap = await db.collection('sf_payout_results').doc(resultId(ids.epoch)).get();
+        const result = resSnap.exists ? (resSnap.data() || {}) : null;
+        const row = result && result.version === RESULT_VERSION && Array.isArray(result.blocks) ? result.blocks[ids.block] : null;
+        if (!row || row.block !== ids.block) return done('epoch_not_ready');
+        const cid = claimId(ids.epoch, ids.block);
+        const claimRef = db.collection('sf_block_claims').doc(cid);
+        const rejectRef = db.collection('sf_claim_reviews').doc(cid + '_rejected');
+        const snap0 = await claimRef.get();
+        const cur0 = snap0.exists ? (snap0.data() || {}) : null;
+        const before0 = cur0 ? cur0.status : (row.manualReview ? 'manual_review(frozen)' : 'claimable');
+
+        if (action === 'reject') {
+            let out = null;
+            await db.runTransaction(async function (t) {
+                const c = await t.get(claimRef);
+                const rj = await t.get(rejectRef);
+                const cur = c.exists ? (c.data() || {}) : null;
+                const before = cur ? cur.status : before0;
+                if (rj.exists || (cur && cur.status === 'rejected')) { out = ['noop', before, 'rejected']; return; }
+                if (cur && (cur.status === 'paid' || cur.status === 'paying' || cur.status === 'unknown')) { out = ['refused_' + cur.status, before, before]; return; }
+                // Final: create-only marker; nothing ever deletes or flips it back.
+                t.create(rejectRef, { epoch: ids.epoch, block: ids.block, by: by, note: note, atMs: now(), before: before });
+                t.set(claimRef, Object.assign(cur ? {} : { epoch: ids.epoch, block: ids.block, uid: row.uid, amount: row.amount, frozenLn: row.frozenLn || '', createdAtMs: now(), attempts: 0 },
+                    { status: 'rejected', reviewRejectedAtMs: now(), reviewRejectedBy: by, payingAtMs: null }), { merge: true });
+                out = ['rejected', before, 'rejected'];
+            });
+            return done(out[0], out[1], out[2]);
+        }
+
+        // release
+        if (!validLn(row.frozenLn)) return done('no_frozen_address', before0, before0);
+        if ((await rejectRef.get()).exists || (cur0 && cur0.status === 'rejected')) return done('refused_rejected', before0, before0);
+        if (cur0 && cur0.status === 'paid') return done('refused_paid', before0, before0);
+        if (cur0 && cur0.status === 'claimable' && cur0.reviewReleased === true) return done('noop', before0, before0);
+        const inFlight = !!cur0 && (cur0.status === 'paying' || cur0.status === 'unknown');
+        const hash = cur0 && cur0.paymentHash ? String(cur0.paymentHash) : '';
+        if (!cur0 && !row.manualReview) return done('not_in_review', before0, before0);
+        if (cur0 && !inFlight && cur0.status !== 'manual_review') return done('not_in_review', before0, before0);
+        if (inFlight && !hash) return done('refused_unverifiable', before0, before0);
+        let lookupKind = '';
+        if (hash) {
+            // A payment may have left: only an explicit failed lookup proves it did not.
+            try {
+                const cfg = await loadConfig();
+                const wallet = deps.wallet(cfg);
+                const raw = await withTimeout(wallet.lookupInvoice({ payment_hash: hash }), 15000, 'lookupInvoice');
+                lookupKind = deps.classifyLookup ? deps.classifyLookup(raw).kind : 'unknown';
+            } catch (e) { lookupKind = 'error'; }
+            if (lookupKind !== 'failed') return done('refused_payment_not_failed', before0, before0, { lookup: lookupKind });
+        }
+        let out = null;
+        await db.runTransaction(async function (t) {
+            const c = await t.get(claimRef);
+            const rj = await t.get(rejectRef);
+            const cur = c.exists ? (c.data() || {}) : null;
+            const before = cur ? cur.status : before0;
+            if (rj.exists || (cur && cur.status === 'rejected')) { out = ['refused_rejected', before, before]; return; }
+            if (cur && cur.status === 'paid') { out = ['refused_paid', before, before]; return; }
+            // Re-check inside the transaction: nothing may have changed since the lookup.
+            if (cur && (cur.status !== (cur0 ? cur0.status : '') || String(cur.paymentHash || '') !== hash)) { out = ['refused_changed', before, before]; return; }
+            if (!cur && cur0) { out = ['refused_changed', before, before]; return; }
+            const wasReserved = !!cur && (cur.status === 'paying' || cur.status === 'unknown');
+            if (wasReserved && cur.counterDay) {
+                // The sats provably did not leave: give back what the attempt reserved.
+                const amt = Number(cur.amount) || 0;
+                const refs = [db.collection('sf_claim_counters').doc('uid_' + uidHash(cur.uid) + '_' + cur.counterDay),
+                    db.collection('sf_claim_counters').doc('site_' + cur.counterDay),
+                    db.collection('sf_claim_counters').doc(cur.budget === CATCH_UP_COUNTER_ID ? CATCH_UP_COUNTER_ID : 'month_' + cur.counterMonth)];
+                const snaps = [];
+                for (let i = 0; i < refs.length; i++) snaps.push(await t.get(refs[i]));
+                refs.forEach(function (r, i) {
+                    t.set(r, { sats: Math.max(0, (snaps[i].exists ? Number(snaps[i].data().sats) || 0 : 0) - amt) }, { merge: true });
+                });
+            }
+            const patch = { status: 'claimable', reviewReleased: true, reviewReleasedAtMs: now(), reviewReleasedBy: by,
+                releasedFrom: before, payingAtMs: null, needsReview: false };
+            if (hash) patch.lookupFailedHashes = (cur && Array.isArray(cur.lookupFailedHashes) ? cur.lookupFailedHashes : []).concat([hash]).slice(-10);
+            if (!cur) Object.assign(patch, { epoch: ids.epoch, block: ids.block, uid: row.uid, amount: row.amount, frozenLn: row.frozenLn, createdAtMs: now(), attempts: 0 });
+            // attempts, frozenLn, uid and amount are never changed here.
+            t.set(claimRef, patch, { merge: true });
+            out = ['released', before, 'claimable'];
+        });
+        return done(out[0], out[1], out[2], lookupKind ? { lookup: lookupKind } : null);
+    }
+
+    return { claim: claim, listMine: listMine, freezeEpoch: freezeEpoch, loadConfig: loadConfig, catchUpBlockTotal: catchUpBlockTotal, resolveReview: resolveReview };
 }
 
 module.exports = {

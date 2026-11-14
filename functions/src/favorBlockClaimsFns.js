@@ -8,7 +8,7 @@ const bolt11 = require('bolt11');
 const core = require('./favorBlockClaims');
 const { runtimeSa } = require('./runtimeServiceAccounts');
 const { nwcUrlSecret, nwcUrl } = require('./nwcSecret');
-const { shouldLookupPay, lookupSettlement, assessCipherClaim } = require('./cipherClaim');
+const { shouldLookupPay, lookupSettlement, assessCipherClaim, classifyLookup } = require('./cipherClaim');
 
 const deletionHmacSecret = defineSecret('DELETION_HMAC_SECRET');
 const STAGING_PROJECT = 'bitcoin-quest-staging';
@@ -189,6 +189,7 @@ function factory(functionsV1, deps) {
             decodeInvoice: function (bolt) { return bolt11.decode(bolt); },
             shouldLookupPay: shouldLookupPay,
             lookupSettlement: lookupSettlement,
+            classifyLookup: classifyLookup,
             notifyAdmin: notifyAdmin,
         });
     }
@@ -270,7 +271,25 @@ function factory(functionsV1, deps) {
         };
     });
 
+    // Admin: release one manual-review block to its frozen winner, or reject it
+    // for good. Input { epoch, block, action: 'release'|'reject', note } only.
+    // Never pays. Fresh admin step-up on every call; App Check; kill-switch gated.
+    // It does NOT bind the wallet secret: a block with a prior payment hash needs
+    // an explicit failed lookup, which this function cannot get, so such blocks
+    // are refused (fail closed) and need a person to check the wallet.
+    const adminResolveFavorReview = functionsV1.runWith({
+        enforceAppCheck: true,
+        timeoutSeconds: 60,
+    }).https.onCall(async function (data, context) {
+        requireAdmin(context);
+        const secondFactor = require('./secondFactor');
+        await secondFactor.requireAdminStepUp(secondFactor.stamp(data, context), 'adminResolveFavorReview');
+        const d = data || {};
+        return service().resolveReview(context.auth.uid, { epoch: d.epoch, block: d.block, action: d.action, note: d.note });
+    });
+
     return {
+        adminResolveFavorReview: adminResolveFavorReview,
         claimFavorBlock: claimFavorBlock,
         myFavorEpochClaims: myFavorEpochClaims,
         adminSetFavorClaims: adminSetFavorClaims,

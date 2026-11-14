@@ -7004,6 +7004,7 @@ exports.claimFavorBlock = favorBlockClaimFns.claimFavorBlock;
 exports.myFavorEpochClaims = favorBlockClaimFns.myFavorEpochClaims;
 exports.adminSetFavorClaims = favorBlockClaimFns.adminSetFavorClaims;
 exports.adminFreezeFavorEpoch = favorBlockClaimFns.adminFreezeFavorEpoch;
+exports.adminResolveFavorReview = favorBlockClaimFns.adminResolveFavorReview;
 
 // Scheduled job: auto-reset expired Satoshi's Favor every minute (even with 0 users online).
 // The same private minute job posts the one ending heads-up. No public invoker.
