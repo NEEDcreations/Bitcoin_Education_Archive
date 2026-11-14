@@ -49,11 +49,22 @@
         return !!(data && data.enabled === true && !data.autoReenableAt);
     }
 
+    function cleanRef(r) {
+        r = String(r || '').trim();
+        return /^[A-Za-z0-9_-]{1,40}$/.test(r) ? r : '';
+    }
+
+    // The referral handler strips ?ref= from the URL early, so read it once at
+    // load and fall back to the stored referral code.
+    var LOAD_REF = '';
+    try { LOAD_REF = cleanRef(new URLSearchParams(window.location.search).get('ref')); } catch (e) { LOAD_REF = ''; }
+
     function visitorRef() {
         var r = '';
-        try { r = new URLSearchParams(window.location.search).get('ref') || ''; } catch (e) { r = ''; }
-        r = String(r).trim();
-        return /^[A-Za-z0-9_-]{1,40}$/.test(r) ? r : '';
+        try { r = cleanRef(new URLSearchParams(window.location.search).get('ref')); } catch (e) { r = ''; }
+        if (r) return r;
+        if (LOAD_REF) return LOAD_REF;
+        try { return cleanRef(localStorage.getItem('btc_referral_code')); } catch (e2) { return ''; }
     }
 
     function waitlistHref(ref, medium) {
