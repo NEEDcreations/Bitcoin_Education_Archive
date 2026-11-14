@@ -1008,8 +1008,8 @@ test('review release: paying/unknown or a block with a paymentHash needs an expl
     // paying with no hash cannot be verified
     h.db.store.set('sf_block_claims/e1_b1', { epoch: 1, block: 1, uid: ALICE, amount: 4200, frozenLn: 'alice@wallet.example', status: 'paying', attempts: 1 });
     assert.strictEqual((await h.svc.resolveReview(ADMIN, { epoch: 1, block: 1, action: 'release', note: 'x' })).code, 'refused_unverifiable');
-    // manual_review after strikes still carries the last hash: lookup must prove failure
-    h.db.store.set('sf_block_claims/e1_b2', { epoch: 1, block: 2, uid: ALICE, amount: 4200, frozenLn: 'alice@wallet.example', status: 'manual_review', reviewReason: 'repeat_failures', attempts: 3, paymentHash: 'abc' });
+    // manual_review that still carries the last hash: lookup must prove failure
+    h.db.store.set('sf_block_claims/e1_b2', { epoch: 1, block: 2, uid: ALICE, amount: 4200, frozenLn: 'alice@wallet.example', status: 'manual_review', reviewReason: 'route_fee_high', attempts: 2, paymentHash: 'abc' });
     h.lookupState = 'pending';
     assert.strictEqual((await h.svc.resolveReview(ADMIN, { epoch: 1, block: 2, action: 'release', note: 'x' })).code, 'refused_payment_not_failed');
 });
@@ -1017,9 +1017,9 @@ test('review release: paying/unknown or a block with a paymentHash needs an expl
 test('review release: does not reset attempts or bypass fee_halt, route-hint check or caps', async function () {
     const h = reviewHarness();
     await freeze(h, 1);
-    // attempts kept: a block at max strikes goes straight back to review on its next claim
+    // attempts kept: a block at max strikes is refused by release (see the repeat_failures test)
     h.db.store.set('sf_block_claims/e1_b4', { epoch: 1, block: 4, uid: CARA, amount: 4200, frozenLn: 'cara@wallet.example', status: 'manual_review', reviewReason: 'repeat_failures', attempts: 3 });
-    assert.strictEqual((await h.svc.resolveReview(ADMIN, { epoch: 1, block: 4, action: 'release', note: 'x' })).code, 'released');
+    assert.strictEqual((await h.svc.resolveReview(ADMIN, { epoch: 1, block: 4, action: 'release', note: 'x' })).code, 'refused_repeat_failures');
     assert.strictEqual(claimDoc(h, 'e1_b4').attempts, 3);
     assert.strictEqual((await h.svc.claim(ctx(CARA), { epoch: 1, block: 4 })).code, 'manual_review');
     // fee_halt still applies
@@ -1037,6 +1037,50 @@ test('review release: does not reset attempts or bypass fee_halt, route-hint che
     await h2.svc.resolveReview(ADMIN, { epoch: 1, block: 3, action: 'release', note: 'x' });
     h2.db.store.set('sf_claim_counters/site_' + new Date(h2.clock).toISOString().slice(0, 10), { sats: 21000 });
     assert.strictEqual((await h2.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'site_daily_cap');
+});
+
+test('review release: a repeat_failures block (attempts >= maxAttempts) is refused, writes nothing, is audited, never resets attempts', async function () {
+    const h = makeHarness();
+    await freeze(h, 1);
+    // Real path: three wallet refusals put the block in review as repeat_failures.
+    h.payMode = 'refuse';
+    for (let i = 0; i < 3; i++) {
+        assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'pay_failed');
+        h.clock += 120000;
+    }
+    const before = clone(claimDoc(h, 'e1_b3'));
+    assert.strictEqual(before.status, 'manual_review'); assert.strictEqual(before.reviewReason, 'repeat_failures'); assert.strictEqual(before.attempts, 3);
+    const storeBefore = JSON.stringify(Array.from(h.db.store.entries()).filter(function (e) { return e[0].indexOf('sf_claim_audit/') !== 0; }));
+    let lookups = 0;
+    const realWallet = h.deps.wallet;
+    h.deps.wallet = function (cfg) { const w = realWallet(cfg); const lk = w.lookupInvoice; w.lookupInvoice = async function (q) { lookups++; return lk(q); }; return w; };
+    const r = await h.svc.resolveReview(ADMIN, { epoch: 1, block: 3, action: 'release', note: 'wallet looked fine' });
+    assert.strictEqual(r.code, 'refused_repeat_failures', JSON.stringify(r)); assert.strictEqual(r.ok, false);
+    assert.strictEqual(r.before, 'manual_review'); assert.strictEqual(r.after, 'manual_review');
+    assert.strictEqual(r.attempts, 3); assert.strictEqual(r.maxAttempts, 3);
+    assert.strictEqual(lookups, 0, 'no wallet lookup for a release that cannot help');
+    // Nothing written except the audit row.
+    const storeAfter = JSON.stringify(Array.from(h.db.store.entries()).filter(function (e) { return e[0].indexOf('sf_claim_audit/') !== 0; }));
+    assert.strictEqual(storeAfter, storeBefore, 'release refusal writes nothing outside the audit log');
+    assert.deepStrictEqual(claimDoc(h, 'e1_b3'), before);
+    assert.ok(!claimDoc(h, 'e1_b3').reviewReleased);
+    const a = reviewAudits(h);
+    assert.strictEqual(a.length, 1);
+    assert.deepStrictEqual([a[0].action, a[0].code, a[0].by, a[0].before, a[0].after, a[0].epoch, a[0].block], ['release', 'refused_repeat_failures', 'admin\u2026', 'manual_review', 'manual_review', 1, 3]);
+    assert.ok(/wallet looked fine/.test(a[0].note));
+    // The claim is still refused the same way, and nothing was paid by the admin path.
+    h.payMode = 'paid';
+    assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'manual_review');
+    assert.strictEqual(claimDoc(h, 'e1_b3').attempts, 3, 'attempts never reset');
+    assert.strictEqual(h.pays.length, 3);
+    // A raised maxAttempts is honored by both paths: release then works, attempts still kept.
+    h.db.store.set('config/satoshiFavorPayouts', Object.assign({}, h.db.store.get('config/satoshiFavorPayouts'), { maxAttempts: 4 }));
+    h.lookupState = 'failed'; // the last refused attempt left a hash: the wallet must prove it failed
+    const r2 = await h.svc.resolveReview(ADMIN, { epoch: 1, block: 3, action: 'release', note: 'raised limit' });
+    assert.strictEqual(r2.code, 'released', JSON.stringify(r2));
+    assert.strictEqual(claimDoc(h, 'e1_b3').attempts, 3, 'a release never resets attempts');
+    assert.ok((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).success);
+    assert.strictEqual(claimDoc(h, 'e1_b3').attempts, 4);
 });
 
 test('review reject is final: create-only marker, no path back to claimable, claims refused', async function () {

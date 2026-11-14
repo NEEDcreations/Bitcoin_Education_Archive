@@ -934,12 +934,18 @@ function createBlockClaimService(deps) {
         if (!cur0 && !row.manualReview) return done('not_in_review', before0, before0);
         if (cur0 && !inFlight && cur0.status !== 'manual_review') return done('not_in_review', before0, before0);
         if (inFlight && !hash) return done('refused_unverifiable', before0, before0);
+        // A block at max strikes (repeat_failures) stays refused by the claim
+        // path, which never resets attempts. Releasing it would report success
+        // while the next claim is still refused, so refuse here and write nothing.
+        const relCfg = await loadConfig();
+        if (cur0 && (Number(cur0.attempts) || 0) >= relCfg.maxAttempts) {
+            return done('refused_repeat_failures', before0, before0, { attempts: Number(cur0.attempts) || 0, maxAttempts: relCfg.maxAttempts });
+        }
         let lookupKind = '';
         if (hash) {
             // A payment may have left: only an explicit failed lookup proves it did not.
             try {
-                const cfg = await loadConfig();
-                const wallet = deps.wallet(cfg);
+                const wallet = deps.wallet(relCfg);
                 const raw = await withTimeout(wallet.lookupInvoice({ payment_hash: hash }), 15000, 'lookupInvoice');
                 lookupKind = deps.classifyLookup ? deps.classifyLookup(raw).kind : 'unknown';
             } catch (e) { lookupKind = 'error'; }
@@ -956,6 +962,7 @@ function createBlockClaimService(deps) {
             // Re-check inside the transaction: nothing may have changed since the lookup.
             if (cur && (cur.status !== (cur0 ? cur0.status : '') || String(cur.paymentHash || '') !== hash)) { out = ['refused_changed', before, before]; return; }
             if (!cur && cur0) { out = ['refused_changed', before, before]; return; }
+            if (cur && (Number(cur.attempts) || 0) >= relCfg.maxAttempts) { out = ['refused_repeat_failures', before, before]; return; }
             const wasReserved = !!cur && (cur.status === 'paying' || cur.status === 'unknown');
             if (wasReserved && cur.counterDay) {
                 // The sats provably did not leave: give back what the attempt reserved.
