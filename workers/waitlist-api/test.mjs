@@ -53,7 +53,7 @@ const post = (mf, body, { ip = '203.0.113.1', origin = ORIGIN, accept = 'applica
     body: form ? new URLSearchParams(body).toString() : JSON.stringify(body),
   });
 
-// Live-forwarding config with Substack mocked.
+// Live config. The Worker must not call Substack; status is browser.
 const live = { SUBSTACK_DRY_RUN: '0', SUBSTACK_PUBLICATION: 'https://603btc.substack.com', ALLOWED_ORIGINS: ORIGIN, TURNSTILE_SECRET_KEY: 'test-secret-not-real' };
 let { mf, db } = await makeMf(live);
 
@@ -61,15 +61,15 @@ let r = await post(mf, { email: '  Alice@Example.COM ', consent: 'on', 'cf-turns
 let d = await r.json();
 ok(r.status === 200 && d.ok === true && !d.retry, 'valid email -> 200 ok');
 let row = await db.prepare('SELECT * FROM waitlist WHERE email=?').bind('alice@example.com').first();
-ok(row && row.source === 'waitlist' && row.consent === 1 && row.substack_status === 'ok' && /^\d{4}-\d\d-\d\dT/.test(row.created_at), 'stored lowercased with createdAt, source, consent');
+ok(row && row.source === 'waitlist' && row.consent === 1 && row.substack_status === 'browser' && /^\d{4}-\d\d-\d\dT/.test(row.created_at), 'stored lowercased with createdAt, source, consent, browser status');
 ok(Object.keys(row).every(k => ['email','created_at','source','consent','substack_status','substack_at'].includes(k)), 'row has no IP or UA column');
 const sub = calls.filter(c => c.host === '603btc.substack.com');
-ok(sub.length === 1 && sub[0].path === '/api/v1/free' && JSON.parse(sub[0].body).email === 'alice@example.com', 'forwarded once to Substack /api/v1/free');
+ok(sub.length === 0, 'Worker does not POST to Substack; the browser does');
 
 r = await post(mf, { email: 'alice@example.com', consent: 'on', 'cf-turnstile-response': 'good' }, { ip: '10.0.0.2' });
 d = await r.json();
 const cnt = await db.prepare('SELECT COUNT(*) n FROM waitlist').first();
-ok(r.status === 200 && d.ok && cnt.n === 1 && calls.filter(c => c.host === '603btc.substack.com').length === 1, 'duplicate is idempotent: same answer, one row, no second forward');
+ok(r.status === 200 && d.ok && !d.retry && cnt.n === 1 && calls.filter(c => c.host === '603btc.substack.com').length === 0, 'duplicate is idempotent: same answer, one row, no server Substack call');
 
 for (const bad of ['', 'nope', 'a@b', 'a b@example.com', 'x@example.123', '<script>@x.com', 'a'.repeat(250) + '@x.com']) {
   r = await post(mf, { email: bad, consent: 'on', 'cf-turnstile-response': 'good' }, { ip: '10.0.1.' + bad.length % 250 });
@@ -86,15 +86,12 @@ ok(r.status === 200 && !(await db.prepare('SELECT 1 FROM waitlist WHERE email=?'
 r = await mf.dispatchFetch('https://bitcoineducation.quest/api/waitlist');
 ok(r.status === 405, 'GET -> 405');
 
-substackMode = 'fail';
+await db.prepare("INSERT INTO waitlist (email, created_at, source, consent, substack_status) VALUES ('bob@example.com', '2026-11-14T18:00:00Z', 'waitlist', 1, 'error_403')").run();
 r = await post(mf, { email: 'bob@example.com', consent: 'on', 'cf-turnstile-response': 'good' }, { ip: '10.0.3.1' });
 d = await r.json();
 row = await db.prepare('SELECT * FROM waitlist WHERE email=?').bind('bob@example.com').first();
-ok(r.status === 200 && d.ok && d.retry === true && row && row.substack_status === 'error_500', 'Substack failure: stored, success with retry flag');
-substackMode = 'ok';
-r = await post(mf, { email: 'bob@example.com', consent: 'on', 'cf-turnstile-response': 'good' }, { ip: '10.0.3.2' });
-row = await db.prepare('SELECT * FROM waitlist WHERE email=?').bind('bob@example.com').first();
-ok(row.substack_status === 'ok', 'resubmit after Substack failure retries the forward');
+ok(r.status === 200 && d.ok && !d.retry && row && row.substack_status === 'browser', 'prior error_403 is marked browser and returned ok so the page can subscribe');
+ok(calls.filter(c => c.host === '603btc.substack.com').length === 0, 'resubmit of an old error row still does not POST to Substack from the Worker');
 
 r = await post(mf, { email: 'carol@example.com', consent: 'on', 'cf-turnstile-response': 'good' }, { ip: '10.0.4.1', accept: 'text/html' });
 ok(r.status === 303 && r.headers.get('location') === '/waitlist?s=ok', 'no-JS form post -> 303 back to /waitlist?s=ok');
@@ -117,7 +114,7 @@ await mf.dispose();
 r = await post(mf, { email: 'dry@example.com', consent: 'on' }, { ip: '10.5.0.2', form: false });
 d = await r.json();
 row = await db.prepare('SELECT * FROM waitlist WHERE email=?').bind('dry@example.com').first();
-ok(r.status === 200 && d.dryRun === true && row.substack_status === 'dry_run' && calls.length === 0, 'dry run: stored, JSON body accepted, zero outbound calls');
+ok(r.status === 200 && d.ok && !d.dryRun && row.substack_status === 'browser' && calls.length === 0, 'stored as browser, JSON body accepted, zero outbound calls (including no Substack)');
 await mf.dispose();
 
 // No Firebase anywhere in the page, page script, or Worker.
@@ -152,7 +149,7 @@ function mockDb() {
                     if (/INSERT/.test(sql)) {
                         const email = args[0];
                         if (store.has(email)) return { meta: { changes: 0 } };
-                        store.set(email, { email, created_at: args[1], source: 'waitlist', consent: 1, substack_status: 'pending' });
+                        store.set(email, { email, created_at: args[1], source: 'waitlist', consent: 1, substack_status: /'browser'/.test(sql) ? 'browser' : 'pending' });
                         return { meta: { changes: 1 } };
                     }
                     if (/UPDATE/.test(sql)) {
@@ -208,7 +205,7 @@ const env2 = {
 r = await handleWaitlist(postReq({ email: 'erin@example.com', consent: true, 'cf-turnstile-response': 'good' }), env2, { waitUntil(p) { waited.push(p); } });
 d = await r.json();
 await Promise.all(waited);
-ok(r.status === 200 && d.ok && notices2.length === 1 && /Email: erin@example.com/.test(notices2[0].text) && /Substack forward: ok/.test(notices2[0].text) && /Total signups: 1/.test(notices2[0].text) && / ET/.test(notices2[0].text), 'new signup waitUntil-notifies with email, ET time, count, and Substack status');
+ok(r.status === 200 && d.ok && notices2.length === 1 && /Email: erin@example.com/.test(notices2[0].text) && /Substack forward: browser/.test(notices2[0].text) && /Total signups: 1/.test(notices2[0].text) && / ET/.test(notices2[0].text), 'new signup waitUntil-notifies with email, ET time, count, and Substack status');
 waited.length = 0;
 r = await handleWaitlist(postReq({ email: 'erin@example.com', consent: true, 'cf-turnstile-response': 'good' }), env2, { waitUntil(p) { waited.push(p); } });
 await Promise.all(waited);
@@ -269,6 +266,12 @@ d = await r.json();
 await Promise.all(waitedThrow);
 ok(r.status === 200 && d.ok && store.has('dana@example.com'), 'notify failure never breaks the signup response');
 globalThis.fetch = prevFetch;
+
+const pageJs = readFileSync(join(repo, 'waitlist.js'), 'utf8');
+ok(pageJs.includes('https://603btc.substack.com/api/v1/free?nojs=true') && pageJs.includes('wlSubstackFrame') && pageJs.includes("show('ok')"), 'page posts to Substack nojs endpoint in a hidden iframe and shows the confirm-inbox message');
+ok(/Check your inbox to confirm/.test(pageJs), 'success copy tells the visitor to check their inbox to confirm');
+const cspSrc = readFileSync(join(repo, 'workers/seo-router/worker.js'), 'utf8');
+ok(/function isWaitlistPath/.test(cspSrc) && /allowSubstackSubscribe/.test(cspSrc) && /form-action 'self'" \+ \(allowSubstackSubscribe \? " https:\/\/603btc\.substack\.com"/.test(cspSrc), 'seo-router allows Substack form-action and frame-src only on the waitlist path');
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

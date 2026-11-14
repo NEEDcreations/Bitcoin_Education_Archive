@@ -2,16 +2,17 @@
  * waitlist-api: POST /api/waitlist for bitcoineducation.quest/waitlist.
  *
  * Independent of Firebase and of the app kill switch: no Firestore, no app JS,
- * no Cloud Functions. Stores our own copy of the list in D1 and forwards the
- * email to the 603BTC Substack free-subscribe endpoint.
+ * no Cloud Functions. Stores our own copy of the list in D1. The visitor's
+ * browser then subscribes them on Substack (the Worker does not POST to Substack;
+ * their WAF was blocking server-side forwards with HTTP 403).
  *
  * Stored per row: email (trimmed, lowercased), created_at, source='waitlist',
  * consent=1, substack_status, substack_at. No IP, no user agent, no referrer.
  *
  * Bindings (wrangler.toml): DB (D1), RL (rate limit, optional),
  *       NOTIFY (send_email, optional; destination info.603btc@gmail.com).
- * Vars: SUBSTACK_PUBLICATION, SUBSTACK_DRY_RUN ("1" = never call Substack),
- *       ALLOWED_ORIGINS (comma list), TURNSTILE_OPTIONAL ("1" = dev only).
+ * Vars: ALLOWED_ORIGINS (comma list), TURNSTILE_OPTIONAL ("1" = dev only).
+ *       SUBSTACK_PUBLICATION / SUBSTACK_DRY_RUN are unused leftovers (no server forward).
  * Secret: TURNSTILE_SECRET_KEY (wrangler secret put; legacy name TURNSTILE_SECRET also read). Never logged.
  * New-signup mail is sent with ctx.waitUntil so a notify failure never changes the HTTP response.
  */
@@ -85,29 +86,6 @@ async function verifyTurnstile(env, token) {
         return d && d.success === true;
     } catch (_) { return false; }
 }
-
-export async function forwardToSubstack(env, email) {
-    if (env.SUBSTACK_DRY_RUN !== '0') return 'dry_run';
-    const pub = env.SUBSTACK_PUBLICATION || 'https://603btc.substack.com';
-    try {
-        const r = await fetch(pub + '/api/v1/free', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json', accept: 'application/json' },
-            body: JSON.stringify({
-                email,
-                first_url: 'https://bitcoineducation.quest/waitlist',
-                first_referrer: '',
-                current_url: 'https://bitcoineducation.quest/waitlist',
-                current_referrer: '',
-                source: 'subscribe_page',
-                referring_pub_id: '',
-                additional_referring_pub_ids: '',
-            }),
-        });
-        return r.ok ? 'ok' : 'error_' + r.status;
-    } catch (_) { return 'error_network'; }
-}
-
 
 export function formatEt(d = new Date()) {
     const formatted = new Intl.DateTimeFormat('en-US', {
@@ -183,7 +161,7 @@ export async function handleWaitlist(req, env, ctx) {
 
     const now = new Date().toISOString();
     const ins = await env.DB.prepare(
-        "INSERT INTO waitlist (email, created_at, source, consent, substack_status) VALUES (?1, ?2, 'waitlist', 1, 'pending') ON CONFLICT(email) DO NOTHING"
+        "INSERT INTO waitlist (email, created_at, source, consent, substack_status, substack_at) VALUES (?1, ?2, 'waitlist', 1, 'browser', ?2) ON CONFLICT(email) DO NOTHING"
     ).bind(email, now).run();
     const isNew = !!(ins && ins.meta && ins.meta.changes === 1);
 
@@ -193,16 +171,12 @@ export async function handleWaitlist(req, env, ctx) {
         return reply(req, 200, { ok: true, ...(row.substack_status === 'dry_run' ? { dryRun: true } : {}) });
     }
 
-    let status = row && row.substack_status;
-    if (status === 'browser') {
-        // Already marked for a browser subscribe; do not also POST from the Worker.
-    } else {
-        status = await forwardToSubstack(env, email);
-        await env.DB.prepare('UPDATE waitlist SET substack_status = ?1, substack_at = ?2 WHERE email = ?3').bind(status, now, email).run();
+    // Existing rows that never reached Substack (e.g. error_403) are marked for a browser subscribe.
+    if (!isNew && row && row.substack_status !== 'browser') {
+        await env.DB.prepare('UPDATE waitlist SET substack_status = ?1, substack_at = ?2 WHERE email = ?3').bind('browser', now, email).run();
     }
-    if (isNew) scheduleSignupNotify(ctx, env, email, status);
-    if (SUBSTACK_DONE.has(status)) return reply(req, 200, { ok: true, ...(status === 'dry_run' ? { dryRun: true } : {}) });
-    return reply(req, 200, { ok: true, retry: true }); // saved on our list; Substack retried later
+    if (isNew) scheduleSignupNotify(ctx, env, email, 'browser');
+    return reply(req, 200, { ok: true });
 }
 
 export default {
