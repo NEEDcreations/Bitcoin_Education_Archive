@@ -129,8 +129,10 @@ function keyedHash(key, kind, value) {
     return crypto.createHmac('sha256', key).update('bq-premium:' + kind + ':' + String(value)).digest('hex').slice(0, 40);
 }
 
-// Canonical email for trials and email-held purchases: lowercase, strip
-// +tags, and for Gmail drop dots and map googlemail.com to gmail.com.
+// Canonical email for trial-reuse markers only: lowercase, strip +tags,
+// and for Gmail drop dots and map googlemail.com to gmail.com.
+// Email-held purchases and claimPremiumByEmail use normalizeEmail instead
+// (exact address, no +tag or Gmail-dot folding).
 function canonicalEmail(v) {
     const e = normalizeEmail(v);
     if (!e) return null;
@@ -247,6 +249,12 @@ function nonLightningPayments(pms) {
 }
 
 function emailKey(email, key) {
+    const e = normalizeEmail(email);
+    return e ? keyedHash(key, 'email', e) : null;
+}
+
+// Trial-reuse markers only: keyed hash of the canonical email.
+function trialEmailKey(email, key) {
     const c = canonicalEmail(email);
     return c ? keyedHash(key, 'email', c) : null;
 }
@@ -417,7 +425,8 @@ function createPremiumHandlers(deps) {
         try { return keyedHash(deps.hashKey || env.PREMIUM_HASH_KEY, kind, value); }
         catch (e) { throw fail('failed-precondition', 'Checkout is not set up yet.', 'hash_key'); }
     }
-    function ekey(email) { const c = canonicalEmail(email); return c ? H('email', c) : null; }
+    function ekey(email) { const e = normalizeEmail(email); return e ? H('email', e) : null; }
+    function tkey(email) { const c = canonicalEmail(email); return c ? H('email', c) : null; }
     async function trialMarkerExists(kind, hash) {
         if (!hash) return false;
         const snap = await ref(COL.trialMarkers, kind + '_' + hash).get();
@@ -600,6 +609,7 @@ function createPremiumHandlers(deps) {
             tx.set(orderRef, {
                 uid: who.uid || null,
                 emailKey: who.emailKey || null,
+                trialEmailKey: who.trialEmailKey || null,
                 email: who.uid ? null : who.email,
                 // Set only while a plain email is stored; the sweep clears the
                 // email after publicOrderEmailRetentionMonths (single-field range query).
@@ -744,12 +754,13 @@ function createPremiumHandlers(deps) {
         }
         const email = auth.token && auth.token.email_verified === true ? normalizeEmail(auth.token.email) : null;
         const ek = email ? ekey(email) : null;
+        const tek = email ? tkey(email) : null;
         // Unknown IP (no raw request): no per-IP hold cap, never a shared bucket.
         const ipRaw = context && context.rawRequest ? clientIp(context.rawRequest) : 'none';
         const ipHash = ipRaw === 'none' ? null : H('ip', ipRaw);
         // A canonical email that already had a free trial starts paid, no trial.
-        const emailTrialUsed = await trialMarkerExists('e', ek);
-        return startOrder(q, { uid: uid, email: email, emailKey: ek, ipHash: ipHash, holdKey: uid, rateKey: uid, customerId: ent.stripeCustomerId || null, trialEligible: !ent.trialUsed && !ent.stripeSubscriptionId && !ent.founders && !emailTrialUsed }, cfg, nowMs, cleanSrc(d.src), 'app');
+        const emailTrialUsed = await trialMarkerExists('e', tek);
+        return startOrder(q, { uid: uid, email: email, emailKey: ek, trialEmailKey: tek, ipHash: ipHash, holdKey: uid, rateKey: uid, customerId: ent.stripeCustomerId || null, trialEligible: !ent.trialUsed && !ent.stripeSubscriptionId && !ent.founders && !emailTrialUsed }, cfg, nowMs, cleanSrc(d.src), 'app');
     }
 
     // Turnstile siteverify result must be a success, for the premium_checkout
@@ -799,11 +810,12 @@ function createPremiumHandlers(deps) {
             existingUserEligible: false, // never on the public page
         }, cfg);
         const ek = ekey(email);
+        const tek = tkey(email);
         const held = await ref(COL.emailEntitlements, ek).get();
         if (held.exists && held.data().founders === true) throw fail('failed-precondition', "This email already has Founders' Lifetime.", 'already_lifetime');
         const ipHash = H('ip', ip || 'none');
-        const emailTrialUsed = await trialMarkerExists('e', ek);
-        return startOrder(q, { uid: null, email: email, emailKey: ek, ipHash: ipHash, holdKey: 'email:' + ek, rateKey: 'ip_' + ipHash, returnBase: returnBase || null, customerId: null, trialEligible: !emailTrialUsed && !(held.exists && (held.data().trialUsed || held.data().stripeSubscriptionId)) }, cfg, nowMs, cleanSrc(b.src), 'public');
+        const emailTrialUsed = await trialMarkerExists('e', tek);
+        return startOrder(q, { uid: null, email: email, emailKey: ek, trialEmailKey: tek, ipHash: ipHash, holdKey: 'email:' + ek, rateKey: 'ip_' + ipHash, returnBase: returnBase || null, customerId: null, trialEligible: !emailTrialUsed && !(held.exists && (held.data().trialUsed || held.data().stripeSubscriptionId)) }, cfg, nowMs, cleanSrc(b.src), 'public');
     }
 
     async function premiumPublicCheckout(req, res) {
@@ -1031,7 +1043,10 @@ function createPremiumHandlers(deps) {
                 // A missing card fingerprint on a trial fails closed: treat it like reuse.
                 const missingFp = isTrial && !fpHash;
                 const cardRef = isTrial && fpHash ? ref(COL.trialMarkers, 'c_' + fpHash) : null;
-                const mailRef = isTrial && o.emailKey ? ref(COL.trialMarkers, 'e_' + o.emailKey) : null;
+                // Trial markers use the canonical email hash. New orders store
+                // it as trialEmailKey; older orders used emailKey for this.
+                const trialEk = (o && (o.trialEmailKey || o.emailKey)) || null;
+                const mailRef = isTrial && trialEk ? ref(COL.trialMarkers, 'e_' + trialEk) : null;
                 const cardSnap = cardRef ? await tx.get(cardRef) : null;
                 const mailSnap = mailRef ? await tx.get(mailRef) : null;
                 const reused = [cardSnap, mailSnap].filter(function (x) { return x && x.exists && x.data().orderId !== orderId; });
@@ -1399,7 +1414,7 @@ function createPremiumHandlers(deps) {
         return { url: s.url };
     }
 
-    // ---- Claim a Premium bought on the public page (same verified email).
+    // ---- Claim a Premium bought on the public page (exact verified email).
     async function claimPremiumByEmail(data, context) {
         const auth = requireUser(context);
         const email = auth.token && auth.token.email_verified === true ? normalizeEmail(auth.token.email) : null;
@@ -1672,7 +1687,7 @@ async function purgePremiumForAccount(db, uid, nowMs) {
         if (seen.has(d.id)) continue;
         seen.add(d.id);
         const o = d.data();
-        await d.ref.update({ uid: o.uid ? masked : null, uidMasked: true, email: null, emailKey: null, emailHeldSinceMs: null, emailClearedAtMs: t, emailClearedReason: 'account_deleted' });
+        await d.ref.update({ uid: o.uid ? masked : null, uidMasked: true, email: null, emailKey: null, trialEmailKey: null, emailHeldSinceMs: null, emailClearedAtMs: t, emailClearedReason: 'account_deleted' });
         out.orders++;
     }
     const ledger = await db.collection(COL.allowanceLedger).where('uid', '==', uid).get();
@@ -1821,6 +1836,7 @@ module.exports = {
     cleanSrc,
     normalizeEmail,
     emailKey,
+    trialEmailKey,
     etMonthKey,
     existingUserEligible,
     summarize,

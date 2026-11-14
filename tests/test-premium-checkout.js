@@ -1061,10 +1061,59 @@ test('User Data: unclaimed public order email cleared after 24 months (configura
     const r3 = await publicPost(c, { plan: 'monthly', rail: 'card', email: 'claim.me+x@gmail.com', turnstileToken: 'ok-token' });
     await stripePost(c, completed(lastOrderId(c), c.db.store.get('premium_orders/' + lastOrderId(c)).providerSessionId, { amount_total: 500 }));
     c.db.store.set('users/claimer', {});
-    assert.strictEqual((await c.h.claimPremiumByEmail({}, ctx('claimer', { email: 'claimme@gmail.com' }))).claimed, true);
+    assert.strictEqual((await c.h.claimPremiumByEmail({}, ctx('claimer', { email: 'claim.me+x@gmail.com' }))).claimed, true);
     const o = c.db.store.get('premium_orders/' + lastOrderId(c));
     assert.strictEqual(o.email, null);
     assert.strictEqual(o.emailClearedReason, 'claimed');
+});
+test('Red Team L3: email-held claims use the exact email; plus-tags and Gmail dots cannot take another purchase', async function () {
+    const key = FAKE_ENV.PREMIUM_HASH_KEY;
+    assert.notStrictEqual(premium.emailKey('alice@corp.com', key), premium.emailKey('alice+x@corp.com', key));
+    assert.notStrictEqual(premium.emailKey('j.doe@gmail.com', key), premium.emailKey('jdoe@gmail.com', key));
+    assert.strictEqual(premium.emailKey('alice@corp.com', key), premium.emailKey('  ALICE@corp.com ', key));
+    assert.strictEqual(premium.trialEmailKey('alice+x@corp.com', key), premium.emailKey('alice@corp.com', key));
+    async function paidPublic(a, email, sessionId) {
+        const r = await publicPost(a, { plan: 'monthly', rail: 'card', email: email, turnstileToken: 'ok-token' });
+        assert.strictEqual(r.code, 200);
+        const id = lastOrderId(a);
+        await stripePost(a, completed(id, a.db.store.get('premium_orders/' + id).providerSessionId, { amount_total: 500, customer: 'cus_' + sessionId }));
+        return id;
+    }
+    // alice+x@ cannot claim alice@'s held purchase.
+    const a = setup();
+    await paidPublic(a, 'alice@corp.com', 'a1');
+    a.db.store.set('users/plus', {});
+    const plus = await a.h.claimPremiumByEmail({}, ctx('plus', { email: 'alice+x@corp.com' }));
+    assert.strictEqual(plus.claimed, false);
+    assert.strictEqual(plus.reason, 'nothing_to_claim');
+    a.db.store.set('users/alice', {});
+    assert.strictEqual((await a.h.claimPremiumByEmail({}, ctx('alice', { email: 'alice@corp.com' }))).claimed, true);
+    // alice@ cannot claim alice+x@'s held purchase.
+    const b = setup();
+    await paidPublic(b, 'alice+x@corp.com', 'b1');
+    b.db.store.set('users/plain', {});
+    const plain = await b.h.claimPremiumByEmail({}, ctx('plain', { email: 'alice@corp.com' }));
+    assert.strictEqual(plain.claimed, false);
+    assert.strictEqual(plain.reason, 'nothing_to_claim');
+    b.db.store.set('users/tagged', {});
+    assert.strictEqual((await b.h.claimPremiumByEmail({}, ctx('tagged', { email: 'alice+x@corp.com' }))).claimed, true);
+    // Gmail dots: j.doe@ cannot claim jdoe@'s purchase, and the reverse.
+    const c = setup();
+    await paidPublic(c, 'jdoe@gmail.com', 'c1');
+    c.db.store.set('users/dotted', {});
+    const dotted = await c.h.claimPremiumByEmail({}, ctx('dotted', { email: 'j.doe@gmail.com' }));
+    assert.strictEqual(dotted.claimed, false);
+    assert.strictEqual(dotted.reason, 'nothing_to_claim');
+    c.db.store.set('users/nodot', {});
+    assert.strictEqual((await c.h.claimPremiumByEmail({}, ctx('nodot', { email: 'jdoe@gmail.com' }))).claimed, true);
+    const d = setup();
+    await paidPublic(d, 'j.doe@gmail.com', 'd1');
+    d.db.store.set('users/nodot2', {});
+    const nodot = await d.h.claimPremiumByEmail({}, ctx('nodot2', { email: 'jdoe@gmail.com' }));
+    assert.strictEqual(nodot.claimed, false);
+    assert.strictEqual(nodot.reason, 'nothing_to_claim');
+    d.db.store.set('users/dotted2', {});
+    assert.strictEqual((await d.h.claimPremiumByEmail({}, ctx('dotted2', { email: 'j.doe@gmail.com' }))).claimed, true);
 });
 test('Spam: claimPremiumByEmail re-checks banned and minor accounts', async function () {
     const a = setup();

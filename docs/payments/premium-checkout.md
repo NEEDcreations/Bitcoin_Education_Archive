@@ -81,20 +81,22 @@ Entitlements bought early carry `startsAtMs`; `premiumExpirySweep` (hourly) turn
 
 - `premium_entitlements/{uid}`: founders, subscriptionUntilMs, prepaidUntilMs, startsAtMs, trialUsed, trialUntilMs, stripeCustomerId, stripeSubscriptionId, autoRenew, active, pendingStart. Owner can read.
 - `users/{uid}.premium`: read-only mirror for the client (rules already deny client writes).
-- `premium_email_entitlements/{keyed hash}`: purchases from the public page, claimed by `claimPremiumByEmail` once the buyer signs in with that verified email. No plain email is stored here.
+- `premium_email_entitlements/{keyed hash}`: purchases from the public page, claimed by `claimPremiumByEmail` once the buyer signs in with that exact verified email (`normalizeEmail`, no `+tag` or Gmail-dot folding). No plain email is stored here.
 - `premium_orders/{orderId}`, `premium_counters/founders` (sold + holds), `premium_events/{id}` (once-only webhook markers), `premium_review/{id}`, `premium_rate/{key}`, `premium_allowance/{uid}`, `premium_allowance_ledger/{id}`.
 - `premium_trial_markers/{e_<hash>|c_<hash>}`: one per canonical email / card fingerprint that already had a free trial. Long-term.
 - `premium_admin_audit/{id}`: every `adminRevokePremium` revoke/restore.
 
 ### Hashing (PREMIUM_HASH_KEY)
 
-IPs, canonical emails and card fingerprints are stored only as keyed hashes:
+IPs, emails and card fingerprints are stored only as keyed hashes:
 HMAC-SHA256(PREMIUM_HASH_KEY, 'bq-premium:<kind>:<value>'), 40 hex chars. No
-plain IP or card fingerprint is ever written. Canonical email: lowercase,
-`+tag` stripped, dots removed for gmail.com/googlemail.com, googlemail.com ->
-gmail.com. Missing key = checkout refuses (`hash_key`). PREMIUM_HASH_KEY is a
-new Secret Manager secret (needs Phil's OK); rotating it resets trial markers
-and rate buckets.
+plain IP or card fingerprint is ever written. Email-held entitlements and
+`premium_orders.emailKey` use the exact `normalizeEmail` value (trim +
+lowercase only). Trial-reuse markers and `premium_orders.trialEmailKey` use
+the canonical email: lowercase, `+tag` stripped, dots removed for
+gmail.com/googlemail.com, googlemail.com -> gmail.com. Missing key = checkout
+refuses (`hash_key`). PREMIUM_HASH_KEY is a new Secret Manager secret (needs
+Phil's OK); rotating it resets trial markers and rate buckets.
 
 ### Retention
 
