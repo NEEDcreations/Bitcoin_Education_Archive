@@ -9761,7 +9761,8 @@ exports.adminApproveFactionPayout = factionRace.adminApproveFactionPayout;
 // closed for good once the switch has flipped after the survey opened.
 // ================================================================
 exports.submitSurvey = require('./src/survey').makeSubmitSurvey({
-    runWith: { enforceAppCheck: true },
+    // deletionHmacSecret: the deleted_accounts tombstone lookup (re-created accounts get no grant).
+    runWith: { enforceAppCheck: true, secrets: [deletionHmacSecret] },
     functionsV1: functionsV1,
     admin: admin,
     getDb: function () { return db; },

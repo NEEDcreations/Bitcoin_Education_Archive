@@ -1357,6 +1357,9 @@ async function purgeAccount({ db, bucket, authApi, uid, documentIdField, light }
         ['referral_signals', uid, []],
         ['email_change_pending', uid, []],
         ['email_history', uid, []],
+        // Survey answers include free text about the player. The grant marker
+        // and the masked survey_audit row are kept so the reward stays one-time.
+        ['survey_responses', uid, []],
     ];
     for (let i = 0; i < direct.length; i++) {
         await deleteDocTree(batcher, db.collection(direct[i][0]).doc(direct[i][1]), direct[i][2], documentIdField, false);

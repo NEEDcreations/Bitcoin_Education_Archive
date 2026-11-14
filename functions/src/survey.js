@@ -19,7 +19,18 @@
 //     `since` (the last time it was turned on) is later than the survey's
 //     openedAt, the survey is over. config/survey { closed: true } closes it
 //     by hand.
+// Eligibility (Red Team, Nov 14): only accounts created before openedAt
+// (config/survey.openedAt, else OPENED_AT_DEFAULT_MS) get the OrangeTix, so
+// scripted sign-ups cannot farm Nook raffle entries. Merged, deleted and
+// disabled accounts get no grant either, and so does any uid whose verified
+// email or sign-in provider matches a deleted_accounts tombstone (a deleted
+// and re-created account). If the tombstone secret is missing the grant
+// fails closed (answers saved, 0 tickets). Ineligible accounts still have their
+// answers saved and get { granted: false, reason } with 0 tickets.
 // Reads: survey_responses and survey_audit are admin-only in rules.
+// The free-text answers (q3, q5, q12, stop) are player-controlled. Any future
+// admin view of them must render them as plain text only (textContent, never
+// innerHTML or a markdown/HTML renderer).
 
 const SURVEY_ID = 'citadel_spark_2026';
 const REWARD_TICKETS = 25;
@@ -147,11 +158,34 @@ function maskUid(uid) {
     return s.length <= 6 ? '***' : s.slice(0, 3) + '***' + s.slice(-3);
 }
 
+// Why an account gets no OrangeTix, or '' when it is eligible. authUser is
+// the Auth record (null when it no longer exists); user is users/{uid}.
+// tomb is the accountTombstone.lookupByMaterials result.
+function grantBlockReason(authUser, user, openedAtMs, tomb) {
+    if (!authUser) return 'account_deleted';
+    if (authUser.disabled === true) return 'account_disabled';
+    const u = user || {};
+    if (u.mergedInto) return 'account_merged';
+    if (u.deleted === true || (u.deletedAt != null && u.deletedAt !== '')) return 'account_deleted';
+    if (u.disabled === true) return 'account_disabled';
+    const created = Date.parse(((authUser.metadata || {}).creationTime) || '') || 0;
+    if (!created || created >= openedAtMs) return 'account_too_new';
+    if (!tomb || tomb.configured !== true) return 'identity_check_unavailable';
+    if (Array.isArray(tomb.docs) && tomb.docs.length) return 'account_recreated';
+    return '';
+}
+
+function openedAtFrom(cfg) {
+    return toMillis(cfg && cfg.openedAt) || OPENED_AT_DEFAULT_MS;
+}
+
 function makeSubmitSurvey(deps) {
     const functionsV1 = deps.functionsV1;
     const admin = deps.admin;
     const getDb = deps.getDb;
     const now = deps.now || Date.now;
+    const getAuth = deps.getAuth || function () { return admin.auth(); };
+    const tombstone = deps.tombstone || require('./accountTombstone');
     const HttpsError = functionsV1.https.HttpsError;
     const runWith = Object.assign({}, deps.runWith || {});
     // index.js passes the App Check flag so the scanner in
@@ -192,7 +226,22 @@ function makeSubmitSurvey(deps) {
         const v = validate(data);
         if (!v.ok) throw new HttpsError('invalid-argument', 'Some answers could not be saved. Check them and try again.', { why: v.why });
 
-        // 3. One transaction: closed check, ban check, once-per-uid grant.
+        // 3. Auth record for account age and disabled state.
+        let authUser = null;
+        try {
+            authUser = await getAuth().getUser(uid);
+        } catch (err) {
+            const code = String((err && (err.code || (err.errorInfo && err.errorInfo.code))) || '');
+            if (code.indexOf('user-not-found') === -1) throw err;
+        }
+        // Same identity lookup account deletion and payouts use.
+        let tomb = null;
+        if (authUser) {
+            const identity = tombstone.identityFrom({ uid: uid, authUser: authUser, token: context.auth.token || {} });
+            tomb = await tombstone.lookupByMaterials(db, identity);
+        }
+
+        // 4. One transaction: closed check, ban check, once-per-uid grant.
         const ksRef = db.collection('config').doc('killSwitch');
         const cfgRef = db.collection('config').doc('survey');
         const userRef = db.collection('users').doc(uid);
@@ -212,16 +261,35 @@ function makeSubmitSurvey(deps) {
             const user = userSnap.data() || {};
             if (user.ban_reason || user.banned === true) throw new HttpsError('permission-denied', 'This account cannot take the survey.');
             if (respSnap.exists || claimSnap.exists) {
-                return { ok: true, already: true, tickets: 0 };
+                return { ok: true, already: true, granted: claimSnap.exists, tickets: 0 };
             }
+            const blocked = grantBlockReason(authUser, user, openedAtFrom(cfgSnap.exists ? cfgSnap.data() : null), tomb);
             const ts = FieldValue.serverTimestamp();
             tx.create(respRef, {
                 uid: uid,
                 surveyId: SURVEY_ID,
                 variant: v.variant,
                 answers: v.answers,
+                granted: !blocked,
+                noGrantReason: blocked || null,
                 createdAt: ts,
             });
+            if (blocked) {
+                const doneOnly = {};
+                doneOnly[USER_DONE_FIELD] = ts;
+                tx.update(userRef, doneOnly);
+                tx.create(auditRef, {
+                    action: 'survey_response_no_grant',
+                    surveyId: SURVEY_ID,
+                    uid: uid,
+                    uidMasked: maskUid(uid),
+                    variant: v.variant,
+                    reason: blocked,
+                    tickets: 0,
+                    at: ts,
+                });
+                return { ok: true, already: false, granted: false, reason: blocked, tickets: 0 };
+            }
             tx.create(claimRef, {
                 action: 'survey_' + SURVEY_ID,
                 tickets: REWARD_TICKETS,
@@ -239,7 +307,7 @@ function makeSubmitSurvey(deps) {
                 tickets: REWARD_TICKETS,
                 at: ts,
             });
-            return { ok: true, already: false, tickets: REWARD_TICKETS };
+            return { ok: true, already: false, granted: true, tickets: REWARD_TICKETS };
         });
     }
 
@@ -263,6 +331,8 @@ module.exports = {
     VARIANTS: VARIANTS,
     validate: validate,
     closedReason: closedReason,
+    grantBlockReason: grantBlockReason,
+    openedAtFrom: openedAtFrom,
     maskUid: maskUid,
     makeSubmitSurvey: makeSubmitSurvey,
 };

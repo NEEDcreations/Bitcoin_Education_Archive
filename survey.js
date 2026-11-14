@@ -35,6 +35,11 @@
     var SURVEY_BANNER = 'Help shape Citadel Spark. Take a 3-minute survey and get ' + REWARD_TICKETS + ' OrangeTix.';
     var SURVEY_BANNER_BUTTON = 'Take the survey';
     var SURVEY_INTRO = 'About 3 minutes. Only the first question is required. Send your answers and get ' + REWARD_TICKETS + ' OrangeTix, once per account.';
+    // Accounts created after the survey opened get no OrangeTix (server-side
+    // rule in functions/src/survey.js). They see copy with no reward promise.
+    var SURVEY_BANNER_PLAIN = 'Help shape Citadel Spark. Take a 3-minute survey.';
+    var SURVEY_INTRO_PLAIN = 'About 3 minutes. Only the first question is required.';
+    var DONE_PLAIN = 'Thanks! Your answers are saved.';
 
     // Display copy. Ids and option keys must match functions/src/survey.js.
     var QUESTIONS = {
@@ -214,6 +219,12 @@
     }
 
     // ---- Survey banner ------------------------------------------------------
+    // Display hint only; the server decides the grant.
+    function rewardShown() {
+        var opened = state.openedAt || OPENED_AT_DEFAULT_MS;
+        return !!(state.createdMs && state.createdMs < opened);
+    }
+
     function surveyEligible() {
         return !!(state.uid && !state.anon && state.userChecked && !state.done && !state.closed && !offline()
             && lsGet(SURVEY_DONE_KEY) !== state.uid);
@@ -230,7 +241,7 @@
         box.setAttribute('role', 'region');
         box.setAttribute('aria-label', SURVEY_TITLE);
         box.appendChild(el('p', 'bq-notice-kicker', SURVEY_TITLE));
-        box.appendChild(el('p', 'bq-notice-text', SURVEY_BANNER));
+        box.appendChild(el('p', 'bq-notice-text', rewardShown() ? SURVEY_BANNER : SURVEY_BANNER_PLAIN));
         var actions = el('div', 'bq-notice-actions');
         var b = el('button', 'bq-notice-btn', SURVEY_BANNER_BUTTON);
         b.type = 'button';
@@ -377,7 +388,7 @@
             document.body.appendChild(modal);
             return;
         }
-        card.appendChild(el('p', 'bqs-intro', SURVEY_INTRO));
+        card.appendChild(el('p', 'bqs-intro', rewardShown() ? SURVEY_INTRO : SURVEY_INTRO_PLAIN));
         var form = el('form');
         form.noValidate = true;
         var order = variant === 'lapsed' ? LAPSED_ORDER : VARIANTS.full;
@@ -421,7 +432,8 @@
                 lsSet(SURVEY_DONE_KEY, state.uid);
                 removeById('bqSurveyBanner');
                 if (d.already) showDone(card, 'You\u2019ve already taken the survey. Thanks!');
-                else showDone(card, 'Thanks! ' + (d.tickets || REWARD_TICKETS) + ' OrangeTix are on your account.');
+                else if (d.granted === false || !d.tickets) showDone(card, DONE_PLAIN);
+                else showDone(card, 'Thanks! ' + d.tickets + ' OrangeTix are on your account.');
             }, function (ex) {
                 send.disabled = false;
                 send.textContent = 'Send my answers';
@@ -456,6 +468,8 @@
             db.doc('config/survey').get().then(function (s) { return s.exists ? s.data() : null; }, function () { return null; })
         ]).then(function (r) {
             state.closed = closedFrom(r[0], r[1]);
+            state.openedAt = toMillis(r[1] && r[1].openedAt) || OPENED_AT_DEFAULT_MS;
+            removeById('bqSurveyBanner');
             renderAll();
         });
     }
@@ -466,6 +480,8 @@
         state.userChecked = false;
         state.done = false;
         state.lapsed = false;
+        state.createdMs = user ? (Date.parse((user.metadata && user.metadata.creationTime) || '') || 0) : 0;
+        removeById('bqSurveyBanner');
         if (!user || state.anon) { renderAll(); return; }
         var db;
         try { db = firebase.firestore(); } catch (e) { return; }

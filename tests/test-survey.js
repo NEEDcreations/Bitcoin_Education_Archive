@@ -10,6 +10,9 @@ const vm = require('vm');
 
 const root = path.join(__dirname, '..');
 const survey = require(path.join(root, 'functions/src/survey.js'));
+const tombstone = require(path.join(root, 'functions/src/accountTombstone.js'));
+// Test-only HMAC key so the real tombstone lookup runs against the fake db.
+process.env.DELETION_HMAC_SECRET = 'test-only-hmac-key-not-a-secret-0123';
 const ks = require(path.join(root, 'functions/src/killSwitch.js'));
 
 let passed = 0;
@@ -107,8 +110,11 @@ function makeFunctionsV1(captured) {
         },
     };
 }
-function setup(seed, nowMs) {
+// Auth records: any uid not listed is an old, active account.
+const OLD_AUTH = { disabled: false, email: 'old@example.test', emailVerified: true, metadata: { creationTime: 'Wed, 01 Jan 2025 00:00:00 GMT' } };
+function setup(seed, nowMs, authUsers) {
     const db = makeDb(seed);
+    const authMap = authUsers || {};
     const captured = {};
     const fn = survey.makeSubmitSurvey({
         runWith: { enforceAppCheck: true },
@@ -116,6 +122,14 @@ function setup(seed, nowMs) {
         admin: makeAdmin(),
         getDb: function () { return db; },
         now: function () { return nowMs || Date.parse('2026-11-15T12:00:00Z'); },
+        getAuth: function () {
+            return {
+                getUser: async function (uid) {
+                    if (authMap[uid] === null) { const e = new Error('no user'); e.code = 'auth/user-not-found'; throw e; }
+                    return authMap[uid] || OLD_AUTH;
+                },
+            };
+        },
     });
     return { db: db, call: fn.__surveyHandler, opts: captured.opts };
 }
@@ -196,7 +210,7 @@ async function rejects(p, code) {
             survey.makeSubmitSurvey({ functionsV1: makeFunctionsV1({}), admin: makeAdmin(), getDb: function () { return makeDb(); } });
         }, /App Check/);
         const idx = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
-        assert.ok(/exports\.submitSurvey = require\('\.\/src\/survey'\)\.makeSubmitSurvey\(\{\n\s+runWith: \{ enforceAppCheck: true \}/.test(idx));
+        assert.ok(/exports\.submitSurvey = require\('\.\/src\/survey'\)\.makeSubmitSurvey\(\{\n(\s+\/\/[^\n]*\n)?\s+runWith: \{ enforceAppCheck: true, secrets: \[deletionHmacSecret\] \}/.test(idx));
     });
 
     await test('submitSurvey is gated by the kill switch (rewards list) and the client waits for App Check', function () {
@@ -216,7 +230,7 @@ async function rejects(p, code) {
     await test('grants 25 OrangeTix once, stores the response, claim, done flag and one audit row', async function () {
         const s = setup({ 'users/u1': user() });
         const r = await s.call(goodFull, ctx('u1'));
-        assert.deepStrictEqual(r, { ok: true, already: false, tickets: 25 });
+        assert.deepStrictEqual(r, { ok: true, already: false, granted: true, tickets: 25 });
         const st = s.db.store;
         assert.strictEqual(st.get('users/u1').orangeTickets, 35);
         assert.ok(st.get('users/u1')[survey.USER_DONE_FIELD]);
@@ -240,7 +254,7 @@ async function rejects(p, code) {
         assert.strictEqual(results.filter(function (r) { return r.tickets === 25; }).length, 1);
         assert.strictEqual(results.filter(function (r) { return r.already === true; }).length, 2);
         const again = await s.call({ surveyId: survey.SURVEY_ID, variant: 'lapsed', answers: { q1: 'x' } }, ctx('u2'));
-        assert.deepStrictEqual(again, { ok: true, already: true, tickets: 0 });
+        assert.deepStrictEqual(again, { ok: true, already: true, granted: true, tickets: 0 });
         assert.strictEqual(s.db.store.get('users/u2').orangeTickets, 25);
         assert.strictEqual(s.db.store.get('survey_responses/u2').variant, 'full');
         const audits = Array.from(s.db.store.keys()).filter(function (k) { return k.indexOf('survey_audit/') === 0; });
@@ -254,6 +268,102 @@ async function rejects(p, code) {
         const r = await s.call(goodFull, ctx('u3'));
         assert.strictEqual(r.already, true);
         assert.strictEqual(s.db.store.get('users/u3').orangeTickets, 3);
+    });
+
+    await test('a fresh account (created after openedAt) gets its answers saved but no OrangeTix', async function () {
+        const fresh = { disabled: false, metadata: { creationTime: new Date(Date.parse('2026-11-14T18:00:01Z')).toUTCString() } };
+        const s = setup({ 'users/new1': user({ orangeTickets: 0 }) }, null, { new1: fresh });
+        const r = await s.call(goodFull, ctx('new1'));
+        assert.deepStrictEqual(r, { ok: true, already: false, granted: false, reason: 'account_too_new', tickets: 0 });
+        const st = s.db.store;
+        assert.strictEqual(st.get('users/new1').orangeTickets, 0);
+        assert.ok(st.get('users/new1')[survey.USER_DONE_FIELD]);
+        const resp = st.get('survey_responses/new1');
+        assert.strictEqual(resp.answers.q3, 'Wheel errors');
+        assert.strictEqual(resp.granted, false);
+        assert.strictEqual(resp.noGrantReason, 'account_too_new');
+        assert.ok(!st.has('users/new1/award_claims/' + survey.CLAIM_ID));
+        const audits = Array.from(st.keys()).filter(function (k) { return k.indexOf('survey_audit/') === 0; }).map(function (k) { return st.get(k); });
+        assert.strictEqual(audits.length, 1);
+        assert.strictEqual(audits[0].action, 'survey_response_no_grant');
+        assert.strictEqual(audits[0].tickets, 0);
+        // A repeat stays a no-op.
+        const again = await s.call(goodFull, ctx('new1'));
+        assert.deepStrictEqual(again, { ok: true, already: true, granted: false, tickets: 0 });
+        assert.strictEqual(st.get('users/new1').orangeTickets, 0);
+        // config/survey.openedAt moves the cutoff.
+        const s2 = setup({ 'users/new1': user({ orangeTickets: 0 }), 'config/survey': { openedAt: Date.parse('2026-12-01T00:00:00Z') } }, Date.parse('2026-12-02T00:00:00Z'), { new1: fresh });
+        const r2 = await s2.call(goodFull, ctx('new1'));
+        assert.strictEqual(r2.granted, true);
+        assert.strictEqual(s2.db.store.get('users/new1').orangeTickets, 25);
+        // No creation time at all is treated as new.
+        assert.strictEqual(survey.grantBlockReason({ metadata: {} }, {}, survey.OPENED_AT_DEFAULT_MS, { configured: true, docs: [] }), 'account_too_new');
+    });
+
+    await test('disabled, merged, deleted and re-created accounts get no grant', async function () {
+        const cases = [
+            ['d1', {}, { disabled: true, metadata: OLD_AUTH.metadata }, 'account_disabled'],
+            ['d2', { disabled: true }, OLD_AUTH, 'account_disabled'],
+            ['m1', { mergedInto: 'someoneElse' }, OLD_AUTH, 'account_merged'],
+            ['x1', { deletedAt: 123 }, OLD_AUTH, 'account_deleted'],
+            ['x2', { deleted: true }, OLD_AUTH, 'account_deleted'],
+            ['x3', {}, null, 'account_deleted'],
+        ];
+        // Re-created account: its verified email matches a deleted_accounts tombstone.
+        const again = Object.assign({}, OLD_AUTH, { email: 'Gone@Example.test' });
+        const tombId = tombstone.emailHmac('gone@example.test');
+        assert.ok(/^[a-f0-9]{64}$/.test(tombId));
+        const seedR = { 'users/r1': user({ orangeTickets: 4 }) };
+        seedR['deleted_accounts/' + tombId] = { deletedAt: 1, ageDays: 40 };
+        const sr = setup(seedR, null, { r1: again });
+        const rr = await sr.call(goodFull, ctx('r1'));
+        assert.deepStrictEqual(rr, { ok: true, already: false, granted: false, reason: 'account_recreated', tickets: 0 });
+        assert.strictEqual(sr.db.store.get('users/r1').orangeTickets, 4);
+        assert.ok(sr.db.store.has('survey_responses/r1'));
+        // A different email with no tombstone is still paid.
+        const so = setup(seedR, null, { r1: OLD_AUTH });
+        assert.strictEqual((await so.call(goodFull, ctx('r1'))).granted, true);
+        // Tombstone secret missing: fail closed (answers saved, no grant).
+        const saved = process.env.DELETION_HMAC_SECRET;
+        delete process.env.DELETION_HMAC_SECRET;
+        try {
+            const su = setup({ 'users/s1': user({ orangeTickets: 4 }) });
+            const ru = await su.call(goodFull, ctx('s1'));
+            assert.strictEqual(ru.granted, false);
+            assert.strictEqual(ru.reason, 'identity_check_unavailable');
+            assert.strictEqual(su.db.store.get('users/s1').orangeTickets, 4);
+        } finally { process.env.DELETION_HMAC_SECRET = saved; }
+        for (let i = 0; i < cases.length; i++) {
+            const c = cases[i];
+            const seed = {}; seed['users/' + c[0]] = user(Object.assign({ orangeTickets: 4 }, c[1]));
+            const auth = {}; auth[c[0]] = c[2];
+            const s = setup(seed, null, auth);
+            const r = await s.call(goodFull, ctx(c[0]));
+            assert.deepStrictEqual(r, { ok: true, already: false, granted: false, reason: c[3], tickets: 0 }, c[0]);
+            assert.strictEqual(s.db.store.get('users/' + c[0]).orangeTickets, 4, c[0]);
+            assert.ok(s.db.store.has('survey_responses/' + c[0]), c[0]);
+            assert.ok(!s.db.store.has('users/' + c[0] + '/award_claims/' + survey.CLAIM_ID), c[0]);
+        }
+    });
+
+    await test('client shows a neutral thank-you and no reward promise for ineligible accounts', function () {
+        const clientSrc = fs.readFileSync(path.join(root, 'survey.js'), 'utf8');
+        assert.ok(clientSrc.indexOf("var DONE_PLAIN = 'Thanks! Your answers are saved.';") !== -1);
+        assert.ok(/d\.granted === false \|\| !d\.tickets\) showDone\(card, DONE_PLAIN\)/.test(clientSrc));
+        assert.ok(/rewardShown\(\) \? SURVEY_BANNER : SURVEY_BANNER_PLAIN/.test(clientSrc));
+        assert.ok(/rewardShown\(\) \? SURVEY_INTRO : SURVEY_INTRO_PLAIN/.test(clientSrc));
+        ['SURVEY_BANNER_PLAIN', 'SURVEY_INTRO_PLAIN', 'DONE_PLAIN'].forEach(function (k) {
+            const m = clientSrc.match(new RegExp('var ' + k + " = '([^']*)'"));
+            assert.ok(m && !/OrangeTix|\u2014/.test(m[1]), k);
+        });
+        const server = fs.readFileSync(path.join(root, 'functions/src/survey.js'), 'utf8');
+        assert.ok(/must render them as plain text only/.test(server));
+    });
+
+    await test('account deletion removes survey_responses/{uid} but keeps survey_audit', function () {
+        const del = fs.readFileSync(path.join(root, 'functions/src/deleteAccount.js'), 'utf8');
+        assert.ok(/\['survey_responses', uid, \[\]\]/.test(del));
+        assert.ok(del.indexOf('survey_audit') === -1 || !/deleteWhere\(db, batcher, 'survey_audit'/.test(del));
     });
 
     await test('closed after the kill switch flips: no response, no tickets', async function () {
