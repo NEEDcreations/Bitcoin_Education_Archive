@@ -12,6 +12,161 @@ var MAX_MSGS_DISPLAY = 100; // Fetch from Firestore
 // Telegram forwarding is the server onCreate mirror. The client does not post.
 var CHAT_INITIAL_SHOW = 20; // Render initially (reduced to save Firestore reads)
 var CHAT_LOAD_MORE_COUNT = 20; // Per "load more" batch
+
+// ---- Chat scroll helpers (keep history + don't yank the viewport) ----
+var CHAT_STICK_PX = 80;
+var _chatJustSent = false;
+var _chatNewMsgCount = 0;
+
+function chatMsgTime(m) {
+    if (!m || m.ts == null) return 0;
+    if (typeof m.ts.toMillis === 'function') return m.ts.toMillis();
+    if (typeof m.ts.toDate === 'function') return m.ts.toDate().getTime();
+    if (typeof m.ts === 'number') return m.ts;
+    var t = new Date(m.ts).getTime();
+    return isNaN(t) ? 0 : t;
+}
+
+function chatDistanceFromBottom(el) {
+    if (!el) return 0;
+    return el.scrollHeight - el.scrollTop - el.clientHeight;
+}
+
+// Stick to the newest message only on first paint, after the user sends,
+// or when they are already within CHAT_STICK_PX of the bottom.
+function chatShouldStickToBottom(distanceFromBottom, opts) {
+    opts = opts || {};
+    if (opts.justSent) return true;
+    if (opts.firstPaint) return true;
+    var thresh = opts.threshold == null ? CHAT_STICK_PX : opts.threshold;
+    return distanceFromBottom <= thresh;
+}
+
+function chatRestoreScrollFromBottom(el, fromBottom) {
+    if (!el) return;
+    el.scrollTop = Math.max(0, el.scrollHeight - el.clientHeight - fromBottom);
+}
+
+function chatRestoreAfterPrepend(el, prevHeight, prevTop) {
+    if (!el) return;
+    el.scrollTop = Math.max(0, el.scrollHeight - prevHeight + prevTop);
+}
+
+// Incoming (the live limitToLast window) is source of truth from its
+// oldest timestamp onward. Existing messages older than that window are
+// kept so a lazy-load is not wiped when a new snapshot arrives.
+function chatMergeLiveSnapshot(existing, incoming) {
+    existing = existing || [];
+    incoming = incoming || [];
+    if (!existing.length) return incoming.slice();
+    if (!incoming.length) return existing.slice();
+    var incomingIds = {};
+    var oldestIncoming = Infinity;
+    for (var i = 0; i < incoming.length; i++) {
+        if (incoming[i] && incoming[i]._id) incomingIds[incoming[i]._id] = true;
+        var t = chatMsgTime(incoming[i]);
+        if (t && t < oldestIncoming) oldestIncoming = t;
+    }
+    var kept = [];
+    for (var j = 0; j < existing.length; j++) {
+        var m = existing[j];
+        if (!m || !m._id || incomingIds[m._id]) continue;
+        var et = chatMsgTime(m);
+        if (!et || et < oldestIncoming) kept.push(m);
+    }
+    var merged = kept.concat(incoming);
+    merged.sort(function(a, b) {
+        var ta = chatMsgTime(a), tb = chatMsgTime(b);
+        if (ta !== tb) return ta - tb;
+        return String(a._id || '').localeCompare(String(b._id || ''));
+    });
+    return merged;
+}
+
+function chatAdjustShowCount(prevCount, prevLen, newLen) {
+    var added = Math.max(0, newLen - prevLen);
+    var show = prevCount || 0;
+    if (show < CHAT_INITIAL_SHOW) show = CHAT_INITIAL_SHOW;
+    // Only grow the visible window when the user already loaded earlier
+    // history. An unexpanded view stays at CHAT_INITIAL_SHOW.
+    if (added && show > CHAT_INITIAL_SHOW && show >= prevLen) show += added;
+    return Math.min(show, newLen);
+}
+
+function chatCapUnexpanded(merged, showCount) {
+    merged = merged || [];
+    if ((showCount || 0) > CHAT_INITIAL_SHOW) return merged;
+    if (merged.length <= CHAT_INITIAL_SHOW) return merged;
+    return merged.slice(merged.length - CHAT_INITIAL_SHOW);
+}
+
+function chatCountNewAtEnd(prevLastId, visibleMsgs) {
+    if (!prevLastId || !visibleMsgs || !visibleMsgs.length) return 0;
+    var idx = -1;
+    for (var i = 0; i < visibleMsgs.length; i++) {
+        if (visibleMsgs[i] && visibleMsgs[i]._id === prevLastId) { idx = i; break; }
+    }
+    if (idx === -1) return 0;
+    return visibleMsgs.length - idx - 1;
+}
+
+function hideChatNewMsgPill() {
+    _chatNewMsgCount = 0;
+    var pill = document.getElementById('chatNewMsgPill');
+    if (pill) pill.style.display = 'none';
+}
+
+function showChatNewMsgPill(n) {
+    var pill = document.getElementById('chatNewMsgPill');
+    if (!pill) return;
+    pill.textContent = n > 1 ? (n + ' new messages ↓') : 'New messages ↓';
+    pill.style.display = 'block';
+}
+
+window._jumpToLatestChatMsgs = function() {
+    var el = document.getElementById('globalChatMessages');
+    if (el) el.scrollTop = el.scrollHeight;
+    hideChatNewMsgPill();
+};
+
+function bindChatMediaScroll(el, stick) {
+    if (!el) return;
+    var media = el.querySelectorAll('img, video');
+    for (var i = 0; i < media.length; i++) {
+        (function(node) {
+            if (node._chatScrollBound) return;
+            node._chatScrollBound = true;
+            var prevH = node.offsetHeight || 0;
+            var onReady = function() {
+                var newH = node.offsetHeight || 0;
+                var delta = newH - prevH;
+                prevH = newH;
+                if (!delta) return;
+                if (stick || chatShouldStickToBottom(chatDistanceFromBottom(el), { threshold: CHAT_STICK_PX })) {
+                    el.scrollTop = el.scrollHeight;
+                } else if (node.offsetTop < el.scrollTop) {
+                    el.scrollTop += delta;
+                }
+            };
+            node.addEventListener('load', onReady);
+            if (node.tagName === 'VIDEO') node.addEventListener('loadedmetadata', onReady);
+        })(media[i]);
+    }
+}
+
+window._chatScroll = {
+    STICK_PX: CHAT_STICK_PX,
+    distanceFromBottom: chatDistanceFromBottom,
+    shouldStickToBottom: chatShouldStickToBottom,
+    restoreFromBottom: chatRestoreScrollFromBottom,
+    restoreAfterPrepend: chatRestoreAfterPrepend,
+    mergeLiveSnapshot: chatMergeLiveSnapshot,
+    adjustShowCount: chatAdjustShowCount,
+    capUnexpanded: chatCapUnexpanded,
+    countNewAtEnd: chatCountNewAtEnd
+};
+// ---- Chat scroll helpers end ----
+
 var _chatUnsub = null;
 var _annUnsub = null; // announcements live listener
 
@@ -447,8 +602,11 @@ function renderGlobalChat() {
     var hasUsername = typeof currentUser !== 'undefined' && currentUser && currentUser.username;
 
     content.innerHTML =
+        '<div id="globalChatScrollWrap" style="position:relative;flex:1;min-height:0;display:flex;flex-direction:column;">' +
         '<div id="globalChatMessages" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 16px;display:flex;flex-direction:column;gap:6px;min-height:0;">' +
             '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.75rem;">Loading chat...</div>' +
+        '</div>' +
+        '<button type="button" id="chatNewMsgPill" onclick="window._jumpToLatestChatMsgs()" aria-label="Jump to new messages" style="display:none;position:absolute;left:50%;transform:translateX(-50%);bottom:8px;z-index:8;padding:6px 12px;border:none;border-radius:20px;background:var(--accent);color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,0.35);white-space:nowrap;">New messages ↓</button>' +
         '</div>' +
         '<div style="flex-shrink:0;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg-side);">' +
             (hasUsername ?
@@ -525,6 +683,10 @@ function startChatListener() {
     }
 
     window._chatShowCount = 0; // Reset on fresh load
+    window._chatAllMsgs = [];
+    window._chatReachedBeginning = false;
+    _chatJustSent = false;
+    _chatNewMsgCount = 0;
     _startPinListener(); // start pin banner listener
     // Use orderBy('ts','asc') + limitToLast(N) so Firestore returns the N most recent
     // messages in chronological order (oldest first, newest last). This means:
@@ -543,7 +705,16 @@ function startChatListener() {
                 msgs.push(d);
             });
             // msgs is already oldest→newest — no reverse needed
-            renderChatMessages(msgs);
+            // Merge into any already-loaded earlier messages. Replacing
+            // with this limitToLast(20) window used to wipe history and
+            // yank the user back to the newest messages.
+            var prev = window._chatAllMsgs || [];
+            var prevLen = prev.length;
+            var prevCount = window._chatShowCount || 0;
+            var merged = chatMergeLiveSnapshot(prev, msgs);
+            window._chatShowCount = chatAdjustShowCount(prevCount, prevLen, merged.length);
+            merged = chatCapUnexpanded(merged, window._chatShowCount);
+            renderChatMessages(merged);
         }, function(err) {
             // Fallback: query without the isNachoAuto filter (index may not exist yet)
             console.warn('[CHAT] Filtered query failed, falling back:', err.message);
@@ -559,7 +730,13 @@ function startChatListener() {
                         if (!d.isNachoAuto) msgs.push(d);
                     });
                     // already oldest→newest
-                    renderChatMessages(msgs);
+                    var prev = window._chatAllMsgs || [];
+                    var prevLen = prev.length;
+                    var prevCount = window._chatShowCount || 0;
+                    var merged = chatMergeLiveSnapshot(prev, msgs);
+                    window._chatShowCount = chatAdjustShowCount(prevCount, prevLen, merged.length);
+                    merged = chatCapUnexpanded(merged, window._chatShowCount);
+                    renderChatMessages(merged);
                 }, function(err2) {
                     console.error('[CHAT] Listener error:', err2);
                     var el = document.getElementById('globalChatMessages');
@@ -589,7 +766,15 @@ function renderChatMessages(msgs) {
 
     var myUid = (typeof auth !== 'undefined' && auth && auth.currentUser) ? auth.currentUser.uid : null;
     var isAdmin = myUid && window._isAdminClaim === true;
-    var wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 150;
+    var fromBottom = chatDistanceFromBottom(el);
+    var justSent = !!_chatJustSent;
+    _chatJustSent = false;
+    var stick = chatShouldStickToBottom(fromBottom, {
+        justSent: justSent,
+        firstPaint: !el._userScrolled,
+        threshold: CHAT_STICK_PX
+    });
+    var prevLastId = el._lastMsgId || null;
 
     if (msgs.length === 0) {
         el.innerHTML = '<div style="text-align:center;padding:40px 20px;"><div style="font-size:2rem;margin-bottom:8px;">🌍</div><div style="color:var(--text-muted);font-size:0.85rem;">No messages yet. Be the first to say something!</div></div>';
@@ -710,22 +895,36 @@ function renderChatMessages(msgs) {
     // Preserve pinned banner across re-renders
     var _savedBanner = document.getElementById('chatPinnedBanner');
     if (_savedBanner) _savedBanner.remove();
+    // innerHTML resets scrollTop to 0, which can also fire a scroll
+    // listener and auto-load earlier messages. Lock that out, then
+    // restore the same distance from the bottom (works for append and
+    // prepend) unless we should stick to the newest message.
+    el._applyingScroll = true;
     el.innerHTML = html;
     if (_savedBanner) el.insertBefore(_savedBanner, el.firstChild);
-
-    // Auto-scroll to bottom if user was near bottom
-    if (wasAtBottom) {
-        setTimeout(function() { el.scrollTop = el.scrollHeight; }, 50);
+    el._lastMsgId = visibleMsgs.length ? visibleMsgs[visibleMsgs.length - 1]._id : null;
+    if (stick) {
+        el.scrollTop = el.scrollHeight;
+        hideChatNewMsgPill();
+    } else {
+        chatRestoreScrollFromBottom(el, fromBottom);
+        var arrived = chatCountNewAtEnd(prevLastId, visibleMsgs);
+        if (arrived > 0) {
+            _chatNewMsgCount += arrived;
+            showChatNewMsgPill(_chatNewMsgCount);
+        }
     }
-    // Always scroll to bottom on first render (no user scroll yet)
-    if (!el._userScrolled) {
-        setTimeout(function() { el.scrollTop = el.scrollHeight; }, 100);
-    }
+    bindChatMediaScroll(el, stick);
+    requestAnimationFrame(function() { el._applyingScroll = false; });
     if (!el._scrollListenerAdded) {
         el._scrollListenerAdded = true;
         el._loadingMore = false;
         el.addEventListener('scroll', function() {
+            if (el._applyingScroll) return;
             el._userScrolled = true;
+            if (chatShouldStickToBottom(chatDistanceFromBottom(el), { threshold: CHAT_STICK_PX })) {
+                hideChatNewMsgPill();
+            }
             // Auto-load earlier messages when scrolled near top
             if (el.scrollTop < 80 && !el._loadingMore && !window._chatReachedBeginning && typeof loadEarlierMessages === 'function') {
                 var btn = document.getElementById('chatLoadMore');
@@ -747,7 +946,6 @@ window.loadEarlierMessages = function() {
     var oldest = window._chatAllMsgs[0];
     if (!oldest || !oldest.ts) return Promise.resolve();
     var el = document.getElementById('globalChatMessages');
-    var oldHeight = el ? el.scrollHeight : 0;
 
     // With asc ordering + limitToLast, "earlier" messages are those BEFORE the oldest
     // we currently have. Use endBefore(oldest.ts) + limitToLast to page backward.
@@ -763,16 +961,15 @@ window.loadEarlierMessages = function() {
                 older.push(d);
             });
             // snap is already oldest→newest — no reverse needed
+            var have = {};
+            (window._chatAllMsgs || []).forEach(function(m) { if (m && m._id) have[m._id] = true; });
+            older = older.filter(function(m) { return m && m._id && !have[m._id]; });
             if (older.length > 0) {
+                // renderChatMessages restores the same distance from the
+                // bottom, so the message that was on screen stays put.
                 window._chatAllMsgs = older.concat(window._chatAllMsgs);
                 window._chatShowCount = window._chatAllMsgs.length;
                 renderChatMessages(window._chatAllMsgs);
-                // Preserve scroll position
-                if (el) {
-                    setTimeout(function() {
-                        el.scrollTop = el.scrollHeight - oldHeight;
-                    }, 50);
-                }
             } else {
                 window._chatReachedBeginning = true;
                 if (btn) btn.innerHTML = '— Beginning of chat —';
@@ -1344,6 +1541,7 @@ window.sendGlobalChat = function() {
         var counter = _gcActiveEl('globalChatCharCount');
         if (counter) counter.textContent = '0';
         document.querySelectorAll('#chatImagePreview').forEach(function(el) { el.remove(); });
+        _chatJustSent = true;
         if (isGif) { sendGifMessage(imgData, caption); } else { sendImageMessage(imgData, caption, imgBlob, imgType); }
         return;
     }
@@ -1471,6 +1669,7 @@ window.sendGlobalChat = function() {
         msgData.hasFactionChampion = true;
         if (typeof currentUser.factionChampionFlair === 'string') msgData.factionRaceFlair = currentUser.factionChampionFlair;
     }
+    _chatJustSent = true;
     sendWithFreshUsername(function(name) {
         msgData.name = name;
         username = name;
@@ -1492,6 +1691,7 @@ window.sendGlobalChat = function() {
             _awardChatMessageXp(docRef.id);
         }
     }, function(err) {
+        _chatJustSent = false;
         console.error('[CHAT] Send error:', err);
         // Restore button and return text to input so user can retry
         var _sb = document.getElementById('gcSendBtn');
@@ -2122,8 +2322,11 @@ function renderOverlayChat() {
     }
 
     body.innerHTML = tabHtml +
+        '<div id="globalChatScrollWrap" style="position:relative;flex:1;min-height:0;display:flex;flex-direction:column;">' +
         '<div id="globalChatMessages" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 14px;display:flex;flex-direction:column;gap:6px;min-height:0;">' +
             '<div style="text-align:center;padding:20px;color:var(--text-faint);font-size:0.75rem;">Loading chat...</div>' +
+        '</div>' +
+        '<button type="button" id="chatNewMsgPill" onclick="window._jumpToLatestChatMsgs()" aria-label="Jump to new messages" style="display:none;position:absolute;left:50%;transform:translateX(-50%);bottom:8px;z-index:8;padding:6px 12px;border:none;border-radius:20px;background:var(--accent);color:#fff;font-size:0.75rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 2px 8px rgba(0,0,0,0.35);white-space:nowrap;">New messages ↓</button>' +
         '</div>' +
         '<div style="flex-shrink:0;padding:8px 14px;border-top:1px solid var(--border);background:var(--bg-side);">' +
             (hasUsername ?
@@ -2586,6 +2789,7 @@ window.sendGifMessage = function(url, caption) {
         if (banner) banner.style.display = 'none';
     }
 
+    _chatJustSent = true;
     sendWithFreshUsername(function(name) {
         msgData.name = name;
         username = name;
@@ -2968,6 +3172,7 @@ function sendImageMessage(dataUrl, caption, imgBlob, imgType) {
                 msgData.replyToText = replyCopy.text;
             }
 
+            _chatJustSent = true;
             return sendWithFreshUsername(function(name) {
                 msgData.name = name;
                 username = name;
