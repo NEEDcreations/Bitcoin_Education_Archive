@@ -3,7 +3,7 @@
 POST /api/waitlist for the static page /waitlist (waitlist.html + waitlist.js).
 Firebase-free, so it keeps working while the app kill switch is on.
 
-- Stores {email lowercased, created_at, source:'waitlist', consent:1, substack_status, optional ref, optional src} in D1 `bq-waitlist`. No IP, user agent, or referrer stored. `ref` (`[A-Za-z0-9]{4,16}`) and `src` (`[a-z0-9-]{1,32}`) come from the /waitlist URL, are checked again in the Worker, and are dropped (not rejected) when they do not match. A later signup for the same email keeps the first `src` and `ref`.
+- Stores {email lowercased, created_at, source:'waitlist', consent:1, substack_status, optional ref, optional src} in D1 `bq-waitlist`. No IP, user agent, or referrer stored. `ref` (`[A-Za-z0-9]{4,16}`) and `src` (`^[a-z0-9][a-z0-9-]{0,31}$`) come from the /waitlist URL, are checked again in the Worker, and are dropped (not rejected) when they do not match. A later signup for the same email keeps the first `src` and `ref`.
 - Existing D1 databases need `migrations/0001_add_ref_src.sql` (ALTER TABLE ADD COLUMN only). Apply that migration before deploying this Worker, then ship the page. Never apply it to live without Phil's OK.
 - After a successful save, the page (waitlist.js) subscribes the visitor on Substack from their own browser, with a hidden form POST to `https://603btc.substack.com/api/v1/free?nojs=true`. The Worker does not POST to Substack (their WAF returned 403 on server-side forwards). New rows get `substack_status=browser`. Older `error_*` rows are updated to `browser` on a later successful submit so the page can subscribe them.
 - Turnstile: existing site key 0x4AAAAAAD-ivgpRkbXpgz86; needs `TURNSTILE_SECRET_KEY` as a Worker secret. Without it the endpoint fails closed (503).

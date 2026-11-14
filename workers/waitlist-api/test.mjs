@@ -133,7 +133,7 @@ ok(badRefOk, 'invalid ref values become null; signup and src still succeed');
 const badSrcs = [
   '', 'SUB-1201', 'sub_1201', 'sub.1201', 'sub 1201', 'a'.repeat(33),
   "sub-1201'; DROP TABLE waitlist;--", '../etc/passwd', 'https://evil.example',
-  'sub-1201\x00x', '<img>', 'src=foo'
+  'sub-1201\x00x', '<img>', 'src=foo', '-dash', '-', '--foo'
 ];
 let badSrcOk = true;
 for (let i = 0; i < badSrcs.length; i++) {
@@ -143,6 +143,10 @@ for (let i = 0; i < badSrcs.length; i++) {
   if (!(r.status === 200 && row && row.ref === 's2rP0nRE' && row.src == null)) badSrcOk = false;
 }
 ok(badSrcOk, 'invalid src values become null; signup and ref still succeed');
+
+r = await post(mf, { email: 'leaddash@example.com', consent: 'on', 'cf-turnstile-response': 'good', ref: 's2rP0nRE', src: '-sub-1201' }, { ip: '10.0.9.1' });
+row = await db.prepare('SELECT * FROM waitlist WHERE email=?').bind('leaddash@example.com').first();
+ok(r.status === 200 && row && row.ref === 's2rP0nRE' && row.src == null, 'leading-dash src is stored as null and does not block signup');
 
 const dropped = await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='waitlist'").first();
 ok(dropped && dropped.name === 'waitlist', 'injection attempts did not drop the waitlist table');
@@ -323,11 +327,11 @@ ok(pageJs.includes("show('ok')") && /revealSubstack/.test(pageJs) && !/api\/v1\/
 ok(/getResponse/.test(pageJs) && /if \(!token\) \{ show\('check'\); return; \}/.test(pageJs), 'page refuses to POST without a Turnstile token');
 ok(/code === 'email'\) show\('err'\)/.test(pageJs) && /code === 'challenge'\) show\('check'\)/.test(pageJs), 'only an email error shows the bad-email copy; a challenge error shows the check copy');
 ok(/sessionStorage/.test(pageJs) && /location\.search/.test(pageJs) && /wl_/.test(pageJs), 'page reads ref/src from the query string and keeps them in sessionStorage');
-ok(/\[A-Za-z0-9\]\{4,16\}/.test(pageJs) && /\[a-z0-9-\]\{1,32\}/.test(pageJs), 'page validates ref and src with the same strict patterns as the Worker');
+ok(/\[A-Za-z0-9\]\{4,16\}/.test(pageJs) && /\[a-z0-9\]\[a-z0-9-\]\{0,31\}/.test(pageJs), 'page validates ref and src with the same strict patterns as the Worker');
 ok(/body\.set\('ref'/.test(pageJs) && /body\.set\('src'/.test(pageJs), 'page sends ref and src with the form POST');
 
 ok(normalizeRef('s2rP0nRE') === 's2rP0nRE' && normalizeRef('  Ab12  ') === 'Ab12' && normalizeRef('abc') === null && normalizeRef("s2r';DROP") === null && normalizeRef(1234) === null, 'normalizeRef accepts [A-Za-z0-9]{4,16} and drops the rest');
-ok(normalizeSrc('sub-1201') === 'sub-1201' && normalizeSrc('x') === 'x' && normalizeSrc('SUB-1201') === null && normalizeSrc('a'.repeat(33)) === null && normalizeSrc("sub';DROP") === null, 'normalizeSrc accepts [a-z0-9-]{1,32} and drops the rest');
+ok(normalizeSrc('sub-1201') === 'sub-1201' && normalizeSrc('x') === 'x' && normalizeSrc('a-ok') === 'a-ok' && normalizeSrc('SUB-1201') === null && normalizeSrc('a'.repeat(33)) === null && normalizeSrc("sub';DROP") === null && normalizeSrc('-dash') === null && normalizeSrc('-') === null, 'normalizeSrc accepts ^[a-z0-9][a-z0-9-]{0,31}$ and drops a leading dash or anything else');
 
 const migration = readFileSync(join(here, 'migrations/0001_add_ref_src.sql'), 'utf8');
 ok(/ALTER TABLE waitlist ADD COLUMN ref TEXT/.test(migration) && /ALTER TABLE waitlist ADD COLUMN src TEXT/.test(migration) && !/DROP TABLE|CREATE TABLE waitlist/i.test(migration), 'migration only adds nullable ref and src columns');

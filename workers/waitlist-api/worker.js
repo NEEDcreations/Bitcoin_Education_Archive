@@ -36,8 +36,9 @@ export function normalizeEmail(raw) {
 }
 
 // Campaign tags from /waitlist?ref=&src=. Anything that does not match is dropped, not rejected.
+// src must start with a letter or number so a leading '-' cannot be treated as a spreadsheet formula if the table is ever exported.
 const REF_RE = /^[A-Za-z0-9]{4,16}$/;
-const SRC_RE = /^[a-z0-9-]{1,32}$/;
+const SRC_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
 
 export function normalizeRef(raw) {
     if (typeof raw !== 'string') return null;

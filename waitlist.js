@@ -33,7 +33,7 @@
 
   // Keep strictly validated ref/src from the landing URL across a reload.
   var REF_RE = /^[A-Za-z0-9]{4,16}$/;
-  var SRC_RE = /^[a-z0-9-]{1,32}$/;
+  var SRC_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
   function readTag(key, re) {
     var fromUrl = params.get(key);
     if (fromUrl && re.test(fromUrl)) {
