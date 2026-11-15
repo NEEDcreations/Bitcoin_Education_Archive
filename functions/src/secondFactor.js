@@ -830,13 +830,15 @@ function initSecondFactor(deps) {
         return db.collection('totp_rate_limits').doc(uid + '_day_killswitch_on');
     }
 
-    function writeGuessWindow(tx, ref, attempts, windowStart, uid) {
-        tx.set(ref, {
+    function writeGuessWindow(tx, ref, attempts, windowStart, uid, extra) {
+        const row = {
             uid: uid,
             attempts: attempts,
             windowStartMs: windowStart,
             expireAt: new Date(windowStart + RATE_WINDOW_MS),
-        });
+        };
+        if (extra && extra.cappedLogged) row.cappedLogged = true;
+        tx.set(ref, row);
     }
 
     function writeGuessDay(tx, ref, failed, failStart, uid) {
@@ -874,21 +876,37 @@ function initSecondFactor(deps) {
             // cap instead. The 2-minute window still applies. Every other
             // action keeps the 20/day cap (Spam/Abuse #325 MED1, Red Team
             // #325 S2, Spam/Abuse OFF follow-up).
+            let limited = '';
             if (skipDailyCap) {
                 const onRow = (onDaySnap && onDaySnap.exists) ? (onDaySnap.data() || {}) : {};
                 const onDay = guessDay(onRow, nowMs);
-                if (onDay.failed >= ON_DAILY_FAIL_MAX) return { limited: 'on-day' };
+                if (onDay.failed >= ON_DAILY_FAIL_MAX) limited = 'on-day';
             } else if (day.failed >= DAILY_FAIL_MAX) {
-                return { limited: 'day' };
+                limited = 'day';
             }
-            if (win.attempts >= RATE_MAX) return { limited: 'window' };
-            writeGuessWindow(tx, ref, win.attempts + 1, win.windowStart, uid);
-            return { limited: '' };
+            if (!limited && win.attempts >= RATE_MAX) limited = 'window';
+            // Always charge the 2-minute window, including after a daily cap,
+            // so a capped account cannot retry for free. Write at most one
+            // capped audit row per uid per window (Red Team #325 L2).
+            const alreadyLogged = win.attempts > 0 && row.cappedLogged === true;
+            const logCapped = !!limited && !alreadyLogged;
+            writeGuessWindow(tx, ref, win.attempts + 1, win.windowStart, uid, {
+                cappedLogged: alreadyLogged || logCapped,
+            });
+            return { limited: limited, logCapped: logCapped };
         });
         if (result.limited === 'day' || result.limited === 'on-day') {
-            throw httpError('resource-exhausted', 'Too many attempts. Try again tomorrow.', { reason: result.limited === 'on-day' ? 'on-day-cap' : 'day-cap' });
+            throw httpError('resource-exhausted', 'Too many attempts. Try again tomorrow.', {
+                reason: result.limited === 'on-day' ? 'on-day-cap' : 'day-cap',
+                logCapped: !!result.logCapped,
+            });
         }
-        if (result.limited) throw httpError('resource-exhausted', 'Too many attempts. Wait 2 minutes.', { reason: 'window' });
+        if (result.limited) {
+            throw httpError('resource-exhausted', 'Too many attempts. Wait 2 minutes.', {
+                reason: 'window',
+                logCapped: !!result.logCapped,
+            });
+        }
     }
 
     async function recordTotpGuessFailure(uid, nowMs) {
@@ -975,8 +993,10 @@ function initSecondFactor(deps) {
         try {
             await chargeTotpGuess(uid, nowMs, opts);
         } catch (e) {
-            if (skipDailyCap) {
-                const reason = (e && e.details && e.details.reason) || (e && e.code) || 'rate-limited';
+            // At most one capped audit row per uid per 2-minute window
+            // (Red Team #325 L2). Invalid/replay failures still log separately.
+            if (skipDailyCap && e && e.details && e.details.logCapped === true) {
+                const reason = (e.details && e.details.reason) || (e && e.code) || 'rate-limited';
                 await logAdminTool({
                     action: 'admin_killswitch_on_step_up_failed',
                     adminUid: uid,
