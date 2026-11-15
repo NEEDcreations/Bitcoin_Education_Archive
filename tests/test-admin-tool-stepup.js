@@ -367,14 +367,15 @@ function settle(promise, ms) {
         assert.strictEqual(ok.success, true);
     });
 
-    await test('QA: IPv4 is keyed by the full address, so one /24 does not share the network limit', async function () {
+    await test('L3: bad codes from different addresses in one IPv4 /24 share the network limit', async function () {
         NOW = T0;
         const { api } = setup();
         for (let i = 0; i < NETWORK_RATE_MAX; i++) {
             await expectErr(api.totpStepUp.run({ tool: 'forum', code: '000000' }, ctx('adminY' + i, null, '192.0.2.' + (10 + i))), 'failed-precondition');
         }
-        // A different address in the same /24 keeps its own bucket.
-        const ok = await api.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '192.0.2.200'));
+        await expectErr(api.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '192.0.2.200')), 'resource-exhausted');
+        // A different /24 has its own bucket.
+        const ok = await api.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '198.51.100.200'));
         assert.strictEqual(ok.success, true);
         NOW = T0;
         const { api: api2 } = setup();
@@ -382,8 +383,9 @@ function settle(promise, ms) {
             await expectErr(api2.totpStepUp.run({ tool: 'forum', code: '000000' }, ctx('adminY' + i, null, '192.0.2.10')), 'failed-precondition');
         }
         await expectErr(api2.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '192.0.2.10')), 'resource-exhausted');
-        const other = await api2.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '192.0.2.11'));
-        assert.strictEqual(other.success, true, 'a neighbor in the same /24 is not blocked');
+        await expectErr(api2.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '192.0.2.11')), 'resource-exhausted');
+        const otherNet = await api2.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '198.51.100.11'));
+        assert.strictEqual(otherNet.success, true, 'a different IPv4 /24 is not blocked');
     });
 
     await test('F3: an empty IP skips the network limit (no shared unknown bucket), notes it in the audit row', async function () {
@@ -409,7 +411,7 @@ function settle(promise, ms) {
         NOW = T0;
     });
 
-    await test('QA: source keys IPv6 by /64 and IPv4 by the full address from one trusted source on both paths', function () {
+    await test('QA: source keys IPv6 by /64 and IPv4 by /24 from one trusted source on both paths', function () {
         const src = fs.readFileSync(path.join(fnRoot, 'src', 'secondFactor.js'), 'utf8');
         const keyFn = src.slice(src.indexOf('function stepUpNetworkKey'), src.indexOf('const RECOVERY_COUNT'));
         const clientFn = src.slice(src.indexOf('function stepUpClientIp'), src.indexOf('function stepUpNetworkKey'));
@@ -417,25 +419,33 @@ function settle(promise, ms) {
         const actionBody = src.slice(src.indexOf('const totpStepUp = onCallAppKey'), src.indexOf('const totpListDevices'));
         assert.ok(clientFn.includes('faucetGuard.clientIpFromRequest'), 'one trusted source');
         assert.ok(!clientFn.includes('rawRequest.ip') && !clientFn.includes('context.rawRequest.ip'), 'do not use spoofable rawRequest.ip');
-        assert.ok(keyFn.includes('keys.version === 4') && keyFn.includes('keys.exactId'), 'IPv4 full address');
-        assert.ok(keyFn.includes('keys.rangeId'), 'IPv6 /64');
+        assert.ok(!keyFn.includes('keys.exactId') && !keyFn.includes('keys.version === 4'), 'IPv4 is not keyed by the full address');
+        assert.ok(keyFn.includes('keys.rangeId'), 'IPv4 /24 and IPv6 /64');
+        assert.ok(keyFn.includes("indexOf('%')"), 'IPv6 zone ids are stripped');
         assert.ok(toolBody.includes('chargeStepUpNetwork') && actionBody.includes('chargeStepUpNetwork'), 'both paths share the helper');
         assert.ok(actionBody.includes('isAdminFreshAction(action)'), 'user-facing actions are not charged');
+        const adminCheckAt = actionBody.indexOf("isAdminFreshAction(action) && !(context.auth && context.auth.token && context.auth.token.admin === true)");
+        const chargeAt = actionBody.indexOf('chargeStepUpNetwork');
+        assert.ok(adminCheckAt !== -1 && chargeAt !== -1 && adminCheckAt < chargeAt, 'non-admins are refused before the network charge');
         assert.ok(!toolBody.includes("|| 'unknown'"), 'no shared unknown bucket');
     });
 
-    await test('QA: stepUpNetworkKey uses the full IPv4 and the IPv6 /64', function () {
-        assert.strictEqual(stepUpNetworkKey('192.0.2.50'), '192_0_2_50');
-        assert.strictEqual(stepUpNetworkKey('192.0.2.51'), '192_0_2_51');
-        assert.notStrictEqual(stepUpNetworkKey('192.0.2.50'), stepUpNetworkKey('192.0.2.51'));
-        assert.strictEqual(stepUpNetworkKey('192.0.2.50:443'), '192_0_2_50');
-        assert.strictEqual(stepUpNetworkKey('::ffff:192.0.2.50'), '192_0_2_50');
+    await test('QA: stepUpNetworkKey uses the IPv4 /24 and the IPv6 /64', function () {
+        assert.strictEqual(stepUpNetworkKey('192.0.2.50'), '192_0_2_0_24');
+        assert.strictEqual(stepUpNetworkKey('192.0.2.51'), '192_0_2_0_24');
+        assert.strictEqual(stepUpNetworkKey('192.0.2.50'), stepUpNetworkKey('192.0.2.51'));
+        assert.notStrictEqual(stepUpNetworkKey('192.0.2.50'), stepUpNetworkKey('192.0.3.50'));
+        assert.strictEqual(stepUpNetworkKey('192.0.2.50:443'), '192_0_2_0_24');
+        assert.strictEqual(stepUpNetworkKey('::ffff:192.0.2.50'), '192_0_2_0_24');
         const a = stepUpNetworkKey('2001:db8:1:2::1');
         const b = stepUpNetworkKey('2001:db8:1:2:aaaa::ff');
         const c = stepUpNetworkKey('2001:db8:1:3::1');
         assert.ok(a && a === b, 'same /64 share a key');
         assert.notStrictEqual(a, c, 'a different /64 has its own key');
         assert.strictEqual(stepUpNetworkKey('[2001:db8:1:2::1]'), a);
+        assert.strictEqual(stepUpNetworkKey('2001:db8:1:2::1%eth0'), a, 'zone ids are stripped');
+        assert.strictEqual(stepUpNetworkKey('[2001:db8:1:2::1%eth0]'), a);
+        assert.strictEqual(stepUpNetworkKey('fe80::1%eth0'), stepUpNetworkKey('fe80::1'));
         assert.strictEqual(stepUpNetworkKey(''), '');
         assert.strictEqual(stepUpNetworkKey('unknown'), '');
         assert.strictEqual(stepUpNetworkKey('not-an-ip'), 'not-an-ip');
@@ -455,15 +465,15 @@ function settle(promise, ms) {
         }
         await expectErr(api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1', null, '192.0.2.50')), 'resource-exhausted');
         assert.ok(!db.store.has('admin_tool_sessions/adminA1_forum'));
-        const other = await api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1', null, '192.0.2.51'));
-        assert.ok(other && other.freshProofId, 'a different IPv4 is not blocked');
+        const other = await api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1', null, '198.51.100.51'));
+        assert.ok(other && other.freshProofId, 'a different IPv4 /24 is not blocked');
         NOW = T0;
         const { api: api2 } = setup();
         for (let i = 0; i < NETWORK_RATE_MAX; i++) {
             await expectErr(api2.totpStepUp.run({ action: 'toggleFaucet', code: '000000' }, ctx('adminX' + i, null, '192.0.2.60')), 'not-found');
         }
         await expectErr(api2.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '192.0.2.60')), 'resource-exhausted');
-        const still = await api2.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '192.0.2.61'));
+        const still = await api2.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '198.51.100.61'));
         assert.strictEqual(still.success, true);
         // rawRequest.ip is ignored when X-Forwarded-For is present.
         const trusted = stepUpClientIp({ rawRequest: { ip: '192.0.2.60', headers: { 'x-forwarded-for': '203.0.113.9, 198.51.100.8' } } });
@@ -735,11 +745,44 @@ function settle(promise, ms) {
         // The same code still works for an admin, so it was not consumed.
         const onProof = await api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: code }, ctx('adminA1'));
         assert.ok(/^[a-f0-9]{32}$/.test(onProof.freshProofId));
-        // Other actions stay open to a signed-in non-admin (the proof is still
-        // useless on admin callables, which check the claim themselves).
+        // Other admin actions are also refused before the code is used
+        // (Red Team #325 L2), so a non-admin cannot burn the network cap.
+        const faucetErr = await expectErr(api.totpStepUp.run({ action: 'toggleFaucet', code: codeAt(NOW) }, ctx('adminA1', { admin: false })), 'permission-denied');
+        assert.ok(/admin/i.test(faucetErr.message), faucetErr.message);
+        // User-facing actions stay open to a signed-in non-admin.
         NOW = T0 + 31000;
-        const other = await api.totpStepUp.run({ action: 'toggleFaucet', code: codeAt(NOW) }, ctx('adminA1', { admin: false }));
+        const other = await api.totpStepUp.run({ action: 'disableTotp', code: codeAt(NOW) }, ctx('adminA1', { admin: false }));
         assert.ok(other && other.freshProofId);
+        NOW = T0;
+    });
+
+    await test('L2: a signed-in non-admin cannot burn the shared admin network cap', async function () {
+        NOW = T0;
+        const { api, db } = setup();
+        const bad = '000000';
+        for (let i = 0; i < NETWORK_RATE_MAX + 3; i++) {
+            await expectErr(api.totpStepUp.run({ action: 'toggleFaucet', code: bad }, ctx('adminA1', { admin: false }, '192.0.2.80')), 'permission-denied');
+            await expectErr(api.totpStepUp.run({ action: 'adminSetFavorClaims', code: bad }, ctx('adminA1', { admin: false }, '192.0.2.80')), 'permission-denied');
+        }
+        let ipRows = 0;
+        db.store.forEach(function (v, k) { if (k.indexOf('rate_limits/admintoolip_') === 0) ipRows++; });
+        assert.strictEqual(ipRows, 0, 'non-admin guesses must not touch admintoolip_');
+        // An admin on the same network can still open a tool.
+        const ok = await api.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '192.0.2.80'));
+        assert.strictEqual(ok.success, true);
+        // Admin wrong codes still fill the shared bucket.
+        NOW = T0;
+        const { api: api2, db: db2 } = setup();
+        for (let i = 0; i < NETWORK_RATE_MAX; i++) {
+            await expectErr(api2.totpStepUp.run({ action: 'toggleFaucet', code: bad }, ctx('adminX' + i, null, '192.0.2.80')), 'not-found');
+        }
+        let charged = 0;
+        db2.store.forEach(function (v, k) { if (k.indexOf('rate_limits/admintoolip_') === 0) charged++; });
+        assert.ok(charged >= 1, 'admins are still charged to admintoolip_');
+        await expectErr(api2.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '192.0.2.80')), 'resource-exhausted');
+        await expectErr(api2.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '192.0.2.81')), 'resource-exhausted');
+        const otherNet = await api2.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '198.51.100.80'));
+        assert.strictEqual(otherNet.success, true, 'a different /24 is not blocked');
         NOW = T0;
     });
 

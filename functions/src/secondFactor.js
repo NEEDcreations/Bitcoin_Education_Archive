@@ -70,9 +70,11 @@ function stepUpClientIp(context) {
     return faucetGuard.clientIpFromRequest(context && context.rawRequest);
 }
 
-// IPv6 is keyed by /64, IPv4 by the full address (QA #325). An
-// unparseable non-empty value falls back to the exact string. An empty
-// or "unknown" IP returns '' so the caller skips the network limit
+// IPv6 is keyed by /64, IPv4 by the /24 (Red Team #325 L3). Mapped
+// IPv4-in-IPv6 addresses (::ffff:) are treated as IPv4, so they use
+// /24. A zone id (%eth0) is stripped before keying. An unparseable
+// non-empty value falls back to the exact string. An empty or
+// "unknown" IP returns '' so the caller skips the network limit
 // instead of sharing one bucket across every admin.
 function stepUpNetworkKey(ip) {
     const raw = String(ip || '').trim();
@@ -84,9 +86,10 @@ function stepUpNetworkKey(ip) {
         const v4port = addr.match(/^(\d{1,3}(?:\.\d{1,3}){3}):\d+$/);
         if (v4port) addr = v4port[1];
     }
+    const zone = addr.indexOf('%');
+    if (zone !== -1) addr = addr.slice(0, zone);
     const keys = faucetGuard.networkKeys(addr);
     if (!keys) return raw;
-    if (keys.version === 4) return keys.exactId;
     return keys.rangeId;
 }
 
@@ -1690,8 +1693,9 @@ function initSecondFactor(deps) {
     // last five minutes, and each sign-in opens one tool once. The factor
     // must be recorded and at least 24 h old. Attempts are also limited
     // per network at 12 per 2-minute window: IPv6 by /64, IPv4 by the
-    // full address, using the same trusted source as totpStepUp admin
-    // actions (Red Team #325 S3, QA #325).
+    // /24 (mapped ::ffff: addresses count as IPv4), using the same
+    // trusted source as totpStepUp admin actions (Red Team #325 S3/L3,
+    // QA #325).
     // Sessions and remembered devices never
     // count. Success and failure both write an mfa_admin_log row; the
     // success row is committed in the same batch as the session.
@@ -1807,18 +1811,21 @@ function initSecondFactor(deps) {
         if (!FRESH_ACTIONS[action]) throw httpError('invalid-argument', 'Unknown action');
         // Kill-switch ON and OFF use a separate 100/day cap instead of the
         // shared 20/day cap, and a success does not clear {uid}_day
-        // (Red Team #325 S2, Spam/Abuse OFF follow-up). Only admins may use
-        // them (Red Team #325 MED1 L1). Check the claim before acceptTotp
-        // so a non-admin guess does not skip the shared cap or consume a code.
-        if (isKillSwitchStepUpAction(action) && !(context.auth && context.auth.token && context.auth.token.admin === true)) {
+        // (Red Team #325 S2, Spam/Abuse OFF follow-up). Admin-action proofs
+        // and the shared network cap are for admins only (Red Team #325
+        // MED1 L1, L2). Check the claim before any charge or acceptTotp
+        // so a signed-in non-admin cannot burn the bucket that gates
+        // Emergency stop and the admin tool windows, or consume a code.
+        if (isAdminFreshAction(action) && !(context.auth && context.auth.token && context.auth.token.admin === true)) {
             throw httpError('permission-denied', 'Admins only.');
         }
         if (!data || !data.code) throw httpError('invalid-argument', 'Code required');
         const nowMs = currentNow();
         const skipDailyCap = isKillSwitchStepUpAction(action);
         // Same per-network bucket as the admin tool window, keyed by one
-        // trusted source (QA #325). User-facing actions keep only the
-        // per-uid limits inside acceptTotp.
+        // trusted source (QA #325, Red Team #325 L3). User-facing actions
+        // keep only the per-uid limits inside acceptTotp. The admin check
+        // above runs first, so non-admins never reach this charge.
         let ipDocId = '';
         if (isAdminFreshAction(action)) {
             const charged = await chargeStepUpNetwork(context, nowMs);
