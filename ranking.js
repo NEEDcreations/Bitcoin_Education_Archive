@@ -9600,11 +9600,11 @@ function accountDeleteRowHtml(user) {
                 var inner = container.querySelector('div') || container;
                 var cardsHtml = '';
                 data.news.slice(0, 3).forEach(function(n, i) {
-                    var title = (n.title || '').replace(/<[^>]+>/g, '');
-                    var snippet = (n.snippet || '').replace(/<[^>]+>/g, '');
-                    var link = n.link || '';
+                    var title = escapeHtml(n.title || '');
+                    var snippet = escapeHtml(n.snippet || '');
+                    var link = (typeof n.link === 'string' && /^https:\/\/[^\s'"<>\\`]+$/.test(n.link)) ? n.link : '';
                     cardsHtml += '<div style="min-width:260px;max-width:300px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:16px;padding:16px;text-align:left;cursor:pointer;transition:0.2s;" ' +
-                        (link ? 'onclick="window.open(\'' + link.replace(/[\\'"]/g, "") + '\',\'_blank\')"' : '') +
+                        (link ? 'data-href="' + escapeHtml(link) + '" onclick="window.open(this.getAttribute(\'data-href\'),\'_blank\',\'noopener,noreferrer\')"' : '') +
                         ' onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
                         '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">' +
                             '<span style="background:var(--accent);color:#fff;font-size:0.6rem;font-weight:900;padding:2px 8px;border-radius:10px;">SIGNAL #' + (i + 1) + '</span>' +
@@ -11581,10 +11581,10 @@ window.loadSignalContent = function() {
         var inner = container.querySelector('div') || container;
         var cardsHtml = '';
         data.news.slice(0, 3).forEach(function(n, i) {
-            var title = (n.title || '').replace(/<[^>]+>/g, '');
-            var link = n.link || '';
+            var title = escapeHtml(n.title || '');
+            var link = (typeof n.link === 'string' && /^https:\/\/[^\s'"<>\\`]+$/.test(n.link)) ? n.link : '';
             cardsHtml += '<div style="min-width:240px;max-width:280px;flex-shrink:0;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:left;cursor:pointer;transition:0.2s;" ' +
-                (link ? 'onclick="window.open(\'' + link.replace(/[\\'"]/g, "") + '\',\'_blank\')"' : '') +
+                (link ? 'data-href="' + escapeHtml(link) + '" onclick="window.open(this.getAttribute(\'data-href\'),\'_blank\',\'noopener,noreferrer\')"' : '') +
                 '><div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="background:var(--accent);color:#fff;font-size:0.55rem;font-weight:900;padding:2px 6px;border-radius:8px;">SIGNAL #' + (i + 1) + '</span></div>' +
                 '<div style="color:var(--heading);font-weight:700;font-size:0.82rem;line-height:1.3;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;">' + title + '</div>' +
                 (link ? '<div style="color:var(--accent);font-size:0.7rem;font-weight:700;margin-top:6px;">Read →</div>' : '') + '</div>';
