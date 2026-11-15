@@ -149,6 +149,7 @@ const TESTS = [
     { name: 'Rank reached timestamps', file: 'test-rank-reached.js' },
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
     { name: 'Chat and forum id/uid XSS (N3/N4)', file: 'test-chat-forum-id-xss.js' },
+    { name: 'IRL Sync ids, emoji and covers inert', file: 'test-irl-sync-xss.js' },
     { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
     { name: 'Topic Discussions', file: 'test-topic-discussion.js' },
     { name: 'Quest defer', file: 'test-quest-defer.js' },
