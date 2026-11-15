@@ -1,0 +1,18 @@
+{
+  "name": "bq-r2-nightly-backup",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare cron Worker + Workflow: stream the nightly Firestore export from GCS, tar+gzip+age-encrypt to Phil's public key, write to R2 bq-user-backups.",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "deploy:staging": "wrangler deploy --config wrangler.staging.jsonc",
+    "trigger:staging": "wrangler workflows trigger bq-r2-nightly-backup-staging-wf"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.0.1",
+    "age-encryption": "0.3.1"
+  },
+  "devDependencies": {
+    "wrangler": "4.162.0"
+  }
+}
