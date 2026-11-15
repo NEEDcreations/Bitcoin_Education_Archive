@@ -173,6 +173,7 @@ const TESTS = [
     { name: 'Two-factor auth', file: 'test-totp.js' },
     { name: 'Remembered device retry', file: 'test-mfa-device.js' },
     { name: 'Two-factor emulator', file: 'test-totp-emulator.js' },
+    { name: 'DM photo token reset', file: 'test-reset-dm-photo-tokens.js' },
     { name: 'Badge rules attack', file: 'rules/badge-attack.js' },
     { name: 'Title & Flair rules', file: 'rules/title-flair-rules.js' },
     { name: 'Profile field allowlist', file: 'rules/profile-allowlist.js' },
