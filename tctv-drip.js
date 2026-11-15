@@ -156,6 +156,23 @@
         el.classList.toggle('td-right', x + w > window.innerWidth * 0.62);
         return { x: x, y: y };
     }
+    // After a drag, left/top are set, so a longer count would grow off the right edge.
+    // Re-run the clamp when the text changes, but not during a drag or resize, and not
+    // when the pot is still in its default CSS spot (no inline top).
+    function keepInView(el) {
+        if (!el || !el.style.top) return;
+        if (el.classList.contains('td-resizing') || el.classList.contains('td-drag')) return;
+        var r = el.getBoundingClientRect();
+        clampPlace(el, r.left, r.top);
+    }
+    function watchSize(el) {
+        if (typeof ResizeObserver === 'undefined') return;
+        var ro = new ResizeObserver(function () { keepInView(el); });
+        var card = el.querySelector('.td-card');
+        var bubble = el.querySelector('.td-bubble');
+        if (card) ro.observe(card);
+        if (bubble) ro.observe(bubble);
+    }
     function restorePos(el) {
         var p = null; try { p = JSON.parse(lsGet(POS_KEY) || 'null'); } catch (e) {}
         if (p && isFinite(p.x) && isFinite(p.y)) clampPlace(el, p.x, p.y);
@@ -299,6 +316,7 @@
         draggable(el);
         resizable(el);
         restorePos(el);
+        watchSize(el);
         startFlow();
         return el;
     }
@@ -329,6 +347,7 @@
             if (s.hint || !s.bubble) { bub.hidden = true; bub.textContent = ''; }
             else { bub.hidden = false; bub.textContent = s.bubble; }
         }
+        keepInView(el);
     }
     function stopWatch() {
         if (watchUnsub) { watchUnsub(); watchUnsub = null; }
@@ -388,6 +407,7 @@
         scheduleDrops(n);
         listenWatch();
         paintShare(el);
+        keepInView(el);
     }
 
     function celebrate(el, text) {
@@ -488,6 +508,7 @@
         var l = el.querySelector('.td-lbl'); if (l) l.textContent = 'pot of sats';
         el.querySelector('.td-pill').setAttribute('aria-label', 'pot of sats details');
         if (promptHide) { clearTimeout(promptHide); promptHide = null; }
+        keepInView(el);
     }
     function showPrompt(el) {
         if (el.classList.contains('td-ask')) return;
@@ -497,6 +518,7 @@
         el.querySelector('.td-pill').setAttribute('aria-label', 'Still watching? Tap to add your watch time to the pot of sats');
         if (promptHide) clearTimeout(promptHide);
         promptHide = setTimeout(function () { hidePrompt(el); }, 120000);
+        keepInView(el);
     }
     window._tctvDripShowPrompt = function () { var el = document.getElementById('tctv-drip'); if (el) showPrompt(el); };
 

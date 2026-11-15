@@ -161,6 +161,7 @@ console.log('tctvDripLogic: all tests passed');
     assert.ok(/function resizable\(el\)/.test(src) && /setPointerCapture/.test(src) && /passive: false/.test(src), 'pointer-event resize works for mouse and touch');
     assert.ok(/var MIN_POT = 72, MAX_POT = 420/.test(src) && /Math\.max\(MIN_POT, Math\.min\(potMax\(\)/.test(src), 'min clamp and viewport max');
     assert.ok(/MAIN_MIN = 175/.test(src) && /min-width:0/.test(src) && /flex-wrap:wrap/.test(src) && src.includes('max-width:calc(100% - 40px)') && /width:max-content;max-width:calc\(100vw - 16px\)/.test(src), 'phone count can wrap and has a 175px text-side reserve');
+    assert.ok(/function keepInView\(el\)/.test(src) && /new ResizeObserver/.test(src) && src.includes('watchSize(el)') && /keepInView\(el\);/.test(src), 'count and text updates re-clamp the card to the viewport');
     assert.ok(/if \(persist\) lsSet\(SIZE_KEY, String\(n\)\)/.test(src) && /setPot\(el, curPot\(el\), true\)/.test(src), 'size saved on release');
     assert.ok(/prefers-reduced-motion/.test(src) && /visibilityState/.test(src) && /requestAnimationFrame/.test(src), 'flow pauses when hidden, gentle for reduced motion');
     assert.ok(!/Watch Party/i.test(src), 'no old name');
