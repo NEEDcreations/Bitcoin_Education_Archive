@@ -148,6 +148,7 @@ const TESTS = [
     { name: 'Reward Notifications', file: 'test-reward-notify.js' },
     { name: 'Rank reached timestamps', file: 'test-rank-reached.js' },
     { name: 'Notification XSS', file: 'test-notif-xss.js' },
+    { name: 'Chat and forum id/uid XSS (N3/N4)', file: 'test-chat-forum-id-xss.js' },
     { name: 'Reply Bonus', file: 'test-reply-bonus.js' },
     { name: 'Topic Discussions', file: 'test-topic-discussion.js' },
     { name: 'Quest defer', file: 'test-quest-defer.js' },

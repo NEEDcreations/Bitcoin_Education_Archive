@@ -316,6 +316,16 @@ function isSpammy(text) {
 
 // Escape HTML
 function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
+// N3: doc ids and uids only ever go into double-quoted data-* attributes via
+// this, and handlers read them back from this.dataset. Never splice them into
+// inline JS strings (entities decode before the JS runs). Local on purpose:
+// nacho-qa.js later redefines the global escapeHtml/sanitizeUrl.
+function _gcAttr(s) {
+    return String(s == null ? '' : s).replace(/[&<>"'`]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c];
+    });
+}
+var _GC_MSG = 'this.closest(\'[data-msg-id]\').dataset.msgId';
 
 // Time format
 function timeAgo(ts) {
@@ -632,7 +642,7 @@ function renderChatMessages(msgs) {
         // Override display name for Nacho auto-replies
         if (isNacho && m.name !== '🦌 Nacho') m.name = '🦌 Nacho';
 
-        html += '<div data-msg-id="' + m._id + '" style="display:flex;flex-direction:column;align-items:' + align + ';max-width:85%;">';
+        html += '<div data-msg-id="' + _gcAttr(m._id) + '" style="display:flex;flex-direction:column;align-items:' + align + ';max-width:85%;">';
         html += '<div style="background:' + bubbleBg + ';border:1px solid ' + bubbleBorder + ';border-radius:' + (isMe ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';padding:8px 12px;position:relative;">';
         html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">';
         // Cosmetics: chat flair prefix & nacho skin avatar
@@ -642,7 +652,7 @@ function renderChatMessages(msgs) {
         var nameClick = '';
         if (!isDeleted) {
             nameStyle += 'cursor:pointer;';
-            nameClick = ' onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (m.uid || '') + '\')"';
+            nameClick = ' data-gc-uid="' + _gcAttr(m.uid || '') + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.gcUid)"';
         }
         var _coreTitle = (!isNacho && m.hasCoreContributor) ? ' <span title="Core Contributor — BIP Breakthrough" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:rgba(247,147,26,0.18);border:1px solid rgba(247,147,26,0.35);color:#f97316;vertical-align:middle;">🔧 Core Contributor</span>' : '';
         _coreTitle += (!isNacho && m.hasFactionChampion) ? (function(){ var _fl = ({'🐝👑':'Hive Mind Champion','🦡👑':"Honey Badger Don't Care Champion",'🐝🛡️':'Still Buzzing','🦡🛡️':"Badger Don't Quit"})[m.factionRaceFlair]; return _fl ? ' <span title="Faction race" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">' + esc(m.factionRaceFlair + ' ' + _fl) + '</span>' : null; })() || ' <span title="Faction race champion" style="display:inline-block;margin-left:4px;padding:1px 6px;border-radius:8px;font-size:0.62rem;font-weight:700;background:linear-gradient(90deg,rgba(234,179,8,0.25),rgba(250,204,21,0.15));border:1px solid rgba(234,179,8,0.5);color:#eab308;vertical-align:middle;">👑 Race Champion</span>' : '';
@@ -653,12 +663,12 @@ function renderChatMessages(msgs) {
         }
         if (isMe || isAdmin) {
             if (isMe && (m.editCount || 0) < 2 && !m.isGif && !m.imageUrl && !m.gifUrl) {
-                html += '<span onclick="editChatMsg(\'' + m._id + '\',\'' + esc((m.text||'').replace(/'/g,`\\'`)) + '\')" style="cursor:pointer;font-size:0.6rem;color:#6366f1;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="✏️ Edit">✏️</span>';
+                html += '<span data-edit-text="' + _gcAttr(m.text || '') + '" onclick="editChatMsg(' + _GC_MSG + ',this.dataset.editText)" style="cursor:pointer;font-size:0.6rem;color:#6366f1;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="✏️ Edit">✏️</span>';
             }
             if (isAdmin && !m.isGif && !m.imageUrl && !m.gifUrl && m.uid !== 'nacho-bot' && m.isNachoAuto !== true) {
-                html += '<span onclick="pinChatMessage(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:var(--accent);margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Pin">📌</span>';
+                html += '<span onclick="pinChatMessage(' + _GC_MSG + ')" style="cursor:pointer;font-size:0.6rem;color:var(--accent);margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Pin">📌</span>';
             }
-            html += '<span onclick="deleteChatMsg(\'' + m._id + '\')" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
+            html += '<span onclick="deleteChatMsg(' + _GC_MSG + ')" style="cursor:pointer;font-size:0.6rem;color:#ef4444;margin-left:4px;opacity:0.5;transition:0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.5" title="Delete">🗑️</span>';
         }
         html += '</div>';
         if (m.replyToName) {
@@ -695,12 +705,12 @@ function renderChatMessages(msgs) {
             var iReacted = myUid && users.indexOf(myUid) !== -1;
             var safeEmoji = esc(emoji);
             var _uidsJson = JSON.stringify(users);
-            html += '<button onclick="toggleReaction(\'' + m._id + '\',\'' + safeEmoji.replace(/[\\'"]/g, '') + '\')" onmouseenter="_showReactTipFromBtn(this)" onmouseleave="_hideReactTip()" ontouchstart="_reactTouchStart(this)" ontouchend="_reactTouchEnd()" data-uids="' + _uidsJson.replace(/"/g, '&quot;') + '" style="padding:2px 6px;border-radius:10px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (iReacted ? 'var(--accent)' : 'var(--border)') + ';background:' + (iReacted ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';color:var(--text);font-family:inherit;display:flex;align-items:center;gap:2px;touch-action:manipulation;">' + safeEmoji + '<span style="font-size:0.6rem;color:var(--text-muted);">' + count + '</span></button>';
+            html += '<button data-emoji="' + _gcAttr(emoji) + '" onclick="toggleReaction(' + _GC_MSG + ',this.dataset.emoji)" onmouseenter="_showReactTipFromBtn(this)" onmouseleave="_hideReactTip()" ontouchstart="_reactTouchStart(this)" ontouchend="_reactTouchEnd()" data-uids="' + _uidsJson.replace(/"/g, '&quot;') + '" style="padding:2px 6px;border-radius:10px;font-size:0.7rem;cursor:pointer;border:1px solid ' + (iReacted ? 'var(--accent)' : 'var(--border)') + ';background:' + (iReacted ? 'rgba(247,147,26,0.1)' : 'var(--card-bg)') + ';color:var(--text);font-family:inherit;display:flex;align-items:center;gap:2px;touch-action:manipulation;">' + safeEmoji + '<span style="font-size:0.6rem;color:var(--text-muted);">' + count + '</span></button>';
         }
         if (myUid) {
-            html += '<button onclick="showReactPicker(\'' + m._id + '\',this)" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
+            html += '<button onclick="showReactPicker(' + _GC_MSG + ',this)" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-faint);font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="React">+😀</button>';
             if (!isMe && !isNacho && !isDeleted && m.uid !== 'system') {
-                html += '<button onclick="event.stopPropagation();showTipOverlay({recipientName:\'' + esc(m.name || 'Anon').replace(/[\\'"]/g,'') + '\',recipientUid:\'' + String(m.uid || '').replace(/[^A-Za-z0-9_-]/g,'') + '\',context:\'Global Chat tip\',label:\'Tip Message\'})" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);color:#eab308;font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="Tip">⚡</button>';
+                html += '<button data-tip-name="' + _gcAttr(m.name || 'Anon') + '" data-tip-uid="' + _gcAttr(String(m.uid || '').replace(/[^A-Za-z0-9_-]/g,'')) + '" onclick="event.stopPropagation();showTipOverlay({recipientName:this.dataset.tipName,recipientUid:this.dataset.tipUid,context:\'Global Chat tip\',label:\'Tip Message\'})" style="padding:2px 6px;border-radius:10px;font-size:0.65rem;cursor:pointer;border:1px solid rgba(234,179,8,0.2);background:rgba(234,179,8,0.05);color:#eab308;font-family:inherit;opacity:0.4;transition:0.2s;touch-action:manipulation;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.4" title="Tip">⚡</button>';
             }
         }
         html += '</div>';
@@ -2301,7 +2311,7 @@ window.showReactPicker = function(msgId, btnEl) {
     picker.innerHTML = searchHtml + tabHtml + '<div id="reactEmojiGrid" style="display:flex;flex-wrap:wrap;gap:1px;overflow-y:auto;max-height:230px;justify-content:center;"></div>';
 
     function _reactEmojiBtn(e) {
-        return '<button onclick="_closeReactPicker();toggleReaction(\''+msgId+'\',\''+e+'\')" style="padding:5px;font-size:1.25rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
+        return '<button data-emoji="'+_gcAttr(e)+'" onclick="var _p=document.getElementById(\'reactPicker\');var _id=_p&&_p.dataset.msgId;_closeReactPicker();toggleReaction(_id,this.dataset.emoji)" style="padding:5px;font-size:1.25rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
     }
 
     window._switchReactTab = function(cat) {
@@ -3592,9 +3602,9 @@ function showDJBar(d) {
         djActionBtn = '<button id="djTuneBtn" onclick="' + (_djListening ? 'djStopListening()' : 'djTuneIn()') + '" style="padding:6px 10px;border-radius:8px;font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;' + (_djListening ? 'background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);color:#ef4444;' : 'background:rgba(239,68,68,0.1);border:2px solid #ef4444;color:#ef4444;animation:djPulse 1.5s ease-in-out infinite;') + '">' + (_djListening ? '⏹ Stop' : '🔊 Tune In') + '</button>';
     }
 
-    var djLabel = isNacho ? '🦌 Nacho Radio — Always On!' : '🎧 <span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.djUid||'') + '\')" style="cursor:pointer;text-decoration:underline;">@' + esc(d.djName) + '</span> is DJing!' + songInfo;
+    var djLabel = isNacho ? '🦌 Nacho Radio — Always On!' : '🎧 <span data-gc-uid="' + _gcAttr(d.djUid || '') + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.gcUid)" style="cursor:pointer;text-decoration:underline;">@' + esc(d.djName) + '</span> is DJing!' + songInfo;
 
-    var artistHtml = d.artistUid ? '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + (d.artistUid||'') + '\')" style="cursor:pointer;text-decoration:underline;" title="View Artist Profile">' + esc(d.trackArtist) + '</span>' : esc(d.trackArtist);
+    var artistHtml = d.artistUid ? '<span data-gc-uid="' + _gcAttr(d.artistUid || '') + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.gcUid)" style="cursor:pointer;text-decoration:underline;" title="View Artist Profile">' + esc(d.trackArtist) + '</span>' : esc(d.trackArtist);
 
     bar.innerHTML =
         // Row 1: DJ label
@@ -3612,7 +3622,7 @@ function showDJBar(d) {
         // Row 3: Action buttons
         '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
             djActionBtn +
-            (d.artistUid ? '<button onclick="if(\'' + (d.artistUid||'') + '\'&&typeof showUserProfile===\'function\')showUserProfile(\'' + (d.artistUid||'') + '\')" style="padding:5px 10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip Artist</button>' : '') +
+            (d.artistUid ? '<button data-gc-uid="' + _gcAttr(d.artistUid || '') + '" onclick="if(this.dataset.gcUid&&typeof showUserProfile===\'function\')showUserProfile(this.dataset.gcUid)" style="padding:5px 10px;background:rgba(247,147,26,0.08);border:1px solid rgba(247,147,26,0.25);border-radius:8px;color:var(--accent);font-size:0.7rem;font-weight:700;cursor:pointer;font-family:inherit;">⚡ Tip Artist</button>' : '') +
             tipBtn +
             (_djQueuePosition > 0 ? '<button onclick="djLeaveQueue()" style="padding:5px 10px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);border-radius:8px;color:#ef4444;font-size:0.7rem;cursor:pointer;font-family:inherit;">Leave Queue (#' + _djQueuePosition + ')</button>' : '') +
         '</div>';
@@ -4802,7 +4812,7 @@ function _buildGgPartyBar(docId, count, reacted) {
     var label = (on ? 'Remove celebration, ' : 'Celebrate, ') + n;
     var id = esc(docId);
     return '<div data-react-bar data-gg-party="1" data-party-count="' + n + '" data-party-on="' + (on ? '1' : '0') + '" style="display:flex;margin-top:8px;">' +
-        '<button type="button" data-gg-party-btn="1" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + '" onclick="event.stopPropagation();window._toggleGgParty(\'' + id + '\')" style="min-width:44px;min-height:44px;padding:6px 12px;border-radius:999px;border:2px solid ' + border + ';background:' + bg + ';font-size:1rem;cursor:pointer;color:var(--text);display:inline-flex;align-items:center;justify-content:center;gap:6px;touch-action:manipulation;">' +
+        '<button type="button" data-gg-party-btn="1" aria-pressed="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + '" data-doc-id="' + _gcAttr(docId) + '" onclick="event.stopPropagation();window._toggleGgParty(this.dataset.docId)" style="min-width:44px;min-height:44px;padding:6px 12px;border-radius:999px;border:2px solid ' + border + ';background:' + bg + ';font-size:1rem;cursor:pointer;color:var(--text);display:inline-flex;align-items:center;justify-content:center;gap:6px;touch-action:manipulation;">' +
         '<span aria-hidden="true">🎉</span><span data-gg-party-count style="font-size:0.78rem;font-weight:800;color:var(--text);">' + n + '</span></button></div>';
 }
 
@@ -4896,9 +4906,9 @@ function _buildAnnReactBar(docId, reactions, myUid, esc) {
         if (!uids.length) return;
         var reacted = myUid && uids.indexOf(myUid) !== -1;
         var _aUidsJson = JSON.stringify(uids);
-        html += '<button onclick="event.stopPropagation();_toggleAnnouncementReaction(\''+esc(docId)+'\',\''+emoji+'\')" onmouseenter="_showReactTipFromBtn(this)" onmouseleave="_hideReactTip()" ontouchstart="_reactTouchStart(this)" ontouchend="_reactTouchEnd()" data-uids="'+_aUidsJson.replace(/"/g,'&quot;')+'" style="padding:3px 8px;border-radius:20px;border:1px solid '+(reacted?'var(--accent)':'var(--border)')+';background:'+(reacted?'rgba(247,147,26,0.12)':'var(--card-bg)')+';font-size:0.75rem;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:3px;">'+emoji+'<span style="font-size:0.65rem;color:var(--text-muted);">'+uids.length+'</span></button>';
+        html += '<button data-doc-id="'+_gcAttr(docId)+'" data-emoji="'+_gcAttr(emoji)+'" onclick="event.stopPropagation();_toggleAnnouncementReaction(this.dataset.docId,this.dataset.emoji)" onmouseenter="_showReactTipFromBtn(this)" onmouseleave="_hideReactTip()" ontouchstart="_reactTouchStart(this)" ontouchend="_reactTouchEnd()" data-uids="'+_aUidsJson.replace(/"/g,'&quot;')+'" style="padding:3px 8px;border-radius:20px;border:1px solid '+(reacted?'var(--accent)':'var(--border)')+';background:'+(reacted?'rgba(247,147,26,0.12)':'var(--card-bg)')+';font-size:0.75rem;cursor:pointer;color:var(--text);display:flex;align-items:center;gap:3px;">'+emoji+'<span style="font-size:0.65rem;color:var(--text-muted);">'+uids.length+'</span></button>';
     });
-    html += '<button onclick="event.stopPropagation();_showAnnReactPicker(this,\''+esc(docId)+'\')" style="padding:3px 7px;border-radius:20px;border:1px solid var(--border);background:var(--card-bg);font-size:0.75rem;cursor:pointer;color:var(--text-faint);">➕</button>';
+    html += '<button data-doc-id="'+_gcAttr(docId)+'" onclick="event.stopPropagation();_showAnnReactPicker(this,this.dataset.docId)" style="padding:3px 7px;border-radius:20px;border:1px solid var(--border);background:var(--card-bg);font-size:0.75rem;cursor:pointer;color:var(--text-faint);">➕</button>';
     html += '</div>';
     return html;
 }
@@ -4944,7 +4954,7 @@ function _renderAnnouncementItem(doc, context) {
         // Announcement with known uid: match multi-word display names via keyword/possessive terminators only
         text = text.replace(_mentionRe('u'), function(_, rawName) {
             var uname = rawName.trim();
-            return '<a href="#" onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\''+esc(mentionUid)+'\');return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
+            return '<a href="#" data-gc-uid="'+_gcAttr(mentionUid)+'" onclick="event.preventDefault();event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.gcUid);return false;" style="color:#6366f1;font-weight:700;cursor:pointer;text-decoration:none;">@'+uname+'</a>';
         });
     } else {
         // No uid — try multi-word first (for system announcements missing uid), then single-word for user-typed
@@ -5079,6 +5089,7 @@ window._showAnnReactPicker = function(btnEl, docId) {
     if (old) { old.remove(); return; }
     var picker = document.createElement('div');
     picker.id = 'annReactPicker';
+    picker.dataset.docId = docId;
     var _isDark = document.body.getAttribute('data-theme') !== 'light';
     // Solid background — never transparent
     var bg = _isDark ? '#1a1a2e' : '#f0f0f5';
@@ -5107,7 +5118,7 @@ window._showAnnReactPicker = function(btnEl, docId) {
         var emojis = EMOJI_CATEGORIES[cat] || [];
         var html = '';
         emojis.forEach(function(e) {
-            html += '<button onclick="document.getElementById(\'annReactPicker\').remove();_toggleAnnouncementReaction(\''+docId+'\',\''+e+'\')" style="padding:5px;font-size:1.2rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
+            html += '<button data-emoji="'+_gcAttr(e)+'" onclick="var _p=document.getElementById(\'annReactPicker\');var _id=_p&&_p.dataset.docId;if(_p)_p.remove();_toggleAnnouncementReaction(_id,this.dataset.emoji)" style="padding:5px;font-size:1.2rem;cursor:pointer;background:none;border:none;border-radius:6px;touch-action:manipulation;line-height:1;" onmouseover="this.style.background=\'rgba(255,255,255,0.12)\'" onmouseout="this.style.background=\'none\'">'+e+'</button>';
         });
         grid.innerHTML = html;
         var catKeys = Object.keys(EMOJI_CATEGORIES);

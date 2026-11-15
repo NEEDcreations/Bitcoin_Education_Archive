@@ -1,3 +1,11 @@
+// Attribute escape for ids/uids placed in data-* attributes (handlers read
+// them back from this.dataset, never from inline JS strings). Local on purpose:
+// nacho-qa.js later redefines the global escapeHtml/sanitizeUrl.
+function _questsAttr(s) {
+    return String(s == null ? '' : s).replace(/[&<>"'`]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c];
+    });
+}
 // Difficulty History compact formatters (mobile fit): 44486 -> "44.5k", "2026-06-02" -> "6/2/26"
 function _sfCompactNum(n) {
     n = Number(n) || 0;
@@ -3310,7 +3318,7 @@ function _loadLastSFWindow() {
                 lookupAttr = ' data-profile-uid="' + escapeHtml(w.uid) + '" data-blank-name="1"';
             }
             if (w.uid) {
-                clickHandler = 'onclick="if(typeof showUserProfile===\'function\')showUserProfile(\''+escapeHtml(w.uid)+'\')"';
+                clickHandler = 'data-bq-a1="' + _questsAttr(w.uid) + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.bqA1)"';
                 baseStyle += 'cursor:pointer;text-decoration:underline;text-decoration-style:dotted;';
             } else if (w.username) {
                 var _safeName = escapeHtml(w.username).replace(/\\/g, '').replace(/['"<>]/g, '');
@@ -4856,7 +4864,7 @@ function _patchCharityRecent() {
         }
         var nameHtml = isAnon
             ? '<span style="' + nameStyle + '">' + esc(d.username || 'Anonymous') + '</span>'
-            : '<span style="' + nameStyle + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + esc(d.uid) + '\')" title="View profile">' + esc(d.username || 'Anonymous') + '</span>';
+            : '<span style="' + nameStyle + '" data-bq-a1="' + _questsAttr(d.uid) + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.bqA1)" title="View profile">' + esc(d.username || 'Anonymous') + '</span>';
         html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.82rem;">' +
             '<span style="display:flex;align-items:center;gap:5px;">' + factionLabel + ' ' + nameHtml + '</span>' +
             '<span style="color:#ef4444;font-weight:700;">+' + (d.amount || 0).toLocaleString() + ' XP</span>' +
@@ -6750,7 +6758,7 @@ function _listenRaidParticipants(bossId) {
                 pieces.push('<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;">' +
                     '<div style="display:flex;align-items:center;gap:8px;">' +
                         '<span style="font-size:0.8rem;min-width:24px;">' + rankIcon + '</span>' +
-                        '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + _pUid + '\')" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
+                        '<span data-bq-a1="' + _questsAttr(_pUid) + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.bqA1)" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
                     '</div>' +
                     '<span style="font-size:0.78rem;font-weight:800;color:#8b5cf6;font-variant-numeric:tabular-nums;">' + contributed.toLocaleString() + ' dmg</span>' +
                 '</div>');
@@ -6816,7 +6824,7 @@ window._toggleRaidDamageDealers = function() {
                 pieces.push('<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;margin-bottom:4px;">' +
                     '<div style="display:flex;align-items:center;gap:8px;">' +
                         '<span style="font-size:0.8rem;min-width:24px;">' + rankIcon + '</span>' +
-                        '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + pUid + '\')" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
+                        '<span data-bq-a1="' + _questsAttr(pUid) + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.bqA1)" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
                     '</div>' +
                     '<span style="font-size:0.78rem;font-weight:800;color:#8b5cf6;font-variant-numeric:tabular-nums;">' + contributed.toLocaleString() + ' dmg</span>' +
                 '</div>');
@@ -6883,7 +6891,7 @@ function _raidAllTimeHtml(doc) {
         pieces.push('<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:' + (isMe ? 'rgba(139,92,246,0.1)' : 'var(--card-bg,#1a1a2e)') + ';border:1px solid ' + (isMe ? 'rgba(139,92,246,0.3)' : 'var(--border)') + ';border-radius:10px;">' +
             '<div style="display:flex;align-items:center;gap:8px;">' +
                 '<span style="font-size:0.8rem;min-width:24px;">' + rankIcon + '</span>' +
-                '<span onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + safeId + '\')" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
+                '<span data-bq-a1="' + _questsAttr(safeId) + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.bqA1)" style="font-size:0.82rem;font-weight:' + (isMe ? '800' : '600') + ';color:' + (isMe ? '#8b5cf6' : '#6366f1') + ';cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;">' + displayName + (isMe ? ' (you)' : '') + '</span>' +
             '</div>' +
             '<span style="font-size:0.78rem;font-weight:800;color:#f7931a;font-variant-numeric:tabular-nums;">' + dmg.toLocaleString() + ' dmg</span>' +
         '</div>');

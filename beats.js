@@ -1,3 +1,11 @@
+// Attribute escape for ids/uids placed in data-* attributes (handlers read
+// them back from this.dataset, never from inline JS strings). Local on purpose:
+// nacho-qa.js later redefines the global escapeHtml/sanitizeUrl.
+function _beatsAttr(s) {
+    return String(s == null ? '' : s).replace(/[&<>"'`]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c];
+    });
+}
 // © 2024-2026 603BTC LLC. All rights reserved.
 // =============================================
 // 🎸 Bitcoin Beats — Community Music Player
@@ -3164,7 +3172,7 @@ window.beatsShowArtistPage = function(uid) {
                             '<div style="text-align:center;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;"><div style="font-weight:900;color:var(--heading);">' + (ud.channelsVisited || 0) + '</div><div style="color:var(--text-faint);font-size:0.65rem;">Topics</div></div>' +
                             '<div style="text-align:center;padding:10px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;"><div style="font-weight:900;color:var(--heading);">' + (ud.points || 0).toLocaleString() + '</div><div style="color:var(--text-faint);font-size:0.65rem;">XP</div></div>' +
                         '</div>' +
-                        '<button onclick="document.getElementById(\'beatsArtistOverlay\').remove();if(typeof showUserProfile===\'function\')showUserProfile(\'' + uid + '\')" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;margin-bottom:8px;">👤 Open Full App Profile</button>';
+                        '<button data-bq-a1="' + _beatsAttr(uid) + '" onclick="document.getElementById(\'beatsArtistOverlay\').remove();if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.bqA1)" style="width:100%;padding:12px;background:var(--card-bg);border:1px solid var(--border);color:var(--text);border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;margin-bottom:8px;">👤 Open Full App Profile</button>';
                 }).catch(function() { appBody.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">Could not load app profile</div>'; });
             }
         }
