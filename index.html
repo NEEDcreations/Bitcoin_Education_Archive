@@ -216,7 +216,7 @@
         @media (min-width: 901px) {
             body.ticker-visible #guestPointsBanner,
             body.ticker-visible #userDisplay,
-            body.ticker-visible #notifOverlayBtn { top: 44px !important; }
+            body.ticker-visible #notifOverlayBtn:not(.bell-docked) { top: 44px !important; }
         }
         #guestPointsBanner * { pointer-events: auto !important; }
         /* Minimized sign-up banner: collapses to a small circular pill so users can always restore it */
@@ -260,7 +260,17 @@
         .sidebar-collapse-btn { background: none; border: 1px solid var(--border); color: var(--text-dim); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 0.9rem; display: none; align-items: center; justify-content: center; transition: 0.2s; flex-shrink: 0; margin-left: 6px; }
         .sidebar-collapse-btn:hover, .sidebar-collapse-btn:active { border-color: var(--accent); color: var(--accent); }
         @media (min-width: 901px) { .sidebar-collapse-btn { display: flex; } }
-        .sidebar-header { padding: 24px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+        .sidebar-header { padding: 18px 20px 14px; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; row-gap: 12px; column-gap: 10px; }
+        .sidebar-header .sb-brand { cursor: pointer; display: flex; align-items: center; gap: 12px; min-width: 0; flex: 1 1 auto; }
+        .sidebar-header .sb-brand h2 { margin: 0; line-height: 1.2; white-space: nowrap; }
+        .sidebar-header .sb-tools { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+        .sidebar-header .sb-tools .sidebar-collapse-btn { margin-left: 0; }
+        .sidebar-header .sb-bell-slot { display: flex; align-items: center; justify-content: center; }
+        .sidebar-header .sb-bell-slot:empty { display: none; }
+        .sidebar-header .sb-controls { flex: 1 0 100%; display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,0.02); }
+        .sidebar-header .sb-controls .theme-toggle { margin-left: 0; width: 34px; height: 34px; }
+        .sidebar-header .sb-controls #volumeSlider { flex: 1 1 auto; min-width: 60px; width: auto; height: 4px; accent-color: #f7931a; cursor: pointer; margin: 0; }
+        #notifOverlayBtn.bell-docked { position: relative !important; top: auto !important; left: auto !important; right: auto !important; width: 36px !important; height: 36px !important; margin: 0 !important; box-shadow: none !important; flex-shrink: 0; }
         .sidebar-header h2 { color: var(--accent); font-size: 1rem; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 900; line-height: 1.3; }
         .sidebar-header p { color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; }
         .channels { flex: 1; overflow-y: auto; padding: 12px; }
@@ -1011,6 +1021,8 @@
             .mobile-bar button { background: none; border: 1px solid var(--border); color: var(--text-dim); padding: 8px 14px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: background 0.15s, color 0.15s, border-color 0.15s; }
             .mobile-bar button:active { background: rgba(249,115,22,0.15); color: var(--accent); border-color: var(--accent); }
             .mobile-close { display: flex !important; }
+            .sidebar-header .sb-controls { display: contents; }
+            .sidebar-header .sb-controls #volumeSlider { min-width: 0; }
             .theme-toggle { position: absolute; top: 16px; right: 64px; z-index: 101; }
             #audioBtn { position: absolute; top: 16px; right: 108px; z-index: 101; }
             #volumeSlider { position: absolute; top: 24px; right: 152px; z-index: 101; width: 40px !important; }
@@ -1148,9 +1160,9 @@
     .mobile-bar .mobile-brand { min-width:0; flex:1 1 auto; overflow:hidden; display:flex; align-items:center; gap:8px; cursor:pointer; }
     .mobile-bar .mobile-brand-text { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; min-width:0; }
     .bq-brand-logo { flex-shrink:0; display:block; object-fit:contain; image-rendering:auto; }
-    .sidebar-header .bq-brand-logo { width:36px; height:36px; }
+    .sidebar-header .bq-brand-logo { width:44px; height:44px; }
     .mobile-bar .bq-brand-logo { width:30px; height:30px; }
-    [data-theme="dark"] .bq-brand-logo, body:not([data-theme]) .bq-brand-logo, .oled-theme .bq-brand-logo { filter:drop-shadow(0 0 1.5px rgba(255,255,255,0.35)); }
+    [data-theme="dark"] .bq-brand-logo, body:not([data-theme]) .bq-brand-logo, .oled-theme .bq-brand-logo { filter:drop-shadow(0 0 1px rgba(255,255,255,0.22)) drop-shadow(0 0 3px rgba(255,255,255,0.12)); }
     [data-theme="light"] .bq-brand-logo { filter:none; }
     .mobile-bar .mobile-brand-home { font-size:0.55rem; font-weight:800; letter-spacing:0.14em; color:var(--text-muted); line-height:1; margin-top:2px; }
     .mobile-bar .mobile-tools { flex:0 0 auto; display:flex; flex-direction:column; align-items:flex-end; gap:3px; min-width:0; }
@@ -1410,7 +1422,7 @@
     
     <div class="mobile-bar">
         <div class="mobile-brand" onclick="goHome()">
-            <img class="bq-brand-logo" src="/icons/bq-logo-96.png" srcset="/icons/bq-logo-48.png 48w, /icons/bq-logo-96.png 96w, /icons/bq-logo-128.png 128w, /icons/bq-logo-192.png 192w" sizes="30px" width="30" height="30" alt="Bitcoin Quest" decoding="async">
+            <img class="bq-brand-logo" src="/icons/bq-logo-96.png?v=2578" srcset="/icons/bq-logo-48.png?v=2578 48w, /icons/bq-logo-96.png?v=2578 96w, /icons/bq-logo-128.png?v=2578 128w, /icons/bq-logo-192.png?v=2578 192w, /icons/bq-logo-256.png?v=2578 256w, /icons/bq-logo-384.png?v=2578 384w" sizes="30px" width="30" height="30" alt="Bitcoin Quest" decoding="async">
             <div class="mobile-brand-text"><h2 style="margin:0;"><span>BITCOIN</span><span>QUEST</span></h2><div class="mobile-brand-home">HOME</div></div>
         </div>
         <div class="mobile-tools">
@@ -1427,15 +1439,18 @@
         <button onclick="var _so=document.getElementById('searchOverlay');_so.setAttribute('data-open','1');_so.style.display='flex';document.getElementById('searchOverlayInput').focus();" style="position:fixed;bottom:90px;right:16px;z-index:99;background:var(--accent);color:#fff;width:50px;height:50px;border-radius:50%;border:none;box-shadow:0 4px 15px rgba(247,147,26,0.4);cursor:pointer;display:none;align-items:center;justify-content:center;font-size:1.4rem;" id="mobileSearchBtn" class="no-desktop">🔍</button>
         <button class="mobile-close" onclick="toggleMenu()">✕</button>
         <div class="sidebar-header">
-            <div onclick="goHome()" style="cursor:pointer;display:flex;align-items:center;gap:10px;">
-                <img class="bq-brand-logo" src="/icons/bq-logo-96.png" srcset="/icons/bq-logo-48.png 48w, /icons/bq-logo-96.png 96w, /icons/bq-logo-128.png 128w, /icons/bq-logo-192.png 192w" sizes="36px" width="36" height="36" alt="Bitcoin Quest" decoding="async">
-                <h2 style="margin:0;line-height:1.2;">BITCOIN<br>QUEST</h2>
+            <div class="sb-brand" onclick="goHome()">
+                <img class="bq-brand-logo" src="/icons/bq-logo-96.png?v=2578" srcset="/icons/bq-logo-48.png?v=2578 48w, /icons/bq-logo-96.png?v=2578 96w, /icons/bq-logo-128.png?v=2578 128w, /icons/bq-logo-192.png?v=2578 192w, /icons/bq-logo-256.png?v=2578 256w, /icons/bq-logo-384.png?v=2578 384w" sizes="44px" width="44" height="44" alt="Bitcoin Quest" decoding="async">
+                <h2>BITCOIN<br>QUEST</h2>
             </div>
-            <div style="display:flex;align-items:center;gap:6px;">
-                <button class="theme-toggle" onclick="toggleAudio()" title="Toggle sound" id="audioBtn" style="font-size:1rem;background:none;border:1px solid var(--border);color:var(--text-dim);width:32px;height:32px;border-radius:8px;cursor:pointer;">🔊</button>
-                <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.5" oninput="setVolume(this.value)" style="width:50px;height:4px;accent-color:#f7931a;cursor:pointer;" title="Volume">
-                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" id="themeBtn">🌙</button>
+            <div class="sb-tools">
+                <div id="sidebarBellSlot" class="sb-bell-slot"></div>
                 <button class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Collapse sidebar">◀</button>
+            </div>
+            <div class="sb-controls">
+                <button class="theme-toggle" onclick="toggleAudio()" title="Toggle sound" id="audioBtn" aria-label="Toggle sound">🔊</button>
+                <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.5" oninput="setVolume(this.value)" title="Volume" aria-label="Volume">
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" id="themeBtn" aria-label="Toggle light/dark mode">🌙</button>
             </div>
         </div>
         <div class="search-box">
@@ -2309,7 +2324,7 @@
     <script src="/features.registry.js?v=20261114_v2565" defer></script>
     <script src="/favorites.js?v=20261105_v2501" defer></script>
     <script src="/tctv-watch.js?v=20261102_v2464" defer></script>
-    <script src="/tctv-drip.js?v=20261114_v2569" defer></script>
+    <script src="/tctv-drip.js?v=20261114_v2573" defer></script>
 
     <script src="/today-card.js?v=20261109_v2538" defer></script>
     <script src="/achievement-share.js?v=20261109_v2536" defer></script>
@@ -2766,6 +2781,11 @@ if ('serviceWorker' in navigator) {
     <button type="button" class="invite-guest" id="inviteGuest" onclick="inviteGuestSignup()">Sign up to get your invite link</button>
 </div>
 <button type="button" class="invite-pill" id="inviteGuestPill" hidden aria-label="Invite friends" onclick="inviteGuestSignup()">🎟️ Invite friends</button>
+<script>
+/* Dock the notification bell inside the sidebar (profile card slot, else the header slot) on desktop,
+   so it scrolls with the page and never floats over the header buttons. Phones and a collapsed sidebar keep the floating bell. */
+(function(){var bell=null,q=0;function dock(){q=0;var b=document.getElementById("notifOverlayBtn");if(b)bell=b;else b=bell;if(!b)return;var aside=document.getElementById("sidebar");var open=window.innerWidth>900&&aside&&!aside.classList.contains("sidebar-collapsed");var ph=document.getElementById("notifBellPlaceholder");var t=null;if(open){t=(ph&&ph.offsetWidth>0)?ph:document.getElementById("sidebarBellSlot");}if(t){if(b.parentNode!==t)t.appendChild(b);b.classList.add("bell-docked");}else{if(b.parentNode!==document.body)document.body.appendChild(b);b.classList.remove("bell-docked");}}function soon(){if(!q){q=1;requestAnimationFrame(dock);}}setInterval(dock,1000);window.addEventListener("resize",soon);document.addEventListener("DOMContentLoaded",function(){var a=document.getElementById("sidebar");if(a&&window.MutationObserver)new MutationObserver(soon).observe(a,{childList:true,subtree:true,attributes:true,attributeFilter:["class"]});soon();});})();
+</script>
 </body>
 </html>
 <!-- v1771873982 -->
