@@ -81,6 +81,7 @@ function makeWindow(docs, opts) {
             const hook = ex.names.map(function (n) { return 'window.__t.' + n + ' = ' + n + ';'; }).join('\n') + '\n';
             src = src.slice(0, m.index) + hook + src.slice(m.index);
         }
+        if (file === 'messaging.js') src += '\nwindow.__t.showDMWindow = showDMWindow;\n';
         try { w.eval(src + '\n//# sourceURL=' + file); } catch (e) { errors.push(file + ': ' + e.message); }
     }
     w.__t = {};
@@ -89,6 +90,7 @@ function makeWindow(docs, opts) {
     load('global-chat.js');
     load('forum.js');
     if (opts.beats) load('beats.js');
+    if (opts.messaging) load('messaging.js');
     w.__real = { showReactPicker: w.showReactPicker, beatsShowTrackDetail: w.beatsShowTrackDetail, beatsLoadTracks: w.beatsLoadTracks };
     // spies for the click handlers
     w.__calls = [];
@@ -96,7 +98,8 @@ function makeWindow(docs, opts) {
         'showTipOverlay', 'forumViewPost', 'forumVotePost', 'forumDeletePost', 'forumVoteReply', 'forumDeleteReply',
         'forumReplyToReply', 'articleReplyToComment', 'articleView', '_toggleAnnouncementReaction', '_showAnnReactPicker', '_toggleGgParty',
         'beatsShowComments', 'beatsToggleLike', 'beatsAddToPlaylistPicker', 'beatsTrackMenu', 'beatsTipCurrentArtistById', 'beatsShareTrack',
-        'beatsShowArtistPage', 'beatsPlayTrack', 'beatsShowTrackDetail'].forEach(function (n) {
+        'beatsShowArtistPage', 'beatsPlayTrack', 'beatsShowTrackDetail',
+        'submitReport', 'sendDM', 'showDMGifPicker', 'lookupUserByName'].concat(opts.messaging ? [] : ['reportUser']).forEach(function (n) {
         w[n] = function () { w.__calls.push([n].concat(Array.prototype.slice.call(arguments))); };
     });
     return { w: w, errors: errors };
@@ -266,11 +269,49 @@ test('beats tracks: payload track ids inert, a stored id field cannot override d
     assert.ok(dcalls.some(function (x) { return x[0] === 'beatsShowComments' && x[1] === P1; }));
 });
 
+test('DMs and report dialog: payload uids inert, handlers get the raw uid', async function () {
+    const { w, errors } = makeWindow({}, { messaging: true });
+    assert.strictEqual(typeof w.reportUser, 'function', 'messaging.js did not load: ' + errors.join(' | '));
+    w.reportUser(LN, 'mallory');
+    const rm = w.document.getElementById('reportModal');
+    assert.ok(rm, 'report dialog not shown: ' + errors.join(' | '));
+    noInjection(w, 'report dialog');
+    const rc = clickAll(w, rm, 'button[onclick]');
+    noInjection(w, 'report dialog after clicks');
+    const reps = rc.filter(function (c) { return c[0] === 'submitReport'; });
+    assert.ok(reps.length >= 5 && reps.every(function (c) { return c[1] === LN; }), JSON.stringify(rc));
+    rm.remove();
+    const realReport = w.reportUser;
+    w.reportUser = function () { w.__calls.push(['reportUser'].concat(Array.prototype.slice.call(arguments))); };
+    const CONVO = 'viewer_' + P1;
+    w.__t.showDMWindow(CONVO, LN, 'mallory', 'viewer', 'viewer');
+    const dm = w.document.getElementById('dmWindow');
+    assert.ok(dm, 'DM window not shown: ' + errors.join(' | '));
+    noInjection(w, 'dm window');
+    w.__calls.length = 0;
+    const inp = w.document.getElementById('dmInput');
+    assert.ok(inp && inp.getAttribute('data-bq-u2') === LN, 'dm input carries the raw uid');
+    inp.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter' }));
+    // the converted handlers (ids read from this.dataset)
+    Array.prototype.filter.call(dm.querySelectorAll('[onclick]'), function (el) { return el.getAttribute('onclick').indexOf('__d.') !== -1; })
+        .forEach(function (el) { el.dispatchEvent(new w.MouseEvent('click', { bubbles: false })); });
+    noInjection(w, 'dm window after clicks');
+    const dc = w.__calls.slice();
+    assert.ok(dc.some(function (c) { return c[0] === 'showUserProfile' && c[1] === LN; }), JSON.stringify(dc));
+    assert.ok(dc.some(function (c) { return c[0] === 'reportUser' && c[1] === LN; }));
+    assert.ok(dc.some(function (c) { return c[0] === 'sendDM' && c[1] === CONVO && c[2] === LN; }));
+    assert.ok(dc.some(function (c) { return c[0] === 'showDMGifPicker' && c[1] === CONVO && c[2] === LN; }));
+    void realReport;
+});
+
 test('no renderer splices a doc id or uid into an inline JS string', function () {
     const checks = {
-        'global-chat.js': [/showUserProfile\(\\'' ?\+/, /(deleteChatMsg|pinChatMessage|editChatMsg|toggleReaction|showReactPicker)\(\\'' ?\+/, /data-msg-id="' \+ m\._id/],
+        'global-chat.js': [/openDM\(\\'' ?\+ ?otherUid/, /lookupUserByName\(\\'' ?\+/, /showUserProfile\(\\'' ?\+/, /(deleteChatMsg|pinChatMessage|editChatMsg|toggleReaction|showReactPicker)\(\\'' ?\+/, /data-msg-id="' \+ m\._id/],
         'forum.js': [/showUserProfile\(\\'' ?\+/, /(forumViewPost|forumVotePost|forumDeletePost|forumVoteReply|forumDeleteReply|articleView|articleVote|articleDelete|articleEdit)\(\\'' ?\+/, /data-(reply-id|rid)="' \+ r\.id/, /\{ id: doc\.id, \.\.\.doc\.data\(\) \}/],
-        'quests.js': [/showUserProfile\(\\'' ?\+/], 'ranking.js': [/showUserProfile\(\\'' ?\+/],
+        'quests.js': [/showUserProfile\(\\'' ?\+/], 'ranking.js': [/showUserProfile\(\\'' ?\+/, /(unblockUser|beatsShowArtistPage)\(\\'' ?\+ ?uid ?\+/],
+        'messaging.js': [/\(\\'' ?\+ ?(uid|otherUid|recipientUid|convoId) ?\+/, /\{ ?id: ?doc\.id, ?\.\.\./],
+        'bitcoin-buddy.js': [/\(\\'' ?\+ ?buddy\.uid ?\+/], 'ux-patches.js': [/\(\\'' ?\+ ?postId ?\+/],
+        'marketplace.js': [/\{ ?id: ?doc\.id, ?\.\.\./],
         'beats.js': [/showUserProfile\(\\'' ?\+/, /\(\\'' ?\+ ?(t|track)\.(id|authorId) ?\+/, /Object\.assign\(\{ id: doc\.id \}/, /\{ ?id: ?doc\.id, ?\.\.\./], 'satoshi-favor.js': [/showUserProfile\(\\'' ?\+/],
     };
     Object.keys(checks).forEach(function (f) {

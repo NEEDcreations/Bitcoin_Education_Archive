@@ -10395,13 +10395,13 @@ function accountDeleteRowHtml(user) {
                         var safeName = name.replace(/[\'"]/g, '');
                         listHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;' + (loaded > 0 ? 'border-top:1px solid var(--border);' : '') + '">' +
                             '<span style="color:var(--text);font-size:0.85rem;">' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</span>' +
-                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + uid + '\',\'' + safeName + '\')};setTimeout(function(){showSettingsPage(\'security\')},300)" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
+                            '<button data-bq-u1="' + _rankingAttr(uid) + '" onclick="var __d=this.dataset;if(typeof unblockUser===\'function\'){unblockUser(__d.bqU1,\'' + safeName + '\')};setTimeout(function(){showSettingsPage(\'security\')},300)" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
                         loaded++;
                         if (loaded === merged.length && rowsEl) rowsEl.innerHTML = listHtml;
                     }).catch(function() {
                         listHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border);">' +
                             '<span style="color:var(--text-faint);font-size:0.85rem;">Unknown User</span>' +
-                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + uid + '\')};setTimeout(function(){showSettingsPage(\'security\')},300)" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
+                            '<button data-bq-u1="' + _rankingAttr(uid) + '" onclick="var __d=this.dataset;if(typeof unblockUser===\'function\'){unblockUser(__d.bqU1)};setTimeout(function(){showSettingsPage(\'security\')},300)" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
                         loaded++;
                         if (loaded === merged.length && rowsEl) rowsEl.innerHTML = listHtml;
                     });
@@ -11530,7 +11530,7 @@ window.showArtistProfileModal = function() {
         '</div>' +
         // Save + Preview
         '<button onclick="saveArtistProfile()" id="artistSaveBtn" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 15px rgba(247,147,26,0.3);margin-bottom:8px;">💾 Save Artist Profile</button>' +
-        '<button onclick="document.getElementById(\'artistProfileModal\').remove();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + uid + '\')" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.82rem;cursor:pointer;font-family:inherit;">👀 Preview My Artist Page</button>' +
+        '<button data-bq-u1="' + _rankingAttr(uid) + '" onclick="var __d=this.dataset;document.getElementById(\'artistProfileModal\').remove();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(__d.bqU1)" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.82rem;cursor:pointer;font-family:inherit;">👀 Preview My Artist Page</button>' +
     '</div>';
 
     document.body.appendChild(overlay);
