@@ -54,6 +54,7 @@ const TESTS = [
     { name: 'Badge cohort and collection order', file: 'test-badge-cohort.js' },
     { name: 'SF live announce', file: 'test-sf-announce.js' },
     { name: 'Favor per-block self-claims', file: 'test-favor-block-claims.js' },
+    { name: 'Sats monthly ledger (hard 100k cap)', file: 'test-sats-ledger.js' },
     { name: 'GGs badge tooltips', file: 'test-gg-badge-tags.js' },
     { name: 'GGs celebration', file: 'test-gg-reaction.js' },
     { name: 'New badge sources', file: 'test-new-badges.js' },

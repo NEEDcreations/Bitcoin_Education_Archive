@@ -1207,6 +1207,62 @@ test('wiring: claimFavorBlock is kill-switch gated, step-up action exists, stagi
     assert.ok(!/adminApproveFavorPayout/.test(idx), 'no admin approve step');
 });
 
+// ---------- app-wide hard 100k/month ledger (satsLedger.js) ----------
+function e9Harness(extra) {
+    return makeHarness({ epochs: 9, config: Object.assign({ enabledEpochs: [1, 9], perUidDailySats: 1000000, siteDailySats: 1000000 }, extra || {}) });
+}
+test('ledger: a normal (epoch 9) claim reserves in the app ledger and is paid there, trued to real spend', async function () {
+    const h = e9Harness();
+    await freeze(h, 9);
+    const r = await h.svc.claim(ctx(BOB), { epoch: 9, block: 0 });
+    assert.ok(r.success, JSON.stringify(r));
+    const e = h.db.store.get('sats_ledger_entries/favor_e9_b0');
+    assert.ok(e && e.status === 'paid' && e.source === 'favor');
+    assert.strictEqual(e.amount, r.sent, 'net + routing (0) is what left');
+    assert.strictEqual(h.db.store.get('sats_ledger_months/2026-11').committedSats, r.sent);
+    assert.strictEqual(h.db.store.get('sf_block_claims/e9_b0').ledgerId, 'favor_e9_b0');
+});
+test('ledger: an epoch 9 claim is refused when the app month is at 100k; nothing is paid or reserved', async function () {
+    const h = e9Harness();
+    await freeze(h, 9);
+    h.db.store.set('sats_ledger_months/2026-11', { month: '2026-11', committedSats: 99000, bySource: { faucet: 50000, favor: 49000 } });
+    const r = await h.svc.claim(ctx(BOB), { epoch: 9, block: 0 });
+    assert.strictEqual(r.code, 'sats_month_cap');
+    assert.ok(/midnight ET/.test(r.error));
+    assert.strictEqual(h.pays.length, 0);
+    assert.strictEqual(h.db.store.get('sats_ledger_entries/favor_e9_b0'), undefined);
+    const c = h.db.store.get('sf_block_claims/e9_b0');
+    assert.ok(!c || c.status !== 'paying');
+    assert.strictEqual(h.db.store.get('sats_ledger_months/2026-11').committedSats, 99000);
+});
+test('ledger: the epoch 1-8 catch-up is EXEMPT: paid with the app month full, never counted, audit row only', async function () {
+    const h = e9Harness();
+    await freeze(h, 1);
+    h.db.store.set('sats_ledger_months/2026-11', { month: '2026-11', committedSats: 100000, bySource: { faucet: 55000, favor: 45000 } });
+    const r = await h.svc.claim(ctx(ALICE), { epoch: 1, block: 0 });
+    assert.ok(r.success, JSON.stringify(r));
+    assert.strictEqual(h.db.store.get('sats_ledger_months/2026-11').committedSats, 100000, 'not counted against the cap');
+    assert.strictEqual(h.db.store.get('sats_ledger_entries/favor_e1_b0'), undefined, 'never reserved');
+    const ex = h.db.store.get('sats_ledger_entries/favor_exempt_e1_b0');
+    assert.ok(ex && ex.status === 'exempt' && ex.amount > 0);
+    assert.strictEqual(h.db.store.get('sf_block_claims/e1_b0').ledgerExempt, true);
+});
+test('ledger: a clear wallet refusal releases the app reservation; an unknown result holds it', async function () {
+    const h = e9Harness();
+    await freeze(h, 9);
+    h.payMode = 'refuse';
+    assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 9, block: 0 })).code, 'pay_failed');
+    assert.strictEqual(h.db.store.get('sats_ledger_entries/favor_e9_b0').status, 'released');
+    assert.strictEqual(h.db.store.get('sats_ledger_months/2026-11').committedSats, 0);
+    h.clock += 2 * 60 * 1000;
+    h.payMode = 'timeout';
+    h.lookupState = 'pending';
+    assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 9, block: 0 })).code, 'held_unknown');
+    const e = h.db.store.get('sats_ledger_entries/favor_e9_b0');
+    assert.strictEqual(e.status, 'held');
+    assert.strictEqual(h.db.store.get('sats_ledger_months/2026-11').committedSats, e.amount, 'held stays counted');
+});
+
 (async function main() {
     for (const t of queue) {
         try { await t.fn(); console.log('\u2705 ' + t.name); passed++; }

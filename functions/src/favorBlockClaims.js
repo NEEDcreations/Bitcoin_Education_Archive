@@ -33,6 +33,7 @@
 // sf_claim_audit. See PERMANENT_COLLECTIONS.
 
 const crypto = require('crypto');
+const satsLedger = require('./satsLedger');
 
 const BLOCKS_PER_EPOCH = 5;
 const EPOCH_POT_SATS = 21000;
@@ -134,6 +135,8 @@ const MESSAGES = Object.freeze({
     fee_halt: 'Favor payouts are paused for a quick check. Your block is saved.',
     rate_limited: 'Too many tries. Wait a few minutes and try again.',
     review_rejected: 'This block was reviewed and cannot be paid.',
+    // App-wide hard 100k/month cap (satsLedger.js). Never used for the exempt epoch 1-8 catch-up.
+    sats_month_cap: 'This month\'s sats budget is used up. Your block is saved; payouts are back on the 1st of next month (midnight ET).',
 });
 
 function intStrict(v, lo, hi) {
@@ -628,6 +631,11 @@ function createBlockClaimService(deps) {
             }
 
             const catchUp = isCatchUpEpoch(ids.epoch) ? { ceiling: catchUpCeiling(await catchUpBlockTotal()) } : null;
+            // Shared monthly sats ledger (hard 100k/month, ET months). The epoch
+            // 1-8 catch-up is EXEMPT (Phil, Nov 14 2026: "I'll pay that as is"):
+            // it never reserves in, counts against, or is blocked by the ledger.
+            const ledgerExempt = satsLedger.isExempt({ source: 'favor', catchUp: !!catchUp, epoch: ids.epoch });
+            const ledgerId = ledgerExempt ? '' : satsLedger.entryId('favor', claimId(ids.epoch, ids.block));
 
             // 1. Reserve in a transaction and mark 'paying' before the wallet call.
             const nowMs = now();
@@ -648,6 +656,8 @@ function createBlockClaimService(deps) {
                 if (hd.exists && (hd.data() || {}).halted === true) refuse('fee_halt');
                 const rj = await t.get(rejectRef);
                 if (rj.exists) refuse('review_rejected');
+                const sl = ledgerId ? satsLedger.session(t, db, nowMs) : null;
+                if (sl) await sl.loadForReserve(ledgerId);
                 const cur = c.exists ? (c.data() || {}) : null;
                 if (cur) {
                     if (cur.uid !== uid) refuse('not_winner');
@@ -666,6 +676,11 @@ function createBlockClaimService(deps) {
                     catchUp: md.exists ? md.data().sats : 0,
                 }, catchUp);
                 if (capCode) refuse(capCode);
+                if (sl) {
+                    const capPlan = sl.reserve(ledgerId, { source: 'favor', amount: amount, meta: { uid: uid, epoch: ids.epoch, block: ids.block } });
+                    if (!capPlan.ok) refuse('sats_month_cap', { line: capPlan.line || 'total' });
+                    sl.flush();
+                }
                 const rec = {
                     epoch: ids.epoch, block: ids.block, uid: uid, amount: amount,
                     frozenLn: row.frozenLn, status: 'paying', payingAtMs: nowMs,
@@ -680,7 +695,7 @@ function createBlockClaimService(deps) {
                 if (catchUp) budgetRow.ceilingSats = catchUp.ceiling;
                 t.set(budgetRef, budgetRow, { merge: true });
                 rec.budget = catchUp ? CATCH_UP_COUNTER_ID : 'month';
-                t.set(claimRef, { budget: rec.budget }, { merge: true });
+                t.set(claimRef, { budget: rec.budget, ledgerId: ledgerId || null, ledgerExempt: ledgerExempt }, { merge: true });
             });
             reserved = true;
 
@@ -693,8 +708,11 @@ function createBlockClaimService(deps) {
                     const ud = await t.get(uidDayRef);
                     const sd = await t.get(siteDayRef);
                     const md = await t.get(budgetRef);
+                    const sl = ledgerId ? satsLedger.session(t, db, now()) : null;
+                    if (sl) await sl.loadEntry(ledgerId);
                     const cur = c.exists ? (c.data() || {}) : {};
                     if (cur.status !== 'paying') return;
+                    if (sl) { sl.release(ledgerId, { reason: code }); sl.flush(); }
                     const strikes = Number(cur.attempts) || 0;
                     const toReview = !!review || strikes >= cfg.maxAttempts;
                     t.set(claimRef, {
@@ -777,6 +795,12 @@ function createBlockClaimService(deps) {
                 await db.runTransaction(async function (t) {
                     const p = await t.get(payoutRef);
                     const bd = await t.get(budgetRef);
+                    const sl = satsLedger.session(t, db, paidAtMs);
+                    const exemptId = satsLedger.entryId('favor_exempt', cid);
+                    if (ledgerId) await sl.loadEntry(ledgerId); else await sl.loadEntry(exemptId);
+                    if (ledgerId) sl.paid(ledgerId, { via: how, spentSats: spent });
+                    else sl.recordExempt(exemptId, { source: 'favor', amount: spent, meta: { epoch: ids.epoch, block: ids.block } });
+                    sl.flush();
                     if (overspend) {
                         t.set(haltRef, { halted: true, reason: 'routing_fee_over_limit', epoch: ids.epoch, block: ids.block,
                             routingFeeSats: routing, limitSats: Math.ceil(feeLimitMsat / 1000), atMs: paidAtMs }, { merge: true });
@@ -825,6 +849,7 @@ function createBlockClaimService(deps) {
             if (settlement.action === 'release') await release('pay_failed');
             await claimRef.set({ status: 'unknown', needsReview: true, payingAtMs: null }, { merge: true });
             reserved = false; // counters stay reserved: the sats may have left
+            if (ledgerId) await satsLedger.safe('favor held', satsLedger.markHeld(db, ledgerId, { reason: 'unknown', nowMs: now() }));
             await alert('Favor claim payment unknown for epoch ' + ids.epoch + ' block ' + ids.block + '. Held for manual review; never retried automatically.', { epoch: ids.epoch, block: ids.block });
             refuse('held_unknown');
         } catch (e) {
@@ -972,6 +997,13 @@ function createBlockClaimService(deps) {
                     db.collection('sf_claim_counters').doc(cur.budget === CATCH_UP_COUNTER_ID ? CATCH_UP_COUNTER_ID : 'month_' + cur.counterMonth)];
                 const snaps = [];
                 for (let i = 0; i < refs.length; i++) snaps.push(await t.get(refs[i]));
+                // The app ledger row (if any) goes back too: the lookup proved it failed.
+                const sl = cur.ledgerId ? satsLedger.session(t, db, now()) : null;
+                if (sl) {
+                    await sl.loadEntry(cur.ledgerId);
+                    sl.release(cur.ledgerId, { reason: 'admin_release', allowHeld: true });
+                    sl.flush();
+                }
                 refs.forEach(function (r, i) {
                     t.set(r, { sats: Math.max(0, (snaps[i].exists ? Number(snaps[i].data().sats) || 0 : 0) - amt) }, { merge: true });
                 });

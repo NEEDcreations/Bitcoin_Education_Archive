@@ -16,6 +16,7 @@ const { resolveLnurlInvoice } = require('./lnurlResolve');
 const { NWCClient } = require('@getalby/sdk');
 const { updatePeerLevelAfterGift } = require('./peerLevel');
 const faucetGuard = require('./faucetGuard');
+const satsLedger = require('./satsLedger');
 const { rollCipherReward, satsDisposition, ALLOWED_SATS_AMOUNTS } = require('./cipherReward');
 const {
     creditDocId,
@@ -1191,6 +1192,11 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     const winRef = db.collection('cipher_wins').doc(winId);
     const userRef = db.collection('users').doc(uid);
     const ledgerRef = db.collection('faucet_ledger').doc(uid);
+    // App-wide hard monthly cap (satsLedger): one ledger row per win.
+    const satsEntryId = satsLedger.entryId('cipher_win', winId);
+    async function releaseSats(reason) {
+        await satsLedger.safe('cipher win release', satsLedger.release(db, satsEntryId, { reason: reason }));
+    }
     let amount = 0;
     let username = 'a Bitcoiner';
     let isFactionPrize = false;
@@ -1229,6 +1235,8 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         const winDoc = await t.get(winRef);
         const userDoc = await t.get(userRef);
         const ledgerDoc = await t.get(ledgerRef);
+        const satsL = satsLedger.session(t, db, Date.now());
+        await satsL.loadForReserve(satsEntryId);
         if (!winDoc.exists) throw httpsError('not-found', 'Win not found');
         const win = winDoc.data();
         if (win.uid !== uid) throw httpsError('permission-denied', 'Not your prize');
@@ -1261,6 +1269,12 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         if (!gate.ok) throw httpsError('failed-precondition', gate.error);
         amount = win.amount;
         username = win.username || username;
+        // Reserve against the 100k/month app cap before any wallet call.
+        const capPlan = satsL.reserve(satsEntryId, { source: 'cipher_win', amount: amount, meta: { uid: uid, winId: winId, factionPrize: factionPrize } });
+        if (!capPlan.ok) {
+            throw httpsError('resource-exhausted', capPlan.code === 'monthly_cap' ? satsLedger.CAP_MESSAGE : 'Try again later.');
+        }
+        satsL.flush();
         t.update(winRef, {
             status: 'paying',
             payingAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1271,6 +1285,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
     const winFee = require('./lnFee').quote(amount);
     if (!winFee.ok) {
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
+        await releaseSats('fee');
         return { success: false, error: winFee.error };
     }
     const netAmount = winFee.net;
@@ -1279,6 +1294,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         invoice = await _resolvePrizeInvoice(data.invoice, data.lightningAddress, netAmount);
     } catch (e) {
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
+        await releaseSats('invoice');
         return { success: false, error: e.message || 'Could not pay that invoice.' };
     }
 
@@ -1292,15 +1308,18 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
         });
     } catch (e) {
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
+        await releaseSats('invoice_used');
         return { success: false, error: e.message || 'Could not reserve that invoice.' };
     }
 
     async function releaseUnpaid() {
         await winRef.update({ status: 'claimable', payingAt: admin.firestore.FieldValue.delete() }).catch(function() {});
         await invoiceRef.delete().catch(function() {});
+        await releaseSats('pay_failed');
     }
 
     async function holdUnknown(paymentHash) {
+        await satsLedger.safe('cipher win held', satsLedger.markHeld(db, satsEntryId, { reason: 'unknown' }));
         await winRef.update({
             status: 'unknown',
             needsReview: true,
@@ -1319,6 +1338,7 @@ const claimCipherWin = functionsV1.runWith({ timeoutSeconds: 180, secrets: [dele
 
     async function markPaid(preimage, payRes) {
         // Payment already left the wallet. Never flip the win back to claimable after this.
+        await satsLedger.safe('cipher win paid', satsLedger.markPaid(db, satsEntryId, { via: payRes ? 'pay' : 'lookup' }));
         const feeRec = require('./lnFee').feeFields(winFee, payRes);
         try {
             await winRef.update({
@@ -1522,9 +1542,15 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
     let amount = 0;
     let shouldAnnounce = false;
     let newlyPaid = false;
+    const satsEntryId = satsLedger.entryId('cipher_win', winId);
+    const manualEntryId = satsLedger.entryId('manual_cipher_win', winId);
 
     await db.runTransaction(async (t) => {
         const winDoc = await t.get(winRef);
+        const satsL = satsLedger.session(t, db, Date.now());
+        await satsL.loadEntry(satsEntryId);
+        await satsL.loadEntry(manualEntryId);
+        await satsL.loadMonth(satsL.monthKey);
         if (!winDoc.exists) throw httpsError('not-found', 'Win not found');
         const win = winDoc.data();
         username = win.username || username;
@@ -1543,6 +1569,14 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
         }
         shouldAnnounce = true;
         newlyPaid = true;
+        // Counts toward the monthly cap: an in-app reservation becomes paid,
+        // otherwise this is a manual payout made outside the app (never refused).
+        const live = satsL.entry(satsEntryId);
+        if (!(live && satsL.paid(satsEntryId, { via: 'admin_mark_paid' }))) {
+            satsL.recordManual(manualEntryId, { amount: Math.max(0, Math.floor(Number(amount) || 0)), kind: 'cipher_win',
+                meta: { winId: winId, uid: winnerUid, recordedBy: context.auth.uid, via: 'adminMarkCipherWinPaid' } });
+        }
+        satsL.flush();
         t.update(winRef, {
             status: 'paid',
             paidAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -1565,6 +1599,41 @@ const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) =>
         }
     }
     return { success: true, announced: true };
+});
+
+// Admin-only: record a sats payout made OUTSIDE the app (raffle, jackpot, a
+// big cipher tier, a faction pot or any wallet send Phil does by hand) in the
+// app-wide monthly ledger (satsLedger.js). Code cannot block those sends, but
+// they count toward the 100k/month cap so automated payouts stop in time.
+// Never pays anything. Idempotent on { kind, ref }. Fresh admin step-up
+// (secondFactor.requireAdminStepUp) on every call; App Check required.
+const adminRecordManualPayout = functionsV1.runWith({
+    enforceAppCheck: true,
+    timeoutSeconds: 60,
+}).https.onCall(async (data, context) => {
+    requireAdmin(context);
+    const secondFactor = require('./secondFactor');
+    await secondFactor.requireAdminStepUp(secondFactor.stamp(data, context), 'adminRecordManualPayout');
+    const nowMs = Date.now();
+    const parsed = satsLedger.parseManualPayout(data, nowMs);
+    if (!parsed.ok) throw httpsError('invalid-argument', parsed.error);
+    const adminUid = context.auth.uid;
+    const out = await satsLedger.recordManual(db, parsed.id, {
+        nowMs: nowMs, amount: parsed.amount, kind: parsed.kind, paidAtMs: parsed.paidAtMs,
+        meta: { ref: parsed.ref, note: parsed.note, recordedBy: adminUid, via: 'adminRecordManualPayout' },
+    });
+    await db.collection('admin_audit_log').doc('sats_manual_' + parsed.id).set({
+        action: 'recordManualPayout', entryId: parsed.id, kind: parsed.kind, amount: parsed.amount,
+        month: out.month, already: !!out.already, overCap: !!out.overCap, adminUid: adminUid,
+        ts: admin.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    const monthSnap = await db.collection(satsLedger.MONTHS).doc(out.month).get();
+    const m = monthSnap.exists ? (monthSnap.data() || {}) : {};
+    return {
+        ok: true, recorded: !!out.recorded, already: !!out.already, month: out.month,
+        committedSats: Math.floor(Number(m.committedSats) || 0), capSats: satsLedger.MONTHLY_CAP_SATS,
+        overCap: !!out.overCap,
+    };
 });
 
 // The sender marks a cipher-share reveal as seen. The flag is server-written,
@@ -1663,9 +1732,13 @@ async function finishCipherClaim(reserved, outcome, payResult) {
     const userRef = db.collection('users').doc(reserved.uid);
     const playerRef = db.collection('cipher_sats_player_daily').doc(reserved.playerDayId);
     const siteRef = db.collection('cipher_sats_site_daily').doc(reserved.day);
+    const satsEntryId = satsLedger.entryId('cipher_sats', reserved.claimId);
     await db.runTransaction(async (t) => {
         const auditSnap = await t.get(auditRef);
         const lockSnap = await t.get(lockRef);
+        // Same transaction as the claim state change: the app ledger moves with it.
+        const satsL = satsLedger.session(t, db, Date.now());
+        await satsL.loadEntry(satsEntryId);
         const status = auditSnap.exists ? String((auditSnap.data() || {}).status || '') : '';
         if (status === 'paid' || status === 'restored' || status === 'unknown') return;
         const lock = lockSnap.exists ? (lockSnap.data() || {}) : null;
@@ -1675,13 +1748,19 @@ async function finishCipherClaim(reserved, outcome, payResult) {
             const feeRec = require('./lnFee').feeFields({ gross: reserved.amount, fee: reserved.fee, net: reserved.net }, payResult);
             t.set(auditRef, { status: 'paid', paidAt: stamp, fee_charged: feeRec.fee_charged, net_sent: feeRec.net_sent, fee_paid: feeRec.fee_paid }, { merge: true });
             if (owns) t.delete(lockRef);
+            satsL.paid(satsEntryId, { via: 'pay' });
+            satsL.flush();
             return;
         }
         if (outcome === 'hold') {
             t.set(auditRef, { status: 'unknown', heldAt: stamp }, { merge: true });
             if (owns) t.set(lockRef, { phase: 'unknown', claimId: reserved.claimId }, { merge: true });
+            satsL.held(satsEntryId, { reason: 'unknown' });
+            satsL.flush();
             return;
         }
+        satsL.release(satsEntryId, { reason: 'restore' });
+        satsL.flush();
         t.update(userRef, {
             cipherSatsBalance: admin.firestore.FieldValue.increment(reserved.amount),
         });
@@ -1778,6 +1857,8 @@ const claimCipherSats = functionsV1.runWith({
     const rateRef = db.collection('rate_limits').doc('cipher_sats_' + lockId);
     const configRef = db.collection('cipher_sats_config').doc('settings');
     const auditRef = db.collection('cipher_sats_payouts').doc(claimId);
+    // App-wide hard monthly cap (satsLedger): one ledger row per claim.
+    const satsEntryId = satsLedger.entryId('cipher_sats', claimId);
 
     let reserved = null;
     let denial = '';
@@ -1797,6 +1878,10 @@ const claimCipherSats = functionsV1.runWith({
             addrSnap = await t.get(db.collection('lightning_addresses').doc(saved));
         }
         const flight = lockSnap.exists ? (lockSnap.data() || {}) : null;
+        const satsL = satsLedger.session(t, db, nowMs);
+        await satsL.loadForReserve(satsEntryId);
+        const staleEntryId = flight && flight.claimId ? satsLedger.entryId('cipher_sats', flight.claimId) : '';
+        if (staleEntryId) await satsL.loadEntry(staleEntryId);
         const attempt = assessAttemptRate(rateSnap.exists ? (rateSnap.data() || {}) : null, nowMs);
         if (!attempt.ok) {
             denial = RATE_ERROR;
@@ -1839,6 +1924,17 @@ const claimCipherSats = functionsV1.runWith({
             denial = plan.error || UNAVAILABLE;
             return;
         }
+        // A stale reserved claim being abandoned gives its sats back first.
+        if (plan.abandon && plan.abandon.claimId && staleEntryId && String(flight.claimId) === plan.abandon.claimId) {
+            satsL.release(staleEntryId, { reason: 'abandoned' });
+        }
+        // Reserve against the 100k/month app cap before any wallet call.
+        const capPlan = satsL.reserve(satsEntryId, { source: 'cipher_sats', amount: plan.amount, meta: { uid: uid, claimId: claimId } });
+        if (!capPlan.ok) {
+            denial = capPlan.code === 'monthly_cap' ? satsLedger.CAP_MESSAGE : UNAVAILABLE;
+            return;
+        }
+        satsL.flush();
         if (userPatch.cipherSatsBalanceDelta) {
             t.update(userRef, {
                 cipherSatsBalance: admin.firestore.FieldValue.increment(userPatch.cipherSatsBalanceDelta),
@@ -2060,8 +2156,11 @@ const adminResolveCipherSatsClaim = functionsV1.runWith({
         const lockSnap = lockRef ? await t.get(lockRef) : null;
         const lock = lockSnap && lockSnap.exists ? (lockSnap.data() || {}) : null;
         const owns = lockOwnedByClaim(lock, claimId);
+        const satsL = satsLedger.session(t, db, Date.now());
+        await satsL.loadEntry(satsLedger.entryId('cipher_sats', claimId));
         const stamp = admin.firestore.FieldValue.serverTimestamp();
         if (resolution === 'paid') {
+            satsL.paid(satsLedger.entryId('cipher_sats', claimId), { via: 'admin_resolve' });
             t.set(auditRef, {
                 status: 'paid',
                 paidAt: stamp,
@@ -2090,7 +2189,10 @@ const adminResolveCipherSatsClaim = functionsV1.runWith({
                 resolvedBy: adminUid,
                 resolution: 'admin_release',
             }, { merge: true });
+            // The wallet proved the payment failed: give the sats back to the month.
+            satsL.release(satsLedger.entryId('cipher_sats', claimId), { reason: 'admin_release', allowHeld: true });
         }
+        satsL.flush();
         if (owns && lockRef) t.delete(lockRef);
         t.set(db.collection('admin_audit_log').doc('cipher_sats_' + claimId), {
             action: 'resolveCipherSatsClaim',
@@ -2115,4 +2217,5 @@ module.exports = {
     listMyCipherWins: listMyCipherWins,
     adminListCipherWins: adminListCipherWins,
     adminMarkCipherWinPaid: adminMarkCipherWinPaid,
+    adminRecordManualPayout: adminRecordManualPayout,
 };

@@ -173,6 +173,7 @@ async function verifyTurnstile(token, remoteip) {
 const bolt11 = require('bolt11');
 const dns = require('dns').promises;
 const faucetGuard = require('./src/faucetGuard');
+const satsLedger = require('./src/satsLedger');
 const rewardNotify = require('./src/rewardNotify');
 const rankReached = require('./src/rankReached');
 const awardActions = require('./src/awardActions');
@@ -1908,6 +1909,8 @@ exports.claimSats = functionsV1.runWith({
     const subnetRef = db.collection('faucet_subnet_log').doc(net.rangeId);
     const lnRateRef = db.collection('faucet_ln_ratelimit').doc(faucetGuard.addressRateDocId(lnNorm));
     const signalRef = db.collection('faucet_uid_signals').doc(uid);
+    // App-wide hard monthly cap (satsLedger): one ledger row per invoice.
+    const satsEntryId = satsLedger.entryId('faucet', invoiceHash);
 
     let txFlag = null;
     let displayName = 'Bitcoiner';
@@ -1931,6 +1934,8 @@ exports.claimSats = functionsV1.runWith({
             const ipDoc = await t.get(ipRef);
             const subnetDoc = await t.get(subnetRef);
             const lnRateDoc = await t.get(lnRateRef);
+            const satsL = satsLedger.session(t, db, Date.now());
+            await satsL.loadForReserve(satsEntryId);
 
             if (invoiceDoc.exists) deny('This payout was already used. Wait a moment and try again.');
             if (!userDoc.exists) deny('User profile not found.');
@@ -2117,6 +2122,11 @@ exports.claimSats = functionsV1.runWith({
             const rate = faucetGuard.assessAddressRate(priorClaims, nowMs);
             if (!rate.ok) deny(rate.error);
 
+            // Reserve against the 100k/month app cap before any wallet call.
+            const capPlan = satsL.reserve(satsEntryId, { source: 'faucet', amount: amount, meta: { uid: uid, paymentHash: paymentHash, invoiceHash: invoiceHash } });
+            if (!capPlan.ok) deny(capPlan.code === 'monthly_cap' ? satsLedger.CAP_MESSAGE : 'Claim validation failed. Please try again.');
+            satsL.flush();
+
             const pointsToClaim = amount * FAUCET.POINTS_PER_SAT;
             const userUpdate = {
                 pointsClaimed: admin.firestore.FieldValue.increment(pointsToClaim),
@@ -2240,6 +2250,7 @@ exports.claimSats = functionsV1.runWith({
 
     const decision = faucetGuard.decideFaucetPayment({ phase: phase, error: payError, payResult: payResult });
     if (decision.action === 'record') {
+        await satsLedger.safe('faucet paid', satsLedger.markPaid(db, satsEntryId, { via: 'pay' }));
         try {
             await _recordFaucetPaid(Object.assign({}, payInfo, { preimage: decision.preimage, payResult: payResult }));
         } catch (e) {
@@ -2257,6 +2268,7 @@ exports.claimSats = functionsV1.runWith({
     }
     if (decision.action === 'refund') {
         await _rollbackClaim(uid, amount, today, invoiceRef);
+        await satsLedger.safe('faucet release', satsLedger.release(db, satsEntryId, { reason: (payError && payError.message) || 'refund' }));
         if (payError && payError.message === 'WALLET_LOW') {
             return { success: false, error: 'Faucet is being refilled. Try again later.' };
         }
@@ -2275,6 +2287,7 @@ exports.claimSats = functionsV1.runWith({
         console.error('[FAUCET] ambiguous pay but the invoice has no payment hash uid=' + uid);
         try { await _holdFaucetUnknown(payInfo); }
         catch (e) { console.error('[FAUCET] could not hold unknown payment:', e.message); }
+        await satsLedger.safe('faucet held', satsLedger.markHeld(db, satsEntryId, { reason: 'no_payment_hash' }));
         return { success: false, error: _unknownPayError() };
     }
 
@@ -2289,6 +2302,7 @@ exports.claimSats = functionsV1.runWith({
     });
     const afterLookup = faucetGuard.decideFaucetLookupResult(settlement);
     if (afterLookup.action === 'record') {
+        await satsLedger.safe('faucet paid', satsLedger.markPaid(db, satsEntryId, { via: 'lookup' }));
         try {
             await _recordFaucetPaid(Object.assign({}, payInfo, { preimage: afterLookup.preimage, paymentHash: lookupReq.payment_hash }));
         } catch (e) {
@@ -2306,11 +2320,13 @@ exports.claimSats = functionsV1.runWith({
     }
     if (afterLookup.action === 'refund') {
         await _rollbackClaim(uid, amount, today, invoiceRef);
+        await satsLedger.safe('faucet release', satsLedger.release(db, satsEntryId, { reason: 'lookup_failed' }));
         return { success: false, error: 'Payment failed. Your sats were not sent. Please try again.' };
     }
 
     try { await _holdFaucetUnknown(Object.assign({}, payInfo, { paymentHash: lookupReq.payment_hash })); }
     catch (e) { console.error('[FAUCET] could not hold unknown payment:', e.message); }
+    await satsLedger.safe('faucet held', satsLedger.markHeld(db, satsEntryId, { reason: 'lookup_unknown' }));
     return { success: false, error: _unknownPayError() };
 });
 
@@ -9561,6 +9577,7 @@ const {
     listMyCipherWins,
     adminListCipherWins,
     adminMarkCipherWinPaid,
+    adminRecordManualPayout,
 } = require('./src/gifting');
 exports.awardDailyGifts = awardDailyGifts;
 exports.openGift = openGift;
@@ -9573,6 +9590,7 @@ exports.adminResolveCipherSatsClaim = adminResolveCipherSatsClaim;
 exports.listMyCipherWins = listMyCipherWins;
 exports.adminListCipherWins = adminListCipherWins;
 exports.adminMarkCipherWinPaid = adminMarkCipherWinPaid;
+exports.adminRecordManualPayout = adminRecordManualPayout;
 
 // Daily say-hi. App Check is required, same as claimSats. The handlers
 // grant XP and tickets only inside a transaction keyed by uid + server day.
