@@ -1633,6 +1633,12 @@ function initSecondFactor(deps) {
         const uid = requireUser(context);
         const action = String((data && data.action) || '');
         if (!FRESH_ACTIONS[action]) throw httpError('invalid-argument', 'Unknown action');
+        // adminSetKillSwitchOn skips the 20/day cap. Only admins may use it
+        // (Red Team #325 MED1 L1). Check the claim before acceptTotp so a
+        // non-admin guess does not skip the cap or consume a code.
+        if (action === 'adminSetKillSwitchOn' && !(context.auth && context.auth.token && context.auth.token.admin === true)) {
+            throw httpError('permission-denied', 'Admins only.');
+        }
         if (!data || !data.code) throw httpError('invalid-argument', 'Code required');
         const nowMs = currentNow();
         const skipDailyCap = action === 'adminSetKillSwitchOn';
