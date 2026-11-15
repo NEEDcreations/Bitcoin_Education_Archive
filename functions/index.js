@@ -574,20 +574,21 @@ exports.lnAuthCallback = functionsV1.https.onRequest(async (req, res) => {
     // CORS headers
     res.set('Access-Control-Allow-Origin', 'https://bitcoineducation.quest');
 
-    // The linking key must be a 66-char compressed hex pubkey. Checked first,
-    // before any Firestore read, signature check or uid is built from it.
-    if (!req.query.key) {
+    // Every input is checked first, before any Firestore read, signature
+    // check or uid is built: the linking key must be a hex public key (case and
+    // format unchanged, see src/lnAuthKey.js), k1 32 bytes of hex, sig DER hex.
+    const lnAuthChecks = require('./src/lnAuthKey');
+    if (!req.query.k1 || !req.query.sig || !req.query.key) {
         return res.json({ status: 'ERROR', reason: 'Missing k1, sig, or key' });
     }
-    const key = require('./src/lnAuthKey').normalizeLnAuthKey(req.query.key);
+    const key = lnAuthChecks.checkLnAuthKey(req.query.key);
     if (!key) {
         return res.json({ status: 'ERROR', reason: 'Invalid key' });
     }
-    const { k1, sig, tag } = req.query;
-
-    if (!k1 || !sig) {
-        return res.json({ status: 'ERROR', reason: 'Missing k1, sig, or key' });
+    if (!lnAuthChecks.isLnAuthK1(req.query.k1) || !lnAuthChecks.isLnAuthSig(req.query.sig)) {
+        return res.json({ status: 'ERROR', reason: 'Invalid k1 or sig' });
     }
+    const { k1, sig, tag } = req.query;
 
     // Validate k1 exists and is pending
     const challengeDoc = await db.collection('lnauth_challenges').doc(k1).get();
@@ -651,6 +652,9 @@ exports.lnAuthCallback = functionsV1.https.onRequest(async (req, res) => {
     // Firebase UIDs max 128 chars. If key is too long (uncompressed pubkey = 130 hex), hash it.
     const crypto3 = require('crypto');
     const lnUid = ('ln:' + key).length <= 128 ? 'ln:' + key : 'ln:' + crypto3.createHash('sha256').update(key).digest('hex');
+    if (!lnAuthChecks.isLnUid(lnUid)) {
+        return res.json({ status: 'ERROR', reason: 'Invalid key' });
+    }
 
     // Create Firebase auth user if needed
     try {
@@ -704,8 +708,9 @@ exports.lnAuthCallback = functionsV1.https.onRequest(async (req, res) => {
 
 // Step 3: Client polls this to check if wallet completed auth
 exports.lnAuthVerify = functionsV1.https.onCall(async (data, context) => {
-    const { k1 } = data;
+    const { k1 } = data || {};
     if (!k1) throw new functionsV1.https.HttpsError('invalid-argument', 'Missing k1');
+    if (!require('./src/lnAuthKey').isLnAuthK1(k1)) throw new functionsV1.https.HttpsError('invalid-argument', 'Invalid k1');
 
     // Rate limiting: max 20 polls per IP per minute (atomic transaction).
     // The doc id is a keyed hash. The address is not stored.
@@ -773,6 +778,8 @@ exports.lnAuthVerify = functionsV1.https.onCall(async (data, context) => {
     const uid = challenge.uid;
     const linkingKey = challenge.linkingKey;
     if (!uid) throw new functionsV1.https.HttpsError('internal', 'Invalid challenge state');
+    // Only mint for an ln: uid the callback could have built from a hex key.
+    if (!require('./src/lnAuthKey').isLnUid(uid)) throw new functionsV1.https.HttpsError('internal', 'Invalid challenge state');
 
     let token;
     try {
