@@ -29,7 +29,7 @@ test('desktop sidebar brand reads BITCOIN QUEST with the cap logo', () => {
     assert.ok(block.includes('BITCOIN<br>QUEST'));
     assert.ok(!block.includes('EDUCATION'));
     assert.ok(block.includes('class="bq-brand-logo"'));
-    assert.ok(block.includes('sizes="36px"'));
+    assert.ok(block.includes('sizes="44px"'));
     assert.ok(!block.includes(COIN));
 });
 
@@ -55,7 +55,7 @@ test('cap logo srcset files exist at 1x through 4x and are square PNGs', () => {
     assert.ok(m);
     const files = [m[1]].concat(m[2].split(',').map((s) => s.trim().split(' ')[0]));
     for (const f of files) {
-        const buf = fs.readFileSync(path.join(root, f.replace(/^\//, '')));
+        const buf = fs.readFileSync(path.join(root, f.replace(/^\//, '').replace(/\?.*$/, '')));
         assert.strictEqual(buf.slice(1, 4).toString(), 'PNG', f);
         const w = buf.readUInt32BE(16);
         const h = buf.readUInt32BE(20);
@@ -64,6 +64,19 @@ test('cap logo srcset files exist at 1x through 4x and are square PNGs', () => {
         assert.strictEqual(buf[25], 6, f + ' must be RGBA');
     }
     assert.ok(m[2].includes('128w'));
+    assert.ok(m[2].includes('384w'));
+});
+
+test('desktop header keeps sound, volume and theme in their own row and docks the bell', () => {
+    const start = html.indexOf('<div class="sidebar-header">');
+    const block = html.slice(start, html.indexOf('<div class="search-box">', start));
+    assert.ok(block.includes('<div class="sb-controls">'));
+    assert.ok(block.indexOf('id="audioBtn"') > block.indexOf('sb-controls'));
+    assert.ok(block.indexOf('id="themeBtn"') > block.indexOf('sb-controls'));
+    assert.ok(block.includes('id="sidebarBellSlot"'));
+    assert.ok(html.includes('body.ticker-visible #notifOverlayBtn:not(.bell-docked) { top: 44px !important; }'));
+    assert.ok(html.includes('#notifOverlayBtn.bell-docked { position: relative !important;'));
+    assert.ok(html.includes('document.getElementById("notifBellPlaceholder")'));
 });
 
 test('hero logo omits the referrer so the assets host can serve it on previews', () => {

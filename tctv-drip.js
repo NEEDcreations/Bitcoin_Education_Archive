@@ -1,4 +1,4 @@
-// Timechain TV pot of sats: a floating, draggable, resizable, minimizable pot overlay with
+// Timechain TV pot of sats: a floating, draggable, edge/corner-resizable, minimizable pot overlay with
 // sats always flowing in (faster with more viewers). Tap for the pot details; an ⓘ explains the check-in. A short burst every 1,000 sats. Check-ins go to tctvDripCheckin once a minute only while the tab is
 // visible and the video is playing. The server does all the math.
 (function () {
@@ -29,7 +29,12 @@
     function fmt(n) { return Math.floor(n || 0).toLocaleString(); }
     function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
 
-    var POS_KEY = 'tctvPotPos', MIN_KEY = 'tctvPotMin', SIZE_KEY = 'tctvPotSize';
+    var POS_KEY = 'tctvPotPos', MIN_KEY = 'tctvPotMin', SIZE_KEY = 'tctvPotPx', OLD_SIZE_KEY = 'tctvPotSize';
+    // Pot size in px, set by dragging any edge or corner. MIN_POT is the floor; the max follows the viewport.
+    // MAIN_MIN is the text-side reserve in potMax (w - 16 - CARD_CHROME - MAIN_MIN).
+    // 175px covers the count (worst case 4,999/5,000) plus the 40px minimize margin, so the
+    // label stays inside the card on phones at max pot. CSS also lets the face wrap if needed.
+    var MIN_POT = 72, MAX_POT = 420, MAIN_MIN = 175, CARD_CHROME = 34;
     var REDUCED = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     function css() {
         if (document.getElementById('tctv-drip-css')) return;
@@ -39,15 +44,12 @@
         // Default is upper-right on desktop (below the bell and title bar, left of the collapsed remote)
         // and upper-center on phones (below the mobile bar, title row, and channel remote).
         s.textContent = '#tctv-drip{position:fixed;top:calc(84px + env(safe-area-inset-top, 0px));right:max(76px, env(safe-area-inset-right, 0px));left:auto;bottom:auto;z-index:200001;font-family:inherit;color:#fff;touch-action:none;user-select:none;-webkit-user-select:none;max-width:calc(100vw - 16px);--pot:136px;--coin:26px;--fall:100px}' +
-            '#tctv-drip[data-size="2"]{--pot:92px;--coin:20px;--fall:72px}' +
-            '#tctv-drip[data-size="1"]{--pot:60px;--coin:16px;--fall:50px}' +
-            '#tctv-drip.td-mini{--coin:14px;--fall:36px}' +
+                        '#tctv-drip.td-mini{--coin:14px;--fall:36px}' +
             '#tctv-drip[hidden]{display:none}' +
             'body.ticker-visible #tctv-drip{top:calc(116px + env(safe-area-inset-top, 0px))}' +
             '@media (max-width:700px){#tctv-drip{top:calc(178px + env(safe-area-inset-top, 0px));left:8px;right:8px;width:fit-content;margin-left:auto;margin-right:auto}body.ticker-visible #tctv-drip{top:calc(210px + env(safe-area-inset-top, 0px))}}' +
-            '@media (max-width:420px){#tctv-drip{--pot:88px;--coin:20px;--fall:60px}#tctv-drip[data-size="2"]{--pot:68px;--coin:16px;--fall:48px}#tctv-drip[data-size="1"]{--pot:52px;--coin:14px;--fall:36px}#tctv-drip[data-size="3"] .td-card{padding:4px}#tctv-drip[data-size="3"] .td-face{font-size:13px}}' +
-            '@media (max-width:360px){#tctv-drip{--pot:76px;--coin:18px;--fall:52px}#tctv-drip[data-size="3"] .td-card{padding:6px}}' +
-            '#tctv-drip .td-card{position:relative;display:flex;flex-wrap:nowrap;align-items:center;gap:8px;padding:8px;border-radius:28px;background:rgba(17,12,4,.92);border:1px solid rgba(247,147,26,.7);box-shadow:0 10px 28px rgba(0,0,0,.5);cursor:grab;max-width:min(420px,calc(100vw - 16px));box-sizing:border-box}' +
+            '@media (max-width:420px){#tctv-drip[data-size="3"] .td-face{font-size:13px}}' +
+                        '#tctv-drip .td-card{position:relative;display:flex;flex-wrap:nowrap;align-items:center;gap:8px;padding:8px;border-radius:28px;background:rgba(17,12,4,.92);border:1px solid rgba(247,147,26,.7);box-shadow:0 10px 28px rgba(0,0,0,.5);cursor:grab;width:max-content;max-width:calc(100vw - 16px);box-sizing:border-box}' +
             '#tctv-drip[data-size="3"] .td-card{padding:10px;border-width:2px;box-shadow:0 0 0 3px rgba(247,147,26,.35),0 16px 42px rgba(247,147,26,.45),0 10px 24px rgba(0,0,0,.5)}' +
             '#tctv-drip.td-hello[data-size="3"]:not(.td-mini) .td-card{animation:tdGlow 1.5s ease-in-out 3}' +
             '@keyframes tdGlow{0%,100%{box-shadow:0 0 0 3px rgba(247,147,26,.35),0 12px 32px rgba(247,147,26,.35)}50%{box-shadow:0 0 0 10px rgba(247,147,26,.2),0 0 36px 8px rgba(255,207,107,.7)}}' +
@@ -71,18 +73,32 @@
             '@media (max-width:420px){#tctv-drip .td-share{font-size:12px}}' +
             '#tctv-drip .td-share.td-share-hint{font-weight:700;opacity:.92}' +
             '#tctv-drip.td-mini .td-bubble-share{color:#fff;font-weight:800;font-size:12px;margin-left:2px}' +
-            '#tctv-drip .td-pill{position:relative;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 4px;background:none;border:0;cursor:pointer;font-family:inherit;color:#ffcf6b;text-align:left}' +
-            '#tctv-drip .td-face{position:relative;display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:15px;font-weight:800;white-space:nowrap;overflow:visible}' +
+            '#tctv-drip .td-pill{position:relative;margin-right:40px;max-width:calc(100% - 40px);box-sizing:border-box;display:inline-flex;align-items:center;min-height:44px;min-width:44px;padding:0 4px;background:none;border:0;cursor:pointer;font-family:inherit;color:#ffcf6b;text-align:left}' +
+            '#tctv-drip .td-face{position:relative;display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:15px;font-weight:800;white-space:normal;overflow:hidden;max-width:100%;box-sizing:border-box}' +
             '#tctv-drip[data-size="3"] .td-face{font-size:18px;padding:6px 12px}' +
             '#tctv-drip[data-size="1"] .td-face{font-size:13px}' +
-            '@media (max-width:420px){#tctv-drip .td-face{font-size:13px}#tctv-drip .td-lbl,#tctv-drip .td-n{overflow:hidden;text-overflow:ellipsis}}' +
+            '@media (max-width:420px){#tctv-drip .td-face{font-size:13px}#tctv-drip .td-lbl,#tctv-drip .td-n{min-width:0}}' +
             '#tctv-drip .td-pill .td-n{color:#fff;font-weight:800}' +
             '#tctv-drip.td-ask .td-face{background:#f7931a;color:#000}#tctv-drip.td-ask .td-pill .td-n{color:#000}' +
             '#tctv-drip .td-tools{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center}' +
             '#tctv-drip .td-pinfo{background:none;border:0;color:#fff;opacity:.9;font-size:16px;cursor:pointer;min-width:44px;min-height:44px;padding:0}' +
-            '#tctv-drip .td-smaller{background:none;border:0;color:#ffcf6b;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;min-width:44px;min-height:44px;padding:0 8px}' +
-            '#tctv-drip .td-larger{background:none;border:0;color:#ffcf6b;font-size:13px;font-weight:800;font-family:inherit;cursor:pointer;min-width:44px;min-height:44px;padding:0 8px}' +
-            '#tctv-drip .td-min{background:none;border:0;color:#fff;opacity:.9;font-size:22px;font-weight:800;font-family:inherit;line-height:1;cursor:pointer;min-width:44px;min-height:44px;padding:0}' +
+            '#tctv-drip .td-min{position:absolute;top:2px;right:18px;z-index:5;background:none;border:0;color:#fff;opacity:.9;font-size:22px;font-weight:800;font-family:inherit;line-height:1;cursor:pointer;min-width:44px;min-height:44px;padding:0}' +
+            // Resize grips: corners show an orange bracket, edges a short bar. Big hit areas, touch-action none.
+            '#tctv-drip .td-rz{position:absolute;z-index:4;touch-action:none;-webkit-touch-callout:none}' +
+            '#tctv-drip .td-rz::after{content:"";position:absolute;border:0 solid #ffcf6b;opacity:.95;pointer-events:none}' +
+            '#tctv-drip .td-rz-tl,#tctv-drip .td-rz-tr,#tctv-drip .td-rz-bl,#tctv-drip .td-rz-br{width:30px;height:30px}' +
+            '#tctv-drip .td-rz-tl{left:-12px;top:-12px;cursor:nwse-resize}#tctv-drip .td-rz-br{right:-12px;bottom:-12px;cursor:nwse-resize}' +
+            '#tctv-drip .td-rz-tr{right:-12px;top:-12px;cursor:nesw-resize}#tctv-drip .td-rz-bl{left:-12px;bottom:-12px;cursor:nesw-resize}' +
+            '#tctv-drip .td-rz-tl::after,#tctv-drip .td-rz-tr::after,#tctv-drip .td-rz-bl::after,#tctv-drip .td-rz-br::after{width:13px;height:13px}' +
+            '#tctv-drip .td-rz-tl::after{left:9px;top:9px;border-top-width:3px;border-left-width:3px;border-top-left-radius:8px}' +
+            '#tctv-drip .td-rz-tr::after{right:9px;top:9px;border-top-width:3px;border-right-width:3px;border-top-right-radius:8px}' +
+            '#tctv-drip .td-rz-bl::after{left:9px;bottom:9px;border-bottom-width:3px;border-left-width:3px;border-bottom-left-radius:8px}' +
+            '#tctv-drip .td-rz-br::after{right:9px;bottom:9px;border-bottom-width:3px;border-right-width:3px;border-bottom-right-radius:8px}' +
+            '#tctv-drip .td-rz-t,#tctv-drip .td-rz-b{left:20px;right:20px;height:16px;cursor:ns-resize}#tctv-drip .td-rz-t{top:-9px}#tctv-drip .td-rz-b{bottom:-9px}' +
+            '#tctv-drip .td-rz-l,#tctv-drip .td-rz-r{top:20px;bottom:20px;width:16px;cursor:ew-resize}#tctv-drip .td-rz-l{left:-9px}#tctv-drip .td-rz-r{right:-9px}' +
+            '#tctv-drip .td-rz-t::after,#tctv-drip .td-rz-b::after{left:50%;top:6px;width:26px;margin-left:-13px;height:0;border-top-width:3px;border-radius:2px;opacity:.55}' +
+            '#tctv-drip .td-rz-l::after,#tctv-drip .td-rz-r::after{top:50%;left:6px;height:26px;margin-top:-13px;width:0;border-left-width:3px;border-radius:2px;opacity:.55}' +
+            '#tctv-drip.td-resizing .td-rz::after{opacity:1}#tctv-drip.td-resizing,#tctv-drip.td-resizing *{cursor:inherit}' +
             '#tctv-drip [hidden]{display:none !important}' +
             '#tctv-drip button:focus-visible{outline:2px solid #ffcf6b;outline-offset:2px}' +
             '#tctv-drip .td-ptip,#tctv-drip .td-pop{display:none;position:absolute;left:0;bottom:calc(100% + 8px);box-sizing:border-box;width:min(300px,calc(100vw - 24px));font-size:12px;line-height:1.45;font-weight:400;background:#111;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:9px 11px;box-shadow:0 6px 18px rgba(0,0,0,.5);text-align:left;white-space:normal;color:#fff;cursor:auto;z-index:2}' +
@@ -110,10 +126,25 @@
 
     function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
     function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
-    function readSize() {
-        var n = parseInt(lsGet(SIZE_KEY), 10);
-        return n === 1 || n === 2 || n === 3 ? n : 3;
+    function potMax() {
+        var w = window.innerWidth || 360, h = window.innerHeight || 640;
+        return Math.max(MIN_POT, Math.floor(Math.min(MAX_POT, w - 16 - CARD_CHROME - MAIN_MIN, h - 160)));
     }
+    function potDefault() {
+        var w = window.innerWidth || 360;
+        return Math.min(potMax(), w <= 420 ? 112 : w <= 700 ? 130 : 190);
+    }
+    function clampPot(n) { return Math.max(MIN_POT, Math.min(potMax(), Math.round(n))); }
+    function readPot() {
+        var n = parseInt(lsGet(SIZE_KEY), 10);
+        if (isFinite(n) && n > 0) return clampPot(n);
+        // One-time carry-over from the old Shrink/Grow steps.
+        var old = parseInt(lsGet(OLD_SIZE_KEY), 10);
+        if (old === 1) return clampPot(84);
+        if (old === 2) return clampPot(110);
+        return potDefault();
+    }
+    function curPot(el) { return parseInt(el.getAttribute('data-pot'), 10) || readPot(); }
     function clampPlace(el, x, y) {
         var w = el.offsetWidth || 60, h = el.offsetHeight || 52;
         x = Math.max(4, Math.min(x, window.innerWidth - w - 4));
@@ -125,6 +156,23 @@
         el.classList.toggle('td-right', x + w > window.innerWidth * 0.62);
         return { x: x, y: y };
     }
+    // After a drag, left/top are set, so a longer count would grow off the right edge.
+    // Re-run the clamp when the text changes, but not during a drag or resize, and not
+    // when the pot is still in its default CSS spot (no inline top).
+    function keepInView(el) {
+        if (!el || !el.style.top) return;
+        if (el.classList.contains('td-resizing') || el.classList.contains('td-drag')) return;
+        var r = el.getBoundingClientRect();
+        clampPlace(el, r.left, r.top);
+    }
+    function watchSize(el) {
+        if (typeof ResizeObserver === 'undefined') return;
+        var ro = new ResizeObserver(function () { keepInView(el); });
+        var card = el.querySelector('.td-card');
+        var bubble = el.querySelector('.td-bubble');
+        if (card) ro.observe(card);
+        if (bubble) ro.observe(bubble);
+    }
     function restorePos(el) {
         var p = null; try { p = JSON.parse(lsGet(POS_KEY) || 'null'); } catch (e) {}
         if (p && isFinite(p.x) && isFinite(p.y)) clampPlace(el, p.x, p.y);
@@ -135,15 +183,16 @@
             el.classList.toggle('td-right', window.innerWidth > 700);
         }
     }
-    function applySize(el, n, persist) {
-        if (n !== 1 && n !== 2 && n !== 3) n = 3;
-        el.setAttribute('data-size', String(n));
+    // Size is one number (the pot's side in px). Coins and fall distance follow it; data-size buckets keep text tweaks.
+    function setPot(el, px, persist) {
+        var n = clampPot(px);
+        el.setAttribute('data-pot', String(n));
+        el.style.setProperty('--pot', n + 'px');
+        el.style.setProperty('--coin', Math.round(Math.max(14, Math.min(34, n * 0.19))) + 'px');
+        el.style.setProperty('--fall', Math.round(n * 0.74) + 'px');
+        el.setAttribute('data-size', n >= 120 ? '3' : n >= 90 ? '2' : '1');
         if (persist) lsSet(SIZE_KEY, String(n));
-        var smaller = el.querySelector('.td-smaller');
-        var larger = el.querySelector('.td-larger');
-        if (smaller) smaller.hidden = n === 1;
-        if (larger) larger.hidden = n === 3;
-        if (el.style.top) { var r = el.getBoundingClientRect(); clampPlace(el, r.left, r.top); }
+        return n;
     }
     function setMini(el, on) {
         el.classList.toggle('td-mini', on); el.classList.remove('td-open', 'td-tipopen');
@@ -176,7 +225,46 @@
         }
         window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
         el.addEventListener('click', function (e) { if (el._tdSkipClick) { e.stopPropagation(); e.preventDefault(); } }, true);
-        window.addEventListener('resize', function () { if (el.style.top) { var r = el.getBoundingClientRect(); clampPlace(el, r.left, r.top); } });
+        window.addEventListener('resize', function () {
+            setPot(el, readPot(), false);
+            if (el.style.top) { var r = el.getBoundingClientRect(); clampPlace(el, r.left, r.top); }
+        });
+    }
+    // Drag any edge or corner (mouse, pen, or touch) to resize. The opposite edge stays put.
+    // Can't go below MIN_POT or past the viewport. The size is saved on this device on release.
+    function resizable(el) {
+        var st = null;
+        Array.prototype.forEach.call(el.querySelectorAll('.td-rz'), function (h) {
+            h.addEventListener('pointerdown', function (e) {
+                if (e.button !== undefined && e.button !== 0) return;
+                e.stopPropagation(); e.preventDefault();
+                var r = el.getBoundingClientRect();
+                st = { id: e.pointerId, dir: h.getAttribute('data-rz') || 'br', sx: e.clientX, sy: e.clientY, p0: curPot(el), left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+                try { h.setPointerCapture(e.pointerId); } catch (x) {}
+                el.classList.add('td-resizing');
+                el.classList.remove('td-open', 'td-tipopen');
+            });
+        });
+        window.addEventListener('pointermove', function (e) {
+            if (!st || e.pointerId !== st.id) return;
+            e.preventDefault();
+            var d = st.dir, dx = e.clientX - st.sx, dy = e.clientY - st.sy;
+            var gx = d.indexOf('l') >= 0 ? -dx : d.indexOf('r') >= 0 ? dx : 0;
+            var gy = d.indexOf('t') >= 0 ? -dy : d.indexOf('b') >= 0 ? dy : 0;
+            var g = d.length === 2 ? (Math.abs(gx) >= Math.abs(gy) ? gx : gy) : (gx || gy);
+            setPot(el, st.p0 + g, false);
+            var w = el.offsetWidth, hh = el.offsetHeight;
+            clampPlace(el, d.indexOf('l') >= 0 ? st.right - w : st.left, d.indexOf('t') >= 0 ? st.bottom - hh : st.top);
+        }, { passive: false });
+        function end(e) {
+            if (!st || e.pointerId !== st.id) return;
+            st = null;
+            el.classList.remove('td-resizing');
+            setPot(el, curPot(el), true);
+            var r = el.getBoundingClientRect(); lsSet(POS_KEY, JSON.stringify({ x: Math.round(r.left), y: Math.round(r.top) }));
+            el._tdSkipClick = true; setTimeout(function () { el._tdSkipClick = false; }, 0);
+        }
+        window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
     }
 
     function mount() {
@@ -192,19 +280,18 @@
             '<div class="td-share" aria-live="polite"></div>' +
             '<div class="td-tools">' +
             '<button type="button" class="td-pinfo" aria-label="About this button" aria-expanded="false">\u24D8</button>' +
-            '<button type="button" class="td-smaller" aria-label="Shrink pot of sats">Shrink</button>' +
-            '<button type="button" class="td-larger" aria-label="Enlarge pot of sats">Grow</button>' +
-            '<button type="button" class="td-min" aria-label="Minimize pot of sats">\u2013</button>' +
             '</div></div>' +
+            '<button type="button" class="td-min" aria-label="Minimize pot of sats" title="Minimize">\u2013</button>' +
+            ['tl', 'tr', 'bl', 'br', 't', 'b', 'l', 'r'].map(function (d) { return '<span class="td-rz td-rz-' + d + '" data-rz="' + d + '" aria-hidden="true"></span>'; }).join('') +
             '<div class="td-ptip" role="tooltip">You can ignore this, but if you don\u2019t tap it, your watch time won\u2019t be added to the pot of sats.</div>' +
             '<div class="td-pop"><div class="td-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><div class="td-fill"></div></div>' +
             '<div class="td-live" aria-live="polite"></div>' +
-            '<div style="margin-top:6px;opacity:.85">The pot of sats fills a little every minute while people watch Timechain TV together. More viewers, faster fill. When it\u2019s full, the sats are shared with the viewers who helped fill it, based on how long each person watched. Your Share updates live on this pot while you watch. When the pot is full, that share is added to your sats balance to claim. Keep the video playing and this tab open to take part. Drag this anywhere. Tap Shrink or Grow to resize it, or tap \u2013 to minimize it to a small pill. The size and minimized choice stay on this device.</div></div></div>' +
+            '<div style="margin-top:6px;opacity:.85">The pot of sats fills a little every minute while people watch Timechain TV together. More viewers, faster fill. When it\u2019s full, the sats are shared with the viewers who helped fill it, based on how long each person watched. Your Share updates live on this pot while you watch. When the pot is full, that share is added to your sats balance to claim. Keep the video playing and this tab open to take part. Drag this anywhere. Drag any edge or corner to resize it, or tap \u2013 in the corner to minimize it to a small pill. The size and minimized choice stay on this device.</div></div></div>' +
             '<button type="button" class="td-bubble" aria-label="Restore pot of sats">' + img.replace('width="136" height="136"', 'width="40" height="40"') + '<span class="td-bubble-lbl">sats</span><span class="td-bubble-share" hidden></span><span class="td-fx" aria-hidden="true"></span></button>';
-        applySize(el, readSize(), false);
+        setPot(el, readPot(), false);
         var miniOn = lsGet(MIN_KEY) === '1';
         el.classList.toggle('td-mini', miniOn);
-        if (!REDUCED && !miniOn && readSize() === 3) {
+        if (!REDUCED && !miniOn && el.getAttribute('data-size') === '3') {
             el.classList.add('td-hello');
             setTimeout(function () { el.classList.remove('td-hello'); }, 4600);
         }
@@ -221,19 +308,15 @@
             var o = el.classList.toggle('td-tipopen');
             pinfo.setAttribute('aria-expanded', o ? 'true' : 'false');
         });
-        el.querySelector('.td-smaller').addEventListener('click', function () {
-            applySize(el, Math.max(1, (parseInt(el.getAttribute('data-size'), 10) || 3) - 1), true);
-        });
-        el.querySelector('.td-larger').addEventListener('click', function () {
-            applySize(el, Math.min(3, (parseInt(el.getAttribute('data-size'), 10) || 1) + 1), true);
-        });
         el.querySelector('.td-min').addEventListener('click', function () { setMini(el, true); });
         el.querySelector('.td-bubble').addEventListener('click', function () {
             if (el.classList.contains('td-ask')) { hidePrompt(el); celebrate(el, 'Counted!'); checkin(true); }
             setMini(el, false);
         });
         draggable(el);
+        resizable(el);
         restorePos(el);
+        watchSize(el);
         startFlow();
         return el;
     }
@@ -264,6 +347,7 @@
             if (s.hint || !s.bubble) { bub.hidden = true; bub.textContent = ''; }
             else { bub.hidden = false; bub.textContent = s.bubble; }
         }
+        keepInView(el);
     }
     function stopWatch() {
         if (watchUnsub) { watchUnsub(); watchUnsub = null; }
@@ -323,6 +407,7 @@
         scheduleDrops(n);
         listenWatch();
         paintShare(el);
+        keepInView(el);
     }
 
     function celebrate(el, text) {
@@ -423,6 +508,7 @@
         var l = el.querySelector('.td-lbl'); if (l) l.textContent = 'pot of sats';
         el.querySelector('.td-pill').setAttribute('aria-label', 'pot of sats details');
         if (promptHide) { clearTimeout(promptHide); promptHide = null; }
+        keepInView(el);
     }
     function showPrompt(el) {
         if (el.classList.contains('td-ask')) return;
@@ -432,6 +518,7 @@
         el.querySelector('.td-pill').setAttribute('aria-label', 'Still watching? Tap to add your watch time to the pot of sats');
         if (promptHide) clearTimeout(promptHide);
         promptHide = setTimeout(function () { hidePrompt(el); }, 120000);
+        keepInView(el);
     }
     window._tctvDripShowPrompt = function () { var el = document.getElementById('tctv-drip'); if (el) showPrompt(el); };
 
