@@ -885,14 +885,28 @@ function initSecondFactor(deps) {
                 limited = 'day';
             }
             if (!limited && win.attempts >= RATE_MAX) limited = 'window';
-            // Always charge the 2-minute window, including after a daily cap,
-            // so a capped account cannot retry for free. Write at most one
-            // capped audit row per uid per window (Red Team #325 L2).
+            // Day-capped retries on other tools must not charge the shared
+            // 2-minute window, or they can block Emergency stop and the
+            // kill-switch tool for up to 2 minutes (Red Team #325 L1).
+            // Kill-switch step-ups use skipDailyCap and still charge the
+            // window for their own guesses, with at most one capped audit
+            // row per uid per window written in this same transaction
+            // (Red Team #325 L2 / L1).
+            if (limited === 'day') return { limited: 'day', logCapped: false };
             const alreadyLogged = win.attempts > 0 && row.cappedLogged === true;
-            const logCapped = !!limited && !alreadyLogged;
+            const logCapped = !!limited && skipDailyCap && !alreadyLogged;
             writeGuessWindow(tx, ref, win.attempts + 1, win.windowStart, uid, {
                 cappedLogged: alreadyLogged || logCapped,
             });
+            if (logCapped) {
+                const reason = limited === 'on-day' ? 'on-day-cap' : (limited === 'window' ? 'window' : String(limited).slice(0, 60));
+                tx.set(db.collection('mfa_admin_log').doc(), {
+                    action: 'admin_killswitch_on_step_up_failed',
+                    adminUid: uid,
+                    reason: reason,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                });
+            }
             return { limited: limited, logCapped: logCapped };
         });
         if (result.limited === 'day' || result.limited === 'on-day') {
@@ -990,21 +1004,10 @@ function initSecondFactor(deps) {
 
     async function acceptTotp(uid, token, nowMs, opts) {
         const skipDailyCap = !!(opts && opts.skipDailyCap);
-        try {
-            await chargeTotpGuess(uid, nowMs, opts);
-        } catch (e) {
-            // At most one capped audit row per uid per 2-minute window
-            // (Red Team #325 L2). Invalid/replay failures still log separately.
-            if (skipDailyCap && e && e.details && e.details.logCapped === true) {
-                const reason = (e.details && e.details.reason) || (e && e.code) || 'rate-limited';
-                await logAdminTool({
-                    action: 'admin_killswitch_on_step_up_failed',
-                    adminUid: uid,
-                    reason: String(reason).slice(0, 60),
-                });
-            }
-            throw e;
-        }
+        // Capped audit rows are written inside the chargeTotpGuess
+        // transaction (Red Team #325 L1). Invalid/replay failures
+        // still log separately below.
+        await chargeTotpGuess(uid, nowMs, opts);
         const ref = db.collection('totp_secrets').doc(uid);
         const outcome = await db.runTransaction(async function (tx) {
             const snap = await tx.get(ref);
@@ -1650,7 +1653,8 @@ function initSecondFactor(deps) {
     // the tool may repeat inside the window (it is NOT single-use), so
     // anything that moves sats also needs a single-use requireAdminStepUp
     // proof. A TOTP code goes through acceptTotp (per-uid 5 per 2 minutes and
-    // 20 failures a day, and lastAcceptedStep rejects a reused code). A
+    // 20 failures a day, or the shared 100/day kill-switch bucket when
+    // tool is killSwitch, and lastAcceptedStep rejects a reused code). A
     // phone-only admin must have signed in with phone verification in the
     // last five minutes, and each sign-in opens one tool once. The factor
     // must be recorded and at least 24 h old. Attempts are also limited per
@@ -1696,7 +1700,11 @@ function initSecondFactor(deps) {
                 if (!/^\d{6}$/.test(code)) {
                     throw new HttpsError('invalid-argument', 'Enter the 6-digit code from your authenticator app.', { reason: 'code-required' });
                 }
-                await acceptTotp(uid, code, nowMs);
+                // Only the killSwitch tool shares the emergency 100/day
+                // cap so a locked-out admin can still open the window
+                // needed to turn the switch OFF (Spam/Abuse tool-window
+                // follow-up). Every other tool keeps the 20/day cap.
+                await acceptTotp(uid, code, nowMs, tool === 'killSwitch' ? { skipDailyCap: true } : undefined);
                 method = 'totp';
             } else {
                 forgetPhone(uid);
