@@ -1153,12 +1153,15 @@ async function run() {
         assert.strictEqual(db._store.get(rows[0]).backupOverride, true);
     });
 
-    await test('MED1: ON step-up uses adminSetKillSwitchOn (skips the 20/day cap); OFF keeps adminSetKillSwitch', function () {
+    await test('MED1: ON step-up uses adminSetKillSwitchOn; OFF keeps adminSetKillSwitch; both skip the 20/day cap', function () {
         const src = fs.readFileSync(path.join(root, 'functions/src/killSwitch.js'), 'utf8');
         assert.ok(src.includes("on ? 'adminSetKillSwitchOn' : 'adminSetKillSwitch'"));
-        assert.ok(src.includes('skipDailyCap: true'));
+        assert.ok(src.includes('{ skipDailyCap: true }'));
+        assert.ok(!src.includes("on ? { skipDailyCap: true } : undefined"), 'OFF must also skip the shared daily cap');
         const panel = fs.readFileSync(path.join(root, 'admin-panel.js'), 'utf8');
         assert.ok(panel.includes("action === 'on' ? 'adminSetKillSwitchOn' : 'adminSetKillSwitch'"));
+        const sf = fs.readFileSync(path.join(root, 'functions/src/secondFactor.js'), 'utf8');
+        assert.ok(sf.includes('function isKillSwitchStepUpAction'));
     });
 
     await test('F1: client has an Emergency stop path straight to the ON prompt (no tool window)', function () {

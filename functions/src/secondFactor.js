@@ -35,10 +35,11 @@ const FRESH_ACTIONS = {
     unlinkProvider: true,
     adminResetSecondFactor: true,
     adminSetKillSwitch: true,
-    // Emergency ON only. Proofs for this action skip the 20/day TOTP cap
-    // so a burst of failed guesses cannot lock an admin out of an
-    // emergency stop. The 2-minute limit still applies. OFF and every
-    // other tool keep adminSetKillSwitch and the daily cap (Spam/Abuse #325 MED1).
+    // Emergency ON and OFF share a separate 100/day TOTP cap so a burst
+    // of failed guesses cannot lock an admin out of turning the switch
+    // on or back off. The 2-minute limit still applies. A success does
+    // not clear the shared 20/day count for other actions (Spam/Abuse
+    // #325 MED1, Red Team #325 S2, Spam/Abuse OFF follow-up).
     adminSetKillSwitchOn: true,
     claimFavorBlock: true,
     adminSetFavorClaims: true,
@@ -51,6 +52,11 @@ const FRESH_ACTIONS = {
     toggleFaucet: true,
     adminResolveCipherSatsClaim: true,
 };
+
+function isKillSwitchStepUpAction(action) {
+    return action === 'adminSetKillSwitchOn' || action === 'adminSetKillSwitch';
+}
+
 const RECOVERY_COUNT = 10;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const STEP_MS = 30000;
@@ -846,9 +852,9 @@ function initSecondFactor(deps) {
     // Five tries in two minutes live on {uid}. Twenty failures in a day live
     // on {uid}_day, whose expireAt is a full day so the lobby sweeper can
     // delete the short window without wiping the daily count. Emergency
-    // kill-switch ON uses a separate {uid}_day_killswitch_on bucket with a
-    // 100/day cap, and a success there does not clear {uid}_day
-    // (Red Team #325 S2).
+    // kill-switch ON and OFF share a separate {uid}_day_killswitch_on
+    // bucket with a 100/day cap, and a success there does not clear
+    // {uid}_day (Red Team #325 S2, Spam/Abuse OFF follow-up).
     async function chargeTotpGuess(uid, nowMs, opts) {
         const skipDailyCap = !!(opts && opts.skipDailyCap);
         const ref = db.collection('totp_rate_limits').doc(uid);
@@ -862,12 +868,12 @@ function initSecondFactor(deps) {
             const dayRow = daySnap.exists ? (daySnap.data() || {}) : {};
             const day = guessDay(dayRow, nowMs);
             const win = guessWindow(row, nowMs);
-            // Emergency kill-switch ON (adminSetKillSwitchOn) skips the
-            // shared 20/day cap so failed guesses on other actions cannot
-            // lock out an emergency stop, and uses a separate 100/day cap
-            // instead. The 2-minute window still applies. OFF and every
-            // other action keep the 20/day cap (Spam/Abuse #325 MED1,
-            // Red Team #325 S2).
+            // Emergency kill-switch ON and OFF skip the shared 20/day cap
+            // so failed guesses on other actions cannot lock out an
+            // emergency stop or the later OFF, and use a separate 100/day
+            // cap instead. The 2-minute window still applies. Every other
+            // action keeps the 20/day cap (Spam/Abuse #325 MED1, Red Team
+            // #325 S2, Spam/Abuse OFF follow-up).
             if (skipDailyCap) {
                 const onRow = (onDaySnap && onDaySnap.exists) ? (onDaySnap.data() || {}) : {};
                 const onDay = guessDay(onRow, nowMs);
@@ -1740,17 +1746,17 @@ function initSecondFactor(deps) {
         const uid = requireUser(context);
         const action = String((data && data.action) || '');
         if (!FRESH_ACTIONS[action]) throw httpError('invalid-argument', 'Unknown action');
-        // adminSetKillSwitchOn uses a separate 100/day cap instead of the
+        // Kill-switch ON and OFF use a separate 100/day cap instead of the
         // shared 20/day cap, and a success does not clear {uid}_day
-        // (Red Team #325 S2). Only admins may use it (Red Team #325 MED1 L1).
-        // Check the claim before acceptTotp so a non-admin guess does not
-        // skip the shared cap or consume a code.
-        if (action === 'adminSetKillSwitchOn' && !(context.auth && context.auth.token && context.auth.token.admin === true)) {
+        // (Red Team #325 S2, Spam/Abuse OFF follow-up). Only admins may use
+        // them (Red Team #325 MED1 L1). Check the claim before acceptTotp
+        // so a non-admin guess does not skip the shared cap or consume a code.
+        if (isKillSwitchStepUpAction(action) && !(context.auth && context.auth.token && context.auth.token.admin === true)) {
             throw httpError('permission-denied', 'Admins only.');
         }
         if (!data || !data.code) throw httpError('invalid-argument', 'Code required');
         const nowMs = currentNow();
-        const skipDailyCap = action === 'adminSetKillSwitchOn';
+        const skipDailyCap = isKillSwitchStepUpAction(action);
         await acceptTotp(uid, String(data.code).trim(), nowMs, skipDailyCap ? { skipDailyCap: true } : undefined);
         const proof = await issueFreshProof(uid, action, nowMs);
         return { success: true, action: action, freshProofId: proof.proofId, expiresAt: proof.expiresAtMs };
@@ -2120,6 +2126,7 @@ module.exports = {
     ON_DAILY_FAIL_MAX: ON_DAILY_FAIL_MAX,
     NETWORK_RATE_MAX: NETWORK_RATE_MAX,
     RATE_MAX: RATE_MAX,
+    isKillSwitchStepUpAction: isKillSwitchStepUpAction,
     MAX_TRUSTED_DEVICES: MAX_TRUSTED_DEVICES,
     deviceLabel: deviceLabel,
     hashDeviceToken: hashDeviceToken,
