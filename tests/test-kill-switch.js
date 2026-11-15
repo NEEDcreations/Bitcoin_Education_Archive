@@ -1373,6 +1373,166 @@ async function run() {
         assert.strictEqual(payloads[1].override, true);
     });
 
+    await test('L1: heldProof is cleared on expired/invalid/consumed/needs-step-up errors, not on already-offline', function () {
+        const panel = fs.readFileSync(path.join(root, 'admin-panel.js'), 'utf8');
+        const start = panel.indexOf('function heldProofIsDead(e)');
+        const end = panel.indexOf('function callKillSwitch', start);
+        assert.ok(start > 0 && end > start, 'heldProofIsDead is defined');
+        const isDead = new Function('e', panel.slice(start, end) + '\nreturn heldProofIsDead(e);');
+        assert.strictEqual(isDead({ message: 'Enter a fresh authenticator code for this action.' }), true);
+        assert.strictEqual(isDead({ message: 'That proof has expired.' }), true);
+        assert.strictEqual(isDead({ message: 'This proof is invalid.' }), true);
+        assert.strictEqual(isDead({ message: 'This proof was already consumed.' }), true);
+        assert.strictEqual(isDead({ details: { reason: 'needs-step-up' } }), true);
+        assert.strictEqual(isDead({ message: 'The app is already offline. You can only extend the auto-return to a later time (or leave it off until an admin turns it back on).' }), false);
+        assert.strictEqual(isDead({ message: 'Too many kill-switch changes. Wait an hour and try again.' }), false);
+        const toolCatch = panel.slice(panel.indexOf('function openKillSwitch()'), panel.indexOf('function openEmergencyStop()'));
+        const estopCatch = panel.slice(panel.indexOf('function openEmergencyStop()'), panel.indexOf('window.bqEmergencyStop'));
+        assert.ok(toolCatch.includes('if (heldProofIsDead(e)) state.heldProof = \'\''));
+        assert.ok(estopCatch.includes('if (heldProofIsDead(e)) heldProof = \'\''));
+    });
+
+    await test('L1: an expired heldProof is dropped, so the next tap asks for a new code', async function () {
+        const panel = fs.readFileSync(path.join(root, 'admin-panel.js'), 'utf8');
+        const calls = [];
+        const payloads = [];
+        const byId = new Map();
+        function el(tag) {
+            const node = {
+                tagName: String(tag || 'div').toUpperCase(),
+                style: { display: '' },
+                attributes: {},
+                children: [],
+                parentNode: null,
+                _text: '',
+                _html: '',
+                listeners: {},
+                className: '',
+                type: '',
+                value: '',
+                checked: false,
+                disabled: false,
+                get id() { return this._id || ''; },
+                set id(v) { this._id = v; if (v) byId.set(v, this); },
+                get textContent() { return this._text; },
+                set textContent(v) { this._text = String(v == null ? '' : v); },
+                get innerHTML() { return this._html; },
+                set innerHTML(v) {
+                    this._html = String(v == null ? '' : v);
+                    const re = /<([a-z0-9]+)([^>]*)>/gi;
+                    let m;
+                    while ((m = re.exec(this._html))) {
+                        const attrs = m[2] || '';
+                        const idM = /id="([^"]+)"/.exec(attrs);
+                        const clsM = /class="([^"]+)"/.exec(attrs);
+                        if (!idM && !clsM) continue;
+                        const child = el(m[1]);
+                        if (idM) child.id = idM[1];
+                        if (clsM) child.className = clsM[1];
+                        if (child.id === 'ksuOverride') { child.tagName = 'INPUT'; child.checked = false; }
+                        if (child.id === 'ksuReason') { child.tagName = 'TEXTAREA'; child.value = 'stale backup drill here'; }
+                        if (child.id === 'ksuConfirm') { child.tagName = 'INPUT'; child.value = 'OFFLINE'; }
+                        if (child.id === 'ksuGo') child.tagName = 'BUTTON';
+                        child.parentNode = node;
+                        node.children.push(child);
+                    }
+                },
+                setAttribute(k, v) { this.attributes[k] = String(v); },
+                getAttribute(k) { return this.attributes[k]; },
+                addEventListener(t, fn) { (this.listeners[t] = this.listeners[t] || []).push(fn); },
+                querySelector(sel) {
+                    if (sel.charAt(0) === '#') return byId.get(sel.slice(1)) || null;
+                    if (sel.charAt(0) === '.') {
+                        const cls = sel.slice(1);
+                        const walk = function (n) {
+                            for (const c of n.children) {
+                                if ((' ' + c.className + ' ').indexOf(' ' + cls + ' ') >= 0) return c;
+                                const f = walk(c); if (f) return f;
+                            }
+                            return null;
+                        };
+                        return walk(node);
+                    }
+                    return byId.get(sel) || null;
+                },
+                appendChild(c) { c.parentNode = this; this.children.push(c); return c; },
+                removeChild(c) {
+                    const i = this.children.indexOf(c);
+                    if (i >= 0) this.children.splice(i, 1);
+                    c.parentNode = null;
+                },
+                focus() {},
+                click() { (this.listeners.click || []).forEach(function (fn) { fn({ target: node, preventDefault: function () {} }); }); },
+            };
+            return node;
+        }
+        const body = el('body');
+        const head = el('head');
+        const doc = {
+            body: body,
+            head: head,
+            getElementById(id) { return byId.get(id) || null; },
+            createElement: el,
+            addEventListener() {},
+            removeEventListener() {},
+        };
+        head.appendChild = function (c) { c.parentNode = head; head.children.push(c); return c; };
+        body.appendChild = function (c) { c.parentNode = body; body.children.push(c); if (c.id) byId.set(c.id, c); return c; };
+        const expired = new Error('Enter a fresh authenticator code for this action.');
+        expired.code = 'failed-precondition';
+        let answers = [{ needsOverride: true, preflight: { ok: false } }, { err: expired }, { ok: true, on: true, changed: true }];
+        const sandbox = {
+            window: {
+                _isAdminClaim: true,
+                _showFreshStepUp: function (action) {
+                    calls.push(action);
+                    return Promise.resolve('proof-' + calls.length);
+                },
+            },
+            document: doc,
+            firebase: {
+                functions: function () {
+                    return {
+                        httpsCallable: function () {
+                            return function (payload) {
+                                payloads.push(JSON.parse(JSON.stringify(payload)));
+                                const next = answers.shift() || { ok: true, on: true, changed: true };
+                                if (next.err) return Promise.reject(next.err);
+                                return Promise.resolve({ data: next });
+                            };
+                        },
+                    };
+                },
+            },
+            location: { hash: '' },
+            console: console,
+            setTimeout: setTimeout,
+            clearTimeout: clearTimeout,
+            Promise: Promise,
+        };
+        sandbox.window.window = sandbox.window;
+        sandbox.global = sandbox;
+        vm.runInNewContext(panel, sandbox, { filename: 'admin-panel.js' });
+        sandbox.window.bqEmergencyStop();
+        const go = doc.getElementById('ksuGo');
+        const ov = doc.getElementById('ksuOverride');
+        go.click();
+        await new Promise(function (r) { setTimeout(r, 30); });
+        assert.strictEqual(calls.length, 1);
+        assert.strictEqual(payloads[0].freshProofId, 'proof-1');
+        assert.strictEqual(ov.checked, true);
+        go.click();
+        await new Promise(function (r) { setTimeout(r, 30); });
+        assert.strictEqual(calls.length, 1, 'second click still reused the held proof');
+        assert.strictEqual(payloads.length, 2);
+        assert.strictEqual(payloads[1].freshProofId, 'proof-1');
+        go.click();
+        await new Promise(function (r) { setTimeout(r, 30); });
+        assert.strictEqual(calls.length, 2, 'after a dead-proof error the next tap asks for a new code');
+        assert.strictEqual(payloads.length, 3);
+        assert.strictEqual(payloads[2].freshProofId, 'proof-2');
+    });
+
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed ? 1 : 0);
 }

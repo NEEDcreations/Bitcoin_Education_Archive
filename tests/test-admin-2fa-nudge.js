@@ -212,6 +212,29 @@ test('the nudge waits until TOTP status is known', function () {
     assert.ok(!overlay(s.doc));
 });
 
+test('a loaded profile is not enough; the nudge waits for totpStatus', function () {
+    const s = sandbox({
+        admin: true,
+        totp: false,
+        currentUser: { uid: 'admin-1', totpEnabled: false },
+        mfaStatus: undefined,
+        phoneFactors: [],
+    });
+    assert.strictEqual(s.api.bqAdmin2faNudgeShouldShow(), false);
+    assert.strictEqual(s.api.bqMaybeShowAdmin2faNudge(), false);
+    assert.ok(!overlay(s.doc));
+});
+
+test('the nudge closes if totpStatus later says the admin has a factor', function () {
+    const s = sandbox(readyAdmin());
+    assert.strictEqual(s.api.bqMaybeShowAdmin2faNudge(), true);
+    assert.ok(overlay(s.doc));
+    s.win._mfaStatus = { enabled: true };
+    s.sb.window._mfaStatus = { enabled: true };
+    assert.strictEqual(s.api.bqMaybeShowAdmin2faNudge(), false);
+    assert.ok(!overlay(s.doc), 'overlay auto-closes once TOTP is known on');
+});
+
 test('an admin with no app TOTP and no phone sees the modal, with the right copy and buttons', function () {
     const s = sandbox(readyAdmin());
     assert.strictEqual(s.api.bqMaybeShowAdmin2faNudge(), true);
