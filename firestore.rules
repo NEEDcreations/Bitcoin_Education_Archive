@@ -1394,11 +1394,53 @@ service cloud.firestore {
     // IRL EVENTS
     // =============================================
     match /irl_events/{eventId} {
+      // D1: cover images are an https URL or a base64 image data URL, with no
+      // quote, bracket, paren, backslash or whitespace that could leave a
+      // CSS url('...') or an HTML attribute.
+      function irlCoverOk(d) {
+        return !('coverUrl' in d)
+            || (d.coverUrl is string
+                && d.coverUrl.matches("^(https://[^\\s\"'<>()\\\\]+|data:image/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+)$"));
+      }
+      function irlOldAttendees() {
+        return resource.data.get('attendees', []);
+      }
+      function irlChanged() {
+        return request.resource.data.diff(resource.data).affectedKeys();
+      }
+      // D2: a non-host RSVP adds exactly the caller and keeps everyone else.
+      function irlRsvpJoin() {
+        return irlChanged().hasOnly(['attendees'])
+            && request.resource.data.attendees is list
+            && request.resource.data.attendees.size() == irlOldAttendees().size() + 1
+            && request.resource.data.attendees.hasAll(irlOldAttendees())
+            && !(request.auth.uid in irlOldAttendees())
+            && request.auth.uid in request.resource.data.attendees;
+      }
+      // D3: a non-host can undo their own RSVP (arrayRemove of their uid),
+      // removing nobody else. attendeesCount is left alone, as on join.
+      function irlRsvpLeave() {
+        return irlChanged().hasOnly(['attendees'])
+            && request.resource.data.attendees is list
+            && request.resource.data.attendees.size() == irlOldAttendees().size() - 1
+            && irlOldAttendees().hasAll(request.resource.data.attendees)
+            && request.auth.uid in irlOldAttendees()
+            && !(request.auth.uid in request.resource.data.attendees);
+      }
+      // D1: the host may only edit these fields, with a numeric count and a
+      // safe cover. hostId, hostName, createdAt and new fields (emoji) are out.
+      function irlHostEditOk() {
+        return irlChanged().hasOnly(['title', 'date', 'location', 'locationName', 'link', 'description',
+                'coverUrl', 'attendees', 'attendeesCount'])
+            && (!irlChanged().hasAny(['attendeesCount']) || request.resource.data.attendeesCount is int)
+            && (!irlChanged().hasAny(['attendees']) || request.resource.data.attendees is list)
+            && (!irlChanged().hasAny(['coverUrl']) || irlCoverOk(request.resource.data));
+      }
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
                     && autoDocId(eventId)
                     && noStoredIdField()
-                    // Exactly the fields irl-sync.js submitHostEvent sends.
+                    // Exactly the fields irl-sync.js submitEvent sends.
                     && request.resource.data.keys().hasOnly(['title', 'date', 'location', 'locationName', 'hostId',
                         'hostName', 'attendeesCount', 'attendees', 'createdAt', 'link', 'description', 'coverUrl'])
                     && request.resource.data.hostId == request.auth.uid
@@ -1407,17 +1449,23 @@ service cloud.firestore {
                     && request.resource.data.title is string
                     && request.resource.data.title.size() >= 3
                     && request.resource.data.title.size() <= 200
+                    // D1: the host is the only attendee, the count is the int 1,
+                    // hostName is short text and the cover is safe.
+                    && request.resource.data.attendees == [request.auth.uid]
+                    && request.resource.data.attendeesCount is int
+                    && request.resource.data.attendeesCount == 1
+                    && request.resource.data.hostName is string
+                    && request.resource.data.hostName.size() <= 50
+                    && irlCoverOk(request.resource.data)
                     // link field must be https:// or absent — blocks javascript: and data: XSS
                     && (!request.resource.data.keys().hasAny(['link'])
                         || (request.resource.data.link is string
                             && request.resource.data.link.matches('https://.*'))));
       allow update: if clientWritesOk() && (request.auth != null
                     && idFieldUnchanged()
-                    && (resource.data.hostId == request.auth.uid
-                        || isAdmin()
-                        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendees'])
-                            && request.resource.data.attendees.size() == resource.data.get('attendees', []).size() + 1
-                            && request.auth.uid in request.resource.data.attendees))
+                    && (isAdmin()
+                        || (resource.data.hostId == request.auth.uid && irlHostEditOk())
+                        || (resource.data.hostId != request.auth.uid && (irlRsvpJoin() || irlRsvpLeave())))
                     // link field must be https:// or absent on update too
                     && (!request.resource.data.keys().hasAny(['link'])
                         || request.resource.data.link == null

@@ -186,6 +186,7 @@ const TESTS = [
     { name: 'Kill switch rules (offline writes)', file: 'rules/kill-switch-rules.js' },
     { name: 'SF block-claim rules', file: 'rules/sf-block-claims-rules.js' },
     { name: 'Chat/forum auto-id rules (N3/N4)', file: 'rules/doc-id-rules.js' },
+    { name: 'IRL events rules (D1-D3)', file: 'rules/irl-events-rules.js' },
     { name: 'Raid bosses', file: 'test-raid-boss.js' },
     { name: 'Certification bonus', file: 'test-cert-bonus.js' },
     { name: 'Scholar exam draw', file: 'test-scholar-draw.js' },
