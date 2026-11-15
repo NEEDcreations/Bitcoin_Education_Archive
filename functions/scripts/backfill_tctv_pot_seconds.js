@@ -14,8 +14,14 @@
 // What it writes (live, only with --apply and BACKFILL_CONFIRM=pot1):
 //   tctv_drip_watch/{potId}_{uid}: seconds (never lowered), ageOk,
 //     acctCreatedMs (from Firebase Auth only), backfill {runId, source,
-//     method, beforeSeconds, atMs}
-//   tctv_drip_backfill_audit/{runId}_{uid}: one row per write (before/after)
+//     method: "backfill", beforeSeconds, atMs}. This doc is client-readable
+//     by the account owner, so method is a fixed neutral label. Plan notes,
+//     review wording, and watch-list membership never go here.
+//   tctv_drip_backfill_audit/{sha256(runId + NUL + uid)}: one row per write
+//     (before/after), including the plan method text. This collection is
+//     server-only. The doc id is a hash so a deleted account's full uid
+//     does not survive in the id. The uid field is still stored, and account
+//     deletion masks it (query on uid) while keeping the row.
 //   tctv_drip_backfill_audit/{runId}: a run summary row, written first
 //     (status: started) and updated when the run finishes, so a crash still
 //     leaves a summary. This collection is permanent: keep it out of every
@@ -28,17 +34,50 @@
 // Idempotent: seconds = max(current, planned), so re-running is a no-op
 // and real watch time credited after the plan was made is never lost.
 //
-// Usage: node backfill_tctv_pot_seconds.js --plan plan.csv --project <id> [--exclude uids.txt] [--apply]
+// Usage: node backfill_tctv_pot_seconds.js --plan plan.csv --project <id> [--exclude uids.txt] [--plan-sha <sha256>] [--apply]
 // --exclude is a file of uids (one per line, # comments ok). Those accounts
 // are skipped. Re-adding a held account needs a separate reviewed run.
+// --apply requires --exclude and --plan-sha <sha256>. --plan-sha is the
+// sha256 of the exact plan file bytes and refuses on a mismatch (also
+// checked on a dry run if the flag is passed).
 // Without --apply it prints what it would write and writes nothing.
 // Creation time is read from Firebase Auth. A mismatch with the CSV
 // created column refuses the run. The CSV time is never saved.
 
 const fs = require('fs');
+const crypto = require('crypto');
 
 const ESTIMATE_CAP_SECONDS = 2 * 3600;
 const PROTECTED_AUDIT_COLLECTION = 'tctv_drip_backfill_audit';
+// Fixed label on the client-readable watch doc. Plan method/review notes
+// stay on the server-only audit row only.
+const CLIENT_BACKFILL_METHOD = 'backfill';
+
+function sha256Hex(buf) {
+    return crypto.createHash('sha256').update(buf).digest('hex');
+}
+
+// Deterministic, no uid in the document id. Deletion still finds the
+// row by querying the uid field.
+function auditDocId(runId, uid) {
+    return sha256Hex(Buffer.from(String(runId) + '\0' + String(uid), 'utf8'));
+}
+
+function checkPlanSha(fileBytes, expectedSha) {
+    const got = sha256Hex(fileBytes);
+    const want = String(expectedSha || '').trim().toLowerCase();
+    if (!want) throw new Error('missing --plan-sha');
+    if (!/^[0-9a-f]{64}$/.test(want)) throw new Error('invalid --plan-sha');
+    if (got !== want) throw new Error('plan sha mismatch: got ' + got + ' expected ' + want);
+    return got;
+}
+
+function validateApplyArgs(opts) {
+    const o = opts || {};
+    if (!o.apply) return;
+    if (!o.excludePath) throw new Error('--exclude is required with --apply');
+    if (!o.planSha) throw new Error('--plan-sha is required with --apply');
+}
 
 function parseCsv(text) {
     const lines = text.split(/\r?\n/).filter(Boolean);
@@ -120,7 +159,9 @@ async function main() {
     const apply = args.includes('--apply');
     const planPath = get('--plan'); const project = get('--project');
     const excludePath = get('--exclude');
-    if (!planPath || !project) throw new Error('usage: --plan plan.csv --project <id> [--exclude uids.txt] [--apply]');
+    const planSha = get('--plan-sha');
+    if (!planPath || !project) throw new Error('usage: --plan plan.csv --project <id> [--exclude uids.txt] [--plan-sha <sha256>] [--apply]');
+    validateApplyArgs({ apply, excludePath, planSha });
     if (apply && process.env.BACKFILL_CONFIRM !== 'pot1') throw new Error('refusing: set BACKFILL_CONFIRM=pot1 to apply');
     const admin = require('../src/firebaseAdmin.js');
     if (!admin.apps || !admin.apps.length) admin.initializeApp({ projectId: project });
@@ -129,7 +170,9 @@ async function main() {
     const cfg = logic.readConfig(((await db.collection('tctv_drip_config').doc('settings').get()).data()) || null);
     const pot = (await db.collection('tctv_drip_pot').doc('current').get()).data() || {};
     if (pot.potId !== 'pot1' || pot.status !== 'filling') throw new Error('refusing: pot is ' + pot.potId + '/' + pot.status + ', plan was made for pot1/filling');
-    const rows = parseCsv(fs.readFileSync(planPath, 'utf8'));
+    const planBytes = fs.readFileSync(planPath);
+    if (apply || planSha) checkPlanSha(planBytes, planSha);
+    const rows = parseCsv(planBytes.toString('utf8'));
     const excluded = excludePath ? parseExclude(fs.readFileSync(excludePath, 'utf8')) : new Set();
     const runId = 'bf_' + new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
     const baseCtx = { nowMs: Date.now(), limitSeconds: cfg.perAccountLimitSeconds, minAgeMs: cfg.minAccountAgeDays * 86400000, excluded };
@@ -159,17 +202,18 @@ async function main() {
             continue;
         }
         const wRef = db.collection('tctv_drip_watch').doc('pot1_' + row.uid);
-        const aRef = db.collection(PROTECTED_AUDIT_COLLECTION).doc(runId + '_' + row.uid);
+        const aRef = db.collection(PROTECTED_AUDIT_COLLECTION).doc(auditDocId(runId, row.uid));
         const ctx = Object.assign({}, baseCtx, { authCreatedMs: authCreatedByUid.get(row.uid) });
         const done = await db.runTransaction(async (tx) => {
             const snap = await tx.get(wRef);
             const w = planWrite(snap.exists ? snap.data() : null, row, ctx);
             if (!w) return null;
             if (!apply) return w;
+            const auditMethod = String(row.method || '').slice(0, 200);
             tx.set(wRef, { uid: row.uid, potId: 'pot1', seconds: w.seconds, ageOk: true, acctCreatedMs: w.createdMs,
-                backfill: { runId, source: row.source, method: String(row.method || '').slice(0, 200), beforeSeconds: w.before, atMs: ctx.nowMs } }, { merge: true });
+                backfill: { runId, source: row.source, method: CLIENT_BACKFILL_METHOD, beforeSeconds: w.before, atMs: ctx.nowMs } }, { merge: true });
             tx.create(aRef, { runId, uid: row.uid, potId: 'pot1', beforeSeconds: w.before, afterSeconds: w.seconds, source: row.source,
-                method: String(row.method || '').slice(0, 200), createdDoc: !snap.exists, at: FV.serverTimestamp() });
+                method: auditMethod, createdDoc: !snap.exists, at: FV.serverTimestamp() });
             return w;
         });
         if (done) { n++; added += done.seconds - done.before; console.log((apply ? 'WROTE ' : 'WOULD ') + maskUid(row.uid) + ' ' + done.before + ' -> ' + done.seconds + ' (' + row.source + ')'); }
@@ -184,6 +228,7 @@ async function main() {
 
 module.exports = {
     parseCsv, parseExclude, planWrite, resolveCreatedMs, plannedSeconds, isSkipped,
-    ESTIMATE_CAP_SECONDS, PROTECTED_AUDIT_COLLECTION, maskUid
+    sha256Hex, auditDocId, checkPlanSha, validateApplyArgs,
+    ESTIMATE_CAP_SECONDS, PROTECTED_AUDIT_COLLECTION, CLIENT_BACKFILL_METHOD, maskUid
 };
 if (require.main === module) main().then(() => process.exit(0), (e) => { console.error(e.message); process.exit(1); });
