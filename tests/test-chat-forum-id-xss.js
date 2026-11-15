@@ -50,8 +50,9 @@ function fakeDb(docsByCollection) {
     return { collection: query, batch: function () { return { delete: function () {}, update: function () {}, set: function () {}, commit: function () { return Promise.resolve(); } }; } };
 }
 
-function makeWindow(docs) {
-    const dom = new JSDOM('<!doctype html><html><body><div id="globalChatMessages"></div><div id="forumReplies"></div><div id="articleReplies"></div><div id="forumPosts"></div></body></html>',
+function makeWindow(docs, opts) {
+    opts = opts || {};
+    const dom = new JSDOM('<!doctype html><html><body><div id="globalChatMessages"></div><div id="forumReplies"></div><div id="articleReplies"></div><div id="forumPosts"></div><div id="beatsTrackList"></div></body></html>',
         { url: 'https://bitcoineducation.quest/', runScripts: 'dangerously', pretendToBeVisual: true });
     const w = dom.window;
     const errors = [];
@@ -87,12 +88,15 @@ function makeWindow(docs) {
     load('nacho-qa.js');      // the lazy global escapeHtml/sanitizeUrl override
     load('global-chat.js');
     load('forum.js');
-    w.__real = { showReactPicker: w.showReactPicker };
+    if (opts.beats) load('beats.js');
+    w.__real = { showReactPicker: w.showReactPicker, beatsShowTrackDetail: w.beatsShowTrackDetail, beatsLoadTracks: w.beatsLoadTracks };
     // spies for the click handlers
     w.__calls = [];
     ['deleteChatMsg', 'pinChatMessage', 'editChatMsg', 'toggleReaction', 'showReactPicker', 'showUserProfile',
         'showTipOverlay', 'forumViewPost', 'forumVotePost', 'forumDeletePost', 'forumVoteReply', 'forumDeleteReply',
-        'forumReplyToReply', 'articleReplyToComment', 'articleView', '_toggleAnnouncementReaction', '_showAnnReactPicker', '_toggleGgParty'].forEach(function (n) {
+        'forumReplyToReply', 'articleReplyToComment', 'articleView', '_toggleAnnouncementReaction', '_showAnnReactPicker', '_toggleGgParty',
+        'beatsShowComments', 'beatsToggleLike', 'beatsAddToPlaylistPicker', 'beatsTrackMenu', 'beatsTipCurrentArtistById', 'beatsShareTrack',
+        'beatsShowArtistPage', 'beatsPlayTrack', 'beatsShowTrackDetail'].forEach(function (n) {
         w[n] = function () { w.__calls.push([n].concat(Array.prototype.slice.call(arguments))); };
     });
     return { w: w, errors: errors };
@@ -220,12 +224,54 @@ test('forum post list: payload post ids and author uids inert', function () {
     assert.ok(calls.some(function (x) { return x[0] === 'showUserProfile' && x[1] === LN; }));
 });
 
+test('beats tracks: payload track ids inert, a stored id field cannot override doc.id', async function () {
+    const T = 'TTTTTTTTTTTTTTTTTTTT';
+    const { w, errors } = makeWindow({ beats_tracks: [
+        { id: P1, data: { title: 'Payload id', artist: 'm', authorId: LN, authorName: 'm', duration: 60, audioUrl: 'https://x/a.mp3', createdAt: null } },
+        { id: T, data: { id: P2, title: 'Spoofed stored id', artist: 'v', authorId: 'viewer', authorName: 'v', duration: 60, audioUrl: 'https://x/b.mp3', createdAt: null } },
+    ] }, { beats: true });
+    assert.strictEqual(typeof w.__real.beatsLoadTracks, 'function', 'beats.js did not load: ' + errors.join(' | '));
+    w.__real.beatsLoadTracks('all');
+    for (let i = 0; i < 20 && w.document.getElementById('beatsTrackList').innerHTML.indexOf('beats-action-btn') === -1; i++) await new Promise(function (r) { setTimeout(r, 10); });
+    const c = w.document.getElementById('beatsTrackList');
+    assert.ok(c.innerHTML.indexOf('beats-action-btn') !== -1, 'tracks not rendered: ' + c.innerHTML.slice(0, 200) + ' ' + errors.join(' | '));
+    noInjection(w, 'beats list');
+    assert.deepStrictEqual(Array.from(w._beatsQueue, function (t) { return t.id; }), [P1, T], 'stored id field must not replace the doc id');
+    const calls = clickAll(w, c, '[onclick]');
+    noInjection(w, 'beats list after clicks');
+    ['beatsShowComments', 'beatsToggleLike', 'beatsAddToPlaylistPicker', 'beatsTrackMenu'].forEach(function (n) {
+        assert.ok(calls.some(function (x) { return x[0] === n && x[1] === P1; }), n + ' did not get the raw payload id: ' + JSON.stringify(calls));
+        assert.ok(calls.some(function (x) { return x[0] === n && x[1] === T; }), n + ' did not get the real doc id');
+    });
+    assert.ok(calls.some(function (x) { return x[0] === 'beatsShowArtistPage' && x[1] === LN; }), 'artist click must pass the raw uid');
+    assert.ok(!calls.some(function (x) { return x.indexOf(P2) !== -1; }), 'spoofed id reached a handler');
+    // the track detail sheet
+    w.__real.beatsShowTrackDetail(0);
+    const o = w.document.getElementById('beatsDetailOverlay');
+    assert.ok(o, 'detail sheet not opened: ' + errors.join(' | '));
+    noInjection(w, 'beats detail');
+    // most detail buttons close the sheet, so reopen it before each click
+    const n = o.querySelectorAll('[onclick]').length;
+    const dcalls = [];
+    for (let i = 0; i < n; i++) {
+        const old = w.document.getElementById('beatsDetailOverlay'); if (old) old.remove();
+        w.__real.beatsShowTrackDetail(0);
+        const el = w.document.getElementById('beatsDetailOverlay').querySelectorAll('[onclick]')[i];
+        w.__calls.length = 0;
+        el.dispatchEvent(new w.MouseEvent('click', { bubbles: false }));
+        dcalls.push.apply(dcalls, w.__calls);
+    }
+    noInjection(w, 'beats detail after clicks');
+    assert.ok(dcalls.some(function (x) { return x[0] === 'beatsToggleLike' && x[1] === P1; }), JSON.stringify(dcalls));
+    assert.ok(dcalls.some(function (x) { return x[0] === 'beatsShowComments' && x[1] === P1; }));
+});
+
 test('no renderer splices a doc id or uid into an inline JS string', function () {
     const checks = {
         'global-chat.js': [/showUserProfile\(\\'' ?\+/, /(deleteChatMsg|pinChatMessage|editChatMsg|toggleReaction|showReactPicker)\(\\'' ?\+/, /data-msg-id="' \+ m\._id/],
         'forum.js': [/showUserProfile\(\\'' ?\+/, /(forumViewPost|forumVotePost|forumDeletePost|forumVoteReply|forumDeleteReply|articleView|articleVote|articleDelete|articleEdit)\(\\'' ?\+/, /data-(reply-id|rid)="' \+ r\.id/, /\{ id: doc\.id, \.\.\.doc\.data\(\) \}/],
         'quests.js': [/showUserProfile\(\\'' ?\+/], 'ranking.js': [/showUserProfile\(\\'' ?\+/],
-        'beats.js': [/showUserProfile\(\\'' ?\+/], 'satoshi-favor.js': [/showUserProfile\(\\'' ?\+/],
+        'beats.js': [/showUserProfile\(\\'' ?\+/, /\(\\'' ?\+ ?(t|track)\.(id|authorId) ?\+/, /Object\.assign\(\{ id: doc\.id \}/, /\{ ?id: ?doc\.id, ?\.\.\./], 'satoshi-favor.js': [/showUserProfile\(\\'' ?\+/],
     };
     Object.keys(checks).forEach(function (f) {
         const src = fs.readFileSync(path.join(root, f), 'utf8');
