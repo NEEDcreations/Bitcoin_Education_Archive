@@ -123,12 +123,15 @@ test('HTML escaping and XSS protection stay intact', function() {
     assert.strictEqual(html.indexOf('<script'), -1, html);
     assert.ok(html.indexOf('&lt;img src=x onerror=alert(1)&gt;') !== -1, html);
     assert.deepStrictEqual(chips(html), ['@chill guy2']);
-    // The leftover text must never land inside the onclick attribute.
+    // The name rides in an escaped data attribute; the onclick is a fixed
+    // string that reads it, so leftover text never lands inside the handler.
     const onclicks = html.match(/onclick="[^"]*"/g) || [];
-    onclicks.forEach(function(o) { assert.ok(/lookupUserByName\('chill guy2'\)/.test(o), o); });
+    onclicks.forEach(function(o) { assert.ok(/lookupUserByName\(this\.dataset\.bqM\)"$/.test(o), o); });
+    assert.deepStrictEqual(html.match(/data-bq-m="[^"]*"/g), ['data-bq-m="chill guy2"'], html);
     const quoteName = render("@chill guy2 ');alert(1);//");
     assert.strictEqual((quoteName.match(/onclick=/g) || []).length, 1, quoteName);
-    assert.ok(quoteName.indexOf("lookupUserByName('chill guy2')\"") !== -1, quoteName);
+    assert.ok(quoteName.indexOf('data-bq-m="chill guy2"') !== -1, quoteName);
+    assert.ok(quoteName.indexOf("alert(1)") > quoteName.indexOf('</'), quoteName);
 });
 
 test('uid-tagged shoutouts are unchanged', function() {
