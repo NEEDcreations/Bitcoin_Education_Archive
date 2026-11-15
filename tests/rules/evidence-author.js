@@ -89,7 +89,7 @@ const parts = emu.split(':');
                 upvotes: 0,
                 voters: [],
             });
-            await setDoc(doc(db, 'beats_tracks', 'track1'), {
+            await setDoc(doc(db, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), {
                 authorId: 'ada',
                 authorName: 'Ada',
                 title: 'Genesis',
@@ -125,26 +125,26 @@ const parts = emu.split(':');
             return updateDoc(doc(ada, 'articles', 'article1'), { title: 'What is a full node?' });
         }, true);
         await expect('beats author cannot reassign authorId', function () {
-            return updateDoc(doc(ada, 'beats_tracks', 'track1'), { authorId: 'bea' });
+            return updateDoc(doc(ada, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), { authorId: 'bea' });
         }, false);
         await expect('beats author edits the title', function () {
-            return updateDoc(doc(ada, 'beats_tracks', 'track1'), { title: 'Genesis Block' });
+            return updateDoc(doc(ada, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), { title: 'Genesis Block' });
         }, true);
         const guest = env.authenticatedContext('guest', { firebase: { sign_in_provider: 'anonymous' } }).firestore();
         await expect('guest cannot add a play', function () {
-            return updateDoc(doc(guest, 'beats_tracks', 'track1'), { plays: 1 });
+            return updateDoc(doc(guest, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), { plays: 1 });
         }, false);
         await expect('someone else cannot set plays to zero', function () {
-            return updateDoc(doc(bea, 'beats_tracks', 'track1'), { plays: 0 });
+            return updateDoc(doc(bea, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), { plays: 0 });
         }, false);
         await expect('someone else cannot set plays negative', function () {
-            return updateDoc(doc(bea, 'beats_tracks', 'track1'), { plays: -500 });
+            return updateDoc(doc(bea, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), { plays: -500 });
         }, false);
         await expect('someone else cannot drop likes by 50', function () {
-            return updateDoc(doc(bea, 'beats_tracks', 'track1'), { likes: -50 });
+            return updateDoc(doc(bea, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), { likes: -50 });
         }, false);
         await expect('the author cannot set plays to a million', function () {
-            return updateDoc(doc(ada, 'beats_tracks', 'track1'), { plays: 1000000 });
+            return updateDoc(doc(ada, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), { plays: 1000000 });
         }, false);
         await expect('a forum author cannot set replyCount to 9999', function () {
             return updateDoc(doc(ada, 'forum_posts', 'post1XXXXXXXXXXXXXXX'), { replyCount: 9999 });
@@ -180,7 +180,7 @@ const parts = emu.split(':');
             });
         }, false);
         await expect('a track cannot be created with plays already set', function () {
-            return setDoc(doc(ada, 'beats_tracks', 'track500'), {
+            return setDoc(doc(ada, 'beats_tracks', 'track500xxxxxxxxxxxx'), {
                 authorId: 'ada',
                 copyrightConfirmed: true,
                 duration: 30,
@@ -189,7 +189,7 @@ const parts = emu.split(':');
             });
         }, false);
         await expect('a track can be created with plays and likes at zero', function () {
-            return setDoc(doc(ada, 'beats_tracks', 'track0'), {
+            return setDoc(doc(ada, 'beats_tracks', 'track0xxxxxxxxxxxxxx'), {
                 authorId: 'ada',
                 copyrightConfirmed: true,
                 duration: 30,
@@ -198,13 +198,13 @@ const parts = emu.split(':');
             });
         }, true);
         await expect('someone else can like a track', function () {
-            return updateDoc(doc(bea, 'beats_tracks', 'track1'), {
+            return updateDoc(doc(bea, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), {
                 likes: 1,
                 likedBy: ['bea'],
             });
         }, true);
         await expect('someone else can unlike a track', function () {
-            return updateDoc(doc(bea, 'beats_tracks', 'track1'), {
+            return updateDoc(doc(bea, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), {
                 likes: 0,
                 likedBy: [],
             });

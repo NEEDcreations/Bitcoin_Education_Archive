@@ -549,10 +549,14 @@ service cloud.firestore {
         allow read: if request.auth != null;
         allow create: if clientWritesOk() && (request.auth != null
                       && request.auth.uid == userId
+                      && autoDocId(playlistId)
+                      && noStoredIdField()
+                      && request.resource.data.keys().hasOnly(['name', 'trackIds', 'createdAt'])
                       && request.resource.data.name is string
                       && request.resource.data.name.size() <= 60);
         allow update: if clientWritesOk() && (request.auth != null
-                      && request.auth.uid == userId);
+                      && request.auth.uid == userId
+                      && idFieldUnchanged());
         allow delete: if clientWritesOk() && (request.auth != null
                       && request.auth.uid == userId);
       }
@@ -956,6 +960,15 @@ service cloud.firestore {
     // let a stored id override the real doc id).
     function idFieldUnchanged() {
       return request.resource.data.get('id', null) == resource.data.get('id', null);
+    }
+    // Admin-written docs keyed by a uid (beats_artists): plain id characters only.
+    // Article status: 'published' (what the client writes) or 'draft' (what
+    // articlePublishXp treats as unpublished). A missing status is legacy.
+    function articleStatusOk(d) {
+      return !('status' in d) || d.status in ['published', 'draft'];
+    }
+    function safeDocId(id) {
+      return id is string && id.matches('^[A-Za-z0-9_:.-]{1,128}$');
     }
     function forumMirrorFieldsAbsent() {
       return !request.resource.data.keys().hasAny(['origin', 'mirrorOf', 'mirrorSync', 'topicChannel', 'topicPost', 'topicLink', 'anchorIndex', 'anchorHash', 'noAward', 'mirrored']);
@@ -1553,6 +1566,13 @@ service cloud.firestore {
     match /beats_tracks/{trackId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && autoDocId(trackId)
+                    && noStoredIdField()
+                    // Exactly the fields the four beats.js upload paths send.
+                    && request.resource.data.keys().hasOnly(['title', 'artist', 'genre', 'audioData', 'audioUrl',
+                        'duration', 'authorId', 'authorName', 'plays', 'likes', 'copyrightConfirmed', 'createdAt',
+                        'coverUrl', 'coverArt', 'releaseDate', 'albumId', 'albumTitle', 'albumType', 'trackNumber',
+                        'albumYear', 'albumTotalTracks'])
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.copyrightConfirmed == true
@@ -1581,6 +1601,7 @@ service cloud.firestore {
                     && (!('plays' in request.resource.data) || request.resource.data.plays == 0)
                     && (!('likes' in request.resource.data) || request.resource.data.likes == 0));
       allow update: if clientWritesOk() && (request.auth != null
+                    && idFieldUnchanged()
                     && evidenceAuthorFrozen()
                     && (
                       // Author can update their own track (with coverUrl + XSS validation)
@@ -1626,6 +1647,9 @@ service cloud.firestore {
       match /comments/{commentId} {
         allow read: if true;
         allow create: if clientWritesOk() && (request.auth != null
+                      && autoDocId(commentId)
+                      && noStoredIdField()
+                      && request.resource.data.keys().hasOnly(['text', 'authorId', 'authorName', 'createdAt'])
                       && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                       && request.resource.data.authorId == request.auth.uid
                       && request.resource.data.text is string
@@ -1641,7 +1665,16 @@ service cloud.firestore {
     match /beats_artists/{artistId} {
       allow read: if true;
       // Only admin can create/update (import script uses Admin SDK)
-      allow write: if clientWritesOk() && (request.auth != null
+      // Docs are keyed by the artist's uid, so no auto-id check; plain id
+      // characters only, and never a stored id field.
+      allow create: if clientWritesOk() && (request.auth != null
+                   && isAdmin()
+                   && safeDocId(artistId)
+                   && noStoredIdField());
+      allow update: if clientWritesOk() && (request.auth != null
+                   && isAdmin()
+                   && idFieldUnchanged());
+      allow delete: if clientWritesOk() && (request.auth != null
                    && isAdmin());
     }
 
@@ -1675,6 +1708,17 @@ service cloud.firestore {
     match /articles/{articleId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && autoDocId(articleId)
+                    && noStoredIdField()
+                    // Exactly the fields forum.js articleSubmit sends.
+                    && request.resource.data.keys().hasOnly(['title', 'subtitle', 'body', 'tags', 'wordCount', 'readTime',
+                        'authorId', 'authorName', 'authorPoints', 'authorPic', 'upvotes', 'voters', 'replyCount',
+                        'tipTotal', 'status', 'pinned', 'agreedToTerms', 'createdAt', 'updatedAt', 'coverUrl'])
+                    && articleStatusOk(request.resource.data)
+                    && request.resource.data.get('pinned', false) == false
+                    && request.resource.data.get('upvotes', 0) == 0
+                    && request.resource.data.get('voters', []).size() == 0
+                    && request.resource.data.get('tipTotal', 0) == 0
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.title is string
@@ -1685,6 +1729,9 @@ service cloud.firestore {
                     && request.resource.data.agreedToTerms == true
                     && (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0));
       allow update: if clientWritesOk() && (request.auth != null
+                    && idFieldUnchanged()
+                    && (request.resource.data.get('status', null) == resource.data.get('status', null)
+                        || articleStatusOk(request.resource.data))
                     && evidenceAuthorFrozen()
                     && (
                       // Author can edit their own article. replyCount stays server-owned.
