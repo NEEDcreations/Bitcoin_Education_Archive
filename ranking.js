@@ -512,6 +512,7 @@ window._serverTotpAllows = async function (uid) {
         return mfaAllowsAfterStatusError(totpOn);
     }
     window._mfaStatus = data;
+    if (typeof window.bqMaybeShowAdmin2faNudge === 'function') window.bqMaybeShowAdmin2faNudge();
     if (!data.enabled || data.sessionVerified) {
         if (data.needsRecoveryCodes) window._maybeOfferRecoveryCodes();
         return true;
@@ -3574,6 +3575,7 @@ function settleAdminClaim() {
     if (!user || user.isAnonymous || typeof user.getIdTokenResult !== 'function') {
         window._isAdminClaim = false;
         if (typeof syncHomeAdminBtn === 'function') syncHomeAdminBtn();
+        if (typeof window.bqCloseAdmin2faNudge === 'function') window.bqCloseAdmin2faNudge();
         return;
     }
     // The auth listener and loadUser both settle. One pass per uid per 5s.
@@ -3592,6 +3594,11 @@ function settleAdminClaim() {
             renderChatMessages(window._chatAllMsgs);
         }
         if (typeof syncHomeAdminBtn === 'function') syncHomeAdminBtn();
+        if (window._isAdminClaim === true) {
+            if (typeof window.bqMaybeShowAdmin2faNudge === 'function') window.bqMaybeShowAdmin2faNudge();
+        } else if (typeof window.bqCloseAdmin2faNudge === 'function') {
+            window.bqCloseAdmin2faNudge();
+        }
     }
     // Non-forced: uses the cached token when it is still valid.
     user.getIdTokenResult().then(function (tokenResult) {
@@ -3601,6 +3608,7 @@ function settleAdminClaim() {
         if (!forcedLanded && auth && auth.currentUser === user) {
             window._isAdminClaim = false;
             if (typeof syncHomeAdminBtn === 'function') syncHomeAdminBtn();
+            if (typeof window.bqCloseAdmin2faNudge === 'function') window.bqCloseAdmin2faNudge();
         }
     });
     // Forced refresh stays off the UI path. It only corrects a stale admin claim.
@@ -3614,7 +3622,7 @@ function settleAdminClaim() {
 // admin is true (window._isAdminClaim, set from getIdTokenResult). Never email.
 // It carries no admin data. Tapping re-checks the claim, then lazy-loads
 // admin-panel.js, so non-admins never download the panel.
-var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261114_v2564';
+var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261114_v2565';
 
 function ensureHomeAdminBtnCss() {
     if (document.getElementById('homeAdminBtnCss')) return;
@@ -3761,6 +3769,7 @@ async function loadUser(uid, prefetchedDoc) {
     // the network and used to sit in front of this profile UI. Server-side
     // checks still verify the live token on each callable.
     settleAdminClaim();
+    if (typeof window.bqMaybeShowAdmin2faNudge === 'function') window.bqMaybeShowAdmin2faNudge();
     if (doc.exists) {
         // TOS check — show acceptance modal if user hasn't accepted current version
         if (currentUser && !auth.currentUser.isAnonymous && currentUser.tosVersion !== TOS_CURRENT_VERSION) {
@@ -13469,6 +13478,158 @@ function bqAdminHasPhoneFactor() {
         return !!(f && f.length);
     } catch (e) { return false; }
 }
+
+// Admin 2FA enrollment nudge. Signed-in admins with no authenticator app
+// and no phone factor see this once per session. "Remind me later" hides
+// it until the next session. A Google passkey is not a factor here.
+var BQ_ADMIN_2FA_NUDGE_ID = 'bqAdmin2faNudgeOverlay';
+
+function bqAdmin2faNudgeStorageKey(uid) {
+    return 'bqAdmin2faNudgeLater:' + String(uid || '');
+}
+
+function bqCloseAdmin2faNudge() {
+    var el = document.getElementById(BQ_ADMIN_2FA_NUDGE_ID);
+    if (el) el.remove();
+    document.removeEventListener('keydown', bqAdmin2faNudgeOnEsc, true);
+}
+
+function bqAdmin2faNudgeOnEsc(ev) {
+    if (ev && ev.key === 'Escape') {
+        if (ev.stopPropagation) ev.stopPropagation();
+        if (ev.preventDefault) ev.preventDefault();
+        bqDismissAdmin2faNudgeLater();
+    }
+}
+
+function bqDismissAdmin2faNudgeLater() {
+    var user = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
+    var uid = user && user.uid;
+    if (uid) {
+        try { sessionStorage.setItem(bqAdmin2faNudgeStorageKey(uid), '1'); } catch (e) {}
+    }
+    bqCloseAdmin2faNudge();
+}
+
+function bqAdminHasTotpFactor() {
+    if (window._mfaStatus && window._mfaStatus.enabled === true) return true;
+    if (typeof currentUser !== 'undefined' && currentUser && currentUser.totpEnabled === true) return true;
+    return false;
+}
+
+function bqAdmin2faFactorsKnown() {
+    if (window._mfaStatus && typeof window._mfaStatus.enabled === 'boolean') return true;
+    if (typeof currentUser === 'undefined' || !currentUser) return false;
+    var user = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
+    if (user && currentUser.uid && currentUser.uid !== user.uid) return false;
+    return true;
+}
+
+function bqAdmin2faNudgeShouldShow() {
+    if (window._isAdminClaim !== true) return false;
+    var user = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
+    if (!user || user.isAnonymous) return false;
+    if (window._btcTotpHold) return false;
+    if (typeof document !== 'undefined' && document.getElementById && document.getElementById('tosModal')) return false;
+    if (typeof document !== 'undefined' && document.getElementById && document.getElementById(BQ_ADMIN_2FA_NUDGE_ID)) return false;
+    if (bqAdminHasTotpFactor()) return false;
+    if (bqAdminHasPhoneFactor()) return false;
+    if (!bqAdmin2faFactorsKnown()) return false;
+    try {
+        if (sessionStorage.getItem(bqAdmin2faNudgeStorageKey(user.uid)) === '1') return false;
+    } catch (e) {}
+    return true;
+}
+
+function bqOpenAdmin2faEnrollment(kind) {
+    bqCloseAdmin2faNudge();
+    try { if (typeof showSettings === 'function') showSettings(); } catch (e1) {}
+    setTimeout(function () {
+        try { if (typeof showSettingsPage === 'function') showSettingsPage('security'); } catch (e2) {}
+        setTimeout(function () {
+            if (kind === 'totp') {
+                var section = document.getElementById('totpSection') || document.getElementById('twoFactorPanel');
+                if (section && typeof section.scrollIntoView === 'function') {
+                    try { section.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e3) {
+                        try { section.scrollIntoView(true); } catch (e4) {}
+                    }
+                }
+                try { if (typeof startTotpSetup === 'function') startTotpSetup(); } catch (e5) {}
+            } else {
+                var phone = document.getElementById('mfaPhone') || document.getElementById('mfaSetup');
+                if (phone && typeof phone.scrollIntoView === 'function') {
+                    try { phone.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e6) {
+                        try { phone.scrollIntoView(true); } catch (e7) {}
+                    }
+                }
+                try { if (phone && typeof phone.focus === 'function') phone.focus(); } catch (e8) {}
+            }
+        }, 200);
+    }, 120);
+}
+
+function bqShowAdmin2faNudge() {
+    if (!bqAdmin2faNudgeShouldShow()) return false;
+    var old = document.getElementById(BQ_ADMIN_2FA_NUDGE_ID);
+    if (old) old.remove();
+    function mk(tag, css, text) {
+        var n = document.createElement(tag);
+        if (css) n.style.cssText = css;
+        if (text != null) n.textContent = text;
+        return n;
+    }
+    var overlay = mk('div', 'position:fixed;inset:0;background:rgba(2,6,23,0.88);z-index:2200030;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;');
+    overlay.id = BQ_ADMIN_2FA_NUDGE_ID;
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'bqAdmin2faNudgeTitle');
+    overlay.setAttribute('aria-describedby', 'bqAdmin2faNudgeBody');
+    var card = mk('div', 'background:var(--bg-side,#1a1a2e);border:1px solid var(--border,#333);border-radius:16px;padding:24px;max-width:380px;width:100%;text-align:center;box-sizing:border-box;');
+    var title = mk('div', 'font-weight:800;font-size:1.05rem;color:var(--heading,#fff);margin-bottom:8px;', 'Add a second factor for admin tools');
+    title.id = 'bqAdmin2faNudgeTitle';
+    var body = mk('div', 'color:var(--text-muted,#aaa);font-size:0.85rem;line-height:1.45;margin-bottom:16px;text-align:left;',
+        'Admin tools now ask for a fresh 2FA code each time you open them to protect payouts and user data. A passkey on your Google account doesn\'t count here. Add a phone number at minimum, or set up an authenticator app (recommended, stronger).');
+    body.id = 'bqAdmin2faNudgeBody';
+    var addPhone = mk('button', 'width:100%;padding:12px;background:var(--accent,#f97316);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;', 'Add phone');
+    addPhone.type = 'button';
+    addPhone.id = 'bqAdmin2faNudgePhone';
+    var addTotp = mk('button', 'width:100%;padding:12px;background:none;border:1px solid var(--accent,#f97316);border-radius:10px;color:var(--accent,#f97316);font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;', 'Set up authenticator app');
+    addTotp.type = 'button';
+    addTotp.id = 'bqAdmin2faNudgeTotp';
+    var later = mk('button', 'width:100%;padding:10px;background:none;border:1px solid var(--border,#333);border-radius:10px;color:var(--text-muted,#aaa);cursor:pointer;font-family:inherit;', 'Remind me later');
+    later.type = 'button';
+    later.id = 'bqAdmin2faNudgeLater';
+    later.setAttribute('aria-label', 'Remind me later');
+    card.appendChild(title);
+    card.appendChild(body);
+    card.appendChild(addPhone);
+    card.appendChild(addTotp);
+    card.appendChild(later);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    document.addEventListener('keydown', bqAdmin2faNudgeOnEsc, true);
+    addPhone.addEventListener('click', function () { bqOpenAdmin2faEnrollment('phone'); });
+    addTotp.addEventListener('click', function () { bqOpenAdmin2faEnrollment('totp'); });
+    later.addEventListener('click', function () { bqDismissAdmin2faNudgeLater(); });
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) bqDismissAdmin2faNudgeLater(); });
+    setTimeout(function () { try { addPhone.focus(); } catch (e9) {} }, 30);
+    return true;
+}
+
+function bqMaybeShowAdmin2faNudge() {
+    if (window._isAdminClaim !== true) {
+        bqCloseAdmin2faNudge();
+        return false;
+    }
+    if (!bqAdmin2faNudgeShouldShow()) return false;
+    return bqShowAdmin2faNudge();
+}
+window.bqMaybeShowAdmin2faNudge = bqMaybeShowAdmin2faNudge;
+window.bqCloseAdmin2faNudge = bqCloseAdmin2faNudge;
+window.bqShowAdmin2faNudge = bqShowAdmin2faNudge;
+window.bqOpenAdmin2faEnrollment = bqOpenAdmin2faEnrollment;
+window.bqAdmin2faNudgeShouldShow = bqAdmin2faNudgeShouldShow;
+window.bqDismissAdmin2faNudgeLater = bqDismissAdmin2faNudgeLater;
 
 function bqAdminStepUpReason(e) {
     return (e && e.details && e.details.reason) || '';

@@ -41,6 +41,7 @@ const TESTS = [
     { name: 'Kill switch', file: 'test-kill-switch.js' },
     { name: 'Admin 2FA reset guard', file: 'test-admin-2fa-reset-guard.js' },
     { name: 'Admin banner tools need fresh 2FA', file: 'test-admin-tool-stepup.js' },
+    { name: 'Admin 2FA enrollment nudge', file: 'test-admin-2fa-nudge.js' },
     { name: 'Reserved names need the admin claim', file: 'test-reserved-name-claim.js' },
     { name: 'Chat pinned scroll', file: 'test-chat-pinned-scroll.js' },
     { name: 'Google sign-in GIS', file: 'test-google-signin-gis.js' },

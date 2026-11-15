@@ -594,6 +594,16 @@ function takeRate(tx, snap, now, max) {
     return true;
 }
 
+// Read-only check used before step-up so a full write budget does not
+// burn the code. takeRate still enforces the limit in the write txn.
+function rateWouldBlock(snap, now, max) {
+    if (!snap || !snap.exists) return false;
+    const row = snap.data() || {};
+    const ws = typeof row.windowStartMs === 'number' ? row.windowStartMs : 0;
+    if (!ws || (now - ws) >= RATE_WINDOW_MS) return false;
+    return (row.count || 0) >= max;
+}
+
 async function maybeRefreshSnapshot(db, admin, backupDeps, data, nowFn) {
     const snap = data && data.snapshot;
     if (!snap || !snap.operationName) return data && data.snapshot ? data.snapshot : null;
@@ -903,6 +913,30 @@ function makeAdminSetKillSwitch(deps) {
             preflight = await backupPreflight(Object.assign({ now: nowFn }, backupDeps));
             if (!preflight.ok && !override) {
                 return { ok: false, needsOverride: true, preflight: preflight };
+            }
+        }
+
+        // Already-offline (no later auto-return) and the hourly write
+        // limits run BEFORE the step-up so a refusal does not use up
+        // the code (Red Team #325 L1 follow-up). The write transaction
+        // still re-checks both in case the flag or the budget changed.
+        const nowMsPre = nowFn();
+        const preSnap = await docRef(db).get();
+        const prePrev = preSnap.exists ? (preSnap.data() || {}) : null;
+        const prePrevOn = effectiveOn(prePrev, nowMsPre);
+        const prePrevAutoMs = toMillis(prePrev && prePrev.autoReenableAt);
+        if (action === 'on' && prePrevOn && !isLaterAutoReturn(prePrevAutoMs, autoMs)) {
+            throw new HttpsError(
+                'failed-precondition',
+                'The app is already offline. You can only extend the auto-return to a later time (or leave it off until an admin turns it back on).'
+            );
+        }
+        const preIsNoopOff = action === 'off' && !prePrevOn;
+        if (!preIsNoopOff) {
+            const preUserRate = await db.collection(RATE_COLLECTION).doc(uid).get();
+            const preGlobalRate = await db.collection(RATE_COLLECTION).doc('_global').get();
+            if (rateWouldBlock(preUserRate, nowMsPre, RATE_MAX_USER) || rateWouldBlock(preGlobalRate, nowMsPre, RATE_MAX_GLOBAL)) {
+                throw new HttpsError('resource-exhausted', 'Too many kill-switch changes. Wait an hour and try again.');
             }
         }
 

@@ -630,6 +630,23 @@ function settle(promise, ms) {
         NOW = T0;
     });
 
+    await test('L1: totpStepUp adminSetKillSwitchOn is refused for non-admins before the code is used', async function () {
+        NOW = T0;
+        const { api } = setup();
+        const code = codeAt(NOW);
+        const err = await expectErr(api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: code }, ctx('adminA1', { admin: false })), 'permission-denied');
+        assert.ok(/admin/i.test(err.message), err.message);
+        // The same code still works for an admin, so it was not consumed.
+        const onProof = await api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: code }, ctx('adminA1'));
+        assert.ok(/^[a-f0-9]{32}$/.test(onProof.freshProofId));
+        // Other actions stay open to a signed-in non-admin (the proof is still
+        // useless on admin callables, which check the claim themselves).
+        NOW = T0 + 31000;
+        const other = await api.totpStepUp.run({ action: 'toggleFaucet', code: codeAt(NOW) }, ctx('adminA1', { admin: false }));
+        assert.ok(other && other.freshProofId);
+        NOW = T0;
+    });
+
     await test('MED2: phone-only requireAdminStepUp consumes the sign-in once per action', async function () {
         NOW = T0;
         const { api, db } = setup({ totp: false, phone: true });

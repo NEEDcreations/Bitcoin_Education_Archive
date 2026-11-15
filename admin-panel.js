@@ -388,7 +388,7 @@
         sheet.querySelector('#ksuCancel').addEventListener('click', close);
         root.addEventListener('click', function (ev) { if (ev.target === root) close(); });
 
-        var state = { on: false, preflight: null, needsOverride: false };
+        var state = { on: false, preflight: null, needsOverride: false, heldProof: '' };
 
         function paint() {
             var box = sheet.querySelector('#ksuState');
@@ -427,12 +427,19 @@
             var confirm = (sheet.querySelector('#ksuConfirm').value || '').trim();
             var status = sheet.querySelector('#ksuStatus');
             var go = sheet.querySelector('#ksuGo');
-            var override = !!(sheet.querySelector('#ksuOverride') && sheet.querySelector('#ksuOverride').checked);
+            var ovBox = sheet.querySelector('#ksuOverride');
+            var override = !!(ovBox && ovBox.checked);
             var mins = sheet.querySelector('#ksuReenable').value;
             status.textContent = '';
             if (reason.length < 8) { status.textContent = 'Add a short reason (at least 8 characters).'; return; }
             if (confirm !== (action === 'on' ? 'OFFLINE' : 'ONLINE')) {
                 status.textContent = 'Type ' + (action === 'on' ? 'OFFLINE' : 'ONLINE') + ' to confirm.';
+                return;
+            }
+            // When the opening preflight already says backups are stale,
+            // require the override before asking for a code (one code).
+            if (action === 'on' && state.needsOverride && !override) {
+                status.textContent = 'A backup is stale or missing. Tick the override box if you still want to go offline.';
                 return;
             }
             go.disabled = true;
@@ -441,18 +448,21 @@
             if (action === 'on' && mins) payload.reenableInMinutes = Number(mins);
 
             function afterProof(proof) {
-                if (proof) payload.freshProofId = proof;
+                if (proof) state.heldProof = proof;
+                if (state.heldProof) payload.freshProofId = state.heldProof;
                 go.textContent = action === 'on' ? 'Going offline\u2026' : 'Bringing it back\u2026';
                 return callKillSwitch(payload).then(function (data) {
                     if (data && data.needsOverride) {
                         state.needsOverride = true;
                         state.preflight = data.preflight || state.preflight;
                         paint();
-                        status.textContent = 'A backup is stale or missing. Tick the override box if you still want to go offline. Your code was not used.';
+                        if (ovBox) ovBox.checked = true;
+                        status.textContent = 'A backup is stale or missing. The override box is checked. Tap Go offline again. Your code was not used.';
                         go.disabled = false;
                         go.textContent = 'Go offline';
                         return;
                     }
+                    state.heldProof = '';
                     state.on = !!data.on;
                     state.snapshot = data.snapshot || (data.state && data.state.snapshot) || state.snapshot;
                     if (data.preflight) state.preflight = data.preflight;
@@ -470,9 +480,11 @@
                 });
             }
 
-            var step = (typeof window._showFreshStepUp === 'function')
-                ? window._showFreshStepUp(action === 'on' ? 'adminSetKillSwitchOn' : 'adminSetKillSwitch')
-                : Promise.resolve(null);
+            var step = state.heldProof
+                ? Promise.resolve(state.heldProof)
+                : ((typeof window._showFreshStepUp === 'function')
+                    ? window._showFreshStepUp(action === 'on' ? 'adminSetKillSwitchOn' : 'adminSetKillSwitch')
+                    : Promise.resolve(null));
             step.then(function (proof) {
                 if (proof === null && typeof window._showFreshStepUp === 'function') {
                     go.disabled = false;
@@ -535,12 +547,16 @@
         root.addEventListener('click', function (ev) { if (ev.target === root) close(); });
         try { sheet.querySelector('#ksuReason').focus({ preventScroll: true }); } catch (e) {}
 
+        // Reuse an unconsumed proof on a needsOverride retry so Emergency
+        // stop is always one code (Red Team #325 residual N1).
+        var heldProof = '';
         sheet.querySelector('#ksuGo').addEventListener('click', function () {
             var go = sheet.querySelector('#ksuGo');
             var status = sheet.querySelector('#ksuStatus');
             var reason = (sheet.querySelector('#ksuReason').value || '').trim();
             var confirm = (sheet.querySelector('#ksuConfirm').value || '').trim();
-            var override = !!(sheet.querySelector('#ksuOverride') && sheet.querySelector('#ksuOverride').checked);
+            var ovBox = sheet.querySelector('#ksuOverride');
+            var override = !!(ovBox && ovBox.checked);
             status.textContent = '';
             if (reason.length < 8) { status.textContent = 'Add a short reason (at least 8 characters).'; return; }
             if (confirm !== 'OFFLINE') { status.textContent = 'Type OFFLINE to confirm.'; return; }
@@ -548,9 +564,11 @@
             go.disabled = true;
             go.textContent = 'Checking your code\u2026';
             var needCode = !(typeof mfaNeedsFreshCode === 'function' && !mfaNeedsFreshCode());
-            var step = (needCode && typeof window._showFreshStepUp === 'function')
-                ? window._showFreshStepUp('adminSetKillSwitchOn')
-                : Promise.resolve('');
+            var step = heldProof
+                ? Promise.resolve(heldProof)
+                : ((needCode && typeof window._showFreshStepUp === 'function')
+                    ? window._showFreshStepUp('adminSetKillSwitchOn')
+                    : Promise.resolve(''));
             step.then(function (proof) {
                 if (proof === null) {
                     go.disabled = false;
@@ -558,18 +576,21 @@
                     status.textContent = 'Enter a fresh authenticator code to continue.';
                     return;
                 }
+                if (proof) heldProof = proof;
                 var payload = { action: 'on', reason: reason, confirm: 'OFFLINE', override: override };
-                if (proof) payload.freshProofId = proof;
+                if (heldProof) payload.freshProofId = heldProof;
                 go.textContent = 'Going offline\u2026';
                 return firebase.functions().httpsCallable('adminSetKillSwitch')(payload).then(function (res) {
                     var data = (res && res.data) || {};
                     if (data.needsOverride) {
                         sheet.querySelector('#ksuOverrideLab').style.display = 'block';
-                        status.textContent = 'A backup is stale or missing. Tick the box, then tap Go offline now again. Your code was not used.';
+                        if (ovBox) ovBox.checked = true;
+                        status.textContent = 'A backup is stale or missing. The override box is checked. Tap Go offline now again. Your code was not used.';
                         go.disabled = false;
                         go.textContent = 'Go offline now';
                         return;
                     }
+                    heldProof = '';
                     go.textContent = 'Offline';
                     status.textContent = data.changed ? 'The app is now offline.' : 'No change \u2014 it was already offline.';
                     if (typeof window.bqKillSwitchApply === 'function') window.bqKillSwitchApply(!!data.on);
