@@ -943,6 +943,20 @@ service cloud.firestore {
     // it is still visible. Ordinary Pleb Talk posts are not paced by
     // topic_discussion_limits. anchorIndex and anchorHash are server-written
     // scroll hints; clients cannot create or change them.
+    // N3/N4: user-created chat, forum and comment docs must use Firestore
+    // auto-ids (add()), so a doc id can never carry markup or quotes. Admin
+    // SDK writes (functions, workers) skip rules and keep their own ids.
+    function autoDocId(id) {
+      return id is string && id.matches('^[A-Za-z0-9]{20}$');
+    }
+    function noStoredIdField() {
+      return !('id' in request.resource.data);
+    }
+    // Updates may not add or change an `id` field (the forum client used to
+    // let a stored id override the real doc id).
+    function idFieldUnchanged() {
+      return request.resource.data.get('id', null) == resource.data.get('id', null);
+    }
     function forumMirrorFieldsAbsent() {
       return !request.resource.data.keys().hasAny(['origin', 'mirrorOf', 'mirrorSync', 'topicChannel', 'topicPost', 'topicLink', 'anchorIndex', 'anchorHash', 'noAward', 'mirrored']);
     }
@@ -1007,6 +1021,10 @@ service cloud.firestore {
     match /forum_posts/{postId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && autoDocId(postId)
+                    && noStoredIdField()
+                    && request.resource.data.keys().hasOnly(['title', 'body', 'link', 'category', 'authorId', 'authorName',
+                        'authorFaction', 'authorPoints', 'upvotes', 'voters', 'replyCount', 'createdAt'])
                     && request.resource.data.keys().hasAll(['title', 'authorId', 'authorName', 'createdAt'])
                     && request.resource.data.title is string
                     && request.resource.data.title.size() >= 5
@@ -1015,6 +1033,7 @@ service cloud.firestore {
                     && forumMirrorFieldsAbsent()
                     && (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0));
       allow update: if clientWritesOk() && (request.auth != null
+                    && idFieldUnchanged()
                     && evidenceAuthorFrozen()
                     && (
                       isAdmin()
@@ -1051,6 +1070,10 @@ service cloud.firestore {
     match /forum_replies/{replyId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && autoDocId(replyId)
+                    && noStoredIdField()
+                    && request.resource.data.keys().hasOnly(['postId', 'body', 'authorId', 'authorName', 'authorFaction',
+                        'authorPoints', 'upvotes', 'voters', 'createdAt', 'parentReplyId', 'parentAuthorName'])
                     && request.resource.data.keys().hasAll(['postId', 'body', 'authorId', 'authorName', 'createdAt'])
                     && request.resource.data.body is string
                     && request.resource.data.body.size() >= 2
@@ -1058,6 +1081,7 @@ service cloud.firestore {
                     && request.resource.data.authorId == request.auth.uid
                     && forumMirrorFieldsAbsent());
       allow update: if clientWritesOk() && (request.auth != null
+                    && idFieldUnchanged()
                     && evidenceAuthorFrozen()
                     && (
                       isAdmin()
@@ -1712,12 +1736,17 @@ service cloud.firestore {
     match /article_replies/{replyId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && autoDocId(replyId)
+                    && noStoredIdField()
+                    && request.resource.data.keys().hasOnly(['articleId', 'body', 'authorId', 'authorName', 'authorPoints',
+                        'createdAt', 'parentReplyId', 'parentAuthorName'])
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.body is string
                     && request.resource.data.body.size() >= 2
                     && request.resource.data.body.size() <= 2000);
       allow update: if clientWritesOk() && (request.auth != null
+                    && idFieldUnchanged()
                     && evidenceAuthorFrozen()
                     && (resource.data.authorId == request.auth.uid
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
@@ -1873,7 +1902,7 @@ service cloud.firestore {
               || (d.hasChatFlair == true && ('chatFlairEmoji' in d || nook)));
       }
       allow read: if true;
-      allow create: if clientWritesOk() && ((
+      allow create: if clientWritesOk() && autoDocId(msgId) && noStoredIdField() && ((
                     // Authenticated non-anonymous user messages only
                     request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')

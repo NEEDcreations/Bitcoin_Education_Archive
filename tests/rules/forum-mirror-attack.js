@@ -56,14 +56,14 @@ const parts = emu.split(':');
                 forumDayCount: 5,
                 forumDayKey: '2026-10-23',
             });
-            await setDoc(doc(db, 'forum_replies', 'hidden1'), {
+            await setDoc(doc(db, 'forum_replies', 'hidden1XXXXXXXXXXXXX'), {
                 postId: 'tdforum_mining_root1',
                 body: '',
                 authorId: 'ada',
                 authorName: 'Ada',
                 createdAt: new Date(),
                 origin: 'topic',
-                mirrorOf: 'hidden1',
+                mirrorOf: 'hidden1XXXXXXXXXXXXX',
                 mirrorSync: 'vh:',
                 topicChannel: 'mining',
                 topicPost: 'tdfrom_hidden1',
@@ -73,14 +73,14 @@ const parts = emu.split(':');
                 upvotes: 0,
                 voters: [],
             });
-            await setDoc(doc(db, 'forum_replies', 'visible1'), {
+            await setDoc(doc(db, 'forum_replies', 'visible1XXXXXXXXXXXX'), {
                 postId: 'tdforum_mining_root1',
                 body: 'A visible mirrored reply.',
                 authorId: 'ada',
                 authorName: 'Ada',
                 createdAt: new Date(),
                 origin: 'topic',
-                mirrorOf: 'visible1',
+                mirrorOf: 'visible1XXXXXXXXXXXX',
                 topicChannel: 'mining',
                 topicPost: 'tdfrom_visible1',
                 noAward: true,
@@ -91,7 +91,7 @@ const parts = emu.split(':');
             });
         });
         await expect('ordinary forum post ignores the topic pace', function () {
-            return setDoc(doc(ada, 'forum_posts', 'ordinary1'), {
+            return setDoc(doc(ada, 'forum_posts', 'ordinary1XXXXXXXXXXX'), {
                 title: 'Hello from Pleb Talk',
                 authorId: 'ada',
                 authorName: 'Ada',
@@ -100,22 +100,22 @@ const parts = emu.split(':');
             });
         }, true);
         await expect('ATTACK author sets hidden false and a new body', function () {
-            return updateDoc(doc(ada, 'forum_replies', 'hidden1'), {
+            return updateDoc(doc(ada, 'forum_replies', 'hidden1XXXXXXXXXXXXX'), {
                 hidden: false,
                 body: 'Restored by the author after moderation.',
             });
         }, false);
         await expect('ATTACK author clears hidden only', function () {
-            return updateDoc(doc(ada, 'forum_replies', 'hidden1'), { hidden: false });
+            return updateDoc(doc(ada, 'forum_replies', 'hidden1XXXXXXXXXXXXX'), { hidden: false });
         }, false);
         await expect('ATTACK author edits body while hidden', function () {
-            return updateDoc(doc(ada, 'forum_replies', 'hidden1'), { body: 'Still hidden, new words.' });
+            return updateDoc(doc(ada, 'forum_replies', 'hidden1XXXXXXXXXXXXX'), { body: 'Still hidden, new words.' });
         }, false);
         await expect('author edits body of a visible mirrored reply', function () {
-            return updateDoc(doc(ada, 'forum_replies', 'visible1'), { body: 'A visible mirrored reply, edited.' });
+            return updateDoc(doc(ada, 'forum_replies', 'visible1XXXXXXXXXXXX'), { body: 'A visible mirrored reply, edited.' });
         }, true);
         await expect('ATTACK author changes a mirror field', function () {
-            return updateDoc(doc(ada, 'forum_replies', 'visible1'), { origin: 'forum', body: 'Forged origin.' });
+            return updateDoc(doc(ada, 'forum_replies', 'visible1XXXXXXXXXXXX'), { origin: 'forum', body: 'Forged origin.' });
         }, false);
     } finally {
         await env.cleanup();
