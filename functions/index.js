@@ -574,9 +574,18 @@ exports.lnAuthCallback = functionsV1.https.onRequest(async (req, res) => {
     // CORS headers
     res.set('Access-Control-Allow-Origin', 'https://bitcoineducation.quest');
 
-    const { k1, sig, key, tag } = req.query;
+    // The linking key must be a 66-char compressed hex pubkey. Checked first,
+    // before any Firestore read, signature check or uid is built from it.
+    if (!req.query.key) {
+        return res.json({ status: 'ERROR', reason: 'Missing k1, sig, or key' });
+    }
+    const key = require('./src/lnAuthKey').normalizeLnAuthKey(req.query.key);
+    if (!key) {
+        return res.json({ status: 'ERROR', reason: 'Invalid key' });
+    }
+    const { k1, sig, tag } = req.query;
 
-    if (!k1 || !sig || !key) {
+    if (!k1 || !sig) {
         return res.json({ status: 'ERROR', reason: 'Missing k1, sig, or key' });
     }
 

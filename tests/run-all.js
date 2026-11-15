@@ -159,6 +159,7 @@ const TESTS = [
     { name: 'Referral tiers', file: 'test-referral-tiers.js' },
     { name: 'Referral Maxi freshness', file: 'test-referral-maxi-freshness.js' },
     { name: 'Functions bundle', file: 'test-functions-bundle.js' },
+    { name: 'LNURL-auth key check', file: 'test-lnauth-key.js' },
     { name: 'Double XP', file: 'test-double-xp.js' },
     { name: 'Double XP all sources', file: 'test-double-xp-all.js' },
     { name: 'Tip Confirmation', file: 'test-tip-confirm.js' },
