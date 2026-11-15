@@ -669,16 +669,16 @@ function renderChatMessages(msgs) {
             html += '</div>';
         }
         if (m.isGif && m.text && (IMG_REGEX.test(m.text) || /^data:image\/(jpeg|jpg|png|gif|webp);base64,/.test(m.text))) {
-            html += '<img src="' + esc(m.text) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy">';
+            html += '<img src="' + chatAttrUrl(m.text) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy">';
             if (m.caption) html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;margin-top:4px;">' + formatChatText(esc(m.caption), m.mentionUid) + '</div>';
         } else if (m.imageUrl || m.gifUrl) {
             var mediaSrc = m.imageUrl || m.gifUrl;
             if (m.text) html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;margin-bottom:4px;">' + formatChatText(esc(m.text), m.mentionUid) + '</div>';
             if (m.gifUrl && /\.mp4(\?|$)/i.test(mediaSrc)) {
                 // Telegram MP4 animations need a video element, not img
-                html += '<video src="' + esc(mediaSrc) + '" autoplay loop muted playsinline style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;" onerror="this.style.display=\'none\'"></video>';
+                html += '<video src="' + chatAttrUrl(mediaSrc) + '" autoplay loop muted playsinline style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;" onerror="this.style.display=\'none\'"></video>';
             } else {
-                html += '<img src="' + esc(mediaSrc) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy" onerror="this.style.display=\'none\'">';
+                html += '<img src="' + chatAttrUrl(mediaSrc) + '" onclick="enlargeChatImage(this.src)" style="max-width:100%;max-height:200px;border-radius:8px;margin-top:2px;display:block;cursor:pointer;" loading="lazy" onerror="this.style.display=\'none\'">';
             };
         } else {
             html += '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;word-break:break-word;">' + formatChatText(esc(m.text || ''), m.mentionUid) + (m.editCount ? ' <span style="font-size:0.6rem;color:var(--text-faint);font-style:italic;">(edited)</span>' : '') + '</div>';
@@ -1845,6 +1845,32 @@ function createChatOverlay() {
 var CHAT_SURFACE = '#chatOverlay, #chatOverlayBtn, #gifPicker, #gcEmojiPicker, #reactPicker, #djTrackPicker, #annReactPicker, #chatImageLightbox, #chatImagePreview, #_gcBadgeTip';
 var CHAT_SCROLLER = '#globalChatMessages, #overlayAnnouncementsBody, #overlayDMsBody, #chatAutocomplete, #gifResults, #emojiGrid';
 
+function chatAttrUrl(url) {
+    var cleaned = (typeof sanitizeUrl === 'function') ? sanitizeUrl(url) : (url || '');
+    if (typeof escapeHtml === 'function') return escapeHtml(cleaned);
+    return typeof esc === 'function' ? esc(cleaned) : String(cleaned);
+}
+
+function overlayDmRowOpenTag(otherUid, otherName, styleExtra) {
+    var uid = (typeof escapeHtml === 'function' ? escapeHtml(otherUid || '') : String(otherUid || ''));
+    var name = (typeof escapeHtml === 'function' ? escapeHtml(otherName || '') : String(otherName || ''));
+    return '<div class="overlay-dm-row" data-uid="' + uid + '" data-name="' + name + '" style="' + (styleExtra || '') + '">';
+}
+
+function bindOverlayDmRows(root) {
+    if (!root) return;
+    var rows = root.querySelectorAll('.overlay-dm-row');
+    for (var i = 0; i < rows.length; i++) {
+        rows[i].addEventListener('click', function() {
+            var u = this.dataset.uid;
+            var n = this.dataset.name;
+            toggleChatOverlay();
+            setTimeout(function() { if (typeof openDM === 'function') openDM(u, n); }, 300);
+        });
+    }
+}
+
+
 function chatSurfaceHit(node) {
     if (!node) return false;
     if (node.nodeType !== 1) node = node.parentElement;
@@ -2078,7 +2104,7 @@ function renderOverlayChat() {
                         if (lastMsg.length > 40) lastMsg = lastMsg.substring(0, 40) + '...';
                         var lastTime = c.lastMessageTime ? timeAgo(c.lastMessageTime) : '';
                         var isFromMe = c.lastSenderUid === myUid;
-                        html += '<div onclick="toggleChatOverlay();setTimeout(function(){openDM(\'' + otherUid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName).replace(/[\\'"]/g, "") + '\')},300)" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'rgba(249,115,22,0.3)' : 'transparent') + ';background:' + (unread > 0 ? 'rgba(249,115,22,0.05)' : 'none') + ';margin-bottom:4px;">' +
+                        html += overlayDmRowOpenTag(otherUid, otherName, 'display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;transition:0.2s;border:1px solid ' + (unread > 0 ? 'rgba(249,115,22,0.3)' : 'transparent') + ';background:' + (unread > 0 ? 'rgba(249,115,22,0.05)' : 'none') + ';margin-bottom:4px;') +
                             '<div style="width:36px;height:36px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;color:var(--text);">' + (otherName.charAt(0).toUpperCase() || '?') + '</div>' +
                             '<div style="flex:1;min-width:0;">' +
                                 '<div style="display:flex;justify-content:space-between;align-items:center;">' +
@@ -2091,6 +2117,7 @@ function renderOverlayChat() {
                         '</div>';
                     });
                     dmBody.innerHTML = html;
+                    bindOverlayDmRows(dmBody);
                 })
                 .catch(function(err) {
                     console.error('Overlay DM load error:', err);
@@ -2105,13 +2132,14 @@ function renderOverlayChat() {
                                 var otherUid = c.participants.find(function(p) { return p !== myUid; });
                                 var otherName = c.participantNames ? (c.participantNames[otherUid] || 'User') : 'User';
                                 var unread = c['unread_' + myUid] || 0;
-                                html += '<div onclick="toggleChatOverlay();setTimeout(function(){openDM(\'' + otherUid + '\',\'' + (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName).replace(/[\\'"]/g, "") + '\')},300)" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;border:1px solid transparent;margin-bottom:4px;">' +
+                                html += overlayDmRowOpenTag(otherUid, otherName, 'display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;cursor:pointer;border:1px solid transparent;margin-bottom:4px;') +
                                     '<div style="width:36px;height:36px;border-radius:50%;background:var(--card-bg);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;color:var(--text);">' + (otherName.charAt(0).toUpperCase() || '?') + '</div>' +
                                     '<div style="flex:1;min-width:0;"><div style="font-weight:600;color:var(--heading);font-size:0.82rem;">' + (typeof escapeHtml === 'function' ? escapeHtml(otherName) : otherName) + '</div></div>' +
                                     (unread > 0 ? '<div style="background:var(--accent);color:#fff;font-size:0.6rem;font-weight:800;padding:2px 6px;border-radius:8px;">' + unread + '</div>' : '') +
                                 '</div>';
                             });
                             dmBody.innerHTML = html;
+                            bindOverlayDmRows(dmBody);
                         }).catch(function() { dmBody.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">Could not load messages</div>'; });
                     } else {
                         dmBody.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-faint);">Could not load messages</div>';
@@ -2491,9 +2519,15 @@ window.searchGifs = function(query) {
                     var url = results[i].thumb;
                     var fullUrl = results[i].full || url;
                     if (!url) continue;
-                    html += '<img src="' + url + '" onclick="previewGifBeforeSend(\'' + fullUrl.replace(/[\\'"]/g, "") + '\')" style="width:100%;border-radius:8px;cursor:pointer;object-fit:cover;height:100px;transition:0.15s;" loading="lazy" onmouseover="this.style.transform=\'scale(1.05)\'" onmouseout="this.style.transform=\'scale(1)\'">';
+                    html += '<img src="' + chatAttrUrl(url) + '" data-full="' + chatAttrUrl(fullUrl) + '" class="chat-gif-pick" style="width:100%;border-radius:8px;cursor:pointer;object-fit:cover;height:100px;transition:0.15s;" loading="lazy">';
                 }
                 el.innerHTML = html || '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">No GIFs found</div>';
+                var picks = el.querySelectorAll('.chat-gif-pick');
+                for (var j = 0; j < picks.length; j++) {
+                    picks[j].addEventListener('click', function() { previewGifBeforeSend(this.getAttribute('data-full')); });
+                    picks[j].addEventListener('mouseover', function() { this.style.transform = 'scale(1.05)'; });
+                    picks[j].addEventListener('mouseout', function() { this.style.transform = 'scale(1)'; });
+                }
             })
             .catch(function() {
                 el.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Search failed — try pasting a URL instead</div>';
@@ -2515,7 +2549,7 @@ window.previewGifBeforeSend = function(url) {
     preview.id = 'chatImagePreview';
     preview.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 12px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.3);border-radius:10px;margin-bottom:6px;';
     preview.innerHTML =
-        '<img src="' + url + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">' +
+        '<img src="' + chatAttrUrl(url) + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--border);">' +
         '<div style="flex:1;min-width:0;"><div style="color:var(--text);font-size:0.8rem;font-weight:600;">GIF ready</div><div style="color:var(--text-faint);font-size:0.7rem;">Press Send to share</div></div>' +
         '<button onclick="cancelImagePreview()" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:4px;">✕</button>';
     var containers = document.querySelectorAll('#globalChatInput');
