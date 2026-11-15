@@ -21,6 +21,7 @@ ALLOWED_ORIGINS = "https://bitcoineducation.quest"
 binding = "DB"
 database_name = "bq-waitlist"
 database_id = "2c45e49e-3e09-468a-a1fa-0c69c47ba658"
+migrations_dir = "migrations"
 
 # 5 requests per minute per IP. The IP is a limiter key only and is never stored.
 [[ratelimits]]
