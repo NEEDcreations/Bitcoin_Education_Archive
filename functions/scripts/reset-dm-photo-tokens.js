@@ -28,7 +28,15 @@
 // once per plan, mode 600, fsynced, under /workspace/private/f2reset/rollback
 // (live) with a CACHEDIR.TAG so tag-aware backup tools skip it. Those tokens
 // are working bearer links to private photos. Keep a 7-day rollback window
-// (the apply prints the shred-after date), then shred with --shred-rollback.
+// (--shred-window 48h|7d, default 7d; the apply prints the shred-after time),
+// then shred with --shred-rollback.
+//
+// Only a message's top-level imageUrl is rewritten, and only when the
+// message sender is the uploader (the uid in the dm-images path) and a
+// participant in that conversation. Any other copy of the link (pasted as
+// text, in another field, in a convo-level field, or as an imageUrl sent by
+// someone else) is a foreign ref: counted by kind, never rewritten, and the
+// object is still rotated so the copy dies.
 //
 // Objects referenced from malformed conversations (id not the sorted
 // participant pair, or not exactly 2 distinct participants) are rotated too
@@ -50,7 +58,7 @@ const { spawnSync } = require('child_process');
 const LIVE_PROJECT = 'bitcoin-education-archive';
 const STAGING_PROJECT = 'bitcoin-quest-staging';
 const CONFIRM_VALUE = 'dm-photo-tokens';
-const PLAN_VERSION = 2;
+const PLAN_VERSION = 3;
 const ROLLBACK_VERSION = 2;
 const DEFAULT_CANONICAL_BUCKET = {
     'bitcoin-education-archive': 'bitcoin-education-archive.firebasestorage.app',
@@ -63,7 +71,10 @@ const F3_BUCKETS = new Set([
 const DEFAULT_PLAN_DIR = '/workspace/private/f2reset';
 const LIVE_ROLLBACK_DIR = '/workspace/private/f2reset/rollback';
 const EMULATOR_SCRATCH_DIR = '/tmp/rufus-f2reset';
-const SHRED_DAYS = 7;
+const DEFAULT_SHRED_HOURS = 7 * 24;
+const MIN_SHRED_HOURS = 24;
+const MAX_SHRED_HOURS = 7 * 24;
+const FOREIGN_KINDS = ['text', 'other_field', 'convo_field', 'non_uploader_sender'];
 const OBJECT_PREFIX = 'dm-images/';
 // Token-shaped placeholder used only to check the rewritten URL shape in the
 // dry run. Never a real token; never printed.
@@ -142,6 +153,7 @@ function parseArgs(argv) {
         bucket: '',
         canonicalBucket: '',
         allowReupload: false,
+        shredWindow: '',
         help: false,
     };
     for (let i = 0; i < args.length; i++) {
@@ -164,6 +176,7 @@ function parseArgs(argv) {
         else if (a === '--bucket') opts.bucket = next(a);
         else if (a === '--canonical-bucket') opts.canonicalBucket = next(a);
         else if (a === '--allow-reupload') opts.allowReupload = true;
+        else if (a === '--shred-window') opts.shredWindow = next(a);
         else throw new Error('unknown argument: ' + a);
     }
     return opts;
@@ -179,7 +192,8 @@ function usage() {
         '',
         'Default is --dry-run (read-only). Live --apply and --rollback need RESET_CONFIRM=dm-photo-tokens.',
         'Live rollback files live only under ' + LIVE_ROLLBACK_DIR + '.',
-        'Rollback files hold bearer tokens; after the 7-day window, shred them with --shred-rollback.',
+        '--shred-window 48h|7d sets the rollback window printed on apply (24h to 7d, default 7d).',
+        'Rollback files hold bearer tokens; after the window, shred them with --shred-rollback.',
     ].join('\n');
 }
 
@@ -539,8 +553,18 @@ const CACHEDIR_TAG = 'Signature: 8a477f597d28d172789f06886806bc55\n'
     + '# Rollback files here hold DM photo bearer tokens (reset-dm-photo-tokens.js).\n'
     + '# Backup tools that honor CACHEDIR.TAG (restic/borg/tar --exclude-caches) skip this dir.\n';
 
+// N3: the rollback dir itself must be a real dir we own with mode 700. A
+// pre-existing loose dir is tightened (never its parent); anything else is
+// refused.
 function ensureRollbackDir(dir) {
     ensureDir(dir);
+    const st = fs.lstatSync(dir);
+    if (!st.isDirectory() || st.isSymbolicLink()) throw new Error('refusing a rollback dir that is not a plain directory');
+    if (typeof process.getuid === 'function' && st.uid !== process.getuid()) {
+        throw new Error('refusing a rollback dir owned by another user');
+    }
+    if ((st.mode & 0o777) !== 0o700) fs.chmodSync(dir, 0o700);
+    if ((fs.lstatSync(dir).mode & 0o777) !== 0o700) throw new Error('rollback dir is not mode 700');
     const tag = path.join(dir, 'CACHEDIR.TAG');
     if (!fs.existsSync(tag)) fs.writeFileSync(tag, CACHEDIR_TAG, { mode: 0o600 });
 }
@@ -687,8 +711,9 @@ async function scanConversations(db) {
     return { wellFormed: wellFormed, skipped: skipped, total: convos.size };
 }
 
-function collectUrlHitsFromDoc(docPath, data) {
+function collectUrlHitsFromDoc(docPath, data, ctx) {
     const hits = [];
+    const c = ctx || {};
     walkStringFields(data, function (field, value, segs) {
         const parsed = parseStorageUrl(value);
         if (!parsed) return;
@@ -698,20 +723,38 @@ function collectUrlHitsFromDoc(docPath, data) {
             segments: segs && segs.length ? segs : null,
             url: value,
             parsed: parsed,
+            isMessage: !!c.isMessage,
+            senderUid: c.isMessage && data && typeof data.senderUid === 'string' ? data.senderUid : '',
+            participants: Array.isArray(c.participants) ? c.participants.slice() : [],
         });
     });
     return hits;
+}
+
+// N1: the only field ever rewritten is a message's top-level imageUrl, sent
+// by the uploader (the uid in the dm-images path) who is a participant in
+// that conversation. Everything else that points at the object is a
+// foreign ref: counted, never rewritten (the object is still rotated).
+function classifyHit(h) {
+    if (!h.isMessage) return 'convo_field';
+    if (!h.segments || h.segments.length !== 1 || h.segments[0] !== 'imageUrl') {
+        return h.segments && h.segments.length === 1 && h.segments[0] === 'text' ? 'text' : 'other_field';
+    }
+    const uploader = uploaderFromPath(h.parsed.objectPath);
+    if (!uploader || h.senderUid !== uploader || h.participants.indexOf(uploader) === -1) return 'non_uploader_sender';
+    return 'owner_image';
 }
 
 async function collectHits(db, convos) {
     const hits = [];
     for (const convo of convos) {
         const convoPath = 'dm_conversations/' + convo.id;
-        hits.push.apply(hits, collectUrlHitsFromDoc(convoPath, convo.data));
+        const participants = Array.isArray(convo.data.participants) ? convo.data.participants : [];
+        hits.push.apply(hits, collectUrlHitsFromDoc(convoPath, convo.data, { isMessage: false, participants: participants }));
         const msgs = await db.collection('dm_conversations').doc(convo.id).collection('messages').get();
         msgs.forEach(function (doc) {
             const docPath = convoPath + '/messages/' + doc.id;
-            hits.push.apply(hits, collectUrlHitsFromDoc(docPath, doc.data() || {}));
+            hits.push.apply(hits, collectUrlHitsFromDoc(docPath, doc.data() || {}, { isMessage: true, participants: participants }));
         });
     }
     return hits;
@@ -722,7 +765,15 @@ function hitKey(docPath, field) {
 }
 
 function fieldSpec(h) {
-    return { field: h.field, pathMasked: maskDocPath(h.docPath), pathSha256: sha256Hex(h.docPath) };
+    const spec = { field: h.field, pathMasked: maskDocPath(h.docPath), pathSha256: sha256Hex(h.docPath) };
+    if (h.kind && h.kind !== 'owner_image') spec.kind = h.kind;
+    return spec;
+}
+
+function emptyForeignCounts() {
+    const out = {};
+    FOREIGN_KINDS.forEach(function (k) { out[k] = 0; });
+    return out;
 }
 
 function sortSpecs(list) {
@@ -739,7 +790,7 @@ function buildPlan(opts) {
     });
     const planItems = opts.items.map(function (it) {
         const messages = sortSpecs((it.messages || []).map(fieldSpec));
-        const convoFields = sortSpecs((it.convoFields || []).map(fieldSpec));
+        const foreignRefs = sortSpecs((it.foreignRefs || []).map(fieldSpec));
         const lockedFields = sortSpecs((it.lockedFields || []).map(fieldSpec));
         return {
             objectPathMasked: maskObjectPath(it.objectPath),
@@ -748,10 +799,10 @@ function buildPlan(opts) {
             oldTokenCount: it.tokens.length,
             f3Ok: it.f3Ok,
             messageCount: messages.length,
-            convoFieldCount: convoFields.length,
+            foreignRefCount: foreignRefs.length,
             lockedFieldCount: lockedFields.length,
             messages: messages,
-            convoFields: convoFields,
+            foreignRefs: foreignRefs,
             lockedFields: lockedFields,
         };
     }).sort(function (a, b) { return a.objectPathSha256 < b.objectPathSha256 ? -1 : 1; });
@@ -767,12 +818,13 @@ function buildPlan(opts) {
     }).sort(function (a, b) { return a.pathSha256 < b.pathSha256 ? -1 : a.pathSha256 > b.pathSha256 ? 1 : a.field < b.field ? -1 : 1; });
 
     let plannedMessages = 0;
-    let plannedConvoFields = 0;
     let lockedFields = 0;
+    const foreign = emptyForeignCounts();
+    let foreignTotal = 0;
     planItems.forEach(function (it) {
         plannedMessages += it.messageCount;
-        plannedConvoFields += it.convoFieldCount;
         lockedFields += it.lockedFieldCount;
+        it.foreignRefs.forEach(function (f) { foreign[f.kind] += 1; foreignTotal += 1; });
     });
     const f3Failed = planItems.filter(function (it) { return !it.f3Ok; }).map(function (it) {
         return { objectPathMasked: it.objectPathMasked, objectPathSha256: it.objectPathSha256 };
@@ -788,10 +840,14 @@ function buildPlan(opts) {
             conversations: opts.conversationCount,
             plannedObjects: planItems.length,
             plannedMessages: plannedMessages,
-            plannedConvoFields: plannedConvoFields,
             orphanObjects: planItems.filter(function (it) {
-                return it.messageCount === 0 && it.convoFieldCount === 0 && it.lockedFieldCount === 0;
+                return it.messageCount === 0 && it.foreignRefCount === 0 && it.lockedFieldCount === 0;
             }).length,
+            foreignRefs: foreignTotal,
+            foreignRefsText: foreign.text,
+            foreignRefsOtherField: foreign.other_field,
+            foreignRefsConvoField: foreign.convo_field,
+            foreignRefsNonUploader: foreign.non_uploader_sender,
             skippedConversations: skippedConversations.length,
             lockedObjects: planItems.filter(function (it) { return it.lockedFieldCount > 0; }).length,
             lockedFields: lockedFields,
@@ -820,7 +876,7 @@ async function discover(admin, project, storageBucketName, canonicalBucket) {
 
     const groups = new Map();
     const group = function (objectPath) {
-        if (!groups.has(objectPath)) groups.set(objectPath, { messages: [], convoFields: [], lockedFields: [] });
+        if (!groups.has(objectPath)) groups.set(objectPath, { messages: [], foreignRefs: [], lockedFields: [] });
         return groups.get(objectPath);
     };
     const unmatched = [];
@@ -828,14 +884,10 @@ async function discover(admin, project, storageBucketName, canonicalBucket) {
         const obj = objectByPath.get(h.parsed.objectPath);
         if (!obj) { unmatched.push({ docPath: h.docPath, field: h.field, reason: 'missing_object' }); return; }
         if (!obj.tokens.length) { unmatched.push({ docPath: h.docPath, field: h.field, reason: 'tokenless_object' }); return; }
-        if (!h.segments) {
-            // Rotating still revokes the old link; the array value just isn't rewritten.
-            unmatched.push({ docPath: h.docPath, field: h.field, reason: 'array_field_not_rewritten' });
-            return;
-        }
+        h.kind = classifyHit(h);
         const g = group(obj.objectPath);
-        if (h.docPath.indexOf('/messages/') !== -1) g.messages.push(h);
-        else g.convoFields.push(h);
+        if (h.kind === 'owner_image') g.messages.push(h);
+        else g.foreignRefs.push(h);
     });
     lockedHits.forEach(function (h) {
         const obj = objectByPath.get(h.parsed.objectPath);
@@ -847,13 +899,13 @@ async function discover(admin, project, storageBucketName, canonicalBucket) {
     const tokenless = [];
     objects.forEach(function (o) {
         if (!o.tokens.length) { tokenless.push(o); return; }
-        const g = groups.get(o.objectPath) || { messages: [], convoFields: [], lockedFields: [] };
+        const g = groups.get(o.objectPath) || { messages: [], foreignRefs: [], lockedFields: [] };
         items.push({
             objectPath: o.objectPath,
             tokens: o.tokens,
             f3Ok: f3CheckObject(o.objectPath, canonicalBucket),
             messages: g.messages,
-            convoFields: g.convoFields,
+            foreignRefs: g.foreignRefs,
             lockedFields: g.lockedFields,
         });
     });
@@ -890,7 +942,6 @@ function printSummary(plan, planSha, mode) {
     console.log('objects ' + c.storageObjects);
     console.log('planned-objects ' + c.plannedObjects);
     console.log('planned-messages ' + c.plannedMessages);
-    console.log('planned-convo-fields ' + c.plannedConvoFields);
     console.log('orphan-objects ' + c.orphanObjects);
     console.log('conversations ' + c.conversations);
     console.log('skipped-conversations ' + c.skippedConversations);
@@ -899,6 +950,11 @@ function printSummary(plan, planSha, mode) {
     });
     console.log('locked-objects ' + c.lockedObjects);
     console.log('locked-fields ' + c.lockedFields);
+    console.log('foreign-refs ' + c.foreignRefs);
+    console.log('foreign-refs-text ' + c.foreignRefsText);
+    console.log('foreign-refs-other-field ' + c.foreignRefsOtherField);
+    console.log('foreign-refs-convo-field ' + c.foreignRefsConvoField);
+    console.log('foreign-refs-non-uploader ' + c.foreignRefsNonUploader);
     console.log('tokenless-objects ' + c.tokenlessObjects);
     console.log('unmatched-messages ' + c.unmatchedMessages);
     console.log('f3-failures ' + c.f3Failures);
@@ -907,10 +963,30 @@ function printSummary(plan, planSha, mode) {
     });
 }
 
-function shredAfterDate(createdIso) {
-    const d = new Date(new Date(createdIso).getTime() + SHRED_DAYS * 24 * 3600 * 1000);
-    const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
-    return { iso: d.toISOString(), dayEt: day };
+// --shred-window: 48h or 7d style; 24h to 7d; default 7d (Phil's call).
+function parseShredWindow(value) {
+    if (value == null || value === '') return DEFAULT_SHRED_HOURS;
+    const m = String(value).match(/^([0-9]+)(h|d)$/);
+    if (!m) throw new Error('invalid --shred-window: use hours or days, like 48h or 7d');
+    const hours = Number(m[1]) * (m[2] === 'd' ? 24 : 1);
+    if (hours < MIN_SHRED_HOURS || hours > MAX_SHRED_HOURS) throw new Error('--shred-window must be between 24h and 7d');
+    return hours;
+}
+
+function formatEt(d) {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).formatToParts(d);
+    const get = function (t) { return (parts.find(function (p) { return p.type === t; }) || {}).value; };
+    return get('year') + '-' + get('month') + '-' + get('day') + ' ' + get('hour') + ':' + get('minute');
+}
+
+function shredAfterDate(createdIso, hours) {
+    const h = hours == null ? DEFAULT_SHRED_HOURS : hours;
+    const d = new Date(new Date(createdIso).getTime() + h * 3600 * 1000);
+    const dayEt = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+    return { iso: d.toISOString(), dayEt: dayEt, et: formatEt(d), hours: h };
 }
 
 function rollbackFileName(project, planSha) {
@@ -944,8 +1020,13 @@ function prepareApply(plan, discovery, counters) {
             continue;
         }
         const fields = [];
-        [].concat(item.messages || [], item.convoFields || []).forEach(function (spec) {
+        (item.messages || []).forEach(function (spec) {
             const h = hits.get(spec.pathSha256 + '\0' + spec.field);
+            // N1: re-check at apply time; only the uploader's own imageUrl.
+            if (h && classifyHit(h) !== 'owner_image') {
+                counters.foreignRefs += 1;
+                return;
+            }
             if (!h || h.parsed.objectPath !== obj.objectPath || !h.segments) {
                 counters.vanishedFields += 1;
                 return;
@@ -973,7 +1054,7 @@ function countDrift(plan, discovery) {
     const plannedKeys = new Set();
     (plan.items || []).forEach(function (item) {
         plannedObjects.add(item.objectPathSha256);
-        [].concat(item.messages || [], item.convoFields || [], item.lockedFields || []).forEach(function (s) {
+        [].concat(item.messages || [], item.foreignRefs || [], item.lockedFields || []).forEach(function (s) {
             plannedKeys.add(s.pathSha256 + '\0' + s.field);
         });
     });
@@ -1034,6 +1115,8 @@ async function executeJournal(admin, bucket, journal, opts, ctx, counters) {
         }
         let n = 0;
         for (const f of item.fields) {
+            // N1 defense in depth: only a message's top-level imageUrl is ever written.
+            if (!isMessageImageUrlField(f)) { counters.foreignRefs += 1; continue; }
             const cur2 = await readField(db, f.docPath, f.segments);
             if (!cur2.exists) { counters.vanishedFields += 1; continue; }
             if (cur2.value === f.newUrl) { counters.fieldsAlready += 1; continue; }
@@ -1048,10 +1131,15 @@ async function executeJournal(admin, bucket, journal, opts, ctx, counters) {
     }
 }
 
+function isMessageImageUrlField(f) {
+    return /^dm_conversations\/[^/]+\/messages\/[^/]+$/.test(String(f.docPath || ''))
+        && Array.isArray(f.segments) && f.segments.length === 1 && f.segments[0] === 'imageUrl';
+}
+
 function newCounters() {
     return {
         rotated: 0, alreadyRotated: 0, rewritten: 0, fieldsAlready: 0,
-        vanishedObjects: 0, vanishedFields: 0, tokenConflicts: 0, driftFields: 0, changedFields: 0, reuploads: 0,
+        vanishedObjects: 0, vanishedFields: 0, tokenConflicts: 0, driftFields: 0, changedFields: 0, reuploads: 0, foreignRefs: 0,
         restoredTokens: 0, alreadyRestored: 0, restoredFields: 0,
     };
 }
@@ -1171,6 +1259,7 @@ async function runApply(opts, pre) {
     if (discovery.storageBucket !== planned.storageBucket) throw new Error('plan storage bucket does not match');
     const bucket = discovery.bucket;
     counters.driftFields += countDrift(planned, discovery);
+    ensureRollbackDir(pre.rollbackDir);
     if (fs.existsSync(rollbackPath)) {
         // Resume (A5): the rollback file already pins every new token.
         const loaded = loadRollback(rollbackPath);
@@ -1183,7 +1272,7 @@ async function runApply(opts, pre) {
     } else {
         const items = prepareApply(planned, discovery, counters);
         const created = new Date().toISOString();
-        const shred = shredAfterDate(created);
+        const shred = shredAfterDate(created, opts.shredHours);
         journal = {
             version: ROLLBACK_VERSION,
             project: opts.project,
@@ -1192,16 +1281,16 @@ async function runApply(opts, pre) {
             canonicalBucket: pre.canonicalBucket,
             createdAt: created,
             shredAfter: shred.iso,
+            shredWindowHours: shred.hours,
             items: items,
         };
-        ensureRollbackDir(pre.rollbackDir);
         writeOnceFsync(rollbackPath, stableStringify(journal));
         appendAudit(opts.audit, 'apply-start sha=' + planSha + ' items=' + items.length
             + ' rollback=' + path.basename(rollbackPath));
     }
 
     await executeJournal(admin, bucket, journal, opts, ctx, counters);
-    const shred = shredAfterDate(journal.createdAt);
+    const shred = shredAfterDate(journal.createdAt, journal.shredWindowHours || DEFAULT_SHRED_HOURS);
     appendAudit(opts.audit, 'apply-done rotated=' + counters.rotated
         + ' already-rotated=' + counters.alreadyRotated
         + ' rewritten=' + counters.rewritten
@@ -1211,7 +1300,8 @@ async function runApply(opts, pre) {
         + ' token-conflicts=' + counters.tokenConflicts
         + ' drift-fields=' + counters.driftFields
         + ' changed-fields=' + counters.changedFields
-        + ' reuploads=' + counters.reuploads);
+        + ' reuploads=' + counters.reuploads
+        + ' foreign-refs-skipped=' + counters.foreignRefs);
     printSummary(planned, planSha, resumed ? 'apply-resume' : 'apply');
     console.log('rotated ' + counters.rotated);
     console.log('already-rotated ' + counters.alreadyRotated);
@@ -1223,8 +1313,10 @@ async function runApply(opts, pre) {
     console.log('drift-fields ' + counters.driftFields);
     console.log('changed-fields ' + counters.changedFields);
     console.log('reuploads ' + counters.reuploads);
+    console.log('foreign-refs-skipped ' + counters.foreignRefs);
     console.log('rollback ' + rollbackPath);
-    console.log('shred-after ' + shred.dayEt + ' ET');
+    console.log('shred-window ' + shred.hours + 'h');
+    console.log('shred-after ' + shred.et + ' ET');
     console.log('audit ' + opts.audit);
     return counters.tokenConflicts ? 3 : 0;
 }
@@ -1237,6 +1329,7 @@ async function main(argv) {
     }
     // Refuse a split live/emulator environment before anything else.
     emulatorMode();
+    opts.shredHours = parseShredWindow(opts.shredWindow);
     if (opts.shredRollback) {
         if (opts.apply || opts.rollback || opts.planSha) {
             throw new Error('--shred-rollback cannot be combined with --apply or --rollback');
@@ -1319,6 +1412,9 @@ module.exports = {
     assertRollbackFilePath,
     shredRollbackFile,
     shredAfterDate,
+    parseShredWindow,
+    classifyHit,
+    ensureRollbackDir,
     checkPlanSha,
     ensureDir,
     writeOnceFsync,

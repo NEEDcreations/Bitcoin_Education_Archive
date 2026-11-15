@@ -59,7 +59,7 @@ const PATHS = {
     gone: 'dm-images/' + C + '/vanish_iii.jpg',
 };
 // Raw ids that must never appear in script output (masked forms only).
-const RAW_IDS = [id(A, B), id(N, P), id(L, Q), id(C, D), D + '_' + C, 'npub1f2test', 'f2tester', 'partner0001', 'zzzpartner', 'mallory'];
+const RAW_IDS = [id(A, B), id(N, P), id(L, Q), id(C, D), D + '_' + C, id(M, C), 'npub1f2test', 'f2tester', 'partner0001', 'zzzpartner', 'mallory'];
 
 function allFixtureTokens() {
     return Object.keys(T).map(function (k) { return T[k]; });
@@ -349,6 +349,26 @@ async function seed(db, bucket) {
     // Malformed: 3 participants.
     await db.collection('dm_conversations').doc('three-people').set({ participants: [A, B, M], lastMessage: '📷 Image', lastSenderUid: M });
     ids.malloryMsg = await addMsg(db, 'three-people', M, canonUrl(PATHS.mallory, T.mallory));
+
+    // N1: mallory holds a leaked link to alice's photo and plants copies in
+    // her own well-formed DM with carol before the dry run.
+    const leaked = canonUrl(PATHS.alice, T.alice);
+    const mc = id(M, C);
+    await db.collection('dm_conversations').doc(mc).set({
+        participants: [M, C], lastMessage: 'hi', lastSenderUid: M,
+        lastImage: leaked, // convo-level field
+    });
+    const textRef = await db.collection('dm_conversations').doc(mc).collection('messages').add({
+        senderUid: M, senderName: 'Mallory', text: leaked, createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    ids.leakText = textRef.id;
+    const otherRef = await db.collection('dm_conversations').doc(mc).collection('messages').add({
+        senderUid: M, senderName: 'Mallory', text: '', replyTo: { imageUrl: leaked },
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    ids.leakOther = otherRef.id;
+    ids.leakImgByMallory = await addMsg(db, mc, M, leaked); // imageUrl, sender is not the uploader
+    ids.leakImgByAlice = await addMsg(db, mc, A, leaked); // sender is the uploader but not a participant
     return ids;
 }
 
@@ -482,9 +502,42 @@ function runUnitTests() {
         if (fs.readFileSync(f, 'utf8') !== '{}\n') throw new Error('file was rewritten');
         m.shredRollbackFile(f, [scratch]);
     });
-    unit('A6: shred-after date is 7 days out', function () {
+    unit('A6: shred-after date is 7 days out by default', function () {
         const s = m.shredAfterDate('2026-11-15T05:00:00.000Z');
-        if (s.dayEt !== '2026-11-22') throw new Error('got ' + s.dayEt);
+        if (s.dayEt !== '2026-11-22' || s.et !== '2026-11-22 00:00' || s.hours !== 168) throw new Error('got ' + s.et);
+    });
+    unit('--shred-window accepts 48h and 7d (24h to 7d), default 7d', function () {
+        if (m.parseShredWindow('') !== 168 || m.parseShredWindow('7d') !== 168 || m.parseShredWindow('48h') !== 48) throw new Error('parse');
+        if (m.shredAfterDate('2026-11-15T05:00:00.000Z', 48).et !== '2026-11-17 00:00') throw new Error('48h date');
+        ['12h', '8d', '2w', '48', '-1d'].forEach(function (v) {
+            throwsLike(function () { m.parseShredWindow(v); }, /shred-window/, v);
+        });
+    });
+    unit('N1: classifyHit only accepts the uploader\'s own top-level imageUrl', function () {
+        const parsed = m.parseStorageUrl(m.canonicalDownloadUrl(CANONICAL_BUCKET, PATHS.alice, T.alice));
+        const base = { parsed: parsed, isMessage: true, segments: ['imageUrl'], senderUid: A, participants: [A, B] };
+        const k = function (over) { return m.classifyHit(Object.assign({}, base, over)); };
+        if (k({}) !== 'owner_image') throw new Error('legit');
+        if (k({ segments: ['text'] }) !== 'text') throw new Error('text');
+        if (k({ segments: ['replyTo', 'imageUrl'] }) !== 'other_field') throw new Error('nested');
+        if (k({ segments: null }) !== 'other_field') throw new Error('array');
+        if (k({ isMessage: false }) !== 'convo_field') throw new Error('convo');
+        if (k({ senderUid: M }) !== 'non_uploader_sender') throw new Error('other sender');
+        if (k({ participants: [M, C] }) !== 'non_uploader_sender') throw new Error('not a participant');
+        if (k({ senderUid: '' }) !== 'non_uploader_sender') throw new Error('no sender');
+    });
+    unit('N3: ensureRollbackDir tightens a loose dir and refuses a symlink', function () {
+        fs.mkdirSync(scratch, { recursive: true, mode: 0o700 });
+        const d = path.join(scratch, 'n3-loose');
+        fs.mkdirSync(d);
+        fs.chmodSync(d, 0o777);
+        m.ensureRollbackDir(d);
+        if ((fs.statSync(d).mode & 0o777) !== 0o700) throw new Error('not tightened');
+        const link = path.join(scratch, 'n3-link');
+        fs.symlinkSync(d, link);
+        throwsLike(function () { m.ensureRollbackDir(link); }, /plain directory/, 'symlink');
+        fs.unlinkSync(link);
+        fs.rmSync(d, { recursive: true, force: true });
     });
     unit('R13: --plan-sha must match exactly (no case folding or trimming)', function () {
         const bytes = Buffer.from('plan\n');
@@ -575,7 +628,8 @@ function runUnitTests() {
         plan = JSON.parse(bytes.toString('utf8'));
         planSha = scriptMod.sha256Hex(bytes);
         const want = {
-            storageObjects: 12, plannedObjects: 11, plannedMessages: 9, plannedConvoFields: 1,
+            storageObjects: 12, plannedObjects: 11, plannedMessages: 9,
+            foreignRefs: 6, foreignRefsText: 1, foreignRefsOtherField: 1, foreignRefsConvoField: 2, foreignRefsNonUploader: 2,
             orphanObjects: 3, skippedConversations: 2, lockedObjects: 2, lockedFields: 2,
             tokenlessObjects: 1, unmatchedMessages: 0, f3Failures: 0,
         };
@@ -583,7 +637,7 @@ function runUnitTests() {
             if (plan.counts[k] !== want[k]) throw new Error(k + ' expected ' + want[k] + ', got ' + plan.counts[k]);
         });
         if (plan.storageBucket !== STORAGE_BUCKET) throw new Error('plan storageBucket not recorded');
-        if (plan.version !== 2) throw new Error('plan version');
+        if (plan.version !== 3) throw new Error('plan version');
         const reasons = (plan.skippedConversations || []).map(function (s) { return s.reason; }).sort();
         if (reasons.join(',') !== 'id_not_sorted_pair,participant_count') throw new Error('unexpected skip reasons ' + reasons.join(','));
         if (!/^f3-failures 0$/m.test(dry.stdout) || !/^locked-objects 2$/m.test(dry.stdout)) throw new Error('summary lines');
@@ -639,6 +693,16 @@ function runUnitTests() {
         if (rollbackFiles().length) throw new Error('rollback written by a refused apply');
     });
 
+    await expect('N1: a plan from the earlier tool (v2, which rewrote any field) is refused', async function () {
+        const old = path.join(scratch, 'plan-v2.json');
+        fs.copyFileSync(planPath, old);
+        const sha = rehashPlan(old, function (p) { p.version = 2; });
+        const r = runScript(defaultArgs({ plan: old }).concat(['--apply', '--plan-sha', sha]));
+        if (r.status === 0 || !/unsupported plan version/.test(r.stderr)) throw new Error('v2 plan accepted');
+        if (rollbackFiles().length) throw new Error('rollback written');
+        fs.unlinkSync(old);
+    });
+
     await expect('A3: apply refuses a plan whose storage bucket differs', async function () {
         const other = path.join(scratch, 'plan-bucket.json');
         fs.copyFileSync(planPath, other);
@@ -660,13 +724,24 @@ function runUnitTests() {
     // R13 drift: a message added after the dry run that points at a planned object.
     ids.driftMsg = await addMsg(db, id(L, Q), L, canonUrl(PATHS.ln, T.ln));
 
+    // N3: a pre-existing loose rollback dir (and a parent with its own mode).
+    fs.chmodSync(scratch, 0o751);
+    fs.mkdirSync(rollbackDir, { recursive: true });
+    fs.chmodSync(rollbackDir, 0o755);
+
     // A5: crash right after the first field of the 2-message object is rewritten.
-    const crashed = runScript(defaultArgs().concat(['--apply', '--plan-sha', planSha]), {
+    // The 48h shred window is pinned in the rollback file on this first run.
+    const crashed = runScript(defaultArgs().concat(['--apply', '--plan-sha', planSha, '--shred-window', '48h']), {
         F2RESET_TEST_CRASH_OBJECT_SHA: scriptMod.sha256Hex(PATHS.multi).slice(0, 16),
     });
     let rollbackPath = '';
     let rollbackStat = null;
     let rb = null;
+    await expect('N3: a loose pre-existing rollback dir is tightened to 700 and its parent is not touched', async function () {
+        if ((fs.statSync(rollbackDir).mode & 0o777) !== 0o700) throw new Error('rollback dir is ' + (fs.statSync(rollbackDir).mode & 0o777).toString(8));
+        if ((fs.statSync(scratch).mode & 0o777) !== 0o751) throw new Error('parent dir was chmodded');
+    });
+
     await expect('A5/P4: a crash mid-object leaves a pinned rollback and a half-rewritten object', async function () {
         if (crashed.status !== 70) throw new Error('expected the test crash exit, got ' + crashed.status);
         const files = rollbackFiles();
@@ -715,14 +790,15 @@ function runUnitTests() {
         if (await msgUrl(db, id(L, Q), ids.driftMsg) !== canonUrl(PATHS.ln, T.ln)) throw new Error('drift message was rewritten');
     });
 
-    await expect('A6: rollback file was written once (same inode and mtime after resume) and shred-after is printed', async function () {
+    await expect('A6: rollback file was written once; --shred-window 48h is pinned and printed', async function () {
         const st = fs.statSync(rollbackPath);
         if (st.ino !== rollbackStat.ino || st.mtimeMs !== rollbackStat.mtimeMs || st.size !== rollbackStat.size) throw new Error('rollback file was rewritten');
-        const m = resumed.stdout.match(/^shred-after (\d{4}-\d{2}-\d{2}) ET$/m);
+        const m = resumed.stdout.match(/^shred-after (\d{4}-\d{2}-\d{2} \d{2}:\d{2}) ET$/m);
         if (!m) throw new Error('missing shred-after line');
-        if (m[1] !== scriptMod.shredAfterDate(rb.createdAt).dayEt) throw new Error('shred-after date');
-        const days = (new Date(rb.shredAfter) - new Date(rb.createdAt)) / 86400000;
-        if (days !== 7) throw new Error('shred window is ' + days + ' days');
+        if (m[1] !== scriptMod.shredAfterDate(rb.createdAt, 48).et) throw new Error('shred-after time');
+        if (!/^shred-window 48h$/m.test(resumed.stdout)) throw new Error('shred-window line');
+        const hours = (new Date(rb.shredAfter) - new Date(rb.createdAt)) / 3600000;
+        if (hours !== 48 || rb.shredWindowHours !== 48) throw new Error('shred window is ' + hours + 'h');
         const lines = resumed.stdout.match(/^rollback (.+)$/m);
         if (!lines || lines[1].trim() !== rollbackPath) throw new Error('rollback path not reported');
     });
@@ -743,7 +819,42 @@ function runUnitTests() {
         if (url.indexOf(item.newToken) === -1) throw new Error('message was not rewritten to the new token');
         const convo = await db.collection('dm_conversations').doc(ab).get();
         if (convo.data().lastMessage !== '📷 Image') throw new Error('lastMessage preview was changed');
-        if (convo.data().imageUrl.indexOf(item.newToken) === -1) throw new Error('convo imageUrl was not rewritten');
+        if (convo.data().imageUrl !== canonUrl(PATHS.alice, T.alice)) throw new Error('N1: convo-level imageUrl was rewritten');
+    });
+
+    await expect('N1: legit imageUrl (sender = uploader, a participant) is the only copy rewritten', async function () {
+        const item = rb.items.find(function (it) { return it.objectPath === PATHS.alice; });
+        if (item.fields.length !== 1) throw new Error('alice journal has ' + item.fields.length + ' fields, expected 1');
+        const f = item.fields[0];
+        if (f.field !== 'imageUrl' || f.docPath.indexOf('/messages/' + ids.aliceMsg) === -1) throw new Error('wrong field journaled');
+        if (rb.items.some(function (it) { return it.fields.some(function (x) { return x.field !== 'imageUrl' || x.docPath.indexOf('/messages/') === -1; }); })) {
+            throw new Error('a non-message or non-imageUrl field is in the journal');
+        }
+    });
+
+    async function assertLeakDead(label, value) {
+        if (value !== canonUrl(PATHS.alice, T.alice)) throw new Error('N1: ' + label + ' copy was rewritten');
+        const st = await httpStatus(emuUrl(PATHS.alice, T.alice));
+        if (st === 200) throw new Error('N1: ' + label + ' copy still opens');
+    }
+    const mcRef = db.collection('dm_conversations').doc(id(M, C));
+    await expect('N1: a leaked link pasted as message text is not rewritten and stays dead', async function () {
+        await assertLeakDead('text', (await mcRef.collection('messages').doc(ids.leakText).get()).data().text);
+        if (!/^foreign-refs-text 1$/m.test(dry.stdout)) throw new Error('text ref not counted');
+    });
+    await expect('N1: a leaked link in another message field (replyTo.imageUrl) is not rewritten', async function () {
+        await assertLeakDead('other field', (await mcRef.collection('messages').doc(ids.leakOther).get()).data().replyTo.imageUrl);
+        if (!/^foreign-refs-other-field 1$/m.test(dry.stdout)) throw new Error('other-field ref not counted');
+    });
+    await expect('N1: a leaked link in a convo-level field is not rewritten', async function () {
+        await assertLeakDead('convo field', (await mcRef.get()).data().lastImage);
+        if (!/^foreign-refs-convo-field 2$/m.test(dry.stdout)) throw new Error('convo-field refs not counted');
+    });
+    await expect('N1: an imageUrl sent by a non-uploader (or by the uploader outside the convo) is not rewritten', async function () {
+        await assertLeakDead('non-uploader imageUrl', await msgUrl(db, id(M, C), ids.leakImgByMallory));
+        await assertLeakDead('uploader-not-participant imageUrl', await msgUrl(db, id(M, C), ids.leakImgByAlice));
+        if (!/^foreign-refs-non-uploader 2$/m.test(dry.stdout)) throw new Error('non-uploader refs not counted');
+        if (!/^foreign-refs 6$/m.test(dry.stdout)) throw new Error('foreign-refs total');
     });
 
     await expect('nostr and lightning URLs keep %3A and pass F3', async function () {
