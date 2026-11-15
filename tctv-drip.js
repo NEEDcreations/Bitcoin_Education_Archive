@@ -246,6 +246,9 @@
         var n = Math.max(0, Math.floor(myShare.sats || 0));
         var text = 'Your Share: ' + fmt(n) + ' sats';
         if (myShare.waiting && n > 0) text += ' (waiting)';
+        // Under the qualify bar the share is 0 by design: say how long is left.
+        var left = Math.ceil(Math.max(0, (myShare.qualify || 0) - (myShare.seconds || 0)) / 60);
+        if (n === 0 && left > 0) text += ' \u00b7 ' + fmt(left) + ' more min to qualify';
         return { text: text, hint: false, bubble: fmt(n) };
     }
     function paintShare(el) {
@@ -287,7 +290,9 @@
                 myShare = {
                     ready: typeof d.projectedShareSats === 'number',
                     sats: Math.max(0, Math.floor(Number(d.projectedShareSats) || 0)),
-                    waiting: d.projectedShareWaiting === true
+                    waiting: d.projectedShareWaiting === true,
+                    seconds: Math.max(0, Number(d.seconds) || 0),
+                    qualify: Math.max(0, Number(d.qualifySeconds) || 0)
                 };
                 // Doc exists but tick has not projected yet: keep "…" until the field appears.
                 if (typeof d.projectedShareSats !== 'number') myShare.ready = false;
@@ -430,7 +435,9 @@
     }
     window._tctvDripShowPrompt = function () { var el = document.getElementById('tctv-drip'); if (el) showPrompt(el); };
 
+    var answerQueued = false;
     function checkin(answer) {
+        if (inflight && answer) { answerQueued = true; return; }
         if (inflight || !user() || !onTv()) return;
         var vis = document.visibilityState === 'visible', play = playing();
         if (!vis || !play) return;
@@ -443,7 +450,10 @@
                 var d = (res && res.data) || {};
                 var el = document.getElementById('tctv-drip');
                 if (d.prompt && el) { promptToken = d.promptToken || ''; showPrompt(el); }
-            }).catch(function () {}).then(function () { inflight = false; });
+            }).catch(function () {}).then(function () {
+                inflight = false;
+                if (answerQueued) { answerQueued = false; checkin(true); }
+            });
         } catch (e) { inflight = false; }
     }
 

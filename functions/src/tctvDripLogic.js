@@ -25,6 +25,7 @@ const CREDIT_SECONDS = 60;
 const MIN_GAP_MS = 55 * 1000;      // reject rapid/duplicate check-ins
 const ACTIVE_WINDOW_MS = 90 * 1000; // a viewer counts if checked in this recently
 const DEVICE_HOLD_MS = 3 * 60 * 1000;
+const SESSION_GAP_MS = 10 * 60 * 1000; // a longer gap starts a new watch session
 
 function num(v, d) { const n = Number(v); return Number.isFinite(n) ? n : d; }
 
@@ -50,6 +51,11 @@ function nextPromptMs(nowMs, cfg, rand) {
 }
 
 // One check-in. prev = watch doc (or {}), returns {credit, reason, patch, prompt}
+// A "Still watching?" answer is accepted even right after a regular check-in
+// (the prompt pops up right after one, so a tap almost always lands inside
+// MIN_GAP_MS). It clears the prompt but earns no extra credit by itself.
+// A new session (no check-in for SESSION_GAP_MS) drops a prompt left over from
+// an old session and schedules a fresh one, so nobody starts a session stuck.
 function planCheckin(prev, ctx) {
     const p = prev || {};
     const now = ctx.nowMs;
@@ -57,30 +63,46 @@ function planCheckin(prev, ctx) {
     if (!ctx.playing) return { credit: 0, reason: 'not-playing' };
     if (!ctx.presenceFresh) return { credit: 0, reason: 'no-presence' };
     const last = num(p.lastCheckMs, 0);
-    if (last && now - last < MIN_GAP_MS) return { credit: 0, reason: 'too-fast', reject: true };
+    const answered = !!(ctx.promptAnswer && p.promptToken && ctx.promptAnswer === p.promptToken);
+    const tooFast = !!last && now - last < MIN_GAP_MS;
+    if (tooFast && !answered) return { credit: 0, reason: 'too-fast', reject: true };
     if (ctx.deviceOwner && ctx.deviceOwner !== ctx.uid && now - num(ctx.deviceLastMs, 0) < DEVICE_HOLD_MS) {
         return { credit: 0, reason: 'device-in-use', reject: true };
     }
-    const patch = { lastCheckMs: now };
+    const patch = {};
+    if (!tooFast) patch.lastCheckMs = now;
     let promptDue = num(p.promptDueMs, 0);
-    if (!promptDue) { promptDue = nextPromptMs(now, cfg, ctx.rand); patch.promptDueMs = promptDue; }
+    const newSession = !!last && now - last > SESSION_GAP_MS;
+    if (!promptDue || (newSession && !answered)) {
+        promptDue = nextPromptMs(now, cfg, ctx.rand);
+        patch.promptDueMs = promptDue;
+        if (p.promptToken) patch.promptToken = '';
+    }
     if (now >= promptDue) {
-        const answered = ctx.promptAnswer && p.promptToken && ctx.promptAnswer === p.promptToken;
         if (answered) {
             patch.promptDueMs = nextPromptMs(now, cfg, ctx.rand);
             patch.promptToken = '';
         } else {
             if (!p.promptToken) patch.promptToken = ctx.newToken;
-            // Unanswered prompt past its answer window: no credit until answered.
+            // Unanswered prompt: no credit until answered.
             return { credit: 0, reason: 'prompt', prompt: true, token: p.promptToken || ctx.newToken, patch };
         }
     }
+    // An answer tapped seconds after a regular check-in: prompt cleared, no double credit.
+    if (tooFast) return { credit: 0, reason: 'answered', patch };
     const seconds = num(p.seconds, 0);
     const room = cfg.perAccountLimitSeconds - seconds;
     if (room <= 0) return { credit: 0, reason: 'limit', patch };
     const credit = Math.min(CREDIT_SECONDS, room);
     patch.seconds = seconds + credit;
     return { credit, reason: 'ok', patch };
+}
+
+// Account-age gate, re-checked over time (a 2-day-old account that starts a
+// pot must start counting once it turns minAccountAgeDays old).
+function ageOkAt(createdMs, nowMs, cfg) {
+    const c = Number(createdMs);
+    return Number.isFinite(c) && c > 0 && (nowMs - c) >= cfg.minAccountAgeDays * 86400000;
 }
 
 // Stepped fill rate from active viewers (capped at maxCountedViewers).
@@ -213,6 +235,6 @@ function isAgentOrBlocked(user) {
 }
 
 module.exports = {
-    DEFAULTS, CREDIT_SECONDS, MIN_GAP_MS, ACTIVE_WINDOW_MS, DEVICE_HOLD_MS,
+    DEFAULTS, CREDIT_SECONDS, MIN_GAP_MS, ACTIVE_WINDOW_MS, DEVICE_HOLD_MS, SESSION_GAP_MS, ageOkAt,
     readConfig, validDeviceId, nextPromptMs, planCheckin, rateFromViewers, planAccrual, planShares, projectShares, fillShares, eligibleEntries, shareCap, planReserve, isAgentOrBlocked,
 };
