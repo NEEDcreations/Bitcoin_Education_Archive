@@ -66,6 +66,16 @@ test('cap logo srcset files exist at 1x through 4x and are square PNGs', () => {
     assert.ok(m[2].includes('128w'));
 });
 
+test('hero logo omits the referrer so the assets host can serve it on previews', () => {
+    const start = html.indexOf('id="homeHero"');
+    assert.ok(start > 0);
+    const block = html.slice(start, html.indexOf('id="homeGuestActions"', start));
+    assert.ok(block.includes('src="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg"'));
+    assert.ok(block.includes('referrerpolicy="no-referrer"'));
+    assert.ok(block.includes('alt="Bitcoin Quest"'));
+    assert.ok(html.includes('href="https://assets.bitcoineducation.quest/images/btc-grad-logo-sm.jpg" as="image" referrerpolicy="no-referrer"'));
+});
+
 test('home title comes before the Experience bar anchor and guest actions', () => {
     const hero = html.indexOf('id="homeHero"');
     const guest = html.indexOf('id="homeGuestActions"');
