@@ -849,6 +849,67 @@ function settle(promise, ms) {
         NOW = T0;
     });
 
+    await test('S2 tool window: after a 20/day lockout, ON, the killSwitch window, and OFF all succeed; other tools stay capped', async function () {
+        NOW = T0;
+        const { api, db } = setup();
+        db.store.set('totp_rate_limits/adminA1_day', {
+            uid: 'adminA1',
+            failedAttempts: 20,
+            failedWindowStartMs: NOW,
+            expireAt: new Date(NOW + 24 * 60 * 60 * 1000),
+        });
+        const otherErr = await expectErr(api.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1')), 'resource-exhausted');
+        assert.ok(/tomorrow/i.test(otherErr.message), otherErr.message);
+        const onProof = await api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1'));
+        assert.ok(onProof && onProof.freshProofId, 'ON still works after the 20/day lockout');
+        NOW = T0 + 31000;
+        const ksWin = await api.totpStepUp.run({ tool: 'killSwitch', code: codeAt(NOW) }, ctx('adminA1'));
+        assert.ok(ksWin && ksWin.adminToolSession, 'killSwitch tool window works after the 20/day lockout');
+        assert.strictEqual(db.store.get('totp_rate_limits/adminA1_day').failedAttempts, 20, 'tool window success must not clear the shared daily count');
+        NOW = T0 + 62000;
+        const offProof = await api.totpStepUp.run({ action: 'adminSetKillSwitch', code: codeAt(NOW) }, ctx('adminA1'));
+        assert.ok(offProof && offProof.freshProofId, 'OFF proof works after opening the killSwitch window');
+        const stillCapped = await expectErr(api.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1')), 'resource-exhausted');
+        assert.ok(/tomorrow/i.test(stillCapped.message), stillCapped.message);
+
+        NOW = T0 + 200000;
+        db.store.set('totp_rate_limits/adminA1_day_killswitch_on', {
+            uid: 'adminA1',
+            failedAttempts: 100,
+            failedWindowStartMs: NOW,
+            expireAt: new Date(NOW + 24 * 60 * 60 * 1000),
+        });
+        const capErr = await expectErr(api.totpStepUp.run({ tool: 'killSwitch', code: codeAt(NOW) }, ctx('adminA1')), 'resource-exhausted');
+        assert.ok(/tomorrow/i.test(capErr.message), capErr.message);
+        assert.ok(logRows(db, 'admin_killswitch_on_step_up_failed').some(function (r) { return r.data.reason === 'on-day-cap'; }));
+        NOW = T0;
+    });
+
+    await test('L1: day-capped retries on other tools do not block kill-switch ON or the killSwitch window', async function () {
+        NOW = T0;
+        const { api, db } = setup();
+        db.store.set('totp_rate_limits/adminA1_day', {
+            uid: 'adminA1',
+            failedAttempts: 20,
+            failedWindowStartMs: NOW,
+            expireAt: new Date(NOW + 24 * 60 * 60 * 1000),
+        });
+        for (let i = 0; i < 8; i++) {
+            await expectErr(api.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1')), 'resource-exhausted');
+        }
+        const win = db.store.get('totp_rate_limits/adminA1');
+        assert.ok(!win || !win.attempts, 'other-tool day-capped retries must not charge the shared 2-minute window');
+        const onProof = await api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1'));
+        assert.ok(onProof && onProof.freshProofId, 'Emergency stop still works immediately');
+        NOW = T0 + 31000;
+        const ksWin = await api.totpStepUp.run({ tool: 'killSwitch', code: codeAt(NOW) }, ctx('adminA1'));
+        assert.ok(ksWin && ksWin.adminToolSession, 'killSwitch tool window still works immediately');
+        NOW = T0 + 62000;
+        const offProof = await api.totpStepUp.run({ action: 'adminSetKillSwitch', code: codeAt(NOW) }, ctx('adminA1'));
+        assert.ok(offProof && offProof.freshProofId, 'OFF still works immediately');
+        NOW = T0;
+    });
+
     await test('L1: a too-new factor after the proof is consumed marks proofConsumed and the proof cannot be reused', async function () {
         NOW = T0;
         const { api } = setup({ totpEnabledAt: T0 - 3600000 });
