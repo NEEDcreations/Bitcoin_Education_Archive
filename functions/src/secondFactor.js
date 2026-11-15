@@ -57,6 +57,39 @@ function isKillSwitchStepUpAction(action) {
     return action === 'adminSetKillSwitchOn' || action === 'adminSetKillSwitch';
 }
 
+function isAdminFreshAction(action) {
+    const a = String(action || '');
+    return a === 'toggleFaucet' || a.indexOf('admin') === 0;
+}
+
+// One trusted client address for both admin tool step-up and totpStepUp
+// admin-action proofs: the rightmost X-Forwarded-For entry (the one
+// Google appends). Do not use rawRequest.ip, which can follow a
+// caller-controlled leftmost entry when the proxy is trusted.
+function stepUpClientIp(context) {
+    return faucetGuard.clientIpFromRequest(context && context.rawRequest);
+}
+
+// IPv6 is keyed by /64, IPv4 by the full address (QA #325). An
+// unparseable non-empty value falls back to the exact string. An empty
+// or "unknown" IP returns '' so the caller skips the network limit
+// instead of sharing one bucket across every admin.
+function stepUpNetworkKey(ip) {
+    const raw = String(ip || '').trim();
+    if (!raw || raw.toLowerCase() === 'unknown') return '';
+    let addr = raw;
+    if (addr.charAt(0) === '[' && addr.indexOf(']') !== -1) {
+        addr = addr.slice(1, addr.indexOf(']'));
+    } else {
+        const v4port = addr.match(/^(\d{1,3}(?:\.\d{1,3}){3}):\d+$/);
+        if (v4port) addr = v4port[1];
+    }
+    const keys = faucetGuard.networkKeys(addr);
+    if (!keys) return raw;
+    if (keys.version === 4) return keys.exactId;
+    return keys.rangeId;
+}
+
 const RECOVERY_COUNT = 10;
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const STEP_MS = 30000;
@@ -1613,17 +1646,15 @@ function initSecondFactor(deps) {
         return TS && typeof TS.fromMillis === 'function' ? TS.fromMillis(ms) : new Date(ms);
     }
 
-    // The per-network bucket for admin tool step-ups: the /64 (IPv6) or /24
-    // (IPv4) range, so rotating addresses inside one range share a limit
-    // (Red Team #325 F3, same keying as #322). An unparseable non-empty value
-    // falls back to the exact string. An empty IP returns '' and the caller
-    // skips the network limit (per-uid limits still apply) instead of
-    // sharing one 'unknown' bucket across every admin.
-    function adminToolNetworkKey(ip) {
-        const raw = String(ip || '').trim();
-        if (!raw || raw.toLowerCase() === 'unknown') return '';
-        const keys = faucetGuard.networkKeys(raw);
-        return keys && keys.rangeId ? keys.rangeId : raw;
+    async function chargeStepUpNetwork(context, nowMs) {
+        const netKey = stepUpNetworkKey(stepUpClientIp(context));
+        const ipNote = netKey ? {} : { ipLimit: 'skipped-no-ip' };
+        let ipDocId = '';
+        if (netKey) {
+            ipDocId = await networkRateDocId(db, 'admintoolip_', netKey, nowMs);
+            await takeNetworkAttempt(ipDocId, nowMs, NETWORK_RATE_MAX);
+        }
+        return { ipNote: ipNote, ipDocId: ipDocId };
     }
 
     // Red Team #325 F4: the same recorded and established (24 h+) factor
@@ -1657,8 +1688,10 @@ function initSecondFactor(deps) {
     // tool is killSwitch, and lastAcceptedStep rejects a reused code). A
     // phone-only admin must have signed in with phone verification in the
     // last five minutes, and each sign-in opens one tool once. The factor
-    // must be recorded and at least 24 h old. Attempts are also limited per
-    // network range (/64 or /24) at 12 per 2-minute window (Red Team #325 S3).
+    // must be recorded and at least 24 h old. Attempts are also limited
+    // per network at 12 per 2-minute window: IPv6 by /64, IPv4 by the
+    // full address, using the same trusted source as totpStepUp admin
+    // actions (Red Team #325 S3, QA #325).
     // Sessions and remembered devices never
     // count. Success and failure both write an mfa_admin_log row; the
     // success row is committed in the same batch as the session.
@@ -1686,14 +1719,12 @@ function initSecondFactor(deps) {
         }
 
         let method = '';
-        const netKey = adminToolNetworkKey(faucetGuard.clientIpFromRequest(context && context.rawRequest));
-        const ipNote = netKey ? {} : { ipLimit: 'skipped-no-ip' };
+        let ipNote = {};
+        let ipDocId = '';
         try {
-            let ipDocId = '';
-            if (netKey) {
-                ipDocId = await networkRateDocId(db, 'admintoolip_', netKey, nowMs);
-                await takeNetworkAttempt(ipDocId, nowMs, NETWORK_RATE_MAX);
-            }
+            const charged = await chargeStepUpNetwork(context, nowMs);
+            ipNote = charged.ipNote;
+            ipDocId = charged.ipDocId;
             const secret = await secretRecord(uid);
             const code = data && typeof data.code === 'string' ? data.code.trim() : '';
             if (secret) {
@@ -1785,7 +1816,16 @@ function initSecondFactor(deps) {
         if (!data || !data.code) throw httpError('invalid-argument', 'Code required');
         const nowMs = currentNow();
         const skipDailyCap = isKillSwitchStepUpAction(action);
+        // Same per-network bucket as the admin tool window, keyed by one
+        // trusted source (QA #325). User-facing actions keep only the
+        // per-uid limits inside acceptTotp.
+        let ipDocId = '';
+        if (isAdminFreshAction(action)) {
+            const charged = await chargeStepUpNetwork(context, nowMs);
+            ipDocId = charged.ipDocId;
+        }
         await acceptTotp(uid, String(data.code).trim(), nowMs, skipDailyCap ? { skipDailyCap: true } : undefined);
+        if (ipDocId) await db.collection('rate_limits').doc(ipDocId).delete().catch(function () {});
         const proof = await issueFreshProof(uid, action, nowMs);
         return { success: true, action: action, freshProofId: proof.proofId, expiresAt: proof.expiresAtMs };
     });
@@ -2155,6 +2195,9 @@ module.exports = {
     NETWORK_RATE_MAX: NETWORK_RATE_MAX,
     RATE_MAX: RATE_MAX,
     isKillSwitchStepUpAction: isKillSwitchStepUpAction,
+    isAdminFreshAction: isAdminFreshAction,
+    stepUpNetworkKey: stepUpNetworkKey,
+    stepUpClientIp: stepUpClientIp,
     MAX_TRUSTED_DEVICES: MAX_TRUSTED_DEVICES,
     deviceLabel: deviceLabel,
     hashDeviceToken: hashDeviceToken,
