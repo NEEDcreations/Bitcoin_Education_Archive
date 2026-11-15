@@ -367,6 +367,9 @@ function world() {
         'peerRelationships/rel12': { uid1: 'u1', uid2: 'u2', giftsExchanged: 2 },
         'peerRelationships/rel23': { uid1: 'u2', uid2: 'u3', giftsExchanged: 1 },
         'tctv_presence/u1': { viewerId: 'u1', station: 'main' },
+        'tctv_drip_backfill_audit/bf1_u1': { uid: 'u1', potId: 'pot1', beforeSeconds: 0, afterSeconds: 1200, source: 'estimate' },
+        'tctv_drip_backfill_audit/bf1_u2': { uid: 'u2', potId: 'pot1', afterSeconds: 600, source: 'real' },
+        'tctv_drip_backfill_audit/bf1': { runId: 'bf1', kind: 'summary', writes: 2 },
         'tctv_presence/u2': { viewerId: 'u2' },
         'tctv_view_days/20261022_u1_main': { viewerId: 'u1', station: 'main', day: '20261022' },
         'certs/cert1': { uid: 'u1', name: 'Alice' },
@@ -644,6 +647,13 @@ function auth(uid, extras) {
         assert.ok(db.commits.every(function(n) { return n <= del.BATCH_LIMIT; }));
 
         assert.strictEqual(db.docs.has('users/u1'), false);
+
+        assert.ok(db.docs.has('tctv_drip_backfill_audit/bf1_u1'), 'backfill audit row is kept');
+        assert.strictEqual(db.docs.get('tctv_drip_backfill_audit/bf1_u1').uid, 'deleted');
+        assert.strictEqual(db.docs.get('tctv_drip_backfill_audit/bf1_u1').uidMasked, '[deleted]');
+        assert.strictEqual(db.docs.get('tctv_drip_backfill_audit/bf1_u1').afterSeconds, 1200);
+        assert.strictEqual(db.docs.get('tctv_drip_backfill_audit/bf1_u2').uid, 'u2');
+        assert.ok(db.docs.has('tctv_drip_backfill_audit/bf1'));
         assert.strictEqual(db.docs.has('telegram_mirror_queue/global_chat__m1'), false);
         assert.ok(db.docs.has('telegram_mirror_queue/global_chat__m2'));
         assert.strictEqual(db.docs.has('telegram_mirror_claims/global_chat__m1'), false);
@@ -1909,6 +1919,8 @@ function auth(uid, extras) {
         assert.ok(del.CAP_SUBCOLLECTIONS.indexOf('xp_ledger') === -1);
         assert.ok(del.RETAINED_COLLECTIONS.indexOf('cert_bonuses') === -1);
         assert.ok(del.RETAINED_COLLECTIONS.indexOf('xp_ledger') === -1);
+        assert.ok(del.RETAINED_COLLECTIONS.indexOf('tctv_drip_backfill_audit') === -1, 'tctv_drip_backfill_audit is not retained');
+
         const db = createFakeDb({
             'users/u1': { username: 'Ada', points: 10 },
             'users/u1/cert_bonuses/prop': { amount: 2100, source: 'cert_bonus' },

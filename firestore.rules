@@ -2812,6 +2812,13 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // TCTV pot backfill audit. Server-only deny-all. Permanent record:
+    // keep out of every cleanup. Account deletion masks the uid and
+    // keeps the row (same idea as survey_audit).
+    match /tctv_drip_backfill_audit/{docId} {
+      allow read, write: if false;
+    }
+
     // Daily Timechain TV watch ledger. The owner may read progress for the
     // home button. Watch time, the daily claim, XP, and orange tickets are
     // written only by tctvWatchHeartbeat (Admin SDK). Clients cannot write.
