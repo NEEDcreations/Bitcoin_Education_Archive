@@ -8679,28 +8679,14 @@ window._renderTitleFlairSection = function() {
         '.tf-wrap{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;box-sizing:border-box;max-width:100%;}' +
         '.tf-h{font-size:0.75rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;margin:0 0 10px;}' +
         '.tf-sub{font-size:0.7rem;color:var(--text-muted);margin:14px 0 8px;font-weight:700;}' +
-        '.tf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;}' +
-        '.tf-card{position:relative;box-sizing:border-box;min-height:64px;padding:8px 6px;border-radius:10px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-family:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;min-width:0;}' +
-        '.tf-card .tf-e{font-size:1.25rem;line-height:1;}' +
-        '.tf-card .tf-n{font-size:0.66rem;font-weight:700;line-height:1.2;overflow-wrap:anywhere;}' +
-        '.tf-card.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:rgba(247,147,26,0.10);}' +
-        '.tf-card.on::after{content:"✓";position:absolute;top:3px;right:6px;font-size:0.7rem;font-weight:900;color:var(--accent);}' +
-        '.tf-card.lock{opacity:0.45;filter:grayscale(1);cursor:help;}' +
         '.tf-prev{border:1px dashed var(--border);border-radius:10px;padding:10px;font-size:0.8rem;line-height:1.5;overflow-wrap:anywhere;}' +
         '.tf-pill{display:inline-block;background:rgba(247,147,26,0.15);border:1px solid rgba(247,147,26,0.25);border-radius:20px;padding:1px 8px;font-size:0.7rem;font-weight:700;color:#f97316;margin-left:6px;}' +
         '.tf-select{display:block;width:100%;box-sizing:border-box;margin:0 0 4px;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg-side);color:var(--text);font-family:inherit;font-size:16px;line-height:1.3;}' +
-        '@media (max-width:420px){.tf-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}.tf-card{min-height:58px;padding:6px 4px;}.tf-card .tf-n{font-size:0.6rem;}}' +
         '</style>';
     h += '<div class="tf-wrap" id="titleFlairSection">';
     h += '<div class="tf-h">🎖️ Title &amp; Flair</div>';
     h += '<div class="tf-prev" aria-live="polite"><div><strong>' + name + '</strong>' + (tDef ? '<span class="tf-pill">' + tDef.emoji + ' ' + _tfEsc(tDef.title) + '</span>' : '') + '</div>' +
         '<div style="color:var(--text-muted);">' + (showFlair ? _tfEsc(showFlair) + ' ' : '') + '<strong style="color:var(--text);">' + name + '</strong>: gm, stacking sats 🧡</div></div>';
-    function card(kind, id, emoji, label, isOn, lockTip) {
-        var attrs = lockTip
-            ? ' class="tf-card lock" aria-disabled="true" title="' + _tfEsc(lockTip) + '" onclick="if(typeof showToast===\'function\')showToast(this.title)"'
-            : ' class="tf-card' + (isOn ? ' on' : '') + '" aria-pressed="' + (isOn ? 'true' : 'false') + '" onmouseenter="window._tfHover(\'' + kind + '\',this.dataset.v)" onmouseleave="window._tfHover(\'' + kind + '\')" onclick="window._tfPick(\'' + kind + '\',this.dataset.v)"';
-        return '<button type="button" data-v="' + _tfEsc(id) + '"' + attrs + '><span class="tf-e">' + emoji + '</span><span class="tf-n">' + _tfEsc(label) + '</span></button>';
-    }
     // Titles: one compact dropdown. Locked collection titles stay visible but cannot be picked.
     h += '<label class="tf-sub" for="tfTitleSelect">Title</label>';
     h += '<select id="tfTitleSelect" class="tf-select" aria-label="Title" onchange="window._tfTitleChange(this)">';
@@ -8739,23 +8725,51 @@ window._renderTitleFlairSection = function() {
         h += '</optgroup>';
     }
     h += '</select>';
-    // Flair: None, Nook flair, then collection flair.
-    h += '<div class="tf-sub">Chat flair</div><div class="tf-grid">';
-    h += card('flair', '', '🚫', 'No flair', !flair, '');
+    // Chat flair: one compact dropdown. Locked Nook and collection flair stay visible but cannot be picked.
+    h += '<label class="tf-sub" for="tfFlairSelect">Chat flair</label>';
+    h += '<select id="tfFlairSelect" class="tf-select" aria-label="Chat flair" onchange="window._tfFlairChange(this)">';
+    h += '<option value=""' + (!flair ? ' selected' : '') + '>No flair</option>';
     var seenF = {};
+    var unlockedF = [];
+    var lockedF = [];
     var nookOwned = Array.isArray(u.ownedCosmetics) && u.ownedCosmetics.indexOf('chat_flair') !== -1;
     (window.CHAT_FLAIR_NOOK || []).forEach(function(e) {
         seenF[e] = true;
         var have = earnedF.indexOf(e) !== -1 || nookOwned;
-        h += card('flair', e, e, 'Nook', flair === e, have ? '' : '🔒 Buy Chat Flair in the Nook');
+        var item = { id: e, emoji: e, title: 'Nook', locked: !have, hint: have ? '' : 'Buy Chat Flair in the Nook' };
+        (have ? unlockedF : lockedF).push(item);
     });
     _tfCollections().forEach(function(col) {
         if (!col.flair || seenF[col.flair]) return;
         seenF[col.flair] = true;
         var have = earnedF.indexOf(col.flair) !== -1;
-        h += card('flair', col.flair, col.flair, col.name, flair === col.flair, have ? '' : '🔒 Complete the ' + col.name + ' collection');
+        var item = { id: col.flair, emoji: col.flair, title: col.name || col.flair, locked: !have, hint: have ? '' : ('Complete the ' + col.name + ' collection') };
+        (have ? unlockedF : lockedF).push(item);
     });
-    h += '</div></div>';
+    earnedF.forEach(function(fe) {
+        if (!fe || seenF[fe]) return;
+        seenF[fe] = true;
+        unlockedF.push({ id: fe, emoji: fe, title: '', locked: false, hint: '' });
+    });
+    if (flair && unlockedF.every(function(item) { return item.id !== flair; }) && lockedF.every(function(item) { return item.id !== flair; })) {
+        unlockedF.unshift({ id: flair, emoji: flair, title: '', locked: false, hint: '' });
+    }
+    function flairOpt(item) {
+        var label = ((item.emoji ? item.emoji + ' ' : '') + (item.title || '')).trim();
+        if (item.hint) label += ' — ' + item.hint;
+        return '<option value="' + _tfEsc(item.id) + '"' + (item.locked ? ' disabled' : '') + (flair === item.id ? ' selected' : '') + '>' + _tfEsc(label) + '</option>';
+    }
+    if (unlockedF.length) {
+        h += '<optgroup label="Unlocked">';
+        unlockedF.forEach(function(item) { h += flairOpt(item); });
+        h += '</optgroup>';
+    }
+    if (lockedF.length) {
+        h += '<optgroup label="Locked">';
+        lockedF.forEach(function(item) { h += flairOpt(item); });
+        h += '</optgroup>';
+    }
+    h += '</select></div>';
     return h;
 };
 window._tfRepaint = function() {
@@ -8786,6 +8800,12 @@ window._tfTitleChange = function(el) {
     var value = el.value || '';
     window._tfHover('title', value);
     window._tfPick('title', value);
+};
+window._tfFlairChange = function(el) {
+    if (!el) return;
+    var value = el.value || '';
+    window._tfHover('flair', value);
+    window._tfPick('flair', value);
 };
 window._tfPick = function(kind, value) {
     var user = auth ? auth.currentUser : null;
