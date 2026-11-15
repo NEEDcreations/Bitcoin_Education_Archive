@@ -1396,6 +1396,11 @@ service cloud.firestore {
     match /irl_events/{eventId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && autoDocId(eventId)
+                    && noStoredIdField()
+                    // Exactly the fields irl-sync.js submitHostEvent sends.
+                    && request.resource.data.keys().hasOnly(['title', 'date', 'location', 'locationName', 'hostId',
+                        'hostName', 'attendeesCount', 'attendees', 'createdAt', 'link', 'description', 'coverUrl'])
                     && request.resource.data.hostId == request.auth.uid
                     && request.resource.data.keys().hasAll(['title', 'hostId', 'date'])
                     && (request.resource.data.keys().hasAny(['location', 'locationName']))
@@ -1407,6 +1412,7 @@ service cloud.firestore {
                         || (request.resource.data.link is string
                             && request.resource.data.link.matches('https://.*'))));
       allow update: if clientWritesOk() && (request.auth != null
+                    && idFieldUnchanged()
                     && (resource.data.hostId == request.auth.uid
                         || isAdmin()
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendees'])
@@ -1730,8 +1736,12 @@ service cloud.firestore {
                     && (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0));
       allow update: if clientWritesOk() && (request.auth != null
                     && idFieldUnchanged()
+                    // C3: a status change is allowed only from published/draft (or a
+                    // legacy doc with no status) to published/draft. A moderated
+                    // status such as 'hidden' stays put unless an admin changes it.
                     && (request.resource.data.get('status', null) == resource.data.get('status', null)
-                        || articleStatusOk(request.resource.data))
+                        || isAdmin()
+                        || (articleStatusOk(resource.data) && articleStatusOk(request.resource.data)))
                     && evidenceAuthorFrozen()
                     && (
                       // Author can edit their own article. replyCount stays server-owned.
@@ -1742,7 +1752,9 @@ service cloud.firestore {
                         && request.resource.data.title is string
                         && request.resource.data.title.size() >= 10
                         && request.resource.data.title.size() <= 120
-                        && serverCountersUnchanged())
+                        && serverCountersUnchanged()
+                        // C2: only an admin pins (admin branch below).
+                        && request.resource.data.get('pinned', false) == resource.data.get('pinned', false))
                       // Upvotes/tips/saves: anyone authenticated
                       // [SECURITY FIX] Each branch now freezes the fields it does NOT own.
                       // Previously the OR logic let any branch pass while the caller freely

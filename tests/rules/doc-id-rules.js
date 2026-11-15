@@ -76,6 +76,10 @@ const GOOD = 'Ab3dEf6hIj9lMn2pQr5t';
             await setDoc(doc(db, 'articles', 'ArticleArticleArticl'), { title: 'A seeded article title', body: 'b', authorId: 'user1', authorName: 'phil', status: 'published', upvotes: 0, voters: [], createdAt: 1 });
             await setDoc(doc(db, 'users', 'user1', 'playlists', 'PlaylistPlaylistPlay'), { name: 'mix', trackIds: [], createdAt: 1 });
             await setDoc(doc(db, 'beats_artists', 'user1'), { name: 'phil' });
+            await setDoc(doc(db, 'articles', 'HiddenArticleArticle'), { title: 'A hidden article title', body: 'b', authorId: 'user1', authorName: 'phil', status: 'hidden', upvotes: 0, voters: [], createdAt: 1 });
+            await setDoc(doc(db, 'articles', 'LegacyNoStatusArticl'), { title: 'A legacy article title', body: 'b', authorId: 'user1', authorName: 'phil', upvotes: 0, voters: [], createdAt: 1 });
+            await setDoc(doc(db, 'irl_events', 'EventEventEventEvent'), { title: 'Seed meetup', date: '2030-01-01T00:00:00.000Z', location: 'Town', locationName: 'Town', hostId: 'user1', hostName: 'phil', attendeesCount: 1, attendees: ['user1'], createdAt: 1 });
+            await setDoc(doc(db, 'irl_events', 'legacy_event-1'), { title: 'Old meetup', date: '2030-01-01T00:00:00.000Z', location: 'Town', hostId: 'user1', attendees: ['user1'], createdAt: 1 });
         });
         const user = env.authenticatedContext('user1', pw).firestore();
         const other = env.authenticatedContext('user2', pw).firestore();
@@ -218,6 +222,47 @@ const GOOD = 'Ab3dEf6hIj9lMn2pQr5t';
         await expect('admin adds id field to beats_artists doc', function () { return updateDoc(doc(adminDb, 'beats_artists', 'user1'), spoof); }, false);
         await expect('admin edits beats_artists doc', function () { return updateDoc(doc(adminDb, 'beats_artists', 'user1'), { name: 'phil2' }); }, true);
         await expect('non-admin creates beats_artists doc', function () { return setDoc(doc(user, 'beats_artists', 'user1x'), { name: 'x' }); }, false);
+
+        // C1: irl_events.
+        const irl = function () {
+            return { title: 'Bitcoin meetup', date: '2030-02-01T18:00:00.000Z', location: 'Pub', locationName: 'Pub', hostId: 'user1',
+                hostName: 'phil', attendeesCount: 1, attendees: ['user1'], createdAt: serverTimestamp() };
+        };
+        await expect('irl_events add() host event', function () { return addDoc(collection(user, 'irl_events'), irl()); }, true);
+        await expect('irl_events add() with link, description and cover', function () {
+            return addDoc(collection(user, 'irl_events'), Object.assign(irl(), { link: 'https://meetup.example/x?a=1&b=2', description: 'come', coverUrl: 'https://x/c.png' }));
+        }, true);
+        for (const [label, id] of BAD_IDS) {
+            await expect('irl_events id with ' + label, function () { return setDoc(doc(user, 'irl_events', id), irl()); }, false);
+        }
+        await expect('irl_events with id field', function () { return addDoc(collection(user, 'irl_events'), Object.assign(irl(), spoof)); }, false);
+        await expect('irl_events with emoji field', function () { return addDoc(collection(user, 'irl_events'), Object.assign(irl(), { emoji: '<img src=x onerror=alert(1)>' })); }, false);
+        await expect('irl_events with an extra field', function () { return addDoc(collection(user, 'irl_events'), Object.assign(irl(), { html: '<b>' })); }, false);
+        await expect('host adds id field to own event', function () { return updateDoc(doc(user, 'irl_events', 'EventEventEventEvent'), spoof); }, false);
+        await expect('host edits own event', function () {
+            return updateDoc(doc(user, 'irl_events', 'EventEventEventEvent'), { title: 'Renamed meetup', link: null, description: null });
+        }, true);
+        await expect('someone RSVPs to an event', function () { return updateDoc(doc(other, 'irl_events', 'EventEventEventEvent'), { attendees: arrayUnion('user2') }); }, true);
+        await expect('someone RSVPs to a legacy-id event', function () { return updateDoc(doc(other, 'irl_events', 'legacy_event-1'), { attendees: arrayUnion('user2') }); }, true);
+        await expect('host edits a legacy-id event', function () { return updateDoc(doc(user, 'irl_events', 'legacy_event-1'), { title: 'Renamed old meetup' }); }, true);
+
+        // C2: authors cannot pin; admins still can.
+        await expect('author pins own article', function () { return updateDoc(doc(user, 'articles', 'ArticleArticleArticl'), { title: 'An edited article title', body: 'b2', pinned: true }); }, false);
+        await expect('admin pins an article', function () { return updateDoc(doc(adminDb, 'articles', 'ArticleArticleArticl'), { pinned: true }); }, true);
+        await expect('author edits own pinned article (pin unchanged)', function () { return updateDoc(doc(user, 'articles', 'ArticleArticleArticl'), { title: 'Edited pinned article', body: 'b3' }); }, true);
+        await expect('author unpins own article', function () { return updateDoc(doc(user, 'articles', 'ArticleArticleArticl'), { title: 'Edited pinned article', body: 'b3', pinned: false }); }, false);
+        // C3: a hidden article stays hidden.
+        await expect('author moves hidden article to published', function () { return updateDoc(doc(user, 'articles', 'HiddenArticleArticle'), { title: 'A hidden article title', body: 'b', status: 'published' }); }, false);
+        await expect('author moves hidden article to draft', function () { return updateDoc(doc(user, 'articles', 'HiddenArticleArticle'), { title: 'A hidden article title', body: 'b', status: 'draft' }); }, false);
+        await expect('author edits hidden article body (status unchanged)', function () { return updateDoc(doc(user, 'articles', 'HiddenArticleArticle'), { title: 'A hidden article title', body: 'b2' }); }, true);
+        await expect('author deletes status of hidden article', function () {
+            return setDoc(doc(user, 'articles', 'HiddenArticleArticle'), { title: 'A hidden article title', body: 'b', authorId: 'user1', authorName: 'phil', upvotes: 0, voters: [], createdAt: 1 });
+        }, false);
+        await expect('upvote a hidden article', function () {
+            return updateDoc(doc(other, 'articles', 'HiddenArticleArticle'), { upvotes: increment(1), voters: arrayUnion('user2') });
+        }, true);
+        await expect('admin unhides an article', function () { return updateDoc(doc(adminDb, 'articles', 'HiddenArticleArticle'), { status: 'published' }); }, true);
+        await expect('author publishes legacy article with no status', function () { return updateDoc(doc(user, 'articles', 'LegacyNoStatusArticl'), { title: 'A legacy article title', body: 'b', status: 'published' }); }, true);
     } finally {
         await env.cleanup();
     }
