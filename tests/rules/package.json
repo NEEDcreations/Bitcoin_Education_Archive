@@ -4,7 +4,8 @@
   "description": "Emulator test for marketplace Firestore rules. See marketplace-rules.js.",
   "dependencies": {
     "@firebase/rules-unit-testing": "3.0.4",
-    "firebase": "10.14.1"
+    "firebase": "10.14.1",
+    "jsdom": "24.1.3"
   },
   "overrides": {
     "@grpc/grpc-js": "1.14.7",

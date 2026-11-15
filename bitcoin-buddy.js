@@ -3,6 +3,14 @@
 // Connect users by experience level for 1-on-1 Bitcoin conversations
 
 (function() {
+// Attribute escape for ids/uids placed in data-* attributes (handlers read
+// them back from this.dataset, never from inline JS strings). Local on purpose:
+// nacho-qa.js later redefines the global escapeHtml/sanitizeUrl.
+function _buddyAttr(s) {
+    return String(s == null ? '' : s).replace(/[&<>"'`]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c];
+    });
+}
 'use strict';
 
 var COLLECTION = 'buddy_pool';
@@ -65,7 +73,7 @@ function _showExistingMatch(matchDoc, myUid) {
     html += '<div style="font-size:0.75rem;color:var(--text-muted);text-align:center;margin-bottom:16px;">Your role: ' + (me.goal === 'teach' ? '🎓 Teacher' : '📖 Learner') + '</div>';
 
     // Action buttons
-    html += '<button onclick="document.getElementById(\'buddyFinderOverlay\').remove();if(typeof openDM===\'function\')openDM(\'' + buddy.uid + '\',\'' + (buddy.username || 'User').replace(/[\\'"]/g, '') + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">💬 Open Conversation</button>';
+    html += '<button data-bq-u1="' + _buddyAttr(buddy.uid) + '" onclick="var __d=this.dataset;document.getElementById(\'buddyFinderOverlay\').remove();if(typeof openDM===\'function\')openDM(__d.bqU1,\'' + (buddy.username || 'User').replace(/[\\'"]/g, '') + '\')" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:inherit;margin-bottom:8px;">💬 Open Conversation</button>';
     html += '<button onclick="_rerollBuddy(\'' + matchDoc.id + '\')" id="rerollBtn" style="width:100%;padding:12px;background:none;border:1px solid rgba(239,68,68,0.3);border-radius:12px;color:#ef4444;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px;">🔄 Find a New Buddy</button>';
     html += '<div style="text-align:center;font-size:0.65rem;color:var(--text-faint);margin-bottom:12px;">This will unmatch you and put you back in the pool</div>';
     html += '<button onclick="document.getElementById(\'buddyFinderOverlay\').remove()" style="width:100%;padding:8px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-faint);font-size:0.8rem;cursor:pointer;font-family:inherit;">Close</button>';

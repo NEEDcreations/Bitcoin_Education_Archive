@@ -1,3 +1,11 @@
+// Attribute escape for ids/uids placed in data-* attributes (handlers read
+// them back from this.dataset, never from inline JS strings). Local on purpose:
+// nacho-qa.js later redefines the global escapeHtml/sanitizeUrl.
+function _favorAttr(s) {
+    return String(s == null ? '' : s).replace(/[&<>"'`]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c];
+    });
+}
 /**
  * Satoshi's Favor - Client-side module
  * Features: Streak Multiplier, Session Leaderboard, Near-Miss Feedback,
@@ -818,7 +826,7 @@
                     var sessionLookup = safeSessionUid ? ' data-profile-uid="' + safeSessionUid + '"' + (sessionBlank ? ' data-blank-name="1"' : '') : '';
                     html += '<div style="display:flex;align-items:center;gap:8px;padding:5px 10px;border-radius:8px;margin-bottom:3px;' + bgStyle + '">' +
                         '<span style="font-size:0.78rem;min-width:22px;text-align:center;">' + medalEmoji + '</span>' +
-                        '<span ' + (safeSessionUid ? 'onclick="if(typeof showUserProfile===\'function\')showUserProfile(\''+safeSessionUid+'\')" style="flex:1;font-size:0.78rem;font-weight:700;color:' + nameColor + ';cursor:pointer;text-decoration:none;" title="View @'+escapeHtml(sessionShown)+'\'s profile"' : 'style="flex:1;font-size:0.78rem;font-weight:700;color:' + nameColor + ';"') + sessionLookup + '>@' + escapeHtml(sessionShown) + '</span>' +
+                        '<span ' + (safeSessionUid ? 'data-bq-a1="' + _favorAttr(safeSessionUid) + '" onclick="if(typeof showUserProfile===\'function\')showUserProfile(this.dataset.bqA1)" style="flex:1;font-size:0.78rem;font-weight:700;color:' + nameColor + ';cursor:pointer;text-decoration:none;" title="View @'+escapeHtml(sessionShown)+'\'s profile"' : 'style="flex:1;font-size:0.78rem;font-weight:700;color:' + nameColor + ';"') + sessionLookup + '>@' + escapeHtml(sessionShown) + '</span>' +
                         '<span style="font-size:0.78rem;font-family:monospace;color:' + (isMe ? '#f7931a' : 'var(--text)') + ';font-weight:700;">' + (d.count || 0) + ' hashes</span>' +
                         '</div>';
                     rank++;

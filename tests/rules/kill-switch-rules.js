@@ -139,13 +139,13 @@ const parts = emu.split(':');
             return setDoc(doc(admin, 'reports', 'rep-admin'), { reporterUid: 'phil', target: 'x' });
         }, true);
         await expect('user cannot create forum_posts while offline', function () {
-            return setDoc(doc(ada, 'forum_posts', 'fp1'), forumPayload);
+            return setDoc(doc(ada, 'forum_posts', 'fp1XXXXXXXXXXXXXXXXX'), forumPayload);
         }, false);
         await expect('admin can create forum_posts while offline', function () {
-            return setDoc(doc(admin, 'forum_posts', 'fp-admin'), Object.assign({}, forumPayload, { authorId: 'phil', authorName: 'Phil' }));
+            return setDoc(doc(admin, 'forum_posts', 'fpadminXXXXXXXXXXXXX'), Object.assign({}, forumPayload, { authorId: 'phil', authorName: 'Phil' }));
         }, true);
         await expect('user cannot create forum_replies while offline', function () {
-            return setDoc(doc(ada, 'forum_replies', 'fr1'), replyPayload);
+            return setDoc(doc(ada, 'forum_replies', 'fr1XXXXXXXXXXXXXXXXX'), replyPayload);
         }, false);
         await expect('user cannot mark a notification read while offline', function () {
             return updateDoc(doc(ada, 'users', 'ada', 'notifications', 'n1'), { read: true });
@@ -160,10 +160,10 @@ const parts = emu.split(':');
             return setDoc(doc(ada2, 'reports', 'rep2'), reportPayload);
         }, true);
         await expect('user can create forum_posts when online', function () {
-            return setDoc(doc(ada2, 'forum_posts', 'fp2'), forumPayload);
+            return setDoc(doc(ada2, 'forum_posts', 'fp2XXXXXXXXXXXXXXXXX'), forumPayload);
         }, true);
         await expect('user can create forum_replies when online', function () {
-            return setDoc(doc(ada2, 'forum_replies', 'fr2'), replyPayload);
+            return setDoc(doc(ada2, 'forum_replies', 'fr2XXXXXXXXXXXXXXXXX'), replyPayload);
         }, true);
         await expect('user can mark a notification read when online', function () {
             return updateDoc(doc(ada2, 'users', 'ada', 'notifications', 'n1'), { read: true });

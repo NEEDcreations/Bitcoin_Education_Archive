@@ -56,7 +56,7 @@ const parts = emu.split(':');
         const user = env.authenticatedContext('user1', password).firestore();
         const impostor = env.authenticatedContext('user2', password).firestore();
         await expect('own global chat message', function () {
-            return setDoc(doc(user, 'global_chat', 'own1'), {
+            return setDoc(doc(user, 'global_chat', 'own1XXXXXXXXXXXXXXXX'), {
                 uid: 'user1',
                 name: 'phil',
                 text: 'hello',
@@ -65,7 +65,7 @@ const parts = emu.split(':');
             });
         }, true);
         await expect('forge Nacho uid in global chat', function () {
-            return setDoc(doc(impostor, 'global_chat', 'forge1'), {
+            return setDoc(doc(impostor, 'global_chat', 'forge1XXXXXXXXXXXXXX'), {
                 uid: 'nacho-bot',
                 name: '🦌 Nacho',
                 text: 'Satoshi\'s Favor is LIVE',
@@ -74,7 +74,7 @@ const parts = emu.split(':');
             });
         }, false);
         await expect('forge Nacho name on another uid', function () {
-            return setDoc(doc(user, 'global_chat', 'forge2'), {
+            return setDoc(doc(user, 'global_chat', 'forge2XXXXXXXXXXXXXX'), {
                 uid: 'user1',
                 name: '🦌 Nacho',
                 text: 'fake live post',

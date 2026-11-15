@@ -14,6 +14,14 @@
 // You can comment out any task you don't want to apply.
 // =============================================
 
+// Attribute escape for ids placed in data-* attributes. Local on purpose:
+// nacho-qa.js later redefines the global escapeHtml/sanitizeUrl.
+function _uxAttr(s) {
+    return String(s == null ? '' : s).replace(/[&<>"'`]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c];
+    });
+}
+
 // =============================================
 // TASK 1: Restrict Firestore /users read to authenticated users
 // =============================================
@@ -382,7 +390,7 @@
                     '<label style="display:block;font-size:0.75rem;color:var(--text-faint);margin-bottom:4px;">Body</label>' +
                     '<textarea id="editPostBody" rows="6" maxlength="2000" style="width:100%;padding:10px 14px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:0.85rem;font-family:inherit;margin-bottom:12px;box-sizing:border-box;resize:vertical;">' + (typeof escapeHtml === 'function' ? escapeHtml(p.body || '') : (p.body || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')) + '</textarea>' +
                     '<div style="display:flex;gap:10px;">' +
-                        '<button onclick="forumSaveEdit(\'' + postId + '\')" style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">Save Changes</button>' +
+                        '<button data-bq-u1="' + _uxAttr(postId) + '" onclick="forumSaveEdit(this.dataset.bqU1)" style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;font-family:inherit;">Save Changes</button>' +
                         '<button onclick="document.getElementById(\'forumEditOverlay\').remove()" style="padding:12px 20px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);cursor:pointer;font-family:inherit;">Cancel</button>' +
                     '</div>' +
                     '<div style="font-size:0.7rem;color:var(--text-faint);margin-top:8px;text-align:center;">Edited posts will show an "edited" indicator</div>' +

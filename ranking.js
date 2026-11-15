@@ -1,3 +1,11 @@
+// Attribute escape for ids/uids placed in data-* attributes (handlers read
+// them back from this.dataset, never from inline JS strings). Local on purpose:
+// nacho-qa.js later redefines the global escapeHtml/sanitizeUrl.
+function _rankingAttr(s) {
+    return String(s == null ? '' : s).replace(/[&<>"'`]/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '`': '&#96;' }[c];
+    });
+}
 // © 2024-2026 603BTC LLC. All rights reserved.
 // This code is proprietary. See LICENSE file. Do not copy or redistribute.
 // =============================================
@@ -7573,7 +7581,7 @@ function _lbXpRowHtml(d, period, index) {
     var _lbNameStyle = d.faction && typeof window._factionNameStyle === 'function' ? window._factionNameStyle(d.faction) : '';
     var peerTag = (window._myPeers && window._myPeers.has(d.id || '')) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
     var score = period === 'weekly' ? (d.weeklyXP || 0).toLocaleString() + ' wXP' : period === 'monthly' ? (d.monthlyXP || 0).toLocaleString() + ' mXP' : (d.points || 0).toLocaleString() + ' XP';
-    return '<div' + hidden + ' onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
+    return '<div' + hidden + ' data-bq-a1="' + _rankingAttr(safeId) + '" onclick="showUserProfile(this.dataset.bqA1)" style="cursor:pointer;" title="View profile">' +
         '<span class="lb-rank">' + medal + '</span>' +
         '<span class="lb-badge">' + _lbBadgeEmoji(lv.emoji) + '</span>' +
         '<span class="lb-name" ' + (_lbNameStyle ? 'style="' + _lbNameStyle + '"' : '') + '>' + peerTag + escapeHtml(d.username || 'Anon') + (d._you ? ' (you)' : '') + statusDot + certIcons + '</span>' +
@@ -7964,8 +7972,8 @@ function _renderPredictorBoard() {
             var predShown = predBlank ? 'Anon' : rawPredName;
             var name = typeof escapeHtml === 'function' ? escapeHtml(predShown) : String(predShown);
             var peerTag = (window._myPeers && window._myPeers.has(uid)) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
-            var predNameAttrs = uid ? ' data-profile-uid="' + uid + '"' + (predBlank ? ' data-blank-name="1"' : '') : '';
-            return '<div class="lb-row' + (isMe ? ' lb-me' : '') + '" onclick="showUserProfile(\'' + uid + '\')" style="cursor:pointer;" title="View profile">' +
+            var predNameAttrs = uid ? ' data-profile-uid="' + _rankingAttr(uid) + '"' + (predBlank ? ' data-blank-name="1"' : '') : '';
+            return '<div class="lb-row' + (isMe ? ' lb-me' : '') + '" data-bq-a1="' + _rankingAttr(uid) + '" onclick="showUserProfile(this.dataset.bqA1)" style="cursor:pointer;" title="View profile">' +
                 '<span class="lb-rank">' + medal + '</span>' +
                 _predAvatarHtml(entry) +
                 '<span class="lb-name">' + peerTag + '<span' + predNameAttrs + '>' + name + '</span></span>' +
@@ -8245,7 +8253,7 @@ function _renderPvpSnapshot(container, doc) {
         var record = LbPrefix.pvpRecordText(wins, losses);
         var _pvpTipData = JSON.stringify({ recipientName: p.username || 'Anon', recipientUid: safeId, lightningAddress: p.lightningAddress || '', context: 'pvp', label: 'Tip ' + (p.username || 'Anon') }).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
         var peerTag = (window._myPeers && window._myPeers.has(safeId)) ? '<span title="Your peer" style="margin-right:2px;">🧡</span>' : '';
-        return '<div class="lb-row' + (isMe ? ' lb-me' : '') + '" onclick="showUserProfile(\'' + safeId + '\')" style="cursor:pointer;" title="View profile">' +
+        return '<div class="lb-row' + (isMe ? ' lb-me' : '') + '" data-bq-a1="' + _rankingAttr(safeId) + '" onclick="showUserProfile(this.dataset.bqA1)" style="cursor:pointer;" title="View profile">' +
             '<span class="lb-rank">' + medal + '</span>' +
             '<span class="lb-badge" style="display:inline-block;width:22px;text-align:center;flex-shrink:0;">' + pvpIcon + '</span>' +
             '<span class="lb-name">' + peerTag + name + '</span>' +
@@ -10387,13 +10395,13 @@ function accountDeleteRowHtml(user) {
                         var safeName = name.replace(/[\'"]/g, '');
                         listHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;' + (loaded > 0 ? 'border-top:1px solid var(--border);' : '') + '">' +
                             '<span style="color:var(--text);font-size:0.85rem;">' + (typeof escapeHtml === 'function' ? escapeHtml(name) : name) + '</span>' +
-                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + uid + '\',\'' + safeName + '\')};setTimeout(function(){showSettingsPage(\'security\')},300)" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
+                            '<button data-bq-u1="' + _rankingAttr(uid) + '" onclick="var __d=this.dataset;if(typeof unblockUser===\'function\'){unblockUser(__d.bqU1,\'' + safeName + '\')};setTimeout(function(){showSettingsPage(\'security\')},300)" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
                         loaded++;
                         if (loaded === merged.length && rowsEl) rowsEl.innerHTML = listHtml;
                     }).catch(function() {
                         listHtml += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border);">' +
                             '<span style="color:var(--text-faint);font-size:0.85rem;">Unknown User</span>' +
-                            '<button onclick="if(typeof unblockUser===\'function\'){unblockUser(\'' + uid + '\')};setTimeout(function(){showSettingsPage(\'security\')},300)" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
+                            '<button data-bq-u1="' + _rankingAttr(uid) + '" onclick="var __d=this.dataset;if(typeof unblockUser===\'function\'){unblockUser(__d.bqU1)};setTimeout(function(){showSettingsPage(\'security\')},300)" style="padding:5px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✅ Unblock</button></div>';
                         loaded++;
                         if (loaded === merged.length && rowsEl) rowsEl.innerHTML = listHtml;
                     });
@@ -11522,7 +11530,7 @@ window.showArtistProfileModal = function() {
         '</div>' +
         // Save + Preview
         '<button onclick="saveArtistProfile()" id="artistSaveBtn" style="width:100%;padding:14px;background:var(--accent);color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 4px 15px rgba(247,147,26,0.3);margin-bottom:8px;">💾 Save Artist Profile</button>' +
-        '<button onclick="document.getElementById(\'artistProfileModal\').remove();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(\'' + uid + '\')" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.82rem;cursor:pointer;font-family:inherit;">👀 Preview My Artist Page</button>' +
+        '<button data-bq-u1="' + _rankingAttr(uid) + '" onclick="var __d=this.dataset;document.getElementById(\'artistProfileModal\').remove();if(typeof beatsShowArtistPage===\'function\')beatsShowArtistPage(__d.bqU1)" style="width:100%;padding:10px;background:none;border:1px solid var(--border);border-radius:10px;color:var(--text-muted);font-size:0.82rem;cursor:pointer;font-family:inherit;">👀 Preview My Artist Page</button>' +
     '</div>';
 
     document.body.appendChild(overlay);
