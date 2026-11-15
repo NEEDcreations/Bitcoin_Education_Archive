@@ -62,25 +62,25 @@ const parts = emu.split(':');
         const equip = env.authenticatedContext('equip', password).firestore();
 
         await expect('message with no flair', function () {
-            return setDoc(doc(plain, 'global_chat', 'm1'), msg('plain', 'plainuser'));
+            return setDoc(doc(plain, 'global_chat', 'm1XXXXXXXXXXXXXXXXXX'), msg('plain', 'plainuser'));
         }, true);
         await expect('deny flair the sender does not hold', function () {
-            return setDoc(doc(plain, 'global_chat', 'm2'), msg('plain', 'plainuser', { hasChatFlair: true, chatFlairEmoji: '⚡🛡️' }));
+            return setDoc(doc(plain, 'global_chat', 'm2XXXXXXXXXXXXXXXXXX'), msg('plain', 'plainuser', { hasChatFlair: true, chatFlairEmoji: '⚡🛡️' }));
         }, false);
         await expect('deny hasChatFlair without flair', function () {
-            return setDoc(doc(plain, 'global_chat', 'm3'), msg('plain', 'plainuser', { hasChatFlair: true }));
+            return setDoc(doc(plain, 'global_chat', 'm3XXXXXXXXXXXXXXXXXX'), msg('plain', 'plainuser', { hasChatFlair: true }));
         }, false);
         await expect('Nook owner default flame', function () {
-            return setDoc(doc(nook, 'global_chat', 'm4'), msg('nook', 'nookuser', { hasChatFlair: true, chatFlairEmoji: '🔥' }));
+            return setDoc(doc(nook, 'global_chat', 'm4XXXXXXXXXXXXXXXXXX'), msg('nook', 'nookuser', { hasChatFlair: true, chatFlairEmoji: '🔥' }));
         }, true);
         await expect('deny Nook owner unequipped emoji', function () {
-            return setDoc(doc(nook, 'global_chat', 'm5'), msg('nook', 'nookuser', { hasChatFlair: true, chatFlairEmoji: '👑' }));
+            return setDoc(doc(nook, 'global_chat', 'm5XXXXXXXXXXXXXXXXXX'), msg('nook', 'nookuser', { hasChatFlair: true, chatFlairEmoji: '👑' }));
         }, false);
         await expect('equipped flair', function () {
-            return setDoc(doc(equip, 'global_chat', 'm6'), msg('equip', 'equipuser', { hasChatFlair: true, chatFlairEmoji: '🎓' }));
+            return setDoc(doc(equip, 'global_chat', 'm6XXXXXXXXXXXXXXXXXX'), msg('equip', 'equipuser', { hasChatFlair: true, chatFlairEmoji: '🎓' }));
         }, true);
         await expect('deny other flair than equipped', function () {
-            return setDoc(doc(equip, 'global_chat', 'm7'), msg('equip', 'equipuser', { hasChatFlair: true, chatFlairEmoji: '⚡🛡️' }));
+            return setDoc(doc(equip, 'global_chat', 'm7XXXXXXXXXXXXXXXXXX'), msg('equip', 'equipuser', { hasChatFlair: true, chatFlairEmoji: '⚡🛡️' }));
         }, false);
         await expect('deny self-equip flair', function () {
             return updateDoc(doc(equip, 'users', 'equip'), { chatFlairEmoji: '⚡🛡️' });

@@ -52,7 +52,7 @@ const parts = emu.split(':');
         const admin = env.authenticatedContext('admin', { admin: true, firebase: { sign_in_provider: 'password' } }).firestore();
         await env.withSecurityRulesDisabled(async function (ctx) {
             const db = ctx.firestore();
-            await setDoc(doc(db, 'forum_posts', 'post1'), {
+            await setDoc(doc(db, 'forum_posts', 'post1XXXXXXXXXXXXXXX'), {
                 title: 'Hello from the forum',
                 body: 'A normal pleb post.',
                 authorId: 'ada',
@@ -61,8 +61,8 @@ const parts = emu.split(':');
                 upvotes: 0,
                 voters: [],
             });
-            await setDoc(doc(db, 'forum_replies', 'reply1'), {
-                postId: 'post1',
+            await setDoc(doc(db, 'forum_replies', 'reply1XXXXXXXXXXXXXX'), {
+                postId: 'post1XXXXXXXXXXXXXXX',
                 body: 'A normal reply.',
                 authorId: 'ada',
                 authorName: 'Ada',
@@ -70,7 +70,7 @@ const parts = emu.split(':');
                 upvotes: 0,
                 voters: [],
             });
-            await setDoc(doc(db, 'article_replies', 'comment1'), {
+            await setDoc(doc(db, 'article_replies', 'comment1XXXXXXXXXXXX'), {
                 articleId: 'article1',
                 body: 'A normal comment.',
                 authorId: 'ada',
@@ -89,7 +89,7 @@ const parts = emu.split(':');
                 upvotes: 0,
                 voters: [],
             });
-            await setDoc(doc(db, 'beats_tracks', 'track1'), {
+            await setDoc(doc(db, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), {
                 authorId: 'ada',
                 authorName: 'Ada',
                 title: 'Genesis',
@@ -104,19 +104,19 @@ const parts = emu.split(':');
             await setDoc(doc(db, 'award_doc_claims', 'forum_posts__post1'), { uid: 'ada' });
         });
         await expect('forum author edits the body', function () {
-            return updateDoc(doc(ada, 'forum_posts', 'post1'), { body: 'A normal pleb post, edited.' });
+            return updateDoc(doc(ada, 'forum_posts', 'post1XXXXXXXXXXXXXXX'), { body: 'A normal pleb post, edited.' });
         }, true);
         await expect('forum author cannot reassign authorId', function () {
-            return updateDoc(doc(ada, 'forum_posts', 'post1'), { authorId: 'bea' });
+            return updateDoc(doc(ada, 'forum_posts', 'post1XXXXXXXXXXXXXXX'), { authorId: 'bea' });
         }, false);
         await expect('admin client cannot reassign forum authorId', function () {
-            return updateDoc(doc(admin, 'forum_posts', 'post1'), { authorId: 'bea' });
+            return updateDoc(doc(admin, 'forum_posts', 'post1XXXXXXXXXXXXXXX'), { authorId: 'bea' });
         }, false);
         await expect('forum reply author cannot reassign authorId', function () {
-            return updateDoc(doc(ada, 'forum_replies', 'reply1'), { authorId: 'bea' });
+            return updateDoc(doc(ada, 'forum_replies', 'reply1XXXXXXXXXXXXXX'), { authorId: 'bea' });
         }, false);
         await expect('article comment author cannot reassign authorId', function () {
-            return updateDoc(doc(ada, 'article_replies', 'comment1'), { authorId: 'bea' });
+            return updateDoc(doc(ada, 'article_replies', 'comment1XXXXXXXXXXXX'), { authorId: 'bea' });
         }, false);
         await expect('article author cannot reassign authorId', function () {
             return updateDoc(doc(ada, 'articles', 'article1'), { authorId: 'bea' });
@@ -125,35 +125,35 @@ const parts = emu.split(':');
             return updateDoc(doc(ada, 'articles', 'article1'), { title: 'What is a full node?' });
         }, true);
         await expect('beats author cannot reassign authorId', function () {
-            return updateDoc(doc(ada, 'beats_tracks', 'track1'), { authorId: 'bea' });
+            return updateDoc(doc(ada, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), { authorId: 'bea' });
         }, false);
         await expect('beats author edits the title', function () {
-            return updateDoc(doc(ada, 'beats_tracks', 'track1'), { title: 'Genesis Block' });
+            return updateDoc(doc(ada, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), { title: 'Genesis Block' });
         }, true);
         const guest = env.authenticatedContext('guest', { firebase: { sign_in_provider: 'anonymous' } }).firestore();
         await expect('guest cannot add a play', function () {
-            return updateDoc(doc(guest, 'beats_tracks', 'track1'), { plays: 1 });
+            return updateDoc(doc(guest, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), { plays: 1 });
         }, false);
         await expect('someone else cannot set plays to zero', function () {
-            return updateDoc(doc(bea, 'beats_tracks', 'track1'), { plays: 0 });
+            return updateDoc(doc(bea, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), { plays: 0 });
         }, false);
         await expect('someone else cannot set plays negative', function () {
-            return updateDoc(doc(bea, 'beats_tracks', 'track1'), { plays: -500 });
+            return updateDoc(doc(bea, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), { plays: -500 });
         }, false);
         await expect('someone else cannot drop likes by 50', function () {
-            return updateDoc(doc(bea, 'beats_tracks', 'track1'), { likes: -50 });
+            return updateDoc(doc(bea, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), { likes: -50 });
         }, false);
         await expect('the author cannot set plays to a million', function () {
-            return updateDoc(doc(ada, 'beats_tracks', 'track1'), { plays: 1000000 });
+            return updateDoc(doc(ada, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), { plays: 1000000 });
         }, false);
         await expect('a forum author cannot set replyCount to 9999', function () {
-            return updateDoc(doc(ada, 'forum_posts', 'post1'), { replyCount: 9999 });
+            return updateDoc(doc(ada, 'forum_posts', 'post1XXXXXXXXXXXXXXX'), { replyCount: 9999 });
         }, false);
         await expect('an article author cannot set replyCount to 9999', function () {
             return updateDoc(doc(ada, 'articles', 'article1'), { replyCount: 9999 });
         }, false);
         await expect('a forum post cannot be created with replyCount 500', function () {
-            return setDoc(doc(ada, 'forum_posts', 'post500'), {
+            return setDoc(doc(ada, 'forum_posts', 'post500XXXXXXXXXXXXX'), {
                 title: 'A brand new post',
                 authorId: 'ada',
                 authorName: 'Ada',
@@ -162,7 +162,7 @@ const parts = emu.split(':');
             });
         }, false);
         await expect('a forum post can be created with replyCount 0', function () {
-            return setDoc(doc(ada, 'forum_posts', 'post0'), {
+            return setDoc(doc(ada, 'forum_posts', 'post0XXXXXXXXXXXXXXX'), {
                 title: 'A brand new post',
                 authorId: 'ada',
                 authorName: 'Ada',
@@ -180,7 +180,7 @@ const parts = emu.split(':');
             });
         }, false);
         await expect('a track cannot be created with plays already set', function () {
-            return setDoc(doc(ada, 'beats_tracks', 'track500'), {
+            return setDoc(doc(ada, 'beats_tracks', 'track500xxxxxxxxxxxx'), {
                 authorId: 'ada',
                 copyrightConfirmed: true,
                 duration: 30,
@@ -189,7 +189,7 @@ const parts = emu.split(':');
             });
         }, false);
         await expect('a track can be created with plays and likes at zero', function () {
-            return setDoc(doc(ada, 'beats_tracks', 'track0'), {
+            return setDoc(doc(ada, 'beats_tracks', 'track0xxxxxxxxxxxxxx'), {
                 authorId: 'ada',
                 copyrightConfirmed: true,
                 duration: 30,
@@ -198,13 +198,13 @@ const parts = emu.split(':');
             });
         }, true);
         await expect('someone else can like a track', function () {
-            return updateDoc(doc(bea, 'beats_tracks', 'track1'), {
+            return updateDoc(doc(bea, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), {
                 likes: 1,
                 likedBy: ['bea'],
             });
         }, true);
         await expect('someone else can unlike a track', function () {
-            return updateDoc(doc(bea, 'beats_tracks', 'track1'), {
+            return updateDoc(doc(bea, 'beats_tracks', 'track1xxxxxxxxxxxxxx'), {
                 likes: 0,
                 likedBy: [],
             });
