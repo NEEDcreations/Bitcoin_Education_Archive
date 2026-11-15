@@ -792,6 +792,63 @@ function settle(promise, ms) {
         NOW = T0;
     });
 
+    await test('L2: repeated 100/day-capped ON requests write one audit row per window and still charge the window', async function () {
+        NOW = T0;
+        const { api, db } = setup();
+        db.store.set('totp_rate_limits/adminA1_day_killswitch_on', {
+            uid: 'adminA1',
+            failedAttempts: 100,
+            failedWindowStartMs: NOW,
+            expireAt: new Date(NOW + 24 * 60 * 60 * 1000),
+        });
+        function capRows() {
+            return logRows(db, 'admin_killswitch_on_step_up_failed').filter(function (r) {
+                return r.data.reason === 'on-day-cap' || r.data.reason === 'window';
+            });
+        }
+        for (let i = 0; i < 8; i++) {
+            const err = await expectErr(api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1')), 'resource-exhausted');
+            assert.ok(/tomorrow|2 minutes/i.test(err.message), err.message);
+        }
+        assert.strictEqual(capRows().length, 1, 'one capped audit row for the first window');
+        assert.strictEqual(capRows()[0].data.reason, 'on-day-cap');
+        const win = db.store.get('totp_rate_limits/adminA1');
+        assert.ok(win, 'window bucket is charged after the daily cap');
+        assert.strictEqual(win.attempts, 8);
+        assert.strictEqual(win.cappedLogged, true);
+        // A new 2-minute window may write one more row.
+        NOW = T0 + 130000;
+        await expectErr(api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1')), 'resource-exhausted');
+        await expectErr(api.totpStepUp.run({ action: 'adminSetKillSwitch', code: codeAt(NOW) }, ctx('adminA1')), 'resource-exhausted');
+        assert.strictEqual(capRows().length, 2, 'one additional capped row in the next window');
+        assert.strictEqual(db.store.get('totp_rate_limits/adminA1').attempts, 2);
+        NOW = T0;
+    });
+
+    await test('L2: repeated 2-minute window refusals write one capped audit row for that window', async function () {
+        NOW = T0;
+        const { api, db } = setup();
+        const bad = codeAt(NOW) === '000000' ? '111111' : '000000';
+        for (let i = 0; i < 5; i++) {
+            await expectErr(api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: bad }, ctx('adminA1')), 'invalid-argument');
+        }
+        function windowRows() {
+            return logRows(db, 'admin_killswitch_on_step_up_failed').filter(function (r) {
+                return r.data.reason === 'window';
+            });
+        }
+        assert.strictEqual(windowRows().length, 0, 'wrong-code failures are not capped rows');
+        for (let i = 0; i < 5; i++) {
+            const err = await expectErr(api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1')), 'resource-exhausted');
+            assert.ok(/2 minutes/i.test(err.message), err.message);
+        }
+        assert.strictEqual(windowRows().length, 1, 'one capped row after the 2-minute window trips');
+        const win = db.store.get('totp_rate_limits/adminA1');
+        assert.ok(win.attempts >= 10);
+        assert.strictEqual(win.cappedLogged, true);
+        NOW = T0;
+    });
+
     await test('L1: a too-new factor after the proof is consumed marks proofConsumed and the proof cannot be reused', async function () {
         NOW = T0;
         const { api } = setup({ totpEnabledAt: T0 - 3600000 });
