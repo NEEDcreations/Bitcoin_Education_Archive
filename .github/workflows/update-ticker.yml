@@ -1,0 +1,101 @@
+name: Update Signal ticker
+
+# After the Cloudflare Worker in workers/signal-ticker is shipped live,
+# this workflow can be disabled. Do not disable it until that ship is done.
+# Every 4 hours, the same cadence the old OpenClaw cron used.
+# GITHUB_TOKEN commits do not trigger deploy.yml, so this workflow
+# also deploys GitHub Pages when newsletter-data.json changes.
+# No secrets or API keys are required for the feed refresh.
+on:
+  schedule:
+    - cron: "5 */4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: gh-pages
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run ticker tests
+        run: node tests/test-update-ticker.js
+
+      - name: Refresh newsletter-data.json
+        run: node scripts/update-ticker.js
+
+      - name: Commit if changed
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add newsletter-data.json
+          if git diff --staged --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No ticker changes"
+            exit 0
+          fi
+          git commit -m "Auto-update ticker headlines"
+          git push origin HEAD:gh-pages
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Stage static site
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          mkdir _site
+          rsync -a \
+            --exclude='functions/' \
+            --exclude='.wrangler/' \
+            --exclude='.firebase/' \
+            --exclude='.github/' \
+            --exclude='node_modules/' \
+            --exclude='_site/' \
+            --exclude='.git/' \
+            --exclude='*.sh' \
+            --exclude='*.py' \
+            --exclude='*.mjs' \
+            --exclude='*.bak' \
+            --exclude='*.src' \
+            --exclude='*.src.*' \
+            --exclude='tests/' \
+            --exclude='scripts/' \
+            --exclude='workers/' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='firestore.rules' \
+            --exclude='storage.rules' \
+            --exclude='firestore.indexes.json' \
+            --exclude='*.md' \
+            . _site/
+
+      - name: Setup Pages
+        if: steps.commit.outputs.changed == 'true'
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        if: steps.commit.outputs.changed == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '_site'
+
+      - name: Deploy to GitHub Pages
+        if: steps.commit.outputs.changed == 'true'
+        id: deployment
+        uses: actions/deploy-pages@v4

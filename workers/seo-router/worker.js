@@ -232,6 +232,7 @@ function buildCSP(nonce, opts) {
             " https://proofofink.com" +              // Lightning Mart: Proof of Ink
             " https://scarce.city" +                 // Lightning Mart: Scarce City
             " https://shop.conduit.market" +         // Lightning Mart: Conduit Market
+            " https://citadelwire.com" +             // Citadel Wire embed under Hot Topics
             (allowSubstackSubscribe ? " https://603btc.substack.com" : ""), // waitlist browser subscribe iframe
 
         "font-src 'self' https://fonts.gstatic.com",
