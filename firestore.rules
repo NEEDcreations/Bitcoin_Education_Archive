@@ -1267,10 +1267,27 @@ service cloud.firestore {
     // =============================================
     // DIRECT MESSAGES
     // =============================================
+    function dmConvoShapeOk(convoId, data) {
+      return data.participants is list
+        && data.participants.size() == 2
+        && data.participants[0] is string
+        && data.participants[1] is string
+        && data.participants[0] != data.participants[1]
+        && convoId == (data.participants[0] < data.participants[1]
+                        ? data.participants[0] + '_' + data.participants[1]
+                        : data.participants[1] + '_' + data.participants[0]);
+    }
     match /dm_conversations/{convoId} {
       allow read: if request.auth != null
                   && request.auth.uid in resource.data.participants;
+      // F-004: a conversation is exactly two different people, the creator is
+      // one of them, and the doc id is the two uids sorted and joined with '_'
+      // (getConversationId() in messaging.js, _getBuddyConvoId() in
+      // bitcoin-buddy.js). Without the id check anyone could create
+      // dm_conversations/{victim_attacker} and pass the DM image read gate.
+      // participants and participantNames cannot change after create (update).
       allow create: if clientWritesOk() && (request.auth != null
+                    && dmConvoShapeOk(convoId, request.resource.data)
                     && request.auth.uid in request.resource.data.participants
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     // participantNames values must be strings ≤ 60 chars; no injecting arbitrary values
