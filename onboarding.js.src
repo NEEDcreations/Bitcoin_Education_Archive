@@ -1370,6 +1370,20 @@
             });
         }
     }
+    // Place the Experience bar after #homeHero so first-time visitors
+    // see the title first. Falls back to the top of .home-inner if the
+    // hero is missing. insertBefore(bar, bar) is a no-op when it is
+    // already in the right spot (hero.nextSibling === bar).
+    function homeModeBarBeforeNode(inner) {
+        if (!inner) return null;
+        var hero = document.getElementById('homeHero');
+        if (hero && hero.parentNode === inner) return hero.nextSibling;
+        return inner.firstChild;
+    }
+    function placeHomeModeBar(inner, bar) {
+        if (!inner || !bar) return;
+        inner.insertBefore(bar, homeModeBarBeforeNode(inner));
+    }
     window.bqRefreshModeCard = function () {
         var existing = document.getElementById('bqModeHomeCard');
         if (!modeCardEligible()) {
@@ -1401,7 +1415,7 @@
             existing.appendChild(grid);
             var modeBar = document.getElementById('bqHomeModeBar');
             if (modeBar && modeBar.parentNode === inner) inner.insertBefore(existing, modeBar.nextSibling);
-            else inner.insertBefore(existing, inner.firstChild);
+            else placeHomeModeBar(inner, existing);
         }
         fillHomeCard(existing);
     };
@@ -1440,10 +1454,10 @@
         if (!bar) {
             bar = document.createElement('section');
             bar.id = 'bqHomeModeBar';
-            inner.insertBefore(bar, inner.firstChild);
+            placeHomeModeBar(inner, bar);
             bar.addEventListener('keydown', onHomeModeKey);
-        } else if (bar.parentNode === inner && inner.firstChild !== bar) {
-            inner.insertBefore(bar, inner.firstChild);
+        } else if (bar.parentNode === inner) {
+            placeHomeModeBar(inner, bar);
         }
         if (!window._bqHomeModeDoc) {
             window._bqHomeModeDoc = true;
@@ -1467,7 +1481,7 @@
         var bar = document.getElementById('bqHomeModeBar');
         if (!bar || typeof window.bqFillHomeModeBar !== 'function') return;
         var inner = document.querySelector('#home .home-inner');
-        if (inner && bar.parentNode === inner && inner.firstChild !== bar) inner.insertBefore(bar, inner.firstChild);
+        if (inner && bar.parentNode === inner) placeHomeModeBar(inner, bar);
         window.bqFillHomeModeBar(bar, {
             current: window.getExperienceMode(),
             onPick: function (id) {

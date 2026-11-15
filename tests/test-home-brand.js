@@ -66,6 +66,19 @@ test('cap logo srcset files exist at 1x through 4x and are square PNGs', () => {
     assert.ok(m[2].includes('128w'));
 });
 
+test('home title comes before the Experience bar anchor and guest actions', () => {
+    const hero = html.indexOf('id="homeHero"');
+    const guest = html.indexOf('id="homeGuestActions"');
+    const topic = html.indexOf('id="homeTopicCount"');
+    const subtitle = html.indexOf('Play, Learn, and Earn real bitcoin!');
+    assert.ok(hero > 0);
+    assert.ok(guest > hero);
+    assert.ok(topic > hero && topic < guest);
+    assert.ok(subtitle > hero && subtitle < guest);
+    assert.ok(html.includes('<h1 class="home-title">BITCOIN QUEST<span'));
+    assert.ok(html.includes('<p class="home-kicker">HOME</p>'));
+});
+
 test('legal and schema names stay Bitcoin Education Archive', () => {
     assert.ok(html.includes('"name": "Bitcoin Education Archive"'));
 });
