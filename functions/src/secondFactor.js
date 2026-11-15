@@ -18,8 +18,12 @@ const DEVICE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const FRESH_TTL_MS = 5 * 60 * 1000;
 const RATE_WINDOW_MS = 120000;
 const RATE_MAX = 5;
+// Per-network admin-tool window (Red Team #325 S3). Per-uid stays at RATE_MAX.
+const NETWORK_RATE_MAX = 12;
 const DAILY_WINDOW_MS = 24 * 60 * 60 * 1000;
 const DAILY_FAIL_MAX = 20;
+// Emergency kill-switch ON has its own high daily cap (Red Team #325 S2).
+const ON_DAILY_FAIL_MAX = 100;
 const MAX_TRUSTED_DEVICES = 10;
 const FRESH_ACTIONS = {
     resetLightningAddress: true,
@@ -335,8 +339,23 @@ function initSecondFactor(deps) {
     }
     const phoneCache = new Map();
 
-    function httpError(code, message) {
-        return new HttpsError(code, message);
+    function httpError(code, message, details) {
+        return details !== undefined ? new HttpsError(code, message, details) : new HttpsError(code, message);
+    }
+
+    // Attach a consistent marker so the client can drop a held proof after
+    // a refusal that happens once the proof or code is already used
+    // (Red Team #325: too-new / unrecorded and similar post-consume errors).
+    function markProofConsumed(err) {
+        if (!err) return err;
+        const details = Object.assign({}, err.details || {}, { proofConsumed: true });
+        if (!details.reason) details.reason = 'proof-consumed';
+        try { err.details = details; } catch (e) { /* ignore frozen details */ }
+        if (!err.details || err.details.proofConsumed !== true) {
+            const code = String((err && err.code) || 'failed-precondition').replace(/^functions\//, '');
+            return httpError(code, (err && err.message) || 'Request failed.', details);
+        }
+        return err;
     }
 
     function forgetPhone(uid) {
@@ -622,31 +641,38 @@ function initSecondFactor(deps) {
             phoneInfo(uid),
         ]);
         const userData = userSnap.exists ? (userSnap.data() || {}) : {};
+        let consumed = false;
         if (secret) {
             const proofId = context.freshProofId || '';
             const code = context.freshCode || '';
             if (/^[a-f0-9]{32}$/.test(proofId)) {
                 await consumeFreshProof(uid, action, proofId, nowMs);
+                consumed = true;
             } else if (/^\d{6}$/.test(code)) {
                 await acceptTotp(uid, code, nowMs, skipDailyCap ? { skipDailyCap: true } : undefined);
+                consumed = true;
             } else {
                 throw httpError('failed-precondition', 'Enter a fresh authenticator code for this action.');
             }
         }
-        const phoneMust = phone.enrolled === true || (phone.missing === true && userData.phoneVerified === true);
-        if (phoneMust) {
-            const token = (context.auth.token && context.auth.token.firebase) || {};
-            const authMs = authTimeMs(context);
-            if (token.sign_in_second_factor !== 'phone' || !authMs) {
-                throw httpError('failed-precondition', 'Sign in again so your phone verification applies.');
+        try {
+            const phoneMust = phone.enrolled === true || (phone.missing === true && userData.phoneVerified === true);
+            if (phoneMust) {
+                const token = (context.auth.token && context.auth.token.firebase) || {};
+                const authMs = authTimeMs(context);
+                if (token.sign_in_second_factor !== 'phone' || !authMs) {
+                    throw httpError('failed-precondition', 'Sign in again so your phone verification applies.');
+                }
+                // Phone-only admins: consume the sign-in for this action. TOTP
+                // accounts already consumed a proof or code above; they still
+                // need a current phone sign-in when phone is enrolled, but that
+                // check is not a second consumable proof.
+                if (!secret) await consumePhoneStepUp(uid, action, authMs, nowMs);
             }
-            // Phone-only admins: consume the sign-in for this action. TOTP
-            // accounts already consumed a proof or code above; they still
-            // need a current phone sign-in when phone is enrolled, but that
-            // check is not a second consumable proof.
-            if (!secret) await consumePhoneStepUp(uid, action, authMs, nowMs);
+            return { uid: uid, totp: !!secret, phone: phone.enrolled === true };
+        } catch (e) {
+            throw consumed ? markProofConsumed(e) : e;
         }
-        return { uid: uid, totp: !!secret, phone: phone.enrolled === true };
     }
 
     async function revokeSessions(uid, sessionId) {
@@ -692,7 +718,8 @@ function initSecondFactor(deps) {
 
     // Recovery attempts from one address share a salted daily id in rate_limits.
     // expireAt lets the hourly cleanup drop the row after the window.
-    async function takeNetworkAttempt(docId, nowMs) {
+    async function takeNetworkAttempt(docId, nowMs, max) {
+        const cap = (typeof max === 'number' && max > 0) ? max : RATE_MAX;
         const ref = db.collection('rate_limits').doc(docId);
         const result = await db.runTransaction(async function (tx) {
             const snap = await tx.get(ref);
@@ -706,7 +733,7 @@ function initSecondFactor(deps) {
                 if (ws && (nowMs - ws) < RATE_WINDOW_MS) {
                     attempts = row.attempts || 0;
                     windowStart = ws;
-                    if (attempts >= RATE_MAX) return { limited: true };
+                    if (attempts >= cap) return { limited: true };
                 }
             }
             tx.set(ref, {
@@ -793,6 +820,10 @@ function initSecondFactor(deps) {
         return db.collection('totp_rate_limits').doc(uid + '_day');
     }
 
+    function guessOnDayRef(uid) {
+        return db.collection('totp_rate_limits').doc(uid + '_day_killswitch_on');
+    }
+
     function writeGuessWindow(tx, ref, attempts, windowStart, uid) {
         tx.set(ref, {
             uid: uid,
@@ -814,29 +845,44 @@ function initSecondFactor(deps) {
     // One bucket per user for every authenticator guess and device resume.
     // Five tries in two minutes live on {uid}. Twenty failures in a day live
     // on {uid}_day, whose expireAt is a full day so the lobby sweeper can
-    // delete the short window without wiping the daily count.
+    // delete the short window without wiping the daily count. Emergency
+    // kill-switch ON uses a separate {uid}_day_killswitch_on bucket with a
+    // 100/day cap, and a success there does not clear {uid}_day
+    // (Red Team #325 S2).
     async function chargeTotpGuess(uid, nowMs, opts) {
         const skipDailyCap = !!(opts && opts.skipDailyCap);
         const ref = db.collection('totp_rate_limits').doc(uid);
         const dayRef = guessDayRef(uid);
+        const onDayRef = skipDailyCap ? guessOnDayRef(uid) : null;
         const result = await db.runTransaction(async function (tx) {
             const snap = await tx.get(ref);
             const daySnap = await tx.get(dayRef);
+            const onDaySnap = onDayRef ? await tx.get(onDayRef) : null;
             const row = snap.exists ? (snap.data() || {}) : {};
             const dayRow = daySnap.exists ? (daySnap.data() || {}) : {};
             const day = guessDay(dayRow, nowMs);
             const win = guessWindow(row, nowMs);
             // Emergency kill-switch ON (adminSetKillSwitchOn) skips the
-            // 20/day cap so failed guesses cannot lock out an emergency
-            // stop. The 2-minute window still applies. OFF and every other
-            // action keep the daily cap (Spam/Abuse #325 MED1).
-            if (!skipDailyCap && day.failed >= DAILY_FAIL_MAX) return { limited: 'day' };
+            // shared 20/day cap so failed guesses on other actions cannot
+            // lock out an emergency stop, and uses a separate 100/day cap
+            // instead. The 2-minute window still applies. OFF and every
+            // other action keep the 20/day cap (Spam/Abuse #325 MED1,
+            // Red Team #325 S2).
+            if (skipDailyCap) {
+                const onRow = (onDaySnap && onDaySnap.exists) ? (onDaySnap.data() || {}) : {};
+                const onDay = guessDay(onRow, nowMs);
+                if (onDay.failed >= ON_DAILY_FAIL_MAX) return { limited: 'on-day' };
+            } else if (day.failed >= DAILY_FAIL_MAX) {
+                return { limited: 'day' };
+            }
             if (win.attempts >= RATE_MAX) return { limited: 'window' };
             writeGuessWindow(tx, ref, win.attempts + 1, win.windowStart, uid);
             return { limited: '' };
         });
-        if (result.limited === 'day') throw httpError('resource-exhausted', 'Too many attempts. Try again tomorrow.');
-        if (result.limited) throw httpError('resource-exhausted', 'Too many attempts. Wait 2 minutes.');
+        if (result.limited === 'day' || result.limited === 'on-day') {
+            throw httpError('resource-exhausted', 'Too many attempts. Try again tomorrow.', { reason: result.limited === 'on-day' ? 'on-day-cap' : 'day-cap' });
+        }
+        if (result.limited) throw httpError('resource-exhausted', 'Too many attempts. Wait 2 minutes.', { reason: 'window' });
     }
 
     async function recordTotpGuessFailure(uid, nowMs) {
@@ -847,6 +893,48 @@ function initSecondFactor(deps) {
             const day = guessDay(row, nowMs);
             writeGuessDay(tx, ref, day.failed + 1, day.windowStart, uid);
         });
+    }
+
+    // Separate ON-path daily count. Writes an mfa_admin_log row for every
+    // failure and alerts admins once the count goes past the regular 20/day
+    // cap (Red Team #325 S2).
+    async function recordKillSwitchOnFailure(uid, nowMs, reason) {
+        const ref = guessOnDayRef(uid);
+        const result = await db.runTransaction(async function (tx) {
+            const snap = await tx.get(ref);
+            const row = snap.exists ? (snap.data() || {}) : {};
+            const day = guessDay(row, nowMs);
+            const failed = day.failed + 1;
+            const already = row.alertedOver20 === true && day.failed > 0;
+            const crossed = failed > DAILY_FAIL_MAX && !already;
+            tx.set(ref, {
+                uid: uid,
+                failedAttempts: failed,
+                failedWindowStartMs: day.windowStart,
+                expireAt: new Date(day.windowStart + DAILY_WINDOW_MS),
+                alertedOver20: already || crossed,
+            });
+            return { failed: failed, crossed: crossed };
+        });
+        await logAdminTool({
+            action: 'admin_killswitch_on_step_up_failed',
+            adminUid: uid,
+            reason: String(reason || 'invalid').slice(0, 60),
+            failedAttempts: result.failed,
+        });
+        if (result.crossed) {
+            try {
+                const m = maskUid(uid);
+                await notifyAdmin({
+                    type: 'killswitch_on_failures',
+                    uidHint: m.uidHint,
+                    uidHash: m.uidHash,
+                    failedAttempts: result.failed,
+                    message: 'An admin account had more than 20 failed authenticator codes today on the emergency stop path. Review the MFA admin log.',
+                });
+            } catch (e) { /* never block the refusal */ }
+        }
+        return result;
     }
 
     async function clearTotpGuessWindow(uid, nowMs) {
@@ -877,7 +965,20 @@ function initSecondFactor(deps) {
     }
 
     async function acceptTotp(uid, token, nowMs, opts) {
-        await chargeTotpGuess(uid, nowMs, opts);
+        const skipDailyCap = !!(opts && opts.skipDailyCap);
+        try {
+            await chargeTotpGuess(uid, nowMs, opts);
+        } catch (e) {
+            if (skipDailyCap) {
+                const reason = (e && e.details && e.details.reason) || (e && e.code) || 'rate-limited';
+                await logAdminTool({
+                    action: 'admin_killswitch_on_step_up_failed',
+                    adminUid: uid,
+                    reason: String(reason).slice(0, 60),
+                });
+            }
+            throw e;
+        }
         const ref = db.collection('totp_secrets').doc(uid);
         const outcome = await db.runTransaction(async function (tx) {
             const snap = await tx.get(ref);
@@ -896,13 +997,18 @@ function initSecondFactor(deps) {
             tx.update(ref, { lastAcceptedStep: step });
             return { ok: true, step: step };
         });
-        if (outcome.error === 'invalid' || outcome.error === 'replay') await recordTotpGuessFailure(uid, nowMs);
+        if (outcome.error === 'invalid' || outcome.error === 'replay') {
+            await recordTotpGuessFailure(uid, nowMs);
+            if (skipDailyCap) await recordKillSwitchOnFailure(uid, nowMs, outcome.error);
+        }
         if (outcome.error === 'not-found') throw httpError('not-found', 'TOTP not enabled');
         if (outcome.error === 'unavailable') throw httpError('failed-precondition', 'Authenticator is temporarily unavailable.');
         if (outcome.error === 'replay') throw httpError('invalid-argument', 'This code was already used. Wait for the next one.');
         if (outcome.error === 'invalid') throw httpError('invalid-argument', 'Invalid code');
         await clearTotpGuessWindow(uid, nowMs);
-        await clearTotpGuessDay(uid);
+        // A success on the emergency ON path must not clear the shared
+        // daily wrong-code count for other actions (Red Team #325 S2).
+        if (!skipDailyCap) await clearTotpGuessDay(uid);
         return outcome;
     }
 
@@ -1522,7 +1628,8 @@ function initSecondFactor(deps) {
     // phone-only admin must have signed in with phone verification in the
     // last five minutes, and each sign-in opens one tool once. The factor
     // must be recorded and at least 24 h old. Attempts are also limited per
-    // network range (/64 or /24). Sessions and remembered devices never
+    // network range (/64 or /24) at 12 per 2-minute window (Red Team #325 S3).
+    // Sessions and remembered devices never
     // count. Success and failure both write an mfa_admin_log row; the
     // success row is committed in the same batch as the session.
     async function adminToolStepUp(data, context) {
@@ -1555,7 +1662,7 @@ function initSecondFactor(deps) {
             let ipDocId = '';
             if (netKey) {
                 ipDocId = await networkRateDocId(db, 'admintoolip_', netKey, nowMs);
-                await takeNetworkAttempt(ipDocId, nowMs);
+                await takeNetworkAttempt(ipDocId, nowMs, NETWORK_RATE_MAX);
             }
             const secret = await secretRecord(uid);
             const code = data && typeof data.code === 'string' ? data.code.trim() : '';
@@ -1633,9 +1740,11 @@ function initSecondFactor(deps) {
         const uid = requireUser(context);
         const action = String((data && data.action) || '');
         if (!FRESH_ACTIONS[action]) throw httpError('invalid-argument', 'Unknown action');
-        // adminSetKillSwitchOn skips the 20/day cap. Only admins may use it
-        // (Red Team #325 MED1 L1). Check the claim before acceptTotp so a
-        // non-admin guess does not skip the cap or consume a code.
+        // adminSetKillSwitchOn uses a separate 100/day cap instead of the
+        // shared 20/day cap, and a success does not clear {uid}_day
+        // (Red Team #325 S2). Only admins may use it (Red Team #325 MED1 L1).
+        // Check the claim before acceptTotp so a non-admin guess does not
+        // skip the shared cap or consume a code.
         if (action === 'adminSetKillSwitchOn' && !(context.auth && context.auth.token && context.auth.token.admin === true)) {
             throw httpError('permission-denied', 'Admins only.');
         }
@@ -1805,30 +1914,36 @@ function initSecondFactor(deps) {
         // Bust the 60 s phoneInfo cache so a just-changed phone factor is read fresh.
         forgetPhone(context.auth.uid);
         const sf = await requireFreshStepUp(context, action, opts);
-        if (!sf || (sf.totp !== true && sf.phone !== true)) {
-            throw httpError('failed-precondition', 'Turn on two-factor authentication first.');
+        try {
+            if (!sf || (sf.totp !== true && sf.phone !== true)) {
+                throw httpError('failed-precondition', 'Turn on two-factor authentication first.');
+            }
+            const uid = context.auth.uid;
+            const [secret, phone, known] = await Promise.all([secretRecord(uid), phoneInfo(uid), readKnown(uid)]);
+            if (secret && !totpRecorded(secret, known)) {
+                await alertUnrecordedFactor(uid, nowMs);
+                throw httpError('failed-precondition', 'Your authenticator does not match our records. An admin has been alerted.');
+            }
+            const ps = phoneStatus(phone, known, nowMs);
+            if (ps.unrecorded > 0) {
+                await alertUnrecordedFactor(uid, nowMs);
+                throw httpError('failed-precondition', 'A two-factor method on this account was not added through the app. An admin has been alerted.');
+            }
+            const totpOk = sf.totp === true && !!secret && factorEstablished(secret.enabledAt, nowMs);
+            const phoneOk = sf.phone === true && phone.enrolled === true && ps.established;
+            // TOTP-enabled accounts must satisfy step-up with the established
+            // authenticator. A recorded phone alone must not stand in for TOTP
+            // (requireFreshStepUp already requires a fresh code when a secret
+            // exists; this also blocks a too-new TOTP from riding on an older phone).
+            if (secret ? !totpOk : !phoneOk) {
+                throw httpError('failed-precondition', 'Your two-factor method is too new for this action. Try again after 24 hours.');
+            }
+            return Object.assign({}, sf, { established: true });
+        } catch (e) {
+            // requireFreshStepUp already used the proof or code. Tell the
+            // client to drop any held proof (Red Team #325 post-consume L1).
+            throw markProofConsumed(e);
         }
-        const uid = context.auth.uid;
-        const [secret, phone, known] = await Promise.all([secretRecord(uid), phoneInfo(uid), readKnown(uid)]);
-        if (secret && !totpRecorded(secret, known)) {
-            await alertUnrecordedFactor(uid, nowMs);
-            throw httpError('failed-precondition', 'Your authenticator does not match our records. An admin has been alerted.');
-        }
-        const ps = phoneStatus(phone, known, nowMs);
-        if (ps.unrecorded > 0) {
-            await alertUnrecordedFactor(uid, nowMs);
-            throw httpError('failed-precondition', 'A two-factor method on this account was not added through the app. An admin has been alerted.');
-        }
-        const totpOk = sf.totp === true && !!secret && factorEstablished(secret.enabledAt, nowMs);
-        const phoneOk = sf.phone === true && phone.enrolled === true && ps.established;
-        // TOTP-enabled accounts must satisfy step-up with the established
-        // authenticator. A recorded phone alone must not stand in for TOTP
-        // (requireFreshStepUp already requires a fresh code when a secret
-        // exists; this also blocks a too-new TOTP from riding on an older phone).
-        if (secret ? !totpOk : !phoneOk) {
-            throw httpError('failed-precondition', 'Your two-factor method is too new for this action. Try again after 24 hours.');
-        }
-        return Object.assign({}, sf, { established: true });
     }
 
     // Hotfix: App Check, recent sign-in, fresh step-up with an established
@@ -2002,6 +2117,9 @@ module.exports = {
     DEVICE_TTL_MS: DEVICE_TTL_MS,
     FRESH_TTL_MS: FRESH_TTL_MS,
     DAILY_FAIL_MAX: DAILY_FAIL_MAX,
+    ON_DAILY_FAIL_MAX: ON_DAILY_FAIL_MAX,
+    NETWORK_RATE_MAX: NETWORK_RATE_MAX,
+    RATE_MAX: RATE_MAX,
     MAX_TRUSTED_DEVICES: MAX_TRUSTED_DEVICES,
     deviceLabel: deviceLabel,
     hashDeviceToken: hashDeviceToken,

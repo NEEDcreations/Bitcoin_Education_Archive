@@ -1384,6 +1384,10 @@ async function run() {
         assert.strictEqual(isDead({ message: 'This proof is invalid.' }), true);
         assert.strictEqual(isDead({ message: 'This proof was already consumed.' }), true);
         assert.strictEqual(isDead({ details: { reason: 'needs-step-up' } }), true);
+        assert.strictEqual(isDead({ message: 'Your two-factor method is too new for this action. Try again after 24 hours.' }), true);
+        assert.strictEqual(isDead({ details: { reason: 'factor-too-new' } }), true);
+        assert.strictEqual(isDead({ message: 'Your authenticator does not match our records. An admin has been alerted.' }), true);
+        assert.strictEqual(isDead({ details: { proofConsumed: true, reason: 'proof-consumed' } }), true);
         assert.strictEqual(isDead({ message: 'The app is already offline. You can only extend the auto-return to a later time (or leave it off until an admin turns it back on).' }), false);
         assert.strictEqual(isDead({ message: 'Too many kill-switch changes. Wait an hour and try again.' }), false);
         const toolCatch = panel.slice(panel.indexOf('function openKillSwitch()'), panel.indexOf('function openEmergencyStop()'));

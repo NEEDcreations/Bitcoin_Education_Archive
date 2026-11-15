@@ -303,13 +303,16 @@
     }
 
     // A cached proof must be dropped when the server says it is expired,
-    // invalid, already used, or a new step-up is required. Other refusals
-    // (already offline, write limit) do not consume the proof, so it is kept
-    // (Red Team #325 L1 follow-up).
+    // invalid, already used, or a new step-up is required, and also when a
+    // later check fails after the proof was already consumed (too-new or
+    // unrecorded factor). Other refusals (already offline, write limit) do
+    // not consume the proof, so it is kept (Red Team #325 L1 follow-up).
     function heldProofIsDead(e) {
-        var msg = String((e && (e.message || (e.details && e.details.message))) || e || '');
-        var reason = String((e && e.details && e.details.reason) || '');
-        return /expired|invalid|already used|consumed|needs.?step-?up|fresh authenticator code|fresh 2FA code|fresh proof/i.test(msg + ' ' + reason);
+        var details = (e && e.details) || {};
+        if (details.proofConsumed === true || details.reason === 'proof-consumed') return true;
+        var msg = String((e && (e.message || details.message)) || e || '');
+        var reason = String(details.reason || '');
+        return /expired|invalid|already used|consumed|needs.?step-?up|fresh authenticator code|fresh 2FA code|fresh proof|too new|factor-too-new|factor-unrecorded|does not match our records|not added through the app/i.test(msg + ' ' + reason);
     }
 
     function callKillSwitch(payload) {

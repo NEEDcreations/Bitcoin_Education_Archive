@@ -23,7 +23,7 @@ if (!process.env.FIRESTORE_EMULATOR_HOST) process.env.FIRESTORE_EMULATOR_HOST = 
 
 const root = path.join(__dirname, '..');
 const fnRoot = path.join(root, 'functions');
-const { initSecondFactor } = require(path.join(fnRoot, 'src', 'secondFactor.js'));
+const { initSecondFactor, NETWORK_RATE_MAX, ON_DAILY_FAIL_MAX, DAILY_FAIL_MAX, RATE_MAX } = require(path.join(fnRoot, 'src', 'secondFactor.js'));
 const tools = require(path.join(fnRoot, 'src', 'adminToolSession.js'));
 const { authenticator } = require(require.resolve('otplib', { paths: [fnRoot] }));
 
@@ -304,16 +304,27 @@ function settle(promise, ms) {
         assert.ok(!db.store.has('admin_tool_sessions/adminA1_forum'));
     });
 
-    await test('rate limit per IP: 5 failed tries from one address block the next', async function () {
+    await test('rate limit per IP: NETWORK_RATE_MAX failed tries from one address block the next; fewer do not', async function () {
         NOW = T0;
         const { api, db } = setup();
+        assert.strictEqual(NETWORK_RATE_MAX, 12);
+        assert.strictEqual(RATE_MAX, 5);
         // Spread the uid limit across admins so only the IP bucket is hit.
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < NETWORK_RATE_MAX - 1; i++) {
             const uid = 'adminX' + i;
             await expectErr(api.totpStepUp.run({ tool: 'forum', code: '000000' }, ctx(uid, null, '192.0.2.50')), 'failed-precondition');
         }
-        await expectErr(api.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '192.0.2.50')), 'resource-exhausted');
-        assert.ok(!db.store.has('admin_tool_sessions/adminA1_forum'));
+        const stillOk = await api.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '192.0.2.50'));
+        assert.strictEqual(stillOk.success, true, 'the 12th try on this address is still allowed');
+        // A new window of 12 failures then blocks the next.
+        NOW = T0;
+        const { api: api2, db: db2 } = setup();
+        for (let i = 0; i < NETWORK_RATE_MAX; i++) {
+            const uid = 'adminX' + i;
+            await expectErr(api2.totpStepUp.run({ tool: 'forum', code: '000000' }, ctx(uid, null, '192.0.2.50')), 'failed-precondition');
+        }
+        await expectErr(api2.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '192.0.2.50')), 'resource-exhausted');
+        assert.ok(!db2.store.has('admin_tool_sessions/adminA1_forum'));
     });
 
     await test('non-admins and anonymous users cannot mint a tool session', async function () {
@@ -346,7 +357,7 @@ function settle(promise, ms) {
     await test('F3: bad codes from different addresses in one IPv6 /64 share the network limit', async function () {
         NOW = T0;
         const { api, db } = setup();
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < NETWORK_RATE_MAX; i++) {
             await expectErr(api.totpStepUp.run({ tool: 'forum', code: '000000' }, ctx('adminX' + i, null, '2001:db8:1:2::' + (i + 1))), 'failed-precondition');
         }
         await expectErr(api.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '2001:db8:1:2:aaaa::ff')), 'resource-exhausted');
@@ -359,7 +370,7 @@ function settle(promise, ms) {
     await test('F3: IPv4 addresses in one /24 share the network limit', async function () {
         NOW = T0;
         const { api } = setup();
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < NETWORK_RATE_MAX; i++) {
             await expectErr(api.totpStepUp.run({ tool: 'forum', code: '000000' }, ctx('adminY' + i, null, '192.0.2.' + (10 + i))), 'failed-precondition');
         }
         await expectErr(api.totpStepUp.run({ tool: 'forum', code: codeAt(NOW) }, ctx('adminA1', null, '192.0.2.200')), 'resource-exhausted');
@@ -609,6 +620,8 @@ function settle(promise, ms) {
         assert.ok(/tomorrow/i.test(offErr.message), offErr.message);
         const onProof = await api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1'));
         assert.ok(/^[a-f0-9]{32}$/.test(onProof.freshProofId), 'ON still accepts a good code after the daily cap');
+        const dayAfterOn = db.store.get('totp_rate_limits/adminA1_day');
+        assert.ok(dayAfterOn && dayAfterOn.failedAttempts === 20, 'ON success must not clear the shared daily count');
         // A raw code on requireAdminStepUp for ON also skips the daily cap.
         NOW = T0 + 31000;
         db.store.set('totp_rate_limits/adminA1_day', {
@@ -620,6 +633,8 @@ function settle(promise, ms) {
         const stamped = api.stamp({ code: codeAt(NOW) }, ctx('adminA1'));
         const stepped = await api.requireAdminStepUp(stamped, 'adminSetKillSwitchOn', { skipDailyCap: true });
         assert.strictEqual(stepped.totp, true);
+        const dayAfterStep = db.store.get('totp_rate_limits/adminA1_day');
+        assert.ok(dayAfterStep && dayAfterStep.failedAttempts === 20, 'requireAdminStepUp ON success must not clear the shared daily count');
         // The 2-minute window still blocks ON after 5 guesses.
         const bad = codeAt(NOW) === '000000' ? '111111' : '000000';
         for (let i = 0; i < 5; i++) {
@@ -644,6 +659,91 @@ function settle(promise, ms) {
         NOW = T0 + 31000;
         const other = await api.totpStepUp.run({ action: 'toggleFaucet', code: codeAt(NOW) }, ctx('adminA1', { admin: false }));
         assert.ok(other && other.freshProofId);
+        NOW = T0;
+    });
+
+    await test('S2: ON success leaves other actions capped at the shared 20/day count', async function () {
+        NOW = T0;
+        const { api, db } = setup();
+        db.store.set('totp_rate_limits/adminA1_day', {
+            uid: 'adminA1',
+            failedAttempts: 20,
+            failedWindowStartMs: NOW,
+            expireAt: new Date(NOW + 24 * 60 * 60 * 1000),
+        });
+        const onProof = await api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1'));
+        assert.ok(onProof && onProof.freshProofId);
+        assert.strictEqual(db.store.get('totp_rate_limits/adminA1_day').failedAttempts, 20);
+        const offErr = await expectErr(api.totpStepUp.run({ action: 'toggleFaucet', code: codeAt(NOW) }, ctx('adminA1')), 'resource-exhausted');
+        assert.ok(/tomorrow/i.test(offErr.message), offErr.message);
+        NOW = T0;
+    });
+
+    await test('S2: ON path uses a separate 100/day cap, audits failures, and alerts past 20', async function () {
+        NOW = T0;
+        const { api, db } = setup();
+        assert.strictEqual(ON_DAILY_FAIL_MAX, 100);
+        assert.strictEqual(DAILY_FAIL_MAX, 20);
+        const bad = codeAt(NOW) === '000000' ? '111111' : '000000';
+        db.store.set('totp_rate_limits/adminA1_day_killswitch_on', {
+            uid: 'adminA1',
+            failedAttempts: 20,
+            failedWindowStartMs: NOW,
+            expireAt: new Date(NOW + 24 * 60 * 60 * 1000),
+        });
+        await expectErr(api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: bad }, ctx('adminA1')), 'invalid-argument');
+        const onDay = db.store.get('totp_rate_limits/adminA1_day_killswitch_on');
+        assert.strictEqual(onDay.failedAttempts, 21);
+        assert.strictEqual(onDay.alertedOver20, true);
+        const logs = logRows(db, 'admin_killswitch_on_step_up_failed');
+        assert.ok(logs.some(function (r) { return r.data.failedAttempts === 21 && r.data.reason === 'invalid'; }));
+        function noteCount() {
+            let n = 0;
+            db.store.forEach(function (v, k) {
+                if (k.indexOf('admin_notifications/') === 0 && v.type === 'killswitch_on_failures') n++;
+            });
+            return n;
+        }
+        assert.strictEqual(noteCount(), 1, 'one admin alert when ON failures go past 20');
+        await expectErr(api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: bad }, ctx('adminA1')), 'invalid-argument');
+        assert.strictEqual(db.store.get('totp_rate_limits/adminA1_day_killswitch_on').failedAttempts, 22);
+        assert.strictEqual(noteCount(), 1, 'later failures do not send another alert the same day');
+
+        NOW = T0 + 130000;
+        db.store.set('totp_rate_limits/adminA1_day_killswitch_on', {
+            uid: 'adminA1',
+            failedAttempts: 100,
+            failedWindowStartMs: NOW,
+            expireAt: new Date(NOW + 24 * 60 * 60 * 1000),
+        });
+        const capErr = await expectErr(api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1')), 'resource-exhausted');
+        assert.ok(/tomorrow/i.test(capErr.message), capErr.message);
+        assert.ok(logRows(db, 'admin_killswitch_on_step_up_failed').some(function (r) { return r.data.reason === 'on-day-cap'; }));
+
+        NOW = T0 + 260000;
+        db.store.set('totp_rate_limits/adminA1_day_killswitch_on', {
+            uid: 'adminA1',
+            failedAttempts: 99,
+            failedWindowStartMs: NOW,
+            expireAt: new Date(NOW + 24 * 60 * 60 * 1000),
+        });
+        const still = await api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1'));
+        assert.ok(still && still.freshProofId, 'ON still works until the 100/day cap');
+        assert.strictEqual(db.store.get('totp_rate_limits/adminA1_day_killswitch_on').failedAttempts, 99, 'ON success does not clear the ON-path daily count');
+        NOW = T0;
+    });
+
+    await test('L1: a too-new factor after the proof is consumed marks proofConsumed and the proof cannot be reused', async function () {
+        NOW = T0;
+        const { api } = setup({ totpEnabledAt: T0 - 3600000 });
+        const onProof = await api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1'));
+        assert.ok(onProof && onProof.freshProofId);
+        const stamped = api.stamp({ freshProofId: onProof.freshProofId }, ctx('adminA1'));
+        const err = await expectErr(api.requireAdminStepUp(stamped, 'adminSetKillSwitchOn', { skipDailyCap: true }), 'failed-precondition');
+        assert.ok(/too new/i.test(err.message), err.message);
+        assert.strictEqual(err.details && err.details.proofConsumed, true);
+        const again = await expectErr(api.requireAdminStepUp(stamped, 'adminSetKillSwitchOn', { skipDailyCap: true }), 'failed-precondition');
+        assert.ok(/fresh authenticator code/i.test(again.message), again.message);
         NOW = T0;
     });
 
