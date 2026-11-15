@@ -368,6 +368,7 @@ function world() {
         'peerRelationships/rel23': { uid1: 'u2', uid2: 'u3', giftsExchanged: 1 },
         'tctv_presence/u1': { viewerId: 'u1', station: 'main' },
         'tctv_drip_backfill_audit/bf1_u1': { uid: 'u1', potId: 'pot1', beforeSeconds: 0, afterSeconds: 1200, source: 'estimate' },
+        'tctv_drip_backfill_audit/c0ffeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee01': { uid: 'u1', potId: 'pot1', afterSeconds: 400, source: 'estimate' },
         'tctv_drip_backfill_audit/bf1_u2': { uid: 'u2', potId: 'pot1', afterSeconds: 600, source: 'real' },
         'tctv_drip_backfill_audit/bf1': { runId: 'bf1', kind: 'summary', writes: 2 },
         'tctv_presence/u2': { viewerId: 'u2' },
@@ -652,6 +653,10 @@ function auth(uid, extras) {
         assert.strictEqual(db.docs.get('tctv_drip_backfill_audit/bf1_u1').uid, 'deleted');
         assert.strictEqual(db.docs.get('tctv_drip_backfill_audit/bf1_u1').uidMasked, '[deleted]');
         assert.strictEqual(db.docs.get('tctv_drip_backfill_audit/bf1_u1').afterSeconds, 1200);
+        assert.ok(db.docs.has('tctv_drip_backfill_audit/c0ffeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee01'), 'hashed-id audit row is kept');
+        assert.strictEqual(db.docs.get('tctv_drip_backfill_audit/c0ffeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee01').uid, 'deleted');
+        assert.strictEqual(db.docs.get('tctv_drip_backfill_audit/c0ffeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee01').uidMasked, '[deleted]');
+        assert.strictEqual(db.docs.get('tctv_drip_backfill_audit/c0ffeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee01').afterSeconds, 400);
         assert.strictEqual(db.docs.get('tctv_drip_backfill_audit/bf1_u2').uid, 'u2');
         assert.ok(db.docs.has('tctv_drip_backfill_audit/bf1'));
         assert.strictEqual(db.docs.has('telegram_mirror_queue/global_chat__m1'), false);
