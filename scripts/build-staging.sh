@@ -6,7 +6,7 @@ cat > "$CFG" <<'JSON'
 {"projectId": "bitcoin-quest-staging", "appId": "1:689995930118:web:915f62b60c33cac100c187", "storageBucket": "bitcoin-quest-staging.firebasestorage.app", "apiKey": "AIzaSyB1gWK65s8MPFsKSK2-Qdp3eSXOjF7lnng", "authDomain": "bitcoin-quest-staging.firebaseapp.com", "messagingSenderId": "689995930118", "projectNumber": "689995930118", "version": "2"}
 JSON
 rm -rf "$OUT"; mkdir -p $OUT
-tar -C "$SRC" --exclude=./out --exclude='./.?*' --exclude='*/.?*' --exclude=functions --exclude=workers --exclude=scripts --exclude=tests --exclude=docs --exclude=node_modules --exclude='*.sh' --exclude='*.md' --exclude='*.py' --exclude='*.rules' --exclude='*.bak*' --exclude=firebase.json --exclude=firestore.indexes.json --exclude=CNAME -cf - . | tar -C $OUT -xf -
+tar -C "$SRC" --exclude=./out --exclude='./.?*' --exclude='*/.?*' --exclude=functions --exclude=workers --exclude=scripts --exclude=tests --exclude=docs --exclude=node_modules --exclude='*.sh' --exclude='*.md' --exclude='*.py' --exclude='*.rules' --exclude='*.bak*' --exclude=firebase.json --exclude='firebase.*.json' --exclude=firestore.indexes.json --exclude=CNAME -cf - . | tar -C $OUT -xf -
 python3 - "$CFG" "$OUT" <<'PY'
 import json,sys,os,re
 c=json.load(open(sys.argv[1])); out=sys.argv[2]
