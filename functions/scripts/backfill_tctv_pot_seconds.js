@@ -14,9 +14,12 @@
 // What it writes (live, only with --apply and BACKFILL_CONFIRM=pot1):
 //   tctv_drip_watch/{potId}_{uid}: seconds (never lowered), ageOk,
 //     acctCreatedMs (from Firebase Auth only), backfill {runId, source,
-//     method, beforeSeconds, atMs}
+//     method: "backfill", beforeSeconds, atMs}. This doc is client-readable
+//     by the account owner, so method is a fixed neutral label. Plan notes,
+//     review wording, and watch-list membership never go here.
 //   tctv_drip_backfill_audit/{sha256(runId + NUL + uid)}: one row per write
-//     (before/after). The doc id is a hash so a deleted account's full uid
+//     (before/after), including the plan method text. This collection is
+//     server-only. The doc id is a hash so a deleted account's full uid
 //     does not survive in the id. The uid field is still stored, and account
 //     deletion masks it (query on uid) while keeping the row.
 //   tctv_drip_backfill_audit/{runId}: a run summary row, written first
@@ -46,6 +49,9 @@ const crypto = require('crypto');
 
 const ESTIMATE_CAP_SECONDS = 2 * 3600;
 const PROTECTED_AUDIT_COLLECTION = 'tctv_drip_backfill_audit';
+// Fixed label on the client-readable watch doc. Plan method/review notes
+// stay on the server-only audit row only.
+const CLIENT_BACKFILL_METHOD = 'backfill';
 
 function sha256Hex(buf) {
     return crypto.createHash('sha256').update(buf).digest('hex');
@@ -203,10 +209,11 @@ async function main() {
             const w = planWrite(snap.exists ? snap.data() : null, row, ctx);
             if (!w) return null;
             if (!apply) return w;
+            const auditMethod = String(row.method || '').slice(0, 200);
             tx.set(wRef, { uid: row.uid, potId: 'pot1', seconds: w.seconds, ageOk: true, acctCreatedMs: w.createdMs,
-                backfill: { runId, source: row.source, method: String(row.method || '').slice(0, 200), beforeSeconds: w.before, atMs: ctx.nowMs } }, { merge: true });
+                backfill: { runId, source: row.source, method: CLIENT_BACKFILL_METHOD, beforeSeconds: w.before, atMs: ctx.nowMs } }, { merge: true });
             tx.create(aRef, { runId, uid: row.uid, potId: 'pot1', beforeSeconds: w.before, afterSeconds: w.seconds, source: row.source,
-                method: String(row.method || '').slice(0, 200), createdDoc: !snap.exists, at: FV.serverTimestamp() });
+                method: auditMethod, createdDoc: !snap.exists, at: FV.serverTimestamp() });
             return w;
         });
         if (done) { n++; added += done.seconds - done.before; console.log((apply ? 'WROTE ' : 'WOULD ') + maskUid(row.uid) + ' ' + done.before + ' -> ' + done.seconds + ' (' + row.source + ')'); }
@@ -222,6 +229,6 @@ async function main() {
 module.exports = {
     parseCsv, parseExclude, planWrite, resolveCreatedMs, plannedSeconds, isSkipped,
     sha256Hex, auditDocId, checkPlanSha, validateApplyArgs,
-    ESTIMATE_CAP_SECONDS, PROTECTED_AUDIT_COLLECTION, maskUid
+    ESTIMATE_CAP_SECONDS, PROTECTED_AUDIT_COLLECTION, CLIENT_BACKFILL_METHOD, maskUid
 };
 if (require.main === module) main().then(() => process.exit(0), (e) => { console.error(e.message); process.exit(1); });
