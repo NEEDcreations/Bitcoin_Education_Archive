@@ -40,6 +40,35 @@ c = L.planCheckin({ seconds: cfg.perAccountLimitSeconds, promptDueMs: 2e9 }, ctx
 c = L.planCheckin({ promptDueMs: 1 }, ctx()); assert.ok(c.prompt); assert.strictEqual(c.credit, 0);
 c = L.planCheckin({ promptDueMs: 1, promptToken: 'abc' }, ctx({ promptAnswer: 'abc' })); assert.strictEqual(c.credit, 60);
 c = L.planCheckin({ promptDueMs: 1, promptToken: 'abc' }, ctx({ promptAnswer: 'zzz' })); assert.strictEqual(c.credit, 0);
+// Regression (Nov 14): the "Still watching?" tap lands seconds after a regular
+// check-in. It used to be rejected as too-fast, so the prompt could never be
+// cleared and watch time froze for good.
+{
+    const now = 1e9;
+    const stuck = { lastCheckMs: now - 5000, promptDueMs: now - 60000, promptToken: 'tok', seconds: 600 };
+    let r = L.planCheckin(stuck, ctx({ promptAnswer: 'tok' }));
+    assert.ok(!r.reject, 'answer right after a check-in is not rejected');
+    assert.strictEqual(r.reason, 'answered'); assert.strictEqual(r.credit, 0, 'no double credit');
+    assert.strictEqual(r.patch.promptToken, ''); assert.ok(r.patch.promptDueMs > now, 'next prompt scheduled');
+    assert.ok(!('lastCheckMs' in r.patch), 'regular cadence unchanged');
+    const after = Object.assign({}, stuck, r.patch);
+    r = L.planCheckin(after, ctx({ nowMs: now + 55000 }));
+    assert.strictEqual(r.reason, 'ok'); assert.strictEqual(r.credit, 60); assert.strictEqual(r.patch.seconds, 660);
+    // A plain too-fast check-in (no answer, or a wrong token) is still rejected.
+    assert.ok(L.planCheckin(stuck, ctx()).reject);
+    assert.ok(L.planCheckin(stuck, ctx({ promptAnswer: 'nope' })).reject);
+    // Unanswered prompt inside a session still blocks credit.
+    r = L.planCheckin({ lastCheckMs: now - 60000, promptDueMs: now - 60000, promptToken: 'tok', seconds: 600 }, ctx());
+    assert.ok(r.prompt); assert.strictEqual(r.credit, 0);
+    // A prompt left over from an old session (days ago) is dropped on a new session.
+    r = L.planCheckin({ lastCheckMs: now - L.SESSION_GAP_MS - 1, promptDueMs: now - 86400000, promptToken: 'old', seconds: 600 }, ctx());
+    assert.strictEqual(r.reason, 'ok'); assert.strictEqual(r.credit, 60);
+    assert.strictEqual(r.patch.promptToken, ''); assert.ok(r.patch.promptDueMs > now);
+    // Age gate is re-checked over time.
+    const day = 86400000;
+    assert.ok(!L.ageOkAt(now - 2 * day, now, cfg)); assert.ok(L.ageOkAt(now - 3 * day, now, cfg));
+    assert.ok(!L.ageOkAt(undefined, now, cfg)); assert.ok(!L.ageOkAt(0, now, cfg));
+}
 // shares: min watchers
 const W = (n, f) => { const a = []; for (let i = 0; i < n; i++) a.push({ uid: 'w' + i, seconds: f ? f(i) : 3600 }); return a; };
 const sum = (p) => p.shares.reduce((t, x) => t + x.sats, 0);
@@ -137,6 +166,8 @@ console.log('tctvDripLogic: all tests passed');
     assert.ok(src.includes('Sign in to see your share'), 'signed-out hint');
     assert.ok(src.includes('tctv_drip_watch') && src.includes('paintShare'), 'own watch doc listener');
     assert.ok(src.includes('td-bubble-share'), 'share visible when minimized');
+    assert.ok(src.includes('more min to qualify') && src.includes('qualifySeconds'), 'Your Share says how long until it qualifies');
+    assert.ok(/if \(inflight && answer\) \{ answerQueued = true; return; \}/.test(src), 'a Still watching? tap is never dropped by an in-flight check-in');
     assert.ok(!/addDoc|\.set\(|\.update\(/.test(src.replace(/localStorage\.setItem/g, '')), 'client never writes pot data');
     const D = L.readConfig({});
     assert.strictEqual(D.promptMinMinutes, 15); assert.strictEqual(D.promptMaxMinutes, 40); assert.strictEqual(D.promptAnswerSeconds, 120);
