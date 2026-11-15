@@ -620,6 +620,8 @@ function auth(uid, extras) {
             'avatars/u1/face.png',
             'chat-images/u1/pic.jpg',
             'dm-images/u1/dm.jpg',
+            'dm-images/u1/u1_u2/scoped.png',
+            'dm-images/u2/u1_u2/partner.png',
             'article-images/u1/a.jpg',
             'articles/u1/cover.jpg',
             'irl-events/u1/meetup.jpg',
@@ -888,6 +890,11 @@ function auth(uid, extras) {
         assert.strictEqual(bucket.files.has('beats/u1/song.mp3'), false);
         assert.strictEqual(bucket.files.has('avatars/u1/face.png'), false);
         assert.strictEqual(bucket.files.has('chat-images/u1/pic.jpg'), false);
+        // F-004: legacy and conversation-scoped DM images both go.
+        assert.strictEqual(bucket.files.has('dm-images/u1/dm.jpg'), false);
+        assert.strictEqual(bucket.files.has('dm-images/u1/u1_u2/scoped.png'), false);
+        // The partner's own uploads stay (they are the partner's data).
+        assert.ok(bucket.files.has('dm-images/u2/u1_u2/partner.png'));
         assert.ok(bucket.files.has('beats/u2/keep.mp3'));
 
         const chatAfter = JSON.stringify(db.docs.get('global_chat/m1'));

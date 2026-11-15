@@ -60,6 +60,7 @@ jobs:
             --exclude='storage.rules' \
             --exclude='firestore.indexes.json' \
             --exclude='*.md' \
+            --exclude='firebase.*.json' \
             . _site/
 
       - name: Upload artifact
