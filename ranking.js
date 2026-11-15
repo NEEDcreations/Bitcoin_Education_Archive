@@ -3622,7 +3622,7 @@ function settleAdminClaim() {
 // admin is true (window._isAdminClaim, set from getIdTokenResult). Never email.
 // It carries no admin data. Tapping re-checks the claim, then lazy-loads
 // admin-panel.js, so non-admins never download the panel.
-var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261114_v2565';
+var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261114_v2566';
 
 function ensureHomeAdminBtnCss() {
     if (document.getElementById('homeAdminBtnCss')) return;
@@ -13518,11 +13518,10 @@ function bqAdminHasTotpFactor() {
 }
 
 function bqAdmin2faFactorsKnown() {
-    if (window._mfaStatus && typeof window._mfaStatus.enabled === 'boolean') return true;
-    if (typeof currentUser === 'undefined' || !currentUser) return false;
-    var user = (typeof auth !== 'undefined' && auth) ? auth.currentUser : null;
-    if (user && currentUser.uid && currentUser.uid !== user.uid) return false;
-    return true;
+    // Wait for totpStatus. A loaded profile alone can be missing or stale
+    // on totpEnabled, so do not treat it as a final "no factor" answer
+    // (Red Team #325 L1 follow-up).
+    return !!(window._mfaStatus && typeof window._mfaStatus.enabled === 'boolean');
 }
 
 function bqAdmin2faNudgeShouldShow() {
@@ -13618,6 +13617,12 @@ function bqShowAdmin2faNudge() {
 
 function bqMaybeShowAdmin2faNudge() {
     if (window._isAdminClaim !== true) {
+        bqCloseAdmin2faNudge();
+        return false;
+    }
+    // Close a nudge that was shown before totpStatus landed, once a
+    // factor is known (Red Team #325 L1 follow-up).
+    if (bqAdminHasTotpFactor() || bqAdminHasPhoneFactor()) {
         bqCloseAdmin2faNudge();
         return false;
     }
