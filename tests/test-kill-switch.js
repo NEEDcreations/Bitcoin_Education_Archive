@@ -34,9 +34,10 @@ function test(name, fn) {
 }
 
 class HttpsError extends Error {
-    constructor(code, message) {
+    constructor(code, message, details) {
         super(message);
         this.code = code;
+        this.details = details;
     }
 }
 
@@ -138,6 +139,9 @@ function hook(db, extra) {
         now: extra && extra.now ? extra.now : (function () { return Date.parse('2026-11-11T22:50:00Z'); }),
         events: events,
         stepUp: extra && extra.stepUp ? extra.stepUp : async function () { return { established: true, totp: true }; },
+        // The admin-tool 2FA session guard has its own tests below and in
+        // test-admin-tool-stepup.js; extra.realToolGuard uses the real one.
+        toolGuard: extra && extra.realToolGuard ? undefined : (extra && extra.toolGuard ? extra.toolGuard : async function () { return { tool: 'killSwitch' }; }),
         listAdminUids: extra && extra.listAdminUids ? extra.listAdminUids : async function () { return ['admin1', 'admin2', 'admin3']; },
         sendPhilDm: extra && extra.sendPhilDm ? extra.sendPhilDm : async function () { return true; },
         backupDeps: Object.assign({
@@ -974,6 +978,567 @@ async function run() {
         assert.strictEqual(pub.data().snapshot, undefined);
     });
 
+
+    await test('admin banner: status, preflight and off need a live Kill switch tool session', async function () {
+        const db = makeDb();
+        const now = Date.parse('2026-11-11T22:50:00Z');
+        const { handler } = hook(db, { realToolGuard: true, now: function () { return now; } });
+        for (const action of ['status', 'preflight', 'off']) {
+            let err = null;
+            try { await handler({ action: action, confirm: action === 'on' ? 'OFFLINE' : 'ONLINE', reason: 'security incident' }, adminContext()); } catch (e) { err = e; }
+            assert.ok(err, action + ' must be refused without a tool session');
+            assert.strictEqual(err.code, 'failed-precondition');
+        }
+        const flag = await db.collection('config').doc('killSwitch').get();
+        assert.strictEqual(flag.exists, false, 'nothing flipped');
+        const sid = 'a1'.repeat(16);
+        await db.collection('admin_tool_sessions').doc('admin1_cipherWins').set({ uid: 'admin1', tool: 'cipherWins', sessionId: sid, verifiedAtMs: now, expiresAtMs: now + 300000 });
+        let wrongTool = null;
+        try { await handler({ action: 'status', adminToolSession: sid }, adminContext()); } catch (e) { wrongTool = e; }
+        assert.ok(wrongTool && wrongTool.code === 'failed-precondition', 'a session for another tool does not open the kill switch');
+        await db.collection('admin_tool_sessions').doc('admin1_killSwitch').set({ uid: 'admin1', tool: 'killSwitch', sessionId: sid, verifiedAtMs: now, expiresAtMs: now + 300000 });
+        const st = await handler({ action: 'status', adminToolSession: sid }, adminContext());
+        assert.ok(st && st.state);
+    });
+
+    await test('admin banner: an expired Kill switch tool session is refused', async function () {
+        const db = makeDb();
+        let now = Date.parse('2026-11-11T22:50:00Z');
+        const { handler } = hook(db, { realToolGuard: true, now: function () { return now; } });
+        const sid = 'b2'.repeat(16);
+        await db.collection('admin_tool_sessions').doc('admin1_killSwitch').set({ uid: 'admin1', tool: 'killSwitch', sessionId: sid, verifiedAtMs: now, expiresAtMs: now + 300000 });
+        now += 300001;
+        let err = null;
+        try { await handler({ action: 'status', adminToolSession: sid }, adminContext()); } catch (e) { err = e; }
+        assert.ok(err && err.code === 'failed-precondition');
+    });
+
+    await test('admin banner: the on/off fresh step-up is still required with a tool session', async function () {
+        const db = makeDb();
+        const now = Date.parse('2026-11-11T22:50:00Z');
+        let stepUps = 0;
+        const { handler } = hook(db, {
+            realToolGuard: true,
+            now: function () { return now; },
+            stepUp: async function () { stepUps++; throw new HttpsError('failed-precondition', 'Enter a fresh authenticator code for this action.'); },
+        });
+        const sid = 'c3'.repeat(16);
+        await db.collection('admin_tool_sessions').doc('admin1_killSwitch').set({ uid: 'admin1', tool: 'killSwitch', sessionId: sid, verifiedAtMs: now, expiresAtMs: now + 300000 });
+        let err = null;
+        try { await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident', adminToolSession: sid }, adminContext()); } catch (e) { err = e; }
+        assert.ok(err && err.code === 'failed-precondition');
+        assert.strictEqual(stepUps, 1);
+        const flag = await db.collection('config').doc('killSwitch').get();
+        assert.strictEqual(flag.exists, false);
+    });
+
+    // Red Team #325 F1: emergency ON stays one code.
+    await test('F1: ON with no tool session and a valid fresh step-up goes offline (one code)', async function () {
+        const db = makeDb();
+        const now = Date.parse('2026-11-11T22:50:00Z');
+        let stepUps = 0;
+        const { handler } = hook(db, {
+            realToolGuard: true,
+            now: function () { return now; },
+            stepUp: async function () { stepUps++; return { established: true, totp: true }; },
+        });
+        const res = await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident' }, adminContext());
+        assert.strictEqual(res.on, true);
+        assert.strictEqual(stepUps, 1, 'exactly one fresh step-up');
+        const flag = await db.collection('config').doc('killSwitch').get();
+        assert.strictEqual(flag.exists && flag.data().enabled, true);
+    });
+
+    await test('F1: ON is never free of a code: no tool session and a refused step-up flips nothing', async function () {
+        const db = makeDb();
+        const now = Date.parse('2026-11-11T22:50:00Z');
+        const { handler } = hook(db, {
+            realToolGuard: true,
+            now: function () { return now; },
+            stepUp: async function () { throw new HttpsError('failed-precondition', 'Enter a fresh authenticator code for this action.'); },
+        });
+        let err = null;
+        try { await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident' }, adminContext()); } catch (e) { err = e; }
+        assert.ok(err && err.code === 'failed-precondition');
+        const flag = await db.collection('config').doc('killSwitch').get();
+        assert.strictEqual(flag.exists, false);
+    });
+
+    await test('F1: ON still refuses a non-admin before any step-up', async function () {
+        const db = makeDb();
+        let stepUps = 0;
+        const { handler } = hook(db, { realToolGuard: true, stepUp: async function () { stepUps++; return { established: true }; } });
+        const ctx = adminContext();
+        ctx.auth.token.admin = false;
+        let err = null;
+        try { await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident' }, ctx); } catch (e) { err = e; }
+        assert.ok(err && err.code === 'permission-denied');
+        assert.strictEqual(stepUps, 0);
+    });
+
+    await test('F1: OFF with no tool session is refused before the step-up, even with a valid proof', async function () {
+        const db = makeDb();
+        const now = Date.parse('2026-11-11T22:50:00Z');
+        let stepUps = 0;
+        const { handler } = hook(db, {
+            realToolGuard: true,
+            now: function () { return now; },
+            stepUp: async function () { stepUps++; return { established: true, totp: true }; },
+        });
+        await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident' }, adminContext());
+        stepUps = 0;
+        let err = null;
+        try { await handler({ action: 'off', confirm: 'ONLINE', reason: 'incident resolved', freshProofId: 'f'.repeat(32) }, adminContext()); } catch (e) { err = e; }
+        assert.ok(err && err.code === 'failed-precondition');
+        assert.strictEqual(err.details && err.details.reason, 'admin-step-up');
+        assert.strictEqual(stepUps, 0, 'tool session is checked first');
+        const flag = await db.collection('config').doc('killSwitch').get();
+        assert.strictEqual(flag.data().enabled, true, 'still offline');
+    });
+
+    await test('F1: OFF with a tool session AND a fresh step-up brings the app back', async function () {
+        const db = makeDb();
+        const now = Date.parse('2026-11-11T22:50:00Z');
+        let stepUps = 0;
+        const { handler } = hook(db, {
+            realToolGuard: true,
+            now: function () { return now; },
+            stepUp: async function () { stepUps++; return { established: true, totp: true }; },
+        });
+        await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident' }, adminContext());
+        const sid = 'd4'.repeat(16);
+        await db.collection('admin_tool_sessions').doc('admin1_killSwitch').set({ uid: 'admin1', tool: 'killSwitch', sessionId: sid, verifiedAtMs: now, expiresAtMs: now + 300000 });
+        stepUps = 0;
+        const res = await handler({ action: 'off', confirm: 'ONLINE', reason: 'incident resolved', adminToolSession: sid }, adminContext());
+        assert.strictEqual(res.on, false);
+        assert.strictEqual(stepUps, 1);
+    });
+
+    await test('N1: stale backups without override do not consume the step-up', async function () {
+        const db = makeDb();
+        let used = 0;
+        const { handler } = hook(db, {
+            backupDeps: {
+                findExportMetadata: async function () { return null; },
+                readPitr: async function () { return 'POINT_IN_TIME_RECOVERY_DISABLED'; },
+            },
+            stepUp: async function () { used++; return { established: true, totp: true }; },
+        });
+        const first = await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident' }, adminContext());
+        assert.strictEqual(first.ok, false);
+        assert.strictEqual(first.needsOverride, true);
+        assert.strictEqual(used, 0, 'step-up must not run when override is still needed');
+        const flag = await db.collection('config').doc('killSwitch').get();
+        assert.strictEqual(flag.exists, false);
+        const rows = [...db._store.keys()].filter((k) => k.startsWith('kill_switch_audit/'));
+        assert.strictEqual(rows.length, 0, 'no audit row on a refused stale-backup ON');
+    });
+
+    await test('N1: stale backups plus override in one request consume exactly one step-up', async function () {
+        const db = makeDb();
+        let used = 0;
+        const { handler } = hook(db, {
+            backupDeps: {
+                findExportMetadata: async function () { return null; },
+                readPitr: async function () { return 'POINT_IN_TIME_RECOVERY_DISABLED'; },
+            },
+            stepUp: async function () { used++; return { established: true, totp: true }; },
+        });
+        const res = await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident', override: true }, adminContext());
+        assert.strictEqual(res.ok, true);
+        assert.strictEqual(res.on, true);
+        assert.strictEqual(used, 1, 'exactly one step-up');
+        const rows = [...db._store.keys()].filter((k) => k.startsWith('kill_switch_audit/'));
+        assert.strictEqual(rows.length, 1);
+        assert.strictEqual(db._store.get(rows[0]).backupOverride, true);
+    });
+
+    await test('MED1: ON step-up uses adminSetKillSwitchOn; OFF keeps adminSetKillSwitch; both skip the 20/day cap', function () {
+        const src = fs.readFileSync(path.join(root, 'functions/src/killSwitch.js'), 'utf8');
+        assert.ok(src.includes("on ? 'adminSetKillSwitchOn' : 'adminSetKillSwitch'"));
+        assert.ok(src.includes('{ skipDailyCap: true }'));
+        assert.ok(!src.includes("on ? { skipDailyCap: true } : undefined"), 'OFF must also skip the shared daily cap');
+        const panel = fs.readFileSync(path.join(root, 'admin-panel.js'), 'utf8');
+        assert.ok(panel.includes("action === 'on' ? 'adminSetKillSwitchOn' : 'adminSetKillSwitch'"));
+        const sf = fs.readFileSync(path.join(root, 'functions/src/secondFactor.js'), 'utf8');
+        assert.ok(sf.includes('function isKillSwitchStepUpAction'));
+    });
+
+    await test('F1: client has an Emergency stop path straight to the ON prompt (no tool window)', function () {
+        const panel = fs.readFileSync(path.join(root, 'admin-panel.js'), 'utf8');
+        assert.ok(panel.includes('window.bqEmergencyStop = openEmergencyStop'));
+        const body = panel.slice(panel.indexOf('function openEmergencyStop'), panel.indexOf('window.bqEmergencyStop'));
+        assert.ok(body.includes("_showFreshStepUp('adminSetKillSwitchOn')"), 'one fresh code, ON action skips the daily cap');
+        assert.ok(body.includes("action: 'on'"));
+        assert.ok(!body.includes('bqAdminToolStepUp'), 'no tool-window prompt first');
+        assert.ok(!/action: 'off'/.test(body), 'emergency path only turns the switch ON');
+        // N1: the override box is visible from the start so one code is enough
+        // when backups are stale. A needsOverride retry must not ask for a new code.
+        assert.ok(body.includes("I understand a backup is stale or missing"));
+        assert.ok(!/ksuOverrideLab" style="display:none"/.test(body), 'override box is shown up front');
+        assert.ok(body.includes('Your code was not used.'));
+        assert.ok(!body.includes('it asks for a new code'));
+        assert.ok(body.includes('heldProof'), 'caches the unconsumed proof');
+        assert.ok(body.includes('The override box is checked'), 'pre-ticks override on the needsOverride retry');
+        assert.ok(body.indexOf('heldProof') < body.indexOf("_showFreshStepUp('adminSetKillSwitchOn')") || body.includes('heldProof'), 'retry reuses heldProof');
+        assert.ok(body.includes('Promise.resolve(heldProof)'), 'needsOverride retry does not mint a new proof');
+    });
+
+    await test('tool window: stale preflight requires override before a code, and reuses heldProof', function () {
+        const panel = fs.readFileSync(path.join(root, 'admin-panel.js'), 'utf8');
+        const start = panel.indexOf('function openKillSwitch()');
+        const end = panel.indexOf('function openEmergencyStop()');
+        const body = panel.slice(start, end);
+        assert.ok(body.includes("Tick the override box if you still want to go offline."));
+        assert.ok(body.includes('state.heldProof'));
+        assert.ok(body.includes('Promise.resolve(state.heldProof)'));
+        assert.ok(body.includes('The override box is checked'));
+        assert.ok(body.includes('ovBox.checked = true') || body.includes('ovBox) ovBox.checked = true'));
+    });
+
+    await test('L1: already-offline with no later auto-return does not consume the step-up', async function () {
+        const db = makeDb();
+        const now = Date.parse('2026-11-11T22:50:00Z');
+        let used = 0;
+        const { handler } = hook(db, {
+            now: function () { return now; },
+            stepUp: async function () { used++; return { established: true, totp: true }; },
+        });
+        const first = await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident' }, adminContext());
+        assert.strictEqual(first.ok, true);
+        assert.strictEqual(used, 1);
+        let err = null;
+        try {
+            await handler({ action: 'on', confirm: 'OFFLINE', reason: 'security incident' }, adminContext());
+        } catch (e) { err = e; }
+        assert.ok(err && /already offline/.test(err.message), err && err.message);
+        assert.strictEqual(used, 1, 'refusal must not call stepUp');
+    });
+
+    await test('L1: hourly write-limit refusal does not consume the step-up', async function () {
+        const db = makeDb();
+        let used = 0;
+        const { handler } = hook(db, {
+            stepUp: async function () { used++; return { established: true, totp: true }; },
+        });
+        for (let i = 0; i < ks.RATE_MAX_USER; i++) {
+            const action = i % 2 === 0 ? 'on' : 'off';
+            const confirm = action === 'on' ? 'OFFLINE' : 'ONLINE';
+            const res = await handler({ action: action, confirm: confirm, reason: 'security incident ' + i }, adminContext());
+            assert.strictEqual(res.ok, true, 'flip ' + i);
+        }
+        assert.strictEqual(used, ks.RATE_MAX_USER);
+        let err = null;
+        try {
+            await handler({ action: 'on', confirm: 'OFFLINE', reason: 'one more time here' }, adminContext());
+        } catch (e) { err = e; }
+        assert.ok(err && /Too many kill-switch changes/.test(err.message), err && err.message);
+        assert.strictEqual(used, ks.RATE_MAX_USER, 'rate-limit refusal must not call stepUp');
+    });
+
+    await test('Emergency stop needsOverride retry reuses the unconsumed proof (one code)', async function () {
+        const panel = fs.readFileSync(path.join(root, 'admin-panel.js'), 'utf8');
+        const calls = [];
+        const payloads = [];
+        const byId = new Map();
+        function el(tag) {
+            const node = {
+                tagName: String(tag || 'div').toUpperCase(),
+                style: { display: '' },
+                attributes: {},
+                children: [],
+                parentNode: null,
+                _text: '',
+                _html: '',
+                listeners: {},
+                className: '',
+                type: '',
+                value: '',
+                checked: false,
+                disabled: false,
+                get id() { return this._id || ''; },
+                set id(v) { this._id = v; if (v) byId.set(v, this); },
+                get textContent() { return this._text; },
+                set textContent(v) { this._text = String(v == null ? '' : v); },
+                get innerHTML() { return this._html; },
+                set innerHTML(v) {
+                    this._html = String(v == null ? '' : v);
+                    const re = /<([a-z0-9]+)([^>]*)>/gi;
+                    let m;
+                    while ((m = re.exec(this._html))) {
+                        const attrs = m[2] || '';
+                        const idM = /id="([^"]+)"/.exec(attrs);
+                        const clsM = /class="([^"]+)"/.exec(attrs);
+                        if (!idM && !clsM) continue;
+                        const child = el(m[1]);
+                        if (idM) child.id = idM[1];
+                        if (clsM) child.className = clsM[1];
+                        if (child.id === 'ksuOverride') { child.tagName = 'INPUT'; child.checked = false; }
+                        if (child.id === 'ksuReason') { child.tagName = 'TEXTAREA'; child.value = 'stale backup drill here'; }
+                        if (child.id === 'ksuConfirm') { child.tagName = 'INPUT'; child.value = 'OFFLINE'; }
+                        if (child.id === 'ksuGo') child.tagName = 'BUTTON';
+                        child.parentNode = node;
+                        node.children.push(child);
+                    }
+                },
+                setAttribute(k, v) { this.attributes[k] = String(v); },
+                getAttribute(k) { return this.attributes[k]; },
+                addEventListener(t, fn) { (this.listeners[t] = this.listeners[t] || []).push(fn); },
+                querySelector(sel) {
+                    const id = sel.charAt(0) === '#' ? sel.slice(1) : (/#([A-Za-z0-9_-]+)/.exec(sel) || sel.replace(/^[.#]/, '') === sel ? null : sel.replace(/^[.#]/, ''));
+                    const want = sel.charAt(0) === '#' ? sel.slice(1) : (sel.startsWith('.') ? null : sel.replace(/^[.#]/, ''));
+                    if (sel.charAt(0) === '#') return byId.get(sel.slice(1)) || null;
+                    if (sel.charAt(0) === '.') {
+                        const cls = sel.slice(1);
+                        const walk = function (n) {
+                            for (const c of n.children) {
+                                if ((' ' + c.className + ' ').indexOf(' ' + cls + ' ') >= 0) return c;
+                                const f = walk(c); if (f) return f;
+                            }
+                            return null;
+                        };
+                        return walk(node);
+                    }
+                    return byId.get(sel) || null;
+                },
+                appendChild(c) { c.parentNode = this; this.children.push(c); return c; },
+                removeChild(c) {
+                    const i = this.children.indexOf(c);
+                    if (i >= 0) this.children.splice(i, 1);
+                    c.parentNode = null;
+                },
+                focus() {},
+                click() { (this.listeners.click || []).forEach(function (fn) { fn({ target: node, preventDefault: function () {} }); }); },
+            };
+            return node;
+        }
+        const body = el('body');
+        const head = el('head');
+        const doc = {
+            body: body,
+            head: head,
+            getElementById(id) { return byId.get(id) || null; },
+            createElement: el,
+            addEventListener() {},
+            removeEventListener() {},
+        };
+        head.appendChild = function (c) { c.parentNode = head; head.children.push(c); return c; };
+        body.appendChild = function (c) { c.parentNode = body; body.children.push(c); if (c.id) byId.set(c.id, c); return c; };
+        let answers = [{ needsOverride: true, preflight: { ok: false } }, { ok: true, on: true, changed: true }];
+        const sandbox = {
+            window: {
+                _isAdminClaim: true,
+                _showFreshStepUp: function (action) {
+                    calls.push(action);
+                    return Promise.resolve('proof-one');
+                },
+            },
+            document: doc,
+            firebase: {
+                functions: function () {
+                    return {
+                        httpsCallable: function () {
+                            return function (payload) {
+                                payloads.push(JSON.parse(JSON.stringify(payload)));
+                                const next = answers.shift() || { ok: true, on: true, changed: true };
+                                return Promise.resolve({ data: next });
+                            };
+                        },
+                    };
+                },
+            },
+            location: { hash: '' },
+            console: console,
+            setTimeout: setTimeout,
+            clearTimeout: clearTimeout,
+            Promise: Promise,
+        };
+        sandbox.window.window = sandbox.window;
+        sandbox.global = sandbox;
+        vm.runInNewContext(panel, sandbox, { filename: 'admin-panel.js' });
+        sandbox.window.bqEmergencyStop();
+        const go = doc.getElementById('ksuGo');
+        const ov = doc.getElementById('ksuOverride');
+        assert.ok(go && ov, 'emergency stop form mounted');
+        assert.strictEqual(ov.checked, false, 'box starts unchecked');
+        go.click();
+        await new Promise(function (r) { setTimeout(r, 30); });
+        assert.strictEqual(calls.length, 1, 'first click asks for one code');
+        assert.strictEqual(payloads.length, 1);
+        assert.strictEqual(payloads[0].freshProofId, 'proof-one');
+        assert.strictEqual(payloads[0].override, false);
+        assert.strictEqual(ov.checked, true, 'needsOverride pre-ticks the box');
+        go.click();
+        await new Promise(function (r) { setTimeout(r, 30); });
+        assert.strictEqual(calls.length, 1, 'retry must not ask for a second code');
+        assert.strictEqual(payloads.length, 2);
+        assert.strictEqual(payloads[1].freshProofId, 'proof-one', 'same unconsumed proof is reused');
+        assert.strictEqual(payloads[1].override, true);
+    });
+
+    await test('L1: heldProof is cleared on expired/invalid/consumed/needs-step-up errors, not on already-offline', function () {
+        const panel = fs.readFileSync(path.join(root, 'admin-panel.js'), 'utf8');
+        const start = panel.indexOf('function heldProofIsDead(e)');
+        const end = panel.indexOf('function callKillSwitch', start);
+        assert.ok(start > 0 && end > start, 'heldProofIsDead is defined');
+        const isDead = new Function('e', panel.slice(start, end) + '\nreturn heldProofIsDead(e);');
+        assert.strictEqual(isDead({ message: 'Enter a fresh authenticator code for this action.' }), true);
+        assert.strictEqual(isDead({ message: 'That proof has expired.' }), true);
+        assert.strictEqual(isDead({ message: 'This proof is invalid.' }), true);
+        assert.strictEqual(isDead({ message: 'This proof was already consumed.' }), true);
+        assert.strictEqual(isDead({ details: { reason: 'needs-step-up' } }), true);
+        assert.strictEqual(isDead({ message: 'Your two-factor method is too new for this action. Try again after 24 hours.' }), true);
+        assert.strictEqual(isDead({ details: { reason: 'factor-too-new' } }), true);
+        assert.strictEqual(isDead({ message: 'Your authenticator does not match our records. An admin has been alerted.' }), true);
+        assert.strictEqual(isDead({ details: { proofConsumed: true, reason: 'proof-consumed' } }), true);
+        assert.strictEqual(isDead({ message: 'The app is already offline. You can only extend the auto-return to a later time (or leave it off until an admin turns it back on).' }), false);
+        assert.strictEqual(isDead({ message: 'Too many kill-switch changes. Wait an hour and try again.' }), false);
+        const toolCatch = panel.slice(panel.indexOf('function openKillSwitch()'), panel.indexOf('function openEmergencyStop()'));
+        const estopCatch = panel.slice(panel.indexOf('function openEmergencyStop()'), panel.indexOf('window.bqEmergencyStop'));
+        assert.ok(toolCatch.includes('if (heldProofIsDead(e)) state.heldProof = \'\''));
+        assert.ok(estopCatch.includes('if (heldProofIsDead(e)) heldProof = \'\''));
+    });
+
+    await test('L1: an expired heldProof is dropped, so the next tap asks for a new code', async function () {
+        const panel = fs.readFileSync(path.join(root, 'admin-panel.js'), 'utf8');
+        const calls = [];
+        const payloads = [];
+        const byId = new Map();
+        function el(tag) {
+            const node = {
+                tagName: String(tag || 'div').toUpperCase(),
+                style: { display: '' },
+                attributes: {},
+                children: [],
+                parentNode: null,
+                _text: '',
+                _html: '',
+                listeners: {},
+                className: '',
+                type: '',
+                value: '',
+                checked: false,
+                disabled: false,
+                get id() { return this._id || ''; },
+                set id(v) { this._id = v; if (v) byId.set(v, this); },
+                get textContent() { return this._text; },
+                set textContent(v) { this._text = String(v == null ? '' : v); },
+                get innerHTML() { return this._html; },
+                set innerHTML(v) {
+                    this._html = String(v == null ? '' : v);
+                    const re = /<([a-z0-9]+)([^>]*)>/gi;
+                    let m;
+                    while ((m = re.exec(this._html))) {
+                        const attrs = m[2] || '';
+                        const idM = /id="([^"]+)"/.exec(attrs);
+                        const clsM = /class="([^"]+)"/.exec(attrs);
+                        if (!idM && !clsM) continue;
+                        const child = el(m[1]);
+                        if (idM) child.id = idM[1];
+                        if (clsM) child.className = clsM[1];
+                        if (child.id === 'ksuOverride') { child.tagName = 'INPUT'; child.checked = false; }
+                        if (child.id === 'ksuReason') { child.tagName = 'TEXTAREA'; child.value = 'stale backup drill here'; }
+                        if (child.id === 'ksuConfirm') { child.tagName = 'INPUT'; child.value = 'OFFLINE'; }
+                        if (child.id === 'ksuGo') child.tagName = 'BUTTON';
+                        child.parentNode = node;
+                        node.children.push(child);
+                    }
+                },
+                setAttribute(k, v) { this.attributes[k] = String(v); },
+                getAttribute(k) { return this.attributes[k]; },
+                addEventListener(t, fn) { (this.listeners[t] = this.listeners[t] || []).push(fn); },
+                querySelector(sel) {
+                    if (sel.charAt(0) === '#') return byId.get(sel.slice(1)) || null;
+                    if (sel.charAt(0) === '.') {
+                        const cls = sel.slice(1);
+                        const walk = function (n) {
+                            for (const c of n.children) {
+                                if ((' ' + c.className + ' ').indexOf(' ' + cls + ' ') >= 0) return c;
+                                const f = walk(c); if (f) return f;
+                            }
+                            return null;
+                        };
+                        return walk(node);
+                    }
+                    return byId.get(sel) || null;
+                },
+                appendChild(c) { c.parentNode = this; this.children.push(c); return c; },
+                removeChild(c) {
+                    const i = this.children.indexOf(c);
+                    if (i >= 0) this.children.splice(i, 1);
+                    c.parentNode = null;
+                },
+                focus() {},
+                click() { (this.listeners.click || []).forEach(function (fn) { fn({ target: node, preventDefault: function () {} }); }); },
+            };
+            return node;
+        }
+        const body = el('body');
+        const head = el('head');
+        const doc = {
+            body: body,
+            head: head,
+            getElementById(id) { return byId.get(id) || null; },
+            createElement: el,
+            addEventListener() {},
+            removeEventListener() {},
+        };
+        head.appendChild = function (c) { c.parentNode = head; head.children.push(c); return c; };
+        body.appendChild = function (c) { c.parentNode = body; body.children.push(c); if (c.id) byId.set(c.id, c); return c; };
+        const expired = new Error('Enter a fresh authenticator code for this action.');
+        expired.code = 'failed-precondition';
+        let answers = [{ needsOverride: true, preflight: { ok: false } }, { err: expired }, { ok: true, on: true, changed: true }];
+        const sandbox = {
+            window: {
+                _isAdminClaim: true,
+                _showFreshStepUp: function (action) {
+                    calls.push(action);
+                    return Promise.resolve('proof-' + calls.length);
+                },
+            },
+            document: doc,
+            firebase: {
+                functions: function () {
+                    return {
+                        httpsCallable: function () {
+                            return function (payload) {
+                                payloads.push(JSON.parse(JSON.stringify(payload)));
+                                const next = answers.shift() || { ok: true, on: true, changed: true };
+                                if (next.err) return Promise.reject(next.err);
+                                return Promise.resolve({ data: next });
+                            };
+                        },
+                    };
+                },
+            },
+            location: { hash: '' },
+            console: console,
+            setTimeout: setTimeout,
+            clearTimeout: clearTimeout,
+            Promise: Promise,
+        };
+        sandbox.window.window = sandbox.window;
+        sandbox.global = sandbox;
+        vm.runInNewContext(panel, sandbox, { filename: 'admin-panel.js' });
+        sandbox.window.bqEmergencyStop();
+        const go = doc.getElementById('ksuGo');
+        const ov = doc.getElementById('ksuOverride');
+        go.click();
+        await new Promise(function (r) { setTimeout(r, 30); });
+        assert.strictEqual(calls.length, 1);
+        assert.strictEqual(payloads[0].freshProofId, 'proof-1');
+        assert.strictEqual(ov.checked, true);
+        go.click();
+        await new Promise(function (r) { setTimeout(r, 30); });
+        assert.strictEqual(calls.length, 1, 'second click still reused the held proof');
+        assert.strictEqual(payloads.length, 2);
+        assert.strictEqual(payloads[1].freshProofId, 'proof-1');
+        go.click();
+        await new Promise(function (r) { setTimeout(r, 30); });
+        assert.strictEqual(calls.length, 2, 'after a dead-proof error the next tap asks for a new code');
+        assert.strictEqual(payloads.length, 3);
+        assert.strictEqual(payloads[2].freshProofId, 'proof-2');
+    });
 
     console.log('\n' + passed + ' passed, ' + failed + ' failed');
     process.exit(failed ? 1 : 0);

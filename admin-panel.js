@@ -6,7 +6,7 @@
 (function () {
     'use strict';
 
-    var QUESTS_SRC = '/quests.js?v=20261112_v2545';
+    var QUESTS_SRC = '/quests.js?v=20261114_v2562';
 
     function isAdmin() { return window._isAdminClaim === true; }
 
@@ -129,6 +129,8 @@
         '#bqAdminPanel .bap-head{display:flex;align-items:center;gap:10px;margin-bottom:4px;}' +
         '#bqAdminPanel .bap-title{font-size:1.25rem;font-weight:900;color:var(--heading,#fff);flex:1;}' +
         '#bqAdminPanel .bap-x{width:44px;height:44px;border-radius:12px;border:1px solid var(--border,#334155);background:transparent;color:var(--text,#e2e8f0);font-size:1.2rem;cursor:pointer;}' +
+        '#bqAdminPanel .bap-estop{width:100%;min-height:48px;margin:0 0 6px;border:0;border-radius:14px;background:#b91c1c;color:#fff;font-weight:800;font-size:0.95rem;cursor:pointer;font-family:inherit;}' +
+        '#bqAdminPanel .bap-estop:focus-visible{outline:2px solid #fca5a5;outline-offset:2px;}' +
         '#bqAdminPanel .bap-note{font-size:0.78rem;color:var(--text-muted,#94a3b8);margin:0 0 12px;line-height:1.4;}' +
         '#bqAdminPanel .bap-group{font-size:0.7rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#f7931a;margin:14px 2px 8px;}' +
         '#bqAdminPanel .bap-row{display:flex;align-items:stretch;gap:8px;margin-bottom:8px;}' +
@@ -219,7 +221,19 @@
         head.appendChild(x);
         sheet.appendChild(head);
         sheet.appendChild(el('p', 'bap-note',
-            'Only admin accounts see this. Tap a tool to open it, or tap \u24D8 for how it works. The server checks your admin access again on every action.'));
+            'Only admin accounts see this. Each tool asks for a fresh 2FA code every time you open it. Tap \u24D8 for how a tool works. The server checks your admin access and that code on every action.'));
+        // Emergency stop: straight to the kill-switch ON prompt with one
+        // fresh code (no tool window first). Bringing the app back still
+        // goes through the Kill switch tile.
+        var estop = el('button', 'bap-estop', '\uD83D\uDED1 Emergency stop (take the app offline now)');
+        estop.type = 'button';
+        estop.id = 'bapEmergencyStop';
+        estop.addEventListener('click', function () {
+            if (!isAdmin()) { closeAll(); return; }
+            closeAll();
+            openEmergencyStop();
+        });
+        sheet.appendChild(estop);
 
         GROUPS.forEach(function (g) {
             sheet.appendChild(el('div', 'bap-group', g.title));
@@ -239,7 +253,15 @@
                 tile.addEventListener('click', function () {
                     if (!isAdmin()) { closeAll(); return; }
                     closeAll();
-                    try { t.open(); } catch (e) {}
+                    // Fresh 2FA code on EVERY open (the server checks it too).
+                    // No prompt available (stale ranking.js) means no tool.
+                    var gate = (typeof window.bqAdminToolStepUp === 'function')
+                        ? window.bqAdminToolStepUp(t.id, { from: 'banner' })
+                        : Promise.resolve(null);
+                    gate.then(function (session) {
+                        if (!session || !isAdmin()) return;
+                        try { t.open(); } catch (e) {}
+                    });
                 });
                 var how = el('div', 'bap-how', t.how);
                 how.id = 'bapHow_' + t.id;
@@ -276,13 +298,28 @@
     function closeKillSwitchUi() {
         var el = document.getElementById('bqKillSwitchUi');
         if (el && el.parentNode) el.parentNode.removeChild(el);
+        // Closing the tool ends its 2FA session; the next open asks again.
+        if (typeof window.bqAdminToolEnd === 'function') window.bqAdminToolEnd('killSwitch');
+    }
+
+    // A cached proof must be dropped when the server says it is expired,
+    // invalid, already used, or a new step-up is required, and also when a
+    // later check fails after the proof was already consumed (too-new or
+    // unrecorded factor). Other refusals (already offline, write limit) do
+    // not consume the proof, so it is kept (Red Team #325 L1 follow-up).
+    function heldProofIsDead(e) {
+        var details = (e && e.details) || {};
+        if (details.proofConsumed === true || details.reason === 'proof-consumed') return true;
+        var msg = String((e && (e.message || details.message)) || e || '');
+        var reason = String(details.reason || '');
+        return /expired|invalid|already used|consumed|needs.?step-?up|fresh authenticator code|fresh 2FA code|fresh proof|too new|factor-too-new|factor-unrecorded|does not match our records|not added through the app/i.test(msg + ' ' + reason);
     }
 
     function callKillSwitch(payload) {
-        if (typeof firebase === 'undefined' || !firebase.functions) {
+        if (typeof firebase === 'undefined' || !firebase.functions || typeof window.bqAdminToolCall !== 'function') {
             return Promise.reject(new Error('Functions are not ready. Refresh and try again.'));
         }
-        return firebase.functions().httpsCallable('adminSetKillSwitch')(payload).then(function (res) {
+        return window.bqAdminToolCall('killSwitch', 'adminSetKillSwitch', payload).then(function (res) {
             return (res && res.data) || {};
         });
     }
@@ -312,7 +349,14 @@
 
     function openKillSwitch() {
         if (!isAdmin()) return;
-        closeKillSwitchUi();
+        // Opened some other way than the banner tile: ask for the code first.
+        if (typeof window.bqAdminToolSession !== 'function' || !window.bqAdminToolSession('killSwitch')) {
+            if (typeof window.bqAdminToolStepUp !== 'function') return;
+            window.bqAdminToolStepUp('killSwitch').then(function (session) { if (session) openKillSwitch(); });
+            return;
+        }
+        var el0 = document.getElementById('bqKillSwitchUi');
+        if (el0 && el0.parentNode) el0.parentNode.removeChild(el0);
         if (!document.getElementById('bqKillSwitchUiCss')) {
             var st = document.createElement('style');
             st.id = 'bqKillSwitchUiCss';
@@ -357,7 +401,7 @@
         sheet.querySelector('#ksuCancel').addEventListener('click', close);
         root.addEventListener('click', function (ev) { if (ev.target === root) close(); });
 
-        var state = { on: false, preflight: null, needsOverride: false };
+        var state = { on: false, preflight: null, needsOverride: false, heldProof: '' };
 
         function paint() {
             var box = sheet.querySelector('#ksuState');
@@ -396,12 +440,19 @@
             var confirm = (sheet.querySelector('#ksuConfirm').value || '').trim();
             var status = sheet.querySelector('#ksuStatus');
             var go = sheet.querySelector('#ksuGo');
-            var override = !!(sheet.querySelector('#ksuOverride') && sheet.querySelector('#ksuOverride').checked);
+            var ovBox = sheet.querySelector('#ksuOverride');
+            var override = !!(ovBox && ovBox.checked);
             var mins = sheet.querySelector('#ksuReenable').value;
             status.textContent = '';
             if (reason.length < 8) { status.textContent = 'Add a short reason (at least 8 characters).'; return; }
             if (confirm !== (action === 'on' ? 'OFFLINE' : 'ONLINE')) {
                 status.textContent = 'Type ' + (action === 'on' ? 'OFFLINE' : 'ONLINE') + ' to confirm.';
+                return;
+            }
+            // When the opening preflight already says backups are stale,
+            // require the override before asking for a code (one code).
+            if (action === 'on' && state.needsOverride && !override) {
+                status.textContent = 'A backup is stale or missing. Tick the override box if you still want to go offline.';
                 return;
             }
             go.disabled = true;
@@ -410,18 +461,21 @@
             if (action === 'on' && mins) payload.reenableInMinutes = Number(mins);
 
             function afterProof(proof) {
-                if (proof) payload.freshProofId = proof;
+                if (proof) state.heldProof = proof;
+                if (state.heldProof) payload.freshProofId = state.heldProof;
                 go.textContent = action === 'on' ? 'Going offline\u2026' : 'Bringing it back\u2026';
                 return callKillSwitch(payload).then(function (data) {
                     if (data && data.needsOverride) {
                         state.needsOverride = true;
                         state.preflight = data.preflight || state.preflight;
                         paint();
-                        status.textContent = 'A backup is stale or missing. Tick the override box if you still want to go offline.';
+                        if (ovBox) ovBox.checked = true;
+                        status.textContent = 'A backup is stale or missing. The override box is checked. Tap Go offline again. Your code was not used.';
                         go.disabled = false;
                         go.textContent = 'Go offline';
                         return;
                     }
+                    state.heldProof = '';
                     state.on = !!data.on;
                     state.snapshot = data.snapshot || (data.state && data.state.snapshot) || state.snapshot;
                     if (data.preflight) state.preflight = data.preflight;
@@ -439,9 +493,11 @@
                 });
             }
 
-            var step = (typeof window._showFreshStepUp === 'function')
-                ? window._showFreshStepUp('adminSetKillSwitch')
-                : Promise.resolve(null);
+            var step = state.heldProof
+                ? Promise.resolve(state.heldProof)
+                : ((typeof window._showFreshStepUp === 'function')
+                    ? window._showFreshStepUp(action === 'on' ? 'adminSetKillSwitchOn' : 'adminSetKillSwitch')
+                    : Promise.resolve(null));
             step.then(function (proof) {
                 if (proof === null && typeof window._showFreshStepUp === 'function') {
                     go.disabled = false;
@@ -451,6 +507,7 @@
                 }
                 return afterProof(proof);
             }).catch(function (e) {
+                if (heldProofIsDead(e)) state.heldProof = '';
                 go.disabled = false;
                 go.textContent = state.on ? 'Bring the app back' : 'Go offline';
                 var msg = (e && (e.message || (e.details && e.details.message))) || String(e);
@@ -463,6 +520,105 @@
         });
     }
 
+    // Red Team #325 F1: the fastest path to OFFLINE. One fresh code (the
+    // single-use adminSetKillSwitch proof), a reason and OFFLINE typed. The
+    // server lets action 'on' skip the tool window; it never lets 'off'.
+    function openEmergencyStop() {
+        if (!isAdmin()) return;
+        var el0 = document.getElementById('bqKillSwitchUi');
+        if (el0 && el0.parentNode) el0.parentNode.removeChild(el0);
+        if (!document.getElementById('bqKillSwitchUiCss')) {
+            var st = document.createElement('style');
+            st.id = 'bqKillSwitchUiCss';
+            st.textContent = KSCSS;
+            document.head.appendChild(st);
+        }
+        var root = document.createElement('div');
+        root.id = 'bqKillSwitchUi';
+        root.setAttribute('role', 'dialog');
+        root.setAttribute('aria-modal', 'true');
+        root.setAttribute('aria-labelledby', 'bqEstopTitle');
+        var sheet = document.createElement('div');
+        sheet.className = 'ksu-sheet';
+        sheet.innerHTML =
+            '<div class="ksu-head"><h2 id="bqEstopTitle">Emergency stop</h2><button type="button" class="ksu-x" aria-label="Close">\u2715</button></div>' +
+            '<p>This takes Bitcoin Quest offline for everyone except admins, right now. It needs one fresh authenticator code. To bring the app back, use the Kill switch tool.</p>' +
+            '<label for="ksuReason">Reason (required, shown to admins only)</label>' +
+            '<textarea id="ksuReason" rows="2" maxlength="200" placeholder="What is happening?"></textarea>' +
+            '<label for="ksuConfirm">Type OFFLINE to confirm</label>' +
+            '<input id="ksuConfirm" type="text" autocomplete="off" autocapitalize="characters">' +
+            '<label id="ksuOverrideLab"><input type="checkbox" id="ksuOverride"> I understand a backup is stale or missing, and I still want to go offline.</label>' +
+            '<div class="ksu-row">' +
+            '<button type="button" class="ksu-go" id="ksuGo">Go offline now</button>' +
+            '<button type="button" class="ksu-cancel" id="ksuCancel">Cancel</button>' +
+            '</div>' +
+            '<div class="ksu-status" id="ksuStatus" role="alert"></div>';
+        root.appendChild(sheet);
+        document.body.appendChild(root);
+        function close() { if (root.parentNode) root.parentNode.removeChild(root); }
+        sheet.querySelector('.ksu-x').addEventListener('click', close);
+        sheet.querySelector('#ksuCancel').addEventListener('click', close);
+        root.addEventListener('click', function (ev) { if (ev.target === root) close(); });
+        try { sheet.querySelector('#ksuReason').focus({ preventScroll: true }); } catch (e) {}
+
+        // Reuse an unconsumed proof on a needsOverride retry so Emergency
+        // stop is always one code (Red Team #325 residual N1).
+        var heldProof = '';
+        sheet.querySelector('#ksuGo').addEventListener('click', function () {
+            var go = sheet.querySelector('#ksuGo');
+            var status = sheet.querySelector('#ksuStatus');
+            var reason = (sheet.querySelector('#ksuReason').value || '').trim();
+            var confirm = (sheet.querySelector('#ksuConfirm').value || '').trim();
+            var ovBox = sheet.querySelector('#ksuOverride');
+            var override = !!(ovBox && ovBox.checked);
+            status.textContent = '';
+            if (reason.length < 8) { status.textContent = 'Add a short reason (at least 8 characters).'; return; }
+            if (confirm !== 'OFFLINE') { status.textContent = 'Type OFFLINE to confirm.'; return; }
+            if (typeof firebase === 'undefined' || !firebase.functions) { status.textContent = 'Functions are not ready. Refresh and try again.'; return; }
+            go.disabled = true;
+            go.textContent = 'Checking your code\u2026';
+            var needCode = !(typeof mfaNeedsFreshCode === 'function' && !mfaNeedsFreshCode());
+            var step = heldProof
+                ? Promise.resolve(heldProof)
+                : ((needCode && typeof window._showFreshStepUp === 'function')
+                    ? window._showFreshStepUp('adminSetKillSwitchOn')
+                    : Promise.resolve(''));
+            step.then(function (proof) {
+                if (proof === null) {
+                    go.disabled = false;
+                    go.textContent = 'Go offline now';
+                    status.textContent = 'Enter a fresh authenticator code to continue.';
+                    return;
+                }
+                if (proof) heldProof = proof;
+                var payload = { action: 'on', reason: reason, confirm: 'OFFLINE', override: override };
+                if (heldProof) payload.freshProofId = heldProof;
+                go.textContent = 'Going offline\u2026';
+                return firebase.functions().httpsCallable('adminSetKillSwitch')(payload).then(function (res) {
+                    var data = (res && res.data) || {};
+                    if (data.needsOverride) {
+                        sheet.querySelector('#ksuOverrideLab').style.display = 'block';
+                        if (ovBox) ovBox.checked = true;
+                        status.textContent = 'A backup is stale or missing. The override box is checked. Tap Go offline now again. Your code was not used.';
+                        go.disabled = false;
+                        go.textContent = 'Go offline now';
+                        return;
+                    }
+                    heldProof = '';
+                    go.textContent = 'Offline';
+                    status.textContent = data.changed ? 'The app is now offline.' : 'No change \u2014 it was already offline.';
+                    if (typeof window.bqKillSwitchApply === 'function') window.bqKillSwitchApply(!!data.on);
+                });
+            }).catch(function (e) {
+                if (heldProofIsDead(e)) heldProof = '';
+                go.disabled = false;
+                go.textContent = 'Go offline now';
+                status.textContent = (e && (e.message || (e.details && e.details.message))) || String(e);
+            });
+        });
+    }
+
     window.bqAdminPanelTools = GROUPS;
     window.bqOpenKillSwitch = openKillSwitch;
+    window.bqEmergencyStop = openEmergencyStop;
 })();

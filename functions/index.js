@@ -2707,6 +2707,7 @@ exports.banReportedFaucetUser = functionsV1.https.onCall(async (data, context) =
     if (context.auth.token.admin !== true) {
         throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
     }
+    await require('./src/adminToolSession').requireAdminToolSession(db, data, context, 'faucetAbuse');
     const uid = String((data && data.uid) || '');
     if (!/^[A-Za-z0-9_-]{4,128}$/.test(uid)) {
         throw new functionsV1.https.HttpsError('invalid-argument', 'uid required');
@@ -3958,10 +3959,14 @@ exports.getFaucetStats = functionsV1.runWith({ secrets: [nwcUrlSecret], serviceA
 
 // ===== FAUCET ADMIN - toggleFaucet =====
 exports.toggleFaucet = functionsV1.https.onCall(async (data, context) => {
-    if (!context.auth || !context.auth.token.admin) {
+    if (!context || !context.auth || !context.auth.token || context.auth.token.admin !== true) {
         throw new functionsV1.https.HttpsError('permission-denied', 'Admin only');
     }
-    const paused = !!data.paused;
+    // Single-use fresh 2FA proof (Red Team #325 F7): un-pausing can reopen a
+    // faucet that was paused for abuse. Pass freshProofId from
+    // totpStepUp({ action: 'toggleFaucet', code }).
+    await require('./src/adminToolSession').requireAdminProof(data, context, 'toggleFaucet');
+    const paused = !!(data && data.paused);
     await db.collection('faucet_config').doc('settings').set({ paused: paused }, { merge: true });
     return { success: true, paused: paused };
 });

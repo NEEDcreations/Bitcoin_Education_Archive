@@ -18,6 +18,7 @@ const { mirrorShoutoutOnce } = require('./telegramBridge');
 const secretScan = require('./secretScan');
 const forumMirror = require('./topicForumMirror');
 const topicXp = require('./topicConversationXp');
+const { requireAdminToolSession } = require('./adminToolSession');
 
 const TOPIC_CHANNELS = require('./topicChannels.json');
 const TOPIC_GROUNDING = require('./topicGrounding.json');
@@ -792,6 +793,7 @@ function createTopicDiscussion(deps) {
         const who = callerFrom(context);
         if (!who.authed) fail('unauthenticated', 'Sign in required.');
         if (!who.admin) fail('permission-denied', 'Moderators only.');
+        await requireAdminToolSession(db, data, context, 'topics', { HttpsError: HttpsError, now: nowFn });
         const body = data || {};
         const channelId = cleanId(body.channelId, 80);
         const postId = cleanId(body.postId, 128);

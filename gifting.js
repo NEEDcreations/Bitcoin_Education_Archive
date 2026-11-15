@@ -2441,7 +2441,7 @@ window.renderCipherWinsAdmin = async function(container) {
     if (!el || window._isAdminClaim !== true) { if (el) el.innerHTML = ''; return; }
     el.innerHTML = '<div style="font-size:0.8rem;color:var(--text-muted);padding:8px;">Loading cipher wins…</div>';
     try {
-        var res = await _callCF('adminListCipherWins', {});
+        var res = await window.bqAdminToolCall('cipherWins', 'adminListCipherWins', {});
         var wins = (res.data && res.data.wins) || [];
         el.innerHTML = '';
         var h = document.createElement('div');
@@ -2493,7 +2493,7 @@ window.renderCipherWinsAdmin = async function(container) {
                 b.onclick = async function() {
                     b.disabled = true;
                     try {
-                        await _callCF('adminMarkCipherWinPaid', { winId: w.id });
+                        await window.bqAdminToolCall('cipherWins', 'adminMarkCipherWinPaid', { winId: w.id });
                         _toast('Marked paid');
                         window.renderCipherWinsAdmin(el);
                     } catch (e) {

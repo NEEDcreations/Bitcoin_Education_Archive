@@ -594,6 +594,16 @@ function takeRate(tx, snap, now, max) {
     return true;
 }
 
+// Read-only check used before step-up so a full write budget does not
+// burn the code. takeRate still enforces the limit in the write txn.
+function rateWouldBlock(snap, now, max) {
+    if (!snap || !snap.exists) return false;
+    const row = snap.data() || {};
+    const ws = typeof row.windowStartMs === 'number' ? row.windowStartMs : 0;
+    if (!ws || (now - ws) >= RATE_WINDOW_MS) return false;
+    return (row.count || 0) >= max;
+}
+
 async function maybeRefreshSnapshot(db, admin, backupDeps, data, nowFn) {
     const snap = data && data.snapshot;
     if (!snap || !snap.operationName) return data && data.snapshot ? data.snapshot : null;
@@ -805,7 +815,22 @@ function makeAdminSetKillSwitch(deps) {
     const events = deps.events || null;
     const stepUp = deps.stepUp || (async function (data, context) {
         const sf = require('./secondFactor');
-        return sf.requireAdminStepUp(sf.stamp(data, context), 'adminSetKillSwitch');
+        // ON and OFF use distinct actions, but both skip the shared 20/day
+        // cap and share the 100/day kill-switch cap so an admin locked out
+        // of other actions can still go offline and come back
+        // (Spam/Abuse #325 MED1 and OFF follow-up). The 2-minute limit still applies.
+        const on = data && data.action === 'on';
+        return sf.requireAdminStepUp(sf.stamp(data, context), on ? 'adminSetKillSwitchOn' : 'adminSetKillSwitch', { skipDailyCap: true });
+    });
+    // status, preflight and off need a live Kill switch tool window (a fresh
+    // 2FA code entered when the tool was opened), and off also needs the
+    // single-use step-up above. Turning the switch ON is the emergency path:
+    // it skips the tool window so one fresh code is enough (Red Team F1), but
+    // it still needs the admin claim, a recent sign-in and the single-use
+    // fresh step-up above. ON is never free of a code. A stale-backup
+    // refusal does not consume that code (Red Team #325 N1).
+    const toolGuard = deps.toolGuard || (async function (data, context) {
+        return require('./adminToolSession').requireAdminToolSession(db, data, context, 'killSwitch', { HttpsError: HttpsError, now: nowFn });
     });
 
     async function handler(data, context) {
@@ -819,6 +844,7 @@ function makeAdminSetKillSwitch(deps) {
         if (action !== 'preflight' && action !== 'status' && action !== 'on' && action !== 'off') {
             throw new HttpsError('invalid-argument', 'action must be preflight, status, on or off');
         }
+        if (action !== 'on') await toolGuard(d, context);
 
         // Auto-return first so status/preflight and a later on/off see the settled flag.
         const settled = await maybeSettleAutoReturn(db, admin, nowFn);
@@ -864,8 +890,11 @@ function makeAdminSetKillSwitch(deps) {
             return out;
         }
 
-        await stepUp(d, context);
-
+        // Reason, confirm and (for ON) backup freshness run BEFORE the
+        // step-up so a stale backup or a typo does not burn the code
+        // (Red Team #325 N1). The override still requires the same
+        // reason and OFFLINE confirmation; audit rows are still written
+        // only when the switch actually flips.
         const reason = cleanReason(d.reason);
         if (reason.length < MIN_REASON) {
             throw new HttpsError('invalid-argument', 'Add a short reason (at least ' + MIN_REASON + ' characters).');
@@ -887,6 +916,32 @@ function makeAdminSetKillSwitch(deps) {
                 return { ok: false, needsOverride: true, preflight: preflight };
             }
         }
+
+        // Already-offline (no later auto-return) and the hourly write
+        // limits run BEFORE the step-up so a refusal does not use up
+        // the code (Red Team #325 L1 follow-up). The write transaction
+        // still re-checks both in case the flag or the budget changed.
+        const nowMsPre = nowFn();
+        const preSnap = await docRef(db).get();
+        const prePrev = preSnap.exists ? (preSnap.data() || {}) : null;
+        const prePrevOn = effectiveOn(prePrev, nowMsPre);
+        const prePrevAutoMs = toMillis(prePrev && prePrev.autoReenableAt);
+        if (action === 'on' && prePrevOn && !isLaterAutoReturn(prePrevAutoMs, autoMs)) {
+            throw new HttpsError(
+                'failed-precondition',
+                'The app is already offline. You can only extend the auto-return to a later time (or leave it off until an admin turns it back on).'
+            );
+        }
+        const preIsNoopOff = action === 'off' && !prePrevOn;
+        if (!preIsNoopOff) {
+            const preUserRate = await db.collection(RATE_COLLECTION).doc(uid).get();
+            const preGlobalRate = await db.collection(RATE_COLLECTION).doc('_global').get();
+            if (rateWouldBlock(preUserRate, nowMsPre, RATE_MAX_USER) || rateWouldBlock(preGlobalRate, nowMsPre, RATE_MAX_GLOBAL)) {
+                throw new HttpsError('resource-exhausted', 'Too many kill-switch changes. Wait an hour and try again.');
+            }
+        }
+
+        await stepUp(d, context);
 
         const FieldValue = admin.firestore.FieldValue;
         const Timestamp = admin.firestore.Timestamp;

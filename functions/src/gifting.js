@@ -16,6 +16,7 @@ const { resolveLnurlInvoice } = require('./lnurlResolve');
 const { NWCClient } = require('@getalby/sdk');
 const { updatePeerLevelAfterGift } = require('./peerLevel');
 const faucetGuard = require('./faucetGuard');
+const { requireAdminToolSession, requireAdminProof } = require('./adminToolSession');
 const { rollCipherReward, satsDisposition, ALLOWED_SATS_AMOUNTS } = require('./cipherReward');
 const {
     creditDocId,
@@ -1465,6 +1466,7 @@ async function readAllDocs(refs) {
 
 const adminListCipherWins = functionsV1.https.onCall(async (data, context) => {
     requireAdmin(context);
+    await requireAdminToolSession(db, data, context, 'cipherWins');
     const snap = await db.collection('cipher_wins').orderBy('createdAt', 'desc').limit(100).get();
     const wins = snap.docs.map(function(d) {
         const w = d.data();
@@ -1514,6 +1516,7 @@ const adminListCipherWins = functionsV1.https.onCall(async (data, context) => {
 
 const adminMarkCipherWinPaid = functionsV1.https.onCall(async (data, context) => {
     requireAdmin(context);
+    await requireAdminToolSession(db, data, context, 'cipherWins');
     const winId = (data.winId || '').toString().trim();
     if (!winId || winId.length > 128) throw httpsError('invalid-argument', 'Invalid win');
     const winRef = db.collection('cipher_wins').doc(winId);
@@ -2000,6 +2003,10 @@ const adminResolveCipherSatsClaim = functionsV1.runWith({
     serviceAccount: runtimeSa('adminResolveCipherSatsClaim'),
 }).https.onCall(async (data, context) => {
     requireAdmin(context);
+    // Single-use fresh 2FA proof (Red Team #325 F7): resolving a held claim
+    // can release a refund. Pass freshProofId from
+    // totpStepUp({ action: 'adminResolveCipherSatsClaim', code }).
+    await requireAdminProof(data, context, 'adminResolveCipherSatsClaim');
     const claimId = (data && data.claimId || '').toString().trim();
     const action = (data && data.action || '').toString().trim();
     if (!claimId || claimId.length > 128 || !/^[A-Za-z0-9_-]+$/.test(claimId)) {
