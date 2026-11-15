@@ -436,9 +436,12 @@ queue.push(test('home mode bar is available in every mode', function () {
     buttons[2].click();
     assert.strictEqual(picked, 'intermediate');
     const toggle = nodes.filter(function (n) { return n.id === 'bqHomeModeToggle'; })[0];
-    // No stored choice yet -> forced open so the user can pick.
-    assert.strictEqual(toggle.attrs['aria-expanded'], 'true');
+    // No stored choice yet -> start closed so first-time guests see the title and sign-up.
+    assert.strictEqual(toggle.attrs['aria-expanded'], 'false');
+    assert.ok(!bar.classList.contains('is-open'));
+    toggle.click();
     assert.ok(bar.classList.contains('is-open'));
+    assert.strictEqual(toggle.attrs['aria-expanded'], 'true');
     toggle.click();
     assert.ok(!bar.classList.contains('is-open'));
     assert.strictEqual(toggle.attrs['aria-expanded'], 'false');
