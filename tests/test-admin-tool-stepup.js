@@ -607,7 +607,7 @@ function settle(promise, ms) {
     });
 
 
-    await test('MED1: kill-switch ON skips the 20/day cap but keeps the 2-minute limit; OFF keeps the daily cap', async function () {
+    await test('MED1: kill-switch ON and OFF skip the 20/day cap but keep the 2-minute limit; other actions keep the daily cap', async function () {
         NOW = T0;
         const { api, db } = setup();
         db.store.set('totp_rate_limits/adminA1_day', {
@@ -616,8 +616,8 @@ function settle(promise, ms) {
             failedWindowStartMs: NOW,
             expireAt: new Date(NOW + 24 * 60 * 60 * 1000),
         });
-        const offErr = await expectErr(api.totpStepUp.run({ action: 'adminSetKillSwitch', code: codeAt(NOW) }, ctx('adminA1')), 'resource-exhausted');
-        assert.ok(/tomorrow/i.test(offErr.message), offErr.message);
+        const otherErr = await expectErr(api.totpStepUp.run({ action: 'toggleFaucet', code: codeAt(NOW) }, ctx('adminA1')), 'resource-exhausted');
+        assert.ok(/tomorrow/i.test(otherErr.message), otherErr.message);
         const onProof = await api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1'));
         assert.ok(/^[a-f0-9]{32}$/.test(onProof.freshProofId), 'ON still accepts a good code after the daily cap');
         const dayAfterOn = db.store.get('totp_rate_limits/adminA1_day');
@@ -651,6 +651,8 @@ function settle(promise, ms) {
         const code = codeAt(NOW);
         const err = await expectErr(api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: code }, ctx('adminA1', { admin: false })), 'permission-denied');
         assert.ok(/admin/i.test(err.message), err.message);
+        const offErr = await expectErr(api.totpStepUp.run({ action: 'adminSetKillSwitch', code: code }, ctx('adminA1', { admin: false })), 'permission-denied');
+        assert.ok(/admin/i.test(offErr.message), offErr.message);
         // The same code still works for an admin, so it was not consumed.
         const onProof = await api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: code }, ctx('adminA1'));
         assert.ok(/^[a-f0-9]{32}$/.test(onProof.freshProofId));
@@ -730,6 +732,63 @@ function settle(promise, ms) {
         const still = await api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1'));
         assert.ok(still && still.freshProofId, 'ON still works until the 100/day cap');
         assert.strictEqual(db.store.get('totp_rate_limits/adminA1_day_killswitch_on').failedAttempts, 99, 'ON success does not clear the ON-path daily count');
+        NOW = T0;
+    });
+
+    await test('S2 OFF: after a 20/day lockout, ON then a fresh OFF both succeed and other actions stay capped', async function () {
+        NOW = T0;
+        const { api, db } = setup();
+        db.store.set('totp_rate_limits/adminA1_day', {
+            uid: 'adminA1',
+            failedAttempts: 20,
+            failedWindowStartMs: NOW,
+            expireAt: new Date(NOW + 24 * 60 * 60 * 1000),
+        });
+        const otherErr = await expectErr(api.totpStepUp.run({ action: 'toggleFaucet', code: codeAt(NOW) }, ctx('adminA1')), 'resource-exhausted');
+        assert.ok(/tomorrow/i.test(otherErr.message), otherErr.message);
+        const onProof = await api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1'));
+        assert.ok(onProof && onProof.freshProofId, 'ON works after the 20/day lockout');
+        assert.strictEqual(db.store.get('totp_rate_limits/adminA1_day').failedAttempts, 20);
+        NOW = T0 + 31000;
+        const offProof = await api.totpStepUp.run({ action: 'adminSetKillSwitch', code: codeAt(NOW) }, ctx('adminA1'));
+        assert.ok(offProof && offProof.freshProofId, 'OFF works after the 20/day lockout and a successful ON');
+        assert.strictEqual(db.store.get('totp_rate_limits/adminA1_day').failedAttempts, 20, 'OFF success must not clear the shared daily count');
+        const stillCapped = await expectErr(api.totpStepUp.run({ action: 'toggleFaucet', code: codeAt(NOW) }, ctx('adminA1')), 'resource-exhausted');
+        assert.ok(/tomorrow/i.test(stillCapped.message), stillCapped.message);
+        // requireAdminStepUp for OFF also skips the shared 20/day cap.
+        NOW = T0 + 62000;
+        const stamped = api.stamp({ code: codeAt(NOW) }, ctx('adminA1'));
+        const stepped = await api.requireAdminStepUp(stamped, 'adminSetKillSwitch', { skipDailyCap: true });
+        assert.strictEqual(stepped.totp, true);
+        NOW = T0;
+    });
+
+    await test('S2 OFF: OFF is refused past the shared 100/day kill-switch cap', async function () {
+        NOW = T0;
+        const { api, db } = setup();
+        db.store.set('totp_rate_limits/adminA1_day_killswitch_on', {
+            uid: 'adminA1',
+            failedAttempts: 100,
+            failedWindowStartMs: NOW,
+            expireAt: new Date(NOW + 24 * 60 * 60 * 1000),
+        });
+        const capErr = await expectErr(api.totpStepUp.run({ action: 'adminSetKillSwitch', code: codeAt(NOW) }, ctx('adminA1')), 'resource-exhausted');
+        assert.ok(/tomorrow/i.test(capErr.message), capErr.message);
+        assert.ok(logRows(db, 'admin_killswitch_on_step_up_failed').some(function (r) { return r.data.reason === 'on-day-cap'; }));
+        // A good ON code is also refused: ON and OFF share the same 100/day bucket.
+        const onCap = await expectErr(api.totpStepUp.run({ action: 'adminSetKillSwitchOn', code: codeAt(NOW) }, ctx('adminA1')), 'resource-exhausted');
+        assert.ok(/tomorrow/i.test(onCap.message), onCap.message);
+        // Just under the cap, OFF still works.
+        NOW = T0 + 130000;
+        db.store.set('totp_rate_limits/adminA1_day_killswitch_on', {
+            uid: 'adminA1',
+            failedAttempts: 99,
+            failedWindowStartMs: NOW,
+            expireAt: new Date(NOW + 24 * 60 * 60 * 1000),
+        });
+        const still = await api.totpStepUp.run({ action: 'adminSetKillSwitch', code: codeAt(NOW) }, ctx('adminA1'));
+        assert.ok(still && still.freshProofId, 'OFF still works until the 100/day cap');
+        assert.strictEqual(db.store.get('totp_rate_limits/adminA1_day_killswitch_on').failedAttempts, 99);
         NOW = T0;
     });
 

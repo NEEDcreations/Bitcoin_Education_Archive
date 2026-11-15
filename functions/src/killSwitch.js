@@ -815,11 +815,12 @@ function makeAdminSetKillSwitch(deps) {
     const events = deps.events || null;
     const stepUp = deps.stepUp || (async function (data, context) {
         const sf = require('./secondFactor');
-        // ON uses a distinct action so its TOTP proof skips the 20/day cap
-        // (the 2-minute limit still applies). OFF keeps adminSetKillSwitch
-        // and the daily cap (Spam/Abuse #325 MED1).
+        // ON and OFF use distinct actions, but both skip the shared 20/day
+        // cap and share the 100/day kill-switch cap so an admin locked out
+        // of other actions can still go offline and come back
+        // (Spam/Abuse #325 MED1 and OFF follow-up). The 2-minute limit still applies.
         const on = data && data.action === 'on';
-        return sf.requireAdminStepUp(sf.stamp(data, context), on ? 'adminSetKillSwitchOn' : 'adminSetKillSwitch', on ? { skipDailyCap: true } : undefined);
+        return sf.requireAdminStepUp(sf.stamp(data, context), on ? 'adminSetKillSwitchOn' : 'adminSetKillSwitch', { skipDailyCap: true });
     });
     // status, preflight and off need a live Kill switch tool window (a fresh
     // 2FA code entered when the tool was opened), and off also needs the
