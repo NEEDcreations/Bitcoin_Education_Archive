@@ -816,7 +816,10 @@
                 ((snap && snap.docs) || []).forEach(function (doc) {
                     var d = (doc && typeof doc.data === 'function') ? (doc.data() || {}) : {};
                     if (d.kind !== 'epoch_blocks' || !Array.isArray(d.blocks)) return;
-                    var ep = Number(d.epoch);
+                    // The frozen result stores epochNumber; the doc id is epoch_<n>.
+                    var idm = /^epoch_(\d{1,4})$/.exec(String((doc && doc.id) || ''));
+                    var ep = Number(d.epochNumber != null ? d.epochNumber : (idm ? idm[1] : NaN));
+                    if (!(ep >= 1 && ep <= SF_MAX_EPOCH) || Math.floor(ep) !== ep) return;
                     d.blocks.forEach(function (b) {
                         if (b && b.manualReview) rows.push({ epoch: ep, block: Number(b.block), amount: b.amount, uid: b.uid, frozenLn: b.frozenLn, manualReview: b.manualReview });
                     });

@@ -75,7 +75,7 @@ function sandbox(opts) {
             firestore: () => ({
                 collection: (name) => ({
                     doc: (id) => ({ get: () => Promise.resolve({ exists: name === 'config' && id === 'satoshiFavorPayouts', data: () => cfg }) }),
-                    get: () => Promise.resolve({ docs: name === 'sf_payout_results' ? results.map((r) => ({ data: () => r })) : [] }),
+                    get: () => Promise.resolve({ docs: name === 'sf_payout_results' ? results.map((r) => ({ id: r._id || ('epoch_' + r.epochNumber), data: () => r })) : [] }),
                 }),
             }),
             functions: () => ({
@@ -97,7 +97,7 @@ const byId = (doc, id) => doc.getElementById(id);
 const btnByText = (doc, re) => doc.find((n) => n.tagName === 'BUTTON' && re.test(n.textContent));
 
 const EPOCH1 = {
-    kind: 'epoch_blocks', version: 2, epoch: 1,
+    kind: 'epoch_blocks', version: 2, epochNumber: 1,
     blocks: [
         { block: 0, uid: 'uidAAAAA111', amount: 4200, frozenLn: 'ambro@getalby.com', manualReview: '' },
         { block: 1, uid: 'uidBBBBB222', amount: 4200, frozenLn: 'nidhun@walletofsatoshi.com', manualReview: 'address_changed_after_close' },
@@ -266,6 +266,17 @@ const EPOCH1 = {
         assert.deepStrictEqual(stepUps, ['adminSetFavorClaims']);
         assert.deepStrictEqual(JSON.parse(JSON.stringify(calls[0].payload)), { clearFeeHalt: true, freshProofId: 'proof-1' });
         assert.ok(/cleared/.test(byId(doc, 'sfuHaltStatus').textContent));
+    });
+
+    await test('review list reads epochNumber, falls back to the doc id, and skips a doc with no epoch', async function () {
+        const noNum = Object.assign({}, EPOCH1, { epochNumber: undefined, _id: 'epoch_7' });
+        const bad = Object.assign({}, EPOCH1, { epochNumber: undefined, _id: 'weird' });
+        const { sb, doc } = sandbox({ results: [noNum, bad] });
+        sb.bqOpenFavorClaims(); await settle();
+        const rv = byId(doc, 'sfuReview').textContent;
+        assert.ok(rv.includes('Epoch 7, block 1'), rv);
+        assert.ok(!rv.includes('NaN'));
+        assert.strictEqual((rv.match(/Epoch /g) || []).length, 1);
     });
 
     await test('release a review block: note required, then adminResolveFavorReview with action release', async function () {
