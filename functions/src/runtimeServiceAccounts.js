@@ -106,6 +106,22 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
 
 const DEFAULT_PROJECT = 'bitcoin-education-archive';
 
+// Holdover: these four TOTP callables still run as the project's default
+// App Engine account (<project>@appspot.gserviceaccount.com) on the listed
+// projects, because their own fn-totp-* accounts were never created there and
+// a deploy that names a missing account fails. Their manifest entries above
+// stay, so runtime-sa-plan.js still plans the accounts for the follow-up move.
+// Staging keeps its own accounts unless a like-live QA deploy sets
+// BQ_TOTP_APPSPOT_SA=1 in functions/.env.<project> (the Firebase CLI only
+// passes .env values, not the shell env, to function discovery).
+// Secrets are unaffected: each function still binds TOTP_ENCRYPTION_KEY.
+const DEFAULT_SA_HOLDOVER = Object.freeze({
+    totpStepUp: Object.freeze(['bitcoin-education-archive']),
+    totpCheck: Object.freeze(['bitcoin-education-archive']),
+    totpSetup: Object.freeze(['bitcoin-education-archive']),
+    regenerateRecoveryCodes: Object.freeze(['bitcoin-education-archive']),
+});
+
 const EXTRA_ROLES = Object.freeze({
     auth: 'roles/firebaseauth.admin',
     authViewer: 'roles/firebaseauth.viewer',
@@ -122,6 +138,16 @@ function runtimeSa(functionName) {
     return entry.id + '@' + projectId() + '.iam.gserviceaccount.com';
 }
 
+// runtimeSa() plus the holdover above. Still throws for unknown functions.
+function runtimeSaOrDefault(functionName) {
+    const own = runtimeSa(functionName);
+    if (!Object.prototype.hasOwnProperty.call(DEFAULT_SA_HOLDOVER, functionName)) return own;
+    const project = projectId();
+    const optIn = process.env.BQ_TOTP_APPSPOT_SA === '1';
+    if (DEFAULT_SA_HOLDOVER[functionName].indexOf(project) === -1 && !optIn) return own;
+    return project + '@appspot.gserviceaccount.com';
+}
+
 function projectId() {
     if (process.env.GCLOUD_PROJECT) return process.env.GCLOUD_PROJECT;
     if (process.env.GOOGLE_CLOUD_PROJECT) return process.env.GOOGLE_CLOUD_PROJECT;
@@ -136,4 +162,6 @@ module.exports = {
     RUNTIME_SERVICE_ACCOUNTS: RUNTIME_SERVICE_ACCOUNTS,
     EXTRA_ROLES: EXTRA_ROLES,
     runtimeSa: runtimeSa,
+    runtimeSaOrDefault: runtimeSaOrDefault,
+    DEFAULT_SA_HOLDOVER: DEFAULT_SA_HOLDOVER,
 };
