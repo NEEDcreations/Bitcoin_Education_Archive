@@ -61,9 +61,7 @@ test('TOTP holdover keeps TOTP_ENCRYPTION_KEY bound on all four (secrets unchang
 
 test('runtimeSaOrDefault: live -> appspot default for the four, own account for every other function', function () {
     const saved = process.env.GCLOUD_PROJECT;
-    const savedOpt = process.env.BQ_TOTP_APPSPOT_SA;
     try {
-        delete process.env.BQ_TOTP_APPSPOT_SA;
         process.env.GCLOUD_PROJECT = 'bitcoin-education-archive';
         manifest.forEach(function (n) {
             const got = runtimeSaOrDefault(n);
@@ -75,26 +73,20 @@ test('runtimeSaOrDefault: live -> appspot default for the four, own account for 
         assert.strictEqual(runtimeSaOrDefault('adminResetSecondFactor'), 'fn-admin-reset-second@bitcoin-education-archive.iam.gserviceaccount.com');
     } finally {
         process.env.GCLOUD_PROJECT = saved;
-        if (savedOpt === undefined) delete process.env.BQ_TOTP_APPSPOT_SA; else process.env.BQ_TOTP_APPSPOT_SA = savedOpt;
     }
 });
 
-test('runtimeSaOrDefault: staging keeps its own accounts unless BQ_TOTP_APPSPOT_SA=1 (like-live QA)', function () {
+test('runtimeSaOrDefault: staging (and any other project) keeps its own accounts; no env opt-in', function () {
     const saved = process.env.GCLOUD_PROJECT;
     const savedOpt = process.env.BQ_TOTP_APPSPOT_SA;
     try {
-        process.env.GCLOUD_PROJECT = 'bitcoin-quest-staging';
-        delete process.env.BQ_TOTP_APPSPOT_SA;
-        manifest.forEach(function (n) { assert.strictEqual(runtimeSaOrDefault(n), runtimeSa(n), n); });
-        assert.strictEqual(runtimeSaOrDefault('totpStepUp'), 'fn-totp-step-up@bitcoin-quest-staging.iam.gserviceaccount.com');
-        process.env.BQ_TOTP_APPSPOT_SA = 'true';
-        assert.strictEqual(runtimeSaOrDefault('totpStepUp'), 'fn-totp-step-up@bitcoin-quest-staging.iam.gserviceaccount.com', 'only exactly "1" opts in');
-        process.env.BQ_TOTP_APPSPOT_SA = '1';
-        manifest.forEach(function (n) {
-            const got = runtimeSaOrDefault(n);
-            if (HOLDOVER.indexOf(n) !== -1) assert.strictEqual(got, 'bitcoin-quest-staging@appspot.gserviceaccount.com', n);
-            else assert.strictEqual(got, runtimeSa(n), n);
+        ['bitcoin-quest-staging', 'demo-other'].forEach(function (p) {
+            process.env.GCLOUD_PROJECT = p;
+            manifest.forEach(function (n) { assert.strictEqual(runtimeSaOrDefault(n), runtimeSa(n), p + ' ' + n); });
         });
+        process.env.GCLOUD_PROJECT = 'bitcoin-quest-staging';
+        process.env.BQ_TOTP_APPSPOT_SA = '1';
+        assert.strictEqual(runtimeSaOrDefault('totpStepUp'), 'fn-totp-step-up@bitcoin-quest-staging.iam.gserviceaccount.com', 'env vars must not change the account');
     } finally {
         process.env.GCLOUD_PROJECT = saved;
         if (savedOpt === undefined) delete process.env.BQ_TOTP_APPSPOT_SA; else process.env.BQ_TOTP_APPSPOT_SA = savedOpt;

@@ -111,9 +111,10 @@ const DEFAULT_PROJECT = 'bitcoin-education-archive';
 // projects, because their own fn-totp-* accounts were never created there and
 // a deploy that names a missing account fails. Their manifest entries above
 // stay, so runtime-sa-plan.js still plans the accounts for the follow-up move.
-// Staging keeps its own accounts unless a like-live QA deploy sets
-// BQ_TOTP_APPSPOT_SA=1 in functions/.env.<project> (the Firebase CLI only
-// passes .env values, not the shell env, to function discovery).
+// The holdover keys ONLY on the project id (GCLOUD_PROJECT), which the
+// Firebase CLI sets during function discovery; .env values are not visible
+// there. Staging keeps its own accounts; a like-live QA deploy adds
+// 'bitcoin-quest-staging' to these lists in an uncommitted scratch edit.
 // Secrets are unaffected: each function still binds TOTP_ENCRYPTION_KEY.
 const DEFAULT_SA_HOLDOVER = Object.freeze({
     totpStepUp: Object.freeze(['bitcoin-education-archive']),
@@ -143,8 +144,7 @@ function runtimeSaOrDefault(functionName) {
     const own = runtimeSa(functionName);
     if (!Object.prototype.hasOwnProperty.call(DEFAULT_SA_HOLDOVER, functionName)) return own;
     const project = projectId();
-    const optIn = process.env.BQ_TOTP_APPSPOT_SA === '1';
-    if (DEFAULT_SA_HOLDOVER[functionName].indexOf(project) === -1 && !optIn) return own;
+    if (DEFAULT_SA_HOLDOVER[functionName].indexOf(project) === -1) return own;
     return project + '@appspot.gserviceaccount.com';
 }
 
