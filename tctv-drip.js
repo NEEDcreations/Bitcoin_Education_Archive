@@ -29,7 +29,7 @@
     function fmt(n) { return Math.floor(n || 0).toLocaleString(); }
     function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return '&#' + c.charCodeAt(0) + ';'; }); }
 
-    var POS_KEY = 'tctvPotPos', MIN_KEY = 'tctvPotMin', SIZE_KEY = 'tctvPotPx', OLD_SIZE_KEY = 'tctvPotSize';
+    var POS_KEY = 'tctvPotPosV2', MIN_KEY = 'tctvPotMinV2', SIZE_KEY = 'tctvPotPx', OLD_SIZE_KEY = 'tctvPotSize';
     // Pot size in px, set by dragging any edge or corner. MIN_POT is the floor; the max follows the viewport.
     // MAIN_MIN is the text-side reserve in potMax (w - 16 - CARD_CHROME - MAIN_MIN).
     // 175px covers the count (worst case 4,999/5,000) plus the 40px minimize margin, so the
@@ -41,13 +41,13 @@
         var s = document.createElement('style'); s.id = 'tctv-drip-css';
         // Floating overlay, outside the player's layout so the video stays centered. Draggable, resizable,
         // minimizable, and it remembers size, minimized state, and spot on this device.
-        // Default is upper-right on desktop (below the bell and title bar, left of the collapsed remote)
-        // and upper-center on phones (below the mobile bar, title row, and channel remote).
-        s.textContent = '#tctv-drip{position:fixed;top:calc(84px + env(safe-area-inset-top, 0px));right:max(76px, env(safe-area-inset-right, 0px));left:auto;bottom:auto;z-index:200001;font-family:inherit;color:#fff;touch-action:none;user-select:none;-webkit-user-select:none;max-width:calc(100vw - 16px);--pot:136px;--coin:26px;--fall:100px}' +
+        // First load (including after a storage-key bump) starts minimized in the lower-right,
+        // left of the collapsed remote on desktop and inset from the right edge on phones, so it
+        // never sits over the middle of the video. Tapping the icon expands it; drag-resize still works.
+        s.textContent = '#tctv-drip{position:fixed;bottom:max(24px, env(safe-area-inset-bottom, 0px));right:max(76px, env(safe-area-inset-right, 0px));top:auto;left:auto;z-index:200001;font-family:inherit;color:#fff;touch-action:none;user-select:none;-webkit-user-select:none;max-width:calc(100vw - 16px);--pot:136px;--coin:26px;--fall:100px}' +
                         '#tctv-drip.td-mini{--coin:14px;--fall:36px}' +
             '#tctv-drip[hidden]{display:none}' +
-            'body.ticker-visible #tctv-drip{top:calc(116px + env(safe-area-inset-top, 0px))}' +
-            '@media (max-width:700px){#tctv-drip{top:calc(178px + env(safe-area-inset-top, 0px));left:8px;right:8px;width:fit-content;margin-left:auto;margin-right:auto}body.ticker-visible #tctv-drip{top:calc(210px + env(safe-area-inset-top, 0px))}}' +
+            '@media (max-width:700px){#tctv-drip{top:auto;bottom:max(24px, env(safe-area-inset-bottom, 0px));right:max(12px, env(safe-area-inset-right, 0px));left:auto;width:fit-content;margin-left:0;margin-right:0}}' +
             '@media (max-width:420px){#tctv-drip[data-size="3"] .td-face{font-size:13px}}' +
                         '#tctv-drip .td-card{position:relative;display:flex;flex-wrap:nowrap;align-items:center;gap:8px;padding:8px;border-radius:28px;background:rgba(17,12,4,.92);border:1px solid rgba(247,147,26,.7);box-shadow:0 10px 28px rgba(0,0,0,.5);cursor:grab;width:max-content;max-width:calc(100vw - 16px);box-sizing:border-box}' +
             '#tctv-drip[data-size="3"] .td-card{padding:10px;border-width:2px;box-shadow:0 0 0 3px rgba(247,147,26,.35),0 16px 42px rgba(247,147,26,.45),0 10px 24px rgba(0,0,0,.5)}' +
@@ -173,14 +173,21 @@
         if (card) ro.observe(card);
         if (bubble) ro.observe(bubble);
     }
+    // Ignore saved spots that sit over the middle of the viewing area (the old
+    // phone default was horizontally centered). Side / corner spots are kept.
+    function isMidVideo(p) {
+        var vw = window.innerWidth || 360, vh = window.innerHeight || 640;
+        if (!p || !isFinite(p.x) || !isFinite(p.y)) return true;
+        return p.x > vw * 0.22 && p.x < vw * 0.78 && p.y > vh * 0.18 && p.y < vh * 0.82;
+    }
     function restorePos(el) {
         var p = null; try { p = JSON.parse(lsGet(POS_KEY) || 'null'); } catch (e) {}
-        if (p && isFinite(p.x) && isFinite(p.y)) clampPlace(el, p.x, p.y);
+        if (p && isFinite(p.x) && isFinite(p.y) && !isMidVideo(p)) clampPlace(el, p.x, p.y);
         else {
             el.style.left = ''; el.style.top = ''; el.style.bottom = ''; el.style.right = '';
             el.style.marginLeft = ''; el.style.marginRight = ''; el.style.width = '';
-            el.classList.add('td-below');
-            el.classList.toggle('td-right', window.innerWidth > 700);
+            el.classList.remove('td-below');
+            el.classList.add('td-right');
         }
     }
     // Size is one number (the pot's side in px). Coins and fall distance follow it; data-size buckets keep text tweaks.
@@ -289,8 +296,10 @@
             '<div style="margin-top:6px;opacity:.85">The pot of sats fills a little every minute while people watch Timechain TV together. More viewers, faster fill. When it\u2019s full, the sats are shared with the viewers who helped fill it, based on how long each person watched. Your Share updates live on this pot while you watch. When the pot is full, that share is added to your sats balance to claim. Keep the video playing and this tab open to take part. Drag this anywhere. Drag any edge or corner to resize it, or tap \u2013 in the corner to minimize it to a small pill. The size and minimized choice stay on this device.</div></div></div>' +
             '<button type="button" class="td-bubble" aria-label="Restore pot of sats">' + img.replace('width="136" height="136"', 'width="40" height="40"') + '<span class="td-bubble-lbl">sats</span><span class="td-bubble-share" hidden></span><span class="td-fx" aria-hidden="true"></span></button>';
         setPot(el, readPot(), false);
-        var miniOn = lsGet(MIN_KEY) === '1';
+        // Missing V2 key (first load, or an old expanded save) starts minimized.
+        var miniOn = lsGet(MIN_KEY) !== '0';
         el.classList.toggle('td-mini', miniOn);
+        el.classList.add('td-right');
         if (!REDUCED && !miniOn && el.getAttribute('data-size') === '3') {
             el.classList.add('td-hello');
             setTimeout(function () { el.classList.remove('td-hello'); }, 4600);

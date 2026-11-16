@@ -151,9 +151,12 @@ console.log('tctvDripLogic: all tests passed');
     assert.ok(src.includes("you don\\u2019t tap it, your watch time won\\u2019t be added to the pot of sats."));
     assert.ok(!/sats pot/i.test(src), 'say "pot of sats"');
     assert.ok(/#tctv-drip\{position:fixed;/.test(src) && src.includes('document.body.appendChild(el)'), 'floating overlay outside the player layout (video stays centered)');
-    assert.ok(src.includes("'tctvPotPos'") && src.includes("'tctvPotMin'") && src.includes("'tctvPotPx'") && /pointerdown/.test(src), 'draggable + resizable + minimizable, remembered per device');
-    assert.ok(src.includes('top:calc(84px + env(safe-area-inset-top, 0px))'), 'default sits in the upper area');
-    assert.ok(!src.includes('bottom:96px') && !src.includes('bottom:150px'), 'no longer parked on the bottom edge');
+    assert.ok(src.includes("'tctvPotPosV2'") && src.includes("'tctvPotMinV2'") && src.includes("'tctvPotPx'") && /pointerdown/.test(src), 'draggable + resizable + minimizable, remembered per device on V2 keys');
+    assert.ok(!src.includes("'tctvPotPos'") && !src.includes("'tctvPotMin'"), 'old pos/min keys are not read, so stale centered/expanded saves are ignored');
+    assert.ok(src.includes('bottom:max(24px, env(safe-area-inset-bottom, 0px))') && src.includes('right:max(76px, env(safe-area-inset-right, 0px))'), 'default sits at the lower-right, clear of the video middle');
+    assert.ok(!src.includes('margin-left:auto') && !src.includes('top:calc(178px'), 'phone default is no longer centered over the video');
+    assert.ok(/var miniOn = lsGet\(MIN_KEY\) !== '0'/.test(src) && src.includes('function isMidVideo(p)'), 'first load is minimized; mid-screen saved spots are discarded');
+    assert.ok(!src.includes('bottom:96px') && !src.includes('bottom:150px'), 'no old expanded-card bottom parking values');
     assert.ok(src.includes('aria-label="Minimize pot of sats"') && src.includes('aria-label="Restore pot of sats"'));
     assert.ok(!/Shrink pot of sats|Enlarge pot of sats|td-smaller|td-larger/.test(src), 'no Shrink/Grow buttons; resize is by dragging');
     assert.ok(/\.td-min\{position:absolute;top:2px;right:18px;[^}]*min-width:44px;min-height:44px/.test(src), 'minimize sits in the top-right corner, 44px target');
@@ -180,6 +183,16 @@ console.log('tctvDripLogic: all tests passed');
     assert.strictEqual(D.promptMinMinutes, 15); assert.strictEqual(D.promptMaxMinutes, 40); assert.strictEqual(D.promptAnswerSeconds, 120);
 }
 console.log('tctv-drip client prompt: ok');
+// Timechain TV: muted autoplay + unmute control for every user (browsers block unmuted autoplay).
+{
+    const tv = require('fs').readFileSync(require('path').join(__dirname, '..', 'timechain-tv.js'), 'utf8');
+    assert.ok(tv.includes('autoplay=1') && tv.includes('playsinline=1') && tv.includes('autoplay:1') && tv.includes('playsinline:1'), 'YouTube iframe and API both request autoplay + playsinline');
+    assert.ok(/var K=!1,Q=!0,z=!1,j=!1,X=!1;/.test(tv), 'start muted for all users, not only iOS');
+    assert.ok(tv.includes('Q&&(r.mute=1)') && tv.includes('i.target.mute()') && tv.includes('i.target.playVideo()'), 'player API mutes then plays on ready');
+    assert.ok(tv.includes('id="tctv-unmute-hint"') && tv.includes('Tap to unmute'), 'clear unmute affordance');
+    assert.ok(!/Q=function\(\)\{try\{var i=navigator\.userAgent/.test(tv), 'iOS-only mute gate is gone');
+}
+console.log('tctv muted autoplay: ok');
 // Backfill planner: never lowers seconds, never writes under-age accounts, idempotent.
 {
     const B = require('../functions/scripts/backfill_tctv_pot_seconds.js');
