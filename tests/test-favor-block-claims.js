@@ -687,6 +687,33 @@ test('listMine returns only the caller\'s own blocks', async function () {
     assert.deepStrictEqual((await h.svc.listMine(ctx(null), { epochNumbers: [1] })).claims, []);
 });
 
+test('listMine: released claimable stays claimable; unreleased frozen review stays manual_review; paid stays paid', async function () {
+    const h = makeHarness();
+    // Same setup as a live address-changed-after-close hold.
+    h.db.store.set('lightning_addresses/bob@wallet.example', { uid: BOB, address: 'bob@wallet.example', lockedAt: { seconds: CLOSED_MS / 1000 + 60 } });
+    const fr = await freeze(h, 1);
+    assert.strictEqual(fr.result.blocks[3].manualReview, 'address_changed_after_close');
+
+    const unreleased = await h.svc.listMine(ctx(BOB), { epochNumbers: [1] });
+    assert.strictEqual(unreleased.claims.length, 1);
+    assert.strictEqual(unreleased.claims[0].block, 3);
+    assert.strictEqual(unreleased.claims[0].status, 'manual_review', 'no claim doc yet, frozen flag still hides the button');
+
+    assert.strictEqual((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).code, 'manual_review');
+    assert.strictEqual((await h.svc.listMine(ctx(BOB), { epochNumbers: [1] })).claims[0].status, 'manual_review');
+
+    const r = await h.svc.resolveReview('adminUid000001', { epoch: 1, block: 3, action: 'release', note: 'address change accepted' });
+    assert.strictEqual(r.code, 'released');
+    const released = await h.svc.listMine(ctx(BOB), { epochNumbers: [1] });
+    assert.strictEqual(released.claims[0].status, 'claimable');
+    assert.strictEqual(released.claims[0].block, 3);
+    assert.strictEqual(h.db.store.get('sf_payout_results/epoch_1').blocks[3].manualReview, 'address_changed_after_close', 'frozen review flag is left in place');
+
+    const p = await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+    assert.ok(p.success, JSON.stringify(p));
+    assert.strictEqual((await h.svc.listMine(ctx(BOB), { epochNumbers: [1] })).claims[0].status, 'paid');
+});
+
 // ---------- routing-fee cap (Red Team #311 item 2) ----------
 function hint(base, ppm) {
     return { tagName: 'routing_info', data: [{ pubkey: '03' + '11'.repeat(32), short_channel_id: '0000010000020003', fee_base_msat: base, fee_proportional_millionths: ppm, cltv_expiry_delta: 40 }] };

@@ -876,7 +876,11 @@ function createBlockClaimService(deps) {
                 const cd = c.exists ? (c.data() || {}) : null;
                 let status = cd ? cd.status : 'claimable';
                 if (status === 'claimable') {
-                    if (row.manualReview) status = 'manual_review';
+                    // An admin release leaves the frozen manualReview flag in
+                    // place (that record is permanent). Honor the release so
+                    // the winner sees a Claim button.
+                    const released = !!cd && cd.reviewReleased === true;
+                    if (row.manualReview && !released) status = 'manual_review';
                     else if (offline || !cfg.claimsEnabled || cfg.enabledEpochs.indexOf(e) === -1) status = 'not_open';
                 }
                 out.push({ epochNumber: e, block: row.block, winId: claimId(e, row.block), amount: row.amount,
