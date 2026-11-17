@@ -31,7 +31,7 @@ const MOCK_NODE_PUBKEY = '02' + 'ab'.repeat(32);
 function mockWallet(cfg) {
     return {
         getBalance: async function () { return { balance: cfg.mockWalletBalanceSats * 1000 }; },
-        getInfo: async function () { return { pubkey: MOCK_NODE_PUBKEY }; },
+        getInfo: async function () { return { pubkey: cfg.mockBlankPubkey === true ? '' : MOCK_NODE_PUBKEY }; },
         payInvoice: async function () {
             if (cfg.mockPayOutcome === 'refuse') { const e = new Error('PAYMENT_FAILED'); e.code = 'PAYMENT_FAILED'; throw e; }
             if (cfg.mockPayOutcome === 'timeout') throw new Error('[TIMEOUT] payInvoice');
@@ -191,6 +191,7 @@ function factory(functionsV1, deps) {
             lookupSettlement: lookupSettlement,
             classifyLookup: classifyLookup,
             notifyAdmin: notifyAdmin,
+            logWarn: function (msg, data) { require('firebase-functions/logger').warn(msg, data || {}); },
         });
     }
 
@@ -231,11 +232,12 @@ function factory(functionsV1, deps) {
                 patch[k] = n;
             }
         });
-        if (d.mockWallet != null || d.mockWalletBalanceSats != null || d.mockPayOutcome != null || d.mockRouteHint != null || d.mockFeesPaidMsat != null) {
+        if (d.mockWallet != null || d.mockWalletBalanceSats != null || d.mockPayOutcome != null || d.mockRouteHint != null || d.mockFeesPaidMsat != null || d.mockBlankPubkey != null) {
             if (!staging) throw new HttpsError('permission-denied', 'Mock wallet is staging only');
             if (d.mockRouteHint != null) patch.mockRouteHint = ['none', 'normal', 'high'].indexOf(d.mockRouteHint) !== -1 ? d.mockRouteHint : 'none';
             if (d.mockFeesPaidMsat != null) patch.mockFeesPaidMsat = Math.max(0, Math.floor(Number(d.mockFeesPaidMsat)) || 0);
             if (d.mockWallet != null) patch.mockWallet = d.mockWallet === true;
+            if (d.mockBlankPubkey != null) patch.mockBlankPubkey = d.mockBlankPubkey === true;
             if (d.mockWalletBalanceSats != null) patch.mockWalletBalanceSats = Math.floor(Number(d.mockWalletBalanceSats)) || 0;
             if (d.mockPayOutcome != null) patch.mockPayOutcome = ['paid', 'refuse', 'timeout'].indexOf(d.mockPayOutcome) !== -1 ? d.mockPayOutcome : 'paid';
         }
