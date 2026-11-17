@@ -1,0 +1,29 @@
+# Version updates for pinned GitHub Actions and npm lockfiles.
+# cooldown: wait 7 days after a release before proposing it, so a hijacked
+# release is usually caught and pulled before we ever see a PR for it.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: gh-pages
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: /functions
+    target-branch: gh-pages
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+  - package-ecosystem: npm
+    directory: /tests/rules
+    target-branch: gh-pages
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 3

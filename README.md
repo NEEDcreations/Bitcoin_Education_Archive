@@ -40,8 +40,8 @@ Install Node.js 22 (the Functions runtime and the dev workflow both use 22) and 
 git clone https://github.com/NEEDcreations/Bitcoin_Education_Archive.git
 cd Bitcoin_Education_Archive
 git config core.hooksPath githooks
-npm ci --prefix functions
-npm ci --prefix tests/rules
+npm ci --ignore-scripts --prefix functions
+npm ci --ignore-scripts --prefix tests/rules
 node tests/test-syntax.js
 ```
 
