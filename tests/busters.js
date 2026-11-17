@@ -302,7 +302,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261116_v2581'));
     assert.ok(!html.includes('ranking.js?v=20261114_v2565'));
     assert.ok(!html.includes('ranking.js?v=20261104_v2483'));
-    assert.ok(html.includes('/tctv-drip.js?v=20261117_v2588'));
+    assert.ok(html.includes('/tctv-drip.js?v=20261117_v2598'));
     assert.ok(!html.includes('tctv-drip.js?v=20261114_v2573'));
     assert.ok(!html.includes('tctv-drip.js?v=20261114_v2572'));
     assert.ok(!html.includes('tctv-drip.js?v=20261114_v2571'));
@@ -656,7 +656,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('patches.js?v=20261023_v2349'));
     assert.ok(!html.includes('patches.js?v=20261022_v2263'));
     assert.ok(!html.includes('guide.js?v=20261022_v2322'));
-    assert.ok(html.includes('timechain-tv.js?v=20261105_v2502'));
+    assert.ok(html.includes('timechain-tv.js?v=20261117_v2598'));
     assert.ok(!html.includes('timechain-tv.js?v=20261031_v2447'));
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2383'));
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
@@ -666,6 +666,14 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('faction-race-prizes.js?v=20261105_v2505'));
 });
 
+
+test('TCTV drip and player cache busters moved with #342', () => {
+    const html = read('index.html');
+    assert.ok(html.includes('tctv-drip.js?v=20261117_v2598'));
+    assert.ok(!html.includes('tctv-drip.js?v=20261117_v2588'));
+    assert.ok(html.includes('timechain-tv.js?v=20261117_v2598'));
+    assert.ok(!html.includes('timechain-tv.js?v=20261105_v2502'));
+});
 
 test('hot-topics cache buster moved and As Featured On has Bitcoin Today on a centered bottom row', () => {
     const html = read('index.html');
