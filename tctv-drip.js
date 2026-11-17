@@ -116,7 +116,8 @@
             '@media (hover:hover){#tctv-drip:not(.td-tipclosed):has(.td-pinfo:hover) .td-ptip{display:block}}' +
             '#tctv-drip .td-bar{height:6px;border-radius:4px;background:rgba(255,255,255,.12);margin:6px 0;overflow:hidden}' +
             '#tctv-drip .td-fill{height:100%;background:linear-gradient(90deg,#f7931a,#ffcf6b);width:0;transition:width .8s ease}' +
-            '#tctv-drip .td-live b{color:#4ade80}' +
+            '#tctv-drip .td-live b,#tctv-drip .td-ptip-rate b{color:#4ade80}' +
+            '#tctv-drip .td-ptip-rate{font-weight:800;margin:0 0 6px}' +
             '#tctv-drip .td-bubble{display:none;position:relative;align-items:center;gap:6px;min-width:44px;min-height:44px;height:48px;padding:4px 12px 4px 4px;border-radius:999px;border:2px solid #f7931a;background:#1a1205;box-shadow:0 6px 18px rgba(0,0,0,.5);cursor:grab;color:#ffcf6b;font-weight:800;font-family:inherit;font-size:13px}' +
             '#tctv-drip .td-bubble .td-pot{width:40px;height:40px;border-radius:50%;box-shadow:none}' +
             '#tctv-drip .td-bubble .td-fx{top:4px;height:40px;left:4px;right:auto;width:40px;border-radius:50%}' +
@@ -310,7 +311,7 @@
             '</div></div>' +
             '<button type="button" class="td-min" aria-label="Minimize pot of sats" title="Minimize">\u2013</button>' +
             ['tl', 'tr', 'bl', 'br', 't', 'b', 'l', 'r'].map(function (d) { return '<span class="td-rz td-rz-' + d + '" data-rz="' + d + '" aria-hidden="true"></span>'; }).join('') +
-            '<div class="td-ptip" role="tooltip">You can ignore this, but if you don\u2019t tap it, your watch time won\u2019t be added to the pot of sats.</div>' +
+            '<div class="td-ptip" role="tooltip"><div class="td-ptip-rate"></div>You can ignore this, but if you don\u2019t tap it, your watch time won\u2019t be added to the pot of sats.</div>' +
             '<div class="td-pop"><div class="td-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100"><div class="td-fill"></div></div>' +
             '<div class="td-live" aria-live="polite"></div>' +
             '<div style="margin-top:6px;opacity:.85">The pot of sats fills a little every minute while people watch Timechain TV together. More viewers, faster fill. When it\u2019s full, the sats are shared with the viewers who helped fill it, based on how long each person watched. Your Share updates live on this pot while you watch. When the pot is full, that share is added to your sats balance to claim. Keep the video playing and this tab open to take part. Drag this anywhere. Drag any edge or corner to resize it, or tap \u2013 in the corner to minimize it to a small pill. The size and minimized choice stay on this device.</div></div></div>' +
@@ -450,6 +451,8 @@
             : pot.waiting === true ? 'Pot is full! It\u2019s shared once enough viewers have watched long enough. Keep watching to take part.'
             : (pot.status === 'full' || pot.status === 'distributing' ? 'Pot is full! Sharing it with viewers\u2026' : 'Pot is full! Sharing will start soon.');
         el.querySelector('.td-live').innerHTML = line;
+        var tipRate = el.querySelector('.td-ptip-rate');
+        if (tipRate) tipRate.innerHTML = line;
         if (lastBursts !== null && (pot.bursts || 0) > lastBursts) burst(Math.floor(sats / 1000) * 1000);
         lastBursts = pot.bursts || 0;
         scheduleDrops(n);
