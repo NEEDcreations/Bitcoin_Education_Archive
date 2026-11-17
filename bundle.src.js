@@ -13111,7 +13111,8 @@ var MSG_CONFIG = {
     presenceInterval: 60 * 1000,        // Update presence every 60s
     maxMsgLength: 500,                  // Max characters per message
     maxMsgsPerHour: 30,                 // Rate limit
-    maxConvoHistory: 500,               // Max messages loaded per conversation
+    pageSize: 30,                       // Newest messages loaded per conversation open or scroll-up
+    maxConvoHistory: 500,               // Cap on how far back a thread will lazy-load
     unreadPollInterval: 30 * 1000,      // Check unread every 30s
     maxNewConvosPerDay: 5,              // Max NEW unique recipients per day (anti-blast)
     newAccountCooldownMs: 24 * 60 * 60 * 1000, // 24h before new accounts can DM
@@ -14179,77 +14180,234 @@ function showDMWindow(convoId, otherUid, otherName, myUid, myName) {
 
 window.closeDM = function() {
     if (window._dmUnsubscribe) { window._dmUnsubscribe(); window._dmUnsubscribe = null; }
+    var box = document.getElementById('dmMessages');
+    if (box && box._dmScrollLoader) {
+        box.removeEventListener('scroll', box._dmScrollLoader);
+        box._dmScrollLoader = null;
+    }
+    window._dmPaging = null;
     var w = document.getElementById('dmWindow');
     if (w) w.remove();
 };
+
+function _dmMessageTime(m) {
+    return m && m.createdAt ? (m.createdAt.toDate ? m.createdAt.toDate() : new Date(m.createdAt)) : new Date();
+}
+
+function _dmDateLabel(time) {
+    return time.toLocaleDateString();
+}
+
+function _dmBuildMessageHtml(m, myUid) {
+    var isMe = m.senderUid === myUid;
+    if (!isMe && !m.isNachoAuto && typeof isUserBlocked === 'function' && isUserBlocked(m.senderUid)) {
+        return '';
+    }
+    var time = _dmMessageTime(m);
+    var timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    var isNacho = m.senderUid === 'nacho-bot' || m.isNachoAuto === true;
+    var scamWarn = (!isMe && !isNacho && (containsScamPattern(m.text) || containsSuspiciousLink(m.text))) ?
+        '<div style="font-size:0.65rem;color:#ef4444;margin-top:4px;padding:3px 6px;background:rgba(239,68,68,0.1);border-radius:4px;">⚠️ This message may contain a scam. Never send money to strangers.</div>' : '';
+    var piiWarn = (!isMe && !isNacho && containsPII(m.text)) ?
+        '<div style="font-size:0.65rem;color:#eab308;margin-top:4px;padding:3px 6px;background:rgba(234,179,8,0.1);border-radius:4px;">⚠️ This person is asking for personal info. Only share details for Lightning Mart transactions.</div>' : '';
+    var bubbleBg = isNacho ? 'rgba(34,197,94,0.08)' : isMe ? 'var(--accent)' : 'var(--card-bg)';
+    var bubbleBorder = isNacho ? '1px solid rgba(34,197,94,0.25)' : 'none';
+    var bubbleColor = isNacho ? 'var(--text)' : isMe ? '#fff' : 'var(--text)';
+    var nachoLabel = isNacho ? '<div style="font-size:0.65rem;color:#22c55e;font-weight:700;margin-bottom:3px;">🦌 Nacho</div>' : '';
+    var msgText = linkifyText(escapeHtml(m.text || '')).replace(/\n/g, '<br>');
+    var imgHtml = '';
+    if (m.imageUrl) {
+        imgHtml = '<img src="' + sanitizeUrl(m.imageUrl) + '" style="max-width:100%;max-height:250px;border-radius:8px;margin:' + (m.text ? '6px 0 0' : '0') + ';display:block;cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
+    }
+    return '<div data-dm-msg="' + escapeHtml(String(m._id || '')) + '" data-dm-date="' + escapeHtml(_dmDateLabel(time)) + '" style="display:flex;justify-content:' + (isMe && !isNacho ? 'flex-end' : 'flex-start') + ';margin-bottom:6px;">' +
+        '<div style="max-width:85%;padding:10px 14px;border-radius:' + (isMe && !isNacho ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';background:' + bubbleBg + ';border:' + bubbleBorder + ';color:' + bubbleColor + ';font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
+            nachoLabel + (msgText || '') + imgHtml + scamWarn + piiWarn +
+            '<div style="font-size:0.6rem;color:' + (isMe && !isNacho ? 'rgba(255,255,255,0.6)' : 'var(--text-faint)') + ';margin-top:4px;text-align:right;">' + timeStr + '</div>' +
+        '</div></div>';
+}
+
+function _dmDateSeparator(label) {
+    return '<div data-dm-date-sep="' + escapeHtml(label) + '" style="text-align:center;color:var(--text-faint);font-size:0.7rem;margin:12px 0 8px;">' + escapeHtml(label) + '</div>';
+}
+
+function _dmEnsureOlderControl(container, paging) {
+    var el = document.getElementById('dmLoadOlder');
+    if (!paging.hasMore) {
+        if (el) el.remove();
+        return;
+    }
+    if (el) return;
+    el = document.createElement('div');
+    el.id = 'dmLoadOlder';
+    el.style.cssText = 'text-align:center;padding:8px 0 4px;';
+    el.innerHTML = '<button type="button" style="background:none;border:1px solid var(--border,#333);color:var(--text-muted,#aaa);border-radius:999px;padding:4px 12px;font-size:0.75rem;cursor:pointer;font-family:inherit;">Load earlier messages</button>';
+    el.querySelector('button').addEventListener('click', function() { loadOlderDMMessages(); });
+    container.insertBefore(el, container.firstChild);
+}
+
+function loadOlderDMMessages() {
+    var paging = window._dmPaging;
+    var container = document.getElementById('dmMessages');
+    if (!paging || !container || paging.loadingOlder || !paging.hasMore || !paging.oldestDoc) return;
+    if (paging.loaded >= MSG_CONFIG.maxConvoHistory) {
+        paging.hasMore = false;
+        _dmEnsureOlderControl(container, paging);
+        return;
+    }
+    paging.loadingOlder = true;
+    var status = document.getElementById('dmLoadOlder');
+    if (status) status.querySelector('button').textContent = 'Loading earlier messages...';
+    var take = Math.min(MSG_CONFIG.pageSize, MSG_CONFIG.maxConvoHistory - paging.loaded);
+    db.collection('dm_conversations').doc(paging.convoId)
+        .collection('messages')
+        .orderBy('createdAt', 'desc')
+        .startAfter(paging.oldestDoc)
+        .limit(take)
+        .get()
+        .then(function(snap) {
+            paging.loadingOlder = false;
+            if (!window._dmPaging || window._dmPaging.convoId !== paging.convoId) return;
+            if (snap.empty) {
+                paging.hasMore = false;
+                _dmEnsureOlderControl(container, paging);
+                return;
+            }
+            paging.hasMore = snap.docs.length === take;
+            paging.oldestDoc = snap.docs[snap.docs.length - 1] || paging.oldestDoc;
+            var prevHeight = container.scrollHeight;
+            var prevTop = container.scrollTop;
+            // snap is newest-of-page first; prepend oldest-first so the thread stays chronological.
+            var docs = snap.docs.slice().reverse();
+            var html = '';
+            var lastDate = '';
+            docs.forEach(function(doc) {
+                if (paging.rendered[doc.id]) return;
+                var m = doc.data() || {};
+                m._id = doc.id;
+                var dateStr = _dmDateLabel(_dmMessageTime(m));
+                if (dateStr !== lastDate) {
+                    html += _dmDateSeparator(dateStr);
+                    lastDate = dateStr;
+                }
+                var piece = _dmBuildMessageHtml(m, paging.myUid);
+                if (piece) {
+                    html += piece;
+                    paging.rendered[doc.id] = true;
+                    paging.loaded++;
+                }
+            });
+            var anchor = document.getElementById('dmLoadOlder');
+            var tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            var insertBefore = anchor && anchor.parentNode === container ? anchor.nextSibling : container.firstChild;
+            while (tmp.firstChild) container.insertBefore(tmp.firstChild, insertBefore);
+            container.scrollTop = container.scrollHeight - prevHeight + prevTop;
+            _dmEnsureOlderControl(container, paging);
+        })
+        .catch(function() {
+            paging.loadingOlder = false;
+            var btn = document.querySelector('#dmLoadOlder button');
+            if (btn) btn.textContent = 'Load earlier messages';
+        });
+}
 
 function loadDMMessages(convoId, myUid, otherUid, otherName) {
     var container = document.getElementById('dmMessages');
     if (!container) return;
 
+    if (window._dmUnsubscribe) { window._dmUnsubscribe(); window._dmUnsubscribe = null; }
+    if (container._dmScrollLoader) {
+        container.removeEventListener('scroll', container._dmScrollLoader);
+        container._dmScrollLoader = null;
+    }
+
     container.innerHTML = '<div style="text-align:center;color:var(--text-faint);font-size:0.8rem;padding:20px;">Loading messages...</div>';
 
-    // Real-time listener on messages
+    var paging = {
+        convoId: convoId,
+        myUid: myUid,
+        otherUid: otherUid,
+        otherName: otherName,
+        oldestDoc: null,
+        loaded: 0,
+        hasMore: false,
+        loadingOlder: false,
+        rendered: {},
+        initial: true
+    };
+    window._dmPaging = paging;
+
+    var pageSize = MSG_CONFIG.pageSize || 30;
     window._dmUnsubscribe = db.collection('dm_conversations').doc(convoId)
         .collection('messages')
-        .orderBy('createdAt', 'asc')
-        .limit(MSG_CONFIG.maxConvoHistory)
+        .orderBy('createdAt', 'desc')
+        .limit(pageSize)
         .onSnapshot(function(snap) {
-            container.innerHTML = '';
+            if (!window._dmPaging || window._dmPaging.convoId !== convoId) return;
 
-            if (snap.empty) {
-                container.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
-                    '<div style="font-size:2rem;margin-bottom:8px;">💬</div>' +
-                    '<div style="color:var(--text-muted);font-size:0.85rem;">Start a conversation with ' + escapeHtml(otherName) + '!</div>' +
-                    '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Messages are private between you two.</div></div>';
+            if (paging.initial) {
+                paging.initial = false;
+                container.innerHTML = '';
+                if (snap.empty) {
+                    container.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
+                        '<div style="font-size:2rem;margin-bottom:8px;">💬</div>' +
+                        '<div style="color:var(--text-muted);font-size:0.85rem;">Start a conversation with ' + escapeHtml(otherName) + '!</div>' +
+                        '<div style="color:var(--text-faint);font-size:0.75rem;margin-top:4px;">Messages are private between you two.</div></div>';
+                    return;
+                }
+                paging.oldestDoc = snap.docs[snap.docs.length - 1] || null;
+                paging.hasMore = snap.docs.length === pageSize;
+                var docs = snap.docs.slice().reverse();
+                var lastDate = '';
+                var html = '';
+                docs.forEach(function(doc) {
+                    var m = doc.data() || {};
+                    m._id = doc.id;
+                    var dateStr = _dmDateLabel(_dmMessageTime(m));
+                    if (dateStr !== lastDate) {
+                        html += _dmDateSeparator(dateStr);
+                        lastDate = dateStr;
+                    }
+                    var piece = _dmBuildMessageHtml(m, myUid);
+                    if (piece) {
+                        html += piece;
+                        paging.rendered[doc.id] = true;
+                        paging.loaded++;
+                    }
+                });
+                container.innerHTML = html;
+                _dmEnsureOlderControl(container, paging);
+                container.scrollTop = container.scrollHeight;
+                var onScroll = function() {
+                    if (container.scrollTop < 80) loadOlderDMMessages();
+                };
+                container._dmScrollLoader = onScroll;
+                container.addEventListener('scroll', onScroll);
+                markDMRead(convoId, myUid);
                 return;
             }
 
-            var lastDate = '';
-            snap.forEach(function(doc) {
-                var m = doc.data();
-                var isMe = m.senderUid === myUid;
-                // [AUDIT FIX] Filter messages from blocked users (never filter Nacho)
-                if (!isMe && !m.isNachoAuto && typeof isUserBlocked === 'function' && isUserBlocked(m.senderUid)) {
-                    return; // Skip rendering this message
-                }
-                var time = m.createdAt ? (m.createdAt.toDate ? m.createdAt.toDate() : new Date(m.createdAt)) : new Date();
-                var dateStr = time.toLocaleDateString();
-
-                // Date separator
-                if (dateStr !== lastDate) {
-                    container.innerHTML += '<div style="text-align:center;color:var(--text-faint);font-size:0.7rem;margin:12px 0 8px;">' + dateStr + '</div>';
-                    lastDate = dateStr;
-                }
-
-                var timeStr = time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                var isNacho = m.senderUid === 'nacho-bot' || m.isNachoAuto === true;
-                // Scam warning on incoming messages (skip for Nacho)
-                var scamWarn = (!isMe && !isNacho && (containsScamPattern(m.text) || containsSuspiciousLink(m.text))) ?
-                    '<div style="font-size:0.65rem;color:#ef4444;margin-top:4px;padding:3px 6px;background:rgba(239,68,68,0.1);border-radius:4px;">⚠️ This message may contain a scam. Never send money to strangers.</div>' : '';
-                var piiWarn = (!isMe && !isNacho && containsPII(m.text)) ?
-                    '<div style="font-size:0.65rem;color:#eab308;margin-top:4px;padding:3px 6px;background:rgba(234,179,8,0.1);border-radius:4px;">⚠️ This person is asking for personal info. Only share details for Lightning Mart transactions.</div>' : '';
-                var bubbleBg = isNacho ? 'rgba(34,197,94,0.08)' : isMe ? 'var(--accent)' : 'var(--card-bg)';
-                var bubbleBorder = isNacho ? '1px solid rgba(34,197,94,0.25)' : 'none';
-                var bubbleColor = isNacho ? 'var(--text)' : isMe ? '#fff' : 'var(--text)';
-                var nachoLabel = isNacho ? '<div style="font-size:0.65rem;color:#22c55e;font-weight:700;margin-bottom:3px;">🦌 Nacho</div>' : '';
-                var msgText = linkifyText(escapeHtml(m.text)).replace(/\n/g, '<br>');
-                // Image support
-                var imgHtml = '';
-                if (m.imageUrl) {
-                    imgHtml = '<img src="' + sanitizeUrl(m.imageUrl) + '" style="max-width:100%;max-height:250px;border-radius:8px;margin:' + (m.text ? '6px 0 0' : '0') + ';display:block;cursor:pointer;" loading="lazy" onclick="if(typeof openImg===\'function\')openImg(this.src);else window.open(this.src)" onerror="this.style.display=\'none\'">';
-                }
-                container.innerHTML += '<div style="display:flex;justify-content:' + (isMe && !isNacho ? 'flex-end' : 'flex-start') + ';margin-bottom:6px;">' +
-                    '<div style="max-width:85%;padding:10px 14px;border-radius:' + (isMe && !isNacho ? '14px 14px 4px 14px' : '14px 14px 14px 4px') + ';background:' + bubbleBg + ';border:' + bubbleBorder + ';color:' + bubbleColor + ';font-size:0.85rem;line-height:1.5;word-break:break-word;">' +
-                        nachoLabel + (msgText || '') + imgHtml + scamWarn + piiWarn +
-                        '<div style="font-size:0.6rem;color:' + (isMe && !isNacho ? 'rgba(255,255,255,0.6)' : 'var(--text-faint)') + ';margin-top:4px;text-align:right;">' + timeStr + '</div>' +
-                    '</div></div>';
+            snap.docChanges().forEach(function(change) {
+                if (change.type !== 'added') return;
+                var doc = change.doc;
+                if (paging.rendered[doc.id]) return;
+                var m = doc.data() || {};
+                m._id = doc.id;
+                var empty = container.querySelector('div[style*="Start a conversation"]');
+                if (empty) container.innerHTML = '';
+                var dateStr = _dmDateLabel(_dmMessageTime(m));
+                var lastSep = container.querySelector('[data-dm-date-sep]:last-of-type');
+                var lastDate = lastSep ? lastSep.getAttribute('data-dm-date-sep') : '';
+                var html = '';
+                if (dateStr !== lastDate) html += _dmDateSeparator(dateStr);
+                var piece = _dmBuildMessageHtml(m, myUid);
+                if (!piece) return;
+                var nearBottom = (container.scrollHeight - container.scrollTop - container.clientHeight) < 80;
+                container.insertAdjacentHTML('beforeend', html + piece);
+                paging.rendered[doc.id] = true;
+                paging.loaded++;
+                if (nearBottom) container.scrollTop = container.scrollHeight;
             });
-
-            // Scroll to bottom
-            container.scrollTop = container.scrollHeight;
-
-            // Mark messages as read
             markDMRead(convoId, myUid);
         }, function(err) {
             container.innerHTML = '<div style="text-align:center;padding:40px 20px;">' +
