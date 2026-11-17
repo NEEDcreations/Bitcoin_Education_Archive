@@ -31,8 +31,11 @@ store payment hashes, so the sample is faucet-only. p95 rounded up = 3 (covers t
 - Manual payouts Phil marks paid (`adminMarkCipherWinPaid`, ≥1,000 sat prizes, raffle) send nothing
   from the server, so no fee is applied in code. Phil decides the amount he sends.
 
-## Wavelength / Premium payout rail (staging design, no code path yet)
-When the Wavelength rail is added it must use the same `lnFee.quote(gross)`:
+## Wavelength / Premium payout rail
+The adapter is `functions/src/wavelengthAdapter.js`, selected only when
+`config/payoutRail.provider` is exactly `wavelength` (default stays Alby/NWC;
+see `functions/src/payoutRail.js`). Existing claim paths are not wired to it
+yet. When a path is wired, it must use the same `lnFee.quote(gross)`:
 1. `quote(gross)` → refuse if `!ok`. Debit gross in the reserve transaction, as today.
 2. Resolve the LNURL invoice for `net`; check decoded amount == net.
 3. `POST /v1/wallet/prepare-send {invoice}` → refuse (and restore gross) if `amount_sat != net`
