@@ -7,11 +7,17 @@
 // can run the Firestore rules suites without a separate install step.
 // =============================================
 const { execSync } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 
 const rulesDir = path.join(__dirname, 'rules');
 console.log('Installing tests/rules dependencies (npm ci)…');
 execSync('npm ci', { cwd: rulesDir, stdio: 'inherit' });
+
+if (fs.existsSync(path.join(__dirname, 'package.json'))) {
+    console.log('Installing tests dependencies (npm ci)…');
+    execSync('npm ci', { cwd: __dirname, stdio: 'inherit' });
+}
 
 const TESTS = [
     { name: 'Syntax Validation', file: 'test-syntax.js' },

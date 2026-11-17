@@ -388,7 +388,7 @@ function forumRenderPosts(posts, container) {
                 '</div>' +
                 '<div style="flex:1;min-width:0;overflow:hidden;">' +
                     '<div style="color:var(--heading);font-size:0.9rem;font-weight:700;margin-bottom:3px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</div>' +
-                    (p.body ? '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.4;margin-bottom:5px;overflow:hidden;max-height:2.6em;word-wrap:break-word;">' + fEsc(p.body).substring(0, 120) + (p.body.length > 120 ? '...' : '') + '</div>' : '') +
+                    (p.body ? '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.4;margin-bottom:5px;overflow:hidden;max-height:2.6em;word-wrap:break-word;">' + fEsc(p.body.length > 120 ? p.body.substring(0, 120) : p.body) + (p.body.length > 120 ? '...' : '') + '</div>' : '') +
                     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
                         '<span' + fAct('profile', p.authorId) + ' style="font-size:0.7rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-faint)') + ';cursor:pointer;transition:0.2s;">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
                         '<span style="font-size:0.65rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
@@ -501,7 +501,7 @@ window.forumViewPost = async function(postId, fromPopState) {
             // [VULN-5 FIX] sanitizeUrl blocks javascript:/data:/vbscript: before writing into href
             var safeLink = typeof sanitizeUrl === 'function' ? sanitizeUrl(p.link) : '';
             if (safeLink) {
-                html += '<a href="' + fEsc(safeLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:0.85rem;margin-bottom:12px;">🔗 ' + fEsc(safeLink).substring(0, 60) + (safeLink.length > 60 ? '...' : '') + '</a><br>';
+                html += '<a href="' + fEsc(safeLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:0.85rem;margin-bottom:12px;">🔗 ' + fEsc(safeLink.length > 60 ? safeLink.substring(0, 60) : safeLink) + (safeLink.length > 60 ? '...' : '') + '</a><br>';
             }
         }
 
@@ -1097,36 +1097,84 @@ window.forumSwitchTab = function(tab) {
     renderForum();
 };
 
-// ---- Simple Markdown to HTML ----
+// ---- Markdown to HTML ----
+// Tokenize on the raw string: emit link, image, bare-URL, and inline-code
+// tags once each, then escape the remaining text. Generated markup is never
+// scanned again for URLs. Every href/src is filtered with fSafeUrl
+// (http/https only) and written with fEsc.
 function mdToHtml(md) {
     if (!md) return '';
-    var h = fEsc(md);
-    // Images: ![alt](url) — [VULN-5 FIX] sanitize src to block javascript:/data: schemes
-    h = h.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(m, alt, url) {
-        var safe = typeof sanitizeUrl === 'function' ? sanitizeUrl(url) : '';
-        if (!safe) return '';
-        return '<img src="' + fEsc(safe) + '" alt="' + alt + '" style="max-width:100%;border-radius:12px;margin:16px 0;display:block;">';
+    var slots = [];
+    var nonce = 'BQMD';
+    do { nonce = 'BQMD' + Math.random().toString(36).slice(2, 10); } while (String(md).indexOf(nonce) !== -1);
+    function stash(html) {
+        var i = slots.length;
+        slots.push(html);
+        return '%%' + nonce + i + '%%';
+    }
+    function hasSlot(s) {
+        return String(s).indexOf('%%' + nonce) !== -1;
+    }
+    function stripSlots(s) {
+        return String(s).replace(new RegExp('%%' + nonce + '\\d+%%', 'g'), '');
+    }
+    function expandSlotsInText(text) {
+        return String(text).replace(new RegExp('%%' + nonce + '(\\d+)%%', 'g'), function(m, i) {
+            return slots[Number(i)] || '';
+        });
+    }
+    function hrefOf(url) {
+        var safe = fSafeUrl(String(url || '').trim());
+        return safe ? fEsc(safe) : '';
+    }
+    function inlineFmt(escaped) {
+        escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--heading);">$1</strong>');
+        escaped = escaped.replace(/\*(.+?)\*/g, '<em>$1</em>');
+        return escaped;
+    }
+    var h = String(md);
+    // Code first, so markers inside code stay literal and backticks work
+    // even though fEsc encodes them.
+    h = h.replace(/`([^`]+)`/g, function(m, code) {
+        return stash('<code style="background:var(--card-bg);padding:2px 6px;border-radius:4px;font-size:0.9em;">' + fEsc(code) + '</code>');
     });
-    // Links: [text](url) — [VULN-5 FIX] sanitize href to block javascript: scheme
-    h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(m, text, url) {
-        var safe = typeof sanitizeUrl === 'function' ? sanitizeUrl(url) : '';
-        if (!safe) return fEsc(text);
-        return '<a href="' + fEsc(safe) + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;font-weight:600;">' + text + '</a>';
+    // Cap label and URL captures so unclosed brackets cannot run for seconds.
+    // Labels cannot include '[' or ']', which also stops a long run of '[' from backtracking.
+    if (h.indexOf('](') !== -1) {
+        h = h.replace(/!\[([^\]\[\n]{0,500})\]\(([^)\s]{1,2048})\)/g, function(m, alt, url) {
+            if (hasSlot(url)) return m;
+            var href = hrefOf(url);
+            if (!href) return '';
+            return stash('<img src="' + href + '" alt="' + fEsc(stripSlots(alt)) + '" style="max-width:100%;border-radius:12px;margin:16px 0;display:block;">');
+        });
+        h = h.replace(/\[([^\]\[\n]{1,500})\]\(([^)\s]{1,2048})\)/g, function(m, text, url) {
+            if (hasSlot(url)) return m;
+            var href = hrefOf(url);
+            if (!href) return text;
+            // Expand nested slots only in link text, never into href, src, or alt.
+            return stash('<a href="' + href + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;font-weight:600;">' + inlineFmt(expandSlotsInText(fEsc(text))) + '</a>');
+        });
+    }
+
+    // Stop a bare URL at a placeholder so a backtick segment cannot land in href.
+    h = h.replace(new RegExp('https?:\\/\\/(?:(?!%%' + nonce + ')[^\\s<"])+', 'g'), function(url) {
+        var href = hrefOf(url);
+        if (!href) return url;
+        return stash('<a href="' + href + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">' + fEsc(url) + '</a>');
     });
-    // Bare URLs (not already in an href or src)
-    h = h.replace(/(?<!href="|src=")(https?:\/\/[^\s<"]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">$1</a>');
+    h = fEsc(h);
     h = h.replace(/^### (.+)$/gm, '<h3 style="color:var(--heading);font-size:1.1rem;font-weight:800;margin:20px 0 8px;">$1</h3>');
     h = h.replace(/^## (.+)$/gm, '<h2 style="color:var(--heading);font-size:1.25rem;font-weight:800;margin:24px 0 10px;">$1</h2>');
     h = h.replace(/^# (.+)$/gm, '<h1 style="color:var(--heading);font-size:1.4rem;font-weight:900;margin:28px 0 12px;">$1</h1>');
-    h = h.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--heading);">$1</strong>');
-    h = h.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    h = h.replace(/`(.+?)`/g, '<code style="background:var(--card-bg);padding:2px 6px;border-radius:4px;font-size:0.9em;">$1</code>');
-    h = h.replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid var(--accent);padding:8px 16px;margin:12px 0;color:var(--text-muted);font-style:italic;">$1</blockquote>');
+    h = inlineFmt(h);
+    // fEsc turns a leading ">" into &gt;, so match the escaped form to keep blockquotes working.
+    h = h.replace(/^&gt; (.+)$/gm, '<blockquote style="border-left:3px solid var(--accent);padding:8px 16px;margin:12px 0;color:var(--text-muted);font-style:italic;">$1</blockquote>');
     h = h.replace(/^- (.+)$/gm, '<li style="margin:4px 0 4px 20px;">$1</li>');
     h = h.replace(/^\d+\. (.+)$/gm, '<li style="margin:4px 0 4px 20px;">$1</li>');
     h = h.replace(/---/g, '<hr style="border:none;border-top:1px solid var(--border);margin:20px 0;">');
     h = h.replace(/\n{2,}/g, '</p><p style="margin:12px 0;line-height:1.8;">');
     h = '<p style="margin:12px 0;line-height:1.8;">' + h + '</p>';
+    h = h.replace(new RegExp('%%' + nonce + '(\\d+)%%', 'g'), function(m, i) { return slots[Number(i)] || ''; });
     h = forumRenderMentions(h);
     return h;
 }
@@ -2268,10 +2316,16 @@ function snEscape(str) {
 // Call AFTER fEsc() and AFTER URL linkification on already-escaped HTML
 function forumRenderMentions(html) {
     if (!html || html.indexOf('@') === -1) return html;
-    // Split on HTML tags to only process text nodes (avoids matching @mentions inside href/src attributes)
+    // Split on HTML tags to only process text nodes (avoids matching @mentions inside href/src attributes).
+    // Text inside <code> stays literal, so @name in inline code is not a mention.
+    var inCode = 0;
     return html.replace(/(<[^>]+>)|(@([a-zA-Z0-9_\-\.]{2,20}))/g, function(match, tag, mention, username) {
-        if (tag) return tag; // HTML tag — pass through unchanged
-        // It's an @mention in a text node
+        if (tag) {
+            if (/^<code\b/i.test(tag)) inCode++;
+            else if (/^<\/code>/i.test(tag) && inCode) inCode--;
+            return tag;
+        }
+        if (inCode) return mention;
         return '<span class="forum-mention" onclick="forumMentionClick(\'' + username.replace(/'/g, '') + '\')">' + mention + '</span>';
     });
 }
@@ -2570,6 +2624,6 @@ if (document.readyState === 'loading') {
 }
 
 // Escaping helpers, exposed read-only for tests/test-forum-xss.js.
-window._forumSafe = Object.freeze({ fId: fId, fEsc: fEsc, fNum: fNum, fSafeUrl: fSafeUrl, fAct: fAct, renderPosts: function(posts, container) { return forumRenderPosts(posts, container); } });
+window._forumSafe = Object.freeze({ fId: fId, fEsc: fEsc, fNum: fNum, fSafeUrl: fSafeUrl, fAct: fAct, mdToHtml: mdToHtml, renderPosts: function(posts, container) { return forumRenderPosts(posts, container); } });
 
 })();
