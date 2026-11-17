@@ -410,7 +410,7 @@
         panel.id = 'citadelWirePanel';
         panel.innerHTML =
             '<button type="button" class="cw-toggle" id="cwToggle" aria-expanded="false" aria-controls="cwEmbed">' +
-                '<span class="cw-toggle-label">More high-signal news: Citadel Wire by Odell</span>' +
+                '<span class="cw-toggle-label">Citadel Wire: More high-signal News</span>' +
                 '<span class="cw-toggle-chevron" id="cwChevron">▼</span>' +
             '</button>' +
             '<div id="cwEmbed" class="cw-embed" hidden>' +

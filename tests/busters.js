@@ -667,6 +667,24 @@ test('index.html and 404.html match, and the changed script busters moved', () =
 });
 
 
+test('hot-topics cache buster moved and As Featured On has Bitcoin Today on a centered bottom row', () => {
+    const html = read('index.html');
+    assert.strictEqual(html, read('404.html'));
+    assert.ok(html.includes('hot-topics.js?v=20261117_v2597'));
+    assert.ok(!html.includes('hot-topics.js?v=20261114_citadelwire3'));
+    const featured = html.split('id="featuredOnSection"')[1].split('id="featuredOnMini"')[0];
+    const iPU = featured.indexOf('alt="Pleb Underground"');
+    const iSM = featured.indexOf('alt="Stackchain Magazine"');
+    const iBT = featured.indexOf('alt="Bitcoin Today"');
+    assert.ok(iPU !== -1 && iSM !== -1 && iBT !== -1, 'missing featured alt text');
+    assert.ok(iPU < iSM && iSM < iBT, 'Bitcoin Today should sit after Pleb Underground and Stackchain Magazine');
+    assert.ok(featured.includes('/bitcoin-today-logo.webp'));
+    assert.ok(featured.includes('flex-direction:column'));
+    const home = read('hot-topics.js');
+    assert.ok(home.indexOf('Citadel Wire: More high-signal News') !== -1);
+    assert.ok(home.indexOf('More high-signal news: Citadel Wire by Odell') === -1);
+});
+
 test('same-origin script/link/img paths are root-absolute (trailing-slash safe)', () => {
     const html = read('index.html');
     assert.strictEqual(html, read('404.html'));

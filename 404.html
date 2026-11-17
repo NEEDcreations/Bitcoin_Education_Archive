@@ -1785,6 +1785,7 @@
                 <div id="featuredOnFull" style="position:relative;width:100%;padding:16px 20px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px;display:flex;flex-direction:column;align-items:center;gap:16px;box-sizing:border-box;">
                   <button onclick="document.getElementById('featuredOnFull').style.display='none';document.getElementById('featuredOnMini').style.display='flex';localStorage.setItem('btc_featured_on_collapsed','1')" style="position:absolute;top:8px;right:10px;background:rgba(0,0,0,0.55);border:none;color:rgba(255,255,255,0.75);font-size:0.7rem;font-weight:700;cursor:pointer;padding:5px 9px;border-radius:8px;font-family:inherit;letter-spacing:0.3px;line-height:1;touch-action:manipulation;" title="Hide section">▲ hide</button>
                   <span style="font-size:0.7rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:var(--text-faint,#475569);">As Featured On</span>
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:16px;width:100%;">
                   <div style="display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;">
                     <div style="opacity:0.8;display:flex;align-items:center;">
                       <img src="https://www.plebunderground.com/logo-wordmark-dark-v3.png" alt="Pleb Underground" loading="lazy" style="height:clamp(60px,12vw,90px);width:auto;max-width:min(220px,42vw);object-fit:contain;filter:invert(1) brightness(0.9);" onerror="this.style.display='none';this.nextElementSibling.style.display='inline';"><span style="display:none;color:var(--text-muted);font-size:1rem;font-weight:700;">Pleb Underground</span>
@@ -1793,6 +1794,10 @@
                     <div style="opacity:0.8;display:flex;align-items:center;">
                       <img src="/stackchain-magazine-logo.jpg" alt="Stackchain Magazine" loading="lazy" style="height:clamp(160px,32vw,260px);width:auto;max-width:min(480px,90vw);object-fit:contain;border-radius:6px;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline';"><span style="display:none;color:var(--text-muted);font-size:1.1rem;font-weight:800;">Stackchain Magazine</span>
                     </div>
+                  </div>
+                  <div style="opacity:0.8;display:flex;align-items:center;justify-content:center;">
+                    <img src="/bitcoin-today-logo.webp" alt="Bitcoin Today" loading="lazy" style="height:clamp(80px,16vw,140px);width:auto;max-width:min(420px,90vw);object-fit:contain;border-radius:6px;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline';"><span style="display:none;color:var(--text-muted);font-size:1rem;font-weight:700;">Bitcoin Today</span>
+                  </div>
                   </div>
                 </div>
                 <div id="featuredOnMini" style="display:none;align-items:center;gap:10px;padding:8px 12px;background:var(--card-bg);border:1px solid var(--border);border-radius:10px;cursor:pointer;" onclick="document.getElementById('featuredOnFull').style.display='';document.getElementById('featuredOnMini').style.display='none';localStorage.removeItem('btc_featured_on_collapsed')">
@@ -2351,7 +2356,7 @@
         ];
         var _lazyScripts = [
             'quests.js?v=20261116_v2582',
-            'hot-topics.js?v=20261114_citadelwire3',
+            'hot-topics.js?v=20261117_v2597',
             'pvp.js?v=20261031_v2447','pvp-enhance.js?v=20261022_v2285','nacho-qa.js?v=20261117_v2599',
             'scholar.js?v=20261105_v2490','beats.js?v=20261109_v2542',
             'lightning.js?v=20261023_v2323','lightning-tips.js?v=20261104_v2472',
