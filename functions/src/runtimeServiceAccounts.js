@@ -104,6 +104,24 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     watchlistCheck: { id: 'fn-watchlist-check', extra: [] },
 });
 
+// Backup-only accounts for functions that bind NO secrets but must not run as
+// the default account (which still holds roles/editor and could delete the
+// backups it copies). Each has only bucket-level storage grants:
+//   nightlyVaultCopy -> roles/storage.objectViewer on <project>-backups,
+//                       roles/storage.objectCreator + objectViewer on
+//                       <project>-offline-vault (create + read to verify; no delete).
+// Never objectAdmin, never Firestore or Auth roles.
+const BACKUP_SERVICE_ACCOUNTS = Object.freeze({
+    nightlyVaultCopy: Object.freeze({
+        id: 'fn-vault-copy',
+        grants: Object.freeze([
+            Object.freeze({ bucket: '-backups', role: 'roles/storage.objectViewer' }),
+            Object.freeze({ bucket: '-offline-vault', role: 'roles/storage.objectCreator' }),
+            Object.freeze({ bucket: '-offline-vault', role: 'roles/storage.objectViewer' }),
+        ]),
+    }),
+});
+
 const DEFAULT_PROJECT = 'bitcoin-education-archive';
 
 // Holdover: these four TOTP callables still run as the project's default
@@ -139,6 +157,13 @@ function runtimeSa(functionName) {
     return entry.id + '@' + projectId() + '.iam.gserviceaccount.com';
 }
 
+function backupSa(functionName) {
+    const entry = Object.prototype.hasOwnProperty.call(BACKUP_SERVICE_ACCOUNTS, functionName)
+        ? BACKUP_SERVICE_ACCOUNTS[functionName] : null;
+    if (!entry) throw new Error('No backup service account for ' + functionName);
+    return entry.id + '@' + projectId() + '.iam.gserviceaccount.com';
+}
+
 // runtimeSa() plus the holdover above. Still throws for unknown functions.
 function runtimeSaOrDefault(functionName) {
     const own = runtimeSa(functionName);
@@ -162,6 +187,8 @@ module.exports = {
     RUNTIME_SERVICE_ACCOUNTS: RUNTIME_SERVICE_ACCOUNTS,
     EXTRA_ROLES: EXTRA_ROLES,
     runtimeSa: runtimeSa,
+    BACKUP_SERVICE_ACCOUNTS: BACKUP_SERVICE_ACCOUNTS,
+    backupSa: backupSa,
     runtimeSaOrDefault: runtimeSaOrDefault,
     DEFAULT_SA_HOLDOVER: DEFAULT_SA_HOLDOVER,
 };
