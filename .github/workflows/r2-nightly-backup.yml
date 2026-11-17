@@ -1,7 +1,8 @@
 name: Nightly Firestore backup copy to Cloudflare R2
 
 # Copies the nightly Firestore export (written ~9:03 PM ET by dailyFirestoreBackup)
-# from GCS to the private R2 bucket bq-user-backups as an AES-256 encrypted zip.
+# from GCS to the private R2 bucket bq-user-backups, encrypted with age to the owner's
+# public key (age/firestore/<date>/). No passphrase or private key is used or stored here.
 # Read-only on GCP. Never echoes secrets. A failed run fails the job (GitHub emails the owner).
 
 on:
@@ -14,7 +15,7 @@ on:
         required: false
 
 # No repository checkout and no GitHub API calls.
-# GCP uses GCP_BACKUP_READER_KEY. R2 uses CF_R2_BACKUP_TOKEN.
+# GCP uses GCP_BACKUP_READER_KEY. R2 uses CF_R2_BACKUP_TOKEN. BACKUP_PASSPHRASE is no longer used.
 permissions: {}
 
 concurrency:
@@ -56,27 +57,21 @@ jobs:
           echo "files=$N bytes=$(du -sb "$D" | cut -f1)"
           [ "$N" -gt 10 ] || { echo "::error::Export looks incomplete ($N files)"; exit 1; }
 
-      - name: Tar and encrypt (AES-256 zip)
+      - name: Tar and encrypt to the owner's age public key
         env:
-          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          # Public key only (not a secret). Override with repo variable BACKUP_AGE_RECIPIENT.
+          AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT || 'age1vgf3kd0h976w2ccwafa7q28mm04zk8sjhlhw94nza3ghfu0fc52sxzcjhm' }}
         run: |
-          set +x
+          set -euo pipefail
           D="${{ steps.d.outputs.date }}"
+          [[ "$AGE_RECIPIENT" =~ ^age1[0-9a-z]{58}$ ]] || { echo "::error::bad age recipient"; exit 1; }
+          sudo apt-get install -y -qq age >/dev/null
           cd work
           tar -czf "bq-firestore-$D.tar.gz" "$D"
-          pip install -q pyzipper==0.4.0
-          python3 - "$D" <<'PY'
-          import os, sys, pyzipper
-          d = sys.argv[1]
-          pw = os.environ["BACKUP_PASSPHRASE"].strip().encode()
-          assert len(pw) >= 20, "passphrase missing"
-          out = f"bq-user-backup-{d}.zip"
-          with pyzipper.AESZipFile(out, "w", compression=pyzipper.ZIP_STORED, encryption=pyzipper.WZ_AES) as z:
-              z.setpassword(pw); z.write(f"bq-firestore-{d}.tar.gz")
-          with pyzipper.AESZipFile(out) as z:
-              z.setpassword(pw); assert z.testzip() is None
-          print("encrypted", out, os.path.getsize(out))
-          PY
+          sha256sum "bq-firestore-$D.tar.gz" | cut -d' ' -f1 > "bq-firestore-$D.tar.gz.sha256"
+          age -r "$AGE_RECIPIENT" -o "bq-firestore-$D.tar.gz.age" "bq-firestore-$D.tar.gz"
+          [ "$(head -c 21 "bq-firestore-$D.tar.gz.age")" = "age-encryption.org/v1" ] || { echo "::error::age output invalid"; exit 1; }
+          echo "encrypted bq-firestore-$D.tar.gz.age $(stat -c%s "bq-firestore-$D.tar.gz.age") plaintext_sha256=$(cat "bq-firestore-$D.tar.gz.sha256")"
           rm -rf "$D" "bq-firestore-$D.tar.gz"
 
       - name: Upload to R2
@@ -84,13 +79,15 @@ jobs:
           CF_TOKEN: ${{ secrets.CF_R2_BACKUP_TOKEN }}
           CF_ACCOUNT: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
+          set -euo pipefail
           D="${{ steps.d.outputs.date }}"
-          F="work/bq-user-backup-$D.zip"
-          KEY="firestore%2F$D%2Fbq-user-backup-$D.zip"
+          F="work/bq-firestore-$D.tar.gz.age"
+          KEY="age%2Ffirestore%2F$D%2Fbq-firestore-$D.tar.gz.age"
           URL="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/r2/buckets/$R2_BUCKET/objects/$KEY"
           RES=$(curl -sS --retry 3 -X PUT "$URL" -H "Authorization: Bearer $CF_TOKEN" \
-                -H "Content-Type: application/zip" --data-binary @"$F")
+                -H "Content-Type: application/octet-stream" \
+                --data-binary @"$F")
           echo "$RES" | jq -e '.success == true' >/dev/null || { echo "::error::R2 upload failed: $(echo "$RES" | jq -c .errors)"; exit 1; }
           SIZE=$(echo "$RES" | jq -r .result.size)
           [ "$SIZE" = "$(stat -c%s "$F")" ] || { echo "::error::size mismatch"; exit 1; }
-          echo "uploaded firestore/$D/bq-user-backup-$D.zip size=$SIZE"
+          echo "uploaded age/firestore/$D/bq-firestore-$D.tar.gz.age size=$SIZE"
