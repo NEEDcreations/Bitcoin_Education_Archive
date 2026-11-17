@@ -1191,16 +1191,71 @@ window.notifySelfExploration = function(channelCount, pct) {
 // Session-guarded so it only fires once per level-up event, not on every reload.
 var _shownPartnershipPopups = new Set();
 
+function _partnershipSeenKey(notifData) {
+    var levelNum = (notifData && notifData.levelNum) || 1;
+    var peerId = (notifData && notifData.peerId) || '';
+    return String(peerId).slice(0, 64) + '_lvl' + levelNum;
+}
+
+function _readPartnershipSeen() {
+    var keys = {};
+    function absorb(raw) {
+        try {
+            var list = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            if (!Array.isArray(list)) return;
+            list.forEach(function(k) { if (k) keys[String(k)] = true; });
+        } catch (e) {}
+    }
+    try { absorb(localStorage.getItem('btc_partnership_popups_seen') || '[]'); } catch (e0) {}
+    try {
+        var uid = (typeof auth !== 'undefined' && auth && auth.currentUser && auth.currentUser.uid) || '';
+        if (uid) absorb(localStorage.getItem('btc_partnership_popups_seen_' + uid) || '[]');
+    } catch (e1) {}
+    var user = (typeof currentUser !== 'undefined') ? currentUser : null;
+    var cs = user && user.celebratedState;
+    if (cs) absorb(cs.partnershipPopupsSeen || []);
+    return keys;
+}
+
+function _markPartnershipSeen(key) {
+    function addTo(storeKey) {
+        try {
+            var list = JSON.parse(localStorage.getItem(storeKey) || '[]');
+            if (!Array.isArray(list)) list = [];
+            if (list.indexOf(key) === -1) list.push(key);
+            localStorage.setItem(storeKey, JSON.stringify(list));
+        } catch (e) {}
+    }
+    addTo('btc_partnership_popups_seen');
+    try {
+        var uid = (typeof auth !== 'undefined' && auth && auth.currentUser && auth.currentUser.uid) || '';
+        if (uid) addTo('btc_partnership_popups_seen_' + uid);
+    } catch (e2) {}
+    if (typeof db !== 'undefined' && typeof firebase !== 'undefined' && firebase.firestore && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+        try {
+            db.collection('users').doc(auth.currentUser.uid).update({
+                'celebratedState.partnershipPopupsSeen': firebase.firestore.FieldValue.arrayUnion(key)
+            }).catch(function() {});
+        } catch (e3) {}
+    }
+}
+
 window.showPartnershipLevelUpPopup = function(notifData) {
     if (!notifData) return;
     var levelNum  = notifData.levelNum  || 1;
     var levelName = notifData.levelName || 'Opening Channel';
     var peerId    = notifData.peerId    || '';
 
-    // Session guard — prevent double-fire on snapshot replay
-    var guardKey = peerId + '_lvl' + levelNum;
+    // Session guard, plus a per-user seen flag so a leftover unread
+    // peer_level_up notification does not replay this on every login.
+    var guardKey = _partnershipSeenKey(notifData);
     if (_shownPartnershipPopups.has(guardKey)) return;
+    if (_readPartnershipSeen()[guardKey]) {
+        _shownPartnershipPopups.add(guardKey);
+        return;
+    }
     _shownPartnershipPopups.add(guardKey);
+    _markPartnershipSeen(guardKey);
     if (typeof window.claimSessionPopup === 'function') window.claimSessionPopup('levelup');
 
     var LEVEL_META = {
@@ -1267,23 +1322,27 @@ window.showPartnershipLevelUpPopup = function(notifData) {
             '</div>' +
 
             // Close button
-            '<button onclick="document.getElementById(\'partnershipLevelUpModal\').remove()" style="width:100%;padding:12px;background:linear-gradient(135deg,' + meta.color + ','+meta.color+'cc);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.5px;">Let\'s go! ⚡</button>' +
+            '<button type="button" data-partnership-close style="position:absolute;top:10px;right:12px;background:none;border:none;color:var(--text-muted,#aaa);font-size:1.3rem;cursor:pointer;line-height:1;padding:4px 8px;" aria-label="Close">×</button>' +
+            '<button type="button" data-partnership-close style="width:100%;padding:12px;background:linear-gradient(135deg,' + meta.color + ','+meta.color+'cc);color:#fff;border:none;border-radius:12px;font-size:0.95rem;font-weight:800;cursor:pointer;font-family:inherit;letter-spacing:0.5px;">Let\'s go! ⚡</button>' +
             '</div>';
 
         document.body.appendChild(overlay);
-        overlay.addEventListener('click', function(e) {
-            if (e.target === overlay) overlay.remove();
-        });
-
-        // Auto-dismiss after 12s
-        setTimeout(function() {
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        function closePartnershipPopup() {
             var m = document.getElementById('partnershipLevelUpModal');
-            if (m) m.style.animation = 'fadeOut 0.4s ease-in forwards';
-            setTimeout(function() {
-                var m2 = document.getElementById('partnershipLevelUpModal');
-                if (m2) m2.remove();
-            }, 400);
-        }, 12000);
+            if (m) m.remove();
+            document.removeEventListener('keydown', onPartnershipEsc);
+        }
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) closePartnershipPopup();
+        });
+        function onPartnershipEsc(e) {
+            if (e.key === 'Escape') closePartnershipPopup();
+        }
+        document.addEventListener('keydown', onPartnershipEsc);
+        var closeBtn = overlay.querySelector('[data-partnership-close]');
+        if (closeBtn) closeBtn.addEventListener('click', closePartnershipPopup);
     });
 };
 
