@@ -332,5 +332,15 @@ test('audited dead videos are gone from the channel data', () => {
     dead.removed.forEach(d => assert.ok(!data.includes('id:"' + d.id + '"'), 'still listed: ' + d.id));
 });
 
+test('no channel title shows a stray backslash before a quote', () => {
+    const start = tv.indexOf('var i=[');
+    const end = tv.indexOf('],t=null,e=!1;');
+    const stations = vm.runInNewContext('(' + tv.slice(start + 6, end + 1) + ')');
+    let bad = 0;
+    stations.forEach(s => s.videos.forEach(v => { if (/\\/.test(v.title)) bad++; }));
+    assert.strictEqual(bad, 0);
+    assert.strictEqual(stations.length, 22);
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);
