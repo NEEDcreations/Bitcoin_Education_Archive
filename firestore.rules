@@ -595,7 +595,10 @@ service cloud.firestore {
     // VISITS COLLECTION
     // =============================================
     match /visits/{visitorId} {
-      allow read: if true; // visit counter needs to display for all users
+      // [HARDENING 2026-11-17] Owner-only. The public counter is
+      // stats/visits (total only); app.js only gets its own visits/{uid} doc.
+      allow get: if request.auth != null && request.auth.uid == visitorId;
+      allow list: if false;
       // [SECURITY FIX] create/update: enforce uid == visitorId so users can only write
       // their own visit doc. Previously any auth'd user could overwrite any visitor's
       // fingerprint field, enabling ban evasion by poisoning anti-fraud telemetry.
@@ -1735,7 +1738,9 @@ service cloud.firestore {
     // PRESENCE (online users)
     // =============================================
     match /presence/{userId} {
-      allow read: if true;
+      // [HARDENING 2026-11-17] Signed-in sessions (including anonymous) only.
+      // global-chat.js reads it for the online count.
+      allow read: if request.auth != null;
       allow create, update: if clientWritesOk() && (request.auth != null
                             && request.auth.uid == userId);
       allow delete: if clientWritesOk() && (request.auth != null
@@ -2183,7 +2188,8 @@ service cloud.firestore {
 
     // Timechain TV viewer counts — increment/decrement by 1 only
     match /timechain_viewers/{stationId} {
-      allow read: if true;
+      // [HARDENING 2026-11-17] Deprecated and unused by the client: closed.
+      allow read: if false;
       allow write: if false; // deprecated — use tctv_presence
     }
 
