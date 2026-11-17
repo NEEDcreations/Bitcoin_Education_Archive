@@ -60,10 +60,22 @@ function makeDocument() {
             style: {},
             parentNode: null,
             _html: null,
+            _attrs: {},
+            disabled: false,
+            textContent: '',
             appendChild: function (child) {
                 el.childNodes.push(child);
-                if (child) child.parentNode = el;
+                if (child) {
+                    child.parentNode = el;
+                    child.parentElement = el;
+                }
                 return child;
+            },
+            getAttribute: function (name) { return el._attrs[name] || null; },
+            setAttribute: function (name, value) { el._attrs[name] = String(value == null ? '' : value); },
+            querySelectorAll: function (sel) {
+                if (sel !== 'button') return [];
+                return (el.childNodes || []).filter(function (n) { return n && n.tagName === 'BUTTON'; });
             },
             querySelector: function (sel) {
                 if (typeof sel !== 'string' || sel.charAt(0) !== '#') return null;
@@ -231,7 +243,74 @@ test('nachoQuizMe renders a question while Nacho Mode is on', function () {
     assert.ok(html.includes('The chat stays blank.'), 'wrong choice missing');
     assert.ok(html.includes('Nacho closes the screen.'), 'wrong choice missing');
     assert.ok(html.includes('<button'), 'choices were not rendered as buttons');
-    assert.ok(html.includes('data-correct="1"'), 'correct choice was not marked');
+    assert.ok(!html.includes('data-correct'), 'correct choice must not be marked in the DOM');
+    assert.ok(!/nachoQuizAnswer\(this,\s*(true|false)\)/.test(html), 'onclick must not pass a client-side correct flag');
+});
+
+
+function syncGrant(data) {
+    var p = {
+        then: function (ok, fail) {
+            try {
+                var out = ok({ data: data });
+                return p;
+            } catch (e) {
+                if (fail) fail(e);
+                throw e;
+            }
+        },
+        catch: function (fail) { return p; }
+    };
+    return p;
+}
+
+test('nachoQuizAnswer uses the server grade and keeps the answer out of the DOM', function () {
+    var loaded = loadQuiz();
+    loaded.sandbox.Math.random = function () { return 0; };
+    loaded.sandbox._nachoMode = true;
+    loaded.sandbox._nachoChatHistory = [];
+    loaded.sandbox.nachoQuizMe();
+    assert.ok(!/data-correct/.test(loaded.dom.chat.innerHTML));
+
+    var btn = loaded.dom.document.createElement('button');
+    btn.setAttribute('data-q', encodeURIComponent('Which check shows Nacho Quiz Me rendered a question?'));
+    btn.setAttribute('data-a', encodeURIComponent('A question and its choices appear in the chat.'));
+    btn.textContent = 'A question and its choices appear in the chat.';
+    btn.style = {};
+    var parent = loaded.dom.document.createElement('div');
+    parent.appendChild(btn);
+
+    var calls = [];
+    loaded.sandbox.awardPoints = function (pts, reason, a, b, c, d, extra) {
+        calls.push({ pts: pts, reason: reason, extra: extra });
+        return syncGrant({ success: true, awarded: 10 });
+    };
+    loaded.sandbox.nachoQuizAnswer(btn);
+    assert.strictEqual(calls.length, 1);
+    assert.strictEqual(calls[0].pts, 10);
+    assert.strictEqual(calls[0].extra.quizQuestion, 'Which check shows Nacho Quiz Me rendered a question?');
+    assert.strictEqual(calls[0].extra.quizChoice, 'A question and its choices appear in the chat.');
+    assert.strictEqual(btn.style.background, '#22c55e');
+    var text = (parent.childNodes || []).map(function (n) { return n.textContent || ''; }).join(' ');
+    assert.ok(/Correct! \+10 XP/.test(text), 'correct copy missing: ' + text);
+});
+
+test('a rejected quiz grade is shown as incorrect', function () {
+    var loaded = loadQuiz();
+    var btn = loaded.dom.document.createElement('button');
+    btn.setAttribute('data-q', encodeURIComponent('Sample question?'));
+    btn.setAttribute('data-a', encodeURIComponent('Wrong choice'));
+    btn.textContent = 'Wrong choice';
+    btn.style = {};
+    var parent = loaded.dom.document.createElement('div');
+    parent.appendChild(btn);
+    loaded.sandbox.awardPoints = function () {
+        return syncGrant({ success: false, awarded: 0, error: 'Quiz answer did not match' });
+    };
+    loaded.sandbox.nachoQuizAnswer(btn);
+    var text = (parent.childNodes || []).map(function (n) { return n.textContent || ''; }).join(' ');
+    assert.ok(/Not quite/i.test(text), 'wrong-answer copy missing: ' + text);
+    assert.strictEqual(btn.style.background, '#ef4444');
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');

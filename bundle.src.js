@@ -15325,6 +15325,28 @@ const HIDDEN_BADGES = [
     }
 })();
 
+// Eastern Time calendar date (YYYY-MM-DD). Used for the Story unlock day so
+// a chapter is not unlocked twice in one ET evening when UTC has already
+// rolled over. A later PR should enforce one chapter per ET day in
+// awardPoints; this helper is display/client-only.
+window.nachoEtDate = function(d) {
+    var dt = d ? new Date(d) : new Date();
+    if (isNaN(dt.getTime())) dt = new Date();
+    var parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/New_York',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).formatToParts(dt);
+    var y = '', m = '', day = '';
+    for (var i = 0; i < parts.length; i++) {
+        if (parts[i].type === 'year') y = parts[i].value;
+        else if (parts[i].type === 'month') m = parts[i].value;
+        else if (parts[i].type === 'day') day = parts[i].value;
+    }
+    return y + '-' + m + '-' + day;
+};
+
 // ---- Nacho Story (daily chapters) ----
 // Rule: 1 new chapter per calendar day. Day 1 = Chapter 1. Users can re-read unlocked chapters.
 window.showNachoStory = function(chapterOverride) {
@@ -15338,7 +15360,7 @@ window.showNachoStory = function(chapterOverride) {
         { title: "Chapter 7: Nacho's Mission", text: "Nacho looked out from his favorite overlook in the White Mountains — the same spot where he'd first read the whitepaper by campfire light. He'd grown from a gangly fawn into a strong buck with a magnificent rack of antlers (seven points, if you're counting). But so many deer — so many people — still didn't understand Bitcoin. They heard 'crypto' and thought of scams, memecoins, and celebrity tokens. But Bitcoin is different. It's the signal in the noise. So Nacho decided to dedicate his life to education, right here from the Live Free or Die state. Not shilling. Not pumping. Teaching. Because the best way to orange-pill someone isn't to tell them to buy — it's to help them understand WHY. And that's why you're here. Welcome to the Archive. 🦌🟠" }
     ];
 
-    var today = new Date().toISOString().split('T')[0];
+    var today = (typeof nachoEtDate === 'function' ? nachoEtDate() : (typeof window.nachoEtDate === 'function' ? window.nachoEtDate() : new Date().toISOString().split('T')[0]));
 
     // ===== PROGRESS SYSTEM =====
     // unlockDays: array of dates (YYYY-MM-DD) when the user opened the story
@@ -15432,7 +15454,7 @@ window.showNachoStory = function(chapterOverride) {
     if (typeof awardPoints === 'function' && awardedChapters.indexOf(chIdx) === -1) {
         awardedChapters.push(chIdx);
         localStorage.setItem('btc_nacho_story_awarded', JSON.stringify(awardedChapters));
-        var _chPts = (chIdx === CHAPTERS.length - 1) ? 50 : 15; // Last chapter = 50pts, others = 15pts
+        var _chPts = 15; // Phil's spec: 15 XP per chapter, plus a 100 XP finish bonus
         var _chapterGrant = awardPoints(_chPts, '📖 Completed Chapter ' + (chIdx + 1));
         if (typeof showToast === 'function') showToast('📖 +' + _chPts + ' XP — Chapter ' + (chIdx + 1) + ' complete!');
 
@@ -15442,13 +15464,8 @@ window.showNachoStory = function(chapterOverride) {
                 var _finishStory = function() { awardPoints(100, '📖🎉 Completed Nacho\'s Story!'); };
                 if (_chapterGrant && _chapterGrant.then) _chapterGrant.then(_finishStory, _finishStory);
                 else _finishStory();
-                // Award 25 orange tickets
-                if (typeof awardOrangeTickets === 'function') {
-                    awardOrangeTickets(25, '📖 Nacho\'s Story Complete!');
-                } else {
-                    var _tix = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
-                    localStorage.setItem('btc_orange_tickets', (_tix + 25).toString());
-                }
+                // Ticket grants are not awarded on story finish; the stub
+                // path is a no-op, so the celebration only shows the XP bonus.
                 if (typeof launchConfetti === 'function') launchConfetti();
                 if (typeof playBadgeSound === 'function') playBadgeSound();
                 // Full-screen celebration overlay
@@ -15461,7 +15478,6 @@ window.showNachoStory = function(chapterOverride) {
                     '<div style="font-size:1rem;color:#e2e8f0;margin-bottom:20px;line-height:1.6;">You\'ve followed Nacho\'s entire Bitcoin journey from the Genesis Block to his mission of education. You\'re officially a Story Master! 🏆</div>' +
                     '<div style="display:flex;justify-content:center;gap:20px;margin-bottom:24px;">' +
                     '<div style="text-align:center;"><div style="font-size:2rem;font-weight:900;color:#22c55e;">+100</div><div style="font-size:0.7rem;color:#94a3b8;">BONUS PTS</div></div>' +
-                    '<div style="text-align:center;"><div style="font-size:2rem;font-weight:900;color:#f7931a;">+25</div><div style="font-size:0.7rem;color:#94a3b8;">🎫 TICKETS</div></div>' +
                     '</div>' +
                     '<button onclick="event.stopPropagation();this.closest(\'div[style*=fixed]\').remove()" style="padding:14px 40px;background:linear-gradient(135deg,#f7931a,#ea580c);color:#fff;border:none;border-radius:14px;font-size:1.1rem;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 8px 30px rgba(247,147,26,0.4);">Amazing! 🎉</button>' +
                     '</div>';
@@ -16369,11 +16385,9 @@ window.showCelebration = function(opts) {
     // Hook into Nacho quiz answers for small celebrations
     var _origNachoQuizAnswer = window.nachoQuizAnswer;
     if (_origNachoQuizAnswer) {
-        window.nachoQuizAnswer = function(btn, correct) {
-            _origNachoQuizAnswer.apply(this, arguments);
-            if (correct) {
-                if (typeof haptic === 'function') haptic('success');
-            }
+        window.nachoQuizAnswer = function(btn) {
+            var ret = _origNachoQuizAnswer.apply(this, arguments);
+            return ret;
         };
     }
 
@@ -23081,8 +23095,7 @@ window.nachoQuizMe = function(topic) {
     
     var opts = q.options || [];
     for (var i = 0; i < opts.length; i++) {
-        var isCorrect = opts[i] === q.answer;
-        html += '<button data-q="' + encodeURIComponent(q.question) + '" data-a="' + encodeURIComponent(opts[i]) + '" ' + (isCorrect ? 'data-correct="1" ' : '') + 'onclick="nachoQuizAnswer(this,' + (isCorrect ? 'true' : 'false') + ')" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
+        html += '<button data-q="' + encodeURIComponent(q.question) + '" data-a="' + encodeURIComponent(opts[i]) + '" onclick="nachoQuizAnswer(this)" style="display:block;width:100%;padding:8px 12px;margin-bottom:4px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;cursor:pointer;font-family:inherit;text-align:left;transition:0.2s;touch-action:manipulation;">' + escapeHtml(opts[i]) + '</button>';
     }
     html += '</div>';
     
@@ -23096,7 +23109,7 @@ window.nachoQuizMe = function(topic) {
     nachoChatAppend('nacho', '', html);
 };
 
-window.nachoQuizAnswer = function(btn, correct) {
+window.nachoQuizAnswer = function(btn) {
     try { var _t = new Date().toISOString().split('T')[0]; localStorage.setItem('btc_quiz_done_' + _t, 'true'); } catch(e) {}
     var parent = btn.parentElement;
     var buttons = parent.querySelectorAll('button');
@@ -23105,42 +23118,58 @@ window.nachoQuizAnswer = function(btn, correct) {
         b.style.cursor = 'default';
         b.style.opacity = '0.7';
     });
-    if (correct) {
-        btn.style.background = '#22c55e';
-        btn.style.color = '#fff';
-        btn.style.borderColor = '#22c55e';
-        btn.style.opacity = '1';
-        // awardPoints() fires its own toast on CF success — don't double-toast here.
-        // If CF fails (network/cap), awardPoints() surfaces that too.
-        var _nqQ = '';
-        var _nqA = '';
-        try {
-            _nqQ = decodeURIComponent(btn.getAttribute('data-q') || '');
-            _nqA = decodeURIComponent(btn.getAttribute('data-a') || '');
-        } catch (e) {}
-        if (typeof awardPoints === 'function') awardPoints(10, '🎮 Quiz correct!', null, null, null, null, { quizQuestion: _nqQ, quizChoice: _nqA || btn.textContent });
+    var _nqQ = '';
+    var _nqA = '';
+    try {
+        _nqQ = decodeURIComponent(btn.getAttribute('data-q') || '');
+        _nqA = decodeURIComponent(btn.getAttribute('data-a') || '');
+    } catch (e) {}
+    function _nqPaint(ok, msg) {
+        if (ok) {
+            btn.style.background = '#22c55e';
+            btn.style.color = '#fff';
+            btn.style.borderColor = '#22c55e';
+            btn.style.opacity = '1';
+            if (typeof haptic === 'function') haptic('success');
+        } else {
+            btn.style.background = '#ef4444';
+            btn.style.color = '#fff';
+            btn.style.borderColor = '#ef4444';
+            btn.style.opacity = '1';
+        }
         var resultDiv = document.createElement('div');
-        resultDiv.style.cssText = 'margin-top:8px;padding:8px;background:rgba(34,197,94,0.1);border:1px solid #22c55e;border-radius:8px;color:#22c55e;font-size:0.85rem;font-weight:700;text-align:center;';
-        resultDiv.textContent = '✅ Correct! +10 XP';
-        btn.parentElement.appendChild(resultDiv);
-    } else {
-        btn.style.background = '#ef4444';
-        btn.style.color = '#fff';
-        btn.style.borderColor = '#ef4444';
-        btn.style.opacity = '1';
-        buttons.forEach(function(b) {
-            if (b !== btn && b.getAttribute('data-correct') === '1') {
-                b.style.borderColor = '#22c55e';
-                b.style.color = '#22c55e';
-                b.style.opacity = '1';
-            }
-        });
-        var resultDiv = document.createElement('div');
-        resultDiv.style.cssText = 'margin-top:8px;padding:8px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:0.85rem;font-weight:700;text-align:center;';
-        resultDiv.textContent = '❌ Incorrect. Try another!';
-        btn.parentElement.appendChild(resultDiv);
+        resultDiv.style.cssText = 'margin-top:8px;padding:8px;background:' + (ok ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)') + ';border:1px solid ' + (ok ? '#22c55e' : '#ef4444') + ';border-radius:8px;color:' + (ok ? '#22c55e' : '#ef4444') + ';font-size:0.85rem;font-weight:700;text-align:center;';
+        resultDiv.textContent = msg;
+        parent.appendChild(resultDiv);
     }
-};
+    // The server grades the choice. Do not infer correctness from a client key.
+    if (typeof awardPoints === 'function') {
+        var grant = awardPoints(10, '🎮 Quiz correct!', null, null, null, null, { quizQuestion: _nqQ, quizChoice: _nqA || btn.textContent });
+        if (grant && typeof grant.then === 'function') {
+            return grant.then(function(result) {
+                var data = result && result.data ? result.data : result;
+                var err = (data && data.error) ? String(data.error) : '';
+                if (/quiz answer did not match/i.test(err)) {
+                    _nqPaint(false, '❌ Not quite.');
+                    return result;
+                }
+                if (data && data.success) {
+                    _nqPaint(true, '✅ Correct! +10 XP');
+                    return result;
+                }
+                if (data && data.dailyActionCapped) {
+                    _nqPaint(true, '✅ Correct! Daily quiz XP cap reached.');
+                    return result;
+                }
+                _nqPaint(false, 'Could not grade this answer. Try again in a moment.');
+                return result;
+            }).catch(function() {
+                _nqPaint(false, 'Could not grade this answer. Try again when you are online.');
+            });
+        }
+    }
+    _nqPaint(false, 'Sign in to score this quiz.');
+}
 
     // Render full chat from history
     function nachoChatRender() {

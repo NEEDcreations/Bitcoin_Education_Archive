@@ -526,6 +526,21 @@ test('every surface declares modes', function () {
     assert.ok(liteTitles.indexOf('Set Up Your Wallet') !== -1);
 });
 
+test('ELI5 alone and feature questions open the help card', function () {
+    ['eli5', 'ELI5', 'what is eli5', 'what is ELI5 mode', 'can you explain like I\'m 5', 'explain like im 5', 'turn on eli5'].forEach(function (q) {
+        const hit = reg.resolveNachoFeature(q);
+        assert.ok(hit && hit.featureId === 'eli5', 'expected eli5 help card for ' + q + ' got ' + (hit && hit.featureId));
+        assert.ok(/ELI5 mode makes Nacho explain/i.test(hit.answer), 'help card copy missing for ' + q);
+    });
+});
+
+test('ELI5 plus a topic is not the help card', function () {
+    ['ELI5 Bitcoin', 'eli5 mining', 'eli5 wallets', 'explain like I\'m 5 how mining works', 'ELI5 what is a UTXO', 'explain like im 5 bitcoin'].forEach(function (q) {
+        const hit = reg.resolveNachoFeature(q);
+        assert.ok(!hit || hit.featureId !== 'eli5', 'topic question stole the help card: ' + q + ' got ' + (hit && hit.featureId));
+    });
+});
+
 test('changed files parse', function () {
     ['features.registry.js', 'quests.js', 'nacho-qa.js', 'app.js', 'global-chat.js', 'sw.js', 'workers/nacho-search/worker.js'].forEach(function (file) {
         execFileSync(process.execPath, ['--check', path.join(root, file)], { stdio: 'pipe' });
