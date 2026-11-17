@@ -9055,7 +9055,12 @@ var FORUM_ACTIONS = {
     articlePin: function(id, id2) { articleTogglePin(id, id2 === 'true'); },
     articleVote: function(id) { articleVote(id); },
     articleDelete: function(id) { articleDelete(id); },
-    articleDeleteReply: function(id, id2) { articleDeleteReply(id, id2); },
+    articleDeleteReply: function(id, id2) {
+        id = fId(id);
+        id2 = fId(id2);
+        if (!id || !id2) return;
+        articleDeleteReply(id, id2);
+    },
     articleReply: function(id) { articleSubmitReply(id); },
     snOpen: function(id) { var n = Number(id); if (Number.isSafeInteger(n) && n > 0) snOpenPost(n); }
 };

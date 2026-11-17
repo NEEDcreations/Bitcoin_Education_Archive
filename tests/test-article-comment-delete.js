@@ -93,7 +93,10 @@ queue.push(test('forum reply delete button still uses fAct deleteReply', functio
 
 queue.push(test('FORUM_ACTIONS routes article and forum deletes separately', function () {
     assert.ok(/deleteReply:\s*function\(id,\s*id2\)\s*\{\s*forumDeleteReply\(id,\s*id2\)/.test(forum), 'deleteReply must call forumDeleteReply');
-    assert.ok(/articleDeleteReply:\s*function\(id,\s*id2\)\s*\{\s*articleDeleteReply\(id,\s*id2\)/.test(forum), 'articleDeleteReply action must call articleDeleteReply');
+    const act = forum.slice(forum.indexOf('articleDeleteReply: function'), forum.indexOf('articleReply:'));
+    assert.ok(act.indexOf('id = fId(id)') !== -1 && act.indexOf('id2 = fId(id2)') !== -1, 'articleDeleteReply action must re-check both ids with fId');
+    assert.ok(act.indexOf('if (!id || !id2) return') !== -1, 'articleDeleteReply action must bail on a bad id');
+    assert.ok(act.indexOf('articleDeleteReply(id, id2)') !== -1, 'articleDeleteReply action must call articleDeleteReply');
 }));
 
 queue.push(test('articleDeleteReply deletes from article_replies only', function () {
