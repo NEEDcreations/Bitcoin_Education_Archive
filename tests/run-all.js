@@ -40,6 +40,7 @@ const TESTS = [
     { name: 'App Check SDK boot', file: 'test-app-check-sdk.js' },
     { name: 'App Check callable gate', file: 'test-app-check-callables.js' },
     { name: 'TCTV drip pot logic', file: 'test-tctv-drip.js' },
+    { name: 'TCTV reliability', file: 'test-tctv-reliability.js' },
     { name: 'Sidebar topics', file: 'test-sidebar-topics.js' },
     { name: 'Cache Busters', file: 'busters.js' },
     { name: 'Pleb Talk forum XSS', file: 'test-forum-xss.js' },
