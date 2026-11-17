@@ -14,7 +14,15 @@
     function playing() {
         var p = window._tctvYtPlayer;
         if (!p || typeof p.getPlayerState !== 'function') return false;
-        try { return p.getPlayerState() === ((window.YT && window.YT.PlayerState) ? window.YT.PlayerState.PLAYING : 1); } catch (e) { return false; }
+        try {
+            var st = p.getPlayerState();
+            var YTPS = window.YT && window.YT.PlayerState;
+            var PLAYING = YTPS ? YTPS.PLAYING : 1;
+            var BUFFERING = YTPS ? YTPS.BUFFERING : 3;
+            // Buffering still means the viewer is watching; skipping those
+            // moments used to freeze the qualify countdown for a full minute.
+            return st === PLAYING || st === BUFFERING;
+        } catch (e) { return false; }
     }
     function deviceId() {
         var k = 'tctvDripDevice', id = '';
@@ -101,11 +109,11 @@
             '#tctv-drip.td-resizing .td-rz::after{opacity:1}#tctv-drip.td-resizing,#tctv-drip.td-resizing *{cursor:inherit}' +
             '#tctv-drip [hidden]{display:none !important}' +
             '#tctv-drip button:focus-visible{outline:2px solid #ffcf6b;outline-offset:2px}' +
-            '#tctv-drip .td-ptip,#tctv-drip .td-pop{display:none;position:absolute;left:0;bottom:calc(100% + 8px);box-sizing:border-box;width:min(300px,calc(100vw - 24px));font-size:12px;line-height:1.45;font-weight:400;background:#111;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:9px 11px;box-shadow:0 6px 18px rgba(0,0,0,.5);text-align:left;white-space:normal;color:#fff;cursor:auto;z-index:2}' +
+            '#tctv-drip .td-ptip,#tctv-drip .td-pop{display:none;position:absolute;left:0;bottom:calc(100% + 8px);box-sizing:border-box;width:min(300px,calc(100vw - 24px));font-size:12px;line-height:1.45;font-weight:400;background:#111;border:1px solid rgba(255,255,255,.18);border-radius:10px;padding:9px 11px;box-shadow:0 6px 18px rgba(0,0,0,.5);text-align:left;white-space:normal;color:#fff;cursor:auto;z-index:8}' +
             '#tctv-drip.td-below .td-ptip,#tctv-drip.td-below .td-pop{bottom:auto;top:calc(100% + 8px)}' +
             '#tctv-drip.td-right .td-ptip,#tctv-drip.td-right .td-pop{left:auto;right:0}' +
             '#tctv-drip.td-tipopen .td-ptip,#tctv-drip.td-open .td-pop{display:block}' +
-            '@media (hover:hover){#tctv-drip:has(.td-pinfo:hover) .td-ptip{display:block}}' +
+            '@media (hover:hover){#tctv-drip:not(.td-tipclosed):has(.td-pinfo:hover) .td-ptip{display:block}}' +
             '#tctv-drip .td-bar{height:6px;border-radius:4px;background:rgba(255,255,255,.12);margin:6px 0;overflow:hidden}' +
             '#tctv-drip .td-fill{height:100%;background:linear-gradient(90deg,#f7931a,#ffcf6b);width:0;transition:width .8s ease}' +
             '#tctv-drip .td-live b{color:#4ade80}' +
@@ -201,8 +209,19 @@
         if (persist) lsSet(SIZE_KEY, String(n));
         return n;
     }
+    function setTip(el, on) {
+        if (!el) return;
+        var pinfo = el.querySelector('.td-pinfo');
+        el.classList.toggle('td-tipopen', !!on);
+        if (on) el.classList.remove('td-tipclosed');
+        else el.classList.add('td-tipclosed');
+        if (pinfo) pinfo.setAttribute('aria-expanded', on ? 'true' : 'false');
+    }
     function setMini(el, on) {
         el.classList.toggle('td-mini', on); el.classList.remove('td-open', 'td-tipopen');
+        el.classList.add('td-tipclosed');
+        var pinfo = el.querySelector('.td-pinfo');
+        if (pinfo) pinfo.setAttribute('aria-expanded', 'false');
         lsSet(MIN_KEY, on ? '1' : '0');
         if (el.style.top) { var r = el.getBoundingClientRect(); clampPlace(el, r.left, r.top); }
     }
@@ -249,7 +268,8 @@
                 st = { id: e.pointerId, dir: h.getAttribute('data-rz') || 'br', sx: e.clientX, sy: e.clientY, p0: curPot(el), left: r.left, top: r.top, right: r.right, bottom: r.bottom };
                 try { h.setPointerCapture(e.pointerId); } catch (x) {}
                 el.classList.add('td-resizing');
-                el.classList.remove('td-open', 'td-tipopen');
+                el.classList.remove('td-open');
+                setTip(el, false);
             });
         });
         window.addEventListener('pointermove', function (e) {
@@ -308,15 +328,19 @@
         var pill = el.querySelector('.td-pill'), pinfo = el.querySelector('.td-pinfo');
         pill.addEventListener('click', function () {
             if (el.classList.contains('td-ask')) { hidePrompt(el); celebrate(el, 'Counted!'); checkin(true); return; }
-            el.classList.remove('td-tipopen'); pinfo.setAttribute('aria-expanded', 'false');
+            setTip(el, false);
             var open = el.classList.toggle('td-open');
             pill.setAttribute('aria-expanded', open ? 'true' : 'false');
         });
-        pinfo.addEventListener('click', function () {
+        pinfo.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
             el.classList.remove('td-open'); pill.setAttribute('aria-expanded', 'false');
-            var o = el.classList.toggle('td-tipopen');
-            pinfo.setAttribute('aria-expanded', o ? 'true' : 'false');
+            // Explicit open/close (not toggle alone): after a close, the next
+            // press always reopens, even if hover CSS had already shown it.
+            setTip(el, !el.classList.contains('td-tipopen'));
         });
+        pinfo.addEventListener('mouseleave', function () { el.classList.remove('td-tipclosed'); });
         el.querySelector('.td-min').addEventListener('click', function () { setMini(el, true); });
         el.querySelector('.td-bubble').addEventListener('click', function () {
             if (el.classList.contains('td-ask')) { hidePrompt(el); celebrate(el, 'Counted!'); checkin(true); }
@@ -341,6 +365,13 @@
         // Under the qualify bar the share is 0 by design: say how long is left.
         var left = Math.ceil(Math.max(0, (myShare.qualify || 0) - (myShare.seconds || 0)) / 60);
         if (n === 0 && left > 0) text += ' \u00b7 ' + fmt(left) + ' more min to qualify';
+        // Qualified, but the minute tick has not written a share yet.
+        if (n === 0 && left <= 0 && (myShare.seconds || 0) >= (myShare.qualify || 0) && (myShare.qualify || 0) > 0) {
+            text += ' \u00b7 share updates shortly';
+        }
+        if (left > 0 && onTv() && document.visibilityState === 'visible' && !playing()) {
+            text += ' \u00b7 play the video to keep counting';
+        }
         return { text: text, hint: false, bubble: fmt(n) };
     }
     function paintShare(el) {
@@ -389,6 +420,14 @@
                 };
                 // Doc exists but tick has not projected yet: keep "…" until the field appears.
                 if (typeof d.projectedShareSats !== 'number') myShare.ready = false;
+                // After a refresh, restore a due "Still watching?" prompt from the watch doc.
+                var due = Number(d.promptDueMs) || 0;
+                var tok = typeof d.promptToken === 'string' ? d.promptToken : '';
+                if (due && Date.now() >= due && tok) {
+                    promptToken = tok;
+                    var elPrompt = document.getElementById('tctv-drip');
+                    if (elPrompt) showPrompt(elPrompt);
+                }
             }
             var el = document.getElementById('tctv-drip'); if (el) paintShare(el);
         }, function () {});
@@ -506,7 +545,16 @@
     }
     function startFlow() { if (!flowRaf) { flowLast = 0; flowRaf = requestAnimationFrame(flowTick); } }
     function stopFlow() { if (flowRaf) cancelAnimationFrame(flowRaf); flowRaf = 0; }
-    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && document.getElementById('tctv-drip')) startFlow(); else stopFlow(); });
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible' && document.getElementById('tctv-drip')) { startFlow(); checkin(); }
+        else stopFlow();
+    });
+    document.addEventListener('click', function (e) {
+        var node = document.getElementById('tctv-drip');
+        if (!node || !node.classList.contains('td-tipopen')) return;
+        if (e.target && e.target.closest && e.target.closest('.td-pinfo, .td-ptip')) return;
+        setTip(node, false);
+    });
     window._tctvDripPaint = function (p) { pot = p; paint(); };
 
     // The pill itself becomes the "Still watching?" button for the 2-minute
@@ -525,18 +573,27 @@
         el.classList.add('td-ask');
         el.querySelector('.td-lbl').textContent = 'Still watching? Tap';
         el.querySelector('.td-pill').setAttribute('aria-label', 'Still watching? Tap to add your watch time to the pot of sats');
-        if (promptHide) clearTimeout(promptHide);
-        promptHide = setTimeout(function () { hidePrompt(el); }, 120000);
+        if (promptHide) { clearTimeout(promptHide); promptHide = null; }
+        // Keep the question visible until it is tapped. Hiding it after 2
+        // minutes made the pot look idle while the server still refused credit.
+        if (el.classList.contains('td-mini')) setMini(el, false);
         keepInView(el);
     }
     window._tctvDripShowPrompt = function () { var el = document.getElementById('tctv-drip'); if (el) showPrompt(el); };
 
-    var answerQueued = false;
+    var answerQueued = false, playRetry = null;
     function checkin(answer) {
         if (inflight && answer) { answerQueued = true; return; }
         if (inflight || !user() || !onTv()) return;
         var vis = document.visibilityState === 'visible', play = playing();
-        if (!vis || !play) return;
+        if (!vis || !play) {
+            // After a refresh the YouTube player may still be starting.
+            if (vis && !playRetry) {
+                playRetry = setTimeout(function () { playRetry = null; checkin(answer); }, 5000);
+            }
+            return;
+        }
+        if (playRetry) { clearTimeout(playRetry); playRetry = null; }
         inflight = true;
         try {
             firebase.functions().httpsCallable('tctvDripCheckin')({
@@ -572,6 +629,6 @@
     setInterval(function () {
         if (!onTv() || document.visibilityState !== 'visible') { stop(); return; }
         mount(); listen(); startFlow();
-        if (!timer) timer = setInterval(checkin, CHECK_MS);
+        if (!timer) { timer = setInterval(checkin, CHECK_MS); checkin(); }
     }, 2000);
 })();

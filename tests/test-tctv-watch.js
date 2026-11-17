@@ -389,7 +389,7 @@ test('the page heartbeats only while playing and visible, and does not write the
     assert.ok(watchTag.includes('color:var(--text-faint)'));
     assert.strictEqual(client.includes('borderColor'), false);
     assert.strictEqual(client.includes('style.color'), false);
-    assert.ok(html.includes('timechain-tv.js?v=20261116_v2580'));
+    assert.ok(html.includes('timechain-tv.js?v=20261117_v2584'));
     assert.ok(!html.includes('timechain-tv.js?v=20261105_v2502'));
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));

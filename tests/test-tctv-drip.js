@@ -169,7 +169,8 @@ console.log('tctvDripLogic: all tests passed');
     assert.ok(/prefers-reduced-motion/.test(src) && /visibilityState/.test(src) && /requestAnimationFrame/.test(src), 'flow pauses when hidden, gentle for reduced motion');
     assert.ok(!/Watch Party/i.test(src), 'no old name');
     assert.ok(/\.td-pill\{[^}]*min-height:44px;min-width:44px/.test(src) && /\.td-pinfo\{[^}]*min-width:44px;min-height:44px/.test(src), '44px targets');
-    assert.ok(src.includes('}, 120000);'), '2-minute answer window');
+    assert.ok(src.includes('Still watching? Tap') && src.includes('Keep the question visible until it is tapped'), 'Still watching? prompt stays until tapped');
+    assert.ok(!src.includes('}, 120000);'), 'do not auto-hide the prompt after 2 minutes');
     assert.ok(src.includes('sats/min') && src.includes('ratePerMin'), 'shows pot fill rate when ratePerMin present');
     assert.ok(src.includes('watching right now'), 'falls back to watching line without ratePerMin');
     assert.ok(src.includes('Your Share:') && src.includes('td-share') && src.includes('projectedShareSats'), 'live Your Share line');
@@ -183,6 +184,41 @@ console.log('tctvDripLogic: all tests passed');
     assert.strictEqual(D.promptMinMinutes, 15); assert.strictEqual(D.promptMaxMinutes, 40); assert.strictEqual(D.promptAnswerSeconds, 120);
 }
 console.log('tctv-drip client prompt: ok');
+// Info tooltip: the ⓘ must open, close, and open again every time.
+{
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'tctv-drip.js'), 'utf8');
+    assert.ok(/function setTip\(el, on\)/.test(src), 'setTip helper is explicit open/close, not toggle-only');
+    assert.ok(src.includes("setTip(el, !el.classList.contains('td-tipopen'))"), 'ⓘ click always reopens after a close');
+    assert.ok(src.includes("e.stopPropagation()") && src.includes("pinfo.addEventListener('click'"), 'ⓘ click does not fall through to a document closer');
+    assert.ok(src.includes("document.addEventListener('click'") && src.includes("closest('.td-pinfo, .td-ptip')"), 'click outside closes the tooltip');
+    assert.ok(src.includes(':not(.td-tipclosed):has(.td-pinfo:hover)'), 'hover cannot keep the tip visible after a close');
+    assert.ok(src.includes("pinfo.addEventListener('mouseleave'") && src.includes("classList.remove('td-tipclosed')"), 'hover works again after the pointer leaves ⓘ');
+    // State machine: open, close, open again.
+    function runTips(clicks) {
+        var open = false, closed = false;
+        function setTip(on) { open = !!on; closed = !on; }
+        for (var i = 0; i < clicks; i++) setTip(!open);
+        return { open: open, closed: closed };
+    }
+    var tipOpen1 = runTips(1); assert.strictEqual(tipOpen1.open, true); assert.strictEqual(tipOpen1.closed, false);
+    var tipClosed = runTips(2); assert.strictEqual(tipClosed.open, false); assert.strictEqual(tipClosed.closed, true);
+    var tipOpen2 = runTips(3); assert.strictEqual(tipOpen2.open, true); assert.strictEqual(tipOpen2.closed, false);
+    var tipClosed2 = runTips(4); assert.strictEqual(tipClosed2.open, false);
+}
+console.log('tctv-drip tooltip reopen: ok');
+// Qualify countdown should keep moving after a refresh: count buffering as
+// playing, check in immediately, and say when the video is paused.
+{
+    const src = require('fs').readFileSync(require('path').join(__dirname, '..', 'tctv-drip.js'), 'utf8');
+    assert.ok(src.includes('YTPS.BUFFERING') && src.includes('st === PLAYING || st === BUFFERING'), 'buffering counts as watching');
+    assert.ok(src.includes('if (!timer) { timer = setInterval(checkin, CHECK_MS); checkin(); }'), 'first check-in runs immediately, not after 60s');
+    assert.ok(src.includes('playRetry') && src.includes('setTimeout(function () { playRetry = null; checkin(answer); }, 5000)'), 'retry shortly if the player is still starting');
+    assert.ok(src.includes("play the video to keep counting") && src.includes('share updates shortly'), 'share line explains a pause or a pending projection');
+    assert.ok(src.includes('promptDueMs') && src.includes('showPrompt(elPrompt)'), 'refresh restores a due Still watching? prompt');
+    assert.ok(src.includes("if (el.classList.contains('td-mini')) setMini(el, false)"), 'Still watching? expands a minimized pot');
+    assert.ok(src.includes('startFlow(); checkin();'), 'returning to the tab triggers a check-in');
+}
+console.log('tctv-drip qualify countdown: ok');
 // Timechain TV: muted autoplay + unmute control for every user (browsers block unmuted autoplay).
 {
     const tv = require('fs').readFileSync(require('path').join(__dirname, '..', 'timechain-tv.js'), 'utf8');
