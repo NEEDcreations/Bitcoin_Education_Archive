@@ -1,0 +1,8 @@
+{
+  "name": "bq-tests",
+  "private": true,
+  "description": "Dependencies for tests that need a real DOM (mdToHtml XSS cases).",
+  "dependencies": {
+    "jsdom": "^25.0.1"
+  }
+}
