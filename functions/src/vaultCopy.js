@@ -7,7 +7,7 @@
 // and that bucket's lifecycle deletes it after 90 days. This job copies each
 // finished export, server side, into the 10-year retention bucket
 //   gs://<project>-offline-vault/nightly/<YYYY-MM-DD>/
-// so a stolen key that wipes the backups bucket can't take the history too.
+// as a second, long-retention copy (defense in depth).
 //
 // Safety properties (tests/test-vault-copy.js pins each one):
 // - Never deletes, never overwrites: every copy and the manifest use

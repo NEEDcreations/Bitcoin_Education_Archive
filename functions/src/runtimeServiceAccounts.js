@@ -104,9 +104,9 @@ const RUNTIME_SERVICE_ACCOUNTS = Object.freeze({
     watchlistCheck: { id: 'fn-watchlist-check', extra: [] },
 });
 
-// Backup-only accounts for functions that bind NO secrets but must not run as
-// the default account (which still holds roles/editor and could delete the
-// backups it copies). Each has only bucket-level storage grants:
+// Backup-only accounts for functions that bind NO secrets but should still run
+// least-privilege instead of on the default account. Each has only
+// bucket-level storage grants:
 //   nightlyVaultCopy -> roles/storage.objectViewer on <project>-backups,
 //                       roles/storage.objectCreator + objectViewer on
 //                       <project>-offline-vault (create + read to verify; no delete).

@@ -1,14 +1,13 @@
 # Backup hardening (Nov 17, 2026) — Phil-only steps, NOT applied
 
-Goal: a stolen cloud key must not be able to delete the backups first and then
-wipe or ransom live data (the 2026 "delete backups, then encrypt" pattern).
-Nothing in this file has been run. Every command changes live IAM, buckets or
+Goal: defense in depth for backups (an extra long-retention copy, delete
+protection, point-in-time recovery, and alerts). Nothing in this file has been run. Every command changes live IAM, buckets or
 the database, so each one needs Phil's OK and is run by Phil (or by an agent
 only after Phil's explicit OK for that exact step). Staging first where noted.
 
 Projects / buckets:
 - Live: `bitcoin-education-archive`, nightly exports in `gs://bitcoin-education-archive-backups/<YYYY-MM-DD>/` (90-day lifecycle delete).
-- Vault: `gs://bitcoin-education-archive-offline-vault` (US, 10-year retention, unlocked, public access blocked, uniform access; created Nov 14).
+- Vault: `gs://bitcoin-education-archive-offline-vault` (long-retention copy).
 - Staging: `bitcoin-quest-staging`, exports in `gs://bitcoin-quest-staging-backups-use1`.
 
 Always read the current config first and paste it into the Security room before changing anything:
@@ -40,11 +39,11 @@ gcloud run services add-iam-policy-binding nightlyvaultcopy --region us-central1
 gcloud iam service-accounts add-iam-policy-binding $SA --project $P --member "user:<PHIL_DEPLOYER_EMAIL>" --role roles/iam.serviceAccountUser
 ```
 
-Never grant it objectAdmin, Firestore, Auth or project-level roles. No JSON key is ever created for it.
+Never grant it objectAdmin, Firestore, Auth or project-level roles. No JSON key is ever created for it. Access reviews and key rotation for other accounts are tracked privately.
 
 Cost: User Data measures about 65 GiB of new vault data per year. With the Archive-class rule below (~$0.0012/GB-month) that is well under $1/month per year of history. Re-measure with `gcloud storage du -s gs://$P-backups/<day>`.
 
-Alternative (User Data's spec): a Storage Transfer Service GCS-to-GCS job doing the same copy. It needs no code, but it can't easily target "today's folder only", verify count and bytes, or fail closed, so the function is the default. Either way the copier gets its own account with read on backups, create + read on the vault, no delete and no IAM, and the existing backup-reader key is NOT reused.
+Alternative: a Storage Transfer Service GCS-to-GCS job doing the same copy. It needs no code, but it can't easily target "today's folder only", verify count and bytes, or fail closed, so the function is the default. Either way the copier gets its own account with read on backups, create + read on the vault, no delete and no IAM, and no existing key is reused.
 
 Vault lifecycle (**`--lifecycle-file` replaces the whole lifecycle config**; the vault has none today, re-check first):
 
@@ -63,7 +62,7 @@ Staging dry run first: create `fn-vault-copy` in `bitcoin-quest-staging`, set `B
 
 ## 2. Protect the main backup bucket (soft delete + retention + versioning)
 
-Today a key with delete rights on `-backups` can wipe all 90 days in one command. Three layers, cheapest first:
+Recommended layers, cheapest first (read the current settings first; some may already be on):
 
 ```bash
 P=bitcoin-education-archive
@@ -76,7 +75,7 @@ gcloud storage buckets update gs://$P-backups --retention-period=30d
 #    ("Retention, versioning, and lifecycle"); use docs/kill-switch-lifecycle.json, which keeps the 90-day rule.
 ```
 
-Notes: a retention policy blocks the lifecycle from deleting objects younger than the period, so keep it shorter than 90 days. An unlocked policy can still be removed by someone with `storage.buckets.update`; that is why item 4 below (no key holds both) matters. Locking it is irreversible and puts a lien on the project; only after a restore drill, Phil's call. Repeat a) and b) on staging first.
+Notes: a retention policy blocks the lifecycle from deleting objects younger than the period, so keep it shorter than 90 days.  Locking it is irreversible and puts a lien on the project; only after a restore drill, Phil's call. Repeat a) and b) on staging first.
 
 ## 3. Firestore point-in-time recovery (7-day roll-back to the minute)
 
@@ -87,15 +86,6 @@ gcloud firestore databases update --database='(default)' --project $P --delete-p
 ```
 
 PITR keeps versions from the moment it is turned on, costs PITR storage (roughly the database size again), and lets us read or export the database as of any minute in the last 7 days. The kill-switch preflight already checks for it. Check: `pointInTimeRecoveryEnablement: POINT_IN_TIME_RECOVERY_ENABLED`, `versionRetentionPeriod: 604800s`. Staging first.
-
-## 4. Keys and access (Phil-only, console sign-in)
-
-- Scope the backup-reader key (used by GitHub Actions for the R2 copy) to `-backups` only: remove its access to `-offline-vault`. Delete the extra copy of that key on the shared box (User Data found 2).
-- Turn on uniform bucket-level access on `-backups` (`gcloud storage buckets update gs://$P-backups --uniform-bucket-level-access`), so no legacy per-object ACL can make an export public.
-- List who can read each backup bucket: `gcloud storage buckets get-iam-policy gs://$P-backups` and the same for the vault (our reader key gets 403 on IAM, so only Phil can run this).
-
-- `dailyFirestoreBackup` still runs as the default account, which holds `roles/editor` (it can delete the backups it writes and every Firestore doc). Follow-up PR after this one: run it as `fn-firestore-backup` with the existing `killSwitchExport` custom role (export + operations.get only) and `roles/storage.objectCreator` on `-backups`. Then phase 2 of the runtime-SA plan removes `roles/editor` from the default account.
-- List and rotate every long-lived JSON key, including the ones stored on the shared box: `gcloud iam service-accounts keys list --iam-account <sa> --managed-by user`. Rule: no single principal can both delete Firestore data and delete or change the backup buckets.
 
 ## 5. Audit-log alerts (folds into the event-alerts PR)
 
