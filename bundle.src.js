@@ -15988,35 +15988,55 @@ window.showCelebration = function(opts) {
         var total = Object.keys(CHANNELS).length;
         var pct = Math.round((visited.length / total) * 100);
 
+        function explorationAlreadySeen(m) {
+            try {
+                if (localStorage.getItem('btc_' + m.key + '_celebrated') === 'true') return true;
+            } catch (e0) {}
+            try {
+                var uid = (typeof auth !== 'undefined' && auth && auth.currentUser && auth.currentUser.uid) || '';
+                if (uid && localStorage.getItem('btc_' + m.key + '_celebrated_' + uid) === 'true') return true;
+            } catch (e1) {}
+            var user = (typeof currentUser !== 'undefined') ? currentUser : null;
+            if (user && user['explorationMilestone_' + m.pct] === true) return true;
+            if (user && user.celebratedState && user.celebratedState['explore_' + m.pct]) return true;
+            return false;
+        }
         MILESTONES.forEach(function(m) {
-            if (pct >= m.pct && localStorage.getItem('btc_' + m.key + '_celebrated') !== 'true') {
-                localStorage.setItem('btc_' + m.key + '_celebrated', 'true');
-                // Award points
-                if (typeof awardPoints === 'function') awardPoints(m.pts, '🗺️ ' + m.pct + '% Explored');
-                // Award tickets
-                if (typeof awardOrangeTickets === 'function') {
-                    awardOrangeTickets(m.tickets, '🗺️ ' + m.pct + '% Explored');
-                } else {
-                    var _t = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
-                    localStorage.setItem('btc_orange_tickets', (_t + m.tickets).toString());
-                }
-                // Show celebration
-                setTimeout(function() {
-                    showCelebration({
-                        emoji: m.emoji,
-                        title: m.title,
-                        message: m.msg,
-                        rewards: [
-                            { label: m.pts.toString(), sub: 'PTS', color: '#22c55e' },
-                            { label: m.tickets.toString(), sub: '🎫 TICKETS', color: '#f7931a' }
-                        ]
-                    });
-                }, 800);
-                // Sync to Firebase
-                if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
-                    var upd = {}; upd['explorationMilestone_' + m.pct] = true;
-                    try { db.collection('users').doc(auth.currentUser.uid).update(upd).catch(function(){}); } catch(e) {}
-                }
+            if (pct < m.pct) return;
+            if (explorationAlreadySeen(m)) {
+                try { localStorage.setItem('btc_' + m.key + '_celebrated', 'true'); } catch (e2) {}
+                return;
+            }
+            try { localStorage.setItem('btc_' + m.key + '_celebrated', 'true'); } catch (e3) {}
+            try {
+                var seenUid = (typeof auth !== 'undefined' && auth && auth.currentUser && auth.currentUser.uid) || '';
+                if (seenUid) localStorage.setItem('btc_' + m.key + '_celebrated_' + seenUid, 'true');
+            } catch (e4) {}
+            // Award points
+            if (typeof awardPoints === 'function') awardPoints(m.pts, '🗺️ ' + m.pct + '% Explored');
+            // Award tickets
+            if (typeof awardOrangeTickets === 'function') {
+                awardOrangeTickets(m.tickets, '🗺️ ' + m.pct + '% Explored');
+            } else {
+                var _t = parseInt(localStorage.getItem('btc_orange_tickets') || '0');
+                localStorage.setItem('btc_orange_tickets', (_t + m.tickets).toString());
+            }
+            // Show celebration
+            setTimeout(function() {
+                showCelebration({
+                    emoji: m.emoji,
+                    title: m.title,
+                    message: m.msg,
+                    rewards: [
+                        { label: m.pts.toString(), sub: 'PTS', color: '#22c55e' },
+                        { label: m.tickets.toString(), sub: '🎫 TICKETS', color: '#f7931a' }
+                    ]
+                });
+            }, 800);
+            // Sync to Firebase
+            if (typeof db !== 'undefined' && typeof auth !== 'undefined' && auth && auth.currentUser && !auth.currentUser.isAnonymous) {
+                var upd = {}; upd['explorationMilestone_' + m.pct] = true;
+                try { db.collection('users').doc(auth.currentUser.uid).update(upd).catch(function(){}); } catch(e) {}
             }
         });
     };
