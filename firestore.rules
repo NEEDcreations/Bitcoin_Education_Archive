@@ -549,10 +549,14 @@ service cloud.firestore {
         allow read: if request.auth != null;
         allow create: if clientWritesOk() && (request.auth != null
                       && request.auth.uid == userId
+                      && autoDocId(playlistId)
+                      && noStoredIdField()
+                      && request.resource.data.keys().hasOnly(['name', 'trackIds', 'createdAt'])
                       && request.resource.data.name is string
                       && request.resource.data.name.size() <= 60);
         allow update: if clientWritesOk() && (request.auth != null
-                      && request.auth.uid == userId);
+                      && request.auth.uid == userId
+                      && idFieldUnchanged());
         allow delete: if clientWritesOk() && (request.auth != null
                       && request.auth.uid == userId);
       }
@@ -943,6 +947,29 @@ service cloud.firestore {
     // it is still visible. Ordinary Pleb Talk posts are not paced by
     // topic_discussion_limits. anchorIndex and anchorHash are server-written
     // scroll hints; clients cannot create or change them.
+    // N3/N4: user-created chat, forum and comment docs must use Firestore
+    // auto-ids (add()), so a doc id can never carry markup or quotes. Admin
+    // SDK writes (functions, workers) skip rules and keep their own ids.
+    function autoDocId(id) {
+      return id is string && id.matches('^[A-Za-z0-9]{20}$');
+    }
+    function noStoredIdField() {
+      return !('id' in request.resource.data);
+    }
+    // Updates may not add or change an `id` field (the forum client used to
+    // let a stored id override the real doc id).
+    function idFieldUnchanged() {
+      return request.resource.data.get('id', null) == resource.data.get('id', null);
+    }
+    // Admin-written docs keyed by a uid (beats_artists): plain id characters only.
+    // Article status: 'published' (what the client writes) or 'draft' (what
+    // articlePublishXp treats as unpublished). A missing status is legacy.
+    function articleStatusOk(d) {
+      return !('status' in d) || d.status in ['published', 'draft'];
+    }
+    function safeDocId(id) {
+      return id is string && id.matches('^[A-Za-z0-9_:.-]{1,128}$');
+    }
     function forumMirrorFieldsAbsent() {
       return !request.resource.data.keys().hasAny(['origin', 'mirrorOf', 'mirrorSync', 'topicChannel', 'topicPost', 'topicLink', 'anchorIndex', 'anchorHash', 'noAward', 'mirrored']);
     }
@@ -1007,6 +1034,10 @@ service cloud.firestore {
     match /forum_posts/{postId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && autoDocId(postId)
+                    && noStoredIdField()
+                    && request.resource.data.keys().hasOnly(['title', 'body', 'link', 'category', 'authorId', 'authorName',
+                        'authorFaction', 'authorPoints', 'upvotes', 'voters', 'replyCount', 'createdAt'])
                     && request.resource.data.keys().hasAll(['title', 'authorId', 'authorName', 'createdAt'])
                     && request.resource.data.title is string
                     && request.resource.data.title.size() >= 5
@@ -1015,6 +1046,7 @@ service cloud.firestore {
                     && forumMirrorFieldsAbsent()
                     && (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0));
       allow update: if clientWritesOk() && (request.auth != null
+                    && idFieldUnchanged()
                     && evidenceAuthorFrozen()
                     && (
                       isAdmin()
@@ -1051,6 +1083,10 @@ service cloud.firestore {
     match /forum_replies/{replyId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && autoDocId(replyId)
+                    && noStoredIdField()
+                    && request.resource.data.keys().hasOnly(['postId', 'body', 'authorId', 'authorName', 'authorFaction',
+                        'authorPoints', 'upvotes', 'voters', 'createdAt', 'parentReplyId', 'parentAuthorName'])
                     && request.resource.data.keys().hasAll(['postId', 'body', 'authorId', 'authorName', 'createdAt'])
                     && request.resource.data.body is string
                     && request.resource.data.body.size() >= 2
@@ -1058,6 +1094,7 @@ service cloud.firestore {
                     && request.resource.data.authorId == request.auth.uid
                     && forumMirrorFieldsAbsent());
       allow update: if clientWritesOk() && (request.auth != null
+                    && idFieldUnchanged()
                     && evidenceAuthorFrozen()
                     && (
                       isAdmin()
@@ -1357,24 +1394,78 @@ service cloud.firestore {
     // IRL EVENTS
     // =============================================
     match /irl_events/{eventId} {
+      // D1: cover images are an https URL or a base64 image data URL, with no
+      // quote, bracket, paren, backslash or whitespace that could leave a
+      // CSS url('...') or an HTML attribute.
+      function irlCoverOk(d) {
+        return !('coverUrl' in d)
+            || (d.coverUrl is string
+                && d.coverUrl.matches("^(https://[^\\s\"'<>()\\\\]+|data:image/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+)$"));
+      }
+      function irlOldAttendees() {
+        return resource.data.get('attendees', []);
+      }
+      function irlChanged() {
+        return request.resource.data.diff(resource.data).affectedKeys();
+      }
+      // D2: a non-host RSVP adds exactly the caller and keeps everyone else.
+      function irlRsvpJoin() {
+        return irlChanged().hasOnly(['attendees'])
+            && request.resource.data.attendees is list
+            && request.resource.data.attendees.size() == irlOldAttendees().size() + 1
+            && request.resource.data.attendees.hasAll(irlOldAttendees())
+            && !(request.auth.uid in irlOldAttendees())
+            && request.auth.uid in request.resource.data.attendees;
+      }
+      // D3: a non-host can undo their own RSVP (arrayRemove of their uid),
+      // removing nobody else. attendeesCount is left alone, as on join.
+      function irlRsvpLeave() {
+        return irlChanged().hasOnly(['attendees'])
+            && request.resource.data.attendees is list
+            && request.resource.data.attendees.size() == irlOldAttendees().size() - 1
+            && irlOldAttendees().hasAll(request.resource.data.attendees)
+            && request.auth.uid in irlOldAttendees()
+            && !(request.auth.uid in request.resource.data.attendees);
+      }
+      // D1: the host may only edit these fields, with a numeric count and a
+      // safe cover. hostId, hostName, createdAt and new fields (emoji) are out.
+      function irlHostEditOk() {
+        return irlChanged().hasOnly(['title', 'date', 'location', 'locationName', 'link', 'description',
+                'coverUrl', 'attendees', 'attendeesCount'])
+            && (!irlChanged().hasAny(['attendeesCount']) || request.resource.data.attendeesCount is int)
+            && (!irlChanged().hasAny(['attendees']) || request.resource.data.attendees is list)
+            && (!irlChanged().hasAny(['coverUrl']) || irlCoverOk(request.resource.data));
+      }
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && autoDocId(eventId)
+                    && noStoredIdField()
+                    // Exactly the fields irl-sync.js submitEvent sends.
+                    && request.resource.data.keys().hasOnly(['title', 'date', 'location', 'locationName', 'hostId',
+                        'hostName', 'attendeesCount', 'attendees', 'createdAt', 'link', 'description', 'coverUrl'])
                     && request.resource.data.hostId == request.auth.uid
                     && request.resource.data.keys().hasAll(['title', 'hostId', 'date'])
                     && (request.resource.data.keys().hasAny(['location', 'locationName']))
                     && request.resource.data.title is string
                     && request.resource.data.title.size() >= 3
                     && request.resource.data.title.size() <= 200
+                    // D1: the host is the only attendee, the count is the int 1,
+                    // hostName is short text and the cover is safe.
+                    && request.resource.data.attendees == [request.auth.uid]
+                    && request.resource.data.attendeesCount is int
+                    && request.resource.data.attendeesCount == 1
+                    && request.resource.data.hostName is string
+                    && request.resource.data.hostName.size() <= 50
+                    && irlCoverOk(request.resource.data)
                     // link field must be https:// or absent — blocks javascript: and data: XSS
                     && (!request.resource.data.keys().hasAny(['link'])
                         || (request.resource.data.link is string
                             && request.resource.data.link.matches('https://.*'))));
       allow update: if clientWritesOk() && (request.auth != null
-                    && (resource.data.hostId == request.auth.uid
-                        || isAdmin()
-                        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['attendees'])
-                            && request.resource.data.attendees.size() == resource.data.get('attendees', []).size() + 1
-                            && request.auth.uid in request.resource.data.attendees))
+                    && idFieldUnchanged()
+                    && (isAdmin()
+                        || (resource.data.hostId == request.auth.uid && irlHostEditOk())
+                        || (resource.data.hostId != request.auth.uid && (irlRsvpJoin() || irlRsvpLeave())))
                     // link field must be https:// or absent on update too
                     && (!request.resource.data.keys().hasAny(['link'])
                         || request.resource.data.link == null
@@ -1529,6 +1620,13 @@ service cloud.firestore {
     match /beats_tracks/{trackId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && autoDocId(trackId)
+                    && noStoredIdField()
+                    // Exactly the fields the four beats.js upload paths send.
+                    && request.resource.data.keys().hasOnly(['title', 'artist', 'genre', 'audioData', 'audioUrl',
+                        'duration', 'authorId', 'authorName', 'plays', 'likes', 'copyrightConfirmed', 'createdAt',
+                        'coverUrl', 'coverArt', 'releaseDate', 'albumId', 'albumTitle', 'albumType', 'trackNumber',
+                        'albumYear', 'albumTotalTracks'])
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.copyrightConfirmed == true
@@ -1557,6 +1655,7 @@ service cloud.firestore {
                     && (!('plays' in request.resource.data) || request.resource.data.plays == 0)
                     && (!('likes' in request.resource.data) || request.resource.data.likes == 0));
       allow update: if clientWritesOk() && (request.auth != null
+                    && idFieldUnchanged()
                     && evidenceAuthorFrozen()
                     && (
                       // Author can update their own track (with coverUrl + XSS validation)
@@ -1602,6 +1701,9 @@ service cloud.firestore {
       match /comments/{commentId} {
         allow read: if true;
         allow create: if clientWritesOk() && (request.auth != null
+                      && autoDocId(commentId)
+                      && noStoredIdField()
+                      && request.resource.data.keys().hasOnly(['text', 'authorId', 'authorName', 'createdAt'])
                       && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                       && request.resource.data.authorId == request.auth.uid
                       && request.resource.data.text is string
@@ -1617,7 +1719,16 @@ service cloud.firestore {
     match /beats_artists/{artistId} {
       allow read: if true;
       // Only admin can create/update (import script uses Admin SDK)
-      allow write: if clientWritesOk() && (request.auth != null
+      // Docs are keyed by the artist's uid, so no auto-id check; plain id
+      // characters only, and never a stored id field.
+      allow create: if clientWritesOk() && (request.auth != null
+                   && isAdmin()
+                   && safeDocId(artistId)
+                   && noStoredIdField());
+      allow update: if clientWritesOk() && (request.auth != null
+                   && isAdmin()
+                   && idFieldUnchanged());
+      allow delete: if clientWritesOk() && (request.auth != null
                    && isAdmin());
     }
 
@@ -1651,6 +1762,17 @@ service cloud.firestore {
     match /articles/{articleId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && autoDocId(articleId)
+                    && noStoredIdField()
+                    // Exactly the fields forum.js articleSubmit sends.
+                    && request.resource.data.keys().hasOnly(['title', 'subtitle', 'body', 'tags', 'wordCount', 'readTime',
+                        'authorId', 'authorName', 'authorPoints', 'authorPic', 'upvotes', 'voters', 'replyCount',
+                        'tipTotal', 'status', 'pinned', 'agreedToTerms', 'createdAt', 'updatedAt', 'coverUrl'])
+                    && articleStatusOk(request.resource.data)
+                    && request.resource.data.get('pinned', false) == false
+                    && request.resource.data.get('upvotes', 0) == 0
+                    && request.resource.data.get('voters', []).size() == 0
+                    && request.resource.data.get('tipTotal', 0) == 0
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.title is string
@@ -1661,6 +1783,13 @@ service cloud.firestore {
                     && request.resource.data.agreedToTerms == true
                     && (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0));
       allow update: if clientWritesOk() && (request.auth != null
+                    && idFieldUnchanged()
+                    // C3: a status change is allowed only from published/draft (or a
+                    // legacy doc with no status) to published/draft. A moderated
+                    // status such as 'hidden' stays put unless an admin changes it.
+                    && (request.resource.data.get('status', null) == resource.data.get('status', null)
+                        || isAdmin()
+                        || (articleStatusOk(resource.data) && articleStatusOk(request.resource.data)))
                     && evidenceAuthorFrozen()
                     && (
                       // Author can edit their own article. replyCount stays server-owned.
@@ -1671,7 +1800,9 @@ service cloud.firestore {
                         && request.resource.data.title is string
                         && request.resource.data.title.size() >= 10
                         && request.resource.data.title.size() <= 120
-                        && serverCountersUnchanged())
+                        && serverCountersUnchanged()
+                        // C2: only an admin pins (admin branch below).
+                        && request.resource.data.get('pinned', false) == resource.data.get('pinned', false))
                       // Upvotes/tips/saves: anyone authenticated
                       // [SECURITY FIX] Each branch now freezes the fields it does NOT own.
                       // Previously the OR logic let any branch pass while the caller freely
@@ -1712,12 +1843,17 @@ service cloud.firestore {
     match /article_replies/{replyId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && autoDocId(replyId)
+                    && noStoredIdField()
+                    && request.resource.data.keys().hasOnly(['articleId', 'body', 'authorId', 'authorName', 'authorPoints',
+                        'createdAt', 'parentReplyId', 'parentAuthorName'])
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.body is string
                     && request.resource.data.body.size() >= 2
                     && request.resource.data.body.size() <= 2000);
       allow update: if clientWritesOk() && (request.auth != null
+                    && idFieldUnchanged()
                     && evidenceAuthorFrozen()
                     && (resource.data.authorId == request.auth.uid
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
@@ -1873,7 +2009,7 @@ service cloud.firestore {
               || (d.hasChatFlair == true && ('chatFlairEmoji' in d || nook)));
       }
       allow read: if true;
-      allow create: if clientWritesOk() && ((
+      allow create: if clientWritesOk() && autoDocId(msgId) && noStoredIdField() && ((
                     // Authenticated non-anonymous user messages only
                     request.auth != null
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
