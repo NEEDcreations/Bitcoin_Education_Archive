@@ -3200,6 +3200,67 @@ function _startDifficultyCurrentListener(blocksFoundForCurrentPeriod, pastBlockC
         });
 }
 
+// Assign a mined block to a Difficulty History row by the target it was
+// mined under. Fall back to the server retarget time (`since`) as the
+// period start. A calendar date like 2026-11-14 parses as UTC midnight,
+// which is 7 PM ET the night before, so it must not be the first choice.
+function _sfPeriodStartMs(row) {
+    if (!row) return 0;
+    var s = row.since;
+    if (s && typeof s.toMillis === 'function') s = s.toMillis();
+    s = Number(s);
+    if (s > 0 && isFinite(s)) return s;
+    if (row.date) {
+        var t = new Date(row.date).getTime();
+        if (isFinite(t)) return t;
+    }
+    return 0;
+}
+
+function _sfBlockTsMs(block) {
+    if (!block) return 0;
+    var ts = block.timestamp;
+    if (ts && typeof ts.toMillis === 'function') return ts.toMillis();
+    if (ts != null && ts !== '') {
+        var n = Number(ts);
+        if (n > 0 && isFinite(n)) return n;
+        var parsed = Date.parse(ts);
+        if (isFinite(parsed)) return parsed;
+    }
+    var direct = Number(block.tsMs);
+    return (direct > 0 && isFinite(direct)) ? direct : 0;
+}
+
+function _sfAssignDifficultyPeriod(history, block) {
+    var dh = Array.isArray(history) ? history : [];
+    if (!dh.length) return 0;
+    var tsMs = _sfBlockTsMs(block);
+    var starts = dh.map(_sfPeriodStartMs);
+    var target = Number(block && (block.difficultyTarget != null ? block.difficultyTarget : block.target));
+    if (target > 0) {
+        var lastAtOrBefore = -1;
+        var firstMatch = -1;
+        for (var i = 0; i < dh.length; i++) {
+            if (Number(dh[i].target) !== target) continue;
+            if (firstMatch < 0) firstMatch = i;
+            if (starts[i] <= tsMs) lastAtOrBefore = i;
+        }
+        if (lastAtOrBefore >= 0) return lastAtOrBefore;
+        if (firstMatch >= 0) return firstMatch;
+    }
+    var periodIdx = 0;
+    for (var p = 0; p < starts.length; p++) {
+        if (starts[p] <= tsMs) periodIdx = p;
+        else break;
+    }
+    return periodIdx;
+}
+
+if (typeof window !== 'undefined') {
+    window._sfPeriodStartMs = _sfPeriodStartMs;
+    window._sfAssignDifficultyPeriod = _sfAssignDifficultyPeriod;
+}
+
 function _loadDifficultyHistoryBlocks() {
     if (typeof db === 'undefined') return;
     var _dh = (typeof window !== 'undefined' && window.SF_DIFFICULTY_HISTORY) || [];
@@ -3209,7 +3270,7 @@ function _loadDifficultyHistoryBlocks() {
     function _difficultyAtTs(tsMs) {
         var result = _dh.length ? _dh[0].target : 1000;
         for (var _k = 0; _k < _dh.length; _k++) {
-            if (new Date(_dh[_k].date).getTime() <= tsMs) result = _dh[_k].target;
+            if (_sfPeriodStartMs(_dh[_k]) <= tsMs) result = _dh[_k].target;
             else break;
         }
         return result;
@@ -3221,26 +3282,10 @@ function _loadDifficultyHistoryBlocks() {
         .where('isWinner', '==', true)
         .get()
         .then(function(snap) {
-            // Build period start timestamps from the history array
-            var periodStarts = _dh.map(function(row) { return new Date(row.date).getTime(); });
-
-            // counts[i] = blocks found in period i (by timestamp, not just by target)
+            // counts[i] = blocks found in period i (by stored target, then retarget time)
             var counts = new Array(_dh.length).fill(0);
             snap.forEach(function(doc) {
-                var d = doc.data();
-                var tsMs;
-                if (d.timestamp && d.timestamp.toMillis) {
-                    tsMs = d.timestamp.toMillis();
-                } else {
-                    tsMs = 0;
-                }
-                // Find which period this winner belongs to (last period whose start <= tsMs)
-                var periodIdx = 0;
-                for (var _pi = 0; _pi < periodStarts.length; _pi++) {
-                    if (periodStarts[_pi] <= tsMs) periodIdx = _pi;
-                    else break;
-                }
-                counts[periodIdx]++;
+                counts[_sfAssignDifficultyPeriod(_dh, doc.data())]++;
             });
 
             // Update Blocks cells for all rows + running total
