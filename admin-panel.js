@@ -60,6 +60,12 @@
             title: 'Payouts',
             tools: [
                 {
+                    id: 'favorClaims', icon: '\u26A1', name: 'Satoshi\u2019s Favor claims',
+                    tip: 'Freeze an epoch, open claims per epoch, clear a fee halt, release reviews.',
+                    how: 'Every button asks for a fresh authenticator code. Freeze shows a dry run first, then Confirm freeze saves it. Turning claims on asks you to confirm the epoch list.',
+                    open: openFavorClaims
+                },
+                {
                     id: 'cipherWins', icon: '\uD83D\uDD10', name: 'Cipher sats wins',
                     tip: 'See every cipher sats win and mark it paid once the sats are sent.',
                     how: 'Opens Settings \u203A Account \u203A Admin. Red "Flagged" wins are banned or sats-disabled accounts, so don\u2019t pay those.',
@@ -462,6 +468,515 @@
             });
         });
     }
+
+    // ---- Satoshi's Favor claims (admin) ------------------------------------
+    // Freeze an epoch, turn claims on or off per epoch, clear a fee halt, and
+    // release a manual-review block. Every action is a callable that checks
+    // the admin claim and a fresh authenticator code on the server. This UI
+    // never writes Firestore directly. It only reads two admin-readable paths:
+    // config/satoshiFavorPayouts and sf_payout_results. Every value is shown
+    // with textContent, never parsed as HTML.
+
+    var SF_MAX_EPOCH = 9999;
+
+    var SF_REVIEW_COPY = {
+        no_address: 'No Lightning address',
+        shared_address: 'Address shared with another account',
+        address_changed_after_close: 'Address set or changed after the epoch closed'
+    };
+
+    function sfParseEpochList(text) {
+        var raw = String(text == null ? '' : text).trim();
+        if (!raw) return { ok: true, epochs: [] };
+        var parts = raw.split(/[\s,]+/).filter(function (p) { return p !== ''; });
+        var out = [];
+        for (var i = 0; i < parts.length; i++) {
+            if (!/^\d{1,4}$/.test(parts[i])) return { ok: false, error: 'Epochs must be whole numbers like 1 or 1, 2.' };
+            var n = Number(parts[i]);
+            if (n < 1 || n > SF_MAX_EPOCH) return { ok: false, error: 'Epochs run from 1 to ' + SF_MAX_EPOCH + '.' };
+            if (out.indexOf(n) === -1) out.push(n);
+        }
+        out.sort(function (a, b) { return a - b; });
+        return { ok: true, epochs: out };
+    }
+
+    function sfParseEpoch(text) {
+        var s = String(text == null ? '' : text).trim();
+        if (!/^\d{1,4}$/.test(s)) return null;
+        var n = Number(s);
+        return n >= 1 && n <= SF_MAX_EPOCH ? n : null;
+    }
+
+    function sfMaskUid(uid) {
+        var s = String(uid || '');
+        return s ? s.slice(0, 5) + '\u2026' : '';
+    }
+
+    function sfMaskLn(addr) {
+        var a = String(addr == null ? '' : addr).trim().toLowerCase();
+        var at = a.indexOf('@');
+        if (at < 1) return '';
+        return a.slice(0, Math.min(2, at)) + '\u2026' + a.slice(at);
+    }
+
+    function sfSats(n) {
+        var v = Math.floor(Number(n) || 0);
+        return v.toLocaleString ? v.toLocaleString('en-US') : String(v);
+    }
+
+    // Split a freeze result into claimable and manual-review blocks.
+    function sfSummarizeFreeze(data) {
+        var blocks = (data && Array.isArray(data.blocks)) ? data.blocks : [];
+        var s = { claimable: [], review: [], claimableSats: 0, reviewSats: 0 };
+        blocks.forEach(function (b) {
+            if (!b) return;
+            if (b.manualReview) { s.review.push(b); s.reviewSats += Number(b.amount) || 0; }
+            else { s.claimable.push(b); s.claimableSats += Number(b.amount) || 0; }
+        });
+        return s;
+    }
+
+    function sfErr(e) {
+        return String((e && (e.message || (e.details && e.details.message))) || e || 'Something went wrong.');
+    }
+
+    // A fresh authenticator code for this one call. Resolves to the proof id,
+    // or null when the admin cancels. Never reuses a proof.
+    function sfStepUp(action) {
+        if (typeof window._showFreshStepUp !== 'function') {
+            return Promise.reject(new Error('Two-factor is not ready. Refresh and try again.'));
+        }
+        return Promise.resolve(window._showFreshStepUp(action));
+    }
+
+    function sfCall(name, payload) {
+        if (typeof firebase === 'undefined' || !firebase.functions) {
+            return Promise.reject(new Error('Functions are not ready. Refresh and try again.'));
+        }
+        return firebase.functions().httpsCallable(name)(payload).then(function (res) {
+            return (res && res.data) || {};
+        });
+    }
+
+    // Step up, then call. Resolves to { cancelled: true } or the callable data.
+    function sfGuarded(stepAction, fnName, payload) {
+        return sfStepUp(stepAction).then(function (proof) {
+            if (!proof) return { cancelled: true };
+            var p = {};
+            Object.keys(payload || {}).forEach(function (k) { p[k] = payload[k]; });
+            p.freshProofId = proof;
+            return sfCall(fnName, p);
+        });
+    }
+
+    function sfConfirm(text) {
+        if (typeof window.confirm !== 'function') return false;
+        try { return window.confirm(text) === true; } catch (e) { return false; }
+    }
+
+    var SFCSS = KSCSS.replace(/#bqKillSwitchUi/g, '#bqFavorUi').replace(/ksu-/g, 'sfu-') +
+        '#bqFavorUi h3{font-size:0.95rem;font-weight:900;margin:16px 0 6px;color:#f7931a;}' +
+        '#bqFavorUi .sfu-card{border:1px solid var(--border,#334155);border-radius:12px;padding:10px 12px;margin:6px 0;}' +
+        '#bqFavorUi .sfu-kv{display:flex;justify-content:space-between;gap:10px;font-size:0.86rem;margin:2px 0;}' +
+        '#bqFavorUi .sfu-k{color:var(--text-muted,#94a3b8);}' +
+        '#bqFavorUi .sfu-v{font-weight:800;text-align:right;}' +
+        '#bqFavorUi .sfu-go.alt{background:#1d4ed8;}' +
+        '#bqFavorUi .sfu-go.warn{background:#b45309;}' +
+        '#bqFavorUi .sfu-go:disabled{opacity:0.55;cursor:default;}' +
+        '#bqFavorUi .sfu-chk{display:flex;align-items:center;gap:8px;font-size:0.9rem;font-weight:700;margin:8px 0 0;}' +
+        '#bqFavorUi .sfu-chk input{width:auto;}' +
+        '#bqFavorUi ul{padding-left:18px;margin:4px 0 8px;}';
+
+    function closeFavorUi() {
+        var n = document.getElementById('bqFavorUi');
+        if (n && n.parentNode) n.parentNode.removeChild(n);
+    }
+
+    function sfKv(parent, k, v, cls) {
+        var row = el('div', 'sfu-kv');
+        row.appendChild(el('span', 'sfu-k', k));
+        row.appendChild(el('span', 'sfu-v' + (cls ? ' ' + cls : ''), v));
+        parent.appendChild(row);
+        return row;
+    }
+
+    function sfButton(text, cls, id) {
+        var b = el('button', cls || 'sfu-go', text);
+        b.type = 'button';
+        if (id) b.id = id;
+        return b;
+    }
+
+    function sfInput(id, label, parent, attrs) {
+        var lab = el('label', null, label);
+        lab.setAttribute('for', id);
+        var inp = el('input');
+        inp.id = id;
+        inp.type = 'text';
+        inp.setAttribute('autocomplete', 'off');
+        Object.keys(attrs || {}).forEach(function (k) { inp.setAttribute(k, attrs[k]); });
+        parent.appendChild(lab);
+        parent.appendChild(inp);
+        return inp;
+    }
+
+    function sfClear(node) {
+        while (node.firstChild) node.removeChild(node.firstChild);
+    }
+
+    function openFavorClaims() {
+        if (!isAdmin()) return;
+        closeFavorUi();
+        if (!document.getElementById('bqFavorUiCss')) {
+            var st = document.createElement('style');
+            st.id = 'bqFavorUiCss';
+            st.textContent = SFCSS;
+            document.head.appendChild(st);
+        }
+        var root = el('div');
+        root.id = 'bqFavorUi';
+        root.setAttribute('role', 'dialog');
+        root.setAttribute('aria-modal', 'true');
+        root.setAttribute('aria-labelledby', 'bqFavorUiTitle');
+        var sheet = el('div', 'sfu-sheet');
+        var head = el('div', 'sfu-head');
+        var h2 = el('h2', null, 'Satoshi\u2019s Favor claims');
+        h2.id = 'bqFavorUiTitle';
+        var x = sfButton('\u2715', 'sfu-x');
+        x.setAttribute('aria-label', 'Close');
+        head.appendChild(h2);
+        head.appendChild(x);
+        sheet.appendChild(head);
+        sheet.appendChild(el('p', null, 'Every button here asks for a fresh authenticator code. The server checks your admin access again on each action.'));
+
+        // 1. Current state
+        sheet.appendChild(el('h3', null, 'Current state'));
+        var stateBox = el('div', 'sfu-card');
+        stateBox.id = 'sfuState';
+        stateBox.appendChild(el('p', null, 'Loading\u2026'));
+        sheet.appendChild(stateBox);
+        var refresh = sfButton('Refresh', 'sfu-cancel', 'sfuRefresh');
+        sheet.appendChild(refresh);
+
+        // 2. Freeze an epoch
+        sheet.appendChild(el('h3', null, 'Freeze an epoch'));
+        sheet.appendChild(el('p', null, 'Locks in who won each block of a closed epoch. Preview first; nothing changes until you confirm.'));
+        var freezeEpoch = sfInput('sfuFreezeEpoch', 'Epoch number', sheet, { inputmode: 'numeric', maxlength: '4', placeholder: '1' });
+        var fRow = el('div', 'sfu-row');
+        var fPreview = sfButton('Preview freeze (dry run)', 'sfu-go alt', 'sfuFreezePreview');
+        var fConfirm = sfButton('Confirm freeze', 'sfu-go', 'sfuFreezeConfirm');
+        fConfirm.style.display = 'none';
+        fRow.appendChild(fPreview);
+        fRow.appendChild(fConfirm);
+        sheet.appendChild(fRow);
+        var fOut = el('div');
+        fOut.id = 'sfuFreezeOut';
+        sheet.appendChild(fOut);
+        var fStatus = el('div', 'sfu-status');
+        fStatus.id = 'sfuFreezeStatus';
+        sheet.appendChild(fStatus);
+
+        // 3. Claims switch
+        sheet.appendChild(el('h3', null, 'Claims'));
+        var chkLab = el('label', 'sfu-chk');
+        var chk = el('input');
+        chk.type = 'checkbox';
+        chk.id = 'sfuClaimsOn';
+        chkLab.appendChild(chk);
+        chkLab.appendChild(el('span', null, 'Claims on'));
+        sheet.appendChild(chkLab);
+        var epochsIn = sfInput('sfuEpochs', 'Open epochs (comma list, like 1 or 1, 2)', sheet, { inputmode: 'numeric', maxlength: '200', placeholder: '1' });
+        var cRow = el('div', 'sfu-row');
+        var cSave = sfButton('Save claim settings', 'sfu-go alt', 'sfuClaimsSave');
+        cRow.appendChild(cSave);
+        sheet.appendChild(cRow);
+        var cStatus = el('div', 'sfu-status');
+        cStatus.id = 'sfuClaimsStatus';
+        sheet.appendChild(cStatus);
+
+        // 4. Fee halt
+        sheet.appendChild(el('h3', null, 'Fee halt'));
+        sheet.appendChild(el('p', null, 'If a payout pays a routing fee over the limit, every claim pauses until an admin clears it. Check the fee in Alby Hub first.'));
+        var hRow = el('div', 'sfu-row');
+        var hClear = sfButton('Clear fee halt', 'sfu-go warn', 'sfuClearHalt');
+        hRow.appendChild(hClear);
+        sheet.appendChild(hRow);
+        var hStatus = el('div', 'sfu-status');
+        hStatus.id = 'sfuHaltStatus';
+        sheet.appendChild(hStatus);
+
+        // 5. Manual review
+        sheet.appendChild(el('h3', null, 'Manual review'));
+        sheet.appendChild(el('p', null, 'Blocks set aside when frozen. Release sends a block back to its frozen winner, who then claims it with every normal check. Release never pays by itself.'));
+        var rBox = el('div');
+        rBox.id = 'sfuReview';
+        rBox.appendChild(el('p', null, 'Loading\u2026'));
+        sheet.appendChild(rBox);
+
+        var closeRow = el('div', 'sfu-row');
+        var closeBtn = sfButton('Close', 'sfu-cancel', 'sfuClose');
+        closeRow.appendChild(closeBtn);
+        sheet.appendChild(closeRow);
+
+        root.appendChild(sheet);
+        document.body.appendChild(root);
+        x.addEventListener('click', closeFavorUi);
+        closeBtn.addEventListener('click', closeFavorUi);
+        root.addEventListener('click', function (ev) { if (ev.target === root) closeFavorUi(); });
+
+        var state = { cfg: null, preview: null, previewEpoch: null };
+
+        function paintState() {
+            sfClear(stateBox);
+            var c = state.cfg;
+            if (!c) { stateBox.appendChild(el('p', 'bad', 'Could not read the claim settings.')); return; }
+            var on = c.claimsEnabled === true;
+            var eps = Array.isArray(c.enabledEpochs) ? c.enabledEpochs : [1];
+            sfKv(stateBox, 'Claims', on ? 'ON' : 'OFF', on ? 'ok' : 'warn');
+            sfKv(stateBox, 'Open epochs', eps.length ? eps.join(', ') : 'none');
+            if (c.perClaimCapSats != null) sfKv(stateBox, 'Per-claim cap', sfSats(c.perClaimCapSats) + ' sats');
+            if (c.perUidDailySats != null) sfKv(stateBox, 'Per player per day', sfSats(c.perUidDailySats) + ' sats');
+            if (c.siteDailySats != null) sfKv(stateBox, 'Site-wide per day', sfSats(c.siteDailySats) + ' sats');
+            if (c.walletFloorSats != null) sfKv(stateBox, 'Wallet floor', sfSats(c.walletFloorSats) + ' sats');
+            if (c.updatedBy) sfKv(stateBox, 'Last changed by', String(c.updatedBy));
+            if (c.updatedAtMs) sfKv(stateBox, 'Last changed', new Date(Number(c.updatedAtMs)).toLocaleString());
+            // sf_claim_counters/fee_halt is server-only (rules deny all client
+            // reads), so its state is not shown here.
+            sfKv(stateBox, 'Fee halt', 'not readable here');
+            chk.checked = on;
+            epochsIn.value = eps.join(', ');
+        }
+
+        function loadState() {
+            if (typeof firebase === 'undefined' || !firebase.firestore) {
+                state.cfg = null; paintState(); return Promise.resolve();
+            }
+            return firebase.firestore().collection('config').doc('satoshiFavorPayouts').get().then(function (snap) {
+                var d = (snap && snap.exists && typeof snap.data === 'function') ? (snap.data() || {}) : {};
+                state.cfg = {
+                    claimsEnabled: d.claimsEnabled === true,
+                    enabledEpochs: Array.isArray(d.enabledEpochs) ? d.enabledEpochs.filter(function (e) { return typeof e === 'number'; }) : [1],
+                    perClaimCapSats: d.perClaimCapSats, perUidDailySats: d.perUidDailySats,
+                    siteDailySats: d.siteDailySats, walletFloorSats: d.walletFloorSats,
+                    updatedBy: d.updatedBy, updatedAtMs: d.updatedAtMs
+                };
+                paintState();
+            }).catch(function (e) {
+                sfClear(stateBox);
+                stateBox.appendChild(el('p', 'bad', 'Could not read the claim settings. ' + sfErr(e)));
+            });
+        }
+
+        function paintReview(rows) {
+            sfClear(rBox);
+            if (!rows.length) { rBox.appendChild(el('p', 'ok', 'No blocks waiting for review.')); return; }
+            rows.forEach(function (r) {
+                var card = el('div', 'sfu-card');
+                card.setAttribute('data-review', r.epoch + '_' + r.block);
+                sfKv(card, 'Epoch ' + r.epoch + ', block ' + r.block, sfSats(r.amount) + ' sats');
+                sfKv(card, 'Winner', sfMaskUid(r.uid));
+                sfKv(card, 'Pays to', sfMaskLn(r.frozenLn) || 'no address');
+                sfKv(card, 'Why', SF_REVIEW_COPY[r.manualReview] || String(r.manualReview));
+                var noteId = 'sfuNote_' + r.epoch + '_' + r.block;
+                var note = sfInput(noteId, 'Note (required, admins only)', card, { maxlength: '300', placeholder: 'Why it is safe to release' });
+                var row = el('div', 'sfu-row');
+                var rel = sfButton('Release to winner', 'sfu-go alt');
+                row.appendChild(rel);
+                card.appendChild(row);
+                var st = el('div', 'sfu-status');
+                card.appendChild(st);
+                rel.addEventListener('click', function () {
+                    var n = (note.value || '').trim();
+                    if (n.length < 3) { st.textContent = 'Add a short note first.'; return; }
+                    if (!sfConfirm('Release epoch ' + r.epoch + ' block ' + r.block + ' (' + sfSats(r.amount) + ' sats) to ' + (sfMaskLn(r.frozenLn) || 'its winner') + '? The winner can then claim it.')) return;
+                    rel.disabled = true;
+                    st.textContent = 'Checking your sign-in\u2026';
+                    sfGuarded('adminResolveFavorReview', 'adminResolveFavorReview',
+                        { epoch: r.epoch, block: r.block, action: 'release', note: n }).then(function (d) {
+                        rel.disabled = false;
+                        if (d.cancelled) { st.textContent = 'Enter a fresh authenticator code to continue.'; return; }
+                        st.textContent = d.ok
+                            ? (d.code === 'noop' ? 'Already released.' : 'Released. The winner can claim it now.')
+                            : ('Not released: ' + String(d.code || 'refused') + '.');
+                        st.className = 'sfu-status ' + (d.ok ? 'ok' : 'bad');
+                    }).catch(function (e) {
+                        rel.disabled = false;
+                        st.textContent = sfErr(e);
+                        st.className = 'sfu-status bad';
+                    });
+                });
+                rBox.appendChild(card);
+            });
+        }
+
+        function loadReview() {
+            if (typeof firebase === 'undefined' || !firebase.firestore) { paintReview([]); return Promise.resolve(); }
+            return firebase.firestore().collection('sf_payout_results').get().then(function (snap) {
+                var rows = [];
+                ((snap && snap.docs) || []).forEach(function (doc) {
+                    var d = (doc && typeof doc.data === 'function') ? (doc.data() || {}) : {};
+                    if (d.kind !== 'epoch_blocks' || !Array.isArray(d.blocks)) return;
+                    // The frozen result stores epochNumber; the doc id is epoch_<n>.
+                    var idm = /^epoch_(\d{1,4})$/.exec(String((doc && doc.id) || ''));
+                    var ep = Number(d.epochNumber != null ? d.epochNumber : (idm ? idm[1] : NaN));
+                    if (!(ep >= 1 && ep <= SF_MAX_EPOCH) || Math.floor(ep) !== ep) return;
+                    d.blocks.forEach(function (b) {
+                        if (b && b.manualReview) rows.push({ epoch: ep, block: Number(b.block), amount: b.amount, uid: b.uid, frozenLn: b.frozenLn, manualReview: b.manualReview });
+                    });
+                });
+                rows.sort(function (a, b) { return (a.epoch - b.epoch) || (a.block - b.block); });
+                paintReview(rows);
+            }).catch(function (e) {
+                sfClear(rBox);
+                rBox.appendChild(el('p', 'bad', 'Could not read the review list. ' + sfErr(e)));
+            });
+        }
+
+        function paintFreeze(data, epoch) {
+            sfClear(fOut);
+            var s = sfSummarizeFreeze(data);
+            var card = el('div', 'sfu-card');
+            var head = data.dryRun ? 'Preview for epoch ' + epoch + ' (nothing saved)'
+                : (data.created ? 'Epoch ' + epoch + ' is now frozen.' : (data.existed ? 'Epoch ' + epoch + ' was already frozen.' : 'Epoch ' + epoch));
+            card.appendChild(el('p', data.ok ? 'ok' : 'bad', head));
+            if (!data.ok) card.appendChild(el('p', 'bad', 'Problem: ' + String(data.reason || 'unknown') + '.'));
+            sfKv(card, 'Claimable', s.claimable.length + ' blocks, ' + sfSats(s.claimableSats) + ' sats');
+            sfKv(card, 'Manual review', s.review.length + ' blocks, ' + sfSats(s.reviewSats) + ' sats');
+            var ul = el('ul');
+            (data.blocks || []).forEach(function (b) {
+                var line = 'Block ' + b.block + ': ' + sfSats(b.amount) + ' sats to ' + String(b.payTo || 'no address') +
+                    ' (' + String(b.uid || '') + ')' + (b.manualReview ? ' \u2014 review: ' + (SF_REVIEW_COPY[b.manualReview] || String(b.manualReview)) : '');
+                ul.appendChild(el('li', b.manualReview ? 'warn' : '', line));
+            });
+            card.appendChild(ul);
+            fOut.appendChild(card);
+        }
+
+        function resetFreezeConfirm() {
+            state.preview = null;
+            state.previewEpoch = null;
+            fConfirm.style.display = 'none';
+        }
+
+        freezeEpoch.addEventListener('input', resetFreezeConfirm);
+
+        fPreview.addEventListener('click', function () {
+            var ep = sfParseEpoch(freezeEpoch.value);
+            fStatus.className = 'sfu-status';
+            if (ep == null) { fStatus.textContent = 'Enter an epoch number from 1 to ' + SF_MAX_EPOCH + '.'; return; }
+            resetFreezeConfirm();
+            sfClear(fOut);
+            fPreview.disabled = true;
+            fStatus.textContent = 'Checking your sign-in\u2026';
+            sfGuarded('adminFreezeFavorEpoch', 'adminFreezeFavorEpoch', { epoch: ep, dryRun: true }).then(function (d) {
+                fPreview.disabled = false;
+                if (d.cancelled) { fStatus.textContent = 'Enter a fresh authenticator code to continue.'; return; }
+                fStatus.textContent = '';
+                paintFreeze(d, ep);
+                if (d.ok && d.dryRun && !d.existed) {
+                    state.preview = d;
+                    state.previewEpoch = ep;
+                    fConfirm.textContent = 'Confirm freeze of epoch ' + ep;
+                    fConfirm.style.display = '';
+                }
+            }).catch(function (e) {
+                fPreview.disabled = false;
+                fStatus.textContent = sfErr(e);
+                fStatus.className = 'sfu-status bad';
+            });
+        });
+
+        fConfirm.addEventListener('click', function () {
+            var ep = state.previewEpoch;
+            if (ep == null || sfParseEpoch(freezeEpoch.value) !== ep) { resetFreezeConfirm(); fStatus.textContent = 'Preview again first.'; return; }
+            var s = sfSummarizeFreeze(state.preview);
+            if (!sfConfirm('Freeze epoch ' + ep + '? ' + s.claimable.length + ' blocks (' + sfSats(s.claimableSats) + ' sats) become claimable once claims are on, and ' +
+                s.review.length + ' go to manual review. This cannot be undone.')) return;
+            fConfirm.disabled = true;
+            fPreview.disabled = true;
+            fStatus.className = 'sfu-status';
+            fStatus.textContent = 'Checking your sign-in\u2026';
+            sfGuarded('adminFreezeFavorEpoch', 'adminFreezeFavorEpoch', { epoch: ep, dryRun: false }).then(function (d) {
+                fConfirm.disabled = false;
+                fPreview.disabled = false;
+                if (d.cancelled) { fStatus.textContent = 'Enter a fresh authenticator code to continue.'; return; }
+                fStatus.textContent = '';
+                resetFreezeConfirm();
+                paintFreeze(d, ep);
+                loadReview();
+            }).catch(function (e) {
+                fConfirm.disabled = false;
+                fPreview.disabled = false;
+                fStatus.textContent = sfErr(e);
+                fStatus.className = 'sfu-status bad';
+            });
+        });
+
+        cSave.addEventListener('click', function () {
+            cStatus.className = 'sfu-status';
+            var parsed = sfParseEpochList(epochsIn.value);
+            if (!parsed.ok) { cStatus.textContent = parsed.error; return; }
+            var on = chk.checked === true;
+            if (on && !parsed.epochs.length) { cStatus.textContent = 'List at least one epoch to open.'; return; }
+            var wasOn = !!(state.cfg && state.cfg.claimsEnabled);
+            var msg = on
+                ? 'Turn claims ON for epoch' + (parsed.epochs.length > 1 ? 's ' : ' ') + parsed.epochs.join(', ') + '? Players in those epochs can claim real sats right away.'
+                : (wasOn ? 'Turn claims OFF? No one can claim until you turn them back on.' : 'Save these settings with claims off?');
+            if (!sfConfirm(msg)) return;
+            cSave.disabled = true;
+            cStatus.textContent = 'Checking your sign-in\u2026';
+            sfGuarded('adminSetFavorClaims', 'adminSetFavorClaims', { claimsEnabled: on, enabledEpochs: parsed.epochs }).then(function (d) {
+                cSave.disabled = false;
+                if (d.cancelled) { cStatus.textContent = 'Enter a fresh authenticator code to continue.'; return; }
+                if (d.config) {
+                    state.cfg = {
+                        claimsEnabled: d.config.claimsEnabled === true,
+                        enabledEpochs: Array.isArray(d.config.enabledEpochs) ? d.config.enabledEpochs : [],
+                        perClaimCapSats: d.config.perClaimCapSats, perUidDailySats: d.config.perUidDailySats,
+                        siteDailySats: d.config.siteDailySats, walletFloorSats: d.config.walletFloorSats
+                    };
+                    paintState();
+                }
+                cStatus.textContent = 'Saved. Claims are ' + (on ? 'ON' : 'OFF') + '.';
+                cStatus.className = 'sfu-status ok';
+            }).catch(function (e) {
+                cSave.disabled = false;
+                cStatus.textContent = sfErr(e);
+                cStatus.className = 'sfu-status bad';
+            });
+        });
+
+        hClear.addEventListener('click', function () {
+            hStatus.className = 'sfu-status';
+            if (!sfConfirm('Clear the fee halt? Only do this after checking the fee in Alby Hub. Claims resume right away.')) return;
+            hClear.disabled = true;
+            hStatus.textContent = 'Checking your sign-in\u2026';
+            sfGuarded('adminSetFavorClaims', 'adminSetFavorClaims', { clearFeeHalt: true }).then(function (d) {
+                hClear.disabled = false;
+                if (d.cancelled) { hStatus.textContent = 'Enter a fresh authenticator code to continue.'; return; }
+                hStatus.textContent = d.feeHaltCleared || d.ok ? 'Fee halt cleared.' : 'No change.';
+                hStatus.className = 'sfu-status ok';
+            }).catch(function (e) {
+                hClear.disabled = false;
+                hStatus.textContent = sfErr(e);
+                hStatus.className = 'sfu-status bad';
+            });
+        });
+
+        refresh.addEventListener('click', function () { loadState(); loadReview(); });
+
+        loadState();
+        loadReview();
+    }
+
+    window.bqOpenFavorClaims = openFavorClaims;
+    window.bqFavorAdmin = {
+        parseEpochList: sfParseEpochList,
+        parseEpoch: sfParseEpoch,
+        summarizeFreeze: sfSummarizeFreeze,
+        maskUid: sfMaskUid,
+        maskLn: sfMaskLn
+    };
 
     window.bqAdminPanelTools = GROUPS;
     window.bqOpenKillSwitch = openKillSwitch;

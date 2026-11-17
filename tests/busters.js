@@ -51,9 +51,11 @@ test('mobile main pad tracks --bq-mobile-bar-h so Experience clears the header',
     assert.ok(!html.includes('features.registry.js?v=20261109_v2538'));
 });
 
-test('service worker cache is v2580', () => {
+test('service worker cache is v2582', () => {
     const sw = read('sw.js');
-    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2580'"));
+    assert.ok(sw.includes("const CACHE_NAME = 'btc-archive-v2582'"))
+    assert.ok(!sw.includes('btc-archive-v2581'));
+    assert.ok(!sw.includes('btc-archive-v2580'));
     assert.ok(!sw.includes('btc-archive-v2578'));
     assert.ok(!sw.includes('btc-archive-v2572'));
     assert.ok(!sw.includes('btc-archive-v2571'));
@@ -294,7 +296,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('username-repick.js?v=20261024_v2351'));
     assert.ok(html.includes('earn-xp-guide.js?v=20261026_v2382'));
     assert.ok(html.includes('referral-tiers.js?v=20261105_v2499'));
-    assert.ok(html.includes('ranking.js?v=20261114_v2569'));
+    assert.ok(html.includes('ranking.js?v=20261116_v2581'));
     assert.ok(!html.includes('ranking.js?v=20261114_v2565'));
     assert.ok(!html.includes('ranking.js?v=20261104_v2483'));
     assert.ok(html.includes('/tctv-drip.js?v=20261116_v2580'));
@@ -325,7 +327,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261029_v2420'));
     assert.ok(!html.includes('ranking.js?v=20261028_v2416'));
     assert.ok(!html.includes('ranking.js?v=20261028_v2403'));
-    assert.ok(html.indexOf('referral-tiers.js?v=20261105_v2499') < html.indexOf('ranking.js?v=20261114_v2569'));
+    assert.ok(html.indexOf('referral-tiers.js?v=20261105_v2499') < html.indexOf('ranking.js?v=20261116_v2581'));
     assert.ok(html.includes('auth-display.js?v=20261106_v2512'));
     assert.ok(!html.includes('auth-display.js?v=20261028_v2425'));
     assert.ok(!html.includes('auth-display.js?v=20261029_v2420'));
@@ -351,8 +353,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('ranking.js?v=20261026_v2373'));
     assert.ok(!html.includes('ranking.js?v=20261026_v2367'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2361'));
-    assert.ok(html.indexOf('earn-xp-guide.js?v=20261026_v2382') < html.indexOf('ranking.js?v=20261114_v2569'));
-    assert.ok(html.indexOf('username-repick.js?v=20261104_v2476') < html.indexOf('ranking.js?v=20261114_v2569'));
+    assert.ok(html.indexOf('earn-xp-guide.js?v=20261026_v2382') < html.indexOf('ranking.js?v=20261116_v2581'));
+    assert.ok(html.indexOf('username-repick.js?v=20261104_v2476') < html.indexOf('ranking.js?v=20261116_v2581'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2359'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2358'));
     assert.ok(!html.includes('ranking.js?v=20261024_v2357'));
@@ -596,7 +598,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(html.includes('aria-label="Sign in to see today\'s XP. Full rate to 500 XP, half rate to 900, quarter rate to 1,000 cap"'));
     assert.ok(!html.includes('today-card.js?v=20261023_v2330'));
     assert.ok(!html.includes('today-card.js?v=20261023_v2323'));
-    assert.ok(html.includes('satoshi-favor.js?v=20261112_v2539'));
+    assert.ok(html.includes('satoshi-favor.js?v=20261116_v2582'));
+    assert.ok(!html.includes('satoshi-favor.js?v=20261112_v2539'));
     assert.ok(!html.includes('satoshi-favor.js?v=20261106_v2525'));
     assert.ok(!html.includes('satoshi-favor.js?v=20261104_v2482'));
     assert.ok(!html.includes('satoshi-favor.js?v=20261024_v2352'));
@@ -605,7 +608,8 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('satoshi-favor.js?v=20261023_v2324'));
     assert.ok(html.includes('lightning.js?v=20261023_v2323'));
     assert.ok(!html.includes('lightning.js?v=20261022_faucet'));
-    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261114_v2560/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261116_v2582/g) || []).length, 4);
+    assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261114_v2560/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261112_v2551/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261112_v2545/g) || []).length, 0);
     assert.strictEqual((html.match(/(^|[^a-z-])quests\.js\?v=20261112_v2539/g) || []).length, 0);
@@ -656,7 +660,7 @@ test('index.html and 404.html match, and the changed script busters moved', () =
     assert.ok(!html.includes('timechain-tv.js?v=20261026_v2420'));
     assert.ok(!html.includes('timechain-tv.js?v=20261024_v2353'));
     assert.ok(!html.includes('timechain-tv.js?v=20261022_v2266'));
-    assert.ok(swVersion && swVersion[1] === 'v2580');
+    assert.ok(swVersion && swVersion[1] === 'v2582');
     assert.ok(html.includes('faction-race-prizes.js?v=20261105_v2505'));
 });
 
@@ -812,12 +816,13 @@ test('PR #252 asset busters are v2512 (popup-stack bumped to v2519)', () => {
     assert.ok(html.includes('popup-stack.js?v=20261106_v2519'));
     assert.ok(!html.includes('popup-stack.js?v=20261106_v2515'));
     assert.ok(!html.includes('popup-stack.js?v=20261106_v2512'));
-    assert.ok(html.includes('ranking.js?v=20261114_v2569'));
+    assert.ok(html.includes('ranking.js?v=20261116_v2581'));
     assert.ok(html.includes('bundle.min.js?v=20261114_v2565'));
     assert.ok(!html.includes('bundle.min.js?v=20261106_v2512'));
     assert.ok(html.includes('features.registry.js?v=20261114_v2565'));
     assert.ok(html.includes('onboarding.js?v=20261114_v2565'));
-    assert.ok(html.includes('quests.js?v=20261114_v2560'));
+    assert.ok(html.includes('quests.js?v=20261116_v2582'));
+    assert.ok(!html.includes('quests.js?v=20261114_v2560'));
     assert.ok(html.includes('notifications.js?v=20261106_v2512'));
     assert.ok(html.includes('gifting.js?v=20261106_v2522'));
     assert.ok(!html.includes('gifting.js?v=20261106_v2512'));
@@ -833,9 +838,11 @@ test('kill switch client and SW v2551 pins', () => {
     const html404 = read('404.html');
     assert.ok(html.includes('kill-switch.js?v=20261111_v2551'));
     assert.ok(html404.includes('kill-switch.js?v=20261111_v2551'));
-    assert.ok(html.indexOf('kill-switch.js?v=20261111_v2551') < html.indexOf('ranking.js?v=20261114_v2569'));
+    assert.ok(html.indexOf('kill-switch.js?v=20261111_v2551') < html.indexOf('ranking.js?v=20261116_v2581'));
     const ranking = read('ranking.js');
-    assert.ok(ranking.includes("/admin-panel.js?v=20261111_v2551"));
+    assert.ok(ranking.includes("/admin-panel.js?v=20261116_v2581"));
+    assert.ok(!ranking.includes("/admin-panel.js?v=20261111_v2551"));
+    assert.ok(!html.includes('ranking.js?v=20261114_v2569'));
     assert.ok(ranking.includes('adminSetKillSwitch: 1'));
 });
 

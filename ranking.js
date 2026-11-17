@@ -3614,7 +3614,7 @@ function settleAdminClaim() {
 // admin is true (window._isAdminClaim, set from getIdTokenResult). Never email.
 // It carries no admin data. Tapping re-checks the claim, then lazy-loads
 // admin-panel.js, so non-admins never download the panel.
-var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261111_v2551';
+var HOME_ADMIN_PANEL_SRC = '/admin-panel.js?v=20261116_v2581';
 
 function ensureHomeAdminBtnCss() {
     if (document.getElementById('homeAdminBtnCss')) return;
@@ -13387,7 +13387,9 @@ window._showFreshStepUp = function (action) {
         changeEmail: 'Enter a fresh authenticator code to add or change your email. Remembering this device is not enough.',
         adminSetKillSwitch: 'Enter a fresh authenticator code to flip the kill switch. A remembered device is not enough, and the authenticator must be at least 24 hours old.',
         claimFavorBlock: 'Enter a fresh authenticator code to claim your Favor block. A remembered device is not enough.',
-        adminSetFavorClaims: 'Enter a fresh authenticator code to change Favor claim settings.'
+        adminSetFavorClaims: 'Enter a fresh authenticator code to change Favor claim settings.',
+        adminFreezeFavorEpoch: 'Enter a fresh authenticator code to freeze a Favor epoch.',
+        adminResolveFavorReview: 'Enter a fresh authenticator code to release a Favor review block.'
     };
     return new Promise(function (resolve) {
         var old = document.getElementById('freshStepUpOverlay');
