@@ -9031,8 +9031,9 @@ function isCleanText(text) {
 }
 
 // Sanitize HTML
-// Escape for element text AND quoted attributes (& < > " ' all encoded).
-function fEsc(str) { if (str == null) return ''; return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// Escape for element text AND quoted attributes (& < > " ' ` all encoded).
+function fEsc(str) { if (str == null) return ''; return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;'); }
+function fNum(x) { return Number(x) || 0; }
 // Firestore doc ids / uids rendered into the DOM must be plain tokens.
 // Doc ids are client-chosen strings, so a crafted id like  x"><img onerror=...>  must never reach markup.
 var FORUM_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
@@ -9313,7 +9314,7 @@ function forumRenderPosts(posts, container) {
             '<div style="display:flex;gap:10px;">' +
                 '<div style="display:flex;flex-direction:column;align-items:center;min-width:36px;flex-shrink:0;">' +
                     '<button' + fAct('votePost', p.id) + ' style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:4px;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-faint)') + ';touch-action:manipulation;" title="Upvote">👍</button>' +
-                    '<span style="color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:700;">' + (p.upvotes || 0) + '</span>' +
+                    '<span style="color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:700;">' + fNum(p.upvotes) + '</span>' +
                 '</div>' +
                 '<div style="flex:1;min-width:0;overflow:hidden;">' +
                     '<div style="color:var(--heading);font-size:0.9rem;font-weight:700;margin-bottom:3px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</div>' +
@@ -9437,7 +9438,7 @@ window.forumViewPost = async function(postId, fromPopState) {
         // Vote + meta + admin delete
         var canDeletePost = (auth && auth.currentUser && p.authorId === auth.currentUser.uid) || isForumAdmin();
         html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
-            '<button' + fAct('votePost', p.id) + ' style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:6px 12px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:600;font-family:inherit;touch-action:manipulation;">👍 ' + (p.upvotes || 0) + '</button>' +
+            '<button' + fAct('votePost', p.id) + ' style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:6px 12px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:600;font-family:inherit;touch-action:manipulation;">👍 ' + fNum(p.upvotes) + '</button>' +
             '<span style="color:var(--text-faint);font-size:0.8rem;">💬 ' + (p.replyCount || 0) + ' replies</span>' +
             (canDeletePost ? '<button' + fAct('deletePost', p.id) + ' style="background:none;border:1px solid var(--border);border-radius:16px;padding:4px 10px;color:#ef4444;font-size:0.75rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️ Delete</button>' : '') +
         '</div>';
@@ -9544,7 +9545,7 @@ async function forumLoadReplies(postId) {
                 '</div>' +
                 '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;margin-bottom:8px;">' + bodyHtml + '</div>' +
                 '<div style="display:flex;gap:8px;align-items:center;">' +
-                    '<button' + fAct('voteReply', r.id) + ' style="display:flex;align-items:center;gap:4px;background:' + (hasVotedR ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVotedR ? 'var(--accent)' : 'var(--border)') + ';border-radius:12px;padding:3px 10px;cursor:pointer;color:' + (hasVotedR ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\uD83D\uDC4D ' + (r.upvotes || 0) + '</button>' +
+                    '<button' + fAct('voteReply', r.id) + ' style="display:flex;align-items:center;gap:4px;background:' + (hasVotedR ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVotedR ? 'var(--accent)' : 'var(--border)') + ';border-radius:12px;padding:3px 10px;cursor:pointer;color:' + (hasVotedR ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\uD83D\uDC4D ' + fNum(r.upvotes) + '</button>' +
                     (canReply ? '<button data-reply-id="' + fId(r.id) + '" data-reply-author="' + fEsc(r.authorName || 'Anon') + '" onclick="window.forumReplyToReply(this.dataset.replyId,this.dataset.replyAuthor)" style="display:flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:12px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\u21A9 Reply</button>' : '') +
                     (canDeleteReply ? '<button' + fAct('deleteReply', r.id, r.postId) + ' style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:2px;touch-action:manipulation;opacity:0.5;" title="Delete reply">\uD83D\uDDD1\uFE0F</button>' : '') +
                 '</div>' +
@@ -10140,9 +10141,9 @@ async function loadArticles() {
             
             // Stats
             html += '<div style="display:flex;gap:12px;margin-top:8px;font-size:0.75rem;color:var(--text-faint);">' +
-                '<span>👍 ' + (a.upvotes || 0) + '</span>' +
+                '<span>👍 ' + fNum(a.upvotes) + '</span>' +
                 '<span>💬 ' + (a.replyCount || 0) + '</span>' +
-                (a.tipTotal ? '<span>⚡ ' + a.tipTotal + ' sats</span>' : '') +
+                (fNum(a.tipTotal) ? '<span>⚡ ' + fNum(a.tipTotal) + ' sats</span>' : '') +
             '</div>';
             
             html += '</div></div>';
@@ -10621,7 +10622,7 @@ window.articleView = async function(articleId) {
         
         // Action bar
         html += '<div style="display:flex;align-items:center;gap:12px;padding:16px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:20px;">';
-        html += '<button ' + fAct('articleVote', articleId) + ' style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:8px 14px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:600;font-family:inherit;">👍 ' + (a.upvotes || 0) + '</button>';
+        html += '<button ' + fAct('articleVote', articleId) + ' style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:8px 14px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:600;font-family:inherit;">👍 ' + fNum(a.upvotes) + '</button>';
         
         // Tip button
         if (typeof tipButtonHtml === 'function') {
@@ -11017,9 +11018,9 @@ function snRenderFeedCards(items) {
         h += '<a href="https://stacker.news/' + snEscape(item.user.name) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="color:var(--text-muted);text-decoration:none;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">@' + snEscape(item.user.name) + '</a>';
         h += '<span>\u00b7</span>';
         h += '<span>' + ago + '</span>';
-        if (item.ncomments > 0) {
+        if (fNum(item.ncomments) > 0) {
             h += '<span>\u00b7</span>';
-            h += '<span>\ud83d\udcac ' + item.ncomments + '</span>';
+            h += '<span>\ud83d\udcac ' + fNum(item.ncomments) + '</span>';
         }
         if (domain) {
             h += '<span>\u00b7</span>';
@@ -11081,9 +11082,9 @@ function snRenderPost(fc, item) {
     h += '<a href="https://stacker.news/' + snEscape(item.user.name) + '" target="_blank" rel="noopener noreferrer" style="color:var(--text-muted);text-decoration:none;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">@' + snEscape(item.user.name) + '</a>';
     h += '<span>·</span>';
     h += '<span>' + snTimeAgo(item.createdAt) + '</span>';
-    if (item.ncomments > 0) {
+    if (fNum(item.ncomments) > 0) {
         h += '<span>·</span>';
-        h += '<span>💬 ' + item.ncomments + ' comments</span>';
+        h += '<span>💬 ' + fNum(item.ncomments) + ' comments</span>';
     }
     h += '</div>';
 
@@ -11109,7 +11110,7 @@ function snRenderPost(fc, item) {
     // Comments
     if (item.comments && item.comments.comments && item.comments.comments.length > 0) {
         h += '<div style="margin-top:4px;">';
-        h += '<div style="font-size:0.85rem;font-weight:700;color:var(--heading);margin-bottom:12px;">💬 Comments (' + item.ncomments + ')</div>';
+        h += '<div style="font-size:0.85rem;font-weight:700;color:var(--heading);margin-bottom:12px;">💬 Comments (' + fNum(item.ncomments) + ')</div>';
         h += snRenderComments(item.comments.comments, 0);
         h += '</div>';
     }
@@ -11499,7 +11500,7 @@ if (document.readyState === 'loading') {
 }
 
 // Escaping helpers, exposed read-only for tests/test-forum-xss.js.
-window._forumSafe = Object.freeze({ fId: fId, fEsc: fEsc, fSafeUrl: fSafeUrl, fAct: fAct, renderPosts: function(posts, container) { return forumRenderPosts(posts, container); } });
+window._forumSafe = Object.freeze({ fId: fId, fEsc: fEsc, fNum: fNum, fSafeUrl: fSafeUrl, fAct: fAct, renderPosts: function(posts, container) { return forumRenderPosts(posts, container); } });
 
 })();
 // © 2024-2026 603BTC LLC. All rights reserved.

@@ -68,9 +68,10 @@ test('fId accepts plain tokens (incl. 46-char mirror ids) and rejects payloads',
     assert.strictEqual(S.fId(null), '');
 });
 
-test('fEsc encodes & < > " \'', () => {
+test('fEsc encodes & < > " \' and backtick', () => {
     const { ctx } = makeCtx(); const S = ctx.window._forumSafe;
     assert.strictEqual(S.fEsc(`<a href="x" onclick='y'>&`), '&lt;a href=&quot;x&quot; onclick=&#39;y&#39;&gt;&amp;');
+    assert.strictEqual(S.fEsc('`alert(1)`'), '&#96;alert(1)&#96;');
 });
 
 test('fSafeUrl keeps http(s) only', () => {
@@ -148,6 +149,73 @@ test('rules: client-created forum/article ids must be plain tokens', () => {
     const ID = /^[A-Za-z0-9_-]{1,64}$/;
     assert.ok(!ID.test('x53326"><img src=x onerror=alert(1)>'));
     assert.ok(ID.test('tdreply_problems-of-money_kFmhpdzU92fJ0vxOpuQT'));
+});
+
+test('fNum coerces non-numeric counters to 0 and keeps real counts', () => {
+    const { ctx } = makeCtx(); const S = ctx.window._forumSafe;
+    assert.strictEqual(S.fNum(7), 7);
+    assert.strictEqual(S.fNum('12'), 12);
+    assert.strictEqual(S.fNum(0), 0);
+    assert.strictEqual(S.fNum(null), 0);
+    assert.strictEqual(S.fNum(undefined), 0);
+    assert.strictEqual(S.fNum('<img src=x onerror=alert(1)>'), 0);
+    assert.strictEqual(S.fNum('https://x/onerror=1'), 0);
+});
+
+test('a string upvotes or tipTotal value renders as 0, not markup', () => {
+    const payload = '<img src=x onerror=alert(1)>';
+    const html = renderList([{ id: 'VA7aTZ8Q2IcWNITVqPBQ', title: 'Counter test', body: 'ok', authorId: 'EzWnUid1', authorName: 'Ada', upvotes: payload, tipTotal: payload }]);
+    assert.ok(!/<img/i.test(html), 'img tag leaked from upvotes/tipTotal');
+    assert.ok(!/onerror/i.test(html), 'onerror leaked from upvotes/tipTotal');
+    assert.ok(!/onerror=alert/i.test(html));
+    assert.ok(html.includes('>0</span>'), 'non-numeric upvotes should display as 0');
+    assert.ok(!html.includes(payload), 'raw payload appeared in markup');
+});
+
+test('source: every markup upvotes, tipTotal, and ncomments use goes through fNum', () => {
+    const lines = src.split('\n');
+    const bad = [];
+    lines.forEach((line, i) => {
+        if (!(/(\.upvotes|\.tipTotal|\.ncomments)/.test(line))) return;
+        if (/fNum\(/.test(line)) return;
+        if (/(upvotes|tipTotal):\s*0/.test(line)) return; // create payloads
+        if (/sortField/.test(line)) return;
+        if (/FieldValue\.increment/.test(line)) return;
+        if (/_cp\.upvotes\s*=/.test(line)) return;
+        if (/voters/.test(line) && !/\.upvotes/.test(line) && !/\.tipTotal/.test(line) && !/\.ncomments/.test(line)) return;
+        if (/function fNum/.test(line)) return;
+        // remaining assignment / read (not concatenated into markup)
+        if (/\+\s*(\w+\.)?(upvotes|tipTotal|ncomments)/.test(line) || /['"][^'"]*['"]\s*\+\s*(\w+\.)?(upvotes|tipTotal|ncomments)/.test(line)) {
+            bad.push((i + 1) + ': ' + line.trim());
+        }
+    });
+    assert.deepStrictEqual(bad, [], String(bad));
+    assert.ok((src.match(/fNum\(p\.upvotes\)/g) || []).length === 2);
+    assert.ok(src.includes('fNum(r.upvotes)'));
+    assert.ok((src.match(/fNum\(a\.upvotes\)/g) || []).length === 2);
+    assert.ok((src.match(/fNum\(a\.tipTotal\)/g) || []).length === 2);
+    assert.ok((src.match(/fNum\(item\.ncomments\)/g) || []).length >= 5);
+});
+
+test('rules: creates require upvotes==0 if present and tipTotal absent-or-0; authors cannot change them', () => {
+    assert.ok(/function forumCountersZeroOnCreate\(\)[\s\S]{0,240}upvotes == 0[\s\S]{0,200}tipTotal == 0/.test(rules));
+    assert.ok(/function voteCountersUnchanged\(\)[\s\S]{0,200}\['upvotes', 'voters', 'tipTotal'\]/.test(rules));
+    assert.ok(/function forumAuthorMayUpdate\(maxBody\)[\s\S]{0,180}voteCountersUnchanged\(\)/.test(rules));
+    ['forum_posts', 'forum_replies', 'articles', 'article_replies'].forEach((c) => {
+        const start = rules.indexOf('match /' + c + '/');
+        assert.ok(start !== -1, c);
+        const block = rules.slice(start, rules.indexOf('\n    match /', start + 10));
+        const create = block.slice(block.indexOf('allow create:'), block.indexOf('allow update:'));
+        assert.ok(create.includes('forumCountersZeroOnCreate()'), c + ' create');
+        const update = block.slice(block.indexOf('allow update:'));
+        assert.ok(update.includes('request.resource.data.upvotes is int'), c + ' vote typed int');
+        if (c === 'forum_posts' || c === 'forum_replies') {
+            assert.ok(update.includes('forumAuthorMayUpdate('), c);
+        }
+        if (c === 'articles' || c === 'article_replies') {
+            assert.ok(update.includes('voteCountersUnchanged()'), c + ' author path');
+        }
+    });
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
