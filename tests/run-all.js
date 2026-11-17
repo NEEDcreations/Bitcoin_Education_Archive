@@ -36,6 +36,7 @@ const TESTS = [
     { name: 'TCTV drip pot logic', file: 'test-tctv-drip.js' },
     { name: 'Sidebar topics', file: 'test-sidebar-topics.js' },
     { name: 'Cache Busters', file: 'busters.js' },
+    { name: 'Pleb Talk forum XSS', file: 'test-forum-xss.js' },
     { name: 'Admin home button + panel', file: 'test-admin-home-btn.js' },
     { name: 'Admin claim gates (server)', file: 'test-admin-claim-gates.js' },
     { name: 'Kill switch', file: 'test-kill-switch.js' },
