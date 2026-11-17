@@ -5612,6 +5612,10 @@ async function awardPoints(pts, reason, channelId, tickets, streakFreezes, badge
                     _updateCapIndicator(true);
                 }
             }
+        } else if (_eagerNotifyTs && typeof _correctLastPointsNotif === 'function') {
+            // Drop the optimistic +XP log when the server rejects the claim
+            // (wrong Quiz Me answer, missing evidence, etc.).
+            _correctLastPointsNotif(_eagerNotifyTs, 0);
         }
     } catch (e) {
         // [SECURITY] No local fallback - server is the only source of truth for points

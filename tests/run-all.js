@@ -111,6 +111,7 @@ const TESTS = [
     { name: 'Certificate fast path', file: 'test-cert-fast-path.js' },
     { name: 'Nacho mobile tap', file: 'test-nacho-mobile-tap.js' },
     { name: 'Nacho Quiz Me', file: 'test-nacho-quiz-me.js' },
+    { name: 'Nacho Story copy', file: 'test-nacho-story-copy.js' },
     { name: 'Nacho quiet on certificate links', file: 'test-nacho-cert-quiet.js' },
     { name: 'Mobile Learn and Explore Apps', file: 'test-mobile-menus.js' },
     { name: 'Favorite apps', file: 'test-favorites.js' },
