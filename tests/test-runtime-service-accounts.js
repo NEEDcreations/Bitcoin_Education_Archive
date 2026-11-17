@@ -16,7 +16,7 @@ function test(name, fn) {
 
 process.env.GCLOUD_PROJECT = 'bitcoin-education-archive';
 process.env.FIREBASE_CONFIG = JSON.stringify({ projectId: 'bitcoin-education-archive', storageBucket: 'bitcoin-education-archive.firebasestorage.app' });
-const { RUNTIME_SERVICE_ACCOUNTS, runtimeSa } = require(path.join(fnRoot, 'src', 'runtimeServiceAccounts.js'));
+const { RUNTIME_SERVICE_ACCOUNTS, runtimeSa, runtimeSaOrDefault, DEFAULT_SA_HOLDOVER } = require(path.join(fnRoot, 'src', 'runtimeServiceAccounts.js'));
 const planMod = require(path.join(fnRoot, 'scripts', 'runtime-sa-plan.js'));
 const endpoints = planMod.loadEndpoints();
 const plan = planMod.buildPlan(endpoints);
@@ -30,10 +30,72 @@ test('manifest lists exactly the secret-bound exports (59)', function () {
     assert.strictEqual(secretBound.length, 59);
 });
 
-test('every secret-bound function runs as its own account', function () {
+const HOLDOVER = ['regenerateRecoveryCodes', 'totpCheck', 'totpSetup', 'totpStepUp'];
+const LIVE_APPSPOT = 'bitcoin-education-archive@appspot.gserviceaccount.com';
+
+test('every secret-bound function runs as its own account (live TOTP holdover excepted)', function () {
     secretBound.forEach(function (n) {
-        assert.strictEqual(endpoints[n].serviceAccount, RUNTIME_SERVICE_ACCOUNTS[n].id + '@bitcoin-education-archive.iam.gserviceaccount.com', n);
+        const want = HOLDOVER.indexOf(n) !== -1 ? LIVE_APPSPOT
+            : RUNTIME_SERVICE_ACCOUNTS[n].id + '@bitcoin-education-archive.iam.gserviceaccount.com';
+        assert.strictEqual(endpoints[n].serviceAccount, want, n);
     });
+});
+
+test('TOTP holdover: exactly totpStepUp, totpCheck, totpSetup, regenerateRecoveryCodes, live only', function () {
+    assert.deepStrictEqual(Object.keys(DEFAULT_SA_HOLDOVER).sort(), HOLDOVER);
+    HOLDOVER.forEach(function (n) {
+        assert.deepStrictEqual(Array.from(DEFAULT_SA_HOLDOVER[n]), ['bitcoin-education-archive'], n);
+        // Manifest entry stays so the plan still creates the account for the follow-up move.
+        assert.ok(Object.prototype.hasOwnProperty.call(RUNTIME_SERVICE_ACCOUNTS, n), n);
+        assert.ok(plan.functions[n] && /^fn-/.test(plan.functions[n].id), n);
+    });
+});
+
+test('TOTP holdover keeps TOTP_ENCRYPTION_KEY bound on all four (secrets unchanged)', function () {
+    HOLDOVER.forEach(function (n) {
+        assert.deepStrictEqual(endpoints[n].secrets, ['TOTP_ENCRYPTION_KEY'], n);
+        assert.strictEqual(endpoints[n].gen, 1, n);
+        assert.strictEqual(endpoints[n].trigger, 'callable', n);
+    });
+});
+
+test('runtimeSaOrDefault: live -> appspot default for the four, own account for every other function', function () {
+    const saved = process.env.GCLOUD_PROJECT;
+    try {
+        process.env.GCLOUD_PROJECT = 'bitcoin-education-archive';
+        manifest.forEach(function (n) {
+            const got = runtimeSaOrDefault(n);
+            if (HOLDOVER.indexOf(n) !== -1) assert.strictEqual(got, LIVE_APPSPOT, n);
+            else assert.strictEqual(got, runtimeSa(n), n);
+        });
+        assert.strictEqual(runtimeSaOrDefault('totpVerify'), 'fn-totp-verify@bitcoin-education-archive.iam.gserviceaccount.com');
+        assert.strictEqual(runtimeSaOrDefault('totpDisable'), 'fn-totp-disable@bitcoin-education-archive.iam.gserviceaccount.com');
+        assert.strictEqual(runtimeSaOrDefault('adminResetSecondFactor'), 'fn-admin-reset-second@bitcoin-education-archive.iam.gserviceaccount.com');
+    } finally {
+        process.env.GCLOUD_PROJECT = saved;
+    }
+});
+
+test('runtimeSaOrDefault: staging (and any other project) keeps its own accounts; no env opt-in', function () {
+    const saved = process.env.GCLOUD_PROJECT;
+    const savedOpt = process.env.BQ_TOTP_APPSPOT_SA;
+    try {
+        ['bitcoin-quest-staging', 'demo-other'].forEach(function (p) {
+            process.env.GCLOUD_PROJECT = p;
+            manifest.forEach(function (n) { assert.strictEqual(runtimeSaOrDefault(n), runtimeSa(n), p + ' ' + n); });
+        });
+        process.env.GCLOUD_PROJECT = 'bitcoin-quest-staging';
+        process.env.BQ_TOTP_APPSPOT_SA = '1';
+        assert.strictEqual(runtimeSaOrDefault('totpStepUp'), 'fn-totp-step-up@bitcoin-quest-staging.iam.gserviceaccount.com', 'env vars must not change the account');
+    } finally {
+        process.env.GCLOUD_PROJECT = saved;
+        if (savedOpt === undefined) delete process.env.BQ_TOTP_APPSPOT_SA; else process.env.BQ_TOTP_APPSPOT_SA = savedOpt;
+    }
+});
+
+test('runtimeSaOrDefault throws for an unknown function (no silent default)', function () {
+    assert.throws(function () { runtimeSaOrDefault('notAFunction'); });
+    assert.throws(function () { runtimeSaOrDefault('constructor'); });
 });
 
 test('functions without secrets do not set a service account', function () {
@@ -181,8 +243,27 @@ test('no source passes a default or literal service account', function () {
     })(fnRoot);
     files.forEach(function (p) {
         const src = fs.readFileSync(p, 'utf8');
-        const hits = src.match(/\bserviceAccount:\s+(?!runtimeSa\()[^,}\n]*/g) || [];
+        const hits = src.match(/\bserviceAccount:\s+(?!runtimeSa\(|runtimeSaOrDefault\()[^,}\n]*/g) || [];
         assert.deepStrictEqual(hits, [], path.relative(fnRoot, p));
+    });
+});
+
+test('runtimeSaOrDefault is used only by the TOTP key callables in secondFactor.js', function () {
+    const files = [];
+    (function walk(d) {
+        fs.readdirSync(d).forEach(function (f) {
+            if (f === 'node_modules' || f.startsWith('.')) return;
+            const p = path.join(d, f);
+            if (fs.statSync(p).isDirectory()) walk(p);
+            else if (p.endsWith('.js')) files.push(p);
+        });
+    })(fnRoot);
+    files.forEach(function (p) {
+        const rel = path.relative(fnRoot, p);
+        const n = (fs.readFileSync(p, 'utf8').match(/runtimeSaOrDefault\(/g) || []).length;
+        if (rel === path.join('src', 'secondFactor.js')) assert.strictEqual(n, 2, rel);
+        else if (rel === path.join('src', 'runtimeServiceAccounts.js')) assert.strictEqual(n, 1, rel);
+        else assert.strictEqual(n, 0, rel);
     });
 });
 
