@@ -259,5 +259,255 @@ test('rules: articles have no client tipTotal increment branch', () => {
     assert.ok(/function articleWordCountOk\(\)[\s\S]{0,200}wordCount is int[\s\S]{0,80}>= 0/.test(rules));
 });
 
+
+function loadJsdom() {
+    const tries = ['jsdom', path.join(__dirname, 'node_modules/jsdom'), path.join(__dirname, 'rules/node_modules/jsdom')];
+    let last;
+    for (const c of tries) {
+        try { return require(c); } catch (e) { last = e; }
+    }
+    throw new Error('jsdom is required for mdToHtml tests (npm ci in tests/): ' + (last && last.message));
+}
+
+function renderMdDom(md) {
+    const { JSDOM } = loadJsdom();
+    const { ctx } = makeCtx();
+    const html = ctx.window._forumSafe.mdToHtml(md);
+    const fired = [];
+    const dom = new JSDOM('<!doctype html><html><body><div id="c"></div></body></html>', {
+        url: 'https://bitcoineducation.quest/',
+        runScripts: 'dangerously',
+        beforeParse(window) { window.alert = function () { fired.push('alert'); }; },
+    });
+    const c = dom.window.document.getElementById('c');
+    c.innerHTML = html;
+    const onAttrs = [];
+    for (const el of c.querySelectorAll('*')) {
+        for (const attr of el.attributes) {
+            if (/^on/i.test(attr.name)) onAttrs.push(el.tagName + ' ' + attr.name + '=' + attr.value);
+        }
+    }
+    const scripts = [...c.querySelectorAll('script')];
+    const urls = [...c.querySelectorAll('[href],[src]')].map((el) => el.getAttribute('href') || el.getAttribute('src') || '');
+    return { html, c, fired, onAttrs, scripts, urls };
+}
+
+function assertInert(label, md) {
+    const r = renderMdDom(md);
+    assert.deepStrictEqual(r.fired, [], label + ' fired ' + String(r.fired));
+    assert.deepStrictEqual(r.onAttrs, [], label + ' on* ' + String(r.onAttrs));
+    assert.strictEqual(r.scripts.length, 0, label + ' script tag');
+    r.urls.forEach((u) => {
+        assert.ok(!/^\s*javascript:/i.test(u), label + ' javascript: url ' + u);
+        assert.ok(!/^\s*data:/i.test(u), label + ' data: url ' + u);
+    });
+    return r;
+}
+
+test('mdToHtml keeps supported markdown output shape', () => {
+    const { ctx } = makeCtx();
+    const md = ctx.window._forumSafe.mdToHtml;
+    assert.strictEqual(md(''), '');
+    assert.strictEqual(md(null), '');
+    assert.strictEqual(md('hello'), '<p style="margin:12px 0;line-height:1.8;">hello</p>');
+    assert.strictEqual(md('hello\n\nworld'), '<p style="margin:12px 0;line-height:1.8;">hello</p><p style="margin:12px 0;line-height:1.8;">world</p>');
+    assert.strictEqual(md('**bold** and *em* and `code`'),
+        '<p style="margin:12px 0;line-height:1.8;"><strong style="color:var(--heading);">bold</strong> and <em>em</em> and <code style="background:var(--card-bg);padding:2px 6px;border-radius:4px;font-size:0.9em;">code</code></p>');
+    assert.strictEqual(md('# H1\n## H2\n### H3'),
+        '<p style="margin:12px 0;line-height:1.8;"><h1 style="color:var(--heading);font-size:1.4rem;font-weight:900;margin:28px 0 12px;">H1</h1>\n<h2 style="color:var(--heading);font-size:1.25rem;font-weight:800;margin:24px 0 10px;">H2</h2>\n<h3 style="color:var(--heading);font-size:1.1rem;font-weight:800;margin:20px 0 8px;">H3</h3></p>');
+    assert.strictEqual(md('> quote'),
+        '<p style="margin:12px 0;line-height:1.8;"><blockquote style="border-left:3px solid var(--accent);padding:8px 16px;margin:12px 0;color:var(--text-muted);font-style:italic;">quote</blockquote></p>');
+    assert.strictEqual(md('- item'),
+        '<p style="margin:12px 0;line-height:1.8;"><li style="margin:4px 0 4px 20px;">item</li></p>');
+    assert.strictEqual(md('1. numbered'),
+        '<p style="margin:12px 0;line-height:1.8;"><li style="margin:4px 0 4px 20px;">numbered</li></p>');
+    assert.strictEqual(md('---'),
+        '<p style="margin:12px 0;line-height:1.8;"><hr style="border:none;border-top:1px solid var(--border);margin:20px 0;"></p>');
+    assert.strictEqual(md('![alt](https://ex.com/a.png)'),
+        '<p style="margin:12px 0;line-height:1.8;"><img src="https://ex.com/a.png" alt="alt" style="max-width:100%;border-radius:12px;margin:16px 0;display:block;"></p>');
+    assert.strictEqual(md('[text](https://ex.com/page)'),
+        '<p style="margin:12px 0;line-height:1.8;"><a href="https://ex.com/page" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;font-weight:600;">text</a></p>');
+    assert.strictEqual(md('See https://ex.com/bare and more'),
+        '<p style="margin:12px 0;line-height:1.8;">See <a href="https://ex.com/bare" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">https://ex.com/bare</a> and more</p>');
+    assert.strictEqual(md('[**bold**](https://ex.com/page)'),
+        '<p style="margin:12px 0;line-height:1.8;"><a href="https://ex.com/page" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;font-weight:600;"><strong style="color:var(--heading);">bold</strong></a></p>');
+    assert.strictEqual(md('Hello & goodbye <tag>'),
+        '<p style="margin:12px 0;line-height:1.8;">Hello &amp; goodbye &lt;tag&gt;</p>');
+    // query & is escaped once, not double-escaped
+    assert.ok(md('![a](https://ex.com/a.png?x=1&y=2)').includes('src="https://ex.com/a.png?x=1&amp;y=2"'));
+    assert.ok(!md('![a](https://ex.com/a.png?x=1&y=2)').includes('&amp;amp;'));
+    const mentions = md('@alice hello');
+    assert.ok(mentions.includes('class="forum-mention"'));
+    assert.ok(mentions.includes('@alice'));
+});
+
+test('mdToHtml: a markdown image whose URL contains a second http(s) URL stays one inert img', () => {
+    const md = '![x](https://ex.com/https://x.example/onerror=alert(1)//)';
+    const r = assertInert('nested-url image', md);
+    const imgs = [...r.c.querySelectorAll('img')];
+    assert.strictEqual(imgs.length, 1, 'expected one img, got ' + imgs.length);
+    assert.strictEqual(r.c.querySelectorAll('a').length, 0, 'second-pass link inside src');
+    const src = imgs[0].getAttribute('src');
+    assert.ok(/^https:\/\//.test(src), src);
+    assert.ok(src.includes('ex.com'), src);
+    assert.ok(!imgs[0].hasAttribute('onerror'), 'onerror attribute');
+    assert.ok(![...imgs[0].attributes].some((a) => /^on/i.test(a.name)), 'event attributes on img');
+});
+
+test('mdToHtml: a markdown link whose URL contains a second http(s) URL stays one inert anchor', () => {
+    const md = '[click](https://ex.com/https://x.example/onerror=alert(1)//)';
+    const r = assertInert('nested-url link', md);
+    const anchors = [...r.c.querySelectorAll('a')];
+    assert.strictEqual(anchors.length, 1, 'expected one anchor, got ' + anchors.length);
+    const href = anchors[0].getAttribute('href');
+    assert.ok(/^https:\/\//.test(href), href);
+    assert.ok(href.includes('ex.com'), href);
+    assert.ok(!anchors[0].hasAttribute('onerror'), 'onerror attribute');
+    assert.ok(![...anchors[0].attributes].some((a) => /^on/i.test(a.name)), 'event attributes on anchor');
+    assert.strictEqual(anchors[0].textContent, 'click');
+});
+
+test('mdToHtml: javascript: image and link URLs are dropped', () => {
+    const img = assertInert('javascript image', '![x](javascript:alert(1))');
+    assert.strictEqual(img.c.querySelectorAll('img,a').length, 0);
+    assert.ok(!/javascript:/i.test(img.html));
+    const link = assertInert('javascript link', '[click](javascript:alert(1))');
+    assert.strictEqual(link.c.querySelectorAll('a').length, 0);
+    assert.ok(!/javascript:/i.test(link.html));
+    assert.ok(link.html.includes('click'));
+    const mixed = assertInert('javascript mixed', 'See [click](javascript:alert(1)) and ![x](javascript:alert(1))');
+    assert.strictEqual(mixed.c.querySelectorAll('img,a[href]').length, 0);
+});
+
+test('mdToHtml: quotes and angle brackets in URLs cannot break out of src/href', () => {
+    const cases = [
+        '![x](https://ex.com/foo"onclick=bar)',
+        '![x](https://ex.com/foo><img)',
+        '[click](https://ex.com/foo"onclick=bar)',
+        '[click](https://ex.com/foo>"><img src=x)',
+        '![x](https://ex.com/foo" onmouseover=bar)',
+    ];
+    cases.forEach((md) => {
+        const r = assertInert(md, md);
+        r.c.querySelectorAll('img,a').forEach((el) => {
+            const u = el.getAttribute('src') || el.getAttribute('href') || '';
+            assert.ok(/^https:\/\//.test(u), 'non-http url ' + u + ' for ' + md);
+            assert.ok(!u.includes('"'), 'raw quote in url attr ' + u);
+            assert.ok(!u.includes('<'), 'raw < in url attr ' + u);
+            assert.ok(!u.includes('>'), 'raw > in url attr ' + u);
+        });
+    });
+});
+
+test('mdToHtml: a bare URL next to a markdown link both render as inert http(s) anchors', () => {
+    const md = 'A [link](https://ex.com/page) and https://ex.com/bare';
+    const r = assertInert('bare+link', md);
+    const anchors = [...r.c.querySelectorAll('a')];
+    assert.strictEqual(anchors.length, 2, 'expected two anchors, got ' + anchors.length);
+    assert.strictEqual(anchors[0].getAttribute('href'), 'https://ex.com/page');
+    assert.strictEqual(anchors[0].textContent, 'link');
+    assert.strictEqual(anchors[0].style.fontWeight, '600');
+    assert.strictEqual(anchors[1].getAttribute('href'), 'https://ex.com/bare');
+    assert.strictEqual(anchors[1].textContent, 'https://ex.com/bare');
+    assert.notStrictEqual(anchors[1].style.fontWeight, '600');
+    // neither href was rewritten by a second linkify pass
+    anchors.forEach((a) => {
+        assert.ok(!a.innerHTML.includes('<a '), 'nested anchor');
+    });
+});
+
+
+function assertNoPlaceholder(label, html) {
+    assert.ok(!/%%BQMD[A-Za-z0-9]+\d+%%/.test(html), label + ' leftover placeholder: ' + html);
+}
+
+test('mdToHtml: 50k unclosed brackets render in under 100 ms', () => {
+    const { ctx } = makeCtx();
+    const md = ctx.window._forumSafe.mdToHtml;
+    const openBrackets = '['.repeat(50000);
+    const openImages = '!['.repeat(25000);
+    const t0 = Date.now();
+    const r1 = md(openBrackets);
+    const t1 = Date.now();
+    const r2 = md(openImages);
+    const t2 = Date.now();
+    assert.ok(t1 - t0 < 100, '50k [ took ' + (t1 - t0) + ' ms');
+    assert.ok(t2 - t1 < 100, "25k ![ took " + (t2 - t1) + ' ms');
+    assertNoPlaceholder('50k [', r1);
+    assertNoPlaceholder('25k ![', r2);
+    assert.ok(r1.includes('['.repeat(120)), 'brackets should stay text');
+    assert.ok(r2.includes('!['), 'image markers should stay text');
+    assert.ok(!/<img/i.test(r1 + r2), 'unclosed brackets should not emit img');
+});
+
+test('mdToHtml: an image inside a link expands in the link text with no leftover placeholder', () => {
+    const r = assertInert('img-in-link', '[![a](https://ex.com/i.png)](https://ex.com/page)');
+    assertNoPlaceholder('img-in-link', r.html);
+    const anchors = [...r.c.querySelectorAll('a')];
+    assert.strictEqual(anchors.length, 1, 'expected one anchor, got ' + anchors.length);
+    assert.strictEqual(anchors[0].getAttribute('href'), 'https://ex.com/page');
+    const imgs = [...anchors[0].querySelectorAll('img')];
+    assert.strictEqual(imgs.length, 1, 'expected img inside the link');
+    assert.strictEqual(imgs[0].getAttribute('src'), 'https://ex.com/i.png');
+    assert.strictEqual(imgs[0].getAttribute('alt'), 'a');
+    assert.ok(!imgs[0].getAttribute('src').includes('%%'));
+    assert.ok(!imgs[0].getAttribute('alt').includes('%%'));
+});
+
+test('mdToHtml: code in link text expands with no leftover placeholder', () => {
+    const r = assertInert('code-in-link', '[`code`](https://ex.com/page)');
+    assertNoPlaceholder('code-in-link', r.html);
+    const anchors = [...r.c.querySelectorAll('a')];
+    assert.strictEqual(anchors.length, 1, 'expected one anchor, got ' + anchors.length);
+    assert.strictEqual(anchors[0].getAttribute('href'), 'https://ex.com/page');
+    assert.ok(!anchors[0].getAttribute('href').includes('%%'));
+    const codes = [...anchors[0].querySelectorAll('code')];
+    assert.strictEqual(codes.length, 1, 'expected code inside the link');
+    assert.strictEqual(codes[0].textContent, 'code');
+});
+
+test('mdToHtml: a backtick inside a URL does not leave a placeholder in href', () => {
+    const r = assertInert('backtick-in-url', 'https://ex.com/`foo`');
+    assertNoPlaceholder('backtick-in-url', r.html);
+    const anchors = [...r.c.querySelectorAll('a')];
+    assert.strictEqual(anchors.length, 1, 'expected one anchor, got ' + anchors.length);
+    const href = anchors[0].getAttribute('href');
+    assert.ok(/^https:\/\//.test(href), href);
+    assert.ok(!href.includes('%%'), 'placeholder in href ' + href);
+    assert.ok(!href.includes('<code'), 'markup in href ' + href);
+    const codes = [...r.c.querySelectorAll('code')];
+    assert.strictEqual(codes.length, 1, 'expected the backticked segment as code');
+    assert.strictEqual(codes[0].textContent, 'foo');
+    assert.strictEqual(codes[0].querySelectorAll('a').length, 0);
+});
+
+test('mdToHtml: @mentions inside inline code do not become mention links', () => {
+    const { ctx } = makeCtx();
+    const html = ctx.window._forumSafe.mdToHtml('see `@alice` and @bob');
+    assertNoPlaceholder('mention-in-code', html);
+    const { JSDOM } = loadJsdom();
+    const dom = new JSDOM('<!doctype html><html><body><div id="c"></div></body></html>', { url: 'https://bitcoineducation.quest/' });
+    const c = dom.window.document.getElementById('c');
+    c.innerHTML = html;
+    const code = c.querySelector('code');
+    assert.ok(code, 'code missing');
+    assert.strictEqual(code.textContent, '@alice');
+    assert.strictEqual(code.querySelectorAll('.forum-mention').length, 0, 'mention inside code');
+    const mentions = [...c.querySelectorAll('.forum-mention')];
+    assert.strictEqual(mentions.length, 1, 'expected only @bob to be a mention');
+    assert.ok(mentions[0].textContent.includes('@bob'));
+    assert.ok(!c.querySelector('script'));
+});
+
+test('list excerpt truncates the raw body before escaping so entities stay complete', () => {
+    const html = renderList([{ id: 'VA7aTZ8Q2IcWNITVqPBQ', title: 'Excerpt', body: '&'.repeat(200), authorId: 'EzWnUid1', authorName: 'Ada', upvotes: 0 }]);
+    assert.ok(html.includes('&amp;'.repeat(120) + '...'), 'expected 120 complete amp entities');
+    assert.ok(!/&amp(?!amp;)/.test(html.replace(/&amp;/g, '')), 'dangling amp entity');
+    const html2 = renderList([{ id: 'VA7aTZ8Q2IcWNITVqPBQ', title: 'Excerpt2', body: '<' + 'x'.repeat(200), authorId: 'EzWnUid1', authorName: 'Ada', upvotes: 0 }]);
+    assert.ok(html2.includes('&lt;' + 'x'.repeat(119) + '...'));
+    assert.ok(!html2.includes('<x'), 'raw < leaked');
+    assert.ok(!/&lt(?!ink\b|;)/.test(html2) || html2.includes('&lt;'), 'lt entity present and complete');
+});
+
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);
