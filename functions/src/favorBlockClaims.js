@@ -224,6 +224,8 @@ function readConfig(raw) {
         // Staging mock wallet only (ignored unless the staging build uses the mock).
         mockRouteHint: ['none', 'normal', 'high'].indexOf(d.mockRouteHint) !== -1 ? d.mockRouteHint : 'none',
         mockFeesPaidMsat: posInt(d.mockFeesPaidMsat, 100000000, 0),
+        // Staging mock only: getInfo answers with a blank pubkey, like live Alby Hub.
+        mockBlankPubkey: d.mockBlankPubkey === true,
     };
 }
 
@@ -429,6 +431,7 @@ function createBlockClaimService(deps) {
     const db = deps.db;
     const now = deps.nowMs || Date.now;
     const withTimeout = deps.withTimeout || function (p) { return p; };
+    const logWarn = deps.logWarn || function (msg, data) { console.warn(msg, JSON.stringify(data || {})); };
 
     async function audit(row) {
         try {
@@ -721,11 +724,20 @@ function createBlockClaimService(deps) {
                 const raw = bal && Number(bal.balance);
                 if (!Number.isFinite(raw)) throw new Error('no balance');
                 walletSats = Math.floor(raw / 1000);
+                // getInfo must still answer with an object: a throw, timeout or
+                // empty reply fails closed. Only a blank pubkey inside a real
+                // reply (Alby Hub hides it on some NWC connections) is allowed;
+                // validateInvoice then skips just the own_node check.
                 const info = await withTimeout(wallet.getInfo(), 20000, 'getInfo');
-                ownPubkey = String((info && info.pubkey) || '').toLowerCase();
-                if (!ownPubkey) throw new Error('no pubkey');
+                if (!info || typeof info !== 'object') throw new Error('no info');
+                ownPubkey = String(info.pubkey || '').toLowerCase();
             } catch (e) {
                 await release('wallet_unavailable');
+            }
+            const ownNodeCheck = !!ownPubkey;
+            if (!ownNodeCheck) {
+                // No uid or address in this line: epoch and block only.
+                logWarn('[sfclaim] claim running WITHOUT own_node check: wallet getInfo returned a blank pubkey', { epoch: ids.epoch, block: ids.block });
             }
             if (walletSats - amount < cfg.walletFloorSats) {
                 await alertOnce('wallet_low', 'Favor claims halted: prize wallet is below the ' + cfg.walletFloorSats + '-sat floor.', { floor: cfg.walletFloorSats });
@@ -795,11 +807,12 @@ function createBlockClaimService(deps) {
                             routingFeeSats: routing, walletSpentSats: spent,
                             budget: catchUp ? CATCH_UP_COUNTER_ID : 'month',
                             paidAtMs: paidAtMs, paidVia: how,
+                            ownNodeCheck: ownNodeCheck,
                         });
                     }
                 });
                 reserved = false;
-                await audit(Object.assign({}, base, { type: 'paid', code: 'paid', amount: amount, netSats: net, routingFeeSats: routing, paymentHash: inv.paymentHash, ms: now() - t0 }));
+                await audit(Object.assign({}, base, { type: 'paid', code: 'paid', amount: amount, netSats: net, routingFeeSats: routing, paymentHash: inv.paymentHash, ownNodeCheck: ownNodeCheck, ms: now() - t0 }));
                 if (overspend) {
                     await audit(Object.assign({}, base, { type: 'fee_halt', code: 'fee_halt', routingFeeSats: routing,
                         walletSpentSats: spent, netSats: net, limitSats: Math.ceil(feeLimitMsat / 1000) }));

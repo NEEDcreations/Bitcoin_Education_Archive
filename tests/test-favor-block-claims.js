@@ -151,6 +151,10 @@ function makeHarness(opts) {
         pays: [],
         alerts: [],
         statusAtPay: [],
+        infoMode: 'ok',        // 'ok' | 'throw' | 'null'
+        ownPubkey: OWN_NODE,   // '' = hidden pubkey (live Alby Hub)
+        balanceThrows: false,
+        warns: [],
     };
     h.deps = {
         db: db,
@@ -161,8 +165,12 @@ function makeHarness(opts) {
         recentSignIn: function () { return h.recent; },
         wallet: function () {
             return {
-                getBalance: async function () { return { balance: h.balanceSats * 1000 }; },
-                getInfo: async function () { return { pubkey: OWN_NODE }; },
+                getBalance: async function () { if (h.balanceThrows) throw new Error('[TIMEOUT] getBalance'); return { balance: h.balanceSats * 1000 }; },
+                getInfo: async function () {
+                    if (h.infoMode === 'throw') throw new Error('[TIMEOUT] getInfo');
+                    if (h.infoMode === 'null') return null;
+                    return { pubkey: h.ownPubkey };
+                },
                 payInvoice: async function (req) {
                     const cid = Array.from(db.store.keys()).filter(function (k) { return k.indexOf('sf_block_claims/') === 0; })
                         .map(function (k) { return db.store.get(k); }).filter(function (c) { return c.status === 'paying'; });
@@ -194,6 +202,7 @@ function makeHarness(opts) {
         classifyLookup: require(path.join(root, 'functions/src/cipherClaim.js')).classifyLookup,
         lookupIntervalMs: 0,
         notifyAdmin: async function (text) { h.alerts.push(text); },
+        logWarn: function (msg, data) { h.warns.push({ msg: msg, data: data }); },
     };
     h.svc = core.createBlockClaimService(h.deps);
     return h;
@@ -1205,6 +1214,122 @@ test('wiring: claimFavorBlock is kill-switch gated, step-up action exists, stagi
     assert.ok(/Mock wallet is staging only/.test(fns));
     const idx = fs.readFileSync(path.join(root, 'functions/index.js'), 'utf8');
     assert.ok(!/adminApproveFavorPayout/.test(idx), 'no admin approve step');
+});
+
+// ---- Hidden wallet pubkey (live Alby Hub get_info returns pubkey '') ----
+
+function assertRefusedNoPay(h, r, code, label) {
+    assert.strictEqual(r.code, code, label + ': ' + JSON.stringify(r));
+    assert.strictEqual(h.pays.length, 0, label + ': nothing paid');
+    const c = h.db.store.get('sf_block_claims/e1_b3');
+    assert.ok(c.status === 'claimable' || c.status === 'manual_review', label + ': block released, got ' + c.status);
+    assert.strictEqual(h.db.store.get('sf_claim_counters/site_2026-11-14').sats, 0, label + ': site counter released');
+}
+
+test('blank pubkey: a valid claim pays once, logs the skipped own_node check (epoch+block only), records ownNodeCheck false', async function () {
+    const h = makeHarness();
+    await freeze(h, 1);
+    h.ownPubkey = '';
+    const r = await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+    assert.ok(r.success, JSON.stringify(r));
+    assert.strictEqual(h.pays.length, 1);
+    assert.strictEqual(h.db.store.get('sf_block_claims/e1_b3').status, 'paid');
+    const payout = h.db.store.get('sf_block_payouts/e1_b3');
+    assert.strictEqual(payout.ownNodeCheck, false);
+    const paidAudit = keys(h, 'sf_claim_audit/').map(function (k) { return h.db.store.get(k); }).filter(function (a) { return a.type === 'paid'; });
+    assert.strictEqual(paidAudit.length, 1); assert.strictEqual(paidAudit[0].ownNodeCheck, false);
+    assert.strictEqual(h.warns.length, 1);
+    assert.ok(/WITHOUT own_node check/.test(h.warns[0].msg));
+    assert.deepStrictEqual(h.warns[0].data, { epoch: 1, block: 3 });
+    const blob = JSON.stringify(h.warns);
+    assert.ok(blob.indexOf(BOB) === -1 && blob.indexOf('bob@wallet.example') === -1, 'no uid or address in the log');
+    // A second claim on the same block does not pay again.
+    const again = await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+    assert.ok(!again.success);
+    assert.strictEqual(h.pays.length, 1);
+});
+
+test('real pubkey: own_node check runs, no warning, payout records ownNodeCheck true', async function () {
+    const h = makeHarness();
+    await freeze(h, 1);
+    assert.ok((await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 })).success);
+    assert.strictEqual(h.warns.length, 0);
+    assert.strictEqual(h.db.store.get('sf_block_payouts/e1_b3').ownNodeCheck, true);
+});
+
+test('getInfo that throws/times out or returns nothing still fails closed as wallet_unavailable, nothing paid', async function () {
+    for (const mode of ['throw', 'null']) {
+        const h = makeHarness();
+        await freeze(h, 1);
+        h.infoMode = mode;
+        const r = await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+        assertRefusedNoPay(h, r, 'wallet_unavailable', 'getInfo ' + mode);
+        assert.strictEqual(h.warns.length, 0, 'no skip warning when it fails closed');
+    }
+});
+
+test('getBalance failure still refuses with wallet_unavailable, even with a blank pubkey', async function () {
+    const h = makeHarness();
+    await freeze(h, 1);
+    h.ownPubkey = '';
+    h.balanceThrows = true;
+    const r = await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+    assertRefusedNoPay(h, r, 'wallet_unavailable', 'getBalance');
+});
+
+test('wallet floor still holds with a blank pubkey', async function () {
+    const h = makeHarness({ balanceSats: 100 });
+    await freeze(h, 1);
+    h.ownPubkey = '';
+    const r = await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+    assertRefusedNoPay(h, r, 'wallet_low', 'floor');
+});
+
+test('real pubkey: an invoice paying our own node is still refused', async function () {
+    const h = makeHarness();
+    await freeze(h, 1);
+    h.invoiceMutator = function (d) { d.payeeNodeKey = OWN_NODE; return d; };
+    const r = await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+    assertRefusedNoPay(h, r, 'bad_invoice', 'own node');
+});
+
+test('blank pubkey: wrong amount, expired, wrong network and missing payee are each still refused', async function () {
+    const cases = [
+        ['wrong amount', function (d) { d.millisatoshis = '4200000'; return d; }],
+        ['expired', function (d) { d.timeExpireDate = 1; return d; }],
+        ['no payee', function (d) { d.payeeNodeKey = ''; return d; }],
+    ];
+    for (const c of cases) {
+        const h = makeHarness();
+        await freeze(h, 1);
+        h.ownPubkey = '';
+        h.invoiceMutator = c[1];
+        const r = await h.svc.claim(ctx(BOB), { epoch: 1, block: 3 });
+        assertRefusedNoPay(h, r, 'bad_invoice', c[0]);
+        assert.strictEqual(h.lastResolve.ln, 'bob@wallet.example', c[0] + ': invoice only for the frozen address');
+    }
+    // Wrong network: a testnet invoice for the right amount.
+    const h = makeHarness();
+    await freeze(h, 1);
+    h.ownPubkey = '';
+    const svc = core.createBlockClaimService(Object.assign({}, h.deps, {
+        resolveInvoice: async function (ln, sats) { h.lastResolve = { ln: ln, sats: sats }; return 'lntb' + sats + 'n1fake'; },
+        decodeInvoice: function (bolt) {
+            return { millisatoshis: String(Number(/^lntb(\d+)n1/.exec(bolt)[1]) * 1000), timeExpireDate: Math.floor(h.clock / 1000) + 600,
+                payeeNodeKey: PAYEE, tags: [{ tagName: 'payment_hash', data: 'ab'.repeat(32) }] };
+        },
+    }));
+    assertRefusedNoPay(h, await svc.claim(ctx(BOB), { epoch: 1, block: 3 }), 'bad_invoice', 'wrong network');
+});
+
+test('staging mock wallet: mockBlankPubkey is staging-only and makes getInfo return a blank pubkey', function () {
+    assert.strictEqual(core.readConfig({}).mockBlankPubkey, false);
+    assert.strictEqual(core.readConfig({ mockBlankPubkey: true }).mockBlankPubkey, true);
+    assert.strictEqual(core.readConfig({ mockBlankPubkey: 'yes' }).mockBlankPubkey, false);
+    const fns = fs.readFileSync(path.join(root, 'functions/src/favorBlockClaimsFns.js'), 'utf8');
+    assert.ok(/getInfo: async function \(\) \{ return \{ pubkey: cfg\.mockBlankPubkey === true \? '' : MOCK_NODE_PUBKEY \}; \}/.test(fns));
+    assert.ok(/d\.mockBlankPubkey != null\) \{\s*if \(!staging\) throw new HttpsError\('permission-denied'/.test(fns), 'same staging-only guard as the other mock fields');
+    assert.ok(/logWarn: function \(msg, data\) \{ require\('firebase-functions\/logger'\)\.warn\(msg, data \|\| \{\}\); \}/.test(fns));
 });
 
 (async function main() {
