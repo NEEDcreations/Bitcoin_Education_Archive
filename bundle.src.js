@@ -9322,7 +9322,7 @@ function forumRenderPosts(posts, container) {
                     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
                         '<span' + fAct('profile', p.authorId) + ' style="font-size:0.7rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-faint)') + ';cursor:pointer;transition:0.2s;">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
                         '<span style="font-size:0.65rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
-                        '<span style="font-size:0.7rem;color:var(--text-faint);">💬 ' + (p.replyCount || 0) + '</span>' +
+                        '<span style="font-size:0.7rem;color:var(--text-faint);">💬 ' + fNum(p.replyCount) + '</span>' +
                         (catLabel ? '<span style="font-size:0.6rem;padding:2px 6px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text-faint);white-space:nowrap;">' + catLabel + '</span>' : '') +
                         (canDelete ? '<button' + fAct('deletePost', p.id) + ' style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;touch-action:manipulation;opacity:0.5;" title="Delete post">🗑️</button>' : '') +
                     '</div>' +
@@ -9439,7 +9439,7 @@ window.forumViewPost = async function(postId, fromPopState) {
         var canDeletePost = (auth && auth.currentUser && p.authorId === auth.currentUser.uid) || isForumAdmin();
         html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
             '<button' + fAct('votePost', p.id) + ' style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:6px 12px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:600;font-family:inherit;touch-action:manipulation;">👍 ' + fNum(p.upvotes) + '</button>' +
-            '<span style="color:var(--text-faint);font-size:0.8rem;">💬 ' + (p.replyCount || 0) + ' replies</span>' +
+            '<span style="color:var(--text-faint);font-size:0.8rem;">💬 ' + fNum(p.replyCount) + ' replies</span>' +
             (canDeletePost ? '<button' + fAct('deletePost', p.id) + ' style="background:none;border:1px solid var(--border);border-radius:16px;padding:4px 10px;color:#ef4444;font-size:0.75rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️ Delete</button>' : '') +
         '</div>';
         html += '</div>';
@@ -10111,7 +10111,7 @@ async function loadArticles() {
         var html = '';
         articles.forEach(function(a) {
             var lv = typeof getLevel === 'function' ? getLevel(a.authorPoints || 0) : { emoji: '🟢' };
-            var readTime = Math.max(1, Math.round((a.wordCount || 500) / 200));
+            var readTime = Math.max(1, Math.round((fNum(a.wordCount) || 500) / 200));
             var dateStr = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate().toLocaleDateString() : '';
             var pinned = a.pinned ? '<span style="color:#f7931a;font-size:0.7rem;font-weight:700;">📌 PINNED</span> ' : '';
             
@@ -10142,7 +10142,7 @@ async function loadArticles() {
             // Stats
             html += '<div style="display:flex;gap:12px;margin-top:8px;font-size:0.75rem;color:var(--text-faint);">' +
                 '<span>👍 ' + fNum(a.upvotes) + '</span>' +
-                '<span>💬 ' + (a.replyCount || 0) + '</span>' +
+                '<span>💬 ' + fNum(a.replyCount) + '</span>' +
                 (fNum(a.tipTotal) ? '<span>⚡ ' + fNum(a.tipTotal) + ' sats</span>' : '') +
             '</div>';
             
@@ -10579,7 +10579,7 @@ window.articleView = async function(articleId) {
         a.id = articleId;
         
         var lv = typeof getLevel === 'function' ? getLevel(a.authorPoints || 0) : { emoji: '🟢' };
-        var readTime = Math.max(1, Math.round((a.wordCount || 500) / 200));
+        var readTime = Math.max(1, Math.round((fNum(a.wordCount) || 500) / 200));
         var dateStr = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate().toLocaleDateString() : '';
         var isAuthor = auth && auth.currentUser && auth.currentUser.uid === a.authorId;
         var isAdmin = isForumAdmin();
@@ -10602,7 +10602,7 @@ window.articleView = async function(articleId) {
         if (a.authorPic) html += '<img src="' + fEsc(fSafeUrl(a.authorPic)) + '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--border);">';
         html += '<div>' +
             '<div style="font-weight:700;font-size:0.9rem;' + (a.authorFaction ? window._factionNameStyle(a.authorFaction) : 'color:var(--text)') + ';cursor:pointer;"' + fAct('profile', a.authorId) + '>' + lv.emoji + ' ' + fEsc(a.authorName || 'Anon') + '</div>' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);">' + dateStr + ' · ' + readTime + ' min read · ' + (a.wordCount || 0).toLocaleString() + ' words</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);">' + dateStr + ' · ' + readTime + ' min read · ' + fNum(a.wordCount).toLocaleString() + ' words</div>' +
         '</div>';
         // Edit button for author
         if (isAuthor) html += '<button' + fAct('articleEdit', articleId) + ' style="margin-left:auto;padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✏️ Edit</button>';

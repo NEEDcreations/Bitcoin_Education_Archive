@@ -172,20 +172,21 @@ test('a string upvotes or tipTotal value renders as 0, not markup', () => {
     assert.ok(!html.includes(payload), 'raw payload appeared in markup');
 });
 
-test('source: every markup upvotes, tipTotal, and ncomments use goes through fNum', () => {
+test('source: every markup upvotes, tipTotal, ncomments, replyCount, and wordCount use goes through fNum', () => {
     const lines = src.split('\n');
     const bad = [];
     lines.forEach((line, i) => {
-        if (!(/(\.upvotes|\.tipTotal|\.ncomments)/.test(line))) return;
+        if (!(/(\.upvotes|\.tipTotal|\.ncomments|\.replyCount|\.wordCount)/.test(line))) return;
         if (/fNum\(/.test(line)) return;
-        if (/(upvotes|tipTotal):\s*0/.test(line)) return; // create payloads
+        if (/(upvotes|tipTotal|replyCount):\s*0/.test(line)) return; // create payloads
+        if (/wordCount:\s*wordCount/.test(line)) return; // computed from the body
         if (/sortField/.test(line)) return;
         if (/FieldValue\.increment/.test(line)) return;
         if (/_cp\.upvotes\s*=/.test(line)) return;
-        if (/voters/.test(line) && !/\.upvotes/.test(line) && !/\.tipTotal/.test(line) && !/\.ncomments/.test(line)) return;
+        if (/voters/.test(line) && !/\.upvotes/.test(line) && !/\.tipTotal/.test(line) && !/\.ncomments/.test(line) && !/\.replyCount/.test(line) && !/\.wordCount/.test(line)) return;
         if (/function fNum/.test(line)) return;
         // remaining assignment / read (not concatenated into markup)
-        if (/\+\s*(\w+\.)?(upvotes|tipTotal|ncomments)/.test(line) || /['"][^'"]*['"]\s*\+\s*(\w+\.)?(upvotes|tipTotal|ncomments)/.test(line)) {
+        if (/\+\s*(\w+\.)?(upvotes|tipTotal|ncomments|replyCount|wordCount)/.test(line) || /['"][^'"]*['"]\s*\+\s*(\w+\.)?(upvotes|tipTotal|ncomments|replyCount|wordCount)/.test(line) || /\.wordCount\|\| 0\)\.toLocaleString/.test(line)) {
             bad.push((i + 1) + ': ' + line.trim());
         }
     });
@@ -195,6 +196,9 @@ test('source: every markup upvotes, tipTotal, and ncomments use goes through fNu
     assert.ok((src.match(/fNum\(a\.upvotes\)/g) || []).length === 2);
     assert.ok((src.match(/fNum\(a\.tipTotal\)/g) || []).length === 2);
     assert.ok((src.match(/fNum\(item\.ncomments\)/g) || []).length >= 5);
+    assert.ok((src.match(/fNum\(p\.replyCount\)/g) || []).length === 2);
+    assert.ok(src.includes('fNum(a.replyCount)'));
+    assert.ok(src.includes('fNum(a.wordCount).toLocaleString()'));
 });
 
 test('rules: creates require upvotes==0 if present and tipTotal absent-or-0; authors cannot change them', () => {
@@ -215,7 +219,44 @@ test('rules: creates require upvotes==0 if present and tipTotal absent-or-0; aut
         if (c === 'articles' || c === 'article_replies') {
             assert.ok(update.includes('voteCountersUnchanged()'), c + ' author path');
         }
+        if (c === 'articles') {
+            assert.ok(create.includes('articleWordCountOk()'), 'article create wordCount');
+            assert.ok(update.includes('articleWordCountOk()'), 'article author wordCount');
+        }
     });
+});
+
+test('a string wordCount or replyCount renders as 0, not markup', () => {
+    const { ctx } = makeCtx(); const S = ctx.window._forumSafe;
+    const payload = '<img src=x onerror=alert(1)>';
+    assert.strictEqual(S.fNum(payload).toLocaleString() + ' words', '0 words');
+    const html = renderList([{ id: 'VA7aTZ8Q2IcWNITVqPBQ', title: 'Count test', body: 'ok', authorId: 'EzWnUid1', authorName: 'Ada', upvotes: 1, replyCount: payload, wordCount: payload }]);
+    assert.ok(!/<img/i.test(html), 'img tag leaked from replyCount/wordCount');
+    assert.ok(!/onerror/i.test(html), 'onerror leaked from replyCount/wordCount');
+    assert.ok(html.includes('💬 0'), 'non-numeric replyCount should display as 0');
+    assert.ok(!html.includes(payload), 'raw payload appeared in markup');
+    assert.ok(src.includes('fNum(a.wordCount).toLocaleString()'));
+    assert.ok(!/\(a\.wordCount \|\| 0\)\.toLocaleString\(\)/.test(src));
+});
+
+test('rules: creates require voters absent or an empty list', () => {
+    assert.ok(/function forumCountersZeroOnCreate\(\)[\s\S]{0,400}voters is list[\s\S]{0,80}size\(\) == 0/.test(rules));
+    ['forum_posts', 'forum_replies', 'articles', 'article_replies'].forEach((c) => {
+        const start = rules.indexOf('match /' + c + '/');
+        const block = rules.slice(start, rules.indexOf('\n    match /', start + 10));
+        const create = block.slice(block.indexOf('allow create:'), block.indexOf('allow update:'));
+        assert.ok(create.includes('forumCountersZeroOnCreate()'), c);
+    });
+});
+
+test('rules: articles have no client tipTotal increment branch', () => {
+    const start = rules.indexOf('match /articles/{articleId}');
+    const block = rules.slice(start, rules.indexOf('\n    match /', start + 10));
+    const update = block.slice(block.indexOf('allow update:'));
+    assert.ok(!update.includes("hasOnly(['tipTotal'])"), 'client tip branch still present');
+    assert.ok(!/tipTotal > resource\.data\.get\('tipTotal'/.test(update), 'unbounded tip increase still present');
+    assert.ok(update.includes('isAdmin()'));
+    assert.ok(/function articleWordCountOk\(\)[\s\S]{0,200}wordCount is int[\s\S]{0,80}>= 0/.test(rules));
 });
 
 console.log('\n' + passed + ' passed, ' + failed + ' failed');
