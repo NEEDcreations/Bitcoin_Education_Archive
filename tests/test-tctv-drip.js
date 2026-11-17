@@ -169,6 +169,8 @@ console.log('tctvDripLogic: all tests passed');
     assert.ok(src.includes('}, 120000);'), '2-minute answer window');
     assert.ok(src.includes('sats/min') && src.includes('ratePerMin'), 'shows pot fill rate when ratePerMin present');
     assert.ok(src.includes('watching right now'), 'falls back to watching line without ratePerMin');
+    assert.ok(src.includes('class="td-ptip-rate"') && src.includes("querySelector('.td-ptip-rate')") && src.includes('if (tipRate) tipRate.innerHTML = line;'), 'Info (i) tooltip shows the same live rate as the details popover');
+    assert.ok(src.includes('.td-ptip-rate{font-weight:800;margin:0 0 6px}'), 'rate line is distinct at the top of the Info tip');
     assert.ok(src.includes('Your Share:') && src.includes('td-share') && src.includes('projectedShareSats'), 'live Your Share line');
     assert.ok(src.includes('Sign in to see your share'), 'signed-out hint');
     assert.ok(src.includes('tctv_drip_watch') && src.includes('paintShare'), 'own watch doc listener');
