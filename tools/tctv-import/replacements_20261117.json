@@ -1,0 +1,895 @@
+{
+  "signin_replacements": [
+    {
+      "old": "nqdv6Ad9Nt4",
+      "new": {
+        "id": "fONoyEIdNwg",
+        "title": "What is Bitcoin? | Blue Chip Kids",
+        "duration": 61,
+        "author": "South Florida PBS"
+      }
+    },
+    {
+      "old": "rT4ThQ55SD8",
+      "new": {
+        "id": "CySKE_VAJUQ",
+        "title": "My First Bitcoin and The Legend of Satoshi Nakamoto | Children Story Telling | CashApp BTC",
+        "duration": 159,
+        "author": "Lowina Blackman"
+      }
+    },
+    {
+      "old": "Iyq4khMiM9A",
+      "new": {
+        "id": "iQjquL5M9gA",
+        "title": "What Is Investment? | Types of Investments for Kids (Stocks, Gold, Bitcoin Explained!)",
+        "duration": 214,
+        "author": "Money Starters"
+      }
+    }
+  ],
+  "additions": [
+    {
+      "station": "kids-family",
+      "id": "iKx5SOGeIZM",
+      "title": "What is Inflation? Why Prices Rise, Explained for Kids.",
+      "duration": 139,
+      "author": "Acorns"
+    },
+    {
+      "station": "kids-family",
+      "id": "rKm05_ZX6G4",
+      "title": "Bitcoin: A Pet Rock or the Future of Money? | Economics Explained",
+      "duration": 362,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "QgDbp2CcgJ0",
+      "title": "Crypto Cartoon   Episode 1  The Story Of Bitcoin",
+      "duration": 175,
+      "author": "TBT COIN"
+    },
+    {
+      "station": "kids-family",
+      "id": "_pUOpoihjA4",
+      "title": "Bitcoin Explained Like You're 5",
+      "duration": 615,
+      "author": "Crayon Capital"
+    },
+    {
+      "station": "kids-family",
+      "id": "RGQCzVgmZrs",
+      "title": "The History of Money: Barter, Fiat and Bitcoin",
+      "duration": 256,
+      "author": "Sprouts"
+    },
+    {
+      "station": "kids-family",
+      "id": "EdvnOu8mprk",
+      "title": "What is Money? - Super Simple Money for kids and beginners",
+      "duration": 191,
+      "author": "Super Simple Money for Kids"
+    },
+    {
+      "station": "kids-family",
+      "id": "6tK4X7JBxqA",
+      "title": "EVOLUTION OF MONEY- BARTER SYSTEM EXPLAINED FOR KIDS",
+      "duration": 257,
+      "author": "Money Starters"
+    },
+    {
+      "station": "kids-family",
+      "id": "8X03VasFY38",
+      "title": "Wants and Needs with Bert and Ernie | Financial Education",
+      "duration": 101,
+      "author": "Sesame Workshop"
+    },
+    {
+      "station": "kids-family",
+      "id": "ppnhNKRwKHg",
+      "title": "How Do People Get Money?",
+      "duration": 93,
+      "author": "Sesame Workshop"
+    },
+    {
+      "station": "kids-family",
+      "id": "0iRbD5rM5qc",
+      "title": "Financial Literacy for Kids | Learn the basics of finance and budgeting",
+      "duration": 374,
+      "author": "Learn Bright"
+    },
+    {
+      "station": "kids-family",
+      "id": "1jUqRod-At8",
+      "title": "Needs vs Wants for Kids 💡 | Smart Spending Explained with a Fun Example!",
+      "duration": 120,
+      "author": "Money Starters"
+    },
+    {
+      "station": "kids-family",
+      "id": "cTV2OIZu6nM",
+      "title": "The Smartest Move for your Money - Tuttle Twins FULL EPISODE",
+      "duration": 1291,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "mhy2gKinND0",
+      "title": "The Tuttle Twins Start Their First Business!",
+      "duration": 366,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "rds9dGVm7n8",
+      "title": "TRAPPED In The Console! How Inflation BROKE The Game | Economics Explained",
+      "duration": 347,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "Jh2o-ncj3pE",
+      "title": "💸 Why Your Money Buys Less Every Year! 💸 | Economics Explained",
+      "duration": 263,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "Ur8KvTL17PY",
+      "title": "Is Capitalism RIGGED? | Economics Explained",
+      "duration": 412,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "7PWWf1h0-OI",
+      "title": "What everyone should know about NEEDS vs RIGHTS - Tuttle Twins FULL EPISODE",
+      "duration": 1337,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "aLPMKjSF7mc",
+      "title": "What Does Tuttle Twins Teach About Money? | Tuttle Twins |",
+      "duration": 313,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "R-gsmv47m2U",
+      "title": "What Does Tuttle Twins Teach About Markets? | Tuttle Twins",
+      "duration": 356,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "4azMEe98j-g",
+      "title": "Where Does Your Paycheck Actually Go?! (Spoiler: Taxes Ate It 😱💸) | Full Episode",
+      "duration": 414,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "8MjvcwHtfO8",
+      "title": "How Entrepreneurs Create MORE for Everyone | Economics Explained",
+      "duration": 276,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "sFsjZnvAt8c",
+      "title": "Is FAIR Pay The Same As EQUAL Pay? | Economics Explained",
+      "duration": 207,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "dytaEBpVqbI",
+      "title": "Can Rival Countries Still Trade? | Economics Explained",
+      "duration": 346,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "EY_aQ0S492E",
+      "title": "What is the Gold Standard? - Tuttle Twins",
+      "duration": 278,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "pEH-AaUImZ4",
+      "title": "Print Too Many Tickets and See What Happens... | Tuttle Twins |",
+      "duration": 366,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "BL9fzYlN0Pw",
+      "title": "What's So Spooky About Subsidies? | Economics Explained",
+      "duration": 255,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "RCl0aC2T5r8",
+      "title": "Why Government LOVES Big Business | Economics Explained",
+      "duration": 243,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "W-CeyAj7AEI",
+      "title": "Life Is DIY: The Tuttle Twins Learn to Take Initiative",
+      "duration": 236,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "422gxx1dbYM",
+      "title": "The Secret That Fuels Endless War | Tuttle Twins | Full Episode",
+      "duration": 1238,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "t7DGSkeHv7w",
+      "title": "Who's Profiting From The Lunchroom War? | A Tuttle Twins Investigation",
+      "duration": 361,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "DTB3ouV96OQ",
+      "title": "A Frenchman Warned Us About This in 1831 | Tuttle Twins",
+      "duration": 378,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "OXWF1oBLzqY",
+      "title": "Can The Government Read Your Texts? | Tuttle Twins",
+      "duration": 315,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "vx4TVempNeQ",
+      "title": "What Does Tuttle Twins Teach About Rights? | Tuttle Twins |",
+      "duration": 415,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "UsqLw9dnUtg",
+      "title": "Should You Be PUNISHED for What You Believe? | Tuttle Twins",
+      "duration": 258,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "9qJPdqmLsMA",
+      "title": "Do Rights Still Exist On A DESERT ISLAND? | Tuttle Twins",
+      "duration": 348,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "hI_lUqc3CG4",
+      "title": "Why Good Intentions DON'T Equal Good Plans | Tuttle Twins",
+      "duration": 386,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "mia6xuIrs9M",
+      "title": "When Supporting a Law Can Mean Life or Death | Tuttle Twins",
+      "duration": 289,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "GrutRH5ju6k",
+      "title": "Once Upon A Time, In A Land WITHOUT Privacy | Tuttle Twins",
+      "duration": 365,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "fHh6-zb-Bbo",
+      "title": "How to Outsmart Fake News | Tuttle Twins",
+      "duration": 369,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "niU93pMpecg",
+      "title": "Take a Ride Through a World WITHOUT Freedom | Economics Explained",
+      "duration": 141,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "ppy0cZLFlhU",
+      "title": "Why Are Government Services SO SLOW? | Economics Explained",
+      "duration": 180,
+      "author": "Tuttle Twins"
+    },
+    {
+      "station": "kids-family",
+      "id": "GFTKKyYSCKs",
+      "title": "Why can’t governments print an unlimited amount of money? - Jonathan Smith",
+      "duration": 295,
+      "author": "TED-Ed"
+    },
+    {
+      "station": "kids-family",
+      "id": "sLMc5OFnQRs",
+      "title": "How to spot a counterfeit bill - Tien Nguyen",
+      "duration": 245,
+      "author": "TED-Ed"
+    },
+    {
+      "station": "kids-family",
+      "id": "p7HKvqRI_Bo",
+      "title": "How does the stock market work? - Oliver Elfenbaum",
+      "duration": 270,
+      "author": "TED-Ed"
+    },
+    {
+      "station": "kids-family",
+      "id": "MhvjCWfy-lw",
+      "title": "The time value of money - German Nande",
+      "duration": 217,
+      "author": "TED-Ed"
+    },
+    {
+      "station": "kids-family",
+      "id": "e7S8jWh6AEs",
+      "title": "The paradox of value - Akshita Agarwal",
+      "duration": 226,
+      "author": "TED-Ed"
+    },
+    {
+      "station": "kids-family",
+      "id": "I5ZR0jMlxX0",
+      "title": "What causes economic bubbles? - Prateek Singh",
+      "duration": 257,
+      "author": "TED-Ed"
+    },
+    {
+      "station": "kids-family",
+      "id": "O3YJMaL55TM",
+      "title": "Mansa Musa, one of the wealthiest people who ever lived - Jessica Smith",
+      "duration": 235,
+      "author": "TED-Ed"
+    },
+    {
+      "station": "kids-family",
+      "id": "SBGfHk91Vrk",
+      "title": "How to spot a pyramid scheme - Stacie Bosley",
+      "duration": 302,
+      "author": "TED-Ed"
+    },
+    {
+      "station": "kids-family",
+      "id": "a_4eFB8pPwI",
+      "title": "5 sneaky ways stores get you to spend more",
+      "duration": 382,
+      "author": "TED-Ed"
+    },
+    {
+      "station": "kids-family",
+      "id": "CMQLdJa64Wk",
+      "title": "How do investors choose stocks? - Richard Coffin",
+      "duration": 302,
+      "author": "TED-Ed"
+    },
+    {
+      "station": "kids-family",
+      "id": "D9N7QaIOkG8",
+      "title": "Why is it so hard to escape poverty? - Ann-Helén Bay",
+      "duration": 286,
+      "author": "TED-Ed"
+    },
+    {
+      "station": "kids-family",
+      "id": "_gTgloPR0Aw",
+      "title": "What’s the best way to lift people out of poverty?",
+      "duration": 337,
+      "author": "TED-Ed"
+    },
+    {
+      "station": "kids-family",
+      "id": "6MK6tuZ7Rws",
+      "title": "How do we create a better economy?",
+      "duration": 365,
+      "author": "TED-Ed"
+    },
+    {
+      "station": "kids-family",
+      "id": "mT3P0YSNonE",
+      "title": "Can the economy grow forever?",
+      "duration": 364,
+      "author": "TED-Ed"
+    },
+    {
+      "station": "kids-family",
+      "id": "2fyX600dL2g",
+      "title": "The trillion dollar paradox - George Zaidan",
+      "duration": 341,
+      "author": "TED-Ed"
+    },
+    {
+      "station": "kids-family",
+      "id": "yahEP620480",
+      "title": "What is inflation? | Inflation | Finance & Capital Markets | Khan Academy",
+      "duration": 210,
+      "author": "Khan Academy"
+    },
+    {
+      "station": "kids-family",
+      "id": "AaR1mPrdbTc",
+      "title": "Introduction to inflation | Inflation - measuring the cost of living | Macroeconomics | Khan Academy",
+      "duration": 452,
+      "author": "Khan Academy"
+    },
+    {
+      "station": "kids-family",
+      "id": "pJ8KwRztfF0",
+      "title": "Counting American coins | Measurement and data | Early Math | Khan Academy",
+      "duration": 270,
+      "author": "Khan Academy"
+    },
+    {
+      "station": "kids-family",
+      "id": "_LPh72gx6GE",
+      "title": "Money supply: M0, M1, and M2 | The monetary system | Macroeconomics | Khan Academy",
+      "duration": 604,
+      "author": "Khan Academy"
+    },
+    {
+      "station": "kids-family",
+      "id": "E-HOz8T6tAo",
+      "title": "Banking 1 | Money, banking and central banks  | Finance & Capital Markets | Khan Academy",
+      "duration": 709,
+      "author": "Khan Academy"
+    },
+    {
+      "station": "kids-family",
+      "id": "3mUi9IZb4T4",
+      "title": "Overview of fractional reserve banking | The monetary system | Macroeconomics | Khan Academy",
+      "duration": 508,
+      "author": "Khan Academy"
+    },
+    {
+      "station": "kids-family",
+      "id": "NI9TLDIPVcs",
+      "title": "Specialization and Trade: Crash Course Economics #2",
+      "duration": 544,
+      "author": "CrashCourse"
+    },
+    {
+      "station": "kids-family",
+      "id": "UHiUYj5EA0w",
+      "title": "Productivity and Growth: Crash Course Economics #6",
+      "duration": 531,
+      "author": "CrashCourse"
+    },
+    {
+      "station": "kids-family",
+      "id": "BHw4NStQsT8",
+      "title": "Recession, Hyperinflation, and Stagflation: Crash Course Economics #13",
+      "duration": 594,
+      "author": "CrashCourse"
+    },
+    {
+      "station": "kids-family",
+      "id": "tZvjh1dxz08",
+      "title": "Economic Schools of Thought: Crash Course Economics #14",
+      "duration": 605,
+      "author": "CrashCourse"
+    },
+    {
+      "station": "kids-family",
+      "id": "eNxk5-EJFrY",
+      "title": "Markets, Efficiency, and Price Signals: Crash Course Economics #19",
+      "duration": 661,
+      "author": "CrashCourse"
+    },
+    {
+      "station": "kids-family",
+      "id": "01lKDkYSFDg",
+      "title": "Price Controls, Subsidies, and the Risks of Good Intentions: Crash Course Economics #20",
+      "duration": 615,
+      "author": "CrashCourse"
+    },
+    {
+      "station": "kids-family",
+      "id": "9MpVjxxpExM",
+      "title": "Globalization and Trade and Poverty: Crash Course Economics #16",
+      "duration": 542,
+      "author": "CrashCourse"
+    },
+    {
+      "station": "kids-family",
+      "id": "0xMCWr0O3Hs",
+      "title": "Income and Wealth Inequality: Crash Course Economics #17",
+      "duration": 616,
+      "author": "CrashCourse"
+    },
+    {
+      "station": "kids-family",
+      "id": "7Qtr_vA3Prw",
+      "title": "Taxes: Crash Course Economics #31",
+      "duration": 749,
+      "author": "CrashCourse"
+    },
+    {
+      "station": "kids-family",
+      "id": "mWwXmH-n5Bo",
+      "title": "Labor Markets and Minimum Wage: Crash Course Economics #28",
+      "duration": 638,
+      "author": "CrashCourse"
+    },
+    {
+      "station": "kids-family",
+      "id": "Sb_-wfmJnHA",
+      "title": "Monopolies and Anti-Competitive Markets: Crash Course Economics #25",
+      "duration": 617,
+      "author": "CrashCourse"
+    },
+    {
+      "station": "kids-family",
+      "id": "BLZerHw_bfY",
+      "title": "Honor and Compromise | Episode 26 | Liberty's Kids - WildBrain | Historical Education for Kids",
+      "duration": 1255,
+      "author": "Liberty's Kids - WildBrain"
+    },
+    {
+      "station": "kids-family",
+      "id": "2eSv7n7zaxY",
+      "title": "Green Mountain Boys | Episode 7 | Liberty's Kids - WildBrain | Movies for Kids",
+      "duration": 1265,
+      "author": "Liberty's Kids - WildBrain"
+    },
+    {
+      "station": "kids-family",
+      "id": "ayL6crkyuAo",
+      "title": "The Second Continental Congress | Episode 8 | Liberty's Kids - WildBrain | Movies for Kids",
+      "duration": 1260,
+      "author": "Liberty's Kids - WildBrain"
+    },
+    {
+      "station": "kids-family",
+      "id": "8j6oMBG8CrQ",
+      "title": "Washington Takes Command | Episode 10 | Liberty's Kids - WildBrain | Movies for Kids",
+      "duration": 1255,
+      "author": "Liberty's Kids - WildBrain"
+    },
+    {
+      "station": "kids-family",
+      "id": "1wQpAlvf2eM",
+      "title": "One Life to Lose | Episode 16 | Liberty's Kids - WildBrain | Full Episodes for Kids",
+      "duration": 1260,
+      "author": "Liberty's Kids - WildBrain"
+    },
+    {
+      "station": "kids-family",
+      "id": "GvY9UiCb_zk",
+      "title": "Liberty's Kids 124 - Vally Forge",
+      "duration": 1397,
+      "author": "Liberty's Kids - WildBrain"
+    },
+    {
+      "station": "pleb-underground",
+      "id": "Wf7vUIoGQrE",
+      "title": "Understanding This Bitcoin Bear Market",
+      "duration": 983,
+      "author": "Benjamin Cowen"
+    },
+    {
+      "station": "orange-pill",
+      "id": "qNjgs1WJfK0",
+      "title": "COLDCARD Easy Guide; The 5 minutes setup.",
+      "duration": 289,
+      "author": "Coinkite"
+    },
+    {
+      "station": "orange-pill",
+      "id": "U5dxRwzKKgw",
+      "title": "\"People Don't Realize How Quick Things Are About To Change\" | Max Keiser & Stacy Herbert",
+      "duration": 4106,
+      "author": "Rob Wallace | Bitcoin News"
+    },
+    {
+      "station": "orange-pill",
+      "id": "cS4UqolHXDg",
+      "title": "🧠No Trust, No Problem!🤝 | A Bedtime Story about Bitcoin.",
+      "duration": 410,
+      "author": "Logical Dad"
+    },
+    {
+      "station": "orange-pill",
+      "id": "ra1gBJOk4Uc",
+      "title": "The Fascinating Evolution of Money from Barter to Bitcoin | Relaxing Bedtime Story",
+      "duration": 1521,
+      "author": "Historic English"
+    },
+    {
+      "station": "orange-pill",
+      "id": "oPES_MGCBQE",
+      "title": "What Is Bitcoin? A Beginner’s Guide to Self-Custody",
+      "duration": 2766,
+      "author": "Trezor"
+    },
+    {
+      "station": "culture-travel",
+      "id": "HZNHPNp1QfM",
+      "title": "Adopting Bitcoin - Berlín’s Circular Bitcoin Economy: A Freedom Experiment (Ep4/6)",
+      "duration": 1653,
+      "author": "The Orange Journey"
+    },
+    {
+      "station": "history",
+      "id": "-bg7MElM1Y8",
+      "title": "Who is Satoshi Nakamoto? | Michael Saylor and Lex Fridman",
+      "duration": 345,
+      "author": "Lex Clips"
+    },
+    {
+      "station": "history",
+      "id": "JkG_84roE6Y",
+      "title": "New Documentary Traces the Origins of Bitcoin, Searches for Satoshi",
+      "duration": 609,
+      "author": "Bloomberg Podcasts"
+    },
+    {
+      "station": "history",
+      "id": "2XaGla3kVug",
+      "title": "Finding Satoshi: Did A New Documentary Finally Unmask Nakamoto?",
+      "duration": 1722,
+      "author": "CoinDesk"
+    },
+    {
+      "station": "economics-money",
+      "id": "A7WMJCeFb3M",
+      "title": "Debunking Seven Misconceptions About Bitcoin With Lyn Alden",
+      "duration": 2356,
+      "author": "Bitcoin Magazine"
+    },
+    {
+      "station": "economics-money",
+      "id": "5pkZsFZqPIo",
+      "title": "Jeff Booth: How Central Banks Steal Your Money | EP 421",
+      "duration": 3952,
+      "author": "Simply Bitcoin"
+    },
+    {
+      "station": "economics-money",
+      "id": "0F4s9YizGxI",
+      "title": "MACRO ANALYSIS: Bitcoin & Currency Markets  | FED WATCH 94",
+      "duration": 3354,
+      "author": "Bitcoin Magazine"
+    },
+    {
+      "station": "freedom-sovereignty",
+      "id": "wrA-ewf4rBY",
+      "title": "Bitcoin and Human Rights: Saving People, Not Banks. Alex Gladstein",
+      "duration": 2817,
+      "author": "The Global Affair Podcast"
+    },
+    {
+      "station": "freedom-sovereignty",
+      "id": "dfFfwLiDl5k",
+      "title": "Why Bitcoin Matters for Human Rights - Bernard Parah",
+      "duration": 212,
+      "author": "Human Rights Foundation"
+    },
+    {
+      "station": "health-fitness",
+      "id": "2Vd35J-TA_4",
+      "title": "Jeff Booth Reveals How Much Bitcoin You Need!",
+      "duration": 5969,
+      "author": "Simply Bitcoin"
+    },
+    {
+      "station": "memes-comedy",
+      "id": "XbZ8zDpX2Mg",
+      "title": "Don't Buy Bitcoin. It's Going To Crash!!!",
+      "duration": 56,
+      "author": "Alex"
+    },
+    {
+      "station": "memes-comedy",
+      "id": "V5WJuqyLYCI",
+      "title": "Hank Hill buys Dogecoin",
+      "duration": 39,
+      "author": "Tristown"
+    },
+    {
+      "station": "music",
+      "id": "fyHDHxcPv0Q",
+      "title": "21 Million Strong: Bitcoin Anthem",
+      "duration": 168,
+      "author": "SI Anthems"
+    },
+    {
+      "station": "music",
+      "id": "JCRv_DnAZQs",
+      "title": "Megadeth - Symphony of Destruction (VEVO Presents)",
+      "duration": 252,
+      "author": "megadethvevo"
+    },
+    {
+      "station": "music",
+      "id": "1W6AxgqGdhM",
+      "title": "God Save The Queen (Remastered 2007)",
+      "duration": 200,
+      "author": "Sex Pistols - Topic"
+    },
+    {
+      "station": "news",
+      "id": "XqK7jEHChcM",
+      "title": "Michael Saylor's Strategy buys $835M in bitcoin, Nvidia earnings expectations, AI bubble concerns",
+      "duration": 1439,
+      "author": "Yahoo Finance"
+    },
+    {
+      "station": "news",
+      "id": "RpTZxJ1aM1Y",
+      "title": "Billionaire Saylor’s Strategy Buys Bitcoin Worth $101 Million—After Earlier Sale Sparked Sell-Off",
+      "duration": 141,
+      "author": "Forbes Breaking News"
+    },
+    {
+      "station": "news",
+      "id": "s3A_gnN3qEs",
+      "title": "Strategy's Michael Saylor: We expect bitcoin to go up more than the S&P 500 over time",
+      "duration": 564,
+      "author": "CNBC Television"
+    },
+    {
+      "station": "podcasts-debates",
+      "id": "9r3dV4GzKd8",
+      "title": "Is the Universe REALLY Flat? Cosmology vs. Clickbait",
+      "duration": 1145,
+      "author": "Dr Brian Keating"
+    },
+    {
+      "station": "podcasts-debates",
+      "id": "J77uB29AzHY",
+      "title": "Andy Edstrom and John Haar - Swan Signal Live - A Bitcoin Show - E88",
+      "duration": 3629,
+      "author": "Swan Bitcoin"
+    },
+    {
+      "station": "podcasts-debates",
+      "id": "MCwctQpsPsw",
+      "title": "Michael Saylor buying Bitcoin vs. The Big Short - Max Keiser, Bitcoin T.I.N.A. and Brady Swenson",
+      "duration": 1355,
+      "author": "Swan Bitcoin"
+    },
+    {
+      "station": "podcasts-debates",
+      "id": "nGm04HUbJ3w",
+      "title": "Bitcoin’s iPhone Moment Is Here ($100 Trigger Explained)",
+      "duration": 985,
+      "author": "Mark Moss"
+    },
+    {
+      "station": "saylor",
+      "id": "c0MYcxlEI3s",
+      "title": "Bitcoin is Digital Energy - Michael Saylor at the MIT Bitcoin Expo 2022 (05/07/2022)",
+      "duration": 2830,
+      "author": "Strategy"
+    },
+    {
+      "station": "saylor",
+      "id": "7kfGxu3kEz4",
+      "title": "Keynote: The Case for Corporate Adoption of Bitcoin - Bitcoin for Corporations 2025 (05/06/2025)",
+      "duration": 3909,
+      "author": "Strategy"
+    },
+    {
+      "station": "saylor",
+      "id": "IhnGro501Tg",
+      "title": "MicroStrategy Q2 2022 Earnings Call (08/02/2022)",
+      "duration": 3848,
+      "author": "Strategy"
+    },
+    {
+      "station": "saylor",
+      "id": "-rubeRf6trw",
+      "title": "Bitcoin for Corporations 2022 featuring Michael Saylor & Jack Dorsey (02/01/2022)",
+      "duration": 15111,
+      "author": "Strategy"
+    },
+    {
+      "station": "saylor",
+      "id": "BqffDecgD2c",
+      "title": "LIVE: Strategy ($MSTR) Investor Q&A feat. Michael Saylor & Phong Le",
+      "duration": 3585,
+      "author": "Bitcoin Magazine"
+    },
+    {
+      "station": "future-predictions",
+      "id": "K5NB8MHe3Nw",
+      "title": "ARK Invest CEO Cathie Wood: Our base case for bitcoin is $600,000, bull case $1.5 million by 2030",
+      "duration": 180,
+      "author": "CNBC Television"
+    },
+    {
+      "station": "future-predictions",
+      "id": "1i74oZBozhQ",
+      "title": "\"Why You Will NEVER Get This 40x Opportunity Again\" - Rational Root and Matthew Sigel",
+      "duration": 729,
+      "author": "Digital Coin"
+    },
+    {
+      "station": "future-predictions",
+      "id": "3EjScnCHoZY",
+      "title": "PlanB Bitcoin Analysis November 2025",
+      "duration": 481,
+      "author": "PlanB"
+    },
+    {
+      "station": "tutorials",
+      "id": "zT4NuAaH3EM",
+      "title": "How To Run A BITCOIN NODE: Knots on Desktop, Umbrel and Start9",
+      "duration": 2512,
+      "author": "BTC Sessions"
+    }
+  ],
+  "uncovered": [
+    {
+      "station": "orange-pill",
+      "removed": "9sK--GhseBE",
+      "title": "He Left 1,000,000 BTC and Disappeared - Satoshi Claus (Bitcoin Bedtime Story)",
+      "reason": "No third embeddable bitcoin bedtime story found that was not already in the catalog or a poor match."
+    },
+    {
+      "station": "podcasts-debates",
+      "removed": "WfVyfNg1Tik",
+      "title": "Bitcoin Makes You Zoom Out. Stoicism Pulls You Back In. | Connor Dolan Episode 268 Clip",
+      "reason": "No embeddable stoicism-and-bitcoin podcast match found."
+    },
+    {
+      "station": "podcasts-debates",
+      "removed": "OtTMwrSe110",
+      "title": "China Is Breaking Gold & Silver Free From Western Manipulation - Peruvian Bull",
+      "reason": "No embeddable Peruvian Bull / gold-silver manipulation match found (the closest catalog hit was already in the library)."
+    },
+    {
+      "station": "podcasts-debates",
+      "removed": "5Ihs4sOkI_g",
+      "title": "He Lost Everything - Then Found His Bitcoin on an Old Hard Drive | Secure Sovereign Ep 270 Clip",
+      "reason": "No embeddable hard-drive recovery podcast match found."
+    },
+    {
+      "station": "podcasts-debates",
+      "removed": "q3_OlLs_9wE",
+      "title": "Saylor Wants to Convert the Entire System - The MNAV Cycle Explained | Ep 268 Clip",
+      "reason": "No embeddable MNAV-cycle explainer found."
+    },
+    {
+      "station": "podcasts-debates",
+      "removed": "XaNNNp6JuYI",
+      "title": "Proof Of Work - Fuck Around And Find Out T-Shirt #proofofwork #bitcoin",
+      "reason": "Age-restricted meme clip; no clean topical podcast replacement."
+    },
+    {
+      "station": "podcasts-debates",
+      "removed": "TjnC8GqB4vM",
+      "title": "Bitcoin Mining Spaces w/ @ausenhus (livestream)",
+      "reason": "Original was a private livestream; no equivalent recorded mining Spaces found."
+    },
+    {
+      "station": "future-predictions",
+      "removed": "bw5Gepxo2Ps",
+      "title": "Bitcoin Network Effects Model - 10x Users = 100x Price",
+      "reason": "No embeddable network-effects 10x-users model video found."
+    }
+  ]
+}
