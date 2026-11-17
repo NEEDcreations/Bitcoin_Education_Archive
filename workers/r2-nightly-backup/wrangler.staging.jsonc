@@ -1,0 +1,27 @@
+// STAGING phase. Writes ONLY under staging-test/age/firestore/ in the private
+// R2 bucket bq-user-backups. No cron is attached; CRON_ENABLED is false.
+// Secrets (wrangler secret put, never in this file):
+//   GCP_BACKUP_READER_CLIENT_EMAIL, GCP_BACKUP_READER_PRIVATE_KEY
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bq-r2-nightly-backup-staging",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "limits": { "cpu_ms": 300000 },
+  "triggers": { "crons": [] },
+  "observability": { "enabled": true },
+  "workflows": [
+    { "name": "bq-r2-nightly-backup-staging-wf", "binding": "BACKUP_WORKFLOW", "class_name": "BackupWorkflow" }
+  ],
+  "r2_buckets": [
+    { "binding": "BACKUPS", "bucket_name": "bq-user-backups" }
+  ],
+  "vars": {
+    "KEY_ROOT": "staging-test/age/firestore/",
+    "GCS_BUCKET": "bitcoin-education-archive-backups",
+    "BACKUP_AGE_RECIPIENT": "age1vgf3kd0h976w2ccwafa7q28mm04zk8sjhlhw94nza3ghfu0fc52sxzcjhm",
+    "CRON_ENABLED": "false"
+  }
+}
