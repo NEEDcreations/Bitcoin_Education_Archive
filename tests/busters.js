@@ -769,7 +769,7 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(src.includes("var visited = window.getExploredCount ? window.getExploredCount() : safeJSON('btc_visited_channels', []).length;"));
     const notes = read('patch-notes.html');
     assert.strictEqual((notes.match(/Latest:/g) || []).length, 0);
-    assert.ok(notes.includes('Citadel Wire Comes Home'));
+    assert.ok(notes.includes('The Family Channel Grows'));
     assert.ok(notes.includes('November 6–14, 2026'));
     assert.ok(notes.includes("Nacho's Sorting Ceremony"));
     assert.ok(notes.includes('November 2–5, 2026'));
@@ -788,7 +788,7 @@ test('homepage topics ring counts explored channels and says 145', () => {
     assert.ok(notes.includes('The Supercharged Window'));
     assert.ok(notes.includes('Pick a Title'));
     assert.ok(notes.indexOf('November 2–5, 2026') < notes.indexOf('June 28 – July 5, 2026'));
-    assert.strictEqual((notes.match(/<h2 class="patch-title"/g) || []).length, 15);
+    assert.strictEqual((notes.match(/<h2 class="patch-title"/g) || []).length, 16);
     assert.ok(!notes.includes('Cloud Functions'));
     assert.ok(!notes.includes('Firestore'));
     assert.ok(!notes.includes('App Check'));
