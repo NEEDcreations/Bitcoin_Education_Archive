@@ -99,7 +99,9 @@ test('runtimeSaOrDefault throws for an unknown function (no silent default)', fu
 });
 
 test('functions without secrets do not set a service account', function () {
+    const { BACKUP_SERVICE_ACCOUNTS } = require(path.join(fnRoot, 'src', 'runtimeServiceAccounts.js'));
     names.filter(function (n) { return endpoints[n].secrets.length === 0; }).forEach(function (n) {
+        if (Object.prototype.hasOwnProperty.call(BACKUP_SERVICE_ACCOUNTS, n)) return; // pinned in test-vault-copy.js
         assert.strictEqual(endpoints[n].serviceAccount, null, n);
     });
 });
@@ -243,7 +245,7 @@ test('no source passes a default or literal service account', function () {
     })(fnRoot);
     files.forEach(function (p) {
         const src = fs.readFileSync(p, 'utf8');
-        const hits = src.match(/\bserviceAccount:\s+(?!runtimeSa\(|runtimeSaOrDefault\()[^,}\n]*/g) || [];
+        const hits = src.match(/\bserviceAccount:\s+(?!runtimeSa\(|runtimeSaOrDefault\(|backupSa\()[^,}\n]*/g) || [];
         assert.deepStrictEqual(hits, [], path.relative(fnRoot, p));
     });
 });
