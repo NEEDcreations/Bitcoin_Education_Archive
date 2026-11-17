@@ -17,7 +17,8 @@
 // Money order of operations for one claim (sf_block_claims/e{N}_b{B}):
 //   1. transaction: refuse if the block is paid / paying / unknown / held,
 //      check per-uid daily, site daily and monthly caps, then mark the claim
-//      'paying' and reserve the sats BEFORE any wallet call;
+//      'paying' and reserve the prize plus the maximum routing fee (in msat)
+//      BEFORE any wallet call; release the reserve on failure;
 //   2. wallet balance floor (halts every claim while below), own-node pubkey;
 //   3. resolve an invoice for the frozen address only, decode it on the
 //      server: exact net amount, not zero-amount, not expired, mainnet, not
@@ -33,6 +34,7 @@
 // sf_claim_audit. See PERMANENT_COLLECTIONS.
 
 const crypto = require('crypto');
+const payoutMsat = require('./payoutMsat');
 
 const BLOCKS_PER_EPOCH = 5;
 const EPOCH_POT_SATS = 21000;
@@ -389,13 +391,24 @@ function capCheck(cfg, amount, counters, catchUp) {
     if (amount > cfg.perClaimCapSats) return 'amount_invalid';
     if ((Number(c.uidDay) || 0) + amount > cfg.perUidDailySats) return 'uid_daily_cap';
     if ((Number(c.siteDay) || 0) + amount > cfg.siteDailySats) return 'site_daily_cap';
+    const reserved = c.reservedMsat;
+    const feeFn = c.feeLimitMsatFn || routeFeeLimitMsat;
+    if (reserved != null) {
+        if ((Number(c.uidDayMsat) || 0) + reserved > payoutMsat.spendCapMsat(cfg.perUidDailySats, feeFn)) return 'uid_daily_cap';
+        if ((Number(c.siteDayMsat) || 0) + reserved > payoutMsat.spendCapMsat(cfg.siteDailySats, feeFn)) return 'site_daily_cap';
+    }
     if (catchUp) {
         // Hard ceiling replaces the monthly limit for epochs 1-8 only.
         if (!(Number(catchUp.ceiling) > 0)) return 'catch_up_ceiling';
-        if ((Number(c.catchUp) || 0) + amount > catchUp.ceiling) return 'catch_up_ceiling';
+        if (reserved != null) {
+            const used = c.catchUpMsat != null ? Number(c.catchUpMsat) || 0 : payoutMsat.satsToMsat(c.catchUp);
+            if (used + reserved > payoutMsat.satsToMsat(catchUp.ceiling)) return 'catch_up_ceiling';
+        } else if ((Number(c.catchUp) || 0) + amount > catchUp.ceiling) return 'catch_up_ceiling';
         return '';
     }
-    if ((Number(c.month) || 0) + amount > cfg.monthlySats) return 'monthly_cap';
+    if (reserved != null) {
+        if ((Number(c.monthMsat) || 0) + reserved > payoutMsat.spendCapMsat(cfg.monthlySats, feeFn)) return 'monthly_cap';
+    } else if ((Number(c.month) || 0) + amount > cfg.monthlySats) return 'monthly_cap';
     return '';
 }
 
@@ -639,7 +652,12 @@ function createBlockClaimService(deps) {
             const catchUp = isCatchUpEpoch(ids.epoch) ? { ceiling: catchUpCeiling(await catchUpBlockTotal()) } : null;
 
             // 1. Reserve in a transaction and mark 'paying' before the wallet call.
+            // Wallet outflow is net + routing fee. Reserve the maximum fee too,
+            // in msat, so concurrent claims cannot slip under a cap.
             const nowMs = now();
+            const net = amount - cfg.feeSats;
+            const feeLimitMsat = routeFeeLimitMsat(net);
+            const reservedMsat = payoutMsat.reserveSpendMsat(net, feeLimitMsat);
             counterKeys = { day: dayKey(nowMs), month: monthKey(nowMs) };
             const uidDayRef = db.collection('sf_claim_counters').doc('uid_' + uidHash(uid) + '_' + counterKeys.day);
             const siteDayRef = db.collection('sf_claim_counters').doc('site_' + counterKeys.day);
@@ -669,10 +687,16 @@ function createBlockClaimService(deps) {
                     if (cur.lastAttemptMs && nowMs - cur.lastAttemptMs < cfg.cooldownMs) refuse('cooldown');
                 }
                 const capCode = capCheck(cfg, amount, {
-                    uidDay: ud.exists ? ud.data().sats : 0,
-                    siteDay: sd.exists ? sd.data().sats : 0,
-                    month: md.exists ? md.data().sats : 0,
-                    catchUp: md.exists ? md.data().sats : 0,
+                    uidDay: ud.exists ? payoutMsat.counterSats(ud.data()) : 0,
+                    siteDay: sd.exists ? payoutMsat.counterSats(sd.data()) : 0,
+                    month: md.exists ? payoutMsat.counterSats(md.data()) : 0,
+                    catchUp: md.exists ? payoutMsat.counterSats(md.data()) : 0,
+                    uidDayMsat: ud.exists ? payoutMsat.counterMsats(ud.data()) : 0,
+                    siteDayMsat: sd.exists ? payoutMsat.counterMsats(sd.data()) : 0,
+                    monthMsat: md.exists ? payoutMsat.counterMsats(md.data()) : 0,
+                    catchUpMsat: md.exists ? payoutMsat.counterMsats(md.data()) : 0,
+                    reservedMsat: reservedMsat,
+                    feeLimitMsatFn: routeFeeLimitMsat,
                 }, catchUp);
                 if (capCode) refuse(capCode);
                 const rec = {
@@ -680,12 +704,13 @@ function createBlockClaimService(deps) {
                     frozenLn: row.frozenLn, status: 'paying', payingAtMs: nowMs,
                     lastAttemptMs: nowMs, attempts: (cur ? (Number(cur.attempts) || 0) : 0) + 1,
                     counterDay: counterKeys.day, counterMonth: counterKeys.month,
+                    reservedMsat: reservedMsat, netSats: net,
                 };
                 if (!cur) rec.createdAtMs = nowMs;
                 t.set(claimRef, rec, { merge: true });
-                t.set(uidDayRef, { sats: (ud.exists ? Number(ud.data().sats) || 0 : 0) + amount, updatedAtMs: nowMs }, { merge: true });
-                t.set(siteDayRef, { sats: (sd.exists ? Number(sd.data().sats) || 0 : 0) + amount, updatedAtMs: nowMs }, { merge: true });
-                const budgetRow = { sats: (md.exists ? Number(md.data().sats) || 0 : 0) + amount, updatedAtMs: nowMs };
+                t.set(uidDayRef, payoutMsat.addReserved(ud.exists ? ud.data() : null, amount, reservedMsat, nowMs), { merge: true });
+                t.set(siteDayRef, payoutMsat.addReserved(sd.exists ? sd.data() : null, amount, reservedMsat, nowMs), { merge: true });
+                const budgetRow = payoutMsat.addReserved(md.exists ? md.data() : null, amount, reservedMsat, nowMs);
                 if (catchUp) budgetRow.ceilingSats = catchUp.ceiling;
                 t.set(budgetRef, budgetRow, { merge: true });
                 rec.budget = catchUp ? CATCH_UP_COUNTER_ID : 'month';
@@ -711,9 +736,10 @@ function createBlockClaimService(deps) {
                         reviewReason: review || (strikes >= cfg.maxAttempts ? 'repeat_failures' : null),
                         lastError: code, payingAtMs: null,
                     }, { merge: true });
-                    t.set(uidDayRef, { sats: Math.max(0, (ud.exists ? Number(ud.data().sats) || 0 : 0) - amount) }, { merge: true });
-                    t.set(siteDayRef, { sats: Math.max(0, (sd.exists ? Number(sd.data().sats) || 0 : 0) - amount) }, { merge: true });
-                    t.set(budgetRef, { sats: Math.max(0, (md.exists ? Number(md.data().sats) || 0 : 0) - amount) }, { merge: true });
+                    const giveBack = (cur.reservedMsat != null) ? Number(cur.reservedMsat) : reservedMsat;
+                    t.set(uidDayRef, payoutMsat.releaseReserved(ud.exists ? ud.data() : null, amount, giveBack), { merge: true });
+                    t.set(siteDayRef, payoutMsat.releaseReserved(sd.exists ? sd.data() : null, amount, giveBack), { merge: true });
+                    t.set(budgetRef, payoutMsat.releaseReserved(md.exists ? md.data() : null, amount, giveBack), { merge: true });
                 });
                 reserved = false;
                 refuse(code, extra);
@@ -751,7 +777,6 @@ function createBlockClaimService(deps) {
             }
 
             // 3. Invoice for the frozen address only; decoded and checked here.
-            const net = amount - cfg.feeSats;
             let bolt = '';
             let inv = null;
             let decoded = null;
@@ -763,8 +788,8 @@ function createBlockClaimService(deps) {
                 inv = { ok: false, reason: 'resolve_failed' };
             }
             if (!inv.ok) await release('bad_invoice', { reason: inv.reason });
-            // Route-hint fee cap, before any wallet call.
-            const feeLimitMsat = routeFeeLimitMsat(net);
+            // Route-hint fee cap, before any wallet call. feeLimitMsat was
+            // computed before the reserve so the reserved spend matches it.
             const hintFees = checkRouteFees(decoded, net);
             if (!hintFees.ok) {
                 await alert('Favor claim set aside: the invoice for epoch ' + ids.epoch + ' block ' + ids.block +
@@ -786,22 +811,27 @@ function createBlockClaimService(deps) {
                 const paidAtMs = now();
                 const payoutRef = db.collection('sf_block_payouts').doc(cid);
                 const routing = Math.max(0, Math.ceil(Number(routingFeeSats) || 0));
-                // Wallet spend is net + routing fee. The reservation was the gross
-                // block amount; true it up so the ceiling counts real spend.
+                // Wallet spend is net + routing fee, in msat. The reservation
+                // was net + max fee; true it up to the actual outflow and
+                // release unused fee headroom. Budget prize sats move from
+                // the gross amount to spent, same as before.
                 const spent = net + routing;
+                const spentMsat = payoutMsat.satsToMsat(net) + Math.max(0, Math.ceil(Number(routingFeeSats) * 1000 || 0));
                 // Post-pay check: wallet spend over net must stay inside the fee limit.
                 const routingMsat = Math.max(0, Number(routingFeeSats) * 1000 || 0);
                 const overspend = routingMsat > feeLimitMsat;
                 await db.runTransaction(async function (t) {
                     const p = await t.get(payoutRef);
+                    const ud = await t.get(uidDayRef);
+                    const sd = await t.get(siteDayRef);
                     const bd = await t.get(budgetRef);
                     if (overspend) {
                         t.set(haltRef, { halted: true, reason: 'routing_fee_over_limit', epoch: ids.epoch, block: ids.block,
                             routingFeeSats: routing, limitSats: Math.ceil(feeLimitMsat / 1000), atMs: paidAtMs }, { merge: true });
                     }
-                    if (spent !== amount) {
-                        t.set(budgetRef, { sats: Math.max(0, (bd.exists ? Number(bd.data().sats) || 0 : 0) - amount + spent) }, { merge: true });
-                    }
+                    t.set(uidDayRef, payoutMsat.trueUpSpend(ud.exists ? ud.data() : null, reservedMsat, spentMsat, 0), { merge: true });
+                    t.set(siteDayRef, payoutMsat.trueUpSpend(sd.exists ? sd.data() : null, reservedMsat, spentMsat, 0), { merge: true });
+                    t.set(budgetRef, payoutMsat.trueUpSpend(bd.exists ? bd.data() : null, reservedMsat, spentMsat, -amount + spent), { merge: true });
                     t.set(claimRef, { status: 'paid', paidAtMs: paidAtMs, payingAtMs: null, paidVia: how,
                         preimageHash: preimage ? crypto.createHash('sha256').update(String(preimage)).digest('hex') : '' }, { merge: true });
                     if (!p.exists) {
@@ -849,6 +879,10 @@ function createBlockClaimService(deps) {
         } catch (e) {
             const code = e instanceof ClaimRefusal ? e.code : 'pay_failed';
             if (!(e instanceof ClaimRefusal)) console.error('[sfclaim] unexpected', e && e.message);
+            if (['uid_daily_cap', 'site_daily_cap', 'monthly_cap', 'catch_up_ceiling'].indexOf(code) !== -1) {
+                await alertOnce('cap_' + code, 'Favor payout cap hit: ' + code.replace(/_/g, ' ') +
+                    ' on epoch ' + (ids && ids.epoch) + ' block ' + (ids && ids.block) + '.', { epoch: ids && ids.epoch, block: ids && ids.block, cap: code });
+            }
             if (reserved) {
                 // Unexpected throw after reserving and before the wallet: leave it
                 // 'paying' for a person rather than guessing. Never auto-retry.
@@ -990,13 +1024,14 @@ function createBlockClaimService(deps) {
             if (wasReserved && cur.counterDay) {
                 // The sats provably did not leave: give back what the attempt reserved.
                 const amt = Number(cur.amount) || 0;
+                const giveBack = payoutMsat.reservedMsatFromClaim(cur, amt, 0);
                 const refs = [db.collection('sf_claim_counters').doc('uid_' + uidHash(cur.uid) + '_' + cur.counterDay),
                     db.collection('sf_claim_counters').doc('site_' + cur.counterDay),
                     db.collection('sf_claim_counters').doc(cur.budget === CATCH_UP_COUNTER_ID ? CATCH_UP_COUNTER_ID : 'month_' + cur.counterMonth)];
                 const snaps = [];
                 for (let i = 0; i < refs.length; i++) snaps.push(await t.get(refs[i]));
                 refs.forEach(function (r, i) {
-                    t.set(r, { sats: Math.max(0, (snaps[i].exists ? Number(snaps[i].data().sats) || 0 : 0) - amt) }, { merge: true });
+                    t.set(r, payoutMsat.releaseReserved(snaps[i].exists ? snaps[i].data() : null, amt, giveBack), { merge: true });
                 });
             }
             const patch = { status: 'claimable', reviewReleased: true, reviewReleasedAtMs: now(), reviewReleasedBy: by,
