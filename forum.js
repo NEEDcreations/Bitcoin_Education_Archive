@@ -1112,6 +1112,17 @@ function mdToHtml(md) {
         slots.push(html);
         return '%%' + nonce + i + '%%';
     }
+    function hasSlot(s) {
+        return String(s).indexOf('%%' + nonce) !== -1;
+    }
+    function stripSlots(s) {
+        return String(s).replace(new RegExp('%%' + nonce + '\\d+%%', 'g'), '');
+    }
+    function expandSlotsInText(text) {
+        return String(text).replace(new RegExp('%%' + nonce + '(\\d+)%%', 'g'), function(m, i) {
+            return slots[Number(i)] || '';
+        });
+    }
     function hrefOf(url) {
         var safe = fSafeUrl(String(url || '').trim());
         return safe ? fEsc(safe) : '';
@@ -1127,17 +1138,26 @@ function mdToHtml(md) {
     h = h.replace(/`([^`]+)`/g, function(m, code) {
         return stash('<code style="background:var(--card-bg);padding:2px 6px;border-radius:4px;font-size:0.9em;">' + fEsc(code) + '</code>');
     });
-    h = h.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(m, alt, url) {
-        var href = hrefOf(url);
-        if (!href) return '';
-        return stash('<img src="' + href + '" alt="' + fEsc(alt) + '" style="max-width:100%;border-radius:12px;margin:16px 0;display:block;">');
-    });
-    h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(m, text, url) {
-        var href = hrefOf(url);
-        if (!href) return text;
-        return stash('<a href="' + href + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;font-weight:600;">' + inlineFmt(fEsc(text)) + '</a>');
-    });
-    h = h.replace(/https?:\/\/[^\s<"]+/g, function(url) {
+    // Cap label and URL captures so unclosed brackets cannot run for seconds.
+    // Labels cannot include '[' or ']', which also stops a long run of '[' from backtracking.
+    if (h.indexOf('](') !== -1) {
+        h = h.replace(/!\[([^\]\[\n]{0,500})\]\(([^)\s]{1,2048})\)/g, function(m, alt, url) {
+            if (hasSlot(url)) return m;
+            var href = hrefOf(url);
+            if (!href) return '';
+            return stash('<img src="' + href + '" alt="' + fEsc(stripSlots(alt)) + '" style="max-width:100%;border-radius:12px;margin:16px 0;display:block;">');
+        });
+        h = h.replace(/\[([^\]\[\n]{1,500})\]\(([^)\s]{1,2048})\)/g, function(m, text, url) {
+            if (hasSlot(url)) return m;
+            var href = hrefOf(url);
+            if (!href) return text;
+            // Expand nested slots only in link text, never into href, src, or alt.
+            return stash('<a href="' + href + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;font-weight:600;">' + inlineFmt(expandSlotsInText(fEsc(text))) + '</a>');
+        });
+    }
+
+    // Stop a bare URL at a placeholder so a backtick segment cannot land in href.
+    h = h.replace(new RegExp('https?:\\/\\/(?:(?!%%' + nonce + ')[^\\s<"])+', 'g'), function(url) {
         var href = hrefOf(url);
         if (!href) return url;
         return stash('<a href="' + href + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">' + fEsc(url) + '</a>');
@@ -2296,10 +2316,16 @@ function snEscape(str) {
 // Call AFTER fEsc() and AFTER URL linkification on already-escaped HTML
 function forumRenderMentions(html) {
     if (!html || html.indexOf('@') === -1) return html;
-    // Split on HTML tags to only process text nodes (avoids matching @mentions inside href/src attributes)
+    // Split on HTML tags to only process text nodes (avoids matching @mentions inside href/src attributes).
+    // Text inside <code> stays literal, so @name in inline code is not a mention.
+    var inCode = 0;
     return html.replace(/(<[^>]+>)|(@([a-zA-Z0-9_\-\.]{2,20}))/g, function(match, tag, mention, username) {
-        if (tag) return tag; // HTML tag — pass through unchanged
-        // It's an @mention in a text node
+        if (tag) {
+            if (/^<code\b/i.test(tag)) inCode++;
+            else if (/^<\/code>/i.test(tag) && inCode) inCode--;
+            return tag;
+        }
+        if (inCode) return mention;
         return '<span class="forum-mention" onclick="forumMentionClick(\'' + username.replace(/'/g, '') + '\')">' + mention + '</span>';
     });
 }
