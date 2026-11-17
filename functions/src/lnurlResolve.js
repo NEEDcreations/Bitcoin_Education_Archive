@@ -5,6 +5,8 @@
 // Blink, and others use a different host). Every request stays on https, the
 // default port, with no userinfo, and each host — including redirect hops —
 // has to pass assertPublicHost. Logs name the domain only.
+// The returned invoice must also commit to the LNURL metadata (LUD-06
+// description hash), be unexpired, and not be payable to our own node.
 
 const PROOF_MSATS = 1000;
 const PROOF_MAX_MSATS = 100000;
@@ -12,6 +14,28 @@ const TIMEOUT_MS = 8000;
 const MAX_BYTES = 65536;
 const MAX_REDIRECTS = 3;
 const RESOLVE_ERROR = 'Could not resolve Lightning Address. Check the address and try again.';
+// An invoice must stay valid at least this long after we receive it.
+const MIN_EXPIRY_HEADROOM_SEC = 30;
+
+function sha256Hex(text) {
+    return require('crypto').createHash('sha256').update(String(text), 'utf8').digest('hex');
+}
+
+function tagValue(decoded, name) {
+    const tags = (decoded && Array.isArray(decoded.tags)) ? decoded.tags : [];
+    for (let i = 0; i < tags.length; i++) {
+        if (tags[i] && tags[i].tagName === name) return tags[i].data;
+    }
+    return undefined;
+}
+
+// Our own node pubkey(s) are public; set BQ_OWN_NODE_PUBKEYS (comma list) so a
+// payout can never be routed to an invoice issued by our own wallet.
+function ownNodePubkeys(injected) {
+    const raw = injected !== undefined ? injected : (process.env.BQ_OWN_NODE_PUBKEYS || '');
+    const list = Array.isArray(raw) ? raw : String(raw).split(',');
+    return list.map(function (k) { return String(k).trim().toLowerCase(); }).filter(function (k) { return /^0[23][0-9a-f]{64}$/.test(k); });
+}
 
 function normalizeLnAddress(raw) {
     let s = String(raw == null ? '' : raw).trim().toLowerCase();
@@ -62,6 +86,8 @@ function createLnurlResolver(deps) {
     const injectedFetch = options.fetch || null;
     const injectedBolt = options.bolt11 || null;
     const log = options.log || console;
+    const ownNodes = ownNodePubkeys(options.ownNodePubkeys);
+    const nowSec = options.nowSec || function () { return Math.floor(Date.now() / 1000); };
 
     function getFetch() {
         return injectedFetch || require('node-fetch');
@@ -118,7 +144,7 @@ function createLnurlResolver(deps) {
         }
     }
 
-    function assertInvoice(pr, msats) {
+    function assertInvoice(pr, msats, metadata) {
         if (!pr || typeof pr !== 'string') throw LnurlError(RESOLVE_ERROR, 'no_invoice');
         let decoded;
         try {
@@ -131,6 +157,20 @@ function createLnurlResolver(deps) {
         const got = Number(decoded.millisatoshis);
         if (!Number.isFinite(got) || got !== msats) {
             throw LnurlError('Lightning Address returned an unexpected amount.', 'amount_mismatch');
+        }
+        // LUD-06: the invoice's description hash must be sha256(metadata).
+        const h = tagValue(decoded, 'purpose_commit_hash');
+        if (typeof h !== 'string' || h.toLowerCase() !== sha256Hex(metadata)) {
+            throw LnurlError(RESOLVE_ERROR, 'description_hash_mismatch');
+        }
+        const exp = Number(decoded.timeExpireDate);
+        if (!Number.isFinite(exp) || exp < nowSec() + MIN_EXPIRY_HEADROOM_SEC) {
+            throw LnurlError('Lightning invoice is expired. Try again.', 'invoice_expired');
+        }
+        const payee = String(decoded.payeeNodeKey || '').toLowerCase();
+        if (!/^0[23][0-9a-f]{64}$/.test(payee)) throw LnurlError(RESOLVE_ERROR, 'no_payee');
+        if (ownNodes.indexOf(payee) !== -1) {
+            throw LnurlError('That Lightning Address can\'t receive this payment.', 'own_node');
         }
         return decoded;
     }
@@ -171,6 +211,7 @@ function createLnurlResolver(deps) {
         }
         readStatusError(meta);
         if (!meta.callback) throw LnurlError('No callback in LNURL-pay metadata', 'no_callback');
+        if (typeof meta.metadata !== 'string' || !meta.metadata) throw LnurlError(RESOLVE_ERROR, 'no_metadata');
         const cbUrl = assertHttpsUrl(meta.callback, 'Callback');
         await assertHost(cbUrl.hostname);
         assertAmountInRange(meta, msats);
@@ -199,7 +240,7 @@ function createLnurlResolver(deps) {
         }
         readStatusError(inv);
         if (!inv.pr) throw LnurlError(RESOLVE_ERROR, 'no_invoice');
-        const decoded = assertInvoice(inv.pr, msats);
+        const decoded = assertInvoice(inv.pr, msats, meta.metadata);
         log.log('[LNURL] resolved domain=' + domain + ' msats=' + msats);
         return {
             pr: inv.pr,
@@ -216,12 +257,13 @@ const defaultResolver = createLnurlResolver();
 
 function resolveLnurlInvoice(opts) {
     const src = opts || {};
-    if (src.fetch || src.bolt11 || src.assertPublicHost || src.log) {
+    if (src.fetch || src.bolt11 || src.assertPublicHost || src.log || src.ownNodePubkeys) {
         return createLnurlResolver({
             fetch: src.fetch,
             bolt11: src.bolt11,
             assertPublicHost: src.assertPublicHost,
             log: src.log,
+            ownNodePubkeys: src.ownNodePubkeys,
         }).resolveLnurlInvoice(src);
     }
     return defaultResolver.resolveLnurlInvoice(src);
@@ -235,6 +277,9 @@ module.exports = {
     FETCH_HEADERS: { 'Accept-Encoding': 'identity' },
     MAX_REDIRECTS: MAX_REDIRECTS,
     RESOLVE_ERROR: RESOLVE_ERROR,
+    MIN_EXPIRY_HEADROOM_SEC: MIN_EXPIRY_HEADROOM_SEC,
+    sha256Hex: sha256Hex,
+    ownNodePubkeys: ownNodePubkeys,
     normalizeLnAddress: normalizeLnAddress,
     addressDomain: addressDomain,
     LnurlError: LnurlError,
