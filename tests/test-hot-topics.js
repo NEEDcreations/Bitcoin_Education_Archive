@@ -680,7 +680,8 @@ test('scheduler wiring is unchanged and the old X and Reddit paths are gone', fu
     assert.ok(home.indexOf('Friday 10pm ET') === -1);
     assert.ok(home.indexOf('check back Friday') === -1);
     assert.ok(home.indexOf('https://citadelwire.com') !== -1);
-    assert.ok(home.indexOf('More high-signal news: Citadel Wire by Odell') !== -1);
+    assert.ok(home.indexOf('Citadel Wire: More high-signal News') !== -1);
+    assert.ok(home.indexOf('More high-signal news: Citadel Wire by Odell') === -1);
     assert.ok(home.indexOf('sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"') !== -1);
     assert.ok(home.indexOf('aria-expanded="false"') !== -1);
     assert.ok(home.indexOf('id="cwEmbed" class="cw-embed" hidden') !== -1);
