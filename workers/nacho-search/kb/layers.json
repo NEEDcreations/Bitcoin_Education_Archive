@@ -114,6 +114,9 @@
     "category": "layers",
     "question": "What is a Lightning watchtower?",
     "alts": [
+      "What is a watchtower?",
+      "What is a watchtower in bitcoin?",
+      "What are watchtowers?",
       "Define a Lightning watchtower?",
       "Explain a Lightning watchtower?",
       "Describe a Lightning watchtower?"
@@ -400,6 +403,7 @@
     "category": "layers",
     "question": "What is a sidechain?",
     "alts": [
+      "What are sidechains?",
       "Define a sidechain?",
       "Explain a sidechain?",
       "Describe a sidechain?"

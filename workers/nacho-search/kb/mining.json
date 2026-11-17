@@ -26,9 +26,12 @@
     "category": "mining",
     "question": "How does Bitcoin mining work?",
     "alts": [
+      "What is mining?",
+      "How does mining work?",
+      "Explain mining like I'm five?",
+      "Explain mining like I am five.?",
       "Explain how Bitcoin mining work?",
-      "Describe how Bitcoin mining work?",
-      "How can Bitcoin mining work?"
+      "Describe how Bitcoin mining work?"
     ],
     "answer": "Miners assemble a block of transactions and change a number in the header until the hash is low enough. The first valid block they publish can claim the subsidy and the fees. Other nodes check the proof and the transactions before accepting it.",
     "topics": [
@@ -205,6 +208,8 @@
     "category": "mining",
     "question": "What is an ASIC miner?",
     "alts": [
+      "What is an ASIC?",
+      "What is an ASIC in bitcoin mining?",
       "Define an ASIC miner?",
       "Explain an ASIC miner?",
       "Describe an ASIC miner?"
@@ -271,6 +276,7 @@
     "category": "mining",
     "question": "What is a 51 percent attack?",
     "alts": [
+      "What is a 51% attack?",
       "Define a 51 percent attack?",
       "Explain a 51 percent attack?",
       "Describe a 51 percent attack?"
@@ -755,6 +761,7 @@
     "category": "mining",
     "question": "How is proof of work different from proof of stake?",
     "alts": [
+      "What's the difference between proof of work and proof of stake?",
       "Explain this: how is proof of work different from proof of stake?",
       "Clarify this: how is proof of work different from proof of stake?",
       "Unpack this: how is proof of work different from proof of stake?"
@@ -1276,6 +1283,8 @@
     "category": "mining",
     "question": "Why is coinbase maturity 100 blocks?",
     "alts": [
+      "What is coinbase maturity?",
+      "What is coinbase maturity in bitcoin?",
       "Explain why is coinbase maturity 100 blocks?",
       "For what reason is coinbase maturity 100 blocks?",
       "What is the reason is coinbase maturity 100 blocks?"

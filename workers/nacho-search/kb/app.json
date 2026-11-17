@@ -3454,7 +3454,7 @@
     ],
     "answer": "Delete account is on the Account tab. You confirm your username, and any sats balance is forfeited. There is no waiting period. Open Settings → Account and choose Delete account. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
-      "faq",
+      "delete-account",
       "one-stop-shop"
     ],
     "followUps": [
@@ -3475,7 +3475,7 @@
     ],
     "answer": "Delete account is on the Account tab. You confirm your username, and any sats balance is forfeited. There is no waiting period. Open Settings → Account and choose Delete account. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
-      "faq",
+      "delete-account",
       "one-stop-shop"
     ],
     "followUps": [
@@ -3496,7 +3496,7 @@
     ],
     "answer": "Email sign-ins can change the address from the Account tab. Linked Google, X, GitHub, and Facebook emails stay with that sign-in. Open Settings → Account and choose Change email or Add email. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
-      "faq",
+      "change-email",
       "one-stop-shop"
     ],
     "followUps": [
@@ -3517,7 +3517,7 @@
     ],
     "answer": "Email sign-ins can change the address from the Account tab. Linked Google, X, GitHub, and Facebook emails stay with that sign-in. Open Settings → Account and choose Change email or Add email. This describes a Bitcoin Quest feature, not financial advice.",
     "topics": [
-      "faq",
+      "change-email",
       "one-stop-shop"
     ],
     "followUps": [
