@@ -7,11 +7,17 @@
 // can run the Firestore rules suites without a separate install step.
 // =============================================
 const { execSync } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 
 const rulesDir = path.join(__dirname, 'rules');
 console.log('Installing tests/rules dependencies (npm ci)…');
 execSync('npm ci', { cwd: rulesDir, stdio: 'inherit' });
+
+if (fs.existsSync(path.join(__dirname, 'package.json'))) {
+    console.log('Installing tests dependencies (npm ci)…');
+    execSync('npm ci', { cwd: __dirname, stdio: 'inherit' });
+}
 
 const TESTS = [
     { name: 'Syntax Validation', file: 'test-syntax.js' },
@@ -36,6 +42,7 @@ const TESTS = [
     { name: 'TCTV drip pot logic', file: 'test-tctv-drip.js' },
     { name: 'Sidebar topics', file: 'test-sidebar-topics.js' },
     { name: 'Cache Busters', file: 'busters.js' },
+    { name: 'Pleb Talk forum XSS', file: 'test-forum-xss.js' },
     { name: 'Admin home button + panel', file: 'test-admin-home-btn.js' },
     { name: 'Admin claim gates (server)', file: 'test-admin-claim-gates.js' },
     { name: 'Kill switch', file: 'test-kill-switch.js' },

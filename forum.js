@@ -101,7 +101,62 @@ function isCleanText(text) {
 }
 
 // Sanitize HTML
-function fEsc(str) { return typeof escapeHtml === 'function' ? escapeHtml(str) : String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// Escape for element text AND quoted attributes (& < > " ' ` all encoded).
+function fEsc(str) { if (str == null) return ''; return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/`/g,'&#96;'); }
+function fNum(x) { return Number(x) || 0; }
+// Firestore doc ids / uids rendered into the DOM must be plain tokens.
+// Doc ids are client-chosen strings, so a crafted id like  x"><img onerror=...>  must never reach markup.
+var FORUM_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+function fId(id) { id = id == null ? '' : String(id); return FORUM_ID_RE.test(id) ? id : ''; }
+// http(s) only; anything else (javascript:, data:, vbscript:) becomes ''.
+function fSafeUrl(u) { if (!u) return ''; try { var x = new URL(String(u), 'https://bitcoineducation.quest/'); return (x.protocol === 'https:' || x.protocol === 'http:') ? x.href : ''; } catch (e) { return ''; } }
+// Delegated click handling for forum actions. Markup carries data-fa (action) + data-id/data-id2;
+// no user data is ever placed inside an inline on* handler.
+var FORUM_ACTIONS = {
+    viewPost: function(id) { forumViewPost(id); },
+    votePost: function(id) { forumVotePost(id); },
+    deletePost: function(id) { forumDeletePost(id); },
+    submitReply: function(id) { forumSubmitReply(id); },
+    voteReply: function(id) { forumVoteReply(id); },
+    deleteReply: function(id, id2) { forumDeleteReply(id, id2); },
+    profile: function(id) { if (typeof showUserProfile === 'function') showUserProfile(id); },
+    articleView: function(id) { articleView(id); },
+    articleEdit: function(id) { articleEdit(id); },
+    articlePin: function(id, id2) { articleTogglePin(id, id2 === 'true'); },
+    articleVote: function(id) { articleVote(id); },
+    articleDelete: function(id) { articleDelete(id); },
+    articleDeleteReply: function(id, id2) { articleDeleteReply(id, id2); },
+    articleReply: function(id) { articleSubmitReply(id); },
+    snOpen: function(id) { var n = Number(id); if (Number.isSafeInteger(n) && n > 0) snOpenPost(n); }
+};
+function forumActionClick(e) {
+    var el = e.target && e.target.closest ? e.target.closest('[data-fa]') : null;
+    if (!el) return;
+    var fn = Object.prototype.hasOwnProperty.call(FORUM_ACTIONS, el.getAttribute('data-fa')) ? FORUM_ACTIONS[el.getAttribute('data-fa')] : null;
+    if (!fn) return;
+    var id = fId(el.getAttribute('data-id'));
+    if (!id) return;
+    var id2 = el.getAttribute('data-id2') || '';
+    if (id2 && id2 !== 'true' && id2 !== 'false') { id2 = fId(id2); if (!id2) return; }
+    e.stopPropagation();
+    fn(id, id2);
+}
+if (typeof document !== 'undefined' && !window._forumActionBound) {
+    window._forumActionBound = true;
+    document.addEventListener('click', forumActionClick);
+}
+// data-fa attribute string for markup. Returns '' (inert element) when the id is not a plain token.
+function fAct(action, id, id2) {
+    var a = fId(id);
+    if (!a) return '';
+    var out = ' data-fa="' + action + '" data-id="' + a + '"';
+    if (id2 != null) { var b = (id2 === true || id2 === false) ? String(id2) : fId(id2); if (b) out += ' data-id2="' + b + '"'; }
+    return out;
+}
+// Hover border without inline handlers.
+if (typeof document !== 'undefined' && !document.getElementById('forumHoverCss')) {
+    try { var _fhc = document.createElement('style'); _fhc.id = 'forumHoverCss'; _fhc.textContent = '.forum-card-hover:hover{border-color:var(--accent)!important}'; (document.head || document.documentElement).appendChild(_fhc); } catch (e) {}
+}
 
 // Time ago helper
 // [AUDIT FIX] timeAgo moved to utils.js
@@ -297,7 +352,7 @@ async function forumLoadPostsFallback() {
             : db.collection('forum_posts').orderBy(sortField, 'desc').limit(50);
         var snap = await query.get();
         var posts = [];
-        snap.forEach(function(doc) { posts.push({ id: doc.id, ...doc.data() }); });
+        snap.forEach(function(doc) { posts.push({ ...doc.data(), id: doc.id }); });
         forumPostsCache = posts;
         window._forumCache = { key: _forumKey, time: Date.now(), posts: posts };
         forumRenderPosts(posts, container);
@@ -326,21 +381,21 @@ function forumRenderPosts(posts, container) {
         var canDelete = isOwn || isForumAdmin();
         var hasVoted = p.voters && auth && auth.currentUser && p.voters.indexOf(auth.currentUser.uid) !== -1;
 
-        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer;transition:0.2s;-webkit-tap-highlight-color:rgba(247,147,26,0.1);" onclick="forumViewPost(\'' + p.id + '\')" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">' +
+        html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer;transition:0.2s;-webkit-tap-highlight-color:rgba(247,147,26,0.1);" class="forum-card-hover"' + fAct('viewPost', p.id) + '>' +
             '<div style="display:flex;gap:10px;">' +
                 '<div style="display:flex;flex-direction:column;align-items:center;min-width:36px;flex-shrink:0;">' +
-                    '<button onclick="event.stopPropagation();forumVotePost(\'' + p.id + '\')" style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:4px;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-faint)') + ';touch-action:manipulation;" title="Upvote">👍</button>' +
-                    '<span style="color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:700;">' + (p.upvotes || 0) + '</span>' +
+                    '<button' + fAct('votePost', p.id) + ' style="background:none;border:none;cursor:pointer;font-size:1.2rem;padding:4px;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-faint)') + ';touch-action:manipulation;" title="Upvote">👍</button>' +
+                    '<span style="color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:700;">' + fNum(p.upvotes) + '</span>' +
                 '</div>' +
                 '<div style="flex:1;min-width:0;overflow:hidden;">' +
                     '<div style="color:var(--heading);font-size:0.9rem;font-weight:700;margin-bottom:3px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</div>' +
-                    (p.body ? '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.4;margin-bottom:5px;overflow:hidden;max-height:2.6em;word-wrap:break-word;">' + fEsc(p.body).substring(0, 120) + (p.body.length > 120 ? '...' : '') + '</div>' : '') +
+                    (p.body ? '<div style="color:var(--text-muted);font-size:0.75rem;line-height:1.4;margin-bottom:5px;overflow:hidden;max-height:2.6em;word-wrap:break-word;">' + fEsc(p.body.length > 120 ? p.body.substring(0, 120) : p.body) + (p.body.length > 120 ? '...' : '') + '</div>' : '') +
                     '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">' +
-                        '<span onclick="event.stopPropagation();if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')" style="font-size:0.7rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-faint)') + ';cursor:pointer;transition:0.2s;">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
+                        '<span' + fAct('profile', p.authorId) + ' style="font-size:0.7rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-faint)') + ';cursor:pointer;transition:0.2s;">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
                         '<span style="font-size:0.65rem;color:var(--text-faint);">' + timeAgo(p.createdAt) + '</span>' +
-                        '<span style="font-size:0.7rem;color:var(--text-faint);">💬 ' + (p.replyCount || 0) + '</span>' +
+                        '<span style="font-size:0.7rem;color:var(--text-faint);">💬 ' + fNum(p.replyCount) + '</span>' +
                         (catLabel ? '<span style="font-size:0.6rem;padding:2px 6px;background:var(--bg-side);border:1px solid var(--border);border-radius:8px;color:var(--text-faint);white-space:nowrap;">' + catLabel + '</span>' : '') +
-                        (canDelete ? '<button onclick="event.stopPropagation();forumDeletePost(\'' + p.id + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;touch-action:manipulation;opacity:0.5;" title="Delete post">🗑️</button>' : '') +
+                        (canDelete ? '<button' + fAct('deletePost', p.id) + ' style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:4px;touch-action:manipulation;opacity:0.5;" title="Delete post">🗑️</button>' : '') +
                     '</div>' +
                 '</div>' +
             '</div>' +
@@ -395,6 +450,8 @@ function forumTopicContinueLink(p) {
 
 // ---- View Post ----
 window.forumViewPost = async function(postId, fromPopState) {
+    postId = fId(postId);
+    if (!postId) return;
     var fc = document.getElementById('forumContainer');
     if (!fc || typeof db === 'undefined') return;
     if (!fromPopState) history.pushState({ channel: 'forum', forumPost: postId }, '', '#forum/post/' + postId);
@@ -407,7 +464,7 @@ window.forumViewPost = async function(postId, fromPopState) {
     try {
         var doc = await db.collection('forum_posts').doc(postId).get();
         if (!doc.exists) { renderForum(); return; }
-        var p = { id: doc.id, ...doc.data() };
+        var p = { ...doc.data(), id: doc.id };
         forumCurrentPost = p;
         var lv = typeof getLevel === 'function' ? getLevel(p.authorPoints || 0) : { emoji: '🟢' };
         var hasVoted = p.voters && auth && auth.currentUser && p.voters.indexOf(auth.currentUser.uid) !== -1;
@@ -425,7 +482,7 @@ window.forumViewPost = async function(postId, fromPopState) {
         html += '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px;">' +
             '<h2 style="color:var(--heading);font-size:1.15rem;font-weight:800;margin:0 0 8px;line-height:1.3;word-wrap:break-word;">' + fEsc(p.title) + '</h2>' +
             '<div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">' +
-                '<span style="font-size:0.8rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + p.authorId + '\')">' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
+                '<span style="font-size:0.8rem;' + (p.authorFaction ? window._factionNameStyle(p.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;"' + fAct('profile', p.authorId) + '>' + lv.emoji + ' ' + fEsc(p.authorName || 'Anon') + '</span>' +
                 '<span style="font-size:0.75rem;color:var(--text-faint);">' + forumWhen(p.createdAt) + '</span>' +
             '</div>';
 
@@ -445,16 +502,16 @@ window.forumViewPost = async function(postId, fromPopState) {
             // [VULN-5 FIX] sanitizeUrl blocks javascript:/data:/vbscript: before writing into href
             var safeLink = typeof sanitizeUrl === 'function' ? sanitizeUrl(p.link) : '';
             if (safeLink) {
-                html += '<a href="' + fEsc(safeLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:0.85rem;margin-bottom:12px;">🔗 ' + fEsc(safeLink).substring(0, 60) + (safeLink.length > 60 ? '...' : '') + '</a><br>';
+                html += '<a href="' + fEsc(safeLink) + '" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:4px;color:var(--accent);font-size:0.85rem;margin-bottom:12px;">🔗 ' + fEsc(safeLink.length > 60 ? safeLink.substring(0, 60) : safeLink) + (safeLink.length > 60 ? '...' : '') + '</a><br>';
             }
         }
 
         // Vote + meta + admin delete
         var canDeletePost = (auth && auth.currentUser && p.authorId === auth.currentUser.uid) || isForumAdmin();
         html += '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
-            '<button onclick="forumVotePost(\'' + p.id + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:6px 12px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:600;font-family:inherit;touch-action:manipulation;">👍 ' + (p.upvotes || 0) + '</button>' +
-            '<span style="color:var(--text-faint);font-size:0.8rem;">💬 ' + (p.replyCount || 0) + ' replies</span>' +
-            (canDeletePost ? '<button onclick="forumDeletePost(\'' + p.id + '\')" style="background:none;border:1px solid var(--border);border-radius:16px;padding:4px 10px;color:#ef4444;font-size:0.75rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️ Delete</button>' : '') +
+            '<button' + fAct('votePost', p.id) + ' style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:6px 12px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.8rem;font-weight:600;font-family:inherit;touch-action:manipulation;">👍 ' + fNum(p.upvotes) + '</button>' +
+            '<span style="color:var(--text-faint);font-size:0.8rem;">💬 ' + fNum(p.replyCount) + ' replies</span>' +
+            (canDeletePost ? '<button' + fAct('deletePost', p.id) + ' style="background:none;border:1px solid var(--border);border-radius:16px;padding:4px 10px;color:#ef4444;font-size:0.75rem;cursor:pointer;font-family:inherit;touch-action:manipulation;">🗑️ Delete</button>' : '') +
         '</div>';
         html += '</div>';
 
@@ -468,7 +525,7 @@ window.forumViewPost = async function(postId, fromPopState) {
                 '<textarea id="forumReplyInput" rows="3" maxlength="1000" placeholder="Write a reply..." style="width:100%;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;resize:vertical;box-sizing:border-box;margin-bottom:8px;min-height:70px;-webkit-appearance:none;"></textarea>' +
                 '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">' +
                     '<span id="forumReplyStatus" style="font-size:0.8rem;flex:1;min-width:0;"></span>' +
-                    '<button onclick="forumSubmitReply(\'' + p.id + '\')" style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;flex-shrink:0;">Reply</button>' +
+                    '<button' + fAct('submitReply', p.id) + ' style="padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;touch-action:manipulation;flex-shrink:0;">Reply</button>' +
                 '</div></div>';
         } else {
             html += '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.9rem;margin-bottom:20px;background:var(--card-bg);border:2px solid var(--accent);border-radius:12px;">' +
@@ -519,7 +576,7 @@ async function forumLoadReplies(postId) {
     try {
         var snap = await db.collection('forum_replies').where('postId', '==', postId).orderBy('createdAt', 'asc').limit(100).get();
         var replies = [];
-        snap.forEach(function(doc) { replies.push({ id: doc.id, ...doc.data() }); });
+        snap.forEach(function(doc) { replies.push({ ...doc.data(), id: doc.id }); });
         replies = replies.filter(function(r) { return r.deleted !== true && r.hidden !== true; });
 
         if (replies.length === 0) {
@@ -554,14 +611,14 @@ async function forumLoadReplies(postId) {
             var out = '<div style="background:var(--card-bg);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px;word-wrap:break-word;overflow-wrap:break-word;' + indent + '">' +
                 replyToLabel +
                 '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">' +
-                    '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
+                    '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;"' + fAct('profile', r.authorId) + '>' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
                     '<span style="font-size:0.7rem;color:var(--text-faint);">' + forumWhen(r.createdAt) + '</span>' +
                 '</div>' +
                 '<div style="color:var(--text);font-size:0.85rem;line-height:1.5;margin-bottom:8px;">' + bodyHtml + '</div>' +
                 '<div style="display:flex;gap:8px;align-items:center;">' +
-                    '<button onclick="forumVoteReply(\'' + r.id + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVotedR ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVotedR ? 'var(--accent)' : 'var(--border)') + ';border-radius:12px;padding:3px 10px;cursor:pointer;color:' + (hasVotedR ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\uD83D\uDC4D ' + (r.upvotes || 0) + '</button>' +
-                    (canReply ? '<button data-reply-id="' + r.id + '" data-reply-author="' + fEsc(r.authorName || 'Anon') + '" onclick="window.forumReplyToReply(this.dataset.replyId,this.dataset.replyAuthor)" style="display:flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:12px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\u21A9 Reply</button>' : '') +
-                    (canDeleteReply ? '<button onclick="forumDeleteReply(\'' + r.id + '\',\'' + r.postId + '\')" style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:2px;touch-action:manipulation;opacity:0.5;" title="Delete reply">\uD83D\uDDD1\uFE0F</button>' : '') +
+                    '<button' + fAct('voteReply', r.id) + ' style="display:flex;align-items:center;gap:4px;background:' + (hasVotedR ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVotedR ? 'var(--accent)' : 'var(--border)') + ';border-radius:12px;padding:3px 10px;cursor:pointer;color:' + (hasVotedR ? 'var(--accent)' : 'var(--text-faint)') + ';font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\uD83D\uDC4D ' + fNum(r.upvotes) + '</button>' +
+                    (canReply ? '<button data-reply-id="' + fId(r.id) + '" data-reply-author="' + fEsc(r.authorName || 'Anon') + '" onclick="window.forumReplyToReply(this.dataset.replyId,this.dataset.replyAuthor)" style="display:flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:12px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">\u21A9 Reply</button>' : '') +
+                    (canDeleteReply ? '<button' + fAct('deleteReply', r.id, r.postId) + ' style="background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;padding:2px;touch-action:manipulation;opacity:0.5;" title="Delete reply">\uD83D\uDDD1\uFE0F</button>' : '') +
                 '</div>' +
             '</div>';
             return out;
@@ -1041,36 +1098,84 @@ window.forumSwitchTab = function(tab) {
     renderForum();
 };
 
-// ---- Simple Markdown to HTML ----
+// ---- Markdown to HTML ----
+// Tokenize on the raw string: emit link, image, bare-URL, and inline-code
+// tags once each, then escape the remaining text. Generated markup is never
+// scanned again for URLs. Every href/src is filtered with fSafeUrl
+// (http/https only) and written with fEsc.
 function mdToHtml(md) {
     if (!md) return '';
-    var h = fEsc(md);
-    // Images: ![alt](url) — [VULN-5 FIX] sanitize src to block javascript:/data: schemes
-    h = h.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, function(m, alt, url) {
-        var safe = typeof sanitizeUrl === 'function' ? sanitizeUrl(url) : '';
-        if (!safe) return '';
-        return '<img src="' + fEsc(safe) + '" alt="' + alt + '" style="max-width:100%;border-radius:12px;margin:16px 0;display:block;">';
+    var slots = [];
+    var nonce = 'BQMD';
+    do { nonce = 'BQMD' + Math.random().toString(36).slice(2, 10); } while (String(md).indexOf(nonce) !== -1);
+    function stash(html) {
+        var i = slots.length;
+        slots.push(html);
+        return '%%' + nonce + i + '%%';
+    }
+    function hasSlot(s) {
+        return String(s).indexOf('%%' + nonce) !== -1;
+    }
+    function stripSlots(s) {
+        return String(s).replace(new RegExp('%%' + nonce + '\\d+%%', 'g'), '');
+    }
+    function expandSlotsInText(text) {
+        return String(text).replace(new RegExp('%%' + nonce + '(\\d+)%%', 'g'), function(m, i) {
+            return slots[Number(i)] || '';
+        });
+    }
+    function hrefOf(url) {
+        var safe = fSafeUrl(String(url || '').trim());
+        return safe ? fEsc(safe) : '';
+    }
+    function inlineFmt(escaped) {
+        escaped = escaped.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--heading);">$1</strong>');
+        escaped = escaped.replace(/\*(.+?)\*/g, '<em>$1</em>');
+        return escaped;
+    }
+    var h = String(md);
+    // Code first, so markers inside code stay literal and backticks work
+    // even though fEsc encodes them.
+    h = h.replace(/`([^`]+)`/g, function(m, code) {
+        return stash('<code style="background:var(--card-bg);padding:2px 6px;border-radius:4px;font-size:0.9em;">' + fEsc(code) + '</code>');
     });
-    // Links: [text](url) — [VULN-5 FIX] sanitize href to block javascript: scheme
-    h = h.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(m, text, url) {
-        var safe = typeof sanitizeUrl === 'function' ? sanitizeUrl(url) : '';
-        if (!safe) return fEsc(text);
-        return '<a href="' + fEsc(safe) + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;font-weight:600;">' + text + '</a>';
+    // Cap label and URL captures so unclosed brackets cannot run for seconds.
+    // Labels cannot include '[' or ']', which also stops a long run of '[' from backtracking.
+    if (h.indexOf('](') !== -1) {
+        h = h.replace(/!\[([^\]\[\n]{0,500})\]\(([^)\s]{1,2048})\)/g, function(m, alt, url) {
+            if (hasSlot(url)) return m;
+            var href = hrefOf(url);
+            if (!href) return '';
+            return stash('<img src="' + href + '" alt="' + fEsc(stripSlots(alt)) + '" style="max-width:100%;border-radius:12px;margin:16px 0;display:block;">');
+        });
+        h = h.replace(/\[([^\]\[\n]{1,500})\]\(([^)\s]{1,2048})\)/g, function(m, text, url) {
+            if (hasSlot(url)) return m;
+            var href = hrefOf(url);
+            if (!href) return text;
+            // Expand nested slots only in link text, never into href, src, or alt.
+            return stash('<a href="' + href + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;font-weight:600;">' + inlineFmt(expandSlotsInText(fEsc(text))) + '</a>');
+        });
+    }
+
+    // Stop a bare URL at a placeholder so a backtick segment cannot land in href.
+    h = h.replace(new RegExp('https?:\\/\\/(?:(?!%%' + nonce + ')[^\\s<"])+', 'g'), function(url) {
+        var href = hrefOf(url);
+        if (!href) return url;
+        return stash('<a href="' + href + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">' + fEsc(url) + '</a>');
     });
-    // Bare URLs (not already in an href or src)
-    h = h.replace(/(?<!href="|src=")(https?:\/\/[^\s<"]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">$1</a>');
+    h = fEsc(h);
     h = h.replace(/^### (.+)$/gm, '<h3 style="color:var(--heading);font-size:1.1rem;font-weight:800;margin:20px 0 8px;">$1</h3>');
     h = h.replace(/^## (.+)$/gm, '<h2 style="color:var(--heading);font-size:1.25rem;font-weight:800;margin:24px 0 10px;">$1</h2>');
     h = h.replace(/^# (.+)$/gm, '<h1 style="color:var(--heading);font-size:1.4rem;font-weight:900;margin:28px 0 12px;">$1</h1>');
-    h = h.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--heading);">$1</strong>');
-    h = h.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    h = h.replace(/`(.+?)`/g, '<code style="background:var(--card-bg);padding:2px 6px;border-radius:4px;font-size:0.9em;">$1</code>');
-    h = h.replace(/^> (.+)$/gm, '<blockquote style="border-left:3px solid var(--accent);padding:8px 16px;margin:12px 0;color:var(--text-muted);font-style:italic;">$1</blockquote>');
+    h = inlineFmt(h);
+    // fEsc turns a leading ">" into &gt;, so match the escaped form to keep blockquotes working.
+    h = h.replace(/^&gt; (.+)$/gm, '<blockquote style="border-left:3px solid var(--accent);padding:8px 16px;margin:12px 0;color:var(--text-muted);font-style:italic;">$1</blockquote>');
     h = h.replace(/^- (.+)$/gm, '<li style="margin:4px 0 4px 20px;">$1</li>');
     h = h.replace(/^\d+\. (.+)$/gm, '<li style="margin:4px 0 4px 20px;">$1</li>');
     h = h.replace(/---/g, '<hr style="border:none;border-top:1px solid var(--border);margin:20px 0;">');
     h = h.replace(/\n{2,}/g, '</p><p style="margin:12px 0;line-height:1.8;">');
     h = '<p style="margin:12px 0;line-height:1.8;">' + h + '</p>';
+    h = h.replace(new RegExp('%%' + nonce + '(\\d+)%%', 'g'), function(m, i) { return slots[Number(i)] || ''; });
     h = forumRenderMentions(h);
     return h;
 }
@@ -1110,7 +1215,7 @@ async function loadArticles() {
         var sortField = forumSort === 'top' ? 'upvotes' : 'createdAt';
         var snap = await db.collection('articles').where('status', '==', 'published').orderBy(sortField, 'desc').limit(15).get();
         var articles = [];
-        snap.forEach(function(doc) { articles.push({ id: doc.id, ...doc.data() }); });
+        snap.forEach(function(doc) { articles.push({ ...doc.data(), id: doc.id }); });
         
         if (articles.length === 0) {
             container.innerHTML = '<div style="text-align:center;padding:60px 20px;">' +
@@ -1125,14 +1230,14 @@ async function loadArticles() {
         var html = '';
         articles.forEach(function(a) {
             var lv = typeof getLevel === 'function' ? getLevel(a.authorPoints || 0) : { emoji: '🟢' };
-            var readTime = Math.max(1, Math.round((a.wordCount || 500) / 200));
+            var readTime = Math.max(1, Math.round((fNum(a.wordCount) || 500) / 200));
             var dateStr = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate().toLocaleDateString() : '';
             var pinned = a.pinned ? '<span style="color:#f7931a;font-size:0.7rem;font-weight:700;">📌 PINNED</span> ' : '';
             
-            html += '<div onclick="articleView(\'' + a.id + '\')" style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:0;margin-bottom:12px;cursor:pointer;transition:0.2s;overflow:hidden;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
+            html += '<div class="forum-card-hover"' + fAct('articleView', a.id) + ' style="background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:0;margin-bottom:12px;cursor:pointer;transition:0.2s;overflow:hidden;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">';
             
             if (a.coverUrl) {
-                html += '<div style="height:160px;background:url(' + fEsc(a.coverUrl) + ') center/cover no-repeat;"></div>';
+                html += '<div style="height:160px;background:url(&quot;' + fEsc(fSafeUrl(a.coverUrl)).replace(/[()\\]/g, '') + '&quot;) center/cover no-repeat;"></div>';
             }
             
             html += '<div style="padding:16px;">';
@@ -1155,9 +1260,9 @@ async function loadArticles() {
             
             // Stats
             html += '<div style="display:flex;gap:12px;margin-top:8px;font-size:0.75rem;color:var(--text-faint);">' +
-                '<span>👍 ' + (a.upvotes || 0) + '</span>' +
-                '<span>💬 ' + (a.replyCount || 0) + '</span>' +
-                (a.tipTotal ? '<span>⚡ ' + a.tipTotal + ' sats</span>' : '') +
+                '<span>👍 ' + fNum(a.upvotes) + '</span>' +
+                '<span>💬 ' + fNum(a.replyCount) + '</span>' +
+                (fNum(a.tipTotal) ? '<span>⚡ ' + fNum(a.tipTotal) + ' sats</span>' : '') +
             '</div>';
             
             html += '</div></div>';
@@ -1579,6 +1684,8 @@ window.articleSubmit = async function() {
 
 // ---- View Article ----
 window.articleView = async function(articleId) {
+    articleId = fId(articleId);
+    if (!articleId) return;
     var fc = document.getElementById('forumContainer');
     if (!fc || !db) return;
     
@@ -1591,7 +1698,7 @@ window.articleView = async function(articleId) {
         a.id = articleId;
         
         var lv = typeof getLevel === 'function' ? getLevel(a.authorPoints || 0) : { emoji: '🟢' };
-        var readTime = Math.max(1, Math.round((a.wordCount || 500) / 200));
+        var readTime = Math.max(1, Math.round((fNum(a.wordCount) || 500) / 200));
         var dateStr = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate().toLocaleDateString() : '';
         var isAuthor = auth && auth.currentUser && auth.currentUser.uid === a.authorId;
         var isAdmin = isForumAdmin();
@@ -1602,7 +1709,7 @@ window.articleView = async function(articleId) {
         
         // Cover
         if (a.coverUrl) {
-            html += '<div style="margin:-16px -12px 20px;border-radius:0 0 16px 16px;overflow:hidden;"><img src="' + fEsc(a.coverUrl) + '" alt="Cover" style="width:100%;display:block;object-fit:contain;max-height:500px;"></div>';
+            html += '<div style="margin:-16px -12px 20px;border-radius:0 0 16px 16px;overflow:hidden;"><img src="' + fEsc(fSafeUrl(a.coverUrl)) + '" alt="Cover" style="width:100%;display:block;object-fit:contain;max-height:500px;"></div>';
         }
         
         // Title
@@ -1611,15 +1718,15 @@ window.articleView = async function(articleId) {
         
         // Author bar
         html += '<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border);">';
-        if (a.authorPic) html += '<img src="' + fEsc(a.authorPic) + '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--border);">';
+        if (a.authorPic) html += '<img src="' + fEsc(fSafeUrl(a.authorPic)) + '" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--border);">';
         html += '<div>' +
-            '<div style="font-weight:700;font-size:0.9rem;' + (a.authorFaction ? window._factionNameStyle(a.authorFaction) : 'color:var(--text)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + a.authorId + '\')">' + lv.emoji + ' ' + fEsc(a.authorName || 'Anon') + '</div>' +
-            '<div style="font-size:0.75rem;color:var(--text-faint);">' + dateStr + ' · ' + readTime + ' min read · ' + (a.wordCount || 0).toLocaleString() + ' words</div>' +
+            '<div style="font-weight:700;font-size:0.9rem;' + (a.authorFaction ? window._factionNameStyle(a.authorFaction) : 'color:var(--text)') + ';cursor:pointer;"' + fAct('profile', a.authorId) + '>' + lv.emoji + ' ' + fEsc(a.authorName || 'Anon') + '</div>' +
+            '<div style="font-size:0.75rem;color:var(--text-faint);">' + dateStr + ' · ' + readTime + ' min read · ' + fNum(a.wordCount).toLocaleString() + ' words</div>' +
         '</div>';
         // Edit button for author
-        if (isAuthor) html += '<button onclick="articleEdit(\'' + articleId + '\')" style="margin-left:auto;padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✏️ Edit</button>';
+        if (isAuthor) html += '<button' + fAct('articleEdit', articleId) + ' style="margin-left:auto;padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">✏️ Edit</button>';
         // Pin button for admin
-        if (isAdmin) html += '<button onclick="articleTogglePin(\'' + articleId + '\',' + (a.pinned ? 'false' : 'true') + ')" style="margin-left:' + (isAuthor ? '4px' : 'auto') + ';padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">' + (a.pinned ? '📌 Unpin' : '📌 Pin') + '</button>';
+        if (isAdmin) html += '<button' + fAct('articlePin', articleId, !a.pinned) + ' style="margin-left:' + (isAuthor ? '4px' : 'auto') + ';padding:6px 12px;background:none;border:1px solid var(--border);border-radius:8px;color:var(--text-muted);font-size:0.75rem;cursor:pointer;font-family:inherit;">' + (a.pinned ? '📌 Unpin' : '📌 Pin') + '</button>';
         html += '</div>';
         
         // Tags
@@ -1634,7 +1741,7 @@ window.articleView = async function(articleId) {
         
         // Action bar
         html += '<div style="display:flex;align-items:center;gap:12px;padding:16px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:20px;">';
-        html += '<button onclick="articleVote(\'' + articleId + '\')" style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:8px 14px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:600;font-family:inherit;">👍 ' + (a.upvotes || 0) + '</button>';
+        html += '<button ' + fAct('articleVote', articleId) + ' style="display:flex;align-items:center;gap:4px;background:' + (hasVoted ? 'var(--accent-bg)' : 'none') + ';border:1px solid ' + (hasVoted ? 'var(--accent)' : 'var(--border)') + ';border-radius:16px;padding:8px 14px;cursor:pointer;color:' + (hasVoted ? 'var(--accent)' : 'var(--text-muted)') + ';font-size:0.85rem;font-weight:600;font-family:inherit;">👍 ' + fNum(a.upvotes) + '</button>';
         
         // Tip button
         if (typeof tipButtonHtml === 'function') {
@@ -1643,7 +1750,7 @@ window.articleView = async function(articleId) {
         
         // Delete for admin/author
         if (isAuthor || isAdmin) {
-            html += '<button onclick="articleDelete(\'' + articleId + '\')" style="margin-left:auto;padding:8px 14px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🗑️ Delete</button>';
+            html += '<button ' + fAct('articleDelete', articleId) + ' style="margin-left:auto;padding:8px 14px;background:none;border:1px solid #ef4444;border-radius:10px;color:#ef4444;font-size:0.8rem;cursor:pointer;font-family:inherit;">🗑️ Delete</button>';
         }
         html += '</div>';
         
@@ -1659,7 +1766,7 @@ window.articleView = async function(articleId) {
                     '<button onclick="window.articleCancelReplyTo()" style="background:none;border:none;color:var(--text-faint);font-size:1rem;cursor:pointer;padding:2px 4px;line-height:1;touch-action:manipulation;" title="Cancel reply">✕</button>' +
                 '</div>' +
                 '<textarea id="articleReplyInput" rows="3" maxlength="1000" placeholder="Share your thoughts..." style="width:100%;padding:12px;background:var(--input-bg);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:16px;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical;"></textarea>' +
-                '<button onclick="articleSubmitReply(\'' + articleId + '\')" style="margin-top:6px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Post Comment</button>' +
+                '<button ' + fAct('articleReply', articleId) + ' style="margin-top:6px;padding:10px 20px;background:var(--accent);color:#fff;border:none;border-radius:10px;font-size:0.85rem;font-weight:700;cursor:pointer;font-family:inherit;">Post Comment</button>' +
                 '<div id="articleReplyStatus" style="margin-top:4px;font-size:0.8rem;"></div>' +
             '</div>';
         } else {
@@ -1749,7 +1856,7 @@ async function articleLoadReplies(articleId) {
         if (snap.empty) { container.innerHTML = '<div style="padding:12px;color:var(--text-faint);font-size:0.85rem;">No comments yet. Be the first!</div>'; return; }
 
         var replies = [];
-        snap.forEach(function(doc) { replies.push({ id: doc.id, ...doc.data() }); });
+        snap.forEach(function(doc) { replies.push({ ...doc.data(), id: doc.id }); });
 
         // Build threaded structure (one level deep)
         var topLevel = [];
@@ -1776,12 +1883,12 @@ async function articleLoadReplies(articleId) {
             return '<div style="padding:12px 0;border-bottom:1px solid var(--border);' + indent + '">' +
                 replyToLabel +
                 '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
-                    '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;" onclick="if(typeof showUserProfile===\'function\')showUserProfile(\'' + r.authorId + '\')">' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
+                    '<span style="font-size:0.8rem;' + (r.authorFaction ? window._factionNameStyle(r.authorFaction) : 'color:var(--text-muted)') + ';cursor:pointer;"' + fAct('profile', r.authorId) + '>' + rlv.emoji + ' ' + fEsc(r.authorName || 'Anon') + '</span>' +
                     '<span style="font-size:0.7rem;color:var(--text-faint);">· ' + rDate + '</span>' +
-                    (canDel ? '<button onclick="articleDeleteReply(\'' + r.id + '\',\'' + articleId + '\')" style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;touch-action:manipulation;">🗑️</button>' : '') +
+                    (canDel ? '<button' + fAct('articleDeleteReply', r.id, articleId) + ' style="margin-left:auto;background:none;border:none;color:var(--text-faint);font-size:0.7rem;cursor:pointer;touch-action:manipulation;">🗑️</button>' : '') +
                 '</div>' +
                 '<div style="font-size:0.9rem;color:var(--text);line-height:1.6;margin-bottom:6px;">' + bodyHtml + '</div>' +
-                (canReply ? '<button data-rid="' + r.id + '" data-rname="' + fEsc(r.authorName || 'Anon') + '" onclick="window.articleReplyToComment(this.dataset.rid,this.dataset.rname)" style="display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:10px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">↩ Reply</button>' : '') +
+                (canReply ? '<button data-rid="' + fId(r.id) + '" data-rname="' + fEsc(r.authorName || 'Anon') + '" onclick="window.articleReplyToComment(this.dataset.rid,this.dataset.rname)" style="display:inline-flex;align-items:center;gap:4px;background:none;border:1px solid var(--border);border-radius:10px;padding:3px 10px;cursor:pointer;color:var(--text-faint);font-size:0.75rem;font-family:inherit;touch-action:manipulation;">↩ Reply</button>' : '') +
             '</div>';
         }
 
@@ -1982,7 +2089,7 @@ window.loadStackerNewsFeed = function(sort, when, sub) {
         }
         feed.innerHTML = snRenderFeedCards(items);
     }).catch(function() {
-        feed.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Failed to load feed. <button onclick="loadStackerNewsFeed(\'' + sort + '\',\'' + when + '\',\'' + (sub||'') + '\')" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Retry</button></div>';
+        feed.innerHTML = '<div style="text-align:center;padding:40px 0;color:var(--text-muted);">Failed to load feed. <button onclick="loadStackerNewsFeed(\'' + fId(sort) + '\',\'' + fId(when) + '\',\'' + fId(sub||'') + '\')" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Retry</button></div>';
     });
 };
 
@@ -2034,7 +2141,7 @@ function snRenderFeedCards(items) {
             try { domain = new URL(item.url).hostname.replace('www.',''); } catch(e) {}
         }
         var subName = (item.sub && item.sub.name) ? item.sub.name : '';
-        h += '<div onclick="snOpenPost(' + item.id + ')" style="cursor:pointer;padding:14px 16px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--card-bg);transition:border-color 0.2s,transform 0.1s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\'">';
+        h += '<div ' + fAct('snOpen', String(Number(item.id) || '')) + ' style="cursor:pointer;padding:14px 16px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;background:var(--card-bg);transition:border-color 0.2s,transform 0.1s;position:relative;" onmouseover="this.style.borderColor=\'var(--accent)\';this.style.transform=\'translateY(-1px)\'" onmouseout="this.style.borderColor=\'var(--border)\';this.style.transform=\'none\'">';
         h += '<div style="display:flex;gap:12px;align-items:flex-start;">';
         // Sats badge
         h += '<div style="min-width:52px;text-align:center;padding:6px 0;">';
@@ -2049,9 +2156,9 @@ function snRenderFeedCards(items) {
         h += '<a href="https://stacker.news/' + snEscape(item.user.name) + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="color:var(--text-muted);text-decoration:none;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">@' + snEscape(item.user.name) + '</a>';
         h += '<span>\u00b7</span>';
         h += '<span>' + ago + '</span>';
-        if (item.ncomments > 0) {
+        if (fNum(item.ncomments) > 0) {
             h += '<span>\u00b7</span>';
-            h += '<span>\ud83d\udcac ' + item.ncomments + '</span>';
+            h += '<span>\ud83d\udcac ' + fNum(item.ncomments) + '</span>';
         }
         if (domain) {
             h += '<span>\u00b7</span>';
@@ -2063,7 +2170,7 @@ function snRenderFeedCards(items) {
         }
         h += '</div></div>';
         // View on SN link
-        h += '<a href="https://stacker.news/items/' + item.id + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="position:absolute;top:12px;right:12px;color:var(--text-muted);font-size:0.8rem;text-decoration:none;opacity:0.5;padding:4px;" onmouseover="this.style.opacity=\'1\';this.style.color=\'var(--accent)\'" onmouseout="this.style.opacity=\'0.5\';this.style.color=\'var(--text-muted)\'">\u2197</a>';
+        h += '<a href="https://stacker.news/items/' + (Number(item.id) || '') + '" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" style="position:absolute;top:12px;right:12px;color:var(--text-muted);font-size:0.8rem;text-decoration:none;opacity:0.5;padding:4px;" onmouseover="this.style.opacity=\'1\';this.style.color=\'var(--accent)\'" onmouseout="this.style.opacity=\'0.5\';this.style.color=\'var(--text-muted)\'">\u2197</a>';
         h += '</div></div>';
     }
     return h;
@@ -2079,7 +2186,7 @@ window.snOpenPost = function(id) {
             'Loading post...' +
         '</div></div>';
 
-    fetch('https://embed-proxy.needcreations.workers.dev/api/sn/item?id=' + id)
+    fetch('https://embed-proxy.needcreations.workers.dev/api/sn/item?id=' + encodeURIComponent(Number(id) || 0))
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data || !data.data || !data.data.item) {
@@ -2090,7 +2197,7 @@ window.snOpenPost = function(id) {
             snRenderPost(fc, item);
         })
         .catch(function() {
-            fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;"><div style="text-align:center;padding:40px 0;color:var(--text-muted);">Failed to load post. <button onclick="snOpenPost(' + id + ')" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Retry</button> · <button onclick="forumTab=\'stacker\';renderForum()" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Back</button></div></div>';
+            fc.innerHTML = '<div style="max-width:700px;margin:0 auto;padding:16px 12px;"><div style="text-align:center;padding:40px 0;color:var(--text-muted);">Failed to load post. <button onclick="snOpenPost(' + (Number(id) || 0) + ')" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Retry</button> · <button onclick="forumTab=\'stacker\';renderForum()" style="color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;text-decoration:underline;">Back</button></div></div>';
         });
 };
 
@@ -2113,9 +2220,9 @@ function snRenderPost(fc, item) {
     h += '<a href="https://stacker.news/' + snEscape(item.user.name) + '" target="_blank" rel="noopener noreferrer" style="color:var(--text-muted);text-decoration:none;" onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text-muted)\'">@' + snEscape(item.user.name) + '</a>';
     h += '<span>·</span>';
     h += '<span>' + snTimeAgo(item.createdAt) + '</span>';
-    if (item.ncomments > 0) {
+    if (fNum(item.ncomments) > 0) {
         h += '<span>·</span>';
-        h += '<span>💬 ' + item.ncomments + ' comments</span>';
+        h += '<span>💬 ' + fNum(item.ncomments) + ' comments</span>';
     }
     h += '</div>';
 
@@ -2123,7 +2230,7 @@ function snRenderPost(fc, item) {
     if (item.url) {
         var domain = '';
         try { domain = new URL(item.url).hostname.replace('www.',''); } catch(e) {}
-        h += '<a href="' + snEscape(item.url) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:8px 16px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.8rem;text-decoration:none;margin-bottom:14px;word-break:break-all;">🔗 ' + snEscape(domain || item.url) + ' ↗</a>';
+        h += '<a href="' + fEsc(fSafeUrl(item.url)) + '" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:8px 16px;background:rgba(247,147,26,0.1);border:1px solid rgba(247,147,26,0.3);border-radius:8px;color:var(--accent);font-size:0.8rem;text-decoration:none;margin-bottom:14px;word-break:break-all;">🔗 ' + snEscape(domain || item.url) + ' ↗</a>';
     }
 
     // Body text
@@ -2133,7 +2240,7 @@ function snRenderPost(fc, item) {
 
     // View on SN link
     h += '<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">';
-    h += '<a href="https://stacker.news/items/' + item.id + '" target="_blank" rel="noopener noreferrer" style="color:var(--text-muted);font-size:0.75rem;text-decoration:none;">View on stacker.news ↗</a>';
+    h += '<a href="https://stacker.news/items/' + (Number(item.id) || '') + '" target="_blank" rel="noopener noreferrer" style="color:var(--text-muted);font-size:0.75rem;text-decoration:none;">View on stacker.news ↗</a>';
     h += '</div>';
 
     h += '</div>'; // end post card
@@ -2141,7 +2248,7 @@ function snRenderPost(fc, item) {
     // Comments
     if (item.comments && item.comments.comments && item.comments.comments.length > 0) {
         h += '<div style="margin-top:4px;">';
-        h += '<div style="font-size:0.85rem;font-weight:700;color:var(--heading);margin-bottom:12px;">💬 Comments (' + item.ncomments + ')</div>';
+        h += '<div style="font-size:0.85rem;font-weight:700;color:var(--heading);margin-bottom:12px;">💬 Comments (' + fNum(item.ncomments) + ')</div>';
         h += snRenderComments(item.comments.comments, 0);
         h += '</div>';
     }
@@ -2229,10 +2336,16 @@ function snEscape(str) {
 // Call AFTER fEsc() and AFTER URL linkification on already-escaped HTML
 function forumRenderMentions(html) {
     if (!html || html.indexOf('@') === -1) return html;
-    // Split on HTML tags to only process text nodes (avoids matching @mentions inside href/src attributes)
+    // Split on HTML tags to only process text nodes (avoids matching @mentions inside href/src attributes).
+    // Text inside <code> stays literal, so @name in inline code is not a mention.
+    var inCode = 0;
     return html.replace(/(<[^>]+>)|(@([a-zA-Z0-9_\-\.]{2,20}))/g, function(match, tag, mention, username) {
-        if (tag) return tag; // HTML tag — pass through unchanged
-        // It's an @mention in a text node
+        if (tag) {
+            if (/^<code\b/i.test(tag)) inCode++;
+            else if (/^<\/code>/i.test(tag) && inCode) inCode--;
+            return tag;
+        }
+        if (inCode) return mention;
         return '<span class="forum-mention" onclick="forumMentionClick(\'' + username.replace(/'/g, '') + '\')">' + mention + '</span>';
     });
 }
@@ -2529,5 +2642,8 @@ if (document.readyState === 'loading') {
 } else {
     setTimeout(mentionObserveForTextareas, 1000);
 }
+
+// Escaping helpers, exposed read-only for tests/test-forum-xss.js.
+window._forumSafe = Object.freeze({ fId: fId, fEsc: fEsc, fNum: fNum, fSafeUrl: fSafeUrl, fAct: fAct, mdToHtml: mdToHtml, renderPosts: function(posts, container) { return forumRenderPosts(posts, container); } });
 
 })();

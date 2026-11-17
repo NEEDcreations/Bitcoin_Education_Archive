@@ -71,22 +71,29 @@ function mockDb() {
     return { collection: collection, deletes: deletes };
 }
 
-queue.push(test('article comment delete button calls articleDeleteReply, not forumDeleteReply', function () {
+queue.push(test('article comment delete button uses fAct articleDeleteReply, not forumDeleteReply', function () {
     const renderStart = forum.indexOf('function _renderArticleComment');
     const renderEnd = forum.indexOf('topLevel.forEach', renderStart);
     assert.ok(renderStart > 0 && renderEnd > renderStart, 'render helper not found');
     const render = forum.slice(renderStart, renderEnd);
-    assert.ok(render.indexOf('articleDeleteReply') !== -1, 'button must call articleDeleteReply');
+    assert.ok(render.indexOf("fAct('articleDeleteReply'") !== -1, 'button must use fAct articleDeleteReply');
+    assert.ok(!/onclick\s*=\s*["']articleDeleteReply/.test(render), 'button must not use an inline articleDeleteReply handler');
     assert.ok(render.indexOf('forumDeleteReply') === -1, 'button must not call forumDeleteReply');
+    assert.ok(render.indexOf("fAct('deleteReply'") === -1, 'button must not reuse the forum deleteReply action');
 }));
 
-queue.push(test('forum reply delete button still calls forumDeleteReply', function () {
+queue.push(test('forum reply delete button still uses fAct deleteReply', function () {
     const renderStart = forum.indexOf('function _renderReplyCard');
     const renderEnd = forum.indexOf('topLevel.forEach', renderStart);
     assert.ok(renderStart > 0 && renderEnd > renderStart, 'forum render helper not found');
     const render = forum.slice(renderStart, renderEnd);
-    assert.ok(render.indexOf('forumDeleteReply') !== -1, 'forum button must stay on forumDeleteReply');
+    assert.ok(render.indexOf("fAct('deleteReply'") !== -1, 'forum button must use fAct deleteReply');
     assert.ok(render.indexOf('articleDeleteReply') === -1, 'forum button must not call articleDeleteReply');
+}));
+
+queue.push(test('FORUM_ACTIONS routes article and forum deletes separately', function () {
+    assert.ok(/deleteReply:\s*function\(id,\s*id2\)\s*\{\s*forumDeleteReply\(id,\s*id2\)/.test(forum), 'deleteReply must call forumDeleteReply');
+    assert.ok(/articleDeleteReply:\s*function\(id,\s*id2\)\s*\{\s*articleDeleteReply\(id,\s*id2\)/.test(forum), 'articleDeleteReply action must call articleDeleteReply');
 }));
 
 queue.push(test('articleDeleteReply deletes from article_replies only', function () {
