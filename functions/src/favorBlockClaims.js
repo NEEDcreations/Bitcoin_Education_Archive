@@ -613,6 +613,12 @@ function createBlockClaimService(deps) {
             const preSnap = await claimRef.get();
             const pre = preSnap.exists ? (preSnap.data() || {}) : null;
             if ((pre && pre.status === 'rejected') || (await rejectRef.get()).exists) refuse('review_rejected');
+            // Read-only: refuse paid/paying before the manual-review gate. A
+            // released block that later paid still carries the frozen
+            // manualReview flag, so this gate would otherwise return
+            // manual_review instead of already_paid (QA case e).
+            if (pre && pre.status === 'paid') refuse('already_paid');
+            if (pre && pre.status === 'paying') refuse('in_progress');
             // An admin release (adminResolveFavorReview) lets a frozen-review block
             // through to the normal checks below; it never changes winner or address.
             const released = !!pre && pre.reviewReleased === true && pre.status === 'claimable';
