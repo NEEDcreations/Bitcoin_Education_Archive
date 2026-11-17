@@ -986,9 +986,23 @@ service cloud.firestore {
     function serverCountersUnchanged() {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['plays', 'replyCount']);
     }
+    // Vote and tip counters are not author-editable. Creates start at 0.
+    function voteCountersUnchanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['upvotes', 'voters', 'tipTotal']);
+    }
+    function forumCountersZeroOnCreate() {
+      return (!('upvotes' in request.resource.data) || request.resource.data.upvotes == 0)
+        && (!('tipTotal' in request.resource.data) || request.resource.data.tipTotal == 0)
+        && (!('voters' in request.resource.data) || (request.resource.data.voters is list && request.resource.data.voters.size() == 0));
+    }
+    function articleWordCountOk() {
+      return !('wordCount' in request.resource.data)
+        || (request.resource.data.wordCount is int && request.resource.data.wordCount >= 0);
+    }
     function forumAuthorMayUpdate(maxBody) {
       return resource.data.authorId == request.auth.uid
         && serverCountersUnchanged()
+        && voteCountersUnchanged()
         && (
           !forumMirroredDoc()
           || (
@@ -1004,16 +1018,25 @@ service cloud.firestore {
         );
     }
 
+    // Doc ids end up in rendered markup. Client-created ids must be plain tokens
+    // (blocks ids like  x"><img src=x onerror=...>  that broke out of onclick attributes).
+    function forumDocIdOk(id) {
+      return id is string && id.matches('^[A-Za-z0-9_-]{1,64}$');
+    }
+
     match /forum_posts/{postId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && forumDocIdOk(postId)
+                    && (!('category' in request.resource.data) || (request.resource.data.category is string && request.resource.data.category.matches('^[a-z0-9_-]{1,32}$')))
                     && request.resource.data.keys().hasAll(['title', 'authorId', 'authorName', 'createdAt'])
                     && request.resource.data.title is string
                     && request.resource.data.title.size() >= 5
                     && request.resource.data.title.size() <= 120
                     && request.resource.data.authorId == request.auth.uid
                     && forumMirrorFieldsAbsent()
-                    && (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0));
+                    && (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0))
+                    && forumCountersZeroOnCreate();
       allow update: if clientWritesOk() && (request.auth != null
                     && evidenceAuthorFrozen()
                     && (
@@ -1026,6 +1049,7 @@ service cloud.firestore {
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
                        && (!(request.auth.uid in resource.data.get('voters', [])))
                        && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
+                       && request.resource.data.upvotes is int
                        && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
                        && request.auth.uid in request.resource.data.voters
                       )
@@ -1033,6 +1057,7 @@ service cloud.firestore {
                       || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
                        && (request.auth.uid in resource.data.get('voters', []))
                        && request.resource.data.upvotes == resource.data.get('upvotes', 0) - 1
+                       && request.resource.data.upvotes is int
                        && request.resource.data.voters.size() == resource.data.get('voters', []).size() - 1
                        && !(request.auth.uid in request.resource.data.voters)
                       )
@@ -1051,12 +1076,15 @@ service cloud.firestore {
     match /forum_replies/{replyId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && forumDocIdOk(replyId)
+                    && forumDocIdOk(request.resource.data.postId)
                     && request.resource.data.keys().hasAll(['postId', 'body', 'authorId', 'authorName', 'createdAt'])
                     && request.resource.data.body is string
                     && request.resource.data.body.size() >= 2
                     && request.resource.data.body.size() <= 1000
                     && request.resource.data.authorId == request.auth.uid
-                    && forumMirrorFieldsAbsent());
+                    && forumMirrorFieldsAbsent())
+                    && forumCountersZeroOnCreate();
       allow update: if clientWritesOk() && (request.auth != null
                     && evidenceAuthorFrozen()
                     && (
@@ -1067,6 +1095,7 @@ service cloud.firestore {
                       (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
                        && (!(request.auth.uid in resource.data.get('voters', [])))
                        && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
+                       && request.resource.data.upvotes is int
                        && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
                        && request.auth.uid in request.resource.data.voters)
                       || forumAuthorMayUpdate(1000)
@@ -1651,6 +1680,7 @@ service cloud.firestore {
     match /articles/{articleId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && forumDocIdOk(articleId)
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.title is string
@@ -1659,7 +1689,9 @@ service cloud.firestore {
                     && request.resource.data.body is string
                     && request.resource.data.body.size() <= 50000
                     && request.resource.data.agreedToTerms == true
-                    && (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0));
+                    && (!('replyCount' in request.resource.data) || request.resource.data.replyCount == 0)
+                    && articleWordCountOk())
+                    && forumCountersZeroOnCreate();
       allow update: if clientWritesOk() && (request.auth != null
                     && evidenceAuthorFrozen()
                     && (
@@ -1671,8 +1703,10 @@ service cloud.firestore {
                         && request.resource.data.title is string
                         && request.resource.data.title.size() >= 10
                         && request.resource.data.title.size() <= 120
-                        && serverCountersUnchanged())
-                      // Upvotes/tips/saves: anyone authenticated
+                        && serverCountersUnchanged()
+                        && voteCountersUnchanged()
+                        && articleWordCountOk())
+                      // Upvotes/saves: anyone authenticated
                       // [SECURITY FIX] Each branch now freezes the fields it does NOT own.
                       // Previously the OR logic let any branch pass while the caller freely
                       // wrote the other fields: e.g. tip branch only checked tipTotal > current,
@@ -1682,6 +1716,7 @@ service cloud.firestore {
                           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
                           && !(request.auth.uid in resource.data.get('voters', []))
                           && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
+                          && request.resource.data.upvotes is int
                           && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
                           && request.auth.uid in request.resource.data.voters
                       )
@@ -1693,11 +1728,9 @@ service cloud.firestore {
                           && request.resource.data.savedBy.size() == resource.data.get('savedBy', []).size() + 1
                           && request.auth.uid in request.resource.data.savedBy
                       )
-                      || (
-                          // Tip: only tipTotal changes, must strictly increase
-                          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['tipTotal'])
-                          && request.resource.data.tipTotal > resource.data.get('tipTotal', 0)
-                      )
+                      // Tip totals are server/admin-owned. No client branch:
+                      // forum.js never writes articles.tipTotal after create, and
+                      // no Cloud Function writes it either. Admin SDK and isAdmin() still can.
                       // Admin
                       || isAdmin()
                     ));
@@ -1712,17 +1745,21 @@ service cloud.firestore {
     match /article_replies/{replyId} {
       allow read: if true;
       allow create: if clientWritesOk() && (request.auth != null
+                    && forumDocIdOk(replyId)
                     && !request.auth.token.firebase.sign_in_provider.matches('anonymous')
                     && request.resource.data.authorId == request.auth.uid
                     && request.resource.data.body is string
                     && request.resource.data.body.size() >= 2
-                    && request.resource.data.body.size() <= 2000);
+                    && request.resource.data.body.size() <= 2000)
+                    && forumCountersZeroOnCreate();
       allow update: if clientWritesOk() && (request.auth != null
                     && evidenceAuthorFrozen()
-                    && (resource.data.authorId == request.auth.uid
+                    && ((resource.data.authorId == request.auth.uid
+                         && voteCountersUnchanged())
                         || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'voters'])
                             && (!(request.auth.uid in resource.data.get('voters', [])))
                             && request.resource.data.upvotes == resource.data.get('upvotes', 0) + 1
+                            && request.resource.data.upvotes is int
                             && request.resource.data.voters.size() == resource.data.get('voters', []).size() + 1
                             && request.auth.uid in request.resource.data.voters)
                         || isAdmin()));
