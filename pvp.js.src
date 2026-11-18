@@ -12,12 +12,29 @@
     // PVP BADGE DEFINITIONS
     // =============================================
     const PVP_BADGE_DEFS = [
-        { id: 'pvp_1',   name: 'First Blood',      emoji: '⚔️', desc: 'Won your first PVP match',     threshold: 1,   pts: 25 },
-        { id: 'pvp_5',   name: 'Contender',         emoji: '🥊', desc: 'Won 5 PVP matches',            threshold: 5,   pts: 50 },
-        { id: 'pvp_25',  name: 'Gladiator',         emoji: '🏟️', desc: 'Won 25 PVP matches',           threshold: 25,  pts: 100 },
-        { id: 'pvp_50',  name: 'Champion',           emoji: '🏆', desc: 'Won 50 PVP matches',           threshold: 50,  pts: 200 },
-        { id: 'pvp_100', name: 'PVP Legend',         emoji: '👑', desc: 'Won 100 PVP matches',          threshold: 100, pts: 500 },
+        { id: 'pvp_first', name: 'First Blood', emoji: '⚔️', desc: 'Won your first PVP match', threshold: 1,   pts: 25 },
+        { id: 'pvp_5',     name: 'Contender',   emoji: '🥊', desc: 'Won 5 PVP matches',        threshold: 5,   pts: 50 },
+        { id: 'pvp_25',    name: 'Gladiator',   emoji: '🏟️', desc: 'Won 25 PVP matches',       threshold: 25,  pts: 100 },
+        { id: 'pvp_50',    name: 'Champion',    emoji: '🏆', desc: 'Won 50 PVP matches',       threshold: 50,  pts: 200 },
+        { id: 'pvp_100',   name: 'PVP Legend',  emoji: '👑', desc: 'Won 100 PVP matches',      threshold: 100, pts: 500 },
     ];
+
+    function serverPvpWins() {
+        if (typeof currentUser !== 'undefined' && currentUser && typeof currentUser.pvpWins === 'number') {
+            return currentUser.pvpWins || 0;
+        }
+        return 0;
+    }
+
+    function serverPvpPlayed() {
+        if (typeof currentUser !== 'undefined' && currentUser && typeof currentUser.pvpPlayed === 'number') {
+            return currentUser.pvpPlayed || 0;
+        }
+        var wins = serverPvpWins();
+        var losses = (typeof currentUser !== 'undefined' && currentUser && typeof currentUser.pvpLosses === 'number')
+            ? (currentUser.pvpLosses || 0) : 0;
+        return wins + losses;
+    }
 
     // Register PVP badges into global BADGE_DEFS if available
     if (typeof BADGE_DEFS !== 'undefined') {
@@ -30,10 +47,7 @@
                     emoji: b.emoji,
                     desc: b.desc,
                     pts: b.pts,
-                    check: function() {
-                        var wins = parseInt(localStorage.getItem('btc_pvp_wins') || '0');
-                        return wins >= b.threshold;
-                    }
+                    check: function() { return serverPvpWins() >= b.threshold; }
                 });
             }
         });
@@ -230,9 +244,28 @@
     var PRACTICE_DAILY_MAX = 10;
     var PRACTICE_PTS_PER_CORRECT = 10;
 
+    function nyDateKey(ms) {
+        try {
+            var parts = new Intl.DateTimeFormat('en-US', {
+                timeZone: 'America/New_York',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            }).formatToParts(new Date(ms || Date.now()));
+            var y = '', m = '', d = '';
+            for (var i = 0; i < parts.length; i++) {
+                if (parts[i].type === 'year') y = parts[i].value;
+                if (parts[i].type === 'month') m = parts[i].value;
+                if (parts[i].type === 'day') d = parts[i].value;
+            }
+            if (y && m && d) return y + '-' + m + '-' + d;
+        } catch (e) {}
+        var dt = new Date(ms || Date.now());
+        return dt.getUTCFullYear() + '-' + String(dt.getUTCMonth() + 1).padStart(2, '0') + '-' + String(dt.getUTCDate()).padStart(2, '0');
+    }
+
     function getPracticeDateKey() {
-        var d = new Date();
-        return 'btc_pvp_practice_' + d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+        return 'btc_pvp_practice_' + nyDateKey();
     }
 
     function getDailyPracticeCount() {
@@ -818,15 +851,19 @@
         overlay.id = 'pvpOverlay';
         overlay.style.cssText = 'position:fixed;inset:0;z-index:100002;background:var(--bg,#0a0a1a);display:flex;flex-direction:column;overflow-y:auto;';
 
-        var wins = parseInt(localStorage.getItem('btc_pvp_wins') || '0');
-        var losses = parseInt(localStorage.getItem('btc_pvp_losses') || '0');
+        var wins = (typeof currentUser !== 'undefined' && currentUser && currentUser.pvpWins != null)
+            ? (Number(currentUser.pvpWins) || 0)
+            : (parseInt(localStorage.getItem('btc_pvp_wins') || '0') || 0);
+        var losses = (typeof currentUser !== 'undefined' && currentUser && currentUser.pvpLosses != null)
+            ? (Number(currentUser.pvpLosses) || 0)
+            : (parseInt(localStorage.getItem('btc_pvp_losses') || '0') || 0);
         var td = buildTickerInfo();
 
         overlay.innerHTML =
             // ---- TOP BAR: Back, Logo, Ticker, Donate ----
             '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#030712;border-bottom:1px solid rgba(247,147,26,0.3);flex-shrink:0;">' +
                 // Left: Back button
-                '<button onclick="exitPVPMode()" style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;padding:4px 8px;display:flex;align-items:center;touch-action:manipulation;" title="Leave Lobby">←</button>' +
+                '<button type="button" onclick="exitPVPMode()" aria-label="Leave lobby" style="background:none;border:none;color:var(--text-muted);font-size:1.4rem;cursor:pointer;padding:4px 8px;display:flex;align-items:center;touch-action:manipulation;" title="Leave Lobby">←</button>' +
                 // Center: Logo + Ticker info
                 '<div style="display:flex;align-items:center;gap:12px;">' +
                     '<img src="images/btc-grad-logo.jpg" alt="Home" style="width:28px;height:28px;border-radius:50%;cursor:pointer;box-shadow:0 0 8px rgba(247,147,26,0.3);" onclick="exitPVPMode();goHome();">' +
@@ -848,7 +885,7 @@
                     '<div style="text-align:center;margin-bottom:20px;">' +
                         '<div style="font-size:2.2rem;margin-bottom:4px;">⚔️</div>' +
                         '<h1 style="color:var(--accent,#f7931a);font-size:1.4rem;margin:0 0 4px;">PVP MODE</h1>' +
-                        '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:14px;">Bitcoin Trivia Battles — 1v1</div>' +
+                        '<div style="color:var(--text-muted);font-size:0.75rem;margin-bottom:14px;">Bitcoin Trivia Battles, 1v1</div>' +
                         '<div style="display:flex;justify-content:center;gap:20px;">' +
                             '<div style="text-align:center;">' +
                                 '<div style="font-size:1.5rem;font-weight:800;color:#22c55e;">' + wins + '</div>' +
@@ -880,10 +917,10 @@
                         '<div style="font-size:1.3rem;margin-bottom:6px;">🔗⚔️</div>' +
                         '<div style="color:var(--heading);font-weight:700;font-size:0.9rem;margin-bottom:4px;">Send this link to a friend right now to battle them in PVP Bitcoin trivia!</div>' +
                         '<div style="display:flex;gap:6px;margin-top:10px;">' +
-                            '<div style="flex:1;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.7rem;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;" onclick="navigator.clipboard.writeText(\'https://bitcoineducation.quest/#pvp\');if(typeof showToast===\'function\')showToast(\'📋 Link copied!\')">https://bitcoineducation.quest/#pvp</div>' +
-                            '<button onclick="navigator.clipboard.writeText(\'https://bitcoineducation.quest/#pvp\');if(typeof showToast===\'function\')showToast(\'📋 Link copied! Send it to a friend!\')" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">📋 Copy</button>' +
+                            '<div style="flex:1;padding:8px 10px;background:var(--input-bg);border:1px solid var(--border);border-radius:8px;font-family:monospace;font-size:0.7rem;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;" id="pvpShareLink" onclick="pvpCopyShareLink()">' + pvpShareUrl() + '</div>' +
+                            '<button type="button" aria-label="Copy battle link" onclick="pvpCopyShareLink(true)" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;">📋 Copy</button>' +
                         '</div>' +
-                        (navigator.share ? '<button onclick="navigator.share({title:\'PVP Bitcoin Trivia Battle!\',text:\'Challenge me to a Bitcoin trivia battle right now! ⚔️\',url:\'https://bitcoineducation.quest/#pvp\'}).catch(function(){})" style="width:100%;margin-top:8px;padding:10px;background:none;border:1px solid var(--accent);border-radius:8px;color:var(--accent);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">📤 Share with a friend</button>' : '') +
+                        '<button type="button" data-mini-share="pvp" aria-label="Share battle link" onclick="if(window.miniAppShare)miniAppShare(\'pvp\')" style="width:100%;margin-top:8px;min-height:44px;padding:10px;background:none;border:1px solid var(--accent);border-radius:8px;color:var(--accent);font-size:0.8rem;font-weight:700;cursor:pointer;font-family:inherit;">Share</button>' +
                     '</div>' +
                     // Fun Fact card (rotates)
                     '<div style="background:var(--card-bg,#1a1a2e);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px;text-align:left;">' +
@@ -898,7 +935,7 @@
                         '<div style="font-size:0.65rem;color:var(--accent);font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">PVP Badges</div>' +
                         '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
                             PVP_BADGE_DEFS.map(function(b) {
-                                var earned = parseInt(localStorage.getItem('btc_pvp_wins') || '0') >= b.threshold;
+                                var earned = serverPvpWins() >= b.threshold;
                                 return '<div style="padding:5px 9px;border-radius:8px;font-size:0.7rem;border:1px solid ' + (earned ? 'var(--accent)' : 'var(--border)') + ';background:' + (earned ? 'rgba(247,147,26,0.15)' : 'transparent') + ';color:' + (earned ? 'var(--accent)' : 'var(--text-faint)') + ';font-weight:' + (earned ? '700' : '500') + ';">' +
                                     b.emoji + ' ' + b.name + ' (' + b.threshold + 'W)</div>';
                             }).join('') +
@@ -1105,27 +1142,10 @@
         if (!db || !uid || pvpState._creatingMatch) return;
         pvpState._creatingMatch = true;
 
-        // The server shuffles options and keeps the answer key. Skip questions
-        // the callable would reject for length.
-        var questions = pickRandomQuestions(12).map(formatQuestionForFirestore).filter(function(q) {
-            if (!q || !q.q || q.q.length > 300) return false;
-            if (!q.options || q.options.length < 2 || q.options.length > 6) return false;
-            for (var i = 0; i < q.options.length; i++) {
-                if (!q.options[i] || q.options[i].length > 200) return false;
-            }
-            return typeof q.correct === 'number';
-        }).slice(0, 5);
-        if (!questions.length) {
-            pvpState._creatingMatch = false;
-            if (typeof showToast === 'function') showToast('⚠️ No PvP questions available');
-            addToLobbyAndListen(uid);
-            return;
-        }
-
+        // The server picks questions and keeps the answer key.
         callPvp('pvpCreateMatch', {
             lobbyDocId: waitingDocId,
-            player2: { name: lobbyDisplayName(), profilePic: getMyProfilePic() },
-            questions: questions
+            player2: { name: lobbyDisplayName(), profilePic: getMyProfilePic() }
         }).then(function(res) {
             pvpState._creatingMatch = false;
             var matchId = res && res.data && res.data.matchId;
@@ -1507,7 +1527,7 @@
                 // Options
                 '<div id="pvpOptions" style="display:flex;flex-direction:column;gap:8px;">' +
                     q.options.map(function(opt, idx) {
-                        return '<button class="pvp-btn" onclick="pvpAnswer(' + qIdx + ',' + idx + ',this)" style="padding:14px 18px;background:var(--card-bg,#1a1a2e);border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;">' +
+                        return '<button type="button" class="pvp-btn" aria-label="Answer ' + String.fromCharCode(65 + idx) + '" onclick="pvpAnswer(' + qIdx + ',' + idx + ',this)" style="padding:14px 18px;background:var(--card-bg,#1a1a2e);border:2px solid var(--border);border-radius:12px;color:var(--text);font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;text-align:left;transition:all 0.2s;display:flex;align-items:center;gap:10px;">' +
                             '<span style="min-width:24px;height:24px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:800;color:var(--text-faint);">' + String.fromCharCode(65 + idx) + '</span>' +
                             escHtml(opt) +
                         '</button>';
@@ -1532,6 +1552,32 @@
                 pvpAnswer(qIdx, -1, null); // -1 means timed out
             }
         }, 15000);
+    }
+
+    function pvpScoreBar(myScore, oppScore, oppName) {
+        var mine = Math.max(0, Number(myScore) || 0);
+        var theirs = Math.max(0, Number(oppScore) || 0);
+        var total = mine + theirs;
+        var myPct = total === 0 ? 50 : Math.round((mine / total) * 100);
+        if (myPct < 0) myPct = 0;
+        if (myPct > 100) myPct = 100;
+        var oppPct = 100 - myPct;
+        return '<div style="margin:8px 0 12px;">' +
+            '<div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:6px;gap:12px;">' +
+                '<div style="text-align:left;min-width:0;">' +
+                    '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">You</div>' +
+                    '<div style="font-size:1.4rem;font-weight:800;color:#22c55e;line-height:1.1;">' + mine + '</div>' +
+                '</div>' +
+                '<div style="text-align:right;min-width:0;">' +
+                    '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:46vw;">' + escHtml(oppName || 'Opponent') + '</div>' +
+                    '<div style="font-size:1.4rem;font-weight:800;color:#6366f1;line-height:1.1;">' + theirs + '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div role="img" aria-label="Score ' + mine + ' to ' + theirs + '" style="display:flex;height:10px;border-radius:6px;overflow:hidden;background:var(--border);">' +
+                '<div style="width:' + myPct + '%;background:#22c55e;"></div>' +
+                '<div style="width:' + oppPct + '%;background:#6366f1;"></div>' +
+            '</div>' +
+        '</div>';
     }
 
     function buildRoundDots(matchData) {
@@ -1687,22 +1733,16 @@
         // Update streak
         if (iWon) { pvpState.streak++; } else { pvpState.streak = 0; }
 
+        var oppKey = pvpState.isPlayer1 ? 'player2' : 'player1';
+        var explain = (matchData.roundExplain && String(matchData.roundExplain).trim()) || '';
         overlay.innerHTML =
-            '<div style="width:92%;max-width:480px;text-align:center;padding:20px;animation:pvpSlideIn 0.4s ease;">' +
-                '<div style="font-size:3rem;margin-bottom:12px;">' + resultEmoji + '</div>' +
-                '<div style="color:' + resultColor + ';font-size:1.2rem;font-weight:800;margin-bottom:8px;">' + resultText + '</div>' +
-                (pvpState.streak > 1 ? '<div style="color:var(--accent);font-size:0.85rem;font-weight:700;margin-bottom:8px;">🔥 ' + pvpState.streak + ' streak! Bonus points!</div>' : '') +
-                // Score update
-                '<div style="display:flex;justify-content:center;gap:40px;margin:24px 0;">' +
-                    '<div style="text-align:center;">' +
-                        '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">You</div>' +
-                        '<div style="font-size:2rem;font-weight:900;color:#22c55e;">' + matchData[myKey].score + '</div>' +
-                    '</div>' +
-                    '<div style="text-align:center;">' +
-                        '<div style="font-size:0.65rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:1px;">' + escHtml(pvpState.opponentName) + '</div>' +
-                        '<div style="font-size:2rem;font-weight:900;color:#6366f1;">' + matchData[pvpState.isPlayer1 ? 'player2' : 'player1'].score + '</div>' +
-                    '</div>' +
-                '</div>' +
+            '<div style="width:92%;max-width:520px;text-align:center;padding:16px 16px 20px;animation:pvpSlideIn 0.4s ease;">' +
+                '<div style="font-size:3rem;margin-bottom:8px;" aria-hidden="true">' + resultEmoji + '</div>' +
+                '<div role="status" style="color:' + resultColor + ';font-size:1.2rem;font-weight:800;margin-bottom:8px;">' + resultText + '</div>' +
+                (pvpState.streak > 1 ? '<div style="color:var(--accent);font-size:0.85rem;font-weight:700;margin-bottom:8px;">' + pvpState.streak + ' streak! Bonus points!</div>' : '') +
+                pvpScoreBar(matchData[myKey].score, matchData[oppKey].score, pvpState.opponentName) +
+                '<div style="display:flex;gap:6px;justify-content:center;margin:4px 0 12px;">' + buildRoundDots(matchData) + '</div>' +
+                (explain ? '<div style="color:var(--text-muted);font-size:0.85rem;line-height:1.5;margin:0 0 14px;padding:12px;border:1px solid var(--border);border-radius:12px;text-align:left;">' + escHtml(explain) + '</div>' : '') +
                 '<div style="color:var(--text-faint);font-size:0.8rem;">Next question in <span id="pvpNextTimer">3</span>s...</div>' +
             '</div>';
 
@@ -1827,9 +1867,10 @@
             '<div style="width:92%;max-width:480px;text-align:center;padding:20px;animation:pvpSlideIn 0.5s ease;">' +
                 '<div style="font-size:4rem;margin-bottom:12px;">' + resultEmoji + '</div>' +
                 '<h1 style="color:' + resultColor + ';font-size:2.2rem;margin:0 0 4px;letter-spacing:3px;">' + resultText + '</h1>' +
-                '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:24px;">' + resultSubtext + '</div>' +
+                '<div style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;">' + resultSubtext + '</div>' +
+                pvpScoreBar(myData.score, oppData.score, pvpState.opponentName) +
                 // Player cards with result labels
-                '<div style="display:flex;justify-content:center;gap:24px;margin-bottom:24px;">' +
+                '<div style="display:flex;justify-content:center;gap:16px;margin-bottom:20px;flex-wrap:wrap;">' +
                     '<div style="text-align:center;padding:16px;background:' + (iWon ? 'rgba(34,197,94,0.1)' : 'var(--card-bg)') + ';border:2px solid ' + (iWon ? '#22c55e' : 'var(--border)') + ';border-radius:16px;flex:1;max-width:160px;">' +
                         '<div style="font-size:0.65rem;color:' + (iWon ? '#22c55e' : 'var(--text-faint)') + ';text-transform:uppercase;font-weight:800;letter-spacing:1px;margin-bottom:8px;">' + (iWon ? '🏆 WINNER' : (isDraw ? '🤝 DRAW' : 'LOST')) + '</div>' +
                         '<div style="font-size:2rem;font-weight:900;color:' + (iWon ? '#22c55e' : 'var(--text)') + ';">' + myData.score + '</div>' +
@@ -1849,9 +1890,9 @@
                 '</div>' +
                 '<div id="pvpRewardLine" style="color:var(--accent);font-weight:800;margin-bottom:16px;min-height:1.2em;"></div>' +
                 // Buttons
-                '<div style="display:flex;gap:12px;justify-content:center;">' +
-                    '<button onclick="exitPVPMode(true);enterPVPMode();" class="pvp-btn" style="padding:14px 28px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">Play Again ⚔️</button>' +
-                    '<button onclick="exitPVPMode(true)" class="pvp-btn" style="padding:14px 28px;background:none;border:2px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Leave</button>' +
+                '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">' +
+                    '<button type="button" class="pvp-btn" aria-label="Rematch, return to the lobby" onclick="exitPVPMode(true);enterPVPMode();" style="padding:14px 28px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:1px;">Rematch</button>' +
+                    '<button type="button" class="pvp-btn" aria-label="Leave battles" onclick="exitPVPMode(true)" style="padding:14px 28px;background:none;border:2px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Leave</button>' +
                 '</div>' +
             '</div>';
 
@@ -1881,11 +1922,11 @@
                 '<div style="color:var(--text-muted);font-size:0.95rem;margin-bottom:12px;line-height:1.6;">' + message + '</div>' +
                 '<div id="pvpRewardLine" style="color:var(--accent);font-weight:800;margin-bottom:20px;min-height:1.2em;"></div>' +
                 '<div style="display:flex;gap:12px;justify-content:center;">' +
-                    '<button onclick="exitPVPMode(true);enterPVPMode();" class="pvp-btn" style="padding:14px 28px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">Play Again ⚔️</button>' +
-                    '<button onclick="exitPVPMode(true)" class="pvp-btn" style="padding:14px 28px;background:none;border:2px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Leave</button>' +
+                    '<button type="button" class="pvp-btn" aria-label="Rematch, return to the lobby" onclick="exitPVPMode(true);enterPVPMode();" style="padding:14px 28px;background:linear-gradient(135deg,#f7931a,#e8720c);border:none;border-radius:12px;color:#fff;font-size:0.9rem;font-weight:800;cursor:pointer;font-family:inherit;">Rematch</button>' +
+                    '<button type="button" class="pvp-btn" aria-label="Leave battles" onclick="exitPVPMode(true)" style="padding:14px 28px;background:none;border:2px solid var(--border);border-radius:12px;color:var(--text-muted);font-size:0.9rem;font-weight:700;cursor:pointer;font-family:inherit;">Leave</button>' +
                 '</div>' +
             '</div>';
-        if (typeof showToast === 'function') showToast(iWin ? '🏆 You win — opponent forfeited!' : '🚪 Opponent left — match voided');
+        if (typeof showToast === 'function') showToast(iWin ? 'You win! Your opponent forfeited.' : 'Opponent left. Match voided.');
     }
 
     function buildFinalRoundDots(myAnswers, oppAnswers) {
@@ -1906,9 +1947,11 @@
     // =============================================
     // PVP BADGE CHECKING
     // =============================================
-    function checkPVPBadges(wins) {
+    function checkPVPBadges() {
+        var counted = serverPvpWins();
+        if (!counted) return;
         PVP_BADGE_DEFS.forEach(function(b) {
-            if (wins >= b.threshold) {
+            if (counted >= b.threshold) {
                 var earned = typeof earnedBadges !== 'undefined' ? earnedBadges : new Set();
                 if (!earned.has(b.id)) {
                     earned.add(b.id);

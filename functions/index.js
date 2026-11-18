@@ -3614,6 +3614,11 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
                     console.warn(`[awardPoints] flex day badge rejected: ${badgeId} flexFullDays=${userData.flexFullDays || 0} uid=${uid}`);
                     throw new Error('BADGE_CONDITION_NOT_MET:' + badgeId);
                 }
+                if (!awardActions.pvpBadgeAllowed(badgeId, userData)) {
+                    const need = awardActions.pvpBadgeNeed(badgeId);
+                    console.warn('[awardPoints] pvp badge rejected:', badgeId, need && need.field, userData[need.field], 'uid:', uid);
+                    throw new Error('BADGE_CONDITION_NOT_MET:' + badgeId);
+                }
             }
             if (matchedAction === 'flex_day_complete') {
                 const flexHave = flexProofDoc && flexProofDoc.exists ? (flexProofDoc.data().count || 0) : 0;
@@ -4791,7 +4796,11 @@ exports.pvpCreateMatch = functionsV1.runWith({ enforceAppCheck: true }).https.on
     if (!shuffled.length) {
         throw new functionsV1.https.HttpsError('unavailable', 'No PvP questions available');
     }
-    const answerKeys = shuffled.map((q, i) => ({ questionIndex: i, correct: q.correct }));
+    const answerKeys = shuffled.map((q, i) => {
+        const row = { questionIndex: i, correct: q.correct };
+        if (q.explain) row.explain = q.explain;
+        return row;
+    });
     const clientQuestions = shuffled.map(q => ({ q: q.q, options: q.options }));
 
     // Use a transaction to atomically claim the lobby doc and create the match.
@@ -5583,7 +5592,10 @@ exports.onPvpMatchFinished = onDocumentUpdated({
             const sides = [after.player1, after.player2];
             for (let si = 0; si < sides.length; si++) {
                 const sideUid = sides[si] && sides[si].uid;
-                if (sideUid) await grantFamily(db, admin, sideUid, familyFor('pvpWins'));
+                if (sideUid) {
+                    await grantFamily(db, admin, sideUid, familyFor('pvpWins'));
+                    await grantFamily(db, admin, sideUid, familyFor('pvpPlayed'));
+                }
             }
         } catch (badgeErr) { console.warn('[onPvpMatchFinished] badges', badgeErr && badgeErr.message); }
     }

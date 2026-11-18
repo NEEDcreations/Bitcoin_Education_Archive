@@ -786,11 +786,11 @@ const BADGE_DEFS = [
     { id: 'producer_10', name: 'Discographer', emoji: '💿', desc: 'Uploaded 10 songs to Bitcoin Beats', check: () => parseInt(localStorage.getItem('btc_beats_uploads') || '0') >= 10, pts: 100 },
 
     // ---- PVP Badges ----
-    { id: 'pvp_first', name: 'First Blood', emoji: '🩸', desc: 'Won your first PVP battle', check: () => parseInt(localStorage.getItem('btc_pvp_wins') || '0') >= 1, pts: 25 },
-    { id: 'pvp_5', name: 'Contender', emoji: '🥊', desc: 'Won 5 PVP battles', check: () => parseInt(localStorage.getItem('btc_pvp_wins') || '0') >= 5, pts: 50 },
-    { id: 'pvp_25', name: 'Gladiator', emoji: '🏟️', desc: 'Won 25 PVP battles', check: () => parseInt(localStorage.getItem('btc_pvp_wins') || '0') >= 25, pts: 100 },
-    { id: 'pvp_50', name: 'Champion', emoji: '🏆', desc: 'Won 50 PVP battles', check: () => parseInt(localStorage.getItem('btc_pvp_wins') || '0') >= 50, pts: 200 },
-    { id: 'pvp_100', name: 'PVP Legend', emoji: '🥇', desc: 'Won 100 PVP battles', check: () => parseInt(localStorage.getItem('btc_pvp_wins') || '0') >= 100, pts: 1000 },
+    { id: 'pvp_first', name: 'First Blood', emoji: '🩸', desc: 'Won your first PVP battle', check: () => !!(typeof currentUser !== 'undefined' && currentUser && (currentUser.pvpWins || 0) >= 1), pts: 25 },
+    { id: 'pvp_5', name: 'Contender', emoji: '🥊', desc: 'Won 5 PVP battles', check: () => !!(typeof currentUser !== 'undefined' && currentUser && (currentUser.pvpWins || 0) >= 5), pts: 50 },
+    { id: 'pvp_25', name: 'Gladiator', emoji: '🏟️', desc: 'Won 25 PVP battles', check: () => !!(typeof currentUser !== 'undefined' && currentUser && (currentUser.pvpWins || 0) >= 25), pts: 100 },
+    { id: 'pvp_50', name: 'Champion', emoji: '🏆', desc: 'Won 50 PVP battles', check: () => !!(typeof currentUser !== 'undefined' && currentUser && (currentUser.pvpWins || 0) >= 50), pts: 200 },
+    { id: 'pvp_100', name: 'PVP Legend', emoji: '🥇', desc: 'Won 100 PVP battles', check: () => !!(typeof currentUser !== 'undefined' && currentUser && (currentUser.pvpWins || 0) >= 100), pts: 1000 },
 
     // ---- Forum Badges ----
     { id: 'forum_5', name: 'Voice of the People', emoji: '📣', desc: 'Made 5 forum posts', check: () => parseInt(localStorage.getItem('btc_forum_post_count') || '0') >= 5, pts: 25 },
@@ -1085,9 +1085,9 @@ const BADGE_DEFS = [
     { id: 'trail_revisit',   name: 'Back for More',   emoji: '🔁', desc: 'Retook a trail you already passed',      check: () => parseInt(localStorage.getItem('btc_trail_retakes') || '0') >= 1, pts: 30 },
 
     // ---- PVP: played count + win streak ----
-    { id: 'pvp_played_1',     name: 'Challenger',     emoji: '🥋', desc: 'Played your first PVP battle',           check: () => (parseInt(localStorage.getItem('btc_pvp_wins') || '0') + parseInt(localStorage.getItem('btc_pvp_losses') || '0')) >= 1,  pts: 10 },
-    { id: 'pvp_played_10',    name: 'Battle Tested',   emoji: '🪖', desc: 'Played 10 PVP battles',                  check: () => (parseInt(localStorage.getItem('btc_pvp_wins') || '0') + parseInt(localStorage.getItem('btc_pvp_losses') || '0')) >= 10, pts: 25 },
-    { id: 'pvp_played_50',    name: 'Battle Hardened', emoji: '⚔️', desc: 'Played 50 PVP battles',                  check: () => (parseInt(localStorage.getItem('btc_pvp_wins') || '0') + parseInt(localStorage.getItem('btc_pvp_losses') || '0')) >= 50, pts: 75 },
+    { id: 'pvp_played_1',     name: 'Challenger',     emoji: '🥋', desc: 'Played your first PVP battle',           check: () => !!(typeof currentUser !== 'undefined' && currentUser && ((currentUser.pvpPlayed || ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0))) >= 1)),  pts: 10 },
+    { id: 'pvp_played_10',    name: 'Battle Tested',   emoji: '🪖', desc: 'Played 10 PVP battles',                  check: () => !!(typeof currentUser !== 'undefined' && currentUser && ((currentUser.pvpPlayed || ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0))) >= 10)), pts: 25 },
+    { id: 'pvp_played_50',    name: 'Battle Hardened', emoji: '⚔️', desc: 'Played 50 PVP battles',                  check: () => !!(typeof currentUser !== 'undefined' && currentUser && ((currentUser.pvpPlayed || ((currentUser.pvpWins || 0) + (currentUser.pvpLosses || 0))) >= 50)), pts: 75 },
     { id: 'pvp_win_streak_3', name: 'Hot Streak',      emoji: '🔥', desc: 'Won 3 PVP battles in a row',              check: () => parseInt(localStorage.getItem('btc_pvp_win_streak') || '0') >= 3, pts: 75 },
     { id: 'pvp_win_streak_5', name: 'Unstoppable',     emoji: '💥', desc: 'Won 5 PVP battles in a row',              check: () => parseInt(localStorage.getItem('btc_pvp_win_streak') || '0') >= 5, pts: 150 },
 

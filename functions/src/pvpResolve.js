@@ -7,6 +7,7 @@
 const { onDocumentWritten } = require('firebase-functions/v2/firestore');
 const admin = require('./firebaseAdmin.js');
 const pvpFlow = require('./pvpFlow');
+const pvpQuestions = require('./pvpQuestions');
 const db = admin.firestore();
 
 exports.pvpResolveRound = onDocumentWritten({
@@ -59,6 +60,30 @@ exports.pvpResolveRound = onDocumentWritten({
             update['player2.answers'] = p2Ans.slice(0, q);
             update.questionWinner = 'reroll';
             update.status = 'question_result';
+            update.roundExplain = '';
+            const used = ((d.questions || []).map(function (row) { return row && row.q; })).filter(Boolean);
+            const replacement = pvpQuestions.pickQuestions(1, { exclude: used })[0];
+            if (replacement) {
+                const questions = (d.questions || []).slice();
+                questions[q] = { q: replacement.q, options: replacement.options };
+                update.questions = questions;
+                const keys = ((keySnap.data().keys || []).slice());
+                let found = false;
+                for (let i = 0; i < keys.length; i++) {
+                    if (keys[i] && keys[i].questionIndex === q) {
+                        keys[i] = { questionIndex: q, correct: replacement.correct };
+                        if (replacement.explain) keys[i].explain = replacement.explain;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    const entry = { questionIndex: q, correct: replacement.correct };
+                    if (replacement.explain) entry.explain = replacement.explain;
+                    keys.push(entry);
+                }
+                tx.set(keyRef, { keys: keys }, { merge: true });
+            }
             tx.update(matchRef, update);
             return;
         }
@@ -88,6 +113,9 @@ exports.pvpResolveRound = onDocumentWritten({
         const p1Wins = pvpFlow.countWins(p1Ans);
         const p2Wins = pvpFlow.countWins(p2Ans);
         update.status = pvpFlow.matchShouldFinish(p1Wins, p2Wins) ? 'finished' : 'question_result';
+        update.roundExplain = (typeof keyEntry.explain === 'string' && keyEntry.explain.trim())
+            ? keyEntry.explain.trim().slice(0, 400)
+            : '';
         tx.update(matchRef, update);
     });
 });

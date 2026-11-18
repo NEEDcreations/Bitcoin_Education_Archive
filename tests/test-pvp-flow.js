@@ -250,5 +250,43 @@ test('a win ticket is once per win and daily-capped, and XP writes weekly fields
     assert.deepStrictEqual(flow.pushShardOrder(3).slice(0, 3), [3, 4, 5]);
 });
 
+
+const awardActions = require('../functions/src/awardActions');
+const { nyDateKey, offsetDateKey } = require('../functions/src/offsetDay');
+const fs = require('fs');
+const path = require('path');
+
+test('pvp win badges need server-counted wins', function () {
+    assert.deepStrictEqual(awardActions.pvpBadgeNeed('pvp_first'), { field: 'pvpWins', need: 1 });
+    assert.deepStrictEqual(awardActions.pvpBadgeNeed('pvp_25'), { field: 'pvpWins', need: 25 });
+    assert.deepStrictEqual(awardActions.pvpBadgeNeed('pvp_played_10'), { field: 'pvpPlayed', need: 10 });
+    assert.strictEqual(awardActions.pvpBadgeNeed('pvp_win_streak_3'), null);
+    assert.strictEqual(awardActions.pvpBadgeAllowed('pvp_first', { pvpWins: 0 }), false);
+    assert.strictEqual(awardActions.pvpBadgeAllowed('pvp_first', { pvpWins: 1 }), true);
+    assert.strictEqual(awardActions.pvpBadgeAllowed('pvp_5', { pvpWins: 4 }), false);
+    assert.strictEqual(awardActions.pvpBadgeAllowed('pvp_5', { pvpWins: 5 }), true);
+    assert.strictEqual(awardActions.pvpBadgeAllowed('pvp_played_1', { pvpPlayed: 0, pvpWins: 5 }), false);
+    assert.strictEqual(awardActions.pvpBadgeAllowed('explorer_10', { pvpWins: 0 }), true);
+});
+
+test('awardPoints checks pvp badge counters and grants played badges on finish', function () {
+    const src = fs.readFileSync(path.join(__dirname, '../functions/index.js'), 'utf8');
+    const awardStart = src.indexOf('exports.awardPoints');
+    const awardEnd = src.indexOf('exports.getFaucetStats');
+    const award = src.slice(awardStart, awardEnd > 0 ? awardEnd : awardStart + 200000);
+    assert.ok(award.includes('pvpBadgeAllowed'), 'awardPoints must check pvp badge counters');
+    const finish = src.slice(src.indexOf('exports.onPvpMatchFinished'), src.indexOf('exports.onUserDocCreated'));
+    assert.ok(finish.includes("familyFor('pvpPlayed')"), 'finished matches must grant played badges');
+});
+
+test('practice day key is midnight America/New_York, not 5 AM UTC', function () {
+    assert.strictEqual(nyDateKey(Date.parse('2026-03-08T04:30:00Z')), '2026-03-07');
+    assert.strictEqual(nyDateKey(Date.parse('2026-03-08T05:00:00Z')), '2026-03-08');
+    assert.strictEqual(nyDateKey(Date.parse('2026-03-08T06:30:00Z')), '2026-03-08');
+    // During Eastern Daylight Time, midnight ET and the 5 AM UTC reward day diverge.
+    assert.strictEqual(nyDateKey(Date.parse('2026-06-01T04:30:00Z')), '2026-06-01');
+    assert.strictEqual(offsetDateKey(Date.parse('2026-06-01T04:30:00Z')), '2026-05-31');
+});
+
 console.log(failed ? ('\n' + failed + ' failed') : ('\n' + passed + ' passed'));
 if (failed) process.exit(1);
