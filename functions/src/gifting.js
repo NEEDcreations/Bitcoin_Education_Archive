@@ -16,6 +16,7 @@ const { resolveLnurlInvoice } = require('./lnurlResolve');
 const { NWCClient } = require('@getalby/sdk');
 const { updatePeerLevelAfterGift } = require('./peerLevel');
 const faucetGuard = require('./faucetGuard');
+const payFailGuard = require('./payFailGuard');
 const { rollCipherReward, satsDisposition, ALLOWED_SATS_AMOUNTS } = require('./cipherReward');
 const {
     creditDocId,
@@ -1638,7 +1639,11 @@ async function payCipherBalanceInvoice(invoice) {
     }
     if (payResult && payResult.preimage) return { action: 'paid', payResult: payResult };
     if (!shouldLookupPay({ phase: phase, error: payError, payResult: payResult })) {
-        return { action: 'release', low: !!(payError && payError.message === 'WALLET_LOW') };
+        return {
+            action: 'release',
+            low: !!(payError && payError.message === 'WALLET_LOW'),
+            kind: faucetGuard.definiteFailureKind({ phase: phase, error: payError }),
+        };
     }
     let lookupReq = null;
     try { lookupReq = lookupRequestFromDecoded(bolt11.decode(invoice)); }
@@ -1653,7 +1658,7 @@ async function payCipherBalanceInvoice(invoice) {
         },
     });
     if (settlement.action === 'paid') return { action: 'paid' };
-    if (settlement.action === 'release') return { action: 'release', low: false };
+    if (settlement.action === 'release') return { action: 'release', low: false, kind: 'refused' };
     return { action: 'hold' };
 }
 
@@ -1796,6 +1801,10 @@ const claimCipherSats = functionsV1.runWith({
         if (saved && saved.indexOf('/') === -1 && saved.length <= 300) {
             addrSnap = await t.get(db.collection('lightning_addresses').doc(saved));
         }
+        let addrRateSnap = null;
+        if (saved && saved.indexOf('/') === -1 && saved.length <= 300) {
+            addrRateSnap = await t.get(db.collection('faucet_ln_ratelimit').doc(faucetGuard.addressRateDocId(saved)));
+        }
         const flight = lockSnap.exists ? (lockSnap.data() || {}) : null;
         const attempt = assessAttemptRate(rateSnap.exists ? (rateSnap.data() || {}) : null, nowMs);
         if (!attempt.ok) {
@@ -1837,6 +1846,16 @@ const claimCipherSats = functionsV1.runWith({
         const userPatch = cipherClaimUserPatch(plan);
         if (!plan.ok) {
             denial = plan.error || UNAVAILABLE;
+            return;
+        }
+        // A released failure makes this account and this address wait before the next try.
+        const failWait = payFailGuard.assessRetryWait(
+            ledgerSnap.exists ? (ledgerSnap.data() || {}).cipherFailGuard : null,
+            addrRateSnap && addrRateSnap.exists ? (addrRateSnap.data() || {}).cipherFailGuard : null,
+            nowMs
+        );
+        if (!failWait.ok) {
+            denial = failWait.error;
             return;
         }
         if (userPatch.cipherSatsBalanceDelta) {
@@ -1984,10 +2003,27 @@ const claimCipherSats = functionsV1.runWith({
         await invoiceRef.set({ status: 'unknown', ts: admin.firestore.FieldValue.serverTimestamp() }, { merge: true }).catch(function() {});
         return { success: false, error: 'The payment is not confirmed yet. This claim is on hold so it cannot be paid twice.' };
     }
-    await finishCipherClaim(reserved, 'restore');
-    await invoiceRef.delete().catch(function() {});
-    if (paid.low) return { success: false, error: 'The prize wallet is being refilled. Try again later.' };
-    return { success: false, error: 'Payment failed. Your cipher sats balance was restored.' };
+    // Definite failure: nothing was sent. The balance comes back; the day's limit
+    // comes back too unless the failure cap is reached.
+    let failed = { released: false, message: '', applied: false };
+    try {
+        failed = await require('./cipherSatsRelease').failCipherClaim({ db: db, admin: admin }, reserved, paid.kind || 'refused');
+    } catch (e) {
+        console.error('[claimCipherSats] CRITICAL: failed-claim restore did not commit claim=' + reserved.claimId);
+        return { success: false, code: 'payment_failed', error: faucetGuard.supportError('Payment failed. No sats were sent.') };
+    }
+    if (!failed.applied) {
+        console.error('[claimCipherSats] failed claim was already settled elsewhere claim=' + reserved.claimId);
+        return { success: false, code: 'payment_failed', error: faucetGuard.supportError('Payment failed. No sats were sent.') };
+    }
+    // Keep the record (status failed) so this invoice can never be paid later.
+    await invoiceRef.set({ status: 'failed', ts: admin.firestore.FieldValue.serverTimestamp() }, { merge: true }).catch(function() {});
+    return {
+        success: false,
+        code: 'payment_failed',
+        released: !!failed.released,
+        error: (failed.message || 'Payment failed. No sats were sent.') + ' Your cipher sats balance was restored.',
+    };
 });
 
 // Admin-only resolution of a held cipher-sats claim. Does not send a payment.

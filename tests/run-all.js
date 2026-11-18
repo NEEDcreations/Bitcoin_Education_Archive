@@ -78,6 +78,7 @@ const TESTS = [
     { name: 'Chat Telegram mirror', file: 'test-chat-telegram-mirror.js' },
     { name: 'Faucet Guard', file: 'test-faucet-guard.js' },
     { name: 'Failed claim cooldown', file: 'test-failed-claim-cooldown.js' },
+    { name: 'Cipher sats failed claim', file: 'test-cipher-sats-failed-claim.js' },
     { name: 'New-account claim requirements', file: 'test-claim-reqs.js' },
     { name: 'Claimable sats cap', file: 'test-claimable-sats.js' },
     { name: 'Quiz And Trivia Rewards', file: 'test-quest-reward.js' },
