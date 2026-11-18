@@ -8,6 +8,7 @@ FIREBASE_PROJECT_ID = "bitcoin-education-archive"
 
 # Secrets (set via `wrangler secret put`):
 # TG_BOT_TOKEN
+# TG_WEBHOOK_SECRET
 # FIREBASE_SA_EMAIL
 # FIREBASE_SA_KEY
 # BRIDGE_SECRET

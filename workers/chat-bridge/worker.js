@@ -4,6 +4,7 @@
  *
  * Secrets (via wrangler secret put):
  *   TG_BOT_TOKEN         — Telegram bot token
+ *   TG_WEBHOOK_SECRET     — Telegram webhook secret_token
  *   FIREBASE_SA_EMAIL     — service account email
  *   FIREBASE_SA_KEY       — PEM private key (with \n literals)
  *   BRIDGE_SECRET         — shared secret for app→telegram calls
@@ -14,7 +15,11 @@
  */
 
 import beatsCensorMod from '../../beats-censor.js';
+import telegramFileGuardMod from '../../functions/src/telegramFileGuard.js';
 var beatsCensor = (beatsCensorMod && beatsCensorMod.beatsCensor) || beatsCensorMod;
+var telegramFileGuard = (telegramFileGuardMod && telegramFileGuardMod.assertFirestoreSafe)
+  ? telegramFileGuardMod
+  : ((telegramFileGuardMod && telegramFileGuardMod.default) || telegramFileGuardMod);
 
 const TG_API = 'https://api.telegram.org/bot';
 const SCOPES = 'https://www.googleapis.com/auth/datastore https://www.googleapis.com/auth/devstorage.read_write';
@@ -53,33 +58,104 @@ async function getAccessToken(env) {
     _tokenExpiry = now + (data.expires_in || 3600) - 60;
     return _accessToken;
   }
-  console.error('OAuth failed:', JSON.stringify(data));
+  console.error('OAuth failed');
   return null;
 }
 
-// Upload image bytes to Firebase Storage and return a permanent public download URL
-async function uploadImageToStorage(env, imgBuf, mimeType, fileName) {
+// Upload bytes to Firebase Storage and return a download URL.
+// objectPath is chat-images/tg/<random>. The download token is a Storage
+// token, never a Telegram bot token.
+async function uploadImageToStorage(env, imgBuf, mimeType, objectPath, downloadToken) {
   var token = await getAccessToken(env);
   if (!token) return null;
-  var objectPath = encodeURIComponent('chat-images/tg/' + fileName);
-  var uploadUrl = 'https://storage.googleapis.com/upload/storage/v1/b/' + STORAGE_BUCKET + '/o?uploadType=media&name=' + encodeURIComponent('chat-images/tg/' + fileName);
-  var resp = await fetch(uploadUrl, {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Bearer ' + token,
-      'Content-Type': mimeType
-    },
-    body: imgBuf
-  });
-  if (!resp.ok) {
-    console.error('[Storage] Upload failed:', resp.status, await resp.text());
+  if (!objectPath || telegramFileGuard.containsTelegramBotMaterial(objectPath)) return null;
+  var uploadUrl = 'https://storage.googleapis.com/upload/storage/v1/b/' + STORAGE_BUCKET + '/o?uploadType=media&name=' + encodeURIComponent(objectPath);
+  var resp;
+  try {
+    resp = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': mimeType
+      },
+      body: imgBuf
+    });
+  } catch (e) {
+    console.error('[Storage] Upload failed');
     return null;
   }
-  var obj = await resp.json();
-  // Make object publicly readable via IAM uniform access or return token-based URL
-  // Firebase Storage download URL format:
-  var encodedName = encodeURIComponent('chat-images/tg/' + fileName);
-  return 'https://firebasestorage.googleapis.com/v0/b/' + STORAGE_BUCKET + '/o/' + encodedName + '?alt=media';
+  if (!resp.ok) {
+    console.error('[Storage] Upload failed', resp.status);
+    return null;
+  }
+  var tokenToUse = downloadToken || '';
+  if (tokenToUse) {
+    var metaUrl = 'https://storage.googleapis.com/storage/v1/b/' + STORAGE_BUCKET + '/o/' + encodeURIComponent(objectPath);
+    var metaResp;
+    try {
+      metaResp = await fetch(metaUrl, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ metadata: { firebaseStorageDownloadTokens: tokenToUse } })
+      });
+    } catch (e) {
+      metaResp = null;
+    }
+    if (!metaResp || !metaResp.ok) {
+      console.error('[Storage] download token metadata failed');
+      tokenToUse = '';
+    }
+  }
+  try {
+    return telegramFileGuard.storageDownloadUrl(STORAGE_BUCKET, objectPath, tokenToUse);
+  } catch (e) {
+    console.error('[Storage] refused download URL');
+    return null;
+  }
+}
+
+// Download a Telegram file with the bot token and store it in Firebase Storage.
+// The file URL exists only in this function. It is never logged or written.
+async function rehostTelegramPath(env, filePath) {
+  var botToken = env && env.TG_BOT_TOKEN ? String(env.TG_BOT_TOKEN) : '';
+  var rel = String(filePath || '').replace(/^\/+/, '');
+  if (!botToken || !rel || rel.indexOf('..') !== -1) return null;
+  var fileUrl = 'https://api.telegram.org/file/bot' + botToken + '/' + rel;
+  var resp;
+  try {
+    resp = await fetch(fileUrl);
+  } catch (e) {
+    console.warn('[Bridge] telegram file download failed');
+    return null;
+  }
+  if (!resp || !resp.ok) {
+    console.warn('[Bridge] telegram file download status', resp && resp.status);
+    return null;
+  }
+  var buf;
+  try { buf = await resp.arrayBuffer(); }
+  catch (e) {
+    console.warn('[Bridge] telegram file body failed');
+    return null;
+  }
+  if (!buf || !buf.byteLength || buf.byteLength > 20 * 1024 * 1024) {
+    console.warn('[Bridge] telegram file rejected');
+    return null;
+  }
+  var ext = telegramFileGuard.extensionOf(rel);
+  var mime = telegramFileGuard.mimeForExtension(ext);
+  var bytes = new Uint8Array(16);
+  var tokenBytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  crypto.getRandomValues(tokenBytes);
+  var objectPath;
+  try { objectPath = telegramFileGuard.objectPathFromBytes(bytes, ext); }
+  catch (e) { return null; }
+  var downloadToken = telegramFileGuard.hexOf(tokenBytes);
+  return uploadImageToStorage(env, buf, mime, objectPath, downloadToken);
 }
 
 async function signJWT(header, payload, pemKey) {
@@ -132,6 +208,12 @@ function b64url(input) {
 
 // ---- Firestore Admin Write ----
 async function writeToFirestore(env, doc) {
+  try {
+    telegramFileGuard.assertFirestoreSafe(doc);
+  } catch (e) {
+    console.error('[Bridge] refused Firestore write');
+    return false;
+  }
   var token = await getAccessToken(env);
   if (!token) { console.error('No access token'); return false; }
 
@@ -148,8 +230,7 @@ async function writeToFirestore(env, doc) {
   });
 
   if (!resp.ok) {
-    var err = await resp.text();
-    console.error('Firestore write failed (' + resp.status + '):', err);
+    console.error('Firestore write failed', resp.status);
     return false;
   }
   return true;
@@ -167,6 +248,12 @@ async function readFirestoreDoc(env, path) {
 }
 
 async function updateFirestoreDoc(env, path, fields) {
+  try {
+    telegramFileGuard.assertFirestoreSafe(fields);
+  } catch (e) {
+    console.error('[Bridge] refused Firestore update');
+    return false;
+  }
   var token = await getAccessToken(env);
   if (!token) return false;
   var projectId = env.FIREBASE_PROJECT_ID || 'bitcoin-education-archive';
@@ -319,8 +406,8 @@ export default {
       }
       return new Response('Not found', { status: 404 });
     } catch (e) {
-      console.error('Worker error:', e);
-      return corsResponse({ error: e.message }, 500);
+      console.error('Worker error');
+      return corsResponse({ error: 'internal' }, 500);
     }
   }
 };
@@ -377,56 +464,37 @@ async function handleTelegramWebhook(request, env) {
 
   var senderUsername = (msg.from && msg.from.username) ? msg.from.username : '';
 
-  // Content
-  var text = msg.text || msg.caption || '';
+  // Content. Telegram file URLs are downloaded here and rehosted. The bot
+  // token never lands in the Firestore document.
+  var text = telegramFileGuard.redactSecrets(msg.text || msg.caption || '');
   var imageUrl = null;
   var gifUrl = null;
+  var mediaDropped = false;
 
   if (msg.photo && msg.photo.length > 0) {
-    // Use the largest available photo for best quality
     var photo = msg.photo[msg.photo.length - 1];
     var fileInfo = await tgApi(env.TG_BOT_TOKEN, 'getFile', { file_id: photo.file_id });
-    if (fileInfo.ok) {
-      var tmpUrl = 'https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fileInfo.result.file_path;
-      // Upload to Firebase Storage for a permanent, public URL (no expiry, no token leak)
-      try {
-        var imgResp = await fetch(tmpUrl);
-        if (imgResp.ok) {
-          var imgBuf = await imgResp.arrayBuffer();
-          var ext = (fileInfo.result.file_path || '').split('.').pop().toLowerCase() || 'jpg';
-          var mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
-          var fileName = Date.now() + '_' + photo.file_id.slice(-8) + '.' + ext;
-          var storageUrl = await uploadImageToStorage(env, imgBuf, mime, fileName);
-          if (storageUrl) {
-            imageUrl = storageUrl;
-          } else {
-            // Storage upload failed — skip image rather than leaking bot token in URL
-            console.warn('[Bridge] Storage upload failed, image dropped for this message');
-          }
-        }
-      } catch(e) {
-        console.error('[Bridge] Image fetch/upload error:', e.message);
+    if (fileInfo && fileInfo.ok && fileInfo.result && fileInfo.result.file_path) {
+      imageUrl = await rehostTelegramPath(env, fileInfo.result.file_path);
+      if (!imageUrl) {
+        mediaDropped = true;
+        console.warn('[Bridge] photo not rehosted');
       }
+    } else if (fileInfo && fileInfo.ok) {
+      mediaDropped = true;
     }
   }
 
   if (msg.animation) {
     var fileInfo2 = await tgApi(env.TG_BOT_TOKEN, 'getFile', { file_id: msg.animation.file_id });
-    if (fileInfo2.ok) {
-      // Upload GIF to Storage too
-      try {
-        var gifResp = await fetch('https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fileInfo2.result.file_path);
-        if (gifResp.ok) {
-          var gifBuf = await gifResp.arrayBuffer();
-          var gifExt = (fileInfo2.result.file_path || '').split('.').pop().toLowerCase() || 'mp4';
-          var gifMime = gifExt === 'gif' ? 'image/gif' : 'video/mp4';
-          var gifFileName = Date.now() + '_anim_' + msg.animation.file_id.slice(-8) + '.' + gifExt;
-          var gifStorageUrl = await uploadImageToStorage(env, gifBuf, gifMime, gifFileName);
-          if (gifStorageUrl) gifUrl = gifStorageUrl;
-        }
-      } catch(e) {
-        console.error('[Bridge] GIF upload error:', e.message);
+    if (fileInfo2 && fileInfo2.ok && fileInfo2.result && fileInfo2.result.file_path) {
+      gifUrl = await rehostTelegramPath(env, fileInfo2.result.file_path);
+      if (!gifUrl) {
+        mediaDropped = true;
+        console.warn('[Bridge] animation not rehosted');
       }
+    } else if (fileInfo2 && fileInfo2.ok) {
+      mediaDropped = true;
     }
   }
 
@@ -435,23 +503,14 @@ async function handleTelegramWebhook(request, env) {
       text = '(sticker: ' + (msg.sticker.emoji || '🎭') + ')';
     } else {
       var fi = await tgApi(env.TG_BOT_TOKEN, 'getFile', { file_id: msg.sticker.file_id });
-      // [SECURITY FIX] Download sticker server-side → upload to Storage.
-      // Previously stored api.telegram.org/file/bot<TOKEN>/... in Firestore,
-      // exposing the bot token to every global-chat reader.
-      if (fi.ok) {
-        try {
-          var stickerResp = await fetch('https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fi.result.file_path);
-          if (stickerResp.ok) {
-            var stickerBuf = await stickerResp.arrayBuffer();
-            var stickerExt = (fi.result.file_path || '').split('.').pop().toLowerCase() || 'webp';
-            var stickerMime = stickerExt === 'png' ? 'image/png' : 'image/webp';
-            var stickerName = Date.now() + '_sticker_' + msg.sticker.file_id.slice(-8) + '.' + stickerExt;
-            var stickerStorageUrl = await uploadImageToStorage(env, stickerBuf, stickerMime, stickerName);
-            if (stickerStorageUrl) imageUrl = stickerStorageUrl;
-          }
-        } catch(e) {
-          console.error('[Bridge] Sticker upload error:', e.message);
+      if (fi && fi.ok && fi.result && fi.result.file_path) {
+        imageUrl = await rehostTelegramPath(env, fi.result.file_path);
+        if (!imageUrl) {
+          mediaDropped = true;
+          console.warn('[Bridge] sticker not rehosted');
         }
+      } else if (fi && fi.ok) {
+        mediaDropped = true;
       }
       if (!text) text = msg.sticker.emoji || '';
     }
@@ -465,8 +524,8 @@ async function handleTelegramWebhook(request, env) {
   var firestoreDoc = {
     fields: {
       text: { stringValue: text || '' },
-      name: { stringValue: senderName },
-      userTag: { stringValue: senderUsername ? '@' + senderUsername : '' },
+      name: { stringValue: telegramFileGuard.redactSecrets(senderName) },
+      userTag: { stringValue: telegramFileGuard.redactSecrets(senderUsername ? '@' + senderUsername : '') },
       uid: { stringValue: 'tg_' + (msg.from ? msg.from.id : 'anon') },
       ts: { timestampValue: new Date(msg.date * 1000).toISOString() },
       source: { stringValue: 'telegram' },
@@ -477,6 +536,7 @@ async function handleTelegramWebhook(request, env) {
 
   if (imageUrl) firestoreDoc.fields.imageUrl = { stringValue: imageUrl };
   if (gifUrl) firestoreDoc.fields.gifUrl = { stringValue: gifUrl };
+  if (mediaDropped) firestoreDoc.fields.mediaRemoved = { booleanValue: true };
 
   if (msg.reply_to_message) {
     var replyName = msg.reply_to_message.from ? (msg.reply_to_message.from.first_name || 'User') : 'User';
@@ -499,8 +559,8 @@ async function handleTelegramWebhook(request, env) {
     }
     // If replying to another Telegram user's message (not bridged), use as-is
 
-    firestoreDoc.fields.replyToName = { stringValue: replyName };
-    firestoreDoc.fields.replyToText = { stringValue: replyText.substring(0, 100) };
+    firestoreDoc.fields.replyToName = { stringValue: telegramFileGuard.redactSecrets(replyName) };
+    firestoreDoc.fields.replyToText = { stringValue: telegramFileGuard.redactSecrets(replyText.substring(0, 100)) };
   }
 
   await writeToFirestore(env, firestoreDoc);
@@ -514,28 +574,21 @@ async function handleBroadcastPost(post, env) {
 
   if (!post.text && !post.caption && !post.photo && !post.animation) return new Response('OK');
 
-  var text = post.text || post.caption || '';
+  var text = telegramFileGuard.redactSecrets(post.text || post.caption || '');
   var imageUrl = null;
+  var mediaDropped = false;
 
   if (post.photo && post.photo.length > 0) {
     var photo = post.photo[post.photo.length - 1];
     var fileInfo = await tgApi(env.TG_BOT_TOKEN, 'getFile', { file_id: photo.file_id });
-    // [SECURITY FIX] Download broadcast photo server-side → upload to Storage.
-    // Previously stored api.telegram.org/file/bot<TOKEN>/... in Firestore,
-    // exposing the bot token to every global-chat reader.
-    if (fileInfo.ok) {
-      try {
-        var bcResp = await fetch('https://api.telegram.org/file/bot' + env.TG_BOT_TOKEN + '/' + fileInfo.result.file_path);
-        if (bcResp.ok) {
-          var bcBuf = await bcResp.arrayBuffer();
-          var bcExt = (fileInfo.result.file_path || '').split('.').pop().toLowerCase() || 'jpg';
-          var bcName = Date.now() + '_bc_' + photo.file_id.slice(-8) + '.' + bcExt;
-          var bcStorageUrl = await uploadImageToStorage(env, bcBuf, 'image/jpeg', bcName);
-          if (bcStorageUrl) imageUrl = bcStorageUrl;
-        }
-      } catch(e) {
-        console.error('[Bridge] Broadcast photo upload error:', e.message);
+    if (fileInfo && fileInfo.ok && fileInfo.result && fileInfo.result.file_path) {
+      imageUrl = await rehostTelegramPath(env, fileInfo.result.file_path);
+      if (!imageUrl) {
+        mediaDropped = true;
+        console.warn('[Bridge] broadcast photo not rehosted');
       }
+    } else if (fileInfo && fileInfo.ok) {
+      mediaDropped = true;
     }
   }
 
@@ -554,6 +607,7 @@ async function handleBroadcastPost(post, env) {
   };
 
   if (imageUrl) firestoreDoc.fields.imageUrl = { stringValue: imageUrl };
+  if (mediaDropped) firestoreDoc.fields.mediaRemoved = { booleanValue: true };
 
   await writeToFirestore(env, firestoreDoc);
   return new Response('OK');
@@ -573,16 +627,21 @@ async function handleFirestoreWebhook(request, env) {
   }
 
   var username = data.user || 'Anonymous';
-  var text = data.text || '';
+  var text = telegramFileGuard.redactSecrets(data.text || '');
   var imageUrl = data.imageUrl || null;
   var imageBase64 = data.imageBase64 || null;
   var gifUrl = data.gifUrl || null;
+  if (telegramFileGuard.containsTelegramBotMaterial(imageUrl)) imageUrl = null;
+  if (telegramFileGuard.containsTelegramBotMaterial(gifUrl)) gifUrl = null;
+  if (telegramFileGuard.containsTelegramBotMaterial(imageBase64)) imageBase64 = null;
 
   var tgText = '[🌐 ' + username + ']\n' + text;
   var caption = '[🌐 ' + username + ']' + (text ? '\n' + text : '');
 
   if (data.replyToName) {
-    tgText = '[🌐 ' + username + ']\n↩️ ' + data.replyToName + ': ' + (data.replyToText || '').substring(0, 60) + '\n\n' + text;
+    var replyName = telegramFileGuard.redactSecrets(data.replyToName);
+    var replyText = telegramFileGuard.redactSecrets((data.replyToText || '').substring(0, 60));
+    tgText = '[🌐 ' + username + ']\n↩️ ' + replyName + ': ' + replyText + '\n\n' + text;
   }
 
   var result;
@@ -610,7 +669,15 @@ async function handleFirestoreWebhook(request, env) {
     });
   }
 
-  return corsResponse({ ok: true, result: result });
+  return corsResponse(redactClientBody({ ok: true, result: result }));
+}
+
+function redactClientBody(body) {
+  try {
+    return JSON.parse(telegramFileGuard.redactSecrets(JSON.stringify(body)));
+  } catch (e) {
+    return { ok: false, error: 'internal' };
+  }
 }
 
 // ---- Helpers ----
@@ -637,21 +704,31 @@ async function tgSendPhotoBase64(token, chatId, dataUrl, caption) {
   combined.set(binary, headerBytes.length);
   combined.set(footerBytes, headerBytes.length + binary.length);
 
-  var resp = await fetch(TG_API + token + '/sendPhoto', {
-    method: 'POST',
-    headers: { 'Content-Type': 'multipart/form-data; boundary=' + boundary },
-    body: combined
-  });
-  return resp.json();
+  try {
+    var resp = await fetch(TG_API + token + '/sendPhoto', {
+      method: 'POST',
+      headers: { 'Content-Type': 'multipart/form-data; boundary=' + boundary },
+      body: combined
+    });
+    return await resp.json();
+  } catch (e) {
+    console.warn('[Bridge] sendPhoto failed');
+    return { ok: false };
+  }
 }
 
 async function tgApi(token, method, params) {
-  var resp = await fetch(TG_API + token + '/' + method, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(params)
-  });
-  return resp.json();
+  try {
+    var resp = await fetch(TG_API + token + '/' + method, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params || {})
+    });
+    return await resp.json();
+  } catch (e) {
+    console.warn('[Bridge] telegram api failed', method);
+    return { ok: false };
+  }
 }
 
 function corsHeaders() {
