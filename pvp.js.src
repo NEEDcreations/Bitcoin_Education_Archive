@@ -851,12 +851,10 @@
         overlay.id = 'pvpOverlay';
         overlay.style.cssText = 'position:fixed;inset:0;z-index:100002;background:var(--bg,#0a0a1a);display:flex;flex-direction:column;overflow-y:auto;';
 
-        var wins = (typeof currentUser !== 'undefined' && currentUser && currentUser.pvpWins != null)
-            ? (Number(currentUser.pvpWins) || 0)
-            : (parseInt(localStorage.getItem('btc_pvp_wins') || '0') || 0);
+        var wins = serverPvpWins();
         var losses = (typeof currentUser !== 'undefined' && currentUser && currentUser.pvpLosses != null)
             ? (Number(currentUser.pvpLosses) || 0)
-            : (parseInt(localStorage.getItem('btc_pvp_losses') || '0') || 0);
+            : 0;
         var td = buildTickerInfo();
 
         overlay.innerHTML =
@@ -1191,7 +1189,7 @@
                 lvlEmoji = lvl.emoji || '🌱';
                 lvlName = lvl.name || 'Newbie';
             }
-            var w = parseInt(localStorage.getItem('btc_pvp_wins') || '0');
+            var w = serverPvpWins();
             if (w >= 100) pvpBadge = '👑';
             else if (w >= 50) pvpBadge = '🏆';
             else if (w >= 25) pvpBadge = '🏟️';
@@ -1810,13 +1808,11 @@
                     var d = doc.data() || {};
                     var wins = d.pvpWins || 0;
                     var losses = d.pvpLosses || 0;
-                    localStorage.setItem('btc_pvp_wins', String(wins));
-                    localStorage.setItem('btc_pvp_losses', String(losses));
                     if (typeof currentUser !== 'undefined' && currentUser && currentUser.uid === uid) {
                         currentUser.pvpWins = wins;
                         currentUser.pvpLosses = losses;
                     }
-                    checkPVPBadges(wins);
+                    checkPVPBadges();
                 }).catch(function(){});
             }
         }

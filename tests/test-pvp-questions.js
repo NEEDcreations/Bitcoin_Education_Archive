@@ -110,5 +110,78 @@ test('explanation stays on the server pick, never required', () => {
     assert.ok(!('correct' in { q: picked[0].q, options: picked[0].options }));
 });
 
+
+test('the live quiz bank keeps option counts, drops removed rows, and flags time-sensitive ones', () => {
+    const pool = pq.loadPool();
+    assert.ok(pool.length >= 1000, 'expected the full quiz bank, got ' + pool.length);
+    const texts = pool.map((r) => r.q);
+    const answers = pool.map((r) => r.a);
+    function noneMatch(re, label) {
+        const hits = pool.filter((r) => re.test(r.q + ' ' + r.a));
+        assert.strictEqual(hits.length, 0, label + ': ' + hits.map((r) => r.q).join(' | '));
+    }
+    noneMatch(/address poisoning/i, 'address poisoning should be gone');
+    noneMatch(/Bitaxe solo-mined/i, 'unsourced Bitaxe solo block should be gone');
+    noneMatch(/more hardware than currently exists/i, '51% hardware claim should be gone');
+    const hashprice = pool.filter((r) => /hashprice/i.test(r.q));
+    assert.strictEqual(hashprice.length, 1);
+    assert.strictEqual(hashprice[0].topic, 'mining_economics');
+    const subsidy = pool.filter((r) => /3\.125 BTC per block/.test(r.a));
+    assert.strictEqual(subsidy.length, 1);
+    assert.strictEqual(subsidy[0].timeSensitive, true);
+    const zh = pool.filter((r) => /Zettahash per second/i.test(r.a) || /1 ZH\/s/i.test(r.a + ' ' + r.q));
+    assert.strictEqual(zh.length, 1);
+    assert.strictEqual(zh[0].timeSensitive, true);
+    const gold = pool.find((r) => /gold's market cap/.test(r.q));
+    assert.ok(gold);
+    assert.strictEqual(gold.a, 'Over $1 million a coin');
+    assert.strictEqual(gold.timeSensitive, true);
+    const energy = pool.find((r) => r.q === 'Bitcoin mining primarily uses which type of energy?');
+    assert.strictEqual(energy.a, 'A large and growing share');
+    const hash = pool.find((r) => r.q.indexOf('approximate network hashrate in the 2024') !== -1);
+    assert.strictEqual(hash.a, 'Over 700 EH/s');
+    const fx = pool.find((r) => r.q === 'The first Bitcoin exchange rate was established at approximately:');
+    assert.deepStrictEqual(fx.wrong, ['$1.00', '$0.10', '$100']);
+    const bowl = pool.find((r) => /Super Bowl of Bitcoin/.test(r.q));
+    assert.strictEqual(bowl.a, 'The Bitcoin Conference');
+    const fees = pool.filter((r) => r.q === 'Bitcoin transaction fees are determined by:' || r.q === 'What determines Bitcoin transaction fees?');
+    assert.strictEqual(fees.length, 2);
+    fees.forEach((r) => {
+        assert.ok(/virtual bytes \(vbytes\)/.test(r.a));
+        assert.ok(!/\bin bytes\b/.test(r.a));
+    });
+    const flaggedLegal = pool.filter((r) => /legal tender/i.test(r.q + ' ' + r.a) && /El Salvador/i.test(r.q + ' ' + r.a));
+    assert.ok(flaggedLegal.length >= 3);
+    flaggedLegal.forEach((r) => assert.strictEqual(r.timeSensitive, true, r.q));
+    pool.forEach((r) => {
+        assert.ok(Array.isArray(r.wrong) && r.wrong.length === 3, r.q);
+    });
+    const flaggedQs = pool.filter((r) => r.timeSensitive).map((r) => r.q);
+    assert.ok(flaggedQs.length >= 7);
+    for (let i = 0; i < 20; i++) {
+        const picked = pq.pickQuestions(5, { pool: pool });
+        assert.strictEqual(picked.length, 5);
+        const set = new Set(picked.map((r) => r.q));
+        assert.strictEqual(set.size, 5);
+        picked.forEach((r) => {
+            assert.strictEqual(r.options.length, 4);
+            assert.ok(typeof r.correct === 'number' && r.correct >= 0 && r.correct < 4);
+            assert.ok(flaggedQs.indexOf(r.q) === -1, 'flagged row leaked into a pick: ' + r.q);
+        });
+    }
+});
+
+test('pvp lobby displays server pvpWins, not a localStorage counter', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const src = fs.readFileSync(path.join(__dirname, '..', 'pvp.js.src'), 'utf8');
+    const out = fs.readFileSync(path.join(__dirname, '..', 'pvp.js'), 'utf8');
+    assert.ok(!src.includes('btc_pvp_wins'));
+    assert.ok(!src.includes('btc_pvp_losses'));
+    assert.ok(!out.includes('btc_pvp_wins'));
+    assert.ok(!out.includes('btc_pvp_losses'));
+    assert.ok(src.includes('var wins = serverPvpWins();'));
+});
+
 console.log(passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);
