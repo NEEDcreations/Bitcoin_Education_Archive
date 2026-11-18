@@ -35,6 +35,25 @@ function isAnon(context) {
         && context.auth.token.firebase.sign_in_provider === 'anonymous');
 }
 
+// Guest XP cutoff (Phil, Nov 18 2026). Set to the hotfix deploy time.
+// Guest sessions created before it keep today's behavior: moved XP is
+// claimable. Guests created at or after it move XP as unclaimable, because
+// earning on a guest session is closed from the deploy on.
+const GUEST_XP_CUTOFF_MS = Date.parse('2026-11-18T23:00:00-05:00');
+
+// What a guest link adds to the signed-in account, beyond points and tickets.
+// Moved XP never enters weeklyXP or monthlyXP, so it is not new leaderboard
+// activity. guestMovedXp and guestMovedTickets record the amounts so a later
+// policy can treat them separately.
+function guestMovePatch(points, tickets, guestCreatedMs, cutoffMs) {
+    const xp = Math.max(0, Math.floor(Number(points) || 0));
+    const t = Math.max(0, Math.floor(Number(tickets) || 0));
+    const cutoff = cutoffMs == null ? GUEST_XP_CUTOFF_MS : cutoffMs;
+    // Unknown guest age fails closed (unclaimable).
+    const beforeCutoff = typeof guestCreatedMs === 'number' && Number.isFinite(guestCreatedMs) && guestCreatedMs < cutoff;
+    return { unclaimableXp: beforeCutoff ? 0 : xp, guestMovedXp: xp, guestMovedTickets: t };
+}
+
 function quizDocId(id) {
     return QUIZ_DOC.test(String(id || ''));
 }
@@ -146,6 +165,8 @@ function registerOnboarding(deps) {
     const db = deps.db;
     const admin = deps.admin;
     const functionsV1 = deps.functionsV1;
+    // Tests pass a cutoff. Production uses GUEST_XP_CUTOFF_MS.
+    const guestXpCutoffMs = typeof deps.guestXpCutoffMs === 'number' ? deps.guestXpCutoffMs : GUEST_XP_CUTOFF_MS;
     const onCall = function () {
         return functionsV1.runWith({ enforceAppCheck: true }).https.onCall;
     };
@@ -407,6 +428,9 @@ function registerOnboarding(deps) {
                 now: nowMs,
             });
             const movedPoints = movedGrant.awarded;
+            // Moved guest progress stays on the account but is not claimable
+            // and is not new leaderboard activity. See guestMovePatch.
+            const movePatch = guestMovePatch(movedPoints, again.tickets, createdAt, guestXpCutoffMs);
             let movedName = '';
             if (nameRef) {
                 const reserved = nameSnap && nameSnap.exists ? reservationView(nameSnap.data()) : null;
@@ -417,8 +441,11 @@ function registerOnboarding(deps) {
             if (!freshDest.exists) {
                 const created = Object.assign({
                     points: movedPoints,
-                    weeklyXP: movedPoints,
-                    monthlyXP: movedPoints,
+                    weeklyXP: 0,
+                    monthlyXP: 0,
+                    unclaimableXp: movePatch.unclaimableXp,
+                    guestMovedXp: movePatch.guestMovedXp,
+                    guestMovedTickets: movePatch.guestMovedTickets,
                     orangeTickets: again.tickets,
                     channelsVisited: again.channelsVisited,
                     totalVisits: 1,
@@ -435,10 +462,13 @@ function registerOnboarding(deps) {
                 if (!joinDate.hasJoin(dest, nowMs) && destJoinStamp) update.created = destJoinStamp;
                 if (movedPoints > 0) {
                     update.points = admin.firestore.FieldValue.increment(movedPoints);
-                    update.weeklyXP = admin.firestore.FieldValue.increment(movedPoints);
-                    update.monthlyXP = admin.firestore.FieldValue.increment(movedPoints);
+                    if (movePatch.unclaimableXp > 0) update.unclaimableXp = admin.firestore.FieldValue.increment(movePatch.unclaimableXp);
+                    update.guestMovedXp = admin.firestore.FieldValue.increment(movePatch.guestMovedXp);
                 }
-                if (again.tickets > 0) update.orangeTickets = admin.firestore.FieldValue.increment(again.tickets);
+                if (again.tickets > 0) {
+                    update.orangeTickets = admin.firestore.FieldValue.increment(again.tickets);
+                    update.guestMovedTickets = admin.firestore.FieldValue.increment(movePatch.guestMovedTickets);
+                }
                 const channels = Math.max(dest.channelsVisited || 0, again.channelsVisited || 0);
                 if (channels > (dest.channelsVisited || 0)) update.channelsVisited = channels;
                 if (movedName) {
@@ -674,5 +704,7 @@ module.exports = {
     registerOnboarding: registerOnboarding,
     gatherEvidence: gatherEvidence,
     quizDocId: quizDocId,
+    guestMovePatch: guestMovePatch,
+    GUEST_XP_CUTOFF_MS: GUEST_XP_CUTOFF_MS,
     offsetDateKey: offsetDateKey,
 };

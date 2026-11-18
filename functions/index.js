@@ -3034,11 +3034,15 @@ exports.managePeer = functionsV1.https.onCall(async (data, context) => {
 // All point awards go through this Cloud Function instead of direct Firestore writes
 // Enforces daily cap server-side, eliminates localStorage bypass and console inflation
 const beatsPlays = require('./src/beatsPlays');
+const guestGate = require('./src/guestGate');
 
 exports.recordBeatsPlay = functionsV1.https.onCall(async (data, context) => {
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    if (await guestGate.isGuestCaller(admin, context)) {
+        return { counted: false, reason: 'guest' };
     }
     const result = await beatsPlays.recordPlay(db, admin, context.auth.uid, data && data.trackId, Date.now());
     if (result && result.counted && result.plays) {
@@ -3063,6 +3067,11 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     await secondFactor.requireSecondFactor(secondFactor.stamp(data, context));
     if (!context.auth) {
         throw new functionsV1.https.HttpsError('unauthenticated', 'Must be signed in');
+    }
+    // Guests earn nothing here. Points earned on an anonymous session could
+    // later move to a signed-in account and be claimed.
+    if (await guestGate.isGuestCaller(admin, context)) {
+        return { success: false, guest: true, error: guestGate.GUEST_EARN_ERROR, awarded: 0, tickets: 0 };
     }
     const uid = context.auth.uid;
     const actionKey = (data.actionKey || '').substring(0, 50);
@@ -3403,6 +3412,11 @@ exports.awardPoints = functionsV1.https.onCall(async (data, context) => {
     // client that still calls this phrase does not throw.
     if (resolved.id === 'daily_spin') {
         return { success: true, awarded: 0, tickets: 0 };
+    }
+    // Guest progress moves only through linkGuestAccount, which marks it
+    // unclaimable. This legacy action grants nothing and writes nothing.
+    if (resolved.id === 'anon_merge') {
+        return { success: true, awarded: 0, tickets: 0, merged: false };
     }
 
 
