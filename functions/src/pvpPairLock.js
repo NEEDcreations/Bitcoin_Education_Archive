@@ -5,7 +5,14 @@
 // inside its transaction and refuses a second match while the pair's latest
 // match is still live. Lock docs live in pvp_pair_locks (server-only) and hold
 // only the latest matchId and its create time; the doc id is a hash of the pair.
+// expireAt (create time + 7 days) is the Firestore TTL field for this
+// collection. A lock only matters for 30 minutes (PVP_PAIR_LOCK_MS); TTL needs
+// a Timestamp, so createdAtMs alone cannot drive it. The TTL policy itself is
+// a console/gcloud change, not code.
+const { Timestamp } = require('firebase-admin/firestore');
 const pvpFlow = require('./pvpFlow');
+
+const PAIR_LOCK_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Transaction reads only. Call before any transaction write.
 async function readPairLock(tx, db, uidA, uidB, nowMs) {
@@ -22,8 +29,17 @@ async function readPairLock(tx, db, uidA, uidB, nowMs) {
     return { ref: ref, liveMatchId: liveMatchId };
 }
 
-function writePairLock(tx, ref, matchId, nowMs) {
-    tx.set(ref, { matchId: matchId, createdAtMs: nowMs });
+function pairLockExpireAt(nowMs) {
+    return Timestamp.fromMillis(nowMs + PAIR_LOCK_RETENTION_MS);
 }
 
-module.exports = { readPairLock: readPairLock, writePairLock: writePairLock };
+function writePairLock(tx, ref, matchId, nowMs) {
+    tx.set(ref, { matchId: matchId, createdAtMs: nowMs, expireAt: pairLockExpireAt(nowMs) });
+}
+
+module.exports = {
+    PAIR_LOCK_RETENTION_MS: PAIR_LOCK_RETENTION_MS,
+    pairLockExpireAt: pairLockExpireAt,
+    readPairLock: readPairLock,
+    writePairLock: writePairLock,
+};

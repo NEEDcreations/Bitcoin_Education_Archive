@@ -1453,14 +1453,14 @@ service cloud.firestore {
                     && docId == request.auth.uid);
     }
 
-    // One summary of who is waiting. Clients listen to this doc only.
-    // onPvpLobbyLive maintains it. Clients cannot write it.
     // One lock per player pair, pointing at the pair's latest match
     // (pvpCreateMatch, M5). Server-only.
     match /pvp_pair_locks/{docId} {
       allow read, write: if false;
     }
 
+    // One summary of who is waiting. Clients listen to this doc only.
+    // onPvpLobbyLive maintains it. Clients cannot write it.
     match /pvp_lobby_live/{docId} {
       allow read: if request.auth != null;
       allow write: if false;
@@ -1529,10 +1529,6 @@ service cloud.firestore {
                             && request.resource.data.currentQ == resource.data.currentQ + 1))
                     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['roundExplain'])
                         || request.resource.data.roundExplain == '')
-                    // C8: starting the next round from the result screen must
-                    // clear the previous round's explanation.
-                    && (!(resource.data.status == 'question_result' && request.resource.data.status == 'active')
-                        || request.resource.data.get('roundExplain', '') == '')
                     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['questionWinner'])
                         || request.resource.data.questionWinner == null)
                     && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['questionStartedAt'])

@@ -227,10 +227,13 @@ async function main() {
             roundExplain: '',
         }));
     });
-    // C8: starting the next round must clear the previous round's explanation.
+    // C8 after Red Team F1: the server clears roundExplain on its own advances
+    // and the client hides it, but rules do not require the field on a client
+    // advance. Live pvp.js (91118e09c) advances without sending roundExplain;
+    // refusing that would stall every old client's rounds.
     await seedMatch(env, 'explain-next-keep', 'question_result', { currentQ: 0, questionWinner: 'player1', roundExplain: 'old' });
-    await check('C8: client cannot start the next question and leave roundExplain set', function () {
-        return assertFails(updateDoc(doc(alice, 'pvp_matches', 'explain-next-keep'), {
+    await check('C8/F1: old-client advance (roundExplain not sent, left unchanged) is allowed', function () {
+        return assertSucceeds(updateDoc(doc(alice, 'pvp_matches', 'explain-next-keep'), {
             status: 'active',
             currentQ: 1,
             questionWinner: null,
@@ -247,9 +250,19 @@ async function main() {
             roundExplain: '',
         }));
     });
+    await seedMatch(env, 'explain-next-set', 'question_result', { currentQ: 0, questionWinner: 'player1', roundExplain: 'old' });
+    await check('C8/F1: client still cannot set a non-empty roundExplain on an advance', function () {
+        return assertFails(updateDoc(doc(alice, 'pvp_matches', 'explain-next-set'), {
+            status: 'active',
+            currentQ: 1,
+            questionWinner: null,
+            questionStartedAt: serverTimestamp(),
+            roundExplain: 'planted',
+        }));
+    });
     await seedMatch(env, 'explain-reroll-keep', 'question_result', { currentQ: 1, questionWinner: 'reroll', roundExplain: 'old' });
-    await check('C8: client cannot start the replacement question and leave roundExplain set', function () {
-        return assertFails(updateDoc(doc(alice, 'pvp_matches', 'explain-reroll-keep'), {
+    await check('C8/F1: old-client replacement-question start (roundExplain not sent) is allowed', function () {
+        return assertSucceeds(updateDoc(doc(alice, 'pvp_matches', 'explain-reroll-keep'), {
             status: 'active',
             currentQ: 1,
             questionWinner: null,

@@ -194,11 +194,31 @@ test('rules: pvp_pair_locks is server-only', function () {
     assert.ok(/match \/pvp_pair_locks\/\{docId\} \{\s*allow read, write: if false;\s*\}/.test(rules));
 });
 
+test('M5 retention: the lock carries expireAt = create time + 7 days as a Firestore Timestamp', async function () {
+    const { Timestamp } = require(require.resolve('firebase-admin/firestore', { paths: [path.join(root, 'functions')] }));
+    assert.strictEqual(pvpPairLock.PAIR_LOCK_RETENTION_MS, 7 * 24 * 60 * 60 * 1000);
+    const db = memoryDb();
+    waitingLobby(db, 'alice');
+    const r = await create(db, 'alice', 'bob', T0);
+    assert.strictEqual(r.code, 'ok');
+    const lock = db.docs['pvp_pair_locks/' + pvpFlow.pvpPairLockId('alice', 'bob')];
+    assert.deepStrictEqual(Object.keys(lock).sort(), ['createdAtMs', 'expireAt', 'matchId']);
+    assert.strictEqual(lock.createdAtMs, T0);
+    assert.ok(lock.expireAt instanceof Timestamp, 'expireAt is a Firestore Timestamp (TTL cannot use a number)');
+    assert.strictEqual(lock.expireAt.toMillis(), T0 + 7 * 24 * 60 * 60 * 1000);
+    // A re-lock after the match ends moves expireAt forward with the new match.
+    db.docs['pvp_matches/' + r.matchId].status = 'finished';
+    waitingLobby(db, 'bob');
+    assert.strictEqual((await create(db, 'bob', 'alice', T0 + 60000)).code, 'ok');
+    assert.strictEqual(db.docs['pvp_pair_locks/' + pvpFlow.pvpPairLockId('alice', 'bob')].expireAt.toMillis(), T0 + 60000 + 7 * 24 * 60 * 60 * 1000);
+});
+
 // ---- C8 ----
-test('C8: rules require roundExplain cleared when a round starts from the result screen', function () {
+test('C8 / Red Team F1: rules do NOT require roundExplain on an advance (old live clients omit it), and still refuse a non-empty value', function () {
     const rules = read('firestore.rules');
-    assert.ok(rules.indexOf("(!(resource.data.status == 'question_result' && request.resource.data.status == 'active')") !== -1);
-    assert.ok(rules.indexOf("|| request.resource.data.get('roundExplain', '') == '')") !== -1);
+    assert.strictEqual(rules.indexOf("request.resource.data.get('roundExplain', '') == ''"), -1, 'C8 advance clause removed (F1)');
+    assert.ok(/&& \(!request\.resource\.data\.diff\(resource\.data\)\.affectedKeys\(\)\.hasAny\(\['roundExplain'\]\)\s*\|\| request\.resource\.data\.roundExplain == ''\)/.test(rules),
+        'client may only write roundExplain as empty');
 });
 
 test('C8: housekeeping advances (next question and reroll) clear roundExplain', function () {
