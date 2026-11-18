@@ -482,28 +482,54 @@ test('K15: rate bucket key: IPv4 exact, mapped IPv4 as IPv4, IPv6 by /64 in any 
     assert.strictEqual(k('2001:db8:::1'), '2001:db8:::1');
 });
 
-test('K15: network rate doc ids share one bucket per IPv6 /64 and keep IPv4 ids unchanged', function() {
+test('K17: PvP anon prefixes group IPv6 by /64; other callers hash the raw pre-K15 key; IPv4 is unchanged', function() {
     const salt = require('../functions/src/rateLimitSalt');
     const crypto = require('crypto');
     const secret = 'k'.repeat(32);
     const day = Date.UTC(2026, 10, 18);
-    const id = function(ip) { return salt.networkRateDocIdFromSecret('pvp_anon_net_', ip, day, secret); };
-    // IPv4 id is byte-for-byte what the old String(ip) code produced.
-    const legacy = 'pvp_anon_net_' + crypto.createHmac('sha256', secret).update('pvp_anon_net_|203.0.113.9|2026-11-18').digest('hex').slice(0, 40);
-    assert.strictEqual(id('203.0.113.9'), legacy);
-    assert.strictEqual(id('::ffff:203.0.113.9'), legacy);
-    // One IPv6 /64 cannot mint fresh buckets by rotating the interface id.
-    const seen = new Set();
-    for (let i = 1; i <= 50; i++) seen.add(id('2001:db8:aa:bb::' + i.toString(16)));
-    seen.add(id('2001:0db8:00aa:00bb:dead:beef:0:1'));
-    assert.strictEqual(seen.size, 1);
-    assert.notStrictEqual(id('2001:db8:aa:bc::1'), id('2001:db8:aa:bb::1'));
-    // Deletion ids follow the same rule.
-    assert.strictEqual(salt.deletionIpDocId('2001:db8:aa:bb::1', day, secret), salt.deletionIpDocId('2001:db8:aa:bb::ffff', day, secret));
-    const legacyDel = 'deleteip_' + crypto.createHmac('sha256', secret).update('203.0.113.9|2026-11-18').digest('hex').slice(0, 40);
+    function hmac(msg) {
+        return crypto.createHmac('sha256', secret).update(msg).digest('hex').slice(0, 40);
+    }
+    const pvpPrefixes = ['pvp_anon_net_', 'pvp_anon_ans_min_', 'pvp_anon_ans_hour_'];
+    pvpPrefixes.forEach(function(prefix) {
+        const id = function(ip) { return salt.networkRateDocIdFromSecret(prefix, ip, day, secret); };
+        // IPv4 id is byte-for-byte what the old String(ip) code produced.
+        const legacy = prefix + hmac(prefix + '|203.0.113.9|2026-11-18');
+        assert.strictEqual(id('203.0.113.9'), legacy, prefix + ' ipv4');
+        assert.strictEqual(id('::ffff:203.0.113.9'), legacy, prefix + ' mapped ipv4');
+        // One IPv6 /64 cannot mint fresh buckets by rotating the interface id.
+        const seen = new Set();
+        for (let i = 1; i <= 50; i++) seen.add(id('2001:db8:aa:bb::' + i.toString(16)));
+        seen.add(id('2001:0db8:00aa:00bb:dead:beef:0:1'));
+        assert.strictEqual(seen.size, 1, prefix + ' same /64');
+        assert.notStrictEqual(id('2001:db8:aa:bc::1'), id('2001:db8:aa:bb::1'), prefix + ' different /64');
+    });
+
+    // Non-PvP IPv6 keys are byte-identical to the pre-K15 String(ip) hash.
+    const v6a = '2001:db8:aa:bb::1';
+    const v6b = '2001:db8:aa:bb::ffff';
+    const nonPvp = ['nostr_', 'lnauth_', 'lnverify_', 'username_ip_', 'recoverip_', 'recover_'];
+    nonPvp.forEach(function(prefix) {
+        const expectedA = prefix + hmac(prefix + '|' + v6a + '|2026-11-18');
+        const expectedB = prefix + hmac(prefix + '|' + v6b + '|2026-11-18');
+        assert.strictEqual(salt.networkRateDocIdFromSecret(prefix, v6a, day, secret), expectedA, prefix + ' raw v6');
+        assert.strictEqual(salt.networkRateDocIdFromSecret(prefix, v6b, day, secret), expectedB, prefix + ' raw v6 b');
+        assert.notStrictEqual(expectedA, expectedB, prefix + ' distinct raw IPv6');
+        assert.strictEqual(
+            salt.networkRateDocIdFromSecret(prefix, '203.0.113.9', day, secret),
+            prefix + hmac(prefix + '|203.0.113.9|2026-11-18'),
+            prefix + ' ipv4'
+        );
+    });
+
+    // deletionIpDocId is not a PvP bucket: raw IP, pre-K15 hash.
+    const legacyDel = 'deleteip_' + hmac('203.0.113.9|2026-11-18');
     assert.strictEqual(salt.deletionIpDocId('203.0.113.9', day, secret), legacyDel);
+    assert.strictEqual(salt.deletionIpDocId(v6a, day, secret), 'deleteip_' + hmac(v6a + '|2026-11-18'));
+    assert.notStrictEqual(salt.deletionIpDocId(v6a, day, secret), salt.deletionIpDocId(v6b, day, secret));
+
     // A non-IP key (recover_ by email) hashes exactly as before.
-    const legacyEmail = 'recover_' + crypto.createHmac('sha256', secret).update('recover_|a@example.com|2026-11-18').digest('hex').slice(0, 40);
+    const legacyEmail = 'recover_' + hmac('recover_|a@example.com|2026-11-18');
     assert.strictEqual(salt.networkRateDocIdFromSecret('recover_', 'a@example.com', day, secret), legacyEmail);
 });
 
